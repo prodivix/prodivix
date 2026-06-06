@@ -140,6 +140,7 @@ function BlueprintEditor() {
           />
           <BlueprintAssistantPanel
             currentPath={addressBar.currentPath}
+            isInspectorCollapsed={inspector.isCollapsed}
             selectedId={canvas.selectedId}
           />
         </div>

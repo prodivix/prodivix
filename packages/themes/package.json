@@ -1,14 +1,33 @@
 {
   "name": "@prodivix/themes",
   "version": "0.0.1",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./schema": "./src/schema/themeManifest.schema.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": "./dist/schema/themeManifest.schema.json",
     "./manifests/official/monochrome-light.json": "./manifests/official/monochrome-light.json",
     "./manifests/official/monochrome-dark.json": "./manifests/official/monochrome-dark.json",
     "./manifests/official/monochrome-light-high-contrast.json": "./manifests/official/monochrome-light-high-contrast.json",
     "./manifests/official/monochrome-dark-high-contrast.json": "./manifests/official/monochrome-dark-high-contrast.json"
+  },
+  "files": [
+    "dist",
+    "manifests"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "pnpm run clean && vite build && tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\""
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^7.3.0"
   }
 }

@@ -1,11 +1,48 @@
 import { useTranslation } from 'react-i18next';
-import { Github, Languages, Moon, Sun } from 'lucide-react';
+import { ArrowRight, Github, Languages, Moon, Sun } from 'lucide-react';
 import { PdxAvatar, PdxButtonLink, PdxLink, PdxNav } from '@prodivix/ui';
-import { IconProdivix } from '@/components/icons/IconProdivix';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 
-const docsSiteUrl = 'https://prodivix-tutorials.github.io/prodivix/';
+const docsSiteUrl = 'https://mdr-tutorials.github.io/prodivix/';
+
+const heroPoints = ['visual', 'code', 'deploy'] as const;
+const explanationItems = ['state', 'authoring', 'output'] as const;
+const workflowSteps = ['shape', 'connect', 'refine', 'ship'] as const;
+const capabilityCards = ['interface', 'logic', 'output'] as const;
+const developerNotes = ['inspectable', 'portable', 'extensible'] as const;
+const audienceItems = ['builder', 'team', 'developer'] as const;
+const footerGroups = [
+  'product',
+  'resources',
+  'community',
+  'developers',
+] as const;
+const footerLinks = {
+  product: [
+    { key: 'editor', to: '/editor' },
+    { key: 'community', to: '/community' },
+    { key: 'account', to: '/auth' },
+  ],
+  resources: [
+    { key: 'docs', to: `${docsSiteUrl}guide/introduction` },
+    { key: 'tutorials', to: `${docsSiteUrl}guide/getting-started` },
+    { key: 'projectStructure', to: `${docsSiteUrl}guide/project-structure` },
+  ],
+  community: [
+    { key: 'github', to: 'https://github.com/Prodivix/prodivix' },
+    { key: 'contributing', to: `${docsSiteUrl}community/contributing` },
+    { key: 'changelog', to: `${docsSiteUrl}community/changelog` },
+  ],
+  developers: [
+    { key: 'pir', to: `${docsSiteUrl}reference/pir-spec` },
+    {
+      key: 'diagnostics',
+      to: `${docsSiteUrl}reference/diagnostic-codes`,
+    },
+    { key: 'components', to: `${docsSiteUrl}api/components` },
+  ],
+} as const;
 
 function Home() {
   const { t, i18n } = useTranslation('home');
@@ -25,15 +62,12 @@ function Home() {
     const nextTheme = themeMode === 'dark' ? 'light' : 'dark';
     setGlobalValue('theme', nextTheme); // ThemeSync will handle DOM update
   };
-  const heroTextStyle = {
-    fontSize: 'var(--font-size-hero)',
-    fontWeight: 'var(--font-weight-medium)',
-  };
-  const heroHighlightStyle = {
-    fontWeight: 'var(--font-weight-extrabold)',
-  };
-  const secondaryHeadingClassName =
-    'mt-[15px] text-(length:--font-size-2xl) font-normal text-(--home-subtitle)';
+  const brandLinkClassName =
+    'inline-flex items-center no-underline transition-opacity duration-200 hover:opacity-70';
+  const brandWordmarkClassName =
+    'h-[30px] w-[170px] bg-(--home-logo) [mask:url("/prodivix-wordmark.svg")_center/contain_no-repeat] sm:h-[34px] sm:w-[210px]';
+  const footerWordmarkClassName =
+    'h-[28px] w-[166px] bg-(--home-logo) [mask:url("/prodivix-wordmark.svg")_center/contain_no-repeat]';
   const navIconClassName =
     'inline-flex h-[36px] w-[36px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-(--home-nav-icon) no-underline transition-colors duration-200 ease-[ease] hover:bg-(--home-nav-icon-hover-bg) hover:text-(--home-nav-icon-hover-text)';
   const profileLinkClassName =
@@ -50,15 +84,21 @@ function Home() {
     undefined;
 
   return (
-    <div className="mx-auto flex min-h-screen w-[calc(100vw-80px)] flex-col items-center justify-start">
+    <div className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col items-center justify-start bg-(--bg-canvas) px-4 text-(--text-primary) sm:px-6 lg:px-10">
       <PdxNav>
         <PdxNav.Left>
-          <IconProdivix size={30} className="text-(--home-logo)" />
-          <PdxNav.Heading heading={t('brand.name')} />
+          <PdxLink
+            to="/"
+            className={brandLinkClassName}
+            title={t('brand.name')}
+          >
+            <span className={brandWordmarkClassName} aria-hidden="true" />
+            <span className="sr-only">{t('brand.name')}</span>
+          </PdxLink>
         </PdxNav.Left>
         <PdxNav.Right>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-8 pr-4">
+            <div className="hidden items-center gap-8 pr-4 md:flex">
               <PdxLink to="/community">{t('nav.community')}</PdxLink>
               <PdxLink to={`${docsSiteUrl}guide/getting-started`}>
                 {t('nav.tutorials')}
@@ -91,9 +131,15 @@ function Home() {
               className={navIconClassName}
               onClick={toggleTheme}
               aria-label={
-                themeMode === 'dark' ? '切换到浅色主题' : '切换到深色主题'
+                themeMode === 'dark'
+                  ? t('nav.themeSwitchLight')
+                  : t('nav.themeSwitchDark')
               }
-              title={themeMode === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+              title={
+                themeMode === 'dark'
+                  ? t('nav.themeSwitchLight')
+                  : t('nav.themeSwitchDark')
+              }
             >
               {themeMode === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -112,57 +158,286 @@ function Home() {
           </div>
         </PdxNav.Right>
       </PdxNav>
-      <div className="w-[85vw] flex-1">
-        <div className="mt-25 flex flex-col text-(--home-hero-text)">
-          <h1 style={heroTextStyle}>
-            <span
-              className="text-(--home-hero-highlight) underline decoration-wavy decoration-4 underline-offset-[7px]"
-              style={heroHighlightStyle}
-            >
-              {t('hero.line1.highlight')}
-            </span>
-          </h1>
-          <h1 style={heroTextStyle}>
-            {t('hero.line2.before')}{' '}
-            <span
-              className="text-(--home-hero-highlight) underline decoration-wavy decoration-4 underline-offset-[7px]"
-              style={heroHighlightStyle}
-            >
-              {t('hero.line2.highlight')}
-            </span>
-          </h1>
-          <h1 style={heroTextStyle}>
-            {t('hero.line3.before')}{' '}
-            <span
-              className="text-(--home-hero-highlight) underline decoration-wavy decoration-4 underline-offset-[7px]"
-              style={heroHighlightStyle}
-            >
-              {t('hero.line3.highlight')}
-            </span>
-          </h1>
-        </div>
-        <h2 className={secondaryHeadingClassName}>{t('hero.subtitle')}</h2>
-        <div className="mt-20 flex flex-row gap-6">
-          <PdxButtonLink
-            text={t('actions.enterEditor')}
-            size="Big"
-            category="Primary"
-            to="/editor"
-          />
-          <PdxButtonLink
-            text={t('actions.viewDocs')}
-            size="Big"
-            category="Secondary"
-            to={docsSiteUrl}
-          />
-        </div>
-      </div>
 
-      <footer className="mt-auto w-full px-2 pt-14 pb-5">
-        <div className="flex items-center justify-center px-6 py-4 text-(length:--font-size-sm) text-(--home-footer-text) sm:px-7">
-          <div className="flex items-center gap-2">
-            <IconProdivix size={16} className="text-(--home-footer-text)" />
-            <span>{t('footer.copy')}</span>
+      <main className="flex w-full flex-1 flex-col items-center px-2">
+        <section className="flex min-h-[calc(100vh-128px)] w-full max-w-[960px] flex-col items-center justify-center py-14 text-center md:py-18">
+          <div className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+            {t('hero.eyebrow')}
+          </div>
+          <h1 className="mt-6 max-w-[780px] text-[44px] leading-[1.04] font-semibold text-(--home-hero-text) sm:text-[60px] lg:text-[76px]">
+            {t('hero.title')}
+          </h1>
+          <p className="mt-6 max-w-[680px] text-(length:--font-size-xl) leading-[1.6] text-(--home-subtitle)">
+            {t('hero.subtitle')}
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+            <PdxButtonLink
+              text={t('actions.enterEditor')}
+              size="Big"
+              category="Primary"
+              to="/editor"
+              icon={<ArrowRight size={18} />}
+            />
+            <PdxButtonLink
+              text={t('actions.viewDocs')}
+              size="Big"
+              category="Secondary"
+              to={docsSiteUrl}
+            />
+          </div>
+          <div className="mt-12 grid w-full max-w-[720px] gap-px overflow-hidden rounded-lg border border-(--border-subtle) bg-(--border-subtle) sm:grid-cols-3">
+            {heroPoints.map((key) => (
+              <div
+                key={key}
+                className="bg-(--bg-panel) px-4 py-3 text-(length:--font-size-sm) font-medium text-(--text-secondary)"
+              >
+                {t(`hero.points.${key}`)}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="grid w-full max-w-[1120px] gap-10 border-t border-(--border-subtle) py-20 md:grid-cols-[0.72fr_1fr] md:py-24">
+          <div>
+            <p className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+              {t('why.eyebrow')}
+            </p>
+            <h2 className="mt-4 max-w-[520px] text-[32px] leading-[1.12] font-semibold text-(--text-primary) sm:text-[42px]">
+              {t('why.title')}
+            </h2>
+          </div>
+          <div className="grid gap-5 text-(length:--font-size-lg) leading-[1.75] text-(--text-secondary)">
+            <p>{t('why.body.p1')}</p>
+            <p>{t('why.body.p2')}</p>
+          </div>
+        </section>
+
+        <section className="w-full max-w-[1120px] border-t border-(--border-subtle) py-20 md:py-24">
+          <div className="grid gap-10 md:grid-cols-[0.8fr_1fr]">
+            <div>
+              <p className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+                {t('explanation.eyebrow')}
+              </p>
+              <h2 className="mt-4 max-w-[560px] text-[32px] leading-[1.12] font-semibold text-(--text-primary) sm:text-[42px]">
+                {t('explanation.title')}
+              </h2>
+            </div>
+            <p className="text-(length:--font-size-lg) leading-[1.75] text-(--text-secondary)">
+              {t('explanation.subtitle')}
+            </p>
+          </div>
+          <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-(--border-subtle) bg-(--border-subtle) md:grid-cols-3">
+            {explanationItems.map((key) => (
+              <article key={key} className="bg-(--bg-panel) p-6">
+                <p className="text-(length:--font-size-xs) font-semibold tracking-[0.14em] text-(--text-muted) uppercase">
+                  {t(`explanation.items.${key}.label`)}
+                </p>
+                <h3 className="mt-6 text-(length:--font-size-xl) font-semibold text-(--text-primary)">
+                  {t(`explanation.items.${key}.title`)}
+                </h3>
+                <p className="mt-3 text-(length:--font-size-sm) leading-[1.7] text-(--text-secondary)">
+                  {t(`explanation.items.${key}.body`)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="w-full max-w-[1120px] border-t border-(--border-subtle) py-20 md:py-24">
+          <div className="max-w-[700px]">
+            <p className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+              {t('workflow.eyebrow')}
+            </p>
+            <h2 className="mt-4 text-[32px] leading-[1.12] font-semibold text-(--text-primary) sm:text-[42px]">
+              {t('workflow.title')}
+            </h2>
+            <p className="mt-5 text-(length:--font-size-lg) leading-[1.7] text-(--text-secondary)">
+              {t('workflow.subtitle')}
+            </p>
+          </div>
+          <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-(--border-subtle) bg-(--border-subtle) md:grid-cols-4">
+            {workflowSteps.map((key, index) => (
+              <article key={key} className="bg-(--bg-panel) p-6">
+                <div className="font-mono text-(length:--font-size-xs) text-(--text-muted)">
+                  {String(index + 1).padStart(2, '0')}
+                </div>
+                <h3 className="mt-8 text-(length:--font-size-xl) font-semibold text-(--text-primary)">
+                  {t(`workflow.steps.${key}.title`)}
+                </h3>
+                <p className="mt-3 text-(length:--font-size-sm) leading-[1.65] text-(--text-secondary)">
+                  {t(`workflow.steps.${key}.body`)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="w-full max-w-[1120px] border-t border-(--border-subtle) py-20 md:py-24">
+          <div className="mx-auto max-w-[760px] text-center">
+            <p className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+              {t('capabilities.eyebrow')}
+            </p>
+            <h2 className="mt-4 text-[32px] leading-[1.12] font-semibold text-(--text-primary) sm:text-[42px]">
+              {t('capabilities.title')}
+            </h2>
+            <p className="mt-5 text-(length:--font-size-lg) leading-[1.7] text-(--text-secondary)">
+              {t('capabilities.subtitle')}
+            </p>
+          </div>
+          <div className="mt-10 grid gap-4 lg:grid-cols-3">
+            {capabilityCards.map((key) => (
+              <article
+                key={key}
+                className="rounded-lg border border-(--border-subtle) bg-(--bg-panel) p-6"
+              >
+                <h3 className="text-(length:--font-size-xl) font-semibold text-(--text-primary)">
+                  {t(`capabilities.cards.${key}.title`)}
+                </h3>
+                <p className="mt-4 text-(length:--font-size-sm) leading-[1.7] text-(--text-secondary)">
+                  {t(`capabilities.cards.${key}.body`)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="w-full max-w-[1120px] border-t border-(--border-subtle) py-20 md:py-24">
+          <div className="grid gap-10 md:grid-cols-[0.95fr_1fr]">
+            <div>
+              <p className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+                {t('audience.eyebrow')}
+              </p>
+              <h2 className="mt-4 text-[32px] leading-[1.12] font-semibold text-(--text-primary) sm:text-[42px]">
+                {t('audience.title')}
+              </h2>
+              <p className="mt-5 text-(length:--font-size-lg) leading-[1.7] text-(--text-secondary)">
+                {t('audience.subtitle')}
+              </p>
+            </div>
+            <div className="grid gap-4">
+              {audienceItems.map((key) => (
+                <article
+                  key={key}
+                  className="rounded-lg border border-(--border-subtle) bg-(--bg-panel) p-5"
+                >
+                  <h3 className="text-(length:--font-size-md) font-semibold text-(--text-primary)">
+                    {t(`audience.items.${key}.title`)}
+                  </h3>
+                  <p className="mt-2 text-(length:--font-size-sm) leading-[1.65] text-(--text-secondary)">
+                    {t(`audience.items.${key}.body`)}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid w-full max-w-[1120px] gap-10 border-t border-(--border-subtle) py-20 md:grid-cols-[1fr_0.92fr] md:py-24">
+          <div>
+            <p className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+              {t('developer.eyebrow')}
+            </p>
+            <h2 className="mt-4 text-[32px] leading-[1.12] font-semibold text-(--text-primary) sm:text-[42px]">
+              {t('developer.title')}
+            </h2>
+            <p className="mt-5 max-w-[620px] text-(length:--font-size-lg) leading-[1.7] text-(--text-secondary)">
+              {t('developer.subtitle')}
+            </p>
+          </div>
+          <div className="grid gap-px overflow-hidden rounded-lg border border-(--border-subtle) bg-(--border-subtle)">
+            {developerNotes.map((key) => (
+              <article key={key} className="bg-(--bg-panel) p-5">
+                <h3 className="text-(length:--font-size-md) font-semibold text-(--text-primary)">
+                  {t(`developer.notes.${key}.title`)}
+                </h3>
+                <p className="mt-2 text-(length:--font-size-sm) leading-[1.65] text-(--text-secondary)">
+                  {t(`developer.notes.${key}.body`)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="w-full max-w-[1120px] border-t border-(--border-subtle) py-20 text-center md:py-24">
+          <p className="text-(length:--font-size-xs) font-semibold tracking-[0.16em] text-(--text-muted) uppercase">
+            {t('finalCta.eyebrow')}
+          </p>
+          <h2 className="mx-auto mt-4 max-w-[720px] text-[34px] leading-[1.12] font-semibold text-(--text-primary) sm:text-[48px]">
+            {t('finalCta.title')}
+          </h2>
+          <p className="mx-auto mt-5 max-w-[620px] text-(length:--font-size-lg) leading-[1.7] text-(--text-secondary)">
+            {t('finalCta.subtitle')}
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <PdxButtonLink
+              text={t('actions.enterEditor')}
+              size="Big"
+              category="Primary"
+              to="/editor"
+              icon={<ArrowRight size={18} />}
+            />
+            <PdxButtonLink
+              text={t('actions.viewDocs')}
+              size="Big"
+              category="Secondary"
+              to={docsSiteUrl}
+            />
+          </div>
+        </section>
+      </main>
+
+      <footer className="mt-auto w-full px-2 pb-6">
+        <div className="grid w-full border-t border-(--border-subtle) pt-12 pb-6 md:grid-cols-[1.05fr_2fr] md:gap-12 lg:pt-14">
+          <div className="max-w-[360px]">
+            <PdxLink
+              to="/"
+              className={brandLinkClassName}
+              title={t('brand.name')}
+            >
+              <span className={footerWordmarkClassName} aria-hidden="true" />
+              <span className="sr-only">{t('brand.name')}</span>
+            </PdxLink>
+            <p className="mt-5 text-(length:--font-size-sm) leading-[1.7] text-(--text-secondary)">
+              {t('footer.description')}
+            </p>
+          </div>
+          <div className="mt-10 grid gap-8 sm:grid-cols-2 md:mt-0 lg:grid-cols-4">
+            {footerGroups.map((group) => (
+              <div key={group}>
+                <h2 className="text-(length:--font-size-xs) font-semibold tracking-[0.14em] text-(--text-muted) uppercase">
+                  {t(`footer.groups.${group}.title`)}
+                </h2>
+                <ul className="mt-4 grid gap-3">
+                  {footerLinks[group].map((link) => (
+                    <li key={link.key}>
+                      <PdxLink
+                        to={link.to}
+                        className="text-(length:--font-size-sm) text-(--text-secondary) no-underline transition-colors duration-200 hover:text-(--text-primary)"
+                      >
+                        {t(`footer.groups.${group}.links.${link.key}`)}
+                      </PdxLink>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-(--border-subtle) pt-5 text-(length:--font-size-xs) text-(--home-footer-text) sm:flex-row sm:items-center sm:justify-between">
+          <span>{t('footer.copy')}</span>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <PdxLink
+              to={`${docsSiteUrl}community/contributing`}
+              className="text-(--home-footer-text) no-underline transition-colors duration-200 hover:text-(--text-primary)"
+            >
+              {t('footer.legal.contributing')}
+            </PdxLink>
+            <PdxLink
+              to="https://github.com/Prodivix/prodivix/blob/main/LICENSE"
+              className="text-(--home-footer-text) no-underline transition-colors duration-200 hover:text-(--text-primary)"
+            >
+              {t('footer.legal.license')}
+            </PdxLink>
           </div>
         </div>
       </footer>

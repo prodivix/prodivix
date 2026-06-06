@@ -106,6 +106,33 @@ type AiDiagnosticStage =
 - User action: 重试请求，或在调试详情中查看模型原始返回
 - Developer notes: Debug hover 可展示原始文本，但需要避免泄露 secret
 
+### `AI-4010` 流式响应中断
+
+- Severity: `error`
+- Stage: `response`
+- Retryable: true
+- Trigger: Provider 流式响应在完成标记前中断，或 SSE chunk 读取失败
+- User action: 重试请求，或检查网络和 Provider 服务状态
+- Developer notes: 如果是用户主动取消，可在 UI 层降级为 info/warning；不要把半截 delta 当作可应用结果
+
+### `AI-4011` 流式响应结构无法解析
+
+- Severity: `error`
+- Stage: `response`
+- Retryable: true
+- Trigger: Provider 流式响应完成，但累计文本无法解析为期望的结构化输出
+- User action: 重试请求，或在调试详情中查看模型原始返回
+- Developer notes: 保留 raw response 供调试；最终仍必须经过 structured output validation
+
+### `AI-4012` 流式响应不可读
+
+- Severity: `warning`
+- Stage: `response`
+- Retryable: true
+- Trigger: Provider 声称支持 streaming，但 fetcher 没有返回可读 `ReadableStream`
+- User action: 重试请求；如果持续复现，切换到非流式 Provider 或检查运行环境
+- Developer notes: Web fetcher 应透传 `response.body`；不应让 UI 组件直接解析 SSE
+
 ### `AI-5001` AI Command dry-run 失败
 
 - Severity: `error`

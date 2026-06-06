@@ -8,25 +8,138 @@
     "docs": "文档",
     "signIn": "登录",
     "github": "GitHub",
-    "languageSwitch": "切换语言"
+    "languageSwitch": "切换语言",
+    "themeSwitchLight": "切换到浅色主题",
+    "themeSwitchDark": "切换到深色主题"
   },
   "hero": {
-    "line1": {
-      "highlight": "Pdx"
-    },
-    "line2": {
-      "before": "前端",
-      "highlight": "梭哈"
-    },
-    "line3": {
-      "before": "灵感顷刻",
-      "highlight": "炼化"
-    },
-    "subtitle": "可视化设计与代码生成的一体化平台。"
+    "eyebrow": "Prodivix",
+    "title": "面向真实项目的可视化前端开发",
+    "subtitle": "在浏览器里设计界面、编排交互、管理代码输出。Prodivix 让想法更快进入可维护、可交付的工程流程。",
+    "points": {
+      "visual": "可视化搭建",
+      "code": "代码可控",
+      "deploy": "面向交付"
+    }
   },
   "actions": {
     "enterEditor": "进入编辑器",
     "viewDocs": "查看文档"
+  },
+  "why": {
+    "eyebrow": "Why it exists",
+    "title": "可视化开发需要和真实工程保持同一条线。",
+    "body": {
+      "p1": "很多可视化工具适合快速画出页面，却很难继续承接真实项目里的路由、组件、状态、资源、代码和部署。原型一旦进入工程阶段，设计意图和代码实现就容易分叉。",
+      "p2": "Prodivix 的目标不是把代码藏起来，而是让可视化编辑、代码作者态和项目输出互相对齐。你可以从界面开始，也可以从逻辑和代码能力继续深入，最终仍然得到可维护的前端工程。"
+    }
+  },
+  "explanation": {
+    "eyebrow": "How it works",
+    "title": "它把“编辑页面”和“形成工程”放在同一套工作方式里。",
+    "subtitle": "Prodivix 不是单纯把画布内容导出成一段代码。它更像一个浏览器端的前端开发环境：界面、行为、代码和输出需要能互相引用，并且在项目增长时仍然保持清楚。",
+    "items": {
+      "state": {
+        "label": "Project model",
+        "title": "项目有稳定的结构",
+        "body": "页面、组件、资源和关系会进入明确的项目模型，而不是只存在于临时画布状态里。这样后续编辑、预览和输出才有共同依据。"
+      },
+      "authoring": {
+        "label": "Authoring",
+        "title": "代码仍然是作者态的一部分",
+        "body": "需要写逻辑、样式或适配外部库时，代码不应该变成隐藏的副产物。它应该可以被编辑、引用、诊断，并和可视化编辑保持连接。"
+      },
+      "output": {
+        "label": "Delivery",
+        "title": "输出面向真实交付",
+        "body": "工具最终要服务于可构建、可部署、可版本管理的前端项目。Prodivix 会围绕这个结果组织编辑器，而不是只优化平台内展示。"
+      }
+    }
+  },
+  "workflow": {
+    "eyebrow": "Workflow",
+    "title": "从想法到交付，过程应该是连续的。",
+    "subtitle": "主页不需要一次解释所有内部架构。对使用者来说，更重要的是每一步都能自然衔接，而不是在工具之间反复重建上下文。",
+    "steps": {
+      "shape": {
+        "title": "搭出界面",
+        "body": "先用可视化方式组织页面结构、组件和布局，让想法尽快变成可讨论的界面。"
+      },
+      "connect": {
+        "title": "连接行为",
+        "body": "交互、数据流和业务逻辑不应该散落在临时状态里，而要能被继续编辑和追踪。"
+      },
+      "refine": {
+        "title": "保持可控",
+        "body": "当项目变复杂，开发者仍然需要理解、定位和调整代码，而不是被锁在黑盒里。"
+      },
+      "ship": {
+        "title": "面向交付",
+        "body": "最终输出应当服务于真实工程：能构建、能部署、能进入版本管理和团队流程。"
+      }
+    }
+  },
+  "capabilities": {
+    "eyebrow": "What it brings together",
+    "title": "把前端项目里经常分散的工作放到一个上下文里。",
+    "subtitle": "Prodivix 的长线价值不是多一个画布，而是减少从设计、逻辑、代码到交付之间的断点。",
+    "cards": {
+      "interface": {
+        "title": "界面与组件",
+        "body": "用可视化方式搭建页面、组件和布局，同时保留后续进入工程实现的空间。"
+      },
+      "logic": {
+        "title": "交互与逻辑",
+        "body": "把行为、执行逻辑和动画能力放在可理解的作者态里，而不是只停留在静态页面。"
+      },
+      "output": {
+        "title": "代码与交付",
+        "body": "项目最终需要进入代码、构建、Git 和部署流程。Prodivix 的设计会围绕这个终点展开。"
+      }
+    }
+  },
+  "audience": {
+    "eyebrow": "Who it is for",
+    "title": "它更适合需要把原型继续推进到工程的人。",
+    "subtitle": "如果目标只是做一张静态展示图，很多工具都已经足够。Prodivix 更关注的是：当页面开始有逻辑、有代码、有依赖、有交付要求时，工具还能不能继续承担项目上下文。",
+    "items": {
+      "builder": {
+        "title": "给想快速落地界面的创作者",
+        "body": "先通过可视化方式把页面搭出来，但保留继续进入真实项目结构的路径。"
+      },
+      "team": {
+        "title": "给需要协作判断的产品团队",
+        "body": "让界面、交互和工程可行性尽早处在同一个讨论对象里，减少原型和实现之间的反复翻译。"
+      },
+      "developer": {
+        "title": "给不想失去控制权的开发者",
+        "body": "可视化可以提高速度，但项目不能因此变成黑盒。代码、输出和扩展能力仍然需要可解释。"
+      }
+    }
+  },
+  "developer": {
+    "eyebrow": "Developer control",
+    "title": "可视化不应该牺牲开发者控制权。",
+    "subtitle": "成熟的前端项目需要解释性、可迁移性和可扩展性。Prodivix 会把这些工程约束作为产品体验的一部分，而不是最后再补。",
+    "notes": {
+      "inspectable": {
+        "title": "能看懂",
+        "body": "重要的界面、逻辑和代码关系应该可以被定位、检查和解释。"
+      },
+      "portable": {
+        "title": "能带走",
+        "body": "项目输出不应该只服务于平台内预览，也要面向真实的工程目录和版本管理。"
+      },
+      "extensible": {
+        "title": "能扩展",
+        "body": "当内置能力不够时，工具需要允许项目继续接入代码、依赖和外部库。"
+      }
+    }
+  },
+  "finalCta": {
+    "eyebrow": "Start building",
+    "title": "先从一个可编辑的前端项目开始。",
+    "subtitle": "进入编辑器试试当前能力，或者阅读文档了解 Prodivix 如何组织项目、编辑器和输出链路。"
   },
   "pirTest": {
     "title": "PIR 预览",
@@ -34,6 +147,45 @@
   },
   "footer": {
     "copy": "🄯 2026 Prodivix",
+    "description": "Prodivix 是一个浏览器端的可视化前端开发环境，面向从界面想法到工程交付的连续工作流。",
+    "groups": {
+      "product": {
+        "title": "产品",
+        "links": {
+          "editor": "编辑器",
+          "community": "社区",
+          "account": "账号"
+        }
+      },
+      "resources": {
+        "title": "资源",
+        "links": {
+          "docs": "文档",
+          "tutorials": "教程",
+          "projectStructure": "项目结构"
+        }
+      },
+      "community": {
+        "title": "社区",
+        "links": {
+          "github": "GitHub",
+          "contributing": "参与贡献",
+          "changelog": "更新记录"
+        }
+      },
+      "developers": {
+        "title": "开发者",
+        "links": {
+          "pir": "PIR 规范",
+          "diagnostics": "诊断代码",
+          "components": "组件 API"
+        }
+      }
+    },
+    "legal": {
+      "contributing": "贡献指南",
+      "license": "MIT License"
+    },
     "placeholder": "一起走在前端路上。"
   }
 }

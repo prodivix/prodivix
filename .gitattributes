@@ -1,5 +1,7 @@
 # Force LF line endings for all text files; matches Prettier's default endOfLine=lf.
 * text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
 
 # Binary files — never normalize.
 *.png binary

@@ -8,25 +8,138 @@
     "docs": "Docs",
     "signIn": "Sign in",
     "github": "GitHub",
-    "languageSwitch": "Switch language"
+    "languageSwitch": "Switch language",
+    "themeSwitchLight": "Switch to light theme",
+    "themeSwitchDark": "Switch to dark theme"
   },
   "hero": {
-    "line1": {
-      "highlight": "Pdx"
-    },
-    "line2": {
-      "before": "Frontend",
-      "highlight": "All in"
-    },
-    "line3": {
-      "before": "Instantly",
-      "highlight": "Transmuted"
-    },
-    "subtitle": "Orchestrate logic, drive data, and transmute inspiration into code."
+    "eyebrow": "Prodivix",
+    "title": "Visual frontend development for real projects",
+    "subtitle": "Design interfaces, compose interactions, and manage code output in the browser. Prodivix moves ideas into a maintainable engineering workflow faster.",
+    "points": {
+      "visual": "Visual building",
+      "code": "Code stays editable",
+      "deploy": "Built to ship"
+    }
   },
   "actions": {
     "enterEditor": "Enter Editor",
     "viewDocs": "View Docs"
+  },
+  "why": {
+    "eyebrow": "Why it exists",
+    "title": "Visual development should stay connected to real engineering.",
+    "body": {
+      "p1": "Many visual tools are good at producing a first screen, but they become harder to trust once a project needs routes, components, state, resources, code, and deployment. The prototype and the implementation start to drift.",
+      "p2": "Prodivix is not designed to hide code. It is designed to keep visual authoring, code authoring, and project output in the same workflow, so a project can begin visually and still become maintainable frontend software."
+    }
+  },
+  "explanation": {
+    "eyebrow": "How it works",
+    "title": "It treats page editing and project formation as one workflow.",
+    "subtitle": "Prodivix is not just a canvas that exports a block of code. It is closer to a browser-based frontend development environment: interface, behavior, code, and output need to reference each other and remain understandable as the project grows.",
+    "items": {
+      "state": {
+        "label": "Project model",
+        "title": "The project has a stable structure",
+        "body": "Pages, components, resources, and relationships belong to an explicit project model instead of living only in temporary canvas state. That gives editing, preview, and output the same source of context."
+      },
+      "authoring": {
+        "label": "Authoring",
+        "title": "Code remains part of authoring",
+        "body": "When logic, styles, or external library adapters are needed, code should not become a hidden side effect. It should be editable, referenceable, diagnosable, and connected to visual editing."
+      },
+      "output": {
+        "label": "Delivery",
+        "title": "Output is shaped for delivery",
+        "body": "The tool ultimately needs to serve frontend projects that can be built, deployed, and versioned. Prodivix organizes its editors around that outcome instead of only optimizing in-platform presentation."
+      }
+    }
+  },
+  "workflow": {
+    "eyebrow": "Workflow",
+    "title": "From idea to delivery, the path should stay continuous.",
+    "subtitle": "A homepage does not need to explain every internal architecture decision. What matters to the user is that each step keeps the same context instead of forcing the project to be rebuilt in another tool.",
+    "steps": {
+      "shape": {
+        "title": "Shape the interface",
+        "body": "Start with pages, components, and layout so an idea becomes something the team can evaluate quickly."
+      },
+      "connect": {
+        "title": "Connect behavior",
+        "body": "Interactions, data flow, and logic should remain editable and traceable instead of disappearing into temporary state."
+      },
+      "refine": {
+        "title": "Keep control",
+        "body": "As a project grows, developers still need to inspect, adjust, and understand the code behind the experience."
+      },
+      "ship": {
+        "title": "Prepare to ship",
+        "body": "The output should serve real engineering: buildable code, deployment paths, and version control."
+      }
+    }
+  },
+  "capabilities": {
+    "eyebrow": "What it brings together",
+    "title": "One context for work that usually gets split apart.",
+    "subtitle": "The long-term value of Prodivix is not another canvas. It is fewer breaks between design, logic, code, and delivery.",
+    "cards": {
+      "interface": {
+        "title": "Interface and components",
+        "body": "Build pages, components, and layout visually while preserving a path into real implementation work."
+      },
+      "logic": {
+        "title": "Interaction and logic",
+        "body": "Keep behavior, execution logic, and motion in an authoring model that can be understood and edited."
+      },
+      "output": {
+        "title": "Code and delivery",
+        "body": "A frontend project eventually needs code, builds, Git, and deployment. Prodivix is designed around that destination."
+      }
+    }
+  },
+  "audience": {
+    "eyebrow": "Who it is for",
+    "title": "It is for people who need prototypes to keep moving toward engineering.",
+    "subtitle": "If the goal is only a static presentation, many tools already work well. Prodivix is focused on what happens when a page begins to carry logic, code, dependencies, and delivery requirements.",
+    "items": {
+      "builder": {
+        "title": "For builders who want a faster first interface",
+        "body": "Start visually, but keep a path into a real project structure as the work becomes more serious."
+      },
+      "team": {
+        "title": "For product teams making shared decisions",
+        "body": "Keep interface, interaction, and engineering feasibility in the same object of discussion, so less intent is lost between prototype and implementation."
+      },
+      "developer": {
+        "title": "For developers who still need control",
+        "body": "Visual editing can increase speed, but the project should not become a black box. Code, output, and extension points still need to be explainable."
+      }
+    }
+  },
+  "developer": {
+    "eyebrow": "Developer control",
+    "title": "Visual development should not remove developer control.",
+    "subtitle": "Mature frontend projects need explainability, portability, and extension points. Prodivix treats those engineering constraints as part of the product experience.",
+    "notes": {
+      "inspectable": {
+        "title": "Inspectable",
+        "body": "Important relationships between interface, logic, and code should be possible to locate, inspect, and explain."
+      },
+      "portable": {
+        "title": "Portable",
+        "body": "Project output should not exist only for an in-platform preview. It should map to real project files and version control."
+      },
+      "extensible": {
+        "title": "Extensible",
+        "body": "When built-in capabilities are not enough, the project should still be able to use code, dependencies, and external libraries."
+      }
+    }
+  },
+  "finalCta": {
+    "eyebrow": "Start building",
+    "title": "Start with an editable frontend project.",
+    "subtitle": "Open the editor to try the current workflow, or read the documentation to understand how Prodivix organizes projects, editors, and output."
   },
   "pirTest": {
     "title": "PIR Preview",
@@ -34,6 +147,45 @@
   },
   "footer": {
     "copy": "🄯 2026 Prodivix",
+    "description": "Prodivix is a browser-based visual frontend development environment for keeping interface ideas connected to engineering delivery.",
+    "groups": {
+      "product": {
+        "title": "Product",
+        "links": {
+          "editor": "Editor",
+          "community": "Community",
+          "account": "Account"
+        }
+      },
+      "resources": {
+        "title": "Resources",
+        "links": {
+          "docs": "Docs",
+          "tutorials": "Tutorials",
+          "projectStructure": "Project structure"
+        }
+      },
+      "community": {
+        "title": "Community",
+        "links": {
+          "github": "GitHub",
+          "contributing": "Contributing",
+          "changelog": "Changelog"
+        }
+      },
+      "developers": {
+        "title": "Developers",
+        "links": {
+          "pir": "PIR specification",
+          "diagnostics": "Diagnostic codes",
+          "components": "Component API"
+        }
+      }
+    },
+    "legal": {
+      "contributing": "Contribution guide",
+      "license": "MIT License"
+    },
     "placeholder": "Walk with the front-end."
   }
 }

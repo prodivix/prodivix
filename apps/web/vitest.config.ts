@@ -9,7 +9,7 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
       '@prodivix/shared': resolve(__dirname, '../../packages/shared/src'),
       '@prodivix/ui': resolve(__dirname, '../../packages/ui/src'),
-      '@prodivix/themes': resolve(__dirname, '../../packages/themes/'),
+      '@prodivix/themes': resolve(__dirname, '../../packages/themes/src'),
     },
   },
   test: {

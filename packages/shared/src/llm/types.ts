@@ -128,15 +128,21 @@ export type LlmProviderGenerateResult<
 
 export interface LlmProviderErrorOptions {
   rawResponse?: string;
+  code?: string;
+  severity?: LlmDiagnosticSeverity;
 }
 
 export class LlmProviderError extends Error {
   readonly rawResponse?: string;
+  readonly code?: string;
+  readonly severity?: LlmDiagnosticSeverity;
 
   constructor(message: string, options?: LlmProviderErrorOptions) {
     super(message);
     this.name = 'LlmProviderError';
     this.rawResponse = options?.rawResponse;
+    this.code = options?.code;
+    this.severity = options?.severity;
   }
 }
 
@@ -166,6 +172,35 @@ export interface LlmTaskResult<
   traceId?: string;
 }
 
+export type LlmStreamEvent =
+  | {
+      type: 'started';
+      taskId: string;
+      traceId: string;
+      providerId: string;
+    }
+  | {
+      type: 'raw-delta';
+      delta: string;
+    }
+  | {
+      type: 'raw-snapshot';
+      rawResponse: string;
+    }
+  | {
+      type: 'diagnostic';
+      diagnostic: LlmDiagnostic;
+    }
+  | {
+      type: 'validated-output';
+      output: LlmStructuredOutput;
+      rawResponse: string;
+    }
+  | {
+      type: 'completed';
+      result: LlmTaskResult;
+    };
+
 export interface LlmToolDefinition<TInput = unknown, TOutput = unknown> {
   name: string;
   description: string;
@@ -192,6 +227,7 @@ export interface LlmProvider {
   id: string;
   capabilities?: LlmProviderCapabilities;
   generate(request: LlmProviderRequest): Promise<LlmProviderGenerateResult>;
+  stream?(request: LlmProviderRequest): AsyncIterable<LlmStreamEvent>;
 }
 
 export interface LlmGatewayTrace {

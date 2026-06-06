@@ -2,10 +2,19 @@ import type {
   LlmProvider,
   LlmProviderGenerateResult,
   LlmProviderRequest,
+  LlmStreamEvent,
 } from '@prodivix/shared';
 import { LlmProviderError } from '@prodivix/shared';
 import { validateStructuredOutput } from '../validation/validateStructuredOutput';
 import { createOpenAICompatibleMessages } from './openAICompatiblePrompt';
+
+export type ProdivixAiFetchResponse = {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  body?: ReadableStream<Uint8Array> | null;
+  json(): Promise<unknown>;
+};
 
 export type ProdivixAiFetch = (
   input: string,
@@ -13,13 +22,9 @@ export type ProdivixAiFetch = (
     method?: string;
     headers?: Record<string, string>;
     body?: string;
+    signal?: AbortSignal;
   }
-) => Promise<{
-  ok: boolean;
-  status: number;
-  statusText: string;
-  json(): Promise<unknown>;
-}>;
+) => Promise<ProdivixAiFetchResponse>;
 
 export interface OpenAICompatibleProviderOptions {
   baseURL: string;
@@ -54,6 +59,9 @@ const extractStructuredOutput = (response: unknown): unknown => {
   return JSON.parse(stripJsonFence(choice));
 };
 
+const parseStructuredOutputText = (rawResponse: string): unknown =>
+  JSON.parse(stripJsonFence(rawResponse));
+
 const readPath = (value: unknown, path: readonly (string | number)[]) =>
   path.reduce<unknown>((current, key) => {
     if (typeof key === 'number') {
@@ -67,12 +75,81 @@ const readPath = (value: unknown, path: readonly (string | number)[]) =>
     return (current as Record<string, unknown>)[key];
   }, value);
 
+const createRequestBody = (
+  model: string,
+  request: LlmProviderRequest,
+  options?: { stream?: boolean }
+) =>
+  JSON.stringify({
+    model,
+    messages: createOpenAICompatibleMessages(request.task),
+    temperature: request.task.budget?.temperature ?? 0.2,
+    max_tokens: request.task.budget?.maxOutputTokens,
+    response_format: request.task.modelPreferences?.jsonMode
+      ? { type: 'json_object' }
+      : undefined,
+    stream: options?.stream || undefined,
+  });
+
+const readSseDataLines = async function* (
+  body: ReadableStream<Uint8Array>
+): AsyncIterable<string> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split(/\r?\n\r?\n/);
+      buffer = frames.pop() ?? '';
+
+      for (const frame of frames) {
+        for (const line of frame.split(/\r?\n/)) {
+          const trimmed = line.trim();
+
+          if (trimmed.startsWith('data:')) {
+            yield trimmed.slice(5).trim();
+          }
+        }
+      }
+    }
+
+    buffer += decoder.decode();
+
+    if (buffer.trim()) {
+      for (const line of buffer.split(/\r?\n/)) {
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith('data:')) {
+          yield trimmed.slice(5).trim();
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+};
+
+const extractDeltaContent = (data: string): string => {
+  const parsed = JSON.parse(data) as unknown;
+  const content = readPath(parsed, ['choices', 0, 'delta', 'content']);
+
+  return typeof content === 'string' ? content : '';
+};
+
 export class OpenAICompatibleProvider implements LlmProvider {
   readonly id = 'openai-compatible';
   readonly capabilities = {
     responseModes: ['json', 'tool-calls', 'text-with-json'],
     toolSchemaFormats: ['json-schema', 'openai-compatible'],
-    supportsStreaming: false,
+    supportsStreaming: true,
     supportsJsonMode: true,
     supportsToolCalling: true,
     supportsVision: false,
@@ -108,20 +185,16 @@ export class OpenAICompatibleProvider implements LlmProvider {
         'Content-Type': 'application/json',
         ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : null),
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages: createOpenAICompatibleMessages(request.task),
-        temperature: request.task.budget?.temperature ?? 0.2,
-        max_tokens: request.task.budget?.maxOutputTokens,
-        response_format: request.task.modelPreferences?.jsonMode
-          ? { type: 'json_object' }
-          : undefined,
-      }),
+      body: this.createRequestBody(request),
+      signal: request.task.providerMetadata?.abortSignal as
+        | AbortSignal
+        | undefined,
     });
 
     if (!response.ok) {
-      throw new Error(
-        `OpenAI-compatible provider failed: ${response.status} ${response.statusText}`
+      throw new LlmProviderError(
+        `OpenAI-compatible provider failed: ${response.status} ${response.statusText}`,
+        { code: 'AI-1002' }
       );
     }
 
@@ -136,7 +209,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
         error instanceof Error
           ? error.message
           : 'Failed to parse structured LLM output.',
-        { rawResponse }
+        { code: 'AI-4002', rawResponse }
       );
     }
 
@@ -148,10 +221,111 @@ export class OpenAICompatibleProvider implements LlmProvider {
     if (!validation.output) {
       throw new LlmProviderError(
         validation.diagnostics[0]?.message ?? 'Invalid structured LLM output.',
-        { rawResponse }
+        { code: 'AI-4002', rawResponse }
       );
     }
 
     return { output: validation.output, rawResponse };
+  }
+
+  async *stream(request: LlmProviderRequest): AsyncIterable<LlmStreamEvent> {
+    const response = await this.fetcher(`${this.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : null),
+      },
+      body: this.createRequestBody(request, { stream: true }),
+      signal: request.task.providerMetadata?.abortSignal as
+        | AbortSignal
+        | undefined,
+    });
+
+    if (!response.ok) {
+      throw new LlmProviderError(
+        `OpenAI-compatible provider failed: ${response.status} ${response.statusText}`,
+        { code: 'AI-1002' }
+      );
+    }
+
+    if (!response.body) {
+      throw new LlmProviderError(
+        'OpenAI-compatible provider did not return a readable stream.',
+        { code: 'AI-4012', severity: 'warning' }
+      );
+    }
+
+    let rawResponse = '';
+    let receivedDone = false;
+
+    try {
+      for await (const data of readSseDataLines(response.body)) {
+        if (data === '[DONE]') {
+          receivedDone = true;
+          break;
+        }
+
+        const delta = extractDeltaContent(data);
+
+        if (!delta) {
+          continue;
+        }
+
+        rawResponse += delta;
+        yield { type: 'raw-delta', delta };
+      }
+    } catch (error) {
+      throw new LlmProviderError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to read streaming LLM response.',
+        { code: 'AI-4010', rawResponse }
+      );
+    }
+
+    if (!receivedDone) {
+      throw new LlmProviderError(
+        'OpenAI-compatible provider streaming response ended before completion.',
+        { code: 'AI-4010', rawResponse }
+      );
+    }
+
+    let structuredOutput: unknown;
+
+    try {
+      structuredOutput = parseStructuredOutputText(rawResponse);
+    } catch (error) {
+      throw new LlmProviderError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to parse streaming LLM output.',
+        { code: 'AI-4011', rawResponse }
+      );
+    }
+
+    const validation = validateStructuredOutput(
+      structuredOutput,
+      request.task.outputChannels
+    );
+
+    if (!validation.output) {
+      throw new LlmProviderError(
+        validation.diagnostics[0]?.message ?? 'Invalid structured LLM output.',
+        { code: 'AI-4011', rawResponse }
+      );
+    }
+
+    yield {
+      type: 'validated-output',
+      output: validation.output,
+      rawResponse,
+    };
+  }
+
+  private createRequestBody(
+    request: LlmProviderRequest,
+    options?: { stream?: boolean }
+  ) {
+    return createRequestBody(this.model, request, options);
   }
 }

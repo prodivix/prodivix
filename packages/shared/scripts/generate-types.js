@@ -1,6 +1,10 @@
-const { compileFromFile } = require('json-schema-to-typescript');
-const fs = require('fs');
-const path = require('path');
+import { compileFromFile } from 'json-schema-to-typescript';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SCHEMA_PATH = path.join(__dirname, '../../../specs/pir/PIR-v1.0.json');
 const OUTPUT_PATH = path.join(__dirname, '../src/types/pir.ts');
