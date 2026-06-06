@@ -4,9 +4,9 @@ import type {
   WorkspaceMutationResponse,
   WorkspaceSnapshot,
 } from '@/editor/editorApi';
-import { resolveCanonicalWorkspaceDocumentId } from '@/mir/resolveMirDocument';
+import { resolveCanonicalWorkspaceDocumentId } from '@/pir/resolvePirDocument';
 import {
-  isWorkspaceMirDocument,
+  isWorkspacePirDocument,
   normalizeRouteManifest,
   normalizeWorkspaceDocument,
   normalizeWorkspaceTree,
@@ -80,9 +80,9 @@ export const createWorkspaceSlice: StateCreator<
         [workspace.activeRouteNodeId, state.activeRouteNodeId]
       );
 
-      const nextMirDoc = isWorkspaceMirDocument(activeDocument)
+      const nextPirDoc = isWorkspacePirDocument(activeDocument)
         ? activeDocument.content
-        : state.mirDoc;
+        : state.pirDoc;
       return {
         workspaceId: workspace.id,
         workspaceRev: workspace.workspaceRev,
@@ -100,11 +100,11 @@ export const createWorkspaceSlice: StateCreator<
         routeManifest: nextRouteManifest,
         activeRouteNodeId: nextActiveRouteNodeId,
         activeDocumentId: nextActiveDocumentId,
-        mirDoc: nextMirDoc,
-        mirDocRevision:
-          nextMirDoc === state.mirDoc
-            ? state.mirDocRevision
-            : state.mirDocRevision + 1,
+        pirDoc: nextPirDoc,
+        pirDocRevision:
+          nextPirDoc === state.pirDoc
+            ? state.pirDocRevision
+            : state.pirDocRevision + 1,
       };
     }),
   setWorkspaceCapabilities: (workspaceId, capabilities) =>
@@ -148,16 +148,16 @@ export const createWorkspaceSlice: StateCreator<
       if (!nextDocument) {
         return state;
       }
-      if (!isWorkspaceMirDocument(nextDocument)) {
+      if (!isWorkspacePirDocument(nextDocument)) {
         return { activeDocumentId: normalizedDocumentId };
       }
-      const mirDocChanged = nextDocument.content !== state.mirDoc;
+      const pirDocChanged = nextDocument.content !== state.pirDoc;
       return {
         activeDocumentId: normalizedDocumentId,
-        mirDoc: nextDocument.content,
-        mirDocRevision: mirDocChanged
-          ? state.mirDocRevision + 1
-          : state.mirDocRevision,
+        pirDoc: nextDocument.content,
+        pirDocRevision: pirDocChanged
+          ? state.pirDocRevision + 1
+          : state.pirDocRevision,
       };
     }),
   applyWorkspaceMutation: (mutation) =>
@@ -179,7 +179,7 @@ export const createWorkspaceSlice: StateCreator<
             contentRev: documentRevision.contentRev,
             metaRev: documentRevision.metaRev,
             ...(documentRevision.id === state.activeDocumentId
-              ? { content: state.mirDoc }
+              ? { content: state.pirDoc }
               : null),
           };
         });

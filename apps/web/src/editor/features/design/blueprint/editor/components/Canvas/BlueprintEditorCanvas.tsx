@@ -11,16 +11,16 @@ import { useTranslation } from 'react-i18next';
 import { useDroppable } from '@dnd-kit/core';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
-import { MIRRenderer } from '@/mir/renderer/MIRRenderer';
-import type { RendererCodeArtifact } from '@/mir/renderer/MIRRenderer.types';
-import { materializeMirRoot } from '@/mir/graph';
+import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
+import type { RendererCodeArtifact } from '@/pir/renderer/PIRRenderer.types';
+import { materializePirRoot } from '@/pir/graph';
 import { isWorkspaceCodeDocumentContent } from '@/workspace';
 import {
   createOrderedComponentRegistry,
   getRuntimeRegistryRevision,
   parseResolverOrder,
   runtimeRegistryUpdatedEvent,
-} from '@/mir/renderer/registry';
+} from '@/pir/renderer/registry';
 import { normalizeAnimationDefinition } from '@/editor/features/animation/animationEditorModel';
 import { buildAnimationPreviewSnapshotFromTimelines } from '@/editor/features/animation/preview/animationPreview';
 import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/design/blueprint/editor/model/data';
@@ -41,7 +41,7 @@ import { createRouteCanvasDiagnostics } from './routeDiagnostics';
 import { useActiveRoutePreview } from './useActiveRoutePreview';
 /**
  * 交互链路：
- * 节点点击 -> MIRRenderer -> onSelectNode -> controller；
+ * 节点点击 -> PIRRenderer -> onSelectNode -> controller；
  * 节点内置动作 -> builtInActions -> controller。
  */
 export function BlueprintEditorCanvas({
@@ -79,11 +79,11 @@ export function BlueprintEditorCanvas({
   const [runtimeRegistryRevision, setRuntimeRegistryRevision] = useState(() =>
     getRuntimeRegistryRevision()
   );
-  const mirDoc = useEditorStore((state) => state.mirDoc);
+  const pirDoc = useEditorStore((state) => state.pirDoc);
   const workspaceDocumentsById = useEditorStore(
     (state) => state.workspaceDocumentsById
   );
-  const mirRoot = useMemo(() => materializeMirRoot(mirDoc), [mirDoc]);
+  const pirRoot = useMemo(() => materializePirRoot(pirDoc), [pirDoc]);
   const codeArtifacts = useMemo<RendererCodeArtifact[]>(() => {
     const artifacts: RendererCodeArtifact[] = [];
     Object.values(workspaceDocumentsById).forEach((document) => {
@@ -104,8 +104,8 @@ export function BlueprintEditorCanvas({
   }, [workspaceDocumentsById]);
   const { activeRouteNode, outletContentNode } = useActiveRoutePreview();
   const routeDiagnostics = useMemo(
-    () => createRouteCanvasDiagnostics(activeRouteNode, mirRoot),
-    [activeRouteNode, mirRoot]
+    () => createRouteCanvasDiagnostics(activeRouteNode, pirRoot),
+    [activeRouteNode, pirRoot]
   );
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const panState = useRef<PanState>({
@@ -131,8 +131,8 @@ export function BlueprintEditorCanvas({
   const showGrid = assist.includes('grid');
   const showSelectionDiagnostics = diagnostics.includes('selection');
   const animationDefinition = useMemo(
-    () => normalizeAnimationDefinition(mirDoc.animation),
-    [mirDoc.animation]
+    () => normalizeAnimationDefinition(pirDoc.animation),
+    [pirDoc.animation]
   );
   const animationTimelines = animationDefinition?.timelines ?? [];
   const animationSvgFilters = animationDefinition?.svgFilters ?? [];
@@ -410,11 +410,11 @@ export function BlueprintEditorCanvas({
     onSelectNode(nodeId);
   };
 
-  const hasChildren = Boolean(mirRoot.children?.length);
+  const hasChildren = Boolean(pirRoot.children?.length);
 
   return (
     <section
-      className={`BlueprintEditorCanvas relative z-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-(--bg-panel) max-[1100px]:min-h-80 ${showSelectionDiagnostics ? '' : 'HideSelectionDiagnostics [&_.BlueprintEditorCanvasArtboard_[data-mir-selected=true]]:outline-none'}`}
+      className={`BlueprintEditorCanvas relative z-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-(--bg-panel) max-[1100px]:min-h-80 ${showSelectionDiagnostics ? '' : 'HideSelectionDiagnostics [&_.BlueprintEditorCanvasArtboard_[data-pir-selected=true]]:outline-none'}`}
     >
       <div
         className={`BlueprintEditorCanvasSurface relative min-h-0 flex-1 touch-none overflow-hidden ${isPanning ? 'IsPanning cursor-grabbing select-none' : 'cursor-grab'} ${isCanvasOver ? 'IsOver outline-2 -outline-offset-2 outline-(--accent-color) outline-dashed' : ''}`}
@@ -439,7 +439,7 @@ export function BlueprintEditorCanvas({
             style={{ transform: `scale(${scale})` }}
           >
             <div
-              className="BlueprintEditorCanvasArtboard relative overflow-auto overscroll-contain border border-(--border-default) bg-(--bg-canvas) shadow-(--shadow-lg) **:data-[mir-missing=true]:outline **:data-[mir-missing=true]:outline-offset-2 **:data-[mir-missing=true]:outline-(--danger-color) **:data-[mir-missing=true]:outline-dashed **:data-[mir-selected=true]:outline-2 **:data-[mir-selected=true]:outline-offset-2 **:data-[mir-selected=true]:outline-(--accent-color)"
+              className="BlueprintEditorCanvasArtboard relative overflow-auto overscroll-contain border border-(--border-default) bg-(--bg-canvas) shadow-(--shadow-lg) **:data-[pir-missing=true]:outline **:data-[pir-missing=true]:outline-offset-2 **:data-[pir-missing=true]:outline-(--danger-color) **:data-[pir-missing=true]:outline-dashed **:data-[pir-selected=true]:outline-2 **:data-[pir-selected=true]:outline-offset-2 **:data-[pir-selected=true]:outline-(--accent-color)"
               style={{ width: canvasWidth, height: canvasHeight }}
             >
               {animationPreview.cssText ? (
@@ -447,8 +447,8 @@ export function BlueprintEditorCanvas({
               ) : null}
               <CanvasSvgFilters filters={animationPreview.svgFilters} />
               {hasChildren ? (
-                <MIRRenderer
-                  mirDoc={mirDoc}
+                <PIRRenderer
+                  pirDoc={pirDoc}
                   runtimeState={runtimeState}
                   codeArtifacts={codeArtifacts}
                   overrides={{ currentPath }}
@@ -462,7 +462,7 @@ export function BlueprintEditorCanvas({
                   requireSelectionForEvents={
                     eventTriggerMode === 'selected-only'
                   }
-                  // 内置动作链路：MIRRenderer -> builtInActions -> controller。
+                  // 内置动作链路：PIRRenderer -> builtInActions -> controller。
                   builtInActions={{
                     ...(onNavigateRequest
                       ? { navigate: onNavigateRequest }

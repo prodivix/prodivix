@@ -1,22 +1,22 @@
 import {
-  MdrColorPicker,
-  MdrDatePicker,
-  MdrDateRangePicker,
-  MdrFileUpload,
-  MdrImageUpload,
-  MdrInput,
-  MdrPasswordStrength,
-  MdrRange,
-  MdrRating,
-  MdrRegexInput,
-  MdrRegionPicker,
-  MdrRichTextEditor,
-  MdrSearch,
-  MdrSlider,
-  MdrTextarea,
-  MdrTimePicker,
-  MdrVerificationCode,
-} from '@mdr/ui';
+  PdxColorPicker,
+  PdxDatePicker,
+  PdxDateRangePicker,
+  PdxFileUpload,
+  PdxImageUpload,
+  PdxInput,
+  PdxPasswordStrength,
+  PdxRange,
+  PdxRating,
+  PdxRegexInput,
+  PdxRegionPicker,
+  PdxRichTextEditor,
+  PdxSearch,
+  PdxSlider,
+  PdxTextarea,
+  PdxTimePicker,
+  PdxVerificationCode,
+} from '@prodivix/ui';
 import type { ComponentGroup } from '@/editor/features/design/blueprint/editor/model/types';
 import { SIZE_OPTIONS } from '@/editor/features/design/blueprint/data/options';
 import { REGION_OPTIONS } from '@/editor/features/design/blueprint/data/sampleData';
@@ -28,10 +28,10 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'input',
       name: 'Input',
-      preview: <MdrInput size="Medium" placeholder="Input" value="Hello" />,
+      preview: <PdxInput size="Medium" placeholder="Input" value="Hello" />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrInput
+        <PdxInput
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           placeholder="Input"
           value="Hello"
@@ -42,7 +42,7 @@ export const FORM_GROUP: ComponentGroup = {
       id: 'textarea',
       name: 'Textarea',
       preview: (
-        <MdrTextarea
+        <PdxTextarea
           size="Medium"
           placeholder="Textarea"
           rows={2}
@@ -51,7 +51,7 @@ export const FORM_GROUP: ComponentGroup = {
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrTextarea
+        <PdxTextarea
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           placeholder="Textarea"
           rows={2}
@@ -62,10 +62,10 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'search',
       name: 'Search',
-      preview: <MdrSearch size="Medium" value="Query" />,
+      preview: <PdxSearch size="Medium" value="Query" />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrSearch
+        <PdxSearch
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           value="Query"
         />
@@ -75,10 +75,10 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'date-picker',
       name: 'DatePicker',
-      preview: <MdrDatePicker size="Medium" value="2025-01-01" />,
+      preview: <PdxDatePicker size="Medium" value="2025-01-01" />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrDatePicker
+        <PdxDatePicker
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           value="2025-01-01"
         />
@@ -88,7 +88,7 @@ export const FORM_GROUP: ComponentGroup = {
       id: 'date-range-picker',
       name: 'DateRange',
       preview: (
-        <MdrDateRangePicker
+        <PdxDateRangePicker
           size="Medium"
           startValue="2025-01-01"
           endValue="2025-01-07"
@@ -96,7 +96,7 @@ export const FORM_GROUP: ComponentGroup = {
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrDateRangePicker
+        <PdxDateRangePicker
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           startValue="2025-01-01"
           endValue="2025-01-07"
@@ -106,10 +106,10 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'time-picker',
       name: 'TimePicker',
-      preview: <MdrTimePicker size="Medium" value="09:30" />,
+      preview: <PdxTimePicker size="Medium" value="09:30" />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrTimePicker
+        <PdxTimePicker
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           value="09:30"
         />
@@ -120,7 +120,7 @@ export const FORM_GROUP: ComponentGroup = {
       id: 'region-picker',
       name: 'RegionPicker',
       preview: (
-        <MdrRegionPicker
+        <PdxRegionPicker
           size="Medium"
           options={REGION_OPTIONS}
           defaultValue={{
@@ -132,7 +132,7 @@ export const FORM_GROUP: ComponentGroup = {
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrRegionPicker
+        <PdxRegionPicker
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           options={REGION_OPTIONS}
           defaultValue={{
@@ -147,10 +147,10 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'verification-code',
       name: 'Verification',
-      preview: <MdrVerificationCode size="Medium" defaultValue="123456" />,
+      preview: <PdxVerificationCode size="Medium" defaultValue="123456" />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrVerificationCode
+        <PdxVerificationCode
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           defaultValue="123456"
         />
@@ -160,10 +160,10 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'password-strength',
       name: 'PasswordStrength',
-      preview: <MdrPasswordStrength size="Medium" defaultValue="Abc123!@" />,
+      preview: <PdxPasswordStrength size="Medium" defaultValue="Abc123!@" />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrPasswordStrength
+        <PdxPasswordStrength
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           defaultValue="Abc123!@"
         />
@@ -174,7 +174,7 @@ export const FORM_GROUP: ComponentGroup = {
       id: 'regex-input',
       name: 'RegexInput',
       preview: (
-        <MdrRegexInput
+        <PdxRegexInput
           size="Medium"
           pattern="^\\S+@\\S+\\.\\S+$"
           defaultValue="user@example.com"
@@ -182,7 +182,7 @@ export const FORM_GROUP: ComponentGroup = {
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrRegexInput
+        <PdxRegexInput
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           pattern="^\\S+@\\S+\\.\\S+$"
           defaultValue="user@example.com"
@@ -192,30 +192,30 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'file-upload',
       name: 'FileUpload',
-      preview: <MdrFileUpload showList={false} />,
+      preview: <PdxFileUpload showList={false} />,
       scale: 0.6,
     },
     {
       id: 'image-upload',
       name: 'ImageUpload',
-      preview: <MdrImageUpload />,
+      preview: <PdxImageUpload />,
       scale: 0.6,
     },
     {
       id: 'rich-text-editor',
       name: 'RichText',
       preview: (
-        <MdrRichTextEditor showToolbar={false} defaultValue="<p>Preview</p>" />
+        <PdxRichTextEditor showToolbar={false} defaultValue="<p>Preview</p>" />
       ),
       scale: 0.55,
     },
     {
       id: 'rating',
       name: 'Rating',
-      preview: <MdrRating size="Medium" defaultValue={3} />,
+      preview: <PdxRating size="Medium" defaultValue={3} />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrRating
+        <PdxRating
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           defaultValue={3}
         />
@@ -225,7 +225,7 @@ export const FORM_GROUP: ComponentGroup = {
       id: 'color-picker',
       name: 'ColorPicker',
       preview: (
-        <MdrColorPicker
+        <PdxColorPicker
           size="Medium"
           defaultValue="#7c3aed"
           showTextInput={false}
@@ -233,7 +233,7 @@ export const FORM_GROUP: ComponentGroup = {
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrColorPicker
+        <PdxColorPicker
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           defaultValue="#7c3aed"
           showTextInput={false}
@@ -243,10 +243,10 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'slider',
       name: 'Slider',
-      preview: <MdrSlider size="Medium" defaultValue={48} />,
+      preview: <PdxSlider size="Medium" defaultValue={48} />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrSlider
+        <PdxSlider
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           defaultValue={48}
         />
@@ -255,7 +255,7 @@ export const FORM_GROUP: ComponentGroup = {
     {
       id: 'range',
       name: 'Range',
-      preview: <MdrRange defaultValue={{ min: 20, max: 70 }} />,
+      preview: <PdxRange defaultValue={{ min: 20, max: 70 }} />,
       scale: 0.65,
     },
   ],

@@ -12,7 +12,7 @@ describe('executeBlueprintGraph', () => {
       const detail = (event as CustomEvent).detail as Record<string, unknown>;
       capturedRequestId = String(detail.requestId ?? '');
       window.dispatchEvent(
-        new CustomEvent('mdr:execute-graph-result', {
+        new CustomEvent('prodivix:execute-graph-result', {
           detail: {
             requestId: capturedRequestId,
             result: {
@@ -24,7 +24,7 @@ describe('executeBlueprintGraph', () => {
         })
       );
     };
-    window.addEventListener('mdr:execute-graph', onRequest);
+    window.addEventListener('prodivix:execute-graph', onRequest);
 
     const result = await executeBlueprintGraph({
       nodeId: 'node-1',
@@ -33,7 +33,7 @@ describe('executeBlueprintGraph', () => {
       params: { graphId: 'g-1' },
     });
 
-    window.removeEventListener('mdr:execute-graph', onRequest);
+    window.removeEventListener('prodivix:execute-graph', onRequest);
     expect(capturedRequestId).not.toBe('');
     expect(result.statePatch).toEqual({
       products: [{ id: 'p-1' }],
@@ -46,7 +46,7 @@ describe('executeBlueprintGraph', () => {
       const detail = (event as CustomEvent).detail as Record<string, unknown>;
       capturedRequestId = String(detail.requestId ?? '');
       window.dispatchEvent(
-        new CustomEvent('mdr:execute-graph-result', {
+        new CustomEvent('prodivix:execute-graph-result', {
           detail: {
             requestId: capturedRequestId,
             result: {
@@ -58,7 +58,7 @@ describe('executeBlueprintGraph', () => {
         })
       );
     };
-    window.addEventListener('mdr:execute-graph', onRequest);
+    window.addEventListener('prodivix:execute-graph', onRequest);
 
     const result = await executeBlueprintGraph({
       nodeId: 'node-2',
@@ -66,7 +66,7 @@ describe('executeBlueprintGraph', () => {
       eventKey: 'onChange',
     });
 
-    window.removeEventListener('mdr:execute-graph', onRequest);
+    window.removeEventListener('prodivix:execute-graph', onRequest);
     expect(result.statePatch).toEqual({ count: 2 });
   });
 

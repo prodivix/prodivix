@@ -1,5 +1,5 @@
 import type React from 'react';
-import { MdrPanel, MdrParagraph, MdrText } from '@mdr/ui';
+import { PdxPanel, PdxParagraph, PdxText } from '@prodivix/ui';
 
 type SettingsRowProps = {
   label: string;
@@ -20,24 +20,24 @@ export const SettingsRow = ({
   return (
     <div className={className}>
       <div className="grid gap-1">
-        <MdrText
+        <PdxText
           size="Small"
           weight="SemiBold"
           className="text-(--text-primary)"
         >
           {label}
-        </MdrText>
+        </PdxText>
         {description && (
-          <MdrParagraph
+          <PdxParagraph
             size="Small"
             color="Muted"
             className="m-0 leading-[1.4]"
           >
             {description}
-          </MdrParagraph>
+          </PdxParagraph>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2 [&_.MdrInput]:max-w-[320px] [&_.MdrSelect]:max-w-[320px] [&_.MdrTextarea]:max-w-[320px]">
+      <div className="flex flex-wrap items-center gap-2 [&_.PdxInput]:max-w-[320px] [&_.PdxSelect]:max-w-[320px] [&_.PdxTextarea]:max-w-[320px]">
         {control}
       </div>
       {meta && (
@@ -60,7 +60,7 @@ export const SettingsPanel = ({
   description,
   children,
 }: SettingsPanelProps) => (
-  <MdrPanel
+  <PdxPanel
     title={title}
     variant="Default"
     padding="Large"
@@ -72,7 +72,7 @@ export const SettingsPanel = ({
       </p>
     )}
     <div className="grid gap-3.5">{children}</div>
-  </MdrPanel>
+  </PdxPanel>
 );
 
 export const formatValue = (value: unknown) => {

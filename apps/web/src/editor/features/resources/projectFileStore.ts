@@ -117,7 +117,7 @@ ${projectDescription}
 
 ## Overview
 
-This project was exported from MdrFrontEngine as a standalone Vite + React application.
+This project was exported from Prodivix as a standalone Vite + React application.
 
 ## Tech stack
 
@@ -359,7 +359,7 @@ export const createDefaultProjectFiles = (): ProjectFile[] => [
 ];
 
 const getProjectFilesStorageKey = (projectId?: string) =>
-  `mdr.projectFiles.${projectId?.trim() || 'default'}`;
+  `prodivix.projectFiles.${projectId?.trim() || 'default'}`;
 
 const withDefaultProjectFiles = (files: ProjectFile[]) => {
   const filesByPath = new Map(files.map((file) => [file.path, file]));

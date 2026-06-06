@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"time"
 
-	backendconfig "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/config"
-	backendauth "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/auth"
-	backendgithub "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/integrations/github"
-	backendproject "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/project"
-	backendworkspace "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/workspace"
+	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
+	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
+	backendgithub "github.com/Prodivix/prodivix/apps/backend/internal/modules/integrations/github"
+	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
+	backendworkspace "github.com/Prodivix/prodivix/apps/backend/internal/modules/workspace"
 	"github.com/gin-gonic/gin"
 )
 

@@ -1,4 +1,4 @@
-import { MdrInput } from '@mdr/ui';
+import { PdxInput } from '@prodivix/ui';
 import {
   InspectorIconFieldRow,
   InspectorRow,
@@ -63,7 +63,7 @@ function TypographyPanelView({ node, updateNode }: InspectorPanelRenderProps) {
           defaultValue: 'Font Family',
         })}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={fontFamilyValue}
             onChange={(value) =>
@@ -107,7 +107,7 @@ function TypographyPanelView({ node, updateNode }: InspectorPanelRenderProps) {
           defaultValue: 'Font Weight',
         })}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={fontWeightValue}
             onChange={(value) =>

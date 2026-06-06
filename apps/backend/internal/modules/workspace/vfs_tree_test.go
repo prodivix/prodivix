@@ -12,7 +12,7 @@ func TestWorkspaceVFSTreeAddsCodeDocumentWithDirectories(t *testing.T) {
 		[]WorkspaceDocumentRecord{
 			{
 				ID:   "doc_root",
-				Path: "/mir.json",
+				Path: "/pir.json",
 			},
 		},
 	)

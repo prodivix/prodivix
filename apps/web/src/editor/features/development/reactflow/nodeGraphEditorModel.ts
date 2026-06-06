@@ -58,16 +58,16 @@ export type ProjectGraphSnapshot = {
   graphs: GraphDocument[];
 };
 
-export type MirLogicGraphNode = {
+export type PirLogicGraphNode = {
   id: string;
   type: string;
   data: GraphNodeData;
 };
 
-export type MirLogicGraphDocument = {
+export type PirLogicGraphDocument = {
   id: string;
   name: string;
-  nodes: MirLogicGraphNode[];
+  nodes: PirLogicGraphNode[];
   edges: Edge[];
 };
 
@@ -88,13 +88,13 @@ export type NodeGraphEditorGraphState = {
   nodes: NodeGraphEditorNodeState[];
 };
 
-export type NodeGraphEditorMirState = {
+export type NodeGraphEditorPirState = {
   version: 1;
   activeGraphId?: string;
   graphs: NodeGraphEditorGraphState[];
 };
 
-const STORAGE_PREFIX = 'mdr:nodegraph:native';
+const STORAGE_PREFIX = 'prodivix:nodegraph:native';
 const DEFAULT_GRAPH_NAME = 'Main';
 export const NODE_GRAPH_EDITOR_STATE_KEY = 'x-nodeGraphEditor';
 
@@ -858,7 +858,7 @@ const normalizeNodeGraphEditorGraphState = (
 
 export const normalizeNodeGraphEditorState = (
   source: unknown
-): NodeGraphEditorMirState | null => {
+): NodeGraphEditorPirState | null => {
   if (!isPlainObject(source)) return null;
   const rawGraphs = Array.isArray(source.graphs) ? source.graphs : [];
   const usedGraphIds = new Set<string>();
@@ -906,7 +906,7 @@ const resolvePositionFromNodeState = (
 
 export const applyNodeGraphEditorStateToGraphs = (
   graphs: GraphDocument[],
-  editorState: NodeGraphEditorMirState | null
+  editorState: NodeGraphEditorPirState | null
 ): GraphDocument[] => {
   if (!editorState?.graphs.length) return graphs;
   const graphStateById = new Map<string, NodeGraphEditorGraphState>();
@@ -950,9 +950,9 @@ const stripEditorOnlyDataFields = (data: GraphNodeData): GraphNodeData => {
   return nextData;
 };
 
-export const serializeGraphsForMirLogic = (
+export const serializeGraphsForPirLogic = (
   graphs: GraphDocument[]
-): MirLogicGraphDocument[] =>
+): PirLogicGraphDocument[] =>
   graphs.map((graph) => ({
     id: graph.id,
     name: graph.name,
@@ -972,7 +972,7 @@ const normalizeCoordinate = (value: unknown) =>
 
 export const buildNodeGraphEditorState = (
   snapshot: ProjectGraphSnapshot
-): NodeGraphEditorMirState => ({
+): NodeGraphEditorPirState => ({
   version: 1,
   activeGraphId: snapshot.activeGraphId,
   graphs: snapshot.graphs.map((graph) => ({

@@ -2,12 +2,12 @@
 layout: home
 
 hero:
-  name: 'MdrFrontEngine'
+  name: 'Prodivix'
   text: '可视化前端开发平台'
   tagline: 融合蓝图设计、节点图逻辑与代码生成，从原型到部署的一站式解决方案
   image:
     src: /logo.svg
-    alt: MdrFrontEngine
+    alt: Prodivix
   actions:
     - theme: brand
       text: 快速开始
@@ -17,14 +17,14 @@ hero:
       link: /guide/introduction
     - theme: alt
       text: GitHub
-      link: https://github.com/Mdr-Tutorials/Mdr-Front-Engine
+      link: https://github.com/Prodivix/prodivix
 
 features:
   - icon: 🎨
     title: 可视化蓝图编辑
     details: 拖拽式组件设计，所见即所得。支持组件树管理、属性检查器、实时预览，让 UI 设计变得直观高效。
   - icon: 📦
-    title: MIR 中间表示
+    title: PIR 中间表示
     details: 统一的组件中间表示格式，支持导出为 React、Vue、Angular 等多种框架代码，一次设计多端运行。
   - icon: 🌐
     title: 完全开源
@@ -53,9 +53,9 @@ features:
 }
 </style>
 
-## 为什么选择 MdrFrontEngine？
+## 为什么选择 Prodivix？
 
-MdrFrontEngine 旨在**降低前端开发门槛，同时不牺牲灵活性与工程能力**。无论是快速搭建静态站点，还是构建具备复杂交互逻辑的动态应用，均可在统一环境中高效完成。
+Prodivix 旨在**降低前端开发门槛，同时不牺牲灵活性与工程能力**。无论是快速搭建静态站点，还是构建具备复杂交互逻辑的动态应用，均可在统一环境中高效完成。
 
 <div style="text-align: center; margin-top: 2rem;">
   <p style="color: var(--vp-c-text-2);">

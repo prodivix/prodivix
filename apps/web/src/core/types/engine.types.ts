@@ -1,5 +1,5 @@
 /**
- * MIR 核心类型定义 v1.3
+ * PIR 核心类型定义 v1.3
  */
 
 export type ParamReference = { $param: string };
@@ -191,7 +191,7 @@ export interface LogicDefinition {
 }
 
 // 4. 根文档结构
-export interface MIRDocument {
+export interface PIRDocument {
   version: '1.3';
   metadata?: {
     name?: string;

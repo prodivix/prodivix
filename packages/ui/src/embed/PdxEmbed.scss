@@ -1,0 +1,67 @@
+.PdxEmbed {
+  display: block;
+  transition: all var(--transition-normal);
+
+  > div {
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    background-color: var(--border-default);
+  }
+
+  iframe {
+    background-color: var(--bg-canvas);
+  }
+
+  &.aspect-16-9 {
+    > div {
+      aspect-ratio: 16 / 9;
+    }
+  }
+
+  &.aspect-4-3 {
+    > div {
+      aspect-ratio: 4 / 3;
+    }
+  }
+
+  &.aspect-1-1 {
+    > div {
+      aspect-ratio: 1 / 1;
+    }
+  }
+
+  &.aspect-21-9 {
+    > div {
+      aspect-ratio: 21 / 9;
+    }
+  }
+
+  &.YouTube,
+  &.Vimeo {
+    > div {
+      background-color: var(--text-primary);
+    }
+  }
+
+  &.Twitter,
+  &.Instagram,
+  &.Facebook {
+    > div {
+      background-color: var(--bg-canvas);
+    }
+  }
+
+  &:hover > div {
+    box-shadow: var(--shadow-md);
+  }
+}
+
+[data-theme='dark'] {
+  .PdxEmbed > div {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .PdxEmbed:hover > div {
+    box-shadow: var(--shadow-md);
+  }
+}

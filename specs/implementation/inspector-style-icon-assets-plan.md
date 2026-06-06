@@ -43,7 +43,7 @@ apps/web/src/assets/
 说明：
 
 - `layout/`：Style Tab 中的布局语义图标，首批重点。
-- `status/`：仅当状态图标具有 MdrFrontEngine 自有语义时才放入，例如 mounted / unmounted / missing。
+- `status/`：仅当状态图标具有 Prodivix 自有语义时才放入，例如 mounted / unmounted / missing。
 - 不设置 `actions/` 目录，除非未来决定自研通用动作图标。
 - Inspector 代码只消费 `@/assets/icons`，不在 Inspector 目录内维护 SVG。
 

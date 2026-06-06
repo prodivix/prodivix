@@ -16,7 +16,7 @@
 不覆盖：
 
 1. AI 返回 command 后应用到 Workspace 失败，使用 `WKS-xxxx`。
-2. AI patch 导致 MIR graph 语义错误，使用 `MIR-xxxx`。
+2. AI patch 导致 PIR graph 语义错误，使用 `PIR-xxxx`。
 3. 后端代理或鉴权错误，使用 `API-xxxx`。
 
 ## 2. 阶段
@@ -113,7 +113,7 @@ type AiDiagnosticStage =
 - Retryable: false
 - Trigger: AI 生成的 command 在应用前 dry-run 失败
 - User action: 不应用该计划，重新生成或手动调整
-- Developer notes: dry-run 失败应携带下游 `MIR-xxxx` 或 `WKS-xxxx` code
+- Developer notes: dry-run 失败应携带下游 `PIR-xxxx` 或 `WKS-xxxx` code
 
 ### `AI-9001` AI 未知异常
 

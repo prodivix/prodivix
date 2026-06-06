@@ -13,7 +13,7 @@ AI 助手会读取最小蓝图上下文：
 | 当前路由   | 当前正在编辑或预览的 Blueprint 路由 |
 | 当前选中项 | 画布或组件树中选中的节点 ID         |
 
-当前版本只返回计划，不会直接写入 MIR。后续写入 MIR 前仍需要经过 dry-run、风险校验和可撤销命令链路。
+当前版本只返回计划，不会直接写入 PIR。后续写入 PIR 前仍需要经过 dry-run、风险校验和可撤销命令链路。
 
 ## Provider 设置
 
@@ -70,7 +70,7 @@ AI 助手在生成后会显示两个轻量图标按钮：
 }
 ```
 
-这个计划结构属于 `@mdr/shared` 的 LLM 协议层。Provider 可以继续扩展为 MIR command batch、node graph operation batch 或 code artifact，但 Blueprint 右下角 UI 目前只展示计划和调试信息。
+这个计划结构属于 `@prodivix/shared` 的 LLM 协议层。Provider 可以继续扩展为 PIR command batch、node graph operation batch 或 code artifact，但 Blueprint 右下角 UI 目前只展示计划和调试信息。
 
 ## 架构位置
 
@@ -88,12 +88,12 @@ AI 能力拆在共享协议、跨端运行时和 Web UI 三层：
 ## 限制与后续方向
 
 - 当前不支持 streaming，响应完成后一次性展示结果。
-- 当前不调用工具，也不直接写入 MIR。
+- 当前不调用工具，也不直接写入 PIR。
 - API Key 保存在浏览器本地状态中，适合个人本地使用；团队或生产环境应提供更安全的密钥代理。
 - JSON mode 不是所有 OpenAI-compatible provider 都支持，遇到 provider 拒绝 `response_format` 时可以关闭。
-- 后续会把计划结果连接到 MIR dry-run、命令预览、撤销历史和风险提示。
+- 后续会把计划结果连接到 PIR dry-run、命令预览、撤销历史和风险提示。
 
 ## 下一步
 
 - [项目结构](/guide/project-structure) - 了解 AI 相关包和应用目录
-- [MIR 语法规范](/reference/mir-spec) - 理解后续 AI 命令会修改的核心数据结构
+- [PIR 语法规范](/reference/pir-spec) - 理解后续 AI 命令会修改的核心数据结构

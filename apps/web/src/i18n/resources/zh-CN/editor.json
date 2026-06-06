@@ -585,7 +585,7 @@
         },
         "components": {
           "title": "组件与渲染",
-          "description": "控制 MIR 解析与渲染组件的方式。"
+          "description": "控制 PIR 解析与渲染组件的方式。"
         },
         "codegen": {
           "title": "代码生成",
@@ -694,8 +694,8 @@
           "label": "解析顺序",
           "description": "存在多个注册表时的查找优先级。",
           "options": {
-            "customMdrNative": "自定义 → MDR → 原生",
-            "mdrNative": "MDR → 原生",
+            "customPdxNative": "自定义 → Prodivix → 原生",
+            "prodivixNative": "Prodivix → 原生",
             "nativeOnly": "仅原生"
           }
         },
@@ -751,7 +751,7 @@
         },
         "metadata": {
           "label": "元数据注释",
-          "description": "在输出中包含 MIR 元数据注释。",
+          "description": "在输出中包含 PIR 元数据注释。",
           "options": {
             "include": "包含元数据",
             "skip": "跳过元数据"
@@ -812,8 +812,8 @@
           "title": "集成与环境",
           "description": "数据源、认证与环境相关设置。"
         },
-        "mir": {
-          "title": "MIR 与校验",
+        "pir": {
+          "title": "PIR 与校验",
           "description": "Schema 约束与节点策略。"
         },
         "build": {
@@ -878,14 +878,14 @@
           "label": "主题 Token 集",
           "description": "用于渲染颜色和间距的 Token 包。",
           "options": {
-            "mdrDefault": "MDR 默认",
-            "mdrMidnight": "MDR 午夜",
-            "mdrSunrise": "MDR 日出"
+            "prodivixDefault": "Prodivix 默认",
+            "prodivixMidnight": "Prodivix 午夜",
+            "prodivixSunrise": "Prodivix 日出"
           }
         },
         "componentLibraryVersion": {
           "label": "组件库版本",
-          "description": "固定使用的 MDR 共享组件版本。",
+          "description": "固定使用的 Prodivix 共享组件版本。",
           "options": {
             "v142Stable": "v1.4.2（稳定）",
             "v150Beta": "v1.5.0（Beta）"
@@ -931,7 +931,7 @@
         },
         "schemaVersion": {
           "label": "Schema 版本",
-          "description": "此项目固定使用的 MIR Schema 版本。",
+          "description": "此项目固定使用的 PIR Schema 版本。",
           "options": {
             "v10Stable": "1.0（稳定）",
             "v11Preview": "1.1（预览）"
@@ -953,7 +953,7 @@
         },
         "autoMigrate": {
           "label": "自动迁移",
-          "description": "Schema 更新时自动迁移 MIR。",
+          "description": "Schema 更新时自动迁移 PIR。",
           "options": {
             "enable": "启用自动迁移",
             "disable": "禁用自动迁移"

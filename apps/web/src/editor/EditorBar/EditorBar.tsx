@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MdrIcon, MdrIconLink } from '@mdr/ui';
+import { PdxIcon, PdxIconLink } from '@prodivix/ui';
 import { useNavigate, useParams } from 'react-router';
 import { useEditorShortcut } from '@/editor/shortcuts';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
@@ -62,7 +62,7 @@ function EditorBar() {
               navigate(exitTarget);
             }}
           >
-            <MdrIcon icon={<LogIn size={26} />} size={26} />
+            <PdxIcon icon={<LogIn size={26} />} size={26} />
           </button>
         </section>
         <section
@@ -70,55 +70,55 @@ function EditorBar() {
         >
           {projectId && (
             <>
-              <MdrIconLink
+              <PdxIconLink
                 icon={<Home size={22} />}
                 size={22}
                 title={t('bar.projectHome')}
                 to={`/editor/project/${projectId}`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<LayoutGrid size={22} />}
                 size={22}
                 title={t('projectHome.actions.blueprint.label')}
                 to={`${basePath}/blueprint`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<GitBranch size={22} />}
                 size={22}
                 title={t('projectHome.actions.nodegraph.label')}
                 to={`${basePath}/nodegraph`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<Sparkles size={22} />}
                 size={22}
                 title={t('projectHome.actions.animation.label')}
                 to={`${basePath}/animation`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<Box size={22} />}
                 size={22}
                 title={t('projectHome.actions.component.label')}
                 to={`${basePath}/component`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<Folder size={22} />}
                 size={22}
                 title={t('projectHome.actions.resources.label')}
                 to={`${basePath}/resources`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<TestTube size={22} />}
                 size={22}
                 title={t('projectHome.actions.testing.label')}
                 to={`${basePath}/test`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<FileCode size={22} />}
                 size={22}
                 title={t('projectHome.actions.export.label')}
                 to={`${basePath}/export`}
               />
-              <MdrIconLink
+              <PdxIconLink
                 icon={<Rocket size={22} />}
                 size={22}
                 title={t('projectHome.actions.deployment.label')}
@@ -128,7 +128,7 @@ function EditorBar() {
           )}
         </section>
         <section className={barEdgeGroupClassName}>
-          <MdrIconLink
+          <PdxIconLink
             icon={<Settings size={22} />}
             size={22}
             title={settingsLabel}

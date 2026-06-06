@@ -1,0 +1,74 @@
+.PdxDataGrid {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.PdxDataGridHeader,
+.PdxDataGridRow {
+  display: grid;
+  align-items: center;
+}
+
+.PdxDataGridHeader {
+  background-color: var(--bg-panel);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.PdxDataGridRow {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color var(--motion-duration-fast)
+    var(--motion-easing-standard);
+}
+
+.PdxDataGridRow:last-child {
+  border-bottom: none;
+}
+
+.PdxDataGridCell {
+  min-width: 0;
+  padding: var(--spacing-sm);
+}
+
+.PdxDataGrid.Striped .PdxDataGridRow:nth-child(even) {
+  background-color: var(--bg-panel);
+}
+
+.PdxDataGrid.Hoverable .PdxDataGridRow:hover {
+  background-color: var(--bg-raised);
+}
+
+.PdxDataGrid.Bordered .PdxDataGridCell {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.PdxDataGrid.Bordered .PdxDataGridCell:last-child {
+  border-right: none;
+}
+
+.PdxDataGridEmpty {
+  padding: var(--spacing-md);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.AlignLeft {
+  text-align: left;
+}
+
+.AlignCenter {
+  text-align: center;
+}
+
+.AlignRight {
+  text-align: right;
+}

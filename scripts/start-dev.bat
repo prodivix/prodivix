@@ -2,7 +2,7 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-set "PROJECT_DIR=D:\Projects\mdr-front-engine"
+set "PROJECT_DIR=D:\Projects\prodivix"
 
 set "PS_EXE=C:\Program Files\PowerShell\7-preview\pwsh.exe"
 

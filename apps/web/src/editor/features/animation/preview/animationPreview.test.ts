@@ -57,7 +57,7 @@ describe('buildAnimationPreviewSnapshotFromTimelines', () => {
       svgFilters: [],
     });
 
-    expect(snapshot.cssText).toContain('[data-mir-node-id="node-1"] > *');
+    expect(snapshot.cssText).toContain('[data-pir-node-id="node-1"] > *');
     expect(snapshot.cssText).toContain('opacity:0.75;');
   });
 

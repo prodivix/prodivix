@@ -1,11 +1,11 @@
-# MdrFrontEngine Agents 开发指南
+# Prodivix Agents 开发指南
 
-你是一名资深前端开发工程师，正在开发一款叫 MdrFrontEngine 的工业级浏览器端可视化前端开发工具。以下是这款工具的核心架构。
+你是一名资深前端开发工程师，正在开发一款叫 Prodivix 的工业级浏览器端可视化前端开发工具。以下是这款工具的核心架构。
 
 ```mermaid
 flowchart TD
     %% 核心节点
-    MIR((MIR Core<br>JSON Schema<br>唯一真相源)):::core
+    PIR((PIR Core<br>JSON Schema<br>唯一真相源)):::core
 
     %% ----------------- 顶部：编辑器层 -----------------
     subgraph Editors [编辑器-三编辑器架构]
@@ -51,12 +51,12 @@ flowchart TD
     Blueprint -->|"event / mounted CSS / adapter slot"| CodeEnv
     NodeGraph -->|"executor / transform slot"| CodeEnv
     AnimEditor -->|"easing / shader / timeline script slot"| CodeEnv
-    CodeEnv -->|"CodeReference / diagnostics"| MIR
+    CodeEnv -->|"CodeReference / diagnostics"| PIR
 
     %% 编辑器到核心的连接
-    Blueprint -->|"ui"| MIR
-    NodeGraph -->|"logic"| MIR
-    AnimEditor -->|"animation"| MIR
+    Blueprint -->|"ui"| PIR
+    NodeGraph -->|"logic"| PIR
+    AnimEditor -->|"animation"| PIR
 
     %% ----------------- 左侧：资源与项目 -----------------
     subgraph Assets [资源与依赖]
@@ -74,12 +74,12 @@ flowchart TD
         end
     end
 
-    Assets --> MIR
+    Assets --> PIR
     ESM -.-> AnimEditor
 
     %% ----------------- 核心功能扩展 -----------------
     LLM[LLM 辅助开发] --> CodeEnv
-    LLM --> MIR
+    LLM --> PIR
 
     %% ----------------- 右侧：后端与 Git -----------------
     subgraph BackendSys [后端与社区]
@@ -87,7 +87,7 @@ flowchart TD
         Community --> OtherPlatform[其他平台上的社区]
     end
 
-    MIR <--> Backend
+    PIR <--> Backend
 
     subgraph VersionControl [版本控制]
         Git[Git]:::infra
@@ -98,7 +98,7 @@ flowchart TD
         License --> Git
     end
 
-    MIR -->|MIR 文件树| Git
+    PIR -->|PIR 文件树| Git
 
     %% ----------------- 底部：编译与部署 -----------------
     subgraph Compilation [编译器与输出]
@@ -122,7 +122,7 @@ flowchart TD
     end
 
     %% 连接核心到编译器
-    MIR --> Compiler
+    PIR --> Compiler
     Git -->|源代码| Frameworks
 
     %% ----------------- 右下角：文档 -----------------
@@ -130,7 +130,7 @@ flowchart TD
     Tutorials[教程]
 ```
 
-## MIR 结构与读写链路
+## PIR 结构与读写链路
 
 ```mermaid
 flowchart TD
@@ -139,9 +139,9 @@ flowchart TD
     LLM[LLM 辅助开发]
     Commands[Command / Intent / Patch]
 
-    %% MIR 保存态：规范化图结构是唯一真相源
-    Graph[MIR ui.graph<br>rootId / nodesById / childIdsById / regionsById]
-    Validator[MIR Validator<br>Schema + Graph 语义校验]
+    %% PIR 保存态：规范化图结构是唯一真相源
+    Graph[PIR ui.graph<br>rootId / nodesById / childIdsById / regionsById]
+    Validator[PIR Validator<br>Schema + Graph 语义校验]
     Workspace[Workspace VFS / Backend / Git]
 
     %% 读取侧：需要树时只生成临时中间层
@@ -167,7 +167,7 @@ MFE 是 Blueprint、NodeGraph、Animation 三编辑器架构。`specs/decisions/
 - code-owned 内容由 Code Authoring Environment 承载，包括 event handler、custom executor、animation function、mounted CSS、shader、external library adapter 和普通 Workspace 代码文件。
 - 三编辑器通过 code slot 连接代码能力。slot 需要声明 owner、输入、输出、能力约束和诊断落点；slot 的绑定值应是 `CodeReference` 或 `CodeArtifact` owner，不应是散落在 UI 局部状态里的裸代码字符串。
 - `specs/decisions/25.authoring-symbol-environment.md` 定义的 Authoring Symbol Environment 是 Code Authoring Environment 的索引与查询层，负责 `CodeArtifact`、`CodeSymbol`、`CodeScope`、`DiagnosticTargetRef`、`SourceSpan`、引用、补全和诊断。
-- MIR 可以引用代码，但不吞并代码源码和复杂库内部状态。复杂库按 Native / Adapted / Embedded / Code-only 能力等级接入，不逐库承诺完整可视化编辑。
+- PIR 可以引用代码，但不吞并代码源码和复杂库内部状态。复杂库按 Native / Adapted / Embedded / Code-only 能力等级接入，不逐库承诺完整可视化编辑。
 - code-owned 不等于黑盒放弃。MFE 仍应该提供编辑、引用、诊断、定位、预览和 AI patch 能力，并能从 Issues、Inspector、画布、节点图、动画轨道跳转到对应代码上下文。
 - 三编辑器、Inspector、Resources、AI 和 Issues 面板需要符号或诊断时，应通过 Code Authoring Environment 或其稳定查询接口，不直接扫描其他编辑器内部结构。
 
@@ -176,7 +176,7 @@ MFE 是 Blueprint、NodeGraph、Animation 三编辑器架构。`specs/decisions/
 0. 执行新 session 时，先同步远端最新 Git 仓库状态；开始改动前运行 `git fetch` 并确认当前分支是否落后于远端，若远端已有新提交，先用非破坏方式集成后再继续。
 1. 读写文档都要用 UTF-8 编码。
 2. 所有代码必须考虑可扩展性和健壮性。
-3. `@mdr/ui` 包下组件库使用 SCSS 进行样式编写，其他样式则用 Tailwind。要用最新的 Tailwind 4 写法，摒弃旧写法；尤其注意 Tailwind 当中关于 var 的写法，比如用 `text-(--text-primary)` 而不是 `text-[var(--text-primary)]`。
+3. `@prodivix/ui` 包下组件库使用 SCSS 进行样式编写，其他样式则用 Tailwind。要用最新的 Tailwind 4 写法，摒弃旧写法；尤其注意 Tailwind 当中关于 var 的写法，比如用 `text-(--text-primary)` 而不是 `text-[var(--text-primary)]`。
 4. 优先使用 `@/...` 导入同一个包下的代码，而不是使用相对路径。
 5. 为方便开发者看懂代码，当且仅当在重要模块的核心方法或核心组件前编写规范的文档注释，写明白模块的调用链路的逻辑。不要写无用注释。
 6. 如果文件过长，拆分。
@@ -192,6 +192,6 @@ MFE 是 Blueprint、NodeGraph、Animation 三编辑器架构。`specs/decisions/
 
 ## 工具入口文件关系
 
-- `AGENTS.md` 是跨 AI 工具共享的主规则来源，记录项目架构、MIR 读写链路与通用开发规范。
+- `AGENTS.md` 是跨 AI 工具共享的主规则来源，记录项目架构、PIR 读写链路与通用开发规范。
 - `CLAUDE.md` 是 Claude Code 专用补充文件，用于记录 Claude 的命令速查、仓库路径索引、测试备注与文档边界。
 - 两者内容冲突时，以本文件的通用项目规则为准；工具专属执行细节以对应工具文件为准。

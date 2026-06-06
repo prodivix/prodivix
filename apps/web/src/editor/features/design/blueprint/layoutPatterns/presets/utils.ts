@@ -30,7 +30,7 @@ export const createPatternRootNode = ({
   withDataAttributes(
     {
       id,
-      type: 'MdrDiv',
+      type: 'PdxDiv',
       props,
       children,
     },
@@ -56,7 +56,7 @@ export const createPatternRoleNode = ({
   withDataAttributes(
     {
       id,
-      type: 'MdrDiv',
+      type: 'PdxDiv',
       props,
       children,
     },

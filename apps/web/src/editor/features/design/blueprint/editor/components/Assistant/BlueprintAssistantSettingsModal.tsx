@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bot, Loader2, RotateCcw, Search, X } from 'lucide-react';
-import type { MdrAiSettings } from '@mdr/ai';
+import type { ProdivixAiSettings } from '@prodivix/ai';
 import {
-  createDefaultMdrAiSettings,
+  createDefaultProdivixAiSettings,
   discoverOpenAICompatibleModels,
-  type MdrAiDiscoveredModel,
-} from '@mdr/ai';
+  type ProdivixAiDiscoveredModel,
+} from '@prodivix/ai';
 import { useTranslation } from 'react-i18next';
 import { useAiSettingsStore } from '@/ai/aiSettingsStore';
 
@@ -15,7 +15,7 @@ type BlueprintAssistantSettingsModalProps = {
 };
 
 type AiSettingsDraft = {
-  provider: MdrAiSettings['provider'];
+  provider: ProdivixAiSettings['provider'];
   baseURL: string;
   apiKey: string;
   model: string;
@@ -24,7 +24,7 @@ type AiSettingsDraft = {
   maxOutputTokens: string;
 };
 
-const toDraft = (settings: MdrAiSettings): AiSettingsDraft => {
+const toDraft = (settings: ProdivixAiSettings): AiSettingsDraft => {
   if (settings.provider === 'openai-compatible') {
     return {
       provider: settings.provider,
@@ -63,9 +63,9 @@ const parseInteger = (value: string): number | undefined => {
   return Math.max(1, Math.floor(parsed));
 };
 
-const toSettings = (draft: AiSettingsDraft): MdrAiSettings => {
+const toSettings = (draft: AiSettingsDraft): ProdivixAiSettings => {
   if (draft.provider === 'mock') {
-    return createDefaultMdrAiSettings();
+    return createDefaultProdivixAiSettings();
   }
 
   return {
@@ -105,7 +105,9 @@ export function BlueprintAssistantSettingsModal({
   const setSettings = useAiSettingsStore((state) => state.setSettings);
   const resetSettings = useAiSettingsStore((state) => state.resetSettings);
   const [draft, setDraft] = useState<AiSettingsDraft>(() => toDraft(settings));
-  const [models, setModels] = useState<readonly MdrAiDiscoveredModel[]>([]);
+  const [models, setModels] = useState<readonly ProdivixAiDiscoveredModel[]>(
+    []
+  );
   const [discoveryError, setDiscoveryError] = useState('');
   const [isDiscovering, setIsDiscovering] = useState(false);
 
@@ -328,7 +330,7 @@ export function BlueprintAssistantSettingsModal({
             className="inline-flex h-9 items-center justify-center gap-2 border-0 bg-transparent px-2 text-sm text-(--text-muted) hover:text-(--text-primary)"
             onClick={() => {
               resetSettings();
-              setDraft(toDraft(createDefaultMdrAiSettings()));
+              setDraft(toDraft(createDefaultProdivixAiSettings()));
             }}
           >
             <RotateCcw size={15} />

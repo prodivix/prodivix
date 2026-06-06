@@ -51,7 +51,7 @@ export const SPLIT_LAYOUT_PATTERN: LayoutPatternDefinition<{
   },
   build: ({ createId, patternId, resolvedParams }) => {
     const root = createPatternRootNode({
-      id: createId('MdrDiv'),
+      id: createId('PdxDiv'),
       patternId,
       props: {
         display: 'Grid',
@@ -59,7 +59,7 @@ export const SPLIT_LAYOUT_PATTERN: LayoutPatternDefinition<{
       },
       children: [
         createPatternRoleNode({
-          id: createId('MdrDiv'),
+          id: createId('PdxDiv'),
           patternId,
           role: 'left',
           props: {
@@ -73,7 +73,7 @@ export const SPLIT_LAYOUT_PATTERN: LayoutPatternDefinition<{
           },
         }),
         createPatternRoleNode({
-          id: createId('MdrDiv'),
+          id: createId('PdxDiv'),
           patternId,
           role: 'right',
           props: {
@@ -87,7 +87,7 @@ export const SPLIT_LAYOUT_PATTERN: LayoutPatternDefinition<{
           },
         }),
         createPatternRoleNode({
-          id: createId('MdrDiv'),
+          id: createId('PdxDiv'),
           patternId,
           role: 'content',
           props: {

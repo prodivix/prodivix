@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	backendresponse "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/http/response"
+	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )

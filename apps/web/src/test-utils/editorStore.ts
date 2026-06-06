@@ -1,16 +1,16 @@
-import type { ComponentNode, MIRDocument } from '@/core/types/engine.types';
+import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
 import {
   createGlobalDefaults,
   type GlobalSettingsState,
 } from '@/editor/features/settings/SettingsDefaults';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
-import { normalizeMirDocument } from '@/mir/resolveMirDocument';
+import { normalizePirDocument } from '@/pir/resolvePirDocument';
 
 type EditorState = ReturnType<typeof useEditorStore.getState>;
 
-export const createMirDoc = (children: ComponentNode[] = []): MIRDocument => ({
-  ...normalizeMirDocument({
+export const createPirDoc = (children: ComponentNode[] = []): PIRDocument => ({
+  ...normalizePirDocument({
     version: '1.0',
     ui: {
       root: {
@@ -27,8 +27,8 @@ export const resetEditorStore = (overrides: Partial<EditorState> = {}) => {
   useEditorStore.setState(
     {
       ...state,
-      mirDoc: createMirDoc(),
-      mirDocRevision: 0,
+      pirDoc: createPirDoc(),
+      pirDocRevision: 0,
       workspaceId: undefined,
       workspaceRev: undefined,
       routeRev: undefined,

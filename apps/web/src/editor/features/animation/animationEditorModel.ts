@@ -8,7 +8,7 @@ import type {
   SvgFilterDefinition,
 } from '@/core/types/engine.types';
 
-const STORAGE_PREFIX = 'mdr:animation:native';
+const STORAGE_PREFIX = 'prodivix:animation:native';
 const DEFAULT_TIMELINE_DURATION_MS = 1000;
 const DEFAULT_TIMELINE_NAME = 'Timeline';
 const DEFAULT_BINDING_TARGET_NODE_ID = 'root';

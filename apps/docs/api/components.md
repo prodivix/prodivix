@@ -1,6 +1,6 @@
 # 组件库 API
 
-本文档描述 `@mdr/ui` 组件库中实际实现的组件及其 API。
+本文档描述 `@prodivix/ui` 组件库中实际实现的组件及其 API。
 
 ::: tip
 组件库包含 76 个已实现的 React 组件，支持主题定制和无障碍访问。
@@ -9,19 +9,19 @@
 ## 安装
 
 ```bash
-pnpm add @mdr/ui
+pnpm add @prodivix/ui
 ```
 
 ## 按钮组件
 
-### MdrButton
+### PdxButton
 
 通用按钮组件。
 
 ```tsx
-import { MdrButton } from '@mdr/ui';
+import { PdxButton } from '@prodivix/ui';
 
-<MdrButton
+<PdxButton
   text="点击我"
   category="Primary"
   size="Medium"
@@ -46,20 +46,20 @@ import { MdrButton } from '@mdr/ui';
 | `onClick`      | function                                                                                                        | -           | 点击事件         |
 | `as`           | ElementType                                                                                                     | `'button'`  | 渲染的 HTML 元素 |
 
-### MdrButtonLink
+### PdxButtonLink
 
 链接样式按钮组件。
 
 ## 输入组件
 
-### MdrInput
+### PdxInput
 
 文本输入框组件。
 
 ```tsx
-import { MdrInput } from '@mdr/ui';
+import { PdxInput } from '@prodivix/ui';
 
-<MdrInput
+<PdxInput
   type="Text"
   placeholder="请输入用户名"
   size="Medium"
@@ -96,24 +96,24 @@ import { MdrInput } from '@mdr/ui';
 | `onKeyDown`    | function                                                                                                        | -           | 键盘按下事件          |
 | `onKeyUp`      | function                                                                                                        | -           | 键盘松开事件          |
 
-### MdrTextarea
+### PdxTextarea
 
 多行文本输入组件。
 
-### MdrSearch
+### PdxSearch
 
 搜索输入组件。
 
 ## 表单组件
 
-### MdrSelect
+### PdxSelect
 
 下拉选择组件。
 
 ```tsx
-import { MdrSelect } from '@mdr/ui';
+import { PdxSelect } from '@prodivix/ui';
 
-<MdrSelect
+<PdxSelect
   label="选择城市"
   options={[
     { label: '北京', value: 'beijing' },
@@ -132,7 +132,7 @@ import { MdrSelect } from '@mdr/ui';
 | `label`        | string                               | -          | 标签文本         |
 | `description`  | string                               | -          | 描述文本         |
 | `message`      | string                               | -          | 提示/错误信息    |
-| `options`      | `MdrSelectOption[]`                  | `[]`       | 选项列表         |
+| `options`      | `PdxSelectOption[]`                  | `[]`       | 选项列表         |
 | `value`        | string                               | -          | 选中值（受控）   |
 | `defaultValue` | string                               | -          | 默认值（非受控） |
 | `placeholder`  | string                               | -          | 占位文本         |
@@ -140,24 +140,24 @@ import { MdrSelect } from '@mdr/ui';
 | `disabled`     | boolean                              | `false`    | 禁用状态         |
 | `onChange`     | function                             | -          | 值变化事件       |
 
-**MdrSelectOption**:
+**PdxSelectOption**:
 
 ```ts
-interface MdrSelectOption {
+interface PdxSelectOption {
   label: string;
   value: string;
   disabled?: boolean;
 }
 ```
 
-### MdrFileUpload
+### PdxFileUpload
 
 文件上传组件，支持拖拽上传。
 
 ```tsx
-import { MdrFileUpload } from '@mdr/ui';
+import { PdxFileUpload } from '@prodivix/ui';
 
-<MdrFileUpload
+<PdxFileUpload
   label="上传文件"
   accept=".pdf,.doc,.docx"
   multiple
@@ -182,14 +182,14 @@ import { MdrFileUpload } from '@mdr/ui';
 | `defaultValue` | File[]   | -       | 默认文件列表     |
 | `onChange`     | function | -       | 文件变化事件     |
 
-### MdrRating
+### PdxRating
 
 评分组件。
 
 ```tsx
-import { MdrRating } from '@mdr/ui';
+import { PdxRating } from '@prodivix/ui';
 
-<MdrRating
+<PdxRating
   label="评分"
   max={5}
   defaultValue={3}
@@ -214,28 +214,28 @@ import { MdrRating } from '@mdr/ui';
 
 ### 其他表单组件
 
-- **MdrDatePicker** - 日期选择器
-- **MdrDateRangePicker** - 日期范围选择器
-- **MdrTimePicker** - 时间选择器
-- **MdrColorPicker** - 颜色选择器
-- **MdrSlider** - 滑块
-- **MdrRange** - 范围选择器
-- **MdrRadioGroup** - 单选组
-- **MdrImageUpload** - 图片上传
-- **MdrRegexInput** - 正则输入
-- **MdrRegionPicker** - 地区选择器
-- **MdrVerificationCode** - 验证码输入
-- **MdrPasswordStrength** - 密码强度指示器
-- **MdrRichTextEditor** - 富文本编辑器
+- **PdxDatePicker** - 日期选择器
+- **PdxDateRangePicker** - 日期范围选择器
+- **PdxTimePicker** - 时间选择器
+- **PdxColorPicker** - 颜色选择器
+- **PdxSlider** - 滑块
+- **PdxRange** - 范围选择器
+- **PdxRadioGroup** - 单选组
+- **PdxImageUpload** - 图片上传
+- **PdxRegexInput** - 正则输入
+- **PdxRegionPicker** - 地区选择器
+- **PdxVerificationCode** - 验证码输入
+- **PdxPasswordStrength** - 密码强度指示器
+- **PdxRichTextEditor** - 富文本编辑器
 
 ## 数据展示组件
 
-### MdrTable
+### PdxTable
 
 表格组件，支持泛型。
 
 ```tsx
-import { MdrTable } from '@mdr/ui';
+import { PdxTable } from '@prodivix/ui';
 
 interface User {
   id: number;
@@ -243,7 +243,7 @@ interface User {
   age: number;
 }
 
-<MdrTable<User>
+<PdxTable<User>
   data={users}
   columns={[
     { key: 'name', title: '姓名', dataIndex: 'name' },
@@ -265,7 +265,7 @@ interface User {
 | 属性        | 类型                                 | 默认值       | 描述       |
 | ----------- | ------------------------------------ | ------------ | ---------- |
 | `data`      | T[]                                  | `[]`         | 数据源     |
-| `columns`   | `MdrTableColumn&lt;T&gt;[]`          | `[]`         | 列配置     |
+| `columns`   | `PdxTableColumn&lt;T&gt;[]`          | `[]`         | 列配置     |
 | `size`      | `'Small'` \| `'Medium'` \| `'Large'` | `'Medium'`   | 尺寸       |
 | `bordered`  | boolean                              | `false`      | 显示边框   |
 | `striped`   | boolean                              | `false`      | 斑马纹     |
@@ -274,10 +274,10 @@ interface User {
 | `caption`   | string                               | -            | 表格说明   |
 | `emptyText` | string                               | `'暂无数据'` | 空数据文本 |
 
-**`MdrTableColumn<T>`**:
+**`PdxTableColumn<T>`**:
 
 ```ts
-interface MdrTableColumn<T> {
+interface PdxTableColumn<T> {
   key: string;
   title: string;
   dataIndex?: keyof T;
@@ -287,14 +287,14 @@ interface MdrTableColumn<T> {
 }
 ```
 
-### MdrList
+### PdxList
 
 列表组件。
 
 ```tsx
-import { MdrList } from '@mdr/ui';
+import { PdxList } from '@prodivix/ui';
 
-<MdrList
+<PdxList
   items={[
     { title: '项目 1', description: '描述文本' },
     {
@@ -312,26 +312,26 @@ import { MdrList } from '@mdr/ui';
 
 | 属性         | 类型                                 | 默认值     | 描述           |
 | ------------ | ------------------------------------ | ---------- | -------------- |
-| `items`      | `MdrListItem[]`                      | `[]`       | 列表项         |
+| `items`      | `PdxListItem[]`                      | `[]`       | 列表项         |
 | `size`       | `'Small'` \| `'Medium'` \| `'Large'` | `'Medium'` | 尺寸           |
 | `bordered`   | boolean                              | `false`    | 显示边框       |
 | `split`      | boolean                              | `true`     | 显示分割线     |
 | `renderItem` | function                             | -          | 自定义渲染函数 |
 
-### MdrBadge
+### PdxBadge
 
 徽章组件。
 
 ```tsx
-import { MdrBadge } from '@mdr/ui';
+import { PdxBadge } from '@prodivix/ui';
 
-<MdrBadge count={5} max={99}>
+<PdxBadge count={5} max={99}>
   <button>消息</button>
-</MdrBadge>
+</PdxBadge>
 
-<MdrBadge dot color="red">
+<PdxBadge dot color="red">
   <span>新功能</span>
-</MdrBadge>
+</PdxBadge>
 ```
 
 **Props**:
@@ -347,27 +347,27 @@ import { MdrBadge } from '@mdr/ui';
 
 ### 其他数据组件
 
-- **MdrDataGrid** - 数据网格
-- **MdrCheckList** - 勾选列表
-- **MdrTree** - 树形控件
-- **MdrTreeSelect** - 树形选择
-- **MdrTag** - 标签
-- **MdrProgress** - 进度条
-- **MdrSpinner** - 加载指示器
-- **MdrStatistic** - 统计数值
-- **MdrTimeline** - 时间线
-- **MdrSteps** - 步骤条
+- **PdxDataGrid** - 数据网格
+- **PdxCheckList** - 勾选列表
+- **PdxTree** - 树形控件
+- **PdxTreeSelect** - 树形选择
+- **PdxTag** - 标签
+- **PdxProgress** - 进度条
+- **PdxSpinner** - 加载指示器
+- **PdxStatistic** - 统计数值
+- **PdxTimeline** - 时间线
+- **PdxSteps** - 步骤条
 
 ## 导航组件
 
-### MdrTabs
+### PdxTabs
 
 标签页组件。
 
 ```tsx
-import { MdrTabs } from '@mdr/ui';
+import { PdxTabs } from '@prodivix/ui';
 
-<MdrTabs
+<PdxTabs
   items={[
     { key: '1', label: '标签 1', content: <div>内容 1</div> },
     { key: '2', label: '标签 2', content: <div>内容 2</div> },
@@ -387,15 +387,15 @@ import { MdrTabs } from '@mdr/ui';
 
 | 属性               | 类型           | 默认值 | 描述                 |
 | ------------------ | -------------- | ------ | -------------------- |
-| `items`            | `MdrTabItem[]` | `[]`   | 标签项配置           |
+| `items`            | `PdxTabItem[]` | `[]`   | 标签项配置           |
 | `activeKey`        | string         | -      | 当前激活标签（受控） |
 | `defaultActiveKey` | string         | -      | 默认激活标签         |
 | `onChange`         | function       | -      | 切换事件             |
 
-**MdrTabItem**:
+**PdxTabItem**:
 
 ```ts
-interface MdrTabItem {
+interface PdxTabItem {
   key: string;
   label: string;
   content: ReactNode;
@@ -405,26 +405,26 @@ interface MdrTabItem {
 
 ### 其他导航组件
 
-- **MdrNav** - 导航菜单
-- **MdrNavbar** - 导航栏
-- **MdrSidebar** - 侧边栏
-- **MdrBreadcrumb** - 面包屑
-- **MdrPagination** - 分页
-- **MdrCollapse** - 折叠面板
-- **MdrAnchorNavigation** - 锚点导航
+- **PdxNav** - 导航菜单
+- **PdxNavbar** - 导航栏
+- **PdxSidebar** - 侧边栏
+- **PdxBreadcrumb** - 面包屑
+- **PdxPagination** - 分页
+- **PdxCollapse** - 折叠面板
+- **PdxAnchorNavigation** - 锚点导航
 
 ## 容器组件
 
-### MdrPanel
+### PdxPanel
 
 面板组件。
 
 ```tsx
-import { MdrPanel } from '@mdr/ui';
+import { PdxPanel } from '@prodivix/ui';
 
-<MdrPanel title="面板标题" variant="Bordered" padding="Medium" collapsible>
+<PdxPanel title="面板标题" variant="Bordered" padding="Medium" collapsible>
   面板内容
-</MdrPanel>;
+</PdxPanel>;
 ```
 
 **Props**:
@@ -442,22 +442,22 @@ import { MdrPanel } from '@mdr/ui';
 
 ### 其他容器组件
 
-- **MdrDiv** - 通用 div 容器
-- **MdrSection** - 区块容器
-- **MdrCard** - 卡片容器
+- **PdxDiv** - 通用 div 容器
+- **PdxSection** - 区块容器
+- **PdxCard** - 卡片容器
 
 ## 文本组件
 
-### MdrHeading
+### PdxHeading
 
 标题组件。
 
 ```tsx
-import { MdrHeading } from '@mdr/ui';
+import { PdxHeading } from '@prodivix/ui';
 
-<MdrHeading level={1} weight="Bold" color="Primary">
+<PdxHeading level={1} weight="Bold" color="Primary">
   主标题
-</MdrHeading>;
+</PdxHeading>;
 ```
 
 **Props**:
@@ -473,24 +473,24 @@ import { MdrHeading } from '@mdr/ui';
 
 ### 其他文本组件
 
-- **MdrText** - 普通文本
-- **MdrParagraph** - 段落文本
+- **PdxText** - 普通文本
+- **PdxParagraph** - 段落文本
 
 ## 图标组件
 
-### MdrIcon
+### PdxIcon
 
 图标组件，支持多种图标源。
 
 ```tsx
-import { MdrIcon } from '@mdr/ui';
+import { PdxIcon } from '@prodivix/ui';
 import { FiCheck } from 'react-icons/fi';
 
 // 使用 react-icons
-<MdrIcon icon={FiCheck} size={24} color="green" />
+<PdxIcon icon={FiCheck} size={24} color="green" />
 
 // 使用 SVG 组件
-<MdrIcon icon={MySvgIcon} size="1.5rem" />
+<PdxIcon icon={MySvgIcon} size="1.5rem" />
 ```
 
 **Props**:
@@ -502,50 +502,50 @@ import { FiCheck } from 'react-icons/fi';
 | `color` | string           | `'currentColor'` | 图标颜色                                     |
 | `title` | string           | -                | 无障碍标题                                   |
 
-### MdrIconLink
+### PdxIconLink
 
 可点击的图标链接。
 
 ## 媒体组件
 
-- **MdrImage** - 图片
-- **MdrAvatar** - 头像
-- **MdrImageGallery** - 图片画廊
-- **MdrVideo** - 视频
-- **MdrAudio** - 音频
+- **PdxImage** - 图片
+- **PdxAvatar** - 头像
+- **PdxImageGallery** - 图片画廊
+- **PdxVideo** - 视频
+- **PdxAudio** - 音频
 
 ## 嵌入组件
 
-- **MdrIframe** - iframe 嵌入
-- **MdrEmbed** - 通用嵌入
+- **PdxIframe** - iframe 嵌入
+- **PdxEmbed** - 通用嵌入
 
 ## 反馈组件
 
-### MdrModal
+### PdxModal
 
 模态框组件。
 
 ```tsx
-import { MdrModal } from '@mdr/ui';
+import { PdxModal } from '@prodivix/ui';
 
-<MdrModal
+<PdxModal
   open={isOpen}
   title="确认操作"
   size="Medium"
   onClose={() => setIsOpen(false)}
   footer={
     <>
-      <MdrButton
+      <PdxButton
         text="取消"
         category="Secondary"
         onClick={() => setIsOpen(false)}
       />
-      <MdrButton text="确认" category="Primary" onClick={handleConfirm} />
+      <PdxButton text="确认" category="Primary" onClick={handleConfirm} />
     </>
   }
 >
   确定要执行此操作吗？
-</MdrModal>;
+</PdxModal>;
 ```
 
 **Props**:
@@ -561,14 +561,14 @@ import { MdrModal } from '@mdr/ui';
 | `showClose`           | boolean                              | `true`     | 显示关闭按钮 |
 | `onClose`             | function                             | -          | 关闭事件     |
 
-### MdrMessage
+### PdxMessage
 
 消息提示组件。
 
 ```tsx
-import { MdrMessage } from '@mdr/ui';
+import { PdxMessage } from '@prodivix/ui';
 
-<MdrMessage
+<PdxMessage
   text="操作成功"
   type="Success"
   closable
@@ -587,16 +587,16 @@ import { MdrMessage } from '@mdr/ui';
 
 ### 其他反馈组件
 
-- **MdrDrawer** - 抽屉
-- **MdrTooltip** - 工具提示
-- **MdrPopover** - 气泡卡片
-- **MdrNotification** - 通知
-- **MdrEmpty** - 空状态
-- **MdrSkeleton** - 骨架屏
+- **PdxDrawer** - 抽屉
+- **PdxTooltip** - 工具提示
+- **PdxPopover** - 气泡卡片
+- **PdxNotification** - 通知
+- **PdxEmpty** - 空状态
+- **PdxSkeleton** - 骨架屏
 
 ## 链接组件
 
-### MdrLink
+### PdxLink
 
 链接组件。
 

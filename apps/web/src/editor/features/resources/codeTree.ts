@@ -7,7 +7,7 @@ export const CODE_TREE_ROOT_ID = 'code-root';
 const nowIso = () => new Date().toISOString();
 
 const getCodeTreeStorageKey = (projectId?: string) =>
-  `mdr.codeTree.${projectId?.trim() || 'default'}`;
+  `prodivix.codeTree.${projectId?.trim() || 'default'}`;
 
 const createFolderNode = (
   id: string,

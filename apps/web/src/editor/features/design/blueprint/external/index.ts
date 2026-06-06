@@ -14,7 +14,7 @@ import type {
 } from './runtime/types';
 export type { ExternalLibraryDiagnostic } from './runtime/types';
 
-const EXTERNAL_LIBRARY_IDS_STORAGE_KEY = 'mdr.externalLibraryIds';
+const EXTERNAL_LIBRARY_IDS_STORAGE_KEY = 'prodivix.externalLibraryIds';
 const DEFAULT_LIBRARY_IDS: string[] = [];
 const LEGACY_ICON_LIBRARY_IDS = new Set([
   'fontawesome',
@@ -27,7 +27,7 @@ const EXTERNAL_LIBRARY_DISPLAY_NAME: Record<string, string> = {
   mui: 'Material UI',
 };
 export const externalLibraryConfigUpdatedEvent =
-  'mdr:external-library-config-updated';
+  'prodivix:external-library-config-updated';
 let bootstrapped = false;
 let latestDiagnostics: ExternalLibraryDiagnostic[] = [];
 let isLoadingExternalLibraries = false;

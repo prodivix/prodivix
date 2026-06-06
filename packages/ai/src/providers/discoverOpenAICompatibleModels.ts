@@ -1,12 +1,12 @@
-import type { MdrAiFetch } from './openAICompatibleProvider';
+import type { ProdivixAiFetch } from './openAICompatibleProvider';
 
 export interface DiscoverOpenAICompatibleModelsOptions {
   baseURL: string;
   apiKey?: string;
-  fetcher: MdrAiFetch;
+  fetcher: ProdivixAiFetch;
 }
 
-export interface MdrAiDiscoveredModel {
+export interface ProdivixAiDiscoveredModel {
   id: string;
   ownedBy?: string;
   createdAt?: number;
@@ -18,7 +18,7 @@ const normalizeBaseURL = (baseURL: string) => baseURL.replace(/\/+$/, '');
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const normalizeModel = (value: unknown): MdrAiDiscoveredModel | null => {
+const normalizeModel = (value: unknown): ProdivixAiDiscoveredModel | null => {
   if (!isRecord(value) || typeof value.id !== 'string') return null;
   return {
     id: value.id,
@@ -40,7 +40,7 @@ export const discoverOpenAICompatibleModels = async ({
   apiKey,
   fetcher,
 }: DiscoverOpenAICompatibleModelsOptions): Promise<
-  readonly MdrAiDiscoveredModel[]
+  readonly ProdivixAiDiscoveredModel[]
 > => {
   const response = await fetcher(`${normalizeBaseURL(baseURL)}/models`, {
     method: 'GET',
@@ -58,5 +58,5 @@ export const discoverOpenAICompatibleModels = async ({
   const body = await response.json();
   return readModelList(body)
     .map(normalizeModel)
-    .filter((model): model is MdrAiDiscoveredModel => model !== null);
+    .filter((model): model is ProdivixAiDiscoveredModel => model !== null);
 };

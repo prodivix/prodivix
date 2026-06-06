@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { MdrButton, MdrInput } from '@mdr/ui';
+import { PdxButton, PdxInput } from '@prodivix/ui';
 import { Link2, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { RouteItem } from '@/editor/features/design/blueprint/editor/model/types';
@@ -72,7 +72,7 @@ export function BlueprintEditorAddressBar({
           {t('address.current')}
         </span>
         <div className="w-60 max-w-60">
-          <MdrInput
+          <PdxInput
             placeholder={t('address.currentPlaceholder')}
             value={currentPath}
             size="Small"
@@ -87,7 +87,7 @@ export function BlueprintEditorAddressBar({
           {t('address.new')}
         </span>
         <div className="w-50">
-          <MdrInput
+          <PdxInput
             placeholder={t('address.newPlaceholder')}
             value={newPath}
             size="Small"
@@ -95,7 +95,7 @@ export function BlueprintEditorAddressBar({
             onChange={onNewPathChange}
           />
         </div>
-        <MdrButton
+        <PdxButton
           text={t('address.add')}
           size="Tiny"
           category="Ghost"

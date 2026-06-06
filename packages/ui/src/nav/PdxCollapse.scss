@@ -1,0 +1,41 @@
+.PdxCollapse {
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+}
+
+.PdxCollapseItem + .PdxCollapseItem {
+  border-top: 1px solid var(--border-default);
+}
+
+.PdxCollapseHeader {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.PdxCollapseContent {
+  padding: var(--spacing-md);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-default);
+}
+
+.PdxCollapseItem.Disabled .PdxCollapseHeader {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.PdxCollapseIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

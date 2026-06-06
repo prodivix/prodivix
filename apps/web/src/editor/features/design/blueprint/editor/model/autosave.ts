@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/auth/authApi';
 import { editorApi, type WorkspaceCommandEnvelope } from '@/editor/editorApi';
-import type { MIRDocument } from '@/core/types/engine.types';
-import { validateMirDocument } from '@/mir/validator/validator';
+import type { PIRDocument } from '@/core/types/engine.types';
+import { validatePirDocument } from '@/pir/validator/validator';
 
 export type AutosaveMode = 'manual' | 'on-change' | 'interval';
 export type SaveTransport = 'workspace' | 'project' | null;
@@ -17,8 +17,8 @@ type WorkspaceMutation = Awaited<
 type UseBlueprintAutosaveOptions = {
   token: string | null;
   projectId?: string;
-  mirDoc: MIRDocument;
-  mirDocRevision: number;
+  pirDoc: PIRDocument;
+  pirDocRevision: number;
   autosaveMode: AutosaveMode;
   autosaveIntervalMs: number;
   workspaceId?: string;
@@ -51,11 +51,11 @@ const createCommandId = () => {
 const createDocumentUpdateCommand = (
   workspaceId: string,
   documentId: string,
-  nextGraph: MIRDocument['ui']['graph'],
-  previousGraph: MIRDocument['ui']['graph']
+  nextGraph: PIRDocument['ui']['graph'],
+  previousGraph: PIRDocument['ui']['graph']
 ): WorkspaceCommandEnvelope => ({
   id: createCommandId(),
-  namespace: 'core.mir',
+  namespace: 'core.pir',
   type: 'graph.replace',
   version: '1.0',
   issuedAt: new Date().toISOString(),
@@ -81,8 +81,8 @@ const resolveApiErrorMessage = (error: unknown): string | null => {
 export const useBlueprintAutosave = ({
   token,
   projectId: _projectId,
-  mirDoc,
-  mirDocRevision,
+  pirDoc,
+  pirDocRevision,
   autosaveMode,
   autosaveIntervalMs,
   workspaceId,
@@ -95,9 +95,9 @@ export const useBlueprintAutosave = ({
   const { t } = useTranslation('blueprint');
   const saveRequestSeqRef = useRef(0);
   const isSavingRef = useRef(false);
-  const lastSavedGraphRef = useRef(mirDoc.ui.graph);
+  const lastSavedGraphRef = useRef(pirDoc.ui.graph);
   const [trackedDocumentId, setTrackedDocumentId] = useState(activeDocumentId);
-  const [lastSavedRevision, setLastSavedRevision] = useState(mirDocRevision);
+  const [lastSavedRevision, setLastSavedRevision] = useState(pirDocRevision);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveTransport, setSaveTransport] = useState<SaveTransport>(null);
   const [saveMessage, setSaveMessage] = useState('');
@@ -111,14 +111,14 @@ export const useBlueprintAutosave = ({
   // is observed, until this effect has committed the new baseline.
   useEffect(() => {
     if (trackedDocumentId === activeDocumentId) return;
-    lastSavedGraphRef.current = mirDoc.ui.graph;
+    lastSavedGraphRef.current = pirDoc.ui.graph;
     setTrackedDocumentId(activeDocumentId);
-    setLastSavedRevision(mirDocRevision);
-  }, [activeDocumentId, mirDoc, mirDocRevision, trackedDocumentId]);
+    setLastSavedRevision(pirDocRevision);
+  }, [activeDocumentId, pirDoc, pirDocRevision, trackedDocumentId]);
 
   const hasPendingChanges =
     trackedDocumentId === activeDocumentId &&
-    mirDocRevision > lastSavedRevision;
+    pirDocRevision > lastSavedRevision;
   const normalizedAutosaveIntervalMs = Math.max(
     1000,
     Number.isFinite(autosaveIntervalMs) ? Math.round(autosaveIntervalMs) : 1000
@@ -197,7 +197,7 @@ export const useBlueprintAutosave = ({
       defaultValue: 'Workspace document save unavailable. Using project save.',
     }
   );
-  const mirValidationFailedMessageKey = 'autosave.messages.mirValidationFailed';
+  const pirValidationFailedMessageKey = 'autosave.messages.pirValidationFailed';
 
   const flushSave = useCallback(() => {
     if (!token) return;
@@ -205,15 +205,15 @@ export const useBlueprintAutosave = ({
     if (hasWorkspaceTarget && !workspaceCapabilitiesLoaded) return;
     if (isSavingRef.current) return;
 
-    const targetRevision = mirDocRevision;
-    const validation = validateMirDocument(mirDoc);
+    const targetRevision = pirDocRevision;
+    const validation = validatePirDocument(pirDoc);
     if (validation.hasError) {
       setSaveTransport(null);
       setSaveStatus('error');
       setSaveMessage(
-        t(mirValidationFailedMessageKey, {
-          defaultValue: 'MIR validation failed: {{message}}',
-          message: validation.issues[0]?.message ?? 'Invalid MIR document.',
+        t(pirValidationFailedMessageKey, {
+          defaultValue: 'PIR validation failed: {{message}}',
+          message: validation.issues[0]?.message ?? 'Invalid PIR document.',
         })
       );
       return;
@@ -229,7 +229,7 @@ export const useBlueprintAutosave = ({
       const command = createDocumentUpdateCommand(
         workspaceId,
         activeDocumentId,
-        mirDoc.ui.graph,
+        pirDoc.ui.graph,
         lastSavedGraphRef.current
       );
       const requestSeq = saveRequestSeqRef.current + 1;
@@ -248,7 +248,7 @@ export const useBlueprintAutosave = ({
             return;
           }
           applyWorkspaceMutation(mutation);
-          lastSavedGraphRef.current = mirDoc.ui.graph;
+          lastSavedGraphRef.current = pirDoc.ui.graph;
           setLastSavedRevision((previous) =>
             Math.max(previous, targetRevision)
           );
@@ -283,8 +283,8 @@ export const useBlueprintAutosave = ({
     hasPendingChanges,
     hasWorkspaceTarget,
     isWorkspaceSaveDisabled,
-    mirDoc,
-    mirDocRevision,
+    pirDoc,
+    pirDocRevision,
     t,
     token,
     workspaceCapabilitiesLoaded,

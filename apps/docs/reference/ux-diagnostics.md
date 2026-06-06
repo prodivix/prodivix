@@ -23,7 +23,7 @@ UX 诊断使用 `UX-xxxx` 命名空间。它不是代码语法错误，也不是
 
 | 问题类型                             | 使用命名空间 |
 | ------------------------------------ | ------------ |
-| MIR graph 结构、ValueRef、校验       | `MIR-xxxx`   |
+| PIR graph 结构、ValueRef、校验       | `PIR-xxxx`   |
 | 选择、拖拽、Inspector 写入、画布命令 | `EDT-xxxx`   |
 | 用户代码解析、类型、运行时、编译     | `COD-xxxx`   |
 | 外部库加载、扫描、注册               | `ELIB-xxxx`  |
@@ -182,7 +182,7 @@ UX 诊断使用 `UX-xxxx` 命名空间。它不是代码语法错误，也不是
 }
 ```
 
-`UX-1001` 是 MdrFrontEngine 的稳定产品错误码。WCAG 条款、axe rule、Lighthouse audit 或其他外部工具编号只作为 `meta.standardRef` 里的证据，不替代主错误码。
+`UX-1001` 是 Prodivix 的稳定产品错误码。WCAG 条款、axe rule、Lighthouse audit 或其他外部工具编号只作为 `meta.standardRef` 里的证据，不替代主错误码。
 
 ## 严重程度
 
@@ -201,7 +201,7 @@ UX 诊断按证据来源分为四类：
 
 | 模式        | 输入                                             | 示例                              |
 | ----------- | ------------------------------------------------ | --------------------------------- |
-| Static      | MIR、组件 metadata、Inspector schema、主题 token | `UX-1003`、`UX-1004`、`UX-4005`   |
+| Static      | PIR、组件 metadata、Inspector schema、主题 token | `UX-1003`、`UX-1004`、`UX-4005`   |
 | Preview     | 渲染后的 DOM、computed style、viewport           | `UX-1001`、`UX-3001`、`UX-5003`   |
 | Interaction | focus walk、键盘路径、状态变化                   | `UX-1014`、`UX-2001`、`UX-2010`   |
 | Export gate | 路由集合、主题矩阵、目标视口                     | 发布前聚合 `UX-xxxx` 与其他错误码 |

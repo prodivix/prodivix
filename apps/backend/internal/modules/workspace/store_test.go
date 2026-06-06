@@ -48,7 +48,7 @@ func TestWorkspaceStoreSaveDocumentContentKeepsWorkspaceAndRouteRev(t *testing.T
 
 	store := NewWorkspaceStore(db)
 	issuedAt := time.Date(2026, time.February, 8, 10, 0, 0, 0, time.UTC)
-	command := buildTestCommand("cmd_doc_update_1", issuedAt, "ws_1", "doc_home", "core.mir", "document.update")
+	command := buildTestCommand("cmd_doc_update_1", issuedAt, "ws_1", "doc_home", "core.pir", "document.update")
 
 	lockQuery := regexp.QuoteMeta(`SELECT d.content_rev, d.meta_rev, w.workspace_rev, w.route_rev, w.op_seq
 FROM workspace_documents d
@@ -77,7 +77,7 @@ VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
 		WithArgs("ws_1").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).AddRow(9, 4, 34))
 	mock.ExpectExec(insertOperation).
-		WithArgs("ws_1", int64(34), "core.mir.document.update@1.0", "doc_home", sqlmock.AnyArg(), issuedAt.UTC()).
+		WithArgs("ws_1", int64(34), "core.pir.document.update@1.0", "doc_home", sqlmock.AnyArg(), issuedAt.UTC()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
@@ -114,7 +114,7 @@ func TestWorkspaceStoreSaveDocumentContentReturnsDocumentConflict(t *testing.T) 
 
 	store := NewWorkspaceStore(db)
 	issuedAt := time.Date(2026, time.February, 8, 10, 1, 0, 0, time.UTC)
-	command := buildTestCommand("cmd_doc_update_2", issuedAt, "ws_1", "doc_home", "core.mir", "document.update")
+	command := buildTestCommand("cmd_doc_update_2", issuedAt, "ws_1", "doc_home", "core.pir", "document.update")
 
 	lockQuery := regexp.QuoteMeta(`SELECT d.content_rev, d.meta_rev, w.workspace_rev, w.route_rev, w.op_seq
 FROM workspace_documents d
@@ -154,7 +154,7 @@ FOR UPDATE OF d, w`)
 	}
 }
 
-func TestWorkspaceStorePatchCodeDocumentContentSkipsMIRValidation(t *testing.T) {
+func TestWorkspaceStorePatchCodeDocumentContentSkipsPIRValidation(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("create sqlmock: %v", err)
@@ -446,7 +446,7 @@ func TestWorkspaceStoreSaveDocumentContentValidatesCommandEnvelope(t *testing.T)
 				time.Date(2026, time.February, 8, 10, 5, 0, 0, time.UTC),
 				"ws_1",
 				"doc_home",
-				"core.mir",
+				"core.pir",
 				"document.update",
 			)
 			testCase.mutateCommand(&command)

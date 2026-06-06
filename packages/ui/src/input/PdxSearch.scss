@@ -1,0 +1,127 @@
+.PdxSearch {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-canvas);
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+  border-color: var(--border-strong);
+
+  &:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--accent-color) 12%, transparent);
+  }
+
+  &.Disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--bg-raised);
+  }
+
+  .PdxSearchIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-normal);
+    color: var(--text-primary);
+
+    &::placeholder {
+      color: var(--text-muted);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .PdxSearchClear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition:
+      background-color var(--motion-duration-fast) var(--motion-easing-standard),
+      color var(--motion-duration-fast) var(--motion-easing-standard);
+    flex-shrink: 0;
+
+    &:hover {
+      background-color: var(--bg-raised);
+      color: var(--text-primary);
+    }
+
+    &:active {
+      background-color: var(--border-subtle);
+    }
+
+    svg {
+      display: block;
+    }
+  }
+
+  &.Small {
+    .PdxSearchIcon {
+      padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    input {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-md);
+    }
+
+    .PdxSearchClear {
+      padding: var(--spacing-xs);
+    }
+  }
+
+  &.Medium {
+    .PdxSearchIcon {
+      padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    input {
+      padding: var(--spacing-sm) var(--spacing-md);
+      font-size: var(--font-size-lg);
+    }
+
+    .PdxSearchClear {
+      padding: var(--spacing-xs) var(--spacing-sm);
+    }
+  }
+
+  &.Large {
+    .PdxSearchIcon {
+      padding: var(--spacing-md) var(--spacing-lg);
+    }
+
+    input {
+      padding: var(--spacing-md) var(--spacing-lg);
+      font-size: var(--font-size-xl);
+    }
+
+    .PdxSearchClear {
+      padding: var(--spacing-sm) var(--spacing-md);
+    }
+  }
+}

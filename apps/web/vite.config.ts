@@ -25,10 +25,11 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react-router'],
     alias: {
       '@': resolve(__dirname, './src'),
-      '@mdr/ai': resolve(__dirname, '../../packages/ai/src'),
-      '@mdr/shared': resolve(__dirname, '../../packages/shared/src'),
-      '@mdr/ui': resolve(__dirname, '../../packages/ui/src'),
-      '@mdr/themes': resolve(__dirname, '../../packages/themes/'),
+      '@prodivix/ai': resolve(__dirname, '../../packages/ai/src'),
+      '@prodivix/i18n': resolve(__dirname, '../../packages/i18n/src'),
+      '@prodivix/shared': resolve(__dirname, '../../packages/shared/src'),
+      '@prodivix/ui': resolve(__dirname, '../../packages/ui/src'),
+      '@prodivix/themes': resolve(__dirname, '../../packages/themes/'),
     },
   },
   // optimizeDeps: {

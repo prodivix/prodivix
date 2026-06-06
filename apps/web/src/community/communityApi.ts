@@ -20,7 +20,7 @@ export type CommunityProjectDetail = {
   resourceType: CommunityResourceType;
   name: string;
   description: string;
-  mir: unknown;
+  pir: unknown;
   isPublic: boolean;
   starsCount: number;
   createdAt: string;

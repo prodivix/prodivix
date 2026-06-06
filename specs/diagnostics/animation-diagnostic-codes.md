@@ -6,7 +6,7 @@
 - 日期：2026-05-03
 - 关联：
   - `specs/diagnostics/README.md`
-  - `specs/mir/mir-contract-v1.3.md`
+  - `specs/pir/pir-contract-v1.3.md`
 
 ## 1. 范围
 
@@ -14,7 +14,7 @@
 
 不覆盖：
 
-1. `animation.targetNodeId` 指向不存在 MIR 节点时的 graph 引用问题，可由 `MIR-xxxx` 承担基础校验。
+1. `animation.targetNodeId` 指向不存在 PIR 节点时的 graph 引用问题，可由 `PIR-xxxx` 承担基础校验。
 2. 动画编辑器面板交互，使用 `EDT-xxxx`。
 3. 导出到目标框架时的策略失败，使用 `GEN-xxxx`。
 
@@ -65,9 +65,9 @@ type AnimationDiagnosticStage =
 - Severity: `error`
 - Stage: `binding`
 - Retryable: false
-- Trigger: binding targetNodeId 无法解析到当前 MIR graph 节点
+- Trigger: binding targetNodeId 无法解析到当前 PIR graph 节点
 - User action: 重新选择动画目标节点或恢复缺失节点
-- Developer notes: MIR validator 可映射到该语义；动画编辑器可展示更具体上下文
+- Developer notes: PIR validator 可映射到该语义；动画编辑器可展示更具体上下文
 
 ### `ANI-3001` Track 属性不支持
 
@@ -103,7 +103,7 @@ type AnimationDiagnosticStage =
 - Retryable: true
 - Trigger: 预览器无法在指定时间采样动画状态
 - User action: 检查绑定目标、track 值和 filter 定义
-- Developer notes: 预览失败不应破坏 MIR 保存态
+- Developer notes: 预览失败不应破坏 PIR 保存态
 
 ### `ANI-9001` Animation 未知异常
 

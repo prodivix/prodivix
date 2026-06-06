@@ -1,5 +1,5 @@
 export type LlmOutputChannel =
-  | 'mir-command'
+  | 'pir-command'
   | 'node-graph-operation'
   | 'code-artifact';
 
@@ -88,8 +88,8 @@ export interface LlmPlanArtifact {
   milestones: readonly LlmPlanMilestone[];
 }
 
-export interface LlmMirCommandBatch {
-  channel: 'mir-command';
+export interface LlmPirCommandBatch {
+  channel: 'pir-command';
   commands: readonly unknown[];
   riskLevel: LlmRiskLevel;
 }
@@ -113,7 +113,7 @@ export interface LlmCodeArtifact {
 
 export type LlmStructuredOutput =
   | LlmPlanArtifact
-  | LlmMirCommandBatch
+  | LlmPirCommandBatch
   | LlmNodeGraphOperationBatch
   | LlmCodeArtifact;
 

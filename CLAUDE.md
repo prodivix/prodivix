@@ -2,7 +2,7 @@
 
 This file provides Claude Code-specific guidance for working in this repository.
 
-**Primary rule source:** read `AGENTS.md` first. It contains the cross-agent project architecture, MIR write/read model, and coding rules. This file should stay complementary: Claude-specific workflow notes, command shortcuts, and implementation map only.
+**Primary rule source:** read `AGENTS.md` first. It contains the cross-agent project architecture, PIR write/read model, and coding rules. This file should stay complementary: Claude-specific workflow notes, command shortcuts, and implementation map only.
 
 ## Claude Operating Rules
 
@@ -24,7 +24,7 @@ This file provides Claude Code-specific guidance for working in this repository.
 
 ## Project Summary
 
-MdrFrontEngine is an industrial browser-side visual front-end development tool. The product shape is three visual editors plus a shared **Code Authoring Environment**:
+Prodivix is an industrial browser-side visual front-end development tool. The product shape is three visual editors plus a shared **Code Authoring Environment**:
 
 ```text
 Blueprint / NodeGraph / Animation / Inspector / Resources / AI / Issues
@@ -33,18 +33,18 @@ Blueprint / NodeGraph / Animation / Inspector / Resources / AI / Issues
     -> CodeArtifact / CodeSymbol / CodeScope / Diagnostics
 ```
 
-The durable data architecture centers on **MIR** as the validated source of truth:
+The durable data architecture centers on **PIR** as the validated source of truth:
 
 ```text
 Editors / AI
     -> Command / Intent / Patch
-    -> MIR ui.graph
+    -> PIR ui.graph
     -> Schema + graph semantic validation
     -> Workspace VFS / Backend / Git
     -> materializeUiTree when Renderer or Code Generator needs a tree view
 ```
 
-The current MIR write format is the normalized `ui.graph` model:
+The current PIR write format is the normalized `ui.graph` model:
 
 - `rootId`
 - `nodesById`
@@ -64,17 +64,17 @@ Editors and AI flows should not directly overwrite tree-shaped UI state. Tree vi
 
 ## Repository Map
 
-- `apps/web` - primary browser editor: Blueprint, Node Graph, Animation, Code Authoring Environment, Inspector, MIR runtime, external library runtime.
-- `apps/backend` - Go backend: auth, projects, Workspace VFS, sync, backend MIR validation, integrations.
+- `apps/web` - primary browser editor: Blueprint, Node Graph, Animation, Code Authoring Environment, Inspector, PIR runtime, external library runtime.
+- `apps/backend` - Go backend: auth, projects, Workspace VFS, sync, backend PIR validation, integrations.
 - `apps/cli` - CLI tooling.
 - `apps/docs` - standalone VitePress documentation site. Do not use it as the root README.
-- `apps/vscode` - VS Code extension for MIR language/debugging support.
+- `apps/vscode` - VS Code extension for PIR language/debugging support.
 - `packages/ai` - AI provider abstractions and shared AI utilities.
 - `packages/shared` - shared types, schemas, and validation utilities.
 - `packages/ui` - shared UI package, styled with SCSS.
 - `packages/themes` - theme manifests and semantic design tokens.
-- `packages/mir-compiler` - MIR code generation package.
-- `specs` - architecture decisions, MIR contracts, diagnostic codes, RFCs, and implementation plans.
+- `packages/pir-compiler` - PIR code generation package.
+- `specs` - architecture decisions, PIR contracts, diagnostic codes, RFCs, and implementation plans.
 
 ## Common Commands
 
@@ -107,7 +107,7 @@ pnpm docs:diagnostics:check
 
 ### Targeted Web Checks
 
-If the local `pnpm --filter @mdr/web test` shim fails because `apps/web/node_modules/vitest/vitest.mjs` is missing, use the workspace Vitest entrypoint from `apps/web`:
+If the local `pnpm --filter @prodivix/web test` shim fails because `apps/web/node_modules/vitest/vitest.mjs` is missing, use the workspace Vitest entrypoint from `apps/web`:
 
 ```bash
 node ..\..\node_modules\vitest\vitest.mjs --config vitest.config.ts --run --maxWorkers=1
@@ -116,13 +116,13 @@ node ..\..\node_modules\vitest\vitest.mjs --config vitest.config.ts --run --maxW
 For type checking:
 
 ```bash
-pnpm --filter @mdr/web exec tsc -b --pretty false
+pnpm --filter @prodivix/web exec tsc -b --pretty false
 ```
 
 ## Frontend Conventions
 
 - Use `@/...` imports inside packages where the alias is configured; avoid deep relative imports when a package-local alias exists.
-- `@mdr/ui` styles use SCSS.
+- `@prodivix/ui` styles use SCSS.
 - Other app-level styles use Tailwind CSS 4 conventions.
 - Use Tailwind custom-property shorthand such as `text-(--text-primary)` and `bg-(--bg-raised)`, not `text-[var(--text-primary)]`.
 - Keep the monochrome-ui design direction. UI and UX may reference Figma and Dify while staying consistent with the existing product surface.
@@ -152,19 +152,19 @@ Prefer tests around user-visible behavior, public APIs, state outcomes, and stab
 - `apps/web/src/editor/features/development` - Node Graph editor.
 - `apps/web/src/editor/features/animation` - Animation editor.
 - `apps/web/src/editor/store` - editor and supporting Zustand stores.
-- `apps/web/src/mir` - MIR schema, validation, rendering, and generation.
+- `apps/web/src/pir` - PIR schema, validation, rendering, and generation.
 - `apps/web/src/authoring` - stable Authoring Symbol Environment primitives and provider registries used by Code Authoring Environment.
 
 ### Backend Areas
 
 - `apps/backend/internal/modules/auth` - auth and session behavior.
 - `apps/backend/internal/modules/project` - project metadata.
-- `apps/backend/internal/modules/workspace` - Workspace VFS, routes, intents, patches, MIR validation.
+- `apps/backend/internal/modules/workspace` - Workspace VFS, routes, intents, patches, PIR validation.
 - `apps/backend/internal/modules/integrations` - third-party integrations such as GitHub App work.
 
 ### Specs to Check First
 
-- `specs/mir/mir-contract-v1.3.md` for current MIR graph contract.
+- `specs/pir/pir-contract-v1.3.md` for current PIR graph contract.
 - `specs/decisions/README.md` for architecture decision navigation.
 - `specs/decisions/28.code-authoring-environment.md` for code-owned ownership, code slots, library capability levels, and shared authoring boundaries.
 - `specs/decisions/25.authoring-symbol-environment.md` for authoring symbols, scopes, references, and diagnostic contracts.

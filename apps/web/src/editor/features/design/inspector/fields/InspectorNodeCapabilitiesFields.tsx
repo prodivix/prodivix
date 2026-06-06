@@ -33,7 +33,7 @@ export function InspectorNodeCapabilitiesFields() {
     typeof selectedNode?.props?.emptyText === 'string'
       ? selectedNode.props.emptyText
       : '';
-  const isDirectRouteChild = selectedParentNode?.type === 'MdrRoute';
+  const isDirectRouteChild = selectedParentNode?.type === 'PdxRoute';
   const routePathValue =
     typeof selectedNode?.props?.['data-route-path'] === 'string'
       ? selectedNode.props['data-route-path']
@@ -121,7 +121,7 @@ export function InspectorNodeCapabilitiesFields() {
           }}
         />
       ) : null}
-      {selectedNode?.type === 'MdrRoute' ? (
+      {selectedNode?.type === 'PdxRoute' ? (
         <>
           <div className="InspectorField flex flex-col gap-1.5">
             <InspectorRow
@@ -297,7 +297,7 @@ export function InspectorNodeCapabilitiesFields() {
           </div>
         </>
       ) : null}
-      {selectedNode?.type === 'MdrOutlet' ? (
+      {selectedNode?.type === 'PdxOutlet' ? (
         <div className="InspectorField flex flex-col gap-1.5">
           <InspectorRow
             label={t('inspector.fields.outletRoute.label', {

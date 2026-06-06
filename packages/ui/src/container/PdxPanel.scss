@@ -1,0 +1,139 @@
+.PdxPanel {
+  box-sizing: border-box;
+  background-color: var(--bg-canvas);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  transition:
+    background-color var(--motion-duration-normal) var(--motion-easing-standard),
+    border-color var(--motion-duration-normal) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-normal) var(--motion-easing-standard);
+  color: var(--text-primary);
+  overflow: hidden;
+
+  &.Small {
+    min-height: 80px;
+  }
+
+  &.Medium {
+    min-height: 150px;
+  }
+
+  &.Large {
+    min-height: 250px;
+  }
+
+  .PdxPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: default;
+  }
+
+  &.Collapsible .PdxPanelHeader {
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      background-color: var(--bg-raised);
+    }
+  }
+
+  &.Collapsed .PdxPanelHeader {
+    border-bottom: none;
+  }
+
+  .PdxPanelTitle {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .PdxPanelToggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--motion-duration-fast)
+      var(--motion-easing-standard);
+
+    &:hover {
+      background-color: var(--bg-raised);
+    }
+
+    &:active {
+      background-color: var(--border-subtle);
+    }
+  }
+
+  .PdxPanelContent {
+    overflow: hidden;
+    transition:
+      max-height var(--motion-duration-normal) var(--motion-easing-standard),
+      opacity var(--motion-duration-normal) var(--motion-easing-standard);
+  }
+
+  &:not(.Collapsed) .PdxPanelContent {
+    max-height: 1000px;
+    opacity: 1;
+  }
+
+  &.PaddingNone .PdxPanelContent {
+    padding: 0;
+  }
+
+  &.PaddingSmall .PdxPanelContent {
+    padding: var(--spacing-sm);
+  }
+
+  &.PaddingMedium .PdxPanelContent {
+    padding: var(--spacing-md);
+  }
+
+  &.PaddingLarge .PdxPanelContent {
+    padding: var(--spacing-lg);
+  }
+
+  &.Collapsed .PdxPanelContent {
+    max-height: 0;
+    padding: 0;
+    opacity: 0;
+  }
+
+  &.Default {
+    border-color: var(--border-default);
+  }
+
+  &.Bordered {
+    border-width: 2px;
+    border-color: var(--border-strong);
+  }
+
+  &.Filled {
+    border-color: transparent;
+    background-color: var(--bg-panel);
+  }
+
+  &.Elevated {
+    border-color: var(--border-default);
+    box-shadow: var(--shadow-md);
+  }
+
+  &.Flat {
+    background-color: var(--bg-raised);
+  }
+}
+
+[data-theme='dark'] {
+  .PdxPanel {
+    &.Elevated {
+      box-shadow: var(--shadow-lg);
+    }
+  }
+}

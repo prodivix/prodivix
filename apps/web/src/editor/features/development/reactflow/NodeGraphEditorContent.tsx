@@ -29,11 +29,11 @@ import {
   normalizeNodeGraphEditorState,
   normalizeGraphDocuments,
   resolveNodeSize,
-  serializeGraphsForMirLogic,
+  serializeGraphsForPirLogic,
   type ContextMenuState,
   type GraphDocument,
   type NodeValidationText,
-  type NodeGraphEditorMirState,
+  type NodeGraphEditorPirState,
   type ProjectGraphSnapshot,
 } from './nodeGraphEditorModel';
 import { nodeTypes } from './nodeGraphNodeTypes';
@@ -64,9 +64,9 @@ const debugNodeGraph = (label: string, payload: Record<string, unknown>) => {
   if (typeof window === 'undefined') return;
   console.log(`[node-graph-debug] ${label}`, payload);
 };
-const serializeSnapshotForMir = (snapshot: ProjectGraphSnapshot) =>
+const serializeSnapshotForPir = (snapshot: ProjectGraphSnapshot) =>
   JSON.stringify({
-    graphs: serializeGraphsForMirLogic(snapshot.graphs),
+    graphs: serializeGraphsForPirLogic(snapshot.graphs),
     editorState: buildNodeGraphEditorState(snapshot),
   });
 
@@ -124,45 +124,45 @@ const toStableGraphNode = (node: Node<GraphNodeData>): Node<GraphNodeData> => {
 
 const readNodeGraphEditorStateFromLogic = (
   logic: unknown
-): NodeGraphEditorMirState | null => {
+): NodeGraphEditorPirState | null => {
   if (!logic || typeof logic !== 'object' || Array.isArray(logic)) return null;
   return normalizeNodeGraphEditorState(
     (logic as Record<string, unknown>)[NODE_GRAPH_EDITOR_STATE_KEY]
   );
 };
 
-const serializeNodeGraphEditorState = (state: NodeGraphEditorMirState | null) =>
+const serializeNodeGraphEditorState = (state: NodeGraphEditorPirState | null) =>
   JSON.stringify(state);
 
 export const NodeGraphEditorContent = () => {
   const { projectId } = useParams();
   const { t } = useTranslation('editor');
-  const mirDoc = useEditorStore((state) => state.mirDoc);
-  const updateMirDoc = useEditorStore((state) => state.updateMirDoc);
+  const pirDoc = useEditorStore((state) => state.pirDoc);
+  const updatePirDoc = useEditorStore((state) => state.updatePirDoc);
   const resolvedProjectId = projectId?.trim() || 'global';
   const persistedSnapshot = useMemo(
     () => loadProjectSnapshot(resolvedProjectId),
     [resolvedProjectId]
   );
-  const mirGraphs = useMemo(
-    () => normalizeGraphDocuments(mirDoc.logic?.graphs),
-    [mirDoc.logic?.graphs]
+  const pirGraphs = useMemo(
+    () => normalizeGraphDocuments(pirDoc.logic?.graphs),
+    [pirDoc.logic?.graphs]
   );
-  const mirEditorState = useMemo(
-    () => readNodeGraphEditorStateFromLogic(mirDoc.logic),
-    [mirDoc.logic]
+  const pirEditorState = useMemo(
+    () => readNodeGraphEditorStateFromLogic(pirDoc.logic),
+    [pirDoc.logic]
   );
-  const mirSnapshot = useMemo(() => {
-    if (!mirGraphs.length) return null;
+  const pirSnapshot = useMemo(() => {
+    if (!pirGraphs.length) return null;
     return ensureProjectGraphSnapshot({
       activeGraphId:
-        mirEditorState?.activeGraphId || persistedSnapshot.activeGraphId,
-      graphs: applyNodeGraphEditorStateToGraphs(mirGraphs, mirEditorState),
+        pirEditorState?.activeGraphId || persistedSnapshot.activeGraphId,
+      graphs: applyNodeGraphEditorStateToGraphs(pirGraphs, pirEditorState),
     });
-  }, [mirEditorState, mirGraphs, persistedSnapshot.activeGraphId]);
+  }, [pirEditorState, pirGraphs, persistedSnapshot.activeGraphId]);
   const initialSnapshot = useMemo(() => {
-    return mirSnapshot ?? persistedSnapshot;
-  }, [mirSnapshot, persistedSnapshot]);
+    return pirSnapshot ?? persistedSnapshot;
+  }, [pirSnapshot, persistedSnapshot]);
   const initialActiveGraph = resolveActiveGraphFromSnapshot(initialSnapshot);
   const [graphDocs, setGraphDocs] = useState<GraphDocument[]>(
     initialSnapshot.graphs
@@ -373,15 +373,15 @@ export const NodeGraphEditorContent = () => {
         activeGraphId: activeGraphIdRef.current,
         graphs: nextGraphDocs,
       });
-      const nextMirGraphs = serializeGraphsForMirLogic(
+      const nextPirGraphs = serializeGraphsForPirLogic(
         committedSnapshot.graphs
       );
-      const nextGraphsSignature = JSON.stringify(nextMirGraphs);
+      const nextGraphsSignature = JSON.stringify(nextPirGraphs);
       const nextEditorState = buildNodeGraphEditorState(committedSnapshot);
       const nextEditorStateSignature =
         serializeNodeGraphEditorState(nextEditorState);
-      updateMirDoc((doc) => {
-        const existingGraphs = serializeGraphsForMirLogic(
+      updatePirDoc((doc) => {
+        const existingGraphs = serializeGraphsForPirLogic(
           normalizeGraphDocuments(doc.logic?.graphs)
         );
         const existingEditorState = readNodeGraphEditorStateFromLogic(
@@ -396,7 +396,7 @@ export const NodeGraphEditorContent = () => {
         }
         const nextLogic = {
           ...(doc.logic ?? {}),
-          graphs: nextMirGraphs,
+          graphs: nextPirGraphs,
           [NODE_GRAPH_EDITOR_STATE_KEY]: nextEditorState,
         };
         return {
@@ -405,7 +405,7 @@ export const NodeGraphEditorContent = () => {
         };
       });
     },
-    [edges, nodes, updateMirDoc]
+    [edges, nodes, updatePirDoc]
   );
 
   const currentSnapshot = useMemo(
@@ -416,8 +416,8 @@ export const NodeGraphEditorContent = () => {
       }),
     [activeGraphId, graphDocs]
   );
-  const currentMirComparableSignature = useMemo(
-    () => serializeSnapshotForMir(currentSnapshot),
+  const currentPirComparableSignature = useMemo(
+    () => serializeSnapshotForPir(currentSnapshot),
     [currentSnapshot]
   );
   const isDraggingNode = useMemo(
@@ -426,8 +426,8 @@ export const NodeGraphEditorContent = () => {
   );
   const activeGraphIdRef = useRef(currentSnapshot.activeGraphId);
   const graphDocsRef = useRef(graphDocs);
-  const currentMirComparableSignatureRef = useRef(
-    currentMirComparableSignature
+  const currentPirComparableSignatureRef = useRef(
+    currentPirComparableSignature
   );
   const edgeDomDebugSignatureRef = useRef('');
 
@@ -472,27 +472,27 @@ export const NodeGraphEditorContent = () => {
   }, [graphDocs]);
 
   useEffect(() => {
-    currentMirComparableSignatureRef.current = currentMirComparableSignature;
-  }, [currentMirComparableSignature]);
+    currentPirComparableSignatureRef.current = currentPirComparableSignature;
+  }, [currentPirComparableSignature]);
 
   useEffect(() => {
     if (isDraggingNode) return;
-    const nextSnapshot = mirGraphs.length
+    const nextSnapshot = pirGraphs.length
       ? ensureProjectGraphSnapshot({
           activeGraphId:
-            mirEditorState?.activeGraphId ||
+            pirEditorState?.activeGraphId ||
             activeGraphIdRef.current ||
             persistedSnapshot.activeGraphId,
-          graphs: applyNodeGraphEditorStateToGraphs(mirGraphs, mirEditorState),
+          graphs: applyNodeGraphEditorStateToGraphs(pirGraphs, pirEditorState),
         })
       : persistedSnapshot;
-    const nextSnapshotSignature = serializeSnapshotForMir(nextSnapshot);
-    if (nextSnapshotSignature !== currentMirComparableSignatureRef.current) {
+    const nextSnapshotSignature = serializeSnapshotForPir(nextSnapshot);
+    if (nextSnapshotSignature !== currentPirComparableSignatureRef.current) {
       applySnapshot(nextSnapshot);
     }
-    if (mirGraphs.length) {
-      if (mirEditorState) return;
-      updateMirDoc((doc) => {
+    if (pirGraphs.length) {
+      if (pirEditorState) return;
+      updatePirDoc((doc) => {
         const existingGraphs = normalizeGraphDocuments(doc.logic?.graphs);
         if (!existingGraphs.length) return doc;
         const migratedSnapshot = ensureProjectGraphSnapshot({
@@ -500,7 +500,7 @@ export const NodeGraphEditorContent = () => {
             activeGraphIdRef.current || persistedSnapshot.activeGraphId,
           graphs: existingGraphs,
         });
-        const migratedGraphs = serializeGraphsForMirLogic(
+        const migratedGraphs = serializeGraphsForPirLogic(
           migratedSnapshot.graphs
         );
         const migratedEditorState = buildNodeGraphEditorState(migratedSnapshot);
@@ -508,7 +508,7 @@ export const NodeGraphEditorContent = () => {
           doc.logic
         );
         const existingGraphsSignature = JSON.stringify(
-          serializeGraphsForMirLogic(existingGraphs)
+          serializeGraphsForPirLogic(existingGraphs)
         );
         if (
           existingGraphsSignature === JSON.stringify(migratedGraphs) &&
@@ -529,11 +529,11 @@ export const NodeGraphEditorContent = () => {
       });
       return;
     }
-    updateMirDoc((doc) => {
+    updatePirDoc((doc) => {
       const existingGraphs = normalizeGraphDocuments(doc.logic?.graphs);
       if (existingGraphs.length) return doc;
       const migratedSnapshot = ensureProjectGraphSnapshot(persistedSnapshot);
-      const migratedGraphs = serializeGraphsForMirLogic(
+      const migratedGraphs = serializeGraphsForPirLogic(
         migratedSnapshot.graphs
       );
       const migratedEditorState = buildNodeGraphEditorState(migratedSnapshot);
@@ -550,10 +550,10 @@ export const NodeGraphEditorContent = () => {
   }, [
     applySnapshot,
     isDraggingNode,
-    mirEditorState,
-    mirGraphs,
+    pirEditorState,
+    pirGraphs,
     persistedSnapshot,
-    updateMirDoc,
+    updatePirDoc,
   ]);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-export const HOST_REACT_IMPORT_MAP_ID = 'mdr-esm-importmap';
+export const HOST_REACT_IMPORT_MAP_ID = 'prodivix-esm-importmap';
 
 export const HOST_REACT_IMPORTS = {
   react: '/esm-bridge/react-interop.mjs',

@@ -4,15 +4,15 @@ import { useTranslation } from 'react-i18next';
 import type {
   AnimationTimeline,
   ComponentNode,
-  MIRDocument,
+  PIRDocument,
   SvgFilterDefinition,
 } from '@/core/types/engine.types';
-import { MIRRenderer } from '@/mir/renderer/MIRRenderer';
-import { materializeMirRoot } from '@/mir/graph';
+import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
+import { materializePirRoot } from '@/pir/graph';
 import { buildAnimationPreviewSnapshot } from '@/editor/features/animation/preview/animationPreview';
 
 type AnimationEditorPreviewCanvasProps = {
-  mirDoc: MIRDocument;
+  pirDoc: PIRDocument;
   previewNodeId?: string;
   timeline: AnimationTimeline | undefined;
   cursorMs: number;
@@ -55,7 +55,7 @@ const renderSvgPrimitive = (
 };
 
 export const AnimationEditorPreviewCanvas = ({
-  mirDoc,
+  pirDoc,
   previewNodeId,
   timeline,
   cursorMs,
@@ -114,8 +114,8 @@ export const AnimationEditorPreviewCanvas = ({
   );
   const previewNode = useMemo(() => {
     if (!previewNodeId?.trim()) return undefined;
-    return findNodeById(materializeMirRoot(mirDoc), previewNodeId.trim());
-  }, [mirDoc, previewNodeId]);
+    return findNodeById(materializePirRoot(pirDoc), previewNodeId.trim());
+  }, [pirDoc, previewNodeId]);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgb(var(--bg-panel-rgb)_/_0.9),transparent_55%),radial-gradient(circle_at_80%_30%,rgb(var(--bg-raised-rgb)_/_0.6),transparent_55%),linear-gradient(120deg,rgb(var(--bg-canvas-rgb)_/_0.9),rgb(var(--bg-panel-rgb)_/_0.96))] shadow-[0_18px_38px_rgba(0,0,0,0.06)]">
@@ -222,9 +222,9 @@ export const AnimationEditorPreviewCanvas = ({
           }}
         >
           {previewNode ? (
-            <MIRRenderer
+            <PIRRenderer
               node={previewNode}
-              mirDoc={mirDoc}
+              pirDoc={pirDoc}
               selectedId={selectedNodeId ?? previewNode.id}
               onNodeSelect={(nodeId) => {
                 onSelectNodeId?.(nodeId);

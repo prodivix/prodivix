@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Boxes,
@@ -10,7 +10,7 @@ import {
   Sparkles,
   Workflow,
 } from 'lucide-react';
-import { MdrEmpty } from '@mdr/ui';
+import { PdxEmpty } from '@prodivix/ui';
 import {
   communityApi,
   type CommunityProjectSummary,
@@ -127,7 +127,7 @@ export function CommunityPage() {
             {t('badge', 'Community')}
           </div>
           <h1 className="text-3xl leading-tight font-black tracking-tight text-balance md:text-4xl">
-            {t('title', 'Public MIR Showcase')}
+            {t('title', 'Public PIR Showcase')}
           </h1>
           <p className="mt-3 max-w-[760px] text-sm leading-6 text-black/65 md:text-base">
             {t(
@@ -253,7 +253,7 @@ export function CommunityPage() {
 
           {!isLoading && projects.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-black/20 bg-white p-8">
-              <MdrEmpty
+              <PdxEmpty
                 icon={<Boxes size={24} />}
                 title={t('empty.title', 'No public projects found')}
                 description={t(

@@ -1,0 +1,77 @@
+.PdxModalOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgb(0 0 0 / 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.PdxModal {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  width: 520px;
+  max-width: calc(100% - 32px);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+}
+
+.PdxModalHeader {
+  padding: var(--spacing-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: var(--line-height-compact);
+  }
+}
+
+.PdxModalBody {
+  padding: var(--spacing-md);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.PdxModalFooter {
+  padding: var(--spacing-md);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}
+
+.PdxModalClose {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 20px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+
+  &:hover {
+    background-color: var(--bg-raised);
+    color: var(--text-primary);
+  }
+}
+
+.PdxModal.Small {
+  width: 360px;
+}
+
+.PdxModal.Large {
+  width: 720px;
+}

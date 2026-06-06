@@ -1,4 +1,4 @@
-import { MdrInput } from '@mdr/ui';
+import { PdxInput } from '@prodivix/ui';
 import { InspectorRow } from '@/editor/features/design/inspector/components/InspectorRow';
 import { ColorInput } from '@/editor/features/design/inspector/components/ColorInput';
 import { UnitInput } from '@/editor/features/design/inspector/components/UnitInput';
@@ -28,7 +28,7 @@ function BorderPanelView({ node, updateNode }: InspectorPanelRenderProps) {
           defaultValue: 'Border',
         })}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={borderValue}
             onChange={(value) =>

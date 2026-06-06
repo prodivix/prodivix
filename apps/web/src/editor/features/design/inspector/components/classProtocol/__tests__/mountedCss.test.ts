@@ -11,7 +11,7 @@ import {
 
 const createNode = (): ComponentNode => ({
   id: 'button-1',
-  type: 'MdrButton',
+  type: 'PdxButton',
   props: {
     className: 'primaryButton',
   },

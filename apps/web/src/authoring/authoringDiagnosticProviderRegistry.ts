@@ -2,13 +2,13 @@ import type {
   AuthoringContext,
   AuthoringDiagnosticProvider,
 } from '@/authoring/authoring.types';
-import type { MdrDiagnostic } from '@/diagnostics';
+import type { ProdivixDiagnostic } from '@/diagnostics';
 
 export type AuthoringDiagnosticProviderRegistry = {
   register(provider: AuthoringDiagnosticProvider): void;
   unregister(providerId: string): void;
   listProviders(): AuthoringDiagnosticProvider[];
-  getDiagnostics(context: AuthoringContext): MdrDiagnostic[];
+  getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
 };
 
 export const createAuthoringDiagnosticProviderRegistry =

@@ -42,22 +42,22 @@ const PRE_RELEASE_PATTERN = /(alpha|beta|rc|next|canary|dev|broken)/i;
 const METADATA_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
 const getExternalSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
 
 const getIconSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.icon.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.icon.selection.${projectId?.trim() || 'default'}`;
 
 const getManagerStateStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.external.manager.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.external.manager.${projectId?.trim() || 'default'}`;
 
 const getManagerModeStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.external.mode.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.external.mode.${projectId?.trim() || 'default'}`;
 
 const getManagerSizeThresholdsStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.external.sizeThresholds.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.external.sizeThresholds.${projectId?.trim() || 'default'}`;
 
 const getManagerMetadataStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.external.metadata.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.external.metadata.${projectId?.trim() || 'default'}`;
 
 const parseStoredLibraryIds = (raw: string | null) => {
   if (!raw) return null;
@@ -346,7 +346,7 @@ export function ExternalLibraryManager({
       getIconSelectionStorageKey(projectId),
       JSON.stringify(nextIds)
     );
-    void import('@/mir/renderer/iconRegistry').then((iconRegistry) => {
+    void import('@/pir/renderer/iconRegistry').then((iconRegistry) => {
       iconRegistry.setConfiguredIconLibraryIds(nextIds);
     });
   };
@@ -595,7 +595,7 @@ export function ExternalLibraryManager({
     setBootstrapping(true);
     void Promise.all([
       import('@/editor/features/design/blueprint/external'),
-      import('@/mir/renderer/iconRegistry'),
+      import('@/pir/renderer/iconRegistry'),
     ])
       .then(([externalRuntime, iconRegistry]) => {
         if (disposed) return;

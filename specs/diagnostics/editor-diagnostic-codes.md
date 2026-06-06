@@ -16,7 +16,7 @@
 
 不覆盖：
 
-1. MIR graph 结构错误，使用 `MIR-xxxx`。
+1. PIR graph 结构错误，使用 `PIR-xxxx`。
 2. Workspace 保存和同步冲突，使用 `WKS-xxxx`。
 3. 外部库加载、注册和渲染，使用 `ELIB-xxxx`。
 4. 节点图运行语义，后续使用 `NGR-xxxx`。
@@ -51,7 +51,7 @@ type EditorDiagnosticStage =
 - Severity: `warning`
 - Stage: `selection`
 - Retryable: true
-- Trigger: `selectedNodeId` 无法在当前 MIR graph 中找到
+- Trigger: `selectedNodeId` 无法在当前 PIR graph 中找到
 - User action: 重新在画布或组件树中选择节点
 - Developer notes: 删除节点、路由切换和远端同步后必须清理选中状态
 
@@ -71,7 +71,7 @@ type EditorDiagnosticStage =
 - Retryable: false
 - Trigger: 用户尝试把节点移动到自身或自身后代内
 - User action: 选择其他目标位置
-- Developer notes: 该错误应在生成 MIR patch 前被拦截
+- Developer notes: 该错误应在生成 PIR patch 前被拦截
 
 ### `EDT-3001` Inspector 字段 schema 不可用
 
@@ -89,7 +89,7 @@ type EditorDiagnosticStage =
 - Retryable: false
 - Trigger: Inspector 字段生成的 patch 被 schema、capability 或 graph validator 拒绝
 - User action: 撤销该字段修改，检查输入值是否符合组件约束
-- Developer notes: 字段控件应在本地做轻量校验，但最终以 MIR validator 结果为准
+- Developer notes: 字段控件应在本地做轻量校验，但最终以 PIR validator 结果为准
 
 ### `EDT-4001` 画布预览降级
 
@@ -97,8 +97,8 @@ type EditorDiagnosticStage =
 - Stage: `canvas`
 - Retryable: true
 - Trigger: 画布无法完整渲染当前页面，只能显示占位、错误边界或降级组件
-- User action: 查看诊断详情，优先修复 MIR、外部库或数据绑定错误
-- Developer notes: 画布应聚合下游 `MIR-xxxx`、`ELIB-xxxx` 等诊断，而不是吞掉原始 code
+- User action: 查看诊断详情，优先修复 PIR、外部库或数据绑定错误
+- Developer notes: 画布应聚合下游 `PIR-xxxx`、`ELIB-xxxx` 等诊断，而不是吞掉原始 code
 
 ### `EDT-5001` 命令无法进入历史栈
 

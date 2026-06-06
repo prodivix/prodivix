@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultMirDoc } from '@/mir/resolveMirDocument';
+import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import { validateWorkspaceVfs, type StableWorkspaceDocument } from '..';
 
 const createDocument = (id: string, path: string): StableWorkspaceDocument => ({
   id,
-  type: 'mir-page',
+  type: 'pir-page',
   name: id,
   path,
   contentRev: 1,
   metaRev: 1,
-  content: createDefaultMirDoc(),
+  content: createDefaultPirDoc(),
 });
 
 describe('validateWorkspaceVfs', () => {
@@ -18,7 +18,7 @@ describe('validateWorkspaceVfs', () => {
       treeRootId: 'root',
       activeDocumentId: 'doc-home',
       docsById: {
-        'doc-home': createDocument('doc-home', '/pages/home.mir.json'),
+        'doc-home': createDocument('doc-home', '/pages/home.pir.json'),
       },
       treeById: {
         root: {
@@ -38,7 +38,7 @@ describe('validateWorkspaceVfs', () => {
         'node-home': {
           id: 'node-home',
           kind: 'doc',
-          name: 'home.mir.json',
+          name: 'home.pir.json',
           parentId: 'pages',
           docId: 'doc-home',
         },
@@ -65,8 +65,8 @@ describe('validateWorkspaceVfs', () => {
     const result = validateWorkspaceVfs({
       treeRootId: 'root',
       docsById: {
-        'doc-home': createDocument('doc-home', '/home.mir.json'),
-        'doc-unused': createDocument('doc-unused', '/unused.mir.json'),
+        'doc-home': createDocument('doc-home', '/home.pir.json'),
+        'doc-unused': createDocument('doc-unused', '/unused.pir.json'),
       },
       treeById: {
         root: {
@@ -79,21 +79,21 @@ describe('validateWorkspaceVfs', () => {
         'home-a': {
           id: 'home-a',
           kind: 'doc',
-          name: 'home-a.mir.json',
+          name: 'home-a.pir.json',
           parentId: 'root',
           docId: 'doc-home',
         },
         'home-b': {
           id: 'home-b',
           kind: 'doc',
-          name: 'home-b.mir.json',
+          name: 'home-b.pir.json',
           parentId: 'root',
           docId: 'doc-home',
         },
         broken: {
           id: 'broken',
           kind: 'doc',
-          name: 'broken.mir.json',
+          name: 'broken.pir.json',
           parentId: 'root',
           docId: 'missing-doc',
         },
@@ -176,7 +176,7 @@ describe('validateWorkspaceVfs', () => {
     const result = validateWorkspaceVfs({
       treeRootId: 'root',
       docsById: {
-        'doc-home': createDocument('doc-home', '/wrong/home.mir.json'),
+        'doc-home': createDocument('doc-home', '/wrong/home.pir.json'),
       },
       treeById: {
         root: {
@@ -196,7 +196,7 @@ describe('validateWorkspaceVfs', () => {
         home: {
           id: 'home',
           kind: 'doc',
-          name: 'home.mir.json',
+          name: 'home.pir.json',
           parentId: 'pages',
           docId: 'doc-home',
         },

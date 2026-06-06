@@ -1,7 +1,7 @@
 {
-  "name": "@mdr/vscode-debugger",
+  "name": "@prodivix/vscode-debugger",
   "version": "0.0.1",
-  "description": "VS Code Debug Adapter for MIR",
+  "description": "VS Code Debug Adapter for PIR",
   "main": "lib/debugAdapter.js",
   "scripts": {
     "build": "tsc",

@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   ExternalLibraryDiagnostic,
   ExternalLibraryRuntimeState,
@@ -13,7 +13,7 @@ type ExternalModule =
   typeof import('@/editor/features/design/blueprint/external');
 
 const getProjectExternalSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
 
 const parseStoredLibraryIds = (raw: string | null) => {
   if (!raw) return [];

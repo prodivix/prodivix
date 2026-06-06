@@ -6,7 +6,7 @@ import type {
   LlmResponseMode,
   LlmTaskRequest,
   LlmToolSchemaFormat,
-} from '@mdr/shared';
+} from '@prodivix/shared';
 
 export interface CreateLlmTaskOptions {
   id: string;
@@ -31,7 +31,7 @@ export const createLlmTask = (
   context: options.context,
   allowedTools: options.allowedTools ?? [],
   outputChannels: options.outputChannels ?? [
-    'mir-command',
+    'pir-command',
     'node-graph-operation',
     'code-artifact',
   ],

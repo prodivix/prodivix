@@ -1,4 +1,4 @@
-﻿import { type ReactElement, useMemo, useState, useEffect } from 'react';
+import { type ReactElement, useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import {
@@ -11,9 +11,9 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { useEditorStore } from '@/editor/store/useEditorStore';
-import { generateReactBundle } from '@/mir/generator/mirToReact';
-import type { ReactGeneratorCodeArtifact } from '@/mir/generator/react/types';
-import { validateMirDocument } from '@/mir/validator/validator';
+import { generateReactBundle } from '@/pir/generator/pirToReact';
+import type { ReactGeneratorCodeArtifact } from '@/pir/generator/react/types';
+import { validatePirDocument } from '@/pir/validator/validator';
 import {
   isWorkspaceCodeDocumentContent,
   projectWorkspaceToMfeFiles,
@@ -108,7 +108,7 @@ const sanitizeFileName = (value: string) =>
     .replace(/[\\/:*?"<>|]+/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'mdr-react-export';
+    .replace(/^-|-$/g, '') || 'prodivix-react-export';
 
 const resolveProjectFileLanguage = (path: string): ExportFileLanguage => {
   const lower = path.toLowerCase();
@@ -131,7 +131,7 @@ const resolveCodeViewerLanguage = (language?: ExportFileLanguage) => {
 export function ExportCode() {
   const { t } = useTranslation('export');
   const { projectId } = useParams();
-  const mirDoc = useEditorStore((state) => state.mirDoc);
+  const pirDoc = useEditorStore((state) => state.pirDoc);
   const projectType = useEditorStore(
     (state) =>
       (projectId ? state.projectsById[projectId]?.type : undefined) ?? 'project'
@@ -156,9 +156,9 @@ export function ExportCode() {
   const [expandedFolders, setExpandedFolders] = useState<
     Record<string, boolean>
   >({});
-  const mirValidation = useMemo(() => validateMirDocument(mirDoc), [mirDoc]);
-  const hasMirValidationError = mirValidation.hasError;
-  const validatedMirDoc = mirValidation.document;
+  const pirValidation = useMemo(() => validatePirDocument(pirDoc), [pirDoc]);
+  const hasPirValidationError = pirValidation.hasError;
+  const validatedPirDoc = pirValidation.document;
   const codeArtifacts = useMemo<ReactGeneratorCodeArtifact[]>(() => {
     const artifacts: ReactGeneratorCodeArtifact[] = [];
     Object.values(workspaceDocumentsById).forEach((document) => {
@@ -179,13 +179,13 @@ export function ExportCode() {
   }, [workspaceDocumentsById]);
 
   const reactBundle = useMemo(() => {
-    if (!validatedMirDoc?.ui?.graph) return null;
-    if (hasMirValidationError) {
+    if (!validatedPirDoc?.ui?.graph) return null;
+    if (hasPirValidationError) {
       return {
         entryFilePath: 'validation-error.ts',
         type: projectType,
         files: [],
-        diagnostics: mirValidation.issues.map((item) => ({
+        diagnostics: pirValidation.issues.map((item) => ({
           code: item.code,
           severity: 'error' as const,
           source: 'canonical-ir' as const,
@@ -195,7 +195,7 @@ export function ExportCode() {
       };
     }
     try {
-      return generateReactBundle(validatedMirDoc, {
+      return generateReactBundle(validatedPirDoc, {
         resourceType: projectType,
         packageResolver: {
           strategy: 'npm',
@@ -220,9 +220,9 @@ export function ExportCode() {
       };
     }
   }, [
-    validatedMirDoc,
-    hasMirValidationError,
-    mirValidation.issues,
+    validatedPirDoc,
+    hasPirValidationError,
+    pirValidation.issues,
     projectType,
     codeArtifacts,
     t,
@@ -352,9 +352,9 @@ export function ExportCode() {
   const reactZipBaseName = useMemo(
     () =>
       sanitizeFileName(
-        mirDoc?.metadata?.name || projectId || 'mdr-react-export'
+        pirDoc?.metadata?.name || projectId || 'prodivix-react-export'
       ),
-    [mirDoc?.metadata?.name, projectId]
+    [pirDoc?.metadata?.name, projectId]
   );
 
   useEffect(() => {
@@ -401,7 +401,7 @@ export function ExportCode() {
           defaultValue: '当前 Workspace VFS 的完整文件树',
         })
       : t('react.description', {
-          defaultValue: '基于当前 MIR 生成的 React 项目代码（含 public/*）',
+          defaultValue: '基于当前 PIR 生成的 React 项目代码（含 public/*）',
         });
   const activeEmpty =
     activeTab === 'vfs'
@@ -409,7 +409,7 @@ export function ExportCode() {
           defaultValue: '暂无 Workspace VFS 文件',
         })
       : t('react.empty', {
-          defaultValue: '暂无 React 代码（先生成 MIR）',
+          defaultValue: '暂无 React 代码（先生成 PIR）',
         });
 
   useEffect(() => {
@@ -556,7 +556,7 @@ export function ExportCode() {
             type="button"
             className="ExportCodeCopy"
             disabled={
-              !activeCode || (activeTab === 'react' && hasMirValidationError)
+              !activeCode || (activeTab === 'react' && hasPirValidationError)
             }
             onClick={async () => {
               if (!activeCode) return;
@@ -576,7 +576,7 @@ export function ExportCode() {
               disabled={
                 !reactProjectFiles.length ||
                 downloadingZip ||
-                hasMirValidationError
+                hasPirValidationError
               }
               onClick={async () => {
                 if (!reactProjectFiles.length) return;
@@ -616,9 +616,9 @@ export function ExportCode() {
       </div>
 
       <div className="ExportCodeBody">
-        {activeTab === 'react' && hasMirValidationError ? (
+        {activeTab === 'react' && hasPirValidationError ? (
           <div className="mb-2 rounded-md border border-red-300/60 bg-red-100/40 px-2 py-1 text-xs text-red-900 dark:border-red-700/60 dark:bg-red-900/20 dark:text-red-100">
-            {mirValidation.issues.map((item) => (
+            {pirValidation.issues.map((item) => (
               <p key={`${item.code}:${item.path}`} className="m-0">
                 [{item.code}] {item.path}: {item.message}
               </p>

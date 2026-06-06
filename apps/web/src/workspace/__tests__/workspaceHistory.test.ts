@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultMirDoc } from '@/mir/resolveMirDocument';
+import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import {
   applyWorkspaceCommand,
   canRedoWorkspaceHistory,
@@ -45,7 +45,7 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
     'home-node': {
       id: 'home-node',
       kind: 'doc',
-      name: 'home.mir.json',
+      name: 'home.pir.json',
       parentId: 'pages',
       docId: 'page-home',
     },
@@ -60,15 +60,15 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
   docsById: {
     'page-home': {
       id: 'page-home',
-      type: 'mir-page',
-      path: '/pages/home.mir.json',
+      type: 'pir-page',
+      path: '/pages/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultMirDoc(),
+      content: createDefaultPirDoc(),
     },
     'graph-checkout': {
       id: 'graph-checkout',
-      type: 'mir-graph',
+      type: 'pir-graph',
       path: '/graphs/checkout.graph.json',
       contentRev: 1,
       metaRev: 1,
@@ -94,7 +94,7 @@ const createCommand = (
   overrides: Partial<WorkspaceCommandEnvelope>
 ): WorkspaceCommandEnvelope => ({
   id: 'command-1',
-  namespace: 'core.mir',
+  namespace: 'core.pir',
   type: 'node.update',
   version: '1.0',
   issuedAt: '2026-05-10T00:00:00.000Z',
@@ -106,8 +106,8 @@ const createCommand = (
 
 describe('workspace history', () => {
   it('undoes the latest matching editor scope without undoing other editor history', () => {
-    const mirCommand = createCommand({
-      id: 'mir-command',
+    const pirCommand = createCommand({
+      id: 'pir-command',
       forwardOps: [
         {
           op: 'add',
@@ -116,7 +116,7 @@ describe('workspace history', () => {
         },
       ],
       reverseOps: [{ op: 'remove', path: '/ui/graph/nodesById/root/props' }],
-      domainHint: 'mir',
+      domainHint: 'pir',
     });
     const nodeGraphCommand = createCommand({
       id: 'nodegraph-command',
@@ -139,11 +139,11 @@ describe('workspace history', () => {
     let snapshot = createWorkspace();
     let history = createWorkspaceHistoryState();
 
-    const mirApply = applyWorkspaceCommand(snapshot, mirCommand);
-    expect(mirApply.ok).toBe(true);
-    if (!mirApply.ok) return;
-    snapshot = mirApply.snapshot;
-    history = pushWorkspaceHistoryEntry(history, { command: mirCommand });
+    const pirApply = applyWorkspaceCommand(snapshot, pirCommand);
+    expect(pirApply.ok).toBe(true);
+    if (!pirApply.ok) return;
+    snapshot = pirApply.snapshot;
+    history = pushWorkspaceHistoryEntry(history, { command: pirCommand });
 
     const nodeGraphApply = applyWorkspaceCommand(snapshot, nodeGraphCommand);
     expect(nodeGraphApply.ok).toBe(true);
@@ -159,11 +159,11 @@ describe('workspace history', () => {
       documentId: 'graph-checkout',
       domain: 'nodegraph',
     };
-    const mirScope: WorkspaceHistoryScope = {
+    const pirScope: WorkspaceHistoryScope = {
       kind: 'document',
       workspaceId: 'workspace-1',
       documentId: 'page-home',
-      domain: 'mir',
+      domain: 'pir',
     };
 
     const undo = undoWorkspaceHistory(snapshot, history, nodeGraphScope);
@@ -178,7 +178,7 @@ describe('workspace history', () => {
       'ui.graph.nodesById.root.props.title',
       'Home'
     );
-    expect(canUndoWorkspaceHistory(undo.history, mirScope)).toBe(true);
+    expect(canUndoWorkspaceHistory(undo.history, pirScope)).toBe(true);
     expect(canRedoWorkspaceHistory(undo.history, nodeGraphScope)).toBe(true);
 
     const redo = redoWorkspaceHistory(
@@ -193,6 +193,6 @@ describe('workspace history', () => {
       'nodesById.validateCart.position.x',
       120
     );
-    expect(canUndoWorkspaceHistory(redo.history, mirScope)).toBe(true);
+    expect(canUndoWorkspaceHistory(redo.history, pirScope)).toBe(true);
   });
 });

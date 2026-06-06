@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MdrInput } from '@mdr/ui';
+import { PdxInput } from '@prodivix/ui';
 import { useTranslation } from 'react-i18next';
 
 type ColorInputProps = {
@@ -29,7 +29,7 @@ export function ColorInput({
   return (
     <div className="flex w-48 items-center justify-end gap-2">
       <div className="min-w-0 flex-1">
-        <MdrInput
+        <PdxInput
           size="Small"
           value={value ?? ''}
           onChange={(next) => onChange(next.trim() ? next : undefined)}

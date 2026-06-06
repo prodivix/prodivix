@@ -2,7 +2,7 @@ export type I18nNamespaceMap = Record<string, Record<string, string>>;
 export type I18nLocaleStore = Record<string, I18nNamespaceMap>;
 
 const getI18nStoreStorageKey = (projectId?: string) =>
-  `mdr.i18nStore.${projectId?.trim() || 'default'}`;
+  `prodivix.i18nStore.${projectId?.trim() || 'default'}`;
 
 const normalizeRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
@@ -10,13 +10,13 @@ const normalizeRecord = (value: unknown): Record<string, unknown> =>
 export const createDefaultI18nStore = (): I18nLocaleStore => ({
   en: {
     common: {
-      appName: 'MdrFrontEngine',
+      appName: 'Prodivix',
       save: 'Save',
     },
   },
   'zh-CN': {
     common: {
-      appName: 'MdrFrontEngine',
+      appName: 'Prodivix',
       save: '保存',
     },
   },

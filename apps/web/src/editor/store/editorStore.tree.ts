@@ -1,5 +1,5 @@
-﻿import type { WorkspaceDocumentRecord } from '@/editor/editorApi';
-import { createDefaultMirDoc } from '@/mir/resolveMirDocument';
+import type { WorkspaceDocumentRecord } from '@/editor/editorApi';
+import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import type { WorkspaceVfsNode } from './editorStore.types';
 
 export const createEntityId = (prefix: string): string => {
@@ -17,7 +17,7 @@ export const createWorkspaceDocumentRecord = (
   path,
   contentRev: 1,
   metaRev: 1,
-  content: createDefaultMirDoc(),
+  content: createDefaultPirDoc(),
 });
 
 export const attachDocumentToTree = (

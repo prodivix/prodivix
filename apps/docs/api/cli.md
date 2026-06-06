@@ -1,6 +1,6 @@
 # CLI 工具
 
-`mdr` 是 MdrFrontEngine 的命令行工具，用于项目构建、导出和部署。
+`prodivix` 是 Prodivix 的命令行工具，用于项目构建、导出和部署。
 
 ::: warning 开发状态
 CLI 工具目前处于早期开发阶段，部分命令尚未完全实现。
@@ -22,24 +22,24 @@ pnpm start
 ## 基本用法
 
 ```bash
-mdr [command] [options]
+prodivix [command] [options]
 ```
 
 ## 可用命令
 
 ### build
 
-构建 MIR 项目为 React 代码。
+构建 PIR 项目为 React 代码。
 
 ```bash
-mdr build
+prodivix build
 ```
 
 **当前状态**: 已连接，功能开发中
 
 **计划功能**:
 
-- 解析 MIR 文件
+- 解析 PIR 文件
 - 生成 React 组件代码
 - 处理节点图逻辑
 - 输出构建产物
@@ -49,7 +49,7 @@ mdr build
 导出项目为静态站点或框架代码。
 
 ```bash
-mdr export [options]
+prodivix export [options]
 ```
 
 **当前状态**: 未实现
@@ -68,7 +68,7 @@ mdr export [options]
 部署项目到托管平台。
 
 ```bash
-mdr deploy [options]
+prodivix deploy [options]
 ```
 
 **当前状态**: 未实现
@@ -82,7 +82,7 @@ mdr deploy [options]
 
 ## 配置文件
 
-CLI 工具支持通过配置文件自定义行为。创建 `mdr.config.json`：
+CLI 工具支持通过配置文件自定义行为。创建 `prodivix.config.json`：
 
 ```json
 {
@@ -133,16 +133,16 @@ CLI 工具支持通过配置文件自定义行为。创建 `mdr.config.json`：
 
 ```bash
 # 在 monorepo 根目录
-pnpm --filter @mdr/cli start
+pnpm --filter @prodivix/cli start
 ```
 
 ### 构建失败
 
-检查 MIR 文件语法是否正确：
+检查 PIR 文件语法是否正确：
 
 ```bash
-# 验证 MIR 文件
-mdr validate ./src/pages/*.mir.json
+# 验证 PIR 文件
+prodivix validate ./src/pages/*.pir.json
 ```
 
 ## 贡献

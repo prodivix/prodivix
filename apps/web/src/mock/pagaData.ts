@@ -1,12 +1,12 @@
-import { type MIRDocument } from '@/core/types/engine.types';
-import { normalizeMirDocument } from '@/mir/resolveMirDocument';
+import { type PIRDocument } from '@/core/types/engine.types';
+import { normalizePirDocument } from '@/pir/resolvePirDocument';
 
-export const testDoc: MIRDocument = normalizeMirDocument({
+export const testDoc: PIRDocument = normalizePirDocument({
   version: '1.0',
   ui: {
     root: {
       id: 'root',
-      type: 'MdrDiv',
+      type: 'PdxDiv',
       props: {
         display: 'Flex',
         flexDirection: 'Column',
@@ -22,8 +22,8 @@ export const testDoc: MIRDocument = normalizeMirDocument({
       children: [
         {
           id: 'h1',
-          type: 'MdrText',
-          text: 'MDR 渲染引擎测试',
+          type: 'PdxText',
+          text: 'Prodivix 渲染引擎测试',
           props: {
             size: 'Big',
             weight: 'Bold',
@@ -35,7 +35,7 @@ export const testDoc: MIRDocument = normalizeMirDocument({
         },
         {
           id: 'countDisplay',
-          type: 'MdrDiv',
+          type: 'PdxDiv',
           props: {
             display: 'Flex',
             alignItems: 'Center',
@@ -44,13 +44,13 @@ export const testDoc: MIRDocument = normalizeMirDocument({
           children: [
             {
               id: 'p',
-              type: 'MdrText',
+              type: 'PdxText',
               text: '当前计数：',
               props: { size: 'Large' },
             },
             {
               id: 'countValue',
-              type: 'MdrText',
+              type: 'PdxText',
               text: { $state: 'count' },
               props: { size: 'Large', weight: 'Bold' },
             },
@@ -58,7 +58,7 @@ export const testDoc: MIRDocument = normalizeMirDocument({
         },
         {
           id: 'btn',
-          type: 'MdrButton',
+          type: 'PdxButton',
           text: { $param: 'buttonText' },
           props: { size: 'Medium', category: 'Primary' },
           events: {
@@ -70,7 +70,7 @@ export const testDoc: MIRDocument = normalizeMirDocument({
         },
         {
           id: 'input_1',
-          type: 'MdrInput',
+          type: 'PdxInput',
           props: {
             placeholder: '搜索项目...',
             maxLength: 20,

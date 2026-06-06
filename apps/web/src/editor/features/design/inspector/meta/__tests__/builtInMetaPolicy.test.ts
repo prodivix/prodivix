@@ -10,7 +10,7 @@ const createMeta = (
   source: BuiltInComponentMeta['source'],
   id: string
 ): BuiltInComponentMeta => ({
-  runtimeType: 'MdrDiv',
+  runtimeType: 'PdxDiv',
   source,
   version: '1',
   fields: [

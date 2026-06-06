@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultMirDoc } from '@/mir/resolveMirDocument';
+import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import {
   applyWorkspaceCommand,
   createWorkspaceCodeDocumentCommand,
@@ -34,7 +34,7 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
     'home-node': {
       id: 'home-node',
       kind: 'doc',
-      name: 'home.mir.json',
+      name: 'home.pir.json',
       parentId: 'pages',
       docId: 'page-home',
     },
@@ -56,11 +56,11 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
   docsById: {
     'page-home': {
       id: 'page-home',
-      type: 'mir-page',
-      path: '/pages/home.mir.json',
+      type: 'pir-page',
+      path: '/pages/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultMirDoc(),
+      content: createDefaultPirDoc(),
     },
     'code-open-dialog': {
       id: 'code-open-dialog',
@@ -84,7 +84,7 @@ const createCommand = (
   overrides: Partial<WorkspaceCommandEnvelope>
 ): WorkspaceCommandEnvelope => ({
   id: 'command-1',
-  namespace: 'core.mir',
+  namespace: 'core.pir',
   type: 'node.update',
   version: '1.0',
   issuedAt: '2026-05-10T00:00:00.000Z',
@@ -95,7 +95,7 @@ const createCommand = (
 });
 
 describe('applyWorkspaceCommand', () => {
-  it('applies document-scoped MIR graph commands and increments contentRev', () => {
+  it('applies document-scoped PIR graph commands and increments contentRev', () => {
     const result = applyWorkspaceCommand(
       createWorkspace(),
       createCommand({
@@ -136,7 +136,7 @@ describe('applyWorkspaceCommand', () => {
     );
   });
 
-  it('applies code document commands without MIR graph validation', () => {
+  it('applies code document commands without PIR graph validation', () => {
     const result = applyWorkspaceCommand(
       createWorkspace(),
       createCommand({

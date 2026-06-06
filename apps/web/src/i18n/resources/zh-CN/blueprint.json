@@ -84,12 +84,12 @@
     "mock": {
       "assumptions": {
         "contextOnly": "仅使用当前蓝图路由和选中节点摘要。",
-        "planOnly": "先返回计划，不直接应用 MIR 变更。"
+        "planOnly": "先返回计划，不直接应用 PIR 变更。"
       },
       "milestones": {
         "inspectContext": "检查当前蓝图上下文",
         "draftPlan": "拟定聚焦的视觉调整计划",
-        "prepareDryRun": "准备后续 MIR 命令 dry-run"
+        "prepareDryRun": "准备后续 PIR 命令 dry-run"
       }
     }
   },
@@ -239,7 +239,7 @@
         "enable": "在当前组件挂载数据模型 JSON",
         "schemaPlaceholder": "{\n  \"totalCount\": \"number\",\n  \"items\": [\n    {\n      \"data\": \"string\"\n    }\n  ]\n}",
         "mockLabel": "模拟 JSON",
-        "mockPlaceholder": "{\n  \"totalCount\": 2,\n  \"items\": [\n    {\n      \"data\": \"mdr\"\n    }\n  ]\n}",
+        "mockPlaceholder": "{\n  \"totalCount\": 2,\n  \"items\": [\n    {\n      \"data\": \"prodivix\"\n    }\n  ]\n}",
         "invalidJson": "JSON 格式无效。",
         "schemaObjectOnly": "数据模型必须是 JSON 对象。",
         "hint": "子组件在各自属性输入框中直接填写字段路径即可绑定。",

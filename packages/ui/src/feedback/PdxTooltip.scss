@@ -1,0 +1,47 @@
+.PdxTooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.PdxTooltipContent {
+  position: absolute;
+  white-space: nowrap;
+  background-color: var(--accent-color);
+  color: var(--bg-canvas);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+  z-index: 20;
+}
+
+.PdxTooltip:hover .PdxTooltipContent {
+  opacity: 1;
+}
+
+.PdxTooltipContent.Top {
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+}
+
+.PdxTooltipContent.Bottom {
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 6px);
+}
+
+.PdxTooltipContent.Left {
+  right: 100%;
+  top: 50%;
+  transform: translate(-6px, -50%);
+}
+
+.PdxTooltipContent.Right {
+  left: 100%;
+  top: 50%;
+  transform: translate(6px, -50%);
+}

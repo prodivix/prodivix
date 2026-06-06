@@ -1,0 +1,44 @@
+@use './PdxField.scss';
+
+.PdxRating {
+  width: 100%;
+}
+
+.PdxRatingStars {
+  display: inline-flex;
+  gap: var(--spacing-xs);
+}
+
+.PdxRatingStar {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--border-default);
+  padding: 0;
+  line-height: 1;
+  transition: color var(--transition-fast);
+
+  &.Active {
+    color: var(--warning-color);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.PdxRatingIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.PdxRating.Small .PdxRatingIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.PdxRating.Large .PdxRatingIcon {
+  width: 28px;
+  height: 28px;
+}

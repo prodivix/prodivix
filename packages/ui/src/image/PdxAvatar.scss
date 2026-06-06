@@ -1,0 +1,117 @@
+.PdxAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--border-default);
+  color: var(--text-secondary);
+  font-weight: 600;
+  transition: all var(--transition-normal);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .PdxAvatar-initials,
+  .PdxAvatar-placeholder {
+    font-size: inherit;
+    line-height: 1;
+  }
+
+  .PdxAvatar-status {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    border: 2px solid var(--bg-canvas);
+  }
+
+  &.ExtraSmall {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+
+    .PdxAvatar-status {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  &.Small {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+
+    .PdxAvatar-status {
+      width: 10px;
+      height: 10px;
+    }
+  }
+
+  &.Medium {
+    width: 48px;
+    height: 48px;
+    font-size: 16px;
+
+    .PdxAvatar-status {
+      width: 12px;
+      height: 12px;
+    }
+  }
+
+  &.Large {
+    width: 64px;
+    height: 64px;
+    font-size: 20px;
+
+    .PdxAvatar-status {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  &.ExtraLarge {
+    width: 96px;
+    height: 96px;
+    font-size: 28px;
+
+    .PdxAvatar-status {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &.Square {
+    border-radius: var(--radius-none);
+  }
+
+  &.Rounded {
+    border-radius: var(--radius-md);
+  }
+
+  &.Circle {
+    border-radius: var(--radius-full);
+
+    .PdxAvatar-status {
+      border-radius: var(--radius-full);
+    }
+  }
+
+  &.status-Online .PdxAvatar-status {
+    background-color: var(--success-color);
+  }
+
+  &.status-Offline .PdxAvatar-status {
+    background-color: var(--border-strong);
+  }
+
+  &.status-Busy .PdxAvatar-status {
+    background-color: var(--danger-color);
+  }
+
+  &.status-Away .PdxAvatar-status {
+    background-color: var(--warning-color);
+  }
+}

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { MdrInput, MdrPopover, MdrSlider } from '@mdr/ui';
+import { PdxInput, PdxPopover, PdxSlider } from '@prodivix/ui';
 import { ChevronDown, RotateCcw } from 'lucide-react';
 import {
   VIEWPORT_DEVICE_PRESETS,
@@ -44,14 +44,14 @@ export function BlueprintEditorViewportBar({
         <div className="font-semibold text-(--text-secondary)">
           {t('viewport.label')}
         </div>
-        <div className="inline-flex items-center gap-1.5 [&_.MdrInput]:w-[76px] [&_.MdrInput]:max-w-[76px] max-[980px]:[&_.MdrInput]:w-[62px] max-[980px]:[&_.MdrInput]:max-w-[62px]">
-          <MdrInput
+        <div className="inline-flex items-center gap-1.5 [&_.PdxInput]:w-[76px] [&_.PdxInput]:max-w-[76px] max-[980px]:[&_.PdxInput]:w-[62px] max-[980px]:[&_.PdxInput]:max-w-[62px]">
+          <PdxInput
             size="Small"
             value={viewportWidth}
             onChange={onViewportWidthChange}
           />
           <span className="text-(--text-muted)">×</span>
-          <MdrInput
+          <PdxInput
             size="Small"
             value={viewportHeight}
             onChange={onViewportHeightChange}
@@ -62,8 +62,8 @@ export function BlueprintEditorViewportBar({
         <span className="font-semibold text-(--text-secondary) max-[980px]:hidden">
           {t('viewport.zoom')}
         </span>
-        <MdrSlider
-          className="inline-flex w-auto items-center gap-1.5 [&_.MdrSliderInput]:w-[120px] max-[980px]:[&_.MdrSliderInput]:w-[92px] [&.MdrField]:w-auto [&.MdrField]:flex-row [&.MdrField]:gap-1.5"
+        <PdxSlider
+          className="inline-flex w-auto items-center gap-1.5 [&_.PdxSliderInput]:w-[120px] max-[980px]:[&_.PdxSliderInput]:w-[92px] [&.PdxField]:w-auto [&.PdxField]:flex-row [&.PdxField]:gap-1.5"
           min={VIEWPORT_ZOOM_RANGE.min}
           max={VIEWPORT_ZOOM_RANGE.max}
           step={zoomStep}
@@ -138,7 +138,7 @@ export function BlueprintEditorViewportBar({
           })}
         </select>
       </div>
-      <MdrPopover
+      <PdxPopover
         className="ml-auto flex-none"
         panelClassName="max-h-[min(60vh,520px)] w-[min(760px,90vw)] overflow-auto p-2.5"
         panelStyle={{
@@ -202,7 +202,7 @@ export function BlueprintEditorViewportBar({
           {t('viewport.moreDevices')}
           <ChevronDown size={12} />
         </button>
-      </MdrPopover>
+      </PdxPopover>
     </section>
   );
 }

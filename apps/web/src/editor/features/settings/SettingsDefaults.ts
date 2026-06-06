@@ -15,7 +15,7 @@ export const createGlobalDefaults = () => ({
   assist: ['grid', 'align', 'snap'],
   panInertia: 30,
   eventTriggerMode: 'selected-only',
-  resolverOrder: 'custom>mdr>native',
+  resolverOrder: 'custom>prodivix>native',
   customNamespaces: 'acme, design-system',
   renderMode: 'strict',
   allowExternalProps: 'enabled',

@@ -24,7 +24,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: `pnpm --filter @mdr/web build && pnpm --filter @mdr/web preview --host 127.0.0.1 --port ${port}`,
+    command: `pnpm --filter @prodivix/web build && pnpm --filter @prodivix/web preview --host 127.0.0.1 --port ${port}`,
     cwd: repoRoot,
     reuseExistingServer: process.env.CI !== 'true',
     timeout: 120_000,

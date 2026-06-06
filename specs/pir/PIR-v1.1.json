@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PIR Document v1.1 (Draft)",
+  "type": "object",
+  "required": ["version", "ui"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.1"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "author": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": true
+    },
+    "ui": {
+      "type": "object",
+      "required": ["root"],
+      "properties": {
+        "root": { "$ref": "#/$defs/componentNode" }
+      },
+      "additionalProperties": false
+    },
+    "logic": {
+      "type": "object",
+      "properties": {
+        "props": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/propDef" }
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/stateDef" }
+        },
+        "graphs": {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "patternProperties": {
+    "^x-[a-zA-Z0-9_.-]+$": {}
+  },
+  "$defs": {
+    "paramRef": {
+      "type": "object",
+      "required": ["$param"],
+      "properties": {
+        "$param": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "stateRef": {
+      "type": "object",
+      "required": ["$state"],
+      "properties": {
+        "$state": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "valueOrRef": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        { "type": "object", "additionalProperties": true },
+        { "type": "array", "items": {} },
+        { "$ref": "#/$defs/paramRef" },
+        { "$ref": "#/$defs/stateRef" }
+      ]
+    },
+    "eventBinding": {
+      "type": "object",
+      "required": ["trigger"],
+      "properties": {
+        "trigger": { "type": "string" },
+        "action": { "type": "string" },
+        "params": { "type": "object", "additionalProperties": true }
+      },
+      "patternProperties": {
+        "^x-[a-zA-Z0-9_.-]+$": {}
+      },
+      "additionalProperties": false
+    },
+    "componentNode": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_$][a-zA-Z0-9_$-]*$"
+        },
+        "type": { "type": "string" },
+        "text": {
+          "anyOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/paramRef" },
+            { "$ref": "#/$defs/stateRef" }
+          ]
+        },
+        "style": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/valueOrRef" }
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/valueOrRef" }
+        },
+        "events": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/eventBinding" }
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/componentNode" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "propDef": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "default": {}
+      },
+      "additionalProperties": true
+    },
+    "stateDef": {
+      "type": "object",
+      "required": ["initial"],
+      "properties": {
+        "type": { "type": "string" },
+        "initial": {}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

@@ -4,13 +4,13 @@ test.describe('application smoke', () => {
   test('loads the home page @smoke', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page).toHaveTitle(/mdr-front-engine/i);
+    await expect(page).toHaveTitle(/prodivix/i);
     await expect(
-      page.getByRole('heading', { name: /MdrFrontEngine/i })
+      page.getByRole('heading', { name: /Prodivix/i })
     ).toBeVisible();
     await expect(page.getByRole('link', { name: /GitHub/i })).toHaveAttribute(
       'href',
-      'https://github.com/Mdr-Tutorials/Mdr-Front-Engine'
+      'https://github.com/Prodivix/prodivix'
     );
   });
 
@@ -19,7 +19,7 @@ test.describe('application smoke', () => {
 
     await expect(page.locator('#root')).not.toBeEmpty();
     await expect(
-      page.getByText(/Loading editor|MdrFrontEngine|项目|Project/i).first()
+      page.getByText(/Loading editor|Prodivix|项目|Project/i).first()
     ).toBeVisible();
   });
 });

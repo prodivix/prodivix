@@ -1,0 +1,27 @@
+.PdxAudio {
+  display: block;
+  padding: var(--spacing-md);
+  background-color: var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+
+  audio {
+    width: 100%;
+    height: 40px;
+  }
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+  }
+}
+
+[data-theme='dark'] {
+  .PdxAudio {
+    box-shadow: var(--shadow-sm);
+
+    &:hover {
+      box-shadow: var(--shadow-md);
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import type { LlmTaskRequest } from '@mdr/shared';
+import type { LlmTaskRequest } from '@prodivix/shared';
 
 export interface OpenAICompatibleMessage {
   role: 'system' | 'user';
@@ -6,7 +6,7 @@ export interface OpenAICompatibleMessage {
 }
 
 export const openAICompatibleSystemPrompt =
-  'You are MdrFrontEngine AI runtime. Return only valid JSON. Do not wrap JSON in markdown fences. Do not include prose before or after the JSON.';
+  'You are Prodivix AI runtime. Return only valid JSON. Do not wrap JSON in markdown fences. Do not include prose before or after the JSON.';
 
 export const createOpenAICompatibleMessages = (
   task: LlmTaskRequest

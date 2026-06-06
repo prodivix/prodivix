@@ -1,5 +1,5 @@
 import type { Edge } from '@xyflow/react';
-import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 import type {
   GraphExecutionRequest,
   GraphExecutionResult,
@@ -7,23 +7,23 @@ import type {
 
 type UnsafeRecord = Record<string, unknown>;
 
-type MirGraphNodeData = {
+type PirGraphNodeData = {
   kind?: string;
   value?: string;
   label?: string;
   description?: string;
 };
 
-type MirGraphNode = {
+type PirGraphNode = {
   id: string;
   type?: string;
-  data?: MirGraphNodeData;
+  data?: PirGraphNodeData;
 };
 
-type MirGraphDocument = {
+type PirGraphDocument = {
   id: string;
   name?: string;
-  nodes?: MirGraphNode[];
+  nodes?: PirGraphNode[];
   edges?: Edge[];
 };
 
@@ -52,17 +52,17 @@ const debugNodeGraph = (label: string, detail: Record<string, unknown>) => {
   console.debug(`[node-graph-executor] ${label}`, detail);
 };
 
-const getMirGraphs = (
-  mirDoc: MIRDocument | null | undefined
-): MirGraphDocument[] => {
-  const graphs = mirDoc?.logic?.graphs;
-  return Array.isArray(graphs) ? (graphs as MirGraphDocument[]) : [];
+const getPirGraphs = (
+  pirDoc: PIRDocument | null | undefined
+): PirGraphDocument[] => {
+  const graphs = pirDoc?.logic?.graphs;
+  return Array.isArray(graphs) ? (graphs as PirGraphDocument[]) : [];
 };
 
 const pickGraph = (
-  graphs: MirGraphDocument[],
+  graphs: PirGraphDocument[],
   params?: NodeGraphExecutionParams
-): MirGraphDocument | null => {
+): PirGraphDocument | null => {
   const graphId = normalizeGraphKey(params?.graphId);
   if (graphId) {
     const byId = graphs.find(
@@ -101,7 +101,7 @@ const buildControlAdjacency = (edges: Edge[]) => {
 };
 
 const resolveEntryNode = (
-  graph: MirGraphDocument,
+  graph: PirGraphDocument,
   incomingCount: Map<string, number>
 ) => {
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
@@ -115,7 +115,7 @@ const resolveEntryNode = (
 };
 
 const executeNode = (
-  node: MirGraphNode,
+  node: PirGraphNode,
   input: unknown
 ): NodeExecutionOutcome => {
   const kind = normalizeGraphKey(node.data?.kind);
@@ -141,14 +141,14 @@ const executeNode = (
   }
 };
 
-export const executeMirNodeGraph = async (
-  mirDoc: MIRDocument | null | undefined,
+export const executePirNodeGraph = async (
+  pirDoc: PIRDocument | null | undefined,
   request: GraphExecutionRequest
 ): Promise<GraphExecutionResult> => {
   const params = isPlainObject(request.params)
     ? (request.params as NodeGraphExecutionParams)
     : undefined;
-  const graphs = getMirGraphs(mirDoc);
+  const graphs = getPirGraphs(pirDoc);
   const graph = pickGraph(graphs, params);
   debugNodeGraph('select-graph', {
     requestId: request.requestId,
@@ -192,7 +192,7 @@ export const executeMirNodeGraph = async (
     return { statePatch: {} };
   }
 
-  let currentNode: MirGraphNode | null = entryNode;
+  let currentNode: PirGraphNode | null = entryNode;
   let currentInput: unknown = undefined;
   let steps = 0;
 

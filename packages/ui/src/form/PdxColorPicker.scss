@@ -1,0 +1,62 @@
+@use './PdxField.scss';
+
+.PdxColorPicker {
+  width: 100%;
+}
+
+.PdxColorPickerControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.PdxColorPickerInput {
+  width: 44px;
+  height: 36px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.PdxColorPickerText {
+  flex: 1;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+
+  &:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--accent-color) 12%, transparent);
+  }
+}
+
+.PdxColorPickerSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+}
+
+.PdxColorPicker.Disabled {
+  opacity: 0.6;
+}
+
+.PdxColorPicker.Small .PdxColorPickerInput {
+  width: 36px;
+  height: 30px;
+}
+
+.PdxColorPicker.Large .PdxColorPickerInput {
+  width: 52px;
+  height: 42px;
+}

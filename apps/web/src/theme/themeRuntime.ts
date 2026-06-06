@@ -4,7 +4,7 @@ import {
   officialMonochromeLightTheme,
   type ThemeManifest,
   validateThemeManifest,
-} from '@mdr/themes';
+} from '@prodivix/themes';
 
 export type ThemePreference = 'home' | 'light' | 'dark';
 
@@ -12,8 +12,8 @@ type ApplyThemePreferenceOptions = {
   persist?: boolean;
 };
 
-const THEME_STYLE_ELEMENT_ID = 'mdr-theme-runtime';
-const THEME_PREFERENCE_STORAGE_KEY = 'mdr.theme.preference';
+const THEME_STYLE_ELEMENT_ID = 'prodivix-theme-runtime';
+const THEME_PREFERENCE_STORAGE_KEY = 'prodivix.theme.preference';
 const LEGACY_THEME_STORAGE_KEY = 'theme';
 
 const OFFICIAL_THEME_BY_MODE = {
@@ -112,7 +112,7 @@ const ensureThemeStyleElement = () => {
 
   const styleElement = document.createElement('style');
   styleElement.id = THEME_STYLE_ELEMENT_ID;
-  styleElement.dataset.mdrThemeRuntime = 'true';
+  styleElement.dataset.prodivixThemeRuntime = 'true';
   document.head.appendChild(styleElement);
 
   return styleElement;

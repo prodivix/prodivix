@@ -1,4 +1,4 @@
-import { MdrInput } from '@mdr/ui';
+import { PdxInput } from '@prodivix/ui';
 import { InspectorRow } from '@/editor/features/design/inspector/components/InspectorRow';
 import { ColorInput } from '@/editor/features/design/inspector/components/ColorInput';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
@@ -50,7 +50,7 @@ function BackgroundPanelView({ node, updateNode }: InspectorPanelRenderProps) {
           defaultValue: 'Background Image',
         })}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={backgroundImageValue}
             onChange={(value) =>
@@ -72,7 +72,7 @@ function BackgroundPanelView({ node, updateNode }: InspectorPanelRenderProps) {
           defaultValue: 'Background Size',
         })}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={backgroundSizeValue}
             onChange={(value) =>
@@ -94,7 +94,7 @@ function BackgroundPanelView({ node, updateNode }: InspectorPanelRenderProps) {
           defaultValue: 'Background Position',
         })}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={backgroundPositionValue}
             onChange={(value) =>

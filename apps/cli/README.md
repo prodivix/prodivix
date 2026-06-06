@@ -1,6 +1,6 @@
-# @mdr/cli
+# @prodivix/cli
 
-MdrFrontEngine 的命令行工具，基于 Commander，用于项目初始化、MIR 文档同步与构建辅助。
+Prodivix 的命令行工具，基于 Commander，用于项目初始化、PIR 文档同步与构建辅助。
 
 ## 目录结构
 
@@ -11,7 +11,7 @@ apps/cli
 │   ├── utils/           # 工具：fs、http client、auth token 缓存
 │   └── cli.ts           # 入口
 ├── bin/
-│   └── mdr.js           # 可执行入口（npx / 全局安装）
+│   └── prodivix.js           # 可执行入口（npx / 全局安装）
 ├── test/                # CLI e2e/单元测试
 ├── package.json
 └── tsconfig.json
@@ -23,7 +23,7 @@ apps/cli
 pnpm dev:cli              # ts-node 开发模式
 pnpm build:cli            # 构建发布包
 pnpm cli --help           # 查看子命令
-pnpm --filter @mdr/cli test
+pnpm --filter @prodivix/cli test
 ```
 
 ## 与 Workspace 协议对接

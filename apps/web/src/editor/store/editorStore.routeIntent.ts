@@ -1,4 +1,4 @@
-﻿import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 import type { WorkspaceDocumentRecord } from '@/editor/editorApi';
 import {
   collectRouteDocumentRefs,
@@ -7,7 +7,7 @@ import {
   updateRouteNodeById,
 } from './routeManifest';
 import {
-  isWorkspaceMirDocument,
+  isWorkspacePirDocument,
   normalizeRouteManifest,
   resolveActiveRouteNodeId,
 } from './editorStore.normalizers';
@@ -30,7 +30,7 @@ export type RouteIntentState = {
   treeById: Record<string, WorkspaceVfsNode>;
   activeRouteNodeId?: string;
   activeDocumentId?: string;
-  mirDoc: MIRDocument;
+  pirDoc: PIRDocument;
 };
 
 export type RouteIntentResult = {
@@ -40,14 +40,14 @@ export type RouteIntentResult = {
   treeRootId?: string;
   treeById: Record<string, WorkspaceVfsNode>;
   activeDocumentId?: string;
-  mirDoc: MIRDocument;
+  pirDoc: PIRDocument;
 };
 
-const resolveMirDocFromDocument = (
+const resolvePirDocFromDocument = (
   document: WorkspaceDocumentRecord | undefined,
-  fallback: MIRDocument
-): MIRDocument =>
-  isWorkspaceMirDocument(document) ? document.content : fallback;
+  fallback: PIRDocument
+): PIRDocument =>
+  isWorkspacePirDocument(document) ? document.content : fallback;
 
 export const applyRouteIntentToState = (
   state: RouteIntentState,
@@ -68,7 +68,7 @@ export const applyRouteIntentToState = (
       : `/${intent.path}`;
     const pageDocument = createWorkspaceDocumentRecord(
       documentId,
-      'mir-page',
+      'pir-page',
       normalizedPath
     );
     nextDocumentsById[documentId] = pageDocument;
@@ -108,12 +108,12 @@ export const applyRouteIntentToState = (
       treeRootId: nextTreeRootId,
       treeById: nextTreeById,
       activeDocumentId: nextActiveDocumentId,
-      mirDoc: nextActiveDocumentId
-        ? resolveMirDocFromDocument(
+      pirDoc: nextActiveDocumentId
+        ? resolvePirDocFromDocument(
             nextDocumentsById[nextActiveDocumentId],
-            state.mirDoc
+            state.pirDoc
           )
-        : state.mirDoc,
+        : state.pirDoc,
     };
   }
 
@@ -127,7 +127,7 @@ export const applyRouteIntentToState = (
     const documentId = intent.pageDocId?.trim() || createEntityId('page');
     const pageDocument = createWorkspaceDocumentRecord(
       documentId,
-      'mir-page',
+      'pir-page',
       `/${intent.segment}`
     );
     nextDocumentsById[documentId] = pageDocument;
@@ -167,12 +167,12 @@ export const applyRouteIntentToState = (
       treeRootId: nextTreeRootId,
       treeById: nextTreeById,
       activeDocumentId: nextActiveDocumentId,
-      mirDoc: nextActiveDocumentId
-        ? resolveMirDocFromDocument(
+      pirDoc: nextActiveDocumentId
+        ? resolvePirDocFromDocument(
             nextDocumentsById[nextActiveDocumentId],
-            state.mirDoc
+            state.pirDoc
           )
-        : state.mirDoc,
+        : state.pirDoc,
     };
   }
 
@@ -186,7 +186,7 @@ export const applyRouteIntentToState = (
     const layoutDocId = intent.layoutDocId?.trim() || createEntityId('layout');
     const layoutDocument = createWorkspaceDocumentRecord(
       layoutDocId,
-      'mir-layout',
+      'pir-layout',
       `/layouts/${layoutDocId}`
     );
     nextDocumentsById[layoutDocId] = layoutDocument;
@@ -212,7 +212,7 @@ export const applyRouteIntentToState = (
       treeRootId: nextTreeRootId,
       treeById: nextTreeById,
       activeDocumentId: nextActiveDocumentId,
-      mirDoc: resolveMirDocFromDocument(layoutDocument, state.mirDoc),
+      pirDoc: resolvePirDocFromDocument(layoutDocument, state.pirDoc),
     };
   }
 
@@ -240,12 +240,12 @@ export const applyRouteIntentToState = (
     if (nextActiveDocumentId && !nextDocumentsById[nextActiveDocumentId]) {
       nextActiveDocumentId = Object.keys(nextDocumentsById)[0];
     }
-    const nextMirDoc = nextActiveDocumentId
-      ? resolveMirDocFromDocument(
+    const nextPirDoc = nextActiveDocumentId
+      ? resolvePirDocFromDocument(
           nextDocumentsById[nextActiveDocumentId],
-          state.mirDoc
+          state.pirDoc
         )
-      : state.mirDoc;
+      : state.pirDoc;
     return {
       routeManifest: normalizeRouteManifest(nextRouteManifest),
       activeRouteNodeId: nextActiveRouteNodeId,
@@ -253,7 +253,7 @@ export const applyRouteIntentToState = (
       treeRootId: nextTreeRootId,
       treeById: nextTreeById,
       activeDocumentId: nextActiveDocumentId,
-      mirDoc: nextMirDoc,
+      pirDoc: nextPirDoc,
     };
   }
 

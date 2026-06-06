@@ -28,7 +28,7 @@ Phase 1 只落地长期稳定的作者态契约，让后续 Blueprint、NodeGrap
 type DiagnosticTargetRef =
   | { kind: 'workspace'; workspaceId: string }
   | { kind: 'document'; workspaceId?: string; documentId: string }
-  | { kind: 'mir-node'; documentId: string; nodeId: string }
+  | { kind: 'pir-node'; documentId: string; nodeId: string }
   | {
       kind: 'inspector-field';
       documentId: string;
@@ -81,7 +81,7 @@ type CodeArtifactLanguage =
   | 'expr';
 
 type CodeArtifactOwner =
-  | { kind: 'mir-node'; documentId: string; nodeId: string }
+  | { kind: 'pir-node'; documentId: string; nodeId: string }
   | {
       kind: 'inspector-field';
       documentId: string;
@@ -159,7 +159,7 @@ type CodeScope = {
 
 ### 3.1 CodeSymbol Provider 契约
 
-Phase 1 不直接从 MIR、Route、NodeGraph、Animation、External Library 或 Workspace 当前内部结构扫描符号。各模块未来通过 provider 声明自己能提供哪些符号和作用域。
+Phase 1 不直接从 PIR、Route、NodeGraph、Animation、External Library 或 Workspace 当前内部结构扫描符号。各模块未来通过 provider 声明自己能提供哪些符号和作用域。
 
 ```ts
 type CodeSymbolProvider = {
@@ -176,7 +176,7 @@ type CodeSymbolProvider = {
 1. Authoring Environment 只依赖 provider contract，不依赖具体模块 store 或 UI 结构。
 2. provider 可以随模块内部重构而替换实现，但 `CodeSymbol` 与 `CodeScope` 输出形状保持稳定。
 3. registry 只负责注册、取消注册、聚合 symbols、聚合 scopes 和按 id 查找，不负责补全排序、类型推导或引用解析策略。
-4. 真实 provider 应优先按 source 拆分，例如 MIR graph、Route manifest、Workspace resource、External Library、NodeGraph 和 Animation。
+4. 真实 provider 应优先按 source 拆分，例如 PIR graph、Route manifest、Workspace resource、External Library、NodeGraph 和 Animation。
 
 ### 4. AuthoringEnvironment 查询接口
 
@@ -191,7 +191,7 @@ type AuthoringEnvironment = {
     context: AuthoringContext
   ): ResolvedReference | null;
   getCompletions(context: AuthoringContext): CodeCompletion[];
-  getDiagnostics(context: AuthoringContext): MdrDiagnostic[];
+  getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
   getDefinition(
     reference: CodeReference,
     context: AuthoringContext
@@ -212,13 +212,13 @@ type AuthoringEnvironment = {
 
 ### 4.1 Authoring Diagnostic Provider 契约
 
-Phase 1 不直接把 MIR validator、parser、NodeGraph checker 或 Animation checker 写入 UI。各模块未来通过 provider 声明自己能提供哪些作者态诊断。
+Phase 1 不直接把 PIR validator、parser、NodeGraph checker 或 Animation checker 写入 UI。各模块未来通过 provider 声明自己能提供哪些作者态诊断。
 
 ```ts
 type AuthoringDiagnosticProvider = {
   id: string;
   source: SymbolSource;
-  getDiagnostics(context: AuthoringContext): MdrDiagnostic[];
+  getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
 };
 ```
 
@@ -312,7 +312,7 @@ Phase 1 不做以下内容：
 5. 不规定 CodeMirror 插件结构。
 6. 不规定 Inspector、NodeGraph、Animation 的具体 UI 组件。
 7. 不把用户可见完整文案写进前端 registry。
-8. 不改变 MIR 保存态结构。
+8. 不改变 PIR 保存态结构。
 
 ## 验收标准
 
@@ -331,7 +331,7 @@ Phase 1 不做以下内容：
 
 Phase 1 完成后，后续阶段可以在不改变上述契约的前提下逐步增加：
 
-1. MIR、Route、Workspace 和 CodeArtifact 的轻量符号来源。
+1. PIR、Route、Workspace 和 CodeArtifact 的轻量符号来源。
 2. Inspector 字段级诊断投放。
 3. Code Editor inline diagnostic adapter。
 4. NodeGraph 和 Animation 的 SymbolSource adapter。

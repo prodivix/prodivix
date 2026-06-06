@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/mircontract"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/pircontract"
 )
 
 var ErrWorkspaceNotFound = errors.New("workspace not found")
@@ -48,11 +48,11 @@ func (err *WorkspaceRevisionConflictError) Error() string {
 type WorkspaceDocumentType string
 
 const (
-	WorkspaceDocumentTypeMIRPage      WorkspaceDocumentType = "mir-page"
-	WorkspaceDocumentTypeMIRLayout    WorkspaceDocumentType = "mir-layout"
-	WorkspaceDocumentTypeMIRComponent WorkspaceDocumentType = "mir-component"
-	WorkspaceDocumentTypeMIRGraph     WorkspaceDocumentType = "mir-graph"
-	WorkspaceDocumentTypeMIRAnimation WorkspaceDocumentType = "mir-animation"
+	WorkspaceDocumentTypePIRPage      WorkspaceDocumentType = "pir-page"
+	WorkspaceDocumentTypePIRLayout    WorkspaceDocumentType = "pir-layout"
+	WorkspaceDocumentTypePIRComponent WorkspaceDocumentType = "pir-component"
+	WorkspaceDocumentTypePIRGraph     WorkspaceDocumentType = "pir-graph"
+	WorkspaceDocumentTypePIRAnimation WorkspaceDocumentType = "pir-animation"
 	WorkspaceDocumentTypeCode         WorkspaceDocumentType = "code"
 )
 
@@ -67,7 +67,7 @@ func NewWorkspaceStore(db *sql.DB) *WorkspaceStore {
 var defaultWorkspaceTree = json.RawMessage(`{"rootId":"root","nodes":[]}`)
 var defaultWorkspaceRouteManifest = json.RawMessage(`{"version":"1","root":{"id":"root"}}`)
 var defaultWorkspaceSettings = json.RawMessage(`{}`)
-var defaultMIRDocument = mircontract.DefaultDocument()
+var defaultPIRDocument = pircontract.DefaultDocument()
 var defaultCodeDocument = json.RawMessage(`{"language":"ts","source":""}`)
 
 type WorkspaceRecord struct {
@@ -613,7 +613,7 @@ func (store *WorkspaceStore) SaveDocumentContent(ctx context.Context, params Sav
 		return nil, errors.New("expectedContentRev must be positive")
 	}
 
-	contentJSON, err := normalizeJSONDocument(params.Content, defaultMIRDocument)
+	contentJSON, err := normalizeJSONDocument(params.Content, defaultPIRDocument)
 	if err != nil {
 		return nil, err
 	}
@@ -1340,7 +1340,7 @@ func normalizeJSONDocument(payload json.RawMessage, fallback json.RawMessage) (j
 }
 
 func normalizeWorkspaceDocumentContent(documentType WorkspaceDocumentType, payload json.RawMessage) (json.RawMessage, error) {
-	fallback := defaultMIRDocument
+	fallback := defaultPIRDocument
 	if documentType == WorkspaceDocumentTypeCode {
 		fallback = defaultCodeDocument
 	}
@@ -1358,8 +1358,8 @@ func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, payloa
 	if documentType == WorkspaceDocumentTypeCode {
 		return validateWorkspaceCodeDocument(payload)
 	}
-	if isMIRWorkspaceDocumentType(documentType) {
-		return validateMIRV13Document(payload)
+	if isPIRWorkspaceDocumentType(documentType) {
+		return validatePIRV13Document(payload)
 	}
 	return nil
 }
@@ -1408,16 +1408,16 @@ func withStoreTimeout(ctx context.Context) (context.Context, context.CancelFunc)
 
 func isValidWorkspaceDocumentType(documentType WorkspaceDocumentType) bool {
 	switch documentType {
-	case WorkspaceDocumentTypeMIRPage, WorkspaceDocumentTypeMIRLayout, WorkspaceDocumentTypeMIRComponent, WorkspaceDocumentTypeMIRGraph, WorkspaceDocumentTypeMIRAnimation, WorkspaceDocumentTypeCode:
+	case WorkspaceDocumentTypePIRPage, WorkspaceDocumentTypePIRLayout, WorkspaceDocumentTypePIRComponent, WorkspaceDocumentTypePIRGraph, WorkspaceDocumentTypePIRAnimation, WorkspaceDocumentTypeCode:
 		return true
 	default:
 		return false
 	}
 }
 
-func isMIRWorkspaceDocumentType(documentType WorkspaceDocumentType) bool {
+func isPIRWorkspaceDocumentType(documentType WorkspaceDocumentType) bool {
 	switch documentType {
-	case WorkspaceDocumentTypeMIRPage, WorkspaceDocumentTypeMIRLayout, WorkspaceDocumentTypeMIRComponent:
+	case WorkspaceDocumentTypePIRPage, WorkspaceDocumentTypePIRLayout, WorkspaceDocumentTypePIRComponent:
 		return true
 	default:
 		return false

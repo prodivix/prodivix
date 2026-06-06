@@ -2,8 +2,8 @@
   "title": "导出代码",
   "react": {
     "title": "React",
-    "description": "基于当前 MIR 生成的 React 组件代码",
-    "empty": "暂无 React 代码（先生成 MIR）",
+    "description": "基于当前 PIR 生成的 React 组件代码",
+    "empty": "暂无 React 代码（先生成 PIR）",
     "error": "React 代码生成失败"
   },
   "vfs": {
@@ -15,7 +15,7 @@
   "copy": "复制",
   "copySuccess": "已复制",
   "footer": {
-    "generator": "由 Mdr Front Engine 生成"
+    "generator": "由 Prodivix 生成"
   },
   "tabs": {
     "react": "React",

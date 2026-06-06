@@ -11,10 +11,10 @@ import {
 } from 'lucide-react';
 import {
   createLlmTask,
-  createMdrAiProvider,
+  createProdivixAiProvider,
   stringifyOpenAICompatibleMessages,
   createOpenAICompatibleMessages,
-} from '@mdr/ai';
+} from '@prodivix/ai';
 import {
   InMemoryLlmTraceStore,
   LlmContextBuilder,
@@ -22,7 +22,7 @@ import {
   LlmToolRegistry,
   type LlmPlanArtifact,
   type LlmTaskRequest,
-} from '@mdr/shared';
+} from '@prodivix/shared';
 import {
   headerCollapseButtonClassName,
   rightCollapsedButtonClassName,
@@ -67,7 +67,7 @@ const createBlueprintAssistantContext = (
       authority: 'authoritative',
       value: selectedId ?? null,
     })
-    .omit('Full MIR is omitted in the minimal assistant loop.')
+    .omit('Full PIR is omitted in the minimal assistant loop.')
     .build(1600);
 
 const createBlueprintAssistantTask = (
@@ -79,7 +79,7 @@ const createBlueprintAssistantTask = (
     id: createTaskId(),
     intent: normalizedIntent,
     context: createBlueprintAssistantContext(currentPath, selectedId),
-    outputChannels: ['mir-command'],
+    outputChannels: ['pir-command'],
     requiresPlan: true,
     responseMode: 'json',
     modelPreferences: {
@@ -118,11 +118,11 @@ const DebugHoverButton = ({
 
 /**
  * 蓝图编辑器右下角的最小 AI 闭环：收集当前路由和选中节点上下文，
- * 通过 @mdr/ai mock provider 生成 plan，暂不写入 MIR。
+ * 通过 @prodivix/ai mock provider 生成 plan，暂不写入 PIR。
  *
  * Minimal bottom-right AI loop for BlueprintEditor: it collects current route
- * and selected node context, generates a plan through the @mdr/ai mock provider,
- * and does not write to MIR yet.
+ * and selected node context, generates a plan through the @prodivix/ai mock provider,
+ * and does not write to PIR yet.
  */
 export function BlueprintAssistantPanel({
   currentPath,
@@ -171,7 +171,7 @@ export function BlueprintAssistantPanel({
     setPromptPreview(
       stringifyOpenAICompatibleMessages(createOpenAICompatibleMessages(task))
     );
-    const provider = createMdrAiProvider({
+    const provider = createProdivixAiProvider({
       settings,
       fetcher:
         settings.provider === 'openai-compatible'

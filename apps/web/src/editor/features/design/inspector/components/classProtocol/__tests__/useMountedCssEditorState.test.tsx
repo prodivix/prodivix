@@ -4,15 +4,15 @@ import type { ComponentNode } from '@/core/types/engine.types';
 import { useMountedCssEditorState } from '../useMountedCssEditorState';
 
 const createNode = (): ComponentNode => ({
-  id: 'MdrText-1',
-  type: 'MdrText',
+  id: 'PdxText-1',
+  type: 'PdxText',
   props: {
     className: 'my',
   },
 });
 
 describe('useMountedCssEditorState', () => {
-  it('does not write mounted CSS source into MIR when VFS save fails', async () => {
+  it('does not write mounted CSS source into PIR when VFS save fails', async () => {
     const updateSelectedNode = vi.fn();
     const saveMountedCssToVfs = vi.fn().mockResolvedValue(false);
     const { result } = renderHook(() =>

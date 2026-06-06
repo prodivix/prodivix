@@ -17,15 +17,15 @@ import {
   createNodeFromPaletteItem,
   createNodeIdFactory,
 } from '@/editor/features/design/blueprint/editor/model/palette';
-import type { ComponentNode, MIRDocument } from '@/core/types/engine.types';
-import { materializeMirRoot, normalizeTreeToUiGraph } from '@/mir/graph';
+import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
 import {
   cloneNodeWithNewIds,
   findNodeById,
   findParentId,
   insertAfterById,
   insertChildAtIndex,
-  insertIntoMirDoc,
+  insertIntoPirDoc,
   supportsChildrenForNode,
   moveChildById,
   removeNodeById,
@@ -34,7 +34,7 @@ import { normalizeAnimationDefinition } from '@/editor/features/animation/animat
 import {
   getNavigateLinkKind,
   resolveNavigateTarget,
-} from '@/mir/actions/registry';
+} from '@/pir/actions/registry';
 import {
   DEFAULT_BLUEPRINT_STATE,
   useEditorStore,
@@ -49,7 +49,7 @@ import {
 } from '@/editor/store/routeManifest';
 import type { AutosaveMode } from '@/editor/features/design/blueprint/editor/model/autosave';
 
-const CAPABILITY_MIR_DOCUMENT_UPDATE = 'core.mir.graph.replace@1.0';
+const CAPABILITY_PIR_DOCUMENT_UPDATE = 'core.pir.graph.replace@1.0';
 const CAPABILITY_ROUTE_MANIFEST_UPDATE = 'core.route.manifest.update@1.0';
 
 const createRouteId = () => {
@@ -77,9 +77,9 @@ type InteractionRequest = {
  * Blueprint 编辑器的编排层（controller）。
  *
  * 复杂链路集中在这里：
- * - UI 交互 -> updateMirDoc -> autosave（workspace/project）
+ * - UI 交互 -> updatePirDoc -> autosave（workspace/project）
  * - Canvas 内置动作 -> 导航确认/图执行事件 -> 页面或外部系统
- * - DnD 结果 -> MIR 树变换 -> 选中态与面板状态同步
+ * - DnD 结果 -> PIR 树变换 -> 选中态与面板状态同步
  */
 export const useBlueprintEditorController = () => {
   const [newPath, setNewPath] = useState('');
@@ -115,9 +115,9 @@ export const useBlueprintEditorController = () => {
     (state) => state.runtimeStateByProject[blueprintKey]
   );
   const patchRuntimeState = useEditorStore((state) => state.patchRuntimeState);
-  const mirDoc = useEditorStore((state) => state.mirDoc);
-  const mirDocRevision = useEditorStore((state) => state.mirDocRevision);
-  const updateMirDoc = useEditorStore((state) => state.updateMirDoc);
+  const pirDoc = useEditorStore((state) => state.pirDoc);
+  const pirDocRevision = useEditorStore((state) => state.pirDocRevision);
+  const updatePirDoc = useEditorStore((state) => state.updatePirDoc);
   const workspaceId = useEditorStore((state) => state.workspaceId);
   const workspaceRev = useEditorStore((state) => state.workspaceRev);
   const routeRev = useEditorStore((state) => state.routeRev);
@@ -138,7 +138,7 @@ export const useBlueprintEditorController = () => {
   );
   const canUpdateWorkspaceDocument = useEditorStore(
     (state) =>
-      state.workspaceCapabilities[CAPABILITY_MIR_DOCUMENT_UPDATE] === true
+      state.workspaceCapabilities[CAPABILITY_PIR_DOCUMENT_UPDATE] === true
   );
   const canUpdateRouteManifest = useEditorStore(
     (state) =>
@@ -191,7 +191,7 @@ export const useBlueprintEditorController = () => {
       activationConstraint: { distance: 6 },
     })
   );
-  // 保存链路：mirDoc 变化 -> useBlueprintAutosave -> editorApi 保存 -> applyWorkspaceMutation
+  // 保存链路：pirDoc 变化 -> useBlueprintAutosave -> editorApi 保存 -> applyWorkspaceMutation
   const {
     saveStatus,
     saveTransport,
@@ -203,8 +203,8 @@ export const useBlueprintEditorController = () => {
   } = useBlueprintAutosave({
     token,
     projectId: projectId ?? undefined,
-    mirDoc,
-    mirDocRevision,
+    pirDoc,
+    pirDocRevision,
     autosaveMode,
     autosaveIntervalMs: autosaveInterval * 1000,
     workspaceId,
@@ -320,7 +320,7 @@ export const useBlueprintEditorController = () => {
    * Canvas built-in `navigate` 的控制器出口。
    *
    * 调用链路：
-   * MIR 节点 click -> MIRRenderer capture -> BlueprintEditorCanvas builtInActions.navigate
+   * PIR 节点 click -> PIRRenderer capture -> BlueprintEditorCanvas builtInActions.navigate
    * -> controller.handleNavigateRequest
    */
   const handleNavigateRequest = (options: InteractionRequest) => {
@@ -388,8 +388,8 @@ export const useBlueprintEditorController = () => {
    * Canvas built-in `executeGraph` 的控制器出口。
    *
    * 调用链路：
-   * MIR 事件 -> MIRRenderer -> Canvas builtInActions.executeGraph ->
-   * controller -> `window` 事件总线 `mdr:execute-graph`
+   * PIR 事件 -> PIRRenderer -> Canvas builtInActions.executeGraph ->
+   * controller -> `window` 事件总线 `prodivix:execute-graph`
    */
   const handleExecuteGraphRequest = useCallback(
     (options: InteractionRequest) => {
@@ -524,8 +524,8 @@ export const useBlueprintEditorController = () => {
   const handleAddComponent = (itemId: string) => {
     const targetId = selectedId ?? 'root';
     let nextNodeId = '';
-    updateMirDoc((doc) => {
-      const root = materializeMirRoot(doc);
+    updatePirDoc((doc) => {
+      const root = materializePirRoot(doc);
       const createId = createNodeIdFactory(doc);
       const newNode = createNodeFromPaletteItem(itemId, createId);
       nextNodeId = newNode.id;
@@ -561,14 +561,14 @@ export const useBlueprintEditorController = () => {
         }
       }
 
-      return insertIntoMirDoc(doc, root.id, newNode);
+      return insertIntoPirDoc(doc, root.id, newNode);
     });
     if (nextNodeId) {
       handleNodeSelect(nextNodeId);
     }
   };
 
-  // 拖拽链路：DndContext 事件 -> useBlueprintDragDrop -> updateMirDoc -> 选中态更新
+  // 拖拽链路：DndContext 事件 -> useBlueprintDragDrop -> updatePirDoc -> 选中态更新
   const {
     activePaletteItemId,
     treeDropHint,
@@ -577,10 +577,10 @@ export const useBlueprintEditorController = () => {
     handleDragCancel,
     handleDragEnd,
   } = useBlueprintDragDrop({
-    mirDoc,
+    pirDoc,
     currentPath,
     selectedId,
-    updateMirDoc,
+    updatePirDoc,
     onNodeSelect: handleNodeSelect,
   });
 
@@ -588,8 +588,8 @@ export const useBlueprintEditorController = () => {
     if (!selectedId) return;
     let nextSelectedId: string | undefined;
     let removed = false;
-    updateMirDoc((doc) => {
-      const root = materializeMirRoot(doc);
+    updatePirDoc((doc) => {
+      const root = materializePirRoot(doc);
       if (selectedId === root.id) return doc;
       const parentId = findParentId(root, selectedId);
       const removal = removeNodeById(root, selectedId);
@@ -611,8 +611,8 @@ export const useBlueprintEditorController = () => {
     if (!nodeId) return;
     let nextSelectedId: string | undefined;
     let removed = false;
-    updateMirDoc((doc) => {
-      const root = materializeMirRoot(doc);
+    updatePirDoc((doc) => {
+      const root = materializePirRoot(doc);
       if (nodeId === root.id) return doc;
       const parentId = findParentId(root, nodeId);
       const removal = removeNodeById(root, nodeId);
@@ -635,8 +635,8 @@ export const useBlueprintEditorController = () => {
   const handleCopyNode = (nodeId: string) => {
     if (!nodeId) return;
     let nextNodeId = '';
-    updateMirDoc((doc) => {
-      const root = materializeMirRoot(doc);
+    updatePirDoc((doc) => {
+      const root = materializePirRoot(doc);
       if (nodeId === root.id) return doc;
       const source = findNodeById(root, nodeId);
       if (!source) return doc;
@@ -650,7 +650,7 @@ export const useBlueprintEditorController = () => {
           ui: { graph: normalizeTreeToUiGraph(insertedSibling.node) },
         };
       }
-      return insertIntoMirDoc(doc, root.id, cloned);
+      return insertIntoPirDoc(doc, root.id, cloned);
     });
     if (nextNodeId) {
       handleNodeSelect(nextNodeId);
@@ -660,8 +660,8 @@ export const useBlueprintEditorController = () => {
   const handleMoveNode = (nodeId: string, direction: 'up' | 'down') => {
     if (!nodeId) return;
     let moved = false;
-    updateMirDoc((doc) => {
-      const root = materializeMirRoot(doc);
+    updatePirDoc((doc) => {
+      const root = materializePirRoot(doc);
       if (nodeId === root.id) return doc;
       const parentId = findParentId(root, nodeId);
       if (!parentId) return doc;
@@ -775,12 +775,12 @@ export const useBlueprintEditorController = () => {
   };
 };
 
-const cleanupDeletedNodeAnimationBindings = (doc: MIRDocument): MIRDocument => {
+const cleanupDeletedNodeAnimationBindings = (doc: PIRDocument): PIRDocument => {
   const animation = normalizeAnimationDefinition(doc.animation);
   if (!animation) return doc;
 
   const validNodeIds = new Set<string>();
-  collectNodeIds(materializeMirRoot(doc), validNodeIds);
+  collectNodeIds(materializePirRoot(doc), validNodeIds);
 
   let changed = false;
   const nextTimelines = animation.timelines.map((timeline) => {

@@ -8,7 +8,7 @@ import type {
   SvgFilterDefinition,
 } from '@/core/types/engine.types';
 import { useEditorStore } from '@/editor/store/useEditorStore';
-import { materializeMirRoot } from '@/mir/graph';
+import { materializePirRoot } from '@/pir/graph';
 import {
   createAnimationStorageKey,
   createDefaultBinding,
@@ -47,21 +47,21 @@ const clampZoom = (value: number) =>
 
 export const useAnimationEditorState = () => {
   const { projectId } = useParams();
-  const mirDoc = useEditorStore((state) => state.mirDoc);
-  const updateMirDoc = useEditorStore((state) => state.updateMirDoc);
+  const pirDoc = useEditorStore((state) => state.pirDoc);
+  const updatePirDoc = useEditorStore((state) => state.updatePirDoc);
   const resolvedProjectId = projectId?.trim() || 'global';
 
   const persistedAnimation = useMemo(
     () => loadProjectAnimationSnapshot(resolvedProjectId),
     [resolvedProjectId]
   );
-  const mirAnimation = useMemo(
-    () => normalizeAnimationDefinition(mirDoc.animation),
-    [mirDoc.animation]
+  const pirAnimation = useMemo(
+    () => normalizeAnimationDefinition(pirDoc.animation),
+    [pirDoc.animation]
   );
   const initialAnimation = useMemo(
-    () => mirAnimation ?? persistedAnimation,
-    [mirAnimation, persistedAnimation]
+    () => pirAnimation ?? persistedAnimation,
+    [pirAnimation, persistedAnimation]
   );
   const [animation, setAnimation] =
     useState<AnimationDefinition>(initialAnimation);
@@ -77,15 +77,15 @@ export const useAnimationEditorState = () => {
   }, [currentSignature]);
 
   useEffect(() => {
-    const nextAnimation = mirAnimation ?? persistedAnimation;
+    const nextAnimation = pirAnimation ?? persistedAnimation;
     const nextSignature = serializeAnimationDefinition(nextAnimation);
-    if (!mirAnimation) {
+    if (!pirAnimation) {
       if (nextSignature !== currentSignatureRef.current) {
         setAnimation(nextAnimation);
         currentSignatureRef.current = nextSignature;
       }
       committedSignatureRef.current = nextSignature;
-      updateMirDoc((doc) => {
+      updatePirDoc((doc) => {
         const existingSignature = serializeAnimationDefinition(
           normalizeAnimationDefinition(doc.animation)
         );
@@ -110,7 +110,7 @@ export const useAnimationEditorState = () => {
     setAnimation(nextAnimation);
     currentSignatureRef.current = nextSignature;
     committedSignatureRef.current = nextSignature;
-  }, [mirAnimation, persistedAnimation, updateMirDoc]);
+  }, [pirAnimation, persistedAnimation, updatePirDoc]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -127,7 +127,7 @@ export const useAnimationEditorState = () => {
   useEffect(() => {
     if (currentSignature === committedSignatureRef.current) return;
     committedSignatureRef.current = currentSignature;
-    updateMirDoc((doc) => {
+    updatePirDoc((doc) => {
       const existingSignature = serializeAnimationDefinition(
         normalizeAnimationDefinition(doc.animation)
       );
@@ -137,7 +137,7 @@ export const useAnimationEditorState = () => {
         animation,
       };
     });
-  }, [animation, currentSignature, updateMirDoc]);
+  }, [animation, currentSignature, updatePirDoc]);
 
   const activeTimelineId = resolveActiveTimelineId(animation);
   const activeTimeline = useMemo(
@@ -174,8 +174,8 @@ export const useAnimationEditorState = () => {
   }, [activeTimelineId, animation.timelines]);
 
   const nodeTargetOptions = useMemo(
-    () => collectNodeTargets(materializeMirRoot(mirDoc)),
-    [mirDoc]
+    () => collectNodeTargets(materializePirRoot(pirDoc)),
+    [pirDoc]
   );
   const svgFilters = animation.svgFilters ?? [];
   const expandedTrackIds =
@@ -1094,11 +1094,11 @@ export const useAnimationEditorState = () => {
   return {
     animation,
     setAnimation,
-    mirDoc,
-    updateMirDoc,
+    pirDoc,
+    updatePirDoc,
     resolvedProjectId,
     persistedAnimation,
-    mirAnimation,
+    pirAnimation,
     initialAnimation,
     currentSignature,
     currentSignatureRef,

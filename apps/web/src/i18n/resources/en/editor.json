@@ -585,7 +585,7 @@
         },
         "components": {
           "title": "Components & rendering",
-          "description": "Control how MIR resolves and renders components."
+          "description": "Control how PIR resolves and renders components."
         },
         "codegen": {
           "title": "Code generation",
@@ -694,8 +694,8 @@
           "label": "Resolver order",
           "description": "Lookup priority when multiple registries exist.",
           "options": {
-            "customMdrNative": "Custom → MDR → Native",
-            "mdrNative": "MDR → Native",
+            "customPdxNative": "Custom → Prodivix → Native",
+            "prodivixNative": "Prodivix → Native",
             "nativeOnly": "Native only"
           }
         },
@@ -751,7 +751,7 @@
         },
         "metadata": {
           "label": "Metadata comments",
-          "description": "Include MIR metadata annotations in output.",
+          "description": "Include PIR metadata annotations in output.",
           "options": {
             "include": "Include metadata",
             "skip": "Skip metadata"
@@ -812,8 +812,8 @@
           "title": "Integrations & environments",
           "description": "Data sources, auth, and environment settings."
         },
-        "mir": {
-          "title": "MIR & validation",
+        "pir": {
+          "title": "PIR & validation",
           "description": "Schema enforcement and node policy."
         },
         "build": {
@@ -878,14 +878,14 @@
           "label": "Theme token set",
           "description": "Token pack used to render colors and spacing.",
           "options": {
-            "mdrDefault": "MDR Default",
-            "mdrMidnight": "MDR Midnight",
-            "mdrSunrise": "MDR Sunrise"
+            "prodivixDefault": "Prodivix Default",
+            "prodivixMidnight": "Prodivix Midnight",
+            "prodivixSunrise": "Prodivix Sunrise"
           }
         },
         "componentLibraryVersion": {
           "label": "Component library version",
-          "description": "Pinned version of shared MDR components.",
+          "description": "Pinned version of shared Prodivix components.",
           "options": {
             "v142Stable": "v1.4.2 (stable)",
             "v150Beta": "v1.5.0 (beta)"
@@ -931,7 +931,7 @@
         },
         "schemaVersion": {
           "label": "Schema version",
-          "description": "Pinned MIR schema for this project.",
+          "description": "Pinned PIR schema for this project.",
           "options": {
             "v10Stable": "1.0 (stable)",
             "v11Preview": "1.1 (preview)"
@@ -953,7 +953,7 @@
         },
         "autoMigrate": {
           "label": "Auto-migrate",
-          "description": "Automatically migrate MIR when schema updates.",
+          "description": "Automatically migrate PIR when schema updates.",
           "options": {
             "enable": "Enable auto-migrate",
             "disable": "Disable auto-migrate"

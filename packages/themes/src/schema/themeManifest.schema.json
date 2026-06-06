@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdr-front-engine.dev/schemas/theme-manifest.schema.json",
-  "title": "MdrFrontEngine Theme Manifest",
+  "$id": "https://prodivix.dev/schemas/theme-manifest.schema.json",
+  "title": "Prodivix Theme Manifest",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "id", "name", "source", "mode", "semantic"],

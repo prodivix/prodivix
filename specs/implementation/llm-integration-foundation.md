@@ -17,7 +17,7 @@ MFE 的 AI 能力应优先作为前端编辑器和本地工具链能力存在，
 
 ## 当前分层
 
-### `@mdr/shared`
+### `@prodivix/shared`
 
 位置：`packages/shared/src/llm`
 
@@ -29,7 +29,7 @@ MFE 的 AI 能力应优先作为前端编辑器和本地工具链能力存在，
 - output channel 类型
 - diagnostics 类型
 - context bundle 类型
-- plan / MIR command batch / node graph operation batch / code artifact 类型
+- plan / PIR command batch / node graph operation batch / code artifact 类型
 - tool registry
 - context builder
 - gateway skeleton
@@ -45,9 +45,9 @@ MFE 的 AI 能力应优先作为前端编辑器和本地工具链能力存在，
 - 不持有用户密钥。
 - 不理解具体 app UI 状态。
 
-`@mdr/shared` 的边界应保持很薄。它回答“LLM 任务在 MFE 中如何被描述和约束”，不回答“某个环境如何调用模型”。
+`@prodivix/shared` 的边界应保持很薄。它回答“LLM 任务在 MFE 中如何被描述和约束”，不回答“某个环境如何调用模型”。
 
-### `@mdr/ai`
+### `@prodivix/ai`
 
 位置：`packages/ai`
 
@@ -63,24 +63,24 @@ MFE 的 AI 能力应优先作为前端编辑器和本地工具链能力存在，
 
 约束：
 
-- 可以依赖 `@mdr/shared`。
+- 可以依赖 `@prodivix/shared`。
 - 不依赖 `apps/web`、`apps/cli`、`apps/vscode` 或 `apps/backend`。
 - provider 不直接假设运行环境。
 - 需要网络请求时，通过调用方注入 `fetcher`。
 
-`@mdr/ai` 回答“如何根据配置创建 provider、构造任务、校验输出”，但不负责读取浏览器 localStorage、CLI config、VSCode SecretStorage 或后端数据库。
+`@prodivix/ai` 回答“如何根据配置创建 provider、构造任务、校验输出”，但不负责读取浏览器 localStorage、CLI config、VSCode SecretStorage 或后端数据库。
 
-## 为什么新增 `@mdr/ai`
+## 为什么新增 `@prodivix/ai`
 
-MFE 不只有 Web 编辑器，还包含 CLI、VSCode 插件、文档、后端和未来 MCP 集成。如果把 AI runtime 放进 `apps/web/src/ai`，会导致 CLI 和 VSCode 复用困难。如果全部塞进 `@mdr/shared`，又会让 shared 从协议包膨胀成运行时大杂烩。
+MFE 不只有 Web 编辑器，还包含 CLI、VSCode 插件、文档、后端和未来 MCP 集成。如果把 AI runtime 放进 `apps/web/src/ai`，会导致 CLI 和 VSCode 复用困难。如果全部塞进 `@prodivix/shared`，又会让 shared 从协议包膨胀成运行时大杂烩。
 
 因此采用两层：
 
 ```text
-@mdr/shared
+@prodivix/shared
   -> LLM protocol kernel
 
-@mdr/ai
+@prodivix/ai
   -> reusable AI runtime
 
 apps/*
@@ -105,7 +105,7 @@ baseURL + apiKey + model + fetcher
 - Ollama 兼容端点
 - 自托管代理
 
-`@mdr/ai` 中的 provider 不直接使用全局 `fetch`。各 app 应注入自己的 `fetcher`：
+`@prodivix/ai` 中的 provider 不直接使用全局 `fetch`。各 app 应注入自己的 `fetcher`：
 
 - Web：注入 `window.fetch` 包装。
 - CLI：注入 Node runtime fetch。
@@ -151,7 +151,7 @@ apps/cli/src/ai/
 CLI 层负责：
 
 - 读取本地配置文件或环境变量。
-- 运行 `mdr ai plan`、`mdr ai explain` 等开发命令。
+- 运行 `prodivix ai plan`、`prodivix ai explain` 等开发命令。
 - 输出 plan、diagnostics、trace 摘要。
 
 CLI 可作为早期验证跨端 runtime 的低风险入口。
@@ -167,7 +167,7 @@ apps/vscode/src/ai/
 VSCode 层负责：
 
 - 使用 VSCode SecretStorage 保存密钥。
-- 把打开的 MIR 文件、选区、diagnostics 转为上下文。
+- 把打开的 PIR 文件、选区、diagnostics 转为上下文。
 - 暴露 command palette 命令。
 
 ### Backend
@@ -187,7 +187,7 @@ VSCode 层负责：
 
 当前基础层覆盖 ADR 22 的以下方向：
 
-- LLM 输出分为 MIR commands、Node Graph operations、Code artifacts。
+- LLM 输出分为 PIR commands、Node Graph operations、Code artifacts。
 - 内部存在统一 Gateway。
 - Context Builder 支持最小上下文构造。
 - Tool Registry 支持 MFE 语义工具注册。
@@ -197,7 +197,7 @@ VSCode 层负责：
 尚未实现：
 
 - 完整 dry-run / apply 工具。
-- MIR command validator。
+- PIR command validator。
 - Node Graph operation validator。
 - repair loop。
 - eval/replay 存储。
@@ -206,8 +206,8 @@ VSCode 层负责：
 
 ## 后续建议
 
-1. 保持 `@mdr/shared` 只承载协议内核。
-2. 在 `@mdr/ai` 中逐步补 runtime 能力，而不是直接散落到 app。
+1. 保持 `@prodivix/shared` 只承载协议内核。
+2. 在 `@prodivix/ai` 中逐步补 runtime 能力，而不是直接散落到 app。
 3. 先用 mock provider 打通 Web / CLI 入口。
 4. 再接 OpenAI-compatible provider。
 5. 等 BlueprintEditor 重构稳定后，再接编辑器上下文和 UI。

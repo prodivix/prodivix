@@ -1,7 +1,7 @@
 import type {
   DiagnosticPlacement,
   DiagnosticTargetRef,
-  MdrDiagnostic,
+  ProdivixDiagnostic,
   SourceSpan,
 } from '@/diagnostics';
 
@@ -15,7 +15,7 @@ export type CodeArtifactLanguage =
   | 'expr';
 
 export type CodeArtifactOwner =
-  | { kind: 'mir-node'; documentId: string; nodeId: string }
+  | { kind: 'pir-node'; documentId: string; nodeId: string }
   | {
       kind: 'inspector-field';
       documentId: string;
@@ -48,7 +48,7 @@ export type CodeArtifact = {
 };
 
 export type SymbolSource =
-  | { kind: 'mir'; documentId: string }
+  | { kind: 'pir'; documentId: string }
   | { kind: 'route'; routeId: string }
   | { kind: 'nodegraph'; graphId: string }
   | { kind: 'animation'; timelineId?: string }
@@ -90,7 +90,7 @@ export type CodeScopeKind =
   | 'workspace'
   | 'document'
   | 'route'
-  | 'mir-node'
+  | 'pir-node'
   | 'list-item'
   | 'inspector-field'
   | 'nodegraph'
@@ -160,7 +160,7 @@ export type AuthoringEnvironment = {
     context: AuthoringContext
   ): ResolvedReference | null;
   getCompletions(context: AuthoringContext): CodeCompletion[];
-  getDiagnostics(context: AuthoringContext): MdrDiagnostic[];
+  getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
   getDefinition(
     reference: CodeReference,
     context: AuthoringContext
@@ -189,7 +189,7 @@ export type CodeSymbolProvider = {
 export type AuthoringDiagnosticProvider = {
   id: string;
   source: SymbolSource;
-  getDiagnostics(context: AuthoringContext): MdrDiagnostic[];
+  getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
 };
 
 export type CodeSlotKind =

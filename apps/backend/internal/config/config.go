@@ -33,7 +33,7 @@ func LoadConfig() Config {
 	environment := strings.ToLower(getEnv("APP_ENV", "development"))
 	tokenTTL := getEnvDuration("BACKEND_TOKEN_TTL", 24*time.Hour)
 	allowed := parseCSV(getEnv("BACKEND_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174"))
-	databaseURL := getEnv("BACKEND_DB_URL", "postgres://postgres:postgres@localhost:5432/mdr_front_engine?sslmode=disable")
+	databaseURL := getEnv("BACKEND_DB_URL", "postgres://postgres:postgres@localhost:5432/prodivix?sslmode=disable")
 	dbMaxOpenConns := getEnvInt("BACKEND_DB_MAX_OPEN_CONNS", 10)
 	dbMaxIdleConns := getEnvInt("BACKEND_DB_MAX_IDLE_CONNS", 5)
 	dbMaxLifetime := getEnvDuration("BACKEND_DB_MAX_LIFETIME", 30*time.Minute)

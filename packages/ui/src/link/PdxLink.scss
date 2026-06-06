@@ -1,0 +1,9 @@
+.PdxLink {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+
+.PdxLink.Disabled {
+  cursor: not-allowed;
+}

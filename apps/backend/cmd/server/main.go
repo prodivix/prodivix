@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	backend "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend"
-	backendconfig "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/config"
+	backend "github.com/Prodivix/prodivix/apps/backend"
+	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
 )
 
 func main() {

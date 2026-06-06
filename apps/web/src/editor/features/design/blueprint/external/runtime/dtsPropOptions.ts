@@ -6,7 +6,7 @@ import { isAbortError } from '@/infra/api';
 
 const PROP_KEYS = ['category', 'type', 'variant', 'color', 'severity', 'size'];
 const fetchCache = new Map<string, Promise<string | null>>();
-const DTS_CACHE_PREFIX = 'mdr.external.dts.';
+const DTS_CACHE_PREFIX = 'prodivix.external.dts.';
 const DTS_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 
 export const createDtsCacheKey = (url: string) => `${DTS_CACHE_PREFIX}${url}`;

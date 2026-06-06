@@ -2,8 +2,8 @@ const { compileFromFile } = require('json-schema-to-typescript');
 const fs = require('fs');
 const path = require('path');
 
-const SCHEMA_PATH = path.join(__dirname, '../../../specs/mir/MIR-v1.0.json');
-const OUTPUT_PATH = path.join(__dirname, '../src/types/mir.ts');
+const SCHEMA_PATH = path.join(__dirname, '../../../specs/pir/PIR-v1.0.json');
+const OUTPUT_PATH = path.join(__dirname, '../src/types/pir.ts');
 
 console.log('📄 从Schema生成TS类型...');
 console.log(`   Schema: ${SCHEMA_PATH}`);
@@ -11,7 +11,7 @@ console.log(`   输出: ${OUTPUT_PATH}`);
 
 compileFromFile(SCHEMA_PATH, {
   bannerComment:
-    '/* eslint-disable */\n/**\n * Generated from MIR Schema v1.0\n * DO NOT EDIT - Run `pnpm run generate-types` to regenerate\n */',
+    '/* eslint-disable */\n/**\n * Generated from PIR Schema v1.0\n * DO NOT EDIT - Run `pnpm run generate-types` to regenerate\n */',
   format: true,
   style: {
     singleQuote: true,

@@ -1,0 +1,62 @@
+.PdxNavbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  gap: var(--spacing-md);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.PdxNavbar.Sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.PdxNavbar.Transparent {
+  background-color: transparent;
+  border-bottom: none;
+}
+
+.PdxNavbar.Blurred {
+  background-color: color-mix(in srgb, var(--bg-canvas) 80%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.PdxNavbarBrand {
+  font-weight: var(--font-weight-semibold);
+}
+
+.PdxNavbarItems {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.PdxNavbarItem {
+  color: inherit;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+
+  &.Active {
+    background-color: var(--bg-raised);
+  }
+}
+
+.PdxNavbarActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.PdxNavbar.Small {
+  padding: var(--spacing-xs) var(--spacing-md);
+}
+
+.PdxNavbar.Large {
+  padding: var(--spacing-md) var(--spacing-xl);
+}

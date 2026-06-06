@@ -1,13 +1,13 @@
 import {
-  MdrButton,
-  MdrButtonLink,
-  MdrHeading,
-  MdrIcon,
-  MdrIconLink,
-  MdrLink,
-  MdrParagraph,
-  MdrText,
-} from '@mdr/ui';
+  PdxButton,
+  PdxButtonLink,
+  PdxHeading,
+  PdxIcon,
+  PdxIconLink,
+  PdxLink,
+  PdxParagraph,
+  PdxText,
+} from '@prodivix/ui';
 import { Sparkles } from 'lucide-react';
 import type { ComponentGroup } from '@/editor/features/design/blueprint/editor/model/types';
 import { buildVariants } from '@/editor/features/design/blueprint/data/helpers';
@@ -26,25 +26,25 @@ export const BASE_GROUP: ComponentGroup = {
     {
       id: 'text',
       name: 'Text',
-      preview: <MdrText size="Medium">Text</MdrText>,
+      preview: <PdxText size="Medium">Text</PdxText>,
       sizeOptions: TEXT_SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrText
+        <PdxText
           size={
             (size ?? 'Medium') as 'Tiny' | 'Small' | 'Medium' | 'Large' | 'Big'
           }
         >
           Text
-        </MdrText>
+        </PdxText>
       ),
     },
     {
       id: 'heading',
       name: 'Heading',
-      preview: <MdrHeading level={2}>Heading</MdrHeading>,
+      preview: <PdxHeading level={2}>Heading</PdxHeading>,
       variants: buildVariants(
         HEADING_LEVELS,
-        (level) => <MdrHeading level={level}>H{level}</MdrHeading>,
+        (level) => <PdxHeading level={level}>H{level}</PdxHeading>,
         (level) => `H${level}`,
         undefined,
         undefined,
@@ -54,21 +54,21 @@ export const BASE_GROUP: ComponentGroup = {
     {
       id: 'paragraph',
       name: 'Paragraph',
-      preview: <MdrParagraph size="Medium">Paragraph</MdrParagraph>,
+      preview: <PdxParagraph size="Medium">Paragraph</PdxParagraph>,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrParagraph size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}>
+        <PdxParagraph size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}>
           Paragraph
-        </MdrParagraph>
+        </PdxParagraph>
       ),
     },
     {
       id: 'button',
       name: 'Button',
-      preview: <MdrButton text="Button" size="Medium" category="Primary" />,
+      preview: <PdxButton text="Button" size="Medium" category="Primary" />,
       sizeOptions: BUTTON_SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrButton
+        <PdxButton
           text="Button"
           size={(size ?? 'Medium') as 'Tiny' | 'Small' | 'Medium' | 'Big'}
           category="Primary"
@@ -77,12 +77,12 @@ export const BASE_GROUP: ComponentGroup = {
       variants: buildVariants(
         BUTTON_CATEGORIES,
         (category) => (
-          <MdrButton text={category} size="Medium" category={category} />
+          <PdxButton text={category} size="Medium" category={category} />
         ),
         undefined,
         undefined,
         (category, { size }) => (
-          <MdrButton
+          <PdxButton
             text={category}
             size={(size ?? 'Medium') as 'Tiny' | 'Small' | 'Medium' | 'Big'}
             category={category}
@@ -95,7 +95,7 @@ export const BASE_GROUP: ComponentGroup = {
       id: 'button-link',
       name: 'ButtonLink',
       preview: (
-        <MdrButtonLink
+        <PdxButtonLink
           text="Link"
           to="/blueprint"
           size="Medium"
@@ -104,7 +104,7 @@ export const BASE_GROUP: ComponentGroup = {
       ),
       sizeOptions: BUTTON_SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrButtonLink
+        <PdxButtonLink
           text="Link"
           to="/blueprint"
           size={(size ?? 'Medium') as 'Tiny' | 'Small' | 'Medium' | 'Big'}
@@ -114,7 +114,7 @@ export const BASE_GROUP: ComponentGroup = {
       variants: buildVariants(
         BUTTON_CATEGORIES,
         (category) => (
-          <MdrButtonLink
+          <PdxButtonLink
             text={category}
             to="/blueprint"
             size="Medium"
@@ -124,7 +124,7 @@ export const BASE_GROUP: ComponentGroup = {
         undefined,
         undefined,
         (category, { size }) => (
-          <MdrButtonLink
+          <PdxButtonLink
             text={category}
             to="/blueprint"
             size={(size ?? 'Medium') as 'Tiny' | 'Small' | 'Medium' | 'Big'}
@@ -137,10 +137,10 @@ export const BASE_GROUP: ComponentGroup = {
     {
       id: 'icon',
       name: 'Icon',
-      preview: <MdrIcon icon={Sparkles} size={20} />,
+      preview: <PdxIcon icon={Sparkles} size={20} />,
       variants: buildVariants(
         [12, 16, 20, 24] as const,
-        (size) => <MdrIcon icon={Sparkles} size={size} />,
+        (size) => <PdxIcon icon={Sparkles} size={size} />,
         (size) => `${size}px`,
         undefined,
         undefined,
@@ -150,10 +150,10 @@ export const BASE_GROUP: ComponentGroup = {
     {
       id: 'icon-link',
       name: 'IconLink',
-      preview: <MdrIconLink icon={Sparkles} to="/blueprint" size={18} />,
+      preview: <PdxIconLink icon={Sparkles} to="/blueprint" size={18} />,
       variants: buildVariants(
         [14, 18, 22] as const,
-        (size) => <MdrIconLink icon={Sparkles} to="/blueprint" size={size} />,
+        (size) => <PdxIconLink icon={Sparkles} to="/blueprint" size={size} />,
         (size) => `${size}px`,
         undefined,
         undefined,
@@ -163,7 +163,7 @@ export const BASE_GROUP: ComponentGroup = {
     {
       id: 'link',
       name: 'Link',
-      preview: <MdrLink to="/blueprint" text="Link" />,
+      preview: <PdxLink to="/blueprint" text="Link" />,
     },
   ],
 };

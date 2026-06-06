@@ -1,0 +1,55 @@
+.PdxDiv {
+  box-sizing: border-box;
+
+  &.Block {
+    display: block;
+  }
+
+  &.Inline {
+    display: inline;
+  }
+
+  &.InlineBlock {
+    display: inline-block;
+  }
+
+  &.Flex {
+    display: flex;
+  }
+
+  &.Grid {
+    display: grid;
+  }
+
+  &.Visible {
+    overflow: visible;
+  }
+
+  &.Hidden {
+    overflow: hidden;
+  }
+
+  &.Auto {
+    overflow: auto;
+  }
+
+  &.Scroll {
+    overflow: scroll;
+  }
+
+  &.Left {
+    text-align: left;
+  }
+
+  &.Center {
+    text-align: center;
+  }
+
+  &.Right {
+    text-align: right;
+  }
+
+  &.Justify {
+    text-align: justify;
+  }
+}

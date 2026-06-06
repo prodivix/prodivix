@@ -1,14 +1,14 @@
 import type {
-  MdrDiagnostic,
-  MdrDiagnosticDomain,
-  MdrDiagnosticSeverity,
+  ProdivixDiagnostic,
+  ProdivixDiagnosticDomain,
+  ProdivixDiagnosticSeverity,
 } from '@/diagnostics';
 
 export type ApiErrorDiagnosticPayload = {
   code: string;
   message: string;
-  severity?: MdrDiagnosticSeverity;
-  domain?: MdrDiagnosticDomain | string;
+  severity?: ProdivixDiagnosticSeverity;
+  domain?: ProdivixDiagnosticDomain | string;
   retryable?: boolean;
   path?: string;
   targetRef?: unknown;
@@ -19,8 +19,8 @@ export type ApiErrorDiagnosticPayload = {
 export type ApiErrorEnvelopePayload = {
   code: string;
   message: string;
-  severity?: MdrDiagnosticSeverity;
-  domain?: MdrDiagnosticDomain | string;
+  severity?: ProdivixDiagnosticSeverity;
+  domain?: ProdivixDiagnosticDomain | string;
   retryable?: boolean;
   requestId?: string;
   docsUrl?: string;
@@ -38,7 +38,7 @@ export class ApiError extends Error {
   details?: unknown;
   requestId?: string;
   retryable?: boolean;
-  diagnostics: MdrDiagnostic[];
+  diagnostics: ProdivixDiagnostic[];
 
   constructor(
     message: string,
@@ -48,7 +48,7 @@ export class ApiError extends Error {
     options: {
       requestId?: string;
       retryable?: boolean;
-      diagnostics?: MdrDiagnostic[];
+      diagnostics?: ProdivixDiagnostic[];
     } = {}
   ) {
     super(message);

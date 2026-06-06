@@ -1,0 +1,73 @@
+.PdxParagraph {
+  line-height: 1.6;
+  margin: 0;
+  word-wrap: break-word;
+
+  &.Left {
+    text-align: left;
+  }
+
+  &.Center {
+    text-align: center;
+  }
+
+  &.Right {
+    text-align: right;
+  }
+
+  &.Small {
+    font-size: var(--font-size-sm);
+  }
+
+  &.Medium {
+    font-size: var(--font-size-md);
+  }
+
+  &.Large {
+    font-size: var(--font-size-lg);
+  }
+
+  &.Light {
+    font-weight: 300;
+  }
+
+  &.Normal {
+    font-weight: 400;
+  }
+
+  &.Medium {
+    font-weight: 500;
+  }
+
+  &.SemiBold {
+    font-weight: 600;
+  }
+
+  &.Default {
+    color: var(--text-primary);
+  }
+
+  &.Muted {
+    color: var(--text-muted);
+  }
+
+  &.Primary {
+    color: var(--text-primary);
+  }
+
+  &.Secondary {
+    color: var(--text-secondary);
+  }
+
+  &.Danger {
+    color: var(--danger-color);
+  }
+
+  &.Warning {
+    color: var(--warning-color);
+  }
+
+  &.Success {
+    color: var(--success-color);
+  }
+}

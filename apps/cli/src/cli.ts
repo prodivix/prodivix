@@ -2,8 +2,8 @@ import { program } from 'commander';
 
 export function cli(argv: string[]) {
   program
-    .name('mdr')
-    .description('MdrFrontEngine CLI')
+    .name('prodivix')
+    .description('Prodivix CLI')
     .version('0.0.1')
     .command('build', 'build project', {
       executableFile: 'commands/build.js',

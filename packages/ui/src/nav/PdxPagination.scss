@@ -1,0 +1,26 @@
+.PdxPagination {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.PdxPagination button {
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-canvas);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+
+  &.Active {
+    background-color: var(--accent-color);
+    color: var(--text-inverse);
+    border-color: var(--accent-color);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

@@ -1,21 +1,21 @@
-import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 import {
   registerGraphExecutionHandler,
   type GraphExecutionRequest,
 } from '@/core/executor/executor';
-import { executeMirNodeGraph } from '@/core/executor/nodeGraph/nodeGraphExecutor';
+import { executePirNodeGraph } from '@/core/executor/nodeGraph/nodeGraphExecutor';
 
 type MountDefaultNodeGraphExecutorOptions = {
-  getMirDoc: () => MIRDocument;
+  getPirDoc: () => PIRDocument;
 };
 
 /**
  * 默认节点图执行器挂载链路：
- * executeGraph bridge -> default graph handler -> MIR graph executor。
+ * executeGraph bridge -> default graph handler -> PIR graph executor。
  */
 export const mountDefaultNodeGraphExecutor = ({
-  getMirDoc,
+  getPirDoc,
 }: MountDefaultNodeGraphExecutorOptions) =>
   registerGraphExecutionHandler('*', (request: GraphExecutionRequest) =>
-    executeMirNodeGraph(getMirDoc(), request)
+    executePirNodeGraph(getPirDoc(), request)
   );

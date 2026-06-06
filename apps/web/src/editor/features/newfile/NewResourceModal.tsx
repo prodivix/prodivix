@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { MdrButton, MdrInput, MdrTextarea } from '@mdr/ui';
+import { PdxButton, PdxInput, PdxTextarea } from '@prodivix/ui';
 import { Box, Layers, Workflow } from 'lucide-react';
 import {
   useEditorStore,
-  createDefaultMirDoc,
+  createDefaultPirDoc,
 } from '@/editor/store/useEditorStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi } from '@/editor/editorApi';
@@ -28,7 +28,7 @@ function NewResourceModal({
   const token = useAuthStore((state) => state.token);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const setProject = useEditorStore((state) => state.setProject);
-  const setMirDoc = useEditorStore((state) => state.setMirDoc);
+  const setPirDoc = useEditorStore((state) => state.setPirDoc);
 
   // State
   const [name, setName] = useState('');
@@ -49,7 +49,7 @@ function NewResourceModal({
     setSubmitting(true);
     setError(null);
     const finalName = name.trim() || 'Untitled';
-    const initialMir = createDefaultMirDoc();
+    const initialPir = createDefaultPirDoc();
 
     try {
       const { project } = await editorApi.createProject(token, {
@@ -57,7 +57,7 @@ function NewResourceModal({
         description: description.trim() || undefined,
         resourceType: type,
         isPublic,
-        mir: initialMir,
+        pir: initialPir,
       });
       setProject({
         id: project.id,
@@ -67,7 +67,7 @@ function NewResourceModal({
         isPublic: project.isPublic,
         starsCount: project.starsCount,
       });
-      setMirDoc(initialMir);
+      setPirDoc(initialPir);
 
       onClose();
       if (type === 'project') {
@@ -183,7 +183,7 @@ function NewResourceModal({
             >
               <span>{t('modals.newResource.nameLabel', 'Name')}</span>
             </label>
-            <MdrInput
+            <PdxInput
               id="new-resource-name"
               placeholder="项目名称？（默认：'Untitled'）"
               value={name}
@@ -195,7 +195,7 @@ function NewResourceModal({
             <label className="flex items-center gap-[4px] text-(length:--font-size-sm) font-semibold text-(--text-primary)">
               {t('modals.newProject.descriptionLabel', 'Description')}
             </label>
-            <MdrTextarea
+            <PdxTextarea
               placeholder={t(
                 'modals.newProject.descriptionPlaceholder',
                 'Optional description'
@@ -222,12 +222,12 @@ function NewResourceModal({
         </div>
 
         <footer className="flex items-center justify-end gap-[12px] border-t border-t-(--border-subtle) bg-(--bg-panel) px-[22px] py-[18px]">
-          <MdrButton
+          <PdxButton
             text={t('modals.actions.cancel')}
             category="Ghost"
             onClick={onClose}
           />
-          <MdrButton
+          <PdxButton
             text={t('modals.actions.create', 'Create')}
             category="Primary"
             onClick={handleCreate}

@@ -1,0 +1,81 @@
+.PdxSteps {
+  display: flex;
+  gap: var(--spacing-lg);
+  color: var(--text-primary);
+}
+
+.PdxSteps.Vertical {
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.PdxStep {
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: var(--spacing-sm);
+}
+
+.PdxSteps.Vertical .PdxStep {
+  align-items: flex-start;
+}
+
+.PdxStepIndicator {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  background-color: var(--bg-canvas);
+  color: var(--text-muted);
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-easing-standard),
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.PdxStep.Active .PdxStepIndicator {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 10%, transparent);
+}
+
+.PdxStep.Completed .PdxStepIndicator {
+  border-color: var(--success-color);
+  background-color: var(--success-color);
+  color: var(--text-inverse);
+}
+
+.PdxStepContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.PdxStepTitle {
+  font-weight: 600;
+}
+
+.PdxStepDescription {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.PdxStepConnector {
+  flex: 1;
+  height: 2px;
+  background-color: var(--border-default);
+  margin-left: var(--spacing-sm);
+}
+
+.PdxSteps.Vertical .PdxStepConnector {
+  width: 2px;
+  height: 24px;
+  margin-left: 12px;
+}

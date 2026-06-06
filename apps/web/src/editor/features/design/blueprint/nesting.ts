@@ -1,14 +1,14 @@
 const NON_NESTABLE_TYPE_LIST = [
   'input',
-  'mdrinput',
+  'prodivixinput',
   'textarea',
-  'mdrtextarea',
+  'prodivixtextarea',
   'button',
-  'mdrbutton',
-  'mdrbuttonlink',
-  'mdrheading',
-  'mdrtext',
-  'mdrparagraph',
+  'prodivixbutton',
+  'prodivixbuttonlink',
+  'prodivixheading',
+  'prodivixtext',
+  'prodivixparagraph',
 ] as const;
 
 export const NON_NESTABLE_TYPES = new Set<string>(NON_NESTABLE_TYPE_LIST);

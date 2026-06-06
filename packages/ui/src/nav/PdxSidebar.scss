@@ -1,0 +1,44 @@
+.PdxSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  background-color: var(--bg-canvas);
+  border-right: 1px solid var(--border-subtle);
+  padding: var(--spacing-md);
+  color: var(--text-secondary);
+  min-height: 100vh;
+}
+
+.PdxSidebarTitle {
+  font-weight: var(--font-weight-semibold);
+  font-size: 14px;
+}
+
+.PdxSidebarNav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.PdxSidebarItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  color: inherit;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+
+  &.Active {
+    background-color: var(--bg-raised);
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+.PdxSidebarFooter {
+  margin-top: auto;
+}
+
+.PdxSidebar.Collapsed {
+  width: 72px;
+}

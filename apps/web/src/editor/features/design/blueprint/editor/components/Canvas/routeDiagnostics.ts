@@ -10,7 +10,7 @@ export const isComponentNode = (value: unknown): value is ComponentNode => {
 
 export const countOutletNodes = (node: ComponentNode): number => {
   if (!node || typeof node !== 'object') return 0;
-  const selfCount = node.type === 'MdrOutlet' ? 1 : 0;
+  const selfCount = node.type === 'PdxOutlet' ? 1 : 0;
   const childCount = Array.isArray(node.children)
     ? node.children.reduce(
         (total: number, child: unknown) =>
@@ -38,14 +38,14 @@ export const createRouteCanvasDiagnostics = (
     diagnosticsList.push({
       code: 'route-layout-missing-outlet',
       message:
-        'Active route layout has no MdrOutlet. Add one to mount child route content.',
+        'Active route layout has no PdxOutlet. Add one to mount child route content.',
     });
   }
   if (outletCount > 1) {
     diagnosticsList.push({
       code: 'route-layout-multi-outlet',
       message:
-        'Active layout has multiple MdrOutlet nodes. Only one outlet is supported in preview.',
+        'Active layout has multiple PdxOutlet nodes. Only one outlet is supported in preview.',
     });
   }
   if (!activeRouteNode.pageDocId) {

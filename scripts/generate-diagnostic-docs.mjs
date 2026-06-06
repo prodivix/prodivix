@@ -13,7 +13,7 @@ const indexPath = path.join(docsDir, 'diagnostic-codes.md');
 const mode = process.argv[2] ?? 'generate';
 
 const domainOrder = [
-  'MIR',
+  'PIR',
   'WKS',
   'EDT',
   'UX',
@@ -28,10 +28,10 @@ const domainOrder = [
 ];
 
 const domainInfo = {
-  MIR: {
-    file: 'mir-diagnostic-codes.md',
-    title: 'MIR',
-    area: 'MIR 文档',
+  PIR: {
+    file: 'pir-diagnostic-codes.md',
+    title: 'PIR',
+    area: 'PIR 文档',
     description: '文档形状、UI graph、ValueRef、materialize 和运行前校验',
   },
   WKS: {
@@ -366,7 +366,7 @@ function renderIndex(groupedDiagnostics) {
   const lines = [
     '# 错误码索引',
     '',
-    'MdrFrontEngine 使用稳定错误码帮助定位问题。每个错误码都对应独立说明页，用于快速理解含义、确认触发条件，并找到建议处理方式。',
+    'Prodivix 使用稳定错误码帮助定位问题。每个错误码都对应独立说明页，用于快速理解含义、确认触发条件，并找到建议处理方式。',
     '',
     '## 如何使用',
     '',

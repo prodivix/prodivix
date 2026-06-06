@@ -25,7 +25,7 @@ type Project struct {
 	ResourceType ResourceType    `json:"resourceType"`
 	Name         string          `json:"name"`
 	Description  string          `json:"description"`
-	MIR          json.RawMessage `json:"mir"`
+	PIR          json.RawMessage `json:"pir"`
 	IsPublic     bool            `json:"isPublic"`
 	StarsCount   int             `json:"starsCount"`
 	CreatedAt    time.Time       `json:"createdAt"`

@@ -1,6 +1,6 @@
-# MdrFrontEngine 文档
+# Prodivix 文档
 
-欢迎来到 MdrFrontEngine（以下简称 MFE）！
+欢迎来到 Prodivix（以下简称 MFE）！
 
 MFE 是一款**浏览器内运行**的面向现代 Web 开发的**可视化前端构建平台**。它以**页面**为基本组织单元，以**组件**为核心构建模块，支持从原型设计到生产部署的全流程开发。
 

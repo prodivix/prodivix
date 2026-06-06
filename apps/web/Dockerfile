@@ -12,12 +12,12 @@ COPY tsconfig.base.json tsconfig.json turbo.json ./
 COPY apps/web ./apps/web
 COPY packages ./packages
 
-RUN pnpm install --frozen-lockfile --filter @mdr/web...
+RUN pnpm install --frozen-lockfile --filter @prodivix/web...
 
 ARG VITE_API_BASE=/
 ENV VITE_API_BASE=$VITE_API_BASE
 
-RUN pnpm --filter @mdr/web build
+RUN pnpm --filter @prodivix/web build
 
 FROM nginx:1.27-alpine
 

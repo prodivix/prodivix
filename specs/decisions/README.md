@@ -1,4 +1,4 @@
-# MdrFrontEngine 决策索引（Draft）
+# Prodivix 决策索引（Draft）
 
 ## 核心决策（按主题）
 
@@ -17,13 +17,13 @@
    - `specs/decisions/09.component-route-composition.md`
    - `specs/decisions/13.route-runtime-contract.md`
    - `specs/router/route-manifest.md`
-5. **MIR 契约与校验**
-   - `specs/decisions/10.mir-contract-validation.md`
-   - `specs/decisions/15.mir-data-scope-and-list-render.md`
-   - `specs/mir/mir-contract-v1.1.md`
-   - `specs/mir/MIR-v1.1.json`
-   - `specs/mir/mir-contract-v1.2.md`
-   - `specs/mir/MIR-v1.2.json`
+5. **PIR 契约与校验**
+   - `specs/decisions/10.pir-contract-validation.md`
+   - `specs/decisions/15.pir-data-scope-and-list-render.md`
+   - `specs/pir/pir-contract-v1.1.md`
+   - `specs/pir/PIR-v1.1.json`
+   - `specs/pir/pir-contract-v1.2.md`
+   - `specs/pir/PIR-v1.2.json`
 6. **插件与安全扩展**
    - `specs/decisions/14.plugin-sandbox-and-capability.md`
 7. **样式协议编辑器**
@@ -50,7 +50,7 @@
     - `specs/diagnostics/README.md`
     - `specs/decisions/24.backend-diagnostic-envelope.md`
     - `specs/decisions/27.diagnostic-presentation-contract.md`
-    - `specs/diagnostics/mir-diagnostic-codes.md`
+    - `specs/diagnostics/pir-diagnostic-codes.md`
     - `specs/diagnostics/workspace-diagnostic-codes.md`
     - `specs/diagnostics/editor-diagnostic-codes.md`
     - `specs/diagnostics/ux-diagnostic-codes.md`

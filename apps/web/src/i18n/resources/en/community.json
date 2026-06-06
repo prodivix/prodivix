@@ -1,7 +1,7 @@
 {
   "backHome": "Back to Home",
   "badge": "Community",
-  "title": "Public MIR Showcase",
+  "title": "Public PIR Showcase",
   "subtitle": "Explore projects, components, and node graphs shared by creators.",
   "count": "results",
   "countNone": "No results",
@@ -40,7 +40,7 @@
     "author": "Author",
     "updated": "Updated",
     "preview": "Read-only Preview",
-    "mir": "MIR Document",
+    "pir": "PIR Document",
     "clone": "Clone to My Workspace",
     "cloning": "Cloning...",
     "error": {

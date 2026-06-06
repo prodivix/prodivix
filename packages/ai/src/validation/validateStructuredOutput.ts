@@ -2,7 +2,7 @@ import type {
   LlmDiagnostic,
   LlmOutputChannel,
   LlmStructuredOutput,
-} from '@mdr/shared';
+} from '@prodivix/shared';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

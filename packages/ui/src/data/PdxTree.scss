@@ -1,0 +1,68 @@
+.PdxTree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.PdxTreeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+
+.PdxTreeToggle {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+
+  &:hover {
+    background-color: var(--bg-raised);
+    color: var(--text-primary);
+  }
+}
+
+.PdxTreeSpacer {
+  width: 18px;
+  flex: 0 0 auto;
+}
+
+.PdxTreeLabel {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  min-width: 0;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+
+  &:hover {
+    background-color: var(--bg-panel);
+  }
+
+  &.Selected {
+    background-color: var(--bg-raised);
+    color: var(--accent-color);
+  }
+
+  &.Disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

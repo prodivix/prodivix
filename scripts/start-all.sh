@@ -9,7 +9,7 @@ AUTO_INSTALL_DEPS="${AUTO_INSTALL_DEPS:-1}"
 GO_VERSION="${GO_VERSION:-1.25.7}"
 
 # ===== Config (override via env) =====
-REPO_DIR="${REPO_DIR:-$HOME/mdr-front-engine}"
+REPO_DIR="${REPO_DIR:-$HOME/prodivix}"
 if [[ -z "$CONFIG_FILE" ]]; then
   CONFIG_FILE="$REPO_DIR/.deploy.env"
 fi
@@ -29,7 +29,7 @@ VITE_API_BASE="${VITE_API_BASE:-http://127.0.0.1:${BACKEND_PORT}}"
 # Backend runtime config
 BACKEND_ADDR=":${BACKEND_PORT}"
 BACKEND_ALLOWED_ORIGINS="${BACKEND_ALLOWED_ORIGINS:-http://127.0.0.1:${FRONTEND_PORT},http://localhost:${FRONTEND_PORT}}"
-BACKEND_DB_URL="${BACKEND_DB_URL:-postgres://postgres:postgres@127.0.0.1:5432/mdr_front_engine?sslmode=disable}"
+BACKEND_DB_URL="${BACKEND_DB_URL:-postgres://postgres:postgres@127.0.0.1:5432/prodivix?sslmode=disable}"
 
 # ===== Runtime files =====
 RUN_DIR="$REPO_DIR/.run"
@@ -212,7 +212,7 @@ go build -o backend .
 popd >/dev/null
 
 echo "==> Building frontend"
-VITE_API_BASE="$VITE_API_BASE" pnpm --filter @mdr/web build
+VITE_API_BASE="$VITE_API_BASE" pnpm --filter @prodivix/web build
 
 echo "==> Stopping old services (if any)"
 stop_if_running "$BACKEND_PID_FILE"

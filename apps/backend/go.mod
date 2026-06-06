@@ -1,4 +1,4 @@
-module github.com/Mdr-Tutorials/mdr-front-engine/apps/backend
+module github.com/Prodivix/prodivix/apps/backend
 
 go 1.24.0
 

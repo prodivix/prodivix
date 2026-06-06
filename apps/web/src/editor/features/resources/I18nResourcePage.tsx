@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { MdrButton, MdrInput, MdrSearch } from '@mdr/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { PdxButton, PdxInput, PdxSearch } from '@prodivix/ui';
 import { Download, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
@@ -36,10 +36,10 @@ type TranslationRow = {
 };
 
 const getI18nSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.i18n.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.i18n.selection.${projectId?.trim() || 'default'}`;
 
 const getI18nReviewStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.i18n.review.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.i18n.review.${projectId?.trim() || 'default'}`;
 
 const readSelection = (projectId: string | undefined): I18nSelection | null => {
   if (typeof window === 'undefined') return null;
@@ -453,7 +453,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
 
       <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
         <aside className="grid gap-3 rounded-xl border border-black/10 bg-(--bg-canvas) p-3">
-          <MdrSearch
+          <PdxSearch
             size="Small"
             value={searchKeyword}
             onChange={setSearchKeyword}
@@ -540,27 +540,27 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-1">
-            <MdrInput
+            <PdxInput
               type="Text"
               size="Small"
               value={newLocale}
               onChange={setNewLocale}
               placeholder={t('resourceManager.i18n.newLocalePlaceholder')}
             />
-            <MdrButton
+            <PdxButton
               text={t('resourceManager.i18n.actions.addLocale')}
               size="Tiny"
               category="Secondary"
               onClick={addLocale}
             />
-            <MdrInput
+            <PdxInput
               type="Text"
               size="Small"
               value={newNamespace}
               onChange={setNewNamespace}
               placeholder={t('resourceManager.i18n.newModulePlaceholder')}
             />
-            <MdrButton
+            <PdxButton
               text={t('resourceManager.i18n.actions.addModule')}
               size="Tiny"
               category="Secondary"
@@ -575,7 +575,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
               {selection.namespace}
             </h3>
             <div className="flex items-center gap-1">
-              <MdrButton
+              <PdxButton
                 text={t('resourceManager.i18n.actions.export')}
                 size="Tiny"
                 category="Secondary"
@@ -754,7 +754,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
                       >
                         +
                       </button>
-                      <MdrInput
+                      <PdxInput
                         type="Text"
                         size="Small"
                         value={newKey}
@@ -772,7 +772,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
                       className="min-w-[220px] px-2 py-2 align-top"
                     >
                       {locale === selection.sourceLocale ? (
-                        <MdrInput
+                        <PdxInput
                           type="Text"
                           size="Small"
                           value={newSourceValue}
@@ -796,7 +796,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
                     </span>
                   </td>
                   <td className="px-2 py-2 align-top">
-                    <MdrButton
+                    <PdxButton
                       text={t('resourceManager.i18n.actions.add')}
                       size="Tiny"
                       category="Secondary"

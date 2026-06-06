@@ -1,8 +1,11 @@
-import type { CreateDiagnosticInput, MdrDiagnostic } from './diagnostic.types';
+import type {
+  CreateDiagnosticInput,
+  ProdivixDiagnostic,
+} from './diagnostic.types';
 
 export const createDiagnostic = (
   diagnostic: CreateDiagnosticInput
-): MdrDiagnostic => ({
+): ProdivixDiagnostic => ({
   retryable: false,
   ...diagnostic,
 });

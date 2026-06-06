@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { css } from '@codemirror/lang-css';
 import { javascript } from '@codemirror/lang-javascript';
@@ -27,7 +27,7 @@ type ProjectFileManagerProps = {
 };
 
 const getProjectFileSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.projectFiles.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.projectFiles.selection.${projectId?.trim() || 'default'}`;
 
 const resolveLanguageExtensionByPath = (path: string) => {
   const lower = path.toLowerCase();

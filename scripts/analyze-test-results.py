@@ -11,8 +11,8 @@ mode = sys.argv[1] if len(sys.argv) > 1 else "summary"
 for r in js.get("testResults", []):
     name = r.get("name", "")
     short = name.replace("\\", "/")
-    if "Mdr-Front-Engine/" in short:
-        short = short.split("Mdr-Front-Engine/", 1)[1]
+    if "prodivix/" in short:
+        short = short.split("prodivix/", 1)[1]
     failed_titles = [
         a.get("fullName") or a.get("title")
         for a in r.get("assertionResults", [])

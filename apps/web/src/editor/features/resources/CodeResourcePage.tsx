@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { css } from '@codemirror/lang-css';
 import { javascript } from '@codemirror/lang-javascript';
@@ -25,14 +25,14 @@ type CodeResourcePageProps = {
 };
 
 const getResourceManagerCodeSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.code.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.code.selection.${projectId?.trim() || 'default'}`;
 
 const resolveTemplateByKind = (kind: CodeFileKind) => {
   if (kind === 'ts') {
     return {
       name: 'untitled.ts',
       mime: 'text/typescript',
-      content: 'export const hello = "mdr";\n',
+      content: 'export const hello = "prodivix";\n',
     };
   }
   if (kind === 'tsx') {
@@ -46,7 +46,7 @@ const resolveTemplateByKind = (kind: CodeFileKind) => {
     return {
       name: 'untitled.js',
       mime: 'text/javascript',
-      content: 'export const hello = "mdr";\n',
+      content: 'export const hello = "prodivix";\n',
     };
   }
   if (kind === 'css') {

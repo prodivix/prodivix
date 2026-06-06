@@ -1,0 +1,102 @@
+@use './PdxField.scss';
+
+.PdxRichTextEditor {
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.PdxRichTextEditorToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+
+  button {
+    width: 20px;
+    height: 20px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background-color: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      color var(--motion-duration-fast) var(--motion-easing-standard),
+      background-color var(--motion-duration-fast) var(--motion-easing-standard),
+      border-color var(--motion-duration-fast) var(--motion-easing-standard);
+
+    &:hover {
+      border-color: var(--border-default);
+      background-color: var(--bg-raised);
+      color: var(--text-primary);
+    }
+
+    &.Active {
+      border-color: var(--border-strong);
+      background-color: var(--bg-raised);
+      color: var(--text-primary);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.PdxRichTextEditorContent {
+  min-height: 140px;
+  padding: 0 10px;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-editor);
+  color: var(--text-primary);
+  outline: none;
+  border: 0;
+
+  &:focus {
+    box-shadow: inset 0 0 0 1px var(--accent-color);
+  }
+
+  &:empty:before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+  }
+
+  p,
+  ul,
+  ol {
+    margin: 0 0 0.5em;
+  }
+
+  ul,
+  ol {
+    padding-left: 1.2em;
+  }
+}
+
+.PdxRichTextEditorFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px 5px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-tight);
+}
+
+.PdxRichTextEditor.Disabled .PdxRichTextEditorContent,
+.PdxRichTextEditor.ReadOnly .PdxRichTextEditorContent {
+  background-color: var(--bg-raised);
+  cursor: not-allowed;
+}
+
+.PdxRichTextEditor.Disabled .PdxRichTextEditorToolbar,
+.PdxRichTextEditor.ReadOnly .PdxRichTextEditorToolbar {
+  opacity: 0.6;
+}

@@ -60,7 +60,7 @@ const isStructuredOutput = (value: unknown): value is LlmStructuredOutput => {
   return (
     ('goal' in candidate && typeof candidate.goal === 'string') ||
     ('channel' in candidate &&
-      (candidate.channel === 'mir-command' ||
+      (candidate.channel === 'pir-command' ||
         candidate.channel === 'node-graph-operation' ||
         candidate.channel === 'code-artifact'))
   );

@@ -1,7 +1,7 @@
 import {
   registerRuntimeComponent,
   unregisterRuntimeComponent,
-} from '@/mir/renderer/registry';
+} from '@/pir/renderer/registry';
 import {
   registerComponentGroup,
   unregisterComponentGroup,

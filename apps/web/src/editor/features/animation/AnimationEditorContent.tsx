@@ -10,7 +10,7 @@ import { useAnimationEditorState } from './useAnimationEditorState';
 
 export const AnimationEditorContent = () => {
   const {
-    mirDoc,
+    pirDoc,
     animation,
     activeTimelineId,
     activeTimeline,
@@ -148,7 +148,7 @@ export const AnimationEditorContent = () => {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 flex-1 p-3">
             <AnimationEditorPreviewCanvas
-              mirDoc={mirDoc}
+              pirDoc={pirDoc}
               previewNodeId={previewNodeId}
               timeline={activeTimeline}
               cursorMs={cursorMs}

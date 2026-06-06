@@ -1,0 +1,58 @@
+.PdxImage {
+  display: block;
+  object-fit: cover;
+  transition: all var(--transition-normal);
+
+  &.Small {
+    width: 64px;
+    height: 64px;
+  }
+
+  &.Medium {
+    width: 128px;
+    height: 128px;
+  }
+
+  &.Large {
+    width: 256px;
+    height: 256px;
+  }
+
+  &.Original {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+  }
+
+  &.Cover {
+    object-fit: cover;
+  }
+
+  &.Contain {
+    object-fit: contain;
+  }
+
+  &.Fill {
+    object-fit: fill;
+  }
+
+  &.None {
+    object-fit: none;
+  }
+
+  &.ScaleDown {
+    object-fit: scale-down;
+  }
+
+  &.Square {
+    border-radius: var(--radius-none);
+  }
+
+  &.Rounded {
+    border-radius: var(--radius-md);
+  }
+
+  &.Circle {
+    border-radius: var(--radius-full);
+  }
+}

@@ -1,7 +1,7 @@
-﻿import { isNonNestableType } from '@/editor/features/design/blueprint/nesting';
-import type { ComponentNode, MIRDocument } from '@/core/types/engine.types';
-import { materializeUiTree, normalizeTreeToUiGraph } from '@/mir/graph';
-import { defaultComponentRegistry } from '@/mir/renderer/registry';
+import { isNonNestableType } from '@/editor/features/design/blueprint/nesting';
+import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import { materializeUiTree, normalizeTreeToUiGraph } from '@/pir/graph';
+import { defaultComponentRegistry } from '@/pir/renderer/registry';
 
 export type TreeDropPlacement = 'before' | 'after' | 'child';
 
@@ -310,14 +310,14 @@ export const supportsChildrenForNode = (node: ComponentNode) => {
   return true;
 };
 
-export const insertIntoMirDoc = (
-  doc: MIRDocument,
+export const insertIntoPirDoc = (
+  doc: PIRDocument,
   targetId: string,
   child: ComponentNode
 ) => {
   const root = materializeUiTree(doc.ui.graph);
   const targetNode = findNodeById(root, targetId);
-  const withRoot = (nextRoot: ComponentNode): MIRDocument => ({
+  const withRoot = (nextRoot: ComponentNode): PIRDocument => ({
     ...doc,
     ui: { graph: normalizeTreeToUiGraph(nextRoot) },
   });

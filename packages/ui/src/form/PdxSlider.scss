@@ -1,0 +1,28 @@
+@use './PdxField.scss';
+
+.PdxSlider {
+  width: 100%;
+}
+
+.PdxSliderInput {
+  width: 100%;
+  accent-color: var(--accent-color);
+}
+
+.PdxSliderValue {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.PdxSlider.Disabled .PdxSliderInput {
+  opacity: 0.6;
+}
+
+.PdxSlider.Small .PdxSliderInput {
+  height: 4px;
+}
+
+.PdxSlider.Large .PdxSliderInput {
+  height: 8px;
+}

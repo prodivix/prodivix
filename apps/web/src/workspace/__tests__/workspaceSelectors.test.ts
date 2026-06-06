@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultMirDoc } from '@/mir/resolveMirDocument';
+import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import {
-  isMirDocumentContent,
-  selectActiveMirDocument,
+  isPirDocumentContent,
+  selectActivePirDocument,
   selectDocumentPath,
   selectWorkspaceTree,
   type StableWorkspaceSnapshot,
@@ -33,7 +33,7 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
     'home-node': {
       id: 'home-node',
       kind: 'doc',
-      name: 'home.mir.json',
+      name: 'home.pir.json',
       parentId: 'pages',
       docId: 'page-home',
     },
@@ -41,11 +41,11 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
   docsById: {
     'page-home': {
       id: 'page-home',
-      type: 'mir-page',
-      path: '/pages/home.mir.json',
+      type: 'pir-page',
+      path: '/pages/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultMirDoc(),
+      content: createDefaultPirDoc(),
     },
   },
   routeManifest: {
@@ -55,21 +55,21 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
 });
 
 describe('workspace selectors', () => {
-  it('selects active MIR content and derives VFS document paths', () => {
+  it('selects active PIR content and derives VFS document paths', () => {
     const workspace = createWorkspace();
 
-    expect(selectActiveMirDocument(workspace)).toBe(
+    expect(selectActivePirDocument(workspace)).toBe(
       workspace.docsById['page-home'].content
     );
     expect(selectDocumentPath(workspace, 'page-home')).toBe(
-      '/pages/home.mir.json'
+      '/pages/home.pir.json'
     );
     expect(selectWorkspaceTree(workspace)?.children[0]?.path).toBe('/pages');
   });
 
-  it('does not treat legacy ui.root content as MIR v1.3 content', () => {
+  it('does not treat legacy ui.root content as PIR v1.3 content', () => {
     expect(
-      isMirDocumentContent({
+      isPirDocumentContent({
         version: '1.3',
         ui: {
           root: { id: 'root', type: 'container' },

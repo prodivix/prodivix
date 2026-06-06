@@ -3,14 +3,14 @@ import type {
   DiagnosticEvidenceTemplate,
   DiagnosticLocationPreference,
   DiagnosticPresentationTemplate,
-  MdrDiagnosticDomain,
-  MdrDiagnosticSeverity,
+  ProdivixDiagnosticDomain,
+  ProdivixDiagnosticSeverity,
 } from './diagnostic.types';
 
 export type DiagnosticRegistryEntry = {
   code: string;
-  domain: MdrDiagnosticDomain;
-  severity: MdrDiagnosticSeverity;
+  domain: ProdivixDiagnosticDomain;
+  severity: ProdivixDiagnosticSeverity;
   docsUrl?: string;
 };
 
@@ -178,8 +178,8 @@ const createDefinition = ({
 }: {
   code: string;
   title: string;
-  domain: MdrDiagnosticDomain;
-  severity: MdrDiagnosticSeverity;
+  domain: ProdivixDiagnosticDomain;
+  severity: ProdivixDiagnosticSeverity;
   stage: string;
   retryable: boolean;
   defaultPlacement: DiagnosticPlacement[];
@@ -205,96 +205,96 @@ const createDefinition = ({
   }),
 });
 
-export const MIR_DIAGNOSTIC_REGISTRY = {
-  MIR_1001: {
-    code: 'MIR-1001',
-    domain: 'mir',
+export const PIR_DIAGNOSTIC_REGISTRY = {
+  PIR_1001: {
+    code: 'PIR-1001',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_1002: {
-    code: 'MIR-1002',
-    domain: 'mir',
+  PIR_1002: {
+    code: 'PIR-1002',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_1003: {
-    code: 'MIR-1003',
-    domain: 'mir',
+  PIR_1003: {
+    code: 'PIR-1003',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_2001: {
-    code: 'MIR-2001',
-    domain: 'mir',
+  PIR_2001: {
+    code: 'PIR-2001',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_2002: {
-    code: 'MIR-2002',
-    domain: 'mir',
+  PIR_2002: {
+    code: 'PIR-2002',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_2003: {
-    code: 'MIR-2003',
-    domain: 'mir',
+  PIR_2003: {
+    code: 'PIR-2003',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_2004: {
-    code: 'MIR-2004',
-    domain: 'mir',
+  PIR_2004: {
+    code: 'PIR-2004',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_2005: {
-    code: 'MIR-2005',
-    domain: 'mir',
+  PIR_2005: {
+    code: 'PIR-2005',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_2006: {
-    code: 'MIR-2006',
-    domain: 'mir',
+  PIR_2006: {
+    code: 'PIR-2006',
+    domain: 'pir',
     severity: 'warning',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_2007: {
-    code: 'MIR-2007',
-    domain: 'mir',
+  PIR_2007: {
+    code: 'PIR-2007',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_3001: {
-    code: 'MIR-3001',
-    domain: 'mir',
+  PIR_3001: {
+    code: 'PIR-3001',
+    domain: 'pir',
     severity: 'warning',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_3002: {
-    code: 'MIR-3002',
-    domain: 'mir',
+  PIR_3002: {
+    code: 'PIR-3002',
+    domain: 'pir',
     severity: 'warning',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_3010: {
-    code: 'MIR-3010',
-    domain: 'mir',
+  PIR_3010: {
+    code: 'PIR-3010',
+    domain: 'pir',
     severity: 'warning',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_4001: {
-    code: 'MIR-4001',
-    domain: 'mir',
+  PIR_4001: {
+    code: 'PIR-4001',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
-  MIR_9001: {
-    code: 'MIR-9001',
-    domain: 'mir',
+  PIR_9001: {
+    code: 'PIR-9001',
+    domain: 'pir',
     severity: 'error',
-    docsUrl: '/reference/diagnostic-codes#mir',
+    docsUrl: '/reference/diagnostic-codes#pir',
   },
 } as const satisfies Record<string, DiagnosticRegistryEntry>;
 
@@ -311,7 +311,7 @@ const codePlacementForStage = (stage: string): DiagnosticPlacement[] => {
 const codeDefinition = (
   code: `COD-${number}`,
   title: string,
-  severity: MdrDiagnosticSeverity,
+  severity: ProdivixDiagnosticSeverity,
   stage: 'parse' | 'symbol' | 'binding' | 'runtime' | 'compile' | 'environment',
   retryable: boolean
 ): DiagnosticDefinition =>
@@ -616,7 +616,7 @@ const uxPlacementForStage = (
 const uxDefinition = (
   code: `UX-${number}`,
   title: string,
-  severity: MdrDiagnosticSeverity,
+  severity: ProdivixDiagnosticSeverity,
   stage:
     | 'accessibility'
     | 'interaction'

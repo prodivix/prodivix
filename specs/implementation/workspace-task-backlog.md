@@ -11,9 +11,9 @@
 ## 0. 边界与执行原则
 
 1. 本清单仅覆盖 workspace 重构，不实现 NodeGraph/动画编辑器 UI。
-2. 必须保留未来扩展接口（`mir-graph`/`mir-animation`、`core.nodegraph.*`、`core.animation.*`）。
+2. 必须保留未来扩展接口（`pir-graph`/`pir-animation`、`core.nodegraph.*`、`core.animation.*`）。
 3. 用户侧只暴露 Blueprint 对象操作，不暴露 VFS 文件操作 UI。
-4. 目标是不保留 `mirDoc` 兼容层；过渡期允许 capability 控制的回退写入，待迁移完成后移除。
+4. 目标是不保留 `pirDoc` 兼容层；过渡期允许 capability 控制的回退写入，待迁移完成后移除。
 
 ## 0.1 最新落地（2026-02-08）
 
@@ -64,40 +64,40 @@
   - 依赖：`API-004`
   - 验收：`DOCUMENT/WORKSPACE/ROUTE/HYBRID` 冲突可稳定复现
 
-### A1. MIR Data Scope / List Render（v1.2）
+### A1. PIR Data Scope / List Render（v1.2）
 
-- [x] `MIR-001` 完成 ADR + MIR v1.2 契约草案 + JSON Schema 草案
-  - 产出：`specs/decisions/15.mir-data-scope-and-list-render.md`、`specs/mir/mir-contract-v1.2.md`、`specs/mir/MIR-v1.2.json`
+- [x] `PIR-001` 完成 ADR + PIR v1.2 契约草案 + JSON Schema 草案
+  - 产出：`specs/decisions/15.pir-data-scope-and-list-render.md`、`specs/pir/pir-contract-v1.2.md`、`specs/pir/PIR-v1.2.json`
   - 依赖：`API-001`、`API-002`、`API-003`
   - 验收：v1.2 明确 `data/list` 字段、`$data/$item/$index` 语义与错误码建议
-  - 结果：`specs/implementation/reviews/MIR-001-data-scope-list-contract.md`
+  - 结果：`specs/implementation/reviews/PIR-001-data-scope-list-contract.md`
 
-- [ ] `MIR-002` 渲染器支持 data scope 继承与 list 模板渲染
-  - 产出：`MIRRenderer` 上下文求值扩展 + 单测
-  - 依赖：`MIR-001`
+- [ ] `PIR-002` 渲染器支持 data scope 继承与 list 模板渲染
+  - 产出：`PIRRenderer` 上下文求值扩展 + 单测
+  - 依赖：`PIR-001`
   - 验收：同一模板可基于数组稳定渲染，子节点可继承父 scope
 
-- [ ] `MIR-003` Inspector 增加“绑定数据模型/提升为列表”面板
+- [ ] `PIR-003` Inspector 增加“绑定数据模型/提升为列表”面板
   - 产出：节点配置 UI + 引导文案 + 诊断提示
-  - 依赖：`MIR-001`
+  - 依赖：`PIR-001`
   - 验收：用户可在 Blueprint 内完成数据绑定与 list 配置
 
-- [ ] `MIR-004` 前后端校验接入 v1.2 错误模型
-  - 产出：schema 校验器 + 错误码映射（`MIR_LIST_SOURCE_NOT_ARRAY` 等）
-  - 依赖：`MIR-001`、`API-005`
+- [ ] `PIR-004` 前后端校验接入 v1.2 错误模型
+  - 产出：schema 校验器 + 错误码映射（`PIR_LIST_SOURCE_NOT_ARRAY` 等）
+  - 依赖：`PIR-001`、`API-005`
   - 验收：保存/导出前后都能返回字段级错误
 
-- [ ] `MIR-005` 代码生成器支持 list 输出与引用解析
+- [ ] `PIR-005` 代码生成器支持 list 输出与引用解析
   - 产出：React 生成器 `.map()` 支持 + 回归测试
-  - 依赖：`MIR-002`、`MIR-004`
+  - 依赖：`PIR-002`、`PIR-004`
   - 验收：渲染预览与生成代码语义一致
 
 ### B. Editor Core（Store / Command / Outbox）
 
-- [ ] `CORE-001` 重构 `useEditorStore`，移除 `mirDoc` 状态入口
+- [ ] `CORE-001` 重构 `useEditorStore`，移除 `pirDoc` 状态入口
   - 产出：`workspace + activeDocumentId + activeRouteNodeId` 状态模型
   - 依赖：`API-003`
-  - 验收：代码中无 `state.mirDoc` 引用
+  - 验收：代码中无 `state.pirDoc` 引用
 
 - [ ] `CORE-002` 实现 Command Executor（forward/reverse/transaction/mergeKey）
   - 产出：执行器 + 历史栈模块 + 单测
@@ -138,7 +138,7 @@
 
 ### D. Migration & Quality
 
-- [ ] `MIG-001` 编写 `projects.mir_json -> workspace snapshot` 迁移器
+- [ ] `MIG-001` 编写 `projects.pir_json -> workspace snapshot` 迁移器
   - 产出：迁移脚本 + 失败报告格式
   - 依赖：`API-005`、`CORE-001`
   - 验收：迁移成功率目标 `>=99%`
@@ -153,7 +153,7 @@
   - 依赖：`CORE-003`、`API-005`
   - 验收：30 次/分钟编辑无明显卡顿
 
-- [ ] `QA-002` 回归：Blueprint 全链路 + Export 一致性 + MIR 校验错误提示
+- [ ] `QA-002` 回归：Blueprint 全链路 + Export 一致性 + PIR 校验错误提示
   - 产出：自动化测试清单（单测/E2E）
   - 依赖：`UX-004`
   - 验收：P0 崩溃缺陷为 0
@@ -167,8 +167,8 @@
 
 ```txt
 API-001/002 -> API-003 -> API-004 -> API-005
-API-001/002/003 -> MIR-001 -> MIR-002 -> MIR-004 -> MIR-005
-MIR-001 -> MIR-003
+API-001/002/003 -> PIR-001 -> PIR-002 -> PIR-004 -> PIR-005
+PIR-001 -> PIR-003
 API-003 -> CORE-001 -> CORE-002 -> CORE-003 -> CORE-004
 CORE-001 -> UX-001 -> UX-002 -> UX-003/UX-004
 API-005 + CORE-001 -> MIG-001 -> MIG-002
@@ -191,7 +191,7 @@ CORE-003 + UX-004 -> QA-001/QA-002 ; CORE-004 -> QA-003
 
 ### Done（可关闭）
 
-1. 代码与规范一致（无 `mirDoc` 回流）
+1. 代码与规范一致（无 `pirDoc` 回流）
 2. 关联测试通过
 3. 文档更新完成（至少更新变更点与风险）
 4. 不突破边界（未引入 NodeGraph/动画编辑器 UI）
@@ -200,7 +200,7 @@ CORE-003 + UX-004 -> QA-001/QA-002 ; CORE-004 -> QA-003
 
 1. `API-001` + `API-002`（同一评审会一次冻结）
 2. `API-003`（冻结后立即定稿）
-3. `CORE-001`（先拆 `mirDoc`，降低后续耦合）
+3. `CORE-001`（先拆 `pirDoc`，降低后续耦合）
 4. `API-004` + `API-005`（后端接口并行）
 5. `CORE-002` + `CORE-003`（前端核心链路闭环）
-6. `MIR-002` + `MIR-003`（数据模型与列表渲染可视化能力）
+6. `PIR-002` + `PIR-003`（数据模型与列表渲染可视化能力）

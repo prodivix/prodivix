@@ -1,15 +1,15 @@
-apps/web/src/community/__tests__/CommunityDetailPage.test.tsx	resolves workspace-layer mir payload for read-only preview
-apps/web/src/editor/store/__tests__/useEditorStore.test.ts	prefers the root mir-page document as canonical active document
+apps/web/src/community/__tests__/CommunityDetailPage.test.tsx	resolves workspace-layer pir payload for read-only preview
+apps/web/src/editor/store/__tests__/useEditorStore.test.ts	prefers the root pir-page document as canonical active document
 apps/web/src/editor/store/__tests__/useEditorStore.test.ts	keeps active document when refreshing the same workspace snapshot
-apps/web/src/mir/renderer/__tests__/iconRegistry.test.ts	registers lucide provider with full icon catalog
-apps/web/src/mir/renderer/__tests__/registry.test.ts	auto-registers @mdr/ui Mdr* exports and skips non-components
-apps/web/src/mir/validator/__tests__/validator.test.ts	normalizes legacy document version to 1.2
-apps/web/src/mir/validator/__tests__/validator.test.ts	allows list without explicit source
+apps/web/src/pir/renderer/__tests__/iconRegistry.test.ts	registers lucide provider with full icon catalog
+apps/web/src/pir/renderer/__tests__/registry.test.ts	auto-registers @prodivix/ui Pdx* exports and skips non-components
+apps/web/src/pir/validator/__tests__/validator.test.ts	normalizes legacy document version to 1.2
+apps/web/src/pir/validator/__tests__/validator.test.ts	allows list without explicit source
 apps/web/src/editor/features/design/blueprint/external/runtime/__tests__/externalState.test.ts	tracks unknown library load failure as error state
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.palette.test.tsx	creates nodes with expected props and renders without crashing
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	inserts palette items on canvas drop and selects the new node
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	inserts new nodes as children when dropping on a node that supports children
-apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	drops into MdrRoute with current address as data-route-path
+apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	drops into PdxRoute with current address as data-route-path
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	inserts new nodes after a node that does not support children
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	reorders nodes when dragging within the tree
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	moves nodes across parents when dropping on another tree node
@@ -20,7 +20,7 @@ apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	copies a 
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	moves nodes within the same parent
 apps/web/src/editor/features/design/__tests__/BlueprintEditor.test.tsx	drops every palette item on the canvas without crashing
 apps/web/src/editor/features/design/__tests__/BlueprintEditorCanvas.test.tsx	calls onNodeSelect when a rendered node is clicked
-apps/web/src/editor/features/design/__tests__/BlueprintEditorCanvas.test.tsx	does not start panning when pointer down happens on a MIR node
+apps/web/src/editor/features/design/__tests__/BlueprintEditorCanvas.test.tsx	does not start panning when pointer down happens on a PIR node
 apps/web/src/editor/features/design/__tests__/BlueprintEditorCanvas.test.tsx	cancels animation raf on unmount
 apps/web/src/editor/features/design/__tests__/BlueprintEditorComponentTree.test.tsx	opens a structural context menu only for nodes with children
 apps/web/src/editor/features/design/__tests__/BlueprintEditorComponentTree.test.tsx	hides context menu options that match the current tree state
@@ -32,7 +32,7 @@ apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	
 apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	updates className through class protocol editor
 apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	saves mounted css content into node props
 apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	updates external prop option through inspector field
-apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	shows and updates MdrRoute inspector fields
+apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	shows and updates PdxRoute inspector fields
 apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	marks direct route child as index route from inspector
 apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	updates and resets external boolean/number props through inspector fields
 apps/web/src/editor/features/design/__tests__/BlueprintEditorInspector.test.tsx	mounts data model JSON on selected node

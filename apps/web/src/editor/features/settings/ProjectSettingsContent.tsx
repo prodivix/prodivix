@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  MdrCheckList,
-  MdrInput,
-  MdrRadioGroup,
-  MdrSelect,
-  MdrSlider,
-  MdrTextarea,
-} from '@mdr/ui';
+  PdxCheckList,
+  PdxInput,
+  PdxRadioGroup,
+  PdxSelect,
+  PdxSlider,
+  PdxTextarea,
+} from '@prodivix/ui';
 import { SettingsPanel, SettingsRow } from './SettingsShared';
 
 export const ProjectSettingsContent = () => {
@@ -21,14 +21,14 @@ export const ProjectSettingsContent = () => {
     previewAccess: ['restricted'],
     auditRetention: 30,
     notifications: ['mentions', 'builds'],
-    themeTokenSet: 'mdr-default',
+    themeTokenSet: 'prodivix-default',
     componentLibraryVersion: 'v1.4.2',
     assetHost: 'https://assets.example.com',
     fontPack: ['inter', 'source-serif'],
     iconSet: 'lucide',
     apiBase: 'https://api.example.com',
     authMode: ['oauth'],
-    envPrefix: 'MDR_',
+    envPrefix: 'PRODIVIX_',
     deploymentTarget: ['staging'],
     schemaVersion: '1.0',
     strictness: 80,
@@ -57,7 +57,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.name.label')}
           description={t('settings.project.rows.name.description')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={projectValues.name}
               onChange={(value) => updateProjectValue('name', value)}
@@ -68,7 +68,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.description.label')}
           description={t('settings.project.rows.description.description')}
           control={
-            <MdrTextarea
+            <PdxTextarea
               size="Small"
               rows={3}
               value={projectValues.description}
@@ -80,7 +80,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.defaultRoute.label')}
           description={t('settings.project.rows.defaultRoute.description')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={projectValues.defaultRoute}
               onChange={(value) => updateProjectValue('defaultRoute', value)}
@@ -91,7 +91,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.timezone.label')}
           description={t('settings.project.rows.timezone.description')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -125,7 +125,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.defaultRole.label')}
           description={t('settings.project.rows.defaultRole.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.project.rows.defaultRole.options.viewer'),
@@ -149,7 +149,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.previewAccess.label')}
           description={t('settings.project.rows.previewAccess.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t(
@@ -173,7 +173,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.auditRetention.label')}
           description={t('settings.project.rows.auditRetention.description')}
           control={
-            <MdrSlider
+            <PdxSlider
               min={7}
               max={120}
               step={7}
@@ -187,7 +187,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.notifications.label')}
           description={t('settings.project.rows.notifications.description')}
           control={
-            <MdrCheckList
+            <PdxCheckList
               items={[
                 {
                   label: t(
@@ -222,26 +222,26 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.themeTokenSet.label')}
           description={t('settings.project.rows.themeTokenSet.description')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
                   label: t(
-                    'settings.project.rows.themeTokenSet.options.mdrDefault'
+                    'settings.project.rows.themeTokenSet.options.prodivixDefault'
                   ),
-                  value: 'mdr-default',
+                  value: 'prodivix-default',
                 },
                 {
                   label: t(
-                    'settings.project.rows.themeTokenSet.options.mdrMidnight'
+                    'settings.project.rows.themeTokenSet.options.prodivixMidnight'
                   ),
-                  value: 'mdr-midnight',
+                  value: 'prodivix-midnight',
                 },
                 {
                   label: t(
-                    'settings.project.rows.themeTokenSet.options.mdrSunrise'
+                    'settings.project.rows.themeTokenSet.options.prodivixSunrise'
                   ),
-                  value: 'mdr-sunrise',
+                  value: 'prodivix-sunrise',
                 },
               ]}
               value={projectValues.themeTokenSet}
@@ -255,7 +255,7 @@ export const ProjectSettingsContent = () => {
             'settings.project.rows.componentLibraryVersion.description'
           )}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -282,7 +282,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.assetHost.label')}
           description={t('settings.project.rows.assetHost.description')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={projectValues.assetHost}
               onChange={(value) => updateProjectValue('assetHost', value)}
@@ -293,7 +293,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.fontPack.label')}
           description={t('settings.project.rows.fontPack.description')}
           control={
-            <MdrCheckList
+            <PdxCheckList
               items={[
                 { label: 'Inter', value: 'inter' },
                 {
@@ -311,7 +311,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.iconSet.label')}
           description={t('settings.project.rows.iconSet.description')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 { label: 'Lucide', value: 'lucide' },
@@ -332,7 +332,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.apiBase.label')}
           description={t('settings.project.rows.apiBase.description')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={projectValues.apiBase}
               onChange={(value) => updateProjectValue('apiBase', value)}
@@ -343,7 +343,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.authMode.label')}
           description={t('settings.project.rows.authMode.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.project.rows.authMode.options.oauth'),
@@ -367,7 +367,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.envPrefix.label')}
           description={t('settings.project.rows.envPrefix.description')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={projectValues.envPrefix}
               onChange={(value) => updateProjectValue('envPrefix', value)}
@@ -378,7 +378,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.deploymentTarget.label')}
           description={t('settings.project.rows.deploymentTarget.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t(
@@ -408,14 +408,14 @@ export const ProjectSettingsContent = () => {
         />
       </SettingsPanel>
       <SettingsPanel
-        title={t('settings.project.panels.mir.title')}
-        description={t('settings.project.panels.mir.description')}
+        title={t('settings.project.panels.pir.title')}
+        description={t('settings.project.panels.pir.description')}
       >
         <SettingsRow
           label={t('settings.project.rows.schemaVersion.label')}
           description={t('settings.project.rows.schemaVersion.description')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -440,7 +440,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.strictness.label')}
           description={t('settings.project.rows.strictness.description')}
           control={
-            <MdrSlider
+            <PdxSlider
               min={0}
               max={100}
               step={5}
@@ -454,7 +454,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.customNodes.label')}
           description={t('settings.project.rows.customNodes.description')}
           control={
-            <MdrCheckList
+            <PdxCheckList
               items={[
                 {
                   label: t('settings.project.rows.customNodes.options.http'),
@@ -486,7 +486,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.autoMigrate.label')}
           description={t('settings.project.rows.autoMigrate.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.project.rows.autoMigrate.options.enable'),
@@ -511,7 +511,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.buildTarget.label')}
           description={t('settings.project.rows.buildTarget.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.project.rows.buildTarget.options.web'),
@@ -535,7 +535,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.outputDir.label')}
           description={t('settings.project.rows.outputDir.description')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={projectValues.outputDir}
               onChange={(value) => updateProjectValue('outputDir', value)}
@@ -546,7 +546,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.minify.label')}
           description={t('settings.project.rows.minify.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.project.rows.minify.options.enable'),
@@ -566,7 +566,7 @@ export const ProjectSettingsContent = () => {
           label={t('settings.project.rows.sourceMaps.label')}
           description={t('settings.project.rows.sourceMaps.description')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.project.rows.sourceMaps.options.enable'),

@@ -54,11 +54,11 @@ Phase 2 的目标是固定以下长期边界：
 
 ```ts
 type StableWorkspaceDocumentType =
-  | 'mir-page'
-  | 'mir-layout'
-  | 'mir-component'
-  | 'mir-graph'
-  | 'mir-animation'
+  | 'pir-page'
+  | 'pir-layout'
+  | 'pir-component'
+  | 'pir-graph'
+  | 'pir-animation'
   | 'code'
   | 'asset'
   | 'project-config';
@@ -85,7 +85,7 @@ type WorkspaceCodeDocumentContent = {
 1. `language` 是作者态能力枚举，不是编辑器 mode 字符串。
 2. `source` 是代码文本事实源。
 3. `metadata` 只能保存非事实源辅助信息，例如 formatter、generated 标记、origin。
-4. code document 不要求 MIR v1.3 校验。
+4. code document 不要求 PIR v1.3 校验。
 5. code document 的 patch path 允许 `/language`、`/source`、`/metadata`、`/metadata/*` 和 `/x-*`。
 6. 如果后续支持纯文本 document content，也必须保留 JSON wrapper 的兼容读取能力。
 
@@ -94,7 +94,7 @@ type WorkspaceCodeDocumentContent = {
 WorkspaceDocument 的 path 必须反映用户心智路径。
 
 ```text
-/pages/home.mir.json
+/pages/home.pir.json
 /src/actions/openDialog.ts
 /src/node-executors/fetchUser.ts
 /styles/home.mounted.css
@@ -175,7 +175,7 @@ type CodeReference = {
 3. `symbolName` 用于 expression、CSS symbol、shader entry、adapter entry 等非标准 export 场景。
 4. `sourceSpan` 只做定位辅助，不做身份。
 5. `path` 可用于显示、搜索和恢复，但不得成为持久化主键。
-6. 当前 `{ name, scopeId }` 轻引用可以保留为 resolver query input，但不进入 MIR / NodeGraph / Animation 保存态。
+6. 当前 `{ name, scopeId }` 轻引用可以保留为 resolver query input，但不进入 PIR / NodeGraph / Animation 保存态。
 
 迁移要求：
 
@@ -264,7 +264,7 @@ type CodeSlotBinding = {
 
 规则：
 
-1. MIR event、NodeGraph executor field、Animation binding field 和 adapter config 各自保存自己的 binding。
+1. PIR event、NodeGraph executor field、Animation binding field 和 adapter config 各自保存自己的 binding。
 2. Binding 保存 CodeReference，不保存源码。
 3. Binding 删除不删除 code document。
 4. owner 删除后，binding 随领域对象消失；referenced artifact 默认 orphan。
@@ -339,7 +339,7 @@ type TriggerBinding =
 1. 增加 `WorkspaceDocumentTypeCode`。
 2. 调整 document type validation。
 3. 为 code document 增加内容校验。
-4. 确保 MIR v1.3 validator 不误用于 code document。
+4. 确保 PIR v1.3 validator 不误用于 code document。
 
 ### Step 2：Workspace code document 写入链路
 
@@ -375,7 +375,7 @@ type TriggerBinding =
 建议测试：
 
 1. `WorkspaceDocumentTypeCode` 被后端接受。
-2. code document patch 不触发 MIR v1.3 validator。
+2. code document patch 不触发 PIR v1.3 validator。
 3. code document patch 只能修改允许路径。
 4. WorkspaceCodeArtifactProvider 能把 code document 投影为 CodeArtifact。
 5. CodeSlotRegistry 能注册 provider、聚合 slots、按 id 查找、按 owner 查找、取消注册。
@@ -394,8 +394,8 @@ type TriggerBinding =
 - [x] 前后端共享的 workspace code document 内容模型明确。
 - [x] code document 可以通过 workspace command 更新 source。
 - [x] code document 可以通过 workspace command 创建并挂载到 VFS。
-- [x] MIR document 仍受 MIR v1.3 graph-only 校验约束。
-- [x] code document 不受 MIR v1.3 validator 约束。
+- [x] PIR document 仍受 PIR v1.3 graph-only 校验约束。
+- [x] code document 不受 PIR v1.3 validator 约束。
 - [x] VFS path 作为用户代码路径的 projection 规则明确。
 - [x] Workspace code document 能投影为 CodeArtifact。
 - [x] 持久化 CodeReference 以 `artifactId` 为核心。
@@ -412,4 +412,4 @@ type TriggerBinding =
 4. 不实现完整 ReferenceResolver。
 5. 不迁移所有 trigger UI。
 6. 不实现 CRDT、二进制资产管线或完整 POSIX 文件系统。
-7. 不改变 MIR v1.3 保存态结构。
+7. 不改变 PIR v1.3 保存态结构。

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { WorkspaceSnapshot } from '@/editor/editorApi';
-import { createMirDoc, resetEditorStore } from '@/test-utils/editorStore';
+import { createPirDoc, resetEditorStore } from '@/test-utils/editorStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 
 const createWorkspaceSnapshot = (
@@ -20,7 +20,7 @@ const createWorkspaceSnapshot = (
 });
 
 const createDocumentContent = (nodeId: string) =>
-  createMirDoc([{ id: nodeId, type: 'MdrText', text: nodeId }]);
+  createPirDoc([{ id: nodeId, type: 'PdxText', text: nodeId }]);
 
 describe('useEditorStore workspace state', () => {
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe('useEditorStore workspace state', () => {
       createWorkspaceSnapshot('ws-1', [
         {
           id: 'page-root',
-          type: 'mir-page',
+          type: 'pir-page',
           path: '/',
           contentRev: 1,
           metaRev: 1,
@@ -42,13 +42,13 @@ describe('useEditorStore workspace state', () => {
       ])
     );
     store.setWorkspaceCapabilities('ws-1', {
-      'core.mir.document.update@1.0': true,
+      'core.pir.document.update@1.0': true,
     });
     store.setWorkspaceSnapshot(
       createWorkspaceSnapshot('ws-2', [
         {
           id: 'page-root-2',
-          type: 'mir-page',
+          type: 'pir-page',
           path: '/',
           contentRev: 1,
           metaRev: 1,
@@ -71,7 +71,7 @@ describe('useEditorStore workspace state', () => {
         [
           {
             id: 'page-root',
-            type: 'mir-page',
+            type: 'pir-page',
             path: '/',
             contentRev: 1,
             metaRev: 1,
@@ -107,7 +107,7 @@ describe('useEditorStore workspace state', () => {
         [
           {
             id: 'page-root',
-            type: 'mir-page',
+            type: 'pir-page',
             path: '/',
             contentRev: 1,
             metaRev: 1,
@@ -139,7 +139,7 @@ describe('useEditorStore workspace state', () => {
         [
           {
             id: 'page-root',
-            type: 'mir-page',
+            type: 'pir-page',
             path: '/',
             contentRev: 1,
             metaRev: 1,
@@ -183,17 +183,17 @@ describe('useEditorStore workspace state', () => {
     expect(state.treeById['doc-missing']).toBeUndefined();
   });
 
-  it('preserves code document content without normalizing it as MIR', () => {
+  it('preserves code document content without normalizing it as PIR', () => {
     const store = useEditorStore.getState();
-    const previousMirDoc = store.mirDoc;
+    const previousPirDoc = store.pirDoc;
     store.setWorkspaceSnapshot(
       createWorkspaceSnapshot(
         'ws-1',
         [
           {
             id: 'page-root',
-            type: 'mir-page',
-            path: '/pages/home.mir.json',
+            type: 'pir-page',
+            path: '/pages/home.pir.json',
             contentRev: 1,
             metaRev: 1,
             content: createDocumentContent('root'),
@@ -231,7 +231,7 @@ describe('useEditorStore workspace state', () => {
               'page-root-node': {
                 id: 'page-root-node',
                 kind: 'doc',
-                name: 'home.mir.json',
+                name: 'home.pir.json',
                 parentId: 'pages',
                 docId: 'page-root',
               },
@@ -263,13 +263,13 @@ describe('useEditorStore workspace state', () => {
       source: 'export function openDialog() {}',
     });
     expect(state.activeDocumentId).toBe('code-open-dialog');
-    expect(state.mirDoc).not.toHaveProperty('language');
-    expect(previousMirDoc).not.toBe(state.mirDoc);
+    expect(state.pirDoc).not.toHaveProperty('language');
+    expect(previousPirDoc).not.toBe(state.pirDoc);
   });
 
-  it('does not choose a code document as the active MIR document', () => {
+  it('does not choose a code document as the active PIR document', () => {
     const store = useEditorStore.getState();
-    const previousMirDoc = store.mirDoc;
+    const previousPirDoc = store.pirDoc;
     store.setWorkspaceSnapshot(
       createWorkspaceSnapshot('ws-1', [
         {
@@ -292,7 +292,7 @@ describe('useEditorStore workspace state', () => {
       language: 'ts',
       source: 'export function openDialog() {}',
     });
-    expect(state.mirDoc).toBe(previousMirDoc);
+    expect(state.pirDoc).toBe(previousPirDoc);
   });
 
   it('creates fallback workspace tree when snapshot tree is unavailable', () => {
@@ -301,7 +301,7 @@ describe('useEditorStore workspace state', () => {
       createWorkspaceSnapshot('ws-1', [
         {
           id: 'page-root',
-          type: 'mir-page',
+          type: 'pir-page',
           path: '/',
           contentRev: 1,
           metaRev: 1,
@@ -324,7 +324,7 @@ describe('useEditorStore workspace state', () => {
         [
           {
             id: 'page-root',
-            type: 'mir-page',
+            type: 'pir-page',
             path: '/',
             contentRev: 1,
             metaRev: 1,
@@ -355,7 +355,7 @@ describe('useEditorStore workspace state', () => {
     );
     const about = home?.children?.find((node) => node.id === 'route-about');
     expect(about?.pageDocId).toBe('page-about');
-    expect(state.workspaceDocumentsById['page-about']?.type).toBe('mir-page');
+    expect(state.workspaceDocumentsById['page-about']?.type).toBe('pir-page');
     expect(state.treeById['doc-page-about']?.docId).toBe('page-about');
     expect(state.activeRouteNodeId).toBe('route-about');
   });
@@ -368,7 +368,7 @@ describe('useEditorStore workspace state', () => {
         [
           {
             id: 'page-root',
-            type: 'mir-page',
+            type: 'pir-page',
             path: '/',
             contentRev: 1,
             metaRev: 1,
@@ -396,7 +396,7 @@ describe('useEditorStore workspace state', () => {
     );
     expect(home?.layoutDocId).toBe('layout-root');
     expect(state.workspaceDocumentsById['layout-root']?.type).toBe(
-      'mir-layout'
+      'pir-layout'
     );
     expect(state.treeById['doc-layout-root']?.docId).toBe('layout-root');
   });
@@ -409,7 +409,7 @@ describe('useEditorStore workspace state', () => {
         [
           {
             id: 'page-root',
-            type: 'mir-page',
+            type: 'pir-page',
             path: '/',
             contentRev: 1,
             metaRev: 1,
@@ -417,7 +417,7 @@ describe('useEditorStore workspace state', () => {
           },
           {
             id: 'page-about',
-            type: 'mir-page',
+            type: 'pir-page',
             path: '/about',
             contentRev: 1,
             metaRev: 1,
@@ -459,9 +459,9 @@ describe('useEditorStore workspace state', () => {
     expect(state.treeById['doc-page-about']).toBeUndefined();
   });
 
-  it('patches runtime state by project without mutating mirDoc', () => {
+  it('patches runtime state by project without mutating pirDoc', () => {
     const store = useEditorStore.getState();
-    const previousMirDoc = store.mirDoc;
+    const previousPirDoc = store.pirDoc;
 
     store.patchRuntimeState('project-a', { products: [{ id: 'p-1' }] });
     store.patchRuntimeState('project-a', { selected: 'p-1' });
@@ -471,7 +471,7 @@ describe('useEditorStore workspace state', () => {
       products: [{ id: 'p-1' }],
       selected: 'p-1',
     });
-    expect(state.mirDoc).toBe(previousMirDoc);
+    expect(state.pirDoc).toBe(previousPirDoc);
   });
 
   it('resets runtime state for one project or all projects', () => {

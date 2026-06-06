@@ -25,7 +25,7 @@ const (
 type GitSyncTrack string
 
 const (
-	GitSyncTrackMIR       GitSyncTrack = "mir"
+	GitSyncTrackPIR       GitSyncTrack = "pir"
 	GitSyncTrackArtifacts GitSyncTrack = "artifacts"
 )
 
@@ -63,7 +63,7 @@ type RepositoryBindingRecord struct {
 	DefaultBranch  string                  `json:"defaultBranch"`
 	Status         RepositoryBindingStatus `json:"status"`
 	Branch         string                  `json:"branch"`
-	MIR            GitTrackSyncState       `json:"mir"`
+	PIR            GitTrackSyncState       `json:"pir"`
 	Artifacts      GitTrackSyncState       `json:"artifacts"`
 	CreatedAt      time.Time               `json:"createdAt"`
 	UpdatedAt      time.Time               `json:"updatedAt"`

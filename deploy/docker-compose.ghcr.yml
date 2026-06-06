@@ -1,4 +1,4 @@
-name: mdr-front-engine
+name: prodivix
 
 services:
   postgres:
@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-mdr_front_engine}
+      POSTGRES_DB: ${POSTGRES_DB:-prodivix}
       TZ: ${TZ:-UTC}
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     volumes:
@@ -18,7 +18,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-mdr_front_engine}",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-prodivix}",
         ]
       interval: 10s
       timeout: 5s
@@ -27,7 +27,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
 
   backend:
-    image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/mdr-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/prodivix-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -35,7 +35,7 @@ services:
     environment:
       BACKEND_ADDR: ":8080"
       BACKEND_ALLOWED_ORIGINS: ${BACKEND_ALLOWED_ORIGINS:-http://localhost:4173}
-      BACKEND_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mdr_front_engine}?sslmode=disable
+      BACKEND_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-prodivix}?sslmode=disable
       BACKEND_TOKEN_TTL: ${BACKEND_TOKEN_TTL:-24h}
       BACKEND_DB_MAX_OPEN_CONNS: ${BACKEND_DB_MAX_OPEN_CONNS:-10}
       BACKEND_DB_MAX_IDLE_CONNS: ${BACKEND_DB_MAX_IDLE_CONNS:-5}
@@ -49,7 +49,7 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
 
   web:
-    image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/mdr-web:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/prodivix-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       backend:

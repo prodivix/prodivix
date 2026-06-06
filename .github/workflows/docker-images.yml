@@ -33,11 +33,11 @@ jobs:
       matrix:
         include:
           - service: backend
-            image_suffix: mdr-backend
+            image_suffix: prodivix-backend
             dockerfile: apps/backend/Dockerfile
             build_args: ""
           - service: web
-            image_suffix: mdr-web
+            image_suffix: prodivix-web
             dockerfile: apps/web/Dockerfile
             build_args: |
               VITE_API_BASE=/

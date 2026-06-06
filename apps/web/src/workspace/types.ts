@@ -1,15 +1,15 @@
-import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 
 export type WorkspaceId = string;
 export type WorkspaceDocumentId = string;
 export type WorkspaceVfsNodeId = string;
 
 export type StableWorkspaceDocumentType =
-  | 'mir-page'
-  | 'mir-layout'
-  | 'mir-component'
-  | 'mir-graph'
-  | 'mir-animation'
+  | 'pir-page'
+  | 'pir-layout'
+  | 'pir-component'
+  | 'pir-graph'
+  | 'pir-animation'
   | 'code'
   | 'asset'
   | 'project-config';
@@ -21,7 +21,7 @@ export type StableWorkspaceDocument = {
   path: string;
   contentRev: number;
   metaRev: number;
-  content: MIRDocument | unknown;
+  content: PIRDocument | unknown;
   updatedAt?: string;
   capabilities?: string[];
 };

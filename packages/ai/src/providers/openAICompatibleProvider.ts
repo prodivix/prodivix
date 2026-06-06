@@ -2,12 +2,12 @@ import type {
   LlmProvider,
   LlmProviderGenerateResult,
   LlmProviderRequest,
-} from '@mdr/shared';
-import { LlmProviderError } from '@mdr/shared';
+} from '@prodivix/shared';
+import { LlmProviderError } from '@prodivix/shared';
 import { validateStructuredOutput } from '../validation/validateStructuredOutput';
 import { createOpenAICompatibleMessages } from './openAICompatiblePrompt';
 
-export type MdrAiFetch = (
+export type ProdivixAiFetch = (
   input: string,
   init?: {
     method?: string;
@@ -25,7 +25,7 @@ export interface OpenAICompatibleProviderOptions {
   baseURL: string;
   apiKey?: string;
   model: string;
-  fetcher: MdrAiFetch;
+  fetcher: ProdivixAiFetch;
 }
 
 const normalizeBaseURL = (baseURL: string) => baseURL.replace(/\/+$/, '');
@@ -82,7 +82,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
   private readonly baseURL: string;
   private readonly apiKey?: string;
   private readonly model: string;
-  private readonly fetcher: MdrAiFetch;
+  private readonly fetcher: ProdivixAiFetch;
 
   constructor(options: OpenAICompatibleProviderOptions) {
     this.baseURL = normalizeBaseURL(options.baseURL);

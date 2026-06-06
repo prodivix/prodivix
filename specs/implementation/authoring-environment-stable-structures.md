@@ -72,7 +72,7 @@ type CodeSymbolProvider = {
 
 典型未来 provider：
 
-1. `MirGraphSymbolProvider`
+1. `PirGraphSymbolProvider`
 2. `RouteSymbolProvider`
 3. `WorkspaceResourceSymbolProvider`
 4. `ExternalLibrarySymbolProvider`
@@ -91,7 +91,7 @@ type CodeSymbolProvider = {
 type AuthoringDiagnosticProvider = {
   id: string;
   source: SymbolSource;
-  getDiagnostics(context: AuthoringContext): MdrDiagnostic[];
+  getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
 };
 ```
 
@@ -100,11 +100,11 @@ type AuthoringDiagnosticProvider = {
 1. 不直接 toast。
 2. 不决定最终 UI 文案。
 3. 不依赖具体面板结构。
-4. 只返回稳定 `MdrDiagnostic`，并尽量携带 `targetRef` 或 `sourceSpan`。
+4. 只返回稳定 `ProdivixDiagnostic`，并尽量携带 `targetRef` 或 `sourceSpan`。
 
 典型未来 provider：
 
-1. `MirValidationDiagnosticProvider`
+1. `PirValidationDiagnosticProvider`
 2. `CodeParseDiagnosticProvider`
 3. `InspectorFieldDiagnosticProvider`
 4. `NodeGraphDiagnosticProvider`
@@ -185,7 +185,7 @@ type DiagnosticPlacementDecision = {
 
 type DiagnosticPlacementResolver = {
   resolve(
-    diagnostic: MdrDiagnostic,
+    diagnostic: ProdivixDiagnostic,
     context: AuthoringContext
   ): DiagnosticPlacementDecision;
 };
@@ -204,7 +204,7 @@ type DiagnosticPlacementResolver = {
 
 状态：暂缓实现，只保留文档。
 
-原因：真实解析策略依赖 MIR scope、Route params、NodeGraph 端口类型、Animation binding 和 CodeArtifact parser。当前实现会过早假设。
+原因：真实解析策略依赖 PIR scope、Route params、NodeGraph 端口类型、Animation binding 和 CodeArtifact parser。当前实现会过早假设。
 
 未来形态：
 
@@ -221,7 +221,7 @@ type ReferenceResolver = {
 
 适合落地时机：
 
-1. `MirGraphSymbolProvider` 已提供基础 node/prop/data/list scope。
+1. `PirGraphSymbolProvider` 已提供基础 node/prop/data/list scope。
 2. 至少一个 CodeArtifact provider 接入真实代码片段。
 3. Code Editor 或 Inspector 需要真实 go to definition。
 
@@ -266,7 +266,7 @@ type AuthoringSnapshot = {
   artifacts: CodeArtifact[];
   symbols: CodeSymbol[];
   scopes: CodeScope[];
-  diagnostics: MdrDiagnostic[];
+  diagnostics: ProdivixDiagnostic[];
 };
 ```
 
@@ -284,7 +284,7 @@ type AuthoringSnapshot = {
 2. 完成 `createAuthoringEnvironment` composition。
 3. 定义 `AuthoringLocation` 轻类型。
 4. 定义 `DiagnosticPlacementDecision` 轻类型。
-5. 接入首个真实 provider，优先选择稳定性最高的 MIR graph symbol provider。
+5. 接入首个真实 provider，优先选择稳定性最高的 PIR graph symbol provider。
 6. 在真实 provider 出现后再评估 Reference Resolver。
 7. 在 capability 来源稳定后再评估 Capability Provider。
 8. 在 worker 或 LLM context 需要稳定数据包时再评估 Snapshot。

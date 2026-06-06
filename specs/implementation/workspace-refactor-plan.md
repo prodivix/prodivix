@@ -11,26 +11,26 @@
   - `specs/decisions/07.workspace-sync.md`
   - `specs/decisions/08.route-manifest-outlet.md`
   - `specs/decisions/09.component-route-composition.md`
-  - `specs/decisions/10.mir-contract-validation.md`
+  - `specs/decisions/10.pir-contract-validation.md`
   - `specs/decisions/11.revision-partitioning.md`
   - `specs/decisions/12.intent-command-extension.md`
   - `specs/decisions/13.route-runtime-contract.md`
   - `specs/decisions/14.plugin-sandbox-and-capability.md`
-  - `specs/decisions/15.mir-data-scope-and-list-render.md`
+  - `specs/decisions/15.pir-data-scope-and-list-render.md`
 
 ## 当前进展（2026-02-08）
 
 1. 后端已具备 workspace 首建能力；hard cutover 后老项目不再自动补建或迁移。
-2. Blueprint 保存路径已切到“优先文档级保存”；hard cutover 后不保留项目级 MIR 回退。
+2. Blueprint 保存路径已切到“优先文档级保存”；hard cutover 后不保留项目级 PIR 回退。
 3. 前端保存状态反馈、能力协商等待、失败重试文案与 i18n 已接入。
 4. BlueprintEditor 已完成模块化拆分，主文件收敛为编排层。
-5. 当前开发阶段允许破坏性更新：旧单 MIR 项目全部舍弃，新项目只使用 Workspace。
+5. 当前开发阶段允许破坏性更新：旧单 PIR 项目全部舍弃，新项目只使用 Workspace。
 
 ## 0. 目标与边界
 
 ### 目标
 
-1. 从单 `mirDoc` 架构切换到 `workspace` 架构（hard cutover，无旧项目兼容、无项目级 MIR 回退）
+1. 从单 `pirDoc` 架构切换到 `workspace` 架构（hard cutover，无旧项目兼容、无项目级 PIR 回退）
 2. 用户只操作 Blueprint 可见对象（路由/页面/布局/组件），不操作 VFS
 3. 完成分区 rev 同步链路（`workspaceRev/routeRev/contentRev/metaRev`）
 4. 建立可序列化 Command/Intent 协议，为插件与协作预留扩展能力
@@ -46,7 +46,7 @@
 
 ### 预留接口（本计划必须做）
 
-1. 文档类型预留：`mir-graph`、`mir-animation` 可存储、可同步、不可编辑
+1. 文档类型预留：`pir-graph`、`pir-animation` 可存储、可同步、不可编辑
 2. 能力预留：`core.nodegraph.*`、`core.animation.*` 能出现在 capability map
 3. 命令预留：保留域命令可被解析、记录并返回结构化状态（默认 no-op）
 4. 监控预留：未处理保留域命令统一上报 `UNHANDLED_RESERVED_DOMAIN`
@@ -71,7 +71,7 @@
 1. 冻结 `workspace-model` 字段集（含分区 rev）
 2. 冻结 `intent envelope` 与 `command envelope` 最小字段
 3. 冻结 `route-manifest` v1（含 runtime 最小字段）
-4. 冻结 `MIR-v1.3` graph-only 合同（含 `x-*` 扩展规则、data/list 扩展）
+4. 冻结 `PIR-v1.3` graph-only 合同（含 `x-*` 扩展规则、data/list 扩展）
 5. 冻结保留域命名与错误码：`core.nodegraph.*`、`core.animation.*`
 
 输出：
@@ -97,7 +97,7 @@
    - `GET /api/workspaces/:id/capabilities`
    - `PATCH /api/workspaces/:id/commands`
 3. 实现分区 rev 校验与冲突返回（`DOCUMENT/WORKSPACE/ROUTE/HYBRID`）
-4. 接入 Workspace、Route Manifest 和 MIR v1.3 graph-only 校验
+4. 接入 Workspace、Route Manifest 和 PIR v1.3 graph-only 校验
 
 输出：
 
@@ -114,12 +114,12 @@
 
 ### Phase C：前端核心重构（Gate C）
 
-目标：彻底移除 `mirDoc`，切换 workspace store。
+目标：彻底移除 `pirDoc`，切换 workspace store。
 
 任务：
 
 1. 替换 `useEditorStore`：
-   - 移除 `mirDoc/setMirDoc/updateMirDoc`
+   - 移除 `pirDoc/setPirDoc/updatePirDoc`
    - 引入 `workspace/activeDocumentId/applyCommand`
 2. 实现 Command 执行器：
    - 支持 `forwardOps/reverseOps`
@@ -136,7 +136,7 @@
 
 验收：
 
-- [ ] 代码中无 `state.mirDoc` 引用
+- [ ] 代码中无 `state.pirDoc` 引用
 - [ ] Undo/Redo 可跨页面与内部结构操作
 - [ ] 离线编辑可积压命令并重放
 
@@ -171,26 +171,26 @@
 
 ### Phase E：Hard Cutover（Gate E）
 
-目标：删除旧单 MIR 编辑链路，新项目全量切换到 workspace-only。
+目标：删除旧单 PIR 编辑链路，新项目全量切换到 workspace-only。
 
 任务：
 
 1. 新项目创建只 bootstrap workspace snapshot。
-2. 删除前端 `saveProjectMir` 和 project MIR fallback 调用。
-3. `GET /projects/:id/mir` 返回 retired single-MIR 格式错误或从编辑器路由中移除。
-4. 停止 `projects.mir_json` 作为编辑器读写来源。
+2. 删除前端 `saveProjectPir` 和 project PIR fallback 调用。
+3. `GET /projects/:id/pir` 返回 retired single-PIR 格式错误或从编辑器路由中移除。
+4. 停止 `projects.pir_json` 作为编辑器读写来源。
 5. 打开旧项目时提示创建新的 workspace 项目。
 
 输出：
 
 - 新项目全部进入 workspace-only 模型
-- 旧单 MIR 项目被明确拒绝
+- 旧单 PIR 项目被明确拒绝
 
 验收：
 
 - [ ] 新项目创建后具备多文档 workspace 文件树
-- [ ] 旧单 MIR 项目打开时返回明确 retired 错误
-- [ ] 切换后无 project MIR 写流量
+- [ ] 旧单 PIR 项目打开时返回明确 retired 错误
+- [ ] 切换后无 project PIR 写流量
 
 ---
 
@@ -207,7 +207,7 @@
 2. 新增回归测试：
    - Blueprint 操作链路
    - Export 产物一致性
-   - MIR 校验错误提示
+   - PIR 校验错误提示
 3. 预演两个“未来功能”：
    - 插件意图命名空间接入（mock）
    - Route runtime loader/guard mock 执行
@@ -230,7 +230,7 @@
 
 ### 风险 2：旧入口未完全删除
 
-- 触发条件：新项目或编辑器仍调用 `projects.mir_json` / `saveProjectMir`
+- 触发条件：新项目或编辑器仍调用 `projects.pir_json` / `saveProjectPir`
 - 止损：阻断发布，删除旧入口调用后再继续
 
 ### 风险 3：命令重放不一致
@@ -250,5 +250,5 @@
 
 1. 用户只在 Blueprint 层完成页面与路由编辑
 2. 系统内部自动管理文档与结构，无文件级 UI 暴露
-3. 默认保存链路不再依赖 `mirDoc`；项目级 MIR 回退写入被删除
+3. 默认保存链路不再依赖 `pirDoc`；项目级 PIR 回退写入被删除
 4. 新增功能（插件意图、路由运行时）可通过扩展协议接入而不破坏核心模型

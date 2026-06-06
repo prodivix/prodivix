@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { Github, Languages, Moon, Sun } from 'lucide-react';
-import { MdrAvatar, MdrButtonLink, MdrLink, MdrNav } from '@mdr/ui';
-import { IconMdr } from '@/components/icons/IconMdr';
+import { PdxAvatar, PdxButtonLink, PdxLink, PdxNav } from '@prodivix/ui';
+import { IconProdivix } from '@/components/icons/IconProdivix';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 
-const docsSiteUrl = 'https://mdr-tutorials.github.io/Mdr-Front-Engine/';
+const docsSiteUrl = 'https://prodivix-tutorials.github.io/prodivix/';
 
 function Home() {
   const { t, i18n } = useTranslation('home');
@@ -51,25 +51,25 @@ function Home() {
 
   return (
     <div className="mx-auto flex min-h-screen w-[calc(100vw-80px)] flex-col items-center justify-start">
-      <MdrNav>
-        <MdrNav.Left>
-          <IconMdr size={30} className="text-(--home-logo)" />
-          <MdrNav.Heading heading={t('brand.name')} />
-        </MdrNav.Left>
-        <MdrNav.Right>
+      <PdxNav>
+        <PdxNav.Left>
+          <IconProdivix size={30} className="text-(--home-logo)" />
+          <PdxNav.Heading heading={t('brand.name')} />
+        </PdxNav.Left>
+        <PdxNav.Right>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-8 pr-4">
-              <MdrLink to="/community">{t('nav.community')}</MdrLink>
-              <MdrLink to={`${docsSiteUrl}guide/getting-started`}>
+              <PdxLink to="/community">{t('nav.community')}</PdxLink>
+              <PdxLink to={`${docsSiteUrl}guide/getting-started`}>
                 {t('nav.tutorials')}
-              </MdrLink>
-              <MdrLink to={`${docsSiteUrl}guide/introduction`}>
+              </PdxLink>
+              <PdxLink to={`${docsSiteUrl}guide/introduction`}>
                 {t('nav.docs')}
-              </MdrLink>
+              </PdxLink>
             </div>
             <a
               className={navIconClassName}
-              href="https://github.com/Mdr-Tutorials/Mdr-Front-Engine"
+              href="https://github.com/Prodivix/prodivix"
               target="_blank"
               rel="noreferrer"
               aria-label={t('nav.github')}
@@ -98,11 +98,11 @@ function Home() {
               {themeMode === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             {isAuthenticated && user ? (
-              <MdrLink to="/profile" className={profileLinkClassName}>
-                <MdrAvatar size="Small" initials={initials} />
-              </MdrLink>
+              <PdxLink to="/profile" className={profileLinkClassName}>
+                <PdxAvatar size="Small" initials={initials} />
+              </PdxLink>
             ) : (
-              <MdrButtonLink
+              <PdxButtonLink
                 text={t('nav.signIn')}
                 size="Small"
                 category="Ghost"
@@ -110,8 +110,8 @@ function Home() {
               />
             )}
           </div>
-        </MdrNav.Right>
-      </MdrNav>
+        </PdxNav.Right>
+      </PdxNav>
       <div className="w-[85vw] flex-1">
         <div className="mt-25 flex flex-col text-(--home-hero-text)">
           <h1 style={heroTextStyle}>
@@ -143,13 +143,13 @@ function Home() {
         </div>
         <h2 className={secondaryHeadingClassName}>{t('hero.subtitle')}</h2>
         <div className="mt-20 flex flex-row gap-6">
-          <MdrButtonLink
+          <PdxButtonLink
             text={t('actions.enterEditor')}
             size="Big"
             category="Primary"
             to="/editor"
           />
-          <MdrButtonLink
+          <PdxButtonLink
             text={t('actions.viewDocs')}
             size="Big"
             category="Secondary"
@@ -161,7 +161,7 @@ function Home() {
       <footer className="mt-auto w-full px-2 pt-14 pb-5">
         <div className="flex items-center justify-center px-6 py-4 text-(length:--font-size-sm) text-(--home-footer-text) sm:px-7">
           <div className="flex items-center gap-2">
-            <IconMdr size={16} className="text-(--home-footer-text)" />
+            <IconProdivix size={16} className="text-(--home-footer-text)" />
             <span>{t('footer.copy')}</span>
           </div>
         </div>

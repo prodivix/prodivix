@@ -7,16 +7,16 @@ import {
   removeNodeByIdWithNode,
   supportsChildrenForNode,
 } from '@/editor/features/design/blueprint/editor/model/tree';
-import type { MIRDocument } from '@/core/types/engine.types';
-import { materializeMirRoot, normalizeTreeToUiGraph } from '@/mir/graph';
+import type { PIRDocument } from '@/core/types/engine.types';
+import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
 import { getOverNodeId, resolveTreePlacement } from './dragdrop.placement';
 import type { DragOverData, TreeSortDragData } from './dragdrop.types';
 
 export const applyTreeSortDragEnd = (
-  doc: MIRDocument,
+  doc: PIRDocument,
   event: DragEndEvent,
   data: TreeSortDragData
-): MIRDocument => {
+): PIRDocument => {
   const over = event.over;
   if (!over) return doc;
 
@@ -26,7 +26,7 @@ export const applyTreeSortDragEnd = (
   const activeParentId = data.parentId;
   if (!activeId || !activeParentId) return doc;
 
-  const root = materializeMirRoot(doc);
+  const root = materializePirRoot(doc);
   if (activeId === root.id) return doc;
 
   const overNodeIdRaw = getOverNodeId(overData, overId);

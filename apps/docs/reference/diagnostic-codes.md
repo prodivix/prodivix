@@ -1,6 +1,6 @@
 # 错误码索引
 
-MdrFrontEngine 使用稳定错误码帮助定位问题。每个错误码都对应独立说明页，用于快速理解含义、确认触发条件，并找到建议处理方式。
+Prodivix 使用稳定错误码帮助定位问题。每个错误码都对应独立说明页，用于快速理解含义、确认触发条件，并找到建议处理方式。
 
 ## 如何使用
 
@@ -25,7 +25,7 @@ requestId
 
 | 前缀        | 范围     | 说明                                                     |
 | ----------- | -------- | -------------------------------------------------------- |
-| `MIR-xxxx`  | MIR 文档 | 文档形状、UI graph、ValueRef、materialize 和运行前校验   |
+| `PIR-xxxx`  | PIR 文档 | 文档形状、UI graph、ValueRef、materialize 和运行前校验   |
 | `WKS-xxxx`  | 工作区   | 工作区加载、文档保存、同步冲突、capability 和 patch 应用 |
 | `EDT-xxxx`  | 编辑器   | 选择、拖拽、Inspector、画布、命令和 autosave             |
 | `UX-xxxx`   | 用户体验 | 可访问性、交互、响应式布局、内容、视觉反馈和体验检查器   |
@@ -40,7 +40,7 @@ requestId
 
 ## 命名空间索引
 
-- [MIR](/reference/diagnostics/mir)
+- [PIR](/reference/diagnostics/pir)
 - [Workspace](/reference/diagnostics/wks)
 - [Editor](/reference/diagnostics/edt)
 - [UX](/reference/diagnostics/ux)
@@ -55,25 +55,25 @@ requestId
 
 ## 所有错误码
 
-### MIR
+### PIR
 
 | Code                                          | 名称                      | 严重程度  |
 | --------------------------------------------- | ------------------------- | --------- |
-| [`MIR-1001`](/reference/diagnostics/mir-1001) | 禁止保存树形 UI 根节点    | `error`   |
-| [`MIR-1002`](/reference/diagnostics/mir-1002) | UI graph 缺失             | `error`   |
-| [`MIR-1003`](/reference/diagnostics/mir-1003) | 节点字段非法              | `error`   |
-| [`MIR-2001`](/reference/diagnostics/mir-2001) | 根节点不存在              | `error`   |
-| [`MIR-2002`](/reference/diagnostics/mir-2002) | 节点 key 与节点 ID 不一致 | `error`   |
-| [`MIR-2003`](/reference/diagnostics/mir-2003) | 子节点引用不存在          | `error`   |
-| [`MIR-2004`](/reference/diagnostics/mir-2004) | UI graph 存在环           | `error`   |
-| [`MIR-2005`](/reference/diagnostics/mir-2005) | 节点存在多个结构父级      | `error`   |
-| [`MIR-2006`](/reference/diagnostics/mir-2006) | 存在未受控孤儿节点        | `warning` |
-| [`MIR-2007`](/reference/diagnostics/mir-2007) | 跨结构节点引用不存在      | `error`   |
-| [`MIR-3001`](/reference/diagnostics/mir-3001) | ValueRef 路径无法解析     | `warning` |
-| [`MIR-3002`](/reference/diagnostics/mir-3002) | 数据作用域配置非法        | `warning` |
-| [`MIR-3010`](/reference/diagnostics/mir-3010) | 列表渲染配置非法          | `warning` |
-| [`MIR-4001`](/reference/diagnostics/mir-4001) | Materialize 失败          | `error`   |
-| [`MIR-9001`](/reference/diagnostics/mir-9001) | MIR 未知异常              | `error`   |
+| [`PIR-1001`](/reference/diagnostics/pir-1001) | 禁止保存树形 UI 根节点    | `error`   |
+| [`PIR-1002`](/reference/diagnostics/pir-1002) | UI graph 缺失             | `error`   |
+| [`PIR-1003`](/reference/diagnostics/pir-1003) | 节点字段非法              | `error`   |
+| [`PIR-2001`](/reference/diagnostics/pir-2001) | 根节点不存在              | `error`   |
+| [`PIR-2002`](/reference/diagnostics/pir-2002) | 节点 key 与节点 ID 不一致 | `error`   |
+| [`PIR-2003`](/reference/diagnostics/pir-2003) | 子节点引用不存在          | `error`   |
+| [`PIR-2004`](/reference/diagnostics/pir-2004) | UI graph 存在环           | `error`   |
+| [`PIR-2005`](/reference/diagnostics/pir-2005) | 节点存在多个结构父级      | `error`   |
+| [`PIR-2006`](/reference/diagnostics/pir-2006) | 存在未受控孤儿节点        | `warning` |
+| [`PIR-2007`](/reference/diagnostics/pir-2007) | 跨结构节点引用不存在      | `error`   |
+| [`PIR-3001`](/reference/diagnostics/pir-3001) | ValueRef 路径无法解析     | `warning` |
+| [`PIR-3002`](/reference/diagnostics/pir-3002) | 数据作用域配置非法        | `warning` |
+| [`PIR-3010`](/reference/diagnostics/pir-3010) | 列表渲染配置非法          | `warning` |
+| [`PIR-4001`](/reference/diagnostics/pir-4001) | Materialize 失败          | `error`   |
+| [`PIR-9001`](/reference/diagnostics/pir-9001) | PIR 未知异常              | `error`   |
 
 ### Workspace
 

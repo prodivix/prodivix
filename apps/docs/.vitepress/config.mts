@@ -1,11 +1,11 @@
-﻿import { defineConfig } from 'vitepress';
+import { defineConfig } from 'vitepress';
 
 const base = process.env.VITEPRESS_BASE ?? '/';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   base,
-  title: 'MdrFrontEngine',
+  title: 'Prodivix',
   description: '可视化前端开发平台 - 从设计到部署的一站式解决方案',
   lang: 'zh-CN',
   lastUpdated: true,
@@ -14,7 +14,7 @@ export default defineConfig({
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
     ['meta', { name: 'theme-color', content: '#5f67ee' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:title', content: 'MdrFrontEngine' }],
+    ['meta', { property: 'og:title', content: 'Prodivix' }],
     [
       'meta',
       {
@@ -26,12 +26,12 @@ export default defineConfig({
 
   themeConfig: {
     logo: '/logo.svg',
-    siteTitle: 'MdrFrontEngine',
+    siteTitle: 'Prodivix',
 
     nav: [
       { text: '首页', link: '/' },
       { text: '指南', link: '/guide/introduction' },
-      { text: '参考', link: '/reference/mir-spec' },
+      { text: '参考', link: '/reference/pir-spec' },
       {
         text: 'API',
         items: [
@@ -63,7 +63,7 @@ export default defineConfig({
         {
           text: '规范',
           items: [
-            { text: 'MIR 语法规范', link: '/reference/mir-spec' },
+            { text: 'PIR 语法规范', link: '/reference/pir-spec' },
             {
               text: '作者态符号环境',
               link: '/reference/authoring-symbol-environment',
@@ -78,25 +78,25 @@ export default defineConfig({
           collapsed: true,
           items: [
             {
-              text: 'MIR',
-              link: '/reference/diagnostics/mir',
+              text: 'PIR',
+              link: '/reference/diagnostics/pir',
               collapsed: true,
               items: [
-                { text: 'MIR-1001', link: '/reference/diagnostics/mir-1001' },
-                { text: 'MIR-1002', link: '/reference/diagnostics/mir-1002' },
-                { text: 'MIR-1003', link: '/reference/diagnostics/mir-1003' },
-                { text: 'MIR-2001', link: '/reference/diagnostics/mir-2001' },
-                { text: 'MIR-2002', link: '/reference/diagnostics/mir-2002' },
-                { text: 'MIR-2003', link: '/reference/diagnostics/mir-2003' },
-                { text: 'MIR-2004', link: '/reference/diagnostics/mir-2004' },
-                { text: 'MIR-2005', link: '/reference/diagnostics/mir-2005' },
-                { text: 'MIR-2006', link: '/reference/diagnostics/mir-2006' },
-                { text: 'MIR-2007', link: '/reference/diagnostics/mir-2007' },
-                { text: 'MIR-3001', link: '/reference/diagnostics/mir-3001' },
-                { text: 'MIR-3002', link: '/reference/diagnostics/mir-3002' },
-                { text: 'MIR-3010', link: '/reference/diagnostics/mir-3010' },
-                { text: 'MIR-4001', link: '/reference/diagnostics/mir-4001' },
-                { text: 'MIR-9001', link: '/reference/diagnostics/mir-9001' },
+                { text: 'PIR-1001', link: '/reference/diagnostics/pir-1001' },
+                { text: 'PIR-1002', link: '/reference/diagnostics/pir-1002' },
+                { text: 'PIR-1003', link: '/reference/diagnostics/pir-1003' },
+                { text: 'PIR-2001', link: '/reference/diagnostics/pir-2001' },
+                { text: 'PIR-2002', link: '/reference/diagnostics/pir-2002' },
+                { text: 'PIR-2003', link: '/reference/diagnostics/pir-2003' },
+                { text: 'PIR-2004', link: '/reference/diagnostics/pir-2004' },
+                { text: 'PIR-2005', link: '/reference/diagnostics/pir-2005' },
+                { text: 'PIR-2006', link: '/reference/diagnostics/pir-2006' },
+                { text: 'PIR-2007', link: '/reference/diagnostics/pir-2007' },
+                { text: 'PIR-3001', link: '/reference/diagnostics/pir-3001' },
+                { text: 'PIR-3002', link: '/reference/diagnostics/pir-3002' },
+                { text: 'PIR-3010', link: '/reference/diagnostics/pir-3010' },
+                { text: 'PIR-4001', link: '/reference/diagnostics/pir-4001' },
+                { text: 'PIR-9001', link: '/reference/diagnostics/pir-9001' },
               ],
             },
             {
@@ -405,13 +405,13 @@ export default defineConfig({
     socialLinks: [
       {
         icon: 'github',
-        link: 'https://github.com/Mdr-Tutorials/Mdr-Front-Engine',
+        link: 'https://github.com/Prodivix/prodivix',
       },
     ],
 
     footer: {
       message: '基于 MIT 许可证发布',
-      copyright: 'Copyright © 2024-present MdrFrontEngine Team',
+      copyright: 'Copyright © 2024-present Prodivix Team',
     },
 
     search: {

@@ -1,7 +1,7 @@
 import type { Preview } from '@storybook/react';
 // 引入 MemoryRouter
 import { MemoryRouter } from 'react-router';
-import '@mdr/themes';
+import '@prodivix/themes';
 
 const preview: Preview = {
   parameters: {

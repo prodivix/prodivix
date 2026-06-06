@@ -6,7 +6,7 @@ import {
   Type,
   WandSparkles,
 } from 'lucide-react';
-import { MdrInput, MdrRichTextEditor } from '@mdr/ui';
+import { PdxInput, PdxRichTextEditor } from '@prodivix/ui';
 import { useState } from 'react';
 import { InspectorRow } from '@/editor/features/design/inspector/components/InspectorRow';
 import { getTextFieldLabel } from '@/editor/features/design/blueprint/editor/controller/inspectorUtils';
@@ -51,7 +51,7 @@ export function InspectorNodeIdentityFields() {
           })}
           control={
             <div className="InspectorInputRow group flex w-full items-center gap-1">
-              <MdrInput
+              <PdxInput
                 size="Small"
                 value={draftId}
                 dataAttributes={{
@@ -166,7 +166,7 @@ export function InspectorNodeIdentityFields() {
                     </button>
                   </div>
                   {isRichEditorCollapsed ? null : (
-                    <MdrRichTextEditor
+                    <PdxRichTextEditor
                       className="w-full"
                       value={primaryTextField.value}
                       onChange={(value) => {
@@ -180,7 +180,7 @@ export function InspectorNodeIdentityFields() {
               ) : (
                 // 单行输入框 + 一个按钮
                 <div className="InspectorInputRow InspectorSingleInput relative flex w-full items-center">
-                  <MdrInput
+                  <PdxInput
                     size="Small"
                     className={
                       primaryTextField.key === 'text' ? 'pr-8' : undefined

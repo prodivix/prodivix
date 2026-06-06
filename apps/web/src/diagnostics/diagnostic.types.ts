@@ -1,7 +1,7 @@
-export type MdrDiagnosticSeverity = 'info' | 'warning' | 'error' | 'fatal';
+export type ProdivixDiagnosticSeverity = 'info' | 'warning' | 'error' | 'fatal';
 
-export type MdrDiagnosticDomain =
-  | 'mir'
+export type ProdivixDiagnosticDomain =
+  | 'pir'
   | 'workspace'
   | 'route'
   | 'editor'
@@ -17,7 +17,7 @@ export type MdrDiagnosticDomain =
 export type DiagnosticTargetRef =
   | { kind: 'workspace'; workspaceId: string }
   | { kind: 'document'; workspaceId?: string; documentId: string }
-  | { kind: 'mir-node'; documentId: string; nodeId: string }
+  | { kind: 'pir-node'; documentId: string; nodeId: string }
   | {
       kind: 'inspector-field';
       documentId: string;
@@ -48,10 +48,10 @@ export type SourceSpan = {
   endColumn: number;
 };
 
-export type MdrDiagnostic = {
+export type ProdivixDiagnostic = {
   code: string;
-  severity: MdrDiagnosticSeverity;
-  domain: MdrDiagnosticDomain;
+  severity: ProdivixDiagnosticSeverity;
+  domain: ProdivixDiagnosticDomain;
   message: string;
   hint?: string;
   docsUrl?: string;
@@ -215,8 +215,8 @@ export type DiagnosticPresentation = {
   title: string;
   summary: string;
   detail?: string;
-  severity: MdrDiagnosticSeverity;
-  domain: MdrDiagnosticDomain;
+  severity: ProdivixDiagnosticSeverity;
+  domain: ProdivixDiagnosticDomain;
   locations: DiagnosticLocationPresentation[];
   evidence: DiagnosticEvidencePresentation[];
   sections: DiagnosticDetailSectionPresentation[];
@@ -263,12 +263,12 @@ export type UxDiagnosticMeta = Record<string, unknown> & {
   evidence?: UxDiagnosticEvidence;
 };
 
-export type UxDiagnostic = MdrDiagnostic & {
+export type UxDiagnostic = ProdivixDiagnostic & {
   code: `UX-${number}`;
   domain: 'ux';
   meta?: UxDiagnosticMeta;
 };
 
-export type CreateDiagnosticInput = Omit<MdrDiagnostic, 'retryable'> & {
+export type CreateDiagnosticInput = Omit<ProdivixDiagnostic, 'retryable'> & {
   retryable?: boolean;
 };

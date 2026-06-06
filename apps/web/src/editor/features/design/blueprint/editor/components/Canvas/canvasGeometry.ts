@@ -28,7 +28,7 @@ export const isInteractiveTarget = (target: HTMLElement | null) => {
 
 export const isNodeTarget = (target: HTMLElement | null) => {
   if (!target) return false;
-  return Boolean(target.closest('[data-mir-id], [data-mir-node-id]'));
+  return Boolean(target.closest('[data-pir-id], [data-pir-node-id]'));
 };
 
 export const normalizeWheelDelta = (event: WheelEvent) => {

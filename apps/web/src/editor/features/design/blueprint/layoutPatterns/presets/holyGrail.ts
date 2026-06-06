@@ -27,7 +27,7 @@ export const HOLY_GRAIL_LAYOUT_PATTERN: LayoutPatternDefinition<{
   },
   build: ({ createId, patternId, resolvedParams }) =>
     createPatternRootNode({
-      id: createId('MdrDiv'),
+      id: createId('PdxDiv'),
       patternId,
       props: {
         display: 'Flex',
@@ -36,7 +36,7 @@ export const HOLY_GRAIL_LAYOUT_PATTERN: LayoutPatternDefinition<{
       },
       children: [
         createPatternRoleNode({
-          id: createId('MdrDiv'),
+          id: createId('PdxDiv'),
           patternId,
           role: 'header',
           props: {
@@ -46,7 +46,7 @@ export const HOLY_GRAIL_LAYOUT_PATTERN: LayoutPatternDefinition<{
           },
         }),
         createPatternRoleNode({
-          id: createId('MdrDiv'),
+          id: createId('PdxDiv'),
           patternId,
           role: 'content',
           props: {
@@ -55,7 +55,7 @@ export const HOLY_GRAIL_LAYOUT_PATTERN: LayoutPatternDefinition<{
           },
           children: [
             createPatternRoleNode({
-              id: createId('MdrDiv'),
+              id: createId('PdxDiv'),
               patternId,
               role: 'sidebar',
               props: {
@@ -66,7 +66,7 @@ export const HOLY_GRAIL_LAYOUT_PATTERN: LayoutPatternDefinition<{
               },
             }),
             createPatternRoleNode({
-              id: createId('MdrDiv'),
+              id: createId('PdxDiv'),
               patternId,
               role: 'main',
               props: {
@@ -81,7 +81,7 @@ export const HOLY_GRAIL_LAYOUT_PATTERN: LayoutPatternDefinition<{
           ],
         }),
         createPatternRoleNode({
-          id: createId('MdrDiv'),
+          id: createId('PdxDiv'),
           patternId,
           role: 'footer',
           props: {

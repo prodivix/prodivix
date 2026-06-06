@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { executeMirNodeGraph } from '@/core/executor/nodeGraph/nodeGraphExecutor';
-import type { MIRDocument } from '@/core/types/engine.types';
+import { executePirNodeGraph } from '@/core/executor/nodeGraph/nodeGraphExecutor';
+import type { PIRDocument } from '@/core/types/engine.types';
 
-const createMirDoc = (graphs: unknown[]): MIRDocument => ({
+const createPirDoc = (graphs: unknown[]): PIRDocument => ({
   version: '1.2',
   ui: {
     root: {
@@ -25,8 +25,8 @@ describe('nodeGraphExecutor', () => {
       .spyOn(console, 'log')
       .mockImplementation(() => undefined);
 
-    const result = await executeMirNodeGraph(
-      createMirDoc([
+    const result = await executePirNodeGraph(
+      createPirDoc([
         {
           id: 'graph-1',
           name: 'Main',

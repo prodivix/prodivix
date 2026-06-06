@@ -4,7 +4,7 @@ import {
   type ApiErrorDiagnosticPayload,
   type ApiErrorPayload,
 } from './apiError';
-import { createDiagnostic, type MdrDiagnosticDomain } from '@/diagnostics';
+import { createDiagnostic, type ProdivixDiagnosticDomain } from '@/diagnostics';
 
 type ApiRequestOptions = Omit<RequestInit, 'headers'> & {
   headers?: HeadersInit;
@@ -36,9 +36,11 @@ const parseResponsePayload = async (response: Response) => {
   return response.text();
 };
 
-const isDiagnosticDomain = (domain: string): domain is MdrDiagnosticDomain =>
+const isDiagnosticDomain = (
+  domain: string
+): domain is ProdivixDiagnosticDomain =>
   [
-    'mir',
+    'pir',
     'workspace',
     'route',
     'editor',
@@ -50,7 +52,9 @@ const isDiagnosticDomain = (domain: string): domain is MdrDiagnosticDomain =>
     'ai',
   ].includes(domain);
 
-const normalizeDomain = (domain: string | undefined): MdrDiagnosticDomain =>
+const normalizeDomain = (
+  domain: string | undefined
+): ProdivixDiagnosticDomain =>
   domain && isDiagnosticDomain(domain) ? domain : 'backend';
 
 const normalizeDiagnostic = (diagnostic: ApiErrorDiagnosticPayload) =>

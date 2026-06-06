@@ -1,7 +1,7 @@
 {
   "backHome": "返回首页",
   "badge": "社区",
-  "title": "公开 MIR 展示",
+  "title": "公开 PIR 展示",
   "subtitle": "探索创作者分享的项目、组件与节点图。",
   "count": "条结果",
   "countNone": "无结果",
@@ -40,7 +40,7 @@
     "author": "作者",
     "updated": "更新于",
     "preview": "只读预览",
-    "mir": "MIR 文档",
+    "pir": "PIR 文档",
     "clone": "克隆到我的工作区",
     "cloning": "克隆中...",
     "error": {

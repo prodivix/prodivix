@@ -2,15 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
-  MdrButton,
-  MdrHeading,
-  MdrIcon,
-  MdrInput,
-  MdrMessage,
-  MdrModal,
-  MdrParagraph,
-  MdrTextarea,
-} from '@mdr/ui';
+  PdxButton,
+  PdxHeading,
+  PdxIcon,
+  PdxInput,
+  PdxMessage,
+  PdxModal,
+  PdxParagraph,
+  PdxTextarea,
+} from '@prodivix/ui';
 import { Calendar, Copy, Mail, Pencil, UserRound } from 'lucide-react';
 import { authApi, ApiError } from './authApi';
 import { useAuthStore } from './useAuthStore';
@@ -127,13 +127,13 @@ export const ProfilePage = () => {
     return (
       <div className="min-h-screen bg-(--bg-canvas) text-(--text-primary)">
         <header className="flex items-center justify-between gap-4 bg-(--bg-canvas) px-5 py-4 md:px-7 md:py-[18px]">
-          <MdrButton
+          <PdxButton
             text={t('actions.backHome')}
             size="Small"
             category="Ghost"
             onClick={() => navigate('/')}
           />
-          <MdrButton
+          <PdxButton
             text={t('actions.login')}
             size="Small"
             category="Primary"
@@ -142,11 +142,11 @@ export const ProfilePage = () => {
         </header>
         <main className="mx-auto grid max-w-[980px] gap-[18px] px-5 pb-10 md:px-7 md:pb-12">
           <div className="grid min-h-[calc(100vh-140px)] place-content-center gap-2.5 text-center text-(--text-secondary)">
-            <MdrIcon icon={<UserRound />} size={34} />
-            <MdrHeading level={2} className="m-0 text-[88px]">
+            <PdxIcon icon={<UserRound />} size={34} />
+            <PdxHeading level={2} className="m-0 text-[88px]">
               {t('empty.title')}
-            </MdrHeading>
-            <MdrParagraph color="Muted">{t('empty.subtitle')}</MdrParagraph>
+            </PdxHeading>
+            <PdxParagraph color="Muted">{t('empty.subtitle')}</PdxParagraph>
           </div>
         </main>
       </div>
@@ -156,14 +156,14 @@ export const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-(--bg-canvas) text-(--text-primary)">
       <header className="flex items-center justify-between gap-4 bg-(--bg-canvas) px-5 py-4 md:px-7 md:py-[18px]">
-        <MdrButton
+        <PdxButton
           text={t('actions.backHome')}
           size="Small"
           category="Ghost"
           onClick={() => navigate('/')}
         />
         <div className="flex flex-wrap gap-2.5">
-          <MdrButton
+          <PdxButton
             text={t('actions.edit')}
             size="Small"
             category="Secondary"
@@ -172,7 +172,7 @@ export const ProfilePage = () => {
             disabled={isLoading}
             onClick={openEdit}
           />
-          <MdrButton
+          <PdxButton
             text={t('actions.logout')}
             size="Small"
             category="Primary"
@@ -195,12 +195,12 @@ export const ProfilePage = () => {
       <main className="mx-auto grid max-w-[980px] gap-[18px] px-5 pb-10 md:px-7 md:pb-12">
         {flash && (
           <div className="max-w-[620px]">
-            <MdrMessage type={flash.type} text={flash.text} />
+            <PdxMessage type={flash.type} text={flash.text} />
           </div>
         )}
         {error && (
           <div className="max-w-[620px]">
-            <MdrMessage
+            <PdxMessage
               type="Danger"
               text={error}
               closable
@@ -211,15 +211,15 @@ export const ProfilePage = () => {
 
         <section className="mt-2 grid items-start gap-[18px] md:grid-cols-[auto_1fr]">
           <div className="grid min-w-0 gap-2.5">
-            <MdrHeading
+            <PdxHeading
               level={1}
               className="m-0 [font-family:'JetBrains_Mono','SFMono-Regular','Menlo',monospace] text-[56px] md:text-[96px] lg:text-[108px]"
             >
               {displayName}
-            </MdrHeading>
-            <MdrParagraph className="m-0 max-w-[58ch] text-[13px] leading-[1.5] text-(--text-secondary)">
+            </PdxHeading>
+            <PdxParagraph className="m-0 max-w-[58ch] text-[13px] leading-[1.5] text-(--text-secondary)">
               {displayBio}
-            </MdrParagraph>
+            </PdxParagraph>
             <button
               type="button"
               className="inline-flex max-w-full -translate-x-2.5 cursor-pointer items-center gap-3 rounded-2xl border-0 bg-(--bg-canvas) px-3 py-2.5 transition-colors duration-150 hover:bg-(--bg-panel)"
@@ -252,7 +252,7 @@ export const ProfilePage = () => {
                 </span>
               )}
               <span className="inline-flex opacity-60 transition-opacity hover:opacity-100">
-                <MdrIcon icon={<Copy />} size={14} />
+                <PdxIcon icon={<Copy />} size={14} />
               </span>
             </button>
           </div>
@@ -264,34 +264,34 @@ export const ProfilePage = () => {
             className="inline-flex cursor-pointer items-center gap-2 rounded-full border-0 bg-(--bg-panel) px-3 py-2 text-xs text-(--text-primary) transition-colors duration-150 hover:bg-(--bg-raised)"
             onClick={() => copyText(user?.email, t('messages.copiedEmail'))}
           >
-            <MdrIcon icon={<Mail />} size={16} />
+            <PdxIcon icon={<Mail />} size={16} />
             <span>{user?.email}</span>
             <span className="ml-0.5 inline-flex opacity-60 transition-opacity hover:opacity-100">
-              <MdrIcon icon={<Copy />} size={14} />
+              <PdxIcon icon={<Copy />} size={14} />
             </span>
           </button>
           <div className="inline-flex cursor-default items-center gap-2 rounded-full border-0 bg-(--bg-panel) px-3 py-2 text-xs text-(--text-primary)">
-            <MdrIcon icon={<Calendar />} size={16} />
+            <PdxIcon icon={<Calendar />} size={16} />
             <span>{formatDate(user?.createdAt)}</span>
           </div>
         </section>
       </main>
 
-      <MdrModal
+      <PdxModal
         open={editOpen}
         title={t('edit.title')}
         onClose={() => setEditOpen(false)}
         closeOnOverlayClick={!isLoading}
         footer={
           <div className="flex justify-end gap-2.5">
-            <MdrButton
+            <PdxButton
               text={t('actions.cancel')}
               size="Small"
               category="Secondary"
               disabled={isLoading}
               onClick={() => setEditOpen(false)}
             />
-            <MdrButton
+            <PdxButton
               text={t('actions.save')}
               size="Small"
               category="Primary"
@@ -302,7 +302,7 @@ export const ProfilePage = () => {
         }
       >
         {error && (
-          <MdrMessage
+          <PdxMessage
             type="Danger"
             text={error}
             closable
@@ -312,7 +312,7 @@ export const ProfilePage = () => {
         <div className="grid gap-3.5">
           <label className="grid gap-1.5 text-xs text-(--text-secondary)">
             <span>{t('labels.name')}</span>
-            <MdrInput
+            <PdxInput
               size="Small"
               value={draft.name}
               onChange={(value) => setDraft((p) => ({ ...p, name: value }))}
@@ -320,7 +320,7 @@ export const ProfilePage = () => {
           </label>
           <label className="grid gap-1.5 text-xs text-(--text-secondary)">
             <span>{t('labels.description')}</span>
-            <MdrTextarea
+            <PdxTextarea
               size="Small"
               rows={3}
               value={draft.description}
@@ -330,7 +330,7 @@ export const ProfilePage = () => {
             />
           </label>
         </div>
-      </MdrModal>
+      </PdxModal>
     </div>
   );
 };

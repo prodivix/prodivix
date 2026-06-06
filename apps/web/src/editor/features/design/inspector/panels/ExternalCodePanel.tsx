@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { MdrInput, MdrSelect } from '@mdr/ui';
+import { PdxInput, PdxSelect } from '@prodivix/ui';
 import { Code2 } from 'lucide-react';
 import type { ComponentNode } from '@/core/types/engine.types';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
@@ -189,7 +189,7 @@ function ExternalCodePanelView({
         layout="vertical"
         control={
           <div className="flex flex-col gap-1.5">
-            <MdrSelect
+            <PdxSelect
               size="Small"
               value={externalCode.resourcePath ?? ''}
               options={compatibleResourceOptions}
@@ -250,7 +250,7 @@ function ExternalCodePanelView({
           defaultValue: 'Language',
         })}
         control={
-          <MdrSelect
+          <PdxSelect
             size="Small"
             value={selectedLanguage}
             options={[
@@ -289,7 +289,7 @@ function ExternalCodePanelView({
           }
         )}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={externalCode.resourcePath ?? ''}
             onChange={(value) =>
@@ -318,7 +318,7 @@ function ExternalCodePanelView({
           defaultValue: 'Export or function name used by the runtime host.',
         })}
         control={
-          <MdrInput
+          <PdxInput
             size="Small"
             value={externalCode.entry ?? ''}
             onChange={(value) =>

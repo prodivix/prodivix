@@ -1,0 +1,29 @@
+.PdxPopover {
+  position: relative;
+  display: inline-flex;
+}
+
+.PdxPopoverPanel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  min-width: 180px;
+  box-shadow: var(--shadow-md);
+  z-index: 20;
+}
+
+.PdxPopoverTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.PdxPopoverContent {
+  font-size: 13px;
+  color: var(--text-muted);
+}

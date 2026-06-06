@@ -1,0 +1,78 @@
+@use './PdxField.scss';
+
+.PdxVerificationCode {
+  width: 100%;
+}
+
+.PdxVerificationCodeInputs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.PdxVerificationCodeItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.PdxVerificationCodeInput {
+  width: 44px;
+  height: 44px;
+  text-align: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
+    transform var(--motion-duration-fast) var(--motion-easing-standard);
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--accent-color) 12%, transparent);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--bg-raised);
+  }
+}
+
+.PdxVerificationCodeSeparator {
+  color: var(--border-strong);
+  font-size: 14px;
+}
+
+.PdxVerificationCode.Small .PdxVerificationCodeInput {
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+}
+
+.PdxVerificationCode.Large .PdxVerificationCodeInput {
+  width: 52px;
+  height: 52px;
+  font-size: 20px;
+}
+
+.PdxVerificationCode.Error .PdxVerificationCodeInput {
+  border-color: var(--danger-color);
+}
+
+.PdxVerificationCode.Warning .PdxVerificationCodeInput {
+  border-color: var(--warning-color);
+}
+
+.PdxVerificationCode.Success .PdxVerificationCodeInput {
+  border-color: var(--success-color);
+}

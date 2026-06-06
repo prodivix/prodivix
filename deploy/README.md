@@ -6,8 +6,8 @@
 
 - 推送到 `main` 或打 `v*` tag 时自动构建。
 - 构建两个镜像并推送到 GHCR：
-  - `ghcr.io/<owner>/mdr-backend`
-  - `ghcr.io/<owner>/mdr-web`
+  - `ghcr.io/<owner>/prodivix-backend`
+  - `ghcr.io/<owner>/prodivix-web`
 - 同时打 `latest`（默认分支）、`sha-*`、`tag` 三种标签。
 
 ## 2) 服务器上拉取并启动（无需本地构建）

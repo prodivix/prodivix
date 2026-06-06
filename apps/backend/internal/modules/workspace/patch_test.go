@@ -13,7 +13,7 @@ func mustRaw(value string) json.RawMessage {
 func TestApplyWorkspacePatchObjectAndArrayOps(t *testing.T) {
 	source := mustRaw(`{"ui":{"graph":{"version":1,"rootId":"root","nodesById":{"root":{"id":"root","type":"container"}},"childIdsById":{"root":["a","b"]}}}}`)
 	patched, err := applyWorkspacePatch(source, []WorkspacePatchOp{
-		{Op: "add", Path: "/ui/graph/nodesById/c", Value: mustRaw(`{"id":"c","type":"MdrText"}`)},
+		{Op: "add", Path: "/ui/graph/nodesById/c", Value: mustRaw(`{"id":"c","type":"PdxText"}`)},
 		{Op: "add", Path: "/ui/graph/childIdsById/root/1", Value: mustRaw(`"c"`)},
 		{Op: "replace", Path: "/ui/graph/rootId", Value: mustRaw(`"root"`)},
 		{Op: "remove", Path: "/ui/graph/childIdsById/root/0"},
@@ -82,7 +82,7 @@ func TestApplyWorkspaceDocumentPatchAllowsCodeSource(t *testing.T) {
 	}
 }
 
-func TestApplyWorkspaceDocumentPatchRejectsMIRPathForCodeDocument(t *testing.T) {
+func TestApplyWorkspaceDocumentPatchRejectsPIRPathForCodeDocument(t *testing.T) {
 	_, err := applyWorkspaceDocumentPatch(
 		WorkspaceDocumentTypeCode,
 		mustRaw(`{"language":"ts","source":"export function openDialog() {}"}`),

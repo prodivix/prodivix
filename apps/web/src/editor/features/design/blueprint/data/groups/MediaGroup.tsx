@@ -1,12 +1,12 @@
 import {
-  MdrAudio,
-  MdrAvatar,
-  MdrEmbed,
-  MdrIframe,
-  MdrImage,
-  MdrImageGallery,
-  MdrVideo,
-} from '@mdr/ui';
+  PdxAudio,
+  PdxAvatar,
+  PdxEmbed,
+  PdxIframe,
+  PdxImage,
+  PdxImageGallery,
+  PdxVideo,
+} from '@prodivix/ui';
 import type { ComponentGroup } from '@/editor/features/design/blueprint/editor/model/types';
 import { buildVariants } from '@/editor/features/design/blueprint/data/helpers';
 import {
@@ -29,10 +29,10 @@ export const MEDIA_GROUP: ComponentGroup = {
     {
       id: 'image',
       name: 'Image',
-      preview: <MdrImage src={PLACEHOLDER_IMAGE} alt="Preview" size="Medium" />,
+      preview: <PdxImage src={PLACEHOLDER_IMAGE} alt="Preview" size="Medium" />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrImage
+        <PdxImage
           src={PLACEHOLDER_IMAGE}
           alt="Preview"
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
@@ -42,10 +42,10 @@ export const MEDIA_GROUP: ComponentGroup = {
     {
       id: 'avatar',
       name: 'Avatar',
-      preview: <MdrAvatar src={PLACEHOLDER_AVATAR} size="Medium" />,
+      preview: <PdxAvatar src={PLACEHOLDER_AVATAR} size="Medium" />,
       sizeOptions: AVATAR_SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrAvatar
+        <PdxAvatar
           src={PLACEHOLDER_AVATAR}
           size={
             (size ?? 'Medium') as
@@ -62,7 +62,7 @@ export const MEDIA_GROUP: ComponentGroup = {
       id: 'image-gallery',
       name: 'Gallery',
       preview: (
-        <MdrImageGallery
+        <PdxImageGallery
           images={GALLERY_IMAGES}
           columns={2}
           gap="Small"
@@ -71,7 +71,7 @@ export const MEDIA_GROUP: ComponentGroup = {
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrImageGallery
+        <PdxImageGallery
           images={GALLERY_IMAGES}
           columns={2}
           gap="Small"
@@ -81,7 +81,7 @@ export const MEDIA_GROUP: ComponentGroup = {
       variants: buildVariants(
         ['Grid', 'List', 'Masonry'] as const,
         (layout) => (
-          <MdrImageGallery
+          <PdxImageGallery
             images={GALLERY_IMAGES}
             columns={2}
             gap="Small"
@@ -96,12 +96,12 @@ export const MEDIA_GROUP: ComponentGroup = {
       id: 'video',
       name: 'Video',
       preview: (
-        <MdrVideo src="" poster={PLACEHOLDER_VIDEO} controls={false} muted />
+        <PdxVideo src="" poster={PLACEHOLDER_VIDEO} controls={false} muted />
       ),
       variants: buildVariants(
         ['16:9', '4:3', '1:1'] as const,
         (ratio) => (
-          <MdrVideo
+          <PdxVideo
             src=""
             poster={PLACEHOLDER_VIDEO}
             controls={false}
@@ -116,14 +116,14 @@ export const MEDIA_GROUP: ComponentGroup = {
     {
       id: 'audio',
       name: 'Audio',
-      preview: <MdrAudio src="" controls />,
+      preview: <PdxAudio src="" controls />,
       scale: 0.6,
     },
     {
       id: 'iframe',
       name: 'Iframe',
       preview: (
-        <MdrIframe
+        <PdxIframe
           src="about:blank"
           srcDoc={PLACEHOLDER_IFRAME}
           title="Preview"
@@ -132,7 +132,7 @@ export const MEDIA_GROUP: ComponentGroup = {
       variants: buildVariants(
         ['16:9', '4:3', '1:1'] as const,
         (ratio) => (
-          <MdrIframe
+          <PdxIframe
             src="about:blank"
             srcDoc={PLACEHOLDER_IFRAME}
             title="Preview"
@@ -146,11 +146,11 @@ export const MEDIA_GROUP: ComponentGroup = {
     {
       id: 'embed',
       name: 'Embed',
-      preview: <MdrEmbed type="Custom" url={EMBED_PLACEHOLDER_URL} />,
+      preview: <PdxEmbed type="Custom" url={EMBED_PLACEHOLDER_URL} />,
       variants: buildVariants(
         ['16:9', '4:3', '1:1'] as const,
         (ratio) => (
-          <MdrEmbed
+          <PdxEmbed
             type="Custom"
             url={EMBED_PLACEHOLDER_URL}
             aspectRatio={ratio}

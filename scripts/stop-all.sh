@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-$HOME/mdr-front-engine}"
+REPO_DIR="${REPO_DIR:-$HOME/prodivix}"
 RUN_DIR="$REPO_DIR/.run"
 
 for f in backend.pid frontend.pid; do

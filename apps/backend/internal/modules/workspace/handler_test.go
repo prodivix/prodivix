@@ -11,8 +11,8 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	backendauth "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/auth"
-	backendproject "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/project"
+	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
+	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
 	"github.com/gin-gonic/gin"
 )
 
@@ -68,7 +68,7 @@ LEFT JOIN workspace_routes r ON r.workspace_id = w.id
 LEFT JOIN workspace_settings s ON s.workspace_id = w.id
 WHERE w.id = $1`)
 	mock.ExpectQuery(workspaceQuery).WithArgs("ws_missing").WillReturnError(sql.ErrNoRows)
-	projectQuery := regexp.QuoteMeta(`SELECT id, owner_id, resource_type, name, description, mir_json, is_public, stars_count, created_at, updated_at
+	projectQuery := regexp.QuoteMeta(`SELECT id, owner_id, resource_type, name, description, pir_json, is_public, stars_count, created_at, updated_at
 FROM projects
 WHERE owner_id = $1 AND id = $2`)
 	mock.ExpectQuery(projectQuery).WithArgs("user_1", "ws_missing").WillReturnError(sql.ErrNoRows)
@@ -108,7 +108,7 @@ FROM workspaces w
 LEFT JOIN workspace_routes r ON r.workspace_id = w.id
 LEFT JOIN workspace_settings s ON s.workspace_id = w.id
 WHERE w.id = $1`)
-	projectQuery := regexp.QuoteMeta(`SELECT id, owner_id, resource_type, name, description, mir_json, is_public, stars_count, created_at, updated_at
+	projectQuery := regexp.QuoteMeta(`SELECT id, owner_id, resource_type, name, description, pir_json, is_public, stars_count, created_at, updated_at
 FROM projects
 WHERE owner_id = $1 AND id = $2`)
 	insertWorkspace := regexp.QuoteMeta(`INSERT INTO workspaces (
@@ -129,7 +129,7 @@ ORDER BY path ASC`)
 	mock.ExpectQuery(projectQuery).
 		WithArgs("user_1", "prj_bootstrap").
 		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "owner_id", "resource_type", "name", "description", "mir_json", "is_public", "stars_count", "created_at", "updated_at",
+			"id", "owner_id", "resource_type", "name", "description", "pir_json", "is_public", "stars_count", "created_at", "updated_at",
 		}).AddRow(
 			"prj_bootstrap",
 			"user_1",
@@ -149,7 +149,7 @@ ORDER BY path ASC`)
 		"user_1",
 		"Bootstrap Project",
 		"root",
-		`{"treeById":{"doc_root_node":{"docId":"doc_root","id":"doc_root_node","kind":"doc","name":"mir.json","parentId":"root"},"root":{"children":["doc_root_node"],"id":"root","kind":"dir","name":"/","parentId":null}},"treeRootId":"root"}`,
+		`{"treeById":{"doc_root_node":{"docId":"doc_root","id":"doc_root_node","kind":"doc","name":"pir.json","parentId":"root"},"root":{"children":["doc_root_node"],"id":"root","kind":"dir","name":"/","parentId":null}},"treeRootId":"root"}`,
 		sqlmock.AnyArg(),
 		sqlmock.AnyArg(),
 	).WillReturnResult(sqlmock.NewResult(1, 1))
@@ -162,18 +162,18 @@ ORDER BY path ASC`)
 	mock.ExpectQuery(insertDocument).WithArgs(
 		"prj_bootstrap",
 		"doc_root",
-		"mir-page",
+		"pir-page",
 		"Root",
-		"/mir.json",
+		"/pir.json",
 		`{"ui":{"graph":{"childIdsById":{"root":[]},"nodesById":{"root":{"id":"root","type":"container"}},"rootId":"root","version":1}},"version":"1.3"}`,
 	).WillReturnRows(sqlmock.NewRows([]string{
 		"workspace_id", "id", "doc_type", "name", "path", "content_rev", "meta_rev", "content_json", "updated_at",
 	}).AddRow(
 		"prj_bootstrap",
 		"doc_root",
-		"mir-page",
+		"pir-page",
 		"Root",
-		"/mir.json",
+		"/pir.json",
 		1,
 		1,
 		[]byte(`{"version":"1.3","ui":{"graph":{"version":1,"rootId":"root","nodesById":{"root":{"id":"root","type":"container"}},"childIdsById":{"root":[]}}}}`),
@@ -192,7 +192,7 @@ ORDER BY path ASC`)
 			1,
 			1,
 			"root",
-			[]byte(`{"treeRootId":"root","treeById":{"doc_root_node":{"docId":"doc_root","id":"doc_root_node","kind":"doc","name":"mir.json","parentId":"root"},"root":{"children":["doc_root_node"],"id":"root","kind":"dir","name":"/","parentId":null}}}`),
+			[]byte(`{"treeRootId":"root","treeById":{"doc_root_node":{"docId":"doc_root","id":"doc_root_node","kind":"doc","name":"pir.json","parentId":"root"},"root":{"children":["doc_root_node"],"id":"root","kind":"dir","name":"/","parentId":null}}}`),
 			now,
 			now,
 			[]byte(`{"version":"1","root":{"id":"root"}}`),
@@ -205,9 +205,9 @@ ORDER BY path ASC`)
 		}).AddRow(
 			"prj_bootstrap",
 			"doc_root",
-			"mir-page",
+			"pir-page",
 			"Root",
-			"/mir.json",
+			"/pir.json",
 			1,
 			1,
 			[]byte(`{"version":"1.3","ui":{"graph":{"version":1,"rootId":"root","nodesById":{"root":{"id":"root","type":"container"}},"childIdsById":{"root":[]}}}}`),
@@ -259,8 +259,8 @@ func TestHandleGetWorkspaceCapabilitiesReturnsCapabilityMap(t *testing.T) {
 	if payload.WorkspaceID != "ws_1" {
 		t.Fatalf("unexpected workspaceId: %s", payload.WorkspaceID)
 	}
-	if !payload.Capabilities["core.mir.document.update@1.0"] {
-		t.Fatalf("missing core mir capability: %+v", payload.Capabilities)
+	if !payload.Capabilities["core.pir.document.update@1.0"] {
+		t.Fatalf("missing core pir capability: %+v", payload.Capabilities)
 	}
 	if !payload.Capabilities["core.settings.global.update@1.0"] {
 		t.Fatalf("missing core settings capability: %+v", payload.Capabilities)
@@ -657,7 +657,7 @@ ORDER BY path ASC`)
 		}).AddRow(
 			workspaceID,
 			"doc_home",
-			"mir-page",
+			"pir-page",
 			"Home",
 			"/home",
 			4,

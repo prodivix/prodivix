@@ -26,11 +26,11 @@ export type DocumentId = string;
 export type VfsNodeId = string;
 
 export type WorkspaceDocumentType =
-  | 'mir-page'
-  | 'mir-layout'
-  | 'mir-component'
-  | 'mir-graph' // 预留：节点图文档
-  | 'mir-animation'; // 预留：动画文档
+  | 'pir-page'
+  | 'pir-layout'
+  | 'pir-component'
+  | 'pir-graph' // 预留：节点图文档
+  | 'pir-animation'; // 预留：动画文档
 
 export interface WorkspaceDocument {
   id: DocumentId;
@@ -39,7 +39,7 @@ export interface WorkspaceDocument {
   path: string;
   contentRev: number;
   metaRev: number;
-  content: unknown; // MIRDocument | GraphDocument | AnimationDocument（由上层 narrowing）
+  content: unknown; // PIRDocument | GraphDocument | AnimationDocument（由上层 narrowing）
   updatedAt: string;
   capabilities?: string[]; // 预留：声明该文档允许的编辑域能力
 }
@@ -89,16 +89,16 @@ export interface WorkspaceState {
 3. `contentRev/metaRev` 必须单调递增
 4. `activeDocumentId` 必须存在于 `docsById`
 5. `routeManifest` 引用的 `layoutDocId/pageDocId` 必须存在
-6. `mir-graph` / `mir-animation` 在本期仅作为数据契约预留，不提供编辑器 UI
+6. `pir-graph` / `pir-animation` 在本期仅作为数据契约预留，不提供编辑器 UI
 
 ## 4. 默认初始化模板
 
 ```txt
 /
   pages/
-    home.mir.json
+    home.pir.json
   layouts/
-    root-layout.mir.json
+    root-layout.pir.json
   graphs/
   animations/
 ```
@@ -124,29 +124,29 @@ interface WorkspaceStore {
 
 说明：
 
-- 全量切换到 `workspace.docsById`，不保留 `mirDoc` 兼容 API
+- 全量切换到 `workspace.docsById`，不保留 `pirDoc` 兼容 API
 - 任何“文档树变更”由 Blueprint 意图触发，避免暴露文件级 UI 操作
 
 ## 6. 与 Undo/Redo 的关系
 
 1. 所有修改必须以 Command 进入
-2. `Command.domain` 本期至少支持 `mir/workspace`；未来域通过 `namespace` 扩展
+2. `Command.domain` 本期至少支持 `pir/workspace`；未来域通过 `namespace` 扩展
 3. 每条命令记录 `documentId`（若适用）
 4. Command 必须可序列化，支持离线队列与重放
 
 ## 7. Hard Cutover 清单（Draft）
 
-1. 抽离 `mirDoc` 访问点
+1. 抽离 `pirDoc` 访问点
 2. Blueprint/Inspector/Export 切换到 workspace 模型
 3. NodeGraph/动画仅完成协议接线（capability + envelope 校验），不落地编辑器 UI
-4. 删除所有 `mirDoc` 状态字段与调用点
+4. 删除所有 `pirDoc` 状态字段与调用点
 5. CI 增加检查，阻止单文档模型回流
 
 ## 8. 开放问题
 
 1. 大文档分片加载策略（按目录还是按最近使用）
 2. 文档重命名是否影响 `docId`
-3. 图文档（nodegraph）是否复用 MIR 容器还是独立 schema
+3. 图文档（nodegraph）是否复用 PIR 容器还是独立 schema
 4. 分区 rev 的 SDK 封装边界（客户端还是网关层）
 
 ## 9. 冻结规则（API-001）

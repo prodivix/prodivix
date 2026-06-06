@@ -4,7 +4,7 @@
 
 - Draft
 - 日期：2026-05-03
-- 适用范围：MIR、Workspace、Route、Editor、UX、Code、NodeGraph、Animation、External Library、Codegen、Backend、AI
+- 适用范围：PIR、Workspace、Route、Editor、UX、Code、NodeGraph、Animation、External Library、Codegen、Backend、AI
 - 后端错误响应：`specs/decisions/24.backend-diagnostic-envelope.md`
 
 ## 1. 目的
@@ -23,7 +23,7 @@ MFE Diagnostics 用于统一：
 
 应该进入 Diagnostics 的问题：
 
-1. 核心模型错误：MIR graph、Workspace VFS、Route manifest、NodeGraph、Animation。
+1. 核心模型错误：PIR graph、Workspace VFS、Route manifest、NodeGraph、Animation。
 2. 跨模块链路错误：保存、同步、导出、代码生成、部署、外部库运行时、AI Provider。
 3. 可恢复但需要定位的问题：引用断裂、缺失节点、重复注册、Capability 不匹配、同步冲突。
 4. 需要写文档、打日志、做测试断言或上报 telemetry 的稳定语义。
@@ -38,11 +38,11 @@ MFE Diagnostics 用于统一：
 ## 3. 统一结构
 
 ```ts
-type MdrDiagnostic = {
+type ProdivixDiagnostic = {
   code: string;
   severity: 'info' | 'warning' | 'error' | 'fatal';
   domain:
-    | 'mir'
+    | 'pir'
     | 'workspace'
     | 'route'
     | 'editor'
@@ -90,7 +90,7 @@ type MdrDiagnostic = {
 
 | 前缀        | 领域             | 说明                                           | 码表                                                     |
 | ----------- | ---------------- | ---------------------------------------------- | -------------------------------------------------------- |
-| `MIR-xxxx`  | MIR              | Schema、graph、ValueRef、materialize、校验     | `specs/diagnostics/mir-diagnostic-codes.md`              |
+| `PIR-xxxx`  | PIR              | Schema、graph、ValueRef、materialize、校验     | `specs/diagnostics/pir-diagnostic-codes.md`              |
 | `WKS-xxxx`  | Workspace        | VFS、文档保存、revision、同步冲突、capability  | `specs/diagnostics/workspace-diagnostic-codes.md`        |
 | `RTE-xxxx`  | Route            | Route manifest、Outlet、导航运行时             | `specs/diagnostics/route-diagnostic-codes.md`            |
 | `EDT-xxxx`  | Editor           | 编辑器交互、选择、拖拽、Inspector、画布状态    | `specs/diagnostics/editor-diagnostic-codes.md`           |
@@ -133,7 +133,7 @@ type MdrDiagnostic = {
 新增码位时使用以下格式：
 
 ```md
-### `MIR-1001` 根节点不存在
+### `PIR-1001` 根节点不存在
 
 - Severity: `error`
 - Stage: validate
@@ -161,6 +161,6 @@ type MdrDiagnostic = {
 
 1. 建立本总规范与首批域码表。
 2. 保留现有 `ELIB-xxxx` 码位，并把它纳入统一 Diagnostics。
-3. 优先收敛 MIR、Workspace、Editor 三个域，因为它们影响保存态与编辑体验。
+3. 优先收敛 PIR、Workspace、Editor 三个域，因为它们影响保存态与编辑体验。
 4. 后续实现 `createDiagnostic` / `isDiagnostic` 等轻量 helper。
 5. 文档站提供错误码参考页，链接到用户可理解的修复建议。

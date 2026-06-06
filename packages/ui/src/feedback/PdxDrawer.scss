@@ -1,0 +1,64 @@
+.PdxDrawerOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgb(0 0 0 / 0.42);
+  z-index: 1000;
+}
+
+.PdxDrawer {
+  position: absolute;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.PdxDrawer.Right {
+  top: 0;
+  right: 0;
+  height: 100%;
+  border-left: 1px solid var(--border-default);
+}
+
+.PdxDrawer.Left {
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-right: 1px solid var(--border-default);
+}
+
+.PdxDrawer.Top {
+  top: 0;
+  left: 0;
+  width: 100%;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.PdxDrawer.Bottom {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  border-top: 1px solid var(--border-default);
+}
+
+.PdxDrawerHeader {
+  padding: var(--spacing-md);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.PdxDrawerBody {
+  padding: var(--spacing-md);
+  flex: 1;
+  color: var(--text-secondary);
+  overflow: auto;
+}
+
+.PdxDrawerFooter {
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}

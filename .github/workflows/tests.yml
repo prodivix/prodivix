@@ -44,13 +44,13 @@ jobs:
         run: pnpm run lint
 
       - name: Test workspaces without web
-        run: pnpm turbo run test --filter=!@mdr/web
+        run: pnpm turbo run test --filter=!@prodivix/web
 
       - name: Test web
-        run: pnpm --filter @mdr/web test:ci
+        run: pnpm --filter @prodivix/web test:ci
 
       - name: Type check web
-        run: pnpm --filter @mdr/web typecheck
+        run: pnpm --filter @prodivix/web typecheck
 
   backend:
     name: Backend

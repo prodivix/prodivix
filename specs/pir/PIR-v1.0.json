@@ -1,0 +1,564 @@
+{
+  "title": "PIR Document v1.0",
+  "type": "object",
+  "definitions": {
+    "ComponentNode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_$][a-zA-Z0-9_$-]*$"
+        },
+        "type": {
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "title": "ParamReference",
+              "type": "object",
+              "properties": {
+                "$param": {
+                  "type": "string"
+                }
+              },
+              "required": ["$param"]
+            },
+            {
+              "title": "StateBindingReference",
+              "type": "object",
+              "properties": {
+                "$state": {
+                  "type": "string"
+                }
+              },
+              "required": ["$state"]
+            },
+            {
+              "title": "ConditionalMap",
+              "type": "object",
+              "properties": {
+                "$map": {
+                  "type": "object",
+                  "description": "条件映射",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["$map"]
+            }
+          ]
+        },
+        "style": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "title": "ParamReference",
+                "type": "object",
+                "properties": {
+                  "$param": {
+                    "type": "string"
+                  }
+                },
+                "required": ["$param"]
+              },
+              {
+                "title": "StateBindingReference",
+                "type": "object",
+                "properties": {
+                  "$state": {
+                    "type": "string"
+                  }
+                },
+                "required": ["$state"]
+              },
+              {
+                "title": "ConditionalMap",
+                "type": "object",
+                "properties": {
+                  "$map": {
+                    "type": "object",
+                    "description": "条件映射",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["$map"]
+              }
+            ]
+          }
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ComponentNode"
+          }
+        },
+        "events": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "trigger": {
+                "type": "string"
+              },
+              "payload": {
+                "type": "object"
+              },
+              "debounce": {
+                "type": "number"
+              },
+              "throttle": {
+                "type": "number"
+              },
+              "preventDefault": {
+                "type": "boolean"
+              },
+              "stopPropagation": {
+                "type": "boolean"
+              }
+            },
+            "required": ["trigger"]
+          }
+        },
+        "binding": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "type": {
+              "enum": ["string", "number", "boolean", "object", "array"]
+            },
+            "transform": {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string"
+                },
+                "out": {
+                  "type": "string"
+                }
+              }
+            },
+            "validate": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rule": {
+                    "enum": ["required", "min", "max", "pattern", "custom"]
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "object"
+                  }
+                },
+                "required": ["rule", "message"]
+              }
+            }
+          },
+          "required": ["path", "type"]
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": ["file", "url", "inline", "base64"]
+              },
+              "value": {
+                "type": "string"
+              },
+              "mimeType": {
+                "type": "string"
+              },
+              "hotReload": {
+                "type": "boolean"
+              }
+            },
+            "required": ["type", "value"]
+          }
+        }
+      },
+      "required": ["type"]
+    }
+  },
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastModified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "$ref": "#/definitions/ComponentNode"
+        }
+      },
+      "required": ["root"]
+    },
+    "logic": {
+      "type": "object",
+      "properties": {
+        "graphs": {
+          "type": "array",
+          "items": {
+            "title": "NodeGraph",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "executionPolicy": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "enum": ["dataflow", "controlflow", "hybrid"]
+                  },
+                  "trigger": {
+                    "enum": ["manual", "event", "scheduled"]
+                  },
+                  "asyncStrategy": {
+                    "enum": ["parallel", "sequential", "lazy"]
+                  },
+                  "errorHandling": {
+                    "type": "object",
+                    "properties": {
+                      "strategy": {
+                        "enum": ["stop", "skip", "retry"]
+                      },
+                      "maxRetries": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                },
+                "required": ["mode", "trigger"]
+              },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "inputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "typeDef": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "primitive",
+                                  "object",
+                                  "union",
+                                  "generic"
+                                ]
+                              },
+                              "primitiveType": {
+                                "enum": ["string", "number", "boolean", "null"]
+                              },
+                              "objectSchema": {
+                                "type": "object"
+                              },
+                              "unionTypes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              },
+                              "defaultValue": {}
+                            }
+                          },
+                          "validator": {
+                            "type": "object",
+                            "properties": {
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "min": {
+                                "type": "number"
+                              },
+                              "max": {
+                                "type": "number"
+                              },
+                              "pattern": {
+                                "type": "string"
+                              },
+                              "custom": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "required": ["name", "source"]
+                      }
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "typeDef": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "primitive",
+                                  "object",
+                                  "union",
+                                  "generic"
+                                ]
+                              },
+                              "primitiveType": {
+                                "enum": ["string", "number", "boolean", "null"]
+                              },
+                              "objectSchema": {
+                                "type": "object"
+                              },
+                              "unionTypes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              },
+                              "defaultValue": {}
+                            }
+                          }
+                        },
+                        "required": ["name"]
+                      }
+                    },
+                    "config": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  },
+                  "required": ["id", "type"]
+                }
+              },
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "nodeId": {
+                          "type": "string"
+                        },
+                        "port": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["nodeId", "port"]
+                    },
+                    "target": {
+                      "type": "object",
+                      "properties": {
+                        "nodeId": {
+                          "type": "string"
+                        },
+                        "port": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["nodeId", "port"]
+                    }
+                  },
+                  "required": ["id", "source", "target"]
+                }
+              }
+            },
+            "required": ["id", "nodes", "edges"]
+          }
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": ["local", "global", "derived", "async"]
+              },
+              "initial": {},
+              "schema": {
+                "type": "object"
+              },
+              "derivedFrom": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "asyncLoader": {
+                "type": "object",
+                "properties": {
+                  "nodeId": {
+                    "type": "string"
+                  },
+                  "refreshInterval": {
+                    "type": "number"
+                  }
+                }
+              },
+              "subscriptions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "componentId": {
+                      "type": "string"
+                    },
+                    "bindingPath": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "debug": {
+      "type": "object",
+      "properties": {
+        "breakpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "nodeId": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "condition": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "watchExpressions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "expression": {
+                "type": "string"
+              },
+              "scope": {
+                "enum": ["global", "node"]
+              }
+            }
+          }
+        },
+        "executionLog": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "maxEntries": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["version", "ui"]
+}

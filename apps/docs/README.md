@@ -1,6 +1,6 @@
-# @mdr/docs
+# @prodivix/docs
 
-MdrFrontEngine 官方文档站点，基于 VitePress。
+Prodivix 官方文档站点，基于 VitePress。
 
 ## 目录结构
 
@@ -14,7 +14,7 @@ apps/docs
 │   ├── blueprint-editor.md
 │   ├── node-graph.md
 │   ├── ai-assistant.md
-│   ├── mir.md
+│   ├── pir.md
 │   ├── components.md
 │   ├── i18n.md
 │   ├── theming.md
@@ -26,7 +26,7 @@ apps/docs
 │   ├── cli.md           #   CLI 命令参考
 │   └── components.md    #   内置组件 props 参考
 ├── reference/           # 规范与参考
-│   ├── mir-spec.md
+│   ├── pir-spec.md
 │   ├── component-spec.md
 │   ├── node-spec.md
 │   └── diagnostic-codes.md

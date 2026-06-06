@@ -1,4 +1,4 @@
-import { MdrDiv } from '@mdr/ui';
+import { PdxDiv } from '@prodivix/ui';
 import type { ComponentGroup } from '@/editor/features/design/blueprint/editor/model/types';
 
 const PATTERN_PREVIEW_STYLE = {
@@ -14,19 +14,19 @@ export const LAYOUT_PATTERN_GROUP: ComponentGroup = {
       id: 'layout-pattern-split',
       name: 'Split Layout',
       preview: (
-        <MdrDiv
+        <PdxDiv
           display="Grid"
           gap="6px"
           padding="6px"
           style={{ gridTemplateColumns: '1fr 1fr' }}
         >
-          <MdrDiv height="24px" style={PATTERN_PREVIEW_STYLE}>
+          <PdxDiv height="24px" style={PATTERN_PREVIEW_STYLE}>
             {null}
-          </MdrDiv>
-          <MdrDiv height="24px" style={PATTERN_PREVIEW_STYLE}>
+          </PdxDiv>
+          <PdxDiv height="24px" style={PATTERN_PREVIEW_STYLE}>
             {null}
-          </MdrDiv>
-        </MdrDiv>
+          </PdxDiv>
+        </PdxDiv>
       ),
       defaultProps: {
         patternId: 'split',
@@ -36,22 +36,22 @@ export const LAYOUT_PATTERN_GROUP: ComponentGroup = {
       id: 'layout-pattern-holy-grail',
       name: 'Holy Grail',
       preview: (
-        <MdrDiv display="Flex" flexDirection="Column" gap="6px" padding="6px">
-          <MdrDiv height="12px" style={PATTERN_PREVIEW_STYLE}>
+        <PdxDiv display="Flex" flexDirection="Column" gap="6px" padding="6px">
+          <PdxDiv height="12px" style={PATTERN_PREVIEW_STYLE}>
             {null}
-          </MdrDiv>
-          <MdrDiv display="Flex" gap="6px">
-            <MdrDiv width="20px" height="28px" style={PATTERN_PREVIEW_STYLE}>
+          </PdxDiv>
+          <PdxDiv display="Flex" gap="6px">
+            <PdxDiv width="20px" height="28px" style={PATTERN_PREVIEW_STYLE}>
               {null}
-            </MdrDiv>
-            <MdrDiv width="44px" height="28px" style={PATTERN_PREVIEW_STYLE}>
+            </PdxDiv>
+            <PdxDiv width="44px" height="28px" style={PATTERN_PREVIEW_STYLE}>
               {null}
-            </MdrDiv>
-          </MdrDiv>
-          <MdrDiv height="10px" style={PATTERN_PREVIEW_STYLE}>
+            </PdxDiv>
+          </PdxDiv>
+          <PdxDiv height="10px" style={PATTERN_PREVIEW_STYLE}>
             {null}
-          </MdrDiv>
-        </MdrDiv>
+          </PdxDiv>
+        </PdxDiv>
       ),
       defaultProps: {
         patternId: 'holy-grail',
@@ -61,29 +61,29 @@ export const LAYOUT_PATTERN_GROUP: ComponentGroup = {
       id: 'layout-pattern-dashboard-shell',
       name: 'Dashboard Shell',
       preview: (
-        <MdrDiv display="Flex" flexDirection="Column" gap="6px" padding="6px">
-          <MdrDiv height="12px" style={PATTERN_PREVIEW_STYLE}>
+        <PdxDiv display="Flex" flexDirection="Column" gap="6px" padding="6px">
+          <PdxDiv height="12px" style={PATTERN_PREVIEW_STYLE}>
             {null}
-          </MdrDiv>
-          <MdrDiv
+          </PdxDiv>
+          <PdxDiv
             display="Grid"
             gap="6px"
             style={{ gridTemplateColumns: '1fr 1fr 1fr' }}
           >
-            <MdrDiv height="16px" style={PATTERN_PREVIEW_STYLE}>
+            <PdxDiv height="16px" style={PATTERN_PREVIEW_STYLE}>
               {null}
-            </MdrDiv>
-            <MdrDiv height="16px" style={PATTERN_PREVIEW_STYLE}>
+            </PdxDiv>
+            <PdxDiv height="16px" style={PATTERN_PREVIEW_STYLE}>
               {null}
-            </MdrDiv>
-            <MdrDiv height="16px" style={PATTERN_PREVIEW_STYLE}>
+            </PdxDiv>
+            <PdxDiv height="16px" style={PATTERN_PREVIEW_STYLE}>
               {null}
-            </MdrDiv>
-          </MdrDiv>
-          <MdrDiv height="10px" style={PATTERN_PREVIEW_STYLE}>
+            </PdxDiv>
+          </PdxDiv>
+          <PdxDiv height="10px" style={PATTERN_PREVIEW_STYLE}>
             {null}
-          </MdrDiv>
-        </MdrDiv>
+          </PdxDiv>
+        </PdxDiv>
       ),
       defaultProps: {
         patternId: 'dashboard-shell',

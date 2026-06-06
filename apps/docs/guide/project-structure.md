@@ -1,11 +1,11 @@
 # 项目结构
 
-MdrFrontEngine 采用 Monorepo 架构，使用 pnpm workspace 和 Turborepo 管理。本文档只保留当前仓库里真实存在、并且对理解系统边界最有用的结构说明。
+Prodivix 采用 Monorepo 架构，使用 pnpm workspace 和 Turborepo 管理。本文档只保留当前仓库里真实存在、并且对理解系统边界最有用的结构说明。
 
 ## 整体结构
 
 ```text
-mdr-front-engine/
+prodivix/
 ├── apps/
 │   ├── web/            # Web 编辑器主应用
 │   ├── backend/        # Go 后端服务
@@ -14,9 +14,9 @@ mdr-front-engine/
 │   └── vscode/         # VS Code 扩展
 ├── packages/
 │   ├── ai/             # AI provider 与任务工具
-│   ├── eslint-plugin-mdr/
+│   ├── eslint-plugin-prodivix/
 │   ├── i18n/
-│   ├── mir-compiler/
+│   ├── pir-compiler/
 │   ├── shared/         # 共享 LLM、类型和脚本
 │   ├── themes/         # 主题与设计令牌
 │   ├── ui/             # 组件库
@@ -61,7 +61,7 @@ apps/web/src/
 ├── home/
 ├── i18n/
 ├── infra/api/            # API 客户端与错误处理
-├── mir/                  # AST / 转换 / 图 / 生成 / 渲染 / 校验
+├── pir/                  # AST / 转换 / 图 / 生成 / 渲染 / 校验
 ├── mock/
 ├── shortcuts/
 ├── test-utils/
@@ -71,7 +71,7 @@ apps/web/src/
 
 这里有几处比较关键的分层：
 
-- `src/mir` 是 MIR 数据与读写链路的核心。
+- `src/pir` 是 PIR 数据与读写链路的核心。
 - `src/editor/features/design/blueprint` 是蓝图编辑器的主实现。
 - `src/editor/features/development/reactflow` 是节点图编辑器相关实现。
 - `src/diagnostics` 是前端诊断域的统一入口。
@@ -107,7 +107,7 @@ apps/backend/
 这里的重点是：
 
 - `cmd/server` 是启动入口。
-- `internal/modules/workspace` 承担 workspace、intent、patch、MIR 校验等核心逻辑。
+- `internal/modules/workspace` 承担 workspace、intent、patch、PIR 校验等核心逻辑。
 - `internal/modules/auth`、`project`、`integrations/github` 分别负责认证、项目与第三方集成。
 - `internal/platform` 放公共基础设施层。
 
@@ -115,7 +115,7 @@ apps/backend/
 
 ```text
 apps/cli/
-├── bin/mdr.js
+├── bin/prodivix.js
 ├── src/
 │   ├── cli.ts
 │   ├── commands/
@@ -217,15 +217,15 @@ packages/themes/
 ### 其他包
 
 - `packages/i18n`：公共国际化资源与转换脚本。
-- `packages/mir-compiler`：MIR 编译入口包。
-- `packages/eslint-plugin-mdr`：仓库自定义 ESLint 规则。
+- `packages/pir-compiler`：PIR 编译入口包。
+- `packages/eslint-plugin-prodivix`：仓库自定义 ESLint 规则。
 - `packages/vscode-debugger`：VS Code 调试适配器。
 
 ## 规范文档
 
 `specs/` 现在主要分成几类：
 
-- `specs/mir/`：MIR contract 与 schema。
+- `specs/pir/`：PIR contract 与 schema。
 - `specs/diagnostics/`：诊断码文档。
 - `specs/decisions/`：设计决策。
 - `specs/implementation/`：实现方案和任务拆分。

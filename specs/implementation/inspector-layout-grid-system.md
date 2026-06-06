@@ -26,7 +26,7 @@ Inspector 后续还需要做布局层面的优化。除了 Panel 标题之外，
 
 1. 不重做 Panel 标题结构。
 2. 不要求所有字段都变成图标。
-3. 不修改 MIR 数据结构。
+3. 不修改 PIR 数据结构。
 4. 不把这些布局 token 放进 `packages/ui`。
 5. 不在本规格中处理图标绘制细节，图标资产见 `inspector-style-icon-assets-plan.md`。
 

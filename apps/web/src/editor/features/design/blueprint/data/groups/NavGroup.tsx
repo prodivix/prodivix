@@ -1,17 +1,17 @@
 import {
-  MdrAnchorNavigation,
-  MdrBreadcrumb,
-  MdrButton,
-  MdrCollapse,
-  MdrNav,
-  MdrNavbar,
-  MdrPagination,
-  MdrOutlet,
-  MdrRoute,
-  MdrSidebar,
-  MdrTabs,
-  MdrText,
-} from '@mdr/ui';
+  PdxAnchorNavigation,
+  PdxBreadcrumb,
+  PdxButton,
+  PdxCollapse,
+  PdxNav,
+  PdxNavbar,
+  PdxPagination,
+  PdxOutlet,
+  PdxRoute,
+  PdxSidebar,
+  PdxTabs,
+  PdxText,
+} from '@prodivix/ui';
 import type { ComponentGroup } from '@/editor/features/design/blueprint/editor/model/types';
 import { buildVariants } from '@/editor/features/design/blueprint/data/helpers';
 import {
@@ -35,34 +35,34 @@ export const NAV_GROUP: ComponentGroup = {
       id: 'nav',
       name: 'Nav',
       preview: (
-        <MdrNav columns={2} backgroundStyle="Solid" style={{ width: 180 }}>
-          <div className="MdrNavLeft">
-            <MdrText size="Tiny">Brand</MdrText>
+        <PdxNav columns={2} backgroundStyle="Solid" style={{ width: 180 }}>
+          <div className="PdxNavLeft">
+            <PdxText size="Tiny">Brand</PdxText>
           </div>
-          <div className="MdrNavRight">
-            <MdrButton text="Login" size="Tiny" category="Ghost" />
+          <div className="PdxNavRight">
+            <PdxButton text="Login" size="Tiny" category="Ghost" />
           </div>
-        </MdrNav>
+        </PdxNav>
       ),
       variants: buildVariants(
         NAV_COLUMNS,
         (columns) => (
-          <MdrNav
+          <PdxNav
             columns={columns}
             backgroundStyle="Solid"
             style={{ width: 180 }}
           >
-            <div className="MdrNavLeft">
-              <MdrText size="Tiny">Brand</MdrText>
+            <div className="PdxNavLeft">
+              <PdxText size="Tiny">Brand</PdxText>
             </div>
-            <div className="MdrNavRight">
-              <MdrButton
+            <div className="PdxNavRight">
+              <PdxButton
                 text={columns === 2 ? 'Login' : 'Start'}
                 size="Tiny"
                 category="Ghost"
               />
             </div>
-          </MdrNav>
+          </PdxNav>
         ),
         (columns) => `${columns} Col`
       ),
@@ -71,12 +71,12 @@ export const NAV_GROUP: ComponentGroup = {
     {
       id: 'navbar',
       name: 'Navbar',
-      preview: <MdrNavbar size="Medium" brand="Mdr" items={NAVBAR_ITEMS} />,
+      preview: <PdxNavbar size="Medium" brand="Pdx" items={NAVBAR_ITEMS} />,
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrNavbar
+        <PdxNavbar
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
-          brand="Mdr"
+          brand="Pdx"
           items={NAVBAR_ITEMS}
         />
       ),
@@ -85,31 +85,31 @@ export const NAV_GROUP: ComponentGroup = {
     {
       id: 'sidebar',
       name: 'Sidebar',
-      preview: <MdrSidebar title="Menu" items={SIDEBAR_ITEMS} width={160} />,
+      preview: <PdxSidebar title="Menu" items={SIDEBAR_ITEMS} width={160} />,
       scale: 0.5,
     },
     {
       id: 'breadcrumb',
       name: 'Breadcrumb',
-      preview: <MdrBreadcrumb items={BREADCRUMB_ITEMS} />,
+      preview: <PdxBreadcrumb items={BREADCRUMB_ITEMS} />,
       scale: 0.7,
     },
     {
       id: 'pagination',
       name: 'Pagination',
-      preview: <MdrPagination page={2} total={50} />,
+      preview: <PdxPagination page={2} total={50} />,
       scale: 0.6,
     },
     {
       id: 'anchor-navigation',
       name: 'AnchorNav',
       preview: (
-        <MdrAnchorNavigation items={ANCHOR_ITEMS} orientation="Vertical" />
+        <PdxAnchorNavigation items={ANCHOR_ITEMS} orientation="Vertical" />
       ),
       variants: buildVariants(
         ['Vertical', 'Horizontal'] as const,
         (orientation) => (
-          <MdrAnchorNavigation items={ANCHOR_ITEMS} orientation={orientation} />
+          <PdxAnchorNavigation items={ANCHOR_ITEMS} orientation={orientation} />
         )
       ),
       scale: 0.6,
@@ -118,31 +118,31 @@ export const NAV_GROUP: ComponentGroup = {
       id: 'route',
       name: 'Route',
       preview: (
-        <MdrRoute>
+        <PdxRoute>
           <div data-route-path="/">Home content</div>
           <div data-route-path="/about">About content</div>
           <div data-route-fallback>Fallback content</div>
-        </MdrRoute>
+        </PdxRoute>
       ),
       scale: 0.55,
     },
     {
       id: 'outlet',
       name: 'Outlet',
-      preview: <MdrOutlet emptyText="Route content renders here" />,
+      preview: <PdxOutlet emptyText="Route content renders here" />,
       scale: 0.55,
     },
     {
       id: 'tabs',
       name: 'Tabs',
-      preview: <MdrTabs items={TAB_ITEMS} />,
+      preview: <PdxTabs items={TAB_ITEMS} />,
       scale: 0.55,
     },
     {
       id: 'collapse',
       name: 'Collapse',
       preview: (
-        <MdrCollapse items={COLLAPSE_ITEMS} defaultActiveKeys={['panel-1']} />
+        <PdxCollapse items={COLLAPSE_ITEMS} defaultActiveKeys={['panel-1']} />
       ),
       scale: 0.55,
     },

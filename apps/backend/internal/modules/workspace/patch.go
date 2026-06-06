@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	ErrWorkspacePatchPathForbidden = errors.New("MIR graph patch path forbidden")
+	ErrWorkspacePatchPathForbidden = errors.New("PIR graph patch path forbidden")
 	ErrWorkspacePatchPathMissing   = errors.New("patch path does not exist")
 	ErrWorkspacePatchInvalid       = errors.New("invalid JSON patch")
 	ErrWorkspacePatchTestFailed    = errors.New("patch test failed")

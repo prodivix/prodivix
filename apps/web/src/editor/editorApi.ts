@@ -1,9 +1,9 @@
-﻿import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 import { apiRequest } from '@/infra/api';
 import {
-  validateMirDocument,
-  type MirValidationIssue,
-} from '@/mir/validator/validator';
+  validatePirDocument,
+  type PirValidationIssue,
+} from '@/pir/validator/validator';
 import type { WorkspaceCodeDocumentContent } from '@/workspace';
 import { isWorkspaceCodeDocumentContent } from '@/workspace';
 
@@ -22,15 +22,15 @@ export type ProjectSummary = {
 
 export type ProjectDetail = ProjectSummary & {
   ownerId: string;
-  mir: MIRDocument;
+  pir: PIRDocument;
 };
 
 export type WorkspaceDocumentType =
-  | 'mir-page'
-  | 'mir-layout'
-  | 'mir-component'
-  | 'mir-graph'
-  | 'mir-animation'
+  | 'pir-page'
+  | 'pir-layout'
+  | 'pir-component'
+  | 'pir-graph'
+  | 'pir-animation'
   | 'code'
   | 'asset'
   | 'project-config';
@@ -77,7 +77,7 @@ export type WorkspaceDocumentRecord = {
   path: string;
   contentRev: number;
   metaRev: number;
-  content: MIRDocument | WorkspaceCodeDocumentContent | unknown;
+  content: PIRDocument | WorkspaceCodeDocumentContent | unknown;
   updatedAt?: string;
 };
 
@@ -134,20 +134,20 @@ const request = async <T>(
     defaultHeaders: JSON_HEADERS,
   });
 
-const reportMirIssues = (origin: string, issues: MirValidationIssue[]) => {
+const reportPirIssues = (origin: string, issues: PirValidationIssue[]) => {
   if (!issues.length) return;
   console.warn(
-    `[mir-validation] ${origin} returned ${issues.length} issue(s):`,
+    `[pir-validation] ${origin} returned ${issues.length} issue(s):`,
     issues
   );
 };
 
-const validateAndUnwrapMir = (
+const validateAndUnwrapPir = (
   origin: string,
   candidate: unknown
-): MIRDocument => {
-  const result = validateMirDocument(candidate);
-  reportMirIssues(origin, result.issues);
+): PIRDocument => {
+  const result = validatePirDocument(candidate);
+  reportPirIssues(origin, result.issues);
   return result.document;
 };
 
@@ -155,21 +155,21 @@ const validateProjectDetail = (
   origin: string,
   project: ProjectDetail
 ): ProjectDetail => {
-  if (!project?.mir) return project;
-  return { ...project, mir: validateAndUnwrapMir(origin, project.mir) };
+  if (!project?.pir) return project;
+  return { ...project, pir: validateAndUnwrapPir(origin, project.pir) };
 };
 
-const isMirWorkspaceDocumentType = (type: WorkspaceDocumentType): boolean =>
-  type === 'mir-page' || type === 'mir-layout' || type === 'mir-component';
+const isPirWorkspaceDocumentType = (type: WorkspaceDocumentType): boolean =>
+  type === 'pir-page' || type === 'pir-layout' || type === 'pir-component';
 
 const validateWorkspaceDocument = (
   workspaceId: string,
   document: WorkspaceDocumentRecord
 ): WorkspaceDocumentRecord => {
-  if (isMirWorkspaceDocumentType(document.type)) {
+  if (isPirWorkspaceDocumentType(document.type)) {
     return {
       ...document,
-      content: validateAndUnwrapMir(
+      content: validateAndUnwrapPir(
         `workspace.${workspaceId}/document.${document.id}`,
         document.content
       ),
@@ -209,7 +209,7 @@ export const editorApi = {
       description?: string;
       resourceType: ProjectResourceType;
       isPublic?: boolean;
-      mir?: MIRDocument;
+      pir?: PIRDocument;
     }
   ) =>
     request<{ project: ProjectSummary }>(token, '/projects', {
@@ -337,13 +337,13 @@ export const editorApi = {
       }
     ),
 
-  saveProjectMir: async (token: string, projectId: string, mir: MIRDocument) =>
+  saveProjectPir: async (token: string, projectId: string, pir: PIRDocument) =>
     request<{ project: ProjectDetail }>(
       token,
-      `/projects/${encodeURIComponent(projectId)}/mir`,
+      `/projects/${encodeURIComponent(projectId)}/pir`,
       {
         method: 'PUT',
-        body: JSON.stringify({ mir }),
+        body: JSON.stringify({ pir }),
       }
     ),
 

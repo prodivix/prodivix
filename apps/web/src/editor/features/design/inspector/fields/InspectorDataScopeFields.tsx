@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { InspectorRow } from '@/editor/features/design/inspector/components/InspectorRow';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
 
-const LEGACY_DATA_MODEL_KEY = 'x-mdr-data-model';
-const LEGACY_DATA_SCHEMA_KEY = 'x-mdr-data-schema';
+const LEGACY_DATA_MODEL_KEY = 'x-prodivix-data-model';
+const LEGACY_DATA_SCHEMA_KEY = 'x-prodivix-data-schema';
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -251,7 +251,7 @@ export function InspectorDataScopeFields() {
                       'inspector.fields.dataModel.mockPlaceholder',
                       {
                         defaultValue:
-                          '{\n  "totalCount": 2,\n  "items": [\n    {\n      "data": "mdr"\n    }\n  ]\n}',
+                          '{\n  "totalCount": 2,\n  "items": [\n    {\n      "data": "prodivix"\n    }\n  ]\n}',
                       }
                     )}
                     onChange={(event) => {

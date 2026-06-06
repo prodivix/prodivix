@@ -1,4 +1,4 @@
-import { createI18nInstance } from '@mdr/i18n';
+import { createI18nInstance } from '@prodivix/i18n';
 import { initReactI18next } from 'react-i18next';
 import en from './resources/en/index';
 import zhCN from './resources/zh-CN/index';

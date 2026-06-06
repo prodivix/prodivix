@@ -9,7 +9,7 @@
   - `specs/decisions/26.ux-diagnostics.md`
   - `specs/decisions/01.monochrome-ui.md`
   - `specs/decisions/21.inspector-panel-architecture.md`
-  - `specs/mir/mir-contract-v1.3.md`
+  - `specs/pir/pir-contract-v1.3.md`
 
 ## 1. 范围
 
@@ -26,7 +26,7 @@
 
 不覆盖：
 
-1. MIR 保存态结构错误，使用 `MIR-xxxx`。
+1. PIR 保存态结构错误，使用 `PIR-xxxx`。
 2. Inspector 字段写入、拖拽、选择和编辑器命令错误，使用 `EDT-xxxx`。
 3. 用户代码解析、类型、运行时和 Mounted CSS 语法错误，使用 `COD-xxxx`。
 4. 外部库加载、扫描和注册错误，使用 `ELIB-xxxx`。
@@ -83,7 +83,7 @@ type UxDiagnosticStage =
 - Retryable: false
 - Trigger: 输入框、选择器、开关、滑块或自定义表单控件没有可由辅助技术读取的稳定标签
 - User action: 为控件添加可见 label、`aria-label` 或 `aria-labelledby`
-- Developer notes: 诊断应定位到具体 field 或 MIR node；placeholder 不能作为唯一标签
+- Developer notes: 诊断应定位到具体 field 或 PIR node；placeholder 不能作为唯一标签
 
 ### `UX-1004` 交互控件缺少可访问名称
 
@@ -119,7 +119,7 @@ type UxDiagnosticStage =
 - Retryable: false
 - Trigger: `aria-labelledby`、`aria-describedby`、`aria-controls` 或 `aria-owns` 指向不存在的 ID
 - User action: 修正引用 ID，或删除无效 ARIA 引用
-- Developer notes: 若 ID 由运行时生成，检查器应基于 materialized preview 结果而不是静态 MIR 猜测
+- Developer notes: 若 ID 由运行时生成，检查器应基于 materialized preview 结果而不是静态 PIR 猜测
 
 ### `UX-1008` ARIA role 与元素语义冲突
 
@@ -801,7 +801,7 @@ type UxDiagnosticStage =
 - Severity: `info`
 - Stage: `checker`
 - Retryable: true
-- Trigger: MIR、主题、viewport、资源或运行时状态已变化，现有 UX 诊断不再对应当前预览
+- Trigger: PIR、主题、viewport、资源或运行时状态已变化，现有 UX 诊断不再对应当前预览
 - User action: 重新运行 UX 检查
 - Developer notes: 应记录 source revision、theme revision、viewport 和 generatedAt
 

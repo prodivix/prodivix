@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	backendproject "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/project"
+	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -46,17 +46,17 @@ func (module *Module) BootstrapProjectWorkspace(ctx context.Context, project *ba
 		OwnerID:     project.OwnerID,
 		Name:        project.Name,
 		TreeRootID:  "root",
-		Tree:        json.RawMessage(`{"treeRootId":"root","treeById":{"root":{"id":"root","kind":"dir","name":"/","parentId":null,"children":["doc_root_node"]},"doc_root_node":{"id":"doc_root_node","kind":"doc","name":"mir.json","parentId":"root","docId":"doc_root"}}}`),
+		Tree:        json.RawMessage(`{"treeRootId":"root","treeById":{"root":{"id":"root","kind":"dir","name":"/","parentId":null,"children":["doc_root_node"]},"doc_root_node":{"id":"doc_root_node","kind":"doc","name":"pir.json","parentId":"root","docId":"doc_root"}}}`),
 	}); err != nil && !isUniqueViolation(err) {
 		return err
 	}
 	if _, err := module.store.CreateDocument(ctx, CreateWorkspaceDocumentParams{
 		WorkspaceID: workspaceID,
 		DocumentID:  "doc_root",
-		Type:        WorkspaceDocumentTypeMIRPage,
+		Type:        WorkspaceDocumentTypePIRPage,
 		Name:        "Root",
-		Path:        "/mir.json",
-		Content:     project.MIR,
+		Path:        "/pir.json",
+		Content:     project.PIR,
 	}); err != nil && !isUniqueViolation(err) {
 		return err
 	}
@@ -91,18 +91,18 @@ func (module *Module) GetSnapshotForUser(ctx context.Context, userID string, wor
 	return module.store.GetSnapshot(ctx, normalizedWorkspaceID)
 }
 
-func ResolveCanonicalWorkspaceMIR(snapshot *WorkspaceSnapshot) (json.RawMessage, bool) {
+func ResolveCanonicalWorkspacePIR(snapshot *WorkspaceSnapshot) (json.RawMessage, bool) {
 	if snapshot == nil || len(snapshot.Documents) == 0 {
 		return nil, false
 	}
 	for _, document := range snapshot.Documents {
-		if document.Type == WorkspaceDocumentTypeMIRPage &&
+		if document.Type == WorkspaceDocumentTypePIRPage &&
 			(strings.TrimSpace(document.Path) == "/" || strings.TrimSpace(document.Path) == "") {
 			return document.Content, true
 		}
 	}
 	for _, document := range snapshot.Documents {
-		if document.Type == WorkspaceDocumentTypeMIRPage {
+		if document.Type == WorkspaceDocumentTypePIRPage {
 			return document.Content, true
 		}
 	}
@@ -118,7 +118,7 @@ func (module *Module) SyncProjectMirrorFromWorkspace(ctx context.Context, userID
 		log.Printf("[workspace] mirror sync skipped workspace=%s reason=%v", workspaceID, err)
 		return
 	}
-	mir, ok := ResolveCanonicalWorkspaceMIR(snapshot)
+	pir, ok := ResolveCanonicalWorkspacePIR(snapshot)
 	if !ok {
 		log.Printf("[workspace] mirror sync skipped workspace=%s reason=no_canonical_document", workspaceID)
 		return
@@ -127,7 +127,7 @@ func (module *Module) SyncProjectMirrorFromWorkspace(ctx context.Context, userID
 	if projectID == "" {
 		projectID = strings.TrimSpace(workspaceID)
 	}
-	if _, err := module.projects.SaveMIR(strings.TrimSpace(userID), projectID, mir); err != nil {
+	if _, err := module.projects.SavePIR(strings.TrimSpace(userID), projectID, pir); err != nil {
 		log.Printf("[workspace] mirror sync failed workspace=%s project=%s err=%v", workspaceID, projectID, err)
 		return
 	}

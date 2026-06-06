@@ -1,0 +1,23 @@
+.PdxEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.PdxEmptyIcon {
+  font-size: 32px;
+  color: var(--border-default);
+}
+
+.PdxEmptyTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.PdxEmptyDescription {
+  font-size: 13px;
+}

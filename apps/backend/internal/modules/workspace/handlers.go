@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	backendauth "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/auth"
-	backendresponse "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/http/response"
+	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
+	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 	"github.com/gin-gonic/gin"
 )
 

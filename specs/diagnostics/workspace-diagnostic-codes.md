@@ -17,7 +17,7 @@
 
 不覆盖：
 
-1. MIR 文档内部结构错误，使用 `MIR-xxxx`。
+1. PIR 文档内部结构错误，使用 `PIR-xxxx`。
 2. HTTP 鉴权、权限、用户会话，使用 `API-xxxx`。
 3. GitHub App 或远端 Git 平台集成，后续使用 `API-xxxx` 或独立 Git 域。
 
@@ -87,7 +87,7 @@ type WorkspaceDiagnosticStage =
 - Severity: `error`
 - Stage: `document`
 - Retryable: false
-- Trigger: 对非 MIR 文档执行 MIR patch，或对只读文档执行写入
+- Trigger: 对非 PIR 文档执行 PIR patch，或对只读文档执行写入
 - User action: 检查当前选中的文档类型
 - Developer notes: intent handler 应在执行前校验 document kind 与 capability
 

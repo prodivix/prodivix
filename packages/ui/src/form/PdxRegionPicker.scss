@@ -1,0 +1,66 @@
+@use './PdxField.scss';
+
+.PdxRegionPicker {
+  width: 100%;
+}
+
+.PdxRegionPickerControls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.PdxRegionPickerSelect {
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-normal);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+
+  &:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--accent-color) 12%, transparent);
+    outline: none;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--bg-raised);
+  }
+}
+
+.PdxRegionPicker.Small .PdxRegionPickerSelect {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 13px;
+}
+
+.PdxRegionPicker.Large .PdxRegionPickerSelect {
+  padding: var(--spacing-md) var(--spacing-md);
+  font-size: 17px;
+}
+
+.PdxRegionPicker.Error .PdxRegionPickerSelect {
+  border-color: var(--danger-color);
+}
+
+.PdxRegionPicker.Warning .PdxRegionPickerSelect {
+  border-color: var(--warning-color);
+}
+
+.PdxRegionPicker.Success .PdxRegionPickerSelect {
+  border-color: var(--success-color);
+}
+
+@media (max-width: 640px) {
+  .PdxRegionPickerControls {
+    grid-template-columns: 1fr;
+  }
+}

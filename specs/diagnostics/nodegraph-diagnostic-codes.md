@@ -15,7 +15,7 @@
 
 不覆盖：
 
-1. MIR 事件绑定中的 `executeGraph` action 形状错误，优先使用 `MIR-xxxx`。
+1. PIR 事件绑定中的 `executeGraph` action 形状错误，优先使用 `PIR-xxxx`。
 2. 编辑器拖拽和选择交互，使用 `EDT-xxxx`。
 3. 后端保存和同步，使用 `WKS-xxxx`。
 

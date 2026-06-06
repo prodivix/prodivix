@@ -1,4 +1,4 @@
-﻿import { MdrText } from '@mdr/ui';
+import { PdxText } from '@prodivix/ui';
 import { Home, Settings } from 'lucide-react';
 import { createPlaceholderSvg } from './placeholders';
 
@@ -27,12 +27,12 @@ export const TAB_ITEMS = [
   {
     key: 'design',
     label: 'Design',
-    content: <MdrText size="Tiny">Panel</MdrText>,
+    content: <PdxText size="Tiny">Panel</PdxText>,
   },
   {
     key: 'code',
     label: 'Code',
-    content: <MdrText size="Tiny">Snippet</MdrText>,
+    content: <PdxText size="Tiny">Snippet</PdxText>,
   },
 ];
 
@@ -40,12 +40,12 @@ export const COLLAPSE_ITEMS = [
   {
     key: 'panel-1',
     title: 'Panel 1',
-    content: <MdrText size="Tiny">Details</MdrText>,
+    content: <PdxText size="Tiny">Details</PdxText>,
   },
   {
     key: 'panel-2',
     title: 'Panel 2',
-    content: <MdrText size="Tiny">More</MdrText>,
+    content: <PdxText size="Tiny">More</PdxText>,
   },
 ];
 

@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState>()(
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
     }),
     {
-      name: 'mdr-auth-session',
+      name: 'prodivix-auth-session',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         token: state.token,

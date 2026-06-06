@@ -1,6 +1,6 @@
 # 后端 API
 
-MdrFrontEngine 后端服务提供用户认证和数据管理 API。
+Prodivix 后端服务提供用户认证和数据管理 API。
 
 ## 概述
 
@@ -272,7 +272,7 @@ POST /api/projects
   "description": "optional",
   "resourceType": "project",
   "isPublic": true,
-  "mir": {
+  "pir": {
     "version": "1.0",
     "ui": { "root": { "id": "root", "type": "container" } }
   }
@@ -334,7 +334,7 @@ GET /api/community/projects
 }
 ```
 
-#### 获取公开项目详情（含 MIR）
+#### 获取公开项目详情（含 PIR）
 
 ```http
 GET /api/community/projects/:id
@@ -443,7 +443,7 @@ POST /api/projects
   "description": "Project description",
   "resourceType": "project",
   "isPublic": false,
-  "mir": {
+  "pir": {
     "version": "1.0",
     "ui": { "root": { "id": "root", "type": "div" } }
   }
@@ -456,7 +456,7 @@ POST /api/projects
 | `description`  | string  | 否   | 项目描述                                        |
 | `resourceType` | string  | 否   | 资源类型：`project` / `component` / `nodegraph` |
 | `isPublic`     | boolean | 否   | 是否公开到社区（默认 false）                    |
-| `mir`          | object  | 否   | MIR 文档内容                                    |
+| `pir`          | object  | 否   | PIR 文档内容                                    |
 
 **成功响应** (201 Created):
 
@@ -498,7 +498,7 @@ GET /api/projects/:id
     "description": "Project description",
     "isPublic": false,
     "starsCount": 0,
-    "mir": { ... },
+    "pir": { ... },
     "createdAt": "2024-01-15T10:30:00Z",
     "updatedAt": "2024-01-15T12:00:00Z"
   }
@@ -507,12 +507,12 @@ GET /api/projects/:id
 
 ---
 
-#### 获取项目 MIR
+#### 获取项目 PIR
 
-获取项目的 MIR 文档内容。
+获取项目的 PIR 文档内容。
 
 ```http
-GET /api/projects/:id/mir
+GET /api/projects/:id/pir
 ```
 
 **请求头**: 需要认证
@@ -522,19 +522,19 @@ GET /api/projects/:id/mir
 ```json
 {
   "id": "prj_xxx",
-  "mir": { ... },
+  "pir": { ... },
   "updatedAt": "2024-01-15T12:00:00Z"
 }
 ```
 
 ---
 
-#### 保存项目 MIR
+#### 保存项目 PIR
 
-保存项目的 MIR 文档内容。
+保存项目的 PIR 文档内容。
 
 ```http
-PUT /api/projects/:id/mir
+PUT /api/projects/:id/pir
 ```
 
 **请求头**: 需要认证
@@ -543,7 +543,7 @@ PUT /api/projects/:id/mir
 
 ```json
 {
-  "mir": {
+  "pir": {
     "version": "1.0",
     "ui": { "root": { "id": "root", "type": "div" } }
   }
@@ -617,7 +617,7 @@ GET /api/workspaces/:workspaceId
     "documents": [
       {
         "id": "doc_root",
-        "type": "mir_page",
+        "type": "pir_page",
         "path": "/",
         "contentRev": 5,
         "metaRev": 2,
@@ -648,7 +648,7 @@ GET /api/workspaces/:workspaceId/capabilities
 {
   "workspaceId": "ws_xxx",
   "capabilities": {
-    "core.mir.document.update@1.0": true,
+    "core.pir.document.update@1.0": true,
     "core.route.manifest.update@1.0": true,
     "core.nodegraph.node.move@1.0": false,
     "core.nodegraph.edge.connect@1.0": false,
@@ -681,7 +681,7 @@ PUT /api/workspaces/:workspaceId/documents/:documentId
   "clientMutationId": "mutation_123",
   "command": {
     "id": "cmd_xxx",
-    "namespace": "core.mir",
+    "namespace": "core.pir",
     "type": "document.update",
     "version": "1.0"
   }
@@ -693,7 +693,7 @@ PUT /api/workspaces/:workspaceId/documents/:documentId
 | `expectedContentRev`   | number | 是   | 期望的内容版本号   |
 | `expectedWorkspaceRev` | number | 否   | 期望的工作区版本号 |
 | `expectedRouteRev`     | number | 否   | 期望的路由版本号   |
-| `content`              | object | 是   | MIR 文档内容       |
+| `content`              | object | 是   | PIR 文档内容       |
 | `clientMutationId`     | string | 否   | 客户端变更 ID      |
 | `command`              | object | 否   | 命令信封           |
 
@@ -868,11 +868,11 @@ interface ProjectSummary {
 ```typescript
 interface WorkspaceDocument {
   id: string;
-  type: 'mir_page' | 'mir_component' | 'mir_nodegraph';
+  type: 'pir_page' | 'pir_component' | 'pir_nodegraph';
   path: string;
   contentRev: number;
   metaRev: number;
-  content: MIRDocument;
+  content: PIRDocument;
   updatedAt: string;
 }
 ```
@@ -895,15 +895,15 @@ interface WorkspaceSnapshot {
 
 后端服务通过环境变量配置：
 
-| 环境变量                    | 默认值                                                                         | 描述                                        |
-| --------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------- |
-| `BACKEND_ADDR`              | `:8080`                                                                        | 服务监听地址                                |
-| `BACKEND_TOKEN_TTL`         | `24h`                                                                          | Token 有效期（支持 Go duration 格式或秒数） |
-| `BACKEND_ALLOWED_ORIGINS`   | `http://localhost:5173,http://localhost:5174`                                  | 允许的 CORS 来源（逗号分隔）                |
-| `BACKEND_DB_URL`            | `postgres://postgres:postgres@localhost:5432/mdr_front_engine?sslmode=disable` | PostgreSQL 连接字符串                       |
-| `BACKEND_DB_MAX_OPEN_CONNS` | `10`                                                                           | 最大打开连接数                              |
-| `BACKEND_DB_MAX_IDLE_CONNS` | `5`                                                                            | 最大空闲连接数                              |
-| `BACKEND_DB_MAX_LIFETIME`   | `30m`                                                                          | 连接最大生命周期                            |
+| 环境变量                    | 默认值                                                                 | 描述                                        |
+| --------------------------- | ---------------------------------------------------------------------- | ------------------------------------------- |
+| `BACKEND_ADDR`              | `:8080`                                                                | 服务监听地址                                |
+| `BACKEND_TOKEN_TTL`         | `24h`                                                                  | Token 有效期（支持 Go duration 格式或秒数） |
+| `BACKEND_ALLOWED_ORIGINS`   | `http://localhost:5173,http://localhost:5174`                          | 允许的 CORS 来源（逗号分隔）                |
+| `BACKEND_DB_URL`            | `postgres://postgres:postgres@localhost:5432/prodivix?sslmode=disable` | PostgreSQL 连接字符串                       |
+| `BACKEND_DB_MAX_OPEN_CONNS` | `10`                                                                   | 最大打开连接数                              |
+| `BACKEND_DB_MAX_IDLE_CONNS` | `5`                                                                    | 最大空闲连接数                              |
+| `BACKEND_DB_MAX_LIFETIME`   | `30m`                                                                  | 连接最大生命周期                            |
 
 **示例**:
 
@@ -911,7 +911,7 @@ interface WorkspaceSnapshot {
 export BACKEND_ADDR=":3000"
 export BACKEND_TOKEN_TTL="48h"
 export BACKEND_ALLOWED_ORIGINS="http://localhost:5173,https://myapp.com"
-export BACKEND_DB_URL="postgres://postgres:postgres@localhost:5432/mdr_front_engine?sslmode=disable"
+export BACKEND_DB_URL="postgres://postgres:postgres@localhost:5432/prodivix?sslmode=disable"
 ```
 
 ## CORS

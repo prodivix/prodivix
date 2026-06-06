@@ -1,23 +1,23 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { MdrAiSettings } from '@mdr/ai';
-import { createDefaultMdrAiSettings } from '@mdr/ai';
+import type { ProdivixAiSettings } from '@prodivix/ai';
+import { createDefaultProdivixAiSettings } from '@prodivix/ai';
 
 type AiSettingsStore = {
-  settings: MdrAiSettings;
-  setSettings: (settings: MdrAiSettings) => void;
+  settings: ProdivixAiSettings;
+  setSettings: (settings: ProdivixAiSettings) => void;
   resetSettings: () => void;
 };
 
 export const useAiSettingsStore = create<AiSettingsStore>()(
   persist(
     (set) => ({
-      settings: createDefaultMdrAiSettings(),
+      settings: createDefaultProdivixAiSettings(),
       setSettings: (settings) => set({ settings }),
-      resetSettings: () => set({ settings: createDefaultMdrAiSettings() }),
+      resetSettings: () => set({ settings: createDefaultProdivixAiSettings() }),
     }),
     {
-      name: 'mdr-ai-settings',
+      name: 'prodivix-ai-settings',
       storage: createJSONStorage(() => localStorage),
     }
   )

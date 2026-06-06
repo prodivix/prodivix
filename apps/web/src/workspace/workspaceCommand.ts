@@ -9,7 +9,7 @@ import type {
   WorkspaceCodeDocumentContent,
 } from './types';
 import { validateStableWorkspaceSnapshot } from './validateWorkspaceVfs';
-import { isMirDocumentContent } from './workspaceSelectors';
+import { isPirDocumentContent } from './workspaceSelectors';
 
 export type WorkspacePatchOperation = {
   op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
@@ -34,7 +34,7 @@ export type WorkspaceCommandEnvelope = {
   mergeKey?: string;
   label?: string;
   domainHint?:
-    | 'mir'
+    | 'pir'
     | 'workspace'
     | 'route'
     | 'nodegraph'
@@ -299,8 +299,8 @@ const getWorkspaceNodePath = (
   return pathsByNodeId.get(nodeId) ?? null;
 };
 
-const isMirWorkspaceDocumentType = (type: string): boolean =>
-  type === 'mir-page' || type === 'mir-layout' || type === 'mir-component';
+const isPirWorkspaceDocumentType = (type: string): boolean =>
+  type === 'pir-page' || type === 'pir-layout' || type === 'pir-component';
 
 const inferCommandDomain = (
   command: WorkspaceCommandEnvelope
@@ -316,10 +316,10 @@ const inferCommandDomain = (
     return 'route';
   }
   if (command.namespace.startsWith('core.workspace')) return 'workspace';
-  return 'mir';
+  return 'pir';
 };
 
-const isAllowedMirDocumentPath = (path: string): boolean =>
+const isAllowedPirDocumentPath = (path: string): boolean =>
   path === '/ui/graph' ||
   path.startsWith('/ui/graph/') ||
   path === '/logic' ||
@@ -372,7 +372,7 @@ const isAllowedDocumentPath = (
   if (domain === 'nodegraph') return isAllowedNodeGraphDocumentPath(path);
   if (domain === 'animation') return isAllowedAnimationDocumentPath(path);
   if (domain === 'code') return isAllowedCodeDocumentPath(path);
-  return isAllowedMirDocumentPath(path);
+  return isAllowedPirDocumentPath(path);
 };
 
 const isAllowedWorkspacePath = (path: string): boolean =>
@@ -394,7 +394,7 @@ const isAllowedPatchPath = (
   target === 'document'
     ? isAllowedDocumentPath(
         path,
-        domain === 'workspace' || domain === 'route' ? 'mir' : domain
+        domain === 'workspace' || domain === 'route' ? 'pir' : domain
       )
     : isAllowedWorkspacePath(path);
 
@@ -703,8 +703,8 @@ export const applyWorkspaceCommand = (
     }
 
     if (
-      isMirWorkspaceDocumentType(document.type) &&
-      !isMirDocumentContent(patchedContent.value)
+      isPirWorkspaceDocumentType(document.type) &&
+      !isPirDocumentContent(patchedContent.value)
     ) {
       return {
         ok: false,
@@ -712,7 +712,7 @@ export const applyWorkspaceCommand = (
           {
             code: 'WKS_COMMAND_VALIDATION_FAILED',
             path: '/target/documentId',
-            message: 'MIR workspace documents must remain v1.3 graph-only.',
+            message: 'PIR workspace documents must remain v1.3 graph-only.',
             documentId,
           },
         ],

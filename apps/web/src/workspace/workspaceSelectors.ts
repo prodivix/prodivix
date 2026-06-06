@@ -1,4 +1,4 @@
-import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 import type {
   StableWorkspaceDocument,
   StableWorkspaceDocumentType,
@@ -50,19 +50,19 @@ export const selectActiveDocument = (
 ): StableWorkspaceDocument | undefined =>
   selectDocumentById(snapshot, snapshot?.activeDocumentId);
 
-export const isMirDocumentContent = (
+export const isPirDocumentContent = (
   content: unknown
-): content is MIRDocument => {
+): content is PIRDocument => {
   if (!isRecord(content) || content.version !== '1.3') return false;
   if (!isRecord(content.ui) || 'root' in content.ui) return false;
   return isRecord(content.ui.graph);
 };
 
-export const selectActiveMirDocument = (
+export const selectActivePirDocument = (
   snapshot: StableWorkspaceSnapshot | undefined
-): MIRDocument | undefined => {
+): PIRDocument | undefined => {
   const document = selectActiveDocument(snapshot);
-  if (!document || !isMirDocumentContent(document.content)) return undefined;
+  if (!document || !isPirDocumentContent(document.content)) return undefined;
   return document.content;
 };
 

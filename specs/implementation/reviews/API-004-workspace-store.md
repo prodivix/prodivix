@@ -27,11 +27,11 @@
 
 1. `workspace_rev/route_rev/op_seq` 均为 `>= 1`
 2. `workspace_documents.doc_type` 限定为：
-   - `mir-page`
-   - `mir-layout`
-   - `mir-component`
-   - `mir-graph`
-   - `mir-animation`
+   - `pir-page`
+   - `pir-layout`
+   - `pir-component`
+   - `pir-graph`
+   - `pir-animation`
 3. 文档唯一索引：`(workspace_id, path)`
 4. 操作序列主键：`(workspace_id, op_seq)`
 
@@ -78,7 +78,7 @@ apps/backend
 结果：
 
 ```txt
-ok  	github.com/Mdr-Tutorials/mdr-front-engine/apps/backend	0.159s
+ok  	github.com/Prodivix/prodivix/apps/backend	0.159s
 ```
 
 ## 风险与后续

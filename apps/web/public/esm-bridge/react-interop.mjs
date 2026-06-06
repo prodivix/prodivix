@@ -1,4 +1,4 @@
-const bridge = globalThis.__MDR_HOST_REACT_BRIDGE__;
+const bridge = globalThis.__PRODIVIX_HOST_REACT_BRIDGE__;
 
 if (!bridge?.react) {
   throw new Error(

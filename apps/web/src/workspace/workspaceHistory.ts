@@ -9,7 +9,7 @@ import {
 
 export type WorkspaceHistoryDocumentDomain = Extract<
   WorkspaceCommandDomain,
-  'mir' | 'nodegraph' | 'animation' | 'code'
+  'pir' | 'nodegraph' | 'animation' | 'code'
 >;
 
 export type WorkspaceHistoryScope =
@@ -64,7 +64,7 @@ export type WorkspaceHistoryResult =
     };
 
 const DOCUMENT_DOMAINS: WorkspaceHistoryDocumentDomain[] = [
-  'mir',
+  'pir',
   'nodegraph',
   'animation',
   'code',
@@ -84,7 +84,7 @@ const inferCommandDomain = (
     return 'route';
   }
   if (command.namespace.startsWith('core.workspace')) return 'workspace';
-  return 'mir';
+  return 'pir';
 };
 
 const toDocumentDomain = (
@@ -92,7 +92,7 @@ const toDocumentDomain = (
 ): WorkspaceHistoryDocumentDomain =>
   DOCUMENT_DOMAINS.includes(domain as WorkspaceHistoryDocumentDomain)
     ? (domain as WorkspaceHistoryDocumentDomain)
-    : 'mir';
+    : 'pir';
 
 const reverseCommand = (
   command: WorkspaceCommandEnvelope

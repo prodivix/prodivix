@@ -1,2 +1,2 @@
-export * from './types/MdrComponent';
+export * from './types/PdxComponent';
 export * from './llm';

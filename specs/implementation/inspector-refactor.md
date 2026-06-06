@@ -201,7 +201,7 @@ export const useInspectorSectionContext = (): InspectorSectionContextValue => { 
 | ------------------------------ | ---------------------- |
 | `findLayoutPatternRootId`      | 646-659                |
 | `findParentNodeById`           | 661-672                |
-| `normalizeGraphOptionsFromMir` | 674-710                |
+| `normalizeGraphOptionsFromPir` | 674-710                |
 | `isPlainObject`                | 712-713                |
 | `LEGACY_DATA_MODEL_KEYS`       | 715                    |
 | `extractMountedDataModel`      | 717-737                |
@@ -214,11 +214,11 @@ export const useInspectorSectionContext = (): InspectorSectionContextValue => { 
 
 | Hook                            | 对应 tab | 接收参数                                                                                      | 返回                                                         |
 | ------------------------------- | -------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `useInspectorIdentityState`     | basic    | selectedNode, mirDocRoot, updateMirDoc, setBlueprintState, blueprintKey                       | InspectorIdentityContext                                     |
-| `useInspectorCapabilitiesState` | basic    | selectedNode, updateSelectedNode, mirDoc, routeManifest, activeRouteNodeId, bindOutletToRoute | InspectorCapabilitiesContext                                 |
-| `useInspectorStyleState`        | style    | selectedNode, mirDoc, updateMirDoc, projectId, navigate                                       | InspectorStyleContext                                        |
-| `useInspectorDataState`         | data     | mirDocRoot, selectedId                                                                        | InspectorDataContext                                         |
-| `useInspectorCodeState`         | code     | selectedNode, updateSelectedNode, mirDoc, linkCapability, linkDestination                     | InspectorCodeContext                                         |
+| `useInspectorIdentityState`     | basic    | selectedNode, pirDocRoot, updatePirDoc, setBlueprintState, blueprintKey                       | InspectorIdentityContext                                     |
+| `useInspectorCapabilitiesState` | basic    | selectedNode, updateSelectedNode, pirDoc, routeManifest, activeRouteNodeId, bindOutletToRoute | InspectorCapabilitiesContext                                 |
+| `useInspectorStyleState`        | style    | selectedNode, pirDoc, updatePirDoc, projectId, navigate                                       | InspectorStyleContext                                        |
+| `useInspectorDataState`         | data     | pirDocRoot, selectedId                                                                        | InspectorDataContext                                         |
+| `useInspectorCodeState`         | code     | selectedNode, updateSelectedNode, pirDoc, linkCapability, linkDestination                     | InspectorCodeContext                                         |
 | `useInspectorExpansionState`    | —        | selectedNode, matchedPanels                                                                   | expandedSections, expandedPanels, toggleSection, togglePanel |
 
 ### 2.3 瘦化主 controller

@@ -5,7 +5,7 @@ import {
   buildNodeGraphEditorState,
   ensureProjectGraphSnapshot,
   normalizeGraphDocuments,
-  serializeGraphsForMirLogic,
+  serializeGraphsForPirLogic,
   type ProjectGraphSnapshot,
 } from '@/editor/features/development/reactflow/nodeGraphEditorModel';
 
@@ -51,7 +51,7 @@ describe('nodeGraphEditorModel', () => {
       ],
     };
 
-    const logicGraphs = serializeGraphsForMirLogic(snapshot.graphs);
+    const logicGraphs = serializeGraphsForPirLogic(snapshot.graphs);
     expect((logicGraphs[0].nodes[0] as Record<string, unknown>).position).toBe(
       undefined
     );

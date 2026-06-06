@@ -1,4 +1,4 @@
-import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 import type { TreeDropPlacement } from '@/editor/features/design/blueprint/editor/model/tree';
 
 export type TreeDropHint = {
@@ -50,9 +50,9 @@ export type DragOverData =
   | { kind: string; [key: string]: unknown };
 
 export type UseBlueprintDragDropOptions = {
-  mirDoc: MIRDocument;
+  pirDoc: PIRDocument;
   currentPath: string;
   selectedId?: string;
-  updateMirDoc: (updater: (doc: MIRDocument) => MIRDocument) => void;
+  updatePirDoc: (updater: (doc: PIRDocument) => PIRDocument) => void;
   onNodeSelect: (nodeId: string) => void;
 };

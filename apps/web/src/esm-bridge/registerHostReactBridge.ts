@@ -11,11 +11,11 @@ type HostReactBridge = {
 };
 
 declare global {
-  var __MDR_HOST_REACT_BRIDGE__: HostReactBridge | undefined;
+  var __PRODIVIX_HOST_REACT_BRIDGE__: HostReactBridge | undefined;
 }
 
-globalThis.__MDR_HOST_REACT_BRIDGE__ = {
-  ...globalThis.__MDR_HOST_REACT_BRIDGE__,
+globalThis.__PRODIVIX_HOST_REACT_BRIDGE__ = {
+  ...globalThis.__PRODIVIX_HOST_REACT_BRIDGE__,
   react: ReactModule,
   reactDom: ReactDOMModule,
   jsxRuntime: ReactJsxRuntimeModule,

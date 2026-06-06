@@ -1,9 +1,9 @@
 {
-  "name": "@mdr/cli",
+  "name": "@prodivix/cli",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "bin": "./bin/mdr.js",
+  "bin": "./bin/prodivix.js",
   "scripts": {
     "dev": "tsx src/cli",
     "build": "tsc",

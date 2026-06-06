@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢你对 MdrFrontEngine 的关注！我们欢迎各种形式的贡献，包括但不限于代码、文档、测试、设计和翻译。
+感谢你对 Prodivix 的关注！我们欢迎各种形式的贡献，包括但不限于代码、文档、测试、设计和翻译。
 
 ## 行为准则
 
@@ -38,11 +38,11 @@
 
 ```bash
 # Fork 后克隆你的仓库
-git clone https://github.com/你的用户名/mdr-front-engine.git
-cd mdr-front-engine
+git clone https://github.com/你的用户名/prodivix.git
+cd prodivix
 
 # 添加上游仓库
-git remote add upstream https://github.com/mdr-front-engine/mdr-front-engine.git
+git remote add upstream https://github.com/prodivix/prodivix.git
 ```
 
 #### 2. 创建分支
@@ -89,7 +89,7 @@ pnpm storybook:ui # UI 组件库
 pnpm test
 
 # 运行特定包的测试
-pnpm --filter @mdr/web test
+pnpm --filter @prodivix/web test
 
 # 运行 E2E 测试
 pnpm test:e2e
@@ -139,7 +139,7 @@ docs(readme): update installation instructions
 
 - `editor` - 编辑器相关
 - `ui` - UI 组件库
-- `mir` - MIR 相关
+- `pir` - PIR 相关
 - `cli` - 命令行工具
 - `backend` - 后端服务
 - `docs` - 文档
@@ -220,12 +220,12 @@ type IconComponent = React.ComponentType<any>;
 
 ```tsx
 // 推荐
-interface MdrButtonProps {
+interface PdxButtonProps {
   text: string;
   disabled?: boolean;
 }
 
-export function MdrButton({ text, disabled = false }: MdrButtonProps) {
+export function PdxButton({ text, disabled = false }: PdxButtonProps) {
   return <button disabled={disabled}>{text}</button>;
 }
 ```
@@ -237,19 +237,19 @@ export function MdrButton({ text, disabled = false }: MdrButtonProps) {
 - 使用 React Testing Library 测试组件
 
 ```tsx
-// MdrButton.test.tsx
+// PdxButton.test.tsx
 import { render, screen } from '@testing-library/react';
-import { MdrButton } from './MdrButton';
+import { PdxButton } from './PdxButton';
 
-describe('MdrButton', () => {
+describe('PdxButton', () => {
   it('renders button text', () => {
-    render(<MdrButton text="Click me" />);
+    render(<PdxButton text="Click me" />);
     expect(screen.getByText('Click me')).toBeInTheDocument();
   });
 
   it('handles click events', () => {
     const onClick = vi.fn();
-    render(<MdrButton text="Click" onClick={onClick} />);
+    render(<PdxButton text="Click" onClick={onClick} />);
     screen.getByText('Click').click();
     expect(onClick).toHaveBeenCalled();
   });
@@ -270,7 +270,7 @@ describe('MdrButton', () => {
  * @param props.disabled - 是否禁用
  * @returns 按钮元素
  */
-export function MdrButton(props: MdrButtonProps): JSX.Element {
+export function PdxButton(props: PdxButtonProps): JSX.Element {
   // ...
 }
 ```
@@ -278,7 +278,7 @@ export function MdrButton(props: MdrButtonProps): JSX.Element {
 ## 项目结构
 
 ```
-mdr-front-engine/
+prodivix/
 ├── apps/
 │   ├── web/          # Web 编辑器
 │   ├── backend/      # Go 后端
@@ -288,7 +288,7 @@ mdr-front-engine/
 │
 ├── packages/
 │   ├── ui/           # UI 组件库
-│   ├── mir-compiler/ # MIR 编译器
+│   ├── pir-compiler/ # PIR 编译器
 │   ├── shared/       # 共享类型
 │   ├── themes/       # 主题系统
 │   └── i18n/         # 国际化
@@ -305,4 +305,4 @@ mdr-front-engine/
 
 ## 致谢
 
-感谢所有贡献者！每一个贡献都让 MdrFrontEngine 变得更好。
+感谢所有贡献者！每一个贡献都让 Prodivix 变得更好。

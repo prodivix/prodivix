@@ -1,5 +1,5 @@
 import type { ElementType, ReactNode } from 'react';
-import type { ComponentAdapter } from '@/mir/renderer/registry';
+import type { ComponentAdapter } from '@/pir/renderer/registry';
 
 export type ExternalLibraryDiagnosticLevel = 'info' | 'warning' | 'error';
 export type ExternalLibraryDiagnosticStage =

@@ -4,9 +4,9 @@ export {
 } from './workspaceProjection';
 export { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
 export {
-  isMirDocumentContent,
+  isPirDocumentContent,
   selectActiveDocument,
-  selectActiveMirDocument,
+  selectActivePirDocument,
   selectDocumentById,
   selectDocumentPath,
   selectDocumentsByType,

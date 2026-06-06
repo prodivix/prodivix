@@ -6,7 +6,7 @@ export {
 } from './buildDiagnosticPresentation';
 export {
   COD_DIAGNOSTIC_DEFINITIONS,
-  MIR_DIAGNOSTIC_REGISTRY,
+  PIR_DIAGNOSTIC_REGISTRY,
   UX_DIAGNOSTIC_DEFINITIONS,
 } from './diagnosticRegistry';
 export type { DiagnosticPresentationResolver } from './buildDiagnosticPresentation';
@@ -30,9 +30,9 @@ export type {
   DiagnosticSurface,
   DiagnosticTargetRef,
   DiagnosticTemplateVariable,
-  MdrDiagnostic,
-  MdrDiagnosticDomain,
-  MdrDiagnosticSeverity,
+  ProdivixDiagnostic,
+  ProdivixDiagnosticDomain,
+  ProdivixDiagnosticSeverity,
   SourceSpan,
   UpstreamDiagnostic,
   UxDiagnostic,

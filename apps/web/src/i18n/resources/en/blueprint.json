@@ -84,12 +84,12 @@
     "mock": {
       "assumptions": {
         "contextOnly": "Use only the current Blueprint route and selected node summary.",
-        "planOnly": "Return a plan first; do not apply MIR changes yet."
+        "planOnly": "Return a plan first; do not apply PIR changes yet."
       },
       "milestones": {
         "inspectContext": "Inspect current Blueprint context",
         "draftPlan": "Draft a focused visual change plan",
-        "prepareDryRun": "Prepare a future MIR command dry-run"
+        "prepareDryRun": "Prepare a future PIR command dry-run"
       }
     }
   },
@@ -239,7 +239,7 @@
         "enable": "Mount data model JSON on this component",
         "schemaPlaceholder": "{\n  \"totalCount\": \"number\",\n  \"items\": [\n    {\n      \"data\": \"string\"\n    }\n  ]\n}",
         "mockLabel": "Mock JSON",
-        "mockPlaceholder": "{\n  \"totalCount\": 2,\n  \"items\": [\n    {\n      \"data\": \"mdr\"\n    }\n  ]\n}",
+        "mockPlaceholder": "{\n  \"totalCount\": 2,\n  \"items\": [\n    {\n      \"data\": \"prodivix\"\n    }\n  ]\n}",
         "invalidJson": "Invalid JSON format.",
         "schemaObjectOnly": "Data model must be a JSON object.",
         "hint": "Child properties can bind with field paths directly in their own inputs.",

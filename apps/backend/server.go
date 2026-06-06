@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	backendapp "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/app"
-	backendconfig "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/config"
-	backenddatabase "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/database"
-	backendmiddleware "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/http/middleware"
+	backendapp "github.com/Prodivix/prodivix/apps/backend/internal/app"
+	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
+	backenddatabase "github.com/Prodivix/prodivix/apps/backend/internal/platform/database"
+	backendmiddleware "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/middleware"
 	"github.com/gin-gonic/gin"
 )
 

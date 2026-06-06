@@ -15,7 +15,7 @@ import {
 
 const createNode = (dataAttributes: unknown): ComponentNode => ({
   id: 'node-1',
-  type: 'MdrDiv',
+  type: 'PdxDiv',
   props: {
     dataAttributes: dataAttributes as Record<string, unknown>,
   },

@@ -40,9 +40,9 @@ describe('authoring environment contract', () => {
 
     const scope: CodeScope = {
       id: 'scope-node-1',
-      kind: 'mir-node',
+      kind: 'pir-node',
       ownerRef: {
-        kind: 'mir-node',
+        kind: 'pir-node',
         documentId: 'doc-1',
         nodeId: 'node-1',
       },
@@ -52,7 +52,7 @@ describe('authoring environment contract', () => {
       id: 'symbol-count',
       name: '$state.count',
       kind: 'state',
-      source: { kind: 'mir', documentId: 'doc-1' },
+      source: { kind: 'pir', documentId: 'doc-1' },
       scopeId: scope.id,
       targetRef: scope.ownerRef,
     };
@@ -64,7 +64,7 @@ describe('authoring environment contract', () => {
     expect(symbol).toMatchObject({
       id: 'symbol-count',
       scopeId: 'scope-node-1',
-      targetRef: { kind: 'mir-node', nodeId: 'node-1' },
+      targetRef: { kind: 'pir-node', nodeId: 'node-1' },
     });
   });
 
@@ -242,7 +242,7 @@ describe('authoring environment contract', () => {
         'home-node': {
           id: 'home-node',
           kind: 'doc',
-          name: 'home.mir.json',
+          name: 'home.pir.json',
           parentId: 'pages',
           docId: 'page-home',
         },
@@ -261,8 +261,8 @@ describe('authoring environment contract', () => {
         },
         'page-home': {
           id: 'page-home',
-          type: 'mir-page',
-          path: '/pages/home.mir.json',
+          type: 'pir-page',
+          path: '/pages/home.pir.json',
           contentRev: 1,
           metaRev: 1,
           content: {},
@@ -290,7 +290,7 @@ describe('authoring environment contract', () => {
 
   it('registers code slot providers without owning bindings or source', () => {
     const ownerRef = {
-      kind: 'mir-node' as const,
+      kind: 'pir-node' as const,
       documentId: 'doc-1',
       nodeId: 'button-1',
     };
@@ -305,9 +305,9 @@ describe('authoring environment contract', () => {
     };
     const provider: CodeSlotProvider = {
       id: 'test-slot-provider',
-      source: { kind: 'mir', documentId: 'doc-1' },
+      source: { kind: 'pir', documentId: 'doc-1' },
       listSlots: (context) =>
-        context.targetRef?.kind === 'mir-node' ? [slot] : [],
+        context.targetRef?.kind === 'pir-node' ? [slot] : [],
       getSlot: (id) => (id === slot.id ? slot : null),
     };
     const registry = createCodeSlotRegistry();
@@ -349,7 +349,7 @@ describe('authoring environment contract', () => {
       id: 'symbol-count',
       name: '$state.count',
       kind: 'state',
-      source: { kind: 'mir', documentId: 'doc-1' },
+      source: { kind: 'pir', documentId: 'doc-1' },
       scopeId: 'scope-doc-1',
       typeRef: 'number',
     };
@@ -362,7 +362,7 @@ describe('authoring environment contract', () => {
 
     symbolRegistry.register({
       id: 'test-symbol-provider',
-      source: { kind: 'mir', documentId: 'doc-1' },
+      source: { kind: 'pir', documentId: 'doc-1' },
       listSymbols: (inputContext) =>
         inputContext.scopeId === 'scope-doc-1' ? [symbol] : [],
       listScopes: () => [],

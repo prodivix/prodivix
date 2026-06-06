@@ -1,4 +1,4 @@
-﻿import { type ComponentType, useEffect, useMemo, useState } from 'react';
+import { type ComponentType, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   FileArchive,
@@ -60,16 +60,16 @@ const sectionMetas: SectionMeta[] = [
 ];
 
 const getResourceManagerViewStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.view.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.view.${projectId?.trim() || 'default'}`;
 
 const getResourceManagerCodeSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.code.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.code.selection.${projectId?.trim() || 'default'}`;
 
 const getResourceManagerExternalSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
 
 const getResourceManagerIconSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.icon.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.icon.selection.${projectId?.trim() || 'default'}`;
 
 const parseStoredStringArray = (raw: string | null) => {
   if (!raw) return [];
@@ -308,7 +308,7 @@ const createTemplateForCodeFolder = (
   return {
     name: 'untitled.ts',
     mime: 'text/typescript',
-    content: 'export const hello = "mdr";\n',
+    content: 'export const hello = "prodivix";\n',
   };
 };
 

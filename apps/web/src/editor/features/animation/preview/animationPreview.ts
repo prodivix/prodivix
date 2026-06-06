@@ -316,7 +316,7 @@ const buildPreviewSnapshot = ({
     if (!declarations.length) return;
 
     rules.push(
-      `[data-mir-node-id="${escapeAttrValue(nodeId)}"] > * {${declarations.join(
+      `[data-pir-node-id="${escapeAttrValue(nodeId)}"] > * {${declarations.join(
         ''
       )}}`
     );

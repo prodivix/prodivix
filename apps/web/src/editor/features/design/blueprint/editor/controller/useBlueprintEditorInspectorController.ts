@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import type { ComponentNode } from '@/core/types/engine.types';
-import { materializeMirRoot, normalizeTreeToUiGraph } from '@/mir/graph';
-import type { IconRef } from '@/mir/renderer/iconRegistry';
+import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
+import type { IconRef } from '@/pir/renderer/iconRegistry';
 import type { TriggerEntry } from '@/editor/features/design/inspector/InspectorContext.types';
-import { createDefaultActionParams } from '@/mir/actions/registry';
-import { isIconRef, resolveIconRef } from '@/mir/renderer/iconRegistry';
+import { createDefaultActionParams } from '@/pir/actions/registry';
+import { isIconRef, resolveIconRef } from '@/pir/renderer/iconRegistry';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import type { WorkspaceRouteNode } from '@/editor/store/useEditorStore';
 import { useAuthStore } from '@/auth/useAuthStore';
@@ -18,7 +18,7 @@ import {
   createDefaultTimeline,
   normalizeAnimationDefinition,
 } from '@/editor/features/animation/animationEditorModel';
-import { resolveLinkCapability } from '@/mir/renderer/capabilities';
+import { resolveLinkCapability } from '@/pir/renderer/capabilities';
 import {
   getLayoutPatternId,
   isLayoutPatternRootNode,
@@ -65,8 +65,8 @@ export const useBlueprintEditorInspectorController = () => {
   const { projectId } = useParams();
   const blueprintKey = projectId ?? 'global';
   const token = useAuthStore((state) => state.token);
-  const mirDoc = useEditorStore((state) => state.mirDoc);
-  const updateMirDoc = useEditorStore((state) => state.updateMirDoc);
+  const pirDoc = useEditorStore((state) => state.pirDoc);
+  const updatePirDoc = useEditorStore((state) => state.updatePirDoc);
   const workspaceId = useEditorStore((state) => state.workspaceId);
   const workspaceRev = useEditorStore((state) => state.workspaceRev);
   const workspaceDocumentsById = useEditorStore(
@@ -88,21 +88,21 @@ export const useBlueprintEditorInspectorController = () => {
   const selectedId = useEditorStore(
     (state) => state.blueprintStateByProject[blueprintKey]?.selectedId
   );
-  const mirRoot = useMemo(() => materializeMirRoot(mirDoc), [mirDoc]);
+  const pirRoot = useMemo(() => materializePirRoot(pirDoc), [pirDoc]);
   const selectedNode = useMemo(
-    () => (selectedId ? findNodeById(mirRoot, selectedId) : null),
-    [mirRoot, selectedId]
+    () => (selectedId ? findNodeById(pirRoot, selectedId) : null),
+    [pirRoot, selectedId]
   );
   const selectedParentNode = useMemo(() => {
     if (!selectedId) return null;
-    return findParentNodeById(mirRoot, selectedId);
-  }, [mirRoot, selectedId]);
+    return findParentNodeById(pirRoot, selectedId);
+  }, [pirRoot, selectedId]);
   const routeOptions = useMemo(
     () => flattenRouteItems(routeManifest.root, '/'),
     [routeManifest.root]
   );
   const outletRouteNodeId = useMemo(() => {
-    if (!selectedNode || selectedNode.type !== 'MdrOutlet') return '';
+    if (!selectedNode || selectedNode.type !== 'PdxOutlet') return '';
     const findBinding = (node: WorkspaceRouteNode): string => {
       if (node?.outletNodeId === selectedNode.id) return node.id;
       const children = node.children ?? [];
@@ -131,10 +131,10 @@ export const useBlueprintEditorInspectorController = () => {
     () => ({ ...persistedExpandedPanels })
   );
   const [isIconPickerOpen, setIconPickerOpen] = useState(false);
-  const allIds = useMemo(() => collectIds(mirRoot), [mirRoot]);
+  const allIds = useMemo(() => collectIds(pirRoot), [pirRoot]);
   const dataModelFieldPaths = useMemo(() => {
     if (!selectedId) return [];
-    const nodePath = findNodePathById(mirRoot, selectedId);
+    const nodePath = findNodePathById(pirRoot, selectedId);
     if (!nodePath.length) return [];
     for (let index = nodePath.length - 1; index >= 0; index -= 1) {
       const mountedDataModel = extractMountedDataModel(nodePath[index]);
@@ -143,14 +143,14 @@ export const useBlueprintEditorInspectorController = () => {
       }
     }
     return [];
-  }, [mirRoot, selectedId]);
+  }, [pirRoot, selectedId]);
   const animationDefinition = useMemo(
     () =>
-      normalizeAnimationDefinition(mirDoc.animation) ?? {
+      normalizeAnimationDefinition(pirDoc.animation) ?? {
         version: 1 as const,
         timelines: [],
       },
-    [mirDoc.animation]
+    [pirDoc.animation]
   );
   const mountedAnimationBindingCount = useMemo(() => {
     const targetNodeId = selectedNode?.id?.trim();
@@ -228,7 +228,7 @@ export const useBlueprintEditorInspectorController = () => {
     [selectedIconRef]
   );
   const isIconNode =
-    selectedNode?.type === 'MdrIcon' || selectedNode?.type === 'MdrIconLink';
+    selectedNode?.type === 'PdxIcon' || selectedNode?.type === 'PdxIconLink';
   const supportsClassProtocol = selectedNode?.type !== 'container';
   const classNameValue =
     typeof selectedNode?.props?.className === 'string'
@@ -290,15 +290,15 @@ export const useBlueprintEditorInspectorController = () => {
     if (!selectedNode?.id) return;
     const currentSelectedId = selectedNode.id;
     const currentPatternId = getLayoutPatternId(selectedNode);
-    updateMirDoc((doc) => {
-      const root = materializeMirRoot(doc);
+    updatePirDoc((doc) => {
+      const root = materializePirRoot(doc);
       const result = updateNodeById(root, selectedNode.id, updater);
       if (!result.updated) return doc;
       const nextDoc = {
         ...doc,
         ui: { graph: normalizeTreeToUiGraph(result.node) },
       };
-      const nextRoot = materializeMirRoot(nextDoc);
+      const nextRoot = materializePirRoot(nextDoc);
       const keptSelection = findNodeById(nextRoot, currentSelectedId);
       if (keptSelection) return nextDoc;
       if (!currentPatternId) return nextDoc;
@@ -313,9 +313,9 @@ export const useBlueprintEditorInspectorController = () => {
   const applyRename = () => {
     if (!selectedNode?.id || !canApply) return;
     const nextId = trimmedDraftId;
-    updateMirDoc((doc) => {
+    updatePirDoc((doc) => {
       const nextRoot = renameNodeId(
-        materializeMirRoot(doc),
+        materializePirRoot(doc),
         selectedNode.id,
         nextId
       );
@@ -330,7 +330,7 @@ export const useBlueprintEditorInspectorController = () => {
   const mountSelectedNodeToAnimation = useCallback(() => {
     const targetNodeId = selectedNode?.id?.trim();
     if (!targetNodeId) return;
-    updateMirDoc((doc) => {
+    updatePirDoc((doc) => {
       const animation = normalizeAnimationDefinition(doc.animation) ?? {
         version: 1 as const,
         timelines: [],
@@ -383,12 +383,12 @@ export const useBlueprintEditorInspectorController = () => {
         },
       };
     });
-  }, [selectedNode?.id, updateMirDoc]);
+  }, [selectedNode?.id, updatePirDoc]);
 
   const unmountSelectedNodeFromAnimation = useCallback(() => {
     const targetNodeId = selectedNode?.id?.trim();
     if (!targetNodeId) return;
-    updateMirDoc((doc) => {
+    updatePirDoc((doc) => {
       const animation = normalizeAnimationDefinition(doc.animation);
       if (!animation) return doc;
       let changed = false;
@@ -414,7 +414,7 @@ export const useBlueprintEditorInspectorController = () => {
         },
       };
     });
-  }, [selectedNode?.id, updateMirDoc]);
+  }, [selectedNode?.id, updatePirDoc]);
 
   const openAnimationEditor = useCallback(() => {
     const resolvedProjectId = projectId?.trim();
@@ -479,8 +479,8 @@ export const useBlueprintEditorInspectorController = () => {
   };
 
   const graphOptions = useMemo(() => {
-    return normalizeGraphOptionsFromMir(mirDoc.logic?.graphs);
-  }, [mirDoc.logic?.graphs]);
+    return normalizeGraphOptionsFromPir(pirDoc.logic?.graphs);
+  }, [pirDoc.logic?.graphs]);
 
   const updateTrigger: (
     triggerKey: string,
@@ -597,7 +597,7 @@ export const useBlueprintEditorInspectorController = () => {
           source,
           metadata: {
             slotKind: 'mounted-css',
-            ownerKind: 'mir-node',
+            ownerKind: 'pir-node',
             ownerId: selectedNode.id,
           },
         },
@@ -775,7 +775,7 @@ const findParentNodeById = (
   return null;
 };
 
-const normalizeGraphOptionsFromMir = (
+const normalizeGraphOptionsFromPir = (
   source: unknown
 ): Array<{ id: string; label: string }> => {
   const graphEntries = Array.isArray(source) ? source : [];
@@ -816,7 +816,10 @@ const normalizeGraphOptionsFromMir = (
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const LEGACY_DATA_MODEL_KEYS = ['x-mdr-data-model', 'x-mdr-data-schema'];
+const LEGACY_DATA_MODEL_KEYS = [
+  'x-prodivix-data-model',
+  'x-prodivix-data-schema',
+];
 
 const extractMountedDataModel = (
   node: ComponentNode

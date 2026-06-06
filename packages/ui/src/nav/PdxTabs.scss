@@ -1,0 +1,33 @@
+.PdxTabs {
+  width: 100%;
+}
+
+.PdxTabsHeader {
+  display: flex;
+  gap: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.PdxTabsTab {
+  border: none;
+  background: transparent;
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+
+  &.Active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-color);
+  }
+
+  &.Disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.PdxTabsContent {
+  padding: var(--spacing-md) 0;
+  color: var(--text-secondary);
+}

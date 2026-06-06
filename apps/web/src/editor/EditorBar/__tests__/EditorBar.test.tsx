@@ -12,19 +12,19 @@ vi.mock('react-router', () => ({
   useParams: () => params,
 }));
 
-vi.mock('@mdr/ui', () => ({
-  MdrIcon: ({ icon }: { icon?: ReactNode }) => <span>{icon}</span>,
-  MdrIconLink: ({ to, title }: { to: string; title?: string }) => (
+vi.mock('@prodivix/ui', () => ({
+  PdxIcon: ({ icon }: { icon?: ReactNode }) => <span>{icon}</span>,
+  PdxIconLink: ({ to, title }: { to: string; title?: string }) => (
     <a href={to} title={title}>
       {title}
     </a>
   ),
-  MdrButton: ({ text, onClick }: { text: string; onClick?: () => void }) => (
+  PdxButton: ({ text, onClick }: { text: string; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>
       {text}
     </button>
   ),
-  MdrModal: ({
+  PdxModal: ({
     open,
     title,
     children,

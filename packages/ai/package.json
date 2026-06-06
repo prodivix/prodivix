@@ -1,5 +1,5 @@
 {
-  "name": "@mdr/ai",
+  "name": "@prodivix/ai",
   "version": "0.1.0",
   "private": true,
   "main": "./src/index.ts",
@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@mdr/shared": "workspace:*"
+    "@prodivix/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

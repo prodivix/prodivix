@@ -18,8 +18,8 @@ import {
   TREE_DATA,
   TREE_SELECT_OPTIONS,
 } from '@/editor/features/design/blueprint/editor/model/data';
-import type { ComponentNode, MIRDocument } from '@/core/types/engine.types';
-import { materializeMirRoot } from '@/mir/graph';
+import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import { materializePirRoot } from '@/pir/graph';
 import { createRadixNodeFromPaletteItem } from '@/editor/features/design/blueprint/editor/model/radix';
 import { buildLayoutPatternNode } from '@/editor/features/design/blueprint/layoutPatterns';
 import { getComponentItemById } from '@/editor/features/design/blueprint/registry';
@@ -32,9 +32,9 @@ const collectTypeCounts = (
   node.children?.forEach((child) => collectTypeCounts(child, counts));
 };
 
-export const createNodeIdFactory = (doc: MIRDocument) => {
+export const createNodeIdFactory = (doc: PIRDocument) => {
   const counts: Record<string, number> = {};
-  collectTypeCounts(materializeMirRoot(doc), counts);
+  collectTypeCounts(materializePirRoot(doc), counts);
   return (type: string) => {
     const next = (counts[type] ?? 0) + 1;
     counts[type] = next;
@@ -90,30 +90,30 @@ const PALETTE_NODE_DEFAULTS: Record<
   string,
   { type: string; props: Record<string, unknown> }
 > = {
-  breadcrumb: { type: 'MdrBreadcrumb', props: { items: BREADCRUMB_ITEMS } },
+  breadcrumb: { type: 'PdxBreadcrumb', props: { items: BREADCRUMB_ITEMS } },
   table: {
-    type: 'MdrTable',
+    type: 'PdxTable',
     props: { data: TABLE_DATA, columns: TABLE_COLUMNS, size: 'Medium' },
   },
   'data-grid': {
-    type: 'MdrDataGrid',
+    type: 'PdxDataGrid',
     props: { data: GRID_DATA, columns: GRID_COLUMNS },
   },
-  list: { type: 'MdrList', props: { items: LIST_ITEMS, size: 'Medium' } },
+  list: { type: 'PdxList', props: { items: LIST_ITEMS, size: 'Medium' } },
   'check-list': {
-    type: 'MdrCheckList',
+    type: 'PdxCheckList',
     props: { items: CHECKLIST_ITEMS, defaultValue: ['wireframes'] },
   },
   tree: {
-    type: 'MdrTree',
+    type: 'PdxTree',
     props: { data: TREE_DATA, defaultExpandedKeys: ['root'] },
   },
   'tree-select': {
-    type: 'MdrTreeSelect',
+    type: 'PdxTreeSelect',
     props: { options: TREE_SELECT_OPTIONS, defaultValue: 'option-1' },
   },
   'region-picker': {
-    type: 'MdrRegionPicker',
+    type: 'PdxRegionPicker',
     props: {
       options: REGION_OPTIONS,
       defaultValue: {
@@ -124,32 +124,32 @@ const PALETTE_NODE_DEFAULTS: Record<
     },
   },
   'anchor-navigation': {
-    type: 'MdrAnchorNavigation',
+    type: 'PdxAnchorNavigation',
     props: { items: ANCHOR_ITEMS, orientation: 'Vertical' },
   },
-  tabs: { type: 'MdrTabs', props: { items: TAB_ITEMS } },
+  tabs: { type: 'PdxTabs', props: { items: TAB_ITEMS } },
   collapse: {
-    type: 'MdrCollapse',
+    type: 'PdxCollapse',
     props: { items: COLLAPSE_ITEMS, defaultActiveKeys: ['panel-1'] },
   },
   navbar: {
-    type: 'MdrNavbar',
-    props: { brand: 'Mdr', items: NAVBAR_ITEMS, size: 'Medium' },
+    type: 'PdxNavbar',
+    props: { brand: 'Pdx', items: NAVBAR_ITEMS, size: 'Medium' },
   },
   sidebar: {
-    type: 'MdrSidebar',
+    type: 'PdxSidebar',
     props: { title: 'Menu', items: SIDEBAR_ITEMS, width: 160 },
   },
   route: {
-    type: 'MdrRoute',
+    type: 'PdxRoute',
     props: {},
   },
   outlet: {
-    type: 'MdrOutlet',
+    type: 'PdxOutlet',
     props: {},
   },
   'image-gallery': {
-    type: 'MdrImageGallery',
+    type: 'PdxImageGallery',
     props: {
       images: GALLERY_IMAGES,
       columns: 2,
@@ -157,14 +157,14 @@ const PALETTE_NODE_DEFAULTS: Record<
       size: 'Medium',
     },
   },
-  timeline: { type: 'MdrTimeline', props: { items: TIMELINE_ITEMS } },
-  steps: { type: 'MdrSteps', props: { items: STEPS_ITEMS, current: 1 } },
-  progress: { type: 'MdrProgress', props: { value: 62, size: 'Medium' } },
+  timeline: { type: 'PdxTimeline', props: { items: TIMELINE_ITEMS } },
+  steps: { type: 'PdxSteps', props: { items: STEPS_ITEMS, current: 1 } },
+  progress: { type: 'PdxProgress', props: { value: 62, size: 'Medium' } },
   statistic: {
-    type: 'MdrStatistic',
+    type: 'PdxStatistic',
     props: { title: 'Total', value: 248, trend: 'Up' },
   },
-  pagination: { type: 'MdrPagination', props: { page: 2, total: 50 } },
+  pagination: { type: 'PdxPagination', props: { page: 2, total: 50 } },
 };
 
 export const createNodeFromPaletteItem = (
@@ -184,7 +184,7 @@ export const createNodeFromPaletteItem = (
     if (value.startsWith('radix-')) {
       return `Radix${toPascalCase(value.slice('radix-'.length))}`;
     }
-    return `Mdr${toPascalCase(value)}`;
+    return `Pdx${toPascalCase(value)}`;
   };
 
   const radixNode = createRadixNodeFromPaletteItem(
@@ -212,8 +212,8 @@ export const createNodeFromPaletteItem = (
 
   if (itemId === 'text') {
     return {
-      id: createId('MdrText'),
-      type: 'MdrText',
+      id: createId('PdxText'),
+      type: 'PdxText',
       text: 'Text',
       props: { size: selectedSize ?? 'Medium' },
     };
@@ -228,8 +228,8 @@ export const createNodeFromPaletteItem = (
           : 2;
     const level = Number.isFinite(resolvedLevel) ? resolvedLevel : 2;
     return {
-      id: createId('MdrHeading'),
-      type: 'MdrHeading',
+      id: createId('PdxHeading'),
+      type: 'PdxHeading',
       text: 'Heading',
       props: {
         ...variantProps,
@@ -241,16 +241,16 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'paragraph') {
     return {
-      id: createId('MdrParagraph'),
-      type: 'MdrParagraph',
+      id: createId('PdxParagraph'),
+      type: 'PdxParagraph',
       text: 'Paragraph',
       props: { size: selectedSize ?? 'Medium' },
     };
   }
   if (itemId === 'button') {
     return {
-      id: createId('MdrButton'),
-      type: 'MdrButton',
+      id: createId('PdxButton'),
+      type: 'PdxButton',
       text: 'Button',
       props: {
         size: selectedSize ?? 'Medium',
@@ -261,22 +261,22 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'route') {
     return {
-      id: createId('MdrRoute'),
-      type: 'MdrRoute',
+      id: createId('PdxRoute'),
+      type: 'PdxRoute',
       props: {},
     };
   }
   if (itemId === 'outlet') {
     return {
-      id: createId('MdrOutlet'),
-      type: 'MdrOutlet',
+      id: createId('PdxOutlet'),
+      type: 'PdxOutlet',
       props: {},
     };
   }
   if (itemId === 'button-link') {
     return {
-      id: createId('MdrButtonLink'),
-      type: 'MdrButtonLink',
+      id: createId('PdxButtonLink'),
+      type: 'PdxButtonLink',
       text: 'Link',
       props: {
         to: '',
@@ -288,23 +288,23 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'link') {
     return {
-      id: createId('MdrLink'),
-      type: 'MdrLink',
+      id: createId('PdxLink'),
+      type: 'PdxLink',
       text: 'Link',
       props: { to: '' },
     };
   }
   if (itemId === 'input') {
     return {
-      id: createId('MdrInput'),
-      type: 'MdrInput',
+      id: createId('PdxInput'),
+      type: 'PdxInput',
       props: { placeholder: 'Input', size: selectedSize ?? 'Medium' },
     };
   }
   if (itemId === 'textarea') {
     return {
-      id: createId('MdrTextarea'),
-      type: 'MdrTextarea',
+      id: createId('PdxTextarea'),
+      type: 'PdxTextarea',
       props: {
         placeholder: 'Textarea',
         rows: 3,
@@ -314,14 +314,14 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'div') {
     return {
-      id: createId('MdrDiv'),
-      type: 'MdrDiv',
+      id: createId('PdxDiv'),
+      type: 'PdxDiv',
     };
   }
   if (itemId === 'flex') {
     return {
-      id: createId('MdrDiv'),
-      type: 'MdrDiv',
+      id: createId('PdxDiv'),
+      type: 'PdxDiv',
       props: {
         display: 'Flex',
       },
@@ -329,8 +329,8 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'grid') {
     return {
-      id: createId('MdrDiv'),
-      type: 'MdrDiv',
+      id: createId('PdxDiv'),
+      type: 'PdxDiv',
       props: {
         display: 'Grid',
       },
@@ -338,8 +338,8 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'section') {
     return {
-      id: createId('MdrSection'),
-      type: 'MdrSection',
+      id: createId('PdxSection'),
+      type: 'PdxSection',
       props: {
         size: selectedSize ?? 'Medium',
         padding: 'Medium',
@@ -349,8 +349,8 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'card') {
     return {
-      id: createId('MdrCard'),
-      type: 'MdrCard',
+      id: createId('PdxCard'),
+      type: 'PdxCard',
       props: {
         size: selectedSize ?? 'Medium',
         variant: 'Bordered',
@@ -361,8 +361,8 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'panel') {
     return {
-      id: createId('MdrPanel'),
-      type: 'MdrPanel',
+      id: createId('PdxPanel'),
+      type: 'PdxPanel',
       props: {
         size: selectedSize ?? 'Medium',
         variant: 'Default',
@@ -374,8 +374,8 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'icon') {
     return {
-      id: createId('MdrIcon'),
-      type: 'MdrIcon',
+      id: createId('PdxIcon'),
+      type: 'PdxIcon',
       props: {
         iconRef: {
           provider: 'lucide',
@@ -388,8 +388,8 @@ export const createNodeFromPaletteItem = (
   }
   if (itemId === 'icon-link') {
     return {
-      id: createId('MdrIconLink'),
-      type: 'MdrIconLink',
+      id: createId('PdxIconLink'),
+      type: 'PdxIconLink',
       props: {
         iconRef: {
           provider: 'lucide',

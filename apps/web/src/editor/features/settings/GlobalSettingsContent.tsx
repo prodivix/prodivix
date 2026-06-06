@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import {
-  MdrCheckList,
-  MdrInput,
-  MdrRadioGroup,
-  MdrSelect,
-  MdrSlider,
-  MdrTextarea,
-} from '@mdr/ui';
+  PdxCheckList,
+  PdxInput,
+  PdxRadioGroup,
+  PdxSelect,
+  PdxSlider,
+  PdxTextarea,
+} from '@prodivix/ui';
 import {
   createProjectDefaults,
   type GlobalSettingsState,
@@ -133,7 +133,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.language.description')}
           meta={renderMeta('language')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -156,7 +156,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.theme.description')}
           meta={renderMeta('theme')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.theme.options.home'),
@@ -184,7 +184,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.density.description')}
           meta={renderMeta('density')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.density.options.comfortable'),
@@ -208,7 +208,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.fontScale.description')}
           meta={renderMeta('fontScale')}
           control={
-            <MdrSlider
+            <PdxSlider
               min={90}
               max={120}
               step={1}
@@ -230,7 +230,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.autosaveMode.description')}
           meta={renderMeta('autosaveMode')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.autosaveMode.options.manual'),
@@ -262,7 +262,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.autosaveInterval.description')}
           meta={renderMeta('autosaveInterval')}
           control={
-            <MdrSlider
+            <PdxSlider
               min={5}
               max={60}
               step={5}
@@ -278,7 +278,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.undoSteps.description')}
           meta={renderMeta('undoSteps')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={String(resolveValue('undoSteps'))}
               onChange={(value) => updateValue('undoSteps', value)}
@@ -291,7 +291,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.confirmPrompts.description')}
           meta={renderMeta('confirmPrompts')}
           control={
-            <MdrCheckList
+            <PdxCheckList
               items={withDisabled(
                 [
                   {
@@ -325,7 +325,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.panelLayout.description')}
           meta={renderMeta('panelLayout')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -354,7 +354,7 @@ export const GlobalSettingsContent = ({
           )}
           meta={renderMeta('classPxTransformMode')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t(
@@ -388,14 +388,14 @@ export const GlobalSettingsContent = ({
           meta={renderMeta('viewportWidth')}
           control={
             <div className="inline-flex items-center gap-1.5">
-              <MdrInput
+              <PdxInput
                 size="Small"
                 value={String(resolveValue('viewportWidth'))}
                 onChange={(value) => updateValue('viewportWidth', value)}
                 disabled={!canEditValue('viewportWidth')}
               />
               <span className="text-[12px] text-(--text-muted)">×</span>
-              <MdrInput
+              <PdxInput
                 size="Small"
                 value={String(resolveValue('viewportHeight'))}
                 onChange={(value) => updateValue('viewportHeight', value)}
@@ -409,7 +409,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.zoomStep.description')}
           meta={renderMeta('zoomStep')}
           control={
-            <MdrSlider
+            <PdxSlider
               min={1}
               max={20}
               step={1}
@@ -425,7 +425,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.assist.description')}
           meta={renderMeta('assist')}
           control={
-            <MdrCheckList
+            <PdxCheckList
               items={withDisabled(
                 [
                   {
@@ -453,7 +453,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.panInertia.description')}
           meta={renderMeta('panInertia')}
           control={
-            <MdrSlider
+            <PdxSlider
               min={0}
               max={100}
               step={5}
@@ -469,7 +469,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.eventTriggerMode.description')}
           meta={renderMeta('eventTriggerMode')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t(
@@ -502,20 +502,20 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.resolverOrder.description')}
           meta={renderMeta('resolverOrder')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
                   label: t(
-                    'settings.global.rows.resolverOrder.options.customMdrNative'
+                    'settings.global.rows.resolverOrder.options.customPdxNative'
                   ),
-                  value: 'custom>mdr>native',
+                  value: 'custom>prodivix>native',
                 },
                 {
                   label: t(
-                    'settings.global.rows.resolverOrder.options.mdrNative'
+                    'settings.global.rows.resolverOrder.options.prodivixNative'
                   ),
-                  value: 'mdr>native',
+                  value: 'prodivix>native',
                 },
                 {
                   label: t(
@@ -535,7 +535,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.customNamespaces.description')}
           meta={renderMeta('customNamespaces')}
           control={
-            <MdrTextarea
+            <PdxTextarea
               size="Small"
               rows={3}
               value={String(resolveValue('customNamespaces'))}
@@ -549,7 +549,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.renderMode.description')}
           meta={renderMeta('renderMode')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.renderMode.options.strict'),
@@ -573,7 +573,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.externalProps.description')}
           meta={renderMeta('allowExternalProps')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.externalProps.options.allow'),
@@ -604,7 +604,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.defaultFramework.description')}
           meta={renderMeta('defaultFramework')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -635,7 +635,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.formatting.description')}
           meta={renderMeta('formatting')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.formatting.options.prettier'),
@@ -659,7 +659,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.outputPath.description')}
           meta={renderMeta('outputPath')}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={String(resolveValue('outputPath'))}
               onChange={(value) => updateValue('outputPath', value)}
@@ -672,7 +672,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.importStyle.description')}
           meta={renderMeta('importStyle')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -699,7 +699,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.metadata.description')}
           meta={renderMeta('metadata')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.metadata.options.include'),
@@ -728,7 +728,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.shortcutPreset.description')}
           meta={renderMeta('shortcutPreset')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -759,7 +759,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.diagnostics.description')}
           meta={renderMeta('diagnostics')}
           control={
-            <MdrCheckList
+            <PdxCheckList
               items={withDisabled(
                 [
                   {
@@ -793,7 +793,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.logLevel.description')}
           meta={renderMeta('logLevel')}
           control={
-            <MdrSelect
+            <PdxSelect
               size="Small"
               options={[
                 {
@@ -820,7 +820,7 @@ export const GlobalSettingsContent = ({
           description={t('settings.global.rows.telemetry.description')}
           meta={renderMeta('telemetry')}
           control={
-            <MdrRadioGroup
+            <PdxRadioGroup
               options={[
                 {
                   label: t('settings.global.rows.telemetry.options.allow'),

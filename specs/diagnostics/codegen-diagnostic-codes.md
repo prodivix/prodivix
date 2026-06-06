@@ -11,11 +11,11 @@
 
 ## 1. 范围
 
-`GEN-xxxx` 覆盖 MIR 到目标代码的 canonical IR 构建、依赖解析、adapter 匹配、代码发射、项目脚手架和导出产物。
+`GEN-xxxx` 覆盖 PIR 到目标代码的 canonical IR 构建、依赖解析、adapter 匹配、代码发射、项目脚手架和导出产物。
 
 不覆盖：
 
-1. MIR 本身的结构校验，使用 `MIR-xxxx`。
+1. PIR 本身的结构校验，使用 `PIR-xxxx`。
 2. 外部库运行时加载和扫描，使用 `ELIB-xxxx`。
 3. 部署平台失败，后续可使用 `API-xxxx` 或独立 Deploy 域。
 
@@ -34,7 +34,7 @@ type CodegenDiagnosticStage =
 
 | 段位       | 阶段           | 说明                           |
 | ---------- | -------------- | ------------------------------ |
-| `GEN-10xx` | `canonical-ir` | MIR 到 Canonical IR 的转换     |
+| `GEN-10xx` | `canonical-ir` | PIR 到 Canonical IR 的转换     |
 | `GEN-20xx` | `adapter`      | 组件 adapter、目标框架能力匹配 |
 | `GEN-30xx` | `dependency`   | import、package、版本和许可证  |
 | `GEN-40xx` | `emit`         | 代码发射、格式化、文件组织     |
@@ -48,9 +48,9 @@ type CodegenDiagnosticStage =
 - Severity: `error`
 - Stage: `canonical-ir`
 - Retryable: false
-- Trigger: MIR 无法转换为目标无关的 Canonical IR
-- User action: 先修复 MIR 诊断，再重新导出
-- Developer notes: 该诊断应保留下游 MIR code 列表
+- Trigger: PIR 无法转换为目标无关的 Canonical IR
+- User action: 先修复 PIR 诊断，再重新导出
+- Developer notes: 该诊断应保留下游 PIR code 列表
 
 ### `GEN-2001` 组件 Adapter 缺失
 
@@ -66,7 +66,7 @@ type CodegenDiagnosticStage =
 - Severity: `warning`
 - Stage: `adapter`
 - Retryable: false
-- Trigger: MIR 使用了目标框架 adapter 不支持的事件、slot、动画或数据能力
+- Trigger: PIR 使用了目标框架 adapter 不支持的事件、slot、动画或数据能力
 - User action: 调整设计或选择支持该能力的导出目标
 - Developer notes: adapter capability matrix 应产出稳定诊断
 

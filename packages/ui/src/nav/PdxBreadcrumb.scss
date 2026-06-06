@@ -1,0 +1,23 @@
+.PdxBreadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.PdxBreadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+.PdxBreadcrumbSeparator {
+  margin: 0 4px;
+}

@@ -7,7 +7,7 @@ js, _ = json.JSONDecoder().raw_decode(raw[start:])
 
 for r in js.get("testResults", []):
     name = r.get("name", "").replace("\\", "/")
-    short = name.split("Mdr-Front-Engine/", 1)[-1]
+    short = name.split("prodivix/", 1)[-1]
     for a in r.get("assertionResults", []):
         if a.get("status") != "failed":
             continue

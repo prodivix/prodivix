@@ -1,6 +1,6 @@
 # 开发指南
 
-本文档为 MdrFrontEngine 的开发者提供详细的开发环境配置和工作流程指南。
+本文档为 Prodivix 的开发者提供详细的开发环境配置和工作流程指南。
 
 ## 环境要求
 
@@ -16,8 +16,8 @@
 ### 克隆仓库
 
 ```bash
-git clone https://github.com/mdr-front-engine/mdr-front-engine.git
-cd mdr-front-engine
+git clone https://github.com/prodivix/prodivix.git
+cd prodivix
 ```
 
 ### 安装依赖
@@ -54,7 +54,7 @@ go run .
 项目使用 pnpm workspace + Turborepo 管理：
 
 ```
-mdr-front-engine/
+prodivix/
 ├── apps/                 # 应用
 │   ├── web/             # React Web 编辑器
 │   ├── backend/         # Go 后端服务
@@ -64,11 +64,11 @@ mdr-front-engine/
 │
 ├── packages/             # 共享包
 │   ├── ui/              # UI 组件库
-│   ├── mir-compiler/    # MIR 编译器
+│   ├── pir-compiler/    # PIR 编译器
 │   ├── shared/          # 共享类型
 │   ├── themes/          # 主题
 │   ├── i18n/            # 国际化
-│   ├── eslint-plugin-mdr/ # ESLint 插件
+│   ├── eslint-plugin-prodivix/ # ESLint 插件
 │   └── vscode-debugger/ # VS Code 调试器
 │
 ├── tests/                # E2E 测试
@@ -84,20 +84,20 @@ mdr-front-engine/
 
 ```
 apps/web
-  ├── @mdr/ui
-  ├── @mdr/shared
-  ├── @mdr/themes
-  └── @mdr/i18n
+  ├── @prodivix/ui
+  ├── @prodivix/shared
+  ├── @prodivix/themes
+  └── @prodivix/i18n
 
 apps/cli
-  └── @mdr/mir-compiler
+  └── @prodivix/pir-compiler
 
 packages/ui
-  ├── @mdr/shared
-  └── @mdr/themes
+  ├── @prodivix/shared
+  └── @prodivix/themes
 
-packages/mir-compiler
-  └── @mdr/shared
+packages/pir-compiler
+  └── @prodivix/shared
 ```
 
 ## 开发工作流
@@ -117,7 +117,7 @@ pnpm init
 
 ```json
 {
-  "name": "@mdr/new-package",
+  "name": "@prodivix/new-package",
   "version": "0.0.1",
   "private": true,
   "main": "./dist/index.js",
@@ -138,13 +138,13 @@ pnpm init
 
 ```bash
 # 添加到特定包
-pnpm --filter @mdr/web add lodash
+pnpm --filter @prodivix/web add lodash
 
 # 添加开发依赖
-pnpm --filter @mdr/ui add -D vitest
+pnpm --filter @prodivix/ui add -D vitest
 
 # 添加内部包依赖
-pnpm --filter @mdr/web add @mdr/shared
+pnpm --filter @prodivix/web add @prodivix/shared
 ```
 
 ### 运行脚本
@@ -154,12 +154,12 @@ pnpm --filter @mdr/web add @mdr/shared
 pnpm build
 
 # 运行特定包的脚本
-pnpm --filter @mdr/ui build
-pnpm --filter @mdr/web test
+pnpm --filter @prodivix/ui build
+pnpm --filter @prodivix/web test
 
 # 使用 Turborepo
 pnpm turbo run build
-pnpm turbo run test --filter=@mdr/web
+pnpm turbo run test --filter=@prodivix/web
 ```
 
 ## 技术栈详解
@@ -198,7 +198,7 @@ apps/web/src/
 │       ├── export/     # 导出
 │       └── settings/   # 设置
 │
-├── mir/                # MIR 相关
+├── pir/                # PIR 相关
 │   ├── ast/            # AST 解析
 │   ├── converter/      # 转换器
 │   ├── generator/      # 代码生成
@@ -224,10 +224,10 @@ apps/web/src/
 pnpm storybook:ui
 
 # 运行测试
-pnpm --filter @mdr/ui test
+pnpm --filter @prodivix/ui test
 
 # 构建
-pnpm --filter @mdr/ui build
+pnpm --filter @prodivix/ui build
 ```
 
 **添加新组件**:
@@ -236,10 +236,10 @@ pnpm --filter @mdr/ui build
 
 ```
 packages/ui/src/button/
-├── MdrButton.tsx
-├── MdrButton.scss
-├── MdrButton.stories.tsx
-├── MdrButton.test.tsx
+├── PdxButton.tsx
+├── PdxButton.scss
+├── PdxButton.stories.tsx
+├── PdxButton.test.tsx
 └── index.ts
 ```
 
@@ -280,7 +280,7 @@ cd apps/backend
 go run .
 
 # 构建
-go build -o mdr-backend
+go build -o prodivix-backend
 
 # 测试
 go test ./...
@@ -295,14 +295,14 @@ go test ./...
 pnpm test
 
 # 运行特定包测试
-pnpm --filter @mdr/web test
-pnpm --filter @mdr/ui test
+pnpm --filter @prodivix/web test
+pnpm --filter @prodivix/ui test
 
 # 监听模式
-pnpm --filter @mdr/web test -- --watch
+pnpm --filter @prodivix/web test -- --watch
 
 # 生成覆盖率报告
-pnpm --filter @mdr/web test -- --coverage
+pnpm --filter @prodivix/web test -- --coverage
 ```
 
 ### E2E 测试
@@ -330,23 +330,23 @@ pnpm --filter tests test -- --debug
 pnpm build
 
 # 构建特定包
-pnpm --filter @mdr/ui build
+pnpm --filter @prodivix/ui build
 ```
 
 ### 生产构建
 
 ```bash
 # 构建 Web 应用
-pnpm --filter @mdr/web build
+pnpm --filter @prodivix/web build
 
 # 构建文档
-pnpm --filter @mdr/docs build
+pnpm --filter @prodivix/docs build
 ```
 
 ### 预览构建结果
 
 ```bash
-pnpm --filter @mdr/web preview
+pnpm --filter @prodivix/web preview
 ```
 
 ## 代码质量
@@ -382,7 +382,7 @@ pnpm format --check
 pnpm typecheck
 
 # 或针对特定包
-pnpm --filter @mdr/web exec tsc --noEmit
+pnpm --filter @prodivix/web exec tsc --noEmit
 ```
 
 ## 调试
@@ -475,7 +475,7 @@ pnpm install
 
 ```bash
 # 重新生成类型
-pnpm --filter @mdr/shared build
+pnpm --filter @prodivix/shared build
 
 # 重启 TypeScript 服务器（VS Code）
 Ctrl+Shift+P -> TypeScript: Restart TS Server

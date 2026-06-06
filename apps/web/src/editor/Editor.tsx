@@ -124,7 +124,7 @@ function Editor() {
   const token = useAuthStore((state) => state.token);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const setProject = useEditorStore((state) => state.setProject);
-  const setMirDoc = useEditorStore((state) => state.setMirDoc);
+  const setPirDoc = useEditorStore((state) => state.setPirDoc);
   const setWorkspaceSnapshot = useEditorStore(
     (state) => state.setWorkspaceSnapshot
   );
@@ -186,11 +186,11 @@ function Editor() {
             if (error instanceof ApiError && error.status === 422) {
               setLoadError(
                 error.message ||
-                  'This project uses a legacy MIR document and cannot be opened in v1.3.'
+                  'This project uses a legacy PIR document and cannot be opened in v1.3.'
               );
               return;
             }
-            setMirDoc(project.mir);
+            setPirDoc(project.pir);
           });
       })
       .catch((error: unknown) => {
@@ -199,7 +199,7 @@ function Editor() {
         if (error instanceof ApiError && error.status === 422) {
           setLoadError(
             error.message ||
-              'This project uses a legacy MIR document and cannot be opened in v1.3.'
+              'This project uses a legacy PIR document and cannot be opened in v1.3.'
           );
           return;
         }
@@ -218,7 +218,7 @@ function Editor() {
     token,
     clearWorkspaceState,
     hydrateWorkspaceSettings,
-    setMirDoc,
+    setPirDoc,
     setProject,
     setWorkspaceCapabilities,
     setWorkspaceSnapshot,
@@ -228,7 +228,7 @@ function Editor() {
     if (showLoadError) return;
     const unmountBridge = mountGraphExecutionBridge();
     const unmountNodeGraphExecutor = mountDefaultNodeGraphExecutor({
-      getMirDoc: () => useEditorStore.getState().mirDoc,
+      getPirDoc: () => useEditorStore.getState().pirDoc,
     });
     return () => {
       unmountNodeGraphExecutor();

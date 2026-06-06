@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { Download, FileWarning } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -79,7 +79,7 @@ type PublicResourcePageProps = {
 };
 
 const getResourceManagerPublicSelectionStorageKey = (projectId?: string) =>
-  `mdr.resourceManager.public.selection.${projectId?.trim() || 'default'}`;
+  `prodivix.resourceManager.public.selection.${projectId?.trim() || 'default'}`;
 
 export function PublicResourcePage({
   embedded = false,
@@ -290,7 +290,7 @@ export function PublicResourcePage({
   };
 
   const fontFamilyName =
-    selectedNode.type === 'file' ? `mdr-font-${selectedNode.id}` : '';
+    selectedNode.type === 'file' ? `prodivix-font-${selectedNode.id}` : '';
 
   return (
     <section

@@ -9,7 +9,7 @@
   - `specs/decisions/25.authoring-symbol-environment.md`
   - `specs/decisions/21.inspector-panel-architecture.md`
   - `specs/decisions/20.node-graph-port-semantics.md`
-  - `specs/mir/mir-contract-v1.3.md`
+  - `specs/pir/pir-contract-v1.3.md`
 
 ## 1. 范围
 
@@ -21,11 +21,11 @@
 2. Blueprint 中的事件代码、Mounted CSS、绑定表达式和节点级代码挂载。
 3. NodeGraph 暴露给代码环境的 graph input、graph output、函数节点、变量节点和端口类型。
 4. Animation 中的表达式、filter、track value 和 keyframe 计算逻辑。
-5. Route、MIR、Workspace、External Library 等来源注入到代码环境中的共享符号。
+5. Route、PIR、Workspace、External Library 等来源注入到代码环境中的共享符号。
 
 不覆盖：
 
-1. MIR 保存态 graph、ValueRef 与 materialize 契约，使用 `MIR-xxxx`。
+1. PIR 保存态 graph、ValueRef 与 materialize 契约，使用 `PIR-xxxx`。
 2. Inspector 写入、拖拽、选择和编辑器交互，使用 `EDT-xxxx`。
 3. NodeGraph 结构、端口连线和执行计划本身，使用 `NGR-xxxx`。
 4. Animation timeline、binding、track 和 keyframe 结构本身，使用 `ANI-xxxx`。
@@ -118,7 +118,7 @@ type CodeDiagnosticStage =
 - Retryable: true
 - Trigger: 代码片段引用的变量、节点、route param、graph output、data scope 或外部导出无法在当前作用域中解析
 - User action: 检查引用名称、当前节点作用域、数据源、路由参数或节点图输出
-- Developer notes: 诊断应包含 `symbolName`、`scopeId` 和可选 `targetRef`；同一语义不要折叠到 `MIR-3001`
+- Developer notes: 诊断应包含 `symbolName`、`scopeId` 和可选 `targetRef`；同一语义不要折叠到 `PIR-3001`
 
 ### `COD-2002` import 无法解析
 
@@ -215,7 +215,7 @@ type CodeDiagnosticStage =
 - Severity: `error`
 - Stage: `binding`
 - Retryable: false
-- Trigger: 代码片段 owner 指向的 MIR 节点、Inspector 字段、NodeGraph 节点、Animation track 或其他宿主对象已不存在
+- Trigger: 代码片段 owner 指向的 PIR 节点、Inspector 字段、NodeGraph 节点、Animation track 或其他宿主对象已不存在
 - User action: 重新选择代码挂载目标，或删除失效代码片段
 - Developer notes: 删除宿主对象时应清理相关 `CodeArtifact`；无法清理时必须保留可定位诊断
 
@@ -287,7 +287,7 @@ type CodeDiagnosticStage =
 - Severity: `error`
 - Stage: `binding`
 - Retryable: false
-- Trigger: 代码片段尝试写入只读 props、route param、computed input、graph input、MIR snapshot 或受控注入上下文
+- Trigger: 代码片段尝试写入只读 props、route param、computed input、graph input、PIR snapshot 或受控注入上下文
 - User action: 改为返回新值、发出允许的 command，或写入当前宿主声明为可变的状态位置
 - Developer notes: ESLint 或自定义 lint 的只读写入规则可进入 `meta.upstream`；主码应指向 MFE 作者态上下文契约
 

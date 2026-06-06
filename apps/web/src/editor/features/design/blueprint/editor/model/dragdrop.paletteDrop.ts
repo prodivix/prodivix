@@ -6,11 +6,11 @@ import {
   findNodeById,
   insertAfterById,
   insertChildAtIndex,
-  insertIntoMirDoc,
+  insertIntoPirDoc,
   supportsChildrenForNode,
 } from '@/editor/features/design/blueprint/editor/model/tree';
-import type { ComponentNode, MIRDocument } from '@/core/types/engine.types';
-import { materializeMirRoot, normalizeTreeToUiGraph } from '@/mir/graph';
+import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
 import { normalizeRoutePath } from '@/editor/store/routeManifest';
 import type { DragOverData, PaletteItemDragData } from './dragdrop.types';
 
@@ -35,12 +35,12 @@ const toRoutedNode = (
 };
 
 export type PaletteDropResult = {
-  doc: MIRDocument;
+  doc: PIRDocument;
   nextNodeId: string;
 };
 
 export const applyPaletteItemDrop = (
-  doc: MIRDocument,
+  doc: PIRDocument,
   data: PaletteItemDragData,
   overData: DragOverData | null | undefined,
   context: {
@@ -71,9 +71,9 @@ export const applyPaletteItemDrop = (
   let nextNodeId = newNode.id;
 
   if (dropNodeId) {
-    const root = materializeMirRoot(doc);
+    const root = materializePirRoot(doc);
     const dropNode = findNodeById(root, dropNodeId);
-    if (dropNode?.type === 'MdrRoute') {
+    if (dropNode?.type === 'PdxRoute') {
       newNode = toRoutedNode(newNode, normalizedCurrentPath);
       nextNodeId = newNode.id;
       const insertedChild = insertChildAtIndex(
@@ -95,9 +95,9 @@ export const applyPaletteItemDrop = (
   }
 
   if (dropKind === 'canvas' && context.selectedId) {
-    const root = materializeMirRoot(doc);
+    const root = materializePirRoot(doc);
     const selectedNode = findNodeById(root, context.selectedId);
-    if (selectedNode?.type === 'MdrRoute') {
+    if (selectedNode?.type === 'PdxRoute') {
       newNode = toRoutedNode(newNode, normalizedCurrentPath);
       nextNodeId = newNode.id;
       const insertedChild = insertChildAtIndex(
@@ -155,7 +155,7 @@ export const applyPaletteItemDrop = (
   }
 
   return {
-    doc: insertIntoMirDoc(doc, targetId, newNode),
+    doc: insertIntoPirDoc(doc, targetId, newNode),
     nextNodeId,
   };
 };

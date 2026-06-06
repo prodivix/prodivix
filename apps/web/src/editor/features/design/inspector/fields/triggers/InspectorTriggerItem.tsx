@@ -7,7 +7,7 @@ import {
   getNavigateLinkKind,
   normalizeBuiltInAction,
   type BuiltInActionName,
-} from '@/mir/actions/registry';
+} from '@/pir/actions/registry';
 import type { TriggerEntry } from '@/editor/features/design/inspector/InspectorContext.types';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
 import { TriggerNavigateFields } from './TriggerNavigateFields';

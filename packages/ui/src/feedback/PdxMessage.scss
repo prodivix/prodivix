@@ -1,0 +1,45 @@
+.PdxMessage {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.PdxMessage.Info {
+  background-color: var(--bg-panel);
+}
+
+.PdxMessage.Success {
+  border-color: color-mix(in srgb, var(--success-color) 35%, transparent);
+  background-color: color-mix(in srgb, var(--success-color) 12%, transparent);
+  color: var(--success-color);
+}
+
+.PdxMessage.Warning {
+  border-color: color-mix(in srgb, var(--warning-color) 35%, transparent);
+  background-color: color-mix(in srgb, var(--warning-color) 16%, transparent);
+  color: var(--warning-color);
+}
+
+.PdxMessage.Danger {
+  border-color: color-mix(in srgb, var(--danger-color) 35%, transparent);
+  background-color: color-mix(in srgb, var(--danger-color) 14%, transparent);
+  color: var(--danger-color);
+}
+
+.PdxMessageClose {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

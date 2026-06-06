@@ -34,7 +34,7 @@
 
 范围：
 
-1. `MdrDiagnosticDomain` 增加 `ux`。
+1. `ProdivixDiagnosticDomain` 增加 `ux`。
 2. `isDiagnostic` 接受 `ux` domain。
 3. `DiagnosticTargetRef` 增加 UX 需要的稳定定位：
    - `theme-token`
@@ -55,7 +55,7 @@
 
 验收：
 
-- [ ] `pnpm --filter @mdr/web typecheck` 通过。
+- [ ] `pnpm --filter @prodivix/web typecheck` 通过。
 - [ ] `pnpm docs:diagnostics:check` 通过。
 - [ ] 不新增 checker、UI 或运行时扫描逻辑。
 
@@ -80,7 +80,7 @@ type UxCheckContext = {
 type UxDiagnosticProvider = {
   id: string;
   mode: UxCheckMode;
-  getDiagnostics(context: UxCheckContext): MdrDiagnostic[];
+  getDiagnostics(context: UxCheckContext): ProdivixDiagnostic[];
 };
 ```
 
@@ -106,17 +106,17 @@ type UxDiagnosticProvider = {
 
 | Code      | 来源                         | 原因                     |
 | --------- | ---------------------------- | ------------------------ |
-| `UX-1003` | Inspector schema / MIR props | 表单标签可静态定位       |
+| `UX-1003` | Inspector schema / PIR props | 表单标签可静态定位       |
 | `UX-1004` | component metadata / props   | 图标按钮可访问名称高频   |
 | `UX-4005` | field schema                 | 必填、格式、范围说明稳定 |
 | `UX-9002` | UX rule config schema        | 配置非法不依赖页面运行时 |
 
 实施规则：
 
-1. 静态检查器只基于 MIR、schema、component metadata、theme token metadata。
+1. 静态检查器只基于 PIR、schema、component metadata、theme token metadata。
 2. 不读取真实 DOM，不计算样式，不做 focus walk。
 3. 如果需要运行时证据才能判断，返回 `UX-9004` 或跳过。
-4. 每条诊断必须能定位到 `inspector-field`、`mir-node` 或 `operation`。
+4. 每条诊断必须能定位到 `inspector-field`、`pir-node` 或 `operation`。
 
 验收：
 
@@ -144,8 +144,8 @@ type UxDiagnosticProvider = {
 
 1. 必须记录 `viewport`、`themeId`、`routeId` 或可复现 snapshot。
 2. 与 theme token 有关的诊断必须记录 token path。
-3. Preview checker 不改变 MIR，不尝试自动修复。
-4. 对无法反向映射到 MIR 的结果使用 `runtime-dom` targetRef。
+3. Preview checker 不改变 PIR，不尝试自动修复。
+4. 对无法反向映射到 PIR 的结果使用 `runtime-dom` targetRef。
 
 验收：
 
@@ -186,7 +186,7 @@ type UxDiagnosticProvider = {
 展示策略：
 
 1. `inspector-field`：Inspector 字段附近 + Issues。
-2. `mir-node`：Canvas 节点标记 + Component tree + Issues。
+2. `pir-node`：Canvas 节点标记 + Component tree + Issues。
 3. `theme-token`：Theme/token editor + Issues。
 4. `viewport`：Preview viewport badge + Issues。
 5. `operation`：导出前检查或发布 gate + Issues。

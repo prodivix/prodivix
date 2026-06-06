@@ -157,8 +157,8 @@ const resolveGitRef = async (
 };
 
 /**
- * Creates the browser-side Git boundary used by export, history, and future MIR diff flows.
- * Keep MIR semantic diffing above this layer: this client only loads and persists Git blobs.
+ * Creates the browser-side Git boundary used by export, history, and future PIR diff flows.
+ * Keep PIR semantic diffing above this layer: this client only loads and persists Git blobs.
  */
 export const createBrowserGitClient = ({
   dir,

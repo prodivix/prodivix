@@ -1,15 +1,15 @@
 import {
-  MdrButton,
-  MdrDrawer,
-  MdrEmpty,
-  MdrMessage,
-  MdrModal,
-  MdrNotification,
-  MdrPopover,
-  MdrSkeleton,
-  MdrText,
-  MdrTooltip,
-} from '@mdr/ui';
+  PdxButton,
+  PdxDrawer,
+  PdxEmpty,
+  PdxMessage,
+  PdxModal,
+  PdxNotification,
+  PdxPopover,
+  PdxSkeleton,
+  PdxText,
+  PdxTooltip,
+} from '@prodivix/ui';
 import type { ComponentGroup } from '@/editor/features/design/blueprint/editor/model/types';
 import { buildVariants } from '@/editor/features/design/blueprint/data/helpers';
 import {
@@ -29,25 +29,25 @@ export const FEEDBACK_GROUP: ComponentGroup = {
       id: 'modal',
       name: 'Modal',
       preview: (
-        <MdrModal
+        <PdxModal
           open
           size="Medium"
           title="Modal"
-          footer={<MdrButton text="OK" size="Tiny" category="Primary" />}
+          footer={<PdxButton text="OK" size="Tiny" category="Primary" />}
         >
-          <MdrText size="Tiny">Details</MdrText>
-        </MdrModal>
+          <PdxText size="Tiny">Details</PdxText>
+        </PdxModal>
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrModal
+        <PdxModal
           open
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           title="Modal"
-          footer={<MdrButton text="OK" size="Tiny" category="Primary" />}
+          footer={<PdxButton text="OK" size="Tiny" category="Primary" />}
         >
-          <MdrText size="Tiny">Details</MdrText>
-        </MdrModal>
+          <PdxText size="Tiny">Details</PdxText>
+        </PdxModal>
       ),
       scale: 0.45,
     },
@@ -55,14 +55,14 @@ export const FEEDBACK_GROUP: ComponentGroup = {
       id: 'drawer',
       name: 'Drawer',
       preview: (
-        <MdrDrawer open placement="Right" size={160} title="Drawer">
-          <MdrText size="Tiny">Content</MdrText>
-        </MdrDrawer>
+        <PdxDrawer open placement="Right" size={160} title="Drawer">
+          <PdxText size="Tiny">Content</PdxText>
+        </PdxDrawer>
       ),
       variants: buildVariants(DRAWER_PLACEMENTS, (placement) => (
-        <MdrDrawer open placement={placement} size={140} title="Drawer">
-          <MdrText size="Tiny">Content</MdrText>
-        </MdrDrawer>
+        <PdxDrawer open placement={placement} size={140} title="Drawer">
+          <PdxText size="Tiny">Content</PdxText>
+        </PdxDrawer>
       )),
       scale: 0.45,
     },
@@ -70,14 +70,14 @@ export const FEEDBACK_GROUP: ComponentGroup = {
       id: 'tooltip',
       name: 'Tooltip',
       preview: (
-        <MdrTooltip content="Tooltip" placement="Top">
-          <MdrButton text="Hover" size="Tiny" category="Secondary" />
-        </MdrTooltip>
+        <PdxTooltip content="Tooltip" placement="Top">
+          <PdxButton text="Hover" size="Tiny" category="Secondary" />
+        </PdxTooltip>
       ),
       variants: buildVariants(TOOLTIP_PLACEMENTS, (placement) => (
-        <MdrTooltip content={placement} placement={placement}>
-          <MdrButton text="Hover" size="Tiny" category="Secondary" />
-        </MdrTooltip>
+        <PdxTooltip content={placement} placement={placement}>
+          <PdxButton text="Hover" size="Tiny" category="Secondary" />
+        </PdxTooltip>
       )),
       scale: 0.8,
     },
@@ -85,16 +85,16 @@ export const FEEDBACK_GROUP: ComponentGroup = {
       id: 'popover',
       name: 'Popover',
       preview: (
-        <MdrPopover title="Popover" content="Details" defaultOpen>
-          <MdrButton text="More" size="Tiny" category="Secondary" />
-        </MdrPopover>
+        <PdxPopover title="Popover" content="Details" defaultOpen>
+          <PdxButton text="More" size="Tiny" category="Secondary" />
+        </PdxPopover>
       ),
       scale: 0.8,
     },
     {
       id: 'message',
       name: 'Message',
-      preview: <MdrMessage text="Saved" type="Success" />,
+      preview: <PdxMessage text="Saved" type="Success" />,
       statusOptions: MESSAGE_TYPES.map((status) => ({
         id: status,
         label: status,
@@ -102,7 +102,7 @@ export const FEEDBACK_GROUP: ComponentGroup = {
       })),
       defaultStatus: 'Success',
       renderPreview: ({ status }) => (
-        <MdrMessage
+        <PdxMessage
           text="Saved"
           type={
             (status ?? 'Success') as 'Info' | 'Success' | 'Warning' | 'Danger'
@@ -110,7 +110,7 @@ export const FEEDBACK_GROUP: ComponentGroup = {
         />
       ),
       variants: buildVariants(MESSAGE_TYPES, (type) => (
-        <MdrMessage text={type} type={type} />
+        <PdxMessage text={type} type={type} />
       )),
       scale: 0.8,
     },
@@ -118,7 +118,7 @@ export const FEEDBACK_GROUP: ComponentGroup = {
       id: 'notification',
       name: 'Notification',
       preview: (
-        <MdrNotification
+        <PdxNotification
           title="Update"
           description="Latest changes"
           type="Info"
@@ -131,14 +131,14 @@ export const FEEDBACK_GROUP: ComponentGroup = {
       })),
       defaultStatus: 'Info',
       renderPreview: ({ status }) => (
-        <MdrNotification
+        <PdxNotification
           title="Update"
           description="Latest changes"
           type={(status ?? 'Info') as 'Info' | 'Success' | 'Warning' | 'Danger'}
         />
       ),
       variants: buildVariants(NOTIFICATION_TYPES, (type) => (
-        <MdrNotification
+        <PdxNotification
           title={type}
           description="Latest changes"
           type={type}
@@ -149,15 +149,15 @@ export const FEEDBACK_GROUP: ComponentGroup = {
     {
       id: 'empty',
       name: 'Empty',
-      preview: <MdrEmpty title="No data" description="Nothing here" />,
+      preview: <PdxEmpty title="No data" description="Nothing here" />,
       scale: 0.7,
     },
     {
       id: 'skeleton',
       name: 'Skeleton',
-      preview: <MdrSkeleton variant="Text" lines={2} />,
+      preview: <PdxSkeleton variant="Text" lines={2} />,
       variants: buildVariants(SKELETON_VARIANTS, (variant) => (
-        <MdrSkeleton variant={variant} lines={variant === 'Text' ? 2 : 1} />
+        <PdxSkeleton variant={variant} lines={variant === 'Text' ? 2 : 1} />
       )),
       scale: 0.8,
     },

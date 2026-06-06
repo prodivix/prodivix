@@ -1,16 +1,16 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Boxes, Component, Flame, Workflow } from 'lucide-react';
-import { MdrEmpty } from '@mdr/ui';
+import { PdxEmpty } from '@prodivix/ui';
 import { communityApi, type CommunityProjectDetail } from './communityApi';
-import { MIRRenderer } from '@/mir/renderer/MIRRenderer';
+import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
 import { isAbortError } from '@/infra/api';
 import {
   getRuntimeRegistryRevision,
   runtimeRegistryUpdatedEvent,
-} from '@/mir/renderer/registry';
-import { resolveMirDocument } from '@/mir/resolveMirDocument';
+} from '@/pir/renderer/registry';
+import { resolvePirDocument } from '@/pir/resolvePirDocument';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi } from '@/editor/editorApi';
 import { useEditorStore } from '@/editor/store/useEditorStore';
@@ -42,7 +42,7 @@ export function CommunityDetailPage() {
   const token = useAuthStore((state) => state.token);
   const currentUser = useAuthStore((state) => state.user);
   const setEditorProject = useEditorStore((state) => state.setProject);
-  const setMirDoc = useEditorStore((state) => state.setMirDoc);
+  const setPirDoc = useEditorStore((state) => state.setPirDoc);
   const [project, setCommunityProject] =
     useState<CommunityProjectDetail | null>(null);
   const [isLoading, setLoading] = useState(false);
@@ -92,14 +92,14 @@ export function CommunityDetailPage() {
     };
   }, [projectId, t]);
 
-  const mirText = useMemo(
+  const pirText = useMemo(
     () =>
-      project ? JSON.stringify(resolveMirDocument(project.mir), null, 2) : '',
+      project ? JSON.stringify(resolvePirDocument(project.pir), null, 2) : '',
     [project]
   );
-  const previewMirDoc = useMemo(
-    () => resolveMirDocument(project?.mir),
-    [project?.mir]
+  const previewPirDoc = useMemo(
+    () => resolvePirDocument(project?.pir),
+    [project?.pir]
   );
 
   useEffect(() => {
@@ -132,7 +132,7 @@ export function CommunityDetailPage() {
 
     setCloning(true);
     setCloneError(null);
-    const mirDoc = JSON.parse(JSON.stringify(previewMirDoc));
+    const pirDoc = JSON.parse(JSON.stringify(previewPirDoc));
     const fallbackName = t('card.untitled', 'Untitled');
 
     try {
@@ -141,7 +141,7 @@ export function CommunityDetailPage() {
         description: project.description || undefined,
         resourceType: project.resourceType,
         isPublic: false,
-        mir: mirDoc,
+        pir: pirDoc,
       });
       setEditorProject({
         id: createdProject.id,
@@ -151,7 +151,7 @@ export function CommunityDetailPage() {
         isPublic: createdProject.isPublic,
         starsCount: createdProject.starsCount,
       });
-      setMirDoc(mirDoc);
+      setPirDoc(pirDoc);
 
       if (createdProject.resourceType === 'component') {
         navigate(`/editor/project/${createdProject.id}/component`);
@@ -198,7 +198,7 @@ export function CommunityDetailPage() {
 
         {error && (
           <div className="rounded-2xl border border-black/20 bg-white p-6">
-            <MdrEmpty
+            <PdxEmpty
               icon={<Boxes size={22} />}
               title={t('detail.error.title', 'Unable to load this project')}
               description={error}
@@ -271,19 +271,19 @@ export function CommunityDetailPage() {
                   {t('detail.preview', 'Read-only Preview')}
                 </h2>
                 <div className="max-w-full overflow-auto rounded-2xl border border-black/10 bg-white p-3">
-                  <MIRRenderer
+                  <PIRRenderer
                     key={`community-preview-${runtimeRegistryRevision}`}
-                    mirDoc={previewMirDoc}
+                    pirDoc={previewPirDoc}
                   />
                 </div>
               </article>
 
               <article className="w-full min-w-0 rounded-3xl border border-black/10 bg-white p-4 shadow-[0_10px_20px_rgba(0,0,0,0.04)]">
                 <h2 className="mb-3 text-sm font-bold tracking-[0.12em] text-black/70 uppercase">
-                  {t('detail.mir', 'MIR Document')}
+                  {t('detail.pir', 'PIR Document')}
                 </h2>
                 <pre className="max-h-[520px] overflow-auto rounded-2xl border border-black/10 bg-[#fafafa] p-4 text-xs leading-5 text-black/75">
-                  {mirText}
+                  {pirText}
                 </pre>
               </article>
             </section>

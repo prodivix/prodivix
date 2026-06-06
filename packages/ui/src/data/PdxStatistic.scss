@@ -1,0 +1,42 @@
+.PdxStatistic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.PdxStatisticTitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.PdxStatisticValue {
+  font-size: 24px;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.PdxStatisticTrend {
+  display: inline-flex;
+}
+
+.PdxStatisticTrendIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.PdxStatistic.Up .PdxStatisticTrend {
+  color: var(--success-color);
+}
+
+.PdxStatistic.Down .PdxStatisticTrend {
+  color: var(--danger-color);
+}
+
+.PdxStatisticPrefix,
+.PdxStatisticSuffix {
+  font-size: 14px;
+  color: var(--text-muted);
+}

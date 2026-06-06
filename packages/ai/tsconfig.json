@@ -8,7 +8,7 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
-      "@mdr/shared": ["../shared/src"]
+      "@prodivix/shared": ["../shared/src"]
     }
   },
   "include": ["src/**/*"],

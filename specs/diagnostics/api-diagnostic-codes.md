@@ -16,7 +16,7 @@
 不覆盖：
 
 1. Workspace 协议语义错误，优先使用 `WKS-xxxx`。
-2. MIR 文档结构错误，优先使用 `MIR-xxxx`。
+2. PIR 文档结构错误，优先使用 `PIR-xxxx`。
 3. AI Provider 业务错误，使用 `AI-xxxx`。
 
 ## 2. 阶段
@@ -97,7 +97,7 @@ type ApiDiagnosticStage =
 - Retryable: false
 - Trigger: 请求形状合法，但不满足业务规则
 - User action: 根据提示修改输入后重试
-- Developer notes: 具体域错误应优先使用 `MIR-xxxx`、`WKS-xxxx` 等更细 code
+- Developer notes: 具体域错误应优先使用 `PIR-xxxx`、`WKS-xxxx` 等更细 code
 
 ### `API-4004` 资源不存在或不可见
 

@@ -1,13 +1,14 @@
-import type { LlmExecutionBudget, LlmModelPreferences } from '@mdr/shared';
+import type { LlmExecutionBudget, LlmModelPreferences } from '@prodivix/shared';
 
-export type MdrAiProviderKind = 'mock' | 'openai-compatible';
+export type ProdivixAiProviderKind = 'mock' | 'openai-compatible';
 
-export interface MdrAiBaseSettings {
+export interface ProdivixAiBaseSettings {
   enabled: boolean;
-  provider: MdrAiProviderKind;
+  provider: ProdivixAiProviderKind;
 }
 
-export interface MdrAiOpenAICompatibleSettings extends MdrAiBaseSettings {
+export interface ProdivixAiOpenAICompatibleSettings
+  extends ProdivixAiBaseSettings {
   provider: 'openai-compatible';
   baseURL: string;
   apiKey?: string;
@@ -16,13 +17,15 @@ export interface MdrAiOpenAICompatibleSettings extends MdrAiBaseSettings {
   budget?: LlmExecutionBudget;
 }
 
-export interface MdrAiMockSettings extends MdrAiBaseSettings {
+export interface ProdivixAiMockSettings extends ProdivixAiBaseSettings {
   provider: 'mock';
 }
 
-export type MdrAiSettings = MdrAiMockSettings | MdrAiOpenAICompatibleSettings;
+export type ProdivixAiSettings =
+  | ProdivixAiMockSettings
+  | ProdivixAiOpenAICompatibleSettings;
 
-export const createDefaultMdrAiSettings = (): MdrAiSettings => ({
+export const createDefaultProdivixAiSettings = (): ProdivixAiSettings => ({
   enabled: true,
   provider: 'mock',
 });

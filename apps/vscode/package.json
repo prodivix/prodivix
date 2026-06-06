@@ -1,7 +1,7 @@
 {
-  "name": "@mdr/vscode",
-  "displayName": "mdr",
-  "description": "MIR 节点图支持",
+  "name": "@prodivix/vscode",
+  "displayName": "prodivix",
+  "description": "PIR 节点图支持",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.105.0"
@@ -15,27 +15,27 @@
   "contributes": {
     "languages": [
       {
-        "id": "mir",
+        "id": "pir",
         "aliases": [
-          "MIR",
-          "mir"
+          "PIR",
+          "pir"
         ],
         "extensions": [
-          ".mir.json"
+          ".pir.json"
         ],
-        "configuration": "./language/mir.language-configuration.json"
+        "configuration": "./language/pir.language-configuration.json"
       }
     ],
     "commands": [
       {
-        "command": "mdr.previewMIR",
-        "title": "MIR: Preview MIR"
+        "command": "prodivix.previewPIR",
+        "title": "PIR: Preview PIR"
       }
     ],
     "debuggers": [
       {
-        "type": "mdr",
-        "label": "Mdr Debug",
+        "type": "prodivix",
+        "label": "Pdx Debug",
         "program": "./out/debugger/debugAdapter.js"
       }
     ]

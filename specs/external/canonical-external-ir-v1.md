@@ -52,7 +52,7 @@ type CanonicalExternalComponentV1 = {
 
 1. `libraryId`：外部库稳定标识（如 `mui`、`antd`），在项目内唯一。
 2. `componentName`：用于 UI 展示的组件名，可被 manifest 覆盖。
-3. `runtimeType`：写入 MIR 节点 `type` 的最终类型名，必须稳定可逆。
+3. `runtimeType`：写入 PIR 节点 `type` 的最终类型名，必须稳定可逆。
 4. `itemId`：Palette 拖拽标识，必须在同库内唯一。
 5. `path`：来源路径（导出路径），用于 manifest 定位与诊断定位。
 6. `defaultProps`：仅放可安全序列化默认值。
@@ -61,7 +61,7 @@ type CanonicalExternalComponentV1 = {
 ## 5. 不变量（v1）
 
 1. Palette、Component Tree、Canvas 渲染都必须从 Canonical External IR 派生，不允许私有解析分支。
-2. `runtimeType` 一旦写入 MIR，不得在保存后自动漂移。
+2. `runtimeType` 一旦写入 PIR，不得在保存后自动漂移。
 3. Codegen 必须基于 Canonical IR + Codegen Policy，禁止回读运行时对象快照。
 
 ## 6. 扩展点

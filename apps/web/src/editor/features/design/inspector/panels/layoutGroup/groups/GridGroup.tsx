@@ -6,7 +6,7 @@ import {
   withStyle,
   updateStyleValue,
 } from '../layoutPanelHelpers';
-import { MdrInput } from '@mdr/ui';
+import { PdxInput } from '@prodivix/ui';
 import {
   GridAlignContentAroundIcon,
   GridAlignContentBetweenIcon,
@@ -87,7 +87,7 @@ const GridGroupContent = ({ node, updateNode, t }: LayoutGroupRenderProps) => {
             defaultValue: 'Sets gridTemplateColumns.',
           })}
           control={
-            <MdrInput
+            <PdxInput
               size="Small"
               value={gridColumnsDraft}
               dataAttributes={{

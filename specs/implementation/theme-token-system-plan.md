@@ -2,7 +2,7 @@
 
 ## Context
 
-MdrFrontEngine 旧主题体系曾主要依赖 `packages/themes/src/variables.scss` 直接注入 CSS custom properties，例如 `--bg-canvas`、`--text-primary`、`--spacing-sm`、`--radius-md`。这套实现只适合作为早期占位，不能支撑后续的官方主题、自定义主题、社区主题和设计工具级主题编辑能力。
+Prodivix 旧主题体系曾主要依赖 `packages/themes/src/variables.scss` 直接注入 CSS custom properties，例如 `--bg-canvas`、`--text-primary`、`--spacing-sm`、`--radius-md`。这套实现只适合作为早期占位，不能支撑后续的官方主题、自定义主题、社区主题和设计工具级主题编辑能力。
 
 本计划按“推倒重建”处理主题系统。旧 `variables.scss` 已删除，空的 `presets` / `utils` / `semantic` 目录不作为新架构约束；它们只提供迁移时的视觉参考。
 
@@ -40,7 +40,7 @@ MdrFrontEngine 旧主题体系曾主要依赖 `packages/themes/src/variables.scs
 ## Non Goals
 
 1. 不在本阶段重写所有 UI 样式。
-2. 不把主题能力塞进 `@mdr/ui`，主题包仍由 `packages/themes` 承担。
+2. 不把主题能力塞进 `@prodivix/ui`，主题包仍由 `packages/themes` 承担。
 3. 不要求所有 token 一次性覆盖完整设计系统。
 4. 不允许主题 JSON 直接执行代码。
 5. 不允许社区主题绕过 schema validation。
@@ -162,7 +162,7 @@ Runtime CSS Variables
 
 ### 3. Product Token Layer
 
-产品 token 表达 MdrFrontEngine 特定区域或状态。
+产品 token 表达 Prodivix 特定区域或状态。
 
 示例：
 

@@ -1,6 +1,6 @@
-# @mdr/web
+# @prodivix/web
 
-MdrFrontEngine 的核心可视化编辑器前端，基于 React 19 + TypeScript + rolldown-vite。三个编辑器（蓝图 / 节点图 / 动画）统一收敛到 **MIR**，由后端工作区 (Workspace VFS) 持久化。
+Prodivix 的核心可视化编辑器前端，基于 React 19 + TypeScript + rolldown-vite。三个编辑器（蓝图 / 节点图 / 动画）统一收敛到 **PIR**，由后端工作区 (Workspace VFS) 持久化。
 
 ## 目录结构
 
@@ -9,17 +9,17 @@ apps/web
 ├── src/
 │   ├── editor/          # 编辑器主壳：路由、Home、ProjectHome、editorApi
 │   │   ├── features/    #   design / development / animation / settings / resources / export / newfile
-│   │   └── store/       #   Zustand slice（mir / workspace / route / blueprint / project）+ 子 store
-│   ├── mir/             # MIR 单源真相
+│   │   └── store/       #   Zustand slice（pir / workspace / route / blueprint / project）+ 子 store
+│   ├── pir/             # PIR 单源真相
 │   │   ├── schema/      #   类型定义
-│   │   ├── converter/   #   AST ↔ MIR
+│   │   ├── converter/   #   AST ↔ PIR
 │   │   ├── validator/   #   v1.3 graph 校验（与后端镜像）
-│   │   ├── renderer/    #   MIRRenderer / MIRNode / scope / helpers
-│   │   ├── generator/   #   MIR → React (mitosis 桥接)
+│   │   ├── renderer/    #   PIRRenderer / PIRNode / scope / helpers
+│   │   ├── generator/   #   PIR → React (mitosis 桥接)
 │   │   ├── graph/       #   v1.3 graph patch / mutation / materialize
 │   │   ├── actions/     #   内置动作 registry（navigate / executeGraph...）
 │   │   ├── shared/      #   ValueRef 解析（路径解析 + 引用类型守卫，渲染器与 generator 共用）
-│   │   ├── resolveMirDocument.ts          #   主入口：直接 MIR / Workspace 快照 → MIRDocument
+│   │   ├── resolvePirDocument.ts          #   主入口：直接 PIR / Workspace 快照 → PIRDocument
 │   │   └── resolveWorkspaceShape.ts       #   Workspace shape 检测 + 文档规范化挑选
 │   ├── core/            # 执行引擎、节点定义、Web Worker
 │   ├── components/      # 通用 UI 组件封装
@@ -47,7 +47,7 @@ apps/web
 
 ## 关键架构
 
-- **MIR Pipeline**：`schema → converter → validator → renderer → generator`
+- **PIR Pipeline**：`schema → converter → validator → renderer → generator`
 - **三编辑器收敛**：Blueprint 写 `ui` 层 / NodeGraph 写 `logic` 层 / Animation 写 `animation` 层
 - **Workspace 同步**：文档级保存 (`PUT /api/workspaces/:id/documents/:docId`) + 分区 rev 乐观并发（见 `specs/decisions/07.workspace-sync.md`）
 - **路由清单**：Route Manifest + Outlet 渲染链（见 `specs/decisions/08.route-manifest-outlet.md`）
@@ -69,8 +69,8 @@ pnpm build:web            # 构建生产包
 pnpm test:web             # 单元测试
 pnpm test:web:watch       # watch 模式
 pnpm test:web:coverage    # 覆盖率（v8）
-pnpm --filter @mdr/web typecheck   # tsc -b 类型检查
-pnpm --filter @mdr/web lint        # ESLint（含 no-explicit-any 强制）
+pnpm --filter @prodivix/web typecheck   # tsc -b 类型检查
+pnpm --filter @prodivix/web lint        # ESLint（含 no-explicit-any 强制）
 pnpm storybook:ui         # 组件库 Storybook
 ```
 

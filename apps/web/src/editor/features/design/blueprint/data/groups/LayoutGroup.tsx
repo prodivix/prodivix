@@ -1,4 +1,4 @@
-import { MdrCard, MdrDiv, MdrPanel, MdrSection, MdrText } from '@mdr/ui';
+import { PdxCard, PdxDiv, PdxPanel, PdxSection, PdxText } from '@prodivix/ui';
 import type { ComponentGroup } from '@/editor/features/design/blueprint/editor/model/types';
 import { buildVariants } from '@/editor/features/design/blueprint/data/helpers';
 import {
@@ -15,58 +15,58 @@ export const LAYOUT_GROUP: ComponentGroup = {
       id: 'div',
       name: 'Div',
       preview: (
-        <MdrDiv
+        <PdxDiv
           padding="6px"
           backgroundColor="var(--bg-panel)"
           borderRadius="6px"
         >
-          <MdrText size="Tiny">Div</MdrText>
-        </MdrDiv>
+          <PdxText size="Tiny">Div</PdxText>
+        </PdxDiv>
       ),
     },
     {
       id: 'flex',
       name: 'Flex',
       preview: (
-        <MdrDiv
+        <PdxDiv
           display="Flex"
           gap="6px"
           padding="6px"
           backgroundColor="var(--bg-panel)"
           borderRadius="6px"
         >
-          <MdrDiv
+          <PdxDiv
             width="18px"
             height="18px"
             backgroundColor="var(--border-subtle)"
             borderRadius="4px"
           >
             {null}
-          </MdrDiv>
-          <MdrDiv
+          </PdxDiv>
+          <PdxDiv
             width="18px"
             height="18px"
             backgroundColor="var(--border-default)"
             borderRadius="4px"
           >
             {null}
-          </MdrDiv>
-          <MdrDiv
+          </PdxDiv>
+          <PdxDiv
             width="18px"
             height="18px"
             backgroundColor="var(--border-strong)"
             borderRadius="4px"
           >
             {null}
-          </MdrDiv>
-        </MdrDiv>
+          </PdxDiv>
+        </PdxDiv>
       ),
     },
     {
       id: 'grid',
       name: 'Grid',
       preview: (
-        <MdrDiv
+        <PdxDiv
           display="Grid"
           gap="6px"
           padding="6px"
@@ -74,54 +74,54 @@ export const LAYOUT_GROUP: ComponentGroup = {
           borderRadius="6px"
           style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
         >
-          <MdrDiv
+          <PdxDiv
             height="16px"
             backgroundColor="var(--border-subtle)"
             borderRadius="4px"
           >
             {null}
-          </MdrDiv>
-          <MdrDiv
+          </PdxDiv>
+          <PdxDiv
             height="16px"
             backgroundColor="var(--border-default)"
             borderRadius="4px"
           >
             {null}
-          </MdrDiv>
-          <MdrDiv
+          </PdxDiv>
+          <PdxDiv
             height="16px"
             backgroundColor="var(--border-strong)"
             borderRadius="4px"
           >
             {null}
-          </MdrDiv>
-          <MdrDiv
+          </PdxDiv>
+          <PdxDiv
             height="16px"
             backgroundColor="var(--text-muted)"
             borderRadius="4px"
           >
             {null}
-          </MdrDiv>
-        </MdrDiv>
+          </PdxDiv>
+        </PdxDiv>
       ),
     },
     {
       id: 'section',
       name: 'Section',
       preview: (
-        <MdrSection size="Medium" padding="Small" backgroundColor="Light">
-          <MdrText size="Tiny">Section</MdrText>
-        </MdrSection>
+        <PdxSection size="Medium" padding="Small" backgroundColor="Light">
+          <PdxText size="Tiny">Section</PdxText>
+        </PdxSection>
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrSection
+        <PdxSection
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           padding="Small"
           backgroundColor="Light"
         >
-          <MdrText size="Tiny">Section</MdrText>
-        </MdrSection>
+          <PdxText size="Tiny">Section</PdxText>
+        </PdxSection>
       ),
       scale: 0.65,
     },
@@ -129,47 +129,47 @@ export const LAYOUT_GROUP: ComponentGroup = {
       id: 'card',
       name: 'Card',
       preview: (
-        <MdrCard size="Medium" variant="Bordered" padding="Small">
-          <MdrText size="Tiny">Card</MdrText>
-        </MdrCard>
+        <PdxCard size="Medium" variant="Bordered" padding="Small">
+          <PdxText size="Tiny">Card</PdxText>
+        </PdxCard>
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrCard
+        <PdxCard
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           variant="Bordered"
           padding="Small"
         >
-          <MdrText size="Tiny">Card</MdrText>
-        </MdrCard>
+          <PdxText size="Tiny">Card</PdxText>
+        </PdxCard>
       ),
       variants: buildVariants(CARD_VARIANTS, (variant) => (
-        <MdrCard size="Medium" variant={variant} padding="Small">
-          <MdrText size="Tiny">{variant}</MdrText>
-        </MdrCard>
+        <PdxCard size="Medium" variant={variant} padding="Small">
+          <PdxText size="Tiny">{variant}</PdxText>
+        </PdxCard>
       )),
     },
     {
       id: 'panel',
       name: 'Panel',
       preview: (
-        <MdrPanel size="Medium" title="Panel">
-          <MdrText size="Tiny">Content</MdrText>
-        </MdrPanel>
+        <PdxPanel size="Medium" title="Panel">
+          <PdxText size="Tiny">Content</PdxText>
+        </PdxPanel>
       ),
       sizeOptions: SIZE_OPTIONS,
       renderPreview: ({ size }) => (
-        <MdrPanel
+        <PdxPanel
           size={(size ?? 'Medium') as 'Small' | 'Medium' | 'Large'}
           title="Panel"
         >
-          <MdrText size="Tiny">Content</MdrText>
-        </MdrPanel>
+          <PdxText size="Tiny">Content</PdxText>
+        </PdxPanel>
       ),
       variants: buildVariants(PANEL_VARIANTS, (variant) => (
-        <MdrPanel size="Medium" variant={variant} title="Panel">
-          <MdrText size="Tiny">{variant}</MdrText>
-        </MdrPanel>
+        <PdxPanel size="Medium" variant={variant} title="Panel">
+          <PdxText size="Tiny">{variant}</PdxText>
+        </PdxPanel>
       )),
       scale: 0.64,
     },

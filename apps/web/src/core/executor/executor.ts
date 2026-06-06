@@ -1,4 +1,4 @@
-﻿import type { BuiltInActionContext } from '@/mir/actions/registry';
+import type { BuiltInActionContext } from '@/pir/actions/registry';
 
 type UnsafeRecord = Record<string, unknown>;
 
@@ -25,8 +25,8 @@ export type GraphExecutionHandler = (
   | undefined
   | Promise<GraphExecutionResult | Record<string, unknown> | null | undefined>;
 
-export const GRAPH_EXECUTE_REQUEST_EVENT = 'mdr:execute-graph';
-export const GRAPH_EXECUTE_RESULT_EVENT = 'mdr:execute-graph-result';
+export const GRAPH_EXECUTE_REQUEST_EVENT = 'prodivix:execute-graph';
+export const GRAPH_EXECUTE_RESULT_EVENT = 'prodivix:execute-graph-result';
 
 const graphHandlers = new Map<string, GraphExecutionHandler>();
 
@@ -89,7 +89,7 @@ const emitGraphDebugLog = (label: string, detail: Record<string, unknown>) => {
 };
 
 /**
- * 执行链路：MIR executeGraph 事件 -> Graph bridge -> NodeGraph handler -> runtime state patch。
+ * 执行链路：PIR executeGraph 事件 -> Graph bridge -> NodeGraph handler -> runtime state patch。
  */
 export const executeGraphRequest = async (
   request: GraphExecutionRequest

@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
-  MdrButton,
-  MdrHeading,
-  MdrInput,
-  MdrMessage,
-  MdrPanel,
-  MdrParagraph,
-  MdrTabs,
-} from '@mdr/ui';
+  PdxButton,
+  PdxHeading,
+  PdxInput,
+  PdxMessage,
+  PdxPanel,
+  PdxParagraph,
+  PdxTabs,
+} from '@prodivix/ui';
 import { authApi, ApiError } from './authApi';
 import { useAuthStore } from './useAuthStore';
 
@@ -100,7 +100,7 @@ export const AuthPage = () => {
           >
             <label className="grid gap-1.5 text-xs text-(--text-secondary)">
               <span>{t('fields.email')}</span>
-              <MdrInput
+              <PdxInput
                 size="Small"
                 type="Email"
                 autoComplete="email"
@@ -116,7 +116,7 @@ export const AuthPage = () => {
             </label>
             <label className="grid gap-1.5 text-xs text-(--text-secondary)">
               <span>{t('fields.password')}</span>
-              <MdrInput
+              <PdxInput
                 size="Small"
                 type="Password"
                 autoComplete="current-password"
@@ -130,7 +130,7 @@ export const AuthPage = () => {
                 }
               />
             </label>
-            <MdrButton
+            <PdxButton
               text={t('actions.login')}
               size="Small"
               category="Primary"
@@ -153,7 +153,7 @@ export const AuthPage = () => {
           >
             <label className="grid gap-1.5 text-xs text-(--text-secondary)">
               <span>{t('fields.name')}</span>
-              <MdrInput
+              <PdxInput
                 size="Small"
                 autoComplete="name"
                 value={registerForm.name}
@@ -168,7 +168,7 @@ export const AuthPage = () => {
             </label>
             <label className="grid gap-1.5 text-xs text-(--text-secondary)">
               <span>{t('fields.description')}</span>
-              <MdrInput
+              <PdxInput
                 size="Small"
                 value={registerForm.description}
                 placeholder={t('placeholders.description')}
@@ -182,7 +182,7 @@ export const AuthPage = () => {
             </label>
             <label className="grid gap-1.5 text-xs text-(--text-secondary)">
               <span>{t('fields.email')}</span>
-              <MdrInput
+              <PdxInput
                 size="Small"
                 type="Email"
                 autoComplete="email"
@@ -198,7 +198,7 @@ export const AuthPage = () => {
             </label>
             <label className="grid gap-1.5 text-xs text-(--text-secondary)">
               <span>{t('fields.password')}</span>
-              <MdrInput
+              <PdxInput
                 size="Small"
                 type="Password"
                 autoComplete="new-password"
@@ -215,7 +215,7 @@ export const AuthPage = () => {
                 {t('hints.password')}
               </em>
             </label>
-            <MdrButton
+            <PdxButton
               text={t('actions.register')}
               size="Small"
               category="Primary"
@@ -239,10 +239,10 @@ export const AuthPage = () => {
   return (
     <div className="grid min-h-screen items-center gap-8 bg-(--bg-canvas) px-6 py-6 text-(--text-primary) md:px-8 lg:grid-cols-[minmax(260px,1fr)_minmax(320px,460px)] lg:gap-12 lg:px-12 dark:bg-[radial-gradient(circle_at_top_left,rgba(110,140,255,0.15),transparent_60%),radial-gradient(circle_at_bottom_right,rgba(84,190,142,0.15),transparent_55%),var(--bg-canvas)]">
       <section className="grid max-w-[520px] gap-3.5">
-        <MdrHeading level={2} className="m-0">
+        <PdxHeading level={2} className="m-0">
           {t('title')}
-        </MdrHeading>
-        <MdrParagraph color="Muted">{t('subtitle')}</MdrParagraph>
+        </PdxHeading>
+        <PdxParagraph color="Muted">{t('subtitle')}</PdxParagraph>
         <div className="grid gap-3">
           <div className="rounded-2xl border border-(--bg-raised) bg-(--bg-panel) px-4 py-3.5 shadow-(--shadow-md) dark:border-(--border-default) dark:shadow-[0_18px_38px_rgba(0,0,0,0.45)]">
             <span className="text-xs font-semibold text-(--text-primary) dark:text-(--text-primary)">
@@ -263,13 +263,13 @@ export const AuthPage = () => {
         </div>
       </section>
       <section className="w-full max-w-[520px] lg:max-w-none">
-        <MdrPanel
+        <PdxPanel
           title={t('panel.title')}
           padding="Large"
           className="grid gap-3.5 rounded-[18px] border border-black/8 bg-(--bg-canvas) shadow-[0_18px_36px_rgba(0,0,0,0.12)] dark:border-(--border-default) dark:bg-(--bg-panel) dark:shadow-[0_24px_44px_rgba(0,0,0,0.55)]"
         >
-          {error && <MdrMessage type="Danger" text={error} />}
-          <MdrTabs
+          {error && <PdxMessage type="Danger" text={error} />}
+          <PdxTabs
             items={tabs}
             activeKey={mode}
             onChange={(key) => {
@@ -279,14 +279,14 @@ export const AuthPage = () => {
           />
           <div className="mt-1 flex items-center justify-between gap-3 text-xs text-(--text-muted)">
             <span>{t('footer.hint')}</span>
-            <MdrButton
+            <PdxButton
               text={t('footer.backHome')}
               size="Small"
               category="Ghost"
               onClick={() => navigate('/')}
             />
           </div>
-        </MdrPanel>
+        </PdxPanel>
       </section>
     </div>
   );

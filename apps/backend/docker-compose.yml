@@ -1,16 +1,16 @@
 services:
   postgres:
     image: postgres:16
-    container_name: mdr-postgres
+    container_name: prodivix-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mdr_front_engine
+      POSTGRES_DB: prodivix
     ports:
       - '5432:5432'
     volumes:
-      - mdr-postgres-data:/var/lib/postgresql/data
+      - prodivix-postgres-data:/var/lib/postgresql/data
 
 volumes:
-  mdr-postgres-data:
+  prodivix-postgres-data:

@@ -18,7 +18,7 @@
 不覆盖：
 
 1. Workspace 中 route document 的保存和 revision 冲突，使用 `WKS-xxxx`。
-2. MIR graph 内部结构错误，使用 `MIR-xxxx`。
+2. PIR graph 内部结构错误，使用 `PIR-xxxx`。
 3. 编辑器地址栏、画布选中和预览交互，使用 `EDT-xxxx`。
 
 ## 2. 阶段
@@ -96,7 +96,7 @@ type RouteDiagnosticStage =
 - Retryable: false
 - Trigger: `navigate` action 的目标路径或 route id 无法解析
 - User action: 检查事件绑定中的导航目标
-- Developer notes: MIR action registry 和 route runtime 应共享解析逻辑
+- Developer notes: PIR action registry 和 route runtime 应共享解析逻辑
 
 ### `RTE-9001` Route 未知异常
 

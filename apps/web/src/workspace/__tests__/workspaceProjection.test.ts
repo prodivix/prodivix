@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultMirDoc } from '@/mir/resolveMirDocument';
+import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import {
   projectWorkspaceToMfeFiles,
   readWorkspaceFromMfeFiles,
@@ -33,7 +33,7 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
     'page-home-node': {
       id: 'page-home-node',
       kind: 'doc',
-      name: 'home.mir.json',
+      name: 'home.pir.json',
       parentId: 'pages',
       docId: 'page-home',
     },
@@ -55,12 +55,12 @@ const createWorkspace = (): StableWorkspaceSnapshot => ({
   docsById: {
     'page-home': {
       id: 'page-home',
-      type: 'mir-page',
+      type: 'pir-page',
       name: 'Home',
-      path: '/pages/home.mir.json',
+      path: '/pages/home.pir.json',
       contentRev: 3,
       metaRev: 1,
-      content: createDefaultMirDoc(),
+      content: createDefaultPirDoc(),
       updatedAt: '2026-05-10T00:00:00.000Z',
     },
     'code-index': {
@@ -102,7 +102,7 @@ describe('workspace projection', () => {
     if (!result.ok) return;
 
     expect(result.files.map((file) => file.path)).toEqual([
-      '.mfe/documents/pages/home.mir.json',
+      '.mfe/documents/pages/home.pir.json',
       '.mfe/route-manifest.json',
       '.mfe/workspace.json',
       'src/index.ts',
@@ -238,7 +238,7 @@ describe('workspace projection', () => {
 
   it('rejects invalid workspaces before writing files', () => {
     const workspace = createWorkspace();
-    workspace.docsById['page-home'].path = '/wrong/home.mir.json';
+    workspace.docsById['page-home'].path = '/wrong/home.pir.json';
 
     const result = projectWorkspaceToMfeFiles(workspace);
 

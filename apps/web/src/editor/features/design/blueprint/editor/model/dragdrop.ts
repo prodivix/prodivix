@@ -9,7 +9,7 @@ import {
   isAncestorOf,
   supportsChildrenForNode,
 } from '@/editor/features/design/blueprint/editor/model/tree';
-import { materializeMirRoot } from '@/mir/graph';
+import { materializePirRoot } from '@/pir/graph';
 import { getOverNodeId, resolveTreePlacement } from './dragdrop.placement';
 import { applyTreeSortDragEnd } from './dragdrop.treeMove';
 import { applyPaletteItemDrop } from './dragdrop.paletteDrop';
@@ -28,10 +28,10 @@ export type {
 } from './dragdrop.types';
 
 export const useBlueprintDragDrop = ({
-  mirDoc,
+  pirDoc,
   currentPath,
   selectedId,
-  updateMirDoc,
+  updatePirDoc,
   onNodeSelect,
 }: UseBlueprintDragDropOptions) => {
   const [activePaletteItemId, setActivePaletteItemId] = useState<string | null>(
@@ -54,7 +54,7 @@ export const useBlueprintDragDrop = ({
       return;
     }
 
-    const root = materializeMirRoot(mirDoc);
+    const root = materializePirRoot(pirDoc);
     if (!root) {
       setTreeDropHint(null);
       return;
@@ -113,7 +113,7 @@ export const useBlueprintDragDrop = ({
     if (!over) return;
 
     if (data?.kind === 'tree-sort') {
-      updateMirDoc((doc) =>
+      updatePirDoc((doc) =>
         applyTreeSortDragEnd(doc, event, data as TreeSortDragData)
       );
       return;
@@ -123,7 +123,7 @@ export const useBlueprintDragDrop = ({
 
     const overData = over.data.current as DragOverData | null | undefined;
     let nextNodeId = '';
-    updateMirDoc((doc) => {
+    updatePirDoc((doc) => {
       const result = applyPaletteItemDrop(
         doc,
         data as PaletteItemDragData,

@@ -60,7 +60,7 @@ export const createDefaultPublicTree = (): PublicResourceNode => ({
 });
 
 const getPublicTreeStorageKey = (projectId?: string) =>
-  `mdr.publicTree.${projectId?.trim() || 'default'}`;
+  `prodivix.publicTree.${projectId?.trim() || 'default'}`;
 
 const withHydratedMetadata = (
   node: PublicResourceNode,

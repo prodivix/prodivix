@@ -1,5 +1,5 @@
 import { CornerDownLeft, Delete } from 'lucide-react';
-import { MdrButton, MdrModal } from '@mdr/ui';
+import { PdxButton, PdxModal } from '@prodivix/ui';
 import { useEditorShortcut } from '@/editor/shortcuts';
 
 type EditorConfirmModalProps = {
@@ -40,14 +40,14 @@ export function EditorConfirmModal({
   });
 
   return (
-    <MdrModal
+    <PdxModal
       open={open}
       title={title}
       size="Small"
       onClose={onCancel}
       footer={
         <>
-          <MdrButton
+          <PdxButton
             text={cancelText}
             category="Ghost"
             size="Small"
@@ -55,7 +55,7 @@ export function EditorConfirmModal({
             iconPosition="Right"
             onClick={onCancel}
           />
-          <MdrButton
+          <PdxButton
             text={confirmText}
             category="Primary"
             size="Small"
@@ -67,6 +67,6 @@ export function EditorConfirmModal({
       }
     >
       <p className="m-0 text-sm text-(--text-secondary)">{message}</p>
-    </MdrModal>
+    </PdxModal>
   );
 }

@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "MdrFrontEngine"
+    "name": "Prodivix"
   },
   "nav": {
     "community": "社区",
@@ -12,7 +12,7 @@
   },
   "hero": {
     "line1": {
-      "highlight": "Mdr"
+      "highlight": "Pdx"
     },
     "line2": {
       "before": "前端",
@@ -28,12 +28,12 @@
     "enterEditor": "进入编辑器",
     "viewDocs": "查看文档"
   },
-  "mirTest": {
-    "title": "MIR 预览",
+  "pirTest": {
+    "title": "PIR 预览",
     "exportButton": "快速导出"
   },
   "footer": {
-    "copy": "🄯 2026 Mdr Front Engine",
+    "copy": "🄯 2026 Prodivix",
     "placeholder": "一起走在前端路上。"
   }
 }

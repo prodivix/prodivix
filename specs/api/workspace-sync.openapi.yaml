@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: MDR Workspace Sync API (Draft)
+  title: Prodivix Workspace Sync API (Draft)
   version: 0.1.0
   description: >
     Draft API for workspace-first editing. The virtual document tree is internal
@@ -47,10 +47,10 @@ paths:
     patch:
       summary: Patch one document with a command
       description: >
-        Apply one versioned CommandEnvelope to a MIR v1.3 graph-only document.
+        Apply one versioned CommandEnvelope to a PIR v1.3 graph-only document.
         Document content changes are PATCH-only: the server applies
         command.forwardOps, verifies command.reverseOps can restore the previous
-        document, validates the patched MIR, advances the document content
+        document, validates the patched PIR, advances the document content
         revision, and records the command in the operation log. Paths under
         /ui/root and the document root path / are forbidden.
       operationId: patchDocument
@@ -79,7 +79,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/MutationSuccessResponse'
         '422':
-          description: Invalid command, forbidden patch path, or MIR validation failure
+          description: Invalid command, forbidden patch path, or PIR validation failure
           content:
             application/json:
               schema:
@@ -245,7 +245,7 @@ components:
           type: string
         type:
           type: string
-          enum: [mir-page, mir-layout, mir-component, mir-graph, mir-animation]
+          enum: [pir-page, pir-layout, pir-component, pir-graph, pir-animation]
         path:
           type: string
         contentRev:
@@ -455,7 +455,7 @@ components:
             - WKS-4003
             - WKS-5001
             - WKS-5002
-            - MIR-4001
+            - PIR-4001
             - API-1001
         severity:
           type: string

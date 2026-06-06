@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/mircontract"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/pircontract"
 )
 
-var defaultMIRDocument = mircontract.DefaultDocument()
+var defaultPIRDocument = pircontract.DefaultDocument()
 
 type ProjectStore struct {
 	db *sql.DB
@@ -31,13 +31,13 @@ func NewProjectStore(db *sql.DB) *ProjectStore {
 	return &ProjectStore{db: db}
 }
 
-func (store *ProjectStore) Create(ownerID, name, description string, resourceType ResourceType, isPublic bool, mir json.RawMessage) (*Project, error) {
+func (store *ProjectStore) Create(ownerID, name, description string, resourceType ResourceType, isPublic bool, pir json.RawMessage) (*Project, error) {
 	resourceType = normalizeResourceType(resourceType)
 	if !isValidResourceType(resourceType) {
 		return nil, ErrInvalidResourceType
 	}
 
-	normalizedMir, err := normalizeMIR(mir)
+	normalizedPir, err := normalizePIR(pir)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (store *ProjectStore) Create(ownerID, name, description string, resourceTyp
 		ResourceType: resourceType,
 		Name:         strings.TrimSpace(name),
 		Description:  strings.TrimSpace(description),
-		MIR:          normalizedMir,
+		PIR:          normalizedPir,
 		IsPublic:     isPublic,
 		StarsCount:   0,
 		CreatedAt:    time.Now().UTC(),
@@ -58,7 +58,7 @@ func (store *ProjectStore) Create(ownerID, name, description string, resourceTyp
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	const query = `INSERT INTO projects (id, owner_id, resource_type, name, description, mir_json, is_public, stars_count, created_at, updated_at)
+	const query = `INSERT INTO projects (id, owner_id, resource_type, name, description, pir_json, is_public, stars_count, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, 0, $8, $9)`
 	_, err = store.db.ExecContext(ctx, query,
 		project.ID,
@@ -66,7 +66,7 @@ VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, 0, $8, $9)`
 		project.ResourceType,
 		project.Name,
 		project.Description,
-		string(project.MIR),
+		string(project.PIR),
 		project.IsPublic,
 		project.CreatedAt,
 		project.UpdatedAt,
@@ -121,7 +121,7 @@ func (store *ProjectStore) GetByID(ownerID, projectID string) (*Project, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	const query = `SELECT id, owner_id, resource_type, name, description, mir_json, is_public, stars_count, created_at, updated_at
+	const query = `SELECT id, owner_id, resource_type, name, description, pir_json, is_public, stars_count, created_at, updated_at
 FROM projects
 WHERE owner_id = $1 AND id = $2`
 
@@ -136,8 +136,8 @@ WHERE owner_id = $1 AND id = $2`
 	return project, nil
 }
 
-func (store *ProjectStore) SaveMIR(ownerID, projectID string, mir json.RawMessage) (*Project, error) {
-	normalizedMir, err := normalizeMIR(mir)
+func (store *ProjectStore) SavePIR(ownerID, projectID string, pir json.RawMessage) (*Project, error) {
+	normalizedPir, err := normalizePIR(pir)
 	if err != nil {
 		return nil, err
 	}
@@ -146,11 +146,11 @@ func (store *ProjectStore) SaveMIR(ownerID, projectID string, mir json.RawMessag
 	defer cancel()
 
 	const query = `UPDATE projects
-SET mir_json = $3::jsonb, updated_at = NOW()
+SET pir_json = $3::jsonb, updated_at = NOW()
 WHERE owner_id = $1 AND id = $2
-RETURNING id, owner_id, resource_type, name, description, mir_json, is_public, stars_count, created_at, updated_at`
+RETURNING id, owner_id, resource_type, name, description, pir_json, is_public, stars_count, created_at, updated_at`
 
-	row := store.db.QueryRowContext(ctx, query, ownerID, projectID, string(normalizedMir))
+	row := store.db.QueryRowContext(ctx, query, ownerID, projectID, string(normalizedPir))
 	project, err := scanProject(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -179,7 +179,7 @@ SET name = COALESCE($3, name),
     description = COALESCE($4, description),
     updated_at = NOW()
 WHERE owner_id = $1 AND id = $2
-RETURNING id, owner_id, resource_type, name, description, mir_json, is_public, stars_count, created_at, updated_at`
+RETURNING id, owner_id, resource_type, name, description, pir_json, is_public, stars_count, created_at, updated_at`
 
 	row := store.db.QueryRowContext(ctx, query, ownerID, projectID, nextName, nextDescription)
 	project, err := scanProject(row)
@@ -199,7 +199,7 @@ func (store *ProjectStore) SetPublic(ownerID, projectID string, isPublic bool) (
 	const query = `UPDATE projects
 SET is_public = $3, updated_at = NOW()
 WHERE owner_id = $1 AND id = $2
-RETURNING id, owner_id, resource_type, name, description, mir_json, is_public, stars_count, created_at, updated_at`
+RETURNING id, owner_id, resource_type, name, description, pir_json, is_public, stars_count, created_at, updated_at`
 
 	row := store.db.QueryRowContext(ctx, query, ownerID, projectID, isPublic)
 	project, err := scanProject(row)
@@ -233,14 +233,14 @@ func (store *ProjectStore) Delete(ownerID, projectID string) error {
 
 func scanProject(scanner interface{ Scan(dest ...any) error }) (*Project, error) {
 	project := &Project{}
-	var mirBytes []byte
+	var pirBytes []byte
 	err := scanner.Scan(
 		&project.ID,
 		&project.OwnerID,
 		&project.ResourceType,
 		&project.Name,
 		&project.Description,
-		&mirBytes,
+		&pirBytes,
 		&project.IsPublic,
 		&project.StarsCount,
 		&project.CreatedAt,
@@ -249,10 +249,10 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (*Project, error)
 	if err != nil {
 		return nil, err
 	}
-	if len(mirBytes) == 0 {
-		project.MIR = defaultMIRDocument
+	if len(pirBytes) == 0 {
+		project.PIR = defaultPIRDocument
 	} else {
-		project.MIR = json.RawMessage(mirBytes)
+		project.PIR = json.RawMessage(pirBytes)
 	}
 	return project, nil
 }
@@ -346,20 +346,20 @@ func (store *ProjectStore) GetPublicByID(projectID string) (*CommunityProjectDet
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	const query = `SELECT p.id, p.owner_id, p.resource_type, p.name, p.description, p.mir_json, p.is_public, p.stars_count, p.created_at, p.updated_at, u.name
+	const query = `SELECT p.id, p.owner_id, p.resource_type, p.name, p.description, p.pir_json, p.is_public, p.stars_count, p.created_at, p.updated_at, u.name
 FROM projects p
 JOIN users u ON u.id = p.owner_id
 WHERE p.id = $1 AND p.is_public = TRUE`
 
 	var detail CommunityProjectDetail
-	var mirBytes []byte
+	var pirBytes []byte
 	err := store.db.QueryRowContext(ctx, query, projectID).Scan(
 		&detail.ID,
 		&detail.OwnerID,
 		&detail.ResourceType,
 		&detail.Name,
 		&detail.Description,
-		&mirBytes,
+		&pirBytes,
 		&detail.IsPublic,
 		&detail.StarsCount,
 		&detail.CreatedAt,
@@ -372,10 +372,10 @@ WHERE p.id = $1 AND p.is_public = TRUE`
 		}
 		return nil, err
 	}
-	if len(mirBytes) == 0 {
-		detail.MIR = defaultMIRDocument
+	if len(pirBytes) == 0 {
+		detail.PIR = defaultPIRDocument
 	} else {
-		detail.MIR = json.RawMessage(mirBytes)
+		detail.PIR = json.RawMessage(pirBytes)
 	}
 	return &detail, nil
 }
@@ -392,30 +392,30 @@ func ParsePositiveInt(value string, fallback int) int {
 	return parsed
 }
 
-func normalizeMIR(mir json.RawMessage) (json.RawMessage, error) {
-	if len(mir) == 0 || strings.TrimSpace(string(mir)) == "" {
-		return defaultMIRDocument, nil
+func normalizePIR(pir json.RawMessage) (json.RawMessage, error) {
+	if len(pir) == 0 || strings.TrimSpace(string(pir)) == "" {
+		return defaultPIRDocument, nil
 	}
 	var payload map[string]any
-	if err := json.Unmarshal(mir, &payload); err != nil {
+	if err := json.Unmarshal(pir, &payload); err != nil {
 		return nil, err
 	}
-	if payload["version"] != mircontract.CurrentVersion {
-		return nil, errors.New("MIR document version must be " + mircontract.CurrentVersion)
+	if payload["version"] != pircontract.CurrentVersion {
+		return nil, errors.New("PIR document version must be " + pircontract.CurrentVersion)
 	}
 	ui, ok := payload["ui"].(map[string]any)
 	if !ok {
-		return nil, errors.New("MIR document ui.graph is required")
+		return nil, errors.New("PIR document ui.graph is required")
 	}
 	if _, hasRoot := ui["root"]; hasRoot {
-		return nil, errors.New("MIR " + mircontract.CurrentLabel + " must not contain ui.root")
+		return nil, errors.New("PIR " + pircontract.CurrentLabel + " must not contain ui.root")
 	}
 	graph, ok := ui["graph"].(map[string]any)
 	if !ok {
-		return nil, errors.New("MIR document ui.graph is required")
+		return nil, errors.New("PIR document ui.graph is required")
 	}
 	if _, ok := graph["nodesById"].(map[string]any); !ok {
-		return nil, errors.New("MIR document ui.graph.nodesById is required")
+		return nil, errors.New("PIR document ui.graph.nodesById is required")
 	}
 	normalized, err := json.Marshal(payload)
 	if err != nil {

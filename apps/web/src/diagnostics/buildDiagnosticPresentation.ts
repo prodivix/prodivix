@@ -11,12 +11,12 @@ import type {
   DiagnosticPresentationTemplate,
   DiagnosticSurface,
   DiagnosticTargetRef,
-  MdrDiagnostic,
+  ProdivixDiagnostic,
   SourceSpan,
 } from './diagnostic.types';
 
 type BuildDiagnosticPresentationInput = {
-  diagnostic: MdrDiagnostic;
+  diagnostic: ProdivixDiagnostic;
   definition?: DiagnosticDefinition;
   template?: DiagnosticPresentationTemplate;
   surface?: DiagnosticSurface;
@@ -29,13 +29,13 @@ export type DiagnosticPresentationResolver = {
     sourceSpan?: SourceSpan
   ): DiagnosticLocationPresentation[];
   resolveActions(input: {
-    diagnostic: MdrDiagnostic;
+    diagnostic: ProdivixDiagnostic;
     template: DiagnosticPresentationTemplate;
     locations: DiagnosticLocationPresentation[];
     surface: DiagnosticSurface;
   }): DiagnosticActionPresentation[];
   formatEvidence(input: {
-    diagnostic: MdrDiagnostic;
+    diagnostic: ProdivixDiagnostic;
     template: DiagnosticPresentationTemplate;
   }): DiagnosticEvidencePresentation[];
 };
@@ -71,7 +71,7 @@ const formatValue = (value: unknown): string => {
 
 const interpolateMessage = (
   template: DiagnosticMessageTemplate,
-  diagnostic: MdrDiagnostic,
+  diagnostic: ProdivixDiagnostic,
   definition?: DiagnosticDefinition,
   locations: DiagnosticLocationPresentation[] = []
 ): string => {
@@ -99,7 +99,7 @@ const labelForTargetRef = (targetRef: DiagnosticTargetRef): string => {
       return `Workspace ${targetRef.workspaceId}`;
     case 'document':
       return `Document ${targetRef.documentId}`;
-    case 'mir-node':
+    case 'pir-node':
       return `Node ${targetRef.nodeId}`;
     case 'inspector-field':
       return `Field ${targetRef.fieldPath}`;
@@ -159,7 +159,7 @@ const defaultResolveLocation = (
 
 const hasRequirement = (
   requirement: DiagnosticActionRequirement,
-  diagnostic: MdrDiagnostic,
+  diagnostic: ProdivixDiagnostic,
   locations: DiagnosticLocationPresentation[]
 ): boolean => {
   switch (requirement) {
@@ -187,7 +187,7 @@ const defaultResolveActions = ({
   template,
   locations,
 }: {
-  diagnostic: MdrDiagnostic;
+  diagnostic: ProdivixDiagnostic;
   template: DiagnosticPresentationTemplate;
   locations: DiagnosticLocationPresentation[];
   surface: DiagnosticSurface;
@@ -216,7 +216,7 @@ const defaultResolveActions = ({
   });
 
 const readEvidenceValue = (
-  diagnostic: MdrDiagnostic,
+  diagnostic: ProdivixDiagnostic,
   evidence: DiagnosticEvidenceTemplate
 ): unknown => {
   if (evidence.source.kind === 'diagnostic') {
@@ -238,7 +238,7 @@ const defaultFormatEvidence = ({
   diagnostic,
   template,
 }: {
-  diagnostic: MdrDiagnostic;
+  diagnostic: ProdivixDiagnostic;
   template: DiagnosticPresentationTemplate;
 }): DiagnosticEvidencePresentation[] =>
   (template.evidence ?? []).flatMap((evidence) => {

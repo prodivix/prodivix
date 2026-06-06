@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/config"
+	"github.com/Prodivix/prodivix/apps/backend/internal/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -58,7 +58,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			resource_type TEXT NOT NULL,
 			name TEXT NOT NULL DEFAULT '',
 			description TEXT NOT NULL DEFAULT '',
-			mir_json JSONB NOT NULL,
+			pir_json JSONB NOT NULL,
 			is_public BOOLEAN NOT NULL DEFAULT FALSE,
 			stars_count INTEGER NOT NULL DEFAULT 0,
 			created_at TIMESTAMPTZ NOT NULL,
@@ -104,12 +104,12 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			content_json JSONB NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (workspace_id, id),
-			CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('mir-page', 'mir-layout', 'mir-component', 'mir-graph', 'mir-animation')),
+			CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation')),
 			CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev >= 1),
 			CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev >= 1)
 		)`,
 		`ALTER TABLE workspace_documents DROP CONSTRAINT IF EXISTS workspace_documents_type_check`,
-		`ALTER TABLE workspace_documents ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('mir-page', 'mir-layout', 'mir-component', 'mir-graph', 'mir-animation', 'code'))`,
+		`ALTER TABLE workspace_documents ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'code'))`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_documents_workspace_path ON workspace_documents(workspace_id, path)`,
 		`CREATE INDEX IF NOT EXISTS idx_workspace_documents_workspace_updated_at ON workspace_documents(workspace_id, updated_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS workspace_operations (
@@ -164,11 +164,11 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			default_branch TEXT NOT NULL DEFAULT 'main',
 			status TEXT NOT NULL DEFAULT 'active',
 			branch TEXT NOT NULL DEFAULT '',
-			mir_dirty BOOLEAN NOT NULL DEFAULT FALSE,
-			mir_last_synced_rev BIGINT,
-			mir_last_synced_at TIMESTAMPTZ,
-			mir_last_commit_sha TEXT NOT NULL DEFAULT '',
-			mir_last_error_code TEXT NOT NULL DEFAULT '',
+			pir_dirty BOOLEAN NOT NULL DEFAULT FALSE,
+			pir_last_synced_rev BIGINT,
+			pir_last_synced_at TIMESTAMPTZ,
+			pir_last_commit_sha TEXT NOT NULL DEFAULT '',
+			pir_last_error_code TEXT NOT NULL DEFAULT '',
 			artifacts_dirty BOOLEAN NOT NULL DEFAULT FALSE,
 			artifacts_last_synced_rev BIGINT,
 			artifacts_last_synced_at TIMESTAMPTZ,

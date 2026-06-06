@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	backendauth "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/auth"
-	backendresponse "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/http/response"
-	"github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/mircontract"
+	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
+	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/pircontract"
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,7 +33,7 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		CreateProject:  handler.HandleCreateProject,
 		GetProject:     handler.HandleGetProject,
 		UpdateProject:  handler.HandleUpdateProject,
-		GetProjectMIR:  handler.HandleGetProjectMIR,
+		GetProjectPIR:  handler.HandleGetProjectPIR,
 		PublishProject: handler.HandlePublishProject,
 		DeleteProject:  handler.HandleDeleteProject,
 		ListCommunity:  handler.HandleCommunityListProjects,
@@ -66,7 +66,7 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 		Description  string          `json:"description"`
 		ResourceType ResourceType    `json:"resourceType"`
 		IsPublic     bool            `json:"isPublic"`
-		MIR          json.RawMessage `json:"mir"`
+		PIR          json.RawMessage `json:"pir"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
@@ -76,7 +76,7 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 	if strings.TrimSpace(string(resourceType)) == "" {
 		resourceType = ResourceTypeProject
 	}
-	project, err := handler.store.Create(user.ID, request.Name, request.Description, resourceType, request.IsPublic, request.MIR)
+	project, err := handler.store.Create(user.ID, request.Name, request.Description, resourceType, request.IsPublic, request.PIR)
 	if err != nil {
 		if errors.Is(err, ErrInvalidResourceType) {
 			respondError(c, http.StatusBadRequest, "API-4001", "Resource type is invalid.")
@@ -84,7 +84,7 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 		}
 		var syntaxErr *json.SyntaxError
 		if errors.As(err, &syntaxErr) {
-			respondError(c, http.StatusBadRequest, "MIR-4001", "MIR document is invalid.")
+			respondError(c, http.StatusBadRequest, "PIR-4001", "PIR document is invalid.")
 			return
 		}
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not create project.")
@@ -113,8 +113,8 @@ func (handler *Handler) HandleGetProject(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not load project.")
 		return
 	}
-	if _, err := normalizeMIR(project.MIR); err != nil {
-		respondError(c, http.StatusUnprocessableEntity, "MIR-4001", mircontract.LegacyDocumentOpenMessage)
+	if _, err := normalizePIR(project.PIR); err != nil {
+		respondError(c, http.StatusUnprocessableEntity, "PIR-4001", pircontract.LegacyDocumentOpenMessage)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"project": project})
@@ -151,7 +151,7 @@ func (handler *Handler) HandleUpdateProject(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"project": project})
 }
 
-func (handler *Handler) HandleGetProjectMIR(c *gin.Context) {
+func (handler *Handler) HandleGetProjectPIR(c *gin.Context) {
 	user, ok := backendauth.GetAuthUser[backendauth.User](c)
 	if !ok {
 		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
@@ -166,11 +166,11 @@ func (handler *Handler) HandleGetProjectMIR(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not load project.")
 		return
 	}
-	if _, err := normalizeMIR(project.MIR); err != nil {
-		respondError(c, http.StatusUnprocessableEntity, "MIR-4001", mircontract.LegacyDocumentOpenMessage)
+	if _, err := normalizePIR(project.PIR); err != nil {
+		respondError(c, http.StatusUnprocessableEntity, "PIR-4001", pircontract.LegacyDocumentOpenMessage)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"id": project.ID, "mir": project.MIR, "updatedAt": project.UpdatedAt})
+	c.JSON(http.StatusOK, gin.H{"id": project.ID, "pir": project.PIR, "updatedAt": project.UpdatedAt})
 }
 
 func (handler *Handler) HandlePublishProject(c *gin.Context) {

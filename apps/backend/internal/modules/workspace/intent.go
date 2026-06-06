@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	backendresponse "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/http/response"
+	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 )
 
 const (
@@ -16,8 +16,8 @@ const (
 	ErrorReservedDomain             = "WKS-2001"
 	ErrorInvalidVersion             = "API-1001"
 	ErrorInvalidPayload             = "API-1001"
-	ErrorMIRValidationFailed        = "MIR-4001"
-	ErrorMIRGraphPatchPathForbidden = "WKS-5002"
+	ErrorPIRValidationFailed        = "PIR-4001"
+	ErrorPIRGraphPatchPathForbidden = "WKS-5002"
 	ErrorWorkspaceNotFound          = "WKS-1001"
 	ErrorWorkspaceDocumentNotFound  = "WKS-3001"
 	ErrorWorkspaceOperationFailed   = "API-9001"
@@ -74,7 +74,7 @@ func ResolveDocumentCommand(workspaceID, documentID string, provided *WorkspaceC
 	now := time.Now().UTC()
 	return WorkspaceCommandEnvelope{
 		ID:         fmt.Sprintf("cmd_%d", now.UnixNano()),
-		Namespace:  "core.mir",
+		Namespace:  "core.pir",
 		Type:       "document.update",
 		Version:    "1.0",
 		IssuedAt:   now,

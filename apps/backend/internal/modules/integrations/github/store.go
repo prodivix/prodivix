@@ -236,7 +236,7 @@ SET installation_id = EXCLUDED.installation_id,
     branch = EXCLUDED.branch,
     updated_at = NOW()
 RETURNING id, user_id, project_id, workspace_id, provider, installation_id, owner, repo, default_branch, status, branch,
-	mir_dirty, mir_last_synced_rev, mir_last_synced_at, mir_last_commit_sha, mir_last_error_code,
+	pir_dirty, pir_last_synced_rev, pir_last_synced_at, pir_last_commit_sha, pir_last_error_code,
 	artifacts_dirty, artifacts_last_synced_rev, artifacts_last_synced_at, artifacts_last_commit_sha, artifacts_last_error_code,
 	created_at, updated_at`
 
@@ -252,7 +252,7 @@ func (store *Store) GetRepositoryBindingByProject(ctx context.Context, userID, p
 	defer cancel()
 
 	const query = `SELECT id, user_id, project_id, workspace_id, provider, installation_id, owner, repo, default_branch, status, branch,
-	mir_dirty, mir_last_synced_rev, mir_last_synced_at, mir_last_commit_sha, mir_last_error_code,
+	pir_dirty, pir_last_synced_rev, pir_last_synced_at, pir_last_commit_sha, pir_last_error_code,
 	artifacts_dirty, artifacts_last_synced_rev, artifacts_last_synced_at, artifacts_last_commit_sha, artifacts_last_error_code,
 	created_at, updated_at
 FROM github_repository_bindings
@@ -282,8 +282,8 @@ func scanInstallation(scanner interface{ Scan(dest ...any) error }) (*Installati
 func scanRepositoryBinding(scanner interface{ Scan(dest ...any) error }) (*RepositoryBindingRecord, error) {
 	record := &RepositoryBindingRecord{}
 	var status string
-	var mirLastSyncedRev sql.NullInt64
-	var mirLastSyncedAt sql.NullTime
+	var pirLastSyncedRev sql.NullInt64
+	var pirLastSyncedAt sql.NullTime
 	var artifactsLastSyncedRev sql.NullInt64
 	var artifactsLastSyncedAt sql.NullTime
 
@@ -299,11 +299,11 @@ func scanRepositoryBinding(scanner interface{ Scan(dest ...any) error }) (*Repos
 		&record.DefaultBranch,
 		&status,
 		&record.Branch,
-		&record.MIR.Dirty,
-		&mirLastSyncedRev,
-		&mirLastSyncedAt,
-		&record.MIR.LastCommitSHA,
-		&record.MIR.LastErrorCode,
+		&record.PIR.Dirty,
+		&pirLastSyncedRev,
+		&pirLastSyncedAt,
+		&record.PIR.LastCommitSHA,
+		&record.PIR.LastErrorCode,
 		&record.Artifacts.Dirty,
 		&artifactsLastSyncedRev,
 		&artifactsLastSyncedAt,
@@ -317,13 +317,13 @@ func scanRepositoryBinding(scanner interface{ Scan(dest ...any) error }) (*Repos
 	}
 
 	record.Status = RepositoryBindingStatus(status)
-	record.MIR.Track = GitSyncTrackMIR
+	record.PIR.Track = GitSyncTrackPIR
 	record.Artifacts.Track = GitSyncTrackArtifacts
-	if mirLastSyncedRev.Valid {
-		record.MIR.LastSyncedRev = &mirLastSyncedRev.Int64
+	if pirLastSyncedRev.Valid {
+		record.PIR.LastSyncedRev = &pirLastSyncedRev.Int64
 	}
-	if mirLastSyncedAt.Valid {
-		record.MIR.LastSyncedAt = &mirLastSyncedAt.Time
+	if pirLastSyncedAt.Valid {
+		record.PIR.LastSyncedAt = &pirLastSyncedAt.Time
 	}
 	if artifactsLastSyncedRev.Valid {
 		record.Artifacts.LastSyncedRev = &artifactsLastSyncedRev.Int64

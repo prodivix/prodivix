@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MdrInput, MdrSelect } from '@mdr/ui';
+import { PdxInput, PdxSelect } from '@prodivix/ui';
 import { getLayoutPatternDefinition } from '@/editor/features/design/blueprint/layoutPatterns/registry';
 import {
   getLayoutPatternId,
@@ -175,7 +175,7 @@ function LayoutPatternPanelView({
               key={key}
               label={getFieldLabel(key, definition.label)}
               control={
-                <MdrSelect
+                <PdxSelect
                   size="Small"
                   value={
                     enumValue &&
@@ -201,7 +201,7 @@ function LayoutPatternPanelView({
               key={key}
               label={getFieldLabel(key, definition.label)}
               control={
-                <MdrInput
+                <PdxInput
                   size="Small"
                   value={String(value ?? definition.defaultValue)}
                   onChange={(next) => {

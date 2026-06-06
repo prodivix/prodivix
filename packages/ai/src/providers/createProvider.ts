@@ -1,14 +1,14 @@
-import type { LlmProvider, LlmStructuredOutput } from '@mdr/shared';
-import { MockLlmProvider } from '@mdr/shared';
-import type { MdrAiSettings } from '../settings/aiSettings';
+import type { LlmProvider, LlmStructuredOutput } from '@prodivix/shared';
+import { MockLlmProvider } from '@prodivix/shared';
+import type { ProdivixAiSettings } from '../settings/aiSettings';
 import {
-  type MdrAiFetch,
+  type ProdivixAiFetch,
   OpenAICompatibleProvider,
 } from './openAICompatibleProvider';
 
-export interface CreateMdrAiProviderOptions {
-  settings: MdrAiSettings;
-  fetcher?: MdrAiFetch;
+export interface CreateProdivixAiProviderOptions {
+  settings: ProdivixAiSettings;
+  fetcher?: ProdivixAiFetch;
   mockOutput?: LlmStructuredOutput;
 }
 
@@ -29,14 +29,14 @@ const defaultMockOutput: LlmStructuredOutput = {
 
 /**
  * 根据跨端 AI 设置创建 provider。app 层只提供环境相关能力，例如 fetcher 或 mock 输出，
- * provider 选择逻辑保持在 @mdr/ai 中复用。
+ * provider 选择逻辑保持在 @prodivix/ai 中复用。
  *
  * Creates a provider from cross-runtime AI settings. App layers only provide
  * environment-specific capabilities such as fetcher or mock output, while
- * provider selection stays reusable inside @mdr/ai.
+ * provider selection stays reusable inside @prodivix/ai.
  */
-export const createMdrAiProvider = (
-  options: CreateMdrAiProviderOptions
+export const createProdivixAiProvider = (
+  options: CreateProdivixAiProviderOptions
 ): LlmProvider => {
   if (options.settings.provider === 'mock') {
     return new MockLlmProvider(options.mockOutput ?? defaultMockOutput);

@@ -1,9 +1,9 @@
-﻿import type { MIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@/core/types/engine.types';
 import type {
   WorkspaceDocumentRecord,
   WorkspaceSnapshot,
 } from '@/editor/editorApi';
-import { normalizeMirDocument } from '@/mir/resolveMirDocument';
+import { normalizePirDocument } from '@/pir/resolvePirDocument';
 import { isWorkspaceCodeDocumentContent } from '@/workspace';
 import {
   DEFAULT_ROUTE_MANIFEST,
@@ -97,29 +97,29 @@ export const resolveActiveRouteNodeId = (
   return resolveDefaultActiveRouteNodeId(manifest);
 };
 
-const normalizeMirContent = (
+const normalizePirContent = (
   content: WorkspaceDocumentRecord['content'] | undefined
-): MIRDocument => {
-  return normalizeMirDocument(content);
+): PIRDocument => {
+  return normalizePirDocument(content);
 };
 
-export const isMirWorkspaceDocumentType = (
+export const isPirWorkspaceDocumentType = (
   type: WorkspaceDocumentRecord['type']
 ): boolean =>
-  type === 'mir-page' || type === 'mir-layout' || type === 'mir-component';
+  type === 'pir-page' || type === 'pir-layout' || type === 'pir-component';
 
-export const isWorkspaceMirDocument = (
+export const isWorkspacePirDocument = (
   document: WorkspaceDocumentRecord | undefined
-): document is WorkspaceDocumentRecord & { content: MIRDocument } =>
-  Boolean(document && isMirWorkspaceDocumentType(document.type));
+): document is WorkspaceDocumentRecord & { content: PIRDocument } =>
+  Boolean(document && isPirWorkspaceDocumentType(document.type));
 
 export const normalizeWorkspaceDocument = (
   document: WorkspaceDocumentRecord
 ): WorkspaceDocumentRecord => {
-  if (isMirWorkspaceDocumentType(document.type)) {
+  if (isPirWorkspaceDocumentType(document.type)) {
     return {
       ...document,
-      content: normalizeMirContent(document.content),
+      content: normalizePirContent(document.content),
     };
   }
 

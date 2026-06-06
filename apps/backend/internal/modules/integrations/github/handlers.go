@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	backendconfig "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/config"
-	backendauth "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/auth"
-	backendproject "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/modules/project"
-	backendresponse "github.com/Mdr-Tutorials/mdr-front-engine/apps/backend/internal/platform/http/response"
+	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
+	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
+	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
+	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -181,7 +181,7 @@ func (handler *Handler) HandleGetProjectSyncState(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"bindingId": binding.ID,
 		"branch":    binding.Branch,
-		"mir":       binding.MIR,
+		"pir":       binding.PIR,
 		"artifacts": binding.Artifacts,
 	})
 }

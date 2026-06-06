@@ -9,8 +9,8 @@ type GraphExecuteResult = {
   statePatch: Record<string, unknown>;
 };
 
-const REQUEST_EVENT = 'mdr:execute-graph';
-const RESULT_EVENT = 'mdr:execute-graph-result';
+const REQUEST_EVENT = 'prodivix:execute-graph';
+const RESULT_EVENT = 'prodivix:execute-graph-result';
 const DEFAULT_TIMEOUT_MS = 5000;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>

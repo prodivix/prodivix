@@ -1,0 +1,22 @@
+.PdxAnchorNavigation {
+  display: flex;
+  gap: var(--spacing-sm);
+  color: var(--text-muted);
+}
+
+.PdxAnchorNavigation.Vertical {
+  flex-direction: column;
+}
+
+.PdxAnchorNavigationItem {
+  text-decoration: none;
+  color: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+
+  &.Active {
+    background-color: var(--bg-raised);
+    color: var(--text-primary);
+  }
+}

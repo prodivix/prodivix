@@ -13,15 +13,15 @@
 
 ## 0. 边界与执行原则
 
-1. 布局范式必须输出标准 `ComponentNode`，不新增 MIR 顶层结构。
+1. 布局范式必须输出标准 `ComponentNode`，不新增 PIR 顶层结构。
 2. 范式元信息统一写入 `props.dataAttributes`，值使用字符串，避免序列化歧义。
-3. 所有参数更新必须走 `updateMirDoc`，禁止旁路 mutate。
+3. 所有参数更新必须走 `updatePirDoc`，禁止旁路 mutate。
 4. 内置组件 metadata 与外部组件 metadata 必须分仓管理，避免 key 空间互相覆盖。
 5. 迁移期允许“schema 面板 + 手写面板”并存，但同字段不可重复可编辑。
 
 ## 0.1 当前基线（2026-02-17）
 
-1. 已有 layout 原语：`MdrDiv/MdrSection/MdrCard/MdrPanel`（`packages/ui/src/container/*`）。
+1. 已有 layout 原语：`PdxDiv/PdxSection/PdxCard/PdxPanel`（`packages/ui/src/container/*`）。
 2. 已有布局分组：`LayoutGroup`（`apps/web/src/editor/features/design/blueprint/data/groups/LayoutGroup.tsx`）。
 3. 已有布局面板：`LayoutPanel`（硬编码字段渲染）。
 4. 已有外部组件 metadata 链路：`metaStore + InspectorExternalPropsFields`。
@@ -57,7 +57,7 @@
    - 结果：`apps/web/src/editor/features/design/inspector/panels/LayoutPatternPanel.tsx`
 2. 已落地 `LPAT-202`：`layout-pattern` 面板已注册至 `INSPECTOR_PANELS`。
    - 结果：`apps/web/src/editor/features/design/inspector/panels/registry.ts`
-3. 已落地 `LPAT-203`：参数回写已接入 preset `update` 链路并通过 `updateMirDoc` 生效。
+3. 已落地 `LPAT-203`：参数回写已接入 preset `update` 链路并通过 `updatePirDoc` 生效。
    - 结果：`apps/web/src/editor/features/design/blueprint/layoutPatterns/presets/*`、`apps/web/src/editor/features/design/BlueprintEditorInspector.controller.ts`
 4. 已落地 `LPAT-204`：子树更新后选中态回退策略已接入（回退到 pattern root）。
    - 结果：`apps/web/src/editor/features/design/BlueprintEditorInspector.controller.ts`
@@ -151,7 +151,7 @@
   - 依赖：`LPAT-003`
   - 验收：可按 `runtimeType` 稳定读取 metadata
 
-- [ ] `LPAT-302` 首批内置字段建模：`MdrDiv/MdrSection/MdrCard/MdrPanel`。
+- [ ] `LPAT-302` 首批内置字段建模：`PdxDiv/PdxSection/PdxCard/PdxPanel`。
   - 产出：`builtInMeta.layout.ts`
   - 依赖：`LPAT-301`
   - 验收：字段覆盖率 >= 70%，可表达条件显示
@@ -173,7 +173,7 @@
 
 ### E. Schema 生成器与覆盖链路（Gate E）
 
-- [ ] `LPAT-401` 编写 `@mdr/ui` props 抽取脚本（ts-morph）。
+- [ ] `LPAT-401` 编写 `@prodivix/ui` props 抽取脚本（ts-morph）。
   - 产出：`generate-builtin-inspector-schema.mjs`
   - 依赖：`LPAT-003`
   - 验收：可提取 union literal/primitive/可选性
@@ -217,8 +217,8 @@
 
 ## 3. 冲突与兼容专项任务
 
-- [ ] `LPAT-COMPAT-001` MIR 兼容检查：确保仅写 `props.dataAttributes`，不引入 schema 破坏。
-  - 验收：现有 MIR 校验与保存流程通过
+- [ ] `LPAT-COMPAT-001` PIR 兼容检查：确保仅写 `props.dataAttributes`，不引入 schema 破坏。
+  - 验收：现有 PIR 校验与保存流程通过
 
 - [ ] `LPAT-COMPAT-002` Registry 兼容检查：BuiltIn Meta 不复用 external metaStore。
   - 验收：外部组件 Inspector 行为无回归
@@ -252,7 +252,7 @@ LPAT-COMPAT-* 跨阶段并行执行，Gate F 前必须全部完成
 
 1. 代码、文档、测试三者同步更新。
 2. 不破坏现有 external d.ts 推断链路。
-3. 不引入新的 MIR 破坏性字段。
+3. 不引入新的 PIR 破坏性字段。
 4. 通过冲突兼容专项任务对应验收。
 
 ## 6. 第一批开工建议（按顺序）

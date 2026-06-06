@@ -270,7 +270,7 @@ const NODE_CATALOG: NodeCatalogItem[] = [
     groupLabel: 'Data Input',
     ports: { controlIn: CONTROL_IN, controlOut: CONTROL_OUT },
     defaults: {
-      code: "console.log('hello mdr');",
+      code: "console.log('hello prodivix');",
       codeLanguage: 'tsx',
       codeSize: 'md',
       collapsed: false,

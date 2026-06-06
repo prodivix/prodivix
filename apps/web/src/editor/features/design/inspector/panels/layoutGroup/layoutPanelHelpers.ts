@@ -20,10 +20,10 @@ export type BoxSpacing = {
 };
 
 export const LAYOUT_COMPONENT_TYPES = new Set([
-  'MdrDiv',
-  'MdrSection',
-  'MdrCard',
-  'MdrPanel',
+  'PdxDiv',
+  'PdxSection',
+  'PdxCard',
+  'PdxPanel',
   'div',
   'section',
 ]);
@@ -142,7 +142,7 @@ export const toBoxSpacingShorthand = (spacing: BoxSpacing) => {
 };
 
 export const getSpacingValue = (node: ComponentNode, key: SpacingKey) => {
-  if (node.type === 'MdrDiv') {
+  if (node.type === 'PdxDiv') {
     const propValue = readCssValue(node.props?.[key]);
     if (propValue !== undefined) return propValue;
   }
@@ -150,7 +150,7 @@ export const getSpacingValue = (node: ComponentNode, key: SpacingKey) => {
 };
 
 export const getLayoutValue = (node: ComponentNode, key: LayoutValueKey) => {
-  if (node.type === 'MdrDiv') {
+  if (node.type === 'PdxDiv') {
     const propValue = readCssValue(node.props?.[key]);
     if (propValue !== undefined) return propValue;
   }
@@ -163,7 +163,7 @@ export const updateLayoutValue = (
   nextValue: string
 ): ComponentNode => {
   const hasValue = nextValue.trim().length > 0;
-  if (node.type === 'MdrDiv') {
+  if (node.type === 'PdxDiv') {
     const nextProps = isPlainObject(node.props) ? { ...node.props } : {};
     const nextStyle = isPlainObject(node.style) ? { ...node.style } : {};
     if (hasValue) {
@@ -196,7 +196,7 @@ export const updateSpacingValue = (
   nextValue: string
 ): ComponentNode => {
   const hasValue = nextValue.trim().length > 0;
-  if (node.type === 'MdrDiv') {
+  if (node.type === 'PdxDiv') {
     const nextProps = isPlainObject(node.props) ? { ...node.props } : {};
     const nextStyle = isPlainObject(node.style) ? { ...node.style } : {};
     if (hasValue) {
