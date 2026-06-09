@@ -1,13 +1,11 @@
 import React from 'react';
 import type { PdxComponent } from '@prodivix/shared';
+import {
+  resolveSafeEmbedUrl,
+  type SafeEmbedType,
+} from '@prodivix/shared/safety';
 
-type EmbedType =
-  | 'YouTube'
-  | 'Vimeo'
-  | 'Twitter'
-  | 'Instagram'
-  | 'Facebook'
-  | 'Custom';
+type EmbedType = SafeEmbedType;
 
 interface PdxEmbedSpecificProps {
   type: EmbedType;
@@ -42,40 +40,6 @@ export interface PdxEmbedProps
     PdxEmbedNativeProps {
   onLoad?: React.ReactEventHandler<HTMLIFrameElement>;
   onError?: React.ReactEventHandler<HTMLIFrameElement>;
-}
-
-function getEmbedUrl(type: EmbedType, url: string): string {
-  switch (type) {
-    case 'YouTube':
-      const youtubeMatch = url.match(
-        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
-      );
-      return youtubeMatch
-        ? `https://www.youtube.com/embed/${youtubeMatch[1]}`
-        : url;
-
-    case 'Vimeo':
-      const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-      return vimeoMatch
-        ? `https://player.vimeo.com/video/${vimeoMatch[1]}`
-        : url;
-
-    case 'Twitter':
-      return url;
-
-    case 'Instagram':
-      return url;
-
-    case 'Facebook':
-      const facebookMatch = url.match(/facebook\.com\/.*\/videos\/(\d+)/);
-      return facebookMatch
-        ? `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}`
-        : url;
-
-    case 'Custom':
-    default:
-      return url;
-  }
 }
 
 function PdxEmbed({
@@ -131,7 +95,7 @@ function PdxEmbed({
     border: 'none',
   };
 
-  const embedUrl = getEmbedUrl(type, url);
+  const embedUrl = resolveSafeEmbedUrl(type, url);
 
   if (type === 'Twitter' || type === 'Instagram') {
     return (

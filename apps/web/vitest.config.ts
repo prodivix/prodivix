@@ -7,6 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      '@prodivix/shared/safety': resolve(
+        __dirname,
+        '../../packages/shared/src/safety'
+      ),
       '@prodivix/shared': resolve(__dirname, '../../packages/shared/src'),
       '@prodivix/ui': resolve(__dirname, '../../packages/ui/src'),
       '@prodivix/themes': resolve(__dirname, '../../packages/themes/src'),

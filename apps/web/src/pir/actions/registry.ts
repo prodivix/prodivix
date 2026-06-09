@@ -1,3 +1,5 @@
+import { getNavigateLinkKind } from '@prodivix/shared/safety';
+
 export type BuiltInActionName = 'navigate' | 'executeGraph';
 
 export type BuiltInActionContext = {
@@ -53,12 +55,6 @@ export const createDefaultActionParams = (
     return { graphMode: 'new', graphName: '', graphId: '' };
   }
   return { to: '', target: '_blank', replace: false, state: '' };
-};
-
-export const getNavigateLinkKind = (to: string) => {
-  if (to.startsWith('https://')) return 'external';
-  if (to.startsWith('/')) return 'internal';
-  return null;
 };
 
 export type NavigateTarget = '_self' | '_blank';
@@ -134,6 +130,7 @@ export const executeBuiltInAction = (
   const replace = Boolean(params.replace);
   const state = parseNavigationState(params.state);
   const linkKind = getNavigateLinkKind(to);
+  if (!linkKind) return;
 
   if (linkKind === 'external') {
     const confirmed = window.confirm(

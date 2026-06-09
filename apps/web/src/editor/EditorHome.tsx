@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { EditorBarExitModal } from './EditorBar/EditorBarExitModal';
 import { TIPS, type TipId } from './tips';
-import { truncate } from '@/utils/truncate';
+import { truncate } from '@prodivix/shared/safety';
 import NewResourceModal from './features/newfile/NewResourceModal';
 import { editorApi, type ProjectSummary } from './editorApi';
 import { useAuthStore } from '@/auth/useAuthStore';

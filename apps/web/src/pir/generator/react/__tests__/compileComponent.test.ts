@@ -58,4 +58,83 @@ describe('compilePirToReactComponent', () => {
     expect(compiled.code).not.toContain('codeBindings');
     expect(compiled.code).toContain('className="hero"');
   });
+
+  it('omits inline navigation handlers for unsafe static URLs', () => {
+    const pirDoc: PIRDocument = {
+      version: '1.3',
+      metadata: { name: 'UnsafeNavigateExample' },
+      ui: {
+        graph: {
+          version: 1,
+          rootId: 'root',
+          nodesById: {
+            root: {
+              id: 'root',
+              type: 'button',
+              text: 'Open',
+              events: {
+                click: {
+                  trigger: 'click',
+                  action: 'navigate',
+                  params: {
+                    to: 'javascript:alert(1)',
+                    target: '_self',
+                  },
+                },
+              },
+            },
+          },
+          childIdsById: {
+            root: [],
+          },
+        },
+      },
+    };
+
+    const compiled = compilePirToReactComponent(pirDoc);
+
+    expect(compiled.code).toContain('onClick={() => {}}');
+    expect(compiled.code).not.toContain('javascript:alert');
+    expect(compiled.code).not.toContain('window.location.assign');
+    expect(compiled.code).not.toContain('window.open');
+  });
+
+  it('keeps safe static navigation URLs executable in generated code', () => {
+    const pirDoc: PIRDocument = {
+      version: '1.3',
+      metadata: { name: 'SafeNavigateExample' },
+      ui: {
+        graph: {
+          version: 1,
+          rootId: 'root',
+          nodesById: {
+            root: {
+              id: 'root',
+              type: 'button',
+              text: 'Open',
+              events: {
+                click: {
+                  trigger: 'click',
+                  action: 'navigate',
+                  params: {
+                    to: 'https://example.com/docs',
+                    target: '_blank',
+                  },
+                },
+              },
+            },
+          },
+          childIdsById: {
+            root: [],
+          },
+        },
+      },
+    };
+
+    const compiled = compilePirToReactComponent(pirDoc);
+
+    expect(compiled.code).toContain(
+      "window.open(\"https://example.com/docs\", '_blank', 'noopener,noreferrer')"
+    );
+  });
 });

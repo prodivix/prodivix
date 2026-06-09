@@ -5,6 +5,12 @@ import type {
   LlmStreamEvent,
 } from '@prodivix/shared';
 import { LlmProviderError } from '@prodivix/shared';
+import {
+  normalizeBaseURL,
+  splitLines,
+  splitSseFrames,
+  stripJsonFence,
+} from '@prodivix/shared/safety';
 import { validateStructuredOutput } from '../validation/validateStructuredOutput';
 import { createOpenAICompatibleMessages } from './openAICompatiblePrompt';
 
@@ -32,14 +38,6 @@ export interface OpenAICompatibleProviderOptions {
   model: string;
   fetcher: ProdivixAiFetch;
 }
-
-const normalizeBaseURL = (baseURL: string) => baseURL.replace(/\/+$/, '');
-
-const stripJsonFence = (value: string) => {
-  const trimmed = value.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenced?.[1]?.trim() ?? trimmed;
-};
 
 const extractRawResponse = (response: unknown): string => {
   const choice = readPath(response, ['choices', 0, 'message', 'content']);
@@ -107,11 +105,11 @@ const readSseDataLines = async function* (
       }
 
       buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split(/\r?\n\r?\n/);
-      buffer = frames.pop() ?? '';
+      const { frames, remainder } = splitSseFrames(buffer);
+      buffer = remainder;
 
       for (const frame of frames) {
-        for (const line of frame.split(/\r?\n/)) {
+        for (const line of splitLines(frame)) {
           const trimmed = line.trim();
 
           if (trimmed.startsWith('data:')) {
@@ -124,7 +122,7 @@ const readSseDataLines = async function* (
     buffer += decoder.decode();
 
     if (buffer.trim()) {
-      for (const line of buffer.split(/\r?\n/)) {
+      for (const line of splitLines(buffer)) {
         const trimmed = line.trim();
 
         if (trimmed.startsWith('data:')) {

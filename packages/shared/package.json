@@ -9,6 +9,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./safety": {
+      "types": "./dist/safety/index.d.ts",
+      "import": "./dist/safety/index.js"
+    },
     "./types/*": {
       "types": "./dist/types/*.d.ts",
       "import": "./dist/types/*.js"

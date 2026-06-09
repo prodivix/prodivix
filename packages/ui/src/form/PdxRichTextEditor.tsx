@@ -1,5 +1,6 @@
 import './PdxRichTextEditor.scss';
-import { type PdxComponent } from '@prodivix/shared';
+import type { PdxComponent } from '@prodivix/shared';
+import { getVisibleTextMetrics } from '@prodivix/shared/safety';
 import {
   Bold,
   Eraser,
@@ -116,12 +117,7 @@ function PdxRichTextEditor({
     syncToolbarState();
   }, []);
 
-  const textMetrics = currentValue
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const characterCount = textMetrics.length;
-  const wordCount = textMetrics ? textMetrics.split(' ').length : 0;
+  const { characterCount, wordCount } = getVisibleTextMetrics(currentValue);
 
   const fullClassName =
     `PdxRichTextEditor ${disabled ? 'Disabled' : ''} ${readOnly ? 'ReadOnly' : ''} ${className || ''}`.trim();

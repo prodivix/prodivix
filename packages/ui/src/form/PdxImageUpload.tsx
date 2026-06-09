@@ -1,7 +1,11 @@
-import './PdxImageUpload.scss';
+﻿import './PdxImageUpload.scss';
 import { type PdxComponent } from '@prodivix/shared';
 import { useEffect, useRef, useState } from 'react';
 import type React from 'react';
+import {
+  createImageUploadPreviewUrl,
+  isBlobPreviewUrl,
+} from './imageUploadPreview';
 
 interface PdxImageUploadSpecificProps {
   label?: string;
@@ -47,9 +51,28 @@ function PdxImageUpload({
   }, [value]);
 
   useEffect(() => {
-    const urls = files.map((file) => URL.createObjectURL(file));
-    setPreviews(urls);
+    let isActive = true;
+    const urls: string[] = [];
+
+    void Promise.all(files.map(createImageUploadPreviewUrl)).then(
+      (previewUrls) => {
+        if (!isActive) {
+          previewUrls.forEach((url) => {
+            if (url) URL.revokeObjectURL(url);
+          });
+          return;
+        }
+        previewUrls.forEach((url) => {
+          if (url && isBlobPreviewUrl(url)) {
+            urls.push(url);
+          }
+        });
+        setPreviews([...urls]);
+      }
+    );
+
     return () => {
+      isActive = false;
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [files]);

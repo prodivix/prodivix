@@ -27,6 +27,10 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
       '@prodivix/ai': resolve(__dirname, '../../packages/ai/src'),
       '@prodivix/i18n': resolve(__dirname, '../../packages/i18n/src'),
+      '@prodivix/shared/safety': resolve(
+        __dirname,
+        '../../packages/shared/src/safety'
+      ),
       '@prodivix/shared': resolve(__dirname, '../../packages/shared/src'),
       '@prodivix/ui': resolve(__dirname, '../../packages/ui/src'),
       '@prodivix/themes': resolve(__dirname, '../../packages/themes/src'),

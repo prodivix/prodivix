@@ -31,10 +31,8 @@ import {
   removeNodeById,
 } from '@/editor/features/design/blueprint/editor/model/tree';
 import { normalizeAnimationDefinition } from '@/editor/features/animation/animationEditorModel';
-import {
-  getNavigateLinkKind,
-  resolveNavigateTarget,
-} from '@/pir/actions/registry';
+import { resolveNavigateTarget } from '@/pir/actions/registry';
+import { getNavigateLinkKind } from '@prodivix/shared/safety';
 import {
   DEFAULT_BLUEPRINT_STATE,
   useEditorStore,

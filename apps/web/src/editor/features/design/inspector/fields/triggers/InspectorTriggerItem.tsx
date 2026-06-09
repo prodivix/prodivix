@@ -4,10 +4,10 @@ import {
   BUILT_IN_ACTION_OPTIONS,
   DOM_EVENT_TRIGGERS,
   createDefaultActionParams,
-  getNavigateLinkKind,
   normalizeBuiltInAction,
   type BuiltInActionName,
 } from '@/pir/actions/registry';
+import { getNavigateLinkKind } from '@prodivix/shared/safety';
 import type { TriggerEntry } from '@/editor/features/design/inspector/InspectorContext.types';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
 import { TriggerNavigateFields } from './TriggerNavigateFields';

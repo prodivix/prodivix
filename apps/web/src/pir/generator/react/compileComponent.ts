@@ -6,6 +6,7 @@ import type { AdapterImportSpec } from '@/pir/generator/core/adapter';
 import { createDiagnosticBag } from '@/pir/generator/core/diagnostics';
 import { resolvePackageImport } from '@/pir/generator/core/packageResolver';
 import { isBuiltInActionName } from '@/pir/actions/registry';
+import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/shared/safety';
 import {
   VALUE_REF_IDENTIFIER_PATTERN,
   isDataReference,
@@ -122,11 +123,18 @@ const canInlineStaticNavigate = (params: Record<string, unknown>) => {
 
 const buildStaticNavigateInlineHandler = (params: Record<string, unknown>) => {
   const to = typeof params.to === 'string' ? params.to.trim() : '';
-  if (!to) return '{() => {}}';
+  if (!to || !isSafeNavigateTo(to)) return '{() => {}}';
   const target = params.target === '_self' ? '_self' : '_blank';
   const replace = Boolean(params.replace);
-  if (target === '_blank') {
+  const linkKind = getNavigateLinkKind(to);
+  if (linkKind === 'external' && target === '_blank') {
     return `{() => window.open(${stringify(to)}, '_blank', 'noopener,noreferrer')}`;
+  }
+  if (linkKind === 'internal') {
+    if (replace) {
+      return `{() => window.history.replaceState(null, '', ${stringify(to)})}`;
+    }
+    return `{() => window.history.pushState(null, '', ${stringify(to)})}`;
   }
   if (replace) {
     return `{() => window.location.replace(${stringify(to)})}`;
@@ -139,10 +147,24 @@ const buildNavigateInlineHandler = (paramsExpr: string) => {
     const params = ${paramsExpr};
     const to = typeof params.to === 'string' ? params.to.trim() : '';
     if (!to) return;
+    const linkKind = to.startsWith('https://') || to.startsWith('http://')
+      ? 'external'
+      : to.startsWith('/') || to.startsWith('#') || to.startsWith('?')
+        ? 'internal'
+        : null;
+    if (!linkKind) return;
     const target = params.target === '_self' ? '_self' : '_blank';
     const replace = Boolean(params.replace);
-    if (target === '_blank') {
+    if (linkKind === 'external' && target === '_blank') {
       window.open(to, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (linkKind === 'internal') {
+      if (replace) {
+        window.history.replaceState(null, '', to);
+        return;
+      }
+      window.history.pushState(null, '', to);
       return;
     }
     if (replace) {

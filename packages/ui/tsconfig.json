@@ -12,6 +12,7 @@
     "noEmit": false,
     "paths": {
       "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"],
       "@prodivix/themes": ["../themes/src"]
     }
   },

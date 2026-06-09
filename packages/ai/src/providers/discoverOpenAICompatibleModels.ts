@@ -1,3 +1,4 @@
+import { normalizeBaseURL } from '@prodivix/shared/safety';
 import type { ProdivixAiFetch } from './openAICompatibleProvider';
 
 export interface DiscoverOpenAICompatibleModelsOptions {
@@ -12,8 +13,6 @@ export interface ProdivixAiDiscoveredModel {
   createdAt?: number;
   raw: unknown;
 }
-
-const normalizeBaseURL = (baseURL: string) => baseURL.replace(/\/+$/, '');
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

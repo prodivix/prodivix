@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/shared/safety';
 import { resolveNavigateTarget } from '@/pir/actions/registry';
 
 describe('resolveNavigateTarget', () => {
@@ -20,5 +21,15 @@ describe('resolveNavigateTarget', () => {
       effectiveTarget: '_blank',
       openedAsBlankForSafety: true,
     });
+  });
+
+  it('classifies only safe navigation URLs as navigable', () => {
+    expect(getNavigateLinkKind('https://example.com')).toBe('external');
+    expect(getNavigateLinkKind('http://localhost:5173')).toBe('external');
+    expect(getNavigateLinkKind('/docs')).toBe('internal');
+    expect(getNavigateLinkKind('#section')).toBe('internal');
+    expect(getNavigateLinkKind('?tab=preview')).toBe('internal');
+    expect(isSafeNavigateTo('javascript:alert(1)')).toBe(false);
+    expect(isSafeNavigateTo('data:text/html,<script></script>')).toBe(false);
   });
 });
