@@ -70,7 +70,7 @@ For detailed plans and architectural decisions, see `specs/`.
 ### Install
 
 ```bash
-git clone https://github.com/Prodivix/prodivix.git
+git clone https://github.com/Mdr-Tutorials/prodivix.git
 cd prodivix
 pnpm install
 ```

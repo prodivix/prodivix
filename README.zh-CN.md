@@ -70,7 +70,7 @@ Prodivix 围绕几个长期约束构建：
 ### 安装
 
 ```bash
-git clone https://github.com/Prodivix/prodivix.git
+git clone https://github.com/Mdr-Tutorials/prodivix.git
 cd prodivix
 pnpm install
 ```
