@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { PIRDocument } from '@/core/types/engine.types';
 import { compilePirToReactComponent } from '@/pir/generator/react/compileComponent';
+import { generateReactBundle } from '@/pir/generator/pirToReact';
 import {
+  REACT_PRODIVIX_PACKAGE_VERSIONS,
   REACT_PROJECT_SCAFFOLD_PRESET,
   createProjectReactBundle,
 } from '@/pir/generator/react/projectScaffold';
@@ -234,5 +236,40 @@ describe('compilePirToReactComponent', () => {
     expect(pnpmWorkspace?.language).toBe('yaml');
     expect(pnpmWorkspace?.content).toContain('onlyBuiltDependencies:');
     expect(pnpmWorkspace?.content).toContain('esbuild');
+    expect(bundle.files.some((file) => file.path === 'src/vite-env.d.ts')).toBe(
+      true
+    );
+  });
+
+  it('declares the current Prodivix UI package version in project exports', () => {
+    const pirDoc: PIRDocument = {
+      version: '1.3',
+      metadata: { name: 'CurrentUiVersionExample' },
+      ui: {
+        graph: {
+          version: 1,
+          rootId: 'root',
+          nodesById: {
+            root: {
+              id: 'root',
+              type: 'PdxButton',
+              text: 'Button',
+            },
+          },
+          childIdsById: {
+            root: [],
+          },
+        },
+      },
+    };
+
+    const bundle = generateReactBundle(pirDoc);
+    const packageJson = JSON.parse(
+      bundle.files.find((file) => file.path === 'package.json')?.content ?? '{}'
+    ) as { dependencies?: Record<string, string> };
+
+    expect(packageJson.dependencies?.['@prodivix/ui']).toBe(
+      REACT_PRODIVIX_PACKAGE_VERSIONS['@prodivix/ui']
+    );
   });
 });

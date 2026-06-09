@@ -1,7 +1,9 @@
 import type { ReactComponentCompileResult, ReactExportBundle } from './types';
 import webPackageJson from '../../../../package.json';
 import rootPackageJson from '../../../../../../package.json';
-import uiPackageJson from '../../../../../../packages/ui/package.json';
+import sharedPackageJson from '@prodivix/shared/package.json';
+import themesPackageJson from '@prodivix/themes/package.json';
+import uiPackageJson from '@prodivix/ui/package.json';
 
 const readDependencyVersion = (
   manifest: {
@@ -35,6 +37,12 @@ export const REACT_PROJECT_SCAFFOLD_PRESET = {
       '@types/react-dom'
     ),
   },
+} as const;
+
+export const REACT_PRODIVIX_PACKAGE_VERSIONS = {
+  '@prodivix/shared': sharedPackageJson.version,
+  '@prodivix/themes': themesPackageJson.version,
+  '@prodivix/ui': uiPackageJson.version,
 } as const;
 
 export const createProjectReactBundle = (
@@ -135,6 +143,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>
 );`,
+    },
+    {
+      path: 'src/vite-env.d.ts',
+      language: 'typescript',
+      content: `/// <reference types="vite/client" />
+`,
     },
     {
       path: 'src/App.tsx',

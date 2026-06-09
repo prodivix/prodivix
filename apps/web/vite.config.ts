@@ -31,8 +31,20 @@ export default defineConfig({
         __dirname,
         '../../packages/shared/src/safety'
       ),
+      '@prodivix/shared/package.json': resolve(
+        __dirname,
+        '../../packages/shared/package.json'
+      ),
       '@prodivix/shared': resolve(__dirname, '../../packages/shared/src'),
+      '@prodivix/ui/package.json': resolve(
+        __dirname,
+        '../../packages/ui/package.json'
+      ),
       '@prodivix/ui': resolve(__dirname, '../../packages/ui/src'),
+      '@prodivix/themes/package.json': resolve(
+        __dirname,
+        '../../packages/themes/package.json'
+      ),
       '@prodivix/themes': resolve(__dirname, '../../packages/themes/src'),
     },
   },
