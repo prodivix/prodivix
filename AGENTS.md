@@ -4,8 +4,15 @@
 
 ```mermaid
 flowchart TD
-    %% 核心节点
-    PIR((PIR Core<br>JSON Schema<br>唯一真相源)):::core
+    %% 核心作者态文件系统
+    subgraph VFS [Workspace VFS]
+        direction TB
+
+        WorkspaceCore[workspace.json / route-manifest.json]
+        PIR((PIR Core JSON<br>ui.graph / logic / animation<br>CodeReference)):::core
+        CodeDocuments[Code Documents<br>TS / CSS / Shader / Adapter]
+        VFSAssets[Assets / Config]
+    end
 
     %% ----------------- 顶部：编辑器层 -----------------
     subgraph Editors [编辑器-三编辑器架构]
@@ -51,9 +58,10 @@ flowchart TD
     Blueprint -->|"event / mounted CSS / adapter slot"| CodeEnv
     NodeGraph -->|"executor / transform slot"| CodeEnv
     AnimEditor -->|"easing / shader / timeline script slot"| CodeEnv
+    CodeEnv -->|"edit / index / diagnostics"| CodeDocuments
     CodeEnv -->|"CodeReference / diagnostics"| PIR
 
-    %% 编辑器到核心的连接
+    %% 编辑器到 VFS 内核心 JSON 的连接
     Blueprint -->|"ui"| PIR
     NodeGraph -->|"logic"| PIR
     AnimEditor -->|"animation"| PIR
@@ -74,12 +82,18 @@ flowchart TD
         end
     end
 
-    Assets --> PIR
+    Router -->|"route manifest"| WorkspaceCore
+    Component -->|"component PIR"| PIR
+    Assets -->|"assets / dependencies"| VFSAssets
     ESM -.-> AnimEditor
 
     %% ----------------- 核心功能扩展 -----------------
-    LLM[LLM 辅助开发] --> CodeEnv
-    LLM --> PIR
+    LLM[LLM 辅助开发]
+    CommandLayer[Command / Intent / Patch]
+
+    LLM -->|"code context / patch proposal"| CodeEnv
+    LLM -->|"intent"| CommandLayer
+    CommandLayer -->|"validated workspace patch"| WorkspaceCore & PIR & CodeDocuments & VFSAssets
 
     %% ----------------- 右侧：后端与 Git -----------------
     subgraph BackendSys [后端与社区]
@@ -98,7 +112,7 @@ flowchart TD
         License --> Git
     end
 
-    PIR -->|PIR 文件树| Git
+    WorkspaceCore & PIR & CodeDocuments & VFSAssets -->|"VFS 投影"| Git
 
     %% ----------------- 底部：编译与部署 -----------------
     subgraph Compilation [编译器与输出]
@@ -118,19 +132,19 @@ flowchart TD
         Compiler --> Frameworks
         Frameworks --> Build --> Deploy
         Deploy --> Targets & Hosting
-        Perf --> Targets
+        Targets --> Perf
     end
 
-    %% 连接核心到编译器
-    PIR --> Compiler
-    Git -->|源代码| Frameworks
+    %% 连接 VFS 内文档到编译器
+    WorkspaceCore & PIR & CodeDocuments & VFSAssets --> Compiler
+    Frameworks -->|生成源码| Git
 
     %% ----------------- 右下角：文档 -----------------
     Docs[文档]
     Tutorials[教程]
 ```
 
-## PIR 结构与读写链路
+## Workspace VFS 与 PIR Core JSON 读写链路
 
 ```mermaid
 flowchart TD
@@ -139,10 +153,17 @@ flowchart TD
     LLM[LLM 辅助开发]
     Commands[Command / Intent / Patch]
 
-    %% PIR 保存态：规范化图结构是唯一真相源
-    Graph[PIR ui.graph<br>rootId / nodesById / childIdsById / regionsById]
+    %% VFS 保存态：项目级作者态文件系统囊括 PIR Core JSON
+    subgraph VFS [Workspace VFS]
+        direction TB
+
+        WorkspaceCore[workspace.json / route-manifest.json]
+        Graph[PIR Core JSON<br>ui.graph<br>rootId / nodesById / childIdsById / regionsById]
+        CodeDocs[Code Documents / Assets / Config]
+    end
+
     Validator[PIR Validator<br>Schema + Graph 语义校验]
-    Workspace[Workspace VFS / Backend / Git]
+    Persistence[Backend / Git Projection]
 
     %% 读取侧：需要树时只生成临时中间层
     Materialize[materializeUiTree<br>临时树中间层]
@@ -153,8 +174,8 @@ flowchart TD
     LLM --> Commands
     Commands --> Graph
     Graph --> Validator
-    Validator --> Workspace
-    Workspace --> Graph
+    Validator --> Persistence
+    Persistence --> Graph
     Graph --> Materialize
     Materialize --> Renderer
     Materialize --> Codegen
