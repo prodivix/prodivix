@@ -63,8 +63,7 @@ function Home() {
     const nextTheme = themeMode === 'dark' ? 'light' : 'dark';
     setGlobalValue('theme', nextTheme); // ThemeSync will handle DOM update
   };
-  const brandLockupClassName =
-    'inline-flex items-baseline gap-2.5';
+  const brandLockupClassName = 'inline-flex items-baseline gap-2.5';
   const footerBrandLinkClassName =
     'inline-flex items-center no-underline transition-opacity duration-200 hover:opacity-70';
   const brandIconClassName =

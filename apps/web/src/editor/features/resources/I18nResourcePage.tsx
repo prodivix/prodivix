@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PdxButton, PdxInput, PdxSearch } from '@prodivix/ui';
-import { Download, Trash2, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import {
@@ -19,6 +17,11 @@ import {
   type I18nSelection,
   type TranslationRow,
 } from './i18nResourceModel';
+import {
+  I18nResourcePreview,
+  I18nResourceSidebar,
+  I18nResourceTable,
+} from './I18nResourcePanels';
 
 type I18nResourcePageProps = {
   embedded?: boolean;
@@ -45,6 +48,31 @@ const highlightVariables = (value: string) => {
   );
 };
 
+const createInitialSelection = (
+  projectId: string | undefined,
+  initialStore: I18nLocaleStore
+): I18nSelection => {
+  const stored = readSelection(projectId);
+  const localeKeys = Object.keys(initialStore);
+  const fallbackSource = localeKeys[0] ?? 'en';
+  const fallbackTarget = localeKeys[1] ?? localeKeys[0] ?? 'zh-CN';
+  const fallbackNamespace =
+    Object.keys(initialStore[fallbackSource] ?? {})[0] ?? 'common';
+  if (
+    stored &&
+    initialStore[stored.sourceLocale] &&
+    initialStore[stored.targetLocale] &&
+    initialStore[stored.sourceLocale][stored.namespace]
+  ) {
+    return stored;
+  }
+  return {
+    sourceLocale: fallbackSource,
+    targetLocale: fallbackTarget,
+    namespace: fallbackNamespace,
+  };
+};
+
 export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
@@ -61,28 +89,9 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const [newNamespace, setNewNamespace] = useState('');
   const [newKey, setNewKey] = useState('');
   const [newSourceValue, setNewSourceValue] = useState('');
-  const [selection, setSelection] = useState<I18nSelection>(() => {
-    const initialStore = readI18nStore(projectId);
-    const stored = readSelection(projectId);
-    const localeKeys = Object.keys(initialStore);
-    const fallbackSource = localeKeys[0] ?? 'en';
-    const fallbackTarget = localeKeys[1] ?? localeKeys[0] ?? 'zh-CN';
-    const fallbackNamespace =
-      Object.keys(initialStore[fallbackSource] ?? {})[0] ?? 'common';
-    if (
-      stored &&
-      initialStore[stored.sourceLocale] &&
-      initialStore[stored.targetLocale] &&
-      initialStore[stored.sourceLocale][stored.namespace]
-    ) {
-      return stored;
-    }
-    return {
-      sourceLocale: fallbackSource,
-      targetLocale: fallbackTarget,
-      namespace: fallbackNamespace,
-    };
-  });
+  const [selection, setSelection] = useState<I18nSelection>(() =>
+    createInitialSelection(projectId, readI18nStore(projectId))
+  );
   const fileInputId = 'resource-i18n-import-json';
 
   const locales = useMemo(() => Object.keys(store), [store]);
@@ -96,7 +105,6 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
     () => collectLocaleMissingStats(store, selection.sourceLocale),
     [selection.sourceLocale, store]
   );
-
   const namespaceStats = useMemo(
     () =>
       buildNamespaceStats({
@@ -106,7 +114,6 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
       }),
     [sourceNamespaceMap, sourceNamespaces, targetNamespaceMap]
   );
-
   const rows = useMemo<TranslationRow[]>(
     () =>
       buildTranslationRows({
@@ -128,7 +135,6 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
       store,
     ]
   );
-
   const selectedRow =
     rows.find((row) => row.key === selection.key) ??
     rows[0] ??
@@ -142,7 +148,6 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
       status: 'missing',
       hasVariable: false,
     } as TranslationRow);
-
   const currentNamespaceStats = namespaceStats.find(
     (item) => item.namespace === selection.namespace
   );
@@ -203,6 +208,20 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
       setSelection((current) => ({ ...current, key: rows[0].key }));
     }
   }, [rows, selection.key]);
+
+  const selectNamespace = (namespace: string) => {
+    setSelection((current) => ({
+      ...current,
+      namespace,
+    }));
+  };
+
+  const selectKey = (key: string) => {
+    setSelection((current) => ({
+      ...current,
+      key,
+    }));
+  };
 
   const updateLocaleValue = (locale: string, key: string, value: string) => {
     setStore((current) => ({
@@ -315,6 +334,29 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
     window.URL.revokeObjectURL(url);
   };
 
+  const importLocale = async (file: File) => {
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw) as Record<string, Record<string, string>>;
+      setStore((current) => ({
+        ...current,
+        [selection.targetLocale]: Object.fromEntries(
+          Object.entries(parsed).map(([namespace, values]) => [
+            namespace,
+            Object.fromEntries(
+              Object.entries(values).map(([key, value]) => [
+                key,
+                typeof value === 'string' ? value : String(value ?? ''),
+              ])
+            ),
+          ])
+        ),
+      }));
+    } catch {
+      // ignore invalid json import
+    }
+  };
+
   const shellClassName = embedded
     ? 'grid gap-4'
     : 'mx-auto grid w-full max-w-[1480px] gap-4 px-6 py-6';
@@ -331,408 +373,54 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
       </article>
 
       <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-        <aside className="grid gap-3 rounded-xl border border-black/10 bg-(--bg-canvas) p-3">
-          <PdxSearch
-            size="Small"
-            value={searchKeyword}
-            onChange={setSearchKeyword}
-            placeholder={t('resourceManager.i18n.searchPlaceholder')}
-          />
+        <I18nResourceSidebar
+          t={t}
+          searchKeyword={searchKeyword}
+          missingOnly={missingOnly}
+          reviewOnly={reviewOnly}
+          namespaceStats={namespaceStats}
+          selectedNamespace={selection.namespace}
+          currentNamespaceStats={currentNamespaceStats}
+          progressRate={currentNamespaceStats?.completionRate ?? 100}
+          missingCount={missingStats[selection.targetLocale] ?? 0}
+          newLocale={newLocale}
+          newNamespace={newNamespace}
+          onSearchKeywordChange={setSearchKeyword}
+          onMissingOnlyChange={setMissingOnly}
+          onReviewOnlyChange={setReviewOnly}
+          onSelectNamespace={selectNamespace}
+          onNewLocaleChange={setNewLocale}
+          onNewNamespaceChange={setNewNamespace}
+          onAddLocale={addLocale}
+          onAddNamespace={addNamespace}
+        />
 
-          <div className="grid gap-1 rounded-lg border border-black/8 bg-black/[0.02] p-2 text-xs">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={missingOnly}
-                onChange={(event) => setMissingOnly(event.target.checked)}
-              />
-              {t('resourceManager.i18n.filters.missingOnly')}
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={reviewOnly}
-                onChange={(event) => setReviewOnly(event.target.checked)}
-              />
-              {t('resourceManager.i18n.filters.reviewedOnly')}
-            </label>
-          </div>
+        <I18nResourceTable
+          t={t}
+          fileInputId={fileInputId}
+          locales={locales}
+          rows={rows}
+          selectedNamespace={selection.namespace}
+          sourceLocale={selection.sourceLocale}
+          selectedKey={selection.key}
+          newKey={newKey}
+          newSourceValue={newSourceValue}
+          onImport={importLocale}
+          onExport={exportLocale}
+          onDeleteKey={deleteKey}
+          onSelectKey={selectKey}
+          onUpdateLocaleValue={updateLocaleValue}
+          onToggleReviewed={toggleReviewed}
+          onNewKeyChange={setNewKey}
+          onNewSourceValueChange={setNewSourceValue}
+          onAddKey={addKey}
+        />
 
-          <div className="grid gap-2">
-            <p className="text-[11px] font-medium tracking-[0.08em] text-(--text-muted) uppercase">
-              {t('resourceManager.i18n.modules')}
-            </p>
-            <div className="grid gap-1">
-              {namespaceStats.map((item) => (
-                <button
-                  key={item.namespace}
-                  type="button"
-                  className={`grid gap-1 rounded-md border px-2 py-1.5 text-left ${
-                    selection.namespace === item.namespace
-                      ? 'border-black/30 bg-black text-white'
-                      : 'border-black/8 bg-white hover:border-black/20'
-                  }`}
-                  onClick={() =>
-                    setSelection((current) => ({
-                      ...current,
-                      namespace: item.namespace,
-                    }))
-                  }
-                >
-                  <span className="truncate text-xs font-medium">
-                    {item.namespace}
-                  </span>
-                  <span className="text-[11px] opacity-80">
-                    {t('resourceManager.i18n.moduleStats', {
-                      keys: item.sourceCount,
-                      missing: item.missingCount,
-                    })}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-2 rounded-lg border border-black/8 bg-black/[0.02] p-2">
-            <p className="text-[11px] tracking-[0.08em] text-(--text-muted) uppercase">
-              {t('resourceManager.i18n.progress')}
-            </p>
-            <p className="text-xs text-(--text-secondary)">
-              {selection.targetLocale}:{' '}
-              {t('resourceManager.i18n.progressComplete', {
-                rate: currentNamespaceStats?.completionRate ?? 100,
-              })}
-            </p>
-            <div className="h-1.5 overflow-hidden rounded-full bg-black/10">
-              <div
-                className="h-full bg-black"
-                style={{
-                  width: `${currentNamespaceStats?.completionRate ?? 100}%`,
-                }}
-              />
-            </div>
-            <p className="text-[11px] text-(--text-secondary)">
-              {t('resourceManager.i18n.missingKeys', {
-                count: missingStats[selection.targetLocale] ?? 0,
-              })}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <PdxInput
-              type="Text"
-              size="Small"
-              value={newLocale}
-              onChange={setNewLocale}
-              placeholder={t('resourceManager.i18n.newLocalePlaceholder')}
-            />
-            <PdxButton
-              text={t('resourceManager.i18n.actions.addLocale')}
-              size="Tiny"
-              category="Secondary"
-              onClick={addLocale}
-            />
-            <PdxInput
-              type="Text"
-              size="Small"
-              value={newNamespace}
-              onChange={setNewNamespace}
-              placeholder={t('resourceManager.i18n.newModulePlaceholder')}
-            />
-            <PdxButton
-              text={t('resourceManager.i18n.actions.addModule')}
-              size="Tiny"
-              category="Secondary"
-              onClick={addNamespace}
-            />
-          </div>
-        </aside>
-
-        <article className="grid gap-3 rounded-xl border border-black/10 bg-(--bg-canvas) p-3">
-          <header className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-(--text-primary)">
-              {selection.namespace}
-            </h3>
-            <div className="flex items-center gap-1">
-              <label
-                htmlFor={fileInputId}
-                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-(--text-secondary) hover:bg-black/5 hover:text-(--text-primary)"
-                aria-label={t('resourceManager.i18n.actions.import')}
-                title={t('resourceManager.i18n.actions.import')}
-              >
-                <Upload size={14} aria-hidden="true" />
-              </label>
-              <button
-                type="button"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-(--text-secondary) hover:bg-black/5 hover:text-(--text-primary)"
-                aria-label={t('resourceManager.i18n.actions.export')}
-                title={t('resourceManager.i18n.actions.export')}
-                onClick={exportLocale}
-              >
-                <Download size={14} aria-hidden="true" />
-              </button>
-              <input
-                id={fileInputId}
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-                  try {
-                    const raw = await file.text();
-                    const parsed = JSON.parse(raw) as Record<
-                      string,
-                      Record<string, string>
-                    >;
-                    setStore((current) => ({
-                      ...current,
-                      [selection.targetLocale]: Object.fromEntries(
-                        Object.entries(parsed).map(([namespace, values]) => [
-                          namespace,
-                          Object.fromEntries(
-                            Object.entries(values).map(([key, value]) => [
-                              key,
-                              typeof value === 'string'
-                                ? value
-                                : String(value ?? ''),
-                            ])
-                          ),
-                        ])
-                      ),
-                    }));
-                  } catch {
-                    // ignore invalid json import
-                  } finally {
-                    event.currentTarget.value = '';
-                  }
-                }}
-              />
-            </div>
-          </header>
-
-          <div className="overflow-x-auto rounded-lg border border-black/8">
-            <table className="min-w-full border-collapse text-xs">
-              <thead className="bg-black/[0.04] text-(--text-secondary)">
-                <tr>
-                  <th className="min-w-[220px] px-2 py-2 text-left align-middle font-semibold">
-                    {t('resourceManager.i18n.table.key')}
-                  </th>
-                  {locales.map((locale) => (
-                    <th
-                      key={`col-${locale}`}
-                      className="min-w-[220px] px-2 py-2 text-left align-middle font-semibold"
-                    >
-                      {locale}
-                    </th>
-                  ))}
-                  <th className="w-[88px] min-w-[88px] px-2 py-2 text-left align-middle font-semibold whitespace-nowrap">
-                    {t('resourceManager.i18n.table.status')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={`border-t border-black/8 ${
-                      selection.key === row.key ? 'bg-black/[0.03]' : 'bg-white'
-                    }`}
-                    onMouseEnter={() =>
-                      setSelection((current) => ({ ...current, key: row.key }))
-                    }
-                  >
-                    <td className="max-w-[220px] px-2 py-2 align-middle">
-                      <div className="flex min-w-0 items-center gap-1">
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 truncate text-left font-mono text-[11px] text-(--text-primary)"
-                          onClick={() =>
-                            setSelection((current) => ({
-                              ...current,
-                              key: row.key,
-                            }))
-                          }
-                        >
-                          {row.key}
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:bg-red-50 hover:text-red-700"
-                          aria-label={t('resourceManager.i18n.actions.delete')}
-                          title={t('resourceManager.i18n.actions.delete')}
-                          onClick={() => deleteKey(row.key)}
-                        >
-                          <Trash2 size={12} aria-hidden="true" />
-                        </button>
-                      </div>
-                    </td>
-                    {locales.map((locale) => {
-                      const localeValue =
-                        row.translationsByLocale[locale] ?? '';
-                      const isMissing = !localeValue.trim();
-                      const isSourceLocale = locale === selection.sourceLocale;
-                      return (
-                        <td
-                          key={`${row.id}-${locale}`}
-                          className="min-w-[220px] px-2 py-2 align-middle"
-                        >
-                          <input
-                            aria-label={`translation-${row.key}-${locale}`}
-                            value={localeValue}
-                            className={`h-8 w-full rounded border px-2 outline-none ${
-                              isMissing
-                                ? 'border-amber-500/45 bg-amber-50/60'
-                                : 'border-black/12 bg-white focus:border-black/30'
-                            } ${
-                              isSourceLocale
-                                ? 'font-medium text-(--text-primary)'
-                                : 'text-(--text-secondary)'
-                            }`}
-                            onFocus={() =>
-                              setSelection((current) => ({
-                                ...current,
-                                key: row.key,
-                              }))
-                            }
-                            onChange={(event) =>
-                              updateLocaleValue(
-                                locale,
-                                row.key,
-                                event.target.value
-                              )
-                            }
-                          />
-                        </td>
-                      );
-                    })}
-                    <td className="w-[88px] min-w-[88px] px-2 py-2 align-middle">
-                      <button
-                        type="button"
-                        className={`inline-flex min-w-[52px] items-center justify-center rounded-full px-2 py-0.5 text-[11px] whitespace-nowrap ${
-                          row.status === 'missing'
-                            ? 'bg-amber-100 text-amber-700'
-                            : row.status === 'reviewed'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : row.status === 'sourceMissing'
-                                ? 'bg-amber-200 text-amber-950'
-                                : 'bg-slate-100 text-slate-700'
-                        }`}
-                        onClick={() => toggleReviewed(row)}
-                      >
-                        {t(`resourceManager.i18n.status.${row.status}`)}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                <tr className="border-t border-dashed border-black/12 bg-black/[0.02]">
-                  <td className="max-w-[220px] px-2 py-2 align-middle">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex h-5 w-5 items-center justify-center rounded border-0 bg-transparent p-0 text-[14px] leading-none text-(--text-secondary) hover:bg-black/6 hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none"
-                        aria-label="Add key"
-                        onClick={addKey}
-                      >
-                        +
-                      </button>
-                      <PdxInput
-                        type="Text"
-                        size="Small"
-                        value={newKey}
-                        onChange={setNewKey}
-                        className="w-full"
-                        placeholder={t(
-                          'resourceManager.i18n.newKeyPlaceholder'
-                        )}
-                      />
-                    </div>
-                  </td>
-                  {locales.map((locale) => (
-                    <td
-                      key={`new-row-${locale}`}
-                      className="min-w-[220px] px-2 py-2 align-middle"
-                    >
-                      {locale === selection.sourceLocale ? (
-                        <PdxInput
-                          type="Text"
-                          size="Small"
-                          value={newSourceValue}
-                          onChange={setNewSourceValue}
-                          className="w-full"
-                          placeholder={t(
-                            'resourceManager.i18n.newSourcePlaceholder',
-                            { locale: selection.sourceLocale }
-                          )}
-                        />
-                      ) : (
-                        <div className="inline-flex h-8 w-full items-center rounded border border-dashed border-black/12 px-2 text-[11px] text-(--text-muted)">
-                          {t('resourceManager.i18n.empty')}
-                        </div>
-                      )}
-                    </td>
-                  ))}
-                  <td className="w-[88px] min-w-[88px] px-2 py-2 align-middle" />
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <aside className="grid gap-3 rounded-xl border border-black/10 bg-(--bg-canvas) p-3">
-          <div>
-            <p className="text-[11px] font-medium tracking-[0.08em] text-(--text-muted) uppercase">
-              {t('resourceManager.i18n.livePreview')}
-            </p>
-            <h4 className="mt-1 text-sm font-medium text-(--text-primary)">
-              {selectedRow.key}
-            </h4>
-          </div>
-
-          <article className="grid gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-3">
-            <p className="text-[11px] tracking-[0.08em] text-(--text-muted) uppercase">
-              {t('resourceManager.i18n.componentPreview')}
-            </p>
-            <button
-              type="button"
-              className="inline-flex h-9 w-full items-center justify-center overflow-hidden rounded-md border border-black/14 bg-white px-3 text-sm text-ellipsis whitespace-nowrap text-(--text-primary)"
-            >
-              {selectedRow.target || selectedRow.source || '...'}
-            </button>
-            <div className="rounded-md border border-black/10 bg-white p-2 text-xs text-(--text-secondary)">
-              {highlightVariables(selectedRow.target || selectedRow.source)}
-            </div>
-          </article>
-
-          <div className="grid gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-3 text-xs text-(--text-secondary)">
-            <p>
-              {t('resourceManager.i18n.baseLength')}:{' '}
-              <strong>{selectedRow.source.length}</strong>
-            </p>
-            <p>
-              {t('resourceManager.i18n.previewLength')}:{' '}
-              <strong>{selectedRow.target.length}</strong>
-            </p>
-            <p
-              className={
-                selectedRow.target.length >
-                Math.max(selectedRow.source.length * 1.35, 24)
-                  ? 'text-amber-700'
-                  : 'text-emerald-700'
-              }
-            >
-              {selectedRow.target.length >
-              Math.max(selectedRow.source.length * 1.35, 24)
-                ? t('resourceManager.i18n.overflowRisk')
-                : t('resourceManager.i18n.layoutHealthy')}
-            </p>
-            {selectedRow.hasVariable ? (
-              <p className="text-slate-700">
-                {t('resourceManager.i18n.containsVariables')}
-              </p>
-            ) : null}
-          </div>
-        </aside>
+        <I18nResourcePreview
+          t={t}
+          selectedRow={selectedRow}
+          highlightVariables={highlightVariables}
+        />
       </div>
     </section>
   );

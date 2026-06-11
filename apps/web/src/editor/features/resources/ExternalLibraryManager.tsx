@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ExternalLibraryAddModal } from './externalLibraryManager/ExternalLibraryAddModal';
 import { ExternalLibraryDetailsPanel } from './externalLibraryManager/ExternalLibraryDetailsPanel';
@@ -42,6 +42,7 @@ import {
   pickVersionByMode,
   type NpmMetadata,
 } from './externalLibraryManager/managerState';
+import { useExternalLibraryManagerRuntimeRefs } from './externalLibraryManager/managerRuntimeRefs';
 import { isAbortError } from '@/infra/api';
 
 type ExternalLibraryManagerProps = {
@@ -78,12 +79,12 @@ export function ExternalLibraryManager({
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [manualLibraryId, setManualLibraryId] = useState('');
   const [manualLibraryVersion, setManualLibraryVersion] = useState('');
-  const loadTokensRef = useRef<Map<string, number>>(new Map());
-  const timeoutIdsRef = useRef<Set<number>>(new Set());
-  const metadataRequestsRef = useRef<Set<string>>(new Set());
-  const metadataControllersRef = useRef<Map<string, AbortController>>(
-    new Map()
-  );
+  const {
+    loadTokensRef,
+    timeoutIdsRef,
+    metadataRequestsRef,
+    metadataControllersRef,
+  } = useExternalLibraryManagerRuntimeRefs();
 
   const componentLibraryById = useMemo(
     () =>
@@ -612,20 +613,6 @@ export function ExternalLibraryManager({
       )
     );
   }, [activeLibraries, isBootstrapping, projectId]);
-
-  useEffect(
-    () => () => {
-      timeoutIdsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
-      timeoutIdsRef.current.clear();
-      loadTokensRef.current.clear();
-      metadataRequestsRef.current.clear();
-      metadataControllersRef.current.forEach((controller) =>
-        controller.abort()
-      );
-      metadataControllersRef.current.clear();
-    },
-    []
-  );
 
   const filteredLibraries = useMemo(() => {
     if (!debouncedSearchInput) return activeLibraries;

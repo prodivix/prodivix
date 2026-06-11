@@ -1,19 +1,6 @@
-import { type ReactElement, useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import { PdxPopover } from '@prodivix/ui';
-import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Download,
-  FileCode2,
-  FileJson2,
-  FileText,
-  Folder,
-  FolderOpen,
-} from 'lucide-react';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { generateReactBundle } from '@/pir/generator/pirToReact';
 import type { ReactGeneratorCodeArtifact } from '@/pir/generator/react/types';
@@ -32,112 +19,19 @@ import {
   flattenEnabledProjectFiles,
   readProjectFiles,
 } from '@/editor/features/resources/projectFileStore';
-import { CodeViewer } from './CodeViewer';
+import { ExportCodeHeader } from './ExportCodeHeader';
+import { ExportCodePreview } from './ExportCodePreview';
+import { ExportFileTree } from './ExportFileTree';
+import {
+  buildFileTree,
+  resolveCodeViewerLanguage,
+  resolveProjectFileLanguage,
+  sanitizeExportFileName,
+  type ExportCodeFile,
+  type ExportTab,
+} from './exportCodeModel';
 import { resolveZipFilePayload } from './exportZip';
 import './ExportCode.scss';
-
-type ExportTab = 'react' | 'vfs';
-type ExportFileLanguage =
-  | 'typescript'
-  | 'json'
-  | 'html'
-  | 'css'
-  | 'yaml'
-  | 'ignore'
-  | 'markdown'
-  | 'text';
-type ExportCodeFile = {
-  path: string;
-  language: ExportFileLanguage;
-  content: string;
-  binaryDataUrl?: string;
-};
-type FileTreeNode = {
-  key: string;
-  name: string;
-  path: string;
-  file?: { path: string; language: ExportFileLanguage };
-  children: FileTreeNode[];
-};
-
-const buildFileTree = (
-  files: Array<{
-    path: string;
-    language: ExportFileLanguage;
-  }>
-): FileTreeNode[] => {
-  const root: FileTreeNode = {
-    key: 'root',
-    name: 'root',
-    path: '',
-    children: [],
-  };
-
-  files.forEach((file) => {
-    const segments = file.path.split('/').filter(Boolean);
-    let cursor = root;
-    segments.forEach((segment, index) => {
-      const nodePath = segments.slice(0, index + 1).join('/');
-      let next = cursor.children.find((item) => item.path === nodePath);
-      if (!next) {
-        next = {
-          key: nodePath,
-          name: segment,
-          path: nodePath,
-          children: [],
-        };
-        cursor.children.push(next);
-      }
-      if (index === segments.length - 1) {
-        next.file = file;
-      }
-      cursor = next;
-    });
-  });
-
-  const sortNodes = (nodes: FileTreeNode[]): FileTreeNode[] =>
-    nodes
-      .map((node) => ({ ...node, children: sortNodes(node.children) }))
-      .sort((a, b) => {
-        const aIsDir = a.children.length > 0 && !a.file;
-        const bIsDir = b.children.length > 0 && !b.file;
-        if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-
-  return sortNodes(root.children);
-};
-
-const sanitizeFileName = (value: string) =>
-  value
-    .trim()
-    .replace(/[\\/:*?"<>|]+/g, '-')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'prodivix-react-export';
-
-const resolveProjectFileLanguage = (path: string): ExportFileLanguage => {
-  const lower = path.toLowerCase();
-  const fileName = lower.split('/').pop() ?? lower;
-  if (fileName.endsWith('ignore')) return 'ignore';
-  if (lower.endsWith('.json')) return 'json';
-  if (lower.endsWith('.yaml') || lower.endsWith('.yml')) return 'yaml';
-  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html';
-  if (lower.endsWith('.css')) return 'css';
-  if (lower.endsWith('.md')) return 'markdown';
-  return 'text';
-};
-
-const resolveCodeViewerLanguage = (language?: ExportFileLanguage) => {
-  if (language === 'json') return 'json';
-  if (language === 'html') return 'html';
-  if (language === 'css') return 'css';
-  if (language === 'yaml') return 'yaml';
-  if (language === 'markdown') return 'markdown';
-  if (language === 'ignore') return 'ignore';
-  if (language === 'text') return 'text';
-  return 'typescript';
-};
 
 export function ExportCode() {
   const { t } = useTranslation('export');
@@ -369,7 +263,7 @@ export function ExportCode() {
       projectName?.trim() ||
       pirDoc?.metadata?.name?.trim() ||
       'prodivix-react-export';
-    return sanitizeFileName(nameSource);
+    return sanitizeExportFileName(nameSource);
   }, [pirDoc?.metadata?.name, projectName]);
 
   useEffect(() => {
@@ -465,223 +359,74 @@ export function ExportCode() {
     window.setTimeout(() => setCopied(false), 900);
   };
 
+  const downloadReactZip = async () => {
+    if (!reactProjectFiles.length) return;
+    setDownloadingZip(true);
+    try {
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      const rootFolder = zip.folder(reactZipBaseName) ?? zip;
+      reactProjectFiles.forEach((file) => {
+        const payload = resolveZipFilePayload(file);
+        if (payload instanceof Uint8Array) {
+          rootFolder.file(file.path, payload, { binary: true });
+        } else {
+          rootFolder.file(file.path, payload);
+        }
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = `${reactZipBaseName}.zip`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
+
   const renderCodePreview = (
     code: string,
     language: string,
     disabled = false
   ) => (
-    <div className="ExportCodePreview">
-      <button
-        type="button"
-        className="ExportCodeIconButton ExportCodePreviewCopy"
-        aria-label={
-          copied
-            ? t('copySuccess', { defaultValue: '已复制' })
-            : t('copy', { defaultValue: '复制' })
-        }
-        title={
-          copied
-            ? t('copySuccess', { defaultValue: '已复制' })
-            : t('copy', { defaultValue: '复制' })
-        }
-        disabled={disabled || !code}
-        onClick={copyActiveFile}
-      >
-        {copied ? (
-          <Check size={15} aria-hidden="true" />
-        ) : (
-          <Copy size={15} aria-hidden="true" />
-        )}
-      </button>
-      <CodeViewer
-        code={code}
-        lang={language}
-        className="ExportCodePreviewViewer"
-      />
-    </div>
+    <ExportCodePreview
+      code={code}
+      language={language}
+      copied={copied}
+      disabled={disabled}
+      copyLabel={t('copy', { defaultValue: '复制' })}
+      copySuccessLabel={t('copySuccess', { defaultValue: '已复制' })}
+      onCopy={copyActiveFile}
+    />
   );
-
-  const renderTreeNodes = (nodes: FileTreeNode[], depth = 0): ReactElement[] =>
-    nodes.map((node) => {
-      const isFolder = node.children.length > 0 && !node.file;
-      const isExpanded = expandedFolders[node.path] ?? true;
-      const activeFilePath =
-        activeTab === 'vfs' ? activeVfsFile : activeReactFile;
-      const isActive = Boolean(node.file) && activeFilePath === node.file?.path;
-      const fileIcon =
-        node.file?.language === 'json' ? (
-          <FileJson2 size={13} />
-        ) : node.file?.language === 'html' ||
-          node.file?.language === 'css' ||
-          node.file?.language === 'ignore' ? (
-          <FileText size={13} />
-        ) : (
-          <FileCode2 size={13} />
-        );
-
-      return (
-        <div key={node.key}>
-          <button
-            type="button"
-            className={`flex w-full items-center gap-1 rounded px-1.5 py-1 text-left text-xs ${
-              isActive
-                ? 'bg-black/10 dark:bg-white/15'
-                : 'hover:bg-black/5 dark:hover:bg-white/10'
-            }`}
-            style={{ paddingLeft: `${depth * 12 + 6}px` }}
-            onClick={() => {
-              if (isFolder) {
-                toggleFolder(node.path);
-                return;
-              }
-              if (node.file) {
-                if (activeTab === 'vfs') {
-                  setActiveVfsFile(node.file.path);
-                } else {
-                  setActiveReactFile(node.file.path);
-                }
-              }
-            }}
-          >
-            {isFolder ? (
-              isExpanded ? (
-                <ChevronDown
-                  size={12}
-                  className="shrink-0 text-(--text-muted)"
-                />
-              ) : (
-                <ChevronRight
-                  size={12}
-                  className="shrink-0 text-(--text-muted)"
-                />
-              )
-            ) : (
-              <span className="inline-block w-3 shrink-0" />
-            )}
-            {isFolder ? (
-              isExpanded ? (
-                <FolderOpen
-                  size={13}
-                  className="shrink-0 text-(--text-secondary)"
-                />
-              ) : (
-                <Folder
-                  size={13}
-                  className="shrink-0 text-(--text-secondary)"
-                />
-              )
-            ) : (
-              <span className="shrink-0 text-(--text-secondary)">
-                {fileIcon}
-              </span>
-            )}
-            <span className="truncate">{node.name}</span>
-          </button>
-          {isFolder && isExpanded
-            ? renderTreeNodes(node.children, depth + 1)
-            : null}
-        </div>
-      );
-    });
 
   return (
     <div className="ExportCode">
-      <div className="ExportCodeHeader">
-        <div className="ExportCodeTitle">
-          <div className="ExportCodeTitleRow">
-            <h1>{activeTitle}</h1>
-            <PdxPopover
-              open={viewMenuOpen}
-              onOpenChange={setViewMenuOpen}
-              panelClassName="ExportCodeViewMenu"
-              content={
-                <div className="ExportCodeViewMenuList" role="listbox">
-                  {exportViewOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`ExportCodeViewMenuItem ${
-                        activeTab === option.value ? 'Active' : ''
-                      }`}
-                      role="option"
-                      aria-selected={activeTab === option.value}
-                      onClick={() => {
-                        setActiveTab(option.value);
-                        setViewMenuOpen(false);
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              }
-            >
-              <button
-                type="button"
-                className="ExportCodeViewTrigger"
-                aria-label={t('title', { defaultValue: '导出代码' })}
-                aria-expanded={viewMenuOpen}
-              >
-                <ChevronDown size={13} aria-hidden="true" />
-              </button>
-            </PdxPopover>
-          </div>
-          <p>{activeDescription}</p>
-        </div>
-        <div className="ExportCodeActions">
-          {activeTab === 'react' ? (
-            <button
-              type="button"
-              className="ExportCodeIconButton"
-              aria-label={
-                downloadingZip
-                  ? t('downloading', { defaultValue: 'Downloading...' })
-                  : t('downloadZip', { defaultValue: 'Download ZIP' })
-              }
-              title={
-                downloadingZip
-                  ? t('downloading', { defaultValue: 'Downloading...' })
-                  : t('downloadZip', { defaultValue: 'Download ZIP' })
-              }
-              disabled={
-                !reactProjectFiles.length ||
-                downloadingZip ||
-                hasPirValidationError
-              }
-              onClick={async () => {
-                if (!reactProjectFiles.length) return;
-                setDownloadingZip(true);
-                try {
-                  const { default: JSZip } = await import('jszip');
-                  const zip = new JSZip();
-                  const rootFolder = zip.folder(reactZipBaseName) ?? zip;
-                  reactProjectFiles.forEach((file) => {
-                    const payload = resolveZipFilePayload(file);
-                    if (payload instanceof Uint8Array) {
-                      rootFolder.file(file.path, payload, { binary: true });
-                    } else {
-                      rootFolder.file(file.path, payload);
-                    }
-                  });
-                  const blob = await zip.generateAsync({ type: 'blob' });
-                  const downloadUrl = URL.createObjectURL(blob);
-                  const anchor = document.createElement('a');
-                  anchor.href = downloadUrl;
-                  anchor.download = `${reactZipBaseName}.zip`;
-                  document.body.append(anchor);
-                  anchor.click();
-                  anchor.remove();
-                  URL.revokeObjectURL(downloadUrl);
-                } finally {
-                  setDownloadingZip(false);
-                }
-              }}
-            >
-              <Download size={15} aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
-      </div>
+      <ExportCodeHeader
+        activeTab={activeTab}
+        title={activeTitle}
+        description={activeDescription}
+        viewMenuOpen={viewMenuOpen}
+        viewOptions={exportViewOptions}
+        titleLabel={t('title', { defaultValue: '导出代码' })}
+        downloadingZip={downloadingZip}
+        canDownloadReactZip={
+          Boolean(reactProjectFiles.length) && !hasPirValidationError
+        }
+        downloadingLabel={t('downloading', {
+          defaultValue: 'Downloading...',
+        })}
+        downloadZipLabel={t('downloadZip', {
+          defaultValue: 'Download ZIP',
+        })}
+        onOpenViewMenuChange={setViewMenuOpen}
+        onSelectTab={setActiveTab}
+        onDownloadReactZip={downloadReactZip}
+      />
 
       <div className="ExportCodeBody">
         {activeTab === 'react' && hasPirValidationError ? (
@@ -715,9 +460,13 @@ export function ExportCode() {
           <div className="ExportCodeEmpty">{activeEmpty}</div>
         ) : activeTab === 'vfs' && vfsProjectFiles.length ? (
           <div className="flex h-full min-h-0 gap-2">
-            <aside className="w-52 shrink-0 overflow-auto rounded-md border border-black/10 p-1 dark:border-white/15">
-              {renderTreeNodes(vfsFileTree)}
-            </aside>
+            <ExportFileTree
+              nodes={vfsFileTree}
+              activeFilePath={activeVfsFile}
+              expandedFolders={expandedFolders}
+              onToggleFolder={toggleFolder}
+              onSelectFile={setActiveVfsFile}
+            />
             {renderCodePreview(
               activeVfsFileContent,
               resolveCodeViewerLanguage(activeVfsFileRecord?.language)
@@ -725,9 +474,13 @@ export function ExportCode() {
           </div>
         ) : activeTab === 'react' && reactProjectFiles.length ? (
           <div className="flex h-full min-h-0 gap-2">
-            <aside className="w-52 shrink-0 overflow-auto rounded-md border border-black/10 p-1 dark:border-white/15">
-              {renderTreeNodes(reactFileTree)}
-            </aside>
+            <ExportFileTree
+              nodes={reactFileTree}
+              activeFilePath={activeReactFile}
+              expandedFolders={expandedFolders}
+              onToggleFolder={toggleFolder}
+              onSelectFile={setActiveReactFile}
+            />
             {renderCodePreview(
               activeReactFileContent,
               resolveCodeViewerLanguage(activeReactFileRecord?.language),
