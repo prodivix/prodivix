@@ -28,10 +28,10 @@ apps/backend
 
 ## 关键能力
 
-- **Workspace 同步协议**：文档级保存 + `workspaceRev/routeRev/contentRev` 乐观并发；详见 `specs/api/workspace-sync.openapi.yaml`、`specs/decisions/07.workspace-sync.md`、`specs/decisions/11.revision-partitioning.md`。
+- **Workspace 同步协议**：文档 command patch + `workspaceRev/routeRev/contentRev` 乐观并发；详见 `specs/api/workspace-sync.openapi.yaml`、`specs/decisions/07.workspace-sync.md`、`specs/decisions/11.revision-partitioning.md`。
 - **PIR v1.3 校验镜像**：`internal/modules/workspace/pir_v13_validator.go` 与前端 `apps/web/src/pir/validator/validator.ts` 对齐（循环 / 孤立节点 / 父子关系）。
 - **Intent / Patch 协议**：`POST /api/workspaces/:id/intents` 支持蓝图 / 路由 / 动画意图分发（见 `specs/decisions/12.intent-command-extension.md`）。
-- **Capability 协商**：`GET /api/workspaces/:id/capabilities` 控制前端是否启用文档级保存与高级特性。
+- **Capability 协商**：`GET /api/workspaces/:id/capabilities` 控制前端是否启用文档 patch、intent 与高级特性。
 - **Workspace 自愈**：旧 legacy project 在首次 `GET` 时会自动补建 workspace 快照。
 
 ## 常用命令

@@ -22,6 +22,8 @@ export function ProjectResources() {
   const workspaceDocumentsById = useEditorStore(
     (state) => state.workspaceDocumentsById
   );
+  const treeRootId = useEditorStore((state) => state.treeRootId);
+  const treeById = useEditorStore((state) => state.treeById);
   const [activeSection, setActiveSection] = useState<SectionId>(() => {
     if (typeof window === 'undefined') return 'overview';
     const raw = window.localStorage.getItem(
@@ -50,8 +52,13 @@ export function ProjectResources() {
 
   const overviewSnapshot = useMemo(() => {
     if (activeSection !== 'overview') return null;
-    return buildOverviewSnapshot(projectId, workspaceDocumentsById);
-  }, [activeSection, projectId, workspaceDocumentsById]);
+    return buildOverviewSnapshot(
+      projectId,
+      workspaceDocumentsById,
+      treeRootId,
+      treeById
+    );
+  }, [activeSection, projectId, treeById, treeRootId, workspaceDocumentsById]);
 
   const createCodeAssetAndOpen = (folder: 'scripts' | 'styles' | 'shaders') => {
     if (typeof window === 'undefined') return;
@@ -114,9 +121,7 @@ export function ProjectResources() {
 
       {activeSection === 'i18n' ? <I18nResourcePage embedded /> : null}
 
-      {activeSection === 'external' ? (
-        <ExternalLibraryManager projectId={projectId} />
-      ) : null}
+      {activeSection === 'external' ? <ExternalLibraryManager /> : null}
 
       {activeSection === 'projectFiles' ? (
         <ProjectFileManager embedded />

@@ -10,11 +10,25 @@ import (
 )
 
 func (store *WorkspaceStore) RenameCodeDocument(ctx context.Context, params RenameCodeDocumentMutationParams) (*WorkspaceMutationResult, error) {
+	return store.RenameWorkspaceDocument(ctx, RenameWorkspaceDocumentMutationParams{
+		WorkspaceID:          params.WorkspaceID,
+		ExpectedWorkspaceRev: params.ExpectedWorkspaceRev,
+		DocumentID:           params.DocumentID,
+		Path:                 params.Path,
+		Type:                 WorkspaceDocumentTypeCode,
+		Command:              params.Command,
+	})
+}
+
+func (store *WorkspaceStore) RenameWorkspaceDocument(ctx context.Context, params RenameWorkspaceDocumentMutationParams) (*WorkspaceMutationResult, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("workspace store is not initialized")
 	}
 	params.WorkspaceID = strings.TrimSpace(params.WorkspaceID)
 	params.DocumentID = strings.TrimSpace(params.DocumentID)
+	if !isValidWorkspaceDocumentType(params.Type) {
+		return nil, ErrInvalidWorkspaceDocumentType
+	}
 	if params.WorkspaceID == "" || params.DocumentID == "" {
 		return nil, errors.New("workspaceID and documentID are required")
 	}
@@ -117,7 +131,7 @@ ORDER BY path ASC`
 		_ = tx.Rollback()
 		return nil, ErrWorkspaceDocumentNotFound
 	}
-	if currentDocument.Type != WorkspaceDocumentTypeCode {
+	if currentDocument.Type != params.Type {
 		_ = tx.Rollback()
 		return nil, ErrInvalidWorkspaceDocumentType
 	}
@@ -179,11 +193,24 @@ RETURNING workspace_rev, route_rev, op_seq`
 }
 
 func (store *WorkspaceStore) DeleteCodeDocument(ctx context.Context, params DeleteCodeDocumentMutationParams) (*WorkspaceMutationResult, error) {
+	return store.DeleteWorkspaceDocument(ctx, DeleteWorkspaceDocumentMutationParams{
+		WorkspaceID:          params.WorkspaceID,
+		ExpectedWorkspaceRev: params.ExpectedWorkspaceRev,
+		DocumentID:           params.DocumentID,
+		Type:                 WorkspaceDocumentTypeCode,
+		Command:              params.Command,
+	})
+}
+
+func (store *WorkspaceStore) DeleteWorkspaceDocument(ctx context.Context, params DeleteWorkspaceDocumentMutationParams) (*WorkspaceMutationResult, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("workspace store is not initialized")
 	}
 	params.WorkspaceID = strings.TrimSpace(params.WorkspaceID)
 	params.DocumentID = strings.TrimSpace(params.DocumentID)
+	if !isValidWorkspaceDocumentType(params.Type) {
+		return nil, ErrInvalidWorkspaceDocumentType
+	}
 	if params.WorkspaceID == "" || params.DocumentID == "" {
 		return nil, errors.New("workspaceID and documentID are required")
 	}
@@ -278,7 +305,7 @@ ORDER BY path ASC`
 		_ = tx.Rollback()
 		return nil, ErrWorkspaceDocumentNotFound
 	}
-	if currentDocument.Type != WorkspaceDocumentTypeCode {
+	if currentDocument.Type != params.Type {
 		_ = tx.Rollback()
 		return nil, ErrInvalidWorkspaceDocumentType
 	}

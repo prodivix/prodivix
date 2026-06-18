@@ -14,7 +14,6 @@ import type {
 } from './runtime/types';
 export type { ExternalLibraryDiagnostic } from './runtime/types';
 
-const EXTERNAL_LIBRARY_IDS_STORAGE_KEY = 'prodivix.externalLibraryIds';
 const DEFAULT_LIBRARY_IDS: string[] = [];
 const LEGACY_ICON_LIBRARY_IDS = new Set([
   'fontawesome',
@@ -31,6 +30,7 @@ export const externalLibraryConfigUpdatedEvent =
 let bootstrapped = false;
 let latestDiagnostics: ExternalLibraryDiagnostic[] = [];
 let isLoadingExternalLibraries = false;
+let configuredExternalLibraryIds = [...DEFAULT_LIBRARY_IDS];
 export type ExternalLibraryLoadStatus =
   | 'idle'
   | 'loading'
@@ -135,20 +135,7 @@ const setExternalLibraryState = (
 
 export const getConfiguredExternalLibraryIds = (): string[] => {
   ensureBootstrap();
-  if (typeof window === 'undefined') return [...DEFAULT_LIBRARY_IDS];
-  try {
-    const raw = window.localStorage.getItem(EXTERNAL_LIBRARY_IDS_STORAGE_KEY);
-    if (raw === null) return [...DEFAULT_LIBRARY_IDS];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [...DEFAULT_LIBRARY_IDS];
-    const ids = parsed.filter(
-      (item): item is string =>
-        typeof item === 'string' && item.trim().length > 0
-    );
-    return sanitizeConfiguredExternalLibraryIds(ids);
-  } catch {
-    return [...DEFAULT_LIBRARY_IDS];
-  }
+  return [...configuredExternalLibraryIds];
 };
 
 export const setConfiguredExternalLibraryIds = (libraryIds: string[]) => {
@@ -158,11 +145,8 @@ export const setConfiguredExternalLibraryIds = (libraryIds: string[]) => {
       (item) => item.length > 0
     )
   );
+  configuredExternalLibraryIds = uniqueIds;
   if (typeof window !== 'undefined') {
-    window.localStorage.setItem(
-      EXTERNAL_LIBRARY_IDS_STORAGE_KEY,
-      JSON.stringify(uniqueIds)
-    );
     window.dispatchEvent(
       new CustomEvent(externalLibraryConfigUpdatedEvent, {
         detail: {

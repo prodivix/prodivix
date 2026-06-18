@@ -62,7 +62,7 @@ func NewWorkspaceStore(db *sql.DB) *WorkspaceStore {
 	return &WorkspaceStore{db: db}
 }
 
-var defaultWorkspaceTree = json.RawMessage(`{"treeRootId":"root","treeById":{"root":{"id":"root","kind":"dir","name":"/","parentId":null,"children":[]}}}`)
+var defaultWorkspaceTree = defaultWorkspaceTreeJSON("root")
 var defaultWorkspaceRouteManifest = json.RawMessage(`{"version":"1","root":{"id":"root"}}`)
 var defaultWorkspaceSettings = json.RawMessage(`{}`)
 var defaultPIRDocument = pircontract.DefaultDocument()
@@ -197,6 +197,18 @@ type CreateCodeDocumentMutationParams struct {
 	Command              WorkspaceCommandEnvelope
 }
 
+type CreateWorkspaceDocumentMutationParams struct {
+	WorkspaceID          string
+	ExpectedWorkspaceRev int64
+	DocumentID           string
+	NodeID               string
+	ParentNodeID         string
+	Path                 string
+	Type                 WorkspaceDocumentType
+	Content              json.RawMessage
+	Command              WorkspaceCommandEnvelope
+}
+
 type RenameCodeDocumentMutationParams struct {
 	WorkspaceID          string
 	ExpectedWorkspaceRev int64
@@ -205,10 +217,27 @@ type RenameCodeDocumentMutationParams struct {
 	Command              WorkspaceCommandEnvelope
 }
 
+type RenameWorkspaceDocumentMutationParams struct {
+	WorkspaceID          string
+	ExpectedWorkspaceRev int64
+	DocumentID           string
+	Path                 string
+	Type                 WorkspaceDocumentType
+	Command              WorkspaceCommandEnvelope
+}
+
 type DeleteCodeDocumentMutationParams struct {
 	WorkspaceID          string
 	ExpectedWorkspaceRev int64
 	DocumentID           string
+	Command              WorkspaceCommandEnvelope
+}
+
+type DeleteWorkspaceDocumentMutationParams struct {
+	WorkspaceID          string
+	ExpectedWorkspaceRev int64
+	DocumentID           string
+	Type                 WorkspaceDocumentType
 	Command              WorkspaceCommandEnvelope
 }
 
@@ -260,14 +289,6 @@ type WorkspaceCommandEnvelope struct {
 	MergeKey   string                 `json:"mergeKey,omitempty"`
 	Label      string                 `json:"label,omitempty"`
 	DomainHint string                 `json:"domainHint,omitempty"`
-}
-
-type SaveDocumentContentParams struct {
-	WorkspaceID        string
-	DocumentID         string
-	ExpectedContentRev int64
-	Content            json.RawMessage
-	Command            WorkspaceCommandEnvelope
 }
 
 type PatchDocumentContentParams struct {

@@ -46,7 +46,7 @@ func (module *Module) BootstrapProjectWorkspace(ctx context.Context, project *ba
 		OwnerID:     project.OwnerID,
 		Name:        project.Name,
 		TreeRootID:  "root",
-		Tree:        json.RawMessage(`{"treeRootId":"root","treeById":{"root":{"id":"root","kind":"dir","name":"/","parentId":null,"children":["doc_root_node"]},"doc_root_node":{"id":"doc_root_node","kind":"doc","name":"pir.json","parentId":"root","docId":"doc_root"}}}`),
+		Tree:        defaultWorkspaceTreeWithRootDocumentJSON("root"),
 	}); err != nil && !isUniqueViolation(err) {
 		return err
 	}

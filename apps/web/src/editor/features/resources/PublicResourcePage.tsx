@@ -5,18 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { ResourceFileTree } from './ResourceFileTree';
 import {
   collectBestPracticeHints,
-  createFile,
-  createFolder,
   findNodeById,
   flattenPublicFiles,
   inferCategoryByFile,
+  PUBLIC_TREE_ROOT_ID,
   readFileAsDataUrl,
-  readPublicTree,
-  removeNodeById,
-  renameNode,
   resolveCategoryLabel,
-  writePublicTree,
-  type PublicResourceNode,
 } from './publicTree';
 import {
   createPublicTemplateByKind,
@@ -25,10 +19,30 @@ import {
   getResourceManagerPublicSelectionStorageKey,
   isSvgFileNode,
   isTextLikeNode,
-  resolveCreatedPublicNodeId,
   shouldReadPublicFileText,
   type PublicFileKind,
 } from './publicResourceModel';
+import { editorApi } from '@/editor/editorApi';
+import { useAuthStore } from '@/auth/useAuthStore';
+import { useEditorStore } from '@/editor/store/useEditorStore';
+import { buildPublicResourceTreeFromWorkspace } from './workspacePublicResources';
+import {
+  createWorkspaceDirectoryIntentRequest,
+  deleteWorkspaceDirectoryIntentRequest,
+  renameWorkspaceDirectoryIntentRequest,
+} from '@/workspace';
+import {
+  createResourceIntentId,
+  createWorkspaceResourceDocumentId,
+  createWorkspaceResourceDocumentRequest,
+  deleteWorkspaceResourceDocumentRequest,
+  findWorkspaceDocumentByPath,
+  findWorkspaceNodeByPath,
+  normalizeWorkspaceResourcePath,
+  renameWorkspaceResourceDocumentRequest,
+  RESOURCE_ROOTS,
+  type WorkspaceAssetContent,
+} from './workspaceResourceDocuments';
 
 type PublicResourcePageProps = {
   embedded?: boolean;
@@ -39,21 +53,34 @@ export function PublicResourcePage({
 }: PublicResourcePageProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
-  const [tree, setTree] = useState<PublicResourceNode>(() =>
-    readPublicTree(projectId)
+  const token = useAuthStore((state) => state.token);
+  const workspaceId = useEditorStore((state) => state.workspaceId);
+  const workspaceRev = useEditorStore((state) => state.workspaceRev);
+  const workspaceDocumentsById = useEditorStore(
+    (state) => state.workspaceDocumentsById
+  );
+  const treeRootId = useEditorStore((state) => state.treeRootId);
+  const treeById = useEditorStore((state) => state.treeById);
+  const applyWorkspaceMutation = useEditorStore(
+    (state) => state.applyWorkspaceMutation
+  );
+  const tree = useMemo(
+    () =>
+      buildPublicResourceTreeFromWorkspace(
+        workspaceDocumentsById,
+        treeRootId,
+        treeById
+      ),
+    [treeById, treeRootId, workspaceDocumentsById]
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string>(() => {
-    const initialTree = readPublicTree(projectId);
     const storedSelection =
       typeof window === 'undefined'
         ? null
         : window.localStorage.getItem(
             getResourceManagerPublicSelectionStorageKey(projectId)
           );
-    if (storedSelection && findNodeById(initialTree, storedSelection)) {
-      return storedSelection;
-    }
-    return flattenPublicFiles(initialTree)[0]?.id ?? initialTree.id;
+    return storedSelection ?? PUBLIC_TREE_ROOT_ID;
   });
   const [svgPreviewMode, setSvgPreviewMode] = useState<'preview' | 'source'>(
     'preview'
@@ -80,11 +107,6 @@ export function PublicResourcePage({
     );
   }, [tree]);
 
-  const persistTree = (nextTree: PublicResourceNode) => {
-    setTree(nextTree);
-    writePublicTree(projectId, nextTree);
-  };
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!findNodeById(tree, selectedNodeId)) {
@@ -98,64 +120,194 @@ export function PublicResourcePage({
     );
   }, [projectId, selectedNodeId, tree]);
 
-  const handleCreateFolder = (parentId: string) => {
-    const nextTree = createFolder(tree, parentId, 'new-folder');
-    const createdId = resolveCreatedPublicNodeId(tree, nextTree);
-    persistTree(nextTree);
+  const resolveWorkspaceParentNodeId = (parentId: string) => {
+    if (parentId === PUBLIC_TREE_ROOT_ID) {
+      return treeRootId;
+    }
+    return treeById[parentId]?.kind === 'dir' ? parentId : undefined;
+  };
+
+  const applyIntent = async (
+    data: Parameters<typeof editorApi.applyWorkspaceIntent>[2]
+  ) => {
+    if (!token || !workspaceId || !workspaceRev) return null;
+    const mutation = await editorApi.applyWorkspaceIntent(
+      token,
+      workspaceId,
+      data
+    );
+    applyWorkspaceMutation(mutation);
+    return mutation;
+  };
+
+  const handleCreateFolder = async (parentId: string) => {
+    if (!token || !workspaceId || !workspaceRev) return;
+    let parentNodeId = resolveWorkspaceParentNodeId(parentId);
+    if (!parentNodeId) return;
+    if (
+      parentId === PUBLIC_TREE_ROOT_ID &&
+      !findWorkspaceNodeByPath(treeRootId, treeById, RESOURCE_ROOTS.public)
+    ) {
+      const rootMutation = await editorApi.applyWorkspaceIntent(
+        token,
+        workspaceId,
+        createWorkspaceDirectoryIntentRequest({
+          workspaceRev,
+          intentId: createResourceIntentId(),
+          issuedAt: new Date().toISOString(),
+          nodeId: 'dir_public',
+          parentNodeId,
+          name: RESOURCE_ROOTS.public.replace(/^\//, ''),
+        })
+      );
+      applyWorkspaceMutation(rootMutation);
+      parentNodeId = rootMutation.tree
+        ? Object.values(rootMutation.tree.treeById).find(
+            (node) =>
+              node.name === RESOURCE_ROOTS.public.replace(/^\//, '') &&
+              node.parentId === treeRootId
+          )?.id
+        : undefined;
+      if (!parentNodeId) return;
+    }
+    const name = 'new-folder';
+    const request = createWorkspaceDirectoryIntentRequest({
+      workspaceRev: useEditorStore.getState().workspaceRev ?? workspaceRev,
+      intentId: createResourceIntentId(),
+      issuedAt: new Date().toISOString(),
+      nodeId: `dir_public_${Date.now().toString(36)}`,
+      parentNodeId,
+      name,
+    });
+    const mutation = await editorApi.applyWorkspaceIntent(
+      token,
+      workspaceId,
+      request
+    );
+    applyWorkspaceMutation(mutation);
+    const createdId = mutation.tree
+      ? Object.values(mutation.tree.treeById).find(
+          (node) => node.name === name && node.parentId === parentNodeId
+        )?.id
+      : undefined;
     if (createdId) {
       setSelectedNodeId(createdId);
       setRequestRenameNodeId(createdId);
     }
   };
 
-  const handleCreateFile = (parentId: string) => {
+  const createAssetDocument = async (
+    parentId: string,
+    name: string,
+    content: WorkspaceAssetContent
+  ) => {
+    const parentNode = findNodeById(tree, parentId);
+    const parentPath = parentNode?.path
+      ? `/${parentNode.path}`
+      : RESOURCE_ROOTS.public;
+    const path = normalizeWorkspaceResourcePath(`${parentPath}/${name}`);
+    const documentId = createWorkspaceResourceDocumentId('asset', path);
+    const existing = findWorkspaceDocumentByPath(
+      workspaceDocumentsById,
+      path,
+      'asset'
+    );
+    if (existing) return;
+    const mutation = await applyIntent(
+      createWorkspaceResourceDocumentRequest({
+        workspaceRev: workspaceRev ?? 0,
+        documentId,
+        path,
+        type: 'asset',
+        content,
+      })
+    );
+    if (mutation) setSelectedNodeId(documentId);
+  };
+
+  const handleCreateFile = async (parentId: string) => {
     const template = getDefaultPublicFileTemplate('untitled.txt');
     const dataUrl = `data:${template.mime};charset=utf-8,${encodeURIComponent(template.content)}`;
-    const nextTree = createFile(tree, parentId, {
-      name: 'untitled.txt',
+    await createAssetDocument(parentId, 'untitled.txt', {
+      kind: 'asset',
       category: inferCategoryByFile(
         new File([template.content], 'untitled.txt', { type: template.mime })
       ),
       mime: template.mime,
       size: template.content.length,
-      textContent: template.content,
-      contentRef: dataUrl,
+      text: template.content,
+      dataUrl,
     });
-    const createdId = resolveCreatedPublicNodeId(tree, nextTree);
-    persistTree(nextTree);
-    if (createdId) {
-      setSelectedNodeId(createdId);
-      setRequestRenameNodeId(createdId);
-    }
   };
 
-  const handleCreateFileByKind = (parentId: string, kind: PublicFileKind) => {
+  const handleCreateFileByKind = async (
+    parentId: string,
+    kind: PublicFileKind
+  ) => {
     const template = createPublicTemplateByKind(kind);
     const dataUrl = `data:${template.mime};charset=utf-8,${encodeURIComponent(template.content)}`;
-    const nextTree = createFile(tree, parentId, {
-      name: template.name,
+    await createAssetDocument(parentId, template.name, {
+      kind: 'asset',
       category: inferCategoryByFile(
         new File([template.content], template.name, { type: template.mime })
       ),
       mime: template.mime,
       size: template.content.length,
-      textContent: template.content,
-      contentRef: dataUrl,
+      text: template.content,
+      dataUrl,
     });
-    const createdId = resolveCreatedPublicNodeId(tree, nextTree);
-    persistTree(nextTree);
-    if (createdId) {
-      setSelectedNodeId(createdId);
-      setRequestRenameNodeId(createdId);
-    }
   };
 
-  const handleDeleteNode = (nodeId: string) => {
-    const next = removeNodeById(tree, nodeId);
-    persistTree(next);
-    if (selectedNodeId === nodeId) {
-      setSelectedNodeId(next.id);
+  const handleDeleteNode = async (nodeId: string) => {
+    const node = findNodeById(tree, nodeId);
+    if (!node) return;
+    if (node.type === 'folder') {
+      await applyIntent(
+        deleteWorkspaceDirectoryIntentRequest({
+          workspaceRev: workspaceRev ?? 0,
+          intentId: createResourceIntentId(),
+          issuedAt: new Date().toISOString(),
+          nodeId,
+        })
+      );
+    } else {
+      await applyIntent(
+        deleteWorkspaceResourceDocumentRequest({
+          workspaceRev: workspaceRev ?? 0,
+          documentId: nodeId,
+          type: 'asset',
+        })
+      );
     }
+    if (selectedNodeId === nodeId) setSelectedNodeId(tree.id);
+  };
+
+  const handleRenameNode = async (nodeId: string, nextName: string) => {
+    const node = findNodeById(tree, nodeId);
+    const name = nextName.trim();
+    if (!node || !name || nodeId === tree.id) return;
+    if (node.type === 'folder') {
+      await applyIntent(
+        renameWorkspaceDirectoryIntentRequest({
+          workspaceRev: workspaceRev ?? 0,
+          intentId: createResourceIntentId(),
+          issuedAt: new Date().toISOString(),
+          nodeId,
+          name,
+        })
+      );
+    } else {
+      const parentPath = node.path.split('/').slice(0, -1).join('/');
+      await applyIntent(
+        renameWorkspaceResourceDocumentRequest({
+          workspaceRev: workspaceRev ?? 0,
+          documentId: nodeId,
+          path: normalizeWorkspaceResourcePath(`${parentPath}/${name}`),
+          type: 'asset',
+        })
+      );
+    }
+    setRequestRenameNodeId(undefined);
   };
 
   const handleImportFiles = async (
@@ -163,22 +315,20 @@ export function PublicResourcePage({
     files: FileList | null
   ) => {
     if (!files || files.length === 0) return;
-    let nextTree = tree;
     for (const file of Array.from(files)) {
       const contentRef = await readFileAsDataUrl(file);
       const textContent = shouldReadPublicFileText(file)
         ? await file.text()
         : undefined;
-      nextTree = createFile(nextTree, parentId, {
-        name: file.name,
+      await createAssetDocument(parentId, file.name, {
+        kind: 'asset',
         category: inferCategoryByFile(file),
         mime: file.type || 'application/octet-stream',
         size: file.size,
-        contentRef,
-        textContent,
+        dataUrl: contentRef,
+        text: textContent,
       });
     }
-    persistTree(nextTree);
   };
 
   const handleImportFilesByCategory = async (
@@ -187,22 +337,20 @@ export function PublicResourcePage({
     files: FileList | null
   ) => {
     if (!files || files.length === 0) return;
-    let nextTree = tree;
     for (const file of Array.from(files)) {
       const contentRef = await readFileAsDataUrl(file);
       const textContent = shouldReadPublicFileText(file)
         ? await file.text()
         : undefined;
-      nextTree = createFile(nextTree, parentId, {
-        name: file.name,
+      await createAssetDocument(parentId, file.name, {
+        kind: 'asset',
         category: forcedCategory,
         mime: file.type || 'application/octet-stream',
         size: file.size,
-        contentRef,
-        textContent,
+        dataUrl: contentRef,
+        text: textContent,
       });
     }
-    persistTree(nextTree);
   };
 
   const fontFamilyName =
@@ -239,10 +387,7 @@ export function PublicResourcePage({
             onCreateFileByKind={handleCreateFileByKind}
             onImport={handleImportFiles}
             onImportByCategory={handleImportFilesByCategory}
-            onRename={(nodeId, nextName) => {
-              persistTree(renameNode(tree, nodeId, nextName));
-              setRequestRenameNodeId(undefined);
-            }}
+            onRename={handleRenameNode}
             onDelete={handleDeleteNode}
           />
         </aside>

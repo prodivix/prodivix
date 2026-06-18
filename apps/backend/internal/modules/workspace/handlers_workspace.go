@@ -70,11 +70,6 @@ func (handler *Handler) HandlePatchWorkspaceDocument(c *gin.Context) {
 	c.JSON(http.StatusOK, BuildMutationSuccessPayload(result, strings.TrimSpace(request.ClientMutationID)))
 }
 
-func (handler *Handler) HandleSaveWorkspaceDocument(c *gin.Context) {
-	failure := NewRequestFailure(http.StatusMethodNotAllowed, ErrorInvalidPayload, "Full document save is disabled. Use command PATCH.", nil)
-	c.JSON(failure.Status, failure.Payload)
-}
-
 func (handler *Handler) HandleApplyWorkspaceIntent(c *gin.Context) {
 	workspaceID := strings.TrimSpace(c.Param("workspaceId"))
 	user, ok := backendauth.GetAuthUser[backendauth.User](c)

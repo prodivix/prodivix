@@ -49,7 +49,7 @@ apps/web
 
 - **PIR Pipeline**：`schema → converter → validator → renderer → generator`
 - **三编辑器收敛**：Blueprint 写 `ui` 层 / NodeGraph 写 `logic` 层 / Animation 写 `animation` 层
-- **Workspace 同步**：文档级保存 (`PUT /api/workspaces/:id/documents/:docId`) + 分区 rev 乐观并发（见 `specs/decisions/07.workspace-sync.md`）
+- **Workspace 同步**：文档 command patch (`PATCH /api/workspaces/:id/documents/:docId`) + 分区 rev 乐观并发（见 `specs/decisions/07.workspace-sync.md`）
 - **路由清单**：Route Manifest + Outlet 渲染链（见 `specs/decisions/08.route-manifest-outlet.md`）
 - **外部库运行时**：esm.sh + canonical external IR（见 `specs/decisions/17.external-library-runtime-and-adapter.md`）
 - **Inspector Panel 架构**：每个面板独立 schema（见 `specs/decisions/21.inspector-panel-architecture.md`）

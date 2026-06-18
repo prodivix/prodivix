@@ -34,9 +34,6 @@ export type NamespaceStats = {
 export const getI18nSelectionStorageKey = (projectId?: string) =>
   `prodivix.resourceManager.i18n.selection.${projectId?.trim() || 'default'}`;
 
-export const getI18nReviewStorageKey = (projectId?: string) =>
-  `prodivix.resourceManager.i18n.review.${projectId?.trim() || 'default'}`;
-
 export const readSelection = (
   projectId: string | undefined
 ): I18nSelection | null => {
@@ -58,20 +55,6 @@ export const readSelection = (
     return parsed;
   } catch {
     return null;
-  }
-};
-
-export const readReviewedMap = (
-  projectId: string | undefined
-): Record<string, boolean> => {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(getI18nReviewStorageKey(projectId));
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, boolean>;
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
   }
 };
 

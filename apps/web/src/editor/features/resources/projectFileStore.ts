@@ -289,9 +289,6 @@ export const createDefaultProjectFiles = (): ProjectFile[] => [
   })(),
 ];
 
-const getProjectFilesStorageKey = (projectId?: string) =>
-  `prodivix.projectFiles.${projectId?.trim() || 'default'}`;
-
 const withDefaultProjectFiles = (files: ProjectFile[]) => {
   const filesByPath = new Map(files.map((file) => [file.path, file]));
   const defaults = createDefaultProjectFiles();
@@ -302,39 +299,6 @@ const withDefaultProjectFiles = (files: ProjectFile[]) => {
     ...file,
     updatedAt: file.updatedAt || nowIso(),
   }));
-};
-
-export const readProjectFiles = (projectId?: string): ProjectFile[] => {
-  if (typeof window === 'undefined') return createDefaultProjectFiles();
-  try {
-    const raw = window.localStorage.getItem(
-      getProjectFilesStorageKey(projectId)
-    );
-    if (!raw) return createDefaultProjectFiles();
-    const parsed = JSON.parse(raw) as ProjectFile[];
-    if (!Array.isArray(parsed)) return createDefaultProjectFiles();
-    const validFiles = parsed.filter(
-      (file): file is ProjectFile =>
-        Boolean(file) &&
-        typeof file.path === 'string' &&
-        typeof file.content === 'string' &&
-        typeof file.enabled === 'boolean'
-    );
-    return withDefaultProjectFiles(validFiles);
-  } catch {
-    return createDefaultProjectFiles();
-  }
-};
-
-export const writeProjectFiles = (
-  projectId: string | undefined,
-  files: ProjectFile[]
-) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(
-    getProjectFilesStorageKey(projectId),
-    JSON.stringify(withDefaultProjectFiles(files))
-  );
 };
 
 export const updateProjectFile = (

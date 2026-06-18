@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import {
-  collectLocaleMissingStats,
-  readI18nStore,
-  writeI18nStore,
-  type I18nLocaleStore,
-} from './i18nStore';
+import { editorApi } from '@/editor/editorApi';
+import { useAuthStore } from '@/auth/useAuthStore';
+import { useEditorStore } from '@/editor/store/useEditorStore';
+import { collectLocaleMissingStats, type I18nLocaleStore } from './i18nStore';
 import {
   buildNamespaceStats,
   buildTranslationRows,
-  getI18nReviewStorageKey,
   getI18nSelectionStorageKey,
-  readReviewedMap,
   readSelection,
   type I18nSelection,
   type TranslationRow,
@@ -22,6 +18,18 @@ import {
   I18nResourceSidebar,
   I18nResourceTable,
 } from './I18nResourcePanels';
+import {
+  buildI18nResourceValueFromWorkspace,
+  getWorkspaceI18nResourceDocument,
+  type WorkspaceI18nResourceValue,
+} from './workspaceI18nResources';
+import {
+  createWorkspaceConfigDocumentContent,
+  createWorkspaceResourceDocumentId,
+  createWorkspaceResourceDocumentRequest,
+  createWorkspaceResourceValuePatchRequest,
+  RESOURCE_ROOTS,
+} from './workspaceResourceDocuments';
 
 type I18nResourcePageProps = {
   embedded?: boolean;
@@ -76,12 +84,21 @@ const createInitialSelection = (
 export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
-  const [store, setStore] = useState<I18nLocaleStore>(() =>
-    readI18nStore(projectId)
+  const token = useAuthStore((state) => state.token);
+  const workspaceId = useEditorStore((state) => state.workspaceId);
+  const workspaceRev = useEditorStore((state) => state.workspaceRev);
+  const workspaceDocumentsById = useEditorStore(
+    (state) => state.workspaceDocumentsById
   );
-  const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>(() =>
-    readReviewedMap(projectId)
+  const applyWorkspaceMutation = useEditorStore(
+    (state) => state.applyWorkspaceMutation
   );
+  const resourceValue = useMemo(
+    () => buildI18nResourceValueFromWorkspace(workspaceDocumentsById),
+    [workspaceDocumentsById]
+  );
+  const store = resourceValue.store;
+  const reviewedMap = resourceValue.reviewedMap;
   const [searchKeyword, setSearchKeyword] = useState('');
   const [missingOnly, setMissingOnly] = useState(false);
   const [reviewOnly, setReviewOnly] = useState(false);
@@ -90,7 +107,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const [newKey, setNewKey] = useState('');
   const [newSourceValue, setNewSourceValue] = useState('');
   const [selection, setSelection] = useState<I18nSelection>(() =>
-    createInitialSelection(projectId, readI18nStore(projectId))
+    createInitialSelection(projectId, resourceValue.store)
   );
   const fileInputId = 'resource-i18n-import-json';
 
@@ -153,24 +170,57 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   );
 
   useEffect(() => {
-    writeI18nStore(projectId, store);
-  }, [projectId, store]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(
-      getI18nReviewStorageKey(projectId),
-      JSON.stringify(reviewedMap)
-    );
-  }, [projectId, reviewedMap]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(
       getI18nSelectionStorageKey(projectId),
       JSON.stringify(selection)
     );
   }, [projectId, selection]);
+
+  const persistI18nResourceValue = async (
+    value: WorkspaceI18nResourceValue
+  ) => {
+    if (!token || !workspaceId || !workspaceRev) return;
+    const existing = getWorkspaceI18nResourceDocument(workspaceDocumentsById);
+    if (existing) {
+      const request = createWorkspaceResourceValuePatchRequest({
+        workspaceId,
+        document: existing,
+        value,
+        label: 'Update i18n resources',
+      });
+      if (!request) return;
+      const mutation = await editorApi.patchWorkspaceDocument(
+        token,
+        workspaceId,
+        existing.id,
+        request
+      );
+      applyWorkspaceMutation(mutation);
+      return;
+    }
+    const mutation = await editorApi.applyWorkspaceIntent(
+      token,
+      workspaceId,
+      createWorkspaceResourceDocumentRequest({
+        workspaceRev,
+        documentId: createWorkspaceResourceDocumentId(
+          'i18n_config',
+          RESOURCE_ROOTS.i18n
+        ),
+        path: RESOURCE_ROOTS.i18n,
+        type: 'project-config',
+        content: createWorkspaceConfigDocumentContent(value),
+      })
+    );
+    applyWorkspaceMutation(mutation);
+  };
+
+  const updateI18nResourceValue = (
+    updater: (current: WorkspaceI18nResourceValue) => WorkspaceI18nResourceValue
+  ) => {
+    void persistI18nResourceValue(updater(resourceValue));
+  };
 
   useEffect(() => {
     if (!store[selection.sourceLocale]) {
@@ -224,31 +274,40 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   };
 
   const updateLocaleValue = (locale: string, key: string, value: string) => {
-    setStore((current) => ({
+    updateI18nResourceValue((current) => ({
       ...current,
-      [locale]: {
-        ...(current[locale] ?? {}),
-        [selection.namespace]: {
-          ...(current[locale]?.[selection.namespace] ?? {}),
-          [key]: value,
+      store: {
+        ...current.store,
+        [locale]: {
+          ...(current.store[locale] ?? {}),
+          [selection.namespace]: {
+            ...(current.store[locale]?.[selection.namespace] ?? {}),
+            [key]: value,
+          },
         },
       },
     }));
   };
 
   const toggleReviewed = (row: TranslationRow) => {
-    setReviewedMap((current) => ({
+    updateI18nResourceValue((current) => ({
       ...current,
-      [row.id]: !current[row.id],
+      reviewedMap: {
+        ...current.reviewedMap,
+        [row.id]: !current.reviewedMap[row.id],
+      },
     }));
   };
 
   const addLocale = () => {
     const locale = newLocale.trim();
     if (!locale || store[locale]) return;
-    setStore((current) => ({
+    updateI18nResourceValue((current) => ({
       ...current,
-      [locale]: { common: {} },
+      store: {
+        ...current.store,
+        [locale]: { common: {} },
+      },
     }));
     setSelection((current) => ({ ...current, targetLocale: locale }));
     setNewLocale('');
@@ -257,15 +316,18 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const addNamespace = () => {
     const namespace = newNamespace.trim();
     if (!namespace) return;
-    setStore((current) => ({
+    updateI18nResourceValue((current) => ({
       ...current,
-      [selection.sourceLocale]: {
-        ...(current[selection.sourceLocale] ?? {}),
-        [namespace]: {},
-      },
-      [selection.targetLocale]: {
-        ...(current[selection.targetLocale] ?? {}),
-        [namespace]: {},
+      store: {
+        ...current.store,
+        [selection.sourceLocale]: {
+          ...(current.store[selection.sourceLocale] ?? {}),
+          [namespace]: {},
+        },
+        [selection.targetLocale]: {
+          ...(current.store[selection.targetLocale] ?? {}),
+          [namespace]: {},
+        },
       },
     }));
     setSelection((current) => ({ ...current, namespace }));
@@ -275,18 +337,18 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const addKey = () => {
     const key = newKey.trim();
     if (!key) return;
-    setStore((current) => {
-      const next: I18nLocaleStore = { ...current };
+    updateI18nResourceValue((current) => {
+      const next: I18nLocaleStore = { ...current.store };
       locales.forEach((locale) => {
         next[locale] = {
-          ...(current[locale] ?? {}),
+          ...(current.store[locale] ?? {}),
           [selection.namespace]: {
-            ...(current[locale]?.[selection.namespace] ?? {}),
+            ...(current.store[locale]?.[selection.namespace] ?? {}),
             [key]: locale === selection.sourceLocale ? newSourceValue : '',
           },
         };
       });
-      return next;
+      return { ...current, store: next };
     });
     setSelection((current) => ({ ...current, key }));
     setNewKey('');
@@ -294,27 +356,29 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   };
 
   const deleteKey = (key: string) => {
-    setStore((current) => {
-      const next: I18nLocaleStore = { ...current };
+    updateI18nResourceValue((current) => {
+      const next: I18nLocaleStore = { ...current.store };
       locales.forEach((locale) => {
-        const currentNamespace = current[locale]?.[selection.namespace] ?? {};
+        const currentNamespace =
+          current.store[locale]?.[selection.namespace] ?? {};
         const nextNamespace = { ...currentNamespace };
         delete nextNamespace[key];
         next[locale] = {
-          ...(current[locale] ?? {}),
+          ...(current.store[locale] ?? {}),
           [selection.namespace]: nextNamespace,
         };
       });
-      return next;
+      return {
+        ...current,
+        store: next,
+        reviewedMap: Object.fromEntries(
+          Object.entries(current.reviewedMap).filter(
+            ([reviewKey]) =>
+              !reviewKey.endsWith(`::${selection.namespace}::${key}`)
+          )
+        ),
+      };
     });
-    setReviewedMap((current) =>
-      Object.fromEntries(
-        Object.entries(current).filter(
-          ([reviewKey]) =>
-            !reviewKey.endsWith(`::${selection.namespace}::${key}`)
-        )
-      )
-    );
     if (selection.key === key) {
       setSelection((current) => ({ ...current, key: undefined }));
     }
@@ -338,19 +402,22 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
     try {
       const raw = await file.text();
       const parsed = JSON.parse(raw) as Record<string, Record<string, string>>;
-      setStore((current) => ({
+      updateI18nResourceValue((current) => ({
         ...current,
-        [selection.targetLocale]: Object.fromEntries(
-          Object.entries(parsed).map(([namespace, values]) => [
-            namespace,
-            Object.fromEntries(
-              Object.entries(values).map(([key, value]) => [
-                key,
-                typeof value === 'string' ? value : String(value ?? ''),
-              ])
-            ),
-          ])
-        ),
+        store: {
+          ...current.store,
+          [selection.targetLocale]: Object.fromEntries(
+            Object.entries(parsed).map(([namespace, values]) => [
+              namespace,
+              Object.fromEntries(
+                Object.entries(values).map(([key, value]) => [
+                  key,
+                  typeof value === 'string' ? value : String(value ?? ''),
+                ])
+              ),
+            ])
+          ),
+        },
       }));
     } catch {
       // ignore invalid json import

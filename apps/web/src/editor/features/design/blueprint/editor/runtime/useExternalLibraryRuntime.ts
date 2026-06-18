@@ -4,30 +4,22 @@ import type {
   ExternalLibraryRuntimeState,
 } from '@/editor/features/design/blueprint/external';
 import { useCallback } from 'react';
-import { useParams } from 'react-router';
 import { externalLibraryConfigUpdatedEvent } from '@/editor/features/design/blueprint/external';
 import { isAbortError } from '@/infra/api';
+import { useEditorStore } from '@/editor/store/useEditorStore';
+import { buildExternalLibrariesValueFromWorkspace } from '@/editor/features/resources/workspaceExternalLibraries';
 
 type RetryExternalLibrary = (libraryId: string) => Promise<void>;
 type ExternalModule =
   typeof import('@/editor/features/design/blueprint/external');
 
-const getProjectExternalSelectionStorageKey = (projectId?: string) =>
-  `prodivix.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
-
-const parseStoredLibraryIds = (raw: string | null) => {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === 'string');
-  } catch {
-    return [];
-  }
-};
-
 export const useExternalLibraryRuntime = () => {
-  const { projectId } = useParams();
+  const workspaceDocumentsById = useEditorStore(
+    (state) => state.workspaceDocumentsById
+  );
+  const configuredLibraryIds = buildExternalLibrariesValueFromWorkspace(
+    workspaceDocumentsById
+  ).componentLibraryIds;
   const [externalDiagnostics, setExternalDiagnostics] = useState<
     ExternalLibraryDiagnostic[]
   >([]);
@@ -50,16 +42,12 @@ export const useExternalLibraryRuntime = () => {
     typeof navigator !== 'undefined' && navigator.onLine === false;
   const getConfiguredLibraryIds = useCallback(
     (mod: ExternalModule) => {
-      if (!projectId || typeof window === 'undefined') {
+      if (configuredLibraryIds.length === 0) {
         return mod.getConfiguredExternalLibraryIds();
       }
-      return parseStoredLibraryIds(
-        window.localStorage.getItem(
-          getProjectExternalSelectionStorageKey(projectId)
-        )
-      );
+      return configuredLibraryIds;
     },
-    [projectId]
+    [configuredLibraryIds]
   );
   const getConfiguredLibraryOptions = useCallback(
     (mod: ExternalModule) =>

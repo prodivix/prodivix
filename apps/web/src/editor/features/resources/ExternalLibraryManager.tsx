@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { editorApi } from '@/editor/editorApi';
+import { useAuthStore } from '@/auth/useAuthStore';
+import { useEditorStore } from '@/editor/store/useEditorStore';
 import { ExternalLibraryAddModal } from './externalLibraryManager/ExternalLibraryAddModal';
 import { ExternalLibraryDetailsPanel } from './externalLibraryManager/ExternalLibraryDetailsPanel';
 import { ExternalLibraryListPanel } from './externalLibraryManager/ExternalLibraryListPanel';
@@ -11,10 +14,7 @@ import type {
   LibraryScope,
   PackageSizeThresholds,
 } from './externalLibraryManager/types';
-import {
-  DEFAULT_PACKAGE_SIZE_THRESHOLDS,
-  normalizePackageSizeThresholds,
-} from './externalLibraryManager/viewUtils';
+import { DEFAULT_PACKAGE_SIZE_THRESHOLDS } from './externalLibraryManager/viewUtils';
 import {
   BUILTIN_LIBRARY_CATEGORIES,
   LIBRARY_CATALOG,
@@ -28,31 +28,49 @@ import {
 import {
   METADATA_CACHE_TTL_MS,
   PRE_RELEASE_PATTERN,
-  getExternalSelectionStorageKey,
-  getIconSelectionStorageKey,
-  getManagerMetadataStorageKey,
-  getManagerModeStorageKey,
-  getManagerSizeThresholdsStorageKey,
-  getManagerStateStorageKey,
   normalizeLicenseText,
-  parseStoredLibraryIds,
-  parseStoredManagerState,
-  parseStoredMetadataCache,
-  parseStoredSizeThresholds,
   pickVersionByMode,
   type NpmMetadata,
 } from './externalLibraryManager/managerState';
 import { useExternalLibraryManagerRuntimeRefs } from './externalLibraryManager/managerRuntimeRefs';
 import { isAbortError } from '@/infra/api';
+import {
+  buildExternalLibrariesValueFromWorkspace,
+  createInitialPersistedLibrary,
+  createPersistedLibraryValue,
+  ensurePersistedLibrary,
+  getWorkspaceExternalLibrariesDocument,
+  type WorkspaceExternalLibrariesValue,
+} from './workspaceExternalLibraries';
+import {
+  createWorkspaceConfigDocumentContent,
+  createWorkspaceResourceDocumentId,
+  createWorkspaceResourceDocumentRequest,
+  createWorkspaceResourceValuePatchRequest,
+  RESOURCE_ROOTS,
+} from './workspaceResourceDocuments';
 
-type ExternalLibraryManagerProps = {
-  projectId?: string;
-};
+type ExternalLibraryManagerProps = Record<string, never>;
 
-export function ExternalLibraryManager({
-  projectId,
-}: ExternalLibraryManagerProps) {
+const stringArraysEqual = (left: string[], right: string[]) =>
+  left.length === right.length &&
+  left.every((item, index) => item === right[index]);
+
+export function ExternalLibraryManager({}: ExternalLibraryManagerProps) {
   const { t } = useTranslation('editor');
+  const token = useAuthStore((state) => state.token);
+  const workspaceId = useEditorStore((state) => state.workspaceId);
+  const workspaceRev = useEditorStore((state) => state.workspaceRev);
+  const workspaceDocumentsById = useEditorStore(
+    (state) => state.workspaceDocumentsById
+  );
+  const applyWorkspaceMutation = useEditorStore(
+    (state) => state.applyWorkspaceMutation
+  );
+  const externalResourceValue = useMemo(
+    () => buildExternalLibrariesValueFromWorkspace(workspaceDocumentsById),
+    [workspaceDocumentsById]
+  );
   const [registeredComponentLibraries, setRegisteredComponentLibraries] =
     useState<LibraryEntry[]>([]);
   const [registeredIconLibraries, setRegisteredIconLibraries] = useState<
@@ -165,10 +183,6 @@ export function ExternalLibraryManager({
   const persistConfiguredComponentLibraryIds = (libraryIds: string[]) => {
     const nextIds = normalizeExternalComponentLibraryIds(libraryIds);
     setConfiguredComponentLibraryIds(nextIds);
-    window.localStorage.setItem(
-      getExternalSelectionStorageKey(projectId),
-      JSON.stringify(nextIds)
-    );
     void import('@/editor/features/design/blueprint/external').then(
       (externalRuntime) => {
         externalRuntime.setConfiguredExternalLibraryIds(nextIds);
@@ -179,13 +193,59 @@ export function ExternalLibraryManager({
   const persistConfiguredIconLibraryIds = (libraryIds: string[]) => {
     const nextIds = normalizeLibraryIds(libraryIds);
     setConfiguredIconLibraryIds(nextIds);
-    window.localStorage.setItem(
-      getIconSelectionStorageKey(projectId),
-      JSON.stringify(nextIds)
-    );
     void import('@/pir/renderer/iconRegistry').then((iconRegistry) => {
       iconRegistry.setConfiguredIconLibraryIds(nextIds);
     });
+  };
+
+  const persistExternalResourceValue = async (
+    value: WorkspaceExternalLibrariesValue
+  ) => {
+    if (!token || !workspaceId || !workspaceRev) return;
+    const existing = getWorkspaceExternalLibrariesDocument(
+      workspaceDocumentsById
+    );
+    if (existing) {
+      const request = createWorkspaceResourceValuePatchRequest({
+        workspaceId,
+        document: existing,
+        value,
+        label: 'Update external libraries',
+      });
+      if (!request) return;
+      const mutation = await editorApi.patchWorkspaceDocument(
+        token,
+        workspaceId,
+        existing.id,
+        request
+      );
+      applyWorkspaceMutation(mutation);
+      return;
+    }
+    const mutation = await editorApi.applyWorkspaceIntent(
+      token,
+      workspaceId,
+      createWorkspaceResourceDocumentRequest({
+        workspaceRev,
+        documentId: createWorkspaceResourceDocumentId(
+          'external_config',
+          RESOURCE_ROOTS.external
+        ),
+        path: RESOURCE_ROOTS.external,
+        type: 'project-config',
+        content: createWorkspaceConfigDocumentContent(value),
+      })
+    );
+    applyWorkspaceMutation(mutation);
+  };
+
+  const updateExternalResourceValue = (
+    updater: (
+      current: WorkspaceExternalLibrariesValue
+    ) => WorkspaceExternalLibrariesValue
+  ) => {
+    if (isBootstrapping) return;
+    void persistExternalResourceValue(updater(externalResourceValue));
   };
 
   const syncScope = (
@@ -208,27 +268,6 @@ export function ExternalLibraryManager({
           : configuredIconLibraryIds.filter((item) => item !== libraryId);
       persistConfiguredIconLibraryIds(nextIds);
     }
-  };
-
-  const updatePackageSizeThreshold = (
-    field: keyof PackageSizeThresholds,
-    value: number
-  ) => {
-    if (!Number.isFinite(value) || value <= 0) return;
-    setPackageSizeThresholds((current) => {
-      const next = normalizePackageSizeThresholds({
-        ...current,
-        [field]: Math.floor(value),
-      });
-      if (
-        next.cautionKb === current.cautionKb &&
-        next.warningKb === current.warningKb &&
-        next.criticalKb === current.criticalKb
-      ) {
-        return current;
-      }
-      return next;
-    });
   };
 
   const applyMetadataToActiveLibraries = (
@@ -316,6 +355,13 @@ export function ExternalLibraryManager({
         ...current,
         [libraryId]: metadata,
       }));
+      updateExternalResourceValue((current) => ({
+        ...current,
+        metadataCache: {
+          ...current.metadataCache,
+          [libraryId]: metadata,
+        },
+      }));
       applyMetadataToActiveLibraries(libraryId, metadata);
     } catch (error) {
       if (isAbortError(error)) return;
@@ -350,9 +396,14 @@ export function ExternalLibraryManager({
     });
   };
 
-  const triggerLoad = (libraryId: string, version: string) => {
+  const triggerLoad = (
+    libraryId: string,
+    version: string,
+    options: { persist?: boolean } = {}
+  ) => {
     const normalized = normalizeLibraryIds([libraryId])[0];
     if (!normalized) return;
+    const shouldPersist = options.persist !== false;
     const token = (loadTokensRef.current.get(normalized) ?? 0) + 1;
     loadTokensRef.current.set(normalized, token);
     setActiveLibraries((current) =>
@@ -368,6 +419,16 @@ export function ExternalLibraryManager({
           : library
       )
     );
+    if (shouldPersist) {
+      updateExternalResourceValue((current) => ({
+        ...current,
+        activeLibraries: current.activeLibraries.map((library) =>
+          library.id === normalized
+            ? { ...library, version, status: 'loading' }
+            : library
+        ),
+      }));
+    }
     const timeoutId = window.setTimeout(() => {
       timeoutIdsRef.current.delete(timeoutId);
       if (loadTokensRef.current.get(normalized) !== token) return;
@@ -423,8 +484,72 @@ export function ExternalLibraryManager({
     ]);
     setSelectedLibraryId(normalized);
     syncScope(normalized, library.scope, 'add');
+    const persisted = createInitialPersistedLibrary(
+      normalized,
+      library.scope,
+      library.versions,
+      globalMode,
+      nextVersion
+    );
+    if (persisted) {
+      const nextComponentIds =
+        library.scope === 'component'
+          ? normalizeExternalComponentLibraryIds([
+              ...configuredComponentLibraryIds,
+              normalized,
+            ])
+          : configuredComponentLibraryIds;
+      const nextIconIds =
+        library.scope === 'icon'
+          ? normalizeLibraryIds([...configuredIconLibraryIds, normalized])
+          : configuredIconLibraryIds;
+      void persistExternalResourceValue(
+        ensurePersistedLibrary(
+          {
+            ...externalResourceValue,
+            componentLibraryIds: nextComponentIds,
+            iconLibraryIds: nextIconIds,
+            mode: globalMode,
+            packageSizeThresholds,
+            metadataCache,
+          },
+          persisted
+        )
+      );
+    }
     hydrateNpmMetadata([normalized]);
-    triggerLoad(normalized, nextVersion);
+    triggerLoad(normalized, nextVersion, { persist: false });
+  };
+
+  const changeMode = (nextMode: LibraryMode) => {
+    setGlobalMode(nextMode);
+    updateExternalResourceValue((current) => ({
+      ...current,
+      mode: nextMode,
+    }));
+  };
+
+  const removeLibrary = (libraryId: string) => {
+    const target = activeLibraries.find((item) => item.id === libraryId);
+    if (target) syncScope(target.id, target.scope, 'remove');
+    const nextActiveLibraries = activeLibraries.filter(
+      (item) => item.id !== libraryId
+    );
+    setActiveLibraries(nextActiveLibraries);
+    updateExternalResourceValue((current) => ({
+      ...current,
+      componentLibraryIds:
+        target?.scope === 'component'
+          ? current.componentLibraryIds.filter((item) => item !== libraryId)
+          : current.componentLibraryIds,
+      iconLibraryIds:
+        target?.scope === 'icon'
+          ? current.iconLibraryIds.filter((item) => item !== libraryId)
+          : current.iconLibraryIds,
+      activeLibraries: current.activeLibraries.filter(
+        (item) => item.id !== libraryId
+      ),
+    }));
   };
 
   useEffect(() => {
@@ -441,47 +566,23 @@ export function ExternalLibraryManager({
         );
         setRegisteredIconLibraries(iconRegistry.getRegisteredIconLibraries());
 
-        const storedComponentIds = parseStoredLibraryIds(
-          window.localStorage.getItem(getExternalSelectionStorageKey(projectId))
-        );
-        const storedIconIds = parseStoredLibraryIds(
-          window.localStorage.getItem(getIconSelectionStorageKey(projectId))
-        );
         const componentIds = normalizeExternalComponentLibraryIds(
-          storedComponentIds ??
-            (projectId ? [] : externalRuntime.getConfiguredExternalLibraryIds())
+          externalResourceValue.componentLibraryIds
         );
         const iconIds = normalizeLibraryIds(
-          storedIconIds ??
-            (projectId ? [] : iconRegistry.getConfiguredIconLibraryIds())
+          externalResourceValue.iconLibraryIds
         );
         setConfiguredComponentLibraryIds(componentIds);
         setConfiguredIconLibraryIds(iconIds);
+        externalRuntime.setConfiguredExternalLibraryIds(componentIds);
+        iconRegistry.setConfiguredIconLibraryIds(iconIds);
 
-        const storedMode = window.localStorage.getItem(
-          getManagerModeStorageKey(projectId)
-        );
-        const nextMode: LibraryMode =
-          storedMode === 'latest' || storedMode === 'dev'
-            ? storedMode
-            : 'locked';
+        const nextMode = externalResourceValue.mode;
         setGlobalMode(nextMode);
-        setPackageSizeThresholds(
-          parseStoredSizeThresholds(
-            window.localStorage.getItem(
-              getManagerSizeThresholdsStorageKey(projectId)
-            )
-          ) ?? DEFAULT_PACKAGE_SIZE_THRESHOLDS
-        );
-        setMetadataCache(
-          parseStoredMetadataCache(
-            window.localStorage.getItem(getManagerMetadataStorageKey(projectId))
-          )
-        );
+        setPackageSizeThresholds(externalResourceValue.packageSizeThresholds);
+        setMetadataCache(externalResourceValue.metadataCache);
 
-        const storedManagerState = parseStoredManagerState(
-          window.localStorage.getItem(getManagerStateStorageKey(projectId))
-        );
+        const storedManagerState = externalResourceValue.activeLibraries;
         const mergedIds = normalizeLibraryIds([
           ...storedManagerState.map((item) => item.id),
           ...componentIds,
@@ -515,14 +616,22 @@ export function ExternalLibraryManager({
               persisted?.status ?? (scope === 'utility' ? 'idle' : 'success'),
           };
         });
-        if (storedManagerState.length > 0 && inferredComponentIds.length > 0) {
-          persistConfiguredComponentLibraryIds([
-            ...componentIds,
-            ...inferredComponentIds,
-          ]);
+        const nextComponentIds =
+          storedManagerState.length > 0 && inferredComponentIds.length > 0
+            ? normalizeExternalComponentLibraryIds([
+                ...componentIds,
+                ...inferredComponentIds,
+              ])
+            : componentIds;
+        const nextIconIds =
+          storedManagerState.length > 0 && inferredIconIds.length > 0
+            ? normalizeLibraryIds([...iconIds, ...inferredIconIds])
+            : iconIds;
+        if (!stringArraysEqual(nextComponentIds, componentIds)) {
+          persistConfiguredComponentLibraryIds(nextComponentIds);
         }
-        if (storedManagerState.length > 0 && inferredIconIds.length > 0) {
-          persistConfiguredIconLibraryIds([...iconIds, ...inferredIconIds]);
+        if (!stringArraysEqual(nextIconIds, iconIds)) {
+          persistConfiguredIconLibraryIds(nextIconIds);
         }
         setActiveLibraries(nextLibraries);
         hydrateNpmMetadata(mergedIds);
@@ -533,7 +642,7 @@ export function ExternalLibraryManager({
     return () => {
       disposed = true;
     };
-  }, [projectId]);
+  }, [externalResourceValue]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -549,29 +658,6 @@ export function ExternalLibraryManager({
         : (activeLibraries[0]?.id ?? null)
     );
   }, [activeLibraries]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      getManagerModeStorageKey(projectId),
-      globalMode
-    );
-  }, [globalMode, projectId]);
-
-  useEffect(() => {
-    if (isBootstrapping) return;
-    window.localStorage.setItem(
-      getManagerSizeThresholdsStorageKey(projectId),
-      JSON.stringify(packageSizeThresholds)
-    );
-  }, [isBootstrapping, packageSizeThresholds, projectId]);
-
-  useEffect(() => {
-    if (isBootstrapping) return;
-    window.localStorage.setItem(
-      getManagerMetadataStorageKey(projectId),
-      JSON.stringify(metadataCache)
-    );
-  }, [isBootstrapping, metadataCache, projectId]);
 
   useEffect(() => {
     if (isBootstrapping) return;
@@ -598,21 +684,6 @@ export function ExternalLibraryManager({
     if (isBootstrapping || activeLibraries.length === 0) return;
     hydrateNpmMetadata(activeLibraries.map((library) => library.id));
   }, [activeLibraries, isBootstrapping, metadataCache]);
-
-  useEffect(() => {
-    if (isBootstrapping) return;
-    window.localStorage.setItem(
-      getManagerStateStorageKey(projectId),
-      JSON.stringify(
-        activeLibraries.map((library) => ({
-          id: library.id,
-          scope: library.scope,
-          version: library.version,
-          status: library.status,
-        }))
-      )
-    );
-  }, [activeLibraries, isBootstrapping, projectId]);
 
   const filteredLibraries = useMemo(() => {
     if (!debouncedSearchInput) return activeLibraries;
@@ -667,7 +738,7 @@ export function ExternalLibraryManager({
         builtinLibraryCategories={builtinLibraryCategories}
         libraryCatalog={LIBRARY_CATALOG}
         onSearchInputChange={setSearchInput}
-        onModeChange={setGlobalMode}
+        onModeChange={changeMode}
         onBuiltinLibraryAdd={addLibrary}
       />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start">
@@ -680,15 +751,7 @@ export function ExternalLibraryManager({
           packageSizeThresholds={packageSizeThresholds}
           onSelectLibrary={setSelectedLibraryId}
           onOpenAddModal={() => setAddModalOpen(true)}
-          onRemoveLibrary={(libraryId) => {
-            const target = activeLibraries.find(
-              (item) => item.id === libraryId
-            );
-            if (target) syncScope(target.id, target.scope, 'remove');
-            setActiveLibraries((current) =>
-              current.filter((item) => item.id !== libraryId)
-            );
-          }}
+          onRemoveLibrary={removeLibrary}
           onRetryLibrary={triggerLoad}
           onVersionChange={triggerLoad}
         />

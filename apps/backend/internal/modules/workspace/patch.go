@@ -25,6 +25,9 @@ func applyWorkspaceDocumentPatch(documentType WorkspaceDocumentType, content jso
 	if documentType == WorkspaceDocumentTypeCode {
 		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceCodePatchPath)
 	}
+	if !isPIRWorkspaceDocumentType(documentType) {
+		return applyWorkspacePatchWithValidator(content, ops, validateGenericWorkspaceDocumentPatchPath)
+	}
 	return applyWorkspacePatch(content, ops)
 }
 
@@ -91,6 +94,17 @@ func validateWorkspaceCodePatchPath(path string) error {
 		}
 	}
 	return ErrWorkspacePatchPathForbidden
+}
+
+func validateGenericWorkspaceDocumentPatchPath(path string) error {
+	pointer, err := parseJSONPointer(path)
+	if err != nil {
+		return err
+	}
+	if len(pointer) == 0 {
+		return ErrWorkspacePatchPathForbidden
+	}
+	return nil
 }
 
 func applyWorkspacePatchOperation(document any, op WorkspacePatchOp, validatePath workspacePatchPathValidator) (any, error) {

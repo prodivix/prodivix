@@ -7,6 +7,7 @@ import {
 } from './codeResourceModel';
 
 const nowIso = () => new Date().toISOString();
+const CODE_RESOURCE_ROOT_FOLDERS = new Set(['scripts', 'styles', 'shaders']);
 
 export const normalizeCodeResourcePath = (path: string) =>
   path
@@ -53,55 +54,6 @@ const ensureFolder = (
   return folder;
 };
 
-export const buildCodeResourceTreeFromWorkspaceDocuments = (
-  documentsById: Record<string, WorkspaceDocumentRecord>
-): CodeResourceNode => {
-  const root = createCodeResourceFolderNode('code-root', 'code', 'code', null);
-  const foldersByPath = new Map<string, CodeResourceNode>([['code', root]]);
-  ['scripts', 'styles', 'shaders'].forEach((name) =>
-    ensureFolder(foldersByPath, 'code', name)
-  );
-
-  Object.values(documentsById)
-    .filter(
-      (document) =>
-        document.type === 'code' &&
-        isWorkspaceCodeDocumentContent(document.content)
-    )
-    .sort((left, right) => left.path.localeCompare(right.path))
-    .forEach((document) => {
-      if (!isWorkspaceCodeDocumentContent(document.content)) return;
-      const normalizedPath = normalizeCodeResourcePath(document.path);
-      const parts = normalizedPath.split('/').filter(Boolean);
-      if (!parts.length) return;
-      const fileName = parts.at(-1) ?? document.id;
-      const folderParts = parts.slice(0, -1);
-      let parentPath = 'code';
-      folderParts.forEach((part) => {
-        ensureFolder(foldersByPath, parentPath, part);
-        parentPath = `${parentPath}/${part}`;
-      });
-      const parent = foldersByPath.get(parentPath) ?? root;
-      const mime = inferMimeByCodeFileName(fileName);
-      parent.children?.push({
-        id: document.id,
-        name: fileName,
-        type: 'file',
-        parentId: parent.id,
-        path: `code/${normalizedPath}`,
-        source: 'workspace-document',
-        category: 'document',
-        mime,
-        size: new TextEncoder().encode(document.content.source).length,
-        textContent: document.content.source,
-        contentRef: `data:${mime};charset=utf-8,${encodeURIComponent(document.content.source)}`,
-        updatedAt: document.updatedAt,
-      });
-    });
-
-  return root;
-};
-
 const buildWorkspacePathByNodeId = (
   treeRootId: string | undefined,
   treeById: Record<string, WorkspaceVfsNode>
@@ -145,10 +97,15 @@ export const buildCodeResourceTreeFromWorkspaceVfs = (
 
   sortedNodes.forEach((node) => {
     if (node.parentId === null || node.kind !== 'dir') return;
+    const normalizedPath = normalizeCodeResourcePath(
+      pathsByNodeId.get(node.id) ?? node.name
+    );
+    const rootSegment = normalizedPath.split('/').filter(Boolean)[0];
+    if (!rootSegment || !CODE_RESOURCE_ROOT_FOLDERS.has(rootSegment)) return;
     const parent = node.parentId
       ? (nodesByWorkspaceNodeId.get(node.parentId) ?? root)
       : root;
-    const path = `code/${pathsByNodeId.get(node.id) ?? node.name}`;
+    const path = `code/${normalizedPath}`;
     const folder = createCodeResourceFolderNode(
       node.id,
       node.name,
@@ -163,10 +120,14 @@ export const buildCodeResourceTreeFromWorkspaceVfs = (
   sortedNodes.forEach((node) => {
     if (node.kind !== 'doc' || !node.docId) return;
     const document = documentsById[node.docId];
+    const normalizedPath = normalizeCodeResourcePath(document?.path ?? '');
+    const rootSegment = normalizedPath.split('/').filter(Boolean)[0];
     if (
       !document ||
       document.type !== 'code' ||
-      !isWorkspaceCodeDocumentContent(document.content)
+      !isWorkspaceCodeDocumentContent(document.content) ||
+      !rootSegment ||
+      !CODE_RESOURCE_ROOT_FOLDERS.has(rootSegment)
     ) {
       return;
     }
@@ -177,7 +138,6 @@ export const buildCodeResourceTreeFromWorkspaceVfs = (
       node.name ||
       document.path.split('/').filter(Boolean).at(-1) ||
       document.id;
-    const normalizedPath = normalizeCodeResourcePath(document.path);
     const mime = inferMimeByCodeFileName(fileName);
     parent.children?.push({
       id: document.id,
@@ -223,8 +183,10 @@ export const flattenCodeResourceFiles = (
 };
 
 export const buildCodeResourceFilesFromWorkspaceDocuments = (
-  documentsById: Record<string, WorkspaceDocumentRecord>
+  documentsById: Record<string, WorkspaceDocumentRecord>,
+  treeRootId?: string,
+  treeById: Record<string, WorkspaceVfsNode> = {}
 ) =>
   flattenCodeResourceFiles(
-    buildCodeResourceTreeFromWorkspaceDocuments(documentsById)
+    buildCodeResourceTreeFromWorkspaceVfs(documentsById, treeRootId, treeById)
   );

@@ -6,6 +6,8 @@ import { EditorView } from '@codemirror/view';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { Check, FileText, LayoutTemplate, Save } from 'lucide-react';
+import { editorApi } from '@/editor/editorApi';
+import { useAuthStore } from '@/auth/useAuthStore';
 import { EditorConfirmModal } from '@/editor/components/EditorConfirmModal';
 import { useEditorShortcut } from '@/editor/shortcuts';
 import { useEditorStore } from '@/editor/store/useEditorStore';
@@ -16,9 +18,7 @@ import {
   PROJECT_FILE_TEMPLATES,
   createProjectFileTemplateContent,
   flattenEnabledProjectFiles,
-  readProjectFiles,
   updateProjectFile,
-  writeProjectFiles,
   type ProjectFile,
   type ProjectFileTemplate,
   type ProjectFileTemplateId,
@@ -34,6 +34,18 @@ import {
   mergeLicenseEditableMetadata,
   normalizeLicenseForTemplateMatch,
 } from './licenseTemplateUtils';
+import {
+  buildProjectFilesFromWorkspace,
+  createProjectFileDocumentContent,
+} from './workspaceProjectFiles';
+import {
+  createWorkspaceResourceDocumentId,
+  createWorkspaceResourceDocumentRequest,
+  createWorkspaceResourceValuePatchRequest,
+  findWorkspaceDocumentByPath,
+  joinWorkspaceResourcePath,
+  RESOURCE_ROOTS,
+} from './workspaceResourceDocuments';
 
 type ProjectFileManagerProps = {
   embedded?: boolean;
@@ -82,14 +94,24 @@ export function ProjectFileManager({
 }: ProjectFileManagerProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
+  const token = useAuthStore((state) => state.token);
+  const workspaceId = useEditorStore((state) => state.workspaceId);
+  const workspaceRev = useEditorStore((state) => state.workspaceRev);
+  const workspaceDocumentsById = useEditorStore(
+    (state) => state.workspaceDocumentsById
+  );
+  const applyWorkspaceMutation = useEditorStore(
+    (state) => state.applyWorkspaceMutation
+  );
   const project = useEditorStore((state) =>
     projectId ? state.projectsById[projectId] : undefined
   );
-  const [files, setFiles] = useState<ProjectFile[]>(() =>
-    readProjectFiles(projectId)
+  const files = useMemo(
+    () => buildProjectFilesFromWorkspace(workspaceDocumentsById),
+    [workspaceDocumentsById]
   );
   const [selectedPath, setSelectedPath] = useState(() => {
-    const initialFiles = readProjectFiles(projectId);
+    const initialFiles = buildProjectFilesFromWorkspace({});
     const storedSelection =
       typeof window === 'undefined'
         ? null
@@ -166,9 +188,58 @@ export function ProjectFileManager({
   const canUseTemplatePicker =
     isEditingGitignore || fileTemplateOptions.length > 0;
 
-  const persistFiles = (nextFiles: ProjectFile[]) => {
-    setFiles(nextFiles);
-    writeProjectFiles(projectId, nextFiles);
+  const persistProjectFile = async (file: ProjectFile) => {
+    if (!token || !workspaceId || !workspaceRev) return;
+    const path = joinWorkspaceResourcePath(
+      RESOURCE_ROOTS.projectFiles,
+      file.path
+    );
+    const content = createProjectFileDocumentContent(file);
+    const existing = findWorkspaceDocumentByPath(
+      workspaceDocumentsById,
+      path,
+      'project-config'
+    );
+    if (existing) {
+      const request = createWorkspaceResourceValuePatchRequest({
+        workspaceId,
+        document: existing,
+        value: content.value,
+        label: `Update ${file.path}`,
+      });
+      if (!request) return;
+      const mutation = await editorApi.patchWorkspaceDocument(
+        token,
+        workspaceId,
+        existing.id,
+        request
+      );
+      applyWorkspaceMutation(mutation);
+      return;
+    }
+    const mutation = await editorApi.applyWorkspaceIntent(
+      token,
+      workspaceId,
+      createWorkspaceResourceDocumentRequest({
+        workspaceRev,
+        documentId: createWorkspaceResourceDocumentId('project_config', path),
+        path,
+        type: 'project-config',
+        content,
+      })
+    );
+    applyWorkspaceMutation(mutation);
+  };
+
+  const persistSelectedPatch = async (
+    patch: Partial<Pick<ProjectFile, 'content' | 'enabled' | 'templateId'>>
+  ) => {
+    if (!selectedFile) return;
+    const nextFile = updateProjectFile(files, selectedFile.path, patch).find(
+      (file) => file.path === selectedFile.path
+    );
+    if (!nextFile) return;
+    await persistProjectFile(nextFile);
   };
 
   useEffect(() => {
@@ -216,12 +287,10 @@ export function ProjectFileManager({
 
   const handleSave = () => {
     if (!selectedFile) return;
-    persistFiles(
-      updateProjectFile(files, selectedFile.path, {
-        content: editorValue,
-        templateId: selectedTemplateId,
-      })
-    );
+    void persistSelectedPatch({
+      content: editorValue,
+      templateId: selectedTemplateId,
+    });
     setIsTemplatePickerOpen(false);
   };
 
@@ -414,11 +483,9 @@ export function ProjectFileManager({
                         : 'border-black/12 bg-transparent text-(--text-secondary) hover:border-black/20'
                     }`}
                     onClick={() =>
-                      persistFiles(
-                        updateProjectFile(files, selectedFile.path, {
-                          enabled: !selectedFile.enabled,
-                        })
-                      )
+                      void persistSelectedPatch({
+                        enabled: !selectedFile.enabled,
+                      })
                     }
                   >
                     {selectedFile.enabled

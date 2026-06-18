@@ -107,10 +107,87 @@ func defaultWorkspaceVFSTree(rootID string) workspaceVFSTree {
 				Kind:     "dir",
 				Name:     "/",
 				ParentID: nil,
+				Children: []string{"dir_public", "dir_scripts", "dir_styles", "dir_shaders"},
+			},
+			"dir_public": {
+				ID:       "dir_public",
+				Kind:     "dir",
+				Name:     "public",
+				ParentID: makeTreeString(rootID),
+				Children: []string{"dir_public_images", "dir_public_fonts", "dir_public_icons"},
+			},
+			"dir_public_images": {
+				ID:       "dir_public_images",
+				Kind:     "dir",
+				Name:     "images",
+				ParentID: makeTreeString("dir_public"),
+				Children: []string{},
+			},
+			"dir_public_fonts": {
+				ID:       "dir_public_fonts",
+				Kind:     "dir",
+				Name:     "fonts",
+				ParentID: makeTreeString("dir_public"),
+				Children: []string{},
+			},
+			"dir_public_icons": {
+				ID:       "dir_public_icons",
+				Kind:     "dir",
+				Name:     "icons",
+				ParentID: makeTreeString("dir_public"),
+				Children: []string{},
+			},
+			"dir_scripts": {
+				ID:       "dir_scripts",
+				Kind:     "dir",
+				Name:     "scripts",
+				ParentID: makeTreeString(rootID),
+				Children: []string{},
+			},
+			"dir_styles": {
+				ID:       "dir_styles",
+				Kind:     "dir",
+				Name:     "styles",
+				ParentID: makeTreeString(rootID),
+				Children: []string{},
+			},
+			"dir_shaders": {
+				ID:       "dir_shaders",
+				Kind:     "dir",
+				Name:     "shaders",
+				ParentID: makeTreeString(rootID),
 				Children: []string{},
 			},
 		},
 	}
+}
+
+func defaultWorkspaceTreeJSON(rootID string) json.RawMessage {
+	tree := defaultWorkspaceVFSTree(rootID)
+	payload, err := tree.marshal()
+	if err != nil {
+		panic(err)
+	}
+	return payload
+}
+
+func defaultWorkspaceTreeWithRootDocumentJSON(rootID string) json.RawMessage {
+	tree := defaultWorkspaceVFSTree(rootID)
+	root := tree.TreeByID[tree.TreeRootID]
+	root.Children = append(root.Children, "doc_root_node")
+	tree.TreeByID[tree.TreeRootID] = root
+	tree.TreeByID["doc_root_node"] = workspaceVFSNode{
+		ID:       "doc_root_node",
+		Kind:     "doc",
+		Name:     "pir.json",
+		ParentID: makeTreeString(tree.TreeRootID),
+		DocID:    "doc_root",
+	}
+	payload, err := tree.marshal()
+	if err != nil {
+		panic(err)
+	}
+	return payload
 }
 
 func parseWorkspaceVFSTree(

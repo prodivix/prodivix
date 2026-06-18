@@ -30,7 +30,6 @@ import {
 } from '@/workspace';
 import {
   buildCodeResourceTreeFromWorkspaceVfs,
-  buildCodeResourceTreeFromWorkspaceDocuments,
   findCodeResourceNodeById,
   flattenCodeResourceFiles,
   normalizeCodeResourcePath,
@@ -120,13 +119,11 @@ export function CodeResourcePage({ embedded = false }: CodeResourcePageProps) {
   );
   const tree = useMemo(
     () =>
-      Object.keys(treeById).length
-        ? buildCodeResourceTreeFromWorkspaceVfs(
-            workspaceDocumentsById,
-            treeRootId,
-            treeById
-          )
-        : buildCodeResourceTreeFromWorkspaceDocuments(workspaceDocumentsById),
+      buildCodeResourceTreeFromWorkspaceVfs(
+        workspaceDocumentsById,
+        treeRootId,
+        treeById
+      ),
     [treeById, treeRootId, workspaceDocumentsById]
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string>('code-root');
@@ -325,9 +322,10 @@ export function CodeResourcePage({ embedded = false }: CodeResourcePageProps) {
     const requestedKind = resolveCodeKindByFolder(requestedFolder);
     if (!requestedKind || !requestedFolder) return;
     window.localStorage.removeItem(requestKey);
-    const parentId = `code/${requestedFolder}`;
+    const parentId =
+      findCodeResourceNodeById(tree, `dir_${requestedFolder}`)?.id ?? tree.id;
     void handleCreateCodeFile(parentId, requestedKind);
-  }, [canCreateCodeDocument, projectId]);
+  }, [canCreateCodeDocument, projectId, tree]);
 
   const handleRenameCodeFile = async (nodeId: string, nextName: string) => {
     if (!token || !workspaceId || typeof workspaceRev !== 'number') return;

@@ -55,6 +55,14 @@ export type WorkspaceCommandEnvelope = {
     documentId?: string;
   };
   mergeKey?: string;
+  label?: string;
+  domainHint?:
+    | 'pir'
+    | 'workspace'
+    | 'route'
+    | 'nodegraph'
+    | 'animation'
+    | 'code';
 };
 
 export type WorkspaceIntentEnvelope = {

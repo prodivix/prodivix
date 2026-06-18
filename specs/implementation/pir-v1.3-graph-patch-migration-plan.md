@@ -288,13 +288,7 @@ const canonical = buildCanonicalIRFromRoot(root, pirDoc, bag);
 - `apps/backend/internal/modules/workspace/handlers.go`
 - `specs/api/workspace-sync.openapi.yaml`
 
-必须删除或禁用旧整文档保存入口：
-
-```http
-PUT /api/workspaces/{workspaceId}/documents/{documentId}
-```
-
-策略：移除前端调用；后端删除路由，或在同一迁移批次中禁用并返回 `410 Gone` / `405 Method Not Allowed`。PIR v1.3 不允许整文档保存作为正常同步路径。
+旧整文档保存入口已删除，不再作为运行时同步路径。前端不再调用；后端不再注册路由和 handler。PIR v1.3 不允许整文档保存作为正常同步路径。
 
 保留/新增唯一写入口：
 
@@ -482,15 +476,12 @@ JSON Pointer 规则：
 
 ### 5.5 废弃整文档保存
 
-需要移除或禁用：
-
-- `SaveDocumentContent`
-- `SaveProjectPIR`
+已移除或禁用旧整文档保存路径。
 
 调整：
 
 1. 前端删除 `saveWorkspaceDocument` 的内容保存调用。
-2. 后端 `SaveDocumentContent` 不再作为 API 写入口；若内部测试仍需要初始化文档，改为专用 seed/create helper。
+2. 后端删除旧整文档保存 store 方法，内部测试不再依赖整文档保存 helper。
 3. 后端 `SaveProjectPIR` 不再接受编辑器 autosave 调用。
 4. 带整份 PIR 的保存请求返回结构化错误，提示使用 command PATCH。
 5. legacy project pir 读取时返回 retired single-PIR 结构化错误；不在运行态自动重建为默认 v1.3 文档。

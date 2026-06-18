@@ -660,12 +660,12 @@ GET /api/workspaces/:workspaceId/capabilities
 
 ---
 
-#### 保存工作区文档
+#### Patch 工作区文档
 
-保存工作区中的文档内容，支持乐观更新和冲突检测。
+使用 command patch 更新工作区中的文档内容，支持乐观更新、反向操作校验和冲突检测。
 
 ```http
-PUT /api/workspaces/:workspaceId/documents/:documentId
+PATCH /api/workspaces/:workspaceId/documents/:documentId
 ```
 
 **请求头**: 需要认证
@@ -675,27 +675,28 @@ PUT /api/workspaces/:workspaceId/documents/:documentId
 ```json
 {
   "expectedContentRev": 5,
-  "expectedWorkspaceRev": 1,
-  "expectedRouteRev": 1,
-  "content": { ... },
   "clientMutationId": "mutation_123",
   "command": {
     "id": "cmd_xxx",
     "namespace": "core.pir",
     "type": "document.update",
-    "version": "1.0"
+    "version": "1.0",
+    "issuedAt": "2026-06-16T08:00:00Z",
+    "target": {
+      "workspaceId": "ws_xxx",
+      "documentId": "doc_root"
+    },
+    "forwardOps": [{ "op": "replace", "path": "/title", "value": "Next" }],
+    "reverseOps": [{ "op": "replace", "path": "/title", "value": "Previous" }]
   }
 }
 ```
 
-| 字段                   | 类型   | 必填 | 描述               |
-| ---------------------- | ------ | ---- | ------------------ |
-| `expectedContentRev`   | number | 是   | 期望的内容版本号   |
-| `expectedWorkspaceRev` | number | 否   | 期望的工作区版本号 |
-| `expectedRouteRev`     | number | 否   | 期望的路由版本号   |
-| `content`              | object | 是   | PIR 文档内容       |
-| `clientMutationId`     | string | 否   | 客户端变更 ID      |
-| `command`              | object | 否   | 命令信封           |
+| 字段                 | 类型   | 必填 | 描述                                  |
+| -------------------- | ------ | ---- | ------------------------------------- |
+| `expectedContentRev` | number | 是   | 期望的内容版本号                      |
+| `clientMutationId`   | string | 否   | 客户端变更 ID                         |
+| `command`            | object | 是   | 包含 forwardOps/reverseOps 的命令信封 |
 
 **成功响应** (200 OK):
 

@@ -11,6 +11,20 @@ import (
 )
 
 func (store *WorkspaceStore) CreateCodeDocument(ctx context.Context, params CreateCodeDocumentMutationParams) (*WorkspaceMutationResult, error) {
+	return store.CreateWorkspaceDocument(ctx, CreateWorkspaceDocumentMutationParams{
+		WorkspaceID:          params.WorkspaceID,
+		ExpectedWorkspaceRev: params.ExpectedWorkspaceRev,
+		DocumentID:           params.DocumentID,
+		NodeID:               params.NodeID,
+		ParentNodeID:         params.ParentNodeID,
+		Path:                 params.Path,
+		Type:                 WorkspaceDocumentTypeCode,
+		Content:              params.Content,
+		Command:              params.Command,
+	})
+}
+
+func (store *WorkspaceStore) CreateWorkspaceDocument(ctx context.Context, params CreateWorkspaceDocumentMutationParams) (*WorkspaceMutationResult, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("workspace store is not initialized")
 	}
@@ -18,6 +32,9 @@ func (store *WorkspaceStore) CreateCodeDocument(ctx context.Context, params Crea
 	params.DocumentID = strings.TrimSpace(params.DocumentID)
 	params.NodeID = strings.TrimSpace(params.NodeID)
 	params.ParentNodeID = strings.TrimSpace(params.ParentNodeID)
+	if !isValidWorkspaceDocumentType(params.Type) {
+		return nil, ErrInvalidWorkspaceDocumentType
+	}
 	if params.WorkspaceID == "" || params.DocumentID == "" {
 		return nil, errors.New("workspaceID and documentID are required")
 	}
@@ -28,7 +45,7 @@ func (store *WorkspaceStore) CreateCodeDocument(ctx context.Context, params Crea
 	if err != nil {
 		return nil, err
 	}
-	contentJSON, err := normalizeWorkspaceDocumentContent(WorkspaceDocumentTypeCode, params.Content)
+	contentJSON, err := normalizeWorkspaceDocumentContent(params.Type, params.Content)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +181,7 @@ RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content
 		insertDocument,
 		params.WorkspaceID,
 		params.DocumentID,
-		string(WorkspaceDocumentTypeCode),
+		string(params.Type),
 		documentName,
 		documentPath,
 		string(contentJSON),

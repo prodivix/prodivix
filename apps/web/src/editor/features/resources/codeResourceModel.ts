@@ -1,7 +1,8 @@
 import type { PublicResourceNode } from './publicTree';
 
-export type CodeResourceNode = PublicResourceNode & {
+export type CodeResourceNode = Omit<PublicResourceNode, 'children'> & {
   source?: 'workspace-vfs' | 'workspace-document';
+  children?: CodeResourceNode[];
 };
 
 export type CodeFileKind =

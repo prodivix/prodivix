@@ -7,21 +7,19 @@ import {
   LayoutDashboard,
   Library,
 } from 'lucide-react';
-import {
-  collectBestPracticeHints,
-  flattenPublicFiles,
-  readPublicTree,
-} from './publicTree';
-import { collectLocaleMissingStats, readI18nStore } from './i18nStore';
-import {
-  flattenEnabledProjectFiles,
-  readProjectFiles,
-} from './projectFileStore';
+import { collectBestPracticeHints, flattenPublicFiles } from './publicTree';
+import { collectLocaleMissingStats } from './i18nStore';
+import { flattenEnabledProjectFiles } from './projectFileStore';
 import type { WorkspaceDocumentRecord } from '@/editor/editorApi';
+import type { WorkspaceVfsNode } from '@/editor/store/editorStore.types';
 import {
   buildCodeResourceFilesFromWorkspaceDocuments,
-  buildCodeResourceTreeFromWorkspaceDocuments,
+  buildCodeResourceTreeFromWorkspaceVfs,
 } from './workspaceCodeResources';
+import { buildPublicResourceTreeFromWorkspace } from './workspacePublicResources';
+import { buildProjectFilesFromWorkspace } from './workspaceProjectFiles';
+import { buildI18nResourceValueFromWorkspace } from './workspaceI18nResources';
+import { buildExternalLibrariesValueFromWorkspace } from './workspaceExternalLibraries';
 
 export type SectionId =
   | 'overview'
@@ -47,23 +45,6 @@ export const sectionMetas: SectionMeta[] = [
 
 export const getResourceManagerViewStorageKey = (projectId?: string) =>
   `prodivix.resourceManager.view.${projectId?.trim() || 'default'}`;
-
-const getResourceManagerExternalSelectionStorageKey = (projectId?: string) =>
-  `prodivix.resourceManager.external.selection.${projectId?.trim() || 'default'}`;
-
-const getResourceManagerIconSelectionStorageKey = (projectId?: string) =>
-  `prodivix.resourceManager.icon.selection.${projectId?.trim() || 'default'}`;
-
-const parseStoredStringArray = (raw: string | null) => {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === 'string');
-  } catch {
-    return [];
-  }
-};
 
 export const resolveLatestUpdatedAt = (values: Array<string | undefined>) => {
   let latest: string | null = null;
@@ -121,9 +102,16 @@ export type OverviewSnapshot = {
 
 export const buildOverviewSnapshot = (
   projectId?: string,
-  workspaceDocumentsById: Record<string, WorkspaceDocumentRecord> = {}
+  workspaceDocumentsById: Record<string, WorkspaceDocumentRecord> = {},
+  treeRootId?: string,
+  treeById: Record<string, WorkspaceVfsNode> = {}
 ): OverviewSnapshot => {
-  const publicTree = readPublicTree(projectId);
+  void projectId;
+  const publicTree = buildPublicResourceTreeFromWorkspace(
+    workspaceDocumentsById,
+    treeRootId,
+    treeById
+  );
   const publicFiles = flattenPublicFiles(publicTree);
   const publicHints = publicFiles.reduce(
     (acc, file) => {
@@ -135,11 +123,15 @@ export const buildOverviewSnapshot = (
     { warnings: 0, infos: 0 }
   );
 
-  const codeTree = buildCodeResourceTreeFromWorkspaceDocuments(
-    workspaceDocumentsById
+  const codeTree = buildCodeResourceTreeFromWorkspaceVfs(
+    workspaceDocumentsById,
+    treeRootId,
+    treeById
   );
   const codeFiles = buildCodeResourceFilesFromWorkspaceDocuments(
-    workspaceDocumentsById
+    workspaceDocumentsById,
+    treeRootId,
+    treeById
   );
   const codeCounts = codeFiles.reduce(
     (acc, file) => {
@@ -152,7 +144,9 @@ export const buildOverviewSnapshot = (
     { scripts: 0, styles: 0, shaders: 0 }
   );
 
-  const i18nStore = readI18nStore(projectId);
+  const i18nStore = buildI18nResourceValueFromWorkspace(
+    workspaceDocumentsById
+  ).store;
   const i18nLocales = Object.keys(i18nStore);
   const baseLocale = i18nStore.en ? 'en' : (i18nLocales[0] ?? 'en');
   const namespaceSet = new Set<string>();
@@ -187,21 +181,10 @@ export const buildOverviewSnapshot = (
       null
     );
 
-  const externalComponentIds = parseStoredStringArray(
-    typeof window === 'undefined'
-      ? null
-      : window.localStorage.getItem(
-          getResourceManagerExternalSelectionStorageKey(projectId)
-        )
+  const externalLibraries = buildExternalLibrariesValueFromWorkspace(
+    workspaceDocumentsById
   );
-  const externalIconIds = parseStoredStringArray(
-    typeof window === 'undefined'
-      ? null
-      : window.localStorage.getItem(
-          getResourceManagerIconSelectionStorageKey(projectId)
-        )
-  );
-  const projectFiles = readProjectFiles(projectId);
+  const projectFiles = buildProjectFilesFromWorkspace(workspaceDocumentsById);
   const enabledProjectFiles = flattenEnabledProjectFiles(projectFiles);
 
   return {
@@ -233,8 +216,8 @@ export const buildOverviewSnapshot = (
       worstLocale,
     },
     external: {
-      componentLibraries: externalComponentIds.length,
-      iconLibraries: externalIconIds.length,
+      componentLibraries: externalLibraries.componentLibraryIds.length,
+      iconLibraries: externalLibraries.iconLibraryIds.length,
     },
     projectFiles: {
       files: projectFiles.length,

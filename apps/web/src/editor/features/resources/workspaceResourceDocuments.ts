@@ -1,0 +1,269 @@
+import type {
+  PatchWorkspaceDocumentRequest,
+  WorkspaceDocumentRecord,
+} from '@/editor/editorApi';
+import type { WorkspaceVfsNode } from '@/editor/store/editorStore.types';
+import {
+  createWorkspaceDocumentIntentRequest,
+  deleteWorkspaceDocumentIntentRequest,
+  renameWorkspaceDocumentIntentRequest,
+  type StableWorkspaceDocumentType,
+} from '@/workspace';
+
+export const RESOURCE_ROOTS = {
+  public: '/public',
+  projectFiles: '/project',
+  i18n: '/i18n/store.json',
+  external: '/config/external-libraries.json',
+} as const;
+
+export type WorkspaceAssetContent = {
+  kind: 'asset';
+  mime: string;
+  category?: string;
+  size?: number;
+  dataUrl?: string;
+  text?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type WorkspaceConfigContent<TValue> = {
+  kind: 'config';
+  value: TValue;
+  metadata?: Record<string, unknown>;
+};
+
+export const createResourceIntentId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `intent-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
+export const createWorkspaceResourceDocumentId = (
+  prefix: string,
+  path: string
+) =>
+  `${prefix}_${path
+    .trim()
+    .replace(/^\/+/, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')}`;
+
+export const createWorkspaceResourceNodeId = (prefix: string, path: string) =>
+  `${prefix}_dir_${path
+    .trim()
+    .replace(/^\/+/, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')}`;
+
+export const getWorkspaceNodePath = (
+  treeRootId: string | undefined,
+  treeById: Record<string, WorkspaceVfsNode>,
+  nodeId: string
+): string | null => {
+  const node = treeById[nodeId];
+  if (!node) return null;
+  const segments: string[] = [];
+  let current: WorkspaceVfsNode | undefined = node;
+  while (current && current.parentId !== null) {
+    segments.unshift(current.name);
+    current = treeById[current.parentId];
+  }
+  if (!treeRootId || !treeById[treeRootId]) return null;
+  return `/${segments.join('/')}`;
+};
+
+export const findWorkspaceNodeByPath = (
+  treeRootId: string | undefined,
+  treeById: Record<string, WorkspaceVfsNode>,
+  path: string
+) => {
+  const normalizedPath = normalizeWorkspaceResourcePath(path);
+  return Object.values(treeById).find(
+    (node) =>
+      normalizeWorkspaceResourcePath(
+        getWorkspaceNodePath(treeRootId, treeById, node.id) ?? ''
+      ) === normalizedPath
+  );
+};
+
+export const normalizeWorkspaceResourcePath = (path: string) =>
+  `/${path.trim().replace(/^\/+/, '').replace(/\/+/g, '/')}`.replace(/\/$/, '');
+
+export const joinWorkspaceResourcePath = (...parts: string[]) =>
+  normalizeWorkspaceResourcePath(parts.join('/'));
+
+export const listWorkspaceDocumentsByPrefix = (
+  documentsById: Record<string, WorkspaceDocumentRecord>,
+  prefix: string,
+  type?: StableWorkspaceDocumentType
+) => {
+  const normalizedPrefix = normalizeWorkspaceResourcePath(prefix);
+  return Object.values(documentsById)
+    .filter((document) => {
+      if (type && document.type !== type) return false;
+      const normalizedPath = normalizeWorkspaceResourcePath(document.path);
+      return (
+        normalizedPath === normalizedPrefix ||
+        normalizedPath.startsWith(`${normalizedPrefix}/`)
+      );
+    })
+    .sort((left, right) => left.path.localeCompare(right.path));
+};
+
+export const findWorkspaceDocumentByPath = (
+  documentsById: Record<string, WorkspaceDocumentRecord>,
+  path: string,
+  type?: StableWorkspaceDocumentType
+) => {
+  const normalizedPath = normalizeWorkspaceResourcePath(path);
+  return Object.values(documentsById).find(
+    (document) =>
+      (!type || document.type === type) &&
+      normalizeWorkspaceResourcePath(document.path) === normalizedPath
+  );
+};
+
+export const isWorkspaceAssetContent = (
+  value: unknown
+): value is WorkspaceAssetContent => {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return record.kind === 'asset' && typeof record.mime === 'string';
+};
+
+export const isWorkspaceConfigContent = <TValue>(
+  value: unknown
+): value is WorkspaceConfigContent<TValue> => {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return record.kind === 'config' && 'value' in record;
+};
+
+export const createWorkspaceConfigDocumentContent = <TValue>(
+  value: TValue,
+  metadata?: Record<string, unknown>
+): WorkspaceConfigContent<TValue> => ({
+  kind: 'config',
+  value,
+  ...(metadata ? { metadata } : {}),
+});
+
+export const getWorkspaceConfigDocumentValue = <TValue>(
+  documentsById: Record<string, WorkspaceDocumentRecord>,
+  path: string,
+  fallback: TValue
+): TValue => {
+  const document = findWorkspaceDocumentByPath(
+    documentsById,
+    path,
+    'project-config'
+  );
+  if (!document || !isWorkspaceConfigContent<TValue>(document.content)) {
+    return fallback;
+  }
+  return document.content.value;
+};
+
+export const createWorkspaceResourceDocumentRequest = ({
+  workspaceRev,
+  documentId,
+  nodeId,
+  parentNodeId,
+  path,
+  type,
+  content,
+}: {
+  workspaceRev: number;
+  documentId: string;
+  nodeId?: string;
+  parentNodeId?: string;
+  path: string;
+  type: StableWorkspaceDocumentType;
+  content: unknown;
+}) =>
+  createWorkspaceDocumentIntentRequest({
+    workspaceRev,
+    intentId: createResourceIntentId(),
+    issuedAt: new Date().toISOString(),
+    documentId,
+    nodeId,
+    parentNodeId,
+    path,
+    type,
+    content,
+  });
+
+export const renameWorkspaceResourceDocumentRequest = ({
+  workspaceRev,
+  documentId,
+  path,
+  type,
+}: {
+  workspaceRev: number;
+  documentId: string;
+  path: string;
+  type: StableWorkspaceDocumentType;
+}) =>
+  renameWorkspaceDocumentIntentRequest({
+    workspaceRev,
+    intentId: createResourceIntentId(),
+    issuedAt: new Date().toISOString(),
+    documentId,
+    path,
+    type,
+  });
+
+export const deleteWorkspaceResourceDocumentRequest = ({
+  workspaceRev,
+  documentId,
+  type,
+}: {
+  workspaceRev: number;
+  documentId: string;
+  type: StableWorkspaceDocumentType;
+}) =>
+  deleteWorkspaceDocumentIntentRequest({
+    workspaceRev,
+    intentId: createResourceIntentId(),
+    issuedAt: new Date().toISOString(),
+    documentId,
+    type,
+  });
+
+export const createWorkspaceResourceValuePatchRequest = <TValue>({
+  workspaceId,
+  document,
+  value,
+  label,
+}: {
+  workspaceId: string;
+  document: WorkspaceDocumentRecord;
+  value: TValue;
+  label?: string;
+}): PatchWorkspaceDocumentRequest | null => {
+  if (!isWorkspaceConfigContent<TValue>(document.content)) return null;
+  const issuedAt = new Date().toISOString();
+  return {
+    expectedContentRev: document.contentRev,
+    command: {
+      id: createResourceIntentId(),
+      namespace: 'core.workspace',
+      type: 'document.patch',
+      version: '1.0',
+      issuedAt,
+      target: {
+        workspaceId,
+        documentId: document.id,
+      },
+      domainHint: 'workspace',
+      ...(label ? { label } : {}),
+      forwardOps: [{ op: 'replace', path: '/value', value }],
+      reverseOps: [
+        { op: 'replace', path: '/value', value: document.content.value },
+      ],
+    },
+    clientMutationId: createResourceIntentId(),
+  };
+};

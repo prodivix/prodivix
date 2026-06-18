@@ -7,6 +7,7 @@ import type {
   WorkspaceVfsNodeId,
   WorkspaceValidationIssue,
   WorkspaceCodeDocumentContent,
+  StableWorkspaceDocumentType,
 } from './types';
 import { validateStableWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isPirDocumentContent } from './workspaceSelectors';
@@ -114,6 +115,38 @@ export type DeleteWorkspaceCodeDocumentIntentInput = {
   clientMutationId?: string;
 };
 
+export type CreateWorkspaceDocumentIntentInput = {
+  workspaceRev: number;
+  intentId: string;
+  issuedAt: string;
+  documentId: WorkspaceDocumentId;
+  nodeId?: WorkspaceVfsNodeId;
+  parentNodeId?: WorkspaceVfsNodeId;
+  path: string;
+  type: StableWorkspaceDocumentType;
+  content: unknown;
+  clientMutationId?: string;
+};
+
+export type RenameWorkspaceDocumentIntentInput = {
+  workspaceRev: number;
+  intentId: string;
+  issuedAt: string;
+  documentId: WorkspaceDocumentId;
+  path: string;
+  type: StableWorkspaceDocumentType;
+  clientMutationId?: string;
+};
+
+export type DeleteWorkspaceDocumentIntentInput = {
+  workspaceRev: number;
+  intentId: string;
+  issuedAt: string;
+  documentId: WorkspaceDocumentId;
+  type: StableWorkspaceDocumentType;
+  clientMutationId?: string;
+};
+
 export type CreateWorkspaceDirectoryIntentInput = {
   workspaceRev: number;
   intentId: string;
@@ -185,6 +218,59 @@ export type WorkspaceCodeDocumentDeleteIntentRequest = {
     version: '1.0';
     payload: {
       documentId: WorkspaceDocumentId;
+    };
+    issuedAt: string;
+  };
+  clientMutationId?: string;
+};
+
+export type WorkspaceDocumentCreateIntentRequest = {
+  expectedWorkspaceRev: number;
+  intent: {
+    id: string;
+    namespace: 'core.workspace';
+    type: 'document.create';
+    version: '1.0';
+    payload: {
+      documentId: WorkspaceDocumentId;
+      nodeId?: WorkspaceVfsNodeId;
+      parentNodeId?: WorkspaceVfsNodeId;
+      path: string;
+      type: StableWorkspaceDocumentType;
+      content: unknown;
+    };
+    issuedAt: string;
+  };
+  clientMutationId?: string;
+};
+
+export type WorkspaceDocumentRenameIntentRequest = {
+  expectedWorkspaceRev: number;
+  intent: {
+    id: string;
+    namespace: 'core.workspace';
+    type: 'document.rename';
+    version: '1.0';
+    payload: {
+      documentId: WorkspaceDocumentId;
+      path: string;
+      type: StableWorkspaceDocumentType;
+    };
+    issuedAt: string;
+  };
+  clientMutationId?: string;
+};
+
+export type WorkspaceDocumentDeleteIntentRequest = {
+  expectedWorkspaceRev: number;
+  intent: {
+    id: string;
+    namespace: 'core.workspace';
+    type: 'document.delete';
+    version: '1.0';
+    payload: {
+      documentId: WorkspaceDocumentId;
+      type: StableWorkspaceDocumentType;
     };
     issuedAt: string;
   };
@@ -796,6 +882,85 @@ export const deleteWorkspaceCodeDocumentIntentRequest = ({
     version: '1.0',
     payload: {
       documentId,
+    },
+    issuedAt,
+  },
+  ...(clientMutationId ? { clientMutationId } : {}),
+});
+
+export const createWorkspaceDocumentIntentRequest = ({
+  workspaceRev,
+  intentId,
+  issuedAt,
+  documentId,
+  nodeId,
+  parentNodeId,
+  path,
+  type,
+  content,
+  clientMutationId,
+}: CreateWorkspaceDocumentIntentInput): WorkspaceDocumentCreateIntentRequest => ({
+  expectedWorkspaceRev: workspaceRev,
+  intent: {
+    id: intentId,
+    namespace: 'core.workspace',
+    type: 'document.create',
+    version: '1.0',
+    payload: {
+      documentId,
+      ...(nodeId ? { nodeId } : {}),
+      ...(parentNodeId ? { parentNodeId } : {}),
+      path,
+      type,
+      content,
+    },
+    issuedAt,
+  },
+  ...(clientMutationId ? { clientMutationId } : {}),
+});
+
+export const renameWorkspaceDocumentIntentRequest = ({
+  workspaceRev,
+  intentId,
+  issuedAt,
+  documentId,
+  path,
+  type,
+  clientMutationId,
+}: RenameWorkspaceDocumentIntentInput): WorkspaceDocumentRenameIntentRequest => ({
+  expectedWorkspaceRev: workspaceRev,
+  intent: {
+    id: intentId,
+    namespace: 'core.workspace',
+    type: 'document.rename',
+    version: '1.0',
+    payload: {
+      documentId,
+      path,
+      type,
+    },
+    issuedAt,
+  },
+  ...(clientMutationId ? { clientMutationId } : {}),
+});
+
+export const deleteWorkspaceDocumentIntentRequest = ({
+  workspaceRev,
+  intentId,
+  issuedAt,
+  documentId,
+  type,
+  clientMutationId,
+}: DeleteWorkspaceDocumentIntentInput): WorkspaceDocumentDeleteIntentRequest => ({
+  expectedWorkspaceRev: workspaceRev,
+  intent: {
+    id: intentId,
+    namespace: 'core.workspace',
+    type: 'document.delete',
+    version: '1.0',
+    payload: {
+      documentId,
+      type,
     },
     issuedAt,
   },

@@ -42,7 +42,7 @@
 1. `CreateWorkspace`：初始化 workspace + route manifest
 2. `CreateDocument`：创建文档记录（`contentRev/metaRev` 初始为 1）
 3. `GetSnapshot`：读取 workspace + route + documents 快照
-4. `SaveDocumentContent`：仅提升文档 `contentRev`，并提升 `opSeq`
+4. 历史整文档保存方法：仅提升文档 `contentRev`，并提升 `opSeq`；后续已由 command patch 写入路径取代并删除。
 5. `SaveRouteManifest`：结构事务提升 `workspaceRev/routeRev/opSeq`
 
 并发错误模型：
@@ -58,8 +58,8 @@
 
 覆盖方式：
 
-1. 单测 `TestWorkspaceStoreSaveDocumentContentKeepsWorkspaceAndRouteRev`
-2. 断言 `SaveDocumentContent` 后 `workspaceRev/routeRev` 保持不变，仅 `contentRev/opSeq` 变化
+1. 历史单测覆盖整文档保存时的分区 rev 行为。
+2. 当时断言整文档保存后 `workspaceRev/routeRev` 保持不变，仅 `contentRev/opSeq` 变化；当前实现已迁移到 `PatchDocumentContent`。
 
 ## 测试记录
 

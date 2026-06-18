@@ -1,9 +1,6 @@
 export type I18nNamespaceMap = Record<string, Record<string, string>>;
 export type I18nLocaleStore = Record<string, I18nNamespaceMap>;
 
-const getI18nStoreStorageKey = (projectId?: string) =>
-  `prodivix.i18nStore.${projectId?.trim() || 'default'}`;
-
 const normalizeRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
@@ -45,28 +42,6 @@ export const normalizeI18nStore = (input: unknown): I18nLocaleStore => {
   const normalized = Object.fromEntries(localeEntries);
   if (Object.keys(normalized).length > 0) return normalized;
   return createDefaultI18nStore();
-};
-
-export const readI18nStore = (projectId?: string): I18nLocaleStore => {
-  if (typeof window === 'undefined') return createDefaultI18nStore();
-  try {
-    const raw = window.localStorage.getItem(getI18nStoreStorageKey(projectId));
-    if (!raw) return createDefaultI18nStore();
-    return normalizeI18nStore(JSON.parse(raw));
-  } catch {
-    return createDefaultI18nStore();
-  }
-};
-
-export const writeI18nStore = (
-  projectId: string | undefined,
-  store: I18nLocaleStore
-) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(
-    getI18nStoreStorageKey(projectId),
-    JSON.stringify(normalizeI18nStore(store))
-  );
 };
 
 export const collectLocaleMissingStats = (

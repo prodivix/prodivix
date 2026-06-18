@@ -11,14 +11,10 @@ import {
   type StableWorkspaceSnapshot,
   type WorkspaceProjectionIssue,
 } from '@/workspace';
-import {
-  flattenPublicFiles,
-  readPublicTree,
-} from '@/editor/features/resources/publicTree';
-import {
-  flattenEnabledProjectFiles,
-  readProjectFiles,
-} from '@/editor/features/resources/projectFileStore';
+import { flattenPublicFiles } from '@/editor/features/resources/publicTree';
+import { flattenEnabledProjectFiles } from '@/editor/features/resources/projectFileStore';
+import { buildPublicResourceTreeFromWorkspace } from '@/editor/features/resources/workspacePublicResources';
+import { buildProjectFilesFromWorkspace } from '@/editor/features/resources/workspaceProjectFiles';
 import { ExportCodeHeader } from './ExportCodeHeader';
 import { ExportCodePreview } from './ExportCodePreview';
 import { ExportFileTree } from './ExportFileTree';
@@ -137,15 +133,25 @@ export function ExportCode() {
     t,
   ]);
 
-  const publicTree = useMemo(() => readPublicTree(projectId), [projectId]);
+  const publicTree = useMemo(
+    () =>
+      buildPublicResourceTreeFromWorkspace(
+        workspaceDocumentsById,
+        treeRootId,
+        treeById
+      ),
+    [treeById, treeRootId, workspaceDocumentsById]
+  );
   const projectFileExportFiles = useMemo<ExportCodeFile[]>(
     () =>
-      flattenEnabledProjectFiles(readProjectFiles(projectId)).map((file) => ({
+      flattenEnabledProjectFiles(
+        buildProjectFilesFromWorkspace(workspaceDocumentsById)
+      ).map((file) => ({
         path: file.path,
         language: resolveProjectFileLanguage(file.path),
         content: file.content,
       })),
-    [projectId]
+    [workspaceDocumentsById]
   );
   const publicExportFiles = useMemo<ExportCodeFile[]>(
     () =>
