@@ -1,102 +1,218 @@
-/* eslint-disable */
-/**
- * Generated from PIR Schema v1.0
- * DO NOT EDIT - Run `pnpm run generate-types` to regenerate
- */
+export type {
+  DataRef as DataReference,
+  IndexRef as IndexReference,
+  ItemRef as ItemReference,
+  NodeId,
+  ParamRef as ParamReference,
+  PropDef,
+  StateDef,
+  StateRef as StateReference,
+} from './pir.generated.js';
 
-export interface PIRDocumentV10 {
-  version: string;
+export { CURRENT_PIR_VERSION } from './pir.generated.js';
+
+import type {
+  DataRef as DataReference,
+  IndexRef as IndexReference,
+  ItemRef as ItemReference,
+  NodeId,
+  PIRDocument as GeneratedPIRDocument,
+  ParamRef as ParamReference,
+  StateRef as StateReference,
+} from './pir.generated.js';
+
+export type PIRVersion = GeneratedPIRDocument['version'];
+
+export type ScopeSourceReference =
+  | ParamReference
+  | StateReference
+  | DataReference
+  | ItemReference;
+
+export type ValueOrRef =
+  | unknown
+  | ParamReference
+  | StateReference
+  | DataReference
+  | ItemReference
+  | IndexReference;
+
+export type NodeDataScope = {
+  source?: ScopeSourceReference;
+  pick?: string;
+  value?: ValueOrRef;
+  mock?: ValueOrRef;
+  extend?: Record<string, ValueOrRef>;
+};
+
+export type NodeListRender = {
+  source?: ScopeSourceReference;
+  arrayField?: string;
+  itemAs?: string;
+  indexAs?: string;
+  keyBy?: string;
+  emptyNodeId?: string;
+};
+
+export type EventBinding = {
+  trigger: string;
+  action?: string;
+  params?: Record<string, ValueOrRef>;
+};
+
+export interface ComponentNode {
+  id: string;
+  type: string;
+  text?: ValueOrRef;
+  style?: Record<string, ValueOrRef>;
+  props?: Record<string, ValueOrRef>;
+  data?: NodeDataScope;
+  list?: NodeListRender;
+  children?: ComponentNode[];
+  events?: Record<string, EventBinding>;
+}
+
+export type ComponentNodeData = Omit<ComponentNode, 'children'>;
+
+export type UiGraph = {
+  version: 1;
+  rootId: NodeId;
+  nodesById: Record<NodeId, ComponentNodeData>;
+  childIdsById: Record<NodeId, NodeId[]>;
+  regionsById?: Record<NodeId, Record<string, NodeId[]>>;
+  order?: {
+    strategy: 'childIdsById';
+  };
+};
+
+export type AnimationIterations = number | 'infinite';
+
+export type AnimationKeyframe = {
+  atMs: number;
+  value: number | string;
+  easing?: string;
+  hold?: boolean;
+};
+
+export type AnimationTrack =
+  | {
+      id: string;
+      kind: 'style';
+      property:
+        | 'opacity'
+        | 'transform.translateX'
+        | 'transform.translateY'
+        | 'transform.scale'
+        | 'color';
+      keyframes: AnimationKeyframe[];
+    }
+  | {
+      id: string;
+      kind: 'css-filter';
+      fn:
+        | 'blur'
+        | 'brightness'
+        | 'contrast'
+        | 'grayscale'
+        | 'hue-rotate'
+        | 'invert'
+        | 'saturate'
+        | 'sepia';
+      unit?: 'px' | '%' | 'deg';
+      keyframes: AnimationKeyframe[];
+    }
+  | {
+      id: string;
+      kind: 'svg-filter-attr';
+      filterId: string;
+      primitiveId: string;
+      attr: string;
+      keyframes: AnimationKeyframe[];
+    };
+
+export type AnimationBinding = {
+  id: string;
+  targetNodeId: string;
+  tracks: AnimationTrack[];
+};
+
+export type SvgFilterDefinition = {
+  id: string;
+  units?: 'objectBoundingBox' | 'userSpaceOnUse';
+  primitives: Array<{
+    id: string;
+    type:
+      | 'feGaussianBlur'
+      | 'feColorMatrix'
+      | 'feComponentTransfer'
+      | 'feOffset'
+      | 'feBlend'
+      | 'feMerge';
+    in?: string;
+    in2?: string;
+    result?: string;
+    attrs?: Record<string, number | string>;
+  }>;
+};
+
+export type AnimationTimeline = {
+  id: string;
+  name: string;
+  durationMs: number;
+  delayMs?: number;
+  iterations?: AnimationIterations;
+  direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+  fillMode?: 'none' | 'forwards' | 'backwards' | 'both';
+  easing?: string;
+  bindings: AnimationBinding[];
+};
+
+export type AnimationEditorState = {
+  version: 1;
+  activeTimelineId?: string;
+  cursorMs?: number;
+  zoom?: number;
+  expandedTrackIds?: string[];
+};
+
+export interface AnimationDefinition {
+  version: 1;
+  timelines: AnimationTimeline[];
+  svgFilters?: SvgFilterDefinition[];
+  'x-animationEditor'?: AnimationEditorState;
+}
+
+export interface LogicDefinition {
+  props?: Record<
+    string,
+    {
+      type: 'string' | 'number' | 'boolean' | 'object' | 'array' | string;
+      description?: string;
+      default?: unknown;
+    }
+  >;
+  state?: Record<
+    string,
+    {
+      type?: string;
+      initial: unknown;
+    }
+  >;
+  graphs?: unknown[];
+}
+
+export interface PIRDocument {
+  version: PIRVersion;
   metadata?: {
     name?: string;
     description?: string;
-    tags?: string[];
-    [k: string]: unknown;
+    author?: string;
+    createdAt?: string;
+    updatedAt?: string;
   };
   ui: {
-    root: ComponentNode;
+    graph: UiGraph;
   };
-  logic?: {
-    graphs?: {
-      [k: string]: NodeGraph;
-    };
-    state?: {
-      [k: string]: StateDef;
-    };
-  };
-}
-export interface ComponentNode {
-  id?: string;
-  type: string;
-  text?: string;
-  style?: {
-    [k: string]: unknown;
-  };
-  props?: {
-    [k: string]: unknown;
-  };
-  children?: ComponentNode[];
-  events?: {
-    [k: string]: EventBinding;
-  };
-  binding?: DataBinding;
-  resources?: {
-    [k: string]: Resource;
-  };
-  _comment?: string;
-}
-export interface EventBinding {
-  target: string;
-  payload?: {
-    [k: string]: unknown;
-  };
-  debounce?: number;
-  preventDefault?: boolean;
-}
-export interface DataBinding {
-  path: string;
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
-}
-export interface Resource {
-  type: 'file' | 'url' | 'inline';
-  value: string;
-  mimeType?: string;
-}
-export interface NodeGraph {
-  id: string;
-  name?: string;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-}
-export interface GraphNode {
-  id: string;
-  type: string;
-  inputs?: {
-    [k: string]: unknown;
-  }[];
-  outputs?: {
-    [k: string]: unknown;
-  }[];
-  config?: {
-    [k: string]: unknown;
-  };
-}
-export interface GraphEdge {
-  id: string;
-  source: {
-    nodeId: string;
-    port: string;
-    [k: string]: unknown;
-  };
-  target: {
-    nodeId: string;
-    port: string;
-    [k: string]: unknown;
-  };
-}
-export interface StateDef {
-  type: 'local' | 'global' | 'derived';
-  initial?: unknown;
-  schema?: {
-    [k: string]: unknown;
-  };
+  logic?: LogicDefinition;
+  animation?: AnimationDefinition;
 }

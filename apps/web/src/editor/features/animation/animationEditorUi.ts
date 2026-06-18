@@ -1,4 +1,4 @@
-import type { AnimationTrack } from '@/core/types/engine.types';
+import type { AnimationTrack } from '@prodivix/shared/types/pir';
 
 export const TRACK_KINDS: AnimationTrack['kind'][] = [
   'style',

@@ -1,48 +1,27 @@
-import type { ReactComponentCompileResult, ReactExportBundle } from './types';
-import webPackageJson from '../../../../package.json';
-import rootPackageJson from '../../../../../../package.json';
-import sharedPackageJson from '@prodivix/shared/package.json';
-import themesPackageJson from '@prodivix/themes/package.json';
-import uiPackageJson from '@prodivix/ui/package.json';
-
-const readDependencyVersion = (
-  manifest: {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-    peerDependencies?: Record<string, string>;
-  },
-  packageName: string
-) =>
-  manifest.dependencies?.[packageName] ??
-  manifest.devDependencies?.[packageName] ??
-  manifest.peerDependencies?.[packageName] ??
-  'latest';
+import type {
+  ReactComponentCompileResult,
+  ReactExportBundle,
+} from '#src/react/types';
 
 export const REACT_PROJECT_SCAFFOLD_PRESET = {
-  packageManager: rootPackageJson.packageManager,
+  packageManager: 'pnpm@10.28.1',
   dependencies: {
-    react: readDependencyVersion(webPackageJson, 'react'),
-    'react-dom': readDependencyVersion(webPackageJson, 'react-dom'),
+    react: '^19.2.0',
+    'react-dom': '^19.2.0',
   },
   devDependencies: {
-    typescript: readDependencyVersion(webPackageJson, 'typescript'),
-    vite: readDependencyVersion(uiPackageJson, 'vite'),
-    '@vitejs/plugin-react': readDependencyVersion(
-      webPackageJson,
-      '@vitejs/plugin-react'
-    ),
-    '@types/react': readDependencyVersion(webPackageJson, '@types/react'),
-    '@types/react-dom': readDependencyVersion(
-      webPackageJson,
-      '@types/react-dom'
-    ),
+    typescript: '~5.9.3',
+    vite: '^7.3.0',
+    '@vitejs/plugin-react': '^5.1.2',
+    '@types/react': '^19.2.2',
+    '@types/react-dom': '^19.2.2',
   },
 } as const;
 
 export const REACT_PRODIVIX_PACKAGE_VERSIONS = {
-  '@prodivix/shared': sharedPackageJson.version,
-  '@prodivix/themes': themesPackageJson.version,
-  '@prodivix/ui': uiPackageJson.version,
+  '@prodivix/shared': '0.1.2',
+  '@prodivix/themes': '0.0.3',
+  '@prodivix/ui': '0.1.2',
 } as const;
 
 export const createProjectReactBundle = (

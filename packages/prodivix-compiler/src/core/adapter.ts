@@ -1,5 +1,5 @@
 import type { CanonicalNode } from './canonicalIR';
-import type { CompileDiagnostic } from './diagnostics';
+import type { CompileDiagnostic } from '#src/core/diagnostics';
 
 export type AdapterImportKind = 'default' | 'named' | 'namespace';
 

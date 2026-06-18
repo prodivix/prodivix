@@ -13,10 +13,10 @@ apps/web
 │   ├── pir/             # PIR 单源真相
 │   │   ├── schema/      #   类型定义
 │   │   ├── converter/   #   AST ↔ PIR
-│   │   ├── validator/   #   v1.3 graph 校验（与后端镜像）
+│   │   ├── validator/   #   current PIR graph 校验（与后端镜像）
 │   │   ├── renderer/    #   PIRRenderer / PIRNode / scope / helpers
 │   │   ├── generator/   #   PIR → React (mitosis 桥接)
-│   │   ├── graph/       #   v1.3 graph patch / mutation / materialize
+│   │   ├── graph/       #   current PIR graph patch / mutation / materialize
 │   │   ├── actions/     #   内置动作 registry（navigate / executeGraph...）
 │   │   ├── shared/      #   ValueRef 解析（路径解析 + 引用类型守卫，渲染器与 generator 共用）
 │   │   ├── resolvePirDocument.ts          #   主入口：直接 PIR / Workspace 快照 → PIRDocument

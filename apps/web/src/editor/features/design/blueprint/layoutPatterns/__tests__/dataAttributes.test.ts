@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import {
   LAYOUT_PATTERN_DATA_ATTRIBUTE_EXAMPLE,
   LAYOUT_PATTERN_DATA_ATTRIBUTE_KEYS,

@@ -4,7 +4,8 @@ import type {
   PIRDocument,
   NodeId,
   UiGraph,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
+import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -193,15 +194,17 @@ export const createDefaultUiGraph = (): UiGraph =>
     type: 'container',
   });
 
-export const createDefaultPirDocV13 = (): PIRDocument => ({
-  version: '1.3',
+export const createDefaultPirDocument = (): PIRDocument => ({
+  version: CURRENT_PIR_VERSION,
   ui: {
     graph: createDefaultUiGraph(),
   },
 });
 
-export const normalizePirDocumentToV13 = (source: unknown): PIRDocument => {
-  if (!isPlainObject(source)) return createDefaultPirDocV13();
+export const normalizePirDocumentToCurrentSchema = (
+  source: unknown
+): PIRDocument => {
+  if (!isPlainObject(source)) return createDefaultPirDocument();
 
   const graph = normalizeUiGraph(
     isPlainObject(source.ui) ? source.ui.graph : undefined
@@ -209,7 +212,7 @@ export const normalizePirDocumentToV13 = (source: unknown): PIRDocument => {
   if (graph) {
     return {
       ...source,
-      version: '1.3',
+      version: CURRENT_PIR_VERSION,
       ui: { graph },
     } as PIRDocument;
   }
@@ -217,10 +220,10 @@ export const normalizePirDocumentToV13 = (source: unknown): PIRDocument => {
   const root = normalizeNodeTree(
     isPlainObject(source.ui) ? source.ui.root : undefined
   );
-  if (!root) return createDefaultPirDocV13();
+  if (!root) return createDefaultPirDocument();
   return {
     ...source,
-    version: '1.3',
+    version: CURRENT_PIR_VERSION,
     ui: {
       graph: normalizeTreeToUiGraph(root),
     },

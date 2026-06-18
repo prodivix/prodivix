@@ -31,7 +31,7 @@ Prodivix is built around several long-term constraints:
 ├── packages/
 │   ├── ai/           # AI provider abstractions and shared AI utilities
 │   ├── i18n/         # Internationalization resources
-│   ├── pir-compiler/ # PIR code generation package
+│   ├── prodivix-compiler/ # PIR code generation package
 │   ├── shared/       # Shared types, schemas, and validation utilities
 │   ├── themes/       # Theme manifests and semantic design tokens
 │   ├── ui/           # Shared UI components

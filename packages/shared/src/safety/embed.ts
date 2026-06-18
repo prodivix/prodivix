@@ -1,4 +1,4 @@
-import { parseHttpUrl } from './url';
+import { parseHttpUrl } from './url.js';
 
 export type SafeEmbedType =
   | 'YouTube'

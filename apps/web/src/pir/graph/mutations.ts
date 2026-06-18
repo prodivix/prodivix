@@ -3,7 +3,7 @@ import type {
   ComponentNodeData,
   NodeId,
   UiGraph,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import type { GraphParentRef } from './types';
 import { normalizeTreeToUiGraph } from './normalize';
 

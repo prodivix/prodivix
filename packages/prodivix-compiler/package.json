@@ -1,0 +1,49 @@
+{
+  "name": "@prodivix/prodivix-compiler",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Prodivix PIR and Workspace compiler",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#src/*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && tsc -b tsconfig.json",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
+    "dev": "tsc --watch",
+    "test": "vitest --config vitest.config.ts --run",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@prodivix/shared": "workspace:*",
+    "@prodivix/themes": "workspace:*",
+    "@prodivix/ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.24",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^1.6.1"
+  }
+}

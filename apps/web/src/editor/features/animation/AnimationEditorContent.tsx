@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AnimationTimeline } from '@/core/types/engine.types';
+import type { AnimationTimeline } from '@prodivix/shared/types/pir';
 import { AnimationEditorInspectorPanel } from './panels/AnimationEditorInspectorPanel';
 import type { AnimationEditorSelection } from './panels/AnimationEditorInspectorPanel';
 import { AnimationEditorPreviewCanvas } from './panels/AnimationEditorPreviewCanvas';

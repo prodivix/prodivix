@@ -1,14 +1,14 @@
-import { compilePirToReactComponent } from './react/compileComponent';
+import { compilePirToReactComponent } from '#src/react/compileComponent';
 import {
   createProjectReactBundle,
   createSingleFileBundle,
   REACT_PRODIVIX_PACKAGE_VERSIONS,
-} from './react/projectScaffold';
+} from '#src/react/projectScaffold';
 import type {
   PirDocLike,
   ReactExportBundle,
   ReactGeneratorOptions,
-} from './react/types';
+} from '#src/react/types';
 
 type BundleFactory = (
   pirDoc: PirDocLike,
@@ -71,4 +71,4 @@ export const generateReactCode = (
   );
 };
 
-export type { ReactExportBundle } from './react/types';
+export type { ReactExportBundle } from '#src/react/types';

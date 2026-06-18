@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { CodeSlotBinding } from '@/authoring';
 import type { WorkspaceDocumentRecord } from '@/editor/editorApi';
 import { isWorkspaceCodeDocumentContent } from '@/workspace';

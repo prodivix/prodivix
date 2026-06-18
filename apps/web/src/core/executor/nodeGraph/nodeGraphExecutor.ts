@@ -1,5 +1,5 @@
 import type { Edge } from '@xyflow/react';
-import type { PIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
 import type {
   GraphExecutionRequest,
   GraphExecutionResult,

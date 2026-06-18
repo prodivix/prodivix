@@ -1,4 +1,4 @@
-import { coverageConfigDefaults, defineConfig } from 'vitest/config';
+﻿import { coverageConfigDefaults, defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
@@ -7,6 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      '@prodivix/prodivix-compiler': resolve(
+        __dirname,
+        '../../packages/prodivix-compiler/src'
+      ),
       '@prodivix/shared/safety': resolve(
         __dirname,
         '../../packages/shared/src/safety'

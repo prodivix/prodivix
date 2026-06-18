@@ -5,7 +5,7 @@ import {
   TextCursorInput,
   Type,
 } from 'lucide-react';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 
 export const INDENT_PX = 12;
 export const NODE_SELECT_DELAY_MS = 220;

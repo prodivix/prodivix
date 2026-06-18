@@ -482,8 +482,8 @@ export function BlueprintAssistantPanel({
         isOpen
           ? `bottom-0 w-[360px] ${
               isInspectorCollapsed
-                ? 'right-0 max-w-[calc(100vw-var(--sidebar-width)-var(--tree-width)-28px)]'
-                : 'right-[calc(var(--inspector-width)+12px)] max-w-[calc(100vw-var(--sidebar-width)-var(--tree-width)-var(--inspector-width)-40px)]'
+                ? 'right-0 max-w-[calc(100vw-max(var(--sidebar-width),var(--tree-width))-28px)]'
+                : 'right-[calc(var(--inspector-width)+12px)] max-w-[calc(100vw-max(var(--sidebar-width),var(--tree-width))-var(--inspector-width)-40px)]'
             }`
           : 'Collapsed right-0 bottom-10 h-0 w-0 overflow-visible border-0 bg-transparent shadow-none'
       }`}

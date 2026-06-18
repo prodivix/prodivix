@@ -1,12 +1,12 @@
 # PIR 语法规范
 
-本文档描述 Prodivix 当前使用的 PIR v1.3 语法。它不再是树形保存格式，而是以 `ui.graph` 作为唯一写入真相源。
+本文档描述 Prodivix 当前使用的 PIR 语法。它不再是树形保存格式，而是以 `ui.graph` 作为唯一写入真相源。
 
 ## 版本
 
-- 规范版本：`1.3`
-- 权威 schema：`specs/pir/PIR-v1.3.json`
-- 契约说明：`specs/pir/pir-contract-v1.3.md`
+- 规范版本：以 `specs/pir/PIR-current.version.json` 为准
+- 权威 schema：`specs/pir/PIR-current.json`
+- 历史契约说明：`specs/pir/PIR-contract-v*.md`
 
 ## 顶层结构
 
@@ -41,15 +41,15 @@
 
 ## 必需字段
 
-| 字段                    | 类型   | 说明               |
-| ----------------------- | ------ | ------------------ |
-| `version`               | string | 固定为 `1.3`       |
-| `ui`                    | object | UI 容器            |
-| `ui.graph`              | object | 规范化 UI 图       |
-| `ui.graph.version`      | number | 固定为 `1`         |
-| `ui.graph.rootId`       | string | 根节点 ID          |
-| `ui.graph.nodesById`    | object | 节点字典           |
-| `ui.graph.childIdsById` | object | 默认 children 顺序 |
+| 字段                    | 类型   | 说明                   |
+| ----------------------- | ------ | ---------------------- |
+| `version`               | string | 固定为当前 schema 版本 |
+| `ui`                    | object | UI 容器                |
+| `ui.graph`              | object | 规范化 UI 图           |
+| `ui.graph.version`      | number | 固定为 `1`             |
+| `ui.graph.rootId`       | string | 根节点 ID              |
+| `ui.graph.nodesById`    | object | 节点字典               |
+| `ui.graph.childIdsById` | object | 默认 children 顺序     |
 
 ## 可选字段
 
@@ -82,7 +82,7 @@
 
 ### 数据引用
 
-PIR v1.3 使用显式引用对象，不再把引用值混写成旧式树结构。
+PIR 使用显式引用对象，不再把引用值混写成旧式树结构。
 
 ```json
 { "$param": "title" }
@@ -112,7 +112,7 @@ PIR validator 至少需要检查：
 
 ## 兼容说明
 
-v1.3 只定义当前保存格式，不再保留旧树形保存形态的兼容语义。
+当前 PIR 只定义当前保存格式，不再保留旧树形保存形态的兼容语义。
 
 ## 下一步
 

@@ -2,7 +2,7 @@ import type {
   AnimationTimeline,
   AnimationTrack,
   SvgFilterDefinition,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import { resolveKeyframedValue } from './animationKeyframes';
 
 type NodeStyleDraft = {

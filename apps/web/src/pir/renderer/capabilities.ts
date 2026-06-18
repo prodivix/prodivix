@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 
 export type TriggerConflictPolicy = 'none' | 'warn';
 

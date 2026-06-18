@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/auth/authApi';
 import { editorApi, type WorkspaceCommandEnvelope } from '@/editor/editorApi';
-import type { PIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { validatePirDocument } from '@/pir/validator/validator';
 import { isLocalProjectId } from '@/editor/localProjectStore';
 

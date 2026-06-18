@@ -288,7 +288,7 @@ prodivix/
 │
 ├── packages/
 │   ├── ui/           # UI 组件库
-│   ├── pir-compiler/ # PIR 编译器
+│   ├── prodivix-compiler/ # PIR 编译器
 │   ├── shared/       # 共享类型
 │   ├── themes/       # 主题系统
 │   └── i18n/         # 国际化

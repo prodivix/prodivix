@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import type { NodeListRender } from '@/core/types/engine.types';
+import type { NodeListRender } from '@prodivix/shared/types/pir';
 import { InspectorRow } from '@/editor/features/design/inspector/components/InspectorRow';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
 

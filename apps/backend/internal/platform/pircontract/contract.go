@@ -4,7 +4,6 @@ import "encoding/json"
 import "fmt"
 
 const (
-	CurrentVersion = "1.3"
 	CurrentLabel   = "v" + CurrentVersion
 	UIGraphVersion = 1
 

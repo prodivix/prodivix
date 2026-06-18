@@ -6,7 +6,7 @@ import type {
   AnimationTrack,
   ComponentNode,
   SvgFilterDefinition,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 
 export type NodeTargetOption = {
   id: string;

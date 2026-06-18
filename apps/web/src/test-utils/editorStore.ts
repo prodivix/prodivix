@@ -1,4 +1,4 @@
-import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import {
   createGlobalDefaults,
   type GlobalSettingsState,

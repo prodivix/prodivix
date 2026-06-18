@@ -17,7 +17,7 @@ import {
   createNodeFromPaletteItem,
   createNodeIdFactory,
 } from '@/editor/features/design/blueprint/editor/model/palette';
-import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
 import {
   cloneNodeWithNewIds,

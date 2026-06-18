@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "exports": {
-    "./pir": "./pir/PIR-v1.0.json",
+    "./pir": "./pir/PIR-current.json",
+    "./pir/version": "./pir/PIR-current.version.json",
     "./decisions": "./decisions/*.md"
   }
 }

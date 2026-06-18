@@ -1,4 +1,4 @@
-import type { LlmContextBundle, LlmContextEntry } from './types';
+import type { LlmContextBundle, LlmContextEntry } from './types.js';
 
 export class LlmContextBuilder {
   private readonly entries: LlmContextEntry[] = [];

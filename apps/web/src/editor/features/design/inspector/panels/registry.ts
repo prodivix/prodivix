@@ -1,5 +1,5 @@
 import type { InspectorPanelDefinition } from './types';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { InspectorTab } from '@/editor/features/design/inspector/InspectorContext.types';
 import { classNamePanel } from './ClassNamePanel';
 import { layoutPanel } from './LayoutPanel';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildAnimationPreviewSnapshotFromTimelines } from './animationPreview';
-import type { AnimationTimeline } from '@/core/types/engine.types';
+import type { AnimationTimeline } from '@prodivix/shared/types/pir';
 
 describe('buildAnimationPreviewSnapshotFromTimelines', () => {
   it('merges all timelines and keeps deterministic override order', () => {

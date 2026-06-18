@@ -1,5 +1,5 @@
-import type { PIRDocument } from '@/core/types/engine.types';
-import { normalizePirDocumentToV13 } from '@/pir/graph/normalize';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
+import { normalizePirDocumentToCurrentSchema } from '@/pir/graph/normalize';
 
 export type WorkspaceLikeDocument = {
   id?: string;
@@ -55,5 +55,5 @@ export const tryResolveFromWorkspaceShape = (
   if (!activeId) return null;
   const activeDocument = documents.find((document) => document.id === activeId);
   if (!activeDocument) return null;
-  return normalizePirDocumentToV13(activeDocument.content);
+  return normalizePirDocumentToCurrentSchema(activeDocument.content);
 };

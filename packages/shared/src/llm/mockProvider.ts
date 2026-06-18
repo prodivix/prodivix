@@ -3,7 +3,7 @@ import type {
   LlmProviderGenerateResult,
   LlmProviderRequest,
   LlmStructuredOutput,
-} from './types';
+} from './types.js';
 
 export class MockLlmProvider implements LlmProvider {
   readonly id = 'mock';

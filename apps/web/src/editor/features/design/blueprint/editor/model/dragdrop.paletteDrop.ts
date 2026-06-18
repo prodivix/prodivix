@@ -9,7 +9,7 @@ import {
   insertIntoPirDoc,
   supportsChildrenForNode,
 } from '@/editor/features/design/blueprint/editor/model/tree';
-import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
 import { normalizeRoutePath } from '@/editor/store/routeManifest';
 import type { DragOverData, PaletteItemDragData } from './dragdrop.types';

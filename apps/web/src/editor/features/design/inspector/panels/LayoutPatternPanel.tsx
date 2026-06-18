@@ -12,7 +12,7 @@ import type {
   LayoutPatternParamSchema,
   LayoutPatternResolvedParams,
 } from '@/editor/features/design/blueprint/layoutPatterns/layoutPattern.types';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type {
   InspectorPanelDefinition,
   InspectorPanelRenderProps,

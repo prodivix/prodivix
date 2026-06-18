@@ -8,10 +8,10 @@ import type {
   LlmToolDefinition,
   LlmTaskRequest,
   LlmTaskResult,
-} from './types';
-import { LlmProviderError } from './types';
-import type { LlmTraceStore } from './traceStore';
-import { LlmToolRegistry } from './toolRegistry';
+} from './types.js';
+import { LlmProviderError } from './types.js';
+import type { LlmTraceStore } from './traceStore.js';
+import { LlmToolRegistry } from './toolRegistry.js';
 
 export interface LlmGatewayOptions {
   provider: LlmProvider;

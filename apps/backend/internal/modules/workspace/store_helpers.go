@@ -253,7 +253,7 @@ func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, payloa
 		return validateWorkspaceCodeDocument(payload)
 	}
 	if isPIRWorkspaceDocumentType(documentType) {
-		return validatePIRV13Document(payload)
+		return validatePIRDocument(payload)
 	}
 	return nil
 }

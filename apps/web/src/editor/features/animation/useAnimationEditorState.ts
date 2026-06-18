@@ -6,7 +6,7 @@ import type {
   AnimationTimeline,
   AnimationTrack,
   SvgFilterDefinition,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { materializePirRoot } from '@/pir/graph';
 import {

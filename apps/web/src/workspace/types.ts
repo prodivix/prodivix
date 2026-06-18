@@ -1,4 +1,4 @@
-import type { PIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
 
 export type WorkspaceId = string;
 export type WorkspaceDocumentId = string;

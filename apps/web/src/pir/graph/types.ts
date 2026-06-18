@@ -4,7 +4,7 @@ import type {
   PIRDocument,
   NodeId,
   UiGraph,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 
 export type { ComponentNode, ComponentNodeData, PIRDocument, NodeId, UiGraph };
 

@@ -7,7 +7,7 @@ import {
   removeNodeByIdWithNode,
   supportsChildrenForNode,
 } from '@/editor/features/design/blueprint/editor/model/tree';
-import type { PIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
 import { getOverNodeId, resolveTreePlacement } from './dragdrop.placement';
 import type { DragOverData, TreeSortDragData } from './dragdrop.types';

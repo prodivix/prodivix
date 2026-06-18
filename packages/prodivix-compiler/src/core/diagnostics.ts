@@ -1,4 +1,4 @@
-export type DiagnosticSeverity = 'error' | 'warning' | 'info';
+﻿export type DiagnosticSeverity = 'error' | 'warning' | 'info';
 
 export type DiagnosticSource = 'canonical-ir' | 'adapter' | 'codegen';
 

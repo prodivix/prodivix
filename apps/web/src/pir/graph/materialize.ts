@@ -4,7 +4,7 @@ import type {
   PIRDocument,
   NodeId,
   UiGraph,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import { normalizeTreeToUiGraph } from './normalize';
 
 const cloneJson = <T>(value: T): T => {

@@ -78,7 +78,7 @@ export interface PIRDocument {
 
 修改：
 
-- `apps/web/src/core/types/engine.types.ts`
+- `packages/shared/src/types/pir.ts`
 - `apps/web/src/pir/resolvePirDocument.ts`
 
 新增建议：

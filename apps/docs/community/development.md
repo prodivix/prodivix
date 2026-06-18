@@ -64,7 +64,7 @@ prodivix/
 │
 ├── packages/             # 共享包
 │   ├── ui/              # UI 组件库
-│   ├── pir-compiler/    # PIR 编译器
+│   ├── prodivix-compiler/    # PIR 编译器
 │   ├── shared/          # 共享类型
 │   ├── themes/          # 主题
 │   ├── i18n/            # 国际化
@@ -90,13 +90,13 @@ apps/web
   └── @prodivix/i18n
 
 apps/cli
-  └── @prodivix/pir-compiler
+  └── @prodivix/prodivix-compiler
 
 packages/ui
   ├── @prodivix/shared
   └── @prodivix/themes
 
-packages/pir-compiler
+packages/prodivix-compiler
   └── @prodivix/shared
 ```
 

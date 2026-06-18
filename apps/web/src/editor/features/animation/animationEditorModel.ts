@@ -6,7 +6,7 @@ import type {
   AnimationTrack,
   AnimationTimeline,
   SvgFilterDefinition,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 
 const STORAGE_PREFIX = 'prodivix:animation:native';
 const DEFAULT_TIMELINE_DURATION_MS = 1000;

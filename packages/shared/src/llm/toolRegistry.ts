@@ -1,4 +1,4 @@
-import type { LlmToolDefinition } from './types';
+import type { LlmToolDefinition } from './types.js';
 
 export class LlmToolRegistry {
   private readonly tools = new Map<string, LlmToolDefinition>();

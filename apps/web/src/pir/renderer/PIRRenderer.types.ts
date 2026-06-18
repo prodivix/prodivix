@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { ComponentRegistry } from './registry';
 
 export type RenderState = Record<string, unknown>;
@@ -54,7 +54,7 @@ export type RenderContext = {
 
 export interface PIRRendererProps {
   node?: ComponentNode;
-  pirDoc: import('@/core/types/engine.types').PIRDocument;
+  pirDoc: import('@prodivix/shared/types/pir').PIRDocument;
   overrides?: Record<string, unknown>;
   runtimeState?: Record<string, unknown>;
   codeArtifacts?: RendererCodeArtifact[];

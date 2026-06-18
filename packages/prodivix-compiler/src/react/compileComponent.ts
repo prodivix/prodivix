@@ -1,11 +1,11 @@
-import type { ComponentNode } from '@/core/types/engine.types';
-import { materializePirRoot } from '@/pir/graph';
-import type { CanonicalNode } from '@/pir/generator/core/canonicalIR';
-import { buildCanonicalIR } from '@/pir/generator/core/canonicalIR';
-import type { AdapterImportSpec } from '@/pir/generator/core/adapter';
-import { createDiagnosticBag } from '@/pir/generator/core/diagnostics';
-import { resolvePackageImport } from '@/pir/generator/core/packageResolver';
-import { isBuiltInActionName } from '@/pir/actions/registry';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
+import { materializePirRoot } from '#src/graph/materialize';
+import type { CanonicalNode } from '#src/core/canonicalIR';
+import { buildCanonicalIR } from '#src/core/canonicalIR';
+import type { AdapterImportSpec } from '#src/core/adapter';
+import { createDiagnosticBag } from '#src/core/diagnostics';
+import { resolvePackageImport } from '#src/core/packageResolver';
+import { isBuiltInActionName } from '#src/actions/registry';
 import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/shared/safety';
 import {
   VALUE_REF_IDENTIFIER_PATTERN,
@@ -16,14 +16,14 @@ import {
   isStateReference,
   isValueReference,
   parseValueRefPathSegments,
-} from '@/pir/shared/valueRef';
+} from '#src/shared/valueRef';
 import type {
   PirDocLike,
   ReactGeneratorCodeArtifact,
   ReactCompileOptions,
   ReactComponentCompileResult,
-} from './types';
-import { reactAdapter } from './adapter';
+} from '#src/react/types';
+import { reactAdapter } from '#src/react/adapter';
 
 const toReactEventName = (trigger: string) => {
   const normalized = trigger.toLowerCase();

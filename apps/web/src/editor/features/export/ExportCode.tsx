@@ -2,8 +2,10 @@ import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { useEditorStore } from '@/editor/store/useEditorStore';
-import { generateReactBundle } from '@/pir/generator/pirToReact';
-import type { ReactGeneratorCodeArtifact } from '@/pir/generator/react/types';
+import {
+  generateReactBundle,
+  type ReactGeneratorCodeArtifact,
+} from '@prodivix/prodivix-compiler';
 import { validatePirDocument } from '@/pir/validator/validator';
 import {
   isWorkspaceCodeDocumentContent,

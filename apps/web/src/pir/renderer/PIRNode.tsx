@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import { deepResolveValueOrRef, readValueByPath } from '@/pir/shared/valueRef';
 import type {
   AdapterContext,

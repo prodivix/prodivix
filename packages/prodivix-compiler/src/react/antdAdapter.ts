@@ -1,5 +1,5 @@
-import type { TargetAdapter } from '@/pir/generator/core/adapter';
-import { reactAdapter } from './adapter';
+import type { TargetAdapter } from '#src/core/adapter';
+import { reactAdapter } from '#src/react/adapter';
 
 export interface AntdReactAdapterOptions {
   typePrefix?: string;

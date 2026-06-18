@@ -5,13 +5,14 @@ import type {
   NodeId,
   NodeListRender,
   UiGraph,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
+import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 import {
   createDiagnostic,
   PIR_DIAGNOSTIC_REGISTRY,
   type ProdivixDiagnostic,
 } from '@/diagnostics';
-import { normalizePirToV13 } from '@/pir/resolvePirDocument';
+import { normalizePirDocument } from '@/pir/resolvePirDocument';
 import {
   isDataReference,
   isItemReference,
@@ -345,7 +346,7 @@ const validateAnimationReferences = (
 };
 
 export const validatePirDocument = (source: unknown): PirValidationResult => {
-  const document = normalizePirToV13(source);
+  const document = normalizePirDocument(source);
   const issues: PirValidationIssue[] = [];
   const original = isPlainObject(source) ? source : {};
   const originalUi = isPlainObject(original.ui) ? original.ui : {};
@@ -354,14 +355,14 @@ export const validatePirDocument = (source: unknown): PirValidationResult => {
     pushPirIssue(issues, {
       code: 'PIR_1001',
       path: '/ui/root',
-      message: 'PIR v1.3 documents must not contain ui.root.',
+      message: 'Current PIR documents must not contain ui.root.',
     });
   }
-  if (document.version !== '1.3') {
+  if (document.version !== CURRENT_PIR_VERSION) {
     pushPirIssue(issues, {
       code: 'PIR_1002',
       path: '/version',
-      message: 'PIR document version must be 1.3.',
+      message: `PIR document version must be ${CURRENT_PIR_VERSION}.`,
     });
   }
 

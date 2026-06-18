@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { SvgFilterDefinition } from '@/core/types/engine.types';
+import type { SvgFilterDefinition } from '@prodivix/shared/types/pir';
 import {
   SVG_TYPES,
   SVG_UNITS,

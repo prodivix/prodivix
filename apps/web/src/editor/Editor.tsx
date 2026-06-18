@@ -19,6 +19,7 @@ import {
 } from './localProjectStore';
 import { useEditorStore } from './store/useEditorStore';
 import { useSettingsStore } from './store/useSettingsStore';
+import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 
 function EditorGlobalShortcuts({
   projectId,
@@ -269,7 +270,7 @@ function Editor() {
             if (error instanceof ApiError && error.status === 422) {
               setLoadError(
                 error.message ||
-                  'This project uses a legacy PIR document and cannot be opened in v1.3.'
+                  `This project uses a legacy PIR document and cannot be opened in ${CURRENT_PIR_VERSION}.`
               );
               return;
             }
@@ -282,7 +283,7 @@ function Editor() {
         if (error instanceof ApiError && error.status === 422) {
           setLoadError(
             error.message ||
-              'This project uses a legacy PIR document and cannot be opened in v1.3.'
+              `This project uses a legacy PIR document and cannot be opened in ${CURRENT_PIR_VERSION}.`
           );
           return;
         }

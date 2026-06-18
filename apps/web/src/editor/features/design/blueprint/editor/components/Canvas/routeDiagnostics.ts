@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { WorkspaceRouteNode } from '@/editor/store/useEditorStore';
 import type { RouteCanvasDiagnostic } from './canvasTypes';
 

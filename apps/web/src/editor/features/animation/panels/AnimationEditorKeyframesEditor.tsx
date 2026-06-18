@@ -1,7 +1,7 @@
 import type {
   AnimationKeyframe,
   AnimationTrack,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import { useTranslation } from 'react-i18next';
 import { isHexColor } from '@/editor/features/animation/animationEditorUi';
 

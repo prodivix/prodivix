@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import {
   isPirDocumentContent,
@@ -67,10 +68,10 @@ describe('workspace selectors', () => {
     expect(selectWorkspaceTree(workspace)?.children[0]?.path).toBe('/pages');
   });
 
-  it('does not treat legacy ui.root content as PIR v1.3 content', () => {
+  it('does not treat legacy ui.root content as current PIR content', () => {
     expect(
       isPirDocumentContent({
-        version: '1.3',
+        version: CURRENT_PIR_VERSION,
         ui: {
           root: { id: 'root', type: 'container' },
         },

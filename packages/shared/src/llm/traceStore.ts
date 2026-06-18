@@ -1,4 +1,4 @@
-import type { LlmGatewayTrace } from './types';
+import type { LlmGatewayTrace } from './types.js';
 
 export interface LlmTraceStore {
   append(trace: LlmGatewayTrace): void | Promise<void>;

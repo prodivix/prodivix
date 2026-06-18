@@ -77,12 +77,12 @@ MFE 内置多种部署选项：
 ├─────────────┴──────────────┴────────────┴───────────────┴───────────┤
 │                            packages/                                 │
 ├──────┬──────────────┬────────┬────────┬──────┬──────┬───────────────┤
-│  ui  │ pir-compiler │ shared │ themes │ i18n │  ai  │vscode-debugger│
+│  ui  │ prodivix-compiler │ shared │ themes │ i18n │  ai  │vscode-debugger│
 └──────┴──────────────┴────────┴────────┴──────┴──────┴───────────────┘
 ```
 
 前端编辑器统一收敛到 **PIR**，由后端 **Workspace VFS** 持久化；
-前后端共用同一份 **PIR v1.3** 校验逻辑（`apps/web/src/pir/validator` ↔ `apps/backend/internal/modules/workspace/pir_v13_validator.go`）。
+前后端共用当前 **PIR** 校验逻辑（`apps/web/src/pir/validator` ↔ `apps/backend/internal/modules/workspace/pir_validator.go`）。
 
 ## 与同类工具对比
 
@@ -107,7 +107,7 @@ MFE 内置多种部署选项：
 | 蓝图编辑器        | 拖拽式 UI 设计、组件树、Inspector Panel 架构、布局范式              |
 | 组件库            | 75+ 内置组件 + Radix 子集，覆盖常见 UI 场景                         |
 | 外部库运行时      | esm.sh 桥接 + Canonical External IR，支持 Ant Design / MUI 动态加载 |
-| PIR v1.3 渲染器   | 运行时渲染、ValueRef 解析、列表渲染、数据作用域                     |
+| PIR 渲染器        | 运行时渲染、ValueRef 解析、列表渲染、数据作用域                     |
 | React 代码生成    | PIR → JSX + Hooks（mitosis 桥接）                                   |
 | Workspace VFS     | 多文档工作区、文件树、路由清单、文档级保存                          |
 | 同步协议          | 分区 rev 乐观并发（workspaceRev/routeRev/contentRev）+ 冲突检测     |

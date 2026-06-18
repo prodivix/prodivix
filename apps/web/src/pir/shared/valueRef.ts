@@ -5,7 +5,7 @@ import type {
   ParamReference,
   StateReference,
   ValueOrRef,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 
 type UnsafeRecord = Record<string, unknown>;
 

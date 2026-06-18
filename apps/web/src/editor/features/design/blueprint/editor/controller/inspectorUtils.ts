@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { TextFieldKey } from '@/editor/features/design/blueprint/editor/model/blueprintText';
 
 export const findNodeById = (

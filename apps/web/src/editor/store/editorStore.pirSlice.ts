@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { PIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import type { EditorStore } from './editorStore.shape';
 

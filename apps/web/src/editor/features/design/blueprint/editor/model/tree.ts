@@ -1,5 +1,5 @@
 import { isNonNestableType } from '@/editor/features/design/blueprint/nesting';
-import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import { materializeUiTree, normalizeTreeToUiGraph } from '@/pir/graph';
 import { defaultComponentRegistry } from '@/pir/renderer/registry';
 

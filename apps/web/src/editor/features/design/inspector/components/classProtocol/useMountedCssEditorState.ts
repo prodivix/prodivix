@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { MountedCssEntry } from './mountedCss';
 import { createMountedCssPath } from './mountedCss';
 

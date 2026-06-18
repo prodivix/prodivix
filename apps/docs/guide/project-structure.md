@@ -16,7 +16,7 @@ prodivix/
 │   ├── ai/             # AI provider 与任务工具
 │   ├── eslint-plugin-prodivix/
 │   ├── i18n/
-│   ├── pir-compiler/
+│   ├── prodivix-compiler/
 │   ├── shared/         # 共享 LLM、类型和脚本
 │   ├── themes/         # 主题与设计令牌
 │   ├── ui/             # 组件库
@@ -217,7 +217,7 @@ packages/themes/
 ### 其他包
 
 - `packages/i18n`：公共国际化资源与转换脚本。
-- `packages/pir-compiler`：PIR 编译入口包。
+- `packages/prodivix-compiler`：PIR 编译入口包。
 - `packages/eslint-plugin-prodivix`：仓库自定义 ESLint 规则。
 - `packages/vscode-debugger`：VS Code 调试适配器。
 

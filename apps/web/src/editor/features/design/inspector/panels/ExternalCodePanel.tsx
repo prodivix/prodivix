@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { PdxInput, PdxSelect } from '@prodivix/ui';
 import { Code2 } from 'lucide-react';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
 import { InspectorRow } from '@/editor/features/design/inspector/components/InspectorRow';
 import { buildCodeResourceFilesFromWorkspaceDocuments } from '@/editor/features/resources/workspaceCodeResources';

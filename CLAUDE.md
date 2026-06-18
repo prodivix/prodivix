@@ -73,7 +73,7 @@ Editors and AI flows should not directly overwrite tree-shaped UI state. Tree vi
 - `packages/shared` - shared types, schemas, and validation utilities.
 - `packages/ui` - shared UI package, styled with SCSS.
 - `packages/themes` - theme manifests and semantic design tokens.
-- `packages/pir-compiler` - PIR code generation package.
+- `packages/prodivix-compiler` - PIR code generation package.
 - `specs` - architecture decisions, PIR contracts, diagnostic codes, RFCs, and implementation plans.
 
 ## Common Commands

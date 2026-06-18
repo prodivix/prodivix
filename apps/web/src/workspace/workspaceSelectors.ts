@@ -1,4 +1,5 @@
-import type { PIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
+import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 import type {
   StableWorkspaceDocument,
   StableWorkspaceDocumentType,
@@ -53,7 +54,9 @@ export const selectActiveDocument = (
 export const isPirDocumentContent = (
   content: unknown
 ): content is PIRDocument => {
-  if (!isRecord(content) || content.version !== '1.3') return false;
+  if (!isRecord(content) || content.version !== CURRENT_PIR_VERSION) {
+    return false;
+  }
   if (!isRecord(content.ui) || 'root' in content.ui) return false;
   return isRecord(content.ui.graph);
 };

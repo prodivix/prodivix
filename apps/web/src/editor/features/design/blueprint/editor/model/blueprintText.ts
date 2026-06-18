@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 
 export type TextFieldKey = 'text' | 'title' | 'label' | 'description';
 export type TextFieldMode = 'plain' | 'rich';

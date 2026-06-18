@@ -34,6 +34,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@prodivix/ai": "workspace:*",
     "@prodivix/i18n": "workspace:*",
+    "@prodivix/prodivix-compiler": "workspace:*",
     "@prodivix/shared": "workspace:*",
     "@prodivix/themes": "workspace:*",
     "@prodivix/ui": "workspace:*",
@@ -63,7 +64,6 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@builder.io/mitosis": "^0.13.0",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/react": "^16.3.0",

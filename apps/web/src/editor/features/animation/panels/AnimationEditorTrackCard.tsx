@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type {
   AnimationTrack,
   SvgFilterDefinition,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import {
   CSS_FILTER_FNS,
   CSS_FILTER_UNITS,

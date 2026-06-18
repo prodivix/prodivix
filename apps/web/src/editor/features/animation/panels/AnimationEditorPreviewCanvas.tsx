@@ -6,7 +6,7 @@ import type {
   ComponentNode,
   PIRDocument,
   SvgFilterDefinition,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
 import { materializePirRoot } from '@/pir/graph';
 import { buildAnimationPreviewSnapshot } from '@/editor/features/animation/preview/animationPreview';

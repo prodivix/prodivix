@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { PIRDocument } from '@/core/types/engine.types';
-import { compilePirToReactComponent } from '@/pir/generator/react/compileComponent';
-import { generateReactBundle } from '@/pir/generator/pirToReact';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
+import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
+import { compilePirToReactComponent } from '#src/react/compileComponent';
+import { generateReactBundle } from '#src/pirToReact';
 import {
   REACT_PRODIVIX_PACKAGE_VERSIONS,
   REACT_PROJECT_SCAFFOLD_PRESET,
   createProjectReactBundle,
-} from '@/pir/generator/react/projectScaffold';
+} from '#src/react/projectScaffold';
 
 describe('compilePirToReactComponent', () => {
   it('exports mounted CSS from code slot artifacts without leaking bindings as props', () => {
     const pirDoc: PIRDocument = {
-      version: '1.3',
+      version: CURRENT_PIR_VERSION,
       metadata: { name: 'MountedCssExample' },
       ui: {
         graph: {
@@ -67,7 +68,7 @@ describe('compilePirToReactComponent', () => {
 
   it('omits inline navigation handlers for unsafe static URLs', () => {
     const pirDoc: PIRDocument = {
-      version: '1.3',
+      version: CURRENT_PIR_VERSION,
       metadata: { name: 'UnsafeNavigateExample' },
       ui: {
         graph: {
@@ -107,7 +108,7 @@ describe('compilePirToReactComponent', () => {
 
   it('keeps safe static navigation URLs executable in generated code', () => {
     const pirDoc: PIRDocument = {
-      version: '1.3',
+      version: CURRENT_PIR_VERSION,
       metadata: { name: 'SafeNavigateExample' },
       ui: {
         graph: {
@@ -146,7 +147,7 @@ describe('compilePirToReactComponent', () => {
 
   it('exports Prodivix button text and package styles', () => {
     const pirDoc: PIRDocument = {
-      version: '1.3',
+      version: CURRENT_PIR_VERSION,
       metadata: { name: 'StyledButtonExample' },
       ui: {
         graph: {
@@ -184,7 +185,7 @@ describe('compilePirToReactComponent', () => {
 
   it('scaffolds a pnpm-installable Vite React project', () => {
     const pirDoc: PIRDocument = {
-      version: '1.3',
+      version: CURRENT_PIR_VERSION,
       metadata: { name: 'RunnableProjectExample' },
       ui: {
         graph: {
@@ -243,7 +244,7 @@ describe('compilePirToReactComponent', () => {
 
   it('declares the current Prodivix UI package version in project exports', () => {
     const pirDoc: PIRDocument = {
-      version: '1.3',
+      version: CURRENT_PIR_VERSION,
       metadata: { name: 'CurrentUiVersionExample' },
       ui: {
         graph: {

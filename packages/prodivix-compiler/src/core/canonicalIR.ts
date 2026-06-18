@@ -4,9 +4,9 @@ import type {
   NodeListRender,
   PIRDocument,
   ValueOrRef,
-} from '@/core/types/engine.types';
-import { materializePirRoot } from '@/pir/graph';
-import type { DiagnosticBag } from './diagnostics';
+} from '@prodivix/shared/types/pir';
+import { materializePirRoot } from '#src/graph/materialize';
+import type { DiagnosticBag } from '#src/core/diagnostics';
 
 export type CanonicalText = ValueOrRef | undefined;
 

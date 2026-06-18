@@ -1,4 +1,4 @@
-export type DependencySourceStrategy = 'workspace' | 'npm' | 'esm-sh';
+﻿export type DependencySourceStrategy = 'workspace' | 'npm' | 'esm-sh';
 
 export interface PackageResolverOptions {
   strategy?: DependencySourceStrategy;

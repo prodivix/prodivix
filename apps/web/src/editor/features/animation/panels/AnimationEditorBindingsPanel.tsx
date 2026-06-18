@@ -4,7 +4,7 @@ import type {
   AnimationTimeline,
   AnimationTrack,
   SvgFilterDefinition,
-} from '@/core/types/engine.types';
+} from '@prodivix/shared/types/pir';
 import { AnimationEditorBindingCard } from './AnimationEditorBindingCard';
 
 type NodeTargetOption = { id: string; label: string };

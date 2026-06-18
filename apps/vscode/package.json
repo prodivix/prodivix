@@ -36,7 +36,7 @@
       {
         "type": "prodivix",
         "label": "Pdx Debug",
-        "program": "./out/debugger/debugAdapter.js"
+        "program": "../../packages/vscode-debugger/lib/debugAdapter.js"
       }
     ]
   },
@@ -52,6 +52,9 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "echo \"No tests for vscode\" && exit 0"
+  },
+  "dependencies": {
+    "@prodivix/vscode-debugger": "workspace:*"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

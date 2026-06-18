@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { TFunction } from 'i18next';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { InspectorUpdateNode } from '../types';
 
 export type LayoutGroupRenderProps = {

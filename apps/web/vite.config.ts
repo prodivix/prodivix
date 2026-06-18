@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+﻿import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
@@ -27,6 +27,10 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
       '@prodivix/ai': resolve(__dirname, '../../packages/ai/src'),
       '@prodivix/i18n': resolve(__dirname, '../../packages/i18n/src'),
+      '@prodivix/prodivix-compiler': resolve(
+        __dirname,
+        '../../packages/prodivix-compiler/src'
+      ),
       '@prodivix/shared/safety': resolve(
         __dirname,
         '../../packages/shared/src/safety'

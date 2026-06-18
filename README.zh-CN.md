@@ -31,7 +31,7 @@ Prodivix 围绕几个长期约束构建：
 ├── packages/
 │   ├── ai/           # AI Provider 抽象和共享 AI 工具
 │   ├── i18n/         # 国际化资源
-│   ├── pir-compiler/ # PIR 代码生成包
+│   ├── prodivix-compiler/ # PIR 代码生成包
 │   ├── shared/       # 共享类型、Schema 和校验工具
 │   ├── themes/       # 主题清单和语义化设计 Token
 │   ├── ui/           # 共享 UI 组件

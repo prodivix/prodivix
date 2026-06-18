@@ -1,8 +1,8 @@
-import type { PIRDocument } from '@/core/types/engine.types';
-import type { TargetAdapter } from '@/pir/generator/core/adapter';
-import type { CompileDiagnostic } from '@/pir/generator/core/diagnostics';
-import type { CanonicalIRDocument } from '@/pir/generator/core/canonicalIR';
-import type { PackageResolverOptions } from '@/pir/generator/core/packageResolver';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
+import type { TargetAdapter } from '#src/core/adapter';
+import type { CompileDiagnostic } from '#src/core/diagnostics';
+import type { CanonicalIRDocument } from '#src/core/canonicalIR';
+import type { PackageResolverOptions } from '#src/core/packageResolver';
 
 export type ExportResourceType = 'project' | 'component' | 'nodegraph';
 

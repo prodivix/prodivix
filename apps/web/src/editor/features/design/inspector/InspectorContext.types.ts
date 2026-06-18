@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { IconRef } from '@/pir/renderer/iconRegistry';
 import type {
   InspectorPanelDefinition,

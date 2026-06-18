@@ -1,4 +1,4 @@
-import type { AnimationKeyframe } from '@/core/types/engine.types';
+import type { AnimationKeyframe } from '@prodivix/shared/types/pir';
 
 type EasingFn = (value: number) => number;
 

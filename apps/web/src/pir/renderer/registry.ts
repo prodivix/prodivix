@@ -1,6 +1,6 @@
 import React, { createElement } from 'react';
 import * as PdxUi from '@prodivix/ui';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import { isIconRef, resolveIconRef } from './iconRegistry';
 
 export type ComponentKind = 'html' | 'prodivix' | 'custom';

@@ -11,6 +11,7 @@ import type {
 } from './types';
 import { validateStableWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isPirDocumentContent } from './workspaceSelectors';
+import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 
 export type WorkspacePatchOperation = {
   op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
@@ -1143,7 +1144,7 @@ export const applyWorkspaceCommand = (
           {
             code: 'WKS_COMMAND_VALIDATION_FAILED',
             path: '/target/documentId',
-            message: 'PIR workspace documents must remain v1.3 graph-only.',
+            message: `PIR workspace documents must remain ${CURRENT_PIR_VERSION} graph-only.`,
             documentId,
           },
         ],

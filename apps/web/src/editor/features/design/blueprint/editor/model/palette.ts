@@ -18,7 +18,7 @@ import {
   TREE_DATA,
   TREE_SELECT_OPTIONS,
 } from '@/editor/features/design/blueprint/editor/model/data';
-import type { ComponentNode, PIRDocument } from '@/core/types/engine.types';
+import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import { materializePirRoot } from '@/pir/graph';
 import { createRadixNodeFromPaletteItem } from '@/editor/features/design/blueprint/editor/model/radix';
 import { buildLayoutPatternNode } from '@/editor/features/design/blueprint/layoutPatterns';

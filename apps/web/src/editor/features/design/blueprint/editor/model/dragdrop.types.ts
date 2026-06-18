@@ -1,4 +1,4 @@
-import type { PIRDocument } from '@/core/types/engine.types';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
 import type { TreeDropPlacement } from '@/editor/features/design/blueprint/editor/model/tree';
 
 export type TreeDropHint = {

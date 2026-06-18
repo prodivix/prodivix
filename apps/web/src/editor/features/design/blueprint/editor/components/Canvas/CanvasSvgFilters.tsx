@@ -1,5 +1,5 @@
 import { createElement } from 'react';
-import type { SvgFilterDefinition } from '@/core/types/engine.types';
+import type { SvgFilterDefinition } from '@prodivix/shared/types/pir';
 
 const renderSvgPrimitive = (
   primitive: SvgFilterDefinition['primitives'][number]

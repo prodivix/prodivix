@@ -1,52 +1,48 @@
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import chalk from 'chalk';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolvePirSchemaPath } from './pir-schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SCHEMA_PATH = resolve(__dirname, '../../../specs/pir/PIR-v1.0.json');
-
-// 创建AJV实例
+const schemaPath = resolvePirSchemaPath();
 const ajv = new Ajv({ allErrors: true, verbose: true });
 addFormats(ajv);
 
-// 编译Schema
-const schema = JSON.parse(readFileSync(SCHEMA_PATH, 'utf-8'));
+const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
 const validate = ajv.compile(schema);
-
-// CLI参数
 const pirPath = resolve(process.argv[2] || './project.pir.json');
 
-console.log('🔍 校验PIR文件...');
-console.log(`   Schema: ${SCHEMA_PATH}`);
-console.log(`   文件: ${pirPath}`);
+console.log('Validating PIR document...');
+console.log(`   Schema: ${schemaPath}`);
+console.log(`   File: ${pirPath}`);
 
 try {
-  const pir = JSON.parse(readFileSync(pirPath, 'utf-8'));
+  const pir = JSON.parse(readFileSync(pirPath, 'utf8'));
   const valid = validate(pir);
 
   if (valid) {
-    console.log(chalk.green('\n✅ PIR格式正确！'));
+    console.log(chalk.green('\nPIR document is valid.'));
     process.exit(0);
-  } else {
-    console.error(chalk.red('\n❌ 校验失败：'));
-    validate.errors?.forEach((error, i) => {
-      console.error(
-        chalk.red(`\n  ${i + 1}. ${error.instancePath || 'root'}`) +
-          chalk.gray(`\n     ${error.message}`) +
-          chalk.yellow(`\n     参数: ${JSON.stringify(error.params)}`)
-      );
-      if (error.schemaPath) {
-        console.error(chalk.gray(`     Schema路径: ${error.schemaPath}`));
-      }
-    });
-    process.exit(1);
   }
+
+  console.error(chalk.red('\nPIR validation failed.'));
+  validate.errors?.forEach((error, index) => {
+    console.error(
+      chalk.red(`\n  ${index + 1}. ${error.instancePath || 'root'}`) +
+        chalk.gray(`\n     ${error.message}`) +
+        chalk.yellow(`\n     Params: ${JSON.stringify(error.params)}`)
+    );
+    if (error.schemaPath) {
+      console.error(chalk.gray(`     Schema path: ${error.schemaPath}`));
+    }
+  });
+  process.exit(1);
 } catch (error) {
-  console.error(chalk.red(`\n💥 致命错误: ${error.message}`));
+  console.error(chalk.red(`\nFatal error: ${error.message}`));
   process.exit(1);
 }

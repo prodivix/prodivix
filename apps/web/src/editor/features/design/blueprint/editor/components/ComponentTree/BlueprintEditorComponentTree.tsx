@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Layers, Trash2 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
-import type { ComponentNode } from '@/core/types/engine.types';
+import type { ComponentNode } from '@prodivix/shared/types/pir';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { materializePirRoot } from '@/pir/graph';
 import { BlueprintTreeNode } from './BlueprintTreeNode';
