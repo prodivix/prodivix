@@ -5,6 +5,13 @@ import { buildCanonicalIR } from '#src/core/canonicalIR';
 import type { AdapterImportSpec } from '#src/core/adapter';
 import { createDiagnosticBag } from '#src/core/diagnostics';
 import { resolvePackageImport } from '#src/core/packageResolver';
+import { createExportPackageOrigin } from '#src/export/packageOriginResolver';
+import { resolveRemoteExportSource } from '#src/export/sourceResolver';
+import {
+  collectExportCodeArtifactContributions,
+  createExportCodeArtifactStyleArtifactContribution,
+  isExportCssCodeArtifact,
+} from '#src/export/codeArtifactPlanner';
 import { isBuiltInActionName } from '#src/actions/registry';
 import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/shared/safety';
 import {
@@ -24,6 +31,13 @@ import type {
   ReactComponentCompileResult,
 } from '#src/react/types';
 import { reactAdapter } from '#src/react/adapter';
+import type {
+  ExportArtifactContribution,
+  ExportRuntimeRequirement,
+  ExportSourceOrigin,
+  ExportSourceTrace,
+  ExportStyleContribution,
+} from '#src/export/types';
 
 const toReactEventName = (trigger: string) => {
   const normalized = trigger.toLowerCase();
@@ -176,7 +190,7 @@ const buildNavigateInlineHandler = (paramsExpr: string) => {
 };
 
 const buildExecuteGraphInlineHandler = (paramsExpr: string) => {
-  return `{(event) => { const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : \`graph-\${Date.now().toString(36)}-\${Math.random().toString(36).slice(2, 8)}\`; window.dispatchEvent(new CustomEvent('prodivix:execute-graph', { detail: { requestId, nodeId: '', trigger: event?.type ?? '', eventKey: event?.type ?? '', params: ${paramsExpr} } })); }}`;
+  return `{(event) => { const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : \`graph-\${Date.now().toString(36)}-\${Math.random().toString(36).slice(2, 8)}\`; dispatchProdivixEvent('prodivix:execute-graph', { requestId, nodeId: '', trigger: event?.type ?? '', eventKey: event?.type ?? '', params: ${paramsExpr} }); }}`;
 };
 
 const buildBuiltInInlineHandler = (
@@ -384,7 +398,7 @@ const asRecord = (value: unknown): UnsafeRecord | null =>
 const sanitizePathSegment = (segment: string) =>
   segment.replace(/[^a-zA-Z0-9._-]/g, '-');
 
-const toMountedCssFilePath = (rawPath: string, fallbackName: string) => {
+const toMountedCssSuggestedPath = (rawPath: string, fallbackName: string) => {
   const normalized = rawPath.replaceAll('\\', '/').trim();
   const rawSegments = normalized
     .split('/')
@@ -393,14 +407,10 @@ const toMountedCssFilePath = (rawPath: string, fallbackName: string) => {
     .filter((segment) => segment !== '.' && segment !== '..')
     .map(sanitizePathSegment);
 
-  const styleIndex = rawSegments.findIndex((segment) => segment === 'styles');
-  const segments =
-    styleIndex >= 0
-      ? rawSegments.slice(styleIndex)
-      : ['styles', 'mounted', rawSegments.at(-1) ?? `${fallbackName}.css`];
+  const segments = rawSegments.length ? rawSegments : [`${fallbackName}.css`];
 
   if (!segments.length) {
-    segments.push('styles', 'mounted', `${fallbackName}.css`);
+    segments.push(`${fallbackName}.css`);
   }
 
   const fileName = segments.at(-1) ?? `${fallbackName}.css`;
@@ -420,9 +430,6 @@ const readMountedCssContent = (value: unknown): string | null => {
   return `${content}\n`;
 };
 
-const isCssCodeArtifact = (artifact: ReactGeneratorCodeArtifact) =>
-  artifact.language === 'css' || artifact.path.toLowerCase().endsWith('.css');
-
 const readMountedCssArtifactIds = (value: unknown): string[] => {
   const candidates = Array.isArray(value) ? value : [value];
   return candidates
@@ -437,14 +444,23 @@ const readMountedCssArtifactIds = (value: unknown): string[] => {
     .filter((artifactId): artifactId is string => Boolean(artifactId));
 };
 
-const collectMountedCssFiles = (
+const collectMountedCssStyleContributions = (
   root: ComponentNode,
-  codeArtifacts: ReactGeneratorCodeArtifact[] = []
-): Array<{ path: string; content: string }> => {
-  const filesByPath = new Map<string, string>();
+  codeArtifacts: ReactGeneratorCodeArtifact[] = [],
+  ownerRootId = 'app'
+): {
+  styles: ExportStyleContribution[];
+  artifacts: ExportArtifactContribution[];
+} => {
+  const contributionsById = new Map<string, ExportStyleContribution>();
+  const artifactContributionsById = new Map<
+    string,
+    ExportArtifactContribution
+  >();
   const artifactsById = new Map(
     codeArtifacts.map((artifact) => [artifact.id, artifact])
   );
+  let sourceOrder = 0;
 
   const collectFromNode = (node: ComponentNode) => {
     const anyNode = node as ComponentNode & { metadata?: unknown };
@@ -457,18 +473,38 @@ const collectMountedCssFiles = (
 
     mountedCssArtifactIds.forEach((artifactId) => {
       const artifact = artifactsById.get(artifactId);
-      if (!artifact || !isCssCodeArtifact(artifact)) return;
+      if (!artifact || !isExportCssCodeArtifact(artifact)) return;
       const content = artifact.source.trim();
       if (!content) return;
-      const normalizedPath = toMountedCssFilePath(artifact.path, node.id);
-      const nextContent = `${content}\n`;
-      const previous = filesByPath.get(normalizedPath);
-      if (!previous) {
-        filesByPath.set(normalizedPath, nextContent);
+      const suggestedName = toMountedCssSuggestedPath(artifact.path, node.id)
+        .split('/')
+        .pop()
+        ?.replace(/\.css$/i, '');
+      const contributionId = `mounted-css:${artifact.id}`;
+      const existing = artifactContributionsById.get(contributionId);
+      if (!existing) {
+        artifactContributionsById.set(
+          contributionId,
+          createExportCodeArtifactStyleArtifactContribution({
+            artifact,
+            id: contributionId,
+            ownerRootId,
+            suggestedName,
+            cssText: content,
+            orderIndex: sourceOrder,
+          })
+        );
+        sourceOrder += 1;
         return;
       }
-      if (!previous.includes(nextContent)) {
-        filesByPath.set(normalizedPath, `${previous}\n${nextContent}`);
+      if (
+        typeof existing.contents === 'string' &&
+        !existing.contents.includes(content)
+      ) {
+        artifactContributionsById.set(contributionId, {
+          ...existing,
+          contents: `${existing.contents}\n\n${content}`,
+        });
       }
     });
 
@@ -489,14 +525,49 @@ const collectMountedCssFiles = (
           typeof record?.path === 'string' && record.path.trim()
             ? record.path
             : fallbackPath;
-        const normalizedPath = toMountedCssFilePath(pathValue, node.id);
-        const previous = filesByPath.get(normalizedPath);
-        if (!previous) {
-          filesByPath.set(normalizedPath, content);
+        const normalizedPath = toMountedCssSuggestedPath(pathValue, node.id);
+        const contributionId = `mounted-css:inline:${node.id}:${normalizedPath}`;
+        const existing = contributionsById.get(contributionId);
+        if (!existing) {
+          contributionsById.set(contributionId, {
+            id: contributionId,
+            ownerRootId,
+            scope: 'component',
+            suggestedName: normalizedPath
+              .split('/')
+              .pop()
+              ?.replace(/\.css$/i, ''),
+            cssText: content.trim(),
+            orderHint: {
+              group: 'mounted-css',
+              index: sourceOrder,
+            },
+            sourceTrace: [
+              {
+                sourceRef: {
+                  domain: 'pir',
+                  id: node.id,
+                  path: `/ui/graph/nodesById/${node.id}`,
+                },
+                ownerRootId,
+              },
+            ],
+            origin: {
+              kind: 'generated',
+              owner: 'prodivix',
+              writePolicy: 'generated',
+              updatePolicy: 'regenerate',
+            },
+          });
+          sourceOrder += 1;
           return;
         }
-        if (!previous.includes(content)) {
-          filesByPath.set(normalizedPath, `${previous}\n${content}`);
+        const trimmedContent = content.trim();
+        if (!existing.cssText.includes(trimmedContent)) {
+          contributionsById.set(contributionId, {
+            ...existing,
+            cssText: `${existing.cssText}\n\n${trimmedContent}`,
+          });
         }
       };
 
@@ -504,16 +575,13 @@ const collectMountedCssFiles = (
         candidate.forEach((entry, entryIndex) => {
           appendCssFile(
             entry,
-            `styles/mounted/${node.id}-${candidateIndex + 1}-${entryIndex + 1}.css`
+            `${node.id}-${candidateIndex + 1}-${entryIndex + 1}.css`
           );
         });
         return;
       }
 
-      appendCssFile(
-        candidate,
-        `styles/mounted/${node.id}-${candidateIndex + 1}.css`
-      );
+      appendCssFile(candidate, `${node.id}-${candidateIndex + 1}.css`);
     });
 
     node.children?.forEach(collectFromNode);
@@ -521,12 +589,22 @@ const collectMountedCssFiles = (
 
   collectFromNode(root);
 
-  return Array.from(filesByPath.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([path, content]) => ({
-      path,
-      content,
-    }));
+  const sortByOrder = <
+    T extends { id: string; orderHint?: { index?: number } },
+  >(
+    items: T[]
+  ) =>
+    items.sort(
+      (a, b) =>
+        (a.orderHint?.index ?? Number.MAX_SAFE_INTEGER) -
+          (b.orderHint?.index ?? Number.MAX_SAFE_INTEGER) ||
+        a.id.localeCompare(b.id)
+    );
+
+  return {
+    styles: sortByOrder(Array.from(contributionsById.values())),
+    artifacts: sortByOrder(Array.from(artifactContributionsById.values())),
+  };
 };
 
 const sanitizeDataAttributesProp = (value: unknown): Record<string, string> => {
@@ -542,12 +620,23 @@ const sanitizeDataAttributesProp = (value: unknown): Record<string, string> => {
         return acc;
       }
       if (typeof item === 'string' || typeof item === 'number') {
-        acc[key] = String(item);
+        const value = String(item);
+        if (value.length > 0) {
+          acc[key] = value;
+        }
       }
       return acc;
     },
     {}
   );
+};
+
+const shouldOmitEmptyExportProp = (value: unknown): boolean => {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string') return value.length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
 };
 
 const sanitizeNodePropsForExport = (props: Record<string, unknown>) => {
@@ -566,6 +655,7 @@ const sanitizeNodePropsForExport = (props: Record<string, unknown>) => {
       }
       return;
     }
+    if (shouldOmitEmptyExportProp(value)) return;
     sanitized[key] = value;
   });
   return sanitized;
@@ -577,15 +667,19 @@ export const compilePirToReactComponent = (
 ): ReactComponentCompileResult => {
   const bag = createDiagnosticBag();
   const canonical = buildCanonicalIR(pirDoc, bag);
-  const mountedCssFiles = collectMountedCssFiles(
+  const mountedCssContributions = collectMountedCssStyleContributions(
     materializePirRoot(pirDoc),
     options?.codeArtifacts
   );
+  const fileArtifactContributions = options?.includeWorkspaceCodeArtifacts
+    ? collectExportCodeArtifactContributions(options?.codeArtifacts)
+    : [];
 
   const componentName =
     options?.componentName ||
     canonical.metadata?.name?.replace(/\s+/g, '') ||
     'PdxComponent';
+  const moduleId = `react-component:${componentName}`;
   const interfaceName = `${componentName}Props`;
   const propsDef = canonical.logic?.props ?? {};
   const hasProps = Object.keys(propsDef).length > 0;
@@ -599,6 +693,28 @@ export const compilePirToReactComponent = (
     canonical.logic?.state && Object.keys(canonical.logic.state).length > 0
   );
   const adapter = options?.adapter ?? reactAdapter;
+  const runtimeRequirementsById = new Map<string, ExportRuntimeRequirement>();
+  const requireEventRuntime = (nodeId: string, eventKey: string) => {
+    const id = `event-runtime:${moduleId}`;
+    if (runtimeRequirementsById.has(id)) return;
+    runtimeRequirementsById.set(id, {
+      id,
+      kind: 'event-runtime',
+      ownerModuleId: moduleId,
+      importName: 'dispatchProdivixEvent',
+      importKind: 'named',
+      sourceTrace: [
+        {
+          sourceRef: {
+            domain: 'pir',
+            id: nodeId,
+            path: `/ui/graph/nodesById/${nodeId}/events/${eventKey}`,
+          },
+          ownerRootId: 'app',
+        },
+      ],
+    });
+  };
 
   const adapterImports: AdapterImportSpec[] = [];
   const collectAdapterArtifacts = (node: CanonicalNode) => {
@@ -820,6 +936,9 @@ ${indent}))`;
       }
 
       if (eventDef.action && isBuiltInActionName(eventDef.action)) {
+        if (eventDef.action === 'executeGraph') {
+          requireEventRuntime(node.id, eventKey);
+        }
         const handlerExpr = buildBuiltInInlineHandler(
           eventDef.action,
           eventDef.params ?? {},
@@ -895,9 +1014,6 @@ ${indent}))`;
       });
     })
     .join('\n');
-  const mountedCssImportBlock = mountedCssFiles
-    .map((file) => `import './${file.path}';`)
-    .join('\n');
   const packageStyleImportBlock = resolvedImports.some(
     (item) => item.resolution.packageName === '@prodivix/ui'
   )
@@ -921,7 +1037,6 @@ ${indent}))`;
     reactImport,
     adapterImportBlock,
     packageStyleImportBlock,
-    mountedCssImportBlock,
     interfaceBlock.trim(),
     `${functionSignature}
 ${functionBodyPrelude ? `${functionBodyPrelude}\n` : ''}  return (
@@ -942,6 +1057,59 @@ ${rootJsx}
     },
     {}
   );
+  const remoteSourceOrigins: ExportSourceOrigin[] = [];
+  const dependencyOrigins = resolvedImports.reduce<
+    Record<string, ReactComponentCompileResult['dependencyOrigins'][string]>
+  >((acc, item) => {
+    const { packageName, packageVersion, declareDependency, sourceKind, url } =
+      item.resolution;
+    if (!packageName) return acc;
+    if (sourceKind === 'esm-sh' || sourceKind === 'remote-url') {
+      const origin = resolveRemoteExportSource({
+        url: url ?? item.resolution.importSource,
+        label: packageName,
+        updatePolicy: 'follow-package',
+      }).origin;
+      acc[packageName] = origin;
+      remoteSourceOrigins.push(origin);
+      return acc;
+    }
+    if (!declareDependency) return acc;
+    acc[packageName] = createExportPackageOrigin(
+      packageName,
+      packageVersion ?? 'latest',
+      {
+        updatePolicy: 'follow-package',
+      }
+    );
+    return acc;
+  }, {});
+  const sourceTrace: ExportSourceTrace[] = [
+    {
+      sourceRef: {
+        domain: 'pir',
+        id: 'root',
+        path: '/ui/graph/rootId',
+      },
+      ownerRootId: 'app',
+    },
+  ];
+  const module: ReactComponentCompileResult['module'] = {
+    id: moduleId,
+    kind: 'react-component',
+    ownerRootId: 'app',
+    suggestedName: componentName,
+    language: 'tsx',
+    imports: [],
+    body: code,
+    sourceTrace,
+    origin: {
+      kind: 'generated',
+      owner: 'prodivix',
+      writePolicy: 'generated',
+      updatePolicy: 'regenerate',
+    },
+  };
 
   return {
     componentName,
@@ -949,6 +1117,18 @@ ${rootJsx}
     diagnostics: bag.diagnostics,
     canonicalIR: canonical,
     dependencies,
-    mountedCssFiles,
+    dependencyOrigins,
+    module,
+    styles: mountedCssContributions.styles,
+    artifacts: [
+      ...mountedCssContributions.artifacts,
+      ...fileArtifactContributions,
+    ],
+    runtimeRequirements: Array.from(runtimeRequirementsById.values()),
+    exportContributions: [
+      ...(options?.exportContributions ?? []),
+      ...(remoteSourceOrigins.length ? [{ sources: remoteSourceOrigins }] : []),
+    ],
+    sourceTrace,
   };
 };

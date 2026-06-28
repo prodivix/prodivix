@@ -29,6 +29,7 @@ export const createAuthoringEnvironment = ({
   diagnosticRegistry = createAuthoringDiagnosticProviderRegistry(),
 }: CreateAuthoringEnvironmentInput): AuthoringEnvironment => ({
   revision,
+  listArtifacts: (context) => artifactRegistry.listArtifacts(context),
   querySymbols: (context) => symbolRegistry.listSymbols(context),
   resolveReference: () => null,
   getCompletions: (context): CodeCompletion[] =>

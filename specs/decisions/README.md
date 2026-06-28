@@ -41,14 +41,17 @@
 12. **代码作者环境与作者态符号环境**
     - `specs/decisions/28.code-authoring-environment.md`
     - `specs/decisions/25.authoring-symbol-environment.md`
-13. **UX 诊断体系**
+13. **生产级编译与导出**
+    - `specs/decisions/31.production-export-planner.md`
+    - `specs/codegen/react-production-policy-v1.md`
+14. **UX 诊断体系**
     - `specs/decisions/26.ux-diagnostics.md`
     - `specs/diagnostics/ux-diagnostic-codes.md`
-14. **诊断展示契约**
+15. **诊断展示契约**
     - `specs/decisions/27.diagnostic-presentation-contract.md`
-15. **GitHub App 与 Git 集成**
+16. **GitHub App 与 Git 集成**
     - `specs/decisions/23.github-app-integration.md`
-16. **诊断码与错误体系**
+17. **诊断码与错误体系**
     - `specs/diagnostics/README.md`
     - `specs/decisions/24.backend-diagnostic-envelope.md`
     - `specs/decisions/27.diagnostic-presentation-contract.md`
@@ -75,6 +78,7 @@
 - `specs/implementation/node-graph-control-flow-ui-spec.md`
 - `specs/implementation/authoring-symbol-environment-phase1.md`
 - `specs/implementation/authoring-environment-stable-structures.md`
+- `specs/implementation/production-export-planner-implementation.md`
 - `specs/codegen/react-production-policy-v1.md`
 - `specs/external/canonical-external-ir-v1.md`
 - `specs/diagnostics/external-library-diagnostic-codes.md`
@@ -99,3 +103,4 @@ ADR 的 `状态` 描述决策成熟度，不等同于代码完成度。实现完
 | `28.code-authoring-environment.md`                  | Accepted                | In Progress                         | Code Authoring Environment 是三编辑器共享代码作者态底座。                                                            | 继续推动 code-owned 能力统一接入。                              |
 | `29.plugin-extension-points.md`                     | Draft                   | Planned                             | 插件扩展点是长期方向，现有外部库仍保留在 core 作为迁移期实现。                                                       | 插件宿主稳定后再迁移官方插件。                                  |
 | `30.react-flow-nodegraph-editor.md`                 | Accepted                | Implemented / Stabilizing           | React Flow 是 NodeGraph 编辑器长期选型，现有实现位于 `apps/web/src/editor/features/development/reactflow/`。         | 继续收敛写入链路与插件边界。                                    |
+| `31.production-export-planner.md`                   | Draft                   | Planned                             | 定义作者态 artifact 到生产级源码拓扑的统一 export planner。                                                          | 建立 Export Program IR，并替换当前节点级 mounted CSS 文件输出。 |

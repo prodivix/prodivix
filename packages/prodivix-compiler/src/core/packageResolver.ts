@@ -11,6 +11,8 @@ export interface PackageResolution {
   packageName: string | null;
   packageVersion: string | null;
   declareDependency: boolean;
+  sourceKind: 'package' | 'esm-sh' | 'relative' | 'remote-url';
+  url: string | null;
 }
 
 const isBareImport = (source: string) =>
@@ -44,6 +46,8 @@ export const resolvePackageImport = (
       packageName,
       packageVersion,
       declareDependency: false,
+      sourceKind: /^https?:\/\//.test(source) ? 'remote-url' : 'relative',
+      url: /^https?:\/\//.test(source) ? source : null,
     };
   }
 
@@ -56,6 +60,8 @@ export const resolvePackageImport = (
       packageName,
       packageVersion,
       declareDependency: false,
+      sourceKind: 'esm-sh',
+      url: importSource,
     };
   }
 
@@ -64,5 +70,7 @@ export const resolvePackageImport = (
     packageName,
     packageVersion,
     declareDependency: Boolean(packageName),
+    sourceKind: 'package',
+    url: null,
   };
 };

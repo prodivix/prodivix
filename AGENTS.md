@@ -116,7 +116,11 @@ flowchart TD
 
     %% ----------------- 底部：编译与部署 -----------------
     subgraph Compilation [编译器与输出]
-        Compiler[编译器]:::output
+        DomainCompilers[Domain Compilers<br>Blueprint / NodeGraph / Animation / CodeArtifact]:::output
+        ExportProgram[Export Program IR<br>modules / styles / assets / deps / source trace]
+        ExportPlanner[Production Export Planner<br>topology / imports / dependencies / assets]:::output
+        ExportBundle[Export Bundle<br>source / styles / runtime / assets / config]
+        TargetPresets[Target Presets<br>React Vite / Vue / Svelte / Web Components 等]
 
         %% 框架列表
         Frameworks[原生 / Web Components / React / Vue / Angular<br>Qwik / Svelte / Solid / Lit / Astro]
@@ -129,15 +133,17 @@ flowchart TD
         Hosting[GitHub Pages / Vercel / Netlify]
         Perf[性能监控]
 
-        Compiler --> Frameworks
+        DomainCompilers --> ExportProgram --> ExportPlanner --> ExportBundle
+        TargetPresets --> ExportPlanner
+        ExportBundle --> Frameworks
         Frameworks --> Build --> Deploy
         Deploy --> Targets & Hosting
         Targets --> Perf
     end
 
     %% 连接 VFS 内文档到编译器
-    WorkspaceCore & PIR & CodeDocuments & VFSAssets --> Compiler
-    Frameworks -->|生成源码| Git
+    WorkspaceCore & PIR & CodeDocuments & VFSAssets --> DomainCompilers
+    ExportBundle -->|生成源码 / 配置 / 资源| Git
 
     %% ----------------- 右下角：文档 -----------------
     Docs[文档]
@@ -168,7 +174,11 @@ flowchart TD
     %% 读取侧：需要树时只生成临时中间层
     Materialize[materializeUiTree<br>临时树中间层]
     Renderer[Renderer / Preview]
-    Codegen[Code Generator]
+    CodeAuthoring[Code Authoring Projection<br>CodeArtifact / CodeSymbol / SourceTrace]
+    ExportProgramBuilder[Export Program Builder<br>modules / styles / assets / deps]
+    ExportPlanner[Production Export Planner<br>文件拓扑 / import / dependency]
+    ExportBundle[Export Bundle<br>源码 / CSS / runtime / assets / config]
+    Codegen[Code Generator / Scaffold Writer]
 
     Editors --> Commands
     LLM --> Commands
@@ -178,7 +188,10 @@ flowchart TD
     Persistence --> Graph
     Graph --> Materialize
     Materialize --> Renderer
-    Materialize --> Codegen
+    Materialize --> ExportProgramBuilder
+    CodeDocs --> CodeAuthoring
+    CodeAuthoring --> ExportProgramBuilder
+    ExportProgramBuilder --> ExportPlanner --> ExportBundle --> Codegen
 ```
 
 ## Code Authoring Environment 与作者态符号环境
@@ -210,7 +223,7 @@ MFE 是 Blueprint、NodeGraph、Animation 三编辑器架构。`specs/decisions/
 13. 依赖安装或更新导致锁文件变化时，无需手动修改锁文件，接受包管理器自然生成的锁文件变更。
 14. 文档语言按目标读者、已有文件语境和同一文档语言一致性决定。根 `README.md` 使用英文，`README.zh-CN.md` 使用简体中文。
 15. 任何 code-owned 能力都要优先接入 Code Authoring Environment，不要让三编辑器直接保存任意代码字符串，也不要绕过 Authoring Symbol Environment 自行扫描其他编辑器内部状态。
-16. 项目处于 alpha 阶段，有重大更改时尽量做彻底重构，不要留兼容层，也没有把旧数据转换为新数据的义务。
+16. 项目处于 alpha 阶段，有重大更改时尽量做彻底重构，不要留兼容层，也没有把旧数据转换为新数据的义务。无需做最小方案，无需写兼容层。要做就要实现最能长期稳定、最符合软件工程原则的实现。
 
 ## 工具入口文件关系
 

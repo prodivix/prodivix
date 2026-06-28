@@ -148,6 +148,7 @@ export type ReferenceLocation = {
 
 export type AuthoringEnvironment = {
   revision: string;
+  listArtifacts(context: AuthoringContext): CodeArtifact[];
   querySymbols(context: AuthoringContext): CodeSymbol[];
   resolveReference(
     reference: CodeReference,

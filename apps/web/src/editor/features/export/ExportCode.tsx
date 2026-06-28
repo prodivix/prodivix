@@ -4,19 +4,25 @@ import { useParams } from 'react-router';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import {
   generateReactBundle,
+  type ReactExportFile,
   type ReactGeneratorCodeArtifact,
 } from '@prodivix/prodivix-compiler';
 import { validatePirDocument } from '@/pir/validator/validator';
 import {
-  isWorkspaceCodeDocumentContent,
   projectWorkspaceToMfeFiles,
   type StableWorkspaceSnapshot,
   type WorkspaceProjectionIssue,
 } from '@/workspace';
+import {
+  createAuthoringEnvironment,
+  createCodeArtifactProviderRegistry,
+  createWorkspaceCodeArtifactProvider,
+} from '@/authoring';
 import { flattenPublicFiles } from '@/editor/features/resources/publicTree';
 import { flattenEnabledProjectFiles } from '@/editor/features/resources/projectFileStore';
 import { buildPublicResourceTreeFromWorkspace } from '@/editor/features/resources/workspacePublicResources';
 import { buildProjectFilesFromWorkspace } from '@/editor/features/resources/workspaceProjectFiles';
+import { createWorkspaceResourceExportContributions } from './exportContributions';
 import { ExportCodeHeader } from './ExportCodeHeader';
 import { ExportCodePreview } from './ExportCodePreview';
 import { ExportFileTree } from './ExportFileTree';
@@ -30,6 +36,41 @@ import {
 } from './exportCodeModel';
 import { resolveZipFilePayload } from './exportZip';
 import './ExportCode.scss';
+
+const resolveReactExportLanguage = (
+  file: ReactExportFile
+): ExportCodeFile['language'] => {
+  if (file.language === 'json') return 'json';
+  if (file.language === 'html') return 'html';
+  if (file.language === 'css') return 'css';
+  if (file.language === 'yaml' || file.language === 'yml') return 'yaml';
+  if (file.language === 'md' || file.language === 'markdown') {
+    return 'markdown';
+  }
+  if (
+    file.language === 'ts' ||
+    file.language === 'tsx' ||
+    file.language === 'js' ||
+    file.language === 'jsx'
+  ) {
+    return 'typescript';
+  }
+  return resolveProjectFileLanguage(file.path);
+};
+
+const reactExportFileToCodeFile = (file: ReactExportFile): ExportCodeFile => {
+  const isBinary = file.contents instanceof Uint8Array;
+  return {
+    path: file.path,
+    language: resolveReactExportLanguage(file),
+    content: isBinary
+      ? `// Binary file\n// path: ${file.path}\n// mime: ${
+          file.mimeType || 'unknown'
+        }\n// size: ${file.contents.byteLength} bytes`
+      : file.contents,
+    binaryContent: isBinary ? file.contents : undefined,
+  };
+};
 
 export function ExportCode() {
   const { t } = useTranslation('export');
@@ -66,143 +107,6 @@ export function ExportCode() {
   const pirValidation = useMemo(() => validatePirDocument(pirDoc), [pirDoc]);
   const hasPirValidationError = pirValidation.hasError;
   const validatedPirDoc = pirValidation.document;
-  const codeArtifacts = useMemo<ReactGeneratorCodeArtifact[]>(() => {
-    const artifacts: ReactGeneratorCodeArtifact[] = [];
-    Object.values(workspaceDocumentsById).forEach((document) => {
-      if (
-        document.type !== 'code' ||
-        !isWorkspaceCodeDocumentContent(document.content)
-      ) {
-        return;
-      }
-      artifacts.push({
-        id: document.id,
-        path: document.path,
-        language: document.content.language,
-        source: document.content.source,
-      });
-    });
-    return artifacts;
-  }, [workspaceDocumentsById]);
-
-  const reactBundle = useMemo(() => {
-    if (!validatedPirDoc?.ui?.graph) return null;
-    if (hasPirValidationError) {
-      return {
-        entryFilePath: 'validation-error.ts',
-        type: projectType,
-        files: [],
-        diagnostics: pirValidation.issues.map((item) => ({
-          code: item.code,
-          severity: 'error' as const,
-          source: 'canonical-ir' as const,
-          message: item.message,
-          path: item.path,
-        })),
-      };
-    }
-    try {
-      return generateReactBundle(validatedPirDoc, {
-        resourceType: projectType,
-        packageResolver: {
-          strategy: 'npm',
-        },
-        codeArtifacts,
-      });
-    } catch (error) {
-      const message = t('react.error', {
-        defaultValue: 'React 代码生成失败',
-      });
-      return {
-        entryFilePath: 'error.ts',
-        type: projectType,
-        files: [
-          {
-            path: 'error.ts',
-            language: 'typescript' as const,
-            content: `// ${message}\n${String(error)}`,
-          },
-        ],
-        diagnostics: [],
-      };
-    }
-  }, [
-    validatedPirDoc,
-    hasPirValidationError,
-    pirValidation.issues,
-    projectType,
-    codeArtifacts,
-    t,
-  ]);
-
-  const publicTree = useMemo(
-    () =>
-      buildPublicResourceTreeFromWorkspace(
-        workspaceDocumentsById,
-        treeRootId,
-        treeById
-      ),
-    [treeById, treeRootId, workspaceDocumentsById]
-  );
-  const projectFileExportFiles = useMemo<ExportCodeFile[]>(
-    () =>
-      flattenEnabledProjectFiles(
-        buildProjectFilesFromWorkspace(workspaceDocumentsById)
-      ).map((file) => ({
-        path: file.path,
-        language: resolveProjectFileLanguage(file.path),
-        content: file.content,
-      })),
-    [workspaceDocumentsById]
-  );
-  const publicExportFiles = useMemo<ExportCodeFile[]>(
-    () =>
-      flattenPublicFiles(publicTree).map((file) => {
-        const lowerName = file.name.toLowerCase();
-        const isJson = Boolean(
-          file.mime?.includes('json') || lowerName.endsWith('.json')
-        );
-        const isHtml = Boolean(
-          file.mime?.includes('html') || /\.(html?)$/i.test(lowerName)
-        );
-        const isCss = Boolean(
-          file.mime?.includes('css') || lowerName.endsWith('.css')
-        );
-        const content =
-          file.textContent ??
-          `// Binary file\n// path: ${file.path}\n// mime: ${
-            file.mime || 'unknown'
-          }\n// size: ${file.size || 0} bytes`;
-        return {
-          path: file.path,
-          language: isJson
-            ? 'json'
-            : isHtml
-              ? 'html'
-              : isCss
-                ? 'css'
-                : 'typescript',
-          content,
-          binaryDataUrl:
-            file.textContent == null && file.contentRef?.startsWith('data:')
-              ? file.contentRef
-              : undefined,
-        };
-      }),
-    [publicTree]
-  );
-  const reactProjectFiles = useMemo<ExportCodeFile[]>(
-    () => [
-      ...projectFileExportFiles,
-      ...(reactBundle?.files ?? []),
-      ...publicExportFiles,
-    ],
-    [projectFileExportFiles, publicExportFiles, reactBundle?.files]
-  );
-  const reactFileTree = useMemo(
-    () => buildFileTree(reactProjectFiles),
-    [reactProjectFiles]
-  );
   const workspaceSnapshot = useMemo<StableWorkspaceSnapshot | null>(() => {
     if (!workspaceId || !treeRootId) return null;
     return {
@@ -229,6 +133,137 @@ export function ExportCode() {
     workspaceId,
     workspaceRev,
   ]);
+  const codeArtifacts = useMemo<ReactGeneratorCodeArtifact[]>(() => {
+    if (!workspaceSnapshot) return [];
+    const artifactRegistry = createCodeArtifactProviderRegistry();
+    artifactRegistry.register(
+      createWorkspaceCodeArtifactProvider(workspaceSnapshot)
+    );
+    const authoringEnvironment = createAuthoringEnvironment({
+      revision: String(workspaceSnapshot.workspaceRev),
+      artifactRegistry,
+    });
+    return authoringEnvironment
+      .listArtifacts({ surface: 'code-editor' })
+      .map((artifact) => ({
+        id: artifact.id,
+        path: artifact.path,
+        language: artifact.language,
+        source: artifact.source,
+      }));
+  }, [workspaceSnapshot]);
+  const publicTree = useMemo(
+    () =>
+      buildPublicResourceTreeFromWorkspace(
+        workspaceDocumentsById,
+        treeRootId,
+        treeById
+      ),
+    [treeById, treeRootId, workspaceDocumentsById]
+  );
+  const enabledProjectFiles = useMemo(
+    () =>
+      flattenEnabledProjectFiles(
+        buildProjectFilesFromWorkspace(workspaceDocumentsById)
+      ),
+    [workspaceDocumentsById]
+  );
+  const publicFiles = useMemo(
+    () => flattenPublicFiles(publicTree),
+    [publicTree]
+  );
+  const exportContributions = useMemo(() => {
+    if (projectType !== 'project') return [];
+    return createWorkspaceResourceExportContributions({
+      workspaceDocumentsById,
+      projectFiles: enabledProjectFiles,
+      publicFiles,
+    });
+  }, [enabledProjectFiles, projectType, publicFiles, workspaceDocumentsById]);
+
+  const reactBundle = useMemo(() => {
+    if (!validatedPirDoc?.ui?.graph) return null;
+    if (hasPirValidationError) {
+      return {
+        entryFilePath: 'validation-error.ts',
+        type: projectType,
+        files: [],
+        dependencies: [],
+        target: {
+          framework: 'react' as const,
+          preset: 'vite',
+        },
+        metadata: undefined,
+        diagnostics: pirValidation.issues.map((item) => ({
+          code: item.code,
+          severity: 'error' as const,
+          source: 'canonical-ir' as const,
+          message: item.message,
+          path: item.path,
+        })),
+      };
+    }
+    try {
+      return generateReactBundle(validatedPirDoc, {
+        resourceType: projectType,
+        packageResolver: {
+          strategy: 'npm',
+        },
+        codeArtifacts,
+        exportContributions,
+      });
+    } catch (error) {
+      const message = t('react.error', {
+        defaultValue: 'React 代码生成失败',
+      });
+      return {
+        entryFilePath: 'error.ts',
+        type: projectType,
+        files: [
+          {
+            path: 'error.ts',
+            kind: 'source-module' as const,
+            language: 'ts',
+            mimeType: 'text/typescript',
+            contents: `// ${message}\n${String(error)}`,
+            sourceTrace: [
+              {
+                sourceRef: {
+                  domain: 'codegen',
+                  id: 'error',
+                  path: 'error.ts',
+                },
+              },
+            ],
+          },
+        ],
+        diagnostics: [],
+        dependencies: [],
+        target: {
+          framework: 'react' as const,
+          preset: 'vite',
+        },
+        metadata: undefined,
+      };
+    }
+  }, [
+    validatedPirDoc,
+    hasPirValidationError,
+    pirValidation.issues,
+    projectType,
+    codeArtifacts,
+    exportContributions,
+    t,
+  ]);
+
+  const reactProjectFiles = useMemo<ExportCodeFile[]>(
+    () => reactBundle?.files.map(reactExportFileToCodeFile) ?? [],
+    [reactBundle?.files]
+  );
+  const reactFileTree = useMemo(
+    () => buildFileTree(reactProjectFiles),
+    [reactProjectFiles]
+  );
   const vfsProjection = useMemo<
     { files: ExportCodeFile[]; issues: WorkspaceProjectionIssue[] } | undefined
   >(() => {
@@ -248,6 +283,12 @@ export function ExportCode() {
   }, [workspaceSnapshot]);
   const vfsProjectFiles = vfsProjection?.files ?? [];
   const vfsProjectionIssues = vfsProjection?.issues ?? [];
+  const reactMainDiagnostics = useMemo(
+    () =>
+      reactBundle?.diagnostics?.filter((item) => item.source !== 'export') ??
+      [],
+    [reactBundle?.diagnostics]
+  );
   const vfsFileTree = useMemo(
     () => buildFileTree(vfsProjectFiles),
     [vfsProjectFiles]
@@ -446,9 +487,9 @@ export function ExportCode() {
             ))}
           </div>
         ) : null}
-        {activeTab === 'react' && reactBundle?.diagnostics?.length ? (
+        {activeTab === 'react' && reactMainDiagnostics.length ? (
           <div className="mb-2 rounded-md border border-amber-300/60 bg-amber-100/40 px-2 py-1 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100">
-            {reactBundle.diagnostics.map((item) => (
+            {reactMainDiagnostics.map((item) => (
               <p key={`${item.code}:${item.path}`} className="m-0">
                 [{item.severity}] {item.code}: {item.message}
               </p>

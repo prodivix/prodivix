@@ -10,7 +10,7 @@ import {
 } from '#src/react/projectScaffold';
 
 describe('compilePirToReactComponent', () => {
-  it('exports mounted CSS from code slot artifacts without leaking bindings as props', () => {
+  it('exports mounted CSS as style contributions without leaking bindings as props', () => {
     const pirDoc: PIRDocument = {
       version: CURRENT_PIR_VERSION,
       metadata: { name: 'MountedCssExample' },
@@ -55,13 +55,23 @@ describe('compilePirToReactComponent', () => {
       ],
     });
 
-    expect(compiled.mountedCssFiles).toEqual([
-      {
-        path: 'styles/mounted/root.css',
-        content: '.hero { color: red; }\n',
-      },
+    expect(compiled.styles).toEqual([]);
+    expect(compiled.artifacts).toEqual([
+      expect.objectContaining({
+        id: 'mounted-css:code_mounted_css_root',
+        kind: 'style',
+        ownerRootId: 'app',
+        contents: '.hero { color: red; }',
+        placement: expect.objectContaining({
+          styleScope: 'component',
+        }),
+        origin: expect.objectContaining({
+          kind: 'workspace-document',
+          owner: 'workspace',
+        }),
+      }),
     ]);
-    expect(compiled.code).toContain("import './styles/mounted/root.css';");
+    expect(compiled.code).not.toContain("import './styles/mounted/root.css';");
     expect(compiled.code).not.toContain('codeBindings');
     expect(compiled.code).toContain('className="hero"');
   });
@@ -183,6 +193,58 @@ describe('compilePirToReactComponent', () => {
     expect(compiled.code).not.toContain('>\n      Button\n    </PdxButton>');
   });
 
+  it('omits empty exported props while preserving meaningful falsy values', () => {
+    const pirDoc: PIRDocument = {
+      version: CURRENT_PIR_VERSION,
+      metadata: { name: 'EmptyPropsExample' },
+      ui: {
+        graph: {
+          version: 1,
+          rootId: 'root',
+          nodesById: {
+            root: {
+              id: 'root',
+              type: 'PdxHeading',
+              text: 'Heading',
+              props: {
+                className: '',
+                id: '',
+                title: '',
+                tokens: [],
+                metadata: {},
+                disabled: false,
+                tabIndex: 0,
+                dataAttributes: {
+                  'data-empty': '',
+                  'data-count': 0,
+                  'data-label': 'heading',
+                },
+              },
+            },
+          },
+          childIdsById: {
+            root: [],
+          },
+        },
+      },
+    };
+
+    const compiled = compilePirToReactComponent(pirDoc);
+
+    expect(compiled.code).toContain('<PdxHeading');
+    expect(compiled.code).not.toContain('className=""');
+    expect(compiled.code).not.toContain('id=""');
+    expect(compiled.code).not.toContain('title=""');
+    expect(compiled.code).not.toContain('tokens={[]}');
+    expect(compiled.code).not.toContain('metadata={{}}');
+    expect(compiled.code).not.toContain('"data-empty"');
+    expect(compiled.code).toContain('disabled={false}');
+    expect(compiled.code).toContain('tabIndex={0}');
+    expect(compiled.code).toContain(
+      'dataAttributes={{"data-count":"0","data-label":"heading"}}'
+    );
+  });
+
   it('scaffolds a pnpm-installable Vite React project', () => {
     const pirDoc: PIRDocument = {
       version: CURRENT_PIR_VERSION,
@@ -207,7 +269,8 @@ describe('compilePirToReactComponent', () => {
 
     const bundle = createProjectReactBundle(compilePirToReactComponent(pirDoc));
     const packageJson = JSON.parse(
-      bundle.files.find((file) => file.path === 'package.json')?.content ?? '{}'
+      bundle.files.find((file) => file.path === 'package.json')?.contents ??
+        '{}'
     ) as {
       packageManager?: string;
       scripts?: Record<string, string>;
@@ -235,10 +298,13 @@ describe('compilePirToReactComponent', () => {
       REACT_PROJECT_SCAFFOLD_PRESET.devDependencies['@types/react-dom']
     );
     expect(pnpmWorkspace?.language).toBe('yaml');
-    expect(pnpmWorkspace?.content).toContain('onlyBuiltDependencies:');
-    expect(pnpmWorkspace?.content).toContain('esbuild');
+    expect(pnpmWorkspace?.contents).toContain('onlyBuiltDependencies:');
+    expect(pnpmWorkspace?.contents).toContain('esbuild');
     expect(bundle.files.some((file) => file.path === 'src/vite-env.d.ts')).toBe(
       true
+    );
+    expect(bundle.files.find((file) => file.path === 'src/App.tsx')?.kind).toBe(
+      'source-module'
     );
   });
 
@@ -266,11 +332,68 @@ describe('compilePirToReactComponent', () => {
 
     const bundle = generateReactBundle(pirDoc);
     const packageJson = JSON.parse(
-      bundle.files.find((file) => file.path === 'package.json')?.content ?? '{}'
+      bundle.files.find((file) => file.path === 'package.json')?.contents ??
+        '{}'
     ) as { dependencies?: Record<string, string> };
 
     expect(packageJson.dependencies?.['@prodivix/ui']).toBe(
       REACT_PRODIVIX_PACKAGE_VERSIONS['@prodivix/ui']
     );
+  });
+
+  it('plans mounted CSS into a production stylesheet bundle', () => {
+    const pirDoc: PIRDocument = {
+      version: CURRENT_PIR_VERSION,
+      metadata: { name: 'MountedCssBundleExample' },
+      ui: {
+        graph: {
+          version: 1,
+          rootId: 'root',
+          nodesById: {
+            root: {
+              id: 'root',
+              type: 'container',
+              props: {
+                className: 'hero',
+                codeBindings: {
+                  mountedCss: {
+                    slotId: 'blueprint.node.root.mountedCss',
+                    reference: {
+                      artifactId: 'code_mounted_css_root',
+                    },
+                  },
+                },
+              },
+            },
+          },
+          childIdsById: {
+            root: [],
+          },
+        },
+      },
+    };
+
+    const bundle = generateReactBundle(pirDoc, {
+      codeArtifacts: [
+        {
+          id: 'code_mounted_css_root',
+          path: '/styles/mounted/root.css',
+          language: 'css',
+          source: '.hero { color: red; }',
+        },
+      ],
+    });
+    const appFile = bundle.files.find((file) => file.path === 'src/App.tsx');
+    const cssFile = bundle.files.find((file) => file.path === 'src/App.css');
+
+    expect(appFile?.contents).toContain("import './App.css';");
+    expect(appFile?.contents).not.toContain('styles/mounted');
+    expect(cssFile).toMatchObject({
+      path: 'src/App.css',
+      kind: 'stylesheet',
+      language: 'css',
+      importMode: 'side-effect',
+    });
+    expect(cssFile?.contents).toBe('.hero { color: red; }\n');
   });
 });

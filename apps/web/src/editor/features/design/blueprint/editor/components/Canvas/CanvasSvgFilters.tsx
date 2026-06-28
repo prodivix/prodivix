@@ -4,7 +4,11 @@ import type { SvgFilterDefinition } from '@prodivix/shared/types/pir';
 const renderSvgPrimitive = (
   primitive: SvgFilterDefinition['primitives'][number]
 ) => {
-  const props: Record<string, unknown> = { key: primitive.id };
+  const props: Record<string, unknown> = {
+    key: primitive.id,
+    id: primitive.id,
+    'data-prodivix-svg-primitive-id': primitive.id,
+  };
   if (primitive.in) props['in'] = primitive.in;
   if (primitive.in2) props.in2 = primitive.in2;
   if (primitive.result) props.result = primitive.result;

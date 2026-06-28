@@ -1,5 +1,8 @@
+import { compileAnimationExportContributions } from '#src/animation/compileAnimation';
+import { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
 import { compilePirToReactComponent } from '#src/react/compileComponent';
 import {
+  createContributionBundle,
   createProjectReactBundle,
   createSingleFileBundle,
   REACT_PRODIVIX_PACKAGE_VERSIONS,
@@ -28,6 +31,19 @@ const resolveGeneratorOptions = (
   },
 });
 
+const createSingleResourceBundle =
+  (type: Exclude<ReactGeneratorOptions['resourceType'], 'project'>) =>
+  (pirDoc: PirDocLike, options?: ReactGeneratorOptions) =>
+    createSingleFileBundle(
+      compilePirToReactComponent(pirDoc, {
+        ...options,
+        includeWorkspaceCodeArtifacts:
+          options?.includeWorkspaceCodeArtifacts ?? false,
+        exportContributions: options?.exportContributions,
+      }),
+      type
+    );
+
 const bundleFactories: Record<string, BundleFactory> = {
   project: (pirDoc, options) =>
     createProjectReactBundle(
@@ -36,17 +52,35 @@ const bundleFactories: Record<string, BundleFactory> = {
         adapter: options?.adapter,
         packageResolver: options?.packageResolver,
         codeArtifacts: options?.codeArtifacts,
+        includeWorkspaceCodeArtifacts:
+          options?.includeWorkspaceCodeArtifacts ?? true,
+        exportContributions: [
+          ...compileNodeGraphExportContributions(pirDoc),
+          ...compileAnimationExportContributions(pirDoc),
+          ...(options?.exportContributions ?? []),
+        ],
       })
     ),
-  component: (pirDoc, options) =>
-    createSingleFileBundle(
-      compilePirToReactComponent(pirDoc, options),
-      'component'
-    ),
+  component: createSingleResourceBundle('component'),
+  page: createSingleResourceBundle('page'),
+  route: createSingleResourceBundle('route'),
   nodegraph: (pirDoc, options) =>
-    createSingleFileBundle(
-      compilePirToReactComponent(pirDoc, options),
-      'nodegraph'
+    createContributionBundle(
+      [
+        ...compileNodeGraphExportContributions(pirDoc),
+        ...(options?.exportContributions ?? []),
+      ],
+      'nodegraph',
+      'nodegraph.ts'
+    ),
+  animation: (pirDoc, options) =>
+    createContributionBundle(
+      [
+        ...compileAnimationExportContributions(pirDoc),
+        ...(options?.exportContributions ?? []),
+      ],
+      'animation',
+      'animation.ts'
     ),
 };
 
@@ -66,7 +100,7 @@ export const generateReactCode = (
 ) => {
   const bundle = generateReactBundle(pirDoc, options);
   return (
-    bundle.files.find((file) => file.path === bundle.entryFilePath)?.content ??
+    bundle.files.find((file) => file.path === bundle.entryFilePath)?.contents ??
     ''
   );
 };

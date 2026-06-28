@@ -6,27 +6,32 @@ const repoDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const backendDir = resolve(repoDir, 'apps/backend');
 const isWindows = process.platform === 'win32';
 
-function hasCommand(command) {
+function findCommand(command) {
   const lookup = isWindows ? 'where.exe' : 'command';
   const args = isWindows ? [command] : ['-v', command];
   const result = spawnSync(lookup, args, {
     cwd: backendDir,
     shell: !isWindows,
-    stdio: 'ignore',
+    encoding: 'utf8',
   });
 
-  return result.status === 0;
+  if (result.status !== 0) {
+    return null;
+  }
+
+  return result.stdout.split(/\r?\n/).find(Boolean) ?? null;
 }
 
-const useHotReload = hasCommand('air');
-const command = isWindows
-  ? useHotReload
-    ? 'air.cmd'
-    : 'go.exe'
-  : useHotReload
-    ? 'air'
-    : 'go';
+const airCommand = findCommand('air');
+const goCommand = findCommand('go');
+const command = airCommand ?? goCommand;
+const useHotReload = Boolean(airCommand);
 const args = useHotReload ? ['-c', '.air.toml'] : ['run', './cmd/server'];
+
+if (!command) {
+  console.error('[backend] Go is required to start the backend dev server.');
+  process.exit(1);
+}
 
 if (!useHotReload) {
   console.warn('[backend] air not found; falling back to go run ./cmd/server.');

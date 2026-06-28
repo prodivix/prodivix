@@ -22,6 +22,12 @@ export type LibraryCatalog = {
   id: string;
   label: string;
   scope: LibraryScope;
+  packageName?: string;
+  packageDependencies?: Array<{
+    name: string;
+    version?: string;
+    kind?: 'dependency' | 'devDependency' | 'peerDependency';
+  }>;
   description: string;
   license: string;
   packageSizeKb: number;

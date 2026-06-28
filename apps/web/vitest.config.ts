@@ -1,36 +1,11 @@
 ﻿import { coverageConfigDefaults, defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
+import { createWebResolveAliases } from './config/resolveAliases.ts';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
-      '@prodivix/prodivix-compiler': resolve(
-        __dirname,
-        '../../packages/prodivix-compiler/src'
-      ),
-      '@prodivix/shared/safety': resolve(
-        __dirname,
-        '../../packages/shared/src/safety'
-      ),
-      '@prodivix/shared/package.json': resolve(
-        __dirname,
-        '../../packages/shared/package.json'
-      ),
-      '@prodivix/shared': resolve(__dirname, '../../packages/shared/src'),
-      '@prodivix/ui/package.json': resolve(
-        __dirname,
-        '../../packages/ui/package.json'
-      ),
-      '@prodivix/ui': resolve(__dirname, '../../packages/ui/src'),
-      '@prodivix/themes/package.json': resolve(
-        __dirname,
-        '../../packages/themes/package.json'
-      ),
-      '@prodivix/themes': resolve(__dirname, '../../packages/themes/src'),
-    },
+    alias: createWebResolveAliases(),
   },
   test: {
     globals: true,

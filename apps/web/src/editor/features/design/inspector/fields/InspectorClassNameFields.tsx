@@ -1,6 +1,7 @@
 import { InspectorRow } from '@/editor/features/design/inspector/components/InspectorRow';
 import { ClassProtocolEditor } from '@/editor/features/design/inspector/components/classProtocol/ClassProtocolEditor';
 import { useInspectorContext } from '@/editor/features/design/inspector/InspectorContext';
+import { setNodeProp } from '@/editor/features/design/inspector/inspectorNodeProps';
 
 export function InspectorClassNameFields() {
   const {
@@ -34,13 +35,9 @@ export function InspectorClassNameFields() {
               openMountedCssEditor(target);
             }}
             onChange={(value) => {
-              updateSelectedNode((current) => ({
-                ...current,
-                props: {
-                  ...(current.props ?? {}),
-                  className: value,
-                },
-              }));
+              updateSelectedNode((current) =>
+                setNodeProp(current, 'className', value.trim())
+              );
             }}
           />
         }

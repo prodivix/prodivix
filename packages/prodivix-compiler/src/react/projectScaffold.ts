@@ -1,21 +1,29 @@
+import {
+  ProductionExportPlanner,
+  createExportProgramBuilder,
+  createReactViteExportPreset,
+  mergeExportDependencies,
+  REACT_VITE_DEPENDENCIES,
+  REACT_VITE_DEV_DEPENDENCIES,
+  REACT_VITE_PACKAGE_MANAGER,
+  createExportPackageOrigin,
+  type ExportDependency,
+  type ExportModule,
+  type ExportPlannerPreset,
+  type ExportProgram,
+  type ExportProgramContribution,
+  type ExportRootKind,
+} from '#src/export';
+import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type {
   ReactComponentCompileResult,
   ReactExportBundle,
 } from '#src/react/types';
 
 export const REACT_PROJECT_SCAFFOLD_PRESET = {
-  packageManager: 'pnpm@10.28.1',
-  dependencies: {
-    react: '^19.2.0',
-    'react-dom': '^19.2.0',
-  },
-  devDependencies: {
-    typescript: '~5.9.3',
-    vite: '^7.3.0',
-    '@vitejs/plugin-react': '^5.1.2',
-    '@types/react': '^19.2.2',
-    '@types/react-dom': '^19.2.2',
-  },
+  packageManager: REACT_VITE_PACKAGE_MANAGER,
+  dependencies: REACT_VITE_DEPENDENCIES,
+  devDependencies: REACT_VITE_DEV_DEPENDENCIES,
 } as const;
 
 export const REACT_PRODIVIX_PACKAGE_VERSIONS = {
@@ -24,141 +32,219 @@ export const REACT_PRODIVIX_PACKAGE_VERSIONS = {
   '@prodivix/ui': '0.1.2',
 } as const;
 
+const recordToDependencies = (
+  dependencies: Record<string, string>,
+  origins: ReactComponentCompileResult['dependencyOrigins'] = {}
+): ExportDependency[] =>
+  Object.entries(dependencies).map(([name, version]) => ({
+    name,
+    version,
+    kind: 'dependency',
+    origin:
+      origins[name] ??
+      createExportPackageOrigin(name, version, {
+        updatePolicy: 'pin',
+      }),
+  }));
+
+const createReactProgram = (
+  compiled: ReactComponentCompileResult,
+  module: ExportModule,
+  dependencies: ExportDependency[],
+  preset: ExportPlannerPreset,
+  options: {
+    includeScaffold: boolean;
+    rootKind: ExportRootKind;
+    rootId?: string;
+  }
+): ExportProgram => {
+  const rootId = options.rootId ?? 'app';
+  const contributionDependencies = compiled.exportContributions.flatMap(
+    (contribution) => contribution.dependencies ?? []
+  );
+  const programDependencies = mergeExportDependencies([
+    ...dependencies,
+    ...contributionDependencies,
+  ]);
+  const scaffoldContributions = options.includeScaffold
+    ? (preset.createScaffoldContributions?.({
+        projectName: compiled.componentName,
+        packageManager: REACT_PROJECT_SCAFFOLD_PRESET.packageManager,
+        dependencies: programDependencies,
+        entryModuleId: module.id,
+      }) ?? [])
+    : [];
+  return [
+    ...scaffoldContributions,
+    ...compiled.exportContributions,
+    {
+      entryModuleId: module.id,
+      roots: [
+        {
+          id: rootId,
+          kind: options.rootKind,
+          displayName: compiled.componentName,
+          sourceRef: compiled.sourceTrace[0].sourceRef,
+        },
+      ],
+      modules: [module],
+      styles: compiled.styles,
+      artifacts: compiled.artifacts,
+      runtimeRequirements: compiled.runtimeRequirements,
+      dependencies: programDependencies,
+      diagnostics: compiled.diagnostics,
+    },
+  ]
+    .reduce(
+      (builder, contribution) => builder.addContribution(contribution),
+      createExportProgramBuilder(preset.target)
+    )
+    .build();
+};
+
+const createProjectDependencies = (
+  compiled: ReactComponentCompileResult
+): ExportDependency[] =>
+  mergeExportDependencies([
+    ...recordToDependencies(compiled.dependencies, compiled.dependencyOrigins),
+    ...recordToDependencies(REACT_PROJECT_SCAFFOLD_PRESET.dependencies),
+    ...Object.entries(REACT_PROJECT_SCAFFOLD_PRESET.devDependencies).map(
+      ([name, version]) => ({
+        name,
+        version,
+        kind: 'devDependency' as const,
+        origin: createExportPackageOrigin(name, version, {
+          updatePolicy: 'pin',
+        }),
+      })
+    ),
+  ]);
+
 export const createProjectReactBundle = (
   compiled: ReactComponentCompileResult
-): ReactExportBundle => ({
-  type: 'project',
-  entryFilePath: 'src/App.tsx',
-  diagnostics: compiled.diagnostics,
-  files: [
-    {
-      path: 'package.json',
-      language: 'json',
-      content: JSON.stringify(
-        {
-          name: compiled.componentName.toLowerCase(),
-          private: true,
-          version: '0.1.0',
-          type: 'module',
-          packageManager: REACT_PROJECT_SCAFFOLD_PRESET.packageManager,
-          scripts: {
-            dev: 'vite',
-            build: 'tsc -b && vite build',
-            preview: 'vite preview',
-          },
-          dependencies: {
-            ...compiled.dependencies,
-            ...REACT_PROJECT_SCAFFOLD_PRESET.dependencies,
-          },
-          devDependencies: REACT_PROJECT_SCAFFOLD_PRESET.devDependencies,
-        },
-        null,
-        2
-      ),
-    },
-    {
-      path: 'pnpm-workspace.yaml',
-      language: 'yaml',
-      content: `onlyBuiltDependencies:
-  - esbuild
-`,
-    },
-    {
-      path: 'index.html',
-      language: 'html',
-      content: `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${compiled.componentName}</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>`,
-    },
-    {
-      path: 'tsconfig.json',
-      language: 'json',
-      content: JSON.stringify(
-        {
-          compilerOptions: {
-            target: 'ES2020',
-            lib: ['ES2020', 'DOM', 'DOM.Iterable'],
-            module: 'ESNext',
-            moduleResolution: 'Bundler',
-            jsx: 'react-jsx',
-            strict: true,
-            skipLibCheck: true,
-            noEmit: true,
-          },
-          include: ['src'],
-        },
-        null,
-        2
-      ),
-    },
-    {
-      path: 'vite.config.ts',
-      language: 'typescript',
-      content: `import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+): ReactExportBundle => {
+  const preset = createReactViteExportPreset();
+  const dependencies = createProjectDependencies(compiled);
+  const appModule: ExportModule = {
+    ...compiled.module,
+    kind: 'react-entry',
+    ownerRootId: 'app',
+    suggestedName: 'App',
+  };
+  const planned = new ProductionExportPlanner(preset).plan(
+    createReactProgram(compiled, appModule, dependencies, preset, {
+      includeScaffold: true,
+      rootKind: 'app',
+    })
+  );
 
-export default defineConfig({
-  plugins: [react()],
-});`,
-    },
-    {
-      path: 'src/main.tsx',
-      language: 'typescript',
-      content: `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);`,
-    },
-    {
-      path: 'src/vite-env.d.ts',
-      language: 'typescript',
-      content: `/// <reference types="vite/client" />
-`,
-    },
-    {
-      path: 'src/App.tsx',
-      language: 'typescript',
-      content: compiled.code,
-    },
-    ...compiled.mountedCssFiles.map((file) => ({
-      path: `src/${file.path}`,
-      language: 'css' as const,
-      content: file.content,
-    })),
-  ],
-});
+  return {
+    type: 'project',
+    target: planned.target,
+    entryFilePath: planned.entryFilePath ?? 'src/App.tsx',
+    files: planned.files,
+    dependencies: planned.dependencies,
+    diagnostics: planned.diagnostics,
+    metadata: planned.metadata,
+  };
+};
 
 export const createSingleFileBundle = (
   compiled: ReactComponentCompileResult,
-  type: 'component' | 'nodegraph'
-): ReactExportBundle => ({
-  type,
-  entryFilePath: `${compiled.componentName}.tsx`,
-  diagnostics: compiled.diagnostics,
-  files: [
-    {
-      path: `${compiled.componentName}.tsx`,
-      language: 'typescript',
-      content: compiled.code,
-    },
-    ...compiled.mountedCssFiles.map((file) => ({
-      path: file.path,
-      language: 'css' as const,
-      content: file.content,
-    })),
-  ],
-});
+  type: Exclude<ReactExportBundle['type'], 'project'>
+): ReactExportBundle => {
+  const preset: ExportPlannerPreset = {
+    ...createReactViteExportPreset(),
+    id: `react-${type}`,
+    sourceRoot: '',
+  };
+  const dependencies = mergeExportDependencies(
+    recordToDependencies(compiled.dependencies)
+  );
+  const module: ExportModule = {
+    ...compiled.module,
+    ownerRootId: type,
+    suggestedName: compiled.componentName,
+  };
+  const styles = compiled.styles.map((style) => ({
+    ...style,
+    ownerRootId: type,
+    suggestedName: compiled.componentName,
+  }));
+  const planned = new ProductionExportPlanner(preset).plan({
+    ...createReactProgram(compiled, module, dependencies, preset, {
+      includeScaffold: false,
+      rootKind: type,
+      rootId: type,
+    }),
+    styles,
+  });
+
+  return {
+    type,
+    target: planned.target,
+    entryFilePath: planned.entryFilePath ?? `${compiled.componentName}.tsx`,
+    files: planned.files,
+    dependencies: planned.dependencies,
+    diagnostics: planned.diagnostics,
+    metadata: planned.metadata,
+  };
+};
+
+export const createContributionBundle = (
+  contributions: ExportProgramContribution[],
+  type: Exclude<
+    ReactExportBundle['type'],
+    'project' | 'component' | 'page' | 'route'
+  >,
+  fallbackEntryFilePath: string
+): ReactExportBundle => {
+  const preset: ExportPlannerPreset = {
+    ...createReactViteExportPreset(),
+    id: `react-${type}`,
+    sourceRoot: '',
+  };
+  const hasDomainOutput = contributions.some(
+    (contribution) =>
+      Boolean(contribution.modules?.length) ||
+      Boolean(contribution.files?.length) ||
+      Boolean(contribution.artifacts?.length) ||
+      Boolean(
+        contribution.assets?.some((asset) => asset.contents !== undefined)
+      )
+  );
+  const emptyDiagnostics: CompileDiagnostic[] = hasDomainOutput
+    ? []
+    : [
+        {
+          code: `export.${type}.empty`,
+          severity: 'warning',
+          source: 'codegen',
+          message: `No ${type} resources are available for export.`,
+          path: `/${type}`,
+        },
+      ];
+  const program = contributions
+    .reduce(
+      (builder, contribution) => builder.addContribution(contribution),
+      createExportProgramBuilder(preset.target)
+    )
+    .addContribution({
+      diagnostics: emptyDiagnostics,
+      metadata: {
+        exportRootKind: type,
+      },
+    })
+    .build();
+  const planned = new ProductionExportPlanner(preset).plan(program);
+
+  return {
+    type,
+    target: planned.target,
+    entryFilePath: planned.entryFilePath ?? fallbackEntryFilePath,
+    files: planned.files,
+    dependencies: planned.dependencies,
+    diagnostics: planned.diagnostics,
+    metadata: planned.metadata,
+  };
+};

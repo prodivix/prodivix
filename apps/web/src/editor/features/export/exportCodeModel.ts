@@ -14,8 +14,15 @@ export type ExportCodeFile = {
   path: string;
   language: ExportFileLanguage;
   content: string;
+  binaryContent?: Uint8Array;
   binaryDataUrl?: string;
 };
+
+export const EXPORT_AUDIT_FILE_PATHS = {
+  manifest: '.prodivix/export-manifest.json',
+  origins: '.prodivix/origins.json',
+  licenses: '.prodivix/licenses.json',
+} as const;
 
 export type FileTreeNode = {
   key: string;
