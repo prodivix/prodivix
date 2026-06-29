@@ -59,16 +59,19 @@ const resolveReactExportLanguage = (
 };
 
 const reactExportFileToCodeFile = (file: ReactExportFile): ExportCodeFile => {
-  const isBinary = file.contents instanceof Uint8Array;
+  const binaryContents =
+    file.contents instanceof Uint8Array ? file.contents : undefined;
+  const textContents =
+    typeof file.contents === 'string' ? file.contents : undefined;
   return {
     path: file.path,
     language: resolveReactExportLanguage(file),
-    content: isBinary
+    content: binaryContents
       ? `// Binary file\n// path: ${file.path}\n// mime: ${
           file.mimeType || 'unknown'
-        }\n// size: ${file.contents.byteLength} bytes`
-      : file.contents,
-    binaryContent: isBinary ? file.contents : undefined,
+        }\n// size: ${binaryContents.byteLength} bytes`
+      : (textContents ?? ''),
+    binaryContent: binaryContents,
   };
 };
 

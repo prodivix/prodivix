@@ -18,6 +18,7 @@ import {
   VOID_ELEMENTS,
   isClickTrigger,
   mergeHandlers,
+  stripChildProps,
   stripInternalProps,
   toReactEventName,
 } from './PIRRenderer.helpers';
@@ -300,9 +301,10 @@ export const PIRNode: React.FC<{
     if (listRender) {
       return <>{listRender}</>;
     }
+    const leafProps = stripChildProps(restProps);
     return (
       <span style={{ display: 'contents' }} data-pir-node-id={node.id}>
-        <Component {...restProps} style={mergedStyle} />
+        <Component {...leafProps} style={mergedStyle} />
       </span>
     );
   }

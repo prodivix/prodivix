@@ -2,7 +2,10 @@ package auth
 
 import (
 	"errors"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -10,6 +13,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const (
+	avatarFormField       = "avatar"
+	maxAvatarBytes        = 2 << 20
+	maxAvatarRequestBytes = maxAvatarBytes + 64<<10
+)
+
+var allowedAvatarContentTypes = map[string]string{
+	"image/jpeg": ".jpg",
+	"image/png":  ".png",
+	"image/webp": ".webp",
+	"image/avif": ".avif",
+}
 
 type Handler struct {
 	users    *UserStore
@@ -42,13 +58,14 @@ func (handler *Handler) RequireAuth() gin.HandlerFunc {
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 	return RouteHandlers{
-		Register:    handler.HandleRegister,
-		Login:       handler.HandleLogin,
-		Logout:      handler.HandleLogout,
-		Me:          handler.HandleMe,
-		UpdateMe:    handler.HandleUpdateMe,
-		GetUser:     handler.HandleGetUser,
-		RequireAuth: requireAuth,
+		Register:     handler.HandleRegister,
+		Login:        handler.HandleLogin,
+		Logout:       handler.HandleLogout,
+		Me:           handler.HandleMe,
+		UpdateMe:     handler.HandleUpdateMe,
+		UpdateAvatar: handler.HandleUpdateAvatar,
+		GetUser:      handler.HandleGetUser,
+		RequireAuth:  requireAuth,
 	}
 }
 
@@ -169,6 +186,81 @@ func (handler *Handler) HandleUpdateMe(c *gin.Context) {
 			return
 		}
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not update user.")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"user": NewPublicUser(updated)})
+}
+
+func (handler *Handler) HandleUpdateAvatar(c *gin.Context) {
+	user, ok := GetAuthUser[User](c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxAvatarRequestBytes)
+	file, err := c.FormFile(avatarFormField)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "API-1001", "Avatar file is required.")
+		return
+	}
+	if file.Size <= 0 || file.Size > maxAvatarBytes {
+		respondError(c, http.StatusBadRequest, "API-4001", "Avatar must be 2 MB or smaller.")
+		return
+	}
+	src, err := file.Open()
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "API-1001", "Could not read avatar file.")
+		return
+	}
+	defer src.Close()
+
+	header := make([]byte, 512)
+	bytesRead, err := io.ReadFull(src, header)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+		respondError(c, http.StatusBadRequest, "API-1001", "Could not read avatar file.")
+		return
+	}
+	contentType := http.DetectContentType(header[:bytesRead])
+	extension, ok := allowedAvatarContentTypes[contentType]
+	if !ok {
+		respondError(c, http.StatusBadRequest, "API-4001", "Avatar must be a PNG, JPEG, WebP, or AVIF image.")
+		return
+	}
+	if _, err := src.Seek(0, io.SeekStart); err != nil {
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not process avatar file.")
+		return
+	}
+
+	uploadDir := filepath.Join("data", "uploads", "avatars", user.ID)
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not prepare avatar storage.")
+		return
+	}
+	fileName := newID("avatar") + extension
+	destinationPath := filepath.Join(uploadDir, fileName)
+	destination, err := os.OpenFile(destinationPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not save avatar file.")
+		return
+	}
+	defer destination.Close()
+	if _, err := io.Copy(destination, io.LimitReader(src, maxAvatarBytes+1)); err != nil {
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not save avatar file.")
+		return
+	}
+	if err := destination.Sync(); err != nil {
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not save avatar file.")
+		return
+	}
+
+	avatarURL := "/uploads/avatars/" + user.ID + "/" + fileName
+	updated, err := handler.users.UpdateAvatarURL(user.ID, avatarURL)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			respondError(c, http.StatusNotFound, "API-4004", "User not found.")
+			return
+		}
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not update avatar.")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"user": NewPublicUser(updated)})

@@ -20,6 +20,7 @@
     "backHome": "返回首页",
     "copyId": "复制 ID",
     "edit": "编辑",
+    "uploadAvatar": "上传头像",
     "save": "保存",
     "cancel": "取消"
   },
@@ -27,7 +28,7 @@
     "title": "编辑个人信息"
   },
   "messages": {
-    "saved": "已保存。",
+    "saved": "已保存",
     "copiedId": "已复制用户 ID。",
     "copiedEmail": "已复制邮箱。",
     "copyFailed": "复制失败。"

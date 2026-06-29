@@ -1,4 +1,5 @@
 import { apiRequest, type ApiErrorPayload, ApiError } from '@/infra/api';
+import { resolveApiBaseUrl } from '@/infra/api/apiConfig';
 
 export { ApiError, type ApiErrorPayload };
 
@@ -7,6 +8,7 @@ export type PublicUser = {
   email: string;
   name: string;
   description?: string;
+  avatarUrl?: string;
   createdAt: string;
 };
 
@@ -104,4 +106,33 @@ export const authApi = {
       ),
       body: JSON.stringify(data),
     }),
+  uploadAvatar: async (
+    token: string,
+    avatar: File,
+    options: RequestInit = {}
+  ) => {
+    const formData = new FormData();
+    formData.append('avatar', avatar);
+    return request<{ user: PublicUser }>('/users/me/avatar', {
+      ...options,
+      method: 'PUT',
+      headers: mergeHeaders(
+        {
+          Authorization: `Bearer ${token}`,
+        },
+        options.headers
+      ),
+      body: formData,
+    });
+  },
+};
+
+export const resolveUserAvatarUrl = (avatarUrl?: string | null) => {
+  const value = avatarUrl?.trim();
+  if (!value) return undefined;
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith('data:')) {
+    return value;
+  }
+  const base = resolveApiBaseUrl();
+  return `${base}${value.startsWith('/') ? value : `/${value}`}`;
 };

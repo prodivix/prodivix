@@ -1,6 +1,8 @@
+export type ClassSuggestionSource = 'tailwind' | 'native' | 'mounted-css';
+
 export type ClassToken = {
   value: string;
-  source: 'tailwind' | 'native';
+  source: Exclude<ClassSuggestionSource, 'mounted-css'>;
 };
 
 export type ClassSuggestion = {
@@ -20,7 +22,7 @@ export type ClassSuggestion = {
         example: string;
       }
     | undefined;
-  source: 'tailwind' | 'native';
+  source: ClassSuggestionSource;
   score: number;
 };
 

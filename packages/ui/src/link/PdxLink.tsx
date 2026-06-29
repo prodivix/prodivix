@@ -8,6 +8,7 @@ interface PdxLinkSpecificProps {
   text?: string;
   title?: string;
   disabled?: boolean;
+  underline?: boolean;
   children?: React.ReactNode;
 }
 
@@ -18,6 +19,7 @@ function PdxLink({
   text,
   title,
   disabled = false,
+  underline = true,
   children,
   className,
   style,
@@ -29,7 +31,7 @@ function PdxLink({
   const content = children ?? text ?? 'Link';
 
   const fullClassName =
-    `PdxLink ${disabled ? 'Disabled' : ''} ${className || ''}`.trim();
+    `PdxLink ${disabled ? 'Disabled' : ''} ${underline ? '' : 'NoUnderline'} ${className || ''}`.trim();
 
   const dataProps = { ...dataAttributes };
 

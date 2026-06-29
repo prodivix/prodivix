@@ -1,3 +1,4 @@
+import './PdxAvatar.scss';
 import React from 'react';
 import { type PdxComponent } from '@prodivix/shared';
 
@@ -30,6 +31,10 @@ function PdxAvatar({
   ...rest
 }: PdxAvatarProps) {
   const [imageError, setImageError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImageError(false);
+  }, [src]);
 
   const fullClassName =
     `PdxAvatar ${size} ${shape} ${status ? `status-${status}` : ''} ${className || ''}`.trim();

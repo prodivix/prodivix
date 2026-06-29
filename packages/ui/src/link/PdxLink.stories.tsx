@@ -12,6 +12,7 @@ const meta: Meta<typeof PdxLink> = {
     to: { control: 'text', description: '跳转链接' },
     text: { control: 'text', description: '链接文本' },
     disabled: { control: 'boolean', description: '是否禁用' },
+    underline: { control: 'boolean', description: '是否显示下划线' },
   },
 };
 
@@ -33,6 +34,14 @@ export const Disabled: Story = {
   },
 };
 
+export const WithoutUnderline: Story = {
+  args: {
+    to: '/example',
+    text: 'No underline link',
+    underline: false,
+  },
+};
+
 export const WithChildren: Story = {
   args: {
     to: '/example',
@@ -45,7 +54,8 @@ export const AllLinks: Story = {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <PdxLink to="/link1" text="Active Link" />
       <PdxLink to="/link2" text="Another Link" />
-      <PdxLink to="/link3" text="Disabled Link" disabled />
+      <PdxLink to="/link3" text="No Underline Link" underline={false} />
+      <PdxLink to="/link4" text="Disabled Link" disabled />
     </div>
   ),
 };

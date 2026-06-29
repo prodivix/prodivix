@@ -226,6 +226,13 @@ export const stripInternalProps = (props: Record<string, unknown>) => {
   return next;
 };
 
+export const stripChildProps = (props: Record<string, unknown>) => {
+  const next = { ...props };
+  delete next.children;
+  delete next.dangerouslySetInnerHTML;
+  return next;
+};
+
 const isSelectionDebugEnabled = () =>
   typeof window !== 'undefined' &&
   Boolean(

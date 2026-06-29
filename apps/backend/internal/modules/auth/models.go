@@ -7,6 +7,7 @@ type User struct {
 	Email        string    `json:"email"`
 	Name         string    `json:"name"`
 	Description  string    `json:"description"`
+	AvatarURL    string    `json:"avatarUrl"`
 	PasswordHash []byte    `json:"-"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
@@ -16,6 +17,7 @@ type PublicUser struct {
 	Email       string    `json:"email"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	AvatarURL   string    `json:"avatarUrl"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
@@ -28,6 +30,7 @@ func NewPublicUser(user *User) PublicUser {
 		Email:       user.Email,
 		Name:        user.Name,
 		Description: user.Description,
+		AvatarURL:   user.AvatarURL,
 		CreatedAt:   user.CreatedAt,
 	}
 }

@@ -255,6 +255,12 @@ export const prodivixInputAdapter: ComponentAdapter = {
   },
 };
 
+export const prodivixLeafAdapter: ComponentAdapter = {
+  kind: 'prodivix',
+  supportsChildren: false,
+  applySelection: applyPdxSelection,
+};
+
 const resolveIconProps = (resolvedProps: Record<string, unknown>) => {
   const props = { ...resolvedProps };
   const iconRef =
@@ -400,8 +406,15 @@ const registerPdxComponents = (registry: ComponentRegistry) => {
     PdxInput: prodivixInputAdapter,
     PdxTextarea: prodivixInputAdapter,
     PdxSearch: prodivixInputAdapter,
+    PdxAudio: prodivixLeafAdapter,
+    PdxAvatar: prodivixLeafAdapter,
+    PdxEmbed: prodivixLeafAdapter,
     PdxIcon: prodivixIconAdapter,
     PdxIconLink: prodivixIconLinkAdapter,
+    PdxIframe: prodivixLeafAdapter,
+    PdxImage: prodivixLeafAdapter,
+    PdxImageGallery: prodivixLeafAdapter,
+    PdxVideo: prodivixLeafAdapter,
 
     PdxLink: prodivixLinkAdapter,
   };

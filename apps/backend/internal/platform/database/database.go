@@ -43,9 +43,11 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			email TEXT NOT NULL UNIQUE,
 			name TEXT NOT NULL DEFAULT '',
 			description TEXT NOT NULL DEFAULT '',
+			avatar_url TEXT NOT NULL DEFAULT '',
 			password_hash BYTEA NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS sessions (
 			token TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

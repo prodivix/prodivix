@@ -3,6 +3,7 @@ import { ArrowRight, Github, Languages, Moon, Sun } from 'lucide-react';
 import { PdxAvatar, PdxButtonLink, PdxLink, PdxNav } from '@prodivix/ui';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { useAuthStore } from '@/auth/useAuthStore';
+import { resolveUserAvatarUrl } from '@/auth/authApi';
 
 const docsSiteUrl = 'https://mdr-tutorials.github.io/prodivix/';
 const githubUrl = 'https://github.com/Mdr-Tutorials/prodivix';
@@ -63,19 +64,17 @@ function Home() {
     const nextTheme = themeMode === 'dark' ? 'light' : 'dark';
     setGlobalValue('theme', nextTheme); // ThemeSync will handle DOM update
   };
-  const brandLockupClassName = 'inline-flex items-baseline gap-2.5';
+  const brandLockupClassName = 'inline-flex items-center';
   const footerBrandLinkClassName =
     'inline-flex items-center no-underline transition-opacity duration-200 hover:opacity-70';
-  const brandIconClassName =
-    'h-8 w-8 shrink-0 translate-y-[1.5px] bg-(--home-logo) [mask:url("/prodivix.svg")_center/contain_no-repeat]';
   const brandNameClassName =
-    '[font-family:var(--font-family-mono)] text-[26px] leading-none font-black text-(--home-logo)';
+    '[font-family:var(--font-family-ui)] text-[26px] leading-none font-medium tracking-normal text-(--home-logo)';
   const heroWordmarkClassName =
     'pointer-events-none absolute top-[44%] left-1/2 h-[132px] w-[140vw] min-w-[760px] -translate-x-1/2 -translate-y-1/2 bg-(--home-logo) opacity-[0.055] [mask:url("/prodivix-wordmark.svg")_center/contain_no-repeat] sm:h-[176px] sm:w-[132vw] lg:h-[220px] lg:w-[1280px]';
   const footerWordmarkClassName =
     'h-[28px] w-[166px] bg-(--home-logo) [mask:url("/prodivix-wordmark.svg")_center/contain_no-repeat]';
   const navIconClassName =
-    'inline-flex h-[36px] w-[36px] translate-y-[3.5px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-(--home-nav-icon) no-underline transition-colors duration-200 ease-[ease] hover:bg-(--home-nav-icon-hover-bg) hover:text-(--home-nav-icon-hover-text)';
+    'inline-flex h-[36px] w-[36px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-(--home-nav-icon) no-underline transition-colors duration-200 ease-[ease] hover:bg-(--home-nav-icon-hover-bg) hover:text-(--home-nav-icon-hover-text)';
   const profileLinkClassName =
     'inline-flex h-[36px] w-[36px] items-center justify-center rounded-full bg-(--home-profile-bg) no-underline transition-[box-shadow,transform] duration-200 ease-[ease] hover:-translate-y-px hover:shadow-(--home-profile-hover-shadow)';
 
@@ -88,19 +87,19 @@ function Home() {
       .toUpperCase() ||
     user?.email?.charAt(0).toUpperCase() ||
     undefined;
+  const avatarSrc = resolveUserAvatarUrl(user?.avatarUrl);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col items-center justify-start overflow-x-clip bg-(--bg-canvas) px-4 text-(--text-primary) sm:px-6 lg:px-10">
-      <PdxNav align="Baseline">
+      <PdxNav align="Center">
         <PdxNav.Left>
           <div className={brandLockupClassName} title={t('brand.name')}>
-            <span className={brandIconClassName} aria-hidden="true" />
             <span className={brandNameClassName}>{t('brand.name')}</span>
           </div>
         </PdxNav.Left>
         <PdxNav.Right>
-          <div className="flex items-baseline gap-2">
-            <div className="hidden items-baseline gap-8 pr-4 md:flex">
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-8 pr-4 md:flex">
               <PdxLink to="/community">{t('nav.community')}</PdxLink>
               <PdxLink to={`${docsSiteUrl}guide/getting-started`}>
                 {t('nav.tutorials')}
@@ -146,8 +145,12 @@ function Home() {
               {themeMode === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             {isAuthenticated && user ? (
-              <PdxLink to="/profile" className={profileLinkClassName}>
-                <PdxAvatar size="Small" initials={initials} />
+              <PdxLink
+                to="/profile"
+                className={profileLinkClassName}
+                underline={false}
+              >
+                <PdxAvatar size="Small" src={avatarSrc} initials={initials} />
               </PdxLink>
             ) : (
               <PdxButtonLink

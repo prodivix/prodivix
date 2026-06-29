@@ -18,7 +18,7 @@ export type BlueprintEditorSidebarProps = {
   onReloadExternalLibraries?: () => Promise<void> | void;
   onRetryExternalLibrary?: (libraryId: string) => Promise<void> | void;
   onToggleCollapse: () => void;
-  onToggleGroup: (groupId: string) => void;
+  onToggleGroup: (groupId: string, collapsed: boolean) => void;
   onTogglePreview: (previewId: string) => void;
   onPreviewKeyDown: (
     event: KeyboardEvent<HTMLDivElement>,

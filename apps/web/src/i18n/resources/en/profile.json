@@ -20,6 +20,7 @@
     "backHome": "Back home",
     "copyId": "Copy ID",
     "edit": "Edit",
+    "uploadAvatar": "Upload avatar",
     "save": "Save",
     "cancel": "Cancel"
   },
@@ -27,7 +28,7 @@
     "title": "Edit profile"
   },
   "messages": {
-    "saved": "Profile saved.",
+    "saved": "Saved",
     "copiedId": "User ID copied.",
     "copiedEmail": "Email copied.",
     "copyFailed": "Copy failed."

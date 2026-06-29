@@ -38,6 +38,7 @@ func NewServer(cfg backendconfig.Config) (*Server, error) {
 
 func (server *Server) registerRoutes() {
 	requireAuth := server.modules.RequireAuth()
+	server.router.Static("/uploads", "./data/uploads")
 	backendapp.RegisterAPIRoutes(server.router, server.modules.Routes(requireAuth))
 }
 

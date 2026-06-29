@@ -33,7 +33,9 @@ type ClassProtocolEditorProps = {
   }) => void;
 };
 
-const getSuggestionIcon = (token: string) => {
+const getSuggestionIcon = (suggestion: ClassSuggestion) => {
+  if (suggestion.source === 'mounted-css') return ExternalLink;
+  const token = suggestion.token;
   if (token.startsWith('text-') || token.startsWith('font-')) return Type;
   if (
     token.startsWith('grid') ||
@@ -44,6 +46,52 @@ const getSuggestionIcon = (token: string) => {
     return LayoutGrid;
   }
   return Sparkles;
+};
+
+const normalizeSuggestionQuery = (value: string) => value.trim().toLowerCase();
+
+const toMountedCssSuggestions = (
+  entries: MountedCssEntry[],
+  query: string,
+  tokens: string[],
+  limit: number
+): ClassSuggestion[] => {
+  const normalizedQuery = normalizeSuggestionQuery(query);
+  const activeTokens = new Set(tokens);
+  const byClassName = new Map<string, ClassSuggestion>();
+
+  entries.forEach((entry) => {
+    entry.classes.forEach((className) => {
+      if (!className || activeTokens.has(className)) return;
+      const normalizedClassName = className.toLowerCase();
+      if (
+        normalizedQuery &&
+        !normalizedClassName.startsWith(normalizedQuery) &&
+        !normalizedClassName.includes(normalizedQuery)
+      ) {
+        return;
+      }
+      const score =
+        normalizedClassName === normalizedQuery
+          ? 240
+          : normalizedClassName.startsWith(normalizedQuery)
+            ? 220
+            : 190;
+      const current = byClassName.get(className);
+      if (current && current.score >= score) return;
+      byClassName.set(className, {
+        token: className,
+        label: className,
+        detail: entry.path,
+        source: 'mounted-css',
+        score,
+      });
+    });
+  });
+
+  return [...byClassName.values()]
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit);
 };
 
 export function ClassProtocolEditor({
@@ -101,25 +149,51 @@ export function ClassProtocolEditor({
       classProtocolEngine.suggest({
         query: draft,
         tokens,
-        limit: 12,
+        limit: 48,
       }),
     [draft, tokens]
   );
+  const mountedCssSuggestions = useMemo(
+    () => toMountedCssSuggestions(mountedCssEntries, draft, tokens, 48),
+    [draft, mountedCssEntries, tokens]
+  );
   const suggestions = useMemo(() => {
-    if (!preferScaleToken) return engineSuggestions;
+    const mergedSuggestions = [
+      ...mountedCssSuggestions,
+      ...engineSuggestions,
+    ].reduce<ClassSuggestion[]>((result, suggestion) => {
+      const key = suggestion.insertText ?? suggestion.token;
+      const index = result.findIndex(
+        (item) => (item.insertText ?? item.token) === key
+      );
+      if (index < 0) {
+        result.push(suggestion);
+        return result;
+      }
+      if ((result[index]?.score ?? 0) < suggestion.score) {
+        result[index] = suggestion;
+      }
+      return result;
+    }, []);
 
-    const inferredIndex = engineSuggestions.findIndex((item) =>
+    const sortedSuggestions = mergedSuggestions.sort(
+      (left, right) => right.score - left.score
+    );
+
+    if (!preferScaleToken) return sortedSuggestions;
+
+    const inferredIndex = sortedSuggestions.findIndex((item) =>
       item.detail?.startsWith('Inferred from ')
     );
-    if (inferredIndex <= 0) return engineSuggestions;
+    if (inferredIndex <= 0) return sortedSuggestions;
 
-    const inferred = engineSuggestions[inferredIndex];
-    if (!inferred) return engineSuggestions;
-    const next = [...engineSuggestions];
+    const inferred = sortedSuggestions[inferredIndex];
+    if (!inferred) return sortedSuggestions;
+    const next = [...sortedSuggestions];
     next.splice(inferredIndex, 1);
     next.unshift(inferred);
     return next;
-  }, [engineSuggestions, preferScaleToken]);
+  }, [engineSuggestions, mountedCssSuggestions, preferScaleToken]);
 
   const getSuggestionLabel = (suggestion: ClassSuggestion) => {
     if (suggestion.kind === 'hint' && suggestion.hint) {
@@ -441,12 +515,12 @@ export function ClassProtocolEditor({
       </div>
       {draft.trim() && suggestions.length ? (
         <div
-          className="absolute top-[calc(100%+2px)] right-0 left-0 z-10 grid gap-0.5 rounded-md border border-(--border-default) bg-(--bg-canvas) p-1 shadow-(--shadow-md)"
+          className="absolute top-[calc(100%+2px)] right-0 left-0 z-20 grid max-h-56 gap-0.5 overflow-y-auto rounded-md border border-(--border-default) bg-(--bg-canvas) p-1 shadow-(--shadow-md) [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
           role="listbox"
           data-testid="inspector-classname-suggestions"
         >
           {suggestions.map((suggestion, index) => {
-            const Icon = getSuggestionIcon(suggestion.token);
+            const Icon = getSuggestionIcon(suggestion);
             return (
               <button
                 key={suggestion.token}

@@ -8,6 +8,7 @@ import {
   REACT_PRODIVIX_PACKAGE_VERSIONS,
 } from '#src/react/projectScaffold';
 import type {
+  ExportResourceType,
   PirDocLike,
   ReactExportBundle,
   ReactGeneratorOptions,
@@ -32,7 +33,7 @@ const resolveGeneratorOptions = (
 });
 
 const createSingleResourceBundle =
-  (type: Exclude<ReactGeneratorOptions['resourceType'], 'project'>) =>
+  (type: Exclude<ExportResourceType, 'project'>) =>
   (pirDoc: PirDocLike, options?: ReactGeneratorOptions) =>
     createSingleFileBundle(
       compilePirToReactComponent(pirDoc, {
@@ -44,7 +45,7 @@ const createSingleResourceBundle =
       type
     );
 
-const bundleFactories: Record<string, BundleFactory> = {
+const bundleFactories: Record<ExportResourceType, BundleFactory> = {
   project: (pirDoc, options) =>
     createProjectReactBundle(
       compilePirToReactComponent(pirDoc, {

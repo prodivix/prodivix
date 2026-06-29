@@ -4,6 +4,10 @@
   text-underline-offset: 0.22em;
 }
 
+.PdxLink.NoUnderline {
+  text-decoration: none;
+}
+
 .PdxLink.Disabled {
   cursor: not-allowed;
 }

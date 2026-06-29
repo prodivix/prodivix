@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
   PdxButton,
+  PdxAvatar,
   PdxHeading,
   PdxIcon,
   PdxInput,
@@ -11,11 +12,19 @@ import {
   PdxParagraph,
   PdxTextarea,
 } from '@prodivix/ui';
-import { Calendar, Copy, Mail, Pencil, UserRound } from 'lucide-react';
-import { authApi, ApiError } from './authApi';
+import {
+  Calendar,
+  Check,
+  Copy,
+  Mail,
+  Pencil,
+  Upload,
+  UserRound,
+} from 'lucide-react';
+import { authApi, ApiError, resolveUserAvatarUrl } from './authApi';
 import { useAuthStore } from './useAuthStore';
 
-type Flash = { type: 'Info' | 'Success' | 'Warning' | 'Danger'; text: string };
+type CopiedTarget = 'id' | 'email';
 
 const formatError = (error: unknown) => {
   if (error instanceof ApiError) return error.message;
@@ -54,9 +63,15 @@ export const ProfilePage = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   const [isLoading, setLoading] = useState(false);
+  const [isAvatarUploading, setAvatarUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const flashTimer = useRef<number | null>(null);
+  const [copiedTarget, setCopiedTarget] = useState<CopiedTarget | null>(null);
+  const [avatarJustSaved, setAvatarJustSaved] = useState(false);
+  const [profileJustSaved, setProfileJustSaved] = useState(false);
+  const copiedTimer = useRef<number | null>(null);
+  const avatarSavedTimer = useRef<number | null>(null);
+  const profileSavedTimer = useRef<number | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [draft, setDraft] = useState({ name: '', description: '' });
@@ -64,35 +79,47 @@ export const ProfilePage = () => {
   const uuidMatrix = useMemo(() => buildUuidMatrix(user?.id), [user?.id]);
   const displayName = user?.name?.trim() || user?.email || t('empty.title');
   const displayBio = user?.description?.trim() || t('description.empty');
-
-  const showFlash = useCallback((next: Flash) => {
-    setFlash(next);
-    if (typeof window === 'undefined') return;
-    if (flashTimer.current) window.clearTimeout(flashTimer.current);
-    flashTimer.current = window.setTimeout(() => {
-      setFlash(null);
-      flashTimer.current = null;
-    }, 1800);
-  }, []);
+  const avatarSrc = resolveUserAvatarUrl(user?.avatarUrl);
+  const initials =
+    user?.name
+      ?.split(' ')
+      .map((item) => item.charAt(0))
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() ||
+    user?.email?.charAt(0).toUpperCase() ||
+    undefined;
 
   useEffect(() => {
     return () => {
       if (typeof window === 'undefined') return;
-      if (flashTimer.current) window.clearTimeout(flashTimer.current);
+      if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
+      if (avatarSavedTimer.current)
+        window.clearTimeout(avatarSavedTimer.current);
+      if (profileSavedTimer.current) {
+        window.clearTimeout(profileSavedTimer.current);
+      }
     };
   }, []);
 
   const copyText = useCallback(
-    async (value: string | undefined, message: string) => {
+    async (value: string | undefined, target: CopiedTarget) => {
       if (!value) return;
       try {
         await navigator.clipboard.writeText(value);
-        showFlash({ type: 'Success', text: message });
+        setCopiedTarget(target);
+        if (typeof window !== 'undefined') {
+          if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
+          copiedTimer.current = window.setTimeout(() => {
+            setCopiedTarget(null);
+            copiedTimer.current = null;
+          }, 1100);
+        }
       } catch {
-        showFlash({ type: 'Warning', text: t('messages.copyFailed') });
+        setError(t('messages.copyFailed'));
       }
     },
-    [showFlash, t]
+    [t]
   );
 
   const openEdit = () => {
@@ -102,6 +129,31 @@ export const ProfilePage = () => {
       description: user?.description ?? '',
     });
     setEditOpen(true);
+  };
+
+  const uploadAvatar = async (file: File | undefined) => {
+    if (!file || !isAuthenticated || !token) return;
+    setError(null);
+    setAvatarUploading(true);
+    try {
+      const response = await authApi.uploadAvatar(token, file);
+      setUser(response.user);
+      setAvatarJustSaved(true);
+      if (typeof window !== 'undefined') {
+        if (avatarSavedTimer.current) {
+          window.clearTimeout(avatarSavedTimer.current);
+        }
+        avatarSavedTimer.current = window.setTimeout(() => {
+          setAvatarJustSaved(false);
+          avatarSavedTimer.current = null;
+        }, 1100);
+      }
+    } catch (err) {
+      setError(formatError(err));
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
   };
 
   const saveEdit = async () => {
@@ -114,8 +166,19 @@ export const ProfilePage = () => {
         description: draft.description.trim(),
       });
       setUser(response.user);
-      setEditOpen(false);
-      showFlash({ type: 'Success', text: t('messages.saved') });
+      setProfileJustSaved(true);
+      if (typeof window !== 'undefined') {
+        if (profileSavedTimer.current) {
+          window.clearTimeout(profileSavedTimer.current);
+        }
+        profileSavedTimer.current = window.setTimeout(() => {
+          setProfileJustSaved(false);
+          setEditOpen(false);
+          profileSavedTimer.current = null;
+        }, 650);
+      } else {
+        setEditOpen(false);
+      }
     } catch (err) {
       setError(formatError(err));
     } finally {
@@ -164,13 +227,19 @@ export const ProfilePage = () => {
         />
         <div className="flex flex-wrap gap-2.5">
           <PdxButton
-            text={t('actions.edit')}
             size="Small"
             category="Secondary"
-            iconPosition="Left"
+            onlyIcon
             icon={<Pencil size={16} />}
             disabled={isLoading}
             onClick={openEdit}
+          />
+          <input
+            ref={avatarInputRef}
+            type="file"
+            className="sr-only"
+            accept="image/png,image/jpeg,image/webp,image/avif"
+            onChange={(event) => uploadAvatar(event.currentTarget.files?.[0])}
           />
           <PdxButton
             text={t('actions.logout')}
@@ -193,11 +262,6 @@ export const ProfilePage = () => {
       </header>
 
       <main className="mx-auto grid max-w-[980px] gap-[18px] px-5 pb-10 md:px-7 md:pb-12">
-        {flash && (
-          <div className="max-w-[620px]">
-            <PdxMessage type={flash.type} text={flash.text} />
-          </div>
-        )}
         {error && (
           <div className="max-w-[620px]">
             <PdxMessage
@@ -210,6 +274,27 @@ export const ProfilePage = () => {
         )}
 
         <section className="mt-2 grid items-start gap-[18px] md:grid-cols-[auto_1fr]">
+          <div className="flex items-start md:pt-2">
+            <div className="group/avatar relative h-24 w-24 rounded-full">
+              <PdxAvatar
+                size="ExtraLarge"
+                src={avatarSrc}
+                initials={initials}
+                alt={displayName}
+                className="shadow-(--shadow-sm)"
+              />
+              <button
+                type="button"
+                className="absolute inset-0 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-black/45 p-0 text-white opacity-0 backdrop-blur-[1px] transition-[opacity,transform] duration-150 group-hover/avatar:opacity-100 hover:scale-[1.02] hover:opacity-100 focus-visible:scale-[1.02] focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--text-primary)"
+                disabled={isAvatarUploading}
+                onClick={() => avatarInputRef.current?.click()}
+                aria-label={t('actions.uploadAvatar')}
+                title={t('actions.uploadAvatar')}
+              >
+                {avatarJustSaved ? <Check size={22} /> : <Upload size={22} />}
+              </button>
+            </div>
+          </div>
           <div className="grid min-w-0 gap-2.5">
             <PdxHeading
               level={1}
@@ -220,60 +305,80 @@ export const ProfilePage = () => {
             <PdxParagraph className="m-0 max-w-[58ch] text-[13px] leading-[1.5] text-(--text-secondary)">
               {displayBio}
             </PdxParagraph>
-            <button
-              type="button"
-              className="inline-flex max-w-full -translate-x-2.5 cursor-pointer items-center gap-3 rounded-2xl border-0 bg-(--bg-canvas) px-3 py-2.5 transition-colors duration-150 hover:bg-(--bg-panel)"
-              onClick={() => copyText(user?.id, t('messages.copiedId'))}
-              aria-label={t('actions.copyId')}
-              title={t('actions.copyId')}
-            >
-              {uuidMatrix.length > 0 ? (
-                <div
-                  className="flex flex-wrap items-start gap-1"
-                  aria-hidden="true"
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                className="group relative inline-flex w-fit max-w-full -translate-x-2.5 cursor-pointer items-center gap-3 justify-self-start rounded-2xl border-0 bg-(--bg-canvas) px-3 py-2.5 transition-colors duration-150 hover:bg-(--bg-panel)"
+                onClick={() => copyText(user?.id, 'id')}
+                aria-label={t('actions.copyId')}
+                title={t('actions.copyId')}
+              >
+                {uuidMatrix.length > 0 ? (
+                  <div
+                    className="flex flex-wrap items-start gap-1"
+                    aria-hidden="true"
+                  >
+                    {uuidMatrix.map((bits, columnIndex) => (
+                      <div
+                        key={`${columnIndex}-${bits.join('')}`}
+                        className="grid gap-px"
+                      >
+                        {bits.map((bit, bitIndex) => (
+                          <span
+                            key={`${columnIndex}-${bitIndex}`}
+                            className={`h-0.5 w-0.5 rounded-full ${bit ? 'bg-(--text-primary)' : 'invisible'}`}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="[font-family:var(--font-family-mono)] text-xs tracking-[0.12em] break-all text-(--text-primary)">
+                    {user?.id}
+                  </span>
+                )}
+                <span
+                  className={`inline-flex transition-[opacity,transform] duration-150 ${
+                    copiedTarget === 'id'
+                      ? 'scale-105 text-(--success-color) opacity-100'
+                      : 'opacity-60 group-hover:opacity-100'
+                  }`}
                 >
-                  {uuidMatrix.map((bits, columnIndex) => (
-                    <div
-                      key={`${columnIndex}-${bits.join('')}`}
-                      className="grid gap-px"
-                    >
-                      {bits.map((bit, bitIndex) => (
-                        <span
-                          key={`${columnIndex}-${bitIndex}`}
-                          className={`h-0.5 w-0.5 rounded-full ${bit ? 'bg-(--text-primary)' : 'invisible'}`}
-                        />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className="[font-family:var(--font-family-mono)] text-xs tracking-[0.12em] break-all text-(--text-primary)">
-                  {user?.id}
+                  <PdxIcon
+                    icon={copiedTarget === 'id' ? <Check /> : <Copy />}
+                    size={14}
+                  />
                 </span>
-              )}
-              <span className="inline-flex opacity-60 transition-opacity hover:opacity-100">
-                <PdxIcon icon={<Copy />} size={14} />
-              </span>
-            </button>
+              </button>
+              <div className="inline-flex cursor-default items-center gap-2 rounded-full border-0 bg-(--bg-panel) px-3 py-2 text-xs text-(--text-primary)">
+                <PdxIcon icon={<Calendar />} size={16} />
+                <span>{formatDate(user?.createdAt)}</span>
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="mt-0.5 flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full border-0 bg-(--bg-panel) px-3 py-2 text-xs text-(--text-primary) transition-colors duration-150 hover:bg-(--bg-raised)"
-            onClick={() => copyText(user?.email, t('messages.copiedEmail'))}
+            className="group relative inline-flex cursor-pointer items-center gap-2 rounded-full border-0 bg-(--bg-panel) px-3 py-2 text-xs text-(--text-primary) transition-colors duration-150 hover:bg-(--bg-raised)"
+            onClick={() => copyText(user?.email, 'email')}
           >
             <PdxIcon icon={<Mail />} size={16} />
             <span>{user?.email}</span>
-            <span className="ml-0.5 inline-flex opacity-60 transition-opacity hover:opacity-100">
-              <PdxIcon icon={<Copy />} size={14} />
+            <span
+              className={`ml-0.5 inline-flex transition-[opacity,transform] duration-150 ${
+                copiedTarget === 'email'
+                  ? 'scale-105 text-(--success-color) opacity-100'
+                  : 'opacity-60 group-hover:opacity-100'
+              }`}
+            >
+              <PdxIcon
+                icon={copiedTarget === 'email' ? <Check /> : <Copy />}
+                size={14}
+              />
             </span>
           </button>
-          <div className="inline-flex cursor-default items-center gap-2 rounded-full border-0 bg-(--bg-panel) px-3 py-2 text-xs text-(--text-primary)">
-            <PdxIcon icon={<Calendar />} size={16} />
-            <span>{formatDate(user?.createdAt)}</span>
-          </div>
         </section>
       </main>
 
@@ -292,9 +397,11 @@ export const ProfilePage = () => {
               onClick={() => setEditOpen(false)}
             />
             <PdxButton
-              text={t('actions.save')}
+              text={profileJustSaved ? t('messages.saved') : t('actions.save')}
               size="Small"
               category="Primary"
+              icon={profileJustSaved ? <Check size={16} /> : undefined}
+              iconPosition="Left"
               disabled={isLoading || !draft.name.trim()}
               onClick={saveEdit}
             />

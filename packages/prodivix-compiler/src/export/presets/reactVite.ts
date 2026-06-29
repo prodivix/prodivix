@@ -1,6 +1,5 @@
 import { exportDependenciesToPackageFields } from '#src/export/dependencyPlanner';
 import type {
-  ExportDependency,
   ExportFileContribution,
   ExportPlannerPreset,
   ExportProgramContribution,

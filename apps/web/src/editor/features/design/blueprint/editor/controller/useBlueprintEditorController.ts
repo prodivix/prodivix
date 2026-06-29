@@ -414,8 +414,11 @@ export const useBlueprintEditorController = () => {
     [blueprintKey, patchRuntimeState]
   );
 
-  const toggleGroup = (groupId: string) => {
-    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  const toggleGroup = (groupId: string, collapsed?: boolean) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupId]: !(collapsed ?? prev[groupId]),
+    }));
   };
 
   const togglePreview = (previewId: string) => {

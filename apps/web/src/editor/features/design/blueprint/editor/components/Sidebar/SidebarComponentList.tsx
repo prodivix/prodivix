@@ -21,7 +21,7 @@ type SidebarComponentListProps = {
   sizeSelections: Record<string, string>;
   statusSelections: Record<string, number>;
   translate: (key: string, options?: Record<string, unknown>) => string;
-  onToggleGroup: (groupId: string) => void;
+  onToggleGroup: (groupId: string, collapsed: boolean) => void;
   onTogglePreview: (previewId: string) => void;
   onPreviewKeyDown: (
     event: KeyboardEvent<HTMLDivElement>,
@@ -52,7 +52,7 @@ export function SidebarComponentList({
   onStatusCycleStop,
 }: SidebarComponentListProps) {
   return (
-    <div className="BlueprintEditorComponentList grid gap-4 overflow-auto px-3 pt-2 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0">
+    <div className="BlueprintEditorComponentList grid overflow-auto px-3 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0">
       {groups.map((group, groupIndex) => {
         const isGroupCollapsed = collapsedGroups[group.id] ?? groupIndex > 0;
         const groupTitle = translate(
@@ -62,19 +62,24 @@ export function SidebarComponentList({
           }
         );
         return (
-          <div key={group.id} className="ComponentGroup grid gap-2.5">
-            <button
-              className="ComponentGroupHeader sticky top-0 z-[2] flex w-full cursor-pointer items-center justify-between border-0 bg-(--bg-canvas) py-1 backdrop-blur-[6px]"
-              onClick={() => onToggleGroup(group.id)}
-            >
-              <span className="ComponentGroupTitle text-[11px] tracking-[0.06em] text-(--text-muted) uppercase">
-                {groupTitle} ({group.items.length})
-              </span>
-              <ChevronDown
-                size={14}
-                className={`ComponentGroupIcon text-(--text-muted) transition-transform ${isGroupCollapsed ? '-rotate-90' : ''}`}
-              />
-            </button>
+          <div
+            key={group.id}
+            className={`ComponentGroup grid ${isGroupCollapsed ? '' : 'pb-4'}`}
+          >
+            <div className="ComponentGroupHeaderSurface sticky top-0 z-[2] bg-(--bg-canvas) py-2 backdrop-blur-[6px]">
+              <button
+                className="ComponentGroupHeader flex h-7 w-full cursor-pointer items-center justify-between border-0 bg-transparent p-0"
+                onClick={() => onToggleGroup(group.id, isGroupCollapsed)}
+              >
+                <span className="ComponentGroupTitle text-[11px] tracking-[0.06em] text-(--text-muted) uppercase">
+                  {groupTitle} ({group.items.length})
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`ComponentGroupIcon text-(--text-muted) transition-transform ${isGroupCollapsed ? '-rotate-90' : ''}`}
+                />
+              </button>
+            </div>
             {!isGroupCollapsed && (
               <div className="ComponentGroupItems grid [grid-auto-flow:dense] grid-cols-2 gap-3">
                 {group.items.map((item) => {
