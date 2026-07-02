@@ -1,11 +1,11 @@
 {
   "address": {
     "add": "Add",
-    "current": "Current URL",
-    "currentPlaceholder": "https://example.com",
-    "list": "Saved URLs",
-    "new": "New URL",
-    "newPlaceholder": "Paste or type a URL"
+    "current": "Route",
+    "currentPlaceholder": "/settings/profile",
+    "list": "Routes",
+    "new": "New route",
+    "newPlaceholder": "Type a route path"
   },
   "autosave": {
     "capabilities": {
@@ -615,6 +615,17 @@
     "quickPresetMenu": "Presets",
     "size": "Size {{width}}x{{height}}",
     "moreDevices": "More devices",
+    "modes": {
+      "design": "Design",
+      "designTitle": "Design mode (Ctrl+Alt+I)",
+      "interactive": "Interact",
+      "interactiveTitle": "Interactive mode (Ctrl+Alt+I)"
+    },
+    "routeDebug": {
+      "label": "Debug",
+      "toggle": "Toggle route debug logs",
+      "metricsTitle": "Current page DOM and PIR node counts"
+    },
     "quickPresets": {
       "desktop": "Desktop",
       "hd": "HD",

@@ -1,4 +1,6 @@
 import { getNavigateLinkKind } from '@prodivix/shared/safety';
+import { normalizeRoutePath } from '@prodivix/shared/router';
+import { logRouteDebug } from '@/pir/renderer/routeDebug';
 
 export type BuiltInActionName = 'navigate' | 'executeGraph';
 
@@ -91,11 +93,61 @@ const parseNavigationState = (value: unknown) => {
   return value;
 };
 
+export const resolveInternalNavigatePath = (to: string): string => {
+  if (to.startsWith('?') || to.startsWith('#')) return to;
+  return normalizeRoutePath(to);
+};
+
+const openExternalNavigateTarget = (
+  url: string,
+  options: { target: NavigateTarget; replace: boolean }
+) => {
+  logRouteDebug('built-in external navigation requested', {
+    url,
+    target: options.target,
+    replace: options.replace,
+  });
+  if (options.target === '_blank') {
+    let opened: Window | null = null;
+    try {
+      opened = window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      logRouteDebug('built-in external window.open threw', {
+        url,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    logRouteDebug('built-in external window.open result', {
+      url,
+      opened: Boolean(opened),
+      closed: opened?.closed,
+    });
+    if (opened) return;
+    logRouteDebug('built-in external anchor fallback requested', { url });
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    logRouteDebug('built-in external anchor fallback clicked', { url });
+    return;
+  }
+  if (options.replace) {
+    logRouteDebug('built-in external navigation via location.replace', { url });
+    window.location.replace(url);
+    return;
+  }
+  logRouteDebug('built-in external navigation via location.assign', { url });
+  window.location.assign(url);
+};
+
 /**
  * 内置动作执行链路：
  * PIR 事件 -> executeBuiltInAction ->
  * - executeGraph: 派发 `prodivix:execute-graph`
- * - navigate: 外链确认或 history/location 跳转
+ * - navigate: 外链或 history/location 跳转
  */
 export const executeBuiltInAction = (
   actionName: BuiltInActionName,
@@ -130,36 +182,31 @@ export const executeBuiltInAction = (
   const replace = Boolean(params.replace);
   const state = parseNavigationState(params.state);
   const linkKind = getNavigateLinkKind(to);
+  logRouteDebug('built-in navigation resolved link kind', {
+    nodeId: context.nodeId,
+    trigger: context.trigger,
+    eventKey: context.eventKey,
+    to,
+    linkKind,
+    effectiveTarget,
+    replace,
+  });
   if (!linkKind) return;
 
   if (linkKind === 'external') {
-    const confirmed = window.confirm(
-      [
-        'Open external link?',
-        `URL: ${to}`,
-        `Target: ${effectiveTarget}`,
-        `Replace history: ${replace ? 'Yes' : 'No'}`,
-        `Source: ${context.nodeId} · ${context.trigger}`,
-      ].join('\n')
-    );
-    if (!confirmed) return;
-    if (effectiveTarget === '_blank') {
-      window.open(to, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    if (replace) {
-      window.location.replace(to);
-      return;
-    }
-    window.location.assign(to);
+    openExternalNavigateTarget(to, {
+      target: effectiveTarget,
+      replace,
+    });
     return;
   }
 
   if (linkKind === 'internal') {
+    const nextPath = resolveInternalNavigatePath(to);
     if (replace) {
-      window.history.replaceState(state, '', to);
+      window.history.replaceState(state, '', nextPath);
     } else {
-      window.history.pushState(state, '', to);
+      window.history.pushState(state, '', nextPath);
     }
     window.dispatchEvent(new PopStateEvent('popstate'));
   }

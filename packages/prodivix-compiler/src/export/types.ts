@@ -278,6 +278,67 @@ export type ExportRuntimeModuleFactory = (
   requirement: ExportRuntimeRequirement
 ) => ExportModule | null;
 
+export type ExportRouteRuntimeRefKind = 'loader' | 'action' | 'guard';
+
+export type ExportRouteRuntimeRef = {
+  kind: ExportRouteRuntimeRefKind;
+  artifactId: string;
+  exportName?: string;
+  symbolId?: string;
+  sourceTrace: ExportSourceTrace[];
+};
+
+export type ExportRouteGeneratedFile = {
+  path: string;
+  kind: ExportFileKind;
+  reason: 'route-topology' | 'route-document' | 'route-runtime';
+};
+
+export type ExportRouteTopologyNode = {
+  routeNodeId: string;
+  path: string;
+  depth: number;
+  parentRouteNodeId?: string;
+  segment?: string;
+  index?: boolean;
+  layoutDocId?: string;
+  pageDocId?: string;
+  outletNodeId?: string;
+  runtimeRefs: ExportRouteRuntimeRef[];
+  sourceTrace: ExportSourceTrace[];
+  generatedFiles?: ExportRouteGeneratedFile[];
+};
+
+export type ExportRouteTopology = {
+  version: string;
+  rootRouteNodeId: string;
+  target: ExportTarget;
+  routes: ExportRouteTopologyNode[];
+  runtimeRefs: Array<
+    ExportRouteRuntimeRef & {
+      routeNodeId: string;
+    }
+  >;
+  adapter: {
+    framework: ExportTargetFramework;
+    preset: string;
+    runtimeRefs: Array<{
+      routeNodeId: string;
+      kind: ExportRouteRuntimeRefKind;
+      artifactId: string;
+      exportName?: string;
+      symbolId?: string;
+    }>;
+  };
+  moduleSourceTrace?: Array<{
+    moduleId: string;
+    mountId: string;
+    sourceRouteNodeId: string;
+    hostRouteNodeId: string;
+    path: string;
+  }>;
+};
+
 export type ExportBundleMetadata = ExportProgramMetadata & {
   generatedAt?: string;
   sourceTraceCount?: number;
@@ -291,6 +352,9 @@ export type ExportBundleMetadata = ExportProgramMetadata & {
   fileCount?: number;
   pathRewrites?: ExportPathRewrite[];
   referencedAssets?: ExportReferencedAsset[];
+  routeTopology?: ExportRouteTopology;
+  exportBlocked?: boolean;
+  blockingDiagnostics?: CompileDiagnostic[];
 };
 
 export type ExportSourceTraceSummary = {
@@ -392,6 +456,7 @@ export type ExportProgram = {
   deployments: ExportDeploymentContribution[];
   runtimeRequirements: ExportRuntimeRequirement[];
   dependencies: ExportDependency[];
+  routes?: ExportRouteTopology;
   diagnostics: CompileDiagnostic[];
   metadata?: ExportProgramMetadata;
 };
@@ -409,6 +474,7 @@ export type ExportProgramContribution = {
   deployments?: ExportDeploymentContribution[];
   runtimeRequirements?: ExportRuntimeRequirement[];
   dependencies?: ExportDependency[];
+  routes?: ExportRouteTopology;
   diagnostics?: CompileDiagnostic[];
   metadata?: ExportProgramMetadata;
 };

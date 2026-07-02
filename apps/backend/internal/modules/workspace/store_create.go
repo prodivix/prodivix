@@ -24,7 +24,7 @@ func (store *WorkspaceStore) CreateWorkspace(ctx context.Context, params CreateW
 	if err != nil {
 		return nil, err
 	}
-	manifestJSON, err := normalizeJSONDocument(params.RouteManifest, defaultWorkspaceRouteManifest)
+	manifestJSON, err := normalizeRouteManifestDocument(params.RouteManifest)
 	if err != nil {
 		return nil, err
 	}

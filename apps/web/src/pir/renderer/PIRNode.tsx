@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
+import { isBuiltInActionName } from '@/pir/actions/registry';
 import { deepResolveValueOrRef, readValueByPath } from '@/pir/shared/valueRef';
+import { resolveLinkCapability } from './capabilities';
 import type {
   AdapterContext,
   AdapterResult,
@@ -16,12 +18,45 @@ import {
 } from './PIRRenderer.scope';
 import {
   VOID_ELEMENTS,
-  isClickTrigger,
   mergeHandlers,
   stripChildProps,
   stripInternalProps,
   toReactEventName,
 } from './PIRRenderer.helpers';
+import {
+  resolvePdxRouteRendererProps,
+  shouldRenderPdxOutletChildren,
+} from './PIRRenderer.routeContext';
+import { logRouteDebug } from './routeDebug';
+
+const preventDefaultPayload = (payload: unknown) => {
+  const event =
+    payload && typeof payload === 'object'
+      ? (payload as { preventDefault?: () => void })
+      : null;
+  if (
+    event &&
+    'preventDefault' in event &&
+    typeof event.preventDefault === 'function'
+  ) {
+    event.preventDefault();
+  }
+};
+
+const stringifyNavigationTarget = (value: unknown) => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+  const record = value as Record<string, unknown>;
+  const pathname = typeof record.pathname === 'string' ? record.pathname : '';
+  const search = typeof record.search === 'string' ? record.search : '';
+  const hash = typeof record.hash === 'string' ? record.hash : '';
+  return `${pathname}${search}${hash}`;
+};
+
+const containsNodeId = (root: ComponentNode, nodeId: string): boolean => {
+  if (root.id === nodeId) return true;
+  return (root.children ?? []).some((child) => containsNodeId(child, nodeId));
+};
 
 export const PIRNode: React.FC<{
   node: ComponentNode;
@@ -52,13 +87,6 @@ export const PIRNode: React.FC<{
       Object.entries(node.props).forEach(([key, val]) => {
         p[key] = resolveValue(val, scopedContext);
       });
-    }
-    if (
-      node.type === 'PdxRoute' &&
-      p.currentPath === undefined &&
-      typeof scopedContext.params.currentPath === 'string'
-    ) {
-      p.currentPath = scopedContext.params.currentPath;
     }
     return p;
   }, [node.props, node.type, scopedContext]);
@@ -111,12 +139,10 @@ export const PIRNode: React.FC<{
 
   const eventProps = useMemo(() => {
     const handlers: Record<string, unknown> = {};
-    if (!node.events) return handlers;
-    Object.entries(node.events).forEach(([eventKey, eventDef]) => {
+    Object.entries(node.events ?? {}).forEach(([eventKey, eventDef]) => {
       const trigger = eventDef.trigger || eventKey;
       const reactEventName = toReactEventName(trigger);
       if (!reactEventName) return;
-      if (isClickTrigger(trigger)) return;
       const handler = (payload: unknown) => {
         if (
           scopedContext.requireSelectionForEvents &&
@@ -133,6 +159,33 @@ export const PIRNode: React.FC<{
               index: scopedContext.index,
             }) as Record<string, unknown>)
           : undefined;
+        if (
+          eventDef.action &&
+          isBuiltInActionName(eventDef.action) &&
+          scopedContext.interactionMode !== 'interactive'
+        ) {
+          logRouteDebug('skip built-in action outside interactive mode', {
+            nodeId: node.id,
+            nodeType: node.type,
+            action: eventDef.action,
+            trigger,
+            eventKey,
+            interactionMode: scopedContext.interactionMode,
+          });
+          return;
+        }
+        if (eventDef.action && isBuiltInActionName(eventDef.action)) {
+          preventDefaultPayload(payload);
+        }
+        logRouteDebug('event handler fired', {
+          nodeId: node.id,
+          nodeType: node.type,
+          action: eventDef.action,
+          trigger,
+          eventKey,
+          params: resolvedParams,
+          interactionMode: scopedContext.interactionMode,
+        });
         if (
           eventDef.action &&
           scopedContext.dispatchBuiltInAction(eventDef.action, {
@@ -152,8 +205,42 @@ export const PIRNode: React.FC<{
         handler
       );
     });
+    const linkCapability = resolveLinkCapability(node);
+    const destination = linkCapability
+      ? stringifyNavigationTarget(resolvedProps[linkCapability.destinationProp])
+      : '';
+    if (destination) {
+      const handler = (payload: unknown) => {
+        if (scopedContext.interactionMode !== 'interactive') return;
+        preventDefaultPayload(payload);
+        logRouteDebug('link navigate fired', {
+          nodeId: node.id,
+          nodeType: node.type,
+          destination,
+          target: linkCapability?.targetProp
+            ? resolvedProps[linkCapability.targetProp]
+            : undefined,
+          currentPath: scopedContext.routeRuntimeContext?.currentPath,
+        });
+        scopedContext.dispatchBuiltInAction('navigate', {
+          params: {
+            to: destination,
+            target: linkCapability?.targetProp
+              ? resolvedProps[linkCapability.targetProp]
+              : undefined,
+            replace: resolvedProps.replace,
+            state: resolvedProps.state,
+          },
+          nodeId: node.id,
+          trigger: 'onClick',
+          eventKey: '$link',
+          payload,
+        });
+      };
+      handlers.onClick = mergeHandlers(handlers.onClick, handler);
+    }
     return handlers;
-  }, [node.events, scopedContext, node.id]);
+  }, [node, resolvedProps, scopedContext]);
 
   const mergedProps = useMemo(() => {
     const combined = {
@@ -192,6 +279,10 @@ export const PIRNode: React.FC<{
     finalProps = { ...finalProps, ...selectionData };
   }
 
+  if (node.type === 'PdxRoute') {
+    finalProps = resolvePdxRouteRendererProps(finalProps, context);
+  }
+
   const Component = resolvedComponent.component as React.ElementType;
   const isVoid =
     adapterResult.isVoid ??
@@ -208,7 +299,9 @@ export const PIRNode: React.FC<{
 
   const outletChildren =
     node.type === 'PdxOutlet' &&
+    !node.children?.length &&
     scopedContext.outletContentNode &&
+    !containsNodeId(scopedContext.outletContentNode, node.id) &&
     (!scopedContext.outletTargetNodeId ||
       scopedContext.outletTargetNodeId === node.id) ? (
       <PIRNode
@@ -218,6 +311,9 @@ export const PIRNode: React.FC<{
         registry={registry}
       />
     ) : null;
+  const shouldRenderNodeChildren =
+    node.type !== 'PdxOutlet' ||
+    shouldRenderPdxOutletChildren(node.id, scopedContext);
 
   const listRender = useMemo(() => {
     if (!node.list) return null;
@@ -318,14 +414,16 @@ export const PIRNode: React.FC<{
       <Component {...restProps} style={mergedStyle}>
         {adapterResult.children}
         {outletChildren ??
-          node.children?.map((child) => (
-            <PIRNode
-              key={child.id}
-              node={child}
-              context={scopedContext}
-              registry={registry}
-            />
-          ))}
+          (shouldRenderNodeChildren
+            ? node.children?.map((child) => (
+                <PIRNode
+                  key={child.id}
+                  node={child}
+                  context={scopedContext}
+                  registry={registry}
+                />
+              ))
+            : null)}
       </Component>
     </span>
   );

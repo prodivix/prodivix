@@ -32,6 +32,7 @@ function PdxText({
   style,
   id,
   dataAttributes = {},
+  onClick,
 }: PdxTextProps) {
   const fullClassName =
     `PdxText ${size} ${weight} ${color} ${align} ${truncate ? 'Truncate' : ''} ${className || ''}`.trim();
@@ -41,7 +42,13 @@ function PdxText({
   const Element = Component as React.ElementType;
 
   return (
-    <Element className={fullClassName} style={style} id={id} {...dataProps}>
+    <Element
+      className={fullClassName}
+      style={style}
+      id={id}
+      onClick={onClick}
+      {...dataProps}
+    >
       {children}
     </Element>
   );

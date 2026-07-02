@@ -38,6 +38,7 @@ import {
   deleteWorkspaceResourceDocumentRequest,
   findWorkspaceDocumentByPath,
   findWorkspaceNodeByPath,
+  isWorkspaceDocumentReferencedByRoute,
   normalizeWorkspaceResourcePath,
   renameWorkspaceResourceDocumentRequest,
   RESOURCE_ROOTS,
@@ -59,6 +60,7 @@ export function PublicResourcePage({
   const workspaceDocumentsById = useEditorStore(
     (state) => state.workspaceDocumentsById
   );
+  const routeManifest = useEditorStore((state) => state.routeManifest);
   const treeRootId = useEditorStore((state) => state.treeRootId);
   const treeById = useEditorStore((state) => state.treeById);
   const applyWorkspaceMutation = useEditorStore(
@@ -271,6 +273,15 @@ export function PublicResourcePage({
         })
       );
     } else {
+      if (isWorkspaceDocumentReferencedByRoute(routeManifest, nodeId)) {
+        window.alert(
+          t('publicResource.routeReferencedDeleteBlocked', {
+            defaultValue:
+              'This document is referenced by the route graph and cannot be deleted.',
+          })
+        );
+        return;
+      }
       await applyIntent(
         deleteWorkspaceResourceDocumentRequest({
           workspaceRev: workspaceRev ?? 0,

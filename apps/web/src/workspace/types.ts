@@ -53,6 +53,8 @@ export type StableWorkspaceVfsNode = {
 export type StableWorkspaceRouteManifest = {
   version: string;
   root: unknown;
+  modules?: Record<string, unknown>;
+  mounts?: unknown[];
 };
 
 export type StableWorkspaceSnapshot = {

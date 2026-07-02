@@ -4,7 +4,8 @@ export type DiagnosticSource =
   | 'canonical-ir'
   | 'adapter'
   | 'codegen'
-  | 'export';
+  | 'export'
+  | 'route';
 
 export interface CompileDiagnostic {
   code: string;

@@ -53,6 +53,12 @@ export {
   createExportProgramBuilder,
 } from '#src/export/programBuilder';
 export { validateExportOriginPolicy } from '#src/export/originPolicy';
+export { createRouteExportContribution } from '#src/export/routeTopology';
+export type {
+  CreateRouteExportContributionOptions,
+  RouteExportCodeArtifactInfo,
+  RouteExportDocumentInfo,
+} from '#src/export/routeTopology';
 export {
   dedupeExportImportIntents,
   renderExportImportIntent,
@@ -112,6 +118,11 @@ export type {
   ExportProgram,
   ExportProgramContribution,
   ExportProgramMetadata,
+  ExportRouteGeneratedFile,
+  ExportRouteRuntimeRef,
+  ExportRouteRuntimeRefKind,
+  ExportRouteTopology,
+  ExportRouteTopologyNode,
   ExportRoot,
   ExportRootKind,
   ExportScaffoldContext,

@@ -4,6 +4,10 @@ import type {
 } from '@/editor/editorApi';
 import type { WorkspaceVfsNode } from '@/editor/store/editorStore.types';
 import {
+  collectRouteManifestDocumentRefs,
+  type WorkspaceRouteManifest,
+} from '@prodivix/shared/router';
+import {
   createWorkspaceDocumentIntentRequest,
   deleteWorkspaceDocumentIntentRequest,
   renameWorkspaceDocumentIntentRequest,
@@ -231,6 +235,11 @@ export const deleteWorkspaceResourceDocumentRequest = ({
     documentId,
     type,
   });
+
+export const isWorkspaceDocumentReferencedByRoute = (
+  routeManifest: WorkspaceRouteManifest,
+  documentId: string
+): boolean => collectRouteManifestDocumentRefs(routeManifest).has(documentId);
 
 export const createWorkspaceResourceValuePatchRequest = <TValue>({
   workspaceId,

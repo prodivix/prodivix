@@ -1,5 +1,8 @@
+export type BlueprintCanvasInteractionMode = 'design' | 'interactive';
+
 export type BlueprintEditorCanvasProps = {
   currentPath: string;
+  interactionMode: BlueprintCanvasInteractionMode;
   viewportWidth: string;
   viewportHeight: string;
   zoom: number;

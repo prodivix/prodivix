@@ -58,6 +58,7 @@ const createCanvasHiddenLayerCss = (nodeIds: string[]) =>
  */
 export function BlueprintEditorCanvas({
   currentPath,
+  interactionMode,
   viewportWidth,
   viewportHeight,
   zoom,
@@ -74,9 +75,6 @@ export function BlueprintEditorCanvas({
   const { t } = useTranslation('blueprint');
   const assist = useSettingsStore((state) => state.global.assist);
   const panInertia = useSettingsStore((state) => state.global.panInertia);
-  const eventTriggerMode = useSettingsStore(
-    (state) => state.global.eventTriggerMode
-  );
   const zoomStep = useSettingsStore((state) => state.global.zoomStep);
   const renderModeValue = useSettingsStore((state) => state.global.renderMode);
   const renderMode =
@@ -115,10 +113,22 @@ export function BlueprintEditorCanvas({
     });
     return artifacts;
   }, [workspaceDocumentsById]);
-  const { activeRouteNode, outletContentNode } = useActiveRoutePreview();
+  const {
+    composedRouteManifest,
+    routeRuntimeContext,
+    activeRouteNodeId,
+    activeRouteNode,
+    outletContentNode,
+    outletTargetNodeId,
+  } = useActiveRoutePreview(currentPath);
   const routeDiagnostics = useMemo(
-    () => createRouteCanvasDiagnostics(activeRouteNode, pirRoot),
-    [activeRouteNode, pirRoot]
+    () =>
+      createRouteCanvasDiagnostics(
+        activeRouteNode,
+        pirRoot,
+        outletTargetNodeId
+      ),
+    [activeRouteNode, outletTargetNodeId, pirRoot]
   );
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const panState = useRef<PanState>({
@@ -428,13 +438,14 @@ export function BlueprintEditorCanvas({
   };
 
   const hasChildren = Boolean(pirRoot.children?.length);
+  const isDesignMode = interactionMode === 'design';
 
   return (
     <section
-      className={`BlueprintEditorCanvas relative z-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-(--bg-panel) max-[1100px]:min-h-80 ${showSelectionDiagnostics ? '' : 'HideSelectionDiagnostics [&_.BlueprintEditorCanvasArtboard_[data-pir-selected=true]]:outline-none'}`}
+      className={`BlueprintEditorCanvas relative z-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-(--bg-panel) max-[1100px]:min-h-80 ${showSelectionDiagnostics && isDesignMode ? '' : 'HideSelectionDiagnostics [&_.BlueprintEditorCanvasArtboard_[data-pir-selected=true]]:outline-none'}`}
     >
       <div
-        className={`BlueprintEditorCanvasSurface relative min-h-0 flex-1 touch-none overflow-hidden ${isPanning ? 'IsPanning cursor-grabbing select-none' : 'cursor-grab'} ${isCanvasOver ? 'IsOver outline-2 -outline-offset-2 outline-(--accent-color) outline-dashed' : ''}`}
+        className={`BlueprintEditorCanvasSurface relative min-h-0 flex-1 touch-none overflow-hidden ${isPanning ? 'IsPanning cursor-grabbing select-none' : isDesignMode ? 'cursor-grab' : 'cursor-default'} ${isCanvasOver && isDesignMode ? 'IsOver outline-2 -outline-offset-2 outline-(--accent-color) outline-dashed' : ''}`}
         ref={setSurfaceNodeRef}
         tabIndex={0}
         onPointerDown={handlePointerDown}
@@ -475,15 +486,14 @@ export function BlueprintEditorCanvas({
                   codeArtifacts={codeArtifacts}
                   overrides={{ currentPath }}
                   outletContentNode={outletContentNode}
-                  outletTargetNodeId={activeRouteNode?.outletNodeId}
-                  selectedId={selectedId}
-                  onNodeSelect={handleNodeSelect}
+                  outletTargetNodeId={outletTargetNodeId}
+                  selectedId={isDesignMode ? selectedId : undefined}
+                  onNodeSelect={isDesignMode ? handleNodeSelect : undefined}
                   registry={registry}
                   renderMode={renderMode}
                   allowExternalProps={allowExternalProps === 'enabled'}
-                  requireSelectionForEvents={
-                    eventTriggerMode === 'selected-only'
-                  }
+                  requireSelectionForEvents={false}
+                  interactionMode={interactionMode}
                   // 内置动作链路：PIRRenderer -> builtInActions -> controller。
                   builtInActions={{
                     ...(onNavigateRequest
@@ -495,6 +505,9 @@ export function BlueprintEditorCanvas({
                         }
                       : {}),
                   }}
+                  routeManifest={composedRouteManifest}
+                  activeRouteNodeId={activeRouteNodeId}
+                  routeRuntimeContext={routeRuntimeContext}
                 />
               ) : (
                 <CanvasPlaceholder

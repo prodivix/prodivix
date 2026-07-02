@@ -199,6 +199,74 @@ describe('applyWorkspaceCommand', () => {
     );
   });
 
+  it('rejects deleting documents that are still referenced by the route graph', () => {
+    const workspace = {
+      ...createWorkspace(),
+      routeManifest: {
+        version: '1',
+        root: {
+          id: 'route-root',
+          children: [
+            {
+              id: 'route-home',
+              segment: '',
+              pageDocId: 'page-home',
+            },
+          ],
+        },
+        modules: {
+          account: {
+            moduleId: 'account',
+            version: '1',
+            root: {
+              id: 'module-account-root',
+              layoutDocId: 'layout-account',
+            },
+          },
+        },
+      },
+      docsById: {
+        ...createWorkspace().docsById,
+        'layout-account': {
+          id: 'layout-account',
+          type: 'pir-layout',
+          path: '/layouts/account.pir.json',
+          contentRev: 1,
+          metaRev: 1,
+          content: createDefaultPirDoc(),
+        },
+      },
+    };
+
+    const result = applyWorkspaceCommand(
+      workspace,
+      createCommand({
+        target: { workspaceId: 'workspace-1' },
+        namespace: 'core.workspace',
+        type: 'document.delete',
+        forwardOps: [{ op: 'remove', path: '/docsById/layout-account' }],
+        reverseOps: [
+          {
+            op: 'add',
+            path: '/docsById/layout-account',
+            value: workspace.docsById['layout-account'],
+          },
+        ],
+      })
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'WKS_COMMAND_VALIDATION_FAILED',
+        documentId: 'layout-account',
+        message:
+          'Workspace document is referenced by the route graph and cannot be deleted.',
+      })
+    );
+  });
+
   it('creates code documents through a workspace command with a stable VFS path', () => {
     const workspace = createWorkspace();
     const command = createWorkspaceCodeDocumentCommand({

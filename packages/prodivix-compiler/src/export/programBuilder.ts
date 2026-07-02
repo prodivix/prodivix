@@ -61,6 +61,7 @@ export class ExportProgramBuilder {
       deployments: [],
       runtimeRequirements: [],
       dependencies: [],
+      routes: undefined,
       diagnostics: [],
     };
   }
@@ -89,6 +90,7 @@ export class ExportProgramBuilder {
         ...this.program.dependencies,
         ...(contribution.dependencies ?? []),
       ]),
+      routes: contribution.routes ?? this.program.routes,
       diagnostics: [
         ...this.program.diagnostics,
         ...(contribution.diagnostics ?? []),
@@ -111,6 +113,33 @@ export class ExportProgramBuilder {
       deployments: [...this.program.deployments],
       runtimeRequirements: [...this.program.runtimeRequirements],
       dependencies: [...this.program.dependencies],
+      routes: this.program.routes
+        ? {
+            ...this.program.routes,
+            routes: this.program.routes.routes.map((route) => ({
+              ...route,
+              runtimeRefs: route.runtimeRefs.map((ref) => ({ ...ref })),
+              sourceTrace: route.sourceTrace.map((trace) => ({ ...trace })),
+              generatedFiles: route.generatedFiles
+                ? route.generatedFiles.map((file) => ({ ...file }))
+                : undefined,
+            })),
+            runtimeRefs: this.program.routes.runtimeRefs.map((ref) => ({
+              ...ref,
+            })),
+            adapter: {
+              ...this.program.routes.adapter,
+              runtimeRefs: this.program.routes.adapter.runtimeRefs.map(
+                (ref) => ({ ...ref })
+              ),
+            },
+            moduleSourceTrace: this.program.routes.moduleSourceTrace
+              ? this.program.routes.moduleSourceTrace.map((trace) => ({
+                  ...trace,
+                }))
+              : undefined,
+          }
+        : undefined,
       diagnostics: [...this.program.diagnostics],
       metadata: this.program.metadata
         ? { ...this.program.metadata }

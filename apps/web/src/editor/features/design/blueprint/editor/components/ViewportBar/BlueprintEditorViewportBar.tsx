@@ -1,13 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { PdxInput, PdxPopover, PdxSlider } from '@prodivix/ui';
-import { ChevronDown, RotateCcw } from 'lucide-react';
+import { ChevronDown, MousePointer2, Play, RotateCcw } from 'lucide-react';
 import {
   VIEWPORT_DEVICE_PRESETS,
   VIEWPORT_QUICK_PRESETS,
   VIEWPORT_ZOOM_RANGE,
 } from '@/editor/features/design/blueprint/editor/model/data';
+import type { BlueprintCanvasInteractionMode } from '../Canvas';
 
 type BlueprintEditorViewportBarProps = {
+  interactionMode: BlueprintCanvasInteractionMode;
+  onInteractionModeChange: (mode: BlueprintCanvasInteractionMode) => void;
   viewportWidth: string;
   viewportHeight: string;
   onViewportWidthChange: (value: string) => void;
@@ -27,6 +30,8 @@ const DEVICE_KIND_ICON_STYLES: Record<string, string> = {
 };
 
 export function BlueprintEditorViewportBar({
+  interactionMode,
+  onInteractionModeChange,
   viewportWidth,
   viewportHeight,
   onViewportWidthChange,
@@ -37,9 +42,55 @@ export function BlueprintEditorViewportBar({
   onResetView,
 }: BlueprintEditorViewportBarProps) {
   const { t } = useTranslation('blueprint');
+  const interactionModes: Array<{
+    value: BlueprintCanvasInteractionMode;
+    label: string;
+    title: string;
+    icon: typeof MousePointer2;
+  }> = [
+    {
+      value: 'design',
+      label: t('viewport.modes.design'),
+      title: t('viewport.modes.designTitle', {
+        defaultValue: 'Design mode (Ctrl+Alt+I)',
+      }),
+      icon: MousePointer2,
+    },
+    {
+      value: 'interactive',
+      label: t('viewport.modes.interactive'),
+      title: t('viewport.modes.interactiveTitle', {
+        defaultValue: 'Interactive mode (Ctrl+Alt+I)',
+      }),
+      icon: Play,
+    },
+  ];
 
   return (
     <section className="flex min-h-[30px] flex-nowrap items-center gap-2.5 bg-(--bg-canvas) px-[14px] py-1 text-[11px] text-(--text-muted)">
+      <div className="inline-flex h-6 flex-none items-center overflow-hidden rounded-full border border-(--border-default) bg-(--bg-muted)">
+        {interactionModes.map((mode) => {
+          const Icon = mode.icon;
+          const isActive = interactionMode === mode.value;
+          return (
+            <button
+              key={mode.value}
+              type="button"
+              className={`inline-flex h-full w-7 items-center justify-center text-[11px] leading-none whitespace-nowrap transition-[background,color] duration-150 ${
+                isActive
+                  ? 'bg-(--bg-canvas) text-(--text-primary)'
+                  : 'text-(--text-muted) hover:text-(--text-primary)'
+              }`}
+              title={mode.title}
+              aria-label={mode.title}
+              aria-pressed={isActive}
+              onClick={() => onInteractionModeChange(mode.value)}
+            >
+              <Icon size={12} />
+            </button>
+          );
+        })}
+      </div>
       <div className="flex flex-none items-center gap-2.5">
         <div className="font-medium text-(--text-secondary)">
           {t('viewport.label')}

@@ -22,7 +22,10 @@ import { flattenPublicFiles } from '@/editor/features/resources/publicTree';
 import { flattenEnabledProjectFiles } from '@/editor/features/resources/projectFileStore';
 import { buildPublicResourceTreeFromWorkspace } from '@/editor/features/resources/workspacePublicResources';
 import { buildProjectFilesFromWorkspace } from '@/editor/features/resources/workspaceProjectFiles';
-import { createWorkspaceResourceExportContributions } from './exportContributions';
+import {
+  createRouteGraphExportContributions,
+  createWorkspaceResourceExportContributions,
+} from './exportContributions';
 import { ExportCodeHeader } from './ExportCodeHeader';
 import { ExportCodePreview } from './ExportCodePreview';
 import { ExportFileTree } from './ExportFileTree';
@@ -177,12 +180,26 @@ export function ExportCode() {
   );
   const exportContributions = useMemo(() => {
     if (projectType !== 'project') return [];
-    return createWorkspaceResourceExportContributions({
-      workspaceDocumentsById,
-      projectFiles: enabledProjectFiles,
-      publicFiles,
-    });
-  }, [enabledProjectFiles, projectType, publicFiles, workspaceDocumentsById]);
+    return [
+      ...createWorkspaceResourceExportContributions({
+        workspaceDocumentsById,
+        projectFiles: enabledProjectFiles,
+        publicFiles,
+      }),
+      ...createRouteGraphExportContributions({
+        routeManifest,
+        workspaceDocumentsById,
+        codeArtifacts,
+      }),
+    ];
+  }, [
+    codeArtifacts,
+    enabledProjectFiles,
+    projectType,
+    publicFiles,
+    routeManifest,
+    workspaceDocumentsById,
+  ]);
 
   const reactBundle = useMemo(() => {
     if (!validatedPirDoc?.ui?.graph) return null;
@@ -291,6 +308,13 @@ export function ExportCode() {
       reactBundle?.diagnostics?.filter((item) => item.source !== 'export') ??
       [],
     [reactBundle?.diagnostics]
+  );
+  const hasBlockingReactDiagnostics = useMemo(
+    () =>
+      reactMainDiagnostics.some(
+        (diagnostic) => diagnostic.severity === 'error'
+      ),
+    [reactMainDiagnostics]
   );
   const vfsFileTree = useMemo(
     () => buildFileTree(vfsProjectFiles),
@@ -467,7 +491,9 @@ export function ExportCode() {
         titleLabel={t('title', { defaultValue: '导出代码' })}
         downloadingZip={downloadingZip}
         canDownloadReactZip={
-          Boolean(reactProjectFiles.length) && !hasPirValidationError
+          Boolean(reactProjectFiles.length) &&
+          !hasPirValidationError &&
+          !hasBlockingReactDiagnostics
         }
         downloadingLabel={t('downloading', {
           defaultValue: 'Downloading...',

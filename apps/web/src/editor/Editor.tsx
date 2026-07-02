@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import EditorBar from './EditorBar/EditorBar';
+import { EditorDebugFloatingBall } from './EditorDebugFloatingBall';
 import { SettingsEffects } from './features/settings/SettingsEffects';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { mountGraphExecutionBridge } from '@/core/executor/executor';
@@ -414,6 +415,7 @@ function Editor() {
           <div className="min-h-screen flex-1 overflow-auto">
             <Outlet />
           </div>
+          <EditorDebugFloatingBall />
         </div>
       )}
     </EditorShortcutProvider>

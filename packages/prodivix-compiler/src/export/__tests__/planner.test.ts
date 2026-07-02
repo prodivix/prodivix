@@ -3,6 +3,7 @@ import {
   ProductionExportPlanner,
   createExportProgramBuilder,
   createReactViteExportPreset,
+  createRouteExportContribution,
   createUniqueExportPath,
   getRelativeImportPath,
   mergeExportDependencies,
@@ -245,6 +246,140 @@ describe('ProductionExportPlanner', () => {
     });
     expect(styleFile?.contents).toBe(
       '.button { color: red; }\n\n.card { color: blue; }\n'
+    );
+  });
+
+  it('emits route topology from RouteGraph instead of inferring routes from modules', () => {
+    const preset = createReactViteExportPreset();
+    const routeContribution = createRouteExportContribution({
+      target: preset.target,
+      manifest: {
+        version: '1',
+        root: {
+          id: 'root',
+          children: [
+            {
+              id: 'route-users',
+              segment: 'users',
+              layoutDocId: 'layout-users',
+              outletNodeId: 'outlet-main',
+              children: [
+                {
+                  id: 'route-user-detail',
+                  segment: ':userId',
+                  pageDocId: 'page-user-detail',
+                  runtime: {
+                    loaderRef: {
+                      artifactId: 'loader-user-detail',
+                      exportName: 'loadUser',
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+      documentInfo: (documentId) => ({
+        id: documentId,
+        path: `/pages/${documentId}.pir.json`,
+        type: documentId.startsWith('layout') ? 'pir-layout' : 'pir-page',
+      }),
+      codeArtifactInfo: (artifactId) => ({
+        id: artifactId,
+        path: `/src/loaders/${artifactId}.ts`,
+      }),
+    });
+    const program = createExportProgramBuilder(preset.target)
+      .addContribution({
+        roots: [
+          {
+            id: 'app',
+            kind: 'app',
+            displayName: 'App',
+            sourceRef: sourceTrace[0].sourceRef,
+          },
+        ],
+        modules: [createModule({ suggestedName: 'App' })],
+      })
+      .addContribution(routeContribution)
+      .build();
+
+    const bundle = new ProductionExportPlanner(preset).plan(program);
+    const routesFile = bundle.files.find(
+      (file) => file.path === '.prodivix/routes.json'
+    );
+    const manifestFile = bundle.files.find(
+      (file) => file.path === '.prodivix/export-manifest.json'
+    );
+    const routeTopology = bundle.metadata?.routeTopology;
+
+    expect(routesFile).toBeDefined();
+    expect(routeTopology?.routes.map((route) => route.path)).toEqual([
+      '/',
+      '/users',
+      '/users/:userId',
+    ]);
+    expect(routeTopology?.adapter.runtimeRefs).toEqual([
+      {
+        routeNodeId: 'route-user-detail',
+        kind: 'loader',
+        artifactId: 'loader-user-detail',
+        exportName: 'loadUser',
+      },
+    ]);
+    expect(routeTopology?.routes.at(-1)?.generatedFiles).toContainEqual({
+      path: '.prodivix/routes.json',
+      kind: 'metadata',
+      reason: 'route-topology',
+    });
+    expect(String(manifestFile?.contents)).toContain('"routeTopology"');
+  });
+
+  it('keeps route diagnostics in the export bundle and marks serious errors as blocking', () => {
+    const preset = createReactViteExportPreset();
+    const routeContribution = createRouteExportContribution({
+      target: preset.target,
+      manifest: {
+        version: '1',
+        root: {
+          id: 'root',
+          children: [
+            {
+              id: 'route-settings',
+              segment: 'settings',
+              runtime: {
+                guardRef: {
+                  artifactId: 'missing-guard',
+                },
+              },
+            },
+          ],
+        },
+      },
+      codeArtifactInfo: () => null,
+    });
+    const program = createExportProgramBuilder(preset.target)
+      .addContribution({
+        modules: [createModule({ suggestedName: 'App' })],
+      })
+      .addContribution(routeContribution)
+      .build();
+    const bundle = new ProductionExportPlanner(preset).plan(program);
+
+    expect(bundle.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'RTE-2011',
+        source: 'route',
+        severity: 'error',
+      })
+    );
+    expect(bundle.metadata?.exportBlocked).toBe(true);
+    expect(bundle.metadata?.blockingDiagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'RTE-2011',
+        source: 'route',
+      })
     );
   });
 });

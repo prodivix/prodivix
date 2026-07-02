@@ -1,5 +1,6 @@
 import {
   completeExportDependencyOrigin,
+  createRouteExportContribution,
   createStaticDeploymentExportContribution,
   resolveWorkspaceDocumentExportSource,
   type ExportArtifactContribution,
@@ -8,7 +9,9 @@ import {
   type ExportFileImportMode,
   type ExportProgramContribution,
   type ExportSourceTrace,
+  type ReactGeneratorCodeArtifact,
 } from '@prodivix/prodivix-compiler';
+import type { WorkspaceRouteManifest } from '@prodivix/shared/router';
 import type { WorkspaceDocumentRecord } from '@/editor/editorApi';
 import type { ProjectFile } from '@/editor/features/resources/projectFileStore';
 import type { PublicResourceNode } from '@/editor/features/resources/publicTree';
@@ -371,5 +374,38 @@ export const createWorkspaceResourceExportContributions = (input: {
   createStaticDeploymentExportContribution({
     target: 'static-hosting',
     outputDirectory: 'dist',
+  }),
+];
+
+export const createRouteGraphExportContributions = (input: {
+  routeManifest: WorkspaceRouteManifest;
+  workspaceDocumentsById: WorkspaceDocumentsById;
+  codeArtifacts: ReactGeneratorCodeArtifact[];
+}): ExportProgramContribution[] => [
+  createRouteExportContribution({
+    manifest: input.routeManifest,
+    target: {
+      framework: 'react',
+      preset: 'vite',
+    },
+    documentInfo: (documentId) => {
+      const document = input.workspaceDocumentsById[documentId];
+      if (!document) return null;
+      return {
+        id: document.id,
+        path: document.path,
+        type: document.type,
+      };
+    },
+    codeArtifactInfo: (artifactId) => {
+      const artifact = input.codeArtifacts.find(
+        (item) => item.id === artifactId
+      );
+      if (!artifact) return null;
+      return {
+        id: artifact.id,
+        path: artifact.path,
+      };
+    },
   }),
 ];

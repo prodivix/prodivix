@@ -20,6 +20,7 @@ export function BlueprintTreeNode({
   node,
   depth,
   expandedKeys,
+  outletRoutePaths,
   selectedId,
   hiddenNodeIds,
   dropHint,
@@ -45,7 +46,11 @@ export function BlueprintTreeNode({
     isLayoutPatternRoot && layoutPatternId
       ? formatPatternLabel(layoutPatternId)
       : node.type;
-  const nodeLabel = `${nodeTypeLabel} (${node.id})`;
+  const outletRoutePath =
+    node.type === 'PdxOutlet' ? outletRoutePaths[node.id] : undefined;
+  const nodeLabel = outletRoutePath
+    ? `${nodeTypeLabel} ${outletRoutePath} (${node.id})`
+    : `${nodeTypeLabel} (${node.id})`;
   const hiddenBySplitCategory = isHiddenBySplitCategory(node);
   const nodeTypeSecondaryLabel = hiddenBySplitCategory
     ? 'Hidden by 2 Columns'
@@ -199,6 +204,11 @@ export function BlueprintTreeNode({
               <span className="BlueprintEditorTreeType truncate text-[10px] font-medium tracking-[0.01em]">
                 {nodeTypeLabel}
               </span>
+              {outletRoutePath ? (
+                <span className="BlueprintEditorTreeRoutePath min-w-0 truncate text-[10px] font-medium text-(--text-muted) tabular-nums">
+                  {outletRoutePath}
+                </span>
+              ) : null}
               {nodeTypeSecondaryLabel ? (
                 <span className="inline-flex items-center rounded-full border border-(--border-default) px-1 py-0 text-[8px] text-(--text-muted)">
                   {nodeTypeSecondaryLabel}
@@ -235,6 +245,7 @@ export function BlueprintTreeNode({
               node={child}
               depth={depth + 1}
               expandedKeys={expandedKeys}
+              outletRoutePaths={outletRoutePaths}
               selectedId={selectedId}
               hiddenNodeIds={hiddenNodeIds}
               dropHint={dropHint}

@@ -23,6 +23,7 @@ export type TreeNodeProps = {
   node: ComponentNode;
   depth: number;
   expandedKeys: string[];
+  outletRoutePaths: Record<string, string>;
   selectedId?: string;
   hiddenNodeIds: string[];
   dropHint?: {

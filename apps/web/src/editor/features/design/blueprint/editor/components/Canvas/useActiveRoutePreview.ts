@@ -1,36 +1,89 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { isWorkspacePirDocument } from '@/editor/store/editorStore.normalizers';
-import type { WorkspaceRouteNode } from '@/editor/store/useEditorStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { materializePirRoot } from '@/pir/graph';
+import { logRouteDebug } from '@/pir/renderer/routeDebug';
+import {
+  composeRouteManifestWithModules,
+  resolveOutletBinding,
+  resolveRouteRuntimeContext,
+} from '@prodivix/shared/router';
 
-export function useActiveRoutePreview() {
+export function useActiveRoutePreview(currentPath: string) {
   const routeManifest = useEditorStore((state) => state.routeManifest);
-  const activeRouteNodeId = useEditorStore((state) => state.activeRouteNodeId);
   const workspaceDocumentsById = useEditorStore(
     (state) => state.workspaceDocumentsById
   );
-  const activeRouteNode = useMemo(() => {
-    const walk = (node: WorkspaceRouteNode): WorkspaceRouteNode | null => {
-      if (!node) return null;
-      if (node.id === activeRouteNodeId) return node;
-      const children = node.children ?? [];
-      for (const child of children) {
-        const found = walk(child);
-        if (found) return found;
-      }
-      return null;
-    };
-    return walk(routeManifest.root);
-  }, [activeRouteNodeId, routeManifest.root]);
+  const composedRouteManifest = useMemo(
+    () => composeRouteManifestWithModules(routeManifest).manifest,
+    [routeManifest]
+  );
+  const routeRuntimeContext = useMemo(
+    () =>
+      resolveRouteRuntimeContext(composedRouteManifest, {
+        currentPath,
+      }),
+    [composedRouteManifest, currentPath]
+  );
+  const activeRouteNode = useMemo(
+    () => routeRuntimeContext.matchChain.at(-1)?.node ?? null,
+    [routeRuntimeContext]
+  );
+  const outletBinding = useMemo(
+    () =>
+      resolveOutletBinding(
+        routeRuntimeContext.matchChain.map((match) => match.node)
+      ),
+    [routeRuntimeContext]
+  );
   const outletContentNode = useMemo(() => {
-    const pageDocId = activeRouteNode?.pageDocId;
+    const pageDocId = routeRuntimeContext.matchChain
+      .slice()
+      .reverse()
+      .find((match) => match.pageDocId)?.pageDocId;
     if (!pageDocId) return null;
     const pageDoc = workspaceDocumentsById[pageDocId];
     return isWorkspacePirDocument(pageDoc)
       ? materializePirRoot(pageDoc.content)
       : null;
-  }, [activeRouteNode, workspaceDocumentsById]);
+  }, [routeRuntimeContext, workspaceDocumentsById]);
+  useEffect(() => {
+    const pageDocId = routeRuntimeContext.matchChain
+      .slice()
+      .reverse()
+      .find((match) => match.pageDocId)?.pageDocId;
+    const pageDoc = pageDocId ? workspaceDocumentsById[pageDocId] : undefined;
+    logRouteDebug('active route preview resolved', {
+      currentPath,
+      activeRouteNodeId: routeRuntimeContext.activeRouteNodeId,
+      matchedPath: routeRuntimeContext.matchedPath,
+      outletNodeId: outletBinding?.outletNodeId,
+      pageDocId,
+      pageDocType: pageDoc?.type,
+      isPirPageDoc: Boolean(pageDoc && isWorkspacePirDocument(pageDoc)),
+      outletContentNodeId: outletContentNode?.id,
+      matchChain: routeRuntimeContext.matchChain.map((match) => ({
+        routeNodeId: match.routeNodeId,
+        path: match.path,
+        pageDocId: match.pageDocId,
+        layoutDocId: match.layoutDocId,
+      })),
+    });
+  }, [
+    currentPath,
+    outletBinding?.outletNodeId,
+    outletContentNode?.id,
+    routeRuntimeContext,
+    workspaceDocumentsById,
+  ]);
 
-  return { activeRouteNode, outletContentNode };
+  return {
+    composedRouteManifest,
+    routeRuntimeContext,
+    activeRouteNodeId: routeRuntimeContext.activeRouteNodeId,
+    activeRouteNode,
+    outletBinding,
+    outletContentNode,
+    outletTargetNodeId: outletBinding?.outletNodeId,
+  };
 }

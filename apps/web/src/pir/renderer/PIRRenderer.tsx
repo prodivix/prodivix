@@ -17,11 +17,9 @@ import type {
 import {
   buildInitialState,
   collectMountedCssBlocks,
-  collectNodeEvents,
   collectNodesById,
   deferSelectionNotification,
   emitSelectionDebug,
-  isClickTrigger,
   isInteractiveEventTarget,
   isSyntheticEvent,
   pickIncrementTarget,
@@ -35,6 +33,14 @@ export type {
   RenderState,
   RenderParams,
 } from './PIRRenderer.types';
+
+const readPirNodeId = (element: Element) =>
+  element.getAttribute('data-pir-node-id') ?? element.getAttribute('data-pir-id');
+
+const findNearestPirNodeId = (target: Element) => {
+  const matched = target.closest('[data-pir-node-id], [data-pir-id]');
+  return matched ? readPirNodeId(matched) : null;
+};
 
 export const PIRRenderer: React.FC<PIRRendererProps> = ({
   node,
@@ -50,6 +56,10 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
   allowExternalProps = true,
   builtInActions,
   requireSelectionForEvents = false,
+  interactionMode = 'design',
+  routeManifest,
+  activeRouteNodeId,
+  routeRuntimeContext,
   outletContentNode,
   outletTargetNodeId,
 }) => {
@@ -73,8 +83,23 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
         }
       });
     }
+    if (routeRuntimeContext) {
+      Object.assign(result, routeRuntimeContext.params);
+      result.route = {
+        currentPath: routeRuntimeContext.currentPath,
+        matchedPath: routeRuntimeContext.matchedPath,
+        activeRouteNodeId: routeRuntimeContext.activeRouteNodeId,
+        params: routeRuntimeContext.params,
+        searchParams: routeRuntimeContext.searchParams,
+        hash: routeRuntimeContext.hash,
+      };
+      result.searchParams = routeRuntimeContext.searchParams;
+      if (routeRuntimeContext.hash) {
+        result.hash = routeRuntimeContext.hash;
+      }
+    }
     return result;
-  }, [pirDoc.logic?.props, overrides, allowExternalProps]);
+  }, [pirDoc.logic?.props, overrides, allowExternalProps, routeRuntimeContext]);
 
   const initialState = useMemo(
     () => buildInitialState(pirDoc.logic?.state),
@@ -136,8 +161,11 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
     () => registryProp ?? getDefaultComponentRegistry(),
     [registryProp]
   );
-  const nodeEventsById = useMemo(() => collectNodeEvents(rootNode), [rootNode]);
-  const nodesById = useMemo(() => collectNodesById(rootNode), [rootNode]);
+  const nodesById = useMemo(() => {
+    const map = collectNodesById(rootNode);
+    if (outletContentNode) collectNodesById(outletContentNode, map);
+    return map;
+  }, [outletContentNode, rootNode]);
   const mountedCssBlocks = useMemo(
     () =>
       collectMountedCssBlocks(
@@ -168,113 +196,50 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
    * Delegated click handler (capture phase).
    *
    * 调用链路：
-   * click -> PIRRenderer(onClickCapture) -> onNodeSelect -> Canvas -> controller；
-   * click -> PIRRenderer -> dispatchBuiltInAction/dispatchAction。
+   * click -> PIRRenderer(onClickCapture) -> onNodeSelect -> Canvas -> controller。
+   * Runtime click actions are attached to the rendered component by PIRNode.
    */
   const handleDelegatedClickCapture = useCallback(
     (event: React.SyntheticEvent) => {
+      if (interactionMode !== 'design') return;
       const target = event.target;
       if (!(target instanceof Element)) return;
       emitSelectionDebug({
         stage: 'capture',
         targetTag: target.tagName,
         targetClass: target.className,
+        interactionMode,
       });
-      const matched = target.closest('[data-pir-node-id], [data-pir-id]');
-      if (!matched) {
+      const selectionNodeId = findNearestPirNodeId(target);
+      if (!selectionNodeId) {
         emitSelectionDebug({
           stage: 'no-match',
         });
         return;
       }
-      const nodeId =
-        matched.getAttribute('data-pir-node-id') ??
-        matched.getAttribute('data-pir-id');
-      if (!nodeId) {
-        emitSelectionDebug({
-          stage: 'empty-node-id',
-        });
-        return;
-      }
-      const matchedNode = nodesById[nodeId];
+      const matchedNode = nodesById[selectionNodeId];
       if (onNodeSelect && resolveLinkCapability(matchedNode)) {
         event.preventDefault();
       }
-      const wasSelected = selectedId === nodeId;
-      const shouldDeferSelection =
-        isInteractiveEventTarget(target) && !wasSelected;
+      const wasSelected = selectedId === selectionNodeId;
+      const isInteractiveTarget = isInteractiveEventTarget(target);
+      const shouldDeferSelection = isInteractiveTarget && !wasSelected;
 
       if (shouldDeferSelection) {
-        deferSelectionNotification(() => onNodeSelect?.(nodeId, event));
+        deferSelectionNotification(() => onNodeSelect?.(selectionNodeId, event));
       } else {
-        onNodeSelect?.(nodeId, event);
+        onNodeSelect?.(selectionNodeId, event);
       }
       emitSelectionDebug({
         stage: 'selected',
-        nodeId,
+        nodeId: selectionNodeId,
         deferred: shouldDeferSelection,
-      });
-      if (requireSelectionForEvents && !wasSelected) {
-        emitSelectionDebug({
-          stage: 'event-skipped-unselected',
-          nodeId,
-          selectedId,
-        });
-        return;
-      }
-
-      const events = nodeEventsById[nodeId];
-      if (!events) {
-        emitSelectionDebug({
-          stage: 'no-events',
-          nodeId,
-        });
-        return;
-      }
-      Object.entries(events).forEach(([eventKey, eventDef]) => {
-        const trigger = eventDef.trigger || eventKey;
-        if (!isClickTrigger(trigger)) return;
-        emitSelectionDebug({
-          stage: 'click-trigger',
-          nodeId,
-          eventKey,
-          trigger,
-          action: eventDef.action,
-        });
-        if (
-          eventDef.action &&
-          dispatchBuiltInAction(eventDef.action, {
-            params: eventDef.params,
-            nodeId,
-            trigger,
-            eventKey,
-            payload: event,
-          })
-        ) {
-          emitSelectionDebug({
-            stage: 'built-in-dispatched',
-            nodeId,
-            eventKey,
-            action: eventDef.action,
-          });
-          return;
-        }
-        dispatchAction(eventDef.action, event);
-        emitSelectionDebug({
-          stage: 'action-dispatched',
-          nodeId,
-          eventKey,
-          action: eventDef.action,
-        });
       });
     },
     [
-      dispatchAction,
-      dispatchBuiltInAction,
-      nodeEventsById,
       nodesById,
       onNodeSelect,
-      requireSelectionForEvents,
+      interactionMode,
       selectedId,
     ]
   );
@@ -291,8 +256,12 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
       dispatchBuiltInAction,
       selectedId,
       requireSelectionForEvents,
+      interactionMode,
       onNodeSelect,
       renderMode,
+      routeManifest,
+      activeRouteNodeId,
+      routeRuntimeContext,
       outletContentNode,
       outletTargetNodeId,
     }),
@@ -304,8 +273,12 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
       dispatchBuiltInAction,
       selectedId,
       requireSelectionForEvents,
+      interactionMode,
       onNodeSelect,
       renderMode,
+      routeManifest,
+      activeRouteNodeId,
+      routeRuntimeContext,
       outletContentNode,
       outletTargetNodeId,
     ]

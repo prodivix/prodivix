@@ -6,6 +6,12 @@ export type RouteItem = {
   path: string;
   depth?: number;
   label?: string;
+  parentId?: string;
+  index?: boolean;
+  hasPage?: boolean;
+  hasLayout?: boolean;
+  hasOutlet?: boolean;
+  childCount?: number;
 };
 
 export type ComponentPreviewVariant = {

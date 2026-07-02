@@ -48,6 +48,15 @@ func MapStoreError(err error) *RequestFailure {
 	if errors.Is(err, ErrWorkspaceVFSInvalid) {
 		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, err.Error(), nil)
 	}
+	var routeManifestErr *RouteManifestValidationError
+	if errors.As(err, &routeManifestErr) {
+		return NewRequestFailure(
+			http.StatusUnprocessableEntity,
+			ErrorInvalidPayload,
+			err.Error(),
+			map[string]any{"issues": routeManifestErr.Issues},
+		)
+	}
 	if errors.Is(err, ErrPIRValidationFailed) {
 		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorPIRValidationFailed, err.Error(), nil)
 	}

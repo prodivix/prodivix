@@ -30,6 +30,7 @@ export type CodeArtifactOwner =
       trackId: string;
       keyframeId: string;
     }
+  | { kind: 'route'; routeId: string }
   | { kind: 'workspace-module'; documentId: string };
 
 export type CodeArtifact = {
@@ -194,6 +195,10 @@ export type CodeSlotKind =
   | 'animation-function'
   | 'external-adapter'
   | 'mounted-css'
+  | 'route-loader'
+  | 'route-action'
+  | 'route-guard'
+  | 'route-runtime'
   | 'workspace-module';
 
 export type CodeSlotContract = {

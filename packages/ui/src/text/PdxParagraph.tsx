@@ -32,6 +32,7 @@ function PdxParagraph({
   style,
   id,
   dataAttributes = {},
+  onClick,
 }: PdxParagraphProps) {
   const fullClassName =
     `PdxParagraph ${size} ${weight} ${color} ${align} ${className || ''}`.trim();
@@ -41,7 +42,13 @@ function PdxParagraph({
   const Element = Component as React.ElementType;
 
   return (
-    <Element className={fullClassName} style={style} id={id} {...dataProps}>
+    <Element
+      className={fullClassName}
+      style={style}
+      id={id}
+      onClick={onClick}
+      {...dataProps}
+    >
       {children}
     </Element>
   );

@@ -31,8 +31,11 @@ import {
   removeNodeById,
 } from '@/editor/features/design/blueprint/editor/model/tree';
 import { normalizeAnimationDefinition } from '@/editor/features/animation/animationEditorModel';
-import { resolveNavigateTarget } from '@/pir/actions/registry';
-import { getNavigateLinkKind } from '@prodivix/shared/safety';
+import { resolveNavigateTarget as resolveBrowserNavigateTarget } from '@/pir/actions/registry';
+import {
+  createRouteDebugSnapshot,
+  logRouteDebug,
+} from '@/pir/renderer/routeDebug';
 import {
   DEFAULT_BLUEPRINT_STATE,
   useEditorStore,
@@ -42,9 +45,13 @@ import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi } from '@/editor/editorApi';
 import { useEditorShortcut } from '@/editor/shortcuts';
 import {
-  flattenRouteItems,
+  composeRouteManifestWithModules,
+  findRouteNodeParentInfo,
+  flattenRouteManifest,
   normalizeRoutePath,
-} from '@/editor/store/routeManifest';
+  resolveNavigateTarget as resolveRouteNavigateTarget,
+  resolveRouteRuntimeContext,
+} from '@prodivix/shared/router';
 import type { AutosaveMode } from '@/editor/features/design/blueprint/editor/model/autosave';
 
 const CAPABILITY_PIR_DOCUMENT_UPDATE = 'core.pir.graph.replace@1.0';
@@ -62,6 +69,54 @@ const createIntentId = () => {
     return crypto.randomUUID();
   }
   return `intent-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
+const openExternalPreviewUrl = (
+  url: string,
+  options: { target: string; replace: boolean }
+) => {
+  if (typeof window === 'undefined') return;
+  logRouteDebug('external preview navigation requested', {
+    url,
+    target: options.target,
+    replace: options.replace,
+  });
+  if (options.target === '_self') {
+    if (options.replace) {
+      logRouteDebug('external preview navigation via location.replace', {
+        url,
+      });
+      window.location.replace(url);
+      return;
+    }
+    logRouteDebug('external preview navigation via location.assign', { url });
+    window.location.assign(url);
+    return;
+  }
+  let opened: Window | null = null;
+  try {
+    opened = window.open(url, '_blank', 'noopener,noreferrer');
+  } catch (error) {
+    logRouteDebug('external preview window.open threw', {
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  logRouteDebug('external preview window.open result', {
+    url,
+    opened: Boolean(opened),
+    closed: opened?.closed,
+  });
+  if (opened) return;
+  logRouteDebug('external preview anchor fallback requested', { url });
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.target = '_blank';
+  anchor.rel = 'noopener noreferrer';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  logRouteDebug('external preview anchor fallback clicked', { url });
 };
 
 type InteractionRequest = {
@@ -177,9 +232,25 @@ export const useBlueprintEditorController = () => {
   const { viewportWidth, viewportHeight, zoom, pan, selectedId } =
     resolvedBlueprintState;
   const hiddenNodeIds = resolvedBlueprintState.hiddenNodeIds ?? [];
-  const routes = useMemo(
-    () => flattenRouteItems(routeManifest.root, '/'),
+  const composedRouteManifest = useMemo(
+    () => composeRouteManifestWithModules(routeManifest).manifest,
     [routeManifest]
+  );
+  const routes = useMemo(
+    () =>
+      flattenRouteManifest(composedRouteManifest).map((route) => ({
+        id: route.id,
+        path: route.path,
+        depth: route.depth,
+        label: route.label,
+        parentId: route.parentId,
+        index: route.node.index,
+        hasPage: Boolean(route.node.pageDocId),
+        hasLayout: Boolean(route.node.layoutDocId),
+        hasOutlet: Boolean(route.node.outletNodeId),
+        childCount: route.node.children?.length ?? 0,
+      })),
+    [composedRouteManifest]
   );
   const activeRoute = useMemo(
     () =>
@@ -188,7 +259,51 @@ export const useBlueprintEditorController = () => {
         : null,
     [activeRouteNodeId, routes]
   );
-  const currentPath = activeRoute?.path ?? routes[0]?.path ?? '/';
+  const activeRoutePath = activeRoute?.path ?? routes[0]?.path ?? '/';
+  const interactionMode = resolvedBlueprintState.interactionMode ?? 'design';
+  const previewPath =
+    typeof resolvedBlueprintState.routePreviewPath === 'string' &&
+    resolvedBlueprintState.routePreviewPath.trim()
+      ? normalizeRoutePath(resolvedBlueprintState.routePreviewPath)
+      : activeRoutePath;
+  const setPreviewPath = useCallback(
+    (path: string) => {
+      setBlueprintState(blueprintKey, {
+        routePreviewPath: normalizeRoutePath(path),
+      });
+    },
+    [blueprintKey, setBlueprintState]
+  );
+  const exactPreviewRoute = useMemo(() => {
+    const normalizedPreviewPath = normalizeRoutePath(previewPath);
+    return routes.find((route) => route.path === normalizedPreviewPath) ?? null;
+  }, [previewPath, routes]);
+  const previewRuntimeContext = useMemo(
+    () =>
+      resolveRouteRuntimeContext(composedRouteManifest, {
+        currentPath: previewPath,
+        routeNodeId: exactPreviewRoute?.id,
+      }),
+    [composedRouteManifest, exactPreviewRoute?.id, previewPath]
+  );
+  const currentPath = previewPath || activeRoutePath;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const createSnapshot = () =>
+      createRouteDebugSnapshot({
+        currentPath,
+        routes,
+        routeRuntimeContext: previewRuntimeContext,
+      });
+    window.__PRODIVIX_ROUTE_DEBUG_SNAPSHOT__ = createSnapshot;
+    return () => {
+      if (window.__PRODIVIX_ROUTE_DEBUG_SNAPSHOT__ === createSnapshot) {
+        delete window.__PRODIVIX_ROUTE_DEBUG_SNAPSHOT__;
+      }
+    };
+  }, [currentPath, previewRuntimeContext, routes]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -295,13 +410,14 @@ export const useBlueprintEditorController = () => {
     workspaceRev,
   ]);
 
-  const handleAddRoute = () => {
+  const handleAddRouteAtPath = (path: string) => {
     if (workspaceReadonly) return;
-    const value = newPath.trim();
+    const value = path.trim();
     if (!value) return;
     const nextPath = normalizeRoutePath(value);
     const existingRoute = routes.find((route) => route.path === nextPath);
     if (existingRoute) {
+      setPreviewPath(nextPath);
       setActiveRouteNodeId(existingRoute.id);
       setNewPath('');
       return;
@@ -313,82 +429,198 @@ export const useBlueprintEditorController = () => {
       routeNodeId: nextRouteId,
     });
     if (nextRouteId) {
+      setPreviewPath(nextPath);
       setActiveRouteNodeId(nextRouteId);
     }
     setNewPath('');
   };
 
-  const findRouteIdByPath = (path: string): string | null => {
-    const normalizedPath = normalizeRoutePath(path);
-    const existing = routes.find((route) => route.path === normalizedPath);
-    return existing?.id ?? null;
+  const handleAddRoute = () => {
+    handleAddRouteAtPath(newPath);
+  };
+
+  const handleAddChildRoute = (parentRouteNodeId: string) => {
+    if (workspaceReadonly) return;
+    const segment =
+      typeof window !== 'undefined'
+        ? window.prompt(
+            t('address.routeTree.childPrompt', {
+              defaultValue: 'Child route segment',
+            }),
+            'new-route'
+          )
+        : null;
+    const nextSegment = segment?.trim();
+    if (!nextSegment) return;
+    const nextRouteId = createRouteId();
+    applyRouteIntent({
+      type: 'create-child-route',
+      parentRouteNodeId,
+      segment: nextSegment,
+      routeNodeId: nextRouteId,
+    });
+    setActiveRouteNodeId(nextRouteId);
+  };
+
+  const handleCreateIndexRoute = (parentRouteNodeId: string) => {
+    if (workspaceReadonly) return;
+    const nextRouteId = createRouteId();
+    applyRouteIntent({
+      type: 'create-index',
+      parentRouteNodeId,
+      routeNodeId: nextRouteId,
+    });
+    setActiveRouteNodeId(nextRouteId);
+  };
+
+  const handleRenameRoute = (routeNodeId: string, currentLabel: string) => {
+    if (workspaceReadonly) return;
+    const route = routes.find((item) => item.id === routeNodeId);
+    if (route?.index) return;
+    const segment =
+      typeof window !== 'undefined'
+        ? window.prompt(
+            t('address.routeTree.renamePrompt', {
+              defaultValue: 'Route segment',
+            }),
+            currentLabel
+          )
+        : null;
+    const nextSegment = segment?.trim();
+    if (!nextSegment) return;
+    applyRouteIntent({
+      type: 'rename-segment',
+      routeNodeId,
+      segment: nextSegment,
+    });
+  };
+
+  const handleMoveRoute = (routeNodeId: string, direction: 'up' | 'down') => {
+    if (workspaceReadonly) return;
+    const info = findRouteNodeParentInfo(routeManifest.root, routeNodeId);
+    if (!info?.parent) return;
+    const siblings = info.parent.children ?? [];
+    const nextIndex = direction === 'up' ? info.index - 1 : info.index + 1;
+    if (nextIndex < 0 || nextIndex >= siblings.length) return;
+    applyRouteIntent({
+      type: 'move-route',
+      routeNodeId,
+      parentRouteNodeId: info.parent.id,
+      index: nextIndex,
+    });
+  };
+
+  const handleDeleteRoute = (routeNodeId: string) => {
+    if (workspaceReadonly) return;
+    if (routeNodeId === routeManifest.root.id) return;
+    const confirmed =
+      typeof window === 'undefined'
+        ? true
+        : window.confirm(
+            t('address.routeTree.deleteConfirm', {
+              defaultValue:
+                'Delete this route? Page, layout, and code documents will remain in Resources.',
+            })
+          );
+    if (!confirmed) return;
+    applyRouteIntent({ type: 'delete-route', routeNodeId });
   };
 
   /**
    * Canvas built-in `navigate` 的控制器出口。
    *
    * 调用链路：
-   * PIR 节点 click -> PIRRenderer capture -> BlueprintEditorCanvas builtInActions.navigate
+   * PIR 节点事件 -> PIRNode -> BlueprintEditorCanvas builtInActions.navigate
    * -> controller.handleNavigateRequest
    */
   const handleNavigateRequest = (options: InteractionRequest) => {
     const params = options.params ?? {};
     const to = typeof params.to === 'string' ? params.to.trim() : '';
-    if (!to) return;
-    const linkKind = getNavigateLinkKind(to);
-    if (linkKind === 'external') {
+    logRouteDebug('navigate request received', {
+      nodeId: options.nodeId,
+      trigger: options.trigger,
+      eventKey: options.eventKey,
+      params,
+      to,
+      previewPath,
+      previewActiveRouteNodeId: previewRuntimeContext.activeRouteNodeId,
+    });
+    if (!to) {
+      logRouteDebug('navigate request ignored: empty target', {
+        nodeId: options.nodeId,
+        params,
+      });
+      return;
+    }
+    const navigationResult = resolveRouteNavigateTarget(
+      composedRouteManifest,
+      previewRuntimeContext,
+      { to }
+    );
+    logRouteDebug('navigate target resolved', {
+      requestedTo: to,
+      kind: navigationResult.kind,
+      currentPreviewPath: previewPath,
+      knownRoutes: routes.map((route) => ({
+        id: route.id,
+        path: route.path,
+        hasPage: route.hasPage,
+        hasLayout: route.hasLayout,
+        hasOutlet: route.hasOutlet,
+      })),
+      resolvedPath:
+        navigationResult.kind === 'internal'
+          ? navigationResult.runtimeContext.currentPath
+          : undefined,
+      resolvedActiveRouteNodeId:
+        navigationResult.kind === 'internal'
+          ? navigationResult.runtimeContext.activeRouteNodeId
+          : undefined,
+      matchChain:
+        navigationResult.kind === 'internal'
+          ? navigationResult.runtimeContext.matchChain.map((match) => ({
+              routeNodeId: match.routeNodeId,
+              path: match.path,
+              pageDocId: match.pageDocId,
+              layoutDocId: match.layoutDocId,
+            }))
+          : undefined,
+    });
+    if (navigationResult.kind === 'unmatched') {
+      setPreviewPath(navigationResult.path);
+      logRouteDebug('preview path updated to unmatched route', {
+        from: previewPath,
+        to: navigationResult.path,
+      });
+      return;
+    }
+    if (navigationResult.kind === 'external') {
       if (typeof window === 'undefined') return;
-      const { configuredTarget, effectiveTarget, openedAsBlankForSafety } =
-        resolveNavigateTarget(params.target, {
-          forceBlankForExternalSafety: true,
-        });
+      const { effectiveTarget } = resolveBrowserNavigateTarget(params.target);
       const replace = Boolean(params.replace);
-      const targetLine = openedAsBlankForSafety
-        ? t('inspector.groups.triggers.navigation.confirm.targetOverridden', {
-            defaultValue:
-              'Configured target: {{configuredTarget}} (opened as {{effectiveTarget}} in Blueprint preview for safety).',
-            configuredTarget,
-            effectiveTarget,
-          })
-        : t('inspector.groups.triggers.navigation.confirm.target', {
-            defaultValue: 'Target: {{effectiveTarget}}',
-            effectiveTarget,
-          });
-      const confirmed = window.confirm(
-        [
-          t('inspector.groups.triggers.navigation.confirm.title', {
-            defaultValue: 'Open external link?',
-          }),
-          t('inspector.groups.triggers.navigation.confirm.url', {
-            defaultValue: 'URL: {{to}}',
-            to,
-          }),
-          targetLine,
-          t('inspector.groups.triggers.navigation.confirm.replace', {
-            defaultValue: 'Replace history: {{replace}}',
-            replace: replace
-              ? t('inspector.groups.triggers.navigation.confirm.yes', {
-                  defaultValue: 'Yes',
-                })
-              : t('inspector.groups.triggers.navigation.confirm.no', {
-                  defaultValue: 'No',
-                }),
-          }),
-          t('inspector.groups.triggers.navigation.confirm.source', {
-            defaultValue: 'Source: {{nodeId}} · {{trigger}}',
-            nodeId: options.nodeId,
-            trigger: options.trigger,
-          }),
-        ].join('\n')
-      );
-      if (!confirmed) return;
-      window.open(to, '_blank', 'noopener,noreferrer');
+      logRouteDebug('external preview navigation resolved', {
+        requestedTo: to,
+        url: navigationResult.url,
+        effectiveTarget,
+        replace,
+        nodeId: options.nodeId,
+        trigger: options.trigger,
+        eventKey: options.eventKey,
+      });
+      openExternalPreviewUrl(navigationResult.url, {
+        target: effectiveTarget,
+        replace,
+      });
       return;
     }
 
-    if (linkKind === 'internal') {
-      const routeId = findRouteIdByPath(to);
-      if (routeId) setActiveRouteNodeId(routeId);
+    if (navigationResult.kind === 'internal') {
+      setPreviewPath(navigationResult.runtimeContext.currentPath);
+      logRouteDebug('preview path updated', {
+        from: previewPath,
+        to: navigationResult.runtimeContext.currentPath,
+        activeRouteNodeId: navigationResult.runtimeContext.activeRouteNodeId,
+      });
     }
   };
 
@@ -517,6 +749,18 @@ export const useBlueprintEditorController = () => {
 
   const handlePanChange = (nextPan: { x: number; y: number }) => {
     setBlueprintState(blueprintKey, { pan: nextPan });
+  };
+
+  const handleInteractionModeChange = (
+    mode: 'design' | 'interactive'
+  ) => {
+    setBlueprintState(blueprintKey, { interactionMode: mode });
+  };
+
+  const handleToggleInteractionMode = () => {
+    handleInteractionModeChange(
+      interactionMode === 'interactive' ? 'design' : 'interactive'
+    );
   };
 
   const handleResetView = () => {
@@ -755,12 +999,18 @@ export const useBlueprintEditorController = () => {
       currentPath,
       newPath,
       routes,
+      matchedRouteNodeId: previewRuntimeContext.activeRouteNodeId,
       onCurrentPathChange: (value: string) => {
-        const routeId = findRouteIdByPath(value);
-        if (routeId) setActiveRouteNodeId(routeId);
+        setPreviewPath(value);
       },
       onNewPathChange: setNewPath,
       onAddRoute: handleAddRoute,
+      onAddRouteAtPath: handleAddRouteAtPath,
+      onAddChildRoute: handleAddChildRoute,
+      onCreateIndexRoute: handleCreateIndexRoute,
+      onRenameRoute: handleRenameRoute,
+      onMoveRoute: handleMoveRoute,
+      onDeleteRoute: handleDeleteRoute,
     },
     sidebar: {
       isCollapsed: isLibraryCollapsed,
@@ -794,6 +1044,7 @@ export const useBlueprintEditorController = () => {
       onToggleNodeHidden: handleToggleNodeHidden,
     },
     canvas: {
+      interactionMode,
       viewportWidth,
       viewportHeight,
       zoom,
@@ -812,6 +1063,9 @@ export const useBlueprintEditorController = () => {
       onToggleCollapse: handleToggleInspectorCollapse,
     },
     viewportBar: {
+      interactionMode,
+      onInteractionModeChange: handleInteractionModeChange,
+      onToggleInteractionMode: handleToggleInteractionMode,
       viewportWidth,
       viewportHeight,
       onViewportWidthChange: handleViewportWidthChange,

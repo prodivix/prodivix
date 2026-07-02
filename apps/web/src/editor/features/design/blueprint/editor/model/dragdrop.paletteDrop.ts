@@ -11,28 +11,7 @@ import {
 } from '@/editor/features/design/blueprint/editor/model/tree';
 import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
-import { normalizeRoutePath } from '@/editor/store/routeManifest';
 import type { DragOverData, PaletteItemDragData } from './dragdrop.types';
-
-const toRoutedNode = (
-  node: ComponentNode,
-  normalizedCurrentPath: string
-): ComponentNode => {
-  const props = (node.props ?? {}) as Record<string, unknown>;
-  if (
-    typeof props['data-route-path'] === 'string' ||
-    props['data-route-fallback'] === true
-  ) {
-    return node;
-  }
-  return {
-    ...node,
-    props: {
-      ...props,
-      'data-route-path': normalizedCurrentPath,
-    },
-  };
-};
 
 export type PaletteDropResult = {
   doc: PIRDocument;
@@ -67,14 +46,12 @@ export const applyPaletteItemDrop = (
     variantProps,
     selectedSize
   );
-  const normalizedCurrentPath = normalizeRoutePath(context.currentPath || '/');
   let nextNodeId = newNode.id;
 
   if (dropNodeId) {
     const root = materializePirRoot(doc);
     const dropNode = findNodeById(root, dropNodeId);
     if (dropNode?.type === 'PdxRoute') {
-      newNode = toRoutedNode(newNode, normalizedCurrentPath);
       nextNodeId = newNode.id;
       const insertedChild = insertChildAtIndex(
         root,
@@ -98,7 +75,6 @@ export const applyPaletteItemDrop = (
     const root = materializePirRoot(doc);
     const selectedNode = findNodeById(root, context.selectedId);
     if (selectedNode?.type === 'PdxRoute') {
-      newNode = toRoutedNode(newNode, normalizedCurrentPath);
       nextNodeId = newNode.id;
       const insertedChild = insertChildAtIndex(
         root,

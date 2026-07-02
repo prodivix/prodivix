@@ -38,6 +38,7 @@ function BlueprintEditor() {
     },
     { scope: 'blueprint', priority: 20 }
   );
+
   useEditorShortcut(
     'Ctrl+Alt+K',
     () => {
@@ -52,6 +53,13 @@ function BlueprintEditor() {
     },
     { scope: 'blueprint', priority: 20 }
   );
+  useEditorShortcut(
+    'Ctrl+Alt+I',
+    () => {
+      viewportBar.onToggleInteractionMode();
+    },
+    { scope: 'blueprint', priority: 20 }
+  );
 
   return (
     <div className="relative flex h-full min-h-screen flex-col text-(--text-primary)">
@@ -59,9 +67,16 @@ function BlueprintEditor() {
         currentPath={addressBar.currentPath}
         newPath={addressBar.newPath}
         routes={addressBar.routes}
+        matchedRouteNodeId={addressBar.matchedRouteNodeId}
         onCurrentPathChange={addressBar.onCurrentPathChange}
         onNewPathChange={addressBar.onNewPathChange}
         onAddRoute={addressBar.onAddRoute}
+        onAddRouteAtPath={addressBar.onAddRouteAtPath}
+        onAddChildRoute={addressBar.onAddChildRoute}
+        onCreateIndexRoute={addressBar.onCreateIndexRoute}
+        onRenameRoute={addressBar.onRenameRoute}
+        onMoveRoute={addressBar.onMoveRoute}
+        onDeleteRoute={addressBar.onDeleteRoute}
         statusIndicator={
           <BlueprintEditorSaveIndicator
             status={saveIndicator.saveStatus}
@@ -124,6 +139,7 @@ function BlueprintEditor() {
           />
           <BlueprintEditorCanvas
             currentPath={addressBar.currentPath}
+            interactionMode={canvas.interactionMode}
             viewportWidth={canvas.viewportWidth}
             viewportHeight={canvas.viewportHeight}
             zoom={canvas.zoom}
@@ -158,6 +174,8 @@ function BlueprintEditor() {
         </DragOverlay>
       </DndContext>
       <BlueprintEditorViewportBar
+        interactionMode={viewportBar.interactionMode}
+        onInteractionModeChange={viewportBar.onInteractionModeChange}
         viewportWidth={viewportBar.viewportWidth}
         viewportHeight={viewportBar.viewportHeight}
         onViewportWidthChange={viewportBar.onViewportWidthChange}

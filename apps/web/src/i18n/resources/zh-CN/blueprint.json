@@ -1,11 +1,11 @@
 {
   "address": {
     "add": "添加",
-    "current": "当前地址",
-    "currentPlaceholder": "https://example.com",
-    "list": "已保存地址",
-    "new": "新地址",
-    "newPlaceholder": "输入或粘贴地址"
+    "current": "路由",
+    "currentPlaceholder": "/settings/profile",
+    "list": "路由",
+    "new": "新路由",
+    "newPlaceholder": "输入路由路径"
   },
   "autosave": {
     "capabilities": {
@@ -614,6 +614,17 @@
     "quickPresetMenu": "预设",
     "size": "{{width}}x{{height}}",
     "moreDevices": "更多设备",
+    "modes": {
+      "design": "设计",
+      "designTitle": "设计模式（Ctrl+Alt+I）",
+      "interactive": "交互",
+      "interactiveTitle": "交互模式（Ctrl+Alt+I）"
+    },
+    "routeDebug": {
+      "label": "调试",
+      "toggle": "切换路由调试日志",
+      "metricsTitle": "当前页面 DOM 与 PIR 节点数量"
+    },
     "quickPresets": {
       "desktop": "桌面",
       "hd": "高清",

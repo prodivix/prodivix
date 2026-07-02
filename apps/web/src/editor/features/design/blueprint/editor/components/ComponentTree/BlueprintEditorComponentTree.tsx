@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, Layers, Trash2 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
+import {
+  composeRouteManifestWithModules,
+  flattenRouteManifest,
+} from '@prodivix/shared/router';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { materializePirRoot } from '@/pir/graph';
 import { BlueprintTreeNode } from './BlueprintTreeNode';
@@ -43,7 +47,24 @@ export function BlueprintEditorComponentTree({
 }: BlueprintEditorComponentTreeProps) {
   const { t } = useTranslation('blueprint');
   const pirDoc = useEditorStore((state) => state.pirDoc);
+  const routeManifest = useEditorStore((state) => state.routeManifest);
   const rootNode = useMemo(() => materializePirRoot(pirDoc), [pirDoc]);
+  const outletRoutePaths = useMemo(() => {
+    const result: Record<string, string> = {};
+    const composedManifest =
+      composeRouteManifestWithModules(routeManifest).manifest;
+    flattenRouteManifest(composedManifest).forEach((route) => {
+      if (route.node.outletNodeId?.trim()) {
+        result[route.node.outletNodeId] = route.path;
+      }
+      Object.values(route.node.outletBindings ?? {}).forEach((binding) => {
+        if (binding.outletNodeId?.trim()) {
+          result[binding.outletNodeId] = route.path;
+        }
+      });
+    });
+    return result;
+  }, [routeManifest]);
   const isDeleteDisabled =
     !selectedId || !rootNode || selectedId === rootNode.id;
   const { setNodeRef: setRootDropRef, isOver: isOverRoot } = useDroppable({
@@ -302,6 +323,7 @@ export function BlueprintEditorComponentTree({
               node={rootNode}
               depth={0}
               expandedKeys={expandedKeys}
+              outletRoutePaths={outletRoutePaths}
               selectedId={selectedId}
               hiddenNodeIds={hiddenNodeIds}
               dropHint={dropHint}

@@ -1,5 +1,6 @@
 import type React from 'react';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { RouteManifestIssue } from '@prodivix/shared/router';
 import type { IconRef } from '@/pir/renderer/iconRegistry';
 import type {
   InspectorPanelDefinition,
@@ -80,6 +81,40 @@ export type InspectorCapabilitiesContext = {
   dataModelFieldPaths: string[];
 };
 
+export type InspectorActiveRouteDetails = {
+  id: string;
+  path: string;
+  label: string;
+  segment: string;
+  depth: number;
+  treeIndex: number | null;
+  parentId?: string;
+  isIndexRoute: boolean;
+  pageDocId?: string;
+  layoutDocId?: string;
+  defaultOutletNodeId?: string;
+  outletBindings: Array<{
+    name: string;
+    outletNodeId: string;
+    pageDocId?: string;
+  }>;
+  runtimeRefs: Array<{
+    kind: 'loader' | 'action' | 'guard';
+    artifactId: string;
+    exportName?: string;
+    symbolId?: string;
+  }>;
+  issues: RouteManifestIssue[];
+};
+
+export type InspectorRouteContext = {
+  activeRouteDetails: InspectorActiveRouteDetails | null;
+  canAttachLayoutToActiveRoute: boolean;
+  canDetachLayoutFromActiveRoute: boolean;
+  attachLayoutToActiveRoute: () => void;
+  detachLayoutFromActiveRoute: () => void;
+};
+
 export type InspectorStyleContext = {
   matchedPanels: InspectorPanelDefinition[];
   hasAnimationDefinition: boolean;
@@ -117,6 +152,7 @@ export type InspectorCodeContext = {
 export type InspectorContextValue = InspectorCoreContext &
   InspectorIdentityContext &
   InspectorCapabilitiesContext &
+  InspectorRouteContext &
   InspectorStyleContext &
   InspectorDataContext &
   InspectorCodeContext;

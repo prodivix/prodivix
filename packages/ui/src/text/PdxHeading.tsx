@@ -32,6 +32,7 @@ function PdxHeading({
   style,
   id,
   dataAttributes = {},
+  onClick,
 }: PdxHeadingProps) {
   const fullClassName =
     `PdxHeading Level${level} ${weight} ${color} ${align} ${className || ''}`.trim();
@@ -41,7 +42,13 @@ function PdxHeading({
   const Element = (Component || `h${level}`) as React.ElementType;
 
   return (
-    <Element className={fullClassName} style={style} id={id} {...dataProps}>
+    <Element
+      className={fullClassName}
+      style={style}
+      id={id}
+      onClick={onClick}
+      {...dataProps}
+    >
       {children}
     </Element>
   );

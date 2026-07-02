@@ -29,7 +29,8 @@ export const hasNodeId = (node: ComponentNode, nodeId: string): boolean => {
 
 export const createRouteCanvasDiagnostics = (
   activeRouteNode: WorkspaceRouteNode | null,
-  rootNode: ComponentNode
+  rootNode: ComponentNode,
+  outletTargetNodeId?: string
 ): RouteCanvasDiagnostic[] => {
   const diagnosticsList: RouteCanvasDiagnostic[] = [];
   if (!activeRouteNode?.layoutDocId) return diagnosticsList;
@@ -54,10 +55,7 @@ export const createRouteCanvasDiagnostics = (
       message: 'Active route layout is missing pageDocId for outlet content.',
     });
   }
-  if (
-    activeRouteNode.outletNodeId &&
-    !hasNodeId(rootNode, activeRouteNode.outletNodeId)
-  ) {
+  if (outletTargetNodeId && !hasNodeId(rootNode, outletTargetNodeId)) {
     diagnosticsList.push({
       code: 'route-layout-outlet-node-missing',
       message:

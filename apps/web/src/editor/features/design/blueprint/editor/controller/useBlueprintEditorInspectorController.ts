@@ -12,7 +12,12 @@ import type { WorkspaceRouteNode } from '@/editor/store/useEditorStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi } from '@/editor/editorApi';
 import { createWorkspaceCodeDocumentIntentRequest } from '@/workspace';
-import { flattenRouteItems } from '@/editor/store/routeManifest';
+import {
+  composeRouteManifestWithModules,
+  findRouteNodeParentInfo,
+  flattenRouteManifest,
+  validateRouteManifest,
+} from '@prodivix/shared/router';
 import {
   createDefaultBinding,
   createDefaultTimeline,
@@ -84,6 +89,7 @@ export const useBlueprintEditorInspectorController = () => {
   );
   const routeManifest = useEditorStore((state) => state.routeManifest);
   const activeRouteNodeId = useEditorStore((state) => state.activeRouteNodeId);
+  const applyRouteIntent = useEditorStore((state) => state.applyRouteIntent);
   const bindOutletToRoute = useEditorStore((state) => state.bindOutletToRoute);
   const setBlueprintState = useEditorStore((state) => state.setBlueprintState);
   const selectedId = useEditorStore(
@@ -99,9 +105,72 @@ export const useBlueprintEditorInspectorController = () => {
     return findParentNodeById(pirRoot, selectedId);
   }, [pirRoot, selectedId]);
   const routeOptions = useMemo(
-    () => flattenRouteItems(routeManifest.root, '/'),
-    [routeManifest.root]
+    () =>
+      flattenRouteManifest(
+        composeRouteManifestWithModules(routeManifest).manifest.root,
+        '/'
+      ),
+    [routeManifest]
   );
+  const activeRouteDetails = useMemo(() => {
+    if (!activeRouteNodeId) return null;
+    const routeItem = routeOptions.find(
+      (route) => route.id === activeRouteNodeId
+    );
+    if (!routeItem) return null;
+    const parentInfo = findRouteNodeParentInfo(
+      routeManifest.root,
+      activeRouteNodeId
+    );
+    const node = routeItem.node;
+    const issues = validateRouteManifest({
+      manifest: routeManifest,
+      documentExists: (documentId) =>
+        Boolean(workspaceDocumentsById[documentId]),
+      codeArtifactExists: (artifactId) =>
+        workspaceDocumentsById[artifactId]?.type === 'code',
+    }).filter((issue) => issue.routeNodeId === activeRouteNodeId);
+    const runtime = node.runtime ?? {};
+    const runtimeRefs = [
+      { kind: 'loader' as const, reference: runtime.loaderRef },
+      { kind: 'action' as const, reference: runtime.actionRef },
+      { kind: 'guard' as const, reference: runtime.guardRef },
+    ]
+      .filter((item) => item.reference?.artifactId?.trim())
+      .map((item) => ({
+        kind: item.kind,
+        artifactId: item.reference?.artifactId ?? '',
+        ...(item.reference?.exportName
+          ? { exportName: item.reference.exportName }
+          : {}),
+        ...(item.reference?.symbolId
+          ? { symbolId: item.reference.symbolId }
+          : {}),
+      }));
+
+    return {
+      id: node.id,
+      path: routeItem.path,
+      label: routeItem.label,
+      segment: node.segment?.trim() ?? '',
+      depth: routeItem.depth,
+      treeIndex: parentInfo?.parent ? parentInfo.index : null,
+      ...(routeItem.parentId ? { parentId: routeItem.parentId } : {}),
+      isIndexRoute: node.index === true,
+      ...(node.pageDocId ? { pageDocId: node.pageDocId } : {}),
+      ...(node.layoutDocId ? { layoutDocId: node.layoutDocId } : {}),
+      ...(node.outletNodeId ? { defaultOutletNodeId: node.outletNodeId } : {}),
+      outletBindings: Object.entries(node.outletBindings ?? {}).map(
+        ([name, binding]) => ({
+          name,
+          outletNodeId: binding.outletNodeId,
+          ...(binding.pageDocId ? { pageDocId: binding.pageDocId } : {}),
+        })
+      ),
+      runtimeRefs,
+      issues,
+    };
+  }, [activeRouteNodeId, routeManifest, routeOptions, workspaceDocumentsById]);
   const outletRouteNodeId = useMemo(() => {
     if (!selectedNode || selectedNode.type !== 'PdxOutlet') return '';
     const findBinding = (node: WorkspaceRouteNode): string => {
@@ -115,6 +184,26 @@ export const useBlueprintEditorInspectorController = () => {
     };
     return findBinding(routeManifest.root);
   }, [routeManifest.root, selectedNode]);
+  const canAttachLayoutToActiveRoute = Boolean(
+    activeRouteDetails && !activeRouteDetails.layoutDocId && !workspaceReadonly
+  );
+  const canDetachLayoutFromActiveRoute = Boolean(
+    activeRouteDetails?.layoutDocId && !workspaceReadonly
+  );
+  const attachLayoutToActiveRoute = useCallback(() => {
+    if (!activeRouteDetails || !canAttachLayoutToActiveRoute) return;
+    applyRouteIntent({
+      type: 'attach-layout',
+      routeNodeId: activeRouteDetails.id,
+    });
+  }, [activeRouteDetails, applyRouteIntent, canAttachLayoutToActiveRoute]);
+  const detachLayoutFromActiveRoute = useCallback(() => {
+    if (!activeRouteDetails || !canDetachLayoutFromActiveRoute) return;
+    applyRouteIntent({
+      type: 'detach-layout',
+      routeNodeId: activeRouteDetails.id,
+    });
+  }, [activeRouteDetails, applyRouteIntent, canDetachLayoutFromActiveRoute]);
   const matchedPanels = useMemo(
     () => (selectedNode ? resolveInspectorPanels(selectedNode, 'style') : []),
     [selectedNode]
@@ -692,6 +781,11 @@ export const useBlueprintEditorInspectorController = () => {
       updateTrigger,
       removeTrigger,
       routeOptions,
+      activeRouteDetails,
+      canAttachLayoutToActiveRoute,
+      canDetachLayoutFromActiveRoute,
+      attachLayoutToActiveRoute,
+      detachLayoutFromActiveRoute,
       outletRouteNodeId,
       activeRouteNodeId,
       bindOutletToRoute,
@@ -737,6 +831,11 @@ export const useBlueprintEditorInspectorController = () => {
       triggerEntries,
       graphOptions,
       routeOptions,
+      activeRouteDetails,
+      canAttachLayoutToActiveRoute,
+      canDetachLayoutFromActiveRoute,
+      attachLayoutToActiveRoute,
+      detachLayoutFromActiveRoute,
       outletRouteNodeId,
       activeRouteNodeId,
       bindOutletToRoute,

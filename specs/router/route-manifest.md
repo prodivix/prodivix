@@ -4,7 +4,7 @@
 
 - In Progress
 - 创建日期：2026-02-08
-- 更新日期：2026-06-29
+- 更新日期：2026-07-02
 - 关联 ADR：
   - `specs/decisions/08.route-manifest-outlet.md`
   - `specs/decisions/09.component-route-composition.md`
@@ -25,13 +25,16 @@
 3. Blueprint 地址栏基于 `activeRouteNodeId` 切换当前 route。
 4. 预览时 active route 的 page doc 会注入到 `PdxOutlet`。
 5. 后端通过 `core.route / manifest.update` 保存 route manifest，并维护 `routeRev`。
+6. `RouteModule` / `RouteModuleMount` 已有共享类型和前端合成 resolver，可生成 module source trace。
+7. `PdxRoute` 不再读取 children 上的 `data-route-*` 作为项目级路由来源。
+8. 后端保存、创建和导入 workspace 前会校验 route manifest 的基础 schema 与路由语义。
+9. 导出链路通过 `createRouteExportContribution` 消费 RouteGraph，并输出 `.prodivix/routes.json` 和 manifest metadata。
 
 当前缺口：
 
-1. `PdxRoute` 仍有独立 children 匹配逻辑，和 workspace route graph 连接不够紧。
-2. 预览注入主要依赖 active route，不是真正基于 URL 解析出的 `matchChain`。
-3. 路由诊断、导航 action、导出和组件 route module 尚未共享同一个 resolver。
-4. route runtime refs 尚未接入 Code Authoring Environment。
+1. route runtime refs 首批只输出为 CodeReference / adapter 输入和诊断，不在编辑器预览或生产代码中执行。
+2. React 导出当前仍是单 App PIR 编译；route topology 已进入导出 IR，但多页面 layout/page 源码拆分仍是后续工作。
+3. 后端校验覆盖结构和基础路由语义；PIR outlet lookup、文档类型策略、符号环境诊断仍由前端作者态层继续补全。
 
 ## 3. 数据结构
 
@@ -46,6 +49,8 @@ type CodeReference = {
 type RouteManifest = {
   version: '1';
   root: RouteNode;
+  modules?: Record<string, RouteModule>;
+  mounts?: RouteModuleMount[];
 };
 
 type RouteNode = {
@@ -118,6 +123,13 @@ type RouteRuntimeContext = {
 
 编辑器预览、`PdxRoute`、`PdxOutlet`、navigate action、诊断和导出都消费 `RouteRuntimeContext`。
 
+当前前端实现：
+
+1. shared router 已提供 `resolveRouteRuntimeContext` 和 Phase 4 版 `resolveNavigateTarget`。
+2. editor renderer 已接收 `RouteRuntimeContext`，并把 route params、search params 和 hash 注入 renderer params。
+3. Blueprint 内置 navigate action 通过 shared route resolver 处理 route id、relative path、absolute path 和 external URL。
+4. route runtime refs 只建立 CodeReference / CodeSlot / diagnostic 保存态，编辑器预览不执行 loader、guard 或 action。
+
 ## 6. Outlet 渲染链
 
 对目标 URL 匹配后得到 `matchChain`：
@@ -151,6 +163,7 @@ RootLayout(Outlet)
 2. 可作为 component route module 的预览投影。
 3. 不产生项目级绝对路由。
 4. 不作为导出器发现项目路由的来源。
+5. 在 editor renderer 中由 RouteGraph 注入 workspace manifest / active route id，或由 `moduleScope` 解析得到 `RouteModule`。
 
 ## 8. 组件 Route Module
 
@@ -199,3 +212,12 @@ type RouteModuleMount = {
 2. RouteGraph 修改必须走 route intent / workspace command。
 3. AI patch 只能生成受 validator 约束的 route patch。
 4. Code-owned runtime 能力必须引用 Code Authoring Environment 中的 artifact，不保存裸代码字符串。
+
+## 12. 导出契约
+
+导出不扫描画布组件树来发现项目路由。生产输出读取 workspace `RouteManifest`，生成 `ExportRouteTopology`：
+
+1. `.prodivix/routes.json` 保存 target adapter、route path、parent、page/layout doc id、runtime refs 和 generated file 映射。
+2. `.prodivix/export-manifest.json` 与 bundle metadata 也包含同一份 route topology，便于部署、诊断和后续框架 adapter 消费。
+3. route runtime refs 输出为 adapter 输入：`routeNodeId + loader/action/guard + artifactId/exportName/symbolId`，首批不执行用户代码。
+4. route diagnostics 进入 `ExportBundle.diagnostics`。`source: 'route'` 且 `severity: 'error'` 的诊断会把 bundle 标记为 `exportBlocked`，UI 不允许下载生产 ZIP。

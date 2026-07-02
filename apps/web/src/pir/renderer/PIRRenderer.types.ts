@@ -1,5 +1,9 @@
 import type React from 'react';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type {
+  RouteRuntimeContext,
+  WorkspaceRouteManifest,
+} from '@prodivix/shared/router';
 import type { ComponentRegistry } from './registry';
 
 export type RenderState = Record<string, unknown>;
@@ -32,6 +36,8 @@ export type BuiltInActionDispatchOptions = {
   payload?: unknown;
 };
 
+export type PIRInteractionMode = 'design' | 'interactive';
+
 export type RenderContext = {
   state: RenderState;
   params: RenderParams;
@@ -47,7 +53,11 @@ export type RenderContext = {
   onNodeSelect?: (nodeId: string, event: React.SyntheticEvent) => void;
   selectedId?: string;
   requireSelectionForEvents: boolean;
+  interactionMode: PIRInteractionMode;
   renderMode: 'strict' | 'tolerant';
+  routeManifest?: WorkspaceRouteManifest;
+  activeRouteNodeId?: string;
+  routeRuntimeContext?: RouteRuntimeContext;
   outletContentNode?: ComponentNode | null;
   outletTargetNodeId?: string;
 };
@@ -69,6 +79,10 @@ export interface PIRRendererProps {
     (options: BuiltInActionDispatchOptions) => void
   >;
   requireSelectionForEvents?: boolean;
+  interactionMode?: PIRInteractionMode;
+  routeManifest?: WorkspaceRouteManifest;
+  activeRouteNodeId?: string;
+  routeRuntimeContext?: RouteRuntimeContext;
   outletContentNode?: ComponentNode | null;
   outletTargetNodeId?: string;
 }

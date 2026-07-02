@@ -37,11 +37,14 @@ import type {
   ExportPathRewrite,
   ExportPlannerPreset,
   ExportProgram,
+  ExportRouteGeneratedFile,
+  ExportRouteTopology,
   ExportReferencedAsset,
   ExportRuntimeRequirement,
   ExportImportIntent,
   ExportSourceOrigin,
   ExportSourceSummary,
+  ExportSourceTrace,
   ExportSourceTraceSummary,
   PlannedExportModule,
   PlannedRuntimeModule,
@@ -423,6 +426,7 @@ const createExportManifestFile = (input: {
   deployments: ExportDeploymentSummary[];
   referencedAssets: ExportReferencedAsset[];
   diagnostics: CompileDiagnostic[];
+  routeTopology?: ExportRouteTopology;
   reservePath: ReserveExportPath;
 }): ExportFile => {
   const path = input.reservePath(
@@ -462,6 +466,7 @@ const createExportManifestFile = (input: {
         sources: input.sources,
         licenses: input.licenses,
         deployments: input.deployments,
+        routeTopology: input.routeTopology,
         diagnostics: summarizeDiagnostics(input.diagnostics),
       },
       null,
@@ -481,6 +486,66 @@ const createExportManifestFile = (input: {
       owner: 'prodivix',
       writePolicy: 'generated',
       updatePolicy: 'regenerate',
+    },
+  };
+};
+
+const collectRouteTopologySourceTrace = (
+  topology: ExportRouteTopology
+): ExportSourceTrace[] => {
+  const traces = topology.routes.flatMap((route) => route.sourceTrace);
+  const seen = new Set<string>();
+  return traces.filter((trace) => {
+    const key = `${trace.sourceRef.domain}:${trace.sourceRef.id}:${
+      trace.sourceRef.path ?? ''
+    }:${trace.artifactId ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const withRouteGeneratedFile = (
+  topology: ExportRouteTopology,
+  generatedFile: ExportRouteGeneratedFile
+): ExportRouteTopology => ({
+  ...topology,
+  routes: topology.routes.map((route) => ({
+    ...route,
+    generatedFiles: [...(route.generatedFiles ?? []), generatedFile],
+  })),
+});
+
+const createRouteTopologyMetadataFile = (input: {
+  topology: ExportRouteTopology;
+  reservePath: ReserveExportPath;
+}): { file: ExportFile; routeTopology: ExportRouteTopology } => {
+  const path = input.reservePath(joinExportPath('.prodivix', 'routes.json'), {
+    id: 'route-topology:prodivix',
+    kind: 'metadata',
+  });
+  const routeTopology = withRouteGeneratedFile(input.topology, {
+    path,
+    kind: 'metadata',
+    reason: 'route-topology',
+  });
+  return {
+    routeTopology,
+    file: {
+      id: 'route-topology:prodivix',
+      path,
+      kind: 'metadata',
+      language: 'json',
+      mimeType: 'application/json',
+      importMode: 'copy-only',
+      contents: `${JSON.stringify(routeTopology, null, 2)}\n`,
+      sourceTrace: collectRouteTopologySourceTrace(routeTopology),
+      origin: {
+        kind: 'generated',
+        owner: 'prodivix',
+        writePolicy: 'generated',
+        updatePolicy: 'regenerate',
+      },
     },
   };
 };
@@ -613,6 +678,13 @@ export class ProductionExportPlanner {
       programAssets,
       plannedAssets
     );
+    const routeTopologyBundle = program.routes
+      ? createRouteTopologyMetadataFile({
+          topology: program.routes,
+          reservePath,
+        })
+      : null;
+    const routeTopology = routeTopologyBundle?.routeTopology;
     const filesWithoutPolicyMetadata = [
       ...planExportFileContributions(
         [...programFiles, ...deploymentFiles],
@@ -624,6 +696,7 @@ export class ProductionExportPlanner {
         this.styleSheetToFile(styleSheet)
       ),
       ...plannedAssets,
+      ...(routeTopologyBundle ? [routeTopologyBundle.file] : []),
     ].map(withContentHash);
     const deploymentSummary = summarizeDeployments({
       deployments: program.deployments,
@@ -668,6 +741,7 @@ export class ProductionExportPlanner {
       deployments: deploymentSummary,
       referencedAssets,
       diagnostics,
+      routeTopology,
       reservePath,
     });
     const files = [
@@ -676,6 +750,10 @@ export class ProductionExportPlanner {
       withContentHash(licensesFile),
       withContentHash(manifestFile),
     ];
+    const blockingDiagnostics = diagnostics.filter(
+      (diagnostic) =>
+        diagnostic.severity === 'error' && diagnostic.source !== 'export'
+    );
 
     return {
       target: program.target,
@@ -701,6 +779,9 @@ export class ProductionExportPlanner {
         deploymentSummary,
         pathRewrites,
         referencedAssets,
+        routeTopology,
+        exportBlocked: blockingDiagnostics.length > 0,
+        blockingDiagnostics,
       },
     };
   }

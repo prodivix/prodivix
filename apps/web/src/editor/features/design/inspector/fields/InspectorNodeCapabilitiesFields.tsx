@@ -23,24 +23,40 @@ export function InspectorNodeCapabilitiesFields() {
     outletRouteNodeId,
     activeRouteNodeId,
     bindOutletToRoute,
-    selectedParentNode,
   } = useInspectorContext();
-  const currentPathValue =
-    typeof selectedNode?.props?.currentPath === 'string'
-      ? selectedNode.props.currentPath
-      : '';
   const emptyTextValue =
     typeof selectedNode?.props?.emptyText === 'string'
       ? selectedNode.props.emptyText
       : '';
-  const isDirectRouteChild = selectedParentNode?.type === 'PdxRoute';
-  const routePathValue =
-    typeof selectedNode?.props?.['data-route-path'] === 'string'
-      ? selectedNode.props['data-route-path']
+  const routeScopeValue =
+    selectedNode?.props?.routeScope === 'module' ? 'module' : 'workspace';
+  const moduleScopeValue =
+    typeof selectedNode?.props?.moduleScope === 'string'
+      ? selectedNode.props.moduleScope
       : '';
-  const routeFallbackValue =
-    selectedNode?.props?.['data-route-fallback'] === true;
-  const routeIndexValue = selectedNode?.props?.['data-route-index'] === true;
+  const debugPathValue =
+    typeof selectedNode?.props?.debugPath === 'string'
+      ? selectedNode.props.debugPath
+      : '';
+  const selectedOutletRoute = routeOptions.find(
+    (route: { id: string }) => route.id === outletRouteNodeId
+  );
+  const activeOutletRoute = routeOptions.find(
+    (route: { id: string }) => route.id === activeRouteNodeId
+  );
+  const canBindActiveOutletRoute = Boolean(
+    selectedNode?.type === 'PdxOutlet' &&
+      activeRouteNodeId &&
+      activeRouteNodeId !== outletRouteNodeId
+  );
+  const outletRouteStatus = selectedOutletRoute
+    ? t('inspector.fields.outletRoute.boundTo', {
+        path: selectedOutletRoute.path,
+        defaultValue: 'Bound to {{path}}',
+      })
+    : t('inspector.fields.outletRoute.unbound', {
+        defaultValue: 'Not bound',
+      });
 
   return (
     <>
@@ -125,29 +141,106 @@ export function InspectorNodeCapabilitiesFields() {
         <>
           <div className="InspectorField flex flex-col gap-1.5">
             <InspectorRow
-              label={t('inspector.fields.routeCurrentPath.label', {
-                defaultValue: 'Current Path',
+              label={t('inspector.fields.routeScope.label', {
+                defaultValue: 'Route Scope',
+              })}
+              control={
+                <select
+                  data-testid="inspector-route-scope"
+                  className="w-full rounded-md border border-(--border-default) bg-transparent px-2 py-1 text-xs"
+                  value={routeScopeValue}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    updateSelectedNode((current) => {
+                      const nextProps = {
+                        ...(current.props ?? {}),
+                      } as Record<string, unknown>;
+                      nextProps.routeScope =
+                        value === 'module' ? 'module' : 'workspace';
+                      delete nextProps.currentPath;
+                      return { ...current, props: nextProps };
+                    });
+                  }}
+                >
+                  <option value="workspace">
+                    {t('inspector.fields.routeScope.workspace', {
+                      defaultValue: 'Workspace',
+                    })}
+                  </option>
+                  <option value="module">
+                    {t('inspector.fields.routeScope.module', {
+                      defaultValue: 'Module',
+                    })}
+                  </option>
+                </select>
+              }
+            />
+          </div>
+          <div className="InspectorField flex flex-col gap-1.5">
+            <InspectorRow
+              label={t('inspector.fields.routeModuleScope.label', {
+                defaultValue: 'Module Scope',
               })}
               control={
                 <input
-                  data-testid="inspector-route-current-path"
+                  data-testid="inspector-route-module-scope"
                   className="w-full rounded-md border border-(--border-default) bg-transparent px-2 py-1 text-xs"
                   placeholder={t(
-                    'inspector.fields.routeCurrentPath.placeholder',
+                    'inspector.fields.routeModuleScope.placeholder',
                     {
-                      defaultValue: '/about/team',
+                      defaultValue: 'account',
                     }
                   )}
-                  value={currentPathValue}
+                  value={moduleScopeValue}
+                  disabled={routeScopeValue !== 'module'}
                   onChange={(event) => {
                     const value = event.currentTarget.value;
-                    updateSelectedNode((current) => ({
-                      ...current,
-                      props: {
+                    updateSelectedNode((current) => {
+                      const nextProps = {
                         ...(current.props ?? {}),
-                        currentPath: value,
-                      },
-                    }));
+                      } as Record<string, unknown>;
+                      if (value.trim()) {
+                        nextProps.moduleScope = value;
+                      } else {
+                        delete nextProps.moduleScope;
+                      }
+                      return { ...current, props: nextProps };
+                    });
+                  }}
+                />
+              }
+            />
+          </div>
+          <div className="InspectorField flex flex-col gap-1.5">
+            <InspectorRow
+              label={t('inspector.fields.routeDebugPath.label', {
+                defaultValue: 'Debug Path',
+              })}
+              control={
+                <input
+                  data-testid="inspector-route-debug-path"
+                  className="w-full rounded-md border border-(--border-default) bg-transparent px-2 py-1 text-xs"
+                  placeholder={t(
+                    'inspector.fields.routeDebugPath.placeholder',
+                    {
+                      defaultValue: '/settings/profile',
+                    }
+                  )}
+                  value={debugPathValue}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    updateSelectedNode((current) => {
+                      const nextProps = {
+                        ...(current.props ?? {}),
+                      } as Record<string, unknown>;
+                      if (value.trim()) {
+                        nextProps.debugPath = value;
+                      } else {
+                        delete nextProps.debugPath;
+                      }
+                      delete nextProps.currentPath;
+                      return { ...current, props: nextProps };
+                    });
                   }}
                 />
               }
@@ -165,7 +258,7 @@ export function InspectorNodeCapabilitiesFields() {
                   placeholder={t(
                     'inspector.fields.routeEmptyText.placeholder',
                     {
-                      defaultValue: 'No route matched.',
+                      defaultValue: 'No route module selected.',
                     }
                   )}
                   value={emptyTextValue}
@@ -189,114 +282,6 @@ export function InspectorNodeCapabilitiesFields() {
           </div>
         </>
       ) : null}
-      {isDirectRouteChild ? (
-        <>
-          <div className="InspectorField flex flex-col gap-1.5">
-            <InspectorRow
-              label={t('inspector.fields.routePath.label', {
-                defaultValue: 'Route Path',
-              })}
-              control={
-                <input
-                  data-testid="inspector-route-child-path"
-                  className="w-full rounded-md border border-(--border-default) bg-transparent px-2 py-1 text-xs"
-                  placeholder={t('inspector.fields.routePath.placeholder', {
-                    defaultValue: '/about or details/:id',
-                  })}
-                  value={routePathValue}
-                  disabled={routeIndexValue}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value;
-                    updateSelectedNode((current) => {
-                      const nextProps = {
-                        ...(current.props ?? {}),
-                      } as Record<string, unknown>;
-                      if (value.trim()) {
-                        nextProps['data-route-path'] = value;
-                        delete nextProps['data-route-fallback'];
-                        delete nextProps['data-route-index'];
-                      } else {
-                        delete nextProps['data-route-path'];
-                      }
-                      return { ...current, props: nextProps };
-                    });
-                  }}
-                />
-              }
-            />
-          </div>
-          <div className="InspectorField flex flex-col gap-1.5">
-            <InspectorRow
-              label={t('inspector.fields.routeIndex.label', {
-                defaultValue: 'Index Route',
-              })}
-              control={
-                <label className="inline-flex items-center gap-2 text-xs text-(--text-secondary)">
-                  <input
-                    data-testid="inspector-route-child-index"
-                    type="checkbox"
-                    checked={routeIndexValue}
-                    onChange={(event) => {
-                      const checked = event.currentTarget.checked;
-                      updateSelectedNode((current) => {
-                        const nextProps = {
-                          ...(current.props ?? {}),
-                        } as Record<string, unknown>;
-                        if (checked) {
-                          nextProps['data-route-index'] = true;
-                          delete nextProps['data-route-path'];
-                          delete nextProps['data-route-fallback'];
-                        } else {
-                          delete nextProps['data-route-index'];
-                        }
-                        return { ...current, props: nextProps };
-                      });
-                    }}
-                  />
-                  {t('inspector.fields.routeIndex.hint', {
-                    defaultValue: 'Match parent route path exactly',
-                  })}
-                </label>
-              }
-            />
-          </div>
-          <div className="InspectorField flex flex-col gap-1.5">
-            <InspectorRow
-              label={t('inspector.fields.routeFallback.label', {
-                defaultValue: 'Fallback',
-              })}
-              control={
-                <label className="inline-flex items-center gap-2 text-xs text-(--text-secondary)">
-                  <input
-                    data-testid="inspector-route-child-fallback"
-                    type="checkbox"
-                    checked={routeFallbackValue}
-                    onChange={(event) => {
-                      const checked = event.currentTarget.checked;
-                      updateSelectedNode((current) => {
-                        const nextProps = {
-                          ...(current.props ?? {}),
-                        } as Record<string, unknown>;
-                        if (checked) {
-                          nextProps['data-route-fallback'] = true;
-                          delete nextProps['data-route-path'];
-                          delete nextProps['data-route-index'];
-                        } else {
-                          delete nextProps['data-route-fallback'];
-                        }
-                        return { ...current, props: nextProps };
-                      });
-                    }}
-                  />
-                  {t('inspector.fields.routeFallback.hint', {
-                    defaultValue: 'Render when no route path matched',
-                  })}
-                </label>
-              }
-            />
-          </div>
-        </>
-      ) : null}
       {selectedNode?.type === 'PdxOutlet' ? (
         <div className="InspectorField flex flex-col gap-1.5">
           <InspectorRow
@@ -304,9 +289,9 @@ export function InspectorNodeCapabilitiesFields() {
               defaultValue: 'Outlet Route',
             })}
             control={
-              <div className="flex w-full items-center gap-2">
+              <div className="flex w-full min-w-0 flex-col gap-2">
                 <select
-                  className="min-w-0 flex-1 rounded-md border border-(--border-default) bg-transparent px-2 py-1 text-xs"
+                  className="h-8 w-full min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary)"
                   value={outletRouteNodeId}
                   onChange={(event) => {
                     const routeNodeId = event.currentTarget.value;
@@ -330,31 +315,56 @@ export function InspectorNodeCapabilitiesFields() {
                     </option>
                   ))}
                 </select>
-                {activeRouteNodeId ? (
-                  <button
-                    type="button"
-                    className="rounded-md border border-(--border-default) px-2 py-1 text-xs hover:border-(--border-strong) hover:text-(--text-primary)"
-                    onClick={() =>
-                      bindOutletToRoute(activeRouteNodeId, selectedNode.id)
-                    }
-                  >
-                    {t('inspector.fields.outletRoute.bindActive', {
-                      defaultValue: 'Bind Active',
-                    })}
-                  </button>
-                ) : null}
-                {outletRouteNodeId ? (
-                  <button
-                    type="button"
-                    className="rounded-md border border-(--border-default) px-2 py-1 text-xs hover:border-(--border-strong) hover:text-(--text-primary)"
-                    onClick={() =>
-                      bindOutletToRoute(outletRouteNodeId, undefined)
-                    }
-                  >
-                    {t('inspector.fields.outletRoute.clear', {
-                      defaultValue: 'Clear',
-                    })}
-                  </button>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-[11px] text-(--text-muted)">
+                    {outletRouteStatus}
+                  </span>
+                  <div className="inline-flex shrink-0 items-center gap-1">
+                    {activeRouteNodeId ? (
+                      <button
+                        type="button"
+                        disabled={!canBindActiveOutletRoute}
+                        className="rounded-md border border-(--border-default) px-2 py-1 text-xs hover:border-(--border-strong) hover:text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          activeOutletRoute
+                            ? t(
+                                'inspector.fields.outletRoute.bindActiveTitle',
+                                {
+                                  path: activeOutletRoute.path,
+                                  defaultValue: 'Bind to active route {{path}}',
+                                }
+                              )
+                            : undefined
+                        }
+                        onClick={() => {
+                          if (!activeRouteNodeId || !selectedNode?.id) return;
+                          bindOutletToRoute(activeRouteNodeId, selectedNode.id);
+                        }}
+                      >
+                        {t('inspector.fields.outletRoute.bindActive', {
+                          defaultValue: 'Bind Active',
+                        })}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={!outletRouteNodeId}
+                      className="rounded-md border border-(--border-default) px-2 py-1 text-xs hover:border-(--border-strong) hover:text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => {
+                        if (!outletRouteNodeId) return;
+                        bindOutletToRoute(outletRouteNodeId, undefined);
+                      }}
+                    >
+                      {t('inspector.fields.outletRoute.clear', {
+                        defaultValue: 'Clear',
+                      })}
+                    </button>
+                  </div>
+                </div>
+                {selectedOutletRoute ? (
+                  <div className="truncate rounded-md border border-(--border-subtle) bg-(--bg-raised) px-2 py-1 text-right text-[11px] text-(--text-secondary)">
+                    {selectedOutletRoute.path}
+                  </div>
                 ) : null}
               </div>
             }

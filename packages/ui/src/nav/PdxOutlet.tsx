@@ -10,15 +10,12 @@ interface PdxOutletSpecificProps {
 export interface PdxOutletProps extends PdxComponent, PdxOutletSpecificProps {}
 
 function PdxOutlet({
-  emptyText = 'Outlet is empty.',
   children,
   className,
   style,
   id,
   dataAttributes = {},
 }: PdxOutletProps) {
-  const hasContent = children !== undefined && children !== null;
-
   return (
     <div
       className={`PdxOutlet ${className ?? ''}`.trim()}
@@ -26,11 +23,7 @@ function PdxOutlet({
       id={id}
       {...dataAttributes}
     >
-      {hasContent ? (
-        children
-      ) : (
-        <div className="PdxOutletEmpty">{emptyText}</div>
-      )}
+      {children}
     </div>
   );
 }

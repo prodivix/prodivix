@@ -5,6 +5,7 @@ export { createCodeSlotRegistry } from '@/authoring/codeSlotRegistry';
 export { createCodeSymbolProviderRegistry } from '@/authoring/codeSymbolProviderRegistry';
 export { createEmptyAuthoringEnvironment } from '@/authoring/createEmptyAuthoringEnvironment';
 export { createWorkspaceCodeArtifactProvider } from '@/authoring/workspaceCodeArtifactProvider';
+export { createRouteRuntimeCodeSlotProvider } from '@/authoring/routeRuntimeCodeSlotProvider';
 export type { AuthoringDiagnosticProviderRegistry } from '@/authoring/authoringDiagnosticProviderRegistry';
 export type { CreateAuthoringEnvironmentInput } from '@/authoring/createAuthoringEnvironment';
 export type { CodeArtifactProviderRegistry } from '@/authoring/codeArtifactProviderRegistry';

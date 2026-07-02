@@ -12,6 +12,11 @@ import type {
 import { validateStableWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isPirDocumentContent } from './workspaceSelectors';
 import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
+import {
+  collectRouteManifestDocumentRefs,
+  type WorkspaceRouteNode,
+  type WorkspaceRouteManifest,
+} from '@prodivix/shared/router';
 
 export type WorkspacePatchOperation = {
   op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
@@ -753,6 +758,21 @@ const validateEnvelope = (
   return issues;
 };
 
+const findRemovedRouteDocumentRefs = (
+  before: StableWorkspaceSnapshot,
+  after: StableWorkspaceSnapshot
+): WorkspaceDocumentId[] => {
+  const routeRoot = before.routeManifest.root as WorkspaceRouteNode | undefined;
+  if (!routeRoot || typeof routeRoot !== 'object') return [];
+  const routeDocumentRefs = collectRouteManifestDocumentRefs(
+    before.routeManifest as WorkspaceRouteManifest
+  );
+  return Object.keys(before.docsById).filter(
+    (documentId) =>
+      routeDocumentRefs.has(documentId) && !after.docsById[documentId]
+  );
+};
+
 export const createWorkspaceCodeDocumentCommand = ({
   workspace,
   commandId,
@@ -1208,6 +1228,23 @@ export const applyWorkspaceCommand = (
           message: 'Command reverseOps must restore the original workspace.',
         },
       ],
+    };
+  }
+
+  const removedRouteDocumentRefs = findRemovedRouteDocumentRefs(
+    snapshot,
+    nextSnapshot
+  );
+  if (removedRouteDocumentRefs.length) {
+    return {
+      ok: false,
+      issues: removedRouteDocumentRefs.map((documentId) => ({
+        code: 'WKS_COMMAND_VALIDATION_FAILED',
+        path: `/docsById/${documentId}`,
+        message:
+          'Workspace document is referenced by the route graph and cannot be deleted.',
+        documentId,
+      })),
     };
   }
 

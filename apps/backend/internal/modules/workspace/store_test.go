@@ -187,6 +187,104 @@ VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
 	}
 }
 
+func TestWorkspaceStoreSaveRouteManifestRejectsInvalidManifest(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	store := NewWorkspaceStore(db)
+	issuedAt := time.Date(2026, time.February, 8, 10, 2, 30, 0, time.UTC)
+	command := buildTestCommand("cmd_route_update_bad", issuedAt, "ws_1", "", "core.route", "manifest.update")
+
+	_, err = store.SaveRouteManifest(context.Background(), SaveRouteManifestParams{
+		WorkspaceID:          "ws_1",
+		ExpectedWorkspaceRev: 9,
+		ExpectedRouteRev:     4,
+		RouteManifest: json.RawMessage(`{
+			"version":"1",
+			"root":{
+				"id":"root",
+				"children":[
+					{"id":"index-a","index":true,"segment":"home"},
+					{"id":"index-b","index":true}
+				]
+			}
+		}`),
+		Command: command,
+	})
+	if err == nil {
+		t.Fatal("expected invalid route manifest error")
+	}
+	var routeErr *RouteManifestValidationError
+	if !errors.As(err, &routeErr) {
+		t.Fatalf("expected RouteManifestValidationError, got %T %v", err, err)
+	}
+	if len(routeErr.Issues) == 0 {
+		t.Fatal("expected validation issues")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("sql expectations: %v", err)
+	}
+}
+
+func TestWorkspaceStoreSaveRouteManifestPersistsNormalizedManifest(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	store := NewWorkspaceStore(db)
+	issuedAt := time.Date(2026, time.February, 8, 10, 2, 45, 0, time.UTC)
+	command := buildTestCommand("cmd_route_update_normalized", issuedAt, "ws_1", "", "core.route", "manifest.update")
+
+	lockWorkspace := regexp.QuoteMeta(`SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`)
+	upsertRoute := regexp.QuoteMeta(`INSERT INTO workspace_routes (workspace_id, manifest_json, updated_at)
+VALUES ($1, $2::jsonb, NOW())
+ON CONFLICT (workspace_id) DO UPDATE
+SET manifest_json = EXCLUDED.manifest_json, updated_at = EXCLUDED.updated_at`)
+	bumpWorkspaceAndRoute := regexp.QuoteMeta(`UPDATE workspaces
+SET workspace_rev = workspace_rev + 1, route_rev = route_rev + 1, op_seq = op_seq + 1, updated_at = NOW()
+WHERE id = $1
+RETURNING workspace_rev, route_rev, op_seq`)
+	insertOperation := regexp.QuoteMeta(`INSERT INTO workspace_operations (workspace_id, op_seq, domain, document_id, payload_json, created_at)
+VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(lockWorkspace).
+		WithArgs("ws_1").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).AddRow(9, 4, 34))
+	mock.ExpectExec(upsertRoute).
+		WithArgs("ws_1", `{"root":{"children":[{"id":"users","segment":"/users/"}],"id":"root"},"version":"1"}`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(bumpWorkspaceAndRoute).
+		WithArgs("ws_1").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).AddRow(10, 5, 35))
+	mock.ExpectExec(insertOperation).
+		WithArgs("ws_1", int64(35), "core.route.manifest.update@1.0", nil, sqlmock.AnyArg(), issuedAt.UTC()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	_, err = store.SaveRouteManifest(context.Background(), SaveRouteManifestParams{
+		WorkspaceID:          "ws_1",
+		ExpectedWorkspaceRev: 9,
+		ExpectedRouteRev:     4,
+		RouteManifest:        json.RawMessage(`{"version":"1","root":{"id":"root","children":[{"segment":"/users/","id":"users"}]}}`),
+		Command:              command,
+	})
+	if err != nil {
+		t.Fatalf("save route manifest: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("sql expectations: %v", err)
+	}
+}
+
 func TestWorkspaceStoreSaveWorkspaceSettingsIncrementsWorkspaceRevOnly(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

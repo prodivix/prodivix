@@ -1,4 +1,5 @@
 import type { PIRDocument } from '@prodivix/shared/types/pir';
+import { composeRouteManifestWithModules } from '@prodivix/shared/router';
 import type {
   WorkspaceDocumentRecord,
   WorkspaceSnapshot,
@@ -7,10 +8,75 @@ import { normalizePirDocument } from '@/pir/resolvePirDocument';
 import { isWorkspaceCodeDocumentContent } from '@/workspace';
 import {
   DEFAULT_ROUTE_MANIFEST,
+  type RouteModule,
+  type RouteModuleMount,
+  type WorkspaceRouteCodeReference,
   type WorkspaceRouteManifest,
   type WorkspaceRouteNode,
+  type WorkspaceRouteOutletBinding,
+  type WorkspaceRouteRuntime,
   type WorkspaceVfsNode,
 } from './editorStore.types';
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+const normalizeRouteCodeReference = (
+  value: unknown
+): WorkspaceRouteCodeReference | undefined => {
+  if (!isPlainRecord(value)) return undefined;
+  const artifactId =
+    typeof value.artifactId === 'string' ? value.artifactId.trim() : '';
+  if (!artifactId) return undefined;
+  return {
+    artifactId,
+    ...(typeof value.exportName === 'string' && value.exportName.trim()
+      ? { exportName: value.exportName }
+      : {}),
+    ...(typeof value.symbolId === 'string' && value.symbolId.trim()
+      ? { symbolId: value.symbolId }
+      : {}),
+  };
+};
+
+const normalizeRouteRuntime = (
+  value: unknown
+): WorkspaceRouteRuntime | undefined => {
+  if (!isPlainRecord(value)) return undefined;
+  const runtime: WorkspaceRouteRuntime = {};
+  const loaderRef = normalizeRouteCodeReference(value.loaderRef);
+  const actionRef = normalizeRouteCodeReference(value.actionRef);
+  const guardRef = normalizeRouteCodeReference(value.guardRef);
+  if (loaderRef) runtime.loaderRef = loaderRef;
+  if (actionRef) runtime.actionRef = actionRef;
+  if (guardRef) runtime.guardRef = guardRef;
+  return Object.keys(runtime).length ? runtime : undefined;
+};
+
+const normalizeRouteOutletBindings = (
+  value: unknown
+): Record<string, WorkspaceRouteOutletBinding> | undefined => {
+  if (!isPlainRecord(value)) return undefined;
+  const bindings = Object.entries(value).reduce<
+    Record<string, WorkspaceRouteOutletBinding>
+  >((result, [name, rawBinding]) => {
+    if (!isPlainRecord(rawBinding)) return result;
+    const outletNodeId =
+      typeof rawBinding.outletNodeId === 'string'
+        ? rawBinding.outletNodeId.trim()
+        : '';
+    if (!outletNodeId) return result;
+    result[name] = {
+      outletNodeId,
+      ...(typeof rawBinding.pageDocId === 'string' &&
+      rawBinding.pageDocId.trim()
+        ? { pageDocId: rawBinding.pageDocId }
+        : {}),
+    };
+    return result;
+  }, {});
+  return Object.keys(bindings).length ? bindings : undefined;
+};
 
 const normalizeRouteNode = (
   value: unknown,
@@ -33,6 +99,10 @@ const normalizeRouteNode = (
   if (typeof source.pageDocId === 'string') node.pageDocId = source.pageDocId;
   if (typeof source.outletNodeId === 'string')
     node.outletNodeId = source.outletNodeId;
+  const outletBindings = normalizeRouteOutletBindings(source.outletBindings);
+  if (outletBindings) node.outletBindings = outletBindings;
+  const runtime = normalizeRouteRuntime(source.runtime);
+  if (runtime) node.runtime = runtime;
   const children = Array.isArray(source.children) ? source.children : [];
   if (children.length) {
     node.children = children.map((child, index) =>
@@ -40,6 +110,61 @@ const normalizeRouteNode = (
     );
   }
   return node;
+};
+
+const normalizeRouteModules = (
+  value: unknown
+): Record<string, RouteModule> | undefined => {
+  if (!isPlainRecord(value)) return undefined;
+  const modules = Object.entries(value).reduce<Record<string, RouteModule>>(
+    (result, [moduleId, rawModule]) => {
+      if (!isPlainRecord(rawModule)) return result;
+      const resolvedModuleId =
+        typeof rawModule.moduleId === 'string' && rawModule.moduleId.trim()
+          ? rawModule.moduleId
+          : moduleId;
+      result[resolvedModuleId] = {
+        moduleId: resolvedModuleId,
+        version:
+          typeof rawModule.version === 'string' && rawModule.version.trim()
+            ? rawModule.version
+            : '1',
+        root: normalizeRouteNode(rawModule.root, `${resolvedModuleId}-root`),
+      };
+      return result;
+    },
+    {}
+  );
+  return Object.keys(modules).length ? modules : undefined;
+};
+
+const normalizeRouteModuleMounts = (
+  value: unknown
+): RouteModuleMount[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const mounts = value.reduce<RouteModuleMount[]>((result, rawMount, index) => {
+    if (!isPlainRecord(rawMount)) return result;
+    const moduleRef =
+      typeof rawMount.moduleRef === 'string' ? rawMount.moduleRef.trim() : '';
+    if (!moduleRef) return result;
+    const mountId =
+      typeof rawMount.mountId === 'string' && rawMount.mountId.trim()
+        ? rawMount.mountId
+        : `route-module-mount-${index + 1}`;
+    result.push({
+      mountId,
+      moduleRef,
+      ...(typeof rawMount.mountPath === 'string' && rawMount.mountPath.trim()
+        ? { mountPath: rawMount.mountPath }
+        : {}),
+      ...(typeof rawMount.parentRouteNodeId === 'string' &&
+      rawMount.parentRouteNodeId.trim()
+        ? { parentRouteNodeId: rawMount.parentRouteNodeId }
+        : {}),
+    });
+    return result;
+  }, []);
+  return mounts.length ? mounts : undefined;
 };
 
 export const normalizeRouteManifest = (
@@ -55,12 +180,16 @@ export const normalizeRouteManifest = (
     typeof source.version === 'string' && source.version.trim()
       ? source.version
       : DEFAULT_ROUTE_MANIFEST.version;
+  const modules = normalizeRouteModules(source.modules);
+  const mounts = normalizeRouteModuleMounts(source.mounts);
   return {
     version,
     root: {
       ...normalizeRouteNode(source.root, DEFAULT_ROUTE_MANIFEST.root.id),
       id: DEFAULT_ROUTE_MANIFEST.root.id,
     },
+    ...(modules ? { modules } : {}),
+    ...(mounts ? { mounts } : {}),
   };
 };
 
@@ -87,14 +216,15 @@ export const resolveActiveRouteNodeId = (
   manifest: WorkspaceRouteManifest,
   candidateIds: Array<string | undefined>
 ): string => {
+  const composedManifest = composeRouteManifestWithModules(manifest).manifest;
   for (const candidate of candidateIds) {
     const normalizedCandidate = candidate?.trim();
     if (!normalizedCandidate) continue;
-    if (hasRouteNodeId(manifest.root, normalizedCandidate)) {
+    if (hasRouteNodeId(composedManifest.root, normalizedCandidate)) {
       return normalizedCandidate;
     }
   }
-  return resolveDefaultActiveRouteNodeId(manifest);
+  return resolveDefaultActiveRouteNodeId(composedManifest);
 };
 
 const normalizePirContent = (

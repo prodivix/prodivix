@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/shared/safety';
-import { resolveNavigateTarget } from '@/pir/actions/registry';
+import {
+  resolveInternalNavigatePath,
+  resolveNavigateTarget,
+} from '@/pir/actions/registry';
 
 describe('resolveNavigateTarget', () => {
   it('defaults to _blank when target is missing', () => {
@@ -31,5 +34,13 @@ describe('resolveNavigateTarget', () => {
     expect(getNavigateLinkKind('?tab=preview')).toBe('internal');
     expect(isSafeNavigateTo('javascript:alert(1)')).toBe(false);
     expect(isSafeNavigateTo('data:text/html,<script></script>')).toBe(false);
+  });
+
+  it('normalizes internal route paths while preserving query and hash navigation', () => {
+    expect(resolveInternalNavigatePath('/docs//routing/?tab=preview')).toBe(
+      '/docs/routing'
+    );
+    expect(resolveInternalNavigatePath('?tab=preview')).toBe('?tab=preview');
+    expect(resolveInternalNavigatePath('#section')).toBe('#section');
   });
 });

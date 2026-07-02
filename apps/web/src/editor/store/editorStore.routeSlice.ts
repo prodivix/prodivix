@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { composeRouteManifestWithModules } from '@prodivix/shared/router';
 import {
   hasRouteNodeId,
   normalizeRouteManifest,
@@ -11,7 +12,6 @@ import {
   type RouteIntent,
   type WorkspaceRouteManifest,
 } from './editorStore.types';
-import { findRouteNodeById, updateRouteNodeById } from './routeManifest';
 import type { EditorStore } from './editorStore.shape';
 
 export interface RouteSlice {
@@ -39,11 +39,14 @@ export const createRouteSlice: StateCreator<EditorStore, [], [], RouteSlice> = (
       if (!normalizedRouteNodeId) {
         return {
           activeRouteNodeId: resolveDefaultActiveRouteNodeId(
-            state.routeManifest
+            composeRouteManifestWithModules(state.routeManifest).manifest
           ),
         };
       }
-      if (!hasRouteNodeId(state.routeManifest.root, normalizedRouteNodeId)) {
+      const composedManifest = composeRouteManifestWithModules(
+        state.routeManifest
+      ).manifest;
+      if (!hasRouteNodeId(composedManifest.root, normalizedRouteNodeId)) {
         return state;
       }
       return { activeRouteNodeId: normalizedRouteNodeId };
@@ -76,27 +79,16 @@ export const createRouteSlice: StateCreator<EditorStore, [], [], RouteSlice> = (
       const normalizedRouteNodeId = routeNodeId.trim();
       if (!normalizedRouteNodeId) return state;
       const normalizedOutletNodeId = outletNodeId?.trim();
-      const currentNode = findRouteNodeById(
-        state.routeManifest.root,
-        normalizedRouteNodeId
-      );
-      if (!currentNode) return state;
-      if ((currentNode.outletNodeId ?? '') === (normalizedOutletNodeId ?? '')) {
-        return state;
-      }
-      const nextManifest: WorkspaceRouteManifest = {
-        ...state.routeManifest,
-        root: updateRouteNodeById(
-          state.routeManifest.root,
-          normalizedRouteNodeId,
-          (target) => ({
-            ...target,
-            outletNodeId: normalizedOutletNodeId || undefined,
+      const next = normalizedOutletNodeId
+        ? applyRouteIntentToState(state, {
+            type: 'bind-outlet',
+            routeNodeId: normalizedRouteNodeId,
+            outletNodeId: normalizedOutletNodeId,
           })
-        ),
-      };
-      return {
-        routeManifest: normalizeRouteManifest(nextManifest),
-      };
+        : applyRouteIntentToState(state, {
+            type: 'unbind-outlet',
+            routeNodeId: normalizedRouteNodeId,
+          });
+      return next ?? state;
     }),
 });

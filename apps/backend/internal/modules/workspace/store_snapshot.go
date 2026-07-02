@@ -27,7 +27,7 @@ func (store *WorkspaceStore) ImportWorkspaceSnapshot(ctx context.Context, params
 	if err != nil {
 		return nil, err
 	}
-	manifestJSON, err := normalizeJSONDocument(params.RouteManifest, defaultWorkspaceRouteManifest)
+	manifestJSON, err := normalizeRouteManifestDocument(params.RouteManifest)
 	if err != nil {
 		return nil, err
 	}

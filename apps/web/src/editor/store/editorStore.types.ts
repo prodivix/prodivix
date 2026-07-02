@@ -1,25 +1,29 @@
-﻿export type BlueprintState = {
+import type {
+  RouteModule,
+  RouteModuleMount,
+  WorkspaceRouteCodeReference,
+  WorkspaceRouteManifest,
+} from '@prodivix/shared/router';
+
+export type {
+  RouteModule,
+  RouteModuleMount,
+  WorkspaceRouteCodeReference,
+  WorkspaceRouteManifest,
+  WorkspaceRouteNode,
+  WorkspaceRouteOutletBinding,
+  WorkspaceRouteRuntime,
+} from '@prodivix/shared/router';
+
+export type BlueprintState = {
   viewportWidth: string;
   viewportHeight: string;
   zoom: number;
   pan: { x: number; y: number };
+  interactionMode: 'design' | 'interactive';
+  routePreviewPath: string;
   selectedId?: string;
   hiddenNodeIds: string[];
-};
-
-export type WorkspaceRouteNode = {
-  id: string;
-  segment?: string;
-  index?: boolean;
-  layoutDocId?: string;
-  pageDocId?: string;
-  outletNodeId?: string;
-  children?: WorkspaceRouteNode[];
-};
-
-export type WorkspaceRouteManifest = {
-  version: string;
-  root: WorkspaceRouteNode;
 };
 
 export type WorkspaceVfsNode = {
@@ -38,6 +42,12 @@ export type RouteIntent =
       routeNodeId?: string;
     }
   | {
+      type: 'create-index';
+      parentRouteNodeId: string;
+      routeNodeId?: string;
+      pageDocId?: string;
+    }
+  | {
       type: 'create-child-route';
       parentRouteNodeId: string;
       segment: string;
@@ -45,9 +55,41 @@ export type RouteIntent =
       pageDocId?: string;
     }
   | {
-      type: 'split-layout';
+      type: 'rename-segment';
+      routeNodeId: string;
+      segment: string;
+    }
+  | {
+      type: 'move-route';
+      routeNodeId: string;
+      parentRouteNodeId: string;
+      index?: number;
+    }
+  | {
+      type: 'attach-layout';
       routeNodeId: string;
       layoutDocId?: string;
+    }
+  | {
+      type: 'detach-layout';
+      routeNodeId: string;
+    }
+  | {
+      type: 'bind-outlet';
+      routeNodeId: string;
+      outletNodeId: string;
+      outletName?: string;
+    }
+  | {
+      type: 'unbind-outlet';
+      routeNodeId: string;
+      outletName?: string;
+    }
+  | {
+      type: 'set-runtime-ref';
+      routeNodeId: string;
+      kind: 'loader' | 'action' | 'guard';
+      reference?: WorkspaceRouteCodeReference;
     }
   | {
       type: 'delete-route';
@@ -59,6 +101,8 @@ export const DEFAULT_BLUEPRINT_STATE: BlueprintState = {
   viewportHeight: '900',
   zoom: 100,
   pan: { x: 80, y: 60 },
+  interactionMode: 'design',
+  routePreviewPath: '/',
   selectedId: undefined,
   hiddenNodeIds: [],
 };

@@ -6,6 +6,7 @@ import {
   createCodeSlotRegistry,
   createCodeSymbolProviderRegistry,
   createEmptyAuthoringEnvironment,
+  createRouteRuntimeCodeSlotProvider,
   createWorkspaceCodeArtifactProvider,
 } from '@/authoring';
 import { createDiagnostic, COD_DIAGNOSTIC_DEFINITIONS } from '@/diagnostics';
@@ -301,7 +302,7 @@ describe('authoring environment contract', () => {
       inputTypeRef: 'MouseEvent',
       outputTypeRef: 'void',
       capabilityIds: ['browser-event'],
-      defaultPlacement: ['inspector-field', 'code-editor', 'issues-panel'],
+      defaultPlacement: ['inspector', 'code-editor', 'issues-panel'],
     };
     const provider: CodeSlotProvider = {
       id: 'test-slot-provider',
@@ -324,6 +325,54 @@ describe('authoring environment contract', () => {
 
     expect(registry.listProviders()).toEqual([]);
     expect(registry.getSlot(slot.id)).toBeNull();
+  });
+
+  it('exposes route runtime code slots through the code slot registry', () => {
+    const provider = createRouteRuntimeCodeSlotProvider({
+      version: '1',
+      root: {
+        id: 'root',
+        children: [
+          {
+            id: 'route-profile',
+            segment: 'profile',
+          },
+        ],
+      },
+    });
+    const registry = createCodeSlotRegistry();
+
+    registry.register(provider);
+
+    const ownerRef = { kind: 'route' as const, routeId: 'route-profile' };
+    expect(
+      registry
+        .listSlots({ surface: 'inspector', targetRef: ownerRef })
+        .map((slot) => ({
+          id: slot.id,
+          kind: slot.kind,
+          inputTypeRef: slot.inputTypeRef,
+        }))
+    ).toEqual([
+      {
+        id: 'route.route-profile.loader',
+        kind: 'route-loader',
+        inputTypeRef: 'RouteRuntimeContext',
+      },
+      {
+        id: 'route.route-profile.action',
+        kind: 'route-action',
+        inputTypeRef: 'RouteRuntimeContext + RouteSubmitPayload',
+      },
+      {
+        id: 'route.route-profile.guard',
+        kind: 'route-guard',
+        inputTypeRef: 'RouteRuntimeContext',
+      },
+    ]);
+    expect(registry.getSlot('route.route-profile.loader')?.ownerRef).toEqual(
+      ownerRef
+    );
   });
 
   it('uses artifact identity for persistent code references', () => {

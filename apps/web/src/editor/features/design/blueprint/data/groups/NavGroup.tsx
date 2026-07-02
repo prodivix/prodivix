@@ -118,11 +118,21 @@ export const NAV_GROUP: ComponentGroup = {
       id: 'route',
       name: 'Route',
       preview: (
-        <PdxRoute>
-          <div data-route-path="/">Home content</div>
-          <div data-route-path="/about">About content</div>
-          <div data-route-fallback>Fallback content</div>
-        </PdxRoute>
+        <PdxRoute
+          routeScope="module"
+          debugPath="/profile"
+          routeModule={{
+            moduleId: 'account',
+            version: '1',
+            root: {
+              id: 'account-root',
+              children: [
+                { id: 'account-index', index: true },
+                { id: 'account-profile', segment: 'profile' },
+              ],
+            },
+          }}
+        />
       ),
       scale: 0.55,
     },

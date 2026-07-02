@@ -20,7 +20,7 @@ func (store *WorkspaceStore) SaveRouteManifest(ctx context.Context, params SaveR
 		return nil, errors.New("expectedWorkspaceRev and expectedRouteRev must be positive")
 	}
 
-	manifestJSON, err := normalizeJSONDocument(params.RouteManifest, defaultWorkspaceRouteManifest)
+	manifestJSON, err := normalizeRouteManifestDocument(params.RouteManifest)
 	if err != nil {
 		return nil, err
 	}
