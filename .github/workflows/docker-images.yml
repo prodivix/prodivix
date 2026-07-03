@@ -6,17 +6,17 @@ on:
     branches:
       - main
     tags:
-      - "v*"
+      - 'v*'
     paths:
-      - "apps/backend/**"
-      - "apps/web/**"
-      - "packages/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "tsconfig*.json"
-      - ".dockerignore"
-      - ".github/workflows/docker-images.yml"
+      - 'apps/backend/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig*.json'
+      - '.dockerignore'
+      - '.github/workflows/docker-images.yml'
 
 concurrency:
   group: docker-images-${{ github.ref }}
@@ -35,7 +35,7 @@ jobs:
           - service: backend
             image_suffix: prodivix-backend
             dockerfile: apps/backend/Dockerfile
-            build_args: ""
+            build_args: ''
           - service: web
             image_suffix: prodivix-web
             dockerfile: apps/web/Dockerfile
