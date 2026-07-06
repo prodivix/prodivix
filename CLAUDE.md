@@ -148,7 +148,7 @@ Prefer tests around user-visible behavior, public APIs, state outcomes, and stab
 
 ### Web Editor Areas
 
-- `apps/web/src/editor/features/design` - Blueprint editor, palette, tree, canvas, inspector, resources, external libraries.
+- `apps/web/src/editor/features/blueprint` - Blueprint editor: canvas, component tree, sidebar, inspector, palette data, external libraries, layout patterns.
 - `apps/web/src/editor/features/development` - Node Graph editor.
 - `apps/web/src/editor/features/animation` - Animation editor.
 - `apps/web/src/editor/store` - editor and supporting Zustand stores.

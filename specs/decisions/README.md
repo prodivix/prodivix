@@ -67,6 +67,8 @@
     - `specs/diagnostics/codegen-diagnostic-codes.md`
     - `specs/diagnostics/api-diagnostic-codes.md`
     - `specs/diagnostics/ai-diagnostic-codes.md`
+18. **编辑器 Feature 目录结构**
+    - `specs/decisions/32.blueprint-editor-feature-layout.md`
 
 ## 实施主计划
 
@@ -81,6 +83,7 @@
 - `specs/implementation/ai-fine-grained-ui-actions.md`
 - `specs/implementation/route-system-unification-plan.md`
 - `specs/implementation/production-export-planner-implementation.md`
+- `specs/implementation/blueprint-editor-feature-layout-migration.md`
 - `specs/codegen/react-production-policy-v1.md`
 - `specs/external/canonical-external-ir-v1.md`
 - `specs/diagnostics/external-library-diagnostic-codes.md`
@@ -110,3 +113,4 @@ ADR 的 `状态` 描述决策成熟度，不等同于代码完成度。实现完
 | `29.plugin-extension-points.md`                     | Draft                   | Planned                             | 插件扩展点是长期方向，现有外部库仍保留在 core 作为迁移期实现。                                                                                               | 插件宿主稳定后再迁移官方插件。                                                                                   |
 | `30.react-flow-nodegraph-editor.md`                 | Accepted                | Implemented / Stabilizing           | React Flow 编辑器、PIR 序列化、运行时执行器和 NodeGraph export contribution 已存在。                                                                         | 继续收敛所有 NodeGraph 写入到 Workspace Command / Intent / Patch，并补插件边界。                                 |
 | `31.production-export-planner.md`                   | Draft                   | Implemented / Stabilizing           | `ExportProgram`、`ExportProgramBuilder`、`ProductionExportPlanner`、artifact/source/origin/license/deployment metadata 与 `.prodivix/*` 审计文件已落地。     | 保持 Draft 继续扩展多 framework target、source map、tree shaking、code splitting 和 License UI。                 |
+| `32.blueprint-editor-feature-layout.md`             | Draft                   | Implemented                         | `features/blueprint/` 已与 `animation/`、`development/` 平级；`design/` 已移除；inspector 迁入 `blueprint/editor/inspector/`；`editor/components/` 已拍平为 camelCase；tsc / vitest / lint 通过。 | —                                                                                                               |

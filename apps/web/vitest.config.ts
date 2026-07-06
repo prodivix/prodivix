@@ -16,14 +16,14 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: [
         ...coverageConfigDefaults.exclude,
-        'src/editor/features/design/blueprint/external/libraries/antdProfile.tsx',
-        'src/editor/features/design/blueprint/external/libraries/muiProfile.tsx',
-        'src/editor/features/design/inspector/components/AlignItemsIcons.tsx',
-        'src/editor/features/design/inspector/components/FlexDirectionIcons.tsx',
-        'src/editor/features/design/inspector/components/JustifyContentIcons.tsx',
+        'src/editor/features/blueprint/external/libraries/antdProfile.tsx',
+        'src/editor/features/blueprint/external/libraries/muiProfile.tsx',
+        'src/editor/features/blueprint/editor/inspector/components/AlignItemsIcons.tsx',
+        'src/editor/features/blueprint/editor/inspector/components/FlexDirectionIcons.tsx',
+        'src/editor/features/blueprint/editor/inspector/components/JustifyContentIcons.tsx',
       ],
       thresholds: {
-        'src/editor/features/design/**': {
+        'src/editor/features/blueprint/**': {
           statements: 80,
           branches: 60,
           functions: 60,

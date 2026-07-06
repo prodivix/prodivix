@@ -181,7 +181,7 @@ export function ExternalLibraryManager() {
   const persistConfiguredComponentLibraryIds = (libraryIds: string[]) => {
     const nextIds = normalizeExternalComponentLibraryIds(libraryIds);
     setConfiguredComponentLibraryIds(nextIds);
-    void import('@/editor/features/design/blueprint/external').then(
+    void import('@/editor/features/blueprint/external').then(
       (externalRuntime) => {
         externalRuntime.setConfiguredExternalLibraryIds(nextIds);
       }
@@ -554,7 +554,7 @@ export function ExternalLibraryManager() {
     let disposed = false;
     setBootstrapping(true);
     void Promise.all([
-      import('@/editor/features/design/blueprint/external'),
+      import('@/editor/features/blueprint/external'),
       import('@/pir/renderer/iconRegistry'),
     ])
       .then(([externalRuntime, iconRegistry]) => {

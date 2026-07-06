@@ -72,7 +72,7 @@ apps/web/src/
 这里有几处比较关键的分层：
 
 - `src/pir` 是 PIR 数据与读写链路的核心。
-- `src/editor/features/design/blueprint` 是蓝图编辑器的主实现。
+- `src/editor/features/blueprint` 是蓝图编辑器的主实现。
 - `src/editor/features/development/reactflow` 是节点图编辑器相关实现。
 - `src/diagnostics` 是前端诊断域的统一入口。
 - `src/esm-bridge` 负责浏览器端对 React 运行时的桥接。

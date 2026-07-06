@@ -11,7 +11,7 @@ const Editor = lazy(() => import('./editor/Editor'));
 const EditorHome = lazy(() => import('./editor/EditorHome'));
 const ProjectHome = lazy(() => import('./editor/ProjectHome'));
 const BlueprintEditor = lazy(
-  () => import('./editor/features/design/blueprint')
+  () => import('./editor/features/blueprint')
 );
 const NodeGraphEditor = lazy(
   () => import('./editor/features/development/NodeGraphEditor')
