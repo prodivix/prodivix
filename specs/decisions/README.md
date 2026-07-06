@@ -86,6 +86,7 @@
 - `specs/implementation/production-export-planner-implementation.md`
 - `specs/implementation/blueprint-editor-feature-layout-migration.md`
 - `specs/implementation/blueprint-data-layer-cleanup-migration.md`
+- `specs/implementation/native-catalog-convergence-plan.md`
 - `specs/codegen/react-production-policy-v1.md`
 - `specs/external/canonical-external-ir-v1.md`
 - `specs/diagnostics/external-library-diagnostic-codes.md`
