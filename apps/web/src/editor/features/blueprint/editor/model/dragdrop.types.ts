@@ -1,6 +1,7 @@
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import type { PaletteQueryService } from '@/plugins/platform';
 import type { TreeDropPlacement } from '@/editor/features/blueprint/editor/model/tree';
+import type { BlueprintCompositionIssue } from '@/editor/features/blueprint/editor/model/composition';
 
 export type TreeDropHint = {
   overNodeId: string;
@@ -12,6 +13,7 @@ export type PaletteItemDragData = {
   itemId: string;
   variantProps?: Record<string, unknown>;
   selectedSize?: string;
+  selectedStatus?: string;
 };
 
 export type TreeSortDragData = {
@@ -52,9 +54,11 @@ export type DragOverData =
 
 export type UseBlueprintDragDropOptions = {
   pirDoc: PIRDocument;
-  currentPath: string;
+  workspaceId: string;
+  documentId: string;
   selectedId?: string;
   palette: PaletteQueryService;
   updatePirDoc: (updater: (doc: PIRDocument) => PIRDocument) => void;
   onNodeSelect: (nodeId: string) => void;
+  onCompositionIssue?: (issue: BlueprintCompositionIssue | undefined) => void;
 };

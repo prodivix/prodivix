@@ -13,6 +13,7 @@ import { materializePirRoot } from '@/pir/graph';
 import { getOverNodeId, resolveTreePlacement } from './dragdrop.placement';
 import { applyTreeSortDragEnd } from './dragdrop.treeMove';
 import { applyPaletteItemDrop } from './dragdrop.paletteDrop';
+import type { BlueprintCompositionIssue } from './composition';
 import type {
   DragActiveData,
   DragOverData,
@@ -29,11 +30,13 @@ export type {
 
 export const useBlueprintDragDrop = ({
   pirDoc,
-  currentPath,
+  workspaceId,
+  documentId,
   selectedId,
   palette,
   updatePirDoc,
   onNodeSelect,
+  onCompositionIssue,
 }: UseBlueprintDragDropOptions) => {
   const [activePaletteItemId, setActivePaletteItemId] = useState<string | null>(
     null
@@ -114,9 +117,23 @@ export const useBlueprintDragDrop = ({
     if (!over) return;
 
     if (data?.kind === 'tree-sort') {
-      updatePirDoc((doc) =>
-        applyTreeSortDragEnd(doc, event, data as TreeSortDragData)
-      );
+      let compositionIssue: BlueprintCompositionIssue | undefined;
+      let changed = false;
+      updatePirDoc((doc) => {
+        const next = applyTreeSortDragEnd(
+          doc,
+          event,
+          data as TreeSortDragData,
+          palette,
+          (issue) => {
+            compositionIssue = issue;
+          }
+        );
+        changed = next !== doc;
+        return next;
+      });
+      if (compositionIssue) onCompositionIssue?.(compositionIssue);
+      else if (changed) onCompositionIssue?.(undefined);
       return;
     }
 
@@ -124,16 +141,20 @@ export const useBlueprintDragDrop = ({
 
     const overData = over.data.current as DragOverData | null | undefined;
     let nextNodeId = '';
+    let compositionIssue: BlueprintCompositionIssue | undefined;
     updatePirDoc((doc) => {
       const result = applyPaletteItemDrop(
         doc,
         data as PaletteItemDragData,
         overData,
-        { currentPath, selectedId, palette }
+        { workspaceId, documentId, selectedId, palette }
       );
       nextNodeId = result.nextNodeId;
+      compositionIssue = result.compositionIssue;
       return result.doc;
     });
+    if (compositionIssue) onCompositionIssue?.(compositionIssue);
+    else if (nextNodeId) onCompositionIssue?.(undefined);
     if (nextNodeId) {
       onNodeSelect(nextNodeId);
     }

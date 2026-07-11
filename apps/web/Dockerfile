@@ -5,7 +5,7 @@ WORKDIR /workspace
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
-RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.base.json tsconfig.json turbo.json ./
@@ -15,7 +15,9 @@ COPY packages ./packages
 RUN pnpm install --frozen-lockfile --filter @prodivix/web...
 
 ARG VITE_API_BASE=/
+ARG VITE_PLUGIN_SANDBOX_URL=
 ENV VITE_API_BASE=$VITE_API_BASE
+ENV VITE_PLUGIN_SANDBOX_URL=$VITE_PLUGIN_SANDBOX_URL
 
 RUN pnpm --filter @prodivix/web build
 

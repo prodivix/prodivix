@@ -4,7 +4,9 @@ import type {
   NodeId,
   UiGraph,
 } from '@prodivix/shared/types/pir';
+import type { InstantiatedUiFragment } from './fragment';
 import type { GraphParentRef } from './types';
+import { materializeUiTree } from './materialize';
 import { normalizeTreeToUiGraph } from './normalize';
 
 const cloneJson = <T>(value: T): T => {
@@ -14,18 +16,13 @@ const cloneJson = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
-const withoutChildren = (node: ComponentNode): ComponentNodeData => {
-  const { children: _children, ...data } = cloneJson(node);
-  return data;
+const sameJsonValue = (left: unknown, right: unknown): boolean =>
+  JSON.stringify(left) === JSON.stringify(right);
+
+const withoutRegions = (graph: UiGraph): Omit<UiGraph, 'regionsById'> => {
+  const { regionsById: _regionsById, ...rest } = graph;
+  return rest;
 };
-
-export const getNode = (
-  graph: UiGraph,
-  nodeId: NodeId
-): ComponentNodeData | undefined => graph.nodesById[nodeId];
-
-export const getChildren = (graph: UiGraph, parentId: NodeId): NodeId[] =>
-  graph.childIdsById[parentId] ?? [];
 
 export const getParentMap = (
   graph: UiGraph
@@ -46,59 +43,7 @@ export const getParentMap = (
   return result;
 };
 
-export const updateNode = (
-  graph: UiGraph,
-  nodeId: NodeId,
-  updater: (node: ComponentNodeData) => ComponentNodeData
-): UiGraph => {
-  const current = graph.nodesById[nodeId];
-  if (!current) return graph;
-  const nextNode = updater(cloneJson(current));
-  return {
-    ...graph,
-    nodesById: {
-      ...graph.nodesById,
-      [nodeId]: { ...nextNode, id: nodeId },
-    },
-  };
-};
-
-export const insertNode = (
-  graph: UiGraph,
-  parentId: NodeId,
-  node: ComponentNode,
-  index?: number
-): UiGraph => {
-  if (!graph.nodesById[parentId]) return graph;
-  const subtree = normalizeTreeToUiGraph(node);
-  const childIds = graph.childIdsById[parentId] ?? [];
-  const insertIndex =
-    typeof index === 'number'
-      ? Math.max(0, Math.min(index, childIds.length))
-      : childIds.length;
-  return {
-    ...graph,
-    nodesById: {
-      ...graph.nodesById,
-      ...subtree.nodesById,
-    },
-    childIdsById: {
-      ...graph.childIdsById,
-      ...subtree.childIdsById,
-      [parentId]: [
-        ...childIds.slice(0, insertIndex),
-        subtree.rootId,
-        ...childIds.slice(insertIndex),
-      ],
-    },
-    regionsById: {
-      ...(graph.regionsById ?? {}),
-      ...(subtree.regionsById ?? {}),
-    },
-  };
-};
-
-const collectSubtreeIds = (
+export const collectGraphSubtreeIds = (
   graph: UiGraph,
   nodeId: NodeId,
   ids: Set<NodeId>
@@ -106,10 +51,10 @@ const collectSubtreeIds = (
   if (ids.has(nodeId)) return;
   ids.add(nodeId);
   (graph.childIdsById[nodeId] ?? []).forEach((childId) =>
-    collectSubtreeIds(graph, childId, ids)
+    collectGraphSubtreeIds(graph, childId, ids)
   );
   Object.values(graph.regionsById?.[nodeId] ?? {}).forEach((childIds) => {
-    childIds.forEach((childId) => collectSubtreeIds(graph, childId, ids));
+    childIds.forEach((childId) => collectGraphSubtreeIds(graph, childId, ids));
   });
 };
 
@@ -119,7 +64,7 @@ export const removeNode = (graph: UiGraph, nodeId: NodeId): UiGraph => {
   const parent = parentMap[nodeId];
   if (!parent) return graph;
   const idsToRemove = new Set<NodeId>();
-  collectSubtreeIds(graph, nodeId, idsToRemove);
+  collectGraphSubtreeIds(graph, nodeId, idsToRemove);
 
   const nodesById = { ...graph.nodesById };
   const childIdsById = { ...graph.childIdsById };
@@ -145,7 +90,7 @@ export const removeNode = (graph: UiGraph, nodeId: NodeId): UiGraph => {
   }
 
   return {
-    ...graph,
+    ...withoutRegions(graph),
     nodesById,
     childIdsById,
     ...(Object.keys(regionsById).length ? { regionsById } : {}),
@@ -226,11 +171,165 @@ export const renameNodeId = (
   };
 };
 
-export const replaceGraphWithMaterializedRoot = (
+const collectDefaultSubtreeIds = (
   graph: UiGraph,
-  root: ComponentNode
-): UiGraph => ({
-  ...normalizeTreeToUiGraph(root),
-  rootId:
-    graph.rootId === root.id ? root.id : normalizeTreeToUiGraph(root).rootId,
-});
+  nodeId: NodeId,
+  ids: Set<NodeId>
+) => {
+  if (ids.has(nodeId)) return;
+  ids.add(nodeId);
+  (graph.childIdsById[nodeId] ?? []).forEach((childId) =>
+    collectDefaultSubtreeIds(graph, childId, ids)
+  );
+};
+
+const collectRemovedSubtreeIds = (
+  graph: UiGraph,
+  nodeId: NodeId,
+  retainedIds: ReadonlySet<NodeId>,
+  removedIds: Set<NodeId>
+) => {
+  if (retainedIds.has(nodeId) || removedIds.has(nodeId)) return;
+  removedIds.add(nodeId);
+  (graph.childIdsById[nodeId] ?? []).forEach((childId) =>
+    collectRemovedSubtreeIds(graph, childId, retainedIds, removedIds)
+  );
+  Object.values(graph.regionsById?.[nodeId] ?? {}).forEach((childIds) => {
+    childIds.forEach((childId) =>
+      collectRemovedSubtreeIds(graph, childId, retainedIds, removedIds)
+    );
+  });
+};
+
+/**
+ * Applies a Blueprint subtree updater as a scoped graph mutation.
+ *
+ * The default-children subtree is materialized only for the updater contract;
+ * the result patches `nodesById` and `childIdsById` while retaining named
+ * regions for every surviving owner.
+ */
+export const updateUiGraphSubtree = (
+  graph: UiGraph,
+  nodeId: NodeId,
+  updater: (root: ComponentNode) => ComponentNode
+): { graph: UiGraph; changed: boolean } => {
+  if (!graph.nodesById[nodeId]) return { graph, changed: false };
+
+  const currentRoot = materializeUiTree({ ...graph, rootId: nodeId });
+  const nextRoot = updater(currentRoot);
+  if (nextRoot.id !== nodeId) return { graph, changed: false };
+
+  const normalized = normalizeTreeToUiGraph(nextRoot);
+  const currentDefaultIds = new Set<NodeId>();
+  collectDefaultSubtreeIds(graph, nodeId, currentDefaultIds);
+  const nextIds = new Set(Object.keys(normalized.nodesById));
+  const conflictsWithExternalNode = [...nextIds].some(
+    (id) => !currentDefaultIds.has(id) && Boolean(graph.nodesById[id])
+  );
+  if (conflictsWithExternalNode) return { graph, changed: false };
+
+  const removedIds = new Set<NodeId>();
+  currentDefaultIds.forEach((id) => {
+    if (!nextIds.has(id)) {
+      collectRemovedSubtreeIds(graph, id, nextIds, removedIds);
+    }
+  });
+
+  const nodesById = { ...graph.nodesById };
+  removedIds.forEach((id) => delete nodesById[id]);
+  Object.entries(normalized.nodesById).forEach(([id, node]) => {
+    nodesById[id] = cloneJson(node);
+  });
+
+  const childIdsById: UiGraph['childIdsById'] = {};
+  Object.entries(graph.childIdsById).forEach(([id, childIds]) => {
+    if (removedIds.has(id)) return;
+    childIdsById[id] = childIds.filter((childId) => !removedIds.has(childId));
+  });
+  Object.entries(normalized.childIdsById).forEach(([id, childIds]) => {
+    childIdsById[id] = [...childIds];
+  });
+
+  const regionsById: NonNullable<UiGraph['regionsById']> = {};
+  Object.entries(graph.regionsById ?? {}).forEach(([id, regions]) => {
+    if (removedIds.has(id)) return;
+    regionsById[id] = Object.fromEntries(
+      Object.entries(regions).map(([name, childIds]) => [
+        name,
+        childIds.filter((childId) => !removedIds.has(childId)),
+      ])
+    );
+  });
+
+  const nextGraph: UiGraph = {
+    ...withoutRegions(graph),
+    nodesById,
+    childIdsById,
+    ...(Object.keys(regionsById).length > 0 ? { regionsById } : {}),
+  };
+  return sameJsonValue(graph, nextGraph)
+    ? { graph, changed: false }
+    : { graph: nextGraph, changed: true };
+};
+
+/**
+ * Clones a complete graph subtree, including every named-region descendant,
+ * into an insertion-ready fragment with newly allocated node identities.
+ */
+export const instantiateUiGraphSubtreeClone = (
+  graph: UiGraph,
+  nodeId: NodeId,
+  createId: (type: string) => NodeId
+): InstantiatedUiFragment | null => {
+  if (!graph.nodesById[nodeId]) return null;
+  const sourceIds = new Set<NodeId>();
+  collectGraphSubtreeIds(graph, nodeId, sourceIds);
+  const idMap = new Map<NodeId, NodeId>();
+  const allocatedIds = new Set<NodeId>();
+
+  for (const sourceId of sourceIds) {
+    const source = graph.nodesById[sourceId];
+    if (!source) return null;
+    const clonedId = createId(source.type).trim();
+    if (!clonedId || graph.nodesById[clonedId] || allocatedIds.has(clonedId)) {
+      return null;
+    }
+    allocatedIds.add(clonedId);
+    idMap.set(sourceId, clonedId);
+  }
+
+  const nodesById: Record<NodeId, ComponentNodeData> = {};
+  const childIdsById: Record<NodeId, NodeId[]> = {};
+  const regionsById: NonNullable<UiGraph['regionsById']> = {};
+  for (const sourceId of sourceIds) {
+    const clonedId = idMap.get(sourceId)!;
+    nodesById[clonedId] = {
+      ...cloneJson(graph.nodesById[sourceId]!),
+      id: clonedId,
+    };
+    childIdsById[clonedId] = (graph.childIdsById[sourceId] ?? []).map(
+      (childId) => idMap.get(childId)!
+    );
+    const sourceRegions = graph.regionsById?.[sourceId];
+    if (sourceRegions) {
+      regionsById[clonedId] = Object.fromEntries(
+        Object.entries(sourceRegions).map(([name, childIds]) => [
+          name,
+          childIds.map((childId) => idMap.get(childId)!),
+        ])
+      );
+    }
+  }
+
+  const clonedRootId = idMap.get(nodeId)!;
+  return Object.freeze({
+    rootIds: Object.freeze([clonedRootId]),
+    primaryNodeId: clonedRootId,
+    nodesById: Object.freeze(nodesById),
+    childIdsById: Object.freeze(childIdsById),
+    ...(Object.keys(regionsById).length > 0
+      ? { regionsById: Object.freeze(regionsById) }
+      : {}),
+    localToNodeId: Object.freeze(Object.fromEntries(idMap)),
+  });
+};

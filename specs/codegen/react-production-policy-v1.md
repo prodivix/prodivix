@@ -1,12 +1,18 @@
-# React 生产级代码生成策略（Codegen Policy v1）
+# React 生产级代码生成策略（Historical / Superseded）
 
 ## 状态
 
-- Draft-Frozen
+- Superseded
 - 日期：2026-02-22
+- 取代日期：2026-07-11
+- 当前 contract：`specs/plugins/codegen-policy-contribution-v1.schema.json`
+- 当前实现记录：`specs/implementation/official-component-plugins-phase46-48.md`
 - 关联：
   - `specs/decisions/17.external-library-runtime-and-adapter.md`
-  - `specs/implementation/external-library-execution-plan.md`
+
+本文记录早期 callback policy、`workspace | esm-sh` import strategy、MUI 建议清单与 NodeGraph v1.1 增补，不再是当前 compiler contract。以下接口、策略包与 Gate E 仅用于历史追溯，不得恢复为生产 fallback。
+
+当前实现由 JSON-only `codegenPolicy@1.0` resource、Web 生成的 immutable `CodegenPolicySnapshot` 和 Compiler generic composite adapter组成。每条 rule 明确 runtime type、exact package、import kind、element path 与 children policy；Compiler 只为实际使用的 policy 输出 exact dependency closure，不读取 Web Host/browser singleton，也不生成 official esm.sh import。AntD-only、MUI-only、Radix-only 与三库组合导出项目均已通过 install、build 和 browser behavior gate。
 
 ## 1. 背景与目标
 
@@ -88,7 +94,7 @@ type CodegenPolicy = {
 ## 6. Import 规则（v1）
 
 1. `workspace` 策略：优先输出包名 import（如 `@mui/material`）。
-2. `esm-sh` 策略：输出显式版本 URL（如 `https://esm.sh/@mui/material@x.y.z`）。
+2. `esm-sh` 策略：输出显式版本 URL（如 `https://esm.sh/lodash-es@x.y.z`）。
 3. 同源 import 去重与排序稳定（先 source，再 imported）。
 4. 不生成动态 `import()` 作为默认路径（除非显式配置异步分包策略）。
 

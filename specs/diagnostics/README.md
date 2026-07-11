@@ -51,7 +51,6 @@ type ProdivixDiagnostic = {
     | 'code'
     | 'nodegraph'
     | 'animation'
-    | 'elib'
     | 'codegen'
     | 'backend'
     | 'ai';
@@ -89,21 +88,20 @@ type ProdivixDiagnostic = {
 
 ## 5. 编码域
 
-| 前缀        | 领域             | 说明                                           | 码表                                                     |
-| ----------- | ---------------- | ---------------------------------------------- | -------------------------------------------------------- |
-| `PIR-xxxx`  | PIR              | Schema、graph、ValueRef、materialize、校验     | `specs/diagnostics/pir-diagnostic-codes.md`              |
-| `WKS-xxxx`  | Workspace        | VFS、文档保存、revision、同步冲突、capability  | `specs/diagnostics/workspace-diagnostic-codes.md`        |
-| `PLG-xxxx`  | Plugin           | Manifest、contract、权限、注册事务、runtime    | `specs/diagnostics/plugin-diagnostic-codes.md`           |
-| `RTE-xxxx`  | Route            | Route manifest、Outlet、导航运行时             | `specs/diagnostics/route-diagnostic-codes.md`            |
-| `EDT-xxxx`  | Editor           | 编辑器交互、选择、拖拽、Inspector、画布状态    | `specs/diagnostics/editor-diagnostic-codes.md`           |
-| `UX-xxxx`   | UX               | 可访问性、交互、响应式布局、内容和视觉反馈     | `specs/diagnostics/ux-diagnostic-codes.md`               |
-| `COD-xxxx`  | Code             | 用户代码片段、符号解析、类型、宿主绑定、运行时 | `specs/diagnostics/code-diagnostic-codes.md`             |
-| `NGR-xxxx`  | NodeGraph        | 节点图端口、连线、执行、调试                   | `specs/diagnostics/nodegraph-diagnostic-codes.md`        |
-| `ANI-xxxx`  | Animation        | Timeline、binding、track、target node          | `specs/diagnostics/animation-diagnostic-codes.md`        |
-| `ELIB-xxxx` | External Library | 外部库加载、扫描、注册、渲染、代码生成         | `specs/diagnostics/external-library-diagnostic-codes.md` |
-| `GEN-xxxx`  | Codegen          | IR 构建、依赖解析、代码发射、导出              | `specs/diagnostics/codegen-diagnostic-codes.md`          |
-| `API-xxxx`  | Backend/API      | HTTP、鉴权、权限、后端校验、持久化             | `specs/diagnostics/api-diagnostic-codes.md`              |
-| `AI-xxxx`   | AI               | Provider、模型发现、Prompt、结构化响应解析     | `specs/diagnostics/ai-diagnostic-codes.md`               |
+| 前缀       | 领域        | 说明                                           | 码表                                              |
+| ---------- | ----------- | ---------------------------------------------- | ------------------------------------------------- |
+| `PIR-xxxx` | PIR         | Schema、graph、ValueRef、materialize、校验     | `specs/diagnostics/pir-diagnostic-codes.md`       |
+| `WKS-xxxx` | Workspace   | VFS、文档保存、revision、同步冲突、capability  | `specs/diagnostics/workspace-diagnostic-codes.md` |
+| `PLG-xxxx` | Plugin      | Manifest、contract、权限、注册事务、runtime    | `specs/diagnostics/plugin-diagnostic-codes.md`    |
+| `RTE-xxxx` | Route       | Route manifest、Outlet、导航运行时             | `specs/diagnostics/route-diagnostic-codes.md`     |
+| `EDT-xxxx` | Editor      | 编辑器交互、选择、拖拽、Inspector、画布状态    | `specs/diagnostics/editor-diagnostic-codes.md`    |
+| `UX-xxxx`  | UX          | 可访问性、交互、响应式布局、内容和视觉反馈     | `specs/diagnostics/ux-diagnostic-codes.md`        |
+| `COD-xxxx` | Code        | 用户代码片段、符号解析、类型、宿主绑定、运行时 | `specs/diagnostics/code-diagnostic-codes.md`      |
+| `NGR-xxxx` | NodeGraph   | 节点图端口、连线、执行、调试                   | `specs/diagnostics/nodegraph-diagnostic-codes.md` |
+| `ANI-xxxx` | Animation   | Timeline、binding、track、target node          | `specs/diagnostics/animation-diagnostic-codes.md` |
+| `GEN-xxxx` | Codegen     | IR 构建、依赖解析、代码发射、导出              | `specs/diagnostics/codegen-diagnostic-codes.md`   |
+| `API-xxxx` | Backend/API | HTTP、鉴权、权限、后端校验、持久化             | `specs/diagnostics/api-diagnostic-codes.md`       |
+| `AI-xxxx`  | AI          | Provider、模型发现、Prompt、结构化响应解析     | `specs/diagnostics/ai-diagnostic-codes.md`        |
 
 ## 6. 码位规则
 
@@ -162,7 +160,7 @@ type ProdivixDiagnostic = {
 ## 11. 落地顺序
 
 1. 建立本总规范与首批域码表。
-2. 保留现有 `ELIB-xxxx` 码位，并把它纳入统一 Diagnostics。
+2. Plugin package、artifact、contribution 与 lifecycle 使用 `PLG-xxxx`；已删除无消费者的旧 remote runtime `ELIB-xxxx` 域。
 3. 优先收敛 PIR、Workspace、Editor 三个域，因为它们影响保存态与编辑体验。
 4. 后续实现 `createDiagnostic` / `isDiagnostic` 等轻量 helper。
 5. 文档站提供错误码参考页，链接到用户可理解的修复建议。

@@ -1,4 +1,15 @@
-import type { ElementType } from 'react';
+import type {
+  HostPackageCoordinate,
+  OfficialComponentLibraryImplementation,
+  OfficialHostImplementation,
+  OfficialHostImplementationKind,
+  OfficialHostModule,
+  OfficialHostModuleCatalogEntry,
+  OfficialIconExportContext,
+  OfficialIconProviderImplementation,
+  OfficialPaletteProjectionImplementation,
+  OfficialRenderPolicyImplementation,
+} from '@prodivix/plugin-react-host';
 import {
   createPluginDiagnostic,
   PLUGIN_DIAGNOSTIC_CODES,
@@ -10,60 +21,18 @@ import {
   type PluginOwnerRef,
   type PluginPackageAttestation,
 } from '@prodivix/plugin-host';
-import type { AdapterContext, AdapterResult } from '@/pir/renderer/registry';
-import type { IconComponent } from '@/pir/renderer/iconRegistry';
-
-export type HostPackageCoordinate = Readonly<{
-  name: string;
-  version: string;
-}>;
-
-export type OfficialComponentLibraryImplementation = Readonly<{
-  kind: 'component-library';
-  package: HostPackageCoordinate;
-  components: Readonly<Record<string, ElementType>>;
-}>;
-
-export type OfficialRenderPolicyImplementation = Readonly<{
-  kind: 'render-policy';
-  mapProps?: (context: AdapterContext) => AdapterResult;
-  wrapComponent?: (component: ElementType) => ElementType;
-}>;
-
-export type OfficialIconExportContext = Readonly<{
-  providerId: string;
-  requestedName: string;
-  variantId?: string;
-  subpath?: string;
-}>;
-
-export type OfficialIconProviderImplementation = Readonly<{
-  kind: 'icon-provider';
-  package: HostPackageCoordinate;
-  resolveExport(
-    exportName: string,
-    context: OfficialIconExportContext
-  ): IconComponent | null;
-  listExports(): readonly string[];
-  ensureReady?: () => Promise<void>;
-}>;
-
-export type OfficialHostImplementation =
-  | OfficialComponentLibraryImplementation
-  | OfficialRenderPolicyImplementation
-  | OfficialIconProviderImplementation;
-
-export type OfficialHostImplementationKind = OfficialHostImplementation['kind'];
-
-export type OfficialHostModule = Readonly<{
-  implementations: Readonly<Record<string, OfficialHostImplementation>>;
-}>;
-
-export type OfficialHostModuleCatalogEntry = Readonly<{
-  pluginId: string;
-  packageDigest: string;
-  load(): Promise<OfficialHostModule>;
-}>;
+export type {
+  HostPackageCoordinate,
+  OfficialComponentLibraryImplementation,
+  OfficialHostImplementation,
+  OfficialHostImplementationKind,
+  OfficialHostModule,
+  OfficialHostModuleCatalogEntry,
+  OfficialIconExportContext,
+  OfficialIconProviderImplementation,
+  OfficialPaletteProjectionImplementation,
+  OfficialRenderPolicyImplementation,
+} from '@prodivix/plugin-react-host';
 
 export const BUILT_IN_OFFICIAL_HOST_MODULE_CATALOG = Object.freeze(
   [] as const satisfies readonly OfficialHostModuleCatalogEntry[]
@@ -224,6 +193,43 @@ const normalizeModule = (module: OfficialHostModule): OfficialHostModule => {
       implementations[id] = Object.freeze({ ...implementation });
       return;
     }
+    if (implementation.kind === 'palette-projection') {
+      if (!Array.isArray(implementation.groups)) {
+        throw new Error(
+          'Official Palette projection implementation is invalid.'
+        );
+      }
+      const groups = implementation.groups.map((group) => {
+        if (
+          !group ||
+          typeof group.id !== 'string' ||
+          typeof group.title !== 'string' ||
+          !Array.isArray(group.items)
+        ) {
+          throw new Error('Official Palette projection group is invalid.');
+        }
+        return Object.freeze({
+          ...group,
+          items: Object.freeze(
+            group.items.map((item) => {
+              if (
+                !item ||
+                typeof item.id !== 'string' ||
+                typeof item.name !== 'string'
+              ) {
+                throw new Error('Official Palette projection item is invalid.');
+              }
+              return Object.freeze({ ...item });
+            })
+          ),
+        });
+      });
+      implementations[id] = Object.freeze({
+        kind: 'palette-projection',
+        groups: Object.freeze(groups),
+      });
+      return;
+    }
     throw new Error(
       'Official Host Module contains an unknown implementation kind.'
     );
@@ -294,25 +300,66 @@ export const createOfficialHostImplementationRegistry = (
     const key = catalogKey(entry.pluginId, entry.packageDigest);
     const current = modules.get(key);
     if (current) return current;
-    const pending = Promise.resolve()
-      .then(entry.load)
-      .then((module) => pluginHostSuccess(normalizeModule(module)))
-      .catch(() =>
-        pluginHostFailure([
-          createPluginDiagnostic(
-            PLUGIN_DIAGNOSTIC_CODES.OFFICIAL_IMPLEMENTATION_NOT_FOUND,
-            'The build-attested Official Host Module could not be loaded.',
-            {
-              pluginId: entry.pluginId,
-              packageDigest: entry.packageDigest,
-              reasonCode: 'official-host-module-load-failed',
-            }
-          ),
-        ])
-      );
+    const pending: Promise<PluginHostResult<OfficialHostModule>> =
+      Promise.resolve()
+        .then(entry.load)
+        .then((module) => pluginHostSuccess(normalizeModule(module)))
+        .catch(() =>
+          pluginHostFailure([
+            createPluginDiagnostic(
+              PLUGIN_DIAGNOSTIC_CODES.OFFICIAL_IMPLEMENTATION_NOT_FOUND,
+              'The build-attested Official Host Module could not be loaded.',
+              {
+                pluginId: entry.pluginId,
+                packageDigest: entry.packageDigest,
+                reasonCode: 'official-host-module-load-failed',
+              }
+            ),
+          ])
+        )
+        .then((result) => {
+          if (result.ok === false && modules.get(key) === pending) {
+            modules.delete(key);
+          }
+          return result;
+        });
     modules.set(key, pending);
     return pending;
   };
+
+  const loadModuleForBinding = (
+    entry: OfficialHostModuleCatalogEntry,
+    input: Readonly<{
+      owner: PluginOwnerRef;
+      implementationId: string;
+      signal: AbortSignal;
+    }>
+  ): Promise<PluginHostResult<OfficialHostModule>> =>
+    new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: PluginHostResult<OfficialHostModule>) => {
+        if (settled) return;
+        settled = true;
+        input.signal.removeEventListener('abort', abort);
+        resolve(result);
+      };
+      const abort = () =>
+        finish(
+          pluginHostFailure([
+            createPluginDiagnostic(
+              PLUGIN_DIAGNOSTIC_CODES.OPERATION_SUPERSEDED,
+              'Official host implementation binding was canceled while loading its module.',
+              implementationMeta(input.owner, input.implementationId)
+            ),
+          ])
+        );
+      input.signal.addEventListener('abort', abort, { once: true });
+      if (input.signal.aborted) {
+        abort();
+        return;
+      }
+      void loadModule(entry).then(finish);
+    });
 
   const bind = async <TKind extends OfficialHostImplementationKind>(
     input: OfficialHostImplementationBindInput<TKind>
@@ -348,7 +395,7 @@ export const createOfficialHostImplementationRegistry = (
         ),
       ]);
     }
-    const loaded = await loadModule(entry);
+    const loaded = await loadModuleForBinding(entry, input);
     if (loaded.ok === false) return pluginHostFailure(loaded.diagnostics);
     if (input.signal.aborted) {
       return pluginHostFailure([

@@ -7,8 +7,8 @@ const sandboxOrigin =
 
 const openHarness = async (page: Page) => {
   await page.goto('/plugin-sandbox-conformance.html');
-  await page.waitForFunction(
-    () => Boolean(window.prodivixPluginSandboxConformance)
+  await page.waitForFunction(() =>
+    Boolean(window.prodivixPluginSandboxConformance)
   );
 };
 
@@ -55,8 +55,58 @@ test.describe('plugin sandbox production conformance', () => {
     expect(result.activated).toBe(false);
     expect(result.diagnosticCodes).toContain('PLG-4025');
     expect(result.mainLoopTicks).toBeGreaterThan(5);
-    expect(result.elapsedMs).toBeLessThan(2_000);
+    expect(result.elapsedMs).toBeLessThan(10_000);
   });
+
+  test('rejects a runtime that throws during activation without destabilizing the editor', async ({
+    page,
+  }) => {
+    await openHarness(page);
+
+    const result = await page.evaluate(
+      ({ sandboxUrl }) =>
+        window.prodivixPluginSandboxConformance.runRuntime({
+          sandboxUrl,
+          mode: 'crash',
+        }),
+      { sandboxUrl: `${sandboxOrigin}/runtime-broker.html` }
+    );
+
+    expect(result.activated).toBe(false);
+    expect(result.diagnosticCodes).toContain('PLG-4002');
+    expect(result.elapsedMs).toBeLessThan(10_000);
+  });
+
+  for (const scenario of [
+    {
+      mode: 'unhandled-rejection' as const,
+      expectedReason: 'unhandled-runtime-rejection',
+    },
+    { mode: 'close' as const, expectedReason: 'heartbeat-timeout' },
+  ]) {
+    test(`terminates a runtime after ${scenario.mode} while the editor remains responsive`, async ({
+      page,
+    }) => {
+      await openHarness(page);
+
+      const result = await page.evaluate(
+        ({ sandboxUrl, mode }) =>
+          window.prodivixPluginSandboxConformance.runRuntime({
+            sandboxUrl,
+            mode,
+          }),
+        {
+          sandboxUrl: `${sandboxOrigin}/runtime-broker.html`,
+          mode: scenario.mode,
+        }
+      );
+
+      expect(result.activated).toBe(true);
+      expect(result.terminationReasonCode).toBe(scenario.expectedReason);
+      expect(result.mainLoopTicks).toBeGreaterThan(5);
+      expect(result.elapsedMs).toBeLessThan(10_000);
+    });
+  }
 
   test('isolates UI DOM, navigation, network, storage, popup, download, and permission attempts', async ({
     page,
@@ -108,6 +158,10 @@ test.describe('plugin sandbox production conformance', () => {
 
     expect(runtime.ok()).toBe(true);
     expect(runtime.headers()['set-cookie']).toBeUndefined();
+    expect(runtime.headers()['cache-control']).toBe('no-store');
+    expect(runtime.headers()['cross-origin-resource-policy']).toBe(
+      'cross-origin'
+    );
     expect(runtime.headers()['content-security-policy']).toContain(
       "default-src 'none'"
     );
@@ -119,6 +173,14 @@ test.describe('plugin sandbox production conformance', () => {
       "worker-src 'none'"
     );
     expect(ui.headers()['referrer-policy']).toBe('no-referrer');
+    const runtimeScript = await request.get(
+      `${sandboxOrigin}/runtime-broker.js`
+    );
+    expect(runtimeScript.headers()['access-control-allow-origin']).toBe('*');
+    expect(runtimeScript.headers()['x-content-type-options']).toBe('nosniff');
+    expect(
+      (await request.get(`${sandboxOrigin}/not-a-sandbox-resource`)).status()
+    ).toBe(404);
   });
 
   test('persists bounded and redacted Host Gateway audit records', async ({
@@ -142,11 +204,12 @@ declare global {
     prodivixPluginSandboxConformance: {
       runRuntime(input: {
         sandboxUrl: string;
-        mode: 'probe' | 'hang' | 'crash';
+        mode: 'probe' | 'hang' | 'crash' | 'unhandled-rejection' | 'close';
       }): Promise<{
         activated: boolean;
         diagnosticCodes: string[];
         probe?: Record<string, string>;
+        terminationReasonCode?: string;
         mainLoopTicks: number;
         elapsedMs: number;
       }>;

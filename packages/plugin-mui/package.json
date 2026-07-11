@@ -1,0 +1,64 @@
+{
+  "name": "@prodivix/plugin-mui",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Official Material UI component plugin for Prodivix",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#mui-plugin/*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "plugin",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run check:generated:raw && pnpm run clean && tsc -p tsconfig.json",
+    "check:generated": "pnpm --filter @prodivix/plugin-contracts build && pnpm --filter @prodivix/plugin-package build && pnpm run check:generated:raw",
+    "check:generated:raw": "node ../../scripts/plugin-artifacts/generate-bundled-plugin-artifact.mjs --package-root . --check",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true}); fs.rmSync('tsconfig.test.tsbuildinfo',{force:true})\"",
+    "generate": "pnpm --filter @prodivix/plugin-contracts build && pnpm --filter @prodivix/plugin-package build && node ../../scripts/plugin-artifacts/generate-bundled-plugin-artifact.mjs --package-root .",
+    "test": "pnpm run check:generated:raw && pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "test:watch": "vitest --config vitest.config.ts",
+    "typecheck": "tsc -b tsconfig.test.json --pretty false"
+  },
+  "dependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/icons-material": "7.3.2",
+    "@mui/material": "7.3.2",
+    "@prodivix/plugin-package": "workspace:*",
+    "@prodivix/plugin-react-host": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  }
+}

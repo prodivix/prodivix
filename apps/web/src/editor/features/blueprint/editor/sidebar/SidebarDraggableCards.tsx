@@ -8,6 +8,7 @@ import { useDraggable } from '@dnd-kit/core';
 type DraggablePreviewCardProps = {
   itemId: string;
   selectedSize?: string;
+  selectedStatus?: string;
   className: string;
   role?: string;
   tabIndex?: number;
@@ -23,6 +24,7 @@ type DraggablePreviewCardProps = {
 export const DraggablePreviewCard = ({
   itemId,
   selectedSize,
+  selectedStatus,
   className,
   role,
   tabIndex,
@@ -36,7 +38,7 @@ export const DraggablePreviewCard = ({
 }: DraggablePreviewCardProps) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette:${itemId}`,
-    data: { kind: 'palette-item', itemId, selectedSize },
+    data: { kind: 'palette-item', itemId, selectedSize, selectedStatus },
   });
 
   return (
@@ -64,6 +66,7 @@ type DraggableVariantCardProps = {
   variantId: string;
   variantProps?: Record<string, unknown>;
   selectedSize?: string;
+  selectedStatus?: string;
   className: string;
   children: ReactNode;
 };
@@ -73,6 +76,7 @@ export const DraggableVariantCard = ({
   variantId,
   variantProps,
   selectedSize,
+  selectedStatus,
   className,
   children,
 }: DraggableVariantCardProps) => {
@@ -84,6 +88,7 @@ export const DraggableVariantCard = ({
       variantId,
       variantProps,
       selectedSize,
+      selectedStatus,
     },
   });
 

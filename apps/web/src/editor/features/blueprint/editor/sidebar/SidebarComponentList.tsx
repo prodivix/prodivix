@@ -7,6 +7,7 @@ import {
 } from '@/editor/features/blueprint/catalog/helpers';
 import { COMPACT_PREVIEW_SCALE, getPreviewScale } from './previewScale';
 import type { ComponentGroup } from '@/editor/features/blueprint/editor/model/types';
+import type { PaletteItemSelection } from '@/editor/features/blueprint/editor/model/paletteCreation';
 import {
   DraggablePreviewCard,
   DraggableVariantCard,
@@ -27,7 +28,7 @@ type SidebarComponentListProps = {
     previewId: string,
     hasVariants: boolean
   ) => void;
-  onAddComponent: (itemId: string) => void;
+  onAddComponent: (itemId: string, selection?: PaletteItemSelection) => void;
   onSizeSelect: (itemId: string, sizeId: string) => void;
   onStatusSelect: (itemId: string, index: number) => void;
   onStatusCycleStart: (itemId: string, total: number) => void;
@@ -139,13 +140,19 @@ export function SidebarComponentList({
                         <DraggablePreviewCard
                           itemId={item.id}
                           selectedSize={selectedSizeValue}
+                          selectedStatus={statusValue}
                           className="ComponentPreviewBox relative grid min-h-[94px] cursor-grab gap-1.5 rounded-lg bg-transparent px-1.5 pt-1.5 select-none"
                           role="button"
                           tabIndex={0}
                           onClick={(event) => {
                             event.stopPropagation();
                           }}
-                          onDoubleClick={() => onAddComponent(item.id)}
+                          onDoubleClick={() =>
+                            onAddComponent(item.id, {
+                              selectedSize: selectedSizeValue,
+                              selectedStatus: statusValue,
+                            })
+                          }
                           onKeyDown={(event) =>
                             onPreviewKeyDown(event, item.id, hasVariants)
                           }
@@ -251,6 +258,7 @@ export function SidebarComponentList({
                                 variantId={variant.id}
                                 variantProps={variant.props}
                                 selectedSize={selectedSizeValue}
+                                selectedStatus={statusValue}
                                 className={`ComponentVariantCard grid gap-1 text-center ${isWide ? 'Wide col-[1/-1]' : ''}`}
                               >
                                 <SidebarPreviewFrame

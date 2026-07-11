@@ -18,6 +18,7 @@ PIR 命名空间覆盖文档形状、UI graph、ValueRef、materialize 和运行
 | [`PIR-2005`](/reference/diagnostics/pir-2005) | 节点存在多个结构父级      | `error`   |
 | [`PIR-2006`](/reference/diagnostics/pir-2006) | 存在未受控孤儿节点        | `warning` |
 | [`PIR-2007`](/reference/diagnostics/pir-2007) | 跨结构节点引用不存在      | `error`   |
+| [`PIR-2011`](/reference/diagnostics/pir-2011) | 组件组合规则不满足        | `error`   |
 | [`PIR-3001`](/reference/diagnostics/pir-3001) | ValueRef 路径无法解析     | `warning` |
 | [`PIR-3002`](/reference/diagnostics/pir-3002) | 数据作用域配置非法        | `warning` |
 | [`PIR-3010`](/reference/diagnostics/pir-3010) | 列表渲染配置非法          | `warning` |

@@ -1,25 +1,18 @@
 import { RotateCw } from 'lucide-react';
-import type {
-  ExternalLibraryDiagnostic,
-  ExternalLibraryRuntimeState,
-} from '@/editor/features/blueprint/external';
+import type { PluginDiagnostic } from '@prodivix/plugin-contracts';
 
 type SidebarExternalStateProps = {
-  diagnostics: ExternalLibraryDiagnostic[];
-  failedLibraries: ExternalLibraryRuntimeState[];
+  diagnostics: readonly PluginDiagnostic[];
   hasExternalItems: boolean;
   isLoading: boolean;
   onReloadExternalLibraries?: () => Promise<void> | void;
-  onRetryExternalLibrary?: (libraryId: string) => Promise<void> | void;
 };
 
 export function SidebarExternalState({
   diagnostics,
-  failedLibraries,
   hasExternalItems,
   isLoading,
   onReloadExternalLibraries,
-  onRetryExternalLibrary,
 }: SidebarExternalStateProps) {
   return (
     <>
@@ -28,7 +21,7 @@ export function SidebarExternalState({
           <div className="grid max-h-24 gap-1 overflow-auto rounded-md border border-(--border-default) bg-(--bg-raised) p-1.5 text-[10px]">
             {diagnostics.map((item, index) => (
               <div
-                key={`${item.code}-${item.libraryId ?? 'global'}-${index}`}
+                key={`${item.code}-${item.meta.pluginId ?? 'global'}-${index}`}
                 className="rounded px-1.5 py-1 text-(--text-muted)"
                 title={item.hint}
               >
@@ -38,31 +31,6 @@ export function SidebarExternalState({
                 <span>{item.message}</span>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-      {failedLibraries.length > 0 && (
-        <div className="px-3 pb-2">
-          <div className="rounded-md border border-(--border-default) bg-(--bg-raised) px-2 py-1.5 text-[10px] text-(--text-muted)">
-            <div className="mt-1.5 grid gap-1">
-              {failedLibraries.map((state) => (
-                <div
-                  key={state.libraryId}
-                  className="flex items-center justify-between gap-2 rounded border border-(--border-subtle) bg-(--bg-canvas) px-1.5 py-1"
-                >
-                  <span className="truncate text-(--text-secondary)">
-                    {state.libraryId}
-                  </span>
-                  <button
-                    type="button"
-                    className="cursor-pointer rounded border border-(--border-default) px-1.5 py-0.5 text-[10px] text-(--text-secondary) hover:border-(--border-strong) hover:text-(--text-primary)"
-                    onClick={() => onRetryExternalLibrary?.(state.libraryId)}
-                  >
-                    Retry
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       )}

@@ -7,7 +7,9 @@ on:
       - main
     paths:
       - 'apps/web/**'
+      - 'apps/plugin-sandbox/**'
       - 'packages/**'
+      - 'scripts/plugin-artifacts/**'
       - 'tests/e2e/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -19,7 +21,9 @@ on:
       - main
     paths:
       - 'apps/web/**'
+      - 'apps/plugin-sandbox/**'
       - 'packages/**'
+      - 'scripts/plugin-artifacts/**'
       - 'tests/e2e/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -33,8 +37,9 @@ concurrency:
 
 jobs:
   web-smoke:
+    name: Web smoke and official plugin gates
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -52,11 +57,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Check official plugin cutover
+        run: pnpm run check:official-plugin-cutover
 
-      - name: Run smoke tests
-        run: pnpm run test:e2e:smoke
+      - name: Install Playwright browser matrix
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Run Chromium smoke and official plugin conformance
+        run: pnpm run test:e2e:smoke:chromium
+
+      - name: Run plugin sandbox browser matrix
+        run: pnpm run test:e2e:plugin-sandbox:matrix
+
+      - name: Test official plugin exports
+        run: pnpm run test:official-plugin-exports
 
       - name: Upload Playwright report
         if: always()

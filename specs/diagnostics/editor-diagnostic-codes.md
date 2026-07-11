@@ -18,7 +18,7 @@
 
 1. PIR graph 结构错误，使用 `PIR-xxxx`。
 2. Workspace 保存和同步冲突，使用 `WKS-xxxx`。
-3. 外部库加载、注册和渲染，使用 `ELIB-xxxx`。
+3. Official plugin package、contribution、Host 注册和 projection binding 使用 `PLG-xxxx`。
 4. 节点图运行语义，后续使用 `NGR-xxxx`。
 
 ## 2. 阶段
@@ -93,7 +93,7 @@ type EditorDiagnosticStage =
 - Retryable: true
 - Trigger: 画布无法完整渲染当前页面，只能显示占位、错误边界或降级组件
 - User action: 查看诊断详情，优先修复 PIR、外部库或数据绑定错误
-- Developer notes: 画布应聚合下游 `PIR-xxxx`、`ELIB-xxxx` 等诊断，而不是吞掉原始 code
+- Developer notes: 画布应聚合下游 `PIR-xxxx`、`PLG-xxxx` 等诊断，而不是吞掉原始 code
 
 ### `EDT-5001` 命令无法进入历史栈
 

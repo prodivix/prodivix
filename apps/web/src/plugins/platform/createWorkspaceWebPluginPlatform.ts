@@ -17,6 +17,7 @@ import type {
   WebContributionPointMap,
   WebPluginPlatform,
 } from '@/plugins/platform/types';
+import { BUNDLED_OFFICIAL_HOST_MODULE_CATALOG } from '@/plugins/platform/bundledOfficialPlugins';
 
 const auditDatabaseName = (workspaceId: string) =>
   `prodivix-plugin-gateway-audit-v1-${workspaceId
@@ -70,6 +71,7 @@ export const createWorkspaceWebPluginPlatform = (
 
   const platform = createWebPluginPlatform({
     workspaceId: options.workspaceId,
+    officialHostModules: BUNDLED_OFFICIAL_HOST_MODULE_CATALOG,
     ...(runtimeAdapter ? { runtimeAdapter } : {}),
     onShutdown: () => auditStore.dispose(),
   });

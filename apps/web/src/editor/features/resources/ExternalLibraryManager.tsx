@@ -27,17 +27,16 @@ import {
 } from './externalLibraryManager/libraryScope';
 import {
   METADATA_CACHE_TTL_MS,
-  PRE_RELEASE_PATTERN,
   normalizeLicenseText,
   pickVersionByMode,
   type NpmMetadata,
 } from './externalLibraryManager/managerState';
 import { useExternalLibraryManagerRuntimeRefs } from './externalLibraryManager/managerRuntimeRefs';
 import { isAbortError } from '@/infra/api';
+import { getBundledOfficialPlugin } from '@/plugins/platform/bundledOfficialPlugins';
 import {
   buildExternalLibrariesValueFromWorkspace,
   createInitialPersistedLibrary,
-  createPersistedLibraryValue,
   ensurePersistedLibrary,
   getWorkspaceExternalLibrariesDocument,
   type WorkspaceExternalLibrariesValue,
@@ -49,10 +48,6 @@ import {
   createWorkspaceResourceValuePatchRequest,
   RESOURCE_ROOTS,
 } from './workspaceResourceDocuments';
-
-const stringArraysEqual = (left: string[], right: string[]) =>
-  left.length === right.length &&
-  left.every((item, index) => item === right[index]);
 
 export function ExternalLibraryManager() {
   const { t } = useTranslation('editor');
@@ -69,8 +64,6 @@ export function ExternalLibraryManager() {
     () => buildExternalLibrariesValueFromWorkspace(workspaceDocumentsById),
     [workspaceDocumentsById]
   );
-  const [registeredComponentLibraries, setRegisteredComponentLibraries] =
-    useState<LibraryEntry[]>([]);
   const [registeredIconLibraries, setRegisteredIconLibraries] = useState<
     LibraryEntry[]
   >([]);
@@ -95,20 +88,9 @@ export function ExternalLibraryManager() {
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [manualLibraryId, setManualLibraryId] = useState('');
   const [manualLibraryVersion, setManualLibraryVersion] = useState('');
-  const {
-    loadTokensRef,
-    timeoutIdsRef,
-    metadataRequestsRef,
-    metadataControllersRef,
-  } = useExternalLibraryManagerRuntimeRefs();
+  const { metadataRequestsRef, metadataControllersRef } =
+    useExternalLibraryManagerRuntimeRefs();
 
-  const componentLibraryById = useMemo(
-    () =>
-      new Map(
-        registeredComponentLibraries.map((library) => [library.id, library])
-      ),
-    [registeredComponentLibraries]
-  );
   const iconLibraryById = useMemo(
     () =>
       new Map(registeredIconLibraries.map((library) => [library.id, library])),
@@ -154,41 +136,25 @@ export function ExternalLibraryManager() {
     return {
       id: libraryId,
       label:
-        resolvedScope === 'component'
-          ? (componentLibraryById.get(libraryId)?.label ?? catalog.label)
-          : resolvedScope === 'icon'
-            ? (iconLibraryById.get(libraryId)?.label ?? catalog.label)
-            : catalog.label,
+        resolvedScope === 'icon'
+          ? (iconLibraryById.get(libraryId)?.label ?? catalog.label)
+          : catalog.label,
       scope: resolvedScope,
       version: pickVersionByMode(catalog.versions, globalMode),
-      status: 'idle',
       description: catalog.description,
       license: catalog.license,
       packageSizeKb: catalog.packageSizeKb,
       components: catalog.components,
       versions: catalog.versions,
-      isRegistered:
-        resolvedScope === 'component'
-          ? componentLibraryById.has(libraryId)
-          : resolvedScope === 'icon'
-            ? iconLibraryById.has(libraryId)
-            : false,
-      errorMessage: null,
-      updatedAt: Date.now(),
     };
   };
 
-  const persistConfiguredComponentLibraryIds = (libraryIds: string[]) => {
+  const applyConfiguredComponentLibraryIds = (libraryIds: string[]) => {
     const nextIds = normalizeExternalComponentLibraryIds(libraryIds);
     setConfiguredComponentLibraryIds(nextIds);
-    void import('@/editor/features/blueprint/external').then(
-      (externalRuntime) => {
-        externalRuntime.setConfiguredExternalLibraryIds(nextIds);
-      }
-    );
   };
 
-  const persistConfiguredIconLibraryIds = (libraryIds: string[]) => {
+  const applyConfiguredIconLibraryIds = (libraryIds: string[]) => {
     const nextIds = normalizeLibraryIds(libraryIds);
     setConfiguredIconLibraryIds(nextIds);
     void import('@/pir/renderer/iconRegistry').then((iconRegistry) => {
@@ -256,7 +222,7 @@ export function ExternalLibraryManager() {
         action === 'add'
           ? [...configuredComponentLibraryIds, libraryId]
           : configuredComponentLibraryIds.filter((item) => item !== libraryId);
-      persistConfiguredComponentLibraryIds(nextIds);
+      applyConfiguredComponentLibraryIds(nextIds);
       return;
     }
     if (scope === 'icon') {
@@ -264,7 +230,7 @@ export function ExternalLibraryManager() {
         action === 'add'
           ? [...configuredIconLibraryIds, libraryId]
           : configuredIconLibraryIds.filter((item) => item !== libraryId);
-      persistConfiguredIconLibraryIds(nextIds);
+      applyConfiguredIconLibraryIds(nextIds);
     }
   };
 
@@ -289,7 +255,6 @@ export function ExternalLibraryManager() {
           ...library,
           description: nextDescription,
           license: nextLicense,
-          updatedAt: Date.now(),
         };
       });
 
@@ -379,6 +344,7 @@ export function ExternalLibraryManager() {
     libraryIds.forEach((libraryId) => {
       const normalized = normalizeLibraryIds([libraryId])[0];
       if (!normalized) return;
+      if (getBundledOfficialPlugin(normalized)) return;
       const cached = metadataCache[normalized];
       if (cached) {
         applyMetadataToActiveLibraries(normalized, cached);
@@ -394,69 +360,28 @@ export function ExternalLibraryManager() {
     });
   };
 
-  const triggerLoad = (
-    libraryId: string,
-    version: string,
-    options: { persist?: boolean } = {}
-  ) => {
+  const updateLibraryVersion = (libraryId: string, version: string) => {
     const normalized = normalizeLibraryIds([libraryId])[0];
-    if (!normalized) return;
-    const shouldPersist = options.persist !== false;
-    const token = (loadTokensRef.current.get(normalized) ?? 0) + 1;
-    loadTokensRef.current.set(normalized, token);
+    const nextVersion = version.trim();
+    if (!normalized || !nextVersion) return;
     setActiveLibraries((current) =>
       current.map((library) =>
         library.id === normalized
           ? {
               ...library,
-              version,
-              status: 'loading',
-              errorMessage: null,
-              updatedAt: Date.now(),
+              version: nextVersion,
             }
           : library
       )
     );
-    if (shouldPersist) {
-      updateExternalResourceValue((current) => ({
-        ...current,
-        activeLibraries: current.activeLibraries.map((library) =>
-          library.id === normalized
-            ? { ...library, version, status: 'loading' }
-            : library
-        ),
-      }));
-    }
-    const timeoutId = window.setTimeout(() => {
-      timeoutIdsRef.current.delete(timeoutId);
-      if (loadTokensRef.current.get(normalized) !== token) return;
-      setActiveLibraries((current) =>
-        current.map((library) => {
-          if (library.id !== normalized) return library;
-          if (PRE_RELEASE_PATTERN.test(version)) {
-            return {
-              ...library,
-              version,
-              status: 'error',
-              errorMessage:
-                'Simulated load failure: pre-release channel returned unstable metadata.',
-              updatedAt: Date.now(),
-            };
-          }
-          return {
-            ...library,
-            version,
-            status:
-              library.packageSizeKb > packageSizeThresholds.cautionKb
-                ? 'warning'
-                : 'success',
-            errorMessage: null,
-            updatedAt: Date.now(),
-          };
-        })
-      );
-    }, 620);
-    timeoutIdsRef.current.add(timeoutId);
+    updateExternalResourceValue((current) => ({
+      ...current,
+      activeLibraries: current.activeLibraries.map((library) =>
+        library.id === normalized
+          ? { ...library, version: nextVersion }
+          : library
+      ),
+    }));
   };
 
   const addLibrary = (libraryId: string, preferredVersion?: string) => {
@@ -475,8 +400,6 @@ export function ExternalLibraryManager() {
       {
         ...library,
         version: nextVersion,
-        status: 'loading',
-        updatedAt: Date.now(),
       },
       ...current,
     ]);
@@ -516,7 +439,6 @@ export function ExternalLibraryManager() {
       );
     }
     hydrateNpmMetadata([normalized]);
-    triggerLoad(normalized, nextVersion, { persist: false });
   };
 
   const changeMode = (nextMode: LibraryMode) => {
@@ -553,15 +475,9 @@ export function ExternalLibraryManager() {
   useEffect(() => {
     let disposed = false;
     setBootstrapping(true);
-    void Promise.all([
-      import('@/editor/features/blueprint/external'),
-      import('@/pir/renderer/iconRegistry'),
-    ])
-      .then(([externalRuntime, iconRegistry]) => {
+    void import('@/pir/renderer/iconRegistry')
+      .then((iconRegistry) => {
         if (disposed) return;
-        setRegisteredComponentLibraries(
-          externalRuntime.getRegisteredExternalLibraries()
-        );
         setRegisteredIconLibraries(iconRegistry.getRegisteredIconLibraries());
 
         const componentIds = normalizeExternalComponentLibraryIds(
@@ -572,7 +488,6 @@ export function ExternalLibraryManager() {
         );
         setConfiguredComponentLibraryIds(componentIds);
         setConfiguredIconLibraryIds(iconIds);
-        externalRuntime.setConfiguredExternalLibraryIds(componentIds);
         iconRegistry.setConfiguredIconLibraryIds(iconIds);
 
         const nextMode = externalResourceValue.mode;
@@ -589,8 +504,6 @@ export function ExternalLibraryManager() {
         const stateById = new Map(
           storedManagerState.map((item) => [item.id, item])
         );
-        const inferredComponentIds: string[] = [];
-        const inferredIconIds: string[] = [];
         const nextLibraries = mergedIds.map((libraryId) => {
           const persisted = stateById.get(libraryId);
           const scope =
@@ -600,37 +513,12 @@ export function ExternalLibraryManager() {
               : iconIds.includes(libraryId)
                 ? 'icon'
                 : inferScope(libraryId));
-          if (!componentIds.includes(libraryId) && scope === 'component') {
-            inferredComponentIds.push(libraryId);
-          }
-          if (!iconIds.includes(libraryId) && scope === 'icon') {
-            inferredIconIds.push(libraryId);
-          }
           const library = createLibraryItem(libraryId, scope);
           return {
             ...library,
             version: persisted?.version ?? library.version,
-            status:
-              persisted?.status ?? (scope === 'utility' ? 'idle' : 'success'),
           };
         });
-        const nextComponentIds =
-          storedManagerState.length > 0 && inferredComponentIds.length > 0
-            ? normalizeExternalComponentLibraryIds([
-                ...componentIds,
-                ...inferredComponentIds,
-              ])
-            : componentIds;
-        const nextIconIds =
-          storedManagerState.length > 0 && inferredIconIds.length > 0
-            ? normalizeLibraryIds([...iconIds, ...inferredIconIds])
-            : iconIds;
-        if (!stringArraysEqual(nextComponentIds, componentIds)) {
-          persistConfiguredComponentLibraryIds(nextComponentIds);
-        }
-        if (!stringArraysEqual(nextIconIds, iconIds)) {
-          persistConfiguredIconLibraryIds(nextIconIds);
-        }
         setActiveLibraries(nextLibraries);
         hydrateNpmMetadata(mergedIds);
       })
@@ -656,27 +544,6 @@ export function ExternalLibraryManager() {
         : (activeLibraries[0]?.id ?? null)
     );
   }, [activeLibraries]);
-
-  useEffect(() => {
-    if (isBootstrapping) return;
-    setActiveLibraries((current) =>
-      current.map((library) => {
-        if (library.status !== 'success' && library.status !== 'warning') {
-          return library;
-        }
-        const nextStatus =
-          library.packageSizeKb > packageSizeThresholds.cautionKb
-            ? 'warning'
-            : 'success';
-        if (nextStatus === library.status) return library;
-        return {
-          ...library,
-          status: nextStatus,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  }, [isBootstrapping, packageSizeThresholds.cautionKb]);
 
   useEffect(() => {
     if (isBootstrapping || activeLibraries.length === 0) return;
@@ -750,13 +617,12 @@ export function ExternalLibraryManager() {
           onSelectLibrary={setSelectedLibraryId}
           onOpenAddModal={() => setAddModalOpen(true)}
           onRemoveLibrary={removeLibrary}
-          onRetryLibrary={triggerLoad}
-          onVersionChange={triggerLoad}
+          onVersionChange={updateLibraryVersion}
         />
         <ExternalLibraryDetailsPanel
           selectedLibrary={selectedLibrary}
           packageSizeThresholds={packageSizeThresholds}
-          onVersionQuickSwitch={triggerLoad}
+          onVersionQuickSwitch={updateLibraryVersion}
         />
       </div>
       {isBootstrapping ? (

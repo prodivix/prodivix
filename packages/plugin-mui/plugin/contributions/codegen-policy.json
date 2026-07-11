@@ -1,0 +1,258 @@
+{
+  "$schema": "https://prodivix.dev/schemas/codegen-policy-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "targetPreset": "react-vite",
+  "libraryId": "mui",
+  "dependencies": [
+    {
+      "name": "@mui/material",
+      "version": "7.3.2",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@emotion/cache",
+      "version": "11.14.0",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@emotion/react",
+      "version": "11.14.0",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@emotion/styled",
+      "version": "11.14.1",
+      "kind": "dependency",
+      "license": "MIT"
+    }
+  ],
+  "rules": [
+    {
+      "id": "mui.button",
+      "runtimeType": "MuiButton",
+      "elementPath": ["Button"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Button"
+      },
+      "children": { "mode": "text-only" }
+    },
+    {
+      "id": "mui.text-field",
+      "runtimeType": "MuiTextField",
+      "elementPath": ["TextField"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "TextField"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "mui.checkbox",
+      "runtimeType": "MuiCheckbox",
+      "elementPath": ["Checkbox"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Checkbox"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "mui.radio",
+      "runtimeType": "MuiRadio",
+      "elementPath": ["Radio"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Radio"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "mui.switch",
+      "runtimeType": "MuiSwitch",
+      "elementPath": ["Switch"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Switch"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "mui.slider",
+      "runtimeType": "MuiSlider",
+      "elementPath": ["Slider"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Slider"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "mui.card",
+      "runtimeType": "MuiCard",
+      "elementPath": ["Card"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Card"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.paper",
+      "runtimeType": "MuiPaper",
+      "elementPath": ["Paper"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Paper"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.accordion",
+      "runtimeType": "MuiAccordion",
+      "elementPath": ["Accordion"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Accordion"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "mui.accordion-summary",
+      "runtimeType": "MuiAccordionSummary",
+      "elementPath": ["AccordionSummary"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "AccordionSummary"
+      },
+      "children": { "mode": "text-only" }
+    },
+    {
+      "id": "mui.accordion-details",
+      "runtimeType": "MuiAccordionDetails",
+      "elementPath": ["AccordionDetails"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "AccordionDetails"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.tabs",
+      "runtimeType": "MuiTabs",
+      "elementPath": ["Tabs"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Tabs"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "mui.box",
+      "runtimeType": "MuiBox",
+      "elementPath": ["Box"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Box"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.stack",
+      "runtimeType": "MuiStack",
+      "elementPath": ["Stack"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Stack"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.grid",
+      "runtimeType": "MuiGrid",
+      "elementPath": ["Grid"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Grid"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.container",
+      "runtimeType": "MuiContainer",
+      "elementPath": ["Container"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Container"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.alert",
+      "runtimeType": "MuiAlert",
+      "elementPath": ["Alert"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Alert"
+      },
+      "children": { "mode": "text-only" }
+    },
+    {
+      "id": "mui.snackbar",
+      "runtimeType": "MuiSnackbar",
+      "elementPath": ["Snackbar"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Snackbar"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "mui.dialog",
+      "runtimeType": "MuiDialog",
+      "elementPath": ["Dialog"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "mui.circular-progress",
+      "runtimeType": "MuiCircularProgress",
+      "elementPath": ["CircularProgress"],
+      "import": {
+        "packageName": "@mui/material",
+        "kind": "named",
+        "imported": "CircularProgress"
+      },
+      "children": { "mode": "none" }
+    }
+  ],
+  "unsupported": {
+    "behavior": "warning",
+    "message": "This Material UI runtime type is not part of the official support matrix."
+  }
+}

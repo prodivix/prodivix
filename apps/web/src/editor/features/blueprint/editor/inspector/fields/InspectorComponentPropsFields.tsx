@@ -1,5 +1,6 @@
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
+import type { InspectorComponentPropDefinition } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 
 const isPrimitive = (value: unknown): value is string | number | boolean =>
   typeof value === 'string' ||
@@ -15,6 +16,9 @@ const COMPONENT_PROP_EXCLUDE_KEYS = new Set([
   'sx',
 ]);
 const MAX_COMPONENT_FIELDS = 20;
+const EDITABLE_DECLARED_PROP_TYPES = new Set<
+  InspectorComponentPropDefinition['valueType']
+>(['string', 'number', 'boolean']);
 
 export function InspectorComponentPropsFields() {
   const {
@@ -32,21 +36,48 @@ export function InspectorComponentPropsFields() {
     unknown
   >;
   const propOptions = componentMeta.propOptions ?? {};
+  const propDefinitions = componentMeta.propDefinitions ?? [];
+  const nodeProps = (selectedNode.props ?? {}) as Record<string, unknown>;
+  const propDefinitionsByKey = new Map(
+    propDefinitions.map((definition) => [definition.name, definition])
+  );
+  const declaredKeys = propDefinitions
+    .filter(
+      (definition) =>
+        EDITABLE_DECLARED_PROP_TYPES.has(definition.valueType) ||
+        (definition.valueType === 'unknown' &&
+          (isPrimitive(nodeProps[definition.name]) ||
+            isPrimitive(defaultProps[definition.name]) ||
+            Boolean(propOptions[definition.name]?.length)))
+    )
+    .map((definition) => definition.name);
   const optionKeys = Object.keys(propOptions);
   const primitiveDefaultKeys = Object.keys(defaultProps).filter((key) =>
     isPrimitive(defaultProps[key])
   );
   const fieldKeys = [
-    ...new Set([...optionKeys, ...primitiveDefaultKeys]).values(),
+    ...new Set([
+      ...declaredKeys,
+      ...optionKeys,
+      ...primitiveDefaultKeys,
+    ]).values(),
   ]
     .filter((key) => !COMPONENT_PROP_EXCLUDE_KEYS.has(key))
     .slice(0, MAX_COMPONENT_FIELDS);
 
   if (fieldKeys.length === 0) return null;
 
-  const nodeProps = (selectedNode.props ?? {}) as Record<string, unknown>;
-  const resolveValue = (key: string) =>
-    nodeProps[key] ?? defaultProps[key] ?? propOptions[key]?.[0] ?? '';
+  const resolveValue = (key: string) => {
+    if (Object.prototype.hasOwnProperty.call(nodeProps, key)) {
+      return nodeProps[key];
+    }
+    if (Object.prototype.hasOwnProperty.call(defaultProps, key)) {
+      return defaultProps[key];
+    }
+    const firstOption = propOptions[key]?.[0];
+    if (firstOption !== undefined) return firstOption;
+    return propDefinitionsByKey.get(key)?.valueType === 'boolean' ? false : '';
+  };
   const resolvePropSource = (key: string) =>
     Object.prototype.hasOwnProperty.call(nodeProps, key) ? 'node' : 'default';
   const dataModelPathDatalistId = `inspector-prop-paths-${selectedNode.id}`;
@@ -94,7 +125,7 @@ export function InspectorComponentPropsFields() {
             defaultValue:
               componentMeta.source === 'builtIn'
                 ? 'Generated from the @prodivix/ui component manifest.'
-                : 'Generated from external component metadata (d.ts).',
+                : 'Provided by the active component plugin.',
           }
         )}
         control={
@@ -102,6 +133,7 @@ export function InspectorComponentPropsFields() {
             {fieldKeys.map((key) => {
               const options = propOptions[key];
               const value = resolveValue(key);
+              const definition = propDefinitionsByKey.get(key);
               const source = resolvePropSource(key);
               const canReset = source === 'node';
               if (options && options.length > 1) {
@@ -116,6 +148,7 @@ export function InspectorComponentPropsFields() {
                     </span>
                     <select
                       data-testid={`inspector-component-prop-${key}`}
+                      aria-label={key}
                       className="h-7 min-w-0 flex-1 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary)"
                       value={normalizedValue}
                       onChange={(event) => updateProp(key, event.target.value)}
@@ -141,7 +174,10 @@ export function InspectorComponentPropsFields() {
                   </div>
                 );
               }
-              if (typeof value === 'boolean') {
+              if (
+                definition?.valueType === 'boolean' ||
+                typeof value === 'boolean'
+              ) {
                 return (
                   <div key={key} className="flex items-center gap-1.5">
                     <span className="min-w-20 text-[10px] text-(--text-muted)">
@@ -150,8 +186,9 @@ export function InspectorComponentPropsFields() {
                     <label className="inline-flex items-center gap-1 text-xs text-(--text-secondary)">
                       <input
                         data-testid={`inspector-component-prop-${key}`}
+                        aria-label={key}
                         type="checkbox"
-                        checked={value}
+                        checked={value === true}
                         onChange={(event) =>
                           updateProp(key, event.target.checked)
                         }
@@ -173,7 +210,10 @@ export function InspectorComponentPropsFields() {
                   </div>
                 );
               }
-              if (typeof value === 'number') {
+              if (
+                definition?.valueType === 'number' ||
+                typeof value === 'number'
+              ) {
                 return (
                   <div key={key} className="flex items-center gap-1.5">
                     <span className="min-w-20 text-[10px] text-(--text-muted)">
@@ -181,9 +221,10 @@ export function InspectorComponentPropsFields() {
                     </span>
                     <input
                       data-testid={`inspector-component-prop-${key}`}
+                      aria-label={key}
                       className="h-7 min-w-0 flex-1 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary)"
                       type="number"
-                      value={value}
+                      value={typeof value === 'number' ? value : ''}
                       onChange={(event) => {
                         if (event.target.value === '') {
                           clearProp(key);
@@ -216,6 +257,7 @@ export function InspectorComponentPropsFields() {
                   </span>
                   <input
                     data-testid={`inspector-component-prop-${key}`}
+                    aria-label={key}
                     className="h-7 min-w-0 flex-1 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary)"
                     list={
                       dataModelFieldPaths.length

@@ -228,7 +228,7 @@
           "required": ["section"],
           "properties": {
             "section": {
-              "enum": ["builtIn", "headless"]
+              "const": "builtIn"
             }
           }
         },

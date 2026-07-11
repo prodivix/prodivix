@@ -224,7 +224,7 @@
       },
       "externalProps": {
         "label": "External Props",
-        "description": "Generated from external component metadata (d.ts).",
+        "description": "Provided by the active component plugin.",
         "reset": "Reset"
       },
       "componentProps": {
@@ -588,13 +588,7 @@
   "sidebar": {
     "title": "Component Library",
     "libraries": {
-      "builtIn": "Built-in",
-      "headless": "Headless",
-      "external": "External"
-    },
-    "external": {
-      "loading": "Loading Ant Design from esm.sh...",
-      "error": "Failed to load remote components."
+      "builtIn": "Built-in"
     },
     "toggleLibrary": "Toggle library",
     "expand": "Expand component library",
@@ -660,9 +654,6 @@
       },
       "feedback": {
         "title": "Feedback"
-      },
-      "radix": {
-        "title": "Radix UI"
       },
       "layout-pattern": {
         "title": "Layout Patterns"

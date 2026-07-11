@@ -17,14 +17,13 @@ import { materializePirRoot } from '@/pir/graph';
 import { isWorkspaceCodeDocumentContent } from '@/workspace';
 import {
   createOrderedComponentRegistry,
-  getRuntimeRegistryRevision,
   parseResolverOrder,
-  runtimeRegistryUpdatedEvent,
 } from '@/pir/renderer/registry';
 import {
   createRendererProjectionRegistry,
   useWebExtensionRegistrySnapshot,
 } from '@/plugins/platform';
+import { OfficialReactSurfaceBoundary } from '@/plugins/platform/officialSurfaceHost';
 import { normalizeAnimationDefinition } from '@/editor/features/animation/animationEditorModel';
 import { buildAnimationPreviewSnapshotFromTimelines } from '@/editor/features/animation/preview/animationPreview';
 import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/blueprint/editor/model/viewport';
@@ -91,9 +90,6 @@ export function BlueprintEditorCanvas({
   const resolverOrder = useSettingsStore((state) => state.global.resolverOrder);
   const diagnostics = useSettingsStore((state) => state.global.diagnostics);
   const [isPanning, setIsPanning] = useState(false);
-  const [runtimeRegistryRevision, setRuntimeRegistryRevision] = useState(() =>
-    getRuntimeRegistryRevision()
-  );
   const extensionRegistry = useWebExtensionRegistrySnapshot();
   const pirDoc = useEditorStore((state) => state.pirDoc);
   const workspaceDocumentsById = useEditorStore(
@@ -182,7 +178,7 @@ export function BlueprintEditorCanvas({
         parseResolverOrder(resolverOrder),
         createRendererProjectionRegistry(extensionRegistry)
       ),
-    [extensionRegistry, resolverOrder, runtimeRegistryRevision]
+    [extensionRegistry, resolverOrder]
   );
   const animationPreview = useMemo(
     () =>
@@ -198,14 +194,6 @@ export function BlueprintEditorCanvas({
     [hiddenNodeIds]
   );
 
-  useEffect(() => {
-    const handler = () =>
-      setRuntimeRegistryRevision(getRuntimeRegistryRevision());
-    if (typeof window === 'undefined') return;
-    window.addEventListener(runtimeRegistryUpdatedEvent, handler);
-    return () =>
-      window.removeEventListener(runtimeRegistryUpdatedEvent, handler);
-  }, []);
   const { setNodeRef: setCanvasDropRef, isOver: isCanvasOver } = useDroppable({
     id: 'canvas-drop',
     data: { kind: 'canvas' },
@@ -479,51 +467,53 @@ export function BlueprintEditorCanvas({
               className="BlueprintEditorCanvasArtboard relative overflow-auto overscroll-contain border border-(--border-default) bg-(--bg-canvas) shadow-(--shadow-lg) **:data-[pir-missing=true]:outline **:data-[pir-missing=true]:outline-offset-2 **:data-[pir-missing=true]:outline-(--danger-color) **:data-[pir-missing=true]:outline-dashed **:data-[pir-selected=true]:outline-2 **:data-[pir-selected=true]:outline-offset-2 **:data-[pir-selected=true]:outline-(--accent-color)"
               style={{ width: canvasWidth, height: canvasHeight }}
             >
-              {animationPreview.cssText ? (
-                <style>{animationPreview.cssText}</style>
-              ) : null}
-              {hiddenLayerCss ? (
-                <style data-blueprint-author-hidden-layers>
-                  {hiddenLayerCss}
-                </style>
-              ) : null}
-              <CanvasSvgFilters filters={animationPreview.svgFilters} />
-              {hasChildren ? (
-                <PIRRenderer
-                  pirDoc={pirDoc}
-                  runtimeState={runtimeState}
-                  codeArtifacts={codeArtifacts}
-                  overrides={{ currentPath }}
-                  outletContentNode={outletContentNode}
-                  outletTargetNodeId={outletTargetNodeId}
-                  selectedId={isDesignMode ? selectedId : undefined}
-                  onNodeSelect={isDesignMode ? handleNodeSelect : undefined}
-                  registry={registry}
-                  renderMode={renderMode}
-                  allowExternalProps={allowExternalProps === 'enabled'}
-                  requireSelectionForEvents={false}
-                  interactionMode={interactionMode}
-                  // 内置动作链路：PIRRenderer -> builtInActions -> controller。
-                  builtInActions={{
-                    ...(onNavigateRequest
-                      ? { navigate: onNavigateRequest }
-                      : {}),
-                    ...(onExecuteGraphRequest
-                      ? {
-                          executeGraph: onExecuteGraphRequest,
-                        }
-                      : {}),
-                  }}
-                  routeManifest={composedRouteManifest}
-                  activeRouteNodeId={activeRouteNodeId}
-                  routeRuntimeContext={routeRuntimeContext}
-                />
-              ) : (
-                <CanvasPlaceholder
-                  title={t('canvas.placeholderTitle')}
-                  description={t('canvas.placeholderDescription')}
-                />
-              )}
+              <OfficialReactSurfaceBoundary>
+                {animationPreview.cssText ? (
+                  <style>{animationPreview.cssText}</style>
+                ) : null}
+                {hiddenLayerCss ? (
+                  <style data-blueprint-author-hidden-layers>
+                    {hiddenLayerCss}
+                  </style>
+                ) : null}
+                <CanvasSvgFilters filters={animationPreview.svgFilters} />
+                {hasChildren ? (
+                  <PIRRenderer
+                    pirDoc={pirDoc}
+                    runtimeState={runtimeState}
+                    codeArtifacts={codeArtifacts}
+                    overrides={{ currentPath }}
+                    outletContentNode={outletContentNode}
+                    outletTargetNodeId={outletTargetNodeId}
+                    selectedId={isDesignMode ? selectedId : undefined}
+                    onNodeSelect={isDesignMode ? handleNodeSelect : undefined}
+                    registry={registry}
+                    renderMode={renderMode}
+                    allowExternalProps={allowExternalProps === 'enabled'}
+                    requireSelectionForEvents={false}
+                    interactionMode={interactionMode}
+                    // 内置动作链路：PIRRenderer -> builtInActions -> controller。
+                    builtInActions={{
+                      ...(onNavigateRequest
+                        ? { navigate: onNavigateRequest }
+                        : {}),
+                      ...(onExecuteGraphRequest
+                        ? {
+                            executeGraph: onExecuteGraphRequest,
+                          }
+                        : {}),
+                    }}
+                    routeManifest={composedRouteManifest}
+                    activeRouteNodeId={activeRouteNodeId}
+                    routeRuntimeContext={routeRuntimeContext}
+                  />
+                ) : (
+                  <CanvasPlaceholder
+                    title={t('canvas.placeholderTitle')}
+                    description={t('canvas.placeholderDescription')}
+                  />
+                )}
+              </OfficialReactSurfaceBoundary>
               <CanvasRouteDiagnostics diagnostics={routeDiagnostics} />
             </div>
           </div>

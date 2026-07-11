@@ -129,6 +129,15 @@ type PirDiagnosticStage =
 - User action: 重新选择目标节点，或恢复被删除的节点
 - Developer notes: 删除节点时必须清理 animation、list、event 和扩展协议中的节点引用
 
+### `PIR-2011` 组件组合规则不满足
+
+- Severity: `error`
+- Stage: `graph`
+- Retryable: false
+- Trigger: 插入、拖拽、复制、移动或删除导致插件声明的 parent/slot/sequence 组合约束不成立
+- User action: 保留 compound component 所需的 parent 与 primitive 顺序，或把节点移动到允许的位置
+- Developer notes: 规则必须来自当前 owner generation 的 composition contribution 投影；编辑器不得按具体组件库或 runtime type prefix 硬编码结构
+
 ### `PIR-3001` ValueRef 路径无法解析
 
 - Severity: `warning`

@@ -14,12 +14,10 @@ export type IconRef = {
 };
 
 /**
- * Polymorphic icon component type. Icon libraries (lucide, fontawesome, antd,
- * mui, heroicons) each expose components with their own prop shapes; we accept
- * any prop shape so the renderer can pass through className / size / style
- * without committing to one library's typing. Consumers that need a stricter
- * shape (e.g. InspectorCapabilitiesContext.SelectedIconComponent) cast at the
- * boundary.
+ * Polymorphic icon component type. Icon libraries expose components with their
+ * own prop shapes; the renderer passes through className / size / style without
+ * committing to one library's typing. Consumers that need a stricter shape cast
+ * at the boundary.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above
 export type IconComponent = React.ComponentType<any>;
@@ -60,8 +58,7 @@ type IconProviderRecord = {
 
 const ICON_LIBRARY_IDS_STORAGE_KEY = 'prodivix.iconLibraryIds';
 const DEFAULT_ICON_LIBRARY_IDS: string[] = [];
-export const iconLibraryConfigUpdatedEvent =
-  'prodivix:icon-library-config-updated';
+const iconLibraryConfigUpdatedEvent = 'prodivix:icon-library-config-updated';
 
 const iconProviders = new Map<string, IconProviderRecord>();
 const iconFallbackComponentCache = new Map<string, IconComponent>();
@@ -219,11 +216,6 @@ const persistConfiguredIconLibraryIds = (libraryIds: string[]) => {
       detail: { libraryIds },
     })
   );
-};
-
-export const getConfiguredIconLibraryIds = () => {
-  ensureIconLibraryConfigurationLoaded();
-  return [...configuredIconLibraryIds];
 };
 
 export const setConfiguredIconLibraryIds = (libraryIds: string[]) => {
@@ -640,23 +632,11 @@ const resolveFontAwesomeIcon = (name: string) => {
 
 const listFontAwesomeIconNames = () => fontAwesomeRuntime?.iconNames ?? [];
 
-let antDesignIconRuntime: IconComponentRuntime | null = null;
-let muiIconRuntime: IconComponentRuntime | null = null;
 let heroiconsOutlineRuntime: IconComponentRuntime | null = null;
 let heroiconsSolidRuntime: IconComponentRuntime | null = null;
 
 const resolveHeroiconsVariant = (value: unknown): 'outline' | 'solid' =>
   value === 'solid' ? 'solid' : 'outline';
-
-const createAntDesignIconModuleCandidates = (cacheBust: string) => [
-  `https://esm.sh/@ant-design/icons@6.1.0?target=es2022&external=react&v=${cacheBust}`,
-  `https://esm.sh/@ant-design/icons@6.1.0?bundle&target=es2022&external=react&v=${cacheBust}`,
-];
-
-const createMuiIconModuleCandidates = (cacheBust: string) => [
-  `https://esm.sh/@mui/icons-material@7.3.2?target=es2022&external=react&deps=@mui/material@7.3.2,@emotion/react,@emotion/styled&v=${cacheBust}`,
-  `https://esm.sh/@mui/icons-material@7.3.2?bundle&target=es2022&external=react&v=${cacheBust}`,
-];
 
 const createHeroiconsModuleCandidates = (
   cacheBust: string,
@@ -665,36 +645,6 @@ const createHeroiconsModuleCandidates = (
   `https://esm.sh/@heroicons/react@2.2.0/24/${variant}?target=es2022&external=react&v=${cacheBust}`,
   `https://esm.sh/@heroicons/react@2.2.0/24/${variant}?bundle&target=es2022&external=react&v=${cacheBust}`,
 ];
-
-const ensureAntDesignIconsReady = async () => {
-  if (antDesignIconRuntime) return;
-  ensureHostReactImportMap();
-  const cacheBust = Date.now().toString(36);
-  const iconModule = await loadEsmCandidates(
-    createAntDesignIconModuleCandidates(cacheBust)
-  );
-  antDesignIconRuntime = buildIconComponentRuntime(iconModule, {
-    excludeExports: [
-      'IconProvider',
-      'createFromIconfontCN',
-      'defaultTheme',
-      'getTwoToneColor',
-      'setTwoToneColor',
-    ],
-  });
-};
-
-const ensureMuiIconsReady = async () => {
-  if (muiIconRuntime) return;
-  ensureHostReactImportMap();
-  const cacheBust = Date.now().toString(36);
-  const iconModule = await loadEsmCandidates(
-    createMuiIconModuleCandidates(cacheBust)
-  );
-  muiIconRuntime = buildIconComponentRuntime(iconModule, {
-    excludeExports: ['createSvgIcon'],
-  });
-};
 
 const ensureHeroiconsOutlineReady = async () => {
   if (heroiconsOutlineRuntime) return;
@@ -730,12 +680,6 @@ const ensureHeroiconsReady = async () => {
   });
 };
 
-const resolveAntDesignIcon = (name: string) =>
-  resolveIconFromRuntime(antDesignIconRuntime, name);
-
-const resolveMuiIcon = (name: string) =>
-  resolveIconFromRuntime(muiIconRuntime, name);
-
 const resolveHeroiconsIcon = (name: string, iconRef?: IconRef) => {
   const variant = resolveHeroiconsVariant(iconRef?.variant);
   if (variant === 'solid') {
@@ -750,8 +694,6 @@ const resolveHeroiconsIcon = (name: string, iconRef?: IconRef) => {
   );
 };
 
-const listAntDesignIconNames = () => antDesignIconRuntime?.iconNames ?? [];
-const listMuiIconNames = () => muiIconRuntime?.iconNames ?? [];
 const listHeroiconsIconNames = () =>
   heroiconsOutlineRuntime?.iconNames ?? heroiconsSolidRuntime?.iconNames ?? [];
 
@@ -766,22 +708,6 @@ registerIconProvider('fontawesome', {
   resolve: resolveFontAwesomeIcon,
   listIcons: listFontAwesomeIconNames,
   ensureReady: ensureFontAwesomeReady,
-  configurable: true,
-});
-
-registerIconProvider('ant-design-icons', {
-  label: 'Ant Design Icons',
-  resolve: resolveAntDesignIcon,
-  listIcons: listAntDesignIconNames,
-  ensureReady: ensureAntDesignIconsReady,
-  configurable: true,
-});
-
-registerIconProvider('mui-icons', {
-  label: 'Material Icons',
-  resolve: resolveMuiIcon,
-  listIcons: listMuiIconNames,
-  ensureReady: ensureMuiIconsReady,
   configurable: true,
 });
 

@@ -16,6 +16,7 @@ export {
 } from './workspaceSelectors';
 export {
   applyWorkspaceCommand,
+  applyWorkspaceDocumentCommand,
   createWorkspaceDirectoryIntentRequest,
   createWorkspaceCodeDocumentCommand,
   createWorkspaceCodeDocumentIntentRequest,
@@ -45,6 +46,7 @@ export type {
   WorkspaceCommandApplyResult,
   WorkspaceCommandDomain,
   WorkspaceCommandEnvelope,
+  WorkspaceDocumentCommandApplyResult,
   WorkspaceCommandIssue,
   WorkspaceCommandIssueCode,
   WorkspacePatchOperation,

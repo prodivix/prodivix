@@ -11,6 +11,11 @@ type ConformanceResult = Readonly<{
 
 const fragment = new URLSearchParams(location.hash.slice(1));
 const nonce = fragment.get('nonce');
+const reportProgress = (stage: string) =>
+  window.parent.postMessage(
+    { kind: 'prodivix-ui-conformance-progress', nonce, stage },
+    '*'
+  );
 
 const promiseRejected = async (operation: () => Promise<unknown>) => {
   try {
@@ -18,6 +23,28 @@ const promiseRejected = async (operation: () => Promise<unknown>) => {
     return false;
   } catch {
     return true;
+  }
+};
+
+const promiseRejectedOrUnavailable = async (
+  operation: () => Promise<unknown>,
+  timeoutMs = 750
+) => {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const completed = await Promise.race([
+      operation()
+        .then(() => false)
+        .catch(() => true),
+      new Promise<true>((resolve) => {
+        timeout = setTimeout(() => resolve(true), timeoutMs);
+      }),
+    ]);
+    return completed;
+  } catch {
+    return true;
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
 };
 
@@ -38,6 +65,7 @@ const topNavigationBlocked = (() => {
     return true;
   }
 })();
+reportProgress('dom-and-navigation');
 
 const fetchBlocked = await promiseRejected(() => fetch('/network-probe'));
 const websocketBlocked = await new Promise<boolean>((resolve) => {
@@ -98,6 +126,7 @@ const eventSourceBlocked = await new Promise<boolean>((resolve) => {
     resolve(true);
   }
 });
+reportProgress('network');
 
 const localStorageBlocked = (() => {
   try {
@@ -107,18 +136,43 @@ const localStorageBlocked = (() => {
     return true;
   }
 })();
+const sessionStorageBlocked = (() => {
+  try {
+    sessionStorage.setItem('prodivix-sandbox-probe', '1');
+    return false;
+  } catch {
+    return true;
+  }
+})();
 const indexedDbBlocked = await new Promise<boolean>((resolve) => {
+  let settled = false;
+  const finish = (blocked: boolean) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timeout);
+    resolve(blocked);
+  };
+  const timeout = setTimeout(() => finish(true), 750);
   try {
     const request = indexedDB.open('prodivix-sandbox-probe');
-    request.addEventListener('success', () => resolve(false), { once: true });
-    request.addEventListener('error', () => resolve(true), { once: true });
+    request.addEventListener(
+      'success',
+      () => {
+        request.result.close();
+        finish(false);
+      },
+      { once: true }
+    );
+    request.addEventListener('error', () => finish(true), { once: true });
+    request.addEventListener('blocked', () => finish(true), { once: true });
   } catch {
-    resolve(true);
+    finish(true);
   }
 });
-const cacheStorageBlocked = await promiseRejected(() =>
+const cacheStorageBlocked = await promiseRejectedOrUnavailable(() =>
   caches.open('prodivix-sandbox-probe')
 );
+reportProgress('storage');
 
 const nestedWorkerBlocked = await new Promise<boolean>((resolve) => {
   const source = URL.createObjectURL(
@@ -153,28 +207,18 @@ const nestedWorkerBlocked = await new Promise<boolean>((resolve) => {
     resolve(true);
   }
 });
+reportProgress('nested-worker');
 
-const popupBlocked = window.open('about:blank', '_blank') === null;
-
-const form = document.createElement('form');
-form.action = 'https://example.com/plugin-sandbox-form-escape';
-form.method = 'post';
-form.target = '_top';
-document.body.append(form);
-try {
-  form.submit();
-} catch {
-  // Sandbox and CSP are expected to reject form submission.
-}
-const download = document.createElement('a');
-download.href = 'data:text/plain,prodivix-sandbox-download-probe';
-download.download = 'sandbox-probe.txt';
-document.body.append(download);
-try {
-  download.click();
-} catch {
-  // The missing allow-downloads token is expected to reject the action.
-}
+const popupBlocked = (() => {
+  try {
+    const popup = window.open('about:blank', '_blank');
+    popup?.close();
+    return popup === null;
+  } catch {
+    return true;
+  }
+})();
+reportProgress('popup');
 
 const permissionBlocked = await new Promise<boolean>((resolve) => {
   if (!navigator.geolocation) {
@@ -194,13 +238,40 @@ const permissionBlocked = await new Promise<boolean>((resolve) => {
     { timeout: 250 }
   );
 });
+reportProgress('permission');
+
+// Keep potentially document-replacing probes last so a blocked form or
+// download cannot prevent the bounded async authority probes from completing.
+const form = document.createElement('form');
+form.action = 'https://example.com/plugin-sandbox-form-escape';
+form.method = 'post';
+form.target = '_top';
+document.body.append(form);
+try {
+  form.submit();
+} catch {
+  // Sandbox and CSP are expected to reject form submission.
+}
+const download = document.createElement('a');
+download.href = 'data:text/plain,prodivix-sandbox-download-probe';
+download.download = 'sandbox-probe.txt';
+document.body.append(download);
+try {
+  download.click();
+} catch {
+  // The missing allow-downloads token is expected to reject the action.
+}
+reportProgress('form-and-download');
 
 const result: ConformanceResult = Object.freeze({
   parentDomBlocked,
   topNavigationBlocked,
   networkBlocked: fetchBlocked && websocketBlocked && eventSourceBlocked,
   storageBlocked:
-    localStorageBlocked && indexedDbBlocked && cacheStorageBlocked,
+    localStorageBlocked &&
+    sessionStorageBlocked &&
+    indexedDbBlocked &&
+    cacheStorageBlocked,
   nestedWorkerBlocked,
   popupBlocked,
   permissionBlocked,

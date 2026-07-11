@@ -68,6 +68,10 @@ export default defineConfig({
               text: '作者态符号环境',
               link: '/reference/authoring-symbol-environment',
             },
+            {
+              text: '插件包与 Blueprint Template',
+              link: '/reference/plugin-package-and-blueprint-template',
+            },
             { text: 'Code 诊断', link: '/reference/code-diagnostics' },
             { text: 'UX 诊断', link: '/reference/ux-diagnostics' },
             { text: '错误码与诊断', link: '/reference/diagnostic-codes' },
@@ -271,18 +275,6 @@ export default defineConfig({
                 { text: 'COD-5013', link: '/reference/diagnostics/cod-5013' },
                 { text: 'COD-9001', link: '/reference/diagnostics/cod-9001' },
                 { text: 'COD-9002', link: '/reference/diagnostics/cod-9002' },
-              ],
-            },
-            {
-              text: 'External Library',
-              link: '/reference/diagnostics/elib',
-              collapsed: true,
-              items: [
-                { text: 'ELIB-1001', link: '/reference/diagnostics/elib-1001' },
-                { text: 'ELIB-1004', link: '/reference/diagnostics/elib-1004' },
-                { text: 'ELIB-1099', link: '/reference/diagnostics/elib-1099' },
-                { text: 'ELIB-2001', link: '/reference/diagnostics/elib-2001' },
-                { text: 'ELIB-3001', link: '/reference/diagnostics/elib-3001' },
               ],
             },
             {

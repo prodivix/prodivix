@@ -1,0 +1,1080 @@
+{
+  "$schema": "https://prodivix.dev/schemas/blueprint-template-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "surface": "blueprint.components",
+  "templates": [
+    {
+      "id": "radix.accordion",
+      "palette": {
+        "contributionId": "radix.palette",
+        "itemId": "radix-accordion"
+      },
+      "primaryLocalId": "accordion",
+      "fragment": {
+        "rootLocalIds": ["accordion"],
+        "nodesByLocalId": {
+          "accordion": {
+            "type": "RadixAccordionRoot",
+            "props": {
+              "type": "single",
+              "defaultValue": "item-1",
+              "collapsible": true
+            },
+            "style": {
+              "width": 280,
+              "border": "1px solid #d4d4d4",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff"
+            }
+          },
+          "item": {
+            "type": "RadixAccordionItem",
+            "props": { "value": "item-1" }
+          },
+          "header": {
+            "type": "RadixAccordionHeader",
+            "style": { "margin": 0 }
+          },
+          "trigger": {
+            "type": "RadixAccordionTrigger",
+            "text": "Accordion item",
+            "style": {
+              "width": "100%",
+              "padding": 12,
+              "border": 0,
+              "backgroundColor": "#f5f5f5",
+              "color": "#171717",
+              "fontWeight": 600,
+              "textAlign": "left",
+              "cursor": "pointer"
+            }
+          },
+          "content": {
+            "type": "RadixAccordionContent",
+            "text": "Accordion content",
+            "style": {
+              "padding": 12,
+              "color": "#525252"
+            }
+          }
+        },
+        "childIdsByLocalId": {
+          "accordion": ["item"],
+          "item": ["header", "content"],
+          "header": ["trigger"],
+          "trigger": [],
+          "content": []
+        }
+      }
+    },
+    {
+      "id": "radix.tabs",
+      "palette": {
+        "contributionId": "radix.palette",
+        "itemId": "radix-tabs"
+      },
+      "primaryLocalId": "tabs",
+      "fragment": {
+        "rootLocalIds": ["tabs"],
+        "nodesByLocalId": {
+          "tabs": {
+            "type": "RadixTabsRoot",
+            "props": { "defaultValue": "tab-1" },
+            "style": {
+              "width": 300,
+              "border": "1px solid #d4d4d4",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff"
+            }
+          },
+          "list": {
+            "type": "RadixTabsList",
+            "props": { "aria-label": "Example tabs" },
+            "style": {
+              "display": "flex",
+              "gap": 4,
+              "padding": 4,
+              "borderBottom": "1px solid #e5e5e5"
+            }
+          },
+          "trigger-1": {
+            "type": "RadixTabsTrigger",
+            "props": { "value": "tab-1" },
+            "text": "First",
+            "style": {
+              "padding": "6px 10px",
+              "border": 0,
+              "borderRadius": 4,
+              "backgroundColor": "#e5e5e5",
+              "cursor": "pointer"
+            }
+          },
+          "trigger-2": {
+            "type": "RadixTabsTrigger",
+            "props": { "value": "tab-2" },
+            "text": "Second",
+            "style": {
+              "padding": "6px 10px",
+              "border": 0,
+              "borderRadius": 4,
+              "backgroundColor": "transparent",
+              "cursor": "pointer"
+            }
+          },
+          "content-1": {
+            "type": "RadixTabsContent",
+            "props": { "value": "tab-1" },
+            "text": "First tab content",
+            "style": { "padding": 12, "color": "#404040" }
+          },
+          "content-2": {
+            "type": "RadixTabsContent",
+            "props": { "value": "tab-2" },
+            "text": "Second tab content",
+            "style": { "padding": 12, "color": "#404040" }
+          }
+        },
+        "childIdsByLocalId": {
+          "tabs": ["list", "content-1", "content-2"],
+          "list": ["trigger-1", "trigger-2"],
+          "trigger-1": [],
+          "trigger-2": [],
+          "content-1": [],
+          "content-2": []
+        }
+      }
+    },
+    {
+      "id": "radix.dialog",
+      "palette": {
+        "contributionId": "radix.palette",
+        "itemId": "radix-dialog"
+      },
+      "primaryLocalId": "dialog",
+      "fragment": {
+        "rootLocalIds": ["dialog"],
+        "nodesByLocalId": {
+          "dialog": {
+            "type": "RadixDialogRoot",
+            "props": { "defaultOpen": false, "modal": false }
+          },
+          "trigger": {
+            "type": "RadixDialogTrigger",
+            "text": "Open dialog",
+            "style": {
+              "padding": "8px 12px",
+              "border": "1px solid #a3a3a3",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff",
+              "cursor": "pointer"
+            }
+          },
+          "portal": { "type": "RadixDialogPortal" },
+          "overlay": {
+            "type": "RadixDialogOverlay",
+            "style": {
+              "position": "absolute",
+              "inset": 0,
+              "backgroundColor": "rgba(0, 0, 0, 0.28)"
+            }
+          },
+          "content": {
+            "type": "RadixDialogContent",
+            "style": {
+              "position": "absolute",
+              "top": "50%",
+              "left": "50%",
+              "width": 320,
+              "padding": 20,
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff",
+              "boxShadow": "0 16px 48px rgba(0, 0, 0, 0.24)",
+              "transform": "translate(-50%, -50%)"
+            }
+          },
+          "title": {
+            "type": "RadixDialogTitle",
+            "text": "Dialog title",
+            "style": { "fontSize": 18, "fontWeight": 600 }
+          },
+          "description": {
+            "type": "RadixDialogDescription",
+            "text": "Dialog description",
+            "style": { "marginTop": 8, "color": "#525252" }
+          },
+          "close": {
+            "type": "RadixDialogClose",
+            "text": "Close",
+            "style": {
+              "marginTop": 16,
+              "padding": "6px 10px",
+              "border": "1px solid #a3a3a3",
+              "borderRadius": 4,
+              "backgroundColor": "#ffffff",
+              "cursor": "pointer"
+            }
+          }
+        },
+        "childIdsByLocalId": {
+          "dialog": ["trigger", "portal"],
+          "trigger": [],
+          "portal": ["overlay", "content"],
+          "overlay": [],
+          "content": ["title", "description", "close"],
+          "title": [],
+          "description": [],
+          "close": []
+        }
+      }
+    },
+    {
+      "id": "radix.popover",
+      "palette": {
+        "contributionId": "radix.palette",
+        "itemId": "radix-popover"
+      },
+      "primaryLocalId": "popover",
+      "fragment": {
+        "rootLocalIds": ["popover"],
+        "nodesByLocalId": {
+          "popover": {
+            "type": "RadixPopoverRoot",
+            "props": { "defaultOpen": false, "modal": false }
+          },
+          "trigger": {
+            "type": "RadixPopoverTrigger",
+            "text": "Open popover",
+            "style": {
+              "padding": "8px 12px",
+              "border": "1px solid #a3a3a3",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff",
+              "cursor": "pointer"
+            }
+          },
+          "portal": { "type": "RadixPopoverPortal" },
+          "content": {
+            "type": "RadixPopoverContent",
+            "props": { "side": "bottom", "sideOffset": 8 },
+            "text": "Popover content",
+            "style": {
+              "maxWidth": 240,
+              "padding": 12,
+              "border": "1px solid #d4d4d4",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff",
+              "boxShadow": "0 8px 24px rgba(0, 0, 0, 0.16)"
+            }
+          }
+        },
+        "childIdsByLocalId": {
+          "popover": ["trigger", "portal"],
+          "trigger": [],
+          "portal": ["content"],
+          "content": []
+        }
+      }
+    },
+    {
+      "id": "radix.tooltip",
+      "palette": {
+        "contributionId": "radix.palette",
+        "itemId": "radix-tooltip"
+      },
+      "primaryLocalId": "tooltip",
+      "fragment": {
+        "rootLocalIds": ["provider"],
+        "nodesByLocalId": {
+          "provider": {
+            "type": "RadixTooltipProvider",
+            "props": { "delayDuration": 0, "skipDelayDuration": 0 }
+          },
+          "tooltip": {
+            "type": "RadixTooltipRoot",
+            "props": { "defaultOpen": false }
+          },
+          "trigger": {
+            "type": "RadixTooltipTrigger",
+            "text": "Hover for help",
+            "style": {
+              "padding": "8px 12px",
+              "border": "1px solid #a3a3a3",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff",
+              "cursor": "help"
+            }
+          },
+          "portal": { "type": "RadixTooltipPortal" },
+          "content": {
+            "type": "RadixTooltipContent",
+            "props": { "side": "top", "sideOffset": 6 },
+            "text": "Helpful information",
+            "style": {
+              "padding": "5px 8px",
+              "borderRadius": 4,
+              "backgroundColor": "#171717",
+              "color": "#ffffff",
+              "fontSize": 12
+            }
+          },
+          "arrow": {
+            "type": "RadixTooltipArrow",
+            "props": { "width": 10, "height": 5 },
+            "style": { "fill": "#171717" }
+          }
+        },
+        "childIdsByLocalId": {
+          "provider": ["tooltip"],
+          "tooltip": ["trigger", "portal"],
+          "trigger": [],
+          "portal": ["content"],
+          "content": ["arrow"],
+          "arrow": []
+        }
+      }
+    },
+    {
+      "id": "radix.dropdown-menu",
+      "palette": {
+        "contributionId": "radix.palette",
+        "itemId": "radix-dropdown-menu"
+      },
+      "primaryLocalId": "menu",
+      "fragment": {
+        "rootLocalIds": ["menu"],
+        "nodesByLocalId": {
+          "menu": {
+            "type": "RadixDropdownMenuRoot",
+            "props": { "defaultOpen": false, "modal": false }
+          },
+          "trigger": {
+            "type": "RadixDropdownMenuTrigger",
+            "text": "Open menu",
+            "style": {
+              "padding": "8px 12px",
+              "border": "1px solid #a3a3a3",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff",
+              "cursor": "pointer"
+            }
+          },
+          "portal": { "type": "RadixDropdownMenuPortal" },
+          "content": {
+            "type": "RadixDropdownMenuContent",
+            "props": { "side": "bottom", "sideOffset": 6, "loop": true },
+            "style": {
+              "minWidth": 180,
+              "padding": 4,
+              "border": "1px solid #d4d4d4",
+              "borderRadius": 6,
+              "backgroundColor": "#ffffff",
+              "boxShadow": "0 8px 24px rgba(0, 0, 0, 0.16)"
+            }
+          },
+          "item": {
+            "type": "RadixDropdownMenuItem",
+            "props": { "textValue": "Menu item" },
+            "text": "Menu item",
+            "style": {
+              "padding": "6px 8px",
+              "borderRadius": 4,
+              "cursor": "pointer"
+            }
+          }
+        },
+        "childIdsByLocalId": {
+          "menu": ["trigger", "portal"],
+          "trigger": [],
+          "portal": ["content"],
+          "content": ["item"],
+          "item": []
+        }
+      }
+    },
+    {
+      "id": "radix.switch",
+      "palette": {
+        "contributionId": "radix.palette",
+        "itemId": "radix-switch"
+      },
+      "primaryLocalId": "switch",
+      "fragment": {
+        "rootLocalIds": ["switch"],
+        "nodesByLocalId": {
+          "switch": {
+            "type": "RadixSwitchRoot",
+            "props": {
+              "defaultChecked": false,
+              "aria-label": "Toggle setting"
+            },
+            "style": {
+              "position": "relative",
+              "width": 40,
+              "height": 22,
+              "padding": 2,
+              "border": 0,
+              "borderRadius": 11,
+              "backgroundColor": "#737373",
+              "cursor": "pointer"
+            }
+          },
+          "thumb": {
+            "type": "RadixSwitchThumb",
+            "style": {
+              "display": "block",
+              "width": 18,
+              "height": 18,
+              "borderRadius": 9,
+              "backgroundColor": "#ffffff",
+              "boxShadow": "0 1px 3px rgba(0, 0, 0, 0.3)"
+            }
+          }
+        },
+        "childIdsByLocalId": {
+          "switch": ["thumb"],
+          "thumb": []
+        }
+      }
+    }
+  ],
+  "compositionRules": [
+    {
+      "id": "radix.slot",
+      "runtimeType": "RadixSlot",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.label",
+      "runtimeType": "RadixLabel",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.separator",
+      "runtimeType": "RadixSeparator",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 0 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.accordion-root",
+      "runtimeType": "RadixAccordionRoot",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixAccordionItem"],
+              "minItems": 1,
+              "maxItems": 128
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.accordion-item",
+      "runtimeType": "RadixAccordionItem",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixAccordionRoot"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixAccordionHeader"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixAccordionContent"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.accordion-header",
+      "runtimeType": "RadixAccordionHeader",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixAccordionItem"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixAccordionTrigger"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.accordion-trigger",
+      "runtimeType": "RadixAccordionTrigger",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixAccordionHeader"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.accordion-content",
+      "runtimeType": "RadixAccordionContent",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixAccordionItem"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.tabs-root",
+      "runtimeType": "RadixTabsRoot",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTabsList"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTabsContent"],
+              "minItems": 1,
+              "maxItems": 128
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.tabs-list",
+      "runtimeType": "RadixTabsList",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixTabsRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTabsTrigger"],
+              "minItems": 1,
+              "maxItems": 128
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.tabs-trigger",
+      "runtimeType": "RadixTabsTrigger",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixTabsList"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.tabs-content",
+      "runtimeType": "RadixTabsContent",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixTabsRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-root",
+      "runtimeType": "RadixDialogRoot",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDialogTrigger"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDialogPortal"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-trigger",
+      "runtimeType": "RadixDialogTrigger",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixDialogRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-portal",
+      "runtimeType": "RadixDialogPortal",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixDialogRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDialogOverlay"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDialogContent"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-overlay",
+      "runtimeType": "RadixDialogOverlay",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDialogPortal"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 0 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-content",
+      "runtimeType": "RadixDialogContent",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDialogPortal"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDialogTitle"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDialogDescription"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDialogClose"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-title",
+      "runtimeType": "RadixDialogTitle",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDialogContent"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-description",
+      "runtimeType": "RadixDialogDescription",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDialogContent"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.dialog-close",
+      "runtimeType": "RadixDialogClose",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDialogContent"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.popover-root",
+      "runtimeType": "RadixPopoverRoot",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixPopoverTrigger"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixPopoverPortal"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.popover-trigger",
+      "runtimeType": "RadixPopoverTrigger",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixPopoverRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.popover-portal",
+      "runtimeType": "RadixPopoverPortal",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixPopoverRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixPopoverContent"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.popover-content",
+      "runtimeType": "RadixPopoverContent",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixPopoverPortal"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.tooltip-provider",
+      "runtimeType": "RadixTooltipProvider",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTooltipRoot"],
+              "minItems": 1,
+              "maxItems": 128
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.tooltip-root",
+      "runtimeType": "RadixTooltipRoot",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixTooltipProvider"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTooltipTrigger"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTooltipPortal"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.tooltip-trigger",
+      "runtimeType": "RadixTooltipTrigger",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixTooltipRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.tooltip-portal",
+      "runtimeType": "RadixTooltipPortal",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixTooltipRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTooltipContent"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.tooltip-content",
+      "runtimeType": "RadixTooltipContent",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixTooltipPortal"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixTooltipArrow"],
+              "minItems": 0,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.tooltip-arrow",
+      "runtimeType": "RadixTooltipArrow",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixTooltipContent"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 0 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.dropdown-root",
+      "runtimeType": "RadixDropdownMenuRoot",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDropdownMenuTrigger"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDropdownMenuPortal"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.dropdown-trigger",
+      "runtimeType": "RadixDropdownMenuTrigger",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDropdownMenuRoot"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 1 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.dropdown-portal",
+      "runtimeType": "RadixDropdownMenuPortal",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDropdownMenuRoot"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDropdownMenuContent"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.dropdown-content",
+      "runtimeType": "RadixDropdownMenuContent",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDropdownMenuPortal"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixDropdownMenuItem"],
+              "minItems": 1,
+              "maxItems": 128
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.dropdown-item",
+      "runtimeType": "RadixDropdownMenuItem",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["RadixDropdownMenuContent"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "radix.switch-root",
+      "runtimeType": "RadixSwitchRoot",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["RadixSwitchThumb"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radix.switch-thumb",
+      "runtimeType": "RadixSwitchThumb",
+      "parent": { "mode": "listed", "runtimeTypes": ["RadixSwitchRoot"] },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 0 }]
+        }
+      ]
+    }
+  ]
+}

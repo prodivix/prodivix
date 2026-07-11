@@ -1,5 +1,7 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { PluginDiagnostic } from '@prodivix/plugin-contracts';
+import type { BlueprintCompositionIssue } from '@/editor/features/blueprint/editor/model/composition';
 
 export type BlueprintEditorComponentTreeProps = {
   isCollapsed: boolean;
@@ -10,6 +12,8 @@ export type BlueprintEditorComponentTreeProps = {
     overNodeId: string;
     placement: 'before' | 'after' | 'child';
   } | null;
+  compositionIssue?: BlueprintCompositionIssue;
+  pluginDiagnostics?: readonly PluginDiagnostic[];
   onToggleCollapse: () => void;
   onSelectNode: (nodeId: string) => void;
   onDeleteSelected: () => void;

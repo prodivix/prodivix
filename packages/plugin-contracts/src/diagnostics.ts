@@ -73,6 +73,9 @@ export const PLUGIN_DIAGNOSTIC_CODES = {
   OFFICIAL_IMPLEMENTATION_BINDING_CONFLICT: 'PLG-4053',
   GATEWAY_AUDIT_UNAVAILABLE: 'PLG-4060',
   GATEWAY_AUDIT_WRITE_FAILED: 'PLG-4061',
+  OFFICIAL_COMPONENT_UNAVAILABLE: 'PLG-4070',
+  BUNDLED_OFFICIAL_LIBRARY_NOT_FOUND: 'PLG-4071',
+  OFFICIAL_COMPONENT_UNSUPPORTED: 'PLG-4072',
 } as const;
 
 export type PluginDiagnosticCode =
@@ -573,6 +576,25 @@ export const PLUGIN_DIAGNOSTIC_DEFINITIONS = {
     'Restore persistent audit storage and inspect its bounded retention policy.',
     { severity: 'warning', retryable: true }
   ),
+  [PLUGIN_DIAGNOSTIC_CODES.OFFICIAL_COMPONENT_UNAVAILABLE]:
+    definePluginDiagnostic(
+      PLUGIN_DIAGNOSTIC_CODES.OFFICIAL_COMPONENT_UNAVAILABLE,
+      'registry',
+      'Enable or reinstall the official component package that owns this PIR runtime type.',
+      { retryable: true }
+    ),
+  [PLUGIN_DIAGNOSTIC_CODES.BUNDLED_OFFICIAL_LIBRARY_NOT_FOUND]:
+    definePluginDiagnostic(
+      PLUGIN_DIAGNOSTIC_CODES.BUNDLED_OFFICIAL_LIBRARY_NOT_FOUND,
+      'registry',
+      'Remove the unknown component-library id or install a supported bundled official package.'
+    ),
+  [PLUGIN_DIAGNOSTIC_CODES.OFFICIAL_COMPONENT_UNSUPPORTED]:
+    definePluginDiagnostic(
+      PLUGIN_DIAGNOSTIC_CODES.OFFICIAL_COMPONENT_UNSUPPORTED,
+      'registry',
+      'Replace the legacy PIR node with a supported official component or template.'
+    ),
 } satisfies Record<PluginDiagnosticCode, PluginDiagnosticDefinition>;
 
 export const createPluginDiagnostic = (

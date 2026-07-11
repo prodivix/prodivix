@@ -4,12 +4,11 @@ import {
   ICON_LIBRARY_PRESET_IDS,
 } from './libraryCatalog';
 
-export const LEGACY_ICON_LIBRARY_IDS = new Set(ICON_LIBRARY_PRESET_IDS);
+const KNOWN_ICON_LIBRARY_IDS = new Set(ICON_LIBRARY_PRESET_IDS);
 
 const KNOWN_COMPONENT_LIBRARY_IDS = new Set([
   ...EXTERNAL_COMPONENT_LIBRARY_PRESET_IDS,
   '@tremor/react',
-  '@mui/material',
   '@chakra-ui/react',
   '@mantine/core',
   '@headlessui/react',
@@ -44,7 +43,6 @@ const COMPONENT_LIBRARY_PACKAGE_PATTERNS = [
   /^@mantine\//,
   /^@chakra-ui\//,
   /^@headlessui\/react$/,
-  /^@radix-ui\/react-/,
   /^@tremor\/react$/,
   /^@fluentui\/react-/,
   /^@nextui-org\//,
@@ -70,7 +68,7 @@ export const normalizeLibraryIds = (libraryIds: string[]) =>
 
 export const normalizeExternalComponentLibraryIds = (libraryIds: string[]) =>
   normalizeLibraryIds(libraryIds).filter(
-    (libraryId) => !LEGACY_ICON_LIBRARY_IDS.has(libraryId)
+    (libraryId) => !KNOWN_ICON_LIBRARY_IDS.has(libraryId)
   );
 
 export const inferLibraryScopeFromPackageName = (
@@ -80,7 +78,7 @@ export const inferLibraryScopeFromPackageName = (
   if (!normalized) return null;
   if (KNOWN_COMPONENT_LIBRARY_IDS.has(normalized)) return 'component';
   if (
-    LEGACY_ICON_LIBRARY_IDS.has(normalized) ||
+    KNOWN_ICON_LIBRARY_IDS.has(normalized) ||
     ICON_LIBRARY_PACKAGE_PATTERNS.some((pattern) => pattern.test(normalized))
   ) {
     return 'icon';

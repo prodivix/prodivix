@@ -1,11 +1,7 @@
 import type { ActiveLibrary, PackageSizeThresholds } from './types';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  formatPackageSize,
-  getPackageSizeMeta,
-  getStatusMeta,
-} from './viewUtils';
+import { formatPackageSize, getPackageSizeMeta } from './viewUtils';
 
 type ExternalLibraryListPanelProps = {
   activeLibraries: ActiveLibrary[];
@@ -17,7 +13,6 @@ type ExternalLibraryListPanelProps = {
   onSelectLibrary: (libraryId: string) => void;
   onOpenAddModal: () => void;
   onRemoveLibrary: (libraryId: string) => void;
-  onRetryLibrary: (libraryId: string, version: string) => void;
   onVersionChange: (libraryId: string, version: string) => void;
 };
 
@@ -31,13 +26,9 @@ export function ExternalLibraryListPanel({
   onSelectLibrary,
   onOpenAddModal,
   onRemoveLibrary,
-  onRetryLibrary,
   onVersionChange,
 }: ExternalLibraryListPanelProps) {
   const { t } = useTranslation('editor');
-
-  const resolveStatusText = (status: ActiveLibrary['status']) =>
-    t(`resourceManager.external.status.${status}`);
 
   const resolvePackageLevelLabel = (level: string) =>
     t(`resourceManager.external.package.level.${level}`);
@@ -81,7 +72,6 @@ export function ExternalLibraryListPanel({
       ) : (
         <div className="grid gap-2">
           {filteredLibraries.map((library) => {
-            const statusMeta = getStatusMeta(library.status);
             const packageSizeMeta = getPackageSizeMeta(
               library.packageSizeKb,
               packageSizeThresholds
@@ -111,11 +101,6 @@ export function ExternalLibraryListPanel({
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-(--text-secondary)">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${statusMeta.dot}`}
-                    />
-                    <span>{resolveStatusText(library.status)}</span>
-                    <span>·</span>
                     <span>{formatPackageSize(library.packageSizeKb)}</span>
                     {packageSizeMeta.level !== 'healthy' ? (
                       <>
@@ -135,17 +120,6 @@ export function ExternalLibraryListPanel({
                     </span>
                   </div>
                 </button>
-                {library.status === 'loading' ? (
-                  <div className="grid gap-1">
-                    <div className="h-2 w-2/3 animate-pulse rounded bg-(--border-default)" />
-                    <div className="h-2 w-1/2 animate-pulse rounded bg-(--border-default)" />
-                  </div>
-                ) : null}
-                {library.status === 'error' ? (
-                  <p className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700">
-                    {library.errorMessage}
-                  </p>
-                ) : null}
                 {packageSizeMeta.level !== 'healthy' ? (
                   <p
                     className={`rounded-lg border px-2 py-1 text-xs ${packageSizeMeta.bannerClassName}`}
@@ -179,18 +153,6 @@ export function ExternalLibraryListPanel({
                   >
                     {t('resourceManager.external.actions.remove')}
                   </button>
-                  {library.status === 'error' ? (
-                    <button
-                      type="button"
-                      data-testid={`external-library-retry-${library.id}`}
-                      className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs text-rose-700"
-                      onClick={() =>
-                        onRetryLibrary(library.id, library.version)
-                      }
-                    >
-                      {t('resourceManager.external.actions.retry')}
-                    </button>
-                  ) : null}
                 </div>
               </section>
             );

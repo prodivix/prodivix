@@ -37,6 +37,8 @@ export function BlueprintEditorComponentTree({
   selectedId,
   hiddenNodeIds,
   dropHint,
+  compositionIssue,
+  pluginDiagnostics = [],
   onToggleCollapse,
   onSelectNode,
   onDeleteSelected,
@@ -314,6 +316,27 @@ export function BlueprintEditorComponentTree({
           </button>
         </div>
       </div>
+      {pluginDiagnostics.map((diagnostic) => (
+        <div
+          key={`${diagnostic.code}-${String(diagnostic.meta.nodeId)}`}
+          className="mx-2 mb-1 rounded border border-(--danger-color) px-2 py-1.5 text-[10px] text-(--danger-color)"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="mr-1 font-medium">[{diagnostic.code}]</span>
+          <span>{diagnostic.message}</span>
+        </div>
+      ))}
+      {compositionIssue ? (
+        <div
+          className="mx-2 mb-1 rounded border border-(--danger-color) px-2 py-1.5 text-[10px] text-(--danger-color)"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="mr-1 font-medium">[{compositionIssue.code}]</span>
+          <span>{compositionIssue.message}</span>
+        </div>
+      ) : null}
       <div
         className={`BlueprintEditorTreeBody min-h-0 flex-1 overflow-auto px-2 pt-1 pb-1.5 ${isOverRoot ? 'IsOver' : ''}`}
         ref={setRootDropRef}

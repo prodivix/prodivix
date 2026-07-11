@@ -1,0 +1,34 @@
+{
+  "$schema": "https://prodivix.dev/schemas/icon-provider-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "providerId": "mui-icons",
+  "libraryId": "mui",
+  "displayName": "Material Icons",
+  "package": {
+    "name": "@mui/icons-material",
+    "version": "7.3.2",
+    "license": "MIT"
+  },
+  "hostImplementationId": "mui.icons",
+  "exports": {
+    "strategy": "named-exports"
+  },
+  "normalization": {
+    "inputCase": "preserve",
+    "exportCase": "pascal"
+  },
+  "render": {
+    "size": { "mode": "style-font-size" },
+    "colorProp": "htmlColor"
+  },
+  "codegen": {
+    "importKind": "named",
+    "sourceMode": "package"
+  },
+  "limits": {
+    "maxIcons": 15000,
+    "maxNameLength": 160,
+    "maxResponseBytes": 8388608,
+    "maxCacheEntries": 2048
+  }
+}

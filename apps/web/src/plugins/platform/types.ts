@@ -1,4 +1,7 @@
 import type {
+  BlueprintTemplateContributionV1,
+  BlueprintCompositionRule,
+  BlueprintTemplateDescriptor,
   CodegenPolicyContributionV1,
   ExternalLibraryContributionV1,
   IconProviderContributionV1,
@@ -16,6 +19,7 @@ import type {
   PluginHostResult,
   PluginHostSnapshot,
   PluginPackageSource,
+  PluginOwnerRef,
   PluginTrustLevel,
 } from '@prodivix/plugin-host';
 import type {
@@ -29,6 +33,11 @@ import type {
 import type { ComponentAdapter } from '@/pir/renderer/registry';
 import type { IconProviderRegistration } from '@/pir/renderer/iconRegistry';
 import type { OfficialHostImplementationBindingSnapshot } from '@/plugins/platform/officialHostImplementations';
+import type {
+  BundledPluginArtifactV1,
+  BundledPluginInstallationState,
+} from '@prodivix/plugin-package';
+import type { OfficialSurfaceLeaseRegistry } from '@/plugins/platform/officialSurfaceHost';
 
 export type ResolvedExternalLibraryContribution = Readonly<{
   descriptor: ExternalLibraryContributionV1;
@@ -38,8 +47,23 @@ export type ResolvedExternalLibraryContribution = Readonly<{
     exportName: string;
     componentName: string;
     runtimeType: string;
-    component: ElementType;
+    component?: ElementType;
   }>[];
+}>;
+
+export type ExternalComponentPropMetadata = Readonly<
+  NonNullable<
+    ExternalLibraryContributionV1['components'][number]['props']
+  >[number]
+>;
+
+export type ExternalComponentMetadataProjection = Readonly<{
+  owner: PluginOwnerRef;
+  contributionId: string;
+  libraryId: string;
+  componentName: string;
+  runtimeType: string;
+  props: readonly ExternalComponentPropMetadata[];
 }>;
 
 export type ResolvedRenderPolicyContribution = Readonly<{
@@ -71,12 +95,17 @@ export type ResolvedIconProviderContribution = Readonly<{
   runtime: IconProviderRegistration;
 }>;
 
+export type ResolvedBlueprintTemplateContribution = Readonly<{
+  descriptor: BlueprintTemplateContributionV1;
+}>;
+
 export type WebContributionPointMap = {
   paletteContribution: ResolvedPaletteContribution;
   externalLibrary: ResolvedExternalLibraryContribution;
   renderPolicy: ResolvedRenderPolicyContribution;
   codegenPolicy: ResolvedCodegenPolicyContribution;
   iconProvider: ResolvedIconProviderContribution;
+  blueprintTemplate: ResolvedBlueprintTemplateContribution;
 };
 
 export type PaletteRegistrySnapshot = Readonly<{
@@ -84,16 +113,50 @@ export type PaletteRegistrySnapshot = Readonly<{
   groups: readonly ComponentGroup[];
   itemsById: ReadonlyMap<string, ComponentPreviewItem>;
   itemsByRuntimeType: ReadonlyMap<string, ComponentPreviewItem>;
+  creationRecipesByItemId: ReadonlyMap<string, PaletteItemCreationRecipe>;
+  compositionRulesByRuntimeType: ReadonlyMap<
+    string,
+    ResolvedBlueprintCompositionRule
+  >;
+}>;
+
+type PaletteItemCreationRecipeBase = Readonly<{
+  owner: PluginOwnerRef;
+  paletteContributionId: string;
+  itemId: string;
+}>;
+
+export type PaletteItemCreationRecipe =
+  | (PaletteItemCreationRecipeBase & Readonly<{ kind: 'native' }>)
+  | (PaletteItemCreationRecipeBase &
+      Readonly<{ kind: 'direct'; runtimeType: string }>)
+  | (PaletteItemCreationRecipeBase &
+      Readonly<{
+        kind: 'template';
+        templateContributionId: string;
+        template: BlueprintTemplateDescriptor;
+      }>);
+
+export type ResolvedBlueprintCompositionRule = Readonly<{
+  owner: PluginOwnerRef;
+  contributionId: string;
+  rule: BlueprintCompositionRule;
 }>;
 
 export type PaletteQueryService = Readonly<{
   getSnapshot(): PaletteRegistrySnapshot;
   getItemById(itemId: string): ComponentPreviewItem | undefined;
   getItemByRuntimeType(runtimeType: string): ComponentPreviewItem | undefined;
+  getCreationRecipe(itemId: string): PaletteItemCreationRecipe | undefined;
+  getCompositionRule(
+    runtimeType: string
+  ): ResolvedBlueprintCompositionRule | undefined;
   subscribe(listener: () => void): () => void;
 }>;
 
 export type RendererComponentProjection = Readonly<{
+  owner: PluginOwnerRef;
+  contributionId: string;
   libraryId: string;
   runtimeType: string;
   component: ElementType;
@@ -103,6 +166,10 @@ export type RendererComponentProjection = Readonly<{
 export type WebExtensionRegistrySnapshot = Readonly<{
   revision: number;
   externalLibraries: readonly ResolvedExternalLibraryContribution[];
+  externalComponentsByRuntimeType: ReadonlyMap<
+    string,
+    ExternalComponentMetadataProjection
+  >;
   rendererComponents: readonly RendererComponentProjection[];
   iconProviders: readonly ResolvedIconProviderContribution[];
   codegenPolicy: CodegenPolicySnapshot;
@@ -119,14 +186,25 @@ export type WebPluginQueryServices = Readonly<{
   extensions: WebExtensionQueryService;
 }>;
 
-export type TrustedWebContributionInput = Readonly<{
-  id: string;
-  point: keyof WebContributionPointMap;
-  contractVersion: string;
-  descriptor: Readonly<Record<string, JsonValue>>;
-  metadata?: Readonly<Record<string, JsonValue>>;
-  paletteProjection?: PaletteRuntimeProjection;
-}>;
+type TrustedWebContributionDescriptorMap = {
+  paletteContribution: PaletteContributionV1;
+  externalLibrary: ExternalLibraryContributionV1;
+  renderPolicy: RenderPolicyContributionV1;
+  codegenPolicy: CodegenPolicyContributionV1;
+  iconProvider: IconProviderContributionV1;
+  blueprintTemplate: BlueprintTemplateContributionV1;
+};
+
+export type TrustedWebContributionInput = {
+  [Point in keyof TrustedWebContributionDescriptorMap]: Readonly<{
+    id: string;
+    point: Point;
+    contractVersion: string;
+    descriptor: TrustedWebContributionDescriptorMap[Point];
+    metadata?: Readonly<Record<string, JsonValue>>;
+    paletteProjection?: PaletteRuntimeProjection;
+  }>;
+}[keyof TrustedWebContributionDescriptorMap];
 
 export type TrustedWebPluginInput = Readonly<{
   pluginId: string;
@@ -159,11 +237,27 @@ export type WebPluginPackageService = Readonly<{
     signal?: AbortSignal
   ): Promise<PluginHostResult<PluginHostSnapshot>>;
   discover(
-    source: PluginPackageSource
+    source: PluginPackageSource,
+    signal?: AbortSignal
+  ): Promise<PluginHostResult<PluginHostSnapshot>>;
+  installBundled(
+    artifact: BundledPluginArtifactV1,
+    options: Readonly<{
+      installationId: string;
+      sourceId: string;
+      trustLevel: Extract<
+        PluginTrustLevel,
+        'core' | 'official' | 'development'
+      >;
+      publisherVerified: boolean;
+      signatureKeyId?: string;
+      signal?: AbortSignal;
+    }>
   ): Promise<PluginHostResult<PluginHostSnapshot>>;
   disable(pluginId: string): Promise<PluginHostResult<void>>;
   getSnapshot(pluginId: string): PluginHostSnapshot | undefined;
   listSnapshots(): readonly PluginHostSnapshot[];
+  listBundledInstallations(): readonly BundledPluginInstallationState[];
   subscribe(listener: (snapshot: PluginHostSnapshot) => void): Disposable;
   contributions: ContributionRegistryReader<WebContributionPointMap>;
 }>;
@@ -181,6 +275,7 @@ export type WebPluginRuntimeServices = Readonly<{
   workspaceId: string;
   packages: WebPluginPackageService;
   paletteContributions: PaletteContributionService;
+  surfaceLeases: OfficialSurfaceLeaseRegistry;
   registerCleanup(
     cleanup: () => void | Promise<void>
   ): Disposable & Readonly<{ run(): Promise<void> }>;

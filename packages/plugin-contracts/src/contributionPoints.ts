@@ -6,6 +6,7 @@ export const BUILT_IN_CONTRIBUTION_POINTS = Object.freeze([
   'renderPolicy',
   'codegenPolicy',
   'iconProvider',
+  'blueprintTemplate',
   'inspectorContribution',
   'paletteContribution',
   'animationExtension',

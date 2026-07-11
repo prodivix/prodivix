@@ -144,7 +144,7 @@ export const PALETTE_CONTRIBUTION_V1_SCHEMA: object = {
           type: 'object',
           additionalProperties: false,
           required: ['section'],
-          properties: { section: { enum: ['builtIn', 'headless'] } },
+          properties: { section: { const: 'builtIn' } },
         },
         {
           type: 'object',

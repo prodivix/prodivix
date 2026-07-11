@@ -1,0 +1,109 @@
+{
+  "$schema": "https://prodivix.dev/schemas/plugin-manifest-v1.schema.json",
+  "capabilities": [
+    {
+      "id": "extension.register",
+      "reason": "Register the official Material UI component library descriptor.",
+      "scope": "externalLibrary"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Add supported Material UI components to the Blueprint Palette.",
+      "scope": "paletteContribution"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Create the normalized Material UI Accordion fragment.",
+      "scope": "blueprintTemplate"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Render Material UI components safely on controlled editor surfaces.",
+      "scope": "renderPolicy"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Generate exact Material UI React imports and elements.",
+      "scope": "codegenPolicy"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Resolve bundled Material Icons for rendering and code generation.",
+      "scope": "iconProvider"
+    }
+  ],
+  "contributes": [
+    {
+      "contractVersion": "1.0",
+      "id": "mui.library",
+      "point": "externalLibrary",
+      "source": {
+        "integrity": "sha256-kf+hmPuheLd6aLkJpSnHnI0hjgG3Cv5QlIPe9CpdZQ0=",
+        "kind": "resource",
+        "path": "./contributions/external-library.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "mui.palette",
+      "point": "paletteContribution",
+      "source": {
+        "integrity": "sha256-X4ZAwy0SGJBacpFTlPujOjbEq311Vwfjp2zCcoZMdY4=",
+        "kind": "resource",
+        "path": "./contributions/palette.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "mui.templates",
+      "point": "blueprintTemplate",
+      "source": {
+        "integrity": "sha256-mgTG18lLlvETG8Iyim1K4zzfAAJSFoq/RaUC5k1k//k=",
+        "kind": "resource",
+        "path": "./contributions/blueprint-template.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "mui.render",
+      "point": "renderPolicy",
+      "source": {
+        "integrity": "sha256-OvYuA8QV9V5yXzScEqI0iB+Ye0zp9olZN/0OyPEnZPg=",
+        "kind": "resource",
+        "path": "./contributions/render-policy.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "mui.react-codegen",
+      "point": "codegenPolicy",
+      "source": {
+        "integrity": "sha256-u9jAmX35QtpMW521Y6g09H20bhJlfGHUMCEeCAafUjI=",
+        "kind": "resource",
+        "path": "./contributions/codegen-policy.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "mui.icons",
+      "point": "iconProvider",
+      "source": {
+        "integrity": "sha256-Lr3XSnF92Qd5TihRNUOw5Z+Z0LLNHZrBuLyc2Ezvxy8=",
+        "kind": "resource",
+        "path": "./contributions/icon-provider.json"
+      }
+    }
+  ],
+  "description": "Official Material UI component, rendering, icon, and React code generation integration.",
+  "displayName": "Material UI",
+  "engines": { "prodivix": ">=0.1.0 <1.0.0" },
+  "id": "@prodivix/plugin-mui",
+  "license": "MIT",
+  "metadata": {
+    "categories": ["Component libraries"],
+    "tags": ["official", "components", "react", "mui"]
+  },
+  "publisher": "prodivix",
+  "schemaVersion": "1.0",
+  "version": "0.1.0"
+}

@@ -1,6 +1,6 @@
-import type { LibraryStatus, PackageSizeThresholds } from './types';
+import type { PackageSizeThresholds } from './types';
 
-export type PackageSizeLevel = 'healthy' | 'caution' | 'warning' | 'critical';
+type PackageSizeLevel = 'healthy' | 'caution' | 'warning' | 'critical';
 
 type PackageSizeMeta = {
   level: PackageSizeLevel;
@@ -86,13 +86,4 @@ export const getPackageSizeMeta = (
     badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     bannerClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   };
-};
-
-export const getStatusMeta = (status: LibraryStatus) => {
-  if (status === 'success') return { text: 'Loaded', dot: 'bg-emerald-500' };
-  if (status === 'warning')
-    return { text: 'Loaded with warning', dot: 'bg-amber-500' };
-  if (status === 'loading') return { text: 'Loading', dot: 'bg-yellow-500' };
-  if (status === 'error') return { text: 'Load failed', dot: 'bg-rose-500' };
-  return { text: 'Idle', dot: 'bg-slate-400' };
 };

@@ -1,0 +1,248 @@
+/**
+ * Generated from specs/plugins/blueprint-template-contribution-v1.schema.json.
+ * DO NOT EDIT. Run `pnpm --filter @prodivix/plugin-contracts generate`.
+ */
+
+export const BLUEPRINT_TEMPLATE_CONTRIBUTION_V1_SCHEMA_ID =
+  'https://prodivix.dev/schemas/blueprint-template-contribution-v1.schema.json';
+export const BLUEPRINT_TEMPLATE_CONTRIBUTION_V1_SCHEMA_VERSION = '1.0';
+export const BLUEPRINT_TEMPLATE_CONTRIBUTION_V1_SCHEMA: object = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://prodivix.dev/schemas/blueprint-template-contribution-v1.schema.json',
+  title: 'BlueprintTemplateContributionV1',
+  description:
+    'Serializable normalized PIR fragments and bounded composition rules for Blueprint Palette creation.',
+  $comment:
+    'Templates contain data-only PIR structure. Code, callbacks, framework values, node ids, events, data scopes, and list scopes are forbidden.',
+  type: 'object',
+  additionalProperties: false,
+  required: ['schemaVersion', 'surface', 'templates'],
+  properties: {
+    $schema: {
+      const:
+        'https://prodivix.dev/schemas/blueprint-template-contribution-v1.schema.json',
+    },
+    schemaVersion: { const: '1.0' },
+    surface: { const: 'blueprint.components' },
+    templates: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 512,
+      items: { $ref: '#/$defs/template' },
+    },
+    compositionRules: {
+      type: 'array',
+      maxItems: 1024,
+      items: { $ref: '#/$defs/compositionRule' },
+    },
+  },
+  $defs: {
+    localId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 160,
+      pattern: '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$',
+    },
+    runtimeType: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 200,
+      pattern: '^[A-Za-z][A-Za-z0-9._:-]*$',
+    },
+    regionName: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 120,
+      pattern: '^[A-Za-z_$][A-Za-z0-9_$-]*$',
+    },
+    jsonValue: {
+      oneOf: [
+        { type: 'null' },
+        { type: 'boolean' },
+        { type: 'number' },
+        { type: 'string' },
+        { type: 'array', items: { $ref: '#/$defs/jsonValue' } },
+        { type: 'object', additionalProperties: { $ref: '#/$defs/jsonValue' } },
+      ],
+    },
+    jsonObject: {
+      type: 'object',
+      maxProperties: 256,
+      additionalProperties: { $ref: '#/$defs/jsonValue' },
+    },
+    node: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['type'],
+      properties: {
+        type: { $ref: '#/$defs/runtimeType' },
+        props: { $ref: '#/$defs/jsonObject' },
+        style: { $ref: '#/$defs/jsonObject' },
+        text: { $ref: '#/$defs/jsonValue' },
+      },
+    },
+    localIdList: {
+      type: 'array',
+      maxItems: 128,
+      items: { $ref: '#/$defs/localId' },
+    },
+    fragment: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['rootLocalIds', 'nodesByLocalId', 'childIdsByLocalId'],
+      properties: {
+        rootLocalIds: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 16,
+          items: { $ref: '#/$defs/localId' },
+        },
+        nodesByLocalId: {
+          type: 'object',
+          minProperties: 1,
+          maxProperties: 128,
+          propertyNames: { $ref: '#/$defs/localId' },
+          additionalProperties: { $ref: '#/$defs/node' },
+        },
+        childIdsByLocalId: {
+          type: 'object',
+          maxProperties: 128,
+          propertyNames: { $ref: '#/$defs/localId' },
+          additionalProperties: { $ref: '#/$defs/localIdList' },
+        },
+        regionsByLocalId: {
+          type: 'object',
+          maxProperties: 128,
+          propertyNames: { $ref: '#/$defs/localId' },
+          additionalProperties: {
+            type: 'object',
+            maxProperties: 64,
+            propertyNames: { $ref: '#/$defs/regionName' },
+            additionalProperties: { $ref: '#/$defs/localIdList' },
+          },
+        },
+      },
+    },
+    paletteBinding: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['contributionId', 'itemId'],
+      properties: {
+        contributionId: { $ref: '#/$defs/localId' },
+        itemId: { $ref: '#/$defs/localId' },
+      },
+    },
+    template: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['id', 'palette', 'primaryLocalId', 'fragment'],
+      properties: {
+        id: { $ref: '#/$defs/localId' },
+        palette: { $ref: '#/$defs/paletteBinding' },
+        primaryLocalId: { $ref: '#/$defs/localId' },
+        fragment: { $ref: '#/$defs/fragment' },
+      },
+    },
+    parentAny: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['mode'],
+      properties: { mode: { const: 'any' } },
+    },
+    parentListed: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['mode', 'runtimeTypes'],
+      properties: {
+        mode: { const: 'listed' },
+        runtimeTypes: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 128,
+          items: { $ref: '#/$defs/runtimeType' },
+        },
+      },
+    },
+    slotChildren: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['target', 'sequence'],
+      properties: {
+        target: { const: 'children' },
+        sequence: { $ref: '#/$defs/sequence' },
+      },
+    },
+    slotRegion: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['target', 'name', 'sequence'],
+      properties: {
+        target: { const: 'region' },
+        name: { $ref: '#/$defs/regionName' },
+        sequence: { $ref: '#/$defs/sequence' },
+      },
+    },
+    segmentAny: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['match', 'minItems', 'maxItems'],
+      properties: {
+        match: { const: 'any' },
+        minItems: { type: 'integer', minimum: 0, maximum: 128 },
+        maxItems: { type: 'integer', minimum: 0, maximum: 128 },
+      },
+    },
+    segmentRuntimeTypes: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['match', 'runtimeTypes', 'minItems', 'maxItems'],
+      properties: {
+        match: { const: 'runtime-types' },
+        runtimeTypes: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 128,
+          items: { $ref: '#/$defs/runtimeType' },
+        },
+        minItems: { type: 'integer', minimum: 0, maximum: 128 },
+        maxItems: { type: 'integer', minimum: 0, maximum: 128 },
+      },
+    },
+    sequence: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 32,
+      items: {
+        oneOf: [
+          { $ref: '#/$defs/segmentAny' },
+          { $ref: '#/$defs/segmentRuntimeTypes' },
+        ],
+      },
+    },
+    compositionRule: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['id', 'runtimeType', 'parent', 'slots'],
+      properties: {
+        id: { $ref: '#/$defs/localId' },
+        runtimeType: { $ref: '#/$defs/runtimeType' },
+        parent: {
+          oneOf: [
+            { $ref: '#/$defs/parentAny' },
+            { $ref: '#/$defs/parentListed' },
+          ],
+        },
+        slots: {
+          type: 'array',
+          maxItems: 64,
+          items: {
+            oneOf: [
+              { $ref: '#/$defs/slotChildren' },
+              { $ref: '#/$defs/slotRegion' },
+            ],
+          },
+        },
+      },
+    },
+  },
+};

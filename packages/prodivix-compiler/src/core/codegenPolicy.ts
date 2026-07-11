@@ -169,6 +169,7 @@ const resolveChildren = (
   policy: CodegenPolicyChildren,
   props: Record<string, unknown>
 ): Pick<AdapterResolution, 'props' | 'textMode' | 'childrenMode'> => {
+  delete props.children;
   if (policy.mode === 'text-prop') {
     if (
       node.text !== undefined &&
@@ -333,6 +334,44 @@ const collectPolicyPackages = (snapshot: CodegenPolicySnapshot) => {
   return { packages, conflicts };
 };
 
+export const getCodegenPolicyDependenciesForUsage = (
+  snapshot: CodegenPolicySnapshot,
+  usage: Readonly<{
+    runtimeTypes: readonly string[];
+    iconProviderIds: readonly string[];
+  }>
+): readonly CodegenPolicyDependency[] => {
+  const runtimeTypes = new Set(
+    usage.runtimeTypes.map((runtimeType) => runtimeType.trim()).filter(Boolean)
+  );
+  const iconProviderIds = new Set(
+    usage.iconProviderIds.map((providerId) => providerId.trim()).filter(Boolean)
+  );
+  const iconOwnerPluginIds = new Set(
+    snapshot.iconProviders
+      .filter((policy) => iconProviderIds.has(policy.providerId))
+      .map((policy) => policy.source.pluginId)
+  );
+  const dependencies = new Map<string, CodegenPolicyDependency>();
+  snapshot.libraries.forEach((policy) => {
+    const used =
+      policy.runtimeTypes.some((runtimeType) =>
+        runtimeTypes.has(runtimeType)
+      ) || iconOwnerPluginIds.has(policy.source.pluginId);
+    if (!used) return;
+    policy.dependencies.forEach((dependency) => {
+      if (!dependencies.has(dependency.name)) {
+        dependencies.set(dependency.name, Object.freeze({ ...dependency }));
+      }
+    });
+  });
+  return Object.freeze(
+    [...dependencies.values()].sort((left, right) =>
+      left.name.localeCompare(right.name)
+    )
+  );
+};
+
 const appendPackageConflict = (
   node: CanonicalNode,
   resolution: AdapterResolution,
@@ -352,6 +391,20 @@ const appendPackageConflict = (
     },
   ],
 });
+
+const appendPackageConflicts = (
+  node: CanonicalNode,
+  resolution: AdapterResolution,
+  packageNames: readonly string[],
+  conflicts: ReadonlySet<string>
+) =>
+  [...new Set(packageNames)]
+    .filter((packageName) => conflicts.has(packageName))
+    .reduce(
+      (current, packageName) =>
+        appendPackageConflict(node, current, packageName),
+      resolution
+    );
 
 export const createCodegenPolicyTargetAdapter = (
   snapshot: CodegenPolicySnapshot,
@@ -389,17 +442,35 @@ export const createCodegenPolicyTargetAdapter = (
             iconRef,
             fallback
           );
-          return packageConflicts.has(iconPolicy.package.name)
-            ? appendPackageConflict(node, resolved, iconPolicy.package.name)
-            : resolved;
+          const relatedDependencies = snapshot.libraries
+            .filter(
+              (policy) => policy.source.pluginId === iconPolicy.source.pluginId
+            )
+            .flatMap((policy) =>
+              policy.dependencies.map((dependency) => dependency.name)
+            );
+          return appendPackageConflicts(
+            node,
+            resolved,
+            [iconPolicy.package.name, ...relatedDependencies],
+            packageConflicts
+          );
         }
       }
       const rule = rules.get(node.type);
       if (rule) {
         const resolved = resolveLibraryRule(node, rule);
-        return packageConflicts.has(rule.import.packageName)
-          ? appendPackageConflict(node, resolved, rule.import.packageName)
-          : resolved;
+        const policy = policiesByRuntimeType.get(node.type);
+        return appendPackageConflicts(
+          node,
+          resolved,
+          [
+            rule.import.packageName,
+            ...(policy?.dependencies.map((dependency) => dependency.name) ??
+              []),
+          ],
+          packageConflicts
+        );
       }
       const policy = policiesByRuntimeType.get(node.type);
       const resolved = fallback.resolveNode(node);

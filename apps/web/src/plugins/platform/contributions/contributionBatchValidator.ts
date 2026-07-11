@@ -1,4 +1,5 @@
 import {
+  type BlueprintTemplateContributionV1,
   createPluginDiagnostic,
   PLUGIN_DIAGNOSTIC_CODES,
   type CodegenPolicyContributionV1,
@@ -114,6 +115,10 @@ export const validateWebContributionBatch: ContributionBatchValidator<
     context.descriptors,
     'paletteContribution'
   );
+  const templateEntries = entriesForPoint<BlueprintTemplateContributionV1>(
+    context.descriptors,
+    'blueprintTemplate'
+  );
   const libraries = new Map<string, LibraryIndexEntry>();
   const implementationReferences = new Map<string, string>();
 
@@ -147,15 +152,17 @@ export const validateWebContributionBatch: ContributionBatchValidator<
         ])
       ),
     });
-    registerImplementationReference(
-      implementationReferences,
-      entry.descriptor.hostImplementationId,
-      'component-library',
-      entry,
-      '/hostImplementationId',
-      context.owner.pluginId,
-      diagnostics
-    );
+    if (entry.descriptor.hostImplementationId) {
+      registerImplementationReference(
+        implementationReferences,
+        entry.descriptor.hostImplementationId,
+        'component-library',
+        entry,
+        '/hostImplementationId',
+        context.owner.pluginId,
+        diagnostics
+      );
+    }
   });
 
   const renderRuntimeTypes = new Set<string>();
@@ -173,6 +180,18 @@ export const validateWebContributionBatch: ContributionBatchValidator<
         )
       );
       return;
+    }
+    if (!library.descriptor.hostImplementationId) {
+      diagnostics.push(
+        diagnostic(
+          PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+          'Render Policy requires its external library to declare a framework Host implementation.',
+          entry,
+          '/libraryId',
+          context.owner.pluginId,
+          { libraryId: entry.descriptor.libraryId }
+        )
+      );
     }
     entry.descriptor.rules.forEach((rule, index) => {
       const path = `/rules/${index}`;
@@ -239,6 +258,12 @@ export const validateWebContributionBatch: ContributionBatchValidator<
       );
       return;
     }
+    const codegenDependencies = new Map(
+      entry.descriptor.dependencies.map((dependency) => [
+        dependency.name,
+        dependency,
+      ])
+    );
     const rootDependency = entry.descriptor.dependencies.find(
       (dependency) => dependency.name === library.descriptor.package.name
     );
@@ -258,6 +283,31 @@ export const validateWebContributionBatch: ContributionBatchValidator<
         )
       );
     }
+    entry.descriptor.dependencies.forEach((dependency, index) => {
+      if (dependency.name === library.descriptor.package.name) return;
+      const libraryDependency = library.dependenciesByName.get(dependency.name);
+      if (
+        libraryDependency &&
+        libraryDependency.version === dependency.version &&
+        libraryDependency.license === dependency.license &&
+        libraryDependency.kind === dependency.kind
+      ) {
+        return;
+      }
+      diagnostics.push(
+        diagnostic(
+          PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+          `Codegen dependency ${JSON.stringify(dependency.name)} must match an exact dependency declared by the external library.`,
+          entry,
+          `/dependencies/${index}`,
+          context.owner.pluginId,
+          {
+            libraryId: entry.descriptor.libraryId,
+            packageName: dependency.name,
+          }
+        )
+      );
+    });
     entry.descriptor.rules.forEach((rule, index) => {
       const path = `/rules/${index}/runtimeType`;
       if (!library.componentsByRuntimeType.has(rule.runtimeType)) {
@@ -292,6 +342,22 @@ export const validateWebContributionBatch: ContributionBatchValidator<
         );
       }
       codegenRuntimeTypes.add(runtimeKey);
+      if (!codegenDependencies.has(rule.import.packageName)) {
+        diagnostics.push(
+          diagnostic(
+            PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+            `Codegen rule import ${JSON.stringify(rule.import.packageName)} has no exact dependency declaration.`,
+            entry,
+            `/rules/${index}/import/packageName`,
+            context.owner.pluginId,
+            {
+              libraryId: entry.descriptor.libraryId,
+              runtimeType: rule.runtimeType,
+              packageName: rule.import.packageName,
+            }
+          )
+        );
+      }
     });
   });
 
@@ -384,13 +450,13 @@ export const validateWebContributionBatch: ContributionBatchValidator<
         }
         group.items.forEach((item, itemIndex) => {
           if (
-            !item.runtimeType ||
+            item.runtimeType &&
             !library.componentsByRuntimeType.has(item.runtimeType)
           ) {
             diagnostics.push(
               diagnostic(
                 PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
-                `Palette item must reference a runtime type declared by external library ${JSON.stringify(libraryId)}.`,
+                `Palette item runtime type must be declared by external library ${JSON.stringify(libraryId)}.`,
                 entry,
                 `/groups/${groupIndex}/items/${itemIndex}/runtimeType`,
                 context.owner.pluginId,
@@ -398,6 +464,187 @@ export const validateWebContributionBatch: ContributionBatchValidator<
                   libraryId,
                   runtimeType: item.runtimeType,
                 }
+              )
+            );
+          }
+        });
+      });
+    });
+  }
+
+  const paletteByContributionId = new Map(
+    paletteEntries.map((entry) => [entry.declaration.id, entry] as const)
+  );
+  const templateBindings = new Map<
+    string,
+    DescriptorEntry<BlueprintTemplateContributionV1>
+  >();
+  templateEntries.forEach((entry) => {
+    entry.descriptor.templates.forEach((template, templateIndex) => {
+      const palette = paletteByContributionId.get(
+        template.palette.contributionId
+      );
+      if (!palette) {
+        diagnostics.push(
+          diagnostic(
+            PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_OWNERSHIP_MISMATCH,
+            `Blueprint template references Palette contribution ${JSON.stringify(template.palette.contributionId)} that is not declared by this plugin owner.`,
+            entry,
+            `/templates/${templateIndex}/palette/contributionId`,
+            context.owner.pluginId
+          )
+        );
+        return;
+      }
+      const group = palette.descriptor.groups.find((candidate) =>
+        candidate.items.some((item) => item.id === template.palette.itemId)
+      );
+      const item = group?.items.find(
+        (candidate) => candidate.id === template.palette.itemId
+      );
+      if (!group || !item) {
+        diagnostics.push(
+          diagnostic(
+            PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+            `Blueprint template references Palette item ${JSON.stringify(template.palette.itemId)} that is not declared by its Palette contribution.`,
+            entry,
+            `/templates/${templateIndex}/palette/itemId`,
+            context.owner.pluginId
+          )
+        );
+        return;
+      }
+      if (group.placement.section !== 'external') {
+        diagnostics.push(
+          diagnostic(
+            PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+            'Blueprint plugin templates must bind an external Palette item.',
+            entry,
+            `/templates/${templateIndex}/palette/itemId`,
+            context.owner.pluginId
+          )
+        );
+        return;
+      }
+      const library = libraries.get(group.placement.libraryId);
+      if (!library) return;
+      Object.entries(template.fragment.nodesByLocalId).forEach(
+        ([localId, node]) => {
+          const runtimeKey = `${library.descriptor.libraryId}/${node.type}`;
+          if (!library.componentsByRuntimeType.has(node.type)) {
+            diagnostics.push(
+              diagnostic(
+                PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+                `Blueprint template node type ${JSON.stringify(node.type)} is not declared by its external library.`,
+                entry,
+                `/templates/${templateIndex}/fragment/nodesByLocalId/${localId}/type`,
+                context.owner.pluginId,
+                {
+                  libraryId: library.descriptor.libraryId,
+                  runtimeType: node.type,
+                }
+              )
+            );
+          }
+          if (!renderRuntimeTypes.has(runtimeKey)) {
+            diagnostics.push(
+              diagnostic(
+                PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+                `Blueprint template node type ${JSON.stringify(node.type)} has no Render Policy rule.`,
+                entry,
+                `/templates/${templateIndex}/fragment/nodesByLocalId/${localId}/type`,
+                context.owner.pluginId,
+                {
+                  libraryId: library.descriptor.libraryId,
+                  runtimeType: node.type,
+                }
+              )
+            );
+          }
+          if (!codegenRuntimeTypes.has(runtimeKey)) {
+            diagnostics.push(
+              diagnostic(
+                PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+                `Blueprint template node type ${JSON.stringify(node.type)} has no Codegen Policy rule.`,
+                entry,
+                `/templates/${templateIndex}/fragment/nodesByLocalId/${localId}/type`,
+                context.owner.pluginId,
+                {
+                  libraryId: library.descriptor.libraryId,
+                  runtimeType: node.type,
+                }
+              )
+            );
+          }
+        }
+      );
+      const bindingKey = JSON.stringify([
+        template.palette.contributionId,
+        template.palette.itemId,
+      ]);
+      templateBindings.set(bindingKey, entry);
+    });
+
+    (entry.descriptor.compositionRules ?? []).forEach((rule, ruleIndex) => {
+      const referencedRuntimeTypes = [
+        rule.runtimeType,
+        ...(rule.parent.mode === 'listed' ? rule.parent.runtimeTypes : []),
+        ...rule.slots.flatMap((slot) =>
+          slot.sequence.flatMap((segment) =>
+            segment.match === 'runtime-types' ? segment.runtimeTypes : []
+          )
+        ),
+      ];
+      referencedRuntimeTypes.forEach((runtimeType) => {
+        if (
+          ![...libraries.values()].some((library) =>
+            library.componentsByRuntimeType.has(runtimeType)
+          )
+        ) {
+          diagnostics.push(
+            diagnostic(
+              PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+              `Composition rule references undeclared runtime type ${JSON.stringify(runtimeType)}.`,
+              entry,
+              `/compositionRules/${ruleIndex}`,
+              context.owner.pluginId,
+              { runtimeType }
+            )
+          );
+        }
+      });
+    });
+  });
+
+  if (context.attestation.trustLevel !== 'core') {
+    paletteEntries.forEach((entry) => {
+      registerImplementationReference(
+        implementationReferences,
+        entry.declaration.id,
+        'palette-projection',
+        entry,
+        '/id',
+        context.owner.pluginId,
+        diagnostics
+      );
+      entry.descriptor.groups.forEach((group, groupIndex) => {
+        if (group.placement.section !== 'external') return;
+        group.items.forEach((item, itemIndex) => {
+          const template = templateBindings.get(
+            JSON.stringify([entry.declaration.id, item.id])
+          );
+          const hasDirectRecipe = item.runtimeType !== undefined;
+          if (hasDirectRecipe === Boolean(template)) {
+            diagnostics.push(
+              diagnostic(
+                PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE,
+                hasDirectRecipe
+                  ? 'External Palette item cannot declare both direct runtime creation and a Blueprint template.'
+                  : 'External Palette item must declare direct runtime creation or bind one Blueprint template.',
+                entry,
+                `/groups/${groupIndex}/items/${itemIndex}`,
+                context.owner.pluginId,
+                { paletteItemId: item.id }
               )
             );
           }

@@ -1,0 +1,63 @@
+{
+  "name": "@prodivix/plugin-antd",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bundled official Ant Design component plugin for Prodivix",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#antd/*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "plugin",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && pnpm run check:generated:raw && tsc -p tsconfig.json",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true}); fs.rmSync('tsconfig.test.tsbuildinfo',{force:true})\"",
+    "generate:resources": "node scripts/generate-plugin-resources.mjs",
+    "check:resources": "node scripts/generate-plugin-resources.mjs --check",
+    "generate:artifact": "pnpm --filter @prodivix/plugin-contracts build && pnpm --filter @prodivix/plugin-package build && node ../../scripts/plugin-artifacts/generate-bundled-plugin-artifact.mjs --package-root .",
+    "generate": "pnpm run generate:resources && pnpm run generate:artifact",
+    "check:generated:raw": "pnpm run check:resources && node ../../scripts/plugin-artifacts/generate-bundled-plugin-artifact.mjs --package-root . --check",
+    "check:generated": "pnpm --filter @prodivix/plugin-contracts build && pnpm --filter @prodivix/plugin-package build && pnpm run check:generated:raw",
+    "test": "pnpm run check:generated:raw && pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "typecheck": "tsc -b tsconfig.test.json --pretty false"
+  },
+  "dependencies": {
+    "@ant-design/cssinjs": "1.24.0",
+    "@ant-design/icons": "6.1.0",
+    "@prodivix/plugin-package": "workspace:*",
+    "@prodivix/plugin-react-host": "workspace:*",
+    "antd": "5.28.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@prodivix/plugin-contracts": "workspace:*",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  }
+}

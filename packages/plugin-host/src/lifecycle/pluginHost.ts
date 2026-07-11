@@ -26,7 +26,8 @@ import type { PluginHostResult } from '#host/result';
 
 export type PluginHost<TMap extends HostContributionPointMap> = Readonly<{
   discover(
-    source: PluginPackageSource
+    source: PluginPackageSource,
+    signal?: AbortSignal
   ): Promise<PluginHostResult<PluginHostSnapshot>>;
   enable(pluginId: string): Promise<PluginHostResult<PluginHostSnapshot>>;
   disable(pluginId: string): Promise<PluginHostResult<PluginHostSnapshot>>;

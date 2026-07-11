@@ -1,0 +1,37 @@
+export {
+  BUNDLED_PLUGIN_ARTIFACT_VERSION,
+  DEFAULT_BUNDLED_PLUGIN_MAX_PACKAGE_BYTES,
+  DEFAULT_BUNDLED_PLUGIN_MAX_RESOURCE_BYTES,
+  DEFAULT_BUNDLED_PLUGIN_MAX_RESOURCES,
+  canonicalJsonBytes,
+  computeBundledPluginPackageDigest,
+  createBundledPluginArtifact,
+  createWebCryptoBundledPluginDigestService,
+  normalizeBundledPluginResourcePath,
+  verifyBundledPluginArtifact,
+  type BundledPluginArtifactIssue,
+  type BundledPluginArtifactIssueCode,
+  type BundledPluginArtifactLimits,
+  type BundledPluginArtifactV1,
+  type BundledPluginArtifactVerificationResult,
+  type BundledPluginDigestService,
+  type BundledPluginResourceV1,
+  type VerifiedBundledPluginArtifact,
+  type VerifiedBundledPluginResource,
+} from '#package/artifact';
+export {
+  createBundledPluginPackageSource,
+  type CreateBundledPluginPackageSourceOptions,
+} from '#package/packageSource';
+export {
+  createBundledPluginCatalog,
+  planBundledPluginReconciliation,
+  type BundledPluginCatalog,
+  type BundledPluginCatalogEntry,
+  type BundledPluginCatalogResult,
+  type BundledPluginInstallationState,
+  type BundledPluginReconciliationPlan,
+  type GeneratedOfficialPluginCatalog,
+  type GeneratedOfficialPluginHostImplementationKind,
+  type GeneratedOfficialPluginSupportStatus,
+} from '#package/catalog';

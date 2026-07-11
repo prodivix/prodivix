@@ -1,0 +1,865 @@
+{
+  "groups": [
+    {
+      "id": "antd-general",
+      "items": [
+        {
+          "id": "antd-app",
+          "kind": "component",
+          "label": "App",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdApp"
+        },
+        {
+          "defaultProps": { "type": "primary" },
+          "id": "antd-button",
+          "kind": "component",
+          "label": "Button",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ],
+            "variants": [
+              {
+                "id": "primary",
+                "label": "Primary",
+                "props": { "type": "primary" }
+              },
+              {
+                "id": "default",
+                "label": "Default",
+                "props": { "type": "default" }
+              },
+              {
+                "id": "dashed",
+                "label": "Dashed",
+                "props": { "type": "dashed" }
+              },
+              { "id": "text", "label": "Text", "props": { "type": "text" } },
+              { "id": "link", "label": "Link", "props": { "type": "link" } }
+            ]
+          },
+          "runtimeType": "AntdButton"
+        },
+        {
+          "defaultProps": { "type": "primary" },
+          "id": "antd-float-button",
+          "kind": "component",
+          "label": "FloatButton",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdFloatButton"
+        }
+      ],
+      "label": "Ant Design / General",
+      "placement": { "libraryId": "antd", "section": "external" }
+    },
+    {
+      "id": "antd-layout",
+      "items": [
+        {
+          "id": "antd-divider",
+          "kind": "component",
+          "label": "Divider",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdDivider"
+        },
+        {
+          "defaultProps": { "gap": "small" },
+          "id": "antd-flex",
+          "kind": "component",
+          "label": "Flex",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdFlex"
+        },
+        {
+          "defaultProps": { "style": { "minHeight": 80 } },
+          "id": "antd-layout",
+          "kind": "component",
+          "label": "Layout",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdLayout"
+        },
+        {
+          "id": "antd-layout-header",
+          "kind": "component",
+          "label": "Layout.Header",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdLayoutHeader"
+        },
+        {
+          "id": "antd-layout-content",
+          "kind": "component",
+          "label": "Layout.Content",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdLayoutContent"
+        },
+        {
+          "id": "antd-layout-footer",
+          "kind": "component",
+          "label": "Layout.Footer",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdLayoutFooter"
+        },
+        {
+          "defaultProps": { "width": 96 },
+          "id": "antd-layout-sider",
+          "kind": "component",
+          "label": "Layout.Sider",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdLayoutSider"
+        },
+        {
+          "defaultProps": { "size": "small" },
+          "id": "antd-space",
+          "kind": "component",
+          "label": "Space",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSpace"
+        },
+        {
+          "defaultProps": { "block": false },
+          "id": "antd-space-compact",
+          "kind": "component",
+          "label": "Space.Compact",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSpaceCompact"
+        },
+        {
+          "defaultProps": { "style": { "height": 80 } },
+          "id": "antd-splitter",
+          "kind": "component",
+          "label": "Splitter",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSplitter"
+        }
+      ],
+      "label": "Ant Design / Layout",
+      "placement": { "libraryId": "antd", "section": "external" }
+    },
+    {
+      "id": "antd-navigation",
+      "items": [
+        {
+          "defaultProps": { "offsetTop": 8 },
+          "id": "antd-affix",
+          "kind": "component",
+          "label": "Affix",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdAffix"
+        },
+        {
+          "defaultProps": {
+            "items": [
+              { "href": "#overview", "key": "overview", "title": "Overview" }
+            ]
+          },
+          "id": "antd-anchor",
+          "kind": "component",
+          "label": "Anchor",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdAnchor"
+        },
+        {
+          "defaultProps": {
+            "items": [{ "title": "Home" }, { "title": "Page" }]
+          },
+          "id": "antd-breadcrumb",
+          "kind": "component",
+          "label": "Breadcrumb",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdBreadcrumb"
+        },
+        {
+          "defaultProps": {
+            "menu": { "items": [{ "key": "1", "label": "Item" }] }
+          },
+          "id": "antd-dropdown",
+          "kind": "component",
+          "label": "Dropdown",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdDropdown"
+        },
+        {
+          "defaultProps": {
+            "items": [{ "key": "1", "label": "Menu" }],
+            "mode": "horizontal"
+          },
+          "id": "antd-menu",
+          "kind": "component",
+          "label": "Menu",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdMenu"
+        },
+        {
+          "defaultProps": { "current": 2, "size": "small", "total": 50 },
+          "id": "antd-pagination",
+          "kind": "component",
+          "label": "Pagination",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdPagination"
+        },
+        {
+          "defaultProps": {
+            "current": 1,
+            "items": [{ "title": "A" }, { "title": "B" }],
+            "size": "small"
+          },
+          "id": "antd-steps",
+          "kind": "component",
+          "label": "Steps",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSteps"
+        },
+        {
+          "defaultProps": {
+            "items": [{ "children": "Content", "key": "1", "label": "Tab" }]
+          },
+          "id": "antd-tabs",
+          "kind": "component",
+          "label": "Tabs",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTabs"
+        }
+      ],
+      "label": "Ant Design / Navigation",
+      "placement": { "libraryId": "antd", "section": "external" }
+    },
+    {
+      "id": "antd-data-entry",
+      "items": [
+        {
+          "defaultProps": {
+            "options": [{ "value": "Option" }],
+            "placeholder": "Select"
+          },
+          "id": "antd-auto-complete",
+          "kind": "component",
+          "label": "AutoComplete",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdAutoComplete"
+        },
+        {
+          "defaultProps": {
+            "options": [{ "label": "Option", "value": "option" }],
+            "placeholder": "Select"
+          },
+          "id": "antd-cascader",
+          "kind": "component",
+          "label": "Cascader",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdCascader"
+        },
+        {
+          "id": "antd-checkbox",
+          "kind": "component",
+          "label": "Checkbox",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdCheckbox"
+        },
+        {
+          "defaultProps": { "defaultValue": "#1677ff" },
+          "id": "antd-color-picker",
+          "kind": "component",
+          "label": "ColorPicker",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdColorPicker"
+        },
+        {
+          "defaultProps": { "placeholder": "Select date" },
+          "id": "antd-date-picker",
+          "kind": "component",
+          "label": "DatePicker",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdDatePicker"
+        },
+        {
+          "defaultProps": { "layout": "vertical" },
+          "id": "antd-form",
+          "kind": "component",
+          "label": "Form",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdForm"
+        },
+        {
+          "defaultProps": { "label": "Field", "name": "field" },
+          "id": "antd-form-item",
+          "kind": "component",
+          "label": "Form.Item",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          }
+        },
+        {
+          "defaultProps": { "placeholder": "Input" },
+          "id": "antd-input",
+          "kind": "component",
+          "label": "Input",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdInput"
+        },
+        {
+          "defaultProps": { "placeholder": "Password" },
+          "id": "antd-input-password",
+          "kind": "component",
+          "label": "Input.Password",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdInputPassword"
+        },
+        {
+          "defaultProps": { "placeholder": "Search" },
+          "id": "antd-input-search",
+          "kind": "component",
+          "label": "Input.Search",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdInputSearch"
+        },
+        {
+          "defaultProps": { "placeholder": "Text area", "rows": 2 },
+          "id": "antd-input-text-area",
+          "kind": "component",
+          "label": "Input.TextArea",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdInputTextArea"
+        },
+        {
+          "defaultProps": { "defaultValue": 12 },
+          "id": "antd-input-number",
+          "kind": "component",
+          "label": "InputNumber",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdInputNumber"
+        },
+        {
+          "defaultProps": { "placeholder": "Mention" },
+          "id": "antd-mentions",
+          "kind": "component",
+          "label": "Mentions",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdMentions"
+        },
+        {
+          "id": "antd-radio",
+          "kind": "component",
+          "label": "Radio",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdRadio"
+        },
+        {
+          "defaultProps": { "defaultValue": 3 },
+          "id": "antd-rate",
+          "kind": "component",
+          "label": "Rate",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdRate"
+        },
+        {
+          "defaultProps": {
+            "defaultValue": "a",
+            "options": [{ "label": "Option A", "value": "a" }],
+            "style": { "width": 140 }
+          },
+          "id": "antd-select",
+          "kind": "component",
+          "label": "Select",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdSelect"
+        },
+        {
+          "defaultProps": { "defaultValue": 36 },
+          "id": "antd-slider",
+          "kind": "component",
+          "label": "Slider",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSlider"
+        },
+        {
+          "defaultProps": { "defaultChecked": true },
+          "id": "antd-switch",
+          "kind": "component",
+          "label": "Switch",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSwitch"
+        },
+        {
+          "defaultProps": { "placeholder": "Select time" },
+          "id": "antd-time-picker",
+          "kind": "component",
+          "label": "TimePicker",
+          "presentation": {
+            "scale": 0.8,
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "middle", "label": "M", "value": "middle" },
+              { "id": "large", "label": "L", "value": "large" }
+            ]
+          },
+          "runtimeType": "AntdTimePicker"
+        },
+        {
+          "defaultProps": {
+            "dataSource": [{ "key": "1", "title": "Item" }],
+            "targetKeys": []
+          },
+          "id": "antd-transfer",
+          "kind": "component",
+          "label": "Transfer",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTransfer"
+        },
+        {
+          "defaultProps": {
+            "defaultValue": "1",
+            "style": { "width": 140 },
+            "treeData": [{ "title": "Node", "value": "1" }]
+          },
+          "id": "antd-tree-select",
+          "kind": "component",
+          "label": "TreeSelect",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTreeSelect"
+        },
+        {
+          "id": "antd-upload",
+          "kind": "component",
+          "label": "Upload",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdUpload"
+        }
+      ],
+      "label": "Ant Design / Data Entry",
+      "placement": { "libraryId": "antd", "section": "external" }
+    },
+    {
+      "id": "antd-data-display",
+      "items": [
+        {
+          "id": "antd-avatar",
+          "kind": "component",
+          "label": "Avatar",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdAvatar"
+        },
+        {
+          "defaultProps": { "count": 5 },
+          "id": "antd-badge",
+          "kind": "component",
+          "label": "Badge",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdBadge"
+        },
+        {
+          "defaultProps": { "fullscreen": false },
+          "id": "antd-calendar",
+          "kind": "component",
+          "label": "Calendar",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdCalendar"
+        },
+        {
+          "defaultProps": { "size": "small", "title": "Card" },
+          "id": "antd-card",
+          "kind": "component",
+          "label": "Card",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdCard"
+        },
+        {
+          "defaultProps": {
+            "description": "Description",
+            "title": "Card item"
+          },
+          "id": "antd-card-meta",
+          "kind": "component",
+          "label": "Card.Meta",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdCardMeta"
+        },
+        {
+          "id": "antd-carousel",
+          "kind": "component",
+          "label": "Carousel",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdCarousel"
+        },
+        {
+          "defaultProps": {
+            "items": [{ "children": "Content", "key": "1", "label": "Panel" }]
+          },
+          "id": "antd-collapse",
+          "kind": "component",
+          "label": "Collapse",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdCollapse"
+        },
+        {
+          "defaultProps": {
+            "column": 1,
+            "items": [{ "children": "Value", "key": "1", "label": "Label" }],
+            "size": "small"
+          },
+          "id": "antd-descriptions",
+          "kind": "component",
+          "label": "Descriptions",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdDescriptions"
+        },
+        {
+          "defaultProps": { "label": "Label" },
+          "id": "antd-descriptions-item",
+          "kind": "component",
+          "label": "Descriptions.Item",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdDescriptionsItem"
+        },
+        {
+          "defaultProps": { "description": "No data" },
+          "id": "antd-empty",
+          "kind": "component",
+          "label": "Empty",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdEmpty"
+        },
+        {
+          "defaultProps": {
+            "alt": "Preview",
+            "height": 60,
+            "preview": false,
+            "src": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
+            "width": 96
+          },
+          "id": "antd-image",
+          "kind": "component",
+          "label": "Image",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdImage"
+        },
+        {
+          "defaultProps": { "dataSource": ["Item"] },
+          "id": "antd-list",
+          "kind": "component",
+          "label": "List",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdList"
+        },
+        {
+          "id": "antd-list-item",
+          "kind": "component",
+          "label": "List.Item",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdListItem"
+        },
+        {
+          "defaultProps": {
+            "description": "Description",
+            "title": "List item"
+          },
+          "id": "antd-list-item-meta",
+          "kind": "component",
+          "label": "List.Item.Meta",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdListItemMeta"
+        },
+        {
+          "defaultProps": { "content": "Popover content", "title": "Popover" },
+          "id": "antd-popover",
+          "kind": "component",
+          "label": "Popover",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdPopover"
+        },
+        {
+          "defaultProps": { "size": 96, "value": "https://prodivix.dev" },
+          "id": "antd-qrcode",
+          "kind": "component",
+          "label": "QRCode",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdQRCode"
+        },
+        {
+          "defaultProps": { "options": ["A", "B"], "value": "A" },
+          "id": "antd-segmented",
+          "kind": "component",
+          "label": "Segmented",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSegmented"
+        },
+        {
+          "defaultProps": { "title": "Total", "value": 42 },
+          "id": "antd-statistic",
+          "kind": "component",
+          "label": "Statistic",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdStatistic"
+        },
+        {
+          "defaultProps": {
+            "columns": [
+              { "dataIndex": "name", "key": "name", "title": "Name" }
+            ],
+            "dataSource": [{ "key": "1", "name": "Row" }],
+            "pagination": false,
+            "size": "small"
+          },
+          "id": "antd-table",
+          "kind": "component",
+          "label": "Table",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTable"
+        },
+        {
+          "defaultProps": { "color": "blue" },
+          "id": "antd-tag",
+          "kind": "component",
+          "label": "Tag",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTag"
+        },
+        {
+          "defaultProps": { "items": [{ "children": "Event" }] },
+          "id": "antd-timeline",
+          "kind": "component",
+          "label": "Timeline",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTimeline"
+        },
+        {
+          "defaultProps": { "title": "Tooltip" },
+          "id": "antd-tooltip",
+          "kind": "component",
+          "label": "Tooltip",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTooltip"
+        },
+        {
+          "defaultProps": { "open": false, "steps": [] },
+          "id": "antd-tour",
+          "kind": "component",
+          "label": "Tour",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTour"
+        },
+        {
+          "defaultProps": {
+            "defaultExpandAll": true,
+            "treeData": [{ "key": "1", "title": "Node" }]
+          },
+          "id": "antd-tree",
+          "kind": "component",
+          "label": "Tree",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTree"
+        },
+        {
+          "id": "antd-typography",
+          "kind": "component",
+          "label": "Typography",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTypography"
+        },
+        {
+          "id": "antd-typography-text",
+          "kind": "component",
+          "label": "Typography.Text",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTypographyText"
+        },
+        {
+          "defaultProps": { "level": 4 },
+          "id": "antd-typography-title",
+          "kind": "component",
+          "label": "Typography.Title",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTypographyTitle"
+        },
+        {
+          "id": "antd-typography-paragraph",
+          "kind": "component",
+          "label": "Typography.Paragraph",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTypographyParagraph"
+        },
+        {
+          "defaultProps": { "href": "#" },
+          "id": "antd-typography-link",
+          "kind": "component",
+          "label": "Typography.Link",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdTypographyLink"
+        }
+      ],
+      "label": "Ant Design / Data Display",
+      "placement": { "libraryId": "antd", "section": "external" }
+    },
+    {
+      "id": "antd-feedback",
+      "items": [
+        {
+          "defaultProps": {
+            "message": "Alert",
+            "showIcon": true,
+            "type": "info"
+          },
+          "id": "antd-alert",
+          "kind": "component",
+          "label": "Alert",
+          "presentation": {
+            "scale": 0.8,
+            "status": {
+              "defaultValue": "info",
+              "label": "Type",
+              "options": [
+                { "id": "info", "label": "Info", "value": "info" },
+                { "id": "success", "label": "Success", "value": "success" },
+                { "id": "warning", "label": "Warning", "value": "warning" },
+                { "id": "error", "label": "Error", "value": "error" }
+              ],
+              "prop": "type"
+            }
+          },
+          "runtimeType": "AntdAlert"
+        },
+        {
+          "defaultProps": {
+            "open": false,
+            "placement": "right",
+            "title": "Drawer"
+          },
+          "id": "antd-drawer",
+          "kind": "component",
+          "label": "Drawer",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdDrawer"
+        },
+        {
+          "defaultProps": {
+            "footer": null,
+            "open": false,
+            "title": "Modal",
+            "width": 360
+          },
+          "id": "antd-modal",
+          "kind": "component",
+          "label": "Modal",
+          "presentation": { "scale": 0.62 },
+          "runtimeType": "AntdModal"
+        },
+        {
+          "defaultProps": {
+            "description": "This action cannot be undone.",
+            "title": "Continue?"
+          },
+          "id": "antd-popconfirm",
+          "kind": "component",
+          "label": "Popconfirm",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdPopconfirm"
+        },
+        {
+          "defaultProps": { "percent": 62, "size": "small" },
+          "id": "antd-progress",
+          "kind": "component",
+          "label": "Progress",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdProgress"
+        },
+        {
+          "defaultProps": {
+            "status": "success",
+            "subTitle": "Completed",
+            "title": "Done"
+          },
+          "id": "antd-result",
+          "kind": "component",
+          "label": "Result",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdResult"
+        },
+        {
+          "defaultProps": { "active": true, "paragraph": { "rows": 1 } },
+          "id": "antd-skeleton",
+          "kind": "component",
+          "label": "Skeleton",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSkeleton"
+        },
+        {
+          "defaultProps": { "spinning": true },
+          "id": "antd-spin",
+          "kind": "component",
+          "label": "Spin",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdSpin"
+        },
+        {
+          "defaultProps": { "content": "Prodivix" },
+          "id": "antd-watermark",
+          "kind": "component",
+          "label": "Watermark",
+          "presentation": { "scale": 0.8 },
+          "runtimeType": "AntdWatermark"
+        }
+      ],
+      "label": "Ant Design / Feedback",
+      "placement": { "libraryId": "antd", "section": "external" }
+    }
+  ],
+  "schemaVersion": "1.0",
+  "surface": "blueprint.components"
+}

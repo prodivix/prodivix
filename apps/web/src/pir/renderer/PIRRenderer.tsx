@@ -5,7 +5,7 @@ import {
   type BuiltInActionContext,
 } from '@/pir/actions/registry';
 import { materializeUiTree } from '@/pir/graph/materialize';
-import { getDefaultComponentRegistry } from './registry';
+import { defaultComponentRegistry } from './registry';
 import { resolveLinkCapability } from './capabilities';
 import { PIRNode } from './PIRNode';
 import type {
@@ -159,7 +159,7 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
   );
 
   const registry = useMemo(
-    () => registryProp ?? getDefaultComponentRegistry(),
+    () => registryProp ?? defaultComponentRegistry,
     [registryProp]
   );
   const nodesById = useMemo(() => {

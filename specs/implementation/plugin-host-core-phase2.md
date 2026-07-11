@@ -379,8 +379,8 @@ Phase 2 不公开 `uninstall` 的持久化语义。composition root 先调用 `d
 
 ## 12. 实现结果
 
-- `@prodivix/plugin-contracts` 当前保持 40 项测试通过，Manifest wrapper 与 generic strict JSON parser 共用同一解析事实源，并覆盖 diagnostics definition 一致性。
-- `@prodivix/plugin-host` 使用 4 个测试文件覆盖 35 项公开行为，并在 Vitest 前运行独立 TypeScript test typecheck。
+- `@prodivix/plugin-contracts` 当前保持 52 项测试通过，Manifest wrapper、generic strict JSON parser 与 six-point official contribution validation 共用同一解析事实源。
+- `@prodivix/plugin-host` 当前覆盖 36 项公开行为，并在 Vitest 前运行独立 TypeScript test typecheck。
 - Host package build 生成 ESM 与 declaration；runtime dependency 仅有 `@prodivix/plugin-contracts`。
 - 66 个 PLG code 已在 TypeScript definition、诊断规范与 docs 页面之间建立生成时一致性检查。
 - 具体 Palette payload、Browser sandbox、Host Gateway 与 official plugin 迁移保持在 Phase 3 以后，没有进入 Host Core。
@@ -389,4 +389,4 @@ Phase 2 不公开 `uninstall` 的持久化语义。composition root 先调用 `d
 
 Phase 3 Palette 验证已由 `specs/implementation/plugin-host-palette-phase3.md` 完成：Schema、生成类型、`paletteContribution@1.0` contract、host-side resolver、`@prodivix/core` owner、core-embedded external owner、typed reader 与旧 Blueprint registry 删除均已落地。
 
-Phase 4.0-4.4 已按 `specs/implementation/plugin-browser-sandbox-phase4.md` 完成 Host port、protocol contracts、Browser Sandbox、Gateway、quota、persistent audit 与 workspace-scoped Web Plugin Platform。下一步从 Phase 4.5 建立 exact official contracts 与 implementation registry；不得恢复旧 registry 或增加双写。
+Phase 4.0-4.9 已按 `specs/implementation/plugin-browser-sandbox-phase4.md` 和 `specs/implementation/official-component-plugins-phase46-48.md` 完成 Host port、protocol contracts、Browser Sandbox、Gateway、quota、persistent audit、workspace-scoped Web Plugin Platform、exact official contracts、Ant Design/MUI/Radix bundled official plugin 直接迁移，以及 security/browser/production hardening。旧 profile、Renderer/Compiler 特判和 placeholder 已删除；不得恢复旧 registry 或增加双写。

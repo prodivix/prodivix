@@ -50,5 +50,13 @@ export default defineConfig({
         ...(browserChannel ? { channel: browserChannel } : {}),
       },
     },
+    {
+      name: 'firefox',
+      use: devices['Desktop Firefox'],
+    },
+    {
+      name: 'webkit',
+      use: devices['Desktop Safari'],
+    },
   ],
 });

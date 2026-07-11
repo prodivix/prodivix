@@ -243,7 +243,7 @@ describe('workspace projection', () => {
     const result = projectWorkspaceToProdivixFiles(workspace);
 
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok !== false) return;
 
     expect(result.issues[0]).toMatchObject({
       code: 'WKS_PROJECTION_INVALID_WORKSPACE',
@@ -260,7 +260,7 @@ describe('workspace projection', () => {
     const result = projectWorkspaceToProdivixFiles(workspace);
 
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok !== false) return;
 
     expect(result.issues).toEqual([
       expect.objectContaining({
@@ -281,7 +281,7 @@ describe('workspace projection', () => {
     );
 
     expect(read.ok).toBe(false);
-    if (read.ok) return;
+    if (read.ok !== false) return;
 
     expect(read.issues.map((issue) => issue.code)).toContain(
       'WKS_PROJECTION_DOCUMENT_MISSING'

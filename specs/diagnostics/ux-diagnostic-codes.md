@@ -29,7 +29,7 @@
 1. PIR 保存态结构错误，使用 `PIR-xxxx`。
 2. Inspector 字段写入、拖拽、选择和编辑器命令错误，使用 `EDT-xxxx`。
 3. 用户代码解析、类型、运行时和 Mounted CSS 语法错误，使用 `COD-xxxx`。
-4. 外部库加载、扫描和注册错误，使用 `ELIB-xxxx`。
+4. Official plugin package、contribution 和 Host 注册错误使用 `PLG-xxxx`；旧 remote runtime `ELIB-xxxx` 域已删除。
 5. 目标框架代码生成或导出失败，使用 `GEN-xxxx`。
 6. 纯审美偏好、品牌风格选择或一次性设计建议，除非它们被稳定规则、标准或项目约束定义。
 

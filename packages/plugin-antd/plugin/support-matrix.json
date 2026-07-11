@@ -1,0 +1,683 @@
+{
+  "catalog": {
+    "catalogId": "antd",
+    "description": "Official Ant Design components and icons for React projects.",
+    "scope": "component"
+  },
+  "components": [
+    {
+      "creation": "direct",
+      "exportName": "App",
+      "paletteItemId": "antd-app",
+      "path": "App",
+      "runtimeType": "AntdApp",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Button",
+      "paletteItemId": "antd-button",
+      "path": "Button",
+      "runtimeType": "AntdButton",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "FloatButton",
+      "paletteItemId": "antd-float-button",
+      "path": "FloatButton",
+      "runtimeType": "AntdFloatButton",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Divider",
+      "paletteItemId": "antd-divider",
+      "path": "Divider",
+      "runtimeType": "AntdDivider",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Flex",
+      "paletteItemId": "antd-flex",
+      "path": "Flex",
+      "runtimeType": "AntdFlex",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Layout",
+      "paletteItemId": "antd-layout",
+      "path": "Layout",
+      "runtimeType": "AntdLayout",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "LayoutHeader",
+      "paletteItemId": "antd-layout-header",
+      "path": "Layout.Header",
+      "runtimeType": "AntdLayoutHeader",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "LayoutContent",
+      "paletteItemId": "antd-layout-content",
+      "path": "Layout.Content",
+      "runtimeType": "AntdLayoutContent",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "LayoutFooter",
+      "paletteItemId": "antd-layout-footer",
+      "path": "Layout.Footer",
+      "runtimeType": "AntdLayoutFooter",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "LayoutSider",
+      "paletteItemId": "antd-layout-sider",
+      "path": "Layout.Sider",
+      "runtimeType": "AntdLayoutSider",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Space",
+      "paletteItemId": "antd-space",
+      "path": "Space",
+      "runtimeType": "AntdSpace",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "SpaceCompact",
+      "paletteItemId": "antd-space-compact",
+      "path": "Space.Compact",
+      "runtimeType": "AntdSpaceCompact",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Splitter",
+      "paletteItemId": "antd-splitter",
+      "path": "Splitter",
+      "runtimeType": "AntdSplitter",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Affix",
+      "paletteItemId": "antd-affix",
+      "path": "Affix",
+      "runtimeType": "AntdAffix",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Anchor",
+      "paletteItemId": "antd-anchor",
+      "path": "Anchor",
+      "runtimeType": "AntdAnchor",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Breadcrumb",
+      "paletteItemId": "antd-breadcrumb",
+      "path": "Breadcrumb",
+      "runtimeType": "AntdBreadcrumb",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Dropdown",
+      "paletteItemId": "antd-dropdown",
+      "path": "Dropdown",
+      "runtimeType": "AntdDropdown",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Menu",
+      "paletteItemId": "antd-menu",
+      "path": "Menu",
+      "runtimeType": "AntdMenu",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Pagination",
+      "paletteItemId": "antd-pagination",
+      "path": "Pagination",
+      "runtimeType": "AntdPagination",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Steps",
+      "paletteItemId": "antd-steps",
+      "path": "Steps",
+      "runtimeType": "AntdSteps",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Tabs",
+      "paletteItemId": "antd-tabs",
+      "path": "Tabs",
+      "runtimeType": "AntdTabs",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "AutoComplete",
+      "paletteItemId": "antd-auto-complete",
+      "path": "AutoComplete",
+      "runtimeType": "AntdAutoComplete",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Cascader",
+      "paletteItemId": "antd-cascader",
+      "path": "Cascader",
+      "runtimeType": "AntdCascader",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Checkbox",
+      "paletteItemId": "antd-checkbox",
+      "path": "Checkbox",
+      "runtimeType": "AntdCheckbox",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "ColorPicker",
+      "paletteItemId": "antd-color-picker",
+      "path": "ColorPicker",
+      "runtimeType": "AntdColorPicker",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "DatePicker",
+      "paletteItemId": "antd-date-picker",
+      "path": "DatePicker",
+      "runtimeType": "AntdDatePicker",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Form",
+      "paletteItemId": "antd-form",
+      "path": "Form",
+      "runtimeType": "AntdForm",
+      "support": "supported"
+    },
+    {
+      "creation": "template",
+      "exportName": "FormItem",
+      "paletteItemId": "antd-form-item",
+      "path": "Form.Item",
+      "runtimeType": "AntdFormItem",
+      "support": "template"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Input",
+      "paletteItemId": "antd-input",
+      "path": "Input",
+      "runtimeType": "AntdInput",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "InputPassword",
+      "paletteItemId": "antd-input-password",
+      "path": "Input.Password",
+      "runtimeType": "AntdInputPassword",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "InputSearch",
+      "paletteItemId": "antd-input-search",
+      "path": "Input.Search",
+      "runtimeType": "AntdInputSearch",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "InputTextArea",
+      "paletteItemId": "antd-input-text-area",
+      "path": "Input.TextArea",
+      "runtimeType": "AntdInputTextArea",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "InputNumber",
+      "paletteItemId": "antd-input-number",
+      "path": "InputNumber",
+      "runtimeType": "AntdInputNumber",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Mentions",
+      "paletteItemId": "antd-mentions",
+      "path": "Mentions",
+      "runtimeType": "AntdMentions",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Radio",
+      "paletteItemId": "antd-radio",
+      "path": "Radio",
+      "runtimeType": "AntdRadio",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Rate",
+      "paletteItemId": "antd-rate",
+      "path": "Rate",
+      "runtimeType": "AntdRate",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Select",
+      "paletteItemId": "antd-select",
+      "path": "Select",
+      "runtimeType": "AntdSelect",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Slider",
+      "paletteItemId": "antd-slider",
+      "path": "Slider",
+      "runtimeType": "AntdSlider",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Switch",
+      "paletteItemId": "antd-switch",
+      "path": "Switch",
+      "runtimeType": "AntdSwitch",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "TimePicker",
+      "paletteItemId": "antd-time-picker",
+      "path": "TimePicker",
+      "runtimeType": "AntdTimePicker",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Transfer",
+      "paletteItemId": "antd-transfer",
+      "path": "Transfer",
+      "runtimeType": "AntdTransfer",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "TreeSelect",
+      "paletteItemId": "antd-tree-select",
+      "path": "TreeSelect",
+      "runtimeType": "AntdTreeSelect",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Upload",
+      "paletteItemId": "antd-upload",
+      "path": "Upload",
+      "runtimeType": "AntdUpload",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Avatar",
+      "paletteItemId": "antd-avatar",
+      "path": "Avatar",
+      "runtimeType": "AntdAvatar",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Badge",
+      "paletteItemId": "antd-badge",
+      "path": "Badge",
+      "runtimeType": "AntdBadge",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Calendar",
+      "paletteItemId": "antd-calendar",
+      "path": "Calendar",
+      "runtimeType": "AntdCalendar",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Card",
+      "paletteItemId": "antd-card",
+      "path": "Card",
+      "runtimeType": "AntdCard",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "CardMeta",
+      "paletteItemId": "antd-card-meta",
+      "path": "Card.Meta",
+      "runtimeType": "AntdCardMeta",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Carousel",
+      "paletteItemId": "antd-carousel",
+      "path": "Carousel",
+      "runtimeType": "AntdCarousel",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Collapse",
+      "paletteItemId": "antd-collapse",
+      "path": "Collapse",
+      "runtimeType": "AntdCollapse",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Descriptions",
+      "paletteItemId": "antd-descriptions",
+      "path": "Descriptions",
+      "runtimeType": "AntdDescriptions",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "DescriptionsItem",
+      "paletteItemId": "antd-descriptions-item",
+      "path": "Descriptions.Item",
+      "runtimeType": "AntdDescriptionsItem",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Empty",
+      "paletteItemId": "antd-empty",
+      "path": "Empty",
+      "runtimeType": "AntdEmpty",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Image",
+      "paletteItemId": "antd-image",
+      "path": "Image",
+      "runtimeType": "AntdImage",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "List",
+      "paletteItemId": "antd-list",
+      "path": "List",
+      "runtimeType": "AntdList",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "ListItem",
+      "paletteItemId": "antd-list-item",
+      "path": "List.Item",
+      "runtimeType": "AntdListItem",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "ListItemMeta",
+      "paletteItemId": "antd-list-item-meta",
+      "path": "List.Item.Meta",
+      "runtimeType": "AntdListItemMeta",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Popover",
+      "paletteItemId": "antd-popover",
+      "path": "Popover",
+      "runtimeType": "AntdPopover",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "QRCode",
+      "paletteItemId": "antd-qrcode",
+      "path": "QRCode",
+      "runtimeType": "AntdQRCode",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Segmented",
+      "paletteItemId": "antd-segmented",
+      "path": "Segmented",
+      "runtimeType": "AntdSegmented",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Statistic",
+      "paletteItemId": "antd-statistic",
+      "path": "Statistic",
+      "runtimeType": "AntdStatistic",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Table",
+      "paletteItemId": "antd-table",
+      "path": "Table",
+      "runtimeType": "AntdTable",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Tag",
+      "paletteItemId": "antd-tag",
+      "path": "Tag",
+      "runtimeType": "AntdTag",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Timeline",
+      "paletteItemId": "antd-timeline",
+      "path": "Timeline",
+      "runtimeType": "AntdTimeline",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Tooltip",
+      "paletteItemId": "antd-tooltip",
+      "path": "Tooltip",
+      "runtimeType": "AntdTooltip",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Tour",
+      "paletteItemId": "antd-tour",
+      "path": "Tour",
+      "runtimeType": "AntdTour",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Tree",
+      "paletteItemId": "antd-tree",
+      "path": "Tree",
+      "runtimeType": "AntdTree",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Typography",
+      "paletteItemId": "antd-typography",
+      "path": "Typography",
+      "runtimeType": "AntdTypography",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "TypographyText",
+      "paletteItemId": "antd-typography-text",
+      "path": "Typography.Text",
+      "runtimeType": "AntdTypographyText",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "TypographyTitle",
+      "paletteItemId": "antd-typography-title",
+      "path": "Typography.Title",
+      "runtimeType": "AntdTypographyTitle",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "TypographyParagraph",
+      "paletteItemId": "antd-typography-paragraph",
+      "path": "Typography.Paragraph",
+      "runtimeType": "AntdTypographyParagraph",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "TypographyLink",
+      "paletteItemId": "antd-typography-link",
+      "path": "Typography.Link",
+      "runtimeType": "AntdTypographyLink",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Alert",
+      "paletteItemId": "antd-alert",
+      "path": "Alert",
+      "runtimeType": "AntdAlert",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Drawer",
+      "paletteItemId": "antd-drawer",
+      "path": "Drawer",
+      "runtimeType": "AntdDrawer",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Modal",
+      "paletteItemId": "antd-modal",
+      "path": "Modal",
+      "runtimeType": "AntdModal",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Popconfirm",
+      "paletteItemId": "antd-popconfirm",
+      "path": "Popconfirm",
+      "runtimeType": "AntdPopconfirm",
+      "support": "degraded"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Progress",
+      "paletteItemId": "antd-progress",
+      "path": "Progress",
+      "runtimeType": "AntdProgress",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Result",
+      "paletteItemId": "antd-result",
+      "path": "Result",
+      "runtimeType": "AntdResult",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Skeleton",
+      "paletteItemId": "antd-skeleton",
+      "path": "Skeleton",
+      "runtimeType": "AntdSkeleton",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Spin",
+      "paletteItemId": "antd-spin",
+      "path": "Spin",
+      "runtimeType": "AntdSpin",
+      "support": "supported"
+    },
+    {
+      "creation": "direct",
+      "exportName": "Watermark",
+      "paletteItemId": "antd-watermark",
+      "path": "Watermark",
+      "runtimeType": "AntdWatermark",
+      "support": "supported"
+    }
+  ],
+  "hostImplementations": [
+    { "id": "antd.components", "kind": "component-library" },
+    { "id": "antd.icons", "kind": "icon-provider" },
+    { "id": "antd.palette", "kind": "palette-projection" },
+    { "id": "antd.render.overlay", "kind": "render-policy" },
+    { "id": "antd.render.provider", "kind": "render-policy" }
+  ],
+  "hostPackages": [
+    { "name": "@ant-design/cssinjs", "version": "1.24.0" },
+    { "name": "@ant-design/icons", "version": "6.1.0" },
+    { "name": "antd", "version": "5.28.0" }
+  ],
+  "library": {
+    "displayName": "Ant Design",
+    "id": "antd",
+    "package": { "license": "MIT", "name": "antd", "version": "5.28.0" }
+  },
+  "omittedExports": [
+    "default",
+    "message",
+    "notification",
+    "theme",
+    "unstableSetRender",
+    "version"
+  ],
+  "schemaVersion": "1.0"
+}

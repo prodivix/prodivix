@@ -102,20 +102,21 @@ Prodivix 内置多种部署选项：
 
 ### 已完成功能 ✅
 
-| 功能模块          | 说明                                                                |
-| ----------------- | ------------------------------------------------------------------- |
-| 蓝图编辑器        | 拖拽式 UI 设计、组件树、Inspector Panel 架构、布局范式              |
-| 组件库            | 75+ 内置组件 + Radix 子集，覆盖常见 UI 场景                         |
-| 外部库运行时      | esm.sh 桥接 + Canonical External IR，支持 Ant Design / MUI 动态加载 |
-| PIR 渲染器        | 运行时渲染、ValueRef 解析、列表渲染、数据作用域                     |
-| React 代码生成    | PIR → JSX + Hooks（mitosis 桥接）                                   |
-| Workspace VFS     | 多文档工作区、文件树、路由清单、文档级保存                          |
-| 同步协议          | 分区 rev 乐观并发（workspaceRev/routeRev/contentRev）+ 冲突检测     |
-| 路由清单 + Outlet | 多级路由 / 布局路由 / Outlet 占位 + 编辑器结构诊断                  |
-| PIR 双端校验      | 前后端共用 v1.3 graph 校验（循环 / 孤立节点 / 父子关系）            |
-| 后端服务          | 用户认证、项目管理、Workspace 同步、Capability 协商                 |
-| 国际化            | 支持中文、英文                                                      |
-| AI 助手           | Provider 抽象（Mock / OpenAI 兼容）+ 模型发现 + 调试可见            |
+| 功能模块          | 说明                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| 蓝图编辑器        | 拖拽式 UI 设计、组件树、Inspector Panel 架构、布局范式                                           |
+| 组件库            | 75+ 内置组件；Ant Design / MUI / Radix 以 bundled official plugin 按 workspace 启用              |
+| 插件平台          | Manifest、Host lifecycle、Browser Sandbox、Gateway 与六类 official contribution contract         |
+| 外部库渲染与导出  | verified package artifact + React Host ABI + serializable Codegen Policy，不执行 remote fallback |
+| PIR 渲染器        | 运行时渲染、ValueRef 解析、列表渲染、数据作用域                                                  |
+| React 代码生成    | PIR → JSX + Hooks（mitosis 桥接）                                                                |
+| Workspace VFS     | 多文档工作区、文件树、路由清单、文档级保存                                                       |
+| 同步协议          | 分区 rev 乐观并发（workspaceRev/routeRev/contentRev）+ 冲突检测                                  |
+| 路由清单 + Outlet | 多级路由 / 布局路由 / Outlet 占位 + 编辑器结构诊断                                               |
+| PIR 双端校验      | 前后端共用 v1.3 graph 校验（循环 / 孤立节点 / 父子关系）                                         |
+| 后端服务          | 用户认证、项目管理、Workspace 同步、Capability 协商                                              |
+| 国际化            | 支持中文、英文                                                                                   |
+| AI 助手           | Provider 抽象（Mock / OpenAI 兼容）+ 模型发现 + 调试可见                                         |
 
 ### 开发中功能 🚧
 
@@ -131,7 +132,7 @@ Prodivix 内置多种部署选项：
 - Vue 3 / Angular / Solid / Svelte / Qwik 代码生成
 - 原生 HTML/CSS/JS 导出
 - 团队协作（CRDT 作为 rev 模式后置层，见 `specs/decisions/07.workspace-sync.md`）
-- 插件沙箱与 Capability 治理（`specs/decisions/14.plugin-sandbox-and-capability.md`）
+- public plugin SDK、签名审核、marketplace 与更多 extension point surface
 - 类协议样式编辑器（`specs/decisions/16.class-protocol-editor.md`）
 - LLM 深度集成（`specs/decisions/22.llm-integration-architecture.md`）
 - GitHub App 与 Git 集成（`specs/decisions/23.github-app-integration.md`）

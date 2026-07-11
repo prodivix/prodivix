@@ -11,7 +11,7 @@ export const EXTERNAL_LIBRARY_CONTRIBUTION_V1_SCHEMA: object = {
   $id: 'https://prodivix.dev/schemas/external-library-contribution-v1.schema.json',
   title: 'ExternalLibraryContributionV1',
   description:
-    'Serializable external component library identity and Canonical External IR enhancement contract.',
+    'Serializable external component library identity, component descriptor, slot, behavior, and dependency metadata contract.',
   $comment:
     'Executable URLs, module objects, callbacks, and React values are forbidden. The host resolves the exact package coordinate through its build-attested implementation catalog.',
   type: 'object',
@@ -21,7 +21,6 @@ export const EXTERNAL_LIBRARY_CONTRIBUTION_V1_SCHEMA: object = {
     'libraryId',
     'displayName',
     'package',
-    'hostImplementationId',
     'exportDiscovery',
     'components',
     'dependencies',

@@ -7,7 +7,7 @@ export type NpmMetadata = {
   updatedAt: number;
 };
 
-export const PRE_RELEASE_PATTERN = /(alpha|beta|rc|next|canary|dev|broken)/i;
+const PRE_RELEASE_PATTERN = /(alpha|beta|rc|next|canary|dev)/i;
 export const METADATA_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
 export const normalizePersistedLibraries = (
@@ -35,13 +35,6 @@ export const normalizePersistedLibraries = (
           typeof record.version === 'string' && record.version.trim().length > 0
             ? record.version.trim()
             : 'latest',
-        status:
-          record.status === 'loading' ||
-          record.status === 'success' ||
-          record.status === 'warning' ||
-          record.status === 'error'
-            ? record.status
-            : 'idle',
       };
     })
     .filter((item): item is PersistedLibrary => Boolean(item));

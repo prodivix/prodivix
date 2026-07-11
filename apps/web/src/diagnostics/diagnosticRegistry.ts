@@ -79,6 +79,12 @@ export const PIR_DIAGNOSTIC_REGISTRY = {
     severity: 'error',
     docsUrl: '/reference/diagnostic-codes#pir',
   },
+  PIR_2011: {
+    code: 'PIR-2011',
+    domain: 'pir',
+    severity: 'error',
+    docsUrl: '/reference/diagnostics/pir-2011',
+  },
   PIR_3001: {
     code: 'PIR-3001',
     domain: 'pir',

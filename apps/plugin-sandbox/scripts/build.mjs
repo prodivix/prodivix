@@ -3,6 +3,11 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
+import {
+  createSandboxSecurityPolicy,
+  renderCloudflareHeaders,
+  renderNginxConfig,
+} from './security-policy.mjs';
 
 const appRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const distRoot = path.join(appRoot, 'dist');
@@ -47,68 +52,7 @@ const uiSource = await bundle('src/uiConformance.ts', 'ui-conformance.js');
 const runtimeHash = sha256(runtimeSource);
 const uiHash = sha256(uiSource);
 
-const commonDirectives = [
-  "default-src 'none'",
-  "connect-src 'none'",
-  "img-src 'none'",
-  "style-src 'none'",
-  "font-src 'none'",
-  "media-src 'none'",
-  "object-src 'none'",
-  "frame-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "manifest-src 'none'",
-].join('; ');
-const runtimeCsp = `${commonDirectives}; script-src '${runtimeHash}' blob:; worker-src blob:`;
-const uiCsp = `${commonDirectives}; script-src '${uiHash}'; worker-src 'none'`;
-const permissionsPolicy = [
-  'accelerometer=()',
-  'autoplay=()',
-  'camera=()',
-  'display-capture=()',
-  'encrypted-media=()',
-  'fullscreen=()',
-  'geolocation=()',
-  'gyroscope=()',
-  'magnetometer=()',
-  'microphone=()',
-  'midi=()',
-  'payment=()',
-  'picture-in-picture=()',
-  'publickey-credentials-get=()',
-  'screen-wake-lock=()',
-  'serial=()',
-  'usb=()',
-  'xr-spatial-tracking=()',
-].join(', ');
-const sharedHeaders = {
-  'Cache-Control': 'no-store',
-  'Cross-Origin-Resource-Policy': 'cross-origin',
-  'Permissions-Policy': permissionsPolicy,
-  'Referrer-Policy': 'no-referrer',
-  'X-Content-Type-Options': 'nosniff',
-};
-const scriptHeaders = {
-  ...sharedHeaders,
-  'Access-Control-Allow-Origin': '*',
-};
-const headers = {
-  '/runtime-broker.html': {
-    ...sharedHeaders,
-    'Content-Security-Policy': runtimeCsp,
-  },
-  '/ui-conformance.html': {
-    ...sharedHeaders,
-    'Content-Security-Policy': uiCsp,
-  },
-  '/runtime-broker.js': scriptHeaders,
-  '/ui-conformance.js': scriptHeaders,
-  '/index.html': {
-    ...sharedHeaders,
-    'Content-Security-Policy': commonDirectives,
-  },
-};
+const headers = createSandboxSecurityPolicy({ runtimeHash, uiHash });
 
 const html = (title, script, integrity) => `<!doctype html>
 <html lang="en">
@@ -123,37 +67,8 @@ const html = (title, script, integrity) => `<!doctype html>
 </html>
 `;
 
-const cloudflareHeaders = Object.entries(headers)
-  .map(
-    ([route, values]) =>
-      `${route}\n${Object.entries(values)
-        .map(([name, value]) => `  ${name}: ${value}`)
-        .join('\n')}`
-  )
-  .join('\n\n');
-
-const nginxLocations = Object.entries(headers)
-  .map(
-    ([route, values]) => `location = ${route} {
-${Object.entries(values)
-  .map(([name, value]) => `  add_header ${name} "${value}" always;`)
-  .join('\n')}
-  try_files ${route} =404;
-}`
-  )
-  .join('\n\n');
-const nginxConfig = `server {
-  listen 8080;
-  server_name _;
-  root /usr/share/nginx/html;
-  types { text/html html; application/javascript js; application/json json; }
-  default_type application/octet-stream;
-
-${nginxLocations}
-
-  location / { return 404; }
-}
-`;
+const cloudflareHeaders = renderCloudflareHeaders(headers);
+const nginxConfig = renderNginxConfig(headers);
 
 await rm(distRoot, { recursive: true, force: true });
 await mkdir(distRoot, { recursive: true });

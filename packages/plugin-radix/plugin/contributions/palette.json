@@ -1,0 +1,86 @@
+{
+  "$schema": "https://prodivix.dev/schemas/palette-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "surface": "blueprint.components",
+  "groups": [
+    {
+      "id": "radix-primitives",
+      "label": "Radix UI",
+      "placement": {
+        "section": "external",
+        "libraryId": "radix"
+      },
+      "items": [
+        {
+          "kind": "component",
+          "id": "radix-slot",
+          "label": "Slot",
+          "runtimeType": "RadixSlot"
+        },
+        {
+          "kind": "component",
+          "id": "radix-label",
+          "label": "Label",
+          "runtimeType": "RadixLabel",
+          "defaultProps": {
+            "htmlFor": "field"
+          }
+        },
+        {
+          "kind": "component",
+          "id": "radix-separator",
+          "label": "Separator",
+          "runtimeType": "RadixSeparator",
+          "defaultProps": {
+            "decorative": true,
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "kind": "component",
+          "id": "radix-accordion",
+          "label": "Accordion"
+        },
+        {
+          "kind": "component",
+          "id": "radix-tabs",
+          "label": "Tabs"
+        },
+        {
+          "kind": "component",
+          "id": "radix-dialog",
+          "label": "Dialog"
+        },
+        {
+          "kind": "component",
+          "id": "radix-popover",
+          "label": "Popover",
+          "presentation": {
+            "scale": 0.72
+          }
+        },
+        {
+          "kind": "component",
+          "id": "radix-tooltip",
+          "label": "Tooltip",
+          "presentation": {
+            "scale": 0.72
+          }
+        },
+        {
+          "kind": "component",
+          "id": "radix-dropdown-menu",
+          "label": "Dropdown Menu",
+          "presentation": {
+            "scale": 0.72
+          }
+        },
+        {
+          "kind": "component",
+          "id": "radix-switch",
+          "label": "Switch"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,437 @@
+{
+  "$schema": "https://prodivix.dev/schemas/render-policy-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "libraryId": "radix",
+  "rules": [
+    {
+      "id": "radix.slot",
+      "runtimeType": "RadixSlot",
+      "componentExport": "RadixSlot",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Slot is unavailable."
+      }
+    },
+    {
+      "id": "radix.label",
+      "runtimeType": "RadixLabel",
+      "componentExport": "RadixLabel",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Label is unavailable."
+      }
+    },
+    {
+      "id": "radix.separator",
+      "runtimeType": "RadixSeparator",
+      "componentExport": "RadixSeparator",
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Separator is unavailable."
+      }
+    },
+    {
+      "id": "radix.accordion-root",
+      "runtimeType": "RadixAccordionRoot",
+      "componentExport": "AccordionRoot",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Accordion Root is unavailable."
+      },
+      "hostImplementationId": "radix.controlled-state"
+    },
+    {
+      "id": "radix.accordion-item",
+      "runtimeType": "RadixAccordionItem",
+      "componentExport": "AccordionItem",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Accordion Item is unavailable."
+      }
+    },
+    {
+      "id": "radix.accordion-header",
+      "runtimeType": "RadixAccordionHeader",
+      "componentExport": "AccordionHeader",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Accordion Header is unavailable."
+      }
+    },
+    {
+      "id": "radix.accordion-trigger",
+      "runtimeType": "RadixAccordionTrigger",
+      "componentExport": "AccordionTrigger",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Accordion Trigger is unavailable."
+      }
+    },
+    {
+      "id": "radix.accordion-content",
+      "runtimeType": "RadixAccordionContent",
+      "componentExport": "AccordionContent",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Accordion Content is unavailable."
+      }
+    },
+    {
+      "id": "radix.tabs-root",
+      "runtimeType": "RadixTabsRoot",
+      "componentExport": "TabsRoot",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tabs Root is unavailable."
+      },
+      "hostImplementationId": "radix.controlled-state"
+    },
+    {
+      "id": "radix.tabs-list",
+      "runtimeType": "RadixTabsList",
+      "componentExport": "TabsList",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tabs List is unavailable."
+      }
+    },
+    {
+      "id": "radix.tabs-trigger",
+      "runtimeType": "RadixTabsTrigger",
+      "componentExport": "TabsTrigger",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tabs Trigger is unavailable."
+      }
+    },
+    {
+      "id": "radix.tabs-content",
+      "runtimeType": "RadixTabsContent",
+      "componentExport": "TabsContent",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tabs Content is unavailable."
+      }
+    },
+    {
+      "id": "radix.dialog-root",
+      "runtimeType": "RadixDialogRoot",
+      "componentExport": "DialogRoot",
+      "children": { "mode": "children-only" },
+      "portal": {
+        "mode": "inline",
+        "canvasOpen": { "prop": "open", "when": "selected", "value": true }
+      },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Root is unavailable."
+      },
+      "hostImplementationId": "radix.controlled-state"
+    },
+    {
+      "id": "radix.dialog-trigger",
+      "runtimeType": "RadixDialogTrigger",
+      "componentExport": "DialogTrigger",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Trigger is unavailable."
+      }
+    },
+    {
+      "id": "radix.dialog-portal",
+      "runtimeType": "RadixDialogPortal",
+      "componentExport": "DialogPortal",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "host-overlay" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Portal has no scoped overlay host."
+      },
+      "hostImplementationId": "radix.host-overlay"
+    },
+    {
+      "id": "radix.dialog-overlay",
+      "runtimeType": "RadixDialogOverlay",
+      "componentExport": "DialogOverlay",
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Overlay is unavailable."
+      }
+    },
+    {
+      "id": "radix.dialog-content",
+      "runtimeType": "RadixDialogContent",
+      "componentExport": "DialogContent",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Content is unavailable."
+      }
+    },
+    {
+      "id": "radix.dialog-title",
+      "runtimeType": "RadixDialogTitle",
+      "componentExport": "DialogTitle",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Title is unavailable."
+      }
+    },
+    {
+      "id": "radix.dialog-description",
+      "runtimeType": "RadixDialogDescription",
+      "componentExport": "DialogDescription",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Description is unavailable."
+      }
+    },
+    {
+      "id": "radix.dialog-close",
+      "runtimeType": "RadixDialogClose",
+      "componentExport": "DialogClose",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dialog Close is unavailable."
+      }
+    },
+    {
+      "id": "radix.popover-root",
+      "runtimeType": "RadixPopoverRoot",
+      "componentExport": "PopoverRoot",
+      "children": { "mode": "children-only" },
+      "portal": {
+        "mode": "inline",
+        "canvasOpen": { "prop": "open", "when": "selected", "value": true }
+      },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Popover Root is unavailable."
+      },
+      "hostImplementationId": "radix.controlled-state"
+    },
+    {
+      "id": "radix.popover-trigger",
+      "runtimeType": "RadixPopoverTrigger",
+      "componentExport": "PopoverTrigger",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Popover Trigger is unavailable."
+      }
+    },
+    {
+      "id": "radix.popover-portal",
+      "runtimeType": "RadixPopoverPortal",
+      "componentExport": "PopoverPortal",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "host-overlay" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Popover Portal has no scoped overlay host."
+      },
+      "hostImplementationId": "radix.host-overlay"
+    },
+    {
+      "id": "radix.popover-content",
+      "runtimeType": "RadixPopoverContent",
+      "componentExport": "PopoverContent",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Popover Content is unavailable."
+      }
+    },
+    {
+      "id": "radix.tooltip-provider",
+      "runtimeType": "RadixTooltipProvider",
+      "componentExport": "TooltipProvider",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tooltip Provider is unavailable."
+      }
+    },
+    {
+      "id": "radix.tooltip-root",
+      "runtimeType": "RadixTooltipRoot",
+      "componentExport": "TooltipRoot",
+      "children": { "mode": "children-only" },
+      "portal": {
+        "mode": "inline",
+        "canvasOpen": { "prop": "open", "when": "selected", "value": true }
+      },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tooltip Root is unavailable."
+      },
+      "hostImplementationId": "radix.controlled-state"
+    },
+    {
+      "id": "radix.tooltip-trigger",
+      "runtimeType": "RadixTooltipTrigger",
+      "componentExport": "TooltipTrigger",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tooltip Trigger is unavailable."
+      }
+    },
+    {
+      "id": "radix.tooltip-portal",
+      "runtimeType": "RadixTooltipPortal",
+      "componentExport": "TooltipPortal",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "host-overlay" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tooltip Portal has no scoped overlay host."
+      },
+      "hostImplementationId": "radix.host-overlay"
+    },
+    {
+      "id": "radix.tooltip-content",
+      "runtimeType": "RadixTooltipContent",
+      "componentExport": "TooltipContent",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tooltip Content is unavailable."
+      }
+    },
+    {
+      "id": "radix.tooltip-arrow",
+      "runtimeType": "RadixTooltipArrow",
+      "componentExport": "TooltipArrow",
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Tooltip Arrow is unavailable."
+      }
+    },
+    {
+      "id": "radix.dropdown-root",
+      "runtimeType": "RadixDropdownMenuRoot",
+      "componentExport": "DropdownMenuRoot",
+      "children": { "mode": "children-only" },
+      "portal": {
+        "mode": "inline",
+        "canvasOpen": { "prop": "open", "when": "selected", "value": true }
+      },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dropdown Menu Root is unavailable."
+      },
+      "hostImplementationId": "radix.controlled-state"
+    },
+    {
+      "id": "radix.dropdown-trigger",
+      "runtimeType": "RadixDropdownMenuTrigger",
+      "componentExport": "DropdownMenuTrigger",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dropdown Menu Trigger is unavailable."
+      }
+    },
+    {
+      "id": "radix.dropdown-portal",
+      "runtimeType": "RadixDropdownMenuPortal",
+      "componentExport": "DropdownMenuPortal",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "host-overlay" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dropdown Menu Portal has no scoped overlay host."
+      },
+      "hostImplementationId": "radix.host-overlay"
+    },
+    {
+      "id": "radix.dropdown-content",
+      "runtimeType": "RadixDropdownMenuContent",
+      "componentExport": "DropdownMenuContent",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dropdown Menu Content is unavailable."
+      }
+    },
+    {
+      "id": "radix.dropdown-item",
+      "runtimeType": "RadixDropdownMenuItem",
+      "componentExport": "DropdownMenuItem",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Dropdown Menu Item is unavailable."
+      }
+    },
+    {
+      "id": "radix.switch-root",
+      "runtimeType": "RadixSwitchRoot",
+      "componentExport": "SwitchRoot",
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Switch Root is unavailable."
+      },
+      "hostImplementationId": "radix.controlled-state"
+    },
+    {
+      "id": "radix.switch-thumb",
+      "runtimeType": "RadixSwitchThumb",
+      "componentExport": "SwitchThumb",
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "error",
+        "message": "Radix Switch Thumb is unavailable."
+      }
+    }
+  ]
+}

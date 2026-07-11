@@ -7,6 +7,7 @@ import {
   type PaletteItemDescriptor,
   type PluginDiagnostic,
 } from '@prodivix/plugin-contracts';
+import type { OfficialPalettePreviewItem } from '@prodivix/plugin-react-host';
 import {
   asNonEmptyDiagnostics,
   createContributionIdentity,
@@ -16,6 +17,7 @@ import {
   pluginHostSuccess,
   type ContributionIdentity,
   type PluginHostResult,
+  type PluginOwnerRef,
   type RegisteredContributionContract,
 } from '@prodivix/plugin-host';
 import type {
@@ -26,7 +28,15 @@ import type {
   PaletteRuntimeProjection,
   ResolvedPaletteContribution,
 } from '@/editor/features/blueprint/palette/types';
+import type {
+  OfficialHostImplementationBinding,
+  OfficialHostImplementationRegistry,
+} from '@/plugins/platform/officialHostImplementations';
 import type { WebContributionPointMap } from '@/plugins/platform/types';
+import {
+  scopeOfficialPluginNode,
+  type OfficialSurfaceLeaseRegistry,
+} from '@/plugins/platform/officialSurfaceHost';
 
 type ProjectionBinding = Readonly<{
   token: symbol;
@@ -106,7 +116,7 @@ const conflictFailure = (
 
 const resolveItem = (
   descriptor: PaletteItemDescriptor,
-  projection: ComponentPreviewItem,
+  projection: OfficialPalettePreviewItem,
   group: PaletteGroupDescriptor,
   identity: ContributionIdentity
 ): PluginHostResult<ComponentPreviewItem> => {
@@ -294,111 +304,221 @@ const resolveGroups = (
   return pluginHostSuccess(Object.freeze(resolvedGroups));
 };
 
-export const createPaletteProjectionResolver =
-  (): PaletteProjectionResolver => {
-    const bindings = new Map<string, ProjectionBinding>();
-    const claims = new Map<string, PaletteClaim>();
+const scopeOfficialProjection = (
+  projection: PaletteRuntimeProjection,
+  owner: PluginOwnerRef
+): PaletteRuntimeProjection =>
+  Object.freeze({
+    groups: Object.freeze(
+      projection.groups.map((group) =>
+        Object.freeze({
+          ...group,
+          items: Object.freeze(
+            group.items.map((item) =>
+              Object.freeze({
+                ...item,
+                preview: scopeOfficialPluginNode(owner, item.preview),
+                ...(item.renderPreview
+                  ? {
+                      renderPreview: (options: {
+                        size?: string;
+                        status?: string;
+                      }) =>
+                        scopeOfficialPluginNode(
+                          owner,
+                          item.renderPreview!(options)
+                        ),
+                    }
+                  : {}),
+                ...(item.variants
+                  ? {
+                      variants: Object.freeze(
+                        item.variants.map((variant) =>
+                          Object.freeze({
+                            ...variant,
+                            element: scopeOfficialPluginNode(
+                              owner,
+                              variant.element
+                            ),
+                            ...(variant.renderElement
+                              ? {
+                                  renderElement: (options: { size?: string }) =>
+                                    scopeOfficialPluginNode(
+                                      owner,
+                                      variant.renderElement!(options)
+                                    ),
+                                }
+                              : {}),
+                          })
+                        )
+                      ),
+                    }
+                  : {}),
+                ...(item.statusOptions
+                  ? {
+                      statusOptions: Object.freeze(
+                        item.statusOptions.map((status) =>
+                          Object.freeze({
+                            ...status,
+                            ...(status.icon === undefined
+                              ? {}
+                              : {
+                                  icon: scopeOfficialPluginNode(
+                                    owner,
+                                    status.icon
+                                  ),
+                                }),
+                          })
+                        )
+                      ),
+                    }
+                  : {}),
+              })
+            )
+          ),
+        })
+      )
+    ),
+  });
 
-    const contract = defineContributionContract<
-      WebContributionPointMap,
-      'paletteContribution',
-      PaletteContributionV1
-    >({
-      point: 'paletteContribution',
-      contractVersion: '1.0',
-      validateDescriptor: (input) => {
-        const result = validatePaletteContribution(input);
-        if (result.ok) return pluginHostSuccess(result.descriptor);
-        const diagnostics = asNonEmptyDiagnostics(result.diagnostics);
-        return pluginHostFailure(
-          diagnostics ??
-            ([
-              createPluginDiagnostic(
-                PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_SCHEMA_VIOLATION,
-                'Palette descriptor validation failed without a diagnostic.',
-                {
-                  contributionPoint: 'paletteContribution',
-                  contractVersion: '1.0',
-                }
-              ),
-            ] satisfies [PluginDiagnostic])
-        );
-      },
-      prepare: async ({ owner, attestation, declaration, descriptor }) => {
-        const identity = createContributionIdentity(
+export const createPaletteProjectionResolver = (
+  implementations: OfficialHostImplementationRegistry,
+  surfaceLeases: OfficialSurfaceLeaseRegistry
+): PaletteProjectionResolver => {
+  const bindings = new Map<string, ProjectionBinding>();
+  const claims = new Map<string, PaletteClaim>();
+
+  const contract = defineContributionContract<
+    WebContributionPointMap,
+    'paletteContribution',
+    PaletteContributionV1
+  >({
+    point: 'paletteContribution',
+    contractVersion: '1.0',
+    validateDescriptor: (input) => {
+      const result = validatePaletteContribution(input);
+      if (result.ok) return pluginHostSuccess(result.descriptor);
+      const diagnostics = asNonEmptyDiagnostics(result.diagnostics);
+      return pluginHostFailure(
+        diagnostics ??
+          ([
+            createPluginDiagnostic(
+              PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_SCHEMA_VIOLATION,
+              'Palette descriptor validation failed without a diagnostic.',
+              {
+                contributionPoint: 'paletteContribution',
+                contractVersion: '1.0',
+              }
+            ),
+          ] satisfies [PluginDiagnostic])
+      );
+    },
+    prepare: async ({
+      owner,
+      attestation,
+      declaration,
+      descriptor,
+      signal,
+    }) => {
+      const identity = createContributionIdentity(
+        owner.pluginId,
+        declaration.id
+      );
+      const trustedBinding = bindings.get(
+        projectionKey(
+          attestation.sourceId,
+          attestation.packageDigest,
           owner.pluginId,
           declaration.id
+        )
+      );
+      let officialBinding:
+        OfficialHostImplementationBinding<'palette-projection'> | undefined;
+      if (!trustedBinding) {
+        const result = await implementations.bind({
+          owner,
+          attestation,
+          implementationId: declaration.id,
+          expectedKind: 'palette-projection',
+          signal,
+        });
+        if (result.ok === false) {
+          return pluginHostFailure(result.diagnostics);
+        }
+        officialBinding = result.value;
+      }
+      const projection = trustedBinding?.projection ?? officialBinding?.value;
+      if (!projection) {
+        officialBinding?.dispose();
+        return resolverFailure(
+          'Palette contribution has no trusted runtime projection binding.',
+          identity
         );
-        const binding = bindings.get(
-          projectionKey(
-            attestation.sourceId,
-            attestation.packageDigest,
-            owner.pluginId,
-            declaration.id
-          )
-        );
-        if (!binding) {
-          return resolverFailure(
-            'Palette contribution has no trusted runtime projection binding.',
-            identity
+      }
+      const resolvedProjection =
+        attestation.trustLevel === 'core'
+          ? projection
+          : scopeOfficialProjection(projection, owner);
+      const groups = resolveGroups(descriptor, resolvedProjection, identity);
+      if (!groups.ok) {
+        officialBinding?.dispose();
+        const diagnostics = asNonEmptyDiagnostics(groups.diagnostics);
+        return diagnostics
+          ? pluginHostFailure(diagnostics)
+          : resolverFailure(
+              'Palette group resolution failed without a diagnostic.',
+              identity
+            );
+      }
+
+      const contributionClaims = [
+        ...descriptor.groups.map((group) => ({
+          kind: 'group' as const,
+          id: group.id,
+        })),
+        ...descriptor.groups.flatMap((group) =>
+          group.items.map((item) => ({
+            kind: 'item' as const,
+            id: item.id,
+          }))
+        ),
+      ];
+      for (const claim of contributionClaims) {
+        const current = claims.get(claimKey(claim.kind, claim.id));
+        if (
+          current &&
+          !isSameContributionIdentity(current.identity, identity)
+        ) {
+          officialBinding?.dispose();
+          return conflictFailure(
+            claim.kind,
+            claim.id,
+            identity,
+            current.identity
           );
         }
-        const groups = resolveGroups(descriptor, binding.projection, identity);
-        if (!groups.ok) {
-          const diagnostics = asNonEmptyDiagnostics(groups.diagnostics);
-          return diagnostics
-            ? pluginHostFailure(diagnostics)
-            : resolverFailure(
-                'Palette group resolution failed without a diagnostic.',
-                identity
-              );
-        }
-
-        const contributionClaims = [
-          ...descriptor.groups.map((group) => ({
-            kind: 'group' as const,
-            id: group.id,
-          })),
-          ...descriptor.groups.flatMap((group) =>
-            group.items.map((item) => ({
-              kind: 'item' as const,
-              id: item.id,
-            }))
-          ),
-        ];
-        for (const claim of contributionClaims) {
-          const current = claims.get(claimKey(claim.kind, claim.id));
-          if (
-            current &&
-            !isSameContributionIdentity(current.identity, identity)
-          ) {
-            return conflictFailure(
-              claim.kind,
-              claim.id,
-              identity,
-              current.identity
-            );
-          }
-        }
-        contributionClaims.forEach((claim) => {
-          const key = claimKey(claim.kind, claim.id);
-          const current = claims.get(key);
-          claims.set(key, {
-            identity,
-            leaseCount: (current?.leaseCount ?? 0) + 1,
-          });
+      }
+      contributionClaims.forEach((claim) => {
+        const key = claimKey(claim.kind, claim.id);
+        const current = claims.get(key);
+        claims.set(key, {
+          identity,
+          leaseCount: (current?.leaseCount ?? 0) + 1,
         });
-        let disposed = false;
-        return pluginHostSuccess({
-          value: Object.freeze({
-            descriptor,
-            groups: groups.value,
-          }) satisfies ResolvedPaletteContribution,
-          lifetime: 'installation' as const,
-          dependsOnCapabilities: [],
-          dispose: () => {
-            if (disposed) return;
-            disposed = true;
+      });
+      let disposePromise: Promise<void> | undefined;
+      return pluginHostSuccess({
+        value: Object.freeze({
+          descriptor,
+          groups: groups.value,
+          creationMode:
+            attestation.trustLevel === 'core' ? 'native' : 'contract',
+        }) satisfies ResolvedPaletteContribution,
+        lifetime: 'installation' as const,
+        dependsOnCapabilities: [],
+        dispose: () => {
+          if (disposePromise) return disposePromise;
+          disposePromise = (async () => {
             contributionClaims.forEach((claim) => {
               const key = claimKey(claim.kind, claim.id);
               const current = claims.get(key);
@@ -414,36 +534,43 @@ export const createPaletteProjectionResolver =
               }
               current.leaseCount -= 1;
             });
-          },
-        });
-      },
-    });
+            try {
+              await surfaceLeases.releaseOwner(owner);
+            } finally {
+              officialBinding?.dispose();
+            }
+          })();
+          return disposePromise;
+        },
+      });
+    },
+  });
 
-    return Object.freeze({
-      contract,
-      bindProjection: ({
+  return Object.freeze({
+    contract,
+    bindProjection: ({
+      packageSourceId,
+      packageDigest,
+      pluginId,
+      contributionId,
+      projection,
+    }) => {
+      const key = projectionKey(
         packageSourceId,
         packageDigest,
         pluginId,
-        contributionId,
-        projection,
-      }) => {
-        const key = projectionKey(
-          packageSourceId,
-          packageDigest,
-          pluginId,
-          contributionId
-        );
-        const token = Symbol(key);
-        bindings.set(key, { token, projection });
-        let disposed = false;
-        return Object.freeze({
-          dispose: () => {
-            if (disposed) return;
-            disposed = true;
-            if (bindings.get(key)?.token === token) bindings.delete(key);
-          },
-        });
-      },
-    });
-  };
+        contributionId
+      );
+      const token = Symbol(key);
+      bindings.set(key, { token, projection });
+      let disposed = false;
+      return Object.freeze({
+        dispose: () => {
+          if (disposed) return;
+          disposed = true;
+          if (bindings.get(key)?.token === token) bindings.delete(key);
+        },
+      });
+    },
+  });
+};

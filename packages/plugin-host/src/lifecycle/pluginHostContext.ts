@@ -306,6 +306,7 @@ export const createPluginHostContext = <TMap extends HostContributionPointMap>(
         action,
         outcome,
         diagnostics,
+        packageDigest: record.source.attestation.packageDigest,
         ...metadata,
       },
     ]);

@@ -1,4 +1,4 @@
-import React, { createElement } from 'react';
+import type React from 'react';
 import * as PdxUi from '@prodivix/ui';
 import { PDX_COMPONENT_MANIFEST } from '@prodivix/ui';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
@@ -13,6 +13,8 @@ export type AdapterContext = {
   resolvedStyle: Record<string, unknown>;
   resolvedText: React.ReactNode;
   isSelected: boolean;
+  hasSelectedDescendant: boolean;
+  interactionMode: 'design' | 'interactive';
 };
 
 export type AdapterResult = {
@@ -21,6 +23,7 @@ export type AdapterResult = {
   supportsChildren?: boolean;
   isVoid?: boolean;
   renderNodeChildren?: boolean;
+  instanceKey?: string;
 };
 
 export type ComponentAdapter = {
@@ -54,68 +57,6 @@ export type ComponentRegistry = {
   resolve: (type: string) => ResolvedComponent;
 };
 
-const runtimeEntries = new Map<string, RegistryEntry>();
-const RUNTIME_REGISTRY_UPDATED_EVENT = 'prodivix:runtime-registry-updated';
-let runtimeRegistryRevision = 0;
-
-type RuntimeBoundaryState = { hasError: boolean };
-
-class RuntimeComponentBoundary extends React.Component<
-  { typeName: string; children?: React.ReactNode },
-  RuntimeBoundaryState
-> {
-  state: RuntimeBoundaryState = { hasError: false };
-
-  static getDerivedStateFromError(): RuntimeBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: unknown) {
-    console.warn(
-      '[runtime-component] render failed',
-      this.props.typeName,
-      error
-    );
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return createElement(
-        'span',
-        {
-          'data-runtime-error': this.props.typeName,
-          style: {
-            display: 'inline-flex',
-            minHeight: 24,
-            alignItems: 'center',
-            padding: '0 8px',
-            border: '1px dashed rgba(0,0,0,0.25)',
-            borderRadius: 8,
-            fontSize: 11,
-            color: 'var(--text-secondary)',
-          },
-        },
-        `${this.props.typeName} (runtime fallback)`
-      );
-    }
-    return this.props.children;
-  }
-}
-
-const createGuardedRuntimeComponent = (
-  type: string,
-  component: React.ElementType
-): React.ElementType => {
-  const GuardedRuntimeComponent = (props: Record<string, unknown>) =>
-    createElement(
-      RuntimeComponentBoundary,
-      { typeName: type },
-      createElement(component, props)
-    );
-  GuardedRuntimeComponent.displayName = `Guarded${type}`;
-  return GuardedRuntimeComponent;
-};
-
 const normalizeSelectionData = (selectionData?: Record<string, string>) =>
   selectionData ?? {};
 
@@ -146,19 +87,19 @@ const applyPdxSelection = (
   };
 };
 
-export const htmlAdapter: ComponentAdapter = {
+const htmlAdapter: ComponentAdapter = {
   kind: 'html',
   supportsChildren: true,
   applySelection: applyHtmlSelection,
 };
 
-export const prodivixAdapter: ComponentAdapter = {
+const prodivixAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: true,
   applySelection: applyPdxSelection,
 };
 
-export const htmlTextAdapter: ComponentAdapter = {
+const htmlTextAdapter: ComponentAdapter = {
   kind: 'html',
   supportsChildren: true,
   applySelection: applyHtmlSelection,
@@ -168,7 +109,7 @@ export const htmlTextAdapter: ComponentAdapter = {
   }),
 };
 
-export const htmlButtonAdapter: ComponentAdapter = {
+const htmlButtonAdapter: ComponentAdapter = {
   kind: 'html',
   supportsChildren: true,
   applySelection: applyHtmlSelection,
@@ -178,7 +119,7 @@ export const htmlButtonAdapter: ComponentAdapter = {
   }),
 };
 
-export const htmlInputAdapter: ComponentAdapter = {
+const htmlInputAdapter: ComponentAdapter = {
   kind: 'html',
   supportsChildren: false,
   isVoid: true,
@@ -196,7 +137,7 @@ export const htmlInputAdapter: ComponentAdapter = {
   },
 };
 
-export const prodivixTextAdapter: ComponentAdapter = {
+const prodivixTextAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: true,
   applySelection: applyPdxSelection,
@@ -206,7 +147,7 @@ export const prodivixTextAdapter: ComponentAdapter = {
   }),
 };
 
-export const prodivixButtonAdapter: ComponentAdapter = {
+const prodivixButtonAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: false,
   applySelection: applyPdxSelection,
@@ -219,7 +160,7 @@ export const prodivixButtonAdapter: ComponentAdapter = {
   },
 };
 
-export const prodivixTextPropAdapter: ComponentAdapter = {
+const prodivixTextPropAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: true,
   applySelection: applyPdxSelection,
@@ -232,7 +173,7 @@ export const prodivixTextPropAdapter: ComponentAdapter = {
   },
 };
 
-export const prodivixLinkAdapter: ComponentAdapter = {
+const prodivixLinkAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: false,
   applySelection: applyPdxSelection,
@@ -245,7 +186,7 @@ export const prodivixLinkAdapter: ComponentAdapter = {
   },
 };
 
-export const prodivixInputAdapter: ComponentAdapter = {
+const prodivixInputAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: false,
   applySelection: applyPdxSelection,
@@ -258,7 +199,7 @@ export const prodivixInputAdapter: ComponentAdapter = {
   },
 };
 
-export const prodivixLeafAdapter: ComponentAdapter = {
+const prodivixLeafAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: false,
   applySelection: applyPdxSelection,
@@ -291,7 +232,7 @@ const resolveIconProps = (resolvedProps: Record<string, unknown>) => {
   return props;
 };
 
-export const prodivixIconAdapter: ComponentAdapter = {
+const prodivixIconAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: false,
   applySelection: applyPdxSelection,
@@ -300,7 +241,7 @@ export const prodivixIconAdapter: ComponentAdapter = {
   }),
 };
 
-export const prodivixIconLinkAdapter: ComponentAdapter = {
+const prodivixIconLinkAdapter: ComponentAdapter = {
   kind: 'prodivix',
   supportsChildren: false,
   applySelection: applyPdxSelection,
@@ -321,61 +262,6 @@ const registerNativeComponents = (registry: ComponentRegistry) => {
   registry.register('text', 'span', htmlTextAdapter);
   registry.register('button', 'button', htmlButtonAdapter);
   registry.register('input', 'input', htmlInputAdapter);
-};
-
-const createHeadlessPrimitive = (tag: string) => {
-  const HeadlessPrimitive = ({
-    children,
-    ...props
-  }: Record<string, unknown> & { children?: React.ReactNode }) =>
-    createElement(tag, props, children);
-  HeadlessPrimitive.displayName = `Headless${tag.charAt(0).toUpperCase()}${tag.slice(1)}`;
-  return HeadlessPrimitive;
-};
-
-const registerHeadlessComponents = (registry: ComponentRegistry) => {
-  registry.register(
-    'RadixSlot',
-    createHeadlessPrimitive('span'),
-    htmlTextAdapter
-  );
-  registry.register(
-    'RadixLabel',
-    createHeadlessPrimitive('label'),
-    htmlTextAdapter
-  );
-  registry.register(
-    'RadixSeparator',
-    createHeadlessPrimitive('div'),
-    htmlAdapter
-  );
-  registry.register(
-    'RadixAccordion',
-    createHeadlessPrimitive('div'),
-    htmlAdapter
-  );
-  registry.register('RadixTabs', createHeadlessPrimitive('div'), htmlAdapter);
-  registry.register('RadixDialog', createHeadlessPrimitive('div'), htmlAdapter);
-  registry.register(
-    'RadixPopover',
-    createHeadlessPrimitive('div'),
-    htmlAdapter
-  );
-  registry.register(
-    'RadixTooltip',
-    createHeadlessPrimitive('div'),
-    htmlAdapter
-  );
-  registry.register(
-    'RadixDropdownMenu',
-    createHeadlessPrimitive('div'),
-    htmlAdapter
-  );
-  registry.register(
-    'RadixSwitch',
-    createHeadlessPrimitive('button'),
-    htmlButtonAdapter
-  );
 };
 
 const registerPdxComponents = (registry: ComponentRegistry) => {
@@ -462,75 +348,15 @@ export const createComponentRegistry = (): ComponentRegistry => {
   return { register, get, resolve };
 };
 
-export const registerRuntimeComponent = (
-  type: string,
-  component: React.ElementType,
-  adapter: ComponentAdapter = htmlAdapter
-) => {
-  runtimeEntries.set(type, {
-    component: createGuardedRuntimeComponent(type, component),
-    adapter,
-  });
-  runtimeRegistryRevision += 1;
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent(RUNTIME_REGISTRY_UPDATED_EVENT, {
-        detail: { revision: runtimeRegistryRevision },
-      })
-    );
-  }
-};
-
-export const unregisterRuntimeComponent = (type: string) => {
-  if (!runtimeEntries.has(type)) return;
-  runtimeEntries.delete(type);
-  runtimeRegistryRevision += 1;
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent(RUNTIME_REGISTRY_UPDATED_EVENT, {
-        detail: { revision: runtimeRegistryRevision },
-      })
-    );
-  }
-};
-
-export const resetRuntimeComponents = () => {
-  runtimeEntries.clear();
-  runtimeRegistryRevision += 1;
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent(RUNTIME_REGISTRY_UPDATED_EVENT, {
-        detail: { revision: runtimeRegistryRevision },
-      })
-    );
-  }
-};
-
-export const getRuntimeRegistryRevision = () => runtimeRegistryRevision;
-export const runtimeRegistryUpdatedEvent = RUNTIME_REGISTRY_UPDATED_EVENT;
-
-const registerRuntimeEntries = (registry: ComponentRegistry) => {
-  runtimeEntries.forEach((entry, type) => {
-    registry.register(type, entry.component, entry.adapter);
-  });
-};
-
-export const createRuntimeComponentRegistry = () => {
-  const registry = createComponentRegistry();
-  registerRuntimeEntries(registry);
-  return registry;
-};
-
-export const createNativeRegistry = () => {
+const createNativeRegistry = () => {
   const registry = createComponentRegistry();
   registerNativeComponents(registry);
   return registry;
 };
 
-export const createPdxRegistry = () => {
+const createPdxRegistry = () => {
   const registry = createComponentRegistry();
   registerPdxComponents(registry);
-  registerHeadlessComponents(registry);
   return registry;
 };
 
@@ -565,22 +391,11 @@ export const createOrderedComponentRegistry = (
 ) => {
   const resolvedOrder = order.length > 0 ? order : DEFAULT_RESOLVER_ORDER;
   const registries = {
-    custom:
-      customRegistry ??
-      (() => {
-        const runtimeRegistry = createComponentRegistry();
-        registerRuntimeEntries(runtimeRegistry);
-        return runtimeRegistry;
-      })(),
+    custom: customRegistry ?? createComponentRegistry(),
     prodivix: createPdxRegistry(),
     native: createNativeRegistry(),
   };
 
-  /**
-   * Runtime registration call chain:
-   * registerRuntimeComponent(...) -> runtimeEntries -> createOrderedComponentRegistry(custom layer)
-   * -> PIRRenderer(registry.resolve) -> concrete render component.
-   */
   const register = (
     type: string,
     component: React.ElementType,
@@ -624,33 +439,11 @@ export const createOrderedComponentRegistry = (
   return { register, get, resolve };
 };
 
-export const createDefaultComponentRegistry = () => {
+const createDefaultComponentRegistry = () => {
   const registry = createComponentRegistry();
   registerNativeComponents(registry);
   registerPdxComponents(registry);
-  registerHeadlessComponents(registry);
-  registerRuntimeEntries(registry);
   return registry;
-};
-
-let cachedDefaultRegistry: ComponentRegistry | null = null;
-let cachedDefaultRegistryRevision = -1;
-
-/**
- * Returns a lazily-initialised default ComponentRegistry shared across all
- * PIRRenderer instances that don't pass an explicit `registry` prop. The cache
- * is invalidated whenever runtimeRegistryRevision advances so dynamically
- * registered runtime components are reflected on next access.
- */
-export const getDefaultComponentRegistry = (): ComponentRegistry => {
-  if (
-    cachedDefaultRegistry === null ||
-    cachedDefaultRegistryRevision !== runtimeRegistryRevision
-  ) {
-    cachedDefaultRegistry = createDefaultComponentRegistry();
-    cachedDefaultRegistryRevision = runtimeRegistryRevision;
-  }
-  return cachedDefaultRegistry;
 };
 
 export const defaultComponentRegistry = createDefaultComponentRegistry();

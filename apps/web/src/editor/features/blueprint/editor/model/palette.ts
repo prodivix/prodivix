@@ -20,7 +20,6 @@ import {
 } from '@/editor/features/blueprint/catalog/sampleData';
 import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import { materializePirRoot } from '@/pir/graph';
-import { createRadixNodeFromPaletteItem } from '@/editor/features/blueprint/editor/model/radix';
 import { buildLayoutPatternNode } from '@/editor/features/blueprint/layoutPatterns';
 import type { PaletteQueryService } from '@/plugins/platform';
 
@@ -34,11 +33,18 @@ const collectTypeCounts = (
 
 export const createNodeIdFactory = (doc: PIRDocument) => {
   const counts: Record<string, number> = {};
+  const existingNodeIds = new Set(Object.keys(doc.ui.graph.nodesById));
   collectTypeCounts(materializePirRoot(doc), counts);
   return (type: string) => {
-    const next = (counts[type] ?? 0) + 1;
+    let next = (counts[type] ?? 0) + 1;
+    let nodeId = `${type}-${next}`;
+    while (existingNodeIds.has(nodeId)) {
+      next += 1;
+      nodeId = `${type}-${next}`;
+    }
     counts[type] = next;
-    return `${type}-${next}`;
+    existingNodeIds.add(nodeId);
+    return nodeId;
   };
 };
 
@@ -189,21 +195,7 @@ export const createNodeFromPaletteItem = ({
       .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
       .join('');
 
-  const typeFromPalette = (value: string) => {
-    if (value.startsWith('radix-')) {
-      return `Radix${toPascalCase(value.slice('radix-'.length))}`;
-    }
-    return `Pdx${toPascalCase(value)}`;
-  };
-
-  const radixNode = createRadixNodeFromPaletteItem(
-    itemId,
-    createId,
-    variantProps
-  );
-  if (radixNode) {
-    return radixNode;
-  }
+  const typeFromPalette = (value: string) => `Pdx${toPascalCase(value)}`;
 
   if (itemId.startsWith('layout-pattern-')) {
     const patternId = itemId.replace('layout-pattern-', '');
@@ -409,26 +401,6 @@ export const createNodeFromPaletteItem = ({
         size: 18,
         ...variantProps,
       },
-    };
-  }
-  if (itemId === 'antd-form-item') {
-    return {
-      id: createId('AntdFormItem'),
-      type: 'AntdFormItem',
-      props: {
-        label: 'Field',
-        name: 'field',
-        ...variantProps,
-      },
-      children: [
-        {
-          id: createId('AntdInput'),
-          type: 'AntdInput',
-          props: {
-            placeholder: 'Type here',
-          },
-        },
-      ],
     };
   }
   const registryItem = palette.getItemById(itemId);

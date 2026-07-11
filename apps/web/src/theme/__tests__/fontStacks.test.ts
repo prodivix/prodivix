@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import {
   OFFICIAL_THEME_FONT_FACES,
   THEME_FONT_STACKS,

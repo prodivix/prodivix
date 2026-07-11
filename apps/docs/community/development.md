@@ -68,6 +68,15 @@ prodivix/
 │   ├── shared/          # 共享类型
 │   ├── themes/          # 主题
 │   ├── i18n/            # 国际化
+│   ├── plugin-contracts/# 插件 JSON contracts
+│   ├── plugin-host/     # 插件 lifecycle / registry
+│   ├── plugin-protocol/ # Browser wire protocol
+│   ├── plugin-browser/  # Sandbox transport / Gateway
+│   ├── plugin-package/  # Artifact / bundled catalog
+│   ├── plugin-react-host/# Official React Host ABI
+│   ├── plugin-antd/     # Ant Design official plugin
+│   ├── plugin-mui/      # Material UI official plugin
+│   ├── plugin-radix/    # Radix UI official plugin
 │   ├── eslint-plugin-prodivix/ # ESLint 插件
 │   └── vscode-debugger/ # VS Code 调试器
 │
@@ -87,6 +96,12 @@ apps/web
   ├── @prodivix/ui
   ├── @prodivix/shared
   ├── @prodivix/themes
+  ├── @prodivix/plugin-host
+  ├── @prodivix/plugin-package
+  ├── @prodivix/plugin-react-host
+  ├── @prodivix/plugin-antd
+  ├── @prodivix/plugin-mui
+  ├── @prodivix/plugin-radix
   └── @prodivix/i18n
 
 apps/cli
@@ -193,7 +208,7 @@ apps/web/src/
 │   ├── Editor.tsx
 │   ├── EditorBar/
 │   └── features/
-│       ├── design/     # 蓝图编辑器
+│       ├── blueprint/  # 蓝图编辑器
 │       ├── development/# 节点图
 │       ├── export/     # 导出
 │       └── settings/   # 设置

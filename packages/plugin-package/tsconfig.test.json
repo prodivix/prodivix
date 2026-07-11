@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "#package/*": ["./src/*"],
+      "@prodivix/plugin-contracts": ["../plugin-contracts/dist/index.d.ts"],
+      "@prodivix/plugin-host": ["../plugin-host/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    {
+      "path": "../plugin-contracts"
+    },
+    {
+      "path": "../plugin-host"
+    }
+  ]
+}

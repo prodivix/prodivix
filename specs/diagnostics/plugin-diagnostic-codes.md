@@ -228,8 +228,8 @@
 - Severity: `error`
 - Stage: `semantic`
 - Retryable: false
-- Trigger: External Library、Palette、Render Policy、Codegen Policy 或 Icon Provider 引用了未声明的 library、runtime type、package、export 或不兼容的 host implementation identity
-- User action: 让同一插件批次中的扩展点引用精确匹配的 library、runtime type、package coordinate、export 和 implementation id
+- Trigger: External Library、Palette、Blueprint Template、Render Policy、Codegen Policy 或 Icon Provider 引用了未声明的 library、Palette item、runtime type、package、export 或不兼容的 host implementation identity
+- User action: 让同一插件批次中的扩展点引用精确匹配的 library、Palette item、runtime type、package coordinate、export 和 implementation id
 - Developer notes: 批次语义校验必须在所有 point-specific Schema 通过后、任何 resolver prepare 或 implementation bind 前执行
 
 ### `PLG-2021` Contribution library owner 不一致
@@ -672,6 +672,33 @@
 - Trigger: best-effort preflight 或 outcome record 未能在有界时间内持久化
 - User action: 恢复 IndexedDB/audit backend，并检查 retention policy
 - Developer notes: audit 仅保存脱敏、受限 metadata 和 diagnostic code，不保存 body、content、Secret 或 Token
+
+### `PLG-4070` Official component runtime 不可用
+
+- Severity: `error`
+- Stage: `registry`
+- Retryable: true
+- Trigger: PIR node 引用 bundled official package 声明的 runtime type，但当前 owner generation 未发布对应 Renderer projection
+- User action: 启用或重新安装拥有该 runtime type 的 official component package
+- Developer notes: runtime owner 必须从 bundled catalog 数据解析，Web 和 Compiler 不得按 AntD、MUI 或 Radix type prefix 增加分支；诊断需携带 pluginId、runtimeType 和 nodeId
+
+### `PLG-4071` Bundled official library 不存在
+
+- Severity: `error`
+- Stage: `registry`
+- Retryable: false
+- Trigger: Workspace component library 配置引用 bundled catalog 中不存在的 library id
+- User action: 删除未知 library id，或安装 Host 明确支持的 bundled official package
+- Developer notes: reconciliation 必须保留 plan.unknown 并逐项返回稳定诊断，不得尝试 remote main-realm import
+
+### `PLG-4072` Official component runtime 已不支持
+
+- Severity: `error`
+- Stage: `registry`
+- Retryable: false
+- Trigger: PIR node 使用 official package 明确列入 unsupportedRuntimeTypes 的历史 runtime type
+- User action: 用当前 official Palette/template 支持的 component 结构替换旧节点
+- Developer notes: unsupported runtime type 由 package 生成 catalog 声明；Web 和 Compiler 不得增加库名或 type prefix 特判
 
 ## 4. 实现约束
 

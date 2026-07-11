@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { IconProviderContributionV1 } from '@prodivix/plugin-contracts';
+import type {
+  IconProviderContributionV1,
+  InlineContributionSource,
+} from '@prodivix/plugin-contracts';
 import {
   createPluginOwnerRef,
   pluginHostSuccess,
   type PluginHostResult,
 } from '@prodivix/plugin-host';
 import { createIconProviderContributionResolver } from '@/plugins/platform/contributions/iconProviderResolver';
+import { createOfficialSurfaceLeaseRegistry } from '@/plugins/platform/officialSurfaceHost';
 import type {
   LibraryArtifactResolver,
   OfficialHostImplementationBinding,
@@ -29,6 +33,8 @@ const descriptor: IconProviderContributionV1 = {
     maxCacheEntries: 32,
   },
 };
+const jsonDescriptor =
+  descriptor as unknown as InlineContributionSource['descriptor'];
 
 const createDeferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -79,7 +85,10 @@ describe('Icon Provider resolver ownership', () => {
         return deferred.promise;
       },
     };
-    const contract = createIconProviderContributionResolver(artifacts);
+    const contract = createIconProviderContributionResolver(
+      artifacts,
+      createOfficialSurfaceLeaseRegistry()
+    );
     const prepare = (pluginId: string) =>
       contract.prepare({
         owner: createPluginOwnerRef(pluginId, `installation:${pluginId}`, 1),
@@ -93,9 +102,9 @@ describe('Icon Provider resolver ownership', () => {
           id: 'icons',
           point: 'iconProvider',
           contractVersion: '1.0',
-          source: { kind: 'inline', descriptor },
+          source: { kind: 'inline', descriptor: jsonDescriptor },
         },
-        descriptor,
+        descriptor: jsonDescriptor,
         permission: {
           permissionRevision: 1,
           getDecision: () => undefined,

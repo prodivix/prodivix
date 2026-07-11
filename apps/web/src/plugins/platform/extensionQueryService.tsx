@@ -1,20 +1,25 @@
 import { createElement, type ElementType } from 'react';
-import type { ContributionRegistryReader } from '@prodivix/plugin-host';
+import type {
+  ContributionRegistryReader,
+  PluginOwnerRef,
+} from '@prodivix/plugin-host';
 import type {
   CodegenLibraryPolicy,
   CodegenPolicySnapshot,
   IconCodegenPolicy,
 } from '@prodivix/prodivix-compiler';
 import {
-  createRuntimeComponentRegistry,
+  createComponentRegistry,
   type ComponentRegistry,
 } from '@/pir/renderer/registry';
 import type {
+  ExternalComponentMetadataProjection,
   RendererComponentProjection,
   WebContributionPointMap,
   WebExtensionQueryService,
   WebExtensionRegistrySnapshot,
 } from '@/plugins/platform/types';
+import { scopeOfficialPluginComponent } from '@/plugins/platform/officialSurfaceHost';
 
 const createFallbackComponent = (
   runtimeType: string,
@@ -44,17 +49,28 @@ const isElementType = (value: unknown): value is ElementType =>
   typeof value === 'function' ||
   (typeof value === 'object' && value !== null && '$$typeof' in value);
 
+const ownerScopedLibraryKey = (owner: PluginOwnerRef, libraryId: string) =>
+  `${owner.pluginId}\u0000${owner.installationId}\u0000${owner.generation}\u0000${libraryId}`;
+
 const createRendererComponents = (
   reader: ContributionRegistryReader<WebContributionPointMap>
 ): readonly RendererComponentProjection[] => {
   const libraries = new Map(
     reader
       .list('externalLibrary')
-      .map((record) => [record.value.libraryId, record.value] as const)
+      .map(
+        (record) =>
+          [
+            ownerScopedLibraryKey(record.owner, record.value.libraryId),
+            record.value,
+          ] as const
+      )
   );
   const components: RendererComponentProjection[] = [];
   reader.list('renderPolicy').forEach((record) => {
-    const library = libraries.get(record.value.libraryId);
+    const library = libraries.get(
+      ownerScopedLibraryKey(record.owner, record.value.libraryId)
+    );
     if (!library) return;
     record.value.rules.forEach((rule) => {
       const external = library.components.find(
@@ -62,7 +78,7 @@ const createRendererComponents = (
           component.runtimeType === rule.runtimeType &&
           component.exportName === rule.componentExport
       );
-      if (!external) return;
+      if (!external?.component) return;
       const fallback = () =>
         createFallbackComponent(
           rule.runtimeType,
@@ -82,15 +98,41 @@ const createRendererComponents = (
       }
       components.push(
         Object.freeze({
+          owner: record.owner,
+          contributionId: record.identity.contributionId,
           libraryId: library.libraryId,
           runtimeType: rule.runtimeType,
-          component,
+          component: scopeOfficialPluginComponent(record.owner, component),
           adapter: rule.adapter,
         })
       );
     });
   });
   return Object.freeze(components);
+};
+
+const createExternalComponentMetadata = (
+  reader: ContributionRegistryReader<WebContributionPointMap>
+): ReadonlyMap<string, ExternalComponentMetadataProjection> => {
+  const components = new Map<string, ExternalComponentMetadataProjection>();
+  reader.list('externalLibrary').forEach((record) => {
+    record.value.descriptor.components.forEach((component) => {
+      components.set(
+        component.runtimeType,
+        Object.freeze({
+          owner: record.owner,
+          contributionId: record.identity.contributionId,
+          libraryId: record.value.libraryId,
+          componentName: component.componentName,
+          runtimeType: component.runtimeType,
+          props: Object.freeze(
+            (component.props ?? []).map((prop) => Object.freeze({ ...prop }))
+          ),
+        })
+      );
+    });
+  });
+  return components;
 };
 
 const sourceFromRecord = (record: {
@@ -109,12 +151,20 @@ const createCodegenSnapshot = (
   const libraries = new Map(
     reader
       .list('externalLibrary')
-      .map((record) => [record.value.libraryId, record.value] as const)
+      .map(
+        (record) =>
+          [
+            ownerScopedLibraryKey(record.owner, record.value.libraryId),
+            record.value,
+          ] as const
+      )
   );
   const policies = reader
     .list('codegenPolicy')
     .flatMap((record): readonly CodegenLibraryPolicy[] => {
-      const library = libraries.get(record.value.libraryId);
+      const library = libraries.get(
+        ownerScopedLibraryKey(record.owner, record.value.libraryId)
+      );
       if (!library) return [];
       const descriptor = record.value.descriptor;
       return [
@@ -161,6 +211,7 @@ const createSnapshot = (
     externalLibraries: Object.freeze(
       reader.list('externalLibrary').map((record) => record.value)
     ),
+    externalComponentsByRuntimeType: createExternalComponentMetadata(reader),
     rendererComponents: createRendererComponents(reader),
     iconProviders: Object.freeze(
       reader.list('iconProvider').map((record) => record.value)
@@ -193,7 +244,7 @@ export const createWebExtensionQueryService = (
 export const createRendererProjectionRegistry = (
   snapshot: WebExtensionRegistrySnapshot
 ): ComponentRegistry => {
-  const registry = createRuntimeComponentRegistry();
+  const registry = createComponentRegistry();
   snapshot.rendererComponents.forEach((projection) => {
     registry.register(
       projection.runtimeType,

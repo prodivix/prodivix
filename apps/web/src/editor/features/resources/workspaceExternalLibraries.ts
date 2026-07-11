@@ -44,7 +44,7 @@ const normalizeWorkspacePersistedLibraries = (
   value: unknown
 ): PersistedLibrary[] => normalizePersistedLibrariesValue(value);
 
-export const createDefaultExternalLibrariesValue =
+const createDefaultExternalLibrariesValue =
   (): WorkspaceExternalLibrariesValue => ({
     componentLibraryIds: [],
     iconLibraryIds: [],
@@ -110,15 +110,14 @@ export const buildExternalLibrariesValueFromWorkspace = (
   return normalizeExternalLibrariesValue(document.content.value);
 };
 
-export const createPersistedLibraryValue = (
+const createPersistedLibraryValue = (
   libraryId: string,
   scope: PersistedLibrary['scope'],
-  version: string,
-  status: PersistedLibrary['status']
+  version: string
 ): PersistedLibrary | null => {
   const id = normalizeLibraryIds([libraryId])[0];
   if (!id) return null;
-  return { id, scope, version, status };
+  return { id, scope, version };
 };
 
 export const ensurePersistedLibrary = (
@@ -142,6 +141,5 @@ export const createInitialPersistedLibrary = (
   createPersistedLibraryValue(
     libraryId,
     scope,
-    preferredVersion?.trim() || pickVersionByMode(versions, mode),
-    'loading'
+    preferredVersion?.trim() || pickVersionByMode(versions, mode)
   );

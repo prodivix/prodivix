@@ -16,8 +16,6 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: [
         ...coverageConfigDefaults.exclude,
-        'src/editor/features/blueprint/external/libraries/antdProfile.tsx',
-        'src/editor/features/blueprint/external/libraries/muiProfile.tsx',
         'src/editor/features/blueprint/editor/inspector/components/AlignItemsIcons.tsx',
         'src/editor/features/blueprint/editor/inspector/components/FlexDirectionIcons.tsx',
         'src/editor/features/blueprint/editor/inspector/components/JustifyContentIcons.tsx',

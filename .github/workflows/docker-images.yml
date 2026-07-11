@@ -9,6 +9,7 @@ on:
       - 'v*'
     paths:
       - 'apps/backend/**'
+      - 'apps/plugin-sandbox/**'
       - 'apps/web/**'
       - 'packages/**'
       - 'package.json'
@@ -41,6 +42,11 @@ jobs:
             dockerfile: apps/web/Dockerfile
             build_args: |
               VITE_API_BASE=/
+              VITE_PLUGIN_SANDBOX_URL=${{ vars.VITE_PLUGIN_SANDBOX_URL }}
+          - service: sandbox
+            image_suffix: prodivix-plugin-sandbox
+            dockerfile: apps/plugin-sandbox/Dockerfile
+            build_args: ''
 
     steps:
       - name: Checkout

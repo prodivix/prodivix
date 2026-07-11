@@ -1,0 +1,855 @@
+{
+  "components": [
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "App",
+      "exportName": "App",
+      "runtimeType": "AntdApp",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Button",
+      "exportName": "Button",
+      "props": [
+        { "name": "type", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdButton",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "FloatButton",
+      "exportName": "FloatButton",
+      "props": [{ "name": "type", "valueType": "string" }],
+      "runtimeType": "AntdFloatButton"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Divider",
+      "exportName": "Divider",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdDivider"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Flex",
+      "exportName": "Flex",
+      "props": [{ "name": "gap", "valueType": "string" }],
+      "runtimeType": "AntdFlex",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Layout",
+      "exportName": "Layout",
+      "props": [{ "name": "style", "valueType": "object" }],
+      "runtimeType": "AntdLayout",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Layout.Header",
+      "exportName": "LayoutHeader",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdLayoutHeader",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Layout.Content",
+      "exportName": "LayoutContent",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdLayoutContent",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Layout.Footer",
+      "exportName": "LayoutFooter",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdLayoutFooter",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Layout.Sider",
+      "exportName": "LayoutSider",
+      "props": [
+        { "name": "children", "valueType": "string" },
+        { "name": "width", "valueType": "number" }
+      ],
+      "runtimeType": "AntdLayoutSider",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Space",
+      "exportName": "Space",
+      "props": [{ "name": "size", "valueType": "string" }],
+      "runtimeType": "AntdSpace",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Space.Compact",
+      "exportName": "SpaceCompact",
+      "props": [{ "name": "block", "valueType": "string" }],
+      "runtimeType": "AntdSpaceCompact",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Splitter",
+      "exportName": "Splitter",
+      "props": [{ "name": "style", "valueType": "object" }],
+      "runtimeType": "AntdSplitter",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Affix",
+      "exportName": "Affix",
+      "props": [{ "name": "offsetTop", "valueType": "string" }],
+      "runtimeType": "AntdAffix",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Anchor",
+      "exportName": "Anchor",
+      "props": [{ "name": "items", "valueType": "array" }],
+      "runtimeType": "AntdAnchor"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Breadcrumb",
+      "exportName": "Breadcrumb",
+      "props": [{ "name": "items", "valueType": "array" }],
+      "runtimeType": "AntdBreadcrumb"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Dropdown",
+      "exportName": "Dropdown",
+      "props": [{ "name": "menu", "valueType": "object" }],
+      "runtimeType": "AntdDropdown",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Menu",
+      "exportName": "Menu",
+      "props": [
+        { "name": "items", "valueType": "array" },
+        { "name": "mode", "valueType": "string" }
+      ],
+      "runtimeType": "AntdMenu"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Pagination",
+      "exportName": "Pagination",
+      "props": [
+        { "name": "current", "valueType": "string" },
+        { "name": "size", "valueType": "string" },
+        { "name": "total", "valueType": "string" }
+      ],
+      "runtimeType": "AntdPagination"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Steps",
+      "exportName": "Steps",
+      "props": [
+        { "name": "current", "valueType": "string" },
+        { "name": "items", "valueType": "array" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdSteps"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Tabs",
+      "exportName": "Tabs",
+      "props": [{ "name": "items", "valueType": "array" }],
+      "runtimeType": "AntdTabs"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "AutoComplete",
+      "exportName": "AutoComplete",
+      "props": [
+        { "name": "options", "valueType": "array" },
+        { "name": "placeholder", "valueType": "string" }
+      ],
+      "runtimeType": "AntdAutoComplete"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Cascader",
+      "exportName": "Cascader",
+      "props": [
+        { "name": "options", "valueType": "array" },
+        { "name": "placeholder", "valueType": "string" }
+      ],
+      "runtimeType": "AntdCascader"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Checkbox",
+      "exportName": "Checkbox",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdCheckbox",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "ColorPicker",
+      "exportName": "ColorPicker",
+      "props": [{ "name": "defaultValue", "valueType": "string" }],
+      "runtimeType": "AntdColorPicker"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "DatePicker",
+      "exportName": "DatePicker",
+      "props": [
+        { "name": "placeholder", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdDatePicker"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Form",
+      "exportName": "Form",
+      "props": [{ "name": "layout", "valueType": "string" }],
+      "runtimeType": "AntdForm",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Form.Item",
+      "exportName": "FormItem",
+      "props": [
+        { "name": "label", "valueType": "string" },
+        { "name": "name", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdFormItem",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Input",
+      "exportName": "Input",
+      "props": [
+        { "name": "placeholder", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdInput"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Input.Password",
+      "exportName": "InputPassword",
+      "props": [
+        { "name": "placeholder", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdInputPassword"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Input.Search",
+      "exportName": "InputSearch",
+      "props": [
+        { "name": "placeholder", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdInputSearch"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Input.TextArea",
+      "exportName": "InputTextArea",
+      "props": [
+        { "name": "placeholder", "valueType": "string" },
+        { "name": "rows", "valueType": "number" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdInputTextArea"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "InputNumber",
+      "exportName": "InputNumber",
+      "props": [
+        { "name": "defaultValue", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdInputNumber"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Mentions",
+      "exportName": "Mentions",
+      "props": [{ "name": "placeholder", "valueType": "string" }],
+      "runtimeType": "AntdMentions"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Radio",
+      "exportName": "Radio",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdRadio",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Rate",
+      "exportName": "Rate",
+      "props": [{ "name": "defaultValue", "valueType": "string" }],
+      "runtimeType": "AntdRate"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Select",
+      "exportName": "Select",
+      "props": [
+        { "name": "defaultValue", "valueType": "string" },
+        { "name": "options", "valueType": "array" },
+        { "name": "style", "valueType": "object" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdSelect"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Slider",
+      "exportName": "Slider",
+      "props": [{ "name": "defaultValue", "valueType": "string" }],
+      "runtimeType": "AntdSlider"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Switch",
+      "exportName": "Switch",
+      "props": [{ "name": "defaultChecked", "valueType": "string" }],
+      "runtimeType": "AntdSwitch"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "TimePicker",
+      "exportName": "TimePicker",
+      "props": [
+        { "name": "placeholder", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTimePicker"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Transfer",
+      "exportName": "Transfer",
+      "props": [
+        { "name": "dataSource", "valueType": "array" },
+        { "name": "targetKeys", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTransfer"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "TreeSelect",
+      "exportName": "TreeSelect",
+      "props": [
+        { "name": "defaultValue", "valueType": "string" },
+        { "name": "style", "valueType": "object" },
+        { "name": "treeData", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTreeSelect"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Upload",
+      "exportName": "Upload",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdUpload"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Avatar",
+      "exportName": "Avatar",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdAvatar"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Badge",
+      "exportName": "Badge",
+      "props": [{ "name": "count", "valueType": "string" }],
+      "runtimeType": "AntdBadge",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Calendar",
+      "exportName": "Calendar",
+      "props": [{ "name": "fullscreen", "valueType": "string" }],
+      "runtimeType": "AntdCalendar"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Card",
+      "exportName": "Card",
+      "props": [
+        { "name": "size", "valueType": "string" },
+        { "name": "title", "valueType": "string" }
+      ],
+      "runtimeType": "AntdCard",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Card.Meta",
+      "exportName": "CardMeta",
+      "props": [
+        { "name": "description", "valueType": "string" },
+        { "name": "title", "valueType": "string" }
+      ],
+      "runtimeType": "AntdCardMeta",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Carousel",
+      "exportName": "Carousel",
+      "runtimeType": "AntdCarousel",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Collapse",
+      "exportName": "Collapse",
+      "props": [{ "name": "items", "valueType": "array" }],
+      "runtimeType": "AntdCollapse",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Descriptions",
+      "exportName": "Descriptions",
+      "props": [
+        { "name": "column", "valueType": "string" },
+        { "name": "items", "valueType": "array" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdDescriptions",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Descriptions.Item",
+      "exportName": "DescriptionsItem",
+      "props": [
+        { "name": "children", "valueType": "string" },
+        { "name": "label", "valueType": "string" }
+      ],
+      "runtimeType": "AntdDescriptionsItem",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Empty",
+      "exportName": "Empty",
+      "props": [{ "name": "description", "valueType": "string" }],
+      "runtimeType": "AntdEmpty"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Image",
+      "exportName": "Image",
+      "props": [
+        { "name": "alt", "valueType": "string" },
+        { "name": "height", "valueType": "number" },
+        { "name": "preview", "valueType": "boolean" },
+        { "name": "src", "valueType": "string" },
+        { "name": "width", "valueType": "number" }
+      ],
+      "runtimeType": "AntdImage"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "List",
+      "exportName": "List",
+      "props": [{ "name": "dataSource", "valueType": "array" }],
+      "runtimeType": "AntdList",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "List.Item",
+      "exportName": "ListItem",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdListItem",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "List.Item.Meta",
+      "exportName": "ListItemMeta",
+      "props": [
+        { "name": "description", "valueType": "string" },
+        { "name": "title", "valueType": "string" }
+      ],
+      "runtimeType": "AntdListItemMeta",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Popover",
+      "exportName": "Popover",
+      "props": [
+        { "name": "content", "valueType": "string" },
+        { "name": "title", "valueType": "string" }
+      ],
+      "runtimeType": "AntdPopover",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "QRCode",
+      "exportName": "QRCode",
+      "props": [
+        { "name": "size", "valueType": "string" },
+        { "name": "value", "valueType": "string" }
+      ],
+      "runtimeType": "AntdQRCode"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Segmented",
+      "exportName": "Segmented",
+      "props": [
+        { "name": "options", "valueType": "array" },
+        { "name": "value", "valueType": "string" }
+      ],
+      "runtimeType": "AntdSegmented"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Statistic",
+      "exportName": "Statistic",
+      "props": [
+        { "name": "title", "valueType": "string" },
+        { "name": "value", "valueType": "string" }
+      ],
+      "runtimeType": "AntdStatistic"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Table",
+      "exportName": "Table",
+      "props": [
+        { "name": "columns", "valueType": "object" },
+        { "name": "dataSource", "valueType": "array" },
+        { "name": "pagination", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTable"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Tag",
+      "exportName": "Tag",
+      "props": [
+        { "name": "children", "valueType": "string" },
+        { "name": "color", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTag",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Timeline",
+      "exportName": "Timeline",
+      "props": [{ "name": "items", "valueType": "array" }],
+      "runtimeType": "AntdTimeline"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Tooltip",
+      "exportName": "Tooltip",
+      "props": [{ "name": "title", "valueType": "string" }],
+      "runtimeType": "AntdTooltip",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Tour",
+      "exportName": "Tour",
+      "props": [
+        { "name": "open", "valueType": "boolean" },
+        { "name": "steps", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTour"
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Tree",
+      "exportName": "Tree",
+      "props": [
+        { "name": "defaultExpandAll", "valueType": "string" },
+        { "name": "treeData", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTree"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Typography",
+      "exportName": "Typography",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdTypography",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Typography.Text",
+      "exportName": "TypographyText",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdTypographyText",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Typography.Title",
+      "exportName": "TypographyTitle",
+      "props": [
+        { "name": "children", "valueType": "string" },
+        { "name": "level", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTypographyTitle",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Typography.Paragraph",
+      "exportName": "TypographyParagraph",
+      "props": [{ "name": "children", "valueType": "string" }],
+      "runtimeType": "AntdTypographyParagraph",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Typography.Link",
+      "exportName": "TypographyLink",
+      "props": [
+        { "name": "children", "valueType": "string" },
+        { "name": "href", "valueType": "string" }
+      ],
+      "runtimeType": "AntdTypographyLink",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Alert",
+      "exportName": "Alert",
+      "props": [
+        { "name": "message", "valueType": "string" },
+        { "name": "showIcon", "valueType": "string" },
+        { "name": "type", "valueType": "string" }
+      ],
+      "runtimeType": "AntdAlert",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Drawer",
+      "exportName": "Drawer",
+      "props": [
+        { "name": "open", "valueType": "boolean" },
+        { "name": "placement", "valueType": "string" },
+        { "name": "title", "valueType": "string" }
+      ],
+      "runtimeType": "AntdDrawer",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Modal",
+      "exportName": "Modal",
+      "props": [
+        { "name": "footer", "valueType": "string" },
+        { "name": "open", "valueType": "boolean" },
+        { "name": "title", "valueType": "string" },
+        { "name": "width", "valueType": "number" }
+      ],
+      "runtimeType": "AntdModal",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.degraded"],
+      "componentName": "Popconfirm",
+      "exportName": "Popconfirm",
+      "props": [
+        { "name": "description", "valueType": "string" },
+        { "name": "title", "valueType": "string" }
+      ],
+      "runtimeType": "AntdPopconfirm",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Progress",
+      "exportName": "Progress",
+      "props": [
+        { "name": "percent", "valueType": "string" },
+        { "name": "size", "valueType": "string" }
+      ],
+      "runtimeType": "AntdProgress"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Result",
+      "exportName": "Result",
+      "props": [
+        { "name": "status", "valueType": "string" },
+        { "name": "subTitle", "valueType": "string" },
+        { "name": "title", "valueType": "string" }
+      ],
+      "runtimeType": "AntdResult"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Skeleton",
+      "exportName": "Skeleton",
+      "props": [
+        { "name": "active", "valueType": "string" },
+        { "name": "paragraph", "valueType": "string" }
+      ],
+      "runtimeType": "AntdSkeleton"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Spin",
+      "exportName": "Spin",
+      "props": [{ "name": "spinning", "valueType": "string" }],
+      "runtimeType": "AntdSpin"
+    },
+    {
+      "behaviorTags": ["authoring.supported"],
+      "componentName": "Watermark",
+      "exportName": "Watermark",
+      "props": [{ "name": "content", "valueType": "string" }],
+      "runtimeType": "AntdWatermark",
+      "slots": [{ "cardinality": "many", "name": "children" }]
+    }
+  ],
+  "dependencies": [
+    {
+      "kind": "dependency",
+      "license": "MIT",
+      "name": "@ant-design/cssinjs",
+      "version": "1.24.0"
+    },
+    {
+      "kind": "dependency",
+      "license": "MIT",
+      "name": "@ant-design/icons",
+      "version": "6.1.0"
+    }
+  ],
+  "displayName": "Ant Design",
+  "exportDiscovery": {
+    "include": [
+      "App",
+      "Button",
+      "FloatButton",
+      "Divider",
+      "Flex",
+      "Layout",
+      "LayoutHeader",
+      "LayoutContent",
+      "LayoutFooter",
+      "LayoutSider",
+      "Space",
+      "SpaceCompact",
+      "Splitter",
+      "Affix",
+      "Anchor",
+      "Breadcrumb",
+      "Dropdown",
+      "Menu",
+      "Pagination",
+      "Steps",
+      "Tabs",
+      "AutoComplete",
+      "Cascader",
+      "Checkbox",
+      "ColorPicker",
+      "DatePicker",
+      "Form",
+      "FormItem",
+      "Input",
+      "InputPassword",
+      "InputSearch",
+      "InputTextArea",
+      "InputNumber",
+      "Mentions",
+      "Radio",
+      "Rate",
+      "Select",
+      "Slider",
+      "Switch",
+      "TimePicker",
+      "Transfer",
+      "TreeSelect",
+      "Upload",
+      "Avatar",
+      "Badge",
+      "Calendar",
+      "Card",
+      "CardMeta",
+      "Carousel",
+      "Collapse",
+      "Descriptions",
+      "DescriptionsItem",
+      "Empty",
+      "Image",
+      "List",
+      "ListItem",
+      "ListItemMeta",
+      "Popover",
+      "QRCode",
+      "Segmented",
+      "Statistic",
+      "Table",
+      "Tag",
+      "Timeline",
+      "Tooltip",
+      "Tour",
+      "Tree",
+      "Typography",
+      "TypographyText",
+      "TypographyTitle",
+      "TypographyParagraph",
+      "TypographyLink",
+      "Alert",
+      "Drawer",
+      "Modal",
+      "Popconfirm",
+      "Progress",
+      "Result",
+      "Skeleton",
+      "Spin",
+      "Watermark"
+    ],
+    "strategy": "declared"
+  },
+  "hostImplementationId": "antd.components",
+  "libraryId": "antd",
+  "package": { "license": "MIT", "name": "antd", "version": "5.28.0" },
+  "schemaVersion": "1.0"
+}

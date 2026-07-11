@@ -1,0 +1,312 @@
+{
+  "$schema": "https://prodivix.dev/schemas/external-library-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "libraryId": "mui",
+  "displayName": "Material UI",
+  "package": {
+    "name": "@mui/material",
+    "version": "7.3.2",
+    "license": "MIT"
+  },
+  "hostImplementationId": "mui.components",
+  "exportDiscovery": {
+    "strategy": "declared",
+    "include": [
+      "Button",
+      "TextField",
+      "Checkbox",
+      "Radio",
+      "Switch",
+      "Slider",
+      "Card",
+      "Paper",
+      "Accordion",
+      "AccordionSummary",
+      "AccordionDetails",
+      "Tabs",
+      "Box",
+      "Stack",
+      "Grid",
+      "Container",
+      "Alert",
+      "Snackbar",
+      "Dialog",
+      "CircularProgress"
+    ],
+    "exclude": [
+      "default",
+      "colors",
+      "styled",
+      "useTheme",
+      "ThemeProvider",
+      "createTheme",
+      "alpha",
+      "darken",
+      "lighten"
+    ]
+  },
+  "components": [
+    {
+      "exportName": "Button",
+      "componentName": "Button",
+      "runtimeType": "MuiButton",
+      "props": [
+        { "name": "variant", "valueType": "string" },
+        { "name": "size", "valueType": "string" },
+        { "name": "color", "valueType": "string" },
+        { "name": "disabled", "valueType": "boolean" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["input.action"]
+    },
+    {
+      "exportName": "TextField",
+      "componentName": "Text Field",
+      "runtimeType": "MuiTextField",
+      "props": [
+        { "name": "label", "valueType": "string" },
+        { "name": "variant", "valueType": "string" },
+        { "name": "size", "valueType": "string" },
+        { "name": "value", "valueType": "unknown" },
+        { "name": "placeholder", "valueType": "string" },
+        { "name": "disabled", "valueType": "boolean" }
+      ],
+      "behaviorTags": ["input.text"]
+    },
+    {
+      "exportName": "Checkbox",
+      "componentName": "Checkbox",
+      "runtimeType": "MuiCheckbox",
+      "props": [
+        { "name": "checked", "valueType": "boolean" },
+        { "name": "defaultChecked", "valueType": "boolean" },
+        { "name": "size", "valueType": "string" },
+        { "name": "disabled", "valueType": "boolean" }
+      ],
+      "behaviorTags": ["input.boolean"]
+    },
+    {
+      "exportName": "Radio",
+      "componentName": "Radio",
+      "runtimeType": "MuiRadio",
+      "props": [
+        { "name": "checked", "valueType": "boolean" },
+        { "name": "value", "valueType": "unknown" },
+        { "name": "size", "valueType": "string" },
+        { "name": "disabled", "valueType": "boolean" }
+      ],
+      "behaviorTags": ["input.choice"]
+    },
+    {
+      "exportName": "Switch",
+      "componentName": "Switch",
+      "runtimeType": "MuiSwitch",
+      "props": [
+        { "name": "checked", "valueType": "boolean" },
+        { "name": "defaultChecked", "valueType": "boolean" },
+        { "name": "size", "valueType": "string" },
+        { "name": "disabled", "valueType": "boolean" }
+      ],
+      "behaviorTags": ["input.boolean"]
+    },
+    {
+      "exportName": "Slider",
+      "componentName": "Slider",
+      "runtimeType": "MuiSlider",
+      "props": [
+        { "name": "value", "valueType": "unknown" },
+        { "name": "defaultValue", "valueType": "unknown" },
+        { "name": "min", "valueType": "number" },
+        { "name": "max", "valueType": "number" },
+        { "name": "step", "valueType": "number" },
+        { "name": "disabled", "valueType": "boolean" }
+      ],
+      "behaviorTags": ["input.range"]
+    },
+    {
+      "exportName": "Card",
+      "componentName": "Card",
+      "runtimeType": "MuiCard",
+      "props": [
+        { "name": "variant", "valueType": "string" },
+        { "name": "raised", "valueType": "boolean" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["surface.card"]
+    },
+    {
+      "exportName": "Paper",
+      "componentName": "Paper",
+      "runtimeType": "MuiPaper",
+      "props": [
+        { "name": "elevation", "valueType": "number" },
+        { "name": "variant", "valueType": "string" },
+        { "name": "square", "valueType": "boolean" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["surface.paper"]
+    },
+    {
+      "exportName": "Accordion",
+      "componentName": "Accordion",
+      "runtimeType": "MuiAccordion",
+      "props": [
+        { "name": "expanded", "valueType": "boolean" },
+        { "name": "defaultExpanded", "valueType": "boolean" },
+        { "name": "disabled", "valueType": "boolean" },
+        { "name": "disableGutters", "valueType": "boolean" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["disclosure.root"]
+    },
+    {
+      "exportName": "AccordionSummary",
+      "componentName": "Accordion Summary",
+      "runtimeType": "MuiAccordionSummary",
+      "props": [{ "name": "disabled", "valueType": "boolean" }],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["disclosure.trigger"]
+    },
+    {
+      "exportName": "AccordionDetails",
+      "componentName": "Accordion Details",
+      "runtimeType": "MuiAccordionDetails",
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["disclosure.content"]
+    },
+    {
+      "exportName": "Tabs",
+      "componentName": "Tabs",
+      "runtimeType": "MuiTabs",
+      "props": [
+        { "name": "value", "valueType": "unknown" },
+        { "name": "orientation", "valueType": "string" },
+        { "name": "variant", "valueType": "string" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["navigation.tabs"]
+    },
+    {
+      "exportName": "Box",
+      "componentName": "Box",
+      "runtimeType": "MuiBox",
+      "props": [
+        { "name": "component", "valueType": "string" },
+        { "name": "sx", "valueType": "object" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["layout.box"]
+    },
+    {
+      "exportName": "Stack",
+      "componentName": "Stack",
+      "runtimeType": "MuiStack",
+      "props": [
+        { "name": "direction", "valueType": "unknown" },
+        { "name": "spacing", "valueType": "unknown" },
+        { "name": "useFlexGap", "valueType": "boolean" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["layout.stack"]
+    },
+    {
+      "exportName": "Grid",
+      "componentName": "Grid",
+      "runtimeType": "MuiGrid",
+      "props": [
+        { "name": "container", "valueType": "boolean" },
+        { "name": "spacing", "valueType": "unknown" },
+        { "name": "size", "valueType": "unknown" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["layout.grid"]
+    },
+    {
+      "exportName": "Container",
+      "componentName": "Container",
+      "runtimeType": "MuiContainer",
+      "props": [
+        { "name": "maxWidth", "valueType": "unknown" },
+        { "name": "fixed", "valueType": "boolean" },
+        { "name": "disableGutters", "valueType": "boolean" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["layout.container"]
+    },
+    {
+      "exportName": "Alert",
+      "componentName": "Alert",
+      "runtimeType": "MuiAlert",
+      "props": [
+        { "name": "severity", "valueType": "string" },
+        { "name": "variant", "valueType": "string" },
+        { "name": "color", "valueType": "string" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["feedback.status"]
+    },
+    {
+      "exportName": "Snackbar",
+      "componentName": "Snackbar",
+      "runtimeType": "MuiSnackbar",
+      "props": [
+        { "name": "open", "valueType": "boolean" },
+        { "name": "message", "valueType": "unknown" },
+        { "name": "autoHideDuration", "valueType": "number" },
+        { "name": "anchorOrigin", "valueType": "object" }
+      ],
+      "behaviorTags": ["overlay.notification"]
+    },
+    {
+      "exportName": "Dialog",
+      "componentName": "Dialog",
+      "runtimeType": "MuiDialog",
+      "props": [
+        { "name": "open", "valueType": "boolean", "required": true },
+        { "name": "fullWidth", "valueType": "boolean" },
+        { "name": "maxWidth", "valueType": "unknown" },
+        { "name": "scroll", "valueType": "string" }
+      ],
+      "slots": [{ "name": "children", "cardinality": "many" }],
+      "behaviorTags": ["overlay.dialog"]
+    },
+    {
+      "exportName": "CircularProgress",
+      "componentName": "Circular Progress",
+      "runtimeType": "MuiCircularProgress",
+      "props": [
+        { "name": "size", "valueType": "unknown" },
+        { "name": "value", "valueType": "number" },
+        { "name": "variant", "valueType": "string" },
+        { "name": "color", "valueType": "string" }
+      ],
+      "behaviorTags": ["feedback.progress"]
+    }
+  ],
+  "dependencies": [
+    {
+      "name": "@mui/icons-material",
+      "version": "7.3.2",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@emotion/cache",
+      "version": "11.14.0",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@emotion/react",
+      "version": "11.14.0",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@emotion/styled",
+      "version": "11.14.1",
+      "kind": "dependency",
+      "license": "MIT"
+    }
+  ]
+}

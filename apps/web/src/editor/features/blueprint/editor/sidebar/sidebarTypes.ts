@@ -1,8 +1,6 @@
 import type { KeyboardEvent } from 'react';
-import type {
-  ExternalLibraryDiagnostic,
-  ExternalLibraryRuntimeState,
-} from '@/editor/features/blueprint/external';
+import type { PluginDiagnostic } from '@prodivix/plugin-contracts';
+import type { PaletteItemSelection } from '@/editor/features/blueprint/editor/model/paletteCreation';
 
 export type BlueprintEditorSidebarProps = {
   isCollapsed: boolean;
@@ -11,12 +9,10 @@ export type BlueprintEditorSidebarProps = {
   expandedPreviews: Record<string, boolean>;
   sizeSelections: Record<string, string>;
   statusSelections: Record<string, number>;
-  externalDiagnostics: ExternalLibraryDiagnostic[];
-  externalLibraryStates?: ExternalLibraryRuntimeState[];
-  externalLibraryOptions?: Array<{ id: string; label: string }>;
-  isExternalLibraryLoading: boolean;
-  onReloadExternalLibraries?: () => Promise<void> | void;
-  onRetryExternalLibrary?: (libraryId: string) => Promise<void> | void;
+  officialPluginDiagnostics: readonly PluginDiagnostic[];
+  officialLibraryOptions?: Array<{ id: string; label: string }>;
+  isOfficialPluginLoading: boolean;
+  onReloadOfficialPlugins?: () => Promise<void> | void;
   onToggleCollapse: () => void;
   onToggleGroup: (groupId: string, collapsed: boolean) => void;
   onTogglePreview: (previewId: string) => void;
@@ -25,7 +21,7 @@ export type BlueprintEditorSidebarProps = {
     previewId: string,
     hasVariants: boolean
   ) => void;
-  onAddComponent: (itemId: string) => void;
+  onAddComponent: (itemId: string, selection?: PaletteItemSelection) => void;
   onSizeSelect: (itemId: string, sizeId: string) => void;
   onStatusSelect: (itemId: string, index: number) => void;
   onStatusCycleStart: (itemId: string, total: number) => void;
@@ -36,7 +32,7 @@ export type LibraryTab =
   | {
       id: string;
       label: string;
-      source: 'builtIn' | 'headless';
+      source: 'builtIn';
       libraryId?: undefined;
     }
   | {

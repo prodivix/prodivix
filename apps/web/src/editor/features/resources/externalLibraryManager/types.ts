@@ -5,8 +5,6 @@ export type LibraryEntry = {
 
 export type LibraryScope = 'component' | 'icon' | 'utility';
 export type LibraryMode = 'locked' | 'latest' | 'dev';
-export type LibraryStatus =
-  'idle' | 'loading' | 'success' | 'warning' | 'error';
 
 export type PackageSizeThresholds = {
   cautionKb: number;
@@ -36,20 +34,15 @@ export type ActiveLibrary = {
   label: string;
   scope: LibraryScope;
   version: string;
-  status: LibraryStatus;
   description: string;
   license: string;
   packageSizeKb: number;
   components: string[];
   versions: string[];
-  isRegistered: boolean;
-  errorMessage: string | null;
-  updatedAt: number;
 };
 
 export type PersistedLibrary = {
   id: string;
   scope: LibraryScope;
   version: string;
-  status: LibraryStatus;
 };

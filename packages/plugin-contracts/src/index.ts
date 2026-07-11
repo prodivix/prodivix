@@ -66,6 +66,13 @@ export type {
   IconProviderContributionV1,
   Variant as IconProviderVariantDescriptor,
 } from '#contracts/generated/iconProviderContribution.generated';
+export type {
+  BlueprintTemplateContributionV1,
+  CompositionRule as BlueprintCompositionRule,
+  Fragment as BlueprintTemplateFragment,
+  Node as BlueprintTemplateNode,
+  Template as BlueprintTemplateDescriptor,
+} from '#contracts/generated/blueprintTemplateContribution.generated';
 export {
   PLUGIN_MANIFEST_V1_SCHEMA,
   PLUGIN_MANIFEST_V1_SCHEMA_ID,
@@ -96,6 +103,11 @@ export {
   ICON_PROVIDER_CONTRIBUTION_V1_SCHEMA_ID,
   ICON_PROVIDER_CONTRIBUTION_V1_SCHEMA_VERSION,
 } from '#contracts/generated/iconProviderContributionSchema.generated';
+export {
+  BLUEPRINT_TEMPLATE_CONTRIBUTION_V1_SCHEMA,
+  BLUEPRINT_TEMPLATE_CONTRIBUTION_V1_SCHEMA_ID,
+  BLUEPRINT_TEMPLATE_CONTRIBUTION_V1_SCHEMA_VERSION,
+} from '#contracts/generated/blueprintTemplateContributionSchema.generated';
 export {
   DEFAULT_JSON_VALUE_MAX_DEPTH,
   DEFAULT_JSON_VALUE_MAX_NODES,
@@ -151,3 +163,9 @@ export {
   type ValidateIconProviderContributionOptions,
   type ValidateIconProviderContributionResult,
 } from '#contracts/validateIconProviderContribution';
+export {
+  matchesBlueprintCompositionSequence,
+  validateBlueprintTemplateContribution,
+  type ValidateBlueprintTemplateContributionOptions,
+  type ValidateBlueprintTemplateContributionResult,
+} from '#contracts/validateBlueprintTemplateContribution';

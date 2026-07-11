@@ -130,7 +130,7 @@ describe('applyWorkspaceCommand', () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok !== false) return;
     expect(result.issues.map((issue) => issue.code)).toContain(
       'WKS_COMMAND_PATCH_PATH_FORBIDDEN'
     );
@@ -193,14 +193,14 @@ describe('applyWorkspaceCommand', () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok !== false) return;
     expect(result.issues.map((issue) => issue.code)).toContain(
       'WKS_COMMAND_VALIDATION_FAILED'
     );
   });
 
   it('rejects deleting documents that are still referenced by the route graph', () => {
-    const workspace = {
+    const workspace: StableWorkspaceSnapshot = {
       ...createWorkspace(),
       routeManifest: {
         version: '1',
@@ -256,7 +256,7 @@ describe('applyWorkspaceCommand', () => {
     );
 
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok !== false) return;
     expect(result.issues).toContainEqual(
       expect.objectContaining({
         code: 'WKS_COMMAND_VALIDATION_FAILED',

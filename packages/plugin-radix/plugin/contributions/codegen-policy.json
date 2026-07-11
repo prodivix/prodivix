@@ -1,0 +1,481 @@
+{
+  "$schema": "https://prodivix.dev/schemas/codegen-policy-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "targetPreset": "react-vite",
+  "libraryId": "radix",
+  "dependencies": [
+    {
+      "name": "@radix-ui/react-slot",
+      "version": "1.3.0",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-label",
+      "version": "2.1.11",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-separator",
+      "version": "1.1.11",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-accordion",
+      "version": "1.2.16",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-tabs",
+      "version": "1.1.17",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-dialog",
+      "version": "1.1.19",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-popover",
+      "version": "1.1.19",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-tooltip",
+      "version": "1.2.12",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-dropdown-menu",
+      "version": "2.1.20",
+      "kind": "dependency",
+      "license": "MIT"
+    },
+    {
+      "name": "@radix-ui/react-switch",
+      "version": "1.3.3",
+      "kind": "dependency",
+      "license": "MIT"
+    }
+  ],
+  "rules": [
+    {
+      "id": "radix.slot",
+      "runtimeType": "RadixSlot",
+      "elementPath": ["Slot"],
+      "import": {
+        "packageName": "@radix-ui/react-slot",
+        "kind": "named",
+        "imported": "Slot"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.label",
+      "runtimeType": "RadixLabel",
+      "elementPath": ["Label"],
+      "import": {
+        "packageName": "@radix-ui/react-label",
+        "kind": "named",
+        "imported": "Label"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.separator",
+      "runtimeType": "RadixSeparator",
+      "elementPath": ["Separator"],
+      "import": {
+        "packageName": "@radix-ui/react-separator",
+        "kind": "named",
+        "imported": "Separator"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "radix.accordion-root",
+      "runtimeType": "RadixAccordionRoot",
+      "elementPath": ["Accordion", "Root"],
+      "import": {
+        "packageName": "@radix-ui/react-accordion",
+        "kind": "namespace",
+        "imported": "Accordion"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.accordion-item",
+      "runtimeType": "RadixAccordionItem",
+      "elementPath": ["Accordion", "Item"],
+      "import": {
+        "packageName": "@radix-ui/react-accordion",
+        "kind": "namespace",
+        "imported": "Accordion"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.accordion-header",
+      "runtimeType": "RadixAccordionHeader",
+      "elementPath": ["Accordion", "Header"],
+      "import": {
+        "packageName": "@radix-ui/react-accordion",
+        "kind": "namespace",
+        "imported": "Accordion"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.accordion-trigger",
+      "runtimeType": "RadixAccordionTrigger",
+      "elementPath": ["Accordion", "Trigger"],
+      "import": {
+        "packageName": "@radix-ui/react-accordion",
+        "kind": "namespace",
+        "imported": "Accordion"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.accordion-content",
+      "runtimeType": "RadixAccordionContent",
+      "elementPath": ["Accordion", "Content"],
+      "import": {
+        "packageName": "@radix-ui/react-accordion",
+        "kind": "namespace",
+        "imported": "Accordion"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.tabs-root",
+      "runtimeType": "RadixTabsRoot",
+      "elementPath": ["Tabs", "Root"],
+      "import": {
+        "packageName": "@radix-ui/react-tabs",
+        "kind": "namespace",
+        "imported": "Tabs"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.tabs-list",
+      "runtimeType": "RadixTabsList",
+      "elementPath": ["Tabs", "List"],
+      "import": {
+        "packageName": "@radix-ui/react-tabs",
+        "kind": "namespace",
+        "imported": "Tabs"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.tabs-trigger",
+      "runtimeType": "RadixTabsTrigger",
+      "elementPath": ["Tabs", "Trigger"],
+      "import": {
+        "packageName": "@radix-ui/react-tabs",
+        "kind": "namespace",
+        "imported": "Tabs"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.tabs-content",
+      "runtimeType": "RadixTabsContent",
+      "elementPath": ["Tabs", "Content"],
+      "import": {
+        "packageName": "@radix-ui/react-tabs",
+        "kind": "namespace",
+        "imported": "Tabs"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.dialog-root",
+      "runtimeType": "RadixDialogRoot",
+      "elementPath": ["Dialog", "Root"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.dialog-trigger",
+      "runtimeType": "RadixDialogTrigger",
+      "elementPath": ["Dialog", "Trigger"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.dialog-portal",
+      "runtimeType": "RadixDialogPortal",
+      "elementPath": ["Dialog", "Portal"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.dialog-overlay",
+      "runtimeType": "RadixDialogOverlay",
+      "elementPath": ["Dialog", "Overlay"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "radix.dialog-content",
+      "runtimeType": "RadixDialogContent",
+      "elementPath": ["Dialog", "Content"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.dialog-title",
+      "runtimeType": "RadixDialogTitle",
+      "elementPath": ["Dialog", "Title"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.dialog-description",
+      "runtimeType": "RadixDialogDescription",
+      "elementPath": ["Dialog", "Description"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.dialog-close",
+      "runtimeType": "RadixDialogClose",
+      "elementPath": ["Dialog", "Close"],
+      "import": {
+        "packageName": "@radix-ui/react-dialog",
+        "kind": "namespace",
+        "imported": "Dialog"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.popover-root",
+      "runtimeType": "RadixPopoverRoot",
+      "elementPath": ["Popover", "Root"],
+      "import": {
+        "packageName": "@radix-ui/react-popover",
+        "kind": "namespace",
+        "imported": "Popover"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.popover-trigger",
+      "runtimeType": "RadixPopoverTrigger",
+      "elementPath": ["Popover", "Trigger"],
+      "import": {
+        "packageName": "@radix-ui/react-popover",
+        "kind": "namespace",
+        "imported": "Popover"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.popover-portal",
+      "runtimeType": "RadixPopoverPortal",
+      "elementPath": ["Popover", "Portal"],
+      "import": {
+        "packageName": "@radix-ui/react-popover",
+        "kind": "namespace",
+        "imported": "Popover"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.popover-content",
+      "runtimeType": "RadixPopoverContent",
+      "elementPath": ["Popover", "Content"],
+      "import": {
+        "packageName": "@radix-ui/react-popover",
+        "kind": "namespace",
+        "imported": "Popover"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.tooltip-provider",
+      "runtimeType": "RadixTooltipProvider",
+      "elementPath": ["Tooltip", "Provider"],
+      "import": {
+        "packageName": "@radix-ui/react-tooltip",
+        "kind": "namespace",
+        "imported": "Tooltip"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.tooltip-root",
+      "runtimeType": "RadixTooltipRoot",
+      "elementPath": ["Tooltip", "Root"],
+      "import": {
+        "packageName": "@radix-ui/react-tooltip",
+        "kind": "namespace",
+        "imported": "Tooltip"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.tooltip-trigger",
+      "runtimeType": "RadixTooltipTrigger",
+      "elementPath": ["Tooltip", "Trigger"],
+      "import": {
+        "packageName": "@radix-ui/react-tooltip",
+        "kind": "namespace",
+        "imported": "Tooltip"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.tooltip-portal",
+      "runtimeType": "RadixTooltipPortal",
+      "elementPath": ["Tooltip", "Portal"],
+      "import": {
+        "packageName": "@radix-ui/react-tooltip",
+        "kind": "namespace",
+        "imported": "Tooltip"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.tooltip-content",
+      "runtimeType": "RadixTooltipContent",
+      "elementPath": ["Tooltip", "Content"],
+      "import": {
+        "packageName": "@radix-ui/react-tooltip",
+        "kind": "namespace",
+        "imported": "Tooltip"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.tooltip-arrow",
+      "runtimeType": "RadixTooltipArrow",
+      "elementPath": ["Tooltip", "Arrow"],
+      "import": {
+        "packageName": "@radix-ui/react-tooltip",
+        "kind": "namespace",
+        "imported": "Tooltip"
+      },
+      "children": { "mode": "none" }
+    },
+    {
+      "id": "radix.dropdown-root",
+      "runtimeType": "RadixDropdownMenuRoot",
+      "elementPath": ["DropdownMenu", "Root"],
+      "import": {
+        "packageName": "@radix-ui/react-dropdown-menu",
+        "kind": "namespace",
+        "imported": "DropdownMenu"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.dropdown-trigger",
+      "runtimeType": "RadixDropdownMenuTrigger",
+      "elementPath": ["DropdownMenu", "Trigger"],
+      "import": {
+        "packageName": "@radix-ui/react-dropdown-menu",
+        "kind": "namespace",
+        "imported": "DropdownMenu"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.dropdown-portal",
+      "runtimeType": "RadixDropdownMenuPortal",
+      "elementPath": ["DropdownMenu", "Portal"],
+      "import": {
+        "packageName": "@radix-ui/react-dropdown-menu",
+        "kind": "namespace",
+        "imported": "DropdownMenu"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.dropdown-content",
+      "runtimeType": "RadixDropdownMenuContent",
+      "elementPath": ["DropdownMenu", "Content"],
+      "import": {
+        "packageName": "@radix-ui/react-dropdown-menu",
+        "kind": "namespace",
+        "imported": "DropdownMenu"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.dropdown-item",
+      "runtimeType": "RadixDropdownMenuItem",
+      "elementPath": ["DropdownMenu", "Item"],
+      "import": {
+        "packageName": "@radix-ui/react-dropdown-menu",
+        "kind": "namespace",
+        "imported": "DropdownMenu"
+      },
+      "children": { "mode": "preserve" }
+    },
+    {
+      "id": "radix.switch-root",
+      "runtimeType": "RadixSwitchRoot",
+      "elementPath": ["Switch", "Root"],
+      "import": {
+        "packageName": "@radix-ui/react-switch",
+        "kind": "namespace",
+        "imported": "Switch"
+      },
+      "children": { "mode": "children-only" }
+    },
+    {
+      "id": "radix.switch-thumb",
+      "runtimeType": "RadixSwitchThumb",
+      "elementPath": ["Switch", "Thumb"],
+      "import": {
+        "packageName": "@radix-ui/react-switch",
+        "kind": "namespace",
+        "imported": "Switch"
+      },
+      "children": { "mode": "none" }
+    }
+  ],
+  "unsupported": {
+    "behavior": "error",
+    "message": "This Radix UI runtime type is not declared by the installed official plugin."
+  }
+}

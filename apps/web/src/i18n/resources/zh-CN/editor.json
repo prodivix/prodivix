@@ -1247,9 +1247,9 @@
     "external": {
       "header": {
         "title": "外部库管理器",
-        "description": "用于模拟加载状态、切换版本并跟踪运行时库的分栏管理器。"
+        "description": "管理工作区依赖库的版本、许可证与依赖元数据。"
       },
-      "loading": "正在加载已注册库...",
+      "loading": "正在读取工作区依赖配置...",
       "searchPlaceholder": "搜索库...",
       "builtInLibs": "内置库",
       "addCategory": "添加 {{category}}",
@@ -1263,20 +1263,13 @@
         "icon": "图标库",
         "other": "其他库"
       },
-      "activeLibraries": "已激活库",
+      "activeLibraries": "工作区依赖库",
       "libraryCount": "{{count}} 个库",
       "debouncing": "搜索防抖中...",
       "searchReady": "搜索已就绪",
       "noMatch": "没有匹配当前搜索的库。",
       "exports": "{{count}} 个导出",
       "sizeWarning": "体积 {{level}}：{{hint}}",
-      "status": {
-        "idle": "空闲",
-        "loading": "加载中",
-        "success": "已加载",
-        "warning": "已加载（有告警）",
-        "error": "加载失败"
-      },
       "package": {
         "level": {
           "healthy": "健康",
@@ -1294,7 +1287,6 @@
       "actions": {
         "addNewLibrary": "新增库",
         "remove": "移除",
-        "retry": "重试",
         "cancel": "取消",
         "addLibrary": "添加库"
       },

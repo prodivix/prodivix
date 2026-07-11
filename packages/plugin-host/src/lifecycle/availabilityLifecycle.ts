@@ -1,4 +1,8 @@
-import type { PluginDiagnostic } from '@prodivix/plugin-contracts';
+import {
+  createPluginDiagnostic,
+  PLUGIN_DIAGNOSTIC_CODES,
+  type PluginDiagnostic,
+} from '@prodivix/plugin-contracts';
 import { createPluginOwnerRef, pluginOwnerKey } from '#host/identity';
 import {
   disposePreparedContributions,
@@ -14,7 +18,11 @@ import { createPluginHostRecord } from '#host/lifecycle/pluginHostRecord';
 import type { PluginHost } from '#host/lifecycle/pluginHost';
 import type { HostContributionPointMap } from '#host/contribution/contribution.types';
 import type { PluginHostSnapshot } from '#host/host.types';
-import { pluginHostSuccess, type PluginHostResult } from '#host/result';
+import {
+  pluginHostFailure,
+  pluginHostSuccess,
+  type PluginHostResult,
+} from '#host/result';
 
 export type AvailabilityLifecycle<TMap extends HostContributionPointMap> =
   Readonly<{
@@ -40,7 +48,16 @@ export const createAvailabilityLifecycle = <
     );
     context.permissionsByOwner.delete(pluginOwnerKey(candidate.owner));
     const allDiagnostics = [...diagnostics, ...cleanup];
-    if (!previous) {
+    if (!previous && operation.superseded) {
+      if (context.records.get(candidate.owner.pluginId) === candidate) {
+        context.records.delete(candidate.owner.pluginId);
+      }
+      if (
+        context.currentOwners.get(candidate.owner.pluginId) === candidate.owner
+      ) {
+        context.currentOwners.delete(candidate.owner.pluginId);
+      }
+    } else if (!previous) {
       context.records.set(candidate.owner.pluginId, candidate);
       context.currentOwners.set(candidate.owner.pluginId, candidate.owner);
       context.publishSnapshot(candidate, {
@@ -62,12 +79,26 @@ export const createAvailabilityLifecycle = <
     return operationFailure([...allDiagnostics, ...auditDiagnostics]);
   };
 
-  const discover: PluginHost<TMap>['discover'] = async (source) => {
+  const canceledDiscovery = (pluginId?: string) =>
+    pluginHostFailure([
+      createPluginDiagnostic(
+        PLUGIN_DIAGNOSTIC_CODES.OPERATION_SUPERSEDED,
+        'Plugin discovery was canceled before it could commit.',
+        { pluginId }
+      ),
+    ]);
+
+  const discover: PluginHost<TMap>['discover'] = async (source, signal) => {
+    if (signal?.aborted) return canceledDiscovery();
+    const discoverySignal = signal
+      ? AbortSignal.any([context.hostSignal, signal])
+      : context.hostSignal;
     const manifestResult = await readAndValidatePluginManifest(source, {
       hostVersion: context.options.hostVersion,
       knownCommandIds: context.options.knownCommandIds,
-      signal: context.hostSignal,
+      signal: discoverySignal,
     });
+    if (signal?.aborted) return canceledDiscovery();
     if (!manifestResult.ok) return manifestResult;
     const manifest = manifestResult.value;
     if (context.hostSignal.aborted) {
@@ -79,6 +110,7 @@ export const createAvailabilityLifecycle = <
     context.supersedeOperation(manifest.id);
 
     return context.coordinator.run(manifest.id, async () => {
+      if (signal?.aborted) return canceledDiscovery(manifest.id);
       if (context.hostSignal.aborted) {
         return context.invalidOperation(
           manifest.id,
@@ -99,6 +131,18 @@ export const createAvailabilityLifecycle = <
         manifest,
       });
       const operation = context.beginOperation(owner, 'discover');
+      const abortOperation = () => {
+        operation.superseded = true;
+        if (!operation.controller.signal.aborted) {
+          operation.controller.abort(
+            typeof signal?.reason === 'string'
+              ? signal.reason
+              : 'discovery-canceled'
+          );
+        }
+      };
+      signal?.addEventListener('abort', abortOperation, { once: true });
+      if (signal?.aborted) abortOperation();
       const diagnostics: PluginDiagnostic[] = [...manifestResult.diagnostics];
 
       if (!previous) {
@@ -301,6 +345,7 @@ export const createAvailabilityLifecycle = <
         );
         return pluginHostSuccess(candidate.snapshot, diagnostics);
       } finally {
+        signal?.removeEventListener('abort', abortOperation);
         context.endOperation(operation);
       }
     });

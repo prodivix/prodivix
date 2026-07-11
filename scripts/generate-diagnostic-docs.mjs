@@ -19,7 +19,6 @@ const domainOrder = [
   'EDT',
   'UX',
   'COD',
-  'ELIB',
   'GEN',
   'API',
   'AI',
@@ -66,12 +65,6 @@ const domainInfo = {
     area: '用户代码',
     description: '代码片段、符号解析、类型、宿主绑定、运行时和转译编译',
   },
-  ELIB: {
-    file: 'external-library-diagnostic-codes.md',
-    title: 'External Library',
-    area: '外部库',
-    description: '外部库加载、扫描、注册、渲染和代码生成',
-  },
   GEN: {
     file: 'codegen-diagnostic-codes.md',
     title: 'Codegen',
@@ -107,44 +100,6 @@ const domainInfo = {
     title: 'Animation',
     area: '动画',
     description: 'Timeline、binding、track、keyframe、filter 和预览运行时',
-  },
-};
-
-const elibMetadata = {
-  'ELIB-1001': {
-    severity: 'error',
-    stage: 'load',
-    retryable: true,
-    trigger: '外部库远程入口或模块导入失败',
-    action: '检查外部库 URL、网络状态和模块导出配置，然后重试',
-  },
-  'ELIB-1004': {
-    severity: 'error',
-    stage: 'load',
-    retryable: false,
-    trigger: '当前操作引用了未在工作区中注册的外部库 ID',
-    action: '重新选择已注册的外部库，或先完成外部库注册',
-  },
-  'ELIB-1099': {
-    severity: 'error',
-    stage: 'load',
-    retryable: true,
-    trigger: '外部库加载阶段出现未分类异常',
-    action: '重试加载；若复现，携带外部库配置摘要上报',
-  },
-  'ELIB-2001': {
-    severity: 'warning',
-    stage: 'scan',
-    retryable: false,
-    trigger: '扫描外部库导出时没有发现可渲染组件',
-    action: '检查外部库是否导出可渲染组件，或调整扫描路径和适配策略',
-  },
-  'ELIB-3001': {
-    severity: 'error',
-    stage: 'register',
-    retryable: false,
-    trigger: '注册外部库时没有任何可用的可渲染组件',
-    action: '检查扫描结果和注册策略，确认至少有一个组件可被注册',
   },
 };
 
@@ -234,49 +189,6 @@ function parseStandardSpec(domain, source) {
   return diagnostics;
 }
 
-function parseExternalLibrarySpec(source) {
-  const lines = normalizeNewlines(source).split('\n');
-  const diagnostics = [];
-  let inOccupiedCodeSection = false;
-
-  for (const line of lines) {
-    if (line.startsWith('## 5.')) {
-      inOccupiedCodeSection = true;
-      continue;
-    }
-
-    if (inOccupiedCodeSection && line.startsWith('## ')) {
-      break;
-    }
-
-    if (!inOccupiedCodeSection) {
-      continue;
-    }
-
-    const listItem = line.match(/^\d+\. `(ELIB-\d{4})`[：:]\s*(.+?)[。.]?$/);
-
-    if (!listItem) {
-      continue;
-    }
-
-    const code = listItem[1];
-    const metadata = elibMetadata[code];
-
-    if (!metadata) {
-      throw new Error(`Missing ELIB metadata for ${code}`);
-    }
-
-    diagnostics.push({
-      domain: 'ELIB',
-      code,
-      title: listItem[2].trim(),
-      ...metadata,
-    });
-  }
-
-  return diagnostics;
-}
-
 function readDiagnostics() {
   const grouped = new Map();
 
@@ -284,10 +196,7 @@ function readDiagnostics() {
     const info = domainInfo[domain];
     const specPath = path.join(specsDir, info.file);
     const source = readUtf8(specPath);
-    const diagnostics =
-      domain === 'ELIB'
-        ? parseExternalLibrarySpec(source)
-        : parseStandardSpec(domain, source);
+    const diagnostics = parseStandardSpec(domain, source);
 
     grouped.set(
       domain,
@@ -313,8 +222,12 @@ function validatePluginDiagnosticCoverage(specDiagnostics) {
       (match) => match.groups.code
     )
   );
-  const specCodes = new Set(specDiagnostics.map((diagnostic) => diagnostic.code));
-  const missingFromSpec = [...sourceCodes].filter((code) => !specCodes.has(code));
+  const specCodes = new Set(
+    specDiagnostics.map((diagnostic) => diagnostic.code)
+  );
+  const missingFromSpec = [...sourceCodes].filter(
+    (code) => !specCodes.has(code)
+  );
   const missingFromSource = [...specCodes].filter(
     (code) => !sourceCodes.has(code)
   );

@@ -16,7 +16,7 @@
 不覆盖：
 
 1. PIR 本身的结构校验，使用 `PIR-xxxx`。
-2. 外部库运行时加载和扫描，使用 `ELIB-xxxx`。
+2. Plugin artifact/contribution validation 使用 `PLG-xxxx`；Compiler policy、dependency 与输出失败使用本 `GEN-xxxx` 域。
 3. 部署平台失败，后续可使用 `API-xxxx` 或独立 Deploy 域。
 
 ## 2. 阶段

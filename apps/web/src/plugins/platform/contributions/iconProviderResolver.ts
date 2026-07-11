@@ -28,6 +28,10 @@ import {
   cloneAndFreezeJson,
   toHostDescriptorValidationResult,
 } from '@/plugins/platform/contributions/resolverUtils';
+import {
+  scopeOfficialPluginComponent,
+  type OfficialSurfaceLeaseRegistry,
+} from '@/plugins/platform/officialSurfaceHost';
 
 type ProviderClaim = {
   identity: ContributionIdentity;
@@ -108,7 +112,8 @@ const providerConflict = (
   ]);
 
 export const createIconProviderContributionResolver = (
-  artifacts: LibraryArtifactResolver
+  artifacts: LibraryArtifactResolver,
+  surfaceLeases: OfficialSurfaceLeaseRegistry
 ): RegisteredContributionContract<WebContributionPointMap> => {
   const claims = new Map<string, ProviderClaim>();
 
@@ -211,10 +216,10 @@ export const createIconProviderContributionResolver = (
               : {}),
           });
           if (!isIconComponent(resolved)) return null;
-          const policyComponent = createPolicyIconComponent(
-            resolved,
-            frozenDescriptor.render
-          );
+          const policyComponent = scopeOfficialPluginComponent(
+            owner,
+            createPolicyIconComponent(resolved, frozenDescriptor.render)
+          ) as IconComponent;
           cache.set(cacheKey, policyComponent);
           while (cache.size > frozenDescriptor.limits.maxCacheEntries) {
             const oldest = cache.keys().next().value;
@@ -242,7 +247,7 @@ export const createIconProviderContributionResolver = (
           ? { ensureReady: implementation.value.value.ensureReady }
           : {}),
       });
-      let disposed = false;
+      let disposePromise: Promise<void> | undefined;
       return pluginHostSuccess({
         value: Object.freeze({
           descriptor: frozenDescriptor,
@@ -253,18 +258,24 @@ export const createIconProviderContributionResolver = (
         lifetime: 'installation',
         dependsOnCapabilities: [],
         dispose: () => {
-          if (disposed) return;
-          disposed = true;
-          cache.clear();
-          const claim = claims.get(frozenDescriptor.providerId);
-          if (claim && isSameContributionIdentity(claim.identity, identity)) {
-            if (claim.leaseCount <= 1) {
-              claims.delete(frozenDescriptor.providerId);
-            } else {
-              claim.leaseCount -= 1;
+          if (disposePromise) return disposePromise;
+          disposePromise = (async () => {
+            cache.clear();
+            const claim = claims.get(frozenDescriptor.providerId);
+            if (claim && isSameContributionIdentity(claim.identity, identity)) {
+              if (claim.leaseCount <= 1) {
+                claims.delete(frozenDescriptor.providerId);
+              } else {
+                claim.leaseCount -= 1;
+              }
             }
-          }
-          implementation.value.dispose();
+            try {
+              await surfaceLeases.releaseOwner(owner);
+            } finally {
+              implementation.value.dispose();
+            }
+          })();
+          return disposePromise;
         },
       });
     },

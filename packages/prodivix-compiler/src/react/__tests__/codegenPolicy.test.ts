@@ -118,6 +118,91 @@ describe('Codegen Policy snapshot', () => {
     );
   });
 
+  it('carries the complete exact dependency closure only for used policies', () => {
+    const dependencySnapshot: CodegenPolicySnapshot = {
+      ...snapshot,
+      libraries: [
+        {
+          ...snapshot.libraries[0]!,
+          dependencies: [
+            ...snapshot.libraries[0]!.dependencies,
+            {
+              name: '@neutral-ui/runtime-peer',
+              version: '4.5.6',
+              kind: 'dependency',
+              license: 'Apache-2.0',
+            },
+          ],
+        },
+      ],
+    };
+    const componentBundle = generateReactBundle(
+      createDocument('NeutralButton'),
+      { codegenPolicySnapshot: dependencySnapshot }
+    );
+    const iconBundle = generateReactBundle(
+      createDocument('PdxIcon', {
+        iconRef: { provider: 'neutral-icons', name: 'Spark' },
+      }),
+      { codegenPolicySnapshot: dependencySnapshot }
+    );
+    const unusedBundle = generateReactBundle(createDocument('container'), {
+      codegenPolicySnapshot: dependencySnapshot,
+    });
+    const packageJson = JSON.parse(
+      componentBundle.files.find((file) => file.path === 'package.json')
+        ?.contents ?? '{}'
+    ) as { dependencies?: Record<string, string> };
+
+    expect(packageJson.dependencies?.['@neutral-ui/runtime-peer']).toBe(
+      '4.5.6'
+    );
+    expect(
+      componentBundle.dependencies.find(
+        (dependency) => dependency.name === '@neutral-ui/runtime-peer'
+      )?.origin
+    ).toMatchObject({
+      license: 'Apache-2.0',
+      updatePolicy: 'pin',
+    });
+    expect(
+      iconBundle.dependencies.some(
+        (dependency) => dependency.name === '@neutral-ui/runtime-peer'
+      )
+    ).toBe(true);
+    expect(
+      unusedBundle.dependencies.some(
+        (dependency) => dependency.name === '@neutral-ui/runtime-peer'
+      )
+    ).toBe(false);
+  });
+
+  it('treats React children as structural output instead of a duplicated prop', () => {
+    const structuralSnapshot: CodegenPolicySnapshot = {
+      ...snapshot,
+      libraries: [
+        {
+          ...snapshot.libraries[0]!,
+          rules: [
+            {
+              ...snapshot.libraries[0]!.rules[0]!,
+              children: { mode: 'preserve' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const code = generateReactCode(
+      createDocument('NeutralButton', { children: 'Legacy child prop' }),
+      { resourceType: 'component', codegenPolicySnapshot: structuralSnapshot }
+    );
+
+    expect(code).toMatch(/<Button tone="default">\s+Launch\s+<\/Button>/);
+    expect(code).not.toContain('children=');
+    expect(code).not.toContain('Legacy child prop');
+  });
+
   it('resolves icon imports without provider-id branches in the React adapter', () => {
     const code = generateReactCode(
       createDocument('PdxIcon', {
@@ -278,5 +363,75 @@ describe('Codegen Policy snapshot', () => {
         (dependency) => dependency.name === '@neutral-ui/components'
       )?.version
     ).toBe('1.2.3');
+  });
+
+  it('aliases colliding namespace imports from package identity alone', () => {
+    const namespaceSnapshot: CodegenPolicySnapshot = {
+      schemaVersion: '1.0',
+      registryRevision: 9,
+      targetPreset: 'react-vite',
+      libraries: ['one', 'two'].map((suffix) => ({
+        source: {
+          pluginId: `@prodivix/plugin-neutral-${suffix}`,
+          contributionId: `neutral-${suffix}.codegen`,
+          generation: 1,
+        },
+        libraryId: `neutral-${suffix}`,
+        runtimeTypes: [`Neutral${suffix}Tabs`],
+        dependencies: [
+          {
+            name: `@neutral-${suffix}/tabs`,
+            version: '1.0.0',
+            kind: 'dependency' as const,
+            license: 'MIT',
+          },
+        ],
+        rules: [
+          {
+            id: `neutral-${suffix}.tabs`,
+            runtimeType: `Neutral${suffix}Tabs`,
+            elementPath: ['Tabs', 'Root'],
+            import: {
+              packageName: `@neutral-${suffix}/tabs`,
+              kind: 'namespace' as const,
+              imported: 'Tabs',
+            },
+            children: { mode: 'preserve' as const },
+          },
+        ],
+        unsupported: { behavior: 'error' as const },
+      })),
+      iconProviders: [],
+    };
+    const document: PIRDocument = {
+      version: CURRENT_PIR_VERSION,
+      metadata: { name: 'NamespaceAliases' },
+      ui: {
+        graph: {
+          version: 1,
+          rootId: 'root',
+          nodesById: {
+            root: { id: 'root', type: 'container' },
+            one: { id: 'one', type: 'NeutraloneTabs', text: 'One' },
+            two: { id: 'two', type: 'NeutraltwoTabs', text: 'Two' },
+          },
+          childIdsById: { root: ['one', 'two'], one: [], two: [] },
+        },
+      },
+    };
+
+    const code = generateReactCode(document, {
+      resourceType: 'component',
+      codegenPolicySnapshot: namespaceSnapshot,
+    });
+
+    expect(code).toContain(
+      "import * as NeutralOneTabsTabs from '@neutral-one/tabs';"
+    );
+    expect(code).toContain(
+      "import * as NeutralTwoTabsTabs from '@neutral-two/tabs';"
+    );
+    expect(code).toContain('<NeutralOneTabsTabs.Root>');
+    expect(code).toContain('<NeutralTwoTabsTabs.Root>');
   });
 });

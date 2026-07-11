@@ -38,6 +38,10 @@ export default defineConfig({
           fileURLToPath(new URL('.', import.meta.url)),
           'plugin-sandbox-conformance.html'
         ),
+        officialComponentPluginConformance: resolve(
+          fileURLToPath(new URL('.', import.meta.url)),
+          'official-component-plugin-conformance.html'
+        ),
       },
     },
   },

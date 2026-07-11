@@ -1,0 +1,91 @@
+{
+  "$schema": "https://prodivix.dev/schemas/blueprint-template-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "surface": "blueprint.components",
+  "templates": [
+    {
+      "id": "mui.accordion",
+      "palette": {
+        "contributionId": "mui.palette",
+        "itemId": "mui-accordion"
+      },
+      "primaryLocalId": "accordion",
+      "fragment": {
+        "rootLocalIds": ["accordion"],
+        "nodesByLocalId": {
+          "accordion": {
+            "type": "MuiAccordion",
+            "props": { "defaultExpanded": true }
+          },
+          "summary": {
+            "type": "MuiAccordionSummary",
+            "text": "Accordion"
+          },
+          "details": {
+            "type": "MuiAccordionDetails",
+            "text": "Details"
+          }
+        },
+        "childIdsByLocalId": {
+          "accordion": ["summary", "details"],
+          "summary": [],
+          "details": []
+        }
+      }
+    }
+  ],
+  "compositionRules": [
+    {
+      "id": "mui.accordion",
+      "runtimeType": "MuiAccordion",
+      "parent": { "mode": "any" },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["MuiAccordionSummary"],
+              "minItems": 1,
+              "maxItems": 1
+            },
+            {
+              "match": "runtime-types",
+              "runtimeTypes": ["MuiAccordionDetails"],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mui.accordion-summary",
+      "runtimeType": "MuiAccordionSummary",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["MuiAccordion"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    },
+    {
+      "id": "mui.accordion-details",
+      "runtimeType": "MuiAccordionDetails",
+      "parent": {
+        "mode": "listed",
+        "runtimeTypes": ["MuiAccordion"]
+      },
+      "slots": [
+        {
+          "target": "children",
+          "sequence": [{ "match": "any", "minItems": 0, "maxItems": 128 }]
+        }
+      ]
+    }
+  ]
+}

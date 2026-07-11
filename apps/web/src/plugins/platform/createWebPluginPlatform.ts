@@ -2,7 +2,6 @@ import {
   createPluginDiagnostic,
   PLUGIN_DIAGNOSTIC_CODES,
   validatePaletteContribution,
-  type JsonValue,
   type PluginDiagnostic,
 } from '@prodivix/plugin-contracts';
 import {
@@ -22,6 +21,7 @@ import {
   type PluginRuntimeAdapter,
   type RegisteredContributionContract,
 } from '@prodivix/plugin-host';
+import { createBundledPluginPackageSource } from '@prodivix/plugin-package';
 import { createPaletteProjectionResolver } from '@/editor/features/blueprint/palette/projectionResolver';
 import { createPaletteQueryService } from '@/plugins/platform/paletteQueryService';
 import { createWebExtensionQueryService } from '@/plugins/platform/extensionQueryService';
@@ -39,6 +39,8 @@ import { createExternalLibraryContributionResolver } from '@/plugins/platform/co
 import { createRenderPolicyContributionResolver } from '@/plugins/platform/contributions/renderPolicyResolver';
 import { createCodegenPolicyContributionResolver } from '@/plugins/platform/contributions/codegenPolicyResolver';
 import { createIconProviderContributionResolver } from '@/plugins/platform/contributions/iconProviderResolver';
+import { createBlueprintTemplateContributionResolver } from '@/plugins/platform/contributions/blueprintTemplateResolver';
+import { createOfficialSurfaceLeaseRegistry } from '@/plugins/platform/officialSurfaceHost';
 import type {
   TrustedPaletteContributionInput,
   WebContributionPointMap,
@@ -127,7 +129,7 @@ export const createWebPluginPlatform = (
   const integrityService =
     options.integrityService ?? createSha256ResourceIntegrityService();
   const auditJournal = createPluginAuditJournal();
-  const paletteResolver = createPaletteProjectionResolver();
+  const surfaceLeases = createOfficialSurfaceLeaseRegistry();
   const implementationRegistryResult = createOfficialHostImplementationRegistry(
     options.officialHostModules ?? BUILT_IN_OFFICIAL_HOST_MODULE_CATALOG,
     {
@@ -138,6 +140,10 @@ export const createWebPluginPlatform = (
     return pluginHostFailure(implementationRegistryResult.diagnostics);
   }
   const implementationRegistry = implementationRegistryResult.value;
+  const paletteResolver = createPaletteProjectionResolver(
+    implementationRegistry,
+    surfaceLeases
+  );
   const libraryArtifacts = createLibraryArtifactResolver(
     implementationRegistry
   );
@@ -146,9 +152,13 @@ export const createWebPluginPlatform = (
     contracts: [
       paletteResolver.contract,
       createExternalLibraryContributionResolver(libraryArtifacts),
-      createRenderPolicyContributionResolver(implementationRegistry),
+      createRenderPolicyContributionResolver(
+        implementationRegistry,
+        surfaceLeases
+      ),
       createCodegenPolicyContributionResolver(),
-      createIconProviderContributionResolver(libraryArtifacts),
+      createIconProviderContributionResolver(libraryArtifacts, surfaceLeases),
+      createBlueprintTemplateContributionResolver(),
       ...(options.contracts ?? []),
     ],
     validateContributionBatch: validateWebContributionBatch,
@@ -164,6 +174,14 @@ export const createWebPluginPlatform = (
     return pluginHostFailure(hostResult.diagnostics);
   }
   const host = hostResult.value;
+  const bundledInstallations = new Map<
+    string,
+    Readonly<{
+      pluginId: string;
+      packageDigest: string;
+      generation: number;
+    }>
+  >();
   const paletteQuery = createPaletteQueryService(host.contributions);
   const extensionQuery = createWebExtensionQueryService(host.contributions);
 
@@ -229,19 +247,48 @@ export const createWebPluginPlatform = (
     }
 
     try {
-      return await host.discover(sourceResult.value.source);
+      return await host.discover(sourceResult.value.source, signal);
     } finally {
       [...bindings].reverse().forEach((binding) => binding.dispose());
     }
   };
 
   const disable = async (pluginId: string) => {
-    if (!host.getSnapshot(pluginId)) return pluginHostSuccess(undefined);
+    if (!host.getSnapshot(pluginId)) {
+      bundledInstallations.delete(pluginId);
+      return pluginHostSuccess(undefined);
+    }
     const result = await host.disable(pluginId);
+    if (host.getSnapshot(pluginId)?.availability !== 'ready') {
+      bundledInstallations.delete(pluginId);
+    }
     return result.ok
       ? pluginHostSuccess(undefined, result.diagnostics)
       : result;
   };
+
+  const installBundled: WebPluginPlatform['runtime']['packages']['installBundled'] =
+    async (artifact, packageOptions) => {
+      const signal = packageOptions.signal ?? new AbortController().signal;
+      const source = await createBundledPluginPackageSource(artifact, {
+        installationId: packageOptions.installationId,
+        sourceId: packageOptions.sourceId,
+        trustLevel: packageOptions.trustLevel,
+        publisherVerified: packageOptions.publisherVerified,
+        signatureKeyId: packageOptions.signatureKeyId,
+        signal,
+      });
+      if (source.ok === false) return pluginHostFailure(source.diagnostics);
+      const discovered = await host.discover(source.value, signal);
+      if (discovered.ok) {
+        bundledInstallations.set(discovered.value.pluginId, {
+          pluginId: discovered.value.pluginId,
+          packageDigest: artifact.packageDigest,
+          generation: discovered.value.generation,
+        });
+      }
+      return discovered;
+    };
 
   const installPalette = (
     input: TrustedPaletteContributionInput,
@@ -278,9 +325,7 @@ export const createWebPluginPlatform = (
             id: input.contributionId,
             point: 'paletteContribution',
             contractVersion: '1.0',
-            descriptor: validation.descriptor as unknown as Readonly<
-              Record<string, JsonValue>
-            >,
+            descriptor: validation.descriptor,
             metadata: { order: input.order ?? 0 },
             paletteProjection: { groups: input.groups },
           },
@@ -335,6 +380,17 @@ export const createWebPluginPlatform = (
       const hostShutdown = await host.shutdown();
       diagnostics.push(...hostShutdown.diagnostics);
       try {
+        await surfaceLeases.releaseAll();
+      } catch {
+        diagnostics.push(
+          createPluginDiagnostic(
+            PLUGIN_DIAGNOSTIC_CODES.OWNER_CLEANUP_FAILED,
+            'Official plugin surface cleanup failed.',
+            { workspaceId }
+          )
+        );
+      }
+      try {
         await options.onShutdown?.();
       } catch {
         diagnostics.push(
@@ -358,10 +414,29 @@ export const createWebPluginPlatform = (
 
   const packages = Object.freeze({
     install,
+    installBundled,
     discover: host.discover,
     disable,
     getSnapshot: host.getSnapshot,
     listSnapshots: host.listSnapshots,
+    listBundledInstallations: () =>
+      Object.freeze(
+        [...bundledInstallations.values()]
+          .filter((installation) => {
+            const snapshot = host.getSnapshot(installation.pluginId);
+            return (
+              snapshot?.availability === 'ready' &&
+              snapshot.generation === installation.generation
+            );
+          })
+          .map((installation) =>
+            Object.freeze({
+              pluginId: installation.pluginId,
+              packageDigest: installation.packageDigest,
+            })
+          )
+          .sort((left, right) => left.pluginId.localeCompare(right.pluginId))
+      ),
     subscribe: host.subscribe,
     contributions: host.contributions,
   });
@@ -383,6 +458,7 @@ export const createWebPluginPlatform = (
         workspaceId,
         packages,
         paletteContributions,
+        surfaceLeases,
         registerCleanup,
       }),
       getAuditEvents: auditJournal.list,

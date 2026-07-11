@@ -1,0 +1,288 @@
+{
+  "$schema": "https://prodivix.dev/schemas/palette-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "surface": "blueprint.components",
+  "groups": [
+    {
+      "id": "mui-inputs",
+      "label": "Material UI / Inputs",
+      "placement": { "section": "external", "libraryId": "mui" },
+      "items": [
+        {
+          "kind": "component",
+          "id": "mui-button",
+          "label": "Button",
+          "runtimeType": "MuiButton",
+          "defaultProps": {
+            "variant": "contained",
+            "size": "medium"
+          },
+          "propOptions": {
+            "variant": ["text", "outlined", "contained"],
+            "size": ["small", "medium", "large"]
+          },
+          "presentation": {
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "medium", "label": "M", "value": "medium" },
+              { "id": "large", "label": "L", "value": "large" }
+            ],
+            "status": {
+              "prop": "variant",
+              "label": "Variant",
+              "defaultValue": "contained",
+              "options": [
+                { "id": "text", "label": "Text", "value": "text" },
+                {
+                  "id": "outlined",
+                  "label": "Outlined",
+                  "value": "outlined"
+                },
+                {
+                  "id": "contained",
+                  "label": "Contained",
+                  "value": "contained"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-text-field",
+          "label": "Text Field",
+          "runtimeType": "MuiTextField",
+          "defaultProps": {
+            "label": "Text Field",
+            "size": "small",
+            "variant": "outlined"
+          },
+          "propOptions": {
+            "variant": ["outlined", "filled", "standard"],
+            "size": ["small", "medium"]
+          },
+          "presentation": {
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "medium", "label": "M", "value": "medium" }
+            ]
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-checkbox",
+          "label": "Checkbox",
+          "runtimeType": "MuiCheckbox",
+          "defaultProps": {},
+          "propOptions": { "size": ["small", "medium"] },
+          "presentation": {
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "medium", "label": "M", "value": "medium" }
+            ]
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-radio",
+          "label": "Radio",
+          "runtimeType": "MuiRadio",
+          "defaultProps": {},
+          "propOptions": { "size": ["small", "medium"] },
+          "presentation": {
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "medium", "label": "M", "value": "medium" }
+            ]
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-switch",
+          "label": "Switch",
+          "runtimeType": "MuiSwitch",
+          "defaultProps": {},
+          "propOptions": { "size": ["small", "medium"] },
+          "presentation": {
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "medium", "label": "M", "value": "medium" }
+            ]
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-slider",
+          "label": "Slider",
+          "runtimeType": "MuiSlider",
+          "defaultProps": { "value": 40 },
+          "propOptions": { "size": ["small", "medium"] },
+          "presentation": {
+            "sizes": [
+              { "id": "small", "label": "S", "value": "small" },
+              { "id": "medium", "label": "M", "value": "medium" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mui-surfaces",
+      "label": "Material UI / Surfaces",
+      "placement": { "section": "external", "libraryId": "mui" },
+      "items": [
+        {
+          "kind": "component",
+          "id": "mui-card",
+          "label": "Card",
+          "runtimeType": "MuiCard",
+          "defaultProps": { "variant": "outlined" },
+          "propOptions": { "variant": ["elevation", "outlined"] }
+        },
+        {
+          "kind": "component",
+          "id": "mui-paper",
+          "label": "Paper",
+          "runtimeType": "MuiPaper",
+          "defaultProps": {
+            "elevation": 1,
+            "sx": { "padding": 2 }
+          },
+          "propOptions": { "variant": ["elevation", "outlined"] }
+        },
+        {
+          "kind": "component",
+          "id": "mui-accordion",
+          "label": "Accordion",
+          "defaultProps": { "defaultExpanded": true }
+        },
+        {
+          "kind": "component",
+          "id": "mui-tabs",
+          "label": "Tabs",
+          "runtimeType": "MuiTabs",
+          "defaultProps": { "value": false, "variant": "standard" },
+          "propOptions": {
+            "orientation": ["horizontal", "vertical"],
+            "variant": ["standard", "scrollable", "fullWidth"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mui-layout",
+      "label": "Material UI / Layout",
+      "placement": { "section": "external", "libraryId": "mui" },
+      "items": [
+        {
+          "kind": "component",
+          "id": "mui-box",
+          "label": "Box",
+          "runtimeType": "MuiBox",
+          "defaultProps": { "sx": { "padding": 2 } }
+        },
+        {
+          "kind": "component",
+          "id": "mui-stack",
+          "label": "Stack",
+          "runtimeType": "MuiStack",
+          "defaultProps": {
+            "direction": "row",
+            "spacing": 2
+          },
+          "propOptions": {
+            "direction": ["row", "row-reverse", "column", "column-reverse"]
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-grid",
+          "label": "Grid",
+          "runtimeType": "MuiGrid",
+          "defaultProps": {
+            "container": true,
+            "spacing": 2
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-container",
+          "label": "Container",
+          "runtimeType": "MuiContainer",
+          "defaultProps": { "maxWidth": "sm" },
+          "propOptions": {
+            "maxWidth": ["xs", "sm", "md", "lg", "xl", "false"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mui-feedback",
+      "label": "Material UI / Feedback",
+      "placement": { "section": "external", "libraryId": "mui" },
+      "items": [
+        {
+          "kind": "component",
+          "id": "mui-alert",
+          "label": "Alert",
+          "runtimeType": "MuiAlert",
+          "defaultProps": { "severity": "info" },
+          "propOptions": {
+            "severity": ["success", "info", "warning", "error"],
+            "variant": ["standard", "filled", "outlined"]
+          },
+          "presentation": {
+            "status": {
+              "prop": "severity",
+              "label": "Severity",
+              "defaultValue": "info",
+              "options": [
+                {
+                  "id": "success",
+                  "label": "Success",
+                  "value": "success"
+                },
+                { "id": "info", "label": "Info", "value": "info" },
+                {
+                  "id": "warning",
+                  "label": "Warning",
+                  "value": "warning"
+                },
+                { "id": "error", "label": "Error", "value": "error" }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "component",
+          "id": "mui-snackbar",
+          "label": "Snackbar",
+          "runtimeType": "MuiSnackbar",
+          "defaultProps": { "message": "Snackbar", "open": false }
+        },
+        {
+          "kind": "component",
+          "id": "mui-dialog",
+          "label": "Dialog",
+          "runtimeType": "MuiDialog",
+          "defaultProps": {
+            "open": false,
+            "fullWidth": true,
+            "maxWidth": "sm"
+          },
+          "propOptions": { "maxWidth": ["xs", "sm", "md", "lg", "xl"] }
+        },
+        {
+          "kind": "component",
+          "id": "mui-circular-progress",
+          "label": "Circular Progress",
+          "runtimeType": "MuiCircularProgress",
+          "defaultProps": { "size": 32 },
+          "propOptions": {
+            "variant": ["determinate", "indeterminate"]
+          }
+        }
+      ]
+    }
+  ]
+}

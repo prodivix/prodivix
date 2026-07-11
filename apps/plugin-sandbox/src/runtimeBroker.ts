@@ -110,13 +110,30 @@ const onBootstrap = async (event: MessageEvent) => {
     port.close();
     return;
   }
+  let workerUrlReleased = false;
+  const releaseWorkerUrl = () => {
+    if (workerUrlReleased) return;
+    workerUrlReleased = true;
+    URL.revokeObjectURL(workerUrl);
+  };
+  const releaseTimer = setTimeout(releaseWorkerUrl, 30_000);
   worker.addEventListener('error', (workerError) => {
+    clearTimeout(releaseTimer);
+    releaseWorkerUrl();
     console.error(
       'Prodivix runtime Worker failed after bootstrap:',
       workerError.message
     );
   });
-  URL.revokeObjectURL(workerUrl);
+  window.addEventListener(
+    'pagehide',
+    () => {
+      clearTimeout(releaseTimer);
+      worker.terminate();
+      releaseWorkerUrl();
+    },
+    { once: true }
+  );
   try {
     worker.postMessage(
       {
@@ -130,6 +147,8 @@ const onBootstrap = async (event: MessageEvent) => {
       [port, event.data.runtimeBytes]
     );
   } catch {
+    clearTimeout(releaseTimer);
+    releaseWorkerUrl();
     console.error('Prodivix runtime Worker bootstrap transfer failed.');
     worker.terminate();
     port.close();

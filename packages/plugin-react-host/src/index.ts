@@ -1,0 +1,25 @@
+export {
+  type HostPackageCoordinate,
+  type OfficialComponentLibraryImplementation,
+  type OfficialHostImplementation,
+  type OfficialHostImplementationKind,
+  type OfficialHostModule,
+  type OfficialHostModuleCatalogEntry,
+  type OfficialIconExportContext,
+  type OfficialIconProviderImplementation,
+  type OfficialPalettePreviewGroup,
+  type OfficialPalettePreviewItem,
+  type OfficialPalettePreviewStatus,
+  type OfficialPalettePreviewVariant,
+  type OfficialPaletteProjectionImplementation,
+  type OfficialPaletteRuntimeProjection,
+  type OfficialReactSurfaceKind,
+  type OfficialRenderPolicyContext,
+  type OfficialRenderPolicyImplementation,
+  type OfficialRenderPolicyResult,
+} from '#react-host/hostModule';
+export {
+  OfficialReactSurfaceHostContext,
+  useOfficialReactSurfaceHost,
+  type OfficialReactSurfaceHost,
+} from '#react-host/surfaceHost';

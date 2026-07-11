@@ -29,7 +29,7 @@ apps/web
 │   ├── home/            # 首页
 │   ├── ai/              # AI 助手 Provider 与设置
 │   ├── i18n/            # i18next 资源与初始化
-│   ├── esm-bridge/      # 外部库（esm.sh）运行时桥
+│   ├── esm-bridge/      # 可配置远程图标 provider 的 React 互操作桥
 │   ├── shortcuts/       # 全局键位（Alt+1~9 等）
 │   ├── theme/           # 主题切换
 │   ├── infra/           # 基础设施工具
@@ -52,7 +52,7 @@ apps/web
 - **三编辑器收敛**：Blueprint 写 `ui` 层 / NodeGraph 写 `logic` 层 / Animation 写 `animation` 层
 - **Workspace 同步**：文档 command patch (`PATCH /api/workspaces/:id/documents/:docId`) + 分区 rev 乐观并发（见 `specs/decisions/07.workspace-sync.md`）
 - **路由清单**：Route Manifest + Outlet 渲染链（见 `specs/decisions/08.route-manifest-outlet.md`）
-- **外部库运行时**：esm.sh + canonical external IR（见 `specs/decisions/17.external-library-runtime-and-adapter.md`）
+- **外部库接入**：官方组件库由 bundled plugin package 提供；可配置远程图标 provider 通过受限 ESM bridge 接入（见 `specs/decisions/17.external-library-runtime-and-adapter.md`）
 - **插件平台**：每个 workspace 只有一个 Host session，feature surface 只消费 typed query service（见 `specs/implementation/plugin-browser-sandbox-phase4.md`）
 - **Inspector Panel 架构**：每个面板独立 schema（见 `specs/decisions/21.inspector-panel-architecture.md`）
 
@@ -64,7 +64,14 @@ apps/web
 VITE_PLUGIN_SANDBOX_URL=https://plugins.example.com/runtime-broker.html
 ```
 
-该 URL 必须来自不携带 Prodivix 登录 Cookie 或用户数据的独立 origin，并按 `apps/plugin-sandbox` 构建产物提供 CSP 与 Permissions Policy。未配置时 Web Plugin Platform 仍支持受信任静态 contribution，但 runtime activation 会明确 fail closed；不得回退到普通 same-origin Worker 或同源 iframe。
+该 URL 必须来自不携带 Prodivix 登录 Cookie 或用户数据的独立 origin，并按 `apps/plugin-sandbox` 构建产物提供 CSP 与 Permissions Policy。生产部署使用独立 `prodivix-plugin-sandbox` Nginx image；Web Docker image 通过同名 build arg 注入该 URL。未配置时 Web Plugin Platform 仍支持受信任静态 contribution，但 runtime activation 会明确 fail closed；不得回退到普通 same-origin Worker 或同源 iframe。
+
+安全与跨浏览器门禁：
+
+```bash
+pnpm --filter @prodivix/plugin-sandbox test
+pnpm test:e2e:plugin-sandbox:matrix
+```
 
 ## 类型规范
 

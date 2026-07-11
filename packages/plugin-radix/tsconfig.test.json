@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "#radix/*": ["./src/*"],
+      "@prodivix/plugin-contracts": ["../plugin-contracts/dist/index.d.ts"],
+      "@prodivix/plugin-package": ["../plugin-package/dist/index.d.ts"],
+      "@prodivix/plugin-react-host": ["../plugin-react-host/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../plugin-contracts" },
+    { "path": "../plugin-package" },
+    { "path": "../plugin-react-host" }
+  ]
+}

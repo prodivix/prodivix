@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-prodivix}
       TZ: ${TZ:-UTC}
-    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    command: ['postgres', '-c', 'config_file=/etc/postgresql/postgresql.conf']
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
@@ -17,14 +17,14 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-prodivix}",
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-prodivix}',
         ]
       interval: 10s
       timeout: 5s
       retries: 8
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - '${POSTGRES_PORT:-5432}:5432'
 
   backend:
     image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/prodivix-backend:${IMAGE_TAG:-latest}
@@ -33,7 +33,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      BACKEND_ADDR: ":8080"
+      BACKEND_ADDR: ':8080'
       BACKEND_ALLOWED_ORIGINS: ${BACKEND_ALLOWED_ORIGINS:-http://localhost:4173}
       BACKEND_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-prodivix}?sslmode=disable
       BACKEND_TOKEN_TTL: ${BACKEND_TOKEN_TTL:-24h}
@@ -41,12 +41,28 @@ services:
       BACKEND_DB_MAX_IDLE_CONNS: ${BACKEND_DB_MAX_IDLE_CONNS:-5}
       BACKEND_DB_MAX_LIFETIME: ${BACKEND_DB_MAX_LIFETIME:-30m}
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/api/ping || exit 1"]
+      test:
+        ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:8080/api/ping || exit 1']
       interval: 15s
       timeout: 5s
       retries: 8
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - '${BACKEND_PORT:-8080}:8080'
+
+  sandbox:
+    image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/prodivix-plugin-sandbox:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q -O - http://127.0.0.1:8080/runtime-broker.html >/dev/null || exit 1',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    ports:
+      - '${SANDBOX_PORT:-4174}:8080'
 
   web:
     image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/prodivix-web:${IMAGE_TAG:-latest}
@@ -54,8 +70,10 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      sandbox:
+        condition: service_healthy
     ports:
-      - "${WEB_PORT:-4173}:80"
+      - '${WEB_PORT:-4173}:80'
 
 volumes:
   postgres-data:

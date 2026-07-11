@@ -75,6 +75,17 @@ export type WorkspaceCommandApplyResult =
       issues: WorkspaceCommandIssue[];
     };
 
+export type WorkspaceDocumentCommandApplyResult<TContent = unknown> =
+  | {
+      ok: true;
+      content: TContent;
+      command: WorkspaceCommandEnvelope;
+    }
+  | {
+      ok: false;
+      issues: WorkspaceCommandIssue[];
+    };
+
 export type CreateWorkspaceCodeDocumentCommandInput = {
   workspace: StableWorkspaceSnapshot;
   commandId: string;
@@ -535,9 +546,6 @@ const getWorkspaceNodePath = (
   );
   return pathsByNodeId.get(nodeId) ?? null;
 };
-
-const isPirWorkspaceDocumentType = (type: string): boolean =>
-  type === 'pir-page' || type === 'pir-layout' || type === 'pir-component';
 
 const inferCommandDomain = (
   command: WorkspaceCommandEnvelope
@@ -1051,6 +1059,103 @@ export const deleteWorkspaceDirectoryIntentRequest = ({
   ...(clientMutationId ? { clientMutationId } : {}),
 });
 
+export const applyWorkspaceDocumentCommand = <TContent>(
+  content: TContent,
+  command: WorkspaceCommandEnvelope,
+  target: Readonly<{
+    workspaceId: WorkspaceId;
+    documentId: WorkspaceDocumentId;
+    domain: DocumentPatchDomain;
+  }>
+): WorkspaceDocumentCommandApplyResult<TContent> => {
+  const envelopeIssues = validateEnvelope(command);
+  if (envelopeIssues.length) return { ok: false, issues: envelopeIssues };
+  if (command.target.workspaceId !== target.workspaceId) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_WORKSPACE_MISMATCH',
+          path: '/target/workspaceId',
+          message: 'Command target workspaceId must match the document owner.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (command.target.documentId !== target.documentId) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_DOCUMENT_MISSING',
+          path: '/target/documentId',
+          message: 'Command target documentId must match the document.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  const pathIssues = [
+    ...validatePatchPaths(command.forwardOps, 'document', target.domain),
+    ...validatePatchPaths(command.reverseOps, 'document', target.domain),
+  ];
+  if (pathIssues.length) return { ok: false, issues: pathIssues };
+
+  const patchedContent = applyPatchOperations(content, command.forwardOps);
+  if (isPatchFailure(patchedContent)) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_PATCH_FAILED',
+          path: patchedContent.path,
+          message: 'Command forwardOps could not be applied.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  const restoredContent = applyPatchOperations(
+    patchedContent.value,
+    command.reverseOps
+  );
+  if (
+    isPatchFailure(restoredContent) ||
+    !valuesEqual(restoredContent.value, content)
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_PATCH_FAILED',
+          path: isPatchFailure(restoredContent) ? restoredContent.path : '/',
+          message: 'Command reverseOps must restore the original document.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (target.domain === 'pir' && !isPirDocumentContent(patchedContent.value)) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message: `PIR workspace documents must remain ${CURRENT_PIR_VERSION} graph-only.`,
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  return {
+    ok: true,
+    content: patchedContent.value as TContent,
+    command,
+  };
+};
+
 export const applyWorkspaceCommand = (
   snapshot: StableWorkspaceSnapshot,
   command: WorkspaceCommandEnvelope
@@ -1098,72 +1203,22 @@ export const applyWorkspaceCommand = (
       };
     }
 
-    const patchedContent = applyPatchOperations(
+    const documentDomain: DocumentPatchDomain =
+      commandDomain === 'nodegraph' ||
+      commandDomain === 'animation' ||
+      commandDomain === 'code'
+        ? commandDomain
+        : 'pir';
+    const documentResult = applyWorkspaceDocumentCommand(
       document.content,
-      command.forwardOps
+      command,
+      {
+        workspaceId: snapshot.id,
+        documentId,
+        domain: documentDomain,
+      }
     );
-    if (isPatchFailure(patchedContent)) {
-      return {
-        ok: false,
-        issues: [
-          {
-            code: 'WKS_COMMAND_PATCH_FAILED',
-            path: patchedContent.path,
-            message: 'Command forwardOps could not be applied.',
-            documentId,
-          },
-        ],
-      };
-    }
-
-    const restoredContent = applyPatchOperations(
-      patchedContent.value,
-      command.reverseOps
-    );
-    if (isPatchFailure(restoredContent)) {
-      return {
-        ok: false,
-        issues: [
-          {
-            code: 'WKS_COMMAND_PATCH_FAILED',
-            path: restoredContent.path,
-            message: 'Command reverseOps must restore the original document.',
-            documentId,
-          },
-        ],
-      };
-    }
-
-    if (!valuesEqual(restoredContent.value, document.content)) {
-      return {
-        ok: false,
-        issues: [
-          {
-            code: 'WKS_COMMAND_PATCH_FAILED',
-            path: '/',
-            message: 'Command reverseOps must restore the original document.',
-            documentId,
-          },
-        ],
-      };
-    }
-
-    if (
-      isPirWorkspaceDocumentType(document.type) &&
-      !isPirDocumentContent(patchedContent.value)
-    ) {
-      return {
-        ok: false,
-        issues: [
-          {
-            code: 'WKS_COMMAND_VALIDATION_FAILED',
-            path: '/target/documentId',
-            message: `PIR workspace documents must remain ${CURRENT_PIR_VERSION} graph-only.`,
-            documentId,
-          },
-        ],
-      };
-    }
+    if (documentResult.ok === false) return documentResult;
 
     const nextSnapshot: StableWorkspaceSnapshot = {
       ...snapshot,
@@ -1171,7 +1226,7 @@ export const applyWorkspaceCommand = (
         ...snapshot.docsById,
         [documentId]: {
           ...document,
-          content: patchedContent.value,
+          content: documentResult.content,
           contentRev: document.contentRev + 1,
         },
       },

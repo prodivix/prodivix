@@ -28,6 +28,7 @@ import {
   resolverFailure,
   toHostDescriptorValidationResult,
 } from '@/plugins/platform/contributions/resolverUtils';
+import type { OfficialSurfaceLeaseRegistry } from '@/plugins/platform/officialSurfaceHost';
 
 const applyProps = (
   rule: RenderPolicyRuleDescriptor,
@@ -46,10 +47,29 @@ const applyProps = (
   });
   rule.props?.omit?.forEach((property) => delete props[property]);
   const canvasOpen = rule.portal.canvasOpen;
-  if (canvasOpen && (canvasOpen.when === 'always' || context.isSelected)) {
+  if (
+    canvasOpen &&
+    context.interactionMode === 'design' &&
+    (canvasOpen.when === 'always' ||
+      context.isSelected ||
+      context.hasSelectedDescendant)
+  ) {
     props[canvasOpen.prop] = canvasOpen.value;
   }
   return props;
+};
+
+const resolveCanvasInstanceKey = (
+  rule: RenderPolicyRuleDescriptor,
+  context: AdapterContext
+): string | undefined => {
+  const canvasOpen = rule.portal.canvasOpen;
+  if (!canvasOpen || context.interactionMode !== 'design') return;
+  const isForcedOpen =
+    canvasOpen.when === 'always' ||
+    context.isSelected ||
+    context.hasSelectedDescendant;
+  return isForcedOpen ? 'canvas-forced-open' : 'canvas-authored-state';
 };
 
 const resolveChildren = (
@@ -102,14 +122,28 @@ const createAdapter = (
     supportsChildren: rule.children.mode !== 'none',
     mapProps: (context) => {
       const props = applyProps(rule, context);
-      const declarative = resolveChildren(rule, context, props);
+      const instanceKey = resolveCanvasInstanceKey(rule, context);
+      const declarative = {
+        ...resolveChildren(rule, context, props),
+        ...(instanceKey ? { instanceKey } : {}),
+      };
       if (!implementation?.mapProps) return declarative;
       let custom: AdapterResult;
       try {
-        custom = implementation.mapProps({
-          ...context,
-          resolvedProps: declarative.props ?? props,
-        });
+        custom = implementation.mapProps(
+          Object.freeze({
+            nodeId: context.node.id,
+            runtimeType: context.node.type,
+            resolvedProps: Object.freeze({
+              ...(declarative.props ?? props),
+            }),
+            resolvedStyle: Object.freeze({ ...context.resolvedStyle }),
+            resolvedText: context.resolvedText,
+            isSelected: context.isSelected,
+            hasSelectedDescendant: context.hasSelectedDescendant,
+            surface: 'blueprint-canvas',
+          })
+        );
       } catch {
         return declarative;
       }
@@ -131,7 +165,8 @@ const createAdapter = (
   });
 
 export const createRenderPolicyContributionResolver = (
-  implementations: OfficialHostImplementationRegistry
+  implementations: OfficialHostImplementationRegistry,
+  surfaceLeases: OfficialSurfaceLeaseRegistry
 ): RegisteredContributionContract<WebContributionPointMap> =>
   defineContributionContract<
     WebContributionPointMap,
@@ -202,7 +237,7 @@ export const createRenderPolicyContributionResolver = (
           fallback: Object.freeze({ ...rule.fallback }),
         });
       });
-      let disposed = false;
+      let disposePromise: Promise<void> | undefined;
       return pluginHostSuccess({
         value: Object.freeze({
           descriptor: frozenDescriptor,
@@ -212,9 +247,17 @@ export const createRenderPolicyContributionResolver = (
         lifetime: 'installation',
         dependsOnCapabilities: [],
         dispose: () => {
-          if (disposed) return;
-          disposed = true;
-          [...bindings.values()].reverse().forEach((item) => item.dispose());
+          if (disposePromise) return disposePromise;
+          disposePromise = (async () => {
+            try {
+              await surfaceLeases.releaseOwner(owner);
+            } finally {
+              [...bindings.values()]
+                .reverse()
+                .forEach((item) => item.dispose());
+            }
+          })();
+          return disposePromise;
         },
       });
     },

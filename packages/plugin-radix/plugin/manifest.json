@@ -1,0 +1,95 @@
+{
+  "capabilities": [
+    {
+      "id": "extension.register",
+      "reason": "Register the official Radix UI component catalog.",
+      "scope": "externalLibrary"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register Radix UI Blueprint Palette items.",
+      "scope": "paletteContribution"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register normalized Radix UI compound component templates.",
+      "scope": "blueprintTemplate"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register canvas-safe Radix UI render and portal policies.",
+      "scope": "renderPolicy"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register exact React Vite export mappings for Radix UI.",
+      "scope": "codegenPolicy"
+    }
+  ],
+  "contributes": [
+    {
+      "contractVersion": "1.0",
+      "id": "radix.library",
+      "point": "externalLibrary",
+      "source": {
+        "integrity": "sha256-EIza0rls0WLz8rLS6VLTJz4wD92+OuMy9fUcxZuGUyg=",
+        "kind": "resource",
+        "path": "./contributions/external-library.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "radix.palette",
+      "point": "paletteContribution",
+      "source": {
+        "integrity": "sha256-6BlrwaHlqieIGJFYdR3bg1flBjA7A5/oHAHkyuLuBMY=",
+        "kind": "resource",
+        "path": "./contributions/palette.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "radix.templates",
+      "point": "blueprintTemplate",
+      "source": {
+        "integrity": "sha256-mf8FVLcz294k6qYc2p7k7WDum6xOpSppVZSOIY/AWfo=",
+        "kind": "resource",
+        "path": "./contributions/blueprint-template.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "radix.render",
+      "point": "renderPolicy",
+      "source": {
+        "integrity": "sha256-SXkjW9fe1ng+GLoWWaoV+ZaQb5ZpU0qOa9NP8xBiDeg=",
+        "kind": "resource",
+        "path": "./contributions/render-policy.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "radix.react-codegen",
+      "point": "codegenPolicy",
+      "source": {
+        "integrity": "sha256-Qcze0OPwqxmPN4UvpCgtxerrDMK+n8hsnA9esPoKYT4=",
+        "kind": "resource",
+        "path": "./contributions/codegen-policy.json"
+      }
+    }
+  ],
+  "description": "Official Radix UI primitives, compound templates, canvas policies, and React export mappings.",
+  "displayName": "Radix UI Official Plugin",
+  "engines": { "prodivix": ">=0.1.0 <1.0.0" },
+  "homepage": "https://prodivix.dev/plugins/radix",
+  "id": "@prodivix/plugin-radix",
+  "license": "MIT",
+  "metadata": {
+    "categories": ["Component Libraries"],
+    "tags": ["official", "radix", "react", "headless"]
+  },
+  "publisher": "prodivix",
+  "repository": "https://github.com/prodivix/prodivix",
+  "schemaVersion": "1.0",
+  "version": "0.1.0"
+}

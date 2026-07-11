@@ -5,7 +5,6 @@ import type {
   NodeId,
   UiGraph,
 } from '@prodivix/shared/types/pir';
-import { normalizeTreeToUiGraph } from './normalize';
 
 const cloneJson = <T>(value: T): T => {
   if (typeof structuredClone === 'function') {
@@ -44,28 +43,5 @@ export const materializeUiTree = (graph: UiGraph): ComponentNode => {
   return visit(graph.rootId);
 };
 
-export const tryMaterializeUiTree = (
-  graph: UiGraph
-): { root: ComponentNode | null; error?: Error } => {
-  try {
-    return { root: materializeUiTree(graph) };
-  } catch (error) {
-    return {
-      root: null,
-      error: error instanceof Error ? error : new Error(String(error)),
-    };
-  }
-};
-
 export const materializePirRoot = (doc: PIRDocument): ComponentNode =>
   materializeUiTree(doc.ui.graph);
-
-export const withMaterializedRoot = (
-  doc: PIRDocument,
-  updater: (root: ComponentNode) => ComponentNode
-): PIRDocument => ({
-  ...doc,
-  ui: {
-    graph: normalizeTreeToUiGraph(updater(materializePirRoot(doc))),
-  },
-});

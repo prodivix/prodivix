@@ -16,12 +16,21 @@ type InspectorTranslate = (
   options?: Record<string, unknown>
 ) => string;
 
-type InspectorComponentMeta = {
+export type InspectorComponentPropDefinition = Readonly<{
+  name: string;
+  valueType:
+    'string' | 'number' | 'boolean' | 'object' | 'array' | 'event' | 'unknown';
+  required?: boolean;
+  description?: string;
+}>;
+
+export type InspectorComponentMeta = {
   source: 'builtIn' | 'external';
   libraryId?: string;
   runtimeType: string;
   defaultProps?: Record<string, unknown>;
   propOptions?: Record<string, string[]>;
+  propDefinitions?: readonly InspectorComponentPropDefinition[];
 };
 
 export type InspectorCoreContext = {

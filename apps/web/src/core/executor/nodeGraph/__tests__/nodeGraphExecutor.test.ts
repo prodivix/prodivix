@@ -1,15 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { executePirNodeGraph } from '@/core/executor/nodeGraph/nodeGraphExecutor';
+import { createDefaultPirDoc } from '@/pir/resolvePirDocument';
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 
 const createPirDoc = (graphs: unknown[]): PIRDocument => ({
-  version: '1.2',
-  ui: {
-    root: {
-      id: 'root',
-      type: 'page',
-    },
-  },
+  ...createDefaultPirDoc(),
   logic: {
     graphs,
   },

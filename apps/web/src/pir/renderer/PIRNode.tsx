@@ -130,13 +130,27 @@ export const PIRNode: React.FC<{
       resolvedStyle,
       resolvedText: renderedText as React.ReactNode,
       isSelected: scopedContext.selectedId === node.id,
+      hasSelectedDescendant: Boolean(
+        scopedContext.selectedId &&
+        scopedContext.selectedId !== node.id &&
+        containsNodeId(node, scopedContext.selectedId)
+      ),
+      interactionMode: scopedContext.interactionMode,
     };
     return (
       resolvedComponent.adapter.mapProps?.(adapterContext) ?? {
         props: resolvedProps,
       }
     );
-  }, [node, resolvedComponent, resolvedProps, resolvedStyle, renderedText]);
+  }, [
+    node,
+    resolvedComponent,
+    resolvedProps,
+    resolvedStyle,
+    renderedText,
+    scopedContext.interactionMode,
+    scopedContext.selectedId,
+  ]);
 
   const eventProps = useMemo(() => {
     const handlers: Record<string, unknown> = {};
@@ -403,7 +417,11 @@ export const PIRNode: React.FC<{
     const leafProps = stripChildProps(restProps);
     return (
       <span style={{ display: 'contents' }} data-pir-node-id={node.id}>
-        <Component {...leafProps} style={mergedStyle} />
+        <Component
+          key={adapterResult.instanceKey}
+          {...leafProps}
+          style={mergedStyle}
+        />
       </span>
     );
   }
@@ -414,7 +432,11 @@ export const PIRNode: React.FC<{
 
   return (
     <span style={{ display: 'contents' }} data-pir-node-id={node.id}>
-      <Component {...restProps} style={mergedStyle}>
+      <Component
+        key={adapterResult.instanceKey}
+        {...restProps}
+        style={mergedStyle}
+      >
         {adapterResult.children}
         {outletChildren ??
           (shouldRenderNodeChildren

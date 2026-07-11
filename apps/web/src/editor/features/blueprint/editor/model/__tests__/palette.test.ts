@@ -23,12 +23,18 @@ const createPaletteQuery = (
     itemsByRuntimeType: new Map(
       item.runtimeType ? [[item.runtimeType, item]] : []
     ),
+    creationRecipesByItemId: new Map(),
+    compositionRulesByRuntimeType: new Map(),
   });
   return Object.freeze({
     getSnapshot: () => snapshot,
     getItemById: (itemId: string) => snapshot.itemsById.get(itemId),
     getItemByRuntimeType: (runtimeType: string) =>
       snapshot.itemsByRuntimeType.get(runtimeType),
+    getCreationRecipe: (itemId: string) =>
+      snapshot.creationRecipesByItemId.get(itemId),
+    getCompositionRule: (runtimeType: string) =>
+      snapshot.compositionRulesByRuntimeType.get(runtimeType),
     subscribe: () => () => undefined,
   });
 };

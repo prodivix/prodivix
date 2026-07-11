@@ -13,23 +13,25 @@ import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/blueprint/editor/model/vi
 import { useBlueprintAutosave } from '@/editor/features/blueprint/editor/model/autosave';
 import { useBlueprintDragDrop } from '@/editor/features/blueprint/editor/model/dragdrop';
 import { executeBlueprintGraph } from '@/editor/features/blueprint/editor/model/graphExecutor';
+import { createNodeIdFactory } from '@/editor/features/blueprint/editor/model/palette';
 import {
-  createNodeFromPaletteItem,
-  createNodeIdFactory,
-} from '@/editor/features/blueprint/editor/model/palette';
-import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
-import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
+  applyPaletteItemInsertion,
+  type PaletteItemSelection,
+} from '@/editor/features/blueprint/editor/model/paletteCreation';
 import {
-  cloneNodeWithNewIds,
-  findNodeById,
-  findParentId,
-  insertAfterById,
-  insertChildAtIndex,
-  insertIntoPirDoc,
-  supportsChildrenForNode,
-  moveChildById,
-  removeNodeById,
-} from '@/editor/features/blueprint/editor/model/tree';
+  validateBlueprintComposition,
+  type BlueprintCompositionIssue,
+} from '@/editor/features/blueprint/editor/model/composition';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
+import {
+  collectGraphSubtreeIds,
+  getParentMap,
+  insertUiGraphFragment,
+  instantiateUiGraphSubtreeClone,
+  materializePirRoot,
+  moveNode,
+  removeNode,
+} from '@/pir/graph';
 import { normalizeAnimationDefinition } from '@/editor/features/animation/animationEditorModel';
 import {
   openExternalNavigateTarget,
@@ -151,6 +153,8 @@ export const useBlueprintEditorController = () => {
   const [statusSelections, setStatusSelections] = useState<
     Record<string, number>
   >({});
+  const [compositionIssue, setCompositionIssue] =
+    useState<BlueprintCompositionIssue>();
   const statusTimers = useRef<Record<string, number>>({});
   const { t } = useTranslation('blueprint');
   const { projectId } = useParams();
@@ -776,10 +780,8 @@ export const useBlueprintEditorController = () => {
 
   const handleToggleNodeHidden = (nodeId: string) => {
     if (!nodeId) return;
-    const root = materializePirRoot(pirDoc);
-    if (nodeId === root.id) return;
-    const exists = Boolean(findNodeById(root, nodeId));
-    if (!exists) return;
+    if (nodeId === pirDoc.ui.graph.rootId) return;
+    if (!pirDoc.ui.graph.nodesById[nodeId]) return;
     const currentHiddenNodeIds = resolvedBlueprintState.hiddenNodeIds ?? [];
     setBlueprintState(blueprintKey, {
       hiddenNodeIds: currentHiddenNodeIds.includes(nodeId)
@@ -788,54 +790,31 @@ export const useBlueprintEditorController = () => {
     });
   };
 
-  const handleAddComponent = (itemId: string) => {
+  const handleAddComponent = (
+    itemId: string,
+    selection: PaletteItemSelection = {}
+  ) => {
     if (workspaceReadonly) return;
-    const targetId = selectedId ?? 'root';
     let nextNodeId = '';
+    let nextCompositionIssue: BlueprintCompositionIssue | undefined;
     updatePirDoc((doc) => {
-      const root = materializePirRoot(doc);
-      const createId = createNodeIdFactory(doc);
-      const newNode = createNodeFromPaletteItem({
+      const result = applyPaletteItemInsertion(doc, palette, {
+        workspaceId: workspaceId ?? `project:${blueprintKey}`,
+        documentId: activeDocumentId ?? `pir:${currentPath}`,
         itemId,
-        createId,
-        palette,
+        preferredTargetId: selectedId ?? doc.ui.graph.rootId,
+        selection,
       });
-      nextNodeId = newNode.id;
-
-      if (targetId !== root.id) {
-        const targetNode = findNodeById(root, targetId);
-        const isSameComponentType = targetNode?.type === newNode.type;
-        if (
-          targetNode?.id === targetId &&
-          supportsChildrenForNode(targetNode) &&
-          !isSameComponentType
-        ) {
-          const insertedChild = insertChildAtIndex(
-            root,
-            targetNode.id,
-            newNode,
-            targetNode.children?.length ?? 0
-          );
-          if (insertedChild.inserted) {
-            return {
-              ...doc,
-              ui: { graph: normalizeTreeToUiGraph(insertedChild.node) },
-            };
-          }
-        }
-
-        const insertedSibling = insertAfterById(root, targetId, newNode);
-        if (insertedSibling.inserted) {
-          return {
-            ...doc,
-            ui: { graph: normalizeTreeToUiGraph(insertedSibling.node) },
-          };
-        }
+      if (result.ok === false) {
+        nextCompositionIssue = result.compositionIssue;
+        return doc;
       }
-
-      return insertIntoPirDoc(doc, root.id, newNode);
+      nextNodeId = result.nextNodeId;
+      return result.doc;
     });
+    if (nextCompositionIssue) setCompositionIssue(nextCompositionIssue);
     if (nextNodeId) {
+      setCompositionIssue(undefined);
       handleNodeSelect(nextNodeId);
     }
   };
@@ -850,11 +829,13 @@ export const useBlueprintEditorController = () => {
     handleDragEnd,
   } = useBlueprintDragDrop({
     pirDoc,
-    currentPath,
+    workspaceId: workspaceId ?? `project:${blueprintKey}`,
+    documentId: activeDocumentId ?? `pir:${currentPath}`,
     selectedId,
     palette,
     updatePirDoc,
     onNodeSelect: handleNodeSelect,
+    onCompositionIssue: setCompositionIssue,
   });
 
   const handleDeleteSelected = () => {
@@ -862,26 +843,34 @@ export const useBlueprintEditorController = () => {
     if (!selectedId) return;
     let nextSelectedId: string | undefined;
     let removed = false;
-    let removedNodeIds = new Set<string>();
+    const removedNodeIds = new Set<string>();
+    let nextCompositionIssue: BlueprintCompositionIssue | undefined;
     updatePirDoc((doc) => {
-      const root = materializePirRoot(doc);
-      if (selectedId === root.id) return doc;
-      const parentId = findParentId(root, selectedId);
-      const nodeToRemove = findNodeById(root, selectedId);
-      if (nodeToRemove) {
-        removedNodeIds = collectNodeIdSet(nodeToRemove);
-      }
-      const removal = removeNodeById(root, selectedId);
-      removed = removal.removed;
-      if (!removal.removed) return doc;
-      nextSelectedId = parentId ?? undefined;
+      if (selectedId === doc.ui.graph.rootId) return doc;
+      const parent = getParentMap(doc.ui.graph)[selectedId];
+      if (!parent) return doc;
+      collectGraphSubtreeIds(doc.ui.graph, selectedId, removedNodeIds);
+      const graph = removeNode(doc.ui.graph, selectedId);
+      removed = graph !== doc.ui.graph;
+      if (!removed) return doc;
+      nextSelectedId = parent.parentId;
       const nextDoc = {
         ...doc,
-        ui: { graph: normalizeTreeToUiGraph(removal.node) },
+        ui: { graph },
       };
+      const issue = validateBlueprintComposition(nextDoc.ui.graph, palette, [
+        parent.parentId,
+      ]);
+      if (issue) {
+        nextCompositionIssue = issue;
+        removed = false;
+        return doc;
+      }
       return cleanupDeletedNodeAnimationBindings(nextDoc);
     });
+    if (nextCompositionIssue) setCompositionIssue(nextCompositionIssue);
     if (removed) {
+      setCompositionIssue(undefined);
       setBlueprintState(blueprintKey, {
         selectedId: nextSelectedId,
         hiddenNodeIds: hiddenNodeIds.filter((id) => !removedNodeIds.has(id)),
@@ -894,28 +883,36 @@ export const useBlueprintEditorController = () => {
     if (!nodeId) return;
     let nextSelectedId: string | undefined;
     let removed = false;
-    let removedNodeIds = new Set<string>();
+    const removedNodeIds = new Set<string>();
+    let nextCompositionIssue: BlueprintCompositionIssue | undefined;
     updatePirDoc((doc) => {
-      const root = materializePirRoot(doc);
-      if (nodeId === root.id) return doc;
-      const parentId = findParentId(root, nodeId);
-      const nodeToRemove = findNodeById(root, nodeId);
-      if (nodeToRemove) {
-        removedNodeIds = collectNodeIdSet(nodeToRemove);
-      }
-      const removal = removeNodeById(root, nodeId);
-      removed = removal.removed;
-      if (!removal.removed) return doc;
+      if (nodeId === doc.ui.graph.rootId) return doc;
+      const parent = getParentMap(doc.ui.graph)[nodeId];
+      if (!parent) return doc;
+      collectGraphSubtreeIds(doc.ui.graph, nodeId, removedNodeIds);
+      const graph = removeNode(doc.ui.graph, nodeId);
+      removed = graph !== doc.ui.graph;
+      if (!removed) return doc;
       if (selectedId === nodeId) {
-        nextSelectedId = parentId ?? undefined;
+        nextSelectedId = parent.parentId;
       }
       const nextDoc = {
         ...doc,
-        ui: { graph: normalizeTreeToUiGraph(removal.node) },
+        ui: { graph },
       };
+      const issue = validateBlueprintComposition(nextDoc.ui.graph, palette, [
+        parent.parentId,
+      ]);
+      if (issue) {
+        nextCompositionIssue = issue;
+        removed = false;
+        return doc;
+      }
       return cleanupDeletedNodeAnimationBindings(nextDoc);
     });
+    if (nextCompositionIssue) setCompositionIssue(nextCompositionIssue);
     if (removed) {
+      setCompositionIssue(undefined);
       setBlueprintState(blueprintKey, {
         ...(selectedId === nodeId ? { selectedId: nextSelectedId } : {}),
         hiddenNodeIds: hiddenNodeIds.filter((id) => !removedNodeIds.has(id)),
@@ -927,24 +924,42 @@ export const useBlueprintEditorController = () => {
     if (workspaceReadonly) return;
     if (!nodeId) return;
     let nextNodeId = '';
+    let nextCompositionIssue: BlueprintCompositionIssue | undefined;
     updatePirDoc((doc) => {
-      const root = materializePirRoot(doc);
-      if (nodeId === root.id) return doc;
-      const source = findNodeById(root, nodeId);
-      if (!source) return doc;
+      if (nodeId === doc.ui.graph.rootId) return doc;
+      const parent = getParentMap(doc.ui.graph)[nodeId];
+      if (!parent) return doc;
       const createId = createNodeIdFactory(doc);
-      const cloned = cloneNodeWithNewIds(source, createId);
-      nextNodeId = cloned.id;
-      const insertedSibling = insertAfterById(root, nodeId, cloned);
-      if (insertedSibling.inserted) {
-        return {
-          ...doc,
-          ui: { graph: normalizeTreeToUiGraph(insertedSibling.node) },
-        };
+      const fragment = instantiateUiGraphSubtreeClone(
+        doc.ui.graph,
+        nodeId,
+        createId
+      );
+      if (!fragment) return doc;
+      const insertion = insertUiGraphFragment(doc.ui.graph, fragment, {
+        parentId: parent.parentId,
+        index: parent.index + 1,
+        ...(parent.regionName ? { regionName: parent.regionName } : {}),
+      });
+      if (!insertion.ok) return doc;
+      nextNodeId = fragment.primaryNodeId;
+      const issue = validateBlueprintComposition(insertion.graph, palette, [
+        ...Object.keys(fragment.nodesById),
+        parent.parentId,
+      ]);
+      if (issue) {
+        nextCompositionIssue = issue;
+        nextNodeId = '';
+        return doc;
       }
-      return insertIntoPirDoc(doc, root.id, cloned);
+      return {
+        ...doc,
+        ui: { graph: insertion.graph },
+      };
     });
+    if (nextCompositionIssue) setCompositionIssue(nextCompositionIssue);
     if (nextNodeId) {
+      setCompositionIssue(undefined);
       handleNodeSelect(nextNodeId);
     }
   };
@@ -953,18 +968,38 @@ export const useBlueprintEditorController = () => {
     if (workspaceReadonly) return;
     if (!nodeId) return;
     let moved = false;
+    let nextCompositionIssue: BlueprintCompositionIssue | undefined;
     updatePirDoc((doc) => {
-      const root = materializePirRoot(doc);
-      if (nodeId === root.id) return doc;
-      const parentId = findParentId(root, nodeId);
-      if (!parentId) return doc;
-      const result = moveChildById(root, parentId, nodeId, direction);
-      moved = result.moved;
-      return result.moved
-        ? { ...doc, ui: { graph: normalizeTreeToUiGraph(result.node) } }
-        : doc;
+      if (nodeId === doc.ui.graph.rootId) return doc;
+      const parent = getParentMap(doc.ui.graph)[nodeId];
+      if (!parent || parent.regionName) return doc;
+      const siblings = doc.ui.graph.childIdsById[parent.parentId] ?? [];
+      const currentIndex = siblings.indexOf(nodeId);
+      if (currentIndex === -1) return doc;
+      const targetIndex =
+        direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= siblings.length) return doc;
+      const graph = moveNode(
+        doc.ui.graph,
+        nodeId,
+        parent.parentId,
+        targetIndex
+      );
+      moved = graph !== doc.ui.graph;
+      if (!moved) return doc;
+      const issue = validateBlueprintComposition(graph, palette, [
+        parent.parentId,
+      ]);
+      if (issue) {
+        nextCompositionIssue = issue;
+        moved = false;
+        return doc;
+      }
+      return { ...doc, ui: { graph } };
     });
+    if (nextCompositionIssue) setCompositionIssue(nextCompositionIssue);
     if (moved) {
+      setCompositionIssue(undefined);
       handleNodeSelect(nodeId);
     }
   };
@@ -1038,6 +1073,7 @@ export const useBlueprintEditorController = () => {
       selectedId,
       hiddenNodeIds,
       dropHint: treeDropHint,
+      compositionIssue,
       onToggleCollapse: handleToggleTreeCollapse,
       onSelectNode: handleNodeSelect,
       onDeleteSelected: handleDeleteSelected,
@@ -1086,8 +1122,7 @@ const cleanupDeletedNodeAnimationBindings = (doc: PIRDocument): PIRDocument => {
   const animation = normalizeAnimationDefinition(doc.animation);
   if (!animation) return doc;
 
-  const validNodeIds = new Set<string>();
-  collectNodeIds(materializePirRoot(doc), validNodeIds);
+  const validNodeIds = new Set(Object.keys(doc.ui.graph.nodesById));
 
   let changed = false;
   const nextTimelines = animation.timelines.map((timeline) => {
@@ -1126,15 +1161,4 @@ const cleanupDeletedNodeAnimationBindings = (doc: PIRDocument): PIRDocument => {
       timelines: nextTimelines,
     },
   };
-};
-
-const collectNodeIds = (node: ComponentNode, bucket: Set<string>) => {
-  bucket.add(node.id);
-  (node.children ?? []).forEach((child) => collectNodeIds(child, bucket));
-};
-
-const collectNodeIdSet = (node: ComponentNode) => {
-  const result = new Set<string>();
-  collectNodeIds(node, result);
-  return result;
 };

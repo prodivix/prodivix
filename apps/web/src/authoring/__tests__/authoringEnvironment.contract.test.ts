@@ -14,6 +14,7 @@ import type {
   AuthoringContext,
   AuthoringDiagnosticProvider,
   CodeArtifact,
+  CodeArtifactOwner,
   CodeArtifactProvider,
   CodeReference,
   CodeSlotContract,
@@ -72,7 +73,10 @@ describe('authoring environment contract', () => {
   it('provides a safe empty implementation for early adapters', () => {
     const environment = createEmptyAuthoringEnvironment('rev-empty');
     const context = { surface: 'code-editor' as const };
-    const reference = { name: '$state.count' };
+    const reference: CodeReference = {
+      artifactId: 'missing-artifact',
+      symbolName: '$state.count',
+    };
 
     expect(environment.revision).toBe('rev-empty');
     expect(environment.querySymbols(context)).toEqual([]);
@@ -84,20 +88,21 @@ describe('authoring environment contract', () => {
   });
 
   it('registers code artifact providers without depending on editor internals', () => {
+    const owner = {
+      kind: 'inspector-field',
+      documentId: 'doc-1',
+      nodeId: 'node-1',
+      fieldPath: 'events.onClick',
+    } satisfies CodeArtifactOwner;
     const context: AuthoringContext = {
       surface: 'inspector',
-      targetRef: {
-        kind: 'inspector-field',
-        documentId: 'doc-1',
-        nodeId: 'node-1',
-        fieldPath: 'events.onClick',
-      },
+      targetRef: owner,
     };
     const artifact: CodeArtifact = {
       id: 'artifact-inspector-on-click',
       path: '/src/actions/onClick.ts',
       language: 'ts',
-      owner: context.targetRef,
+      owner,
       source: 'return true;',
       revision: 'rev-1',
     };

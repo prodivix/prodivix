@@ -6,10 +6,6 @@ import { PdxEmpty } from '@prodivix/ui';
 import { communityApi, type CommunityProjectDetail } from './communityApi';
 import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
 import { isAbortError } from '@/infra/api';
-import {
-  getRuntimeRegistryRevision,
-  runtimeRegistryUpdatedEvent,
-} from '@/pir/renderer/registry';
 import { resolvePirDocument } from '@/pir/resolvePirDocument';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi } from '@/editor/editorApi';
@@ -49,9 +45,6 @@ export function CommunityDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCloning, setCloning] = useState(false);
   const [cloneError, setCloneError] = useState<string | null>(null);
-  const [runtimeRegistryRevision, setRuntimeRegistryRevision] = useState(() =>
-    getRuntimeRegistryRevision()
-  );
 
   useEffect(() => {
     if (!projectId) {
@@ -101,18 +94,6 @@ export function CommunityDetailPage() {
     () => resolvePirDocument(project?.pir),
     [project?.pir]
   );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleRegistryUpdate = () =>
-      setRuntimeRegistryRevision(getRuntimeRegistryRevision());
-    window.addEventListener(runtimeRegistryUpdatedEvent, handleRegistryUpdate);
-    return () =>
-      window.removeEventListener(
-        runtimeRegistryUpdatedEvent,
-        handleRegistryUpdate
-      );
-  }, []);
 
   const handleClone = async () => {
     if (!project || isCloning) return;
@@ -271,10 +252,7 @@ export function CommunityDetailPage() {
                   {t('detail.preview', 'Read-only Preview')}
                 </h2>
                 <div className="max-w-full overflow-auto rounded-2xl border border-black/10 bg-white p-3">
-                  <PIRRenderer
-                    key={`community-preview-${runtimeRegistryRevision}`}
-                    pirDoc={previewPirDoc}
-                  />
+                  <PIRRenderer pirDoc={previewPirDoc} />
                 </div>
               </article>
 

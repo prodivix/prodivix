@@ -14,7 +14,7 @@ export type RuntimeType = string;
 export type PropertyName = string;
 
 /**
- * Serializable external component library identity and Canonical External IR enhancement contract.
+ * Serializable external component library identity, component descriptor, slot, behavior, and dependency metadata contract.
  */
 export interface ExternalLibraryContributionV1 {
   $schema?: 'https://prodivix.dev/schemas/external-library-contribution-v1.schema.json';
@@ -22,7 +22,7 @@ export interface ExternalLibraryContributionV1 {
   libraryId: LocalId;
   displayName: Label;
   package: PackageCoordinate;
-  hostImplementationId: LocalId;
+  hostImplementationId?: LocalId;
   exportDiscovery: ExportDiscovery;
   /**
    * @minItems 1

@@ -10,6 +10,7 @@ ENV_EXAMPLE_FILE="$SCRIPT_DIR/.env.example"
 DEFAULT_GHCR_NAMESPACE="mdr-tutorials"
 DEFAULT_IMAGE_TAG="latest"
 DEFAULT_WEB_PORT="4173"
+DEFAULT_SANDBOX_PORT="4174"
 DEFAULT_BACKEND_PORT="8080"
 DEFAULT_POSTGRES_PORT="127.0.0.1:5432"
 DEFAULT_POSTGRES_USER="postgres"
@@ -139,8 +140,9 @@ write_env_file() {
   local backend_port="$7"
   local allowed_origins="$8"
   local web_port="$9"
-  local token_ttl="${10}"
-  local timezone="${11}"
+  local sandbox_port="${10}"
+  local token_ttl="${11}"
+  local timezone="${12}"
 
   cat >"$ENV_FILE" <<EOF
 GHCR_NAMESPACE=$ghcr_namespace
@@ -159,6 +161,7 @@ BACKEND_DB_MAX_IDLE_CONNS=5
 BACKEND_DB_MAX_LIFETIME=30m
 
 WEB_PORT=$web_port
+SANDBOX_PORT=$sandbox_port
 TZ=$timezone
 EOF
 }
@@ -207,6 +210,7 @@ fi
 current_namespace="$(load_env_value GHCR_NAMESPACE "$DEFAULT_GHCR_NAMESPACE" "$ENV_FILE")"
 current_tag="$(load_env_value IMAGE_TAG "$DEFAULT_IMAGE_TAG" "$ENV_FILE")"
 current_web_port="$(load_env_value WEB_PORT "$DEFAULT_WEB_PORT" "$ENV_FILE")"
+current_sandbox_port="$(load_env_value SANDBOX_PORT "$DEFAULT_SANDBOX_PORT" "$ENV_FILE")"
 current_backend_port="$(load_env_value BACKEND_PORT "$DEFAULT_BACKEND_PORT" "$ENV_FILE")"
 current_postgres_port="$(load_env_value POSTGRES_PORT "$DEFAULT_POSTGRES_PORT" "$ENV_FILE")"
 current_postgres_user="$(load_env_value POSTGRES_USER "$DEFAULT_POSTGRES_USER" "$ENV_FILE")"
@@ -224,6 +228,7 @@ echo "Deployment settings"
 ghcr_namespace="$(prompt "GHCR namespace" "${current_namespace:-$DEFAULT_GHCR_NAMESPACE}")"
 image_tag="$(prompt "Image tag" "${current_tag:-$DEFAULT_IMAGE_TAG}")"
 web_port="$(prompt "Public web port" "${current_web_port:-$DEFAULT_WEB_PORT}")"
+sandbox_port="$(prompt "Public plugin sandbox port" "${current_sandbox_port:-$DEFAULT_SANDBOX_PORT}")"
 backend_port="$(prompt "Backend API port" "${current_backend_port:-$DEFAULT_BACKEND_PORT}")"
 postgres_port="$(prompt "Postgres host bind" "${current_postgres_port:-$DEFAULT_POSTGRES_PORT}")"
 postgres_user="$(prompt "Postgres user" "${current_postgres_user:-$DEFAULT_POSTGRES_USER}")"
@@ -251,6 +256,7 @@ write_env_file \
   "$backend_port" \
   "$allowed_origins" \
   "$web_port" \
+  "$sandbox_port" \
   "$token_ttl" \
   "$timezone"
 
@@ -258,6 +264,7 @@ echo
 echo "Images:"
 echo "  ghcr.io/$ghcr_namespace/prodivix-web:$image_tag"
 echo "  ghcr.io/$ghcr_namespace/prodivix-backend:$image_tag"
+echo "  ghcr.io/$ghcr_namespace/prodivix-plugin-sandbox:$image_tag"
 echo
 
 if [[ "$SKIP_DOWN" != "true" ]]; then

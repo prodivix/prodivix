@@ -9,17 +9,16 @@ import { BlueprintEditorSaveIndicator } from './saveIndicator';
 import { BlueprintEditorSidebar } from './sidebar';
 import { BlueprintEditorViewportBar } from './viewportBar';
 import { useBlueprintEditorController } from './controller';
-import { useExternalLibraryRuntime } from './runtime';
+import { useBundledOfficialPluginRuntime } from './runtime';
 
 function BlueprintEditor() {
   const {
-    externalDiagnostics,
-    externalLibraryStates,
-    externalLibraryOptions,
-    isExternalLibraryLoading,
-    reloadExternalLibraries,
-    retryExternalLibrary,
-  } = useExternalLibraryRuntime();
+    officialPluginDiagnostics,
+    activeCompositionIssue,
+    officialLibraryOptions,
+    isOfficialPluginLoading,
+    reloadOfficialPlugins,
+  } = useBundledOfficialPluginRuntime();
   const {
     addressBar,
     canvas,
@@ -30,6 +29,8 @@ function BlueprintEditor() {
     sidebar,
     viewportBar,
   } = useBlueprintEditorController();
+  const compositionIssue =
+    componentTree.compositionIssue ?? activeCompositionIssue;
 
   useEditorShortcut(
     'Ctrl+Alt+J',
@@ -107,12 +108,10 @@ function BlueprintEditor() {
             expandedPreviews={sidebar.expandedPreviews}
             sizeSelections={sidebar.sizeSelections}
             statusSelections={sidebar.statusSelections}
-            externalDiagnostics={externalDiagnostics}
-            externalLibraryStates={externalLibraryStates}
-            externalLibraryOptions={externalLibraryOptions}
-            isExternalLibraryLoading={isExternalLibraryLoading}
-            onReloadExternalLibraries={reloadExternalLibraries}
-            onRetryExternalLibrary={retryExternalLibrary}
+            officialPluginDiagnostics={officialPluginDiagnostics}
+            officialLibraryOptions={officialLibraryOptions}
+            isOfficialPluginLoading={isOfficialPluginLoading}
+            onReloadOfficialPlugins={reloadOfficialPlugins}
             onToggleCollapse={sidebar.onToggleCollapse}
             onToggleGroup={sidebar.onToggleGroup}
             onTogglePreview={sidebar.onTogglePreview}
@@ -129,6 +128,10 @@ function BlueprintEditor() {
             selectedId={componentTree.selectedId}
             hiddenNodeIds={componentTree.hiddenNodeIds}
             dropHint={componentTree.dropHint}
+            compositionIssue={compositionIssue}
+            pluginDiagnostics={officialPluginDiagnostics.filter(
+              (diagnostic) => typeof diagnostic.meta.nodeId === 'string'
+            )}
             onToggleCollapse={componentTree.onToggleCollapse}
             onSelectNode={componentTree.onSelectNode}
             onDeleteSelected={componentTree.onDeleteSelected}
@@ -156,6 +159,7 @@ function BlueprintEditor() {
           />
           <BlueprintEditorInspector
             isCollapsed={inspector.isCollapsed}
+            compositionIssue={compositionIssue}
             onToggleCollapse={inspector.onToggleCollapse}
           />
           <BlueprintAssistantPanel

@@ -13,6 +13,10 @@
     "./package.json": "./package.json"
   },
   "imports": {
+    "#src/export": {
+      "types": "./dist/export/index.d.ts",
+      "import": "./dist/export/index.js"
+    },
     "#src/*": {
       "types": "./dist/*.d.ts",
       "import": "./dist/*.js"

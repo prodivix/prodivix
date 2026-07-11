@@ -1,0 +1,102 @@
+{
+  "capabilities": [
+    {
+      "id": "extension.register",
+      "reason": "Register official Ant Design externalLibrary contribution.",
+      "scope": "externalLibrary"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register official Ant Design paletteContribution contribution.",
+      "scope": "paletteContribution"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register official Ant Design blueprintTemplate contribution.",
+      "scope": "blueprintTemplate"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register official Ant Design renderPolicy contribution.",
+      "scope": "renderPolicy"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register official Ant Design codegenPolicy contribution.",
+      "scope": "codegenPolicy"
+    },
+    {
+      "id": "extension.register",
+      "reason": "Register official Ant Design iconProvider contribution.",
+      "scope": "iconProvider"
+    }
+  ],
+  "contributes": [
+    {
+      "contractVersion": "1.0",
+      "id": "antd.library",
+      "point": "externalLibrary",
+      "source": {
+        "integrity": "sha256-9HZxOLYHKwyDt6elT/sI1Ilu3pm0tU/if4BFtjRQ65g=",
+        "kind": "resource",
+        "path": "./contributions/external-library.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "antd.palette",
+      "point": "paletteContribution",
+      "source": {
+        "integrity": "sha256-xFdDSvXcp/6KoNovOVgI/rSR8kVf2raz2/RQGm+S1iU=",
+        "kind": "resource",
+        "path": "./contributions/palette.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "antd.templates",
+      "point": "blueprintTemplate",
+      "source": {
+        "integrity": "sha256-44Hq6/6c0eN3VYYLzOzBmHbFqX82QF6SASrjj/1kc4U=",
+        "kind": "resource",
+        "path": "./contributions/blueprint-template.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "antd.render",
+      "point": "renderPolicy",
+      "source": {
+        "integrity": "sha256-Q7ybaYYWGn1s2Tvcq8LMFHk6bnmULcKY56OsTm4POx8=",
+        "kind": "resource",
+        "path": "./contributions/render-policy.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "antd.react-codegen",
+      "point": "codegenPolicy",
+      "source": {
+        "integrity": "sha256-KGTx00FzFVKDn8bbl6CMvdR+QkPnxgb5Ww+ahwxmp5A=",
+        "kind": "resource",
+        "path": "./contributions/codegen-policy.json"
+      }
+    },
+    {
+      "contractVersion": "1.0",
+      "id": "antd.icons",
+      "point": "iconProvider",
+      "source": {
+        "integrity": "sha256-1fUJ9FibBWZPwf6x1959r7qAKfWimTdzcZhBQTYN5R4=",
+        "kind": "resource",
+        "path": "./contributions/icon-provider.json"
+      }
+    }
+  ],
+  "displayName": "Ant Design Official Plugin",
+  "engines": { "prodivix": ">=0.1.0 <1.0.0" },
+  "id": "@prodivix/plugin-antd",
+  "publisher": "prodivix",
+  "schemaVersion": "1.0",
+  "version": "0.1.0"
+}

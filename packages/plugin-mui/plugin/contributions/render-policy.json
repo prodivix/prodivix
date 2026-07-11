@@ -1,0 +1,278 @@
+{
+  "$schema": "https://prodivix.dev/schemas/render-policy-contribution-v1.schema.json",
+  "schemaVersion": "1.0",
+  "libraryId": "mui",
+  "rules": [
+    {
+      "id": "mui.button",
+      "runtimeType": "MuiButton",
+      "componentExport": "Button",
+      "props": { "defaults": { "variant": "contained", "size": "medium" } },
+      "children": { "mode": "text-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Button is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.text-field",
+      "runtimeType": "MuiTextField",
+      "componentExport": "TextField",
+      "props": {
+        "defaults": {
+          "label": "Text Field",
+          "size": "small",
+          "variant": "outlined"
+        }
+      },
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Text Field is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.checkbox",
+      "runtimeType": "MuiCheckbox",
+      "componentExport": "Checkbox",
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Checkbox is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.radio",
+      "runtimeType": "MuiRadio",
+      "componentExport": "Radio",
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Radio is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.switch",
+      "runtimeType": "MuiSwitch",
+      "componentExport": "Switch",
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Switch is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.slider",
+      "runtimeType": "MuiSlider",
+      "componentExport": "Slider",
+      "props": { "defaults": { "value": 40 } },
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Slider is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.card",
+      "runtimeType": "MuiCard",
+      "componentExport": "Card",
+      "props": { "defaults": { "variant": "outlined" } },
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Card is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.paper",
+      "runtimeType": "MuiPaper",
+      "componentExport": "Paper",
+      "props": { "defaults": { "elevation": 1 } },
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Paper is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.accordion",
+      "runtimeType": "MuiAccordion",
+      "componentExport": "Accordion",
+      "props": { "defaults": { "defaultExpanded": true } },
+      "children": { "mode": "children-only" },
+      "portal": {
+        "mode": "inline",
+        "canvasOpen": { "prop": "expanded", "when": "selected", "value": true }
+      },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Accordion is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.accordion-summary",
+      "runtimeType": "MuiAccordionSummary",
+      "componentExport": "AccordionSummary",
+      "children": { "mode": "text-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Accordion Summary is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.accordion-details",
+      "runtimeType": "MuiAccordionDetails",
+      "componentExport": "AccordionDetails",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Accordion Details is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.tabs",
+      "runtimeType": "MuiTabs",
+      "componentExport": "Tabs",
+      "props": { "defaults": { "value": false, "variant": "standard" } },
+      "children": { "mode": "children-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Tabs has limited Canvas authoring support."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.box",
+      "runtimeType": "MuiBox",
+      "componentExport": "Box",
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Box is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.stack",
+      "runtimeType": "MuiStack",
+      "componentExport": "Stack",
+      "props": { "defaults": { "direction": "row", "spacing": 2 } },
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Stack is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.grid",
+      "runtimeType": "MuiGrid",
+      "componentExport": "Grid",
+      "props": { "defaults": { "container": true, "spacing": 2 } },
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Grid is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.container",
+      "runtimeType": "MuiContainer",
+      "componentExport": "Container",
+      "props": { "defaults": { "maxWidth": "sm" } },
+      "children": { "mode": "preserve" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Container is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.alert",
+      "runtimeType": "MuiAlert",
+      "componentExport": "Alert",
+      "props": { "defaults": { "severity": "info" } },
+      "children": { "mode": "text-only" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Alert is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.snackbar",
+      "runtimeType": "MuiSnackbar",
+      "componentExport": "Snackbar",
+      "props": { "defaults": { "message": "Snackbar", "open": false } },
+      "children": { "mode": "none" },
+      "portal": {
+        "mode": "host-overlay",
+        "canvasOpen": { "prop": "open", "when": "selected", "value": true }
+      },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Snackbar has limited Canvas authoring support."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.dialog",
+      "runtimeType": "MuiDialog",
+      "componentExport": "Dialog",
+      "props": {
+        "defaults": { "open": false, "fullWidth": true, "maxWidth": "sm" }
+      },
+      "children": { "mode": "preserve" },
+      "portal": {
+        "mode": "host-overlay",
+        "canvasOpen": { "prop": "open", "when": "selected", "value": true }
+      },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Dialog has limited Canvas authoring support."
+      },
+      "hostImplementationId": "mui.render"
+    },
+    {
+      "id": "mui.circular-progress",
+      "runtimeType": "MuiCircularProgress",
+      "componentExport": "CircularProgress",
+      "props": { "defaults": { "size": 32 } },
+      "children": { "mode": "none" },
+      "portal": { "mode": "inline" },
+      "fallback": {
+        "behavior": "placeholder",
+        "message": "Material UI Circular Progress is unavailable."
+      },
+      "hostImplementationId": "mui.render"
+    }
+  ]
+}

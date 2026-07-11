@@ -42,5 +42,12 @@ export const CONTRACT_CATALOG = Object.freeze(
       schemaModuleFile: 'iconProviderContributionSchema.generated.ts',
       schemaConstant: 'ICON_PROVIDER_CONTRIBUTION_V1_SCHEMA',
     },
+    {
+      schemaFile: 'blueprint-template-contribution-v1.schema.json',
+      rootType: 'BlueprintTemplateContributionV1',
+      typesFile: 'blueprintTemplateContribution.generated.ts',
+      schemaModuleFile: 'blueprintTemplateContributionSchema.generated.ts',
+      schemaConstant: 'BLUEPRINT_TEMPLATE_CONTRIBUTION_V1_SCHEMA',
+    },
   ].map((contract) => Object.freeze(contract))
 );

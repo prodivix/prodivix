@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePaletteGroups } from '@/plugins/platform';
+import { getBundledOfficialPlugin, usePaletteGroups } from '@/plugins/platform';
 import { SidebarComponentList } from './SidebarComponentList';
 import { SidebarExternalState } from './SidebarExternalState';
 import { SidebarHeader } from './SidebarHeader';
@@ -14,12 +14,10 @@ export function BlueprintEditorSidebar({
   expandedPreviews,
   sizeSelections,
   statusSelections,
-  externalDiagnostics = [],
-  externalLibraryStates = [],
-  externalLibraryOptions = [],
-  isExternalLibraryLoading,
-  onReloadExternalLibraries,
-  onRetryExternalLibrary,
+  officialPluginDiagnostics = [],
+  officialLibraryOptions = [],
+  isOfficialPluginLoading,
+  onReloadOfficialPlugins,
   onToggleCollapse,
   onToggleGroup,
   onTogglePreview,
@@ -44,19 +42,14 @@ export function BlueprintEditorSidebar({
         label: t('sidebar.libraries.builtIn'),
         source: 'builtIn' as const,
       },
-      {
-        id: 'headless',
-        label: t('sidebar.libraries.headless'),
-        source: 'headless' as const,
-      },
-      ...externalLibraryOptions.map((item) => ({
+      ...officialLibraryOptions.map((item) => ({
         id: `external:${item.id}`,
         label: item.label,
         source: 'external' as const,
         libraryId: item.id,
       })),
     ],
-    [externalLibraryOptions, t]
+    [officialLibraryOptions, t]
   );
   const activeLibraryTab =
     libraryTabs.find((tab) => tab.id === activeLibraryId) ?? libraryTabs[0];
@@ -125,27 +118,18 @@ export function BlueprintEditorSidebar({
       ),
     [groups]
   );
-  const failedExternalLibraries = useMemo(
-    () =>
-      externalLibraryStates.filter((state) => {
-        if (
-          activeLibraryTab?.source === 'external' &&
-          activeLibraryTab.libraryId &&
-          state.libraryId !== activeLibraryTab.libraryId
-        ) {
-          return false;
-        }
-        return state.status === 'error';
-      }),
-    [activeLibraryTab, externalLibraryStates]
-  );
-  const scopedExternalDiagnostics = useMemo(() => {
+  const scopedOfficialPluginDiagnostics = useMemo(() => {
     if (activeLibraryTab?.source !== 'external') return [];
-    if (!activeLibraryTab.libraryId) return externalDiagnostics;
-    return externalDiagnostics.filter(
-      (item) => !item.libraryId || item.libraryId === activeLibraryTab.libraryId
+    if (!activeLibraryTab.libraryId) return officialPluginDiagnostics;
+    const pluginId = getBundledOfficialPlugin(
+      activeLibraryTab.libraryId
+    )?.pluginId;
+    return officialPluginDiagnostics.filter(
+      (diagnostic) =>
+        (pluginId && diagnostic.meta.pluginId === pluginId) ||
+        diagnostic.meta.libraryId === activeLibraryTab.libraryId
     );
-  }, [activeLibraryTab, externalDiagnostics]);
+  }, [activeLibraryTab, officialPluginDiagnostics]);
 
   const handleQueryChange = (event: ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
@@ -192,12 +176,10 @@ export function BlueprintEditorSidebar({
       )}
       {!isCollapsed && activeLibraryTab?.source === 'external' && (
         <SidebarExternalState
-          diagnostics={scopedExternalDiagnostics}
-          failedLibraries={failedExternalLibraries}
+          diagnostics={scopedOfficialPluginDiagnostics}
           hasExternalItems={hasExternalItems}
-          isLoading={isExternalLibraryLoading}
-          onReloadExternalLibraries={onReloadExternalLibraries}
-          onRetryExternalLibrary={onRetryExternalLibrary}
+          isLoading={isOfficialPluginLoading}
+          onReloadExternalLibraries={onReloadOfficialPlugins}
         />
       )}
       {!isCollapsed && (

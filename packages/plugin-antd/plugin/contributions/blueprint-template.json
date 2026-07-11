@@ -1,0 +1,48 @@
+{
+  "compositionRules": [
+    {
+      "id": "antd.form-item-children",
+      "parent": { "mode": "any" },
+      "runtimeType": "AntdFormItem",
+      "slots": [
+        {
+          "sequence": [
+            {
+              "match": "runtime-types",
+              "maxItems": 1,
+              "minItems": 1,
+              "runtimeTypes": ["AntdInput"]
+            }
+          ],
+          "target": "children"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": "1.0",
+  "surface": "blueprint.components",
+  "templates": [
+    {
+      "fragment": {
+        "childIdsByLocalId": { "field": ["control"] },
+        "nodesByLocalId": {
+          "control": {
+            "props": { "placeholder": "Type here" },
+            "type": "AntdInput"
+          },
+          "field": {
+            "props": { "label": "Field", "name": "field" },
+            "type": "AntdFormItem"
+          }
+        },
+        "rootLocalIds": ["field"]
+      },
+      "id": "antd.form-item-template",
+      "palette": {
+        "contributionId": "antd.palette",
+        "itemId": "antd-form-item"
+      },
+      "primaryLocalId": "field"
+    }
+  ]
+}

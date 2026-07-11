@@ -21,6 +21,7 @@ import type {
   WebPluginQueryServices,
   WebPluginRuntimeServices,
 } from '@/plugins/platform/types';
+import { OfficialSurfaceLeaseRegistryContext } from '@/plugins/platform/officialSurfaceHost';
 
 const WebPluginQueryContext = createContext<WebPluginQueryServices | null>(
   null
@@ -128,11 +129,15 @@ export function WebPluginPlatformProvider({
   if (!platform || platform.workspaceId !== workspaceId) return fallback;
 
   return (
-    <WebPluginRuntimeContext.Provider value={platform.runtime}>
-      <WebPluginQueryContext.Provider value={platform.queries}>
-        {children}
-      </WebPluginQueryContext.Provider>
-    </WebPluginRuntimeContext.Provider>
+    <OfficialSurfaceLeaseRegistryContext.Provider
+      value={platform.runtime.surfaceLeases}
+    >
+      <WebPluginRuntimeContext.Provider value={platform.runtime}>
+        <WebPluginQueryContext.Provider value={platform.queries}>
+          {children}
+        </WebPluginQueryContext.Provider>
+      </WebPluginRuntimeContext.Provider>
+    </OfficialSurfaceLeaseRegistryContext.Provider>
   );
 }
 

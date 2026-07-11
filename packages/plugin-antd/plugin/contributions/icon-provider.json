@@ -1,0 +1,33 @@
+{
+  "codegen": { "importKind": "named", "sourceMode": "package" },
+  "displayName": "Ant Design Icons",
+  "exports": {
+    "strategy": "named-exports",
+    "variants": [
+      { "exportSuffix": "Outlined", "id": "outlined" },
+      { "exportSuffix": "Filled", "id": "filled" },
+      { "exportSuffix": "TwoTone", "id": "two-tone" }
+    ]
+  },
+  "hostImplementationId": "antd.icons",
+  "libraryId": "antd",
+  "limits": {
+    "maxCacheEntries": 512,
+    "maxIcons": 2048,
+    "maxNameLength": 120,
+    "maxResponseBytes": 262144
+  },
+  "normalization": {
+    "defaultVariant": "outlined",
+    "exportCase": "pascal",
+    "inputCase": "pascal"
+  },
+  "package": {
+    "license": "MIT",
+    "name": "@ant-design/icons",
+    "version": "6.1.0"
+  },
+  "providerId": "ant-design-icons",
+  "render": { "size": { "mode": "style-font-size" } },
+  "schemaVersion": "1.0"
+}

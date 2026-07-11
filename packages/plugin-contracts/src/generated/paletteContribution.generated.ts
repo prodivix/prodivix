@@ -8,7 +8,7 @@ export type LocalId = string;
 export type Label = string;
 export type Placement =
   | {
-      section: 'builtIn' | 'headless';
+      section: 'builtIn';
     }
   | {
       section: 'external';

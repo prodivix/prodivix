@@ -7,7 +7,6 @@ import { NAV_GROUP } from './groups/NavGroup';
 import { MEDIA_GROUP } from './groups/MediaGroup';
 import { DATA_GROUP } from './groups/DataGroup';
 import { FEEDBACK_GROUP } from './groups/FeedbackGroup';
-import { HEADLESS_GROUP } from './groups/HeadlessGroup';
 import { applyBuiltInManifest } from './builtInManifest';
 
 const BUILT_IN_GROUPS: ComponentGroup[] = [
@@ -21,7 +20,4 @@ const BUILT_IN_GROUPS: ComponentGroup[] = [
   FEEDBACK_GROUP,
 ].map((group) => applyBuiltInManifest({ ...group, source: 'builtIn' }));
 
-export const COMPONENT_GROUPS: ComponentGroup[] = [
-  ...BUILT_IN_GROUPS,
-  { ...HEADLESS_GROUP, source: 'headless' },
-];
+export const COMPONENT_GROUPS: ComponentGroup[] = BUILT_IN_GROUPS;

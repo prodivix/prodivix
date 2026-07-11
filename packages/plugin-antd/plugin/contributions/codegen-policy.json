@@ -1,0 +1,786 @@
+{
+  "dependencies": [
+    {
+      "kind": "dependency",
+      "license": "MIT",
+      "name": "antd",
+      "version": "5.28.0"
+    }
+  ],
+  "libraryId": "antd",
+  "rules": [
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["App"],
+      "id": "antd.app",
+      "import": { "imported": "App", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdApp"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Button"],
+      "id": "antd.button",
+      "import": {
+        "imported": "Button",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdButton"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["FloatButton"],
+      "id": "antd.float-button",
+      "import": {
+        "imported": "FloatButton",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdFloatButton"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Divider"],
+      "id": "antd.divider",
+      "import": {
+        "imported": "Divider",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdDivider"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Flex"],
+      "id": "antd.flex",
+      "import": { "imported": "Flex", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdFlex"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Layout"],
+      "id": "antd.layout",
+      "import": {
+        "imported": "Layout",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdLayout"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Layout", "Header"],
+      "id": "antd.layout-header",
+      "import": {
+        "imported": "Layout",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdLayoutHeader"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Layout", "Content"],
+      "id": "antd.layout-content",
+      "import": {
+        "imported": "Layout",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdLayoutContent"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Layout", "Footer"],
+      "id": "antd.layout-footer",
+      "import": {
+        "imported": "Layout",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdLayoutFooter"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Layout", "Sider"],
+      "id": "antd.layout-sider",
+      "import": {
+        "imported": "Layout",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdLayoutSider"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Space"],
+      "id": "antd.space",
+      "import": { "imported": "Space", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdSpace"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Space", "Compact"],
+      "id": "antd.space-compact",
+      "import": { "imported": "Space", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdSpaceCompact"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Splitter"],
+      "id": "antd.splitter",
+      "import": {
+        "imported": "Splitter",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdSplitter"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Affix"],
+      "id": "antd.affix",
+      "import": { "imported": "Affix", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdAffix"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Anchor"],
+      "id": "antd.anchor",
+      "import": {
+        "imported": "Anchor",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdAnchor"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Breadcrumb"],
+      "id": "antd.breadcrumb",
+      "import": {
+        "imported": "Breadcrumb",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdBreadcrumb"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Dropdown"],
+      "id": "antd.dropdown",
+      "import": {
+        "imported": "Dropdown",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdDropdown"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Menu"],
+      "id": "antd.menu",
+      "import": { "imported": "Menu", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdMenu"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Pagination"],
+      "id": "antd.pagination",
+      "import": {
+        "imported": "Pagination",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdPagination"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Steps"],
+      "id": "antd.steps",
+      "import": { "imported": "Steps", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdSteps"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Tabs"],
+      "id": "antd.tabs",
+      "import": { "imported": "Tabs", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdTabs"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["AutoComplete"],
+      "id": "antd.auto-complete",
+      "import": {
+        "imported": "AutoComplete",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdAutoComplete"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Cascader"],
+      "id": "antd.cascader",
+      "import": {
+        "imported": "Cascader",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdCascader"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Checkbox"],
+      "id": "antd.checkbox",
+      "import": {
+        "imported": "Checkbox",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdCheckbox"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["ColorPicker"],
+      "id": "antd.color-picker",
+      "import": {
+        "imported": "ColorPicker",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdColorPicker"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["DatePicker"],
+      "id": "antd.date-picker",
+      "import": {
+        "imported": "DatePicker",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdDatePicker"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Form"],
+      "id": "antd.form",
+      "import": { "imported": "Form", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdForm"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Form", "Item"],
+      "id": "antd.form-item",
+      "import": { "imported": "Form", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdFormItem"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Input"],
+      "id": "antd.input",
+      "import": { "imported": "Input", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdInput"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Input", "Password"],
+      "id": "antd.input-password",
+      "import": { "imported": "Input", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdInputPassword"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Input", "Search"],
+      "id": "antd.input-search",
+      "import": { "imported": "Input", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdInputSearch"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Input", "TextArea"],
+      "id": "antd.input-text-area",
+      "import": { "imported": "Input", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdInputTextArea"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["InputNumber"],
+      "id": "antd.input-number",
+      "import": {
+        "imported": "InputNumber",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdInputNumber"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Mentions"],
+      "id": "antd.mentions",
+      "import": {
+        "imported": "Mentions",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdMentions"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Radio"],
+      "id": "antd.radio",
+      "import": { "imported": "Radio", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdRadio"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Rate"],
+      "id": "antd.rate",
+      "import": { "imported": "Rate", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdRate"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Select"],
+      "id": "antd.select",
+      "import": {
+        "imported": "Select",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdSelect"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Slider"],
+      "id": "antd.slider",
+      "import": {
+        "imported": "Slider",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdSlider"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Switch"],
+      "id": "antd.switch",
+      "import": {
+        "imported": "Switch",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdSwitch"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["TimePicker"],
+      "id": "antd.time-picker",
+      "import": {
+        "imported": "TimePicker",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTimePicker"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Transfer"],
+      "id": "antd.transfer",
+      "import": {
+        "imported": "Transfer",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTransfer"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["TreeSelect"],
+      "id": "antd.tree-select",
+      "import": {
+        "imported": "TreeSelect",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTreeSelect"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Upload"],
+      "id": "antd.upload",
+      "import": {
+        "imported": "Upload",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdUpload"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Avatar"],
+      "id": "antd.avatar",
+      "import": {
+        "imported": "Avatar",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdAvatar"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Badge"],
+      "id": "antd.badge",
+      "import": { "imported": "Badge", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdBadge"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Calendar"],
+      "id": "antd.calendar",
+      "import": {
+        "imported": "Calendar",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdCalendar"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Card"],
+      "id": "antd.card",
+      "import": { "imported": "Card", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdCard"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Card", "Meta"],
+      "id": "antd.card-meta",
+      "import": { "imported": "Card", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdCardMeta"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Carousel"],
+      "id": "antd.carousel",
+      "import": {
+        "imported": "Carousel",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdCarousel"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Collapse"],
+      "id": "antd.collapse",
+      "import": {
+        "imported": "Collapse",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdCollapse"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Descriptions"],
+      "id": "antd.descriptions",
+      "import": {
+        "imported": "Descriptions",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdDescriptions"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Descriptions", "Item"],
+      "id": "antd.descriptions-item",
+      "import": {
+        "imported": "Descriptions",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdDescriptionsItem"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Empty"],
+      "id": "antd.empty",
+      "import": { "imported": "Empty", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdEmpty"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Image"],
+      "id": "antd.image",
+      "import": { "imported": "Image", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdImage"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["List"],
+      "id": "antd.list",
+      "import": { "imported": "List", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdList"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["List", "Item"],
+      "id": "antd.list-item",
+      "import": { "imported": "List", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdListItem"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["List", "Item", "Meta"],
+      "id": "antd.list-item-meta",
+      "import": { "imported": "List", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdListItemMeta"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Popover"],
+      "id": "antd.popover",
+      "import": {
+        "imported": "Popover",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdPopover"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["QRCode"],
+      "id": "antd.qrcode",
+      "import": {
+        "imported": "QRCode",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdQRCode"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Segmented"],
+      "id": "antd.segmented",
+      "import": {
+        "imported": "Segmented",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdSegmented"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Statistic"],
+      "id": "antd.statistic",
+      "import": {
+        "imported": "Statistic",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdStatistic"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Table"],
+      "id": "antd.table",
+      "import": { "imported": "Table", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdTable"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Tag"],
+      "id": "antd.tag",
+      "import": { "imported": "Tag", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdTag"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Timeline"],
+      "id": "antd.timeline",
+      "import": {
+        "imported": "Timeline",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTimeline"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Tooltip"],
+      "id": "antd.tooltip",
+      "import": {
+        "imported": "Tooltip",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTooltip"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Tour"],
+      "id": "antd.tour",
+      "import": { "imported": "Tour", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdTour"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Tree"],
+      "id": "antd.tree",
+      "import": { "imported": "Tree", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdTree"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Typography"],
+      "id": "antd.typography",
+      "import": {
+        "imported": "Typography",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTypography"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Typography", "Text"],
+      "id": "antd.typography-text",
+      "import": {
+        "imported": "Typography",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTypographyText"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Typography", "Title"],
+      "id": "antd.typography-title",
+      "import": {
+        "imported": "Typography",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTypographyTitle"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Typography", "Paragraph"],
+      "id": "antd.typography-paragraph",
+      "import": {
+        "imported": "Typography",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTypographyParagraph"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Typography", "Link"],
+      "id": "antd.typography-link",
+      "import": {
+        "imported": "Typography",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdTypographyLink"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "elementPath": ["Alert"],
+      "id": "antd.alert",
+      "import": { "imported": "Alert", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdAlert"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Drawer"],
+      "id": "antd.drawer",
+      "import": {
+        "imported": "Drawer",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdDrawer"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Modal"],
+      "id": "antd.modal",
+      "import": { "imported": "Modal", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdModal"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Popconfirm"],
+      "id": "antd.popconfirm",
+      "import": {
+        "imported": "Popconfirm",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdPopconfirm"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Progress"],
+      "id": "antd.progress",
+      "import": {
+        "imported": "Progress",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdProgress"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Result"],
+      "id": "antd.result",
+      "import": {
+        "imported": "Result",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdResult"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Skeleton"],
+      "id": "antd.skeleton",
+      "import": {
+        "imported": "Skeleton",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdSkeleton"
+    },
+    {
+      "children": { "mode": "none" },
+      "elementPath": ["Spin"],
+      "id": "antd.spin",
+      "import": { "imported": "Spin", "kind": "named", "packageName": "antd" },
+      "runtimeType": "AntdSpin"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "elementPath": ["Watermark"],
+      "id": "antd.watermark",
+      "import": {
+        "imported": "Watermark",
+        "kind": "named",
+        "packageName": "antd"
+      },
+      "runtimeType": "AntdWatermark"
+    }
+  ],
+  "schemaVersion": "1.0",
+  "targetPreset": "react-vite",
+  "unsupported": {
+    "behavior": "error",
+    "message": "Ant Design component has no official React export policy."
+  }
+}

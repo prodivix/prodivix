@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import {
+  type CodegenPolicyContributionV1,
   PLUGIN_DIAGNOSTIC_CODES,
   type RenderPolicyContributionV1,
 } from '@prodivix/plugin-contracts';
@@ -19,6 +20,10 @@ import {
   createWebPluginPlatform,
   type WebPluginPlatform,
 } from '@/plugins/platform';
+import {
+  OfficialReactSurfaceBoundary,
+  OfficialSurfaceLeaseRegistryContext,
+} from '@/plugins/platform/officialSurfaceHost';
 import {
   createNeutralOfficialHostCatalog,
   createNeutralOfficialPlugin,
@@ -90,6 +95,32 @@ afterEach(async () => {
 });
 
 describe('Phase 4.5 library-neutral gate', () => {
+  it('rejects codegen imports without an exact external-library dependency', async () => {
+    const platform = createPlatform();
+    const plugin = createNeutralOfficialPlugin();
+    const codegenContribution = plugin.contributions.find(
+      (contribution) => contribution.point === 'codegenPolicy'
+    );
+    const descriptor = codegenContribution?.descriptor as unknown as
+      CodegenPolicyContributionV1 | undefined;
+    if (!descriptor) throw new Error('Fixture Codegen Policy must exist.');
+    descriptor.rules[0]!.import.packageName = '@neutral-ui/missing';
+    descriptor.dependencies.push({
+      name: '@neutral-ui/missing',
+      version: '1.0.0',
+      kind: 'dependency',
+      license: 'MIT',
+    });
+
+    const installed = await platform.runtime.packages.install(plugin);
+
+    expect(installed.ok).toBe(false);
+    expect(installed.diagnostics.map((item) => item.code)).toContain(
+      PLUGIN_DIAGNOSTIC_CODES.INVALID_CONTRIBUTION_REFERENCE
+    );
+    expect(platform.runtime.packages.contributions.getRevision()).toBe(0);
+  });
+
   it('rejects cross-point runtime references before any resolver publishes', async () => {
     const platform = createPlatform();
     const plugin = createNeutralOfficialPlugin();
@@ -124,7 +155,17 @@ describe('Phase 4.5 library-neutral gate', () => {
 
     const extensions = platform.queries.extensions.getSnapshot();
     const registry = createRendererProjectionRegistry(extensions);
-    render(<PIRRenderer pirDoc={createButtonDocument()} registry={registry} />);
+    render(
+      <OfficialSurfaceLeaseRegistryContext.Provider
+        value={platform.runtime.surfaceLeases}
+      >
+        <div className="relative">
+          <OfficialReactSurfaceBoundary>
+            <PIRRenderer pirDoc={createButtonDocument()} registry={registry} />
+          </OfficialReactSurfaceBoundary>
+        </div>
+      </OfficialSurfaceLeaseRegistryContext.Provider>
+    );
     expect(screen.getByRole('button', { name: 'Launch' })).toBeTruthy();
 
     const bundle = generateReactBundle(createButtonDocument(), {
@@ -151,15 +192,25 @@ describe('Phase 4.5 library-neutral gate', () => {
     });
     expect(ResolvedIcon).not.toBeNull();
     if (!ResolvedIcon) throw new Error('Fixture icon must resolve.');
-    render(<ResolvedIcon size={24} color="#123456" />);
-    expect(screen.getByLabelText('outline spark 24 #123456')).toBeTruthy();
     const SolidIcon = resolveIconRef({
       provider: 'neutral-icons',
       name: 'Spark',
       variant: 'solid',
     });
     if (!SolidIcon) throw new Error('Fixture solid icon must resolve.');
-    render(<SolidIcon size={20} color="#654321" />);
+    render(
+      <OfficialSurfaceLeaseRegistryContext.Provider
+        value={platform.runtime.surfaceLeases}
+      >
+        <div className="relative">
+          <OfficialReactSurfaceBoundary>
+            <ResolvedIcon size={24} color="#123456" />
+            <SolidIcon size={20} color="#654321" />
+          </OfficialReactSurfaceBoundary>
+        </div>
+      </OfficialSurfaceLeaseRegistryContext.Provider>
+    );
+    expect(screen.getByLabelText('outline spark 24 #123456')).toBeTruthy();
     expect(screen.getByLabelText('solid spark 20 #654321')).toBeTruthy();
     const iconCode = generateReactCode(createIconDocument(), {
       resourceType: 'component',

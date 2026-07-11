@@ -1,6 +1,7 @@
 import {
   createPluginDiagnostic,
   PLUGIN_DIAGNOSTIC_CODES,
+  type InlineContributionSource,
   type PluginManifestV1,
 } from '@prodivix/plugin-contracts';
 import {
@@ -39,7 +40,9 @@ const createManifest = (input: TrustedWebPluginInput): PluginManifestV1 => ({
     contractVersion: contribution.contractVersion,
     source: {
       kind: 'inline' as const,
-      descriptor: contribution.descriptor,
+      // Closed generated schema types are JSON-safe but have no index signature.
+      descriptor:
+        contribution.descriptor as unknown as InlineContributionSource['descriptor'],
     },
     ...(contribution.metadata ? { metadata: contribution.metadata } : {}),
   })),

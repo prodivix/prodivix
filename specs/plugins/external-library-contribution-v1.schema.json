@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://prodivix.dev/schemas/external-library-contribution-v1.schema.json",
   "title": "ExternalLibraryContributionV1",
-  "description": "Serializable external component library identity and Canonical External IR enhancement contract.",
+  "description": "Serializable external component library identity, component descriptor, slot, behavior, and dependency metadata contract.",
   "$comment": "Executable URLs, module objects, callbacks, and React values are forbidden. The host resolves the exact package coordinate through its build-attested implementation catalog.",
   "type": "object",
   "additionalProperties": false,
@@ -11,7 +11,6 @@
     "libraryId",
     "displayName",
     "package",
-    "hostImplementationId",
     "exportDiscovery",
     "components",
     "dependencies"

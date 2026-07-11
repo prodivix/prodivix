@@ -10,7 +10,6 @@ export type ProdivixDiagnosticDomain =
   | 'code'
   | 'nodegraph'
   | 'animation'
-  | 'elib'
   | 'codegen'
   | 'backend'
   | 'ai';

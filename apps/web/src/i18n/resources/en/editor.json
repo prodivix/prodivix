@@ -1247,9 +1247,9 @@
     "external": {
       "header": {
         "title": "External library manager",
-        "description": "Split-view manager for loading state simulation, version switching, and runtime library tracking."
+        "description": "Manage workspace library versions, licenses, and dependency metadata."
       },
-      "loading": "Loading registered libraries...",
+      "loading": "Reading workspace library configuration...",
       "searchPlaceholder": "Search libraries...",
       "builtInLibs": "Built-in libs",
       "addCategory": "Add {{category}}",
@@ -1263,20 +1263,13 @@
         "icon": "Icon libs",
         "other": "Other libs"
       },
-      "activeLibraries": "Active libraries",
+      "activeLibraries": "Workspace libraries",
       "libraryCount": "{{count}} libraries",
       "debouncing": "Debouncing search...",
       "searchReady": "Search ready",
       "noMatch": "No library matches current search.",
       "exports": "{{count}} exports",
       "sizeWarning": "Size {{level}}: {{hint}}",
-      "status": {
-        "idle": "Idle",
-        "loading": "Loading",
-        "success": "Loaded",
-        "warning": "Loaded with warning",
-        "error": "Load failed"
-      },
       "package": {
         "level": {
           "healthy": "Healthy",
@@ -1294,7 +1287,6 @@
       "actions": {
         "addNewLibrary": "Add new library",
         "remove": "Remove",
-        "retry": "Retry",
         "cancel": "Cancel",
         "addLibrary": "Add library"
       },

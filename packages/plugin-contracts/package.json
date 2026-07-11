@@ -40,6 +40,11 @@
       "import": "./dist/generated/iconProviderContributionSchema.generated.js"
     },
     "./schema/icon-provider-contribution-v1.json": "./dist/schema/icon-provider-contribution-v1.schema.json",
+    "./schema/blueprint-template-contribution-v1": {
+      "types": "./dist/generated/blueprintTemplateContributionSchema.generated.d.ts",
+      "import": "./dist/generated/blueprintTemplateContributionSchema.generated.js"
+    },
+    "./schema/blueprint-template-contribution-v1.json": "./dist/schema/blueprint-template-contribution-v1.schema.json",
     "./package.json": "./package.json"
   },
   "imports": {

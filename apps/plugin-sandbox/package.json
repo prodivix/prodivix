@@ -6,9 +6,11 @@
   "description": "Dedicated no-cookie static origin for Prodivix plugin runtime and UI sandboxes",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "check:production-dist": "node scripts/check-production-dist.mjs",
     "dev": "pnpm run build && node scripts/serve.mjs --port 4174",
     "preview": "node scripts/serve.mjs",
-    "test": "node scripts/check-dist-policy.mjs --source-only"
+    "test": "pnpm run build && node scripts/check-dist-policy.mjs && pnpm run check:production-dist",
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "devDependencies": {
     "vite": "^8.1.3"

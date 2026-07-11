@@ -4,7 +4,7 @@
 
 本文件是 ADR `specs/decisions/29.plugin-extension-points.md`「Native 内置组件作为第一方贡献」一节的执行配套，也是 ADR 29 的**第一份实现文档**。
 
-性质：把内置组件目录从"按关注点横切"（`data/groups/*.tsx` 定义 + `data/options.ts` 变体 + `data/sampleData.tsx` 示例三处分散）**收敛为按 group 内聚的自包含形态**，对齐外部库 profile 的贡献形态。**纯数据组织重构，不改 PIR 语义、不改运行时逻辑、不改组件 props。**
+性质：把内置组件目录从"按关注点横切"（`data/groups/*.tsx` 定义 + `data/options.ts` 变体 + `data/sampleData.tsx` 示例三处分散）**收敛为按 group 内聚的自包含形态**，用于稳定宿主 resolved Palette model。**纯数据组织重构，不改 PIR 语义、不改运行时逻辑、不改组件 props。** 当时作为参照的 external profile 已在 Phase 4.6-4.8 删除，不是当前目标形态。
 
 本计划遵循 `AGENTS.md` 代码规范，关键约束：
 
@@ -26,7 +26,7 @@ ADR 29「收敛产物」与 ADR 33 非目标已同步修正。
 
 ## 范围边界（关键事实，已核实）
 
-**宿主内部类型层已统一，本计划无需新类型。** 外部 profile（`external/libraries/antdProfile.tsx:3`）已 import 并返回 `ComponentPreviewItem`（定义于 `editor/model/types.ts`）。内置 group 与外部库组件已经共享这一 resolved shape，故本目录收敛不新增类型。ADR 29 后续插件协议另用 JSON 可序列化 descriptor；`ComponentPreviewItem` 不是 Worker / iframe 边界上的 wire contract。
+**宿主内部类型层已统一，本计划无需新类型。** 执行本计划时，外部 profile 曾返回 `ComponentPreviewItem`，内置 group 与外部库组件已共享这一 resolved shape，故本目录收敛没有新增类型。Phase 3 随后冻结 JSON-only Palette descriptor；Phase 4.6-4.8 已删除 external profile。`ComponentPreviewItem` 仍只是 Host 内部投影，不是 Worker / iframe 边界上的 wire contract。
 
 **`options.ts` 实为两类东西混装，按 Rule 17 拆开：**
 
@@ -76,7 +76,7 @@ blueprint/
 **不变量**：
 
 - `ComponentPreviewItem` / `ComponentGroup` 类型不改。
-- `ComponentGroups.tsx` 的聚合与 `source` tag 不改。
+- 本计划内 `ComponentGroups.tsx` 的聚合与 `source` tag 不改；后续 Radix cutover 已删除 hard-coded headless source。
 - PIR 写入链路（`createNodeFromPaletteItem` 等）不改——目录是 PIR 的上游，重组不触及 PIR 语义。
 
 ## 实施计划
@@ -94,7 +94,7 @@ blueprint/
   ```
 - 同法枚举 `sampleData.tsx` 每个导出的全部消费方，包括 group 与 `editor/model/palette.ts`。
 - 分类：`SIZE_*` → 共享；其余变体枚举 → 标注归属 group；sample 数据按真实消费关系判断共享归属。
-- 确认 `ComponentPreviewItem` 已被外部 profile 复用（已核实，执行时复核）。
+- 确认 Phase 3 当时 `ComponentPreviewItem` 已被外部 profile 复用（已核实；该 profile 后续已删除）。
 
 完成标准：映射表产出（可贴入本文件附录或 PR 描述），每个导出有明确归属。
 
@@ -163,7 +163,7 @@ blueprint/
 
 - ADR 29 验收项勾选（仅与本收敛相关的）：
   - `[ ] 内置组件数据形态与 paletteContribution 契约一致（定义+options+preview 聚合为单一贡献单元）` → 本收敛使每个 group 自包含，**直接满足**
-  - `[x] Palette 消费内置组件与插件组件走同一代码路径` → `paletteContribution@1.0`、host resolver 与 resolved registry 已在 Phase 3 落地；Browser Sandbox 与 official plugin packaging 仍属于 Phase 4
+  - `[x] Palette 消费内置组件与插件组件走同一代码路径` → `paletteContribution@1.0`、host resolver 与 resolved registry 已在 Phase 3 落地；Browser Sandbox、official plugin packaging 与最终 hardening 已在 Phase 4.0-4.9 完成
 - `specs/decisions/README.md` 状态表：`29.plugin-extension-points.md` 的"实现状态"由 `Planned` 推进为 `Partial（内置侧收敛）`，证据注明本计划。
 
 ## 建议提交切分
@@ -198,10 +198,10 @@ refactor(blueprint): converge native catalog to self-contained groups
 
 ## 非目标
 
-1. 本计划不改宿主内部 `ComponentPreviewItem` / `ComponentGroup` 类型（core-embedded 路径已统一）。
+1. 本计划不改宿主内部 `ComponentPreviewItem` / `ComponentGroup` 类型；它们仍是 Host resolved model，不是插件 wire contract。
 2. 本计划不改 PIR 写入语义、`createNodeFromPaletteItem` 逻辑或组件 props。
 3. 本计划不实现完整插件宿主 / manifest / capability sandbox（ADR 29 Phase 1–2 范畴）。
-4. 本计划不迁移外部库 profile（`external/libraries/*`）——它们已是目标形态（内联），是内置收敛的**参照模板**，不动。
+4. 本计划当时不迁移外部库 profile；该过渡路径已由 Phase 4.6-4.8 后续工作删除并替换为真实 bundled official package，不能作为目标模板恢复。
 5. 本计划不重命名 group 文件大小写（保持 `BaseGroup.tsx` 等），仅重组内容与目录名。
 6. 本计划不统一 Palette 消费代码中可能存在的内置/外部分支（若发现，记为后续项，不在本轮扩张范围）。
 

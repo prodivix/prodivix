@@ -1,14 +1,35 @@
 import type { LibraryCatalog, LibraryMode } from './types';
 import type { BuiltinLibraryCategory } from './ExternalLibraryToolbar';
+import { BUNDLED_OFFICIAL_PLUGIN_CATALOG } from '@/plugins/platform/bundledOfficialPlugins';
 
-export const EXTERNAL_COMPONENT_LIBRARY_PRESET_IDS = ['antd', 'mui'];
+const bundledComponentLibraries = BUNDLED_OFFICIAL_PLUGIN_CATALOG.entries.map(
+  (entry): LibraryCatalog => ({
+    id: entry.catalogId,
+    label: entry.metadata.displayName,
+    scope: entry.metadata.scope,
+    packageName: entry.metadata.package.name,
+    description: entry.metadata.description,
+    license: entry.metadata.package.license,
+    packageSizeKb: Math.max(
+      1,
+      Math.ceil(
+        entry.artifact.resources.reduce(
+          (total, resource) => total + resource.bytes.length,
+          0
+        ) / 1024
+      )
+    ),
+    components: entry.metadata.components
+      .filter((component) => component.paletteItemId)
+      .map((component) => component.path),
+    versions: [entry.metadata.package.version],
+  })
+);
 
-export const ICON_LIBRARY_PRESET_IDS = [
-  'fontawesome',
-  'ant-design-icons',
-  'mui-icons',
-  'heroicons',
-];
+export const EXTERNAL_COMPONENT_LIBRARY_PRESET_IDS =
+  bundledComponentLibraries.map((library) => library.id);
+
+export const ICON_LIBRARY_PRESET_IDS = ['fontawesome', 'heroicons'];
 
 export const MODE_OPTIONS: Array<{ id: LibraryMode }> = [
   { id: 'locked' },
@@ -20,12 +41,12 @@ export const BUILTIN_LIBRARY_CATEGORIES: BuiltinLibraryCategory[] = [
   {
     id: 'component',
     label: 'component',
-    libraryIds: ['antd', 'mui'],
+    libraryIds: EXTERNAL_COMPONENT_LIBRARY_PRESET_IDS,
   },
   {
     id: 'icon',
     label: 'icon',
-    libraryIds: ['fontawesome', 'ant-design-icons', 'mui-icons', 'heroicons'],
+    libraryIds: ICON_LIBRARY_PRESET_IDS,
   },
   {
     id: 'other',
@@ -35,32 +56,9 @@ export const BUILTIN_LIBRARY_CATEGORIES: BuiltinLibraryCategory[] = [
 ];
 
 export const LIBRARY_CATALOG: Record<string, LibraryCatalog> = {
-  antd: {
-    id: 'antd',
-    label: 'Ant Design',
-    scope: 'component',
-    packageName: 'antd',
-    description: 'Enterprise React component library for dashboard and forms.',
-    license: 'MIT',
-    packageSizeKb: 1218,
-    components: ['Button', 'Input', 'Form', 'Modal', 'Table', 'Tabs'],
-    versions: ['5.28.0', '5.27.6', '5.26.4', '5.29.0-beta.1'],
-  },
-  mui: {
-    id: 'mui',
-    label: 'Material UI',
-    scope: 'component',
-    packageName: '@mui/material',
-    packageDependencies: [
-      { name: '@emotion/react', version: '^11.14.0' },
-      { name: '@emotion/styled', version: '^11.14.1' },
-    ],
-    description: 'Material design component system for shell and editor UIs.',
-    license: 'MIT',
-    packageSizeKb: 936,
-    components: ['Button', 'TextField', 'Card', 'Dialog', 'Grid'],
-    versions: ['7.3.2', '7.2.8', '7.1.1', '8.0.0-alpha.2'],
-  },
+  ...Object.fromEntries(
+    bundledComponentLibraries.map((library) => [library.id, library])
+  ),
   react: {
     id: 'react',
     label: 'React',
@@ -96,28 +94,6 @@ export const LIBRARY_CATALOG: Record<string, LibraryCatalog> = {
     packageSizeKb: 566,
     components: ['faUser', 'faBell', 'faCloud', 'faCode'],
     versions: ['6.7.2', '6.6.0', '6.5.1', '7.0.0-beta.1'],
-  },
-  'ant-design-icons': {
-    id: 'ant-design-icons',
-    label: 'Ant Design Icons',
-    scope: 'icon',
-    packageName: '@ant-design/icons',
-    description: 'Icon set aligned with Ant Design visual language.',
-    license: 'MIT',
-    packageSizeKb: 502,
-    components: ['HomeOutlined', 'SearchOutlined', 'SettingOutlined'],
-    versions: ['5.6.1', '5.5.0', '5.4.2', '6.0.0-rc.0'],
-  },
-  'mui-icons': {
-    id: 'mui-icons',
-    label: 'Material Icons',
-    scope: 'icon',
-    packageName: '@mui/icons-material',
-    description: 'Material icon provider for MUI ecosystem.',
-    license: 'MIT',
-    packageSizeKb: 548,
-    components: ['Add', 'Delete', 'Edit', 'ArrowForward'],
-    versions: ['7.3.2', '7.2.8', '7.1.1', '8.0.0-alpha.1'],
   },
   heroicons: {
     id: 'heroicons',

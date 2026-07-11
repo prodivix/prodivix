@@ -2,7 +2,7 @@ const bridge = globalThis.__PRODIVIX_HOST_REACT_BRIDGE__;
 
 if (!bridge?.react) {
   throw new Error(
-    '[ELIB-1011] Host React bridge is not initialized before loading external ESM modules.'
+    'Host React bridge is not initialized before loading external ESM modules.'
   );
 }
 

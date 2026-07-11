@@ -224,7 +224,7 @@
       },
       "externalProps": {
         "label": "外部 Props",
-        "description": "根据外部组件元数据（d.ts）生成。",
+        "description": "由当前启用的组件插件提供。",
         "reset": "重置"
       },
       "componentProps": {
@@ -587,13 +587,7 @@
   "sidebar": {
     "title": "组件库",
     "libraries": {
-      "builtIn": "内置组件",
-      "headless": "无头组件",
-      "external": "外部组件"
-    },
-    "external": {
-      "loading": "正在从 esm.sh 加载 Ant Design...",
-      "error": "远程组件加载失败。"
+      "builtIn": "内置组件"
     },
     "toggleLibrary": "切换组件库",
     "expand": "展开组件库",
@@ -659,9 +653,6 @@
       },
       "feedback": {
         "title": "反馈组件"
-      },
-      "radix": {
-        "title": "Radix UI"
       },
       "layout-pattern": {
         "title": "布局范式"

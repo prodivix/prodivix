@@ -2,20 +2,25 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import {
   findNodeById,
   findParentId,
-  insertChildAtIndex,
   isAncestorOf,
-  removeNodeByIdWithNode,
   supportsChildrenForNode,
 } from '@/editor/features/blueprint/editor/model/tree';
 import type { PIRDocument } from '@prodivix/shared/types/pir';
-import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
+import { getParentMap, materializePirRoot, moveNode } from '@/pir/graph';
+import type { PaletteQueryService } from '@/plugins/platform';
+import {
+  validateBlueprintComposition,
+  type BlueprintCompositionIssue,
+} from '@/editor/features/blueprint/editor/model/composition';
 import { getOverNodeId, resolveTreePlacement } from './dragdrop.placement';
 import type { DragOverData, TreeSortDragData } from './dragdrop.types';
 
 export const applyTreeSortDragEnd = (
   doc: PIRDocument,
   event: DragEndEvent,
-  data: TreeSortDragData
+  data: TreeSortDragData,
+  palette: PaletteQueryService,
+  onCompositionIssue?: (issue: BlueprintCompositionIssue) => void
 ): PIRDocument => {
   const over = event.over;
   if (!over) return doc;
@@ -23,8 +28,11 @@ export const applyTreeSortDragEnd = (
   const overData = over.data.current as DragOverData | null | undefined;
   const overId = typeof over.id === 'string' ? over.id : null;
   const activeId = data.nodeId;
-  const activeParentId = data.parentId;
-  if (!activeId || !activeParentId) return doc;
+  if (!activeId) return doc;
+
+  const activeParent = getParentMap(doc.ui.graph)[activeId];
+  if (!activeParent || activeParent.regionName) return doc;
+  const activeParentId = activeParent.parentId;
 
   const root = materializePirRoot(doc);
   if (activeId === root.id) return doc;
@@ -87,15 +95,16 @@ export const applyTreeSortDragEnd = (
     if (fromIndex === adjustedIndex) return doc;
   }
 
-  const removal = removeNodeByIdWithNode(root, activeId);
-  if (!removal.removed || !removal.removedNode) return doc;
-  const insertion = insertChildAtIndex(
-    removal.node,
+  const graph = moveNode(doc.ui.graph, activeId, targetParentId, adjustedIndex);
+  if (graph === doc.ui.graph) return doc;
+  const compositionIssue = validateBlueprintComposition(graph, palette, [
+    activeId,
+    activeParentId,
     targetParentId,
-    removal.removedNode,
-    adjustedIndex
-  );
-  return insertion.inserted
-    ? { ...doc, ui: { graph: normalizeTreeToUiGraph(insertion.node) } }
-    : doc;
+  ]);
+  if (compositionIssue) {
+    onCompositionIssue?.(compositionIssue);
+    return doc;
+  }
+  return { ...doc, ui: { graph } };
 };

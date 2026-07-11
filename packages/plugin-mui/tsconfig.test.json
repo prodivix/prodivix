@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "#mui-plugin/*": ["./src/*"],
+      "@prodivix/plugin-package": ["../plugin-package/src"],
+      "@prodivix/plugin-react-host": ["../plugin-react-host/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../plugin-package" },
+    { "path": "../plugin-react-host" }
+  ]
+}

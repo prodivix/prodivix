@@ -23,21 +23,20 @@ requestId
 
 ## 编码域
 
-| 前缀        | 范围     | 说明                                                                       |
-| ----------- | -------- | -------------------------------------------------------------------------- |
-| `PIR-xxxx`  | PIR 文档 | 文档形状、UI graph、ValueRef、materialize 和运行前校验                     |
-| `WKS-xxxx`  | 工作区   | 工作区加载、文档保存、同步冲突、capability 和 patch 应用                   |
-| `PLG-xxxx`  | 插件     | Plugin Manifest、contribution contract、权限、注册事务和 runtime lifecycle |
-| `EDT-xxxx`  | 编辑器   | 选择、拖拽、Inspector、画布、命令和 autosave                               |
-| `UX-xxxx`   | 用户体验 | 可访问性、交互、响应式布局、内容、视觉反馈和体验检查器                     |
-| `COD-xxxx`  | 用户代码 | 代码片段、符号解析、类型、宿主绑定、运行时和转译编译                       |
-| `ELIB-xxxx` | 外部库   | 外部库加载、扫描、注册、渲染和代码生成                                     |
-| `GEN-xxxx`  | 代码生成 | Canonical IR、adapter、依赖解析、代码发射和导出产物                        |
-| `API-xxxx`  | 后端/API | 请求、鉴权、权限、业务校验、持久化和第三方集成                             |
-| `AI-xxxx`   | AI 助手  | Provider、模型发现、Prompt、响应解析和 AI command                          |
-| `RTE-xxxx`  | 路由     | 路由清单、匹配、Outlet、导航和运行时                                       |
-| `NGR-xxxx`  | 节点图   | 节点图结构、端口、连线、执行和调试                                         |
-| `ANI-xxxx`  | 动画     | Timeline、binding、track、keyframe、filter 和预览运行时                    |
+| 前缀       | 范围     | 说明                                                                       |
+| ---------- | -------- | -------------------------------------------------------------------------- |
+| `PIR-xxxx` | PIR 文档 | 文档形状、UI graph、ValueRef、materialize 和运行前校验                     |
+| `WKS-xxxx` | 工作区   | 工作区加载、文档保存、同步冲突、capability 和 patch 应用                   |
+| `PLG-xxxx` | 插件     | Plugin Manifest、contribution contract、权限、注册事务和 runtime lifecycle |
+| `EDT-xxxx` | 编辑器   | 选择、拖拽、Inspector、画布、命令和 autosave                               |
+| `UX-xxxx`  | 用户体验 | 可访问性、交互、响应式布局、内容、视觉反馈和体验检查器                     |
+| `COD-xxxx` | 用户代码 | 代码片段、符号解析、类型、宿主绑定、运行时和转译编译                       |
+| `GEN-xxxx` | 代码生成 | Canonical IR、adapter、依赖解析、代码发射和导出产物                        |
+| `API-xxxx` | 后端/API | 请求、鉴权、权限、业务校验、持久化和第三方集成                             |
+| `AI-xxxx`  | AI 助手  | Provider、模型发现、Prompt、响应解析和 AI command                          |
+| `RTE-xxxx` | 路由     | 路由清单、匹配、Outlet、导航和运行时                                       |
+| `NGR-xxxx` | 节点图   | 节点图结构、端口、连线、执行和调试                                         |
+| `ANI-xxxx` | 动画     | Timeline、binding、track、keyframe、filter 和预览运行时                    |
 
 ## 命名空间索引
 
@@ -47,7 +46,6 @@ requestId
 - [Editor](/reference/diagnostics/edt)
 - [UX](/reference/diagnostics/ux)
 - [Code](/reference/diagnostics/cod)
-- [External Library](/reference/diagnostics/elib)
 - [Codegen](/reference/diagnostics/gen)
 - [Backend/API](/reference/diagnostics/api)
 - [AI](/reference/diagnostics/ai)
@@ -71,6 +69,7 @@ requestId
 | [`PIR-2005`](/reference/diagnostics/pir-2005) | 节点存在多个结构父级      | `error`   |
 | [`PIR-2006`](/reference/diagnostics/pir-2006) | 存在未受控孤儿节点        | `warning` |
 | [`PIR-2007`](/reference/diagnostics/pir-2007) | 跨结构节点引用不存在      | `error`   |
+| [`PIR-2011`](/reference/diagnostics/pir-2011) | 组件组合规则不满足        | `error`   |
 | [`PIR-3001`](/reference/diagnostics/pir-3001) | ValueRef 路径无法解析     | `warning` |
 | [`PIR-3002`](/reference/diagnostics/pir-3002) | 数据作用域配置非法        | `warning` |
 | [`PIR-3010`](/reference/diagnostics/pir-3010) | 列表渲染配置非法          | `warning` |
@@ -169,6 +168,9 @@ requestId
 | [`PLG-4053`](/reference/diagnostics/plg-4053) | Official host implementation 绑定冲突       | `error`   |
 | [`PLG-4060`](/reference/diagnostics/plg-4060) | Required Gateway audit 不可用               | `error`   |
 | [`PLG-4061`](/reference/diagnostics/plg-4061) | Gateway outcome audit 写入失败              | `warning` |
+| [`PLG-4070`](/reference/diagnostics/plg-4070) | Official component runtime 不可用           | `error`   |
+| [`PLG-4071`](/reference/diagnostics/plg-4071) | Bundled official library 不存在             | `error`   |
+| [`PLG-4072`](/reference/diagnostics/plg-4072) | Official component runtime 已不支持         | `error`   |
 
 ### Editor
 
@@ -319,16 +321,6 @@ requestId
 | [`COD-5013`](/reference/diagnostics/cod-5013) | 目标运行模式不支持当前语言特性      | `warning` |
 | [`COD-9001`](/reference/diagnostics/cod-9001) | 代码环境未知异常                    | `error`   |
 | [`COD-9002`](/reference/diagnostics/cod-9002) | 代码诊断证据不足                    | `warning` |
-
-### External Library
-
-| Code                                            | 名称                     | 严重程度  |
-| ----------------------------------------------- | ------------------------ | --------- |
-| [`ELIB-1001`](/reference/diagnostics/elib-1001) | 加载失败（模块导入失败） | `error`   |
-| [`ELIB-1004`](/reference/diagnostics/elib-1004) | 未注册的外部库 ID        | `error`   |
-| [`ELIB-1099`](/reference/diagnostics/elib-1099) | 加载阶段未知异常         | `error`   |
-| [`ELIB-2001`](/reference/diagnostics/elib-2001) | 扫描阶段未发现可渲染导出 | `warning` |
-| [`ELIB-3001`](/reference/diagnostics/elib-3001) | 注册阶段没有可渲染组件   | `error`   |
 
 ### Codegen
 

@@ -1,10 +1,16 @@
 import type { ComponentProps } from 'react';
 import type {
+  BlueprintTemplateContributionV1,
   CodegenPolicyContributionV1,
   ExternalLibraryContributionV1,
   IconProviderContributionV1,
   RenderPolicyContributionV1,
 } from '@prodivix/plugin-contracts';
+import {
+  canonicalJsonBytes,
+  createBundledPluginArtifact,
+  type BundledPluginArtifactV1,
+} from '@prodivix/plugin-package';
 import type { ComponentGroup } from '@/editor/features/blueprint/editor/model/types';
 import { createPaletteContributionDescriptor } from '@/editor/features/blueprint/palette';
 import type {
@@ -14,8 +20,6 @@ import type {
 } from '@/plugins/platform';
 
 export const NEUTRAL_PLUGIN_ID = '@prodivix/plugin-neutral-fixture';
-export const NEUTRAL_PACKAGE_DIGEST =
-  'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 
 export function NeutralButton({
   label = 'Neutral Button',
@@ -80,17 +84,36 @@ export const NEUTRAL_OFFICIAL_HOST_MODULE: OfficialHostModule = Object.freeze({
     'neutral.render': Object.freeze({
       kind: 'render-policy',
     }),
+    'neutral.palette': Object.freeze({
+      kind: 'palette-projection',
+      groups: Object.freeze([
+        Object.freeze({
+          id: 'neutral-components',
+          title: 'Neutral Components',
+          source: 'external',
+          items: Object.freeze([
+            Object.freeze({
+              id: 'neutral-button',
+              name: 'Neutral Button',
+              libraryId: 'neutral-ui',
+              preview: <NeutralButton label="Neutral Preview" />,
+            }),
+          ]),
+        }),
+      ]),
+    }),
   }),
 });
 
 export const createNeutralOfficialHostCatalog = (
+  packageDigest: string = NEUTRAL_PACKAGE_DIGEST,
   load: () => Promise<OfficialHostModule> = async () =>
     NEUTRAL_OFFICIAL_HOST_MODULE
 ): readonly OfficialHostModuleCatalogEntry[] =>
   Object.freeze([
     Object.freeze({
       pluginId: NEUTRAL_PLUGIN_ID,
-      packageDigest: NEUTRAL_PACKAGE_DIGEST,
+      packageDigest,
       load,
     }),
   ]);
@@ -174,6 +197,33 @@ const createCodegenDescriptor = (): CodegenPolicyContributionV1 => ({
   },
 });
 
+const createTemplateDescriptor = (
+  itemId: string
+): BlueprintTemplateContributionV1 => ({
+  schemaVersion: '1.0',
+  surface: 'blueprint.components',
+  templates: [
+    {
+      id: 'neutral.button-template',
+      palette: {
+        contributionId: 'neutral.palette',
+        itemId,
+      },
+      primaryLocalId: 'button',
+      fragment: {
+        rootLocalIds: ['button'],
+        nodesByLocalId: {
+          button: {
+            type: 'NeutralButton',
+            props: { label: 'Neutral Button' },
+          },
+        },
+        childIdsByLocalId: {},
+      },
+    },
+  ],
+});
+
 const createIconDescriptor = (
   hostImplementationId: string
 ): IconProviderContributionV1 => ({
@@ -230,7 +280,6 @@ export const createNeutralOfficialPlugin = (
         id: options.itemId ?? 'neutral-button',
         name: `${label} Button`,
         libraryId: 'neutral-ui',
-        runtimeType: 'NeutralButton',
         defaultProps: { tone: 'default' },
         preview: <NeutralButton label={`${label} Preview`} />,
       },
@@ -244,6 +293,9 @@ export const createNeutralOfficialPlugin = (
   const codegenDescriptor = createCodegenDescriptor();
   const iconDescriptor = createIconDescriptor(
     options.iconImplementationId ?? 'neutral.icons'
+  );
+  const templateDescriptor = createTemplateDescriptor(
+    options.itemId ?? 'neutral-button'
   );
 
   return Object.freeze({
@@ -275,6 +327,12 @@ export const createNeutralOfficialPlugin = (
         descriptor: renderDescriptor,
       }),
       Object.freeze({
+        id: 'neutral.templates',
+        point: 'blueprintTemplate',
+        contractVersion: '1.0',
+        descriptor: templateDescriptor,
+      }),
+      Object.freeze({
         id: 'neutral.codegen',
         point: 'codegenPolicy',
         contractVersion: '1.0',
@@ -289,3 +347,65 @@ export const createNeutralOfficialPlugin = (
     ]),
   });
 };
+
+const buildArtifactResources = (plugin: TrustedWebPluginInput) => {
+  const contributionResources = plugin.contributions.map(
+    (contribution, index) => ({
+      path: `plugin/contributions/${String(index + 1).padStart(2, '0')}-${contribution.id}.json`,
+      bytes: canonicalJsonBytes(contribution.descriptor),
+      contribution,
+    })
+  );
+  const manifest = {
+    schemaVersion: '1.0',
+    id: plugin.pluginId,
+    displayName: plugin.displayName,
+    version: plugin.version,
+    publisher: plugin.publisher,
+    engines: { prodivix: '>=0.1.0 <1.0.0' },
+    capabilities: [...new Set(plugin.contributions.map((item) => item.point))]
+      .sort()
+      .map((point) => ({
+        id: 'extension.register',
+        scope: point,
+        reason: `Register official ${point} contributions.`,
+      })),
+    contributes: contributionResources.map(({ contribution, path }) => ({
+      id: contribution.id,
+      point: contribution.point,
+      contractVersion: contribution.contractVersion,
+      source: { kind: 'resource', path: `./${path.slice('plugin/'.length)}` },
+      ...(contribution.metadata ? { metadata: contribution.metadata } : {}),
+    })),
+  };
+  return [
+    { path: 'plugin/manifest.json', bytes: canonicalJsonBytes(manifest) },
+    ...contributionResources.map(({ path, bytes }) => ({ path, bytes })),
+  ];
+};
+
+export const createNeutralOfficialArtifact = async (
+  options: Parameters<typeof createNeutralOfficialPlugin>[0] = {}
+): Promise<
+  Readonly<{
+    plugin: TrustedWebPluginInput;
+    artifact: BundledPluginArtifactV1;
+    hostCatalog: readonly OfficialHostModuleCatalogEntry[];
+  }>
+> => {
+  const plugin = createNeutralOfficialPlugin(options);
+  const artifact = await createBundledPluginArtifact({
+    manifestPath: 'plugin/manifest.json',
+    resources: buildArtifactResources(plugin),
+  });
+  return Object.freeze({
+    plugin,
+    artifact,
+    hostCatalog: createNeutralOfficialHostCatalog(artifact.packageDigest),
+  });
+};
+
+export const NEUTRAL_OFFICIAL_ARTIFACT_FIXTURE =
+  await createNeutralOfficialArtifact();
+export const NEUTRAL_PACKAGE_DIGEST =
+  NEUTRAL_OFFICIAL_ARTIFACT_FIXTURE.artifact.packageDigest;

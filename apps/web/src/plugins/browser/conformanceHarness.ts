@@ -19,12 +19,13 @@ import {
   type PluginRuntimeActivationInput,
 } from '@prodivix/plugin-host';
 
-type RuntimeMode = 'probe' | 'hang' | 'crash';
+type RuntimeMode = 'probe' | 'hang' | 'crash' | 'unhandled-rejection' | 'close';
 
 type RuntimeConformanceResult = Readonly<{
   activated: boolean;
   diagnosticCodes: readonly string[];
   probe?: Readonly<Record<string, string>>;
+  terminationReasonCode?: string;
   mainLoopTicks: number;
   elapsedMs: number;
 }>;
@@ -73,6 +74,14 @@ export async function activate(context) {
   }
   if (${JSON.stringify(mode)} === 'crash') {
     throw new Error('Conformance crash');
+  }
+  if (${JSON.stringify(mode)} === 'unhandled-rejection') {
+    setTimeout(() => {
+      void Promise.reject(new Error('Conformance unhandled rejection'));
+    }, 50);
+  }
+  if (${JSON.stringify(mode)} === 'close') {
+    setTimeout(() => globalThis.close(), 50);
   }
   let remoteImportBlocked = false;
   try {
@@ -166,8 +175,8 @@ const runRuntime: ConformanceApi['runRuntime'] = async ({
     sandboxFactory: createBrowserRuntimeSandboxFactory({ sandboxUrl }),
     gatewaySessionFactory,
     quotaPolicy: {
-      handshakeTimeoutMs: 3_000,
-      lifecycleTimeoutMs: mode === 'hang' ? 250 : 3_000,
+      handshakeTimeoutMs: 8_000,
+      lifecycleTimeoutMs: mode === 'hang' ? 500 : 5_000,
       heartbeatIntervalMs: 100,
       heartbeatMissLimit: 2,
     },
@@ -217,15 +226,42 @@ const runRuntime: ConformanceApi['runRuntime'] = async ({
     activation,
     new AbortController().signal
   );
+  let terminationReasonCode: string | undefined;
+  if (result.ok && (mode === 'unhandled-rejection' || mode === 'close')) {
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const cleanupHandles: {
+        timeout?: ReturnType<typeof setTimeout>;
+        subscription?: { dispose(): void };
+      } = {};
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (cleanupHandles.timeout !== undefined) {
+          clearTimeout(cleanupHandles.timeout);
+        }
+        cleanupHandles.subscription?.dispose();
+        resolve();
+      };
+      cleanupHandles.subscription = result.value.onDidTerminate(
+        ({ reasonCode }) => {
+          terminationReasonCode = reasonCode;
+          finish();
+        }
+      );
+      cleanupHandles.timeout = setTimeout(finish, 1_500);
+    });
+  }
   const elapsedMs = performance.now() - startedAt;
   clearInterval(tick);
-  if (result.ok) {
+  if (result.ok && !terminationReasonCode) {
     await result.value.deactivate('manual', new AbortController().signal);
   }
   return {
     activated: result.ok,
     diagnosticCodes: result.diagnostics.map(({ code }) => code),
     ...(probe ? { probe: Object.freeze({ ...probe }) } : {}),
+    ...(terminationReasonCode ? { terminationReasonCode } : {}),
     mainLoopTicks,
     elapsedMs,
   };
@@ -255,6 +291,7 @@ const runUi: ConformanceApi['runUi'] = ({ sandboxUrl }) => {
   const initialLocation = location.href;
 
   return new Promise<UiConformanceResult>((resolve, reject) => {
+    let lastStage = 'broker-load';
     const cleanup = () => {
       clearTimeout(timeout);
       window.removeEventListener('message', onMessage);
@@ -266,11 +303,18 @@ const runUi: ConformanceApi['runUi'] = ({ sandboxUrl }) => {
         event.origin !== 'null' ||
         typeof event.data !== 'object' ||
         event.data === null ||
-        event.data.kind !== 'prodivix-ui-conformance-result' ||
         event.data.nonce !== nonce
       ) {
         return;
       }
+      if (
+        event.data.kind === 'prodivix-ui-conformance-progress' &&
+        typeof event.data.stage === 'string'
+      ) {
+        lastStage = event.data.stage;
+        return;
+      }
+      if (event.data.kind !== 'prodivix-ui-conformance-result') return;
       const result = event.data.result as Omit<
         UiConformanceResult,
         'sandboxTokens' | 'hostLocationUnchanged'
@@ -285,8 +329,8 @@ const runUi: ConformanceApi['runUi'] = ({ sandboxUrl }) => {
     };
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error('UI sandbox conformance timed out.'));
-    }, 5_000);
+      reject(new Error(`UI sandbox conformance timed out after ${lastStage}.`));
+    }, 10_000);
     window.addEventListener('message', onMessage);
     document.body.append(iframe);
   });

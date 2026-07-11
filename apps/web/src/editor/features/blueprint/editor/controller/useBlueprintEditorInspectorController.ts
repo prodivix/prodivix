@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
-import { materializePirRoot, normalizeTreeToUiGraph } from '@/pir/graph';
+import {
+  materializePirRoot,
+  renameNodeId as renameUiGraphNodeId,
+  updateUiGraphSubtree,
+} from '@/pir/graph';
 import type { IconRef } from '@/pir/renderer/iconRegistry';
 import type { TriggerEntry } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 import { createDefaultActionParams } from '@/pir/actions/registry';
@@ -28,9 +32,12 @@ import {
   getLayoutPatternId,
   isLayoutPatternRootNode,
 } from '@/editor/features/blueprint/layoutPatterns/dataAttributes';
-import { getExternalRuntimeMetaByType } from '@/editor/features/blueprint/external/runtime/metaStore';
-import { usePaletteRegistrySnapshot } from '@/plugins/platform';
+import {
+  usePaletteRegistrySnapshot,
+  useWebExtensionRegistrySnapshot,
+} from '@/plugins/platform';
 import { resolveInspectorPanels } from '@/editor/features/blueprint/editor/inspector/panels/registry';
+import { resolveInspectorComponentMeta } from '@/editor/features/blueprint/editor/inspector/meta/componentMetaProjection';
 import {
   createMountedCssDocumentId,
   createMountedCssNodeId,
@@ -41,18 +48,9 @@ import {
 } from '@/editor/features/blueprint/editor/inspector/components/classProtocol/mountedCss';
 import { useMountedCssEditorState } from '@/editor/features/blueprint/editor/inspector/components/classProtocol/useMountedCssEditorState';
 import { getPrimaryTextField } from '@/editor/features/blueprint/editor/model/blueprintText';
-import {
-  collectIds,
-  findNodeById,
-  renameNodeId,
-  updateNodeById,
-} from '@/editor/features/blueprint/editor/controller/inspectorUtils';
+import { findNodeById } from '@/editor/features/blueprint/editor/controller/inspectorUtils';
 
 let persistedExpandedPanels: Record<string, boolean> = {};
-
-export const resetInspectorExpansionPersistence = () => {
-  persistedExpandedPanels = {};
-};
 
 const createIntentId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -214,28 +212,25 @@ export const useBlueprintEditorInspectorController = () => {
     [selectedNode]
   );
   const paletteSnapshot = usePaletteRegistrySnapshot();
-  const componentMeta = useMemo(() => {
-    if (!selectedNode?.type) return null;
-    const externalMeta = getExternalRuntimeMetaByType(selectedNode.type);
-    if (externalMeta) return { ...externalMeta, source: 'external' as const };
-
-    const builtInMeta = paletteSnapshot.itemsByRuntimeType.get(
-      selectedNode.type
-    );
-    if (!builtInMeta?.runtimeType) return null;
-    return {
-      source: 'builtIn' as const,
-      runtimeType: builtInMeta.runtimeType,
-      defaultProps: builtInMeta.defaultProps,
-      propOptions: builtInMeta.propOptions,
-    };
-  }, [paletteSnapshot, selectedNode?.type]);
+  const extensionSnapshot = useWebExtensionRegistrySnapshot();
+  const componentMeta = useMemo(
+    () =>
+      resolveInspectorComponentMeta(
+        selectedNode?.type,
+        paletteSnapshot,
+        extensionSnapshot
+      ),
+    [extensionSnapshot, paletteSnapshot, selectedNode?.type]
+  );
   const [draftId, setDraftId] = useState('');
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     () => ({ ...persistedExpandedPanels })
   );
   const [isIconPickerOpen, setIconPickerOpen] = useState(false);
-  const allIds = useMemo(() => collectIds(pirRoot), [pirRoot]);
+  const allIds = useMemo(
+    () => new Set(Object.keys(pirDoc.ui.graph.nodesById)),
+    [pirDoc.ui.graph.nodesById]
+  );
   const dataModelFieldPaths = useMemo(() => {
     if (!selectedId) return [];
     const nodePath = findNodePathById(pirRoot, selectedId);
@@ -396,12 +391,15 @@ export const useBlueprintEditorInspectorController = () => {
     const currentSelectedId = selectedNode.id;
     const currentPatternId = getLayoutPatternId(selectedNode);
     updatePirDoc((doc) => {
-      const root = materializePirRoot(doc);
-      const result = updateNodeById(root, selectedNode.id, updater);
-      if (!result.updated) return doc;
+      const result = updateUiGraphSubtree(
+        doc.ui.graph,
+        selectedNode.id,
+        updater
+      );
+      if (!result.changed) return doc;
       const nextDoc = {
         ...doc,
-        ui: { graph: normalizeTreeToUiGraph(result.node) },
+        ui: { graph: result.graph },
       };
       const nextRoot = materializePirRoot(nextDoc);
       const keptSelection = findNodeById(nextRoot, currentSelectedId);
@@ -419,14 +417,11 @@ export const useBlueprintEditorInspectorController = () => {
     if (!selectedNode?.id || !canApply) return;
     const nextId = trimmedDraftId;
     updatePirDoc((doc) => {
-      const nextRoot = renameNodeId(
-        materializePirRoot(doc),
-        selectedNode.id,
-        nextId
-      );
+      const graph = renameUiGraphNodeId(doc.ui.graph, selectedNode.id, nextId);
+      if (graph === doc.ui.graph) return doc;
       return {
         ...doc,
-        ui: { graph: normalizeTreeToUiGraph(nextRoot) },
+        ui: { graph },
       };
     });
     setBlueprintState(blueprintKey, { selectedId: nextId });

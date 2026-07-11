@@ -185,7 +185,7 @@ type CodeDiagnosticStage =
 - Retryable: true
 - Trigger: 已注册外部库可以运行，但缺少类型声明、导出元数据或 props/events 类型，导致作者态补全和类型校验降级
 - User action: 为外部库补充类型声明、适配器 metadata 或手动声明 props/events 类型
-- Developer notes: 外部库加载失败仍使用 `ELIB-xxxx`；这里仅表示代码环境无法取得类型信息
+- Developer notes: official plugin package/contribution failure 使用 `PLG-xxxx`；这里仅表示代码环境无法取得类型信息
 
 ### `COD-2015` 泛型或类型参数无法满足约束
 

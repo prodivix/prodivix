@@ -48,38 +48,6 @@ export const reactAdapter: TargetAdapter = {
         };
       }
 
-      if (iconRef.provider === 'ant-design-icons') {
-        const symbol = toPascalCase(iconRef.name);
-        if (symbol) {
-          return {
-            element: symbol,
-            imports: [
-              {
-                source: '@ant-design/icons',
-                kind: 'named',
-                imported: symbol,
-              },
-            ],
-          };
-        }
-      }
-
-      if (iconRef.provider === 'mui-icons') {
-        const symbol = toPascalCase(iconRef.name);
-        if (symbol) {
-          return {
-            element: symbol,
-            imports: [
-              {
-                source: `@mui/icons-material/${symbol}`,
-                kind: 'default',
-                imported: symbol,
-              },
-            ],
-          };
-        }
-      }
-
       if (iconRef.provider === 'heroicons') {
         const baseName = toPascalCase(iconRef.name);
         const symbol = baseName.endsWith('Icon') ? baseName : `${baseName}Icon`;
@@ -131,80 +99,6 @@ export const reactAdapter: TargetAdapter = {
             source: '@prodivix/ui',
             kind: 'named',
             imported: node.type,
-          },
-        ],
-      };
-    }
-
-    if (node.type === 'RadixLabel') {
-      return {
-        element: 'Label.Root',
-        imports: [
-          {
-            source: '@radix-ui/react-label',
-            kind: 'namespace',
-            imported: 'Label',
-          },
-        ],
-      };
-    }
-
-    if (node.type.startsWith('Antd')) {
-      const bareType = node.type.slice('Antd'.length);
-      if (bareType === 'FormItem') {
-        return {
-          element: 'Form.Item',
-          imports: [
-            {
-              source: 'antd',
-              kind: 'named',
-              imported: 'Form',
-            },
-          ],
-        };
-      }
-      return {
-        element: bareType || 'div',
-        imports: bareType
-          ? [
-              {
-                source: 'antd',
-                kind: 'named',
-                imported: bareType,
-              },
-            ]
-          : undefined,
-      };
-    }
-
-    if (node.type.startsWith('Mui')) {
-      const bareType = node.type.slice('Mui'.length);
-      return {
-        element: bareType || 'div',
-        imports: bareType
-          ? [
-              {
-                source: `@mui/material/${bareType}`,
-                kind: 'default',
-                imported: bareType,
-              },
-            ]
-          : undefined,
-      };
-    }
-
-    if (node.type.startsWith('Radix')) {
-      return {
-        element: 'div',
-        diagnostics: [
-          {
-            code: 'REACT_ADAPTER_UNKNOWN_RADIX_COMPONENT',
-            severity: 'warning',
-            source: 'adapter',
-            message: `No React adapter mapping found for "${node.type}".`,
-            path: node.path,
-            suggestion:
-              'Add a mapping in react adapter or provide a custom adapter plugin.',
           },
         ],
       };

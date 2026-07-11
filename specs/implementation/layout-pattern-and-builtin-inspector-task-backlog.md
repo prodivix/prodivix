@@ -24,7 +24,7 @@
 1. 已有 layout 原语：`PdxDiv/PdxSection/PdxCard/PdxPanel`（`packages/ui/src/container/*`）。
 2. 已有布局分组：`LayoutGroup`（`apps/web/src/editor/features/design/blueprint/data/groups/LayoutGroup.tsx`）。
 3. 已有布局面板：`LayoutPanel`（硬编码字段渲染）。
-4. 已有外部组件 metadata 链路：`metaStore + InspectorExternalPropsFields`。
+4. 外部组件 metadata 来自 Web extension query snapshot，并由统一的 `InspectorComponentPropsFields` 渲染；旧 `metaStore + InspectorExternalPropsFields` 链路已删除。
 5. 已完成决策文档：`specs/decisions/19.layout-pattern-and-builtin-inspector-schema.md`。
 
 ## 0.2 Gate A 落地进展（2026-02-17）
@@ -220,8 +220,8 @@
 - [ ] `LPAT-COMPAT-001` PIR 兼容检查：确保仅写 `props.dataAttributes`，不引入 schema 破坏。
   - 验收：现有 PIR 校验与保存流程通过
 
-- [ ] `LPAT-COMPAT-002` Registry 兼容检查：BuiltIn Meta 不复用 external metaStore。
-  - 验收：外部组件 Inspector 行为无回归
+- [ ] `LPAT-COMPAT-002` Metadata projection 检查：BuiltIn 与 external meta 保留显式 source/owner，统一字段渲染不互相覆盖。
+  - 验收：内置与外部组件 Inspector 行为均无回归
 
 - [ ] `LPAT-COMPAT-003` Inspector 重复字段检查：layout panel 与 schema 面板无重复输入源。
   - 验收：字段互斥规则自动化测试通过

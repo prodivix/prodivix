@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import type { Edge, Node } from '@xyflow/react';
 import type { GraphNodeData } from '@/editor/features/development/reactflow/GraphNode';
 import {

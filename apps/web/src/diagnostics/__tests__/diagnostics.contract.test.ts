@@ -66,6 +66,7 @@ describe('diagnostics contract', () => {
 
     expect(isDiagnostic(diagnostic)).toBe(true);
     expect(isDiagnosticDomain('plugin')).toBe(true);
+    expect(isDiagnosticDomain('elib')).toBe(false);
     expect(isDiagnosticDomain('unknown')).toBe(false);
   });
 });

@@ -138,9 +138,9 @@ export const createPluginHost = <TMap extends HostContributionPointMap>(
 
   return pluginHostSuccess(
     Object.freeze({
-      discover: (source) =>
+      discover: (source, signal) =>
         state === 'running'
-          ? availability.discover(source)
+          ? availability.discover(source, signal)
           : Promise.resolve(rejectAfterShutdown()),
       enable: (pluginId) =>
         state === 'running'

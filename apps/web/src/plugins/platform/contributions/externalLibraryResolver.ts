@@ -87,26 +87,29 @@ export const createExternalLibraryContributionResolver = (
         owner.pluginId,
         declaration.id
       );
-      const implementation = await artifacts.resolveComponentLibrary({
-        owner,
-        attestation,
-        implementationId: descriptor.hostImplementationId,
-        package: {
-          name: descriptor.package.name,
-          version: descriptor.package.version,
-        },
-        signal,
-      });
-      if (implementation.ok === false) {
+      const implementation = descriptor.hostImplementationId
+        ? await artifacts.resolveComponentLibrary({
+            owner,
+            attestation,
+            implementationId: descriptor.hostImplementationId,
+            package: {
+              name: descriptor.package.name,
+              version: descriptor.package.version,
+            },
+            signal,
+          })
+        : undefined;
+      if (implementation?.ok === false) {
         return pluginHostFailure(implementation.diagnostics);
       }
 
       const components: ResolvedExternalLibraryContribution['components'][number][] =
         [];
       for (const component of descriptor.components) {
-        const resolved =
-          implementation.value.value.components[component.exportName];
-        if (!isElementType(resolved)) {
+        const resolved = implementation?.ok
+          ? implementation.value.value.components[component.exportName]
+          : undefined;
+        if (implementation?.ok && !isElementType(resolved)) {
           implementation.value.dispose();
           return resolverFailure(
             'externalLibrary',
@@ -126,7 +129,7 @@ export const createExternalLibraryContributionResolver = (
             exportName: component.exportName,
             componentName: component.componentName,
             runtimeType: component.runtimeType,
-            component: resolved,
+            ...(resolved === undefined ? {} : { component: resolved }),
           })
         );
       }
@@ -149,7 +152,7 @@ export const createExternalLibraryContributionResolver = (
           current &&
           !isSameContributionIdentity(current.identity, identity)
         ) {
-          implementation.value.dispose();
+          if (implementation?.ok) implementation.value.dispose();
           return claimConflict(
             claim.kind,
             claim.id,
@@ -194,7 +197,7 @@ export const createExternalLibraryContributionResolver = (
               current.leaseCount -= 1;
             }
           });
-          implementation.value.dispose();
+          if (implementation?.ok) implementation.value.dispose();
         },
       });
     },

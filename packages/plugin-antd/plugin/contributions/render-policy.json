@@ -1,0 +1,1017 @@
+{
+  "libraryId": "antd",
+  "rules": [
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "App",
+      "fallback": {
+        "behavior": "error",
+        "message": "App is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.app",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdApp"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "Button",
+      "fallback": {
+        "behavior": "error",
+        "message": "Button is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.button",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdButton"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "FloatButton",
+      "fallback": {
+        "behavior": "error",
+        "message": "FloatButton is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.float-button",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdFloatButton"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Divider",
+      "fallback": {
+        "behavior": "error",
+        "message": "Divider is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.divider",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdDivider"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Flex",
+      "fallback": {
+        "behavior": "error",
+        "message": "Flex is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.flex",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdFlex"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Layout",
+      "fallback": {
+        "behavior": "error",
+        "message": "Layout is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.layout",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdLayout"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "LayoutHeader",
+      "fallback": {
+        "behavior": "error",
+        "message": "Layout.Header is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.layout-header",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdLayoutHeader"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "LayoutContent",
+      "fallback": {
+        "behavior": "error",
+        "message": "Layout.Content is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.layout-content",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdLayoutContent"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "LayoutFooter",
+      "fallback": {
+        "behavior": "error",
+        "message": "Layout.Footer is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.layout-footer",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdLayoutFooter"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "LayoutSider",
+      "fallback": {
+        "behavior": "error",
+        "message": "Layout.Sider is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.layout-sider",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdLayoutSider"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Space",
+      "fallback": {
+        "behavior": "error",
+        "message": "Space is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.space",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSpace"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "SpaceCompact",
+      "fallback": {
+        "behavior": "error",
+        "message": "Space.Compact is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.space-compact",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSpaceCompact"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Splitter",
+      "fallback": {
+        "behavior": "error",
+        "message": "Splitter is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.splitter",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSplitter"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Affix",
+      "fallback": {
+        "behavior": "error",
+        "message": "Affix is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.affix",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdAffix"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Anchor",
+      "fallback": {
+        "behavior": "error",
+        "message": "Anchor is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.anchor",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdAnchor"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Breadcrumb",
+      "fallback": {
+        "behavior": "error",
+        "message": "Breadcrumb is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.breadcrumb",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdBreadcrumb"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Dropdown",
+      "fallback": {
+        "behavior": "error",
+        "message": "Dropdown is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.dropdown",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdDropdown"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Menu",
+      "fallback": {
+        "behavior": "error",
+        "message": "Menu is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.menu",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdMenu"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Pagination",
+      "fallback": {
+        "behavior": "error",
+        "message": "Pagination is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.pagination",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdPagination"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Steps",
+      "fallback": {
+        "behavior": "error",
+        "message": "Steps is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.steps",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSteps"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Tabs",
+      "fallback": {
+        "behavior": "error",
+        "message": "Tabs is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.tabs",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTabs"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "AutoComplete",
+      "fallback": {
+        "behavior": "error",
+        "message": "AutoComplete is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.auto-complete",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdAutoComplete"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Cascader",
+      "fallback": {
+        "behavior": "error",
+        "message": "Cascader is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.cascader",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdCascader"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "Checkbox",
+      "fallback": {
+        "behavior": "error",
+        "message": "Checkbox is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.checkbox",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdCheckbox"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "ColorPicker",
+      "fallback": {
+        "behavior": "error",
+        "message": "ColorPicker is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.color-picker",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdColorPicker"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "DatePicker",
+      "fallback": {
+        "behavior": "error",
+        "message": "DatePicker is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.date-picker",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdDatePicker"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Form",
+      "fallback": {
+        "behavior": "error",
+        "message": "Form is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.form",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdForm"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "FormItem",
+      "fallback": {
+        "behavior": "error",
+        "message": "Form.Item is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.form-item",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdFormItem"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Input",
+      "fallback": {
+        "behavior": "error",
+        "message": "Input is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.input",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdInput"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "InputPassword",
+      "fallback": {
+        "behavior": "error",
+        "message": "Input.Password is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.input-password",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdInputPassword"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "InputSearch",
+      "fallback": {
+        "behavior": "error",
+        "message": "Input.Search is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.input-search",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdInputSearch"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "InputTextArea",
+      "fallback": {
+        "behavior": "error",
+        "message": "Input.TextArea is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.input-text-area",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdInputTextArea"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "InputNumber",
+      "fallback": {
+        "behavior": "error",
+        "message": "InputNumber is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.input-number",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdInputNumber"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Mentions",
+      "fallback": {
+        "behavior": "error",
+        "message": "Mentions is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.mentions",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdMentions"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "Radio",
+      "fallback": {
+        "behavior": "error",
+        "message": "Radio is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.radio",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdRadio"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Rate",
+      "fallback": {
+        "behavior": "error",
+        "message": "Rate is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.rate",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdRate"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Select",
+      "fallback": {
+        "behavior": "error",
+        "message": "Select is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.select",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdSelect"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Slider",
+      "fallback": {
+        "behavior": "error",
+        "message": "Slider is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.slider",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSlider"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Switch",
+      "fallback": {
+        "behavior": "error",
+        "message": "Switch is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.switch",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSwitch"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "TimePicker",
+      "fallback": {
+        "behavior": "error",
+        "message": "TimePicker is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.time-picker",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdTimePicker"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Transfer",
+      "fallback": {
+        "behavior": "error",
+        "message": "Transfer is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.transfer",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTransfer"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "TreeSelect",
+      "fallback": {
+        "behavior": "error",
+        "message": "TreeSelect is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.tree-select",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdTreeSelect"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Upload",
+      "fallback": {
+        "behavior": "error",
+        "message": "Upload is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.upload",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdUpload"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Avatar",
+      "fallback": {
+        "behavior": "error",
+        "message": "Avatar is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.avatar",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdAvatar"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "Badge",
+      "fallback": {
+        "behavior": "error",
+        "message": "Badge is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.badge",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdBadge"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Calendar",
+      "fallback": {
+        "behavior": "error",
+        "message": "Calendar is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.calendar",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdCalendar"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Card",
+      "fallback": {
+        "behavior": "error",
+        "message": "Card is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.card",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdCard"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "CardMeta",
+      "fallback": {
+        "behavior": "error",
+        "message": "Card.Meta is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.card-meta",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdCardMeta"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Carousel",
+      "fallback": {
+        "behavior": "error",
+        "message": "Carousel is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.carousel",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdCarousel"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Collapse",
+      "fallback": {
+        "behavior": "error",
+        "message": "Collapse is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.collapse",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdCollapse"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Descriptions",
+      "fallback": {
+        "behavior": "error",
+        "message": "Descriptions is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.descriptions",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdDescriptions"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "DescriptionsItem",
+      "fallback": {
+        "behavior": "error",
+        "message": "Descriptions.Item is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.descriptions-item",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdDescriptionsItem"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Empty",
+      "fallback": {
+        "behavior": "error",
+        "message": "Empty is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.empty",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdEmpty"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Image",
+      "fallback": {
+        "behavior": "error",
+        "message": "Image is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.image",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdImage"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "List",
+      "fallback": {
+        "behavior": "error",
+        "message": "List is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.list",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdList"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "ListItem",
+      "fallback": {
+        "behavior": "error",
+        "message": "List.Item is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.list-item",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdListItem"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "ListItemMeta",
+      "fallback": {
+        "behavior": "error",
+        "message": "List.Item.Meta is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.list-item-meta",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdListItemMeta"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Popover",
+      "fallback": {
+        "behavior": "error",
+        "message": "Popover is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.popover",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdPopover"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "QRCode",
+      "fallback": {
+        "behavior": "error",
+        "message": "QRCode is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.qrcode",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdQRCode"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Segmented",
+      "fallback": {
+        "behavior": "error",
+        "message": "Segmented is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.segmented",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSegmented"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Statistic",
+      "fallback": {
+        "behavior": "error",
+        "message": "Statistic is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.statistic",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdStatistic"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Table",
+      "fallback": {
+        "behavior": "error",
+        "message": "Table is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.table",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTable"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "Tag",
+      "fallback": {
+        "behavior": "error",
+        "message": "Tag is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.tag",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTag"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Timeline",
+      "fallback": {
+        "behavior": "error",
+        "message": "Timeline is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.timeline",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTimeline"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Tooltip",
+      "fallback": {
+        "behavior": "error",
+        "message": "Tooltip is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.tooltip",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdTooltip"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Tour",
+      "fallback": {
+        "behavior": "error",
+        "message": "Tour is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.tour",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdTour"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Tree",
+      "fallback": {
+        "behavior": "error",
+        "message": "Tree is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.tree",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTree"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "Typography",
+      "fallback": {
+        "behavior": "error",
+        "message": "Typography is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.typography",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTypography"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "TypographyText",
+      "fallback": {
+        "behavior": "error",
+        "message": "Typography.Text is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.typography-text",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTypographyText"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "TypographyTitle",
+      "fallback": {
+        "behavior": "error",
+        "message": "Typography.Title is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.typography-title",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTypographyTitle"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "TypographyParagraph",
+      "fallback": {
+        "behavior": "error",
+        "message": "Typography.Paragraph is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.typography-paragraph",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTypographyParagraph"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "TypographyLink",
+      "fallback": {
+        "behavior": "error",
+        "message": "Typography.Link is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.typography-link",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdTypographyLink"
+    },
+    {
+      "children": { "mode": "preserve" },
+      "componentExport": "Alert",
+      "fallback": {
+        "behavior": "error",
+        "message": "Alert is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.alert",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdAlert"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Drawer",
+      "fallback": {
+        "behavior": "error",
+        "message": "Drawer is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.drawer",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdDrawer"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Modal",
+      "fallback": {
+        "behavior": "error",
+        "message": "Modal is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.modal",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdModal"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Popconfirm",
+      "fallback": {
+        "behavior": "error",
+        "message": "Popconfirm is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.overlay",
+      "id": "antd.popconfirm",
+      "portal": {
+        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
+        "mode": "host-overlay"
+      },
+      "runtimeType": "AntdPopconfirm"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Progress",
+      "fallback": {
+        "behavior": "error",
+        "message": "Progress is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.progress",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdProgress"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Result",
+      "fallback": {
+        "behavior": "error",
+        "message": "Result is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.result",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdResult"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Skeleton",
+      "fallback": {
+        "behavior": "error",
+        "message": "Skeleton is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.skeleton",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSkeleton"
+    },
+    {
+      "children": { "mode": "none" },
+      "componentExport": "Spin",
+      "fallback": {
+        "behavior": "error",
+        "message": "Spin is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.spin",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdSpin"
+    },
+    {
+      "children": { "mode": "children-only" },
+      "componentExport": "Watermark",
+      "fallback": {
+        "behavior": "error",
+        "message": "Watermark is unavailable because the Ant Design plugin is disabled."
+      },
+      "hostImplementationId": "antd.render.provider",
+      "id": "antd.watermark",
+      "portal": { "mode": "inline" },
+      "runtimeType": "AntdWatermark"
+    }
+  ],
+  "schemaVersion": "1.0"
+}

@@ -7,6 +7,7 @@ import { createDiagnosticBag } from '#src/core/diagnostics';
 import { resolvePackageImport } from '#src/core/packageResolver';
 import {
   createCodegenPolicyTargetAdapter,
+  getCodegenPolicyDependenciesForUsage,
   getCodegenPolicyPackageMetadata,
   getCodegenPolicyPackageVersions,
 } from '#src/core/codegenPolicy';
@@ -291,12 +292,7 @@ type StaticIconRef = {
   variant?: 'outline' | 'solid';
 };
 
-const NATIVE_ICON_PROVIDERS = new Set([
-  'fontawesome',
-  'ant-design-icons',
-  'mui-icons',
-  'heroicons',
-]);
+const NATIVE_ICON_PROVIDERS = new Set(['fontawesome', 'heroicons']);
 
 const readStaticIconRef = (value: unknown): StaticIconRef | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -315,16 +311,7 @@ type ResolvedAdapterImport = AdapterImportSpec & {
 
 const resolveImportAliasPrefix = (item: ResolvedAdapterImport) => {
   const { source, resolution } = item;
-  const packageName = resolution.packageName;
-  if (packageName === 'antd') return 'Antd';
-  if (packageName?.startsWith('@mui/')) return 'Mui';
-  if (packageName?.startsWith('@radix-ui/')) return 'Radix';
-  if (packageName?.startsWith('@prodivix/')) return 'Pdx';
-  if (source === 'antd') return 'Antd';
-  if (source.startsWith('@mui/')) return 'Mui';
-  if (source.startsWith('@radix-ui/')) return 'Radix';
-  if (source.startsWith('@prodivix/')) return 'Pdx';
-  const fallback = packageName ?? source;
+  const fallback = resolution.packageName ?? source;
   return toPascalCase(fallback.replace(/^@/, '').replace(/\//g, '-')) || 'Lib';
 };
 
@@ -740,7 +727,14 @@ export const compilePirToReactComponent = (
   };
 
   const adapterImports: AdapterImportSpec[] = [];
+  const usedPolicyRuntimeTypes = new Set<string>();
+  const usedIconProviderIds = new Set<string>();
   const collectAdapterArtifacts = (node: CanonicalNode) => {
+    usedPolicyRuntimeTypes.add(node.type);
+    if (node.type === 'PdxIcon') {
+      const iconRef = readStaticIconRef(node.props.iconRef);
+      if (iconRef) usedIconProviderIds.add(iconRef.provider);
+    }
     const adapterResult = adapter.resolveNode(node);
     if (adapterResult.imports?.length) {
       adapterImports.push(...adapterResult.imports);
@@ -753,6 +747,12 @@ export const compilePirToReactComponent = (
     }
   };
   collectAdapterArtifacts(canonical.root);
+  const policyDependencies = options?.codegenPolicySnapshot
+    ? getCodegenPolicyDependenciesForUsage(options.codegenPolicySnapshot, {
+        runtimeTypes: [...usedPolicyRuntimeTypes],
+        iconProviderIds: [...usedIconProviderIds],
+      })
+    : [];
 
   const resolvedImports: ResolvedAdapterImport[] = dedupeImports(
     adapterImports
@@ -1081,6 +1081,12 @@ ${rootJsx}
     .filter(Boolean)
     .join('\n\n');
 
+  const policyDependencyVersions = policyDependencies.reduce<
+    Record<string, string>
+  >((acc, dependency) => {
+    acc[dependency.name] = dependency.version;
+    return acc;
+  }, {});
   const dependencies = resolvedImports.reduce<Record<string, string>>(
     (acc, item) => {
       const { packageName, packageVersion, declareDependency } =
@@ -1089,9 +1095,22 @@ ${rootJsx}
       acc[packageName] = packageVersion ?? 'latest';
       return acc;
     },
-    {}
+    policyDependencyVersions
   );
   const remoteSourceOrigins: ExportSourceOrigin[] = [];
+  const policyDependencyOrigins = policyDependencies.reduce<
+    Record<string, ReactComponentCompileResult['dependencyOrigins'][string]>
+  >((acc, dependency) => {
+    acc[dependency.name] = createExportPackageOrigin(
+      dependency.name,
+      dependency.version,
+      {
+        updatePolicy: 'pin',
+        ...(packageMetadata ? { metadata: packageMetadata } : {}),
+      }
+    );
+    return acc;
+  }, {});
   const dependencyOrigins = resolvedImports.reduce<
     Record<string, ReactComponentCompileResult['dependencyOrigins'][string]>
   >((acc, item) => {
@@ -1109,16 +1128,18 @@ ${rootJsx}
       return acc;
     }
     if (!declareDependency) return acc;
-    acc[packageName] = createExportPackageOrigin(
-      packageName,
-      packageVersion ?? 'latest',
-      {
-        updatePolicy: 'follow-package',
-        ...(packageMetadata ? { metadata: packageMetadata } : {}),
-      }
-    );
+    if (!acc[packageName]) {
+      acc[packageName] = createExportPackageOrigin(
+        packageName,
+        packageVersion ?? 'latest',
+        {
+          updatePolicy: 'follow-package',
+          ...(packageMetadata ? { metadata: packageMetadata } : {}),
+        }
+      );
+    }
     return acc;
-  }, {});
+  }, policyDependencyOrigins);
   const sourceTrace: ExportSourceTrace[] = [
     {
       sourceRef: {
