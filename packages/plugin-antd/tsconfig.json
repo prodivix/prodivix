@@ -10,7 +10,9 @@
     "jsx": "react-jsx",
     "tsBuildInfoFile": "tsconfig.tsbuildinfo",
     "paths": {
-      "#antd/*": ["./src/*"]
+      "#antd/*": ["./src/*"],
+      "@prodivix/plugin-package": ["../plugin-package/src"],
+      "@prodivix/plugin-react-host": ["../plugin-react-host/src"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
@@ -20,5 +22,9 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/__tests__/**"
+  ],
+  "references": [
+    { "path": "../plugin-package" },
+    { "path": "../plugin-react-host" }
   ]
 }

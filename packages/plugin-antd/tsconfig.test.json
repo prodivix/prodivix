@@ -6,5 +6,9 @@
     "tsBuildInfoFile": "tsconfig.test.tsbuildinfo",
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    { "path": "../plugin-package" },
+    { "path": "../plugin-react-host" }
+  ]
 }

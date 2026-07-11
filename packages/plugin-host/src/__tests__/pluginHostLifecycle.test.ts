@@ -207,6 +207,7 @@ const createHarness = (
     runtimeArtifactMaxBytes?: number;
     runtimeTimeoutMs?: number;
     deactivationFails?: boolean;
+    integrityService?: CreatePluginHostOptions<TestContributionMap>['integrityService'];
     validateContributionBatch?: CreatePluginHostOptions<TestContributionMap>['validateContributionBatch'];
   } = {}
 ) => {
@@ -296,6 +297,7 @@ const createHarness = (
       },
     },
     runtimeTimeoutMs: options.runtimeTimeoutMs ?? 1_000,
+    integrityService: options.integrityService,
     validateContributionBatch: options.validateContributionBatch,
     runtimeArtifactLimits: options.runtimeArtifactMaxBytes
       ? { maxBytes: options.runtimeArtifactMaxBytes }
@@ -620,7 +622,13 @@ describe('Plugin Host lifecycle', () => {
   });
 
   it('marks the runtime failed when adapter activation times out', async () => {
-    const harness = createHarness({ runtimeTimeoutMs: 10 });
+    const harness = createHarness({
+      runtimeTimeoutMs: 10,
+      integrityService: {
+        digestSha256: async () =>
+          'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      },
+    });
     await harness.host.discover(harness.source);
     harness.control.mode = 'pending';
 
@@ -636,7 +644,8 @@ describe('Plugin Host lifecycle', () => {
       'failed'
     );
 
-    harness.control.pendingResolve?.(
+    expect(harness.control.pendingResolve).toBeTypeOf('function');
+    harness.control.pendingResolve!(
       pluginHostSuccess(createSession(harness.control, 'late-timeout-session'))
     );
     await vi.waitFor(() => {

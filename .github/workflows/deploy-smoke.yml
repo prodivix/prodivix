@@ -93,8 +93,18 @@ jobs:
 
       - name: Show service status
         if: always()
-        run: docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env ps
+        run: |
+          if [[ -f deploy/.env ]]; then
+            docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env ps
+          else
+            echo "Deployment environment was not created; skipping service status."
+          fi
 
       - name: Stop deployment
         if: always()
-        run: docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env down --remove-orphans
+        run: |
+          if [[ -f deploy/.env ]]; then
+            docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env down --remove-orphans
+          else
+            echo "Deployment environment was not created; skipping cleanup."
+          fi
