@@ -50,7 +50,7 @@
     "docs:diagnostics": "node scripts/generate-diagnostic-docs.mjs generate",
     "docs:diagnostics:check": "node scripts/generate-diagnostic-docs.mjs check",
     "check:official-plugin-cutover": "node scripts/plugin-artifacts/check-official-plugin-cutover.mjs",
-    "test:official-plugin-exports": "pnpm --filter @prodivix/plugin-package exec tsx --tsconfig ../../packages/prodivix-compiler/tsconfig.json ../../scripts/plugin-artifacts/check-official-plugin-exports.mjs",
+    "test:official-plugin-exports": "tsx --tsconfig packages/prodivix-compiler/tsconfig.json scripts/plugin-artifacts/check-official-plugin-exports.mjs",
     "test:plugin-artifact-generator": "pnpm --filter @prodivix/plugin-contracts build && pnpm --filter @prodivix/plugin-package build && node scripts/plugin-artifacts/generate-bundled-plugin-artifact.test.mjs",
     "generate:tailwind-runtime-snapshot": "node --experimental-strip-types scripts/generate-tailwind-runtime-snapshot.mjs",
     "format": "pnpm run format:all",
@@ -71,6 +71,7 @@
     "prettier": "^3.9.4",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "turbo": "^2.10.2",
+    "tsx": "^4.22.4",
     "typescript": "~6.0.3"
   }
 }
