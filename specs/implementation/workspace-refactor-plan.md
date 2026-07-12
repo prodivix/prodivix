@@ -96,8 +96,9 @@
    - `GET /api/workspaces/:id`
    - `GET /api/workspaces/:id/capabilities`
    - `PATCH /api/workspaces/:id/commands`
-3. 实现分区 rev 校验与冲突返回（`DOCUMENT/WORKSPACE/ROUTE/HYBRID`）
-4. 接入 Workspace、Route Manifest 和 PIR v1.3 graph-only 校验
+3. 实现分区 rev 校验与冲突返回（`DOCUMENT/WORKSPACE/ROUTE`）；`HYBRID_CONFLICT` 已 Hard Cut
+4. 实现 `POST /api/workspaces/:id/operations/commit` 的精确 write-set CAS、单事务回滚与强幂等
+5. 接入 Workspace、Route Manifest 和 PIR v1.3 graph-only 校验
 
 输出：
 
@@ -106,9 +107,10 @@
 
 验收：
 
-- [ ] 文档级 command 不影响无关文档 rev
-- [ ] 路由 command 可递增 `routeRev`
-- [ ] 冲突响应字段完整
+- [x] 文档级 command 不影响无关文档 rev
+- [x] 路由 command 可递增 `routeRev`
+- [x] 冲突响应字段完整
+- [x] 多分区 WorkspaceOperation 只推进一次 `opSeq`，任一校验或写入失败均整体回滚
 
 ---
 
@@ -175,7 +177,7 @@
 
 任务：
 
-1. 新项目创建只 bootstrap workspace snapshot。
+1. 新项目通过单事务 snapshot import 同时 bootstrap Workspace、Route 与首文档，不暴露空 Workspace 中间态。
 2. 删除前端 `saveProjectPir` 和 project PIR fallback 调用。
 3. `GET /projects/:id/pir` 返回 retired single-PIR 格式错误或从编辑器路由中移除。
 4. 停止 `projects.pir_json` 作为编辑器读写来源。

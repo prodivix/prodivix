@@ -25,7 +25,7 @@
 
 关键约束：
 
-1. `workspace_rev/route_rev/op_seq` 均为 `>= 1`
+1. `workspace_rev/route_rev/op_seq` 均为正 JSON safe integer
 2. `workspace_documents.doc_type` 限定为：
    - `pir-page`
    - `pir-layout`
@@ -39,11 +39,10 @@
 
 新增 `WorkspaceStore`，核心能力：
 
-1. `CreateWorkspace`：初始化 workspace + route manifest
-2. `CreateDocument`：创建文档记录（`contentRev/metaRev` 初始为 1）
-3. `GetSnapshot`：读取 workspace + route + documents 快照
-4. 历史整文档保存方法：仅提升文档 `contentRev`，并提升 `opSeq`；后续已由 command patch 写入路径取代并删除。
-5. `SaveRouteManifest`：结构事务提升 `workspaceRev/routeRev/opSeq`
+1. 当时的 `CreateWorkspace` + `CreateDocument` 两阶段 bootstrap 已 Hard Cut；当前由 `ImportWorkspaceSnapshot` 在一个数据库事务中创建 workspace、route 与至少一份 document。
+2. `GetSnapshotForOwner`：读取并验证 workspace + route + documents 快照。
+3. 历史整文档保存方法：仅提升文档 `contentRev`，并提升 `opSeq`；后续已由 command patch 写入路径取代并删除。
+4. `SaveRouteManifest`：结构事务提升 `workspaceRev/routeRev/opSeq`。
 
 并发错误模型：
 

@@ -99,6 +99,59 @@
     "exitToEditor": "返回编辑器首页",
     "exitToHome": "返回首页"
   },
+  "revisionConflict": {
+    "title": "版本冲突",
+    "description": "本次编辑期间，服务器上的工作区已经发生变化。请比较本地与远程版本后再保存。",
+    "genericSummary": "这项变更无法自动合并。",
+    "documentSummary": "{{path}} 在本地和远程都发生了变化。",
+    "actions": {
+      "reviewLater": "稍后处理",
+      "useRemote": "使用远程版本",
+      "useLocal": "使用本地版本",
+      "useAllRemote": "全部使用远程版本",
+      "useAllLocal": "全部使用本地版本",
+      "resumeReview": "处理版本冲突",
+      "applyResolution": "应用解决方案",
+      "retry": "重试"
+    },
+    "status": {
+      "resolving": "正在应用解决方案…",
+      "unresolved": "请为每一处冲突选择版本后再应用。",
+      "remoteAccepted": "已接受远程版本。",
+      "retryFailed": "工作区再次发生变化，请处理刷新后的冲突。",
+      "invalidResolution": "解决后的工作区数据无效。",
+      "workspaceChanged": "应用解决方案前，当前工作区已经切换。",
+      "authenticationRequired": "需要登录后才能应用这个解决方案。",
+      "conflictCount": "共 {{total}} 处，尚有 {{unresolved}} 处未解决"
+    },
+    "labels": {
+      "base": "基线",
+      "local": "本地",
+      "remote": "远程",
+      "changedFields": "变更字段",
+      "graph": "节点图版本差异",
+      "conflicts": "冲突列表",
+      "resolved": "已解决",
+      "changedArtifacts": "变更资源",
+      "conflict": "处冲突",
+      "hunk": "个区块",
+      "hunks": "个区块",
+      "unresolved": "处未解决",
+      "noLines": "此版本没有对应内容",
+      "noTextChanges": "没有需要审阅的文本变更。",
+      "field": "字段",
+      "noFieldDetails": "没有字段级差异。",
+      "invalidGraphPresentation": "节点图差异数据无效。",
+      "edgeConflicts": "连线冲突"
+    },
+    "kinds": {
+      "value": "值冲突",
+      "concurrent-add": "并发新增",
+      "delete-modify": "删除 / 修改冲突",
+      "structural": "结构冲突",
+      "text": "文本冲突"
+    }
+  },
   "modals": {
     "close": "关闭",
     "actions": {

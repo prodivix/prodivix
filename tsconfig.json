@@ -20,6 +20,9 @@
       "path": "./packages/workspace"
     },
     {
+      "path": "./packages/workspace-sync"
+    },
+    {
       "path": "./packages/ai"
     },
     {

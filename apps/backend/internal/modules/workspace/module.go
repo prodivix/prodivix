@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 
@@ -40,25 +41,39 @@ func (module *Module) BootstrapProjectWorkspace(ctx context.Context, project *ba
 	if workspaceID == "" {
 		return errors.New("project id is required to bootstrap workspace")
 	}
-	if _, err := module.store.CreateWorkspace(ctx, CreateWorkspaceParams{
+	_, err := module.store.ImportWorkspaceSnapshot(ctx, ImportWorkspaceSnapshotParams{
 		WorkspaceID: workspaceID,
 		ProjectID:   project.ID,
 		OwnerID:     project.OwnerID,
 		Name:        project.Name,
-		TreeRootID:  "root",
 		Tree:        defaultWorkspaceTreeWithRootDocumentJSON("root"),
-	}); err != nil && !isUniqueViolation(err) {
+		Documents: []WorkspaceImportDocumentRecord{
+			{
+				ID:      "doc_root",
+				Type:    WorkspaceDocumentTypePIRPage,
+				Path:    "/pir.json",
+				Content: project.PIR,
+			},
+		},
+	})
+	if err == nil {
+		return nil
+	}
+	if !isUniqueViolation(err) {
 		return err
 	}
-	if _, err := module.store.CreateDocument(ctx, CreateWorkspaceDocumentParams{
-		WorkspaceID: workspaceID,
-		DocumentID:  "doc_root",
-		Type:        WorkspaceDocumentTypePIRPage,
-		Name:        "Root",
-		Path:        "/pir.json",
-		Content:     project.PIR,
-	}); err != nil && !isUniqueViolation(err) {
-		return err
+
+	replayed, replayErr := module.store.GetSnapshotForOwner(ctx, project.OwnerID, workspaceID)
+	if replayErr != nil {
+		return fmt.Errorf("workspace bootstrap collision could not be verified: %v: %w", replayErr, err)
+	}
+	expectedProjectID := strings.TrimSpace(project.ID)
+	expectedOwnerID := strings.TrimSpace(project.OwnerID)
+	if replayed == nil ||
+		replayed.Workspace.ID != workspaceID ||
+		replayed.Workspace.ProjectID != expectedProjectID ||
+		replayed.Workspace.OwnerID != expectedOwnerID {
+		return fmt.Errorf("workspace bootstrap collision identity does not match project: %w", err)
 	}
 	return nil
 }
@@ -68,7 +83,8 @@ func (module *Module) GetSnapshotForUser(ctx context.Context, userID string, wor
 		return nil, errors.New("workspace module is not initialized")
 	}
 	normalizedWorkspaceID := strings.TrimSpace(workspaceID)
-	snapshot, err := module.store.GetSnapshot(ctx, normalizedWorkspaceID)
+	normalizedUserID := strings.TrimSpace(userID)
+	snapshot, err := module.store.GetSnapshotForOwner(ctx, normalizedUserID, normalizedWorkspaceID)
 	if err == nil {
 		return snapshot, nil
 	}
@@ -78,7 +94,7 @@ func (module *Module) GetSnapshotForUser(ctx context.Context, userID string, wor
 	if module.projects == nil {
 		return nil, err
 	}
-	project, projectErr := module.projects.GetByID(strings.TrimSpace(userID), normalizedWorkspaceID)
+	project, projectErr := module.projects.GetByID(normalizedUserID, normalizedWorkspaceID)
 	if projectErr != nil {
 		if errors.Is(projectErr, backendproject.ErrProjectNotFound) {
 			return nil, ErrWorkspaceNotFound
@@ -88,7 +104,7 @@ func (module *Module) GetSnapshotForUser(ctx context.Context, userID string, wor
 	if bootstrapErr := module.BootstrapProjectWorkspace(ctx, project); bootstrapErr != nil {
 		return nil, bootstrapErr
 	}
-	return module.store.GetSnapshot(ctx, normalizedWorkspaceID)
+	return module.store.GetSnapshotForOwner(ctx, normalizedUserID, normalizedWorkspaceID)
 }
 
 func ResolveCanonicalWorkspacePIR(snapshot *WorkspaceSnapshot) (json.RawMessage, bool) {

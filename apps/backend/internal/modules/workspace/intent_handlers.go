@@ -32,13 +32,8 @@ func (routeManifestUpdateHandler) Handle(
 	_ IntentEnvelope,
 	command WorkspaceCommandEnvelope,
 ) (*WorkspaceMutationResult, *RequestFailure) {
-	if request.ExpectedRouteRev <= 0 {
-		return nil, NewRequestFailure(
-			http.StatusUnprocessableEntity,
-			ErrorInvalidPayload,
-			"expectedRouteRev must be positive for route intents.",
-			nil,
-		)
+	if err := validateRequiredJSONSafeRevision("expectedRouteRev", request.ExpectedRouteRev); err != nil {
+		return nil, MapStoreError(err)
 	}
 	var payload struct {
 		RouteManifest json.RawMessage `json:"routeManifest"`

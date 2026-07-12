@@ -25,7 +25,6 @@ export type WorkspaceSourceFile = {
 
 export type WorkspaceProjectionIssueCode =
   | 'WKS_PROJECTION_INVALID_WORKSPACE'
-  | 'WKS_PROJECTION_CODE_DOCUMENT_INVALID'
   | 'WKS_PROJECTION_FILE_MISSING'
   | 'WKS_PROJECTION_JSON_INVALID'
   | 'WKS_PROJECTION_MANIFEST_INVALID'
@@ -251,26 +250,6 @@ export const projectWorkspaceToProdivixFiles = (
           validationIssues: validation.issues,
         },
       ],
-    };
-  }
-
-  const invalidCodeDocuments = Object.values(snapshot.docsById)
-    .filter(
-      (document) =>
-        document.type === 'code' &&
-        !isWorkspaceCodeDocumentContent(document.content)
-    )
-    .map<WorkspaceProjectionIssue>((document) => ({
-      code: 'WKS_PROJECTION_CODE_DOCUMENT_INVALID',
-      path: document.path,
-      message: 'Code workspace documents must use the code content wrapper.',
-      documentId: document.id,
-    }));
-
-  if (invalidCodeDocuments.length) {
-    return {
-      ok: false,
-      issues: invalidCodeDocuments,
     };
   }
 

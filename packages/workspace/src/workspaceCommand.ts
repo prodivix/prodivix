@@ -142,6 +142,16 @@ export type CreateWorkspaceCodeDocumentCommandInput = {
   label?: string;
 };
 
+export type CreateWorkspaceCodeSourceUpdateCommandInput = {
+  workspaceId: WorkspaceId;
+  document: WorkspaceDocument;
+  source: string;
+  commandId: string;
+  issuedAt: string;
+  mergeKey?: string;
+  label?: string;
+};
+
 export type CreateWorkspaceCodeDocumentIntentInput = {
   workspaceRev: number;
   intentId: string;
@@ -386,6 +396,16 @@ type DocumentPatchDomain = Exclude<
   WorkspaceCommandDomain,
   'workspace' | 'route'
 >;
+const DOCUMENT_PATCH_DOMAINS: readonly DocumentPatchDomain[] = [
+  'pir',
+  'nodegraph',
+  'animation',
+  'code',
+];
+const isDocumentPatchDomain = (
+  domain: WorkspaceCommandDomain
+): domain is DocumentPatchDomain =>
+  DOCUMENT_PATCH_DOMAINS.includes(domain as DocumentPatchDomain);
 type PatchApplyResult =
   { ok: true; value: unknown } | { ok: false; path: string };
 
@@ -398,14 +418,64 @@ const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const isObjectLike = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const decodePointerSegment = (segment: string): string =>
-  segment.replaceAll('~1', '/').replaceAll('~0', '~');
+const decodePointerSegment = (segment: string): string | undefined => {
+  let decoded = '';
+  for (let index = 0; index < segment.length; index += 1) {
+    const character = segment[index]!;
+    if (character !== '~') {
+      decoded += character;
+      continue;
+    }
+    const escaped = segment[index + 1];
+    if (escaped === '0') decoded += '~';
+    else if (escaped === '1') decoded += '/';
+    else return undefined;
+    index += 1;
+  }
+  return decoded;
+};
 
 const parsePointer = (path: string): string[] | undefined => {
   if (path === '') return [];
   if (!path.startsWith('/')) return undefined;
-  return path.slice(1).split('/').map(decodePointerSegment);
+  const segments: string[] = [];
+  for (const segment of path.slice(1).split('/')) {
+    const decoded = decodePointerSegment(segment);
+    if (decoded === undefined) return undefined;
+    segments.push(decoded);
+  }
+  return segments;
 };
+
+const parseArrayIndex = (
+  segment: string,
+  length: number,
+  allowAppend: boolean
+): number | undefined => {
+  if (segment === '-') return allowAppend ? length : undefined;
+  if (!/^(?:0|[1-9]\d*)$/.test(segment)) return undefined;
+  const index = Number(segment);
+  if (!Number.isSafeInteger(index)) return undefined;
+  return allowAppend
+    ? index <= length
+      ? index
+      : undefined
+    : index < length
+      ? index
+      : undefined;
+};
+
+const setOwnJsonProperty = (
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown
+) =>
+  Object.defineProperty(target, key, {
+    value: cloneJson(value),
+    configurable: true,
+    enumerable: true,
+    writable: true,
+  });
 
 const getValueAtPath = (
   source: unknown,
@@ -417,15 +487,15 @@ const getValueAtPath = (
   let current = source;
   for (const segment of segments) {
     if (Array.isArray(current)) {
-      const index = Number(segment);
-      if (!Number.isInteger(index) || index < 0 || index >= current.length) {
-        return { ok: false };
-      }
+      const index = parseArrayIndex(segment, current.length, false);
+      if (index === undefined) return { ok: false };
       current = current[index];
       continue;
     }
 
-    if (!isObjectLike(current) || !(segment in current)) return { ok: false };
+    if (!isObjectLike(current) || !Object.hasOwn(current, segment)) {
+      return { ok: false };
+    }
     current = current[segment];
   }
 
@@ -444,15 +514,15 @@ const resolveParent = (
   let parent = source;
   for (const segment of segments.slice(0, -1)) {
     if (Array.isArray(parent)) {
-      const index = Number(segment);
-      if (!Number.isInteger(index) || index < 0 || index >= parent.length) {
-        return { ok: false };
-      }
+      const index = parseArrayIndex(segment, parent.length, false);
+      if (index === undefined) return { ok: false };
       parent = parent[index];
       continue;
     }
 
-    if (!isObjectLike(parent) || !(segment in parent)) return { ok: false };
+    if (!isObjectLike(parent) || !Object.hasOwn(parent, segment)) {
+      return { ok: false };
+    }
     parent = parent[segment];
   }
 
@@ -475,12 +545,9 @@ const setValue = (
 
   const { parent, key } = resolved;
   if (Array.isArray(parent)) {
-    const index = key === '-' ? parent.length : Number(key);
-    if (!Number.isInteger(index) || index < 0 || index > parent.length) {
-      return false;
-    }
+    const index = parseArrayIndex(key, parent.length, mode === 'add');
+    if (index === undefined) return false;
     if (mode === 'replace') {
-      if (index >= parent.length) return false;
       parent[index] = cloneJson(value);
       return true;
     }
@@ -488,8 +555,8 @@ const setValue = (
     return true;
   }
 
-  if (mode === 'replace' && !(key in parent)) return false;
-  parent[key] = cloneJson(value);
+  if (mode === 'replace' && !Object.hasOwn(parent, key)) return false;
+  setOwnJsonProperty(parent, key, value);
   return true;
 };
 
@@ -499,15 +566,13 @@ const removeValue = (source: unknown, path: string): boolean => {
 
   const { parent, key } = resolved;
   if (Array.isArray(parent)) {
-    const index = Number(key);
-    if (!Number.isInteger(index) || index < 0 || index >= parent.length) {
-      return false;
-    }
+    const index = parseArrayIndex(key, parent.length, false);
+    if (index === undefined) return false;
     parent.splice(index, 1);
     return true;
   }
 
-  if (!(key in parent)) return false;
+  if (!Object.hasOwn(parent, key)) return false;
   delete parent[key];
   return true;
 };
@@ -588,7 +653,7 @@ const getWorkspaceNodePath = (
   return pathsByNodeId.get(nodeId) ?? null;
 };
 
-const inferCommandDomain = (
+export const resolveWorkspaceCommandDomain = (
   command: WorkspaceCommandEnvelope
 ): WorkspaceCommandDomain => {
   if (command.domainHint) return command.domainHint;
@@ -686,7 +751,6 @@ const isAllowedWorkspacePath = (path: string): boolean =>
   path.startsWith('/settings/') ||
   path === '/treeById' ||
   path.startsWith('/treeById/') ||
-  path === '/docsById' ||
   path.startsWith('/docsById/') ||
   path === '/routeManifest' ||
   path.startsWith('/routeManifest/');
@@ -737,6 +801,12 @@ const applyPatchOperations = (
   const value = cloneJson(source);
 
   for (const op of ops) {
+    if (
+      (op.op === 'add' || op.op === 'replace' || op.op === 'test') &&
+      (!Object.hasOwn(op, 'value') || op.value === undefined)
+    ) {
+      return { ok: false, path: op.path };
+    }
     if (op.op === 'add') {
       if (!setValue(value, op.path, op.value, 'add')) {
         return { ok: false, path: op.path };
@@ -811,6 +881,18 @@ const validateEnvelope = (
       code: 'WKS_COMMAND_INVALID_ENVELOPE',
       path: '/forwardOps',
       message: 'Mutating commands must provide forwardOps and reverseOps.',
+    });
+  }
+
+  if (
+    command.target?.documentId &&
+    !isDocumentPatchDomain(resolveWorkspaceCommandDomain(command))
+  ) {
+    issues.push({
+      code: 'WKS_COMMAND_INVALID_ENVELOPE',
+      path: '/domainHint',
+      message: 'Document-targeted commands must use a document command domain.',
+      documentId: command.target.documentId,
     });
   }
 
@@ -890,6 +972,39 @@ export const createWorkspaceCodeDocumentCommand = ({
       },
       { op: 'remove', path: `/treeById/${nodeId}` },
       { op: 'remove', path: `/docsById/${documentId}` },
+    ],
+  };
+};
+
+export const createWorkspaceCodeSourceUpdateCommand = ({
+  workspaceId,
+  document,
+  source,
+  commandId,
+  issuedAt,
+  mergeKey = `code-source:${document.id}`,
+  label = `Update ${document.path}`,
+}: CreateWorkspaceCodeSourceUpdateCommandInput): WorkspaceCommandEnvelope | null => {
+  if (
+    document.type !== 'code' ||
+    !isWorkspaceCodeDocumentContent(document.content) ||
+    document.content.source === source
+  ) {
+    return null;
+  }
+  return {
+    id: commandId,
+    namespace: 'core.code',
+    type: 'source.update',
+    version: '1.0',
+    issuedAt,
+    target: { workspaceId, documentId: document.id },
+    domainHint: 'code',
+    mergeKey,
+    label,
+    forwardOps: [{ op: 'replace', path: '/source', value: source }],
+    reverseOps: [
+      { op: 'replace', path: '/source', value: document.content.source },
     ],
   };
 };
@@ -1290,7 +1405,7 @@ const applyWorkspaceCommandInternal = (
   const patchTarget: PatchTarget = command.target.documentId
     ? 'document'
     : 'workspace';
-  const commandDomain = inferCommandDomain(command);
+  const commandDomain = resolveWorkspaceCommandDomain(command);
 
   if (patchTarget === 'document') {
     const documentId = command.target.documentId;

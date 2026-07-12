@@ -466,7 +466,7 @@ Workspace path：
 ```txt
 /treeById
 /treeRootId
-/docsById
+/docsById/<documentId>
 /activeDocumentId
 ```
 
@@ -476,6 +476,8 @@ Route path：
 /routeManifest
 /activeRouteNodeId
 ```
+
+`/docsById` 根整体替换禁止进入远端 Atomic Commit；Document create/delete 与 metadata 变更必须使用 granular identity/field path。`activeDocumentId` 与 `activeRouteNodeId` 是本地 selection path，不属于远端持久 write set。
 
 PIR document path：
 

@@ -46,7 +46,7 @@ type SettingsStore = {
 const getInitialLanguage = (): 'en' | 'zh-CN' => {
   // Check localStorage first (i18next stores language here)
   if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('i18nextLng');
+    const stored = window.localStorage?.getItem('i18nextLng');
     if (stored === 'en' || stored === 'zh-CN') {
       return stored;
     }

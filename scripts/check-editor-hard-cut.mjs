@@ -55,6 +55,15 @@ const forbiddenPatterns = [
       /export\s+type\s+(?:WorkspaceSnapshot|WorkspaceDocumentRecord|WorkspaceDocumentType)\b/,
     reason: 'Web-owned duplicate Workspace contract',
   },
+  {
+    pattern:
+      /export\s+type\s+(?:WorkspaceOperation|WorkspaceHistoryEntry|WorkspaceHistoryScope|WorkspaceHistoryState)\b/,
+    reason: 'Web-owned duplicate Workspace History contract',
+  },
+  {
+    pattern: /\bcreateMountedCssNodeId\b/,
+    reason: 'retired Web-owned Workspace VFS node id helper',
+  },
 ];
 
 const issues = [];

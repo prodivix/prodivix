@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -97,10 +98,114 @@ func normalizeRouteManifestDocument(payload json.RawMessage) (json.RawMessage, e
 	return manifestJSON, nil
 }
 
+// validateWorkspaceRouteDocumentReferences validates the cross-document roles
+// that the RouteManifest wire schema cannot express on its own.
+func validateWorkspaceRouteDocumentReferences(
+	manifestJSON json.RawMessage,
+	documents map[string]WorkspaceDocumentRecord,
+) error {
+	if err := validateRouteManifestJSON(manifestJSON); err != nil {
+		return err
+	}
+	var manifest routeManifestDocument
+	if err := json.Unmarshal(manifestJSON, &manifest); err != nil {
+		return err
+	}
+	validateDocument := func(
+		routeNodeID string,
+		path string,
+		documentID string,
+		allowed ...WorkspaceDocumentType,
+	) error {
+		if documentID == "" {
+			return nil
+		}
+		document, exists := documents[documentID]
+		if !exists {
+			return &RouteManifestValidationError{Issues: []RouteManifestValidationIssue{
+				routeManifestIssue(
+					"RTE-5007",
+					routeNodeID,
+					path,
+					fmt.Sprintf("Route references missing workspace document %s.", documentID),
+					"",
+				),
+			}}
+		}
+		for _, documentType := range allowed {
+			if document.Type == documentType {
+				return nil
+			}
+		}
+		return &RouteManifestValidationError{Issues: []RouteManifestValidationIssue{
+			routeManifestIssue(
+				"RTE-5008",
+				routeNodeID,
+				path,
+				fmt.Sprintf("Route document %s has incompatible type %s.", documentID, document.Type),
+				"",
+			),
+		}}
+	}
+	var validateNode func(*routeManifestNode, string) error
+	validateNode = func(node *routeManifestNode, path string) error {
+		if node == nil {
+			return nil
+		}
+		if err := validateDocument(node.ID, path+"/layoutDocId", node.LayoutDocID, WorkspaceDocumentTypePIRLayout); err != nil {
+			return err
+		}
+		if err := validateDocument(node.ID, path+"/pageDocId", node.PageDocID, WorkspaceDocumentTypePIRPage, WorkspaceDocumentTypePIRComponent); err != nil {
+			return err
+		}
+		outletNames := make([]string, 0, len(node.OutletBindings))
+		for outletName := range node.OutletBindings {
+			outletNames = append(outletNames, outletName)
+		}
+		sort.Strings(outletNames)
+		for _, outletName := range outletNames {
+			binding := node.OutletBindings[outletName]
+			if err := validateDocument(
+				node.ID,
+				path+"/outletBindings/"+escapeJSONPointerToken(outletName)+"/pageDocId",
+				binding.PageDocID,
+				WorkspaceDocumentTypePIRPage,
+				WorkspaceDocumentTypePIRComponent,
+			); err != nil {
+				return err
+			}
+		}
+		for index := range node.Children {
+			if err := validateNode(&node.Children[index], fmt.Sprintf("%s/children/%d", path, index)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := validateNode(manifest.Root, "/root"); err != nil {
+		return err
+	}
+	moduleIDs := make([]string, 0, len(manifest.Modules))
+	for moduleID := range manifest.Modules {
+		moduleIDs = append(moduleIDs, moduleID)
+	}
+	sort.Strings(moduleIDs)
+	for _, moduleID := range moduleIDs {
+		module := manifest.Modules[moduleID]
+		if err := validateNode(module.Root, "/modules/"+escapeJSONPointerToken(moduleID)+"/root"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func validateRouteManifestJSON(payload json.RawMessage) error {
+	if err := validateRouteManifestWireSchema(payload); err != nil {
+		return err
+	}
 	var manifest routeManifestDocument
 	if err := json.Unmarshal(payload, &manifest); err != nil {
-		return err
+		return routeManifestWireError("/", "Route manifest does not match the canonical wire schema.")
 	}
 	issues := validateRouteManifestDocument(manifest)
 	if len(issues) > 0 {
@@ -109,34 +214,48 @@ func validateRouteManifestJSON(payload json.RawMessage) error {
 	return nil
 }
 
+// validateRouteManifestDocument applies graph-wide route invariants after the
+// closed wire schema has been validated.
 func validateRouteManifestDocument(manifest routeManifestDocument) []RouteManifestValidationIssue {
 	var issues []RouteManifestValidationIssue
-	if strings.TrimSpace(manifest.Version) == "" {
+	if manifest.Version == "" {
 		issues = append(issues, routeManifestIssue("RTE-0001", "", "/version", "Route manifest version is required.", ""))
 	}
 	if manifest.Root == nil {
 		issues = append(issues, routeManifestIssue("RTE-0002", "", "/root", "Route manifest root is required.", ""))
 		return issues
 	}
-	if strings.TrimSpace(manifest.Root.ID) != "root" {
-		issues = append(issues, routeManifestIssue("RTE-0003", strings.TrimSpace(manifest.Root.ID), "/root/id", "Route manifest root id must be root.", ""))
+	if manifest.Root.ID != "root" {
+		issues = append(issues, routeManifestIssue("RTE-0003", manifest.Root.ID, "/root/id", "Route manifest root id must be root.", ""))
 	}
 
 	routeIDs := map[string]string{}
 	walkRouteManifestNode(manifest.Root, "/root", routeIDs, &issues)
 
 	moduleIDs := map[string]struct{}{}
-	for key, module := range manifest.Modules {
+	moduleKeys := make([]string, 0, len(manifest.Modules))
+	for key := range manifest.Modules {
+		moduleKeys = append(moduleKeys, key)
+	}
+	sort.Strings(moduleKeys)
+	for _, key := range moduleKeys {
+		module := manifest.Modules[key]
 		modulePath := "/modules/" + key
-		moduleID := strings.TrimSpace(module.ModuleID)
+		moduleID := module.ModuleID
 		if moduleID == "" {
 			issues = append(issues, routeManifestIssue("RTE-5002", "", modulePath+"/moduleId", "Route module moduleId is required.", ""))
+		}
+		if moduleID != "" && moduleID != key {
+			issues = append(issues, routeManifestIssue("RTE-5002", "", modulePath+"/moduleId", "Route module key must match moduleId.", ""))
 		}
 		if _, exists := moduleIDs[moduleID]; moduleID != "" && exists {
 			issues = append(issues, routeManifestIssue("RTE-5002", "", modulePath+"/moduleId", "Route module moduleId must be unique.", ""))
 		}
 		if moduleID != "" {
 			moduleIDs[moduleID] = struct{}{}
+		}
+		if module.Version == "" {
+			issues = append(issues, routeManifestIssue("RTE-5002", "", modulePath+"/version", "Route module version is required.", ""))
 		}
 		if module.Root == nil {
 			issues = append(issues, routeManifestIssue("RTE-5003", "", modulePath+"/root", "Route module root is required.", ""))
@@ -148,7 +267,7 @@ func validateRouteManifestDocument(manifest routeManifestDocument) []RouteManife
 	mountIDs := map[string]struct{}{}
 	for index, mount := range manifest.Mounts {
 		mountPath := fmt.Sprintf("/mounts/%d", index)
-		mountID := strings.TrimSpace(mount.MountID)
+		mountID := mount.MountID
 		if mountID == "" {
 			issues = append(issues, routeManifestIssue("RTE-5004", "", mountPath+"/mountId", "Route module mountId is required.", ""))
 		}
@@ -158,10 +277,10 @@ func validateRouteManifestDocument(manifest routeManifestDocument) []RouteManife
 		if mountID != "" {
 			mountIDs[mountID] = struct{}{}
 		}
-		if _, exists := manifest.Modules[strings.TrimSpace(mount.ModuleRef)]; strings.TrimSpace(mount.ModuleRef) == "" || !exists {
+		if _, exists := manifest.Modules[mount.ModuleRef]; mount.ModuleRef == "" || !exists {
 			issues = append(issues, routeManifestIssue("RTE-5005", "", mountPath+"/moduleRef", "Route module mount references a missing module.", ""))
 		}
-		parentRouteNodeID := strings.TrimSpace(mount.ParentRouteNodeID)
+		parentRouteNodeID := mount.ParentRouteNodeID
 		if parentRouteNodeID != "" {
 			if _, exists := routeIDs[parentRouteNodeID]; !exists {
 				issues = append(issues, routeManifestIssue("RTE-5006", parentRouteNodeID, mountPath+"/parentRouteNodeId", "Route module mount parentRouteNodeId is missing.", ""))
@@ -183,7 +302,7 @@ func walkRouteManifestNode(
 	routeIDs map[string]string,
 	issues *[]RouteManifestValidationIssue,
 ) {
-	routeNodeID := strings.TrimSpace(node.ID)
+	routeNodeID := node.ID
 	if routeNodeID == "" {
 		*issues = append(*issues, routeManifestIssue("RTE-0004", "", path+"/id", "Route node id is required.", ""))
 	} else if previousPath, exists := routeIDs[routeNodeID]; exists {
@@ -212,9 +331,9 @@ func walkRouteManifestNode(
 			if key == "__index__" {
 				message = "Route " + routeNodeID + " cannot have multiple index children."
 			}
-			*issues = append(*issues, routeManifestIssue("RTE-1001", strings.TrimSpace(child.ID), childPath, message+" Previous route: "+previousRouteID+".", ""))
+			*issues = append(*issues, routeManifestIssue("RTE-1001", child.ID, childPath, message+" Previous route: "+previousRouteID+".", ""))
 		} else {
-			siblingKeys[key] = strings.TrimSpace(child.ID)
+			siblingKeys[key] = child.ID
 		}
 		walkRouteManifestNode(child, childPath, routeIDs, issues)
 	}

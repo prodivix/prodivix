@@ -32,8 +32,8 @@ func (store *WorkspaceStore) RenameWorkspaceDocument(ctx context.Context, params
 	if params.WorkspaceID == "" || params.DocumentID == "" {
 		return nil, errors.New("workspaceID and documentID are required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
 	}
 	documentPath, err := normalizeWorkspacePath(params.Path)
 	if err != nil {
@@ -80,18 +80,22 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictWorkspace,
-			WorkspaceID:        params.WorkspaceID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newWorkspaceRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
 
-	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at
+	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at
 FROM workspace_documents
 WHERE workspace_id = $1
 ORDER BY path ASC`
@@ -135,6 +139,10 @@ ORDER BY path ASC`
 		_ = tx.Rollback()
 		return nil, ErrInvalidWorkspaceDocumentType
 	}
+	if err := validateRevisionCanAdvance("metaRev", currentDocument.MetaRev); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 
 	tree, err := parseWorkspaceVFSTree(treeBytes, treeRootID, existingDocuments)
 	if err != nil {
@@ -154,7 +162,7 @@ ORDER BY path ASC`
 	const updateDocument = `UPDATE workspace_documents
 SET name = $3, path = $4, meta_rev = meta_rev + 1, updated_at = NOW()
 WHERE workspace_id = $1 AND id = $2
-RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at`
+RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at`
 	updatedDocument, err := scanWorkspaceDocument(tx.QueryRowContext(ctx, updateDocument, params.WorkspaceID, params.DocumentID, workspacePathName(documentPath), documentPath))
 	if err != nil {
 		_ = tx.Rollback()
@@ -214,8 +222,8 @@ func (store *WorkspaceStore) DeleteWorkspaceDocument(ctx context.Context, params
 	if params.WorkspaceID == "" || params.DocumentID == "" {
 		return nil, errors.New("workspaceID and documentID are required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
 	}
 	command, err := normalizeWorkspaceCommand(params.Command)
 	if err != nil {
@@ -258,18 +266,22 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictWorkspace,
-			WorkspaceID:        params.WorkspaceID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newWorkspaceRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
 
-	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at
+	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at
 FROM workspace_documents
 WHERE workspace_id = $1
 ORDER BY path ASC`
@@ -308,6 +320,24 @@ ORDER BY path ASC`
 	if currentDocument.Type != params.Type {
 		_ = tx.Rollback()
 		return nil, ErrInvalidWorkspaceDocumentType
+	}
+	if err := validateWorkspaceDocumentRetention(len(existingDocuments), 1); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	finalDocumentsByID, err := indexWorkspaceDocumentsAfterRemoval(existingDocuments, []string{params.DocumentID})
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	manifestJSON, err := queryWorkspaceRouteManifestForValidation(ctx, tx, params.WorkspaceID)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := validateWorkspaceRouteDocumentReferences(manifestJSON, finalDocumentsByID); err != nil {
+		_ = tx.Rollback()
+		return nil, err
 	}
 
 	tree, err := parseWorkspaceVFSTree(treeBytes, treeRootID, existingDocuments)

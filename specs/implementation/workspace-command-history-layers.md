@@ -2,15 +2,16 @@
 
 ## 状态
 
-- Draft
+- In Progress
 - 日期：2026-05-10
+- 最近更新：2026-07-12
 - 适用范围：
-  - `apps/web/src/workspace`
+  - `packages/workspace`
   - `apps/web/src/editor/store`
-  - `apps/web/src/editor/features/design/blueprint`
-  - `apps/web/src/editor/features/nodegraph`
+  - `apps/web/src/editor/features/blueprint`
+  - `apps/web/src/editor/features/development/reactflow`
   - `apps/web/src/editor/features/animation`
-  - `apps/web/src/editor/features/code`
+  - `apps/web/src/editor/features/resources`
   - `apps/backend/internal/modules/workspace`
 - 关联：
   - `specs/implementation/stable-workspace-command-diff-architecture.md`
@@ -71,22 +72,28 @@ Command Apply Layer
 
 底层不得依赖上层 UI。上层可以调用下层，但不能绕过 Command Apply 直接改保存态。
 
-当前已经开始实现：
+当前已经实现：
 
 1. Workspace VFS validator。
 2. `.prodivix/**` projection round-trip。
 3. Workspace selectors。
-4. `applyWorkspaceCommand` 的最小模型层。
+4. Command / Transaction 原子 Apply Layer。
+5. Operation-aware History Scope Layer。
+6. scope barrier、merge window、redo branch 与 history limit。
+7. Store 原子接线和 Blueprint / NodeGraph / Animation / Code Resource 快捷键。
+8. ACK-first CodeDocument bridge 与 editSeq-aware ACK 内容保护。
+9. 前后端一致的 canonical VFS path node id 生成规则。
+10. `@prodivix/workspace-sync` semantic diff3、conflict session 与 fresh resolution operation。
+11. Document bounded automatic rebase 与 Code/NodeGraph revision conflict 产品面。
+12. Exact Atomic Commit planner、tree/route/document/mixed Web transport 与后端单事务/强幂等 Commit；旧 `/batch` dependency 已删除。
 
 尚未实现：
 
-1. History scope。
-2. Transaction。
-3. Domain command helpers。
-4. NodeGraph/Animation/Code 专用 validators。
-5. Conflict/revision/outbox。
-6. Prodivix diff。
-7. Editor shortcut binding。
+1. Intent-only Resource CRUD 的本地 Domain Command planners。
+2. Durable outbox、完整 ACK causality 与 session 持久恢复。
+3. Git ref bridge 及 Workspace/Route/Animation 专用 diff 产品面。
+4. Code Text History 与 Workspace checkpoint 的正式桥接。
+5. Mounted CSS create + PIR binding 规划并接入单一 WorkspaceTransaction Commit。
 
 ## 3. Layer 1：Command Apply Layer
 
@@ -231,9 +238,12 @@ type HistoryScope =
 ```ts
 type HistoryEntry = {
   id: string;
-  command: CommandEnvelope;
+  operation:
+    | { kind: 'command'; command: CommandEnvelope }
+    | { kind: 'transaction'; transaction: CommandTransaction };
   scope: HistoryScope;
-  transactionId?: string;
+  affectedScopes: HistoryScope[];
+  isBarrier: boolean;
   appliedAt: string;
 };
 ```
@@ -299,11 +309,13 @@ type CommandTransaction = {
   id: string;
   label: string;
   issuedAt: string;
-  scope: HistoryScope;
+  workspaceId: string;
   commands: CommandEnvelope[];
   mergeKey?: string;
 };
 ```
+
+Transaction scope 从内部 Commands 推导；只有全部 Commands 属于同一个窄 scope 时保留该 scope，否则归入 workspace scope 并成为 barrier。
 
 ### 5.3 执行规则
 
@@ -995,17 +1007,19 @@ Code editor 需要保留文本编辑器内部的自然编辑体验，但 committ
 交付：
 
 ```txt
-apps/web/src/workspace/workspaceHistory.ts
+packages/workspace/src/workspaceOperation.ts
+packages/workspace/src/workspaceHistoryReplay.ts
+packages/workspace/src/workspaceHistory.ts
 ```
 
 能力：
 
-1. `createHistoryState()`
-2. `pushHistoryEntry(command | transaction)`
-3. `undo(scope)`
-4. `redo(scope)`
-5. `selectUndoAvailability(scope)`
-6. `selectRedoAvailability(scope)`
+1. `createWorkspaceHistoryState()`
+2. `recordWorkspaceOperation(operation)`
+3. `undoWorkspaceHistory(scope | scopes)`
+4. `redoWorkspaceHistory(scope | scopes)`
+5. `selectUndoWorkspaceHistoryEntry(scopes)`
+6. `selectRedoWorkspaceHistoryEntry(scopes)`
 
 验收：
 
@@ -1018,7 +1032,7 @@ apps/web/src/workspace/workspaceHistory.ts
 交付：
 
 ```txt
-apps/web/src/workspace/workspaceTransaction.ts
+packages/workspace/src/workspaceCommand.ts
 ```
 
 能力：
@@ -1038,12 +1052,12 @@ apps/web/src/workspace/workspaceTransaction.ts
 交付：
 
 ```txt
-apps/web/src/workspace/commands/pirCommands.ts
-apps/web/src/workspace/commands/workspaceCommands.ts
-apps/web/src/workspace/commands/routeCommands.ts
-apps/web/src/workspace/commands/nodeGraphCommands.ts
-apps/web/src/workspace/commands/animationCommands.ts
-apps/web/src/workspace/commands/codeCommands.ts
+packages/workspace/src/commands/pirCommands.ts
+packages/workspace/src/commands/workspaceCommands.ts
+packages/workspace/src/commands/routeCommands.ts
+packages/workspace/src/commands/nodeGraphCommands.ts
+packages/workspace/src/commands/animationCommands.ts
+packages/workspace/src/commands/codeCommands.ts
 ```
 
 验收：
@@ -1057,11 +1071,11 @@ apps/web/src/workspace/commands/codeCommands.ts
 交付：
 
 ```txt
-apps/web/src/workspace/validators/routeValidator.ts
-apps/web/src/workspace/validators/pirValidator.ts
-apps/web/src/workspace/validators/nodeGraphValidator.ts
-apps/web/src/workspace/validators/animationValidator.ts
-apps/web/src/workspace/validators/codeValidator.ts
+packages/workspace/src/validators/routeValidator.ts
+packages/workspace/src/validators/pirValidator.ts
+packages/workspace/src/validators/nodeGraphValidator.ts
+packages/workspace/src/validators/animationValidator.ts
+packages/workspace/src/validators/codeValidator.ts
 ```
 
 验收：
@@ -1069,27 +1083,36 @@ apps/web/src/workspace/validators/codeValidator.ts
 1. command apply 后按 domain 调对应 validator。
 2. NodeGraph/Animation/Code 不借用 PIR validator。
 
-### Phase E：Revision + Outbox
+### Phase E：Revision + Atomic Commit + Outbox
 
 交付：
 
 ```txt
-apps/web/src/workspace/workspaceRevisions.ts
-apps/web/src/workspace/workspaceOutbox.ts
+packages/workspace-sync/src/workspaceRevisions.ts
+packages/workspace-sync/src/workspaceOutbox.ts
+packages/workspace-sync/src/workspaceRevisionConflict.ts
+packages/workspace-sync/src/workspaceSemanticDiff.ts
+packages/workspace-sync/src/workspaceThreeWay.ts
+packages/workspace-sync/src/workspaceConflictSession.ts
+packages/workspace-sync/src/workspaceResolutionOperation.ts
+packages/workspace-sync/src/workspaceOperationCommit.ts
 ```
 
-验收：
+当前进展：
 
-1. 本地 command 可离线排队。
-2. ack 后更新 rev。
-3. conflict 后进入结构化状态。
+1. [ ] 本地 command 可 durable 离线排队。
+2. [x] Document ack 后更新 confirmed revisions。
+3. [x] 409 后进入结构化 semantic rebase 或 conflict session。
+4. [x] Resolution 相对最新 remote 生成新 Operation，不重放旧 reverse ops。
+5. [x] Core 从 Operation 写集推导 exact commit revisions，Web 统一 tree/route/document/mixed `/operations/commit` transport。
+6. [x] 后端在单数据库事务完成全部 CAS/Apply/revision/log/idempotency。
 
 ### Phase F：Git Projection + Prodivix Diff
 
 交付：
 
 ```txt
-apps/web/src/workspace/readWorkspaceAtRef.ts
+packages/workspace/src/git/readWorkspaceAtRef.ts
 apps/web/src/Prodivix-diff/*
 ```
 
@@ -1142,18 +1165,30 @@ Code editor undo binding
 
 已实现：
 
-1. `apps/web/src/workspace/validateWorkspaceVfs.ts`
-2. `apps/web/src/workspace/workspaceProjection.ts`
-3. `apps/web/src/workspace/workspaceSelectors.ts`
-4. `apps/web/src/workspace/workspaceCommand.ts`
-
-这些是底座，不代表完整撤销重做已经完成。
+1. `packages/workspace/src/validateWorkspaceVfs.ts`
+2. `packages/workspace/src/workspaceProjection.ts`
+3. `packages/workspace/src/workspaceSelectors.ts`
+4. `packages/workspace/src/workspaceCommand.ts`
+5. `packages/workspace/src/workspaceOperation.ts`
+6. `packages/workspace/src/workspaceHistoryReplay.ts`
+7. `packages/workspace/src/workspaceHistory.ts`
+8. `apps/web/src/editor/store/editorStore.workspaceSlice.ts`
+9. `apps/web/src/editor/shortcuts/useWorkspaceHistoryShortcuts.ts`
+10. `packages/workspace-sync/src/workspaceThreeWay.ts`
+11. `packages/workspace-sync/src/workspaceConflictSession.ts`
+12. `packages/workspace-sync/src/workspaceResolutionOperation.ts`
+13. `packages/workspace-sync/src/workspaceOperationCommit.ts`
+14. `apps/web/src/editor/workspaceSync/workspaceDocumentMutationExecutor.ts`
+15. `apps/web/src/editor/workspaceSync/workspaceConflictResolutionExecutor.ts`
+16. `apps/web/src/editor/features/revisionConflict/WorkspaceRevisionConflictSurface.tsx`
 
 未实现但下一步优先：
 
-1. `workspaceHistory.ts`
-2. `workspaceTransaction.ts`
-3. `commands/*`
+1. Resource CRUD 与其他 Intent-only 写入的本地 `commands/*` planners。
+2. `workspaceOutbox.ts`、durable persistence 与完整 ACK causality。
+3. Code text checkpoint bridge。
+4. Git revision adapter 与其余领域 diff 产品面。
+5. mounted CSS create/bind 迁入单一 WorkspaceTransaction + Atomic Commit。
 
 ## 17. 完成定义
 

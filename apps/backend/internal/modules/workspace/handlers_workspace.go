@@ -48,14 +48,17 @@ func (handler *Handler) HandlePatchWorkspaceDocument(c *gin.Context) {
 		backendresponse.Error(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
 		return
 	}
+	if !handler.requireWorkspaceOwner(c, user.ID, workspaceID) {
+		return
+	}
 	var request PatchDocumentRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		failure := NewRequestFailure(http.StatusBadRequest, ErrorInvalidPayload, "Invalid request payload.", nil)
 		c.JSON(failure.Status, failure.Payload)
 		return
 	}
-	if request.ExpectedContentRev <= 0 {
-		failure := NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, "expectedContentRev must be positive.", nil)
+	if err := validateRequiredJSONSafeRevision("expectedContentRev", request.ExpectedContentRev); err != nil {
+		failure := MapStoreError(err)
 		c.JSON(failure.Status, failure.Payload)
 		return
 	}
@@ -75,6 +78,9 @@ func (handler *Handler) HandleApplyWorkspaceIntent(c *gin.Context) {
 	user, ok := backendauth.GetAuthUser[backendauth.User](c)
 	if !ok {
 		backendresponse.Error(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
+		return
+	}
+	if !handler.requireWorkspaceOwner(c, user.ID, workspaceID) {
 		return
 	}
 	var request ApplyIntentHTTPrequest

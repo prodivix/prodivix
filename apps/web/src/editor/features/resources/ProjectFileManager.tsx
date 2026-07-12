@@ -523,6 +523,7 @@ export function ProjectFileManager({
               />
 
               <CodeMirror
+                data-editor-native-history="true"
                 value={editorValue}
                 onChange={handleEditorChange}
                 extensions={[

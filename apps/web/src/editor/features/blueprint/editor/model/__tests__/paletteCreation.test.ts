@@ -13,8 +13,9 @@ import type { ComponentPreviewItem } from '@/editor/features/blueprint/editor/mo
 import { applyPaletteItemInsertion } from '@/editor/features/blueprint/editor/model/paletteCreation';
 import {
   applyWorkspaceCommand,
+  createWorkspaceCommandOperation,
   createWorkspaceHistoryState,
-  pushWorkspaceHistoryEntry,
+  recordWorkspaceOperation,
   redoWorkspaceHistory,
   undoWorkspaceHistory,
   type WorkspaceSnapshot,
@@ -77,7 +78,7 @@ const createWorkspace = (document: PIRDocument): WorkspaceSnapshot => ({
   },
   routeManifest: {
     version: '1',
-    root: { id: 'route-root' },
+    root: { id: 'root' },
   },
 });
 
@@ -246,9 +247,10 @@ describe('Palette fragment creation', () => {
       documentId: 'document-fixture',
       domain: 'pir',
     };
-    const history = pushWorkspaceHistoryEntry(createWorkspaceHistoryState(), {
-      command: result.command,
-    });
+    const history = recordWorkspaceOperation(
+      createWorkspaceHistoryState(),
+      createWorkspaceCommandOperation(result.command)
+    );
     const undone = undoWorkspaceHistory(applied.snapshot, history, scope);
     expect(undone.ok).toBe(true);
     if (!undone.ok) return;

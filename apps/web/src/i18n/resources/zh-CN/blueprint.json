@@ -20,6 +20,7 @@
       "manualPending": "有未保存修改。点击保存状态图标或按 Ctrl+S 保存。",
       "idle": "就绪",
       "localSaved": "已保存到本地 Workspace。",
+      "revisionConflict": "该文档已被远程修改，请处理版本冲突。",
       "readonlyCache": "同步缓存为只读。请另存本地副本后再编辑。"
     },
     "messages": {

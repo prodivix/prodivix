@@ -23,22 +23,233 @@ const (
 	WorkspaceConflictRoute     WorkspaceConflictType = "ROUTE_CONFLICT"
 )
 
+// WorkspaceRevisionConflictError mirrors the canonical 409 details contract.
+// Store branches must construct it through the partition-specific helpers below.
 type WorkspaceRevisionConflictError struct {
-	ConflictType       WorkspaceConflictType
-	WorkspaceID        string
-	DocumentID         string
-	ServerWorkspaceRev int64
-	ServerRouteRev     int64
-	ServerContentRev   int64
-	ServerMetaRev      int64
-	ServerOpSeq        int64
+	ConflictType WorkspaceConflictType
+	WorkspaceID  string
+	Expected     WorkspaceConflictExpectedRevisions
+	Current      WorkspaceConflictCurrentRevisions
+}
+
+type WorkspaceConflictExpectedRevisions struct {
+	WorkspaceRev int64
+	RouteRev     int64
+	Document     *WorkspaceConflictExpectedDocumentRevision
+}
+
+type WorkspaceConflictExpectedDocumentRevision struct {
+	ID              string
+	ContentRev      int64
+	MetaRev         int64
+	ContentRevKnown bool
+	MetaRevKnown    bool
+}
+
+type WorkspaceConflictCurrentRevisions struct {
+	WorkspaceRev  int64
+	RouteRev      int64
+	OpSeq         int64
+	Document      *WorkspaceConflictDocumentMetadata
+	DocumentKnown bool
+}
+
+// WorkspaceConflictDocumentMetadata is the minimum document state needed to
+// rebase a stale mutation. Content is intentionally excluded; callers fetch an
+// authorized workspace snapshot before attempting a semantic merge.
+type WorkspaceConflictDocumentMetadata struct {
+	ID         string
+	Type       WorkspaceDocumentType
+	Path       string
+	ContentRev int64
+	MetaRev    int64
+	UpdatedAt  time.Time
 }
 
 func (err *WorkspaceRevisionConflictError) Error() string {
 	if err == nil {
 		return "workspace revision conflict"
 	}
-	return fmt.Sprintf("workspace revision conflict: type=%s workspace=%s document=%s", err.ConflictType, err.WorkspaceID, err.DocumentID)
+	documentID := ""
+	if err.Expected.Document != nil {
+		documentID = err.Expected.Document.ID
+	}
+	return fmt.Sprintf("workspace revision conflict: type=%s workspace=%s document=%s", err.ConflictType, err.WorkspaceID, documentID)
+}
+
+func newWorkspaceRevisionConflict(
+	workspaceID string,
+	expectedWorkspaceRev int64,
+	currentWorkspaceRev int64,
+	currentRouteRev int64,
+	currentOpSeq int64,
+) *WorkspaceRevisionConflictError {
+	return &WorkspaceRevisionConflictError{
+		ConflictType: WorkspaceConflictWorkspace,
+		WorkspaceID:  workspaceID,
+		Expected: WorkspaceConflictExpectedRevisions{
+			WorkspaceRev: expectedWorkspaceRev,
+		},
+		Current: WorkspaceConflictCurrentRevisions{
+			WorkspaceRev: currentWorkspaceRev,
+			RouteRev:     currentRouteRev,
+			OpSeq:        currentOpSeq,
+		},
+	}
+}
+
+func newWorkspaceRevisionConflictWithRoute(
+	workspaceID string,
+	expectedWorkspaceRev int64,
+	expectedRouteRev int64,
+	currentWorkspaceRev int64,
+	currentRouteRev int64,
+	currentOpSeq int64,
+) *WorkspaceRevisionConflictError {
+	conflict := newWorkspaceRevisionConflict(
+		workspaceID,
+		expectedWorkspaceRev,
+		currentWorkspaceRev,
+		currentRouteRev,
+		currentOpSeq,
+	)
+	conflict.Expected.RouteRev = expectedRouteRev
+	return conflict
+}
+
+func newRouteRevisionConflict(
+	workspaceID string,
+	expectedWorkspaceRev int64,
+	expectedRouteRev int64,
+	currentWorkspaceRev int64,
+	currentRouteRev int64,
+	currentOpSeq int64,
+) *WorkspaceRevisionConflictError {
+	return &WorkspaceRevisionConflictError{
+		ConflictType: WorkspaceConflictRoute,
+		WorkspaceID:  workspaceID,
+		Expected: WorkspaceConflictExpectedRevisions{
+			WorkspaceRev: expectedWorkspaceRev,
+			RouteRev:     expectedRouteRev,
+		},
+		Current: WorkspaceConflictCurrentRevisions{
+			WorkspaceRev: currentWorkspaceRev,
+			RouteRev:     currentRouteRev,
+			OpSeq:        currentOpSeq,
+		},
+	}
+}
+
+func newDocumentRevisionConflict(
+	workspaceID string,
+	documentID string,
+	expectedContentRev int64,
+	currentWorkspaceRev int64,
+	currentRouteRev int64,
+	currentOpSeq int64,
+	currentDocument WorkspaceConflictDocumentMetadata,
+) *WorkspaceRevisionConflictError {
+	return &WorkspaceRevisionConflictError{
+		ConflictType: WorkspaceConflictDocument,
+		WorkspaceID:  workspaceID,
+		Expected: WorkspaceConflictExpectedRevisions{
+			Document: &WorkspaceConflictExpectedDocumentRevision{
+				ID:              documentID,
+				ContentRev:      expectedContentRev,
+				ContentRevKnown: true,
+			},
+		},
+		Current: WorkspaceConflictCurrentRevisions{
+			WorkspaceRev:  currentWorkspaceRev,
+			RouteRev:      currentRouteRev,
+			OpSeq:         currentOpSeq,
+			Document:      &currentDocument,
+			DocumentKnown: true,
+		},
+	}
+}
+
+func newMissingDocumentRevisionConflictForCommit(
+	workspaceID string,
+	documentID string,
+	expectedContentRev int64,
+	expectedMetaRev int64,
+	currentWorkspaceRev int64,
+	currentRouteRev int64,
+	currentOpSeq int64,
+) *WorkspaceRevisionConflictError {
+	return &WorkspaceRevisionConflictError{
+		ConflictType: WorkspaceConflictDocument,
+		WorkspaceID:  workspaceID,
+		Expected: WorkspaceConflictExpectedRevisions{
+			Document: &WorkspaceConflictExpectedDocumentRevision{
+				ID:              documentID,
+				ContentRev:      expectedContentRev,
+				MetaRev:         expectedMetaRev,
+				ContentRevKnown: expectedContentRev > 0,
+				MetaRevKnown:    expectedMetaRev > 0,
+			},
+		},
+		Current: WorkspaceConflictCurrentRevisions{
+			WorkspaceRev:  currentWorkspaceRev,
+			RouteRev:      currentRouteRev,
+			OpSeq:         currentOpSeq,
+			DocumentKnown: true,
+		},
+	}
+}
+
+func newDocumentRevisionConflictForCommit(
+	workspaceID string,
+	documentID string,
+	expectedContentRev int64,
+	expectedMetaRev int64,
+	currentWorkspaceRev int64,
+	currentRouteRev int64,
+	currentOpSeq int64,
+	currentDocument WorkspaceConflictDocumentMetadata,
+) *WorkspaceRevisionConflictError {
+	conflict := newDocumentRevisionConflict(
+		workspaceID,
+		documentID,
+		expectedContentRev,
+		currentWorkspaceRev,
+		currentRouteRev,
+		currentOpSeq,
+		currentDocument,
+	)
+	conflict.Expected.Document.MetaRev = expectedMetaRev
+	conflict.Expected.Document.MetaRevKnown = expectedMetaRev > 0
+	conflict.Expected.Document.ContentRevKnown = expectedContentRev > 0
+	return conflict
+}
+
+func newExistingDocumentAgainstAbsentConflictForCommit(
+	workspaceID string,
+	documentID string,
+	currentWorkspaceRev int64,
+	currentRouteRev int64,
+	currentOpSeq int64,
+	currentDocument WorkspaceConflictDocumentMetadata,
+) *WorkspaceRevisionConflictError {
+	return &WorkspaceRevisionConflictError{
+		ConflictType: WorkspaceConflictDocument,
+		WorkspaceID:  workspaceID,
+		Expected: WorkspaceConflictExpectedRevisions{
+			Document: &WorkspaceConflictExpectedDocumentRevision{
+				ID:              documentID,
+				ContentRevKnown: true,
+				MetaRevKnown:    true,
+			},
+		},
+		Current: WorkspaceConflictCurrentRevisions{
+			WorkspaceRev:  currentWorkspaceRev,
+			RouteRev:      currentRouteRev,
+			OpSeq:         currentOpSeq,
+			Document:      &currentDocument,
+			DocumentKnown: true,
+		},
+	}
 }
 
 type WorkspaceDocumentType string
@@ -84,25 +295,27 @@ type WorkspaceRecord struct {
 }
 
 type WorkspaceDocumentRecord struct {
-	WorkspaceID string                `json:"workspaceId"`
-	ID          string                `json:"id"`
-	Type        WorkspaceDocumentType `json:"type"`
-	Name        string                `json:"name"`
-	Path        string                `json:"path"`
-	ContentRev  int64                 `json:"contentRev"`
-	MetaRev     int64                 `json:"metaRev"`
-	Content     json.RawMessage       `json:"content"`
-	UpdatedAt   time.Time             `json:"updatedAt"`
+	WorkspaceID  string                `json:"workspaceId"`
+	ID           string                `json:"id"`
+	Type         WorkspaceDocumentType `json:"type"`
+	Name         string                `json:"name"`
+	Path         string                `json:"path"`
+	ContentRev   int64                 `json:"contentRev"`
+	MetaRev      int64                 `json:"metaRev"`
+	Content      json.RawMessage       `json:"content"`
+	Capabilities []string              `json:"capabilities,omitempty"`
+	UpdatedAt    time.Time             `json:"updatedAt"`
 }
 
 type WorkspaceImportDocumentRecord struct {
-	ID         string                `json:"id"`
-	Type       WorkspaceDocumentType `json:"type"`
-	Path       string                `json:"path"`
-	ContentRev int64                 `json:"contentRev"`
-	MetaRev    int64                 `json:"metaRev"`
-	Content    json.RawMessage       `json:"content"`
-	UpdatedAt  time.Time             `json:"updatedAt"`
+	ID           string                `json:"id"`
+	Type         WorkspaceDocumentType `json:"type"`
+	Path         string                `json:"path"`
+	ContentRev   int64                 `json:"contentRev"`
+	MetaRev      int64                 `json:"metaRev"`
+	Content      json.RawMessage       `json:"content"`
+	Capabilities []string              `json:"capabilities,omitempty"`
+	UpdatedAt    time.Time             `json:"updatedAt"`
 }
 
 type WorkspaceSnapshot struct {
@@ -119,28 +332,31 @@ func toWorkspaceDocumentRecords(
 	records := make([]WorkspaceDocumentRecord, 0, len(documents))
 	for _, document := range documents {
 		records = append(records, WorkspaceDocumentRecord{
-			WorkspaceID: workspaceID,
-			ID:          document.ID,
-			Type:        document.Type,
-			Name:        workspacePathName(document.Path),
-			Path:        document.Path,
-			ContentRev:  document.ContentRev,
-			MetaRev:     document.MetaRev,
-			Content:     document.Content,
-			UpdatedAt:   document.UpdatedAt,
+			WorkspaceID:  workspaceID,
+			ID:           document.ID,
+			Type:         document.Type,
+			Name:         workspacePathName(document.Path),
+			Path:         document.Path,
+			ContentRev:   document.ContentRev,
+			MetaRev:      document.MetaRev,
+			Content:      document.Content,
+			Capabilities: append([]string(nil), document.Capabilities...),
+			UpdatedAt:    document.UpdatedAt,
 		})
 	}
 	return records
 }
 
 type WorkspaceDocumentRevision struct {
-	ID         string                `json:"id"`
-	Type       WorkspaceDocumentType `json:"type"`
-	Path       string                `json:"path"`
-	ContentRev int64                 `json:"contentRev"`
-	MetaRev    int64                 `json:"metaRev"`
-	Content    json.RawMessage       `json:"content"`
-	UpdatedAt  time.Time             `json:"updatedAt"`
+	ID           string                `json:"id"`
+	Type         WorkspaceDocumentType `json:"type"`
+	Name         string                `json:"name,omitempty"`
+	Path         string                `json:"path"`
+	ContentRev   int64                 `json:"contentRev"`
+	MetaRev      int64                 `json:"metaRev"`
+	Content      json.RawMessage       `json:"content"`
+	Capabilities []string              `json:"capabilities,omitempty"`
+	UpdatedAt    time.Time             `json:"updatedAt"`
 }
 
 type WorkspaceMutationResult struct {
@@ -149,27 +365,10 @@ type WorkspaceMutationResult struct {
 	RouteRev           int64                       `json:"routeRev"`
 	OpSeq              int64                       `json:"opSeq"`
 	Tree               json.RawMessage             `json:"tree,omitempty"`
+	RouteManifest      json.RawMessage             `json:"routeManifest,omitempty"`
+	Settings           json.RawMessage             `json:"settings,omitempty"`
 	UpdatedDocuments   []WorkspaceDocumentRevision `json:"updatedDocuments,omitempty"`
 	RemovedDocumentIDs []string                    `json:"removedDocumentIds,omitempty"`
-}
-
-type CreateWorkspaceParams struct {
-	WorkspaceID   string
-	ProjectID     string
-	OwnerID       string
-	Name          string
-	TreeRootID    string
-	Tree          json.RawMessage
-	RouteManifest json.RawMessage
-}
-
-type CreateWorkspaceDocumentParams struct {
-	WorkspaceID string
-	DocumentID  string
-	Type        WorkspaceDocumentType
-	Name        string
-	Path        string
-	Content     json.RawMessage
 }
 
 type ImportWorkspaceSnapshotParams struct {
@@ -275,6 +474,7 @@ type WorkspacePatchOp struct {
 type WorkspaceCommandTarget struct {
 	WorkspaceID string `json:"workspaceId"`
 	DocumentID  string `json:"documentId,omitempty"`
+	RouteNodeID string `json:"routeNodeId,omitempty"`
 }
 
 type WorkspaceCommandEnvelope struct {

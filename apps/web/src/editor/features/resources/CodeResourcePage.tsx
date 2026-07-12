@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { css } from '@codemirror/lang-css';
 import { javascript } from '@codemirror/lang-javascript';
@@ -8,19 +8,29 @@ import { useTranslation } from 'react-i18next';
 import { CodeFileTree } from './CodeFileTree';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi } from '@/editor/editorApi';
-import { useEditorShortcut } from '@/editor/shortcuts';
+import {
+  useEditorShortcut,
+  useWorkspaceHistoryShortcuts,
+} from '@/editor/shortcuts';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import { isLocalProjectId } from '@/editor/localProjectStore';
 import { codeMirrorTypographyTheme } from '@/editor/codeMirrorTypography';
+import { executeWorkspaceDocumentMutation } from '@/editor/workspaceSync/workspaceDocumentMutationExecutor';
 import {
   getResourceManagerCodeSelectionStorageKey,
+  reconcileCodeResourceEditorDraft,
   resolveDefaultCodeKindByParentPath,
   resolveTemplateByCodeKind,
   type CodeFileKind,
 } from './codeResourceModel';
-import { isWorkspaceCodeDocumentContent } from '@prodivix/workspace';
+import {
+  applyWorkspaceCommand,
+  isWorkspaceCodeDocumentContent,
+} from '@prodivix/workspace';
 import {
   createWorkspaceDirectoryIntentRequest,
   createWorkspaceCodeDocumentIntentRequest,
+  createWorkspaceCodeSourceUpdateCommand,
   deleteWorkspaceDirectoryIntentRequest,
   deleteWorkspaceCodeDocumentIntentRequest,
   renameWorkspaceDirectoryIntentRequest,
@@ -126,6 +136,19 @@ export function CodeResourcePage({
   const applyWorkspaceMutation = useEditorStore(
     (state) => state.applyWorkspaceMutation
   );
+  const dispatchWorkspaceCommand = useEditorStore(
+    (state) => state.dispatchWorkspaceCommand
+  );
+  const acknowledgeWorkspaceCommand = useEditorStore(
+    (state) => state.acknowledgeWorkspaceCommand
+  );
+  const adoptRebasedWorkspaceOperation = useEditorStore(
+    (state) => state.adoptRebasedWorkspaceOperation
+  );
+  const openWorkspaceRevisionConflict = useEditorStore(
+    (state) => state.openWorkspaceRevisionConflict
+  );
+  const localWorkspace = isLocalProjectId(projectId);
   const tree = useMemo(
     () =>
       buildCodeResourceTreeFromWorkspaceVfs(
@@ -137,6 +160,11 @@ export function CodeResourcePage({
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string>('code-root');
   const [editorValue, setEditorValue] = useState('');
+  const [isSaving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const editorBaselineRef = useRef<
+    { documentId: string; source: string } | undefined
+  >(undefined);
 
   const selectedNode = useMemo(
     () => findCodeResourceNodeById(tree, selectedNodeId) ?? tree,
@@ -149,6 +177,13 @@ export function CodeResourcePage({
   const isDirty = Boolean(
     selectedFile && editorValue !== (selectedFile.textContent ?? '')
   );
+  useWorkspaceHistoryShortcuts({
+    workspaceId,
+    documentId: selectedFile?.id,
+    domain: 'code',
+    suspended: isDirty || isSaving,
+    shortcutScope: 'resources',
+  });
 
   const canCreateCodeDocument =
     Boolean(token && workspaceId && typeof workspaceRev === 'number') &&
@@ -184,7 +219,10 @@ export function CodeResourcePage({
       workspaceCapabilities['core.workspace.code-document.delete@1.0'] ===
         true);
   const canPatchSelectedFile = Boolean(
-    token && workspaceId && selectedFile && !workspaceReadonly
+    (token || localWorkspace) &&
+    workspaceId &&
+    selectedFile &&
+    !workspaceReadonly
   );
 
   useEffect(() => {
@@ -217,10 +255,20 @@ export function CodeResourcePage({
   useEffect(() => {
     if (!selectedFile) {
       setEditorValue('');
+      editorBaselineRef.current = undefined;
       return;
     }
-    setEditorValue(selectedFile.textContent ?? '');
-  }, [selectedFile?.id]);
+    const reconciled = reconcileCodeResourceEditorDraft({
+      baseline: editorBaselineRef.current,
+      editorValue,
+      documentId: selectedFile.id,
+      source: selectedFile.textContent ?? '',
+    });
+    editorBaselineRef.current = reconciled.baseline;
+    if (reconciled.editorValue !== editorValue) {
+      setEditorValue(reconciled.editorValue);
+    }
+  }, [editorValue, selectedFile]);
 
   const resolveDefaultKindByParent = (parentId: string): CodeFileKind => {
     const parent = findCodeResourceNodeById(tree, parentId);
@@ -426,8 +474,9 @@ export function CodeResourcePage({
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
     if (!selectedFile) return;
-    if (!token || !workspace || !workspaceId) return;
+    if (!workspace || !workspaceId) return;
     const document = workspaceDocumentsById[selectedFile.id];
     if (
       !document ||
@@ -437,27 +486,110 @@ export function CodeResourcePage({
       return;
     }
     const previousSource = document.content.source;
-    const mutation = await editorApi.patchWorkspaceDocument(
-      token,
-      workspace,
-      document.id,
-      {
-        expectedContentRev: document.contentRev,
-        command: {
-          id: createIntentId(),
-          namespace: 'core.code',
-          type: 'source.update',
-          version: '1.0',
-          issuedAt: new Date().toISOString(),
-          forwardOps: [{ op: 'replace', path: '/source', value: editorValue }],
-          reverseOps: [
-            { op: 'replace', path: '/source', value: previousSource },
-          ],
-          target: { workspaceId, documentId: document.id },
-        },
+    if (previousSource === editorValue) return;
+    const command = createWorkspaceCodeSourceUpdateCommand({
+      workspaceId,
+      document,
+      source: editorValue,
+      commandId: createIntentId(),
+      issuedAt: new Date().toISOString(),
+    });
+    if (!command) return;
+    setSaveError('');
+    if (localWorkspace) {
+      const applied = dispatchWorkspaceCommand(command);
+      if (!applied?.ok) {
+        setSaveError(
+          t('resourceManager.code.saveFailed', {
+            defaultValue: 'Could not save the code document.',
+          })
+        );
       }
-    );
-    applyWorkspaceMutation(mutation);
+      return;
+    }
+    if (!token) return;
+
+    const locallyApplied = applyWorkspaceCommand(workspace, command);
+    if ('issues' in locallyApplied) {
+      setSaveError(
+        locallyApplied.issues[0]?.message ||
+          t('resourceManager.code.saveFailed', {
+            defaultValue: 'Could not save the code document.',
+          })
+      );
+      return;
+    }
+    const requestDocumentEditSeq =
+      useEditorStore.getState().documentEditSeqById[document.id] ?? 0;
+    setSaving(true);
+    try {
+      const execution = await executeWorkspaceDocumentMutation({
+        token,
+        baseSnapshot: workspace,
+        localSnapshot: locallyApplied.snapshot,
+        operation: { kind: 'command', command },
+      });
+      if (execution.kind === 'conflict') {
+        openWorkspaceRevisionConflict(execution.session);
+        setSaveError(
+          t('revisionConflict.documentSummary', {
+            defaultValue: '{{path}} changed both locally and remotely.',
+            path: document.path,
+          })
+        );
+        return;
+      }
+      if (execution.kind === 'already-applied' || execution.rebased) {
+        const adoption = adoptRebasedWorkspaceOperation({
+          requestSnapshot: workspace,
+          serverBaseSnapshot:
+            execution.kind === 'already-applied'
+              ? execution.snapshot
+              : execution.serverBaseSnapshot,
+          rebasedSnapshot:
+            execution.kind === 'already-applied'
+              ? execution.snapshot
+              : execution.optimisticSnapshot,
+          operation:
+            execution.kind === 'already-applied'
+              ? { kind: 'command', command }
+              : execution.operation,
+          ...(execution.kind === 'already-applied'
+            ? {}
+            : { mutation: execution.mutation }),
+          expectedDocumentEditSeqById: {
+            [document.id]: requestDocumentEditSeq,
+          },
+        });
+        if (adoption.status === 'conflict') {
+          setSaveError(
+            t('revisionConflict.documentSummary', {
+              defaultValue: '{{path}} changed while it was saving.',
+              path: document.path,
+            })
+          );
+          return;
+        }
+        if (adoption.status === 'rejected') {
+          throw new Error(adoption.message);
+        }
+        return;
+      }
+      if (!acknowledgeWorkspaceCommand(command, execution.mutation)?.ok) {
+        throw new Error('The code save acknowledgement is no longer current.');
+      }
+    } catch (error) {
+      console.warn('[resources] code document save failed', error);
+      setSaveError(
+        error instanceof Error && error.message
+          ? error.message
+          : t('resourceManager.code.saveFailed', {
+              defaultValue: 'Could not save the code document.',
+            })
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEditorShortcut(
@@ -541,15 +673,24 @@ export function CodeResourcePage({
                   type="button"
                   className="inline-flex items-center gap-1 rounded-lg border border-black/12 bg-black px-2.5 py-1.5 text-xs text-white hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={handleSave}
-                  disabled={!isDirty || !canPatchSelectedFile}
+                  disabled={!isDirty || !canPatchSelectedFile || isSaving}
                 >
                   <Save size={12} />
                   {t('resourceManager.code.actions.save')}
                 </button>
               </div>
+              {saveError ? (
+                <p role="alert" className="text-xs text-red-600">
+                  {saveError}
+                </p>
+              ) : null}
               <CodeMirror
+                data-editor-native-history="true"
                 value={editorValue}
-                onChange={(value) => setEditorValue(value)}
+                onChange={(value) => {
+                  setEditorValue(value);
+                  if (saveError) setSaveError('');
+                }}
                 extensions={[
                   resolveLanguageExtensionByName(selectedFile.name),
                   codeMirrorTypographyTheme,

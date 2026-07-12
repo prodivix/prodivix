@@ -81,10 +81,17 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			tree_json JSONB NOT NULL DEFAULT '{"rootId":"root","nodes":[]}'::jsonb,
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL,
-			CONSTRAINT workspaces_workspace_rev_check CHECK (workspace_rev >= 1),
-			CONSTRAINT workspaces_route_rev_check CHECK (route_rev >= 1),
-			CONSTRAINT workspaces_op_seq_check CHECK (op_seq >= 1)
+			CONSTRAINT workspaces_workspace_rev_check CHECK (workspace_rev BETWEEN 1 AND 9007199254740991),
+			CONSTRAINT workspaces_route_rev_check CHECK (route_rev BETWEEN 1 AND 9007199254740991),
+			CONSTRAINT workspaces_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)
 		)`,
+		`ALTER TABLE workspaces
+			DROP CONSTRAINT IF EXISTS workspaces_workspace_rev_check,
+			ADD CONSTRAINT workspaces_workspace_rev_check CHECK (workspace_rev BETWEEN 1 AND 9007199254740991),
+			DROP CONSTRAINT IF EXISTS workspaces_route_rev_check,
+			ADD CONSTRAINT workspaces_route_rev_check CHECK (route_rev BETWEEN 1 AND 9007199254740991),
+			DROP CONSTRAINT IF EXISTS workspaces_op_seq_check,
+			ADD CONSTRAINT workspaces_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)`,
 		`CREATE TABLE IF NOT EXISTS workspace_routes (
 			workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
 			manifest_json JSONB NOT NULL,
@@ -107,11 +114,17 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (workspace_id, id),
 			CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation')),
-			CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev >= 1),
-			CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev >= 1)
+			CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
+			CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev BETWEEN 1 AND 9007199254740991)
 		)`,
-		`ALTER TABLE workspace_documents DROP CONSTRAINT IF EXISTS workspace_documents_type_check`,
-		`ALTER TABLE workspace_documents ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'code', 'asset', 'project-config'))`,
+		`ALTER TABLE workspace_documents
+			DROP CONSTRAINT IF EXISTS workspace_documents_type_check,
+			ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'code', 'asset', 'project-config')),
+			DROP CONSTRAINT IF EXISTS workspace_documents_content_rev_check,
+			ADD CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
+			DROP CONSTRAINT IF EXISTS workspace_documents_meta_rev_check,
+			ADD CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev BETWEEN 1 AND 9007199254740991)`,
+		`ALTER TABLE workspace_documents ADD COLUMN IF NOT EXISTS capabilities_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_documents_workspace_path ON workspace_documents(workspace_id, path)`,
 		`CREATE INDEX IF NOT EXISTS idx_workspace_documents_workspace_updated_at ON workspace_documents(workspace_id, updated_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS workspace_operations (
@@ -121,9 +134,17 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			document_id TEXT,
 			payload_json JSONB NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL,
-			PRIMARY KEY (workspace_id, op_seq)
+			PRIMARY KEY (workspace_id, op_seq),
+			CONSTRAINT workspace_operations_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)
 		)`,
+		`ALTER TABLE workspace_operations
+			DROP CONSTRAINT IF EXISTS workspace_operations_op_seq_check,
+			ADD CONSTRAINT workspace_operations_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)`,
 		`CREATE INDEX IF NOT EXISTS idx_workspace_operations_workspace_created_at ON workspace_operations(workspace_id, created_at DESC)`,
+		`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS operation_id TEXT`,
+		`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS request_hash TEXT`,
+		`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS result_json JSONB`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_operations_workspace_operation_id ON workspace_operations(workspace_id, operation_id) WHERE operation_id IS NOT NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_projects_owner_updated_at ON projects(owner_id, updated_at DESC)`,

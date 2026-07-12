@@ -282,6 +282,7 @@ export function MountedCssEditorModal({
           ) : null}
           <div className="h-[calc(100%-2px)] overflow-hidden rounded-md border border-(--border-default)">
             <CodeMirror
+              data-editor-native-history="true"
               value={value || DEFAULT_CSS_CONTENT}
               height="100%"
               extensions={extensions}

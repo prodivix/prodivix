@@ -4,7 +4,7 @@ import type {
   WorkspaceTransactionEnvelope,
 } from './workspaceCommand';
 import type { WorkspaceRouteIntent } from './workspaceRouteIntent';
-import type { WorkspaceSnapshot } from './types';
+import type { WorkspaceDocument, WorkspaceSnapshot } from './types';
 
 const routeCommandTypeByIntent: Record<WorkspaceRouteIntent['type'], string> = {
   'create-page': 'node.create-page',
@@ -40,6 +40,75 @@ const appendPropertyPatch = (
   }
   forwardOps.push({ op: 'replace', path, value: after });
   reverseOps.unshift({ op: 'replace', path, value: before });
+};
+
+const escapePointerSegment = (value: string): string =>
+  value.replaceAll('~', '~0').replaceAll('/', '~1');
+
+const appendDocumentMetadataPatches = (
+  forwardOps: WorkspacePatchOperation[],
+  reverseOps: WorkspacePatchOperation[],
+  documentId: string,
+  before: WorkspaceDocument,
+  after: WorkspaceDocument
+) => {
+  const documentPath = `/docsById/${escapePointerSegment(documentId)}`;
+  appendPropertyPatch(
+    forwardOps,
+    reverseOps,
+    `${documentPath}/name`,
+    before.name,
+    after.name
+  );
+  appendPropertyPatch(
+    forwardOps,
+    reverseOps,
+    `${documentPath}/path`,
+    before.path,
+    after.path
+  );
+  appendPropertyPatch(
+    forwardOps,
+    reverseOps,
+    `${documentPath}/capabilities`,
+    before.capabilities,
+    after.capabilities
+  );
+};
+
+const appendDocumentMapPatches = (
+  forwardOps: WorkspacePatchOperation[],
+  reverseOps: WorkspacePatchOperation[],
+  before: WorkspaceSnapshot['docsById'],
+  after: WorkspaceSnapshot['docsById']
+) => {
+  const documentIds = [
+    ...new Set([...Object.keys(before), ...Object.keys(after)]),
+  ].sort();
+  documentIds.forEach((documentId) => {
+    const previous = before[documentId];
+    const next = after[documentId];
+    const documentPath = `/docsById/${escapePointerSegment(documentId)}`;
+    if (!previous && next) {
+      forwardOps.push({ op: 'add', path: documentPath, value: next });
+      reverseOps.unshift({ op: 'remove', path: documentPath });
+      return;
+    }
+    if (previous && !next) {
+      forwardOps.push({ op: 'remove', path: documentPath });
+      reverseOps.unshift({ op: 'add', path: documentPath, value: previous });
+      return;
+    }
+    if (previous && next) {
+      appendDocumentMetadataPatches(
+        forwardOps,
+        reverseOps,
+        documentId,
+        previous,
+        next
+      );
+    }
+  });
 };
 
 export const createRouteIntentCommand = (input: {
@@ -109,10 +178,9 @@ const createRouteWorkspaceCommand = (input: {
     input.before.treeById,
     input.after.treeById
   );
-  appendPropertyPatch(
+  appendDocumentMapPatches(
     forwardOps,
     reverseOps,
-    '/docsById',
     input.before.docsById,
     input.after.docsById
   );

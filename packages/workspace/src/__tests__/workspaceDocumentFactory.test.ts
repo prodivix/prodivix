@@ -89,19 +89,19 @@ describe('createWorkspaceDocumentAtPathCommand', () => {
       contentRev: 1,
     });
     expect(applied.snapshot.treeById).toMatchObject({
-      'dir-root-styles': {
+      dir_styles: {
         kind: 'dir',
         parentId: 'root',
-        children: ['dir-dir-root-styles-mounted'],
+        children: ['dir_styles_mounted'],
       },
-      'dir-dir-root-styles-mounted': {
+      dir_styles_mounted: {
         kind: 'dir',
-        parentId: 'dir-root-styles',
-        children: ['doc-code-mounted-button'],
+        parentId: 'dir_styles',
+        children: ['doc_code-mounted-button'],
       },
-      'doc-code-mounted-button': {
+      'doc_code-mounted-button': {
         kind: 'doc',
-        parentId: 'dir-dir-root-styles-mounted',
+        parentId: 'dir_styles_mounted',
         docId: 'code-mounted-button',
       },
     });
@@ -161,6 +161,30 @@ describe('createWorkspaceDocumentAtPathCommand', () => {
     ).toThrowError(
       expect.objectContaining({
         code: 'WKS_DOCUMENT_FACTORY_VFS_CONFLICT',
+      })
+    );
+  });
+
+  it('rejects canonical VFS node id collisions instead of inventing suffixes', () => {
+    const workspace = createWorkspace();
+    workspace.treeById.dir_styles = {
+      id: 'dir_styles',
+      kind: 'dir',
+      name: 'unrelated',
+      parentId: 'root',
+      children: [],
+    };
+
+    expect(() =>
+      createWorkspaceDocumentAtPathCommand({
+        workspace,
+        document: createMountedCssDocument(),
+        commandId: 'canonical-id-conflict',
+        issuedAt: '2026-07-12T09:00:00.000Z',
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'WKS_DOCUMENT_FACTORY_NODE_ID_COLLISION',
       })
     );
   });

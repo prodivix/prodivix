@@ -12,6 +12,13 @@ import {
 } from '@/theme/themeRuntime';
 
 const SETTINGS_INTENT_CAPABILITY = 'core.settings.global.update@1.0';
+const DEFAULT_HISTORY_LIMIT = 80;
+
+const normalizeHistoryLimit = (value: unknown): number => {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_HISTORY_LIMIT;
+  return Math.min(500, Math.max(0, parsed));
+};
 
 const createIntentId = () => {
   if (
@@ -41,6 +48,9 @@ export const SettingsEffects = () => {
   const applyWorkspaceMutation = useEditorStore(
     (state) => state.applyWorkspaceMutation
   );
+  const setWorkspaceHistoryLimit = useEditorStore(
+    (state) => state.setWorkspaceHistoryLimit
+  );
   const globalSettings = useSettingsStore((state) => state.global);
   const projectGlobalById = useSettingsStore(
     (state) => state.projectGlobalById
@@ -57,6 +67,7 @@ export const SettingsEffects = () => {
   const fontScale = useSettingsStore((state) => {
     return state.global.fontScale;
   });
+  const undoSteps = useSettingsStore((state) => state.global.undoSteps);
   const ensureProjectGlobal = useSettingsStore(
     (state) => state.ensureProjectGlobal
   );
@@ -174,6 +185,10 @@ export const SettingsEffects = () => {
       applyThemePreference(preference, { persist: false })
     );
   }, [theme]);
+
+  useEffect(() => {
+    setWorkspaceHistoryLimit(normalizeHistoryLimit(undoSteps));
+  }, [setWorkspaceHistoryLimit, undoSteps]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

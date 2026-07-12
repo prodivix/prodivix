@@ -1,5 +1,8 @@
 import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
-import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import {
+  createWorkspaceHistoryState,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
 import {
   createGlobalDefaults,
   type GlobalSettingsState,
@@ -67,7 +70,7 @@ export const createEditorWorkspace = (
   routeManifest: {
     version: '1',
     root: {
-      id: 'root-route',
+      id: 'root',
       children: [{ id: 'route-home', index: true, pageDocId: 'page-home' }],
     },
   },
@@ -81,10 +84,14 @@ export const resetEditorStore = (overrides: Partial<EditorState> = {}) => {
     {
       ...state,
       workspace: null,
+      workspaceHistory: createWorkspaceHistoryState(),
       documentEditSeqById: {},
       workspaceCapabilities: {},
       workspaceCapabilitiesLoaded: false,
       workspaceReadonly: false,
+      workspaceRevisionConflict: null,
+      workspaceConflictResolutionStatus: 'idle',
+      workspaceConflictResolutionError: null,
       blueprintStateByProject: {},
       runtimeStateByProject: {},
       projectsById: {},

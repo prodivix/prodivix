@@ -134,6 +134,12 @@ describe('createWorkspaceRouteIntentPlan', () => {
     expect(plan?.kind).toBe('transaction');
     if (!plan || plan.kind !== 'transaction') return;
     expect(plan.transaction.commands).toHaveLength(2);
+    expect(
+      plan.transaction.commands[0]?.forwardOps.map(({ path }) => path)
+    ).toContain('/docsById/page-careers');
+    expect(
+      plan.transaction.commands[0]?.forwardOps.map(({ path }) => path)
+    ).not.toContain('/docsById');
 
     const result = applyPlan(workspace, plan);
     expect(result.ok).toBe(true);
@@ -142,7 +148,7 @@ describe('createWorkspaceRouteIntentPlan', () => {
       type: 'pir-page',
       path: '/pages/page-careers.pir.json',
     });
-    expect(result.snapshot.treeById['doc-page-careers']).toMatchObject({
+    expect(result.snapshot.treeById['doc_page-careers']).toMatchObject({
       parentId: 'pages',
       docId: 'page-careers',
     });

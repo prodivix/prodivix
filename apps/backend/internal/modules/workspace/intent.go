@@ -88,8 +88,11 @@ func ResolveDocumentCommand(workspaceID, documentID string, provided *WorkspaceC
 }
 
 func (module *Module) ApplyIntentMutation(ctx context.Context, workspaceID string, request ApplyIntentRequest) (*WorkspaceMutationResult, *RequestFailure) {
-	if request.ExpectedWorkspaceRev <= 0 {
-		return nil, NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, "expectedWorkspaceRev must be positive.", nil)
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", request.ExpectedWorkspaceRev); err != nil {
+		return nil, MapStoreError(err)
+	}
+	if err := validateOptionalJSONSafeRevision("expectedRouteRev", request.ExpectedRouteRev); err != nil {
+		return nil, MapStoreError(err)
 	}
 	intent := NormalizeIntent(request.Intent)
 	if intent.ID == "" || intent.Namespace == "" || intent.Type == "" || intent.Version == "" || intent.IssuedAt.IsZero() {

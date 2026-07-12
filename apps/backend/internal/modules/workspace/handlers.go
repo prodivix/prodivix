@@ -22,6 +22,19 @@ func NewHandler(store *WorkspaceStore, module *Module) *Handler {
 	return &Handler{store: store, module: module}
 }
 
+func (handler *Handler) requireWorkspaceOwner(c *gin.Context, userID string, workspaceID string) bool {
+	if handler == nil || handler.store == nil {
+		backendresponse.Error(c, http.StatusInternalServerError, ErrorWorkspaceOperationFailed, "Workspace authorization is not available.")
+		return false
+	}
+	if err := handler.store.VerifyWorkspaceOwner(c.Request.Context(), userID, workspaceID); err != nil {
+		failure := MapStoreError(err)
+		c.JSON(failure.Status, failure.Payload)
+		return false
+	}
+	return true
+}
+
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 	return RouteHandlers{
 		RequireAuth:              requireAuth,
@@ -30,18 +43,20 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		ImportLocalProject:       handler.HandleImportLocalProject,
 		PatchWorkspaceDocument:   handler.HandlePatchWorkspaceDocument,
 		ApplyWorkspaceIntent:     handler.HandleApplyWorkspaceIntent,
-		ApplyWorkspaceBatch:      handler.HandleApplyWorkspaceBatch,
+		CommitWorkspaceOperation: handler.HandleCommitWorkspaceOperation,
 	}
 }
 
 type documentResponse struct {
-	ID         string                `json:"id"`
-	Type       WorkspaceDocumentType `json:"type"`
-	Path       string                `json:"path"`
-	ContentRev int64                 `json:"contentRev"`
-	MetaRev    int64                 `json:"metaRev"`
-	Content    json.RawMessage       `json:"content"`
-	UpdatedAt  time.Time             `json:"updatedAt"`
+	ID           string                `json:"id"`
+	Type         WorkspaceDocumentType `json:"type"`
+	Name         string                `json:"name,omitempty"`
+	Path         string                `json:"path"`
+	ContentRev   int64                 `json:"contentRev"`
+	MetaRev      int64                 `json:"metaRev"`
+	Content      json.RawMessage       `json:"content"`
+	Capabilities []string              `json:"capabilities,omitempty"`
+	UpdatedAt    time.Time             `json:"updatedAt"`
 }
 
 type snapshotResponse struct {
@@ -103,29 +118,6 @@ type ApplyIntentHTTPrequest struct {
 	ClientMutationID     string         `json:"clientMutationId"`
 }
 
-type ApplyBatchRequest struct {
-	ExpectedWorkspaceRev int64             `json:"expectedWorkspaceRev"`
-	ExpectedRouteRev     int64             `json:"expectedRouteRev"`
-	Operations           []json.RawMessage `json:"operations"`
-	ClientBatchID        string            `json:"clientBatchId"`
-}
-
-type batchOperationKind struct {
-	Op string `json:"op"`
-}
-
-type batchPatchDocumentOperation struct {
-	Op                 string                   `json:"op"`
-	DocumentID         string                   `json:"documentId"`
-	ExpectedContentRev int64                    `json:"expectedContentRev"`
-	Command            WorkspaceCommandEnvelope `json:"command"`
-}
-
-type batchIntentOperation struct {
-	Op     string         `json:"op"`
-	Intent intentEnvelope `json:"intent"`
-}
-
 func toIntent(intent intentEnvelope) IntentEnvelope {
 	var actor *IntentActor
 	if intent.Actor != nil {
@@ -140,7 +132,7 @@ func buildSnapshotResponse(snapshot *WorkspaceSnapshot) snapshotResponse {
 	}
 	documents := make([]documentResponse, 0, len(snapshot.Documents))
 	for _, document := range snapshot.Documents {
-		documents = append(documents, documentResponse{ID: document.ID, Type: document.Type, Path: document.Path, ContentRev: document.ContentRev, MetaRev: document.MetaRev, Content: document.Content, UpdatedAt: document.UpdatedAt})
+		documents = append(documents, documentResponse{ID: document.ID, Type: document.Type, Name: document.Name, Path: document.Path, ContentRev: document.ContentRev, MetaRev: document.MetaRev, Content: document.Content, Capabilities: append([]string(nil), document.Capabilities...), UpdatedAt: document.UpdatedAt})
 	}
 	return snapshotResponse{ID: snapshot.Workspace.ID, WorkspaceRev: snapshot.Workspace.WorkspaceRev, RouteRev: snapshot.Workspace.RouteRev, OpSeq: snapshot.Workspace.OpSeq, Tree: snapshot.Workspace.Tree, Documents: documents, RouteManifest: snapshot.RouteManifest, Settings: snapshot.Settings}
 }

@@ -465,19 +465,21 @@ payload: {
 
 注意：Mounted CSS 创建同时涉及 workspace document 创建和 PIR node binding 更新。
 
-推荐先分两步：
+当前两步写入：
 
 1. 创建 code document。
 2. patch PIR document，写入 `CodeSlotBinding`。
 
-如果第二步失败，code document 保留为 orphan。这符合 Decision 28。
+如果第二步失败，code document 会保留为 orphan；这是现有缺口，不是原子性实现。
 
-长期可以把两个操作放进 batch：
+Hard Cut 目标是先在本地规划一个 WorkspaceTransaction：
 
-1. intent: create code document
-2. patchDocument: update PIR node binding
+1. Workspace Command 以 granular `/docsById/<document-id>` 与 tree patch 新增 CodeDocument。
+2. Document-targeted PIR Command 更新 `CodeSlotBinding`。
+3. `planWorkspaceOperationCommit` 推导 workspaceRev、new document absence 与 PIR contentRev preconditions。
+4. 整条 Transaction 通过 `POST /workspaces/:id/operations/commit` 单事务持久化。
 
-失败时由 batch 保证一致性。
+旧 `/batch` 已 Hard Cut，不能用逐条 Store mutation 为这两个步骤提供伪原子性。完成上述 planner 接线前，UI 必须把 orphan 风险作为未完成边界。
 
 ## Mounted CSS 迁移实现
 
@@ -768,11 +770,11 @@ Mounted CSS：
 
 ### 2. 创建 code document 和写 PIR binding 是否原子
 
-Phase 1 可以非原子，失败后保留 orphan artifact。
+最终必须原子：新增 CodeDocument、更新 tree 与写 PIR binding 是同一次用户动作，应形成单一 WorkspaceTransaction。
 
-原因：这符合代码写作心智，也避免为了 Mounted CSS 先做复杂 batch transaction。
+当前两步链路失败后保留 orphan artifact 只是过渡缺口，不能作为完成标准。
 
-长期可以放进 batch，作为用户体验优化。
+远端使用 ADR 36 的 Atomic WorkspaceOperation Commit，不使用旧 batch；任一 Command 或 validator 失败时整笔事务回滚。
 
 ### 3. PIR binding 字段位置
 

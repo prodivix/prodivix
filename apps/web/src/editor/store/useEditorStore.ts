@@ -3,6 +3,7 @@ import { createBlueprintSlice } from './editorStore.blueprintSlice';
 import { createProjectSlice } from './editorStore.projectSlice';
 import { createRouteSlice } from './editorStore.routeSlice';
 import { createWorkspaceSlice } from './editorStore.workspaceSlice';
+import { createWorkspaceSyncSlice } from './editorStore.workspaceSyncSlice';
 import type { EditorStore } from './editorStore.shape';
 
 export {
@@ -19,6 +20,7 @@ export type { UpdateActivePirDocumentOptions } from './editorStore.workspaceSlic
 
 export const useEditorStore = create<EditorStore>()((...args) => ({
   ...createWorkspaceSlice(...args),
+  ...createWorkspaceSyncSlice(...args),
   ...createRouteSlice(...args),
   ...createBlueprintSlice(...args),
   ...createProjectSlice(...args),

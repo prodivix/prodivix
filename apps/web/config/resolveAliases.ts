@@ -38,6 +38,7 @@ export const createWebResolveAliases = (): AliasOptions => ({
   '@prodivix/themes/package.json': packageManifest('themes'),
   '@prodivix/themes': packageSource('themes'),
   '@prodivix/workspace': packageSource('workspace'),
+  '@prodivix/workspace-sync': packageSource('workspace-sync'),
   '#antd': packageSource('plugin-antd'),
   '#browser': packageSource('plugin-browser'),
   '#contracts': packageSource('plugin-contracts'),

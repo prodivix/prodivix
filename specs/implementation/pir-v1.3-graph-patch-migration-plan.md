@@ -517,25 +517,35 @@ core.pir.region.move@1.0
 core.pir.animation.binding.cleanup@1.0
 ```
 
-### 6.2 Batch
+### 6.2 Atomic WorkspaceOperation Commit
 
-`ApplyBatchRequest` 应增加 `patchDocument` operation：
+跨文档或跨分区动作不得使用旧 `ApplyBatchRequest`。客户端先形成一个 `WorkspaceOperation`，再提交：
 
 ```ts
 {
-  op: 'patchDocument';
-  documentId: string;
-  expectedContentRev: number;
-  command: CommandEnvelope;
+  expected: {
+    workspaceRev?: number;
+    routeRev?: number;
+    documents: Array<{
+      id: string;
+      contentRev?: number | null;
+      metaRev?: number | null;
+    }>;
+  };
+  operation: WorkspaceOperation;
 }
 ```
 
 执行规则：
 
-1. batch 内 operation 按顺序执行。
-2. 同一文档多个 patch 必须在事务内逐个推进 contentRev。
-3. 任意 operation 失败则整批回滚。
-4. batch 不绕过 PATCH validator。
+1. `planWorkspaceOperationCommit` 从 confirmed snapshot 与 Operation 写集推导 exact expected vector。
+2. Transaction 内 Commands 按顺序在同一数据库事务的私有 state 上执行。
+3. 同一文档的多个 Command 只携带一次初始 contentRev baseline，不构造 `N + 1` 链。
+4. 任一 Command、reverse、final validator 或 SQL 写入失败时整笔 rollback。
+5. 一条 Operation 只推进一次 opSeq，并作为一条 operation-log record。
+6. Commit 不绕过 document/PIR/Route/VFS path policy 与 validator。
+7. Atomic Commit 的 forward/reverse ops 在所有 domain 都禁止 `move/copy`；PIR graph helper 必须生成显式 granular patches。
+8. `POST /batch` 已 Hard Cut，不提供兼容转发。
 
 ## 7. 测试计划
 
@@ -577,7 +587,7 @@ const firstNode = firstId ? pirDoc.ui.graph.nodesById[firstId] : undefined;
 8. 环检测。
 9. reverseOps 无法把 patched doc 回放成 original 时拒绝。
 10. 整文档保存路由被删除或返回 `410 Gone` / `405 Method Not Allowed`。
-11. batch patch 任意一步失败时整批回滚。
+11. Atomic WorkspaceOperation 内任一 Command、reverse、validator 或 SQL 写入失败时整笔回滚，且 revisions、`opSeq` 与 operation log 不变。
 
 ## 8. 落地顺序
 

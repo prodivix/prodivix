@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AnimationTimeline } from '@prodivix/shared/types/pir';
+import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
+import {
+  selectActiveDocumentId,
+  selectWorkspaceId,
+  useEditorStore,
+} from '@/editor/store/useEditorStore';
 import { AnimationEditorInspectorPanel } from './panels/AnimationEditorInspectorPanel';
 import type { AnimationEditorSelection } from './panels/AnimationEditorInspectorPanel';
 import { AnimationEditorPreviewCanvas } from './panels/AnimationEditorPreviewCanvas';
@@ -9,6 +15,8 @@ import { AnimationEditorTopBar } from './panels/AnimationEditorTopBar';
 import { useAnimationEditorState } from './useAnimationEditorState';
 
 export const AnimationEditorContent = () => {
+  const workspaceId = useEditorStore(selectWorkspaceId);
+  const activeDocumentId = useEditorStore(selectActiveDocumentId);
   const {
     pirDoc,
     animation,
@@ -52,6 +60,13 @@ export const AnimationEditorContent = () => {
     updateSvgPrimitiveType,
     canRemoveSvgFilter,
   } = useAnimationEditorState();
+
+  useWorkspaceHistoryShortcuts({
+    workspaceId,
+    documentId: activeDocumentId,
+    domain: 'animation',
+    shortcutScope: 'animation',
+  });
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [selection, setSelection] = useState<AnimationEditorSelection>({});

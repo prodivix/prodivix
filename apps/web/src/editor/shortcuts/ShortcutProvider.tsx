@@ -5,7 +5,7 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
-import { isEditableTarget } from '@/shortcuts';
+import { isEditableEvent } from '@/shortcuts';
 import { matchShortcut } from './matchShortcut';
 import { getEditorShortcuts } from './shortcutRegistry';
 import type { EditorShortcutScope } from './shortcutTypes';
@@ -39,7 +39,7 @@ export function EditorShortcutProvider({
 
       for (const registration of registrations) {
         if (!registration.allowRepeat && event.repeat) continue;
-        if (!registration.allowInEditable && isEditableTarget(event.target)) {
+        if (!registration.allowInEditable && isEditableEvent(event)) {
           continue;
         }
         if (!matchShortcut(registration.parsed, event)) continue;

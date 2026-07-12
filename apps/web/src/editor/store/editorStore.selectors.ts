@@ -3,6 +3,7 @@ import {
   selectActivePirDocument as selectCoreActivePirDocument,
   selectDocumentById as selectCoreDocumentById,
   type WorkspaceDocument,
+  type WorkspaceHistoryState,
   type WorkspaceSnapshot,
   type WorkspaceVfsNode,
 } from '@prodivix/workspace';
@@ -15,6 +16,13 @@ const EMPTY_TREE: Record<string, WorkspaceVfsNode> = Object.freeze({});
 
 export const selectWorkspace = (state: EditorStore): WorkspaceSnapshot | null =>
   state.workspace;
+
+export const selectWorkspaceHistory = (
+  state: EditorStore
+): WorkspaceHistoryState => state.workspaceHistory;
+
+export const selectWorkspaceHistoryLimit = (state: EditorStore): number =>
+  state.workspaceHistory.maxEntries;
 
 export const selectWorkspaceId = (state: EditorStore): string | undefined =>
   state.workspace?.id;

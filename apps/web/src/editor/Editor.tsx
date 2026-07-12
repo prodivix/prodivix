@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import EditorBar from './EditorBar/EditorBar';
 import { EditorDebugFloatingBall } from './EditorDebugFloatingBall';
 import { SettingsEffects } from './features/settings/SettingsEffects';
+import { WorkspaceRevisionConflictSurface } from './features/revisionConflict/WorkspaceRevisionConflictSurface';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { mountGraphExecutionBridge } from '@/core/executor/executor';
 import { mountDefaultNodeGraphExecutor } from '@/core/executor/nodeGraph/mountDefaultNodeGraphExecutor';
@@ -135,6 +136,7 @@ function EditorSurface() {
   return (
     <div className="flex max-h-screen min-h-screen flex-row bg-[linear-gradient(120deg,var(--bg-canvas)_20%,var(--bg-panel)_100%)]">
       <SettingsEffects />
+      <WorkspaceRevisionConflictSurface />
       <EditorBar />
       <div className="min-h-screen flex-1 overflow-auto">
         <Outlet />

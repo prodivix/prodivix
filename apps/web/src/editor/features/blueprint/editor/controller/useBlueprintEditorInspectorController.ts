@@ -28,8 +28,9 @@ import {
   createNodeSubtreeRemovalTransaction,
   createWorkspaceCodeBindingTransaction,
   createWorkspaceCodeDocumentIntentRequest,
+  createWorkspaceCodeSourceUpdateCommand,
+  createWorkspaceDocumentNodeId,
   type WorkspaceCodeDocumentContent,
-  type WorkspaceCommandEnvelope,
   type WorkspaceDocument,
 } from '@prodivix/workspace';
 import { isLocalProjectId } from '@/editor/localProjectStore';
@@ -57,7 +58,6 @@ import { resolveInspectorPanels } from '@/editor/features/blueprint/editor/inspe
 import { resolveInspectorComponentMeta } from '@/editor/features/blueprint/editor/inspector/meta/componentMetaProjection';
 import {
   createMountedCssDocumentId,
-  createMountedCssNodeId,
   createMountedCssPath,
   createMountedCssSlotId,
   resolveMountedCssEntries,
@@ -97,6 +97,12 @@ export const useBlueprintEditorInspectorController = () => {
   const dispatchWorkspaceTransaction = useEditorStore(
     (state) => state.dispatchWorkspaceTransaction
   );
+  const acknowledgeWorkspaceCommand = useEditorStore(
+    (state) => state.acknowledgeWorkspaceCommand
+  );
+  const acknowledgeWorkspaceTransaction = useEditorStore(
+    (state) => state.acknowledgeWorkspaceTransaction
+  );
   const workspaceId = workspace.id;
   const workspaceDocumentsById = useEditorStore(selectWorkspaceDocumentsById);
   const workspaceCapabilities = useEditorStore(
@@ -106,9 +112,6 @@ export const useBlueprintEditorInspectorController = () => {
     (state) => state.workspaceCapabilitiesLoaded
   );
   const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
   const routeManifest = useEditorStore(selectRouteManifest)!;
   const activeRouteNodeId = useEditorStore(selectActiveRouteNodeId);
   const applyRouteIntent = useEditorStore((state) => state.applyRouteIntent);
@@ -694,32 +697,20 @@ export const useBlueprintEditorInspectorController = () => {
         const documentId = existingEntry.binding.reference.artifactId;
         const document = workspaceDocumentsById[documentId];
         if (!document || document.type !== 'code') return false;
-        const previousSource =
-          typeof document.content === 'object' &&
-          document.content !== null &&
-          'source' in document.content &&
-          typeof document.content.source === 'string'
-            ? document.content.source
-            : '';
-        if (source === previousSource) return true;
         const issuedAt = new Date().toISOString();
-        const command: WorkspaceCommandEnvelope = {
-          id: createIntentId(),
-          namespace: 'core.code',
-          type: 'source.update',
-          version: '1.0',
+        const command = createWorkspaceCodeSourceUpdateCommand({
+          workspaceId,
+          document,
+          source,
+          commandId: createIntentId(),
           issuedAt,
-          forwardOps: [{ op: 'replace', path: '/source', value: source }],
-          reverseOps: [
-            { op: 'replace', path: '/source', value: previousSource },
-          ],
-          target: { workspaceId, documentId },
-          domainHint: 'code',
+          mergeKey: `mounted-css-source:${documentId}`,
           label: 'Update mounted CSS',
-        };
-        const applied = dispatchWorkspaceCommand(command);
-        if (!applied?.ok) return false;
-        if (localWorkspace) return true;
+        });
+        if (!command) return true;
+        if (localWorkspace) {
+          return Boolean(dispatchWorkspaceCommand(command)?.ok);
+        }
         if (!token) return false;
 
         const mutation = await editorApi.patchWorkspaceDocument(
@@ -729,10 +720,10 @@ export const useBlueprintEditorInspectorController = () => {
           {
             expectedContentRev: document.contentRev,
             command,
+            clientMutationId: command.id,
           }
         );
-        applyWorkspaceMutation(mutation);
-        return true;
+        return Boolean(acknowledgeWorkspaceCommand(command, mutation)?.ok);
       }
 
       if (
@@ -784,9 +775,9 @@ export const useBlueprintEditorInspectorController = () => {
         label: 'Create and bind mounted CSS',
       });
       if (!transaction) return false;
-      const applied = dispatchWorkspaceTransaction(transaction);
-      if (!applied?.ok) return false;
-      if (localWorkspace) return true;
+      if (localWorkspace) {
+        return Boolean(dispatchWorkspaceTransaction(transaction)?.ok);
+      }
       if (!token) return false;
 
       const request = createWorkspaceCodeDocumentIntentRequest({
@@ -794,21 +785,24 @@ export const useBlueprintEditorInspectorController = () => {
         intentId: createIntentId(),
         issuedAt,
         documentId,
-        nodeId: createMountedCssNodeId(selectedNode.id),
+        nodeId: createWorkspaceDocumentNodeId(documentId),
         path,
         content: codeContent,
+        clientMutationId: transaction.id,
       });
       const mutation = await editorApi.applyWorkspaceIntent(
         token,
         workspace,
         request
       );
-      applyWorkspaceMutation(mutation);
-      return true;
+      return Boolean(
+        acknowledgeWorkspaceTransaction(transaction, mutation)?.ok
+      );
     },
     [
       activePirDocument.id,
-      applyWorkspaceMutation,
+      acknowledgeWorkspaceCommand,
+      acknowledgeWorkspaceTransaction,
       dispatchWorkspaceCommand,
       dispatchWorkspaceTransaction,
       mountedCssEntries,

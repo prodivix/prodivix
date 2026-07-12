@@ -1,5 +1,13 @@
 import { DndContext, DragOverlay } from '@dnd-kit/core';
-import { useEditorShortcut } from '@/editor/shortcuts';
+import {
+  useEditorShortcut,
+  useWorkspaceHistoryShortcuts,
+} from '@/editor/shortcuts';
+import {
+  selectActiveDocumentId,
+  selectWorkspaceId,
+  useEditorStore,
+} from '@/editor/store/useEditorStore';
 import { BlueprintAssistantPanel } from './assistant';
 import { BlueprintEditorAddressBar } from './addressBar';
 import { BlueprintEditorCanvas } from './canvas';
@@ -12,6 +20,8 @@ import { useBlueprintEditorController } from './controller';
 import { useBundledOfficialPluginRuntime } from './runtime';
 
 function BlueprintEditor() {
+  const workspaceId = useEditorStore(selectWorkspaceId);
+  const activeDocumentId = useEditorStore(selectActiveDocumentId);
   const {
     officialPluginDiagnostics,
     activeCompositionIssue,
@@ -31,6 +41,15 @@ function BlueprintEditor() {
   } = useBlueprintEditorController();
   const compositionIssue =
     componentTree.compositionIssue ?? activeCompositionIssue;
+
+  useWorkspaceHistoryShortcuts({
+    workspaceId,
+    documentId: activeDocumentId,
+    domain: 'pir',
+    includeRoute: true,
+    suspended: dnd.isDragging,
+    shortcutScope: 'blueprint',
+  });
 
   useEditorShortcut(
     'Ctrl+Alt+J',

@@ -594,6 +594,8 @@ DELETE /api/projects/:id
 
 工作区 API 提供协作编辑功能，支持版本控制和冲突检测。
 
+除创建/导入入口外，Workspace snapshot、capabilities 和 mutation 端点均只允许 Workspace owner 访问。不存在的 Workspace 与属于其他用户的 Workspace 统一返回不含 `details` 的 `WKS-1001`（404），避免泄露 Workspace 是否存在、当前 revision 或文档元数据。
+
 #### 获取工作区快照
 
 获取工作区的完整快照，包括所有文档。
@@ -602,7 +604,7 @@ DELETE /api/projects/:id
 GET /api/workspaces/:workspaceId
 ```
 
-**请求头**: 需要认证
+**请求头**: 需要认证，且当前用户必须是 Workspace owner
 
 **成功响应** (200 OK):
 
@@ -617,15 +619,16 @@ GET /api/workspaces/:workspaceId
     "documents": [
       {
         "id": "doc_root",
-        "type": "pir_page",
-        "path": "/",
+        "type": "pir-page",
+        "path": "/pir.json",
         "contentRev": 5,
         "metaRev": 2,
         "content": { ... },
         "updatedAt": "2024-01-15T12:00:00Z"
       }
     ],
-    "routeManifest": null
+    "routeManifest": { "version": "1", "root": { "id": "root" } },
+    "settings": {}
   }
 }
 ```
@@ -640,7 +643,7 @@ GET /api/workspaces/:workspaceId
 GET /api/workspaces/:workspaceId/capabilities
 ```
 
-**请求头**: 需要认证
+**请求头**: 需要认证，且当前用户必须是 Workspace owner
 
 **成功响应** (200 OK):
 
@@ -668,7 +671,7 @@ GET /api/workspaces/:workspaceId/capabilities
 PATCH /api/workspaces/:workspaceId/documents/:documentId
 ```
 
-**请求头**: 需要认证
+**请求头**: 需要认证，且当前用户必须是 Workspace owner
 
 **请求体**:
 
@@ -692,11 +695,11 @@ PATCH /api/workspaces/:workspaceId/documents/:documentId
 }
 ```
 
-| 字段                 | 类型   | 必填 | 描述                                  |
-| -------------------- | ------ | ---- | ------------------------------------- |
-| `expectedContentRev` | number | 是   | 期望的内容版本号                      |
-| `clientMutationId`   | string | 否   | 客户端变更 ID                         |
-| `command`            | object | 是   | 包含 forwardOps/reverseOps 的命令信封 |
+| 字段                 | 类型   | 必填 | 描述                                         |
+| -------------------- | ------ | ---- | -------------------------------------------- |
+| `expectedContentRev` | number | 是   | 期望的内容版本号；必须是正 JSON safe integer |
+| `clientMutationId`   | string | 否   | 客户端变更 ID                                |
+| `command`            | object | 是   | 包含 forwardOps/reverseOps 的命令信封        |
 
 **成功响应** (200 OK):
 
@@ -734,18 +737,41 @@ PATCH /api/workspaces/:workspaceId/documents/:documentId
     "details": {
       "conflictType": "DOCUMENT_CONFLICT",
       "workspaceId": "ws_xxx",
-      "serverWorkspaceRev": 3,
-      "serverRouteRev": 1,
-      "opSeq": 150,
-      "serverDocument": {
-        "id": "doc_root",
-        "contentRev": 10,
-        "metaRev": 2
+      "expected": {
+        "document": {
+          "id": "doc_root",
+          "contentRev": 5
+        }
+      },
+      "current": {
+        "workspaceRev": 3,
+        "routeRev": 1,
+        "opSeq": 150,
+        "document": {
+          "id": "doc_root",
+          "type": "pir-page",
+          "path": "/pir.json",
+          "contentRev": 10,
+          "metaRev": 2,
+          "updatedAt": "2026-06-16T08:01:30Z"
+        }
       }
     }
   }
 }
 ```
+
+三个 revision 分区使用同一个 canonical `details` 外形：
+
+| 错误码     | `conflictType`       | `expected`                                   | `current`                                                                  |
+| ---------- | -------------------- | -------------------------------------------- | -------------------------------------------------------------------------- |
+| `WKS-4001` | `WORKSPACE_CONFLICT` | `workspaceRev`，路由写入时也包含 `routeRev`  | `workspaceRev`、`routeRev`、`opSeq`                                        |
+| `WKS-4002` | `ROUTE_CONFLICT`     | `workspaceRev`、`routeRev`                   | `workspaceRev`、`routeRev`、`opSeq`                                        |
+| `WKS-4003` | `DOCUMENT_CONFLICT`  | `document.id` 及 contentRev/metaRev baseline | Workspace revisions、`opSeq` 与安全 metadata；远端已删除时 `document:null` |
+
+`DOCUMENT_CONFLICT.expected.document` 至少包含 contentRev/metaRev 之一；metadata-only 仍使用 WKS-4003。`current.document` 属性必需，远端存在时返回安全 revision metadata，远端已删除时为 `null`。新增 Document 的 `contentRev:null + metaRev:null` absence precondition 若发现 identity 已存在，也返回 WKS-4003。
+
+冲突详情只返回 rebase 所需的 revision 与文档元数据，不返回文档正文。客户端应重新读取已授权的最新 Workspace snapshot，再进行语义合并或提示用户处理冲突。非 owner 在进入 revision 检查前即按 404 拒绝，因此不会收到 409 或任何 `current` 元数据。
 
 ---
 
@@ -757,7 +783,7 @@ PATCH /api/workspaces/:workspaceId/documents/:documentId
 POST /api/workspaces/:workspaceId/intents
 ```
 
-**请求头**: 需要认证
+**请求头**: 需要认证，且当前用户必须是 Workspace owner
 
 **请求体**:
 
@@ -780,51 +806,156 @@ POST /api/workspaces/:workspaceId/intents
 }
 ```
 
+`expectedWorkspaceRev` 必须是正 JSON safe integer；`expectedRouteRev` 省略时不参与非路由意图的 CAS，提供时也必须位于相同范围。任何即将越过该上界的 retained mutation 会在写入前以 422 拒绝。
+
 ---
 
-#### 批量操作
+#### 原子提交 WorkspaceOperation
 
-执行多个工作区操作的批量请求。
+把一个 Command 或 Transaction 作为单一持久化 commit。所有 revision CAS、Command Apply、reverse/final validation、Workspace/Document/Route 更新、revision 推进、operation log 和幂等结果都位于同一数据库事务。
 
 ```http
-POST /api/workspaces/:workspaceId/batch
+POST /api/workspaces/:workspaceId/operations/commit
 ```
 
-**请求头**: 需要认证
+**请求头**: 需要认证，且当前用户必须是 Workspace owner
 
 **请求体**:
 
 ```json
 {
-  "expectedWorkspaceRev": 1,
-  "expectedRouteRev": 1,
-  "operations": [
-    {
-      "op": "saveDocument",
-      "documentId": "doc_root",
-      "expectedContentRev": 5,
-      "content": { ... }
+  "expected": {
+    "workspaceRev": 3,
+    "routeRev": 2,
+    "documents": [{ "id": "doc_root", "contentRev": 5 }]
+  },
+  "operation": {
+    "kind": "transaction",
+    "transaction": {
+      "id": "operation_route_and_page_1",
+      "workspaceId": "ws_xxx",
+      "issuedAt": "2026-07-12T08:00:00Z",
+      "label": "Update page and route",
+      "commands": [
+        {
+          "id": "operation_route_and_page_1:document",
+          "namespace": "core.pir",
+          "type": "document.update",
+          "version": "1.0",
+          "issuedAt": "2026-07-12T08:00:00Z",
+          "target": {
+            "workspaceId": "ws_xxx",
+            "documentId": "doc_root"
+          },
+          "domainHint": "pir",
+          "forwardOps": [
+            {
+              "op": "replace",
+              "path": "/ui/graph/nodesById/title/props/text",
+              "value": "Next"
+            }
+          ],
+          "reverseOps": [
+            {
+              "op": "replace",
+              "path": "/ui/graph/nodesById/title/props/text",
+              "value": "Previous"
+            }
+          ]
+        },
+        {
+          "id": "operation_route_and_page_1:route",
+          "namespace": "core.route",
+          "type": "manifest.update",
+          "version": "1.0",
+          "issuedAt": "2026-07-12T08:00:00Z",
+          "target": { "workspaceId": "ws_xxx" },
+          "domainHint": "route",
+          "forwardOps": [
+            {
+              "op": "replace",
+              "path": "/routeManifest",
+              "value": { "version": "1", "root": { "id": "next-root" } }
+            }
+          ],
+          "reverseOps": [
+            {
+              "op": "replace",
+              "path": "/routeManifest",
+              "value": { "version": "1", "root": { "id": "root" } }
+            }
+          ]
+        }
+      ]
     },
-    {
-      "op": "intent",
-      "intent": { ... }
-    }
-  ],
-  "clientBatchId": "batch_123"
+    "sourceOperationIds": ["local_operation_1"]
+  }
 }
 ```
+
+`operation.kind` 只允许 `command` 或 `transaction`。Intent 是 Operation planner 的输入，不是 Commit wire union 的第三种 kind。
+
+Atomic wire 还执行以下 canonicalization 与 Hard Cut：
+
+1. Operation/Transaction/Command、namespace/type/version、Workspace 和可选 target Document/Route 标识符必须非空且无首尾空白；当前不强制 UUID 或特定字符集。
+2. Transaction 与所有 Command 的 `issuedAt` 必须是 RFC3339 timestamp。
+3. `undoOf` 与 `redoOf` 在 trim 后互斥；`sourceOperationIds` 逐项 trim、拒绝空值，并按首次出现顺序稳定去重后再计算 request digest。
+4. 所有 domain 的 forward/reverse ops 都禁止 `move` / `copy`，必须展开为显式 granular `add` / `remove` / `replace` / `test`。
+5. `asset` / `project-config` 尚无可逆的 document command domain，document-targeted 修改以 422 Hard Cut。
+
+`expected` 必须与服务端从 Operation 写集推导的分区完全一致：
+
+| 写入范围                             | 必需 baseline                                                   |
+| ------------------------------------ | --------------------------------------------------------------- |
+| 已有 Document content                | `documents[{id, contentRev}]`                                   |
+| 已有 Document name/path/capabilities | `workspaceRev + documents[{id, metaRev}]`                       |
+| 新增 Document                        | `workspaceRev + documents[{id, contentRev:null, metaRev:null}]` |
+| 删除 Document                        | `workspaceRev + documents[{id, contentRev, metaRev}]`           |
+| Workspace tree                       | `workspaceRev`                                                  |
+| RouteManifest                        | `workspaceRev + routeRev`                                       |
+| Mixed Transaction                    | 全部受影响分区的并集                                            |
+
+`expected.documents` 始终存在；没有文档写入时为 `[]`，有文档写入时按 id 的 Unicode code-point 顺序排序且 id 唯一，不依赖 locale。同一文档在 Transaction 内出现多个 Command 时只提供一次初始 baseline，不手工传递 `N + 1` revision。
+
+`settings` 不属于这个作者态 Commit endpoint。`activeDocumentId` / `activeRouteNodeId` 是本地 ephemeral selection，服务端不会持久化或为其要求 revision；只包含 selection patch、没有任何持久写入的 Operation 返回 422。
+
+Command 或 Transaction id 是强幂等 commit identity：
+
+1. 相同 id、相同 canonical request 重试时返回首次提交的 mutation，不再次 Apply，也不推进 revision/opSeq。
+2. 相同 id、不同 request 返回 422，`details.reason` 为 `COMMIT_IDENTITY_MISMATCH`。
+3. 缺少/多余 revision partition、unsupported path 或非法 Operation 返回 422，`details.reason` 为 `COMMIT_VALIDATION_FAILED`。
 
 **成功响应** (200 OK):
 
 ```json
 {
   "workspaceId": "ws_xxx",
-  "workspaceRev": 3,
-  "routeRev": 2,
-  "opSeq": 102,
-  "acceptedMutationId": "batch_123"
+  "workspaceRev": 4,
+  "routeRev": 3,
+  "opSeq": 103,
+  "updatedDocuments": [
+    {
+      "id": "doc_root",
+      "type": "pir-page",
+      "path": "/pir.json",
+      "contentRev": 6,
+      "metaRev": 2,
+      "content": { "...": "..." },
+      "updatedAt": "2026-07-12T08:00:01Z"
+    }
+  ],
+  "routeManifest": { "version": "1", "root": { "id": "next-root" } },
+  "acceptedMutationId": "operation_route_and_page_1"
 }
 ```
+
+响应聚合整条 Operation 的全部 delta；`acceptedMutationId` 必须等于 Command 或 Transaction id。一次 Commit 只推进一次 `opSeq` 并只写一条 operation-log record；任一后续 Command/validator/SQL 失败时全部 rollback。
+
+`opSeq` 不参与 CAS；若不相交分区在 base snapshot 后先行提交，本响应的 `opSeq` 可以跨越多步。响应只聚合当前 Operation 的 delta，不是 catch-up stream；Web 检测到序列缺口后会重新读取 canonical snapshot，再采用成功 ACK。
+
+`200` 只表示 canonical Workspace 数据库已经提交。该 Handler 不同步写 Project mirror，避免乱序投影和幂等 replay 重复产生外部副作用；需要可靠跨系统投影时必须由同事务写入的 transactional outbox 驱动。
+
+旧 `POST /api/workspaces/:workspaceId/batch` 是逐条 Store commit，从未具备原子性，现已连同 `ApplyBatchRequest`、`clientBatchId` 和 Web adapter 一起 Hard Cut；不提供转发或兼容层。
 
 ---
 

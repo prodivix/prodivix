@@ -16,16 +16,26 @@ func MapStoreError(err error) *RequestFailure {
 	}
 	var conflictErr *WorkspaceRevisionConflictError
 	if errors.As(err, &conflictErr) {
+		currentDocumentRev := int64(0)
+		currentDocumentMetaRev := int64(0)
+		documentID := ""
+		if conflictErr.Expected.Document != nil {
+			documentID = conflictErr.Expected.Document.ID
+		}
+		if conflictErr.Current.Document != nil {
+			currentDocumentRev = conflictErr.Current.Document.ContentRev
+			currentDocumentMetaRev = conflictErr.Current.Document.MetaRev
+		}
 		log.Printf(
-			"[workspace] conflict mapped type=%s workspace=%s document=%s serverWorkspaceRev=%d serverRouteRev=%d serverContentRev=%d serverMetaRev=%d serverOpSeq=%d",
+			"[workspace] conflict mapped type=%s workspace=%s document=%s currentWorkspaceRev=%d currentRouteRev=%d currentContentRev=%d currentMetaRev=%d currentOpSeq=%d",
 			conflictErr.ConflictType,
 			conflictErr.WorkspaceID,
-			conflictErr.DocumentID,
-			conflictErr.ServerWorkspaceRev,
-			conflictErr.ServerRouteRev,
-			conflictErr.ServerContentRev,
-			conflictErr.ServerMetaRev,
-			conflictErr.ServerOpSeq,
+			documentID,
+			conflictErr.Current.WorkspaceRev,
+			conflictErr.Current.RouteRev,
+			currentDocumentRev,
+			currentDocumentMetaRev,
+			conflictErr.Current.OpSeq,
 		)
 		return &RequestFailure{Status: http.StatusConflict, Payload: BuildConflictPayload(conflictErr)}
 	}
@@ -34,6 +44,35 @@ func MapStoreError(err error) *RequestFailure {
 	}
 	if errors.Is(err, ErrWorkspaceDocumentNotFound) {
 		return NewRequestFailure(http.StatusNotFound, ErrorWorkspaceDocumentNotFound, "Workspace document not found.", nil)
+	}
+	if errors.Is(err, ErrWorkspaceCommitIdentityMismatch) {
+		return NewRequestFailure(
+			http.StatusUnprocessableEntity,
+			ErrorInvalidPayload,
+			"Workspace operation id was already used by a different request.",
+			map[string]any{"reason": "COMMIT_IDENTITY_MISMATCH"},
+		)
+	}
+	var revisionLimitErr *workspaceRevisionLimitError
+	if errors.As(err, &revisionLimitErr) {
+		return NewRequestFailure(
+			http.StatusUnprocessableEntity,
+			ErrorInvalidPayload,
+			revisionLimitErr.Message,
+			map[string]any{
+				"field":  revisionLimitErr.Field,
+				"reason": revisionLimitErr.Reason,
+			},
+		)
+	}
+	var commitValidationErr *WorkspaceOperationCommitValidationError
+	if errors.As(err, &commitValidationErr) {
+		return NewRequestFailure(
+			http.StatusUnprocessableEntity,
+			ErrorInvalidPayload,
+			commitValidationErr.Message,
+			map[string]any{"path": commitValidationErr.Path, "reason": "COMMIT_VALIDATION_FAILED"},
+		)
 	}
 	var syntaxErr *json.SyntaxError
 	if errors.As(err, &syntaxErr) {
@@ -68,19 +107,56 @@ func MapStoreError(err error) *RequestFailure {
 
 func BuildConflictPayload(conflictErr *WorkspaceRevisionConflictError) map[string]any {
 	code := ErrorWorkspaceConflictCode(conflictErr.ConflictType)
-	details := map[string]any{
-		"conflictType":       conflictErr.ConflictType,
-		"workspaceId":        conflictErr.WorkspaceID,
-		"serverWorkspaceRev": conflictErr.ServerWorkspaceRev,
-		"serverRouteRev":     conflictErr.ServerRouteRev,
-		"opSeq":              conflictErr.ServerOpSeq,
+	expected := make(map[string]any)
+	if conflictErr.Expected.WorkspaceRev > 0 {
+		expected["workspaceRev"] = conflictErr.Expected.WorkspaceRev
 	}
-	if strings.TrimSpace(conflictErr.DocumentID) != "" {
-		details["serverDocument"] = map[string]any{
-			"id":         conflictErr.DocumentID,
-			"contentRev": conflictErr.ServerContentRev,
-			"metaRev":    conflictErr.ServerMetaRev,
+	if conflictErr.Expected.RouteRev > 0 {
+		expected["routeRev"] = conflictErr.Expected.RouteRev
+	}
+	if conflictErr.Expected.Document != nil {
+		expectedDocument := map[string]any{"id": conflictErr.Expected.Document.ID}
+		if conflictErr.Expected.Document.ContentRevKnown {
+			if conflictErr.Expected.Document.ContentRev > 0 {
+				expectedDocument["contentRev"] = conflictErr.Expected.Document.ContentRev
+			} else {
+				expectedDocument["contentRev"] = nil
+			}
 		}
+		if conflictErr.Expected.Document.MetaRevKnown {
+			if conflictErr.Expected.Document.MetaRev > 0 {
+				expectedDocument["metaRev"] = conflictErr.Expected.Document.MetaRev
+			} else {
+				expectedDocument["metaRev"] = nil
+			}
+		}
+		expected["document"] = expectedDocument
+	}
+
+	current := map[string]any{
+		"workspaceRev": conflictErr.Current.WorkspaceRev,
+		"routeRev":     conflictErr.Current.RouteRev,
+		"opSeq":        conflictErr.Current.OpSeq,
+	}
+	if conflictErr.Current.Document != nil {
+		document := conflictErr.Current.Document
+		current["document"] = map[string]any{
+			"id":         document.ID,
+			"type":       document.Type,
+			"path":       document.Path,
+			"contentRev": document.ContentRev,
+			"metaRev":    document.MetaRev,
+			"updatedAt":  document.UpdatedAt.UTC(),
+		}
+	} else if conflictErr.Current.DocumentKnown {
+		current["document"] = nil
+	}
+
+	details := map[string]any{
+		"conflictType": conflictErr.ConflictType,
+		"workspaceId":  conflictErr.WorkspaceID,
+		"expected":     expected,
+		"current":      current,
 	}
 	return BuildErrorEnvelopePayload(
 		code,
@@ -119,6 +195,12 @@ func BuildMutationSuccessPayload(result *WorkspaceMutationResult, acceptedMutati
 	if len(result.Tree) > 0 {
 		response["tree"] = result.Tree
 	}
+	if len(result.RouteManifest) > 0 {
+		response["routeManifest"] = result.RouteManifest
+	}
+	if len(result.Settings) > 0 {
+		response["settings"] = result.Settings
+	}
 	if acceptedMutationID != "" {
 		response["acceptedMutationId"] = acceptedMutationID
 	}
@@ -142,11 +224,12 @@ func LogWorkspaceConflictFailure(
 	}
 	details := ExtractErrorDetails(failure.Payload)
 	conflictType, _ := details["conflictType"]
-	serverWorkspaceRev, _ := details["serverWorkspaceRev"]
-	serverRouteRev, _ := details["serverRouteRev"]
-	opSeq, _ := details["opSeq"]
+	current, _ := details["current"].(map[string]any)
+	currentWorkspaceRev, _ := current["workspaceRev"]
+	currentRouteRev, _ := current["routeRev"]
+	currentOpSeq, _ := current["opSeq"]
 	log.Printf(
-		"[workspace] 409 action=%s method=%s path=%s workspace=%s document=%s clientMutationId=%s expectedWorkspaceRev=%d expectedRouteRev=%d expectedContentRev=%d conflictType=%v serverWorkspaceRev=%v serverRouteRev=%v serverOpSeq=%v",
+		"[workspace] 409 action=%s method=%s path=%s workspace=%s document=%s clientMutationId=%s expectedWorkspaceRev=%d expectedRouteRev=%d expectedContentRev=%d conflictType=%v currentWorkspaceRev=%v currentRouteRev=%v currentOpSeq=%v",
 		action,
 		method,
 		path,
@@ -157,9 +240,9 @@ func LogWorkspaceConflictFailure(
 		expectedRouteRev,
 		expectedContentRev,
 		conflictType,
-		serverWorkspaceRev,
-		serverRouteRev,
-		opSeq,
+		currentWorkspaceRev,
+		currentRouteRev,
+		currentOpSeq,
 	)
 }
 
@@ -193,6 +276,7 @@ func IsWorkspaceEnvelopeError(err error) bool {
 
 func DefaultCapabilities() map[string]bool {
 	return map[string]bool{
+		"core.workspace.operation.commit@1.0":      true,
 		"core.pir.document.update@1.0":             true,
 		"core.pir.graph.replace@1.0":               true,
 		"core.route.manifest.update@1.0":           true,

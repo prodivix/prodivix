@@ -25,10 +25,43 @@ func applyWorkspaceDocumentPatch(documentType WorkspaceDocumentType, content jso
 	if documentType == WorkspaceDocumentTypeCode {
 		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceCodePatchPath)
 	}
+	if documentType == WorkspaceDocumentTypePIRGraph {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceNodeGraphPatchPath)
+	}
+	if documentType == WorkspaceDocumentTypePIRAnimation {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceAnimationPatchPath)
+	}
 	if !isPIRWorkspaceDocumentType(documentType) {
 		return applyWorkspacePatchWithValidator(content, ops, validateGenericWorkspaceDocumentPatchPath)
 	}
 	return applyWorkspacePatch(content, ops)
+}
+
+func validateWorkspaceNodeGraphPatchPath(path string) error {
+	return validateWorkspaceDocumentRootPath(path, "nodesById", "edgesById", "groupsById", "metadata")
+}
+
+func validateWorkspaceAnimationPatchPath(path string) error {
+	return validateWorkspaceDocumentRootPath(path, "timelinesById", "tracksById", "keyframesById", "bindingsById", "metadata")
+}
+
+func validateWorkspaceDocumentRootPath(path string, allowed ...string) error {
+	pointer, err := parseJSONPointer(path)
+	if err != nil {
+		return err
+	}
+	if len(pointer) == 0 {
+		return ErrWorkspacePatchPathForbidden
+	}
+	for _, root := range allowed {
+		if pointer[0] == root {
+			return nil
+		}
+	}
+	if strings.HasPrefix(pointer[0], "x-") {
+		return nil
+	}
+	return ErrWorkspacePatchPathForbidden
 }
 
 func applyWorkspacePatchWithValidator(content json.RawMessage, ops []WorkspacePatchOp, validatePath workspacePatchPathValidator) (json.RawMessage, error) {

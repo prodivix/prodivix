@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"regexp"
@@ -65,15 +66,18 @@ func TestWorkspaceStorePatchCodeDocumentContentSkipsPIRValidation(t *testing.T) 
 		},
 	}
 
-	lockQuery := regexp.QuoteMeta(`SELECT d.doc_type, d.content_json, d.content_rev, d.meta_rev, w.workspace_rev, w.route_rev, w.op_seq
-FROM workspace_documents d
-JOIN workspaces w ON w.id = d.workspace_id
-WHERE d.workspace_id = $1 AND d.id = $2
-FOR UPDATE OF d, w`)
+	lockWorkspace := regexp.QuoteMeta(`SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`)
+	lockDocument := regexp.QuoteMeta(`SELECT doc_type, path, updated_at, content_json, content_rev, meta_rev
+FROM workspace_documents
+WHERE workspace_id = $1 AND id = $2
+FOR UPDATE`)
 	updateDocument := regexp.QuoteMeta(`UPDATE workspace_documents
 SET content_json = $3::jsonb, content_rev = content_rev + 1, updated_at = NOW()
 WHERE workspace_id = $1 AND id = $2
-RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at`)
+RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at`)
 	bumpSequenceOnly := regexp.QuoteMeta(`UPDATE workspaces
 SET op_seq = op_seq + 1, updated_at = NOW()
 WHERE id = $1
@@ -82,14 +86,18 @@ RETURNING workspace_rev, route_rev, op_seq`)
 VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(lockQuery).
+	mock.ExpectQuery(lockWorkspace).
+		WithArgs("ws_1").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).
+			AddRow(9, 4, 33))
+	mock.ExpectQuery(lockDocument).
 		WithArgs("ws_1", "code_open_dialog").
-		WillReturnRows(sqlmock.NewRows([]string{"doc_type", "content_json", "content_rev", "meta_rev", "workspace_rev", "route_rev", "op_seq"}).
-			AddRow("code", []byte(`{"language":"ts","source":"export function openDialog() {}"}`), 3, 1, 9, 4, 33))
+		WillReturnRows(sqlmock.NewRows([]string{"doc_type", "path", "updated_at", "content_json", "content_rev", "meta_rev"}).
+			AddRow("code", "/src/actions/openDialog.ts", issuedAt.Add(-time.Minute), []byte(`{"language":"ts","source":"export function openDialog() {}"}`), 3, 1))
 	mock.ExpectQuery(updateDocument).
 		WithArgs("ws_1", "code_open_dialog", `{"language":"ts","source":"export function openDialog(id) { return id; }"}`).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"workspace_id", "id", "doc_type", "name", "path", "content_rev", "meta_rev", "content_json", "updated_at",
+			"workspace_id", "id", "doc_type", "name", "path", "content_rev", "meta_rev", "content_json", "capabilities_json", "updated_at",
 		}).AddRow(
 			"ws_1",
 			"code_open_dialog",
@@ -99,6 +107,7 @@ VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
 			4,
 			1,
 			[]byte(`{"language":"ts","source":"export function openDialog(id) { return id; }"}`),
+			[]byte(`[]`),
 			issuedAt.UTC(),
 		))
 	mock.ExpectQuery(bumpSequenceOnly).
@@ -122,6 +131,116 @@ VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
 		result.UpdatedDocuments[0].ContentRev != 4 ||
 		string(result.UpdatedDocuments[0].Content) != `{"language":"ts","source":"export function openDialog(id) { return id; }"}` {
 		t.Fatalf("unexpected updated documents: %+v", result.UpdatedDocuments)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("sql expectations: %v", err)
+	}
+}
+
+func TestWorkspaceStorePatchDocumentContentReturnsCurrentMetadataWithoutApplyingStaleCommand(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	store := NewWorkspaceStore(db)
+	issuedAt := time.Date(2026, time.February, 8, 10, 5, 0, 0, time.UTC)
+	currentUpdatedAt := issuedAt.Add(-time.Minute)
+	command := buildTestCommand("cmd_stale_document_update", issuedAt, "ws_1", "doc_home", "core.pir", "document.update")
+	lockWorkspace := regexp.QuoteMeta(`SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`)
+	lockDocument := regexp.QuoteMeta(`SELECT doc_type, path, updated_at, content_json, content_rev, meta_rev
+FROM workspace_documents
+WHERE workspace_id = $1 AND id = $2
+FOR UPDATE`)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(lockWorkspace).
+		WithArgs("ws_1").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).
+			AddRow(11, 4, 39))
+	mock.ExpectQuery(lockDocument).
+		WithArgs("ws_1", "doc_home").
+		WillReturnRows(sqlmock.NewRows([]string{"doc_type", "path", "updated_at", "content_json", "content_rev", "meta_rev"}).
+			AddRow("pir-page", "/pages/home.pir.json", currentUpdatedAt, []byte(`{"title":"remote"}`), 7, 2))
+	mock.ExpectRollback()
+
+	_, err = store.PatchDocumentContent(context.Background(), PatchDocumentContentParams{
+		WorkspaceID:        "ws_1",
+		DocumentID:         "doc_home",
+		ExpectedContentRev: 6,
+		Command:            command,
+	})
+	if err == nil {
+		t.Fatal("expected stale document revision conflict")
+	}
+
+	var conflictErr *WorkspaceRevisionConflictError
+	if !errors.As(err, &conflictErr) {
+		t.Fatalf("expected WorkspaceRevisionConflictError, got %T: %v", err, err)
+	}
+	if conflictErr.ConflictType != WorkspaceConflictDocument ||
+		conflictErr.Expected.Document == nil ||
+		conflictErr.Expected.Document.ID != "doc_home" ||
+		conflictErr.Expected.Document.ContentRev != 6 ||
+		conflictErr.Current.WorkspaceRev != 11 ||
+		conflictErr.Current.RouteRev != 4 ||
+		conflictErr.Current.OpSeq != 39 {
+		t.Fatalf("unexpected conflict revisions: %+v", conflictErr)
+	}
+	if conflictErr.Current.Document == nil ||
+		conflictErr.Current.Document.ID != "doc_home" ||
+		conflictErr.Current.Document.Type != WorkspaceDocumentTypePIRPage ||
+		conflictErr.Current.Document.Path != "/pages/home.pir.json" ||
+		conflictErr.Current.Document.ContentRev != 7 ||
+		conflictErr.Current.Document.MetaRev != 2 ||
+		!conflictErr.Current.Document.UpdatedAt.Equal(currentUpdatedAt) {
+		t.Fatalf("unexpected current document metadata: %+v", conflictErr.Current.Document)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("sql expectations: %v", err)
+	}
+}
+
+func TestWorkspaceStorePatchDocumentContentLocksWorkspaceBeforeMissingDocumentLookup(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	store := NewWorkspaceStore(db)
+	issuedAt := time.Date(2026, time.February, 8, 10, 6, 0, 0, time.UTC)
+	command := buildTestCommand("cmd_missing_document", issuedAt, "ws_1", "doc_missing", "core.pir", "document.update")
+	lockWorkspace := regexp.QuoteMeta(`SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`)
+	lockDocument := regexp.QuoteMeta(`SELECT doc_type, path, updated_at, content_json, content_rev, meta_rev
+FROM workspace_documents
+WHERE workspace_id = $1 AND id = $2
+FOR UPDATE`)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(lockWorkspace).
+		WithArgs("ws_1").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).AddRow(11, 4, 39))
+	mock.ExpectQuery(lockDocument).
+		WithArgs("ws_1", "doc_missing").
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectRollback()
+
+	_, err = store.PatchDocumentContent(context.Background(), PatchDocumentContentParams{
+		WorkspaceID:        "ws_1",
+		DocumentID:         "doc_missing",
+		ExpectedContentRev: 1,
+		Command:            command,
+	})
+	if !errors.Is(err, ErrWorkspaceDocumentNotFound) {
+		t.Fatalf("expected missing document error, got %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("sql expectations: %v", err)
@@ -158,6 +277,7 @@ VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
 	mock.ExpectQuery(lockWorkspace).
 		WithArgs("ws_1").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).AddRow(9, 4, 34))
+	expectRouteReferenceDocuments(mock, routeReferenceTestDocument{id: "doc_root", documentType: WorkspaceDocumentTypePIRPage, path: "/pir.json"})
 	mock.ExpectExec(upsertRoute).
 		WithArgs("ws_1", sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -259,6 +379,7 @@ VALUES ($1, $2, $3, $4, $5::jsonb, $6)`)
 	mock.ExpectQuery(lockWorkspace).
 		WithArgs("ws_1").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).AddRow(9, 4, 34))
+	expectRouteReferenceDocuments(mock, routeReferenceTestDocument{id: "doc_root", documentType: WorkspaceDocumentTypePIRPage, path: "/pir.json"})
 	mock.ExpectExec(upsertRoute).
 		WithArgs("ws_1", `{"root":{"children":[{"id":"users","segment":"/users/"}],"id":"root"},"version":"1"}`).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -382,10 +503,170 @@ FOR UPDATE`)
 	if conflictErr.ConflictType != WorkspaceConflictWorkspace {
 		t.Fatalf("unexpected conflict type: %s", conflictErr.ConflictType)
 	}
-	if conflictErr.ServerWorkspaceRev != 10 {
-		t.Fatalf("unexpected server workspace rev: %d", conflictErr.ServerWorkspaceRev)
+	if conflictErr.Expected.WorkspaceRev != 9 || conflictErr.Current.WorkspaceRev != 10 {
+		t.Fatalf("unexpected workspace revision conflict: %+v", conflictErr)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("sql expectations: %v", err)
+	}
+}
+
+func TestWorkspaceStorePatchDocumentContentRejectsRevisionCapacityBeforeMutation(t *testing.T) {
+	tests := []struct {
+		name              string
+		currentContentRev int64
+		currentOpSeq      int64
+		expectedField     string
+	}{
+		{name: "content revision", currentContentRev: maxJSONSafeInteger, currentOpSeq: 33, expectedField: "contentRev"},
+		{name: "operation sequence", currentContentRev: 3, currentOpSeq: maxJSONSafeInteger, expectedField: "opSeq"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("create sqlmock: %v", err)
+			}
+			defer db.Close()
+
+			store := NewWorkspaceStore(db)
+			issuedAt := time.Date(2026, time.July, 12, 12, 0, 0, 0, time.UTC)
+			command := buildTestCommand("cmd_capacity_document", issuedAt, "ws_1", "doc_home", "core.pir", "document.update")
+			lockWorkspace := regexp.QuoteMeta(`SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`)
+			lockDocument := regexp.QuoteMeta(`SELECT doc_type, path, updated_at, content_json, content_rev, meta_rev
+FROM workspace_documents
+WHERE workspace_id = $1 AND id = $2
+FOR UPDATE`)
+
+			mock.ExpectBegin()
+			mock.ExpectQuery(lockWorkspace).
+				WithArgs("ws_1").
+				WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).AddRow(9, 4, test.currentOpSeq))
+			mock.ExpectQuery(lockDocument).
+				WithArgs("ws_1", "doc_home").
+				WillReturnRows(sqlmock.NewRows([]string{"doc_type", "path", "updated_at", "content_json", "content_rev", "meta_rev"}).
+					AddRow("pir-page", "/pages/home.pir.json", issuedAt, []byte(`{"title":"prev"}`), test.currentContentRev, 1))
+			mock.ExpectRollback()
+
+			_, err = store.PatchDocumentContent(context.Background(), PatchDocumentContentParams{
+				WorkspaceID:        "ws_1",
+				DocumentID:         "doc_home",
+				ExpectedContentRev: test.currentContentRev,
+				Command:            command,
+			})
+			var limitErr *workspaceRevisionLimitError
+			if !errors.As(err, &limitErr) || limitErr.Reason != revisionLimitReasonCapacity || limitErr.Field != test.expectedField {
+				t.Fatalf("expected %s capacity error, got %v", test.expectedField, err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("unexpected SQL mutation: %v", err)
+			}
+		})
+	}
+}
+
+func TestWorkspaceStoreSaveRouteManifestRejectsRevisionCapacityBeforeMutation(t *testing.T) {
+	tests := []struct {
+		name                string
+		currentWorkspaceRev int64
+		currentRouteRev     int64
+		currentOpSeq        int64
+		expectedField       string
+	}{
+		{name: "workspace revision", currentWorkspaceRev: maxJSONSafeInteger, currentRouteRev: 4, currentOpSeq: 33, expectedField: "workspaceRev"},
+		{name: "route revision", currentWorkspaceRev: 9, currentRouteRev: maxJSONSafeInteger, currentOpSeq: 33, expectedField: "routeRev"},
+		{name: "operation sequence", currentWorkspaceRev: 9, currentRouteRev: 4, currentOpSeq: maxJSONSafeInteger, expectedField: "opSeq"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("create sqlmock: %v", err)
+			}
+			defer db.Close()
+
+			store := NewWorkspaceStore(db)
+			issuedAt := time.Date(2026, time.July, 12, 12, 1, 0, 0, time.UTC)
+			command := buildTestCommand("cmd_capacity_route", issuedAt, "ws_1", "", "core.route", "manifest.update")
+			lockWorkspace := regexp.QuoteMeta(`SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`)
+
+			mock.ExpectBegin()
+			mock.ExpectQuery(lockWorkspace).
+				WithArgs("ws_1").
+				WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).
+					AddRow(test.currentWorkspaceRev, test.currentRouteRev, test.currentOpSeq))
+			mock.ExpectRollback()
+
+			_, err = store.SaveRouteManifest(context.Background(), SaveRouteManifestParams{
+				WorkspaceID:          "ws_1",
+				ExpectedWorkspaceRev: test.currentWorkspaceRev,
+				ExpectedRouteRev:     test.currentRouteRev,
+				RouteManifest:        json.RawMessage(`{"version":"1","root":{"id":"root"}}`),
+				Command:              command,
+			})
+			var limitErr *workspaceRevisionLimitError
+			if !errors.As(err, &limitErr) || limitErr.Reason != revisionLimitReasonCapacity || limitErr.Field != test.expectedField {
+				t.Fatalf("expected %s capacity error, got %v", test.expectedField, err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("unexpected SQL mutation: %v", err)
+			}
+		})
+	}
+}
+
+func TestWorkspaceStoreSaveWorkspaceSettingsRejectsRevisionCapacityBeforeMutation(t *testing.T) {
+	tests := []struct {
+		name                string
+		currentWorkspaceRev int64
+		currentOpSeq        int64
+		expectedField       string
+	}{
+		{name: "workspace revision", currentWorkspaceRev: maxJSONSafeInteger, currentOpSeq: 33, expectedField: "workspaceRev"},
+		{name: "operation sequence", currentWorkspaceRev: 9, currentOpSeq: maxJSONSafeInteger, expectedField: "opSeq"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("create sqlmock: %v", err)
+			}
+			defer db.Close()
+
+			store := NewWorkspaceStore(db)
+			issuedAt := time.Date(2026, time.July, 12, 12, 2, 0, 0, time.UTC)
+			command := buildTestCommand("cmd_capacity_settings", issuedAt, "ws_1", "", "core.settings", "global.update")
+			lockWorkspace := regexp.QuoteMeta(`SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`)
+
+			mock.ExpectBegin()
+			mock.ExpectQuery(lockWorkspace).
+				WithArgs("ws_1").
+				WillReturnRows(sqlmock.NewRows([]string{"workspace_rev", "route_rev", "op_seq"}).
+					AddRow(test.currentWorkspaceRev, 4, test.currentOpSeq))
+			mock.ExpectRollback()
+
+			_, err = store.SaveWorkspaceSettings(context.Background(), SaveWorkspaceSettingsParams{
+				WorkspaceID:          "ws_1",
+				ExpectedWorkspaceRev: test.currentWorkspaceRev,
+				Settings:             json.RawMessage(`{"global":{"eventTriggerMode":"always"},"projectGlobalById":{}}`),
+				Command:              command,
+			})
+			var limitErr *workspaceRevisionLimitError
+			if !errors.As(err, &limitErr) || limitErr.Reason != revisionLimitReasonCapacity || limitErr.Field != test.expectedField {
+				t.Fatalf("expected %s capacity error, got %v", test.expectedField, err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("unexpected SQL mutation: %v", err)
+			}
+		})
 	}
 }

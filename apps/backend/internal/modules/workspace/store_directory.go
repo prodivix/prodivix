@@ -18,8 +18,8 @@ func (store *WorkspaceStore) CreateWorkspaceDirectory(ctx context.Context, param
 	if params.WorkspaceID == "" || params.NodeID == "" {
 		return nil, errors.New("workspaceID and nodeID are required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
 	}
 	command, err := normalizeWorkspaceCommand(params.Command)
 	if err != nil {
@@ -58,15 +58,19 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictWorkspace,
-			WorkspaceID:        params.WorkspaceID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newWorkspaceRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
 	documents, err := queryWorkspaceDocumentsForUpdate(ctx, tx, params.WorkspaceID)
 	if err != nil {
@@ -117,8 +121,8 @@ func (store *WorkspaceStore) RenameWorkspaceDirectory(ctx context.Context, param
 	if params.WorkspaceID == "" || params.NodeID == "" {
 		return nil, errors.New("workspaceID and nodeID are required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
 	}
 	command, err := normalizeWorkspaceCommand(params.Command)
 	if err != nil {
@@ -157,9 +161,19 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
-		return nil, &WorkspaceRevisionConflictError{ConflictType: WorkspaceConflictWorkspace, WorkspaceID: params.WorkspaceID, ServerWorkspaceRev: currentWorkspaceRev, ServerRouteRev: currentRouteRev, ServerOpSeq: currentOpSeq}
+		return nil, newWorkspaceRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
 	documents, err := queryWorkspaceDocumentsForUpdate(ctx, tx, params.WorkspaceID)
 	if err != nil {
@@ -181,23 +195,35 @@ FOR UPDATE`
 		_ = tx.Rollback()
 		return nil, err
 	}
-	updatedDocuments := make([]WorkspaceDocumentRevision, 0)
+	type documentPathUpdate struct {
+		documentID string
+		path       string
+	}
+	documentPathUpdates := make([]documentPathUpdate, 0)
+	for _, document := range documents {
+		nextPath, exists := pathsByDocumentID[document.ID]
+		if !exists || normalizeComparablePath(document.Path) == normalizeComparablePath(nextPath) {
+			continue
+		}
+		if err := validateRevisionCanAdvance("metaRev", document.MetaRev); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+		documentPathUpdates = append(documentPathUpdates, documentPathUpdate{documentID: document.ID, path: nextPath})
+	}
+
+	updatedDocuments := make([]WorkspaceDocumentRevision, 0, len(documentPathUpdates))
 	const updateDocumentPath = `UPDATE workspace_documents
 SET name = $3, path = $4, meta_rev = meta_rev + 1, updated_at = NOW()
 WHERE workspace_id = $1 AND id = $2
-RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at`
-	for documentID, nextPath := range pathsByDocumentID {
-		for _, document := range documents {
-			if document.ID != documentID || normalizeComparablePath(document.Path) == normalizeComparablePath(nextPath) {
-				continue
-			}
-			updatedDocument, err := scanWorkspaceDocument(tx.QueryRowContext(ctx, updateDocumentPath, params.WorkspaceID, documentID, workspacePathName(nextPath), nextPath))
-			if err != nil {
-				_ = tx.Rollback()
-				return nil, err
-			}
-			updatedDocuments = append(updatedDocuments, toWorkspaceDocumentRevision(*updatedDocument))
+RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at`
+	for _, update := range documentPathUpdates {
+		updatedDocument, err := scanWorkspaceDocument(tx.QueryRowContext(ctx, updateDocumentPath, params.WorkspaceID, update.documentID, workspacePathName(update.path), update.path))
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, err
 		}
+		updatedDocuments = append(updatedDocuments, toWorkspaceDocumentRevision(*updatedDocument))
 	}
 	const updateWorkspace = `UPDATE workspaces
 SET tree_json = $2::jsonb, workspace_rev = workspace_rev + 1, op_seq = op_seq + 1, updated_at = NOW()
@@ -229,8 +255,8 @@ func (store *WorkspaceStore) DeleteWorkspaceDirectory(ctx context.Context, param
 	if params.WorkspaceID == "" || params.NodeID == "" {
 		return nil, errors.New("workspaceID and nodeID are required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
 	}
 	command, err := normalizeWorkspaceCommand(params.Command)
 	if err != nil {
@@ -269,9 +295,19 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
-		return nil, &WorkspaceRevisionConflictError{ConflictType: WorkspaceConflictWorkspace, WorkspaceID: params.WorkspaceID, ServerWorkspaceRev: currentWorkspaceRev, ServerRouteRev: currentRouteRev, ServerOpSeq: currentOpSeq}
+		return nil, newWorkspaceRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
 	documents, err := queryWorkspaceDocumentsForUpdate(ctx, tx, params.WorkspaceID)
 	if err != nil {
@@ -285,6 +321,24 @@ FOR UPDATE`
 	}
 	removedDocumentIDs, err := tree.removeDirectory(params.NodeID)
 	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := validateWorkspaceDocumentRetention(len(documents), len(removedDocumentIDs)); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	finalDocumentsByID, err := indexWorkspaceDocumentsAfterRemoval(documents, removedDocumentIDs)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	manifestJSON, err := queryWorkspaceRouteManifestForValidation(ctx, tx, params.WorkspaceID)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := validateWorkspaceRouteDocumentReferences(manifestJSON, finalDocumentsByID); err != nil {
 		_ = tx.Rollback()
 		return nil, err
 	}

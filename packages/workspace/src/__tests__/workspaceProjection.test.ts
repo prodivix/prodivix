@@ -264,9 +264,13 @@ describe('workspace projection', () => {
 
     expect(result.issues).toEqual([
       expect.objectContaining({
-        code: 'WKS_PROJECTION_CODE_DOCUMENT_INVALID',
-        documentId: 'code-index',
-        path: '/src/index.ts',
+        code: 'WKS_PROJECTION_INVALID_WORKSPACE',
+        validationIssues: [
+          expect.objectContaining({
+            code: 'WKS_DOCUMENT_CONTENT_INVALID',
+            documentId: 'code-index',
+          }),
+        ],
       }),
     ]);
   });

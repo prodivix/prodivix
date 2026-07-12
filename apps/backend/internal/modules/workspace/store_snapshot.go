@@ -39,21 +39,29 @@ func (store *WorkspaceStore) ImportWorkspaceSnapshot(ctx context.Context, params
 	if workspaceRev <= 0 {
 		workspaceRev = 1
 	}
+	if err := validateRequiredJSONSafeRevision("workspaceRev", workspaceRev); err != nil {
+		return nil, err
+	}
 	routeRev := params.RouteRev
 	if routeRev <= 0 {
 		routeRev = 1
+	}
+	if err := validateRequiredJSONSafeRevision("routeRev", routeRev); err != nil {
+		return nil, err
 	}
 	opSeq := params.OpSeq
 	if opSeq <= 0 {
 		opSeq = 1
 	}
+	if err := validateRequiredJSONSafeRevision("opSeq", opSeq); err != nil {
+		return nil, err
+	}
 
 	documents := make([]WorkspaceImportDocumentRecord, 0, len(params.Documents))
 	paths := map[string]struct{}{}
 	for _, document := range params.Documents {
-		document.ID = strings.TrimSpace(document.ID)
-		if document.ID == "" {
-			return nil, fmt.Errorf("%w: workspace document id is required", ErrWorkspaceVFSInvalid)
+		if !isCanonicalWorkspaceVFSID(document.ID) {
+			return nil, fmt.Errorf("%w: workspace document id must be canonical", ErrWorkspaceVFSInvalid)
 		}
 		if !isValidWorkspaceDocumentType(document.Type) {
 			return nil, ErrInvalidWorkspaceDocumentType
@@ -71,35 +79,51 @@ func (store *WorkspaceStore) ImportWorkspaceSnapshot(ctx context.Context, params
 		if err != nil {
 			return nil, err
 		}
+		capabilities, err := normalizeWorkspaceCapabilities(document.Capabilities)
+		if err != nil {
+			return nil, err
+		}
 		contentRev := document.ContentRev
 		if contentRev <= 0 {
 			contentRev = 1
 		}
+		if err := validateRequiredJSONSafeRevision("contentRev", contentRev); err != nil {
+			return nil, err
+		}
 		metaRev := document.MetaRev
 		if metaRev <= 0 {
 			metaRev = 1
+		}
+		if err := validateRequiredJSONSafeRevision("metaRev", metaRev); err != nil {
+			return nil, err
 		}
 		updatedAt := document.UpdatedAt
 		if updatedAt.IsZero() {
 			updatedAt = time.Now().UTC()
 		}
 		documents = append(documents, WorkspaceImportDocumentRecord{
-			ID:         document.ID,
-			Type:       document.Type,
-			Path:       normalizedPath,
-			ContentRev: contentRev,
-			MetaRev:    metaRev,
-			Content:    contentJSON,
-			UpdatedAt:  updatedAt.UTC(),
+			ID:           document.ID,
+			Type:         document.Type,
+			Path:         normalizedPath,
+			ContentRev:   contentRev,
+			MetaRev:      metaRev,
+			Content:      contentJSON,
+			Capabilities: capabilities,
+			UpdatedAt:    updatedAt.UTC(),
 		})
 	}
 
-	tree, err := parseWorkspaceVFSTree(treeJSON, "root", toWorkspaceDocumentRecords(params.WorkspaceID, documents))
+	documentRecords := toWorkspaceDocumentRecords(params.WorkspaceID, documents)
+	tree, err := parseWorkspaceVFSTree(treeJSON, "root", documentRecords)
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(tree.TreeRootID) == "" {
-		tree.TreeRootID = "root"
+	documentsByID, err := indexWorkspaceVFSDocuments(documentRecords)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateWorkspaceRouteDocumentReferences(manifestJSON, documentsByID); err != nil {
+		return nil, err
 	}
 	treeJSON, err = tree.marshal()
 	if err != nil {
@@ -154,8 +178,8 @@ VALUES ($1, $2::jsonb, $3)`
 	}
 
 	const insertDocument = `INSERT INTO workspace_documents (
-	workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)`
+	workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10)`
 	for _, document := range documents {
 		if _, err := tx.ExecContext(
 			ctx,
@@ -168,6 +192,7 @@ VALUES ($1, $2::jsonb, $3)`
 			document.ContentRev,
 			document.MetaRev,
 			string(document.Content),
+			mustMarshalWorkspaceCapabilities(document.Capabilities),
 			document.UpdatedAt,
 		); err != nil {
 			_ = tx.Rollback()
@@ -195,16 +220,17 @@ VALUES ($1, $2::jsonb, $3)`
 		},
 		RouteManifest: manifestJSON,
 		Settings:      settingsJSON,
-		Documents:     toWorkspaceDocumentRecords(params.WorkspaceID, documents),
+		Documents:     documentRecords,
 	}, nil
 }
 
-func (store *WorkspaceStore) GetSnapshot(ctx context.Context, workspaceID string) (*WorkspaceSnapshot, error) {
+func (store *WorkspaceStore) GetSnapshotForOwner(ctx context.Context, ownerID string, workspaceID string) (*WorkspaceSnapshot, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("workspace store is not initialized")
 	}
+	ownerID = strings.TrimSpace(ownerID)
 	workspaceID = strings.TrimSpace(workspaceID)
-	if workspaceID == "" {
+	if ownerID == "" || workspaceID == "" {
 		return nil, ErrWorkspaceNotFound
 	}
 
@@ -215,13 +241,13 @@ func (store *WorkspaceStore) GetSnapshot(ctx context.Context, workspaceID string
 FROM workspaces w
 LEFT JOIN workspace_routes r ON r.workspace_id = w.id
 LEFT JOIN workspace_settings s ON s.workspace_id = w.id
-WHERE w.id = $1`
+WHERE w.id = $1 AND w.owner_id = $2`
 
 	var workspace WorkspaceRecord
 	var treeBytes []byte
 	var routeBytes []byte
 	var settingsBytes []byte
-	err := store.db.QueryRowContext(ctx, workspaceQuery, workspaceID).Scan(
+	err := store.db.QueryRowContext(ctx, workspaceQuery, workspaceID, ownerID).Scan(
 		&workspace.ID,
 		&workspace.ProjectID,
 		&workspace.OwnerID,
@@ -242,7 +268,15 @@ WHERE w.id = $1`
 		}
 		return nil, err
 	}
-	workspace.Tree = treeBytes
+	if err := validateRequiredJSONSafeRevision("workspaceRev", workspace.WorkspaceRev); err != nil {
+		return nil, err
+	}
+	if err := validateRequiredJSONSafeRevision("routeRev", workspace.RouteRev); err != nil {
+		return nil, err
+	}
+	if err := validateRequiredJSONSafeRevision("opSeq", workspace.OpSeq); err != nil {
+		return nil, err
+	}
 	if len(routeBytes) == 0 {
 		workspaceRoute, normalizeErr := normalizeJSONDocument(nil, defaultWorkspaceRouteManifest)
 		if normalizeErr != nil {
@@ -258,7 +292,7 @@ WHERE w.id = $1`
 		settingsBytes = workspaceSettings
 	}
 
-	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at
+	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at
 FROM workspace_documents
 WHERE workspace_id = $1
 ORDER BY path ASC`
@@ -275,11 +309,37 @@ ORDER BY path ASC`
 		if scanErr != nil {
 			return nil, scanErr
 		}
+		if err := validateRequiredJSONSafeRevision("contentRev", document.ContentRev); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		if err := validateRequiredJSONSafeRevision("metaRev", document.MetaRev); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
 		documents = append(documents, *document)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
+	tree, err := parseWorkspaceVFSTree(treeBytes, workspace.TreeRootID, documents)
+	if err != nil {
+		return nil, err
+	}
+	documentsByID, err := indexWorkspaceVFSDocuments(documents)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateWorkspaceRouteDocumentReferences(routeBytes, documentsByID); err != nil {
+		return nil, err
+	}
+	canonicalTree, err := tree.marshal()
+	if err != nil {
+		return nil, err
+	}
+	workspace.TreeRootID = tree.TreeRootID
+	workspace.Tree = canonicalTree
 
 	return &WorkspaceSnapshot{
 		Workspace:     workspace,

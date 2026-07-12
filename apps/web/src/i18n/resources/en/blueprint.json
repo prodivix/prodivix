@@ -20,6 +20,7 @@
       "manualPending": "Unsaved changes. Click to save or press Ctrl+S.",
       "idle": "Ready",
       "localSaved": "Saved to local workspace.",
+      "revisionConflict": "This document changed remotely. Review the revision conflict.",
       "readonlyCache": "Synced cache is read-only. Save a local copy to edit."
     },
     "messages": {

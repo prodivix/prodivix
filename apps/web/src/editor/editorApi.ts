@@ -8,6 +8,10 @@ import {
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import type { WorkspaceCommandEnvelope } from '@prodivix/workspace';
+import {
+  decodeWorkspaceOperationCommitResponse,
+  type WorkspaceOperationCommitRequest,
+} from '@prodivix/workspace-sync';
 
 export type ProjectResourceType = 'project' | 'component' | 'nodegraph';
 
@@ -214,6 +218,26 @@ export const editorApi = {
     return decodeWorkspaceMutation(response, workspace);
   },
 
+  commitWorkspaceOperation: async (
+    token: string,
+    workspace: WorkspaceSnapshot,
+    data: WorkspaceOperationCommitRequest
+  ) => {
+    const response = await request<unknown>(
+      token,
+      `/workspaces/${encodeURIComponent(workspace.id)}/operations/commit`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    return decodeWorkspaceOperationCommitResponse(
+      response,
+      workspace,
+      data.operation
+    );
+  },
+
   applyWorkspaceIntent: async (
     token: string,
     workspace: WorkspaceSnapshot,
@@ -227,38 +251,6 @@ export const editorApi = {
     const response = await request<unknown>(
       token,
       `/workspaces/${encodeURIComponent(workspace.id)}/intents`,
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }
-    );
-    return decodeWorkspaceMutation(response, workspace);
-  },
-
-  applyWorkspaceBatch: async (
-    token: string,
-    workspace: WorkspaceSnapshot,
-    data: {
-      expectedWorkspaceRev: number;
-      expectedRouteRev?: number;
-      operations: Array<
-        | {
-            op: 'patchDocument';
-            documentId: string;
-            expectedContentRev: number;
-            command: WorkspaceCommandEnvelope;
-          }
-        | {
-            op: 'intent';
-            intent: WorkspaceIntentEnvelope;
-          }
-      >;
-      clientBatchId?: string;
-    }
-  ) => {
-    const response = await request<unknown>(
-      token,
-      `/workspaces/${encodeURIComponent(workspace.id)}/batch`,
       {
         method: 'POST',
         body: JSON.stringify(data),

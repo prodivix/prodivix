@@ -131,16 +131,29 @@ const createAvailableNodeId = (
     return candidate;
   }
 
-  if (!treeById[preferredId]) return preferredId;
-  let suffix = 2;
-  while (treeById[`${preferredId}-${suffix}`]) suffix += 1;
-  return `${preferredId}-${suffix}`;
+  if (treeById[preferredId]) {
+    throw new WorkspaceDocumentFactoryError(
+      'WKS_DOCUMENT_FACTORY_NODE_ID_COLLISION',
+      `/treeById/${escapePointerSegment(preferredId)}`,
+      `Workspace VFS node already exists: ${preferredId}`
+    );
+  }
+  return preferredId;
 };
 
-const createDirectoryPreferredId = (parentId: string, name: string): string => {
-  const normalizedName = name.replace(/[^a-zA-Z0-9_-]+/g, '_') || 'dir';
-  return `dir-${parentId}-${normalizedName}`;
-};
+const normalizePathNodeIdSegment = (value: string): string =>
+  value.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'item';
+
+export const createWorkspacePathNodeId = (
+  prefix: 'dir' | 'doc',
+  segments: readonly string[]
+): string =>
+  segments.length
+    ? `${prefix}_${segments.map(normalizePathNodeIdSegment).join('_')}`
+    : prefix;
+
+export const createWorkspaceDocumentNodeId = (documentId: string): string =>
+  createWorkspacePathNodeId('doc', [documentId]);
 
 /**
  * Builds the canonical snapshot and reversible patch pair for mounting one
@@ -245,7 +258,13 @@ export const planWorkspaceDocumentAtPath = (
   };
 
   let parentId = workspace.treeRootId;
-  for (const directoryName of pathSegments.slice(0, -1)) {
+  const directorySegments = pathSegments.slice(0, -1);
+  for (
+    let directoryIndex = 0;
+    directoryIndex < directorySegments.length;
+    directoryIndex += 1
+  ) {
+    const directoryName = directorySegments[directoryIndex];
     const parent = nextTreeById[parentId];
     if (!parent || parent.kind !== 'dir') {
       throw new WorkspaceDocumentFactoryError(
@@ -269,7 +288,10 @@ export const planWorkspaceDocumentAtPath = (
 
     const directoryId = createAvailableNodeId(
       nextTreeById,
-      createDirectoryPreferredId(parentId, directoryName),
+      createWorkspacePathNodeId(
+        'dir',
+        directorySegments.slice(0, directoryIndex + 1)
+      ),
       idFactory
     );
     appendNode(parentId, {
@@ -301,7 +323,7 @@ export const planWorkspaceDocumentAtPath = (
 
   const documentNodeId = createAvailableNodeId(
     nextTreeById,
-    `doc-${document.id}`,
+    createWorkspaceDocumentNodeId(document.id),
     idFactory
   );
   appendNode(parentId, {

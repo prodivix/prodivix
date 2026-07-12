@@ -8,7 +8,7 @@ import { resolvePdxRouteRendererProps } from '@/pir/renderer/PIRRenderer.routeCo
 const routeManifest: WorkspaceRouteManifest = {
   version: '1',
   root: {
-    id: 'route-root',
+    id: 'root',
     children: [
       {
         id: 'route-settings',

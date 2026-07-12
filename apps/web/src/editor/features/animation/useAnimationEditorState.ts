@@ -67,6 +67,7 @@ export const useAnimationEditorState = () => {
   );
   const currentSignatureRef = useRef(currentSignature);
   const committedSignatureRef = useRef(currentSignature);
+  const suppressNextPersistenceRef = useRef(false);
 
   useEffect(() => {
     currentSignatureRef.current = currentSignature;
@@ -84,12 +85,17 @@ export const useAnimationEditorState = () => {
       return;
     }
 
+    suppressNextPersistenceRef.current = true;
     setAnimation(nextAnimation);
     currentSignatureRef.current = nextSignature;
     committedSignatureRef.current = nextSignature;
   }, [pirAnimation]);
 
   useEffect(() => {
+    if (suppressNextPersistenceRef.current) {
+      suppressNextPersistenceRef.current = false;
+      return;
+    }
     if (currentSignature === committedSignatureRef.current) return;
     committedSignatureRef.current = currentSignature;
     updateActivePirDocument(
@@ -106,6 +112,7 @@ export const useAnimationEditorState = () => {
       {
         namespace: 'core.animation',
         type: 'definition.update',
+        domainHint: 'animation',
         mergeKey: 'animation-definition',
         label: 'Update animation',
       }

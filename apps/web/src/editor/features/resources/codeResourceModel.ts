@@ -111,3 +111,33 @@ export const resolveDefaultCodeKindByParentPath = (
   if (normalizedPath.startsWith('code/shaders')) return 'glsl';
   return 'ts';
 };
+
+export type CodeResourceEditorBaseline = {
+  documentId: string;
+  source: string;
+};
+
+export const reconcileCodeResourceEditorDraft = (input: {
+  baseline: CodeResourceEditorBaseline | undefined;
+  editorValue: string;
+  documentId: string;
+  source: string;
+}): { baseline: CodeResourceEditorBaseline; editorValue: string } => {
+  const nextBaseline = {
+    documentId: input.documentId,
+    source: input.source,
+  };
+  if (!input.baseline || input.baseline.documentId !== input.documentId) {
+    return { baseline: nextBaseline, editorValue: input.source };
+  }
+  if (input.baseline.source === input.source) {
+    return { baseline: input.baseline, editorValue: input.editorValue };
+  }
+  return {
+    baseline: nextBaseline,
+    editorValue:
+      input.editorValue === input.baseline.source
+        ? input.source
+        : input.editorValue,
+  };
+};

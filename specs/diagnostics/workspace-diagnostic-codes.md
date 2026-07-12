@@ -104,14 +104,14 @@ type WorkspaceDiagnosticStage =
 - User action: 刷新路由清单并重新保存
 - Developer notes: 路由清单和页面文档保存应分区处理
 
-### `WKS-4003` Content revision 冲突
+### `WKS-4003` Document revision 冲突
 
 - Severity: `warning`
 - Stage: `sync`
 - Retryable: true
-- Trigger: 客户端提交的 `contentRev` 落后于服务端
+- Trigger: 客户端提交的 `contentRev` 或 `metaRev` baseline 落后于服务端，或新增 Document 的 absence precondition 不成立
 - User action: 查看冲突详情，选择保留本地或远端改动
-- Developer notes: autosave 应记录 base revision，避免过期写入覆盖新内容
+- Developer notes: expected document 至少包含 contentRev/metaRev 之一；metadata-only 仍使用 DOCUMENT_CONFLICT；远端删除时 current.document 为 null 而不是 404，不新增第四种 conflict type
 
 ### `WKS-5001` Intent 类型不支持
 

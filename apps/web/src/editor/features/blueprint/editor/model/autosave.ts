@@ -2,12 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/auth/authApi';
 import { editorApi } from '@/editor/editorApi';
+import { executeWorkspaceDocumentMutation } from '@/editor/workspaceSync/workspaceDocumentMutationExecutor';
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import type {
   WorkspaceCommandEnvelope,
   WorkspacePirDocument,
   WorkspaceSnapshot,
 } from '@prodivix/workspace';
+import type {
+  AdoptRebasedWorkspaceOperationInput,
+  AdoptRebasedWorkspaceOperationResult,
+} from '@/editor/store/editorStore.workspaceSlice';
+import type { WorkspaceConflictSession } from '@prodivix/workspace-sync';
 import { validatePirDocument } from '@prodivix/pir';
 import { isLocalProjectId } from '@/editor/localProjectStore';
 
@@ -31,7 +37,16 @@ type UseBlueprintAutosaveOptions = {
   canUpdateWorkspaceDocument: boolean;
   workspaceCapabilitiesLoaded: boolean;
   workspaceReadonly: boolean;
-  applyWorkspaceMutation: (mutation: WorkspaceMutation) => void;
+  applyWorkspaceMutation: (
+    mutation: WorkspaceMutation,
+    options?: {
+      expectedDocumentEditSeqById?: Readonly<Record<string, number>>;
+    }
+  ) => void;
+  adoptRebasedWorkspaceOperation: (
+    input: AdoptRebasedWorkspaceOperationInput
+  ) => AdoptRebasedWorkspaceOperationResult;
+  openWorkspaceRevisionConflict: (session: WorkspaceConflictSession) => void;
 };
 
 type UseBlueprintAutosaveResult = {
@@ -69,6 +84,24 @@ const createDocumentUpdateCommand = (
   target: { workspaceId, documentId },
 });
 
+const createAutosaveBaseSnapshot = (
+  workspace: WorkspaceSnapshot,
+  document: WorkspacePirDocument,
+  graph: PIRDocument['ui']['graph']
+): WorkspaceSnapshot => ({
+  ...workspace,
+  docsById: {
+    ...workspace.docsById,
+    [document.id]: {
+      ...document,
+      content: {
+        ...document.content,
+        ui: { ...document.content.ui, graph },
+      },
+    },
+  },
+});
+
 const resolveApiErrorMessage = (error: unknown): string | null => {
   if (!(error instanceof ApiError)) return null;
   if (Array.isArray(error.details) && error.details.length > 0) {
@@ -95,6 +128,8 @@ export const useBlueprintAutosave = ({
   workspaceCapabilitiesLoaded,
   workspaceReadonly,
   applyWorkspaceMutation,
+  adoptRebasedWorkspaceOperation,
+  openWorkspaceRevisionConflict,
 }: UseBlueprintAutosaveOptions): UseBlueprintAutosaveResult => {
   const pirDoc = activeDocument.content;
   const workspaceId = workspace.id;
@@ -272,16 +307,75 @@ export const useBlueprintAutosave = ({
       setSaveTransport('workspace');
       setSaveStatus('saving');
       setSaveMessage('');
-      editorApi
-        .patchWorkspaceDocument(token, workspace, activeDocumentId, {
-          expectedContentRev: activeDocumentContentRev,
-          command,
-        })
-        .then((mutation) => {
-          if (saveRequestSeqRef.current !== requestSeq) {
+      const baseSnapshot = createAutosaveBaseSnapshot(
+        workspace,
+        activeDocument,
+        lastSavedGraphRef.current
+      );
+      executeWorkspaceDocumentMutation({
+        token,
+        baseSnapshot,
+        localSnapshot: workspace,
+        operation: { kind: 'command', command },
+      })
+        .then((execution) => {
+          if (saveRequestSeqRef.current !== requestSeq) return;
+          if (execution.kind === 'conflict') {
+            openWorkspaceRevisionConflict(execution.session);
+            setSaveStatus('error');
+            setSaveMessage(
+              t('autosave.status.revisionConflict', {
+                defaultValue:
+                  'This document changed remotely. Review the revision conflict.',
+              })
+            );
             return;
           }
-          applyWorkspaceMutation(mutation);
+          if (execution.kind === 'already-applied' || execution.rebased) {
+            const adoption = adoptRebasedWorkspaceOperation({
+              requestSnapshot: workspace,
+              serverBaseSnapshot:
+                execution.kind === 'already-applied'
+                  ? execution.snapshot
+                  : execution.serverBaseSnapshot,
+              rebasedSnapshot:
+                execution.kind === 'already-applied'
+                  ? execution.snapshot
+                  : execution.optimisticSnapshot,
+              operation:
+                execution.kind === 'already-applied'
+                  ? { kind: 'command', command }
+                  : execution.operation,
+              ...(execution.kind === 'already-applied'
+                ? {}
+                : { mutation: execution.mutation }),
+              expectedDocumentEditSeqById: {
+                [activeDocumentId]: targetEditSeq,
+              },
+            });
+            if (adoption.status === 'conflict') {
+              setSaveStatus('error');
+              setSaveMessage(
+                t('autosave.status.revisionConflict', {
+                  defaultValue:
+                    'This document changed while it was saving. Review the revision conflict.',
+                })
+              );
+              return;
+            }
+            if (adoption.status === 'rejected') {
+              throw new Error(
+                adoption.message ||
+                  'The rebased workspace acknowledgement is no longer current.'
+              );
+            }
+          } else {
+            applyWorkspaceMutation(execution.mutation, {
+              expectedDocumentEditSeqById: {
+                [activeDocumentId]: targetEditSeq,
+              },
+            });
+          }
           lastSavedGraphRef.current = pirDoc.ui.graph;
           setLastSavedEditSeq((previous) => Math.max(previous, targetEditSeq));
           setSaveStatus('saved');
@@ -310,12 +404,15 @@ export const useBlueprintAutosave = ({
   }, [
     activeDocumentContentRev,
     activeDocumentId,
+    activeDocument,
+    adoptRebasedWorkspaceOperation,
     applyWorkspaceMutation,
     canUpdateWorkspaceDocument,
     hasPendingChanges,
     hasWorkspaceTarget,
     pirDoc,
     documentEditSeq,
+    openWorkspaceRevisionConflict,
     projectId,
     t,
     token,

@@ -51,6 +51,7 @@
     "@prodivix/themes": "workspace:*",
     "@prodivix/ui": "workspace:*",
     "@prodivix/workspace": "workspace:*",
+    "@prodivix/workspace-sync": "workspace:*",
     "@react-three/fiber": "^9.6.1",
     "@uiw/react-codemirror": "^4.25.10",
     "@xyflow/react": "^12.11.1",

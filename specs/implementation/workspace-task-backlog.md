@@ -59,10 +59,11 @@
   - 验收：文档内容更新不误增无关分区 rev
   - 结果：`apps/backend/database.go`、`apps/backend/workspace_store.go`、`apps/backend/workspace_store_test.go`、`specs/implementation/reviews/API-004-workspace-store.md`
 
-- [ ] `API-005` 实现 5 个 workspace 接口（snapshot/capabilities/document/intents/batch）
+- [x] `API-005` 实现 5 个 workspace 接口（snapshot/capabilities/document/intents/operations commit）
   - 产出：handler + service + 错误码
   - 依赖：`API-004`
-  - 验收：`DOCUMENT/WORKSPACE/ROUTE/HYBRID` 冲突可稳定复现
+  - 验收：`DOCUMENT/WORKSPACE/ROUTE` 冲突可稳定复现；Atomic Commit 任一失败整体 rollback；旧 `/batch` 与 `HYBRID_CONFLICT` 不存在
+  - 结果：strict handlers、分区 409、Atomic Commit 单事务/强幂等测试与 OpenAPI Hard Cut
 
 ### A1. PIR Data Scope / List Render（v1.2）
 

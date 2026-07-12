@@ -9,6 +9,7 @@ import {
   serializeGraphsForPirLogic,
   type ProjectGraphSnapshot,
 } from '@/editor/features/development/reactflow/nodeGraphEditorModel';
+import { resolveNodeGraphHydrationSnapshot } from '@/editor/features/development/reactflow/nodeGraphPirState';
 
 const createProcessNode = (
   id: string,
@@ -96,5 +97,20 @@ describe('nodeGraphEditorModel', () => {
     });
 
     expect(snapshot.graphs[0].nodes[0].position).toEqual({ x: 0, y: 0 });
+  });
+
+  it('rehydrates the starter graph when workspace history removes all graphs', () => {
+    const starterSnapshot = ensureProjectGraphSnapshot(undefined);
+
+    const hydrated = resolveNodeGraphHydrationSnapshot({
+      pirGraphs: [],
+      pirEditorState: null,
+      currentActiveGraphId: 'stale-graph',
+      starterSnapshot,
+    });
+
+    expect(hydrated).toBe(starterSnapshot);
+    expect(hydrated.activeGraphId).not.toBe('stale-graph');
+    expect(hydrated.graphs).toHaveLength(1);
   });
 });

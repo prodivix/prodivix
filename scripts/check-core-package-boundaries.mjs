@@ -13,6 +13,7 @@ const corePackages = {
     '@prodivix/pir',
     '@prodivix/shared',
   ]),
+  'workspace-sync': new Set(['@prodivix/workspace']),
 };
 
 const forbiddenImports = [

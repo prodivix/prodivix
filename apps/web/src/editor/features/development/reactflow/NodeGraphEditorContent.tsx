@@ -8,9 +8,12 @@ import {
   type Node,
 } from '@xyflow/react';
 import {
+  selectActiveDocumentId,
   selectActivePirDocument,
+  selectWorkspaceId,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
+import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
 import type { GraphNodeData, GraphNodeKind } from './GraphNode';
 
 import {
@@ -46,6 +49,7 @@ import { useNodeGraphConnectionActions } from './nodeGraphConnectionActions';
 import { useNodeGraphRenderStore } from './nodeGraphRenderStore';
 import {
   readNodeGraphEditorStateFromLogic,
+  resolveNodeGraphHydrationSnapshot,
   serializeNodeGraphEditorState,
   serializeSnapshotForPir,
 } from './nodeGraphPirState';
@@ -65,6 +69,8 @@ const serializeEdges = (edges: Edge[]) => JSON.stringify(edges);
 
 export const NodeGraphEditorContent = () => {
   const { t } = useTranslation('editor');
+  const workspaceId = useEditorStore(selectWorkspaceId);
+  const activeDocumentId = useEditorStore(selectActiveDocumentId);
   const pirDoc = useEditorStore(selectActivePirDocument)!;
   const updateActivePirDocument = useEditorStore(
     (state) => state.updateActivePirDocument
@@ -212,6 +218,7 @@ export const NodeGraphEditorContent = () => {
         {
           namespace: 'core.nodegraph',
           type: 'graph.update',
+          domainHint: 'nodegraph',
           mergeKey: `nodegraph:${activeGraphIdRef.current}`,
           label: 'Update node graph',
         }
@@ -236,11 +243,19 @@ export const NodeGraphEditorContent = () => {
     () => nodes.some((node) => Boolean(node.dragging)),
     [nodes]
   );
+  useWorkspaceHistoryShortcuts({
+    workspaceId,
+    documentId: activeDocumentId,
+    domain: 'nodegraph',
+    suspended: isDraggingNode,
+    shortcutScope: 'nodegraph',
+  });
   const activeGraphIdRef = useRef(currentSnapshot.activeGraphId);
   const graphDocsRef = useRef(graphDocs);
   const currentPirComparableSignatureRef = useRef(
     currentPirComparableSignature
   );
+  const suppressNextCanvasCommitRef = useRef(false);
   const edgeDomDebugSignatureRef = useRef('');
 
   const applySnapshot = useCallback(
@@ -289,19 +304,19 @@ export const NodeGraphEditorContent = () => {
 
   useEffect(() => {
     if (isDraggingNode) return;
-    if (!pirGraphs.length) return;
-    const nextSnapshot = ensureProjectGraphSnapshot({
-      activeGraphId:
-        pirEditorState?.activeGraphId ||
-        activeGraphIdRef.current ||
-        starterSnapshot.activeGraphId,
-      graphs: applyNodeGraphEditorStateToGraphs(pirGraphs, pirEditorState),
+    const nextSnapshot = resolveNodeGraphHydrationSnapshot({
+      pirGraphs,
+      pirEditorState,
+      currentActiveGraphId: activeGraphIdRef.current,
+      starterSnapshot,
     });
     const nextSnapshotSignature = serializeSnapshotForPir(nextSnapshot);
     if (nextSnapshotSignature !== currentPirComparableSignatureRef.current) {
+      suppressNextCanvasCommitRef.current = true;
       applySnapshot(nextSnapshot);
     }
   }, [
+    activeDocumentId,
     applySnapshot,
     isDraggingNode,
     pirEditorState,
@@ -311,6 +326,10 @@ export const NodeGraphEditorContent = () => {
 
   useEffect(() => {
     if (isDraggingNode) return;
+    if (suppressNextCanvasCommitRef.current) {
+      suppressNextCanvasCommitRef.current = false;
+      return;
+    }
     commitCanvasToGraphDocs();
   }, [commitCanvasToGraphDocs, isDraggingNode]);
 

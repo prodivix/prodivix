@@ -1,17 +1,23 @@
 openapi: 3.1.0
 info:
-  title: Prodivix Workspace Sync API (Draft)
-  version: 0.1.0
+  title: Prodivix Workspace Sync API
+  version: 0.2.0
   description: >
-    Draft API for workspace-first editing. The virtual document tree is internal
-    and system-managed. Clients send user-level intents from Blueprint actions.
-    Status: Draft-Frozen (API-003), Date: 2026-02-08.
+    Canonical API for workspace-first editing, partitioned revision recovery,
+    and atomic WorkspaceOperation commits. API-003 was amended by the Atomic
+    Commit Hard Cut on 2026-07-12; the former /batch contract is removed.
 servers:
   - url: http://localhost:8080
+security:
+  - bearerAuth: []
 paths:
   /api/workspaces/{workspaceId}:
     get:
       summary: Get workspace snapshot
+      description: >
+        Returns the snapshot only to the workspace owner. A missing workspace
+        and a workspace owned by another user both return the same 404 envelope
+        so callers cannot enumerate workspace identifiers.
       operationId: getWorkspace
       parameters:
         - in: path
@@ -26,9 +32,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetWorkspaceResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Workspace not found or not owned by the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/workspaces/{workspaceId}/capabilities:
     get:
       summary: Get supported intent and command capabilities
+      description: >
+        Returns capabilities only to the workspace owner. Authorization
+        failures use the same metadata-free 404 envelope as a missing workspace.
       operationId: getWorkspaceCapabilities
       parameters:
         - in: path
@@ -43,6 +64,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetCapabilitiesResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Workspace not found or not owned by the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/workspaces/{workspaceId}/documents/{documentId}:
     patch:
       summary: Patch one document with a command
@@ -51,7 +84,9 @@ paths:
         applies command.forwardOps, verifies command.reverseOps can restore the
         previous document, runs document-type validation, advances contentRev,
         and records the command in the operation log. PIR, code, and generic
-        documents use different patch-path policies.
+        documents use different patch-path policies. Only the workspace owner
+        may mutate the document; owner mismatches return the same metadata-free
+        404 envelope as a missing workspace before conflict details are built.
       operationId: patchDocument
       parameters:
         - in: path
@@ -77,8 +112,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MutationSuccessResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Workspace not found or not owned by the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
-          description: Invalid command, forbidden patch path, or PIR validation failure
+          description: Invalid command, forbidden patch path, PIR validation failure, or revision range/capacity failure
           content:
             application/json:
               schema:
@@ -88,10 +135,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
+                $ref: '#/components/schemas/WorkspaceConflictErrorEnvelope'
   /api/workspaces/{workspaceId}/intents:
     post:
       summary: Apply one user intent
+      description: >
+        Applies an intent only after verifying that the authenticated caller
+        owns the workspace. Owner mismatches return a metadata-free 404 and
+        never expose current revision details.
       operationId: applyWorkspaceIntent
       parameters:
         - in: path
@@ -112,8 +163,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MutationSuccessResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Workspace not found or not owned by the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
-          description: Unsupported or invalid intent envelope
+          description: Unsupported or invalid intent envelope, or revision range/capacity failure
           content:
             application/json:
               schema:
@@ -123,11 +186,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-  /api/workspaces/{workspaceId}/batch:
+                $ref: '#/components/schemas/WorkspaceConflictErrorEnvelope'
+  /api/workspaces/{workspaceId}/operations/commit:
     post:
-      summary: Apply a batch of document patches and intents
-      operationId: applyWorkspaceBatch
+      summary: Atomically commit one WorkspaceOperation
+      description: >
+        Commits one command or transaction in a single database transaction.
+        The server derives the operation write set, validates the exact
+        workspace/route/document revision vector under lock, applies every
+        command and reverse/final validator, advances opSeq once, and writes one
+        durable operation record. The command or transaction id is the
+        idempotency identity: an identical retry returns the first mutation
+        result without applying again; reuse with a different request is
+        rejected with 422. Workspace settings are outside this endpoint;
+        active-document and active-route selections are ephemeral and do not
+        form revision preconditions. Selection-only operations and semantic
+        no-ops are rejected with 422 because every successful commit must have
+        a durable authoring delta. Owner mismatches return a metadata-free 404
+        before revision details are built.
+      operationId: commitWorkspaceOperation
       parameters:
         - in: path
           name: workspaceId
@@ -139,16 +216,40 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApplyBatchRequest'
+              $ref: '#/components/schemas/WorkspaceOperationCommitRequest'
       responses:
         '200':
-          description: Applied
+          description: Atomically committed or idempotently replayed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MutationSuccessResponse'
+                $ref: '#/components/schemas/WorkspaceOperationCommitSuccessResponse'
+        '400':
+          description: Malformed JSON, unknown request field, or invalid wire type/format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Workspace not found or not owned by the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
-          description: Unsupported operation or invalid envelope in batch
+          description: >
+            Invalid operation, unsupported path, non-exact revision vector,
+            revision capacity failure, or operation id reused with a different
+            canonical request. Atomic
+            commits also reject move/copy, settings, and document-targeted
+            asset/project-config mutations, plus operations without a durable
+            authoring delta.
           content:
             application/json:
               schema:
@@ -158,8 +259,19 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/WorkspaceConflictErrorEnvelope'
+        '500':
+          description: Atomic commit could not be completed
+          content:
+            application/json:
+              schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque session token
   schemas:
     GetWorkspaceResponse:
       type: object
@@ -202,12 +314,15 @@ components:
         workspaceRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         routeRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         opSeq:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         tree:
           $ref: '#/components/schemas/WorkspaceTree'
         documents:
@@ -216,50 +331,203 @@ components:
           items:
             $ref: '#/components/schemas/WorkspaceDocument'
         routeManifest:
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/WorkspaceRouteManifest'
         settings:
           type: object
           additionalProperties: true
+      additionalProperties: false
+    WorkspaceRouteCanonicalString:
+      type: string
+      minLength: 1
+      pattern: '^(?:\S|\S[\s\S]*\S)(?![\s\S])'
+      description: Non-empty route identity with no leading or trailing whitespace.
+    WorkspaceRouteManifest:
+      type: object
+      required: [version, root]
+      description: >
+        Closed canonical RouteManifest wire document. Unknown fields and null
+        placeholders are rejected instead of being persisted or discarded.
+        Route ids are globally unique, mount ids are unique, and every modules
+        map key must exactly equal its value's moduleId. Document references in
+        both the project root and every module root are kind-constrained:
+        layoutDocId references pir-layout, while pageDocId and outlet binding
+        pageDocId reference pir-page or pir-component documents.
+      properties:
+        version:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        root:
+          $ref: '#/components/schemas/WorkspaceRouteRootNode'
+        modules:
+          type: object
+          propertyNames:
+            $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+          additionalProperties:
+            $ref: '#/components/schemas/WorkspaceRouteModule'
+        mounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceRouteModuleMount'
+      additionalProperties: false
+    WorkspaceRouteRootNode:
+      allOf:
+        - $ref: '#/components/schemas/WorkspaceRouteNode'
+        - type: object
+          properties:
+            id:
+              type: string
+              const: root
+    WorkspaceRouteNode:
+      type: object
+      required: [id]
+      properties:
+        id:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        segment:
+          type: string
+        index:
+          type: boolean
+        layoutDocId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+          description: References a pir-layout workspace document.
+        pageDocId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+          description: References a pir-page or pir-component workspace document.
+        outletNodeId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        outletBindings:
+          type: object
+          propertyNames:
+            $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+          additionalProperties:
+            $ref: '#/components/schemas/WorkspaceRouteOutletBinding'
+        runtime:
+          $ref: '#/components/schemas/WorkspaceRouteRuntime'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceRouteNode'
+      additionalProperties: false
+    WorkspaceRouteOutletBinding:
+      type: object
+      required: [outletNodeId]
+      properties:
+        outletNodeId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        pageDocId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+          description: References a pir-page or pir-component workspace document.
+      additionalProperties: false
+    WorkspaceRouteRuntime:
+      type: object
+      properties:
+        loaderRef:
+          $ref: '#/components/schemas/WorkspaceRouteCodeReference'
+        actionRef:
+          $ref: '#/components/schemas/WorkspaceRouteCodeReference'
+        guardRef:
+          $ref: '#/components/schemas/WorkspaceRouteCodeReference'
+      additionalProperties: false
+    WorkspaceRouteCodeReference:
+      type: object
+      required: [artifactId]
+      properties:
+        artifactId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        exportName:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        symbolId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+      additionalProperties: false
+    WorkspaceRouteModule:
+      type: object
+      required: [moduleId, version, root]
+      properties:
+        moduleId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        version:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        root:
+          $ref: '#/components/schemas/WorkspaceRouteNode'
+          description: >
+            Module route root. Its layoutDocId, pageDocId, and outlet binding
+            pageDocId references follow the same document-kind constraints as
+            the project route root.
+      additionalProperties: false
+    WorkspaceRouteModuleMount:
+      type: object
+      required: [mountId, moduleRef]
+      properties:
+        mountId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        moduleRef:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
+        mountPath:
+          type: string
+        parentRouteNodeId:
+          $ref: '#/components/schemas/WorkspaceRouteCanonicalString'
       additionalProperties: false
     WorkspaceTree:
       type: object
       required: [treeRootId, treeById]
       properties:
         treeRootId:
-          type: string
+          $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
         treeById:
           type: object
           minProperties: 1
+          propertyNames:
+            $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
           additionalProperties:
             $ref: '#/components/schemas/WorkspaceTreeNode'
       additionalProperties: false
     WorkspaceTreeNode:
-      type: object
-      required: [id, kind, name, parentId]
-      properties:
-        id:
-          type: string
-        kind:
-          type: string
-          enum: [dir, doc]
-        name:
-          type: string
-        parentId:
-          type: [string, 'null']
-        children:
-          type: array
-          items:
-            type: string
-        docId:
-          type: string
-      additionalProperties: false
+      oneOf:
+        - type: object
+          required: [id, kind, name, parentId, children]
+          properties:
+            id:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            kind:
+              type: string
+              const: dir
+            name:
+              type: string
+            parentId:
+              oneOf:
+                - $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+                - type: 'null'
+            children:
+              type: array
+              uniqueItems: true
+              items:
+                $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+          additionalProperties: false
+        - type: object
+          required: [id, kind, name, parentId, docId]
+          properties:
+            id:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            kind:
+              type: string
+              const: doc
+            name:
+              type: string
+            parentId:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            docId:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+          additionalProperties: false
+      discriminator:
+        propertyName: kind
     WorkspaceDocument:
       type: object
-      required: [id, type, path, contentRev, metaRev, content, updatedAt]
+      required: [id, type, path, contentRev, metaRev, content]
       properties:
         id:
+          $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+        name:
           type: string
+          pattern: '\S'
         type:
           $ref: '#/components/schemas/WorkspaceDocumentType'
         path:
@@ -267,14 +535,28 @@ components:
         contentRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         metaRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         content:
           description: JSON document content. Code documents use the language/source wrapper.
+        capabilities:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          description: >
+            Omitted when empty. Otherwise values are non-empty canonical strings
+            sorted by Unicode code-point order.
+          items:
+            $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
         updatedAt:
           type: string
           format: date-time
+          description: >
+            Optional in shared authoring-state documents. Server mutation
+            acknowledgements require the authoritative timestamp.
       additionalProperties: false
     WorkspaceDocumentType:
       type: string
@@ -294,6 +576,7 @@ components:
         expectedContentRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         command:
           $ref: '#/components/schemas/CommandEnvelope'
         clientMutationId:
@@ -305,9 +588,11 @@ components:
         expectedWorkspaceRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         expectedRouteRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         intent:
           $ref: '#/components/schemas/IntentEnvelope'
         clientMutationId:
@@ -381,64 +666,264 @@ components:
           format: date-time
         forwardOps:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/PatchOp'
         reverseOps:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/PatchOp'
         target:
           type: object
           required: [workspaceId]
+          not:
+            required: [documentId, routeNodeId]
           properties:
             workspaceId:
               type: string
             documentId:
               type: string
+            routeNodeId:
+              type: string
           additionalProperties: false
         mergeKey:
           type: string
-    ApplyBatchRequest:
+        label:
+          type: string
+        domainHint:
+          type: string
+          enum: [pir, workspace, route, nodegraph, animation, code]
+      additionalProperties: false
+    WorkspaceOperationCanonicalId:
+      type: string
+      minLength: 1
+      pattern: '^(?:\S|\S[\s\S]*\S)(?![\s\S])'
+      description: Non-empty identifier with no leading or trailing whitespace.
+    WorkspaceOperationPatchOp:
+      allOf:
+        - $ref: '#/components/schemas/PatchOp'
+        - type: object
+          properties:
+            op:
+              type: string
+              enum: [add, remove, replace, test]
+          allOf:
+            - if:
+                required: [op]
+                properties:
+                  op:
+                    enum: [add, replace, test]
+              then:
+                required: [value]
+      description: >
+        Atomic WorkspaceOperation commits require explicit granular patches.
+        move and copy are rejected in both forwardOps and reverseOps for every
+        command domain. add, replace, and test require a present JSON value;
+        explicit null is a valid value.
+    WorkspaceOperationCommandEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/CommandEnvelope'
+        - type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            namespace:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            type:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            version:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            issuedAt:
+              type: string
+              format: date-time
+              description: RFC3339 timestamp.
+            forwardOps:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/WorkspaceOperationPatchOp'
+            reverseOps:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/WorkspaceOperationPatchOp'
+            target:
+              type: object
+              required: [workspaceId]
+              properties:
+                workspaceId:
+                  $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+                documentId:
+                  $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+                routeNodeId:
+                  $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+      description: >
+        Canonical command envelope accepted by Atomic WorkspaceOperation
+        Commit. Document-targeted asset and project-config commands are not
+        registered and are rejected with 422.
+    WorkspaceOperationCommitRequest:
       type: object
-      required: [expectedWorkspaceRev, operations]
+      required: [expected, operation]
       properties:
-        expectedWorkspaceRev:
+        expected:
+          $ref: '#/components/schemas/WorkspaceOperationCommitExpectedRevisions'
+        operation:
+          $ref: '#/components/schemas/WorkspaceOperation'
+      additionalProperties: false
+    WorkspaceOperationCommitExpectedRevisions:
+      type: object
+      required: [documents]
+      dependentRequired:
+        routeRev: [workspaceRev]
+      description: >
+        Exact CAS vector derived from the WorkspaceOperation write set.
+        Documents are sorted by id in Unicode code-point order and ids must be
+        unique. Omitted partitions are not written by this operation; extra
+        partition preconditions are rejected instead of silently
+        over-constraining the commit.
+      properties:
+        workspaceRev:
           type: integer
           minimum: 1
-        expectedRouteRev:
+          maximum: 9007199254740991
+        routeRev:
           type: integer
           minimum: 1
-        operations:
+          maximum: 9007199254740991
+        documents:
           type: array
           items:
-            oneOf:
-              - $ref: '#/components/schemas/BatchPatchDocumentOperation'
-              - $ref: '#/components/schemas/BatchIntentOperation'
-        clientBatchId:
-          type: string
-    BatchPatchDocumentOperation:
+            $ref: '#/components/schemas/WorkspaceOperationCommitExpectedDocument'
+      additionalProperties: false
+    WorkspaceOperationCommitExpectedDocument:
       type: object
-      required: [op, documentId, expectedContentRev, command]
+      required: [id]
+      description: >
+        At least one revision property is required. A positive revision is an
+        existing-partition baseline. Explicit null means the document identity
+        must be absent and is valid only when both contentRev and metaRev are
+        present and null.
+      anyOf:
+        - required: [contentRev]
+        - required: [metaRev]
+      allOf:
+        - if:
+            required: [contentRev]
+            properties:
+              contentRev:
+                type: 'null'
+          then:
+            required: [metaRev]
+            properties:
+              metaRev:
+                type: 'null'
+        - if:
+            required: [metaRev]
+            properties:
+              metaRev:
+                type: 'null'
+          then:
+            required: [contentRev]
+            properties:
+              contentRev:
+                type: 'null'
       properties:
-        op:
-          type: string
-          const: patchDocument
-        documentId:
-          type: string
-        expectedContentRev:
-          type: integer
+        id:
+          $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+        contentRev:
+          type: [integer, 'null']
           minimum: 1
-        command:
-          $ref: '#/components/schemas/CommandEnvelope'
-    BatchIntentOperation:
+          maximum: 9007199254740991
+        metaRev:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 9007199254740991
+      additionalProperties: false
+    WorkspaceOperation:
+      oneOf:
+        - $ref: '#/components/schemas/WorkspaceCommandOperation'
+        - $ref: '#/components/schemas/WorkspaceTransactionOperation'
+      discriminator:
+        propertyName: kind
+        mapping:
+          command: '#/components/schemas/WorkspaceCommandOperation'
+          transaction: '#/components/schemas/WorkspaceTransactionOperation'
+    WorkspaceCommandOperation:
       type: object
-      required: [op, intent]
+      required: [kind, command]
+      not:
+        required: [undoOf, redoOf]
       properties:
-        op:
+        kind:
           type: string
-          const: intent
-        intent:
-          $ref: '#/components/schemas/IntentEnvelope'
+          const: command
+        command:
+          $ref: '#/components/schemas/WorkspaceOperationCommandEnvelope'
+        undoOf:
+          type: string
+          description: Trimmed before hashing; an empty result is treated as absent.
+        redoOf:
+          type: string
+          description: Trimmed before hashing; an empty result is treated as absent.
+        sourceOperationIds:
+          type: array
+          description: >
+            Each value is trimmed; empty values are rejected and duplicates are
+            removed stably by retaining their first occurrence before hashing.
+          items:
+            type: string
+            pattern: '\S'
+      additionalProperties: false
+    WorkspaceTransactionOperation:
+      type: object
+      required: [kind, transaction]
+      not:
+        required: [undoOf, redoOf]
+      properties:
+        kind:
+          type: string
+          const: transaction
+        transaction:
+          $ref: '#/components/schemas/WorkspaceTransactionEnvelope'
+        undoOf:
+          type: string
+          description: Trimmed before hashing; an empty result is treated as absent.
+        redoOf:
+          type: string
+          description: Trimmed before hashing; an empty result is treated as absent.
+        sourceOperationIds:
+          type: array
+          description: >
+            Each value is trimmed; empty values are rejected and duplicates are
+            removed stably by retaining their first occurrence before hashing.
+          items:
+            type: string
+            pattern: '\S'
+      additionalProperties: false
+    WorkspaceTransactionEnvelope:
+      type: object
+      required: [id, workspaceId, issuedAt, commands]
+      description: Command ids must be unique within the transaction.
+      properties:
+        id:
+          $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+        workspaceId:
+          $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+        issuedAt:
+          type: string
+          format: date-time
+          description: RFC3339 timestamp.
+        commands:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/WorkspaceOperationCommandEnvelope'
+        label:
+          type: string
+        mergeKey:
+          type: string
+      additionalProperties: false
     MutationSuccessResponse:
       type: object
       required: [workspaceId, workspaceRev, routeRev, opSeq]
@@ -448,9 +933,11 @@ components:
         workspaceRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         routeRev:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         updatedDocuments:
           type: array
           items:
@@ -461,18 +948,241 @@ components:
             type: string
         tree:
           $ref: '#/components/schemas/WorkspaceTree'
+        routeManifest:
+          $ref: '#/components/schemas/WorkspaceRouteManifest'
+        settings:
+          type: object
+          additionalProperties: true
         opSeq:
           type: integer
           minimum: 1
+          maximum: 9007199254740991
         acceptedMutationId:
           type: string
       additionalProperties: false
+    WorkspaceOperationCommitSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/MutationSuccessResponse'
+        - type: object
+          required: [acceptedMutationId]
+          anyOf:
+            - required: [tree]
+            - required: [routeManifest]
+            - required: [updatedDocuments]
+            - required: [removedDocumentIds]
+          not:
+            required: [settings]
+          properties:
+            workspaceId:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            updatedDocuments:
+              type: array
+              minItems: 1
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/WorkspaceDocument'
+                  - type: object
+                    required: [updatedAt]
+            removedDocumentIds:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+            acceptedMutationId:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+      description: >
+        Aggregated delta for the complete atomic operation. acceptedMutationId
+        equals the command or transaction id. An idempotent replay returns the
+        originally committed revisions and delta unchanged. Workspace settings
+        are not part of an operation commit response. opSeq is monotonic but is
+        not a request precondition, so disjoint intervening commits may create a
+        sequence gap; this response contains only the current operation delta,
+        not a catch-up stream.
     ErrorEnvelope:
       type: object
       required: [error]
       properties:
         error:
           $ref: '#/components/schemas/ErrorPayload'
+    WorkspaceConflictErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          allOf:
+            - $ref: '#/components/schemas/ErrorPayload'
+            - type: object
+              required: [details]
+              properties:
+                details:
+                  $ref: '#/components/schemas/WorkspaceConflictDetails'
+      additionalProperties: false
+    WorkspaceConflictDetails:
+      type: object
+      required: [conflictType, workspaceId, expected, current]
+      allOf:
+        - if:
+            properties:
+              conflictType:
+                const: WORKSPACE_CONFLICT
+            required: [conflictType]
+          then:
+            properties:
+              expected:
+                allOf:
+                  - required: [workspaceRev]
+                  - not:
+                      required: [document]
+              current:
+                not:
+                  required: [document]
+        - if:
+            properties:
+              conflictType:
+                const: ROUTE_CONFLICT
+            required: [conflictType]
+          then:
+            properties:
+              expected:
+                allOf:
+                  - required: [workspaceRev, routeRev]
+                  - not:
+                      required: [document]
+              current:
+                not:
+                  required: [document]
+        - if:
+            properties:
+              conflictType:
+                const: DOCUMENT_CONFLICT
+            required: [conflictType]
+          then:
+            properties:
+              expected:
+                required: [document]
+              current:
+                required: [document]
+      properties:
+        conflictType:
+          type: string
+          enum: [WORKSPACE_CONFLICT, ROUTE_CONFLICT, DOCUMENT_CONFLICT]
+        workspaceId:
+          type: string
+        expected:
+          $ref: '#/components/schemas/WorkspaceConflictExpectedRevisions'
+        current:
+          $ref: '#/components/schemas/WorkspaceConflictCurrentRevisions'
+      additionalProperties: false
+    WorkspaceConflictExpectedRevisions:
+      type: object
+      minProperties: 1
+      anyOf:
+        - required: [workspaceRev]
+        - required: [routeRev]
+        - required: [document]
+      properties:
+        workspaceRev:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        routeRev:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        document:
+          $ref: '#/components/schemas/WorkspaceConflictExpectedDocument'
+      additionalProperties: false
+    WorkspaceConflictExpectedDocument:
+      type: object
+      required: [id]
+      description: >
+        At least one revision property is required. Metadata-only conflicts
+        still use DOCUMENT_CONFLICT. Both explicit nulls encode an absence
+        precondition for concurrent document creation.
+      anyOf:
+        - required: [contentRev]
+        - required: [metaRev]
+      allOf:
+        - if:
+            required: [contentRev]
+            properties:
+              contentRev:
+                type: 'null'
+          then:
+            required: [metaRev]
+            properties:
+              metaRev:
+                type: 'null'
+        - if:
+            required: [metaRev]
+            properties:
+              metaRev:
+                type: 'null'
+          then:
+            required: [contentRev]
+            properties:
+              contentRev:
+                type: 'null'
+      properties:
+        id:
+          type: string
+        contentRev:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 9007199254740991
+        metaRev:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 9007199254740991
+      additionalProperties: false
+    WorkspaceConflictCurrentRevisions:
+      type: object
+      required: [workspaceRev, routeRev, opSeq]
+      properties:
+        workspaceRev:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        routeRev:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        opSeq:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        document:
+          $ref: '#/components/schemas/WorkspaceConflictCurrentDocument'
+      additionalProperties: false
+    WorkspaceConflictCurrentDocument:
+      oneOf:
+        - $ref: '#/components/schemas/WorkspaceConflictCurrentDocumentMetadata'
+        - type: 'null'
+      description: >
+        Safe current metadata, or null when the expected document was deleted
+        remotely. The document property remains required for DOCUMENT_CONFLICT.
+    WorkspaceConflictCurrentDocumentMetadata:
+      type: object
+      required: [id, type, path, contentRev, metaRev, updatedAt]
+      properties:
+        id:
+          type: string
+        type:
+          $ref: '#/components/schemas/WorkspaceDocumentType'
+        path:
+          type: string
+        contentRev:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        metaRev:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
     ErrorPayload:
       type: object
       required: [code, message]
@@ -501,7 +1211,7 @@ components:
         message:
           type: string
         details:
-          description: Safe machine-readable context. Revision conflict details include conflictType, workspaceId, serverWorkspaceRev, serverRouteRev, opSeq, and optionally serverDocument.
+          description: Safe machine-readable context. Revision conflicts use WorkspaceConflictDetails and never include document content.
         diagnostics:
           type: array
           items:

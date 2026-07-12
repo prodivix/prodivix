@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 )
 
 func (store *WorkspaceStore) PatchDocumentContent(ctx context.Context, params PatchDocumentContentParams) (*WorkspaceMutationResult, error) {
@@ -15,8 +16,8 @@ func (store *WorkspaceStore) PatchDocumentContent(ctx context.Context, params Pa
 	if strings.TrimSpace(params.WorkspaceID) == "" || strings.TrimSpace(params.DocumentID) == "" {
 		return nil, errors.New("workspaceID and documentID are required")
 	}
-	if params.ExpectedContentRev <= 0 {
-		return nil, errors.New("expectedContentRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedContentRev", params.ExpectedContentRev); err != nil {
+		return nil, err
 	}
 
 	command, err := normalizeWorkspaceCommand(params.Command)
@@ -44,25 +45,18 @@ func (store *WorkspaceStore) PatchDocumentContent(ctx context.Context, params Pa
 		return nil, err
 	}
 
-	const lockQuery = `SELECT d.doc_type, d.content_json, d.content_rev, d.meta_rev, w.workspace_rev, w.route_rev, w.op_seq
-FROM workspace_documents d
-JOIN workspaces w ON w.id = d.workspace_id
-WHERE d.workspace_id = $1 AND d.id = $2
-FOR UPDATE OF d, w`
+	// All Workspace writers acquire the workspace row before document rows. This
+	// explicit order prevents Atomic WorkspaceOperation Commit from deadlocking
+	// with the retained single-document mutation endpoint.
+	const lockWorkspaceQuery = `SELECT workspace_rev, route_rev, op_seq
+FROM workspaces
+WHERE id = $1
+FOR UPDATE`
 
-	var rawDocumentType string
-	var currentContent json.RawMessage
-	var currentContentRev int64
-	var currentMetaRev int64
 	var currentWorkspaceRev int64
 	var currentRouteRev int64
 	var currentOpSeq int64
-
-	err = tx.QueryRowContext(ctx, lockQuery, params.WorkspaceID, params.DocumentID).Scan(
-		&rawDocumentType,
-		&currentContent,
-		&currentContentRev,
-		&currentMetaRev,
+	err = tx.QueryRowContext(ctx, lockWorkspaceQuery, params.WorkspaceID).Scan(
 		&currentWorkspaceRev,
 		&currentRouteRev,
 		&currentOpSeq,
@@ -70,25 +64,65 @@ FOR UPDATE OF d, w`
 	if err != nil {
 		_ = tx.Rollback()
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, store.resolveDocumentLookupError(ctx, params.WorkspaceID)
+			return nil, ErrWorkspaceNotFound
 		}
+		return nil, err
+	}
+
+	const lockDocumentQuery = `SELECT doc_type, path, updated_at, content_json, content_rev, meta_rev
+FROM workspace_documents
+WHERE workspace_id = $1 AND id = $2
+FOR UPDATE`
+
+	var rawDocumentType string
+	var currentPath string
+	var currentUpdatedAt time.Time
+	var currentContent json.RawMessage
+	var currentContentRev int64
+	var currentMetaRev int64
+	err = tx.QueryRowContext(ctx, lockDocumentQuery, params.WorkspaceID, params.DocumentID).Scan(
+		&rawDocumentType,
+		&currentPath,
+		&currentUpdatedAt,
+		&currentContent,
+		&currentContentRev,
+		&currentMetaRev,
+	)
+	if err != nil {
+		_ = tx.Rollback()
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrWorkspaceDocumentNotFound
+		}
+		return nil, err
+	}
+	if err := validateRevisionCanAdvance("contentRev", currentContentRev); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := validateRevisionCanAdvance("opSeq", currentOpSeq); err != nil {
+		_ = tx.Rollback()
 		return nil, err
 	}
 
 	if currentContentRev != params.ExpectedContentRev {
 		_ = tx.Rollback()
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictDocument,
-			WorkspaceID:        params.WorkspaceID,
-			DocumentID:         params.DocumentID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerContentRev:   currentContentRev,
-			ServerMetaRev:      currentMetaRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newDocumentRevisionConflict(
+			params.WorkspaceID,
+			params.DocumentID,
+			params.ExpectedContentRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+			WorkspaceConflictDocumentMetadata{
+				ID:         params.DocumentID,
+				Type:       WorkspaceDocumentType(rawDocumentType),
+				Path:       currentPath,
+				ContentRev: currentContentRev,
+				MetaRev:    currentMetaRev,
+				UpdatedAt:  currentUpdatedAt.UTC(),
+			},
+		)
 	}
-
 	documentType := WorkspaceDocumentType(rawDocumentType)
 	if !isValidWorkspaceDocumentType(documentType) {
 		_ = tx.Rollback()
@@ -117,7 +151,7 @@ FOR UPDATE OF d, w`
 	const updateDocument = `UPDATE workspace_documents
 SET content_json = $3::jsonb, content_rev = content_rev + 1, updated_at = NOW()
 WHERE workspace_id = $1 AND id = $2
-RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at`
+RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at`
 
 	updatedDocument, err := scanWorkspaceDocument(tx.QueryRowContext(
 		ctx,

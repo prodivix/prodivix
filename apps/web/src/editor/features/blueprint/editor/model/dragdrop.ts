@@ -44,8 +44,10 @@ export const useBlueprintDragDrop = ({
     null
   );
   const [treeDropHint, setTreeDropHint] = useState<TreeDropHint>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleDragStart = (event: DragStartEvent) => {
+    setIsDragging(true);
     const data = event.active.data.current as DragActiveData | undefined;
     if (data?.kind === 'palette-item') {
       setActivePaletteItemId(String((data as PaletteItemDragData).itemId));
@@ -107,6 +109,7 @@ export const useBlueprintDragDrop = ({
   };
 
   const handleDragCancel = () => {
+    setIsDragging(false);
     setActivePaletteItemId(null);
     setTreeDropHint(null);
   };
@@ -114,6 +117,7 @@ export const useBlueprintDragDrop = ({
   const handleDragEnd = (event: DragEndEvent) => {
     const data = event.active.data.current as DragActiveData | undefined;
     const over = event.over;
+    setIsDragging(false);
     setActivePaletteItemId(null);
     setTreeDropHint(null);
     if (!over) return;
@@ -167,6 +171,7 @@ export const useBlueprintDragDrop = ({
   };
 
   return {
+    isDragging,
     activePaletteItemId,
     treeDropHint,
     handleDragStart,

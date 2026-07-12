@@ -96,6 +96,7 @@ const toApiError = (payload: unknown, response: Response) => {
     requestId: errorPayload?.requestId,
     retryable: errorPayload?.retryable,
     diagnostics,
+    payload: apiPayload,
   });
 };
 

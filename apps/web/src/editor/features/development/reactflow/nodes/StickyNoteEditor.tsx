@@ -271,6 +271,7 @@ export const StickyNoteEditor = ({ id, nodeData, selected, t }: Props) => {
                       )}
                     </div>
                     <CodeMirror
+                      data-editor-native-history="true"
                       value={draftContent}
                       onChange={setDraftContent}
                       extensions={[codeMirrorTypographyTheme]}

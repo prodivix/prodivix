@@ -115,6 +115,7 @@ export const renderCodeGraphNode = ({ id, nodeData, selected, t }: Props) => {
       ) : (
         <div className="relative px-3.5 pb-3">
           <CodeMirror
+            data-editor-native-history="true"
             value={nodeData.code ?? ''}
             onChange={(value) => nodeData.onChangeCode?.(id, value)}
             extensions={[

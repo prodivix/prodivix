@@ -1,14 +1,4 @@
-import {
-  composeRouteManifestWithModules,
-  validateRouteManifest,
-  type RouteModule,
-  type RouteModuleMount,
-  type WorkspaceRouteCodeReference,
-  type WorkspaceRouteManifest,
-  type WorkspaceRouteNode,
-  type WorkspaceRouteOutletBinding,
-  type WorkspaceRouteRuntime,
-} from '@prodivix/shared/router';
+import type { WorkspaceRouteManifest } from '@prodivix/shared/router';
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { validatePirDocument } from '@prodivix/pir';
 import { resolveCanonicalWorkspaceDocumentId } from './resolveCanonicalWorkspaceDocumentId';
@@ -20,6 +10,29 @@ import type {
 } from './types';
 import { validateWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
+import { WorkspaceCodecError } from './workspaceCodecError';
+import {
+  isCanonicalWorkspaceDocumentUpdatedAt,
+  isValidWorkspaceDocumentName,
+} from './workspaceDocumentValidation';
+import {
+  decodeWorkspaceRouteManifest,
+  resolveActiveRouteNodeId,
+} from './workspaceRouteCodec';
+
+export { WorkspaceCodecError } from './workspaceCodecError';
+export {
+  decodeWorkspaceRouteManifest,
+  hasRouteNodeId,
+  normalizeRouteManifest,
+  resolveActiveRouteNodeId,
+  resolveDefaultActiveRouteNodeId,
+} from './workspaceRouteCodec';
+export type {
+  WorkspaceRouteDocumentTypeResolver,
+  WorkspaceRouteManifestDecodeInput,
+  WorkspaceRouteManifestDecodeOptions,
+} from './workspaceRouteCodec';
 
 const WORKSPACE_DOCUMENT_TYPES = new Set<WorkspaceDocumentType>([
   'pir-page',
@@ -57,11 +70,94 @@ const optionalString = (value: unknown, path: string): string | undefined => {
   return requireString(value, path);
 };
 
+const WORKSPACE_DOCUMENT_KEYS = new Set([
+  'id',
+  'type',
+  'name',
+  'path',
+  'contentRev',
+  'metaRev',
+  'content',
+  'updatedAt',
+  'capabilities',
+]);
+const WORKSPACE_TREE_KEYS = new Set(['treeRootId', 'treeById']);
+const WORKSPACE_DIR_NODE_KEYS = new Set([
+  'id',
+  'kind',
+  'name',
+  'parentId',
+  'children',
+]);
+const WORKSPACE_DOC_NODE_KEYS = new Set([
+  'id',
+  'kind',
+  'name',
+  'parentId',
+  'docId',
+]);
+const WORKSPACE_SNAPSHOT_KEYS = new Set([
+  'id',
+  'name',
+  'workspaceRev',
+  'routeRev',
+  'opSeq',
+  'tree',
+  'documents',
+  'routeManifest',
+  'settings',
+  'activeDocumentId',
+  'activeRouteNodeId',
+]);
+const WORKSPACE_MUTATION_KEYS = new Set([
+  'workspaceId',
+  'workspaceRev',
+  'routeRev',
+  'opSeq',
+  'tree',
+  'updatedDocuments',
+  'removedDocumentIds',
+  'routeManifest',
+  'settings',
+  'activeDocumentId',
+  'activeRouteNodeId',
+  'acceptedMutationId',
+]);
+
+const toJsonPointerToken = (value: string): string =>
+  value.replaceAll('~', '~0').replaceAll('/', '~1');
+
+const assertAllowedKeys = (
+  source: Record<string, unknown>,
+  allowedKeys: ReadonlySet<string>,
+  path: string,
+  unknownFieldMessage = 'Unknown route manifest field.'
+): void => {
+  const unknownKey = Object.keys(source).find((key) => !allowedKeys.has(key));
+  if (unknownKey) {
+    throw new WorkspaceCodecError(
+      `${path}/${toJsonPointerToken(unknownKey)}`,
+      unknownFieldMessage
+    );
+  }
+};
+
 const requirePositiveInteger = (value: unknown, path: string): number => {
-  if (!Number.isInteger(value) || (value as number) <= 0) {
-    throw new WorkspaceCodecError(path, 'Expected a positive integer.');
+  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
+    throw new WorkspaceCodecError(path, 'Expected a positive safe integer.');
   }
   return value as number;
+};
+
+const requireCanonicalId = (value: unknown, path: string): string => {
+  const result = requireString(value, path);
+  if (result !== result.trim()) {
+    throw new WorkspaceCodecError(
+      path,
+      'Expected an id without leading or trailing whitespace.'
+    );
+  }
+  return result;
 };
 
 const parseStringArray = (value: unknown, path: string): string[] => {
@@ -71,224 +167,13 @@ const parseStringArray = (value: unknown, path: string): string[] => {
   return value.map((item, index) => requireString(item, `${path}/${index}`));
 };
 
-const parseRouteCodeReference = (
-  value: unknown,
-  path: string
-): WorkspaceRouteCodeReference => {
-  const source = requireRecord(value, path);
-  return {
-    artifactId: requireString(source.artifactId, `${path}/artifactId`),
-    ...(optionalString(source.exportName, `${path}/exportName`)
-      ? { exportName: source.exportName as string }
-      : {}),
-    ...(optionalString(source.symbolId, `${path}/symbolId`)
-      ? { symbolId: source.symbolId as string }
-      : {}),
-  };
-};
-
-const parseRouteRuntime = (
-  value: unknown,
-  path: string
-): WorkspaceRouteRuntime => {
-  const source = requireRecord(value, path);
-  return {
-    ...(source.loaderRef !== undefined
-      ? {
-          loaderRef: parseRouteCodeReference(
-            source.loaderRef,
-            `${path}/loaderRef`
-          ),
-        }
-      : {}),
-    ...(source.actionRef !== undefined
-      ? {
-          actionRef: parseRouteCodeReference(
-            source.actionRef,
-            `${path}/actionRef`
-          ),
-        }
-      : {}),
-    ...(source.guardRef !== undefined
-      ? {
-          guardRef: parseRouteCodeReference(
-            source.guardRef,
-            `${path}/guardRef`
-          ),
-        }
-      : {}),
-  };
-};
-
-const parseRouteOutletBindings = (
-  value: unknown,
-  path: string
-): Record<string, WorkspaceRouteOutletBinding> => {
-  const source = requireRecord(value, path);
-  return Object.fromEntries(
-    Object.entries(source).map(([name, rawBinding]) => {
-      const binding = requireRecord(rawBinding, `${path}/${name}`);
-      return [
-        name,
-        {
-          outletNodeId: requireString(
-            binding.outletNodeId,
-            `${path}/${name}/outletNodeId`
-          ),
-          ...(optionalString(binding.pageDocId, `${path}/${name}/pageDocId`)
-            ? { pageDocId: binding.pageDocId as string }
-            : {}),
-        },
-      ];
-    })
-  );
-};
-
-const parseRouteNode = (value: unknown, path: string): WorkspaceRouteNode => {
-  const source = requireRecord(value, path);
-  if (source.index !== undefined && typeof source.index !== 'boolean') {
-    throw new WorkspaceCodecError(`${path}/index`, 'Expected a boolean.');
-  }
-  if (source.children !== undefined && !Array.isArray(source.children)) {
-    throw new WorkspaceCodecError(`${path}/children`, 'Expected an array.');
-  }
-  return {
-    id: requireString(source.id, `${path}/id`),
-    ...(source.segment !== undefined
-      ? { segment: requireString(source.segment, `${path}/segment`) }
-      : {}),
-    ...(source.index !== undefined ? { index: source.index as boolean } : {}),
-    ...(optionalString(source.layoutDocId, `${path}/layoutDocId`)
-      ? { layoutDocId: source.layoutDocId as string }
-      : {}),
-    ...(optionalString(source.pageDocId, `${path}/pageDocId`)
-      ? { pageDocId: source.pageDocId as string }
-      : {}),
-    ...(optionalString(source.outletNodeId, `${path}/outletNodeId`)
-      ? { outletNodeId: source.outletNodeId as string }
-      : {}),
-    ...(source.outletBindings !== undefined
-      ? {
-          outletBindings: parseRouteOutletBindings(
-            source.outletBindings,
-            `${path}/outletBindings`
-          ),
-        }
-      : {}),
-    ...(source.runtime !== undefined
-      ? { runtime: parseRouteRuntime(source.runtime, `${path}/runtime`) }
-      : {}),
-    ...(source.children !== undefined
-      ? {
-          children: (source.children as unknown[]).map((child, index) =>
-            parseRouteNode(child, `${path}/children/${index}`)
-          ),
-        }
-      : {}),
-  };
-};
-
-const parseRouteModules = (
-  value: unknown,
-  path: string
-): Record<string, RouteModule> => {
-  const source = requireRecord(value, path);
-  return Object.fromEntries(
-    Object.entries(source).map(([key, rawModule]) => {
-      const module = requireRecord(rawModule, `${path}/${key}`);
-      const moduleId = requireString(
-        module.moduleId,
-        `${path}/${key}/moduleId`
-      );
-      if (moduleId !== key) {
-        throw new WorkspaceCodecError(
-          `${path}/${key}/moduleId`,
-          'Route module key must match moduleId.'
-        );
-      }
-      return [
-        key,
-        {
-          moduleId,
-          version: requireString(module.version, `${path}/${key}/version`),
-          root: parseRouteNode(module.root, `${path}/${key}/root`),
-        },
-      ];
-    })
-  );
-};
-
-const parseRouteMounts = (value: unknown, path: string): RouteModuleMount[] => {
+const parseCanonicalIdArray = (value: unknown, path: string): string[] => {
   if (!Array.isArray(value)) {
     throw new WorkspaceCodecError(path, 'Expected an array.');
   }
-  return value.map((rawMount, index) => {
-    const mountPath = `${path}/${index}`;
-    const mount = requireRecord(rawMount, mountPath);
-    return {
-      mountId: requireString(mount.mountId, `${mountPath}/mountId`),
-      moduleRef: requireString(mount.moduleRef, `${mountPath}/moduleRef`),
-      ...(optionalString(mount.mountPath, `${mountPath}/mountPath`)
-        ? { mountPath: mount.mountPath as string }
-        : {}),
-      ...(optionalString(
-        mount.parentRouteNodeId,
-        `${mountPath}/parentRouteNodeId`
-      )
-        ? { parentRouteNodeId: mount.parentRouteNodeId as string }
-        : {}),
-    };
-  });
-};
-
-export const decodeWorkspaceRouteManifest = (
-  value: unknown,
-  documentExists?: (documentId: string) => boolean
-): WorkspaceRouteManifest => {
-  const source = requireRecord(value, '/routeManifest');
-  const manifest: WorkspaceRouteManifest = {
-    version: requireString(source.version, '/routeManifest/version'),
-    root: parseRouteNode(source.root, '/routeManifest/root'),
-    ...(source.modules !== undefined
-      ? { modules: parseRouteModules(source.modules, '/routeManifest/modules') }
-      : {}),
-    ...(source.mounts !== undefined
-      ? { mounts: parseRouteMounts(source.mounts, '/routeManifest/mounts') }
-      : {}),
-  };
-  const issues = validateRouteManifest({ manifest, documentExists });
-  if (issues.length) {
-    throw new WorkspaceCodecError(
-      '/routeManifest',
-      issues.map((issue) => `${issue.code}: ${issue.message}`).join('; ')
-    );
-  }
-  return manifest;
-};
-
-export const normalizeRouteManifest = decodeWorkspaceRouteManifest;
-
-export const hasRouteNodeId = (
-  node: WorkspaceRouteNode,
-  nodeId: string
-): boolean =>
-  node.id === nodeId ||
-  (node.children ?? []).some((child) => hasRouteNodeId(child, nodeId));
-
-export const resolveDefaultActiveRouteNodeId = (
-  manifest: WorkspaceRouteManifest
-): string => manifest.root.children?.[0]?.id ?? manifest.root.id;
-
-export const resolveActiveRouteNodeId = (
-  manifest: WorkspaceRouteManifest,
-  candidateIds: Array<string | undefined>
-): string => {
-  const composedManifest = composeRouteManifestWithModules(manifest).manifest;
-  const candidate = candidateIds.find(
-    (value) =>
-      value?.trim() && hasRouteNodeId(composedManifest.root, value.trim())
+  return value.map((item, index) =>
+    requireCanonicalId(item, `${path}/${index}`)
   );
-  return candidate?.trim() ?? resolveDefaultActiveRouteNodeId(composedManifest);
 };
 
 export const isPirWorkspaceDocumentType = (
@@ -306,6 +191,12 @@ const parseWorkspaceDocument = (
   path: string
 ): WorkspaceDocument => {
   const source = requireRecord(value, path);
+  assertAllowedKeys(
+    source,
+    WORKSPACE_DOCUMENT_KEYS,
+    path,
+    'Unknown workspace document field.'
+  );
   const type = requireString(source.type, `${path}/type`);
   if (!WORKSPACE_DOCUMENT_TYPES.has(type as WorkspaceDocumentType)) {
     throw new WorkspaceCodecError(
@@ -314,6 +205,28 @@ const parseWorkspaceDocument = (
     );
   }
   const id = requireString(source.id, `${path}/id`);
+  const name =
+    source.name === undefined
+      ? undefined
+      : isValidWorkspaceDocumentName(source.name)
+        ? source.name
+        : (() => {
+            throw new WorkspaceCodecError(
+              `${path}/name`,
+              'Expected a non-empty string.'
+            );
+          })();
+  const updatedAt =
+    source.updatedAt === undefined
+      ? undefined
+      : isCanonicalWorkspaceDocumentUpdatedAt(source.updatedAt)
+        ? source.updatedAt
+        : (() => {
+            throw new WorkspaceCodecError(
+              `${path}/updatedAt`,
+              'Expected an RFC3339 timestamp.'
+            );
+          })();
   let content = source.content;
   if (isPirWorkspaceDocumentType(type as WorkspaceDocumentType)) {
     const validation = validatePirDocument(content);
@@ -341,12 +254,8 @@ const parseWorkspaceDocument = (
     contentRev: requirePositiveInteger(source.contentRev, `${path}/contentRev`),
     metaRev: requirePositiveInteger(source.metaRev, `${path}/metaRev`),
     content,
-    ...(optionalString(source.name, `${path}/name`)
-      ? { name: source.name as string }
-      : {}),
-    ...(optionalString(source.updatedAt, `${path}/updatedAt`)
-      ? { updatedAt: source.updatedAt as string }
-      : {}),
+    ...(name !== undefined ? { name } : {}),
+    ...(updatedAt !== undefined ? { updatedAt } : {}),
     ...(capabilities ? { capabilities } : {}),
   };
 };
@@ -357,47 +266,82 @@ export const normalizeWorkspaceDocument = (
   parseWorkspaceDocument(document, `/documents/${document.id}`);
 
 const parseWorkspaceTree = (
-  value: unknown
+  value: unknown,
+  path = '/tree'
 ): Pick<WorkspaceSnapshot, 'treeRootId' | 'treeById'> => {
-  const source = requireRecord(value, '/tree');
-  const treeRootId = requireString(source.treeRootId, '/tree/treeRootId');
-  const rawTreeById = requireRecord(source.treeById, '/tree/treeById');
+  const source = requireRecord(value, path);
+  assertAllowedKeys(
+    source,
+    WORKSPACE_TREE_KEYS,
+    path,
+    'Unknown workspace tree field.'
+  );
+  const treeRootId = requireCanonicalId(
+    source.treeRootId,
+    `${path}/treeRootId`
+  );
+  const rawTreeById = requireRecord(source.treeById, `${path}/treeById`);
+  if (!Object.hasOwn(rawTreeById, treeRootId)) {
+    throw new WorkspaceCodecError(
+      `${path}/treeRootId`,
+      'WKS_ROOT_MISSING: treeRootId must reference an existing node.'
+    );
+  }
   const treeById: Record<string, WorkspaceVfsNode> = {};
   Object.entries(rawTreeById).forEach(([nodeKey, rawNode]) => {
-    const path = `/tree/treeById/${nodeKey}`;
-    const node = requireRecord(rawNode, path);
-    const id = requireString(node.id, `${path}/id`);
+    const nodePath = `${path}/treeById/${toJsonPointerToken(nodeKey)}`;
+    requireCanonicalId(nodeKey, nodePath);
+    const node = requireRecord(rawNode, nodePath);
+    const id = requireCanonicalId(node.id, `${nodePath}/id`);
     if (id !== nodeKey) {
       throw new WorkspaceCodecError(
-        `${path}/id`,
+        `${nodePath}/id`,
         'Tree node key must match node id.'
       );
     }
     if (node.kind !== 'dir' && node.kind !== 'doc') {
-      throw new WorkspaceCodecError(`${path}/kind`, 'Expected dir or doc.');
+      throw new WorkspaceCodecError(`${nodePath}/kind`, 'Expected dir or doc.');
     }
-    if (node.parentId !== null && typeof node.parentId !== 'string') {
-      throw new WorkspaceCodecError(
-        `${path}/parentId`,
-        'Expected a string or null.'
-      );
+    let parentId: string | null;
+    if (nodeKey === treeRootId) {
+      if (node.parentId !== null) {
+        throw new WorkspaceCodecError(
+          `${nodePath}/parentId`,
+          'Expected null for the workspace root parentId.'
+        );
+      }
+      parentId = null;
+    } else {
+      parentId = requireCanonicalId(node.parentId, `${nodePath}/parentId`);
     }
     if (node.kind === 'dir') {
+      assertAllowedKeys(
+        node,
+        WORKSPACE_DIR_NODE_KEYS,
+        nodePath,
+        'Unknown workspace tree node field.'
+      );
       treeById[id] = {
         id,
         kind: 'dir',
-        name: requireString(node.name, `${path}/name`),
-        parentId: node.parentId,
-        children: parseStringArray(node.children, `${path}/children`),
+        name: requireString(node.name, `${nodePath}/name`),
+        parentId,
+        children: parseCanonicalIdArray(node.children, `${nodePath}/children`),
       };
       return;
     }
+    assertAllowedKeys(
+      node,
+      WORKSPACE_DOC_NODE_KEYS,
+      nodePath,
+      'Unknown workspace tree node field.'
+    );
     treeById[id] = {
       id,
       kind: 'doc',
-      name: requireString(node.name, `${path}/name`),
-      parentId: node.parentId,
-      docId: requireString(node.docId, `${path}/docId`),
+      name: requireString(node.name, `${nodePath}/name`),
+      parentId,
+      docId: requireCanonicalId(node.docId, `${nodePath}/docId`),
     };
   });
   return { treeRootId, treeById };
@@ -411,16 +355,6 @@ export const normalizeWorkspaceTree = (
 
 const parseSettings = (value: unknown): Record<string, unknown> =>
   requireRecord(value, '/settings');
-
-export class WorkspaceCodecError extends Error {
-  readonly path: string;
-
-  constructor(path: string, message: string) {
-    super(`${path}: ${message}`);
-    this.name = 'WorkspaceCodecError';
-    this.path = path;
-  }
-}
 
 export type WorkspaceDocumentWireDto = {
   id: string;
@@ -493,6 +427,12 @@ export const decodeWorkspaceSnapshot = (
   value: unknown
 ): DecodedWorkspaceSnapshot => {
   const source = requireRecord(value, '/workspace');
+  assertAllowedKeys(
+    source,
+    WORKSPACE_SNAPSHOT_KEYS,
+    '/workspace',
+    'Unknown workspace snapshot field.'
+  );
   if (!Array.isArray(source.documents) || !source.documents.length) {
     throw new WorkspaceCodecError(
       '/workspace/documents',
@@ -512,11 +452,10 @@ export const decodeWorkspaceSnapshot = (
     }
     docsById[document.id] = document;
   });
-  const tree = parseWorkspaceTree(source.tree);
-  const routeManifest = decodeWorkspaceRouteManifest(
-    source.routeManifest,
-    (documentId) => Boolean(docsById[documentId])
-  );
+  const tree = parseWorkspaceTree(source.tree, '/workspace/tree');
+  const routeManifest = decodeWorkspaceRouteManifest(source.routeManifest, {
+    resolveDocumentType: (documentId) => docsById[documentId]?.type,
+  });
   const activeDocumentCandidate = optionalString(
     source.activeDocumentId,
     '/workspace/activeDocumentId'
@@ -598,6 +537,12 @@ export const decodeWorkspaceMutation = (
   workspace: WorkspaceSnapshot
 ): DecodedWorkspaceMutation => {
   const source = requireRecord(value, '/mutation');
+  assertAllowedKeys(
+    source,
+    WORKSPACE_MUTATION_KEYS,
+    '/mutation',
+    'Unknown workspace mutation field.'
+  );
   const workspaceId = requireString(
     source.workspaceId,
     '/mutation/workspaceId'
@@ -657,16 +602,16 @@ export const decodeWorkspaceMutation = (
     routeRev: requirePositiveInteger(source.routeRev, '/mutation/routeRev'),
     opSeq: requirePositiveInteger(source.opSeq, '/mutation/opSeq'),
     ...(source.tree !== undefined
-      ? { tree: parseWorkspaceTree(source.tree) }
+      ? { tree: parseWorkspaceTree(source.tree, '/mutation/tree') }
       : {}),
     updatedDocuments,
     removedDocumentIds,
     ...(source.routeManifest !== undefined
       ? {
-          routeManifest: decodeWorkspaceRouteManifest(
-            source.routeManifest,
-            (documentId) => Boolean(docsAfterMutation[documentId])
-          ),
+          routeManifest: decodeWorkspaceRouteManifest(source.routeManifest, {
+            resolveDocumentType: (documentId) =>
+              docsAfterMutation[documentId]?.type,
+          }),
         }
       : {}),
     ...(source.settings !== undefined

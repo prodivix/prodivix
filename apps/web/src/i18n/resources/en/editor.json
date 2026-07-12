@@ -99,6 +99,59 @@
     "exitToEditor": "Return to editor home",
     "exitToHome": "Return to home"
   },
+  "revisionConflict": {
+    "title": "Revision conflict",
+    "description": "The workspace changed on the server while this edit was in progress. Review the local and remote versions before saving again.",
+    "genericSummary": "This change cannot be merged automatically.",
+    "documentSummary": "{{path}} changed both locally and remotely.",
+    "actions": {
+      "reviewLater": "Review later",
+      "useRemote": "Use remote",
+      "useLocal": "Use local",
+      "useAllRemote": "Use all remote",
+      "useAllLocal": "Use all local",
+      "resumeReview": "Review conflict",
+      "applyResolution": "Apply resolution",
+      "retry": "Retry"
+    },
+    "status": {
+      "resolving": "Applying resolution…",
+      "unresolved": "Choose a version for every conflict before applying.",
+      "remoteAccepted": "Remote version accepted.",
+      "retryFailed": "The workspace changed again. Review the refreshed conflict.",
+      "invalidResolution": "The resolved workspace is invalid.",
+      "workspaceChanged": "The active workspace changed before the resolution completed.",
+      "authenticationRequired": "Authentication is required to apply this resolution.",
+      "conflictCount": "{{unresolved}} unresolved of {{total}}"
+    },
+    "labels": {
+      "base": "BASE",
+      "local": "LOCAL",
+      "remote": "REMOTE",
+      "changedFields": "Changed fields",
+      "graph": "Node graph revision diff",
+      "conflicts": "Conflicts",
+      "resolved": "Resolved",
+      "changedArtifacts": "Changed artifacts",
+      "conflict": "conflict",
+      "hunk": "hunk",
+      "hunks": "hunks",
+      "unresolved": "unresolved",
+      "noLines": "No lines in this version",
+      "noTextChanges": "No text changes to review.",
+      "field": "Field",
+      "noFieldDetails": "No field-level details supplied.",
+      "invalidGraphPresentation": "Invalid graph diff presentation.",
+      "edgeConflicts": "Edge conflicts"
+    },
+    "kinds": {
+      "value": "value conflict",
+      "concurrent-add": "concurrent add",
+      "delete-modify": "delete / modify",
+      "structural": "structural conflict",
+      "text": "text conflict"
+    }
+  },
   "modals": {
     "close": "Close",
     "actions": {

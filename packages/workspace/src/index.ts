@@ -5,7 +5,9 @@ export {
 export { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
 export {
   WorkspaceDocumentFactoryError,
+  createWorkspaceDocumentNodeId,
   createWorkspaceDocumentAtPathCommand,
+  createWorkspacePathNodeId,
 } from './workspaceDocumentFactory';
 export { createWorkspaceCodeBindingTransaction } from './workspaceCodeBindingTransaction';
 export {
@@ -57,6 +59,7 @@ export {
   createWorkspaceDirectoryIntentRequest,
   createWorkspaceCodeDocumentCommand,
   createWorkspaceCodeDocumentIntentRequest,
+  createWorkspaceCodeSourceUpdateCommand,
   createWorkspaceDocumentIntentRequest,
   deleteWorkspaceDirectoryIntentRequest,
   deleteWorkspaceCodeDocumentIntentRequest,
@@ -64,17 +67,36 @@ export {
   renameWorkspaceDirectoryIntentRequest,
   renameWorkspaceCodeDocumentIntentRequest,
   renameWorkspaceDocumentIntentRequest,
+  resolveWorkspaceCommandDomain,
 } from './workspaceCommand';
 export {
+  DEFAULT_WORKSPACE_HISTORY_MERGE_WINDOW_MS,
+  DEFAULT_WORKSPACE_HISTORY_MAX_ENTRIES,
   canRedoWorkspaceHistory,
   canUndoWorkspaceHistory,
+  collectChangedWorkspaceDocumentIds,
+  collectWorkspaceOperationDocumentIds,
+  createWorkspaceCommandOperation,
   createWorkspaceHistoryState,
-  pushWorkspaceHistoryEntry,
+  createWorkspaceTransactionOperation,
+  reconcileWorkspaceOperationConfirmation,
+  recordWorkspaceOperation,
   redoWorkspaceHistory,
   resolveWorkspaceCommandScope,
+  resolveWorkspaceOperationAffectedScopes,
+  resolveWorkspaceOperationScope,
+  selectRedoWorkspaceHistoryEntry,
+  selectUndoWorkspaceHistoryEntry,
+  setWorkspaceHistoryLimit,
+  setWorkspaceHistoryMergeWindow,
   undoWorkspaceHistory,
   workspaceHistoryScopesEqual,
 } from './workspaceHistory';
+export {
+  getWorkspaceOperationCommands,
+  getWorkspaceOperationId,
+  getWorkspaceOperationSourceIds,
+} from './workspaceOperation';
 export {
   validateWorkspaceSnapshot,
   validateWorkspaceVfs,
@@ -94,6 +116,7 @@ export type {
   CreateWorkspaceDirectoryIntentInput,
   CreateWorkspaceCodeDocumentCommandInput,
   CreateWorkspaceCodeDocumentIntentInput,
+  CreateWorkspaceCodeSourceUpdateCommandInput,
   CreateWorkspaceDocumentIntentInput,
   DeleteWorkspaceDirectoryIntentInput,
   DeleteWorkspaceCodeDocumentIntentInput,
@@ -114,11 +137,17 @@ export type {
 export type {
   WorkspaceHistoryDocumentDomain,
   WorkspaceHistoryEntry,
+  WorkspaceHistoryExecutionOptions,
   WorkspaceHistoryIssue,
   WorkspaceHistoryIssueCode,
+  WorkspaceHistoryOperationIdContext,
+  WorkspaceHistoryRecordOptions,
   WorkspaceHistoryResult,
   WorkspaceHistoryScope,
+  WorkspaceHistoryScopeSelector,
   WorkspaceHistoryState,
+  WorkspaceHistoryStateOptions,
+  WorkspaceOperation,
 } from './workspaceHistory';
 export type {
   CreateWorkspaceDocumentAtPathCommandInput,
@@ -155,6 +184,9 @@ export type {
   DecodedWorkspaceSnapshot,
   WorkspaceDocumentWireDto,
   WorkspaceMutationWireDto,
+  WorkspaceRouteDocumentTypeResolver,
+  WorkspaceRouteManifestDecodeInput,
+  WorkspaceRouteManifestDecodeOptions,
   WorkspaceSnapshotWireDto,
   WorkspaceTreeWireDto,
 } from './workspaceCodec';

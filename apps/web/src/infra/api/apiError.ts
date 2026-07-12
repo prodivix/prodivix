@@ -36,6 +36,7 @@ export class ApiError extends Error {
   status: number;
   code: string;
   details?: unknown;
+  payload?: ApiErrorPayload;
   requestId?: string;
   retryable?: boolean;
   diagnostics: ProdivixDiagnostic[];
@@ -49,6 +50,7 @@ export class ApiError extends Error {
       requestId?: string;
       retryable?: boolean;
       diagnostics?: ProdivixDiagnostic[];
+      payload?: ApiErrorPayload;
     } = {}
   ) {
     super(message);
@@ -56,6 +58,7 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
     this.details = details;
+    this.payload = options.payload;
     this.requestId = options.requestId;
     this.retryable = options.retryable;
     this.diagnostics = options.diagnostics ?? [];

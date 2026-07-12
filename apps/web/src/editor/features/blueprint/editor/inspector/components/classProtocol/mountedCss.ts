@@ -100,9 +100,6 @@ export const createMountedCssSlotId = (nodeId: string) =>
 export const createMountedCssDocumentId = (nodeId: string) =>
   `code_mounted_css_${nodeId.replace(/[^a-zA-Z0-9_-]+/g, '_')}`;
 
-export const createMountedCssNodeId = (nodeId: string) =>
-  `node_${createMountedCssDocumentId(nodeId)}`;
-
 export const createMountedCssPath = (nodeId: string) =>
   `/styles/mounted/${nodeId}.css`;
 

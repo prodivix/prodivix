@@ -38,8 +38,8 @@ func (store *WorkspaceStore) CreateWorkspaceDocument(ctx context.Context, params
 	if params.WorkspaceID == "" || params.DocumentID == "" {
 		return nil, errors.New("workspaceID and documentID are required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
 	}
 	documentPath, err := normalizeWorkspacePath(params.Path)
 	if err != nil {
@@ -92,26 +92,30 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
 		log.Printf(
-			"[workspace] conflict create_code_document workspace=%s expectedWorkspaceRev=%d serverWorkspaceRev=%d serverRouteRev=%d serverOpSeq=%d",
+			"[workspace] conflict create_code_document workspace=%s expectedWorkspaceRev=%d currentWorkspaceRev=%d currentRouteRev=%d currentOpSeq=%d",
 			params.WorkspaceID,
 			params.ExpectedWorkspaceRev,
 			currentWorkspaceRev,
 			currentRouteRev,
 			currentOpSeq,
 		)
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictWorkspace,
-			WorkspaceID:        params.WorkspaceID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newWorkspaceRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
 
-	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at
+	const documentQuery = `SELECT workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at
 FROM workspace_documents
 WHERE workspace_id = $1
 ORDER BY path ASC`
@@ -175,7 +179,7 @@ ORDER BY path ASC`
 	const insertDocument = `INSERT INTO workspace_documents (
 	workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at
 ) VALUES ($1, $2, $3, $4, $5, 1, 1, $6::jsonb, NOW())
-RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, updated_at`
+RETURNING workspace_id, id, doc_type, name, path, content_rev, meta_rev, content_json, capabilities_json, updated_at`
 	createdDocument, err := scanWorkspaceDocument(tx.QueryRowContext(
 		ctx,
 		insertDocument,

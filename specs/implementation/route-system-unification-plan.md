@@ -151,21 +151,21 @@ API 规则：
 
 Route UI 调用 intent，intent 生成 command，command 执行 patch。Command 是 undo/redo、同步、AI dry-run/apply 和后端审计的统一入口。
 
-| Intent                    | 主要 patch 目标                                      | 必须提供 reverseOps | revision               |
-| ------------------------- | ---------------------------------------------------- | ------------------- | ---------------------- |
-| `route.create-page`       | `/routeManifest/root`、`/docsById`、`/treeById`      | 是                  | route + workspace/doc  |
-| `route.create-child`      | `/routeManifest/root`、可选 `/docsById`、`/treeById` | 是                  | route + workspace/doc  |
-| `route.create-index`      | `/routeManifest/root`、可选 `/docsById`              | 是                  | route + workspace/doc  |
-| `route.rename-segment`    | `/routeManifest/root/.../segment`                    | 是                  | route                  |
-| `route.move`              | `/routeManifest/root`                                | 是                  | route                  |
-| `route.attach-layout`     | `/routeManifest/root/.../layoutDocId`                | 是                  | route                  |
-| `route.detach-layout`     | `/routeManifest/root/.../layoutDocId`                | 是                  | route                  |
-| `route.bind-outlet`       | `/routeManifest/root/.../outletNodeId`               | 是                  | route                  |
-| `route.unbind-outlet`     | `/routeManifest/root/.../outletNodeId`               | 是                  | route                  |
-| `route.set-runtime-ref`   | `/routeManifest/root/.../runtime/*Ref`               | 是                  | route                  |
-| `route.clear-runtime-ref` | `/routeManifest/root/.../runtime/*Ref`               | 是                  | route                  |
-| `route.delete`            | `/routeManifest/root`                                | 是                  | route                  |
-| `route.set-active`        | `/activeRouteNodeId`                                 | 是                  | local/workspace policy |
+| Intent                    | 主要 patch 目标                                           | 必须提供 reverseOps | revision               |
+| ------------------------- | --------------------------------------------------------- | ------------------- | ---------------------- |
+| `route.create-page`       | `/routeManifest/root`、`/docsById/<id>`、`/treeById`      | 是                  | route + workspace/doc  |
+| `route.create-child`      | `/routeManifest/root`、可选 `/docsById/<id>`、`/treeById` | 是                  | route + workspace/doc  |
+| `route.create-index`      | `/routeManifest/root`、可选 `/docsById/<id>`              | 是                  | route + workspace/doc  |
+| `route.rename-segment`    | `/routeManifest/root/.../segment`                         | 是                  | route                  |
+| `route.move`              | `/routeManifest/root`                                     | 是                  | route                  |
+| `route.attach-layout`     | `/routeManifest/root/.../layoutDocId`                     | 是                  | route                  |
+| `route.detach-layout`     | `/routeManifest/root/.../layoutDocId`                     | 是                  | route                  |
+| `route.bind-outlet`       | `/routeManifest/root/.../outletNodeId`                    | 是                  | route                  |
+| `route.unbind-outlet`     | `/routeManifest/root/.../outletNodeId`                    | 是                  | route                  |
+| `route.set-runtime-ref`   | `/routeManifest/root/.../runtime/*Ref`                    | 是                  | route                  |
+| `route.clear-runtime-ref` | `/routeManifest/root/.../runtime/*Ref`                    | 是                  | route                  |
+| `route.delete`            | `/routeManifest/root`                                     | 是                  | route                  |
+| `route.set-active`        | `/activeRouteNodeId`                                      | 是                  | local/workspace policy |
 
 Command 规则：
 
@@ -174,6 +174,8 @@ Command 规则：
 3. `route.delete` 不删除被引用文档，只从 route graph 移除引用。后续 orphan document 诊断或资源视图负责提示用户清理。
 4. `route.set-active` 是否进入同步 outbox 由产品策略决定；但它仍必须走 command helper，以便 undo/redo 和 AI preview 一致。
 5. 所有 route command apply 后必须运行 route validator；涉及 PIR 文档时还要运行 PIR validator 或 outlet lookup。
+6. 创建关联文档必须按 document identity 使用 granular add/remove patch；整份 `/docsById` replace 已 Hard Cut。
+7. 跨 route/workspace/document 的 Transaction 通过 Atomic WorkspaceOperation Commit 持久化；`route.set-active` 属于本地 selection，不进入远端 commit write set。
 
 ## 7. VFS 与文档生命周期
 
@@ -440,7 +442,7 @@ type RouteExportContribution = {
 
 当前实现状态：
 
-- 后端 `CreateWorkspace`、`ImportWorkspaceSnapshot` 和 `SaveRouteManifest` 写入 `workspace_routes` 前都会调用同一份 route manifest validator；非法 root、重复 route id、重复 sibling path/index、非法 segment、缺失 module mount、空 runtime CodeReference 会被拒绝。
+- 后端以单事务 `ImportWorkspaceSnapshot` 完成项目 bootstrap；它与 `SaveRouteManifest` 在写入 `workspace_routes` 前调用同一份 route manifest validator。非法 root、重复 route id、重复 sibling path/index、非法 segment、缺失 module mount、空 runtime CodeReference 会被拒绝。
 - `workspace_routes.manifest_json` 继续保存经过 `normalizeJSONDocument` 的紧凑 JSON；语义校验发生在 normalized payload 上。
 - compiler 新增 `createRouteExportContribution`，从 `WorkspaceRouteManifest` 经 shared route core 的 `composeRouteManifestWithModules`、`flattenRouteManifest` 和 `validateRouteManifest` 生成 route topology contribution。
 - `ExportProgram` / `ExportProgramContribution` 支持 `routes: ExportRouteTopology`；`ProductionExportPlanner` 输出 `.prodivix/routes.json`，并把同一份 topology 写入 `.prodivix/export-manifest.json` 与 bundle metadata。

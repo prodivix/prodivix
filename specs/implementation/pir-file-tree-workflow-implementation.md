@@ -594,7 +594,7 @@ Git blob -> text diff
 3. `GET /workspaces/:id`
 4. `PATCH /workspaces/:workspaceId/documents/:documentId`
 5. `POST /workspaces/:id/intents`
-6. `POST /workspaces/:id/batch`
+6. `POST /workspaces/:id/operations/commit`（Atomic WorkspaceOperation；旧 `/batch` 已 Hard Cut）
 
 但仍存在：
 

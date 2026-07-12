@@ -5,6 +5,10 @@ import type {
   WorkspaceValidationIssue,
   WorkspaceValidationResult,
 } from './types';
+import {
+  isPlainWorkspaceRecord,
+  validateWorkspaceDocumentRecord,
+} from './workspaceDocumentValidation';
 
 type WorkspaceVfsValidationInput = Pick<
   WorkspaceSnapshot,
@@ -13,21 +17,29 @@ type WorkspaceVfsValidationInput = Pick<
 
 const ROOT_PATH = '/';
 
+const VFS_NODE_COMMON_FIELDS = ['id', 'kind', 'name', 'parentId'] as const;
+
 const escapePointerSegment = (segment: string): string =>
   segment.replaceAll('~', '~0').replaceAll('/', '~1');
 
-const normalizePath = (path: string): string => {
-  const segments = path.split('/').filter(Boolean);
-  if (!segments.length) return ROOT_PATH;
-  return `/${segments.join('/')}`;
+const joinPath = (parentPath: string, name: string): string => {
+  if (parentPath === ROOT_PATH) return `/${name}`;
+  return `${parentPath}/${name}`;
 };
 
-const joinPath = (parentPath: string, name: string): string => {
-  const normalizedName = name.trim();
-  if (!normalizedName || normalizedName === ROOT_PATH) return parentPath;
-  if (parentPath === ROOT_PATH) return `/${normalizedName}`;
-  return `${parentPath}/${normalizedName}`;
+const isCanonicalNodeName = (name: unknown, isRoot: boolean): boolean => {
+  if (typeof name !== 'string' || !name || name !== name.trim()) return false;
+  if (isRoot && name === ROOT_PATH) return true;
+  return (
+    name !== '.' && name !== '..' && !name.includes('/') && !name.includes('\\')
+  );
 };
+
+const isCanonicalWorkspaceId = (value: unknown): value is string =>
+  typeof value === 'string' && Boolean(value) && value === value.trim();
+
+const getDirectoryChildren = (node: WorkspaceVfsNode): unknown[] =>
+  Array.isArray(node.children) ? node.children : [];
 
 const addIssue = (
   issues: WorkspaceValidationIssue[],
@@ -40,6 +52,7 @@ const getNodePath = (nodeId: string) =>
   `/treeById/${escapePointerSegment(nodeId)}`;
 
 const validateDirectoryChildren = (
+  nodeId: string,
   node: WorkspaceVfsNode,
   treeById: Record<string, WorkspaceVfsNode>,
   issues: WorkspaceValidationIssue[]
@@ -47,9 +60,9 @@ const validateDirectoryChildren = (
   if (!Array.isArray(node.children)) {
     addIssue(issues, {
       code: 'WKS_DIR_CHILDREN_MISSING',
-      path: `${getNodePath(node.id)}/children`,
+      path: `${getNodePath(nodeId)}/children`,
       message: 'Directory nodes must declare a children array.',
-      nodeId: node.id,
+      nodeId,
     });
     return;
   }
@@ -58,7 +71,17 @@ const validateDirectoryChildren = (
   const seenNames = new Map<string, string>();
 
   node.children.forEach((childId, index) => {
-    const childPath = `${getNodePath(node.id)}/children/${index}`;
+    const childPath = `${getNodePath(nodeId)}/children/${index}`;
+    if (!isCanonicalWorkspaceId(childId)) {
+      addIssue(issues, {
+        code: 'WKS_DIR_CHILD_ID_INVALID',
+        path: childPath,
+        message:
+          'Directory child ids must be non-empty and must not contain surrounding whitespace.',
+        nodeId,
+      });
+      return;
+    }
     if (seenChildIds.has(childId)) {
       addIssue(issues, {
         code: 'WKS_DIR_DUPLICATE_CHILD',
@@ -81,12 +104,12 @@ const validateDirectoryChildren = (
       return;
     }
 
-    if (child.parentId !== node.id) {
+    if (child.parentId !== nodeId) {
       addIssue(issues, {
         code: 'WKS_DIR_CHILD_PARENT_MISMATCH',
-        path: `${getNodePath(child.id)}/parentId`,
+        path: `${getNodePath(childId)}/parentId`,
         message: 'Child parentId must point back to the owning directory.',
-        nodeId: child.id,
+        nodeId: childId,
       });
     }
 
@@ -94,17 +117,18 @@ const validateDirectoryChildren = (
     if (duplicateNameNodeId) {
       addIssue(issues, {
         code: 'WKS_DIR_DUPLICATE_NAME',
-        path: `${getNodePath(child.id)}/name`,
+        path: `${getNodePath(childId)}/name`,
         message: 'Sibling nodes must not use the same name.',
-        nodeId: child.id,
+        nodeId: childId,
       });
       return;
     }
-    seenNames.set(child.name, child.id);
+    seenNames.set(child.name, childId);
   });
 };
 
 const validateDocumentNode = (
+  nodeId: string,
   node: WorkspaceVfsNode,
   docsById: Record<string, WorkspaceDocument>,
   referencedDocumentIds: Map<string, string>,
@@ -113,18 +137,41 @@ const validateDocumentNode = (
   if (node.children !== undefined) {
     addIssue(issues, {
       code: 'WKS_DOC_NODE_CHILDREN_INVALID',
-      path: `${getNodePath(node.id)}/children`,
+      path: `${getNodePath(nodeId)}/children`,
       message: 'Document nodes must not declare children.',
-      nodeId: node.id,
+      nodeId,
     });
   }
 
-  if (!node.docId || !docsById[node.docId]) {
+  if (node.docId === undefined) {
     addIssue(issues, {
       code: 'WKS_DOC_REF_MISSING',
-      path: `${getNodePath(node.id)}/docId`,
+      path: `${getNodePath(nodeId)}/docId`,
       message: 'Document nodes must reference an existing document.',
-      nodeId: node.id,
+      nodeId,
+      documentId: node.docId,
+    });
+    return;
+  }
+
+  if (!isCanonicalWorkspaceId(node.docId)) {
+    addIssue(issues, {
+      code: 'WKS_DOC_REF_ID_INVALID',
+      path: `${getNodePath(nodeId)}/docId`,
+      message:
+        'Document reference ids must be non-empty and must not contain surrounding whitespace.',
+      nodeId,
+      documentId: node.docId,
+    });
+    return;
+  }
+
+  if (!docsById[node.docId]) {
+    addIssue(issues, {
+      code: 'WKS_DOC_REF_MISSING',
+      path: `${getNodePath(nodeId)}/docId`,
+      message: 'Document nodes must reference an existing document.',
+      nodeId,
       documentId: node.docId,
     });
     return;
@@ -134,14 +181,14 @@ const validateDocumentNode = (
   if (previousNodeId) {
     addIssue(issues, {
       code: 'WKS_DOC_REF_DUPLICATE',
-      path: `${getNodePath(node.id)}/docId`,
+      path: `${getNodePath(nodeId)}/docId`,
       message: 'A document can only be mounted once in the workspace tree.',
-      nodeId: node.id,
+      nodeId,
       documentId: node.docId,
     });
     return;
   }
-  referencedDocumentIds.set(node.docId, node.id);
+  referencedDocumentIds.set(node.docId, nodeId);
 };
 
 const visitReachableTree = (
@@ -167,15 +214,17 @@ const visitReachableTree = (
   visitingNodeIds.add(nodeId);
   reachableNodeIds.add(nodeId);
   if (node.kind === 'dir') {
-    (node.children ?? []).forEach((childId) =>
-      visitReachableTree(
-        childId,
-        treeById,
-        issues,
-        reachableNodeIds,
-        visitingNodeIds
-      )
-    );
+    getDirectoryChildren(node)
+      .filter(isCanonicalWorkspaceId)
+      .forEach((childId) =>
+        visitReachableTree(
+          childId,
+          treeById,
+          issues,
+          reachableNodeIds,
+          visitingNodeIds
+        )
+      );
   }
   visitingNodeIds.delete(nodeId);
 };
@@ -194,9 +243,11 @@ const collectTreePaths = (
   pathsByNodeId.set(nodeId, nextPath);
 
   if (node.kind === 'dir') {
-    (node.children ?? []).forEach((childId) =>
-      collectTreePaths(childId, treeById, nextPath, pathsByNodeId)
-    );
+    getDirectoryChildren(node)
+      .filter(isCanonicalWorkspaceId)
+      .forEach((childId) =>
+        collectTreePaths(childId, treeById, nextPath, pathsByNodeId)
+      );
   }
 };
 
@@ -209,6 +260,19 @@ export const validateWorkspaceVfs = ({
   const issues: WorkspaceValidationIssue[] = [];
   const root = treeById[treeRootId];
 
+  if (
+    typeof treeRootId !== 'string' ||
+    !treeRootId ||
+    treeRootId !== treeRootId.trim()
+  ) {
+    addIssue(issues, {
+      code: 'WKS_ROOT_ID_INVALID',
+      path: '/treeRootId',
+      message: 'treeRootId must be a non-empty id without outer whitespace.',
+      nodeId: treeRootId,
+    });
+  }
+
   if (!root) {
     addIssue(issues, {
       code: 'WKS_ROOT_MISSING',
@@ -219,18 +283,62 @@ export const validateWorkspaceVfs = ({
     return { valid: false, issues };
   }
 
+  if (!Object.keys(docsById).length) {
+    addIssue(issues, {
+      code: 'WKS_DOCUMENTS_EMPTY',
+      path: '/docsById',
+      message: 'A workspace must contain at least one document.',
+    });
+  }
+
   if (root.parentId !== null) {
     addIssue(issues, {
       code: 'WKS_ROOT_PARENT_INVALID',
-      path: `${getNodePath(root.id)}/parentId`,
+      path: `${getNodePath(treeRootId)}/parentId`,
       message: 'Root node parentId must be null.',
-      nodeId: root.id,
+      nodeId: treeRootId,
+    });
+  }
+
+  if (root.kind !== 'dir') {
+    addIssue(issues, {
+      code: 'WKS_ROOT_KIND_INVALID',
+      path: `${getNodePath(treeRootId)}/kind`,
+      message: 'Workspace root must be a directory node.',
+      nodeId: treeRootId,
     });
   }
 
   const referencedDocumentIds = new Map<string, string>();
 
   Object.entries(treeById).forEach(([nodeId, node]) => {
+    if (!isPlainWorkspaceRecord(node)) {
+      addIssue(issues, {
+        code: 'WKS_NODE_KIND_INVALID',
+        path: getNodePath(nodeId),
+        message: 'VFS nodes must be objects using the dir or doc shape.',
+        nodeId,
+      });
+      return;
+    }
+    if (!isCanonicalWorkspaceId(nodeId)) {
+      addIssue(issues, {
+        code: 'WKS_NODE_ID_INVALID',
+        path: getNodePath(nodeId),
+        message:
+          'treeById keys must be non-empty and must not contain surrounding whitespace.',
+        nodeId,
+      });
+    }
+    if (!isCanonicalWorkspaceId(node.id)) {
+      addIssue(issues, {
+        code: 'WKS_NODE_ID_INVALID',
+        path: `${getNodePath(nodeId)}/id`,
+        message:
+          'VFS node ids must be non-empty and must not contain surrounding whitespace.',
+        nodeId,
+      });
+    }
     if (node.id !== nodeId) {
       addIssue(issues, {
         code: 'WKS_NODE_ID_MISMATCH',
@@ -240,36 +348,81 @@ export const validateWorkspaceVfs = ({
       });
     }
 
-    if (node.parentId && !treeById[node.parentId]) {
+    if (!isCanonicalNodeName(node.name, nodeId === treeRootId)) {
       addIssue(issues, {
-        code: 'WKS_NODE_PARENT_MISSING',
-        path: `${getNodePath(node.id)}/parentId`,
-        message: 'Node parentId must reference an existing directory.',
-        nodeId: node.id,
+        code: 'WKS_NODE_NAME_INVALID',
+        path: `${getNodePath(nodeId)}/name`,
+        message:
+          'VFS node names must be non-empty, trimmed, and must not contain path separators or dot segments.',
+        nodeId,
       });
     }
 
-    if (node.parentId) {
+    if (node.kind !== 'dir' && node.kind !== 'doc') {
+      addIssue(issues, {
+        code: 'WKS_NODE_KIND_INVALID',
+        path: `${getNodePath(nodeId)}/kind`,
+        message: 'VFS node kind must be dir or doc.',
+        nodeId,
+      });
+    }
+    const allowedFields = new Set<string>([
+      ...VFS_NODE_COMMON_FIELDS,
+      ...(node.kind === 'dir' ? ['children'] : ['docId']),
+    ]);
+    const unknownField = Object.keys(node).find(
+      (field) => !allowedFields.has(field)
+    );
+    if (unknownField) {
+      addIssue(issues, {
+        code: 'WKS_NODE_FIELD_INVALID',
+        path: `${getNodePath(nodeId)}/${escapePointerSegment(unknownField)}`,
+        message: `VFS node field ${unknownField} is not valid for ${node.kind} nodes.`,
+        nodeId,
+      });
+    }
+
+    const isRootNode = nodeId === treeRootId;
+    if (!isRootNode && !isCanonicalWorkspaceId(node.parentId)) {
+      addIssue(issues, {
+        code: 'WKS_NODE_PARENT_ID_INVALID',
+        path: `${getNodePath(nodeId)}/parentId`,
+        message:
+          'Non-root parentId values must be non-empty and must not contain surrounding whitespace.',
+        nodeId,
+      });
+    }
+
+    if (isCanonicalWorkspaceId(node.parentId) && !treeById[node.parentId]) {
+      addIssue(issues, {
+        code: 'WKS_NODE_PARENT_MISSING',
+        path: `${getNodePath(nodeId)}/parentId`,
+        message: 'Node parentId must reference an existing directory.',
+        nodeId,
+      });
+    }
+
+    if (isCanonicalWorkspaceId(node.parentId)) {
       const parent = treeById[node.parentId];
       if (
         parent?.kind === 'dir' &&
-        !(parent.children ?? []).includes(node.id)
+        !getDirectoryChildren(parent).includes(nodeId)
       ) {
         addIssue(issues, {
           code: 'WKS_NODE_PARENT_LINK_MISSING',
-          path: `${getNodePath(parent.id)}/children`,
+          path: `${getNodePath(node.parentId)}/children`,
           message: 'Parent directory children must include the child node id.',
-          nodeId: node.id,
+          nodeId,
         });
       }
     }
 
     if (node.kind === 'dir') {
-      validateDirectoryChildren(node, treeById, issues);
+      validateDirectoryChildren(nodeId, node, treeById, issues);
       return;
     }
 
-    validateDocumentNode(node, docsById, referencedDocumentIds, issues);
+    validateDocumentNode(nodeId, node, docsById, referencedDocumentIds, issues);
   });
 
   const reachableNodeIds = new Set<string>();
@@ -289,6 +442,7 @@ export const validateWorkspaceVfs = ({
   collectTreePaths(treeRootId, treeById, ROOT_PATH, pathsByNodeId);
 
   Object.entries(docsById).forEach(([documentId, document]) => {
+    issues.push(...validateWorkspaceDocumentRecord(documentId, document));
     const nodeId = referencedDocumentIds.get(documentId);
     if (!nodeId) {
       addIssue(issues, {
@@ -300,8 +454,10 @@ export const validateWorkspaceVfs = ({
       return;
     }
 
+    if (!isPlainWorkspaceRecord(document)) return;
+
     const expectedPath = pathsByNodeId.get(nodeId);
-    if (expectedPath && normalizePath(document.path) !== expectedPath) {
+    if (expectedPath && document.path !== expectedPath) {
       addIssue(issues, {
         code: 'WKS_DOCUMENT_PATH_MISMATCH',
         path: `/docsById/${escapePointerSegment(documentId)}/path`,
@@ -326,10 +482,27 @@ export const validateWorkspaceVfs = ({
 
 export const validateWorkspaceSnapshot = (
   snapshot: WorkspaceSnapshot
-): WorkspaceValidationResult =>
-  validateWorkspaceVfs({
+): WorkspaceValidationResult => {
+  const result = validateWorkspaceVfs({
     treeRootId: snapshot.treeRootId,
     treeById: snapshot.treeById,
     docsById: snapshot.docsById,
     activeDocumentId: snapshot.activeDocumentId,
   });
+  const issues = [...result.issues];
+  (
+    [
+      ['workspaceRev', snapshot.workspaceRev],
+      ['routeRev', snapshot.routeRev],
+      ['opSeq', snapshot.opSeq],
+    ] as const
+  ).forEach(([field, value]) => {
+    if (Number.isSafeInteger(value) && value > 0) return;
+    addIssue(issues, {
+      code: 'WKS_SNAPSHOT_REVISION_INVALID',
+      path: `/${field}`,
+      message: `${field} must be a positive safe integer.`,
+    });
+  });
+  return { valid: issues.length === 0, issues };
+};

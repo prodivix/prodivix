@@ -4,6 +4,7 @@ import {
   applyWorkspaceCommand,
   createWorkspaceCodeDocumentCommand,
   createWorkspaceCodeDocumentIntentRequest,
+  createWorkspaceCodeSourceUpdateCommand,
   projectWorkspaceToProdivixFiles,
   type WorkspaceSnapshot,
   type WorkspaceCommandEnvelope,
@@ -120,6 +121,124 @@ describe('applyWorkspaceCommand', () => {
     );
   });
 
+  it('uses strict RFC6901 pointers and canonical array indices', () => {
+    const invalidPointers = [
+      '/metadata/~2invalid',
+      '/metadata/list/01',
+      '/metadata/list/1e0',
+    ];
+    invalidPointers.forEach((path) => {
+      const workspace = createWorkspace();
+      workspace.docsById['code-open-dialog']!.content = {
+        language: 'ts',
+        source: 'export function openDialog() {}',
+        metadata: { list: ['a', 'b'] },
+      };
+      const result = applyWorkspaceCommand(
+        workspace,
+        createCommand({
+          namespace: 'core.code',
+          type: 'metadata.update',
+          domainHint: 'code',
+          target: {
+            workspaceId: workspace.id,
+            documentId: 'code-open-dialog',
+          },
+          forwardOps: [{ op: 'replace', path, value: 'changed' }],
+          reverseOps: [{ op: 'replace', path, value: 'before' }],
+        })
+      );
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  it('treats prototype-shaped pointer segments as safe own JSON keys', () => {
+    const workspace = createWorkspace();
+    workspace.docsById['code-open-dialog']!.content = {
+      language: 'ts',
+      source: 'export function openDialog() {}',
+      metadata: {},
+    };
+    const result = applyWorkspaceCommand(
+      workspace,
+      createCommand({
+        namespace: 'core.code',
+        type: 'metadata.update',
+        domainHint: 'code',
+        target: {
+          workspaceId: workspace.id,
+          documentId: 'code-open-dialog',
+        },
+        forwardOps: [
+          {
+            op: 'add',
+            path: '/metadata/__proto__',
+            value: { polluted: true },
+          },
+        ],
+        reverseOps: [{ op: 'remove', path: '/metadata/__proto__' }],
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const content = result.snapshot.docsById['code-open-dialog']!.content as {
+      metadata: Record<string, unknown>;
+    };
+    expect(Object.hasOwn(content.metadata, '__proto__')).toBe(true);
+    expect(content.metadata['__proto__']).toEqual({ polluted: true });
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+
+    const inheritedReplace = applyWorkspaceCommand(
+      workspace,
+      createCommand({
+        namespace: 'core.code',
+        type: 'metadata.update',
+        domainHint: 'code',
+        target: {
+          workspaceId: workspace.id,
+          documentId: 'code-open-dialog',
+        },
+        forwardOps: [
+          { op: 'replace', path: '/metadata/toString', value: 'unsafe' },
+        ],
+        reverseOps: [{ op: 'remove', path: '/metadata/toString' }],
+      })
+    );
+    expect(inheritedReplace.ok).toBe(false);
+  });
+
+  it('rejects workspace and route domains on document-targeted commands', () => {
+    for (const domainHint of ['workspace', 'route'] as const) {
+      const result = applyWorkspaceCommand(
+        createWorkspace(),
+        createCommand({
+          domainHint,
+          forwardOps: [
+            {
+              op: 'add',
+              path: '/ui/graph/nodesById/root/props',
+              value: { title: 'Home' },
+            },
+          ],
+          reverseOps: [
+            { op: 'remove', path: '/ui/graph/nodesById/root/props' },
+          ],
+        })
+      );
+
+      expect(result).toMatchObject({
+        ok: false,
+        issues: [
+          {
+            code: 'WKS_COMMAND_INVALID_ENVELOPE',
+            path: '/domainHint',
+          },
+        ],
+      });
+    }
+  });
+
   it('rejects document commands that patch legacy ui.root', () => {
     const result = applyWorkspaceCommand(
       createWorkspace(),
@@ -170,6 +289,45 @@ describe('applyWorkspaceCommand', () => {
       'source',
       'export function openDialog(id: string) { return id; }'
     );
+  });
+
+  it('builds a reusable code source command with history merge semantics', () => {
+    const workspace = createWorkspace();
+    const command = createWorkspaceCodeSourceUpdateCommand({
+      workspaceId: workspace.id,
+      document: workspace.docsById['code-open-dialog'],
+      source: 'export function openDialog(id: string) { return id; }',
+      commandId: 'update-open-dialog',
+      issuedAt: '2026-07-12T00:00:00.000Z',
+    });
+
+    expect(command).toMatchObject({
+      namespace: 'core.code',
+      type: 'source.update',
+      domainHint: 'code',
+      mergeKey: 'code-source:code-open-dialog',
+    });
+    expect(command && applyWorkspaceCommand(workspace, command)).toMatchObject({
+      ok: true,
+      snapshot: {
+        docsById: {
+          'code-open-dialog': {
+            content: {
+              source: 'export function openDialog(id: string) { return id; }',
+            },
+          },
+        },
+      },
+    });
+    expect(
+      createWorkspaceCodeSourceUpdateCommand({
+        workspaceId: workspace.id,
+        document: workspace.docsById['code-open-dialog'],
+        source: 'export function openDialog() {}',
+        commandId: 'noop',
+        issuedAt: '2026-07-12T00:00:00.000Z',
+      })
+    ).toBeNull();
   });
 
   it('keeps code documents inside the language/source wrapper', () => {

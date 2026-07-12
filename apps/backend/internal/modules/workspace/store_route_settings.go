@@ -16,8 +16,11 @@ func (store *WorkspaceStore) SaveRouteManifest(ctx context.Context, params SaveR
 	if strings.TrimSpace(params.WorkspaceID) == "" {
 		return nil, errors.New("workspaceID is required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 || params.ExpectedRouteRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev and expectedRouteRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
+	}
+	if err := validateRequiredJSONSafeRevision("expectedRouteRev", params.ExpectedRouteRev); err != nil {
+		return nil, err
 	}
 
 	manifestJSON, err := normalizeRouteManifestDocument(params.RouteManifest)
@@ -65,11 +68,19 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := validateRevisionCanAdvance("routeRev", currentRouteRev); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
 		log.Printf(
-			"[workspace] conflict save_route_manifest workspace=%s type=%s expectedWorkspaceRev=%d serverWorkspaceRev=%d expectedRouteRev=%d serverRouteRev=%d serverOpSeq=%d",
+			"[workspace] conflict save_route_manifest workspace=%s type=%s expectedWorkspaceRev=%d currentWorkspaceRev=%d expectedRouteRev=%d currentRouteRev=%d currentOpSeq=%d",
 			params.WorkspaceID,
 			WorkspaceConflictWorkspace,
 			params.ExpectedWorkspaceRev,
@@ -78,18 +89,19 @@ FOR UPDATE`
 			currentRouteRev,
 			currentOpSeq,
 		)
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictWorkspace,
-			WorkspaceID:        params.WorkspaceID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newWorkspaceRevisionConflictWithRoute(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			params.ExpectedRouteRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
 	if currentRouteRev != params.ExpectedRouteRev {
 		_ = tx.Rollback()
 		log.Printf(
-			"[workspace] conflict save_route_manifest workspace=%s type=%s expectedWorkspaceRev=%d serverWorkspaceRev=%d expectedRouteRev=%d serverRouteRev=%d serverOpSeq=%d",
+			"[workspace] conflict save_route_manifest workspace=%s type=%s expectedWorkspaceRev=%d currentWorkspaceRev=%d expectedRouteRev=%d currentRouteRev=%d currentOpSeq=%d",
 			params.WorkspaceID,
 			WorkspaceConflictRoute,
 			params.ExpectedWorkspaceRev,
@@ -98,15 +110,29 @@ FOR UPDATE`
 			currentRouteRev,
 			currentOpSeq,
 		)
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictRoute,
-			WorkspaceID:        params.WorkspaceID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newRouteRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			params.ExpectedRouteRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
-
+	documents, err := queryWorkspaceDocumentsForUpdate(ctx, tx, params.WorkspaceID)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	documentsByID, err := indexWorkspaceVFSDocuments(documents)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := validateWorkspaceRouteDocumentReferences(manifestJSON, documentsByID); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	const upsertRoute = `INSERT INTO workspace_routes (workspace_id, manifest_json, updated_at)
 VALUES ($1, $2::jsonb, NOW())
 ON CONFLICT (workspace_id) DO UPDATE
@@ -140,10 +166,11 @@ RETURNING workspace_rev, route_rev, op_seq`
 	}
 
 	return &WorkspaceMutationResult{
-		WorkspaceID:  params.WorkspaceID,
-		WorkspaceRev: nextWorkspaceRev,
-		RouteRev:     nextRouteRev,
-		OpSeq:        nextOpSeq,
+		WorkspaceID:   params.WorkspaceID,
+		WorkspaceRev:  nextWorkspaceRev,
+		RouteRev:      nextRouteRev,
+		OpSeq:         nextOpSeq,
+		RouteManifest: manifestJSON,
 	}, nil
 }
 
@@ -154,8 +181,8 @@ func (store *WorkspaceStore) SaveWorkspaceSettings(ctx context.Context, params S
 	if strings.TrimSpace(params.WorkspaceID) == "" {
 		return nil, errors.New("workspaceID is required")
 	}
-	if params.ExpectedWorkspaceRev <= 0 {
-		return nil, errors.New("expectedWorkspaceRev must be positive")
+	if err := validateRequiredJSONSafeRevision("expectedWorkspaceRev", params.ExpectedWorkspaceRev); err != nil {
+		return nil, err
 	}
 
 	settingsJSON, err := normalizeJSONDocument(params.Settings, defaultWorkspaceSettings)
@@ -203,26 +230,29 @@ FOR UPDATE`
 		}
 		return nil, err
 	}
+	if err := validateWorkspaceMutationCanAdvance(currentWorkspaceRev, currentOpSeq); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 
 	if currentWorkspaceRev != params.ExpectedWorkspaceRev {
 		_ = tx.Rollback()
 		log.Printf(
-			"[workspace] conflict save_workspace_settings workspace=%s expectedWorkspaceRev=%d serverWorkspaceRev=%d serverRouteRev=%d serverOpSeq=%d",
+			"[workspace] conflict save_workspace_settings workspace=%s expectedWorkspaceRev=%d currentWorkspaceRev=%d currentRouteRev=%d currentOpSeq=%d",
 			params.WorkspaceID,
 			params.ExpectedWorkspaceRev,
 			currentWorkspaceRev,
 			currentRouteRev,
 			currentOpSeq,
 		)
-		return nil, &WorkspaceRevisionConflictError{
-			ConflictType:       WorkspaceConflictWorkspace,
-			WorkspaceID:        params.WorkspaceID,
-			ServerWorkspaceRev: currentWorkspaceRev,
-			ServerRouteRev:     currentRouteRev,
-			ServerOpSeq:        currentOpSeq,
-		}
+		return nil, newWorkspaceRevisionConflict(
+			params.WorkspaceID,
+			params.ExpectedWorkspaceRev,
+			currentWorkspaceRev,
+			currentRouteRev,
+			currentOpSeq,
+		)
 	}
-
 	const upsertSettings = `INSERT INTO workspace_settings (workspace_id, settings_json, updated_at)
 VALUES ($1, $2::jsonb, NOW())
 ON CONFLICT (workspace_id) DO UPDATE
@@ -259,5 +289,6 @@ RETURNING workspace_rev, route_rev, op_seq`
 		WorkspaceRev: nextWorkspaceRev,
 		RouteRev:     nextRouteRev,
 		OpSeq:        nextOpSeq,
+		Settings:     settingsJSON,
 	}, nil
 }

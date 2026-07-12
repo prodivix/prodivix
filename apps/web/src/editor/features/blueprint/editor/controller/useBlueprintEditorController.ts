@@ -194,6 +194,12 @@ export const useBlueprintEditorController = () => {
   const applyWorkspaceMutation = useEditorStore(
     (state) => state.applyWorkspaceMutation
   );
+  const adoptRebasedWorkspaceOperation = useEditorStore(
+    (state) => state.adoptRebasedWorkspaceOperation
+  );
+  const openWorkspaceRevisionConflict = useEditorStore(
+    (state) => state.openWorkspaceRevisionConflict
+  );
   const token = useAuthStore((state) => state.token);
   const autosaveMode = useSettingsStore(
     (state) =>
@@ -326,6 +332,8 @@ export const useBlueprintEditorController = () => {
     workspaceCapabilitiesLoaded,
     workspaceReadonly,
     applyWorkspaceMutation,
+    adoptRebasedWorkspaceOperation,
+    openWorkspaceRevisionConflict,
   });
 
   useEditorShortcut('Mod+S', saveNow, {
@@ -744,6 +752,7 @@ export const useBlueprintEditorController = () => {
 
   // 拖拽链路：DndContext 事件 -> Command -> 选中态更新。
   const {
+    isDragging,
     activePaletteItemId,
     treeDropHint,
     handleDragStart,
@@ -903,6 +912,7 @@ export const useBlueprintEditorController = () => {
   return {
     dnd: {
       sensors,
+      isDragging,
       activePaletteItemId,
       handleDragStart,
       handleDragMove,
