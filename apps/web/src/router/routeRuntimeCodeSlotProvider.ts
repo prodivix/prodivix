@@ -1,7 +1,7 @@
 import {
   flattenRouteManifest,
   type WorkspaceRouteManifest,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import type {
   AuthoringContext,
   CodeSlotContract,

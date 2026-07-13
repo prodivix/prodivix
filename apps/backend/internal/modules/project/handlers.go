@@ -9,12 +9,12 @@ import (
 
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
 	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
-	"github.com/Prodivix/prodivix/apps/backend/internal/platform/pircontract"
 	"github.com/gin-gonic/gin"
 )
 
 type WorkspaceBootstrapper interface {
-	BootstrapProjectWorkspace(ctx context.Context, project *Project) error
+	CreateProjectWorkspace(ctx context.Context, ownerID string, name string, description string, resourceType ResourceType, isPublic bool, initialPIR json.RawMessage) (*Project, error)
+	PublishProjectWorkspace(ctx context.Context, userID string, workspaceID string) (*Project, error)
 }
 
 type Handler struct {
@@ -33,7 +33,6 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		CreateProject:  handler.HandleCreateProject,
 		GetProject:     handler.HandleGetProject,
 		UpdateProject:  handler.HandleUpdateProject,
-		GetProjectPIR:  handler.HandleGetProjectPIR,
 		PublishProject: handler.HandlePublishProject,
 		DeleteProject:  handler.HandleDeleteProject,
 		ListCommunity:  handler.HandleCommunityListProjects,
@@ -76,22 +75,29 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 	if strings.TrimSpace(string(resourceType)) == "" {
 		resourceType = ResourceTypeProject
 	}
-	project, err := handler.store.Create(user.ID, request.Name, request.Description, resourceType, request.IsPublic, request.PIR)
+	initialPIR, err := normalizePIR(request.PIR)
+	if err != nil {
+		respondError(c, http.StatusUnprocessableEntity, "PIR-4001", "PIR document is invalid.")
+		return
+	}
+	if handler.workspaceModule == nil {
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not create project.")
+		return
+	}
+	project, err := handler.workspaceModule.CreateProjectWorkspace(
+		c.Request.Context(),
+		user.ID,
+		request.Name,
+		request.Description,
+		resourceType,
+		request.IsPublic,
+		initialPIR,
+	)
 	if err != nil {
 		if errors.Is(err, ErrInvalidResourceType) {
 			respondError(c, http.StatusBadRequest, "API-4001", "Resource type is invalid.")
 			return
 		}
-		var syntaxErr *json.SyntaxError
-		if errors.As(err, &syntaxErr) {
-			respondError(c, http.StatusBadRequest, "PIR-4001", "PIR document is invalid.")
-			return
-		}
-		respondError(c, http.StatusInternalServerError, "API-5001", "Could not create project.")
-		return
-	}
-	if err := handler.bootstrapProjectWorkspace(c.Request.Context(), project); err != nil {
-		_ = handler.store.Delete(user.ID, project.ID)
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not create project.")
 		return
 	}
@@ -113,11 +119,7 @@ func (handler *Handler) HandleGetProject(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not load project.")
 		return
 	}
-	if _, err := normalizePIR(project.PIR); err != nil {
-		respondError(c, http.StatusUnprocessableEntity, "PIR-4001", pircontract.LegacyDocumentOpenMessage)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"project": project})
+	c.JSON(http.StatusOK, gin.H{"project": toProjectSummary(project)})
 }
 
 func (handler *Handler) HandleUpdateProject(c *gin.Context) {
@@ -148,29 +150,7 @@ func (handler *Handler) HandleUpdateProject(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not update project.")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"project": project})
-}
-
-func (handler *Handler) HandleGetProjectPIR(c *gin.Context) {
-	user, ok := backendauth.GetAuthUser[backendauth.User](c)
-	if !ok {
-		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
-		return
-	}
-	project, err := handler.store.GetByID(user.ID, c.Param("id"))
-	if err != nil {
-		if errors.Is(err, ErrProjectNotFound) {
-			respondError(c, http.StatusNotFound, "API-4004", "Project not found.")
-			return
-		}
-		respondError(c, http.StatusInternalServerError, "API-5001", "Could not load project.")
-		return
-	}
-	if _, err := normalizePIR(project.PIR); err != nil {
-		respondError(c, http.StatusUnprocessableEntity, "PIR-4001", pircontract.LegacyDocumentOpenMessage)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"id": project.ID, "pir": project.PIR, "updatedAt": project.UpdatedAt})
+	c.JSON(http.StatusOK, gin.H{"project": toProjectSummary(project)})
 }
 
 func (handler *Handler) HandlePublishProject(c *gin.Context) {
@@ -179,7 +159,11 @@ func (handler *Handler) HandlePublishProject(c *gin.Context) {
 		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
 		return
 	}
-	project, err := handler.store.SetPublic(user.ID, c.Param("id"), true)
+	if handler.workspaceModule == nil {
+		respondError(c, http.StatusInternalServerError, "API-5001", "Could not publish project.")
+		return
+	}
+	project, err := handler.workspaceModule.PublishProjectWorkspace(c.Request.Context(), user.ID, c.Param("id"))
 	if err != nil {
 		if errors.Is(err, ErrProjectNotFound) {
 			respondError(c, http.StatusNotFound, "API-4004", "Project not found.")
@@ -188,7 +172,7 @@ func (handler *Handler) HandlePublishProject(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not publish project.")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"project": project})
+	c.JSON(http.StatusOK, gin.H{"project": toProjectSummary(project)})
 }
 
 func (handler *Handler) HandleDeleteProject(c *gin.Context) {
@@ -246,13 +230,6 @@ func toProjectSummary(project *Project) ProjectSummary {
 		return ProjectSummary{}
 	}
 	return ProjectSummary{ID: project.ID, ResourceType: project.ResourceType, Name: project.Name, Description: project.Description, IsPublic: project.IsPublic, StarsCount: project.StarsCount, CreatedAt: project.CreatedAt, UpdatedAt: project.UpdatedAt}
-}
-
-func (handler *Handler) bootstrapProjectWorkspace(ctx context.Context, project *Project) error {
-	if handler.workspaceModule == nil {
-		return errors.New("workspace module is not initialized")
-	}
-	return handler.workspaceModule.BootstrapProjectWorkspace(ctx, project)
 }
 
 func respondError(c *gin.Context, status int, code, message string) {

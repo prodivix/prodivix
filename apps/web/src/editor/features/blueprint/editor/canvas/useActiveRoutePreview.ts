@@ -6,12 +6,12 @@ import {
   useEditorStore,
 } from '@/editor/store/useEditorStore';
 import { materializePirRoot } from '@prodivix/pir';
-import { logRouteDebug } from '@/pir/renderer/routeDebug';
+import { logRouteDebug } from '@prodivix/pir-react-renderer';
 import {
   composeRouteManifestWithModules,
   resolveOutletBinding,
   resolveRouteRuntimeContext,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 
 export function useActiveRoutePreview(currentPath: string) {
   const routeManifest = useEditorStore(selectRouteManifest)!;

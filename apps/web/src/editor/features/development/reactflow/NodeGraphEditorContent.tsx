@@ -9,11 +9,12 @@ import {
 } from '@xyflow/react';
 import {
   selectActiveDocumentId,
-  selectActivePirDocument,
+  selectActivePirDocumentRecord,
   selectWorkspaceId,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
 import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
+import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
 import type { GraphNodeData, GraphNodeKind } from './GraphNode';
 
 import {
@@ -54,6 +55,15 @@ import {
   serializeSnapshotForPir,
 } from './nodeGraphPirState';
 import { serializeNodes, toStableGraphNode } from './nodeGraphStableNode';
+import { useParams } from 'react-router';
+import { useAuthStore } from '@/auth/useAuthStore';
+import { isLocalProjectId } from '@/editor/localProjectStore';
+import { enqueueWorkspaceOperationOutboxAndDispatch } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
+import {
+  createWorkspacePirDocumentUpdateCommand,
+  selectActivePirWorkspaceDocument,
+} from '@prodivix/workspace';
 
 const resolveActiveGraphFromSnapshot = (snapshot: ProjectGraphSnapshot) =>
   snapshot.graphs.find((graph) => graph.id === snapshot.activeGraphId) ??
@@ -69,12 +79,18 @@ const serializeEdges = (edges: Edge[]) => JSON.stringify(edges);
 
 export const NodeGraphEditorContent = () => {
   const { t } = useTranslation('editor');
+  const { projectId } = useParams();
+  const token = useAuthStore((state) => state.token);
   const workspaceId = useEditorStore(selectWorkspaceId);
   const activeDocumentId = useEditorStore(selectActiveDocumentId);
-  const pirDoc = useEditorStore(selectActivePirDocument)!;
-  const updateActivePirDocument = useEditorStore(
-    (state) => state.updateActivePirDocument
+  const issueNavigationRequest = useWorkspaceIssuesStore(
+    (state) => state.navigationRequest
   );
+  const consumeIssueNavigation = useWorkspaceIssuesStore(
+    (state) => state.consumeNavigation
+  );
+  const activePirDocument = useEditorStore(selectActivePirDocumentRecord)!;
+  const pirDoc = activePirDocument.content;
   const starterSnapshot = useMemo(
     () => ensureProjectGraphSnapshot(undefined),
     []
@@ -112,6 +128,7 @@ export const NodeGraphEditorContent = () => {
   const [menu, setMenu] = useState<ContextMenuState>(null);
   const [menuPath, setMenuPath] = useState<number[]>([]);
   const [hint, setHint] = useState<string | null>(null);
+  const persistenceChainRef = useRef(Promise.resolve());
   const colorMode = useNodeGraphColorMode();
   const reactFlow = useReactFlow<Node<GraphNodeData>, Edge>();
   const {
@@ -190,8 +207,22 @@ export const NodeGraphEditorContent = () => {
       const nextEditorState = buildNodeGraphEditorState(committedSnapshot);
       const nextEditorStateSignature =
         serializeNodeGraphEditorState(nextEditorState);
-      updateActivePirDocument(
-        (doc) => {
+      const documentId = activeDocumentId;
+      const graphId = activeGraphIdRef.current;
+      if (!documentId) return;
+      const localWorkspace = isLocalProjectId(projectId);
+      if (!localWorkspace && !token) return;
+      persistenceChainRef.current = persistenceChainRef.current
+        .then(async () => {
+          const state = useEditorStore.getState();
+          const workspace = state.workspace;
+          if (!workspace) return;
+          const document = selectActivePirWorkspaceDocument({
+            ...workspace,
+            activeDocumentId: documentId,
+          });
+          if (!document || document.id !== documentId) return;
+          const doc = document.content;
           const existingGraphs = serializeGraphsForPirLogic(
             normalizeGraphDocuments(doc.logic?.graphs)
           );
@@ -203,28 +234,48 @@ export const NodeGraphEditorContent = () => {
             serializeNodeGraphEditorState(existingEditorState) ===
               nextEditorStateSignature
           ) {
-            return doc;
+            return;
           }
           const nextLogic = {
             ...(doc.logic ?? {}),
             graphs: nextPirGraphs,
             [NODE_GRAPH_EDITOR_STATE_KEY]: nextEditorState,
           };
-          return {
-            ...doc,
-            logic: nextLogic,
-          };
-        },
-        {
-          namespace: 'core.nodegraph',
-          type: 'graph.update',
-          domainHint: 'nodegraph',
-          mergeKey: `nodegraph:${activeGraphIdRef.current}`,
-          label: 'Update node graph',
-        }
-      );
+          const command = createWorkspacePirDocumentUpdateCommand({
+            workspace: { ...workspace, activeDocumentId: documentId },
+            before: doc,
+            after: {
+              ...doc,
+              logic: nextLogic,
+            },
+            commandId: createWorkspaceClientOperationId('nodegraph'),
+            namespace: 'core.nodegraph',
+            type: 'graph.update',
+            domainHint: 'nodegraph',
+            mergeKey: `nodegraph:${graphId}`,
+            label: 'Update node graph',
+          });
+          if (!command) return;
+          if (localWorkspace) {
+            state.dispatchWorkspaceCommand(command);
+            return;
+          }
+          const outcome = await enqueueWorkspaceOperationOutboxAndDispatch({
+            workspace,
+            operation: { kind: 'command', command },
+          });
+          if (outcome.status === 'rejected') {
+            console.warn(
+              '[nodegraph] workspace operation rejected',
+              outcome.message
+            );
+          }
+        })
+        .catch((error: unknown) => {
+          console.warn('[nodegraph] workspace operation failed', error);
+        });
     },
-    [edges, nodes, updateActivePirDocument]
+    [activeDocumentId, edges, nodes, projectId, token]
   );
 
   const currentSnapshot = useMemo(
@@ -363,6 +414,38 @@ export const NodeGraphEditorContent = () => {
     setNodes,
     t,
   });
+
+  useEffect(() => {
+    if (
+      issueNavigationRequest?.kind !== 'nodegraph-node' ||
+      issueNavigationRequest.documentId !== activeDocumentId
+    ) {
+      return;
+    }
+    const graph = currentSnapshot.graphs.find(
+      (candidate) => candidate.id === issueNavigationRequest.graphId
+    );
+    if (
+      !graph?.nodes.some((node) => node.id === issueNavigationRequest.nodeId)
+    ) {
+      return;
+    }
+    switchGraph(issueNavigationRequest.graphId);
+    setNodes(
+      graph.nodes.map((node) => ({
+        ...toStableGraphNode(node),
+        selected: node.id === issueNavigationRequest.nodeId,
+      }))
+    );
+    consumeIssueNavigation(issueNavigationRequest.id);
+  }, [
+    activeDocumentId,
+    consumeIssueNavigation,
+    currentSnapshot.graphs,
+    issueNavigationRequest,
+    setNodes,
+    switchGraph,
+  ]);
 
   const groupAutoLayoutById = useNodeGraphGroupLayout({
     nodes,

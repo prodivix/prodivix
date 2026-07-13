@@ -2,7 +2,7 @@ import type {
   AnimationBinding,
   AnimationTrack,
   SvgFilterDefinition,
-} from '@prodivix/shared/types/pir';
+} from '@prodivix/animation';
 import { useTranslation } from 'react-i18next';
 import { AnimationEditorTrackCard } from './AnimationEditorTrackCard';
 

@@ -214,7 +214,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 ];
 
 const createRuntimeModuleFactory = (
-  kind: 'event-runtime' | 'nodegraph-runtime' | 'animation-runtime',
+  kind: 'nodegraph-runtime' | 'animation-runtime',
   suggestedName: string,
   body: string
 ): ExportRuntimeModuleFactory => {
@@ -236,18 +236,6 @@ const createRuntimeModuleFactory = (
 };
 
 const reactViteRuntimeModuleFactories = {
-  'event-runtime': createRuntimeModuleFactory(
-    'event-runtime',
-    'prodivix-events',
-    `export type ProdivixEventPayload = Record<string, unknown>;
-
-export const dispatchProdivixEvent = (
-  name: string,
-  payload: ProdivixEventPayload = {}
-) => {
-  window.dispatchEvent(new CustomEvent(name, { detail: payload }));
-};`
-  ),
   'nodegraph-runtime': createRuntimeModuleFactory(
     'nodegraph-runtime',
     'nodegraph-runtime',

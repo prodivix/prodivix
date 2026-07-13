@@ -1,5 +1,9 @@
 import type { WorkspaceDocument, WorkspaceSnapshot } from './types';
 import {
+  resolveActiveRouteNodeId,
+  resolveDefaultActiveRouteNodeId,
+} from '@prodivix/router';
+import {
   applyWorkspaceCommand,
   applyWorkspaceTransaction,
   type WorkspaceCommandApplyResult,
@@ -8,10 +12,6 @@ import {
   type WorkspaceTransactionApplyResult,
   type WorkspaceTransactionIssue,
 } from './workspaceCommand';
-import {
-  resolveActiveRouteNodeId,
-  resolveDefaultActiveRouteNodeId,
-} from './workspaceCodec';
 import { resolveCanonicalWorkspaceDocumentId } from './resolveCanonicalWorkspaceDocumentId';
 import {
   getWorkspaceOperationCommands,

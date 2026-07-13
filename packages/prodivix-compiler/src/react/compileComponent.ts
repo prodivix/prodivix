@@ -19,7 +19,7 @@ import {
   isExportCssCodeArtifact,
 } from '#src/export/codeArtifactPlanner';
 import { isBuiltInActionName } from '#src/actions/registry';
-import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/shared/safety';
+import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/router';
 import {
   VALUE_REF_IDENTIFIER_PATTERN,
   isDataReference,
@@ -39,7 +39,6 @@ import type {
 import { reactAdapter } from '#src/react/adapter';
 import type {
   ExportArtifactContribution,
-  ExportRuntimeRequirement,
   ExportSourceOrigin,
   ExportSourceTrace,
   ExportStyleContribution,
@@ -195,10 +194,6 @@ const buildNavigateInlineHandler = (paramsExpr: string) => {
   }}`;
 };
 
-const buildExecuteGraphInlineHandler = (paramsExpr: string) => {
-  return `{(event) => { const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : \`graph-\${Date.now().toString(36)}-\${Math.random().toString(36).slice(2, 8)}\`; dispatchProdivixEvent('prodivix:execute-graph', { requestId, nodeId: '', trigger: event?.type ?? '', eventKey: event?.type ?? '', params: ${paramsExpr} }); }}`;
-};
-
 const buildBuiltInInlineHandler = (
   action: string,
   params: Record<string, unknown>,
@@ -212,10 +207,6 @@ const buildBuiltInInlineHandler = (
       compileObjectExpression(params, scopeVar)
     );
   }
-  if (action === 'executeGraph')
-    return buildExecuteGraphInlineHandler(
-      compileObjectExpression(params, scopeVar)
-    );
   return null;
 };
 
@@ -703,29 +694,6 @@ export const compilePirToReactComponent = (
   const packageMetadata = options?.codegenPolicySnapshot
     ? getCodegenPolicyPackageMetadata(options.codegenPolicySnapshot)
     : undefined;
-  const runtimeRequirementsById = new Map<string, ExportRuntimeRequirement>();
-  const requireEventRuntime = (nodeId: string, eventKey: string) => {
-    const id = `event-runtime:${moduleId}`;
-    if (runtimeRequirementsById.has(id)) return;
-    runtimeRequirementsById.set(id, {
-      id,
-      kind: 'event-runtime',
-      ownerModuleId: moduleId,
-      importName: 'dispatchProdivixEvent',
-      importKind: 'named',
-      sourceTrace: [
-        {
-          sourceRef: {
-            domain: 'pir',
-            id: nodeId,
-            path: `/ui/graph/nodesById/${nodeId}/events/${eventKey}`,
-          },
-          ownerRootId: 'app',
-        },
-      ],
-    });
-  };
-
   const adapterImports: AdapterImportSpec[] = [];
   const usedPolicyRuntimeTypes = new Set<string>();
   const usedIconProviderIds = new Set<string>();
@@ -967,7 +935,17 @@ ${indent}))`;
 
       if (eventDef.action && isBuiltInActionName(eventDef.action)) {
         if (eventDef.action === 'executeGraph') {
-          requireEventRuntime(node.id, eventKey);
+          bag.push({
+            code: 'CODEGEN_NODEGRAPH_RUNTIME_PORT_REQUIRED',
+            severity: 'error',
+            source: 'codegen',
+            message:
+              'executeGraph requires an explicit NodeGraph runtime port; the retired Window event bridge is not generated.',
+            path: `/ui/graph/nodesById/${node.id}/events/${eventKey}`,
+            suggestion:
+              'Bind the exported component to the NodeGraph runtime composition contract.',
+          });
+          return;
         }
         const handlerExpr = buildBuiltInInlineHandler(
           eventDef.action,
@@ -1180,7 +1158,7 @@ ${rootJsx}
       ...mountedCssContributions.artifacts,
       ...fileArtifactContributions,
     ],
-    runtimeRequirements: Array.from(runtimeRequirementsById.values()),
+    runtimeRequirements: [],
     exportContributions: [
       ...(options?.exportContributions ?? []),
       ...(remoteSourceOrigins.length ? [{ sources: remoteSourceOrigins }] : []),

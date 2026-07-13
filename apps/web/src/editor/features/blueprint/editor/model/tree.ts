@@ -1,6 +1,6 @@
 import { isNonNestableType } from '@/editor/features/blueprint/nesting';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
-import { defaultComponentRegistry } from '@/pir/renderer/registry';
+import { defaultComponentRegistry } from '@prodivix/pir-react-renderer';
 
 export type TreeDropPlacement = 'before' | 'after' | 'child';
 

@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyWorkspaceCommand,
+  getWorkspaceOperationId,
   type DecodedWorkspaceMutation,
   type WorkspaceCommandEnvelope,
   type WorkspaceSnapshot,
@@ -9,6 +10,11 @@ import { editorApi } from '@/editor/editorApi';
 import { ApiError } from '@/infra/api';
 import { createEditorWorkspace } from '@/test-utils/editorStore';
 import { executeWorkspaceDocumentMutation } from '@/editor/workspaceSync/workspaceDocumentMutationExecutor';
+import { executeWorkspaceOutboxOperation } from '@/editor/workspaceSync/workspaceOutboxExecutor';
+import {
+  createMemoryWorkspaceOutboxStore,
+  type WorkspaceOutboxStore,
+} from '@prodivix/workspace-sync';
 
 const cloneWorkspace = (workspace: WorkspaceSnapshot): WorkspaceSnapshot =>
   JSON.parse(JSON.stringify(workspace)) as WorkspaceSnapshot;
@@ -87,6 +93,12 @@ const createMutation = (
 });
 
 describe('executeWorkspaceDocumentMutation', () => {
+  let outboxStore: WorkspaceOutboxStore;
+
+  beforeEach(() => {
+    outboxStore = createMemoryWorkspaceOutboxStore();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -109,11 +121,11 @@ describe('executeWorkspaceDocumentMutation', () => {
       workspace: remote,
       settings: {},
     });
-    const patch = vi
-      .spyOn(editorApi, 'patchWorkspaceDocument')
+    const commit = vi
+      .spyOn(editorApi, 'commitWorkspaceOperation')
       .mockRejectedValueOnce(createConflictError())
-      .mockImplementationOnce(async (_token, snapshot, _documentId, request) =>
-        createMutation(snapshot, request.command.id)
+      .mockImplementationOnce(async (_token, snapshot, request) =>
+        createMutation(snapshot, getWorkspaceOperationId(request.operation))
       );
 
     const result = await executeWorkspaceDocumentMutation({
@@ -121,6 +133,7 @@ describe('executeWorkspaceDocumentMutation', () => {
       baseSnapshot: base,
       localSnapshot: applied.snapshot,
       operation: { kind: 'command', command },
+      outboxStore,
     });
 
     expect(result.kind).toBe('acknowledged');
@@ -149,8 +162,12 @@ describe('executeWorkspaceDocumentMutation', () => {
       name: 'Local name',
       description: 'Remote description',
     });
-    expect(patch).toHaveBeenCalledTimes(2);
-    expect(patch.mock.calls[1]?.[3]).toMatchObject({ expectedContentRev: 2 });
+    expect(commit).toHaveBeenCalledTimes(2);
+    expect(commit.mock.calls[1]?.[2]).toMatchObject({
+      expected: {
+        documents: [{ id: 'page-home', contentRev: 2 }],
+      },
+    });
   });
 
   it('returns an open session instead of overwriting a competing remote value', async () => {
@@ -167,8 +184,8 @@ describe('executeWorkspaceDocumentMutation', () => {
       workspace: remote,
       settings: {},
     });
-    const patch = vi
-      .spyOn(editorApi, 'patchWorkspaceDocument')
+    const commit = vi
+      .spyOn(editorApi, 'commitWorkspaceOperation')
       .mockRejectedValueOnce(createConflictError());
 
     const result = await executeWorkspaceDocumentMutation({
@@ -176,13 +193,85 @@ describe('executeWorkspaceDocumentMutation', () => {
       baseSnapshot: base,
       localSnapshot: applied.snapshot,
       operation: { kind: 'command', command },
+      outboxStore,
     });
 
     expect(result.kind).toBe('conflict');
     if (result.kind !== 'conflict') return;
     expect(result.session.status).toBe('open');
     expect(result.session.unresolvedConflictIds).toHaveLength(1);
-    expect(patch).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the exact operation queued after a network failure', async () => {
+    const base = createEditorWorkspace();
+    setMetadata(base, { name: 'Base name' });
+    const command = createCommand();
+    const applied = applyWorkspaceCommand(base, command);
+    if (!applied.ok) throw new Error('Expected local command to apply.');
+    vi.spyOn(editorApi, 'commitWorkspaceOperation').mockRejectedValue(
+      new TypeError('offline')
+    );
+
+    const result = await executeWorkspaceDocumentMutation({
+      token: 'token',
+      baseSnapshot: base,
+      localSnapshot: applied.snapshot,
+      operation: { kind: 'command', command },
+      outboxStore,
+    });
+
+    expect(result).toMatchObject({
+      kind: 'queued',
+      operation: { kind: 'command', command: { id: command.id } },
+      entry: {
+        id: command.id,
+        attemptCount: 1,
+        state: { kind: 'retry-wait' },
+      },
+    });
+    expect(await outboxStore.list(base.id)).toHaveLength(1);
+  });
+
+  it('keeps the exact operation retryable when local ACK persistence fails', async () => {
+    const base = createEditorWorkspace();
+    setMetadata(base, { name: 'Base name' });
+    const command = createCommand();
+    const applied = applyWorkspaceCommand(base, command);
+    if (!applied.ok) throw new Error('Expected local command to apply.');
+    vi.spyOn(editorApi, 'commitWorkspaceOperation').mockResolvedValue(
+      createMutation(base, command.id)
+    );
+
+    const result = await executeWorkspaceOutboxOperation({
+      token: 'token',
+      baseSnapshot: base,
+      localSnapshot: applied.snapshot,
+      operation: { kind: 'command', command },
+      store: outboxStore,
+      replicaWriter: async () => {
+        throw new Error('IndexedDB write failed');
+      },
+    });
+
+    expect(result).toMatchObject({
+      kind: 'queued',
+      operation: { kind: 'command', command: { id: command.id } },
+      entry: {
+        id: command.id,
+        state: {
+          kind: 'retry-wait',
+          failure: {
+            code: 'LOCAL_ACK_PERSISTENCE_FAILED',
+            retryable: true,
+          },
+        },
+      },
+    });
+    expect(await outboxStore.get(command.id)).toMatchObject({
+      request: { operation: { kind: 'command', command: { id: command.id } } },
+      state: { kind: 'retry-wait' },
+    });
   });
 
   it.each([
@@ -202,7 +291,9 @@ describe('executeWorkspaceDocumentMutation', () => {
       } else {
         mutation.acceptedMutationId = acceptedMutationId;
       }
-      vi.spyOn(editorApi, 'patchWorkspaceDocument').mockResolvedValue(mutation);
+      vi.spyOn(editorApi, 'commitWorkspaceOperation').mockResolvedValue(
+        mutation
+      );
 
       await expect(
         executeWorkspaceDocumentMutation({
@@ -210,8 +301,9 @@ describe('executeWorkspaceDocumentMutation', () => {
           baseSnapshot: base,
           localSnapshot: applied.snapshot,
           operation: { kind: 'command', command },
+          outboxStore,
         })
-      ).rejects.toThrow(/did not acknowledge/);
+      ).rejects.toThrow(/acknowledged an unrelated/);
     }
   );
 });

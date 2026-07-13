@@ -65,6 +65,7 @@ export {
   type WorkspaceResolutionOperationResult,
 } from './workspaceResolutionOperation';
 export {
+  applyPersistentWorkspaceOperation,
   planWorkspaceOperationCommit,
   type WorkspaceOperationCommitDocumentExpectation,
   type WorkspaceOperationCommitExpectedRevisions,
@@ -74,3 +75,46 @@ export {
   type WorkspaceOperationCommitRequest,
 } from './workspaceOperationCommit';
 export { decodeWorkspaceOperationCommitResponse } from './workspaceOperationCommitResponse';
+export {
+  WORKSPACE_OUTBOX_FORMAT_VERSION,
+  DEFAULT_WORKSPACE_OUTBOX_RETRY_POLICY,
+  blockWorkspaceOutboxEntry,
+  canAcknowledgeWorkspaceOutboxEntry,
+  claimWorkspaceOutboxEntry,
+  compareWorkspaceOutboxEntries,
+  computeWorkspaceOutboxRetryDelay,
+  createMemoryWorkspaceOutboxStore,
+  createWorkspaceOutboxEntry,
+  failWorkspaceOutboxEntry,
+  inheritWorkspaceOutboxCausalOrder,
+  isWorkspaceOutboxEntryClaimable,
+  releaseWorkspaceOutboxEntry,
+  retryWorkspaceOutboxEntry,
+  selectWorkspaceOutboxClaimCandidate,
+  type WorkspaceOutboxCreateResult,
+  type WorkspaceOutboxEntry,
+  type WorkspaceOutboxFailure,
+  type WorkspaceOutboxRecord,
+  type WorkspaceOutboxRetryPolicy,
+  type WorkspaceOutboxState,
+  type WorkspaceOutboxStore,
+} from './workspaceOutbox';
+export {
+  createWorkspaceSettingsOutboxEntry,
+  mergeWorkspaceSettings,
+  workspaceSettingsEqual,
+  type WorkspaceSettingsCommitRequest,
+  type WorkspaceSettingsOutboxCreateResult,
+  type WorkspaceSettingsOutboxEntry,
+} from './workspaceSettingsOutbox';
+export {
+  WORKSPACE_LOCAL_REPLICA_ACK_LIMIT,
+  WORKSPACE_LOCAL_REPLICA_FORMAT_VERSION,
+  advanceWorkspaceLocalReplica,
+  createWorkspaceLocalReplica,
+  materializeWorkspaceLocalReplica,
+  type WorkspaceLocalReplica,
+  type WorkspaceLocalReplicaCreateResult,
+  type WorkspaceLocalReplicaIssue,
+  type WorkspaceLocalReplicaMaterializationResult,
+} from './workspaceLocalReplica';

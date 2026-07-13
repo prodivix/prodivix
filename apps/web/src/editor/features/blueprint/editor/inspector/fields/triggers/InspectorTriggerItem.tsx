@@ -7,7 +7,7 @@ import {
   normalizeBuiltInAction,
   type BuiltInActionName,
 } from '@/pir/actions/registry';
-import { getNavigateLinkKind } from '@prodivix/shared/safety';
+import { getNavigateLinkKind } from '@prodivix/router';
 import type { TriggerEntry } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 import { TriggerNavigateFields } from './TriggerNavigateFields';

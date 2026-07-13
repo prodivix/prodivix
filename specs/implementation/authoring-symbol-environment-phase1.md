@@ -36,9 +36,26 @@ type DiagnosticTargetRef =
       fieldPath: string;
     }
   | { kind: 'route'; routeId: string }
-  | { kind: 'nodegraph-node'; graphId: string; nodeId: string }
-  | { kind: 'nodegraph-port'; graphId: string; nodeId: string; portId: string }
-  | { kind: 'animation-track'; timelineId: string; trackId: string }
+  | {
+      kind: 'nodegraph-node';
+      documentId: string;
+      graphId: string;
+      nodeId: string;
+    }
+  | {
+      kind: 'nodegraph-port';
+      documentId: string;
+      graphId: string;
+      nodeId: string;
+      portId: string;
+    }
+  | {
+      kind: 'animation-track';
+      documentId: string;
+      timelineId: string;
+      bindingId: string;
+      trackId: string;
+    }
   | { kind: 'code-artifact'; artifactId: string }
   | { kind: 'operation'; operation: string };
 
@@ -57,6 +74,7 @@ type SourceSpan = {
 2. `sourceSpan` 表示 CodeArtifact 内的文本范围，不直接绑定 CodeMirror 内部状态。
 3. 同一诊断可以同时携带 `targetRef` 和 `sourceSpan`。
 4. `path` 仍只表示协议路径或文档路径，不替代 `targetRef`。
+5. PIR、NodeGraph、Animation 和 component slot 等文档内实体必须携带 `documentId`，局部实体 id 不承担跨文档唯一性。
 
 ### 2. CodeArtifact 契约
 

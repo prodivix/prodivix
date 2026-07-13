@@ -1,6 +1,8 @@
-import type { WorkspaceDocument } from '@prodivix/workspace';
 import {
-  isWorkspaceConfigContent,
+  isWorkspaceProjectConfigDocumentContent,
+  type WorkspaceDocument,
+} from '@prodivix/workspace';
+import {
   normalizeWorkspaceResourcePath,
   RESOURCE_ROOTS,
 } from './workspaceResourceDocuments';
@@ -31,7 +33,11 @@ const normalizeProjectFile = (
   value: unknown,
   document: WorkspaceDocument
 ): ProjectFile | null => {
-  if (!isWorkspaceConfigContent<ProjectFileDocumentValue>(value)) return null;
+  if (
+    !isWorkspaceProjectConfigDocumentContent<ProjectFileDocumentValue>(value)
+  ) {
+    return null;
+  }
   const file = value.value;
   if (
     !file ||

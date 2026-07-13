@@ -1,9 +1,6 @@
 import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type {
-  AnimationTrack,
-  SvgFilterDefinition,
-} from '@prodivix/shared/types/pir';
+import type { AnimationTrack, SvgFilterDefinition } from '@prodivix/animation';
 import {
   CSS_FILTER_FNS,
   CSS_FILTER_UNITS,

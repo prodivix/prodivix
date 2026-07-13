@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
 
 const externalPackages = [
+  '@prodivix/router',
   '@prodivix/shared',
   '@prodivix/themes',
   '@radix-ui/react-dialog',

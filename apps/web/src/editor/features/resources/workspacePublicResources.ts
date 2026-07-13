@@ -1,9 +1,12 @@
-import type { WorkspaceDocument, WorkspaceVfsNode } from '@prodivix/workspace';
 import {
-  isWorkspaceAssetContent,
+  isWorkspaceAssetDocumentContent,
+  type WorkspaceAssetDocumentContent,
+  type WorkspaceDocument,
+  type WorkspaceVfsNode,
+} from '@prodivix/workspace';
+import {
   normalizeWorkspaceResourcePath,
   RESOURCE_ROOTS,
-  type WorkspaceAssetContent,
 } from './workspaceResourceDocuments';
 import {
   PUBLIC_TREE_ROOT_ID,
@@ -122,14 +125,14 @@ export const buildPublicResourceTreeFromWorkspace = (
       if (
         !document ||
         document.type !== 'asset' ||
-        !isWorkspaceAssetContent(document.content) ||
+        !isWorkspaceAssetDocumentContent(document.content) ||
         !normalizeWorkspaceResourcePath(document.path).startsWith(
           `${RESOURCE_ROOTS.public}/`
         )
       ) {
         return;
       }
-      const content: WorkspaceAssetContent = document.content;
+      const content: WorkspaceAssetDocumentContent = document.content;
       const parent = node.parentId
         ? (nodesByWorkspaceNodeId.get(node.parentId) ?? root)
         : root;

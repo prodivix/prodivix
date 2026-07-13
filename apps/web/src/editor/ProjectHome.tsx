@@ -13,6 +13,7 @@ import {
   Settings,
   Sparkles,
   Globe,
+  CircleAlert,
 } from 'lucide-react';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { useAuthStore } from '@/auth/useAuthStore';
@@ -59,6 +60,11 @@ function ProjectHome() {
         key: 'resources',
         path: `/editor/project/${resolvedProjectId}/resources`,
         icon: <Folder size={18} />,
+      },
+      {
+        key: 'issues',
+        path: `/editor/project/${resolvedProjectId}/issues`,
+        icon: <CircleAlert size={18} />,
       },
       {
         key: 'nodegraph',

@@ -1,10 +1,13 @@
 import type {
-  AnimationKeyframe,
   AnimationTimeline,
   AnimationTrack,
-  PIRDocument,
   SvgFilterDefinition,
-} from '@prodivix/shared/types/pir';
+} from '@prodivix/animation';
+import {
+  resolveCssFilterUnit,
+  resolveKeyframedValue as resolveAnimationKeyframedValue,
+} from '@prodivix/animation';
+import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { toSafeExportIdentifier } from '#src/export/naming';
 import type {
   ExportFileContribution,
@@ -58,51 +61,16 @@ const collectTimelineOffsets = (timeline: AnimationTimeline): number[] => {
     .sort((left, right) => left - right);
 };
 
-const normalizeKeyframes = (keyframes: AnimationKeyframe[]) =>
-  [...keyframes].sort((left, right) => left.atMs - right.atMs);
-
 const resolveKeyframedValue = (
-  keyframes: AnimationKeyframe[],
+  keyframes: AnimationTrack['keyframes'],
   atMs: number
-): number | string | undefined => {
-  const sorted = normalizeKeyframes(keyframes);
-  if (!sorted.length) return undefined;
-  if (sorted.length === 1) return sorted[0].value;
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-  if (atMs <= first.atMs) return first.value;
-  if (atMs >= last.atMs) return last.value;
-
-  let previous = first;
-  let next = last;
-  for (const keyframe of sorted) {
-    if (keyframe.atMs <= atMs) previous = keyframe;
-    if (keyframe.atMs >= atMs) {
-      next = keyframe;
-      break;
-    }
-  }
-
-  if (previous.atMs === next.atMs || previous.hold) return previous.value;
-  if (typeof previous.value !== 'number' || typeof next.value !== 'number') {
-    return previous.value;
-  }
-
-  const duration = next.atMs - previous.atMs;
-  if (duration <= 0) return previous.value;
-  const progress = Math.min(1, Math.max(0, (atMs - previous.atMs) / duration));
-  return previous.value + (next.value - previous.value) * progress;
-};
-
-const resolveCssFilterUnit = (
-  fn: CssFilterTrack['fn'],
-  unit?: CssFilterTrack['unit']
-) => {
-  if (unit) return unit;
-  if (fn === 'hue-rotate') return 'deg';
-  if (fn === 'blur') return 'px';
-  return '%';
-};
+) =>
+  keyframes.length
+    ? resolveAnimationKeyframedValue(
+        [...keyframes].sort((left, right) => left.atMs - right.atMs),
+        atMs
+      )
+    : undefined;
 
 const getStyleDeclaration = (
   track: StyleTrack,
@@ -130,7 +98,7 @@ const buildCssFilterValue = (
     .map((track) => {
       const value = resolveKeyframedValue(track.keyframes, atMs);
       if (value === undefined) return null;
-      return `${track.fn}(${value}${resolveCssFilterUnit(track.fn, track.unit)})`;
+      return `${track.fn}(${value}${track.unit ?? resolveCssFilterUnit(track.fn)})`;
     })
     .filter((value): value is string => value !== null);
   return parts.length ? parts.join(' ') : undefined;

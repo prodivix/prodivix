@@ -9,6 +9,8 @@ import (
 	"github.com/Prodivix/prodivix/apps/backend/internal/platform/pircontract"
 )
 
+var defaultPIRDocument = pircontract.DefaultDocument()
+
 func ParsePositiveInt(value string, fallback int) int {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {

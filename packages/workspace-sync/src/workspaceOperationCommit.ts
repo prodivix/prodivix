@@ -1,13 +1,13 @@
 import {
   applyWorkspaceCommand,
   applyWorkspaceTransaction,
-  decodeWorkspaceRouteManifest,
   getWorkspaceOperationCommands,
   getWorkspaceOperationId,
   type WorkspaceCommandEnvelope,
   type WorkspaceOperation,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
+import { decodeRouteManifest } from '@prodivix/router';
 import {
   analyzeWorkspaceAuthoringDelta,
   type WorkspaceAuthoringDelta,
@@ -150,7 +150,7 @@ export const applyPersistentWorkspaceOperation = (
         projection.command
       );
       if (!applied.ok) return null;
-      decodeWorkspaceRouteManifest(applied.snapshot.routeManifest, {
+      decodeRouteManifest(applied.snapshot.routeManifest, {
         resolveDocumentType: (documentId) =>
           applied.snapshot.docsById[documentId]?.type,
       });
@@ -177,7 +177,7 @@ export const applyPersistentWorkspaceOperation = (
       commands,
     });
     if (!applied.ok) return null;
-    decodeWorkspaceRouteManifest(applied.snapshot.routeManifest, {
+    decodeRouteManifest(applied.snapshot.routeManifest, {
       resolveDocumentType: (documentId) =>
         applied.snapshot.docsById[documentId]?.type,
     });

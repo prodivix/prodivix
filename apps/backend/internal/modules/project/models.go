@@ -20,16 +20,15 @@ const (
 )
 
 type Project struct {
-	ID           string          `json:"id"`
-	OwnerID      string          `json:"ownerId"`
-	ResourceType ResourceType    `json:"resourceType"`
-	Name         string          `json:"name"`
-	Description  string          `json:"description"`
-	PIR          json.RawMessage `json:"pir"`
-	IsPublic     bool            `json:"isPublic"`
-	StarsCount   int             `json:"starsCount"`
-	CreatedAt    time.Time       `json:"createdAt"`
-	UpdatedAt    time.Time       `json:"updatedAt"`
+	ID           string       `json:"id"`
+	OwnerID      string       `json:"ownerId"`
+	ResourceType ResourceType `json:"resourceType"`
+	Name         string       `json:"name"`
+	Description  string       `json:"description"`
+	IsPublic     bool         `json:"isPublic"`
+	StarsCount   int          `json:"starsCount"`
+	CreatedAt    time.Time    `json:"createdAt"`
+	UpdatedAt    time.Time    `json:"updatedAt"`
 }
 
 type ProjectSummary struct {
@@ -57,7 +56,8 @@ type CommunityProjectSummary struct {
 
 type CommunityProjectDetail struct {
 	Project
-	AuthorName string `json:"authorName"`
+	PIR        json.RawMessage `json:"pir"`
+	AuthorName string          `json:"authorName"`
 }
 
 func newID(prefix string) string {

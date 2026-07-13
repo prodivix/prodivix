@@ -1,4 +1,8 @@
-import type { WorkspaceRouteManifest } from '@prodivix/shared/router';
+import {
+  decodeRouteManifest,
+  resolveActiveRouteNodeId,
+  type WorkspaceRouteManifest,
+} from '@prodivix/router';
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { validatePirDocument } from '@prodivix/pir';
 import { resolveCanonicalWorkspaceDocumentId } from './resolveCanonicalWorkspaceDocumentId';
@@ -15,24 +19,8 @@ import {
   isCanonicalWorkspaceDocumentUpdatedAt,
   isValidWorkspaceDocumentName,
 } from './workspaceDocumentValidation';
-import {
-  decodeWorkspaceRouteManifest,
-  resolveActiveRouteNodeId,
-} from './workspaceRouteCodec';
 
 export { WorkspaceCodecError } from './workspaceCodecError';
-export {
-  decodeWorkspaceRouteManifest,
-  hasRouteNodeId,
-  normalizeRouteManifest,
-  resolveActiveRouteNodeId,
-  resolveDefaultActiveRouteNodeId,
-} from './workspaceRouteCodec';
-export type {
-  WorkspaceRouteDocumentTypeResolver,
-  WorkspaceRouteManifestDecodeInput,
-  WorkspaceRouteManifestDecodeOptions,
-} from './workspaceRouteCodec';
 
 const WORKSPACE_DOCUMENT_TYPES = new Set<WorkspaceDocumentType>([
   'pir-page',
@@ -453,7 +441,7 @@ export const decodeWorkspaceSnapshot = (
     docsById[document.id] = document;
   });
   const tree = parseWorkspaceTree(source.tree, '/workspace/tree');
-  const routeManifest = decodeWorkspaceRouteManifest(source.routeManifest, {
+  const routeManifest = decodeRouteManifest(source.routeManifest, {
     resolveDocumentType: (documentId) => docsById[documentId]?.type,
   });
   const activeDocumentCandidate = optionalString(
@@ -608,7 +596,7 @@ export const decodeWorkspaceMutation = (
     removedDocumentIds,
     ...(source.routeManifest !== undefined
       ? {
-          routeManifest: decodeWorkspaceRouteManifest(source.routeManifest, {
+          routeManifest: decodeRouteManifest(source.routeManifest, {
             resolveDocumentType: (documentId) =>
               docsAfterMutation[documentId]?.type,
           }),

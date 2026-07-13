@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/shared/safety';
+import { getNavigateLinkKind, isSafeNavigateTo } from '@prodivix/router';
 import {
   resolveInternalNavigatePath,
   resolveNavigateTarget,

@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  getNavigateLinkKind,
   getVisibleTextMetrics,
-  isSafeNavigateTo,
   normalizeBaseURL,
   parseSafeRichText,
   resolveSafeEmbedUrl,
@@ -17,11 +15,6 @@ describe('safety utilities', () => {
     expect(normalizeBaseURL('https://api.example.com///')).toBe(
       'https://api.example.com'
     );
-    expect(getNavigateLinkKind('https://example.com')).toBe('external');
-    expect(getNavigateLinkKind('/docs')).toBe('internal');
-    expect(getNavigateLinkKind('#section')).toBe('internal');
-    expect(isSafeNavigateTo('javascript:alert(1)')).toBe(false);
-    expect(isSafeNavigateTo('data:text/html,<script></script>')).toBe(false);
   });
 
   it('resolves safe embed URLs without executing arbitrary protocols', () => {

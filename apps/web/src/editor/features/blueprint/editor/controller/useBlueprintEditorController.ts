@@ -12,7 +12,7 @@ import { useParams } from 'react-router';
 import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/blueprint/editor/model/viewport';
 import { useBlueprintAutosave } from '@/editor/features/blueprint/editor/model/autosave';
 import { useBlueprintDragDrop } from '@/editor/features/blueprint/editor/model/dragdrop';
-import { executeBlueprintGraph } from '@/editor/features/blueprint/editor/model/graphExecutor';
+import { executeNodeGraphAction } from '@prodivix/runtime-browser';
 import { createNodeIdFactory } from '@/editor/features/blueprint/editor/model/palette';
 import {
   applyPaletteItemInsertion,
@@ -39,7 +39,7 @@ import {
   createRouteDebugSnapshot,
   getRouteDebugEventDetail,
   logRouteDebug,
-} from '@/pir/renderer/routeDebug';
+} from '@prodivix/pir-react-renderer';
 import {
   DEFAULT_BLUEPRINT_STATE,
   selectActiveDocumentEditSeq,
@@ -52,6 +52,8 @@ import {
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { useEditorShortcut } from '@/editor/shortcuts';
+import { isLocalProjectId } from '@/editor/localProjectStore';
+import { enqueueWorkspaceRouteIntentOutboxAndDispatch } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
 import {
   composeRouteManifestWithModules,
   findRouteNodeParentInfo,
@@ -59,10 +61,13 @@ import {
   normalizeRoutePath,
   resolveNavigateTarget as resolveRouteNavigateTarget,
   resolveRouteRuntimeContext,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import type { AutosaveMode } from '@/editor/features/blueprint/editor/model/autosave';
 import { usePaletteQueryService } from '@/plugins/platform';
-import { createNodeDeleteTransaction } from '@prodivix/workspace';
+import {
+  createNodeDeleteTransaction,
+  type WorkspaceRouteIntent,
+} from '@prodivix/workspace';
 
 const CAPABILITY_PIR_DOCUMENT_UPDATE = 'core.pir.graph.replace@1.0';
 
@@ -213,6 +218,22 @@ export const useBlueprintEditorController = () => {
   const defaultViewportWidth = useSettingsStore(
     (state) => state.global.viewportWidth
   );
+  const persistRouteIntent = async (intent: WorkspaceRouteIntent) => {
+    if (isLocalProjectId(projectId)) {
+      return Boolean(applyRouteIntent(intent));
+    }
+    const currentWorkspace = useEditorStore.getState().workspace;
+    if (!token || !currentWorkspace) return false;
+    const outcome = await enqueueWorkspaceRouteIntentOutboxAndDispatch({
+      workspace: currentWorkspace,
+      intent,
+    });
+    if (outcome.status === 'rejected') {
+      console.warn('[route] workspace operation rejected', outcome.message);
+      return false;
+    }
+    return true;
+  };
   const defaultViewportHeight = useSettingsStore(
     (state) => state.global.viewportHeight
   );
@@ -342,7 +363,7 @@ export const useBlueprintEditorController = () => {
     enabled: autosaveMode === 'manual' && hasPendingChanges,
     allowInEditable: true,
   });
-  const handleAddRouteAtPath = (path: string) => {
+  const handleAddRouteAtPath = async (path: string) => {
     if (workspaceReadonly) return;
     const value = path.trim();
     if (!value) return;
@@ -355,12 +376,12 @@ export const useBlueprintEditorController = () => {
       return;
     }
     const nextRouteId = createRouteId();
-    applyRouteIntent({
+    const applied = await persistRouteIntent({
       type: 'create-page',
       path: nextPath,
       routeNodeId: nextRouteId,
     });
-    if (nextRouteId) {
+    if (applied) {
       setPreviewPath(nextPath);
       setActiveRouteNodeId(nextRouteId);
     }
@@ -368,10 +389,10 @@ export const useBlueprintEditorController = () => {
   };
 
   const handleAddRoute = () => {
-    handleAddRouteAtPath(newPath);
+    void handleAddRouteAtPath(newPath);
   };
 
-  const handleAddChildRoute = (parentRouteNodeId: string) => {
+  const handleAddChildRoute = async (parentRouteNodeId: string) => {
     if (workspaceReadonly) return;
     const segment =
       typeof window !== 'undefined'
@@ -385,27 +406,30 @@ export const useBlueprintEditorController = () => {
     const nextSegment = segment?.trim();
     if (!nextSegment) return;
     const nextRouteId = createRouteId();
-    applyRouteIntent({
+    const applied = await persistRouteIntent({
       type: 'create-child-route',
       parentRouteNodeId,
       segment: nextSegment,
       routeNodeId: nextRouteId,
     });
-    setActiveRouteNodeId(nextRouteId);
+    if (applied) setActiveRouteNodeId(nextRouteId);
   };
 
-  const handleCreateIndexRoute = (parentRouteNodeId: string) => {
+  const handleCreateIndexRoute = async (parentRouteNodeId: string) => {
     if (workspaceReadonly) return;
     const nextRouteId = createRouteId();
-    applyRouteIntent({
+    const applied = await persistRouteIntent({
       type: 'create-index',
       parentRouteNodeId,
       routeNodeId: nextRouteId,
     });
-    setActiveRouteNodeId(nextRouteId);
+    if (applied) setActiveRouteNodeId(nextRouteId);
   };
 
-  const handleRenameRoute = (routeNodeId: string, currentLabel: string) => {
+  const handleRenameRoute = async (
+    routeNodeId: string,
+    currentLabel: string
+  ) => {
     if (workspaceReadonly) return;
     const route = routes.find((item) => item.id === routeNodeId);
     if (route?.index) return;
@@ -420,21 +444,24 @@ export const useBlueprintEditorController = () => {
         : null;
     const nextSegment = segment?.trim();
     if (!nextSegment) return;
-    applyRouteIntent({
+    await persistRouteIntent({
       type: 'rename-segment',
       routeNodeId,
       segment: nextSegment,
     });
   };
 
-  const handleMoveRoute = (routeNodeId: string, direction: 'up' | 'down') => {
+  const handleMoveRoute = async (
+    routeNodeId: string,
+    direction: 'up' | 'down'
+  ) => {
     if (workspaceReadonly) return;
     const info = findRouteNodeParentInfo(routeManifest.root, routeNodeId);
     if (!info?.parent) return;
     const siblings = info.parent.children ?? [];
     const nextIndex = direction === 'up' ? info.index - 1 : info.index + 1;
     if (nextIndex < 0 || nextIndex >= siblings.length) return;
-    applyRouteIntent({
+    await persistRouteIntent({
       type: 'move-route',
       routeNodeId,
       parentRouteNodeId: info.parent.id,
@@ -442,7 +469,7 @@ export const useBlueprintEditorController = () => {
     });
   };
 
-  const handleDeleteRoute = (routeNodeId: string) => {
+  const handleDeleteRoute = async (routeNodeId: string) => {
     if (workspaceReadonly) return;
     if (routeNodeId === routeManifest.root.id) return;
     const confirmed =
@@ -455,7 +482,7 @@ export const useBlueprintEditorController = () => {
             })
           );
     if (!confirmed) return;
-    applyRouteIntent({ type: 'delete-route', routeNodeId });
+    await persistRouteIntent({ type: 'delete-route', routeNodeId });
   };
 
   /**
@@ -567,21 +594,27 @@ export const useBlueprintEditorController = () => {
    *
    * 调用链路：
    * PIR 事件 -> PIRRenderer -> Canvas builtInActions.executeGraph ->
-   * controller -> `window` 事件总线 `prodivix:execute-graph`
+   * controller -> NodeGraph Web adapter -> `@prodivix/nodegraph`。
    */
   const handleExecuteGraphRequest = useCallback(
     (options: InteractionRequest) => {
-      void executeBlueprintGraph({
-        nodeId: options.nodeId,
-        trigger: options.trigger,
-        eventKey: options.eventKey,
-        params: options.params,
-      }).then((result) => {
+      void executeNodeGraphAction(
+        pirDoc.logic?.graphs ?? [],
+        {
+          nodeId: options.nodeId,
+          trigger: options.trigger,
+          eventKey: options.eventKey,
+          params: options.params,
+        },
+        {
+          onLog: (value) => console.log(value),
+        }
+      ).then((result) => {
         if (!Object.keys(result.statePatch).length) return;
         patchRuntimeState(blueprintKey, result.statePatch);
       });
     },
-    [blueprintKey, patchRuntimeState]
+    [blueprintKey, patchRuntimeState, pirDoc.logic?.graphs]
   );
 
   const toggleGroup = (groupId: string, collapsed?: boolean) => {

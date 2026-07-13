@@ -6,11 +6,14 @@ import { EditorView } from '@codemirror/view';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { Check, FileText, LayoutTemplate, Save } from 'lucide-react';
-import { editorApi } from '@/editor/editorApi';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { EditorConfirmModal } from '@/editor/components/EditorConfirmModal';
 import { useEditorShortcut } from '@/editor/shortcuts';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import {
+  executeWorkspaceCommandOutboxAndAdopt,
+  executeWorkspaceVfsOutboxIntent,
+} from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
 import { codeMirrorTypographyTheme } from '@/editor/codeMirrorTypography';
 import { ProjectFileTemplatePicker } from './ProjectFileTemplatePicker';
 import {
@@ -41,7 +44,7 @@ import {
 import {
   createWorkspaceResourceDocumentId,
   createWorkspaceResourceDocumentRequest,
-  createWorkspaceResourceValuePatchRequest,
+  createWorkspaceResourceValueUpdateCommand,
   findWorkspaceDocumentByPath,
   joinWorkspaceResourcePath,
   RESOURCE_ROOTS,
@@ -103,9 +106,6 @@ export function ProjectFileManager({
   const workspaceRev = workspace?.workspaceRev;
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
   const project = useEditorStore((state) =>
     projectId ? state.projectsById[projectId] : undefined
   );
@@ -204,34 +204,33 @@ export function ProjectFileManager({
       'project-config'
     );
     if (existing) {
-      const request = createWorkspaceResourceValuePatchRequest({
+      const command = createWorkspaceResourceValueUpdateCommand({
         workspaceId,
         document: existing,
         value: content.value,
         label: `Update ${file.path}`,
       });
-      if (!request) return;
-      const mutation = await editorApi.patchWorkspaceDocument(
+      if (!command) return;
+      const outcome = await executeWorkspaceCommandOutboxAndAdopt({
         token,
         workspace,
-        existing.id,
-        request
-      );
-      applyWorkspaceMutation(mutation);
+        command,
+      });
+      if (outcome.status === 'rejected') throw new Error(outcome.message);
       return;
     }
-    const mutation = await editorApi.applyWorkspaceIntent(
+    const outcome = await executeWorkspaceVfsOutboxIntent({
       token,
       workspace,
-      createWorkspaceResourceDocumentRequest({
+      request: createWorkspaceResourceDocumentRequest({
         workspaceRev,
         documentId: createWorkspaceResourceDocumentId('project_config', path),
         path,
         type: 'project-config',
         content,
-      })
-    );
-    applyWorkspaceMutation(mutation);
+      }),
+    });
+    if (outcome.status === 'rejected') throw new Error(outcome.message);
   };
 
   const persistSelectedPatch = async (

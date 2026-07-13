@@ -114,6 +114,9 @@ const getModuleDesiredPath = (
   preset: ExportPlannerPreset
 ) => {
   const extension = languageExtensionByModuleLanguage[module.language];
+  if (module.desiredPath) {
+    return ensureFileExtension(module.desiredPath, extension);
+  }
   return ensureFileExtension(
     joinExportPath(
       getModuleDirectory(module, preset),
@@ -632,7 +635,10 @@ export class ProductionExportPlanner {
       requirements: item.requirements,
     }));
     const plannedModules = this.attachRuntimeImports(
-      plannedDomainModules,
+      this.resolveInternalModuleImports(plannedDomainModules, [
+        ...plannedDomainModules,
+        ...plannedRuntimeModules,
+      ]),
       plannedRuntimeModules
     );
     const allPlannedModules = [...plannedModules, ...plannedRuntimeModules];
@@ -751,8 +757,7 @@ export class ProductionExportPlanner {
       withContentHash(manifestFile),
     ];
     const blockingDiagnostics = diagnostics.filter(
-      (diagnostic) =>
-        diagnostic.severity === 'error' && diagnostic.source !== 'export'
+      (diagnostic) => diagnostic.severity === 'error'
     );
 
     return {
@@ -847,6 +852,36 @@ export class ProductionExportPlanner {
       }
     });
     return Array.from(modulesById.values());
+  }
+
+  /** Resolves semantic module identities only after final paths are reserved. */
+  private resolveInternalModuleImports(
+    modules: PlannedExportModule[],
+    allModules: PlannedExportModule[]
+  ): PlannedExportModule[] {
+    const moduleById = new Map(allModules.map((module) => [module.id, module]));
+    return modules.map((module) => {
+      const imports = module.imports.map((intent) => {
+        if (!intent.targetModuleId) return intent;
+        const target = moduleById.get(intent.targetModuleId);
+        if (!target) {
+          throw new Error(
+            `Export module ${module.id} references missing module ${intent.targetModuleId}.`
+          );
+        }
+        return {
+          ...intent,
+          source: getRelativeImportPath(module.filePath, target.filePath),
+        };
+      });
+      return {
+        ...module,
+        imports,
+        renderedImports: dedupeExportImportIntents(imports).map(
+          renderExportImportIntent
+        ),
+      };
+    });
   }
 
   private attachRuntimeImports(

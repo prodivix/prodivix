@@ -6,19 +6,19 @@ import {
   normalizeRoutePath,
   normalizeRouteSegment,
   removeRouteNodeById,
+  resolveDefaultActiveRouteNodeId,
   updateRouteNodeById,
   validateRouteManifest,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import type {
   WorkspaceRouteCodeReference,
   WorkspaceRouteManifest,
   WorkspaceRouteNode,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import type {
   WorkspaceCommandEnvelope,
   WorkspaceTransactionEnvelope,
 } from './workspaceCommand';
-import { resolveDefaultActiveRouteNodeId } from './workspaceCodec';
 import {
   createRouteIntentCommand,
   createRouteIntentTransaction,
@@ -111,11 +111,14 @@ const trimRouteSegment = (segment: string): string | null => {
   return normalized.ok ? normalized.segment || null : null;
 };
 
-const createOrReusePirDocument = (
+const createOrReuseRouteDocument = (
   workspace: WorkspaceSnapshot,
   options: {
     documentId: string;
-    type: 'pir-page' | 'pir-layout';
+    createType: 'pir-page' | 'pir-layout';
+    acceptedExistingTypes?: readonly (
+      'pir-page' | 'pir-layout' | 'pir-component'
+    )[];
     path: string;
   }
 ): {
@@ -125,12 +128,16 @@ const createOrReusePirDocument = (
 } | null => {
   const existing = workspace.docsById[options.documentId];
   if (existing) {
-    if (existing.type !== options.type) return null;
+    const acceptedExistingTypes: readonly WorkspaceDocument['type'][] =
+      options.acceptedExistingTypes ?? [options.createType];
+    if (!acceptedExistingTypes.includes(existing.type)) {
+      return null;
+    }
     return { workspace, document: existing, created: false };
   }
   const document: WorkspaceDocument = {
     id: options.documentId,
-    type: options.type,
+    type: options.createType,
     path: options.path,
     contentRev: 1,
     metaRev: 1,
@@ -312,9 +319,9 @@ const applyWorkspaceRouteIntent = (
   if (intent.type === 'create-page') {
     const routeNodeId = intent.routeNodeId?.trim() || idFactory('route');
     const documentId = idFactory('page');
-    const documentResult = createOrReusePirDocument(workspace, {
+    const documentResult = createOrReuseRouteDocument(workspace, {
       documentId,
-      type: 'pir-page',
+      createType: 'pir-page',
       path: `/pages/${documentId}.pir.json`,
     });
     if (!documentResult) return null;
@@ -349,10 +356,14 @@ const applyWorkspaceRouteIntent = (
     }
     const routeNodeId = intent.routeNodeId?.trim() || idFactory('route');
     if (findRouteNodeById(nextManifest.root, routeNodeId)) return null;
-    const documentId = intent.pageDocId?.trim() || idFactory('page');
-    const documentResult = createOrReusePirDocument(workspace, {
+    const requestedDocumentId = intent.pageDocId?.trim();
+    const documentId = requestedDocumentId || idFactory('page');
+    const documentResult = createOrReuseRouteDocument(workspace, {
       documentId,
-      type: 'pir-page',
+      createType: 'pir-page',
+      ...(requestedDocumentId
+        ? { acceptedExistingTypes: ['pir-page', 'pir-component'] as const }
+        : {}),
       path: `/pages/${documentId}.pir.json`,
     });
     if (!documentResult) return null;
@@ -386,10 +397,14 @@ const applyWorkspaceRouteIntent = (
     }
     const routeNodeId = intent.routeNodeId?.trim() || idFactory('route');
     if (findRouteNodeById(nextManifest.root, routeNodeId)) return null;
-    const documentId = intent.pageDocId?.trim() || idFactory('page');
-    const documentResult = createOrReusePirDocument(workspace, {
+    const requestedDocumentId = intent.pageDocId?.trim();
+    const documentId = requestedDocumentId || idFactory('page');
+    const documentResult = createOrReuseRouteDocument(workspace, {
       documentId,
-      type: 'pir-page',
+      createType: 'pir-page',
+      ...(requestedDocumentId
+        ? { acceptedExistingTypes: ['pir-page', 'pir-component'] as const }
+        : {}),
       path: `/pages/${documentId}.pir.json`,
     });
     if (!documentResult) return null;
@@ -451,9 +466,9 @@ const applyWorkspaceRouteIntent = (
     const target = findRouteNodeById(nextManifest.root, intent.routeNodeId);
     if (!target || target.layoutDocId) return null;
     const documentId = intent.layoutDocId?.trim() || idFactory('layout');
-    const documentResult = createOrReusePirDocument(workspace, {
+    const documentResult = createOrReuseRouteDocument(workspace, {
       documentId,
-      type: 'pir-layout',
+      createType: 'pir-layout',
       path: `/layouts/${documentId}.pir.json`,
     });
     if (!documentResult) return null;

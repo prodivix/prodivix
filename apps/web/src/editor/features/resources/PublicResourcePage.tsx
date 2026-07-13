@@ -22,15 +22,17 @@ import {
   shouldReadPublicFileText,
   type PublicFileKind,
 } from './publicResourceModel';
-import { editorApi } from '@/editor/editorApi';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import { executeWorkspaceVfsOutboxIntent } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
 import { buildPublicResourceTreeFromWorkspace } from './workspacePublicResources';
 import {
   createWorkspaceDirectoryIntentRequest,
   deleteWorkspaceDirectoryIntentRequest,
   renameWorkspaceDirectoryIntentRequest,
+  type WorkspaceAssetDocumentContent,
   type WorkspaceSnapshot,
+  type WorkspaceVfsIntentRequest,
 } from '@prodivix/workspace';
 import {
   createResourceIntentId,
@@ -43,7 +45,6 @@ import {
   normalizeWorkspaceResourcePath,
   renameWorkspaceResourceDocumentRequest,
   RESOURCE_ROOTS,
-  type WorkspaceAssetContent,
 } from './workspaceResourceDocuments';
 
 type PublicResourcePageProps = {
@@ -67,9 +68,6 @@ export function PublicResourcePage({
   const routeManifest = workspace?.routeManifest;
   const treeRootId = workspace?.treeRootId;
   const treeById = workspace?.treeById ?? EMPTY_WORKSPACE_TREE;
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
   const tree = useMemo(
     () =>
       buildPublicResourceTreeFromWorkspace(
@@ -128,23 +126,24 @@ export function PublicResourcePage({
 
   const resolveWorkspaceParentNodeId = (parentId: string) => {
     if (parentId === PUBLIC_TREE_ROOT_ID) {
-      return treeRootId;
+      return (
+        findWorkspaceNodeByPath(treeRootId, treeById, RESOURCE_ROOTS.public)
+          ?.id ?? treeRootId
+      );
     }
     return treeById[parentId]?.kind === 'dir' ? parentId : undefined;
   };
 
-  const applyIntent = async (
-    data: Parameters<typeof editorApi.applyWorkspaceIntent>[2]
-  ) => {
+  const applyIntent = async (request: WorkspaceVfsIntentRequest) => {
     const currentWorkspace = useEditorStore.getState().workspace;
-    if (!token || !currentWorkspace) return null;
-    const mutation = await editorApi.applyWorkspaceIntent(
+    if (!token || !currentWorkspace) return false;
+    const outcome = await executeWorkspaceVfsOutboxIntent({
       token,
-      currentWorkspace,
-      { ...data, expectedWorkspaceRev: currentWorkspace.workspaceRev }
-    );
-    applyWorkspaceMutation(mutation);
-    return mutation;
+      workspace: currentWorkspace,
+      request,
+    });
+    if (outcome.status === 'rejected') throw new Error(outcome.message);
+    return outcome.status === 'applied';
   };
 
   const handleCreateFolder = async (parentId: string) => {
@@ -155,9 +154,7 @@ export function PublicResourcePage({
       parentId === PUBLIC_TREE_ROOT_ID &&
       !findWorkspaceNodeByPath(treeRootId, treeById, RESOURCE_ROOTS.public)
     ) {
-      const rootMutation = await editorApi.applyWorkspaceIntent(
-        token,
-        workspace,
+      const created = await applyIntent(
         createWorkspaceDirectoryIntentRequest({
           workspaceRev,
           intentId: createResourceIntentId(),
@@ -167,48 +164,31 @@ export function PublicResourcePage({
           name: RESOURCE_ROOTS.public.replace(/^\//, ''),
         })
       );
-      applyWorkspaceMutation(rootMutation);
-      parentNodeId = rootMutation.tree
-        ? Object.values(rootMutation.tree.treeById).find(
-            (node) =>
-              node.name === RESOURCE_ROOTS.public.replace(/^\//, '') &&
-              node.parentId === treeRootId
-          )?.id
-        : undefined;
-      if (!parentNodeId) return;
+      if (!created) return;
+      parentNodeId = 'dir_public';
     }
     const name = 'new-folder';
     const currentWorkspace = useEditorStore.getState().workspace;
     if (!currentWorkspace) return;
+    const nodeId = `dir_public_${Date.now().toString(36)}`;
     const request = createWorkspaceDirectoryIntentRequest({
       workspaceRev: currentWorkspace.workspaceRev,
       intentId: createResourceIntentId(),
       issuedAt: new Date().toISOString(),
-      nodeId: `dir_public_${Date.now().toString(36)}`,
+      nodeId,
       parentNodeId,
       name,
     });
-    const mutation = await editorApi.applyWorkspaceIntent(
-      token,
-      currentWorkspace,
-      request
-    );
-    applyWorkspaceMutation(mutation);
-    const createdId = mutation.tree
-      ? Object.values(mutation.tree.treeById).find(
-          (node) => node.name === name && node.parentId === parentNodeId
-        )?.id
-      : undefined;
-    if (createdId) {
-      setSelectedNodeId(createdId);
-      setRequestRenameNodeId(createdId);
+    if (await applyIntent(request)) {
+      setSelectedNodeId(nodeId);
+      setRequestRenameNodeId(nodeId);
     }
   };
 
   const createAssetDocument = async (
     parentId: string,
     name: string,
-    content: WorkspaceAssetContent
+    content: WorkspaceAssetDocumentContent
   ) => {
     const parentNode = findNodeById(tree, parentId);
     const parentPath = parentNode?.path
@@ -222,7 +202,7 @@ export function PublicResourcePage({
       'asset'
     );
     if (existing) return;
-    const mutation = await applyIntent(
+    const created = await applyIntent(
       createWorkspaceResourceDocumentRequest({
         workspaceRev: workspaceRev ?? 0,
         documentId,
@@ -231,7 +211,7 @@ export function PublicResourcePage({
         content,
       })
     );
-    if (mutation) setSelectedNodeId(documentId);
+    if (created) setSelectedNodeId(documentId);
   };
 
   const handleCreateFile = async (parentId: string) => {

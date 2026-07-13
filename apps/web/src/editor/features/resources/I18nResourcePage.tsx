@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import { editorApi } from '@/editor/editorApi';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import {
+  executeWorkspaceCommandOutboxAndAdopt,
+  executeWorkspaceVfsOutboxIntent,
+} from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
 import { collectLocaleMissingStats, type I18nLocaleStore } from './i18nStore';
 import {
   buildNamespaceStats,
@@ -24,13 +27,15 @@ import {
   type WorkspaceI18nResourceValue,
 } from './workspaceI18nResources';
 import {
-  createWorkspaceConfigDocumentContent,
   createWorkspaceResourceDocumentId,
   createWorkspaceResourceDocumentRequest,
-  createWorkspaceResourceValuePatchRequest,
+  createWorkspaceResourceValueUpdateCommand,
   RESOURCE_ROOTS,
 } from './workspaceResourceDocuments';
-import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import {
+  createWorkspaceProjectConfigDocumentContent,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
 
 const EMPTY_WORKSPACE_DOCUMENTS: WorkspaceSnapshot['docsById'] = {};
 
@@ -93,9 +98,6 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const workspaceRev = workspace?.workspaceRev;
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
   const resourceValue = useMemo(
     () => buildI18nResourceValueFromWorkspace(workspaceDocumentsById),
     [workspaceDocumentsById]
@@ -186,26 +188,25 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
     if (!token || !workspace || !workspaceId || !workspaceRev) return;
     const existing = getWorkspaceI18nResourceDocument(workspaceDocumentsById);
     if (existing) {
-      const request = createWorkspaceResourceValuePatchRequest({
+      const command = createWorkspaceResourceValueUpdateCommand({
         workspaceId,
         document: existing,
         value,
         label: 'Update i18n resources',
       });
-      if (!request) return;
-      const mutation = await editorApi.patchWorkspaceDocument(
+      if (!command) return;
+      const outcome = await executeWorkspaceCommandOutboxAndAdopt({
         token,
         workspace,
-        existing.id,
-        request
-      );
-      applyWorkspaceMutation(mutation);
+        command,
+      });
+      if (outcome.status === 'rejected') throw new Error(outcome.message);
       return;
     }
-    const mutation = await editorApi.applyWorkspaceIntent(
+    const outcome = await executeWorkspaceVfsOutboxIntent({
       token,
       workspace,
-      createWorkspaceResourceDocumentRequest({
+      request: createWorkspaceResourceDocumentRequest({
         workspaceRev,
         documentId: createWorkspaceResourceDocumentId(
           'i18n_config',
@@ -213,10 +214,10 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
         ),
         path: RESOURCE_ROOTS.i18n,
         type: 'project-config',
-        content: createWorkspaceConfigDocumentContent(value),
-      })
-    );
-    applyWorkspaceMutation(mutation);
+        content: createWorkspaceProjectConfigDocumentContent(value),
+      }),
+    });
+    if (outcome.status === 'rejected') throw new Error(outcome.message);
   };
 
   const updateI18nResourceValue = (

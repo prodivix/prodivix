@@ -15,7 +15,6 @@
       "saving": "Saving…",
       "error": "Save failed. Retrying on next change.",
       "workspaceSaved": "Saved to workspace.",
-      "projectSaved": "Saved to project.",
       "saved": "Saved.",
       "manualPending": "Unsaved changes. Click to save or press Ctrl+S.",
       "idle": "Ready",
@@ -25,8 +24,7 @@
     },
     "messages": {
       "workspaceRetry": "Workspace save failed. Retrying on next change.",
-      "projectRetry": "Project save failed. Retrying on next change.",
-      "workspaceUnavailableUsingProject": "Workspace document save unavailable. Using project save."
+      "workspaceUnavailable": "Workspace document save is unavailable."
     }
   },
   "canvas": {

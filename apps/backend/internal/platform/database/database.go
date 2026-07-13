@@ -60,7 +60,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			resource_type TEXT NOT NULL,
 			name TEXT NOT NULL DEFAULT '',
 			description TEXT NOT NULL DEFAULT '',
-			pir_json JSONB NOT NULL,
+			published_pir_json JSONB,
 			is_public BOOLEAN NOT NULL DEFAULT FALSE,
 			stars_count INTEGER NOT NULL DEFAULT 0,
 			created_at TIMESTAMPTZ NOT NULL,
@@ -69,6 +69,8 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 		)`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS stars_count INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS published_pir_json JSONB`,
+		`ALTER TABLE projects DROP COLUMN IF EXISTS pir_json`,
 		`CREATE TABLE IF NOT EXISTS workspaces (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,

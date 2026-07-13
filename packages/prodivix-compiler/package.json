@@ -33,10 +33,13 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
+    "@prodivix/animation": "workspace:*",
     "@prodivix/pir": "workspace:*",
+    "@prodivix/router": "workspace:*",
     "@prodivix/shared": "workspace:*",
     "@prodivix/themes": "workspace:*",
-    "@prodivix/ui": "workspace:*"
+    "@prodivix/ui": "workspace:*",
+    "@prodivix/workspace": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.1.1",

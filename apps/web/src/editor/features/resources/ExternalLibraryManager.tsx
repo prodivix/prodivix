@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { editorApi } from '@/editor/editorApi';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import {
+  executeWorkspaceCommandOutboxAndAdopt,
+  executeWorkspaceVfsOutboxIntent,
+} from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
 import { ExternalLibraryAddModal } from './externalLibraryManager/ExternalLibraryAddModal';
 import { ExternalLibraryDetailsPanel } from './externalLibraryManager/ExternalLibraryDetailsPanel';
 import { ExternalLibraryListPanel } from './externalLibraryManager/ExternalLibraryListPanel';
@@ -42,12 +45,12 @@ import {
   type WorkspaceExternalLibrariesValue,
 } from './workspaceExternalLibraries';
 import {
-  createWorkspaceConfigDocumentContent,
   createWorkspaceResourceDocumentId,
   createWorkspaceResourceDocumentRequest,
-  createWorkspaceResourceValuePatchRequest,
+  createWorkspaceResourceValueUpdateCommand,
   RESOURCE_ROOTS,
 } from './workspaceResourceDocuments';
+import { createWorkspaceProjectConfigDocumentContent } from '@prodivix/workspace';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 
 const EMPTY_WORKSPACE_DOCUMENTS: WorkspaceSnapshot['docsById'] = {};
@@ -60,9 +63,6 @@ export function ExternalLibraryManager() {
   const workspaceRev = workspace?.workspaceRev;
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
   const externalResourceValue = useMemo(
     () => buildExternalLibrariesValueFromWorkspace(workspaceDocumentsById),
     [workspaceDocumentsById]
@@ -160,7 +160,7 @@ export function ExternalLibraryManager() {
   const applyConfiguredIconLibraryIds = (libraryIds: string[]) => {
     const nextIds = normalizeLibraryIds(libraryIds);
     setConfiguredIconLibraryIds(nextIds);
-    void import('@/pir/renderer/iconRegistry').then((iconRegistry) => {
+    void import('@prodivix/pir-react-renderer').then((iconRegistry) => {
       iconRegistry.setConfiguredIconLibraryIds(nextIds);
     });
   };
@@ -173,26 +173,25 @@ export function ExternalLibraryManager() {
       workspaceDocumentsById
     );
     if (existing) {
-      const request = createWorkspaceResourceValuePatchRequest({
+      const command = createWorkspaceResourceValueUpdateCommand({
         workspaceId,
         document: existing,
         value,
         label: 'Update external libraries',
       });
-      if (!request) return;
-      const mutation = await editorApi.patchWorkspaceDocument(
+      if (!command) return;
+      const outcome = await executeWorkspaceCommandOutboxAndAdopt({
         token,
         workspace,
-        existing.id,
-        request
-      );
-      applyWorkspaceMutation(mutation);
+        command,
+      });
+      if (outcome.status === 'rejected') throw new Error(outcome.message);
       return;
     }
-    const mutation = await editorApi.applyWorkspaceIntent(
+    const outcome = await executeWorkspaceVfsOutboxIntent({
       token,
       workspace,
-      createWorkspaceResourceDocumentRequest({
+      request: createWorkspaceResourceDocumentRequest({
         workspaceRev,
         documentId: createWorkspaceResourceDocumentId(
           'external_config',
@@ -200,10 +199,10 @@ export function ExternalLibraryManager() {
         ),
         path: RESOURCE_ROOTS.external,
         type: 'project-config',
-        content: createWorkspaceConfigDocumentContent(value),
-      })
-    );
-    applyWorkspaceMutation(mutation);
+        content: createWorkspaceProjectConfigDocumentContent(value),
+      }),
+    });
+    if (outcome.status === 'rejected') throw new Error(outcome.message);
   };
 
   const updateExternalResourceValue = (
@@ -478,7 +477,7 @@ export function ExternalLibraryManager() {
   useEffect(() => {
     let disposed = false;
     setBootstrapping(true);
-    void import('@/pir/renderer/iconRegistry')
+    void import('@prodivix/pir-react-renderer')
       .then((iconRegistry) => {
         if (disposed) return;
         setRegisteredIconLibraries(iconRegistry.getRegisteredIconLibraries());

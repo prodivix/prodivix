@@ -1,6 +1,6 @@
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
-import type { WorkspaceRouteManifest } from '@prodivix/shared/router';
+import type { WorkspaceRouteManifest } from '@prodivix/router';
 import type {
   WorkspaceDocument,
   WorkspaceDocumentType,

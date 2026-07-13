@@ -234,6 +234,9 @@ const documentDomain = (
   if (document.type === 'pir-graph') return 'nodegraph';
   if (document.type === 'pir-animation') return 'animation';
   if (document.type === 'code') return 'code';
+  if (document.type === 'asset' || document.type === 'project-config') {
+    return 'resource';
+  }
   return null;
 };
 
@@ -258,6 +261,10 @@ const allowedContentPaths = (document: WorkspaceDocument): string[] | null => {
     ];
   }
   if (document.type === 'code') return ['/language', '/source', '/metadata'];
+  if (document.type === 'project-config') return ['/value', '/metadata'];
+  if (document.type === 'asset') {
+    return ['/mime', '/category', '/size', '/dataUrl', '/text', '/metadata'];
+  }
   return null;
 };
 

@@ -8,9 +8,11 @@
     "paths": {
       "@/*": ["./src/*"],
       "@prodivix/ai": ["../../packages/ai/src"],
+      "@prodivix/animation": ["../../packages/animation/src"],
       "@prodivix/authoring": ["../../packages/authoring/src"],
       "@prodivix/diagnostics": ["../../packages/diagnostics/src"],
       "@prodivix/i18n": ["../../packages/i18n/src"],
+      "@prodivix/nodegraph": ["../../packages/nodegraph/src"],
       "@prodivix/plugin-browser": ["../../packages/plugin-browser/src"],
       "@prodivix/plugin-antd": ["../../packages/plugin-antd/src"],
       "@prodivix/plugin-contracts": ["../../packages/plugin-contracts/src"],
@@ -21,7 +23,11 @@
       "@prodivix/plugin-radix": ["../../packages/plugin-radix/src"],
       "@prodivix/plugin-react-host": ["../../packages/plugin-react-host/src"],
       "@prodivix/pir": ["../../packages/pir/src"],
+      "@prodivix/pir-react-renderer": ["../../packages/pir-react-renderer/src"],
       "@prodivix/prodivix-compiler": ["../../packages/prodivix-compiler/src"],
+      "@prodivix/runtime-core": ["../../packages/runtime-core/src"],
+      "@prodivix/runtime-browser": ["../../packages/runtime-browser/src"],
+      "@prodivix/router": ["../../packages/router/src"],
       "@prodivix/shared": ["../../packages/shared/src"],
       "@prodivix/shared/package.json": ["../../packages/shared/package.json"],
       "@prodivix/shared/*": ["../../packages/shared/src/*"],
@@ -37,6 +43,9 @@
   "exclude": ["node_modules"],
   "references": [
     {
+      "path": "../../packages/animation"
+    },
+    {
       "path": "../../packages/shared"
     },
     {
@@ -47,6 +56,21 @@
     },
     {
       "path": "../../packages/pir"
+    },
+    {
+      "path": "../../packages/pir-react-renderer"
+    },
+    {
+      "path": "../../packages/runtime-core"
+    },
+    {
+      "path": "../../packages/nodegraph"
+    },
+    {
+      "path": "../../packages/runtime-browser"
+    },
+    {
+      "path": "../../packages/router"
     },
     {
       "path": "../../packages/workspace"

@@ -1,7 +1,7 @@
 import type React from 'react';
 import type { ComponentNode } from '@prodivix/shared/types/pir';
-import type { RouteManifestIssue } from '@prodivix/shared/router';
-import type { IconRef } from '@/pir/renderer/iconRegistry';
+import type { RouteManifestIssue } from '@prodivix/router';
+import type { IconRef } from '@prodivix/pir-react-renderer';
 import type {
   InspectorPanelDefinition,
   InspectorUpdateNode,

@@ -9,6 +9,14 @@ export {
   createDefaultDiagnosticPresentationTemplate,
 } from './buildDiagnosticPresentation';
 export {
+  createDiagnosticIssueCollectionState,
+  createDiagnosticIssueFingerprint,
+  queryDiagnosticIssues,
+  removeDiagnosticProviderSnapshot,
+  summarizeDiagnosticIssues,
+  upsertDiagnosticProviderSnapshot,
+} from './diagnosticIssueCollection';
+export {
   copyReportAction,
   createDefinition,
   createExemptionAction,
@@ -38,6 +46,7 @@ export type {
   DiagnosticPresentation,
   DiagnosticPresentationLocationKind,
   DiagnosticPresentationTemplate,
+  DiagnosticQuickFixReference,
   DiagnosticSurface,
   DiagnosticTargetRef,
   DiagnosticTemplateVariable,
@@ -51,6 +60,17 @@ export type {
   UxDiagnosticMeta,
   UxStandardRef,
 } from './diagnostic.types';
+export type {
+  DiagnosticIssue,
+  DiagnosticIssueCollectionState,
+  DiagnosticIssueQuery,
+  DiagnosticIssueRevision,
+  DiagnosticIssueSource,
+  DiagnosticIssueStatus,
+  DiagnosticIssueSummary,
+  DiagnosticIssueUpdateResult,
+  DiagnosticProviderSnapshot,
+} from './diagnosticIssue.types';
 export type {
   DiagnosticDefinition,
   DiagnosticPlacement,

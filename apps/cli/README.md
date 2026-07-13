@@ -28,4 +28,4 @@ pnpm --filter @prodivix/cli test
 
 ## 与 Workspace 协议对接
 
-CLI 同步命令使用与编辑器相同的 Workspace API（见 `specs/api/workspace-sync.openapi.yaml`），支持文档级 `PUT` 与 `POST /intents`，并尊重后端 capability 协商。
+CLI 同步命令使用与编辑器相同的 Workspace API（见 `specs/api/workspace-sync.openapi.yaml`）：作者态变更提交为 Atomic WorkspaceOperation，Settings 使用独立 Commit，并尊重后端 capability 协商。旧 document patch 与 `POST /intents` 不再提供。

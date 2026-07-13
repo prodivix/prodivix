@@ -76,117 +76,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-  /api/workspaces/{workspaceId}/documents/{documentId}:
-    patch:
-      summary: Patch one document with a command
-      description: >
-        Apply one versioned CommandEnvelope to a Workspace document. The server
-        applies command.forwardOps, verifies command.reverseOps can restore the
-        previous document, runs document-type validation, advances contentRev,
-        and records the command in the operation log. PIR, code, and generic
-        documents use different patch-path policies. Only the workspace owner
-        may mutate the document; owner mismatches return the same metadata-free
-        404 envelope as a missing workspace before conflict details are built.
-      operationId: patchDocument
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema:
-            type: string
-        - in: path
-          name: documentId
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchDocumentRequest'
-      responses:
-        '200':
-          description: Patched
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MutationSuccessResponse'
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '404':
-          description: Workspace not found or not owned by the caller
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '422':
-          description: Invalid command, forbidden patch path, PIR validation failure, or revision range/capacity failure
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '409':
-          description: Revision conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkspaceConflictErrorEnvelope'
-  /api/workspaces/{workspaceId}/intents:
-    post:
-      summary: Apply one user intent
-      description: >
-        Applies an intent only after verifying that the authenticated caller
-        owns the workspace. Owner mismatches return a metadata-free 404 and
-        never expose current revision details.
-      operationId: applyWorkspaceIntent
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApplyIntentRequest'
-      responses:
-        '200':
-          description: Applied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MutationSuccessResponse'
-        '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '404':
-          description: Workspace not found or not owned by the caller
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '422':
-          description: Unsupported or invalid intent envelope, or revision range/capacity failure
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '409':
-          description: Revision conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkspaceConflictErrorEnvelope'
   /api/workspaces/{workspaceId}/operations/commit:
     post:
       summary: Atomically commit one WorkspaceOperation
@@ -246,10 +135,8 @@ paths:
           description: >
             Invalid operation, unsupported path, non-exact revision vector,
             revision capacity failure, or operation id reused with a different
-            canonical request. Atomic
-            commits also reject move/copy, settings, and document-targeted
-            asset/project-config mutations, plus operations without a durable
-            authoring delta.
+            canonical request. Atomic commits also reject move/copy, settings,
+            and operations without a durable authoring delta.
           content:
             application/json:
               schema:
@@ -262,6 +149,66 @@ paths:
                 $ref: '#/components/schemas/WorkspaceConflictErrorEnvelope'
         '500':
           description: Atomic commit could not be completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/workspaces/{workspaceId}/settings/commit:
+    post:
+      summary: Idempotently commit workspace settings
+      description: >
+        Commits the complete settings object outside authoring
+        WorkspaceOperation. The commit id is a strong idempotency identity: an
+        exact retry returns the first result, while reuse with a different
+        request is rejected. A successful commit advances workspaceRev and
+        opSeq once. Clients persist the exact request in the Settings Outbox
+        before sending it.
+      operationId: commitWorkspaceSettings
+      parameters:
+        - in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceSettingsCommitRequest'
+      responses:
+        '200':
+          description: Committed or idempotently replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceSettingsCommitSuccessResponse'
+        '400':
+          description: Malformed JSON or an unknown request field
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Workspace not found or not owned by the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Workspace revision conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceConflictErrorEnvelope'
+        '422':
+          description: Invalid settings, revision, timestamp, or reused commit identity
           content:
             application/json:
               schema:
@@ -289,10 +236,9 @@ components:
         capabilities:
           type: object
           description: >
-            Key format namespace.type@version. Includes both intent and command
-            capabilities. Reserved domains (e.g. core.nodegraph.*,
-            core.animation.*) may appear as false before corresponding editors
-            are implemented.
+            Key format namespace.type@version. Authoring commands are committed
+            through WorkspaceOperation; settings use the dedicated Settings
+            Commit boundary.
           additionalProperties:
             type: boolean
     WorkspaceSnapshot:
@@ -569,64 +515,6 @@ components:
         - code
         - asset
         - project-config
-    PatchDocumentRequest:
-      type: object
-      required: [expectedContentRev, command]
-      properties:
-        expectedContentRev:
-          type: integer
-          minimum: 1
-          maximum: 9007199254740991
-        command:
-          $ref: '#/components/schemas/CommandEnvelope'
-        clientMutationId:
-          type: string
-    ApplyIntentRequest:
-      type: object
-      required: [expectedWorkspaceRev, intent]
-      properties:
-        expectedWorkspaceRev:
-          type: integer
-          minimum: 1
-          maximum: 9007199254740991
-        expectedRouteRev:
-          type: integer
-          minimum: 1
-          maximum: 9007199254740991
-        intent:
-          $ref: '#/components/schemas/IntentEnvelope'
-        clientMutationId:
-          type: string
-    IntentEnvelope:
-      type: object
-      required: [id, namespace, type, version, payload, issuedAt]
-      properties:
-        id:
-          type: string
-        namespace:
-          type: string
-          description: core | plugin.<vendor> | custom.<vendor> | core.nodegraph | core.animation
-        type:
-          type: string
-        version:
-          type: string
-          description: semantic version string, e.g. 1.0
-        payload:
-          type: object
-          additionalProperties: true
-        idempotencyKey:
-          type: string
-        actor:
-          type: object
-          properties:
-            userId:
-              type: string
-            clientId:
-              type: string
-          additionalProperties: false
-        issuedAt:
-          type: string
-          format: date-time
     PatchOp:
       type: object
       required: [op, path]
@@ -760,8 +648,7 @@ components:
                   $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
       description: >
         Canonical command envelope accepted by Atomic WorkspaceOperation
-        Commit. Document-targeted asset and project-config commands are not
-        registered and are rejected with 422.
+        Commit. Asset and project-config documents require the resource domain.
     WorkspaceOperationCommitRequest:
       type: object
       required: [expected, operation]
@@ -770,6 +657,23 @@ components:
           $ref: '#/components/schemas/WorkspaceOperationCommitExpectedRevisions'
         operation:
           $ref: '#/components/schemas/WorkspaceOperation'
+      additionalProperties: false
+    WorkspaceSettingsCommitRequest:
+      type: object
+      required: [commitId, issuedAt, expectedWorkspaceRev, settings]
+      properties:
+        commitId:
+          $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+        issuedAt:
+          type: string
+          format: date-time
+        expectedWorkspaceRev:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        settings:
+          type: object
+          additionalProperties: true
       additionalProperties: false
     WorkspaceOperationCommitExpectedRevisions:
       type: object
@@ -998,6 +902,18 @@ components:
         not a request precondition, so disjoint intervening commits may create a
         sequence gap; this response contains only the current operation delta,
         not a catch-up stream.
+    WorkspaceSettingsCommitSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/MutationSuccessResponse'
+        - type: object
+          required: [settings, acceptedMutationId]
+          properties:
+            acceptedMutationId:
+              $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
+      description: >
+        Complete settings value and authoritative revisions returned for the
+        settings commit. acceptedMutationId equals commitId, including an exact
+        idempotent replay.
     ErrorEnvelope:
       type: object
       required: [error]
@@ -1193,7 +1109,6 @@ components:
             - WKS-4001
             - WKS-4002
             - WKS-4003
-            - WKS-5001
             - WKS-5002
             - PIR-4001
             - API-1001

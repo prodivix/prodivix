@@ -33,6 +33,7 @@ export const dedupeExportImportIntents = (
   intents.forEach((intent) => {
     const key = [
       intent.kind,
+      intent.targetModuleId ?? '',
       intent.source,
       intent.imported ?? '',
       intent.local ?? '',

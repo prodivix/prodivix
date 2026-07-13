@@ -1,0 +1,349 @@
+import {
+  getWorkspaceOperationId,
+  createWorkspaceCodeArtifactProvider,
+  validateWorkspaceSnapshot,
+  type WorkspaceSnapshot,
+  type WorkspaceValidationIssue,
+} from '@prodivix/workspace';
+import { validateRouteManifest } from '@prodivix/router';
+import { validatePirDocument } from '@prodivix/pir';
+import { decodeNodeGraphDocuments } from '@prodivix/nodegraph';
+import type {
+  DiagnosticIssueRevision,
+  DiagnosticProviderSnapshot,
+  DiagnosticTargetRef,
+  ProdivixDiagnostic,
+} from '@prodivix/diagnostics';
+import type {
+  WorkspaceConflictSession,
+  WorkspaceOutboxEntry,
+  WorkspaceSettingsOutboxEntry,
+} from '@prodivix/workspace-sync';
+import { collectWorkspaceAnimationDiagnostics } from './workspaceAnimationIssueProvider';
+import { collectWorkspaceCodeDiagnostics } from './workspaceCodeIssueProvider';
+
+const DIAGNOSTIC_INDEX_URL = '/reference/diagnostic-codes';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+const unescapePointerSegment = (segment: string): string =>
+  segment.replaceAll('~1', '/').replaceAll('~0', '~');
+
+const mapWorkspaceCode = (issue: WorkspaceValidationIssue): string => {
+  if (issue.code.includes('PATH')) return 'WKS-3010';
+  if (
+    issue.code.includes('MISSING') ||
+    issue.code.includes('ORPHANED') ||
+    issue.code.includes('DOC_REF') ||
+    issue.code === 'WKS_DOCUMENTS_EMPTY'
+  ) {
+    return 'WKS-3001';
+  }
+  if (issue.code.startsWith('WKS_DOCUMENT_')) return 'WKS-3002';
+  return 'WKS-1002';
+};
+
+const mapWorkspaceTarget = (
+  workspaceId: string,
+  issue: WorkspaceValidationIssue
+): DiagnosticTargetRef => {
+  if (issue.nodeId) {
+    return { kind: 'workspace-node', workspaceId, nodeId: issue.nodeId };
+  }
+  if (issue.documentId) {
+    return { kind: 'document', workspaceId, documentId: issue.documentId };
+  }
+  return { kind: 'workspace', workspaceId };
+};
+
+const collectWorkspaceDiagnostics = (
+  workspace: WorkspaceSnapshot
+): ProdivixDiagnostic[] =>
+  validateWorkspaceSnapshot(workspace).issues.map((issue) => ({
+    code: mapWorkspaceCode(issue),
+    severity: 'error',
+    domain: 'workspace',
+    message: issue.message,
+    docsUrl: `${DIAGNOSTIC_INDEX_URL}#workspace`,
+    targetRef: mapWorkspaceTarget(workspace.id, issue),
+    meta: { path: issue.path, upstreamCode: issue.code },
+  }));
+
+const collectRouteDiagnostics = (
+  workspace: WorkspaceSnapshot
+): ProdivixDiagnostic[] => {
+  const codeArtifacts = createWorkspaceCodeArtifactProvider(workspace);
+
+  return validateRouteManifest({
+    manifest: workspace.routeManifest,
+    documentExists: (documentId) => Boolean(workspace.docsById[documentId]),
+    codeArtifactExists: (artifactId) =>
+      Boolean(codeArtifacts.getArtifact(artifactId)),
+  }).map((issue) => ({
+    code: issue.code,
+    severity: 'error',
+    domain: 'route',
+    message: issue.message,
+    docsUrl: `${DIAGNOSTIC_INDEX_URL}#route`,
+    targetRef: { kind: 'route', routeId: issue.routeNodeId },
+    meta: {
+      routeNodeId: issue.routeNodeId,
+      ...(issue.artifactId ? { artifactId: issue.artifactId } : {}),
+    },
+  }));
+};
+
+const mapPirTarget = (
+  workspaceId: string,
+  documentId: string,
+  path: string
+): DiagnosticTargetRef => {
+  const nodeMatch = /^\/ui\/graph\/nodesById\/([^/]+)/.exec(path);
+  if (nodeMatch?.[1]) {
+    return {
+      kind: 'pir-node',
+      documentId,
+      nodeId: unescapePointerSegment(nodeMatch[1]),
+    };
+  }
+  return { kind: 'document', workspaceId, documentId };
+};
+
+const collectPirDiagnostics = (
+  workspace: WorkspaceSnapshot
+): ProdivixDiagnostic[] =>
+  Object.values(workspace.docsById).flatMap((document) => {
+    if (
+      document.type !== 'pir-page' &&
+      document.type !== 'pir-layout' &&
+      document.type !== 'pir-component'
+    ) {
+      return [];
+    }
+
+    return validatePirDocument(document.content)
+      .issues.filter((issue) => !issue.path.startsWith('/animation/'))
+      .map((issue) => ({
+        ...issue,
+        targetRef: mapPirTarget(workspace.id, document.id, issue.path),
+        meta: {
+          ...issue.meta,
+          path: issue.path,
+          documentId: document.id,
+        },
+      }));
+  });
+
+const readEmbeddedGraphs = (content: unknown): unknown => {
+  if (!isRecord(content) || !isRecord(content.logic)) return undefined;
+  return content.logic.graphs;
+};
+
+const mapNodeGraphTarget = (
+  workspaceId: string,
+  documentId: string,
+  graphs: unknown,
+  path: string
+): DiagnosticTargetRef => {
+  const match = /^graphs\[(\d+)](?:\.nodes\[(\d+)])?/.exec(path);
+  if (!match) return { kind: 'document', workspaceId, documentId };
+  const graph = Array.isArray(graphs) ? graphs[Number(match[1])] : undefined;
+  const graphId =
+    isRecord(graph) && typeof graph.id === 'string' ? graph.id : '';
+  if (!graphId) return { kind: 'document', workspaceId, documentId };
+  const nodeIndex = match[2] === undefined ? undefined : Number(match[2]);
+  const node =
+    nodeIndex === undefined || !Array.isArray(graph.nodes)
+      ? undefined
+      : graph.nodes[nodeIndex];
+  const nodeId = isRecord(node) && typeof node.id === 'string' ? node.id : '';
+  return nodeId
+    ? { kind: 'nodegraph-node', documentId, graphId, nodeId }
+    : { kind: 'document', workspaceId, documentId };
+};
+
+const collectNodeGraphDiagnostics = (
+  workspace: WorkspaceSnapshot
+): ProdivixDiagnostic[] =>
+  Object.values(workspace.docsById).flatMap((document) => {
+    const graphs = readEmbeddedGraphs(document.content);
+    if (graphs === undefined) return [];
+    const result = decodeNodeGraphDocuments(graphs);
+    if (result.ok !== false) return [];
+
+    return result.issues.map((issue) => ({
+      code: issue.message.startsWith('Duplicate edge id:')
+        ? 'NGR-3010'
+        : 'NGR-1001',
+      severity: 'error',
+      domain: 'nodegraph',
+      message: issue.message,
+      docsUrl: `${DIAGNOSTIC_INDEX_URL}#nodegraph`,
+      targetRef: mapNodeGraphTarget(
+        workspace.id,
+        document.id,
+        graphs,
+        issue.path
+      ),
+      meta: { path: issue.path, documentId: document.id },
+    }));
+  });
+
+export const collectWorkspaceModelIssueSnapshots = (input: {
+  workspace: WorkspaceSnapshot;
+  revision: DiagnosticIssueRevision;
+  collectedAt: number;
+}): readonly DiagnosticProviderSnapshot[] => {
+  const createSnapshot = (
+    providerId: string,
+    diagnostics: readonly ProdivixDiagnostic[]
+  ): DiagnosticProviderSnapshot => ({
+    providerId,
+    workspaceId: input.workspace.id,
+    revision: input.revision,
+    collectedAt: input.collectedAt,
+    diagnostics,
+  });
+
+  return [
+    createSnapshot(
+      'workspace-vfs-validator',
+      collectWorkspaceDiagnostics(input.workspace)
+    ),
+    createSnapshot(
+      'route-manifest-validator',
+      collectRouteDiagnostics(input.workspace)
+    ),
+    createSnapshot('pir-validator', collectPirDiagnostics(input.workspace)),
+    createSnapshot(
+      'nodegraph-codec',
+      collectNodeGraphDiagnostics(input.workspace)
+    ),
+    createSnapshot(
+      'workspace-code-parser',
+      collectWorkspaceCodeDiagnostics(input.workspace)
+    ),
+    createSnapshot(
+      'animation-validator',
+      collectWorkspaceAnimationDiagnostics(input.workspace)
+    ),
+  ];
+};
+
+const getFailureCode = (failure: { code: string; status?: number }): string =>
+  failure.status === 422 || /PATCH|VALIDATION/.test(failure.code)
+    ? 'WKS-5002'
+    : 'WKS-9001';
+
+export const collectWorkspaceOutboxIssueSnapshot = (input: {
+  workspaceId: string;
+  revision: DiagnosticIssueRevision;
+  collectedAt: number;
+  operationEntries: readonly WorkspaceOutboxEntry[];
+  settingsEntries: readonly WorkspaceSettingsOutboxEntry[];
+}): DiagnosticProviderSnapshot => {
+  const diagnostics = [
+    ...input.operationEntries,
+    ...input.settingsEntries,
+  ].flatMap<ProdivixDiagnostic>((entry) => {
+    if (entry.state.kind === 'failed') {
+      return [
+        {
+          code: getFailureCode(entry.state.failure),
+          severity: 'error',
+          domain: 'workspace',
+          message: entry.state.failure.message,
+          hint: entry.state.failure.retryable
+            ? 'Retry the operation after checking the connection and workspace state.'
+            : 'Review the operation and the current workspace state before trying again.',
+          retryable: entry.state.failure.retryable,
+          docsUrl: `${DIAGNOSTIC_INDEX_URL}#workspace`,
+          targetRef: { kind: 'operation', operation: entry.id },
+          meta: {
+            upstreamCode: entry.state.failure.code,
+            status: entry.state.failure.status,
+            entryKind: entry.entryKind,
+            attemptCount: entry.attemptCount,
+          },
+        },
+      ];
+    }
+    if (entry.state.kind !== 'conflict') return [];
+    const conflict = entry.state.session.serverConflict;
+    return [
+      {
+        code: conflict?.code ?? 'WKS-4001',
+        severity: 'warning',
+        domain: 'workspace',
+        message:
+          conflict?.message ??
+          'The workspace changed remotely while this operation was pending.',
+        hint: 'Review the local and remote revisions before applying a resolution.',
+        retryable: true,
+        docsUrl: `${DIAGNOSTIC_INDEX_URL}#workspace`,
+        targetRef: { kind: 'operation', operation: entry.id },
+        meta: {
+          conflictSessionId: entry.state.session.id,
+          unresolvedConflictCount:
+            entry.state.session.unresolvedConflictIds.length,
+          entryKind: entry.entryKind,
+        },
+      },
+    ];
+  });
+
+  return {
+    providerId: 'workspace-outbox',
+    workspaceId: input.workspaceId,
+    revision: input.revision,
+    collectedAt: input.collectedAt,
+    diagnostics,
+  };
+};
+
+export const collectRevisionConflictIssueSnapshot = (input: {
+  workspaceId: string;
+  revision: DiagnosticIssueRevision;
+  collectedAt: number;
+  session: WorkspaceConflictSession | null;
+}): DiagnosticProviderSnapshot => {
+  const operationId = input.session?.sourceOperation
+    ? getWorkspaceOperationId(input.session.sourceOperation)
+    : undefined;
+  const conflict = input.session?.serverConflict;
+  const diagnostics: ProdivixDiagnostic[] =
+    input.session?.status === 'open' &&
+    input.session.unresolvedConflictIds.length > 0
+      ? [
+          {
+            code: conflict?.code ?? 'WKS-4001',
+            severity: 'warning',
+            domain: 'workspace',
+            message:
+              conflict?.message ??
+              'The workspace contains unresolved local and remote changes.',
+            hint: 'Open the revision conflict review and resolve every conflict.',
+            retryable: true,
+            docsUrl: `${DIAGNOSTIC_INDEX_URL}#workspace`,
+            targetRef: {
+              kind: 'operation',
+              operation: operationId ?? input.session.id,
+            },
+            meta: {
+              conflictSessionId: input.session.id,
+              unresolvedConflictCount:
+                input.session.unresolvedConflictIds.length,
+            },
+          },
+        ]
+      : [];
+
+  return {
+    providerId: 'revision-conflict',
+    workspaceId: input.workspaceId,
+    revision: input.revision,
+    collectedAt: input.collectedAt,
+    diagnostics,
+  };
+};

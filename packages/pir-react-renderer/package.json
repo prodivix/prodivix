@@ -1,0 +1,47 @@
+{
+  "name": "@prodivix/pir-react-renderer",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "React projection, component registry, interaction ports, and icon providers for Prodivix PIR",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && tsc -p tsconfig.json",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
+    "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "test:watch": "vitest --config vitest.config.ts",
+    "typecheck": "tsc -b tsconfig.test.json --pretty false"
+  },
+  "dependencies": {
+    "@prodivix/pir": "workspace:*",
+    "@prodivix/router": "workspace:*",
+    "@prodivix/shared": "workspace:*",
+    "@prodivix/ui": "workspace:*",
+    "lucide-react": "^1.23.0"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  }
+}

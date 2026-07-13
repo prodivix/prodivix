@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { css } from '@codemirror/lang-css';
 import { javascript } from '@codemirror/lang-javascript';
+import type { EditorView } from '@codemirror/view';
 import { useParams } from 'react-router';
 import { Save } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CodeFileTree } from './CodeFileTree';
 import { useAuthStore } from '@/auth/useAuthStore';
-import { editorApi } from '@/editor/editorApi';
 import {
   useEditorShortcut,
   useWorkspaceHistoryShortcuts,
@@ -16,6 +16,9 @@ import { useEditorStore } from '@/editor/store/useEditorStore';
 import { isLocalProjectId } from '@/editor/localProjectStore';
 import { codeMirrorTypographyTheme } from '@/editor/codeMirrorTypography';
 import { executeWorkspaceDocumentMutation } from '@/editor/workspaceSync/workspaceDocumentMutationExecutor';
+import { executeWorkspaceVfsOutboxIntent } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+import { resolveSourceSpanOffsets } from '@/editor/features/issues/workspaceIssueSourceSpan';
+import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
 import {
   getResourceManagerCodeSelectionStorageKey,
   reconcileCodeResourceEditorDraft,
@@ -37,6 +40,7 @@ import {
   renameWorkspaceCodeDocumentIntentRequest,
   type WorkspaceCodeDocumentLanguage,
   type WorkspaceSnapshot,
+  type WorkspaceVfsIntentRequest,
 } from '@prodivix/workspace';
 import {
   buildCodeResourceTreeFromWorkspaceVfs,
@@ -133,9 +137,6 @@ export function CodeResourcePage({
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
   const treeRootId = workspace?.treeRootId;
   const treeById = workspace?.treeById ?? EMPTY_WORKSPACE_TREE;
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
   const dispatchWorkspaceCommand = useEditorStore(
     (state) => state.dispatchWorkspaceCommand
   );
@@ -160,11 +161,18 @@ export function CodeResourcePage({
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string>('code-root');
   const [editorValue, setEditorValue] = useState('');
+  const [codeEditorView, setCodeEditorView] = useState<EditorView | null>(null);
   const [isSaving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const editorBaselineRef = useRef<
     { documentId: string; source: string } | undefined
   >(undefined);
+  const issueNavigationRequest = useWorkspaceIssuesStore(
+    (state) => state.navigationRequest
+  );
+  const consumeIssueNavigation = useWorkspaceIssuesStore(
+    (state) => state.consumeNavigation
+  );
 
   const selectedNode = useMemo(
     () => findCodeResourceNodeById(tree, selectedNodeId) ?? tree,
@@ -225,6 +233,19 @@ export function CodeResourcePage({
     !workspaceReadonly
   );
 
+  const executeVfsIntent = async (
+    request: WorkspaceVfsIntentRequest
+  ): Promise<boolean> => {
+    if (!token || !workspace) return false;
+    const outcome = await executeWorkspaceVfsOutboxIntent({
+      token,
+      workspace,
+      request,
+    });
+    if (outcome.status === 'rejected') throw new Error(outcome.message);
+    return outcome.status === 'applied';
+  };
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const storedSelection =
@@ -269,6 +290,37 @@ export function CodeResourcePage({
       setEditorValue(reconciled.editorValue);
     }
   }, [editorValue, selectedFile]);
+
+  useEffect(() => {
+    if (
+      issueNavigationRequest?.kind !== 'code-source' ||
+      issueNavigationRequest.projectId !== projectId ||
+      issueNavigationRequest.sourceSpan.artifactId !== selectedFile?.id ||
+      !codeEditorView
+    ) {
+      return;
+    }
+    const viewSource = codeEditorView.state.doc.toString();
+    if (viewSource !== editorValue.replaceAll(/\r\n?/g, '\n')) return;
+    const range = resolveSourceSpanOffsets(
+      viewSource,
+      issueNavigationRequest.sourceSpan
+    );
+    if (!range) return;
+    codeEditorView.dispatch({
+      selection: { anchor: range.from, head: range.to },
+      scrollIntoView: true,
+    });
+    codeEditorView.focus();
+    consumeIssueNavigation(issueNavigationRequest.id);
+  }, [
+    codeEditorView,
+    consumeIssueNavigation,
+    editorValue,
+    issueNavigationRequest,
+    projectId,
+    selectedFile?.id,
+  ]);
 
   const resolveDefaultKindByParent = (parentId: string): CodeFileKind => {
     const parent = findCodeResourceNodeById(tree, parentId);
@@ -316,9 +368,7 @@ export function CodeResourcePage({
       documentId = `${baseDocumentId}_${documentIdSuffix}`;
       documentIdSuffix += 1;
     }
-    const mutation = await editorApi.applyWorkspaceIntent(
-      token,
-      workspace,
+    const applied = await executeVfsIntent(
       createWorkspaceCodeDocumentIntentRequest({
         workspaceRev,
         intentId: createIntentId(),
@@ -332,7 +382,7 @@ export function CodeResourcePage({
         },
       })
     );
-    applyWorkspaceMutation(mutation);
+    if (!applied) return;
     setSelectedNodeId(documentId);
   };
 
@@ -353,9 +403,7 @@ export function CodeResourcePage({
       suffix += 1;
     }
     const nodeId = `dir_${createIntentId().replace(/[^a-zA-Z0-9]+/g, '_')}`;
-    const mutation = await editorApi.applyWorkspaceIntent(
-      token,
-      workspace,
+    const applied = await executeVfsIntent(
       createWorkspaceDirectoryIntentRequest({
         workspaceRev,
         intentId: createIntentId(),
@@ -367,7 +415,7 @@ export function CodeResourcePage({
         name,
       })
     );
-    applyWorkspaceMutation(mutation);
+    if (!applied) return;
     setSelectedNodeId(nodeId);
   };
 
@@ -394,9 +442,7 @@ export function CodeResourcePage({
     const node = findCodeResourceNodeById(tree, nodeId);
     if (node?.type === 'folder') {
       if (!canRenameDirectory || node.id === tree.id) return;
-      const mutation = await editorApi.applyWorkspaceIntent(
-        token,
-        workspace,
+      const applied = await executeVfsIntent(
         renameWorkspaceDirectoryIntentRequest({
           workspaceRev,
           intentId: createIntentId(),
@@ -405,7 +451,7 @@ export function CodeResourcePage({
           name: nextName,
         })
       );
-      applyWorkspaceMutation(mutation);
+      if (!applied) return;
       setSelectedNodeId(node.id);
       return;
     }
@@ -420,9 +466,7 @@ export function CodeResourcePage({
       ? `${parentPath}/${normalizedName}`
       : normalizedName;
     if (nextPath === currentPath) return;
-    const mutation = await editorApi.applyWorkspaceIntent(
-      token,
-      workspace,
+    const applied = await executeVfsIntent(
       renameWorkspaceCodeDocumentIntentRequest({
         workspaceRev,
         intentId: createIntentId(),
@@ -431,7 +475,7 @@ export function CodeResourcePage({
         path: nextPath,
       })
     );
-    applyWorkspaceMutation(mutation);
+    if (!applied) return;
     setSelectedNodeId(document.id);
   };
 
@@ -440,9 +484,7 @@ export function CodeResourcePage({
     const node = findCodeResourceNodeById(tree, nodeId);
     if (node?.type === 'folder') {
       if (!canDeleteDirectory || node.id === tree.id) return;
-      const mutation = await editorApi.applyWorkspaceIntent(
-        token,
-        workspace,
+      const applied = await executeVfsIntent(
         deleteWorkspaceDirectoryIntentRequest({
           workspaceRev,
           intentId: createIntentId(),
@@ -450,16 +492,14 @@ export function CodeResourcePage({
           nodeId: node.id,
         })
       );
-      applyWorkspaceMutation(mutation);
+      if (!applied) return;
       setSelectedNodeId(node.parentId ?? tree.id);
       return;
     }
     if (!canDeleteCodeDocument) return;
     const document = workspaceDocumentsById[nodeId];
     if (!document || document.type !== 'code') return;
-    const mutation = await editorApi.applyWorkspaceIntent(
-      token,
-      workspace,
+    const applied = await executeVfsIntent(
       deleteWorkspaceCodeDocumentIntentRequest({
         workspaceRev,
         intentId: createIntentId(),
@@ -467,7 +507,7 @@ export function CodeResourcePage({
         documentId: document.id,
       })
     );
-    applyWorkspaceMutation(mutation);
+    if (!applied) return;
     const fallbackId =
       allFiles.find((file) => file.id !== document.id)?.id ?? tree.id;
     setSelectedNodeId(fallbackId);
@@ -537,6 +577,29 @@ export function CodeResourcePage({
             path: document.path,
           })
         );
+        return;
+      }
+      if (execution.kind === 'queued') {
+        if (execution.rebased) {
+          const adoption = adoptRebasedWorkspaceOperation({
+            requestSnapshot: workspace,
+            serverBaseSnapshot: execution.serverBaseSnapshot,
+            rebasedSnapshot: execution.optimisticSnapshot,
+            operation: execution.operation,
+            expectedDocumentEditSeqById: {
+              [document.id]: requestDocumentEditSeq,
+            },
+          });
+          if (adoption.status !== 'adopted') {
+            throw new Error(
+              adoption.status === 'rejected'
+                ? adoption.message
+                : 'The queued code save conflicts with newer edits.'
+            );
+          }
+        } else if (!dispatchWorkspaceCommand(command)?.ok) {
+          throw new Error('Could not apply the queued code save locally.');
+        }
         return;
       }
       if (execution.kind === 'already-applied' || execution.rebased) {
@@ -687,6 +750,7 @@ export function CodeResourcePage({
               <CodeMirror
                 data-editor-native-history="true"
                 value={editorValue}
+                onCreateEditor={setCodeEditorView}
                 onChange={(value) => {
                   setEditorValue(value);
                   if (saveError) setSaveError('');

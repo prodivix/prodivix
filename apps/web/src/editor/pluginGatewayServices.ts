@@ -10,7 +10,7 @@ import {
   pluginHostSuccess,
   type PluginHostResult,
 } from '@prodivix/plugin-host';
-import { flattenRouteManifest } from '@prodivix/shared/router';
+import { flattenRouteManifest } from '@prodivix/router';
 import {
   selectActivePirWorkspaceDocument,
   type WorkspaceSnapshot,

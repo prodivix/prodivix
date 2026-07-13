@@ -12,12 +12,16 @@ import type {
 import { validateWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isPirDocumentContent } from './workspaceSelectors';
 import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
+import {
+  isWorkspaceAssetDocumentContent,
+  isWorkspaceProjectConfigDocumentContent,
+} from './workspaceResourceDocument';
 import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 import {
   collectRouteManifestDocumentRefs,
   type WorkspaceRouteNode,
   type WorkspaceRouteManifest,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 
 export type WorkspacePatchOperation = {
   op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
@@ -42,7 +46,13 @@ export type WorkspaceCommandEnvelope = {
   mergeKey?: string;
   label?: string;
   domainHint?:
-    'pir' | 'workspace' | 'route' | 'nodegraph' | 'animation' | 'code';
+    | 'pir'
+    | 'workspace'
+    | 'route'
+    | 'nodegraph'
+    | 'animation'
+    | 'code'
+    | 'resource';
 };
 
 export type WorkspaceCommandDomain = NonNullable<
@@ -401,6 +411,7 @@ const DOCUMENT_PATCH_DOMAINS: readonly DocumentPatchDomain[] = [
   'nodegraph',
   'animation',
   'code',
+  'resource',
 ];
 const isDocumentPatchDomain = (
   domain: WorkspaceCommandDomain
@@ -660,6 +671,7 @@ export const resolveWorkspaceCommandDomain = (
   if (command.namespace.startsWith('core.nodegraph')) return 'nodegraph';
   if (command.namespace.startsWith('core.animation')) return 'animation';
   if (command.namespace.startsWith('core.code')) return 'code';
+  if (command.namespace.startsWith('core.resource')) return 'resource';
   if (
     command.namespace.startsWith('core.route') ||
     command.target.routeNodeId
@@ -712,6 +724,21 @@ const isAllowedCodeDocumentPath = (path: string): boolean =>
   path.startsWith('/metadata/') ||
   path.startsWith('/x-');
 
+const isAllowedResourceDocumentPath = (
+  path: string,
+  documentType: WorkspaceDocumentType
+): boolean => {
+  const roots =
+    documentType === 'asset'
+      ? ['mime', 'category', 'size', 'dataUrl', 'text', 'metadata']
+      : documentType === 'project-config'
+        ? ['value', 'metadata']
+        : [];
+  return roots.some(
+    (root) => path === `/${root}` || path.startsWith(`/${root}/`)
+  );
+};
+
 const PIR_DOCUMENT_TYPES: ReadonlySet<WorkspaceDocumentType> = new Set([
   'pir-page',
   'pir-layout',
@@ -740,6 +767,9 @@ const isAllowedDocumentPath = (
     return isAllowedAnimationDocumentPath(path);
   }
   if (documentType === 'code') return isAllowedCodeDocumentPath(path);
+  if (documentType === 'asset' || documentType === 'project-config') {
+    return isAllowedResourceDocumentPath(path, documentType);
+  }
   return false;
 };
 
@@ -1268,6 +1298,22 @@ export const applyWorkspaceDocumentCommand = <TContent>(
       ],
     };
   }
+  const isResourceDocument =
+    target.documentType === 'asset' || target.documentType === 'project-config';
+  if ((target.domain === 'resource') !== isResourceDocument) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_INVALID_ENVELOPE',
+          path: '/domainHint',
+          message:
+            'Resource commands may target only asset or project-config documents.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
   const pathIssues = [
     ...validatePatchPaths(command.forwardOps, 'document', target.documentType),
     ...validatePatchPaths(command.reverseOps, 'document', target.documentType),
@@ -1336,6 +1382,39 @@ export const applyWorkspaceDocumentCommand = <TContent>(
           path: '/target/documentId',
           message:
             'Code workspace documents must remain a language/source wrapper.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
+    target.documentType === 'asset' &&
+    !isWorkspaceAssetDocumentContent(patchedContent.value)
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message: 'Asset documents must retain valid resource content.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
+    target.documentType === 'project-config' &&
+    !isWorkspaceProjectConfigDocumentContent(patchedContent.value)
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message:
+            'Project-config documents must retain valid configuration content.',
           documentId: target.documentId,
         },
       ],
@@ -1427,7 +1506,8 @@ const applyWorkspaceCommandInternal = (
     const documentDomain: DocumentPatchDomain =
       commandDomain === 'nodegraph' ||
       commandDomain === 'animation' ||
-      commandDomain === 'code'
+      commandDomain === 'code' ||
+      commandDomain === 'resource'
         ? commandDomain
         : 'pir';
     const documentResult = applyWorkspaceDocumentCommand(

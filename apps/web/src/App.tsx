@@ -11,6 +11,9 @@ import { CommunityDetailPage } from './community/CommunityDetailPage';
 const Editor = lazy(() => import('./editor/Editor'));
 const EditorHome = lazy(() => import('./editor/EditorHome'));
 const ProjectHome = lazy(() => import('./editor/ProjectHome'));
+const WorkspaceIssuesPage = lazy(
+  () => import('./editor/features/issues/WorkspaceIssuesPage')
+);
 const BlueprintEditor = lazy(() => import('./editor/features/blueprint'));
 const NodeGraphEditor = lazy(
   () => import('./editor/features/development/NodeGraphEditor')
@@ -94,6 +97,10 @@ export const createRoutes = (t: TFunction) => [
           {
             path: 'resources',
             element: withEditorSuspense(<ProjectResources />),
+          },
+          {
+            path: 'issues',
+            element: withEditorSuspense(<WorkspaceIssuesPage />),
           },
           {
             path: 'test',

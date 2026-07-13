@@ -4,10 +4,10 @@ import EditorBar from './EditorBar/EditorBar';
 import { EditorDebugFloatingBall } from './EditorDebugFloatingBall';
 import { SettingsEffects } from './features/settings/SettingsEffects';
 import { WorkspaceRevisionConflictSurface } from './features/revisionConflict/WorkspaceRevisionConflictSurface';
+import { WorkspaceOutboxEffects } from './workspaceSync/WorkspaceOutboxEffects';
+import { WorkspaceIssuesEffects } from './features/issues';
 import { useAuthStore } from '@/auth/useAuthStore';
-import { mountGraphExecutionBridge } from '@/core/executor/executor';
-import { mountDefaultNodeGraphExecutor } from '@/core/executor/nodeGraph/mountDefaultNodeGraphExecutor';
-import { editorApi } from './editorApi';
+import { editorApi, type ProjectSummary } from './editorApi';
 import { EditorShortcutProvider, useEditorShortcut } from './shortcuts';
 import { ApiError } from '@/auth/authApi';
 import { isAbortError } from '@/infra/api';
@@ -19,15 +19,16 @@ import {
   LOCAL_WORKSPACE_CAPABILITIES,
   saveLocalWorkspaceSnapshot,
 } from './localProjectStore';
-import {
-  selectActivePirDocument,
-  selectWorkspace,
-  useEditorStore,
-} from './store/useEditorStore';
+import { selectWorkspace, useEditorStore } from './store/useEditorStore';
 import { useSettingsStore } from './store/useSettingsStore';
 import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 import { WebPluginPlatformProvider } from '@/plugins/platform';
 import { createEditorPluginGatewayServices } from '@/editor/pluginGatewayServices';
+import { saveWorkspaceLocalReplica } from './workspaceSync/indexedDbWorkspaceLocalReplicaStore';
+import {
+  canOpenWorkspaceLocalReplicaAfter,
+  loadMaterializedWorkspaceLocalReplica,
+} from './workspaceSync/workspaceLocalReplica';
 
 function EditorGlobalShortcuts({
   projectId,
@@ -128,6 +129,16 @@ function EditorGlobalShortcuts({
     },
     { enabled: Boolean(projectId) }
   );
+  useEditorShortcut(
+    'Alt+0',
+    () => {
+      if (!projectId) return;
+      const nextPath = `/editor/project/${projectId}/issues`;
+      if (pathname === nextPath) return;
+      navigate(nextPath);
+    },
+    { enabled: Boolean(projectId) }
+  );
 
   return null;
 }
@@ -136,6 +147,8 @@ function EditorSurface() {
   return (
     <div className="flex max-h-screen min-h-screen flex-row bg-[linear-gradient(120deg,var(--bg-canvas)_20%,var(--bg-panel)_100%)]">
       <SettingsEffects />
+      <WorkspaceOutboxEffects />
+      <WorkspaceIssuesEffects />
       <WorkspaceRevisionConflictSurface />
       <EditorBar />
       <div className="min-h-screen flex-1 overflow-auto">
@@ -260,43 +273,144 @@ function Editor() {
     const requestOptions: RequestInit = controller
       ? { signal: controller.signal }
       : {};
-    void Promise.all([
-      editorApi.getProject(token, projectId, requestOptions),
-      editorApi.getWorkspace(token, projectId, requestOptions),
-    ])
-      .then(([{ project }, workspaceEnvelope]) => {
+    void (async () => {
+      const cachedReplicaPromise = loadMaterializedWorkspaceLocalReplica(
+        projectId
+      ).then(
+        (replica) => replica,
+        (error) => {
+          console.warn(
+            '[workspace-replica] cached replica is unavailable',
+            error
+          );
+          return null;
+        }
+      );
+      const remoteWorkspacePromise = Promise.all([
+        editorApi.getProject(token, projectId, requestOptions),
+        editorApi.getWorkspace(token, projectId, requestOptions),
+      ]).then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error })
+      );
+      const [cachedReplica, remoteWorkspace] = await Promise.all([
+        cachedReplicaPromise,
+        remoteWorkspacePromise,
+      ]);
+      if (cancelled) return;
+
+      try {
+        if (remoteWorkspace.ok === false) throw remoteWorkspace.error;
+        const [{ project }, workspaceEnvelope] = remoteWorkspace.value;
+        const projectSummary: ProjectSummary = {
+          id: project.id,
+          resourceType: project.resourceType,
+          name: project.name,
+          ...(project.description ? { description: project.description } : {}),
+          isPublic: project.isPublic,
+          starsCount: project.starsCount,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+        };
+        let loadedWorkspace = workspaceEnvelope.workspace;
+        let loadedSettings = workspaceEnvelope.settings;
+        let loadedCapabilities = cachedReplica?.capabilities ?? {};
+        try {
+          await saveWorkspaceLocalReplica({
+            workspace: workspaceEnvelope.workspace,
+            settings: workspaceEnvelope.settings,
+            settingsOpSeq: workspaceEnvelope.workspace.opSeq,
+            project: projectSummary,
+            capabilities: loadedCapabilities,
+          });
+          const materialized =
+            await loadMaterializedWorkspaceLocalReplica(projectId);
+          if (!materialized) {
+            throw new TypeError('The saved Workspace replica is unavailable.');
+          }
+          loadedWorkspace = materialized.workspace;
+          loadedSettings = materialized.settings;
+          loadedCapabilities = materialized.capabilities;
+        } catch (error) {
+          console.warn(
+            '[workspace-replica] canonical snapshot was not cached',
+            error
+          );
+        }
         if (cancelled) return;
         setWorkspaceReadonly(false);
         setProject({
-          id: project.id,
-          name: project.name,
-          description: project.description,
-          type: project.resourceType,
-          isPublic: project.isPublic,
-          starsCount: project.starsCount,
+          id: projectSummary.id,
+          name: projectSummary.name,
+          description: projectSummary.description,
+          type: projectSummary.resourceType,
+          isPublic: projectSummary.isPublic,
+          starsCount: projectSummary.starsCount,
         });
-        hydrateWorkspaceSettings(workspaceEnvelope.settings);
-        setWorkspaceSnapshot(workspaceEnvelope.workspace);
+        hydrateWorkspaceSettings(loadedSettings);
+        setWorkspaceSnapshot(loadedWorkspace);
+        setWorkspaceCapabilities(projectSummary.id, loadedCapabilities);
         void editorApi
           .getWorkspaceCapabilities(
             token,
             workspaceEnvelope.workspace.id,
             requestOptions
           )
-          .then((response) => {
+          .then(async (response) => {
             if (cancelled) return;
             setWorkspaceCapabilities(
               response.workspaceId,
               response.capabilities
             );
+            try {
+              await saveWorkspaceLocalReplica({
+                workspace: workspaceEnvelope.workspace,
+                settings: workspaceEnvelope.settings,
+                settingsOpSeq: workspaceEnvelope.workspace.opSeq,
+                project: projectSummary,
+                capabilities: response.capabilities,
+              });
+            } catch (error) {
+              console.warn(
+                '[workspace-replica] capabilities were not cached',
+                error
+              );
+            }
           })
           .catch((error: unknown) => {
             if (cancelled || isAbortError(error)) return;
-            setWorkspaceCapabilities(workspaceEnvelope.workspace.id, {});
           });
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         if (cancelled || isAbortError(error)) return;
+        if (cachedReplica && canOpenWorkspaceLocalReplicaAfter(error)) {
+          try {
+            const materialized =
+              (await loadMaterializedWorkspaceLocalReplica(projectId)) ??
+              cachedReplica;
+            if (cancelled) return;
+            setWorkspaceReadonly(false);
+            setProject({
+              id: materialized.project.id,
+              name: materialized.project.name,
+              description: materialized.project.description,
+              type: materialized.project.resourceType,
+              isPublic: materialized.project.isPublic,
+              starsCount: materialized.project.starsCount,
+            });
+            hydrateWorkspaceSettings(materialized.settings);
+            setWorkspaceSnapshot(materialized.workspace);
+            setWorkspaceCapabilities(
+              materialized.project.id,
+              materialized.capabilities
+            );
+            return;
+          } catch (replicaError) {
+            console.warn(
+              '[workspace-replica] offline materialization failed',
+              replicaError
+            );
+          }
+        }
         clearWorkspaceState();
         if (error instanceof ApiError && error.status === 422) {
           setLoadError(
@@ -308,7 +422,8 @@ function Editor() {
         setLoadError(
           error instanceof Error ? error.message : 'Could not load project.'
         );
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -361,19 +476,6 @@ function Editor() {
     workspace,
     workspaceReadonly,
   ]);
-
-  useEffect(() => {
-    if (showLoadError || showWorkspaceLoading) return;
-    const unmountBridge = mountGraphExecutionBridge();
-    const unmountNodeGraphExecutor = mountDefaultNodeGraphExecutor({
-      getActivePirDocument: () =>
-        selectActivePirDocument(useEditorStore.getState()),
-    });
-    return () => {
-      unmountNodeGraphExecutor();
-      unmountBridge();
-    };
-  }, [showLoadError, showWorkspaceLoading]);
 
   return (
     <EditorShortcutProvider>

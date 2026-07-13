@@ -1,4 +1,7 @@
-import type { WorkspaceDocument } from '@prodivix/workspace';
+import {
+  isWorkspaceProjectConfigDocumentContent,
+  type WorkspaceDocument,
+} from '@prodivix/workspace';
 import {
   createDefaultI18nStore,
   normalizeI18nStore,
@@ -6,7 +9,6 @@ import {
 } from './i18nStore';
 import {
   findWorkspaceDocumentByPath,
-  isWorkspaceConfigContent,
   RESOURCE_ROOTS,
 } from './workspaceResourceDocuments';
 
@@ -58,7 +60,7 @@ export const buildI18nResourceValueFromWorkspace = (
   documentsById: Record<string, WorkspaceDocument>
 ): WorkspaceI18nResourceValue => {
   const document = getWorkspaceI18nResourceDocument(documentsById);
-  if (!document || !isWorkspaceConfigContent(document.content)) {
+  if (!document || !isWorkspaceProjectConfigDocumentContent(document.content)) {
     return createDefaultI18nResourceValue();
   }
   return normalizeI18nResourceValue(document.content.value);

@@ -11,7 +11,7 @@ import type {
 import {
   createComponentRegistry,
   type ComponentRegistry,
-} from '@/pir/renderer/registry';
+} from '@prodivix/pir-react-renderer';
 import type {
   ExternalComponentMetadataProjection,
   RendererComponentProjection,

@@ -5,6 +5,10 @@ import type {
   WorkspaceValidationIssue,
 } from './types';
 import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
+import {
+  isWorkspaceAssetDocumentContent,
+  isWorkspaceProjectConfigDocumentContent,
+} from './workspaceResourceDocument';
 
 const WORKSPACE_DOCUMENT_TYPES: ReadonlySet<WorkspaceDocumentType> = new Set([
   'pir-page',
@@ -128,6 +132,12 @@ const isValidDocumentContent = (
   }
   if (PIR_DOCUMENT_TYPES.has(documentType)) {
     return !validatePirDocument(document.content).hasError;
+  }
+  if (documentType === 'asset') {
+    return isWorkspaceAssetDocumentContent(document.content);
+  }
+  if (documentType === 'project-config') {
+    return isWorkspaceProjectConfigDocumentContent(document.content);
   }
   if (documentType !== 'code') return true;
   if (!isWorkspaceCodeDocumentContent(document.content)) return false;

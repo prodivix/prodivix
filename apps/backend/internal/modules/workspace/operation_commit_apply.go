@@ -107,8 +107,13 @@ func (state *workspaceCommitState) applyDocumentCommand(command WorkspaceCommand
 	if !ok {
 		return ErrWorkspaceDocumentNotFound
 	}
-	if document.Type == WorkspaceDocumentTypeAsset || document.Type == WorkspaceDocumentTypeProjectConfig {
-		return errors.New("asset and project-config documents do not support atomic document commands")
+	domain := strings.TrimSpace(strings.ToLower(command.DomainHint))
+	if domain == "" {
+		domain = commitNamespaceDomain(command.Namespace)
+	}
+	isResourceDocument := document.Type == WorkspaceDocumentTypeAsset || document.Type == WorkspaceDocumentTypeProjectConfig
+	if (domain == "resource") != isResourceDocument {
+		return errors.New("resource commands may target only asset or project-config documents")
 	}
 	patched, err := applyWorkspaceDocumentPatch(document.Type, document.Content, command.ForwardOps)
 	if err != nil {

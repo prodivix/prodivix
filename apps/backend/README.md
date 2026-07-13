@@ -14,7 +14,7 @@ apps/backend
 │   ├── modules/
 │   │   ├── auth/              # 鉴权与会话
 │   │   ├── project/           # 项目元数据 + 旧 pirDoc 回退
-│   │   ├── workspace/         # Workspace VFS：documents / patch / intent / route manifest / PIR 校验
+│   │   ├── workspace/         # Workspace VFS：Atomic Commit / Settings Commit / PIR 校验
 │   │   └── integrations/      # 第三方集成（GitHub App 等）
 │   └── platform/
 │       ├── database/          # PG 连接与迁移
@@ -28,11 +28,12 @@ apps/backend
 
 ## 关键能力
 
-- **Workspace 同步协议**：文档 command patch + `workspaceRev/routeRev/contentRev` 乐观并发；详见 `specs/api/workspace-sync.openapi.yaml`、`specs/decisions/07.workspace-sync.md`、`specs/decisions/11.revision-partitioning.md`。
+- **Workspace 同步协议**：作者态写入统一通过强幂等 Atomic WorkspaceOperation Commit；Settings 使用独立的强幂等 Commit。两者都由客户端 durable Outbox 先持久化 exact request，再按 `workspaceRev/routeRev/contentRev` 乐观并发提交。详见 `specs/api/workspace-sync.openapi.yaml`、`specs/decisions/07.workspace-sync.md`、`specs/decisions/11.revision-partitioning.md`。
 - **PIR 校验镜像**：`internal/modules/workspace/pir_validator.go` 与前端 `apps/web/src/pir/validator/validator.ts` 对齐（循环 / 孤立节点 / 父子关系）。
-- **Intent / Patch 协议**：`POST /api/workspaces/:id/intents` 支持蓝图 / 路由 / 动画意图分发（见 `specs/decisions/12.intent-command-extension.md`）。
-- **Capability 协商**：`GET /api/workspaces/:id/capabilities` 控制前端是否启用文档 patch、intent 与高级特性。
-- **Workspace 自愈**：旧 legacy project 在首次 `GET` 时会自动补建 workspace 快照。
+- **Hard Cut 写边界**：旧 document `PATCH`、`POST /intents`、Project PIR 读写 API 与 post-commit project mirror 已删除，不保留兼容入口；蓝图、路由、NodeGraph、Animation、Code 与 Resource 的远端作者态写入统一为 WorkspaceOperation。
+- **Capability 协商**：`GET /api/workspaces/:id/capabilities` 声明可提交的 command 与 commit contract。
+- **发布投影**：社区 PIR 只在显式 publish 时从 canonical Workspace 生成独立 `published_pir_json` 投影，不参与编辑器加载、保存或缺失 Workspace 恢复。
+- **原子创建**：fresh project 与 `import-local-project` 都在同一数据库事务内写入 Project metadata、Workspace、Route、Settings 与 Documents；任一步失败都会整体回滚，不使用补偿删除或 lazy bootstrap。
 
 ## 常用命令
 

@@ -1,7 +1,4 @@
-import type {
-  AnimationTimeline,
-  AnimationTrack,
-} from '@prodivix/shared/types/pir';
+import type { AnimationTimeline, AnimationTrack } from '@prodivix/animation';
 import { useTranslation } from 'react-i18next';
 import { getTrackTitle } from '@/editor/features/animation/animationEditorUi';
 

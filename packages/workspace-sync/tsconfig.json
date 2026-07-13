@@ -9,6 +9,7 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
+      "@prodivix/router": ["../router/src"],
       "@prodivix/workspace": ["../workspace/src"]
     }
   },
@@ -21,6 +22,9 @@
     "src/**/__tests__/**"
   ],
   "references": [
+    {
+      "path": "../router"
+    },
     {
       "path": "../workspace"
     }

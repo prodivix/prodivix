@@ -11,7 +11,7 @@ import {
   type ExportSourceTrace,
   type ReactGeneratorCodeArtifact,
 } from '@prodivix/prodivix-compiler';
-import type { WorkspaceRouteManifest } from '@prodivix/shared/router';
+import type { WorkspaceRouteManifest } from '@prodivix/router';
 import type { WorkspaceDocument } from '@prodivix/workspace';
 import type { ProjectFile } from '@/editor/features/resources/projectFileStore';
 import type { PublicResourceNode } from '@/editor/features/resources/publicTree';

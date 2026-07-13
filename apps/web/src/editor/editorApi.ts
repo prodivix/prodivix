@@ -1,16 +1,15 @@
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { apiRequest } from '@/infra/api';
-import { validatePirDocument, type PirValidationIssue } from '@prodivix/pir';
 import {
   decodeWorkspaceMutation,
   decodeWorkspaceSnapshot,
   encodeWorkspaceSnapshot,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
-import type { WorkspaceCommandEnvelope } from '@prodivix/workspace';
 import {
   decodeWorkspaceOperationCommitResponse,
   type WorkspaceOperationCommitRequest,
+  type WorkspaceSettingsCommitRequest,
 } from '@prodivix/workspace-sync';
 
 export type ProjectResourceType = 'project' | 'component' | 'nodegraph';
@@ -26,34 +25,9 @@ export type ProjectSummary = {
   updatedAt: string;
 };
 
-export type ProjectDetail = ProjectSummary & {
-  ownerId: string;
-  pir: PIRDocument;
-};
-
-export type WorkspaceIntentEnvelope = {
-  id: string;
-  namespace: string;
-  type: string;
-  version: string;
-  payload: Record<string, unknown>;
-  idempotencyKey?: string;
-  actor?: {
-    userId?: string;
-    clientId?: string;
-  };
-  issuedAt: string;
-};
-
 export type WorkspaceCapabilitiesResponse = {
   workspaceId: string;
   capabilities: Record<string, boolean>;
-};
-
-export type PatchWorkspaceDocumentRequest = {
-  expectedContentRev: number;
-  command: WorkspaceCommandEnvelope;
-  clientMutationId?: string;
 };
 
 export type ImportLocalProjectRequest = {
@@ -78,31 +52,6 @@ const request = async <T>(
     token,
     defaultHeaders: JSON_HEADERS,
   });
-
-const reportPirIssues = (origin: string, issues: PirValidationIssue[]) => {
-  if (!issues.length) return;
-  console.warn(
-    `[pir-validation] ${origin} returned ${issues.length} issue(s):`,
-    issues
-  );
-};
-
-const validateAndUnwrapPir = (
-  origin: string,
-  candidate: unknown
-): PIRDocument => {
-  const result = validatePirDocument(candidate);
-  reportPirIssues(origin, result.issues);
-  return result.document;
-};
-
-const validateProjectDetail = (
-  origin: string,
-  project: ProjectDetail
-): ProjectDetail => {
-  if (!project?.pir) return project;
-  return { ...project, pir: validateAndUnwrapPir(origin, project.pir) };
-};
 
 export const editorApi = {
   listProjects: async (token: string, options: RequestInit = {}) =>
@@ -149,16 +98,12 @@ export const editorApi = {
     token: string,
     projectId: string,
     options: RequestInit = {}
-  ) => {
-    const response = await request<{ project: ProjectDetail }>(
+  ) =>
+    request<{ project: ProjectSummary }>(
       token,
       `/projects/${encodeURIComponent(projectId)}`,
       options
-    );
-    return {
-      project: validateProjectDetail(`project.${projectId}`, response.project),
-    };
-  },
+    ),
 
   updateProject: async (
     token: string,
@@ -168,7 +113,7 @@ export const editorApi = {
       description?: string;
     }
   ) =>
-    request<{ project: ProjectDetail }>(
+    request<{ project: ProjectSummary }>(
       token,
       `/projects/${encodeURIComponent(projectId)}`,
       {
@@ -201,23 +146,6 @@ export const editorApi = {
       options
     ),
 
-  patchWorkspaceDocument: async (
-    token: string,
-    workspace: WorkspaceSnapshot,
-    documentId: string,
-    data: PatchWorkspaceDocumentRequest
-  ) => {
-    const response = await request<unknown>(
-      token,
-      `/workspaces/${encodeURIComponent(workspace.id)}/documents/${encodeURIComponent(documentId)}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      }
-    );
-    return decodeWorkspaceMutation(response, workspace);
-  },
-
   commitWorkspaceOperation: async (
     token: string,
     workspace: WorkspaceSnapshot,
@@ -238,19 +166,14 @@ export const editorApi = {
     );
   },
 
-  applyWorkspaceIntent: async (
+  commitWorkspaceSettings: async (
     token: string,
     workspace: WorkspaceSnapshot,
-    data: {
-      expectedWorkspaceRev: number;
-      expectedRouteRev?: number;
-      intent: WorkspaceIntentEnvelope;
-      clientMutationId?: string;
-    }
+    data: WorkspaceSettingsCommitRequest
   ) => {
     const response = await request<unknown>(
       token,
-      `/workspaces/${encodeURIComponent(workspace.id)}/intents`,
+      `/workspaces/${encodeURIComponent(workspace.id)}/settings/commit`,
       {
         method: 'POST',
         body: JSON.stringify(data),
@@ -259,18 +182,8 @@ export const editorApi = {
     return decodeWorkspaceMutation(response, workspace);
   },
 
-  saveProjectPir: async (token: string, projectId: string, pir: PIRDocument) =>
-    request<{ project: ProjectDetail }>(
-      token,
-      `/projects/${encodeURIComponent(projectId)}/pir`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ pir }),
-      }
-    ),
-
   publishProject: async (token: string, projectId: string) =>
-    request<{ project: ProjectDetail }>(
+    request<{ project: ProjectSummary }>(
       token,
       `/projects/${encodeURIComponent(projectId)}/publish`,
       {

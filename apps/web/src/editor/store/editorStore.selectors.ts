@@ -8,7 +8,7 @@ import {
   type WorkspaceVfsNode,
 } from '@prodivix/workspace';
 import type { PIRDocument } from '@prodivix/shared/types/pir';
-import type { WorkspaceRouteManifest } from '@prodivix/shared/router';
+import type { WorkspaceRouteManifest } from '@prodivix/router';
 import type { EditorStore } from './editorStore.shape';
 
 const EMPTY_DOCUMENTS: Record<string, WorkspaceDocument> = Object.freeze({});

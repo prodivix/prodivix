@@ -57,6 +57,10 @@
         "label": "资源",
         "description": "管理素材与资源库。"
       },
+      "issues": {
+        "label": "问题",
+        "description": "查看整个工作区的诊断。"
+      },
       "nodegraph": {
         "label": "节点图",
         "description": "构建逻辑与数据流。"
@@ -96,8 +100,58 @@
     "exitAria": "退出编辑器",
     "exitTitle": "退出编辑器？",
     "projectHome": "项目主页",
+    "issues": "问题",
     "exitToEditor": "返回编辑器首页",
     "exitToHome": "返回首页"
+  },
+  "issues": {
+    "title": "问题",
+    "subtitle": "在同一个 revision-aware 视图中查看工作区、路由、PIR、节点图、代码与同步诊断。",
+    "summary": {
+      "open": "{{count}} 个待处理",
+      "errors": "{{count}} 个错误",
+      "warnings": "{{count}} 个警告"
+    },
+    "filters": {
+      "search": "搜索错误码、消息、目标或 provider",
+      "status": "问题状态",
+      "severity": "严重程度"
+    },
+    "status": {
+      "open": "待处理",
+      "active": "当前",
+      "stale": "更新中",
+      "resolved": "已解决",
+      "all": "全部"
+    },
+    "severity": {
+      "all": "全部严重程度",
+      "fatal": "致命",
+      "error": "错误",
+      "warning": "警告",
+      "info": "信息"
+    },
+    "actions": {
+      "openTarget": "打开目标",
+      "openSource": "打开源码",
+      "openDocs": "打开文档",
+      "targetUnavailable": "当前工作区中已不存在这个目标。",
+      "sourceUnavailable": "当前工作区中已不存在这个源码资源。"
+    },
+    "quickFix": {
+      "applied": "Quick Fix 已通过工作区历史应用。",
+      "unavailable": "当前工作区无法使用这个 Quick Fix。",
+      "rejected": "工作区拒绝了这个 Quick Fix。"
+    },
+    "details": {
+      "location": "位置",
+      "noLocation": "此诊断没有提供稳定位置。",
+      "sources": "Providers"
+    },
+    "empty": {
+      "title": "没有匹配的问题",
+      "description": "可以调整筛选条件或继续编辑；已解决的问题仍会保留在历史中。"
+    }
   },
   "revisionConflict": {
     "title": "版本冲突",

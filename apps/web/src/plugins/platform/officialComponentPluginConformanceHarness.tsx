@@ -5,7 +5,7 @@ import {
 } from '@prodivix/shared/types/pir';
 import { applyPaletteItemInsertion } from '@/editor/features/blueprint/editor/model/paletteCreation';
 import '@/index.css';
-import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
+import { PIRRenderer } from '@prodivix/pir-react-renderer';
 import {
   BUNDLED_OFFICIAL_HOST_MODULE_CATALOG,
   BUNDLED_OFFICIAL_PLUGIN_CATALOG,

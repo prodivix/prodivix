@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strings"
@@ -366,6 +367,57 @@ func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, payloa
 	}
 	if isPIRWorkspaceDocumentType(documentType) {
 		return validatePIRDocument(payload)
+	}
+	if documentType == WorkspaceDocumentTypeAsset {
+		return validateWorkspaceAssetDocument(payload)
+	}
+	if documentType == WorkspaceDocumentTypeProjectConfig {
+		return validateWorkspaceProjectConfigDocument(payload)
+	}
+	return nil
+}
+
+func validateWorkspaceAssetDocument(payload json.RawMessage) error {
+	var document map[string]any
+	if err := json.Unmarshal(payload, &document); err != nil {
+		return err
+	}
+	if document["kind"] != "asset" {
+		return errors.New("asset document kind must be asset")
+	}
+	mime, ok := document["mime"].(string)
+	if !ok || strings.TrimSpace(mime) == "" {
+		return errors.New("asset document mime is required")
+	}
+	if size, exists := document["size"]; exists {
+		number, ok := size.(float64)
+		if !ok || number < 0 || number != math.Trunc(number) || number > float64(maxJSONSafeInteger) {
+			return errors.New("asset document size must be a non-negative safe integer")
+		}
+	}
+	if metadata, exists := document["metadata"]; exists {
+		if _, ok := metadata.(map[string]any); !ok {
+			return errors.New("asset document metadata must be an object")
+		}
+	}
+	return nil
+}
+
+func validateWorkspaceProjectConfigDocument(payload json.RawMessage) error {
+	var document map[string]any
+	if err := json.Unmarshal(payload, &document); err != nil {
+		return err
+	}
+	if document["kind"] != "config" {
+		return errors.New("project-config document kind must be config")
+	}
+	if _, exists := document["value"]; !exists {
+		return errors.New("project-config document value is required")
+	}
+	if metadata, exists := document["metadata"]; exists {
+		if _, ok := metadata.(map[string]any); !ok {
+			return errors.New("project-config document metadata must be an object")
+		}
 	}
 	return nil
 }

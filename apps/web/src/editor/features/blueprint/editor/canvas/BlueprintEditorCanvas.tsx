@@ -15,21 +15,23 @@ import {
   useEditorStore,
 } from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
-import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
-import type { RendererCodeArtifact } from '@/pir/renderer/PIRRenderer.types';
+import {
+  PIRRenderer,
+  type RendererCodeArtifact,
+} from '@prodivix/pir-react-renderer';
 import { materializePirRoot } from '@prodivix/pir';
 import { isWorkspaceCodeDocumentContent } from '@prodivix/workspace';
 import {
   createOrderedComponentRegistry,
   parseResolverOrder,
-} from '@/pir/renderer/registry';
+} from '@prodivix/pir-react-renderer';
 import {
   createRendererProjectionRegistry,
   useWebExtensionRegistrySnapshot,
 } from '@/plugins/platform';
 import { OfficialReactSurfaceBoundary } from '@/plugins/platform/officialSurfaceHost';
-import { normalizeAnimationDefinition } from '@/editor/features/animation/animationEditorModel';
-import { buildAnimationPreviewSnapshotFromTimelines } from '@/editor/features/animation/preview/animationPreview';
+import { normalizeAnimationDefinition } from '@prodivix/animation';
+import { buildAnimationPreviewSnapshotFromTimelines } from '@prodivix/runtime-browser';
 import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/blueprint/editor/model/viewport';
 import { CanvasPlaceholder } from './CanvasPlaceholder';
 import { CanvasRouteDiagnostics } from './CanvasRouteDiagnostics';

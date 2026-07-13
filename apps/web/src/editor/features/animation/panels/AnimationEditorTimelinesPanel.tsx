@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { AnimationTimeline } from '@prodivix/shared/types/pir';
+import type { AnimationTimeline } from '@prodivix/animation';
 
 type AnimationEditorTimelinesPanelProps = {
   timelines: AnimationTimeline[];
