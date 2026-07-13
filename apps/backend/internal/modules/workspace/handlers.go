@@ -41,9 +41,8 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		GetWorkspace:             handler.HandleGetWorkspace,
 		GetWorkspaceCapabilities: handler.HandleGetWorkspaceCapabilities,
 		ImportLocalProject:       handler.HandleImportLocalProject,
-		PatchWorkspaceDocument:   handler.HandlePatchWorkspaceDocument,
-		ApplyWorkspaceIntent:     handler.HandleApplyWorkspaceIntent,
 		CommitWorkspaceOperation: handler.HandleCommitWorkspaceOperation,
+		CommitWorkspaceSettings:  handler.HandleCommitWorkspaceSettings,
 	}
 }
 
@@ -89,43 +88,6 @@ type importWorkspaceRequest struct {
 	ActiveRouteNodeID string                          `json:"activeRouteNodeId"`
 }
 
-type PatchDocumentRequest struct {
-	ExpectedContentRev int64                    `json:"expectedContentRev"`
-	ClientMutationID   string                   `json:"clientMutationId"`
-	Command            WorkspaceCommandEnvelope `json:"command"`
-}
-
-type intentActor struct {
-	UserID   string `json:"userId"`
-	ClientID string `json:"clientId"`
-}
-
-type intentEnvelope struct {
-	ID             string          `json:"id"`
-	Namespace      string          `json:"namespace"`
-	Type           string          `json:"type"`
-	Version        string          `json:"version"`
-	Payload        json.RawMessage `json:"payload"`
-	IdempotencyKey string          `json:"idempotencyKey"`
-	Actor          *intentActor    `json:"actor"`
-	IssuedAt       time.Time       `json:"issuedAt"`
-}
-
-type ApplyIntentHTTPrequest struct {
-	ExpectedWorkspaceRev int64          `json:"expectedWorkspaceRev"`
-	ExpectedRouteRev     int64          `json:"expectedRouteRev"`
-	Intent               intentEnvelope `json:"intent"`
-	ClientMutationID     string         `json:"clientMutationId"`
-}
-
-func toIntent(intent intentEnvelope) IntentEnvelope {
-	var actor *IntentActor
-	if intent.Actor != nil {
-		actor = &IntentActor{UserID: intent.Actor.UserID, ClientID: intent.Actor.ClientID}
-	}
-	return IntentEnvelope{ID: intent.ID, Namespace: intent.Namespace, Type: intent.Type, Version: intent.Version, Payload: intent.Payload, IdempotencyKey: intent.IdempotencyKey, Actor: actor, IssuedAt: intent.IssuedAt}
-}
-
 func buildSnapshotResponse(snapshot *WorkspaceSnapshot) snapshotResponse {
 	if snapshot == nil {
 		return snapshotResponse{}
@@ -163,7 +125,7 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 		backendresponse.Error(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
 		return
 	}
-	if handler.module == nil || handler.module.projects == nil || handler.store == nil {
+	if handler.module == nil || handler.module.projects == nil || handler.module.store == nil {
 		backendresponse.Error(c, http.StatusInternalServerError, "API-5001", "Workspace import is not available.")
 		return
 	}
@@ -174,8 +136,8 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 		c.JSON(failure.Status, failure.Payload)
 		return
 	}
-	pir, ok := resolveImportCanonicalPIR(request.Workspace.Documents)
-	if !ok {
+	_, hasPIR := resolveImportCanonicalPIR(request.Workspace.Documents)
+	if !hasPIR {
 		failure := NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, "Workspace import requires a PIR page document.", nil)
 		c.JSON(failure.Status, failure.Payload)
 		return
@@ -185,33 +147,23 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 	if strings.TrimSpace(string(resourceType)) == "" {
 		resourceType = backendproject.ResourceTypeProject
 	}
-	project, err := handler.module.projects.Create(
-		user.ID,
-		request.Name,
-		request.Description,
-		resourceType,
-		false,
-		pir,
-	)
+	project, err := handler.module.projects.PrepareProject(backendproject.PrepareProjectParams{
+		OwnerID:      user.ID,
+		Name:         request.Name,
+		Description:  request.Description,
+		ResourceType: resourceType,
+		IsPublic:     false,
+	})
 	if err != nil {
 		if errors.Is(err, backendproject.ErrInvalidResourceType) {
 			backendresponse.Error(c, http.StatusBadRequest, "API-4001", "Resource type is invalid.")
-			return
-		}
-		var syntaxErr *json.SyntaxError
-		if errors.As(err, &syntaxErr) {
-			backendresponse.Error(c, http.StatusBadRequest, ErrorPIRValidationFailed, "PIR document is invalid.")
 			return
 		}
 		backendresponse.Error(c, http.StatusInternalServerError, "API-5001", "Could not import local project.")
 		return
 	}
 
-	snapshot, err := handler.store.ImportWorkspaceSnapshot(c.Request.Context(), ImportWorkspaceSnapshotParams{
-		WorkspaceID:   project.ID,
-		ProjectID:     project.ID,
-		OwnerID:       user.ID,
-		Name:          project.Name,
+	snapshot, err := handler.module.importPreparedProjectWorkspace(c.Request.Context(), project, nil, ImportWorkspaceSnapshotParams{
 		WorkspaceRev:  request.Workspace.WorkspaceRev,
 		RouteRev:      request.Workspace.RouteRev,
 		OpSeq:         request.Workspace.OpSeq,
@@ -221,7 +173,6 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 		Documents:     request.Workspace.Documents,
 	})
 	if err != nil {
-		_ = handler.module.projects.Delete(user.ID, project.ID)
 		failure := MapStoreError(err)
 		c.JSON(failure.Status, failure.Payload)
 		return

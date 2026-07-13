@@ -2,32 +2,24 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { useAuthStore } from '@/auth/useAuthStore';
-import { editorApi } from '@/editor/editorApi';
 import { selectWorkspace, useEditorStore } from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
+import { isLocalProjectId } from '@/editor/localProjectStore';
+import { executeWorkspaceSettingsOutboxCommit } from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
+import { adoptWorkspaceSettingsOutboxResult } from '@/editor/workspaceSync/workspaceSettingsOutboxAdoption';
+import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 import {
   applyThemePreference,
   normalizeThemePreference,
   watchSystemThemePreference,
 } from '@/theme/themeRuntime';
 
-const SETTINGS_INTENT_CAPABILITY = 'core.settings.global.update@1.0';
 const DEFAULT_HISTORY_LIMIT = 80;
 
 const normalizeHistoryLimit = (value: unknown): number => {
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isFinite(parsed)) return DEFAULT_HISTORY_LIMIT;
   return Math.min(500, Math.max(0, parsed));
-};
-
-const createIntentId = () => {
-  if (
-    typeof globalThis.crypto !== 'undefined' &&
-    typeof globalThis.crypto.randomUUID === 'function'
-  ) {
-    return globalThis.crypto.randomUUID();
-  }
-  return `intent_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 };
 
 export const SettingsEffects = () => {
@@ -38,16 +30,6 @@ export const SettingsEffects = () => {
   const workspace = useEditorStore(selectWorkspace);
   const workspaceId = workspace?.id;
   const workspaceRev = workspace?.workspaceRev;
-  const routeRev = workspace?.routeRev;
-  const workspaceCapabilitiesLoaded = useEditorStore(
-    (state) => state.workspaceCapabilitiesLoaded
-  );
-  const canUpdateWorkspaceSettings = useEditorStore(
-    (state) => state.workspaceCapabilities[SETTINGS_INTENT_CAPABILITY] === true
-  );
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
   const setWorkspaceHistoryLimit = useEditorStore(
     (state) => state.setWorkspaceHistoryLimit
   );
@@ -84,6 +66,8 @@ export const SettingsEffects = () => {
   );
   const settingsSyncRequestSeqRef = useRef(0);
   const syncedSettingsPayloadRef = useRef(serializedSettingsPayload);
+  const syncedSettingsValueRef =
+    useRef<Record<string, unknown>>(settingsPayload);
   const syncedWorkspaceRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -99,41 +83,38 @@ export const SettingsEffects = () => {
     if (syncedWorkspaceRef.current === workspaceId) return;
     syncedWorkspaceRef.current = workspaceId;
     syncedSettingsPayloadRef.current = serializedSettingsPayload;
-  }, [workspaceId, serializedSettingsPayload]);
+    syncedSettingsValueRef.current = settingsPayload;
+  }, [workspaceId, serializedSettingsPayload, settingsPayload]);
 
   useEffect(() => {
     if (!projectId) return;
+    if (isLocalProjectId(projectId)) return;
     if (!isAuthenticated || !token) return;
     if (!workspace) return;
-    if (!workspaceCapabilitiesLoaded || !canUpdateWorkspaceSettings) return;
     if (typeof workspaceRev !== 'number' || workspaceRev <= 0) return;
     if (serializedSettingsPayload === syncedSettingsPayloadRef.current) return;
 
     let disposed = false;
     const requestSeq = settingsSyncRequestSeqRef.current + 1;
     settingsSyncRequestSeqRef.current = requestSeq;
+    const baseSettings = syncedSettingsValueRef.current;
     const timeoutId = window.setTimeout(() => {
-      void editorApi
-        .applyWorkspaceIntent(token, workspace, {
-          expectedWorkspaceRev: workspaceRev,
-          ...(typeof routeRev === 'number' && routeRev > 0
-            ? { expectedRouteRev: routeRev }
-            : {}),
-          intent: {
-            id: createIntentId(),
-            namespace: 'core.settings',
-            type: 'global.update',
-            version: '1.0',
-            payload: { settings: settingsPayload },
-            issuedAt: new Date().toISOString(),
-          },
-        })
-        .then((mutation) => {
+      void executeWorkspaceSettingsOutboxCommit({
+        token,
+        baseSnapshot: workspace,
+        baseSettings,
+        settings: settingsPayload,
+        commitId: createWorkspaceClientOperationId('settings'),
+      })
+        .then((result) => {
           if (disposed || settingsSyncRequestSeqRef.current !== requestSeq) {
             return;
           }
-          applyWorkspaceMutation(mutation);
-          syncedSettingsPayloadRef.current = serializedSettingsPayload;
+          adoptWorkspaceSettingsOutboxResult(result);
+          const syncedSettings =
+            result.kind === 'queued' ? settingsPayload : result.settings;
+          syncedSettingsValueRef.current = syncedSettings;
+          syncedSettingsPayloadRef.current = JSON.stringify(syncedSettings);
         })
         .catch((error) => {
           if (disposed || settingsSyncRequestSeqRef.current !== requestSeq) {
@@ -148,15 +129,11 @@ export const SettingsEffects = () => {
       window.clearTimeout(timeoutId);
     };
   }, [
-    applyWorkspaceMutation,
-    canUpdateWorkspaceSettings,
-    routeRev,
     serializedSettingsPayload,
     settingsPayload,
     isAuthenticated,
     projectId,
     token,
-    workspaceCapabilitiesLoaded,
     workspaceId,
     workspaceRev,
     workspace,

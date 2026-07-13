@@ -1,6 +1,6 @@
-import { getNavigateLinkKind } from '@prodivix/shared/safety';
-import { normalizeRoutePath } from '@prodivix/shared/router';
-import { logRouteDebug } from '@/pir/renderer/routeDebug';
+import { getNavigateLinkKind } from '@prodivix/router';
+import { normalizeRoutePath } from '@prodivix/router';
+import { logRouteDebug } from '@prodivix/pir-react-renderer';
 
 export type BuiltInActionName = 'navigate' | 'executeGraph';
 
@@ -135,36 +135,11 @@ export const openExternalNavigateTarget = (
 };
 
 /**
- * 内置动作执行链路：
- * PIR 事件 -> executeBuiltInAction ->
- * - executeGraph: 派发 `prodivix:execute-graph`
- * - navigate: 外链或 history/location 跳转
+ * 默认导航链路：PIR 事件 -> Web navigation adapter。其他内置动作必须由
+ * composition root 显式注入，禁止通过 Window 事件总线寻找运行时。
  */
-export const executeBuiltInAction = (
-  actionName: BuiltInActionName,
-  context: BuiltInActionContext
-) => {
+export const executeBuiltInNavigateAction = (context: BuiltInActionContext) => {
   if (typeof window === 'undefined') return;
-  if (actionName === 'executeGraph') {
-    window.dispatchEvent(
-      new CustomEvent('prodivix:execute-graph', {
-        detail: {
-          requestId:
-            typeof crypto !== 'undefined' && 'randomUUID' in crypto
-              ? crypto.randomUUID()
-              : `graph-${Date.now().toString(36)}-${Math.random()
-                  .toString(36)
-                  .slice(2, 8)}`,
-          nodeId: context.nodeId,
-          trigger: context.trigger,
-          eventKey: context.eventKey,
-          params: context.params ?? {},
-        },
-      })
-    );
-    return;
-  }
-
   const params = context.params ?? {};
   const to = typeof params.to === 'string' ? params.to.trim() : '';
   if (!to) return;

@@ -57,6 +57,10 @@
         "label": "Resources",
         "description": "Organize assets and libraries."
       },
+      "issues": {
+        "label": "Issues",
+        "description": "Review diagnostics across the workspace."
+      },
       "nodegraph": {
         "label": "Node Graph",
         "description": "Build logic and data flows."
@@ -96,8 +100,58 @@
     "exitAria": "Exit editor",
     "exitTitle": "Exit editor?",
     "projectHome": "Project home",
+    "issues": "Issues",
     "exitToEditor": "Return to editor home",
     "exitToHome": "Return to home"
+  },
+  "issues": {
+    "title": "Issues",
+    "subtitle": "Workspace, route, PIR, NodeGraph, code, and synchronization diagnostics in one revision-aware view.",
+    "summary": {
+      "open": "{{count}} open",
+      "errors": "{{count}} errors",
+      "warnings": "{{count}} warnings"
+    },
+    "filters": {
+      "search": "Search code, message, target, or provider",
+      "status": "Issue status",
+      "severity": "Issue severity"
+    },
+    "status": {
+      "open": "Open",
+      "active": "Active",
+      "stale": "Updating",
+      "resolved": "Resolved",
+      "all": "All"
+    },
+    "severity": {
+      "all": "All severities",
+      "fatal": "Fatal",
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info"
+    },
+    "actions": {
+      "openTarget": "Open target",
+      "openSource": "Open source",
+      "openDocs": "Open docs",
+      "targetUnavailable": "The target no longer exists in the current workspace.",
+      "sourceUnavailable": "The source artifact no longer exists in the current workspace."
+    },
+    "quickFix": {
+      "applied": "The Quick Fix was applied through workspace history.",
+      "unavailable": "This Quick Fix is unavailable for the current workspace.",
+      "rejected": "The workspace rejected this Quick Fix."
+    },
+    "details": {
+      "location": "Location",
+      "noLocation": "No stable location was supplied.",
+      "sources": "Providers"
+    },
+    "empty": {
+      "title": "No matching issues",
+      "description": "Change the filters or continue editing; resolved issues remain available in history."
+    }
   },
   "revisionConflict": {
     "title": "Revision conflict",

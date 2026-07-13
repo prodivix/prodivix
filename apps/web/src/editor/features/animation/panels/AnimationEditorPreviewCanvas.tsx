@@ -1,15 +1,14 @@
 import { Minus, Pause, Play, Plus, RotateCcw, SkipBack } from 'lucide-react';
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import type {
   AnimationTimeline,
-  ComponentNode,
-  PIRDocument,
   SvgFilterDefinition,
-} from '@prodivix/shared/types/pir';
-import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
+} from '@prodivix/animation';
+import { PIRRenderer } from '@prodivix/pir-react-renderer';
 import { materializePirRoot } from '@prodivix/pir';
-import { buildAnimationPreviewSnapshot } from '@/editor/features/animation/preview/animationPreview';
+import { buildAnimationPreviewSnapshot } from '@prodivix/runtime-browser';
 
 type AnimationEditorPreviewCanvasProps = {
   pirDoc: PIRDocument;

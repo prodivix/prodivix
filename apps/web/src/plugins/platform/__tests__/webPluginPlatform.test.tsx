@@ -9,7 +9,7 @@ import {
 import type { ComponentGroup } from '@/editor/features/blueprint/editor/model/types';
 import { applyPaletteItemInsertion } from '@/editor/features/blueprint/editor/model/paletteCreation';
 import { createPaletteContributionDescriptor } from '@/editor/features/blueprint/palette';
-import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
+import { PIRRenderer } from '@prodivix/pir-react-renderer';
 import {
   createRendererProjectionRegistry,
   createWebPluginPlatform,

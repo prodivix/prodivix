@@ -1,6 +1,6 @@
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import type { CodeArtifactLanguage } from '@prodivix/shared/types/code';
-import type { WorkspaceRouteManifest } from '@prodivix/shared/router';
+import type { WorkspaceRouteManifest } from '@prodivix/router';
 
 export type WorkspaceId = string;
 export type WorkspaceDocumentId = string;

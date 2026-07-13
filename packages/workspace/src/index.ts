@@ -10,21 +10,24 @@ export {
   createWorkspacePathNodeId,
 } from './workspaceDocumentFactory';
 export { createWorkspaceCodeBindingTransaction } from './workspaceCodeBindingTransaction';
+export { createWorkspacePirDocumentUpdateCommand } from './workspacePirDocument';
+export {
+  createWorkspaceProjectConfigDocumentContent,
+  createWorkspaceProjectConfigValueUpdateCommand,
+  isWorkspaceAssetDocumentContent,
+  isWorkspaceProjectConfigDocumentContent,
+} from './workspaceResourceDocument';
+export { createWorkspaceVfsIntentPlan } from './workspaceVfsIntent';
 export {
   WorkspaceCodecError,
   applyWorkspaceMutation,
   decodeWorkspaceMutation,
-  decodeWorkspaceRouteManifest,
   decodeWorkspaceSnapshot,
   encodeWorkspaceSnapshot,
-  hasRouteNodeId,
   isPirWorkspaceDocumentType,
   isWorkspacePirDocument,
-  normalizeRouteManifest,
   normalizeWorkspaceDocument,
   normalizeWorkspaceTree,
-  resolveActiveRouteNodeId,
-  resolveDefaultActiveRouteNodeId,
 } from './workspaceCodec';
 export { createWorkspaceCodeArtifactProvider } from './authoring/workspaceCodeArtifactProvider';
 export {
@@ -156,6 +159,15 @@ export type {
   WorkspaceDocumentNodeIdFactory,
 } from './workspaceDocumentFactory';
 export type { CreateWorkspaceCodeBindingTransactionInput } from './workspaceCodeBindingTransaction';
+export type { CreateWorkspacePirDocumentUpdateCommandInput } from './workspacePirDocument';
+export type {
+  WorkspaceAssetDocumentContent,
+  WorkspaceProjectConfigDocumentContent,
+} from './workspaceResourceDocument';
+export type {
+  WorkspaceVfsIntentPlan,
+  WorkspaceVfsIntentRequest,
+} from './workspaceVfsIntent';
 export type {
   WorkspaceProjectionIssue,
   WorkspaceProjectionIssueCode,
@@ -184,9 +196,6 @@ export type {
   DecodedWorkspaceSnapshot,
   WorkspaceDocumentWireDto,
   WorkspaceMutationWireDto,
-  WorkspaceRouteDocumentTypeResolver,
-  WorkspaceRouteManifestDecodeInput,
-  WorkspaceRouteManifestDecodeOptions,
   WorkspaceSnapshotWireDto,
   WorkspaceTreeWireDto,
 } from './workspaceCodec';

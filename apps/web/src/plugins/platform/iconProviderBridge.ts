@@ -1,7 +1,7 @@
 import {
   registerIconProvider,
   unregisterIconProvider,
-} from '@/pir/renderer/iconRegistry';
+} from '@prodivix/pir-react-renderer';
 import type { WebExtensionQueryService } from '@/plugins/platform/types';
 
 export const createIconProviderRegistryBridge = (

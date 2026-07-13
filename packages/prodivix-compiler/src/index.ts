@@ -4,6 +4,11 @@ export {
   type ReactExportBundle,
 } from '#src/pirToReact';
 export { compilePirToReactComponent } from '#src/react/compileComponent';
+export {
+  compileWorkspaceToExportProgram,
+  generateWorkspaceReactViteBundle,
+  type WorkspaceReactViteCompileOptions,
+} from '#src/react/workspaceProject';
 export { compileAnimationExportContributions } from '#src/animation/compileAnimation';
 export { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
 export type {
@@ -95,6 +100,7 @@ export type {
   ExportProgramContribution,
   ExportProgramMetadata,
   ExportRouteGeneratedFile,
+  ExportRouteOutletBinding,
   ExportRouteRuntimeRef,
   ExportRouteRuntimeRefKind,
   ExportRouteTopology,

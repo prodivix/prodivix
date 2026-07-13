@@ -86,6 +86,7 @@ const inferNamespaceDomain = (
   if (namespace.startsWith('core.nodegraph')) return 'nodegraph';
   if (namespace.startsWith('core.animation')) return 'animation';
   if (namespace.startsWith('core.code')) return 'code';
+  if (namespace.startsWith('core.resource')) return 'resource';
   if (namespace.startsWith('core.route')) return 'route';
   if (namespace.startsWith('core.workspace')) return 'workspace';
   if (namespace.startsWith('core.pir')) return 'pir';
@@ -251,6 +252,7 @@ const COMMAND_DOMAINS = new Set<WorkspaceCommandDomain>([
   'nodegraph',
   'animation',
   'code',
+  'resource',
 ]);
 
 const wireFailure = (

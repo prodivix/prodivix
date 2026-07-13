@@ -113,19 +113,10 @@ type WorkspaceDiagnosticStage =
 - User action: 查看冲突详情，选择保留本地或远端改动
 - Developer notes: expected document 至少包含 contentRev/metaRev 之一；metadata-only 仍使用 DOCUMENT_CONFLICT；远端删除时 current.document 为 null 而不是 404，不新增第四种 conflict type
 
-### `WKS-5001` Intent 类型不支持
-
-- Severity: `error`
-- Stage: `intent`
-- Retryable: false
-- Trigger: `POST /api/workspaces/:id/intents` 收到未知 intent type
-- User action: 升级编辑器或服务端，使双方协议一致
-- Developer notes: intent type 必须在 API 文档、handler 和测试中同步登记
-
 ### `WKS-5002` Patch 应用失败
 
 - Severity: `error`
-- Stage: `intent`
+- Stage: `commit`
 - Retryable: false
 - Trigger: command envelope 中的 patch path 无法应用到当前 workspace 文档
 - User action: 刷新工作区并重新执行操作

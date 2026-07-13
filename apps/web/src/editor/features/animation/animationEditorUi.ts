@@ -1,4 +1,4 @@
-import type { AnimationTrack } from '@prodivix/shared/types/pir';
+import type { AnimationTrack } from '@prodivix/animation';
 
 export const TRACK_KINDS: AnimationTrack['kind'][] = [
   'style',

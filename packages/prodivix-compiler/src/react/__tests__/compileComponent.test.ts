@@ -155,6 +155,45 @@ describe('compilePirToReactComponent', () => {
     );
   });
 
+  it('fails closed instead of generating the retired NodeGraph event bridge', () => {
+    const pirDoc: PIRDocument = {
+      version: CURRENT_PIR_VERSION,
+      metadata: { name: 'NodeGraphActionExample' },
+      ui: {
+        graph: {
+          version: 1,
+          rootId: 'root',
+          nodesById: {
+            root: {
+              id: 'root',
+              type: 'button',
+              text: 'Run',
+              events: {
+                click: {
+                  trigger: 'click',
+                  action: 'executeGraph',
+                  params: { graphId: 'main' },
+                },
+              },
+            },
+          },
+          childIdsById: { root: [] },
+        },
+      },
+    };
+
+    const compiled = compilePirToReactComponent(pirDoc);
+
+    expect(compiled.code).not.toContain('prodivix:execute-graph');
+    expect(compiled.runtimeRequirements).toEqual([]);
+    expect(compiled.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'CODEGEN_NODEGRAPH_RUNTIME_PORT_REQUIRED',
+        severity: 'error',
+      })
+    );
+  });
+
   it('exports Prodivix button text and package styles', () => {
     const pirDoc: PIRDocument = {
       version: CURRENT_PIR_VERSION,

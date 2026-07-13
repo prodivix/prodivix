@@ -88,7 +88,6 @@ requestId
 | [`WKS-4001`](/reference/diagnostics/wks-4001) | Workspace revision 冲突    | `warning` |
 | [`WKS-4002`](/reference/diagnostics/wks-4002) | Route revision 冲突        | `warning` |
 | [`WKS-4003`](/reference/diagnostics/wks-4003) | Document revision 冲突     | `warning` |
-| [`WKS-5001`](/reference/diagnostics/wks-5001) | Intent 类型不支持          | `error`   |
 | [`WKS-5002`](/reference/diagnostics/wks-5002) | Patch 应用失败             | `error`   |
 | [`WKS-9001`](/reference/diagnostics/wks-9001) | Workspace 未知异常         | `error`   |
 

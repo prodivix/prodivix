@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getWorkspaceOperationCommands,
   getWorkspaceOperationId,
@@ -7,8 +7,10 @@ import {
 } from '@prodivix/workspace';
 import {
   createWorkspaceConflictSession,
+  createMemoryWorkspaceOutboxStore,
   resolveWorkspaceConflictSessionBatch,
   type WorkspaceConflictSession,
+  type WorkspaceOutboxStore,
 } from '@prodivix/workspace-sync';
 import { editorApi } from '@/editor/editorApi';
 import { ApiError } from '@/infra/api';
@@ -164,6 +166,12 @@ const mockSuccessfulCommit = () =>
     );
 
 describe('executeWorkspaceConflictResolution', () => {
+  let outboxStore: WorkspaceOutboxStore;
+
+  beforeEach(() => {
+    outboxStore = createMemoryWorkspaceOutboxStore();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -175,6 +183,7 @@ describe('executeWorkspaceConflictResolution', () => {
     const result = await executeWorkspaceConflictResolution({
       session: open,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -192,6 +201,7 @@ describe('executeWorkspaceConflictResolution', () => {
       session: resolved,
       resolvedSnapshot: resolved.remoteSnapshot,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -215,6 +225,7 @@ describe('executeWorkspaceConflictResolution', () => {
       session: resolved,
       resolvedSnapshot: override,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -253,6 +264,7 @@ describe('executeWorkspaceConflictResolution', () => {
     const result = await executeWorkspaceConflictResolution({
       session: resolved,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -288,6 +300,7 @@ describe('executeWorkspaceConflictResolution', () => {
       session: resolved,
       resolvedSnapshot: override,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -326,6 +339,7 @@ describe('executeWorkspaceConflictResolution', () => {
       session: resolved,
       resolvedSnapshot: override,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -362,6 +376,7 @@ describe('executeWorkspaceConflictResolution', () => {
     const result = await executeWorkspaceConflictResolution({
       session: resolved,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({ kind: 'acknowledged', rebased: true });
@@ -399,6 +414,7 @@ describe('executeWorkspaceConflictResolution', () => {
     const result = await executeWorkspaceConflictResolution({
       session: resolved,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -418,6 +434,7 @@ describe('executeWorkspaceConflictResolution', () => {
       executeWorkspaceConflictResolution({
         session: resolved,
         token: 'token',
+        outboxStore,
       })
     ).rejects.toThrow('unrelated workspace operation');
   });
@@ -442,6 +459,7 @@ describe('executeWorkspaceConflictResolution', () => {
     const result = await executeWorkspaceConflictResolution({
       session: resolved,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toMatchObject({
@@ -474,6 +492,7 @@ describe('executeWorkspaceConflictResolution', () => {
     const result = await executeWorkspaceConflictResolution({
       session: resolved,
       token: 'token',
+      outboxStore,
     });
 
     expect(result).toEqual({
@@ -508,6 +527,7 @@ describe('executeWorkspaceConflictResolution', () => {
       session: resolved,
       resolvedSnapshot: override,
       token: 'token',
+      outboxStore,
     });
 
     expect(result.kind).toBe('already-applied');

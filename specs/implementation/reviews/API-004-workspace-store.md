@@ -39,7 +39,7 @@
 
 新增 `WorkspaceStore`，核心能力：
 
-1. 当时的 `CreateWorkspace` + `CreateDocument` 两阶段 bootstrap 已 Hard Cut；当前由 `ImportWorkspaceSnapshot` 在一个数据库事务中创建 workspace、route 与至少一份 document。
+1. 当时的 `CreateWorkspace` + `CreateDocument` 两阶段 bootstrap 已 Hard Cut；fresh project 与 `import-local-project` 当前通过原子 Store 边界，在一个数据库事务中创建 project metadata、workspace、route、settings 与至少一份 document。
 2. `GetSnapshotForOwner`：读取并验证 workspace + route + documents 快照。
 3. 历史整文档保存方法：仅提升文档 `contentRev`，并提升 `opSeq`；后续已由 command patch 写入路径取代并删除。
 4. `SaveRouteManifest`：结构事务提升 `workspaceRev/routeRev/opSeq`。

@@ -385,85 +385,6 @@ type ImportWorkspaceSnapshotParams struct {
 	Documents     []WorkspaceImportDocumentRecord
 }
 
-type CreateCodeDocumentMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	DocumentID           string
-	NodeID               string
-	ParentNodeID         string
-	Path                 string
-	Content              json.RawMessage
-	Command              WorkspaceCommandEnvelope
-}
-
-type CreateWorkspaceDocumentMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	DocumentID           string
-	NodeID               string
-	ParentNodeID         string
-	Path                 string
-	Type                 WorkspaceDocumentType
-	Content              json.RawMessage
-	Command              WorkspaceCommandEnvelope
-}
-
-type RenameCodeDocumentMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	DocumentID           string
-	Path                 string
-	Command              WorkspaceCommandEnvelope
-}
-
-type RenameWorkspaceDocumentMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	DocumentID           string
-	Path                 string
-	Type                 WorkspaceDocumentType
-	Command              WorkspaceCommandEnvelope
-}
-
-type DeleteCodeDocumentMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	DocumentID           string
-	Command              WorkspaceCommandEnvelope
-}
-
-type DeleteWorkspaceDocumentMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	DocumentID           string
-	Type                 WorkspaceDocumentType
-	Command              WorkspaceCommandEnvelope
-}
-
-type CreateWorkspaceDirectoryMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	NodeID               string
-	ParentNodeID         string
-	Name                 string
-	Command              WorkspaceCommandEnvelope
-}
-
-type RenameWorkspaceDirectoryMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	NodeID               string
-	Name                 string
-	Command              WorkspaceCommandEnvelope
-}
-
-type DeleteWorkspaceDirectoryMutationParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	NodeID               string
-	Command              WorkspaceCommandEnvelope
-}
-
 type WorkspacePatchOp struct {
 	Op    string          `json:"op"`
 	Path  string          `json:"path"`
@@ -489,26 +410,4 @@ type WorkspaceCommandEnvelope struct {
 	MergeKey   string                 `json:"mergeKey,omitempty"`
 	Label      string                 `json:"label,omitempty"`
 	DomainHint string                 `json:"domainHint,omitempty"`
-}
-
-type PatchDocumentContentParams struct {
-	WorkspaceID        string
-	DocumentID         string
-	ExpectedContentRev int64
-	Command            WorkspaceCommandEnvelope
-}
-
-type SaveRouteManifestParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	ExpectedRouteRev     int64
-	RouteManifest        json.RawMessage
-	Command              WorkspaceCommandEnvelope
-}
-
-type SaveWorkspaceSettingsParams struct {
-	WorkspaceID          string
-	ExpectedWorkspaceRev int64
-	Settings             json.RawMessage
-	Command              WorkspaceCommandEnvelope
 }

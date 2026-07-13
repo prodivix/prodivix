@@ -16,7 +16,7 @@ export type ExportTarget = {
 };
 
 export type ExportRootKind =
-  'app' | 'route' | 'page' | 'component' | 'nodegraph' | 'animation';
+  'app' | 'route' | 'page' | 'layout' | 'component' | 'nodegraph' | 'animation';
 
 export type ExportModuleKind =
   | 'react-component'
@@ -114,6 +114,7 @@ export type ExportSourceOrigin = {
 
 export type ExportImportIntent = {
   source: string;
+  targetModuleId?: string;
   imported?: string;
   local?: string;
   kind: ExportImportKind;
@@ -139,6 +140,7 @@ export type ExportModule = {
   kind: ExportModuleKind;
   ownerRootId?: string;
   suggestedName: string;
+  desiredPath?: string;
   language: 'ts' | 'tsx' | 'js' | 'jsx';
   imports: ExportImportIntent[];
   body: string;
@@ -236,11 +238,7 @@ export type ExportArtifactContribution = {
 
 export type ExportRuntimeRequirement = {
   id: string;
-  kind:
-    | 'event-runtime'
-    | 'nodegraph-runtime'
-    | 'animation-runtime'
-    | 'adapter-runtime';
+  kind: 'nodegraph-runtime' | 'animation-runtime' | 'adapter-runtime';
   ownerModuleId?: string;
   importName?: string;
   importKind?: Extract<ExportImportKind, 'named' | 'default' | 'namespace'>;
@@ -267,6 +265,12 @@ export type ExportRouteGeneratedFile = {
   reason: 'route-topology' | 'route-document' | 'route-runtime';
 };
 
+export type ExportRouteOutletBinding = {
+  outletName: string;
+  outletNodeId: string;
+  pageDocId?: string;
+};
+
 export type ExportRouteTopologyNode = {
   routeNodeId: string;
   path: string;
@@ -277,6 +281,7 @@ export type ExportRouteTopologyNode = {
   layoutDocId?: string;
   pageDocId?: string;
   outletNodeId?: string;
+  outletBindings?: ExportRouteOutletBinding[];
   runtimeRefs: ExportRouteRuntimeRef[];
   sourceTrace: ExportSourceTrace[];
   generatedFiles?: ExportRouteGeneratedFile[];

@@ -5,15 +5,21 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const corePackages = {
+  animation: new Set(),
+  router: new Set(),
   diagnostics: new Set(),
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   pir: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   workspace: new Set([
+    '@prodivix/animation',
     '@prodivix/authoring',
     '@prodivix/pir',
+    '@prodivix/router',
     '@prodivix/shared',
   ]),
-  'workspace-sync': new Set(['@prodivix/workspace']),
+  'workspace-sync': new Set(['@prodivix/router', '@prodivix/workspace']),
+  'runtime-core': new Set(),
+  nodegraph: new Set(['@prodivix/runtime-core']),
 };
 
 const forbiddenImports = [

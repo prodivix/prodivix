@@ -29,7 +29,10 @@ func (store *ProjectStore) ListPublic(options CommunityListOptions) ([]Community
 		sortOrder = "p.stars_count DESC, p.updated_at DESC, p.created_at DESC"
 	}
 
-	clauses := []string{"p.is_public = TRUE"}
+	clauses := []string{
+		"p.is_public = TRUE",
+		"p.published_pir_json IS NOT NULL",
+	}
 	args := make([]any, 0, 4)
 	argIndex := 1
 
@@ -99,7 +102,7 @@ func (store *ProjectStore) GetPublicByID(projectID string) (*CommunityProjectDet
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	const query = `SELECT p.id, p.owner_id, p.resource_type, p.name, p.description, p.pir_json, p.is_public, p.stars_count, p.created_at, p.updated_at, u.name
+	const query = `SELECT p.id, p.owner_id, p.resource_type, p.name, p.description, p.published_pir_json, p.is_public, p.stars_count, p.created_at, p.updated_at, u.name
 FROM projects p
 JOIN users u ON u.id = p.owner_id
 WHERE p.id = $1 AND p.is_public = TRUE`
@@ -126,9 +129,8 @@ WHERE p.id = $1 AND p.is_public = TRUE`
 		return nil, err
 	}
 	if len(pirBytes) == 0 {
-		detail.PIR = defaultPIRDocument
-	} else {
-		detail.PIR = json.RawMessage(pirBytes)
+		return nil, ErrProjectNotFound
 	}
+	detail.PIR = json.RawMessage(pirBytes)
 	return &detail, nil
 }

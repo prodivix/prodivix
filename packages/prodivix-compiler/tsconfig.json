@@ -9,9 +9,12 @@
     "noEmit": false,
     "paths": {
       "#src/*": ["./src/*"],
+      "@prodivix/animation": ["../animation/src"],
       "@prodivix/pir": ["../pir/src"],
+      "@prodivix/router": ["../router/src"],
       "@prodivix/shared": ["../shared/src"],
-      "@prodivix/shared/*": ["../shared/src/*"]
+      "@prodivix/shared/*": ["../shared/src/*"],
+      "@prodivix/workspace": ["../workspace/src"]
     }
   },
   "include": ["src/**/*"],
@@ -24,7 +27,13 @@
   ],
   "references": [
     {
+      "path": "../animation"
+    },
+    {
       "path": "../pir"
+    },
+    {
+      "path": "../router"
     },
     {
       "path": "../shared"
@@ -34,6 +43,9 @@
     },
     {
       "path": "../ui"
+    },
+    {
+      "path": "../workspace"
     }
   ]
 }

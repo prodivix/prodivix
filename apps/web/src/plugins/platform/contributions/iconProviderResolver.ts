@@ -18,7 +18,7 @@ import {
   normalizeIconPolicyExport,
 } from '@prodivix/shared';
 import { createElement } from 'react';
-import type { IconComponent } from '@/pir/renderer/iconRegistry';
+import type { IconComponent } from '@prodivix/pir-react-renderer';
 import type { LibraryArtifactResolver } from '@/plugins/platform/officialHostImplementations';
 import type {
   ResolvedIconProviderContribution,

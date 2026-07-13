@@ -1,8 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AnimationDefinition } from '@prodivix/shared/types/pir';
+import {
+  createDefaultTimeline,
+  type AnimationDefinition,
+} from '@prodivix/animation';
 import { useAnimationEditorState } from '@/editor/features/animation/useAnimationEditorState';
-import { createDefaultTimeline } from '@/editor/features/animation/animationEditorModel';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import {
   createEditorWorkspace,
@@ -12,7 +14,14 @@ import {
 
 const createAnimation = (name: string): AnimationDefinition => ({
   version: 1,
-  timelines: [{ ...createDefaultTimeline(0), name }],
+  timelines: [
+    {
+      ...createDefaultTimeline({
+        idFactory: (kind) => `${kind}-test`,
+      }),
+      name,
+    },
+  ],
 });
 
 describe('useAnimationEditorState workspace synchronization', () => {

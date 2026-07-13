@@ -13,8 +13,7 @@ import {
   generateReactBundle,
   generateReactCode,
 } from '@prodivix/prodivix-compiler';
-import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
-import { resolveIconRef } from '@/pir/renderer/iconRegistry';
+import { PIRRenderer, resolveIconRef } from '@prodivix/pir-react-renderer';
 import {
   createRendererProjectionRegistry,
   createWebPluginPlatform,

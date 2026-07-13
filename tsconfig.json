@@ -17,10 +17,28 @@
       "path": "./packages/pir"
     },
     {
+      "path": "./packages/pir-react-renderer"
+    },
+    {
       "path": "./packages/workspace"
     },
     {
       "path": "./packages/workspace-sync"
+    },
+    {
+      "path": "./packages/runtime-core"
+    },
+    {
+      "path": "./packages/nodegraph"
+    },
+    {
+      "path": "./packages/animation"
+    },
+    {
+      "path": "./packages/runtime-browser"
+    },
+    {
+      "path": "./packages/router"
     },
     {
       "path": "./packages/ai"

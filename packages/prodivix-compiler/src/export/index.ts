@@ -119,6 +119,7 @@ export type {
   ExportProgramContribution,
   ExportProgramMetadata,
   ExportRouteGeneratedFile,
+  ExportRouteOutletBinding,
   ExportRouteRuntimeRef,
   ExportRouteRuntimeRefKind,
   ExportRouteTopology,

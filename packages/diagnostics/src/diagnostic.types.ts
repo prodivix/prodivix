@@ -16,6 +16,7 @@ export type ProdivixDiagnosticDomain =
 
 export type DiagnosticTargetRef =
   | { kind: 'workspace'; workspaceId: string }
+  | { kind: 'workspace-node'; workspaceId: string; nodeId: string }
   | { kind: 'document'; workspaceId?: string; documentId: string }
   | { kind: 'pir-node'; documentId: string; nodeId: string }
   | {
@@ -25,20 +26,37 @@ export type DiagnosticTargetRef =
       fieldPath: string;
     }
   | { kind: 'route'; routeId: string }
-  | { kind: 'nodegraph-node'; graphId: string; nodeId: string }
+  | {
+      kind: 'nodegraph-node';
+      documentId: string;
+      graphId: string;
+      nodeId: string;
+    }
   | {
       kind: 'nodegraph-port';
+      documentId: string;
       graphId: string;
       nodeId: string;
       portId: string;
     }
-  | { kind: 'animation-track'; timelineId: string; trackId: string }
+  | {
+      kind: 'animation-track';
+      documentId: string;
+      timelineId: string;
+      bindingId: string;
+      trackId: string;
+    }
   | { kind: 'code-artifact'; artifactId: string }
   | { kind: 'operation'; operation: string }
   | { kind: 'theme-token'; themeId: string; tokenPath: string }
   | { kind: 'viewport'; routeId?: string; width: number; height: number }
   | { kind: 'runtime-dom'; routeId?: string; stablePath: string }
-  | { kind: 'component-slot'; nodeId: string; slotName: string };
+  | {
+      kind: 'component-slot';
+      documentId: string;
+      nodeId: string;
+      slotName: string;
+    };
 
 export type SourceSpan = {
   artifactId: string;
@@ -46,6 +64,14 @@ export type SourceSpan = {
   startColumn: number;
   endLine: number;
   endColumn: number;
+};
+
+export type DiagnosticQuickFixReference = {
+  id: string;
+  label: string;
+  operation:
+    | { kind: 'workspace-command'; commandId: string }
+    | { kind: 'workspace-transaction'; transactionId: string };
 };
 
 export type ProdivixDiagnostic = {
@@ -60,6 +86,7 @@ export type ProdivixDiagnostic = {
   meta?: Record<string, unknown>;
   targetRef?: DiagnosticTargetRef;
   sourceSpan?: SourceSpan;
+  quickFixes?: readonly DiagnosticQuickFixReference[];
 };
 
 export type DiagnosticSurface =

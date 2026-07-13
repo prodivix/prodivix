@@ -7,10 +7,10 @@ import {
   renameNodeId as renameUiGraphNodeId,
   updateUiGraphSubtree,
 } from '@prodivix/pir';
-import type { IconRef } from '@/pir/renderer/iconRegistry';
+import type { IconRef } from '@prodivix/pir-react-renderer';
 import type { TriggerEntry } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 import { createDefaultActionParams } from '@/pir/actions/registry';
-import { isIconRef, resolveIconRef } from '@/pir/renderer/iconRegistry';
+import { isIconRef, resolveIconRef } from '@prodivix/pir-react-renderer';
 import {
   selectActivePirDocument,
   selectActivePirDocumentRecord,
@@ -22,30 +22,34 @@ import {
 } from '@/editor/store/useEditorStore';
 import type { WorkspaceRouteNode } from '@/editor/store/useEditorStore';
 import { useAuthStore } from '@/auth/useAuthStore';
-import { editorApi } from '@/editor/editorApi';
 import {
   createNodeRenameTransaction,
   createNodeSubtreeRemovalTransaction,
   createWorkspaceCodeBindingTransaction,
-  createWorkspaceCodeDocumentIntentRequest,
   createWorkspaceCodeSourceUpdateCommand,
-  createWorkspaceDocumentNodeId,
   type WorkspaceCodeDocumentContent,
   type WorkspaceDocument,
+  type WorkspaceRouteIntent,
 } from '@prodivix/workspace';
+import {
+  enqueueWorkspaceRouteIntentOutboxAndDispatch,
+  executeWorkspaceCommandOutboxAndAdopt,
+  executeWorkspaceOperationOutboxAndAdopt,
+} from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
 import { isLocalProjectId } from '@/editor/localProjectStore';
 import {
   composeRouteManifestWithModules,
   findRouteNodeParentInfo,
   flattenRouteManifest,
   validateRouteManifest,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import {
   createDefaultBinding,
   createDefaultTimeline,
   normalizeAnimationDefinition,
-} from '@/editor/features/animation/animationEditorModel';
-import { resolveLinkCapability } from '@/pir/renderer/capabilities';
+} from '@prodivix/animation';
+import { createBrowserAnimationIdFactory } from '@prodivix/runtime-browser';
+import { resolveLinkCapability } from '@prodivix/pir-react-renderer';
 import {
   getLayoutPatternId,
   isLayoutPatternRootNode,
@@ -76,6 +80,10 @@ const createIntentId = () => {
 };
 
 export const useBlueprintEditorInspectorController = () => {
+  const animationIdFactory = useMemo(
+    () => createBrowserAnimationIdFactory(),
+    []
+  );
   const { t } = useTranslation('blueprint');
   const translate = useCallback(
     (key: string, options?: Record<string, unknown>) => t(key, options),
@@ -97,12 +105,6 @@ export const useBlueprintEditorInspectorController = () => {
   const dispatchWorkspaceTransaction = useEditorStore(
     (state) => state.dispatchWorkspaceTransaction
   );
-  const acknowledgeWorkspaceCommand = useEditorStore(
-    (state) => state.acknowledgeWorkspaceCommand
-  );
-  const acknowledgeWorkspaceTransaction = useEditorStore(
-    (state) => state.acknowledgeWorkspaceTransaction
-  );
   const workspaceId = workspace.id;
   const workspaceDocumentsById = useEditorStore(selectWorkspaceDocumentsById);
   const workspaceCapabilities = useEditorStore(
@@ -115,7 +117,6 @@ export const useBlueprintEditorInspectorController = () => {
   const routeManifest = useEditorStore(selectRouteManifest)!;
   const activeRouteNodeId = useEditorStore(selectActiveRouteNodeId);
   const applyRouteIntent = useEditorStore((state) => state.applyRouteIntent);
-  const bindOutletToRoute = useEditorStore((state) => state.bindOutletToRoute);
   const setBlueprintState = useEditorStore((state) => state.setBlueprintState);
   const selectedId = useEditorStore(
     (state) => state.blueprintStateByProject[blueprintKey]?.selectedId
@@ -215,20 +216,56 @@ export const useBlueprintEditorInspectorController = () => {
   const canDetachLayoutFromActiveRoute = Boolean(
     activeRouteDetails?.layoutDocId && !workspaceReadonly
   );
+  const persistRouteIntent = useCallback(
+    async (intent: WorkspaceRouteIntent) => {
+      if (isLocalProjectId(projectId)) {
+        return Boolean(applyRouteIntent(intent));
+      }
+      const currentWorkspace = useEditorStore.getState().workspace;
+      if (!token || !currentWorkspace) return false;
+      const outcome = await enqueueWorkspaceRouteIntentOutboxAndDispatch({
+        workspace: currentWorkspace,
+        intent,
+      });
+      if (outcome.status === 'rejected') {
+        console.warn('[route] workspace operation rejected', outcome.message);
+        return false;
+      }
+      return true;
+    },
+    [applyRouteIntent, projectId, token]
+  );
+  const bindOutletToRoute = useCallback(
+    (routeNodeId: string, outletNodeId: string | undefined) => {
+      const normalizedRouteNodeId = routeNodeId.trim();
+      if (!normalizedRouteNodeId) return;
+      const normalizedOutletNodeId = outletNodeId?.trim();
+      void persistRouteIntent(
+        normalizedOutletNodeId
+          ? {
+              type: 'bind-outlet',
+              routeNodeId: normalizedRouteNodeId,
+              outletNodeId: normalizedOutletNodeId,
+            }
+          : { type: 'unbind-outlet', routeNodeId: normalizedRouteNodeId }
+      );
+    },
+    [persistRouteIntent]
+  );
   const attachLayoutToActiveRoute = useCallback(() => {
     if (!activeRouteDetails || !canAttachLayoutToActiveRoute) return;
-    applyRouteIntent({
+    void persistRouteIntent({
       type: 'attach-layout',
       routeNodeId: activeRouteDetails.id,
     });
-  }, [activeRouteDetails, applyRouteIntent, canAttachLayoutToActiveRoute]);
+  }, [activeRouteDetails, canAttachLayoutToActiveRoute, persistRouteIntent]);
   const detachLayoutFromActiveRoute = useCallback(() => {
     if (!activeRouteDetails || !canDetachLayoutFromActiveRoute) return;
-    applyRouteIntent({
+    void persistRouteIntent({
       type: 'detach-layout',
       routeNodeId: activeRouteDetails.id,
     });
-  }, [activeRouteDetails, applyRouteIntent, canDetachLayoutFromActiveRoute]);
+  }, [activeRouteDetails, canDetachLayoutFromActiveRoute, persistRouteIntent]);
   const matchedPanels = useMemo(
     () => (selectedNode ? resolveInspectorPanels(selectedNode, 'style') : []),
     [selectedNode]
@@ -489,8 +526,15 @@ export const useBlueprintEditorInspectorController = () => {
       if (alreadyMounted) return doc;
 
       if (!animation.timelines.length) {
-        const nextTimeline = createDefaultTimeline(0);
-        nextTimeline.bindings = [createDefaultBinding(0, targetNodeId)];
+        const nextTimeline = createDefaultTimeline({
+          idFactory: animationIdFactory,
+        });
+        nextTimeline.bindings = [
+          createDefaultBinding({
+            idFactory: animationIdFactory,
+            targetNodeId,
+          }),
+        ];
         return {
           ...doc,
           animation: {
@@ -516,7 +560,10 @@ export const useBlueprintEditorInspectorController = () => {
           ...timeline,
           bindings: [
             ...timeline.bindings,
-            createDefaultBinding(timeline.bindings.length, targetNodeId),
+            createDefaultBinding({
+              idFactory: animationIdFactory,
+              targetNodeId,
+            }),
           ],
         };
       });
@@ -713,17 +760,12 @@ export const useBlueprintEditorInspectorController = () => {
         }
         if (!token) return false;
 
-        const mutation = await editorApi.patchWorkspaceDocument(
+        const outcome = await executeWorkspaceCommandOutboxAndAdopt({
           token,
           workspace,
-          documentId,
-          {
-            expectedContentRev: document.contentRev,
-            command,
-            clientMutationId: command.id,
-          }
-        );
-        return Boolean(acknowledgeWorkspaceCommand(command, mutation)?.ok);
+          command,
+        });
+        return outcome.status === 'applied';
       }
 
       if (
@@ -780,29 +822,15 @@ export const useBlueprintEditorInspectorController = () => {
       }
       if (!token) return false;
 
-      const request = createWorkspaceCodeDocumentIntentRequest({
-        workspaceRev: workspace.workspaceRev,
-        intentId: createIntentId(),
-        issuedAt,
-        documentId,
-        nodeId: createWorkspaceDocumentNodeId(documentId),
-        path,
-        content: codeContent,
-        clientMutationId: transaction.id,
-      });
-      const mutation = await editorApi.applyWorkspaceIntent(
+      const outcome = await executeWorkspaceOperationOutboxAndAdopt({
         token,
         workspace,
-        request
-      );
-      return Boolean(
-        acknowledgeWorkspaceTransaction(transaction, mutation)?.ok
-      );
+        operation: { kind: 'transaction', transaction },
+      });
+      return outcome.status === 'applied';
     },
     [
       activePirDocument.id,
-      acknowledgeWorkspaceCommand,
-      acknowledgeWorkspaceTransaction,
       dispatchWorkspaceCommand,
       dispatchWorkspaceTransaction,
       mountedCssEntries,

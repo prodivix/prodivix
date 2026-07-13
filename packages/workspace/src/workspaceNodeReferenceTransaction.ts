@@ -1,15 +1,11 @@
-import type {
-  AnimationDefinition,
-  NodeId,
-  PIRDocument,
-  UiGraph,
-} from '@prodivix/shared/types/pir';
+import type { AnimationDefinition } from '@prodivix/animation';
+import type { NodeId, PIRDocument, UiGraph } from '@prodivix/shared/types/pir';
 import type {
   RouteModule,
   WorkspaceRouteManifest,
   WorkspaceRouteNode,
-} from '@prodivix/shared/router';
-import { validateRouteManifest } from '@prodivix/shared/router';
+} from '@prodivix/router';
+import { validateRouteManifest } from '@prodivix/router';
 import { validatePirDocument } from '@prodivix/pir';
 import type {
   WorkspaceCommandEnvelope,

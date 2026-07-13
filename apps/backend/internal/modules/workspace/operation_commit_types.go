@@ -379,7 +379,7 @@ func validateRawCommitCommand(command WorkspaceCommandEnvelope) error {
 	}
 	if command.DomainHint != "" {
 		switch command.DomainHint {
-		case "pir", "workspace", "route", "nodegraph", "animation", "code":
+		case "pir", "workspace", "route", "nodegraph", "animation", "code", "resource":
 		default:
 			return commitValidation("/operation/command/domainHint", "domainHint must use a canonical registered domain")
 		}
@@ -445,8 +445,8 @@ func validateCommitCommand(command WorkspaceCommandEnvelope, workspaceID string)
 		if documentDomain == "" {
 			documentDomain = namespaceDomain
 		}
-		if documentDomain != "pir" && documentDomain != "nodegraph" && documentDomain != "animation" && documentDomain != "code" {
-			return commitValidation("/operation/command/domainHint", "document-targeted commands require pir, nodegraph, animation, or code domain")
+		if documentDomain != "pir" && documentDomain != "nodegraph" && documentDomain != "animation" && documentDomain != "code" && documentDomain != "resource" {
+			return commitValidation("/operation/command/domainHint", "document-targeted commands require pir, nodegraph, animation, code, or resource domain")
 		}
 	}
 	return nil
@@ -463,6 +463,8 @@ func commitNamespaceDomain(namespace string) string {
 		return "animation"
 	case strings.HasPrefix(namespace, "core.code"):
 		return "code"
+	case strings.HasPrefix(namespace, "core.resource"):
+		return "resource"
 	case strings.HasPrefix(namespace, "core.route"):
 		return "route"
 	case strings.HasPrefix(namespace, "core.workspace"):

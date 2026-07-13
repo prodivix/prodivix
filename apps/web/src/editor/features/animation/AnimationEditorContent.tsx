@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AnimationTimeline } from '@prodivix/shared/types/pir';
+import type { AnimationTimeline } from '@prodivix/animation';
 import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
+import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
 import {
   selectActiveDocumentId,
   selectWorkspaceId,
@@ -70,6 +71,12 @@ export const AnimationEditorContent = () => {
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [selection, setSelection] = useState<AnimationEditorSelection>({});
+  const issueNavigationRequest = useWorkspaceIssuesStore(
+    (state) => state.navigationRequest
+  );
+  const consumeIssueNavigation = useWorkspaceIssuesStore(
+    (state) => state.consumeNavigation
+  );
 
   useEffect(() => {
     if (!activeTimeline) {
@@ -116,6 +123,41 @@ export const AnimationEditorContent = () => {
       };
     });
   }, [activeTimeline]);
+
+  useEffect(() => {
+    if (
+      issueNavigationRequest?.kind !== 'animation-track' ||
+      issueNavigationRequest.documentId !== activeDocumentId
+    ) {
+      return;
+    }
+    const timeline = animation.timelines.find(
+      (candidate) => candidate.id === issueNavigationRequest.timelineId
+    );
+    const binding = timeline?.bindings.find(
+      (candidate) => candidate.id === issueNavigationRequest.bindingId
+    );
+    if (
+      !binding?.tracks.some(
+        (candidate) => candidate.id === issueNavigationRequest.trackId
+      )
+    ) {
+      return;
+    }
+    selectTimeline(issueNavigationRequest.timelineId);
+    setSelection({
+      timelineId: issueNavigationRequest.timelineId,
+      bindingId: issueNavigationRequest.bindingId,
+      trackId: issueNavigationRequest.trackId,
+    });
+    consumeIssueNavigation(issueNavigationRequest.id);
+  }, [
+    activeDocumentId,
+    animation.timelines,
+    consumeIssueNavigation,
+    issueNavigationRequest,
+    selectTimeline,
+  ]);
 
   const selectedTrackRef = useMemo<AnimationEditorTrackRef | undefined>(() => {
     if (!selection.timelineId || !selection.bindingId || !selection.trackId) {

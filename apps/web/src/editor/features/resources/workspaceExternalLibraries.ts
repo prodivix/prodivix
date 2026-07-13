@@ -1,4 +1,7 @@
-import type { WorkspaceDocument } from '@prodivix/workspace';
+import {
+  isWorkspaceProjectConfigDocumentContent,
+  type WorkspaceDocument,
+} from '@prodivix/workspace';
 import {
   normalizeExternalComponentLibraryIds,
   normalizeLibraryIds,
@@ -20,7 +23,6 @@ import {
 } from './externalLibraryManager/managerState';
 import {
   findWorkspaceDocumentByPath,
-  isWorkspaceConfigContent,
   RESOURCE_ROOTS,
 } from './workspaceResourceDocuments';
 
@@ -104,7 +106,7 @@ export const buildExternalLibrariesValueFromWorkspace = (
   documentsById: Record<string, WorkspaceDocument>
 ): WorkspaceExternalLibrariesValue => {
   const document = getWorkspaceExternalLibrariesDocument(documentsById);
-  if (!document || !isWorkspaceConfigContent(document.content)) {
+  if (!document || !isWorkspaceProjectConfigDocumentContent(document.content)) {
     return createDefaultExternalLibrariesValue();
   }
   return normalizeExternalLibrariesValue(document.content.value);

@@ -9,7 +9,13 @@ import (
 	"time"
 )
 
+type workspaceImportTransactionHook func(context.Context, *sql.Tx) error
+
 func (store *WorkspaceStore) ImportWorkspaceSnapshot(ctx context.Context, params ImportWorkspaceSnapshotParams) (*WorkspaceSnapshot, error) {
+	return store.importWorkspaceSnapshot(ctx, params, nil)
+}
+
+func (store *WorkspaceStore) importWorkspaceSnapshot(ctx context.Context, params ImportWorkspaceSnapshotParams, beforeWorkspaceInsert workspaceImportTransactionHook) (*WorkspaceSnapshot, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("workspace store is not initialized")
 	}
@@ -137,6 +143,12 @@ func (store *WorkspaceStore) ImportWorkspaceSnapshot(ctx context.Context, params
 	tx, err := store.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
+	}
+	if beforeWorkspaceInsert != nil {
+		if err := beforeWorkspaceInsert(ctx, tx); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
 	}
 
 	const insertWorkspace = `INSERT INTO workspaces (

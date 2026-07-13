@@ -22,7 +22,7 @@ import type {
   AdapterContext,
   AdapterResult,
   ComponentAdapter,
-} from '@/pir/renderer/registry';
+} from '@prodivix/pir-react-renderer';
 import {
   cloneAndFreezeJson,
   resolverFailure,

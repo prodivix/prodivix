@@ -70,12 +70,11 @@ export const LOCAL_WORKSPACE_CAPABILITIES: Record<string, boolean> = {
   'core.pir.document.update@1.0': true,
   'core.pir.graph.replace@1.0': true,
   'core.route.manifest.update@1.0': true,
-  'core.settings.global.update@1.0': true,
+  'core.settings.commit@1.0': true,
+  'core.nodegraph.graph.update@1.0': true,
+  'core.animation.definition.update@1.0': true,
+  'core.resource.project-config.value.update@1.0': true,
   'core.workspace.code-document.create@1.0': true,
-  'core.nodegraph.node.move@1.0': false,
-  'core.nodegraph.edge.connect@1.0': false,
-  'core.animation.timeline.keyframe.add@1.0': false,
-  'core.animation.clip.bind@1.0': false,
 };
 
 export const LOCAL_READONLY_WORKSPACE_CAPABILITIES: Record<string, boolean> =

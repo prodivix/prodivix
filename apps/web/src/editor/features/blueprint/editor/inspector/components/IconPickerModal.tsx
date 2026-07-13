@@ -7,7 +7,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, X } from 'lucide-react';
-import type { IconRef } from '@/pir/renderer/iconRegistry';
+import type { IconRef } from '@prodivix/pir-react-renderer';
 import {
   ensureIconProviderReady,
   getIconProviderState,
@@ -16,7 +16,7 @@ import {
   listIconProviders,
   resolveIconRef,
   subscribeIconRegistry,
-} from '@/pir/renderer/iconRegistry';
+} from '@prodivix/pir-react-renderer';
 import { useEditorShortcut } from '@/editor/shortcuts';
 
 type IconPickerModalProps = {

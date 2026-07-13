@@ -97,6 +97,8 @@ const labelForTargetRef = (targetRef: DiagnosticTargetRef): string => {
   switch (targetRef.kind) {
     case 'workspace':
       return `Workspace ${targetRef.workspaceId}`;
+    case 'workspace-node':
+      return `Workspace node ${targetRef.nodeId}`;
     case 'document':
       return `Document ${targetRef.documentId}`;
     case 'pir-node':
@@ -172,7 +174,7 @@ const hasRequirement = (
     case 'retryable':
       return diagnostic.retryable === true;
     case 'quickFix':
-      return Boolean(getPathValue(diagnostic.meta, 'quickFix'));
+      return Boolean(diagnostic.quickFixes?.length);
     case 'exemptable':
       return diagnostic.domain === 'ux';
     case 'relatedDiagnostics':
@@ -211,6 +213,7 @@ const defaultResolveActions = ({
         docsUrl: diagnostic.docsUrl,
         targetRef: diagnostic.targetRef,
         sourceSpan: diagnostic.sourceSpan,
+        quickFixes: diagnostic.quickFixes,
       },
     };
   });
@@ -260,6 +263,13 @@ const defaultFormatEvidence = ({
   });
 
 const DEFAULT_ACTIONS: DiagnosticActionTemplate[] = [
+  {
+    id: 'apply-fix',
+    kind: 'apply-fix',
+    labelFallback: 'Apply fix',
+    requires: ['quickFix'],
+    placement: 'primary',
+  },
   {
     id: 'open-target',
     kind: 'navigate',

@@ -16,7 +16,9 @@ import {
   Settings,
   Folder,
   Home,
+  CircleAlert,
 } from 'lucide-react';
+import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
 import { EditorBarExitModal } from './EditorBarExitModal';
 
 function EditorBar() {
@@ -24,6 +26,15 @@ function EditorBar() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [isExitOpen, setExitOpen] = useState(false);
+  const blockingIssueCount = useWorkspaceIssuesStore(
+    (state) =>
+      state.collection?.issues.filter(
+        (issue) =>
+          issue.status !== 'resolved' &&
+          (issue.diagnostic.severity === 'fatal' ||
+            issue.diagnostic.severity === 'error')
+      ).length ?? 0
+  );
   const confirmPrompts = useSettingsStore(
     (state) => state.global.confirmPrompts
   );
@@ -112,6 +123,20 @@ function EditorBar() {
                 title={t('projectHome.actions.resources.label')}
                 to={`${basePath}/resources`}
               />
+              <div className="relative">
+                <PdxIconLink
+                  icon={<CircleAlert size={22} />}
+                  label={t('bar.issues')}
+                  size={22}
+                  title={`${t('bar.issues')} · Alt+0`}
+                  to={`${basePath}/issues`}
+                />
+                {blockingIssueCount > 0 && (
+                  <span className="pointer-events-none absolute -top-1 -right-2 min-w-4 rounded-full bg-(--text-primary) px-1 text-center text-[9px] leading-4 text-(--editor-bar-bg)">
+                    {blockingIssueCount > 99 ? '99+' : blockingIssueCount}
+                  </span>
+                )}
+              </div>
               <PdxIconLink
                 icon={<TestTube size={22} />}
                 label={t('projectHome.actions.testing.label')}

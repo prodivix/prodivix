@@ -160,9 +160,8 @@ PIR = WorkspaceDocument.content
 3. 不保留 project PIR 作为编辑器回退。
 4. 新建项目必须创建 workspace 文件树。
 5. 打开旧项目时返回明确错误，提示创建新 workspace 项目。
-6. `GET /projects/:id/pir` 不再属于编辑器主链路。
-7. `saveProjectPir` 从前端编辑器链路删除。
-8. `projects.pir_json` 不属于 workspace-only 编辑合同；物理删除前也不得参与编辑读写。
+6. `GET /projects/:id/pir` 与 `saveProjectPir` 直接删除，不保留兼容入口。
+7. `projects.pir_json` 物理删除；社区内容使用语义独立的显式发布投影。
 
 ## 5. 核心原则
 
@@ -587,28 +586,22 @@ Git blob -> text diff
 
 ### 10.1 当前后端状态
 
-后端已有：
+后端当前已完成：
 
 1. `workspaces`
 2. `workspace_documents`
 3. `GET /workspaces/:id`
-4. `PATCH /workspaces/:workspaceId/documents/:documentId`
-5. `POST /workspaces/:id/intents`
-6. `POST /workspaces/:id/operations/commit`（Atomic WorkspaceOperation；旧 `/batch` 已 Hard Cut）
-
-但仍存在：
-
-1. `projects.pir_json`
-2. project mirror sync。
-3. `GET /projects/:id/pir`。
+4. `POST /workspaces/:id/operations/commit`（Atomic WorkspaceOperation）
+5. Operation/Settings 双 Durable Outbox。
+6. 旧 document `PATCH`、`POST /intents`、Project PIR GET/PUT、lazy bootstrap fallback 与 post-commit mirror 全部 Hard Cut。
+7. 社区 PIR 改为显式 publish 时从 canonical Workspace 生成的 `published_pir_json` 投影。
+8. fresh project 与 `import-local-project` 在同一数据库事务内创建 Project metadata 和完整初始 Workspace，不保留失败补偿删除路径。
 
 ### 10.2 目标后端状态
 
 Workspace 是项目编辑真相源。
 
-`projects.pir_json` 不再作为新项目编辑来源。
-
-`projects.pir_json` 不属于 workspace-only API 合同。数据库字段物理删除前，服务端也不得把它暴露为活跃编辑读模型或保存目标。
+新项目初始 PIR 直接进入 canonical Workspace document，不写 Project authoring mirror。Editor 的 Project API 只返回元数据。
 
 ### 10.3 后端输出 `.prodivix` 投影
 
@@ -628,15 +621,7 @@ func ReadWorkspaceSnapshotFromSourceFiles(files []WorkspaceSourceFile) (*Workspa
 
 ### 10.4 Project mirror 删除
 
-`SyncProjectMirrorFromWorkspace` 不应继续作为新项目编辑链路的一部分。
-
-删除条件：
-
-1. Export 页面不再依赖 project PIR。
-2. Editor 打开项目不再依赖 project PIR。
-3. Git 投影可从 workspace 直接生成。
-4. 后端 API 使用 workspace snapshot 作为唯一编辑读模型。
-5. 新项目创建不再写入 `projects.pir_json` 作为编辑内容。
+已完成：Editor、Export 与 Git projection 只读取 Workspace；Project PIR 读写 API、镜像同步、缺失 Workspace 的 lazy bootstrap 以及新项目的 Project PIR 写入均已删除。社区使用的 `published_pir_json` 是显式 publish 产生的只读发布投影，不参与 authoring。
 
 ## 11. Git 集成路径
 

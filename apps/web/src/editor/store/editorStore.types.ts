@@ -8,7 +8,7 @@ export type {
   WorkspaceRouteNode,
   WorkspaceRouteOutletBinding,
   WorkspaceRouteRuntime,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 
 export type BlueprintState = {
   viewportWidth: string;

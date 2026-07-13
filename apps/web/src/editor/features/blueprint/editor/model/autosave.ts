@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/auth/authApi';
-import { editorApi } from '@/editor/editorApi';
 import { executeWorkspaceDocumentMutation } from '@/editor/workspaceSync/workspaceDocumentMutationExecutor';
 import type { PIRDocument } from '@prodivix/shared/types/pir';
 import type {
   WorkspaceCommandEnvelope,
+  DecodedWorkspaceMutation,
   WorkspacePirDocument,
   WorkspaceSnapshot,
 } from '@prodivix/workspace';
@@ -22,9 +22,7 @@ export type SaveTransport = 'workspace' | 'local' | null;
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 export type SaveIndicatorTone = 'error' | 'warning' | 'success' | 'neutral';
 
-type WorkspaceMutation = Awaited<
-  ReturnType<typeof editorApi.patchWorkspaceDocument>
->;
+type WorkspaceMutation = DecodedWorkspaceMutation;
 
 type UseBlueprintAutosaveOptions = {
   token: string | null;
@@ -241,9 +239,9 @@ export const useBlueprintAutosave = ({
     defaultValue: 'Workspace save failed. Retrying on next change.',
   });
   const workspaceUnavailableMessage = t(
-    'autosave.messages.workspaceUnavailableUsingProject',
+    'autosave.messages.workspaceUnavailable',
     {
-      defaultValue: 'Workspace document save unavailable. Using project save.',
+      defaultValue: 'Workspace document save is unavailable.',
     }
   );
   const pirValidationFailedMessageKey = 'autosave.messages.pirValidationFailed';
@@ -327,6 +325,37 @@ export const useBlueprintAutosave = ({
               t('autosave.status.revisionConflict', {
                 defaultValue:
                   'This document changed remotely. Review the revision conflict.',
+              })
+            );
+            return;
+          }
+          if (execution.kind === 'queued') {
+            if (execution.rebased) {
+              const adoption = adoptRebasedWorkspaceOperation({
+                requestSnapshot: workspace,
+                serverBaseSnapshot: execution.serverBaseSnapshot,
+                rebasedSnapshot: execution.optimisticSnapshot,
+                operation: execution.operation,
+                expectedDocumentEditSeqById: {
+                  [activeDocumentId]: targetEditSeq,
+                },
+              });
+              if (adoption.status !== 'adopted') {
+                throw new Error(
+                  adoption.status === 'rejected'
+                    ? adoption.message
+                    : 'The queued workspace operation conflicts with newer edits.'
+                );
+              }
+            }
+            lastSavedGraphRef.current = pirDoc.ui.graph;
+            setLastSavedEditSeq((previous) =>
+              Math.max(previous, targetEditSeq)
+            );
+            setSaveStatus('saved');
+            setSaveMessage(
+              t('autosave.status.queued', {
+                defaultValue: 'Saved locally. Waiting to sync.',
               })
             );
             return;

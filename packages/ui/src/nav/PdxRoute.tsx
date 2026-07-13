@@ -8,7 +8,7 @@ import {
   resolveRouteMatchChain,
   type RouteModule,
   type WorkspaceRouteManifest,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import './PdxRoute.scss';
 
 type PdxRouteScope = 'workspace' | 'module';

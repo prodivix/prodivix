@@ -1,0 +1,96 @@
+{
+  "id": "golden-workspace",
+  "name": "Prodivix Golden App",
+  "workspaceRev": 1,
+  "routeRev": 1,
+  "opSeq": 1,
+  "tree": {
+    "treeRootId": "root",
+    "treeById": {
+      "root": {
+        "id": "root",
+        "kind": "dir",
+        "name": "/",
+        "parentId": null,
+        "children": ["dir_pages"]
+      },
+      "dir_pages": {
+        "id": "dir_pages",
+        "kind": "dir",
+        "name": "pages",
+        "parentId": "root",
+        "children": ["doc_page-home"]
+      },
+      "doc_page-home": {
+        "id": "doc_page-home",
+        "kind": "doc",
+        "name": "home.pir.json",
+        "parentId": "dir_pages",
+        "docId": "page-home"
+      }
+    }
+  },
+  "documents": [
+    {
+      "id": "page-home",
+      "type": "pir-page",
+      "name": "Golden Home",
+      "path": "/pages/home.pir.json",
+      "contentRev": 1,
+      "metaRev": 1,
+      "content": {
+        "version": "1.3",
+        "metadata": {
+          "name": "GoldenHome"
+        },
+        "ui": {
+          "graph": {
+            "version": 1,
+            "rootId": "home-root",
+            "nodesById": {
+              "home-root": {
+                "id": "home-root",
+                "type": "main",
+                "props": {
+                  "className": "golden-home"
+                }
+              },
+              "home-title": {
+                "id": "home-title",
+                "type": "h1",
+                "text": "Prodivix Golden App"
+              }
+            },
+            "childIdsById": {
+              "home-root": ["home-title"],
+              "home-title": []
+            },
+            "order": {
+              "strategy": "childIdsById"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "routeManifest": {
+    "version": "1",
+    "root": {
+      "id": "root",
+      "children": [
+        {
+          "id": "route-home",
+          "index": true,
+          "pageDocId": "page-home"
+        }
+      ]
+    }
+  },
+  "settings": {
+    "global": {
+      "eventTriggerMode": "selected-only"
+    }
+  },
+  "activeDocumentId": "page-home",
+  "activeRouteNodeId": "route-home"
+}

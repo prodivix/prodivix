@@ -1,37 +1,43 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type {
-  AnimationBinding,
-  AnimationDefinition,
-  AnimationTimeline,
-  AnimationTrack,
-  SvgFilterDefinition,
-} from '@prodivix/shared/types/pir';
 import {
-  selectActivePirDocument,
-  useEditorStore,
-} from '@/editor/store/useEditorStore';
-import { materializePirRoot } from '@prodivix/pir';
-import {
+  clampMs,
+  coerceKeyframeValueInput,
   createDefaultBinding,
   createDefaultSvgFilter,
   createDefaultSvgPrimitive,
   createDefaultTimeline,
   createDefaultTrack,
   createEmptyAnimationDefinition,
-  normalizeAnimationDefinition,
-  serializeAnimationDefinition,
-} from './animationEditorModel';
-import {
-  clampMs,
-  collectNodeTargets,
-  coerceKeyframeValueInput,
   hasAnySvgTrack,
+  normalizeAnimationDefinition,
   normalizeKeyframeRows,
   reconcileSvgTrackReferences,
   resolveActiveTimelineId,
   resolveTrackFallbackValue,
+  serializeAnimationDefinition,
   withEditorState,
-} from './state/animationEditorStateHelpers';
+  type AnimationBinding,
+  type AnimationDefinition,
+  type AnimationTimeline,
+  type AnimationTrack,
+  type SvgFilterDefinition,
+} from '@prodivix/animation';
+import { createBrowserAnimationIdFactory } from '@prodivix/runtime-browser';
+import {
+  selectActivePirDocumentRecord,
+  useEditorStore,
+} from '@/editor/store/useEditorStore';
+import { materializePirRoot } from '@prodivix/pir';
+import { collectNodeTargets } from './state/nodeTargetOptions';
+import { useParams } from 'react-router';
+import { useAuthStore } from '@/auth/useAuthStore';
+import { isLocalProjectId } from '@/editor/localProjectStore';
+import { enqueueWorkspaceOperationOutboxAndDispatch } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
+import {
+  createWorkspacePirDocumentUpdateCommand,
+  selectActivePirWorkspaceDocument,
+} from '@prodivix/workspace';
 
 type StyleTrackProperty = Extract<
   AnimationTrack,
@@ -47,10 +53,11 @@ const clampZoom = (value: number) =>
   Math.min(4, Math.max(0.2, Math.round(value * 100) / 100));
 
 export const useAnimationEditorState = () => {
-  const pirDoc = useEditorStore(selectActivePirDocument)!;
-  const updateActivePirDocument = useEditorStore(
-    (state) => state.updateActivePirDocument
-  );
+  const { projectId } = useParams();
+  const token = useAuthStore((state) => state.token);
+  const animationIdFactory = useRef(createBrowserAnimationIdFactory()).current;
+  const activePirDocument = useEditorStore(selectActivePirDocumentRecord)!;
+  const pirDoc = activePirDocument.content;
   const pirAnimation = useMemo(
     () => normalizeAnimationDefinition(pirDoc.animation),
     [pirDoc.animation]
@@ -68,6 +75,7 @@ export const useAnimationEditorState = () => {
   const currentSignatureRef = useRef(currentSignature);
   const committedSignatureRef = useRef(currentSignature);
   const suppressNextPersistenceRef = useRef(false);
+  const persistenceChainRef = useRef(Promise.resolve());
 
   useEffect(() => {
     currentSignatureRef.current = currentSignature;
@@ -97,27 +105,56 @@ export const useAnimationEditorState = () => {
       return;
     }
     if (currentSignature === committedSignatureRef.current) return;
+    const localWorkspace = isLocalProjectId(projectId);
+    if (!localWorkspace && !token) return;
     committedSignatureRef.current = currentSignature;
-    updateActivePirDocument(
-      (doc) => {
+    const documentId = activePirDocument.id;
+    persistenceChainRef.current = persistenceChainRef.current
+      .then(async () => {
+        const state = useEditorStore.getState();
+        const workspace = state.workspace;
+        if (!workspace) return;
+        const document = selectActivePirWorkspaceDocument({
+          ...workspace,
+          activeDocumentId: documentId,
+        });
+        if (!document || document.id !== documentId) return;
+        const before = document.content;
         const existingSignature = serializeAnimationDefinition(
-          normalizeAnimationDefinition(doc.animation)
+          normalizeAnimationDefinition(before.animation)
         );
-        if (existingSignature === currentSignature) return doc;
-        return {
-          ...doc,
-          animation,
-        };
-      },
-      {
-        namespace: 'core.animation',
-        type: 'definition.update',
-        domainHint: 'animation',
-        mergeKey: 'animation-definition',
-        label: 'Update animation',
-      }
-    );
-  }, [animation, currentSignature, updateActivePirDocument]);
+        if (existingSignature === currentSignature) return;
+        const command = createWorkspacePirDocumentUpdateCommand({
+          workspace: { ...workspace, activeDocumentId: documentId },
+          before,
+          after: { ...before, animation },
+          commandId: createWorkspaceClientOperationId('animation'),
+          namespace: 'core.animation',
+          type: 'definition.update',
+          domainHint: 'animation',
+          mergeKey: 'animation-definition',
+          label: 'Update animation',
+        });
+        if (!command) return;
+        if (localWorkspace) {
+          state.dispatchWorkspaceCommand(command);
+          return;
+        }
+        const outcome = await enqueueWorkspaceOperationOutboxAndDispatch({
+          workspace,
+          operation: { kind: 'command', command },
+        });
+        if (outcome.status === 'rejected') {
+          console.warn(
+            '[animation] workspace operation rejected',
+            outcome.message
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn('[animation] workspace operation failed', error);
+      });
+  }, [activePirDocument.id, animation, currentSignature, projectId, token]);
 
   const activeTimelineId = resolveActiveTimelineId(animation);
   const activeTimeline = useMemo(
@@ -254,7 +291,10 @@ export const useAnimationEditorState = () => {
 
   const addTimeline = useCallback(() => {
     setAnimation((prev) => {
-      const nextTimeline = createDefaultTimeline(prev.timelines.length);
+      const nextTimeline = createDefaultTimeline({
+        idFactory: animationIdFactory,
+        index: prev.timelines.length,
+      });
       return {
         ...prev,
         timelines: [...prev.timelines, nextTimeline],
@@ -560,10 +600,10 @@ export const useAnimationEditorState = () => {
     const defaultTargetNodeId = nodeTargetOptions[0]?.id ?? 'root';
     let createdId: string | null = null;
     updateActiveTimeline((timeline) => {
-      const nextBinding = createDefaultBinding(
-        timeline.bindings.length,
-        defaultTargetNodeId
-      );
+      const nextBinding = createDefaultBinding({
+        idFactory: animationIdFactory,
+        targetNodeId: defaultTargetNodeId,
+      });
       createdId = nextBinding.id;
       return {
         ...timeline,
@@ -609,6 +649,7 @@ export const useAnimationEditorState = () => {
     (bindingId: string, kind: AnimationTrack['kind']): string | null => {
       if (!activeTimeline) return null;
       const nextTrack = createDefaultTrack({
+        idFactory: animationIdFactory,
         kind,
         durationMs: activeTimeline.durationMs,
         svgFilters,
@@ -646,6 +687,7 @@ export const useAnimationEditorState = () => {
       updateTrackById(bindingId, trackId, (track) => {
         if (track.kind === kind) return track;
         const nextTrack = createDefaultTrack({
+          idFactory: animationIdFactory,
           kind,
           durationMs: activeTimeline.durationMs,
           svgFilters,
@@ -924,7 +966,7 @@ export const useAnimationEditorState = () => {
     setAnimation((prev) => {
       const nextFilters = [
         ...(prev.svgFilters ?? []),
-        createDefaultSvgFilter(prev.svgFilters?.length ?? 0),
+        createDefaultSvgFilter({ idFactory: animationIdFactory }),
       ];
       return {
         ...prev,
@@ -989,7 +1031,7 @@ export const useAnimationEditorState = () => {
           ...filter,
           primitives: [
             ...filter.primitives,
-            createDefaultSvgPrimitive(filter.primitives.length),
+            createDefaultSvgPrimitive({ idFactory: animationIdFactory }),
           ],
         };
       });

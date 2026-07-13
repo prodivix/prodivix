@@ -43,6 +43,7 @@
     "@fontsource-variable/mona-sans": "^5.2.8",
     "@fontsource/monaspace-neon": "^5.2.5",
     "@lobehub/webfont-harmony-sans-sc": "1.0.0",
+    "@prodivix/router": "workspace:*",
     "@prodivix/shared": "workspace:*",
     "@prodivix/themes": "workspace:*",
     "@radix-ui/react-dialog": "^1.1.18",

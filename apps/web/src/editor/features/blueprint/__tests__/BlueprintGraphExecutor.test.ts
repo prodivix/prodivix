@@ -1,86 +1,101 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { executeBlueprintGraph } from '@/editor/features/blueprint/editor/model/graphExecutor';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  createDefaultNodeGraphNodeExecutorRegistry,
+  createNodeGraphExecutor,
+} from '@prodivix/nodegraph';
+import { executeNodeGraphAction } from '@prodivix/runtime-browser';
 
-describe('executeBlueprintGraph', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
+const request = {
+  nodeId: 'button-1',
+  trigger: 'onClick',
+  eventKey: 'click',
+  params: { graphId: 'main' },
+};
 
-  it('dispatches graph request and resolves runtime patch from matched result', async () => {
-    let capturedRequestId = '';
-    const onRequest = (event: Event) => {
-      const detail = (event as CustomEvent).detail as Record<string, unknown>;
-      capturedRequestId = String(detail.requestId ?? '');
-      window.dispatchEvent(
-        new CustomEvent('prodivix:execute-graph-result', {
-          detail: {
-            requestId: capturedRequestId,
-            result: {
-              statePatch: {
-                products: [{ id: 'p-1' }],
-              },
+describe('Blueprint NodeGraph execution adapter', () => {
+  it('executes directly and exposes log trace through an explicit Web port', async () => {
+    const onLog = vi.fn();
+    const result = await executeNodeGraphAction(
+      [
+        {
+          id: 'main',
+          nodes: [
+            { id: 'start', data: { kind: 'start' } },
+            { id: 'log', data: { kind: 'log', description: 'hello' } },
+            { id: 'end', data: { kind: 'end' } },
+          ],
+          edges: [
+            {
+              id: 'edge-1',
+              source: 'start',
+              target: 'log',
+              sourceHandle: 'out.control.next',
+              targetHandle: 'in.control.prev',
             },
-          },
-        })
-      );
-    };
-    window.addEventListener('prodivix:execute-graph', onRequest);
-
-    const result = await executeBlueprintGraph({
-      nodeId: 'node-1',
-      trigger: 'click',
-      eventKey: 'onClick',
-      params: { graphId: 'g-1' },
-    });
-
-    window.removeEventListener('prodivix:execute-graph', onRequest);
-    expect(capturedRequestId).not.toBe('');
-    expect(result.statePatch).toEqual({
-      products: [{ id: 'p-1' }],
-    });
-  });
-
-  it('normalizes patch payload shape from result.patch', async () => {
-    let capturedRequestId = '';
-    const onRequest = (event: Event) => {
-      const detail = (event as CustomEvent).detail as Record<string, unknown>;
-      capturedRequestId = String(detail.requestId ?? '');
-      window.dispatchEvent(
-        new CustomEvent('prodivix:execute-graph-result', {
-          detail: {
-            requestId: capturedRequestId,
-            result: {
-              patch: {
-                count: 2,
-              },
+            {
+              id: 'edge-2',
+              source: 'log',
+              target: 'end',
+              sourceHandle: 'out.control.next',
+              targetHandle: 'in.control.prev',
             },
-          },
-        })
-      );
-    };
-    window.addEventListener('prodivix:execute-graph', onRequest);
-
-    const result = await executeBlueprintGraph({
-      nodeId: 'node-2',
-      trigger: 'change',
-      eventKey: 'onChange',
-    });
-
-    window.removeEventListener('prodivix:execute-graph', onRequest);
-    expect(result.statePatch).toEqual({ count: 2 });
-  });
-
-  it('returns empty patch when no graph result arrives before timeout', async () => {
-    vi.useFakeTimers();
-    const promise = executeBlueprintGraph(
-      {
-        nodeId: 'node-timeout',
-        trigger: 'click',
-        eventKey: 'onClick',
-      },
-      60
+          ],
+        },
+      ],
+      request,
+      { onLog, createRequestId: () => 'request-1' }
     );
-    await vi.advanceTimersByTimeAsync(70);
-    await expect(promise).resolves.toEqual({ statePatch: {} });
+
+    expect(result.status).toBe('completed');
+    expect(onLog).toHaveBeenCalledWith(
+      'hello',
+      expect.objectContaining({
+        kind: 'log',
+      })
+    );
+  });
+
+  it('applies state patches from an instance-scoped custom executor', async () => {
+    const registry = createDefaultNodeGraphNodeExecutorRegistry();
+    registry.register('set-state', () => ({
+      statePatch: { products: [{ id: 'p-1' }] },
+      stop: true,
+    }));
+    const result = await executeNodeGraphAction(
+      [
+        {
+          id: 'main',
+          nodes: [{ id: 'set', data: { kind: 'set-state' } }],
+          edges: [],
+        },
+      ],
+      request,
+      {
+        executor: createNodeGraphExecutor({ registry }),
+        createRequestId: () => 'request-2',
+      }
+    );
+
+    expect(result.statePatch).toEqual({ products: [{ id: 'p-1' }] });
+  });
+
+  it('fails closed for invalid persisted graph data', async () => {
+    const result = await executeNodeGraphAction(
+      [{ id: 'main', nodes: [], edges: [{ id: 'dangling' }] }],
+      request
+    );
+
+    expect(result.status).toBe('invalid-document');
+    expect(result.statePatch).toEqual({});
+  });
+
+  it('does not execute another graph when an explicit graph id is missing', async () => {
+    const result = await executeNodeGraphAction(
+      [{ id: 'other', nodes: [], edges: [] }],
+      request
+    );
+
+    expect(result.status).toBe('no-graph');
+    expect(result.statePatch).toEqual({});
   });
 });

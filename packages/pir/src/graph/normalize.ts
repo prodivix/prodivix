@@ -173,6 +173,10 @@ export const normalizeUiGraph = (source: unknown): UiGraph | null => {
       }
     });
   }
+  const order =
+    isPlainObject(source.order) && source.order.strategy === 'childIdsById'
+      ? ({ strategy: 'childIdsById' } as const)
+      : undefined;
 
   return {
     version: 1,
@@ -180,6 +184,7 @@ export const normalizeUiGraph = (source: unknown): UiGraph | null => {
     nodesById,
     childIdsById,
     ...(regionsById && Object.keys(regionsById).length ? { regionsById } : {}),
+    ...(order ? { order } : {}),
   };
 };
 

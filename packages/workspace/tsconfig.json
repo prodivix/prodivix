@@ -9,8 +9,10 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
+      "@prodivix/animation": ["../animation/src"],
       "@prodivix/authoring": ["../authoring/src"],
       "@prodivix/pir": ["../pir/src"],
+      "@prodivix/router": ["../router/src"],
       "@prodivix/shared": ["../shared/src"],
       "@prodivix/shared/*": ["../shared/src/*"]
     }
@@ -25,10 +27,16 @@
   ],
   "references": [
     {
+      "path": "../animation"
+    },
+    {
       "path": "../authoring"
     },
     {
       "path": "../pir"
+    },
+    {
+      "path": "../router"
     },
     {
       "path": "../shared"

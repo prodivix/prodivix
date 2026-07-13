@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultPirDoc } from '@prodivix/pir';
+import { RouteManifestCodecError, decodeRouteManifest } from '@prodivix/router';
 import {
   WorkspaceCodecError,
   applyWorkspaceMutation,
   decodeWorkspaceMutation,
-  decodeWorkspaceRouteManifest,
   decodeWorkspaceSnapshot,
   encodeWorkspaceSnapshot,
   normalizeWorkspaceTree,
@@ -107,7 +107,7 @@ describe('workspace wire codec', () => {
   it('round-trips the complete canonical route manifest without dropping fields', () => {
     const manifest = createCanonicalRouteManifest();
 
-    expect(decodeWorkspaceRouteManifest(manifest)).toEqual(manifest);
+    expect(decodeRouteManifest(manifest)).toEqual(manifest);
   });
 
   it('validates page and layout document roles in root and module routes', () => {
@@ -127,9 +127,9 @@ describe('workspace wire codec', () => {
     const resolveDocumentType = (documentId: string) =>
       documentTypes[documentId as keyof typeof documentTypes];
 
-    expect(
-      decodeWorkspaceRouteManifest(manifest, { resolveDocumentType })
-    ).toEqual(manifest);
+    expect(decodeRouteManifest(manifest, { resolveDocumentType })).toEqual(
+      manifest
+    );
 
     const invalidCases: Array<{
       expectedPath: string;
@@ -174,7 +174,7 @@ describe('workspace wire codec', () => {
       const candidate = structuredClone(manifest);
       mutate(candidate);
       expect(() =>
-        decodeWorkspaceRouteManifest(candidate, { resolveDocumentType })
+        decodeRouteManifest(candidate, { resolveDocumentType })
       ).toThrow(expectedPath);
     });
   });
@@ -228,7 +228,7 @@ describe('workspace wire codec', () => {
     mutations.forEach(({ name, mutate }) => {
       const manifest = createCanonicalRouteManifest();
       mutate(manifest);
-      expect(() => decodeWorkspaceRouteManifest(manifest), name).toThrow(
+      expect(() => decodeRouteManifest(manifest), name).toThrow(
         /Unknown route manifest field/
       );
     });
@@ -288,8 +288,8 @@ describe('workspace wire codec', () => {
     cases.forEach(({ name, mutate }) => {
       const manifest = createCanonicalRouteManifest();
       mutate(manifest);
-      expect(() => decodeWorkspaceRouteManifest(manifest), name).toThrow(
-        WorkspaceCodecError
+      expect(() => decodeRouteManifest(manifest), name).toThrow(
+        RouteManifestCodecError
       );
     });
   });
@@ -298,9 +298,7 @@ describe('workspace wire codec', () => {
     const manifest = createCanonicalRouteManifest();
     Object.assign(manifest.root.children[0], { children: null });
 
-    expect(() => decodeWorkspaceRouteManifest(manifest)).toThrow(
-      /Expected an array/
-    );
+    expect(() => decodeRouteManifest(manifest)).toThrow(/Expected an array/);
   });
 
   it('strictly decodes the Go wire shape into the canonical snapshot', () => {

@@ -413,6 +413,24 @@ export function WorkspaceRevisionConflictSurface() {
         failResolution(session.id, result.message);
         return;
       }
+      if (result.kind === 'queued') {
+        const adoption = adoptRebasedOperation({
+          requestSnapshot,
+          serverBaseSnapshot: result.serverBaseSnapshot,
+          rebasedSnapshot: result.optimisticSnapshot,
+          operation: result.operation,
+          expectedDocumentEditSeqById,
+          expectedConflictSessionId: currentSession.id,
+        });
+        if (adoption.status === 'rejected') {
+          failResolution(session.id, adoption.message);
+        } else if (adoption.status === 'conflict') {
+          setReviewOpen(true);
+        } else {
+          clearConflict(session.id);
+        }
+        return;
+      }
       if (result.kind === 'already-applied') {
         const recoveredServerBase = result.operation
           ? recoverOperationServerBase(result.snapshot, result.operation)

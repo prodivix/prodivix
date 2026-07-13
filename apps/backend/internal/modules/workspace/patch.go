@@ -31,10 +31,24 @@ func applyWorkspaceDocumentPatch(documentType WorkspaceDocumentType, content jso
 	if documentType == WorkspaceDocumentTypePIRAnimation {
 		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceAnimationPatchPath)
 	}
+	if documentType == WorkspaceDocumentTypeAsset {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceAssetPatchPath)
+	}
+	if documentType == WorkspaceDocumentTypeProjectConfig {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceProjectConfigPatchPath)
+	}
 	if !isPIRWorkspaceDocumentType(documentType) {
 		return applyWorkspacePatchWithValidator(content, ops, validateGenericWorkspaceDocumentPatchPath)
 	}
 	return applyWorkspacePatch(content, ops)
+}
+
+func validateWorkspaceAssetPatchPath(path string) error {
+	return validateWorkspaceDocumentRootPath(path, "mime", "category", "size", "dataUrl", "text", "metadata")
+}
+
+func validateWorkspaceProjectConfigPatchPath(path string) error {
+	return validateWorkspaceDocumentRootPath(path, "value", "metadata")
 }
 
 func validateWorkspaceNodeGraphPatchPath(path string) error {

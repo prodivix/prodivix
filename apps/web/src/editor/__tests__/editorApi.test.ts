@@ -112,38 +112,6 @@ describe('editorApi workspace boundary', () => {
     expect(result.settings).toEqual({ locale: 'en-US' });
   });
 
-  it('returns decoded mutations without applying them in the API layer', async () => {
-    const workspace = createWorkspace();
-    apiRequestMock.mockResolvedValueOnce({
-      workspaceId: workspace.id,
-      workspaceRev: 2,
-      routeRev: 1,
-      opSeq: 2,
-      acceptedMutationId: 'mutation-1',
-    });
-
-    const mutation = await editorApi.applyWorkspaceIntent('token', workspace, {
-      expectedWorkspaceRev: 1,
-      intent: {
-        id: 'intent-1',
-        namespace: 'core.workspace',
-        type: 'noop',
-        version: '1.0',
-        payload: {},
-        issuedAt: '2026-07-12T00:00:00.000Z',
-      },
-    });
-
-    expect(mutation).toMatchObject({
-      workspaceId: workspace.id,
-      workspaceRev: 2,
-      updatedDocuments: [],
-      removedDocumentIds: [],
-      acceptedMutationId: 'mutation-1',
-    });
-    expect(workspace.workspaceRev).toBe(1);
-  });
-
   it('commits a canonical WorkspaceOperation through the atomic endpoint', async () => {
     const workspace = createWorkspace();
     const document = workspace.docsById['document-1']!;

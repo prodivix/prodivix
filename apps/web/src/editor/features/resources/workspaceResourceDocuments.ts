@@ -1,11 +1,12 @@
-import type { PatchWorkspaceDocumentRequest } from '@/editor/editorApi';
 import {
   collectRouteManifestDocumentRefs,
   type WorkspaceRouteManifest,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import {
   createWorkspaceDocumentIntentRequest,
+  createWorkspaceProjectConfigValueUpdateCommand,
   deleteWorkspaceDocumentIntentRequest,
+  isWorkspaceProjectConfigDocumentContent,
   renameWorkspaceDocumentIntentRequest,
   type WorkspaceDocument,
   type WorkspaceDocumentType,
@@ -18,22 +19,6 @@ export const RESOURCE_ROOTS = {
   i18n: '/i18n/store.json',
   external: '/config/external-libraries.json',
 } as const;
-
-export type WorkspaceAssetContent = {
-  kind: 'asset';
-  mime: string;
-  category?: string;
-  size?: number;
-  dataUrl?: string;
-  text?: string;
-  metadata?: Record<string, unknown>;
-};
-
-export type WorkspaceConfigContent<TValue> = {
-  kind: 'config';
-  value: TValue;
-  metadata?: Record<string, unknown>;
-};
 
 export const createResourceIntentId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -127,31 +112,6 @@ export const findWorkspaceDocumentByPath = (
   );
 };
 
-export const isWorkspaceAssetContent = (
-  value: unknown
-): value is WorkspaceAssetContent => {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Record<string, unknown>;
-  return record.kind === 'asset' && typeof record.mime === 'string';
-};
-
-export const isWorkspaceConfigContent = <TValue>(
-  value: unknown
-): value is WorkspaceConfigContent<TValue> => {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Record<string, unknown>;
-  return record.kind === 'config' && 'value' in record;
-};
-
-export const createWorkspaceConfigDocumentContent = <TValue>(
-  value: TValue,
-  metadata?: Record<string, unknown>
-): WorkspaceConfigContent<TValue> => ({
-  kind: 'config',
-  value,
-  ...(metadata ? { metadata } : {}),
-});
-
 export const getWorkspaceConfigDocumentValue = <TValue>(
   documentsById: Record<string, WorkspaceDocument>,
   path: string,
@@ -162,7 +122,10 @@ export const getWorkspaceConfigDocumentValue = <TValue>(
     path,
     'project-config'
   );
-  if (!document || !isWorkspaceConfigContent<TValue>(document.content)) {
+  if (
+    !document ||
+    !isWorkspaceProjectConfigDocumentContent<TValue>(document.content)
+  ) {
     return fallback;
   }
   return document.content.value;
@@ -239,7 +202,7 @@ export const isWorkspaceDocumentReferencedByRoute = (
   documentId: string
 ): boolean => collectRouteManifestDocumentRefs(routeManifest).has(documentId);
 
-export const createWorkspaceResourceValuePatchRequest = <TValue>({
+export const createWorkspaceResourceValueUpdateCommand = <TValue>({
   workspaceId,
   document,
   value,
@@ -249,28 +212,14 @@ export const createWorkspaceResourceValuePatchRequest = <TValue>({
   document: WorkspaceDocument;
   value: TValue;
   label?: string;
-}): PatchWorkspaceDocumentRequest | null => {
-  if (!isWorkspaceConfigContent<TValue>(document.content)) return null;
+}) => {
   const issuedAt = new Date().toISOString();
-  return {
-    expectedContentRev: document.contentRev,
-    command: {
-      id: createResourceIntentId(),
-      namespace: 'core.workspace',
-      type: 'document.patch',
-      version: '1.0',
-      issuedAt,
-      target: {
-        workspaceId,
-        documentId: document.id,
-      },
-      domainHint: 'workspace',
-      ...(label ? { label } : {}),
-      forwardOps: [{ op: 'replace', path: '/value', value }],
-      reverseOps: [
-        { op: 'replace', path: '/value', value: document.content.value },
-      ],
-    },
-    clientMutationId: createResourceIntentId(),
-  };
+  return createWorkspaceProjectConfigValueUpdateCommand({
+    commandId: createResourceIntentId(),
+    issuedAt,
+    workspaceId,
+    document,
+    value,
+    ...(label ? { label } : {}),
+  });
 };

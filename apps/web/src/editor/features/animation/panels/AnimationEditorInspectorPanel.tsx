@@ -5,7 +5,7 @@ import type {
   AnimationTimeline,
   AnimationTrack,
   SvgFilterDefinition,
-} from '@prodivix/shared/types/pir';
+} from '@prodivix/animation';
 import { AnimationEditorKeyframesEditor } from './AnimationEditorKeyframesEditor';
 import { AnimationEditorSvgFilterLibrarySection } from './AnimationEditorSvgFilterLibrarySection';
 import {

@@ -7,7 +7,7 @@ import {
   type WorkspaceRouteCodeReference,
   type WorkspaceRouteManifest,
   type WorkspaceRouteNode,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type {
   ExportProgramContribution,
@@ -128,6 +128,17 @@ const toRuntimeRefs = (
     ];
   });
 
+const toOutletBindings = (
+  node: WorkspaceRouteNode
+): NonNullable<ExportRouteTopologyNode['outletBindings']> =>
+  Object.entries(node.outletBindings ?? {})
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([outletName, binding]) => ({
+      outletName,
+      outletNodeId: binding.outletNodeId,
+      ...(binding.pageDocId ? { pageDocId: binding.pageDocId } : {}),
+    }));
+
 const routeIssueToDiagnostic = (
   issue: RouteManifestIssue
 ): CompileDiagnostic => ({
@@ -188,6 +199,7 @@ const createRouteNodeTopology = (input: {
       : []),
   ];
   const runtimeRefs = toRuntimeRefs(input.node, input.codeArtifactInfo);
+  const outletBindings = toOutletBindings(input.node);
 
   return {
     routeNodeId: input.routeNodeId,
@@ -203,6 +215,7 @@ const createRouteNodeTopology = (input: {
     ...(input.node.outletNodeId
       ? { outletNodeId: input.node.outletNodeId }
       : {}),
+    ...(outletBindings.length ? { outletBindings } : {}),
     runtimeRefs,
     sourceTrace: [
       ...sourceTrace,

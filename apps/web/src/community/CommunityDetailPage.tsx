@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Boxes, Component, Flame, Workflow } from 'lucide-react';
 import { PdxEmpty } from '@prodivix/ui';
 import { communityApi, type CommunityProjectDetail } from './communityApi';
-import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
+import { PIRRenderer } from '@prodivix/pir-react-renderer';
 import { isAbortError } from '@/infra/api';
 import { resolvePirDocument } from '@prodivix/pir';
 import { useAuthStore } from '@/auth/useAuthStore';

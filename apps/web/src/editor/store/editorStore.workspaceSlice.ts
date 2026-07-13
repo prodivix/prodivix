@@ -8,6 +8,7 @@ import {
   collectChangedWorkspaceDocumentIds,
   createWorkspaceCommandOperation,
   createWorkspaceHistoryState,
+  createWorkspacePirDocumentUpdateCommand,
   createWorkspaceTransactionOperation,
   getWorkspaceOperationSourceIds,
   reconcileWorkspaceOperationConfirmation,
@@ -25,7 +26,6 @@ import {
   type WorkspaceHistoryScopeSelector,
   type WorkspaceHistoryState,
   type WorkspaceOperation,
-  type WorkspacePatchOperation,
   type WorkspaceSnapshot,
   type WorkspaceTransactionApplyResult,
   type WorkspaceTransactionEnvelope,
@@ -37,6 +37,7 @@ import {
   type WorkspaceConflictSession,
 } from '@prodivix/workspace-sync';
 import type { EditorStore } from './editorStore.shape';
+import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 
 export type UpdateActivePirDocumentOptions = {
   commandId?: string;
@@ -123,13 +124,6 @@ export interface WorkspaceSlice {
     options?: UpdateActivePirDocumentOptions
   ) => WorkspaceCommandApplyResult | null;
 }
-
-const createCommandId = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `command-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-};
 
 const createConflictSessionId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -263,92 +257,6 @@ const preserveDocumentsEditedAfterRequest = (
   ) && updatedDocuments.length === mutation.updatedDocuments.length
     ? mutation
     : { ...mutation, updatedDocuments };
-};
-
-const appendOptionalDocumentPatch = (
-  forwardOps: WorkspacePatchOperation[],
-  reverseOps: WorkspacePatchOperation[],
-  path: string,
-  before: unknown,
-  after: unknown
-) => {
-  if (Object.is(before, after)) return;
-  if (before === undefined) {
-    forwardOps.push({ op: 'add', path, value: after });
-    reverseOps.unshift({ op: 'remove', path });
-    return;
-  }
-  if (after === undefined) {
-    forwardOps.push({ op: 'remove', path });
-    reverseOps.unshift({ op: 'add', path, value: before });
-    return;
-  }
-  forwardOps.push({ op: 'replace', path, value: after });
-  reverseOps.unshift({ op: 'replace', path, value: before });
-};
-
-const createPirDocumentUpdateCommand = (
-  workspace: WorkspaceSnapshot,
-  before: PIRDocument,
-  after: PIRDocument,
-  options: UpdateActivePirDocumentOptions
-): WorkspaceCommandEnvelope | null => {
-  const documentId = workspace.activeDocumentId;
-  if (!documentId || before.version !== after.version) return null;
-  const forwardOps: WorkspacePatchOperation[] = [];
-  const reverseOps: WorkspacePatchOperation[] = [];
-  appendOptionalDocumentPatch(
-    forwardOps,
-    reverseOps,
-    '/ui/graph',
-    before.ui.graph,
-    after.ui.graph
-  );
-  appendOptionalDocumentPatch(
-    forwardOps,
-    reverseOps,
-    '/logic',
-    before.logic,
-    after.logic
-  );
-  appendOptionalDocumentPatch(
-    forwardOps,
-    reverseOps,
-    '/animation',
-    before.animation,
-    after.animation
-  );
-  appendOptionalDocumentPatch(
-    forwardOps,
-    reverseOps,
-    '/metadata',
-    before.metadata,
-    after.metadata
-  );
-  if (!forwardOps.length) return null;
-  const namespace = options.namespace ?? 'core.pir';
-  const domainHint =
-    options.domainHint ??
-    (namespace.startsWith('core.nodegraph')
-      ? 'nodegraph'
-      : namespace.startsWith('core.animation')
-        ? 'animation'
-        : namespace.startsWith('core.code')
-          ? 'code'
-          : 'pir');
-  return {
-    id: options.commandId ?? createCommandId(),
-    namespace,
-    type: options.type ?? 'document.update',
-    version: '1.0',
-    issuedAt: options.issuedAt ?? new Date().toISOString(),
-    forwardOps,
-    reverseOps,
-    target: { workspaceId: workspace.id, documentId },
-    domainHint,
-    ...(options.mergeKey ? { mergeKey: options.mergeKey } : {}),
-    ...(options.label ? { label: options.label } : {}),
-  };
 };
 
 export const createWorkspaceSlice: StateCreator<
@@ -778,12 +686,13 @@ export const createWorkspaceSlice: StateCreator<
     if (candidate === activeDocument.content) return null;
     const validation = validatePirDocument(candidate);
     if (validation.hasError) return null;
-    const command = createPirDocumentUpdateCommand(
-      state.workspace,
-      activeDocument.content,
-      validation.document,
-      options
-    );
+    const command = createWorkspacePirDocumentUpdateCommand({
+      workspace: state.workspace,
+      before: activeDocument.content,
+      after: validation.document,
+      ...options,
+      commandId: options.commandId ?? createWorkspaceClientOperationId(),
+    });
     return command ? state.dispatchWorkspaceCommand(command) : null;
   },
 });

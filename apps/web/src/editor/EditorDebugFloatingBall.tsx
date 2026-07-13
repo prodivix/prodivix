@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Bug } from 'lucide-react';
-import type { RouteDebugSnapshot } from '@/pir/renderer/routeDebug';
+import type { RouteDebugSnapshot } from '@prodivix/pir-react-renderer';
 
 type DebugMetrics = {
   elementCount: number;

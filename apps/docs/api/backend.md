@@ -272,15 +272,11 @@ POST /api/projects
   "description": "optional",
   "resourceType": "project",
   "isPublic": true,
-  "pir": {
-    "version": "1.0",
-    "ui": { "root": { "id": "root", "type": "container" } }
-  }
+  "pir": { "version": "1.3", "ui": { "graph": { ... } } }
 }
 ```
 
-`resourceType` 支持三类：`project` / `component` / `nodegraph`。  
-`isPublic=true` 时会公开到社区列表。
+`resourceType` 支持三类：`project` / `component` / `nodegraph`。`isPublic=true` 时会在同一事务中生成初始发布投影并公开到社区列表。
 
 #### 发布已有项目到社区
 
@@ -443,20 +439,19 @@ POST /api/projects
   "description": "Project description",
   "resourceType": "project",
   "isPublic": false,
-  "pir": {
-    "version": "1.0",
-    "ui": { "root": { "id": "root", "type": "div" } }
-  }
+  "pir": { "version": "1.3", "ui": { "graph": { ... } } }
 }
 ```
 
-| 字段           | 类型    | 必填 | 描述                                            |
-| -------------- | ------- | ---- | ----------------------------------------------- |
-| `name`         | string  | 是   | 项目名称                                        |
-| `description`  | string  | 否   | 项目描述                                        |
-| `resourceType` | string  | 否   | 资源类型：`project` / `component` / `nodegraph` |
-| `isPublic`     | boolean | 否   | 是否公开到社区（默认 false）                    |
-| `pir`          | object  | 否   | PIR 文档内容                                    |
+| 字段           | 类型    | 必填 | 描述                                                         |
+| -------------- | ------- | ---- | ------------------------------------------------------------ |
+| `name`         | string  | 是   | 项目名称                                                     |
+| `description`  | string  | 否   | 项目描述                                                     |
+| `resourceType` | string  | 否   | 资源类型：`project` / `component` / `nodegraph`              |
+| `isPublic`     | boolean | 否   | 是否公开到社区（默认 false）                                 |
+| `pir`          | object  | 否   | canonical Workspace 根页面的初始内容；不会保存为 Project PIR |
+
+Project metadata、初始 Workspace、Route、Settings、Documents 以及可选的初始发布投影在同一数据库事务中创建；任一步失败都会整体回滚，不会留下缺失 Workspace 的孤儿 Project。该创建端点未声明跨请求 idempotency key，重复的成功请求会创建新的 Project identity。
 
 **成功响应** (201 Created):
 
@@ -498,7 +493,6 @@ GET /api/projects/:id
     "description": "Project description",
     "isPublic": false,
     "starsCount": 0,
-    "pir": { ... },
     "createdAt": "2024-01-15T10:30:00Z",
     "updatedAt": "2024-01-15T12:00:00Z"
   }
@@ -507,54 +501,9 @@ GET /api/projects/:id
 
 ---
 
-#### 获取项目 PIR
-
-获取项目的 PIR 文档内容。
-
-```http
-GET /api/projects/:id/pir
-```
-
-**请求头**: 需要认证
-
-**成功响应** (200 OK):
-
-```json
-{
-  "id": "prj_xxx",
-  "pir": { ... },
-  "updatedAt": "2024-01-15T12:00:00Z"
-}
-```
-
----
-
-#### 保存项目 PIR
-
-保存项目的 PIR 文档内容。
-
-```http
-PUT /api/projects/:id/pir
-```
-
-**请求头**: 需要认证
-
-**请求体**:
-
-```json
-{
-  "pir": {
-    "version": "1.0",
-    "ui": { "root": { "id": "root", "type": "div" } }
-  }
-}
-```
-
----
-
 #### 发布项目
 
-将项目发布到社区。
+从当前 canonical Workspace 生成不可编辑的社区 PIR 投影并发布。再次发布会刷新投影；社区投影不会被编辑器读取，也不会在 Workspace 缺失时用于恢复。
 
 ```http
 POST /api/projects/:id/publish
@@ -595,6 +544,14 @@ DELETE /api/projects/:id
 工作区 API 提供协作编辑功能，支持版本控制和冲突检测。
 
 除创建/导入入口外，Workspace snapshot、capabilities 和 mutation 端点均只允许 Workspace owner 访问。不存在的 Workspace 与属于其他用户的 Workspace 统一返回不含 `details` 的 `WKS-1001`（404），避免泄露 Workspace 是否存在、当前 revision 或文档元数据。
+
+#### 导入本地项目
+
+```http
+POST /api/workspaces/import-local-project
+```
+
+导入入口会在同一数据库事务中创建新的 Project metadata 并导入完整 canonical Workspace snapshot；validation、Project、Workspace、Route、Settings 或任一 Document 写入失败时全部回滚。该端点同样未声明跨请求 idempotency key，重复的成功导入会生成新的 Project identity。
 
 #### 获取工作区快照
 
@@ -651,80 +608,24 @@ GET /api/workspaces/:workspaceId/capabilities
 {
   "workspaceId": "ws_xxx",
   "capabilities": {
+    "core.workspace.operation.commit@1.0": true,
+    "core.settings.commit@1.0": true,
     "core.pir.document.update@1.0": true,
     "core.route.manifest.update@1.0": true,
-    "core.nodegraph.node.move@1.0": false,
-    "core.nodegraph.edge.connect@1.0": false,
-    "core.animation.timeline.keyframe.add@1.0": false,
-    "core.animation.clip.bind@1.0": false
+    "core.nodegraph.graph.update@1.0": true,
+    "core.animation.definition.update@1.0": true,
+    "core.resource.project-config.value.update@1.0": true
   }
 }
 ```
 
 ---
 
-#### Patch 工作区文档
+#### Canonical revision 冲突
 
-使用 command patch 更新工作区中的文档内容，支持乐观更新、反向操作校验和冲突检测。
+Atomic WorkspaceOperation Commit 与 Settings Commit 都使用统一的 canonical 409。冲突响应只包含安全 revision metadata，客户端随后读取最新 Workspace snapshot 做 semantic recovery。
 
-```http
-PATCH /api/workspaces/:workspaceId/documents/:documentId
-```
-
-**请求头**: 需要认证，且当前用户必须是 Workspace owner
-
-**请求体**:
-
-```json
-{
-  "expectedContentRev": 5,
-  "clientMutationId": "mutation_123",
-  "command": {
-    "id": "cmd_xxx",
-    "namespace": "core.pir",
-    "type": "document.update",
-    "version": "1.0",
-    "issuedAt": "2026-06-16T08:00:00Z",
-    "target": {
-      "workspaceId": "ws_xxx",
-      "documentId": "doc_root"
-    },
-    "forwardOps": [{ "op": "replace", "path": "/title", "value": "Next" }],
-    "reverseOps": [{ "op": "replace", "path": "/title", "value": "Previous" }]
-  }
-}
-```
-
-| 字段                 | 类型   | 必填 | 描述                                         |
-| -------------------- | ------ | ---- | -------------------------------------------- |
-| `expectedContentRev` | number | 是   | 期望的内容版本号；必须是正 JSON safe integer |
-| `clientMutationId`   | string | 否   | 客户端变更 ID                                |
-| `command`            | object | 是   | 包含 forwardOps/reverseOps 的命令信封        |
-
-**成功响应** (200 OK):
-
-```json
-{
-  "workspaceId": "ws_xxx",
-  "workspaceRev": 2,
-  "routeRev": 1,
-  "opSeq": 101,
-  "updatedDocuments": [
-    {
-      "id": "doc_root",
-      "type": "pir-page",
-      "path": "/pir.json",
-      "contentRev": 6,
-      "metaRev": 2,
-      "content": { "...": "..." },
-      "updatedAt": "2026-06-16T08:00:00Z"
-    }
-  ],
-  "acceptedMutationId": "mutation_123"
-}
-```
-
-**冲突响应** (409 Conflict):
+**响应** (409 Conflict):
 
 ```json
 {
@@ -772,41 +673,6 @@ PATCH /api/workspaces/:workspaceId/documents/:documentId
 `DOCUMENT_CONFLICT.expected.document` 至少包含 contentRev/metaRev 之一；metadata-only 仍使用 WKS-4003。`current.document` 属性必需，远端存在时返回安全 revision metadata，远端已删除时为 `null`。新增 Document 的 `contentRev:null + metaRev:null` absence precondition 若发现 identity 已存在，也返回 WKS-4003。
 
 冲突详情只返回 rebase 所需的 revision 与文档元数据，不返回文档正文。客户端应重新读取已授权的最新 Workspace snapshot，再进行语义合并或提示用户处理冲突。非 owner 在进入 revision 检查前即按 404 拒绝，因此不会收到 409 或任何 `current` 元数据。
-
----
-
-#### 应用工作区意图
-
-应用意图驱动的操作（如路由更新）。
-
-```http
-POST /api/workspaces/:workspaceId/intents
-```
-
-**请求头**: 需要认证，且当前用户必须是 Workspace owner
-
-**请求体**:
-
-```json
-{
-  "expectedWorkspaceRev": 1,
-  "expectedRouteRev": 1,
-  "intent": {
-    "id": "intent_xxx",
-    "namespace": "core.route",
-    "type": "manifest.update",
-    "version": "1.0",
-    "payload": {
-      "routeManifest": { ... }
-    },
-    "idempotencyKey": "key_123",
-    "issuedAt": "2024-01-15T12:00:00Z"
-  },
-  "clientMutationId": "mutation_123"
-}
-```
-
-`expectedWorkspaceRev` 必须是正 JSON safe integer；`expectedRouteRev` 省略时不参与非路由意图的 CAS，提供时也必须位于相同范围。任何即将越过该上界的 retained mutation 会在写入前以 422 拒绝。
 
 ---
 
@@ -901,7 +767,7 @@ Atomic wire 还执行以下 canonicalization 与 Hard Cut：
 2. Transaction 与所有 Command 的 `issuedAt` 必须是 RFC3339 timestamp。
 3. `undoOf` 与 `redoOf` 在 trim 后互斥；`sourceOperationIds` 逐项 trim、拒绝空值，并按首次出现顺序稳定去重后再计算 request digest。
 4. 所有 domain 的 forward/reverse ops 都禁止 `move` / `copy`，必须展开为显式 granular `add` / `remove` / `replace` / `test`。
-5. `asset` / `project-config` 尚无可逆的 document command domain，document-targeted 修改以 422 Hard Cut。
+5. `asset` / `project-config` 只接受 `resource` domain 的可逆 document command，并使用专属 path policy 与 content validator。
 
 `expected` 必须与服务端从 Operation 写集推导的分区完全一致：
 
@@ -956,6 +822,32 @@ Command 或 Transaction id 是强幂等 commit identity：
 `200` 只表示 canonical Workspace 数据库已经提交。该 Handler 不同步写 Project mirror，避免乱序投影和幂等 replay 重复产生外部副作用；需要可靠跨系统投影时必须由同事务写入的 transactional outbox 驱动。
 
 旧 `POST /api/workspaces/:workspaceId/batch` 是逐条 Store commit，从未具备原子性，现已连同 `ApplyBatchRequest`、`clientBatchId` 和 Web adapter 一起 Hard Cut；不提供转发或兼容层。
+
+---
+
+#### 提交 Workspace Settings
+
+Settings 不属于作者态 WorkspaceOperation。客户端先把 exact request 写入 Settings Outbox，再调用独立的强幂等 Commit：
+
+```http
+POST /api/workspaces/:workspaceId/settings/commit
+```
+
+```json
+{
+  "commitId": "settings_01",
+  "issuedAt": "2026-07-13T08:00:00Z",
+  "expectedWorkspaceRev": 4,
+  "settings": {
+    "global": { "theme": "dark" },
+    "projectGlobalById": {}
+  }
+}
+```
+
+相同 `commitId` 与相同 canonical request 返回首次结果，不重复推进 revision；同 id 不同 request 返回 422。成功响应包含完整 `settings`、权威 `workspaceRev/opSeq`，且 `acceptedMutationId` 等于 `commitId`。409 后客户端基于 base/local/remote 做三方设置合并，并以 fresh commit id 重试。
+
+旧 document `PATCH` 与 `POST /intents` 已连同 Handler、直写 Store 事务和 Web API 一并删除。所有作者态领域写入必须先规划为 Command/Transaction，再进入 Operation Outbox。
 
 ---
 

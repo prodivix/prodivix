@@ -26,8 +26,8 @@ import { findActiveBlueprintCompositionIssue } from '@/editor/features/blueprint
 import {
   listIconNamesByProvider,
   resolveIconRef,
-} from '@/pir/renderer/iconRegistry';
-import { PIRRenderer } from '@/pir/renderer/PIRRenderer';
+} from '@prodivix/pir-react-renderer';
+import { PIRRenderer } from '@prodivix/pir-react-renderer';
 import {
   BUNDLED_OFFICIAL_HOST_MODULE_CATALOG,
   BUNDLED_OFFICIAL_PLUGIN_CATALOG,

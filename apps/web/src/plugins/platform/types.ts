@@ -30,8 +30,10 @@ import type {
   PaletteRuntimeProjection,
   ResolvedPaletteContribution,
 } from '@/editor/features/blueprint/palette/types';
-import type { ComponentAdapter } from '@/pir/renderer/registry';
-import type { IconProviderRegistration } from '@/pir/renderer/iconRegistry';
+import type {
+  ComponentAdapter,
+  IconProviderRegistration,
+} from '@prodivix/pir-react-renderer';
 import type { OfficialHostImplementationBindingSnapshot } from '@/plugins/platform/officialHostImplementations';
 import type {
   BundledPluginArtifactV1,

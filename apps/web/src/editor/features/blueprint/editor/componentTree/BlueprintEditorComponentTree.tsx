@@ -7,7 +7,7 @@ import type { ComponentNode } from '@prodivix/shared/types/pir';
 import {
   composeRouteManifestWithModules,
   flattenRouteManifest,
-} from '@prodivix/shared/router';
+} from '@prodivix/router';
 import {
   selectActivePirDocument,
   selectRouteManifest,
