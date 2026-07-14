@@ -14,6 +14,7 @@ import { compileAnimationExportContributions } from '#src/animation/compileAnima
 import type { TargetAdapter } from '#src/core/adapter';
 import {
   createCodegenPolicyTargetAdapter,
+  getCodegenPolicyDependenciesForUsage,
   getCodegenPolicyPackageVersions,
   type CodegenPolicySnapshot,
 } from '#src/core/codegenPolicy';
@@ -83,6 +84,63 @@ type WorkspaceRouteRuntimeBinding = {
   localName: string;
   routeNodeId: string;
 };
+
+const collectCodegenPolicyUsage = (
+  documents: readonly WorkspacePirDocument[]
+): Readonly<{
+  runtimeTypes: readonly string[];
+  iconProviderIds: readonly string[];
+}> => {
+  const runtimeTypes = new Set<string>();
+  const iconProviderIds = new Set<string>();
+  for (const document of documents) {
+    for (const node of Object.values(document.content.ui.graph.nodesById)) {
+      if (node.kind !== 'element') continue;
+      runtimeTypes.add(node.type);
+      const iconRef = node.props?.iconRef;
+      if (
+        node.type !== 'PdxIcon' ||
+        iconRef?.kind !== 'literal' ||
+        !iconRef.value ||
+        typeof iconRef.value !== 'object' ||
+        Array.isArray(iconRef.value)
+      ) {
+        continue;
+      }
+      const provider = (iconRef.value as Readonly<Record<string, unknown>>)
+        .provider;
+      if (typeof provider === 'string' && provider.trim()) {
+        iconProviderIds.add(provider.trim());
+      }
+    }
+  }
+  return {
+    runtimeTypes: [...runtimeTypes].sort(compareUnicodeCodePoints),
+    iconProviderIds: [...iconProviderIds].sort(compareUnicodeCodePoints),
+  };
+};
+
+const createCodegenPolicyExportDependencies = (
+  snapshot: CodegenPolicySnapshot,
+  documents: readonly WorkspacePirDocument[]
+): readonly ExportDependency[] =>
+  getCodegenPolicyDependenciesForUsage(
+    snapshot,
+    collectCodegenPolicyUsage(documents)
+  ).map((dependency) => ({
+    name: dependency.name,
+    version: dependency.version,
+    kind: dependency.kind,
+    origin: createExportPackageOrigin(dependency.name, dependency.version, {
+      updatePolicy: 'pin',
+      metadata: {
+        [dependency.name]: {
+          license: dependency.license,
+          owner: 'third-party',
+        },
+      },
+    }),
+  }));
 
 const compareUnicodeCodePoints = (left: string, right: string): number => {
   const leftPoints = Array.from(left, (value) => value.codePointAt(0) ?? 0);
@@ -187,7 +245,15 @@ const compileWorkspacePirDocuments = (input: {
     contribution: {
       roots: [...rootsById.values()],
       modules: [...modulesById.values()],
-      dependencies: mergeExportDependencies(dependencies),
+      dependencies: mergeExportDependencies([
+        ...dependencies,
+        ...(input.options.codegenPolicySnapshot
+          ? createCodegenPolicyExportDependencies(
+              input.options.codegenPolicySnapshot,
+              input.documents
+            )
+          : []),
+      ]),
       diagnostics: [...diagnostics.values()],
       metadata: {
         pirProjection: {

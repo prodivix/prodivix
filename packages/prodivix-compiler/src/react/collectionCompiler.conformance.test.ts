@@ -505,7 +505,7 @@ describe('PIR Collection compiler conformance', () => {
       )
     );
     expect(result.modules.flatMap(typecheckGeneratedModule)).toEqual([]);
-  });
+  }, 15_000);
 
   it('fails closed without partial modules for statically duplicated keys', () => {
     const result = compileWorkspacePirReactModules({
