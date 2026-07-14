@@ -3,17 +3,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Layers, Trash2 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
 import {
   composeRouteManifestWithModules,
   flattenRouteManifest,
 } from '@prodivix/router';
+import { selectWorkspacePirDocument } from '@prodivix/workspace';
 import {
-  selectActivePirDocument,
-  selectRouteManifest,
-  useEditorStore,
-} from '@/editor/store/useEditorStore';
-import { materializePirRoot } from '@prodivix/pir';
+  createBlueprintTreeProjection,
+  isSamePirRenderLocation,
+  pirRenderLocationKey,
+  type BlueprintTreeProjectionNode,
+} from '@/editor/features/blueprint/editor/model/tree';
 import { BlueprintTreeNode } from './BlueprintTreeNode';
 import {
   collectBranchExpandedKeys,
@@ -36,10 +36,12 @@ import {
 } from '../collapseButtonStyles';
 
 export function BlueprintEditorComponentTree({
+  workspace,
+  entryDocumentId,
   isCollapsed,
   isTreeCollapsed = false,
-  selectedId,
-  hiddenNodeIds,
+  selectedLocation,
+  hiddenLocations = [],
   dropHint,
   compositionIssue,
   pluginDiagnostics = [],
@@ -53,13 +55,25 @@ export function BlueprintEditorComponentTree({
   onOpenRoutePath,
 }: BlueprintEditorComponentTreeProps) {
   const { t } = useTranslation('blueprint');
-  const pirDoc = useEditorStore(selectActivePirDocument)!;
-  const routeManifest = useEditorStore(selectRouteManifest)!;
-  const rootNode = useMemo(() => materializePirRoot(pirDoc), [pirDoc]);
+  const documentRead = useMemo(
+    () => selectWorkspacePirDocument(workspace, entryDocumentId),
+    [entryDocumentId, workspace]
+  );
+  const rootNode = useMemo(
+    () =>
+      documentRead?.status === 'valid'
+        ? createBlueprintTreeProjection(
+            entryDocumentId,
+            documentRead.decodedContent
+          )
+        : null,
+    [documentRead, entryDocumentId]
+  );
   const outletRoutePaths = useMemo(() => {
     const result: Record<string, string> = {};
-    const composedManifest =
-      composeRouteManifestWithModules(routeManifest).manifest;
+    const composedManifest = composeRouteManifestWithModules(
+      workspace.routeManifest
+    ).manifest;
     flattenRouteManifest(composedManifest).forEach((route) => {
       if (route.node.outletNodeId?.trim()) {
         result[route.node.outletNodeId] = route.path;
@@ -71,19 +85,23 @@ export function BlueprintEditorComponentTree({
       });
     });
     return result;
-  }, [routeManifest]);
+  }, [workspace.routeManifest]);
   const isDeleteDisabled =
-    !selectedId || !rootNode || selectedId === rootNode.id;
+    !selectedLocation ||
+    !rootNode ||
+    isSamePirRenderLocation(selectedLocation, rootNode.location);
   const { setNodeRef: setRootDropRef, isOver: isOverRoot } = useDroppable({
     id: 'tree-root',
-    data: { kind: 'tree-root' },
+    data: { kind: 'tree-root', location: rootNode?.location },
+    disabled: !rootNode,
   });
   const totalNodes = useMemo(
     () => (rootNode ? countNodes(rootNode) : 0),
     [rootNode]
   );
   const defaultExpandedKeys = useMemo(
-    () => (rootNode && rootNode.children?.length ? [rootNode.id] : []),
+    () =>
+      rootNode && rootNode.children.length ? [rootNode.location.nodeId] : [],
     [rootNode]
   );
   const [expandedKeys, setExpandedKeys] =
@@ -93,18 +111,24 @@ export function BlueprintEditorComponentTree({
     null
   );
   const menuHoldTimer = useRef<number | null>(null);
-  const rootIdRef = useRef(rootNode?.id);
+  const rootIdRef = useRef(rootNode?.location.nodeId);
 
   useEffect(() => {
-    const nextRootId = rootNode?.id;
+    const nextRootId = rootNode?.location.nodeId;
     if (rootIdRef.current === nextRootId) return;
     rootIdRef.current = nextRootId;
     setExpandedKeys(defaultExpandedKeys);
-  }, [defaultExpandedKeys, rootNode?.id]);
+  }, [defaultExpandedKeys, rootNode?.location.nodeId]);
 
   useEffect(() => {
-    if (!rootNode || !selectedId) return;
-    const ancestors = findAncestorIds(rootNode, selectedId) ?? [];
+    if (
+      !rootNode ||
+      !selectedLocation ||
+      selectedLocation.documentId !== entryDocumentId
+    ) {
+      return;
+    }
+    const ancestors = findAncestorIds(rootNode, selectedLocation.nodeId) ?? [];
     if (ancestors.length === 0) return;
     setExpandedKeys((prev) => {
       const next = new Set(prev);
@@ -117,7 +141,7 @@ export function BlueprintEditorComponentTree({
       });
       return changed ? Array.from(next) : prev;
     });
-  }, [rootNode, selectedId]);
+  }, [entryDocumentId, rootNode, selectedLocation]);
 
   useEffect(() => {
     return () => {
@@ -150,18 +174,20 @@ export function BlueprintEditorComponentTree({
     };
   }, [contextMenu]);
 
-  const holdMenuOpen = (nodeId: string) => {
-    setOpenMenuId(nodeId);
+  const holdMenuOpen = (location: BlueprintTreeProjectionNode['location']) => {
+    const locationKey = pirRenderLocationKey(location);
+    setOpenMenuId(locationKey);
     if (typeof window === 'undefined') return;
     if (menuHoldTimer.current) {
       window.clearTimeout(menuHoldTimer.current);
     }
     menuHoldTimer.current = window.setTimeout(() => {
-      setOpenMenuId((prev) => (prev === nodeId ? null : prev));
+      setOpenMenuId((prev) => (prev === locationKey ? null : prev));
     }, 350);
   };
 
-  const handleToggle = (nodeId: string) => {
+  const handleToggle = (location: BlueprintTreeProjectionNode['location']) => {
+    const nodeId = location.nodeId;
     setExpandedKeys((prev) =>
       prev.includes(nodeId)
         ? prev.filter((id) => id !== nodeId)
@@ -170,7 +196,7 @@ export function BlueprintEditorComponentTree({
   };
 
   const openContextMenu = (
-    node: ComponentNode,
+    item: BlueprintTreeProjectionNode,
     event: ReactMouseEvent<HTMLDivElement>
   ) => {
     const viewportWidth =
@@ -179,7 +205,7 @@ export function BlueprintEditorComponentTree({
       typeof window === 'undefined' ? Infinity : window.innerHeight;
     setOpenMenuId(null);
     setContextMenu({
-      node,
+      item,
       x: Math.max(
         CONTEXT_MENU_VIEWPORT_GAP_PX,
         Math.min(
@@ -199,21 +225,21 @@ export function BlueprintEditorComponentTree({
 
   const runContextMenuAction = (action: TreeContextMenuAction) => {
     if (!contextMenu) return;
-    const node = contextMenu.node;
-    const branchKeys = collectBranchExpandedKeys(node);
+    const item = contextMenu.item;
+    const branchKeys = collectBranchExpandedKeys(item);
 
     setExpandedKeys((prev) => {
       const next = new Set(prev);
 
       switch (action) {
         case 'expand':
-          next.add(node.id);
+          next.add(item.location.nodeId);
           break;
         case 'expandRecursive':
           branchKeys.forEach((id) => next.add(id));
           break;
         case 'collapse':
-          next.delete(node.id);
+          next.delete(item.location.nodeId);
           break;
         case 'collapseRecursive':
           branchKeys.forEach((id) => next.delete(id));
@@ -226,11 +252,11 @@ export function BlueprintEditorComponentTree({
   };
 
   const getContextMenuAvailability = (
-    node: ComponentNode
+    item: BlueprintTreeProjectionNode
   ): TreeContextMenuAvailability => {
-    const branchKeys = collectBranchExpandedKeys(node);
+    const branchKeys = collectBranchExpandedKeys(item);
     const expandedSet = new Set(expandedKeys);
-    const isExpanded = expandedSet.has(node.id);
+    const isExpanded = expandedSet.has(item.location.nodeId);
     const isBranchFullyExpanded = branchKeys.every((id) => expandedSet.has(id));
     const isBranchFullyCollapsed = branchKeys.every(
       (id) => !expandedSet.has(id)
@@ -245,7 +271,7 @@ export function BlueprintEditorComponentTree({
   };
 
   const contextMenuAvailability = contextMenu
-    ? getContextMenuAvailability(contextMenu.node)
+    ? getContextMenuAvailability(contextMenu.item)
     : null;
 
   if (isCollapsed) {
@@ -348,14 +374,14 @@ export function BlueprintEditorComponentTree({
         {rootNode ? (
           <div className="BlueprintEditorTreeList flex flex-col gap-px p-0">
             <BlueprintTreeNode
-              node={rootNode}
+              item={rootNode}
               depth={0}
               expandedKeys={expandedKeys}
               outletRoutePaths={outletRoutePaths}
-              selectedId={selectedId}
-              hiddenNodeIds={hiddenNodeIds}
+              selectedLocation={selectedLocation}
+              hiddenLocations={hiddenLocations}
               dropHint={dropHint}
-              rootId={rootNode.id}
+              rootLocation={rootNode.location}
               openMenuId={openMenuId}
               onMenuAction={holdMenuOpen}
               onToggle={handleToggle}

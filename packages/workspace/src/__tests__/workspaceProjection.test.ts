@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   projectWorkspaceToProdivixFiles,
   readWorkspaceFromProdivixFiles,
@@ -60,7 +60,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/pages/home.pir.json',
       contentRev: 3,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
       updatedAt: '2026-05-10T00:00:00.000Z',
     },
     'code-index': {
@@ -113,6 +113,11 @@ describe('workspace projection', () => {
       mime: 'application/json',
       role: 'document',
     });
+    const projectedPir = JSON.parse(
+      result.files.find((file) => file.documentId === 'page-home')!.content
+    );
+    expect(projectedPir).toHaveProperty('version');
+    expect(projectedPir).toHaveProperty('ui.graph.version');
     expect(
       result.files.find((file) => file.documentId === 'code-index')
     ).toMatchObject({

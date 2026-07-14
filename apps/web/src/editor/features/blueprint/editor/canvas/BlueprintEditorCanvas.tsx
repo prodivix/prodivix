@@ -9,29 +9,14 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDroppable } from '@dnd-kit/core';
-import {
-  selectActivePirDocument,
-  selectWorkspaceDocumentsById,
-  useEditorStore,
-} from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import {
   PIRRenderer,
-  type RendererCodeArtifact,
+  type PIRRenderLocation,
+  type PIRRendererBlockingIssue,
 } from '@prodivix/pir-react-renderer';
-import { materializePirRoot } from '@prodivix/pir';
-import { isWorkspaceCodeDocumentContent } from '@prodivix/workspace';
-import {
-  createOrderedComponentRegistry,
-  parseResolverOrder,
-} from '@prodivix/pir-react-renderer';
-import {
-  createRendererProjectionRegistry,
-  useWebExtensionRegistrySnapshot,
-} from '@/plugins/platform';
+import { createWorkspacePirProjectionPlan } from '@prodivix/workspace';
 import { OfficialReactSurfaceBoundary } from '@/plugins/platform/officialSurfaceHost';
-import { normalizeAnimationDefinition } from '@prodivix/animation';
-import { buildAnimationPreviewSnapshotFromTimelines } from '@prodivix/runtime-browser';
 import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/blueprint/editor/model/viewport';
 import { CanvasPlaceholder } from './CanvasPlaceholder';
 import { CanvasRouteDiagnostics } from './CanvasRouteDiagnostics';
@@ -45,95 +30,97 @@ import {
   parseDimension,
 } from './canvasGeometry';
 import type { BlueprintEditorCanvasProps, PanState } from './canvasTypes';
-import { CanvasSvgFilters } from './CanvasSvgFilters';
 import { createRouteCanvasDiagnostics } from './routeDiagnostics';
 import { useActiveRoutePreview } from './useActiveRoutePreview';
 
 const escapeCssAttributeValue = (value: string) =>
   value.replace(/["\\\n\r\f]/g, (char) => `\\${char}`);
 
-const createCanvasHiddenLayerCss = (nodeIds: string[]) =>
-  nodeIds
-    .filter((nodeId) => nodeId.trim().length > 0)
+const createCanvasHiddenLayerCss = (locations: readonly PIRRenderLocation[]) =>
+  locations
+    .filter(
+      ({ documentId, nodeId, instancePath }) =>
+        documentId.trim() && nodeId.trim() && instancePath.trim()
+    )
     .map(
-      (nodeId) =>
-        `[data-pir-node-id="${escapeCssAttributeValue(nodeId)}"] > * { opacity: 0 !important; pointer-events: none !important; }`
+      ({ documentId, nodeId, instancePath }) =>
+        `[data-pir-document-id="${escapeCssAttributeValue(documentId)}"][data-pir-node-id="${escapeCssAttributeValue(nodeId)}"][data-pir-instance-path="${escapeCssAttributeValue(instancePath)}"] > * { opacity: 0 !important; pointer-events: none !important; }`
     )
     .join('\n');
-/**
- * 交互链路：
- * 节点点击 -> PIRRenderer -> onSelectNode -> controller；
- * 节点内置动作 -> builtInActions -> controller。
- */
+
+const ignoreTrigger = () => undefined;
+/** PIRRenderer projects the canonical workspace snapshot into the author canvas. */
 export function BlueprintEditorCanvas({
+  workspace,
+  entryDocumentId,
+  rendererHost,
   currentPath,
   interactionMode,
   viewportWidth,
   viewportHeight,
   zoom,
   pan,
-  selectedId,
-  hiddenNodeIds,
-  runtimeState,
+  selectedLocation,
+  hiddenLocations = [],
+  rootParamsById,
+  rootStateById,
+  rootDataById,
+  rootComponentPropsById,
+  rootComponentVariantsById,
+  resolveCollectionPreviewState,
+  dispatchTrigger = ignoreTrigger,
   onPanChange,
   onZoomChange,
   onSelectNode,
-  onNavigateRequest,
-  onExecuteGraphRequest,
+  onBlockingIssuesChange,
 }: BlueprintEditorCanvasProps) {
   const { t } = useTranslation('blueprint');
   const assist = useSettingsStore((state) => state.global.assist);
   const panInertia = useSettingsStore((state) => state.global.panInertia);
   const zoomStep = useSettingsStore((state) => state.global.zoomStep);
-  const renderModeValue = useSettingsStore((state) => state.global.renderMode);
-  const renderMode =
-    renderModeValue === 'strict' || renderModeValue === 'tolerant'
-      ? renderModeValue
-      : 'tolerant';
-  const allowExternalProps = useSettingsStore(
-    (state) => state.global.allowExternalProps
-  );
-  const resolverOrder = useSettingsStore((state) => state.global.resolverOrder);
   const diagnostics = useSettingsStore((state) => state.global.diagnostics);
   const [isPanning, setIsPanning] = useState(false);
-  const extensionRegistry = useWebExtensionRegistrySnapshot();
-  const pirDoc = useEditorStore(selectActivePirDocument)!;
-  const workspaceDocumentsById = useEditorStore(selectWorkspaceDocumentsById);
-  const pirRoot = useMemo(() => materializePirRoot(pirDoc), [pirDoc]);
-  const codeArtifacts = useMemo<RendererCodeArtifact[]>(() => {
-    const artifacts: RendererCodeArtifact[] = [];
-    Object.values(workspaceDocumentsById).forEach((document) => {
-      if (
-        document.type !== 'code' ||
-        !isWorkspaceCodeDocumentContent(document.content)
-      ) {
-        return;
-      }
-      artifacts.push({
-        id: document.id,
-        path: document.path,
-        language: document.content.language,
-        source: document.content.source,
-      });
-    });
-    return artifacts;
-  }, [workspaceDocumentsById]);
-  const {
-    composedRouteManifest,
-    routeRuntimeContext,
-    activeRouteNodeId,
-    activeRouteNode,
-    outletContentNode,
-    outletTargetNodeId,
-  } = useActiveRoutePreview(currentPath);
+  const [blockingIssues, setBlockingIssues] = useState<
+    readonly PIRRendererBlockingIssue[]
+  >([]);
+  const projection = useMemo(
+    () => createWorkspacePirProjectionPlan({ workspace, entryDocumentId }),
+    [entryDocumentId, workspace]
+  );
+  const entryGraph =
+    projection.status === 'ready'
+      ? projection.plan.entryDocument.content.ui.graph
+      : undefined;
+  const { activeRouteNode, outletTargetNodeId } = useActiveRoutePreview(
+    workspace,
+    currentPath
+  );
   const routeDiagnostics = useMemo(
     () =>
-      createRouteCanvasDiagnostics(
-        activeRouteNode,
-        pirRoot,
-        outletTargetNodeId
-      ),
-    [activeRouteNode, outletTargetNodeId, pirRoot]
+      entryGraph
+        ? createRouteCanvasDiagnostics(
+            activeRouteNode,
+            entryGraph,
+            outletTargetNodeId
+          )
+        : [],
+    [activeRouteNode, entryGraph, outletTargetNodeId]
+  );
+  const canvasDiagnostics = useMemo(
+    () => [
+      ...routeDiagnostics,
+      ...(projection.status === 'blocked'
+        ? projection.issues.map((issue) => ({
+            code: issue.code,
+            message: issue.message,
+          }))
+        : []),
+      ...blockingIssues.map((issue) => ({
+        code: issue.code,
+        message: issue.message,
+      })),
+    ],
+    [blockingIssues, projection, routeDiagnostics]
   );
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const panState = useRef<PanState>({
@@ -158,44 +145,9 @@ export function BlueprintEditorCanvas({
   const scale = Math.min(2, Math.max(0.4, zoom / 100));
   const showGrid = assist.includes('grid');
   const showSelectionDiagnostics = diagnostics.includes('selection');
-  const animationDefinition = useMemo(
-    () => normalizeAnimationDefinition(pirDoc.animation),
-    [pirDoc.animation]
-  );
-  const animationTimelines = animationDefinition?.timelines ?? [];
-  const animationSvgFilters = animationDefinition?.svgFilters ?? [];
-  const animationSignature = useMemo(
-    () => JSON.stringify(animationTimelines),
-    [animationTimelines]
-  );
-  const hasAutoPlayAnimation = useMemo(
-    () =>
-      animationTimelines.some((timeline) =>
-        timeline.bindings.some((binding) => binding.tracks.length > 0)
-      ),
-    [animationTimelines]
-  );
-  const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
-  const registry = useMemo(
-    () =>
-      createOrderedComponentRegistry(
-        parseResolverOrder(resolverOrder),
-        createRendererProjectionRegistry(extensionRegistry)
-      ),
-    [extensionRegistry, resolverOrder]
-  );
-  const animationPreview = useMemo(
-    () =>
-      buildAnimationPreviewSnapshotFromTimelines({
-        timelines: animationTimelines,
-        globalMs: animationElapsedMs,
-        svgFilters: animationSvgFilters,
-      }),
-    [animationElapsedMs, animationSvgFilters, animationTimelines]
-  );
   const hiddenLayerCss = useMemo(
-    () => createCanvasHiddenLayerCss(hiddenNodeIds),
-    [hiddenNodeIds]
+    () => createCanvasHiddenLayerCss(hiddenLocations),
+    [hiddenLocations]
   );
 
   const { setNodeRef: setCanvasDropRef, isOver: isCanvasOver } = useDroppable({
@@ -231,27 +183,6 @@ export function BlueprintEditorCanvas({
       }
     };
   }, []);
-
-  useEffect(() => {
-    setAnimationElapsedMs(0);
-  }, [animationSignature]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!hasAutoPlayAnimation) return;
-    let rafId = 0;
-    let startTs: number | null = null;
-    const tick = (ts: number) => {
-      if (startTs === null) startTs = ts;
-      const elapsed = Math.max(0, ts - startTs);
-      setAnimationElapsedMs(elapsed);
-      rafId = window.requestAnimationFrame(tick);
-    };
-    rafId = window.requestAnimationFrame(tick);
-    return () => {
-      window.cancelAnimationFrame(rafId);
-    };
-  }, [hasAutoPlayAnimation, animationSignature]);
 
   const stopInertia = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -433,13 +364,20 @@ export function BlueprintEditorCanvas({
     applyZoom(zoomRef.current + delta);
   };
 
-  const handleNodeSelect = (nodeId: string) => {
+  const handleNodeSelect = (location: PIRRenderLocation) => {
     if (suppressSelectRef.current) return;
-    onSelectNode(nodeId);
+    onSelectNode(location);
   };
 
-  const hasChildren = Boolean(pirRoot.children?.length);
   const isDesignMode = interactionMode === 'design';
+
+  const reportBlockingIssues = useCallback(
+    (issues: readonly PIRRendererBlockingIssue[]) => {
+      setBlockingIssues(issues);
+      onBlockingIssuesChange?.(issues);
+    },
+    [onBlockingIssuesChange]
+  );
 
   return (
     <section
@@ -472,53 +410,43 @@ export function BlueprintEditorCanvas({
               style={{ width: canvasWidth, height: canvasHeight }}
             >
               <OfficialReactSurfaceBoundary>
-                {animationPreview.cssText ? (
-                  <style>{animationPreview.cssText}</style>
-                ) : null}
                 {hiddenLayerCss ? (
                   <style data-blueprint-author-hidden-layers>
                     {hiddenLayerCss}
                   </style>
                 ) : null}
-                <CanvasSvgFilters filters={animationPreview.svgFilters} />
-                {hasChildren ? (
+                {projection.status === 'ready' ? (
                   <PIRRenderer
-                    pirDoc={pirDoc}
-                    runtimeState={runtimeState}
-                    codeArtifacts={codeArtifacts}
-                    overrides={{ currentPath }}
-                    outletContentNode={outletContentNode}
-                    outletTargetNodeId={outletTargetNodeId}
-                    selectedId={isDesignMode ? selectedId : undefined}
+                    plan={projection.plan}
+                    host={rendererHost}
+                    rootParamsById={rootParamsById}
+                    rootStateById={rootStateById}
+                    rootDataById={rootDataById}
+                    rootComponentPropsById={rootComponentPropsById}
+                    rootComponentVariantsById={rootComponentVariantsById}
+                    resolveCollectionPreviewState={
+                      resolveCollectionPreviewState
+                    }
+                    dispatchTrigger={dispatchTrigger}
+                    selectedLocation={
+                      isDesignMode ? selectedLocation : undefined
+                    }
                     onNodeSelect={isDesignMode ? handleNodeSelect : undefined}
-                    registry={registry}
-                    renderMode={renderMode}
-                    allowExternalProps={allowExternalProps === 'enabled'}
-                    requireSelectionForEvents={false}
-                    interactionMode={interactionMode}
-                    // 内置动作链路：PIRRenderer -> builtInActions -> controller。
-                    builtInActions={{
-                      ...(onNavigateRequest
-                        ? { navigate: onNavigateRequest }
-                        : {}),
-                      ...(onExecuteGraphRequest
-                        ? {
-                            executeGraph: onExecuteGraphRequest,
-                          }
-                        : {}),
-                    }}
-                    routeManifest={composedRouteManifest}
-                    activeRouteNodeId={activeRouteNodeId}
-                    routeRuntimeContext={routeRuntimeContext}
+                    onBlockingIssues={reportBlockingIssues}
                   />
                 ) : (
                   <CanvasPlaceholder
-                    title={t('canvas.placeholderTitle')}
-                    description={t('canvas.placeholderDescription')}
+                    title={t('canvas.unavailableTitle', {
+                      defaultValue: 'Preview unavailable',
+                    })}
+                    description={
+                      projection.issues[0]?.message ??
+                      t('canvas.placeholderDescription')
+                    }
                   />
                 )}
               </OfficialReactSurfaceBoundary>
-              <CanvasRouteDiagnostics diagnostics={routeDiagnostics} />
+              <CanvasRouteDiagnostics diagnostics={canvasDiagnostics} />
             </div>
           </div>
         </div>

@@ -317,7 +317,9 @@ func normalizeJSONDocument(payload json.RawMessage, fallback json.RawMessage) (j
 
 func normalizeWorkspaceDocumentContent(documentType WorkspaceDocumentType, payload json.RawMessage) (json.RawMessage, error) {
 	fallback := defaultPIRDocument
-	if documentType == WorkspaceDocumentTypeCode {
+	if documentType == WorkspaceDocumentTypePIRGraph {
+		fallback = defaultNodeGraphDocument
+	} else if documentType == WorkspaceDocumentTypeCode {
 		fallback = defaultCodeDocument
 	} else if !isPIRWorkspaceDocumentType(documentType) {
 		fallback = defaultGenericDocument
@@ -362,6 +364,12 @@ func mustMarshalWorkspaceCapabilities(capabilities []string) string {
 }
 
 func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, payload json.RawMessage) error {
+	if documentType == WorkspaceDocumentTypePIRGraph {
+		return validateNodeGraphDocument(payload)
+	}
+	if documentType == WorkspaceDocumentTypePIRAnimation {
+		return validateAnimationDocument(payload)
+	}
 	if documentType == WorkspaceDocumentTypeCode {
 		return validateWorkspaceCodeDocument(payload)
 	}

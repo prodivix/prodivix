@@ -43,7 +43,7 @@
 
 ## 风险与回滚
 
-说明失败模式、兼容性或迁移策略，以及安全停止或回滚方式。Alpha 阶段的 Hard Cut 不需要保留旧兼容层。
+说明失败模式、contract transition、安全停止或回滚方式。Alpha 阶段以当前 canonical contract 作为唯一生产基线。
 
 ## 验收标准
 

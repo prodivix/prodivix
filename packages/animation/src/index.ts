@@ -19,6 +19,10 @@ export {
   serializeAnimationDefinition,
 } from './animationCodec';
 export {
+  ANIMATION_VALIDATION_CODES,
+  validateAnimationDefinition,
+} from './animationValidator';
+export {
   clampMs,
   coerceKeyframeValueInput,
   hasAnySvgTrack,
@@ -33,6 +37,16 @@ export {
   resolveKeyframedValue,
   resolveTimelineCursorMs,
 } from './animationEvaluation';
+export {
+  ANIMATION_SEMANTIC_PROVIDER_DESCRIPTOR,
+  createAnimationSemanticContributionProvider,
+} from './animationSemanticContributionProvider';
+export {
+  createAnimationCodeSlotProvider,
+  createAnimationTimelineCodeReferenceId,
+  createAnimationTimelineCodeSlotId,
+  type AnimationTimelineCodeSlotRole,
+} from './animationCodeSlotProvider';
 
 export type {
   AnimationBinding,
@@ -48,7 +62,18 @@ export type {
   AnimationStyleTrack,
   AnimationSvgFilterAttributeTrack,
   AnimationTimeline,
+  AnimationTimelineCodeSlots,
   AnimationTrack,
+  AnimationTargetReference,
   SvgFilterDefinition,
   SvgFilterPrimitive,
 } from './animation.types';
+export type {
+  AnimationValidationCode,
+  AnimationValidationIssue,
+  AnimationValidationResult,
+} from './animationValidator';
+export type {
+  AnimationSemanticSourceInput,
+  CreateAnimationSemanticContributionProviderInput,
+} from './animationSemanticContributionProvider';

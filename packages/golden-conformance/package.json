@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@prodivix/plugin-antd": "workspace:*",
+    "@prodivix/pir": "workspace:*",
     "@prodivix/prodivix-compiler": "workspace:*",
-    "@prodivix/shared": "workspace:*",
     "@prodivix/workspace": "workspace:*",
     "@prodivix/workspace-sync": "workspace:*"
   },

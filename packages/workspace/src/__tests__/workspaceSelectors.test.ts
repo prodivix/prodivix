@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   isPirDocumentContent,
   resolveCanonicalWorkspaceDocumentId,
@@ -47,7 +46,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/pages/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     },
   },
   routeManifest: {
@@ -72,7 +71,6 @@ describe('workspace selectors', () => {
   it('does not treat legacy ui.root content as current PIR content', () => {
     expect(
       isPirDocumentContent({
-        version: CURRENT_PIR_VERSION,
         ui: {
           root: { id: 'root', type: 'container' },
         },
@@ -85,7 +83,7 @@ describe('workspace selectors', () => {
     workspace.docsById['page-home'] = {
       ...workspace.docsById['page-home'],
       type: 'pir-graph',
-      content: { nodesById: {}, edgesById: {} },
+      content: { version: 1, nodes: [], edges: [] },
     };
 
     expect(selectActivePirDocument(workspace)).toBeUndefined();

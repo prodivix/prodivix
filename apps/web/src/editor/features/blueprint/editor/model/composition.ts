@@ -1,6 +1,5 @@
 import { matchesBlueprintCompositionSequence } from '@prodivix/plugin-contracts';
-import type { UiGraph } from '@prodivix/shared/types/pir';
-import { getParentMap } from '@prodivix/pir';
+import type { PIRNode, PIRUiGraph } from '@prodivix/pir';
 import type { PaletteQueryService } from '@/plugins/platform';
 
 export type BlueprintCompositionIssue = Readonly<{
@@ -10,27 +9,45 @@ export type BlueprintCompositionIssue = Readonly<{
   message: string;
 }>;
 
-/**
- * Validates the plugin-owned composition rules affected by a graph mutation.
- * Callers pass the changed node and its old/new parents so unrelated legacy
- * nodes cannot block an otherwise valid local edit.
- */
+const runtimeTypeOf = (node: PIRNode | undefined): string | undefined =>
+  node?.kind === 'element' ? node.type : undefined;
+
+const createParentByNodeId = (
+  graph: PIRUiGraph
+): Readonly<Record<string, string>> => {
+  const parentByNodeId: Record<string, string> = {};
+  for (const [parentId, childIds] of Object.entries(graph.childIdsById)) {
+    childIds.forEach((childId) => {
+      parentByNodeId[childId] = parentId;
+    });
+  }
+  for (const [parentId, regions] of Object.entries(graph.regionsById ?? {})) {
+    Object.values(regions).forEach((childIds) => {
+      childIds.forEach((childId) => {
+        parentByNodeId[childId] = parentId;
+      });
+    });
+  }
+  return parentByNodeId;
+};
+
+/** Validates plugin composition rules against the canonical normalized graph. */
 export const validateBlueprintComposition = (
-  graph: UiGraph,
+  graph: PIRUiGraph,
   palette: PaletteQueryService,
   affectedNodeIds: Iterable<string>
 ): BlueprintCompositionIssue | undefined => {
-  const parentMap = getParentMap(graph);
+  const parentByNodeId = createParentByNodeId(graph);
   for (const nodeId of new Set(affectedNodeIds)) {
     const node = graph.nodesById[nodeId];
-    if (!node) continue;
-    const resolved = palette.getCompositionRule(node.type);
+    const runtimeType = runtimeTypeOf(node);
+    if (!runtimeType) continue;
+    const resolved = palette.getCompositionRule(runtimeType);
     if (!resolved) continue;
     const rule = resolved.rule;
-    const parent = parentMap[nodeId];
-    const parentType = parent
-      ? graph.nodesById[parent.parentId]?.type
-      : undefined;
+    const parentType = runtimeTypeOf(
+      graph.nodesById[parentByNodeId[nodeId] ?? '']
+    );
     if (
       rule.parent.mode === 'listed' &&
       (!parentType || !rule.parent.runtimeTypes.includes(parentType))
@@ -38,8 +55,8 @@ export const validateBlueprintComposition = (
       return Object.freeze({
         code: 'PIR-2011',
         nodeId,
-        runtimeType: node.type,
-        message: `Runtime type ${node.type} cannot be inserted under ${parentType ?? 'the document root'}.`,
+        runtimeType,
+        message: `Runtime type ${runtimeType} cannot be inserted under ${parentType ?? 'the document root'}.`,
       });
     }
     for (const slot of rule.slots) {
@@ -48,15 +65,15 @@ export const validateBlueprintComposition = (
           ? (graph.childIdsById[nodeId] ?? [])
           : (graph.regionsById?.[nodeId]?.[slot.name] ?? []);
       const childTypes = childIds.flatMap((childId) => {
-        const child = graph.nodesById[childId];
-        return child ? [child.type] : [];
+        const childType = runtimeTypeOf(graph.nodesById[childId]);
+        return childType ? [childType] : [];
       });
       if (!matchesBlueprintCompositionSequence(slot.sequence, childTypes)) {
         return Object.freeze({
           code: 'PIR-2011',
           nodeId,
-          runtimeType: node.type,
-          message: `Runtime type ${node.type} violates its ${slot.target} composition sequence.`,
+          runtimeType,
+          message: `Runtime type ${runtimeType} violates its ${slot.target} composition sequence.`,
         });
       }
     }

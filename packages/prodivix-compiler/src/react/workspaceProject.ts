@@ -1,15 +1,25 @@
 import {
+  decodeWorkspaceAnimationDocument,
+  decodeWorkspaceNodeGraphDocument,
   isWorkspaceAssetDocumentContent,
   isWorkspaceCodeDocumentContent,
   isWorkspacePirDocument,
   isWorkspaceProjectConfigDocumentContent,
   validateWorkspaceSnapshot,
   type WorkspaceDocument,
+  type WorkspacePirDocument,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
-import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { compileAnimationExportContributions } from '#src/animation/compileAnimation';
+import type { TargetAdapter } from '#src/core/adapter';
+import {
+  createCodegenPolicyTargetAdapter,
+  getCodegenPolicyPackageVersions,
+  type CodegenPolicySnapshot,
+} from '#src/core/codegenPolicy';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
+import { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
+import type { PackageResolverOptions } from '#src/core/packageResolver';
 import {
   ProductionExportPlanner,
   collectExportCodeArtifactContributions,
@@ -33,32 +43,38 @@ import {
   type ExportModule,
   type ExportProgram,
   type ExportProgramContribution,
-  type ExportRootKind,
+  type ExportRoot,
   type ExportRouteTopology,
   type ExportSourceTrace,
 } from '#src/export';
-import { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
-import { compilePirToReactComponent } from '#src/react/compileComponent';
+import { reactAdapter } from '#src/react/adapter';
+import {
+  compileWorkspacePirReactModules,
+  createPirReactModuleId,
+} from '#src/react/index';
 import type {
   ReactExportBundle,
   ReactGeneratorCodeArtifact,
-  ReactGeneratorOptions,
 } from '#src/react/types';
 
-export type WorkspaceReactViteCompileOptions = Pick<
-  ReactGeneratorOptions,
-  'adapter' | 'codegenPolicySnapshot' | 'packageResolver'
-> & {
+export type WorkspaceReactViteCompileOptions = Readonly<{
+  adapter?: TargetAdapter;
+  codegenPolicySnapshot?: CodegenPolicySnapshot;
+  packageResolver?: PackageResolverOptions;
   exportContributions?: ExportProgramContribution[];
   projectName?: string;
-};
+}>;
 
 type CompiledWorkspacePirDocument = {
   componentName: string;
-  document: WorkspaceDocument;
+  document: WorkspacePirDocument;
   module: ExportModule;
-  contribution: ExportProgramContribution;
 };
+
+type CompiledWorkspacePirProjection = Readonly<{
+  documents: readonly CompiledWorkspacePirDocument[];
+  contribution: ExportProgramContribution;
+}>;
 
 type WorkspaceRouteRuntimeBinding = {
   artifactId: string;
@@ -92,53 +108,6 @@ const sortJsonValue = (value: unknown): unknown => {
 const toCanonicalJson = (value: unknown): string =>
   `${JSON.stringify(sortJsonValue(value), null, 2)}\n`;
 
-const toPascalIdentifier = (value: string, fallback: string): string => {
-  const candidate = value
-    .trim()
-    .replace(/\.[^.]+$/, '')
-    .split(/[^a-zA-Z0-9_$]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('');
-  const normalized = candidate || fallback;
-  return /^[a-zA-Z_$]/.test(normalized) ? normalized : `_${normalized}`;
-};
-
-const getDocumentDisplayName = (document: WorkspaceDocument): string => {
-  const content = document.content as PIRDocument;
-  return (
-    content.metadata?.name ??
-    document.name ??
-    document.path.split('/').at(-1) ??
-    document.id
-  );
-};
-
-const createComponentNames = (
-  documents: readonly WorkspaceDocument[]
-): Map<string, string> => {
-  const names = new Map<string, string>();
-  const used = new Set<string>();
-  documents.forEach((document) => {
-    const base = toPascalIdentifier(getDocumentDisplayName(document), 'Page');
-    let candidate = base;
-    let suffix = 2;
-    while (used.has(candidate)) {
-      candidate = `${base}${suffix}`;
-      suffix += 1;
-    }
-    used.add(candidate);
-    names.set(document.id, candidate);
-  });
-  return names;
-};
-
-const getRootKind = (document: WorkspaceDocument): ExportRootKind => {
-  if (document.type === 'pir-page') return 'page';
-  if (document.type === 'pir-layout') return 'layout';
-  return 'component';
-};
-
 const createDocumentSourceTrace = (
   document: WorkspaceDocument
 ): ExportSourceTrace => ({
@@ -150,166 +119,83 @@ const createDocumentSourceTrace = (
   ownerRootId: document.id,
 });
 
-const toExportDependencies = (
-  dependencies: Record<string, string>,
-  origins: Record<string, ExportDependency['origin']>
-): ExportDependency[] =>
-  Object.entries(dependencies).map(([name, version]) => ({
-    name,
-    version,
-    kind: 'dependency',
-    origin:
-      origins[name] ??
-      createExportPackageOrigin(name, version, { updatePolicy: 'pin' }),
-  }));
-
-const prefixContributionId = (documentId: string, id: string): string =>
-  `workspace-pir:${documentId}:${id}`;
-
-const namespaceDomainContribution = (
-  documentId: string,
-  contribution: ExportProgramContribution
-): ExportProgramContribution => {
-  const moduleIdById = new Map(
-    (contribution.modules ?? []).map((module) => [
-      module.id,
-      prefixContributionId(documentId, module.id),
-    ])
-  );
-  const rootIdById = new Map(
-    (contribution.roots ?? []).map((root) => [
-      root.id,
-      prefixContributionId(documentId, root.id),
-    ])
-  );
-  return {
-    ...contribution,
-    ...(contribution.entryModuleId
-      ? {
-          entryModuleId:
-            moduleIdById.get(contribution.entryModuleId) ??
-            contribution.entryModuleId,
-        }
-      : {}),
-    roots: contribution.roots?.map((root) => ({
-      ...root,
-      id: rootIdById.get(root.id) ?? root.id,
-    })),
-    modules: contribution.modules?.map((module) => ({
-      ...module,
-      id: moduleIdById.get(module.id) ?? module.id,
-      ownerRootId: module.ownerRootId
-        ? (rootIdById.get(module.ownerRootId) ?? module.ownerRootId)
-        : undefined,
-    })),
-    styles: contribution.styles?.map((style) => ({
-      ...style,
-      id: prefixContributionId(documentId, style.id),
-      ownerRootId: style.ownerRootId
-        ? (rootIdById.get(style.ownerRootId) ?? style.ownerRootId)
-        : undefined,
-    })),
-    assets: contribution.assets?.map((asset) => ({
-      ...asset,
-      id: prefixContributionId(documentId, asset.id),
-    })),
-    artifacts: contribution.artifacts?.map((artifact) => ({
-      ...artifact,
-      id: prefixContributionId(documentId, artifact.id),
-      ownerRootId: artifact.ownerRootId
-        ? (rootIdById.get(artifact.ownerRootId) ?? artifact.ownerRootId)
-        : undefined,
-    })),
-    files: contribution.files?.map((file) => ({
-      ...file,
-      id: prefixContributionId(documentId, file.id),
-    })),
-    runtimeRequirements: contribution.runtimeRequirements?.map(
-      (requirement) => ({
-        ...requirement,
-        id: prefixContributionId(documentId, requirement.id),
-        ownerModuleId: requirement.ownerModuleId
-          ? (moduleIdById.get(requirement.ownerModuleId) ??
-            requirement.ownerModuleId)
-          : undefined,
-      })
-    ),
-  };
-};
-
 const compileWorkspacePirDocuments = (input: {
-  documents: readonly WorkspaceDocument[];
-  codeArtifacts: ReactGeneratorCodeArtifact[];
+  workspace: WorkspaceSnapshot;
+  documents: readonly WorkspacePirDocument[];
   options: WorkspaceReactViteCompileOptions;
-}): CompiledWorkspacePirDocument[] => {
-  const componentNames = createComponentNames(input.documents);
-  return input.documents.map((document) => {
-    const componentName = componentNames.get(document.id) as string;
-    const compiled = compilePirToReactComponent(
-      document.content as PIRDocument,
-      {
-        componentName,
-        adapter: input.options.adapter,
-        codegenPolicySnapshot: input.options.codegenPolicySnapshot,
-        packageResolver: input.options.packageResolver,
-        codeArtifacts: input.codeArtifacts,
-        includeWorkspaceCodeArtifacts: false,
-      }
-    );
-    const trace = createDocumentSourceTrace(document);
-    const module: ExportModule = {
-      ...compiled.module,
-      id: `workspace-pir:${document.id}`,
-      ownerRootId: document.id,
-      suggestedName: componentName,
-      sourceTrace: [trace, ...compiled.module.sourceTrace],
-    };
-    const domainContributions = [
-      ...compileNodeGraphExportContributions(document.content as PIRDocument),
-      ...compileAnimationExportContributions(document.content as PIRDocument),
-    ].map((contribution) =>
-      namespaceDomainContribution(document.id, contribution)
-    );
-    return {
-      componentName,
-      document,
-      module,
-      contribution: [
-        ...compiled.exportContributions,
-        ...domainContributions,
-        {
-          roots: [
-            {
-              id: document.id,
-              kind: getRootKind(document),
-              displayName: getDocumentDisplayName(document),
-              sourceRef: trace.sourceRef,
-            },
-          ],
-          modules: [module],
-          styles: compiled.styles.map((style) => ({
-            ...style,
-            ownerRootId: document.id,
-          })),
-          artifacts: compiled.artifacts.map((artifact) => ({
-            ...artifact,
-            ownerRootId: document.id,
-          })),
-          runtimeRequirements: compiled.runtimeRequirements,
-          dependencies: toExportDependencies(
-            compiled.dependencies,
-            compiled.dependencyOrigins
+}): CompiledWorkspacePirProjection => {
+  const fallbackAdapter = input.options.adapter ?? reactAdapter;
+  const adapter = input.options.codegenPolicySnapshot
+    ? createCodegenPolicyTargetAdapter(
+        input.options.codegenPolicySnapshot,
+        fallbackAdapter
+      )
+    : fallbackAdapter;
+  const packageResolver = input.options.codegenPolicySnapshot
+    ? {
+        ...input.options.packageResolver,
+        packageVersions: {
+          ...getCodegenPolicyPackageVersions(
+            input.options.codegenPolicySnapshot
           ),
-          diagnostics: compiled.diagnostics,
+          ...input.options.packageResolver?.packageVersions,
         },
-      ]
-        .reduce(
-          (builder, contribution) => builder.addContribution(contribution),
-          createExportProgramBuilder(createReactViteExportPreset().target)
-        )
-        .build(),
-    };
-  });
+      }
+    : input.options.packageResolver;
+  const modulesById = new Map<string, ExportModule>();
+  const rootsById = new Map<string, ExportRoot>();
+  const dependencies: ExportDependency[] = [];
+  const diagnostics = new Map<string, CompileDiagnostic>();
+  const componentNameByDocumentId = new Map<string, string>();
+
+  for (const document of input.documents) {
+    const result = compileWorkspacePirReactModules({
+      workspace: input.workspace,
+      entryDocumentId: document.id,
+      adapter,
+      packageResolver,
+    });
+    for (const diagnostic of result.diagnostics) {
+      diagnostics.set(
+        `${diagnostic.code}:${diagnostic.path}:${diagnostic.message}`,
+        diagnostic
+      );
+    }
+    if (result.status === 'blocked') continue;
+    for (const module of result.modules) {
+      if (!modulesById.has(module.id)) modulesById.set(module.id, module);
+    }
+    for (const root of result.contribution.roots ?? []) {
+      if (!rootsById.has(root.id)) rootsById.set(root.id, root);
+    }
+    dependencies.push(...(result.contribution.dependencies ?? []));
+    for (const [documentId, name] of Object.entries(
+      result.moduleNameByDocumentId
+    )) {
+      componentNameByDocumentId.set(documentId, name);
+    }
+  }
+
+  return {
+    documents: input.documents.flatMap((document) => {
+      const module = modulesById.get(createPirReactModuleId(document.id));
+      const componentName = componentNameByDocumentId.get(document.id);
+      return module && componentName
+        ? [{ componentName, document, module }]
+        : [];
+    }),
+    contribution: {
+      roots: [...rootsById.values()],
+      modules: [...modulesById.values()],
+      dependencies: mergeExportDependencies(dependencies),
+      diagnostics: [...diagnostics.values()],
+      metadata: {
+        pirProjection: {
+          entryDocumentIds: input.documents.map((document) => document.id),
+        },
+      },
+    },
+  };
 };
 
 const createCodeContributions = (input: {
@@ -671,6 +557,20 @@ const workspaceRoutes = [
 ${routeTable}
 ] as const;
 
+const workspacePirRuntime = {
+  dispatchTrigger(input: Readonly<{ binding: unknown }>) {
+    const binding = input.binding && typeof input.binding === 'object'
+      ? input.binding as Readonly<Record<string, unknown>>
+      : undefined;
+    if (binding?.kind === 'open-url' && typeof binding.href === 'string' && typeof window !== 'undefined') {
+      window.open(binding.href, '_blank', 'noopener,noreferrer');
+    }
+  },
+  resolveCodeValue() {
+    return undefined;
+  },
+} as const;
+
 const normalizePath = (value: string) => {
   const normalized = (value.split(/[?#]/, 1)[0] || '/').replace(/\\/+/g, '/');
   return normalized.length > 1 ? normalized.replace(/\\/$/, '') : '/';
@@ -705,7 +605,7 @@ export default function App() {
   const match = workspaceRoutes.find((route) => matchesRoutePath(route.path, pathname));
   if (!match) return <main data-prodivix-route-not-found="true">Route not found.</main>;
   const Page = match.Component;
-  return <Page />;
+  return <Page __pdxRuntime={workspacePirRuntime} />;
 }
 `,
       sourceTrace: input.routeTopology.routes.flatMap(
@@ -741,18 +641,26 @@ export const compileWorkspaceToExportProgram = (
       compareUnicodeCodePoints(left.path, right.path) ||
       compareUnicodeCodePoints(left.id, right.id)
   );
-  const unsupportedDocumentDiagnostics: CompileDiagnostic[] = documents
-    .filter(
-      (document) =>
-        document.type === 'pir-graph' || document.type === 'pir-animation'
-    )
-    .map((document) => ({
-      code: 'WKS-EXPORT-DOCUMENT-UNSUPPORTED',
-      severity: 'error',
-      source: 'export',
-      message: `Workspace export does not yet compile standalone ${document.type} documents.`,
-      path: document.path,
-    }));
+  const nodeGraphContributions = documents.flatMap((document) => {
+    if (document.type !== 'pir-graph') return [];
+    const read = decodeWorkspaceNodeGraphDocument(document);
+    if (read.status !== 'valid') return [];
+    return compileNodeGraphExportContributions({
+      documentId: document.id,
+      ...(document.name ? { displayName: document.name } : {}),
+      definition: read.decodedContent,
+    });
+  });
+  const animationContributions = documents.flatMap((document) => {
+    if (document.type !== 'pir-animation') return [];
+    const read = decodeWorkspaceAnimationDocument(document);
+    if (read.status !== 'valid') return [];
+    return compileAnimationExportContributions({
+      documentId: document.id,
+      ...(document.name ? { displayName: document.name } : {}),
+      definition: read.decodedContent,
+    });
+  });
   const pirDocuments = documents.filter(isWorkspacePirDocument);
   const codeDocuments = documents.filter(
     (document) =>
@@ -774,11 +682,12 @@ export const compileWorkspaceToExportProgram = (
         : [];
     }
   );
-  const compiledDocuments = compileWorkspacePirDocuments({
+  const pirCompilation = compileWorkspacePirDocuments({
+    workspace,
     documents: pirDocuments,
-    codeArtifacts,
     options,
   });
+  const compiledDocuments = pirCompilation.documents;
   const code = createCodeContributions({
     documents: codeDocuments,
   });
@@ -835,8 +744,10 @@ export const compileWorkspaceToExportProgram = (
     routeTopology,
   });
   const projectContributions: ExportProgramContribution[] = [
-    ...compiledDocuments.map((compiled) => compiled.contribution),
+    pirCompilation.contribution,
     code.contribution,
+    ...nodeGraphContributions,
+    ...animationContributions,
     createWorkspaceResourceContribution(documents),
     routeContribution,
     createStaticDeploymentExportContribution({
@@ -861,7 +772,6 @@ export const compileWorkspaceToExportProgram = (
       modules: [app.module],
       diagnostics: [
         ...validationDiagnostics,
-        ...unsupportedDocumentDiagnostics,
         ...unsupportedLayoutDiagnostics,
         ...unsupportedOutletDiagnostics,
         ...app.diagnostics,

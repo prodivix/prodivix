@@ -6,11 +6,7 @@ import {
   type WorkspaceDocument,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
-import {
-  GOLDEN_CODEGEN_POLICY,
-  GOLDEN_IDS,
-  createGoldenCheckoutPir,
-} from './goldenApp.fixture';
+import { GOLDEN_CODEGEN_POLICY, GOLDEN_IDS } from './goldenApp.fixture';
 import { applyGoldenOperation, authorGoldenWorkspace } from './goldenAuthoring';
 
 const CONTRACT_ISSUED_AT = '2026-07-13T08:02:00.000Z';
@@ -131,7 +127,7 @@ describe('Workspace export fail-closed contracts', () => {
     expect(bundle.metadata?.exportBlocked).toBe(true);
   });
 
-  it('blocks standalone NodeGraph and Animation documents instead of dropping them', () => {
+  it('exports standalone NodeGraph and Animation documents', () => {
     const authored = authorGoldenWorkspace();
     const withGraph = addDocument(authored.editedWorkspace, {
       id: 'graph-golden-standalone',
@@ -140,7 +136,11 @@ describe('Workspace export fail-closed contracts', () => {
       path: '/logic/standalone.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createGoldenCheckoutPir(),
+      content: {
+        version: 1,
+        nodes: [{ id: 'start', data: { kind: 'start' } }],
+        edges: [],
+      },
     });
     const workspace = addDocument(withGraph, {
       id: 'animation-golden-standalone',
@@ -149,19 +149,32 @@ describe('Workspace export fail-closed contracts', () => {
       path: '/animations/standalone.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createGoldenCheckoutPir(),
+      content: {
+        version: 1,
+        target: {
+          kind: 'pir-document',
+          documentId: GOLDEN_IDS.checkoutPage,
+        },
+        timelines: [
+          {
+            id: 'timeline-golden-standalone',
+            name: 'Golden standalone',
+            durationMs: 300,
+            bindings: [],
+          },
+        ],
+      },
     });
 
     const bundle = generate(workspace);
-    const unsupportedDiagnostics = bundle.diagnostics.filter(
-      (diagnostic) =>
-        diagnostic.code === 'WKS-EXPORT-DOCUMENT-UNSUPPORTED' &&
-        diagnostic.severity === 'error'
+    expect(bundle.diagnostics).not.toContainEqual(
+      expect.objectContaining({ code: 'WKS-EXPORT-DOCUMENT-UNSUPPORTED' })
     );
-
-    expect(unsupportedDiagnostics.map((diagnostic) => diagnostic.path)).toEqual(
-      ['/animations/standalone.pir.json', '/logic/standalone.pir.json']
+    expect(bundle.metadata?.sourceTraceSummary).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ domain: 'nodegraph' }),
+        expect.objectContaining({ domain: 'animation' }),
+      ])
     );
-    expect(bundle.metadata?.exportBlocked).toBe(true);
   });
 });

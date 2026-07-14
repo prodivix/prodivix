@@ -9,9 +9,8 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
-      "@prodivix/diagnostics": ["../diagnostics/src"],
-      "@prodivix/shared": ["../shared/src"],
-      "@prodivix/shared/*": ["../shared/src/*"]
+      "@prodivix/authoring": ["../authoring/src"],
+      "@prodivix/diagnostics": ["../diagnostics/src"]
     }
   },
   "include": ["src/**/*"],
@@ -24,10 +23,10 @@
   ],
   "references": [
     {
-      "path": "../diagnostics"
+      "path": "../authoring"
     },
     {
-      "path": "../shared"
+      "path": "../diagnostics"
     }
   ]
 }

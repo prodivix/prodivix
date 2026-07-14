@@ -7,9 +7,8 @@ import {
   createDefaultSvgPrimitive,
   createDefaultTimeline,
   createDefaultTrack,
-  createEmptyAnimationDefinition,
+  createAnimationTimelineCodeSlotId,
   hasAnySvgTrack,
-  normalizeAnimationDefinition,
   normalizeKeyframeRows,
   reconcileSvgTrackReferences,
   resolveActiveTimelineId,
@@ -19,24 +18,20 @@ import {
   type AnimationBinding,
   type AnimationDefinition,
   type AnimationTimeline,
+  type AnimationTimelineCodeSlotRole,
   type AnimationTrack,
   type SvgFilterDefinition,
 } from '@prodivix/animation';
+import type { CodeReference } from '@prodivix/authoring';
 import { createBrowserAnimationIdFactory } from '@prodivix/runtime-browser';
-import {
-  selectActivePirDocumentRecord,
-  useEditorStore,
-} from '@/editor/store/useEditorStore';
-import { materializePirRoot } from '@prodivix/pir';
+import { selectWorkspace, useEditorStore } from '@/editor/store/useEditorStore';
 import { collectNodeTargets } from './state/nodeTargetOptions';
-import { useParams } from 'react-router';
-import { useAuthStore } from '@/auth/useAuthStore';
-import { isLocalProjectId } from '@/editor/localProjectStore';
-import { enqueueWorkspaceOperationOutboxAndDispatch } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 import {
-  createWorkspacePirDocumentUpdateCommand,
-  selectActivePirWorkspaceDocument,
+  createWorkspaceAnimationDocumentUpdateCommand,
+  selectWorkspaceAnimationDocument,
+  selectWorkspacePirDocument,
 } from '@prodivix/workspace';
 
 type StyleTrackProperty = Extract<
@@ -52,22 +47,20 @@ type SvgFilterPrimitive = SvgFilterDefinition['primitives'][number];
 const clampZoom = (value: number) =>
   Math.min(4, Math.max(0.2, Math.round(value * 100) / 100));
 
-export const useAnimationEditorState = () => {
-  const { projectId } = useParams();
-  const token = useAuthStore((state) => state.token);
+type UseAnimationEditorStateInput = Readonly<{
+  animationDocumentId: string;
+  persistedAnimation: AnimationDefinition;
+}>;
+
+export const useAnimationEditorState = ({
+  animationDocumentId,
+  persistedAnimation,
+}: UseAnimationEditorStateInput) => {
+  const workspace = useEditorStore(selectWorkspace);
+  const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
   const animationIdFactory = useRef(createBrowserAnimationIdFactory()).current;
-  const activePirDocument = useEditorStore(selectActivePirDocumentRecord)!;
-  const pirDoc = activePirDocument.content;
-  const pirAnimation = useMemo(
-    () => normalizeAnimationDefinition(pirDoc.animation),
-    [pirDoc.animation]
-  );
-  const initialAnimation = useMemo(
-    () => pirAnimation ?? createEmptyAnimationDefinition(),
-    [pirAnimation]
-  );
   const [animation, setAnimation] =
-    useState<AnimationDefinition>(initialAnimation);
+    useState<AnimationDefinition>(persistedAnimation);
   const currentSignature = useMemo(
     () => serializeAnimationDefinition(animation),
     [animation]
@@ -82,7 +75,7 @@ export const useAnimationEditorState = () => {
   }, [currentSignature]);
 
   useEffect(() => {
-    const nextAnimation = pirAnimation ?? createEmptyAnimationDefinition();
+    const nextAnimation = persistedAnimation;
     const nextSignature = serializeAnimationDefinition(nextAnimation);
     if (nextSignature === currentSignatureRef.current) {
       committedSignatureRef.current = nextSignature;
@@ -97,7 +90,7 @@ export const useAnimationEditorState = () => {
     setAnimation(nextAnimation);
     currentSignatureRef.current = nextSignature;
     committedSignatureRef.current = nextSignature;
-  }, [pirAnimation]);
+  }, [persistedAnimation]);
 
   useEffect(() => {
     if (suppressNextPersistenceRef.current) {
@@ -105,43 +98,33 @@ export const useAnimationEditorState = () => {
       return;
     }
     if (currentSignature === committedSignatureRef.current) return;
-    const localWorkspace = isLocalProjectId(projectId);
-    if (!localWorkspace && !token) return;
     committedSignatureRef.current = currentSignature;
-    const documentId = activePirDocument.id;
     persistenceChainRef.current = persistenceChainRef.current
       .then(async () => {
         const state = useEditorStore.getState();
         const workspace = state.workspace;
         if (!workspace) return;
-        const document = selectActivePirWorkspaceDocument({
-          ...workspace,
-          activeDocumentId: documentId,
-        });
-        if (!document || document.id !== documentId) return;
-        const before = document.content;
+        const document = selectWorkspaceAnimationDocument(
+          workspace,
+          animationDocumentId
+        );
+        if (document?.status !== 'valid') return;
         const existingSignature = serializeAnimationDefinition(
-          normalizeAnimationDefinition(before.animation)
+          document.decodedContent
         );
         if (existingSignature === currentSignature) return;
-        const command = createWorkspacePirDocumentUpdateCommand({
-          workspace: { ...workspace, activeDocumentId: documentId },
-          before,
-          after: { ...before, animation },
+        const command = createWorkspaceAnimationDocumentUpdateCommand({
+          workspace,
+          documentId: animationDocumentId,
+          after: animation,
           commandId: createWorkspaceClientOperationId('animation'),
-          namespace: 'core.animation',
-          type: 'definition.update',
-          domainHint: 'animation',
           mergeKey: 'animation-definition',
           label: 'Update animation',
         });
         if (!command) return;
-        if (localWorkspace) {
-          state.dispatchWorkspaceCommand(command);
-          return;
-        }
-        const outcome = await enqueueWorkspaceOperationOutboxAndDispatch({
+        const outcome = await dispatchWorkspaceAuthoringOperation({
           workspace,
+          readonly: state.workspaceReadonly,
           operation: { kind: 'command', command },
         });
         if (outcome.status === 'rejected') {
@@ -154,7 +137,7 @@ export const useAnimationEditorState = () => {
       .catch((error: unknown) => {
         console.warn('[animation] workspace operation failed', error);
       });
-  }, [activePirDocument.id, animation, currentSignature, projectId, token]);
+  }, [animation, animationDocumentId, currentSignature, workspaceReadonly]);
 
   const activeTimelineId = resolveActiveTimelineId(animation);
   const activeTimeline = useMemo(
@@ -190,9 +173,21 @@ export const useAnimationEditorState = () => {
     });
   }, [activeTimelineId, animation.timelines]);
 
+  const targetPirRead = useMemo(
+    () =>
+      selectWorkspacePirDocument(
+        workspace ?? undefined,
+        animation.target.documentId
+      ),
+    [animation.target.documentId, workspace]
+  );
+  const targetPirDocument =
+    targetPirRead?.status === 'valid'
+      ? targetPirRead.decodedContent
+      : undefined;
   const nodeTargetOptions = useMemo(
-    () => collectNodeTargets(materializePirRoot(pirDoc)),
-    [pirDoc]
+    () => (targetPirDocument ? collectNodeTargets(targetPirDocument) : []),
+    [targetPirDocument]
   );
   const svgFilters = animation.svgFilters ?? [];
   const expandedTrackIds =
@@ -479,6 +474,42 @@ export const useAnimationEditorState = () => {
       });
     },
     [updateActiveTimeline]
+  );
+
+  const updateActiveTimelineCodeSlot = useCallback(
+    (
+      role: AnimationTimelineCodeSlotRole,
+      reference: CodeReference | undefined
+    ) => {
+      updateActiveTimeline((timeline) => {
+        const field =
+          role === 'custom-easing'
+            ? 'customEasing'
+            : role === 'shader'
+              ? 'shader'
+              : 'script';
+        const nextCodeSlots = { ...(timeline.codeSlots ?? {}) };
+        if (reference) {
+          nextCodeSlots[field] = {
+            slotId: createAnimationTimelineCodeSlotId(
+              animationDocumentId,
+              timeline.id,
+              role
+            ),
+            reference,
+          };
+        } else {
+          delete nextCodeSlots[field];
+        }
+        if (Object.keys(nextCodeSlots).length === 0) {
+          if (!timeline.codeSlots) return timeline;
+          const { codeSlots: _dropped, ...rest } = timeline;
+          return rest;
+        }
+        return { ...timeline, codeSlots: nextCodeSlots };
+      });
+    },
+    [animationDocumentId, updateActiveTimeline]
   );
 
   const [cursorDraftMs, setCursorDraftMs] = useState(() => {
@@ -1114,11 +1145,9 @@ export const useAnimationEditorState = () => {
     !hasAnySvgTrack(animation.timelines);
 
   return {
+    workspace,
     animation,
     setAnimation,
-    pirDoc,
-    pirAnimation,
-    initialAnimation,
     currentSignature,
     currentSignatureRef,
     committedSignatureRef,
@@ -1141,6 +1170,7 @@ export const useAnimationEditorState = () => {
     updateActiveTimelineDirection,
     updateActiveTimelineFillMode,
     updateActiveTimelineEasing,
+    updateActiveTimelineCodeSlot,
     cursorMs,
     setCursorMs,
     zoom,

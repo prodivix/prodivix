@@ -358,7 +358,8 @@ async function executeClaimedEntry(
     mutation = await editorApi.commitWorkspaceOperation(
       input.token,
       input.entry.baseSnapshot,
-      input.entry.request
+      input.entry.request,
+      input.entry.operation
     );
     const operationId = getWorkspaceOperationId(input.entry.operation);
     if (

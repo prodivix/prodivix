@@ -20,9 +20,9 @@ import {
   Wrench,
 } from 'lucide-react';
 import {
-  navigateToWorkspaceIssueSource,
-  navigateToWorkspaceIssueTarget,
-} from './workspaceIssueNavigation';
+  navigateToWorkspaceSemanticTarget,
+  type WorkspaceNavigationSurface,
+} from '@/editor/navigation';
 import { executeWorkspaceIssueQuickFix } from './workspaceIssueQuickFixRegistry';
 import { useWorkspaceIssuesStore } from './workspaceIssuesStore';
 
@@ -51,7 +51,9 @@ const issueLocation = (issue: DiagnosticIssue): string => {
   return presentation.locations[0]?.label ?? issue.sources[0]?.providerId ?? '';
 };
 
-const preferredSurfaceForIssue = (issue: DiagnosticIssue) => {
+const preferredSurfaceForIssue = (
+  issue: DiagnosticIssue
+): WorkspaceNavigationSurface | undefined => {
   if (issue.diagnostic.domain === 'animation') return 'animation' as const;
   if (issue.diagnostic.domain === 'nodegraph') return 'nodegraph' as const;
   if (issue.diagnostic.domain === 'code') return 'resources' as const;
@@ -96,22 +98,32 @@ export function WorkspaceIssuesPage() {
 
   const openTarget = () => {
     if (!projectId || !selectedIssue?.diagnostic.targetRef) return;
-    const opened = navigateToWorkspaceIssueTarget({
+    const result = navigateToWorkspaceSemanticTarget({
       projectId,
-      targetRef: selectedIssue.diagnostic.targetRef,
+      target: {
+        kind: 'diagnostic-target',
+        targetRef: selectedIssue.diagnostic.targetRef,
+      },
       navigate,
       preferredSurface: preferredSurfaceForIssue(selectedIssue),
     });
-    if (!opened) setActionMessage(t('issues.actions.targetUnavailable'));
+    if (result.status === 'unavailable') {
+      setActionMessage(t('issues.actions.targetUnavailable'));
+    }
   };
   const openSource = () => {
     if (!projectId || !selectedIssue?.diagnostic.sourceSpan) return;
-    const opened = navigateToWorkspaceIssueSource({
+    const result = navigateToWorkspaceSemanticTarget({
       projectId,
-      sourceSpan: selectedIssue.diagnostic.sourceSpan,
+      target: {
+        kind: 'source-span',
+        sourceSpan: selectedIssue.diagnostic.sourceSpan,
+      },
       navigate,
     });
-    if (!opened) setActionMessage(t('issues.actions.sourceUnavailable'));
+    if (result.status === 'unavailable') {
+      setActionMessage(t('issues.actions.sourceUnavailable'));
+    }
   };
 
   return (

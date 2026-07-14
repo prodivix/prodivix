@@ -2,6 +2,8 @@ import type { MouseEvent } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { javascript } from '@codemirror/lang-javascript';
 import type { Completion } from '@codemirror/autocomplete';
+import type { CodeSlotBinding } from '@prodivix/authoring';
+import type { NodeGraphPort } from '@prodivix/nodegraph';
 
 export type GraphNodeKind =
   | 'start'
@@ -164,6 +166,13 @@ export type GraphNodeData = {
   codeLanguage?: 'jsx' | 'tsx' | 'js' | 'ts' | 'glsl' | 'wgsl';
   codeSize?: 'sm' | 'md' | 'lg';
   expression?: string;
+  executor?: CodeSlotBinding;
+  ports?: NodeGraphPort[];
+  codeArtifactOptions?: readonly Readonly<{
+    id: string;
+    path: string;
+    language: 'ts' | 'js' | 'css' | 'scss' | 'glsl' | 'wgsl' | 'expr';
+  }>[];
   method?: string;
   hasUrlInput?: boolean;
   cases?: SwitchCaseItem[] | string[];
@@ -183,6 +192,8 @@ export type GraphNodeData = {
   onChangeValue?: (nodeId: string, value: string) => void;
   onChangeExpression?: (nodeId: string, expression: string) => void;
   onChangeCode?: (nodeId: string, code: string) => void;
+  onBindCodeArtifact?: (nodeId: string, artifactId?: string) => void;
+  onOpenCodeSlotDefinition?: (slotId: string) => void;
   onChangeCodeLanguage?: (
     nodeId: string,
     language: NonNullable<GraphNodeData['codeLanguage']>

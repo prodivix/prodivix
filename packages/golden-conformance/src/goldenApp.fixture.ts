@@ -1,7 +1,7 @@
 import {
-  CURRENT_PIR_VERSION,
+  createEmptyPirComponentContract,
   type PIRDocument,
-} from '@prodivix/shared/types/pir';
+} from '@prodivix/pir';
 import { BUNDLED_PLUGIN_ARTIFACT } from '@prodivix/plugin-antd';
 import type {
   CodegenLibraryPolicy,
@@ -123,67 +123,79 @@ export const createGoldenBaseWorkspace = (): WorkspaceSnapshot =>
   structuredClone(decodeWorkspaceSnapshot(baseWorkspaceFixture).workspace);
 
 export const createGoldenCheckoutPir = (): PIRDocument => ({
-  version: CURRENT_PIR_VERSION,
   metadata: {
     name: 'GoldenCheckout',
     description: 'Multi-surface Golden checkout form.',
   },
   ui: {
     graph: {
-      version: 1,
       rootId: 'checkout-root',
       nodesById: {
         'checkout-root': {
           id: 'checkout-root',
+          kind: 'element',
           type: 'main',
           props: {
-            className: 'golden-checkout',
-            codeBindings: {
-              mountedCss: [
-                {
-                  slotId: 'blueprint.node.checkout-root.mountedCss',
-                  reference: { artifactId: GOLDEN_IDS.checkoutCss },
-                },
-              ],
-            },
+            className: { kind: 'literal', value: 'golden-checkout' },
           },
         },
         'checkout-title': {
           id: 'checkout-title',
+          kind: 'element',
           type: 'h1',
-          text: 'Checkout',
+          text: { kind: 'literal', value: 'Checkout' },
         },
         'checkout-form': {
           id: 'checkout-form',
+          kind: 'element',
           type: 'form',
-          props: { method: 'post', action: '/checkout' },
+          props: {
+            method: { kind: 'literal', value: 'post' },
+            action: { kind: 'literal', value: '/checkout' },
+          },
         },
         'email-label': {
           id: 'email-label',
+          kind: 'element',
           type: 'label',
-          text: 'Email',
-          props: { htmlFor: 'checkout-email' },
+          text: { kind: 'literal', value: 'Email' },
+          props: {
+            htmlFor: { kind: 'literal', value: 'checkout-email' },
+          },
         },
         'email-input': {
           id: 'email-input',
+          kind: 'element',
           type: 'input',
           props: {
-            id: 'checkout-email',
-            name: 'email',
-            type: 'email',
-            required: true,
+            id: { kind: 'literal', value: 'checkout-email' },
+            name: { kind: 'literal', value: 'email' },
+            type: { kind: 'literal', value: 'email' },
+            required: { kind: 'literal', value: true },
           },
         },
         'submit-primary': {
           id: 'submit-primary',
+          kind: 'element',
           type: 'AntdButton',
-          text: 'Pay now',
-          props: { type: 'primary' },
+          text: { kind: 'literal', value: 'Pay now' },
+          props: { type: { kind: 'literal', value: 'primary' } },
+          events: {
+            click: {
+              kind: 'call-code',
+              slotId: 'blueprint.node.submit-primary.event.click',
+              reference: {
+                artifactId: GOLDEN_IDS.checkoutHandler,
+                exportName: 'submitCheckout',
+              },
+            },
+          },
         },
         'submit-secondary': {
           id: 'submit-secondary',
+          kind: 'element',
           type: 'AntdButton',
-          text: 'Save for later',
+          text: { kind: 'literal', value: 'Save for later' },
         },
       },
       childIdsById: {
@@ -205,73 +217,34 @@ export const createGoldenCheckoutPir = (): PIRDocument => ({
   },
   logic: {
     state: {
-      status: { type: 'string', initial: 'idle' },
+      status: { typeRef: 'string', initial: 'idle' },
     },
-    graphs: [
-      {
-        id: 'checkout-submit-graph',
-        name: 'CheckoutSubmit',
-        nodes: [
-          { id: 'input', type: 'input' },
-          {
-            id: 'handler',
-            type: 'transform',
-          },
-        ],
-        edges: [{ id: 'submit-edge', source: 'input', target: 'handler' }],
-      },
-    ],
-  },
-  animation: {
-    version: 1,
-    timelines: [
-      {
-        id: 'checkout-intro',
-        name: 'CheckoutIntro',
-        durationMs: 240,
-        easing: 'ease-out',
-        bindings: [
-          {
-            id: 'checkout-form-binding',
-            targetNodeId: 'checkout-form',
-            tracks: [
-              {
-                id: 'checkout-opacity',
-                kind: 'style',
-                property: 'opacity',
-                keyframes: [
-                  { atMs: 0, value: 0 },
-                  { atMs: 240, value: 1 },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
   },
 });
 
 export const createGoldenOrderSummaryPir = (): PIRDocument => ({
-  version: CURRENT_PIR_VERSION,
   metadata: {
     name: 'GoldenOrderSummary',
     description: 'Reusable Golden component document.',
   },
+  componentContract: createEmptyPirComponentContract(),
   ui: {
     graph: {
-      version: 1,
       rootId: 'summary-root',
       nodesById: {
         'summary-root': {
           id: 'summary-root',
+          kind: 'element',
           type: 'aside',
-          props: { className: 'order-summary' },
+          props: {
+            className: { kind: 'literal', value: 'order-summary' },
+          },
         },
         'summary-title': {
           id: 'summary-title',
+          kind: 'element',
           type: 'h2',
-          text: 'Order summary',
+          text: { kind: 'literal', value: 'Order summary' },
         },
       },
       childIdsById: {

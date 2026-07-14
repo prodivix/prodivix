@@ -9,7 +9,6 @@ import {
 } from './codeResourceModel';
 
 const nowIso = () => new Date().toISOString();
-const CODE_RESOURCE_ROOT_FOLDERS = new Set(['scripts', 'styles', 'shaders']);
 
 export const normalizeCodeResourcePath = (path: string) =>
   path
@@ -97,13 +96,40 @@ export const buildCodeResourceTreeFromWorkspaceVfs = (
     return leftPath.localeCompare(rightPath);
   });
 
+  const codeDocumentNodes = sortedNodes.filter((node) => {
+    if (node.kind !== 'doc' || !node.docId) return false;
+    const document = documentsById[node.docId];
+    return Boolean(
+      document &&
+      document.type === 'code' &&
+      isWorkspaceCodeDocumentContent(document.content)
+    );
+  });
+  const includedDirectoryIds = new Set<string>();
+  codeDocumentNodes.forEach((node) => {
+    const visited = new Set<string>();
+    let parentId = node.parentId;
+    while (parentId && parentId !== treeRootId && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = treeById[parentId];
+      if (!parent || parent.kind !== 'dir') break;
+      includedDirectoryIds.add(parent.id);
+      parentId = parent.parentId;
+    }
+  });
+
   sortedNodes.forEach((node) => {
-    if (node.parentId === null || node.kind !== 'dir') return;
+    if (
+      node.parentId === null ||
+      node.kind !== 'dir' ||
+      !includedDirectoryIds.has(node.id)
+    ) {
+      return;
+    }
     const normalizedPath = normalizeCodeResourcePath(
       pathsByNodeId.get(node.id) ?? node.name
     );
-    const rootSegment = normalizedPath.split('/').filter(Boolean)[0];
-    if (!rootSegment || !CODE_RESOURCE_ROOT_FOLDERS.has(rootSegment)) return;
+    if (!normalizedPath) return;
     const parent = node.parentId
       ? (nodesByWorkspaceNodeId.get(node.parentId) ?? root)
       : root;
@@ -119,17 +145,13 @@ export const buildCodeResourceTreeFromWorkspaceVfs = (
     parent.children?.push(folder);
   });
 
-  sortedNodes.forEach((node) => {
-    if (node.kind !== 'doc' || !node.docId) return;
-    const document = documentsById[node.docId];
+  codeDocumentNodes.forEach((node) => {
+    const document = documentsById[node.docId!];
     const normalizedPath = normalizeCodeResourcePath(document?.path ?? '');
-    const rootSegment = normalizedPath.split('/').filter(Boolean)[0];
     if (
       !document ||
       document.type !== 'code' ||
-      !isWorkspaceCodeDocumentContent(document.content) ||
-      !rootSegment ||
-      !CODE_RESOURCE_ROOT_FOLDERS.has(rootSegment)
+      !isWorkspaceCodeDocumentContent(document.content)
     ) {
       return;
     }
@@ -140,13 +162,14 @@ export const buildCodeResourceTreeFromWorkspaceVfs = (
       node.name ||
       document.path.split('/').filter(Boolean).at(-1) ||
       document.id;
+    const resourcePath = normalizedPath || fileName;
     const mime = inferMimeByCodeFileName(fileName);
     parent.children?.push({
       id: document.id,
       name: fileName,
       type: 'file',
       parentId: parent.id,
-      path: `code/${normalizedPath}`,
+      path: `code/${resourcePath}`,
       source: 'workspace-vfs',
       category: 'document',
       mime,

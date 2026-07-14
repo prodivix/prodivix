@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../../projection';
 import type { LayoutGroupDefinition } from './types';
 
 const layoutGroupRegistry: LayoutGroupDefinition[] = [];
@@ -15,7 +15,7 @@ export const registerLayoutGroup = (definition: LayoutGroupDefinition) => {
 };
 
 export const resolveLayoutGroups = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   display: string | undefined,
   isPatternStructureControlled: boolean
 ): LayoutGroupDefinition[] => {

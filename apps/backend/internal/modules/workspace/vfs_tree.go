@@ -204,23 +204,23 @@ func defaultWorkspaceTreeJSON(rootID string) json.RawMessage {
 	return payload
 }
 
-func defaultWorkspaceTreeWithRootDocumentJSON(rootID string) json.RawMessage {
+func defaultWorkspaceTreeWithDocumentJSON(
+	rootID string,
+	documentID string,
+	documentPath string,
+) (json.RawMessage, error) {
 	tree := defaultWorkspaceVFSTree(rootID)
-	root := tree.TreeByID[tree.TreeRootID]
-	root.Children = append(root.Children, "doc_root_node")
-	tree.TreeByID[tree.TreeRootID] = root
-	tree.TreeByID["doc_root_node"] = workspaceVFSNode{
-		ID:       "doc_root_node",
-		Kind:     "doc",
-		Name:     "pir.json",
-		ParentID: makeTreeString(tree.TreeRootID),
-		DocID:    "doc_root",
+	if err := tree.addDocument(codeDocumentMount{
+		DocumentID: documentID,
+		Path:       documentPath,
+	}); err != nil {
+		return nil, err
 	}
 	payload, err := tree.marshal()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return payload
+	return payload, nil
 }
 
 func isCanonicalWorkspaceVFSID(value string) bool {

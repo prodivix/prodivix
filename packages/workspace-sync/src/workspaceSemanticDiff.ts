@@ -39,21 +39,18 @@ export type WorkspaceChangeSemantic =
   | {
       kind: 'graph-node';
       graphKind: 'pir-ui' | 'nodegraph';
-      graphId?: string;
       nodeId: string;
       fieldPath: string;
     }
   | {
       kind: 'graph-edge';
       graphKind: 'nodegraph';
-      graphId?: string;
       edgeId: string;
       fieldPath: string;
     }
   | {
       kind: 'graph-structure';
       graphKind: 'pir-ui' | 'nodegraph';
-      graphId?: string;
       ownerNodeId?: string;
       region?: string;
       fieldPath: string;
@@ -220,61 +217,6 @@ const remainderPath = (segments: readonly string[], offset: number): string =>
         .map((segment) => segment.replaceAll('~', '~0').replaceAll('/', '~1'))
         .join('/')}`;
 
-const resolvePirAnimationSemantic = (
-  segments: readonly string[]
-): WorkspaceChangeSemantic | undefined => {
-  if (segments[0] !== 'animation') return undefined;
-  if (
-    segments[1] === 'svgFiltersById' &&
-    segments[2] &&
-    segments[3] === 'primitivesById' &&
-    segments[4]
-  ) {
-    return {
-      kind: 'animation-entity',
-      entityKind: 'svg-primitive',
-      entityId: segments[4],
-      fieldPath: remainderPath(segments, 5),
-    };
-  }
-  if (segments[1] === 'svgFiltersById' && segments[2]) {
-    return {
-      kind: 'animation-entity',
-      entityKind: 'svg-filter',
-      entityId: segments[2],
-      fieldPath: remainderPath(segments, 3),
-    };
-  }
-  if (segments[1] !== 'timelinesById' || !segments[2]) return undefined;
-  if (
-    segments[3] === 'bindingsById' &&
-    segments[4] &&
-    segments[5] === 'tracksById' &&
-    segments[6]
-  ) {
-    return {
-      kind: 'animation-entity',
-      entityKind: 'track',
-      entityId: segments[6],
-      fieldPath: remainderPath(segments, 7),
-    };
-  }
-  if (segments[3] === 'bindingsById' && segments[4]) {
-    return {
-      kind: 'animation-entity',
-      entityKind: 'binding',
-      entityId: segments[4],
-      fieldPath: remainderPath(segments, 5),
-    };
-  }
-  return {
-    kind: 'animation-entity',
-    entityKind: 'timeline',
-    entityId: segments[2],
-    fieldPath: remainderPath(segments, 3),
-  };
-};
-
 export const resolveWorkspaceDocumentChangeSemantic = (
   target: Extract<WorkspaceChangeTarget, { kind: 'document' }>,
   base: WorkspaceChangeValue,
@@ -342,87 +284,20 @@ export const resolveWorkspaceDocumentChangeSemantic = (
           fieldPath: remainderPath(segments, 2),
         };
       }
-      if (segments[0] === 'groupsById') {
+    }
+    if (target.documentType === 'pir-animation') {
+      if (segments[0] === 'timelinesById' && segments[1]) {
         return {
-          kind: 'graph-structure',
-          graphKind: 'nodegraph',
-          ...(segments[1] ? { ownerNodeId: segments[1] } : {}),
+          kind: 'animation-entity',
+          entityKind: 'timeline',
+          entityId: segments[1],
           fieldPath: remainderPath(segments, 2),
         };
       }
-    }
-    if (
-      segments[0] === 'logic' &&
-      segments[1] === 'graphsById' &&
-      segments[2]
-    ) {
-      const graphId = segments[2];
-      if (segments[3] === 'nodesById' && segments[4]) {
-        return {
-          kind: 'graph-node',
-          graphKind: 'nodegraph',
-          graphId,
-          nodeId: segments[4],
-          fieldPath: remainderPath(segments, 5),
-        };
-      }
-      if (segments[3] === 'edgesById' && segments[4]) {
-        return {
-          kind: 'graph-edge',
-          graphKind: 'nodegraph',
-          graphId,
-          edgeId: segments[4],
-          fieldPath: remainderPath(segments, 5),
-        };
-      }
-      return {
-        kind: 'graph-structure',
-        graphKind: 'nodegraph',
-        graphId,
-        fieldPath: remainderPath(segments, 3),
-      };
-    }
-    if (
-      segments[0] === 'logic' &&
-      segments[1] === 'x-nodeGraphEditor' &&
-      segments[2] === 'graphsById' &&
-      segments[3]
-    ) {
-      const graphId = segments[3];
-      if (segments[4] === 'nodesById' && segments[5]) {
-        return {
-          kind: 'graph-node',
-          graphKind: 'nodegraph',
-          graphId,
-          nodeId: segments[5],
-          fieldPath: remainderPath(segments, 6),
-        };
-      }
-      return {
-        kind: 'graph-structure',
-        graphKind: 'nodegraph',
-        graphId,
-        fieldPath: remainderPath(segments, 4),
-      };
-    }
-    if (segments[0] === 'animation') {
-      const animationEntity = resolvePirAnimationSemantic(segments);
-      if (animationEntity) return animationEntity;
-    }
-    if (target.documentType === 'pir-animation') {
-      const entityKinds = {
-        timelinesById: 'timeline',
-        tracksById: 'track',
-        keyframesById: 'keyframe',
-        bindingsById: 'binding',
-      } as const;
-      const entityKind = segments[0]
-        ? entityKinds[segments[0] as keyof typeof entityKinds]
-        : undefined;
-      if (entityKind && segments[1]) {
+      if (segments[0] === 'svgFiltersById' && segments[1]) {
         return {
           kind: 'animation-entity',
-          entityKind,
+          entityKind: 'svg-filter',
           entityId: segments[1],
           fieldPath: remainderPath(segments, 2),
         };

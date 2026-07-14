@@ -11,7 +11,9 @@ const compilerEntry = resolve(
   repoRoot,
   'packages/prodivix-compiler/src/index.ts'
 );
-const { generateReactBundle } = await import(pathToFileURL(compilerEntry).href);
+const { generateWorkspaceReactViteBundle } = await import(
+  pathToFileURL(compilerEntry).href
+);
 
 const officialPackages = ['antd', 'mui', 'radix'];
 
@@ -77,17 +79,34 @@ const definitions = await Promise.all(
   })
 );
 
-const node = (id, type, input = {}) => ({ id, type, ...input });
+const toLiteralBindings = (values = {}) =>
+  Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      { kind: 'literal', value },
+    ])
+  );
+
+const node = (id, type, input = {}) => ({
+  id,
+  kind: 'element',
+  type,
+  ...(input.text === undefined
+    ? {}
+    : { text: { kind: 'literal', value: input.text } }),
+  ...(input.props ? { props: toLiteralBindings(input.props) } : {}),
+  ...(input.style ? { style: toLiteralBindings(input.style) } : {}),
+  ...(input.events ? { events: input.events } : {}),
+});
 
 const document = (name, nodesById, childIdsById) => ({
-  version: '1.3',
   metadata: { name },
   ui: {
     graph: {
-      version: 1,
       rootId: 'root',
       nodesById,
       childIdsById,
+      order: { strategy: 'childIdsById' },
     },
   },
 });
@@ -118,7 +137,7 @@ const documentFromTemplates = (name, contribution, templateIds) => {
           `Radix export template ${templateId} produced a duplicate node id.`
         );
       }
-      nodesById[nodeId] = { id: nodeId, ...descriptor };
+      nodesById[nodeId] = node(nodeId, descriptor.type, descriptor);
       childIdsById[nodeId] = (
         template.fragment.childIdsByLocalId[localId] ?? []
       ).map((childId) => {
@@ -378,6 +397,56 @@ const workspaceRoot = await mkdtemp(
 );
 const projectsRoot = join(workspaceRoot, 'projects');
 
+const createWorkspace = (fixture) => {
+  const documentId = `page-${fixture.id}`;
+  const documentNodeId = `document-${fixture.id}`;
+  return {
+    id: `workspace-${fixture.id}`,
+    name: fixture.document.metadata?.name ?? fixture.id,
+    workspaceRev: 1,
+    routeRev: 1,
+    opSeq: 1,
+    treeRootId: 'root',
+    treeById: {
+      root: {
+        id: 'root',
+        kind: 'dir',
+        name: '/',
+        parentId: null,
+        children: [documentNodeId],
+      },
+      [documentNodeId]: {
+        id: documentNodeId,
+        kind: 'doc',
+        name: `${fixture.id}.pir.json`,
+        parentId: 'root',
+        docId: documentId,
+      },
+    },
+    docsById: {
+      [documentId]: {
+        id: documentId,
+        type: 'pir-page',
+        path: `/pages/${fixture.id}.pir.json`,
+        contentRev: 1,
+        metaRev: 1,
+        content: fixture.document,
+      },
+    },
+    routeManifest: {
+      version: '1',
+      root: {
+        id: 'route-root',
+        children: [
+          { id: `route-${fixture.id}`, index: true, pageDocId: documentId },
+        ],
+      },
+    },
+    activeDocumentId: documentId,
+    activeRouteNodeId: `route-${fixture.id}`,
+  };
+};
+
 const writeBundle = async (fixture) => {
   const selected = fixture.libraries.map((name) => {
     const definition = byName.get(name);
@@ -394,7 +463,8 @@ const writeBundle = async (fixture) => {
       definition.iconProvider ? [definition.iconProvider] : []
     ),
   };
-  const bundle = generateReactBundle(fixture.document, {
+  const bundle = generateWorkspaceReactViteBundle(createWorkspace(fixture), {
+    projectName: fixture.document.metadata?.name ?? fixture.id,
     codegenPolicySnapshot: snapshot,
   });
   const errors = bundle.diagnostics.filter(
@@ -407,9 +477,12 @@ const writeBundle = async (fixture) => {
         .join('\n')}`
     );
   }
-  const appFile = bundle.files.find((file) => file.path === 'src/App.tsx');
+  const generatedSource = bundle.files
+    .filter((file) => typeof file.contents === 'string')
+    .map((file) => file.contents)
+    .join('\n');
   for (const marker of fixture.sourceMarkers ?? []) {
-    if (!appFile?.contents.includes(marker)) {
+    if (!generatedSource.includes(marker)) {
       throw new Error(
         `${fixture.id} export is missing source marker ${marker}.`
       );

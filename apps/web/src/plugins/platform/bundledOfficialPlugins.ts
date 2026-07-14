@@ -13,7 +13,7 @@ import {
   PLUGIN_DIAGNOSTIC_CODES,
   type PluginDiagnostic,
 } from '@prodivix/plugin-contracts';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { PIRNode } from '@prodivix/pir';
 import type { OfficialHostModuleCatalogEntry } from '@prodivix/plugin-react-host';
 import type {
   RendererComponentProjection,
@@ -110,7 +110,7 @@ export const getBundledOfficialPlugin = (catalogId: string) =>
   BUNDLED_OFFICIAL_PLUGIN_CATALOG.get(catalogId.trim());
 
 export const collectUnavailableBundledOfficialComponentDiagnostics = (
-  nodesById: Readonly<Record<string, ComponentNode>>,
+  nodesById: Readonly<Record<string, PIRNode>>,
   rendererComponents: readonly RendererComponentProjection[]
 ): readonly PluginDiagnostic[] => {
   const effectiveRendererByRuntimeType = new Map(
@@ -119,6 +119,7 @@ export const collectUnavailableBundledOfficialComponentDiagnostics = (
   return Object.values(nodesById)
     .sort((left, right) => left.id.localeCompare(right.id))
     .flatMap((node) => {
+      if (node.kind !== 'element') return [];
       const owner = runtimeOwnerByType.get(node.type);
       const renderer = effectiveRendererByRuntimeType.get(node.type);
       if (

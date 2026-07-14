@@ -46,7 +46,6 @@ type GraphAggregate = {
   conflictIds: Set<string>;
   documentId: string;
   edges: Map<string, EntityAggregate>;
-  graphId?: string;
   nodes: Map<string, EntityAggregate>;
   structure: EntityAggregate;
 };
@@ -77,14 +76,10 @@ const createEntityAggregate = (): EntityAggregate => ({
   remoteChanges: [],
 });
 
-const createGraphAggregate = (
-  documentId: string,
-  graphId?: string
-): GraphAggregate => ({
+const createGraphAggregate = (documentId: string): GraphAggregate => ({
   conflictIds: new Set(),
   documentId,
   edges: new Map(),
-  graphId,
   nodes: new Map(),
   structure: createEntityAggregate(),
 });
@@ -177,7 +172,7 @@ const collectGraphConflict = (
 
 const graphRefFromSemantic = (
   change: WorkspaceSemanticChange | WorkspaceMergeConflict
-): { documentId: string; graphId?: string } | undefined => {
+): { documentId: string } | undefined => {
   if (change.target.kind !== 'document') return undefined;
   const semantic = change.semantic;
   if (
@@ -188,10 +183,7 @@ const graphRefFromSemantic = (
   ) {
     return undefined;
   }
-  return {
-    documentId: change.target.documentId,
-    ...(semantic.graphId ? { graphId: semantic.graphId } : {}),
-  };
+  return { documentId: change.target.documentId };
 };
 
 const collectGraphAggregates = (
@@ -199,9 +191,9 @@ const collectGraphAggregates = (
   projectionIndexes: GraphProjectionIndexes
 ): Map<string, GraphAggregate> => {
   const graphs = new Map<string, GraphAggregate>();
-  const ensureGraph = (documentId: string, graphId?: string) => {
-    const key = createNodeGraphProjectionKey(documentId, graphId);
-    const graph = graphs.get(key) ?? createGraphAggregate(documentId, graphId);
+  const ensureGraph = (documentId: string) => {
+    const key = createNodeGraphProjectionKey(documentId);
+    const graph = graphs.get(key) ?? createGraphAggregate(documentId);
     graphs.set(key, graph);
     return graph;
   };
@@ -211,12 +203,7 @@ const collectGraphAggregates = (
   ) =>
     changes.forEach((change) => {
       const ref = graphRefFromSemantic(change);
-      if (ref)
-        collectGraphChange(
-          ensureGraph(ref.documentId, ref.graphId),
-          change,
-          side
-        );
+      if (ref) collectGraphChange(ensureGraph(ref.documentId), change, side);
     });
   collectChanges(input.analysis.localChanges.changes, 'local');
   collectChanges(input.analysis.remoteChanges.changes, 'remote');
@@ -224,7 +211,7 @@ const collectGraphAggregates = (
   input.analysis.conflicts.forEach((conflict) => {
     const ref = graphRefFromSemantic(conflict);
     if (ref) {
-      collectGraphConflict(ensureGraph(ref.documentId, ref.graphId), conflict);
+      collectGraphConflict(ensureGraph(ref.documentId), conflict);
     } else if (
       conflict.kind === 'structural' &&
       conflict.target.kind === 'document' &&
@@ -244,7 +231,7 @@ const collectGraphAggregates = (
     ].forEach((index) => {
       index.forEach((projection) => {
         if (projection.documentId === documentId) {
-          ensureGraph(documentId, projection.graphId);
+          ensureGraph(documentId);
         }
       });
     });
@@ -766,11 +753,7 @@ const resolveProjectionMetadata = (
   return {
     documentPath:
       projection?.documentPath ?? document?.path ?? graph.documentId,
-    graphLabel:
-      projection?.graphLabel ??
-      graph.graphId ??
-      document?.name ??
-      graph.documentId,
+    graphLabel: projection?.graphLabel ?? document?.name ?? graph.documentId,
   };
 };
 
@@ -802,7 +785,6 @@ export const adaptNodeGraphDiffs = (
           resolutions,
           nodes.conflictedNodeIds
         ),
-        ...(graph.graphId ? { graphId: graph.graphId } : {}),
         graphLabel: metadata.graphLabel,
         nodes: nodes.presentations,
       };

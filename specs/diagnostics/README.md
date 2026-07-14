@@ -4,7 +4,7 @@
 
 - Draft
 - 日期：2026-05-03
-- 适用范围：PIR、Workspace、Plugin、Route、Editor、UX、Code、NodeGraph、Animation、External Library、Codegen、Backend、AI
+- 适用范围：PIR、Workspace、Plugin、Route、Editor、UX、Code、Semantic、NodeGraph、Animation、External Library、Codegen、Backend、AI
 - 后端错误响应：`specs/decisions/24.backend-diagnostic-envelope.md`
 
 ## 1. 目的
@@ -49,6 +49,7 @@ type ProdivixDiagnostic = {
     | 'editor'
     | 'ux'
     | 'code'
+    | 'semantic'
     | 'nodegraph'
     | 'animation'
     | 'codegen'
@@ -97,6 +98,7 @@ type ProdivixDiagnostic = {
 | `EDT-xxxx` | Editor      | 编辑器交互、选择、拖拽、Inspector、画布状态    | `specs/diagnostics/editor-diagnostic-codes.md`    |
 | `UX-xxxx`  | UX          | 可访问性、交互、响应式布局、内容和视觉反馈     | `specs/diagnostics/ux-diagnostic-codes.md`        |
 | `COD-xxxx` | Code        | 用户代码片段、符号解析、类型、宿主绑定、运行时 | `specs/diagnostics/code-diagnostic-codes.md`      |
+| `SEM-xxxx` | Semantic    | 跨领域引用解析、作用域、类型约束与快照身份     | `specs/diagnostics/semantic-diagnostic-codes.md`  |
 | `NGR-xxxx` | NodeGraph   | 节点图端口、连线、执行、调试                   | `specs/diagnostics/nodegraph-diagnostic-codes.md` |
 | `ANI-xxxx` | Animation   | Timeline、binding、track、target node          | `specs/diagnostics/animation-diagnostic-codes.md` |
 | `GEN-xxxx` | Codegen     | IR 构建、依赖解析、代码发射、导出              | `specs/diagnostics/codegen-diagnostic-codes.md`   |

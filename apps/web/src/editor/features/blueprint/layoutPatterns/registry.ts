@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '@/editor/features/blueprint/editor/inspector/projection';
 import type {
   LayoutPatternDefinition,
   LayoutPatternParamDefinition,
@@ -52,7 +52,7 @@ export const buildLayoutPatternNode = ({
   patternId: string;
   createId: (type: string) => string;
   params?: Record<string, unknown>;
-}): ComponentNode | null => {
+}): BlueprintInspectorNodeView | null => {
   const pattern = getLayoutPatternDefinition(patternId);
   if (!pattern) return null;
   const resolvedParams = resolveParams(pattern.schema, params);

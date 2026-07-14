@@ -172,7 +172,7 @@ type UpstreamDiagnostic = {
 
 - [Code 错误码索引](/reference/diagnostics/cod)
 - [错误码总索引](/reference/diagnostic-codes)
-- [作者态符号环境](/reference/authoring-symbol-environment)
+- [Workspace Semantic Index](/reference/authoring-symbol-environment)
 - [`COD-1001` 代码解析失败](/reference/diagnostics/cod-1001)
 - [`COD-2003` 类型不兼容](/reference/diagnostics/cod-2003)
 - [`COD-3011` Mounted CSS selector 超出节点作用域](/reference/diagnostics/cod-3011)

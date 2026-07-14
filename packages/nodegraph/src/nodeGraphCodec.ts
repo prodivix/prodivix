@@ -1,10 +1,10 @@
+import type { CodeReference, CodeSlotBinding } from '@prodivix/authoring';
 import type {
   NodeGraphDecodeIssue,
   NodeGraphDecodeResult,
-  NodeGraphDocument,
   NodeGraphEdge,
   NodeGraphNode,
-  NodeGraphSelection,
+  NodeGraphPort,
 } from './nodeGraph.types';
 
 type UnsafeRecord = Record<string, unknown>;
@@ -12,16 +12,33 @@ type UnsafeRecord = Record<string, unknown>;
 const isPlainObject = (value: unknown): value is UnsafeRecord =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+const hasOnlyKeys = (
+  value: UnsafeRecord,
+  allowed: readonly string[],
+  path: string,
+  issues: NodeGraphDecodeIssue[]
+): void => {
+  const allowedSet = new Set(allowed);
+  for (const key of Object.keys(value)) {
+    if (!allowedSet.has(key)) {
+      issues.push({
+        path: `${path}/${key}`,
+        message: `Unknown persisted NodeGraph field "${key}".`,
+      });
+    }
+  }
+};
+
 const readRequiredId = (
   value: unknown,
   path: string,
   issues: NodeGraphDecodeIssue[]
 ): string | null => {
-  if (typeof value !== 'string' || !value.trim()) {
-    issues.push({ path, message: 'Expected a non-empty string.' });
+  if (typeof value !== 'string' || !value.trim() || value !== value.trim()) {
+    issues.push({ path, message: 'Expected a canonical non-empty string.' });
     return null;
   }
-  return value.trim();
+  return value;
 };
 
 const readOptionalString = (
@@ -30,12 +47,11 @@ const readOptionalString = (
   issues: NodeGraphDecodeIssue[]
 ): string | undefined => {
   if (value === undefined) return undefined;
-  if (typeof value !== 'string') {
-    issues.push({ path, message: 'Expected a string when present.' });
+  if (typeof value !== 'string' || !value.trim() || value !== value.trim()) {
+    issues.push({ path, message: 'Expected a canonical non-empty string.' });
     return undefined;
   }
-  const normalized = value.trim();
-  return normalized || undefined;
+  return value;
 };
 
 const readOptionalHandle = (
@@ -51,51 +67,271 @@ const readOptionalHandle = (
   return value;
 };
 
-const decodeNode = (
+const readOptionalBoolean = (
   value: unknown,
   path: string,
   issues: NodeGraphDecodeIssue[]
+): boolean | undefined => {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'boolean') {
+    issues.push({ path, message: 'Expected a boolean when present.' });
+    return undefined;
+  }
+  return value;
+};
+
+const decodeCodeReference = (
+  value: unknown,
+  path: string,
+  issues: NodeGraphDecodeIssue[]
+): CodeReference | null => {
+  if (!isPlainObject(value)) {
+    issues.push({ path, message: 'Expected a CodeReference object.' });
+    return null;
+  }
+  hasOnlyKeys(
+    value,
+    ['artifactId', 'exportName', 'symbolId', 'sourceSpan'],
+    path,
+    issues
+  );
+  const artifactId = readRequiredId(
+    value.artifactId,
+    `${path}/artifactId`,
+    issues
+  );
+  const exportName = readOptionalString(
+    value.exportName,
+    `${path}/exportName`,
+    issues
+  );
+  const symbolId = readOptionalString(
+    value.symbolId,
+    `${path}/symbolId`,
+    issues
+  );
+  if (!artifactId) return null;
+  const reference: CodeReference = {
+    artifactId,
+    ...(exportName ? { exportName } : {}),
+    ...(symbolId ? { symbolId } : {}),
+  };
+  if (value.sourceSpan !== undefined) {
+    if (!isPlainObject(value.sourceSpan)) {
+      issues.push({
+        path: `${path}/sourceSpan`,
+        message: 'Expected a SourceSpan object.',
+      });
+    } else {
+      hasOnlyKeys(
+        value.sourceSpan,
+        ['artifactId', 'startLine', 'startColumn', 'endLine', 'endColumn'],
+        `${path}/sourceSpan`,
+        issues
+      );
+      const numbers = [
+        value.sourceSpan.startLine,
+        value.sourceSpan.startColumn,
+        value.sourceSpan.endLine,
+        value.sourceSpan.endColumn,
+      ];
+      const spanArtifactId = readRequiredId(
+        value.sourceSpan.artifactId,
+        `${path}/sourceSpan/artifactId`,
+        issues
+      );
+      if (
+        spanArtifactId &&
+        spanArtifactId === artifactId &&
+        numbers.every(
+          (candidate) =>
+            typeof candidate === 'number' &&
+            Number.isInteger(candidate) &&
+            candidate >= 1
+        )
+      ) {
+        reference.sourceSpan = {
+          artifactId: spanArtifactId,
+          startLine: numbers[0] as number,
+          startColumn: numbers[1] as number,
+          endLine: numbers[2] as number,
+          endColumn: numbers[3] as number,
+        };
+      } else {
+        issues.push({
+          path: `${path}/sourceSpan`,
+          message:
+            'SourceSpan must use the referenced artifact and positive one-based integer positions.',
+        });
+      }
+    }
+  }
+  return reference;
+};
+
+const decodeCodeSlotBinding = (
+  value: unknown,
+  path: string,
+  issues: NodeGraphDecodeIssue[]
+): CodeSlotBinding | null => {
+  if (!isPlainObject(value)) {
+    issues.push({ path, message: 'Expected a CodeSlotBinding object.' });
+    return null;
+  }
+  hasOnlyKeys(value, ['slotId', 'reference'], path, issues);
+  const slotId = readRequiredId(value.slotId, `${path}/slotId`, issues);
+  const reference = decodeCodeReference(
+    value.reference,
+    `${path}/reference`,
+    issues
+  );
+  return slotId && reference ? { slotId, reference } : null;
+};
+
+const decodePort = (
+  value: unknown,
+  path: string,
+  issues: NodeGraphDecodeIssue[]
+): NodeGraphPort | null => {
+  if (!isPlainObject(value)) {
+    issues.push({ path, message: 'Expected a NodeGraph port object.' });
+    return null;
+  }
+  hasOnlyKeys(
+    value,
+    ['id', 'direction', 'kind', 'typeRef', 'required', 'multiple'],
+    path,
+    issues
+  );
+  const id = readRequiredId(value.id, `${path}/id`, issues);
+  if (value.direction !== 'input' && value.direction !== 'output') {
+    issues.push({
+      path: `${path}/direction`,
+      message: 'Expected input or output.',
+    });
+  }
+  if (value.kind !== 'control' && value.kind !== 'data') {
+    issues.push({ path: `${path}/kind`, message: 'Expected control or data.' });
+  }
+  const typeRef = readOptionalString(value.typeRef, `${path}/typeRef`, issues);
+  const required = readOptionalBoolean(
+    value.required,
+    `${path}/required`,
+    issues
+  );
+  const multiple = readOptionalBoolean(
+    value.multiple,
+    `${path}/multiple`,
+    issues
+  );
+  if (
+    !id ||
+    (value.direction !== 'input' && value.direction !== 'output') ||
+    (value.kind !== 'control' && value.kind !== 'data')
+  ) {
+    return null;
+  }
+  return {
+    id,
+    direction: value.direction,
+    kind: value.kind,
+    ...(typeRef ? { typeRef } : {}),
+    ...(required !== undefined ? { required } : {}),
+    ...(multiple !== undefined ? { multiple } : {}),
+  };
+};
+
+const decodeNode = (
+  value: unknown,
+  index: number,
+  issues: NodeGraphDecodeIssue[]
 ): NodeGraphNode | null => {
+  const path = `/nodes/${index}`;
   if (!isPlainObject(value)) {
     issues.push({ path, message: 'Expected an object.' });
     return null;
   }
-  const id = readRequiredId(value.id, `${path}.id`, issues);
+  hasOnlyKeys(value, ['id', 'type', 'data', 'ports', 'executor'], path, issues);
+  const id = readRequiredId(value.id, `${path}/id`, issues);
+  const type = readOptionalString(value.type, `${path}/type`, issues);
   if (!isPlainObject(value.data)) {
-    issues.push({ path: `${path}.data`, message: 'Expected an object.' });
+    issues.push({ path: `${path}/data`, message: 'Expected an object.' });
   }
-  const type = readOptionalString(value.type, `${path}.type`, issues);
-  if (isPlainObject(value.data) && value.data.kind !== undefined) {
-    readOptionalString(value.data.kind, `${path}.data.kind`, issues);
+  if (
+    isPlainObject(value.data) &&
+    value.data.kind === 'code' &&
+    (Object.hasOwn(value.data, 'code') ||
+      Object.hasOwn(value.data, 'codeLanguage'))
+  ) {
+    issues.push({
+      path: `${path}/data`,
+      message:
+        'Code nodes must bind a Workspace CodeArtifact through executor; embedded source fields are not canonical.',
+    });
   }
+  const ports = Array.isArray(value.ports)
+    ? value.ports
+        .map((port, portIndex) =>
+          decodePort(port, `${path}/ports/${portIndex}`, issues)
+        )
+        .filter((port): port is NodeGraphPort => Boolean(port))
+    : undefined;
+  if (value.ports !== undefined && !Array.isArray(value.ports)) {
+    issues.push({ path: `${path}/ports`, message: 'Expected an array.' });
+  }
+  if (ports) {
+    const portIds = new Set<string>();
+    ports.forEach((port, portIndex) => {
+      if (portIds.has(port.id)) {
+        issues.push({
+          path: `${path}/ports/${portIndex}/id`,
+          message: `Duplicate port id: ${port.id}`,
+        });
+      }
+      portIds.add(port.id);
+    });
+  }
+  const executor =
+    value.executor === undefined
+      ? undefined
+      : decodeCodeSlotBinding(value.executor, `${path}/executor`, issues);
   if (!id || !isPlainObject(value.data)) return null;
   return {
     id,
     ...(type ? { type } : {}),
     data: { ...value.data },
+    ...(ports ? { ports } : {}),
+    ...(executor ? { executor } : {}),
   };
 };
 
 const decodeEdge = (
   value: unknown,
-  path: string,
+  index: number,
   issues: NodeGraphDecodeIssue[]
 ): NodeGraphEdge | null => {
+  const path = `/edges/${index}`;
   if (!isPlainObject(value)) {
     issues.push({ path, message: 'Expected an object.' });
     return null;
   }
-  const id = readRequiredId(value.id, `${path}.id`, issues);
-  const source = readRequiredId(value.source, `${path}.source`, issues);
-  const target = readRequiredId(value.target, `${path}.target`, issues);
+  hasOnlyKeys(
+    value,
+    ['id', 'source', 'target', 'sourceHandle', 'targetHandle'],
+    path,
+    issues
+  );
+  const id = readRequiredId(value.id, `${path}/id`, issues);
+  const source = readRequiredId(value.source, `${path}/source`, issues);
+  const target = readRequiredId(value.target, `${path}/target`, issues);
   const sourceHandle = readOptionalHandle(
     value.sourceHandle,
-    `${path}.sourceHandle`,
+    `${path}/sourceHandle`,
     issues
   );
   const targetHandle = readOptionalHandle(
     value.targetHandle,
-    `${path}.targetHandle`,
+    `${path}/targetHandle`,
     issues
   );
   if (!id || !source || !target) return null;
@@ -108,119 +344,118 @@ const decodeEdge = (
   };
 };
 
-/**
- * Decodes the persisted NodeGraph domain section without importing PIR or a
- * canvas library. Invalid graphs fail as a unit and are never partially run.
- */
-export const decodeNodeGraphDocuments = (
+/** Strictly decodes one canonical standalone `pir-graph` document content. */
+export const decodeNodeGraphDocument = (
   value: unknown
 ): NodeGraphDecodeResult => {
-  if (!Array.isArray(value)) {
+  if (!isPlainObject(value)) {
     return {
       ok: false,
-      issues: [{ path: 'graphs', message: 'Expected an array.' }],
+      issues: [{ path: '/', message: 'Expected a NodeGraph object.' }],
     };
   }
-
   const issues: NodeGraphDecodeIssue[] = [];
-  const documents: NodeGraphDocument[] = [];
-  const graphIds = new Set<string>();
+  hasOnlyKeys(value, ['version', 'nodes', 'edges'], '', issues);
+  if (value.version !== 1) {
+    issues.push({ path: '/version', message: 'Expected NodeGraph version 1.' });
+  }
+  if (!Array.isArray(value.nodes)) {
+    issues.push({ path: '/nodes', message: 'Expected an array.' });
+  }
+  if (!Array.isArray(value.edges)) {
+    issues.push({ path: '/edges', message: 'Expected an array.' });
+  }
+  if (!Array.isArray(value.nodes) || !Array.isArray(value.edges)) {
+    return { ok: false, issues };
+  }
 
-  value.forEach((candidate, graphIndex) => {
-    const path = `graphs[${graphIndex}]`;
-    if (!isPlainObject(candidate)) {
-      issues.push({ path, message: 'Expected an object.' });
-      return;
+  const nodes: NodeGraphNode[] = [];
+  const nodeIds = new Set<string>();
+  value.nodes.forEach((candidate, index) => {
+    const node = decodeNode(candidate, index, issues);
+    if (!node) return;
+    if (nodeIds.has(node.id)) {
+      issues.push({
+        path: `/nodes/${index}/id`,
+        message: `Duplicate node id: ${node.id}`,
+      });
     }
-    const id = readRequiredId(candidate.id, `${path}.id`, issues);
-    const name = readOptionalString(candidate.name, `${path}.name`, issues);
-    if (!Array.isArray(candidate.nodes)) {
-      issues.push({ path: `${path}.nodes`, message: 'Expected an array.' });
+    nodeIds.add(node.id);
+    nodes.push(node);
+  });
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+
+  const edges: NodeGraphEdge[] = [];
+  const edgeIds = new Set<string>();
+  value.edges.forEach((candidate, index) => {
+    const edge = decodeEdge(candidate, index, issues);
+    if (!edge) return;
+    if (edgeIds.has(edge.id)) {
+      issues.push({
+        path: `/edges/${index}/id`,
+        message: `Duplicate edge id: ${edge.id}`,
+      });
     }
-    if (!Array.isArray(candidate.edges)) {
-      issues.push({ path: `${path}.edges`, message: 'Expected an array.' });
+    edgeIds.add(edge.id);
+    if (!nodeIds.has(edge.source)) {
+      issues.push({
+        path: `/edges/${index}/source`,
+        message: `Unknown source node: ${edge.source}`,
+      });
+    }
+    if (!nodeIds.has(edge.target)) {
+      issues.push({
+        path: `/edges/${index}/target`,
+        message: `Unknown target node: ${edge.target}`,
+      });
+    }
+    const sourceNode = nodesById.get(edge.source);
+    const targetNode = nodesById.get(edge.target);
+    const sourcePort =
+      typeof edge.sourceHandle === 'string'
+        ? sourceNode?.ports?.find((port) => port.id === edge.sourceHandle)
+        : undefined;
+    const targetPort =
+      typeof edge.targetHandle === 'string'
+        ? targetNode?.ports?.find((port) => port.id === edge.targetHandle)
+        : undefined;
+    if (
+      sourceNode?.ports &&
+      typeof edge.sourceHandle === 'string' &&
+      (!sourcePort || sourcePort.direction !== 'output')
+    ) {
+      issues.push({
+        path: `/edges/${index}/sourceHandle`,
+        message: `Unknown output port: ${edge.sourceHandle}`,
+      });
     }
     if (
-      !id ||
-      !Array.isArray(candidate.nodes) ||
-      !Array.isArray(candidate.edges)
+      targetNode?.ports &&
+      typeof edge.targetHandle === 'string' &&
+      (!targetPort || targetPort.direction !== 'input')
     ) {
-      return;
+      issues.push({
+        path: `/edges/${index}/targetHandle`,
+        message: `Unknown input port: ${edge.targetHandle}`,
+      });
     }
-    if (graphIds.has(id)) {
-      issues.push({ path: `${path}.id`, message: `Duplicate graph id: ${id}` });
+    if (
+      sourcePort &&
+      targetPort &&
+      (sourcePort.kind !== targetPort.kind ||
+        (sourcePort.typeRef &&
+          targetPort.typeRef &&
+          sourcePort.typeRef !== targetPort.typeRef))
+    ) {
+      issues.push({
+        path: `/edges/${index}`,
+        message: `Incompatible ports: ${edge.sourceHandle} -> ${edge.targetHandle}`,
+      });
     }
-    graphIds.add(id);
-
-    const nodes: NodeGraphNode[] = [];
-    const nodeIds = new Set<string>();
-    candidate.nodes.forEach((node, nodeIndex) => {
-      const nodePath = `${path}.nodes[${nodeIndex}]`;
-      const decoded = decodeNode(node, nodePath, issues);
-      if (!decoded) return;
-      if (nodeIds.has(decoded.id)) {
-        issues.push({
-          path: `${nodePath}.id`,
-          message: `Duplicate node id: ${decoded.id}`,
-        });
-      }
-      nodeIds.add(decoded.id);
-      nodes.push(decoded);
-    });
-
-    const edges: NodeGraphEdge[] = [];
-    const edgeIds = new Set<string>();
-    candidate.edges.forEach((edge, edgeIndex) => {
-      const edgePath = `${path}.edges[${edgeIndex}]`;
-      const decoded = decodeEdge(edge, edgePath, issues);
-      if (!decoded) return;
-      if (edgeIds.has(decoded.id)) {
-        issues.push({
-          path: `${edgePath}.id`,
-          message: `Duplicate edge id: ${decoded.id}`,
-        });
-      }
-      edgeIds.add(decoded.id);
-      if (!nodeIds.has(decoded.source)) {
-        issues.push({
-          path: `${edgePath}.source`,
-          message: `Unknown source node: ${decoded.source}`,
-        });
-      }
-      if (!nodeIds.has(decoded.target)) {
-        issues.push({
-          path: `${edgePath}.target`,
-          message: `Unknown target node: ${decoded.target}`,
-        });
-      }
-      edges.push(decoded);
-    });
-
-    documents.push({
-      id,
-      ...(name ? { name } : {}),
-      nodes,
-      edges,
-    });
+    edges.push(edge);
   });
 
-  return issues.length ? { ok: false, issues } : { ok: true, value: documents };
-};
-
-const normalizeSelectionKey = (value: unknown): string =>
-  typeof value === 'string' ? value.trim() : '';
-
-export const selectNodeGraphDocument = (
-  documents: NodeGraphDocument[],
-  selection: NodeGraphSelection
-): NodeGraphDocument | null => {
-  const graphId = normalizeSelectionKey(selection.graphId);
-  if (graphId) {
-    return documents.find((graph) => graph.id === graphId) ?? null;
-  }
-  const graphName = normalizeSelectionKey(selection.graphName);
-  if (graphName) {
-    return documents.find((graph) => graph.name === graphName) ?? null;
-  }
-  return documents[0] ?? null;
+  return issues.length
+    ? { ok: false, issues }
+    : { ok: true, value: { version: 1, nodes, edges } };
 };

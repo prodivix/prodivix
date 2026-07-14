@@ -1,20 +1,16 @@
 import type { BlueprintTemplateDescriptor } from '@prodivix/plugin-contracts';
-import type {
-  ComponentNode,
-  ComponentNodeData,
-  PIRDocument,
-  UiGraph,
-} from '@prodivix/shared/types/pir';
 import type { PluginOwnerRef } from '@prodivix/plugin-host';
 import {
-  getParentMap,
-  insertUiGraphFragment,
-  materializePirRoot,
-  normalizeTreeToUiGraph,
-  type InstantiatedUiFragment,
-  type UiGraphFragmentInsertionTarget,
+  insertPirGraphFragment,
+  validatePirDocument,
+  type PIRElementNode,
+  type PIRGraphFragment,
+  type PIRGraphPlacementTarget,
+  type PIRJsonValue,
+  type PIRDocument,
+  type PIRUiGraph,
+  type PIRValueBinding,
 } from '@prodivix/pir';
-import { validatePirDocument } from '@prodivix/pir';
 import {
   applyWorkspaceDocumentCommand,
   type WorkspaceCommandEnvelope,
@@ -25,17 +21,9 @@ import type {
   PaletteQueryService,
 } from '@/plugins/platform';
 import {
-  createNodeFromPaletteItem,
-  createNodeIdFactory,
-} from '@/editor/features/blueprint/editor/model/palette';
-import {
-  findNodeById,
-  supportsChildrenForNode,
-} from '@/editor/features/blueprint/editor/model/tree';
-import {
   validateBlueprintComposition,
   type BlueprintCompositionIssue,
-} from '@/editor/features/blueprint/editor/model/composition';
+} from './composition';
 
 export type PaletteItemSelection = Readonly<{
   variantProps?: Readonly<Record<string, unknown>>;
@@ -50,9 +38,12 @@ export type BlueprintPaletteInsertIntent = Readonly<{
   recipeOwner: PluginOwnerRef;
   paletteContributionId: string;
   itemId: string;
-  target: UiGraphFragmentInsertionTarget;
+  target: PIRGraphPlacementTarget;
   selection: PaletteItemSelection;
 }>;
+
+export type InstantiatedPaletteFragment = PIRGraphFragment &
+  Readonly<{ localToNodeId: Readonly<Record<string, string>> }>;
 
 export type PaletteItemInsertionResult =
   | Readonly<{
@@ -61,7 +52,7 @@ export type PaletteItemInsertionResult =
       command: WorkspaceCommandEnvelope;
       intent: BlueprintPaletteInsertIntent;
       nextNodeId: string;
-      fragment: InstantiatedUiFragment;
+      fragment: InstantiatedPaletteFragment;
     }>
   | Readonly<{
       ok: false;
@@ -69,9 +60,46 @@ export type PaletteItemInsertionResult =
       compositionIssue?: BlueprintCompositionIssue;
     }>;
 
-const cloneJson = <T>(value: T): T => {
-  if (typeof structuredClone === 'function') return structuredClone(value);
-  return JSON.parse(JSON.stringify(value)) as T;
+const cloneJson = (value: unknown): PIRJsonValue =>
+  (typeof structuredClone === 'function'
+    ? structuredClone(value)
+    : JSON.parse(JSON.stringify(value))) as PIRJsonValue;
+
+const toLiteralBinding = (value: unknown): PIRValueBinding =>
+  Object.freeze({ kind: 'literal', value: cloneJson(value) });
+
+const toBindingRecord = (
+  values: Readonly<Record<string, unknown>> | undefined
+): Readonly<Record<string, PIRValueBinding>> | undefined => {
+  const entries = Object.entries(values ?? {}).filter(
+    ([, value]) => value !== undefined
+  );
+  return entries.length > 0
+    ? Object.freeze(
+        Object.fromEntries(
+          entries.map(([key, value]) => [key, toLiteralBinding(value)])
+        )
+      )
+    : undefined;
+};
+
+const createElementNode = (input: {
+  id: string;
+  type: string;
+  props?: Readonly<Record<string, unknown>>;
+  style?: Readonly<Record<string, unknown>>;
+  text?: unknown;
+}): PIRElementNode => {
+  const props = toBindingRecord(input.props);
+  const style = toBindingRecord(input.style);
+  return Object.freeze({
+    id: input.id,
+    kind: 'element',
+    type: input.type,
+    ...(input.text === undefined ? {} : { text: toLiteralBinding(input.text) }),
+    ...(props ? { props } : {}),
+    ...(style ? { style } : {}),
+  });
 };
 
 const sameOwner = (left: PluginOwnerRef, right: PluginOwnerRef): boolean =>
@@ -84,6 +112,41 @@ const createCommandId = (): string => {
     return crypto.randomUUID();
   }
   return `blueprint-insert-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const toPascalCase = (value: string): string =>
+  value
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
+    .join('');
+
+const inferRuntimeType = (
+  itemId: string,
+  palette: PaletteQueryService
+): string =>
+  palette.getItemById(itemId)?.runtimeType ?? `Pdx${toPascalCase(itemId)}`;
+
+const inferDefaultText = (name: string | undefined): string | undefined => {
+  const trimmed = name?.trim();
+  if (!trimmed) return undefined;
+  return /input|select|switch|checkbox|radio|slider|image|icon|table|list|grid|tree|chart|dialog|menu|tabs/i.test(
+    trimmed
+  )
+    ? undefined
+    : trimmed;
+};
+
+const createNodeIdFactory = (doc: PIRDocument) => {
+  const existing = new Set(Object.keys(doc.ui.graph.nodesById));
+  return (type: string): string => {
+    const stem = type.replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase() || 'node';
+    let index = 1;
+    let nodeId = `${stem}-${index}`;
+    while (existing.has(nodeId)) nodeId = `${stem}-${++index}`;
+    existing.add(nodeId);
+    return nodeId;
+  };
 };
 
 const applySelectionProps = (
@@ -102,189 +165,113 @@ const applySelectionProps = (
   ...(selection.variantProps ?? {}),
 });
 
-const toFragment = (
-  graph: UiGraph,
-  primaryNodeId: string,
-  localToNodeId: Readonly<Record<string, string>>
-): InstantiatedUiFragment =>
-  Object.freeze({
-    rootIds: Object.freeze([graph.rootId]),
-    primaryNodeId,
-    nodesById: Object.freeze({ ...graph.nodesById }),
-    childIdsById: Object.freeze(
-      Object.fromEntries(
-        Object.entries(graph.childIdsById).map(([nodeId, childIds]) => [
-          nodeId,
-          Object.freeze([...childIds]),
-        ])
-      )
-    ),
-    ...(graph.regionsById
-      ? {
-          regionsById: Object.freeze(
-            Object.fromEntries(
-              Object.entries(graph.regionsById).map(([nodeId, regions]) => [
-                nodeId,
-                Object.freeze(
-                  Object.fromEntries(
-                    Object.entries(regions).map(([name, childIds]) => [
-                      name,
-                      Object.freeze([...childIds]),
-                    ])
-                  )
-                ),
-              ])
-            )
-          ),
-        }
-      : {}),
-    localToNodeId: Object.freeze({ ...localToNodeId }),
-  });
-
-const instantiateNativeRecipe = (
+const instantiateSingleElement = (
   doc: PIRDocument,
   palette: PaletteQueryService,
   itemId: string,
+  runtimeType: string,
   selection: PaletteItemSelection
-): InstantiatedUiFragment => {
-  const createId = createNodeIdFactory(doc);
-  const node = createNodeFromPaletteItem({
-    itemId,
-    createId,
-    palette,
-    variantProps: selection.variantProps
-      ? { ...selection.variantProps }
-      : undefined,
-    selectedSize: selection.selectedSize,
-  });
+): InstantiatedPaletteFragment => {
+  const nodeId = createNodeIdFactory(doc)(runtimeType);
   const item = palette.getItemById(itemId);
-  if (selection.selectedStatus !== undefined && item?.statusProp) {
-    node.props = {
-      ...(node.props ?? {}),
-      [item.statusProp]: selection.selectedStatus,
-    };
-  }
-  const graph = normalizeTreeToUiGraph(node);
-  return toFragment(graph, node.id, { root: node.id });
+  const node = createElementNode({
+    id: nodeId,
+    type: runtimeType,
+    props: applySelectionProps(undefined, item, selection),
+    text: inferDefaultText(item?.name),
+  });
+  return Object.freeze({
+    rootNodeIds: Object.freeze([nodeId]),
+    primaryNodeId: nodeId,
+    nodesById: Object.freeze({ [nodeId]: node }),
+    childIdsById: Object.freeze({ [nodeId]: Object.freeze([]) }),
+    localToNodeId: Object.freeze({ root: nodeId }),
+  });
 };
 
-const allocateTemplateIds = (
-  doc: PIRDocument,
-  template: BlueprintTemplateDescriptor
-): Readonly<Record<string, string>> => {
-  const createId = createNodeIdFactory(doc);
-  const allocated = new Set<string>();
-  const localToNodeId: Record<string, string> = {};
-  Object.keys(template.fragment.nodesByLocalId)
-    .sort()
-    .forEach((localId) => {
-      const type = template.fragment.nodesByLocalId[localId]!.type;
-      const nodeId = createId(type);
-      if (!nodeId || doc.ui.graph.nodesById[nodeId] || allocated.has(nodeId)) {
-        throw new Error(
-          'Template node id allocation conflicted with the document.'
-        );
-      }
-      allocated.add(nodeId);
-      localToNodeId[localId] = nodeId;
-    });
-  return Object.freeze(localToNodeId);
-};
-
-const instantiateTemplateRecipe = (
+const instantiateTemplate = (
   doc: PIRDocument,
   palette: PaletteQueryService,
   itemId: string,
   template: BlueprintTemplateDescriptor,
   selection: PaletteItemSelection
-): InstantiatedUiFragment => {
-  const localToNodeId = allocateTemplateIds(doc, template);
-  const item = palette.getItemById(itemId);
-  const nodesById: Record<string, ComponentNodeData> = {};
-  Object.entries(template.fragment.nodesByLocalId).forEach(
-    ([localId, node]) => {
-      const nodeId = localToNodeId[localId]!;
-      const props =
-        localId === template.primaryLocalId
-          ? applySelectionProps(node.props, item, selection)
-          : node.props
-            ? cloneJson(node.props)
-            : undefined;
-      nodesById[nodeId] = {
-        id: nodeId,
-        type: node.type,
-        ...(props && Object.keys(props).length > 0 ? { props } : {}),
-        ...(node.style ? { style: cloneJson(node.style) } : {}),
-        ...(node.text === undefined ? {} : { text: cloneJson(node.text) }),
-      };
-    }
+): InstantiatedPaletteFragment => {
+  const createId = createNodeIdFactory(doc);
+  const localToNodeId = Object.freeze(
+    Object.fromEntries(
+      Object.entries(template.fragment.nodesByLocalId)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([localId, node]) => [localId, createId(node.type)])
+    )
   );
-  const childIdsById = Object.fromEntries(
-    Object.keys(template.fragment.nodesByLocalId).map((localId) => [
-      localToNodeId[localId]!,
-      Object.freeze(
-        (template.fragment.childIdsByLocalId[localId] ?? []).map(
-          (childId) => localToNodeId[childId]!
-        )
-      ),
-    ])
+  const nodesById = Object.freeze(
+    Object.fromEntries(
+      Object.entries(template.fragment.nodesByLocalId).map(
+        ([localId, node]) => {
+          const nodeId = localToNodeId[localId]!;
+          return [
+            nodeId,
+            createElementNode({
+              id: nodeId,
+              type: node.type,
+              props:
+                localId === template.primaryLocalId
+                  ? applySelectionProps(
+                      node.props,
+                      palette.getItemById(itemId),
+                      selection
+                    )
+                  : node.props,
+              style: node.style,
+              text: node.text,
+            }),
+          ];
+        }
+      )
+    )
+  );
+  const childIdsById = Object.freeze(
+    Object.fromEntries(
+      Object.keys(template.fragment.nodesByLocalId).map((localId) => [
+        localToNodeId[localId]!,
+        Object.freeze(
+          (template.fragment.childIdsByLocalId[localId] ?? []).map(
+            (childLocalId) => localToNodeId[childLocalId]!
+          )
+        ),
+      ])
+    )
   );
   const regionsById = template.fragment.regionsByLocalId
-    ? Object.fromEntries(
-        Object.entries(template.fragment.regionsByLocalId).map(
-          ([localId, regions]) => [
-            localToNodeId[localId]!,
-            Object.freeze(
-              Object.fromEntries(
-                Object.entries(regions).map(([name, childIds]) => [
-                  name,
-                  Object.freeze(
-                    childIds.map((childId) => localToNodeId[childId]!)
-                  ),
-                ])
-              )
-            ),
-          ]
+    ? Object.freeze(
+        Object.fromEntries(
+          Object.entries(template.fragment.regionsByLocalId).map(
+            ([localId, regions]) => [
+              localToNodeId[localId]!,
+              Object.freeze(
+                Object.fromEntries(
+                  Object.entries(regions).map(([name, childIds]) => [
+                    name,
+                    Object.freeze(
+                      childIds.map((childId) => localToNodeId[childId]!)
+                    ),
+                  ])
+                )
+              ),
+            ]
+          )
         )
       )
     : undefined;
   return Object.freeze({
-    rootIds: Object.freeze(
+    rootNodeIds: Object.freeze(
       template.fragment.rootLocalIds.map((localId) => localToNodeId[localId]!)
     ),
     primaryNodeId: localToNodeId[template.primaryLocalId]!,
-    nodesById: Object.freeze(nodesById),
-    childIdsById: Object.freeze(childIdsById),
-    ...(regionsById ? { regionsById: Object.freeze(regionsById) } : {}),
+    nodesById,
+    childIdsById,
+    ...(regionsById ? { regionsById } : {}),
     localToNodeId,
-  });
-};
-
-const instantiateDirectRecipe = (
-  doc: PIRDocument,
-  palette: PaletteQueryService,
-  recipe: Extract<PaletteItemCreationRecipe, { kind: 'direct' }>,
-  selection: PaletteItemSelection
-): InstantiatedUiFragment => {
-  const createId = createNodeIdFactory(doc);
-  const nodeId = createId(recipe.runtimeType);
-  const props = applySelectionProps(
-    undefined,
-    palette.getItemById(recipe.itemId),
-    selection
-  );
-  return Object.freeze({
-    rootIds: Object.freeze([nodeId]),
-    primaryNodeId: nodeId,
-    nodesById: Object.freeze({
-      [nodeId]: Object.freeze({
-        id: nodeId,
-        type: recipe.runtimeType,
-        ...(Object.keys(props).length > 0 ? { props } : {}),
-      }),
-    }),
-    childIdsById: Object.freeze({ [nodeId]: Object.freeze([]) }),
-    localToNodeId: Object.freeze({ root: nodeId }),
   });
 };
 
@@ -293,66 +280,90 @@ export const instantiatePaletteItem = (
   palette: PaletteQueryService,
   recipe: PaletteItemCreationRecipe,
   selection: PaletteItemSelection = {}
-): InstantiatedUiFragment => {
-  if (recipe.kind === 'native') {
-    return instantiateNativeRecipe(doc, palette, recipe.itemId, selection);
+): InstantiatedPaletteFragment =>
+  recipe.kind === 'template'
+    ? instantiateTemplate(
+        doc,
+        palette,
+        recipe.itemId,
+        recipe.template,
+        selection
+      )
+    : instantiateSingleElement(
+        doc,
+        palette,
+        recipe.itemId,
+        recipe.kind === 'direct'
+          ? recipe.runtimeType
+          : inferRuntimeType(recipe.itemId, palette),
+        selection
+      );
+
+const findParentPlacement = (
+  graph: PIRUiGraph,
+  nodeId: string
+): PIRGraphPlacementTarget | undefined => {
+  for (const [parentId, childIds] of Object.entries(graph.childIdsById)) {
+    const index = childIds.indexOf(nodeId);
+    if (index >= 0) return { parentId, index };
   }
-  if (recipe.kind === 'direct') {
-    return instantiateDirectRecipe(doc, palette, recipe, selection);
+  for (const [parentId, regions] of Object.entries(graph.regionsById ?? {})) {
+    for (const [regionName, childIds] of Object.entries(regions)) {
+      const index = childIds.indexOf(nodeId);
+      if (index >= 0) return { parentId, regionName, index };
+    }
   }
-  return instantiateTemplateRecipe(
-    doc,
-    palette,
-    recipe.itemId,
-    recipe.template,
-    selection
-  );
+  return undefined;
+};
+
+const childrenEndPlacement = (
+  graph: PIRUiGraph,
+  nodeId: string
+): PIRGraphPlacementTarget | undefined => {
+  const node = graph.nodesById[nodeId];
+  if (!node) return undefined;
+  if (node.kind === 'collection') {
+    return {
+      parentId: nodeId,
+      regionName: 'item',
+      index: graph.regionsById?.[nodeId]?.item?.length ?? 0,
+    };
+  }
+  if (node.kind === 'component-instance') {
+    const regionName = Object.keys(graph.regionsById?.[nodeId] ?? {})[0];
+    return regionName
+      ? {
+          parentId: nodeId,
+          regionName,
+          index: graph.regionsById?.[nodeId]?.[regionName]?.length ?? 0,
+        }
+      : undefined;
+  }
+  return {
+    parentId: nodeId,
+    index: graph.childIdsById[nodeId]?.length ?? 0,
+  };
 };
 
 const resolveInsertionTarget = (
   doc: PIRDocument,
-  fragment: InstantiatedUiFragment,
   preferredTargetId?: string
-): UiGraphFragmentInsertionTarget => {
+): PIRGraphPlacementTarget | undefined => {
   const graph = doc.ui.graph;
-  const root = materializePirRoot(doc);
-  const targetId = preferredTargetId ?? graph.rootId;
-  if (targetId === graph.rootId) {
-    return {
-      parentId: graph.rootId,
-      index: graph.childIdsById[graph.rootId]?.length ?? 0,
-    };
+  if (preferredTargetId && graph.nodesById[preferredTargetId]) {
+    return (
+      childrenEndPlacement(graph, preferredTargetId) ??
+      findParentPlacement(graph, preferredTargetId) ??
+      childrenEndPlacement(graph, graph.rootId)
+    );
   }
-  const targetNode = findNodeById(root, targetId);
-  const primaryType = fragment.nodesById[fragment.primaryNodeId]?.type;
-  if (
-    targetNode &&
-    targetNode.type !== primaryType &&
-    supportsChildrenForNode(targetNode)
-  ) {
-    return {
-      parentId: targetId,
-      index: graph.childIdsById[targetId]?.length ?? 0,
-    };
-  }
-  const parent = getParentMap(graph)[targetId];
-  if (!parent) {
-    return {
-      parentId: graph.rootId,
-      index: graph.childIdsById[graph.rootId]?.length ?? 0,
-    };
-  }
-  return {
-    parentId: parent.parentId,
-    index: parent.index + 1,
-    ...(parent.regionName ? { regionName: parent.regionName } : {}),
-  };
+  return childrenEndPlacement(graph, graph.rootId);
 };
 
 export const createBlueprintPaletteInsertIntent = (
   recipe: PaletteItemCreationRecipe,
   input: Readonly<{
-    target: UiGraphFragmentInsertionTarget;
+    target: PIRGraphPlacementTarget;
     selection?: PaletteItemSelection;
   }>
 ): BlueprintPaletteInsertIntent =>
@@ -375,6 +386,7 @@ export const applyPaletteItemInsertion = (
     documentId: string;
     documentType: WorkspacePirDocumentType;
     itemId: string;
+    target?: PIRGraphPlacementTarget;
     preferredTargetId?: string;
     selection?: PaletteItemSelection;
     commandId?: string;
@@ -383,19 +395,20 @@ export const applyPaletteItemInsertion = (
 ): PaletteItemInsertionResult => {
   const recipe = palette.getCreationRecipe(input.itemId);
   if (!recipe) return { ok: false, reason: 'Palette item is unavailable.' };
-
-  let fragment: InstantiatedUiFragment;
+  let fragment: InstantiatedPaletteFragment;
   try {
-    fragment = instantiatePaletteItem(
-      doc,
-      palette,
-      recipe,
-      input.selection ?? {}
-    );
+    fragment = instantiatePaletteItem(doc, palette, recipe, input.selection);
   } catch {
     return { ok: false, reason: 'Palette item could not be instantiated.' };
   }
-  const target = resolveInsertionTarget(doc, fragment, input.preferredTargetId);
+  const target =
+    input.target ?? resolveInsertionTarget(doc, input.preferredTargetId);
+  if (!target) {
+    return {
+      ok: false,
+      reason: 'The selected PIR node does not expose an insertion region.',
+    };
+  }
   const intent = createBlueprintPaletteInsertIntent(recipe, {
     target,
     selection: input.selection,
@@ -411,18 +424,17 @@ export const applyPaletteItemInsertion = (
       reason: 'Palette creation recipe changed before insertion.',
     };
   }
-  const insertion = insertUiGraphFragment(
-    doc.ui.graph,
-    fragment,
-    intent.target
-  );
+  const insertion = insertPirGraphFragment({ document: doc, fragment, target });
   if (insertion.ok === false) {
-    return { ok: false, reason: insertion.reason };
+    return {
+      ok: false,
+      reason: insertion.issues[0]?.message ?? 'Palette insertion is invalid.',
+    };
   }
   const compositionIssue = validateBlueprintComposition(
-    insertion.graph,
+    insertion.document.ui.graph,
     palette,
-    [...Object.keys(fragment.nodesById), intent.target.parentId]
+    [...insertion.insertedNodeIds, target.parentId]
   );
   if (compositionIssue) {
     return {
@@ -431,12 +443,8 @@ export const applyPaletteItemInsertion = (
       compositionIssue,
     };
   }
-  const candidate: PIRDocument = {
-    ...doc,
-    ui: { graph: insertion.graph },
-  };
-  const validation = validatePirDocument(candidate);
-  if (validation.hasError) {
+  const validation = validatePirDocument(insertion.document);
+  if (!validation.valid) {
     return {
       ok: false,
       reason:
@@ -449,13 +457,12 @@ export const applyPaletteItemInsertion = (
     type: intent.type,
     version: intent.version,
     issuedAt: input.issuedAt ?? new Date().toISOString(),
-    target: {
-      workspaceId: input.workspaceId,
-      documentId: input.documentId,
-    },
+    target: { workspaceId: input.workspaceId, documentId: input.documentId },
     domainHint: 'pir',
     label: `Insert ${intent.itemId}`,
-    forwardOps: [{ op: 'replace', path: '/ui/graph', value: insertion.graph }],
+    forwardOps: [
+      { op: 'replace', path: '/ui/graph', value: insertion.document.ui.graph },
+    ],
     reverseOps: [{ op: 'replace', path: '/ui/graph', value: doc.ui.graph }],
   };
   const applied = applyWorkspaceDocumentCommand(doc, command, {

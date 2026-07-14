@@ -18,11 +18,7 @@
       "types": "./dist/safety/index.d.ts",
       "import": "./dist/safety/index.js"
     },
-    "./package.json": "./package.json",
-    "./types/*": {
-      "types": "./dist/types/*.d.ts",
-      "import": "./dist/types/*.js"
-    }
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -34,7 +30,7 @@
   "scripts": {
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
-    "generate-types": "node scripts/sync-current-pir-schema.js && node scripts/generate-types.js"
+    "generate:pir-wire": "node scripts/sync-current-pir-schema.js && node scripts/generate-types.js"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
@@ -45,7 +41,6 @@
     "react": "^19.1.1"
   },
   "dependencies": {
-    "@prodivix/animation": "workspace:*",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "chalk": "^5.6.2"

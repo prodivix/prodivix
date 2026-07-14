@@ -7,6 +7,7 @@ type TriggerNavigateFieldsProps = {
   replaceValue: boolean;
   targetValue: string;
   stateValue: string;
+  disabled?: boolean;
 };
 
 export function TriggerNavigateFields({
@@ -16,6 +17,7 @@ export function TriggerNavigateFields({
   replaceValue,
   targetValue,
   stateValue,
+  disabled = false,
 }: TriggerNavigateFieldsProps) {
   const { t, updateTrigger } = useInspectorContext();
 
@@ -30,6 +32,7 @@ export function TriggerNavigateFields({
         <input
           className="h-7 w-full min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none placeholder:text-(--text-muted)"
           value={toValue}
+          disabled={disabled}
           title={t('inspector.groups.triggers.toHelp', {
             defaultValue:
               'Use https:// for external links, or /path for in-app preview routes.',
@@ -68,6 +71,7 @@ export function TriggerNavigateFields({
           <input
             type="checkbox"
             checked={replaceValue}
+            disabled
             onChange={(event) => {
               updateTrigger(itemKey, (currentEvent) => ({
                 ...currentEvent,
@@ -86,6 +90,7 @@ export function TriggerNavigateFields({
         <select
           className="h-7 w-24 min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none"
           value={targetValue}
+          disabled
           title={t('inspector.groups.triggers.targetHelp', {
             defaultValue: 'Browser tab target used by navigation actions.',
           })}
@@ -114,6 +119,7 @@ export function TriggerNavigateFields({
         <input
           className="h-7 min-w-0 flex-1 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none placeholder:text-(--text-muted)"
           value={stateValue}
+          disabled
           title={t('inspector.groups.triggers.stateHelp', {
             defaultValue:
               'Optional navigation state. Plain text or JSON string.',
@@ -133,6 +139,11 @@ export function TriggerNavigateFields({
           })}
         />
       </div>
+      <span className="text-[10px] text-(--text-muted)">
+        PIR-current stores the typed destination binding. Browser target,
+        history replacement, and ad-hoc state are retained as read-only UI until
+        their typed navigation contract is available.
+      </span>
     </>
   );
 }

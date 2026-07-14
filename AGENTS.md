@@ -4,9 +4,9 @@
 
 ## 当前全局阶段
 
-- 当前 Product Gate：`G0 Passed / G1 Foundation`。
+- 当前产品位置：`G0 Passed / G1 Foundation`（G0 `ProductGateStatus=Passed`，G1 `ProductGateStatus=In Progress`）。
 - `specs/roadmap/global-phases.md` 是 Global Phase 的唯一来源，`specs/roadmap/g0-closure-evidence.md` 保存 G0 的可重复验证边界。
-- G0 通过表示 Truth & Change Kernel 的非浏览器闭环已经成立，不表示真实 Language Service、视觉/代码双向编辑、独立导出项目验证、ExecutionProvider 或多框架 Target 已经完成。
+- G0 通过表示 Truth & Change Kernel 的非浏览器闭环已经成立；G1 已形成 revision-bound TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL Language Capability，以及贯通 Blueprint、Route、NodeGraph、Animation、Resources 与 Workspace Semantic Index 的 CodeSlot 纵切；视觉/代码双向编辑、独立导出项目验证、ExecutionProvider 与多框架 Target 仍未完成。
 - Canonical Workspace VFS 是作者态唯一真相。PIR、NodeGraph、Animation、Code、Assets、Config 与 RouteManifest 是 Workspace 内由各领域 owner 管理的文档或清单；PIR 不是整个项目的单一巨型 JSON。
 
 ```mermaid
@@ -56,19 +56,23 @@ flowchart TD
 
         CodeEnv[Code Authoring Environment<br>三编辑器共享代码作者态底座]:::editor
         CodeWorkspace[Code Workspace / CodeArtifact]
-        Symbols[Authoring Symbol Environment<br>CodeSymbol / CodeScope / Diagnostics]
         IntelliSense[IntelliSense / Language Service]
         CodeSlots[Code Slots<br>handler / executor / adapter / mounted CSS]
         CodeAssets[GLSL / WGSL / TS / CSS / Adapter]
 
-        CodeEnv --> CodeWorkspace & Symbols & IntelliSense & CodeSlots & CodeAssets
+        CodeEnv --> CodeWorkspace & IntelliSense & CodeSlots & CodeAssets
     end
+
+    SemanticIndex[Workspace Semantic Index<br>WorkspaceSymbol / Scope / Reference / Resolution]
 
     Blueprint -->|"event / mounted CSS / adapter slot"| CodeEnv
     NodeGraph -->|"executor / transform slot"| CodeEnv
     AnimEditor -->|"easing / shader / timeline script slot"| CodeEnv
-    CodeEnv -->|"edit / index / diagnostics"| CodeDocuments
+    Blueprint & NodeGraph & AnimEditor -->|"domain contribution / query"| SemanticIndex
+    CodeEnv <-->|"Code Semantic Provider / query"| SemanticIndex
+    CodeEnv -->|"edit / diagnostics"| CodeDocuments
     CodeEnv -->|"CodeReference / diagnostics"| PIR & NodeGraphDocs & AnimationDocs
+    WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & CodeDocuments & VFSAssets --> SemanticIndex
 
     %% 编辑器到 VFS 内核心 JSON 的连接
     Blueprint -->|"ui"| PIR
@@ -200,7 +204,8 @@ flowchart TD
     %% 读取侧：需要树时只生成临时中间层
     Materialize[materializeUiTree<br>临时树中间层]
     Renderer[Renderer / Preview]
-    CodeAuthoring[Code Authoring Projection<br>CodeArtifact / CodeSymbol / SourceTrace]
+    CodeAuthoring[Code Authoring Projection<br>CodeArtifact / CodeReference / SourceTrace]
+    SemanticIndex[Workspace Semantic Index<br>revision-bound derived projection]
     ExportProgramBuilder[Export Program Builder<br>modules / styles / assets / deps]
     ExportPlanner[Production Export Planner<br>文件拓扑 / import / dependency]
     ExportBundle[Export Bundle<br>源码 / CSS / runtime / assets / config]
@@ -215,6 +220,7 @@ flowchart TD
     Persistence --> Replica
     Persistence --> WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & CodeDocs & Assets
     WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & CodeDocs & Assets --> GitProjection
+    WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & CodeDocs & Assets --> SemanticIndex
     Graph --> Materialize
     Materialize --> Renderer
     Materialize --> ExportProgramBuilder
@@ -224,36 +230,42 @@ flowchart TD
     ExportProgramBuilder --> ExportPlanner --> ExportBundle --> Codegen
 ```
 
-Intent 只允许作为本地或 AI planner 的输入；它不是远端 wire protocol。Patch 只允许作为 Command 内部的可逆、可校验操作，不是独立持久化入口。所有生产作者态远端写入必须先形成 `WorkspaceOperation`，持久化 exact request 到 Durable Outbox，再进入强幂等 Atomic Commit。Settings 使用独立但同样 durable、强幂等的 Settings Outbox / Commit。
+Intent 保持为本地或 AI planner 输入；planner 将其转换为可逆 Command 或原子 Transaction。Patch 是 Command 内部可逆、可校验的操作。所有生产作者态远端写入先形成 `WorkspaceOperation`，将 exact request 持久化到 Durable Outbox，再进入强幂等 Atomic Commit。Settings 使用独立但同样 durable、强幂等的 Settings Outbox / Commit。
 
-## Code Authoring Environment 与作者态符号环境
+## Workspace Semantic Index 与 Code Authoring Environment
 
 Prodivix 是 Blueprint、NodeGraph、Animation 三编辑器架构。`specs/decisions/28.code-authoring-environment.md` 定义的 Code Authoring Environment 是三编辑器共享的代码作者态底座。
 
-- code-owned 内容由 Code Authoring Environment 承载，包括 event handler、custom executor、animation function、mounted CSS、shader、external library adapter 和普通 Workspace 代码文件。
-- 三编辑器通过 code slot 连接代码能力。slot 需要声明 owner、输入、输出、能力约束和诊断落点；slot 的绑定值应是 `CodeReference` 或 `CodeArtifact` owner，不应是散落在 UI 局部状态里的裸代码字符串。
-- `specs/decisions/25.authoring-symbol-environment.md` 定义的 Authoring Symbol Environment 是 Code Authoring Environment 的索引与查询层，负责 `CodeArtifact`、`CodeSymbol`、`CodeScope`、`DiagnosticTargetRef`、`SourceSpan`、引用、补全和诊断。
+- code-owned 源码仍由 Canonical Workspace code document 持久化；Code Authoring Environment 承载其编辑体验与 CodeArtifact 投影，包括 event handler、custom executor、animation function、mounted CSS、shader、external library adapter 和普通 Workspace 代码文件。
+- 三编辑器通过 code slot 连接代码能力。slot 需要声明 owner、输入、输出、能力约束和诊断落点；领域文档保存 `CodeSlotBinding`，registry 只聚合 slot 与 revision-bound binding projection，不拥有 binding 或源码。绑定值应使用 `CodeReference`，不应是散落在 UI 局部状态里的裸代码字符串。
+- `specs/decisions/25.authoring-symbol-environment.md` 定义 Workspace Semantic Index：它是绑定 Canonical Workspace partitioned revisions 与 provider set、可丢弃和重建的只读派生索引，统一承载 `WorkspaceSymbol`、`WorkspaceScope`、Reference graph、`DiagnosticTargetRef`、`SourceSpan`、definition、completion、impact 和 semantic resolution 查询。
+- Language Service 只通过 Code Semantic Contribution / Language Capability Provider 接入。`@prodivix/code-language` 拥有具体语言 adapter；Code Authoring Environment 拥有代码作者体验、CodeArtifact 投影、CodeReference、CodeSlot 与 revision-bound provider session 生命周期，并向 Workspace Semantic Index 贡献和查询代码语义；Canonical Workspace 继续拥有 code document，它也不拥有 Route、Component、Collection、NodeGraph 或 Animation 的全局 identity/visibility policy。
+- 当前 TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL 纵切使用 immutable `CodeLanguageSession` 统一 definition、references、completion、diagnostics、hover、rename proposal 与 semantic contribution。GLSL/WGSL 通过 parser-neutral shader symbol model 发布 entry/function/type/resource facts；GPU/目标后端编译校验继续作为独立 compile capability。Code Editor 和 Issues 消费同一 snapshot identity；rename proposal 必须转换为可逆 Workspace Transaction，不得由 Language Service 直接覆盖 VFS。
+- “全项目共享符号”表示 stable identity 全局可寻址，不表示扁平全局可见。Scope、type 与 capability 继续约束解析、补全和绑定。
+- Route、PIR、Component、Collection、NodeGraph、Animation、Code、Token 和 Asset 保存各自类型化引用；Semantic Index 只生成统一引用图，不取代领域保存态。
+- Semantic Index 只产生 scope/reference/resolution 类 semantic diagnostics；全域 provider snapshot lifecycle、去重、presentation 与 Issues query 继续由 `@prodivix/diagnostics` 拥有。
 - PIR 可以引用代码，但不吞并代码源码和复杂库内部状态。复杂库按 Native / Adapted / Embedded / Code-only 能力等级接入，不逐库承诺完整可视化编辑。
 - code-owned 不等于黑盒放弃。Prodivix 仍应该提供编辑、引用、诊断、定位、预览和 AI patch 能力，并能从 Issues、Inspector、画布、节点图、动画轨道跳转到对应代码上下文。
-- 三编辑器、Inspector、Resources、AI 和 Issues 面板需要符号或诊断时，应通过 Code Authoring Environment 或其稳定查询接口，不直接扫描其他编辑器内部结构。
+- 三编辑器、Inspector、Resources、Code 和 AI 需要符号、引用、resolution 或影响时，应通过 Workspace Semantic Index 的稳定查询接口；Issues 通过 `@prodivix/diagnostics` 消费 semantic diagnostic provider snapshot。任何入口都不得扫描其他编辑器内部结构。
 
 ## 核心 package owner
 
-| Package                        | 稳定职责                                                                       |
-| ------------------------------ | ------------------------------------------------------------------------------ |
-| `@prodivix/workspace`          | Canonical Workspace model、Codec、Validator、Command、Transaction、History     |
-| `@prodivix/workspace-sync`     | Revision、semantic conflict、Atomic Commit plan、Durable Outbox、local replica |
-| `@prodivix/pir`                | PIR normalize、graph mutation 与语义校验                                       |
-| `@prodivix/router`             | RouteManifest contract、codec、match/navigation 语义                           |
-| `@prodivix/nodegraph`          | 无 DOM NodeGraph contract、codec、executor 与 deterministic trace              |
-| `@prodivix/animation`          | Animation contract、codec、authoring factory 与确定性 evaluator                |
-| `@prodivix/runtime-core`       | transport-neutral runtime port 与 executor registry                            |
-| `@prodivix/runtime-browser`    | 浏览器专属 NodeGraph/Animation runtime adapter                                 |
-| `@prodivix/pir-react-renderer` | PIR 的 React projection；不拥有作者态真相                                      |
-| `@prodivix/authoring`          | CodeArtifact、CodeSymbol、CodeScope、slot 与诊断查询环境                       |
-| `@prodivix/diagnostics`        | Issues contract、provider snapshot、去重与 presentation                        |
-| `@prodivix/prodivix-compiler`  | Domain compiler、ExportProgram 与 Production Export Planner                    |
-| `@prodivix/golden-conformance` | Living Golden App 与 G0 非浏览器 conformance                                   |
+| Package                        | 稳定职责                                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `@prodivix/workspace`          | Canonical Workspace model、Codec、Validator、Command、Transaction、History 与 Semantic snapshot composition                   |
+| `@prodivix/workspace-sync`     | Revision、semantic conflict、Atomic Commit plan、Durable Outbox、local replica                                                |
+| `@prodivix/pir`                | PIR normalize、graph mutation、Component/Collection contract、语义校验与 semantic contribution                                |
+| `@prodivix/router`             | RouteManifest contract、codec、match/navigation 语义与 semantic contribution                                                  |
+| `@prodivix/nodegraph`          | 无 DOM NodeGraph contract、codec、executor、deterministic trace 与 semantic contribution                                      |
+| `@prodivix/animation`          | Animation contract、codec、authoring factory、确定性 evaluator 与 semantic contribution                                       |
+| `@prodivix/runtime-core`       | transport-neutral runtime port 与 executor registry                                                                           |
+| `@prodivix/runtime-browser`    | 浏览器专属 NodeGraph/Animation runtime adapter                                                                                |
+| `@prodivix/pir-react-renderer` | PIR 的 React projection；不拥有作者态真相                                                                                     |
+| `@prodivix/authoring`          | Workspace Semantic Index contract、provider composition、稳定查询，以及 CodeArtifact/Reference/Slot 基础                      |
+| `@prodivix/code-language`      | revision-bound 语言 adapter、Code Language Capability session 与代码 semantic contribution；当前实现 TS/JS/CSS/SCSS/GLSL/WGSL |
+| `@prodivix/diagnostics`        | Issues contract、provider snapshot、去重与 presentation                                                                       |
+| `@prodivix/prodivix-compiler`  | Domain compiler、ExportProgram 与 Production Export Planner                                                                   |
+| `@prodivix/golden-conformance` | Living Golden App 与 G0 非浏览器 conformance                                                                                  |
 
 `apps/web` 只负责 React 编辑器表面、浏览器 adapter 和 composition root，不得重新拥有 transport-neutral Runtime、Router、NodeGraph、Animation、PIR Renderer、Workspace Sync Core 或 Authoring Core。后端 `projects` 只保存项目元数据与显式发布投影；不得恢复 Project PIR 作者态镜像或缺失 Workspace 的 lazy fallback。
 
@@ -262,7 +274,7 @@ Prodivix 是 Blueprint、NodeGraph、Animation 三编辑器架构。`specs/decis
 0. 执行新 session 时，先同步远端最新 Git 仓库状态；开始改动前运行 `git fetch` 并确认当前分支是否落后于远端，若远端已有新提交，先用非破坏方式集成后再继续。
 1. 读写文档都要用 UTF-8 编码。
 2. 所有代码必须考虑可扩展性和健壮性。
-3. `@prodivix/ui` 包下组件库使用 SCSS 进行样式编写，其他样式则用 Tailwind。要用最新的 Tailwind 4 写法，摒弃旧写法；尤其注意 Tailwind 当中关于 var 的写法，比如用 `text-(--text-primary)` 而不是 `text-[var(--text-primary)]`。
+3. `@prodivix/ui` 包下组件库使用 SCSS 进行样式编写，其他样式统一使用最新的 Tailwind 4 写法；CSS 变量使用 `text-(--text-primary)` 这类 Tailwind 4 语法。
 4. 优先使用 `@/...` 导入同一个包下的代码，而不是使用相对路径。
 5. 为方便开发者看懂代码，当且仅当在重要模块的核心方法或核心组件前编写规范的文档注释，写明白模块的调用链路的逻辑。不要写无用注释。
 6. 如果文件过长，拆分。
@@ -274,12 +286,14 @@ Prodivix 是 Blueprint、NodeGraph、Animation 三编辑器架构。`specs/decis
 12. 扫描文件名时，优先使用 `git ls-files`、`git diff --name-only` 等 Git 相关命令限定仓库文件，避免递归扫到 `node_modules` 等依赖目录。
 13. 依赖安装或更新导致锁文件变化时，无需手动修改锁文件，接受包管理器自然生成的锁文件变更。
 14. 文档语言按目标读者、已有文件语境和同一文档语言一致性决定。根 `README.md` 使用英文，`README.zh-CN.md` 使用简体中文。
-15. 任何 code-owned 能力都要优先接入 Code Authoring Environment，不要让三编辑器直接保存任意代码字符串，也不要绕过 Authoring Symbol Environment 自行扫描其他编辑器内部状态。
-16. 项目处于 alpha 阶段，有重大更改时尽量做彻底重构，不要留兼容层，也没有把旧数据转换为新数据的义务。无需做最小方案，无需写兼容层。要做就要实现最能长期稳定、最符合软件工程原则的实现。
+15. 任何 code-owned 能力都要优先接入 Code Authoring Environment，不要让三编辑器直接保存任意代码字符串；任何领域需要符号、引用、作用域或影响分析时都要接入 Workspace Semantic Index，不得自行扫描其他编辑器内部状态。
+16. 项目处于 alpha 阶段，重大更改直接实现当前目标架构，并以现行 canonical contract 作为唯一生产契约。实现应追求长期稳定、清晰 owner 边界和最佳软件工程质量。
 17. 不追求最小修正。发现需要优化的地方应立即优化，并且力求最优；尤其是重复逻辑、错误抽象、临时补丁和会导致后续维护分叉的实现，应在当前改动中一并收敛。
 18. 测试文件按测试性质统一命名：示例/单元测试使用 `<subject>.test.ts(x)`，属性测试使用 `<subject>.property.test.ts(x)`，conformance 使用 `<subject>.conformance.test.ts(x)`，integration 使用 `<subject>.integration.test.ts(x)`，E2E 用户旅程使用 `<journey>.spec.ts`。不要用 `Properties`、`PropertyTest` 等变体制造命名分叉。
-19. 所有生产作者态领域写入都必须规划为可逆 `Command` 或原子 `Transaction`，再形成 `WorkspaceOperation` 进入 Durable Outbox 与 Atomic Commit；不得直接调用远端 transport、恢复旧 Intent/PATCH endpoint，或把 Project publication projection 当作作者态存储。
+19. 所有生产作者态领域写入都必须规划为可逆 `Command` 或原子 `Transaction`，再形成 `WorkspaceOperation` 进入 Durable Outbox 与 Atomic Commit；Canonical Workspace VFS 是作者态存储，Project publication projection 只承载显式发布投影。
 20. `localStorage` 只保存主题、选择和视图等 UI 偏好。领域状态的浏览器持久化必须使用正式 local replica / outbox adapter；不得新增编辑器私有镜像作为第二真相源。
+21. Workspace Semantic Index 必须绑定 Canonical Workspace partitioned revisions、semantic schema 与 provider set，可重建且只读。全项目 symbol address 可寻址不等于全局可见；领域保存态保留类型化引用，Language Service 只通过 Code contribution/capability provider 接入。
+22. Blueprint 复用按 `pir-component` Definition、Public Contract、Component Instance 和一等 Collection 建模。subtree extraction 必须是带 impact/relocation 分析的原子 Workspace Transaction。整个 G1 只面向无版本号的 `PIR-current` 稳定领域模型；生产目录、公开 API 与实现统一使用无版本命名。数字 PIR 版本仅存在于 wire schema、codec、migration 与 persistence 边界；未来版本通过集中 migration 进入同一 current model，Renderer、Compiler、Workspace、Semantic Index 与 Web 作者表面保持稳定。
 
 ## 工具入口文件关系
 

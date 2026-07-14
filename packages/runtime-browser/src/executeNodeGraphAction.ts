@@ -1,7 +1,6 @@
 import {
   createNodeGraphExecutor,
-  decodeNodeGraphDocuments,
-  selectNodeGraphDocument,
+  decodeNodeGraphDocument,
 } from '@prodivix/nodegraph';
 import type {
   NodeGraphDecodeIssue,
@@ -11,6 +10,7 @@ import type {
 } from '@prodivix/nodegraph';
 
 export type ExecuteNodeGraphActionRequest = {
+  documentId: string;
   nodeId: string;
   trigger: string;
   eventKey: string;
@@ -32,12 +32,6 @@ export type ExecuteNodeGraphActionResult =
       steps: 0;
       trace: [];
       issues: NodeGraphDecodeIssue[];
-    }
-  | {
-      status: 'no-graph';
-      statePatch: Record<string, unknown>;
-      steps: 0;
-      trace: [];
     };
 
 const defaultExecutor = createNodeGraphExecutor();
@@ -56,7 +50,7 @@ export const executeNodeGraphAction = async (
   request: ExecuteNodeGraphActionRequest,
   options: ExecuteNodeGraphActionOptions = {}
 ): Promise<ExecuteNodeGraphActionResult> => {
-  const decoded = decodeNodeGraphDocuments(graphSource);
+  const decoded = decodeNodeGraphDocument(graphSource);
   if (decoded.ok === false) {
     return {
       status: 'invalid-document',
@@ -66,24 +60,15 @@ export const executeNodeGraphAction = async (
       issues: decoded.issues,
     };
   }
-  const params = request.params ?? {};
-  const graph = selectNodeGraphDocument(decoded.value, {
-    graphId: typeof params.graphId === 'string' ? params.graphId : undefined,
-    graphName:
-      typeof params.graphName === 'string' ? params.graphName : undefined,
-  });
-  if (!graph) {
-    return { status: 'no-graph', statePatch: {}, steps: 0, trace: [] };
-  }
-
-  const result = await (options.executor ?? defaultExecutor)(graph, {
+  const result = await (options.executor ?? defaultExecutor)(decoded.value, {
+    documentId: request.documentId,
     requestId: (options.createRequestId ?? createBrowserRequestId)(),
     source: {
       ownerId: request.nodeId,
       trigger: request.trigger,
       eventKey: request.eventKey,
     },
-    params,
+    params: request.params ?? {},
     input: request.input,
   });
   if (options.onLog) {

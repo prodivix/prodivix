@@ -1,4 +1,4 @@
-import type { PIRDocument } from '@prodivix/shared/types/pir';
+import type { PIRDocument } from '@prodivix/pir';
 import {
   applyWorkspaceCommand,
   applyWorkspaceTransaction,

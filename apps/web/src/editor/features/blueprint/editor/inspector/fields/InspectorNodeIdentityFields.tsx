@@ -39,6 +39,8 @@ export function InspectorNodeIdentityFields() {
     isDuplicate,
     primaryTextField,
     updateSelectedNode,
+    identityWriteAvailable,
+    identityDiagnostic,
   } = useInspectorContext();
   const [isRichEditorCollapsed, setIsRichEditorCollapsed] = useState(false);
 
@@ -54,6 +56,7 @@ export function InspectorNodeIdentityFields() {
               <PdxInput
                 size="Small"
                 value={draftId}
+                disabled={!identityWriteAvailable}
                 dataAttributes={{
                   'data-testid': 'inspector-id-input',
                 }}
@@ -104,6 +107,11 @@ export function InspectorNodeIdentityFields() {
             </span>
           </div>
         )}
+        {!identityWriteAvailable && identityDiagnostic ? (
+          <div className="text-[10px] text-(--text-muted)">
+            {identityDiagnostic}
+          </div>
+        ) : null}
       </div>
       {primaryTextField ? (
         <div className="InspectorField flex flex-col gap-1.5">

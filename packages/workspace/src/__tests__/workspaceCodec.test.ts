@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument, encodePirDocument } from '@prodivix/pir';
 import { RouteManifestCodecError, decodeRouteManifest } from '@prodivix/router';
 import {
   WorkspaceCodecError,
   applyWorkspaceMutation,
   decodeWorkspaceMutation,
   decodeWorkspaceSnapshot,
+  encodeWorkspaceDocument,
   encodeWorkspaceSnapshot,
+  isWorkspacePirDocument,
   normalizeWorkspaceTree,
   type WorkspaceSnapshotWireDto,
 } from '..';
@@ -42,7 +44,7 @@ const createWireSnapshot = (): WorkspaceSnapshotWireDto => ({
       path: '/pir.json',
       contentRev: 4,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: JSON.parse(encodePirDocument(createEmptyPirDocument())),
       updatedAt: '2026-07-12T00:00:00.000Z',
     },
   ],
@@ -314,6 +316,30 @@ describe('workspace wire codec', () => {
     expect(decoded.settings).toEqual({
       global: { eventTriggerMode: 'selected-only' },
     });
+  });
+
+  it('keeps PIR wire versions at snapshot transport boundaries', () => {
+    const wire = createWireSnapshot();
+    const decoded = decodeWorkspaceSnapshot(wire);
+    const document = decoded.workspace.docsById['page-root'];
+    expect(isWorkspacePirDocument(document)).toBe(true);
+    if (!isWorkspacePirDocument(document)) return;
+    const domainContent = document.content;
+
+    expect(domainContent).not.toHaveProperty('version');
+    expect(domainContent).not.toHaveProperty('ui.graph.version');
+
+    const encoded = encodeWorkspaceSnapshot(
+      decoded.workspace,
+      decoded.settings
+    );
+    expect(encoded.documents[0].content).toEqual(
+      JSON.parse(encodePirDocument(domainContent))
+    );
+    expect(decodeWorkspaceSnapshot(encoded)).toEqual(decoded);
+    expect(() =>
+      encodeWorkspaceDocument({ ...document, content: {} })
+    ).toThrow();
   });
 
   it('rejects noncanonical VFS roots and document metadata at decode time', () => {
@@ -625,8 +651,10 @@ describe('workspace wire codec', () => {
 
   it('applies server mutations as the sole owner of confirmed revisions', () => {
     const { workspace } = decodeWorkspaceSnapshot(createWireSnapshot());
-    const nextPir = createDefaultPirDoc();
-    nextPir.metadata = { name: 'Confirmed' };
+    const nextPir = {
+      ...createEmptyPirDocument(),
+      metadata: { name: 'Confirmed' },
+    };
     const mutation = decodeWorkspaceMutation(
       {
         workspaceId: workspace.id,
@@ -637,7 +665,7 @@ describe('workspace wire codec', () => {
           {
             ...workspace.docsById['page-root'],
             contentRev: 5,
-            content: nextPir,
+            content: JSON.parse(encodePirDocument(nextPir)),
           },
         ],
       },

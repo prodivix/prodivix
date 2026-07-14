@@ -15,6 +15,14 @@ type Module struct {
 	projects *backendproject.ProjectStore
 }
 
+type workspaceBootstrapDocument struct {
+	ID               string
+	Type             WorkspaceDocumentType
+	Path             string
+	Content          json.RawMessage
+	RouteDocumentRef bool
+}
+
 func NewModule(store *WorkspaceStore, projects *backendproject.ProjectStore) *Module {
 	return &Module{store: store, projects: projects}
 }
@@ -33,7 +41,6 @@ func (module *Module) CreateProjectWorkspace(
 	name string,
 	description string,
 	resourceType backendproject.ResourceType,
-	isPublic bool,
 	initialPIR json.RawMessage,
 ) (*backendproject.Project, error) {
 	if module == nil || module.store == nil || module.projects == nil {
@@ -44,26 +51,19 @@ func (module *Module) CreateProjectWorkspace(
 		Name:         name,
 		Description:  description,
 		ResourceType: resourceType,
-		IsPublic:     isPublic,
+		IsPublic:     false,
 	})
+	if err != nil {
+		return nil, err
+	}
+	bootstrap, err := createProjectWorkspaceBootstrap(project.ResourceType, initialPIR)
 	if err != nil {
 		return nil, err
 	}
 	_, err = module.importPreparedProjectWorkspace(
 		ctx,
 		project,
-		initialPIR,
-		ImportWorkspaceSnapshotParams{
-			Tree: defaultWorkspaceTreeWithRootDocumentJSON("root"),
-			Documents: []WorkspaceImportDocumentRecord{
-				{
-					ID:      "doc_root",
-					Type:    WorkspaceDocumentTypePIRPage,
-					Path:    "/pir.json",
-					Content: initialPIR,
-				},
-			},
-		},
+		bootstrap,
 	)
 	if err != nil {
 		return nil, err
@@ -71,10 +71,98 @@ func (module *Module) CreateProjectWorkspace(
 	return project, nil
 }
 
+func createProjectWorkspaceBootstrap(
+	resourceType backendproject.ResourceType,
+	initialPIR json.RawMessage,
+) (ImportWorkspaceSnapshotParams, error) {
+	var document workspaceBootstrapDocument
+	switch resourceType {
+	case backendproject.ResourceTypeProject:
+		document = workspaceBootstrapDocument{
+			ID:               "doc_root",
+			Type:             WorkspaceDocumentTypePIRPage,
+			Path:             "/pir.json",
+			Content:          initialPIR,
+			RouteDocumentRef: true,
+		}
+	case backendproject.ResourceTypeComponent:
+		content, err := ensureComponentPIRDocument(initialPIR)
+		if err != nil {
+			return ImportWorkspaceSnapshotParams{}, err
+		}
+		document = workspaceBootstrapDocument{
+			ID:               "doc_component",
+			Type:             WorkspaceDocumentTypePIRComponent,
+			Path:             "/components/component.pir.json",
+			Content:          content,
+			RouteDocumentRef: true,
+		}
+	case backendproject.ResourceTypeNodeGraph:
+		document = workspaceBootstrapDocument{
+			ID:      "doc_graph",
+			Type:    WorkspaceDocumentTypePIRGraph,
+			Path:    "/graphs/main.graph.json",
+			Content: defaultNodeGraphDocument,
+		}
+	default:
+		return ImportWorkspaceSnapshotParams{}, backendproject.ErrInvalidResourceType
+	}
+
+	tree, err := defaultWorkspaceTreeWithDocumentJSON("root", document.ID, document.Path)
+	if err != nil {
+		return ImportWorkspaceSnapshotParams{}, err
+	}
+	routeManifest := defaultWorkspaceRouteManifest
+	if document.RouteDocumentRef {
+		routeManifest, err = json.Marshal(map[string]any{
+			"version": "1",
+			"root": map[string]any{
+				"id":        "root",
+				"pageDocId": document.ID,
+			},
+		})
+		if err != nil {
+			return ImportWorkspaceSnapshotParams{}, err
+		}
+	}
+
+	return ImportWorkspaceSnapshotParams{
+		Tree:          tree,
+		RouteManifest: routeManifest,
+		Documents: []WorkspaceImportDocumentRecord{
+			{
+				ID:      document.ID,
+				Type:    document.Type,
+				Path:    document.Path,
+				Content: document.Content,
+			},
+		},
+	}, nil
+}
+
+func ensureComponentPIRDocument(payload json.RawMessage) (json.RawMessage, error) {
+	normalized, err := normalizeJSONDocument(payload, defaultPIRDocument)
+	if err != nil {
+		return nil, err
+	}
+	var document map[string]any
+	if err := json.Unmarshal(normalized, &document); err != nil {
+		return nil, err
+	}
+	if _, exists := document["componentContract"]; !exists {
+		document["componentContract"] = map[string]any{
+			"propsById":       map[string]any{},
+			"eventsById":      map[string]any{},
+			"slotsById":       map[string]any{},
+			"variantAxesById": map[string]any{},
+		}
+	}
+	return json.Marshal(document)
+}
+
 func (module *Module) importPreparedProjectWorkspace(
 	ctx context.Context,
 	project *backendproject.Project,
-	publicationPIR json.RawMessage,
 	params ImportWorkspaceSnapshotParams,
 ) (*WorkspaceSnapshot, error) {
 	if module == nil || module.store == nil || module.projects == nil || project == nil {
@@ -88,7 +176,7 @@ func (module *Module) importPreparedProjectWorkspace(
 		ctx,
 		params,
 		func(ctx context.Context, tx *sql.Tx) error {
-			return module.projects.InsertPreparedProject(ctx, tx, project, publicationPIR)
+			return module.projects.InsertPreparedProject(ctx, tx, project)
 		},
 	)
 }

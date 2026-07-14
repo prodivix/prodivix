@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createCodeSlotRegistry } from '@prodivix/authoring';
-import { createRouteRuntimeCodeSlotProvider } from '@/router/routeRuntimeCodeSlotProvider';
+import { createRouteRuntimeCodeSlotProvider } from '@prodivix/router';
 
 describe('createRouteRuntimeCodeSlotProvider', () => {
   it('exposes route runtime code slots through the code slot registry', () => {
-    const provider = createRouteRuntimeCodeSlotProvider({
+    const provider = createRouteRuntimeCodeSlotProvider('workspace-1', {
       version: '1',
       root: {
         id: 'root',

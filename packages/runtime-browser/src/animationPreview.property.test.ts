@@ -43,6 +43,7 @@ describe('browser animation projection properties', () => {
         (durationMs, cursorSeed, from, to) => {
           const cursorMs = cursorSeed % durationMs;
           const snapshot = buildAnimationPreviewSnapshotFromTimelines({
+            targetDocumentId: 'page-home',
             timelines: [
               createOpacityTimeline('first', 'node', durationMs, 0, 0),
               createOpacityTimeline('last', 'node', durationMs, from, to),
@@ -51,7 +52,9 @@ describe('browser animation projection properties', () => {
             svgFilters: [],
           });
           const expected = from + ((to - from) * cursorMs) / durationMs;
-          expect(snapshot.cssText).toContain('data-pir-node-id="node"');
+          expect(snapshot.cssText).toContain(
+            'data-pir-document-id="page-home"][data-pir-node-id="node"'
+          );
           const opacity = snapshot.cssText.match(/opacity:([^;]+);/)?.[1];
           expect(Number(opacity)).toBeCloseTo(expected, 10);
         }
@@ -103,6 +106,7 @@ describe('browser animation projection properties', () => {
             },
           ];
           const snapshot = buildAnimationPreviewSnapshotFromTimelines({
+            targetDocumentId: 'page-home',
             timelines: [timeline],
             globalMs: cursorMs,
             svgFilters,

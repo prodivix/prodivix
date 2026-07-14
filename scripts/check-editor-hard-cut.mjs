@@ -37,6 +37,7 @@ const editorBrowserStorageAllowlist = new Set([
   'apps/web/src/editor/features/resources/ProjectResources.tsx',
   'apps/web/src/editor/features/resources/PublicResourcePage.tsx',
   'apps/web/src/editor/features/resources/i18nResourceModel.ts',
+  'apps/web/src/editor/navigation/workspaceSemanticNavigation.ts',
   'apps/web/src/editor/store/useSettingsStore.ts',
 ]);
 

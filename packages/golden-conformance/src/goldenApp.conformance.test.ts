@@ -39,6 +39,24 @@ describe('Prodivix Golden App conformance', () => {
       resolutionOperationId: 'zz-golden-conflict-resolution',
       selectedSource: 'local',
     });
+    expect(report.program.target).toEqual({
+      framework: 'react',
+      preset: 'vite',
+    });
+    expect(report.program.entryModuleId).toBe('workspace-react-entry');
+    expect(report.program.modules.map(({ id }) => id)).toEqual(
+      expect.arrayContaining([
+        'workspace-react-entry',
+        'pir-react:page-home',
+        'pir-react:page-checkout',
+        'pir-react:component-order-summary',
+      ])
+    );
+    expect(
+      report.program.diagnostics.filter(
+        (diagnostic) => diagnostic.severity === 'error'
+      )
+    ).toEqual([]);
 
     const blockingDiagnostics = report.bundle.diagnostics.filter(
       (diagnostic) => diagnostic.severity === 'error'
@@ -85,12 +103,9 @@ describe('Prodivix Golden App conformance', () => {
         'src/App.tsx',
         'src/components/page-home/GoldenHome.tsx',
         'src/components/page-checkout/GoldenCheckout.tsx',
-        'src/components/page-checkout/GoldenCheckout.css',
         'src/components/component-order-summary/GoldenOrderSummary.tsx',
         'src/actions/checkout.ts',
         'src/styles/checkout.css',
-        'src/logic/nodegraphs/checkoutSubmit.ts',
-        'src/animations/checkoutIntro.ts',
         'public/logo.svg',
         'config/golden.json',
         '.prodivix/routes.json',
@@ -116,23 +131,15 @@ describe('Prodivix Golden App conformance', () => {
     );
     expect(String(checkout?.contents)).toContain("from 'antd'");
     expect(String(checkout?.contents)).toContain('<form');
-    expect(String(checkout?.contents)).toContain('type="email"');
-    expect(String(checkout?.contents)).toContain('<Button type="primary">');
-    const mountedCss = report.bundle.files.find(
-      (file) => file.path === 'src/components/page-checkout/GoldenCheckout.css'
+    expect(String(checkout?.contents)).toContain('"type": "email"');
+    expect(String(checkout?.contents)).toContain('"type": "primary"');
+    expect(String(checkout?.contents)).toContain('__pdxRenderValue("Pay now")');
+    const workspaceCss = report.bundle.files.find(
+      (file) => file.path === 'src/styles/checkout.css'
     );
-    expect(String(mountedCss?.contents)).toContain(
+    expect(String(workspaceCss?.contents)).toContain(
       '.golden-checkout { display: grid;'
     );
-    const nodeGraph = report.bundle.files.find(
-      (file) => file.path === 'src/logic/nodegraphs/checkoutSubmit.ts'
-    );
-    expect(String(nodeGraph?.contents)).toContain('createNodeGraphExecutor');
-    expect(String(nodeGraph?.contents)).toContain('"type": "transform"');
-    const animation = report.bundle.files.find(
-      (file) => file.path === 'src/animations/checkoutIntro.ts'
-    );
-    expect(String(animation?.contents)).toContain('createAnimationHandle');
     const logo = report.bundle.files.find(
       (file) => file.path === 'public/logo.svg'
     );

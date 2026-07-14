@@ -1,9 +1,10 @@
-import type { PIRDocument } from '@prodivix/shared/types/pir';
+import { encodePirDocument, type PIRDocument } from '@prodivix/pir';
 import { apiRequest } from '@/infra/api';
 import {
   decodeWorkspaceMutation,
   decodeWorkspaceSnapshot,
   encodeWorkspaceSnapshot,
+  type WorkspaceOperation,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import {
@@ -64,13 +65,20 @@ export const editorApi = {
       description?: string;
       resourceType: ProjectResourceType;
       isPublic?: boolean;
-      pir?: PIRDocument;
+      initialPir?: PIRDocument;
     }
-  ) =>
-    request<{ project: ProjectSummary }>(token, '/projects', {
+  ) => {
+    const { initialPir, ...project } = data;
+    return request<{ project: ProjectSummary }>(token, '/projects', {
       method: 'POST',
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify({
+        ...project,
+        ...(initialPir
+          ? { pir: JSON.parse(encodePirDocument(initialPir)) }
+          : {}),
+      }),
+    });
+  },
 
   importLocalProject: async (
     token: string,
@@ -149,7 +157,8 @@ export const editorApi = {
   commitWorkspaceOperation: async (
     token: string,
     workspace: WorkspaceSnapshot,
-    data: WorkspaceOperationCommitRequest
+    data: WorkspaceOperationCommitRequest,
+    domainOperation: WorkspaceOperation
   ) => {
     const response = await request<unknown>(
       token,
@@ -162,7 +171,7 @@ export const editorApi = {
     return decodeWorkspaceOperationCommitResponse(
       response,
       workspace,
-      data.operation
+      domainOperation
     );
   },
 

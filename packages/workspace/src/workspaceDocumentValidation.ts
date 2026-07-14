@@ -9,6 +9,9 @@ import {
   isWorkspaceAssetDocumentContent,
   isWorkspaceProjectConfigDocumentContent,
 } from './workspaceResourceDocument';
+import { isCanonicalWorkspaceAnimationDocumentContent } from './workspaceAnimationDocument';
+import { isCanonicalWorkspaceNodeGraphDocumentContent } from './workspaceNodeGraphDocument';
+import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 
 const WORKSPACE_DOCUMENT_TYPES: ReadonlySet<WorkspaceDocumentType> = new Set([
   'pir-page',
@@ -123,6 +126,11 @@ const compareUnicodeCodePoints = (left: string, right: string): number => {
   return leftPoints.length - rightPoints.length;
 };
 
+export const isCanonicalPirDocumentContent = (content: unknown): boolean => {
+  const decoded = tryNormalizeWorkspacePirContent(content);
+  return decoded.ok && validatePirDocument(decoded.value).valid;
+};
+
 const isValidDocumentContent = (
   document: Record<string, unknown>,
   documentType: WorkspaceDocumentType
@@ -131,7 +139,13 @@ const isValidDocumentContent = (
     return false;
   }
   if (PIR_DOCUMENT_TYPES.has(documentType)) {
-    return !validatePirDocument(document.content).hasError;
+    return isCanonicalPirDocumentContent(document.content);
+  }
+  if (documentType === 'pir-animation') {
+    return isCanonicalWorkspaceAnimationDocumentContent(document.content);
+  }
+  if (documentType === 'pir-graph') {
+    return isCanonicalWorkspaceNodeGraphDocumentContent(document.content);
   }
   if (documentType === 'asset') {
     return isWorkspaceAssetDocumentContent(document.content);
@@ -210,9 +224,7 @@ export const validateWorkspaceDocumentRecord = (
       message: 'Workspace document type is not supported.',
       documentId,
     });
-  } else if (
-    !isValidDocumentContent(value, documentType as WorkspaceDocumentType)
-  ) {
+  } else if (!isValidDocumentContent(value, documentType)) {
     issues.push({
       code: 'WKS_DOCUMENT_CONTENT_INVALID',
       path: `${path}/content`,

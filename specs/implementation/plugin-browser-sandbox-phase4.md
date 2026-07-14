@@ -13,8 +13,7 @@
   - `specs/decisions/17.external-library-runtime-and-adapter.md`
   - `specs/decisions/29.plugin-extension-points.md`
 - 前置实现：
-  - `specs/implementation/plugin-host-core-phase2.md`
-  - `specs/implementation/plugin-host-palette-phase3.md`
+  - `specs/decisions/29.plugin-extension-points.md`
 - Phase 4.6-4.8 详细实现：
   - `specs/implementation/official-component-plugins-phase46-48.md`
 
@@ -98,7 +97,7 @@ Phase 4.0 已在 alpha 阶段直接修正：
 
 ### 2.4 Phase 3 Web composition root 已在 Phase 4.4 收敛
 
-Phase 3 的 module-scope Palette Host 已删除。当前 `apps/web/src/plugins/platform/` 提供：
+当前 `apps/web/src/plugins/platform/` 提供：
 
 - 由 editor shell 按 workspace 创建的单一 Web Plugin Platform；
 - 同一 Host session 下的 typed contribution map、Browser runtime adapter、Gateway、policy、audit、clock 与 ID factory；
@@ -106,30 +105,11 @@ Phase 3 的 module-scope Palette Host 已删除。当前 `apps/web/src/plugins/p
 - `@prodivix/core` trusted package 安装、Palette resolver 与 revisioned query snapshot；
 - workspace switch、unmount/HMR、StrictMode/test teardown 共用的串行 shutdown 链路。
 
-External Library、Render Policy、Codegen Policy 与 Icon Provider 在 Phase 4.5 进入同一 TypeScript map；Blueprint Template 在 Phase 4.6.0 加入同一 map。六个 point 均具备 production JSON Schema、生成类型、validator、resolver、跨点批次校验与 revisioned projection snapshot。Renderer、Compiler、Icon 和 Blueprint creation surface 消费同一 Host registry 的投影，没有创建平行 contribution Host。当前产品 Gateway 只注入稳定的 Workspace summary 与 Document read ports，intent/patch write port 在精确业务 contract 冻结前保持 unavailable。
+External Library、Render Policy、Codegen Policy、Icon Provider 与 Blueprint Template 使用同一 TypeScript map。各 point 具备 production JSON Schema、生成类型、validator、resolver、跨点批次校验与 revisioned projection snapshot。Renderer、Compiler、Icon 和 Blueprint creation surface 消费同一 Host registry 投影。当前产品 Gateway 注入稳定的 Workspace summary 与 Document read ports；作者态 write Gateway 按 ADR 29 通过 Domain planner、Command / Transaction 与 WorkspaceOperation 交付。
 
-### 2.5 库专属 core 分支已删除
+### 2.5 Official plugin production boundary
 
-Phase 4.6-4.8 已删除以下迁移前实现：
-
-- `apps/web/src/editor/features/blueprint/external/libraries/antdProfile.tsx`
-- `apps/web/src/editor/features/blueprint/external/libraries/antdManifest.ts`
-- `apps/web/src/editor/features/blueprint/external/libraries/muiProfile.tsx`
-- `apps/web/src/editor/features/blueprint/external/libraries/muiManifest.ts`
-- `apps/web/src/editor/features/blueprint/external/index.ts` 中的库专属注册和名称分支
-- `apps/web/src/pir/renderer/registry.ts` 中的 runtime component Map 与 Radix placeholder
-- `apps/web/src/pir/renderer/iconRegistry.ts` 中的库专属 provider 加载分支
-- `packages/prodivix-compiler/src/react/adapter.ts` 中的 Ant Design、MUI、Radix 与 icon provider 分支
-- `packages/prodivix-compiler/src/react/antdAdapter.ts`
-
-`scripts/plugin-artifacts/check-official-plugin-cutover.mjs` 持续扫描 production source，阻止这些路径、库 id/runtime prefix branch、official CDN URL、preview selector 和 HTML placeholder fallback 回流。
-
-### 2.6 路线图编号漂移
-
-ADR 29 将 Browser Sandbox 与 official plugin migration 都定义为 Phase 4；`plugin-host-foundation.md` 此前却把 official plugin 另列为 Phase 5。路线图现以 ADR 29 为事实源重新统一：
-
-- Phase 4：Browser Sandbox、Host Gateway、official component plugin migration。
-- Phase 5：SDK、模板、签名/市场、开发者生态与更多插件族。
+Ant Design、MUI 与 Radix 由 bundled official packages 提供 Manifest、artifact、contribution resources、Host implementation 与 codegen policy。`scripts/plugin-artifacts/check-official-plugin-cutover.mjs` 持续验证 production source 只使用通用 Host、Renderer、Compiler 与 package contribution 边界。
 
 ## 3. 非目标
 
@@ -138,11 +118,11 @@ Phase 4 不实现：
 1. 插件市场、搜索、评分、发布 UI 或完整签名 PKI。
 2. 面向社区作者的完整 SDK 与脚手架；Phase 4 只提供协议 conformance client 和 official plugin 所需的最小 runtime API。
 3. 所有 ADR 29 contribution point；只实现安全底座和 official component plugin 闭环必需的 point。
-4. GSAP、react-spring、Three.js、React Flow、CodeMirror 或 Monaco 迁移；它们进入 Phase 5 的生态与插件族计划。
+4. GSAP、react-spring、Three.js、React Flow、CodeMirror 或 Monaco plugin families；它们进入 G6 生态计划。
 5. 任意 community package 在 Host main realm 执行 JavaScript、React renderer 或 compiler callback。
 6. 插件直接读取 Workspace store、PIR graph、DOM、Code Authoring 内部 registry 或 compiler 内部对象。
 7. 浏览器无法可靠提供的硬性 per-plugin heap 上限。Phase 4 实现 artifact/message/pending-request 限额、heartbeat、wall-time timeout 和 worker termination，并明确记录该平台限制。
-8. 旧 external profile 与 official plugin 的生产双写、双读或 fallback shim。每个库迁移时直接替换，回滚依赖版本回退，不依赖运行时双轨。
+8. 同一外部库只使用一个 owner-scoped Host contribution path；版本回退通过 package version lifecycle 完成。
 
 ## 4. 长期不变量
 

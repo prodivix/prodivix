@@ -9,8 +9,23 @@ export {
   createWorkspaceDocumentAtPathCommand,
   createWorkspacePathNodeId,
 } from './workspaceDocumentFactory';
-export { createWorkspaceCodeBindingTransaction } from './workspaceCodeBindingTransaction';
 export { createWorkspacePirDocumentUpdateCommand } from './workspacePirDocument';
+export {
+  createWorkspaceAnimationDocumentUpdateCommand,
+  decodeWorkspaceAnimationDocument,
+  isCanonicalWorkspaceAnimationDocumentContent,
+  isWorkspaceAnimationDocument,
+  selectWorkspaceAnimationDocument,
+  selectWorkspaceAnimationDocumentResults,
+} from './workspaceAnimationDocument';
+export {
+  createWorkspaceNodeGraphDocumentUpdateCommand,
+  decodeWorkspaceNodeGraphDocument,
+  isCanonicalWorkspaceNodeGraphDocumentContent,
+  isWorkspaceNodeGraphDocument,
+  selectWorkspaceNodeGraphDocument,
+  selectWorkspaceNodeGraphDocumentResults,
+} from './workspaceNodeGraphDocument';
 export {
   createWorkspaceProjectConfigDocumentContent,
   createWorkspaceProjectConfigValueUpdateCommand,
@@ -21,15 +36,83 @@ export { createWorkspaceVfsIntentPlan } from './workspaceVfsIntent';
 export {
   WorkspaceCodecError,
   applyWorkspaceMutation,
+  decodeWorkspaceDocument,
   decodeWorkspaceMutation,
   decodeWorkspaceSnapshot,
+  encodeWorkspaceDocument,
   encodeWorkspaceSnapshot,
   isPirWorkspaceDocumentType,
-  isWorkspacePirDocument,
   normalizeWorkspaceDocument,
   normalizeWorkspaceTree,
 } from './workspaceCodec';
 export { createWorkspaceCodeArtifactProvider } from './authoring/workspaceCodeArtifactProvider';
+export {
+  WORKSPACE_CODE_LANGUAGE_EDIT_PLAN_ISSUE_CODES,
+  createWorkspaceCodeLanguageEditTransactionPlan,
+} from './workspaceCodeLanguageEditTransaction';
+export {
+  decodeWorkspacePirDocument,
+  isWorkspacePirDocument,
+  isWorkspacePirDocumentType,
+  selectWorkspacePirDocument,
+  selectWorkspacePirDocumentResults,
+} from './component/workspacePirDocument';
+export {
+  WORKSPACE_COMPONENT_GRAPH_ISSUE_CODES,
+  validateWorkspaceComponentGraph,
+} from './component/workspaceComponentGraph';
+export {
+  WORKSPACE_PIR_PROJECTION_ISSUE_CODES,
+  createWorkspacePirProjectionPlan,
+} from './component/workspacePirProjection';
+export {
+  WORKSPACE_COMPONENT_DEFINITION_PLAN_ISSUE_CODES,
+  createWorkspaceComponentDefinitionTransactionPlan,
+} from './component/workspaceComponentDefinitionTransaction';
+export {
+  WORKSPACE_COMPONENT_AUTHORING_PLAN_ISSUE_CODES,
+  createWorkspaceCollectionInsertTransactionPlan,
+  createWorkspaceCollectionUpdateTransactionPlan,
+  createWorkspaceComponentContractUpdateTransactionPlan,
+  createWorkspaceComponentInstanceBindingsUpdateTransactionPlan,
+  createWorkspaceComponentInstanceTransactionPlan,
+} from './component/workspaceComponentAuthoringTransaction';
+export {
+  WORKSPACE_PIR_GRAPH_AUTHORING_ISSUE_CODES,
+  createWorkspacePIRCollectionUnwrapTransactionPlan,
+  createWorkspacePIRElementBatchUpdateTransactionPlan,
+  createWorkspacePIRElementUpdateTransactionPlan,
+  createWorkspacePIRSubtreeDeleteTransactionPlan,
+  createWorkspacePIRSubtreeDuplicateTransactionPlan,
+  createWorkspacePIRSubtreeMoveTransactionPlan,
+} from './component/workspacePirGraphAuthoringTransaction';
+export {
+  WORKSPACE_COMPONENT_IMPACT_PLAN_ISSUE_CODES,
+  analyzeWorkspaceComponentImpact,
+  createWorkspaceComponentDeleteTransactionPlan,
+  createWorkspaceComponentRenameTransactionPlan,
+} from './component/workspaceComponentImpactPlanner';
+export {
+  WORKSPACE_COMPONENT_EXTRACTION_REFERENCE_CLASSIFICATIONS,
+  WORKSPACE_COMPONENT_EXTRACTION_REFERENCE_ISSUE_CODES,
+  analyzeWorkspaceComponentExtractionReferences,
+  createWorkspaceComponentExtractionMemberSourceKey,
+} from './component/workspaceComponentExtractionReferences';
+export {
+  WORKSPACE_COMPONENT_EXTRACTION_TRANSACTION_ISSUE_CODES,
+  createWorkspaceComponentExtractionTransactionPlan,
+} from './component/workspaceComponentExtractionTransaction';
+export {
+  WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES,
+  createWorkspaceSemanticIndexFromSnapshot,
+} from './authoring/createWorkspaceSemanticIndexFromSnapshot';
+export { createWorkspaceCodeSlotRegistryFromSnapshot } from './authoring/createWorkspaceCodeSlotRegistryFromSnapshot';
+export {
+  WORKSPACE_SEMANTIC_PROVIDER_ID,
+  WORKSPACE_SEMANTIC_PROVIDER_VERSION,
+  createWorkspaceSemanticContributionProvider,
+} from './authoring/workspaceSemanticContributionProvider';
+export { captureWorkspaceSemanticRevisions } from './authoring/workspaceSemanticRevision';
 export {
   resolveCanonicalWorkspaceDocumentId,
   type WorkspaceLikeDocument,
@@ -39,15 +122,9 @@ export {
   selectWorkspaceRoute,
 } from './workspaceRouteIntent';
 export {
-  createNodeDeleteTransaction,
-  createNodeRenameTransaction,
-  createNodeSubtreeRemovalTransaction,
-} from './workspaceNodeReferenceTransaction';
-export {
   isPirDocumentContent,
   selectActiveDocument,
   selectActivePirDocument,
-  selectActivePirWorkspaceDocument,
   selectDocumentById,
   selectDocumentPath,
   selectDocumentsByType,
@@ -158,8 +235,18 @@ export type {
   WorkspaceDocumentFactoryErrorCode,
   WorkspaceDocumentNodeIdFactory,
 } from './workspaceDocumentFactory';
-export type { CreateWorkspaceCodeBindingTransactionInput } from './workspaceCodeBindingTransaction';
 export type { CreateWorkspacePirDocumentUpdateCommandInput } from './workspacePirDocument';
+export type {
+  CreateWorkspaceAnimationDocumentUpdateCommandInput,
+  WorkspaceAnimationDocument,
+  WorkspaceAnimationReadIssue,
+  WorkspaceAnimationReadResult,
+} from './workspaceAnimationDocument';
+export type {
+  CreateWorkspaceNodeGraphDocumentUpdateCommandInput,
+  WorkspaceNodeGraphDocument,
+  WorkspaceNodeGraphReadResult,
+} from './workspaceNodeGraphDocument';
 export type {
   WorkspaceAssetDocumentContent,
   WorkspaceProjectConfigDocumentContent,
@@ -176,21 +263,13 @@ export type {
   WorkspaceSourceFile,
   WorkspaceSourceFileRole,
 } from './workspaceProjection';
-export type {
-  WorkspacePirDocument,
-  WorkspacePirDocumentType,
-  WorkspaceTreeViewNode,
-} from './workspaceSelectors';
+export type { WorkspaceTreeViewNode } from './workspaceSelectors';
 export type {
   WorkspaceRouteIntent,
   WorkspaceRouteIntentIdFactory,
   WorkspaceRouteIntentPlan,
   WorkspaceRouteIntentPlanOptions,
 } from './workspaceRouteIntent';
-export type {
-  CreateNodeRemovalTransactionInput,
-  CreateNodeRenameTransactionInput,
-} from './workspaceNodeReferenceTransaction';
 export type {
   DecodedWorkspaceMutation,
   DecodedWorkspaceSnapshot,
@@ -213,3 +292,117 @@ export type {
   WorkspaceValidationResult,
   WorkspaceVfsNodeId,
 } from './types';
+export type {
+  CreateWorkspaceCodeLanguageEditTransactionInput,
+  WorkspaceCodeLanguageEditPlanIssue,
+  WorkspaceCodeLanguageEditPlanIssueCode,
+  WorkspaceCodeLanguageEditTransactionPlan,
+  WorkspaceCodeLanguageEditTransactionPlanResult,
+} from './workspaceCodeLanguageEditTransaction';
+export type {
+  WorkspaceSemanticIndexCompositionOptions,
+  WorkspaceSemanticIndexCompositionResult,
+  WorkspaceSemanticIndexIssue,
+  WorkspaceSemanticIndexIssueCode,
+} from './authoring/createWorkspaceSemanticIndexFromSnapshot';
+export type { WorkspaceCodeSlotRegistryCompositionResult } from './authoring/createWorkspaceCodeSlotRegistryFromSnapshot';
+export type {
+  DecodeWorkspacePirDocumentOptions,
+  WorkspacePirDocument,
+  WorkspacePirDocumentLocation,
+  WorkspacePirDocumentType,
+  WorkspacePirReadIssue,
+  WorkspacePirReadResult,
+} from './component/workspacePirDocument';
+export type {
+  WorkspaceComponentDependencyEdge,
+  WorkspaceComponentDependencyGraph,
+  WorkspaceComponentGraphDocument,
+  WorkspaceComponentGraphIssue,
+  WorkspaceComponentGraphIssueCode,
+  WorkspaceComponentGraphValidationResult,
+} from './component/workspaceComponentGraph';
+export type {
+  CreateWorkspacePirProjectionPlanInput,
+  WorkspacePirProjectionIssue,
+  WorkspacePirProjectionIssueCode,
+  WorkspacePirProjectionPlan,
+  WorkspacePirProjectionPlanResult,
+  WorkspacePirProjectionSnapshotIdentity,
+} from './component/workspacePirProjection';
+export type {
+  CreateWorkspaceComponentDefinitionTransactionInput,
+  WorkspaceComponentDefinitionPlanIssue,
+  WorkspaceComponentDefinitionPlanIssueCode,
+  WorkspaceComponentDefinitionTransactionPlan,
+  WorkspaceComponentDefinitionTransactionPlanResult,
+} from './component/workspaceComponentDefinitionTransaction';
+export type {
+  CreateWorkspaceCollectionInsertTransactionInput,
+  CreateWorkspaceCollectionUpdateTransactionInput,
+  CreateWorkspaceComponentContractUpdateTransactionInput,
+  CreateWorkspaceComponentInstanceBindingsUpdateTransactionInput,
+  CreateWorkspaceComponentInstanceTransactionInput,
+  WorkspaceComponentAuthoringPlanIssue,
+  WorkspaceComponentAuthoringPlanIssueCode,
+  WorkspaceComponentAuthoringTransactionPlan,
+  WorkspaceComponentAuthoringTransactionPlanResult,
+} from './component/workspaceComponentAuthoringTransaction';
+export type {
+  CreateWorkspacePIRCollectionUnwrapTransactionInput,
+  CreateWorkspacePIRElementBatchUpdateTransactionInput,
+  CreateWorkspacePIRElementUpdateTransactionInput,
+  CreateWorkspacePIRSubtreeDeleteTransactionInput,
+  CreateWorkspacePIRSubtreeDuplicateTransactionInput,
+  CreateWorkspacePIRSubtreeMoveTransactionInput,
+  WorkspacePIRGraphAuthoringIssue,
+  WorkspacePIRGraphAuthoringIssueCode,
+  WorkspacePIRGraphAuthoringTransactionPlan,
+  WorkspacePIRGraphAuthoringTransactionPlanResult,
+} from './component/workspacePirGraphAuthoringTransaction';
+export type {
+  AnalyzeWorkspaceComponentImpactInput,
+  CreateWorkspaceComponentDeleteTransactionInput,
+  CreateWorkspaceComponentRenameTransactionInput,
+  WorkspaceComponentContractMemberImpact,
+  WorkspaceComponentContractSymbolTarget,
+  WorkspaceComponentImpact,
+  WorkspaceComponentImpactAnalysisResult,
+  WorkspaceComponentImpactPlanIssue,
+  WorkspaceComponentImpactPlanIssueCode,
+  WorkspaceComponentImpactTransactionPlan,
+  WorkspaceComponentImpactTransactionPlanResult,
+  WorkspaceComponentInstanceImpact,
+  WorkspaceComponentReferenceImpact,
+  WorkspaceComponentRenameTarget,
+} from './component/workspaceComponentImpactPlanner';
+export type {
+  AnalyzeWorkspaceComponentExtractionReferencesInput,
+  NormalizedWorkspaceComponentExtractionReferenceContext,
+  WorkspaceComponentExtractionNodeAddress,
+  WorkspaceComponentExtractionNodeRelocation,
+  WorkspaceComponentExtractionNodeRelocationInput,
+  WorkspaceComponentExtractionPublicMemberKind,
+  WorkspaceComponentExtractionPublicMemberMapping,
+  WorkspaceComponentExtractionPublicMemberSource,
+  WorkspaceComponentExtractionPublicPartMapping,
+  WorkspaceComponentExtractionPublicTarget,
+  WorkspaceComponentExtractionReference,
+  WorkspaceComponentExtractionReferenceClassification,
+  WorkspaceComponentExtractionReferenceContribution,
+  WorkspaceComponentExtractionReferenceIssue,
+  WorkspaceComponentExtractionReferenceIssueCode,
+  WorkspaceComponentExtractionReferenceOwner,
+  WorkspaceComponentExtractionReferencePlan,
+  WorkspaceComponentExtractionReferenceProvider,
+  WorkspaceComponentExtractionReferenceProviderContext,
+  WorkspaceComponentExtractionReferenceRewrite,
+  WorkspaceComponentExtractionReferenceTarget,
+} from './component/workspaceComponentExtractionReferences';
+export type {
+  CreateWorkspaceComponentExtractionTransactionInput,
+  WorkspaceComponentExtractionTransactionIssue,
+  WorkspaceComponentExtractionTransactionIssueCode,
+  WorkspaceComponentExtractionTransactionPlan,
+  WorkspaceComponentExtractionTransactionPlanResult,
+} from './component/workspaceComponentExtractionTransaction';

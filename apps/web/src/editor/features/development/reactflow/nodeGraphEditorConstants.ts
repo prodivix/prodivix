@@ -1,6 +1,3 @@
-export const DEFAULT_GRAPH_NAME = 'Main';
-export const NODE_GRAPH_EDITOR_STATE_KEY = 'x-nodeGraphEditor';
-
 export const MENU_VIEWPORT_PADDING = 8;
 export const MENU_COLUMN_WIDTH = 220;
 export const MENU_COLUMN_GAP = 0;

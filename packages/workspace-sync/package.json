@@ -24,6 +24,7 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
+    "@prodivix/pir": "workspace:*",
     "@prodivix/router": "workspace:*",
     "@prodivix/workspace": "workspace:*"
   },

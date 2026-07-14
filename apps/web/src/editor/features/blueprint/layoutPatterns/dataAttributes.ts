@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '@/editor/features/blueprint/editor/inspector/projection';
 import type { LayoutPatternRole } from './layoutPattern.types';
 
 export const LAYOUT_PATTERN_PROTOCOL_VERSION = '1';
@@ -83,7 +83,7 @@ export const createLayoutPatternRoleDataAttributes = ({
 });
 
 export const getLayoutPatternDataAttributes = (
-  node: ComponentNode | null | undefined
+  node: BlueprintInspectorNodeView | null | undefined
 ) =>
   sanitizeDataAttributes(
     node && typeof node.props === 'object' && node.props
@@ -91,13 +91,15 @@ export const getLayoutPatternDataAttributes = (
       : undefined
   );
 
-export const getLayoutPatternId = (node: ComponentNode | null | undefined) =>
+export const getLayoutPatternId = (
+  node: BlueprintInspectorNodeView | null | undefined
+) =>
   getLayoutPatternDataAttributes(node)[
     LAYOUT_PATTERN_DATA_ATTRIBUTE_KEYS.pattern
   ];
 
 export const isLayoutPatternRootNode = (
-  node: ComponentNode | null | undefined
+  node: BlueprintInspectorNodeView | null | undefined
 ) =>
   getLayoutPatternDataAttributes(node)[
     LAYOUT_PATTERN_DATA_ATTRIBUTE_KEYS.root
@@ -112,7 +114,7 @@ export const getLayoutPatternParamKey = (paramKey: string) =>
   `${LAYOUT_PATTERN_PARAM_PREFIX}${paramKey}`;
 
 export const getLayoutPatternParams = (
-  node: ComponentNode | null | undefined
+  node: BlueprintInspectorNodeView | null | undefined
 ): Record<string, string> => {
   const dataAttributes = getLayoutPatternDataAttributes(node);
   return Object.entries(dataAttributes).reduce<Record<string, string>>(

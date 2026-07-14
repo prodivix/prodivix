@@ -4,81 +4,32 @@ import type {
 } from '@prodivix/workspace';
 
 export const createPirContent = () => ({
-  version: '1.3' as const,
   ui: {
     graph: {
-      version: 1 as const,
       rootId: 'root',
       nodesById: {
-        root: { id: 'root', type: 'container' },
+        root: { id: 'root', kind: 'element' as const, type: 'container' },
       },
       childIdsById: { root: [] },
+      order: { strategy: 'childIdsById' as const },
     },
   },
-  logic: {
-    graphs: [
-      {
-        id: 'graph-main',
-        name: 'Main',
-        nodes: [
-          { id: 'node-a', label: 'A', value: 1 },
-          { id: 'node-b', label: 'B', value: 1 },
-        ],
-        edges: [
-          {
-            id: 'edge-a-b',
-            source: 'node-a',
-            target: 'node-b',
-            label: 'next',
-          },
-        ],
-      },
-      { id: 'graph-secondary', name: 'Secondary', nodes: [], edges: [] },
-    ],
-  },
-  animation: {
-    version: 1 as const,
-    timelines: [
-      {
-        id: 'timeline-main',
-        name: 'Main',
-        durationMs: 1000,
-        bindings: [
-          {
-            id: 'binding-a',
-            targetNodeId: 'root',
-            tracks: [
-              {
-                id: 'track-opacity',
-                kind: 'style' as const,
-                property: 'opacity' as const,
-                keyframes: [
-                  { atMs: 0, value: 0 },
-                  { atMs: 1000, value: 1 },
-                ],
-              },
-              {
-                id: 'track-color',
-                kind: 'style' as const,
-                property: 'color' as const,
-                keyframes: [
-                  { atMs: 0, value: '#000' },
-                  { atMs: 1000, value: '#fff' },
-                ],
-              },
-            ],
-          },
-          { id: 'binding-b', targetNodeId: 'root', tracks: [] },
-        ],
-      },
-      {
-        id: 'timeline-secondary',
-        name: 'Secondary',
-        durationMs: 500,
-        bindings: [],
-      },
-    ],
-  },
+});
+
+export const createNodeGraphContent = () => ({
+  version: 1 as const,
+  nodes: [
+    { id: 'node-a', data: { label: 'A', value: 1 } },
+    { id: 'node-b', data: { label: 'B', value: 1 } },
+  ],
+  edges: [
+    {
+      id: 'edge-a-b',
+      source: 'node-a',
+      target: 'node-b',
+      sourceHandle: 'next',
+    },
+  ],
 });
 
 export const createWorkspace = (
@@ -102,7 +53,12 @@ export const createWorkspace = (
     'document-node': {
       id: 'document-node',
       kind: 'doc',
-      name: type === 'code' ? 'main.ts' : 'page.pir.json',
+      name:
+        type === 'code'
+          ? 'main.ts'
+          : type === 'pir-graph'
+            ? 'main.pir-graph.json'
+            : 'page.pir.json',
       parentId: 'root',
       docId: 'document-1',
     },
@@ -111,7 +67,12 @@ export const createWorkspace = (
     'document-1': {
       id: 'document-1',
       type,
-      path: type === 'code' ? '/main.ts' : '/page.pir.json',
+      path:
+        type === 'code'
+          ? '/main.ts'
+          : type === 'pir-graph'
+            ? '/main.pir-graph.json'
+            : '/page.pir.json',
       contentRev: 1,
       metaRev: 1,
       updatedAt: '2026-07-12T00:00:00.000Z',

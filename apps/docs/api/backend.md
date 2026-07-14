@@ -55,7 +55,7 @@ X-Auth-Token: <token>
 }
 ```
 
-错误响应不保留旧顶层 `message`、字符串型 `error` 或 `legacyError` 字段。前端和文档都以 `error.code` 作为稳定定位入口。
+错误响应统一使用结构化 `error` envelope；前端和文档以 `error.code` 作为稳定定位入口。
 
 ## API 端点
 
@@ -820,8 +820,6 @@ Command 或 Transaction id 是强幂等 commit identity：
 `opSeq` 不参与 CAS；若不相交分区在 base snapshot 后先行提交，本响应的 `opSeq` 可以跨越多步。响应只聚合当前 Operation 的 delta，不是 catch-up stream；Web 检测到序列缺口后会重新读取 canonical snapshot，再采用成功 ACK。
 
 `200` 只表示 canonical Workspace 数据库已经提交。该 Handler 不同步写 Project mirror，避免乱序投影和幂等 replay 重复产生外部副作用；需要可靠跨系统投影时必须由同事务写入的 transactional outbox 驱动。
-
-旧 `POST /api/workspaces/:workspaceId/batch` 是逐条 Store commit，从未具备原子性，现已连同 `ApplyBatchRequest`、`clientBatchId` 和 Web adapter 一起 Hard Cut；不提供转发或兼容层。
 
 ---
 

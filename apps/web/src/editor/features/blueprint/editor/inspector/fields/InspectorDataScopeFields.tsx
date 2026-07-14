@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 
-const LEGACY_DATA_MODEL_KEY = 'x-prodivix-data-model';
-const LEGACY_DATA_SCHEMA_KEY = 'x-prodivix-data-schema';
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -37,9 +35,7 @@ export function InspectorDataScopeFields() {
     ) {
       return extendModel;
     }
-    const legacy =
-      data?.[LEGACY_DATA_MODEL_KEY] ?? data?.[LEGACY_DATA_SCHEMA_KEY];
-    return isPlainObject(legacy) ? legacy : {};
+    return {};
   }, [selectedNodeData]);
   const mountedMockData = useMemo(() => {
     const data = selectedNodeData;
@@ -101,8 +97,6 @@ export function InspectorDataScopeFields() {
           nextData.mock = {};
         }
         delete nextData.extend;
-        delete nextData[LEGACY_DATA_MODEL_KEY];
-        delete nextData[LEGACY_DATA_SCHEMA_KEY];
         return { ...current, data: nextData };
       });
     } catch {
@@ -136,8 +130,6 @@ export function InspectorDataScopeFields() {
           ...(current.data ?? {}),
           mock: parsed,
         } as Record<string, unknown>;
-        delete nextData[LEGACY_DATA_MODEL_KEY];
-        delete nextData[LEGACY_DATA_SCHEMA_KEY];
         return { ...current, data: nextData };
       });
     } catch {
@@ -192,8 +184,6 @@ export function InspectorDataScopeFields() {
                         mock: {},
                       } as Record<string, unknown>;
                       delete nextData.extend;
-                      delete nextData[LEGACY_DATA_MODEL_KEY];
-                      delete nextData[LEGACY_DATA_SCHEMA_KEY];
                       return { ...current, data: nextData };
                     });
                   }}

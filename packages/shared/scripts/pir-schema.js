@@ -1,49 +1,121 @@
-import { readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-const PIR_SCHEMA_FILE_PATTERN = /^PIR-v(\d+(?:\.\d+)*)\.json$/;
 const SPECS_PIR_DIR = resolve(__dirname, '../../../specs/pir');
+const CURRENT_SCHEMA_PATH = resolve(SPECS_PIR_DIR, 'PIR-current.json');
+const CURRENT_VERSION_MANIFEST_PATH = resolve(
+  SPECS_PIR_DIR,
+  'PIR-current.version.json'
+);
+const PIR_VERSION_PATTERN = /^\d+(?:\.\d+)*$/;
 
-const parseVersion = (value) => value.split('.').map((part) => Number(part));
-
-const compareVersions = (left, right) => {
-  const maxLength = Math.max(left.length, right.length);
-  for (let index = 0; index < maxLength; index += 1) {
-    const leftPart = left[index] ?? 0;
-    const rightPart = right[index] ?? 0;
-    if (leftPart !== rightPart) return leftPart - rightPart;
+const readJson = (path, label) => {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new Error(`Failed to read ${label} at ${path}: ${error.message}`);
   }
-  return 0;
 };
 
-export const findLatestPirSchemaPath = () => {
-  const candidates = readdirSync(SPECS_PIR_DIR, { withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => {
-      const match = PIR_SCHEMA_FILE_PATTERN.exec(entry.name);
-      if (!match) return null;
-      return {
-        fileName: entry.name,
-        versionParts: parseVersion(match[1]),
-      };
-    })
-    .filter(Boolean)
-    .sort((left, right) =>
-      compareVersions(right.versionParts, left.versionParts)
+const resolveLocalJsonPointer = (document, pointer) => {
+  if (!pointer.startsWith('#/')) return undefined;
+  return pointer
+    .slice(2)
+    .split('/')
+    .map((segment) => segment.replaceAll('~1', '/').replaceAll('~0', '~'))
+    .reduce(
+      (value, segment) =>
+        value && typeof value === 'object' ? value[segment] : undefined,
+      document
     );
-
-  const latest = candidates[0];
-  if (!latest) {
-    throw new Error(`No PIR schema files found in ${SPECS_PIR_DIR}.`);
-  }
-  return resolve(SPECS_PIR_DIR, latest.fileName);
 };
 
+export const getPirSchemaVersion = (schema) => {
+  let rootSchema = schema;
+  const visitedReferences = new Set();
+  while (
+    rootSchema &&
+    typeof rootSchema === 'object' &&
+    typeof rootSchema.$ref === 'string' &&
+    rootSchema.$ref.startsWith('#/')
+  ) {
+    if (visitedReferences.has(rootSchema.$ref)) {
+      throw new Error(`PIR schema root reference cycle at ${rootSchema.$ref}.`);
+    }
+    visitedReferences.add(rootSchema.$ref);
+    rootSchema = resolveLocalJsonPointer(schema, rootSchema.$ref);
+  }
+  const version = rootSchema?.properties?.version?.const;
+  if (typeof version !== 'string' || !version.trim()) {
+    throw new Error('PIR schema must define a string root version const.');
+  }
+  return version;
+};
+
+const readSchemaVersion = (schemaPath) => {
+  const schema = readJson(schemaPath, 'PIR schema');
+  try {
+    return getPirSchemaVersion(schema);
+  } catch (error) {
+    throw new Error(`Invalid PIR schema at ${schemaPath}: ${error.message}`);
+  }
+};
+
+const readActivatedPirVersion = () => {
+  const manifest = readJson(
+    CURRENT_VERSION_MANIFEST_PATH,
+    'PIR current activation manifest'
+  );
+  const version = manifest?.version;
+  if (
+    typeof version !== 'string' ||
+    version !== version.trim() ||
+    !PIR_VERSION_PATTERN.test(version)
+  ) {
+    throw new Error(
+      `PIR current activation manifest at ${CURRENT_VERSION_MANIFEST_PATH} must define a canonical numeric version.`
+    );
+  }
+  return version;
+};
+
+const assertSchemaVersion = (schemaPath, expectedVersion) => {
+  const schemaVersion = readSchemaVersion(schemaPath);
+  if (expectedVersion !== undefined && schemaVersion !== expectedVersion) {
+    throw new Error(
+      `PIR schema version ${JSON.stringify(schemaVersion)} at ${schemaPath} does not match activated current ${JSON.stringify(expectedVersion)}.`
+    );
+  }
+  return schemaVersion;
+};
+
+/** Resolves the immutable snapshot selected by the activation manifest. */
+export const resolveActivatedPirSnapshot = () => {
+  const version = readActivatedPirVersion();
+  const schemaPath = resolve(SPECS_PIR_DIR, `PIR-v${version}.json`);
+  assertSchemaVersion(schemaPath, version);
+  return Object.freeze({ version, schemaPath });
+};
+
+/** Resolves the only active PIR wire schema and verifies its manifest version. */
+export const resolveCurrentPirSchema = () => {
+  const version = readActivatedPirVersion();
+  assertSchemaVersion(CURRENT_SCHEMA_PATH, version);
+  return Object.freeze({ version, schemaPath: CURRENT_SCHEMA_PATH });
+};
+
+/**
+ * Resolves a PIR schema for standalone validation. An explicit environment
+ * override is intentionally limited to staged tooling and never used by
+ * current schema/type generation.
+ */
 export const resolvePirSchemaPath = () => {
-  const explicitPath = process.env.PIR_SCHEMA_PATH;
-  if (!explicitPath) return findLatestPirSchemaPath();
-  return resolve(process.cwd(), explicitPath);
+  const explicitPath = process.env.PIR_SCHEMA_PATH?.trim();
+  if (!explicitPath) return resolveCurrentPirSchema().schemaPath;
+  const schemaPath = resolve(process.cwd(), explicitPath);
+  assertSchemaVersion(schemaPath);
+  return schemaPath;
 };

@@ -7,7 +7,7 @@ import {
   type WorkspaceSnapshot,
   type WorkspaceVfsNode,
 } from '@prodivix/workspace';
-import type { PIRDocument } from '@prodivix/shared/types/pir';
+import type { PIRDocument } from '@prodivix/pir';
 import type { WorkspaceRouteManifest } from '@prodivix/router';
 import type { EditorStore } from './editorStore.shape';
 

@@ -40,6 +40,14 @@ export const renderCodeGraphNode = ({ id, nodeData, selected, t }: Props) => {
   const completionExtension = autocompletion({
     override: [completeFromList(CODE_LANGUAGE_KEYWORDS[codeLanguage])],
   });
+  const artifactId = nodeData.executor?.reference.artifactId ?? '';
+  const artifactOptions = (nodeData.codeArtifactOptions ?? []).filter(
+    (artifact) =>
+      artifact.language === 'ts' ||
+      artifact.language === 'js' ||
+      artifact.language === 'glsl' ||
+      artifact.language === 'wgsl'
+  );
   return (
     <div className={buildNodeContainerClass(selected, widthClass)}>
       <NodeHeader
@@ -91,6 +99,7 @@ export const renderCodeGraphNode = ({ id, nodeData, selected, t }: Props) => {
                 { value: 'wgsl', label: 'wgsl' },
               ]}
               className="h-6 px-1.5 text-[10px]"
+              disabled
             />
             <SelectField
               value={codeSize}
@@ -114,10 +123,38 @@ export const renderCodeGraphNode = ({ id, nodeData, selected, t }: Props) => {
         <div className="px-4 pb-2" />
       ) : (
         <div className="relative px-3.5 pb-3">
+          <div className="mb-2 flex items-center gap-2">
+            <SelectField
+              value={artifactId}
+              onChange={(value) =>
+                nodeData.onBindCodeArtifact?.(id, value || undefined)
+              }
+              options={[
+                { value: '', label: 'Unbound CodeSlot' },
+                ...artifactOptions.map((artifact) => ({
+                  value: artifact.id,
+                  label: artifact.path,
+                })),
+              ]}
+              className="min-w-0 flex-1"
+            />
+            <button
+              type="button"
+              className="nodrag nopan h-7 rounded border border-(--nodegraph-node-border) px-2 text-[10px] text-(--nodegraph-text) disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!nodeData.executor}
+              onClick={() =>
+                nodeData.executor &&
+                nodeData.onOpenCodeSlotDefinition?.(nodeData.executor.slotId)
+              }
+            >
+              Open
+            </button>
+          </div>
           <CodeMirror
             data-editor-native-history="true"
             value={nodeData.code ?? ''}
             onChange={(value) => nodeData.onChangeCode?.(id, value)}
+            editable={Boolean(nodeData.executor && artifactId)}
             extensions={[
               languageExtension,
               completionExtension,

@@ -1,9 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AnimationTimeline } from '@prodivix/animation';
-import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
-import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
 import {
-  selectActiveDocumentId,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import type {
+  AnimationDefinition,
+  AnimationTimeline,
+} from '@prodivix/animation';
+import { createWorkspaceCodeArtifactProvider } from '@prodivix/workspace';
+import { useNavigate, useParams } from 'react-router';
+import {
+  navigateToWorkspaceCodeSlotDefinition,
+  useWorkspaceSemanticNavigationStore,
+} from '@/editor/navigation';
+import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
+import {
   selectWorkspaceId,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
@@ -15,11 +28,26 @@ import type { AnimationEditorTrackRef } from './panels/AnimationEditorTimelinePa
 import { AnimationEditorTopBar } from './panels/AnimationEditorTopBar';
 import { useAnimationEditorState } from './useAnimationEditorState';
 
-export const AnimationEditorContent = () => {
+type AnimationEditorContentProps = Readonly<{
+  animationDocumentId: string;
+  persistedAnimation: AnimationDefinition;
+  documentControls?: ReactNode;
+  disabled?: boolean;
+  diagnostic?: string;
+}>;
+
+export const AnimationEditorContent = ({
+  animationDocumentId,
+  persistedAnimation,
+  documentControls,
+  disabled = false,
+  diagnostic,
+}: AnimationEditorContentProps) => {
+  const navigate = useNavigate();
+  const { projectId } = useParams();
   const workspaceId = useEditorStore(selectWorkspaceId);
-  const activeDocumentId = useEditorStore(selectActiveDocumentId);
   const {
-    pirDoc,
+    workspace,
     animation,
     activeTimelineId,
     activeTimeline,
@@ -36,6 +64,7 @@ export const AnimationEditorContent = () => {
     updateActiveTimelineDirection,
     updateActiveTimelineFillMode,
     updateActiveTimelineEasing,
+    updateActiveTimelineCodeSlot,
     setCursorMs,
     setZoom,
     addTrack,
@@ -60,21 +89,45 @@ export const AnimationEditorContent = () => {
     deleteSvgPrimitive,
     updateSvgPrimitiveType,
     canRemoveSvgFilter,
-  } = useAnimationEditorState();
+  } = useAnimationEditorState({
+    animationDocumentId,
+    persistedAnimation,
+  });
+  const codeArtifacts = useMemo(
+    () =>
+      workspace
+        ? createWorkspaceCodeArtifactProvider(workspace).listArtifacts({
+            surface: 'animation-timeline',
+          })
+        : [],
+    [workspace]
+  );
+  const openCodeSlotDefinition = useCallback(
+    (slotId: string) => {
+      if (!projectId || !workspace) return;
+      navigateToWorkspaceCodeSlotDefinition({
+        projectId,
+        workspace,
+        slotId,
+        navigate,
+      });
+    },
+    [navigate, projectId, workspace]
+  );
 
   useWorkspaceHistoryShortcuts({
     workspaceId,
-    documentId: activeDocumentId,
+    documentId: animationDocumentId,
     domain: 'animation',
     shortcutScope: 'animation',
   });
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [selection, setSelection] = useState<AnimationEditorSelection>({});
-  const issueNavigationRequest = useWorkspaceIssuesStore(
+  const semanticNavigationRequest = useWorkspaceSemanticNavigationStore(
     (state) => state.navigationRequest
   );
-  const consumeIssueNavigation = useWorkspaceIssuesStore(
+  const consumeSemanticNavigation = useWorkspaceSemanticNavigationStore(
     (state) => state.consumeNavigation
   );
 
@@ -125,38 +178,50 @@ export const AnimationEditorContent = () => {
   }, [activeTimeline]);
 
   useEffect(() => {
+    const location = semanticNavigationRequest?.location;
     if (
-      issueNavigationRequest?.kind !== 'animation-track' ||
-      issueNavigationRequest.documentId !== activeDocumentId
+      !semanticNavigationRequest ||
+      semanticNavigationRequest.workspaceId !== workspaceId ||
+      location?.kind !== 'diagnostic-target' ||
+      (location.targetRef.kind !== 'animation-timeline' &&
+        location.targetRef.kind !== 'animation-track') ||
+      location.targetRef.documentId !== animationDocumentId
     ) {
       return;
     }
+    const targetRef = location.targetRef;
     const timeline = animation.timelines.find(
-      (candidate) => candidate.id === issueNavigationRequest.timelineId
+      (candidate) => candidate.id === targetRef.timelineId
     );
+    if (targetRef.kind === 'animation-timeline') {
+      if (!timeline) return;
+      selectTimeline(targetRef.timelineId);
+      setSelection({ timelineId: targetRef.timelineId });
+      consumeSemanticNavigation(semanticNavigationRequest.id);
+      return;
+    }
     const binding = timeline?.bindings.find(
-      (candidate) => candidate.id === issueNavigationRequest.bindingId
+      (candidate) => candidate.id === targetRef.bindingId
     );
     if (
-      !binding?.tracks.some(
-        (candidate) => candidate.id === issueNavigationRequest.trackId
-      )
+      !binding?.tracks.some((candidate) => candidate.id === targetRef.trackId)
     ) {
       return;
     }
-    selectTimeline(issueNavigationRequest.timelineId);
+    selectTimeline(targetRef.timelineId);
     setSelection({
-      timelineId: issueNavigationRequest.timelineId,
-      bindingId: issueNavigationRequest.bindingId,
-      trackId: issueNavigationRequest.trackId,
+      timelineId: targetRef.timelineId,
+      bindingId: targetRef.bindingId,
+      trackId: targetRef.trackId,
     });
-    consumeIssueNavigation(issueNavigationRequest.id);
+    consumeSemanticNavigation(semanticNavigationRequest.id);
   }, [
-    activeDocumentId,
+    animationDocumentId,
     animation.timelines,
-    consumeIssueNavigation,
-    issueNavigationRequest,
+    consumeSemanticNavigation,
     selectTimeline,
+    semanticNavigationRequest,
+    workspaceId,
   ]);
 
   const selectedTrackRef = useMemo<AnimationEditorTrackRef | undefined>(() => {
@@ -197,13 +262,19 @@ export const AnimationEditorContent = () => {
         onSelectTimeline={selectTimeline}
         onAddTimeline={addTimeline}
         onDeleteTimeline={deleteTimeline}
+        disabled={disabled}
+        documentControls={documentControls}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden max-[1100px]:flex-col">
+      <fieldset
+        disabled={disabled}
+        className="relative m-0 flex min-h-0 min-w-0 flex-1 overflow-hidden border-0 p-0 max-[1100px]:flex-col"
+      >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 flex-1 p-3">
             <AnimationEditorPreviewCanvas
-              pirDoc={pirDoc}
+              workspace={workspace}
+              entryDocumentId={animation.target.documentId}
               previewNodeId={previewNodeId}
               timeline={activeTimeline}
               cursorMs={cursorMs}
@@ -258,6 +329,9 @@ export const AnimationEditorContent = () => {
           onUpdateTimelineDirection={updateActiveTimelineDirection}
           onUpdateTimelineFillMode={updateActiveTimelineFillMode}
           onUpdateTimelineEasing={updateActiveTimelineEasing}
+          codeArtifacts={codeArtifacts}
+          onUpdateTimelineCodeSlot={updateActiveTimelineCodeSlot}
+          onOpenCodeSlotDefinition={openCodeSlotDefinition}
           onAddTrack={addTrack}
           onDeleteTrack={deleteTrack}
           onUpdateTrackKind={updateTrackKind}
@@ -280,7 +354,17 @@ export const AnimationEditorContent = () => {
           onDeleteSvgPrimitive={deleteSvgPrimitive}
           onUpdateSvgPrimitiveType={updateSvgPrimitiveType}
         />
-      </div>
+        {diagnostic ? (
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center">
+            <div
+              role="status"
+              className="max-w-2xl rounded-xl border border-black/10 bg-[rgb(var(--bg-canvas-rgb)_/_0.94)] px-4 py-2 text-xs text-(--text-secondary) shadow-(--shadow-md) backdrop-blur"
+            >
+              {diagnostic}
+            </div>
+          </div>
+        ) : null}
+      </fieldset>
     </div>
   );
 };

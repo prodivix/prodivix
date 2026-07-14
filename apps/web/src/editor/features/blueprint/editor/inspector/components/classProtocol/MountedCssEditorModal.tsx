@@ -27,6 +27,8 @@ type MountedCssEditorModalProps = {
   highlightedLine?: number;
   highlightedColumn?: number;
   error?: string;
+  readOnly?: boolean;
+  diagnostic?: string;
   onChange: (value: string) => void;
   onClose: () => void;
   onSave: () => void | Promise<void>;
@@ -91,6 +93,8 @@ export function MountedCssEditorModal({
   highlightedLine,
   highlightedColumn,
   error,
+  readOnly = false,
+  diagnostic,
   onChange,
   onClose,
   onSave,
@@ -287,7 +291,10 @@ export function MountedCssEditorModal({
               height="100%"
               extensions={extensions}
               theme={editorTheme}
-              onChange={(next) => onChange(next)}
+              editable={!readOnly}
+              onChange={(next) => {
+                if (!readOnly) onChange(next);
+              }}
               onCreateEditor={(view) => {
                 editorRef.current = view;
                 view.dispatch({
@@ -311,6 +318,8 @@ export function MountedCssEditorModal({
               <span role="alert" data-testid="mounted-css-error">
                 {error}
               </span>
+            ) : diagnostic ? (
+              <span>{diagnostic}</span>
             ) : null}
           </div>
           <div className="flex items-center justify-end gap-2">
@@ -327,7 +336,7 @@ export function MountedCssEditorModal({
               type="button"
               className="h-7 rounded-md bg-(--text-primary) px-3 text-xs text-(--text-inverse)"
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || readOnly}
               data-testid="mounted-css-save"
             >
               {t('inspector.classProtocol.mountedCss.save', {

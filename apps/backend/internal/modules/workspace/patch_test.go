@@ -62,6 +62,15 @@ func TestApplyWorkspacePatchRejectsForbiddenPath(t *testing.T) {
 	}
 }
 
+func TestApplyWorkspacePatchUsesCurrentPIRRoots(t *testing.T) {
+	if err := validateWorkspacePatchPath("/componentContract/propsById"); err != nil {
+		t.Fatalf("component contract path must be writable: %v", err)
+	}
+	if err := validateWorkspacePatchPath("/animation/timelines"); !errors.Is(err, ErrWorkspacePatchPathForbidden) {
+		t.Fatalf("embedded animation path must be forbidden, got %v", err)
+	}
+}
+
 func TestApplyWorkspaceDocumentPatchAllowsCodeSource(t *testing.T) {
 	patched, err := applyWorkspaceDocumentPatch(
 		WorkspaceDocumentTypeCode,

@@ -15,7 +15,7 @@
 
 不覆盖：
 
-1. PIR 事件绑定中的 `executeGraph` action 形状错误，优先使用 `PIR-xxxx`。
+1. PIR 事件绑定中 `run-nodegraph` action 的 document-qualified reference 形状错误，使用 `PIR-xxxx`。
 2. 编辑器拖拽和选择交互，使用 `EDT-xxxx`。
 3. 后端保存和同步，使用 `WKS-xxxx`。
 
@@ -82,7 +82,7 @@ type NodeGraphDiagnosticStage =
 - Retryable: true
 - Trigger: 单个节点运行时抛出异常或返回失败状态
 - User action: 查看节点输入、输出和错误详情
-- Developer notes: 诊断 meta 应包含 graphId、nodeId 和 runId，不包含敏感输入
+- Developer notes: 诊断 meta 应包含 documentId、nodeId 和 runId，不包含敏感输入
 
 ### `NGR-5001` 断点目标不存在
 
@@ -99,7 +99,7 @@ type NodeGraphDiagnosticStage =
 - Stage: `execute`
 - Retryable: true
 - Trigger: 节点图校验、执行或调试中出现未分类异常
-- User action: 重试运行；若复现，携带错误码和 graphId 上报
+- User action: 重试运行；若复现，携带错误码和 documentId 上报
 - Developer notes: 新增稳定复现场景后应分配更具体的码位
 
 ## 5. 预留码位

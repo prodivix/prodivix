@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   applyWorkspaceCommand,
   createWorkspaceCodeDocumentCommand,
@@ -61,7 +61,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/pages/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     },
     'code-open-dialog': {
       id: 'code-open-dialog',
@@ -104,7 +104,7 @@ describe('applyWorkspaceCommand', () => {
           {
             op: 'add',
             path: '/ui/graph/nodesById/root/props',
-            value: { title: 'Home' },
+            value: { title: { kind: 'literal', value: 'Home' } },
           },
         ],
         reverseOps: [{ op: 'remove', path: '/ui/graph/nodesById/root/props' }],
@@ -117,7 +117,7 @@ describe('applyWorkspaceCommand', () => {
     expect(result.snapshot.docsById['page-home'].contentRev).toBe(1);
     expect(result.snapshot.docsById['page-home'].content).toHaveProperty(
       'ui.graph.nodesById.root.props.title',
-      'Home'
+      { kind: 'literal', value: 'Home' }
     );
   });
 
@@ -364,9 +364,9 @@ describe('applyWorkspaceCommand', () => {
       ...workspace.docsById['page-home'],
       type: 'pir-graph',
       content: {
-        nodesById: {},
-        edgesById: {},
-        groupsById: {},
+        version: 1,
+        nodes: [],
+        edges: [],
       },
     };
 
@@ -377,40 +377,33 @@ describe('applyWorkspaceCommand', () => {
         forwardOps: [
           {
             op: 'add',
-            path: '/nodesById/validateCart',
-            value: { id: 'validateCart' },
+            path: '/nodes/0',
+            value: { id: 'validateCart', data: {} },
           },
         ],
-        reverseOps: [{ op: 'remove', path: '/nodesById/validateCart' }],
+        reverseOps: [{ op: 'remove', path: '/nodes/0' }],
       })
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.snapshot.docsById['page-home'].content).toHaveProperty(
-      'nodesById.validateCart.id',
-      'validateCart'
-    );
+    expect(result.snapshot.docsById['page-home'].content).toMatchObject({
+      nodes: [{ id: 'validateCart' }],
+    });
   });
 
-  it('allows embedded logic and animation paths on combined PIR documents', () => {
+  it('rejects embedded NodeGraph paths on PIR documents', () => {
     const result = applyWorkspaceCommand(
       createWorkspace(),
       createCommand({
         namespace: 'core.nodegraph',
         domainHint: 'nodegraph',
-        forwardOps: [
-          { op: 'add', path: '/logic', value: { nodesById: {} } },
-          { op: 'add', path: '/animation', value: { timelinesById: {} } },
-        ],
-        reverseOps: [
-          { op: 'remove', path: '/animation' },
-          { op: 'remove', path: '/logic' },
-        ],
+        forwardOps: [{ op: 'add', path: '/logic', value: { graphs: [] } }],
+        reverseOps: [{ op: 'remove', path: '/logic' }],
       })
     );
 
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
   });
 
   it('does not let a domainHint bypass the actual document type', () => {
@@ -422,11 +415,11 @@ describe('applyWorkspaceCommand', () => {
         forwardOps: [
           {
             op: 'add',
-            path: '/nodesById/validateCart',
-            value: { id: 'validateCart' },
+            path: '/nodes/0',
+            value: { id: 'validateCart', data: {} },
           },
         ],
-        reverseOps: [{ op: 'remove', path: '/nodesById/validateCart' }],
+        reverseOps: [{ op: 'remove', path: '/nodes/0' }],
       })
     );
 
@@ -439,23 +432,52 @@ describe('applyWorkspaceCommand', () => {
 
   it('keeps standalone animation commands at the animation document root', () => {
     const workspace = createWorkspace();
-    workspace.docsById['page-home'] = {
-      ...workspace.docsById['page-home'],
+    workspace.treeById.root.children = [
+      ...(workspace.treeById.root.children ?? []),
+      'animation-node',
+    ];
+    workspace.treeById['animation-node'] = {
+      id: 'animation-node',
+      kind: 'doc',
+      name: 'hero.pir-animation.json',
+      parentId: 'root',
+      docId: 'animation-hero',
+    };
+    workspace.docsById['animation-hero'] = {
+      id: 'animation-hero',
       type: 'pir-animation',
-      content: { timelinesById: {} },
+      path: '/hero.pir-animation.json',
+      contentRev: 1,
+      metaRev: 1,
+      content: {
+        version: 1,
+        target: { kind: 'pir-document', documentId: 'page-home' },
+        timelines: [],
+      },
     };
 
     const accepted = applyWorkspaceCommand(
       workspace,
       createCommand({
+        namespace: 'core.animation',
+        domainHint: 'animation',
+        target: {
+          workspaceId: 'workspace-1',
+          documentId: 'animation-hero',
+        },
         forwardOps: [
           {
             op: 'add',
-            path: '/timelinesById/hero',
-            value: { id: 'hero' },
+            path: '/timelines/0',
+            value: {
+              id: 'hero',
+              name: 'Hero',
+              durationMs: 1000,
+              bindings: [],
+            },
           },
         ],
-        reverseOps: [{ op: 'remove', path: '/timelinesById/hero' }],
+        reverseOps: [{ op: 'remove', path: '/timelines/0' }],
       })
     );
     expect(accepted.ok).toBe(true);
@@ -463,8 +485,14 @@ describe('applyWorkspaceCommand', () => {
     const rejected = applyWorkspaceCommand(
       workspace,
       createCommand({
+        namespace: 'core.animation',
+        domainHint: 'animation',
+        target: {
+          workspaceId: 'workspace-1',
+          documentId: 'animation-hero',
+        },
         forwardOps: [
-          { op: 'add', path: '/animation', value: { timelinesById: {} } },
+          { op: 'add', path: '/animation', value: { timelines: [] } },
         ],
         reverseOps: [{ op: 'remove', path: '/animation' }],
       })
@@ -533,7 +561,7 @@ describe('applyWorkspaceCommand', () => {
           path: '/layouts/account.pir.json',
           contentRev: 1,
           metaRev: 1,
-          content: createDefaultPirDoc(),
+          content: createEmptyPirDocument(),
         },
       },
     };

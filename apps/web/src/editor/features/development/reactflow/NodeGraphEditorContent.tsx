@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router';
 import {
   useEdgesState,
   useNodesState,
@@ -8,29 +9,44 @@ import {
   type Node,
 } from '@xyflow/react';
 import {
+  createNodeGraphExecutorCodeSlotId,
+  type NodeGraphDocument,
+} from '@prodivix/nodegraph';
+import {
+  createWorkspaceCodeArtifactProvider,
+  createWorkspaceCodeSourceUpdateCommand,
+  createWorkspaceNodeGraphDocumentUpdateCommand,
+  createWorkspaceVfsIntentPlan,
+  type WorkspaceCommandEnvelope,
+  type WorkspaceSnapshot,
+  type WorkspaceVfsIntentRequest,
+} from '@prodivix/workspace';
+import {
+  navigateToWorkspaceCodeSlotDefinition,
+  useWorkspaceSemanticNavigationStore,
+} from '@/editor/navigation';
+import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
+import {
   selectActiveDocumentId,
-  selectActivePirDocumentRecord,
   selectWorkspaceId,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
-import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
-import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
+import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
+import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import type { GraphNodeData, GraphNodeKind } from './GraphNode';
-
+import { NodeGraphCanvas } from './NodeGraphCanvas';
+import { NodeGraphContextMenu } from './NodeGraphContextMenu';
 import {
-  applyNodeGraphEditorStateToGraphs,
-  buildNodeGraphEditorState,
-  createNode,
-  ensureProjectGraphSnapshot,
-  NODE_GRAPH_EDITOR_STATE_KEY,
-  normalizeGraphDocuments,
-  serializeGraphsForPirLogic,
-  type ContextMenuState,
-  type GraphDocument,
-  type NodeGraphEditorPirState,
-  type ProjectGraphSnapshot,
-} from './nodeGraphEditorModel';
-
+  toCanonicalNodeGraphDocument,
+  toNodeGraphCanvasEdges,
+  toNodeGraphCanvasNodes,
+} from './nodeGraphDocumentProjection';
+import { createNode, type ContextMenuState } from './nodeGraphEditorModel';
+import { NodeGraphGraphManager } from './NodeGraphGraphManager';
+import { useNodeGraphColorMode } from './useNodeGraphColorMode';
+import { useNodeGraphConnectionActions } from './nodeGraphConnectionActions';
+import { useNodeGraphGroupLayout } from './nodeGraphGroupLayout';
+import { useNodeGraphLocalization } from './useNodeGraphLocalization';
 import {
   buildContextMenuItems,
   buildMenuColumns,
@@ -38,97 +54,94 @@ import {
   resolvePortMenuGroups,
 } from './nodeGraphMenuModel';
 import { applyNodeChangesWithGrouping } from './nodeGraphNodeChanges';
-import { NodeGraphCanvas } from './NodeGraphCanvas';
-import { NodeGraphContextMenu } from './NodeGraphContextMenu';
-import { NodeGraphGraphManager } from './NodeGraphGraphManager';
-import { useNodeGraphLocalization } from './useNodeGraphLocalization';
-import { useNodeGraphColorMode } from './useNodeGraphColorMode';
-import { useNodeGraphGraphActions } from './nodeGraphGraphActions';
-import { useNodeGraphGroupLayout } from './nodeGraphGroupLayout';
 import { useNodeGraphNodeActions } from './nodeGraphNodeActions';
-import { useNodeGraphConnectionActions } from './nodeGraphConnectionActions';
 import { useNodeGraphRenderStore } from './nodeGraphRenderStore';
+import { toStableGraphNode } from './nodeGraphStableNode';
 import {
-  readNodeGraphEditorStateFromLogic,
-  resolveNodeGraphHydrationSnapshot,
-  serializeNodeGraphEditorState,
-  serializeSnapshotForPir,
-} from './nodeGraphPirState';
-import { serializeNodes, toStableGraphNode } from './nodeGraphStableNode';
-import { useParams } from 'react-router';
-import { useAuthStore } from '@/auth/useAuthStore';
-import { isLocalProjectId } from '@/editor/localProjectStore';
-import { enqueueWorkspaceOperationOutboxAndDispatch } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
-import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
-import {
-  createWorkspacePirDocumentUpdateCommand,
-  selectActivePirWorkspaceDocument,
-} from '@prodivix/workspace';
+  listWorkspaceNodeGraphs,
+  selectWorkspaceNodeGraphId,
+} from './nodeGraphWorkspaceDocuments';
+import { useNodeGraphWorkspaceDocumentManager } from './useNodeGraphWorkspaceDocumentManager';
 
-const resolveActiveGraphFromSnapshot = (snapshot: ProjectGraphSnapshot) =>
-  snapshot.graphs.find((graph) => graph.id === snapshot.activeGraphId) ??
-  snapshot.graphs[0];
-
-const serializeProjectSnapshot = (snapshot: ProjectGraphSnapshot) =>
-  JSON.stringify(snapshot);
-const debugNodeGraph = (label: string, payload: Record<string, unknown>) => {
-  if (typeof window === 'undefined') return;
-  console.log(`[node-graph-debug] ${label}`, payload);
+const EMPTY_NODEGRAPH_DOCUMENT: NodeGraphDocument = {
+  version: 1,
+  nodes: [],
+  edges: [],
 };
-const serializeEdges = (edges: Edge[]) => JSON.stringify(edges);
+
+const serializeDocument = (content: NodeGraphDocument): string =>
+  JSON.stringify(content);
+
+type WorkspaceCommandFactory = (
+  workspace: WorkspaceSnapshot
+) => WorkspaceCommandEnvelope | null;
 
 export const NodeGraphEditorContent = () => {
   const { t } = useTranslation('editor');
+  const navigate = useNavigate();
   const { projectId } = useParams();
-  const token = useAuthStore((state) => state.token);
+  const workspace = useEditorStore((state) => state.workspace);
   const workspaceId = useEditorStore(selectWorkspaceId);
   const activeDocumentId = useEditorStore(selectActiveDocumentId);
-  const issueNavigationRequest = useWorkspaceIssuesStore(
+  const setActiveDocumentId = useEditorStore(
+    (state) => state.setActiveDocumentId
+  );
+  const graphDocs = useMemo(
+    () => listWorkspaceNodeGraphs(workspace),
+    [workspace]
+  );
+  const activeGraphId = useMemo(
+    () => selectWorkspaceNodeGraphId(graphDocs, activeDocumentId),
+    [activeDocumentId, graphDocs]
+  );
+  const activeGraph = useMemo(
+    () => graphDocs.find((document) => document.id === activeGraphId),
+    [activeGraphId, graphDocs]
+  );
+  const activeRead = activeGraph?.read;
+  const activeContent =
+    activeRead?.status === 'valid'
+      ? activeRead.decodedContent
+      : EMPTY_NODEGRAPH_DOCUMENT;
+  const activeContentSignature = useMemo(
+    () => serializeDocument(activeContent),
+    [activeContent]
+  );
+  const codeArtifacts = useMemo(
+    () =>
+      workspace
+        ? createWorkspaceCodeArtifactProvider(workspace).listArtifacts({
+            surface: 'nodegraph',
+          })
+        : [],
+    [workspace]
+  );
+
+  useEffect(() => {
+    if (activeGraphId && activeGraphId !== activeDocumentId) {
+      setActiveDocumentId(activeGraphId);
+    }
+  }, [activeDocumentId, activeGraphId, setActiveDocumentId]);
+
+  const semanticNavigationRequest = useWorkspaceSemanticNavigationStore(
     (state) => state.navigationRequest
   );
-  const consumeIssueNavigation = useWorkspaceIssuesStore(
+  const consumeSemanticNavigation = useWorkspaceSemanticNavigationStore(
     (state) => state.consumeNavigation
   );
-  const activePirDocument = useEditorStore(selectActivePirDocumentRecord)!;
-  const pirDoc = activePirDocument.content;
-  const starterSnapshot = useMemo(
-    () => ensureProjectGraphSnapshot(undefined),
-    []
-  );
-  const pirGraphs = useMemo(
-    () => normalizeGraphDocuments(pirDoc.logic?.graphs),
-    [pirDoc.logic?.graphs]
-  );
-  const pirEditorState = useMemo(
-    () => readNodeGraphEditorStateFromLogic(pirDoc.logic),
-    [pirDoc.logic]
-  );
-  const pirSnapshot = useMemo(() => {
-    if (!pirGraphs.length) return null;
-    return ensureProjectGraphSnapshot({
-      activeGraphId:
-        pirEditorState?.activeGraphId || starterSnapshot.activeGraphId,
-      graphs: applyNodeGraphEditorStateToGraphs(pirGraphs, pirEditorState),
-    });
-  }, [pirEditorState, pirGraphs, starterSnapshot.activeGraphId]);
-  const initialSnapshot = pirSnapshot ?? starterSnapshot;
-  const initialActiveGraph = resolveActiveGraphFromSnapshot(initialSnapshot);
-  const [graphDocs, setGraphDocs] = useState<GraphDocument[]>(
-    initialSnapshot.graphs
-  );
-  const [activeGraphId, setActiveGraphId] = useState<string>(
-    initialSnapshot.activeGraphId
-  );
   const [nodes, setNodes] = useNodesState(
-    initialActiveGraph.nodes.map(toStableGraphNode)
+    toNodeGraphCanvasNodes(activeContent)
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState(
-    initialActiveGraph.edges
+    toNodeGraphCanvasEdges(activeContent)
   );
   const [menu, setMenu] = useState<ContextMenuState>(null);
   const [menuPath, setMenuPath] = useState<number[]>([]);
   const [hint, setHint] = useState<string | null>(null);
-  const persistenceChainRef = useRef(Promise.resolve());
+  const persistenceChainRef = useRef<Promise<void>>(Promise.resolve());
+  const hydratedDocumentIdRef = useRef(activeGraphId);
+  const hydratedSignatureRef = useRef(activeContentSignature);
+  const suppressNextCommitRef = useRef(true);
   const colorMode = useNodeGraphColorMode();
   const reactFlow = useReactFlow<Node<GraphNodeData>, Edge>();
   const {
@@ -143,246 +156,122 @@ export const NodeGraphEditorContent = () => {
       toStableGraphNode(localizeNodeLabel(createNode(kind, position))),
     [localizeNodeLabel]
   );
-  const commitActiveGraphToDocs = useCallback(
-    (
-      nextNodes: Node<GraphNodeData>[] = nodes,
-      nextEdges: Edge[] = edges
-    ): GraphDocument[] => {
-      const stableNodes = nextNodes.map(toStableGraphNode);
-      const currentNodesSignature = serializeNodes(stableNodes);
-      const currentEdgesSignature = serializeEdges(nextEdges);
-      return graphDocs.map((graph) => {
-        if (graph.id !== activeGraphId) return graph;
-        const existingNodesSignature = serializeNodes(graph.nodes);
-        const existingEdgesSignature = serializeEdges(graph.edges);
-        if (
-          existingNodesSignature === currentNodesSignature &&
-          existingEdgesSignature === currentEdgesSignature
-        ) {
-          return graph;
-        }
-        return {
-          ...graph,
-          nodes: stableNodes,
-          edges: nextEdges,
-        };
-      });
-    },
-    [activeGraphId, edges, graphDocs, nodes]
-  );
-  const commitCanvasToGraphDocs = useCallback(
-    (nextNodes: Node<GraphNodeData>[] = nodes, nextEdges: Edge[] = edges) => {
-      const stableNodes = nextNodes.map(toStableGraphNode);
-      const currentNodesSignature = serializeNodes(stableNodes);
-      const currentEdgesSignature = serializeEdges(nextEdges);
-      let changed = false;
-      const nextGraphDocs = graphDocsRef.current.map((graph) => {
-        if (graph.id !== activeGraphIdRef.current) return graph;
-        const existingNodesSignature = serializeNodes(graph.nodes);
-        const existingEdgesSignature = serializeEdges(graph.edges);
-        if (
-          existingNodesSignature === currentNodesSignature &&
-          existingEdgesSignature === currentEdgesSignature
-        ) {
-          return graph;
-        }
-        changed = true;
-        return {
-          ...graph,
-          nodes: stableNodes,
-          edges: nextEdges,
-        };
-      });
-      if (!changed) return;
-      graphDocsRef.current = nextGraphDocs;
-      setGraphDocs(nextGraphDocs);
-      const committedSnapshot = ensureProjectGraphSnapshot({
-        activeGraphId: activeGraphIdRef.current,
-        graphs: nextGraphDocs,
-      });
-      const nextPirGraphs = serializeGraphsForPirLogic(
-        committedSnapshot.graphs
-      );
-      const nextGraphsSignature = JSON.stringify(nextPirGraphs);
-      const nextEditorState = buildNodeGraphEditorState(committedSnapshot);
-      const nextEditorStateSignature =
-        serializeNodeGraphEditorState(nextEditorState);
-      const documentId = activeDocumentId;
-      const graphId = activeGraphIdRef.current;
-      if (!documentId) return;
-      const localWorkspace = isLocalProjectId(projectId);
-      if (!localWorkspace && !token) return;
-      persistenceChainRef.current = persistenceChainRef.current
-        .then(async () => {
-          const state = useEditorStore.getState();
-          const workspace = state.workspace;
-          if (!workspace) return;
-          const document = selectActivePirWorkspaceDocument({
-            ...workspace,
-            activeDocumentId: documentId,
-          });
-          if (!document || document.id !== documentId) return;
-          const doc = document.content;
-          const existingGraphs = serializeGraphsForPirLogic(
-            normalizeGraphDocuments(doc.logic?.graphs)
-          );
-          const existingEditorState = readNodeGraphEditorStateFromLogic(
-            doc.logic
-          );
-          if (
-            JSON.stringify(existingGraphs) === nextGraphsSignature &&
-            serializeNodeGraphEditorState(existingEditorState) ===
-              nextEditorStateSignature
-          ) {
-            return;
-          }
-          const nextLogic = {
-            ...(doc.logic ?? {}),
-            graphs: nextPirGraphs,
-            [NODE_GRAPH_EDITOR_STATE_KEY]: nextEditorState,
-          };
-          const command = createWorkspacePirDocumentUpdateCommand({
-            workspace: { ...workspace, activeDocumentId: documentId },
-            before: doc,
-            after: {
-              ...doc,
-              logic: nextLogic,
-            },
-            commandId: createWorkspaceClientOperationId('nodegraph'),
-            namespace: 'core.nodegraph',
-            type: 'graph.update',
-            domainHint: 'nodegraph',
-            mergeKey: `nodegraph:${graphId}`,
-            label: 'Update node graph',
-          });
-          if (!command) return;
-          if (localWorkspace) {
-            state.dispatchWorkspaceCommand(command);
-            return;
-          }
-          const outcome = await enqueueWorkspaceOperationOutboxAndDispatch({
-            workspace,
-            operation: { kind: 'command', command },
-          });
-          if (outcome.status === 'rejected') {
-            console.warn(
-              '[nodegraph] workspace operation rejected',
-              outcome.message
-            );
-          }
-        })
-        .catch((error: unknown) => {
-          console.warn('[nodegraph] workspace operation failed', error);
-        });
-    },
-    [activeDocumentId, edges, nodes, projectId, token]
-  );
-
-  const currentSnapshot = useMemo(
-    () =>
-      ensureProjectGraphSnapshot({
-        activeGraphId,
-        graphs: graphDocs,
-      }),
-    [activeGraphId, graphDocs]
-  );
-  const currentPirComparableSignature = useMemo(
-    () => serializeSnapshotForPir(currentSnapshot),
-    [currentSnapshot]
-  );
   const isDraggingNode = useMemo(
     () => nodes.some((node) => Boolean(node.dragging)),
     [nodes]
   );
+
   useWorkspaceHistoryShortcuts({
     workspaceId,
-    documentId: activeDocumentId,
+    documentId: activeGraphId,
     domain: 'nodegraph',
     suspended: isDraggingNode,
     shortcutScope: 'nodegraph',
   });
-  const activeGraphIdRef = useRef(currentSnapshot.activeGraphId);
-  const graphDocsRef = useRef(graphDocs);
-  const currentPirComparableSignatureRef = useRef(
-    currentPirComparableSignature
-  );
-  const suppressNextCanvasCommitRef = useRef(false);
-  const edgeDomDebugSignatureRef = useRef('');
 
-  const applySnapshot = useCallback(
-    (snapshot: ProjectGraphSnapshot) => {
-      const activeGraph = resolveActiveGraphFromSnapshot(snapshot);
-      const nextNodes = activeGraph.nodes.map(toStableGraphNode);
-      graphDocsRef.current = snapshot.graphs;
-      setGraphDocs((current) => {
-        const currentSignature = serializeProjectSnapshot(
-          ensureProjectGraphSnapshot({
-            activeGraphId: snapshot.activeGraphId,
-            graphs: current,
-          })
-        );
-        const nextSignature = serializeProjectSnapshot(snapshot);
-        return currentSignature === nextSignature ? current : snapshot.graphs;
+  const scheduleWorkspaceCommand = useCallback(
+    (factory: WorkspaceCommandFactory): Promise<boolean> => {
+      const execution = persistenceChainRef.current.then(async () => {
+        const state = useEditorStore.getState();
+        const currentWorkspace = state.workspace;
+        if (!currentWorkspace) return false;
+        const command = factory(currentWorkspace);
+        if (!command) return false;
+        const outcome = await dispatchWorkspaceAuthoringOperation({
+          workspace: currentWorkspace,
+          readonly: state.workspaceReadonly,
+          operation: { kind: 'command', command },
+        });
+        if (outcome.status === 'rejected') {
+          setHint(outcome.message);
+          return false;
+        }
+        return true;
       });
-      setActiveGraphId((current) =>
-        current === snapshot.activeGraphId ? current : snapshot.activeGraphId
+      persistenceChainRef.current = execution.then(
+        () => undefined,
+        () => undefined
       );
-      setNodes((current) => {
-        const currentSignature = serializeNodes(current.map(toStableGraphNode));
-        const nextSignature = serializeNodes(nextNodes);
-        return currentSignature === nextSignature ? current : nextNodes;
-      });
-      setEdges((current) => {
-        const currentSignature = serializeEdges(current);
-        const nextSignature = serializeEdges(activeGraph.edges);
-        return currentSignature === nextSignature ? current : activeGraph.edges;
+      return execution.catch((error: unknown) => {
+        console.warn('[nodegraph] workspace operation failed', error);
+        setHint(
+          error instanceof Error
+            ? error.message
+            : 'The NodeGraph operation failed.'
+        );
+        return false;
       });
     },
-    [setEdges, setNodes]
+    []
+  );
+
+  const scheduleWorkspaceIntent = useCallback(
+    (factory: (workspace: WorkspaceSnapshot) => WorkspaceVfsIntentRequest) =>
+      scheduleWorkspaceCommand((currentWorkspace) => {
+        const plan = createWorkspaceVfsIntentPlan(
+          currentWorkspace,
+          factory(currentWorkspace)
+        );
+        return plan?.command ?? null;
+      }),
+    [scheduleWorkspaceCommand]
+  );
+
+  const persistCanvas = useCallback(
+    (
+      nextNodes: readonly Node<GraphNodeData>[],
+      nextEdges: readonly Edge[]
+    ): Promise<boolean> => {
+      const documentId = activeGraphId;
+      if (!documentId || activeRead?.status !== 'valid') {
+        return Promise.resolve(false);
+      }
+      const after = toCanonicalNodeGraphDocument(nextNodes, nextEdges);
+      return scheduleWorkspaceCommand((currentWorkspace) =>
+        createWorkspaceNodeGraphDocumentUpdateCommand({
+          workspace: currentWorkspace,
+          documentId,
+          after,
+          commandId: createWorkspaceClientOperationId('nodegraph'),
+          mergeKey: `nodegraph:${documentId}`,
+          label: 'Update node graph',
+        })
+      );
+    },
+    [activeGraphId, activeRead?.status, scheduleWorkspaceCommand]
   );
 
   useEffect(() => {
-    activeGraphIdRef.current = activeGraphId;
-  }, [activeGraphId]);
-
-  useEffect(() => {
-    graphDocsRef.current = graphDocs;
-  }, [graphDocs]);
-
-  useEffect(() => {
-    currentPirComparableSignatureRef.current = currentPirComparableSignature;
-  }, [currentPirComparableSignature]);
-
-  useEffect(() => {
-    if (isDraggingNode) return;
-    const nextSnapshot = resolveNodeGraphHydrationSnapshot({
-      pirGraphs,
-      pirEditorState,
-      currentActiveGraphId: activeGraphIdRef.current,
-      starterSnapshot,
-    });
-    const nextSnapshotSignature = serializeSnapshotForPir(nextSnapshot);
-    if (nextSnapshotSignature !== currentPirComparableSignatureRef.current) {
-      suppressNextCanvasCommitRef.current = true;
-      applySnapshot(nextSnapshot);
+    if (
+      hydratedDocumentIdRef.current === activeGraphId &&
+      hydratedSignatureRef.current === activeContentSignature
+    ) {
+      return;
     }
+    const preservePositions =
+      hydratedDocumentIdRef.current === activeGraphId ? nodes : [];
+    hydratedDocumentIdRef.current = activeGraphId;
+    hydratedSignatureRef.current = activeContentSignature;
+    suppressNextCommitRef.current = true;
+    setNodes(toNodeGraphCanvasNodes(activeContent, preservePositions));
+    setEdges(toNodeGraphCanvasEdges(activeContent));
   }, [
-    activeDocumentId,
-    applySnapshot,
-    isDraggingNode,
-    pirEditorState,
-    pirGraphs,
-    starterSnapshot.activeGraphId,
+    activeContent,
+    activeContentSignature,
+    activeGraphId,
+    nodes,
+    setEdges,
+    setNodes,
   ]);
 
   useEffect(() => {
     if (isDraggingNode) return;
-    if (suppressNextCanvasCommitRef.current) {
-      suppressNextCanvasCommitRef.current = false;
+    if (suppressNextCommitRef.current) {
+      suppressNextCommitRef.current = false;
       return;
     }
-    commitCanvasToGraphDocs();
-  }, [commitCanvasToGraphDocs, isDraggingNode]);
+    void persistCanvas(nodes, edges);
+  }, [edges, isDraggingNode, nodes, persistCanvas]);
 
   useEffect(() => {
     if (!hint) return;
@@ -395,90 +284,161 @@ export const NodeGraphEditorContent = () => {
   }, [menu]);
 
   const {
-    activeGraphName,
     createGraph,
     deleteGraph,
     duplicateGraph,
+    managerBusy,
     renameActiveGraph,
     switchGraph,
-  } = useNodeGraphGraphActions({
+  } = useNodeGraphWorkspaceDocumentManager({
+    activeGraph,
     activeGraphId,
-    commitActiveGraphToDocs,
-    graphDocs: currentSnapshot.graphs,
+    edges,
+    graphDocs,
     keepAtLeastOneGraphHint: hintText.keepAtLeastOneGraph,
     localizeNodeLabel,
-    setActiveGraphId,
-    setEdges,
-    setGraphDocs,
+    nodes,
+    persistCanvas,
+    scheduleWorkspaceIntent,
+    setActiveDocumentId,
     setHint,
-    setNodes,
     t,
   });
 
   useEffect(() => {
+    const location = semanticNavigationRequest?.location;
+    const targetRef =
+      location?.kind === 'diagnostic-target' ? location.targetRef : undefined;
     if (
-      issueNavigationRequest?.kind !== 'nodegraph-node' ||
-      issueNavigationRequest.documentId !== activeDocumentId
+      !semanticNavigationRequest ||
+      semanticNavigationRequest.workspaceId !== workspaceId ||
+      !targetRef ||
+      (targetRef.kind !== 'nodegraph-node' &&
+        targetRef.kind !== 'nodegraph-port') ||
+      !graphDocs.some((document) => document.id === targetRef.documentId)
     ) {
       return;
     }
-    const graph = currentSnapshot.graphs.find(
-      (candidate) => candidate.id === issueNavigationRequest.graphId
-    );
-    if (
-      !graph?.nodes.some((node) => node.id === issueNavigationRequest.nodeId)
-    ) {
+    if (targetRef.documentId !== activeGraphId) {
+      setActiveDocumentId(targetRef.documentId);
       return;
     }
-    switchGraph(issueNavigationRequest.graphId);
-    setNodes(
-      graph.nodes.map((node) => ({
-        ...toStableGraphNode(node),
-        selected: node.id === issueNavigationRequest.nodeId,
-      }))
+    const nodeId = targetRef.nodeId;
+    if (!nodes.some((node) => node.id === nodeId)) return;
+    setNodes((current) =>
+      current.map((node) => ({ ...node, selected: node.id === nodeId }))
     );
-    consumeIssueNavigation(issueNavigationRequest.id);
+    consumeSemanticNavigation(semanticNavigationRequest.id);
   }, [
-    activeDocumentId,
-    consumeIssueNavigation,
-    currentSnapshot.graphs,
-    issueNavigationRequest,
+    activeGraphId,
+    consumeSemanticNavigation,
+    graphDocs,
+    nodes,
+    semanticNavigationRequest,
+    setActiveDocumentId,
     setNodes,
-    switchGraph,
+    workspaceId,
   ]);
 
-  const groupAutoLayoutById = useNodeGraphGroupLayout({
-    nodes,
-    setNodes,
-  });
+  const groupAutoLayoutById = useNodeGraphGroupLayout({ nodes, setNodes });
   const nodesById = useMemo(
     () => new Map(nodes.map((node) => [node.id, node] as const)),
     [nodes]
+  );
+  const bindCodeArtifact = useCallback(
+    (nodeId: string, artifactId?: string) => {
+      if (!activeGraphId) return;
+      setNodes((current) =>
+        current.map((node) => {
+          if (node.id !== nodeId || node.data.kind !== 'code') return node;
+          if (!artifactId) {
+            if (!node.data.executor) return node;
+            const { executor: _dropped, ...data } = node.data;
+            return { ...node, data };
+          }
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              executor: {
+                slotId: createNodeGraphExecutorCodeSlotId(
+                  activeGraphId,
+                  nodeId
+                ),
+                reference: { artifactId },
+              },
+            },
+          };
+        })
+      );
+    },
+    [activeGraphId, setNodes]
+  );
+  const updateCodeArtifactSource = useCallback(
+    (artifactId: string, source: string) => {
+      void scheduleWorkspaceCommand((currentWorkspace) => {
+        const document = currentWorkspace.docsById[artifactId];
+        if (!document || document.type !== 'code') return null;
+        return createWorkspaceCodeSourceUpdateCommand({
+          workspaceId: currentWorkspace.id,
+          document,
+          source,
+          commandId: createWorkspaceClientOperationId('nodegraph-code'),
+          issuedAt: new Date().toISOString(),
+          mergeKey: `code:${artifactId}`,
+          label: 'Update NodeGraph executor source',
+        });
+      });
+    },
+    [scheduleWorkspaceCommand]
+  );
+  const openCodeSlotDefinition = useCallback(
+    (slotId: string) => {
+      if (!projectId || !workspace) return;
+      const result = navigateToWorkspaceCodeSlotDefinition({
+        projectId,
+        workspace,
+        slotId,
+        navigate,
+      });
+      if (result.status === 'unavailable') {
+        setHint('The CodeSlot definition is unavailable.');
+      }
+    },
+    [navigate, projectId, workspace]
   );
   const setRenderRuntime = useNodeGraphRenderStore((state) => state.setRuntime);
 
   useEffect(() => {
     setRenderRuntime({
+      bindCodeArtifact,
+      codeArtifacts,
       edges,
       groupAutoLayoutById,
       hintText,
       nodesById,
+      openCodeSlotDefinition,
       setEdges,
       setHint,
       setMenu,
       setNodes,
+      updateCodeArtifactSource,
       validationText,
     });
   }, [
     edges,
+    bindCodeArtifact,
+    codeArtifacts,
     groupAutoLayoutById,
     hintText,
     nodesById,
+    openCodeSlotDefinition,
     setEdges,
     setHint,
     setMenu,
     setNodes,
     setRenderRuntime,
+    updateCodeArtifactSource,
     validationText,
   ]);
 
@@ -487,57 +447,6 @@ export const NodeGraphEditorContent = () => {
     () => nodes.map((node) => node.id).join('|'),
     [nodes]
   );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const debugSignature = JSON.stringify({
-      activeGraphId,
-      edges: edges.map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        sourceHandle: edge.sourceHandle ?? null,
-        target: edge.target,
-        targetHandle: edge.targetHandle ?? null,
-      })),
-      flowNodeIds: flowNodes.map((node) => node.id),
-    });
-    if (debugSignature === edgeDomDebugSignatureRef.current) return;
-    edgeDomDebugSignatureRef.current = debugSignature;
-    if (!edges.length) {
-      debugNodeGraph('edge-dom-check:empty', {
-        activeGraphId,
-        flowNodeIds: flowNodes.map((node) => node.id),
-      });
-      return;
-    }
-    const inspectHandle = (nodeId: string, handleId?: string | null) => {
-      if (!handleId) return false;
-      return Boolean(
-        document.querySelector(
-          [
-            `[data-nodeid="${nodeId}"][data-handleid="${handleId}"]`,
-            `[data-id="${nodeId}-${handleId}"]`,
-            `[data-id="${handleId}"]`,
-          ].join(', ')
-        )
-      );
-    };
-    debugNodeGraph('edge-dom-check', {
-      activeGraphId,
-      edgeCount: edges.length,
-      edges: edges.map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        sourceHandle: edge.sourceHandle ?? null,
-        target: edge.target,
-        targetHandle: edge.targetHandle ?? null,
-        sourceNodeExists: flowNodes.some((node) => node.id === edge.source),
-        targetNodeExists: flowNodes.some((node) => node.id === edge.target),
-        sourceHandleExists: inspectHandle(edge.source, edge.sourceHandle),
-        targetHandleExists: inspectHandle(edge.target, edge.targetHandle),
-      })),
-    });
-  }, [activeGraphId, edges, flowNodes]);
 
   useEffect(() => {
     if (!nodes.length) return;
@@ -567,45 +476,22 @@ export const NodeGraphEditorContent = () => {
 
   const onNodesChange = useCallback(
     (changes: Parameters<typeof applyNodeChangesWithGrouping>[0]) => {
-      setNodes((current) => {
-        const nextNodes = applyNodeChangesWithGrouping(
-          changes,
-          current,
-          confirmAttachToGroup
-        );
-        const hasDraggingChange = changes.some(
-          (change) => change.type === 'position' && change.dragging
-        );
-        if (!hasDraggingChange) {
-          queueMicrotask(() => {
-            commitCanvasToGraphDocs(nextNodes, edges);
-          });
-        }
-        return nextNodes;
-      });
+      setNodes((current) =>
+        applyNodeChangesWithGrouping(changes, current, confirmAttachToGroup)
+      );
     },
-    [commitCanvasToGraphDocs, confirmAttachToGroup, edges, setNodes]
+    [confirmAttachToGroup, setNodes]
   );
 
   const closeMenu = useCallback(() => setMenu(null), []);
-
   const onNodeDragStop = useCallback(() => {
     window.requestAnimationFrame(() => {
-      commitCanvasToGraphDocs(
+      void persistCanvas(
         reactFlow.getNodes() as Node<GraphNodeData>[],
         reactFlow.getEdges()
       );
     });
-  }, [commitCanvasToGraphDocs, reactFlow]);
-  const onEdgesChangeCommitted = useCallback(
-    (changes: Parameters<typeof onEdgesChange>[0]) => {
-      onEdgesChange(changes);
-      queueMicrotask(() => {
-        commitCanvasToGraphDocs(nodes);
-      });
-    },
-    [commitCanvasToGraphDocs, nodes, onEdgesChange]
-  );
+  }, [persistCanvas, reactFlow]);
 
   const portMenuGroups = useMemo(
     () => resolvePortMenuGroups({ localizedNodeMenuGroups, menu }),
@@ -684,7 +570,6 @@ export const NodeGraphEditorContent = () => {
     () => buildMenuColumns(menuItems, menuPath),
     [menuItems, menuPath]
   );
-
   const onMenuItemEnter = useCallback(
     (level: number, index: number, hasChildren: boolean) => {
       setMenuPath((current) => {
@@ -695,16 +580,18 @@ export const NodeGraphEditorContent = () => {
     },
     []
   );
-
   const menuLayout = useMemo(
-    () =>
-      resolveMenuLayout({
-        menu,
-        menuColumns,
-        menuItems,
-      }),
+    () => resolveMenuLayout({ menu, menuColumns, menuItems }),
     [menu, menuColumns, menuItems]
   );
+
+  const shellHint =
+    hint ??
+    (activeRead?.status === 'invalid'
+      ? 'The selected NodeGraph document is invalid.'
+      : graphDocs.length
+        ? null
+        : 'Create a graph to start authoring.');
 
   return (
     <div
@@ -714,8 +601,9 @@ export const NodeGraphEditorContent = () => {
     >
       <NodeGraphGraphManager
         activeGraphId={activeGraphId}
-        activeGraphName={activeGraphName}
+        activeGraphName={activeGraph?.name ?? ''}
         graphDocs={graphDocs}
+        isBusy={managerBusy}
         onCreateGraph={createGraph}
         onDeleteGraph={deleteGraph}
         onDuplicateGraph={duplicateGraph}
@@ -730,15 +618,16 @@ export const NodeGraphEditorContent = () => {
         invalidConnectEndHint={hintText.invalidConnectEnd}
         isValidConnection={isValidConnection}
         onConnect={onConnect}
-        onEdgesChange={onEdgesChangeCommitted}
+        onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
         onNodesChange={onNodesChange}
         setHint={setHint}
         setMenu={setMenu}
         t={t}
       />
-      {hint ? <div className="nodegraph-native-hint">{hint}</div> : null}
-
+      {shellHint ? (
+        <div className="nodegraph-native-hint">{shellHint}</div>
+      ) : null}
       <NodeGraphContextMenu
         menu={menu}
         menuColumns={menuColumns}

@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import {
+  createEmptyPirDocument,
+  encodePirDocument,
+  type PIRDocument,
+} from '@prodivix/pir';
 import {
   encodeWorkspaceSnapshot,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 
 const apiRequestMock = vi.hoisted(() => vi.fn());
+const encodePirContent = (content: unknown): unknown =>
+  JSON.parse(encodePirDocument(content as PIRDocument));
 
 vi.mock('@/infra/api', () => ({
   apiRequest: apiRequestMock,
@@ -42,7 +48,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     },
   },
   routeManifest: {
@@ -116,7 +122,7 @@ describe('editorApi workspace boundary', () => {
     const workspace = createWorkspace();
     const document = workspace.docsById['document-1']!;
     const content = document.content as { metadata?: unknown };
-    const resolvedMetadata = { title: 'Resolved' };
+    const resolvedMetadata = { name: 'Resolved' };
     const operation = {
       kind: 'command' as const,
       command: {
@@ -157,10 +163,10 @@ describe('editorApi workspace boundary', () => {
         {
           ...document,
           contentRev: 2,
-          content: {
+          content: encodePirContent({
             ...(document.content as object),
             metadata: resolvedMetadata,
-          },
+          }),
           updatedAt: '2026-07-12T00:00:01.000Z',
         },
       ],
@@ -175,7 +181,8 @@ describe('editorApi workspace boundary', () => {
           documents: [{ id: 'document-1', contentRev: 1 }],
         },
         operation,
-      }
+      },
+      operation
     );
 
     expect(apiRequestMock).toHaveBeenCalledWith(
@@ -204,7 +211,7 @@ describe('editorApi workspace boundary', () => {
       path: '/new.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     };
     const operation = {
       kind: 'command' as const,
@@ -278,19 +285,25 @@ describe('editorApi workspace boundary', () => {
       updatedDocuments: [
         {
           ...newDocument,
+          content: encodePirContent(newDocument.content),
           updatedAt: '2026-07-12T00:00:01.000Z',
         },
       ],
       acceptedMutationId: operation.command.id,
     });
 
-    await editorApi.commitWorkspaceOperation('token', workspace, {
-      expected: {
-        workspaceRev: 1,
-        documents: [{ id: 'document-new', contentRev: null, metaRev: null }],
+    await editorApi.commitWorkspaceOperation(
+      'token',
+      workspace,
+      {
+        expected: {
+          workspaceRev: 1,
+          documents: [{ id: 'document-new', contentRev: null, metaRev: null }],
+        },
+        operation,
       },
-      operation,
-    });
+      operation
+    );
 
     const [, options] = apiRequestMock.mock.calls[0] as [string, RequestInit];
     const requestBody = JSON.parse(options.body as string) as {
@@ -321,7 +334,7 @@ describe('editorApi workspace boundary', () => {
       path: '/retired.pir.json',
       contentRev: 3,
       metaRev: 2,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     };
     const nextTree = {
       treeRootId: workspace.treeRootId,
@@ -344,6 +357,7 @@ describe('editorApi workspace boundary', () => {
     };
     const updatedDocument = {
       ...workspace.docsById['document-1']!,
+      content: encodePirContent(workspace.docsById['document-1']!.content),
       name: 'Primary page',
       metaRev: 2,
       capabilities: ['pir.author'],
@@ -466,7 +480,8 @@ describe('editorApi workspace boundary', () => {
           ],
         },
         operation,
-      }
+      },
+      operation
     );
 
     expect(mutation).toMatchObject({

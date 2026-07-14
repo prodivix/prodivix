@@ -29,15 +29,24 @@ export const buildRuntimeNodeData = ({
   runtime,
 }: BuildRuntimeNodeDataParams): GraphNodeData => {
   const {
+    bindCodeArtifact,
+    codeArtifacts,
     edges,
     groupAutoLayoutById,
     hintText,
+    openCodeSlotDefinition,
     setEdges,
     setHint,
     setMenu,
     setNodes,
+    updateCodeArtifactSource,
     validationText,
   } = runtime;
+  const codeArtifact = node.data.executor
+    ? codeArtifacts.find(
+        (artifact) => artifact.id === node.data.executor?.reference.artifactId
+      )
+    : undefined;
 
   return {
     ...node.data,
@@ -470,24 +479,24 @@ export const buildRuntimeNodeData = ({
         )
       );
     },
-    onChangeCode: (nodeId: string, code: string) => {
-      setNodes((current) =>
-        current.map((item) =>
-          item.id === nodeId && item.data.kind === 'code'
-            ? { ...item, data: { ...item.data, code } }
-            : item
-        )
-      );
+    code: codeArtifact?.source ?? '',
+    codeLanguage:
+      codeArtifact?.language === 'glsl' || codeArtifact?.language === 'wgsl'
+        ? codeArtifact.language
+        : codeArtifact?.language === 'js'
+          ? 'js'
+          : 'ts',
+    codeArtifactOptions: codeArtifacts.map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      language: artifact.language,
+    })),
+    onBindCodeArtifact: bindCodeArtifact,
+    onOpenCodeSlotDefinition: openCodeSlotDefinition,
+    onChangeCode: (_nodeId: string, code: string) => {
+      if (codeArtifact) updateCodeArtifactSource(codeArtifact.id, code);
     },
-    onChangeCodeLanguage: (nodeId: string, codeLanguage) => {
-      setNodes((current) =>
-        current.map((item) =>
-          item.id === nodeId && item.data.kind === 'code'
-            ? { ...item, data: { ...item.data, codeLanguage } }
-            : item
-        )
-      );
-    },
+    onChangeCodeLanguage: undefined,
     onChangeCodeSize: (nodeId: string, codeSize) => {
       setNodes((current) =>
         current.map((item) =>

@@ -6,9 +6,12 @@ import type {
   AnimationKeyframe,
   AnimationTrack,
   AnimationTimeline,
+  AnimationTimelineCodeSlots,
+  AnimationTargetReference,
   SvgFilterDefinition,
   SvgFilterPrimitive,
 } from './animation.types';
+import type { CodeReference, CodeSlotBinding } from '@prodivix/authoring';
 
 export const DEFAULT_TIMELINE_DURATION_MS = 1000;
 export const DEFAULT_TIMELINE_NAME = 'Timeline';
@@ -77,6 +80,77 @@ const isFiniteNumber = (value: unknown): value is number =>
 
 const normalizeId = (value: unknown) =>
   typeof value === 'string' && value.trim() ? value.trim() : '';
+
+const normalizeCodeReference = (source: unknown): CodeReference | null => {
+  if (!isPlainObject(source)) return null;
+  const artifactId = normalizeId(source.artifactId);
+  if (!artifactId) return null;
+  const reference: CodeReference = { artifactId };
+  const exportName = normalizeId(source.exportName);
+  const symbolId = normalizeId(source.symbolId);
+  if (exportName) reference.exportName = exportName;
+  if (symbolId) reference.symbolId = symbolId;
+  if (isPlainObject(source.sourceSpan)) {
+    const spanArtifactId = normalizeId(source.sourceSpan.artifactId);
+    const coordinates = [
+      source.sourceSpan.startLine,
+      source.sourceSpan.startColumn,
+      source.sourceSpan.endLine,
+      source.sourceSpan.endColumn,
+    ];
+    if (
+      spanArtifactId === artifactId &&
+      coordinates.every(
+        (value) =>
+          typeof value === 'number' && Number.isInteger(value) && value >= 1
+      )
+    ) {
+      reference.sourceSpan = {
+        artifactId,
+        startLine: coordinates[0] as number,
+        startColumn: coordinates[1] as number,
+        endLine: coordinates[2] as number,
+        endColumn: coordinates[3] as number,
+      };
+    }
+  }
+  return reference;
+};
+
+const normalizeCodeSlotBinding = (source: unknown): CodeSlotBinding | null => {
+  if (!isPlainObject(source)) return null;
+  const slotId = normalizeId(source.slotId);
+  const reference = normalizeCodeReference(source.reference);
+  return slotId && reference ? { slotId, reference } : null;
+};
+
+const normalizeTimelineCodeSlots = (
+  source: unknown
+): AnimationTimelineCodeSlots | undefined => {
+  if (!isPlainObject(source)) return undefined;
+  const codeSlots: AnimationTimelineCodeSlots = {};
+  for (const field of ['customEasing', 'shader', 'script'] as const) {
+    const binding = normalizeCodeSlotBinding(source[field]);
+    if (binding) codeSlots[field] = binding;
+  }
+  return Object.keys(codeSlots).length ? codeSlots : undefined;
+};
+
+const normalizeAnimationTarget = (
+  source: unknown
+): AnimationTargetReference | null => {
+  if (
+    !isPlainObject(source) ||
+    source.kind !== 'pir-document' ||
+    !normalizeId(source.documentId)
+  ) {
+    return null;
+  }
+  return {
+    kind: 'pir-document',
+    documentId: normalizeId(source.documentId),
+  };
+};
 
 const allocateUniqueId = (
   sourceId: unknown,
@@ -430,6 +504,8 @@ const normalizeTimeline = (
   if (typeof source.easing === 'string' && source.easing.trim()) {
     timeline.easing = source.easing.trim();
   }
+  const codeSlots = normalizeTimelineCodeSlots(source.codeSlots);
+  if (codeSlots) timeline.codeSlots = codeSlots;
   return timeline;
 };
 
@@ -453,10 +529,19 @@ const normalizeAnimationEditorState = (
   return state;
 };
 
-export const createEmptyAnimationDefinition = (): AnimationDefinition => ({
-  version: 1,
-  timelines: [],
-});
+export const createEmptyAnimationDefinition = (input: {
+  targetDocumentId: string;
+}): AnimationDefinition => {
+  const targetDocumentId = input.targetDocumentId.trim();
+  if (!targetDocumentId) {
+    throw new TypeError('Animation target document id is required.');
+  }
+  return {
+    version: 1,
+    target: { kind: 'pir-document', documentId: targetDocumentId },
+    timelines: [],
+  };
+};
 
 export const createDefaultTimeline = ({
   idFactory,
@@ -559,6 +644,8 @@ export const normalizeAnimationDefinition = (
   source: unknown
 ): AnimationDefinition | null => {
   if (!isPlainObject(source)) return null;
+  const target = normalizeAnimationTarget(source.target);
+  if (!target) return null;
   const svgFilters = normalizeSvgFilters(source.svgFilters);
   const timelineIds = new Set<string>();
   const timelines = (Array.isArray(source.timelines) ? source.timelines : [])
@@ -566,7 +653,7 @@ export const normalizeAnimationDefinition = (
       normalizeTimeline(timeline, index, svgFilters, timelineIds)
     )
     .filter((timeline): timeline is AnimationTimeline => timeline !== null);
-  const definition: AnimationDefinition = { version: 1, timelines };
+  const definition: AnimationDefinition = { version: 1, target, timelines };
   if (svgFilters.length) definition.svgFilters = svgFilters;
   const editorState = normalizeAnimationEditorState(
     source['x-animationEditor']
@@ -576,10 +663,11 @@ export const normalizeAnimationDefinition = (
 };
 
 export const ensureAnimationDefinition = (
-  source: unknown
+  source: unknown,
+  targetDocumentId: string
 ): AnimationDefinition =>
-  normalizeAnimationDefinition(source) ?? createEmptyAnimationDefinition();
+  normalizeAnimationDefinition(source) ??
+  createEmptyAnimationDefinition({ targetDocumentId });
 
-export const serializeAnimationDefinition = (
-  source: AnimationDefinition | null | undefined
-) => JSON.stringify(source ?? createEmptyAnimationDefinition());
+export const serializeAnimationDefinition = (source: AnimationDefinition) =>
+  JSON.stringify(source);

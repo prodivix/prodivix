@@ -37,6 +37,18 @@ export const GraphNode = ({ id, data, selected }: NodeProps) => {
   const runtimeNode = useNodeGraphRenderStore((state) =>
     state.nodesById.get(id)
   );
+  const runtimeCodeArtifacts = useNodeGraphRenderStore(
+    (state) => state.codeArtifacts
+  );
+  const runtimeBindCodeArtifact = useNodeGraphRenderStore(
+    (state) => state.bindCodeArtifact
+  );
+  const runtimeOpenCodeSlotDefinition = useNodeGraphRenderStore(
+    (state) => state.openCodeSlotDefinition
+  );
+  const runtimeUpdateCodeArtifactSource = useNodeGraphRenderStore(
+    (state) => state.updateCodeArtifactSource
+  );
   const runtimeEdges = useNodeGraphRenderStore((state) => state.edges);
   const runtimeGroupAutoLayoutById = useNodeGraphRenderStore(
     (state) => state.groupAutoLayoutById
@@ -63,10 +75,14 @@ export const GraphNode = ({ id, data, selected }: NodeProps) => {
         data: fallbackNodeData,
       },
       runtime: {
+        codeArtifacts: runtimeCodeArtifacts,
         edges: runtimeEdges,
         groupAutoLayoutById: runtimeGroupAutoLayoutById,
         hintText: runtimeHintText,
         nodesById: new Map(runtimeNode ? [[id, runtimeNode]] : []),
+        bindCodeArtifact: runtimeBindCodeArtifact,
+        openCodeSlotDefinition: runtimeOpenCodeSlotDefinition,
+        updateCodeArtifactSource: runtimeUpdateCodeArtifactSource,
         setEdges: runtimeSetEdges,
         setHint: runtimeSetHint,
         setMenu: runtimeSetMenu,
@@ -78,6 +94,10 @@ export const GraphNode = ({ id, data, selected }: NodeProps) => {
     fallbackNodeData,
     id,
     runtimeEdges,
+    runtimeCodeArtifacts,
+    runtimeBindCodeArtifact,
+    runtimeOpenCodeSlotDefinition,
+    runtimeUpdateCodeArtifactSource,
     runtimeGroupAutoLayoutById,
     runtimeHintText,
     runtimeNode,

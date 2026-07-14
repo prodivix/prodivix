@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '@/editor/features/blueprint/editor/inspector/projection';
 
 export type TextFieldKey = 'text' | 'title' | 'label' | 'description';
 export type TextFieldMode = 'plain' | 'rich';
@@ -39,108 +39,82 @@ const TEXTUAL_TYPE_HINTS = [
   'label',
 ];
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const getTextModeMap = (node: ComponentNode): TextModeMap => {
-  const props = isPlainObject(node.props) ? node.props : undefined;
-  const raw = props?.textMode;
-  if (!isPlainObject(raw)) return {};
+const getTextModeMap = (node: BlueprintInspectorNodeView): TextModeMap => {
+  const raw = node.props?.textMode;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const modeMap: TextModeMap = {};
   TEXT_PROP_KEYS.forEach((key) => {
-    const mode = raw[key];
-    if (mode === 'plain' || mode === 'rich') {
-      modeMap[key] = mode;
-    }
+    const mode = (raw as Record<string, unknown>)[key];
+    if (mode === 'plain' || mode === 'rich') modeMap[key] = mode;
   });
   return modeMap;
 };
 
 const isTextCapableType = (type: string) => {
   const normalized = type.toLowerCase();
-  if (TEXTUAL_HTML_TAGS.has(normalized)) return true;
-  return TEXTUAL_TYPE_HINTS.some((hint) => normalized.includes(hint));
+  return (
+    TEXTUAL_HTML_TAGS.has(normalized) ||
+    TEXTUAL_TYPE_HINTS.some((hint) => normalized.includes(hint))
+  );
 };
 
 export const getEditableTextFields = (
-  node: ComponentNode
+  node: BlueprintInspectorNodeView
 ): EditableTextField[] => {
   const fields: EditableTextField[] = [];
   if (typeof node.text === 'string') {
     fields.push({ kind: 'node', key: 'text', value: node.text });
   }
-
-  const props = isPlainObject(node.props) ? node.props : undefined;
-  if (props) {
-    TEXT_PROP_KEYS.forEach((key) => {
-      const value = props[key];
-      if (typeof value === 'string') {
-        fields.push({ kind: 'prop', key, value });
-      }
-    });
-  }
-
+  TEXT_PROP_KEYS.forEach((key) => {
+    const value = node.props?.[key];
+    if (typeof value === 'string') {
+      fields.push({ kind: 'prop', key, value });
+    }
+  });
   if (fields.length === 0 && isTextCapableType(node.type)) {
     fields.push({ kind: 'node', key: 'text', value: '' });
   }
-
   return fields;
 };
 
 export const getPrimaryTextField = (
-  node: ComponentNode
+  node: BlueprintInspectorNodeView
 ): EditableTextField | null => {
   const fields = getEditableTextFields(node);
-  if (fields.length === 0) return null;
-
-  const propText = fields.find(
-    (field) => field.kind === 'prop' && field.key === 'text'
+  return (
+    fields.find((field) => field.kind === 'prop' && field.key === 'text') ??
+    fields.find((field) => field.kind === 'node' && field.key === 'text') ??
+    fields.find((field) => field.kind === 'prop' && field.key === 'title') ??
+    fields[0] ??
+    null
   );
-  if (propText) return propText;
-
-  const nodeText = fields.find(
-    (field) => field.kind === 'node' && field.key === 'text'
-  );
-  if (nodeText) return nodeText;
-
-  const propTitle = fields.find(
-    (field) => field.kind === 'prop' && field.key === 'title'
-  );
-  if (propTitle) return propTitle;
-
-  return fields[0];
 };
 
 export const updateNodeTextField = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   field: EditableTextField,
   value: string
-): ComponentNode => {
-  if (field.kind === 'node') {
-    return { ...node, text: value };
-  }
-  const nextProps = {
-    ...(isPlainObject(node.props) ? node.props : {}),
-    [field.key]: value,
-  };
-  return { ...node, props: nextProps };
-};
+): BlueprintInspectorNodeView =>
+  field.kind === 'node'
+    ? { ...node, text: value }
+    : {
+        ...node,
+        props: { ...node.props, [field.key]: value },
+      };
 
 export const getNodeTextFieldMode = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   fieldKey: TextFieldKey
 ): TextFieldMode => getTextModeMap(node)[fieldKey] ?? 'plain';
 
 export const updateNodeTextFieldMode = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   fieldKey: TextFieldKey,
   mode: TextFieldMode
-): ComponentNode => {
-  const nextProps = {
-    ...(isPlainObject(node.props) ? node.props : {}),
-  };
-  const currentMap = getTextModeMap(node);
-  const nextMap: TextModeMap = { ...currentMap, [fieldKey]: mode };
-  nextProps.textMode = nextMap;
-  return { ...node, props: nextProps };
-};
+): BlueprintInspectorNodeView => ({
+  ...node,
+  props: {
+    ...node.props,
+    textMode: { ...getTextModeMap(node), [fieldKey]: mode },
+  },
+});

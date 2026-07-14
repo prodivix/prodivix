@@ -1,27 +1,24 @@
 import { useEffect, useState } from 'react';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../../projection';
 import type { MountedCssEntry } from './mountedCss';
 import { createMountedCssPath } from './mountedCss';
 
 const DEFAULT_MOUNTED_CSS_CONTENT = '/* Mounted CSS */\n';
 
 type UseMountedCssEditorStateParams = {
-  selectedNode: ComponentNode | null;
+  selectedNode: BlueprintInspectorNodeView | null;
   mountedCssEntries: MountedCssEntry[];
-  updateSelectedNode: (updater: (node: ComponentNode) => ComponentNode) => void;
-  saveMountedCssToVfs?: (value: string) => Promise<boolean>;
+  writeAvailable: boolean;
+  diagnostic?: string;
 };
 
 export const useMountedCssEditorState = ({
   selectedNode,
   mountedCssEntries,
-  updateSelectedNode,
-  saveMountedCssToVfs,
+  writeAvailable,
+  diagnostic,
 }: UseMountedCssEditorStateParams) => {
   const [isMountedCssEditorOpen, setMountedCssEditorOpen] = useState(false);
-  const [mountedCssEditorEntryId, setMountedCssEditorEntryId] = useState<
-    string | null
-  >(null);
   const [mountedCssEditorPath, setMountedCssEditorPath] = useState('');
   const [mountedCssEditorValue, setMountedCssEditorValue] = useState(
     DEFAULT_MOUNTED_CSS_CONTENT
@@ -37,7 +34,6 @@ export const useMountedCssEditorState = ({
 
   useEffect(() => {
     setMountedCssEditorOpen(false);
-    setMountedCssEditorEntryId(null);
     setMountedCssEditorPath('');
     setMountedCssEditorValue(DEFAULT_MOUNTED_CSS_CONTENT);
     setMountedCssEditorFocusClass(undefined);
@@ -57,7 +53,6 @@ export const useMountedCssEditorState = ({
       ? mountedCssEntries.find((entry) => entry.path === target.path)
       : mountedCssEntries[0];
     const fallbackPath = createMountedCssPath(selectedNode.id);
-    setMountedCssEditorEntryId(matchedEntry?.id ?? null);
     setMountedCssEditorPath(matchedEntry?.path ?? fallbackPath);
     setMountedCssEditorValue(
       matchedEntry?.content ?? DEFAULT_MOUNTED_CSS_CONTENT
@@ -77,30 +72,17 @@ export const useMountedCssEditorState = ({
     setMountedCssEditorError('');
   };
 
-  const resetMountedCssEditor = () => {
-    setMountedCssEditorOpen(false);
-    setMountedCssEditorEntryId(null);
-    setMountedCssEditorFocusClass(undefined);
-    setMountedCssEditorFocusLine(undefined);
-    setMountedCssEditorFocusColumn(undefined);
-    setMountedCssEditorError('');
-  };
-
   const saveMountedCss = async () => {
     if (!selectedNode?.id) return;
-    try {
-      const savedToVfs = await saveMountedCssToVfs?.(
-        mountedCssEditorValue || DEFAULT_MOUNTED_CSS_CONTENT
+    if (!writeAvailable) {
+      setMountedCssEditorError(
+        diagnostic ??
+          'Mounted CSS is edited through the shared Code Authoring Environment.'
       );
-      if (savedToVfs) {
-        resetMountedCssEditor();
-        return;
-      }
-    } catch (error) {
-      console.warn('[blueprint] mounted CSS VFS save failed', error);
+      return;
     }
     setMountedCssEditorError(
-      'Mounted CSS must be saved as a Workspace VFS code document.'
+      'No Code Authoring write provider is available for this slot.'
     );
   };
 
@@ -116,5 +98,7 @@ export const useMountedCssEditorState = ({
     openMountedCssEditor,
     closeMountedCssEditor,
     saveMountedCss,
+    writeAvailable,
+    diagnostic,
   };
 };

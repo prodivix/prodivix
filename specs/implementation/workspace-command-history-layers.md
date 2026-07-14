@@ -15,17 +15,15 @@
   - `apps/backend/internal/modules/workspace`
 - 关联：
   - `specs/implementation/stable-workspace-command-diff-architecture.md`
-  - `specs/implementation/pir-file-tree-workflow-implementation.md`
-  - `specs/implementation/pir-v1.3-graph-patch-migration-plan.md`
   - `specs/workspace/workspace-model.md`
   - `specs/decisions/06.command-history.md`
-  - `specs/decisions/12.intent-command-extension.md`
+  - `specs/decisions/12.command-transaction-planner.md`
 
 ## 1. 目标
 
 本文档把 Workspace/PIR 文件树上的撤销重做、协同、Git 历史、Prodivix diff 和各编辑器写入入口拆成 10 个长期稳定层。
 
-目标不是做短期兼容层，而是明确：
+目标是明确：
 
 1. 每个编辑器如何只撤销自己的历史。
 2. 一次用户动作如何跨多个文档原子提交。
@@ -196,7 +194,7 @@ type CommandApplyResult =
 }
 ```
 
-原因：PIR v1.3 保存态禁止 `ui.root`。这不是 UI 错误，而是模型边界错误。
+原因：PIR-current 以 normalized `ui.graph` 作为规范保存态，`ui.root` 不属于该领域模型。这是模型边界错误。
 
 ## 4. Layer 2：History Scope Layer
 

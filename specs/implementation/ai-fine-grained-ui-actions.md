@@ -6,15 +6,13 @@
 - Date: 2026-06-29
 - Related documents:
   - `specs/decisions/22.llm-integration-architecture.md`
-  - `specs/decisions/12.intent-command-extension.md`
+  - `specs/decisions/12.command-transaction-planner.md`
   - `specs/decisions/25.authoring-symbol-environment.md`
   - `specs/decisions/28.code-authoring-environment.md`
   - `specs/decisions/08.route-manifest-outlet.md`
   - `specs/router/route-manifest.md`
   - `specs/implementation/llm-integration-foundation.md`
   - `specs/implementation/llm-streaming-runtime.md`
-  - `specs/implementation/workspace-code-document-mounted-css-vfs.md`
-  - `specs/implementation/route-system-unification-plan.md`
 
 ## Goal
 
@@ -495,7 +493,7 @@ Acceptance:
 - Add route loader / guard / action code generation.
 - Route generated code into CodeArtifact / workspace code document.
 - Bind generated code through CodeReference.
-- Reuse Authoring Symbol Environment for class and symbol discovery where available.
+- Reuse the revision-bound Workspace Semantic Index for class, symbol, reference, and impact discovery; do not scan editor-private state.
 
 Acceptance:
 

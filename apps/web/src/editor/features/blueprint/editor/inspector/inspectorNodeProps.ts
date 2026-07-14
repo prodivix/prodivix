@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from './projection';
 
 const isPlainEmptyObject = (value: unknown) =>
   typeof value === 'object' &&
@@ -14,9 +14,9 @@ export const isEmptyInspectorPropValue = (value: unknown) =>
   isPlainEmptyObject(value);
 
 export const deleteNodeProp = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   key: string
-): ComponentNode => {
+): BlueprintInspectorNodeView => {
   if (!node.props || !Object.prototype.hasOwnProperty.call(node.props, key)) {
     return node;
   }
@@ -31,10 +31,10 @@ export const deleteNodeProp = (
 };
 
 export const setNodeProp = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   key: string,
   value: unknown
-): ComponentNode => {
+): BlueprintInspectorNodeView => {
   if (isEmptyInspectorPropValue(value)) {
     return deleteNodeProp(node, key);
   }

@@ -8,35 +8,23 @@ import (
 	"github.com/Prodivix/prodivix/apps/backend/internal/platform/pircontract"
 )
 
-var ErrPIRValidationFailed = errors.New("PIR " + pircontract.CurrentLabel + " validation failed")
+var ErrPIRValidationFailed = errors.New("PIR wire validation failed")
 
 func validatePIRDocument(payload json.RawMessage) error {
+	if err := pircontract.ValidateDocument(payload); err != nil {
+		return fmt.Errorf("%w: %v", ErrPIRValidationFailed, err)
+	}
 	var document map[string]any
 	if err := json.Unmarshal(payload, &document); err != nil {
 		return err
 	}
-	if document["version"] != pircontract.CurrentVersion {
-		return fmt.Errorf("%w: version must be %s", ErrPIRValidationFailed, pircontract.CurrentVersion)
-	}
-	ui, ok := document["ui"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("%w: ui is required", ErrPIRValidationFailed)
-	}
-	if _, hasRoot := ui["root"]; hasRoot {
-		return fmt.Errorf("%w: ui.root is forbidden", ErrPIRValidationFailed)
-	}
-	graph, ok := ui["graph"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("%w: ui.graph is required", ErrPIRValidationFailed)
-	}
+	ui := document["ui"].(map[string]any)
+	graph := ui["graph"].(map[string]any)
 	rootID, ok := graph["rootId"].(string)
-	if !ok || rootID == "" {
-		return fmt.Errorf("%w: ui.graph.rootId is required", ErrPIRValidationFailed)
+	if !ok {
+		return fmt.Errorf("%w: ui.graph.rootId is invalid", ErrPIRValidationFailed)
 	}
-	nodesByID, ok := graph["nodesById"].(map[string]any)
-	if !ok || len(nodesByID) == 0 {
-		return fmt.Errorf("%w: ui.graph.nodesById is required", ErrPIRValidationFailed)
-	}
+	nodesByID := graph["nodesById"].(map[string]any)
 	if _, ok := nodesByID[rootID]; !ok {
 		return fmt.Errorf("%w: rootId not found in nodesById", ErrPIRValidationFailed)
 	}
@@ -48,14 +36,8 @@ func validatePIRDocument(payload json.RawMessage) error {
 		if node["id"] != key {
 			return fmt.Errorf("%w: node key/id mismatch at %s", ErrPIRValidationFailed, key)
 		}
-		if nodeType, ok := node["type"].(string); !ok || nodeType == "" {
-			return fmt.Errorf("%w: node %s type is required", ErrPIRValidationFailed, key)
-		}
-		if _, hasChildren := node["children"]; hasChildren {
-			return fmt.Errorf("%w: node %s must not contain children", ErrPIRValidationFailed, key)
-		}
 	}
-	childIDsByID, _ := graph["childIdsById"].(map[string]any)
+	childIDsByID := graph["childIdsById"].(map[string]any)
 	parentByChild := map[string]string{}
 	for parentID, rawChildren := range childIDsByID {
 		if _, ok := nodesByID[parentID]; !ok {

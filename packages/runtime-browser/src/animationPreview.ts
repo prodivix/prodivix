@@ -21,7 +21,10 @@ const escapeCssAttributeValue = (value: string) =>
     .replaceAll('\r', '\\d ')
     .replaceAll('\f', '\\c ');
 
-const projectFrame = (frame: AnimationFrame): AnimationPreviewSnapshot => {
+const projectFrame = (
+  frame: AnimationFrame,
+  targetDocumentId: string
+): AnimationPreviewSnapshot => {
   const rules: string[] = [];
   frame.stylesByNodeId.forEach((style, nodeId) => {
     const declarations: string[] = [];
@@ -35,7 +38,7 @@ const projectFrame = (frame: AnimationFrame): AnimationPreviewSnapshot => {
     if (style.filter) declarations.push(`filter:${style.filter};`);
     if (!declarations.length) return;
     rules.push(
-      `[data-pir-node-id="${escapeCssAttributeValue(nodeId)}"] > * {${declarations.join('')}}`
+      `[data-pir-document-id="${escapeCssAttributeValue(targetDocumentId)}"][data-pir-node-id="${escapeCssAttributeValue(nodeId)}"] {${declarations.join('')}}`
     );
   });
   return { cssText: rules.join('\n'), svgFilters: frame.svgFilters };
@@ -45,22 +48,30 @@ export const buildAnimationPreviewSnapshot = ({
   timeline,
   cursorMs,
   svgFilters,
+  targetDocumentId,
 }: {
   timeline: AnimationTimeline | undefined;
   cursorMs: number;
   svgFilters: SvgFilterDefinition[];
+  targetDocumentId: string;
 }): AnimationPreviewSnapshot =>
   projectFrame(
-    evaluateAnimationTimelineAtCursor({ timeline, cursorMs, svgFilters })
+    evaluateAnimationTimelineAtCursor({ timeline, cursorMs, svgFilters }),
+    targetDocumentId
   );
 
 export const buildAnimationPreviewSnapshotFromTimelines = ({
   timelines,
   globalMs,
   svgFilters,
+  targetDocumentId,
 }: {
   timelines: AnimationTimeline[];
   globalMs: number;
   svgFilters: SvgFilterDefinition[];
+  targetDocumentId: string;
 }): AnimationPreviewSnapshot =>
-  projectFrame(evaluateAnimationFrame({ timelines, globalMs, svgFilters }));
+  projectFrame(
+    evaluateAnimationFrame({ timelines, globalMs, svgFilters }),
+    targetDocumentId
+  );

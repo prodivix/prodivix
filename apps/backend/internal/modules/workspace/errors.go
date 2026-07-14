@@ -3,13 +3,12 @@ package workspace
 import backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 
 const (
-	ErrorInvalidPayload             = "API-1001"
-	ErrorPIRValidationFailed        = "PIR-4001"
-	ErrorPIRGraphPatchPathForbidden = "WKS-5002"
-	ErrorWorkspaceNotFound          = "WKS-1001"
-	ErrorWorkspaceDocumentNotFound  = "WKS-3001"
-	ErrorWorkspaceOperationFailed   = "API-9001"
-	ErrorWorkspacePatchFailed       = "WKS-5002"
+	ErrorInvalidPayload            = "API-1001"
+	ErrorPIRValidationFailed       = "PIR-4001"
+	ErrorWorkspaceNotFound         = "WKS-1001"
+	ErrorWorkspaceDocumentNotFound = "WKS-3001"
+	ErrorWorkspaceOperationFailed  = "API-9001"
+	ErrorWorkspacePatchFailed      = "WKS-5002"
 )
 
 type RequestFailure struct {

@@ -6,10 +6,11 @@ import { PdxEmpty } from '@prodivix/ui';
 import { communityApi, type CommunityProjectDetail } from './communityApi';
 import { PIRRenderer } from '@prodivix/pir-react-renderer';
 import { isAbortError } from '@/infra/api';
-import { resolvePirDocument } from '@prodivix/pir';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi } from '@/editor/editorApi';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import { createPublishedPirProjection } from '@/pir/createPublishedPirProjection';
+import { pirWebRendererHost } from '@/pir/pirWebRendererHost';
 
 const typeIcon = (type: CommunityProjectDetail['resourceType']) => {
   switch (type) {
@@ -85,13 +86,18 @@ export function CommunityDetailPage() {
   }, [projectId, t]);
 
   const pirText = useMemo(
-    () =>
-      project ? JSON.stringify(resolvePirDocument(project.pir), null, 2) : '',
+    () => (project ? JSON.stringify(project.pir, null, 2) : ''),
     [project]
   );
-  const previewPirDoc = useMemo(
-    () => resolvePirDocument(project?.pir),
-    [project?.pir]
+  const publishedPir = useMemo(
+    () =>
+      project
+        ? createPublishedPirProjection(
+            project.pir,
+            project.resourceType === 'component' ? 'pir-component' : 'pir-page'
+          )
+        : null,
+    [project]
   );
 
   const handleClone = async () => {
@@ -112,7 +118,13 @@ export function CommunityDetailPage() {
 
     setCloning(true);
     setCloneError(null);
-    const pirDoc = JSON.parse(JSON.stringify(previewPirDoc));
+    if (publishedPir?.status !== 'ready') {
+      setCloneError(
+        publishedPir?.issues[0]?.message ??
+          t('detail.error.clone', 'Could not clone this project.')
+      );
+      return;
+    }
     const fallbackName = t('card.untitled', 'Untitled');
 
     try {
@@ -121,7 +133,7 @@ export function CommunityDetailPage() {
         description: project.description || undefined,
         resourceType: project.resourceType,
         isPublic: false,
-        pir: pirDoc,
+        initialPir: publishedPir.document,
       });
       setEditorProject({
         id: createdProject.id,
@@ -249,7 +261,22 @@ export function CommunityDetailPage() {
                   {t('detail.preview', 'Read-only Preview')}
                 </h2>
                 <div className="max-w-full overflow-auto rounded-2xl border border-black/10 bg-white p-3">
-                  <PIRRenderer pirDoc={previewPirDoc} />
+                  {publishedPir?.status === 'ready' ? (
+                    <PIRRenderer
+                      plan={publishedPir.plan}
+                      host={pirWebRendererHost}
+                      dispatchTrigger={() => undefined}
+                      onBlockingIssues={() => undefined}
+                    />
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-black/20 px-5 py-6 text-xs text-black/65">
+                      {publishedPir?.issues[0]?.message ??
+                        t(
+                          'detail.error.load',
+                          'Could not load project detail.'
+                        )}
+                    </div>
+                  )}
                 </div>
               </article>
 

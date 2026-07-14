@@ -2,4 +2,4 @@
 
 package pircontract
 
-const CurrentVersion = "1.3"
+const CurrentVersion = "1.4"

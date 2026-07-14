@@ -13,12 +13,14 @@ export default defineConfig({
         replacement: fileURLToPath(new URL('../router/src', import.meta.url)),
       },
       {
-        find: '@prodivix/shared',
-        replacement: fileURLToPath(new URL('../shared/src', import.meta.url)),
-      },
-      {
         find: '@prodivix/ui',
         replacement: fileURLToPath(new URL('../ui/src', import.meta.url)),
+      },
+      {
+        find: '@prodivix/workspace',
+        replacement: fileURLToPath(
+          new URL('../workspace/src', import.meta.url)
+        ),
       },
     ],
   },

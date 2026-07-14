@@ -1,9 +1,10 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { CodeSlotBinding } from '@prodivix/authoring';
+import { createPirMountedCssCodeSlotId } from '@prodivix/pir';
 import {
   isWorkspaceCodeDocumentContent,
   type WorkspaceDocument,
 } from '@prodivix/workspace';
+import type { BlueprintInspectorNodeView } from '../../projection';
 
 export type MountedCssEntry = {
   id: string;
@@ -14,168 +15,52 @@ export type MountedCssEntry = {
   binding?: CodeSlotBinding;
 };
 
-type UnsafeRecord = Record<string, unknown>;
-
-const asRecord = (value: unknown): UnsafeRecord | undefined =>
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as UnsafeRecord)
+    ? (value as Record<string, unknown>)
     : undefined;
-
-const readClassIndex = (
-  value: unknown
-): Record<string, { line?: number; column?: number }> => {
-  if (!asRecord(value)) return {};
-  const result: Record<string, { line?: number; column?: number }> = {};
-  Object.entries(value).forEach(([className, meta]) => {
-    if (!className) return;
-    const detail = asRecord(meta);
-    if (!detail) {
-      result[className] = {};
-      return;
-    }
-    const line =
-      typeof detail.line === 'number' && Number.isFinite(detail.line)
-        ? detail.line
-        : undefined;
-    const column =
-      typeof detail.column === 'number' && Number.isFinite(detail.column)
-        ? detail.column
-        : undefined;
-    result[className] = { line, column };
-  });
-  return result;
-};
-
-const parseMountedCssEntry = (raw: unknown, fallbackId: string) => {
-  const record = asRecord(raw);
-  if (!record) return null;
-  const path = typeof record.path === 'string' ? record.path.trim() : '';
-  if (!path) return null;
-  const classes = Array.isArray(record.classes)
-    ? record.classes
-        .filter((item): item is string => typeof item === 'string')
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
-  const content =
-    typeof record.content === 'string' ? record.content : undefined;
-  const classIndex = readClassIndex(record.classIndex);
-  const mergedClasses = new Set<string>([
-    ...classes,
-    ...Object.keys(classIndex),
-  ]);
-  return {
-    id:
-      typeof record.id === 'string' && record.id.trim()
-        ? record.id.trim()
-        : fallbackId,
-    path,
-    content,
-    classes: [...mergedClasses],
-    classIndex,
-  } satisfies MountedCssEntry;
-};
-
-const readMountCandidates = (node: ComponentNode): unknown[] => {
-  const anyNode = node as ComponentNode & { metadata?: unknown };
-  const props = asRecord(anyNode.props);
-  const metadata = asRecord(anyNode.metadata);
-
-  const candidates: unknown[] = [];
-  [
-    props?.mountedCss,
-    props?.styleMount,
-    props?.styleMountCss,
-    metadata?.mountedCss,
-    metadata?.styleMount,
-  ].forEach((candidate) => {
-    if (candidate !== undefined) candidates.push(candidate);
-  });
-  return candidates;
-};
-
-export const createMountedCssSlotId = (nodeId: string) =>
-  `blueprint.node.${nodeId}.mountedCss`;
-
-export const createMountedCssDocumentId = (nodeId: string) =>
-  `code_mounted_css_${nodeId.replace(/[^a-zA-Z0-9_-]+/g, '_')}`;
 
 export const createMountedCssPath = (nodeId: string) =>
   `/styles/mounted/${nodeId}.css`;
 
-const readCodeBindings = (node: ComponentNode): Record<string, unknown> => {
-  const props = asRecord(node.props);
-  return asRecord(props?.codeBindings) ?? {};
-};
-
+/** Reads only the canonical CodeReference binding exposed by PIR-current. */
 export const resolveMountedCssBindings = (
-  node: ComponentNode
+  node: BlueprintInspectorNodeView,
+  documentId: string
 ): CodeSlotBinding[] => {
-  const bindings = readCodeBindings(node);
-  const mountedCss = bindings.mountedCss;
-  const candidates = Array.isArray(mountedCss) ? mountedCss : [mountedCss];
-  return candidates
-    .map((candidate): CodeSlotBinding | null => {
-      const record = asRecord(candidate);
-      const reference = asRecord(record?.reference);
-      if (
-        typeof record?.slotId !== 'string' ||
-        !record.slotId.trim() ||
-        typeof reference?.artifactId !== 'string' ||
-        !reference.artifactId.trim()
-      ) {
-        return null;
-      }
-      return {
-        slotId: record.slotId.trim(),
-        reference: {
-          artifactId: reference.artifactId.trim(),
-          ...(typeof reference.exportName === 'string' &&
-          reference.exportName.trim()
-            ? { exportName: reference.exportName.trim() }
-            : {}),
-          ...(typeof reference.symbolName === 'string' &&
-          reference.symbolName.trim()
-            ? { symbolName: reference.symbolName.trim() }
-            : {}),
-        },
-      };
-    })
-    .filter((binding): binding is CodeSlotBinding => Boolean(binding));
-};
-
-export const upsertMountedCssBinding = (
-  node: ComponentNode,
-  binding: CodeSlotBinding
-): ComponentNode => {
-  const props = asRecord(node.props) ?? {};
-  const codeBindings = readCodeBindings(node);
-  const currentBindings = resolveMountedCssBindings(node);
-  const nextMountedCssBindings = currentBindings.some(
-    (item) => item.slotId === binding.slotId
-  )
-    ? currentBindings.map((item) =>
-        item.slotId === binding.slotId ? binding : item
-      )
-    : [...currentBindings, binding];
-  return {
-    ...node,
-    props: {
-      ...props,
-      codeBindings: {
-        ...codeBindings,
-        mountedCss: nextMountedCssBindings,
+  const binding = asRecord(node.props?.mountedCss);
+  const reference = asRecord(binding?.reference);
+  if (
+    binding?.kind !== 'code' ||
+    typeof reference?.artifactId !== 'string' ||
+    !reference.artifactId.trim()
+  ) {
+    return [];
+  }
+  return [
+    {
+      slotId: createPirMountedCssCodeSlotId(documentId, node.id),
+      reference: {
+        artifactId: reference.artifactId.trim(),
+        ...(typeof reference.exportName === 'string' &&
+        reference.exportName.trim()
+          ? { exportName: reference.exportName.trim() }
+          : {}),
+        ...(typeof reference.symbolId === 'string' && reference.symbolId.trim()
+          ? { symbolId: reference.symbolId.trim() }
+          : {}),
       },
     },
-  };
+  ];
 };
 
-export const resolveMountedCssEntriesFromWorkspace = (
-  node: ComponentNode,
-  documentsById: Record<string, WorkspaceDocument>
-): MountedCssEntry[] => {
-  const entries = resolveMountedCssBindings(node)
-    .map((binding) => {
+export const resolveMountedCssEntries = (
+  node: BlueprintInspectorNodeView,
+  documentId: string,
+  documentsById: Record<string, WorkspaceDocument> = {}
+): MountedCssEntry[] =>
+  resolveMountedCssBindings(node, documentId).flatMap(
+    (binding): MountedCssEntry[] => {
       const document = documentsById[binding.reference.artifactId];
       if (
         !document ||
@@ -183,47 +68,22 @@ export const resolveMountedCssEntriesFromWorkspace = (
         !isWorkspaceCodeDocumentContent(document.content) ||
         document.content.language !== 'css'
       ) {
-        return null;
+        return [];
       }
       const content = document.content.source;
       const classIndex = extractCssClassIndexFromContent(content);
-      return {
-        id: document.id,
-        path: document.path,
-        content,
-        classes: [...new Set(Object.keys(classIndex))],
-        classIndex,
-        binding,
-      } satisfies MountedCssEntry;
-    })
-    .filter(Boolean);
-  return entries as MountedCssEntry[];
-};
-
-export const resolveMountedCssEntries = (
-  node: ComponentNode,
-  documentsById: Record<string, WorkspaceDocument> = {}
-): MountedCssEntry[] => {
-  const entries: MountedCssEntry[] = resolveMountedCssEntriesFromWorkspace(
-    node,
-    documentsById
-  );
-  readMountCandidates(node).forEach((candidate, index) => {
-    if (Array.isArray(candidate)) {
-      candidate.forEach((item, itemIndex) => {
-        const parsed = parseMountedCssEntry(
-          item,
-          `mounted-${index + 1}-${itemIndex + 1}`
-        );
-        if (parsed) entries.push(parsed);
-      });
-      return;
+      return [
+        {
+          id: document.id,
+          path: document.path,
+          content,
+          classes: [...new Set(Object.keys(classIndex))],
+          classIndex,
+          binding,
+        } satisfies MountedCssEntry,
+      ];
     }
-    const parsed = parseMountedCssEntry(candidate, `mounted-${index + 1}`);
-    if (parsed) entries.push(parsed);
-  });
-  return entries;
-};
+  );
 
 export const resolveMountedCssTokenTarget = (
   entries: MountedCssEntry[],
@@ -243,8 +103,7 @@ export const extractCssClassIndexFromContent = (content: string) => {
   let match: RegExpExecArray | null = matcher.exec(content);
   while (match) {
     const className = match[1];
-    const rawIndex = match.index;
-    const before = content.slice(0, rawIndex);
+    const before = content.slice(0, match.index);
     const lines = before.split('\n');
     index[className] = {
       line: lines.length,
@@ -253,17 +112,4 @@ export const extractCssClassIndexFromContent = (content: string) => {
     match = matcher.exec(content);
   }
   return index;
-};
-
-export const mergeMountedCssEntryWithContent = (
-  entry: MountedCssEntry,
-  content: string
-): MountedCssEntry => {
-  const classIndex = extractCssClassIndexFromContent(content);
-  return {
-    ...entry,
-    content,
-    classIndex,
-    classes: [...new Set(Object.keys(classIndex))],
-  };
 };

@@ -1,4 +1,4 @@
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   composeRouteManifestWithModules,
   findRouteNodeById,
@@ -141,7 +141,7 @@ const createOrReuseRouteDocument = (
     path: options.path,
     contentRev: 1,
     metaRev: 1,
-    content: createDefaultPirDoc(),
+    content: createEmptyPirDocument(),
   };
   let attachment;
   try {

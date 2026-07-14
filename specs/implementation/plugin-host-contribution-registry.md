@@ -4,7 +4,7 @@
 
 - Phase 2 implemented contract
 - 日期：2026-07-10
-- 执行计划：`specs/implementation/plugin-host-core-phase2.md`
+- 上位决策：`specs/decisions/29.plugin-extension-points.md`
 - 生命周期协议：`specs/implementation/plugin-host-lifecycle-and-permissions.md`
 
 ## 1. 目的

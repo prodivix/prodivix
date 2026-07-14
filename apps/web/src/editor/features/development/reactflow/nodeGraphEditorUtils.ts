@@ -9,7 +9,6 @@ export const isPlainObject = (
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export const createNodeId = () => createId('node', 6);
-export const createGraphId = () => createId('graph', 6);
 export const createSwitchCaseId = () => createId('case', 5);
 export const createFetchStatusId = () => createId('status', 5);
 export const createBranchId = () => createId('branch', 5);

@@ -2,7 +2,7 @@
   "name": "@prodivix/authoring",
   "version": "0.0.1",
   "type": "module",
-  "description": "Framework-neutral code authoring and symbol environment for Prodivix",
+  "description": "Workspace semantic index and framework-neutral code authoring contracts for Prodivix",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -24,11 +24,11 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
-    "@prodivix/diagnostics": "workspace:*",
-    "@prodivix/shared": "workspace:*"
+    "@prodivix/diagnostics": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
+    "fast-check": "^4.9.0",
     "typescript": "^6.0.3",
     "vite": "^8.1.3",
     "vitest": "^4.1.9"

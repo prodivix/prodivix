@@ -19,6 +19,8 @@ import type {
 const DEFAULT_MAX_STEPS = 200;
 
 const normalizeNodeKind = (node: NodeGraphNode): string => {
+  const executorSlotId = node.executor?.slotId.trim();
+  if (executorSlotId) return executorSlotId;
   const kind = typeof node.data.kind === 'string' ? node.data.kind.trim() : '';
   if (kind) return kind;
   return typeof node.type === 'string' ? node.type.trim() : '';
@@ -110,7 +112,7 @@ export const createNodeGraphExecutor = (
       appendTrace(
         status === 'completed' ? 'graph-completed' : 'graph-stopped',
         {
-          graphId: graph.id,
+          documentId: request.documentId,
           status,
           steps,
           ...detail,
@@ -126,7 +128,7 @@ export const createNodeGraphExecutor = (
     };
 
     appendTrace('graph-started', {
-      graphId: graph.id,
+      documentId: request.documentId,
       requestId: request.requestId,
       sourceOwnerId: request.source.ownerId,
     });
@@ -153,7 +155,7 @@ export const createNodeGraphExecutor = (
       steps += 1;
       const nodeKind = normalizeNodeKind(currentNode);
       appendTrace('node-started', {
-        graphId: graph.id,
+        documentId: request.documentId,
         nodeId: currentNode.id,
         nodeKind,
         step: steps,
@@ -176,14 +178,14 @@ export const createNodeGraphExecutor = (
       statePatch = mergeRuntimeStatePatch(statePatch, outcome.statePatch);
       outcome.trace?.forEach((event) => {
         appendTrace(event.kind === 'log' ? 'log' : 'node-completed', {
-          graphId: graph.id,
+          documentId: request.documentId,
           nodeId: currentNode?.id,
           nodeKind,
           ...(event.detail ?? {}),
         });
       });
       appendTrace('node-completed', {
-        graphId: graph.id,
+        documentId: request.documentId,
         nodeId: currentNode.id,
         nodeKind,
         step: steps,

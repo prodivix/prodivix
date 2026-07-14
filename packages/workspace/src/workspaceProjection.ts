@@ -7,6 +7,10 @@ import type {
 } from './types';
 import { validateWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
+import {
+  decodeWorkspaceDocument,
+  encodeWorkspaceDocument,
+} from './workspaceCodec';
 
 export type WorkspaceSourceFileRole =
   | 'workspace-manifest'
@@ -136,6 +140,7 @@ const jsonStringifyStable = (value: unknown): string => {
 const serializeDocumentContent = (
   document: WorkspaceDocument
 ): Pick<WorkspaceSourceFile, 'content' | 'mime'> => {
+  const wireDocument = encodeWorkspaceDocument(document);
   if (
     document.type === 'code' &&
     isWorkspaceCodeDocumentContent(document.content)
@@ -146,17 +151,17 @@ const serializeDocumentContent = (
     };
   }
 
-  if (typeof document.content === 'string') {
+  if (typeof wireDocument.content === 'string') {
     return {
-      content: document.content.endsWith('\n')
-        ? document.content
-        : `${document.content}\n`,
+      content: wireDocument.content.endsWith('\n')
+        ? wireDocument.content
+        : `${wireDocument.content}\n`,
       mime: 'text/plain',
     };
   }
 
   return {
-    content: jsonStringifyStable(document.content),
+    content: jsonStringifyStable(wireDocument.content),
     mime: 'application/json',
   };
 };
@@ -369,11 +374,24 @@ export const readWorkspaceFromProdivixFiles = (
       codeContent: _codeContent,
       ...metadata
     } = documentManifest;
-    result[documentId] = {
-      ...metadata,
-      id: documentId,
-      content,
-    };
+    try {
+      result[documentId] = decodeWorkspaceDocument(
+        {
+          ...metadata,
+          id: documentId,
+          content,
+        },
+        `/projection/documents/${documentId}`
+      );
+    } catch (cause) {
+      issues.push({
+        code: 'WKS_PROJECTION_INVALID_WORKSPACE',
+        path: contentFile.path,
+        message: 'Workspace document failed persistence decoding.',
+        documentId,
+        cause,
+      });
+    }
     return result;
   }, {});
 

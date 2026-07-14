@@ -1,8 +1,4 @@
-import { cssLanguage } from '@codemirror/lang-css';
-import {
-  javascriptLanguage,
-  typescriptLanguage,
-} from '@codemirror/lang-javascript';
+import { typescriptLanguage } from '@codemirror/lang-javascript';
 import type { LRLanguage } from '@codemirror/language';
 import type { CodeArtifact } from '@prodivix/authoring';
 import type { ProdivixDiagnostic } from '@prodivix/diagnostics';
@@ -10,7 +6,8 @@ import {
   createWorkspaceCodeArtifactProvider,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
-import { createSourceSpanFromOffsets } from './workspaceIssueSourceSpan';
+import { getWorkspaceCodeLanguageDiagnostics } from '@/editor/codeLanguage';
+import { createSourceSpanFromOffsets } from '@/editor/navigation';
 
 type ParserErrorRange = Readonly<{ from: number; to: number }>;
 
@@ -58,22 +55,7 @@ const parseArtifact = (
     };
   }
 
-  const language =
-    artifact.language === 'ts'
-      ? typescriptLanguage
-      : artifact.language === 'js'
-        ? javascriptLanguage
-        : artifact.language === 'css'
-          ? cssLanguage
-          : null;
-  return language
-    ? {
-        code: 'COD-1001',
-        errors: deduplicateRanges(
-          collectParserErrors(language, artifact.source)
-        ),
-      }
-    : null;
+  return null;
 };
 
 const createArtifactDiagnostic = (input: {
@@ -104,7 +86,7 @@ const createArtifactDiagnostic = (input: {
   },
 });
 
-/** Parses persisted CodeArtifacts without depending on the Code Editor UI. */
+/** Collects canonical provider diagnostics without depending on editor state. */
 export const collectWorkspaceCodeDiagnostics = (
   workspace: WorkspaceSnapshot
 ): ProdivixDiagnostic[] => {
@@ -115,7 +97,17 @@ export const collectWorkspaceCodeDiagnostics = (
         compareText(left.path, right.path) || compareText(left.id, right.id)
     );
 
-  return artifacts.flatMap((artifact) => {
+  const parserDiagnostics = artifacts.flatMap((artifact) => {
+    if (
+      artifact.language === 'ts' ||
+      artifact.language === 'js' ||
+      artifact.language === 'css' ||
+      artifact.language === 'scss' ||
+      artifact.language === 'glsl' ||
+      artifact.language === 'wgsl'
+    ) {
+      return [];
+    }
     if (!artifact.source.trim()) {
       return [
         {
@@ -167,4 +159,28 @@ export const collectWorkspaceCodeDiagnostics = (
       ];
     }
   });
+
+  let languageDiagnostics: readonly ProdivixDiagnostic[];
+  try {
+    languageDiagnostics = getWorkspaceCodeLanguageDiagnostics(workspace);
+  } catch (error) {
+    languageDiagnostics = [
+      {
+        code: 'COD-9001',
+        severity: 'error',
+        domain: 'code',
+        message: 'The code language environment could not be analyzed.',
+        hint: 'Retry analysis after reopening the Workspace.',
+        retryable: true,
+        docsUrl: '/reference/diagnostics/cod-9001',
+        targetRef: { kind: 'workspace', workspaceId: workspace.id },
+        meta: {
+          stage: 'environment',
+          reason: error instanceof Error ? error.message : String(error),
+        },
+      },
+    ];
+  }
+
+  return [...languageDiagnostics, ...parserDiagnostics];
 };

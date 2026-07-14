@@ -1,59 +1,65 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
 import type { PluginDiagnostic } from '@prodivix/plugin-contracts';
+import type { PIRRenderLocation } from '@prodivix/pir-react-renderer';
+import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import type { BlueprintCompositionIssue } from '@/editor/features/blueprint/editor/model/composition';
+import type {
+  BlueprintTreeProjectionNode,
+  TreeDropPlacement,
+} from '@/editor/features/blueprint/editor/model/tree';
 
 export type BlueprintEditorComponentTreeProps = {
+  workspace: WorkspaceSnapshot;
+  entryDocumentId: string;
   isCollapsed: boolean;
   isTreeCollapsed?: boolean;
-  selectedId?: string;
-  hiddenNodeIds: string[];
+  selectedLocation?: PIRRenderLocation;
+  hiddenLocations?: readonly PIRRenderLocation[];
   dropHint?: {
-    overNodeId: string;
-    placement: 'before' | 'after' | 'child';
+    location: PIRRenderLocation;
+    placement: TreeDropPlacement;
   } | null;
   compositionIssue?: BlueprintCompositionIssue;
   pluginDiagnostics?: readonly PluginDiagnostic[];
   onToggleCollapse: () => void;
-  onSelectNode: (nodeId: string) => void;
+  onSelectNode: (location: PIRRenderLocation) => void;
   onDeleteSelected: () => void;
-  onDeleteNode: (nodeId: string) => void;
-  onCopyNode: (nodeId: string) => void;
-  onMoveNode: (nodeId: string, direction: 'up' | 'down') => void;
-  onToggleNodeHidden: (nodeId: string) => void;
+  onDeleteNode: (location: PIRRenderLocation) => void;
+  onCopyNode: (location: PIRRenderLocation) => void;
+  onMoveNode: (location: PIRRenderLocation, direction: 'up' | 'down') => void;
+  onToggleNodeHidden: (location: PIRRenderLocation) => void;
   onOpenRoutePath: (path: string) => void;
 };
 
 export type TreeNodeProps = {
-  node: ComponentNode;
+  item: BlueprintTreeProjectionNode;
   depth: number;
   expandedKeys: string[];
   outletRoutePaths: Record<string, string>;
-  selectedId?: string;
-  hiddenNodeIds: string[];
+  selectedLocation?: PIRRenderLocation;
+  hiddenLocations: readonly PIRRenderLocation[];
   dropHint?: {
-    overNodeId: string;
-    placement: 'before' | 'after' | 'child';
+    location: PIRRenderLocation;
+    placement: TreeDropPlacement;
   } | null;
-  rootId?: string;
-  parentId?: string;
+  rootLocation?: PIRRenderLocation;
   openMenuId?: string | null;
-  onMenuAction?: (nodeId: string) => void;
-  onToggle: (nodeId: string) => void;
-  onSelect: (nodeId: string) => void;
-  onDelete: (nodeId: string) => void;
-  onCopy: (nodeId: string) => void;
-  onMove: (nodeId: string, direction: 'up' | 'down') => void;
-  onToggleHidden: (nodeId: string) => void;
+  onMenuAction?: (location: PIRRenderLocation) => void;
+  onToggle: (location: PIRRenderLocation) => void;
+  onSelect: (location: PIRRenderLocation) => void;
+  onDelete: (location: PIRRenderLocation) => void;
+  onCopy: (location: PIRRenderLocation) => void;
+  onMove: (location: PIRRenderLocation, direction: 'up' | 'down') => void;
+  onToggleHidden: (location: PIRRenderLocation) => void;
   onOpenRoutePath: (path: string) => void;
   onOpenContextMenu: (
-    node: ComponentNode,
+    item: BlueprintTreeProjectionNode,
     event: ReactMouseEvent<HTMLDivElement>
   ) => void;
 };
 
 export type TreeContextMenuState = {
-  node: ComponentNode;
+  item: BlueprintTreeProjectionNode;
   x: number;
   y: number;
 };

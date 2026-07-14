@@ -9,7 +9,7 @@ Prodivix is an open-source, browser-based visual development environment for mod
 
 The **Canonical Workspace VFS is the single source of authoring truth**. PIR owns normalized UI documents; NodeGraph and Animation use their own Workspace document types, while route manifests, code documents, assets, and configuration remain first-class records. `CodeReference` connects domain documents to code without embedding the source into a single giant JSON file.
 
-Prodivix is in active alpha development. The current product gate is **G0 Passed / G1 Foundation**: the Truth & Change Kernel has a repeatable closure, while the semantic hybrid visual/code authoring environment is still being built.
+Prodivix is in active alpha development. The current product position is **G0 Passed / G1 Foundation**: the Truth & Change Kernel has a repeatable closure, while the G1 product gate remains in progress.
 
 ## Project Goals
 
@@ -17,6 +17,7 @@ Prodivix is built around several long-term constraints:
 
 - **One canonical authoring truth**: Workspace, Route, PIR, Code, Asset, and Config documents live in the Canonical Workspace VFS rather than editor-private mirrors.
 - **One durable write path**: production authoring changes are planned as Domain Commands or Transactions, persisted through the Durable Outbox, and synchronized through an Atomic `WorkspaceOperation` Commit.
+- **Low-cost PIR evolution**: every G1 consumer uses the stable, version-neutral PIR-current domain model; numeric wire upgrades stay inside immutable schemas, generated boundary contracts, codecs, and deterministic migrations.
 - **Visual editing without a ceiling**: visual workflows coexist with real code, external packages, diagnostics, source navigation, and production export.
 - **Local-first recovery**: confirmed snapshots, pending operations, retry, conflict recovery, and offline reopening use the formal local replica and Outbox contracts.
 - **Evidence-based product gates**: architecture decisions, implementation status, and product-gate status are tracked separately under `specs/`.
@@ -34,7 +35,8 @@ Prodivix is built around several long-term constraints:
 │   └── plugin-sandbox/       # Browser plugin sandbox application
 ├── packages/
 │   ├── animation/            # Animation contracts, authoring helpers, and evaluation
-│   ├── authoring/            # Code authoring and symbol-environment contracts
+│   ├── authoring/            # Workspace Semantic Index kernel and code authoring contracts
+│   ├── code-language/        # Revision-bound TS/JS/CSS/SCSS/GLSL/WGSL capabilities
 │   ├── diagnostics/          # Diagnostic contracts, catalogs, and collections
 │   ├── golden-conformance/   # Living Golden App and G0 conformance gate
 │   ├── nodegraph/            # NodeGraph model, validation, and execution kernel
@@ -61,16 +63,16 @@ Prodivix is built around several long-term constraints:
 
 ## Current Status
 
-| Area                                     | Status                                                                                                                                                          |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall product gate                     | **G0 Passed / G1 Foundation**                                                                                                                                   |
-| Truth & Change Kernel                    | G0 passed: canonical truth, History, Atomic Commit, revision conflicts, Durable Outbox, local replica, and production write Hard Cut are in place               |
-| Diagnostics and Issues                   | G0 passed: revision-aware aggregation, stable targets, source spans, Quick Fix boundaries, and editor navigation are covered                                    |
-| Golden conformance and React/Vite export | G0 non-browser closure passed; standalone install, typecheck, tests, browser smoke, and broader runtime verification remain later gates                         |
-| Semantic visual/code authoring           | G1 foundation: `CodeArtifact`, `CodeReference`, Code Slots, and authoring registries exist; real language services and controlled round-trip remain in progress |
-| Blueprint, Route, and PIR authoring      | Active development on the canonical Workspace contracts                                                                                                         |
-| NodeGraph and Animation                  | Independent domain/runtime kernels are hard-cut from Web; lifecycle, composition, and end-to-end behavior verification remain later work                        |
-| AI-assisted authoring                    | Foundation only; AI may propose planner input but must use the same Command, Outbox, and Atomic Commit path as human edits                                      |
+| Area                                     | Status                                                                                                                                                                                                                                                                  |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overall product position                 | **G0 Passed / G1 Foundation**; G1 `ProductGateStatus` is `In Progress`                                                                                                                                                                                                  |
+| Truth & Change Kernel                    | G0 passed: canonical truth, History, Atomic Commit, revision conflicts, Durable Outbox, local replica, and a single production write path are in place                                                                                                                  |
+| Diagnostics and Issues                   | G0 passed: revision-aware aggregation, stable targets, source spans, Quick Fix boundaries, and editor navigation are covered                                                                                                                                            |
+| Golden conformance and React/Vite export | G0 non-browser closure passed, including route-level PIR artifact reuse; G1 extends the gate with Blueprint instances and standalone-project verification                                                                                                               |
+| Semantic visual/code authoring           | G1 foundation includes the revision-bound Workspace Semantic Index, TS/JS/CSS/SCSS/GLSL/WGSL capabilities, and a CodeSlot slice across Blueprint, Route, NodeGraph, Animation, Resources, Code Editor, and Issues; controlled visual/code round-trip completes the gate |
+| Blueprint, Route, and PIR authoring      | One version-independent PIR-current domain model drives Component Instance, extraction, contracts, Collection, preview, and export; numeric versions stay at the wire migration boundary                                                                                |
+| NodeGraph and Animation                  | Independent domain/runtime packages own their kernels; later gates complete lifecycle, composition, and end-to-end behavior verification                                                                                                                                |
+| AI-assisted authoring                    | Foundation only; AI may propose planner input but must use the same Command, Outbox, and Atomic Commit path as human edits                                                                                                                                              |
 
 The global phase definition and evidence are maintained in [`specs/roadmap/global-phases.md`](specs/roadmap/global-phases.md) and [`specs/roadmap/g0-closure-evidence.md`](specs/roadmap/g0-closure-evidence.md).
 
@@ -146,7 +148,7 @@ Human gesture / AI proposal / plugin action
 
 The planned Command or Transaction is also applied locally to the Canonical Workspace VFS and recorded in Operation History. Remote acknowledgement advances the confirmed revision without creating a second authoring truth.
 
-`Intent` is allowed only as input to a local or AI planner. It is not a production transport, an Outbox entry kind, or an Atomic Commit wire operation.
+`Intent` stays inside local or AI planners; production persistence begins with a validated Command or Transaction wrapped as a `WorkspaceOperation`.
 
 The canonical VFS owns several first-class document domains and projects them into consumers without creating another authoring truth:
 
@@ -169,33 +171,36 @@ PIR trees are materialized only as temporary read projections where a renderer o
 
 The root README is the repository entry point. Current contracts and project status live in the following sources:
 
-| Location                                                                                                                           | Purpose                                                |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| [`apps/docs/`](apps/docs/)                                                                                                         | User and contributor documentation site                |
-| [`apps/docs/guide/getting-started.md`](apps/docs/guide/getting-started.md)                                                         | Detailed local setup                                   |
-| [`specs/roadmap/global-phases.md`](specs/roadmap/global-phases.md)                                                                 | Canonical G0-G6 product phases and current gate        |
-| [`specs/roadmap/g0-closure-evidence.md`](specs/roadmap/g0-closure-evidence.md)                                                     | Repeatable evidence for G0 Passed                      |
-| [`specs/workspace/workspace-model.md`](specs/workspace/workspace-model.md)                                                         | Canonical Workspace model                              |
-| [`specs/decisions/34.core-package-boundaries.md`](specs/decisions/34.core-package-boundaries.md)                                   | Core package ownership and dependency boundaries       |
-| [`specs/decisions/35.canonical-workspace-hard-cut.md`](specs/decisions/35.canonical-workspace-hard-cut.md)                         | Canonical Workspace Hard Cut                           |
-| [`specs/decisions/36.atomic-workspace-operation-commit.md`](specs/decisions/36.atomic-workspace-operation-commit.md)               | Atomic `WorkspaceOperation` Commit and Outbox boundary |
-| [`specs/decisions/37.verified-semantic-authoring-architecture.md`](specs/decisions/37.verified-semantic-authoring-architecture.md) | Verified semantic authoring architecture               |
-| [`apps/docs/reference/pir-spec.md`](apps/docs/reference/pir-spec.md)                                                               | PIR reference documentation                            |
-| [`specs/decisions/README.md`](specs/decisions/README.md)                                                                           | Architecture decision index                            |
-| [`specs/diagnostics/README.md`](specs/diagnostics/README.md)                                                                       | Diagnostic domains and code catalogs                   |
+| Location                                                                                                                                 | Purpose                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| [`apps/docs/`](apps/docs/)                                                                                                               | User and contributor documentation site                |
+| [`apps/docs/guide/getting-started.md`](apps/docs/guide/getting-started.md)                                                               | Detailed local setup                                   |
+| [`specs/roadmap/global-phases.md`](specs/roadmap/global-phases.md)                                                                       | Canonical G0-G6 product phases and current gate        |
+| [`specs/roadmap/g0-closure-evidence.md`](specs/roadmap/g0-closure-evidence.md)                                                           | Repeatable evidence for G0 Passed                      |
+| [`specs/workspace/workspace-model.md`](specs/workspace/workspace-model.md)                                                               | Canonical Workspace model                              |
+| [`specs/decisions/34.core-package-boundaries.md`](specs/decisions/34.core-package-boundaries.md)                                         | Core package ownership and dependency boundaries       |
+| [`specs/decisions/35.canonical-workspace-hard-cut.md`](specs/decisions/35.canonical-workspace-hard-cut.md)                               | Canonical Workspace production boundary                |
+| [`specs/decisions/36.atomic-workspace-operation-commit.md`](specs/decisions/36.atomic-workspace-operation-commit.md)                     | Atomic `WorkspaceOperation` Commit and Outbox boundary |
+| [`specs/decisions/37.verified-semantic-authoring-architecture.md`](specs/decisions/37.verified-semantic-authoring-architecture.md)       | Verified semantic authoring architecture               |
+| [`specs/decisions/25.authoring-symbol-environment.md`](specs/decisions/25.authoring-symbol-environment.md)                               | Workspace Semantic Index contract                      |
+| [`specs/decisions/38.blueprint-component-instance-and-collection.md`](specs/decisions/38.blueprint-component-instance-and-collection.md) | Blueprint component and Collection contract            |
+| [`specs/implementation/g1-semantic-component-collection.md`](specs/implementation/g1-semantic-component-collection.md)                   | Active G1 semantic/component/Collection plan           |
+| [`apps/docs/reference/pir-spec.md`](apps/docs/reference/pir-spec.md)                                                                     | PIR reference documentation                            |
+| [`specs/decisions/README.md`](specs/decisions/README.md)                                                                                 | Architecture decision index                            |
+| [`specs/diagnostics/README.md`](specs/diagnostics/README.md)                                                                             | Diagnostic domains and code catalogs                   |
 
 ## Development Notes
 
 - `@prodivix/ui` styles are authored with SCSS.
 - Application-level styling uses Tailwind CSS 4 conventions.
 - Prefer package-local aliases such as `@/...` where they are configured.
-- Code-owned capabilities connect through the Code Authoring Environment and Authoring Symbol Environment; editors do not persist arbitrary code strings or scan one another's private state.
+- Code-owned capabilities connect through the Code Authoring Environment; all domains contribute to and query the revision-bound Workspace Semantic Index instead of scanning one another's private state.
 - Avoid tests coupled to DOM hierarchy, internal classes, snapshots, or implementation details. Prefer user-visible behavior, public APIs, stable state results, and semantic outcomes.
 - Use Git-indexed discovery commands such as `git ls-files`, `git diff --name-only`, and `git grep` when scanning repository files.
 
 ## Contributing
 
-This project evolves quickly and intentionally makes hard cuts while it is in alpha. Before a large change, read the relevant product phase, architecture decision, and implementation plan; do not add compatibility layers unless a current contract explicitly requires one.
+This alpha project implements the current target architecture directly and treats active canonical contracts as the sole production baseline. Before a large change, read the relevant product phase, architecture decision, and implementation plan.
 
 Useful starting points:
 

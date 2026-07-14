@@ -23,20 +23,21 @@ requestId
 
 ## 编码域
 
-| 前缀       | 范围     | 说明                                                                       |
-| ---------- | -------- | -------------------------------------------------------------------------- |
-| `PIR-xxxx` | PIR 文档 | 文档形状、UI graph、ValueRef、materialize 和运行前校验                     |
-| `WKS-xxxx` | 工作区   | 工作区加载、文档保存、同步冲突、capability 和 patch 应用                   |
-| `PLG-xxxx` | 插件     | Plugin Manifest、contribution contract、权限、注册事务和 runtime lifecycle |
-| `EDT-xxxx` | 编辑器   | 选择、拖拽、Inspector、画布、命令和 autosave                               |
-| `UX-xxxx`  | 用户体验 | 可访问性、交互、响应式布局、内容、视觉反馈和体验检查器                     |
-| `COD-xxxx` | 用户代码 | 代码片段、符号解析、类型、宿主绑定、运行时和转译编译                       |
-| `GEN-xxxx` | 代码生成 | Canonical IR、adapter、依赖解析、代码发射和导出产物                        |
-| `API-xxxx` | 后端/API | 请求、鉴权、权限、业务校验、持久化和第三方集成                             |
-| `AI-xxxx`  | AI 助手  | Provider、模型发现、Prompt、响应解析和 AI command                          |
-| `RTE-xxxx` | 路由     | 路由清单、匹配、Outlet、导航和运行时                                       |
-| `NGR-xxxx` | 节点图   | 节点图结构、端口、连线、执行和调试                                         |
-| `ANI-xxxx` | 动画     | Timeline、binding、track、keyframe、filter 和预览运行时                    |
+| 前缀       | 范围       | 说明                                                                       |
+| ---------- | ---------- | -------------------------------------------------------------------------- |
+| `PIR-xxxx` | PIR 文档   | 文档形状、UI graph、ValueRef、materialize 和运行前校验                     |
+| `WKS-xxxx` | 工作区     | 工作区加载、文档保存、同步冲突、capability 和 patch 应用                   |
+| `PLG-xxxx` | 插件       | Plugin Manifest、contribution contract、权限、注册事务和 runtime lifecycle |
+| `EDT-xxxx` | 编辑器     | 选择、拖拽、Inspector、画布、命令和 autosave                               |
+| `UX-xxxx`  | 用户体验   | 可访问性、交互、响应式布局、内容、视觉反馈和体验检查器                     |
+| `COD-xxxx` | 用户代码   | 代码片段、符号解析、类型、宿主绑定、运行时和转译编译                       |
+| `SEM-xxxx` | 跨领域语义 | Workspace 级符号、作用域、引用解析、能力约束和快照一致性                   |
+| `GEN-xxxx` | 代码生成   | Canonical IR、adapter、依赖解析、代码发射和导出产物                        |
+| `API-xxxx` | 后端/API   | 请求、鉴权、权限、业务校验、持久化和第三方集成                             |
+| `AI-xxxx`  | AI 助手    | Provider、模型发现、Prompt、响应解析和 AI command                          |
+| `RTE-xxxx` | 路由       | 路由清单、匹配、Outlet、导航和运行时                                       |
+| `NGR-xxxx` | 节点图     | 节点图结构、端口、连线、执行和调试                                         |
+| `ANI-xxxx` | 动画       | Timeline、binding、track、keyframe、filter 和预览运行时                    |
 
 ## 命名空间索引
 
@@ -46,6 +47,7 @@ requestId
 - [Editor](/reference/diagnostics/edt)
 - [UX](/reference/diagnostics/ux)
 - [Code](/reference/diagnostics/cod)
+- [Semantic](/reference/diagnostics/sem)
 - [Codegen](/reference/diagnostics/gen)
 - [Backend/API](/reference/diagnostics/api)
 - [AI](/reference/diagnostics/ai)
@@ -320,6 +322,16 @@ requestId
 | [`COD-5013`](/reference/diagnostics/cod-5013) | 目标运行模式不支持当前语言特性      | `warning` |
 | [`COD-9001`](/reference/diagnostics/cod-9001) | 代码环境未知异常                    | `error`   |
 | [`COD-9002`](/reference/diagnostics/cod-9002) | 代码诊断证据不足                    | `warning` |
+
+### Semantic
+
+| Code                                          | 名称                           | 严重程度  |
+| --------------------------------------------- | ------------------------------ | --------- |
+| [`SEM-2001`](/reference/diagnostics/sem-2001) | 语义引用目标不存在             | `warning` |
+| [`SEM-2002`](/reference/diagnostics/sem-2002) | 语义引用目标在当前作用域不可见 | `warning` |
+| [`SEM-2003`](/reference/diagnostics/sem-2003) | 语义引用解析结果不唯一         | `warning` |
+| [`SEM-2004`](/reference/diagnostics/sem-2004) | 语义引用目标类型或能力不兼容   | `warning` |
+| [`SEM-2005`](/reference/diagnostics/sem-2005) | 语义索引快照已过期             | `warning` |
 
 ### Codegen
 

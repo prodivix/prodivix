@@ -8,6 +8,8 @@ require (
 	golang.org/x/crypto v0.43.0
 )
 
+require github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/bytedance/gopkg v0.1.3 // indirect

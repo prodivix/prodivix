@@ -1,10 +1,10 @@
 import { createContext, useContext } from 'react';
 import type { TFunction } from 'i18next';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../../projection';
 import type { InspectorUpdateNode } from '../types';
 
 export type LayoutGroupContextValue = {
-  node: ComponentNode;
+  node: BlueprintInspectorNodeView;
   updateNode: InspectorUpdateNode;
   display: string | undefined;
   isPatternStructureControlled: boolean;

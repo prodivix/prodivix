@@ -1,11 +1,13 @@
-import { Trash2 } from 'lucide-react';
+import { Code2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
   AnimationBinding,
   AnimationTimeline,
+  AnimationTimelineCodeSlotRole,
   AnimationTrack,
   SvgFilterDefinition,
 } from '@prodivix/animation';
+import type { CodeArtifact, CodeReference } from '@prodivix/authoring';
 import { AnimationEditorKeyframesEditor } from './AnimationEditorKeyframesEditor';
 import { AnimationEditorSvgFilterLibrarySection } from './AnimationEditorSvgFilterLibrarySection';
 import {
@@ -54,6 +56,12 @@ type AnimationEditorInspectorPanelProps = {
   onUpdateTimelineDirection: (direction: TimelineDirection | undefined) => void;
   onUpdateTimelineFillMode: (fillMode: TimelineFillMode | undefined) => void;
   onUpdateTimelineEasing: (easing: string) => void;
+  codeArtifacts: readonly CodeArtifact[];
+  onUpdateTimelineCodeSlot: (
+    role: AnimationTimelineCodeSlotRole,
+    reference: CodeReference | undefined
+  ) => void;
+  onOpenCodeSlotDefinition: (slotId: string) => void;
 
   onAddTrack: (
     bindingId: string,
@@ -161,6 +169,9 @@ export const AnimationEditorInspectorPanel = ({
   onUpdateTimelineDirection,
   onUpdateTimelineFillMode,
   onUpdateTimelineEasing,
+  codeArtifacts,
+  onUpdateTimelineCodeSlot,
+  onOpenCodeSlotDefinition,
   onAddTrack,
   onDeleteTrack,
   onUpdateTrackKind,
@@ -335,6 +346,76 @@ export const AnimationEditorInspectorPanel = ({
               disabled={!timeline}
             />
           </div>
+        </section>
+
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-medium tracking-[0.08em] text-(--text-secondary)">
+              Code Slots
+            </h2>
+            <Code2 size={13} className="text-(--text-muted)" />
+          </div>
+          {(
+            [
+              {
+                role: 'custom-easing',
+                field: 'customEasing',
+                label: 'Custom easing',
+              },
+              { role: 'shader', field: 'shader', label: 'Shader' },
+              { role: 'script', field: 'script', label: 'Timeline script' },
+            ] as const
+          ).map(({ role, field, label }) => {
+            const slotBinding = timeline?.codeSlots?.[field];
+            const compatibleArtifacts = codeArtifacts.filter((artifact) =>
+              role === 'shader'
+                ? artifact.language === 'glsl' || artifact.language === 'wgsl'
+                : artifact.language === 'ts' || artifact.language === 'js'
+            );
+            return (
+              <div
+                key={role}
+                className="grid gap-1.5 rounded-xl bg-black/[0.03] p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium text-(--text-secondary)">
+                    {label}
+                  </span>
+                  {slotBinding ? (
+                    <button
+                      type="button"
+                      className="text-[10px] text-(--text-secondary) hover:text-(--text-primary)"
+                      onClick={() =>
+                        onOpenCodeSlotDefinition(slotBinding.slotId)
+                      }
+                    >
+                      Open definition
+                    </button>
+                  ) : null}
+                </div>
+                <select
+                  value={slotBinding?.reference.artifactId ?? ''}
+                  onChange={(event) => {
+                    const artifactId = event.target.value;
+                    onUpdateTimelineCodeSlot(
+                      role,
+                      artifactId ? { artifactId } : undefined
+                    );
+                  }}
+                  className="w-full rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs text-(--text-primary) outline-none"
+                  disabled={!timeline}
+                  aria-label={label}
+                >
+                  <option value="">Unbound</option>
+                  {compatibleArtifacts.map((artifact) => (
+                    <option key={artifact.id} value={artifact.id}>
+                      {artifact.path}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
         </section>
 
         <section className="space-y-2">

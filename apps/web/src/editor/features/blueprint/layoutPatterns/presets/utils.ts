@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '@/editor/features/blueprint/editor/inspector/projection';
 import {
   createLayoutPatternRoleDataAttributes,
   createLayoutPatternRootDataAttributes,
@@ -6,9 +6,9 @@ import {
 import type { LayoutPatternRole } from '@/editor/features/blueprint/layoutPatterns/layoutPattern.types';
 
 const withDataAttributes = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   dataAttributes: Record<string, string>
-): ComponentNode => ({
+): BlueprintInspectorNodeView => ({
   ...node,
   props: {
     ...(node.props ?? {}),
@@ -25,8 +25,8 @@ export const createPatternRootNode = ({
   id: string;
   patternId: string;
   props?: Record<string, unknown>;
-  children?: ComponentNode[];
-}): ComponentNode =>
+  children?: BlueprintInspectorNodeView[];
+}): BlueprintInspectorNodeView =>
   withDataAttributes(
     {
       id,
@@ -51,8 +51,8 @@ export const createPatternRoleNode = ({
   patternId: string;
   role: LayoutPatternRole;
   props?: Record<string, unknown>;
-  children?: ComponentNode[];
-}): ComponentNode =>
+  children?: BlueprintInspectorNodeView[];
+}): BlueprintInspectorNodeView =>
   withDataAttributes(
     {
       id,

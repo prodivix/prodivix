@@ -16,10 +16,9 @@ Browser sandbox transport, Host Gateway adapters, concrete contribution payload 
 
 Implementation contracts are documented in:
 
-- `specs/implementation/plugin-host-core-phase2.md`
+- `specs/decisions/29.plugin-extension-points.md`
 - `specs/implementation/plugin-host-lifecycle-and-permissions.md`
 - `specs/implementation/plugin-host-contribution-registry.md`
-- `specs/implementation/plugin-host-palette-phase3.md`
 - `specs/implementation/plugin-browser-sandbox-phase4.md`
 
 Run package validation with:

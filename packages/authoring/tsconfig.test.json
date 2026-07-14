@@ -5,9 +5,7 @@
     "types": ["node"],
     "noEmit": true,
     "paths": {
-      "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"],
-      "@prodivix/shared": ["../shared/dist/index.d.ts"],
-      "@prodivix/shared/*": ["../shared/dist/*"]
+      "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
@@ -15,9 +13,6 @@
   "references": [
     {
       "path": "../diagnostics"
-    },
-    {
-      "path": "../shared"
     }
   ]
 }

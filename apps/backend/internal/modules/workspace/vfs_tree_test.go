@@ -47,7 +47,10 @@ func TestWorkspaceVFSTreeAddsCodeDocumentWithDirectories(t *testing.T) {
 }
 
 func TestWorkspaceVFSTreeMarshalKeepsEmptyDirectoryChildrenCanonical(t *testing.T) {
-	payload := defaultWorkspaceTreeWithRootDocumentJSON("root")
+	payload, err := defaultWorkspaceTreeWithDocumentJSON("root", "doc_root", "/pir.json")
+	if err != nil {
+		t.Fatalf("create tree payload: %v", err)
+	}
 	var decoded struct {
 		TreeByID map[string]map[string]any `json:"treeById"`
 	}
@@ -59,8 +62,8 @@ func TestWorkspaceVFSTreeMarshalKeepsEmptyDirectoryChildrenCanonical(t *testing.
 	if !ok || len(children) != 0 {
 		t.Fatalf("empty directory children must be [], got %#v", decoded.TreeByID["dir_styles"]["children"])
 	}
-	if _, exists := decoded.TreeByID["doc_root_node"]["children"]; exists {
-		t.Fatalf("document node must not serialize children: %#v", decoded.TreeByID["doc_root_node"])
+	if _, exists := decoded.TreeByID["doc_pir_json"]["children"]; exists {
+		t.Fatalf("document node must not serialize children: %#v", decoded.TreeByID["doc_pir_json"])
 	}
 }
 

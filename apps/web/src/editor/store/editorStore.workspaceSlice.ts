@@ -1,6 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { PIRDocument } from '@prodivix/shared/types/pir';
-import { validatePirDocument } from '@prodivix/pir';
+import { validatePirDocument, type PIRDocument } from '@prodivix/pir';
 import {
   applyWorkspaceCommand,
   applyWorkspaceMutation as applyCanonicalWorkspaceMutation,
@@ -685,11 +684,11 @@ export const createWorkspaceSlice: StateCreator<
     const candidate = updater(activeDocument.content);
     if (candidate === activeDocument.content) return null;
     const validation = validatePirDocument(candidate);
-    if (validation.hasError) return null;
+    if (!validation.valid) return null;
     const command = createWorkspacePirDocumentUpdateCommand({
       workspace: state.workspace,
       before: activeDocument.content,
-      after: validation.document,
+      after: candidate,
       ...options,
       commandId: options.commandId ?? createWorkspaceClientOperationId(),
     });

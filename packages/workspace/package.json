@@ -26,9 +26,9 @@
   "dependencies": {
     "@prodivix/animation": "workspace:*",
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/nodegraph": "workspace:*",
     "@prodivix/pir": "workspace:*",
-    "@prodivix/router": "workspace:*",
-    "@prodivix/shared": "workspace:*"
+    "@prodivix/router": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

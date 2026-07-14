@@ -1,11 +1,18 @@
 import { ChevronDown } from 'lucide-react';
-import type { NodeListRender } from '@prodivix/shared/types/pir';
+import type { InspectorListView } from '@/editor/features/blueprint/editor/inspector/projection';
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 
 export function InspectorListTemplateFields() {
-  const { t, selectedNode, updateSelectedNode, expandedPanels, togglePanel } =
-    useInspectorContext();
+  const {
+    t,
+    selectedNode,
+    updateSelectedNode,
+    expandedPanels,
+    togglePanel,
+    collectionWriteAvailable,
+    collectionDiagnostic,
+  } = useInspectorContext();
   if (!selectedNode) return null;
 
   const enabled = Boolean(selectedNode.list);
@@ -45,6 +52,7 @@ export function InspectorListTemplateFields() {
                   data-testid="inspector-list-template-enable"
                   type="checkbox"
                   checked={enabled}
+                  disabled={!collectionWriteAvailable}
                   onChange={(event) => {
                     const checked = event.currentTarget.checked;
                     updateSelectedNode((current) => {
@@ -53,7 +61,7 @@ export function InspectorListTemplateFields() {
                         delete next.list;
                         return next;
                       }
-                      const nextList: NodeListRender = {
+                      const nextList: InspectorListView = {
                         arrayField: '',
                         itemAs: 'item',
                         indexAs: 'index',
@@ -79,6 +87,10 @@ export function InspectorListTemplateFields() {
                   data-testid="inspector-list-array-field"
                   className="h-7 min-w-0 rounded-md border border-(--border-default) bg-transparent px-2.5 text-xs text-(--text-primary) outline-none"
                   value={arrayField}
+                  disabled={
+                    !collectionWriteAvailable ||
+                    Boolean(selectedNode.list?.collectionId && !arrayField)
+                  }
                   onChange={(event) => {
                     const nextValue = event.target.value;
                     updateSelectedNode((current) => {
@@ -108,6 +120,11 @@ export function InspectorListTemplateFields() {
                 defaultValue:
                   'Item and index aliases are managed automatically in code generation.',
               })}
+            </span>
+          ) : null}
+          {collectionDiagnostic ? (
+            <span className="text-[10px] text-(--text-muted)">
+              {collectionDiagnostic}
             </span>
           ) : null}
         </div>

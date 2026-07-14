@@ -12,7 +12,7 @@ import {
 } from '@prodivix/plugin-host';
 import { flattenRouteManifest } from '@prodivix/router';
 import {
-  selectActivePirWorkspaceDocument,
+  selectActivePirDocument,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import { useEditorStore } from '@/editor/store/useEditorStore';
@@ -53,7 +53,7 @@ export const createEditorPluginGatewayServices = (
           return pluginHostFailure(current.diagnostics);
         }
         const workspace = current.value;
-        const activePirDocument = selectActivePirWorkspaceDocument(workspace);
+        const activePirDocument = selectActivePirDocument(workspace);
         return pluginHostSuccess(
           Object.freeze({
             workspaceId,

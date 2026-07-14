@@ -7,21 +7,22 @@ import {
   MoreHorizontal,
   Trash2,
 } from 'lucide-react';
+import type { PIRRenderLocation } from '@prodivix/pir-react-renderer';
 
 type TreeNodeActionsProps = {
-  nodeId: string;
+  location: PIRRenderLocation;
   isRoot?: boolean | '';
   isHidden: boolean;
   isMenuOpen: boolean;
-  onMenuAction?: (nodeId: string) => void;
-  onDelete: (nodeId: string) => void;
-  onCopy: (nodeId: string) => void;
-  onMove: (nodeId: string, direction: 'up' | 'down') => void;
-  onToggleHidden: (nodeId: string) => void;
+  onMenuAction?: (location: PIRRenderLocation) => void;
+  onDelete: (location: PIRRenderLocation) => void;
+  onCopy: (location: PIRRenderLocation) => void;
+  onMove: (location: PIRRenderLocation, direction: 'up' | 'down') => void;
+  onToggleHidden: (location: PIRRenderLocation) => void;
 };
 
 export function TreeNodeActions({
-  nodeId,
+  location,
   isRoot,
   isHidden,
   isMenuOpen,
@@ -40,7 +41,7 @@ export function TreeNodeActions({
         className="BlueprintEditorTreeNodeAction inline-flex items-center gap-1 rounded-full border-0 bg-transparent px-0.5 py-0 text-[10px] text-(--text-muted) hover:text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-45"
         onClick={(event) => {
           event.stopPropagation();
-          onToggleHidden(nodeId);
+          onToggleHidden(location);
         }}
         disabled={Boolean(isRoot)}
         aria-label={isHidden ? 'Show layer on canvas' : 'Hide layer on canvas'}
@@ -53,7 +54,7 @@ export function TreeNodeActions({
         className="BlueprintEditorTreeNodeAction Danger inline-flex items-center gap-1 rounded-full border-0 bg-transparent px-0.5 py-0 text-[10px] text-(--danger-color) hover:text-(--danger-hover) disabled:cursor-not-allowed disabled:opacity-45"
         onClick={(event) => {
           event.stopPropagation();
-          onDelete(nodeId);
+          onDelete(location);
         }}
         disabled={Boolean(isRoot)}
         aria-label="Delete"
@@ -69,7 +70,7 @@ export function TreeNodeActions({
           className="BlueprintEditorTreeNodeAction inline-flex items-center gap-1 rounded-full border-0 bg-transparent px-0.5 py-0 text-[10px] text-(--text-muted) hover:text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-45"
           onClick={(event) => {
             event.stopPropagation();
-            onMenuAction?.(nodeId);
+            onMenuAction?.(location);
           }}
           aria-label="More actions"
           title="More actions"
@@ -86,8 +87,8 @@ export function TreeNodeActions({
             role="menuitem"
             onClick={(event) => {
               event.stopPropagation();
-              onMenuAction?.(nodeId);
-              onMove(nodeId, 'up');
+              onMenuAction?.(location);
+              onMove(location, 'up');
             }}
             disabled={Boolean(isRoot)}
             aria-label="Move up"
@@ -101,8 +102,8 @@ export function TreeNodeActions({
             role="menuitem"
             onClick={(event) => {
               event.stopPropagation();
-              onMenuAction?.(nodeId);
-              onMove(nodeId, 'down');
+              onMenuAction?.(location);
+              onMove(location, 'down');
             }}
             disabled={Boolean(isRoot)}
             aria-label="Move down"
@@ -116,8 +117,8 @@ export function TreeNodeActions({
             role="menuitem"
             onClick={(event) => {
               event.stopPropagation();
-              onMenuAction?.(nodeId);
-              onCopy(nodeId);
+              onMenuAction?.(location);
+              onCopy(location);
             }}
             disabled={Boolean(isRoot)}
             aria-label="Copy"

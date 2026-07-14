@@ -13,7 +13,7 @@ import (
 )
 
 type WorkspaceBootstrapper interface {
-	CreateProjectWorkspace(ctx context.Context, ownerID string, name string, description string, resourceType ResourceType, isPublic bool, initialPIR json.RawMessage) (*Project, error)
+	CreateProjectWorkspace(ctx context.Context, ownerID string, name string, description string, resourceType ResourceType, initialPIR json.RawMessage) (*Project, error)
 	PublishProjectWorkspace(ctx context.Context, userID string, workspaceID string) (*Project, error)
 }
 
@@ -64,21 +64,28 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 		Name         string          `json:"name"`
 		Description  string          `json:"description"`
 		ResourceType ResourceType    `json:"resourceType"`
-		IsPublic     bool            `json:"isPublic"`
 		PIR          json.RawMessage `json:"pir"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
 		return
 	}
-	resourceType := request.ResourceType
+	resourceType := normalizeResourceType(request.ResourceType)
 	if strings.TrimSpace(string(resourceType)) == "" {
 		resourceType = ResourceTypeProject
 	}
-	initialPIR, err := normalizePIR(request.PIR)
-	if err != nil {
-		respondError(c, http.StatusUnprocessableEntity, "PIR-4001", "PIR document is invalid.")
+	if !isValidResourceType(resourceType) {
+		respondError(c, http.StatusBadRequest, "API-4001", "Resource type is invalid.")
 		return
+	}
+	var initialPIR json.RawMessage
+	if resourceType != ResourceTypeNodeGraph {
+		var err error
+		initialPIR, err = normalizePIR(request.PIR)
+		if err != nil {
+			respondError(c, http.StatusUnprocessableEntity, "PIR-4001", "PIR document is invalid.")
+			return
+		}
 	}
 	if handler.workspaceModule == nil {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not create project.")
@@ -90,7 +97,6 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 		request.Name,
 		request.Description,
 		resourceType,
-		request.IsPublic,
 		initialPIR,
 	)
 	if err != nil {

@@ -1,6 +1,6 @@
-import type { PIRDocument } from '@prodivix/shared/types/pir';
+import type { PIRDocument } from '@prodivix/pir';
 import type { ProjectResourceType, ProjectSummary } from '@/editor/editorApi';
-import { validatePirDocument } from '@prodivix/pir';
+import { tryNormalizePirDocument, validatePirDocument } from '@prodivix/pir';
 import {
   decodeWorkspaceSnapshot,
   encodeWorkspaceSnapshot,
@@ -71,7 +71,7 @@ export const LOCAL_WORKSPACE_CAPABILITIES: Record<string, boolean> = {
   'core.pir.graph.replace@1.0': true,
   'core.route.manifest.update@1.0': true,
   'core.settings.commit@1.0': true,
-  'core.nodegraph.graph.update@1.0': true,
+  'core.nodegraph.document.update@1.0': true,
   'core.animation.definition.update@1.0': true,
   'core.resource.project-config.value.update@1.0': true,
   'core.workspace.code-document.create@1.0': true,
@@ -272,14 +272,21 @@ const parseSyncBinding = (
 };
 
 const requireValidPir = (pir: PIRDocument): PIRDocument => {
-  const validation = validatePirDocument(pir);
-  if (validation.hasError) {
+  const normalized = tryNormalizePirDocument(pir);
+  if (normalized.ok === false) {
+    throw new LocalProjectRecordError(
+      '/workspace/documents/doc_root/content',
+      normalized.issues.map((issue) => issue.message).join('; ')
+    );
+  }
+  const validation = validatePirDocument(normalized.value);
+  if (!validation.valid) {
     throw new LocalProjectRecordError(
       '/workspace/documents/doc_root/content',
       validation.issues.map((issue) => issue.message).join('; ')
     );
   }
-  return validation.document;
+  return normalized.value;
 };
 
 const createRootDocument = (
@@ -298,46 +305,79 @@ const createRootDocument = (
 const createWorkspaceSnapshot = ({
   projectId,
   pir,
+  resourceType,
   updatedAt,
 }: {
   projectId: string;
   pir: PIRDocument;
+  resourceType: ProjectResourceType;
   updatedAt: string;
-}): WorkspaceSnapshot => ({
-  id: projectId,
-  workspaceRev: 1,
-  routeRev: 1,
-  opSeq: 1,
-  treeRootId: 'root',
-  treeById: {
-    root: {
-      id: 'root',
-      kind: 'dir',
-      name: '/',
-      parentId: null,
-      children: ['doc_root_node'],
+}): WorkspaceSnapshot => {
+  const nodeGraphDocumentId = 'graph_root';
+  const isNodeGraph = resourceType === 'nodegraph';
+  return {
+    id: projectId,
+    workspaceRev: 1,
+    routeRev: 1,
+    opSeq: 1,
+    treeRootId: 'root',
+    treeById: {
+      root: {
+        id: 'root',
+        kind: 'dir',
+        name: '/',
+        parentId: null,
+        children: [
+          'doc_root_node',
+          ...(isNodeGraph ? ['graph_root_node'] : []),
+        ],
+      },
+      doc_root_node: {
+        id: 'doc_root_node',
+        kind: 'doc',
+        name: 'pir.json',
+        parentId: 'root',
+        docId: ROOT_DOCUMENT_ID,
+      },
+      ...(isNodeGraph
+        ? {
+            graph_root_node: {
+              id: 'graph_root_node',
+              kind: 'doc' as const,
+              name: 'main.pir-graph.json',
+              parentId: 'root',
+              docId: nodeGraphDocumentId,
+            },
+          }
+        : {}),
     },
-    doc_root_node: {
-      id: 'doc_root_node',
-      kind: 'doc',
-      name: 'pir.json',
-      parentId: 'root',
-      docId: ROOT_DOCUMENT_ID,
+    docsById: {
+      [ROOT_DOCUMENT_ID]: createRootDocument(pir, updatedAt),
+      ...(isNodeGraph
+        ? {
+            [nodeGraphDocumentId]: {
+              id: nodeGraphDocumentId,
+              type: 'pir-graph' as const,
+              path: '/main.pir-graph.json',
+              contentRev: 1,
+              metaRev: 1,
+              content: { version: 1, nodes: [], edges: [] },
+              updatedAt,
+            },
+          }
+        : {}),
     },
-  },
-  docsById: {
-    [ROOT_DOCUMENT_ID]: createRootDocument(pir, updatedAt),
-  },
-  routeManifest: {
-    version: '1',
-    root: {
-      id: 'root',
-      children: [],
+    routeManifest: {
+      version: '1',
+      root: {
+        id: 'root',
+        children: [],
+      },
     },
-  },
-  activeDocumentId: ROOT_DOCUMENT_ID,
-  activeRouteNodeId: 'root',
-});
+    activeDocumentId: isNodeGraph ? nodeGraphDocumentId : ROOT_DOCUMENT_ID,
+    activeRouteNodeId: 'root',
+  };
+};
 
 const assertWorkspaceIdentity = (
   projectId: string,
@@ -461,6 +501,7 @@ export const createLocalProject = async ({
     workspace: createWorkspaceSnapshot({
       projectId: id,
       pir,
+      resourceType,
       updatedAt: now,
     }),
     workspaceSettings: cloneData(workspaceSettings),

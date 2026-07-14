@@ -15,6 +15,9 @@ const WorkspaceIssuesPage = lazy(
   () => import('./editor/features/issues/WorkspaceIssuesPage')
 );
 const BlueprintEditor = lazy(() => import('./editor/features/blueprint'));
+const ComponentAuthoringPage = lazy(
+  () => import('./editor/features/component/ComponentAuthoringPage')
+);
 const NodeGraphEditor = lazy(
   () => import('./editor/features/development/NodeGraphEditor')
 );
@@ -84,11 +87,7 @@ export const createRoutes = (t: TFunction) => [
           },
           {
             path: 'component',
-            element: (
-              <div>
-                {t('componentEditor', 'componentEditor', { ns: 'routes' })}
-              </div>
-            ),
+            element: withEditorSuspense(<ComponentAuthoringPage />),
           },
           {
             path: 'animation',
@@ -128,9 +127,7 @@ export const createRoutes = (t: TFunction) => [
       },
       {
         path: 'component',
-        element: (
-          <div>{t('componentEditor', 'componentEditor', { ns: 'routes' })}</div>
-        ),
+        element: <Navigate to="/editor" replace />,
       },
       {
         path: 'blueprint',

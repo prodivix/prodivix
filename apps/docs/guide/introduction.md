@@ -32,7 +32,7 @@ flowchart LR
 
 编辑器先通过 `@prodivix/workspace` 形成 Command 或 Transaction，并记录可撤销、重做和审计的 History。远端 exact request 在发送前进入 `@prodivix/workspace-sync` 的 durable outbox，再由后端执行强幂等 Atomic Commit。Settings 使用独立的 durable outbox 与 Settings Commit。
 
-旧 document `PATCH`、`POST /intents`、Project PIR 作者态镜像以及绕过 outbox 的直写入口已经被 Hard Cut。
+生产作者态写入统一由 Workspace Command / Transaction 形成 `WorkspaceOperation`，并通过 durable outbox 与 Atomic Commit 持久化。
 
 ### Core package 拥有领域语义，Web 负责组合
 
@@ -44,12 +44,12 @@ flowchart LR
 | Route contract、codec、matching 与 validation         | `@prodivix/router`                                     |
 | NodeGraph / Animation 领域内核                        | `@prodivix/nodegraph` / `@prodivix/animation`          |
 | Runtime contract 与浏览器 adapter                     | `@prodivix/runtime-core` / `@prodivix/runtime-browser` |
-| Code Authoring / Symbol Environment                   | `@prodivix/authoring`                                  |
+| Code Authoring / Workspace Semantic Index             | `@prodivix/authoring`                                  |
 | 诊断 contract、registry 与 presentation               | `@prodivix/diagnostics`                                |
 | React PIR projection                                  | `@prodivix/pir-react-renderer`                         |
 | Workspace / PIR export                                | `@prodivix/prodivix-compiler`                          |
 
-`apps/web` 不再拥有 `src/core`、私有 PIR renderer、私有 Router Core 或私有 PIR validator。Web 中仍存在的 `src/pir` 与 `src/router` 只承载应用专用 adapter。
+`apps/web` 负责 React 编辑器表面、浏览器 adapter 与 composition root；PIR renderer、Router、validator 和 transport-neutral core 由对应 package 持有。
 
 ## 三编辑器与共享代码作者环境
 
@@ -59,9 +59,9 @@ Prodivix 保持三种主要视觉编辑器：
 - **NodeGraph** 维护逻辑图及其端口与执行语义。
 - **Animation** 维护 timeline、binding、track、filter 与关键帧。
 
-复杂 handler、executor、mounted CSS、adapter、easing、shader 和 timeline script 不应作为裸字符串散落在编辑器状态中。它们通过 CodeSlot 指向 Workspace code document / CodeArtifact，由共享 Code Authoring Environment 提供 CodeReference、符号、作用域与诊断查询。
+复杂 handler、executor、mounted CSS、adapter、easing、shader 和 timeline script 通过 CodeSlot 指向 Workspace code document / CodeArtifact。Code Authoring Environment 提供编辑与 CodeReference 能力，Workspace Semantic Index 统一提供符号、作用域、引用、影响与诊断查询。
 
-当前已经存在 CodeArtifact、CodeReference、CodeSlot、Authoring Registry 与 CodeMirror/Monaco 相关基础，但真实 TypeScript/JavaScript/CSS/GLSL/WGSL Language Service、definition/reference/rename、稳定 visual/code round-trip 和完整代码工作区尚未通过 G1 Gate。
+当前 CodeArtifact、CodeReference、CodeSlot、Authoring Registry、代码工作区与 revision-bound TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL Language Capability 已接入 Code Editor、Issues 和 Workspace Semantic Index。G1 继续完成主要 CodeSlot 产品入口、GPU/目标后端 shader compile validation、稳定 visual/code round-trip 与独立导出项目验证。
 
 ## 当前产品状态
 
@@ -75,19 +75,20 @@ Prodivix 保持三种主要视觉编辑器：
 - Atomic Commit、revision partition、强幂等与显式冲突解决
 - Workspace、Route 与 PIR 的 codec / semantic validation 组合
 - Issues 聚合、稳定 target、SourceSpan、Quick Fix 边界与编辑器回跳
-- Living Golden App 的创建、编辑、保存规划、恢复、冲突、完整 Workspace React/Vite export 与进程内 build
+- Living Golden App 的创建、编辑、保存规划、恢复、冲突、route-level PIR artifact 复用、完整 Workspace React/Vite export 与进程内 build
 
 G0 通过不包含浏览器行为、视觉回归、独立导出项目安装和完整应用交付链。
 
 ### G1：Foundation
 
-G1 正在建立语义化的视觉与代码混合作者环境。当前已有 Code Authoring contract、Workspace code documents、React/Vite export 与 SourceTrace 基础；以下关键 Gate 仍未通过：
+G1 正在建立语义化的视觉与代码混合作者环境。当前已有 Code Authoring contract、Workspace code documents、`pir-component` 文档类型、PIR graph region、React/Vite export 与 SourceTrace 基础；以下关键 Gate 仍未通过：
 
-- 真实 Language Service 与增量索引
+- revision-bound Workspace Semantic Index，以及作为 Code Semantic Provider 的真实 Language Service
 - visual/code 双向 round-trip，且未知代码不丢失
 - 从各编辑器和 Issues 跳转到真实 definition / reference
 - 独立导出项目的 install、typecheck、test、build 与 browser smoke
-- 稳定、可验证的 Component Contract
+- Component Definition、Public Contract、Component Instance 与原子 subtree extraction
+- first-class Collection、item/index semantic scope、显式状态 regions 与 Preview/Export parity
 
 ### 其他能力
 

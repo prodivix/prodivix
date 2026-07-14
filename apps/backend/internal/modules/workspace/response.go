@@ -79,7 +79,7 @@ func MapStoreError(err error) *RequestFailure {
 		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorPIRValidationFailed, "Invalid JSON document payload.", map[string]any{"offset": syntaxErr.Offset})
 	}
 	if errors.Is(err, ErrWorkspacePatchPathForbidden) {
-		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorPIRGraphPatchPathForbidden, err.Error(), nil)
+		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorWorkspacePatchFailed, err.Error(), nil)
 	}
 	if errors.Is(err, ErrWorkspacePatchInvalid) || errors.Is(err, ErrWorkspacePatchPathMissing) || errors.Is(err, ErrWorkspacePatchTestFailed) {
 		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorWorkspacePatchFailed, err.Error(), nil)
@@ -98,6 +98,9 @@ func MapStoreError(err error) *RequestFailure {
 	}
 	if errors.Is(err, ErrPIRValidationFailed) {
 		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorPIRValidationFailed, err.Error(), nil)
+	}
+	if errors.Is(err, ErrNodeGraphValidationFailed) || errors.Is(err, ErrAnimationValidationFailed) {
+		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, err.Error(), nil)
 	}
 	if IsWorkspaceEnvelopeError(err) {
 		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, err.Error(), nil)

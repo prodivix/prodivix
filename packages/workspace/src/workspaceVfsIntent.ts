@@ -545,8 +545,12 @@ const createCommand = (
   };
 };
 
-/** Converts the retired VFS Intent transport into one reversible operation. */
-export const createWorkspaceVfsIntentPlan = (
+/**
+ * Materializes one VFS request as an exact reversible command without choosing
+ * a domain validation policy. Versioned domain planners use this boundary and
+ * validate the resulting transaction through the canonical Workspace policy.
+ */
+export const createWorkspaceVfsIntentCommandPlan = (
   workspace: WorkspaceSnapshot,
   request: WorkspaceVfsIntentRequest
 ): WorkspaceVfsIntentPlan | null => {
@@ -601,7 +605,16 @@ export const createWorkspaceVfsIntentPlan = (
   }
   if (!after) return null;
   const command = createCommand(workspace, after, request);
-  if (!command) return null;
-  const applied = applyWorkspaceCommand(workspace, command);
-  return applied.ok ? { kind: 'command', command } : null;
+  return command ? { kind: 'command', command } : null;
+};
+
+/** Converts a VFS request into one current-policy reversible operation. */
+export const createWorkspaceVfsIntentPlan = (
+  workspace: WorkspaceSnapshot,
+  request: WorkspaceVfsIntentRequest
+): WorkspaceVfsIntentPlan | null => {
+  const plan = createWorkspaceVfsIntentCommandPlan(workspace, request);
+  if (!plan) return null;
+  const applied = applyWorkspaceCommand(workspace, plan.command);
+  return applied.ok ? plan : null;
 };

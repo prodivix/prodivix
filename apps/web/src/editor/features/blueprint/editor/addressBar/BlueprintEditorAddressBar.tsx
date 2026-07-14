@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import type { RouteItem } from '@/editor/features/blueprint/editor/model/types';
 
 type BlueprintEditorAddressBarProps = {
+  compact?: boolean;
   currentPath: string;
   newPath: string;
   routes: RouteItem[];
@@ -41,6 +42,7 @@ type BlueprintEditorAddressBarProps = {
 };
 
 export function BlueprintEditorAddressBar({
+  compact = false,
   currentPath,
   newPath,
   routes,
@@ -279,7 +281,9 @@ export function BlueprintEditorAddressBar({
   );
 
   return (
-    <section className="flex flex-nowrap items-center gap-3 overflow-x-auto border-b border-(--border-subtle) bg-(--bg-canvas) px-3 py-1.5">
+    <section
+      className={`BlueprintEditorAddressBar flex flex-nowrap items-center gap-3 overflow-x-auto border-b border-(--border-subtle) bg-(--bg-canvas) px-3 ${compact ? 'py-1' : 'py-1.5'}`}
+    >
       <div className="inline-flex min-w-[360px] flex-1 items-center gap-2 whitespace-nowrap">
         <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-(--text-muted)">
           <Link2 size={14} />

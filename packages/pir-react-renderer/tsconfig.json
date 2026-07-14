@@ -12,9 +12,8 @@
     "paths": {
       "@prodivix/pir": ["../pir/src"],
       "@prodivix/router": ["../router/src"],
-      "@prodivix/shared": ["../shared/src"],
-      "@prodivix/shared/*": ["../shared/src/*"],
-      "@prodivix/ui": ["../ui/src"]
+      "@prodivix/ui": ["../ui/src"],
+      "@prodivix/workspace": ["../workspace/src"]
     }
   },
   "include": ["src/**/*"],
@@ -27,8 +26,8 @@
   ],
   "references": [
     { "path": "../router" },
-    { "path": "../shared" },
     { "path": "../pir" },
-    { "path": "../ui" }
+    { "path": "../ui" },
+    { "path": "../workspace" }
   ]
 }

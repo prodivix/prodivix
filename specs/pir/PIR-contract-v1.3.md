@@ -1,64 +1,71 @@
-# PIR Contract v1.3 草案（Normalized UI Graph）
+# PIR Wire Contract v1.3（Frozen Snapshot）
 
 ## 状态
 
-- Draft
+- ContractStatus：Frozen
+- ImplementationStatus：Historical Wire Snapshot
+- ProductGateStatus：Not Applicable
+- Global Phase：G0 Historical Contract
 - 日期：2026-05-02
-- 关联：Command History、Intent/Command Envelope、LLM Integration
+- 关联：Command History、Domain Command/Transaction、LLM Integration
 
-## 1. 设计目标
+## 1. 定位
 
-v1.3 只解决一个核心问题：让 PIR UI 层从“只适合读和渲染的嵌套树”，升级为“适合长期编辑、PATCH、Undo/Redo、AI command、协作同步的稳定图结构”。
+PIR wire v1.3 是已经冻结的历史持久化格式。`specs/pir/PIR-v1.3.json` 是其不可变 schema snapshot；本文只记录该 wire 格式曾编码的 normalized UI graph 语义，不定义当前生产领域 API。
 
-v1.3 不继承旧项目兼容负担。已有 v1.0-v1.2 项目在当前开发阶段直接作废；运行态、保存态、测试 fixture 统一改为 v1.3。
+当前 Workspace、Renderer、Compiler、Semantic Index 与 Web 作者表面只消费无版本号的 `PIR-current` 领域模型。读取 v1.3 数据时，wire boundary 严格解码并通过确定性 migration 进入同一 current model；不得恢复 v1.3 专属 Renderer、Compiler、Workspace 或作者界面。
 
 ## 2. 核心结构
 
 ```ts
 type NodeId = string;
 
-type ComponentNodeDataV13 = Omit<ComponentNodeV12, 'children'>;
+type PIRWireNodeV13 = Omit<LegacyComponentNode, 'children'>;
 
-type UiGraphV13 = {
+type PIRWireUiGraphV13 = {
   version: 1;
   rootId: NodeId;
-  nodesById: Record<NodeId, ComponentNodeDataV13>;
+  nodesById: Record<NodeId, PIRWireNodeV13>;
   childIdsById: Record<NodeId, NodeId[]>;
   regionsById?: Record<NodeId, Record<string, NodeId[]>>;
 };
 
-type PIRDocumentV13 = {
+type PIRWireDocumentV13 = {
   version: '1.3';
   ui: {
-    graph: UiGraphV13;
+    graph: PIRWireUiGraphV13;
   };
   metadata?: PIRMetadata;
   logic?: LogicDefinition;
+  // Historical wire field only. Current Animation is a standalone
+  // Workspace `pir-animation` document.
   animation?: PirAnimation;
 };
 ```
 
+`version` 与 `ui.graph.version` 都属于 wire 表达。它们不会进入当前 `PIRDocument` / `PIRUiGraph` 领域对象，也不得成为下游行为分派条件。
+
 ## 3. 真相源
 
-1. `ui.graph` 是唯一写入真相源。
-2. v1.3 文档禁止保存 `ui.root`。
-3. 编辑器、同步、Undo/Redo、AI 写入都必须修改 `ui.graph`。
-4. 渲染、代码生成、社区展示需要树时，必须调用 `materializeUiTree(ui.graph)` 得到派生读模型。
-5. 后端收到包含 `ui.root` 的 v1.3 文档应拒绝，避免双真相源回流。
+1. 在该 frozen snapshot 中，`ui.graph` 是唯一 UI 结构写入真相源。
+2. v1.3 wire document 禁止保存 `ui.root`。
+3. 历史数据迁移必须保留稳定节点身份、默认 children 顺序与具名 region。
+4. 当前编辑、同步、Undo/Redo、渲染和代码生成只处理 migration 后的无版本 current model。
+5. wire decoder 收到包含 `ui.root` 的 v1.3 文档应拒绝，避免双真相源回流。
 
 ## 4. 长期不变量
 
-这些语义进入 v1.3 稳定承诺，未来版本只能新增能力，不应改写：
+以下 normalized graph 语义已经由 current domain 继承；它们不要求生产消费者保留 v1.3 类型：
 
 1. `nodesById` 表示节点身份和节点字段，不表示顺序。
 2. `childIdsById` 表示默认 children 区域的有序子节点。
 3. `regionsById` 表示具名区域的有序子节点，用于 slot、layout region、fallback、trigger/content 等长期扩展。
 4. 同一文档内，一个可渲染节点只能拥有一个结构父级位置。
 5. `ui.root` 不属于 v1.3 保存格式。
-6. 字段 PATCH path 永远指向 `ui.graph`。
-7. 跨文档、路由、数据流、控制流不塞进 UI 图结构，分别交给 workspace、route manifest、logic graph、animation 或独立文档类型。
+6. 字段级 Command operation path 始终指向 `ui.graph`。
+7. 跨文档、路由、NodeGraph 与 Animation 不塞进 UI 图结构，分别交给 Workspace、Route Manifest、`pir-graph` 与 `pir-animation` owner。
 
-## 5. PATCH 路径
+## 5. Command operation paths
 
 推荐：
 
@@ -75,11 +82,11 @@ type PIRDocumentV13 = {
 /ui/root/children/0/props/text
 ```
 
-字段 PATCH 继续使用 API-002 的 `CommandEnvelope.forwardOps/reverseOps`。
+这些 path 仅用于解释历史 wire graph。当前字段级修改由无版本 current domain 的 `WorkspaceCommandEnvelope.forwardOps/reverseOps` 表达，Patch operation 只存在于 Command 内部。
 
 ## 6. Materialize
 
-`materializeUiTree(graph)`：
+历史 v1.3 graph 迁移到 current model 后，临时树投影遵守：
 
 1. 从 `rootId` 开始。
 2. 按 `childIdsById[parentId]` 生成 `children`。
@@ -97,30 +104,20 @@ JSON Schema 负责形状校验；PIR validator 负责图语义校验：
 4. 不存在环。
 5. 不存在重复父级位置。
 6. 默认不允许孤儿节点，除非使用受控扩展标记。
-7. `animation.targetNodeId`、`list.emptyNodeId` 等引用必须能解析到节点。
+7. 历史 list 与 extension protocol 中的节点引用必须能解析到 `nodesById`；历史内嵌 Animation 只在 migration 边界读取，不作为当前 PIR 语义继续持有。
 8. v1.3 文档不得包含 `ui.root`。
 
 ## 8. AI 规则
 
-LLM 可以读派生 materialized tree 或局部 subtree，但写入必须输出 command/patch。系统流程：
+LLM 可以读派生 materialized tree 或局部 subtree，并输出由领域 planner 解释的 Action Proposal。系统流程：
 
 ```txt
-read materialized tree -> LLM command -> dry-run on ui.graph -> validate -> apply
+read materialized tree -> Action Proposal -> domain planner -> Command / Transaction -> dry-run -> validate -> apply
 ```
 
 禁止 LLM 返回完整 `ui.root` 直接覆盖文档。
 
-## 9. 旧项目策略
-
-已有 v1.0-v1.2 项目不进入稳定支持范围。开发期采用 hard cutover：
-
-1. 打开旧单 PIR 项目时返回结构化 retired single-PIR 错误。
-2. 新建项目必须创建 workspace，并在 workspace document 中保存 v1.3 PIR。
-3. 不提供运行态兼容、不提供自动导入、不从 `ui.root` 重建默认编辑态。
-
-不要求 v1.3 -> v1.2 回退导出。
-
-## 10. 错误码建议
+## 9. 错误码
 
 ```txt
 PIR-1001  保存态包含 ui.root
@@ -138,11 +135,9 @@ PIR-3010  list 渲染结构非法
 PIR-4001  PIR materialize 或校验失败
 ```
 
-## 11. 落地顺序
+## 10. Wire owner 与演进规则
 
-1. 新增 `PIR-v1.3.json`。
-2. 实现 `createDefaultPirDocV13` 和 `materializeUiTree`。
-3. Validator 只接受 v1.3 graph。
-4. Store 删除 `ui.root` 运行态，所有读树场景使用 materialized 派生读模型。
-5. 编辑器写入只走 graph command/patch。
-6. 后端保存只接受 v1.3，后续让 `forwardOps/reverseOps` 从记录字段变成可执行 PATCH。
+1. `specs/pir/PIR-v1.3.json` 是不可变 wire snapshot，不随 current 领域能力继续修改。
+2. `@prodivix/pir/wire` 在需要读取历史数据时拥有 v1.3 strict decoder 与到 current 的确定性 migration。
+3. `@prodivix/pir` 默认入口只公开无版本 `PIRDocument`、factory、validator、mutation、projection 与 semantic contribution。
+4. Workspace、Renderer、Compiler、Semantic Index 与 Web 不导入 v1.3 wire type，也不因 v1.3 数据存在而保留并行实现。

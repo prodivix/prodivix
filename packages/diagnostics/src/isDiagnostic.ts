@@ -23,6 +23,7 @@ export const PRODIVIX_DIAGNOSTIC_DOMAINS = [
   'animation',
   'codegen',
   'backend',
+  'semantic',
   'ai',
 ] as const satisfies readonly ProdivixDiagnosticDomain[];
 

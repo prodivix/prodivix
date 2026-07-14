@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   applyWorkspaceCommand,
   applyWorkspaceTransaction,
@@ -27,6 +27,10 @@ import {
 } from '..';
 
 const ISSUED_AT = '2026-05-10T00:00:00.000Z';
+const literal = (value: string | boolean) => ({
+  kind: 'literal' as const,
+  value,
+});
 
 const createWorkspace = (): WorkspaceSnapshot => ({
   id: 'workspace-1',
@@ -80,7 +84,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/pages/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     },
     'graph-checkout': {
       id: 'graph-checkout',
@@ -89,14 +93,9 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       contentRev: 1,
       metaRev: 1,
       content: {
-        nodesById: {
-          validateCart: {
-            id: 'validateCart',
-            position: { x: 0, y: 0 },
-          },
-        },
-        edgesById: {},
-        groupsById: {},
+        version: 1,
+        nodes: [{ id: 'validateCart', data: { value: 0 } }],
+        edges: [],
       },
     },
   },
@@ -121,7 +120,7 @@ const createPirCommand = (
     {
       op: 'add',
       path: '/ui/graph/nodesById/root/props',
-      value: { title: 'Home' },
+      value: { title: literal('Home') },
     },
   ],
   reverseOps: [{ op: 'remove', path: '/ui/graph/nodesById/root/props' }],
@@ -145,14 +144,14 @@ const createNodeGraphCommand = (
   forwardOps: [
     {
       op: 'replace',
-      path: '/nodesById/validateCart/position/x',
+      path: '/nodes/0/data/value',
       value: 120,
     },
   ],
   reverseOps: [
     {
       op: 'replace',
-      path: '/nodesById/validateCart/position/x',
+      path: '/nodes/0/data/value',
       value: 0,
     },
   ],
@@ -245,7 +244,7 @@ describe('workspace history operations', () => {
     if (!redone.ok) return;
     expect(redone.snapshot.docsById['page-home'].content).toHaveProperty(
       'ui.graph.nodesById.root.props.title',
-      'Home'
+      literal('Home')
     );
     expect(redone.appliedOperation).toMatchObject({
       kind: 'command',
@@ -262,7 +261,7 @@ describe('workspace history operations', () => {
         {
           op: 'add',
           path: '/ui/graph/nodesById/root/props',
-          value: { title: 'Draft' },
+          value: { title: literal('Draft') },
         },
       ],
     });
@@ -273,14 +272,14 @@ describe('workspace history operations', () => {
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'Published',
+          value: literal('Published'),
         },
       ],
       reverseOps: [
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'Draft',
+          value: literal('Draft'),
         },
       ],
     });
@@ -317,7 +316,7 @@ describe('workspace history operations', () => {
     if (!redone.ok) return;
     expect(redone.snapshot.docsById['page-home'].content).toHaveProperty(
       'ui.graph.nodesById.root.props.title',
-      'Published'
+      literal('Published')
     );
   });
 
@@ -367,7 +366,7 @@ describe('workspace history operations', () => {
         {
           op: 'add',
           path: '/ui/graph/nodesById/root/props',
-          value: { title: 'Draft' },
+          value: { title: literal('Draft') },
         },
       ],
     });
@@ -378,14 +377,14 @@ describe('workspace history operations', () => {
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'Final',
+          value: literal('Final'),
         },
       ],
       reverseOps: [
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'Draft',
+          value: literal('Draft'),
         },
       ],
     });
@@ -427,7 +426,7 @@ describe('workspace history operations', () => {
     if (!redone.ok) return;
     expect(redone.snapshot.docsById['page-home'].content).toHaveProperty(
       'ui.graph.nodesById.root.props.title',
-      'Final'
+      literal('Final')
     );
   });
 
@@ -465,7 +464,7 @@ describe('workspace history operations', () => {
         {
           op: 'add',
           path: '/ui/graph/nodesById/root/props',
-          value: { title: 'First' },
+          value: { title: literal('First') },
         },
       ],
     });
@@ -495,14 +494,14 @@ describe('workspace history operations', () => {
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'Second',
+          value: literal('Second'),
         },
       ],
       reverseOps: [
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'First',
+          value: literal('First'),
         },
       ],
     });
@@ -514,7 +513,7 @@ describe('workspace history operations', () => {
 
     expect(snapshot.docsById['page-home'].content).toHaveProperty(
       'ui.graph.nodesById.root.props.title',
-      'Second'
+      literal('Second')
     );
     expect(history.undoStack).toHaveLength(2);
     expect(history.undoStack.map(({ id }) => id)).toEqual(['edit-1', 'edit-2']);
@@ -538,7 +537,7 @@ describe('workspace history operations', () => {
         {
           op: 'add',
           path: '/ui/graph/nodesById/root/props',
-          value: { title: 'Branch' },
+          value: { title: literal('Branch') },
         },
       ],
     });
@@ -549,7 +548,7 @@ describe('workspace history operations', () => {
     );
     expect(branchSnapshot.docsById['page-home'].content).toHaveProperty(
       'ui.graph.nodesById.root.props.title',
-      'Branch'
+      literal('Branch')
     );
     expect(canRedoWorkspaceHistory(branchHistory, pirScope)).toBe(false);
   });
@@ -561,7 +560,7 @@ describe('workspace history operations', () => {
         {
           op: 'add',
           path: '/ui/graph/nodesById/root/props',
-          value: { title: 'Initial' },
+          value: { title: literal('Initial') },
         },
       ],
     });
@@ -581,14 +580,14 @@ describe('workspace history operations', () => {
             {
               op: 'replace',
               path: '/ui/graph/nodesById/root/props/title',
-              value: 'Cross editor',
+              value: literal('Cross editor'),
             },
           ],
           reverseOps: [
             {
               op: 'replace',
               path: '/ui/graph/nodesById/root/props/title',
-              value: 'Initial',
+              value: literal('Initial'),
             },
           ],
         }),
@@ -616,10 +615,10 @@ describe('workspace history operations', () => {
     if (!undone.ok) return;
     expect(undone.snapshot.docsById['page-home'].content).toHaveProperty(
       'ui.graph.nodesById.root.props.title',
-      'Initial'
+      literal('Initial')
     );
     expect(undone.snapshot.docsById['graph-checkout'].content).toHaveProperty(
-      'nodesById.validateCart.position.x',
+      'nodes.0.data.value',
       0
     );
   });
@@ -654,7 +653,7 @@ describe('workspace history operations', () => {
           ...beforeDocument.content.ui.graph,
           nodesById: {
             ...beforeDocument.content.ui.graph.nodesById,
-            root: { ...rootNode, props: { title: 'Base' } },
+            root: { ...rootNode, props: { title: literal('Base') } },
           },
         },
       },
@@ -665,7 +664,7 @@ describe('workspace history operations', () => {
         {
           op: 'add',
           path: '/ui/graph/nodesById/root/props/marker',
-          value: true,
+          value: literal(true),
         },
       ],
       reverseOps: [
@@ -678,14 +677,14 @@ describe('workspace history operations', () => {
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'Published',
+          value: literal('Published'),
         },
       ],
       reverseOps: [
         {
           op: 'replace',
           path: '/ui/graph/nodesById/root/props/title',
-          value: 'Base',
+          value: literal('Base'),
         },
       ],
     });
@@ -699,7 +698,11 @@ describe('workspace history operations', () => {
     const inconsistent = structuredClone(applied);
     const inconsistentDocument = inconsistent.docsById['page-home'];
     if (!isPirDocumentContent(inconsistentDocument.content)) return;
-    delete inconsistentDocument.content.ui.graph.nodesById.root.props?.marker;
+    const inconsistentRoot =
+      inconsistentDocument.content.ui.graph.nodesById.root;
+    if (inconsistentRoot?.kind !== 'element') return;
+    delete (inconsistentRoot.props as Record<string, unknown> | undefined)
+      ?.marker;
     const history = recordWorkspaceOperation(
       createWorkspaceHistoryState(),
       createWorkspaceTransactionOperation(transaction)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   applyWorkspaceCommand,
   applyWorkspaceTransaction,
@@ -218,7 +218,7 @@ describe('applyWorkspaceTransaction', () => {
       path: '/pages/home.pir.json',
       contentRev: 2,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     };
     workspace.routeManifest = {
       version: '1',

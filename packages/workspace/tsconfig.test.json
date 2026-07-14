@@ -5,23 +5,30 @@
     "types": ["node"],
     "noEmit": true,
     "paths": {
+      "@prodivix/animation": ["../animation/dist/index.d.ts"],
       "@prodivix/authoring": ["../authoring/dist/index.d.ts"],
+      "@prodivix/nodegraph": ["../nodegraph/dist/index.d.ts"],
       "@prodivix/pir": ["../pir/dist/index.d.ts"],
-      "@prodivix/shared": ["../shared/dist/index.d.ts"],
-      "@prodivix/shared/*": ["../shared/dist/*"]
+      "@prodivix/router": ["../router/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
     {
+      "path": "../animation"
+    },
+    {
       "path": "../authoring"
+    },
+    {
+      "path": "../nodegraph"
     },
     {
       "path": "../pir"
     },
     {
-      "path": "../shared"
+      "path": "../router"
     }
   ]
 }

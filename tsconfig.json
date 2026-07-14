@@ -14,6 +14,9 @@
       "path": "./packages/authoring"
     },
     {
+      "path": "./packages/code-language"
+    },
+    {
       "path": "./packages/pir"
     },
     {

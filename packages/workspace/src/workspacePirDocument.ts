@@ -1,4 +1,4 @@
-import type { PIRDocument } from '@prodivix/shared/types/pir';
+import type { PIRDocument } from '@prodivix/pir';
 import type {
   WorkspaceCommandDomain,
   WorkspaceCommandEnvelope,
@@ -49,9 +49,16 @@ export const createWorkspacePirDocumentUpdateCommand = (
   input: CreateWorkspacePirDocumentUpdateCommandInput
 ): WorkspaceCommandEnvelope | null => {
   const documentId = input.workspace.activeDocumentId;
-  if (!documentId || input.before.version !== input.after.version) return null;
+  if (!documentId) return null;
   const forwardOps: WorkspacePatchOperation[] = [];
   const reverseOps: WorkspacePatchOperation[] = [];
+  appendOptionalDocumentPatch(
+    forwardOps,
+    reverseOps,
+    '/componentContract',
+    input.before.componentContract,
+    input.after.componentContract
+  );
   appendOptionalDocumentPatch(
     forwardOps,
     reverseOps,
@@ -69,13 +76,6 @@ export const createWorkspacePirDocumentUpdateCommand = (
   appendOptionalDocumentPatch(
     forwardOps,
     reverseOps,
-    '/animation',
-    input.before.animation,
-    input.after.animation
-  );
-  appendOptionalDocumentPatch(
-    forwardOps,
-    reverseOps,
     '/metadata',
     input.before.metadata,
     input.after.metadata
@@ -86,11 +86,9 @@ export const createWorkspacePirDocumentUpdateCommand = (
     input.domainHint ??
     (namespace.startsWith('core.nodegraph')
       ? 'nodegraph'
-      : namespace.startsWith('core.animation')
-        ? 'animation'
-        : namespace.startsWith('core.code')
-          ? 'code'
-          : 'pir');
+      : namespace.startsWith('core.code')
+        ? 'code'
+        : 'pir');
   return {
     id: input.commandId,
     namespace,

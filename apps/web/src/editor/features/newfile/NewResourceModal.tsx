@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PdxButton, PdxInput, PdxTextarea } from '@prodivix/ui';
 import { Box, Layers, Workflow } from 'lucide-react';
 import { useEditorStore } from '@/editor/store/useEditorStore';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { editorApi, type ProjectSummary } from '@/editor/editorApi';
 import {
@@ -48,7 +48,7 @@ function NewResourceModal({
     setSubmitting(true);
     setError(null);
     const finalName = name.trim() || 'Untitled';
-    const initialPir = createDefaultPirDoc();
+    const initialPir = createEmptyPirDocument();
 
     try {
       if (!isAuthenticated || !token) {
@@ -84,7 +84,7 @@ function NewResourceModal({
         description: description.trim() || undefined,
         resourceType: type,
         isPublic,
-        pir: initialPir,
+        initialPir,
       });
       setProject({
         id: project.id,

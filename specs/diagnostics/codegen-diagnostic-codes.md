@@ -6,7 +6,7 @@
 - 日期：2026-05-03
 - 关联：
   - `specs/diagnostics/README.md`
-  - `specs/codegen/react-production-policy-v1.md`
+  - `specs/decisions/31.production-export-planner.md`
   - `specs/decisions/04.mitosis.md`
 
 ## 1. 范围

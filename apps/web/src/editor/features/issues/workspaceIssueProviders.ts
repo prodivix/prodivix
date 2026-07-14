@@ -1,13 +1,13 @@
 import {
   getWorkspaceOperationId,
   createWorkspaceCodeArtifactProvider,
+  decodeWorkspacePirDocument,
   validateWorkspaceSnapshot,
   type WorkspaceSnapshot,
   type WorkspaceValidationIssue,
 } from '@prodivix/workspace';
 import { validateRouteManifest } from '@prodivix/router';
-import { validatePirDocument } from '@prodivix/pir';
-import { decodeNodeGraphDocuments } from '@prodivix/nodegraph';
+import { decodeNodeGraphDocument } from '@prodivix/nodegraph';
 import type {
   DiagnosticIssueRevision,
   DiagnosticProviderSnapshot,
@@ -23,9 +23,6 @@ import { collectWorkspaceAnimationDiagnostics } from './workspaceAnimationIssueP
 import { collectWorkspaceCodeDiagnostics } from './workspaceCodeIssueProvider';
 
 const DIAGNOSTIC_INDEX_URL = '/reference/diagnostic-codes';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
 const unescapePointerSegment = (segment: string): string =>
   segment.replaceAll('~1', '/').replaceAll('~0', '~');
@@ -122,44 +119,50 @@ const collectPirDiagnostics = (
       return [];
     }
 
-    return validatePirDocument(document.content)
-      .issues.filter((issue) => !issue.path.startsWith('/animation/'))
-      .map((issue) => ({
-        ...issue,
-        targetRef: mapPirTarget(workspace.id, document.id, issue.path),
-        meta: {
-          ...issue.meta,
-          path: issue.path,
-          documentId: document.id,
-        },
-      }));
+    const read = decodeWorkspacePirDocument(document, {
+      workspaceId: workspace.id,
+    });
+    if (read.status === 'valid') return [];
+    if (
+      read.status !== 'decode-invalid' &&
+      read.status !== 'semantic-invalid'
+    ) {
+      return [];
+    }
+    return read.issues.map((issue): ProdivixDiagnostic => ({
+      code: issue.code ?? 'PIR-1001',
+      severity: 'error',
+      domain: 'pir',
+      message: issue.message,
+      docsUrl: `${DIAGNOSTIC_INDEX_URL}#pir`,
+      targetRef: mapPirTarget(workspace.id, document.id, issue.path),
+      meta: {
+        path: issue.path,
+        documentId: document.id,
+        stage: issue.stage,
+      },
+    }));
   });
-
-const readEmbeddedGraphs = (content: unknown): unknown => {
-  if (!isRecord(content) || !isRecord(content.logic)) return undefined;
-  return content.logic.graphs;
-};
 
 const mapNodeGraphTarget = (
   workspaceId: string,
   documentId: string,
-  graphs: unknown,
+  content: unknown,
   path: string
 ): DiagnosticTargetRef => {
-  const match = /^graphs\[(\d+)](?:\.nodes\[(\d+)])?/.exec(path);
+  const match = /^\/nodes\/(\d+)/.exec(path);
   if (!match) return { kind: 'document', workspaceId, documentId };
-  const graph = Array.isArray(graphs) ? graphs[Number(match[1])] : undefined;
-  const graphId =
-    isRecord(graph) && typeof graph.id === 'string' ? graph.id : '';
-  if (!graphId) return { kind: 'document', workspaceId, documentId };
-  const nodeIndex = match[2] === undefined ? undefined : Number(match[2]);
-  const node =
-    nodeIndex === undefined || !Array.isArray(graph.nodes)
-      ? undefined
-      : graph.nodes[nodeIndex];
-  const nodeId = isRecord(node) && typeof node.id === 'string' ? node.id : '';
+  const nodes =
+    content && typeof content === 'object' && 'nodes' in content
+      ? (content as { nodes?: unknown }).nodes
+      : undefined;
+  const node = Array.isArray(nodes) ? nodes[Number(match[1])] : undefined;
+  const nodeId =
+    node && typeof node === 'object' && 'id' in node
+      ? (node as { id?: unknown }).id
+      : undefined;
   return nodeId
-    ? { kind: 'nodegraph-node', documentId, graphId, nodeId }
+    ? { kind: 'nodegraph-node', documentId, nodeId: String(nodeId) }
     : { kind: 'document', workspaceId, documentId };
 };
 
@@ -167,9 +170,8 @@ const collectNodeGraphDiagnostics = (
   workspace: WorkspaceSnapshot
 ): ProdivixDiagnostic[] =>
   Object.values(workspace.docsById).flatMap((document) => {
-    const graphs = readEmbeddedGraphs(document.content);
-    if (graphs === undefined) return [];
-    const result = decodeNodeGraphDocuments(graphs);
+    if (document.type !== 'pir-graph') return [];
+    const result = decodeNodeGraphDocument(document.content);
     if (result.ok !== false) return [];
 
     return result.issues.map((issue) => ({
@@ -183,7 +185,7 @@ const collectNodeGraphDiagnostics = (
       targetRef: mapNodeGraphTarget(
         workspace.id,
         document.id,
-        graphs,
+        document.content,
         issue.path
       ),
       meta: { path: issue.path, documentId: document.id },
@@ -221,7 +223,7 @@ export const collectWorkspaceModelIssueSnapshots = (input: {
       collectNodeGraphDiagnostics(input.workspace)
     ),
     createSnapshot(
-      'workspace-code-parser',
+      'workspace-code-language',
       collectWorkspaceCodeDiagnostics(input.workspace)
     ),
     createSnapshot(

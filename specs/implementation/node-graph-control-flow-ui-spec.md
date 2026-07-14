@@ -137,7 +137,7 @@
 
 ### 6.5 `for-each`
 
-1. 组成：Header + Body（数组来源、`itemAs`、`indexAs`）。
+1. 组成：Header + Body（集合来源、item/index scope identity）。
 2. 端口：`in.prev(slot=0)`；`out.loop(slot=0)`；`out.done(slot=1)`。
 3. Slot 顺序约定：`loop` 在上，`done` 在下。
 

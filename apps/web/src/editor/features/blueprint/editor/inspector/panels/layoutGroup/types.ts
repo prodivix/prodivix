@@ -1,10 +1,10 @@
 import type React from 'react';
 import type { TFunction } from 'i18next';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../../projection';
 import type { InspectorUpdateNode } from '../types';
 
 export type LayoutGroupRenderProps = {
-  node: ComponentNode;
+  node: BlueprintInspectorNodeView;
   updateNode: InspectorUpdateNode;
   display: string | undefined;
   isPatternStructureControlled: boolean;
@@ -17,7 +17,7 @@ export type LayoutGroupDefinition = {
   description?: string;
   order?: number;
   match?: (
-    node: ComponentNode,
+    node: BlueprintInspectorNodeView,
     display: string | undefined,
     isPatternStructureControlled: boolean
   ) => boolean;

@@ -39,7 +39,7 @@
       "contentRev": 1,
       "metaRev": 1,
       "content": {
-        "version": "1.3",
+        "version": "1.4",
         "metadata": {
           "name": "GoldenHome"
         },
@@ -50,15 +50,23 @@
             "nodesById": {
               "home-root": {
                 "id": "home-root",
+                "kind": "element",
                 "type": "main",
                 "props": {
-                  "className": "golden-home"
+                  "className": {
+                    "kind": "literal",
+                    "value": "golden-home"
+                  }
                 }
               },
               "home-title": {
                 "id": "home-title",
+                "kind": "element",
                 "type": "h1",
-                "text": "Prodivix Golden App"
+                "text": {
+                  "kind": "literal",
+                  "value": "Prodivix Golden App"
+                }
               }
             },
             "childIdsById": {

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrWorkspacePatchPathForbidden = errors.New("PIR graph patch path forbidden")
+	ErrWorkspacePatchPathForbidden = errors.New("workspace document patch path forbidden")
 	ErrWorkspacePatchPathMissing   = errors.New("patch path does not exist")
 	ErrWorkspacePatchInvalid       = errors.New("invalid JSON patch")
 	ErrWorkspacePatchTestFailed    = errors.New("patch test failed")
@@ -52,11 +52,41 @@ func validateWorkspaceProjectConfigPatchPath(path string) error {
 }
 
 func validateWorkspaceNodeGraphPatchPath(path string) error {
-	return validateWorkspaceDocumentRootPath(path, "nodesById", "edgesById", "groupsById", "metadata")
+	pointer, err := parseJSONPointer(path)
+	if err != nil {
+		return err
+	}
+	if len(pointer) == 0 {
+		return ErrWorkspacePatchPathForbidden
+	}
+	switch pointer[0] {
+	case "version":
+		if len(pointer) == 1 {
+			return nil
+		}
+	case "nodes", "edges":
+		return nil
+	}
+	return ErrWorkspacePatchPathForbidden
 }
 
 func validateWorkspaceAnimationPatchPath(path string) error {
-	return validateWorkspaceDocumentRootPath(path, "timelinesById", "tracksById", "keyframesById", "bindingsById", "metadata")
+	pointer, err := parseJSONPointer(path)
+	if err != nil {
+		return err
+	}
+	if len(pointer) == 0 {
+		return ErrWorkspacePatchPathForbidden
+	}
+	switch pointer[0] {
+	case "version":
+		if len(pointer) == 1 {
+			return nil
+		}
+	case "target", "timelines", "svgFilters", "x-animationEditor":
+		return nil
+	}
+	return ErrWorkspacePatchPathForbidden
 }
 
 func validateWorkspaceDocumentRootPath(path string, allowed ...string) error {
@@ -110,7 +140,7 @@ func validateWorkspacePatchPath(path string) error {
 		if len(pointer) >= 2 && pointer[1] == "graph" {
 			return nil
 		}
-	case "logic", "animation", "metadata":
+	case "componentContract", "logic", "metadata":
 		return nil
 	default:
 		if strings.HasPrefix(pointer[0], "x-") {

@@ -1,299 +1,154 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { materializeUiTree } from '@prodivix/pir';
-import { defaultComponentRegistry } from './registry';
-import { resolveLinkCapability } from './capabilities';
-import { PIRNode } from './PIRNode';
+import { createPirProjectionRootPath } from '@prodivix/pir';
+import type { PIRCollectionProjectionLocation } from '@prodivix/pir';
+import { PIRDocumentProjection } from './document/PIRDocumentProjection';
 import type {
-  BuiltInActionDispatchOptions,
+  PIRRendererBlockingIssue,
   PIRRendererProps,
-  RenderParams,
-  RenderState,
 } from './PIRRenderer.types';
 import {
-  buildInitialState,
-  collectMountedCssBlocks,
-  collectNodesById,
-  deferSelectionNotification,
-  emitSelectionDebug,
-  isInteractiveEventTarget,
-  isSyntheticEvent,
-  pickIncrementTarget,
-} from './PIRRenderer.helpers';
+  createPirCollectionLocationIdentity,
+  type PIRProjectionRuntime,
+} from './runtime/pirProjectionRuntime';
+import { resolvePirRendererHost } from './host/pirRendererHost';
 
-export type {
-  ActionContext,
-  ActionHandlers,
-  PIRRendererProps,
-  RenderContext,
-  RenderState,
-  RenderParams,
-} from './PIRRenderer.types';
+const compareText = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
 
-const readPirNodeId = (element: Element) =>
-  element.getAttribute('data-pir-node-id') ??
-  element.getAttribute('data-pir-id');
+const compareBlockingIssues = (
+  left: PIRRendererBlockingIssue,
+  right: PIRRendererBlockingIssue
+): number =>
+  compareText(left.path, right.path) ||
+  compareText(left.instancePath ?? '', right.instancePath ?? '') ||
+  compareText(left.code, right.code) ||
+  compareText(left.causeCode ?? '', right.causeCode ?? '') ||
+  compareText(left.message, right.message);
 
-const findNearestPirNodeId = (target: Element) => {
-  const matched = target.closest('[data-pir-node-id], [data-pir-id]');
-  return matched ? readPirNodeId(matched) : null;
-};
+const haveSameBlockingIssues = (
+  left: readonly PIRRendererBlockingIssue[] | undefined,
+  right: readonly PIRRendererBlockingIssue[]
+): boolean =>
+  left?.length === right.length &&
+  left.every(
+    (issue, index) =>
+      issue.code === right[index]?.code &&
+      issue.causeCode === right[index]?.causeCode &&
+      issue.path === right[index]?.path &&
+      issue.message === right[index]?.message &&
+      issue.documentId === right[index]?.documentId &&
+      issue.nodeId === right[index]?.nodeId &&
+      issue.instancePath === right[index]?.instancePath
+  );
 
+/**
+ * Projects a revision-bound Workspace PIR plan into React.
+ * Workspace owns resolution/validation; this adapter owns only runtime scope
+ * isolation, host projection, events, and source locations.
+ */
 export const PIRRenderer: React.FC<PIRRendererProps> = ({
-  node,
-  pirDoc,
-  overrides = {},
-  runtimeState,
-  codeArtifacts = [],
-  actions = {},
-  selectedId,
+  plan,
+  host,
+  rootParamsById,
+  rootStateById,
+  rootDataById,
+  rootComponentPropsById,
+  rootComponentVariantsById,
+  resolveCollectionPreviewState,
+  dispatchTrigger,
+  selectedLocation,
   onNodeSelect,
-  registry: registryProp,
-  renderMode = 'tolerant',
-  allowExternalProps = true,
-  builtInActions,
-  requireSelectionForEvents = false,
-  interactionMode = 'design',
-  routeManifest,
-  activeRouteNodeId,
-  routeRuntimeContext,
-  outletContentNode,
-  outletTargetNodeId,
+  onBlockingIssues,
 }) => {
-  const rootNode = useMemo(
-    () => node ?? materializeUiTree(pirDoc.ui.graph),
-    [pirDoc.ui.graph, node]
+  const hostResolution = useMemo(
+    () => resolvePirRendererHost(plan, host),
+    [host, plan]
   );
-  const effectiveParams = useMemo(() => {
-    const result: RenderParams = {};
-    const propsDef = pirDoc.logic?.props || {};
-
-    Object.keys(propsDef).forEach((key) => {
-      result[key] = propsDef[key].default;
-    });
-    if (allowExternalProps) {
-      Object.keys(overrides).forEach((key) => {
-        if (!(key in result)) {
-          result[key] = overrides[key];
-        } else if (overrides[key] !== undefined) {
-          result[key] = overrides[key];
+  const [collectionIssueState, setCollectionIssueState] = useState<{
+    plan: PIRRendererProps['plan'];
+    byLocation: Readonly<Record<string, readonly PIRRendererBlockingIssue[]>>;
+  }>({ plan, byLocation: {} });
+  const reportCollectionBlockingIssues = useCallback(
+    (
+      location: PIRCollectionProjectionLocation,
+      issues: readonly PIRRendererBlockingIssue[]
+    ) => {
+      const identity = createPirCollectionLocationIdentity(location);
+      const sorted = [...issues].sort(compareBlockingIssues);
+      setCollectionIssueState((current) => {
+        const byLocation = current.plan === plan ? current.byLocation : {};
+        if (sorted.length === 0) {
+          if (!Object.hasOwn(byLocation, identity)) {
+            return current.plan === plan ? current : { plan, byLocation };
+          }
+          const next = { ...byLocation };
+          delete next[identity];
+          return { plan, byLocation: next };
         }
+        if (haveSameBlockingIssues(byLocation[identity], sorted)) {
+          return current.plan === plan ? current : { plan, byLocation };
+        }
+        return {
+          plan,
+          byLocation: { ...byLocation, [identity]: sorted },
+        };
       });
-    }
-    if (routeRuntimeContext) {
-      Object.assign(result, routeRuntimeContext.params);
-      result.route = {
-        currentPath: routeRuntimeContext.currentPath,
-        matchedPath: routeRuntimeContext.matchedPath,
-        activeRouteNodeId: routeRuntimeContext.activeRouteNodeId,
-        params: routeRuntimeContext.params,
-        searchParams: routeRuntimeContext.searchParams,
-        hash: routeRuntimeContext.hash,
-      };
-      result.searchParams = routeRuntimeContext.searchParams;
-      if (routeRuntimeContext.hash) {
-        result.hash = routeRuntimeContext.hash;
-      }
-    }
-    return result;
-  }, [pirDoc.logic?.props, overrides, allowExternalProps, routeRuntimeContext]);
-
-  const initialState = useMemo(
-    () => buildInitialState(pirDoc.logic?.state),
-    [pirDoc.logic?.state]
-  );
-  const runtimeStateOverrides = useMemo(() => {
-    if (!runtimeState || typeof runtimeState !== 'object') return {};
-    return runtimeState;
-  }, [runtimeState]);
-  const [state, setState] = useState<RenderState>({
-    ...initialState,
-    ...runtimeStateOverrides,
-  });
-
-  useEffect(() => {
-    setState({
-      ...initialState,
-      ...runtimeStateOverrides,
-    });
-  }, [initialState, runtimeStateOverrides]);
-
-  const dispatchAction = useCallback(
-    (actionName?: string, payload?: unknown) => {
-      if (!actionName) return;
-
-      const event = isSyntheticEvent(payload) ? payload : undefined;
-
-      const customAction = actions[actionName];
-      if (typeof customAction === 'function') {
-        customAction({
-          state,
-          setState,
-          params: effectiveParams,
-          event,
-          payload,
-        });
-        return;
-      }
-
-      const paramAction = effectiveParams[actionName];
-      if (typeof paramAction === 'function') {
-        paramAction(event ?? payload);
-        return;
-      }
-
-      if (actionName === 'increment') {
-        setState((prev) => {
-          const targetKey = pickIncrementTarget(prev);
-          if (!targetKey) return prev;
-          const nextValue = (Number(prev[targetKey]) || 0) + 1;
-          return { ...prev, [targetKey]: nextValue };
-        });
-      }
     },
-    [actions, effectiveParams, state]
+    [plan]
   );
-
-  const registry = useMemo(
-    () => registryProp ?? defaultComponentRegistry,
-    [registryProp]
-  );
-  const nodesById = useMemo(() => {
-    const map = collectNodesById(rootNode);
-    if (outletContentNode) collectNodesById(outletContentNode, map);
-    return map;
-  }, [outletContentNode, rootNode]);
-  const mountedCssBlocks = useMemo(
+  const blockingIssues = useMemo(
     () =>
-      collectMountedCssBlocks(
-        rootNode,
-        codeArtifacts,
-        outletContentNode ? [outletContentNode] : []
-      ),
-    [codeArtifacts, outletContentNode, rootNode]
+      hostResolution.status === 'blocked'
+        ? hostResolution.issues
+        : collectionIssueState.plan === plan
+          ? Object.values(collectionIssueState.byLocation)
+              .flat()
+              .sort(compareBlockingIssues)
+          : [],
+    [collectionIssueState, hostResolution, plan]
   );
-
-  const dispatchBuiltInAction = useCallback(
-    (actionName: string, options: BuiltInActionDispatchOptions) => {
-      const action = builtInActions?.[actionName];
-      if (typeof action === 'function') {
-        action(options);
-        return true;
-      }
-      return false;
-    },
-    [builtInActions]
-  );
-  const isBuiltInAction = useCallback(
-    (actionName: string) =>
-      actionName === 'navigate' ||
-      Object.prototype.hasOwnProperty.call(builtInActions ?? {}, actionName),
-    [builtInActions]
-  );
-
-  /**
-   * Delegated click handler (capture phase).
-   *
-   * 调用链路：
-   * click -> PIRRenderer(onClickCapture) -> onNodeSelect -> Canvas -> controller。
-   * Runtime click actions are attached to the rendered component by PIRNode.
-   */
-  const handleDelegatedClickCapture = useCallback(
-    (event: React.SyntheticEvent) => {
-      if (interactionMode !== 'design') return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      emitSelectionDebug({
-        stage: 'capture',
-        targetTag: target.tagName,
-        targetClass: target.className,
-        interactionMode,
-      });
-      const selectionNodeId = findNearestPirNodeId(target);
-      if (!selectionNodeId) {
-        emitSelectionDebug({
-          stage: 'no-match',
-        });
-        return;
-      }
-      const matchedNode = nodesById[selectionNodeId];
-      if (onNodeSelect && resolveLinkCapability(matchedNode)) {
-        event.preventDefault();
-      }
-      const wasSelected = selectedId === selectionNodeId;
-      const isInteractiveTarget = isInteractiveEventTarget(target);
-      const shouldDeferSelection = isInteractiveTarget && !wasSelected;
-
-      if (shouldDeferSelection) {
-        deferSelectionNotification(() =>
-          onNodeSelect?.(selectionNodeId, event)
-        );
-      } else {
-        onNodeSelect?.(selectionNodeId, event);
-      }
-      emitSelectionDebug({
-        stage: 'selected',
-        nodeId: selectionNodeId,
-        deferred: shouldDeferSelection,
-      });
-    },
-    [nodesById, onNodeSelect, interactionMode, selectedId]
-  );
-
-  const context = useMemo(
-    () => ({
-      state,
-      params: effectiveParams,
-      data: undefined,
-      item: undefined,
-      index: undefined,
-      nodesById,
-      dispatchAction,
-      dispatchBuiltInAction,
-      isBuiltInAction,
-      selectedId,
-      requireSelectionForEvents,
-      interactionMode,
-      onNodeSelect,
-      renderMode,
-      routeManifest,
-      activeRouteNodeId,
-      routeRuntimeContext,
-      outletContentNode,
-      outletTargetNodeId,
-    }),
+  useEffect(() => {
+    onBlockingIssues(blockingIssues);
+  }, [blockingIssues, onBlockingIssues]);
+  const runtime = useMemo<PIRProjectionRuntime | null>(
+    () =>
+      hostResolution.status === 'ready'
+        ? {
+            plan,
+            host: hostResolution.host,
+            dispatchTrigger,
+            reportCollectionBlockingIssues,
+            ...(resolveCollectionPreviewState
+              ? { resolveCollectionPreviewState }
+              : {}),
+            ...(selectedLocation ? { selectedLocation } : {}),
+            ...(onNodeSelect ? { onNodeSelect } : {}),
+          }
+        : null,
     [
-      state,
-      effectiveParams,
-      nodesById,
-      dispatchAction,
-      dispatchBuiltInAction,
-      isBuiltInAction,
-      selectedId,
-      requireSelectionForEvents,
-      interactionMode,
+      dispatchTrigger,
+      hostResolution,
       onNodeSelect,
-      renderMode,
-      routeManifest,
-      activeRouteNodeId,
-      routeRuntimeContext,
-      outletContentNode,
-      outletTargetNodeId,
+      plan,
+      reportCollectionBlockingIssues,
+      resolveCollectionPreviewState,
+      selectedLocation,
     ]
   );
-
+  if (!runtime) return null;
   return (
-    <div
-      style={{ display: 'contents' }}
-      onClickCapture={handleDelegatedClickCapture}
-    >
-      {mountedCssBlocks.map((block) => (
-        <style
-          key={block.key}
-          data-pir-mounted-css={block.key}
-          dangerouslySetInnerHTML={{ __html: block.content }}
-        />
-      ))}
-      <PIRNode node={rootNode} context={context} registry={registry} />
-    </div>
+    <PIRDocumentProjection
+      document={plan.entryDocument}
+      instancePath={createPirProjectionRootPath(plan.entryDocumentId)}
+      role={
+        plan.entryDocument.type === 'pir-component' ? 'definition' : 'source'
+      }
+      rootParamsById={rootParamsById}
+      rootStateById={rootStateById}
+      rootDataById={rootDataById}
+      rootComponentPropsById={rootComponentPropsById}
+      rootComponentVariantsById={rootComponentVariantsById}
+      runtime={runtime}
+    />
   );
 };

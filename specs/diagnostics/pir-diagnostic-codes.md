@@ -2,13 +2,15 @@
 
 ## 状态
 
-- Draft
+- ContractStatus：Accepted
+- ImplementationStatus：Implemented
+- ProductGateStatus：Passed
+- Global Phase：G0 Truth & Change Kernel
 - 日期：2026-05-03
 - 关联：
   - `specs/diagnostics/README.md`
-  - `specs/pir/pir-contract-v1.3.md`
+  - `specs/pir/PIR-contract-v1.3.md`
   - `specs/decisions/10.pir-contract-validation.md`
-  - `specs/decisions/15.pir-data-scope-and-list-render.md`
 
 ## 1. 范围
 
@@ -45,7 +47,7 @@ type PirDiagnosticStage =
 - Stage: `schema`
 - Retryable: false
 - Trigger: 保存态 PIR 文档中出现 `ui.root`
-- User action: 使用新版编辑器重新保存，或执行导入迁移
+- User action: 在支持当前 `ui.graph` 契约的编辑器中修正并保存文档
 - Developer notes: 写入链路必须输出 `ui.graph`；树形结构只能作为 materialize 后的临时中间层
 
 ### `PIR-1002` UI graph 缺失
@@ -91,7 +93,7 @@ type PirDiagnosticStage =
 - Retryable: false
 - Trigger: `childIdsById` 或 `regionsById` 引用了不存在的节点 ID
 - User action: 回退最近一次结构编辑，或执行 graph repair
-- Developer notes: 删除节点时必须清理父级、region、animation target 与 list empty node 引用
+- Developer notes: 删除节点时必须同步更新父级、region 与所有跨结构节点引用
 
 ### `PIR-2004` UI graph 存在环
 
@@ -125,9 +127,9 @@ type PirDiagnosticStage =
 - Severity: `error`
 - Stage: `graph`
 - Retryable: false
-- Trigger: animation target、list empty node 或其他节点引用无法解析到 `nodesById`
+- Trigger: PIR 领域字段或 extension protocol 中的节点引用无法解析到 `nodesById`
 - User action: 重新选择目标节点，或恢复被删除的节点
-- Developer notes: 删除节点时必须清理 animation、list、event 和扩展协议中的节点引用
+- Developer notes: 删除节点时必须通过领域 Command planner 同步更新节点引用
 
 ### `PIR-2011` 组件组合规则不满足
 
@@ -161,9 +163,9 @@ type PirDiagnosticStage =
 - Severity: `warning`
 - Stage: `value-ref`
 - Retryable: false
-- Trigger: `list.source`、`itemAs`、`indexAs`、`keyBy`、`arrayField` 或 `emptyNodeId` 不满足列表渲染契约
-- User action: 检查列表数据源、别名、key 字段和空状态节点
-- Developer notes: 列表渲染 runtime 与 generator 应共享同一诊断语义
+- Trigger: 列表数据源、item/index 作用域、stable key 或状态内容不满足当前 PIR 列表渲染契约
+- User action: 检查列表数据源、item/index 绑定、stable key 和状态内容
+- Developer notes: PIR validator、renderer 与 generator 共享同一列表诊断语义
 
 ### `PIR-4001` Materialize 失败
 

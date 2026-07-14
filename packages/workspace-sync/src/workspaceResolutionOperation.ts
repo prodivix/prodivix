@@ -246,19 +246,13 @@ const allowedContentPaths = (document: WorkspaceDocument): string[] | null => {
     document.type === 'pir-layout' ||
     document.type === 'pir-component'
   ) {
-    return ['/ui/graph', '/logic', '/animation', '/metadata'];
+    return ['/componentContract', '/ui/graph', '/logic', '/metadata'];
   }
   if (document.type === 'pir-graph') {
-    return ['/nodesById', '/edgesById', '/groupsById', '/metadata'];
+    return ['/nodes', '/edges'];
   }
   if (document.type === 'pir-animation') {
-    return [
-      '/timelinesById',
-      '/tracksById',
-      '/keyframesById',
-      '/bindingsById',
-      '/metadata',
-    ];
+    return ['/target', '/timelines', '/svgFilters', '/x-animationEditor'];
   }
   if (document.type === 'code') return ['/language', '/source', '/metadata'];
   if (document.type === 'project-config') return ['/value', '/metadata'];

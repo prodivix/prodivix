@@ -1,13 +1,13 @@
 import type React from 'react';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../projection';
 import type { InspectorTab } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 
 export type InspectorUpdateNode = (
-  updater: (node: ComponentNode) => ComponentNode
+  updater: (node: BlueprintInspectorNodeView) => BlueprintInspectorNodeView
 ) => void;
 
 export type InspectorPanelRenderProps = {
-  node: ComponentNode;
+  node: BlueprintInspectorNodeView;
   updateNode: InspectorUpdateNode;
 };
 
@@ -16,7 +16,7 @@ export type InspectorPanelDefinition = {
   title: string;
   description?: string;
   tab?: InspectorTab;
-  match: (node: ComponentNode) => boolean;
+  match: (node: BlueprintInspectorNodeView) => boolean;
   headerActions?: React.ReactNode;
   render: (props: InspectorPanelRenderProps) => React.ReactNode;
 };

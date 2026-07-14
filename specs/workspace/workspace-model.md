@@ -1,171 +1,161 @@
-# Workspace 模型草案（VFS）
+# Canonical Workspace Model
 
-## 文档状态
+## 状态
 
-- Draft-Frozen（API-001）
-- 日期：2026-02-08
-- 冻结批次：`API-001`
-- 关联 ADR：`specs/decisions/05.workspace-vfs.md`、`specs/decisions/06.command-history.md`
+- DecisionStatus：Accepted
+- ImplementationStatus：Implemented
+- ProductGateStatus：Passed
+- Global Phase：G0 Truth & Change Kernel
+- 日期：2026-07-14
+- 关联：
+  - `specs/decisions/05.workspace-vfs.md`
+  - `specs/decisions/06.command-history.md`
+  - `specs/decisions/35.canonical-workspace-hard-cut.md`
+  - `specs/decisions/36.atomic-workspace-operation-commit.md`
+  - `specs/decisions/38.blueprint-component-instance-and-collection.md`
+  - `specs/roadmap/g0-closure-evidence.md`
 
-## 1. 目标
+## 核心结论
 
-定义编辑器工作区的数据模型，支持：
+`WorkspaceSnapshot` 是 Prodivix 作者态的唯一 canonical aggregate。RouteManifest、PIR、NodeGraph、Animation、Code、Asset 和 Project Config 都是 Workspace 内由领域 owner 管理的文档或清单。
 
-1. 多文档管理
-2. 内部文件树组织（系统管理）
-3. 路由清单映射
-4. 跨编辑器统一操作历史
+Tree、Canvas、Timeline、Code Editor、Preview、Export、Git、Issues、Semantic Index 和 AI Context 都是读投影，不得成为可独立演化的第二真相源。
 
-补充：用户只操作 Blueprint 中可见的页面/布局/组件，不直接编辑 VFS 树。
+## Canonical contract
 
-## 2. 核心类型（Draft）
+当前稳定 TypeScript owner 是 `@prodivix/workspace`：
 
 ```ts
-export type WorkspaceId = string;
-export type DocumentId = string;
-export type VfsNodeId = string;
-
-export type WorkspaceDocumentType =
+type WorkspaceDocumentType =
   | 'pir-page'
   | 'pir-layout'
   | 'pir-component'
-  | 'pir-graph' // 预留：节点图文档
-  | 'pir-animation'; // 预留：动画文档
+  | 'pir-graph'
+  | 'pir-animation'
+  | 'code'
+  | 'asset'
+  | 'project-config';
 
-export interface WorkspaceDocument {
-  id: DocumentId;
+type WorkspaceDocument = {
+  id: WorkspaceDocumentId;
   type: WorkspaceDocumentType;
-  name: string;
+  name?: string;
   path: string;
   contentRev: number;
   metaRev: number;
-  content: unknown; // PIRDocument | GraphDocument | AnimationDocument（由上层 narrowing）
-  updatedAt: string;
-  capabilities?: string[]; // 预留：声明该文档允许的编辑域能力
-}
+  content: unknown;
+  updatedAt?: string;
+  capabilities?: string[];
+};
 
-export interface VfsNode {
-  id: VfsNodeId;
+type WorkspaceVfsNode = {
+  id: WorkspaceVfsNodeId;
   kind: 'dir' | 'doc';
   name: string;
-  parentId: VfsNodeId | null;
-  children?: VfsNodeId[]; // dir only
-  docId?: DocumentId; // doc only
-}
+  parentId: WorkspaceVfsNodeId | null;
+  children?: WorkspaceVfsNodeId[];
+  docId?: WorkspaceDocumentId;
+};
 
-export interface RouteManifest {
-  version: '1';
-  root: RouteNode;
-}
-
-export interface RouteNode {
-  id: string;
-  segment?: string;
-  index?: boolean;
-  layoutDocId?: DocumentId;
-  pageDocId?: DocumentId;
-  children?: RouteNode[];
-}
-
-export interface WorkspaceState {
+type WorkspaceSnapshot = {
   id: WorkspaceId;
-  name: string;
+  name?: string;
   workspaceRev: number;
   routeRev: number;
   opSeq: number;
-  treeRootId: VfsNodeId;
-  treeById: Record<VfsNodeId, VfsNode>;
-  docsById: Record<DocumentId, WorkspaceDocument>;
-  routeManifest: RouteManifest;
-  activeDocumentId: DocumentId;
+  treeRootId: WorkspaceVfsNodeId;
+  treeById: Record<WorkspaceVfsNodeId, WorkspaceVfsNode>;
+  docsById: Record<WorkspaceDocumentId, WorkspaceDocument>;
+  routeManifest: WorkspaceRouteManifest;
+  activeDocumentId?: WorkspaceDocumentId;
   activeRouteNodeId?: string;
-}
+};
 ```
 
-## 3. 约束规则
+具体领域 content 由 document type 对应的 package codec 与 validator narrowing；Workspace 不把所有文档压成一个巨型 PIR JSON。PIR document content 使用无版本 `PIRDocument` current model，数字 wire version 在 transport / persistence 边界完成 strict decode、migration 与 encode，不进入 Workspace 领域分派。
 
-1. `VfsNode.kind=doc` 时必须存在 `docId`
-2. `WorkspaceDocument.path` 必须与树路径一致（由系统维护，用户不可直接写）
-3. `contentRev/metaRev` 必须单调递增
-4. `activeDocumentId` 必须存在于 `docsById`
-5. `routeManifest` 引用的 `layoutDocId/pageDocId` 必须存在
-6. `pir-graph` / `pir-animation` 在本期仅作为数据契约预留，不提供编辑器 UI
+## Identity 与 path
 
-## 4. 默认初始化模板
+1. `WorkspaceSnapshot.id` 是 Workspace identity。
+2. `WorkspaceDocument.id` 是 document 的 canonical stable identity。
+3. `WorkspaceDocument.path` 是用户可理解的 VFS path，用于文件树、导出与 Git projection。
+4. rename、move 和 path 调整保持 document id 不变。
+5. 文档内部实体使用 `{ documentId, localEntityId }` 形成跨文档稳定 target。
+6. Route、Component Instance、CodeReference、Animation target 和 NodeGraph reference 使用类型化稳定引用，不以显示名称作为主键。
 
-```txt
-/
-  pages/
-    home.pir.json
-  layouts/
-    root-layout.pir.json
-  graphs/
-  animations/
+PIR-current 的 Component Contract 归所属 `pir-component` document 所有，不重复保存 document id；Component Instance 以 `componentDocumentId` 指向目标 Definition。
+
+## VFS 不变量
+
+Workspace Validator 必须保证：
+
+1. `treeRootId` 存在，root 是无 parent 的 directory。
+2. 每个 VFS node 的 map key 与内部 id 相同。
+3. directory children 存在、去重，并反向指向同一个 parent。
+4. document node 只引用一个存在的 document；每个 document 只由一个 VFS node 挂载。
+5. document path 与 VFS tree materialization 一致。
+6. tree 不含 cycle、orphan 或 duplicate sibling name。
+7. `workspaceRev`、`routeRev`、`opSeq`、`contentRev` 与 `metaRev` 满足非负和单调约束。
+8. active document 与 active route 存在且类型合法。
+9. RouteManifest 的 page/layout references 存在并满足 route contract。
+10. document content 通过 Workspace 基础校验与对应领域 validator。
+
+## 领域 owner
+
+| Workspace 内容                                                       | Owner                                              |
+| -------------------------------------------------------------------- | -------------------------------------------------- |
+| Snapshot、VFS、Command、Transaction、History、基础 validator         | `@prodivix/workspace`                              |
+| Revision vector、conflict、Outbox、Atomic Commit plan、local replica | `@prodivix/workspace-sync`                         |
+| RouteManifest、matching、navigation 与 route validation              | `@prodivix/router`                                 |
+| `pir-page` / `pir-layout` / `pir-component` graph                    | `@prodivix/pir`                                    |
+| `pir-graph`                                                          | `@prodivix/nodegraph`                              |
+| `pir-animation`                                                      | `@prodivix/animation`                              |
+| Workspace Semantic Index contract、provider composition 与稳定查询   | `@prodivix/authoring`                              |
+| CodeArtifact projection、CodeReference、CodeSlot 与代码作者体验      | `@prodivix/authoring` / Code Authoring Environment |
+| `asset` / `project-config`                                           | Workspace Resource owner 与对应 adapter            |
+
+## 唯一写入链路
+
+```text
+Human gesture / AI proposal / Plugin action / Importer
+  -> domain planner
+  -> reversible Command or atomic Transaction
+  -> Workspace + domain validation
+  -> local History
+  -> WorkspaceOperation
+  -> Durable Outbox
+  -> strong-idempotent Atomic Commit
+  -> Canonical Backend Workspace
+  -> confirmed local replica
 ```
 
-默认路由：
+Intent 只作为 planner 输入。Patch 只作为 Command 内部可逆操作。Settings 使用独立的 durable Settings Outbox / Atomic Commit。
 
-- `/` -> `layout: root-layout` + `page: home`
+跨文档变更先构造最终候选 Workspace，再执行 Workspace 与所有相关领域 validator；任一约束失败时整个 Transaction 不生效。
 
-## 5. Store 行为建议
+## 读取投影
 
-```ts
-interface WorkspaceStore {
-  workspace?: WorkspaceState;
-  setWorkspace(snapshot: WorkspaceState): void;
-  setActiveDocument(docId: DocumentId): void;
-  updateDocument(
-    docId: DocumentId,
-    updater: (doc: WorkspaceDocument) => WorkspaceDocument
-  ): void;
-  applyWorkspaceCommand(command: CommandEnvelope): void;
-}
-```
+1. `createWorkspacePirProjectionPlan` 从 validated current PIR documents 生成 revision-bound 临时投影；Renderer 与 Export 不修改该投影或写回派生树。
+2. CodeArtifact 从 Workspace code document 派生，code document 继续是源码事实源。
+3. Git projection 从同一 Workspace revision 生成文件与审计 metadata。
+4. confirmed local replica 加 pending Operation materialization 形成离线读取快照。
+5. Workspace Semantic Index 在 G1 由 partitioned Workspace revisions、semantic schema 与 provider set 生成可重建 snapshot。
 
-说明：
+## G1 Component 与 Collection
 
-- 全量切换到 `workspace.docsById`，不保留 `pirDoc` 兼容 API
-- 任何“文档树变更”由 Blueprint 意图触发，避免暴露文件级 UI 操作
+PIR-current 在现有 Workspace identity 和 Transaction 语义上承载：
 
-## 6. 与 Undo/Redo 的关系
+1. `pir-component` Public Contract 与 Component Instance reference。
+2. Component dependency DAG、cycle validation 与删除影响分析。
+3. subtree extraction 的跨文档 relocation plan 和原子 Transaction。
+4. first-class Collection、item/index scope 与显式 state regions。
+5. Component/Collection semantic contribution、Preview/Export parity 与 SourceTrace。
 
-1. 所有修改必须以 Command 进入
-2. `Command.domain` 本期至少支持 `pir/workspace`；未来域通过 `namespace` 扩展
-3. 每条命令记录 `documentId`（若适用）
-4. Command 必须可序列化，支持离线队列与重放
+这些能力继续使用同一个 `WorkspaceDocument.id`、History、WorkspaceOperation、Outbox 和 Atomic Commit；Canonical Workspace VFS 继续承载唯一作者态存储。
 
-## 7. Hard Cutover 清单（Draft）
+## PIR wire 演进边界
 
-1. 抽离 `pirDoc` 访问点
-2. Blueprint/Inspector/Export 切换到 workspace 模型
-3. NodeGraph/动画仅完成协议接线（capability + envelope 校验），不落地编辑器 UI
-4. 删除所有 `pirDoc` 状态字段与调用点
-5. CI 增加检查，阻止单文档模型回流
-
-## 8. 开放问题
-
-1. 大文档分片加载策略（按目录还是按最近使用）
-2. 文档重命名是否影响 `docId`
-3. 图文档（nodegraph）是否复用 PIR 容器还是独立 schema
-4. 分区 rev 的 SDK 封装边界（客户端还是网关层）
-
-## 9. 冻结规则（API-001）
-
-以下字段进入冻结窗口，直至 Gate A 结束：
-
-1. `WorkspaceState.workspaceRev`
-2. `WorkspaceState.routeRev`
-3. `WorkspaceState.opSeq`
-4. `WorkspaceDocument.contentRev`
-5. `WorkspaceDocument.metaRev`
-
-冻结窗口内允许：
-
-1. 文案与注释修正
-2. 新增可选字段（不得改变既有字段语义）
-
-冻结窗口内禁止：
-
-1. 删除或重命名上述字段
-2. 修改字段语义与并发控制职责
-3. 将分区 rev 回退为单 rev 模型
+1. `PIR-v<version>.json` 是不可变持久化 snapshot；`PIR-current.version.json` 选择当前写出格式。
+2. persistence adapter 在数据进入 Canonical Workspace 前完成版本 dispatch、strict decode 与确定性 migration，并只交付无版本 `PIRDocument`。
+3. 保存端把 current model 编码成 activation manifest 选中的 wire contract；Workspace Command、History 与 conflict 不保存版本化领域副本。
+4. 普通 wire 升级只新增 snapshot、generated wire contracts 与 migration。`WorkspaceDocument`、Transaction、projection、Semantic Index、Renderer、Compiler 和 Web 不随数字版本改名或复制。

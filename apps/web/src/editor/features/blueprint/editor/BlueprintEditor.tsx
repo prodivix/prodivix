@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
+import { ChevronRight, SlidersHorizontal } from 'lucide-react';
 import {
   useEditorShortcut,
   useWorkspaceHistoryShortcuts,
@@ -10,25 +12,83 @@ import {
 } from '@/editor/store/useEditorStore';
 import { BlueprintAssistantPanel } from './assistant';
 import { BlueprintEditorAddressBar } from './addressBar';
+import { resolveBlueprintEntryDocumentId } from './authoring/blueprintEntryDocument';
+import { ComponentExtractionDialog } from './authoring/ComponentExtractionDialog';
 import { BlueprintEditorCanvas } from './canvas';
 import { BlueprintEditorComponentTree } from './componentTree';
+import { useBlueprintEditorController } from './controller';
 import { BlueprintEditorInspector } from './inspector/BlueprintEditorInspector';
 import { BlueprintEditorSaveIndicator } from './saveIndicator';
 import { BlueprintEditorSidebar } from './sidebar';
 import { BlueprintEditorViewportBar } from './viewportBar';
-import { useBlueprintEditorController } from './controller';
-import { useBundledOfficialPluginRuntime } from './runtime';
 
-function BlueprintEditor() {
+export type BlueprintEditorProps = Readonly<{
+  entryDocumentId?: string;
+  compactHeader?: boolean;
+}>;
+
+const UnavailableAuthoringPanel = ({ label }: { label: string }) => (
+  <div className="flex min-h-0 flex-1 items-center justify-center p-4 text-center text-xs text-(--text-muted)">
+    {label}
+  </div>
+);
+
+const UnavailableInspector = ({
+  isCollapsed,
+  onToggleCollapse,
+}: {
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+}) =>
+  isCollapsed ? (
+    <aside className="BlueprintEditorInspector Collapsed absolute top-3 right-0 z-7 h-0 w-0 overflow-visible border-0 bg-transparent shadow-none">
+      <button
+        type="button"
+        className="absolute top-0 right-0 inline-flex size-8 items-center justify-center rounded-l-xl border border-r-0 border-(--border-default) bg-(--bg-canvas) text-(--text-muted) shadow-(--shadow-sm)"
+        onClick={onToggleCollapse}
+        aria-label="Expand Inspector"
+        title="Expand Inspector"
+      >
+        <SlidersHorizontal size={15} />
+      </button>
+    </aside>
+  ) : (
+    <aside className="BlueprintEditorInspector absolute top-0 right-0 bottom-0 z-4 flex min-h-0 w-(--inspector-width) flex-col rounded-[14px] bg-(--bg-canvas) shadow-(--shadow-md) ring-1 ring-(--border-subtle)">
+      <div className="flex items-center justify-between border-b border-(--border-subtle) px-4 py-2.5 text-[13px] font-medium">
+        <span>Inspector</span>
+        <button
+          type="button"
+          className="inline-flex size-7 items-center justify-center rounded-lg text-(--text-muted) hover:bg-(--bg-raised)"
+          onClick={onToggleCollapse}
+          aria-label="Collapse Inspector"
+          title="Collapse Inspector"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+      <UnavailableAuthoringPanel label="Load a Workspace to inspect PIR-current nodes." />
+    </aside>
+  );
+
+export function BlueprintEditor({
+  entryDocumentId: requestedDocumentId,
+  compactHeader = false,
+}: BlueprintEditorProps = {}) {
+  const workspace = useEditorStore((state) => state.workspace);
   const workspaceId = useEditorStore(selectWorkspaceId);
   const activeDocumentId = useEditorStore(selectActiveDocumentId);
-  const {
-    officialPluginDiagnostics,
-    activeCompositionIssue,
-    officialLibraryOptions,
-    isOfficialPluginLoading,
-    reloadOfficialPlugins,
-  } = useBundledOfficialPluginRuntime();
+  const setActiveDocumentId = useEditorStore(
+    (state) => state.setActiveDocumentId
+  );
+  const entryDocumentId =
+    requestedDocumentId ??
+    (workspace
+      ? resolveBlueprintEntryDocumentId(workspace, activeDocumentId)
+      : undefined);
+  const controller = useBlueprintEditorController(
+    entryDocumentId,
+    Boolean(requestedDocumentId)
+  );
   const {
     addressBar,
     canvas,
@@ -38,52 +98,64 @@ function BlueprintEditor() {
     saveIndicator,
     sidebar,
     viewportBar,
-  } = useBlueprintEditorController();
+  } = controller;
   const compositionIssue =
-    componentTree.compositionIssue ?? activeCompositionIssue;
+    componentTree.compositionIssue ??
+    controller.officialPluginRuntime.activeCompositionIssue;
+  const canAuthor = Boolean(
+    controller.workspace &&
+    controller.entryDocumentId &&
+    controller.entry?.status === 'valid'
+  );
+
+  useEffect(() => {
+    if (
+      entryDocumentId &&
+      !requestedDocumentId &&
+      entryDocumentId !== activeDocumentId
+    ) {
+      setActiveDocumentId(entryDocumentId);
+    }
+  }, [
+    activeDocumentId,
+    entryDocumentId,
+    requestedDocumentId,
+    setActiveDocumentId,
+  ]);
 
   useWorkspaceHistoryShortcuts({
     workspaceId,
-    documentId: activeDocumentId,
+    documentId: entryDocumentId,
     domain: 'pir',
     includeRoute: true,
     suspended: dnd.isDragging,
     shortcutScope: 'blueprint',
   });
-
-  useEditorShortcut(
-    'Ctrl+Alt+J',
-    () => {
-      sidebar.onToggleCollapse();
-    },
-    { scope: 'blueprint', priority: 20 }
-  );
-
-  useEditorShortcut(
-    'Ctrl+Alt+K',
-    () => {
-      componentTree.onToggleCollapse();
-    },
-    { scope: 'blueprint', priority: 20 }
-  );
-  useEditorShortcut(
-    'Ctrl+Alt+L',
-    () => {
-      inspector.onToggleCollapse();
-    },
-    { scope: 'blueprint', priority: 20 }
-  );
-  useEditorShortcut(
-    'Ctrl+Alt+I',
-    () => {
-      viewportBar.onToggleInteractionMode();
-    },
-    { scope: 'blueprint', priority: 20 }
-  );
+  useEditorShortcut('Ctrl+Alt+J', sidebar.onToggleCollapse, {
+    scope: 'blueprint',
+    priority: 20,
+  });
+  useEditorShortcut('Ctrl+Alt+K', componentTree.onToggleCollapse, {
+    scope: 'blueprint',
+    priority: 20,
+  });
+  useEditorShortcut('Ctrl+Alt+L', inspector.onToggleCollapse, {
+    scope: 'blueprint',
+    priority: 20,
+  });
+  useEditorShortcut('Ctrl+Alt+I', viewportBar.onToggleInteractionMode, {
+    scope: 'blueprint',
+    priority: 20,
+  });
 
   return (
-    <div className="relative flex h-full min-h-screen flex-col text-(--text-primary)">
+    <div
+      className={`relative flex flex-col overflow-hidden text-(--text-primary) ${
+        compactHeader ? 'h-full min-h-[640px]' : 'h-screen min-h-screen'
+      }`}
+    >
       <BlueprintEditorAddressBar
+        compact={compactHeader}
         currentPath={addressBar.currentPath}
         newPath={addressBar.newPath}
         routes={addressBar.routes}
@@ -106,7 +178,6 @@ function BlueprintEditor() {
             isWorkspaceSaveDisabled={saveIndicator.isWorkspaceSaveDisabled}
             hasPendingChanges={saveIndicator.hasPendingChanges}
             isManualSave={saveIndicator.isManualSave}
-            onSaveNow={saveIndicator.onSaveNow}
           />
         }
       />
@@ -127,10 +198,18 @@ function BlueprintEditor() {
             expandedPreviews={sidebar.expandedPreviews}
             sizeSelections={sidebar.sizeSelections}
             statusSelections={sidebar.statusSelections}
-            officialPluginDiagnostics={officialPluginDiagnostics}
-            officialLibraryOptions={officialLibraryOptions}
-            isOfficialPluginLoading={isOfficialPluginLoading}
-            onReloadOfficialPlugins={reloadOfficialPlugins}
+            officialPluginDiagnostics={
+              controller.officialPluginRuntime.officialPluginDiagnostics
+            }
+            officialLibraryOptions={
+              controller.officialPluginRuntime.officialLibraryOptions
+            }
+            isOfficialPluginLoading={
+              controller.officialPluginRuntime.isOfficialPluginLoading
+            }
+            onReloadOfficialPlugins={
+              controller.officialPluginRuntime.reloadOfficialPlugins
+            }
             onToggleCollapse={sidebar.onToggleCollapse}
             onToggleGroup={sidebar.onToggleGroup}
             onTogglePreview={sidebar.onTogglePreview}
@@ -141,58 +220,107 @@ function BlueprintEditor() {
             onStatusCycleStart={sidebar.onStatusCycleStart}
             onStatusCycleStop={sidebar.onStatusCycleStop}
           />
-          <BlueprintEditorComponentTree
-            isCollapsed={componentTree.isCollapsed}
-            isTreeCollapsed={componentTree.isTreeCollapsed}
-            selectedId={componentTree.selectedId}
-            hiddenNodeIds={componentTree.hiddenNodeIds}
-            dropHint={componentTree.dropHint}
-            compositionIssue={compositionIssue}
-            pluginDiagnostics={officialPluginDiagnostics.filter(
-              (diagnostic) => typeof diagnostic.meta.nodeId === 'string'
-            )}
-            onToggleCollapse={componentTree.onToggleCollapse}
-            onSelectNode={componentTree.onSelectNode}
-            onDeleteSelected={componentTree.onDeleteSelected}
-            onDeleteNode={componentTree.onDeleteNode}
-            onCopyNode={componentTree.onCopyNode}
-            onMoveNode={componentTree.onMoveNode}
-            onToggleNodeHidden={componentTree.onToggleNodeHidden}
-            onOpenRoutePath={componentTree.onOpenRoutePath}
-          />
-          <BlueprintEditorCanvas
-            currentPath={addressBar.currentPath}
-            interactionMode={canvas.interactionMode}
-            viewportWidth={canvas.viewportWidth}
-            viewportHeight={canvas.viewportHeight}
-            zoom={canvas.zoom}
-            pan={canvas.pan}
-            selectedId={canvas.selectedId}
-            hiddenNodeIds={canvas.hiddenNodeIds}
-            runtimeState={canvas.runtimeState}
-            onPanChange={canvas.onPanChange}
-            onZoomChange={canvas.onZoomChange}
-            onSelectNode={canvas.onSelectNode}
-            onNavigateRequest={canvas.onNavigateRequest}
-            onExecuteGraphRequest={canvas.onExecuteGraphRequest}
-          />
-          <BlueprintEditorInspector
-            isCollapsed={inspector.isCollapsed}
-            compositionIssue={compositionIssue}
-            onToggleCollapse={inspector.onToggleCollapse}
-          />
+          {canAuthor && controller.workspace && controller.entryDocumentId ? (
+            <BlueprintEditorComponentTree
+              workspace={controller.workspace}
+              entryDocumentId={controller.entryDocumentId}
+              isCollapsed={componentTree.isCollapsed}
+              isTreeCollapsed={componentTree.isTreeCollapsed}
+              selectedLocation={componentTree.selectedLocation}
+              hiddenLocations={componentTree.hiddenLocations}
+              dropHint={componentTree.dropHint}
+              compositionIssue={compositionIssue}
+              pluginDiagnostics={controller.officialPluginRuntime.officialPluginDiagnostics.filter(
+                (diagnostic) => typeof diagnostic.meta.nodeId === 'string'
+              )}
+              onToggleCollapse={componentTree.onToggleCollapse}
+              onSelectNode={componentTree.onSelectNode}
+              onDeleteSelected={componentTree.onDeleteSelected}
+              onDeleteNode={componentTree.onDeleteNode}
+              onCopyNode={componentTree.onCopyNode}
+              onMoveNode={componentTree.onMoveNode}
+              onToggleNodeHidden={componentTree.onToggleNodeHidden}
+              onOpenRoutePath={componentTree.onOpenRoutePath}
+            />
+          ) : (
+            <aside className="absolute top-0 bottom-0 left-(--sidebar-width) z-4 flex w-(--tree-width) flex-col rounded-[14px] bg-(--bg-canvas) shadow-(--shadow-md) ring-1 ring-(--border-subtle)">
+              <UnavailableAuthoringPanel label="Create or repair a canonical PIR document to populate the Component Tree." />
+            </aside>
+          )}
+          {canAuthor && controller.workspace && controller.entryDocumentId ? (
+            <BlueprintEditorCanvas
+              workspace={controller.workspace}
+              entryDocumentId={controller.entryDocumentId}
+              rendererHost={controller.rendererHost}
+              currentPath={addressBar.currentPath}
+              interactionMode={canvas.interactionMode}
+              viewportWidth={canvas.viewportWidth}
+              viewportHeight={canvas.viewportHeight}
+              zoom={canvas.zoom}
+              pan={canvas.pan}
+              selectedLocation={canvas.selectedLocation}
+              hiddenLocations={canvas.hiddenLocations}
+              rootStateById={canvas.rootStateById}
+              resolveCollectionPreviewState={
+                canvas.resolveCollectionPreviewState
+              }
+              dispatchTrigger={canvas.dispatchTrigger}
+              onPanChange={canvas.onPanChange}
+              onZoomChange={canvas.onZoomChange}
+              onSelectNode={canvas.onSelectNode}
+              onBlockingIssuesChange={canvas.onBlockingIssuesChange}
+            />
+          ) : (
+            <main className="absolute inset-0 flex min-h-0 min-w-0 flex-1 items-center justify-center bg-(--bg-panel) pr-(--inspector-width) pl-[max(var(--sidebar-width),var(--tree-width))]">
+              <UnavailableAuthoringPanel label="Blueprint authoring is waiting for a valid canonical PIR document." />
+            </main>
+          )}
+          {controller.workspace ? (
+            <BlueprintEditorInspector
+              workspace={controller.workspace}
+              readonly={controller.readonly}
+              selection={inspector.selection}
+              isCollapsed={inspector.isCollapsed}
+              compositionIssue={compositionIssue}
+              collectionPreview={inspector.collectionPreview}
+              onToggleCollapse={inspector.onToggleCollapse}
+              onSelectLocation={inspector.onSelectLocation}
+              onCollectionPreviewChange={inspector.onCollectionPreviewChange}
+              onUpdateInstanceBindings={inspector.onUpdateInstanceBindings}
+              onUpdateCollection={inspector.onUpdateCollection}
+              onOpenDefinition={inspector.onOpenDefinition}
+              onFindReferences={inspector.onFindReferences}
+              onOpenCodeArtifact={inspector.onOpenCodeArtifact}
+              onOpenCodeSlotDefinition={inspector.onOpenCodeSlotDefinition}
+              onExtract={inspector.onExtract}
+              onStatus={inspector.onStatus}
+            />
+          ) : (
+            <UnavailableInspector
+              isCollapsed={inspector.isCollapsed}
+              onToggleCollapse={inspector.onToggleCollapse}
+            />
+          )}
           <BlueprintAssistantPanel
             currentPath={addressBar.currentPath}
             isInspectorCollapsed={inspector.isCollapsed}
-            selectedId={canvas.selectedId}
+            selectedId={canvas.selectedLocation?.nodeId}
           />
+          {controller.statusMessage ? (
+            <button
+              type="button"
+              className="absolute bottom-4 left-1/2 z-20 max-w-lg -translate-x-1/2 rounded-lg border border-(--border-default) bg-(--bg-canvas)/95 px-3 py-2 text-left text-xs shadow-(--shadow-md)"
+              onClick={controller.dismissStatusMessage}
+              title="Dismiss"
+            >
+              {controller.statusMessage}
+            </button>
+          ) : null}
         </div>
         <DragOverlay>
           {dnd.activePaletteItemId ? (
-            <div className="pointer-events-none">
-              <div className="inline-flex items-center justify-center rounded-xl border border-(--border-default) bg-(--bg-canvas) px-2.5 py-2 text-xs font-bold tracking-[0.01em] text-(--text-primary) shadow-(--shadow-lg)">
-                {dnd.activePaletteItemId}
-              </div>
+            <div className="pointer-events-none inline-flex items-center justify-center rounded-xl border border-(--border-default) bg-(--bg-canvas) px-2.5 py-2 text-xs font-bold tracking-[0.01em] text-(--text-primary) shadow-(--shadow-lg)">
+              {dnd.activePaletteItemId}
             </div>
           ) : null}
         </DragOverlay>
@@ -208,6 +336,14 @@ function BlueprintEditor() {
         zoomStep={viewportBar.zoomStep}
         onZoomChange={viewportBar.onZoomChange}
         onResetView={viewportBar.onResetView}
+      />
+      <ComponentExtractionDialog
+        open={controller.extraction.open}
+        selection={controller.extraction.selection}
+        onClose={controller.extraction.onClose}
+        onApplied={({ sourceDocumentId, instanceNodeId }) =>
+          controller.extraction.onApplied(sourceDocumentId, instanceNodeId)
+        }
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../projection';
 
 export const BUILT_IN_META_SOURCE_PRIORITY = [
   'override',
@@ -47,8 +47,11 @@ export type BuiltInVisibilityRule = {
 };
 
 export type BuiltInInspectorFieldTransform = {
-  toControlValue?: (value: unknown, node: ComponentNode) => unknown;
-  toNodeValue?: (value: unknown, node: ComponentNode) => unknown;
+  toControlValue?: (
+    value: unknown,
+    node: BlueprintInspectorNodeView
+  ) => unknown;
+  toNodeValue?: (value: unknown, node: BlueprintInspectorNodeView) => unknown;
 };
 
 export type BuiltInInspectorFieldDefinitionBase = {

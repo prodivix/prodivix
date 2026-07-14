@@ -15,6 +15,7 @@ import {
 } from '..';
 import {
   cloneWorkspace,
+  createNodeGraphContent,
   createPirContent,
   createWorkspace,
 } from './testWorkspace';
@@ -28,17 +29,27 @@ const node = (
   workspace: ReturnType<typeof createWorkspace>,
   nodeId: 'node-a' | 'node-b'
 ) =>
-  pirContent(workspace).logic.graphs[0]!.nodes.find(
-    (candidate) => candidate.id === nodeId
-  )!;
+  (
+    workspace.docsById['document-1']!.content as ReturnType<
+      typeof createNodeGraphContent
+    >
+  ).nodes.find((candidate) => candidate.id === nodeId)!;
+
+const graphContent = (workspace: ReturnType<typeof createWorkspace>) =>
+  workspace.docsById['document-1']!.content as ReturnType<
+    typeof createNodeGraphContent
+  >;
+
+const createNodeGraphWorkspace = () =>
+  createWorkspace(createNodeGraphContent(), 'pir-graph');
 
 describe('workspace three-way recovery', () => {
   it('auto-rebases independent stable-id graph changes onto remote revisions', () => {
-    const base = createWorkspace();
+    const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').value = 2;
-    node(remote, 'node-b').value = 3;
+    node(local, 'node-a').data.value = 2;
+    node(remote, 'node-b').data.value = 3;
     remote.workspaceRev = 7;
     remote.opSeq = 15;
     remote.docsById['document-1']!.contentRev = 4;
@@ -47,8 +58,8 @@ describe('workspace three-way recovery', () => {
 
     expect(result).toMatchObject({ ok: true, status: 'rebased' });
     if (!result.ok) return;
-    expect(node(result.snapshot, 'node-a').value).toBe(2);
-    expect(node(result.snapshot, 'node-b').value).toBe(3);
+    expect(node(result.snapshot, 'node-a').data.value).toBe(2);
+    expect(node(result.snapshot, 'node-b').data.value).toBe(3);
     expect(result.snapshot.workspaceRev).toBe(7);
     expect(result.snapshot.docsById['document-1']!.contentRev).toBe(4);
   });
@@ -60,10 +71,10 @@ describe('workspace three-way recovery', () => {
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
     (pirContent(local) as Record<string, unknown>).metadata = {
-      localName: 'Local',
+      name: 'Local',
     };
     (pirContent(remote) as Record<string, unknown>).metadata = {
-      remoteDescription: 'Remote',
+      description: 'Remote',
     };
 
     const result = autoRebaseWorkspaceSnapshots(base, local, remote);
@@ -74,8 +85,8 @@ describe('workspace three-way recovery', () => {
       (pirContent(result.snapshot) as unknown as Record<string, unknown>)
         .metadata
     ).toEqual({
-      localName: 'Local',
-      remoteDescription: 'Remote',
+      name: 'Local',
+      description: 'Remote',
     });
   });
 
@@ -128,13 +139,13 @@ describe('workspace three-way recovery', () => {
   });
 
   it('detects delete-versus-edge dependency as a structural conflict', () => {
-    const base = createWorkspace();
+    const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    pirContent(local).logic.graphs[0]!.nodes = pirContent(
-      local
-    ).logic.graphs[0]!.nodes.filter((candidate) => candidate.id !== 'node-a');
-    pirContent(remote).logic.graphs[0]!.edges[0]!.label = 'remote edge';
+    graphContent(local).nodes = graphContent(local).nodes.filter(
+      (candidate) => candidate.id !== 'node-a'
+    );
+    graphContent(remote).edges[0]!.sourceHandle = 'remote-edge';
 
     const result = autoRebaseWorkspaceSnapshots(base, local, remote);
 
@@ -148,11 +159,11 @@ describe('workspace three-way recovery', () => {
   });
 
   it('requires an explicit choice and builds fresh commands from remote to resolved', () => {
-    const base = createWorkspace();
+    const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').label = 'LOCAL';
-    node(remote, 'node-a').label = 'REMOTE';
+    node(local, 'node-a').data.label = 'LOCAL';
+    node(remote, 'node-a').data.label = 'REMOTE';
     remote.workspaceRev = 9;
     remote.opSeq = 20;
     remote.docsById['document-1']!.contentRev = 5;
@@ -208,7 +219,7 @@ describe('workspace three-way recovery', () => {
       session: { status: 'resolved', unresolvedConflictIds: [] },
     });
     if (!resolved.ok || !resolved.session.resolvedSnapshot) return;
-    expect(node(resolved.session.resolvedSnapshot, 'node-a').label).toBe(
+    expect(node(resolved.session.resolvedSnapshot, 'node-a').data.label).toBe(
       'LOCAL'
     );
     expect(resolved.session.resolvedSnapshot.workspaceRev).toBe(9);
@@ -240,13 +251,13 @@ describe('workspace three-way recovery', () => {
   });
 
   it('supports mixed explicit local and remote choices in one session', () => {
-    const base = createWorkspace();
+    const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').label = 'LOCAL A';
-    node(local, 'node-b').label = 'LOCAL B';
-    node(remote, 'node-a').label = 'REMOTE A';
-    node(remote, 'node-b').label = 'REMOTE B';
+    node(local, 'node-a').data.label = 'LOCAL A';
+    node(local, 'node-b').data.label = 'LOCAL B';
+    node(remote, 'node-a').data.label = 'REMOTE A';
+    node(remote, 'node-b').data.label = 'REMOTE B';
     const created = createWorkspaceConflictSession({
       id: 'session-mixed',
       createdAt: '2026-07-12T02:00:00.000Z',
@@ -277,21 +288,21 @@ describe('workspace three-way recovery', () => {
       session: { status: 'resolved' },
     });
     if (!resolved.ok || !resolved.session.resolvedSnapshot) return;
-    expect(node(resolved.session.resolvedSnapshot, 'node-a').label).toBe(
+    expect(node(resolved.session.resolvedSnapshot, 'node-a').data.label).toBe(
       'LOCAL A'
     );
-    expect(node(resolved.session.resolvedSnapshot, 'node-b').label).toBe(
+    expect(node(resolved.session.resolvedSnapshot, 'node-b').data.label).toBe(
       'REMOTE B'
     );
   });
 
   it('rebirths a remotely deleted document when delete-versus-modify chooses local', () => {
-    const base = createWorkspace();
+    const base = createNodeGraphWorkspace();
     base.docsById['document-1']!.contentRev = 7;
     base.docsById['document-1']!.metaRev = 3;
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').label = 'LOCAL SURVIVES';
+    node(local, 'node-a').data.label = 'LOCAL SURVIVES';
     delete remote.docsById['document-1'];
     delete remote.treeById['document-node'];
     remote.treeById.root!.children = ['remote-only'];
@@ -373,11 +384,11 @@ describe('workspace three-way recovery', () => {
   });
 
   it('emits one atomic transaction for VFS metadata and document content', () => {
-    const remote = createWorkspace();
+    const remote = createNodeGraphWorkspace();
     const resolved = cloneWorkspace(remote);
     resolved.treeById['document-node']!.name = 'renamed.pir.json';
     resolved.docsById['document-1']!.path = '/renamed.pir.json';
-    node(resolved, 'node-a').label = 'Resolved';
+    node(resolved, 'node-a').data.label = 'Resolved';
 
     const built = createWorkspaceResolutionOperation({
       remoteSnapshot: remote,
@@ -404,6 +415,6 @@ describe('workspace three-way recovery', () => {
     expect(applied.snapshot.docsById['document-1']!.path).toBe(
       '/renamed.pir.json'
     );
-    expect(node(applied.snapshot, 'node-a').label).toBe('Resolved');
+    expect(node(applied.snapshot, 'node-a').data.label).toBe('Resolved');
   });
 });

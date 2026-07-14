@@ -1,5 +1,5 @@
 import type { InspectorPanelDefinition } from './types';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../projection';
 import type { InspectorTab } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 import { classNamePanel } from './ClassNamePanel';
 import { layoutPanel } from './LayoutPanel';
@@ -24,7 +24,7 @@ export const INSPECTOR_PANELS: InspectorPanelDefinition[] = [
 ];
 
 export const resolveInspectorPanels = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   tab: InspectorTab
 ): InspectorPanelDefinition[] =>
   INSPECTOR_PANELS.filter(

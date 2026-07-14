@@ -4,9 +4,9 @@ import type {
   ProdivixDiagnostic,
   SourceSpan,
 } from '@prodivix/diagnostics';
-import type { CodeArtifactLanguage as SharedCodeArtifactLanguage } from '@prodivix/shared/types/code';
 
-export type CodeArtifactLanguage = SharedCodeArtifactLanguage;
+export type CodeArtifactLanguage =
+  'ts' | 'js' | 'css' | 'scss' | 'glsl' | 'wgsl' | 'expr';
 
 export type CodeArtifactOwner =
   | { kind: 'pir-node'; documentId: string; nodeId: string }
@@ -16,10 +16,10 @@ export type CodeArtifactOwner =
       nodeId: string;
       fieldPath: string;
     }
-  | { kind: 'nodegraph-node'; graphId: string; nodeId: string }
+  | { kind: 'nodegraph-node'; documentId: string; nodeId: string }
   | {
       kind: 'nodegraph-port';
-      graphId: string;
+      documentId: string;
       nodeId: string;
       portId: string;
     }
@@ -42,63 +42,14 @@ export type CodeArtifact = {
   revision: string;
 };
 
-export type SymbolSource =
+export type AuthoringSource =
   | { kind: 'pir'; documentId: string }
   | { kind: 'route'; routeId: string }
-  | { kind: 'nodegraph'; graphId: string }
+  | { kind: 'nodegraph'; documentId: string }
   | { kind: 'animation'; timelineId?: string }
   | { kind: 'external-library'; libraryId: string }
   | { kind: 'workspace'; documentId?: string }
   | { kind: 'code'; artifactId: string };
-
-export type CodeSymbolKind =
-  | 'state'
-  | 'param'
-  | 'data'
-  | 'item'
-  | 'node'
-  | 'prop'
-  | 'event'
-  | 'route'
-  | 'graph'
-  | 'graph-input'
-  | 'graph-output'
-  | 'timeline'
-  | 'track'
-  | 'filter-primitive'
-  | 'component'
-  | 'module'
-  | 'asset'
-  | 'function';
-
-export type CodeSymbol = {
-  id: string;
-  name: string;
-  kind: CodeSymbolKind;
-  typeRef?: string;
-  source: SymbolSource;
-  scopeId: string;
-  targetRef?: DiagnosticTargetRef;
-};
-
-export type CodeScopeKind =
-  | 'workspace'
-  | 'document'
-  | 'route'
-  | 'pir-node'
-  | 'list-item'
-  | 'inspector-field'
-  | 'nodegraph'
-  | 'nodegraph-node'
-  | 'animation'
-  | 'code-artifact';
-
-export type CodeScope = {
-  id: string;
-  parentId?: string;
-  kind: CodeScopeKind;
-  ownerRef: DiagnosticTargetRef;
-};
 
 export type AuthoringSurface =
   | 'code-editor'
@@ -115,76 +66,23 @@ export type AuthoringContext = {
   scopeId?: string;
 };
 
-export type ScopedSymbolReference = {
-  name: string;
-  scopeId?: string;
-};
-
 export type CodeReference = {
   artifactId: string;
   exportName?: string;
-  symbolName?: string;
-  sourceSpan?: SourceSpan;
-};
-
-export type ResolvedReference = {
-  symbol: CodeSymbol;
-};
-
-export type CodeCompletion = {
-  label: string;
   symbolId?: string;
-  detail?: string;
-};
-
-export type DefinitionLocation = {
-  targetRef?: DiagnosticTargetRef;
-  artifactId?: string;
-};
-
-export type ReferenceLocation = {
-  targetRef?: DiagnosticTargetRef;
-  artifactId?: string;
-};
-
-export type AuthoringEnvironment = {
-  revision: string;
-  listArtifacts(context: AuthoringContext): CodeArtifact[];
-  querySymbols(context: AuthoringContext): CodeSymbol[];
-  resolveReference(
-    reference: CodeReference,
-    context: AuthoringContext
-  ): ResolvedReference | null;
-  getCompletions(context: AuthoringContext): CodeCompletion[];
-  getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
-  getDefinition(
-    reference: CodeReference,
-    context: AuthoringContext
-  ): DefinitionLocation | null;
-  getReferences(
-    symbolId: string,
-    context?: AuthoringContext
-  ): ReferenceLocation[];
+  sourceSpan?: SourceSpan;
 };
 
 export type CodeArtifactProvider = {
   id: string;
-  source: SymbolSource;
+  source: AuthoringSource;
   listArtifacts(context: AuthoringContext): CodeArtifact[];
   getArtifact(id: string): CodeArtifact | null;
 };
 
-export type CodeSymbolProvider = {
-  id: string;
-  source: SymbolSource;
-  listSymbols(context: AuthoringContext): CodeSymbol[];
-  listScopes(context: AuthoringContext): CodeScope[];
-  getSymbol(id: string): CodeSymbol | null;
-};
-
 export type AuthoringDiagnosticProvider = {
   id: string;
-  source: SymbolSource;
+  source: AuthoringSource;
   getDiagnostics(context: AuthoringContext): ProdivixDiagnostic[];
 };
 
@@ -193,6 +91,8 @@ export type CodeSlotKind =
   | 'validator'
   | 'node-executor'
   | 'animation-function'
+  | 'animation-script'
+  | 'shader'
   | 'external-adapter'
   | 'mounted-css'
   | 'route-loader'
@@ -213,9 +113,13 @@ export type CodeSlotContract = {
 
 export type CodeSlotProvider = {
   id: string;
-  source: SymbolSource;
+  source: AuthoringSource;
   listSlots(context: AuthoringContext): CodeSlotContract[];
   getSlot(id: string): CodeSlotContract | null;
+  listBindingProjections(
+    context: AuthoringContext
+  ): CodeSlotBindingProjection[];
+  getBindingProjection(id: string): CodeSlotBindingProjection | null;
 };
 
 export type CodeSlotBinding = {
@@ -223,12 +127,23 @@ export type CodeSlotBinding = {
   reference: CodeReference;
 };
 
+/**
+ * Read-only bridge from a domain-owned binding to its revision-bound semantic
+ * reference. The domain document remains the persisted owner of the binding.
+ */
+export type CodeSlotBindingProjection = Readonly<{
+  binding: CodeSlotBinding;
+  ownerRef: DiagnosticTargetRef;
+  semanticReferenceId: string;
+}>;
+
 export type TriggerBinding =
   | { kind: 'open-url'; href: string }
   | { kind: 'navigate-route'; routeId: string }
-  | { kind: 'run-nodegraph'; graphId: string; inputMapping?: unknown }
+  | { kind: 'run-nodegraph'; documentId: string; inputMapping?: unknown }
   | {
       kind: 'play-animation';
+      documentId: string;
       timelineId: string;
       command: 'play' | 'pause' | 'seek';
     }

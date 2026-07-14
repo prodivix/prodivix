@@ -19,6 +19,7 @@ const domainOrder = [
   'EDT',
   'UX',
   'COD',
+  'SEM',
   'GEN',
   'API',
   'AI',
@@ -64,6 +65,12 @@ const domainInfo = {
     title: 'Code',
     area: '用户代码',
     description: '代码片段、符号解析、类型、宿主绑定、运行时和转译编译',
+  },
+  SEM: {
+    file: 'semantic-diagnostic-codes.md',
+    title: 'Semantic',
+    area: '跨领域语义',
+    description: 'Workspace 级符号、作用域、引用解析、能力约束和快照一致性',
   },
   GEN: {
     file: 'codegen-diagnostic-codes.md',

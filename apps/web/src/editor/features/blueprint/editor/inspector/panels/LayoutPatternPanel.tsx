@@ -12,7 +12,7 @@ import type {
   LayoutPatternParamSchema,
   LayoutPatternResolvedParams,
 } from '@/editor/features/blueprint/layoutPatterns/layoutPattern.types';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../projection';
 import type {
   InspectorPanelDefinition,
   InspectorPanelRenderProps,
@@ -50,7 +50,7 @@ const resolveParams = (
 };
 
 const withPatternParams = (
-  root: ComponentNode,
+  root: BlueprintInspectorNodeView,
   params: LayoutPatternResolvedParams<LayoutPatternParamSchema>
 ) => {
   const nextProps =

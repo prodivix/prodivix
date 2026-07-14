@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import {
   collectWorkspaceAnimationDiagnostics,
@@ -9,7 +9,7 @@ import { collectWorkspaceCodeDiagnostics } from './workspaceCodeIssueProvider';
 import { collectWorkspaceModelIssueSnapshots } from './workspaceIssueProviders';
 
 const createWorkspace = (): WorkspaceSnapshot => {
-  const pirDocument = createDefaultPirDoc();
+  const pirDocument = createEmptyPirDocument();
   const rootNodeId = pirDocument.ui.graph.rootId;
   return {
     id: 'workspace-1',
@@ -23,7 +23,7 @@ const createWorkspace = (): WorkspaceSnapshot => {
         kind: 'dir',
         name: '/',
         parentId: null,
-        children: ['page-node', 'code-node'],
+        children: ['page-node', 'animation-node', 'code-node'],
       },
       'page-node': {
         id: 'page-node',
@@ -39,6 +39,13 @@ const createWorkspace = (): WorkspaceSnapshot => {
         parentId: 'root',
         docId: 'code-checkout',
       },
+      'animation-node': {
+        id: 'animation-node',
+        kind: 'doc',
+        name: 'checkout.pir-animation.json',
+        parentId: 'root',
+        docId: 'animation-checkout',
+      },
     },
     docsById: {
       'page-home': {
@@ -47,38 +54,44 @@ const createWorkspace = (): WorkspaceSnapshot => {
         path: '/pages/home.pir.json',
         contentRev: 2,
         metaRev: 1,
+        content: pirDocument,
+      },
+      'animation-checkout': {
+        id: 'animation-checkout',
+        type: 'pir-animation',
+        path: '/animations/checkout.pir-animation.json',
+        contentRev: 2,
+        metaRev: 1,
         content: {
-          ...pirDocument,
-          animation: {
-            version: 1,
-            svgFilters: [{ id: 'filter-shadow', primitives: [{ id: 'blur' }] }],
-            timelines: [
-              {
-                id: 'timeline-checkout',
-                name: 'Checkout',
-                durationMs: 0,
-                bindings: [
-                  {
-                    id: 'binding-card',
-                    targetNodeId: `${rootNodeId}-missing`,
-                    tracks: [
-                      {
-                        id: 'track-shadow',
-                        kind: 'svg-filter-attr',
-                        filterId: 'filter-shadow',
-                        primitiveId: 'missing-primitive',
-                        attr: 'stdDeviation',
-                        keyframes: [
-                          { atMs: 200, value: 4 },
-                          { atMs: 100, value: 2 },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
+          version: 1,
+          target: { kind: 'pir-document', documentId: 'page-home' },
+          svgFilters: [{ id: 'filter-shadow', primitives: [{ id: 'blur' }] }],
+          timelines: [
+            {
+              id: 'timeline-checkout',
+              name: 'Checkout',
+              durationMs: 0,
+              bindings: [
+                {
+                  id: 'binding-card',
+                  targetNodeId: `${rootNodeId}-missing`,
+                  tracks: [
+                    {
+                      id: 'track-shadow',
+                      kind: 'svg-filter-attr',
+                      filterId: 'filter-shadow',
+                      primitiveId: 'missing-primitive',
+                      attr: 'stdDeviation',
+                      keyframes: [
+                        { atMs: 200, value: 4 },
+                        { atMs: 100, value: 2 },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
         },
       },
       'code-checkout': {
@@ -116,7 +129,7 @@ describe('workspace issue providers', () => {
           startLine: 2,
           startColumn: 25,
           endLine: 2,
-          endColumn: 25,
+          endColumn: 26,
         },
       }),
     ]);
@@ -132,23 +145,23 @@ describe('workspace issue providers', () => {
     expect(animationDiagnostics[2]).toMatchObject({
       targetRef: {
         kind: 'animation-track',
-        documentId: 'page-home',
+        documentId: 'animation-checkout',
         timelineId: 'timeline-checkout',
         bindingId: 'binding-card',
         trackId: 'track-shadow',
       },
       meta: {
-        path: '/animation/timelines/0/bindings/0/tracks/0/primitiveId',
+        path: '/timelines/0/bindings/0/tracks/0/primitiveId',
       },
     });
-    const pageDocument = workspace.docsById['page-home'];
+    const animationDocument = workspace.docsById['animation-checkout'];
     const workspaceWithCollidingLocalIds: WorkspaceSnapshot = {
       ...workspace,
       docsById: {
-        'page-a': {
-          ...pageDocument,
-          id: 'page-a',
-          path: '/pages/a.pir.json',
+        'animation-a': {
+          ...animationDocument,
+          id: 'animation-a',
+          path: '/animations/a.pir-animation.json',
         },
         ...workspace.docsById,
       },
@@ -156,13 +169,13 @@ describe('workspace issue providers', () => {
     expect(
       resolveWorkspaceAnimationTrackLocation(workspaceWithCollidingLocalIds, {
         kind: 'animation-track',
-        documentId: 'page-home',
+        documentId: 'animation-checkout',
         timelineId: 'timeline-checkout',
         bindingId: 'binding-card',
         trackId: 'track-shadow',
       })
     ).toEqual({
-      documentId: 'page-home',
+      documentId: 'animation-checkout',
       timelineId: 'timeline-checkout',
       bindingId: 'binding-card',
       trackId: 'track-shadow',
@@ -173,7 +186,7 @@ describe('workspace issue providers', () => {
       revision: { key: '2:1:4', sequence: 1 },
       collectedAt: 10,
     }).map((snapshot) => snapshot.providerId);
-    expect(providerIds).toContain('workspace-code-parser');
+    expect(providerIds).toContain('workspace-code-language');
     expect(providerIds).toContain('animation-validator');
   });
 });

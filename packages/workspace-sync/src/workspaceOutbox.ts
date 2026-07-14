@@ -9,6 +9,7 @@ import {
   type WorkspaceOperationCommitPlanIssue,
   type WorkspaceOperationCommitRequest,
 } from './workspaceOperationCommit';
+import { normalizeWorkspaceOperationWire } from './workspaceOperationCommitWire';
 
 export const WORKSPACE_OUTBOX_FORMAT_VERSION = 2 as const;
 
@@ -167,7 +168,13 @@ export const createWorkspaceOutboxEntry = (input: {
   if (planned.ok === false) {
     return { ok: false, issues: planned.issues };
   }
-  const operation = planned.request.operation;
+  const normalizedDomainOperation = normalizeWorkspaceOperationWire(
+    input.operation
+  );
+  if (!normalizedDomainOperation.ok) {
+    return { ok: false, issues: [normalizedDomainOperation.issue] };
+  }
+  const operation = normalizedDomainOperation.operation;
   const operationId = getWorkspaceOperationId(operation);
   if (!operationId) {
     return {

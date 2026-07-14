@@ -13,8 +13,8 @@ type UnknownRecord = Record<string, unknown>;
 export type WorkspaceAnimationSource = Readonly<{
   document: WorkspaceDocument;
   definition: unknown;
-  definitionPath: '/animation' | '';
-  pirNodeIds?: ReadonlySet<string>;
+  definitionPath: '';
+  pirNodeIds: ReadonlySet<string>;
 }>;
 
 export type WorkspaceAnimationTrackLocation = Readonly<{
@@ -43,34 +43,30 @@ export const listWorkspaceAnimationSources = (
   Object.values(workspace.docsById)
     .sort((left, right) => compareText(left.id, right.id))
     .flatMap<WorkspaceAnimationSource>((document) => {
-      if (document.type === 'pir-animation') {
-        return [
-          {
-            document,
-            definition: document.content,
-            definitionPath: '' as const,
-          },
-        ];
-      }
-      if (
-        document.type !== 'pir-page' &&
-        document.type !== 'pir-layout' &&
-        document.type !== 'pir-component'
-      ) {
-        return [];
-      }
-      if (
-        !isRecord(document.content) ||
-        document.content.animation === undefined
-      ) {
-        return [];
-      }
+      if (document.type !== 'pir-animation') return [];
+      const target = isRecord(document.content)
+        ? document.content.target
+        : undefined;
+      const targetDocumentId =
+        isRecord(target) &&
+        target.kind === 'pir-document' &&
+        typeof target.documentId === 'string'
+          ? target.documentId
+          : '';
+      const targetDocument = workspace.docsById[targetDocumentId];
+      const pirNodeIds =
+        targetDocument &&
+        (targetDocument.type === 'pir-page' ||
+          targetDocument.type === 'pir-layout' ||
+          targetDocument.type === 'pir-component')
+          ? readPirNodeIds(targetDocument.content)
+          : undefined;
       return [
         {
           document,
-          definition: document.content.animation,
-          definitionPath: '/animation' as const,
-          pirNodeIds: readPirNodeIds(document.content),
+          definition: document.content,
+          definitionPath: '' as const,
+          pirNodeIds: pirNodeIds ?? new Set<string>(),
         },
       ];
     });
@@ -382,15 +378,14 @@ const collectSourceDiagnostics = (
       if (!isRecord(bindingValue)) return;
       const bindingPath = `${timelinePath}/bindings/${bindingIndex}`;
       if (
-        source.pirNodeIds &&
-        (typeof bindingValue.targetNodeId !== 'string' ||
-          !source.pirNodeIds.has(bindingValue.targetNodeId))
+        typeof bindingValue.targetNodeId !== 'string' ||
+        !source.pirNodeIds.has(bindingValue.targetNodeId)
       ) {
         diagnostics.push(
           diagnostic({
             code: 'ANI-2001',
             message:
-              'The animation binding target node does not exist in the owning PIR document.',
+              'The animation binding target node does not exist in its target PIR document.',
             targetRef: timelineTarget,
             path: `${bindingPath}/targetNodeId`,
             meta: {

@@ -1,4 +1,4 @@
-import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
+import { createEmptyPirDocument, type PIRDocument } from '@prodivix/pir';
 import {
   createWorkspaceHistoryState,
   type WorkspaceSnapshot,
@@ -9,22 +9,10 @@ import {
 } from '@/editor/features/settings/SettingsDefaults';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
-import { normalizePirDocument } from '@prodivix/pir';
 
 type EditorState = ReturnType<typeof useEditorStore.getState>;
 
-export const createPirDoc = (children: ComponentNode[] = []): PIRDocument => ({
-  ...normalizePirDocument({
-    version: '1.0',
-    ui: {
-      root: {
-        id: 'root',
-        type: 'container',
-        ...(children.length ? { children } : {}),
-      },
-    },
-  }),
-});
+export const createPirDoc = (): PIRDocument => createEmptyPirDocument();
 
 export const createEditorWorkspace = (
   pirDocument: PIRDocument = createPirDoc()

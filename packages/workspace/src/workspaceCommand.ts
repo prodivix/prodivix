@@ -10,13 +10,14 @@ import type {
   WorkspaceDocumentType,
 } from './types';
 import { validateWorkspaceSnapshot } from './validateWorkspaceVfs';
-import { isPirDocumentContent } from './workspaceSelectors';
+import { isCanonicalPirDocumentContent } from './workspaceDocumentValidation';
 import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
 import {
   isWorkspaceAssetDocumentContent,
   isWorkspaceProjectConfigDocumentContent,
 } from './workspaceResourceDocument';
-import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
+import { isCanonicalWorkspaceAnimationDocumentContent } from './workspaceAnimationDocument';
+import { isCanonicalWorkspaceNodeGraphDocumentContent } from './workspaceNodeGraphDocument';
 import {
   collectRouteManifestDocumentRefs,
   type WorkspaceRouteNode,
@@ -685,37 +686,29 @@ export const resolveWorkspaceCommandDomain = (
 const isAllowedPirDocumentPath = (path: string): boolean =>
   path === '/ui/graph' ||
   path.startsWith('/ui/graph/') ||
+  path === '/componentContract' ||
+  path.startsWith('/componentContract/') ||
   path === '/logic' ||
   path.startsWith('/logic/') ||
-  path === '/animation' ||
-  path.startsWith('/animation/') ||
   path === '/metadata' ||
   path.startsWith('/metadata/') ||
   path.startsWith('/x-');
 
 const isAllowedNodeGraphDocumentPath = (path: string): boolean =>
-  path === '/nodesById' ||
-  path.startsWith('/nodesById/') ||
-  path === '/edgesById' ||
-  path.startsWith('/edgesById/') ||
-  path === '/groupsById' ||
-  path.startsWith('/groupsById/') ||
-  path === '/metadata' ||
-  path.startsWith('/metadata/') ||
-  path.startsWith('/x-');
+  path === '/nodes' ||
+  path.startsWith('/nodes/') ||
+  path === '/edges' ||
+  path.startsWith('/edges/');
 
 const isAllowedAnimationDocumentPath = (path: string): boolean =>
-  path === '/timelinesById' ||
-  path.startsWith('/timelinesById/') ||
-  path === '/tracksById' ||
-  path.startsWith('/tracksById/') ||
-  path === '/keyframesById' ||
-  path.startsWith('/keyframesById/') ||
-  path === '/bindingsById' ||
-  path.startsWith('/bindingsById/') ||
-  path === '/metadata' ||
-  path.startsWith('/metadata/') ||
-  path.startsWith('/x-');
+  path === '/target' ||
+  path.startsWith('/target/') ||
+  path === '/timelines' ||
+  path.startsWith('/timelines/') ||
+  path === '/svgFilters' ||
+  path.startsWith('/svgFilters/') ||
+  path === '/x-animationEditor' ||
+  path.startsWith('/x-animationEditor/');
 
 const isAllowedCodeDocumentPath = (path: string): boolean =>
   path === '/language' ||
@@ -1260,7 +1253,7 @@ export const deleteWorkspaceDirectoryIntentRequest = ({
   ...(clientMutationId ? { clientMutationId } : {}),
 });
 
-export const applyWorkspaceDocumentCommand = <TContent>(
+const applyWorkspaceDocumentCommandInternal = <TContent>(
   content: TContent,
   command: WorkspaceCommandEnvelope,
   target: Readonly<{
@@ -1356,7 +1349,7 @@ export const applyWorkspaceDocumentCommand = <TContent>(
   }
   if (
     isPirWorkspaceDocumentType(target.documentType) &&
-    !isPirDocumentContent(patchedContent.value)
+    !isCanonicalPirDocumentContent(patchedContent.value)
   ) {
     return {
       ok: false,
@@ -1364,7 +1357,41 @@ export const applyWorkspaceDocumentCommand = <TContent>(
         {
           code: 'WKS_COMMAND_VALIDATION_FAILED',
           path: '/target/documentId',
-          message: `PIR workspace documents must remain ${CURRENT_PIR_VERSION} graph-only.`,
+          message: 'PIR Workspace documents must remain canonical PIR-current.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
+    target.documentType === 'pir-graph' &&
+    !isCanonicalWorkspaceNodeGraphDocumentContent(patchedContent.value)
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message:
+            'NodeGraph Workspace documents must remain canonical standalone definitions.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
+    target.documentType === 'pir-animation' &&
+    !isCanonicalWorkspaceAnimationDocumentContent(patchedContent.value)
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message:
+            'Animation Workspace documents must remain canonical standalone definitions.',
           documentId: target.documentId,
         },
       ],
@@ -1426,6 +1453,18 @@ export const applyWorkspaceDocumentCommand = <TContent>(
     command,
   };
 };
+
+export const applyWorkspaceDocumentCommand = <TContent>(
+  content: TContent,
+  command: WorkspaceCommandEnvelope,
+  target: Readonly<{
+    workspaceId: WorkspaceId;
+    documentId: WorkspaceDocumentId;
+    documentType: WorkspaceDocumentType;
+    domain: DocumentPatchDomain;
+  }>
+): WorkspaceDocumentCommandApplyResult<TContent> =>
+  applyWorkspaceDocumentCommandInternal(content, command, target);
 
 type WorkspaceCommandApplyOptions = {
   validateWorkspaceResult: boolean;
@@ -1510,7 +1549,7 @@ const applyWorkspaceCommandInternal = (
       commandDomain === 'resource'
         ? commandDomain
         : 'pir';
-    const documentResult = applyWorkspaceDocumentCommand(
+    const documentResult = applyWorkspaceDocumentCommandInternal(
       document.content,
       command,
       {
@@ -1655,7 +1694,7 @@ const validateTransactionEnvelope = (
  * fully validated result. Intermediate workspace states may be incomplete,
  * which lets multi-document and route/VFS edits cross the boundary atomically.
  */
-export const applyWorkspaceTransaction = (
+const applyWorkspaceTransactionInternal = (
   snapshot: WorkspaceSnapshot,
   transaction: WorkspaceTransactionEnvelope
 ): WorkspaceTransactionApplyResult => {
@@ -1742,3 +1781,9 @@ export const applyWorkspaceTransaction = (
 
   return { ok: true, snapshot: nextSnapshot, transaction };
 };
+
+export const applyWorkspaceTransaction = (
+  snapshot: WorkspaceSnapshot,
+  transaction: WorkspaceTransactionEnvelope
+): WorkspaceTransactionApplyResult =>
+  applyWorkspaceTransactionInternal(snapshot, transaction);

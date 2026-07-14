@@ -1,4 +1,5 @@
 import type {
+  AnimationDefinition,
   AnimationTimeline,
   AnimationTrack,
   SvgFilterDefinition,
@@ -7,7 +8,6 @@ import {
   resolveCssFilterUnit,
   resolveKeyframedValue as resolveAnimationKeyframedValue,
 } from '@prodivix/animation';
-import type { PIRDocument } from '@prodivix/shared/types/pir';
 import { toSafeExportIdentifier } from '#src/export/naming';
 import type {
   ExportFileContribution,
@@ -24,16 +24,16 @@ type StyleTrack = Extract<AnimationTrack, { kind: 'style' }>;
 type SvgFilterAttrTrack = Extract<AnimationTrack, { kind: 'svg-filter-attr' }>;
 
 const createTimelineSourceTrace = (
-  timeline: AnimationTimeline,
+  documentId: string,
   index: number
 ): ExportSourceTrace[] => [
   {
     sourceRef: {
       domain: 'animation',
-      id: timeline.id,
-      path: `/animation/timelines/${index}`,
+      id: documentId,
+      path: `/timelines/${index}`,
     },
-    ownerRootId: timeline.id,
+    ownerRootId: documentId,
   },
 ];
 
@@ -45,8 +45,11 @@ const sanitizeCssIdentifier = (value: string, fallback: string) => {
   return safe || fallback;
 };
 
-const createNodeSelector = (nodeId: string) =>
-  `[data-pir-node-id="${nodeId.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"] > *`;
+const escapeSelectorValue = (value: string): string =>
+  value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+
+const createNodeSelector = (documentId: string, nodeId: string) =>
+  `[data-pir-document-id="${escapeSelectorValue(documentId)}"][data-pir-node-id="${escapeSelectorValue(nodeId)}"]`;
 
 const collectTimelineOffsets = (timeline: AnimationTimeline): number[] => {
   const offsets = new Set<number>([0, timeline.durationMs]);
@@ -140,13 +143,16 @@ const buildBindingKeyframes = (
   });
 };
 
-const buildTimelineKeyframeManifest = (timeline: AnimationTimeline) => {
+const buildTimelineKeyframeManifest = (
+  timeline: AnimationTimeline,
+  targetDocumentId: string
+) => {
   const offsets = collectTimelineOffsets(timeline);
   return timeline.bindings
     .map((binding) => ({
       bindingId: binding.id,
       targetNodeId: binding.targetNodeId,
-      selector: createNodeSelector(binding.targetNodeId),
+      selector: createNodeSelector(targetDocumentId, binding.targetNodeId),
       keyframes: buildBindingKeyframes(timeline, binding, offsets).filter(
         (frame) => Object.keys(frame).length > 1
       ),
@@ -198,8 +204,12 @@ const hasSvgFilterTracks = (timeline: AnimationTimeline) =>
 const createTimelineModuleBody = (input: {
   exportName: string;
   timeline: AnimationTimeline;
+  targetDocumentId: string;
 }) => {
-  const keyframeManifest = buildTimelineKeyframeManifest(input.timeline);
+  const keyframeManifest = buildTimelineKeyframeManifest(
+    input.timeline,
+    input.targetDocumentId
+  );
   const svgFilterPatchManifest = buildTimelineSvgFilterPatchManifest(
     input.timeline
   );
@@ -319,6 +329,7 @@ export const create${input.exportName.charAt(0).toUpperCase()}${input.exportName
 };
 
 const createTimelineStyleContribution = (
+  documentId: string,
   timeline: AnimationTimeline,
   index: number
 ): ExportStyleContribution | null => {
@@ -331,8 +342,8 @@ const createTimelineStyleContribution = (
   }
   const durationVar = `--prodivix-animation-${sanitizeCssIdentifier(timeline.id, `timeline-${index + 1}`)}-duration`;
   return {
-    id: `animation-style:${timeline.id}`,
-    ownerRootId: timeline.id,
+    id: `animation-style:${documentId}:${timeline.id}`,
+    ownerRootId: documentId,
     scope: 'component',
     suggestedName: toSafeExportIdentifier(
       timeline.name,
@@ -343,7 +354,7 @@ const createTimelineStyleContribution = (
       group: 'animation',
       index,
     },
-    sourceTrace: createTimelineSourceTrace(timeline, index),
+    sourceTrace: createTimelineSourceTrace(documentId, index),
     origin: {
       kind: 'generated',
       owner: 'prodivix',
@@ -354,14 +365,15 @@ const createTimelineStyleContribution = (
 };
 
 const createSvgFilterContribution = (
+  documentId: string,
   svgFilters: SvgFilterDefinition[],
   timelines: AnimationTimeline[]
 ): ExportFileContribution[] => {
   if (!svgFilters.length || !timelines.some(hasSvgFilterTracks)) return [];
   return [
     {
-      id: 'animation:svg-filters',
-      desiredPath: 'animations/svg-filters.json',
+      id: `animation:${documentId}:svg-filters`,
+      desiredPath: `animations/${sanitizeCssIdentifier(documentId, 'animation')}-svg-filters.json`,
       baseDirectory: 'source-root',
       kind: 'metadata',
       language: 'json',
@@ -372,8 +384,8 @@ const createSvgFilterContribution = (
         {
           sourceRef: {
             domain: 'animation',
-            id: 'svg-filters',
-            path: '/animation/svgFilters',
+            id: documentId,
+            path: '/svgFilters',
           },
         },
       ],
@@ -387,10 +399,17 @@ const createSvgFilterContribution = (
   ];
 };
 
+export type CompileAnimationExportInput = Readonly<{
+  documentId: string;
+  displayName?: string;
+  definition: AnimationDefinition;
+}>;
+
 export const compileAnimationExportContributions = (
-  pirDoc: PIRDocument
+  input: CompileAnimationExportInput
 ): ExportProgramContribution[] => {
-  const timelines = pirDoc.animation?.timelines ?? [];
+  const definition = input.definition;
+  const timelines = definition.timelines;
   if (!timelines.length) return [];
 
   const modules: ExportModule[] = [];
@@ -402,16 +421,20 @@ export const compileAnimationExportContributions = (
       timeline.name,
       `animation${index + 1}`
     );
-    const sourceTrace = createTimelineSourceTrace(timeline, index);
-    const moduleId = `animation:${timeline.id}`;
+    const sourceTrace = createTimelineSourceTrace(input.documentId, index);
+    const moduleId = `animation:${input.documentId}:${timeline.id}`;
     modules.push({
       id: moduleId,
       kind: 'animation-runtime',
-      ownerRootId: timeline.id,
+      ownerRootId: input.documentId,
       suggestedName: exportName,
       language: 'ts',
       imports: [],
-      body: createTimelineModuleBody({ exportName, timeline }),
+      body: createTimelineModuleBody({
+        exportName,
+        timeline,
+        targetDocumentId: definition.target.documentId,
+      }),
       sourceTrace,
       origin: {
         kind: 'generated',
@@ -420,10 +443,14 @@ export const compileAnimationExportContributions = (
         updatePolicy: 'regenerate',
       },
     });
-    const style = createTimelineStyleContribution(timeline, index);
+    const style = createTimelineStyleContribution(
+      input.documentId,
+      timeline,
+      index
+    );
     if (style) styles.push(style);
     runtimeRequirements.push({
-      id: `animation-runtime:${timeline.id}`,
+      id: `animation-runtime:${input.documentId}:${timeline.id}`,
       kind: 'animation-runtime',
       ownerModuleId: moduleId,
       importName: 'createAnimationHandle',
@@ -435,15 +462,17 @@ export const compileAnimationExportContributions = (
   return [
     {
       roots: timelines.map((timeline, index) => ({
-        id: timeline.id,
+        id: `${input.documentId}:${timeline.id}`,
         kind: 'animation',
         displayName: timeline.name,
-        sourceRef: createTimelineSourceTrace(timeline, index)[0].sourceRef,
+        sourceRef: createTimelineSourceTrace(input.documentId, index)[0]
+          .sourceRef,
       })),
       modules,
       styles,
       files: createSvgFilterContribution(
-        pirDoc.animation?.svgFilters ?? [],
+        input.documentId,
+        definition.svgFilters ?? [],
         timelines
       ),
       runtimeRequirements,

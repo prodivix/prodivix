@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import { applyWorkspaceCommand } from './workspaceCommand';
 import { createWorkspaceVfsIntentPlan } from './workspaceVfsIntent';
 import type { WorkspaceSnapshot } from './types';
@@ -33,17 +34,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: {
-        version: '1.3',
-        ui: {
-          graph: {
-            version: 1,
-            rootId: 'root',
-            nodesById: { root: { id: 'root', type: 'container' } },
-            childIdsById: { root: [] },
-          },
-        },
-      },
+      content: createEmptyPirDocument(),
     },
   },
   routeManifest: {

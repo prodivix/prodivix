@@ -1,17 +1,32 @@
 import { Minus, Pause, Play, Plus, RotateCcw, SkipBack } from 'lucide-react';
-import { createElement, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ComponentNode, PIRDocument } from '@prodivix/shared/types/pir';
 import type {
   AnimationTimeline,
   SvgFilterDefinition,
 } from '@prodivix/animation';
-import { PIRRenderer } from '@prodivix/pir-react-renderer';
-import { materializePirRoot } from '@prodivix/pir';
+import {
+  PIRRenderer,
+  type PIRRendererBlockingIssue,
+} from '@prodivix/pir-react-renderer';
+import { createPirProjectionRootPath } from '@prodivix/pir';
+import {
+  createWorkspacePirProjectionPlan,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
 import { buildAnimationPreviewSnapshot } from '@prodivix/runtime-browser';
+import { pirWebRendererHost } from '@/pir/pirWebRendererHost';
 
 type AnimationEditorPreviewCanvasProps = {
-  pirDoc: PIRDocument;
+  workspace: WorkspaceSnapshot | null;
+  entryDocumentId: string;
   previewNodeId?: string;
   timeline: AnimationTimeline | undefined;
   cursorMs: number;
@@ -26,17 +41,7 @@ type AnimationEditorPreviewCanvasProps = {
 const clampZoom = (value: number) =>
   Math.min(4, Math.max(0.2, Math.round(value * 100) / 100));
 
-const findNodeById = (
-  node: ComponentNode,
-  nodeId: string
-): ComponentNode | undefined => {
-  if (node.id === nodeId) return node;
-  for (const child of node.children ?? []) {
-    const matched = findNodeById(child, nodeId);
-    if (matched) return matched;
-  }
-  return undefined;
-};
+const ignoreTrigger = () => undefined;
 
 const renderSvgPrimitive = (
   primitive: SvgFilterDefinition['primitives'][number]
@@ -54,7 +59,8 @@ const renderSvgPrimitive = (
 };
 
 export const AnimationEditorPreviewCanvas = ({
-  pirDoc,
+  workspace,
+  entryDocumentId,
   previewNodeId,
   timeline,
   cursorMs,
@@ -67,6 +73,9 @@ export const AnimationEditorPreviewCanvas = ({
 }: AnimationEditorPreviewCanvasProps) => {
   const { t } = useTranslation('editor');
   const [playing, setPlaying] = useState(false);
+  const [rendererIssues, setRendererIssues] = useState<
+    readonly PIRRendererBlockingIssue[]
+  >([]);
   const cursorRef = useRef(cursorMs);
 
   useEffect(() => {
@@ -105,16 +114,40 @@ export const AnimationEditorPreviewCanvas = ({
   const preview = useMemo(
     () =>
       buildAnimationPreviewSnapshot({
+        targetDocumentId: entryDocumentId,
         timeline,
         cursorMs,
         svgFilters,
       }),
-    [cursorMs, svgFilters, timeline]
+    [cursorMs, entryDocumentId, svgFilters, timeline]
   );
-  const previewNode = useMemo(() => {
-    if (!previewNodeId?.trim()) return undefined;
-    return findNodeById(materializePirRoot(pirDoc), previewNodeId.trim());
-  }, [pirDoc, previewNodeId]);
+  const projection = useMemo(
+    () =>
+      workspace
+        ? createWorkspacePirProjectionPlan({ workspace, entryDocumentId })
+        : undefined,
+    [entryDocumentId, workspace]
+  );
+  const selectedLocation = useMemo(() => {
+    if (projection?.status !== 'ready') return undefined;
+    const nodeId = selectedNodeId?.trim() || previewNodeId?.trim();
+    if (!nodeId) return undefined;
+    return {
+      documentId: entryDocumentId,
+      nodeId,
+      instancePath: createPirProjectionRootPath(entryDocumentId),
+      role:
+        projection.plan.entryDocument.type === 'pir-component'
+          ? ('definition' as const)
+          : ('source' as const),
+    };
+  }, [entryDocumentId, previewNodeId, projection, selectedNodeId]);
+  const handleBlockingIssues = useCallback(
+    (issues: readonly PIRRendererBlockingIssue[]) => {
+      setRendererIssues(issues);
+    },
+    []
+  );
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgb(var(--bg-panel-rgb)_/_0.9),transparent_55%),radial-gradient(circle_at_80%_30%,rgb(var(--bg-raised-rgb)_/_0.6),transparent_55%),linear-gradient(120deg,rgb(var(--bg-canvas-rgb)_/_0.9),rgb(var(--bg-panel-rgb)_/_0.96))] shadow-[0_18px_38px_rgba(0,0,0,0.06)]">
@@ -220,20 +253,29 @@ export const AnimationEditorPreviewCanvas = ({
             transformOrigin: 'top center',
           }}
         >
-          {previewNode ? (
+          {projection?.status === 'ready' && previewNodeId?.trim() ? (
             <PIRRenderer
-              node={previewNode}
-              pirDoc={pirDoc}
-              selectedId={selectedNodeId ?? previewNode.id}
-              onNodeSelect={(nodeId) => {
-                onSelectNodeId?.(nodeId);
+              plan={projection.plan}
+              host={pirWebRendererHost}
+              dispatchTrigger={ignoreTrigger}
+              selectedLocation={selectedLocation}
+              onNodeSelect={(location) => {
+                onSelectNodeId?.(location.nodeId);
               }}
+              onBlockingIssues={handleBlockingIssues}
             />
           ) : (
             <div className="rounded-xl border border-dashed border-black/20 bg-black/[0.02] px-8 py-6 text-xs tracking-[0.06em] text-(--text-muted)">
-              {t('animationEditor.preview.selectBindingTarget')}
+              {projection?.status === 'blocked'
+                ? projection.issues[0]?.message
+                : t('animationEditor.preview.selectBindingTarget')}
             </div>
           )}
+          {rendererIssues.length ? (
+            <div className="absolute right-4 bottom-4 max-w-sm rounded-xl border border-black/10 bg-[rgb(var(--bg-panel-rgb)_/_0.94)] px-3 py-2 text-xs text-(--text-secondary) shadow-sm">
+              {rendererIssues[0]?.message}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

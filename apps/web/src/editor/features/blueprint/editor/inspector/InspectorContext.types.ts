@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from './projection';
 import type { RouteManifestIssue } from '@prodivix/router';
 import type { IconRef } from '@prodivix/pir-react-renderer';
 import type {
@@ -36,10 +36,12 @@ export type InspectorComponentMeta = {
 export type InspectorCoreContext = {
   t: InspectorTranslate;
   projectId?: string;
-  selectedNode: ComponentNode | null;
+  selectedNode: BlueprintInspectorNodeView | null;
   updateSelectedNode: InspectorUpdateNode;
   expandedPanels: Record<string, boolean>;
   togglePanel: (key: string) => void;
+  readonly: boolean;
+  bindingDiagnostics: readonly string[];
 };
 
 export type InspectorIdentityContext = {
@@ -51,6 +53,8 @@ export type InspectorIdentityContext = {
   isDuplicate: boolean;
   allNodeIds: string[];
   primaryTextField: EditableTextField | null;
+  identityWriteAvailable: boolean;
+  identityDiagnostic?: string;
 };
 
 export type InspectorCapabilitiesContext = {
@@ -86,9 +90,11 @@ export type InspectorCapabilitiesContext = {
     routeNodeId: string,
     outletNodeId: string | undefined
   ) => void;
-  selectedParentNode: ComponentNode | null;
+  selectedParentNode: BlueprintInspectorNodeView | null;
   componentMeta: InspectorComponentMeta | null;
   dataModelFieldPaths: string[];
+  codeAuthoringWriteAvailable: boolean;
+  codeAuthoringDiagnostic?: string;
 };
 
 export type InspectorActiveRouteDetails = {
@@ -134,10 +140,14 @@ export type InspectorStyleContext = {
   unmountSelectedNodeFromAnimation: () => void;
   openAnimationEditor: () => void;
   canOpenAnimationEditor: boolean;
+  animationWriteAvailable: boolean;
+  animationDiagnostic?: string;
 };
 
 export type InspectorDataContext = {
   dataModelFieldPaths: string[];
+  collectionWriteAvailable: boolean;
+  collectionDiagnostic?: string;
 };
 
 export type TriggerEntry = {
@@ -145,6 +155,8 @@ export type TriggerEntry = {
   trigger: string;
   action?: string;
   params: Record<string, unknown>;
+  editable?: boolean;
+  diagnostic?: string;
 };
 
 export type InspectorCodeContext = {

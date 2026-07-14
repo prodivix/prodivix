@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PluginDiagnostic } from '@prodivix/plugin-contracts';
-import type { UiGraph } from '@prodivix/shared/types/pir';
+import type { PIRDocument, PIRUiGraph } from '@prodivix/pir';
 import {
-  selectActivePirDocument,
   selectWorkspaceDocumentsById,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
@@ -23,16 +22,15 @@ import {
 } from '@/plugins/platform';
 
 export const findActiveBlueprintCompositionIssue = (
-  graph: UiGraph,
+  graph: PIRUiGraph,
   palette: PaletteQueryService
 ): BlueprintCompositionIssue | undefined =>
   validateBlueprintComposition(graph, palette, Object.keys(graph.nodesById));
 
-export const useBundledOfficialPluginRuntime = () => {
+export const useBundledOfficialPluginRuntime = (pirDocument?: PIRDocument) => {
   const { packages } = useWebPluginRuntimeServices();
   const palette = usePaletteQueryService();
   const extensions = useWebExtensionRegistrySnapshot();
-  const pirDoc = useEditorStore(selectActivePirDocument)!;
   const workspaceDocumentsById = useEditorStore(selectWorkspaceDocumentsById);
   const configuredLibraryIds = useMemo(
     () =>
@@ -106,22 +104,22 @@ export const useBundledOfficialPluginRuntime = () => {
     () =>
       isOfficialPluginLoading
         ? []
-        : collectUnavailableBundledOfficialComponentDiagnostics(
-            pirDoc.ui.graph.nodesById,
-            extensions.rendererComponents
-          ),
-    [
-      extensions.rendererComponents,
-      isOfficialPluginLoading,
-      pirDoc.ui.graph.nodesById,
-    ]
+        : !pirDocument
+          ? []
+          : collectUnavailableBundledOfficialComponentDiagnostics(
+              pirDocument.ui.graph.nodesById,
+              extensions.rendererComponents
+            ),
+    [extensions.rendererComponents, isOfficialPluginLoading, pirDocument]
   );
   const activeCompositionIssue = useMemo(
     () =>
       isOfficialPluginLoading
         ? undefined
-        : findActiveBlueprintCompositionIssue(pirDoc.ui.graph, palette),
-    [extensions.revision, isOfficialPluginLoading, palette, pirDoc.ui.graph]
+        : pirDocument
+          ? findActiveBlueprintCompositionIssue(pirDocument.ui.graph, palette)
+          : undefined,
+    [extensions.revision, isOfficialPluginLoading, palette, pirDocument]
   );
 
   const diagnostics = useMemo(

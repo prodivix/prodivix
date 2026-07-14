@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { PdxInput, PdxSelect } from '@prodivix/ui';
 import { Code2 } from 'lucide-react';
-import type { ComponentNode } from '@prodivix/shared/types/pir';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { buildCodeResourceFilesFromWorkspaceDocuments } from '@/editor/features/resources/workspaceCodeResources';
@@ -22,7 +21,6 @@ import {
 type ExternalCodeConfig = NonNullable<
   ReturnType<typeof readExternalCodeConfig>
 >;
-const EXTERNAL_CODE_PROP_KEY = 'externalCode';
 
 const getResourceLanguage = (
   path: string
@@ -60,32 +58,10 @@ const isResourceCompatibleWithLanguage = (
   return resourceLanguage === language;
 };
 
-const updateExternalCodeConfig = (
-  node: ComponentNode,
-  updater: (current: ExternalCodeConfig) => ExternalCodeConfig | null
-) => {
-  const currentConfig = readExternalCodeConfig(node) ?? {};
-  const nextConfig = updater(currentConfig);
-  const nextProps = { ...(node.props ?? {}) };
-
-  if (!nextConfig) {
-    delete nextProps[EXTERNAL_CODE_PROP_KEY];
-  } else {
-    nextProps[EXTERNAL_CODE_PROP_KEY] = nextConfig;
-  }
-
-  return {
-    ...node,
-    props: Object.keys(nextProps).length ? nextProps : undefined,
-  };
-};
-
-function ExternalCodePanelView({
-  node,
-  updateNode,
-}: InspectorPanelRenderProps) {
+function ExternalCodePanelView({ node }: InspectorPanelRenderProps) {
   const navigate = useNavigate();
-  const { t, projectId } = useInspectorContext();
+  const { t, projectId, codeAuthoringWriteAvailable, codeAuthoringDiagnostic } =
+    useInspectorContext();
   const workspaceDocumentsById = useEditorStore(selectWorkspaceDocumentsById);
   const externalCode = readExternalCodeConfig(node) ?? {};
   const isMounted = externalCode.enabled === true;
@@ -147,20 +123,7 @@ function ExternalCodePanelView({
         <button
           type="button"
           className="h-6 px-1.5 text-[10px] text-(--text-secondary) hover:text-(--text-primary)"
-          onClick={() =>
-            updateNode((current) =>
-              updateExternalCodeConfig(current, (config) =>
-                isMounted
-                  ? null
-                  : {
-                      enabled: true,
-                      language: config.language ?? 'ts',
-                      resourcePath: config.resourcePath ?? '',
-                      entry: config.entry ?? 'main',
-                    }
-              )
-            )
-          }
+          disabled={!codeAuthoringWriteAvailable}
         >
           {isMounted
             ? t('inspector.panels.external-code.actions.unmount', {
@@ -172,10 +135,11 @@ function ExternalCodePanelView({
         </button>
       </div>
       <div className="rounded-md border border-(--border-default) px-2 py-1.5 text-[10px] text-(--text-muted)">
-        {t('inspector.panels.external-code.description', {
-          defaultValue:
-            'Mount project script or shader resources for Canvas, WebGL, or other runtime-driven components.',
-        })}
+        {codeAuthoringDiagnostic ??
+          t('inspector.panels.external-code.description', {
+            defaultValue:
+              'Mount project script or shader resources for Canvas, WebGL, or other runtime-driven components.',
+          })}
       </div>
       <InspectorRow
         label={t('inspector.panels.external-code.fields.projectResource', {
@@ -201,18 +165,8 @@ function ExternalCodePanelView({
                   defaultValue: 'Select a project resource',
                 }
               )}
-              disabled={!hasCompatibleResources}
-              onValueChange={(value) =>
-                updateNode((current) =>
-                  updateExternalCodeConfig(current, (config) => ({
-                    ...config,
-                    enabled: config.enabled ?? true,
-                    resourcePath: value,
-                    language:
-                      getResourceLanguage(value) ?? config.language ?? 'ts',
-                  }))
-                )
-              }
+              disabled={!hasCompatibleResources || !codeAuthoringWriteAvailable}
+              onValueChange={() => undefined}
             />
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] text-(--text-muted)">
@@ -261,21 +215,8 @@ function ExternalCodePanelView({
               { label: 'GLSL', value: 'glsl' },
               { label: 'WGSL', value: 'wgsl' },
             ]}
-            onValueChange={(value) =>
-              updateNode((current) =>
-                updateExternalCodeConfig(current, (config) => ({
-                  ...config,
-                  enabled: config.enabled ?? true,
-                  language: value as ExternalCodeConfig['language'],
-                  resourcePath: isResourceCompatibleWithLanguage(
-                    config.resourcePath ?? '',
-                    value as ExternalCodeConfig['language']
-                  )
-                    ? config.resourcePath
-                    : '',
-                }))
-              )
-            }
+            disabled={!codeAuthoringWriteAvailable}
+            onValueChange={() => undefined}
           />
         }
       />
@@ -294,15 +235,8 @@ function ExternalCodePanelView({
           <PdxInput
             size="Small"
             value={externalCode.resourcePath ?? ''}
-            onValueChange={(value) =>
-              updateNode((current) =>
-                updateExternalCodeConfig(current, (config) => ({
-                  ...config,
-                  enabled: config.enabled ?? true,
-                  resourcePath: value,
-                }))
-              )
-            }
+            disabled={!codeAuthoringWriteAvailable}
+            onValueChange={() => undefined}
             placeholder={t(
               'inspector.panels.external-code.placeholders.resourcePath',
               {
@@ -323,15 +257,8 @@ function ExternalCodePanelView({
           <PdxInput
             size="Small"
             value={externalCode.entry ?? ''}
-            onValueChange={(value) =>
-              updateNode((current) =>
-                updateExternalCodeConfig(current, (config) => ({
-                  ...config,
-                  enabled: config.enabled ?? true,
-                  entry: value,
-                }))
-              )
-            }
+            disabled={!codeAuthoringWriteAvailable}
+            onValueChange={() => undefined}
             placeholder={t(
               'inspector.panels.external-code.placeholders.entry',
               {

@@ -7,9 +7,8 @@
 - 关联：
   - `specs/diagnostics/README.md`
   - `specs/decisions/26.ux-diagnostics.md`
-  - `specs/decisions/01.monochrome-ui.md`
   - `specs/decisions/21.inspector-panel-architecture.md`
-  - `specs/pir/pir-contract-v1.3.md`
+  - `specs/pir/PIR-contract-v1.3.md`
 
 ## 1. 范围
 

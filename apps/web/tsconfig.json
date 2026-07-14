@@ -10,6 +10,7 @@
       "@prodivix/ai": ["../../packages/ai/src"],
       "@prodivix/animation": ["../../packages/animation/src"],
       "@prodivix/authoring": ["../../packages/authoring/src"],
+      "@prodivix/code-language": ["../../packages/code-language/src"],
       "@prodivix/diagnostics": ["../../packages/diagnostics/src"],
       "@prodivix/i18n": ["../../packages/i18n/src"],
       "@prodivix/nodegraph": ["../../packages/nodegraph/src"],
@@ -53,6 +54,9 @@
     },
     {
       "path": "../../packages/authoring"
+    },
+    {
+      "path": "../../packages/code-language"
     },
     {
       "path": "../../packages/pir"

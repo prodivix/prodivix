@@ -4,7 +4,7 @@
 
 - Phase 2 contract + Phase 4.0 runtime artifact/shutdown extension implemented
 - 日期：2026-07-10
-- 执行计划：`specs/implementation/plugin-host-core-phase2.md`
+- 上位决策：`specs/decisions/29.plugin-extension-points.md`
 - 相关协议：`specs/implementation/plugin-host-contribution-registry.md`
 
 ## 1. 目的

@@ -21,7 +21,6 @@ import {
 } from './localProjectStore';
 import { selectWorkspace, useEditorStore } from './store/useEditorStore';
 import { useSettingsStore } from './store/useSettingsStore';
-import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
 import { WebPluginPlatformProvider } from '@/plugins/platform';
 import { createEditorPluginGatewayServices } from '@/editor/pluginGatewayServices';
 import { saveWorkspaceLocalReplica } from './workspaceSync/indexedDbWorkspaceLocalReplicaStore';
@@ -145,13 +144,13 @@ function EditorGlobalShortcuts({
 
 function EditorSurface() {
   return (
-    <div className="flex max-h-screen min-h-screen flex-row bg-[linear-gradient(120deg,var(--bg-canvas)_20%,var(--bg-panel)_100%)]">
+    <div className="flex h-screen min-h-screen flex-row overflow-hidden bg-[linear-gradient(120deg,var(--bg-canvas)_20%,var(--bg-panel)_100%)]">
       <SettingsEffects />
       <WorkspaceOutboxEffects />
       <WorkspaceIssuesEffects />
       <WorkspaceRevisionConflictSurface />
       <EditorBar />
-      <div className="min-h-screen flex-1 overflow-auto">
+      <div className="flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-auto">
         <Outlet />
       </div>
       <EditorDebugFloatingBall />
@@ -415,7 +414,7 @@ function Editor() {
         if (error instanceof ApiError && error.status === 422) {
           setLoadError(
             error.message ||
-              `This project uses a legacy PIR document and cannot be opened in ${CURRENT_PIR_VERSION}.`
+              'This project uses an unsupported PIR wire contract and cannot be migrated to PIR-current.'
           );
           return;
         }

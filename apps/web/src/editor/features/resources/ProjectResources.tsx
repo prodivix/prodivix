@@ -7,6 +7,7 @@ import { I18nResourcePage } from './I18nResourcePage';
 import { ProjectFileManager } from './ProjectFileManager';
 import { ResourceOverviewPanel } from './ResourceOverviewPanel';
 import { PublicResourcePage } from './PublicResourcePage';
+import { ComponentResourcePage } from './ComponentResourcePage';
 import {
   buildOverviewSnapshot,
   getResourceManagerViewStorageKey,
@@ -25,6 +26,10 @@ export function ProjectResources() {
   const workspace = useEditorStore((state) => state.workspace);
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
+  const activeDocumentId = workspace?.activeDocumentId;
+  const activeDocumentType = activeDocumentId
+    ? workspaceDocumentsById[activeDocumentId]?.type
+    : undefined;
   const treeRootId = workspace?.treeRootId;
   const treeById = workspace?.treeById ?? EMPTY_WORKSPACE_TREE;
   const [activeSection, setActiveSection] = useState<SectionId>(() => {
@@ -34,6 +39,7 @@ export function ProjectResources() {
     );
     if (
       raw === 'overview' ||
+      raw === 'components' ||
       raw === 'public' ||
       raw === 'code' ||
       raw === 'i18n' ||
@@ -55,6 +61,10 @@ export function ProjectResources() {
       activeSection
     );
   }, [activeSection, projectId]);
+
+  useEffect(() => {
+    if (activeDocumentType === 'code') setActiveSection('code');
+  }, [activeDocumentId, activeDocumentType]);
 
   const overviewSnapshot = useMemo(() => {
     if (activeSection !== 'overview') return null;
@@ -116,6 +126,8 @@ export function ProjectResources() {
           onCreateCodeAsset={createCodeAssetAndOpen}
         />
       ) : null}
+
+      {activeSection === 'components' ? <ComponentResourcePage /> : null}
 
       {activeSection === 'public' ? <PublicResourcePage embedded /> : null}
 

@@ -30,14 +30,14 @@ type WorkspaceDiagnosticStage =
 
 ## 3. 编码分段
 
-| 段位       | 阶段         | 说明                                      |
-| ---------- | ------------ | ----------------------------------------- |
-| `WKS-10xx` | `load`       | 工作区加载、快照读取、项目不存在          |
-| `WKS-20xx` | `capability` | 能力协商、协议版本不匹配                  |
-| `WKS-30xx` | `document`   | 文档级保存、文档类型、文档路径            |
-| `WKS-40xx` | `sync`       | revision 冲突、过期写入、并发保存         |
-| `WKS-50xx` | `intent`     | intent 分发、command envelope、patch 应用 |
-| `WKS-90xx` | `snapshot`   | 自愈、未知工作区异常                      |
+| 段位       | 阶段         | 说明                                  |
+| ---------- | ------------ | ------------------------------------- |
+| `WKS-10xx` | `load`       | 工作区加载、快照读取、项目不存在      |
+| `WKS-20xx` | `capability` | 能力协商、协议版本不匹配              |
+| `WKS-30xx` | `document`   | 文档级保存、文档类型、文档路径        |
+| `WKS-40xx` | `sync`       | revision 冲突、过期写入、并发保存     |
+| `WKS-50xx` | `command`    | planner、command envelope、patch 应用 |
+| `WKS-90xx` | `snapshot`   | replica 恢复、未知工作区异常          |
 
 ## 4. 已占用码位
 
@@ -48,7 +48,7 @@ type WorkspaceDiagnosticStage =
 - Retryable: false
 - Trigger: 请求的 workspace ID 无法解析到工作区快照
 - User action: 返回项目列表并重新打开项目
-- Developer notes: 检查 project 与 workspace 初始化、legacy project 自愈和路由参数
+- Developer notes: 检查 project metadata、canonical Workspace 初始化和路由参数
 
 ### `WKS-1002` 工作区快照损坏
 
@@ -127,7 +127,7 @@ type WorkspaceDiagnosticStage =
 - Severity: `error`
 - Stage: `snapshot`
 - Retryable: true
-- Trigger: Workspace 加载、保存、同步或自愈中出现未分类异常
+- Trigger: Workspace 加载、保存、同步或 replica 恢复中出现未分类异常
 - User action: 重试操作；若复现，携带错误码和项目 ID 上报
 - Developer notes: 新增稳定复现场景后应分配更具体的码位
 
@@ -136,4 +136,4 @@ type WorkspaceDiagnosticStage =
 1. `WKS-2010`：客户端协议版本过低。
 2. `WKS-3010`：文档路径非法。
 3. `WKS-5010`：reverseOps 缺失导致命令无法进入历史栈。
-4. `WKS-9010`：legacy workspace 自愈失败。
+4. `WKS-9010`：local replica materialization 失败。

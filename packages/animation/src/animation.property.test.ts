@@ -4,6 +4,7 @@ import {
   normalizeAnimationDefinition,
   resolveKeyframedValue,
   resolveTimelineCursorMs,
+  validateAnimationDefinition,
 } from './index';
 import type { AnimationTimeline } from './index';
 
@@ -11,7 +12,12 @@ describe('animation domain properties', () => {
   it('normalization is deterministic, idempotent, and canonical', () => {
     fc.assert(
       fc.property(fc.jsonValue(), (source) => {
-        const normalized = normalizeAnimationDefinition(source);
+        const normalized = normalizeAnimationDefinition({
+          ...(source && typeof source === 'object' && !Array.isArray(source)
+            ? source
+            : {}),
+          target: { kind: 'pir-document', documentId: 'page-home' },
+        });
         if (!normalized) return;
 
         expect(normalizeAnimationDefinition(normalized)).toEqual(normalized);
@@ -42,6 +48,66 @@ describe('animation domain properties', () => {
           });
         });
       })
+    );
+  });
+
+  it('requires one explicit PIR document target', () => {
+    expect(
+      validateAnimationDefinition({ version: 1, timelines: [] })
+    ).toMatchObject({
+      valid: false,
+      issues: [{ code: 'ANI_TARGET_INVALID', path: '/target' }],
+    });
+  });
+
+  it('keeps repair normalization outside canonical persistence validation', () => {
+    expect(
+      validateAnimationDefinition({
+        version: 1,
+        target: { kind: 'pir-document', documentId: ' page-home ' },
+        timelines: [],
+      })
+    ).toMatchObject({
+      valid: false,
+      issues: [{ code: 'ANI_DOCUMENT_INVALID', path: '/' }],
+    });
+  });
+
+  it('round-trips timeline CodeSlot bindings without embedding source', () => {
+    fc.assert(
+      fc.property(
+        fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
+        fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
+        (timelineId, artifactId) => {
+          const definition = {
+            version: 1 as const,
+            target: {
+              kind: 'pir-document' as const,
+              documentId: 'page-home',
+            },
+            timelines: [
+              {
+                id: timelineId,
+                name: 'Timeline',
+                durationMs: 1000,
+                codeSlots: {
+                  shader: {
+                    slotId: `animation-code-slot:${timelineId}:shader`,
+                    reference: { artifactId },
+                  },
+                },
+                bindings: [],
+              },
+            ],
+          };
+
+          expect(normalizeAnimationDefinition(definition)).toEqual(definition);
+          expect(validateAnimationDefinition(definition)).toMatchObject({
+            valid: true,
+            definition,
+          });
+        }
+      )
     );
   });
 

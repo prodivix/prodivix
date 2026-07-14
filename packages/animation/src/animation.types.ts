@@ -1,3 +1,5 @@
+import type { CodeSlotBinding } from '@prodivix/authoring';
+
 export type AnimationIterations = number | 'infinite';
 
 export type AnimationKeyframe = {
@@ -85,7 +87,14 @@ export type AnimationTimeline = {
   direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
   fillMode?: 'none' | 'forwards' | 'backwards' | 'both';
   easing?: string;
+  codeSlots?: AnimationTimelineCodeSlots;
   bindings: AnimationBinding[];
+};
+
+export type AnimationTimelineCodeSlots = {
+  customEasing?: CodeSlotBinding;
+  shader?: CodeSlotBinding;
+  script?: CodeSlotBinding;
 };
 
 export type AnimationEditorState = {
@@ -96,8 +105,14 @@ export type AnimationEditorState = {
   expandedTrackIds?: string[];
 };
 
+export type AnimationTargetReference = {
+  kind: 'pir-document';
+  documentId: string;
+};
+
 export type AnimationDefinition = {
   version: 1;
+  target: AnimationTargetReference;
   timelines: AnimationTimeline[];
   svgFilters?: SvgFilterDefinition[];
   'x-animationEditor'?: AnimationEditorState;

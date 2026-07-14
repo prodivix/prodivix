@@ -1,5 +1,4 @@
-import type { PIRDocument } from '@prodivix/shared/types/pir';
-import { CURRENT_PIR_VERSION } from '@prodivix/shared/types/pir';
+import { validatePirDocument, type PIRDocument } from '@prodivix/pir';
 import type { WorkspaceRouteManifest } from '@prodivix/router';
 import type {
   WorkspaceDocument,
@@ -9,16 +8,14 @@ import type {
   WorkspaceDocumentId,
   WorkspaceVfsNodeId,
 } from './types';
+import {
+  isWorkspacePirDocument,
+  type WorkspacePirDocument,
+  type WorkspacePirDocumentType,
+} from './component/workspacePirDocument';
+import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 
-export type WorkspacePirDocumentType = Extract<
-  WorkspaceDocumentType,
-  'pir-page' | 'pir-layout' | 'pir-component'
->;
-
-export type WorkspacePirDocument = WorkspaceDocument & {
-  type: WorkspacePirDocumentType;
-  content: PIRDocument;
-};
+export type { WorkspacePirDocument, WorkspacePirDocumentType };
 
 export type WorkspaceTreeViewNode = {
   id: WorkspaceVfsNodeId;
@@ -32,9 +29,6 @@ export type WorkspaceTreeViewNode = {
 };
 
 const ROOT_PATH = '/';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const joinPath = (parentPath: string, name: string): string => {
   if (!name || name === ROOT_PATH) return parentPath;
@@ -64,30 +58,16 @@ export const selectActiveDocument = (
 export const isPirDocumentContent = (
   content: unknown
 ): content is PIRDocument => {
-  if (!isRecord(content) || content.version !== CURRENT_PIR_VERSION) {
-    return false;
-  }
-  if (!isRecord(content.ui) || 'root' in content.ui) return false;
-  return isRecord(content.ui.graph);
+  const decoded = tryNormalizeWorkspacePirContent(content);
+  return decoded.ok && validatePirDocument(decoded.value).valid;
 };
 
 export const selectActivePirDocument = (
   snapshot: WorkspaceSnapshot | undefined
 ): WorkspacePirDocument | undefined => {
   const document = selectActiveDocument(snapshot);
-  if (
-    !document ||
-    (document.type !== 'pir-page' &&
-      document.type !== 'pir-layout' &&
-      document.type !== 'pir-component') ||
-    !isPirDocumentContent(document.content)
-  ) {
-    return undefined;
-  }
-  return document as WorkspacePirDocument;
+  return document && isWorkspacePirDocument(document) ? document : undefined;
 };
-
-export const selectActivePirWorkspaceDocument = selectActivePirDocument;
 
 export const selectDocumentsByType = (
   snapshot: WorkspaceSnapshot | undefined,

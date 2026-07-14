@@ -1,133 +1,137 @@
 # PIR 语法规范
 
-本文档描述 `pir-page`、`pir-layout` 与 `pir-component` Workspace documents 当前使用的 PIR 语法。在**单个 PIR 文档内部**，UI 不再使用树形保存格式，`ui.graph` 是规范写态；这不表示 PIR 或 `ui.graph` 是整个项目的唯一真相源。
+本文描述 `pir-page`、`pir-layout` 与 `pir-component` Workspace documents 使用的无版本 `PIR-current` 领域模型。在单个 PIR 文档内部，`ui.graph` 是 UI 结构的规范写态。
 
 项目级唯一作者态真相是 **Canonical Workspace VFS**。它在同一个 `WorkspaceSnapshot` 中持有 Route Manifest、PIR、独立 NodeGraph / Animation documents、Code Documents、Assets 与 Project Config。
 
 ## Workspace 文档边界
 
-| Workspace document type                     | 内容与 owner                                                                                        |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `pir-page` / `pir-layout` / `pir-component` | 内容遵循本文 PIR schema；graph、normalization、materialization 与 validator 由 `@prodivix/pir` 持有 |
-| `pir-graph`                                 | 独立 NodeGraph document，由 `@prodivix/nodegraph` 持有领域 contract；不是页面 PIR `ui.graph` 的别名 |
-| `pir-animation`                             | 独立 Animation document，由 `@prodivix/animation` 持有领域 contract；不是页面 PIR UI 树的一部分     |
-| `code` / `asset` / `project-config`         | 与 PIR 并列存在于 Workspace VFS，不嵌入 `ui.graph`                                                  |
+| Workspace document type                     | 内容与 owner                                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `pir-page` / `pir-layout` / `pir-component` | 无版本 `PIRDocument`；graph、binding、Component、Collection、projection 与 validator 由 `@prodivix/pir` 持有 |
+| `pir-graph`                                 | 独立 NodeGraph document，由 `@prodivix/nodegraph` 持有领域 contract                                          |
+| `pir-animation`                             | 独立 Animation document，由 `@prodivix/animation` 持有领域 contract                                          |
+| `code` / `asset` / `project-config`         | 与 PIR 并列存在于 Workspace VFS，不嵌入 `ui.graph`                                                           |
 
-PIR 顶层仍可以包含该文档自己的 `logic` 与 `animation` 字段，但不能据此把 Workspace 中的独立 `pir-graph` 或 `pir-animation` document 合并成页面 PIR 镜像。当前导出器遇到尚未支持组合的独立领域文档时会产生 blocking diagnostic，而不是静默丢弃。
+PIR 可以通过类型化 Trigger / Reference 指向 NodeGraph、Animation 与 CodeArtifact，但不保存这些领域的文档镜像。`pir-animation` 使用 document-qualified target 指向 PIR document 与 node；Animation timeline、track 和 evaluator 状态不进入 PIR。
 
-## 版本
+## Current model 与 wire 版本
 
-- 规范版本：以 `specs/pir/PIR-current.version.json` 为准
-- 权威 schema：`specs/pir/PIR-current.json`
-- 历史契约说明：`specs/pir/PIR-contract-v*.md`
+- 当前领域契约：无版本号的 `@prodivix/pir` `PIRDocument` / `PIRNode`
+- 当前写出格式：`specs/pir/PIR-current.version.json` 选择的 wire snapshot
+- 当前权威 wire schema：`specs/pir/PIR-current.json`
+- 不可变 wire snapshots：`specs/pir/PIR-v<version>.json`
+- 低成本演进规则：`specs/decisions/39.pir-current-evolution.md`
 
-## 顶层结构
+数字 PIR 版本只属于 wire schema、generated wire types、codec、migration 与 persistence 边界。读取时，wire decoder 严格校验输入并通过确定性 migration 返回同一 `PIRDocument`；写出时，encoder 只生成 current wire contract。Workspace、Renderer、Compiler、Semantic Index 与 Web 不比较数字版本，也不随版本升级改名或复制。
+
+普通 wire 升级只新增下一份冻结 snapshot、更新 activation manifest、同步 generated wire contracts，并增加一段确定性 migration。若领域语义没有变化，所有生产消费者都保持不变。
+
+## Canonical 领域结构
+
+Canonical Workspace 中的 PIR document 不包含 wire `version`：
 
 ```json
 {
-  "version": "1.3",
   "metadata": {
     "name": "HomePage",
     "description": "应用首页"
   },
   "ui": {
     "graph": {
-      "version": 1,
       "rootId": "root",
-      "nodesById": {},
-      "childIdsById": {},
+      "nodesById": {
+        "root": {
+          "id": "root",
+          "kind": "element",
+          "type": "container",
+          "props": {
+            "title": { "kind": "literal", "value": "Home" }
+          }
+        }
+      },
+      "childIdsById": {
+        "root": []
+      },
       "regionsById": {}
     }
-  },
-  "logic": {
-    "props": {},
-    "state": {},
-    "graphs": []
-  },
-  "animation": {
-    "version": 1,
-    "timelines": [],
-    "svgFilters": []
   }
 }
 ```
 
-## 必需字段
+wire encoder 会在持久化边界注入 manifest 选中的顶层 `version`，以及 schema 要求的嵌套结构版本。generated `PIRWire*` types 仅供该边界使用，不是 Workspace document content 或公共作者 API。
 
-| 字段                    | 类型   | 说明                   |
-| ----------------------- | ------ | ---------------------- |
-| `version`               | string | 固定为当前 schema 版本 |
-| `ui`                    | object | UI 容器                |
-| `ui.graph`              | object | 规范化 UI 图           |
-| `ui.graph.version`      | number | 固定为 `1`             |
-| `ui.graph.rootId`       | string | 根节点 ID              |
-| `ui.graph.nodesById`    | object | 节点字典               |
-| `ui.graph.childIdsById` | object | 默认 children 顺序     |
+## 顶层字段
 
-## 可选字段
+| 字段                | 类型   | 说明                                                         |
+| ------------------- | ------ | ------------------------------------------------------------ |
+| `ui`                | object | UI 领域容器                                                  |
+| `ui.graph`          | object | normalized UI graph，唯一 UI 结构写态                        |
+| `metadata`          | object | 可选文档元信息                                               |
+| `componentContract` | object | `pir-component` 的可选 Public Contract                       |
+| `logic`             | object | 可选的文档本地 props / state 声明，不拥有独立 NodeGraph 文档 |
 
-| 字段                   | 类型   | 说明       |
-| ---------------------- | ------ | ---------- |
-| `metadata`             | object | 元信息     |
-| `logic`                | object | 逻辑层定义 |
-| `animation`            | object | 动画层定义 |
-| `ui.graph.regionsById` | object | 具名区域   |
+## Graph 字段
 
-## 节点结构
+| 字段                    | 类型   | 说明                               |
+| ----------------------- | ------ | ---------------------------------- |
+| `ui.graph.rootId`       | string | 根节点稳定 ID                      |
+| `ui.graph.nodesById`    | object | 节点字典，不表达结构顺序           |
+| `ui.graph.childIdsById` | object | 默认 children region 的有序节点 ID |
+| `ui.graph.regionsById`  | object | 可选具名 region 的有序节点 ID      |
+| `ui.graph.order`        | object | 可选的显式顺序策略                 |
 
-`nodesById` 中的每个节点至少包含：
+## 节点类型
 
-```json
-{
-  "id": "root",
-  "type": "div"
-}
-```
+`PIRNode` 是以 `kind` 判别的严格 union：
 
-支持的常见字段：
+- `element`：native、built-in 或 adapter-backed runtime element。
+- `component-instance`：通过稳定 `componentDocumentId` 引用 `pir-component` Definition。
+- `component-slot-outlet`：在 Definition 中声明 Contract slot 的投影位置。
+- `collection`：声明 source、typed key、稳定 item/index/error symbols 与状态 regions，不承诺额外 DOM。
 
-- `text`
-- `style`
-- `props`
-- `data`
-- `list`
-- `events`
+节点必须拥有稳定 `id`。名称、path、React element、实例化 Definition 副本、Collection iteration 节点和预览状态都不是节点身份，也不进入保存态。
 
-### 数据引用
+## Binding 与作用域
 
-PIR 使用显式引用对象，不再把引用值混写成旧式树结构。
+PIR 使用显式 discriminated binding 表示数据来源：
 
 ```json
-{ "$param": "title" }
-{ "$state": "user.name" }
-{ "$data": "items.0.label" }
-{ "$item": "item.name" }
-{ "$index": true }
+{ "kind": "literal", "value": "Hello" }
+{ "kind": "param", "paramId": "route-title" }
+{ "kind": "state", "stateId": "current-user", "path": "name" }
+{ "kind": "data", "dataId": "products", "path": "items" }
+{ "kind": "collection-symbol", "symbolId": "product-item", "path": "name" }
+{ "kind": "component-prop", "memberId": "label" }
+{ "kind": "slot-prop", "memberId": "tone" }
 ```
 
-## 结构语义
+跨 scope 引用使用稳定 member / symbol identity；显示名称只用于作者体验。`CodeReference` 连接 Code Authoring Environment，PIR 不保存任意裸代码字符串。
 
-- `nodesById` 只表示节点身份和节点字段，不表示顺序。
-- `childIdsById` 表示默认 children 区域的顺序。
-- `regionsById` 表示 slot、layout region、fallback 等具名区域。
-- 任何需要树的读取场景，都应通过 `@prodivix/pir` 的 materialization 生成临时视图，而不是把树重新保存回文档。
-- PIR document 必须作为 Canonical Workspace VFS 中的 document 参与 Command / Transaction、History、durable outbox 与 Atomic Commit；编辑器不能另存一份 PIR 真相。
+## 结构与复用语义
+
+- `nodesById` 只表示节点身份和字段，不表示顺序。
+- `childIdsById` 表示默认 children region 的顺序。
+- `regionsById` 表示 Component slot、Collection item/empty/loading/error 与其他具名 region。
+- Component Instance 不复制 Definition graph，也不允许任意内部 node override。
+- Collection 的 item/index/error lexical scope 由 stable symbol id 解析。
+- Renderer 与 Compiler 消费同一 revision-bound `WorkspacePirProjectionPlan`，不从保存态重建另一份领域模型。
+- PIR document 通过 Command / Transaction、History、Durable Outbox 与 Atomic Commit 写入 Canonical Workspace；编辑器不保存第二份 PIR 真相。
 
 ## 验证规则
 
-PIR validator 至少需要检查：
+PIR validator 至少检查：
 
-1. `rootId` 必须存在于 `nodesById`。
-2. `nodesById` 的 key 必须与节点内部 `id` 一致。
-3. `childIdsById` 和 `regionsById` 引用的节点都必须存在。
-4. 结构中不能有环。
-5. 同一节点不能出现多个结构父级。
-6. `ui.root` 不允许出现在保存态。
+1. `rootId` 存在于 `nodesById`。
+2. `nodesById` 的 key 与节点内部 `id` 一致。
+3. child / region 引用的节点全部存在。
+4. 结构无环、无重复父级、无孤儿。
+5. Component Contract member、Instance binding 与 slot outlet 可以解析。
+6. Collection source、key、symbols、lexical scope 与状态 region 合法。
+7. code、route、NodeGraph 与 Animation 引用保持类型化，并由对应 owner 与 Workspace Semantic Index 完成跨文档 resolution。
 
-## 兼容说明
+## Owner
 
-当前 PIR 只定义当前保存格式，不再保留旧树形保存形态的兼容语义。项目仍处于 alpha，旧 Web resolver、validator 和 renderer 路径已经 Hard Cut；对应 owner 分别位于 `@prodivix/pir` 与 `@prodivix/pir-react-renderer`。
+`@prodivix/pir` 拥有 current 领域模型、factory、normalization、mutation、projection 与 semantic validation；`@prodivix/pir/wire` 拥有版本 dispatch、strict wire codec 与 migration。`@prodivix/workspace` 负责编排跨文档 Transaction 与 current projection；`@prodivix/pir-react-renderer` 和 `@prodivix/prodivix-compiler` 只消费稳定 projection contract；`apps/web` 通过这些无版本 package API 组合 Blueprint 与 Preview。
 
-## 下一步
-
-- [错误码与诊断](/reference/diagnostic-codes) - 查看 PIR 相关错误码
+[查看 PIR 错误码与诊断](/reference/diagnostic-codes)。

@@ -1,35 +1,16 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
+import { selectWorkspace, useEditorStore } from '@/editor/store/useEditorStore';
 import {
-  selectActivePirDocument,
-  selectWorkspace,
-  useEditorStore,
-} from '@/editor/store/useEditorStore';
-import {
-  generateReactBundle,
+  generateWorkspaceReactViteBundle,
   type ReactExportFile,
-  type ReactGeneratorCodeArtifact,
 } from '@prodivix/prodivix-compiler';
-import { validatePirDocument } from '@prodivix/pir';
 import {
   projectWorkspaceToProdivixFiles,
-  createWorkspaceCodeArtifactProvider,
   type WorkspaceProjectionIssue,
 } from '@prodivix/workspace';
-import {
-  createAuthoringEnvironment,
-  createCodeArtifactProviderRegistry,
-} from '@prodivix/authoring';
-import { flattenPublicFiles } from '@/editor/features/resources/publicTree';
-import { flattenEnabledProjectFiles } from '@/editor/features/resources/projectFileStore';
 import { useCodegenPolicySnapshot } from '@/plugins/platform';
-import { buildPublicResourceTreeFromWorkspace } from '@/editor/features/resources/workspacePublicResources';
-import { buildProjectFilesFromWorkspace } from '@/editor/features/resources/workspaceProjectFiles';
-import {
-  createRouteGraphExportContributions,
-  createWorkspaceResourceExportContributions,
-} from './exportContributions';
 import { ExportCodeHeader } from './ExportCodeHeader';
 import { ExportCodePreview } from './ExportCodePreview';
 import { ExportFileTree } from './ExportFileTree';
@@ -86,18 +67,10 @@ export function ExportCode() {
   const { t } = useTranslation('export');
   const { projectId } = useParams();
   const codegenPolicySnapshot = useCodegenPolicySnapshot();
-  const pirDoc = useEditorStore(selectActivePirDocument)!;
   const projectName = useEditorStore((state) =>
     projectId ? state.projectsById[projectId]?.name : undefined
   );
-  const projectType = useEditorStore(
-    (state) =>
-      (projectId ? state.projectsById[projectId]?.type : undefined) ?? 'project'
-  );
   const workspaceSnapshot = useEditorStore(selectWorkspace);
-  const workspaceDocumentsById = workspaceSnapshot?.docsById ?? {};
-  const treeRootId = workspaceSnapshot?.treeRootId;
-  const treeById = workspaceSnapshot?.treeById ?? {};
   const [copied, setCopied] = useState(false);
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
@@ -107,102 +80,16 @@ export function ExportCode() {
   const [expandedFolders, setExpandedFolders] = useState<
     Record<string, boolean>
   >({});
-  const pirValidation = useMemo(() => validatePirDocument(pirDoc), [pirDoc]);
-  const hasPirValidationError = pirValidation.hasError;
-  const validatedPirDoc = pirValidation.document;
-  const codeArtifacts = useMemo<ReactGeneratorCodeArtifact[]>(() => {
-    if (!workspaceSnapshot) return [];
-    const artifactRegistry = createCodeArtifactProviderRegistry();
-    artifactRegistry.register(
-      createWorkspaceCodeArtifactProvider(workspaceSnapshot)
-    );
-    const authoringEnvironment = createAuthoringEnvironment({
-      revision: String(workspaceSnapshot.workspaceRev),
-      artifactRegistry,
-    });
-    return authoringEnvironment
-      .listArtifacts({ surface: 'code-editor' })
-      .map((artifact) => ({
-        id: artifact.id,
-        path: artifact.path,
-        language: artifact.language,
-        source: artifact.source,
-      }));
-  }, [workspaceSnapshot]);
-  const publicTree = useMemo(
-    () =>
-      buildPublicResourceTreeFromWorkspace(
-        workspaceDocumentsById,
-        treeRootId,
-        treeById
-      ),
-    [treeById, treeRootId, workspaceDocumentsById]
-  );
-  const enabledProjectFiles = useMemo(
-    () =>
-      flattenEnabledProjectFiles(
-        buildProjectFilesFromWorkspace(workspaceDocumentsById)
-      ),
-    [workspaceDocumentsById]
-  );
-  const publicFiles = useMemo(
-    () => flattenPublicFiles(publicTree),
-    [publicTree]
-  );
-  const exportContributions = useMemo(() => {
-    if (projectType !== 'project' || !workspaceSnapshot) return [];
-    return [
-      ...createWorkspaceResourceExportContributions({
-        workspaceDocumentsById,
-        projectFiles: enabledProjectFiles,
-        publicFiles,
-      }),
-      ...createRouteGraphExportContributions({
-        routeManifest: workspaceSnapshot.routeManifest,
-        workspaceDocumentsById,
-        codeArtifacts,
-      }),
-    ];
-  }, [
-    codeArtifacts,
-    enabledProjectFiles,
-    projectType,
-    publicFiles,
-    workspaceSnapshot,
-    workspaceDocumentsById,
-  ]);
 
   const reactBundle = useMemo(() => {
-    if (!validatedPirDoc?.ui?.graph) return null;
-    if (hasPirValidationError) {
-      return {
-        entryFilePath: 'validation-error.ts',
-        type: projectType,
-        files: [],
-        dependencies: [],
-        target: {
-          framework: 'react' as const,
-          preset: 'vite',
-        },
-        metadata: undefined,
-        diagnostics: pirValidation.issues.map((item) => ({
-          code: item.code,
-          severity: 'error' as const,
-          source: 'canonical-ir' as const,
-          message: item.message,
-          path: item.path,
-        })),
-      };
-    }
+    if (!workspaceSnapshot) return null;
     try {
-      return generateReactBundle(validatedPirDoc, {
-        resourceType: projectType,
+      return generateWorkspaceReactViteBundle(workspaceSnapshot, {
+        projectName: projectName?.trim() || workspaceSnapshot.name,
         packageResolver: {
           strategy: 'npm',
         },
         codegenPolicySnapshot,
-        codeArtifacts,
-        exportContributions,
       });
     } catch (error) {
       const message = t('react.error', {
@@ -210,7 +97,7 @@ export function ExportCode() {
       });
       return {
         entryFilePath: 'error.ts',
-        type: projectType,
+        type: 'project' as const,
         files: [
           {
             path: 'error.ts',
@@ -229,7 +116,15 @@ export function ExportCode() {
             ],
           },
         ],
-        diagnostics: [],
+        diagnostics: [
+          {
+            code: 'WKS-EXPORT-UNEXPECTED',
+            severity: 'error' as const,
+            source: 'export' as const,
+            message,
+            path: '/',
+          },
+        ],
         dependencies: [],
         target: {
           framework: 'react' as const,
@@ -238,16 +133,7 @@ export function ExportCode() {
         metadata: undefined,
       };
     }
-  }, [
-    validatedPirDoc,
-    hasPirValidationError,
-    pirValidation.issues,
-    projectType,
-    codeArtifacts,
-    codegenPolicySnapshot,
-    exportContributions,
-    t,
-  ]);
+  }, [codegenPolicySnapshot, projectName, t, workspaceSnapshot]);
 
   const reactProjectFiles = useMemo<ExportCodeFile[]>(
     () => reactBundle?.files.map(reactExportFileToCodeFile) ?? [],
@@ -277,9 +163,7 @@ export function ExportCode() {
   const vfsProjectFiles = vfsProjection?.files ?? [];
   const vfsProjectionIssues = vfsProjection?.issues ?? [];
   const reactMainDiagnostics = useMemo(
-    () =>
-      reactBundle?.diagnostics?.filter((item) => item.source !== 'export') ??
-      [],
+    () => reactBundle?.diagnostics ?? [],
     [reactBundle?.diagnostics]
   );
   const hasBlockingReactDiagnostics = useMemo(
@@ -310,10 +194,10 @@ export function ExportCode() {
   const reactZipBaseName = useMemo(() => {
     const nameSource =
       projectName?.trim() ||
-      pirDoc?.metadata?.name?.trim() ||
+      workspaceSnapshot?.name?.trim() ||
       'prodivix-react-export';
     return sanitizeExportFileName(nameSource);
-  }, [pirDoc?.metadata?.name, projectName]);
+  }, [projectName, workspaceSnapshot?.name]);
 
   useEffect(() => {
     if (!reactProjectFiles.length) {
@@ -464,9 +348,7 @@ export function ExportCode() {
         titleLabel={t('title', { defaultValue: '导出代码' })}
         downloadingZip={downloadingZip}
         canDownloadReactZip={
-          Boolean(reactProjectFiles.length) &&
-          !hasPirValidationError &&
-          !hasBlockingReactDiagnostics
+          Boolean(reactProjectFiles.length) && !hasBlockingReactDiagnostics
         }
         downloadingLabel={t('downloading', {
           defaultValue: 'Downloading...',
@@ -480,15 +362,6 @@ export function ExportCode() {
       />
 
       <div className="ExportCodeBody">
-        {activeTab === 'react' && hasPirValidationError ? (
-          <div className="mb-2 rounded-md border border-red-300/60 bg-red-100/40 px-2 py-1 text-xs text-red-900 dark:border-red-700/60 dark:bg-red-900/20 dark:text-red-100">
-            {pirValidation.issues.map((item) => (
-              <p key={`${item.code}:${item.path}`} className="m-0">
-                [{item.code}] {item.path}: {item.message}
-              </p>
-            ))}
-          </div>
-        ) : null}
         {activeTab === 'react' && reactMainDiagnostics.length ? (
           <div className="mb-2 rounded-md border border-amber-300/60 bg-amber-100/40 px-2 py-1 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-100">
             {reactMainDiagnostics.map((item) => (
@@ -535,7 +408,7 @@ export function ExportCode() {
             {renderCodePreview(
               activeReactFileContent,
               resolveCodeViewerLanguage(activeReactFileRecord?.language),
-              hasPirValidationError
+              hasBlockingReactDiagnostics
             )}
           </div>
         ) : (

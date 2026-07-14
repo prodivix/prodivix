@@ -452,7 +452,6 @@ const structurallyConflictedDocumentIds = (
       const documentId = deletion.target.documentId;
       const nodeId = deletion.semantic.nodeId;
       const graphKind = deletion.semantic.graphKind;
-      const graphId = deletion.semantic.graphId;
       const dependent = otherChanges.some((change) => {
         if (
           change.target.kind !== 'document' ||
@@ -470,10 +469,7 @@ const structurallyConflictedDocumentIds = (
           change.semantic.kind === 'graph-edge' ||
           change.semantic.kind === 'graph-structure'
         ) {
-          return (
-            change.semantic.graphKind === graphKind &&
-            change.semantic.graphId === graphId
-          );
+          return change.semantic.graphKind === graphKind;
         }
         return change.semantic.kind === 'animation-entity';
       });

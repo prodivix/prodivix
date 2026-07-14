@@ -6,7 +6,7 @@
 - 日期：2026-05-03
 - 关联：
   - `specs/diagnostics/README.md`
-  - `specs/pir/pir-contract-v1.3.md`
+  - `specs/decisions/34.core-package-boundaries.md`
 
 ## 1. 范围
 
@@ -14,7 +14,7 @@
 
 不覆盖：
 
-1. `animation.targetNodeId` 指向不存在 PIR 节点时的 graph 引用问题，可由 `PIR-xxxx` 承担基础校验。
+1. document-qualified Animation target 的跨文档 resolution 状态，使用 `SEM-xxxx`。
 2. 动画编辑器面板交互，使用 `EDT-xxxx`。
 3. 导出到目标框架时的策略失败，使用 `GEN-xxxx`。
 
@@ -61,9 +61,9 @@ type AnimationDiagnosticStage =
 - Severity: `error`
 - Stage: `binding`
 - Retryable: false
-- Trigger: binding targetNodeId 无法解析到当前 PIR graph 节点
+- Trigger: standalone Animation document 的 target `{ documentId, nodeId }` 无法解析到 PIR document/node
 - User action: 重新选择动画目标节点或恢复缺失节点
-- Developer notes: PIR validator 可映射到该语义；动画编辑器可展示更具体上下文
+- Developer notes: Animation provider 发布 document-qualified reference，Workspace Semantic Index 负责 resolution，动画编辑器展示 target 上下文
 
 ### `ANI-3001` Track 属性不支持
 

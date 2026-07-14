@@ -5,6 +5,16 @@ import type {
   RuntimeStatePatch,
   RuntimeTraceEvent,
 } from '@prodivix/runtime-core';
+import type { CodeSlotBinding } from '@prodivix/authoring';
+
+export type NodeGraphPort = {
+  id: string;
+  direction: 'input' | 'output';
+  kind: 'control' | 'data';
+  typeRef?: string;
+  required?: boolean;
+  multiple?: boolean;
+};
 
 export type NodeGraphNodeData = Record<string, unknown> & {
   kind?: string;
@@ -17,6 +27,8 @@ export type NodeGraphNode = {
   id: string;
   type?: string;
   data: NodeGraphNodeData;
+  ports?: NodeGraphPort[];
+  executor?: CodeSlotBinding;
 };
 
 export type NodeGraphEdge = {
@@ -28,15 +40,9 @@ export type NodeGraphEdge = {
 };
 
 export type NodeGraphDocument = {
-  id: string;
-  name?: string;
+  version: 1;
   nodes: NodeGraphNode[];
   edges: NodeGraphEdge[];
-};
-
-export type NodeGraphSelection = {
-  graphId?: string;
-  graphName?: string;
 };
 
 export type NodeGraphDecodeIssue = {
@@ -45,14 +51,14 @@ export type NodeGraphDecodeIssue = {
 };
 
 export type NodeGraphDecodeResult =
-  | { ok: true; value: NodeGraphDocument[] }
+  | { ok: true; value: NodeGraphDocument }
   | { ok: false; issues: NodeGraphDecodeIssue[] };
 
-export type NodeGraphExecutionParams = NodeGraphSelection &
-  Record<string, unknown>;
+export type NodeGraphExecutionParams = Record<string, unknown>;
 
 export type NodeGraphExecutionRequest =
   RuntimeExecutionRequest<NodeGraphExecutionParams> & {
+    documentId: string;
     signal?: RuntimeCancellationSignal;
   };
 

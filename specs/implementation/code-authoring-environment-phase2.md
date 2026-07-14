@@ -2,22 +2,22 @@
 
 ## 状态
 
-- Draft
+- DecisionStatus：Accepted
 - 日期：2026-05-17
+- ImplementationStatus：Multi-language Capability and Cross-editor CodeSlot Vertical Slices Implemented
+- ProductGateStatus：In Progress
+- Global Phase：G1 Semantic Hybrid Authoring
 - 关联：
   - `specs/decisions/28.code-authoring-environment.md`
   - `specs/decisions/25.authoring-symbol-environment.md`
   - `specs/decisions/27.diagnostic-presentation-contract.md`
   - `specs/decisions/05.workspace-vfs.md`
   - `specs/workspace/workspace-model.md`
-  - `specs/implementation/authoring-symbol-environment-phase1.md`
-  - `specs/implementation/authoring-environment-stable-structures.md`
+  - `specs/implementation/g1-semantic-component-collection.md`
 
 ## 目标
 
-Phase 2 只落地 Code Authoring Environment 的稳定连接层，让 Workspace VFS 能承载 code-owned 内容，并让三编辑器通过稳定引用连接代码能力。
-
-本阶段不实现完整 IDE，不接入完整 TypeScript language service，不确定首批业务 code slot 清单，也不重写三编辑器 UI。
+Phase 2 落地 Code Authoring Environment 的稳定连接层，让 Workspace VFS 承载 code-owned 内容，并让三编辑器通过稳定引用连接代码能力。当前实现以 revision-bound Code Language Capability session 接入 TypeScript/JavaScript、CSS/SCSS 与 GLSL/WGSL，使 semantic contribution、Code Editor、Issues 与 Workspace 写入共享同一 snapshot 和定位 contract；领域 CodeSlot binding projection 又把 Blueprint、Route、NodeGraph、Animation 与 Resources 接到同一 Semantic Index。GPU/目标后端 shader compile validation、external adapter、orphan lifecycle 与 controlled visual/code round-trip 继续由 G1 Gate 收敛。
 
 Phase 2 的目标是固定以下长期边界：
 
@@ -25,26 +25,21 @@ Phase 2 的目标是固定以下长期边界：
 2. VFS path 直接等于用户代码路径。
 3. Workspace code document 可以投影为 CodeArtifact。
 4. CodeReference 使用 `artifactId` 主导的持久化模型。
-5. CodeSlotRegistry 只声明“哪里可以接入代码”，不保存源码或集中保存 binding。
+5. CodeSlotRegistry 聚合“哪里可以接入代码”与领域 binding 的只读 projection，不保存源码或集中保存 binding。
 6. TriggerBinding / ActionContract 与 CodeSlot 分离，非代码 action 继续结构化存在。
 
 ## 当前状态
 
-已有基础：
-
-1. 前端 `StableWorkspaceDocumentType` 已包含 `code`。
-2. 前端 workspace command 已包含 `domainHint: 'code'`。
-3. 前端 command path guard 已允许 code document patch `/language`、`/source`、`/metadata` 和 `/x-*`。
-4. Authoring Environment 已有 CodeArtifact、CodeSymbol、CodeScope、DiagnosticTargetRef、SourceSpan 和 provider registry。
-
-缺口：
-
-1. 后端 `WorkspaceDocumentType` 未包含 `code`。
-2. 后端 workspace document content 仍按 JSON 文档保存，还没有 code document 内容模型。
-3. Workspace projection 当前偏内部 `.prodivix/documents/...` 投影，尚未把 VFS path 作为用户代码路径。
-4. 当前 `CodeReference` 仍是轻量 `{ name, scopeId }` 查询形态，不适合作为持久化引用。
-5. 尚未定义 CodeSlotContract、CodeSlotProvider、CodeSlotRegistry。
-6. 尚未定义 TriggerBinding / ActionContract 的正式落地位置。
+1. 前后端 Workspace model 支持 `code` document，Command path guard 支持 `/language`、`/source`、`/metadata` 和 `/x-*`。
+2. `WorkspaceCodeDocumentContent` 是 code document 的当前内容契约，VFS path 是用户代码路径。
+3. `WorkspaceCodeArtifactProvider` 把 canonical code document 投影为 CodeArtifact。
+4. 持久化 `CodeReference` 以 `artifactId` 为主引用，CodeSlotContract / Provider / Registry 与 TriggerBinding / ActionContract 已建立稳定边界。
+5. `@prodivix/authoring` 承载 CodeArtifact、CodeReference、CodeSlot、DiagnosticTargetRef、SourceSpan 与 provider composition；跨领域 symbol、scope、reference 与 impact contract 由 Workspace Semantic Index 统一定义。
+6. `@prodivix/authoring` 已冻结 revision-bound Code Language session、stale/unsupported/unavailable result、diagnostic、completion、hover、rename proposal 与 semantic contribution contract。
+7. `@prodivix/code-language` 已实现 TypeScript/JavaScript、CSS/SCSS 与 GLSL/WGSL adapter；同一 session 提供 definition、references、completion、diagnostics、hover、rename proposal，并向 Workspace Semantic Index 发布各语言的规范化 symbol/reference facts。
+8. Code Editor 与 Issues 统一消费该 session 和 semantic diagnostic snapshot；Workspace planner 将带 artifact revision 的 language edits 严格合并为原子 Transaction。
+9. Route runtime、PIR event/mounted CSS、NodeGraph executor 与 Animation timeline 已提供领域 CodeSlot provider；Workspace 从同一 snapshot 组合 slot、binding projection 与 semantic reference。
+10. Blueprint Inspector、NodeGraph 原有代码节点、Animation Inspector 与 Code Resources 已接入 CodeSlot 绑定、definition 跳转及 reference/impact usage；NodeGraph 不再持久化裸代码字符串。
 
 ## 交付物
 
@@ -85,9 +80,9 @@ type WorkspaceCodeDocumentContent = {
 1. `language` 是作者态能力枚举，不是编辑器 mode 字符串。
 2. `source` 是代码文本事实源。
 3. `metadata` 只能保存非事实源辅助信息，例如 formatter、generated 标记、origin。
-4. code document 不要求 PIR v1.3 校验。
+4. code document 使用自身领域 validator，与 PIR-current validator 保持独立。
 5. code document 的 patch path 允许 `/language`、`/source`、`/metadata`、`/metadata/*` 和 `/x-*`。
-6. 如果后续支持纯文本 document content，也必须保留 JSON wrapper 的兼容读取能力。
+6. `WorkspaceCodeDocumentContent` 是当前 canonical 内容模型；后续内容模型调整使用协调契约更新。
 
 ### 2. VFS path 等于用户代码路径
 
@@ -147,7 +142,7 @@ CodeArtifact.id = WorkspaceDocument.id
 5. 如果某个 code document 由 slot 创建，slot owner 不改变 artifact id；owner 只帮助诊断主落点。
 6. owner 删除后 artifact 保留，状态变为 orphan。
 
-建议新增 provider：
+当前 provider contract：
 
 ```ts
 type WorkspaceCodeArtifactProvider = CodeArtifactProvider;
@@ -157,13 +152,13 @@ type WorkspaceCodeArtifactProvider = CodeArtifactProvider;
 
 ### 4. 持久化 CodeReference
 
-Phase 2 将持久化 CodeReference 升级为 `artifactId` 主导模型。
+持久化 CodeReference 使用 `artifactId` 主导模型。
 
 ```ts
 type CodeReference = {
   artifactId: string;
   exportName?: string;
-  symbolName?: string;
+  symbolId?: string;
   sourceSpan?: SourceSpan;
 };
 ```
@@ -172,16 +167,10 @@ type CodeReference = {
 
 1. `artifactId` 是主引用，默认等于 workspace code document id。
 2. `exportName` 用于 TS / JS module export。
-3. `symbolName` 用于 expression、CSS symbol、shader entry、adapter entry 等非标准 export 场景。
+3. `symbolId` 用于 expression、CSS symbol、shader entry、adapter entry 等非标准 export 场景，并与 Workspace Semantic Index 的 artifact 内地址对齐。
 4. `sourceSpan` 只做定位辅助，不做身份。
 5. `path` 可用于显示、搜索和恢复，但不得成为持久化主键。
-6. 当前 `{ name, scopeId }` 轻引用可以保留为 resolver query input，但不进入 PIR / NodeGraph / Animation 保存态。
-
-迁移要求：
-
-1. 新增类型时避免破坏现有 Phase 1 空 resolver。
-2. 需要兼容当前 `resolveReference(reference, context)` 方法签名。
-3. 若保留轻引用，应命名为 `ScopedSymbolReference` 或类似概念，避免与持久化 `CodeReference` 混淆。
+6. Workspace Semantic Index 使用独立的 semantic query 对象表示查询上下文；PIR / NodeGraph / Animation 保存态统一使用 `CodeReference`。
 
 ### 5. CodeSlotContract
 
@@ -193,8 +182,14 @@ type CodeSlotKind =
   | 'validator'
   | 'node-executor'
   | 'animation-function'
+  | 'animation-script'
+  | 'shader'
   | 'external-adapter'
   | 'mounted-css'
+  | 'route-loader'
+  | 'route-action'
+  | 'route-guard'
+  | 'route-runtime'
   | 'workspace-module';
 
 type CodeSlotContract = {
@@ -226,9 +221,13 @@ CodeSlotRegistry 通过 provider 聚合 slot。
 ```ts
 type CodeSlotProvider = {
   id: string;
-  source: SymbolSource;
+  source: AuthoringSource;
   listSlots(context: AuthoringContext): CodeSlotContract[];
   getSlot(id: string): CodeSlotContract | null;
+  listBindingProjections(
+    context: AuthoringContext
+  ): CodeSlotBindingProjection[];
+  getBindingProjection(id: string): CodeSlotBindingProjection | null;
 };
 
 type CodeSlotRegistry = {
@@ -238,18 +237,26 @@ type CodeSlotRegistry = {
   listSlots(context: AuthoringContext): CodeSlotContract[];
   getSlot(id: string): CodeSlotContract | null;
   listSlotsByOwner(ownerRef: DiagnosticTargetRef): CodeSlotContract[];
+  listBindingProjections(
+    context: AuthoringContext
+  ): CodeSlotBindingProjection[];
+  getBindingProjection(id: string): CodeSlotBindingProjection | null;
+  listBindingProjectionsByArtifact(
+    artifactId: string
+  ): CodeSlotBindingProjection[];
 };
 ```
 
 实现要求：
 
-1. API 形态应与现有 CodeArtifact / CodeSymbol / Diagnostic provider registry 保持一致。
+1. API 复用 `@prodivix/authoring` 的稳定 provider composition 原则；symbol/scope contribution 使用 Workspace Semantic Index contract。
 2. `register` 与现有 provider registry 一样只登记 provider；取消登记使用显式 `unregister(providerId)`。
 3. provider id 重复时后注册覆盖或拒绝必须明确；建议与现有 registry 行为保持一致。
 4. `listSlots` 聚合 provider 输出，不做 UI 排序策略。
 5. `getSlot` 按 slot id 查找，首个匹配即可。
 6. `listSlotsByOwner` 使用稳定 targetRef 比较，不依赖对象引用相等。
 7. Registry 不读取具体编辑器 store。
+8. Binding projection 是绑定领域文档与 semantic reference 的 revision-bound 只读桥；它不成为第二保存态。
 
 ### 7. CodeSlotBinding
 
@@ -260,6 +267,12 @@ type CodeSlotBinding = {
   slotId: string;
   reference: CodeReference;
 };
+
+type CodeSlotBindingProjection = Readonly<{
+  binding: CodeSlotBinding;
+  ownerRef: DiagnosticTargetRef;
+  semanticReferenceId: string;
+}>;
 ```
 
 规则：
@@ -305,9 +318,10 @@ TriggerBinding 表示事件触发什么，不等同于 CodeSlot。
 type TriggerBinding =
   | { kind: 'open-url'; href: string }
   | { kind: 'navigate-route'; routeId: string }
-  | { kind: 'run-nodegraph'; graphId: string; inputMapping?: unknown }
+  | { kind: 'run-nodegraph'; documentId: string; inputMapping?: unknown }
   | {
       kind: 'play-animation';
+      documentId: string;
       timelineId: string;
       command: 'play' | 'pause' | 'seek';
     }
@@ -322,94 +336,34 @@ type TriggerBinding =
 4. AI 生成交互时优先选择结构化 action。
 5. TriggerBinding 的正式保存位置由对应领域文档决定，Phase 2 只固定边界。
 
-## 推荐落地顺序
+## 已交付组成
 
-### Step 1：补齐类型合同
+1. 前后端共享 `WorkspaceDocumentTypeCode` 与 `WorkspaceCodeDocumentContent`。
+2. Workspace Command / Transaction 承载 code document 创建、源码更新与 binding。
+3. Workspace projection 使用用户代码路径，并保留稳定 document id。
+4. `WorkspaceCodeArtifactProvider` 从 Workspace snapshot 发布 CodeArtifact。
+5. `createCodeSlotRegistry` 提供 provider register / unregister、slot query，以及按 owner、artifact 和 semantic reference 查询领域 binding projection。
+6. TriggerBinding / ActionContract 区分结构化 action 与 code-owned action。
+7. `@prodivix/code-language` 从 immutable CodeArtifact snapshot 建立 TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL session，并发布对应 code semantic contribution。
+8. Code Editor 和 Issues 使用同一 revision-bound language result；rename proposal 通过 Workspace Transaction planner 进入正式写入链路。
+9. Route runtime、PIR event/mounted CSS、NodeGraph executor 与 Animation timeline 从同一 Workspace snapshot 组合 CodeSlot binding projection，并复用 Semantic Index definition/reference/impact 查询。
+10. Blueprint Inspector、NodeGraph、Animation Inspector 与 Code Resources 提供绑定、定义跳转和反向 usage 入口；NodeGraph 源码只保存在 Workspace code document。
 
-前端：
-
-1. 新增 `WorkspaceCodeDocumentContent`。
-2. 升级持久化 `CodeReference` 类型，必要时拆出轻引用类型。
-3. 新增 `CodeSlotKind`、`CodeSlotContract`、`CodeSlotProvider`、`CodeSlotRegistry`、`CodeSlotBinding`。
-4. 新增 `TriggerBinding` / `ActionContract` 轻类型。
-5. 导出新增类型，保持 alias import 风格。
-
-后端：
-
-1. 增加 `WorkspaceDocumentTypeCode`。
-2. 调整 document type validation。
-3. 为 code document 增加内容校验。
-4. 确保 PIR v1.3 validator 不误用于 code document。
-
-### Step 2：Workspace code document 写入链路
-
-1. 后端 CreateDocument / PatchDocumentContent 支持 `code`。
-2. PATCH 校验允许更新 code wrapper 的 source、language 和 metadata。
-3. 前端 workspace command 保持 code domain path guard。
-4. 增加最小 contract tests 覆盖 code document patch。
-
-### Step 3：WorkspaceCodeArtifactProvider
-
-1. 从 workspace snapshot 筛选 `type === 'code'` document。
-2. 校验 content 符合 `WorkspaceCodeDocumentContent`。
-3. 输出 CodeArtifact。
-4. orphan 状态可以先由 metadata 或诊断 provider 后续补齐。
-
-### Step 4：CodeSlotRegistry
-
-1. 按现有 registry 模式实现 `createCodeSlotRegistry`。
-2. 增加 provider register / unregister / list / get contract tests。
-3. 不接具体 Blueprint / Inspector slot。
-4. 不实现 UI。
-
-### Step 5：TriggerBinding 轻类型
-
-1. 只定义类型和边界。
-2. 不迁移现有 trigger UI。
-3. 不强行把当前所有 event 绑定改写为 TriggerBinding。
-
-## 测试策略
-
-只补稳定 contract tests，不写 DOM 耦合测试。
-
-建议测试：
+## 稳定契约测试
 
 1. `WorkspaceDocumentTypeCode` 被后端接受。
-2. code document patch 不触发 PIR v1.3 validator。
-3. code document patch 只能修改允许路径。
-4. WorkspaceCodeArtifactProvider 能把 code document 投影为 CodeArtifact。
-5. CodeSlotRegistry 能注册 provider、聚合 slots、按 id 查找、按 owner 查找、取消注册。
-6. 持久化 CodeReference 类型不依赖 path。
+2. code document 使用独立内容 validator 和允许路径。
+3. WorkspaceCodeArtifactProvider 能把 code document 投影为 CodeArtifact。
+4. CodeSlotRegistry 能注册 provider、聚合 slots 与 binding projections、按 id/owner/artifact 查找并取消注册。
+5. 持久化 CodeReference 使用 `artifactId` 身份，path 只承载展示与定位。
+6. TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL session 的 definition、references、completion、diagnostics、hover、rename 与 semantic contribution 都绑定同一 snapshot identity。
+7. language edit planner 对 artifact revision、SourceSpan 越界、重叠、非 code document 和 no-op fail closed，并保持跨 artifact Transaction 的确定性与可逆性。
 
-不做：
+测试聚焦公开类型、Command 状态结果、provider composition 和稳定引用语义。
 
-1. 不测具体 DOM 层级。
-2. 不测 Inspector 具体渲染结构。
-3. 不测完整 language service。
-4. 不测完整 codegen。
+## G1 后续交付
 
-## 验收标准
-
-- [x] 后端支持 `WorkspaceDocumentTypeCode`。
-- [x] 前后端共享的 workspace code document 内容模型明确。
-- [x] code document 可以通过 workspace command 更新 source。
-- [x] code document 可以通过 workspace command 创建并挂载到 VFS。
-- [x] PIR document 仍受 PIR v1.3 graph-only 校验约束。
-- [x] code document 不受 PIR v1.3 validator 约束。
-- [x] VFS path 作为用户代码路径的 projection 规则明确。
-- [x] Workspace code document 能投影为 CodeArtifact。
-- [x] 持久化 CodeReference 以 `artifactId` 为核心。
-- [x] CodeSlotContract / Provider / Registry 轻类型和 registry helper 存在。
-- [x] CodeSlotRegistry 不保存源码和 binding。
-- [x] TriggerBinding / ActionContract 与 CodeSlot 的边界类型存在。
-- [ ] owner 删除后 orphan artifact 策略有文档和最小状态表达。
-
-## 非目标
-
-1. 不确定首批具体业务 slot。
-2. 不实现完整 Code Editor UI。
-3. 不接入完整 TypeScript language service。
-4. 不实现完整 ReferenceResolver。
-5. 不迁移所有 trigger UI。
-6. 不实现 CRDT、二进制资产管线或完整 POSIX 文件系统。
-7. 不改变 PIR v1.3 保存态结构。
+1. GPU/目标后端 shader compile validation 通过独立 compile capability 接入，不改变作者态 Shader Language Session。
+2. External adapter 接入具体 CodeSlot，并补齐跨领域 rename/move 规划表面。
+3. Orphan artifact lifecycle 提供可定位状态、诊断与重新绑定操作。
+4. 完成 controlled visual/code round-trip 与独立导出项目验证。

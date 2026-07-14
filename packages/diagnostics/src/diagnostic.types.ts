@@ -12,6 +12,7 @@ export type ProdivixDiagnosticDomain =
   | 'animation'
   | 'codegen'
   | 'backend'
+  | 'semantic'
   | 'ai';
 
 export type DiagnosticTargetRef =
@@ -29,15 +30,18 @@ export type DiagnosticTargetRef =
   | {
       kind: 'nodegraph-node';
       documentId: string;
-      graphId: string;
       nodeId: string;
     }
   | {
       kind: 'nodegraph-port';
       documentId: string;
-      graphId: string;
       nodeId: string;
       portId: string;
+    }
+  | {
+      kind: 'animation-timeline';
+      documentId: string;
+      timelineId: string;
     }
   | {
       kind: 'animation-track';

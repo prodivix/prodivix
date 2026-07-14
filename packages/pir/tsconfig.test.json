@@ -5,19 +5,18 @@
     "types": ["node"],
     "noEmit": true,
     "paths": {
-      "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"],
-      "@prodivix/shared": ["../shared/dist/index.d.ts"],
-      "@prodivix/shared/*": ["../shared/dist/*"]
+      "@prodivix/authoring": ["../authoring/dist/index.d.ts"],
+      "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
     {
-      "path": "../diagnostics"
+      "path": "../authoring"
     },
     {
-      "path": "../shared"
+      "path": "../diagnostics"
     }
   ]
 }

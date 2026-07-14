@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import {
   createLocalProject,
@@ -97,7 +97,7 @@ describe('localProjectStore', () => {
       name: 'Local Draft',
       description: 'Browser-only draft',
       resourceType: 'project',
-      pir: createDefaultPirDoc(),
+      pir: createEmptyPirDocument(),
       workspaceSettings: { locale: 'zh-CN' },
     });
 
@@ -134,11 +134,26 @@ describe('localProjectStore', () => {
     ]);
   });
 
+  it('bootstraps NodeGraph projects with one active standalone document', async () => {
+    const project = await createLocalProject({
+      name: 'Flow',
+      resourceType: 'nodegraph',
+      pir: createEmptyPirDocument(),
+    });
+
+    expect(project.workspace.activeDocumentId).toBe('graph_root');
+    expect(project.workspace.docsById.graph_root).toMatchObject({
+      id: 'graph_root',
+      type: 'pir-graph',
+      content: { version: 1, nodes: [], edges: [] },
+    });
+  });
+
   it('persists metadata, canonical documents, and settings together', async () => {
     const project = await createLocalProject({
       name: 'Before',
       resourceType: 'project',
-      pir: createDefaultPirDoc(),
+      pir: createEmptyPirDocument(),
     });
     const renamed = await updateLocalProject(project.id, { name: 'After' });
     expect(renamed?.name).toBe('After');
@@ -209,7 +224,7 @@ describe('localProjectStore', () => {
       name: 'Legacy',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      pir: createDefaultPirDoc(),
+      pir: createEmptyPirDocument(),
     });
 
     await expect(listLocalProjects()).rejects.toThrow(
@@ -236,7 +251,7 @@ describe('localProjectStore', () => {
     const project = await createLocalProject({
       name: 'Disposable',
       resourceType: 'project',
-      pir: createDefaultPirDoc(),
+      pir: createEmptyPirDocument(),
     });
 
     await expect(deleteLocalProject(project.id)).resolves.toBe(true);
@@ -247,7 +262,7 @@ describe('localProjectStore', () => {
     const project = await createLocalProject({
       name: 'Sync me',
       resourceType: 'project',
-      pir: createDefaultPirDoc(),
+      pir: createEmptyPirDocument(),
     });
 
     await markLocalProjectSynced(project.id, {
@@ -270,7 +285,7 @@ describe('localProjectStore', () => {
     const project = await createLocalProject({
       name: 'Cloud copy',
       resourceType: 'project',
-      pir: createDefaultPirDoc(),
+      pir: createEmptyPirDocument(),
       workspaceSettings: { locale: 'zh-CN' },
     });
     await markLocalProjectSynced(project.id, {

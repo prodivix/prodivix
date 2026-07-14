@@ -9,7 +9,7 @@
   - `specs/decisions/25.authoring-symbol-environment.md`
   - `specs/decisions/21.inspector-panel-architecture.md`
   - `specs/decisions/20.node-graph-port-semantics.md`
-  - `specs/pir/pir-contract-v1.3.md`
+  - `specs/pir/PIR-contract-v1.3.md`
 
 ## 1. 范围
 
@@ -113,7 +113,7 @@ type CodeDiagnosticStage =
 - Retryable: true
 - Trigger: 代码片段引用的变量、节点、route param、graph output、data scope 或外部导出无法在当前作用域中解析
 - User action: 检查引用名称、当前节点作用域、数据源、路由参数或节点图输出
-- Developer notes: 诊断应包含 `symbolName`、`scopeId` 和可选 `targetRef`；同一语义不要折叠到 `PIR-3001`
+- Developer notes: 诊断应包含 `symbolId`、`scopeId` 和可选 `targetRef`；同一语义不要折叠到 `PIR-3001`
 
 ### `COD-2002` import 无法解析
 
@@ -174,7 +174,7 @@ type CodeDiagnosticStage =
 - Severity: `warning`
 - Stage: `symbol`
 - Retryable: false
-- Trigger: 代码引用的符号存在于项目中，但不在当前 CodeScope、节点上下文、列表项上下文、NodeGraph 或 Animation binding 中可见
+- Trigger: 代码引用的符号存在于项目中，但不在当前 WorkspaceScope、节点上下文、Collection item 上下文、NodeGraph 或 Animation binding 中可见
 - User action: 将代码移动到正确作用域，或通过参数、props、data scope、graph input 显式传入
 - Developer notes: 与 `COD-2001` 的区别是符号存在但不可见；应提供可见性边界证据
 

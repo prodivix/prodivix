@@ -1,9 +1,11 @@
 export { PIRRenderer } from './PIRRenderer';
+export { PIR_RENDERER_BLOCKING_ISSUE_CODES } from './PIRRenderer.types';
+export { resolvePirRendererHost } from './host/pirRendererHost';
 export {
   registerNodeCapability,
   resolveLinkCapability,
   resolveNodeCapabilities,
-} from './capabilities';
+} from './host/capabilities';
 export {
   ensureIconProviderReady,
   getIconProviderState,
@@ -17,35 +19,40 @@ export {
   setConfiguredIconLibraryIds,
   subscribeIconRegistry,
   unregisterIconProvider,
-} from './iconRegistry';
+} from './host/iconRegistry';
 export {
   createComponentRegistry,
   createOrderedComponentRegistry,
   defaultComponentRegistry,
   parseResolverOrder,
-} from './registry';
+} from './host/registry';
 export {
   resolvePdxOutletRouteNodeId,
   resolvePdxRouteRendererProps,
   shouldRenderPdxOutletChildren,
-} from './PIRRenderer.routeContext';
+} from './runtime/pirRouteContext';
 export {
   createRouteDebugSnapshot,
   getRouteDebugEventDetail,
   isRouteDebugEnabled,
   logRouteDebug,
-} from './routeDebug';
+} from './runtime/routeDebug';
 
 export type {
-  ActionContext,
-  ActionHandlers,
-  BuiltInActionDispatchOptions,
-  PIRInteractionMode,
+  PIRElementHostEntry,
+  PIRElementProjectionInput,
+  PIRElementProjectionResult,
+  PIRExternalTriggerBinding,
+  PIRRenderLocation,
+  PIRRendererBlockingIssue,
+  PIRRendererBlockingIssueCode,
+  PIRRendererHost,
+  PIRRendererHostResolution,
   PIRRendererProps,
-  RendererCodeArtifact,
-  RenderContext,
-  RenderParams,
-  RenderState,
+  PIRRenderRole,
+  PIRRenderScopeSnapshot,
+  PIRResolvedRendererHost,
+  PIRTriggerDispatchRequest,
 } from './PIRRenderer.types';
 export type {
   AdapterContext,
@@ -56,7 +63,7 @@ export type {
   RegistryEntry,
   RegistryGroup,
   ResolvedComponent,
-} from './registry';
+} from './host/registry';
 export type {
   IconComponent,
   IconLibraryMeta,
@@ -65,11 +72,11 @@ export type {
   IconProviderState,
   IconProviderStatus,
   IconRef,
-} from './iconRegistry';
+} from './host/iconRegistry';
 export type {
   LinkCapability,
   NodeCapability,
   TriggerConflictPolicy,
-} from './capabilities';
-export type { PdxRouteRendererContext } from './PIRRenderer.routeContext';
-export type { RouteDebugSnapshot } from './routeDebug';
+} from './host/capabilities';
+export type { PdxRouteRendererContext } from './runtime/pirRouteContext';
+export type { RouteDebugSnapshot } from './runtime/routeDebug';

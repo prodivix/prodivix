@@ -1,5 +1,7 @@
 import {
+  compileWorkspaceToExportProgram,
   generateWorkspaceReactViteBundle,
+  type ExportProgram,
   type ReactExportBundle,
 } from '@prodivix/prodivix-compiler';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
@@ -24,6 +26,7 @@ export {
 
 export type GoldenConformanceReport = Readonly<{
   workspace: WorkspaceSnapshot;
+  program: ExportProgram;
   bundle: ReactExportBundle;
   build: GoldenBuildEvidence;
   authoring: GoldenAuthoringResult['history'] &
@@ -44,14 +47,23 @@ export const runGoldenConformance =
   async (): Promise<GoldenConformanceReport> => {
     const authoring = authorGoldenWorkspace();
     const sync = await runGoldenSyncScenario(authoring);
-    const bundle = generateWorkspaceReactViteBundle(sync.workspace, {
+    const exportOptions = {
       projectName: 'Prodivix Golden App',
       codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
-      packageResolver: { strategy: 'npm' },
-    });
+      packageResolver: { strategy: 'npm' as const },
+    };
+    const program = compileWorkspaceToExportProgram(
+      sync.workspace,
+      exportOptions
+    );
+    const bundle = generateWorkspaceReactViteBundle(
+      sync.workspace,
+      exportOptions
+    );
     const build = await buildGoldenExportBundle(bundle);
     return {
       workspace: sync.workspace,
+      program,
       bundle,
       build,
       authoring: {

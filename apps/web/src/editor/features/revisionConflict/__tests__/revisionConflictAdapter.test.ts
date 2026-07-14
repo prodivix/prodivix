@@ -1,4 +1,3 @@
-import { createDefaultPirDoc } from '@prodivix/pir';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import {
   createWorkspaceConflictSession,
@@ -51,12 +50,6 @@ const createSnapshot = (options: SnapshotOptions): WorkspaceSnapshot => {
         ]
       : []),
   ];
-  const editorNodes = graphNodes.map((node, index) => ({
-    id: node.id,
-    x: index * 240,
-    y: index * 120,
-  }));
-  const pir = createDefaultPirDoc();
   return {
     id: 'workspace-review',
     workspaceRev: options.revision,
@@ -69,14 +62,14 @@ const createSnapshot = (options: SnapshotOptions): WorkspaceSnapshot => {
         kind: 'dir',
         name: '/',
         parentId: null,
-        children: ['page-node', 'code-node'],
+        children: ['graph-node', 'code-node'],
       },
-      'page-node': {
-        id: 'page-node',
+      'graph-node': {
+        id: 'graph-node',
         kind: 'doc',
-        name: 'home.pir.json',
+        name: 'checkout.pir-graph.json',
         parentId: 'root',
-        docId: 'page-home',
+        docId: 'graph-checkout',
       },
       'code-node': {
         id: 'code-node',
@@ -87,36 +80,24 @@ const createSnapshot = (options: SnapshotOptions): WorkspaceSnapshot => {
       },
     },
     docsById: {
-      'page-home': {
-        id: 'page-home',
-        type: 'pir-page',
-        path: '/home.pir.json',
+      'graph-checkout': {
+        id: 'graph-checkout',
+        type: 'pir-graph',
+        name: 'Checkout flow',
+        path: '/checkout.pir-graph.json',
         contentRev: options.revision,
         metaRev: 1,
         content: {
-          ...pir,
-          logic: {
-            graphs: [
-              {
-                id: 'checkout-flow',
-                name: 'Checkout flow',
-                nodes: graphNodes,
-                edges: [
-                  {
-                    id: 'edge-submit',
-                    source: 'node-a',
-                    target: 'node-b',
-                    label: options.edgeLabel,
-                  },
-                ],
-              },
-            ],
-            'x-nodeGraphEditor': {
-              version: 1,
-              activeGraphId: 'checkout-flow',
-              graphs: [{ id: 'checkout-flow', nodes: editorNodes }],
+          version: 1,
+          nodes: graphNodes,
+          edges: [
+            {
+              id: 'edge-submit',
+              source: 'node-a',
+              target: 'node-b',
+              sourceHandle: options.edgeLabel,
             },
-          },
+          ],
         },
       },
       'code-logic': {
@@ -130,10 +111,7 @@ const createSnapshot = (options: SnapshotOptions): WorkspaceSnapshot => {
     },
     routeManifest: {
       version: '1',
-      root: {
-        id: 'root',
-        children: [{ id: 'route-home', index: true, pageDocId: 'page-home' }],
-      },
+      root: { id: 'root' },
     },
   };
 };
@@ -173,7 +151,7 @@ const createConflictFixture = () => {
 };
 
 describe('revision conflict core presentation adapter', () => {
-  it('projects core text hunks and stable PIR logic graph identities', () => {
+  it('projects code hunks and standalone document-owned graph identities', () => {
     const session = createConflictFixture();
     const presentation = adaptWorkspaceConflictSession(session);
 
@@ -196,8 +174,7 @@ describe('revision conflict core presentation adapter', () => {
     expect(presentation.nodeGraphs).toHaveLength(1);
     const graph = presentation.nodeGraphs[0]!;
     expect(graph).toMatchObject({
-      documentId: 'page-home',
-      graphId: 'checkout-flow',
+      documentId: 'graph-checkout',
       graphLabel: 'Checkout flow',
     });
     expect(
@@ -244,8 +221,10 @@ describe('revision conflict core presentation adapter', () => {
       choices,
       '2026-07-12T00:01:00.000Z'
     );
+    if (resolved.ok === false) {
+      throw new Error(JSON.stringify(resolved.issues));
+    }
     expect(resolved.ok).toBe(true);
-    if (!resolved.ok) throw new Error('Expected resolved conflict session.');
 
     const presentation = adaptWorkspaceConflictSession(resolved.session);
     expect(presentation.codeDocuments[0]?.hunks[0]?.resolution).toBe('local');
@@ -268,8 +247,7 @@ describe('revision conflict core presentation adapter', () => {
 
     expect(presentation.codeDocuments[0]?.hunks[0]?.isConflict).toBe(true);
     expect(presentation.nodeGraphs[0]).toMatchObject({
-      documentId: 'page-home',
-      graphId: 'checkout-flow',
+      documentId: 'graph-checkout',
     });
     expect(
       presentation.nodeGraphs[0]?.nodes

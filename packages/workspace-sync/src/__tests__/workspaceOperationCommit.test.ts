@@ -10,26 +10,26 @@ import {
   issuedAt,
 } from './workspaceOperationCommit.fixture';
 import {
-  createPirContent,
+  createNodeGraphContent,
   createWorkspace as createPirWorkspace,
 } from './testWorkspace';
 
-const createLogicCommand = (
+const createNodeGraphCommand = (
   workspaceId: string,
   documentId: string,
   id: string,
-  before: ReturnType<typeof createPirContent>['logic'],
-  after: ReturnType<typeof createPirContent>['logic']
+  before: ReturnType<typeof createNodeGraphContent>['nodes'],
+  after: ReturnType<typeof createNodeGraphContent>['nodes']
 ): WorkspaceCommandEnvelope => ({
   id,
   namespace: 'core.nodegraph',
-  type: 'logic.update',
+  type: 'document.update',
   version: '1.0',
   issuedAt,
   target: { workspaceId, documentId },
   domainHint: 'nodegraph',
-  forwardOps: [{ op: 'replace', path: '/logic', value: after }],
-  reverseOps: [{ op: 'replace', path: '/logic', value: before }],
+  forwardOps: [{ op: 'replace', path: '/nodes', value: after }],
+  reverseOps: [{ op: 'replace', path: '/nodes', value: before }],
 });
 
 describe('planWorkspaceOperationCommit', () => {
@@ -120,18 +120,18 @@ describe('planWorkspaceOperationCommit', () => {
   });
 
   it('treats stable-id array reordering as an exact durable content change', () => {
-    const before = createPirContent();
+    const before = createNodeGraphContent();
     const after = structuredClone(before);
-    after.logic.graphs.reverse();
-    const workspace = createPirWorkspace(before);
+    after.nodes.reverse();
+    const workspace = createPirWorkspace(before, 'pir-graph');
     const operation: WorkspaceOperation = {
       kind: 'command',
-      command: createLogicCommand(
+      command: createNodeGraphCommand(
         workspace.id,
         'document-1',
         'operation-reorder-graphs',
-        before.logic,
-        after.logic
+        before.nodes,
+        after.nodes
       ),
     };
 
@@ -147,13 +147,13 @@ describe('planWorkspaceOperationCommit', () => {
   });
 
   it('checks every exact document delta in a mixed transaction for capacity', () => {
-    const firstBefore = createPirContent();
+    const firstBefore = createNodeGraphContent();
     const firstAfter = structuredClone(firstBefore);
-    firstAfter.logic.graphs.reverse();
-    const secondBefore = createPirContent();
+    firstAfter.nodes.reverse();
+    const secondBefore = createNodeGraphContent();
     const secondAfter = structuredClone(secondBefore);
-    secondAfter.logic.graphs[0]!.nodes[0]!.label = 'Changed';
-    const workspace = createPirWorkspace(firstBefore);
+    secondAfter.nodes[0]!.data.label = 'Changed';
+    const workspace = createPirWorkspace(firstBefore, 'pir-graph');
     workspace.docsById['document-1']!.contentRev = Number.MAX_SAFE_INTEGER;
     workspace.docsById['document-2'] = {
       ...workspace.docsById['document-1']!,
@@ -181,19 +181,19 @@ describe('planWorkspaceOperationCommit', () => {
         workspaceId: workspace.id,
         issuedAt,
         commands: [
-          createLogicCommand(
+          createNodeGraphCommand(
             workspace.id,
             'document-1',
             'operation-mixed-capacity:reorder',
-            firstBefore.logic,
-            firstAfter.logic
+            firstBefore.nodes,
+            firstAfter.nodes
           ),
-          createLogicCommand(
+          createNodeGraphCommand(
             workspace.id,
             'document-2',
             'operation-mixed-capacity:change',
-            secondBefore.logic,
-            secondAfter.logic
+            secondBefore.nodes,
+            secondAfter.nodes
           ),
         ],
       },

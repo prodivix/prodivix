@@ -11,8 +11,7 @@
   - `specs/decisions/17.external-library-runtime-and-adapter.md`
   - `specs/decisions/29.plugin-extension-points.md`
 - 前置实现：
-  - `specs/implementation/plugin-host-core-phase2.md`
-  - `specs/implementation/plugin-host-palette-phase3.md`
+  - `specs/decisions/29.plugin-extension-points.md`
   - Phase 4.0-4.5 已完成
 
 本文是 Phase 4.6-4.8 的实现事实源。上位 Phase 4 文档负责且已完成安全边界、Browser Sandbox、Gateway、Phase 4.9 hardening 和整阶段 Exit Criteria；本文记录 official React component plugin 的 package/Host ABI、真实 artifact、Blueprint Template、逐库迁移、删除门禁和测试矩阵。
@@ -202,7 +201,7 @@ flowchart LR
 
 ### 4.5 code-owned 仍走 Code Authoring Environment
 
-本阶段 descriptor 和 template 只表达结构化 component metadata/PIR fragment。若未来组件库需要 mounted CSS、adapter source、event handler 或 custom codegen source，这些内容必须由 Code Artifact/CodeReference 和 code slot 承载，通过 Code Authoring Environment 索引、诊断和 patch；不得扩张 template 为任意源码容器。
+本阶段 descriptor 和 template 只表达结构化 component metadata/PIR fragment。若未来组件库需要 mounted CSS、adapter source、event handler 或 custom codegen source，这些内容必须由 Canonical Workspace code document、CodeArtifact/CodeReference 和 code slot 承载，通过 Code Authoring Environment 编辑/patch，并以 Code provider contribution 接入 Workspace Semantic Index；不得扩张 template 为任意源码容器。
 
 ## 5. `@prodivix/plugin-react-host`
 

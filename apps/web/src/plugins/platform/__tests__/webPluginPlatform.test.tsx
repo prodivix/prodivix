@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PLUGIN_DIAGNOSTIC_CODES } from '@prodivix/plugin-contracts';
-import { generateReactBundle } from '@prodivix/prodivix-compiler';
-import {
-  CURRENT_PIR_VERSION,
-  type PIRDocument,
-} from '@prodivix/shared/types/pir';
+import type { PIRDocument } from '@prodivix/pir';
 import type { ComponentGroup } from '@/editor/features/blueprint/editor/model/types';
 import { applyPaletteItemInsertion } from '@/editor/features/blueprint/editor/model/paletteCreation';
 import { createPaletteContributionDescriptor } from '@/editor/features/blueprint/palette';
@@ -28,8 +24,15 @@ import {
   NEUTRAL_OFFICIAL_HOST_MODULE,
   NEUTRAL_PACKAGE_DIGEST,
 } from '@/plugins/platform/__tests__/neutralOfficialPlugin.fixture';
+import { createPirWebRendererHost } from '@/pir/pirWebRendererHost';
+import {
+  createPirCurrentDocument,
+  createPirCurrentProjectionPlan,
+} from '@/plugins/platform/__tests__/pirCurrentRenderer.fixture';
 
 const platforms = new Set<WebPluginPlatform>();
+const ignoreTrigger = () => {};
+const ignoreBlockingIssues = () => {};
 
 const createDeferred = () => {
   let resolve!: (value: void | PromiseLike<void>) => void;
@@ -365,18 +368,7 @@ describe('workspace Web Plugin Platform', () => {
     expect(
       platform.queries.palette.getCreationRecipe('neutral-button')?.kind
     ).toBe('template');
-    const document: PIRDocument = {
-      version: CURRENT_PIR_VERSION,
-      metadata: { name: 'Resource Fixture' },
-      ui: {
-        graph: {
-          version: 1,
-          rootId: 'root',
-          nodesById: { root: { id: 'root', type: 'PdxDiv' } },
-          childIdsById: { root: [] },
-        },
-      },
-    };
+    const document: PIRDocument = createPirCurrentDocument('Resource Fixture');
     const inserted = applyPaletteItemInsertion(
       document,
       platform.queries.palette,
@@ -394,44 +386,35 @@ describe('workspace Web Plugin Platform', () => {
     expect(
       inserted.ok && inserted.doc.ui.graph.nodesById[inserted.nextNodeId]
     ).toMatchObject({
+      kind: 'element',
       type: 'NeutralButton',
-      props: { label: 'Neutral Button', tone: 'default' },
+      props: {
+        label: { kind: 'literal', value: 'Neutral Button' },
+        tone: { kind: 'literal', value: 'default' },
+      },
     });
     if (!inserted.ok) return;
     const extensions = platform.queries.extensions.getSnapshot();
     const registry = createRendererProjectionRegistry(extensions);
+    const host = createPirWebRendererHost(registry);
     render(
       <OfficialSurfaceLeaseRegistryContext.Provider
         value={platform.runtime.surfaceLeases}
       >
         <div className="relative">
           <OfficialReactSurfaceBoundary>
-            <PIRRenderer pirDoc={inserted.doc} registry={registry} />
+            <PIRRenderer
+              plan={createPirCurrentProjectionPlan(inserted.doc)}
+              host={host}
+              dispatchTrigger={ignoreTrigger}
+              onBlockingIssues={ignoreBlockingIssues}
+            />
           </OfficialReactSurfaceBoundary>
         </div>
       </OfficialSurfaceLeaseRegistryContext.Provider>
     );
     expect(screen.getByRole('button', { name: 'Neutral Button' })).toBeTruthy();
 
-    const bundle = generateReactBundle(inserted.doc, {
-      codegenPolicySnapshot: extensions.codegenPolicy,
-    });
-    const app = bundle.files.find((file) => file.path === 'src/App.tsx');
-    expect(app?.contents).toContain(
-      "import { Button } from '@neutral-ui/components';"
-    );
-    expect(app?.contents).toContain(
-      '<Button label="Neutral Button" tone="default" />'
-    );
-    expect(bundle.dependencies).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: '@neutral-ui/components',
-          version: '1.2.3',
-          origin: expect.objectContaining({ license: 'MIT' }),
-        }),
-      ])
-    );
     expect(platform.listOfficialImplementationBindings()).toHaveLength(3);
     expect(platform.getAuditEvents()).toEqual(
       expect.arrayContaining([

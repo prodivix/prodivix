@@ -6,6 +6,7 @@ import {
   Globe2,
   LayoutDashboard,
   Library,
+  Boxes,
 } from 'lucide-react';
 import { collectBestPracticeHints, flattenPublicFiles } from './publicTree';
 import { collectLocaleMissingStats } from './i18nStore';
@@ -21,7 +22,13 @@ import { buildI18nResourceValueFromWorkspace } from './workspaceI18nResources';
 import { buildExternalLibrariesValueFromWorkspace } from './workspaceExternalLibraries';
 
 export type SectionId =
-  'overview' | 'public' | 'code' | 'i18n' | 'external' | 'projectFiles';
+  | 'overview'
+  | 'components'
+  | 'public'
+  | 'code'
+  | 'i18n'
+  | 'external'
+  | 'projectFiles';
 
 export type SectionMeta = {
   id: SectionId;
@@ -30,6 +37,7 @@ export type SectionMeta = {
 
 export const sectionMetas: SectionMeta[] = [
   { id: 'overview', icon: LayoutDashboard },
+  { id: 'components', icon: Boxes },
   { id: 'public', icon: FileArchive },
   { id: 'code', icon: FileCode2 },
   { id: 'i18n', icon: Globe2 },

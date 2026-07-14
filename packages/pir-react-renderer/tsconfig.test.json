@@ -9,17 +9,16 @@
     "paths": {
       "@prodivix/pir": ["../pir/dist/index.d.ts"],
       "@prodivix/router": ["../router/dist/index.d.ts"],
-      "@prodivix/shared": ["../shared/dist/index.d.ts"],
-      "@prodivix/shared/*": ["../shared/dist/*"],
-      "@prodivix/ui": ["../ui/dist/index.d.ts"]
+      "@prodivix/ui": ["../ui/dist/index.d.ts"],
+      "@prodivix/workspace": ["../workspace/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
     { "path": "../router" },
-    { "path": "../shared" },
     { "path": "../pir" },
-    { "path": "../ui" }
+    { "path": "../ui" },
+    { "path": "../workspace" }
   ]
 }

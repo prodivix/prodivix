@@ -1,9 +1,9 @@
 import type {
   AdapterImportKind,
   AdapterResolution,
+  TargetAdapterNode,
   TargetAdapter,
 } from '#src/core/adapter';
-import type { CanonicalNode } from '#src/core/canonicalIR';
 import {
   isIconPolicyExportIdentifier,
   normalizeIconPolicyExport,
@@ -145,7 +145,7 @@ const joinPackageSource = (packageName: string, ...segments: unknown[]) => {
 };
 
 const applyPropsTransform = (
-  node: CanonicalNode,
+  node: TargetAdapterNode,
   transform: CodegenPolicyPropsTransform | undefined
 ) => {
   if (!transform) return { ...node.props };
@@ -165,7 +165,7 @@ const applyPropsTransform = (
 };
 
 const resolveChildren = (
-  node: CanonicalNode,
+  node: TargetAdapterNode,
   policy: CodegenPolicyChildren,
   props: Record<string, unknown>
 ): Pick<AdapterResolution, 'props' | 'textMode' | 'childrenMode'> => {
@@ -192,7 +192,7 @@ const resolveChildren = (
 };
 
 const resolveLibraryRule = (
-  node: CanonicalNode,
+  node: TargetAdapterNode,
   rule: CodegenPolicyRule
 ): AdapterResolution => {
   const local = rule.import.local ?? rule.import.imported;
@@ -212,7 +212,7 @@ const resolveLibraryRule = (
 };
 
 const resolveIconPolicy = (
-  node: CanonicalNode,
+  node: TargetAdapterNode,
   policy: IconCodegenPolicy,
   iconRef: StaticIconRef,
   fallback: TargetAdapter
@@ -373,7 +373,7 @@ export const getCodegenPolicyDependenciesForUsage = (
 };
 
 const appendPackageConflict = (
-  node: CanonicalNode,
+  node: TargetAdapterNode,
   resolution: AdapterResolution,
   packageName: string
 ): AdapterResolution => ({
@@ -393,7 +393,7 @@ const appendPackageConflict = (
 });
 
 const appendPackageConflicts = (
-  node: CanonicalNode,
+  node: TargetAdapterNode,
   resolution: AdapterResolution,
   packageNames: readonly string[],
   conflicts: ReadonlySet<string>
@@ -429,7 +429,7 @@ export const createCodegenPolicyTargetAdapter = (
 
   const adapter: TargetAdapter = {
     id: `react-policy-snapshot:${snapshot.registryRevision}`,
-    resolveNode: (node: CanonicalNode): AdapterResolution => {
+    resolveNode: (node: TargetAdapterNode): AdapterResolution => {
       if (node.type === 'PdxIcon') {
         const iconRef = readStaticIconRef(node.props.iconRef);
         const iconPolicy = iconRef

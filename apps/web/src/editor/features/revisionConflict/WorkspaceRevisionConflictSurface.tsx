@@ -71,7 +71,7 @@ const createArtifacts = (
       presentation: document,
     })),
     ...presentation.nodeGraphs.map((graph): RevisionArtifact => ({
-      key: `graph:${graph.documentId}:${graph.graphId ?? 'root'}`,
+      key: `graph:${graph.documentId}`,
       kind: 'graph',
       presentation: graph,
     })),

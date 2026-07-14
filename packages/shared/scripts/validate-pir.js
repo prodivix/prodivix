@@ -1,4 +1,4 @@
-import Ajv from 'ajv';
+import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import chalk from 'chalk';
 import { readFileSync } from 'node:fs';
@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const schemaPath = resolvePirSchemaPath();
-const ajv = new Ajv({ allErrors: true, verbose: true });
+const ajv = new Ajv2020({ allErrors: true, verbose: true });
 addFormats(ajv);
 
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));

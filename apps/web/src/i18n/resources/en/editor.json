@@ -1119,6 +1119,7 @@
     },
     "tabs": {
       "overview": "Overview",
+      "components": "Components",
       "public": "Public",
       "code": "Code",
       "i18n": "i18n",
@@ -1234,6 +1235,30 @@
       },
       "actions": {
         "save": "Save"
+      },
+      "language": {
+        "status": {
+          "ready": "TypeScript language service ready",
+          "loading": "Updating language analysis…",
+          "unsupported": "No language capability provider is available for this file.",
+          "unavailable": "Language service unavailable: {{reason}}"
+        },
+        "actions": {
+          "goToDefinition": "Go to definition",
+          "definitionShortcut": "Go to definition (F12)",
+          "findReferences": "Find references"
+        },
+        "query": {
+          "resolvingDefinition": "Resolving definition…",
+          "findingReferences": "Finding references…",
+          "definitionCount_one": "1 definition location found.",
+          "definitionCount_other": "{{count}} definition locations found.",
+          "referenceCount_one": "1 reference found.",
+          "referenceCount_other": "{{count}} references found.",
+          "definitionMissing": "No definition is available at the cursor.",
+          "referencesMissing": "No references were found at the cursor.",
+          "unavailable": "The result is stale or the language service is unavailable."
+        }
       },
       "empty": "Select a code file from the tree to edit its content."
     },

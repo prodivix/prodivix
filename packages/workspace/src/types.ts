@@ -1,5 +1,4 @@
-import type { PIRDocument } from '@prodivix/shared/types/pir';
-import type { CodeArtifactLanguage } from '@prodivix/shared/types/code';
+import type { CodeArtifactLanguage } from '@prodivix/authoring';
 import type { WorkspaceRouteManifest } from '@prodivix/router';
 
 export type WorkspaceId = string;
@@ -23,7 +22,7 @@ export type WorkspaceDocument = {
   path: string;
   contentRev: number;
   metaRev: number;
-  content: PIRDocument | unknown;
+  content: unknown;
   updatedAt?: string;
   capabilities?: string[];
 };

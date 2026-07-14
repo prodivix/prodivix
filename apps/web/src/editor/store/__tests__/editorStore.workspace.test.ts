@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   applyWorkspaceTransaction,
   createWorkspaceDocumentAtPathCommand,
@@ -49,7 +49,7 @@ const createEditorWorkspace = (): WorkspaceSnapshot => ({
       path: '/pages/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     },
   },
   routeManifest: {
@@ -126,7 +126,7 @@ const createAboutDocumentCommand = (
       path: '/pages/about.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     },
     commandId: 'command-create-about',
     issuedAt: '2026-07-12T00:00:00.000Z',
@@ -270,7 +270,7 @@ describe('editor workspace store hard cut', () => {
             ...workspace.docsById['page-home'],
             contentRev: 2,
             content: {
-              ...createDefaultPirDoc(),
+              ...createEmptyPirDocument(),
               metadata: { name: 'Confirmed content' },
             },
             capabilities: ['stale'],
@@ -369,7 +369,7 @@ describe('editor workspace store hard cut', () => {
       ...workspace.docsById['page-home'],
       contentRev: 2,
       content: {
-        ...createDefaultPirDoc(),
+        ...createEmptyPirDocument(),
         metadata: { name: 'One' },
       },
     };
@@ -413,7 +413,7 @@ describe('editor workspace store hard cut', () => {
     const requestSnapshot = useEditorStore.getState().workspace!;
 
     const remoteContent = {
-      ...createDefaultPirDoc(),
+      ...createEmptyPirDocument(),
       metadata: { description: 'Remote description' },
     };
     const remoteDocument = {
@@ -510,7 +510,7 @@ describe('editor workspace store hard cut', () => {
         'page-home': {
           ...workspace.docsById['page-home'],
           content: {
-            ...createDefaultPirDoc(),
+            ...createEmptyPirDocument(),
             metadata: { description: 'Remote description' },
           },
         },
@@ -528,7 +528,7 @@ describe('editor workspace store hard cut', () => {
         'page-home': {
           ...serverBaseSnapshot.docsById['page-home'],
           content: {
-            ...createDefaultPirDoc(),
+            ...createEmptyPirDocument(),
             metadata: {
               description: 'Remote description',
               name: 'One',
@@ -608,7 +608,7 @@ describe('editor workspace store hard cut', () => {
         'page-home': {
           ...workspace.docsById['page-home'],
           content: {
-            ...createDefaultPirDoc(),
+            ...createEmptyPirDocument(),
             metadata: { description: 'Remote description' },
           },
         },
@@ -626,7 +626,7 @@ describe('editor workspace store hard cut', () => {
         'page-home': {
           ...serverBaseSnapshot.docsById['page-home'],
           content: {
-            ...createDefaultPirDoc(),
+            ...createEmptyPirDocument(),
             metadata: {
               description: 'Remote description',
               name: 'One',

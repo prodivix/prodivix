@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   validateWorkspaceVfs,
   type WorkspaceDocument,
@@ -13,7 +13,7 @@ const createDocument = (id: string, path: string): WorkspaceDocument => ({
   path,
   contentRev: 1,
   metaRev: 1,
-  content: createDefaultPirDoc(),
+  content: createEmptyPirDocument(),
 });
 
 describe('validateWorkspaceVfs', () => {

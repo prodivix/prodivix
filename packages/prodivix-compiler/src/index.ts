@@ -1,9 +1,16 @@
 export {
-  generateReactBundle,
-  generateReactCode,
-  type ReactExportBundle,
-} from '#src/pirToReact';
-export { compilePirToReactComponent } from '#src/react/compileComponent';
+  compileWorkspacePirReactModules,
+  createPirReactModuleId,
+  type CompileWorkspacePirReactModulesInput,
+  type PIRReactCollectionProjectionIssueReport,
+  type PIRReactCodeReference,
+  type PIRReactRuntimePort,
+  type PIRReactStateUpdater,
+  type PIRReactRuntimeTriggerDispatch,
+  type WorkspacePirReactCompileBlocked,
+  type WorkspacePirReactCompileReady,
+  type WorkspacePirReactCompileResult,
+} from '#src/react/index';
 export {
   compileWorkspaceToExportProgram,
   generateWorkspaceReactViteBundle,
@@ -13,10 +20,8 @@ export { compileAnimationExportContributions } from '#src/animation/compileAnima
 export { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
 export type {
   ExportResourceType,
-  ReactComponentCompileResult,
-  ReactCompileOptions,
+  ReactExportBundle,
   ReactGeneratorCodeArtifact,
-  ReactGeneratorOptions,
 } from '#src/react/types';
 export type { ExportFile as ReactExportFile } from '#src/export';
 export {
@@ -137,7 +142,7 @@ export type {
   StaticDeploymentTarget,
 } from '#src/export';
 export type { StaticDeploymentPresetOptions } from '#src/export';
-export type { TargetAdapter } from '#src/core/adapter';
+export type { TargetAdapter, TargetAdapterNode } from '#src/core/adapter';
 export {
   createCodegenPolicyTargetAdapter,
   getCodegenPolicyPackageMetadata,
@@ -152,4 +157,4 @@ export {
   type IconCodegenPolicy,
 } from '#src/core/codegenPolicy';
 export type { CompileDiagnostic } from '#src/core/diagnostics';
-export type { PIRDocument } from '@prodivix/shared/types/pir';
+export type { PIRDocument } from '@prodivix/pir';

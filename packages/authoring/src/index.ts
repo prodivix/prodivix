@@ -1,39 +1,29 @@
 export { createAuthoringDiagnosticProviderRegistry } from './authoringDiagnosticProviderRegistry';
-export { createAuthoringEnvironment } from './createAuthoringEnvironment';
 export { createCodeArtifactProviderRegistry } from './codeArtifactProviderRegistry';
 export { createCodeSlotRegistry } from './codeSlotRegistry';
-export { createCodeSymbolProviderRegistry } from './codeSymbolProviderRegistry';
-export { createEmptyAuthoringEnvironment } from './createEmptyAuthoringEnvironment';
+export { queryCodeSlotSemanticRelations } from './codeSlotSemanticRelations';
 export { COD_DIAGNOSTIC_DEFINITIONS } from './diagnostics/codeDiagnosticRegistry';
+export { SEM_DIAGNOSTIC_DEFINITIONS } from './diagnostics/semanticDiagnosticRegistry';
+export * from './language';
+export * from './semantic';
 export type { AuthoringDiagnosticProviderRegistry } from './authoringDiagnosticProviderRegistry';
-export type { CreateAuthoringEnvironmentInput } from './createAuthoringEnvironment';
 export type { CodeArtifactProviderRegistry } from './codeArtifactProviderRegistry';
 export type { CodeSlotRegistry } from './codeSlotRegistry';
-export type { CodeSymbolProviderRegistry } from './codeSymbolProviderRegistry';
+export type { CodeSlotSemanticRelationsResult } from './codeSlotSemanticRelations';
 export type {
   AuthoringContext,
   AuthoringDiagnosticProvider,
-  AuthoringEnvironment,
+  AuthoringSource,
   AuthoringSurface,
   CodeArtifact,
   CodeArtifactLanguage,
   CodeArtifactOwner,
   CodeArtifactProvider,
-  CodeCompletion,
   CodeReference,
-  CodeScope,
-  CodeScopeKind,
   CodeSlotBinding,
+  CodeSlotBindingProjection,
   CodeSlotContract,
   CodeSlotKind,
   CodeSlotProvider,
-  CodeSymbol,
-  CodeSymbolKind,
-  CodeSymbolProvider,
-  DefinitionLocation,
-  ReferenceLocation,
-  ResolvedReference,
-  ScopedSymbolReference,
-  SymbolSource,
   TriggerBinding,
 } from './authoring.types';

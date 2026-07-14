@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Dispatch, MouseEvent, SetStateAction } from 'react';
 import type { Edge, Node } from '@xyflow/react';
+import type { CodeArtifact } from '@prodivix/authoring';
 import type { GraphNodeData } from './GraphNode';
 import type {
   ContextMenuState,
@@ -16,6 +17,7 @@ export type FlowNodesHintText = {
 };
 
 export type NodeGraphRenderRuntime = {
+  codeArtifacts: readonly CodeArtifact[];
   edges: Edge[];
   groupAutoLayoutById: Map<
     string,
@@ -23,6 +25,9 @@ export type NodeGraphRenderRuntime = {
   >;
   hintText: FlowNodesHintText;
   nodesById: Map<string, Node<GraphNodeData>>;
+  bindCodeArtifact: (nodeId: string, artifactId?: string) => void;
+  openCodeSlotDefinition: (slotId: string) => void;
+  updateCodeArtifactSource: (artifactId: string, source: string) => void;
   setEdges: Dispatch<SetStateAction<Edge[]>>;
   setHint: Dispatch<SetStateAction<string | null>>;
   setMenu: Dispatch<SetStateAction<ContextMenuState>>;
@@ -39,6 +44,7 @@ const emptyMap = new Map();
 
 export const useNodeGraphRenderStore = create<NodeGraphRenderStoreState>(
   (set) => ({
+    codeArtifacts: [],
     edges: [],
     groupAutoLayoutById: emptyMap,
     hintText: {
@@ -49,6 +55,9 @@ export const useNodeGraphRenderStore = create<NodeGraphRenderStoreState>(
       keepAtLeastOneStatus: '',
     },
     nodesById: emptyMap,
+    bindCodeArtifact: noop,
+    openCodeSlotDefinition: noop,
+    updateCodeArtifactSource: noop,
     setEdges: noop as Dispatch<SetStateAction<Edge[]>>,
     setHint: noop as Dispatch<SetStateAction<string | null>>,
     setMenu: noop as Dispatch<SetStateAction<ContextMenuState>>,
@@ -64,9 +73,14 @@ export const useNodeGraphRenderStore = create<NodeGraphRenderStoreState>(
       set((current) => {
         if (
           current.edges === runtime.edges &&
+          current.codeArtifacts === runtime.codeArtifacts &&
           current.groupAutoLayoutById === runtime.groupAutoLayoutById &&
           current.hintText === runtime.hintText &&
           current.nodesById === runtime.nodesById &&
+          current.bindCodeArtifact === runtime.bindCodeArtifact &&
+          current.openCodeSlotDefinition === runtime.openCodeSlotDefinition &&
+          current.updateCodeArtifactSource ===
+            runtime.updateCodeArtifactSource &&
           current.setEdges === runtime.setEdges &&
           current.setHint === runtime.setHint &&
           current.setMenu === runtime.setMenu &&

@@ -1,5 +1,16 @@
-import type { CanonicalNode } from './canonicalIR';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
+
+/** Stable, schema-neutral node view exposed to target adapters. */
+export type TargetAdapterNode = Readonly<{
+  id: string;
+  type: string;
+  path: string;
+  text?: unknown;
+  style: Readonly<Record<string, unknown>>;
+  props: Readonly<Record<string, unknown>>;
+  events: Readonly<Record<string, unknown>>;
+  children: readonly TargetAdapterNode[];
+}>;
 
 export type AdapterImportKind = 'default' | 'named' | 'namespace';
 
@@ -22,5 +33,5 @@ export interface AdapterResolution {
 
 export interface TargetAdapter {
   id: string;
-  resolveNode: (node: CanonicalNode) => AdapterResolution;
+  resolveNode: (node: TargetAdapterNode) => AdapterResolution;
 }

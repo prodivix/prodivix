@@ -132,17 +132,7 @@
           "blank": "_blank"
         },
         "actions": {
-          "navigate": "跳转",
-          "executeGraph": "执行节点图"
-        },
-        "graph": {
-          "new": "新建节点图",
-          "newHelp": "创建并执行一个新的节点图。",
-          "select": "选择节点图",
-          "selectHelp": "运行一个已有的节点图。",
-          "namePlaceholder": "新节点图名称",
-          "nameHelp": "要创建的新节点图名称。",
-          "empty": "暂无可选节点图"
+          "navigate": "跳转"
         },
         "navigation": {
           "confirm": {

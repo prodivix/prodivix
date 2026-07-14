@@ -9,6 +9,8 @@ import {
   isPlainWorkspaceRecord,
   validateWorkspaceDocumentRecord,
 } from './workspaceDocumentValidation';
+import { validateWorkspaceComponentGraph } from './component/workspaceComponentGraph';
+import { validateWorkspaceAnimationTargets } from './workspaceAnimationDocument';
 
 type WorkspaceVfsValidationInput = Pick<
   WorkspaceSnapshot,
@@ -490,6 +492,7 @@ export const validateWorkspaceSnapshot = (
     activeDocumentId: snapshot.activeDocumentId,
   });
   const issues = [...result.issues];
+  issues.push(...validateWorkspaceAnimationTargets(snapshot));
   (
     [
       ['workspaceRev', snapshot.workspaceRev],
@@ -504,5 +507,13 @@ export const validateWorkspaceSnapshot = (
       message: `${field} must be a positive safe integer.`,
     });
   });
+  for (const issue of validateWorkspaceComponentGraph(snapshot).issues) {
+    addIssue(issues, {
+      code: 'WKS_DOCUMENT_CONTENT_INVALID',
+      path: issue.path,
+      message: `${issue.code}: ${issue.message}`,
+      documentId: issue.documentId,
+    });
+  }
   return { valid: issues.length === 0, issues };
 };

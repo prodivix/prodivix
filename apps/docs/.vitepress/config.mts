@@ -65,7 +65,7 @@ export default defineConfig({
           items: [
             { text: 'PIR 语法规范', link: '/reference/pir-spec' },
             {
-              text: '作者态符号环境',
+              text: 'Workspace Semantic Index',
               link: '/reference/authoring-symbol-environment',
             },
             {
@@ -227,6 +227,18 @@ export default defineConfig({
                 { text: 'UX-9004', link: '/reference/diagnostics/ux-9004' },
                 { text: 'UX-9005', link: '/reference/diagnostics/ux-9005' },
                 { text: 'UX-9006', link: '/reference/diagnostics/ux-9006' },
+              ],
+            },
+            {
+              text: 'Semantic',
+              link: '/reference/diagnostics/sem',
+              collapsed: true,
+              items: [
+                { text: 'SEM-2001', link: '/reference/diagnostics/sem-2001' },
+                { text: 'SEM-2002', link: '/reference/diagnostics/sem-2002' },
+                { text: 'SEM-2003', link: '/reference/diagnostics/sem-2003' },
+                { text: 'SEM-2004', link: '/reference/diagnostics/sem-2004' },
+                { text: 'SEM-2005', link: '/reference/diagnostics/sem-2005' },
               ],
             },
             {

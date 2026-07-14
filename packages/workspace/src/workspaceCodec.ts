@@ -3,8 +3,12 @@ import {
   resolveActiveRouteNodeId,
   type WorkspaceRouteManifest,
 } from '@prodivix/router';
-import type { PIRDocument } from '@prodivix/shared/types/pir';
-import { validatePirDocument } from '@prodivix/pir';
+import {
+  decodePirDocument,
+  encodePirDocument,
+  validatePirDocument,
+  type PIRDocument,
+} from '@prodivix/pir';
 import { resolveCanonicalWorkspaceDocumentId } from './resolveCanonicalWorkspaceDocumentId';
 import type {
   WorkspaceDocument,
@@ -15,10 +19,18 @@ import type {
 import { validateWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
 import { WorkspaceCodecError } from './workspaceCodecError';
+import { validateAnimationDefinition } from '@prodivix/animation';
+import { decodeNodeGraphDocument } from '@prodivix/nodegraph';
+import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 import {
   isCanonicalWorkspaceDocumentUpdatedAt,
   isValidWorkspaceDocumentName,
 } from './workspaceDocumentValidation';
+import {
+  isWorkspacePirDocument as isCanonicalWorkspacePirDocument,
+  isWorkspacePirDocumentType,
+  type WorkspacePirDocument,
+} from './component/workspacePirDocument';
 
 export { WorkspaceCodecError } from './workspaceCodecError';
 
@@ -166,17 +178,17 @@ const parseCanonicalIdArray = (value: unknown, path: string): string[] => {
 
 export const isPirWorkspaceDocumentType = (
   type: WorkspaceDocumentType
-): boolean =>
-  type === 'pir-page' || type === 'pir-layout' || type === 'pir-component';
+): boolean => isWorkspacePirDocumentType(type);
 
 export const isWorkspacePirDocument = (
   document: WorkspaceDocument | undefined
-): document is WorkspaceDocument & { content: PIRDocument } =>
-  Boolean(document && isPirWorkspaceDocumentType(document.type));
+): document is WorkspacePirDocument =>
+  Boolean(document && isCanonicalWorkspacePirDocument(document));
 
 const parseWorkspaceDocument = (
   value: unknown,
-  path: string
+  path: string,
+  pirContentBoundary: 'domain' | 'wire'
 ): WorkspaceDocument => {
   const source = requireRecord(value, path);
   assertAllowedKeys(
@@ -217,14 +229,42 @@ const parseWorkspaceDocument = (
           })();
   let content = source.content;
   if (isPirWorkspaceDocumentType(type as WorkspaceDocumentType)) {
-    const validation = validatePirDocument(content);
-    if (validation.hasError) {
+    const decoded =
+      pirContentBoundary === 'wire'
+        ? decodePirDocument(content)
+        : tryNormalizeWorkspacePirContent(content);
+    if (!decoded.ok) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.issues.map((issue) => issue.message).join('; ')
+      );
+    }
+    const validation = validatePirDocument(decoded.value);
+    if (!validation.valid) {
       throw new WorkspaceCodecError(
         `${path}/content`,
         validation.issues.map((issue) => issue.message).join('; ')
       );
     }
-    content = validation.document;
+    content = decoded.value;
+  } else if (type === 'pir-graph') {
+    const decoded = decodeNodeGraphDocument(content);
+    if (!decoded.ok) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.issues.map((issue) => issue.message).join('; ')
+      );
+    }
+    content = decoded.value;
+  } else if (type === 'pir-animation') {
+    const validation = validateAnimationDefinition(content);
+    if (!validation.valid) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        validation.issues.map((issue) => issue.message).join('; ')
+      );
+    }
+    content = validation.definition;
   } else if (type === 'code' && !isWorkspaceCodeDocumentContent(content)) {
     throw new WorkspaceCodecError(
       `${path}/content`,
@@ -251,7 +291,13 @@ const parseWorkspaceDocument = (
 export const normalizeWorkspaceDocument = (
   document: WorkspaceDocument
 ): WorkspaceDocument =>
-  parseWorkspaceDocument(document, `/documents/${document.id}`);
+  parseWorkspaceDocument(document, `/documents/${document.id}`, 'domain');
+
+/** Decodes one persistence/transport document into canonical domain memory. */
+export const decodeWorkspaceDocument = (
+  value: unknown,
+  path = '/document'
+): WorkspaceDocument => parseWorkspaceDocument(value, path, 'wire');
 
 const parseWorkspaceTree = (
   value: unknown,
@@ -410,6 +456,16 @@ export type DecodedWorkspaceMutation = {
   acceptedMutationId?: string;
 };
 
+/** Projects a canonical in-memory document into the backend wire contract. */
+export const encodeWorkspaceDocument = (
+  document: WorkspaceDocument
+): WorkspaceDocumentWireDto => ({
+  ...document,
+  content: isPirWorkspaceDocumentType(document.type)
+    ? JSON.parse(encodePirDocument(document.content as PIRDocument))
+    : document.content,
+});
+
 /** Decodes the backend wire contract into the only canonical Workspace model. */
 export const decodeWorkspaceSnapshot = (
   value: unknown
@@ -428,7 +484,7 @@ export const decodeWorkspaceSnapshot = (
     );
   }
   const documents = source.documents.map((document, index) =>
-    parseWorkspaceDocument(document, `/workspace/documents/${index}`)
+    parseWorkspaceDocument(document, `/workspace/documents/${index}`, 'wire')
   );
   const docsById: Record<string, WorkspaceDocument> = {};
   documents.forEach((document, index) => {
@@ -505,10 +561,12 @@ export const encodeWorkspaceSnapshot = (
       treeRootId: workspace.treeRootId,
       treeById: workspace.treeById,
     },
-    documents: Object.values(workspace.docsById).sort(
-      (left, right) =>
-        left.path.localeCompare(right.path) || left.id.localeCompare(right.id)
-    ),
+    documents: Object.values(workspace.docsById)
+      .sort(
+        (left, right) =>
+          left.path.localeCompare(right.path) || left.id.localeCompare(right.id)
+      )
+      .map(encodeWorkspaceDocument),
     routeManifest: workspace.routeManifest,
     settings: parseSettings(settings),
     ...(workspace.activeDocumentId
@@ -548,7 +606,8 @@ export const decodeWorkspaceMutation = (
         ? source.updatedDocuments.map((document, index) =>
             parseWorkspaceDocument(
               document,
-              `/mutation/updatedDocuments/${index}`
+              `/mutation/updatedDocuments/${index}`,
+              'wire'
             )
           )
         : (() => {

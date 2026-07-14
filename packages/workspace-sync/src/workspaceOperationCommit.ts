@@ -22,6 +22,7 @@ import {
   normalizeWorkspaceOperationWire,
   type WorkspaceOperationCommitPlanResult,
 } from './workspaceOperationCommitWire';
+import { projectWorkspaceOperationToCommitWire } from './workspaceOperationCommitPirWire';
 
 export type {
   WorkspaceOperationCommitDocumentExpectation,
@@ -288,6 +289,11 @@ export const planWorkspaceOperationCommit = (
     return { ok: false, issues: [revisionCapacityIssue] };
   }
   const documents = toDocumentExpectations(workspace, writeSet);
+  const wireOperation = projectWorkspaceOperationToCommitWire(
+    workspace,
+    appliedSnapshot,
+    canonicalOperation
+  );
   return {
     ok: true,
     request: {
@@ -296,7 +302,7 @@ export const planWorkspaceOperationCommit = (
         ...(writeSet.route ? { routeRev: workspace.routeRev } : {}),
         documents,
       },
-      operation: canonicalOperation,
+      operation: wireOperation,
     },
   };
 };

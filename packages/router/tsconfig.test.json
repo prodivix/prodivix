@@ -4,8 +4,16 @@
     "lib": ["ES2022"],
     "types": ["node"],
     "noEmit": true,
-    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo"
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
+    "paths": {
+      "@prodivix/authoring": ["../authoring/dist/index.d.ts"]
+    }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    {
+      "path": "../authoring"
+    }
+  ]
 }

@@ -111,6 +111,8 @@ const labelForTargetRef = (targetRef: DiagnosticTargetRef): string => {
       return `NodeGraph node ${targetRef.nodeId}`;
     case 'nodegraph-port':
       return `NodeGraph port ${targetRef.portId}`;
+    case 'animation-timeline':
+      return `Animation timeline ${targetRef.timelineId}`;
     case 'animation-track':
       return `Animation track ${targetRef.trackId}`;
     case 'code-artifact':

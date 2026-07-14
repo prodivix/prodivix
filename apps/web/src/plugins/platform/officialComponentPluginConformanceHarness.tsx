@@ -1,11 +1,18 @@
+import { useMemo, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { createEmptyPirDocument, type PIRDocument } from '@prodivix/pir';
 import {
-  CURRENT_PIR_VERSION,
-  type PIRDocument,
-} from '@prodivix/shared/types/pir';
+  createWorkspacePirProjectionPlan,
+  type WorkspacePirProjectionPlan,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
 import { applyPaletteItemInsertion } from '@/editor/features/blueprint/editor/model/paletteCreation';
 import '@/index.css';
-import { PIRRenderer } from '@prodivix/pir-react-renderer';
+import {
+  PIRRenderer,
+  type PIRRendererBlockingIssue,
+  type PIRRendererHost,
+} from '@prodivix/pir-react-renderer';
 import {
   BUNDLED_OFFICIAL_HOST_MODULE_CATALOG,
   BUNDLED_OFFICIAL_PLUGIN_CATALOG,
@@ -18,6 +25,7 @@ import {
   OfficialReactSurfaceBoundary,
   OfficialSurfaceLeaseRegistryContext,
 } from '@/plugins/platform/officialSurfaceHost';
+import { createPirWebRendererHost } from '@/pir/pirWebRendererHost';
 
 type HarnessPhase = 'ready' | 'disabled' | 'shutdown';
 
@@ -59,12 +67,12 @@ type OfficialComponentPluginConformanceApi = Readonly<{
 }>;
 
 type HarnessDocuments = Readonly<{
-  antdButton: PIRDocument;
-  muiButton: PIRDocument;
-  radixAccordion: PIRDocument;
-  radixTabs: PIRDocument;
-  radixDialog: PIRDocument;
-  radixTooltip: PIRDocument;
+  antdButton: WorkspacePirProjectionPlan;
+  muiButton: WorkspacePirProjectionPlan;
+  radixAccordion: WorkspacePirProjectionPlan;
+  radixTabs: WorkspacePirProjectionPlan;
+  radixDialog: WorkspacePirProjectionPlan;
+  radixTooltip: WorkspacePirProjectionPlan;
 }>;
 
 type HarnessController = Readonly<{
@@ -83,18 +91,8 @@ declare global {
 const desiredCatalogIds = Object.freeze(['antd', 'mui', 'radix'] as const);
 
 const createDocument = (name: string): PIRDocument => ({
-  version: CURRENT_PIR_VERSION,
+  ...createEmptyPirDocument({ rootType: 'div' }),
   metadata: { name },
-  ui: {
-    graph: {
-      version: 1,
-      rootId: 'root',
-      nodesById: {
-        root: { id: 'root', type: 'div' },
-      },
-      childIdsById: { root: [] },
-    },
-  },
 });
 
 const insertPaletteItem = (platform: WebPluginPlatform, itemId: string) => {
@@ -122,7 +120,9 @@ const withPrimaryText = (
   text: string
 ): PIRDocument => {
   const node = inserted.doc.ui.graph.nodesById[inserted.nextNodeId];
-  if (!node) throw new Error('Inserted Palette item has no primary node.');
+  if (node?.kind !== 'element') {
+    throw new Error('Inserted Palette item has no primary Element node.');
+  }
   return {
     ...inserted.doc,
     ui: {
@@ -131,29 +131,105 @@ const withPrimaryText = (
         ...inserted.doc.ui.graph,
         nodesById: {
           ...inserted.doc.ui.graph.nodesById,
-          [inserted.nextNodeId]: { ...node, text },
+          [inserted.nextNodeId]: {
+            ...node,
+            text: { kind: 'literal', value: text },
+          },
         },
       },
     },
   };
 };
 
+const createProjectionPlan = (
+  documentId: string,
+  document: PIRDocument
+): WorkspacePirProjectionPlan => {
+  const documentNodeId = `node:${documentId}`;
+  const workspace: WorkspaceSnapshot = {
+    id: 'official-component-plugin-conformance',
+    workspaceRev: 1,
+    routeRev: 1,
+    opSeq: 0,
+    treeRootId: 'root',
+    treeById: {
+      root: {
+        id: 'root',
+        kind: 'dir',
+        name: '/',
+        parentId: null,
+        children: [documentNodeId],
+      },
+      [documentNodeId]: {
+        id: documentNodeId,
+        kind: 'doc',
+        name: `${documentId}.pir.json`,
+        parentId: 'root',
+        docId: documentId,
+      },
+    },
+    docsById: {
+      [documentId]: {
+        id: documentId,
+        type: 'pir-page',
+        path: `/${documentId}.pir.json`,
+        contentRev: 1,
+        metaRev: 1,
+        content: document,
+      },
+    },
+    routeManifest: {
+      version: '1',
+      root: { id: `route:${documentId}`, pageDocId: documentId },
+    },
+    activeDocumentId: documentId,
+  };
+  const projection = createWorkspacePirProjectionPlan({
+    workspace,
+    entryDocumentId: documentId,
+  });
+  if (projection.status === 'blocked') {
+    throw new Error(
+      `PIR-current projection failed: ${projection.issues.map(({ code, message }) => `${code}: ${message}`).join('; ')}`
+    );
+  }
+  return projection.plan;
+};
+
 const createHarnessDocuments = (
   platform: WebPluginPlatform
 ): HarnessDocuments =>
   Object.freeze({
-    antdButton: withPrimaryText(
-      insertPaletteItem(platform, 'antd-button'),
-      'Ant Design action'
+    antdButton: createProjectionPlan(
+      'antd-button',
+      withPrimaryText(
+        insertPaletteItem(platform, 'antd-button'),
+        'Ant Design action'
+      )
     ),
-    muiButton: withPrimaryText(
-      insertPaletteItem(platform, 'mui-button'),
-      'Material UI action'
+    muiButton: createProjectionPlan(
+      'mui-button',
+      withPrimaryText(
+        insertPaletteItem(platform, 'mui-button'),
+        'Material UI action'
+      )
     ),
-    radixAccordion: insertPaletteItem(platform, 'radix-accordion').doc,
-    radixTabs: insertPaletteItem(platform, 'radix-tabs').doc,
-    radixDialog: insertPaletteItem(platform, 'radix-dialog').doc,
-    radixTooltip: insertPaletteItem(platform, 'radix-tooltip').doc,
+    radixAccordion: createProjectionPlan(
+      'radix-accordion',
+      insertPaletteItem(platform, 'radix-accordion').doc
+    ),
+    radixTabs: createProjectionPlan(
+      'radix-tabs',
+      insertPaletteItem(platform, 'radix-tabs').doc
+    ),
+    radixDialog: createProjectionPlan(
+      'radix-dialog',
+      insertPaletteItem(platform, 'radix-dialog').doc
+    ),
+    radixTooltip: createProjectionPlan(
+      'radix-tooltip',
+      insertPaletteItem(platform, 'radix-tooltip').doc
+    ),
   });
 
 const waitForPaint = () =>
@@ -189,8 +265,11 @@ function ConformanceApp({
   documents: HarnessDocuments;
   phase: HarnessPhase;
 }>) {
-  const registry = createRendererProjectionRegistry(
-    platform.queries.extensions.getSnapshot()
+  const extensions = platform.queries.extensions.getSnapshot();
+  const host = useMemo(
+    () =>
+      createPirWebRendererHost(createRendererProjectionRegistry(extensions)),
+    [extensions]
   );
   const status =
     phase === 'ready'
@@ -216,69 +295,76 @@ function ConformanceApp({
             <div className="grid gap-6 lg:grid-cols-2">
               <section aria-label="Ant Design render" className="border-t pt-4">
                 <h2 className="mb-3 text-base font-semibold">Ant Design</h2>
-                <PIRRenderer
-                  pirDoc={documents.antdButton}
-                  registry={registry}
-                  interactionMode="interactive"
-                />
+                <HarnessRenderer plan={documents.antdButton} host={host} />
               </section>
               <section
                 aria-label="Material UI render"
                 className="border-t pt-4"
               >
                 <h2 className="mb-3 text-base font-semibold">Material UI</h2>
-                <PIRRenderer
-                  pirDoc={documents.muiButton}
-                  registry={registry}
-                  interactionMode="interactive"
-                />
+                <HarnessRenderer plan={documents.muiButton} host={host} />
               </section>
               <section
                 aria-label="Radix Accordion render"
                 className="border-t pt-4"
               >
                 <h2 className="mb-3 text-base font-semibold">Accordion</h2>
-                <PIRRenderer
-                  pirDoc={documents.radixAccordion}
-                  registry={registry}
-                  interactionMode="interactive"
-                />
+                <HarnessRenderer plan={documents.radixAccordion} host={host} />
               </section>
               <section aria-label="Radix Tabs render" className="border-t pt-4">
                 <h2 className="mb-3 text-base font-semibold">Tabs</h2>
-                <PIRRenderer
-                  pirDoc={documents.radixTabs}
-                  registry={registry}
-                  interactionMode="interactive"
-                />
+                <HarnessRenderer plan={documents.radixTabs} host={host} />
               </section>
               <section
                 aria-label="Radix Dialog render"
                 className="border-t pt-4"
               >
                 <h2 className="mb-3 text-base font-semibold">Dialog</h2>
-                <PIRRenderer
-                  pirDoc={documents.radixDialog}
-                  registry={registry}
-                  interactionMode="interactive"
-                />
+                <HarnessRenderer plan={documents.radixDialog} host={host} />
               </section>
               <section
                 aria-label="Radix Tooltip render"
                 className="border-t pt-4"
               >
                 <h2 className="mb-3 text-base font-semibold">Tooltip</h2>
-                <PIRRenderer
-                  pirDoc={documents.radixTooltip}
-                  registry={registry}
-                  interactionMode="interactive"
-                />
+                <HarnessRenderer plan={documents.radixTooltip} host={host} />
               </section>
             </div>
           </OfficialReactSurfaceBoundary>
         </div>
       </main>
     </OfficialSurfaceLeaseRegistryContext.Provider>
+  );
+}
+
+const ignoreTrigger = () => {};
+
+function HarnessRenderer({
+  plan,
+  host,
+}: Readonly<{
+  plan: WorkspacePirProjectionPlan;
+  host: PIRRendererHost;
+}>) {
+  const [blockingIssues, setBlockingIssues] = useState<
+    readonly PIRRendererBlockingIssue[]
+  >([]);
+  return (
+    <>
+      <PIRRenderer
+        plan={plan}
+        host={host}
+        dispatchTrigger={ignoreTrigger}
+        onBlockingIssues={setBlockingIssues}
+      />
+      {blockingIssues.length > 0 ? (
+        <p role="alert" className="mt-2 text-sm text-red-700">
+          {blockingIssues
+            .map(({ code, message }) => `${code}: ${message}`)
+            .join('; ')}
+        </p>
+      ) : null}
+    </>
   );
 }
 

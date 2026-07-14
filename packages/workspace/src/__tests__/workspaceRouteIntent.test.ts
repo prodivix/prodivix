@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   applyWorkspaceCommand,
   applyWorkspaceTransaction,
@@ -78,7 +78,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
         path,
         contentRev: 1,
         metaRev: 1,
-        content: createDefaultPirDoc(),
+        content: createEmptyPirDocument(),
       },
     ])
   ) as WorkspaceSnapshot['docsById'],

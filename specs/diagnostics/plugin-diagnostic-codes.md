@@ -8,8 +8,7 @@
 - 关联：
   - `specs/diagnostics/README.md`
   - `specs/decisions/29.plugin-extension-points.md`
-  - `specs/implementation/plugin-host-foundation.md`
-  - `specs/implementation/plugin-host-core-phase2.md`
+  - `specs/decisions/29.plugin-extension-points.md`
   - `specs/plugins/plugin-manifest-v1.schema.json`
 
 ## 1. 目的

@@ -163,7 +163,7 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 		return
 	}
 
-	snapshot, err := handler.module.importPreparedProjectWorkspace(c.Request.Context(), project, nil, ImportWorkspaceSnapshotParams{
+	snapshot, err := handler.module.importPreparedProjectWorkspace(c.Request.Context(), project, ImportWorkspaceSnapshotParams{
 		WorkspaceRev:  request.Workspace.WorkspaceRev,
 		RouteRev:      request.Workspace.RouteRev,
 		OpSeq:         request.Workspace.OpSeq,

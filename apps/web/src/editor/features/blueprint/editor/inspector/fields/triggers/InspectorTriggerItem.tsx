@@ -1,21 +1,50 @@
 import { useEffect, useMemo } from 'react';
 import { Trash2 } from 'lucide-react';
-import {
-  BUILT_IN_ACTION_OPTIONS,
-  DOM_EVENT_TRIGGERS,
-  createDefaultActionParams,
-  normalizeBuiltInAction,
-  type BuiltInActionName,
-} from '@/pir/actions/registry';
 import { getNavigateLinkKind } from '@prodivix/router';
 import type { TriggerEntry } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 import { TriggerNavigateFields } from './TriggerNavigateFields';
 import { TriggerGraphFields } from './TriggerGraphFields';
 
+const DOM_EVENT_TRIGGERS = [
+  'onClick',
+  'onDoubleClick',
+  'onChange',
+  'onInput',
+  'onSubmit',
+  'onFocus',
+  'onBlur',
+  'onPointerEnter',
+  'onPointerLeave',
+] as const;
+const BUILT_IN_ACTION_OPTIONS = [
+  {
+    value: 'navigate',
+    label: 'Navigate',
+    labelKey: 'inspector.groups.triggers.actions.navigate',
+  },
+  {
+    value: 'executeGraph',
+    label: 'Execute Graph',
+    labelKey: 'inspector.groups.triggers.actions.executeGraph',
+  },
+] as const;
+type BuiltInActionName = (typeof BUILT_IN_ACTION_OPTIONS)[number]['value'];
+const normalizeBuiltInAction = (
+  value: string | undefined
+): BuiltInActionName =>
+  value === 'executeGraph' ? 'executeGraph' : 'navigate';
+const createDefaultActionParams = (
+  action: BuiltInActionName
+): Record<string, unknown> =>
+  action === 'executeGraph'
+    ? { graphMode: 'existing', graphId: '' }
+    : { to: '' };
+
 export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
   const { t, graphOptions, updateTrigger, removeTrigger } =
     useInspectorContext();
+  const editable = item.editable !== false;
   const toValue = typeof item.params.to === 'string' ? item.params.to : '';
   const targetValue = item.params.target === '_self' ? '_self' : '_blank';
   const actionValue = normalizeBuiltInAction(
@@ -45,6 +74,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
         : JSON.stringify(item.params.state);
 
   useEffect(() => {
+    if (!editable) return;
     if (actionValue !== 'executeGraph') return;
     if (graphMode !== 'existing') return;
     const rawGraphId =
@@ -77,6 +107,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
     item.params.graphName,
     selectedGraphId,
     updateTrigger,
+    editable,
   ]);
 
   return (
@@ -91,6 +122,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           <select
             className="h-7 min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none"
             value={item.trigger}
+            disabled={!editable}
             title={t('inspector.groups.triggers.eventHelp', {
               defaultValue: 'Choose which DOM event will trigger this action.',
             })}
@@ -117,6 +149,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           <select
             className="h-7 min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none"
             value={actionValue}
+            disabled={!editable}
             title={t('inspector.groups.triggers.actionHelp', {
               defaultValue: 'Choose what should run when the event is fired.',
             })}
@@ -146,6 +179,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           className="mt-[18px] inline-flex h-7 w-7 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:text-(--danger-color)"
           data-testid={`inspector-delete-trigger-${item.key}`}
           onClick={() => removeTrigger(item.key)}
+          disabled={!editable}
           aria-label={t('inspector.groups.triggers.delete', {
             defaultValue: 'Delete trigger',
           })}
@@ -156,7 +190,12 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           <Trash2 size={14} />
         </button>
       </div>
-      {actionValue === 'navigate' ? (
+      {!editable ? (
+        <div className="rounded-md border border-(--border-default) px-2 py-1.5 text-[10px] text-(--text-muted)">
+          {item.diagnostic ??
+            'This binding is managed by its owning authoring environment.'}
+        </div>
+      ) : actionValue === 'navigate' ? (
         <TriggerNavigateFields
           itemKey={item.key}
           toValue={toValue}
@@ -164,6 +203,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           replaceValue={replaceValue}
           targetValue={targetValue}
           stateValue={stateValue}
+          disabled={!editable}
         />
       ) : (
         <TriggerGraphFields
@@ -171,6 +211,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           graphMode={graphMode}
           graphName={graphName}
           selectedGraphId={selectedGraphId}
+          disabled={!editable}
         />
       )}
     </div>

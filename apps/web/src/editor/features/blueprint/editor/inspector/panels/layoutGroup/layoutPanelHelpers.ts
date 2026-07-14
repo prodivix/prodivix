@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '../../projection';
 
 export const isPlainObject = (
   value: unknown
@@ -24,10 +24,10 @@ export const LAYOUT_COMPONENT_TYPES = new Set([
   'section',
 ]);
 
-export const isLayoutComponent = (node: ComponentNode) =>
+export const isLayoutComponent = (node: BlueprintInspectorNodeView) =>
   LAYOUT_COMPONENT_TYPES.has(node.type);
 
-export const getDisplay = (node: ComponentNode) => {
+export const getDisplay = (node: BlueprintInspectorNodeView) => {
   const display = node.props?.display;
   return typeof display === 'string' ? display : undefined;
 };
@@ -52,26 +52,26 @@ export const readGridColumnCount = (value: unknown) => {
 };
 
 export const withProps = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   patch: Record<string, unknown>
-): ComponentNode => ({
+): BlueprintInspectorNodeView => ({
   ...node,
   props: { ...(isPlainObject(node.props) ? node.props : {}), ...patch },
 });
 
 export const withStyle = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   patch: Record<string, unknown>
-): ComponentNode => ({
+): BlueprintInspectorNodeView => ({
   ...node,
   style: { ...(isPlainObject(node.style) ? node.style : {}), ...patch },
 });
 
 export const updateStyleValue = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   key: string,
   nextValue: string
-): ComponentNode => {
+): BlueprintInspectorNodeView => {
   const nextStyle = isPlainObject(node.style) ? { ...node.style } : {};
   if (nextValue.trim()) {
     nextStyle[key] = nextValue;
@@ -137,7 +137,10 @@ export const toBoxSpacingShorthand = (spacing: BoxSpacing) => {
   return `${top} ${right} ${bottom} ${left}`;
 };
 
-export const getSpacingValue = (node: ComponentNode, key: SpacingKey) => {
+export const getSpacingValue = (
+  node: BlueprintInspectorNodeView,
+  key: SpacingKey
+) => {
   if (node.type === 'PdxDiv') {
     const propValue = readCssValue(node.props?.[key]);
     if (propValue !== undefined) return propValue;
@@ -145,7 +148,10 @@ export const getSpacingValue = (node: ComponentNode, key: SpacingKey) => {
   return readCssValue(node.style?.[key]) ?? '';
 };
 
-export const getLayoutValue = (node: ComponentNode, key: LayoutValueKey) => {
+export const getLayoutValue = (
+  node: BlueprintInspectorNodeView,
+  key: LayoutValueKey
+) => {
   if (node.type === 'PdxDiv') {
     const propValue = readCssValue(node.props?.[key]);
     if (propValue !== undefined) return propValue;
@@ -154,10 +160,10 @@ export const getLayoutValue = (node: ComponentNode, key: LayoutValueKey) => {
 };
 
 export const updateLayoutValue = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   key: LayoutValueKey,
   nextValue: string
-): ComponentNode => {
+): BlueprintInspectorNodeView => {
   const hasValue = nextValue.trim().length > 0;
   if (node.type === 'PdxDiv') {
     const nextProps = isPlainObject(node.props) ? { ...node.props } : {};
@@ -187,10 +193,10 @@ export const updateLayoutValue = (
 };
 
 export const updateSpacingValue = (
-  node: ComponentNode,
+  node: BlueprintInspectorNodeView,
   key: SpacingKey,
   nextValue: string
-): ComponentNode => {
+): BlueprintInspectorNodeView => {
   const hasValue = nextValue.trim().length > 0;
   if (node.type === 'PdxDiv') {
     const nextProps = isPlainObject(node.props) ? { ...node.props } : {};

@@ -6,141 +6,208 @@ import {
   useRef,
   useState,
 } from 'react';
-import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router';
-import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/blueprint/editor/model/viewport';
-import { useBlueprintAutosave } from '@/editor/features/blueprint/editor/model/autosave';
-import { useBlueprintDragDrop } from '@/editor/features/blueprint/editor/model/dragdrop';
-import { executeNodeGraphAction } from '@prodivix/runtime-browser';
-import { createNodeIdFactory } from '@/editor/features/blueprint/editor/model/palette';
-import {
-  applyPaletteItemInsertion,
-  type PaletteItemSelection,
-} from '@/editor/features/blueprint/editor/model/paletteCreation';
-import {
-  validateBlueprintComposition,
-  type BlueprintCompositionIssue,
-} from '@/editor/features/blueprint/editor/model/composition';
-import {
-  collectGraphSubtreeIds,
-  getParentMap,
-  insertUiGraphFragment,
-  instantiateUiGraphSubtreeClone,
-  materializePirRoot,
-  moveNode,
-  removeNode,
+import { useNavigate, useParams } from 'react-router';
+import { createComponentSymbolId } from '@prodivix/authoring';
+import type {
+  PIRCollectionPreviewInput,
+  PIRCollectionProjectionLocation,
+  PIRCollectionNode,
+  PIRCollectionRegions,
+  PIRComponentInstanceBindings,
 } from '@prodivix/pir';
-import {
-  openExternalNavigateTarget,
-  resolveNavigateTarget as resolveBrowserNavigateTarget,
-} from '@/pir/actions/registry';
-import {
-  createRouteDebugSnapshot,
-  getRouteDebugEventDetail,
-  logRouteDebug,
+import type {
+  PIRRenderLocation,
+  PIRRendererBlockingIssue,
+  PIRTriggerDispatchRequest,
 } from '@prodivix/pir-react-renderer';
+import { executeNodeGraphAction } from '@prodivix/runtime-browser';
+import {
+  composeRouteManifestWithModules,
+  flattenRouteManifest,
+  normalizeRoutePath,
+} from '@prodivix/router';
+import {
+  createWorkspacePIRSubtreeDeleteTransactionPlan,
+  createWorkspacePIRSubtreeDuplicateTransactionPlan,
+  createWorkspacePIRSubtreeMoveTransactionPlan,
+  createWorkspaceRouteIntentPlan,
+  selectWorkspacePirDocument,
+  type WorkspaceRouteIntent,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
+import { useWorkspaceComponentAuthoring } from '@/editor/features/component/controller/useWorkspaceComponentAuthoring';
+import {
+  navigateToWorkspaceCodeSlotDefinition,
+  navigateToWorkspaceSemanticTarget,
+  resolveWorkspaceSemanticIndex,
+} from '@/editor/navigation';
 import {
   DEFAULT_BLUEPRINT_STATE,
-  selectActiveDocumentEditSeq,
-  selectActivePirDocumentRecord,
-  selectActiveRouteNodeId,
-  selectRouteManifest,
-  selectWorkspace,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
-import { useAuthStore } from '@/auth/useAuthStore';
-import { useEditorShortcut } from '@/editor/shortcuts';
-import { isLocalProjectId } from '@/editor/localProjectStore';
-import { enqueueWorkspaceRouteIntentOutboxAndDispatch } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 import {
-  composeRouteManifestWithModules,
-  findRouteNodeParentInfo,
-  flattenRouteManifest,
-  normalizeRoutePath,
-  resolveNavigateTarget as resolveRouteNavigateTarget,
-  resolveRouteRuntimeContext,
-} from '@prodivix/router';
-import type { AutosaveMode } from '@/editor/features/blueprint/editor/model/autosave';
-import { usePaletteQueryService } from '@/plugins/platform';
+  createRendererProjectionRegistry,
+  usePaletteQueryService,
+  useWebExtensionRegistrySnapshot,
+} from '@/plugins/platform';
+import { createPirWebRendererHost } from '@/pir/pirWebRendererHost';
+import { applyPaletteItemInsertion } from '../model/paletteCreation';
+import type { PaletteItemSelection } from '../model/paletteCreation';
+import type { BlueprintCompositionIssue } from '../model/composition';
+import type { RouteItem } from '../model/types';
 import {
-  createNodeDeleteTransaction,
-  type WorkspaceRouteIntent,
-} from '@prodivix/workspace';
+  createBlueprintRootLocation,
+  pirRenderLocationKey,
+} from '../model/tree';
+import { VIEWPORT_ZOOM_RANGE } from '../model/viewport';
+import { useBundledOfficialPluginRuntime } from '../runtime';
+import {
+  createBlueprintDuplicateIdFactory,
+  resolveBlueprintDirectionalMoveTarget,
+  resolveBlueprintInsertionPlacement,
+  resolveBlueprintTreePlacement,
+  type BlueprintTreeDropPlacement,
+} from './blueprintCanonicalGraph';
+import { useBlueprintCanonicalDragDrop } from './useBlueprintCanonicalDragDrop';
+import { useWorkspaceSaveIndicator } from './useWorkspaceSaveIndicator';
 
-const CAPABILITY_PIR_DOCUMENT_UPDATE = 'core.pir.graph.replace@1.0';
+const AUTO_COLLECTION_PREVIEW: PIRCollectionPreviewInput = Object.freeze({
+  state: 'auto',
+});
 
-const createRouteId = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `route-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const collectionPreviewKey = (
+  location: PIRCollectionProjectionLocation
+): string =>
+  JSON.stringify([location.documentId, location.nodeId, location.instancePath]);
+
+const clampZoom = (value: number): number =>
+  Math.min(VIEWPORT_ZOOM_RANGE.max, Math.max(VIEWPORT_ZOOM_RANGE.min, value));
+
+const createRouteItems = (workspace: WorkspaceSnapshot): RouteItem[] => {
+  const manifest = composeRouteManifestWithModules(
+    workspace.routeManifest
+  ).manifest;
+  return [
+    {
+      id: manifest.root.id,
+      path: '/',
+      depth: 0,
+      label: '/',
+      index: manifest.root.index,
+      hasPage: Boolean(manifest.root.pageDocId),
+      hasLayout: Boolean(manifest.root.layoutDocId),
+      hasOutlet: Boolean(manifest.root.outletNodeId),
+      childCount: manifest.root.children?.length ?? 0,
+    },
+    ...flattenRouteManifest(manifest).map((route) => ({
+      id: route.id,
+      path: route.path,
+      depth: route.depth + 1,
+      label: route.label,
+      parentId: route.parentId,
+      index: route.node.index,
+      hasPage: Boolean(route.node.pageDocId),
+      hasLayout: Boolean(route.node.layoutDocId),
+      hasOutlet: Boolean(route.node.outletNodeId),
+      childCount: route.node.children?.length ?? 0,
+    })),
+  ];
 };
 
-type BlueprintInteractionMode = 'design' | 'interactive';
+const firstIssueMessage = (input: {
+  issues: readonly Readonly<{ message: string }>[];
+}): string =>
+  input.issues[0]?.message ?? 'The canonical authoring plan was rejected.';
 
-const getBlueprintInteractionModeStorageKey = (blueprintKey: string) =>
-  `prodivix.blueprint.${blueprintKey}.interactionMode`;
-
-const readStoredInteractionMode = (
-  blueprintKey: string
-): BlueprintInteractionMode => {
-  if (typeof window === 'undefined') {
-    return DEFAULT_BLUEPRINT_STATE.interactionMode;
-  }
-  try {
-    const value = window.localStorage.getItem(
-      getBlueprintInteractionModeStorageKey(blueprintKey)
-    );
-    return value === 'interactive' ? 'interactive' : 'design';
-  } catch {
-    return DEFAULT_BLUEPRINT_STATE.interactionMode;
-  }
-};
-
-const persistInteractionMode = (
-  blueprintKey: string,
-  mode: BlueprintInteractionMode
+/** Coordinates the original Blueprint UI against the canonical Workspace. */
+export const useBlueprintEditorController = (
+  requestedDocumentId?: string,
+  lockEntryDocument = false
 ) => {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(
-      getBlueprintInteractionModeStorageKey(blueprintKey),
-      mode
-    );
-  } catch {
-    return;
-  }
-};
-
-type InteractionRequest = {
-  params?: Record<string, unknown>;
-  nodeId: string;
-  trigger: string;
-  eventKey: string;
-  payload?: unknown;
-};
-
-/**
- * Blueprint 编辑器的编排层（controller）。
- *
- * 复杂链路集中在这里：
- * - UI 交互 -> Workspace Command -> autosave（workspace/project）
- * - Canvas 内置动作 -> 导航确认/图执行事件 -> 页面或外部系统
- * - DnD 结果 -> PIR 树变换 -> 选中态与面板状态同步
- */
-export const useBlueprintEditorController = () => {
-  const palette = usePaletteQueryService();
-  const [newPath, setNewPath] = useState('');
+  const navigate = useNavigate();
+  const { projectId } = useParams();
+  const {
+    workspace,
+    readonly,
+    applyCommand,
+    applyTransaction,
+    updateCollection,
+    updateInstanceBindings,
+    setActiveDocumentId,
+  } = useWorkspaceComponentAuthoring();
+  const setActiveRouteNodeId = useEditorStore(
+    (state) => state.setActiveRouteNodeId
+  );
+  const setBlueprintState = useEditorStore((state) => state.setBlueprintState);
+  const defaultViewportWidth = useSettingsStore(
+    (state) => state.global.viewportWidth
+  );
+  const defaultViewportHeight = useSettingsStore(
+    (state) => state.global.viewportHeight
+  );
+  const zoomStep = useSettingsStore((state) => state.global.zoomStep);
   const panelLayout = useSettingsStore((state) => state.global.panelLayout);
+  const blueprintKey = workspace?.id ?? projectId ?? 'global';
+  const blueprintState = useEditorStore(
+    (state) => state.blueprintStateByProject[blueprintKey]
+  );
+  const runtimeState = useEditorStore(
+    (state) => state.runtimeStateByProject[blueprintKey]
+  );
+  const patchRuntimeState = useEditorStore((state) => state.patchRuntimeState);
+  const resolvedBlueprintState = blueprintState ?? {
+    ...DEFAULT_BLUEPRINT_STATE,
+    viewportWidth: defaultViewportWidth,
+    viewportHeight: defaultViewportHeight,
+  };
+
+  const entryDocumentId = requestedDocumentId ?? workspace?.activeDocumentId;
+  const entry = useMemo(
+    () => selectWorkspacePirDocument(workspace ?? undefined, entryDocumentId),
+    [entryDocumentId, workspace]
+  );
+  const rootLocation = useMemo(
+    () =>
+      entry?.status === 'valid'
+        ? createBlueprintRootLocation(
+            entry.document.id,
+            entry.decodedContent,
+            entry.document.type === 'pir-component' ? 'definition' : 'source'
+          )
+        : undefined,
+    [entry]
+  );
+  const palette = usePaletteQueryService();
+  const extensions = useWebExtensionRegistrySnapshot();
+  const rendererHost = useMemo(
+    () =>
+      createPirWebRendererHost(createRendererProjectionRegistry(extensions)),
+    [extensions]
+  );
+  const officialPluginRuntime = useBundledOfficialPluginRuntime(
+    entry?.status === 'valid' ? entry.decodedContent : undefined
+  );
+
+  const [newPath, setNewPath] = useState('');
+  const [selection, setSelection] = useState<PIRRenderLocation>();
+  const [hiddenLocations, setHiddenLocations] = useState<
+    readonly PIRRenderLocation[]
+  >([]);
+  const [compositionIssue, setCompositionIssue] =
+    useState<BlueprintCompositionIssue>();
+  const [blockingIssues, setBlockingIssues] = useState<
+    readonly PIRRendererBlockingIssue[]
+  >([]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isLibraryCollapsed, setLibraryCollapsed] = useState(
     () => panelLayout === 'focus'
   );
+  const [isTreeCollapsed, setTreeCollapsed] = useState(false);
   const [isInspectorCollapsed, setInspectorCollapsed] = useState(
     () => panelLayout === 'focus' || panelLayout === 'wide'
   );
-  const [isTreeCollapsed, setTreeCollapsed] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
   >({});
@@ -153,534 +220,57 @@ export const useBlueprintEditorController = () => {
   const [statusSelections, setStatusSelections] = useState<
     Record<string, number>
   >({});
-  const [compositionIssue, setCompositionIssue] =
-    useState<BlueprintCompositionIssue>();
   const statusTimers = useRef<Record<string, number>>({});
-  const { t } = useTranslation('blueprint');
-  const { projectId } = useParams();
-  const blueprintKey = projectId ?? 'global';
-  const blueprintState = useEditorStore(
-    (state) => state.blueprintStateByProject[blueprintKey]
-  );
-  const setBlueprintState = useEditorStore((state) => state.setBlueprintState);
-  const runtimeState = useEditorStore(
-    (state) => state.runtimeStateByProject[blueprintKey]
-  );
-  const patchRuntimeState = useEditorStore((state) => state.patchRuntimeState);
-  const workspace = useEditorStore(selectWorkspace)!;
-  const activePirDocument = useEditorStore(selectActivePirDocumentRecord)!;
-  const pirDoc = activePirDocument.content;
-  const documentEditSeq = useEditorStore(selectActiveDocumentEditSeq);
-  const updateActivePirDocument = useEditorStore(
-    (state) => state.updateActivePirDocument
-  );
-  const dispatchWorkspaceCommand = useEditorStore(
-    (state) => state.dispatchWorkspaceCommand
-  );
-  const dispatchWorkspaceTransaction = useEditorStore(
-    (state) => state.dispatchWorkspaceTransaction
-  );
-  const workspaceId = workspace.id;
-  const activeDocumentId = activePirDocument.id;
-  const workspaceCapabilitiesLoaded = useEditorStore(
-    (state) => state.workspaceCapabilitiesLoaded
-  );
-  const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
-  const routeManifest = useEditorStore(selectRouteManifest)!;
-  const activeRouteNodeId = useEditorStore(selectActiveRouteNodeId);
-  const applyRouteIntent = useEditorStore((state) => state.applyRouteIntent);
-  const setActiveRouteNodeId = useEditorStore(
-    (state) => state.setActiveRouteNodeId
-  );
-  const canUpdateWorkspaceDocument = useEditorStore(
-    (state) =>
-      state.workspaceCapabilities[CAPABILITY_PIR_DOCUMENT_UPDATE] === true
-  );
-  const applyWorkspaceMutation = useEditorStore(
-    (state) => state.applyWorkspaceMutation
-  );
-  const adoptRebasedWorkspaceOperation = useEditorStore(
-    (state) => state.adoptRebasedWorkspaceOperation
-  );
-  const openWorkspaceRevisionConflict = useEditorStore(
-    (state) => state.openWorkspaceRevisionConflict
-  );
-  const token = useAuthStore((state) => state.token);
-  const autosaveMode = useSettingsStore(
-    (state) =>
-      state.getEffectiveGlobalValue(projectId, 'autosaveMode') as AutosaveMode
-  );
-  const autosaveInterval = useSettingsStore(
-    (state) =>
-      state.getEffectiveGlobalValue(projectId, 'autosaveInterval') as number
-  );
-  const zoomStep = useSettingsStore((state) => state.global.zoomStep);
-  const defaultViewportWidth = useSettingsStore(
-    (state) => state.global.viewportWidth
-  );
-  const persistRouteIntent = async (intent: WorkspaceRouteIntent) => {
-    if (isLocalProjectId(projectId)) {
-      return Boolean(applyRouteIntent(intent));
-    }
-    const currentWorkspace = useEditorStore.getState().workspace;
-    if (!token || !currentWorkspace) return false;
-    const outcome = await enqueueWorkspaceRouteIntentOutboxAndDispatch({
-      workspace: currentWorkspace,
-      intent,
-    });
-    if (outcome.status === 'rejected') {
-      console.warn('[route] workspace operation rejected', outcome.message);
-      return false;
-    }
-    return true;
-  };
-  const defaultViewportHeight = useSettingsStore(
-    (state) => state.global.viewportHeight
-  );
-  const initialBlueprintState = useMemo(
-    () => ({
-      ...DEFAULT_BLUEPRINT_STATE,
-      viewportWidth: defaultViewportWidth,
-      viewportHeight: defaultViewportHeight,
-      interactionMode: readStoredInteractionMode(blueprintKey),
-    }),
-    [blueprintKey, defaultViewportWidth, defaultViewportHeight]
-  );
-  const resolvedBlueprintState = blueprintState ?? initialBlueprintState;
-  const { viewportWidth, viewportHeight, zoom, pan, selectedId } =
-    resolvedBlueprintState;
-  const hiddenNodeIds = resolvedBlueprintState.hiddenNodeIds ?? [];
-  const composedRouteManifest = useMemo(
-    () => composeRouteManifestWithModules(routeManifest).manifest,
-    [routeManifest]
-  );
-  const routes = useMemo(
-    () =>
-      flattenRouteManifest(composedRouteManifest).map((route) => ({
-        id: route.id,
-        path: route.path,
-        depth: route.depth,
-        label: route.label,
-        parentId: route.parentId,
-        index: route.node.index,
-        hasPage: Boolean(route.node.pageDocId),
-        hasLayout: Boolean(route.node.layoutDocId),
-        hasOutlet: Boolean(route.node.outletNodeId),
-        childCount: route.node.children?.length ?? 0,
-      })),
-    [composedRouteManifest]
-  );
-  const activeRoute = useMemo(
-    () =>
-      activeRouteNodeId
-        ? (routes.find((route) => route.id === activeRouteNodeId) ?? null)
-        : null,
-    [activeRouteNodeId, routes]
-  );
-  const activeRoutePath = activeRoute?.path ?? routes[0]?.path ?? '/';
-  const interactionMode = resolvedBlueprintState.interactionMode ?? 'design';
-  const previewPath =
-    typeof resolvedBlueprintState.routePreviewPath === 'string' &&
-    resolvedBlueprintState.routePreviewPath.trim()
-      ? normalizeRoutePath(resolvedBlueprintState.routePreviewPath)
-      : activeRoutePath;
-  const setPreviewPath = useCallback(
-    (path: string) => {
-      const normalizedPath = normalizeRoutePath(path);
+  const [collectionPreviewByLocation, setCollectionPreviewByLocation] =
+    useState<Readonly<Record<string, PIRCollectionPreviewInput>>>({});
+  const [extractionOpen, setExtractionOpen] = useState(false);
+
+  useEffect(() => {
+    if (!blueprintState) {
       setBlueprintState(blueprintKey, {
-        routePreviewPath: normalizedPath,
+        viewportWidth: defaultViewportWidth,
+        viewportHeight: defaultViewportHeight,
       });
-      const matchedRoute = routes.find(
-        (route) => route.path === normalizedPath
-      );
-      if (matchedRoute) setActiveRouteNodeId(matchedRoute.id);
-    },
-    [blueprintKey, routes, setActiveRouteNodeId, setBlueprintState]
-  );
-  const exactPreviewRoute = useMemo(() => {
-    const normalizedPreviewPath = normalizeRoutePath(previewPath);
-    return routes.find((route) => route.path === normalizedPreviewPath) ?? null;
-  }, [previewPath, routes]);
-  const previewRuntimeContext = useMemo(
-    () =>
-      resolveRouteRuntimeContext(composedRouteManifest, {
-        currentPath: previewPath,
-        routeNodeId: exactPreviewRoute?.id,
-      }),
-    [composedRouteManifest, exactPreviewRoute?.id, previewPath]
-  );
-  const currentPath = previewPath || activeRoutePath;
+    }
+  }, [
+    blueprintKey,
+    blueprintState,
+    defaultViewportHeight,
+    defaultViewportWidth,
+    setBlueprintState,
+  ]);
 
+  const rootDocumentId = rootLocation?.documentId;
+  const rootNodeId = rootLocation?.nodeId;
+  const rootInstancePath = rootLocation?.instancePath;
+  const rootRole = rootLocation?.role;
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const createSnapshot = () =>
-      createRouteDebugSnapshot({
-        currentPath,
-        routes,
-        routeRuntimeContext: previewRuntimeContext,
-      });
-    window.__PRODIVIX_ROUTE_DEBUG_SNAPSHOT__ = createSnapshot;
-    return () => {
-      if (window.__PRODIVIX_ROUTE_DEBUG_SNAPSHOT__ === createSnapshot) {
-        delete window.__PRODIVIX_ROUTE_DEBUG_SNAPSHOT__;
-      }
-    };
-  }, [currentPath, previewRuntimeContext, routes]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    })
-  );
-  // 保存链路：Command edit sequence -> autosave -> server mutation ack。
-  const {
-    saveStatus,
-    saveTransport,
-    saveIndicatorTone,
-    saveIndicatorLabel,
-    isWorkspaceSaveDisabled,
-    hasPendingChanges,
-    saveNow,
-  } = useBlueprintAutosave({
-    token,
-    projectId: projectId ?? undefined,
-    documentEditSeq,
-    autosaveMode,
-    autosaveIntervalMs: autosaveInterval * 1000,
-    workspace,
-    activeDocument: activePirDocument,
-    canUpdateWorkspaceDocument,
-    workspaceCapabilitiesLoaded,
-    workspaceReadonly,
-    applyWorkspaceMutation,
-    adoptRebasedWorkspaceOperation,
-    openWorkspaceRevisionConflict,
-  });
-
-  useEditorShortcut('Mod+S', saveNow, {
-    scope: 'blueprint',
-    priority: 30,
-    enabled: autosaveMode === 'manual' && hasPendingChanges,
-    allowInEditable: true,
-  });
-  const handleAddRouteAtPath = async (path: string) => {
-    if (workspaceReadonly) return;
-    const value = path.trim();
-    if (!value) return;
-    const nextPath = normalizeRoutePath(value);
-    const existingRoute = routes.find((route) => route.path === nextPath);
-    if (existingRoute) {
-      setPreviewPath(nextPath);
-      setActiveRouteNodeId(existingRoute.id);
-      setNewPath('');
-      return;
-    }
-    const nextRouteId = createRouteId();
-    const applied = await persistRouteIntent({
-      type: 'create-page',
-      path: nextPath,
-      routeNodeId: nextRouteId,
-    });
-    if (applied) {
-      setPreviewPath(nextPath);
-      setActiveRouteNodeId(nextRouteId);
-    }
-    setNewPath('');
-  };
-
-  const handleAddRoute = () => {
-    void handleAddRouteAtPath(newPath);
-  };
-
-  const handleAddChildRoute = async (parentRouteNodeId: string) => {
-    if (workspaceReadonly) return;
-    const segment =
-      typeof window !== 'undefined'
-        ? window.prompt(
-            t('address.routeTree.childPrompt', {
-              defaultValue: 'Child route segment',
-            }),
-            'new-route'
-          )
-        : null;
-    const nextSegment = segment?.trim();
-    if (!nextSegment) return;
-    const nextRouteId = createRouteId();
-    const applied = await persistRouteIntent({
-      type: 'create-child-route',
-      parentRouteNodeId,
-      segment: nextSegment,
-      routeNodeId: nextRouteId,
-    });
-    if (applied) setActiveRouteNodeId(nextRouteId);
-  };
-
-  const handleCreateIndexRoute = async (parentRouteNodeId: string) => {
-    if (workspaceReadonly) return;
-    const nextRouteId = createRouteId();
-    const applied = await persistRouteIntent({
-      type: 'create-index',
-      parentRouteNodeId,
-      routeNodeId: nextRouteId,
-    });
-    if (applied) setActiveRouteNodeId(nextRouteId);
-  };
-
-  const handleRenameRoute = async (
-    routeNodeId: string,
-    currentLabel: string
-  ) => {
-    if (workspaceReadonly) return;
-    const route = routes.find((item) => item.id === routeNodeId);
-    if (route?.index) return;
-    const segment =
-      typeof window !== 'undefined'
-        ? window.prompt(
-            t('address.routeTree.renamePrompt', {
-              defaultValue: 'Route segment',
-            }),
-            currentLabel
-          )
-        : null;
-    const nextSegment = segment?.trim();
-    if (!nextSegment) return;
-    await persistRouteIntent({
-      type: 'rename-segment',
-      routeNodeId,
-      segment: nextSegment,
-    });
-  };
-
-  const handleMoveRoute = async (
-    routeNodeId: string,
-    direction: 'up' | 'down'
-  ) => {
-    if (workspaceReadonly) return;
-    const info = findRouteNodeParentInfo(routeManifest.root, routeNodeId);
-    if (!info?.parent) return;
-    const siblings = info.parent.children ?? [];
-    const nextIndex = direction === 'up' ? info.index - 1 : info.index + 1;
-    if (nextIndex < 0 || nextIndex >= siblings.length) return;
-    await persistRouteIntent({
-      type: 'move-route',
-      routeNodeId,
-      parentRouteNodeId: info.parent.id,
-      index: nextIndex,
-    });
-  };
-
-  const handleDeleteRoute = async (routeNodeId: string) => {
-    if (workspaceReadonly) return;
-    if (routeNodeId === routeManifest.root.id) return;
-    const confirmed =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm(
-            t('address.routeTree.deleteConfirm', {
-              defaultValue:
-                'Delete this route? Page, layout, and code documents will remain in Resources.',
-            })
-          );
-    if (!confirmed) return;
-    await persistRouteIntent({ type: 'delete-route', routeNodeId });
-  };
-
-  /**
-   * Canvas built-in `navigate` 的控制器出口。
-   *
-   * 调用链路：
-   * PIR 节点事件 -> PIRNode -> BlueprintEditorCanvas builtInActions.navigate
-   * -> controller.handleNavigateRequest
-   */
-  const handleNavigateRequest = (options: InteractionRequest) => {
-    const params = options.params ?? {};
-    const to = typeof params.to === 'string' ? params.to.trim() : '';
-    logRouteDebug('navigate request received', {
-      nodeId: options.nodeId,
-      trigger: options.trigger,
-      eventKey: options.eventKey,
-      params,
-      to,
-      previewPath,
-      previewActiveRouteNodeId: previewRuntimeContext.activeRouteNodeId,
-      event: getRouteDebugEventDetail(options.payload),
-    });
-    if (!to) {
-      logRouteDebug('navigate request ignored: empty target', {
-        nodeId: options.nodeId,
-        params,
-      });
-      return;
-    }
-    const navigationResult = resolveRouteNavigateTarget(
-      composedRouteManifest,
-      previewRuntimeContext,
-      { to }
+    setSelection(
+      rootDocumentId && rootNodeId && rootInstancePath && rootRole
+        ? {
+            documentId: rootDocumentId,
+            nodeId: rootNodeId,
+            instancePath: rootInstancePath,
+            role: rootRole,
+          }
+        : undefined
     );
-    logRouteDebug('navigate target resolved', {
-      requestedTo: to,
-      kind: navigationResult.kind,
-      currentPreviewPath: previewPath,
-      knownRoutes: routes.map((route) => ({
-        id: route.id,
-        path: route.path,
-        hasPage: route.hasPage,
-        hasLayout: route.hasLayout,
-        hasOutlet: route.hasOutlet,
-      })),
-      resolvedPath:
-        navigationResult.kind === 'internal'
-          ? navigationResult.runtimeContext.currentPath
-          : undefined,
-      resolvedActiveRouteNodeId:
-        navigationResult.kind === 'internal'
-          ? navigationResult.runtimeContext.activeRouteNodeId
-          : undefined,
-      matchChain:
-        navigationResult.kind === 'internal'
-          ? navigationResult.runtimeContext.matchChain.map((match) => ({
-              routeNodeId: match.routeNodeId,
-              path: match.path,
-              pageDocId: match.pageDocId,
-              layoutDocId: match.layoutDocId,
-            }))
-          : undefined,
-    });
-    if (navigationResult.kind === 'unmatched') {
-      setPreviewPath(navigationResult.path);
-      logRouteDebug('preview path updated to unmatched route', {
-        from: previewPath,
-        to: navigationResult.path,
-      });
-      return;
-    }
-    if (navigationResult.kind === 'external') {
+    setHiddenLocations([]);
+    setCompositionIssue(undefined);
+    setBlockingIssues([]);
+    setStatusMessage(null);
+  }, [entryDocumentId, rootDocumentId, rootInstancePath, rootNodeId, rootRole]);
+
+  useEffect(
+    () => () => {
       if (typeof window === 'undefined') return;
-      const { effectiveTarget } = resolveBrowserNavigateTarget(params.target);
-      const replace = Boolean(params.replace);
-      logRouteDebug('external preview navigation resolved', {
-        requestedTo: to,
-        url: navigationResult.url,
-        effectiveTarget,
-        replace,
-        nodeId: options.nodeId,
-        trigger: options.trigger,
-        eventKey: options.eventKey,
-        event: getRouteDebugEventDetail(options.payload),
-      });
-      openExternalNavigateTarget(navigationResult.url, {
-        target: effectiveTarget,
-        replace,
-        debugLabel: 'external preview',
-      });
-      return;
-    }
-
-    if (navigationResult.kind === 'internal') {
-      setPreviewPath(navigationResult.runtimeContext.currentPath);
-      setActiveRouteNodeId(
-        navigationResult.runtimeContext.activeRouteNodeId ?? undefined
+      Object.values(statusTimers.current).forEach((timer) =>
+        window.clearInterval(timer)
       );
-      logRouteDebug('preview path updated', {
-        from: previewPath,
-        to: navigationResult.runtimeContext.currentPath,
-        activeRouteNodeId: navigationResult.runtimeContext.activeRouteNodeId,
-      });
-    }
-  };
-
-  /**
-   * Canvas built-in `executeGraph` 的控制器出口。
-   *
-   * 调用链路：
-   * PIR 事件 -> PIRRenderer -> Canvas builtInActions.executeGraph ->
-   * controller -> NodeGraph Web adapter -> `@prodivix/nodegraph`。
-   */
-  const handleExecuteGraphRequest = useCallback(
-    (options: InteractionRequest) => {
-      void executeNodeGraphAction(
-        pirDoc.logic?.graphs ?? [],
-        {
-          nodeId: options.nodeId,
-          trigger: options.trigger,
-          eventKey: options.eventKey,
-          params: options.params,
-        },
-        {
-          onLog: (value) => console.log(value),
-        }
-      ).then((result) => {
-        if (!Object.keys(result.statePatch).length) return;
-        patchRuntimeState(blueprintKey, result.statePatch);
-      });
+      statusTimers.current = {};
     },
-    [blueprintKey, patchRuntimeState, pirDoc.logic?.graphs]
+    []
   );
-
-  const toggleGroup = (groupId: string, collapsed?: boolean) => {
-    setCollapsedGroups((prev) => ({
-      ...prev,
-      [groupId]: !(collapsed ?? prev[groupId]),
-    }));
-  };
-
-  const togglePreview = (previewId: string) => {
-    setExpandedPreviews((prev) => ({
-      ...prev,
-      [previewId]: !prev[previewId],
-    }));
-  };
-
-  const handlePreviewKeyDown = (
-    event: KeyboardEvent<HTMLDivElement>,
-    previewId: string,
-    hasVariants: boolean
-  ) => {
-    if (!hasVariants) return;
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      togglePreview(previewId);
-    }
-  };
-
-  const handleSizeSelect = (itemId: string, sizeId: string) => {
-    setSizeSelections((prev) => ({ ...prev, [itemId]: sizeId }));
-  };
-
-  const handleStatusSelect = (itemId: string, index: number) => {
-    setStatusSelections((prev) => ({ ...prev, [itemId]: index }));
-  };
-
-  const startStatusCycle = (itemId: string, total: number) => {
-    if (typeof window === 'undefined' || total < 2) return;
-    window.clearInterval(statusTimers.current[itemId]);
-    statusTimers.current[itemId] = window.setInterval(() => {
-      setStatusSelections((prev) => ({
-        ...prev,
-        [itemId]: ((prev[itemId] ?? 0) + 1) % total,
-      }));
-    }, 1200);
-  };
-
-  const stopStatusCycle = (itemId: string) => {
-    if (typeof window === 'undefined') return;
-    window.clearInterval(statusTimers.current[itemId]);
-    delete statusTimers.current[itemId];
-  };
-  const handleToggleSidebarCollapse = useCallback(() => {
-    setLibraryCollapsed((prev) => !prev);
-  }, []);
-  const handleToggleTreeCollapse = useCallback(() => {
-    setTreeCollapsed((prev) => !prev);
-  }, []);
-  const handleToggleInspectorCollapse = useCallback(() => {
-    setInspectorCollapsed((prev) => !prev);
-  }, []);
-
-  useEffect(() => {
-    if (blueprintState) return;
-    setBlueprintState(blueprintKey, initialBlueprintState);
-  }, [blueprintKey, blueprintState, initialBlueprintState, setBlueprintState]);
 
   useEffect(() => {
     if (panelLayout === 'focus') {
@@ -688,296 +278,616 @@ export const useBlueprintEditorController = () => {
       setInspectorCollapsed(true);
       return;
     }
-    if (panelLayout === 'wide') {
-      setLibraryCollapsed(false);
-      setInspectorCollapsed(true);
-      return;
-    }
     setLibraryCollapsed(false);
-    setInspectorCollapsed(false);
+    setInspectorCollapsed(panelLayout === 'wide');
   }, [panelLayout]);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    setInspectorCollapsed(false);
-  }, [selectedId]);
+  const routes = useMemo(
+    () => (workspace ? createRouteItems(workspace) : []),
+    [workspace]
+  );
+  const activeRoute = routes.find(
+    (route) => route.id === workspace?.activeRouteNodeId
+  );
+  const fallbackPath = activeRoute?.path ?? routes[0]?.path ?? '/';
+  const currentPath = normalizeRoutePath(
+    resolvedBlueprintState.routePreviewPath?.trim() || fallbackPath
+  );
+  const matchedRouteNodeId = routes.find(
+    (route) => route.path === currentPath
+  )?.id;
 
-  const handleZoomChange = (value: number) => {
-    const next = Math.min(
-      VIEWPORT_ZOOM_RANGE.max,
-      Math.max(VIEWPORT_ZOOM_RANGE.min, value)
+  const setPreviewPath = (path: string) => {
+    const normalized = normalizeRoutePath(path);
+    setBlueprintState(blueprintKey, { routePreviewPath: normalized });
+    const route = routes.find((item) => item.path === normalized);
+    if (!route) return;
+    setActiveRouteNodeId(route.id);
+    if (!workspace || lockEntryDocument) return;
+    const manifest = composeRouteManifestWithModules(
+      workspace.routeManifest
+    ).manifest;
+    const matched =
+      normalized === '/'
+        ? manifest.root
+        : flattenRouteManifest(manifest).find(
+            (item) => item.path === normalized
+          )?.node;
+    const nextDocumentId = matched?.pageDocId ?? matched?.layoutDocId;
+    if (
+      nextDocumentId &&
+      selectWorkspacePirDocument(workspace, nextDocumentId)?.status === 'valid'
+    ) {
+      setActiveDocumentId(nextDocumentId);
+    }
+  };
+
+  const applyRouteIntent = async (intent: WorkspaceRouteIntent) => {
+    if (!workspace || readonly) return false;
+    const plan = createWorkspaceRouteIntentPlan(workspace, intent, {
+      id: createWorkspaceClientOperationId('route'),
+      issuedAt: new Date().toISOString(),
+    });
+    if (!plan) {
+      setStatusMessage(
+        'The route action is invalid in this Workspace revision.'
+      );
+      return false;
+    }
+    const outcome =
+      plan.kind === 'command'
+        ? await applyCommand(plan.command)
+        : await applyTransaction(plan.transaction);
+    setStatusMessage(
+      outcome.status === 'applied' ? 'Route manifest updated.' : outcome.message
     );
-    setBlueprintState(blueprintKey, { zoom: next });
+    return outcome.status === 'applied';
   };
 
-  const handleViewportWidthChange = (value: string) => {
-    setBlueprintState(blueprintKey, { viewportWidth: value });
-  };
-
-  const handleViewportHeightChange = (value: string) => {
-    setBlueprintState(blueprintKey, { viewportHeight: value });
-  };
-
-  const handlePanChange = (nextPan: { x: number; y: number }) => {
-    setBlueprintState(blueprintKey, { pan: nextPan });
-  };
-
-  const handleInteractionModeChange = (mode: BlueprintInteractionMode) => {
-    persistInteractionMode(blueprintKey, mode);
-    setBlueprintState(blueprintKey, { interactionMode: mode });
-  };
-
-  const handleToggleInteractionMode = () => {
-    handleInteractionModeChange(
-      interactionMode === 'interactive' ? 'design' : 'interactive'
-    );
-  };
-
-  const handleResetView = () => {
-    setBlueprintState(blueprintKey, {
-      zoom: DEFAULT_BLUEPRINT_STATE.zoom,
-      pan: DEFAULT_BLUEPRINT_STATE.pan,
-    });
-  };
-
-  const handleNodeSelect = (nodeId: string) => {
-    setInspectorCollapsed(false);
-    if (selectedId === nodeId) return;
-    setBlueprintState(blueprintKey, { selectedId: nodeId });
-  };
-
-  const handleToggleNodeHidden = (nodeId: string) => {
-    if (!nodeId) return;
-    if (nodeId === pirDoc.ui.graph.rootId) return;
-    if (!pirDoc.ui.graph.nodesById[nodeId]) return;
-    const currentHiddenNodeIds = resolvedBlueprintState.hiddenNodeIds ?? [];
-    setBlueprintState(blueprintKey, {
-      hiddenNodeIds: currentHiddenNodeIds.includes(nodeId)
-        ? currentHiddenNodeIds.filter((id) => id !== nodeId)
-        : [...currentHiddenNodeIds, nodeId],
-    });
-  };
-
-  const handleAddComponent = (
-    itemId: string,
-    selection: PaletteItemSelection = {}
-  ) => {
-    if (workspaceReadonly) return;
-    const result = applyPaletteItemInsertion(pirDoc, palette, {
-      workspaceId,
-      documentId: activeDocumentId,
-      documentType: activePirDocument.type,
-      itemId,
-      preferredTargetId: selectedId ?? pirDoc.ui.graph.rootId,
-      selection,
-    });
-    if (result.ok === false) {
-      if (result.compositionIssue) {
-        setCompositionIssue(result.compositionIssue);
-      }
+  const handleAddRouteAtPath = async (path: string) => {
+    const nextPath = normalizeRoutePath(path.trim());
+    const existing = routes.find((route) => route.path === nextPath);
+    if (existing) {
+      setPreviewPath(existing.path);
+      setNewPath('');
       return;
     }
-    const applied = dispatchWorkspaceCommand(result.command);
-    if (!applied?.ok) return;
-    setCompositionIssue(undefined);
-    handleNodeSelect(result.nextNodeId);
+    const routeNodeId = createWorkspaceClientOperationId('route-node');
+    if (
+      await applyRouteIntent({
+        type: 'create-page',
+        path: nextPath,
+        routeNodeId,
+      })
+    ) {
+      setActiveRouteNodeId(routeNodeId);
+      setPreviewPath(nextPath);
+    }
+    setNewPath('');
   };
 
-  // 拖拽链路：DndContext 事件 -> Command -> 选中态更新。
-  const {
-    isDragging,
-    activePaletteItemId,
-    treeDropHint,
-    handleDragStart,
-    handleDragMove,
-    handleDragCancel,
-    handleDragEnd,
-  } = useBlueprintDragDrop({
-    pirDoc,
-    workspaceId,
-    documentId: activeDocumentId,
-    selectedId,
-    palette,
-    documentType: activePirDocument.type,
-    updateActivePirDocument,
-    dispatchWorkspaceCommand,
-    onNodeSelect: handleNodeSelect,
-    onCompositionIssue: setCompositionIssue,
+  const handleAddChildRoute = async (parentRouteNodeId: string) => {
+    const segment =
+      typeof window === 'undefined'
+        ? null
+        : window.prompt('Child route segment', 'new-route');
+    if (!segment?.trim()) return;
+    const routeNodeId = createWorkspaceClientOperationId('route-node');
+    if (
+      await applyRouteIntent({
+        type: 'create-child-route',
+        parentRouteNodeId,
+        segment: segment.trim(),
+        routeNodeId,
+      })
+    ) {
+      setActiveRouteNodeId(routeNodeId);
+    }
+  };
+
+  const handleCreateIndexRoute = async (parentRouteNodeId: string) => {
+    const routeNodeId = createWorkspaceClientOperationId('route-node');
+    if (
+      await applyRouteIntent({
+        type: 'create-index',
+        parentRouteNodeId,
+        routeNodeId,
+      })
+    ) {
+      setActiveRouteNodeId(routeNodeId);
+    }
+  };
+
+  const handleRenameRoute = async (
+    routeNodeId: string,
+    currentLabel: string
+  ) => {
+    const segment =
+      typeof window === 'undefined'
+        ? null
+        : window.prompt('Route segment', currentLabel);
+    if (!segment?.trim()) return;
+    await applyRouteIntent({
+      type: 'rename-segment',
+      routeNodeId,
+      segment: segment.trim(),
+    });
+  };
+
+  const handleMoveRoute = async (
+    routeNodeId: string,
+    direction: 'up' | 'down'
+  ) => {
+    const route = routes.find((item) => item.id === routeNodeId);
+    if (!route?.parentId) return;
+    const siblings = routes.filter((item) => item.parentId === route.parentId);
+    const currentIndex = siblings.findIndex((item) => item.id === routeNodeId);
+    const index = currentIndex + (direction === 'up' ? -1 : 1);
+    if (index < 0 || index >= siblings.length) return;
+    await applyRouteIntent({
+      type: 'move-route',
+      routeNodeId,
+      parentRouteNodeId: route.parentId,
+      index,
+    });
+  };
+
+  const handleDeleteRoute = async (routeNodeId: string) => {
+    if (routeNodeId === workspace?.routeManifest.root.id) return;
+    const confirmed =
+      typeof window === 'undefined' ||
+      window.confirm(
+        'Delete this route? Its page, layout, and code documents remain in Resources.'
+      );
+    if (confirmed) {
+      await applyRouteIntent({ type: 'delete-route', routeNodeId });
+    }
+  };
+
+  const moveTreeNode = async (
+    source: PIRRenderLocation,
+    target: PIRRenderLocation,
+    placement: BlueprintTreeDropPlacement
+  ) => {
+    if (!workspace || readonly || source.documentId !== target.documentId) {
+      setStatusMessage(
+        'PIR subtrees can only move inside their owner document.'
+      );
+      return;
+    }
+    const resolved = resolveBlueprintTreePlacement(
+      workspace,
+      target,
+      placement
+    );
+    if (!resolved) {
+      setStatusMessage('The target does not expose a legal PIR placement.');
+      return;
+    }
+    const result = createWorkspacePIRSubtreeMoveTransactionPlan({
+      workspace,
+      baseRevision: workspace.workspaceRev,
+      transactionId: createWorkspaceClientOperationId('pir-move'),
+      issuedAt: new Date().toISOString(),
+      documentId: source.documentId,
+      nodeId: source.nodeId,
+      target: resolved.placement,
+    });
+    if (result.status === 'rejected') {
+      setStatusMessage(firstIssueMessage(result));
+      return;
+    }
+    const outcome = await applyTransaction(result.plan.transaction);
+    setStatusMessage(
+      outcome.status === 'applied' ? 'Moved PIR subtree.' : outcome.message
+    );
+  };
+
+  const deleteTreeNode = async (location: PIRRenderLocation) => {
+    if (!workspace || readonly) return;
+    const result = createWorkspacePIRSubtreeDeleteTransactionPlan({
+      workspace,
+      baseRevision: workspace.workspaceRev,
+      transactionId: createWorkspaceClientOperationId('pir-delete'),
+      issuedAt: new Date().toISOString(),
+      documentId: location.documentId,
+      nodeId: location.nodeId,
+    });
+    if (result.status === 'rejected') {
+      setStatusMessage(firstIssueMessage(result));
+      return;
+    }
+    const outcome = await applyTransaction(result.plan.transaction);
+    if (outcome.status === 'applied') {
+      setSelection(rootLocation);
+      setHiddenLocations((current) =>
+        current.filter(
+          (candidate) =>
+            Boolean(
+              result.plan.nextDocumentContent.ui.graph.nodesById[
+                candidate.nodeId
+              ]
+            ) || candidate.documentId !== location.documentId
+        )
+      );
+      setStatusMessage('Deleted PIR subtree.');
+    } else {
+      setStatusMessage(outcome.message);
+    }
+  };
+
+  const duplicateTreeNode = async (location: PIRRenderLocation) => {
+    if (!workspace || readonly) return;
+    const target = resolveBlueprintTreePlacement(workspace, location, 'after');
+    if (!target) return;
+    const transactionId = createWorkspaceClientOperationId('pir-duplicate');
+    const result = createWorkspacePIRSubtreeDuplicateTransactionPlan({
+      workspace,
+      baseRevision: workspace.workspaceRev,
+      transactionId,
+      issuedAt: new Date().toISOString(),
+      documentId: location.documentId,
+      nodeId: location.nodeId,
+      target: target.placement,
+      createId: createBlueprintDuplicateIdFactory(transactionId),
+    });
+    if (result.status === 'rejected') {
+      setStatusMessage(firstIssueMessage(result));
+      return;
+    }
+    const outcome = await applyTransaction(result.plan.transaction);
+    if (outcome.status === 'applied' && result.plan.selectedNodeId) {
+      setSelection({ ...location, nodeId: result.plan.selectedNodeId });
+      setStatusMessage('Duplicated PIR subtree.');
+    } else if (outcome.status === 'rejected') {
+      setStatusMessage(outcome.message);
+    }
+  };
+
+  const insertPaletteItem = async (
+    itemId: string,
+    itemSelection: PaletteItemSelection = {},
+    targetLocation = selection ?? rootLocation,
+    dropPlacement?: BlueprintTreeDropPlacement
+  ) => {
+    if (!workspace || readonly || !targetLocation) return;
+    const target = dropPlacement
+      ? resolveBlueprintTreePlacement(workspace, targetLocation, dropPlacement)
+      : resolveBlueprintInsertionPlacement(workspace, targetLocation);
+    if (!target) {
+      setStatusMessage('The selected node does not expose an insertion slot.');
+      return;
+    }
+    const read = selectWorkspacePirDocument(workspace, target.documentId);
+    if (read?.status !== 'valid') return;
+    const planned = applyPaletteItemInsertion(read.decodedContent, palette, {
+      workspaceId: workspace.id,
+      documentId: read.document.id,
+      documentType: read.document.type,
+      itemId,
+      target: target.placement,
+      selection: itemSelection,
+      commandId: createWorkspaceClientOperationId('palette-insert'),
+      issuedAt: new Date().toISOString(),
+    });
+    if (planned.ok === false) {
+      setCompositionIssue(planned.compositionIssue);
+      setStatusMessage(planned.reason);
+      return;
+    }
+    const outcome = await applyCommand(planned.command);
+    if (outcome.status === 'rejected') {
+      setStatusMessage(outcome.message);
+      return;
+    }
+    setCompositionIssue(undefined);
+    setSelection({
+      documentId: read.document.id,
+      nodeId: planned.nextNodeId,
+      instancePath:
+        targetLocation.documentId === read.document.id
+          ? targetLocation.instancePath
+          : createBlueprintRootLocation(
+              read.document.id,
+              read.decodedContent,
+              read.document.type === 'pir-component' ? 'definition' : 'source'
+            ).instancePath,
+      role:
+        targetLocation.documentId === read.document.id
+          ? targetLocation.role
+          : read.document.type === 'pir-component'
+            ? 'definition'
+            : 'source',
+    });
+    setStatusMessage(
+      `Inserted ${palette.getItemById(itemId)?.name ?? itemId}.`
+    );
+  };
+
+  const dragDrop = useBlueprintCanonicalDragDrop({
+    workspace: workspace ?? undefined,
+    selectedLocation: selection,
+    rootLocation,
+    onInsertPaletteItem: (itemId, itemSelection, target, placement) => {
+      void insertPaletteItem(itemId, itemSelection, target, placement);
+    },
+    onMoveTreeNode: (source, target, placement) => {
+      void moveTreeNode(source, target, placement);
+    },
   });
 
-  const deleteBlueprintNode = (nodeId: string) => {
-    if (workspaceReadonly) return;
-    if (!nodeId || nodeId === pirDoc.ui.graph.rootId) return;
-    const parent = getParentMap(pirDoc.ui.graph)[nodeId];
-    if (!parent) return;
-    const removedNodeIds = new Set<string>();
-    collectGraphSubtreeIds(pirDoc.ui.graph, nodeId, removedNodeIds);
-    const graph = removeNode(pirDoc.ui.graph, nodeId);
-    if (graph === pirDoc.ui.graph) return;
-    const issue = validateBlueprintComposition(graph, palette, [
-      parent.parentId,
-    ]);
-    if (issue) {
-      setCompositionIssue(issue);
+  const toggleHidden = (location: PIRRenderLocation) => {
+    setHiddenLocations((current) => {
+      const key = pirRenderLocationKey(location);
+      return current.some(
+        (candidate) => pirRenderLocationKey(candidate) === key
+      )
+        ? current.filter((candidate) => pirRenderLocationKey(candidate) !== key)
+        : [...current, location];
+    });
+  };
+
+  const handleDirectionalMove = async (
+    location: PIRRenderLocation,
+    direction: 'up' | 'down'
+  ) => {
+    if (!workspace || readonly) return;
+    const target = resolveBlueprintDirectionalMoveTarget(
+      workspace,
+      location,
+      direction
+    );
+    if (!target) return;
+    const result = createWorkspacePIRSubtreeMoveTransactionPlan({
+      workspace,
+      baseRevision: workspace.workspaceRev,
+      transactionId: createWorkspaceClientOperationId('pir-move'),
+      issuedAt: new Date().toISOString(),
+      documentId: location.documentId,
+      nodeId: location.nodeId,
+      target: target.placement,
+    });
+    if (result.status === 'rejected') {
+      setStatusMessage(firstIssueMessage(result));
       return;
     }
-    const transaction = createNodeDeleteTransaction({
+    const outcome = await applyTransaction(result.plan.transaction);
+    if (outcome.status === 'rejected') setStatusMessage(outcome.message);
+  };
+
+  const openComponentDefinition = (documentId: string) => {
+    if (!projectId || !workspace) return;
+    const result = navigateToWorkspaceSemanticTarget({
+      projectId,
+      navigate,
+      preferredSurface: 'component',
+      resolveSemanticIndex: resolveWorkspaceSemanticIndex,
+      target: {
+        kind: 'semantic-symbol',
+        symbolId: createComponentSymbolId(workspace.id, documentId),
+        destination: { kind: 'definition' },
+      },
+    });
+    if (result.status === 'unavailable') {
+      setStatusMessage('The Component Definition is unavailable.');
+    }
+  };
+
+  const findComponentReferences = (documentId: string) => {
+    if (!projectId || !workspace) return;
+    const result = navigateToWorkspaceSemanticTarget({
+      projectId,
+      navigate,
+      resolveSemanticIndex: resolveWorkspaceSemanticIndex,
+      target: {
+        kind: 'semantic-symbol',
+        symbolId: createComponentSymbolId(workspace.id, documentId),
+        destination: { kind: 'reference', preferSourceSpan: false },
+      },
+    });
+    if (result.status === 'unavailable') {
+      setStatusMessage('No Component reference is available.');
+    }
+  };
+
+  const openCodeArtifact = (artifactId: string) => {
+    if (!projectId) return;
+    const result = navigateToWorkspaceSemanticTarget({
+      projectId,
+      navigate,
+      target: {
+        kind: 'diagnostic-target',
+        targetRef: { kind: 'code-artifact', artifactId },
+      },
+    });
+    if (result.status === 'unavailable') {
+      setStatusMessage('The referenced CodeArtifact is unavailable.');
+    }
+  };
+
+  const openCodeSlotDefinition = (slotId: string) => {
+    if (!projectId || !workspace) return;
+    const result = navigateToWorkspaceCodeSlotDefinition({
+      projectId,
       workspace,
-      document: activePirDocument,
-      afterGraph: graph,
-      removedNodeIds,
-      label: 'Delete component',
+      slotId,
+      navigate,
     });
-    if (!transaction) return;
-    const applied = dispatchWorkspaceTransaction(transaction);
-    if (!applied?.ok) return;
-    setCompositionIssue(undefined);
-    setBlueprintState(blueprintKey, {
-      ...(selectedId && removedNodeIds.has(selectedId)
-        ? { selectedId: parent.parentId }
-        : {}),
-      hiddenNodeIds: hiddenNodeIds.filter((id) => !removedNodeIds.has(id)),
-    });
+    if (result.status === 'unavailable') {
+      setStatusMessage('The CodeSlot definition is unavailable.');
+    }
   };
 
-  const handleDeleteSelected = () => {
-    if (selectedId) deleteBlueprintNode(selectedId);
-  };
-
-  const handleDeleteNode = (nodeId: string) => {
-    deleteBlueprintNode(nodeId);
-  };
-
-  const handleCopyNode = (nodeId: string) => {
-    if (workspaceReadonly) return;
-    if (!nodeId) return;
-    let nextNodeId = '';
-    let nextCompositionIssue: BlueprintCompositionIssue | undefined;
-    updateActivePirDocument((doc) => {
-      if (nodeId === doc.ui.graph.rootId) return doc;
-      const parent = getParentMap(doc.ui.graph)[nodeId];
-      if (!parent) return doc;
-      const createId = createNodeIdFactory(doc);
-      const fragment = instantiateUiGraphSubtreeClone(
-        doc.ui.graph,
-        nodeId,
-        createId
-      );
-      if (!fragment) return doc;
-      const insertion = insertUiGraphFragment(doc.ui.graph, fragment, {
-        parentId: parent.parentId,
-        index: parent.index + 1,
-        ...(parent.regionName ? { regionName: parent.regionName } : {}),
+  const dispatchTrigger = (request: PIRTriggerDispatchRequest) => {
+    const trigger = request.trigger;
+    if (trigger.kind === 'open-url') {
+      if (typeof window !== 'undefined') {
+        window.open(trigger.href, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+    if (trigger.kind === 'navigate-route') {
+      const route = routes.find((item) => item.id === trigger.routeId);
+      if (route) setPreviewPath(route.path);
+      else setStatusMessage(`Route ${trigger.routeId} is unavailable.`);
+      return;
+    }
+    if (trigger.kind === 'run-nodegraph') {
+      const document = workspace?.docsById[trigger.documentId];
+      if (!document || document.type !== 'pir-graph') {
+        setStatusMessage(
+          `NodeGraph document ${trigger.documentId} is unavailable.`
+        );
+        return;
+      }
+      void executeNodeGraphAction(document.content, {
+        documentId: document.id,
+        nodeId: request.source.nodeId,
+        trigger: 'pir-event',
+        eventKey: request.source.instancePath,
+        params:
+          trigger.inputMapping && typeof trigger.inputMapping === 'object'
+            ? (trigger.inputMapping as Record<string, unknown>)
+            : undefined,
+        input: request.payload,
+      }).then((result) => {
+        if (Object.keys(result.statePatch).length > 0) {
+          patchRuntimeState(blueprintKey, result.statePatch);
+        }
+        if (result.status !== 'completed') {
+          setStatusMessage(
+            `NodeGraph execution stopped with status ${result.status}.`
+          );
+        }
       });
-      if (!insertion.ok) return doc;
-      nextNodeId = fragment.primaryNodeId;
-      const issue = validateBlueprintComposition(insertion.graph, palette, [
-        ...Object.keys(fragment.nodesById),
-        parent.parentId,
-      ]);
-      if (issue) {
-        nextCompositionIssue = issue;
-        nextNodeId = '';
-        return doc;
-      }
-      return {
-        ...doc,
-        ui: { graph: insertion.graph },
-      };
-    });
-    if (nextCompositionIssue) setCompositionIssue(nextCompositionIssue);
-    if (nextNodeId) {
-      setCompositionIssue(undefined);
-      handleNodeSelect(nextNodeId);
+      return;
     }
+    if (trigger.kind === 'play-animation') {
+      setStatusMessage(
+        `Animation ${trigger.documentId} requires an ExecutionProvider.`
+      );
+      return;
+    }
+    setStatusMessage(
+      `CodeArtifact ${trigger.reference.artifactId} requires a Code ExecutionProvider.`
+    );
   };
 
-  const handleMoveNode = (nodeId: string, direction: 'up' | 'down') => {
-    if (workspaceReadonly) return;
-    if (!nodeId) return;
-    let moved = false;
-    let nextCompositionIssue: BlueprintCompositionIssue | undefined;
-    updateActivePirDocument((doc) => {
-      if (nodeId === doc.ui.graph.rootId) return doc;
-      const parent = getParentMap(doc.ui.graph)[nodeId];
-      if (!parent || parent.regionName) return doc;
-      const siblings = doc.ui.graph.childIdsById[parent.parentId] ?? [];
-      const currentIndex = siblings.indexOf(nodeId);
-      if (currentIndex === -1) return doc;
-      const targetIndex =
-        direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-      if (targetIndex < 0 || targetIndex >= siblings.length) return doc;
-      const graph = moveNode(
-        doc.ui.graph,
-        nodeId,
-        parent.parentId,
-        targetIndex
-      );
-      moved = graph !== doc.ui.graph;
-      if (!moved) return doc;
-      const issue = validateBlueprintComposition(graph, palette, [
-        parent.parentId,
-      ]);
-      if (issue) {
-        nextCompositionIssue = issue;
-        moved = false;
-        return doc;
-      }
-      return { ...doc, ui: { graph } };
-    });
-    if (nextCompositionIssue) setCompositionIssue(nextCompositionIssue);
-    if (moved) {
-      setCompositionIssue(undefined);
-      handleNodeSelect(nodeId);
-    }
-  };
+  const saveIndicator = useWorkspaceSaveIndicator({
+    workspaceId: workspace?.id,
+    readonly,
+  });
+  const selectedCollectionPreview = selection
+    ? (collectionPreviewByLocation[collectionPreviewKey(selection)] ??
+      AUTO_COLLECTION_PREVIEW)
+    : AUTO_COLLECTION_PREVIEW;
 
-  useEffect(() => {
-    return () => {
-      if (typeof window === 'undefined') return;
-      Object.values(statusTimers.current).forEach((timer) =>
-        window.clearInterval(timer)
-      );
-      statusTimers.current = {};
-    };
-  }, []);
+  const toggleGroup = (groupId: string, collapsed: boolean) => {
+    setCollapsedGroups((current) => ({
+      ...current,
+      [groupId]: !collapsed,
+    }));
+  };
+  const togglePreview = (previewId: string) => {
+    setExpandedPreviews((current) => ({
+      ...current,
+      [previewId]: !current[previewId],
+    }));
+  };
+  const handlePreviewKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    previewId: string,
+    hasVariants: boolean
+  ) => {
+    if (!hasVariants || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    togglePreview(previewId);
+  };
+  const startStatusCycle = (itemId: string, total: number) => {
+    if (typeof window === 'undefined' || total < 2) return;
+    window.clearInterval(statusTimers.current[itemId]);
+    statusTimers.current[itemId] = window.setInterval(() => {
+      setStatusSelections((current) => ({
+        ...current,
+        [itemId]: ((current[itemId] ?? 0) + 1) % total,
+      }));
+    }, 1200);
+  };
+  const stopStatusCycle = (itemId: string) => {
+    if (typeof window === 'undefined') return;
+    window.clearInterval(statusTimers.current[itemId]);
+    delete statusTimers.current[itemId];
+  };
+  const handleBlockingIssues = useCallback(
+    (issues: readonly PIRRendererBlockingIssue[]) => {
+      setBlockingIssues((current) => {
+        const previousKey = current
+          .map((issue) => `${issue.code}:${issue.path}`)
+          .join('\u0000');
+        const nextKey = issues
+          .map((issue) => `${issue.code}:${issue.path}`)
+          .join('\u0000');
+        return previousKey === nextKey ? current : issues;
+      });
+    },
+    []
+  );
 
   return {
-    dnd: {
-      sensors,
-      isDragging,
-      activePaletteItemId,
-      handleDragStart,
-      handleDragMove,
-      handleDragCancel,
-      handleDragEnd,
+    workspace,
+    entry,
+    entryDocumentId,
+    rendererHost,
+    readonly,
+    rootLocation,
+    statusMessage,
+    dismissStatusMessage: () => setStatusMessage(null),
+    officialPluginRuntime,
+    extraction: {
+      open: extractionOpen,
+      selection,
+      onOpen: () => setExtractionOpen(true),
+      onClose: () => setExtractionOpen(false),
+      onApplied: (sourceDocumentId: string, instanceNodeId: string) => {
+        setActiveDocumentId(sourceDocumentId);
+        const read = selectWorkspacePirDocument(
+          workspace ?? undefined,
+          sourceDocumentId
+        );
+        if (read?.status === 'valid') {
+          setSelection({
+            ...createBlueprintRootLocation(
+              sourceDocumentId,
+              read.decodedContent,
+              'source'
+            ),
+            nodeId: instanceNodeId,
+          });
+        }
+        setStatusMessage('Component extraction applied.');
+      },
     },
-    saveIndicator: {
-      saveStatus,
-      saveTransport,
-      saveIndicatorTone,
-      saveIndicatorLabel,
-      isWorkspaceSaveDisabled,
-      hasPendingChanges,
-      isManualSave: autosaveMode === 'manual',
-      onSaveNow: saveNow,
-    },
+    dnd: dragDrop,
+    saveIndicator,
     addressBar: {
       currentPath,
       newPath,
       routes,
-      matchedRouteNodeId: previewRuntimeContext.activeRouteNodeId,
-      onCurrentPathChange: (value: string) => {
-        setPreviewPath(value);
-      },
+      matchedRouteNodeId,
+      onCurrentPathChange: setPreviewPath,
       onNewPathChange: setNewPath,
-      onAddRoute: handleAddRoute,
-      onAddRouteAtPath: handleAddRouteAtPath,
-      onAddChildRoute: handleAddChildRoute,
-      onCreateIndexRoute: handleCreateIndexRoute,
-      onRenameRoute: handleRenameRoute,
-      onMoveRoute: handleMoveRoute,
-      onDeleteRoute: handleDeleteRoute,
+      onAddRoute: () => void handleAddRouteAtPath(newPath),
+      onAddRouteAtPath: (path: string) => void handleAddRouteAtPath(path),
+      onAddChildRoute: (routeNodeId: string) =>
+        void handleAddChildRoute(routeNodeId),
+      onCreateIndexRoute: (routeNodeId: string) =>
+        void handleCreateIndexRoute(routeNodeId),
+      onRenameRoute: (routeNodeId: string, currentLabel: string) =>
+        void handleRenameRoute(routeNodeId, currentLabel),
+      onMoveRoute: (routeNodeId: string, direction: 'up' | 'down') =>
+        void handleMoveRoute(routeNodeId, direction),
+      onDeleteRoute: (routeNodeId: string) =>
+        void handleDeleteRoute(routeNodeId),
     },
     sidebar: {
       isCollapsed: isLibraryCollapsed,
@@ -986,63 +896,140 @@ export const useBlueprintEditorController = () => {
       expandedPreviews,
       sizeSelections,
       statusSelections,
-      onToggleCollapse: handleToggleSidebarCollapse,
+      onToggleCollapse: () => setLibraryCollapsed((current) => !current),
       onToggleGroup: toggleGroup,
       onTogglePreview: togglePreview,
       onPreviewKeyDown: handlePreviewKeyDown,
-      onAddComponent: handleAddComponent,
-      onSizeSelect: handleSizeSelect,
-      onStatusSelect: handleStatusSelect,
+      onAddComponent: (itemId: string, itemSelection?: PaletteItemSelection) =>
+        void insertPaletteItem(itemId, itemSelection),
+      onSizeSelect: (itemId: string, sizeId: string) =>
+        setSizeSelections((current) => ({ ...current, [itemId]: sizeId })),
+      onStatusSelect: (itemId: string, index: number) =>
+        setStatusSelections((current) => ({ ...current, [itemId]: index })),
       onStatusCycleStart: startStatusCycle,
       onStatusCycleStop: stopStatusCycle,
     },
     componentTree: {
       isCollapsed: isTreeCollapsed,
       isTreeCollapsed,
-      selectedId,
-      hiddenNodeIds,
-      dropHint: treeDropHint,
+      selectedLocation: selection,
+      hiddenLocations,
+      dropHint: dragDrop.treeDropHint,
       compositionIssue,
-      onToggleCollapse: handleToggleTreeCollapse,
-      onSelectNode: handleNodeSelect,
-      onDeleteSelected: handleDeleteSelected,
-      onDeleteNode: handleDeleteNode,
-      onCopyNode: handleCopyNode,
-      onMoveNode: handleMoveNode,
-      onToggleNodeHidden: handleToggleNodeHidden,
+      onToggleCollapse: () => setTreeCollapsed((current) => !current),
+      onSelectNode: (location: PIRRenderLocation) => {
+        setSelection(location);
+        setInspectorCollapsed(false);
+      },
+      onDeleteSelected: () => {
+        if (selection) void deleteTreeNode(selection);
+      },
+      onDeleteNode: (location: PIRRenderLocation) =>
+        void deleteTreeNode(location),
+      onCopyNode: (location: PIRRenderLocation) =>
+        void duplicateTreeNode(location),
+      onMoveNode: (location: PIRRenderLocation, direction: 'up' | 'down') =>
+        void handleDirectionalMove(location, direction),
+      onToggleNodeHidden: toggleHidden,
       onOpenRoutePath: setPreviewPath,
     },
     canvas: {
-      interactionMode,
-      viewportWidth,
-      viewportHeight,
-      zoom,
-      pan,
-      selectedId,
-      hiddenNodeIds,
-      runtimeState,
-      onPanChange: handlePanChange,
-      onZoomChange: handleZoomChange,
-      onSelectNode: handleNodeSelect,
-      onNavigateRequest: handleNavigateRequest,
-      onExecuteGraphRequest: handleExecuteGraphRequest,
+      interactionMode: resolvedBlueprintState.interactionMode,
+      viewportWidth: resolvedBlueprintState.viewportWidth,
+      viewportHeight: resolvedBlueprintState.viewportHeight,
+      zoom: resolvedBlueprintState.zoom,
+      pan: resolvedBlueprintState.pan,
+      selectedLocation: selection,
+      hiddenLocations,
+      rootStateById: runtimeState,
+      blockingIssues,
+      onPanChange: (pan: { x: number; y: number }) =>
+        setBlueprintState(blueprintKey, { pan }),
+      onZoomChange: (zoom: number) =>
+        setBlueprintState(blueprintKey, { zoom: clampZoom(zoom) }),
+      onSelectNode: (location: PIRRenderLocation) => {
+        setSelection(location);
+        setInspectorCollapsed(false);
+      },
+      onBlockingIssuesChange: handleBlockingIssues,
+      resolveCollectionPreviewState: (
+        location: PIRCollectionProjectionLocation
+      ) => collectionPreviewByLocation[collectionPreviewKey(location)],
+      dispatchTrigger,
     },
     inspector: {
       isCollapsed: isInspectorCollapsed,
-      onToggleCollapse: handleToggleInspectorCollapse,
+      selection,
+      collectionPreview: selectedCollectionPreview,
+      onToggleCollapse: () => setInspectorCollapsed((current) => !current),
+      onSelectLocation: (location: PIRRenderLocation) => {
+        setSelection(location);
+        setInspectorCollapsed(false);
+      },
+      onCollectionPreviewChange: (preview: PIRCollectionPreviewInput) => {
+        if (!selection) return;
+        setCollectionPreviewByLocation((current) => ({
+          ...current,
+          [collectionPreviewKey(selection)]: preview,
+        }));
+      },
+      onUpdateInstanceBindings: async (input: {
+        documentId: string;
+        instanceNodeId: string;
+        bindings: PIRComponentInstanceBindings;
+      }) => {
+        const outcome = await updateInstanceBindings(input);
+        setStatusMessage(
+          outcome.status === 'applied'
+            ? 'Component Instance bindings updated.'
+            : outcome.message
+        );
+      },
+      onUpdateCollection: async (input: {
+        documentId: string;
+        collection: PIRCollectionNode;
+        regions: PIRCollectionRegions;
+      }) => {
+        const outcome = await updateCollection(input);
+        setStatusMessage(
+          outcome.status === 'applied' ? 'Collection updated.' : outcome.message
+        );
+      },
+      onOpenDefinition: openComponentDefinition,
+      onFindReferences: findComponentReferences,
+      onOpenCodeArtifact: openCodeArtifact,
+      onOpenCodeSlotDefinition: openCodeSlotDefinition,
+      onExtract: () => setExtractionOpen(true),
+      onStatus: setStatusMessage,
     },
     viewportBar: {
-      interactionMode,
-      onInteractionModeChange: handleInteractionModeChange,
-      onToggleInteractionMode: handleToggleInteractionMode,
-      viewportWidth,
-      viewportHeight,
-      onViewportWidthChange: handleViewportWidthChange,
-      onViewportHeightChange: handleViewportHeightChange,
-      zoom,
+      interactionMode: resolvedBlueprintState.interactionMode,
+      onInteractionModeChange: (interactionMode: 'design' | 'interactive') =>
+        setBlueprintState(blueprintKey, { interactionMode }),
+      onToggleInteractionMode: () =>
+        setBlueprintState(blueprintKey, {
+          interactionMode:
+            resolvedBlueprintState.interactionMode === 'design'
+              ? 'interactive'
+              : 'design',
+        }),
+      viewportWidth: resolvedBlueprintState.viewportWidth,
+      viewportHeight: resolvedBlueprintState.viewportHeight,
+      onViewportWidthChange: (viewportWidth: string) =>
+        setBlueprintState(blueprintKey, { viewportWidth }),
+      onViewportHeightChange: (viewportHeight: string) =>
+        setBlueprintState(blueprintKey, { viewportHeight }),
+      zoom: resolvedBlueprintState.zoom,
       zoomStep,
-      onZoomChange: handleZoomChange,
-      onResetView: handleResetView,
+      onZoomChange: (zoom: number) =>
+        setBlueprintState(blueprintKey, { zoom: clampZoom(zoom) }),
+      onResetView: () =>
+        setBlueprintState(blueprintKey, {
+          viewportWidth: defaultViewportWidth,
+          viewportHeight: defaultViewportHeight,
+          zoom: VIEWPORT_ZOOM_RANGE.default,
+          pan: { x: 80, y: 60 },
+        }),
     },
   };
 };

@@ -5,6 +5,7 @@ type TriggerGraphFieldsProps = {
   graphMode: 'new' | 'existing';
   graphName: string;
   selectedGraphId: string;
+  disabled?: boolean;
 };
 
 export function TriggerGraphFields({
@@ -12,6 +13,7 @@ export function TriggerGraphFields({
   graphMode,
   graphName,
   selectedGraphId,
+  disabled = false,
 }: TriggerGraphFieldsProps) {
   const { t, updateTrigger, graphOptions } = useInspectorContext();
   const selectedGraphOption = graphOptions.find(
@@ -27,16 +29,7 @@ export function TriggerGraphFields({
           title={t('inspector.groups.triggers.graph.newHelp', {
             defaultValue: 'Create and execute a new node graph.',
           })}
-          onClick={() => {
-            updateTrigger(itemKey, (currentEvent) => ({
-              ...currentEvent,
-              params: {
-                ...(currentEvent.params ?? {}),
-                graphMode: 'new',
-                graphId: '',
-              },
-            }));
-          }}
+          disabled
         >
           {t('inspector.groups.triggers.graph.new', {
             defaultValue: 'New Graph',
@@ -59,6 +52,7 @@ export function TriggerGraphFields({
               },
             }));
           }}
+          disabled={disabled || graphOptions.length === 0}
         >
           {t('inspector.groups.triggers.graph.select', {
             defaultValue: 'Select Graph',
@@ -69,6 +63,7 @@ export function TriggerGraphFields({
         <input
           className="h-7 w-full min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none placeholder:text-(--text-muted)"
           value={graphName}
+          disabled
           title={t('inspector.groups.triggers.graph.nameHelp', {
             defaultValue: 'Name for the new node graph to be created.',
           })}
@@ -89,6 +84,7 @@ export function TriggerGraphFields({
         <select
           className="h-7 w-full min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none"
           value={selectedGraphId}
+          disabled={disabled || graphOptions.length === 0}
           title={t('inspector.groups.triggers.graph.selectHelp', {
             defaultValue: 'Run one of the existing node graphs.',
           })}
@@ -124,6 +120,10 @@ export function TriggerGraphFields({
           )}
         </select>
       )}
+      <span className="text-[10px] text-(--text-muted)">
+        New graphs are created in the NodeGraph editor; this binding can only
+        select an existing graph document.
+      </span>
     </div>
   );
 }

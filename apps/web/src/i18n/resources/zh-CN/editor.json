@@ -1119,6 +1119,7 @@
     },
     "tabs": {
       "overview": "概览",
+      "components": "组件",
       "public": "Public",
       "code": "Code",
       "i18n": "i18n",
@@ -1234,6 +1235,30 @@
       },
       "actions": {
         "save": "保存"
+      },
+      "language": {
+        "status": {
+          "ready": "TypeScript 语言服务已就绪",
+          "loading": "正在更新代码分析…",
+          "unsupported": "当前文件没有可用的语言能力提供器。",
+          "unavailable": "语言服务不可用：{{reason}}"
+        },
+        "actions": {
+          "goToDefinition": "转到定义",
+          "definitionShortcut": "转到定义（F12）",
+          "findReferences": "查找引用"
+        },
+        "query": {
+          "resolvingDefinition": "正在解析定义…",
+          "findingReferences": "正在查找引用…",
+          "definitionCount_one": "找到 1 个定义位置。",
+          "definitionCount_other": "找到 {{count}} 个定义位置。",
+          "referenceCount_one": "找到 1 个引用。",
+          "referenceCount_other": "找到 {{count}} 个引用。",
+          "definitionMissing": "光标位置没有可用的定义。",
+          "referencesMissing": "光标位置没有找到引用。",
+          "unavailable": "结果已过期或语言服务当前不可用。"
+        }
       },
       "empty": "请从左侧树中选择一个代码文件进行编辑。"
     },

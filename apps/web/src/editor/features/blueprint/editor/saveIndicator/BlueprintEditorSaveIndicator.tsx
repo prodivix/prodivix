@@ -3,7 +3,7 @@ import type {
   SaveIndicatorTone,
   SaveStatus,
   SaveTransport,
-} from '@/editor/features/blueprint/editor/model/autosave';
+} from './saveIndicator.types';
 
 type BlueprintEditorSaveIndicatorProps = {
   status: SaveStatus;

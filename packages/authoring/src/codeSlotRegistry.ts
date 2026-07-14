@@ -1,5 +1,6 @@
 import type {
   AuthoringContext,
+  CodeSlotBindingProjection,
   CodeSlotContract,
   CodeSlotProvider,
 } from './authoring.types';
@@ -12,6 +13,13 @@ export type CodeSlotRegistry = {
   listSlots(context: AuthoringContext): CodeSlotContract[];
   getSlot(id: string): CodeSlotContract | null;
   listSlotsByOwner(ownerRef: DiagnosticTargetRef): CodeSlotContract[];
+  listBindingProjections(
+    context: AuthoringContext
+  ): CodeSlotBindingProjection[];
+  getBindingProjection(id: string): CodeSlotBindingProjection | null;
+  listBindingProjectionsByArtifact(
+    artifactId: string
+  ): CodeSlotBindingProjection[];
 };
 
 const stableTargetRef = (targetRef: DiagnosticTargetRef): string =>
@@ -50,6 +58,29 @@ export const createCodeSlotRegistry = (): CodeSlotRegistry => {
           provider.listSlots({ surface: 'issues-panel', targetRef: ownerRef })
         )
         .filter((slot) => stableTargetRef(slot.ownerRef) === ownerKey);
+    },
+    listBindingProjections(context) {
+      return Array.from(providers.values()).flatMap((provider) =>
+        provider.listBindingProjections(context)
+      );
+    },
+    getBindingProjection(id) {
+      for (const provider of providers.values()) {
+        const projection = provider.getBindingProjection(id);
+        if (projection) return projection;
+      }
+
+      return null;
+    },
+    listBindingProjectionsByArtifact(artifactId) {
+      return Array.from(providers.values())
+        .flatMap((provider) =>
+          provider.listBindingProjections({
+            surface: 'issues-panel',
+            artifactId,
+          })
+        )
+        .filter(({ binding }) => binding.reference.artifactId === artifactId);
     },
   };
 };

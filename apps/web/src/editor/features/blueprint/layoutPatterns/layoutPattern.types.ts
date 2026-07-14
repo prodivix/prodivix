@@ -1,4 +1,4 @@
-import type { ComponentNode } from '@prodivix/shared/types/pir';
+import type { BlueprintInspectorNodeView } from '@/editor/features/blueprint/editor/inspector/projection';
 
 export const LAYOUT_PATTERN_PARAM_KINDS = [
   'number',
@@ -118,9 +118,11 @@ export type LayoutPatternDefinition<
   category: LayoutPatternCategory;
   description?: string;
   schema: TSchema;
-  build: (context: LayoutPatternBuildContext<TSchema>) => ComponentNode;
+  build: (
+    context: LayoutPatternBuildContext<TSchema>
+  ) => BlueprintInspectorNodeView;
   update: (
-    root: ComponentNode,
+    root: BlueprintInspectorNodeView,
     context: LayoutPatternUpdateContext<TSchema>
-  ) => ComponentNode;
+  ) => BlueprintInspectorNodeView;
 };

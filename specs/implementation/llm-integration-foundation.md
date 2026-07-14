@@ -6,7 +6,7 @@
 - 日期：2026-05-01
 - 相关文档：
   - `specs/decisions/22.llm-integration-architecture.md`
-  - `specs/decisions/12.intent-command-extension.md`
+  - `specs/decisions/12.command-transaction-planner.md`
   - `specs/decisions/14.plugin-sandbox-and-capability.md`
 
 ## 目标

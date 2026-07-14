@@ -132,17 +132,7 @@
           "blank": "_blank"
         },
         "actions": {
-          "navigate": "Navigate",
-          "executeGraph": "Execute Graph"
-        },
-        "graph": {
-          "new": "New Graph",
-          "newHelp": "Create and execute a new node graph.",
-          "select": "Select Graph",
-          "selectHelp": "Run one of the existing node graphs.",
-          "namePlaceholder": "New graph name",
-          "nameHelp": "Name for the new node graph to be created.",
-          "empty": "No graph available"
+          "navigate": "Navigate"
         },
         "navigation": {
           "confirm": {

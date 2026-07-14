@@ -32,7 +32,6 @@ export type NodeGraphRevisionDiffPresentation = {
   documentId: string;
   documentPath: string;
   edges: readonly NodeGraphDiffEdgePresentation[];
-  graphId?: string;
   graphLabel: string;
   nodes: readonly NodeGraphDiffNodePresentation[];
 };

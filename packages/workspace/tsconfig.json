@@ -11,10 +11,9 @@
     "paths": {
       "@prodivix/animation": ["../animation/src"],
       "@prodivix/authoring": ["../authoring/src"],
+      "@prodivix/nodegraph": ["../nodegraph/src"],
       "@prodivix/pir": ["../pir/src"],
-      "@prodivix/router": ["../router/src"],
-      "@prodivix/shared": ["../shared/src"],
-      "@prodivix/shared/*": ["../shared/src/*"]
+      "@prodivix/router": ["../router/src"]
     }
   },
   "include": ["src/**/*"],
@@ -33,13 +32,13 @@
       "path": "../authoring"
     },
     {
+      "path": "../nodegraph"
+    },
+    {
       "path": "../pir"
     },
     {
       "path": "../router"
-    },
-    {
-      "path": "../shared"
     }
   ]
 }

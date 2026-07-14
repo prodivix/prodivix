@@ -1,9 +1,9 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { createDefaultPirDoc } from '@prodivix/pir';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import { applyWorkspaceCommand } from './workspaceCommand';
 import { createWorkspacePirDocumentUpdateCommand } from './workspacePirDocument';
-import { selectActivePirWorkspaceDocument } from './workspaceSelectors';
+import { selectActivePirDocument } from './workspaceSelectors';
 import type { WorkspaceSnapshot } from './types';
 
 const createWorkspace = (): WorkspaceSnapshot => ({
@@ -36,7 +36,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/home.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: createDefaultPirDoc(),
+      content: createEmptyPirDocument(),
     },
   },
   routeManifest: {
@@ -46,28 +46,24 @@ const createWorkspace = (): WorkspaceSnapshot => ({
 });
 
 describe('workspace PIR document properties', () => {
-  it('builds exactly reversible animation commands', () => {
+  it('builds exactly reversible canonical document commands', () => {
     fc.assert(
-      fc.property(fc.nat({ max: 10_000_000 }), (cursorMs) => {
+      fc.property(fc.string({ maxLength: 80 }), (name) => {
         const workspace = createWorkspace();
-        const before = selectActivePirWorkspaceDocument(workspace)!.content;
+        const before = selectActivePirDocument(workspace)!.content;
         const after = {
           ...before,
-          animation: {
-            version: 1 as const,
-            timelines: [],
-            'x-animationEditor': { version: 1 as const, cursorMs },
-          },
+          metadata: { name },
         };
         const command = createWorkspacePirDocumentUpdateCommand({
           workspace,
           before,
           after,
-          commandId: 'update-animation',
+          commandId: 'update-metadata',
           issuedAt: '2026-07-13T00:00:00.000Z',
-          namespace: 'core.animation',
-          type: 'definition.update',
-          domainHint: 'animation',
+          namespace: 'core.pir',
+          type: 'metadata.update',
+          domainHint: 'pir',
         });
         expect(command).not.toBeNull();
         if (!command) return;
@@ -79,7 +75,7 @@ describe('workspace PIR document properties', () => {
 
         const reversed = applyWorkspaceCommand(applied.snapshot, {
           ...command,
-          id: 'reverse-animation',
+          id: 'reverse-metadata',
           forwardOps: command.reverseOps,
           reverseOps: command.forwardOps,
         });

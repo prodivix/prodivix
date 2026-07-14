@@ -2,26 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { diffWorkspaceSnapshots } from '..';
 import {
   cloneWorkspace,
-  createPirContent,
+  createNodeGraphContent,
   createWorkspace,
 } from './testWorkspace';
 
-const pirContent = (workspace: ReturnType<typeof createWorkspace>) =>
+const createNodeGraphWorkspace = () =>
+  createWorkspace(createNodeGraphContent(), 'pir-graph');
+
+const content = (workspace: ReturnType<typeof createWorkspace>) =>
   workspace.docsById['document-1']!.content as ReturnType<
-    typeof createPirContent
+    typeof createNodeGraphContent
   >;
 
 describe('workspace semantic diff', () => {
-  it('uses graph, node, edge, and animation ids and ignores stable-array reorder', () => {
-    const base = createWorkspace();
+  it('ignores stable node and edge array reorder', () => {
+    const base = createNodeGraphWorkspace();
     const reordered = cloneWorkspace(base);
-    const content = pirContent(reordered);
-    content.logic.graphs.reverse();
-    content.logic.graphs[1]!.nodes.reverse();
-    content.logic.graphs[1]!.edges.reverse();
-    content.animation.timelines.reverse();
-    content.animation.timelines[1]!.bindings.reverse();
-    content.animation.timelines[1]!.bindings[1]!.tracks.reverse();
+    content(reordered).nodes.reverse();
+    content(reordered).edges.reverse();
 
     const result = diffWorkspaceSnapshots(base, reordered);
 
@@ -30,13 +28,11 @@ describe('workspace semantic diff', () => {
     expect(result.changeSet.changes).toEqual([]);
   });
 
-  it('addresses changes through stable semantic ids rather than array indexes', () => {
-    const base = createWorkspace();
+  it('addresses standalone changes by document-owned node and edge ids', () => {
+    const base = createNodeGraphWorkspace();
     const next = cloneWorkspace(base);
-    const content = pirContent(next);
-    content.logic.graphs[0]!.nodes[0]!.label = 'Local A';
-    content.logic.graphs[0]!.edges[0]!.label = 'changed';
-    content.animation.timelines[0]!.bindings[0]!.tracks[0]!.property = 'color';
+    content(next).nodes[0]!.data.label = 'Local A';
+    content(next).edges[0]!.sourceHandle = 'changed';
 
     const result = diffWorkspaceSnapshots(base, next);
 
@@ -46,40 +42,30 @@ describe('workspace semantic diff', () => {
       expect.arrayContaining([
         expect.objectContaining({
           target: expect.objectContaining({
-            path: '/logic/graphsById/graph-main/nodesById/node-a/label',
+            documentId: 'document-1',
+            path: '/nodesById/node-a/data/label',
           }),
-          semantic: expect.objectContaining({
+          semantic: {
             kind: 'graph-node',
-            graphId: 'graph-main',
+            graphKind: 'nodegraph',
             nodeId: 'node-a',
-          }),
+            fieldPath: '/data/label',
+          },
         }),
         expect.objectContaining({
           target: expect.objectContaining({
-            path: '/logic/graphsById/graph-main/edgesById/edge-a-b/label',
+            documentId: 'document-1',
+            path: '/edgesById/edge-a-b/sourceHandle',
           }),
-          semantic: expect.objectContaining({
+          semantic: {
             kind: 'graph-edge',
-            graphId: 'graph-main',
+            graphKind: 'nodegraph',
             edgeId: 'edge-a-b',
-          }),
-        }),
-        expect.objectContaining({
-          target: expect.objectContaining({
-            path: '/animation/timelinesById/timeline-main/bindingsById/binding-a/tracksById/track-opacity/property',
-          }),
-          semantic: expect.objectContaining({
-            kind: 'animation-entity',
-            entityKind: 'track',
-            entityId: 'track-opacity',
-          }),
+            fieldPath: '/sourceHandle',
+          },
         }),
       ])
     );
-    expect(
-      result.changeSet.changes.some((change) =>
-        /\/\d+\//.test(change.target.path)
-      )
-    ).toBe(false);
+    expect(JSON.stringify(result.changeSet)).not.toContain('graphId');
   });
 });

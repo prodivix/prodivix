@@ -53,18 +53,12 @@ func (store *ProjectStore) PrepareProject(params PrepareProjectParams) (*Project
 }
 
 // InsertPreparedProject participates in the caller-owned transaction that also creates the canonical Workspace.
-func (store *ProjectStore) InsertPreparedProject(ctx context.Context, tx *sql.Tx, project *Project, publicationPIR json.RawMessage) error {
+// New resources remain unpublished until PublishWorkspaceProjection records an explicit projection.
+func (store *ProjectStore) InsertPreparedProject(ctx context.Context, tx *sql.Tx, project *Project) error {
 	if store == nil || tx == nil || project == nil {
 		return errors.New("project insert requires store, transaction and project")
 	}
-	var publishedPIR any
-	if project.IsPublic {
-		normalizedPIR, err := normalizePIR(publicationPIR)
-		if err != nil {
-			return err
-		}
-		publishedPIR = string(normalizedPIR)
-	}
+	project.IsPublic = false
 
 	const query = `INSERT INTO projects (id, owner_id, resource_type, name, description, published_pir_json, is_public, stars_count, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, 0, $8, $9)`
@@ -74,8 +68,8 @@ VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, 0, $8, $9)`
 		project.ResourceType,
 		project.Name,
 		project.Description,
-		publishedPIR,
-		project.IsPublic,
+		nil,
+		false,
 		project.CreatedAt,
 		project.UpdatedAt,
 	)

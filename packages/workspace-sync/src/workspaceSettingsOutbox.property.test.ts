@@ -10,6 +10,7 @@ import {
   mergeWorkspaceSettings,
   workspaceSettingsEqual,
 } from './workspaceSettingsOutbox';
+import { createPirContent } from './__tests__/testWorkspace';
 
 const workspace: WorkspaceSnapshot = {
   id: 'workspace-1',
@@ -40,17 +41,7 @@ const workspace: WorkspaceSnapshot = {
       path: '/home.pir.json',
       contentRev: 2,
       metaRev: 1,
-      content: {
-        version: '1.3',
-        ui: {
-          graph: {
-            version: 1,
-            rootId: 'root',
-            nodesById: { root: { id: 'root', type: 'container' } },
-            childIdsById: { root: [] },
-          },
-        },
-      },
+      content: createPirContent(),
     },
   },
   routeManifest: {

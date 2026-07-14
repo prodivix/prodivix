@@ -34,6 +34,8 @@ function AnimationPanelView() {
     mountSelectedNodeToAnimation,
     unmountSelectedNodeFromAnimation,
     selectedNode,
+    animationWriteAvailable,
+    animationDiagnostic,
   } = useInspectorContext();
 
   return (
@@ -86,6 +88,7 @@ function AnimationPanelView() {
               type="button"
               className="h-6 px-1.5 text-[10px] text-(--text-muted) hover:text-(--text-primary)"
               onClick={unmountSelectedNodeFromAnimation}
+              disabled={!animationWriteAvailable}
             >
               {t('inspector.groups.animation.unmount', {
                 defaultValue: 'Unmount',
@@ -96,6 +99,7 @@ function AnimationPanelView() {
               type="button"
               className="h-6 px-1.5 text-[10px] text-(--text-secondary) hover:text-(--text-primary)"
               onClick={mountSelectedNodeToAnimation}
+              disabled={!animationWriteAvailable}
             >
               {t('inspector.groups.animation.mount', {
                 defaultValue: 'Mount',
@@ -103,6 +107,11 @@ function AnimationPanelView() {
             </button>
           )}
         </div>
+      ) : null}
+      {animationDiagnostic ? (
+        <span className="text-[10px] text-(--text-muted)">
+          {animationDiagnostic}
+        </span>
       ) : null}
     </div>
   );

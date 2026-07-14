@@ -18,6 +18,7 @@ export const createWebResolveAliases = (): AliasOptions => ({
   '@prodivix/ai': packageSource('ai'),
   '@prodivix/animation': packageSource('animation'),
   '@prodivix/authoring': packageSource('authoring'),
+  '@prodivix/code-language': packageSource('code-language'),
   '@prodivix/diagnostics': packageSource('diagnostics'),
   '@prodivix/i18n': packageSource('i18n'),
   '@prodivix/nodegraph': packageSource('nodegraph'),

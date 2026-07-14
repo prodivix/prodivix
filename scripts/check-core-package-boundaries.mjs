@@ -5,21 +5,27 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const corePackages = {
-  animation: new Set(),
-  router: new Set(),
+  animation: new Set(['@prodivix/authoring']),
+  router: new Set(['@prodivix/authoring']),
   diagnostics: new Set(),
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
-  pir: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
+  'code-language': new Set(['@prodivix/authoring']),
+  pir: new Set(['@prodivix/authoring', '@prodivix/diagnostics']),
   workspace: new Set([
     '@prodivix/animation',
     '@prodivix/authoring',
+    '@prodivix/nodegraph',
     '@prodivix/pir',
     '@prodivix/router',
     '@prodivix/shared',
   ]),
-  'workspace-sync': new Set(['@prodivix/router', '@prodivix/workspace']),
+  'workspace-sync': new Set([
+    '@prodivix/pir',
+    '@prodivix/router',
+    '@prodivix/workspace',
+  ]),
   'runtime-core': new Set(),
-  nodegraph: new Set(['@prodivix/runtime-core']),
+  nodegraph: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
 };
 
 const forbiddenImports = [
@@ -46,9 +52,7 @@ const collectSourceFiles = async (directory) => {
 
 const readImports = (source) =>
   [
-    ...source.matchAll(
-      /(?:from\s+|import\s*\(\s*|import\s+)(['"])([^'"]+)\1/g
-    ),
+    ...source.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)(['"])([^'"]+)\1/g),
   ].map((match) => match[2]);
 
 const issues = [];
@@ -60,9 +64,9 @@ for (const [packageDirectory, allowedDependencies] of Object.entries(
   const packageJson = JSON.parse(
     await readFile(join(packageRoot, 'package.json'), 'utf8')
   );
-  const prodivixDependencies = Object.keys(packageJson.dependencies ?? {}).filter(
-    (dependency) => dependency.startsWith('@prodivix/')
-  );
+  const prodivixDependencies = Object.keys(
+    packageJson.dependencies ?? {}
+  ).filter((dependency) => dependency.startsWith('@prodivix/'));
 
   for (const dependency of prodivixDependencies) {
     if (!allowedDependencies.has(dependency)) {
@@ -85,6 +89,17 @@ for (const [packageDirectory, allowedDependencies] of Object.entries(
       if (forbiddenImports.some((pattern) => pattern.test(specifier))) {
         issues.push(
           `${relative(repoRoot, file)} imports forbidden dependency ${specifier}.`
+        );
+      }
+      if (
+        packageDirectory === 'workspace-sync' &&
+        specifier.startsWith('@prodivix/pir') &&
+        (relative(repoRoot, file).replaceAll('\\', '/') !==
+          'packages/workspace-sync/src/workspaceOperationCommitPirWire.ts' ||
+          specifier !== '@prodivix/pir/wire')
+      ) {
+        issues.push(
+          `${relative(repoRoot, file)} may import @prodivix/pir/wire only from the Atomic Commit wire projector.`
         );
       }
     }

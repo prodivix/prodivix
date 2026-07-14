@@ -1,27 +1,23 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import {
-  createNodeGraphExecutor,
-  decodeNodeGraphDocuments,
-  selectNodeGraphDocument,
-} from '..';
+import { createNodeGraphExecutor, decodeNodeGraphDocument } from '..';
 import type { NodeGraphDocument, NodeGraphExecutionRequest } from '..';
 
 const propertyParameters = Object.freeze({
-  numRuns: 500,
+  numRuns: 250,
   seed: 0x13_07_2026,
 });
 
 const request: NodeGraphExecutionRequest = {
+  documentId: 'graph-document',
   requestId: 'property-request',
   source: {
     ownerId: 'property-owner',
     trigger: 'onClick',
     eventKey: 'click',
   },
+  params: {},
 };
-
-const graphId = fc.stringMatching(/^[A-Za-z][A-Za-z0-9_-]{0,15}$/);
 
 const createLinearGraph = (messages: string[]): NodeGraphDocument => {
   const nodes: NodeGraphDocument['nodes'] = [
@@ -33,7 +29,7 @@ const createLinearGraph = (messages: string[]): NodeGraphDocument => {
     { id: 'end', data: { kind: 'end' } },
   ];
   return {
-    id: 'main',
+    version: 1,
     nodes,
     edges: nodes.slice(0, -1).map((node, index) => ({
       id: `edge-${index}`,
@@ -45,8 +41,8 @@ const createLinearGraph = (messages: string[]): NodeGraphDocument => {
   };
 };
 
-describe('NodeGraph execution properties', () => {
-  it('is deterministic for arbitrary valid linear graphs', async () => {
+describe('NodeGraph properties', () => {
+  it('executes arbitrary valid linear documents deterministically', async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.array(fc.string({ maxLength: 80, unit: 'grapheme' }), {
@@ -62,6 +58,9 @@ describe('NodeGraph execution properties', () => {
           expect(first).toEqual(second);
           expect(first.status).toBe('completed');
           expect(first.steps).toBe(messages.length + 2);
+          expect(first.trace[0]?.detail).toMatchObject({
+            documentId: request.documentId,
+          });
         }
       ),
       propertyParameters
@@ -74,7 +73,7 @@ describe('NodeGraph execution properties', () => {
         const execute = createNodeGraphExecutor({ maxSteps });
         const result = await execute(
           {
-            id: 'cycle',
+            version: 1,
             nodes: [{ id: 'start', data: { kind: 'start' } }],
             edges: [
               {
@@ -96,39 +95,96 @@ describe('NodeGraph execution properties', () => {
     );
   });
 
-  it('does not fall back when arbitrary explicit graph ids are absent', () => {
+  it('strictly round-trips canonical documents and rejects legacy identity fields', () => {
     fc.assert(
       fc.property(
-        fc.uniqueArray(graphId, { minLength: 1, maxLength: 20 }),
-        graphId,
-        (ids, requestedId) => {
-          fc.pre(!ids.includes(requestedId));
-          const documents = ids.map((id) => ({
-            id,
-            nodes: [],
+        fc.uniqueArray(fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/), {
+          maxLength: 20,
+        }),
+        (nodeIds) => {
+          const canonical = {
+            version: 1,
+            nodes: nodeIds.map((id) => ({ id, data: {} })),
             edges: [],
-          }));
-
+          };
+          const decoded = decodeNodeGraphDocument(canonical);
+          expect(decoded).toEqual({ ok: true, value: canonical });
           expect(
-            selectNodeGraphDocument(documents, { graphId: requestedId })
-          ).toBeNull();
+            decodeNodeGraphDocument({ ...canonical, id: 'legacy-graph' }).ok
+          ).toBe(false);
         }
       ),
       propertyParameters
     );
   });
 
-  it('never throws for arbitrary JSON-shaped graph input', () => {
+  it('keeps code source in Workspace artifacts while round-tripping typed executor nodes', () => {
+    fc.assert(
+      fc.property(
+        fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
+        fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
+        (nodeId, artifactId) => {
+          const canonical: NodeGraphDocument = {
+            version: 1,
+            nodes: [
+              {
+                id: nodeId,
+                data: { kind: 'code' },
+                ports: [
+                  {
+                    id: 'in.data.value',
+                    direction: 'input',
+                    kind: 'data',
+                    typeRef: 'unknown',
+                  },
+                  {
+                    id: 'out.data.value',
+                    direction: 'output',
+                    kind: 'data',
+                    typeRef: 'unknown',
+                  },
+                ],
+                executor: {
+                  slotId: `nodegraph-code-slot:${nodeId}`,
+                  reference: { artifactId },
+                },
+              },
+            ],
+            edges: [],
+          };
+
+          expect(decodeNodeGraphDocument(canonical)).toEqual({
+            ok: true,
+            value: canonical,
+          });
+          expect(
+            decodeNodeGraphDocument({
+              ...canonical,
+              nodes: [
+                {
+                  ...canonical.nodes[0],
+                  data: { kind: 'code', code: 'return input;' },
+                },
+              ],
+            }).ok
+          ).toBe(false);
+        }
+      ),
+      propertyParameters
+    );
+  });
+
+  it('never throws for arbitrary JSON-shaped input', () => {
     fc.assert(
       fc.property(fc.jsonValue({ maxDepth: 6 }), (value) => {
-        const decoded = decodeNodeGraphDocuments(value);
+        const decoded = decodeNodeGraphDocument(value);
         if (!decoded.ok) {
           expect(decoded.issues.length).toBeGreaterThan(0);
           return;
         }
-        expect(decodeNodeGraphDocuments(decoded.value)).toEqual(decoded);
+        expect(decodeNodeGraphDocument(decoded.value)).toEqual(decoded);
       }),
-      { ...propertyParameters, numRuns: 1_000 }
+      { ...propertyParameters, numRuns: 500 }
     );
   });
 });

@@ -6,7 +6,9 @@ export default defineConfig({
     alias: {
       '#src': resolve(__dirname, 'src'),
       '@prodivix/pir': resolve(__dirname, '../pir/src'),
+      '@prodivix/nodegraph': resolve(__dirname, '../nodegraph/src'),
       '@prodivix/shared': resolve(__dirname, '../shared/src'),
+      '@prodivix/workspace': resolve(__dirname, '../workspace/src'),
     },
   },
 });
