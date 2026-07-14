@@ -1,3 +1,5 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { transformWithEsbuild } from 'vite';
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
@@ -32,6 +34,7 @@ const REACT_NAMED_EXPORTS: Readonly<Record<string, unknown>> = {
   useEffect,
   useState,
 };
+const TEST_SOURCE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 
 const evaluateGeneratedModules = async (
   modules: readonly ExportModule[]
@@ -90,7 +93,10 @@ const evaluateGeneratedModules = async (
 };
 
 const typecheckGeneratedModule = (generatedModule: ExportModule): string[] => {
-  const fileName = `D:/Projects/prodivix/packages/prodivix-compiler/src/react/__${generatedModule.id.replace(/[^a-zA-Z0-9]/g, '_')}.tsx`;
+  const fileName = join(
+    TEST_SOURCE_DIRECTORY,
+    `__${generatedModule.id.replace(/[^a-zA-Z0-9]/g, '_')}.tsx`
+  ).replaceAll('\\', '/');
   const imports = generatedModule.imports
     .map((importIntent) => {
       const local = importIntent.local ?? importIntent.imported;
