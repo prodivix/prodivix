@@ -4,9 +4,32 @@ import type {
   ProdivixDiagnostic,
   SourceSpan,
 } from '@prodivix/diagnostics';
+import type { ControlledSourceManifest } from './controlledSource';
+import type { CodeArtifactLifecycleManifest } from './codeArtifactLifecycle';
 
 export type CodeArtifactLanguage =
   'ts' | 'js' | 'css' | 'scss' | 'glsl' | 'wgsl' | 'expr';
+
+export type CodeArtifactOwnership = 'code-owned' | 'adapted';
+
+export type ShaderStage = 'vertex' | 'fragment' | 'compute' | 'unknown';
+
+export type ShaderCompileStage = Exclude<ShaderStage, 'unknown'>;
+
+export type ShaderCompileTarget = 'webgl2' | 'webgpu';
+
+export type ShaderCompileProfile =
+  | Readonly<{
+      schemaVersion: '1.0';
+      target: 'webgl2';
+      stage: Extract<ShaderCompileStage, 'vertex' | 'fragment'>;
+    }>
+  | Readonly<{
+      schemaVersion: '1.0';
+      target: 'webgpu';
+      stage?: ShaderCompileStage;
+      entryPoint?: string;
+    }>;
 
 export type CodeArtifactOwner =
   | { kind: 'pir-node'; documentId: string; nodeId: string }
@@ -37,9 +60,13 @@ export type CodeArtifact = {
   id: string;
   path: string;
   language: CodeArtifactLanguage;
+  ownership: CodeArtifactOwnership;
   owner: CodeArtifactOwner;
   source: string;
   revision: string;
+  controlledSource?: ControlledSourceManifest;
+  lifecycleManifest?: CodeArtifactLifecycleManifest;
+  shaderCompileProfile?: ShaderCompileProfile;
 };
 
 export type AuthoringSource =
@@ -71,6 +98,12 @@ export type CodeReference = {
   exportName?: string;
   symbolId?: string;
   sourceSpan?: SourceSpan;
+};
+
+/** Stable cross-domain reference to one canonical Workspace asset document. */
+export type AssetReference = {
+  assetDocumentId: string;
+  expectedMimeTypes?: readonly string[];
 };
 
 export type CodeArtifactProvider = {

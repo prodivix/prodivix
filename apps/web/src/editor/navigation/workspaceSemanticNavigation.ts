@@ -1,6 +1,5 @@
 import { isWorkspaceCodeDocumentContent } from '@prodivix/workspace';
-import { getResourceManagerCodeSelectionStorageKey } from '@/editor/features/resources/codeResourceModel';
-import { getResourceManagerViewStorageKey } from '@/editor/features/resources/projectResourceOverview';
+import { getCodeAuthoringSelectionStorageKey } from '@/editor/features/code/codeAuthoringModel';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { resolveWorkspaceSemanticNavigationLocation } from './workspaceSemanticNavigationModel';
 import { useWorkspaceSemanticNavigationStore } from './workspaceSemanticNavigationStore';
@@ -74,6 +73,7 @@ const pathForDocument = (
   }
   if (documentType === 'pir-graph') return `${basePath}/nodegraph`;
   if (documentType === 'pir-animation') return `${basePath}/animation`;
+  if (documentType === 'code') return `${basePath}/code`;
   return `${basePath}/resources`;
 };
 
@@ -130,15 +130,11 @@ export const navigateToWorkspaceSemanticTarget = (
     editor.setActiveDocumentId(artifactId);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(
-        getResourceManagerViewStorageKey(input.projectId),
-        'code'
-      );
-      window.localStorage.setItem(
-        getResourceManagerCodeSelectionStorageKey(input.projectId),
+        getCodeAuthoringSelectionStorageKey(input.projectId),
         artifactId
       );
     }
-    return finish(`${basePath}/resources`);
+    return finish(`${basePath}/code`);
   };
 
   if (resolution.location.kind === 'source-span') {
@@ -159,11 +155,7 @@ export const navigateToWorkspaceSemanticTarget = (
     editor.setActiveDocumentId(document.id);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(
-        getResourceManagerViewStorageKey(input.projectId),
-        'code'
-      );
-      window.localStorage.setItem(
-        getResourceManagerCodeSelectionStorageKey(input.projectId),
+        getCodeAuthoringSelectionStorageKey(input.projectId),
         document.id
       );
     }
@@ -172,7 +164,7 @@ export const navigateToWorkspaceSemanticTarget = (
       workspaceId: workspace.id,
       location: resolution.location,
     });
-    return finish(`${basePath}/resources`);
+    return finish(`${basePath}/code`);
   }
 
   const targetRef = resolution.location.targetRef;

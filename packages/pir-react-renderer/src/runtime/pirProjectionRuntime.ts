@@ -23,6 +23,7 @@ export type PIRProjectionRuntime = Readonly<{
     issues: readonly PIRRendererBlockingIssue[]
   ) => void;
   selectedLocation?: PIRRenderLocation;
+  hiddenLocations?: readonly PIRRenderLocation[];
   onNodeSelect?: (
     location: PIRRenderLocation,
     event: React.SyntheticEvent

@@ -17,6 +17,10 @@ import {
   createWorkspaceSemanticIndexFromSnapshot,
   type WorkspaceSemanticIndexIssue,
 } from './createWorkspaceSemanticIndexFromSnapshot';
+import {
+  createWorkspaceExternalAdapterCodeSlotProvider,
+  readWorkspaceExternalAdapterConfig,
+} from './workspaceExternalAdapter';
 
 export type WorkspaceCodeSlotRegistryCompositionResult =
   | Readonly<{ status: 'ready'; registry: CodeSlotRegistry }>
@@ -42,6 +46,30 @@ export const createWorkspaceCodeSlotRegistryFromSnapshot = (
   registry.register(
     createRouteRuntimeCodeSlotProvider(snapshot.id, snapshot.routeManifest)
   );
+
+  const externalAdapters = readWorkspaceExternalAdapterConfig(snapshot);
+  if (externalAdapters.status === 'invalid') {
+    return {
+      status: 'blocked',
+      issues: externalAdapters.issues.map((issue) => ({
+        code: 'WKS_SEMANTIC_INDEX_DOCUMENT_INVALID',
+        path: issue.path,
+        message: issue.message,
+        ...(issue.documentId ? { documentId: issue.documentId } : {}),
+      })),
+    };
+  }
+  if (externalAdapters.document) {
+    externalAdapters.entries.forEach((entry) => {
+      registry.register(
+        createWorkspaceExternalAdapterCodeSlotProvider({
+          workspaceId: snapshot.id,
+          configDocumentId: externalAdapters.document!.id,
+          entry,
+        })
+      );
+    });
+  }
 
   for (const document of Object.values(snapshot.docsById).sort((left, right) =>
     left.id.localeCompare(right.id)

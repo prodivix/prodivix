@@ -37,7 +37,10 @@ import {
 } from '@prodivix/workspace';
 import { useWorkspaceComponentAuthoring } from '@/editor/features/component/controller/useWorkspaceComponentAuthoring';
 import {
-  navigateToWorkspaceCodeSlotDefinition,
+  openWorkspaceCodeArtifact,
+  openWorkspaceCodeSlotDefinition,
+} from '@/editor/features/code';
+import {
   navigateToWorkspaceSemanticTarget,
   resolveWorkspaceSemanticIndex,
 } from '@/editor/navigation';
@@ -691,14 +694,11 @@ export const useBlueprintEditorController = (
   };
 
   const openCodeArtifact = (artifactId: string) => {
-    if (!projectId) return;
-    const result = navigateToWorkspaceSemanticTarget({
-      projectId,
-      navigate,
-      target: {
-        kind: 'diagnostic-target',
-        targetRef: { kind: 'code-artifact', artifactId },
-      },
+    if (!workspace) return;
+    const result = openWorkspaceCodeArtifact({
+      workspace,
+      artifactId,
+      presentation: 'maximized',
     });
     if (result.status === 'unavailable') {
       setStatusMessage('The referenced CodeArtifact is unavailable.');
@@ -706,12 +706,10 @@ export const useBlueprintEditorController = (
   };
 
   const openCodeSlotDefinition = (slotId: string) => {
-    if (!projectId || !workspace) return;
-    const result = navigateToWorkspaceCodeSlotDefinition({
-      projectId,
+    if (!workspace) return;
+    const result = openWorkspaceCodeSlotDefinition({
       workspace,
       slotId,
-      navigate,
     });
     if (result.status === 'unavailable') {
       setStatusMessage('The CodeSlot definition is unavailable.');

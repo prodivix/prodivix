@@ -122,6 +122,104 @@ export const createAssetSymbolId = (
   documentId: string
 ): string => createSemanticId('asset-symbol', workspaceId, documentId);
 
+export const createDesignTokenDocumentScopeId = (
+  workspaceId: string,
+  documentId: string
+): string =>
+  createSemanticId('design-token-document-scope', workspaceId, documentId);
+
+export const createDesignTokenGroupScopeId = (
+  workspaceId: string,
+  documentId: string,
+  groupPath: string
+): string =>
+  createSemanticId(
+    'design-token-group-scope',
+    workspaceId,
+    documentId,
+    groupPath
+  );
+
+export const createDesignTokenGroupSymbolId = (
+  workspaceId: string,
+  documentId: string,
+  groupPath: string
+): string =>
+  createSemanticId(
+    'design-token-group-symbol',
+    workspaceId,
+    documentId,
+    groupPath
+  );
+
+export const createDesignTokenSymbolId = (
+  workspaceId: string,
+  documentId: string,
+  tokenPath: string
+): string =>
+  createSemanticId('design-token-symbol', workspaceId, documentId, tokenPath);
+
+export const createDesignTokenResolverScopeId = (
+  workspaceId: string,
+  documentId: string
+): string =>
+  createSemanticId('design-token-resolver-scope', workspaceId, documentId);
+
+export const createDesignSystemSymbolId = (
+  workspaceId: string,
+  documentId: string
+): string => createSemanticId('design-system-symbol', workspaceId, documentId);
+
+export const createDesignTokenSetSymbolId = (
+  workspaceId: string,
+  documentId: string,
+  definitionId: string
+): string =>
+  createSemanticId(
+    'design-token-set-symbol',
+    workspaceId,
+    documentId,
+    definitionId
+  );
+
+export const createDesignTokenModifierScopeId = (
+  workspaceId: string,
+  documentId: string,
+  definitionId: string
+): string =>
+  createSemanticId(
+    'design-token-modifier-scope',
+    workspaceId,
+    documentId,
+    definitionId
+  );
+
+export const createDesignTokenModifierSymbolId = (
+  workspaceId: string,
+  documentId: string,
+  definitionId: string
+): string =>
+  createSemanticId(
+    'design-token-modifier-symbol',
+    workspaceId,
+    documentId,
+    definitionId
+  );
+
+export const createDesignTokenContextSymbolId = (
+  workspaceId: string,
+  documentId: string,
+  modifierDefinitionId: string,
+  contextName: string
+): string =>
+  createSemanticId(
+    'design-token-context-symbol',
+    workspaceId,
+    documentId,
+    modifierDefinitionId,
+    contextName
+  );
+
 export const createRouteScopeId = (
   workspaceId: string,
   routeNodeId: string

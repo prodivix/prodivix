@@ -28,7 +28,8 @@
     "@prodivix/authoring": "workspace:*",
     "@prodivix/nodegraph": "workspace:*",
     "@prodivix/pir": "workspace:*",
-    "@prodivix/router": "workspace:*"
+    "@prodivix/router": "workspace:*",
+    "@prodivix/tokens": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

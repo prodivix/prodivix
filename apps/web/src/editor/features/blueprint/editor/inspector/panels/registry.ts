@@ -9,7 +9,6 @@ import { typographyPanel } from './TypographyPanel';
 import { backgroundPanel } from './BackgroundPanel';
 import { borderPanel } from './BorderPanel';
 import { triggersPanel } from './TriggersPanel';
-import { externalCodePanel } from './ExternalCodePanel';
 
 export const INSPECTOR_PANELS: InspectorPanelDefinition[] = [
   classNamePanel,
@@ -20,7 +19,6 @@ export const INSPECTOR_PANELS: InspectorPanelDefinition[] = [
   borderPanel,
   animationPanel,
   triggersPanel,
-  externalCodePanel,
 ];
 
 export const resolveInspectorPanels = (

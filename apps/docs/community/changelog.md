@@ -1,23 +1,27 @@
-# 更新日志
+# Changelog
 
-本页面记录当前开发主线的产品能力进展。全局阶段与退出 Gate 以 `specs/roadmap/global-phases.md` 为准。
+本页只记录产品 Gate 级里程碑。逐提交变化请查看 Git 历史；阶段定义以 `specs/roadmap/global-phases.md` 为准。
 
-## [Unreleased]
+## Unreleased
 
-### G0 Truth & Change Kernel
+- 开始建设 ExecutionProvider/ExecutionJob、Browser/Remote Runner 与项目运行环境。
+- 开始建设 Data/API IR、runtime zones、SecretRef、binary asset 与 auth/server-function contract。
+- 继续补齐产品文档、易用性和已发现的跨表面一致性问题。
 
-- Canonical Workspace VFS 已成为唯一作者态真相源。
-- Domain Command / Transaction、History、WorkspaceOperation、Durable Outbox 与 Atomic Commit 已形成统一写入链路。
-- revision conflict、semantic diff、显式 resolution、local replica 与离线 pending operation materialization 已落地。
-- Workspace、PIR、Router、NodeGraph、Animation、Runtime、Renderer、Authoring、Diagnostics、Compiler 与 Golden Conformance 已建立独立 package owner。
-- Living Golden App 已覆盖多路由、route-level PIR artifact 复用、代码、资源、官方插件、冲突恢复与完整 Workspace React/Vite export。
+## Semantic Hybrid Authoring
 
-### G1 Semantic Hybrid Authoring
+- 全仓生产 API 收敛到 PIR-current，数字版本隔离在 wire/migration 边界。
+- Workspace Semantic Index 覆盖 Route、PIR、Component、Collection、NodeGraph、Animation、Code、Token 与 Asset。
+- Component Definition/Public Contract/Instance、原子 extraction 和一等 Collection 完成产品纵切。
+- TS/JS/CSS/SCSS/GLSL/WGSL language capability、Shader compile、CodeSlot、artifact lifecycle 与 refactor planning 完成纵切。
+- PIR ↔ React/JSX + standalone CSS controlled round-trip 完成。
+- Web 作者写入、Quick Fix 和 History 统一进入 Durable Outbox 与 Atomic Commit。
+- React/Vite 导出通过独立 install/typecheck/test/build 与真实浏览器 Gate。
 
-- Workspace Semantic Index contract 已冻结，统一定义跨领域 symbol、scope、reference、visibility、resolution 与 impact query。
-- Code Authoring Environment 已明确 CodeArtifact、CodeReference、CodeSlot 与 Language Service provider 边界。
-- Blueprint Component Definition、Public Contract、Component Instance、原子 subtree extraction 与一等 Collection contract 已冻结。
-- 整个 G1 已统一面向无版本号的 PIR-current 领域模型；数字版本仅保留在冻结 wire schema、generated wire types、codec、migration 与 persistence 边界。
-- 普通 PIR wire 升级只新增不可变 schema snapshot、更新 activation manifest、同步 generated contracts 并增加确定性 migration；Workspace、Renderer、Compiler、Semantic Index 与 Web 不随数字版本改名或复制。
-- NodeGraph 与 Animation 使用独立 Workspace documents，并通过类型化、document-qualified reference 与 PIR 连接，不再内嵌为页面 PIR 镜像。
-- G1 Golden journey 将覆盖组件抽取、多实例与 Collection 复用、Definition 同步、undo/redo、save/reload、Preview/Export parity 与独立项目验证。
+## Truth & Change Kernel
+
+- Canonical Workspace VFS 成为唯一作者态真相。
+- Command/Transaction、History、WorkspaceOperation、Durable Outbox 与 Atomic Commit 建立统一写入链。
+- Revision conflict、semantic resolution、local replica、Issues 与 Golden Conformance 闭环通过。
+
+可重复证据见 `specs/roadmap/g0-closure-evidence.md` 与 `specs/roadmap/g1-closure-evidence.md`。

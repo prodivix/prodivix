@@ -68,6 +68,11 @@ export type WorkspaceSymbolKind =
   | 'code-type'
   | 'css-symbol'
   | 'shader-entry'
+  | 'design-system'
+  | 'token-set'
+  | 'token-modifier'
+  | 'token-context'
+  | 'token-group'
   | 'token'
   | 'asset'
   | 'external-contract'
@@ -88,6 +93,9 @@ export type WorkspaceScopeKind =
   | 'animation'
   | 'code-artifact'
   | 'code-module'
+  | 'design-system'
+  | 'token-modifier'
+  | 'token-group'
   | `plugin:${string}`;
 
 export type WorkspaceReferenceKind =
@@ -102,6 +110,8 @@ export type WorkspaceReferenceKind =
   | 'nodegraph-port'
   | 'animation-target'
   | 'code-reference'
+  | 'token-source'
+  | 'token-resolution'
   | 'token-reference'
   | 'asset-reference'
   | `plugin:${string}`;
@@ -112,6 +122,7 @@ export type WorkspaceDependencyKind =
   | 'route'
   | 'nodegraph'
   | 'animation'
+  | 'token'
   | 'import'
   | 'runtime'
   | 'export'

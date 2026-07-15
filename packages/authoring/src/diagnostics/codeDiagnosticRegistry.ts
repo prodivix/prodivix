@@ -219,6 +219,13 @@ export const COD_DIAGNOSTIC_DEFINITIONS = {
     'binding',
     false
   ),
+  COD_3017: codeDefinition(
+    'COD-3017',
+    'Code artifact 已失去 owner binding',
+    'warning',
+    'binding',
+    false
+  ),
   COD_4001: codeDefinition(
     'COD-4001',
     '用户代码运行时抛错',

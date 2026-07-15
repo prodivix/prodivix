@@ -8,7 +8,7 @@ import {
 
 export type WorkspaceHistoryDocumentDomain = Extract<
   WorkspaceCommandDomain,
-  'pir' | 'nodegraph' | 'animation' | 'code' | 'resource'
+  'pir' | 'nodegraph' | 'animation' | 'token' | 'code' | 'resource'
 >;
 
 export type WorkspaceHistoryScope =
@@ -46,6 +46,7 @@ const DOCUMENT_DOMAINS: readonly WorkspaceHistoryDocumentDomain[] = [
   'pir',
   'nodegraph',
   'animation',
+  'token',
   'code',
   'resource',
 ];

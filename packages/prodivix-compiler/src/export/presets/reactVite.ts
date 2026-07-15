@@ -8,7 +8,7 @@ import type {
   ExportSourceTrace,
 } from '#src/export/types';
 
-export const REACT_VITE_PACKAGE_MANAGER = 'pnpm@10.28.1';
+export const REACT_VITE_PACKAGE_MANAGER = 'pnpm@11.9.0';
 
 export const REACT_VITE_DEPENDENCIES = {
   react: '^19.2.0',
@@ -21,6 +21,7 @@ export const REACT_VITE_DEV_DEPENDENCIES = {
   '@vitejs/plugin-react': '^5.1.2',
   '@types/react': '^19.2.2',
   '@types/react-dom': '^19.2.2',
+  vitest: '^4.1.9',
 } as const;
 
 const createSourceTrace = (path: string): ExportSourceTrace[] => [
@@ -85,6 +86,8 @@ const createReactVitePackageJson = (
         packageManager: context.packageManager ?? REACT_VITE_PACKAGE_MANAGER,
         scripts: {
           dev: 'vite',
+          typecheck: 'tsc -b',
+          test: 'vitest run',
           build: 'tsc -b && vite build',
           preview: 'vite preview',
         },
@@ -114,8 +117,8 @@ export const createReactViteScaffoldContributions = (
       createTextFileContribution(
         'pnpm-workspace.yaml',
         'config',
-        `onlyBuiltDependencies:
-  - esbuild
+        `allowBuilds:
+  esbuild: true
 `,
         {
           language: 'yaml',
@@ -179,6 +182,23 @@ export default defineConfig({
         {
           language: 'ts',
           mimeType: 'text/typescript',
+        }
+      ),
+      createTextFileContribution(
+        'src/App.test.tsx',
+        'source-module',
+        `import { describe, expect, it } from 'vitest';
+import App from './App';
+
+describe('generated application', () => {
+  it('exports the React application entry', () => {
+    expect(typeof App).toBe('function');
+  });
+});`,
+        {
+          language: 'tsx',
+          mimeType: 'text/typescript',
+          importMode: 'module',
         }
       ),
       createTextFileContribution(

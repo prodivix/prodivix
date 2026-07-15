@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import { CodeResourcePage } from './CodeResourcePage';
+import { CodeAuthoringWorkspace } from '@/editor/features/code/CodeAuthoringWorkspace';
 import { ExternalLibraryManager } from './ExternalLibraryManager';
 import { I18nResourcePage } from './I18nResourcePage';
 import { ProjectFileManager } from './ProjectFileManager';
 import { ResourceOverviewPanel } from './ResourceOverviewPanel';
 import { PublicResourcePage } from './PublicResourcePage';
 import { ComponentResourcePage } from './ComponentResourcePage';
+import { DesignTokenResourcePage } from './DesignTokenResourcePage';
 import {
   buildOverviewSnapshot,
   getResourceManagerViewStorageKey,
@@ -24,6 +25,9 @@ export function ProjectResources() {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
   const workspace = useEditorStore((state) => state.workspace);
+  const setActiveDocumentId = useEditorStore(
+    (state) => state.setActiveDocumentId
+  );
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
   const activeDocumentId = workspace?.activeDocumentId;
@@ -40,6 +44,7 @@ export function ProjectResources() {
     if (
       raw === 'overview' ||
       raw === 'components' ||
+      raw === 'tokens' ||
       raw === 'public' ||
       raw === 'code' ||
       raw === 'i18n' ||
@@ -53,7 +58,6 @@ export function ProjectResources() {
   const [pendingCodeFolder, setPendingCodeFolder] = useState<
     'scripts' | 'styles' | 'shaders' | null
   >(null);
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(
@@ -64,6 +68,13 @@ export function ProjectResources() {
 
   useEffect(() => {
     if (activeDocumentType === 'code') setActiveSection('code');
+    if (activeDocumentType === 'asset') setActiveSection('public');
+    if (
+      activeDocumentType === 'design-tokens' ||
+      activeDocumentType === 'design-token-resolver'
+    ) {
+      setActiveSection('tokens');
+    }
   }, [activeDocumentId, activeDocumentType]);
 
   const overviewSnapshot = useMemo(() => {
@@ -76,8 +87,13 @@ export function ProjectResources() {
     );
   }, [activeSection, projectId, treeById, treeRootId, workspaceDocumentsById]);
 
-  const createCodeAssetAndOpen = (folder: 'scripts' | 'styles' | 'shaders') => {
-    setPendingCodeFolder(folder);
+  const openCodeResources = (folder?: 'scripts' | 'styles' | 'shaders') => {
+    setPendingCodeFolder(folder ?? null);
+    setActiveSection('code');
+  };
+
+  const openResourceCodeArtifact = (artifactId: string) => {
+    setActiveDocumentId(artifactId);
     setActiveSection('code');
   };
 
@@ -123,17 +139,19 @@ export function ProjectResources() {
         <ResourceOverviewPanel
           overviewSnapshot={overviewSnapshot}
           onOpenSection={setActiveSection}
-          onCreateCodeAsset={createCodeAssetAndOpen}
+          onOpenCodeResources={openCodeResources}
         />
       ) : null}
 
       {activeSection === 'components' ? <ComponentResourcePage /> : null}
 
+      {activeSection === 'tokens' ? <DesignTokenResourcePage /> : null}
+
       {activeSection === 'public' ? <PublicResourcePage embedded /> : null}
 
       {activeSection === 'code' ? (
-        <CodeResourcePage
-          embedded
+        <CodeAuthoringWorkspace
+          presentation="embedded"
           requestedCreateFolder={pendingCodeFolder}
           onCreateRequestConsumed={() => setPendingCodeFolder(null)}
         />
@@ -141,7 +159,9 @@ export function ProjectResources() {
 
       {activeSection === 'i18n' ? <I18nResourcePage embedded /> : null}
 
-      {activeSection === 'external' ? <ExternalLibraryManager /> : null}
+      {activeSection === 'external' ? (
+        <ExternalLibraryManager onOpenCodeArtifact={openResourceCodeArtifact} />
+      ) : null}
 
       {activeSection === 'projectFiles' ? (
         <ProjectFileManager embedded />

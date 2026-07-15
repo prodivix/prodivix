@@ -14,6 +14,7 @@ import {
   Sparkles,
   Globe,
   CircleAlert,
+  Code2,
 } from 'lucide-react';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { useAuthStore } from '@/auth/useAuthStore';
@@ -55,6 +56,11 @@ function ProjectHome() {
         key: 'component',
         path: `/editor/project/${resolvedProjectId}/component`,
         icon: <Boxes size={18} />,
+      },
+      {
+        key: 'code',
+        path: `/editor/project/${resolvedProjectId}/code`,
+        icon: <Code2 size={18} />,
       },
       {
         key: 'resources',

@@ -48,7 +48,7 @@ const addCodeDocument = (workspace: WorkspaceSnapshot) => {
     path: '/pages/main.ts',
     contentRev: 1,
     metaRev: 1,
-    content: { language: 'typescript', source: 'export const value = 0;' },
+    content: { language: 'ts', source: 'export const value = 0;' },
   };
 };
 
@@ -96,7 +96,7 @@ const createSession = (includeCodeDocument: boolean) => {
     '2026-07-12T01:01:00.000Z'
   );
   if (resolved.ok === false) {
-    throw new Error(resolved.issues[0]?.message);
+    throw new Error(JSON.stringify(resolved.issues, null, 2));
   }
   if (!resolved.session.resolvedSnapshot) {
     throw new Error('Expected a resolved snapshot.');

@@ -100,6 +100,14 @@
     "expand": "展开检查器",
     "collapse": "收起检查器",
     "placeholder": "选择组件以编辑。",
+    "controlledCode": {
+      "title": "可视化 / 代码",
+      "connected": "PIR-current、JSX 与 CSS 会作为一次原子变更同步更新。",
+      "description": "创建负责结构、属性和文本的规范 JSX，以及负责样式的独立 CSS。",
+      "create": "创建代码",
+      "openJsx": "编辑 JSX",
+      "openCss": "编辑 CSS"
+    },
     "groups": {
       "basic": "基础信息",
       "style": {
@@ -187,9 +195,11 @@
         }
       },
       "id": {
-        "label": "组件 ID",
-        "description": "在当前蓝图中保持唯一。",
-        "duplicate": "ID 已存在。"
+        "label": "节点 ID",
+        "description": "系统生成的稳定标识，重命名不会改变它。",
+        "copy": "复制节点 ID",
+        "copied": "节点 ID 已复制。",
+        "copyFailed": "复制失败，请选择字段内容后手动复制。"
       },
       "icon": {
         "label": "图标",
@@ -499,37 +509,6 @@
           "borderWidth": "1",
           "borderRadius": "0"
         }
-      },
-      "external-code": {
-        "title": "外部代码",
-        "description": "为 Canvas、WebGL 或其他运行时驱动组件挂载项目脚本或着色器资源。",
-        "status": {
-          "mounted": "已挂载到外部运行时",
-          "unmounted": "未挂载",
-          "missing": "缺失",
-          "resourceMissing": "所选资源路径已经不在项目资源中。",
-          "resourceReady": "项目资源已可用于挂载。"
-        },
-        "actions": {
-          "mount": "挂载",
-          "unmount": "取消挂载",
-          "manageResources": "管理"
-        },
-        "fields": {
-          "language": "语言",
-          "projectResource": "项目资源",
-          "projectResourceHelp": "从符合当前语言的 code/scripts 或 code/shaders 资源中选择。",
-          "resourcePath": "资源路径",
-          "resourcePathHelp": "项目内 scripts 或 shaders 下的相对资源路径。",
-          "entry": "入口",
-          "entryHelp": "运行时宿主调用的导出名或函数名。"
-        },
-        "placeholders": {
-          "projectResource": "选择项目资源",
-          "resourcePath": "code/scripts/render.ts",
-          "entry": "main"
-        },
-        "empty": "当前还没有匹配的脚本或着色器资源。"
       },
       "animation-mount": {
         "title": "动画挂载"

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { Download, FileWarning } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { createAssetSymbolId } from '@prodivix/authoring';
 import { ResourceFileTree } from './ResourceFileTree';
 import {
   collectBestPracticeHints,
@@ -22,9 +23,12 @@ import {
   shouldReadPublicFileText,
   type PublicFileKind,
 } from './publicResourceModel';
-import { useAuthStore } from '@/auth/useAuthStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
-import { executeWorkspaceVfsOutboxIntent } from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+import {
+  navigateToWorkspaceSemanticTarget,
+  resolveWorkspaceSemanticIndex,
+} from '@/editor/navigation';
+import { dispatchWorkspaceVfsAuthoringIntent } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { buildPublicResourceTreeFromWorkspace } from './workspacePublicResources';
 import {
   createWorkspaceDirectoryIntentRequest,
@@ -59,10 +63,15 @@ export function PublicResourcePage({
 }: PublicResourcePageProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
-  const token = useAuthStore((state) => state.token);
+  const navigate = useNavigate();
   const workspace = useEditorStore((state) => state.workspace);
+  const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
+  const setActiveDocumentId = useEditorStore(
+    (state) => state.setActiveDocumentId
+  );
   const workspaceId = workspace?.id;
   const workspaceRev = workspace?.workspaceRev;
+  const activeDocumentId = workspace?.activeDocumentId;
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
   const routeManifest = workspace?.routeManifest;
@@ -99,6 +108,29 @@ export function PublicResourcePage({
     () => collectBestPracticeHints(selectedNode),
     [selectedNode]
   );
+  const semanticIndex = useMemo(
+    () => (workspace ? resolveWorkspaceSemanticIndex(workspace) : null),
+    [workspace]
+  );
+  const selectedAssetRelations = useMemo(() => {
+    if (!workspace || !semanticIndex || selectedNode.type !== 'file') {
+      return null;
+    }
+    const symbolId = createAssetSymbolId(workspace.id, selectedNode.id);
+    const references = semanticIndex.getReferences(symbolId, {
+      expectedSnapshotIdentity: semanticIndex.snapshotIdentity,
+    });
+    const impact = semanticIndex.getImpact([symbolId], {
+      expectedSnapshotIdentity: semanticIndex.snapshotIdentity,
+    });
+    return {
+      references: references.status === 'resolved' ? references.references : [],
+      impactedSymbolCount:
+        impact.status === 'resolved'
+          ? impact.impact.impactedSymbolIds.length
+          : 0,
+    };
+  }, [selectedNode, semanticIndex, workspace]);
   const hintSummary = useMemo(() => {
     return flattenPublicFiles(tree).reduce(
       (acc, file) => {
@@ -124,6 +156,38 @@ export function PublicResourcePage({
     );
   }, [projectId, selectedNodeId, tree]);
 
+  useEffect(() => {
+    if (
+      !activeDocumentId ||
+      workspaceDocumentsById[activeDocumentId]?.type !== 'asset' ||
+      !findNodeById(tree, activeDocumentId) ||
+      selectedNodeId === activeDocumentId
+    ) {
+      return;
+    }
+    setSelectedNodeId(activeDocumentId);
+  }, [activeDocumentId, selectedNodeId, tree, workspaceDocumentsById]);
+
+  const handleSelectNode = (nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    const node = findNodeById(tree, nodeId);
+    if (node?.type === 'file') setActiveDocumentId(node.id);
+  };
+
+  const openAssetReference = (referenceId: string) => {
+    if (!projectId || !workspace) return;
+    navigateToWorkspaceSemanticTarget({
+      projectId,
+      navigate,
+      resolveSemanticIndex: resolveWorkspaceSemanticIndex,
+      target: {
+        kind: 'semantic-reference',
+        referenceId,
+        destination: 'source',
+      },
+    });
+  };
+
   const resolveWorkspaceParentNodeId = (parentId: string) => {
     if (parentId === PUBLIC_TREE_ROOT_ID) {
       return (
@@ -136,10 +200,10 @@ export function PublicResourcePage({
 
   const applyIntent = async (request: WorkspaceVfsIntentRequest) => {
     const currentWorkspace = useEditorStore.getState().workspace;
-    if (!token || !currentWorkspace) return false;
-    const outcome = await executeWorkspaceVfsOutboxIntent({
-      token,
+    if (!currentWorkspace || workspaceReadonly) return false;
+    const outcome = await dispatchWorkspaceVfsAuthoringIntent({
       workspace: currentWorkspace,
+      readonly: workspaceReadonly,
       request,
     });
     if (outcome.status === 'rejected') throw new Error(outcome.message);
@@ -147,7 +211,9 @@ export function PublicResourcePage({
   };
 
   const handleCreateFolder = async (parentId: string) => {
-    if (!token || !workspace || !workspaceId || !workspaceRev) return;
+    if (!workspace || workspaceReadonly || !workspaceId || !workspaceRev) {
+      return;
+    }
     let parentNodeId = resolveWorkspaceParentNodeId(parentId);
     if (!parentNodeId) return;
     if (
@@ -211,7 +277,10 @@ export function PublicResourcePage({
         content,
       })
     );
-    if (created) setSelectedNodeId(documentId);
+    if (created) {
+      setSelectedNodeId(documentId);
+      setActiveDocumentId(documentId);
+    }
   };
 
   const handleCreateFile = async (parentId: string) => {
@@ -272,6 +341,26 @@ export function PublicResourcePage({
         );
         return;
       }
+      const references = semanticIndex
+        ? semanticIndex.getReferences(
+            createAssetSymbolId(
+              semanticIndex.snapshotIdentity.workspaceRevisions.workspaceId,
+              nodeId
+            ),
+            { expectedSnapshotIdentity: semanticIndex.snapshotIdentity }
+          )
+        : null;
+      if (
+        references?.status === 'resolved' &&
+        references.references.length > 0
+      ) {
+        window.alert(
+          t('resourceManager.public.semanticReferencedDeleteBlocked', {
+            count: references.references.length,
+          })
+        );
+        return;
+      }
       await applyIntent(
         deleteWorkspaceResourceDocumentRequest({
           workspaceRev: workspaceRev ?? 0,
@@ -280,7 +369,10 @@ export function PublicResourcePage({
         })
       );
     }
-    if (selectedNodeId === nodeId) setSelectedNodeId(tree.id);
+    if (selectedNodeId === nodeId) {
+      setSelectedNodeId(tree.id);
+      if (activeDocumentId === nodeId) setActiveDocumentId(undefined);
+    }
   };
 
   const handleRenameNode = async (nodeId: string, nextName: string) => {
@@ -382,7 +474,7 @@ export function PublicResourcePage({
             mode="editable"
             selectedId={selectedNodeId}
             requestRenameNodeId={requestRenameNodeId}
-            onSelect={setSelectedNodeId}
+            onSelect={handleSelectNode}
             onCreateFolder={handleCreateFolder}
             onCreateFile={handleCreateFile}
             onCreateFileByKind={handleCreateFileByKind}
@@ -429,7 +521,38 @@ export function PublicResourcePage({
                   {t('resourceManager.public.labels.size')}:{' '}
                   {formatPublicResourceBytes(selectedNode.size)}
                 </p>
+                <p>
+                  {t('resourceManager.public.labels.references')}:{' '}
+                  {selectedAssetRelations?.references.length ?? 0}
+                </p>
+                <p>
+                  {t('resourceManager.public.labels.impactedSymbols')}:{' '}
+                  {selectedAssetRelations?.impactedSymbolCount ?? 0}
+                </p>
               </div>
+              {selectedAssetRelations?.references.length ? (
+                <section className="rounded-xl border border-black/8 p-3">
+                  <p className="text-xs font-semibold text-(--text-primary)">
+                    {t('resourceManager.public.references.title')}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedAssetRelations.references.map(
+                      (reference, index) => (
+                        <button
+                          key={reference.id}
+                          type="button"
+                          onClick={() => openAssetReference(reference.id)}
+                          className="rounded-lg border border-black/10 px-2.5 py-1.5 text-[10px] text-(--text-secondary)"
+                        >
+                          {t('resourceManager.public.references.open', {
+                            index: index + 1,
+                          })}
+                        </button>
+                      )
+                    )}
+                  </div>
+                </section>
+              ) : null}
               {isSvgFileNode(selectedNode) ? (
                 <div className="rounded-xl border border-black/8 p-3">
                   <div className="mb-2 inline-flex rounded-lg border border-black/10 p-1 text-xs">

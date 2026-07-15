@@ -2,7 +2,10 @@ import React, { useCallback, useMemo } from 'react';
 import type { WorkspacePirDocument } from '@prodivix/workspace';
 import { PIRCollectionProjection } from '../collection/PIRCollectionProjection';
 import { PIRComponentInstanceProjection } from '../component/PIRComponentInstanceProjection';
-import { PIRElementProjection } from './PIRElementProjection';
+import {
+  PIRElementProjection,
+  isSamePirRenderLocation,
+} from './PIRElementProjection';
 import type { PIRRenderLocation, PIRRenderRole } from '../PIRRenderer.types';
 import { PIRSlotOutletProjection } from '../component/PIRSlotOutletProjection';
 import type { PIRProjectionRuntime } from '../runtime/pirProjectionRuntime';
@@ -13,9 +16,10 @@ import type {
 
 const PIRNodeBoundary: React.FC<{
   location: PIRRenderLocation;
+  hidden: boolean;
   onNodeSelect?: PIRProjectionRuntime['onNodeSelect'];
   children: React.ReactNode;
-}> = ({ location, onNodeSelect, children }) => {
+}> = ({ location, hidden, onNodeSelect, children }) => {
   const handleClickCapture = useCallback(
     (event: React.SyntheticEvent) => {
       if (!onNodeSelect) return;
@@ -29,8 +33,9 @@ const PIRNodeBoundary: React.FC<{
   );
   return (
     <span
-      style={{ display: 'contents' }}
+      style={{ display: hidden ? 'none' : 'contents' }}
       data-pir-node-boundary=""
+      aria-hidden={hidden || undefined}
       onClickCapture={onNodeSelect ? handleClickCapture : undefined}
     >
       {children}
@@ -93,6 +98,10 @@ export const PIRNodeProjection: React.FC<{
     () => ({ documentId: document.id, nodeId, instancePath, role }),
     [document.id, instancePath, nodeId, role]
   );
+  const hidden =
+    runtime.hiddenLocations?.some((candidate) =>
+      isSamePirRenderLocation(candidate, location)
+    ) ?? false;
   let projection: React.ReactNode;
   if (node.kind === 'element') {
     projection = (
@@ -153,7 +162,11 @@ export const PIRNodeProjection: React.FC<{
     );
   }
   return (
-    <PIRNodeBoundary location={location} onNodeSelect={runtime.onNodeSelect}>
+    <PIRNodeBoundary
+      location={location}
+      hidden={hidden}
+      onNodeSelect={runtime.onNodeSelect}
+    >
       {projection}
     </PIRNodeBoundary>
   );

@@ -16,7 +16,7 @@ This file provides Claude Code-specific guidance for working in this repository.
 
 ## Project Summary
 
-Prodivix is an industrial browser-side visual front-end development tool. The current product position is **G0 Passed / G1 Foundation**; G1 `ProductGateStatus` is **In Progress**. The target G1 product shape is three visual editors, a shared **Code Authoring Environment**, and a cross-domain **Workspace Semantic Index**:
+Prodivix is an industrial browser-side visual front-end development tool. The current product position is **G1 Passed / G2 Foundation**; G2 `ProductGateStatus` is **In Progress**. G1 established three visual editors, a shared **Code Authoring Environment**, and a cross-domain **Workspace Semantic Index**:
 
 ```text
 Blueprint / NodeGraph / Animation
@@ -60,6 +60,8 @@ All G1 production consumers use the version-neutral `PIR-current` domain model a
 - Code Authoring Environment is shared infrastructure for code-owned authoring; it is not a fourth peer business editor.
 - Use it for event handlers, custom executors, animation functions, mounted CSS, shaders, external-library adapters, and ordinary Workspace code files.
 - Visual editors should connect to code through explicit code slots and stable `CodeReference` / `CodeArtifact` ownership, not by storing arbitrary source strings in local UI state.
+- Slot-managed code documents carry explicit lifecycle metadata. External-library config owns its `external-adapter` binding; removing the owner preserves the code document as an orphan with Issues/Resources actions for rebind, module conversion, or safe deletion.
+- Code Resources exposes F2 language rename through a revision-bound Workspace Transaction plus Semantic Index owner-impact preview. Named cross-domain references fail closed until their owner can be rewritten atomically. CodeArtifact path moves use the current Workspace relocation planner and preserve stable identity, source, bindings, and semantic references.
 - Workspace Semantic Index is a partitioned-revision/provider-set-bound, rebuildable read projection over the Canonical Workspace. It owns cross-domain `WorkspaceSymbol`, `WorkspaceScope`, reference, visibility, definition, impact, and semantic-resolution query semantics; it is never a second source of truth.
 - Language services connect through Code Semantic Contribution and Language Capability Providers. Canonical Workspace owns code documents; Code Authoring Environment owns their authoring experience, `CodeArtifact` projection, `CodeReference`, code slots, and provider lifecycle, but not global identity or visibility policy for non-code domains.
 - Globally addressable symbols are not globally visible. Scope, type, and capability still constrain resolution, completion, and binding. Persist typed domain references; do not replace them with one generic symbol JSON shape.
@@ -80,11 +82,12 @@ All G1 production consumers use the version-neutral `PIR-current` domain model a
 - `packages/router` - RouteManifest codec, matching, and navigation semantics.
 - `packages/nodegraph` / `packages/animation` - transport-neutral domain contracts, codecs, and deterministic execution/evaluation.
 - `packages/runtime-core` / `packages/runtime-browser` - runtime ports/registries and browser-specific adapters.
-- `packages/authoring` / `packages/code-language` / `packages/diagnostics` - Workspace Semantic Index contracts, revision-bound TS/JS/CSS/SCSS/GLSL/WGSL language capabilities, artifact/slot foundations, and Issues contracts.
-- `packages/golden-conformance` - Living Golden App and G0 non-browser conformance.
+- `packages/authoring` / `packages/code-language` / `packages/diagnostics` - Workspace Semantic Index contracts, revision-bound TS/JS/CSS/SCSS/GLSL/WGSL language capabilities, independent shader compile contracts/providers, artifact/slot foundations, and Issues contracts.
+- `packages/tokens` - canonical DTCG Format/Resolver profiles and codecs, versionless current Token/Resolver models, resolution plans, and revision-bound semantic providers.
+- `packages/golden-conformance` - Living Golden App, G0 non-browser conformance, and G1 Public Contract/controlled round-trip/standalone export/browser gates.
 - `packages/shared` - genuinely cross-domain types and utilities; do not move domain ownership back here.
 - `packages/ui` - shared UI package, styled with SCSS.
-- `packages/themes` - theme manifests and semantic design tokens.
+- `packages/themes` - Prodivix product-theme manifests and CSS-variable projection.
 - `packages/prodivix-compiler` - domain compilation, ExportProgram, and production export planning.
 - `specs` - architecture decisions, PIR contracts, diagnostic codes, RFCs, and implementation plans.
 
@@ -116,6 +119,8 @@ pnpm test:e2e:smoke
 pnpm format
 pnpm docs:diagnostics:check
 pnpm verify:g0
+pnpm verify:g1:standalone
+pnpm verify:g1:browser
 ```
 
 ### Targeted Web Checks
@@ -168,7 +173,7 @@ Prefer tests around user-visible behavior, public APIs, state outcomes, and stab
 - `apps/web/src/editor/workspaceSync` - browser IndexedDB adapters, outbox executors, local replica adoption, and recovery effects.
 - `apps/web/src/editor/store` - editor and supporting Zustand stores.
 - `apps/web/src/pir` - Web-only PIR actions and AST/conversion adapters; PIR domain semantics live in `@prodivix/pir`, rendering in `@prodivix/pir-react-renderer`.
-- Authoring contracts live in `@prodivix/authoring`; TS/JS/CSS/SCSS/GLSL/WGSL language engines live in `@prodivix/code-language`; Web composes their registries and must not recreate private semantic or language-service state.
+- Authoring contracts live in `@prodivix/authoring`; TS/JS/CSS/SCSS/GLSL/WGSL language engines and target-neutral shader compile providers live in `@prodivix/code-language`; Web composes their registries and owns only browser WebGL2/WebGPU backends, not private semantic or language-service state.
 
 ### Backend Areas
 
@@ -181,13 +186,14 @@ Prefer tests around user-visible behavior, public APIs, state outcomes, and stab
 
 - `specs/roadmap/global-phases.md` for the only global product phase and gate definitions.
 - `specs/roadmap/g0-closure-evidence.md` for the verified G0 boundary and reproduction command.
+- `specs/roadmap/g1-closure-evidence.md` for the verified G1 boundary and reproduction commands.
 - `specs/pir/PIR-current.json` and `specs/decisions/39.pir-current-evolution.md` for the active PIR wire contract and evolution boundary.
 - `specs/decisions/README.md` for architecture decision navigation.
-- `specs/decisions/37.verified-semantic-authoring-architecture.md` for the current seven-plane architecture and G1 direction.
+- `specs/decisions/37.verified-semantic-authoring-architecture.md` for the current seven-plane architecture and G1 closure.
 - `specs/decisions/28.code-authoring-environment.md` for code-owned ownership, code slots, library capability levels, and shared authoring boundaries.
 - `specs/decisions/25.authoring-symbol-environment.md` for Workspace Semantic Index, symbols, scopes, references, visibility, and diagnostic contracts.
 - `specs/decisions/38.blueprint-component-instance-and-collection.md` for Component Definition/Instance, atomic extraction, and Collection semantics.
-- `specs/implementation/g1-semantic-component-collection.md` for the active G1 implementation sequence.
+- `specs/implementation/g1-semantic-component-collection.md` for the completed G1 implementation sequence.
 - `specs/diagnostics/README.md` for diagnostic namespaces and code definitions.
 
 ## Documentation Boundaries

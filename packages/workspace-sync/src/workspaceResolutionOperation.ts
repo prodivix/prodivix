@@ -233,6 +233,12 @@ const documentDomain = (
   }
   if (document.type === 'pir-graph') return 'nodegraph';
   if (document.type === 'pir-animation') return 'animation';
+  if (
+    document.type === 'design-tokens' ||
+    document.type === 'design-token-resolver'
+  ) {
+    return 'token';
+  }
   if (document.type === 'code') return 'code';
   if (document.type === 'asset' || document.type === 'project-config') {
     return 'resource';
@@ -302,7 +308,23 @@ const createDocumentDraft = (
     return { ok: true, draft: null };
   }
   const domainHint = documentDomain(resolvedDocument);
-  const paths = allowedContentPaths(resolvedDocument);
+  const dynamicTokenPaths =
+    resolvedDocument.type === 'design-tokens' ||
+    resolvedDocument.type === 'design-token-resolver'
+      ? [
+          ...new Set([
+            ...Object.keys(
+              isRecord(remoteDocument.content) ? remoteDocument.content : {}
+            ),
+            ...Object.keys(
+              isRecord(resolvedDocument.content) ? resolvedDocument.content : {}
+            ),
+          ]),
+        ]
+          .sort()
+          .map((key) => appendJsonPointer('', key))
+      : null;
+  const paths = dynamicTokenPaths ?? allowedContentPaths(resolvedDocument);
   if (
     !domainHint ||
     !paths ||

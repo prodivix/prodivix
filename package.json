@@ -28,6 +28,8 @@
     "build-storybook:ui": "turbo run build-storybook --filter=@prodivix/ui",
     "test": "turbo run test",
     "test:golden": "turbo run test --filter=@prodivix/golden-conformance",
+    "verify:g1:standalone": "cross-env PRODIVIX_VERIFY_G1_STANDALONE=1 turbo run test --filter=@prodivix/golden-conformance",
+    "verify:g1:browser": "cross-env PRODIVIX_VERIFY_G1_BROWSER=1 E2E_BROWSER_CHANNEL=chrome turbo run test --filter=@prodivix/golden-conformance",
     "verify:g0": "node scripts/verify-g0.mjs",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.mts",
     "test:e2e:chrome": "cross-env E2E_BROWSER_CHANNEL=chrome playwright test --config tests/e2e/playwright.config.mts --project=chromium",

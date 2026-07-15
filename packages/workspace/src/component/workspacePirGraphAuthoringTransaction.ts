@@ -1,6 +1,7 @@
 import {
   deletePirGraphSubtree,
   duplicatePirGraphSubtree,
+  insertPirGraphFragment,
   movePirGraphSubtree,
   unwrapPirCollection,
   updatePirElementNode,
@@ -10,6 +11,7 @@ import {
   type PIRGraphDuplicateIdKind,
   type PIRGraphPlacementTarget,
   type PIRDocument,
+  type PIRGraphFragment,
 } from '@prodivix/pir';
 import type {
   WorkspaceCommandEnvelope,
@@ -61,6 +63,13 @@ export type CreateWorkspacePIRSubtreeMoveTransactionInput =
   WorkspacePIRGraphAuthoringInputBase &
     Readonly<{
       nodeId: string;
+      target: PIRGraphPlacementTarget;
+    }>;
+
+export type CreateWorkspacePIRGraphFragmentInsertTransactionInput =
+  WorkspacePIRGraphAuthoringInputBase &
+    Readonly<{
+      fragment: PIRGraphFragment;
       target: PIRGraphPlacementTarget;
     }>;
 
@@ -276,6 +285,7 @@ const completePlan = (input: {
   before: PIRDocument;
   after: PIRDocument;
   operation:
+    | 'fragment-insert'
     | 'move'
     | 'delete'
     | 'duplicate'
@@ -291,6 +301,11 @@ const completePlan = (input: {
   );
   if (introduced.length > 0) return reject(introduced);
   const operation = {
+    'fragment-insert': {
+      namespace: 'core.pir.graph',
+      type: 'fragment.insert',
+      label: 'Insert PIR graph fragment',
+    },
     move: {
       namespace: 'core.pir.graph',
       type: 'subtree.move',
@@ -359,6 +374,36 @@ const completePlan = (input: {
       nextDocumentContent: input.after,
       ...(input.selectedNodeId ? { selectedNodeId: input.selectedNodeId } : {}),
     }),
+  });
+};
+
+/** Plans insertion of one validated normalized fragment through Workspace History. */
+export const createWorkspacePIRGraphFragmentInsertTransactionPlan = (
+  input: CreateWorkspacePIRGraphFragmentInsertTransactionInput
+): WorkspacePIRGraphAuthoringTransactionPlanResult => {
+  const envelopeIssues = validateEnvelope(input);
+  if (envelopeIssues.length > 0) return reject(envelopeIssues);
+  const read = readDocument(input);
+  if (!read.ok) return reject(read.issues);
+  const mutation = insertPirGraphFragment({
+    document: read.content,
+    fragment: input.fragment,
+    target: input.target,
+  });
+  if (!mutation.ok) {
+    return reject(
+      mutation.issues.map((issue) => ({
+        ...issue,
+        documentId: input.documentId,
+      }))
+    );
+  }
+  return completePlan({
+    envelope: input,
+    before: read.content,
+    after: mutation.document,
+    operation: 'fragment-insert',
+    selectedNodeId: mutation.primaryNodeId,
   });
 };
 

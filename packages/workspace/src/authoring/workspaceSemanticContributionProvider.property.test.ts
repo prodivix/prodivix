@@ -2,7 +2,6 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
   CURRENT_SEMANTIC_SCHEMA_VERSION,
-  createAssetSymbolId,
   createCodeArtifactScopeId,
   createCodeArtifactSymbolId,
   createComponentSymbolId,
@@ -160,7 +159,7 @@ const createIdentity = (
 });
 
 describe('createWorkspaceSemanticContributionProvider', () => {
-  it('publishes deterministic complete document, code, and asset identities', () => {
+  it('publishes deterministic document, code, and component identities', () => {
     fc.assert(
       fc.property(documentSpecsArbitrary, (specs) => {
         const snapshot = createWorkspace(specs);
@@ -181,8 +180,7 @@ describe('createWorkspaceSemanticContributionProvider', () => {
         expect(reversedContribution).toEqual(contribution);
         expect(contribution.references ?? []).toEqual([]);
         const typedDocuments = specs.filter(
-          ({ type }) =>
-            type === 'code' || type === 'asset' || type === 'pir-component'
+          ({ type }) => type === 'code' || type === 'pir-component'
         );
         expect(contribution.dependencies).toHaveLength(typedDocuments.length);
         expect(contribution.scopes).toHaveLength(
@@ -253,16 +251,6 @@ describe('createWorkspaceSemanticContributionProvider', () => {
               })
             );
           }
-          if (document.type === 'asset') {
-            expect(contribution.symbols).toContainEqual(
-              expect.objectContaining({
-                id: createAssetSymbolId(snapshot.id, document.id),
-                kind: 'asset',
-                scopeId: documentScopeId,
-                typeRef: 'asset:image/png',
-              })
-            );
-          }
           if (document.type === 'pir-component') {
             expect(contribution.symbols).toContainEqual(
               expect.objectContaining({
@@ -277,11 +265,9 @@ describe('createWorkspaceSemanticContributionProvider', () => {
           const typedSymbolId =
             document.type === 'code'
               ? createCodeArtifactSymbolId(snapshot.id, document.id)
-              : document.type === 'asset'
-                ? createAssetSymbolId(snapshot.id, document.id)
-                : document.type === 'pir-component'
-                  ? createComponentSymbolId(snapshot.id, document.id)
-                  : undefined;
+              : document.type === 'pir-component'
+                ? createComponentSymbolId(snapshot.id, document.id)
+                : undefined;
           if (typedSymbolId) {
             expect(contribution.dependencies).toContainEqual({
               id: createSemanticId(
@@ -290,9 +276,7 @@ describe('createWorkspaceSemanticContributionProvider', () => {
                 document.id,
                 document.type === 'pir-component'
                   ? 'component'
-                  : document.type === 'code'
-                    ? 'code-artifact'
-                    : 'asset'
+                  : 'code-artifact'
               ),
               kind: 'document',
               sourceSymbolId: typedSymbolId,

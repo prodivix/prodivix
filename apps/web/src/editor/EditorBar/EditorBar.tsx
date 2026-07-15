@@ -17,6 +17,7 @@ import {
   Folder,
   Home,
   CircleAlert,
+  Code2,
 } from 'lucide-react';
 import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
 import { EditorBarExitModal } from './EditorBarExitModal';
@@ -116,6 +117,13 @@ function EditorBar() {
                 size={22}
                 title={t('projectHome.actions.component.label')}
                 to={`${basePath}/component`}
+              />
+              <PdxIconLink
+                icon={<Code2 size={22} />}
+                label={t('projectHome.actions.code.label')}
+                size={22}
+                title={`${t('projectHome.actions.code.label')} · Alt+C`}
+                to={`${basePath}/code`}
               />
               <PdxIconLink
                 icon={<Folder size={22} />}

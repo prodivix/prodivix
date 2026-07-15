@@ -8,6 +8,7 @@ import {
   collectRevisionConflictIssueSnapshot,
   collectWorkspaceModelIssueSnapshots,
   collectWorkspaceOutboxIssueSnapshot,
+  collectWorkspaceShaderCompileIssueSnapshot,
 } from './workspaceIssueProviders';
 import { useWorkspaceIssuesStore } from './workspaceIssuesStore';
 
@@ -76,8 +77,21 @@ export function WorkspaceIssuesEffects() {
       );
     };
 
+    const refreshShaderCompileIssues = async () => {
+      const snapshot = await collectWorkspaceShaderCompileIssueSnapshot({
+        workspace,
+        revision,
+        collectedAt: Date.now(),
+      });
+      if (cancelled) return;
+      useWorkspaceIssuesStore.getState().publishSnapshot(snapshot);
+    };
+
     void refreshOutboxIssues().catch((error: unknown) => {
       console.warn('[workspace-issues] outbox diagnostics failed', error);
+    });
+    void refreshShaderCompileIssues().catch((error: unknown) => {
+      console.warn('[workspace-issues] shader diagnostics failed', error);
     });
     const unsubscribe = subscribeWorkspaceOutbox((changedWorkspaceId) => {
       if (changedWorkspaceId !== workspaceId) return;

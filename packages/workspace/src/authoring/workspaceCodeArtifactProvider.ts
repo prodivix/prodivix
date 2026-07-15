@@ -1,7 +1,10 @@
-import type {
-  AuthoringContext,
-  CodeArtifact,
-  CodeArtifactProvider,
+import {
+  decodeCodeArtifactLifecycleManifest,
+  decodeControlledSourceManifest,
+  decodeShaderCompileProfile,
+  type AuthoringContext,
+  type CodeArtifact,
+  type CodeArtifactProvider,
 } from '@prodivix/authoring';
 import type { WorkspaceDocument, WorkspaceSnapshot } from '../types';
 import { isWorkspaceCodeDocumentContent } from '../workspaceCodeDocument';
@@ -15,14 +18,34 @@ const toCodeArtifact = (document: WorkspaceDocument): CodeArtifact | null => {
   ) {
     return null;
   }
+  const controlledSource = decodeControlledSourceManifest(
+    document.content.metadata
+  );
+  const lifecycle = decodeCodeArtifactLifecycleManifest(
+    document.content.metadata
+  );
+  const shaderCompile = decodeShaderCompileProfile(
+    document.content.metadata,
+    document.content.language
+  );
 
   return {
     id: document.id,
     path: document.path,
     language: document.content.language,
+    ownership: controlledSource.status === 'valid' ? 'adapted' : 'code-owned',
     owner: { kind: 'workspace-module', documentId: document.id },
     source: document.content.source,
     revision: String(document.contentRev),
+    ...(controlledSource.status === 'valid'
+      ? { controlledSource: controlledSource.manifest }
+      : {}),
+    ...(lifecycle.status === 'valid'
+      ? { lifecycleManifest: lifecycle.manifest }
+      : {}),
+    ...(shaderCompile.status === 'valid'
+      ? { shaderCompileProfile: shaderCompile.profile }
+      : {}),
   };
 };
 

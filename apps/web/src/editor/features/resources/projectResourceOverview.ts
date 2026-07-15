@@ -1,13 +1,18 @@
 import type { ComponentType } from 'react';
 import {
   FileArchive,
-  FileCode2,
   FileCog,
   Globe2,
+  FileCode2,
   LayoutDashboard,
   Library,
   Boxes,
+  Palette,
 } from 'lucide-react';
+import {
+  decodeDtcgDesignTokenDocument,
+  decodeDtcgDesignTokenResolverDocument,
+} from '@prodivix/tokens';
 import { collectBestPracticeHints, flattenPublicFiles } from './publicTree';
 import { collectLocaleMissingStats } from './i18nStore';
 import { flattenEnabledProjectFiles } from './projectFileStore';
@@ -15,7 +20,7 @@ import type { WorkspaceDocument, WorkspaceVfsNode } from '@prodivix/workspace';
 import {
   buildCodeResourceFilesFromWorkspaceDocuments,
   buildCodeResourceTreeFromWorkspaceVfs,
-} from './workspaceCodeResources';
+} from '@/editor/features/code/workspaceCodeArtifacts';
 import { buildPublicResourceTreeFromWorkspace } from './workspacePublicResources';
 import { buildProjectFilesFromWorkspace } from './workspaceProjectFiles';
 import { buildI18nResourceValueFromWorkspace } from './workspaceI18nResources';
@@ -24,6 +29,7 @@ import { buildExternalLibrariesValueFromWorkspace } from './workspaceExternalLib
 export type SectionId =
   | 'overview'
   | 'components'
+  | 'tokens'
   | 'public'
   | 'code'
   | 'i18n'
@@ -38,6 +44,7 @@ export type SectionMeta = {
 export const sectionMetas: SectionMeta[] = [
   { id: 'overview', icon: LayoutDashboard },
   { id: 'components', icon: Boxes },
+  { id: 'tokens', icon: Palette },
   { id: 'public', icon: FileArchive },
   { id: 'code', icon: FileCode2 },
   { id: 'i18n', icon: Globe2 },
@@ -81,6 +88,12 @@ export type OverviewSnapshot = {
     styles: number;
     shaders: number;
     updatedAt: string | null;
+  };
+  tokens: {
+    documents: number;
+    resolvers: number;
+    tokens: number;
+    contexts: number;
   };
   i18n: {
     locales: number;
@@ -146,6 +159,33 @@ export const buildOverviewSnapshot = (
     { scripts: 0, styles: 0, shaders: 0 }
   );
 
+  const designTokenDocuments = Object.values(workspaceDocumentsById).filter(
+    (document) => document.type === 'design-tokens'
+  );
+  const resolverDocuments = Object.values(workspaceDocumentsById).filter(
+    (document) => document.type === 'design-token-resolver'
+  );
+  const designTokenCount = designTokenDocuments.reduce((count, document) => {
+    const decoded = decodeDtcgDesignTokenDocument(document.content);
+    return count + (decoded.ok ? decoded.value.tokens.length : 0);
+  }, 0);
+  const designTokenContextCount = resolverDocuments.reduce(
+    (count, document) => {
+      const decoded = decodeDtcgDesignTokenResolverDocument(document.content);
+      return (
+        count +
+        (decoded.ok
+          ? decoded.value.modifiers.reduce(
+              (modifierCount, modifier) =>
+                modifierCount + modifier.contexts.length,
+              0
+            )
+          : 0)
+      );
+    },
+    0
+  );
+
   const i18nStore = buildI18nResourceValueFromWorkspace(
     workspaceDocumentsById
   ).store;
@@ -208,6 +248,12 @@ export const buildOverviewSnapshot = (
         codeTree.updatedAt,
         ...codeFiles.map((file) => file.updatedAt),
       ]),
+    },
+    tokens: {
+      documents: designTokenDocuments.length,
+      resolvers: resolverDocuments.length,
+      tokens: designTokenCount,
+      contexts: designTokenContextCount,
     },
     i18n: {
       locales: i18nLocales.length,

@@ -100,6 +100,14 @@
     "expand": "Expand inspector",
     "collapse": "Collapse inspector",
     "placeholder": "Select a component to edit.",
+    "controlledCode": {
+      "title": "Visual / Code",
+      "connected": "PIR-current, JSX, and CSS update as one atomic change.",
+      "description": "Create canonical JSX for structure, props, and text, plus standalone CSS for styles.",
+      "create": "Create code",
+      "openJsx": "Edit JSX",
+      "openCss": "Edit CSS"
+    },
     "groups": {
       "basic": "Basic Info",
       "style": {
@@ -187,9 +195,11 @@
         }
       },
       "id": {
-        "label": "Component ID",
-        "description": "Unique within the blueprint.",
-        "duplicate": "ID already exists."
+        "label": "Node ID",
+        "description": "System-generated stable identity. Renaming does not change it.",
+        "copy": "Copy node ID",
+        "copied": "Node ID copied.",
+        "copyFailed": "Copy failed. Select the value to copy it manually."
       },
       "icon": {
         "label": "Icon",
@@ -500,37 +510,6 @@
           "borderWidth": "1",
           "borderRadius": "0"
         }
-      },
-      "external-code": {
-        "title": "External Code",
-        "description": "Mount project script or shader resources for Canvas, WebGL, or other runtime-driven components.",
-        "status": {
-          "mounted": "Mounted to external runtime",
-          "unmounted": "Not mounted",
-          "missing": "missing",
-          "resourceMissing": "The selected resource path is no longer present in project resources.",
-          "resourceReady": "Project resource is ready to mount."
-        },
-        "actions": {
-          "mount": "Mount",
-          "unmount": "Unmount",
-          "manageResources": "Manage"
-        },
-        "fields": {
-          "language": "Language",
-          "projectResource": "Project Resource",
-          "projectResourceHelp": "Choose from code/scripts or code/shaders resources that match the selected language.",
-          "resourcePath": "Resource Path",
-          "resourcePathHelp": "Relative project resource path under scripts or shaders.",
-          "entry": "Entry",
-          "entryHelp": "Export or function name used by the runtime host."
-        },
-        "placeholders": {
-          "projectResource": "Select a project resource",
-          "resourcePath": "code/scripts/render.ts",
-          "entry": "main"
-        },
-        "empty": "No matching script or shader resources are available yet."
       },
       "animation-mount": {
         "title": "Animation Mount"

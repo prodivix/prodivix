@@ -7,6 +7,8 @@ import {
   createEmptyAnimationDefinition,
   type AnimationDefinition,
 } from '@prodivix/animation';
+import { decodeControlledSourceManifest } from '@prodivix/authoring';
+import { createControlledCodeDocumentsPlan } from '@prodivix/prodivix-compiler';
 import type {
   PIRCollectionNode,
   PIRElementNode,
@@ -35,6 +37,7 @@ import {
   createWorkspacePIRElementBatchUpdateTransactionPlan,
   createWorkspacePIRElementUpdateTransactionPlan,
   createWorkspaceRouteIntentPlan,
+  isWorkspaceCodeDocumentContent,
   selectWorkspaceAnimationDocumentResults,
   selectWorkspaceNodeGraphDocumentResults,
   selectWorkspacePirDocument,
@@ -56,7 +59,6 @@ import {
 import { resolveInspectorPanels } from '@/editor/features/blueprint/editor/inspector/panels/registry';
 import { resolveInspectorComponentMeta } from '@/editor/features/blueprint/editor/inspector/meta/componentMetaProjection';
 import { resolveMountedCssEntries } from '@/editor/features/blueprint/editor/inspector/components/classProtocol/mountedCss';
-import { useMountedCssEditorState } from '@/editor/features/blueprint/editor/inspector/components/classProtocol/useMountedCssEditorState';
 import { getPrimaryTextField } from '@/editor/features/blueprint/editor/model/blueprintText';
 import { findNodePlacement } from '@/editor/features/blueprint/editor/model/tree';
 import {
@@ -67,6 +69,7 @@ import {
   selectActiveRouteNodeId,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
+import { openWorkspaceCodeArtifact } from '@/editor/features/code';
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 
@@ -83,6 +86,42 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const jsonEqual = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
+
+const findControlledCodeArtifactId = (
+  workspace: WorkspaceSnapshot,
+  pirDocumentId: string | undefined,
+  adapterId: 'react-jsx' | 'css'
+): string | undefined => {
+  if (!pirDocumentId) return undefined;
+  return Object.values(workspace.docsById)
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .find((document) => {
+      if (
+        document.type !== 'code' ||
+        !isWorkspaceCodeDocumentContent(document.content)
+      ) {
+        return false;
+      }
+      const manifest = decodeControlledSourceManifest(
+        document.content.metadata
+      );
+      return (
+        manifest.status === 'valid' &&
+        manifest.manifest.regions.some(
+          (binding) =>
+            binding.owner.documentId === pirDocumentId &&
+            binding.adapterId === adapterId
+        )
+      );
+    })?.id;
+};
+
+const toControlledViewBaseName = (document: WorkspaceDocument): string => {
+  const source = (document.name || document.path.split('/').at(-1) || 'View')
+    .replace(/\.(pir\.)?json$/i, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-');
+  return source || 'View';
+};
 
 const collectFieldPaths = (
   source: Record<string, unknown>,
@@ -776,12 +815,10 @@ export const useBlueprintEditorInspectorController = ({
     ['click', 'onclick'].includes(entry.trigger.trim().toLowerCase())
   );
 
-  const [draftId, setDraftId] = useState('');
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     () => ({ ...persistedExpandedPanels })
   );
   const [isIconPickerOpen, setIconPickerOpen] = useState(false);
-  useEffect(() => setDraftId(selectedNode?.id ?? ''), [selectedNode?.id]);
   useEffect(() => setIconPickerOpen(false), [selectedNode?.id]);
 
   const matchedPanels = useMemo(
@@ -804,13 +841,6 @@ export const useBlueprintEditorInspectorController = ({
     });
   }, [matchedPanels]);
 
-  const allIds = useMemo(
-    () =>
-      read?.status === 'valid'
-        ? Object.keys(read.decodedContent.ui.graph.nodesById)
-        : [],
-    [read]
-  );
   const primaryTextField = useMemo(
     () => (selectedNode ? getPrimaryTextField(selectedNode) : null),
     [selectedNode]
@@ -886,13 +916,132 @@ export const useBlueprintEditorInspectorController = ({
         : [],
     [selectedNode, selection?.documentId, workspace.docsById]
   );
-  const mountedCssEditor = useMountedCssEditorState({
-    selectedNode,
-    mountedCssEntries,
-    writeAvailable: false,
-    diagnostic:
-      'Mounted CSS is edited through the shared Code Authoring Environment.',
-  });
+  const controlledJsxArtifactId = useMemo(
+    () =>
+      findControlledCodeArtifactId(
+        workspace,
+        selection?.documentId,
+        'react-jsx'
+      ),
+    [selection?.documentId, workspace]
+  );
+  const controlledCssArtifactId = useMemo(
+    () => findControlledCodeArtifactId(workspace, selection?.documentId, 'css'),
+    [selection?.documentId, workspace]
+  );
+  const navigateToCodeArtifact = useCallback(
+    (artifactId: string) => {
+      const current = useEditorStore.getState().workspace;
+      const source = current?.id === workspace.id ? current : workspace;
+      const result = openWorkspaceCodeArtifact({
+        workspace: source,
+        artifactId,
+        presentation: 'maximized',
+      });
+      if (result.status === 'unavailable') {
+        report('The selected code artifact is no longer available.');
+        return false;
+      }
+      return true;
+    },
+    [report, workspace]
+  );
+  const openMountedCssEditor = useCallback(
+    (target?: { path?: string }) => {
+      const entry = target?.path
+        ? mountedCssEntries.find((candidate) => candidate.path === target.path)
+        : mountedCssEntries[0];
+      if (!entry) {
+        report('No mounted CSS CodeArtifact is attached to this node.');
+        return;
+      }
+      navigateToCodeArtifact(entry.id);
+    },
+    [mountedCssEntries, navigateToCodeArtifact, report]
+  );
+  const openControlledCode = useCallback(
+    (adapterId: 'react-jsx' | 'css') => {
+      if (!projectId || !selection?.documentId) return;
+      const current = useEditorStore.getState().workspace;
+      const source = current?.id === workspace.id ? current : workspace;
+      const artifactId = findControlledCodeArtifactId(
+        source,
+        selection.documentId,
+        adapterId
+      );
+      if (!artifactId) return;
+      navigateToCodeArtifact(artifactId);
+    },
+    [navigateToCodeArtifact, projectId, selection?.documentId, workspace]
+  );
+  const createControlledCode = useCallback(async () => {
+    if (!projectId || !selection?.documentId) return;
+    const current = useEditorStore.getState().workspace;
+    const source = current?.id === workspace.id ? current : workspace;
+    const existingJsxArtifactId = findControlledCodeArtifactId(
+      source,
+      selection.documentId,
+      'react-jsx'
+    );
+    const existingCssArtifactId = findControlledCodeArtifactId(
+      source,
+      selection.documentId,
+      'css'
+    );
+    if (existingJsxArtifactId || existingCssArtifactId) {
+      report(
+        'This PIR document already has a controlled code projection. Open the existing artifacts instead.'
+      );
+      return;
+    }
+    if (useEditorStore.getState().workspaceReadonly) return;
+    const pirDocument = source.docsById[selection.documentId];
+    if (!pirDocument) return;
+    const operationId = createWorkspaceClientOperationId(
+      'controlled-visual-code'
+    );
+    const suffix = operationId.replace(/[^a-zA-Z0-9]/g, '').slice(-10);
+    const artifactBaseId = `controlled-${selection.documentId}-${suffix}`;
+    const jsxCodeDocumentId = `${artifactBaseId}-jsx`;
+    const cssCodeDocumentId = `${artifactBaseId}-css`;
+    const baseName = toControlledViewBaseName(pirDocument);
+    const plan = createControlledCodeDocumentsPlan({
+      workspace: source,
+      baseRevision: source.workspaceRev,
+      pirDocumentId: selection.documentId,
+      parentNodeId: source.treeRootId,
+      jsx: {
+        codeDocumentId: jsxCodeDocumentId,
+        nodeId: `node-${jsxCodeDocumentId}`,
+        name: `${baseName}.controlled.tsx`,
+      },
+      css: {
+        codeDocumentId: cssCodeDocumentId,
+        nodeId: `node-${cssCodeDocumentId}`,
+        name: `${baseName}.controlled.css`,
+      },
+      operationId,
+      issuedAt: new Date().toISOString(),
+    });
+    if (plan.status !== 'ready') {
+      report(
+        plan.status === 'rejected'
+          ? (plan.issues[0]?.message ??
+              'The controlled code documents could not be created.')
+          : 'The controlled code documents already match the visual model.'
+      );
+      return;
+    }
+    if (!(await dispatchOperation(plan.operation))) return;
+    navigateToCodeArtifact(jsxCodeDocumentId);
+  }, [
+    dispatchOperation,
+    navigateToCodeArtifact,
+    projectId,
+    report,
+    selection?.documentId,
+    workspace,
+  ]);
 
   const togglePanel = useCallback((key: string) => {
     setExpandedPanels((current) => {
@@ -901,13 +1050,6 @@ export const useBlueprintEditorInspectorController = ({
       return next;
     });
   }, []);
-  const trimmedDraftId = draftId.trim();
-  const isDirty = Boolean(selectedNode && trimmedDraftId !== selectedNode.id);
-  const isDuplicate =
-    Boolean(trimmedDraftId) &&
-    trimmedDraftId !== selectedNode?.id &&
-    allIds.includes(trimmedDraftId);
-
   const sectionContextValue = useMemo<InspectorContextValue>(
     () => ({
       t: translate,
@@ -920,30 +1062,14 @@ export const useBlueprintEditorInspectorController = ({
       bindingDiagnostics: selectedCanonicalNode
         ? [...collectReadonlyBindingDiagnostics(selectedCanonicalNode)]
         : [],
-      draftId,
-      setDraftId,
-      applyRename: () =>
-        report(
-          'Node identity changes require an impact and relocation plan and are not available here yet.'
-        ),
-      isDirty,
-      canApply: false,
-      isDuplicate,
-      allNodeIds: allIds,
       primaryTextField,
-      identityWriteAvailable: false,
-      identityDiagnostic:
-        'Identity changes require Workspace-wide impact and relocation analysis.',
       supportsClassProtocol: selectedNode?.type !== 'container',
       classNameValue:
         typeof selectedNode?.props?.className === 'string'
           ? selectedNode.props.className
           : '',
       mountedCssEntries,
-      openMountedCssEditor: mountedCssEditor.openMountedCssEditor,
-      codeAuthoringWriteAvailable: false,
-      codeAuthoringDiagnostic:
-        'Create and edit code-owned bindings in the shared Code Authoring Environment.',
+      openMountedCssEditor,
       isIconNode:
         selectedNode?.type === 'PdxIcon' ||
         selectedNode?.type === 'PdxIconLink',
@@ -1009,6 +1135,20 @@ export const useBlueprintEditorInspectorController = ({
       collectionDiagnostic: workspaceReadonly
         ? 'This Workspace is read-only.'
         : undefined,
+      controlledJsxArtifactId,
+      controlledCssArtifactId,
+      controlledCodeCanCreate: Boolean(
+        projectId &&
+        selection?.documentId &&
+        !workspaceReadonly &&
+        !controlledJsxArtifactId &&
+        !controlledCssArtifactId
+      ),
+      createControlledCode: () => {
+        void createControlledCode();
+      },
+      openControlledJsx: () => openControlledCode('react-jsx'),
+      openControlledCss: () => openControlledCode('css'),
       addTrigger: () =>
         updateSelectedNode((current) => {
           const events = { ...(current.events ?? {}) };
@@ -1063,19 +1203,18 @@ export const useBlueprintEditorInspectorController = ({
       SelectedIconComponent,
       activeRouteDetails,
       activeRouteNodeId,
-      allIds,
       canAttachLayoutToActiveRoute,
       canDetachLayoutFromActiveRoute,
       componentMeta,
+      controlledCssArtifactId,
+      controlledJsxArtifactId,
+      createControlledCode,
       dataModelFieldPaths,
-      draftId,
       expandedPanels,
       graphOptions,
       hasAnimationDefinition,
       hasOnClickTrigger,
       isAnimationMounted,
-      isDirty,
-      isDuplicate,
       linkCapability,
       linkDestination,
       linkPropKey,
@@ -1085,10 +1224,11 @@ export const useBlueprintEditorInspectorController = ({
       matchedPanels,
       mountSelectedNodeToAnimation,
       mountedAnimationBindingCount,
-      mountedCssEditor.openMountedCssEditor,
       mountedCssEntries,
+      openMountedCssEditor,
       openAnimationEditor,
       outletRouteNodeId,
+      openControlledCode,
       persistRouteIntent,
       primaryTextField,
       projectId,
@@ -1128,6 +1268,5 @@ export const useBlueprintEditorInspectorController = ({
         return { ...current, props };
       }),
     sectionContextValue,
-    mountedCssEditor,
   };
 };

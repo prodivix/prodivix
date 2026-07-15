@@ -1,5 +1,7 @@
 # Inspector Section-to-Panel 重构规格书
 
+> **历史规格，已被当前 Code Authoring Environment 架构取代。** 本文中的 Panel 结构整理仍可作为历史背景；`ExternalCodePanel` 占位壳与 `props.externalCode` 不再是生产方案。当前实现统一使用 Canonical Workspace Code Artifact、CodeReference、CodeSlot 和受控源码入口，见 `specs/decisions/28.code-authoring-environment.md`。
+
 ## Context
 
 Inspector 当前存在旧 Section 和新 Panel 双轨并行的问题：

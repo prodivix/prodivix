@@ -18,6 +18,8 @@ import {
 } from './workspaceResourceDocument';
 import { isCanonicalWorkspaceAnimationDocumentContent } from './workspaceAnimationDocument';
 import { isCanonicalWorkspaceNodeGraphDocumentContent } from './workspaceNodeGraphDocument';
+import { isCanonicalWorkspaceDesignTokenDocumentContent } from './workspaceDesignTokenDocument';
+import { isCanonicalWorkspaceDesignTokenResolverDocumentContent } from './workspaceDesignTokenResolverDocument';
 import {
   collectRouteManifestDocumentRefs,
   type WorkspaceRouteNode,
@@ -52,6 +54,7 @@ export type WorkspaceCommandEnvelope = {
     | 'route'
     | 'nodegraph'
     | 'animation'
+    | 'token'
     | 'code'
     | 'resource';
 };
@@ -157,6 +160,16 @@ export type CreateWorkspaceCodeSourceUpdateCommandInput = {
   workspaceId: WorkspaceId;
   document: WorkspaceDocument;
   source: string;
+  commandId: string;
+  issuedAt: string;
+  mergeKey?: string;
+  label?: string;
+};
+
+export type CreateWorkspaceCodeContentUpdateCommandInput = {
+  workspaceId: WorkspaceId;
+  document: WorkspaceDocument;
+  content: WorkspaceCodeDocumentContent;
   commandId: string;
   issuedAt: string;
   mergeKey?: string;
@@ -411,6 +424,7 @@ const DOCUMENT_PATCH_DOMAINS: readonly DocumentPatchDomain[] = [
   'pir',
   'nodegraph',
   'animation',
+  'token',
   'code',
   'resource',
 ];
@@ -717,6 +731,9 @@ const isAllowedCodeDocumentPath = (path: string): boolean =>
   path.startsWith('/metadata/') ||
   path.startsWith('/x-');
 
+const isAllowedDesignTokenDocumentPath = (path: string): boolean =>
+  path.startsWith('/') && path !== '/';
+
 const isAllowedResourceDocumentPath = (
   path: string,
   documentType: WorkspaceDocumentType
@@ -758,6 +775,12 @@ const isAllowedDocumentPath = (
   }
   if (documentType === 'pir-animation') {
     return isAllowedAnimationDocumentPath(path);
+  }
+  if (
+    documentType === 'design-tokens' ||
+    documentType === 'design-token-resolver'
+  ) {
+    return isAllowedDesignTokenDocumentPath(path);
   }
   if (documentType === 'code') return isAllowedCodeDocumentPath(path);
   if (documentType === 'asset' || documentType === 'project-config') {
@@ -1029,6 +1052,88 @@ export const createWorkspaceCodeSourceUpdateCommand = ({
     reverseOps: [
       { op: 'replace', path: '/source', value: document.content.source },
     ],
+  };
+};
+
+/** Updates canonical code content, including typed authoring metadata. */
+export const createWorkspaceCodeContentUpdateCommand = ({
+  workspaceId,
+  document,
+  content,
+  commandId,
+  issuedAt,
+  mergeKey = `code-content:${document.id}`,
+  label = `Update ${document.path}`,
+}: CreateWorkspaceCodeContentUpdateCommandInput): WorkspaceCommandEnvelope | null => {
+  if (
+    document.type !== 'code' ||
+    !isWorkspaceCodeDocumentContent(document.content)
+  ) {
+    return null;
+  }
+  const forwardOps: WorkspacePatchOperation[] = [];
+  const reverseOps: WorkspacePatchOperation[] = [];
+  if (document.content.language !== content.language) {
+    forwardOps.push({
+      op: 'replace',
+      path: '/language',
+      value: content.language,
+    });
+    reverseOps.unshift({
+      op: 'replace',
+      path: '/language',
+      value: document.content.language,
+    });
+  }
+  if (document.content.source !== content.source) {
+    forwardOps.push({ op: 'replace', path: '/source', value: content.source });
+    reverseOps.unshift({
+      op: 'replace',
+      path: '/source',
+      value: document.content.source,
+    });
+  }
+  if (!valuesEqual(document.content.metadata, content.metadata)) {
+    if (document.content.metadata === undefined) {
+      forwardOps.push({
+        op: 'add',
+        path: '/metadata',
+        value: content.metadata,
+      });
+      reverseOps.unshift({ op: 'remove', path: '/metadata' });
+    } else if (content.metadata === undefined) {
+      forwardOps.push({ op: 'remove', path: '/metadata' });
+      reverseOps.unshift({
+        op: 'add',
+        path: '/metadata',
+        value: document.content.metadata,
+      });
+    } else {
+      forwardOps.push({
+        op: 'replace',
+        path: '/metadata',
+        value: content.metadata,
+      });
+      reverseOps.unshift({
+        op: 'replace',
+        path: '/metadata',
+        value: document.content.metadata,
+      });
+    }
+  }
+  if (forwardOps.length === 0) return null;
+  return {
+    id: commandId,
+    namespace: 'core.code',
+    type: 'content.update',
+    version: '1.0',
+    issuedAt,
+    target: { workspaceId, documentId: document.id },
+    domainHint: 'code',
+    mergeKey,
+    label,
+    forwardOps,
+    reverseOps,
   };
 };
 
@@ -1415,6 +1520,42 @@ const applyWorkspaceDocumentCommandInternal = <TContent>(
     };
   }
   if (
+    target.documentType === 'design-tokens' &&
+    !isCanonicalWorkspaceDesignTokenDocumentContent(patchedContent.value)
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message:
+            'Design Token workspace documents must remain valid DTCG documents.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
+    target.documentType === 'design-token-resolver' &&
+    !isCanonicalWorkspaceDesignTokenResolverDocumentContent(
+      patchedContent.value
+    )
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message:
+            'Design Token Resolver workspace documents must remain valid DTCG resolver documents.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
     target.documentType === 'asset' &&
     !isWorkspaceAssetDocumentContent(patchedContent.value)
   ) {
@@ -1545,6 +1686,7 @@ const applyWorkspaceCommandInternal = (
     const documentDomain: DocumentPatchDomain =
       commandDomain === 'nodegraph' ||
       commandDomain === 'animation' ||
+      commandDomain === 'token' ||
       commandDomain === 'code' ||
       commandDomain === 'resource'
         ? commandDomain

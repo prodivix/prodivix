@@ -2,6 +2,10 @@ export { createAuthoringDiagnosticProviderRegistry } from './authoringDiagnostic
 export { createCodeArtifactProviderRegistry } from './codeArtifactProviderRegistry';
 export { createCodeSlotRegistry } from './codeSlotRegistry';
 export { queryCodeSlotSemanticRelations } from './codeSlotSemanticRelations';
+export * from './codeRefactorImpact';
+export * from './codeArtifactLifecycle';
+export * from './compile';
+export * from './controlledSource';
 export { COD_DIAGNOSTIC_DEFINITIONS } from './diagnostics/codeDiagnosticRegistry';
 export { SEM_DIAGNOSTIC_DEFINITIONS } from './diagnostics/semanticDiagnosticRegistry';
 export * from './language';
@@ -11,6 +15,7 @@ export type { CodeArtifactProviderRegistry } from './codeArtifactProviderRegistr
 export type { CodeSlotRegistry } from './codeSlotRegistry';
 export type { CodeSlotSemanticRelationsResult } from './codeSlotSemanticRelations';
 export type {
+  AssetReference,
   AuthoringContext,
   AuthoringDiagnosticProvider,
   AuthoringSource,
@@ -18,6 +23,7 @@ export type {
   CodeArtifact,
   CodeArtifactLanguage,
   CodeArtifactOwner,
+  CodeArtifactOwnership,
   CodeArtifactProvider,
   CodeReference,
   CodeSlotBinding,
@@ -25,5 +31,9 @@ export type {
   CodeSlotContract,
   CodeSlotKind,
   CodeSlotProvider,
+  ShaderCompileProfile,
+  ShaderCompileStage,
+  ShaderCompileTarget,
+  ShaderStage,
   TriggerBinding,
 } from './authoring.types';

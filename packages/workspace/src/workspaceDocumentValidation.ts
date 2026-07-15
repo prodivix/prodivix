@@ -12,6 +12,10 @@ import {
 import { isCanonicalWorkspaceAnimationDocumentContent } from './workspaceAnimationDocument';
 import { isCanonicalWorkspaceNodeGraphDocumentContent } from './workspaceNodeGraphDocument';
 import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
+import {
+  isDtcgDesignTokenDocument,
+  isDtcgDesignTokenResolverDocument,
+} from '@prodivix/tokens';
 
 const WORKSPACE_DOCUMENT_TYPES: ReadonlySet<WorkspaceDocumentType> = new Set([
   'pir-page',
@@ -19,6 +23,8 @@ const WORKSPACE_DOCUMENT_TYPES: ReadonlySet<WorkspaceDocumentType> = new Set([
   'pir-component',
   'pir-graph',
   'pir-animation',
+  'design-tokens',
+  'design-token-resolver',
   'code',
   'asset',
   'project-config',
@@ -146,6 +152,12 @@ const isValidDocumentContent = (
   }
   if (documentType === 'pir-graph') {
     return isCanonicalWorkspaceNodeGraphDocumentContent(document.content);
+  }
+  if (documentType === 'design-tokens') {
+    return isDtcgDesignTokenDocument(document.content);
+  }
+  if (documentType === 'design-token-resolver') {
+    return isDtcgDesignTokenResolverDocument(document.content);
   }
   if (documentType === 'asset') {
     return isWorkspaceAssetDocumentContent(document.content);

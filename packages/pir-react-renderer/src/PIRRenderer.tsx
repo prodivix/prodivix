@@ -57,6 +57,7 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
   resolveCollectionPreviewState,
   dispatchTrigger,
   selectedLocation,
+  hiddenLocations,
   onNodeSelect,
   onBlockingIssues,
 }) => {
@@ -122,11 +123,13 @@ export const PIRRenderer: React.FC<PIRRendererProps> = ({
               ? { resolveCollectionPreviewState }
               : {}),
             ...(selectedLocation ? { selectedLocation } : {}),
+            ...(hiddenLocations?.length ? { hiddenLocations } : {}),
             ...(onNodeSelect ? { onNodeSelect } : {}),
           }
         : null,
     [
       dispatchTrigger,
+      hiddenLocations,
       hostResolution,
       onNodeSelect,
       plan,

@@ -512,6 +512,8 @@ components:
         - pir-component
         - pir-graph
         - pir-animation
+        - design-tokens
+        - design-token-resolver
         - code
         - asset
         - project-config
@@ -581,7 +583,7 @@ components:
           type: string
         domainHint:
           type: string
-          enum: [pir, workspace, route, nodegraph, animation, code]
+          enum: [pir, workspace, route, nodegraph, animation, code, token]
       additionalProperties: false
     WorkspaceOperationCanonicalId:
       type: string
@@ -648,7 +650,8 @@ components:
                   $ref: '#/components/schemas/WorkspaceOperationCanonicalId'
       description: >
         Canonical command envelope accepted by Atomic WorkspaceOperation
-        Commit. Asset and project-config documents require the resource domain.
+        Commit. Design Token and Resolver documents require the token domain;
+        asset and project-config documents require the resource domain.
     WorkspaceOperationCommitRequest:
       type: object
       required: [expected, operation]

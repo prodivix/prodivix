@@ -10,6 +10,7 @@ const corePackages = {
   diagnostics: new Set(),
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   'code-language': new Set(['@prodivix/authoring']),
+  tokens: new Set(['@prodivix/authoring']),
   pir: new Set(['@prodivix/authoring', '@prodivix/diagnostics']),
   workspace: new Set([
     '@prodivix/animation',
@@ -18,6 +19,7 @@ const corePackages = {
     '@prodivix/pir',
     '@prodivix/router',
     '@prodivix/shared',
+    '@prodivix/tokens',
   ]),
   'workspace-sync': new Set([
     '@prodivix/pir',

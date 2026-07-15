@@ -1,5 +1,10 @@
 export { createWorkspaceSemanticIndex } from './createWorkspaceSemanticIndex';
 export {
+  ASSET_REFERENCE_SYMBOL_KINDS,
+  createAssetReferenceExpectedTypeRefs,
+  createAssetReferenceSemanticTarget,
+} from './assetReferenceSemantic';
+export {
   CODE_REFERENCE_EXPORT_SYMBOL_KINDS,
   createCodeReferenceSemanticTarget,
   getCodeReferenceSemanticRole,
@@ -29,6 +34,16 @@ export {
   createCodeArtifactScopeId,
   createCodeArtifactSymbolId,
   createCodeSymbolId,
+  createDesignTokenDocumentScopeId,
+  createDesignTokenContextSymbolId,
+  createDesignTokenGroupScopeId,
+  createDesignTokenGroupSymbolId,
+  createDesignTokenModifierScopeId,
+  createDesignTokenModifierSymbolId,
+  createDesignTokenResolverScopeId,
+  createDesignTokenSetSymbolId,
+  createDesignTokenSymbolId,
+  createDesignSystemSymbolId,
   createNodeGraphNodeScopeId,
   createNodeGraphNodeSymbolId,
   createNodeGraphPortSymbolId,

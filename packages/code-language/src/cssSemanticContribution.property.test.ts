@@ -8,6 +8,7 @@ const artifacts: readonly CodeArtifact[] = [
     id: 'code-css',
     path: '/styles/theme.css',
     language: 'css',
+    ownership: 'code-owned',
     owner: { kind: 'workspace-module', documentId: 'code-css' },
     source:
       '.button { animation: reveal 1s; } @keyframes reveal { to { opacity: 1; } }',
@@ -17,6 +18,7 @@ const artifacts: readonly CodeArtifact[] = [
     id: 'code-scss',
     path: '/styles/tokens.scss',
     language: 'scss',
+    ownership: 'code-owned',
     owner: { kind: 'workspace-module', documentId: 'code-scss' },
     source:
       '$gap: 4px; @mixin padded { padding: $gap; } .panel { @include padded; }',

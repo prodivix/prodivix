@@ -8,7 +8,6 @@ import type {
 import type { PIRRenderLocation } from '@prodivix/pir-react-renderer';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { IconPickerModal } from './components/IconPickerModal';
-import { MountedCssEditorModal } from './components/classProtocol/MountedCssEditorModal';
 import { InspectorContext } from './InspectorContext';
 import { InspectorTabBar } from './components/InspectorTabBar';
 import { InspectorBasicTab } from './tabs/InspectorBasicTab';
@@ -114,7 +113,6 @@ export function BlueprintEditorInspector({
     selectedIconRef,
     applyIconRef,
     sectionContextValue,
-    mountedCssEditor,
   } = useBlueprintEditorInspectorController({
     workspace,
     selection,
@@ -324,20 +322,6 @@ export function BlueprintEditorInspector({
           initialIconRef={selectedIconRef}
           onClose={() => setIconPickerOpen(false)}
           onSelect={applyIconRef}
-        />
-        <MountedCssEditorModal
-          isOpen={mountedCssEditor.isMountedCssEditorOpen}
-          path={mountedCssEditor.mountedCssEditorPath}
-          value={mountedCssEditor.mountedCssEditorValue}
-          highlightedClassName={mountedCssEditor.mountedCssEditorFocusClass}
-          highlightedLine={mountedCssEditor.mountedCssEditorFocusLine}
-          highlightedColumn={mountedCssEditor.mountedCssEditorFocusColumn}
-          error={mountedCssEditor.mountedCssEditorError}
-          readOnly={!mountedCssEditor.writeAvailable}
-          diagnostic={mountedCssEditor.diagnostic}
-          onChange={mountedCssEditor.setMountedCssEditorValue}
-          onClose={mountedCssEditor.closeMountedCssEditor}
-          onSave={mountedCssEditor.saveMountedCss}
         />
       </OfficialReactSurfaceBoundary>
     </aside>

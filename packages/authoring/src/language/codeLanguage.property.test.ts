@@ -28,6 +28,7 @@ const toArtifact = (id: number, revision: number): CodeArtifact => ({
   id: `artifact-${id}`,
   path: `/src/artifact-${id}.ts`,
   language: 'ts',
+  ownership: 'code-owned',
   owner: { kind: 'workspace-module', documentId: `artifact-${id}` },
   source: `export const value${id} = ${revision};`,
   revision: String(revision),

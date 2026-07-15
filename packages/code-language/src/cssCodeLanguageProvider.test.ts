@@ -11,6 +11,7 @@ const cssArtifact: CodeArtifact = {
   id: 'code-theme',
   path: '/styles/theme.css',
   language: 'css',
+  ownership: 'code-owned',
   owner: { kind: 'workspace-module', documentId: 'code-theme' },
   source: [
     ':root { --brand: #7c3aed; }',

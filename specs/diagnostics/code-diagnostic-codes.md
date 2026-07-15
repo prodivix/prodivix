@@ -212,7 +212,7 @@ type CodeDiagnosticStage =
 - Retryable: false
 - Trigger: 代码片段 owner 指向的 PIR 节点、Inspector 字段、NodeGraph 节点、Animation track 或其他宿主对象已不存在
 - User action: 重新选择代码挂载目标，或删除失效代码片段
-- Developer notes: 删除宿主对象时应清理相关 `CodeArtifact`；无法清理时必须保留可定位诊断
+- Developer notes: 缺失的是 binding 所引用的 artifact 时使用该错误；slot owner/binding 删除而 artifact 仍存在时保留源码并使用 `COD-3017` 表达 orphan lifecycle
 
 ### `COD-3002` 代码片段返回值不满足宿主契约
 
@@ -286,6 +286,15 @@ type CodeDiagnosticStage =
 - User action: 改为返回新值、发出允许的 command，或写入当前宿主声明为可变的状态位置
 - Developer notes: ESLint 或自定义 lint 的只读写入规则可进入 `meta.upstream`；主码应指向 Prodivix 作者态上下文契约
 
+### `COD-3017` Code artifact 已失去 owner binding
+
+- Severity: `warning`
+- Stage: `binding`
+- Retryable: false
+- Trigger: 由 CodeSlot 托管的 artifact 已不再具有 active binding，例如 slot owner、binding 或对应外部库配置被删除
+- User action: 将 artifact 重新绑定到兼容 CodeSlot、转为普通 workspace module，或确认不再需要后删除
+- Developer notes: orphan artifact 必须保留在 Canonical Workspace VFS；不得因为 owner 消失而自动删除源码，普通 workspace module 也不得仅因零 binding 被误判为 orphan
+
 ### `COD-4001` 用户代码运行时抛错
 
 - Severity: `error`
@@ -356,7 +365,7 @@ type CodeDiagnosticStage =
 - Retryable: false
 - Trigger: GLSL 或 WGSL 代码片段无法通过 shader compiler 校验或编译
 - User action: 根据 shader 编译日志修正入口函数、类型、uniform、binding 或语法
-- Developer notes: 编译日志需脱敏和裁剪；UI 主落点是 Code Editor inline diagnostic 和 Preview 受控错误提示
+- Developer notes: 编译日志需脱敏和裁剪；target/stage/entry 来自 canonical `prodivix.shaderCompile` profile，独立 compile provider 将同一 revision-bound `COD-5002` snapshot 发布给 Code Editor inline diagnostic 与 Issues；Preview 只消费该结果，不重新编译或自建第二套诊断
 
 ### `COD-5010` 语言服务 worker 初始化失败
 

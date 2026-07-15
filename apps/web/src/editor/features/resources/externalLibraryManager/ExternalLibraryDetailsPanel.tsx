@@ -4,7 +4,16 @@ import { formatPackageSize, getPackageSizeMeta } from './viewUtils';
 
 type ExternalLibraryDetailsPanelProps = {
   selectedLibrary: ActiveLibrary | null;
+  adapterArtifacts: readonly Readonly<{ id: string; path: string }>[];
+  adapterBusy: boolean;
+  adapterError: string;
   packageSizeThresholds: PackageSizeThresholds;
+  onAdapterArtifactChange: (
+    libraryId: string,
+    artifactId: string | null
+  ) => void;
+  onCreateAdapter: (libraryId: string) => void;
+  onOpenAdapter: (artifactId: string) => void;
   onVersionQuickSwitch: (libraryId: string, version: string) => void;
 };
 
@@ -95,7 +104,13 @@ const renderLicenseWithLinks = (licenseText: string) => {
 
 export function ExternalLibraryDetailsPanel({
   selectedLibrary,
+  adapterArtifacts,
+  adapterBusy,
+  adapterError,
   packageSizeThresholds,
+  onAdapterArtifactChange,
+  onCreateAdapter,
+  onOpenAdapter,
   onVersionQuickSwitch,
 }: ExternalLibraryDetailsPanelProps) {
   const { t } = useTranslation('editor');
@@ -150,6 +165,59 @@ export function ExternalLibraryDetailsPanel({
                   })}
             </p>
           ) : null}
+          <div className="rounded-lg border border-(--border-subtle) bg-(--bg-canvas) p-3">
+            <p className="text-xs font-medium text-(--text-secondary)">
+              {t('resourceManager.external.adapter.title')}
+            </p>
+            <p className="mt-1 text-xs text-(--text-muted)">
+              {t('resourceManager.external.adapter.description')}
+            </p>
+            <select
+              className="mt-3 w-full rounded-md border border-(--border-default) bg-(--bg-panel) px-2 py-1.5 text-xs text-(--text-primary)"
+              value={selectedLibrary.adapter?.reference.artifactId ?? ''}
+              disabled={adapterBusy}
+              onChange={(event) =>
+                onAdapterArtifactChange(
+                  selectedLibrary.id,
+                  event.target.value || null
+                )
+              }
+            >
+              <option value="">
+                {t('resourceManager.external.adapter.unbound')}
+              </option>
+              {adapterArtifacts.map((artifact) => (
+                <option key={artifact.id} value={artifact.id}>
+                  {artifact.path}
+                </option>
+              ))}
+            </select>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-(--border-default) px-2 py-1 text-xs text-(--text-secondary) hover:text-(--text-primary) disabled:opacity-40"
+                disabled={adapterBusy}
+                onClick={() => onCreateAdapter(selectedLibrary.id)}
+              >
+                {t('resourceManager.external.adapter.create')}
+              </button>
+              {selectedLibrary.adapter ? (
+                <button
+                  type="button"
+                  className="rounded-md border border-(--border-default) px-2 py-1 text-xs text-(--text-secondary) hover:text-(--text-primary) disabled:opacity-40"
+                  disabled={adapterBusy}
+                  onClick={() =>
+                    onOpenAdapter(selectedLibrary.adapter!.reference.artifactId)
+                  }
+                >
+                  {t('resourceManager.external.adapter.open')}
+                </button>
+              ) : null}
+            </div>
+            {adapterError ? (
+              <p className="mt-2 text-xs text-red-600">{adapterError}</p>
+            ) : null}
+          </div>
           <div className="rounded-lg border border-(--border-subtle) bg-(--bg-canvas) p-3">
             <p className="text-xs font-medium text-(--text-secondary)">
               {t('resourceManager.external.details.providedComponents')}

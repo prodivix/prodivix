@@ -39,10 +39,13 @@ export type ActiveLibrary = {
   packageSizeKb: number;
   components: string[];
   versions: string[];
+  adapter?: CodeSlotBinding;
 };
 
 export type PersistedLibrary = {
   id: string;
   scope: LibraryScope;
   version: string;
+  adapter?: CodeSlotBinding;
 };
+import type { CodeSlotBinding } from '@prodivix/authoring';

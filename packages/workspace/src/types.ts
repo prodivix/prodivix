@@ -11,6 +11,8 @@ export type WorkspaceDocumentType =
   | 'pir-component'
   | 'pir-graph'
   | 'pir-animation'
+  | 'design-tokens'
+  | 'design-token-resolver'
   | 'code'
   | 'asset'
   | 'project-config';

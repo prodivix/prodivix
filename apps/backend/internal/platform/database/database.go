@@ -115,13 +115,13 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			content_json JSONB NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (workspace_id, id),
-			CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation')),
+			CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'asset', 'project-config')),
 			CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
 			CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev BETWEEN 1 AND 9007199254740991)
 		)`,
 		`ALTER TABLE workspace_documents
 			DROP CONSTRAINT IF EXISTS workspace_documents_type_check,
-			ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'code', 'asset', 'project-config')),
+			ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'asset', 'project-config')),
 			DROP CONSTRAINT IF EXISTS workspace_documents_content_rev_check,
 			ADD CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
 			DROP CONSTRAINT IF EXISTS workspace_documents_meta_rev_check,

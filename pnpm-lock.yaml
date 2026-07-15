@@ -239,6 +239,9 @@ importers:
       '@prodivix/themes':
         specifier: workspace:*
         version: link:../../packages/themes
+      '@prodivix/tokens':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       '@prodivix/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -354,6 +357,12 @@ importers:
       eslint-plugin-react-refresh:
         specifier: ^0.5.3
         version: 0.5.3(eslint@9.39.4(jiti@2.7.0)(supports-color@8.1.1))
+      fake-indexeddb:
+        specifier: ^6.2.5
+        version: 6.2.5
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
       globals:
         specifier: ^17.7.0
         version: 17.7.0
@@ -520,6 +529,9 @@ importers:
 
   packages/golden-conformance:
     dependencies:
+      '@prodivix/authoring':
+        specifier: workspace:*
+        version: link:../authoring
       '@prodivix/pir':
         specifier: workspace:*
         version: link:../pir
@@ -536,6 +548,9 @@ importers:
         specifier: workspace:*
         version: link:../workspace-sync
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.61.1
+        version: 1.61.1
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0
@@ -1010,6 +1025,9 @@ importers:
       '@prodivix/animation':
         specifier: workspace:*
         version: link:../animation
+      '@prodivix/authoring':
+        specifier: workspace:*
+        version: link:../authoring
       '@prodivix/nodegraph':
         specifier: workspace:*
         version: link:../nodegraph
@@ -1037,6 +1055,9 @@ importers:
       react-dom:
         specifier: ^19.1.1
         version: 19.2.3(react@19.2.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1050,9 +1071,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.3
         version: 6.0.3(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
       vite:
         specifier: ^8.1.3
         version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
@@ -1158,6 +1179,28 @@ importers:
       vite:
         specifier: ^8.1.3
         version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+
+  packages/tokens:
+    dependencies:
+      '@prodivix/authoring':
+        specifier: workspace:*
+        version: link:../authoring
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
 
   packages/ui:
     dependencies:
@@ -1298,6 +1341,9 @@ importers:
       '@prodivix/router':
         specifier: workspace:*
         version: link:../router
+      '@prodivix/tokens':
+        specifier: workspace:*
+        version: link:../tokens
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -4874,6 +4920,10 @@ packages:
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
+
+  fake-indexeddb@6.2.5:
+    resolution: {integrity: sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==}
+    engines: {node: '>=18'}
 
   fast-check@4.9.0:
     resolution: {integrity: sha512-7ms6T7SybUev/PQITciI0yLM2pOSFy5zpG8Ty7tQofcVaQUvrMXp6CBwqF6fThLCLOrfBtuHAtwq6Yu4XPCllg==}
@@ -11198,6 +11248,8 @@ snapshots:
       safe-buffer: 5.2.1
 
   expect-type@1.4.0: {}
+
+  fake-indexeddb@6.2.5: {}
 
   fast-check@4.9.0:
     dependencies:

@@ -63,6 +63,8 @@ const DOCUMENT_TYPES: ReadonlySet<WorkspaceDocumentType> = new Set([
   'pir-component',
   'pir-graph',
   'pir-animation',
+  'design-tokens',
+  'design-token-resolver',
   'code',
   'asset',
   'project-config',

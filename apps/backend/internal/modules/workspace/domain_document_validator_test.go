@@ -46,6 +46,22 @@ func TestStandaloneDomainDocumentValidation(t *testing.T) {
 			content:      `{"version":1,"target":{"kind":"pir-document","documentId":"page"},"timelinesById":{}}`,
 			wantError:    ErrAnimationValidationFailed,
 		},
+		{
+			name:         "design tokens current",
+			documentType: WorkspaceDocumentTypeDesignTokens,
+			content:      `{"scale":{"$type":"number","base":{"$value":1}}}`,
+		},
+		{
+			name:         "design token resolver current",
+			documentType: WorkspaceDocumentTypeTokenResolver,
+			content:      `{"version":"2025.10","modifiers":{"theme":{"contexts":{"light":[],"dark":[]},"default":"light"}},"resolutionOrder":[{"$ref":"#/modifiers/theme"}]}`,
+		},
+		{
+			name:         "design token resolver requires contexts",
+			documentType: WorkspaceDocumentTypeTokenResolver,
+			content:      `{"version":"2025.10","modifiers":{"theme":{"contexts":{}}},"resolutionOrder":[]}`,
+			wantError:    ErrDesignTokenResolverValidationFailed,
+		},
 	}
 
 	for _, test := range tests {

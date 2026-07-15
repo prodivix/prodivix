@@ -173,8 +173,10 @@ export const createCodeLanguageCodeMirrorExtensions = (input: {
   session: CodeLanguageSession;
   artifactId: string;
   source: string;
+  additionalDiagnostics?: readonly ProdivixDiagnostic[];
   onOpenLocation(location: CodeLanguageLocation, view: EditorView): void;
   onDefinitionResult?(result: CodeLanguageDefinitionResult | null): void;
+  onRenameRequest?(view: EditorView): void;
 }): readonly Extension[] => {
   const hasCurrentSource = (view: EditorView): boolean =>
     view.state.doc.toString() === input.source;
@@ -220,7 +222,7 @@ export const createCodeLanguageCodeMirrorExtensions = (input: {
       return projectCodeLanguageDiagnostics({
         artifactId: input.artifactId,
         source: input.source,
-        diagnostics: result.value,
+        diagnostics: [...result.value, ...(input.additionalDiagnostics ?? [])],
       });
     },
     { delay: 180 }
@@ -262,7 +264,7 @@ export const createCodeLanguageCodeMirrorExtensions = (input: {
     { hideOnChange: true }
   );
 
-  const definitionKeymap = keymap.of([
+  const languageKeymap = keymap.of([
     {
       key: 'F12',
       run(view) {
@@ -281,12 +283,20 @@ export const createCodeLanguageCodeMirrorExtensions = (input: {
         return true;
       },
     },
+    {
+      key: 'F2',
+      run(view) {
+        if (!input.onRenameRequest || !hasCurrentSource(view)) return false;
+        input.onRenameRequest(view);
+        return true;
+      },
+    },
   ]);
 
   return Object.freeze([
     autocompletion({ override: [completionSource] }),
     diagnostics,
     hover,
-    definitionKeymap,
+    languageKeymap,
   ]);
 };

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAuthStore } from '@/auth/useAuthStore';
+import { isLocalProjectId } from '@/editor/localProjectStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import {
   createWorkspaceHistoryState,
@@ -85,7 +86,14 @@ export function WorkspaceOutboxEffects() {
   const retryTimerRef = useRef<number | undefined>(undefined);
 
   const run = useCallback(async () => {
-    if (!token || !workspaceId || runningRef.current) return;
+    if (
+      !token ||
+      !workspaceId ||
+      isLocalProjectId(workspaceId) ||
+      runningRef.current
+    ) {
+      return;
+    }
     const resumeBase = useEditorStore.getState().workspace;
     if (!resumeBase || resumeBase.id !== workspaceId) return;
     runningRef.current = true;
@@ -169,7 +177,7 @@ export function WorkspaceOutboxEffects() {
   }, [token, workspaceId]);
 
   useEffect(() => {
-    if (!workspaceId) return;
+    if (!workspaceId || isLocalProjectId(workspaceId)) return;
     void run();
     const unsubscribe = subscribeWorkspaceOutbox((changedWorkspaceId) => {
       if (changedWorkspaceId === workspaceId) void run();

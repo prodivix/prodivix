@@ -34,6 +34,7 @@
       "@prodivix/shared/*": ["../../packages/shared/src/*"],
       "@prodivix/themes": ["../../packages/themes/src"],
       "@prodivix/themes/package.json": ["../../packages/themes/package.json"],
+      "@prodivix/tokens": ["../../packages/tokens/src"],
       "@prodivix/ui": ["../../packages/ui/src"],
       "@prodivix/ui/package.json": ["../../packages/ui/package.json"],
       "@prodivix/workspace": ["../../packages/workspace/src"],
@@ -123,6 +124,9 @@
     },
     {
       "path": "../../packages/themes"
+    },
+    {
+      "path": "../../packages/tokens"
     }
   ]
 }

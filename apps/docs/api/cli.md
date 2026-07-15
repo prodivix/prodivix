@@ -1,157 +1,42 @@
-# CLI 工具
+# CLI
 
-`prodivix` 是 Prodivix 的命令行工具，用于项目构建、导出和部署。
-
-::: warning 开发状态
-CLI 工具目前处于早期开发阶段，部分命令尚未完全实现。
+::: warning 当前状态
+Prodivix CLI 仍是内部 scaffold，不是已发布的生产接口。不要在 CI/CD 或用户文档中依赖它完成真实导出与部署。
 :::
 
-## 安装
+## 当前实现
 
-CLI 工具包含在 monorepo 中，通过以下方式使用：
+仓库内 `@prodivix/cli` 使用 Commander，并注册了 `build` 与 `export` 名称。其中 `build` 目前只输出“命令已连接”，`export` 尚未形成可用产品流程；deploy 也不是已注册的稳定命令。
+
+开发入口：
 
 ```bash
-# 在项目根目录
 pnpm dev:cli
-
-# 或直接运行
-cd apps/cli
-pnpm start
+pnpm build:cli
+pnpm cli --help
 ```
 
-## 基本用法
+这些命令用于开发 scaffold，不构成版本兼容承诺。
+
+## 当前可靠的构建入口
+
+Prodivix 自身仓库使用：
 
 ```bash
-prodivix [command] [options]
+pnpm build:web
+pnpm build:docs
+pnpm verify:g1:standalone
+pnpm verify:g1:browser
 ```
 
-## 可用命令
+用户项目导出应从 Web 的 Export surface 和 `@prodivix/prodivix-compiler` 统一规划。CLI 后续必须消费同一个 Export Program/Production Export Planner，不能复制一套 PIR → React 实现。
 
-### build
+## 成为稳定 CLI 前需要完成
 
-构建 PIR 项目为 React 代码。
+- 明确 Workspace 输入、revision 与认证方式
+- 复用 compiler target preset 与诊断契约
+- 支持 machine-readable result、exit code 和 SourceTrace
+- 处理 secrets、runtime zones 与 ExecutionProvider
+- 建立独立导出、兼容性和发布 Gate
 
-```bash
-prodivix build
-```
-
-**当前状态**: 已连接，功能开发中
-
-**计划功能**:
-
-- 解析 PIR 文件
-- 生成 React 组件代码
-- 处理节点图逻辑
-- 输出构建产物
-
-### export
-
-导出项目为静态站点或框架代码。
-
-```bash
-prodivix export [options]
-```
-
-**当前状态**: 未实现
-
-**计划功能**:
-
-| 选项                   | 描述                               |
-| ---------------------- | ---------------------------------- |
-| `--target <framework>` | 目标框架（react, vue, angular 等） |
-| `--output <dir>`       | 输出目录                           |
-| `--page <name>`        | 仅导出指定页面                     |
-| `--with-tests`         | 包含测试文件                       |
-
-### deploy
-
-部署项目到托管平台。
-
-```bash
-prodivix deploy [options]
-```
-
-**当前状态**: 未实现
-
-**计划功能**:
-
-| 选项                | 描述                                            |
-| ------------------- | ----------------------------------------------- |
-| `--platform <name>` | 部署平台（github-pages, vercel, netlify, ipfs） |
-| `--config <file>`   | 配置文件路径                                    |
-
-## 配置文件
-
-CLI 工具支持通过配置文件自定义行为。创建 `prodivix.config.json`：
-
-```json
-{
-  "build": {
-    "outDir": "dist",
-    "target": "react",
-    "minify": true
-  },
-  "export": {
-    "framework": "react",
-    "typescript": true,
-    "cssModule": true
-  },
-  "deploy": {
-    "platform": "vercel",
-    "projectName": "my-app"
-  }
-}
-```
-
-## 开发计划
-
-以下功能计划在后续版本中实现：
-
-### 近期计划
-
-- [ ] `build` 命令完整实现
-- [ ] `export` 命令 React 导出
-- [ ] 配置文件支持
-
-### 中期计划
-
-- [ ] `export` 命令 Vue/Angular 导出
-- [ ] `deploy` 命令 Vercel 集成
-- [ ] 项目模板初始化命令
-
-### 远期计划
-
-- [ ] 增量构建支持
-- [ ] 插件系统
-- [ ] IPFS 部署支持
-
-## 故障排除
-
-### 命令未找到
-
-确保在正确的目录下运行，或将 CLI 添加到 PATH：
-
-```bash
-# 在 monorepo 根目录
-pnpm --filter @prodivix/cli start
-```
-
-### 构建失败
-
-检查 PIR 文件语法是否正确：
-
-```bash
-# 验证 PIR 文件
-prodivix validate ./src/pages/*.pir.json
-```
-
-## 贡献
-
-CLI 工具正在积极开发中，欢迎贡献：
-
-1. Fork 仓库
-2. 在 `apps/cli/src/commands/` 下添加或修改命令
-3. 添加测试
-4. 提交 Pull Request
-
-详见 [贡献指南](/community/contributing)。
+在这些条件完成前，CLI 版本与参数都可能直接调整。

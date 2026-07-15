@@ -6,14 +6,13 @@ import { EditorView } from '@codemirror/view';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { Check, FileText, LayoutTemplate, Save } from 'lucide-react';
-import { useAuthStore } from '@/auth/useAuthStore';
 import { EditorConfirmModal } from '@/editor/components/EditorConfirmModal';
 import { useEditorShortcut } from '@/editor/shortcuts';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import {
-  executeWorkspaceCommandOutboxAndAdopt,
-  executeWorkspaceVfsOutboxIntent,
-} from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+  dispatchWorkspaceAuthoringOperation,
+  dispatchWorkspaceVfsAuthoringIntent,
+} from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { codeMirrorTypographyTheme } from '@/editor/codeMirrorTypography';
 import { ProjectFileTemplatePicker } from './ProjectFileTemplatePicker';
 import {
@@ -100,8 +99,8 @@ export function ProjectFileManager({
 }: ProjectFileManagerProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
-  const token = useAuthStore((state) => state.token);
   const workspace = useEditorStore((state) => state.workspace);
+  const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
   const workspaceId = workspace?.id;
   const workspaceRev = workspace?.workspaceRev;
   const workspaceDocumentsById =
@@ -192,7 +191,9 @@ export function ProjectFileManager({
     isEditingGitignore || fileTemplateOptions.length > 0;
 
   const persistProjectFile = async (file: ProjectFile) => {
-    if (!token || !workspace || !workspaceId || !workspaceRev) return;
+    if (!workspace || workspaceReadonly || !workspaceId || !workspaceRev) {
+      return;
+    }
     const path = joinWorkspaceResourcePath(
       RESOURCE_ROOTS.projectFiles,
       file.path
@@ -211,17 +212,17 @@ export function ProjectFileManager({
         label: `Update ${file.path}`,
       });
       if (!command) return;
-      const outcome = await executeWorkspaceCommandOutboxAndAdopt({
-        token,
+      const outcome = await dispatchWorkspaceAuthoringOperation({
         workspace,
-        command,
+        readonly: workspaceReadonly,
+        operation: { kind: 'command', command },
       });
       if (outcome.status === 'rejected') throw new Error(outcome.message);
       return;
     }
-    const outcome = await executeWorkspaceVfsOutboxIntent({
-      token,
+    const outcome = await dispatchWorkspaceVfsAuthoringIntent({
       workspace,
+      readonly: workspaceReadonly,
       request: createWorkspaceResourceDocumentRequest({
         workspaceRev,
         documentId: createWorkspaceResourceDocumentId('project_config', path),

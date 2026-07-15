@@ -16,7 +16,6 @@ export {
 export type { WorkspaceRouteIntent } from '@prodivix/workspace';
 export * from './editorStore.selectors';
 export type { EditorStore } from './editorStore.shape';
-export type { UpdateActivePirDocumentOptions } from './editorStore.workspaceSlice';
 
 export const useEditorStore = create<EditorStore>()((...args) => ({
   ...createWorkspaceSlice(...args),

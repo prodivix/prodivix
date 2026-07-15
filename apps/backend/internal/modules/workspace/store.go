@@ -260,6 +260,8 @@ const (
 	WorkspaceDocumentTypePIRComponent  WorkspaceDocumentType = "pir-component"
 	WorkspaceDocumentTypePIRGraph      WorkspaceDocumentType = "pir-graph"
 	WorkspaceDocumentTypePIRAnimation  WorkspaceDocumentType = "pir-animation"
+	WorkspaceDocumentTypeDesignTokens  WorkspaceDocumentType = "design-tokens"
+	WorkspaceDocumentTypeTokenResolver WorkspaceDocumentType = "design-token-resolver"
 	WorkspaceDocumentTypeCode          WorkspaceDocumentType = "code"
 	WorkspaceDocumentTypeAsset         WorkspaceDocumentType = "asset"
 	WorkspaceDocumentTypeProjectConfig WorkspaceDocumentType = "project-config"

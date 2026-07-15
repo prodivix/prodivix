@@ -10,6 +10,10 @@ import { createNodeGraphSemanticContributionProvider } from '@prodivix/nodegraph
 import { createPirSemanticContributionProvider } from '@prodivix/pir';
 import { createRouteSemanticContributionProvider } from '@prodivix/router';
 import {
+  createDesignTokenResolverSemanticContributionProvider,
+  createDesignTokenSemanticContributionProvider,
+} from '@prodivix/tokens';
+import {
   validateWorkspaceComponentGraph,
   type WorkspaceComponentGraphIssue,
 } from '../component/workspaceComponentGraph';
@@ -29,8 +33,24 @@ import {
   decodeWorkspaceNodeGraphDocument,
   type WorkspaceNodeGraphReadResult,
 } from '../workspaceNodeGraphDocument';
+import {
+  decodeWorkspaceDesignTokenDocument,
+  type WorkspaceDesignTokenReadResult,
+} from '../workspaceDesignTokenDocument';
+import {
+  collectWorkspaceDesignTokenResolverDocumentReferences,
+  decodeWorkspaceDesignTokenResolverDocument,
+  type WorkspaceDesignTokenResolverReadResult,
+} from '../workspaceDesignTokenResolverDocument';
+import {
+  isWorkspaceAssetDocumentContent,
+  type WorkspaceAssetDocumentContent,
+} from '../workspaceResourceDocument';
+import { createWorkspaceAssetSemanticContributionProvider } from './workspaceAssetSemanticContributionProvider';
 import { createWorkspaceSemanticContributionProvider } from './workspaceSemanticContributionProvider';
 import { captureWorkspaceSemanticRevisions } from './workspaceSemanticRevision';
+import { readWorkspaceExternalAdapterConfig } from './workspaceExternalAdapter';
+import { createWorkspaceExternalAdapterSemanticContributionProvider } from './workspaceExternalAdapterSemanticContributionProvider';
 
 export const WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES = Object.freeze({
   documentInvalid: 'WKS_SEMANTIC_INDEX_DOCUMENT_INVALID',
@@ -80,6 +100,22 @@ type ValidWorkspaceNodeGraphRead = Extract<
   WorkspaceNodeGraphReadResult,
   Readonly<{ status: 'valid' }>
 >;
+type ValidWorkspaceDesignTokenRead = Extract<
+  WorkspaceDesignTokenReadResult,
+  Readonly<{ status: 'valid' }>
+>;
+type ValidWorkspaceDesignTokenResolverRead = Extract<
+  WorkspaceDesignTokenResolverReadResult,
+  Readonly<{ status: 'valid' }>
+>;
+type ValidWorkspaceAssetDocument = Readonly<{
+  id: string;
+  path: string;
+  name?: string;
+  contentRev: number;
+  metaRev: number;
+  content: WorkspaceAssetDocumentContent;
+}>;
 
 const compareText = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
@@ -258,6 +294,134 @@ const collectNodeGraphDocuments = (
     : Object.freeze({ status: 'ready', reads: Object.freeze(reads) });
 };
 
+const collectDesignTokenDocuments = (
+  snapshot: WorkspaceSnapshot
+):
+  | Readonly<{
+      status: 'ready';
+      reads: readonly ValidWorkspaceDesignTokenRead[];
+    }>
+  | Readonly<{
+      status: 'blocked';
+      issues: readonly WorkspaceSemanticIndexIssue[];
+    }> => {
+  const reads: ValidWorkspaceDesignTokenRead[] = [];
+  const issues: WorkspaceSemanticIndexIssue[] = [];
+  for (const document of Object.values(snapshot.docsById)
+    .filter((candidate) => candidate.type === 'design-tokens')
+    .sort(
+      (left, right) =>
+        compareText(left.id, right.id) || compareText(left.path, right.path)
+    )) {
+    const read = decodeWorkspaceDesignTokenDocument(document);
+    if (read.status === 'valid') {
+      reads.push(read);
+      continue;
+    }
+    if (read.status === 'invalid') {
+      issues.push(
+        ...read.issues.map((issue): WorkspaceSemanticIndexIssue => ({
+          code: WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES.documentInvalid,
+          path: qualifyDocumentPath(document.id, issue.path),
+          message: issue.message,
+          causeCode: issue.code,
+          documentId: document.id,
+        }))
+      );
+    }
+  }
+  return issues.length > 0
+    ? Object.freeze({ status: 'blocked', issues: Object.freeze(issues) })
+    : Object.freeze({ status: 'ready', reads: Object.freeze(reads) });
+};
+
+const collectDesignTokenResolverDocuments = (
+  snapshot: WorkspaceSnapshot
+):
+  | Readonly<{
+      status: 'ready';
+      reads: readonly ValidWorkspaceDesignTokenResolverRead[];
+    }>
+  | Readonly<{
+      status: 'blocked';
+      issues: readonly WorkspaceSemanticIndexIssue[];
+    }> => {
+  const reads: ValidWorkspaceDesignTokenResolverRead[] = [];
+  const issues: WorkspaceSemanticIndexIssue[] = [];
+  for (const document of Object.values(snapshot.docsById)
+    .filter((candidate) => candidate.type === 'design-token-resolver')
+    .sort(
+      (left, right) =>
+        compareText(left.id, right.id) || compareText(left.path, right.path)
+    )) {
+    const read = decodeWorkspaceDesignTokenResolverDocument(document);
+    if (read.status === 'valid') {
+      reads.push(read);
+      continue;
+    }
+    if (read.status === 'invalid') {
+      issues.push(
+        ...read.issues.map((issue): WorkspaceSemanticIndexIssue => ({
+          code: WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES.documentInvalid,
+          path: qualifyDocumentPath(document.id, issue.path),
+          message: issue.message,
+          causeCode: issue.code,
+          documentId: document.id,
+        }))
+      );
+    }
+  }
+  return issues.length > 0
+    ? Object.freeze({ status: 'blocked', issues: Object.freeze(issues) })
+    : Object.freeze({ status: 'ready', reads: Object.freeze(reads) });
+};
+
+const collectAssetDocuments = (
+  snapshot: WorkspaceSnapshot
+):
+  | Readonly<{
+      status: 'ready';
+      documents: readonly ValidWorkspaceAssetDocument[];
+    }>
+  | Readonly<{
+      status: 'blocked';
+      issues: readonly WorkspaceSemanticIndexIssue[];
+    }> => {
+  const documents: ValidWorkspaceAssetDocument[] = [];
+  const issues: WorkspaceSemanticIndexIssue[] = [];
+  for (const document of Object.values(snapshot.docsById)
+    .filter((candidate) => candidate.type === 'asset')
+    .sort(
+      (left, right) =>
+        compareText(left.id, right.id) || compareText(left.path, right.path)
+    )) {
+    if (!isWorkspaceAssetDocumentContent(document.content)) {
+      issues.push({
+        code: WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES.documentInvalid,
+        path: documentContentPath(document.id),
+        message: `Asset document "${document.id}" has invalid content.`,
+        causeCode: 'invalid-asset-content',
+        documentId: document.id,
+      });
+      continue;
+    }
+    documents.push({
+      id: document.id,
+      path: document.path,
+      ...(document.name ? { name: document.name } : {}),
+      contentRev: document.contentRev,
+      metaRev: document.metaRev,
+      content: document.content,
+    });
+  }
+  return issues.length > 0
+    ? Object.freeze({ status: 'blocked', issues: Object.freeze(issues) })
+    : Object.freeze({
+        status: 'ready',
+        documents: Object.freeze(documents),
+      });
+};
+
 const mapComponentGraphIssue = (
   issue: WorkspaceComponentGraphIssue
 ): WorkspaceSemanticIndexIssue => ({
@@ -303,8 +467,9 @@ const mapProviderSetupFailure = (
 });
 
 /**
- * Composes the sole revision-bound semantic projection from canonical PIR
- * documents. The PIR codec owns version recognition before facts are built.
+ * Composes the sole revision-bound semantic projection from canonical
+ * Workspace documents. Domain codecs own format recognition before facts are
+ * built, while providers only publish immutable current-model semantics.
  */
 export const createWorkspaceSemanticIndexFromSnapshot = (
   snapshot: WorkspaceSnapshot,
@@ -316,6 +481,25 @@ export const createWorkspaceSemanticIndexFromSnapshot = (
   if (animations.status === 'blocked') return blocked(animations.issues);
   const nodeGraphs = collectNodeGraphDocuments(snapshot);
   if (nodeGraphs.status === 'blocked') return blocked(nodeGraphs.issues);
+  const designTokens = collectDesignTokenDocuments(snapshot);
+  if (designTokens.status === 'blocked') return blocked(designTokens.issues);
+  const designTokenResolvers = collectDesignTokenResolverDocuments(snapshot);
+  if (designTokenResolvers.status === 'blocked') {
+    return blocked(designTokenResolvers.issues);
+  }
+  const assets = collectAssetDocuments(snapshot);
+  if (assets.status === 'blocked') return blocked(assets.issues);
+  const externalAdapters = readWorkspaceExternalAdapterConfig(snapshot);
+  if (externalAdapters.status === 'invalid') {
+    return blocked(
+      externalAdapters.issues.map((issue) => ({
+        code: WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES.documentInvalid,
+        path: issue.path,
+        message: issue.message,
+        ...(issue.documentId ? { documentId: issue.documentId } : {}),
+      }))
+    );
+  }
 
   const componentGraph = validateWorkspaceComponentGraph(snapshot);
   if (!componentGraph.valid) {
@@ -327,6 +511,16 @@ export const createWorkspaceSemanticIndexFromSnapshot = (
   try {
     providers = Object.freeze([
       createWorkspaceSemanticContributionProvider(snapshot),
+      createWorkspaceAssetSemanticContributionProvider({
+        workspaceId: snapshot.id,
+        documents: assets.documents.map((document) => ({
+          documentId: document.id,
+          path: document.path,
+          ...(document.name ? { displayName: document.name } : {}),
+          revision: workspaceRevisions.documentRevs[document.id]!,
+          content: document.content,
+        })),
+      }),
       createRouteSemanticContributionProvider({
         workspaceId: snapshot.id,
         routeRev: snapshot.routeRev,
@@ -358,6 +552,52 @@ export const createWorkspaceSemanticIndexFromSnapshot = (
           content: read.decodedContent,
         })),
       }),
+      createDesignTokenSemanticContributionProvider({
+        workspaceId: snapshot.id,
+        documents: designTokens.reads.map((read) => ({
+          documentId: read.document.id,
+          ...(read.document.name ? { displayName: read.document.name } : {}),
+          revision: workspaceRevisions.documentRevs[read.document.id]!,
+          content: read.document.content,
+        })),
+      }),
+      createDesignTokenResolverSemanticContributionProvider({
+        workspaceId: snapshot.id,
+        documents: designTokenResolvers.reads.map((read) => ({
+          documentId: read.document.id,
+          ...(read.document.name ? { displayName: read.document.name } : {}),
+          revision: workspaceRevisions.documentRevs[read.document.id]!,
+          content: read.document.content,
+          documentReferences:
+            collectWorkspaceDesignTokenResolverDocumentReferences(
+              read.decodedContent,
+              read.document.path
+            ).map((reference) => {
+              const target = reference.workspacePath
+                ? Object.values(snapshot.docsById).find(
+                    (document) => document.path === reference.workspacePath
+                  )
+                : undefined;
+              return {
+                reference: reference.reference,
+                workspacePath:
+                  reference.workspacePath ?? reference.documentPath,
+                ...(target ? { targetDocumentId: target.id } : {}),
+              };
+            }),
+        })),
+      }),
+      ...(externalAdapters.document
+        ? [
+            createWorkspaceExternalAdapterSemanticContributionProvider({
+              workspaceId: snapshot.id,
+              configDocumentId: externalAdapters.document.id,
+              configDocumentRevision:
+                workspaceRevisions.documentRevs[externalAdapters.document.id]!,
+              entries: externalAdapters.entries,
+            }),
+          ]
+        : []),
       ...(options.additionalProviders ?? []),
     ]);
   } catch (error) {

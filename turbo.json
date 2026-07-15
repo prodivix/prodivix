@@ -11,6 +11,11 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "env": [
+        "PRODIVIX_VERIFY_G1_STANDALONE",
+        "PRODIVIX_VERIFY_G1_BROWSER",
+        "E2E_BROWSER_CHANNEL"
+      ],
       "outputs": []
     },
     "@prodivix/plugin-contracts#test": {

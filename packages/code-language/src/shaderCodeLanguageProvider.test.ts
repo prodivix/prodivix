@@ -12,6 +12,7 @@ const artifacts: readonly CodeArtifact[] = [
     id: 'code-glsl-vertex',
     path: '/shaders/vertex.glsl',
     language: 'glsl',
+    ownership: 'code-owned',
     owner: { kind: 'workspace-module', documentId: 'code-glsl-vertex' },
     source: [
       '#version 300 es',
@@ -26,6 +27,7 @@ const artifacts: readonly CodeArtifact[] = [
     id: 'code-wgsl-fragment',
     path: '/shaders/fragment.wgsl',
     language: 'wgsl',
+    ownership: 'code-owned',
     owner: { kind: 'workspace-module', documentId: 'code-wgsl-fragment' },
     source: [
       'fn shade(value: f32) -> f32 { return sin(value); }',
@@ -40,6 +42,7 @@ const artifacts: readonly CodeArtifact[] = [
     id: 'code-wgsl-invalid',
     path: '/shaders/invalid.wgsl',
     language: 'wgsl',
+    ownership: 'code-owned',
     owner: { kind: 'workspace-module', documentId: 'code-wgsl-invalid' },
     source: '@vertex fn broken( {',
     revision: '1',

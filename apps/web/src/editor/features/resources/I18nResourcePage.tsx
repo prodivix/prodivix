@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import { useAuthStore } from '@/auth/useAuthStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import {
-  executeWorkspaceCommandOutboxAndAdopt,
-  executeWorkspaceVfsOutboxIntent,
-} from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+  dispatchWorkspaceAuthoringOperation,
+  dispatchWorkspaceVfsAuthoringIntent,
+} from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { collectLocaleMissingStats, type I18nLocaleStore } from './i18nStore';
 import {
   buildNamespaceStats,
@@ -92,8 +91,8 @@ const createInitialSelection = (
 export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
-  const token = useAuthStore((state) => state.token);
   const workspace = useEditorStore((state) => state.workspace);
+  const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
   const workspaceId = workspace?.id;
   const workspaceRev = workspace?.workspaceRev;
   const workspaceDocumentsById =
@@ -185,7 +184,9 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const persistI18nResourceValue = async (
     value: WorkspaceI18nResourceValue
   ) => {
-    if (!token || !workspace || !workspaceId || !workspaceRev) return;
+    if (!workspace || workspaceReadonly || !workspaceId || !workspaceRev) {
+      return;
+    }
     const existing = getWorkspaceI18nResourceDocument(workspaceDocumentsById);
     if (existing) {
       const command = createWorkspaceResourceValueUpdateCommand({
@@ -195,17 +196,17 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
         label: 'Update i18n resources',
       });
       if (!command) return;
-      const outcome = await executeWorkspaceCommandOutboxAndAdopt({
-        token,
+      const outcome = await dispatchWorkspaceAuthoringOperation({
         workspace,
-        command,
+        readonly: workspaceReadonly,
+        operation: { kind: 'command', command },
       });
       if (outcome.status === 'rejected') throw new Error(outcome.message);
       return;
     }
-    const outcome = await executeWorkspaceVfsOutboxIntent({
-      token,
+    const outcome = await dispatchWorkspaceVfsAuthoringIntent({
       workspace,
+      readonly: workspaceReadonly,
       request: createWorkspaceResourceDocumentRequest({
         workspaceRev,
         documentId: createWorkspaceResourceDocumentId(

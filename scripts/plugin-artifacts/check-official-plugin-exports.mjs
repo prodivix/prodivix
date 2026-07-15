@@ -647,7 +647,7 @@ try {
   );
   await writeFile(
     join(workspaceRoot, 'pnpm-workspace.yaml'),
-    "packages:\n  - 'projects/*'\n\nonlyBuiltDependencies:\n  - esbuild\n",
+    "packages:\n  - 'projects/*'\n\nallowBuilds:\n  esbuild: true\n",
     'utf8'
   );
   runCorepack([

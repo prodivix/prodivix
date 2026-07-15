@@ -112,6 +112,7 @@ export type PIRRendererProps = Readonly<{
   ) => PIRCollectionPreviewInput | undefined;
   dispatchTrigger: (request: PIRTriggerDispatchRequest) => void;
   selectedLocation?: PIRRenderLocation;
+  hiddenLocations?: readonly PIRRenderLocation[];
   onNodeSelect?: (
     location: PIRRenderLocation,
     event: React.SyntheticEvent

@@ -45,16 +45,7 @@ export type InspectorCoreContext = {
 };
 
 export type InspectorIdentityContext = {
-  draftId: string;
-  setDraftId: (value: string) => void;
-  applyRename: () => void;
-  isDirty: boolean;
-  canApply: boolean;
-  isDuplicate: boolean;
-  allNodeIds: string[];
   primaryTextField: EditableTextField | null;
-  identityWriteAvailable: boolean;
-  identityDiagnostic?: string;
 };
 
 export type InspectorCapabilitiesContext = {
@@ -93,8 +84,6 @@ export type InspectorCapabilitiesContext = {
   selectedParentNode: BlueprintInspectorNodeView | null;
   componentMeta: InspectorComponentMeta | null;
   dataModelFieldPaths: string[];
-  codeAuthoringWriteAvailable: boolean;
-  codeAuthoringDiagnostic?: string;
 };
 
 export type InspectorActiveRouteDetails = {
@@ -160,6 +149,12 @@ export type TriggerEntry = {
 };
 
 export type InspectorCodeContext = {
+  controlledJsxArtifactId?: string;
+  controlledCssArtifactId?: string;
+  controlledCodeCanCreate: boolean;
+  createControlledCode: () => void;
+  openControlledJsx: () => void;
+  openControlledCss: () => void;
   addTrigger: () => void;
   updateTrigger: (
     triggerKey: string,

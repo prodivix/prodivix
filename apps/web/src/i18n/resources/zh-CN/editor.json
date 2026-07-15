@@ -53,6 +53,10 @@
         "label": "组件",
         "description": "管理可复用组件。"
       },
+      "code": {
+        "label": "代码",
+        "description": "编辑共享脚本、样式、着色器与适配器。"
+      },
       "resources": {
         "label": "资源",
         "description": "管理素材与资源库。"
@@ -92,6 +96,18 @@
       "openCommunity": "打开社区",
       "published": "已发布到社区",
       "publish": "发布"
+    }
+  },
+  "codeAuthoring": {
+    "overlay": {
+      "compactTitle": "快速代码编辑",
+      "maximizedTitle": "代码编辑器",
+      "close": "关闭代码编辑器",
+      "openWorkspace": "打开代码工作区",
+      "discardTitle": "放弃未保存的代码？",
+      "discardMessage": "此代码文件中尚未保存的修改将被放弃。",
+      "keepEditing": "继续编辑",
+      "discard": "放弃修改"
     }
   },
   "bar": {
@@ -1120,8 +1136,9 @@
     "tabs": {
       "overview": "概览",
       "components": "组件",
+      "tokens": "Token",
       "public": "Public",
-      "code": "Code",
+      "code": "代码文件",
       "i18n": "i18n",
       "external": "外部库",
       "projectFiles": "项目文件"
@@ -1137,7 +1154,10 @@
           "description": "用于导出、部署和运行时预览的静态资源。"
         },
         "code": {
-          "description": "脚本、样式、着色器，作为项目资源统一管理。"
+          "description": "查看并编辑导入、外部与资源归属的脚本、样式和着色器。"
+        },
+        "tokens": {
+          "description": "DTCG Token 文档、主题、变体与设计系统解析。"
         },
         "i18n": {
           "description": "用于语言与翻译键的矩阵编辑器。"
@@ -1154,6 +1174,8 @@
         "warnings": "告警",
         "updated": "更新时间",
         "scriptsStyles": "脚本/样式",
+        "tokens": "Token",
+        "contexts": "上下文",
         "locales": "语言",
         "namespaces": "命名空间",
         "missingValues": "缺失值",
@@ -1169,8 +1191,8 @@
       },
       "quickActions": {
         "badgeTitle": "快捷操作",
-        "title": "无需离开资源页也能快速构建",
-        "description": "先创建常见资源，再直接跳转到对应编辑标签页。",
+        "title": "创建常用项目产物",
+        "description": "创建资源归属的代码文件，并在 Resources 完整代码表面中继续编辑。",
         "badge": "概览在本地运行（无需网络）。",
         "newScript": "新建脚本",
         "scriptPath": "在 scripts 中创建 `untitled.ts`",
@@ -1201,11 +1223,18 @@
       "actions": {
         "download": "下载"
       },
+      "semanticReferencedDeleteBlocked": "该资源仍有 {{count}} 个语义引用。请先打开并更新引用，再删除资源。",
       "labels": {
         "kind": "类型",
         "mime": "MIME",
         "size": "大小",
+        "references": "引用",
+        "impactedSymbols": "受影响符号",
         "unknown": "未知"
+      },
+      "references": {
+        "title": "语义引用",
+        "open": "打开引用 {{index}}"
       },
       "preview": {
         "preview": "预览",
@@ -1220,10 +1249,57 @@
         "pageHints": "Public 文件共 {{warnings}} 条告警，{{suggestions}} 条建议。"
       }
     },
+    "tokens": {
+      "header": {
+        "badge": "设计系统",
+        "title": "Design Token",
+        "description": "编辑 canonical DTCG Token 文件与 Resolver 映射。Token 值和主题/变体组合分别由 revision-bound Workspace 文档拥有。"
+      },
+      "actions": {
+        "newTokenFile": "新建 Token 文件",
+        "save": "保存",
+        "saving": "正在保存…",
+        "createSystem": "创建设计系统"
+      },
+      "documents": {
+        "title": "Token 文档",
+        "empty": "创建一个设计系统或 Token 文件后开始编辑。"
+      },
+      "editor": {
+        "emptyTitle": "未选择 Token 文档",
+        "emptyDescription": "从列表选择 Token 或 Resolver 文档。"
+      },
+      "summary": {
+        "title": "Current Model",
+        "groups": "分组",
+        "tokens": "Token",
+        "aliases": "别名",
+        "sets": "集合",
+        "modifiers": "变体轴",
+        "contexts": "上下文",
+        "permutations": "组合数",
+        "unavailable": "修正文档校验问题后即可恢复 current model 摘要。"
+      },
+      "create": {
+        "title": "DTCG 起步模板",
+        "description": "在 /tokens 下原子创建 foundation、light、dark 与 Resolver 四份文档。",
+        "name": "设计系统名称",
+        "slug": "Workspace 标识",
+        "defaultName": "产品设计系统",
+        "tokenFileName": "自定义 Token"
+      },
+      "feedback": {
+        "noChanges": "没有需要保存的 canonical 变更。",
+        "saved": "Workspace 已接受 Token 操作。",
+        "created": "设计系统文档已原子创建。",
+        "tokenCreated": "Token 文档已创建。",
+        "createFailed": "无法创建 Token 文档。"
+      }
+    },
     "code": {
       "header": {
         "title": "代码工作区",
-        "description": "在一个页面里统一管理脚本、样式和着色器资源。"
+        "description": "使用共享语言能力编辑 canonical 脚本、样式、着色器与适配器。"
       },
       "labels": {
         "selected": "当前选中",
@@ -1236,9 +1312,23 @@
       "actions": {
         "save": "保存"
       },
+      "compile": {
+        "title": "目标 Shader 校验",
+        "loading": "正在按已配置目标编译 canonical shader…",
+        "pendingSave": "保存当前草稿后刷新目标编译校验。",
+        "notConfigured": "这个 shader 尚未配置持久化编译目标。",
+        "success": "Canonical shader 已通过目标编译。",
+        "failed_one": "目标编译发现 1 个错误。",
+        "failed_other": "目标编译发现 {{count}} 个错误。",
+        "unavailable": "目标编译器不可用：{{reason}}",
+        "unknownReason": "原因未知",
+        "stageLabel": "GLSL 编译阶段",
+        "selectStage": "选择阶段",
+        "enableWebGpu": "启用 WebGPU 校验"
+      },
       "language": {
         "status": {
-          "ready": "TypeScript 语言服务已就绪",
+          "ready": "语言能力已就绪",
           "loading": "正在更新代码分析…",
           "unsupported": "当前文件没有可用的语言能力提供器。",
           "unavailable": "语言服务不可用：{{reason}}"
@@ -1259,6 +1349,39 @@
           "referencesMissing": "光标位置没有找到引用。",
           "unavailable": "结果已过期或语言服务当前不可用。"
         }
+      },
+      "refactor": {
+        "title": "语义重构",
+        "description": "应用一个可逆 Workspace 操作前，先预览 revision-bound 代码编辑与跨领域影响。",
+        "rename": "重命名符号",
+        "renameShortcut": "重命名符号（F2）",
+        "move": "移动 Artifact",
+        "preparingRename": "正在解析光标位置的符号…",
+        "renameLabel": "将 {{name}} 重命名为",
+        "preview": "预览影响",
+        "renameImpact": "将在 {{artifacts}} 个代码 Artifact 中执行 {{edits}} 处文本编辑。",
+        "ownerRewriteRequired_one": "有 1 个持久化 CodeSlot owner 按名称引用这个导出；应用代码重命名前请先打开 owner，并解除或更新绑定。",
+        "ownerRewriteRequired_other": "有 {{count}} 个持久化 CodeSlot owner 按名称引用这个导出；应用代码重命名前请先打开 owner，并解除或更新绑定。",
+        "renameSafe": "没有持久化的跨领域 CodeReference 需要 owner rewrite。",
+        "back": "返回",
+        "cancel": "取消",
+        "applyRename": "应用重命名",
+        "pathLabel": "Canonical Workspace 路径",
+        "moveImpact": "稳定 Artifact identity 会保留 {{bindings}} 个绑定、{{references}} 个引用和 {{impacted}} 个受影响符号。",
+        "applyMove": "应用移动",
+        "saveBeforeRename": "开始语义重命名前，请先保存当前代码草稿。",
+        "renameUnavailable": "当前 Language Capability 无法重命名光标位置的符号。",
+        "renameRejected": "Workspace 拒绝了这次重命名 proposal。",
+        "renameStale": "语义快照已变化，请重新开始重命名。",
+        "moveRejected": "Workspace 拒绝了这次代码 Artifact 移动。"
+      },
+      "lifecycle": {
+        "orphanTitle": "孤立的代码 Artifact",
+        "orphanDescription": "原 {{slotKind}} owner 已不存在；源码仍安全保留在 Workspace 中。",
+        "rebind": "绑定到 {{libraryId}}",
+        "rebindFailed": "无法重新绑定代码 artifact。",
+        "convertToModule": "转为 Workspace module",
+        "deleteActiveBlocked": "删除代码 artifact 或目录前，请先解除 active CodeSlot binding。"
       },
       "empty": "请从左侧树中选择一个代码文件进行编辑。"
     },
@@ -1426,6 +1549,15 @@
         "title": "添加新库",
         "packageId": "package id",
         "versionOptional": "版本（可选）"
+      },
+      "adapter": {
+        "title": "代码 Adapter",
+        "description": "通过该库唯一的 external-adapter CodeSlot 绑定 TypeScript 或 JavaScript artifact。",
+        "unbound": "未绑定 Adapter",
+        "create": "创建 Adapter",
+        "open": "打开代码",
+        "updateFailed": "无法更新 Adapter 绑定。",
+        "createFailed": "无法创建 Adapter artifact。"
       },
       "details": {
         "title": "库详情",

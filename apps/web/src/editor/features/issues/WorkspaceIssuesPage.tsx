@@ -302,8 +302,8 @@ export function WorkspaceIssuesPage() {
                     key={quickFix.id}
                     type="button"
                     className="inline-flex items-center gap-2 rounded-lg border border-(--border-subtle) bg-(--bg-panel) px-3 py-2 text-sm"
-                    onClick={() => {
-                      const result = executeWorkspaceIssueQuickFix(
+                    onClick={async () => {
+                      const result = await executeWorkspaceIssueQuickFix(
                         quickFix,
                         selectedIssue.diagnostic
                       );

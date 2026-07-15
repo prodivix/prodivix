@@ -6,7 +6,10 @@ import {
   resolveWorkspaceAnimationTrackLocation,
 } from './workspaceAnimationIssueProvider';
 import { collectWorkspaceCodeDiagnostics } from './workspaceCodeIssueProvider';
-import { collectWorkspaceModelIssueSnapshots } from './workspaceIssueProviders';
+import {
+  collectWorkspaceModelIssueSnapshots,
+  collectWorkspaceShaderCompileIssueSnapshot,
+} from './workspaceIssueProviders';
 
 const createWorkspace = (): WorkspaceSnapshot => {
   const pirDocument = createEmptyPirDocument();
@@ -23,7 +26,7 @@ const createWorkspace = (): WorkspaceSnapshot => {
         kind: 'dir',
         name: '/',
         parentId: null,
-        children: ['page-node', 'animation-node', 'code-node'],
+        children: ['page-node', 'animation-node', 'code-node', 'shader-node'],
       },
       'page-node': {
         id: 'page-node',
@@ -38,6 +41,13 @@ const createWorkspace = (): WorkspaceSnapshot => {
         name: 'checkout.ts',
         parentId: 'root',
         docId: 'code-checkout',
+      },
+      'shader-node': {
+        id: 'shader-node',
+        kind: 'doc',
+        name: 'main.wgsl',
+        parentId: 'root',
+        docId: 'code-shader',
       },
       'animation-node': {
         id: 'animation-node',
@@ -103,6 +113,25 @@ const createWorkspace = (): WorkspaceSnapshot => {
         content: {
           language: 'ts',
           source: 'const valid = 1;\nexport const checkout = ;',
+        },
+      },
+      'code-shader': {
+        id: 'code-shader',
+        type: 'code',
+        path: '/shaders/main.wgsl',
+        contentRev: 2,
+        metaRev: 1,
+        content: {
+          language: 'wgsl',
+          source: '@compute @workgroup_size(1) fn compute_main() {}',
+          metadata: {
+            'prodivix.shaderCompile': {
+              schemaVersion: '1.0',
+              target: 'webgpu',
+              stage: 'compute',
+              entryPoint: 'missing_main',
+            },
+          },
         },
       },
     },
@@ -188,5 +217,28 @@ describe('workspace issue providers', () => {
     }).map((snapshot) => snapshot.providerId);
     expect(providerIds).toContain('workspace-code-language');
     expect(providerIds).toContain('animation-validator');
+  });
+
+  it('publishes shader compile results as an independent async provider', async () => {
+    const workspace = createWorkspace();
+    const snapshot = await collectWorkspaceShaderCompileIssueSnapshot({
+      workspace,
+      revision: { key: '2:1:4', sequence: 1 },
+      collectedAt: 11,
+    });
+    expect(snapshot).toMatchObject({
+      providerId: 'workspace-shader-compile',
+      workspaceId: workspace.id,
+      revision: { key: '2:1:4', sequence: 1 },
+      diagnostics: [
+        expect.objectContaining({
+          code: 'COD-5002',
+          targetRef: {
+            kind: 'code-artifact',
+            artifactId: 'code-shader',
+          },
+        }),
+      ],
+    });
   });
 });

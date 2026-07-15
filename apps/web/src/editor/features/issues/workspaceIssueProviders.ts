@@ -1,5 +1,6 @@
 import {
   getWorkspaceOperationId,
+  collectWorkspaceCodeArtifactLifecycleDiagnostics,
   createWorkspaceCodeArtifactProvider,
   decodeWorkspacePirDocument,
   validateWorkspaceSnapshot,
@@ -19,6 +20,7 @@ import type {
   WorkspaceOutboxEntry,
   WorkspaceSettingsOutboxEntry,
 } from '@prodivix/workspace-sync';
+import { compileWorkspaceShaders } from '@/editor/codeCompile';
 import { collectWorkspaceAnimationDiagnostics } from './workspaceAnimationIssueProvider';
 import { collectWorkspaceCodeDiagnostics } from './workspaceCodeIssueProvider';
 
@@ -227,10 +229,49 @@ export const collectWorkspaceModelIssueSnapshots = (input: {
       collectWorkspaceCodeDiagnostics(input.workspace)
     ),
     createSnapshot(
+      'workspace-code-artifact-lifecycle',
+      collectWorkspaceCodeArtifactLifecycleDiagnostics(input.workspace)
+    ),
+    createSnapshot(
       'animation-validator',
       collectWorkspaceAnimationDiagnostics(input.workspace)
     ),
   ];
+};
+
+export const collectWorkspaceShaderCompileIssueSnapshot = async (input: {
+  workspace: WorkspaceSnapshot;
+  revision: DiagnosticIssueRevision;
+  collectedAt: number;
+}): Promise<DiagnosticProviderSnapshot> => {
+  let diagnostics: readonly ProdivixDiagnostic[];
+  try {
+    diagnostics = (await compileWorkspaceShaders(input.workspace)).diagnostics;
+  } catch {
+    diagnostics = Object.freeze([
+      Object.freeze({
+        code: 'COD-9001',
+        severity: 'error' as const,
+        domain: 'code' as const,
+        message: 'The shader compile environment could not be evaluated.',
+        hint: 'Retry after reopening the Workspace.',
+        retryable: true,
+        docsUrl: '/reference/diagnostics/cod-9001',
+        targetRef: Object.freeze({
+          kind: 'workspace' as const,
+          workspaceId: input.workspace.id,
+        }),
+        meta: { stage: 'environment', capability: 'shader-compile' },
+      }),
+    ]);
+  }
+  return Object.freeze({
+    providerId: 'workspace-shader-compile',
+    workspaceId: input.workspace.id,
+    revision: input.revision,
+    collectedAt: input.collectedAt,
+    diagnostics,
+  });
 };
 
 const getFailureCode = (failure: { code: string; status?: number }): string =>

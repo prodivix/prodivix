@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuthStore } from '@/auth/useAuthStore';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import {
-  executeWorkspaceCommandOutboxAndAdopt,
-  executeWorkspaceVfsOutboxIntent,
-} from '@/editor/workspaceSync/workspaceVfsOutboxExecutor';
+  dispatchWorkspaceAuthoringOperation,
+  dispatchWorkspaceVfsAuthoringIntent,
+} from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { ExternalLibraryAddModal } from './externalLibraryManager/ExternalLibraryAddModal';
 import { ExternalLibraryDetailsPanel } from './externalLibraryManager/ExternalLibraryDetailsPanel';
 import { ExternalLibraryListPanel } from './externalLibraryManager/ExternalLibraryListPanel';
@@ -46,21 +45,33 @@ import {
 } from './workspaceExternalLibraries';
 import {
   createWorkspaceResourceDocumentId,
+  createResourceIntentId,
   createWorkspaceResourceDocumentRequest,
   createWorkspaceResourceValueUpdateCommand,
   RESOURCE_ROOTS,
 } from './workspaceResourceDocuments';
-import { createWorkspaceProjectConfigDocumentContent } from '@prodivix/workspace';
-import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import {
+  createWorkspaceExternalAdapterArtifactTransactionPlan,
+  createWorkspaceExternalAdapterBindingTransactionPlan,
+  createWorkspaceProjectConfigDocumentContent,
+  isWorkspaceCodeDocumentContent,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
 
 const EMPTY_WORKSPACE_DOCUMENTS: WorkspaceSnapshot['docsById'] = {};
 
-export function ExternalLibraryManager() {
+type ExternalLibraryManagerProps = Readonly<{
+  onOpenCodeArtifact: (artifactId: string) => void;
+}>;
+
+export function ExternalLibraryManager({
+  onOpenCodeArtifact,
+}: ExternalLibraryManagerProps) {
   const { t } = useTranslation('editor');
-  const token = useAuthStore((state) => state.token);
   const workspace = useEditorStore((state) => state.workspace);
   const workspaceId = workspace?.id;
   const workspaceRev = workspace?.workspaceRev;
+  const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
   const externalResourceValue = useMemo(
@@ -91,6 +102,8 @@ export function ExternalLibraryManager() {
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [manualLibraryId, setManualLibraryId] = useState('');
   const [manualLibraryVersion, setManualLibraryVersion] = useState('');
+  const [adapterBusy, setAdapterBusy] = useState(false);
+  const [adapterError, setAdapterError] = useState('');
   const { metadataRequestsRef, metadataControllersRef } =
     useExternalLibraryManagerRuntimeRefs();
 
@@ -106,6 +119,20 @@ export function ExternalLibraryManager() {
   const iconConfiguredSet = useMemo(
     () => new Set(configuredIconLibraryIds),
     [configuredIconLibraryIds]
+  );
+  const adapterArtifacts = useMemo(
+    () =>
+      Object.values(workspaceDocumentsById)
+        .filter(
+          (document) =>
+            document.type === 'code' &&
+            isWorkspaceCodeDocumentContent(document.content) &&
+            (document.content.language === 'ts' ||
+              document.content.language === 'js')
+        )
+        .map((document) => ({ id: document.id, path: document.path }))
+        .sort((left, right) => left.path.localeCompare(right.path)),
+    [workspaceDocumentsById]
   );
 
   const inferScope = (
@@ -168,7 +195,9 @@ export function ExternalLibraryManager() {
   const persistExternalResourceValue = async (
     value: WorkspaceExternalLibrariesValue
   ) => {
-    if (!token || !workspace || !workspaceId || !workspaceRev) return;
+    if (!workspace || workspaceReadonly || !workspaceId || !workspaceRev) {
+      return;
+    }
     const existing = getWorkspaceExternalLibrariesDocument(
       workspaceDocumentsById
     );
@@ -180,17 +209,17 @@ export function ExternalLibraryManager() {
         label: 'Update external libraries',
       });
       if (!command) return;
-      const outcome = await executeWorkspaceCommandOutboxAndAdopt({
-        token,
+      const outcome = await dispatchWorkspaceAuthoringOperation({
         workspace,
-        command,
+        readonly: workspaceReadonly,
+        operation: { kind: 'command', command },
       });
       if (outcome.status === 'rejected') throw new Error(outcome.message);
       return;
     }
-    const outcome = await executeWorkspaceVfsOutboxIntent({
-      token,
+    const outcome = await dispatchWorkspaceVfsAuthoringIntent({
       workspace,
+      readonly: workspaceReadonly,
       request: createWorkspaceResourceDocumentRequest({
         workspaceRev,
         documentId: createWorkspaceResourceDocumentId(
@@ -474,6 +503,96 @@ export function ExternalLibraryManager() {
     }));
   };
 
+  const applyAdapterBinding = async (
+    libraryId: string,
+    artifactId: string | null
+  ) => {
+    if (!workspace || workspaceReadonly || adapterBusy) return;
+    setAdapterBusy(true);
+    setAdapterError('');
+    try {
+      const transactionId = createResourceIntentId();
+      const plan = createWorkspaceExternalAdapterBindingTransactionPlan({
+        workspace,
+        libraryId,
+        reference: artifactId ? { artifactId, exportName: 'default' } : null,
+        transactionId,
+        issuedAt: new Date().toISOString(),
+      });
+      if (plan.status === 'rejected') {
+        setAdapterError(
+          plan.issues[0]?.message ??
+            t('resourceManager.external.adapter.updateFailed')
+        );
+        return;
+      }
+      if (plan.status === 'unchanged') return;
+      const outcome = await dispatchWorkspaceAuthoringOperation({
+        workspace,
+        readonly: workspaceReadonly,
+        operation: { kind: 'transaction', transaction: plan.transaction },
+      });
+      if (outcome.status === 'rejected') setAdapterError(outcome.message);
+    } finally {
+      setAdapterBusy(false);
+    }
+  };
+
+  const createAdapterArtifact = async (libraryId: string) => {
+    if (!workspace || workspaceReadonly || adapterBusy) return;
+    setAdapterBusy(true);
+    setAdapterError('');
+    const transactionId = createResourceIntentId();
+    const artifactId = `code_external_adapter_${transactionId.replaceAll('-', '_')}`;
+    const slug =
+      libraryId
+        .replace(/^@/, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'library';
+    const basePath = `/src/adapters/${slug}.adapter.ts`;
+    const path = Object.values(workspace.docsById).some(
+      (document) => document.path === basePath
+    )
+      ? `/src/adapters/${slug}.${artifactId.slice(-8)}.adapter.ts`
+      : basePath;
+    try {
+      const plan = createWorkspaceExternalAdapterArtifactTransactionPlan({
+        workspace,
+        libraryId,
+        artifactId,
+        path,
+        language: 'ts',
+        source: `const adapter = {\n  libraryId: ${JSON.stringify(libraryId)},\n  adapt(value: unknown) {\n    return value;\n  },\n};\n\nexport default adapter;\n`,
+        transactionId,
+        issuedAt: new Date().toISOString(),
+      });
+      if (plan.status === 'rejected') {
+        setAdapterError(
+          plan.issues[0]?.message ??
+            t('resourceManager.external.adapter.createFailed')
+        );
+        return;
+      }
+      if (plan.status === 'unchanged') return;
+      const outcome = await dispatchWorkspaceAuthoringOperation({
+        workspace,
+        readonly: workspaceReadonly,
+        operation: { kind: 'transaction', transaction: plan.transaction },
+      });
+      if (outcome.status === 'rejected') {
+        setAdapterError(outcome.message);
+        return;
+      }
+      onOpenCodeArtifact(artifactId);
+    } finally {
+      setAdapterBusy(false);
+    }
+  };
+
+  const openAdapterArtifact = (artifactId: string) => {
+    onOpenCodeArtifact(artifactId);
+  };
+
   useEffect(() => {
     let disposed = false;
     setBootstrapping(true);
@@ -519,6 +638,7 @@ export function ExternalLibraryManager() {
           return {
             ...library,
             version: persisted?.version ?? library.version,
+            ...(persisted?.adapter ? { adapter: persisted.adapter } : {}),
           };
         });
         setActiveLibraries(nextLibraries);
@@ -623,7 +743,17 @@ export function ExternalLibraryManager() {
         />
         <ExternalLibraryDetailsPanel
           selectedLibrary={selectedLibrary}
+          adapterArtifacts={adapterArtifacts}
+          adapterBusy={adapterBusy}
+          adapterError={adapterError}
           packageSizeThresholds={packageSizeThresholds}
+          onAdapterArtifactChange={(libraryId, artifactId) => {
+            void applyAdapterBinding(libraryId, artifactId);
+          }}
+          onCreateAdapter={(libraryId) => {
+            void createAdapterArtifact(libraryId);
+          }}
+          onOpenAdapter={openAdapterArtifact}
           onVersionQuickSwitch={updateLibraryVersion}
         />
       </div>

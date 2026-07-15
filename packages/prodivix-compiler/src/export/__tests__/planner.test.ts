@@ -5,6 +5,7 @@ import {
   createReactViteExportPreset,
   createRouteExportContribution,
   createUniqueExportPath,
+  getExportCodeArtifactLanguage,
   getRelativeImportPath,
   mergeExportDependencies,
   normalizeExportPath,
@@ -61,6 +62,25 @@ const createProgram = (modules: ExportModule[]): ExportProgram => ({
 });
 
 describe('export path planner', () => {
+  it('uses the authored file extension as the executable source dialect', () => {
+    expect(
+      getExportCodeArtifactLanguage({
+        id: 'controlled-view',
+        path: '/controlled-view.tsx',
+        language: 'ts',
+        source: 'export default <div />;',
+      })
+    ).toBe('tsx');
+    expect(
+      getExportCodeArtifactLanguage({
+        id: 'controlled-view-js',
+        path: '/controlled-view.jsx',
+        language: 'js',
+        source: 'export default <div />;',
+      })
+    ).toBe('jsx');
+  });
+
   it('normalizes unsafe and platform-specific output paths', () => {
     expect(normalizeExportPath('C:\\tmp\\..\\src\\Home Page.tsx')).toBe(
       'tmp/src/Home-Page.tsx'

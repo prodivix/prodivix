@@ -13,7 +13,8 @@
       "@prodivix/authoring": ["../authoring/src"],
       "@prodivix/nodegraph": ["../nodegraph/src"],
       "@prodivix/pir": ["../pir/src"],
-      "@prodivix/router": ["../router/src"]
+      "@prodivix/router": ["../router/src"],
+      "@prodivix/tokens": ["../tokens/src"]
     }
   },
   "include": ["src/**/*"],
@@ -39,6 +40,9 @@
     },
     {
       "path": "../router"
+    },
+    {
+      "path": "../tokens"
     }
   ]
 }

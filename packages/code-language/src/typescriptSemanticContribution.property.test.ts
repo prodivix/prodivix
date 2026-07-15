@@ -10,6 +10,7 @@ const definitionArtifact: CodeArtifact = {
   id: 'code-definition',
   path: '/src/definition.ts',
   language: 'ts',
+  ownership: 'code-owned',
   owner: { kind: 'workspace-module', documentId: 'code-definition' },
   source: 'export const calculate = (value: number) => value * 2;',
   revision: '2',
@@ -18,6 +19,7 @@ const consumerArtifact: CodeArtifact = {
   id: 'code-consumer',
   path: '/src/consumer.ts',
   language: 'ts',
+  ownership: 'code-owned',
   owner: { kind: 'workspace-module', documentId: 'code-consumer' },
   source: [
     "import { calculate } from './definition';",

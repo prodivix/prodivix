@@ -1,4 +1,10 @@
-import type { CodeArtifact, CodeArtifactLanguage } from '@prodivix/authoring';
+import type {
+  CodeArtifact,
+  CodeArtifactLanguage,
+  ShaderStage,
+} from '@prodivix/authoring';
+
+export type { ShaderStage } from '@prodivix/authoring';
 
 export const SHADER_CODE_LANGUAGES = Object.freeze(['glsl', 'wgsl'] as const);
 
@@ -6,8 +12,6 @@ export type ShaderCodeLanguage = Extract<
   CodeArtifactLanguage,
   (typeof SHADER_CODE_LANGUAGES)[number]
 >;
-
-export type ShaderStage = 'vertex' | 'fragment' | 'compute' | 'unknown';
 
 export type ShaderSymbolCategory =
   'entry' | 'function' | 'parameter' | 'resource' | 'type' | 'variable';

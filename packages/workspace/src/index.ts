@@ -27,6 +27,25 @@ export {
   selectWorkspaceNodeGraphDocumentResults,
 } from './workspaceNodeGraphDocument';
 export {
+  createWorkspaceDesignTokenDocumentUpdateCommand,
+  decodeWorkspaceDesignTokenDocument,
+  isCanonicalWorkspaceDesignTokenDocumentContent,
+  isWorkspaceDesignTokenDocument,
+  selectWorkspaceDesignTokenDocument,
+  selectWorkspaceDesignTokenDocumentResults,
+} from './workspaceDesignTokenDocument';
+export {
+  collectWorkspaceDesignTokenResolverDocumentReferences,
+  createWorkspaceDesignTokenResolverDocumentUpdateCommand,
+  decodeWorkspaceDesignTokenResolverDocument,
+  isCanonicalWorkspaceDesignTokenResolverDocumentContent,
+  isWorkspaceDesignTokenResolverDocument,
+  resolveWorkspaceDesignTokenResolverReferencePath,
+  selectWorkspaceDesignTokenResolverDocument,
+  selectWorkspaceDesignTokenResolverDocumentResults,
+} from './workspaceDesignTokenResolverDocument';
+export { createWorkspaceDesignTokenSystemTransactionPlan } from './workspaceDesignTokenSystem';
+export {
   createWorkspaceProjectConfigDocumentContent,
   createWorkspaceProjectConfigValueUpdateCommand,
   isWorkspaceAssetDocumentContent,
@@ -50,6 +69,11 @@ export {
   WORKSPACE_CODE_LANGUAGE_EDIT_PLAN_ISSUE_CODES,
   createWorkspaceCodeLanguageEditTransactionPlan,
 } from './workspaceCodeLanguageEditTransaction';
+export {
+  WORKSPACE_CODE_ARTIFACT_RELOCATION_ISSUE_CODES,
+  createWorkspaceCodeArtifactRelocationPlan,
+  normalizeWorkspaceCodeArtifactPath,
+} from './workspaceCodeArtifactRefactor';
 export {
   decodeWorkspacePirDocument,
   isWorkspacePirDocument,
@@ -82,6 +106,7 @@ export {
   createWorkspacePIRCollectionUnwrapTransactionPlan,
   createWorkspacePIRElementBatchUpdateTransactionPlan,
   createWorkspacePIRElementUpdateTransactionPlan,
+  createWorkspacePIRGraphFragmentInsertTransactionPlan,
   createWorkspacePIRSubtreeDeleteTransactionPlan,
   createWorkspacePIRSubtreeDuplicateTransactionPlan,
   createWorkspacePIRSubtreeMoveTransactionPlan,
@@ -107,6 +132,29 @@ export {
   createWorkspaceSemanticIndexFromSnapshot,
 } from './authoring/createWorkspaceSemanticIndexFromSnapshot';
 export { createWorkspaceCodeSlotRegistryFromSnapshot } from './authoring/createWorkspaceCodeSlotRegistryFromSnapshot';
+export {
+  collectWorkspaceCodeArtifactLifecycleDiagnostics,
+  createWorkspaceOrphanCodeArtifactToModuleCommand,
+  projectWorkspaceCodeArtifactLifecycles,
+} from './authoring/workspaceCodeArtifactLifecycle';
+export {
+  WORKSPACE_EXTERNAL_LIBRARIES_CONFIG_PATH,
+  createWorkspaceExternalAdapterArtifactTransactionPlan,
+  createWorkspaceExternalAdapterBindingTransactionPlan,
+  createWorkspaceExternalAdapterCodeReferenceId,
+  createWorkspaceExternalAdapterCodeSlotId,
+  createWorkspaceExternalAdapterCodeSlotProvider,
+  decodeWorkspaceExternalAdapterBinding,
+  readWorkspaceExternalAdapterConfig,
+} from './authoring/workspaceExternalAdapter';
+export {
+  WORKSPACE_EXTERNAL_ADAPTER_SEMANTIC_PROVIDER_DESCRIPTOR,
+  createWorkspaceExternalAdapterSemanticContributionProvider,
+} from './authoring/workspaceExternalAdapterSemanticContributionProvider';
+export {
+  WORKSPACE_ASSET_SEMANTIC_PROVIDER_DESCRIPTOR,
+  createWorkspaceAssetSemanticContributionProvider,
+} from './authoring/workspaceAssetSemanticContributionProvider';
 export {
   WORKSPACE_SEMANTIC_PROVIDER_ID,
   WORKSPACE_SEMANTIC_PROVIDER_VERSION,
@@ -138,6 +186,7 @@ export {
   applyWorkspaceTransaction,
   createWorkspaceDirectoryIntentRequest,
   createWorkspaceCodeDocumentCommand,
+  createWorkspaceCodeContentUpdateCommand,
   createWorkspaceCodeDocumentIntentRequest,
   createWorkspaceCodeSourceUpdateCommand,
   createWorkspaceDocumentIntentRequest,
@@ -195,6 +244,7 @@ export type {
   WorkspacePatchOperation,
   CreateWorkspaceDirectoryIntentInput,
   CreateWorkspaceCodeDocumentCommandInput,
+  CreateWorkspaceCodeContentUpdateCommandInput,
   CreateWorkspaceCodeDocumentIntentInput,
   CreateWorkspaceCodeSourceUpdateCommandInput,
   CreateWorkspaceDocumentIntentInput,
@@ -293,6 +343,25 @@ export type {
   WorkspaceVfsNodeId,
 } from './types';
 export type {
+  CreateWorkspaceDesignTokenDocumentUpdateCommandInput,
+  WorkspaceDesignTokenContent,
+  WorkspaceDesignTokenDocument,
+  WorkspaceDesignTokenReadResult,
+} from './workspaceDesignTokenDocument';
+export type {
+  CreateWorkspaceDesignTokenResolverDocumentUpdateCommandInput,
+  WorkspaceDesignTokenResolverContent,
+  WorkspaceDesignTokenResolverDocument,
+  WorkspaceDesignTokenResolverDocumentReference,
+  WorkspaceDesignTokenResolverReadResult,
+} from './workspaceDesignTokenResolverDocument';
+export type {
+  CreateWorkspaceDesignTokenSystemTransactionInput,
+  WorkspaceDesignTokenSystemDocumentRole,
+  WorkspaceDesignTokenSystemTransactionPlan,
+  WorkspaceDesignTokenSystemTransactionPlanResult,
+} from './workspaceDesignTokenSystem';
+export type {
   CreateWorkspaceCodeLanguageEditTransactionInput,
   WorkspaceCodeLanguageEditPlanIssue,
   WorkspaceCodeLanguageEditPlanIssueCode,
@@ -300,12 +369,35 @@ export type {
   WorkspaceCodeLanguageEditTransactionPlanResult,
 } from './workspaceCodeLanguageEditTransaction';
 export type {
+  WorkspaceCodeArtifactRelocationIssue,
+  WorkspaceCodeArtifactRelocationIssueCode,
+  WorkspaceCodeArtifactRelocationPlan,
+  WorkspaceCodeArtifactRelocationPlanResult,
+} from './workspaceCodeArtifactRefactor';
+export type {
   WorkspaceSemanticIndexCompositionOptions,
   WorkspaceSemanticIndexCompositionResult,
   WorkspaceSemanticIndexIssue,
   WorkspaceSemanticIndexIssueCode,
 } from './authoring/createWorkspaceSemanticIndexFromSnapshot';
+export type {
+  CreateWorkspaceAssetSemanticContributionProviderInput,
+  WorkspaceAssetSemanticDocumentInput,
+} from './authoring/workspaceAssetSemanticContributionProvider';
 export type { WorkspaceCodeSlotRegistryCompositionResult } from './authoring/createWorkspaceCodeSlotRegistryFromSnapshot';
+export type {
+  WorkspaceCodeArtifactLifecycleProjectionResult,
+  WorkspaceCodeArtifactLifecycleRecord,
+  WorkspaceCodeArtifactModuleConversionResult,
+} from './authoring/workspaceCodeArtifactLifecycle';
+export type {
+  WorkspaceExternalAdapterBindingPlanIssue,
+  WorkspaceExternalAdapterBindingPlanIssueCode,
+  WorkspaceExternalAdapterBindingTransactionPlanResult,
+  WorkspaceExternalAdapterConfigIssue,
+  WorkspaceExternalAdapterConfigReadResult,
+  WorkspaceExternalAdapterEntry,
+} from './authoring/workspaceExternalAdapter';
 export type {
   DecodeWorkspacePirDocumentOptions,
   WorkspacePirDocument,
@@ -352,6 +444,7 @@ export type {
   CreateWorkspacePIRCollectionUnwrapTransactionInput,
   CreateWorkspacePIRElementBatchUpdateTransactionInput,
   CreateWorkspacePIRElementUpdateTransactionInput,
+  CreateWorkspacePIRGraphFragmentInsertTransactionInput,
   CreateWorkspacePIRSubtreeDeleteTransactionInput,
   CreateWorkspacePIRSubtreeDuplicateTransactionInput,
   CreateWorkspacePIRSubtreeMoveTransactionInput,

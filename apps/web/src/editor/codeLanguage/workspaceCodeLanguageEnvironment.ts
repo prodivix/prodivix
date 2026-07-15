@@ -68,6 +68,7 @@ export type WorkspaceCodeLanguageSessionResult =
 
 export type WorkspaceCodeLanguageEnvironment = Readonly<{
   artifacts: readonly CodeArtifact[];
+  snapshotIdentity: SemanticSnapshotIdentity;
   codeDiagnostics: readonly ProdivixDiagnostic[];
   semanticComposition: WorkspaceSemanticIndexCompositionResult;
   semanticIndex: WorkspaceSemanticIndex | null;
@@ -186,6 +187,7 @@ export const createWorkspaceCodeLanguageEnvironment = (
 
     const environment: WorkspaceCodeLanguageEnvironment = Object.freeze({
       artifacts,
+      snapshotIdentity: providerIdentity,
       codeDiagnostics: Object.freeze(
         codeContributions
           .flatMap((contribution) => contribution.diagnostics ?? [])
@@ -281,6 +283,10 @@ export const createWorkspaceCodeLanguageEnvironment = (
     const unavailableEnvironment: WorkspaceCodeLanguageEnvironment =
       Object.freeze({
         artifacts,
+        snapshotIdentity: createProviderIdentity({
+          workspace,
+          semanticProviders: [],
+        }),
         codeDiagnostics: Object.freeze([diagnostic]),
         semanticComposition,
         semanticIndex: null,

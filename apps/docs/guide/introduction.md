@@ -1,127 +1,56 @@
-# 简介
+# 认识 Prodivix
 
-Prodivix 是一款处于 alpha 阶段的浏览器原生 Web 应用作者环境。长期目标是让蓝图、节点图、动画与代码在同一个 Workspace 中协作，并让预览、导出、诊断和验证共享可追溯的语义链路。
+Prodivix 是一个运行在浏览器中的语义化前端作者环境。它把视觉编辑、真实代码、项目资源、诊断和生产导出放在同一个 Canonical Workspace 上，让设计意图与工程事实保持可追踪的一致性。
 
-当前产品阶段是 **G0 Passed / G1 Foundation**：Truth & Change Kernel 已形成可重复验证的闭环，语义化的视觉与代码混合作者环境仍在建设。架构文档中的长期能力不等于已经交付的产品功能。
+它不是把页面压进私有 JSON 的传统页面搭建器，也不是用视觉表面遮住代码的“无代码黑盒”。视觉节点、组件契约、代码符号、路由、动画、节点图和资源都是可寻址、可诊断、可导出的项目事实。
 
-## 核心原则
+## 三编辑器与一个共享代码环境
 
-### Canonical Workspace VFS 是唯一作者态真相
+Prodivix 的视觉作者表面由三个编辑器组成：
 
-Workspace VFS 统一持有：
+- **Blueprint**：页面、布局、组件实例和 Collection。
+- **NodeGraph**：可执行的数据流与行为图。
+- **Animation**：时间轴、关键帧、滤镜和动画函数。
 
-- Workspace metadata 与 Route Manifest
-- PIR page、layout 与 component documents
-- 独立的 NodeGraph (`pir-graph`) 与 Animation (`pir-animation`) documents
-- Code Documents、Assets 与 Project Config
-
-PIR 是 Workspace 中的核心领域文档，但不是整个项目的唯一真相源。PIR 内部的 UI 保存态使用规范化的 `ui.graph`；需要树结构时，通过 `materializeUiTree` 生成临时读取视图，而不是再保存一份可漂移的树。
-
-### 所有领域修改共享一条写入路径
+三个编辑器通过 Code Slot 使用同一个 Code Authoring Environment。TypeScript、JavaScript、CSS、SCSS、GLSL 和 WGSL 的 definition、references、completion、diagnostics、hover 与 rename 都绑定到同一份 Workspace revision，而不是由每个编辑器各维护一套源码。
 
 ```mermaid
-flowchart LR
-  Editors["Blueprint / NodeGraph / Animation / Code / Resources"]
-  Commands["Workspace Command / Transaction / History"]
-  Outbox["Durable outbox + local replica"]
-  Commit["Atomic WorkspaceOperation Commit"]
-  VFS["Confirmed Canonical Workspace VFS"]
-
-  Editors --> Commands --> Outbox --> Commit --> VFS
+flowchart TD
+  B["Blueprint"] --> C["Code Authoring Environment"]
+  N["NodeGraph"] --> C
+  A["Animation"] --> C
+  C <--> S["Workspace Semantic Index"]
+  B <--> S
+  N <--> S
+  A <--> S
+  S --> W["Canonical Workspace VFS"]
+  C --> W
 ```
 
-编辑器先通过 `@prodivix/workspace` 形成 Command 或 Transaction，并记录可撤销、重做和审计的 History。远端 exact request 在发送前进入 `@prodivix/workspace-sync` 的 durable outbox，再由后端执行强幂等 Atomic Commit。Settings 使用独立的 durable outbox 与 Settings Commit。
+## Workspace 才是作者态真相
 
-生产作者态写入统一由 Workspace Command / Transaction 形成 `WorkspaceOperation`，并通过 durable outbox 与 Atomic Commit 持久化。
+一个项目不是一个巨型 PIR 文件。Workspace VFS 同时容纳：
 
-### Core package 拥有领域语义，Web 负责组合
+- `workspace.json` 与 `route-manifest.json`
+- page、layout、component 等 PIR UI 文档
+- NodeGraph 与 Animation 文档
+- TypeScript、CSS、Shader 和 Adapter 等代码文档
+- Design Token、Asset、依赖与配置
 
-| 能力域                                                | 当前 owner                                             |
-| ----------------------------------------------------- | ------------------------------------------------------ |
-| Workspace VFS、Command、Transaction、History          | `@prodivix/workspace`                                  |
-| Outbox、local replica、revision conflict、commit wire | `@prodivix/workspace-sync`                             |
-| PIR graph、materialization、normalization、validation | `@prodivix/pir`                                        |
-| Route contract、codec、matching 与 validation         | `@prodivix/router`                                     |
-| NodeGraph / Animation 领域内核                        | `@prodivix/nodegraph` / `@prodivix/animation`          |
-| Runtime contract 与浏览器 adapter                     | `@prodivix/runtime-core` / `@prodivix/runtime-browser` |
-| Code Authoring / Workspace Semantic Index             | `@prodivix/authoring`                                  |
-| 诊断 contract、registry 与 presentation               | `@prodivix/diagnostics`                                |
-| React PIR projection                                  | `@prodivix/pir-react-renderer`                         |
-| Workspace / PIR export                                | `@prodivix/prodivix-compiler`                          |
+各领域拥有自己的持久化契约；Workspace 负责组合、校验、事务、历史与同步。需要渲染、索引或导出时，再从这些文档构建可丢弃的派生投影。
 
-`apps/web` 负责 React 编辑器表面、浏览器 adapter 与 composition root；PIR renderer、Router、validator 和 transport-neutral core 由对应 package 持有。
+## 当前能力边界
 
-## 三编辑器与共享代码作者环境
+已经可用的核心链路包括：PIR-current、跨领域语义索引、组件契约与 Collection、视觉/代码受控双向编辑、统一 Issues、可逆 History、Durable Outbox、Atomic Commit，以及 React/Vite 独立导出验证。
 
-Prodivix 保持三种主要视觉编辑器：
+ExecutionProvider、浏览器与远程 Runner、Data/API IR、SecretRef、完整项目开发服务器体验、Test、Deployment、多框架生产 target、团队协作和生产 SLA 尚未交付。
 
-- **Blueprint** 维护 PIR UI graph、属性、布局和事件绑定。
-- **NodeGraph** 维护逻辑图及其端口与执行语义。
-- **Animation** 维护 timeline、binding、track、filter 与关键帧。
+## 推荐阅读顺序
 
-复杂 handler、executor、mounted CSS、adapter、easing、shader 和 timeline script 通过 CodeSlot 指向 Workspace code document / CodeArtifact。Code Authoring Environment 提供编辑与 CodeReference 能力，Workspace Semantic Index 统一提供符号、作用域、引用、影响与诊断查询。
+1. [本地启动](/guide/getting-started)
+2. [产品导览](/guide/product-tour)
+3. [创建第一个项目](/tutorials/first-project)
+4. [Canonical Workspace VFS](/concepts/workspace-vfs)
+5. [当前产品状态](/roadmap/current-status)
 
-当前 CodeArtifact、CodeReference、CodeSlot、Authoring Registry、代码工作区与 revision-bound TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL Language Capability 已接入 Code Editor、Issues 和 Workspace Semantic Index。G1 继续完成主要 CodeSlot 产品入口、GPU/目标后端 shader compile validation、稳定 visual/code round-trip 与独立导出项目验证。
-
-## 当前产品状态
-
-### G0：Passed
-
-`pnpm run verify:g0` 已验证以下非浏览器 Truth & Change Kernel 边界：
-
-- Canonical Workspace VFS 与单一生产写入协议
-- Command / Transaction History、undo/redo 与 replay
-- Operation / Settings 双 durable outbox、正式 local replica 与恢复
-- Atomic Commit、revision partition、强幂等与显式冲突解决
-- Workspace、Route 与 PIR 的 codec / semantic validation 组合
-- Issues 聚合、稳定 target、SourceSpan、Quick Fix 边界与编辑器回跳
-- Living Golden App 的创建、编辑、保存规划、恢复、冲突、route-level PIR artifact 复用、完整 Workspace React/Vite export 与进程内 build
-
-G0 通过不包含浏览器行为、视觉回归、独立导出项目安装和完整应用交付链。
-
-### G1：Foundation
-
-G1 正在建立语义化的视觉与代码混合作者环境。当前已有 Code Authoring contract、Workspace code documents、`pir-component` 文档类型、PIR graph region、React/Vite export 与 SourceTrace 基础；以下关键 Gate 仍未通过：
-
-- revision-bound Workspace Semantic Index，以及作为 Code Semantic Provider 的真实 Language Service
-- visual/code 双向 round-trip，且未知代码不丢失
-- 从各编辑器和 Issues 跳转到真实 definition / reference
-- 独立导出项目的 install、typecheck、test、build 与 browser smoke
-- Component Definition、Public Contract、Component Instance 与原子 subtree extraction
-- first-class Collection、item/index semantic scope、显式状态 regions 与 Preview/Export parity
-
-### 其他能力
-
-- NodeGraph 已有独立领域 package 和执行内核，Animation 已有 contract、normalizer、基础 evaluator 与浏览器 preview projection；完整跨域行为验证仍属于后续 Gate。
-- Plugin Host、Browser Sandbox 与 Ant Design / MUI / Radix 官方插件已有较多基础，但 public SDK、签名、Marketplace 与完整 conformance 尚未完成。
-- AI gateway、provider、streaming、tool 与 trace 有基础；真实 Workspace 写入必须继续走 Command、outbox、验证与审阅链路，目前不能视为自治开发闭环。
-- React/Vite 是当前 Golden target。Vue、Angular、Svelte、Solid、Web Components 等多 target 仍是路线图，不是当前完成项。
-- 多设备协作、生产部署闭环、监控回映射与团队级 Local-first 尚未完成。
-
-## 系统组成
-
-```text
-apps/
-  web             React 编辑器与产品组合层
-  backend         Go + PostgreSQL 持久化与 API
-  plugin-sandbox  独立 origin 的 Browser plugin runtime broker
-  cli             尚未接入 Workspace 的 CLI 基础工程
-  vscode          VS Code 扩展基础
-  docs            VitePress 文档站
-
-packages/
-  workspace / workspace-sync / pir / router
-  nodegraph / animation / runtime-core / runtime-browser
-  authoring / diagnostics / pir-react-renderer
-  prodivix-compiler / golden-conformance
-  plugin-* / ui / themes / shared / ai / i18n
-```
-
-## 继续阅读
-
-- [快速开始](/guide/getting-started)
-- [项目结构](/guide/project-structure)
-- [PIR 规范](/reference/pir-spec)
-- [AI 助手](/guide/ai-assistant)
-
-全局阶段、退出 Gate 与当前证据以 `specs/roadmap/global-phases.md` 和 `specs/roadmap/g0-closure-evidence.md` 为准。
+如果你要参与内核开发，直接从[架构与 Package Owner](/developer/architecture)开始。

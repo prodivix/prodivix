@@ -21,6 +21,10 @@ import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
 import { WorkspaceCodecError } from './workspaceCodecError';
 import { validateAnimationDefinition } from '@prodivix/animation';
 import { decodeNodeGraphDocument } from '@prodivix/nodegraph';
+import {
+  decodeDtcgDesignTokenDocument,
+  decodeDtcgDesignTokenResolverDocument,
+} from '@prodivix/tokens';
 import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 import {
   isCanonicalWorkspaceDocumentUpdatedAt,
@@ -40,6 +44,8 @@ const WORKSPACE_DOCUMENT_TYPES = new Set<WorkspaceDocumentType>([
   'pir-component',
   'pir-graph',
   'pir-animation',
+  'design-tokens',
+  'design-token-resolver',
   'code',
   'asset',
   'project-config',
@@ -265,6 +271,22 @@ const parseWorkspaceDocument = (
       );
     }
     content = validation.definition;
+  } else if (type === 'design-tokens') {
+    const decoded = decodeDtcgDesignTokenDocument(content);
+    if (!decoded.ok) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.issues.map((issue) => issue.message).join('; ')
+      );
+    }
+  } else if (type === 'design-token-resolver') {
+    const decoded = decodeDtcgDesignTokenResolverDocument(content);
+    if (!decoded.ok) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.issues.map((issue) => issue.message).join('; ')
+      );
+    }
   } else if (type === 'code' && !isWorkspaceCodeDocumentContent(content)) {
     throw new WorkspaceCodecError(
       `${path}/content`,

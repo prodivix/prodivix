@@ -8,6 +8,7 @@ const artifacts: readonly CodeArtifact[] = [
     id: 'code-glsl',
     path: '/shaders/main.glsl',
     language: 'glsl',
+    ownership: 'code-owned',
     owner: { kind: 'workspace-module', documentId: 'code-glsl' },
     source: 'float wave(float x) { return sin(x); } void main() { wave(1.0); }',
     revision: '2',
@@ -16,6 +17,7 @@ const artifacts: readonly CodeArtifact[] = [
     id: 'code-wgsl',
     path: '/shaders/main.wgsl',
     language: 'wgsl',
+    ownership: 'code-owned',
     owner: { kind: 'workspace-module', documentId: 'code-wgsl' },
     source:
       'fn wave(x: f32) -> f32 { return sin(x); } @compute @workgroup_size(1) fn main() { let value = wave(1.0); }',

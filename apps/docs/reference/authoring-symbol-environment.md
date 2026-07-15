@@ -2,7 +2,7 @@
 
 Workspace Semantic Index 是 Prodivix 的跨领域语义查询层。它让 Blueprint、NodeGraph、Animation、Code Editor、Inspector、Resources 和 AI 使用同一套 identity、scope、reference、impact 与定位语义，并把 semantic diagnostic snapshot 交给统一 Issues 系统。
 
-当前产品处于 G1 Foundation。`@prodivix/authoring` 已交付 revision-bound Workspace Semantic Index kernel、canonical semantic address、统一 resolution 与 `SEM-xxxx` diagnostics；`@prodivix/workspace` 已从同一 WorkspaceSnapshot 组合 Workspace、Route、PIR-current Component/Collection、standalone NodeGraph graph/node/edge 与 standalone Animation timeline/binding/track contribution。NodeGraph typed port/executor、Code Language、Token 与专用 Asset provider 沿用同一 contribution contract 继续接入。
+`@prodivix/authoring` 提供 revision-bound Workspace Semantic Index、canonical semantic address、统一 resolution 与 `SEM-xxxx` diagnostics；`@prodivix/workspace` 从同一 WorkspaceSnapshot 组合 Workspace、Route、PIR-current Component/Collection、standalone NodeGraph、Animation、Code Language、Token/Resolver 与专用 Asset provider contribution。
 
 ## 核心边界
 

@@ -1,92 +1,72 @@
-# 快速开始
+# 本地启动
 
-本指南将帮助你在本地环境中运行 Prodivix，并创建你的第一个项目。
+本页用于启动 Prodivix Web 编辑器和文档站。只创建本地项目时不需要先运行后端。
 
-## 前置条件
+## 环境要求
 
-在开始之前，请确保你的开发环境满足以下要求：
+- Node.js 22 或更高版本
+- Corepack
+- Git
+- 可选：Go 与 PostgreSQL，仅在开发后端能力时需要
 
-| 依赖    | 版本要求  | 检查命令         |
-| ------- | --------- | ---------------- |
-| Node.js | >= 22.0.0 | `node --version` |
-| pnpm    | >= 10.0.0 | `pnpm --version` |
-| Git     | 任意版本  | `git --version`  |
+仓库在根 `package.json` 中固定 pnpm 版本。使用 Corepack 可以避免全局 pnpm 与仓库版本漂移。
 
-::: tip 安装 pnpm
-如果你还没有安装 pnpm，可以通过以下命令安装：
-
-```bash
-npm install -g pnpm
-```
-
-:::
-
-## 克隆仓库
+## 获取并安装
 
 ```bash
 git clone https://github.com/Mdr-Tutorials/prodivix.git
 cd prodivix
-```
-
-## 安装依赖
-
-Prodivix 使用 pnpm workspace 管理多个包：
-
-```bash
+corepack enable
 pnpm install
 ```
 
-这将安装所有应用和包的依赖。
-
-## 启动开发服务器
-
-### 推荐启动顺序
-
-1. 启动后端：
-
-```bash
-pnpm dev:backend
-```
-
-2. 启动 Web 编辑器：
+## 启动 Web 编辑器
 
 ```bash
 pnpm dev:web
 ```
 
-3. 如需查看文档：
+打开终端输出的本地地址。首页可以创建本地项目；本地作者链路不依赖后端登录。
+
+需要开发账号、远端 Workspace 或社区能力时，再启动后端：
+
+```bash
+pnpm dev:backend
+```
+
+后端所需环境变量和数据库设置以仓库内后端配置为准，不应把开发密钥写入 Workspace 文档。
+
+## 启动文档站
 
 ```bash
 pnpm dev:docs
 ```
 
-Web 编辑器默认运行在 `http://localhost:5173`，文档站点默认运行在 VitePress 的本地地址。
+## 第一次冒烟操作
 
-### 常用开发命令
+1. 创建一个本地项目。
+2. 进入 Blueprint，把一个元素或组件放到画布。
+3. 在组件树中选择它，并在 Inspector 修改一个公开属性。
+4. 打开 Code Workspace 编辑项目级代码；打开 Resources 查看素材、依赖、Token，以及导入、外部和资源归属的代码文件。
+5. 按 `Alt+0` 打开 Issues，确认当前诊断。
+6. 打开 Export，检查 React/Vite 导出计划。
 
-| 命令                          | 描述                      |
-| ----------------------------- | ------------------------- |
-| `pnpm dev`                    | 启动所有可用开发任务      |
-| `pnpm dev:web`                | 启动 Web 编辑器           |
-| `pnpm dev:backend`            | 启动后端服务              |
-| `pnpm dev:backend:hot`        | 以热重载方式启动后端      |
-| `pnpm dev:docs`               | 启动文档站点              |
-| `pnpm dev:cli`                | 启动 CLI 开发模式         |
-| `pnpm dev:vscode`             | 启动 VS Code 扩展开发任务 |
-| `pnpm storybook:ui`           | 启动 UI 组件库 Storybook  |
-| `pnpm build`                  | 构建全部包                |
-| `pnpm build:web`              | 构建 Web 编辑器           |
-| `pnpm build:backend`          | 构建后端                  |
-| `pnpm build:docs`             | 构建文档站点              |
-| `pnpm test`                   | 运行全部测试              |
-| `pnpm test:e2e:smoke`         | 运行最小冒烟 E2E 测试     |
-| `pnpm lint`                   | 代码检查                  |
-| `pnpm format`                 | 格式化代码                |
-| `pnpm docs:diagnostics`       | 生成诊断文档              |
-| `pnpm docs:diagnostics:check` | 检查诊断文档是否同步      |
+组件树的“隐藏”只影响作者画布，不会改写组件的运行时可见性。需要修改真实条件渲染时，应编辑对应 PIR、Collection 或代码逻辑。
 
-## 下一步
+## 常用验证命令
 
-- [简介](/guide/introduction)
-- [项目结构](/guide/project-structure)
-- [PIR 规范](/reference/pir-spec)
+```bash
+pnpm --filter @prodivix/web typecheck
+pnpm test
+pnpm build:web
+pnpm build:docs
+```
+
+完整的独立导出与浏览器验证由维护者运行：
+
+```bash
+pnpm verify:g1:standalone
+pnpm verify:g1:browser
+```
+
+下一步可以跟随[创建第一个项目](/tutorials/first-project)，或者先阅读[产品导览](/guide/product-tour)。

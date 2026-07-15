@@ -18,6 +18,7 @@ export {
   type CreateTypeScriptSemanticContributionProviderInput,
 } from './typescriptSemanticContribution';
 export { createShaderCodeLanguageCapabilityProvider } from './shader/shaderCodeLanguageProvider';
+export { createShaderCompileCapabilityProvider } from './shader/shaderCompileCapabilityProvider';
 export {
   createShaderEntrySymbolId,
   createShaderLanguageProject,

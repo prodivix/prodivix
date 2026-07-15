@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { createPirProjectionRootPath } from '@prodivix/pir';
 import { PIRRenderer } from './PIRRenderer';
 import {
   createContract,
@@ -11,6 +12,69 @@ import {
 const emptyIssues = vi.fn();
 
 describe('PIRRenderer Component projection conformance', () => {
+  it('hides and reveals a Component Instance at its renderer boundary', () => {
+    const definition = createWorkspaceDocument({
+      id: 'notice',
+      type: 'pir-component',
+      rootId: 'notice-root',
+      contract: createContract(),
+      nodesById: {
+        'notice-root': {
+          id: 'notice-root',
+          kind: 'element',
+          type: 'button',
+          text: { kind: 'literal', value: 'Instance content' },
+        },
+      },
+    });
+    const page = createWorkspaceDocument({
+      id: 'page',
+      type: 'pir-page',
+      rootId: 'notice-instance',
+      nodesById: {
+        'notice-instance': {
+          id: 'notice-instance',
+          kind: 'component-instance',
+          componentDocumentId: 'notice',
+          bindings: { props: {}, events: {}, variants: {} },
+        },
+      },
+    });
+    const hiddenLocation = {
+      documentId: 'page',
+      nodeId: 'notice-instance',
+      instancePath: createPirProjectionRootPath('page'),
+      role: 'source' as const,
+    };
+    const plan = createProjectionPlan('page', [page, definition]);
+    const rendered = render(
+      <PIRRenderer
+        plan={plan}
+        host={nativeHost}
+        dispatchTrigger={vi.fn()}
+        hiddenLocations={[hiddenLocation]}
+        onBlockingIssues={emptyIssues}
+      />
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Instance content' })
+    ).toBeNull();
+
+    rendered.rerender(
+      <PIRRenderer
+        plan={plan}
+        host={nativeHost}
+        dispatchTrigger={vi.fn()}
+        hiddenLocations={[]}
+        onBlockingIssues={emptyIssues}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: 'Instance content' })
+    ).toBeTruthy();
+  });
+
   it('isolates Definition state per instance and consumes updated Definition content', () => {
     const contract = createContract({
       propsById: {

@@ -1,56 +1,48 @@
 # @prodivix/docs
 
-Prodivix 的 VitePress 文档站。当前产品阶段为 **G0 Passed / G1 Foundation**；面向产品用户的文案必须区分已经验证的能力、基础实现与长期路线图，不能把 Accepted ADR 或存在 UI 误写成已交付闭环。
+Prodivix 的 VitePress 产品文档站。
 
-## 当前目录
+## 信息架构
 
 ```text
 apps/docs/
-├── .vitepress/
-│   └── config.mts                         # 导航、侧栏与站点配置
-├── api/
-│   ├── backend.md
-│   ├── cli.md
-│   └── components.md
-├── community/
-│   ├── changelog.md
-│   ├── contributing.md
-│   └── development.md
-├── guide/
-│   ├── ai-assistant.md
-│   ├── getting-started.md
-│   ├── introduction.md
-│   └── project-structure.md
-├── reference/
-│   ├── diagnostics/                       # 从 specs catalog 生成的诊断页面
-│   ├── authoring-symbol-environment.md
-│   ├── code-diagnostics.md
-│   ├── diagnostic-codes.md
-│   ├── pir-spec.md
-│   ├── plugin-package-and-blueprint-template.md
-│   └── ux-diagnostics.md
-├── public/
-│   └── logo.svg
-├── index.md
-└── package.json
+├─ guide/       # 认识产品、启动与导览
+├─ tutorials/   # 端到端用户任务
+├─ editors/     # Blueprint、NodeGraph、Animation、Code、Resources、Issues
+├─ concepts/    # Workspace、PIR-current、Semantic、Change、Export
+├─ developer/   # 环境、架构、测试与文档维护
+├─ roadmap/     # 当前产品状态摘要
+├─ reference/   # 稳定参考与生成的诊断页
+├─ api/         # UI/host、CLI、Backend 的能力边界
+├─ community/   # 贡献与变更记录
+└─ .vitepress/  # 导航与站点配置
 ```
 
 ## 与 `specs/` 的关系
 
-- `apps/docs` 提供可导航的产品指南、API 入口和公开参考，内容必须反映当前实现边界。
-- `specs/` 承载权威 schema、协议、ADR、ImplementationStatus、Global Phase 和验证证据。
-- 全局进度以 `specs/roadmap/global-phases.md` 为准，G0 证据以 `specs/roadmap/g0-closure-evidence.md` 为准。
-- PIR schema 以 `specs/pir/PIR-current.json` 与 `PIR-current.version.json` 为准；Workspace 同步 wire contract 以 `specs/api/workspace-sync.openapi.yaml` 为准。
-- 诊断页面由根脚本生成。不要直接维护 `reference/diagnostics/` 中的生成文件。
+- `apps/docs` 解释如何使用产品以及当前交付边界。
+- `specs/` 保存 schema、ADR、wire contract、Global Phase 与验证证据。
+- `specs/roadmap/global-phases.md` 是阶段状态唯一来源。
+- `specs/pir/PIR-current.json` 与 activation manifest 定义 PIR wire 边界。
+- `specs/api/workspace-sync.openapi.yaml` 定义 Workspace sync wire contract。
 
-文档可以解释 ADR，但不复制一份会独立漂移的规范，也不把 `DecisionStatus: Accepted` 等同于 `ProductGateStatus: Passed`。
+产品文档不复制完整协议，也不把 Accepted ADR 或存在 UI 误写成 Passed product gate。
 
-## 常用命令
+## 生成内容
+
+`reference/diagnostic-codes.md` 与 `reference/diagnostics/` 从 `specs/diagnostics/` 生成。不要直接编辑生成页。
+
+```bash
+pnpm docs:diagnostics
+pnpm docs:diagnostics:check
+```
+
+## 开发
 
 ```bash
 pnpm dev:docs
 pnpm build:docs
 pnpm --filter @prodivix/docs preview
-pnpm run docs:diagnostics
-pnpm run docs:diagnostics:check
 ```
+
+`build:docs` 会先检查诊断参考是否同步，再构建 VitePress。

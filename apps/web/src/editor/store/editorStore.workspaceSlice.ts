@@ -1,5 +1,4 @@
 import type { StateCreator } from 'zustand';
-import { validatePirDocument, type PIRDocument } from '@prodivix/pir';
 import {
   applyWorkspaceCommand,
   applyWorkspaceMutation as applyCanonicalWorkspaceMutation,
@@ -7,18 +6,15 @@ import {
   collectChangedWorkspaceDocumentIds,
   createWorkspaceCommandOperation,
   createWorkspaceHistoryState,
-  createWorkspacePirDocumentUpdateCommand,
   createWorkspaceTransactionOperation,
   getWorkspaceOperationSourceIds,
   reconcileWorkspaceOperationConfirmation,
   recordWorkspaceOperation,
   redoWorkspaceHistory as redoCanonicalWorkspaceHistory,
-  selectActivePirDocument,
   setWorkspaceHistoryLimit as setCanonicalWorkspaceHistoryLimit,
   undoWorkspaceHistory as undoCanonicalWorkspaceHistory,
   type DecodedWorkspaceMutation,
   type WorkspaceCommandApplyResult,
-  type WorkspaceCommandDomain,
   type WorkspaceCommandEnvelope,
   type WorkspaceDocument,
   type WorkspaceHistoryResult,
@@ -36,20 +32,11 @@ import {
   type WorkspaceConflictSession,
 } from '@prodivix/workspace-sync';
 import type { EditorStore } from './editorStore.shape';
-import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 
-export type UpdateActivePirDocumentOptions = {
-  commandId?: string;
-  namespace?: string;
-  type?: string;
-  issuedAt?: string;
-  domainHint?: Extract<
-    WorkspaceCommandDomain,
-    'pir' | 'nodegraph' | 'animation' | 'code'
-  >;
-  mergeKey?: string;
-  label?: string;
-};
+export type SuccessfulWorkspaceHistoryResult = Extract<
+  WorkspaceHistoryResult,
+  { ok: true }
+>;
 
 export type ApplyWorkspaceMutationOptions = {
   expectedDocumentEditSeqById?: Readonly<Record<string, number>>;
@@ -101,14 +88,6 @@ export interface WorkspaceSlice {
   dispatchWorkspaceTransaction: (
     transaction: WorkspaceTransactionEnvelope
   ) => WorkspaceTransactionApplyResult | null;
-  acknowledgeWorkspaceCommand: (
-    command: WorkspaceCommandEnvelope,
-    mutation: DecodedWorkspaceMutation
-  ) => WorkspaceCommandApplyResult | null;
-  acknowledgeWorkspaceTransaction: (
-    transaction: WorkspaceTransactionEnvelope,
-    mutation: DecodedWorkspaceMutation
-  ) => WorkspaceTransactionApplyResult | null;
   adoptRebasedWorkspaceOperation: (
     input: AdoptRebasedWorkspaceOperationInput
   ) => AdoptRebasedWorkspaceOperationResult;
@@ -118,10 +97,11 @@ export interface WorkspaceSlice {
   redoWorkspaceHistory: (
     scopes: WorkspaceHistoryScopeSelector
   ) => WorkspaceHistoryResult | null;
-  updateActivePirDocument: (
-    updater: (document: PIRDocument) => PIRDocument,
-    options?: UpdateActivePirDocumentOptions
-  ) => WorkspaceCommandApplyResult | null;
+  commitWorkspaceHistoryTransition: (input: {
+    baseWorkspace: WorkspaceSnapshot;
+    baseHistory: WorkspaceHistoryState;
+    result: SuccessfulWorkspaceHistoryResult;
+  }) => boolean;
 }
 
 const createConflictSessionId = (): string => {
@@ -414,84 +394,6 @@ export const createWorkspaceSlice: StateCreator<
     });
     return result;
   },
-  acknowledgeWorkspaceCommand: (command, mutation) => {
-    const state = get();
-    if (!state.workspace || state.workspace.id !== mutation.workspaceId) {
-      return null;
-    }
-    if (
-      mutation.acceptedMutationId &&
-      mutation.acceptedMutationId !== command.id
-    ) {
-      return null;
-    }
-    const result = applyWorkspaceCommand(state.workspace, command);
-    if (!result.ok) return result;
-    const confirmedSnapshot = applyCanonicalWorkspaceMutation(
-      result.snapshot,
-      mutation
-    );
-    const affectedDocumentIds = collectChangedWorkspaceDocumentIds(
-      state.workspace,
-      confirmedSnapshot
-    );
-    set({
-      workspace: confirmedSnapshot,
-      workspaceHistory: recordWorkspaceOperation(
-        state.workspaceHistory,
-        reconcileWorkspaceOperationConfirmation(
-          createWorkspaceCommandOperation(command),
-          confirmedSnapshot,
-          mutation.updatedDocuments.map(({ id }) => id)
-        )
-      ),
-      documentEditSeqById: updateDocumentEditSequences(
-        state.documentEditSeqById,
-        affectedDocumentIds,
-        confirmedSnapshot
-      ),
-    });
-    return { ...result, snapshot: confirmedSnapshot };
-  },
-  acknowledgeWorkspaceTransaction: (transaction, mutation) => {
-    const state = get();
-    if (!state.workspace || state.workspace.id !== mutation.workspaceId) {
-      return null;
-    }
-    if (
-      mutation.acceptedMutationId &&
-      mutation.acceptedMutationId !== transaction.id
-    ) {
-      return null;
-    }
-    const result = applyWorkspaceTransaction(state.workspace, transaction);
-    if (!result.ok) return result;
-    const confirmedSnapshot = applyCanonicalWorkspaceMutation(
-      result.snapshot,
-      mutation
-    );
-    const affectedDocumentIds = collectChangedWorkspaceDocumentIds(
-      state.workspace,
-      confirmedSnapshot
-    );
-    set({
-      workspace: confirmedSnapshot,
-      workspaceHistory: recordWorkspaceOperation(
-        state.workspaceHistory,
-        reconcileWorkspaceOperationConfirmation(
-          createWorkspaceTransactionOperation(transaction),
-          confirmedSnapshot,
-          mutation.updatedDocuments.map(({ id }) => id)
-        )
-      ),
-      documentEditSeqById: updateDocumentEditSequences(
-        state.documentEditSeqById,
-        affectedDocumentIds,
-        confirmedSnapshot
-      ),
-    });
-    return { ...result, snapshot: confirmedSnapshot };
-  },
   adoptRebasedWorkspaceOperation: ({
     requestSnapshot,
     serverBaseSnapshot,
@@ -676,22 +578,28 @@ export const createWorkspaceSlice: StateCreator<
     });
     return result;
   },
-  updateActivePirDocument: (updater, options = {}) => {
+  commitWorkspaceHistoryTransition: ({
+    baseWorkspace,
+    baseHistory,
+    result,
+  }) => {
     const state = get();
-    if (!state.workspace || state.workspaceReadonly) return null;
-    const activeDocument = selectActivePirDocument(state.workspace);
-    if (!activeDocument) return null;
-    const candidate = updater(activeDocument.content);
-    if (candidate === activeDocument.content) return null;
-    const validation = validatePirDocument(candidate);
-    if (!validation.valid) return null;
-    const command = createWorkspacePirDocumentUpdateCommand({
-      workspace: state.workspace,
-      before: activeDocument.content,
-      after: candidate,
-      ...options,
-      commandId: options.commandId ?? createWorkspaceClientOperationId(),
+    if (
+      state.workspaceReadonly ||
+      state.workspace !== baseWorkspace ||
+      state.workspaceHistory !== baseHistory
+    ) {
+      return false;
+    }
+    set({
+      workspace: result.snapshot,
+      workspaceHistory: result.history,
+      documentEditSeqById: updateDocumentEditSequences(
+        state.documentEditSeqById,
+        result.affectedDocumentIds,
+        result.snapshot
+      ),
     });
-    return command ? state.dispatchWorkspaceCommand(command) : null;
+    return true;
   },
 });

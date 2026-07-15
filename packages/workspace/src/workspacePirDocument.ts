@@ -10,6 +10,7 @@ export type CreateWorkspacePirDocumentUpdateCommandInput = {
   after: PIRDocument;
   before: PIRDocument;
   commandId: string;
+  documentId?: string;
   domainHint?: Extract<
     WorkspaceCommandDomain,
     'pir' | 'nodegraph' | 'animation' | 'code'
@@ -48,7 +49,7 @@ const appendOptionalDocumentPatch = (
 export const createWorkspacePirDocumentUpdateCommand = (
   input: CreateWorkspacePirDocumentUpdateCommandInput
 ): WorkspaceCommandEnvelope | null => {
-  const documentId = input.workspace.activeDocumentId;
+  const documentId = input.documentId ?? input.workspace.activeDocumentId;
   if (!documentId) return null;
   const forwardOps: WorkspacePatchOperation[] = [];
   const reverseOps: WorkspacePatchOperation[] = [];

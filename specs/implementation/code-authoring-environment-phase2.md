@@ -4,8 +4,8 @@
 
 - DecisionStatus：Accepted
 - 日期：2026-05-17
-- ImplementationStatus：Multi-language Capability and Cross-editor CodeSlot Vertical Slices Implemented
-- ProductGateStatus：In Progress
+- ImplementationStatus：Multi-language, Cross-editor CodeSlot, External Adapter Lifecycle, Controlled Round-trip and Target Compile Vertical Slices Implemented
+- ProductGateStatus：Passed
 - Global Phase：G1 Semantic Hybrid Authoring
 - 关联：
   - `specs/decisions/28.code-authoring-environment.md`
@@ -17,7 +17,7 @@
 
 ## 目标
 
-Phase 2 落地 Code Authoring Environment 的稳定连接层，让 Workspace VFS 承载 code-owned 内容，并让三编辑器通过稳定引用连接代码能力。当前实现以 revision-bound Code Language Capability session 接入 TypeScript/JavaScript、CSS/SCSS 与 GLSL/WGSL，使 semantic contribution、Code Editor、Issues 与 Workspace 写入共享同一 snapshot 和定位 contract；领域 CodeSlot binding projection 又把 Blueprint、Route、NodeGraph、Animation 与 Resources 接到同一 Semantic Index。GPU/目标后端 shader compile validation、external adapter、orphan lifecycle 与 controlled visual/code round-trip 继续由 G1 Gate 收敛。
+Phase 2 落地 Code Authoring Environment 的稳定连接层，让 Workspace VFS 承载 code-owned 内容，并让三编辑器通过稳定引用连接代码能力。当前实现以 revision-bound Code Language Capability session 接入 TypeScript/JavaScript、CSS/SCSS 与 GLSL/WGSL，使 semantic contribution、Code Editor、Issues 与 Workspace 写入共享同一 snapshot 和定位 contract；独立 Shader Compile Capability 已用 canonical target profile 接通 WebGL2/WebGPU、Code Editor inline diagnostic 与 Issues；领域 CodeSlot binding projection 又把 Blueprint、Route、NodeGraph、Animation、External Library 与 Resources 接到同一 authoring composition；PIR-current、canonical React/JSX 与 standalone CSS 已形成 capability-partitioned controlled round-trip，并进入 Golden History/reload/replay/Compiler 与独立导出项目 install/typecheck/test/build/browser-smoke Gate。External adapter 的 canonical config binding、显式 slot-managed metadata、`COD-3017` orphan diagnostic、重新绑定、module conversion 与 active-binding 删除保护已经落地。
 
 Phase 2 的目标是固定以下长期边界：
 
@@ -39,7 +39,8 @@ Phase 2 的目标是固定以下长期边界：
 7. `@prodivix/code-language` 已实现 TypeScript/JavaScript、CSS/SCSS 与 GLSL/WGSL adapter；同一 session 提供 definition、references、completion、diagnostics、hover、rename proposal，并向 Workspace Semantic Index 发布各语言的规范化 symbol/reference facts。
 8. Code Editor 与 Issues 统一消费该 session 和 semantic diagnostic snapshot；Workspace planner 将带 artifact revision 的 language edits 严格合并为原子 Transaction。
 9. Route runtime、PIR event/mounted CSS、NodeGraph executor 与 Animation timeline 已提供领域 CodeSlot provider；Workspace 从同一 snapshot 组合 slot、binding projection 与 semantic reference。
-10. Blueprint Inspector、NodeGraph 原有代码节点、Animation Inspector 与 Code Resources 已接入 CodeSlot 绑定、definition 跳转及 reference/impact usage；NodeGraph 不再持久化裸代码字符串。
+10. Shader compile 使用独立 session/provider registry；Workspace metadata 保存 target/stage/entry profile，WebGL2/WebGPU backend 只消费 canonical CodeArtifact，编译诊断以 `COD-5002` 同步进入 Code Editor 与 Issues。
+11. Blueprint Inspector、NodeGraph 原有代码节点、Animation Inspector 与 Code Resources 已接入 CodeSlot 绑定、definition 跳转及 reference/impact usage；NodeGraph 不再持久化裸代码字符串。
 
 ## 交付物
 
@@ -348,6 +349,14 @@ type TriggerBinding =
 8. Code Editor 和 Issues 使用同一 revision-bound language result；rename proposal 通过 Workspace Transaction planner 进入正式写入链路。
 9. Route runtime、PIR event/mounted CSS、NodeGraph executor 与 Animation timeline 从同一 Workspace snapshot 组合 CodeSlot binding projection，并复用 Semantic Index definition/reference/impact 查询。
 10. Blueprint Inspector、NodeGraph、Animation Inspector 与 Code Resources 提供绑定、定义跳转和反向 usage 入口；NodeGraph 源码只保存在 Workspace code document。
+11. `ControlledSourceManifest`、版本化 region marker 与 CodeArtifact ownership 投影明确划分 PIR-owned 受控内容和 code-owned 未知源码。
+12. `react-jsx` adapter 管理 Element structure、literal props、literal text 与带 fallback subtree 的 Contract Slot Outlet；`css` adapter 通过 stable node-id selector 管理 standalone literal style。data/event/non-literal fields 与 Slot Outlet prop binding 按 node identity 保留，protected field 覆盖、unsupported shape、executable expression、marker/manifest 分叉与 drift 全部 fail closed。
+13. PIR 文档是唯一 canonical owner；writable projection 的唯一性按 `(PIR document, capability)` 校验，因此同一 PIR 可以继续接入任意数量的不重叠 adapter，而同一 capability 不会出现竞争写入。
+14. 代码保存和视觉写入都由 controlled round-trip planner 转换为可逆 Workspace Operation；需要多文件同步时形成单个 Transaction，并通过 Durable Outbox 与 Atomic Commit 提交。
+15. Blueprint Code 页原子创建并分别打开 JSX/CSS，Code Resources 识别 adapted artifact 并使用同一 planner 保存；区域外源码保持逐字节不变。
+16. Golden G1 在同一 Workspace 旅程中覆盖 Public Contract props/events/slots/variants、Slot Outlet、controlled JSX/CSS、Code -> PIR、PIR -> Code、原子 undo/redo、reload/replay 与 Compiler；独立 React/Vite 临时项目消费生成的 package-manager 契约并完成 install/typecheck/test/build。
+17. External library project config 保存唯一 adapter binding，CodeArtifact metadata 仅保存 slot-managed 来源；删除 library/binding 不删除源码。Workspace 与 Resources 共同提供 active/orphan/workspace-module 派生状态、`COD-3017`、原子创建/绑定、重新绑定、module conversion 和 active-binding 删除保护。
+18. Code Resources 已接通 F2 symbol rename 与 CodeArtifact move：rename proposal 先由 Semantic Index 计算跨领域 owner 影响，再进入原子 Workspace Transaction；无法由 code owner 安全改写的命名 CodeReference 会在 apply 前阻断并提供 owner 回跳。path move 由 current-model relocation planner 生成可逆 Workspace Operation，只改变 VFS path/tree projection，artifact identity、binding 与 semantic reference 保持不变。
 
 ## 稳定契约测试
 
@@ -358,12 +367,9 @@ type TriggerBinding =
 5. 持久化 CodeReference 使用 `artifactId` 身份，path 只承载展示与定位。
 6. TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL session 的 definition、references、completion、diagnostics、hover、rename 与 semantic contribution 都绑定同一 snapshot identity。
 7. language edit planner 对 artifact revision、SourceSpan 越界、重叠、非 code document 和 no-op fail closed，并保持跨 artifact Transaction 的确定性与可逆性。
+8. controlled JSX/CSS 属性测试覆盖各自 capability 的 canonical 往返；conformance 覆盖 Code -> PIR、PIR -> Code、JSX/CSS 原子 Transaction 与两类未知源码保留。
+9. Golden G1 conformance 覆盖受控投影与完整作者态旅程；`verify:g1:standalone` 验证当前 compiler 产物生成的独立项目可安装、类型检查、测试和构建，`verify:g1:browser` 验证真实浏览器加载、路由、交互与 WebGL2/WebGPU availability。
+10. External adapter 属性测试覆盖 bind -> orphan -> workspace module 的可逆状态转换，并保证普通零 binding module 不被误判为 orphan。
+11. Code refactor 属性测试覆盖 rename impact 的 provider-order invariance、named/default owner 区分、stale fail-closed，以及 artifact move 的 identity/content preservation、VFS relocation 与 History round-trip。
 
 测试聚焦公开类型、Command 状态结果、provider composition 和稳定引用语义。
-
-## G1 后续交付
-
-1. GPU/目标后端 shader compile validation 通过独立 compile capability 接入，不改变作者态 Shader Language Session。
-2. External adapter 接入具体 CodeSlot，并补齐跨领域 rename/move 规划表面。
-3. Orphan artifact lifecycle 提供可定位状态、诊断与重新绑定操作。
-4. 完成 controlled visual/code round-trip 与独立导出项目验证。

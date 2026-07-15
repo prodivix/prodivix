@@ -152,29 +152,6 @@ describe('editor workspace store hard cut', () => {
     expect('routeManifest' in state).toBe(false);
   });
 
-  it('updates the active PIR through a command without advancing server revisions', () => {
-    const workspace = createEditorWorkspace();
-    useEditorStore.getState().setWorkspaceSnapshot(workspace);
-
-    const result = useEditorStore
-      .getState()
-      .updateActivePirDocument(
-        (document) => ({ ...document, metadata: { name: 'Edited' } }),
-        { commandId: 'command-active-pir', mergeKey: 'metadata:name' }
-      );
-
-    expect(result?.ok).toBe(true);
-    const state = useEditorStore.getState();
-    expect(state.workspace?.docsById['page-home'].content).toHaveProperty(
-      'metadata.name',
-      'Edited'
-    );
-    expect(state.workspace?.docsById['page-home'].contentRev).toBe(1);
-    expect(state.documentEditSeqById['page-home']).toBe(1);
-    expect(state.workspaceHistory.undoStack).toHaveLength(1);
-    expect(state.workspaceHistory.undoStack[0].operation.kind).toBe('command');
-  });
-
   it('applies mutation acknowledgements without incrementing local edit sequences', () => {
     const workspace = createEditorWorkspace();
     useEditorStore.getState().setWorkspaceSnapshot(workspace);
@@ -359,51 +336,6 @@ describe('editor workspace store hard cut', () => {
       capabilities: ['local'],
       updatedAt: '2026-07-12T00:00:02.000Z',
     });
-  });
-
-  it('commits a remotely acknowledged command and its history atomically', () => {
-    const workspace = createEditorWorkspace();
-    useEditorStore.getState().setWorkspaceSnapshot(workspace);
-    const command = createMetadataCommand({ id: 'command-remote' });
-    const confirmedDocument = {
-      ...workspace.docsById['page-home'],
-      contentRev: 2,
-      content: {
-        ...createEmptyPirDocument(),
-        metadata: { name: 'One' },
-      },
-    };
-    const mutation: DecodedWorkspaceMutation = {
-      workspaceId: workspace.id,
-      workspaceRev: 2,
-      routeRev: 1,
-      opSeq: 2,
-      updatedDocuments: [confirmedDocument],
-      removedDocumentIds: [],
-      acceptedMutationId: command.id,
-    };
-
-    const result = useEditorStore
-      .getState()
-      .acknowledgeWorkspaceCommand(command, mutation);
-
-    expect(result?.ok).toBe(true);
-    const state = useEditorStore.getState();
-    expect(state.workspace?.docsById['page-home']).toMatchObject({
-      contentRev: 2,
-      content: { metadata: { name: 'One' } },
-    });
-    expect(state.workspaceHistory.undoStack).toHaveLength(1);
-    expect(state.documentEditSeqById['page-home']).toBe(1);
-
-    const undone = state.undoWorkspaceHistory(PIR_SCOPE);
-    expect(undone?.ok).toBe(true);
-    expect(
-      useEditorStore.getState().workspace?.docsById['page-home'].content
-    ).not.toHaveProperty('metadata');
-    expect(
-      useEditorStore.getState().workspace?.docsById['page-home'].contentRev
-    ).toBe(2);
   });
 
   it('adopts a rebased operation as a new safe history baseline', () => {
@@ -712,83 +644,6 @@ describe('editor workspace store hard cut', () => {
     expect(useEditorStore.getState().workspace).toBe(workspace);
   });
 
-  it('rejects an acknowledgement with an unrelated causal id', () => {
-    const workspace = createEditorWorkspace();
-    useEditorStore.getState().setWorkspaceSnapshot(workspace);
-    const before = useEditorStore.getState();
-
-    const result = before.acknowledgeWorkspaceCommand(
-      createMetadataCommand({ id: 'command-expected' }),
-      {
-        workspaceId: workspace.id,
-        workspaceRev: 2,
-        routeRev: 1,
-        opSeq: 2,
-        updatedDocuments: [],
-        removedDocumentIds: [],
-        acceptedMutationId: 'command-other',
-      }
-    );
-
-    expect(result).toBeNull();
-    expect(useEditorStore.getState().workspace).toBe(before.workspace);
-    expect(useEditorStore.getState().workspaceHistory).toBe(
-      before.workspaceHistory
-    );
-  });
-
-  it('rebases confirmed document metadata into acknowledged transaction history', () => {
-    const workspace = createEditorWorkspace();
-    useEditorStore.getState().setWorkspaceSnapshot(workspace);
-    const transaction: WorkspaceTransactionEnvelope = {
-      id: 'transaction-create-about',
-      workspaceId: workspace.id,
-      issuedAt: '2026-07-12T00:00:00.000Z',
-      commands: [createAboutDocumentCommand(workspace)],
-    };
-    const locallyApplied = applyWorkspaceTransaction(workspace, transaction);
-    expect(locallyApplied.ok).toBe(true);
-    if (!locallyApplied.ok) return;
-    const confirmedDocument = {
-      ...locallyApplied.snapshot.docsById['page-about'],
-      updatedAt: '2026-07-12T00:00:01.000Z',
-    };
-    const mutation: DecodedWorkspaceMutation = {
-      workspaceId: workspace.id,
-      workspaceRev: 2,
-      routeRev: 1,
-      opSeq: 2,
-      tree: {
-        treeRootId: locallyApplied.snapshot.treeRootId,
-        treeById: locallyApplied.snapshot.treeById,
-      },
-      updatedDocuments: [confirmedDocument],
-      removedDocumentIds: [],
-      acceptedMutationId: transaction.id,
-    };
-
-    const acknowledged = useEditorStore
-      .getState()
-      .acknowledgeWorkspaceTransaction(transaction, mutation);
-
-    expect(acknowledged?.ok).toBe(true);
-    expect(
-      useEditorStore.getState().workspace?.docsById['page-about'].updatedAt
-    ).toBe('2026-07-12T00:00:01.000Z');
-    expect(
-      useEditorStore.getState().undoWorkspaceHistory(WORKSPACE_SCOPE)?.ok
-    ).toBe(true);
-    expect(
-      useEditorStore.getState().workspace?.docsById['page-about']
-    ).toBeUndefined();
-    expect(
-      useEditorStore.getState().redoWorkspaceHistory(WORKSPACE_SCOPE)?.ok
-    ).toBe(true);
-    expect(
-      useEditorStore.getState().workspace?.docsById['page-about'].updatedAt
-    ).toBe('2026-07-12T00:00:01.000Z');
-  });
-
   it('aligns the authoring document when selecting a route with a page', () => {
     const workspace = createEditorWorkspace();
     const aboutDocument = {
@@ -838,26 +693,6 @@ describe('editor workspace store hard cut', () => {
     expect(useEditorStore.getState().workspace).toMatchObject({
       activeRouteNodeId: 'route-about',
       activeDocumentId: 'page-about',
-    });
-  });
-
-  it('dispatches route intents against the canonical workspace', () => {
-    useEditorStore.getState().setWorkspaceSnapshot(createEditorWorkspace());
-
-    const result = useEditorStore.getState().applyRouteIntent({
-      type: 'create-child-route',
-      parentRouteNodeId: 'route-home',
-      segment: 'details',
-      routeNodeId: 'route-details',
-      pageDocId: 'page-details',
-    });
-
-    expect(result?.ok).toBe(true);
-    const workspace = useEditorStore.getState().workspace;
-    expect(workspace?.docsById['page-details']).toBeDefined();
-    expect(workspace).toMatchObject({
-      activeRouteNodeId: 'route-details',
-      activeDocumentId: 'page-details',
     });
   });
 

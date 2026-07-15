@@ -28,6 +28,7 @@ describe('authoring registries', () => {
       id: 'artifact-1',
       path: '/src/actions/onClick.ts',
       language: 'ts',
+      ownership: 'code-owned',
       owner: { kind: 'workspace-module', documentId: 'artifact-1' },
       source: 'export const onClick = () => true;',
       revision: '7',

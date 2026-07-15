@@ -1,5 +1,4 @@
 import {
-  createAssetSymbolId,
   createCodeArtifactScopeId,
   createCodeArtifactSymbolId,
   createComponentSymbolId,
@@ -16,7 +15,6 @@ import {
 } from '@prodivix/authoring';
 import type { WorkspaceDocument, WorkspaceSnapshot } from '../types';
 import { isWorkspaceCodeDocumentContent } from '../workspaceCodeDocument';
-import { isWorkspaceAssetDocumentContent } from '../workspaceResourceDocument';
 import { captureWorkspaceSemanticRevisions } from './workspaceSemanticRevision';
 
 export const WORKSPACE_SEMANTIC_PROVIDER_ID = 'core.workspace';
@@ -89,25 +87,6 @@ const createTypedDocumentSymbol = (
         artifactId: document.id,
       }),
       typeRef: `code-artifact:${document.content.language}`,
-    });
-  }
-
-  if (document.type === 'asset') {
-    if (!isWorkspaceAssetDocumentContent(document.content)) {
-      throw new Error(
-        `Workspace asset document "${document.id}" has invalid content.`
-      );
-    }
-    return Object.freeze({
-      ...common,
-      id: createAssetSymbolId(workspaceId, document.id),
-      kind: 'asset',
-      ownerRef: Object.freeze({
-        kind: 'document',
-        workspaceId,
-        documentId: document.id,
-      }),
-      typeRef: `asset:${document.content.mime}`,
     });
   }
 
@@ -215,7 +194,7 @@ const createWorkspaceContribution = (
 
 /**
  * Projects one immutable canonical Workspace snapshot into stable root,
- * document, code-artifact, and asset semantic facts. The provider rejects a
+ * document and transport-neutral typed-document semantic facts. The provider rejects a
  * composition identity from any other Workspace revision so stale snapshot
  * data cannot be published under a current SemanticSnapshotIdentity.
  */

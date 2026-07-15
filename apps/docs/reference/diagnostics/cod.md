@@ -34,6 +34,7 @@ Code 命名空间覆盖代码片段、符号解析、类型、宿主绑定、运
 | [`COD-3013`](/reference/diagnostics/cod-3013) | 生命周期 hook 与宿主阶段不匹配      | `warning` |
 | [`COD-3014`](/reference/diagnostics/cod-3014) | 异步返回值不被宿主接受              | `warning` |
 | [`COD-3015`](/reference/diagnostics/cod-3015) | 代码片段修改了只读上下文            | `error`   |
+| [`COD-3017`](/reference/diagnostics/cod-3017) | Code artifact 已失去 owner binding  | `warning` |
 | [`COD-4001`](/reference/diagnostics/cod-4001) | 用户代码运行时抛错                  | `error`   |
 | [`COD-4010`](/reference/diagnostics/cod-4010) | 用户代码执行超时                    | `error`   |
 | [`COD-4011`](/reference/diagnostics/cod-4011) | sandbox 权限拒绝                    | `error`   |

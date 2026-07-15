@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createWorkspaceCodeArtifactProvider } from '..';
+import {
+  createWorkspaceCodeArtifactProvider,
+  isWorkspaceCodeDocumentContent,
+} from '..';
 
 describe('createWorkspaceCodeArtifactProvider', () => {
   it('projects workspace code documents into code artifacts', () => {
@@ -75,6 +78,7 @@ describe('createWorkspaceCodeArtifactProvider', () => {
         id: 'code-open-dialog',
         path: '/src/actions/openDialog.ts',
         language: 'ts',
+        ownership: 'code-owned',
         owner: { kind: 'workspace-module', documentId: 'code-open-dialog' },
         source: 'export function openDialog() {}',
         revision: '7',
@@ -85,5 +89,75 @@ describe('createWorkspaceCodeArtifactProvider', () => {
       path: '/src/actions/openDialog.ts',
     });
     expect(provider.getArtifact('missing-code')).toBeNull();
+  });
+
+  it('projects only valid canonical shader compile profiles', () => {
+    const provider = createWorkspaceCodeArtifactProvider({
+      id: 'workspace-shader',
+      workspaceRev: 1,
+      routeRev: 1,
+      opSeq: 1,
+      treeRootId: 'root',
+      treeById: {
+        root: {
+          id: 'root',
+          kind: 'dir',
+          name: '/',
+          parentId: null,
+          children: ['shader-node'],
+        },
+        'shader-node': {
+          id: 'shader-node',
+          kind: 'doc',
+          name: 'main.wgsl',
+          parentId: 'root',
+          docId: 'shader-main',
+        },
+      },
+      docsById: {
+        'shader-main': {
+          id: 'shader-main',
+          type: 'code',
+          path: '/shaders/main.wgsl',
+          contentRev: 3,
+          metaRev: 1,
+          content: {
+            language: 'wgsl',
+            source: '@compute @workgroup_size(1) fn main() {}',
+            metadata: {
+              'prodivix.shaderCompile': {
+                schemaVersion: '1.0',
+                target: 'webgpu',
+                stage: 'compute',
+                entryPoint: 'main',
+              },
+            },
+          },
+        },
+      },
+      routeManifest: { version: '1', root: { id: 'route-root' } },
+    });
+
+    expect(provider.getArtifact('shader-main')).toMatchObject({
+      shaderCompileProfile: {
+        schemaVersion: '1.0',
+        target: 'webgpu',
+        stage: 'compute',
+        entryPoint: 'main',
+      },
+    });
+    expect(
+      isWorkspaceCodeDocumentContent({
+        language: 'wgsl',
+        source: '',
+        metadata: {
+          'prodivix.shaderCompile': {
+            schemaVersion: '1.0',
+            target: 'webgl2',
+            stage: 'vertex',
+          },
+        },
+      })
+    ).toBe(false);
   });
 });

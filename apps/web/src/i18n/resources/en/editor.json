@@ -53,6 +53,10 @@
         "label": "Components",
         "description": "Create and manage reusable pieces."
       },
+      "code": {
+        "label": "Code",
+        "description": "Author shared scripts, styles, shaders, and adapters."
+      },
       "resources": {
         "label": "Resources",
         "description": "Organize assets and libraries."
@@ -92,6 +96,18 @@
       "openCommunity": "Open Community",
       "published": "Published to Community",
       "publish": "Publish"
+    }
+  },
+  "codeAuthoring": {
+    "overlay": {
+      "compactTitle": "Quick code editor",
+      "maximizedTitle": "Code editor",
+      "close": "Close code editor",
+      "openWorkspace": "Open Code Workspace",
+      "discardTitle": "Discard unsaved code?",
+      "discardMessage": "Your unsaved edits in this code artifact will be discarded.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard"
     }
   },
   "bar": {
@@ -1120,8 +1136,9 @@
     "tabs": {
       "overview": "Overview",
       "components": "Components",
+      "tokens": "Tokens",
       "public": "Public",
-      "code": "Code",
+      "code": "Code files",
       "i18n": "i18n",
       "external": "External libs",
       "projectFiles": "Project files"
@@ -1137,7 +1154,10 @@
           "description": "Static assets for export, deploy, and runtime previews."
         },
         "code": {
-          "description": "Scripts, styles, shaders. Versioned as project resources."
+          "description": "Inspect and edit imported, external, and resource-owned scripts, styles, and shaders."
+        },
+        "tokens": {
+          "description": "DTCG token documents, themes, variants, and design-system resolution."
         },
         "i18n": {
           "description": "Matrix editor for locales and translation keys."
@@ -1154,6 +1174,8 @@
         "warnings": "warnings",
         "updated": "updated",
         "scriptsStyles": "scripts/styles",
+        "tokens": "tokens",
+        "contexts": "contexts",
         "locales": "locales",
         "namespaces": "namespaces",
         "missingValues": "missing values",
@@ -1169,8 +1191,8 @@
       },
       "quickActions": {
         "badgeTitle": "Quick actions",
-        "title": "Build faster without leaving resources",
-        "description": "Create common assets, then jump straight into the dedicated editor tab.",
+        "title": "Create common project artifacts",
+        "description": "Create resource-owned code artifacts and edit them in the full Resources code surface.",
         "badge": "Overview stays local (no network required).",
         "newScript": "New script",
         "scriptPath": "`untitled.ts` in scripts",
@@ -1201,11 +1223,18 @@
       "actions": {
         "download": "Download"
       },
+      "semanticReferencedDeleteBlocked": "This asset has {{count}} semantic reference(s). Open and update them before deleting the asset.",
       "labels": {
         "kind": "Kind",
         "mime": "MIME",
         "size": "Size",
+        "references": "References",
+        "impactedSymbols": "Impacted symbols",
         "unknown": "unknown"
+      },
+      "references": {
+        "title": "Semantic references",
+        "open": "Open reference {{index}}"
       },
       "preview": {
         "preview": "Preview",
@@ -1220,10 +1249,57 @@
         "pageHints": "{{warnings}} warnings, {{suggestions}} suggestions across public files."
       }
     },
+    "tokens": {
+      "header": {
+        "badge": "Design system",
+        "title": "Design tokens",
+        "description": "Edit canonical DTCG token files and Resolver mappings. Token values and theme/variant composition stay separate, revision-bound Workspace documents."
+      },
+      "actions": {
+        "newTokenFile": "New token file",
+        "save": "Save",
+        "saving": "Saving…",
+        "createSystem": "Create design system"
+      },
+      "documents": {
+        "title": "Token documents",
+        "empty": "Create a design system or token file to begin."
+      },
+      "editor": {
+        "emptyTitle": "No token document selected",
+        "emptyDescription": "Select a token or Resolver document from the list."
+      },
+      "summary": {
+        "title": "Current model",
+        "groups": "groups",
+        "tokens": "tokens",
+        "aliases": "aliases",
+        "sets": "sets",
+        "modifiers": "modifiers",
+        "contexts": "contexts",
+        "permutations": "permutations",
+        "unavailable": "Fix the document validation issues to restore its current-model summary."
+      },
+      "create": {
+        "title": "DTCG starter",
+        "description": "Atomically creates foundation, light, dark, and Resolver documents under /tokens.",
+        "name": "Design system name",
+        "slug": "Workspace slug",
+        "defaultName": "Product Design System",
+        "tokenFileName": "Custom Tokens"
+      },
+      "feedback": {
+        "noChanges": "No canonical changes to save.",
+        "saved": "The Workspace accepted the token operation.",
+        "created": "The design system documents were created atomically.",
+        "tokenCreated": "The token document was created.",
+        "createFailed": "Could not create the token document."
+      }
+    },
     "code": {
       "header": {
         "title": "Code workspace",
-        "description": "Manage scripts, styles and shader resources in one place."
+        "description": "Author canonical scripts, styles, shaders, and adapters with shared language capabilities."
       },
       "labels": {
         "selected": "Selected",
@@ -1236,9 +1312,23 @@
       "actions": {
         "save": "Save"
       },
+      "compile": {
+        "title": "Target shader validation",
+        "loading": "Compiling the canonical shader for its configured target…",
+        "pendingSave": "Save the current draft to refresh target validation.",
+        "notConfigured": "No persisted compile target is configured for this shader.",
+        "success": "The canonical shader passed target compilation.",
+        "failed_one": "Target compilation reported 1 error.",
+        "failed_other": "Target compilation reported {{count}} errors.",
+        "unavailable": "Target compiler unavailable: {{reason}}",
+        "unknownReason": "unknown reason",
+        "stageLabel": "GLSL compile stage",
+        "selectStage": "Select stage",
+        "enableWebGpu": "Enable WebGPU validation"
+      },
       "language": {
         "status": {
-          "ready": "TypeScript language service ready",
+          "ready": "Language capability ready",
           "loading": "Updating language analysis…",
           "unsupported": "No language capability provider is available for this file.",
           "unavailable": "Language service unavailable: {{reason}}"
@@ -1259,6 +1349,39 @@
           "referencesMissing": "No references were found at the cursor.",
           "unavailable": "The result is stale or the language service is unavailable."
         }
+      },
+      "refactor": {
+        "title": "Semantic refactor",
+        "description": "Preview revision-bound code edits and cross-domain impact before applying one reversible Workspace operation.",
+        "rename": "Rename symbol",
+        "renameShortcut": "Rename symbol (F2)",
+        "move": "Move artifact",
+        "preparingRename": "Resolving the symbol at the cursor…",
+        "renameLabel": "Rename {{name}} to",
+        "preview": "Preview impact",
+        "renameImpact": "{{edits}} text edits across {{artifacts}} code artifacts.",
+        "ownerRewriteRequired_one": "1 persisted CodeSlot owner names this export. Open the owner and detach or update its binding before applying the code rename.",
+        "ownerRewriteRequired_other": "{{count}} persisted CodeSlot owners name this export. Open the owners and detach or update their bindings before applying the code rename.",
+        "renameSafe": "No persisted cross-domain CodeReference requires an owner rewrite.",
+        "back": "Back",
+        "cancel": "Cancel",
+        "applyRename": "Apply rename",
+        "pathLabel": "Canonical Workspace path",
+        "moveImpact": "Stable artifact identity preserves {{bindings}} bindings, {{references}} references, and {{impacted}} impacted symbols.",
+        "applyMove": "Apply move",
+        "saveBeforeRename": "Save the current code draft before starting a semantic rename.",
+        "renameUnavailable": "The symbol at the cursor cannot be renamed by the current language capability.",
+        "renameRejected": "The Workspace rejected the rename proposal.",
+        "renameStale": "The semantic snapshot changed. Start the rename again.",
+        "moveRejected": "The Workspace rejected the code artifact move."
+      },
+      "lifecycle": {
+        "orphanTitle": "Orphan code artifact",
+        "orphanDescription": "Its previous {{slotKind}} owner is gone. The source remains safely stored in the Workspace.",
+        "rebind": "Bind to {{libraryId}}",
+        "rebindFailed": "Could not rebind the code artifact.",
+        "convertToModule": "Convert to workspace module",
+        "deleteActiveBlocked": "Detach active CodeSlot bindings before deleting this code artifact or folder."
       },
       "empty": "Select a code file from the tree to edit its content."
     },
@@ -1426,6 +1549,15 @@
         "title": "Add new library",
         "packageId": "package id",
         "versionOptional": "version (optional)"
+      },
+      "adapter": {
+        "title": "Code adapter",
+        "description": "Bind a TypeScript or JavaScript artifact through the library's canonical external-adapter CodeSlot.",
+        "unbound": "No adapter bound",
+        "create": "Create adapter",
+        "open": "Open code",
+        "updateFailed": "Could not update the adapter binding.",
+        "createFailed": "Could not create the adapter artifact."
       },
       "details": {
         "title": "Library details",

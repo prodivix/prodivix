@@ -31,7 +31,8 @@ const editorBrowserStorageAllowlist = new Set([
   'apps/web/src/editor/EditorDebugFloatingBall.tsx',
   'apps/web/src/editor/features/blueprint/editor/controller/useBlueprintEditorController.ts',
   'apps/web/src/editor/features/issues/workspaceIssueNavigation.ts',
-  'apps/web/src/editor/features/resources/CodeResourcePage.tsx',
+  'apps/web/src/editor/features/code/CodeAuthoringOverlay.tsx',
+  'apps/web/src/editor/features/code/CodeAuthoringWorkspace.tsx',
   'apps/web/src/editor/features/resources/I18nResourcePage.tsx',
   'apps/web/src/editor/features/resources/ProjectFileManager.tsx',
   'apps/web/src/editor/features/resources/ProjectResources.tsx',
@@ -45,6 +46,17 @@ const editorIndexedDbAllowlist = [
   'apps/web/src/editor/localProjectStore.ts',
   'apps/web/src/editor/workspaceSync/indexedDb',
 ];
+
+const directWorkspaceDispatchAllowlist = new Set([
+  'apps/web/src/editor/store/editorStore.workspaceSlice.ts',
+  'apps/web/src/editor/workspaceSync/workspaceVfsOutboxExecutor.ts',
+]);
+
+const localWorkspaceSnapshotWriterAllowlist = new Set([
+  'apps/web/src/editor/Editor.tsx',
+  'apps/web/src/editor/localProjectStore.ts',
+  'apps/web/src/editor/workspaceSync/localProjectWorkspaceOutbox.ts',
+]);
 
 const operationCommitCallPattern =
   /editorApi\s*(?:\.\s*commitWorkspaceOperation|\[\s*['"]commitWorkspaceOperation['"]\s*\])\s*\(/;
@@ -118,6 +130,27 @@ for (const path of trackedFiles) {
   }
   if (
     path.startsWith('apps/web/src/editor/') &&
+    path !==
+      'apps/web/src/editor/workspaceSync/workspaceHistoryOperationDispatcher.ts' &&
+    /\.(?:undoWorkspaceHistory|redoWorkspaceHistory)\s*\(/.test(source)
+  ) {
+    issues.push(
+      `${path} applies History as a Store-only snapshot write outside the durable History dispatcher.`
+    );
+  }
+  if (
+    path.startsWith('apps/web/src/editor/') &&
+    !directWorkspaceDispatchAllowlist.has(path) &&
+    /\.(?:dispatchWorkspaceCommand|dispatchWorkspaceTransaction)\s*\(/.test(
+      source
+    )
+  ) {
+    issues.push(
+      `${path} applies a production Workspace write outside the audited Outbox dispatch boundary.`
+    );
+  }
+  if (
+    path.startsWith('apps/web/src/editor/') &&
     /\b(?:indexedDB|indexedDb)\b/.test(source) &&
     !editorIndexedDbAllowlist.some((prefix) => path.startsWith(prefix))
   ) {
@@ -135,8 +168,7 @@ for (const path of trackedFiles) {
     );
   }
   if (
-    path !== 'apps/web/src/editor/Editor.tsx' &&
-    path !== 'apps/web/src/editor/localProjectStore.ts' &&
+    !localWorkspaceSnapshotWriterAllowlist.has(path) &&
     /\bsaveLocalWorkspaceSnapshot\s*\(/.test(source)
   ) {
     issues.push(`${path} writes an unaudited local Workspace mirror.`);

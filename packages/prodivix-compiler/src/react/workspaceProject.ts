@@ -31,6 +31,7 @@ import {
   createRouteExportContribution,
   createStaticDeploymentExportContribution,
   joinExportPath,
+  getExportCodeArtifactLanguage,
   mergeExportDependencies,
   normalizeExportCodeArtifactPath,
   normalizeExportPath,
@@ -287,6 +288,12 @@ const createCodeContributions = (input: {
       });
       return;
     }
+    const language = getExportCodeArtifactLanguage({
+      id: document.id,
+      path: document.path,
+      language: document.content.language,
+      source: document.content.source,
+    });
     const moduleId = `workspace-code:${document.id}`;
     executableModuleIdByArtifactId.set(document.id, moduleId);
     modules.push({
@@ -297,7 +304,10 @@ const createCodeContributions = (input: {
         'src',
         normalizeExportCodeArtifactPath(document.path)
       ),
-      language: document.content.language,
+      language:
+        language === 'tsx' || language === 'jsx'
+          ? language
+          : document.content.language,
       imports: [],
       body: document.content.source,
       sourceTrace: [createDocumentSourceTrace(document)],

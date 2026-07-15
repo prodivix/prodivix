@@ -8,6 +8,7 @@ import type {
   WorkspaceTransactionEnvelope,
 } from '@prodivix/workspace';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 
 type QuickFixContext = Readonly<{
   workspace: WorkspaceSnapshot;
@@ -55,10 +56,10 @@ export type WorkspaceQuickFixExecutionResult =
   { status: 'applied' } | { status: 'unavailable' } | { status: 'rejected' };
 
 /** Resolves descriptors through trusted factories; diagnostics never execute code. */
-export const executeWorkspaceIssueQuickFix = (
+export const executeWorkspaceIssueQuickFix = async (
   reference: DiagnosticQuickFixReference,
   diagnostic: ProdivixDiagnostic
-): WorkspaceQuickFixExecutionResult => {
+): Promise<WorkspaceQuickFixExecutionResult> => {
   const editor = useEditorStore.getState();
   const workspace = editor.workspace;
   if (!workspace || editor.workspaceReadonly) return { status: 'unavailable' };
@@ -68,15 +69,21 @@ export const executeWorkspaceIssueQuickFix = (
     const factory = commandFactories.get(reference.operation.commandId);
     const command = factory?.(context);
     if (!command) return { status: 'unavailable' };
-    return editor.dispatchWorkspaceCommand(command)
-      ? { status: 'applied' }
-      : { status: 'rejected' };
+    const outcome = await dispatchWorkspaceAuthoringOperation({
+      workspace,
+      readonly: editor.workspaceReadonly,
+      operation: { kind: 'command', command },
+    });
+    return { status: outcome.status };
   }
 
   const factory = transactionFactories.get(reference.operation.transactionId);
   const transaction = factory?.(context);
   if (!transaction) return { status: 'unavailable' };
-  return editor.dispatchWorkspaceTransaction(transaction)
-    ? { status: 'applied' }
-    : { status: 'rejected' };
+  const outcome = await dispatchWorkspaceAuthoringOperation({
+    workspace,
+    readonly: editor.workspaceReadonly,
+    operation: { kind: 'transaction', transaction },
+  });
+  return { status: outcome.status };
 };

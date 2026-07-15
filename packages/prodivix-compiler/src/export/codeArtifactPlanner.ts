@@ -27,7 +27,6 @@ export const isExportCssCodeArtifact = (artifact: ExportCodeArtifact) =>
 
 export const getExportCodeArtifactLanguage = (artifact: ExportCodeArtifact) => {
   const lowerPath = artifact.path.toLowerCase();
-  if (artifact.language) return artifact.language;
   if (lowerPath.endsWith('.tsx')) return 'tsx';
   if (lowerPath.endsWith('.ts')) return 'ts';
   if (lowerPath.endsWith('.jsx')) return 'jsx';
@@ -35,6 +34,7 @@ export const getExportCodeArtifactLanguage = (artifact: ExportCodeArtifact) => {
   if (lowerPath.endsWith('.json')) return 'json';
   if (lowerPath.endsWith('.glsl')) return 'glsl';
   if (lowerPath.endsWith('.wgsl')) return 'wgsl';
+  if (artifact.language) return artifact.language;
   return 'text';
 };
 

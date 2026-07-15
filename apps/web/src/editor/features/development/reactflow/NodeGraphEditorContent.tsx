@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
 import {
   useEdgesState,
   useNodesState,
@@ -21,10 +20,8 @@ import {
   type WorkspaceSnapshot,
   type WorkspaceVfsIntentRequest,
 } from '@prodivix/workspace';
-import {
-  navigateToWorkspaceCodeSlotDefinition,
-  useWorkspaceSemanticNavigationStore,
-} from '@/editor/navigation';
+import { openWorkspaceCodeSlotDefinition } from '@/editor/features/code';
+import { useWorkspaceSemanticNavigationStore } from '@/editor/navigation';
 import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
 import {
   selectActiveDocumentId,
@@ -78,8 +75,6 @@ type WorkspaceCommandFactory = (
 
 export const NodeGraphEditorContent = () => {
   const { t } = useTranslation('editor');
-  const navigate = useNavigate();
-  const { projectId } = useParams();
   const workspace = useEditorStore((state) => state.workspace);
   const workspaceId = useEditorStore(selectWorkspaceId);
   const activeDocumentId = useEditorStore(selectActiveDocumentId);
@@ -394,18 +389,16 @@ export const NodeGraphEditorContent = () => {
   );
   const openCodeSlotDefinition = useCallback(
     (slotId: string) => {
-      if (!projectId || !workspace) return;
-      const result = navigateToWorkspaceCodeSlotDefinition({
-        projectId,
+      if (!workspace) return;
+      const result = openWorkspaceCodeSlotDefinition({
         workspace,
         slotId,
-        navigate,
       });
       if (result.status === 'unavailable') {
         setHint('The CodeSlot definition is unavailable.');
       }
     },
-    [navigate, projectId, workspace]
+    [workspace]
   );
   const setRenderRuntime = useNodeGraphRenderStore((state) => state.setRuntime);
 

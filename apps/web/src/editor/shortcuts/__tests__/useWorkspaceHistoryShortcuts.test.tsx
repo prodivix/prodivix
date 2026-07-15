@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { WorkspaceCommandEnvelope } from '@prodivix/workspace';
 import {
@@ -99,33 +99,34 @@ describe('workspace history shortcuts', () => {
     ]);
   });
 
-  it('supports Mod+Z, Mod+Shift+Z, and Ctrl+Y without consuming failures', () => {
+  it('supports Mod+Z, Mod+Shift+Z, and Ctrl+Y without consuming failures', async () => {
     useEditorStore.getState().dispatchWorkspaceCommand(createMetadataCommand());
     renderHarness(HISTORY_CONTEXT);
     const canvas = screen.getByRole('button', { name: 'Canvas' });
 
     const undoEvent = dispatchShortcut(canvas, 'z', { ctrlKey: true });
     expect(undoEvent.defaultPrevented).toBe(true);
-    expect(readDocumentName()).toBeUndefined();
+    await waitFor(() => expect(readDocumentName()).toBeUndefined());
 
     const shiftRedoEvent = dispatchShortcut(canvas, 'z', {
       ctrlKey: true,
       shiftKey: true,
     });
     expect(shiftRedoEvent.defaultPrevented).toBe(true);
-    expect(readDocumentName()).toBe('Edited');
+    await waitFor(() => expect(readDocumentName()).toBe('Edited'));
 
     dispatchShortcut(canvas, 'z', { ctrlKey: true });
+    await waitFor(() => expect(readDocumentName()).toBeUndefined());
     const ctrlYRedoEvent = dispatchShortcut(canvas, 'y', { ctrlKey: true });
     expect(ctrlYRedoEvent.defaultPrevented).toBe(true);
-    expect(readDocumentName()).toBe('Edited');
+    await waitFor(() => expect(readDocumentName()).toBe('Edited'));
 
     const missingRedoEvent = dispatchShortcut(canvas, 'y', { ctrlKey: true });
     expect(missingRedoEvent.defaultPrevented).toBe(false);
     expect(readDocumentName()).toBe('Edited');
   });
 
-  it('preserves native editable undo and suspends workspace replay', () => {
+  it('preserves native editable undo and suspends workspace replay', async () => {
     useEditorStore.getState().dispatchWorkspaceCommand(createMetadataCommand());
     const { rerender } = renderHarness({
       ...HISTORY_CONTEXT,
@@ -149,6 +150,6 @@ describe('workspace history shortcuts', () => {
 
     const workspaceEvent = dispatchShortcut(canvas, 'z', { ctrlKey: true });
     expect(workspaceEvent.defaultPrevented).toBe(true);
-    expect(readDocumentName()).toBeUndefined();
+    await waitFor(() => expect(readDocumentName()).toBeUndefined());
   });
 });

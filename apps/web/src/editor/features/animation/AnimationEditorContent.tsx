@@ -10,11 +10,8 @@ import type {
   AnimationTimeline,
 } from '@prodivix/animation';
 import { createWorkspaceCodeArtifactProvider } from '@prodivix/workspace';
-import { useNavigate, useParams } from 'react-router';
-import {
-  navigateToWorkspaceCodeSlotDefinition,
-  useWorkspaceSemanticNavigationStore,
-} from '@/editor/navigation';
+import { openWorkspaceCodeSlotDefinition } from '@/editor/features/code';
+import { useWorkspaceSemanticNavigationStore } from '@/editor/navigation';
 import { useWorkspaceHistoryShortcuts } from '@/editor/shortcuts';
 import {
   selectWorkspaceId,
@@ -43,8 +40,6 @@ export const AnimationEditorContent = ({
   disabled = false,
   diagnostic,
 }: AnimationEditorContentProps) => {
-  const navigate = useNavigate();
-  const { projectId } = useParams();
   const workspaceId = useEditorStore(selectWorkspaceId);
   const {
     workspace,
@@ -104,15 +99,13 @@ export const AnimationEditorContent = ({
   );
   const openCodeSlotDefinition = useCallback(
     (slotId: string) => {
-      if (!projectId || !workspace) return;
-      navigateToWorkspaceCodeSlotDefinition({
-        projectId,
+      if (!workspace) return;
+      openWorkspaceCodeSlotDefinition({
         workspace,
         slotId,
-        navigate,
       });
     },
-    [navigate, projectId, workspace]
+    [workspace]
   );
 
   useWorkspaceHistoryShortcuts({

@@ -16,6 +16,7 @@ const mathArtifact: CodeArtifact = {
   id: 'code-math',
   path: '/src/math.ts',
   language: 'ts',
+  ownership: 'code-owned',
   owner: { kind: 'workspace-module', documentId: 'code-math' },
   source: [
     '/** Adds two numbers. */',
@@ -30,6 +31,7 @@ const consumerArtifact: CodeArtifact = {
   id: 'code-consumer',
   path: '/src/consumer.ts',
   language: 'ts',
+  ownership: 'code-owned',
   owner: { kind: 'workspace-module', documentId: 'code-consumer' },
   source: [
     "import { add } from './math';",

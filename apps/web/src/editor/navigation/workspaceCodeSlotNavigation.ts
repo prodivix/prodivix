@@ -12,11 +12,10 @@ const unavailable = (
   >['reason']
 ): WorkspaceSemanticNavigationResult => ({ status: 'unavailable', reason });
 
-const navigateToWorkspaceCodeSlot = (input: {
+const navigateToWorkspaceCodeSlotOwnerTarget = (input: {
   projectId: string;
   workspace: WorkspaceSnapshot;
   slotId: string;
-  destination: 'definition' | 'source';
   navigate: NavigateFunction;
 }): WorkspaceSemanticNavigationResult => {
   const environment = createWorkspaceCodeLanguageEnvironment(input.workspace);
@@ -47,18 +46,13 @@ const navigateToWorkspaceCodeSlot = (input: {
     target: {
       kind: 'semantic-reference',
       referenceId: relations.projection.semanticReferenceId,
-      destination: input.destination,
+      destination: 'source',
       expectedSnapshotIdentity: environment.semanticIndex.snapshotIdentity,
     },
   });
 };
 
-export const navigateToWorkspaceCodeSlotDefinition = (
-  input: Omit<Parameters<typeof navigateToWorkspaceCodeSlot>[0], 'destination'>
-): WorkspaceSemanticNavigationResult =>
-  navigateToWorkspaceCodeSlot({ ...input, destination: 'definition' });
-
 export const navigateToWorkspaceCodeSlotOwner = (
-  input: Omit<Parameters<typeof navigateToWorkspaceCodeSlot>[0], 'destination'>
+  input: Parameters<typeof navigateToWorkspaceCodeSlotOwnerTarget>[0]
 ): WorkspaceSemanticNavigationResult =>
-  navigateToWorkspaceCodeSlot({ ...input, destination: 'source' });
+  navigateToWorkspaceCodeSlotOwnerTarget(input);

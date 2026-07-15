@@ -33,21 +33,6 @@ import type { BlueprintEditorCanvasProps, PanState } from './canvasTypes';
 import { createRouteCanvasDiagnostics } from './routeDiagnostics';
 import { useActiveRoutePreview } from './useActiveRoutePreview';
 
-const escapeCssAttributeValue = (value: string) =>
-  value.replace(/["\\\n\r\f]/g, (char) => `\\${char}`);
-
-const createCanvasHiddenLayerCss = (locations: readonly PIRRenderLocation[]) =>
-  locations
-    .filter(
-      ({ documentId, nodeId, instancePath }) =>
-        documentId.trim() && nodeId.trim() && instancePath.trim()
-    )
-    .map(
-      ({ documentId, nodeId, instancePath }) =>
-        `[data-pir-document-id="${escapeCssAttributeValue(documentId)}"][data-pir-node-id="${escapeCssAttributeValue(nodeId)}"][data-pir-instance-path="${escapeCssAttributeValue(instancePath)}"] > * { opacity: 0 !important; pointer-events: none !important; }`
-    )
-    .join('\n');
-
 const ignoreTrigger = () => undefined;
 /** PIRRenderer projects the canonical workspace snapshot into the author canvas. */
 export function BlueprintEditorCanvas({
@@ -145,11 +130,6 @@ export function BlueprintEditorCanvas({
   const scale = Math.min(2, Math.max(0.4, zoom / 100));
   const showGrid = assist.includes('grid');
   const showSelectionDiagnostics = diagnostics.includes('selection');
-  const hiddenLayerCss = useMemo(
-    () => createCanvasHiddenLayerCss(hiddenLocations),
-    [hiddenLocations]
-  );
-
   const { setNodeRef: setCanvasDropRef, isOver: isCanvasOver } = useDroppable({
     id: 'canvas-drop',
     data: { kind: 'canvas' },
@@ -410,11 +390,6 @@ export function BlueprintEditorCanvas({
               style={{ width: canvasWidth, height: canvasHeight }}
             >
               <OfficialReactSurfaceBoundary>
-                {hiddenLayerCss ? (
-                  <style data-blueprint-author-hidden-layers>
-                    {hiddenLayerCss}
-                  </style>
-                ) : null}
                 {projection.status === 'ready' ? (
                   <PIRRenderer
                     plan={projection.plan}
@@ -431,6 +406,7 @@ export function BlueprintEditorCanvas({
                     selectedLocation={
                       isDesignMode ? selectedLocation : undefined
                     }
+                    hiddenLocations={hiddenLocations}
                     onNodeSelect={isDesignMode ? handleNodeSelect : undefined}
                     onBlockingIssues={reportBlockingIssues}
                   />

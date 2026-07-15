@@ -7,7 +7,7 @@ import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import type { NavigateFunction } from 'react-router';
 
 export type WorkspaceNavigationSurface =
-  'animation' | 'blueprint' | 'component' | 'nodegraph' | 'resources';
+  'animation' | 'blueprint' | 'code' | 'component' | 'nodegraph' | 'resources';
 
 export type WorkspaceSemanticNavigationTarget =
   | Readonly<{

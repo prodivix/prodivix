@@ -373,6 +373,12 @@ func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, payloa
 	if documentType == WorkspaceDocumentTypeCode {
 		return validateWorkspaceCodeDocument(payload)
 	}
+	if documentType == WorkspaceDocumentTypeDesignTokens {
+		return validateDesignTokenDocument(payload)
+	}
+	if documentType == WorkspaceDocumentTypeTokenResolver {
+		return validateDesignTokenResolverDocument(payload)
+	}
 	if isPIRWorkspaceDocumentType(documentType) {
 		return validatePIRDocument(payload)
 	}
@@ -474,7 +480,7 @@ func withStoreTimeout(ctx context.Context) (context.Context, context.CancelFunc)
 
 func isValidWorkspaceDocumentType(documentType WorkspaceDocumentType) bool {
 	switch documentType {
-	case WorkspaceDocumentTypePIRPage, WorkspaceDocumentTypePIRLayout, WorkspaceDocumentTypePIRComponent, WorkspaceDocumentTypePIRGraph, WorkspaceDocumentTypePIRAnimation, WorkspaceDocumentTypeCode, WorkspaceDocumentTypeAsset, WorkspaceDocumentTypeProjectConfig:
+	case WorkspaceDocumentTypePIRPage, WorkspaceDocumentTypePIRLayout, WorkspaceDocumentTypePIRComponent, WorkspaceDocumentTypePIRGraph, WorkspaceDocumentTypePIRAnimation, WorkspaceDocumentTypeDesignTokens, WorkspaceDocumentTypeTokenResolver, WorkspaceDocumentTypeCode, WorkspaceDocumentTypeAsset, WorkspaceDocumentTypeProjectConfig:
 		return true
 	default:
 		return false

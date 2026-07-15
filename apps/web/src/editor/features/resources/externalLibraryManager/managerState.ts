@@ -1,4 +1,5 @@
 import type { LibraryMode, PersistedLibrary } from './types';
+import { decodeWorkspaceExternalAdapterBinding } from '@prodivix/workspace';
 import { normalizeLibraryIds } from './libraryScope';
 
 export type NpmMetadata = {
@@ -23,6 +24,7 @@ export const normalizePersistedLibraries = (
           ? normalizeLibraryIds([record.id])[0]
           : '';
       if (!id) return null;
+      const adapter = decodeWorkspaceExternalAdapterBinding(id, record.adapter);
       return {
         id,
         scope:
@@ -35,6 +37,7 @@ export const normalizePersistedLibraries = (
           typeof record.version === 'string' && record.version.trim().length > 0
             ? record.version.trim()
             : 'latest',
+        ...(adapter ? { adapter } : {}),
       };
     })
     .filter((item): item is PersistedLibrary => Boolean(item));

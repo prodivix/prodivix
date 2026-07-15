@@ -6,6 +6,7 @@ import {
   type WorkspaceHistoryScope,
 } from '@prodivix/workspace';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import { dispatchWorkspaceHistoryOperation } from '@/editor/workspaceSync/workspaceHistoryOperationDispatcher';
 import type { EditorShortcutScope } from './shortcutTypes';
 import { useEditorShortcut } from './useShortcut';
 
@@ -45,15 +46,14 @@ export const resolveWorkspaceHistoryShortcutScopes = (
 /**
  * Connects one mounted editor surface to scoped Workspace History. Code and
  * text editors keep their native undo because these registrations never opt
- * into editable targets, and a failed replay never consumes the key event.
+ * into editable targets. Every accepted traversal becomes a causal durable
+ * WorkspaceOperation rather than a Store-only snapshot replacement.
  */
 export const useWorkspaceHistoryShortcuts = (
   context: WorkspaceHistoryShortcutContext
 ) => {
   const workspaceHistory = useEditorStore((state) => state.workspaceHistory);
   const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
-  const undoHistory = useEditorStore((state) => state.undoWorkspaceHistory);
-  const redoHistory = useEditorStore((state) => state.redoWorkspaceHistory);
   const scopes = useMemo(
     () => resolveWorkspaceHistoryShortcutScopes(context),
     [
@@ -72,12 +72,12 @@ export const useWorkspaceHistoryShortcuts = (
   const isSuspended = Boolean(context.suspended || workspaceReadonly);
 
   const handleUndo = (event: KeyboardEvent) => {
-    const result = undoHistory(scopes);
-    if (result?.ok) event.preventDefault();
+    event.preventDefault();
+    void dispatchWorkspaceHistoryOperation({ direction: 'undo', scopes });
   };
   const handleRedo = (event: KeyboardEvent) => {
-    const result = redoHistory(scopes);
-    if (result?.ok) event.preventDefault();
+    event.preventDefault();
+    void dispatchWorkspaceHistoryOperation({ direction: 'redo', scopes });
   };
 
   useEditorShortcut('Mod+Z', handleUndo, {

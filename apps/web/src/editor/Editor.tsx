@@ -28,6 +28,8 @@ import {
   canOpenWorkspaceLocalReplicaAfter,
   loadMaterializedWorkspaceLocalReplica,
 } from './workspaceSync/workspaceLocalReplica';
+import { resumeLocalProjectWorkspaceOutbox } from './workspaceSync/localProjectWorkspaceOutbox';
+import { CodeAuthoringOverlay } from './features/code';
 
 function EditorGlobalShortcuts({
   projectId,
@@ -83,6 +85,16 @@ function EditorGlobalShortcuts({
     () => {
       if (!projectId) return;
       const nextPath = `/editor/project/${projectId}/component`;
+      if (pathname === nextPath) return;
+      navigate(nextPath);
+    },
+    { enabled: Boolean(projectId) }
+  );
+  useEditorShortcut(
+    'Alt+C',
+    () => {
+      if (!projectId) return;
+      const nextPath = `/editor/project/${projectId}/code`;
       if (pathname === nextPath) return;
       navigate(nextPath);
     },
@@ -149,6 +161,7 @@ function EditorSurface() {
       <WorkspaceOutboxEffects />
       <WorkspaceIssuesEffects />
       <WorkspaceRevisionConflictSurface />
+      <CodeAuthoringOverlay />
       <EditorBar />
       <div className="flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-auto">
         <Outlet />
@@ -212,6 +225,9 @@ function Editor() {
     setLoadError(null);
 
     void getLocalProject(projectId)
+      .then((project) =>
+        project ? resumeLocalProjectWorkspaceOutbox(project) : null
+      )
       .then((project) => {
         if (cancelled) return;
         if (!project) {

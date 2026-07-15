@@ -4,6 +4,7 @@ import {
   FileArchive,
   FileCode2,
   FileCog,
+  Palette,
   Globe2,
   Library,
   Plus,
@@ -22,7 +23,7 @@ type CodeResourceFolder = 'scripts' | 'styles' | 'shaders';
 type ResourceOverviewPanelProps = {
   overviewSnapshot: OverviewSnapshot | null;
   onOpenSection: (section: SectionId) => void;
-  onCreateCodeAsset: (folder: CodeResourceFolder) => void;
+  onOpenCodeResources: (folder?: CodeResourceFolder) => void;
 };
 
 const ResourceTile = ({
@@ -102,7 +103,7 @@ const ResourceTile = ({
 export function ResourceOverviewPanel({
   overviewSnapshot,
   onOpenSection,
-  onCreateCodeAsset,
+  onOpenCodeResources,
 }: ResourceOverviewPanelProps) {
   const { t } = useTranslation('editor');
 
@@ -154,7 +155,31 @@ export function ResourceOverviewPanel({
             ]}
             status={overviewSnapshot.code.files === 0 ? 'warning' : 'default'}
             actionLabel={t('resourceManager.overview.actions.open')}
-            onAction={() => onOpenSection('code')}
+            onAction={() => onOpenCodeResources()}
+          />
+          <ResourceTile
+            icon={Palette}
+            title={t('resourceManager.tabs.tokens')}
+            description={t('resourceManager.overview.cards.tokens.description')}
+            metrics={[
+              {
+                label: t('resourceManager.overview.metrics.files'),
+                value: String(overviewSnapshot.tokens.documents),
+              },
+              {
+                label: t('resourceManager.overview.metrics.tokens'),
+                value: String(overviewSnapshot.tokens.tokens),
+              },
+              {
+                label: t('resourceManager.overview.metrics.contexts'),
+                value: String(overviewSnapshot.tokens.contexts),
+              },
+            ]}
+            status={
+              overviewSnapshot.tokens.resolvers === 0 ? 'warning' : 'default'
+            }
+            actionLabel={t('resourceManager.overview.actions.open')}
+            onAction={() => onOpenSection('tokens')}
           />
           <ResourceTile
             icon={Globe2}
@@ -268,7 +293,7 @@ export function ResourceOverviewPanel({
             <button
               type="button"
               className="group grid gap-1 rounded-2xl border border-black/8 bg-white p-4 text-left hover:border-black/16 hover:bg-black/[0.01]"
-              onClick={() => onCreateCodeAsset('scripts')}
+              onClick={() => onOpenCodeResources('scripts')}
             >
               <p className="inline-flex items-center gap-2 text-xs font-medium tracking-[0.12em] text-(--text-muted) uppercase">
                 <Plus size={14} />
@@ -285,7 +310,7 @@ export function ResourceOverviewPanel({
             <button
               type="button"
               className="group grid gap-1 rounded-2xl border border-black/8 bg-white p-4 text-left hover:border-black/16 hover:bg-black/[0.01]"
-              onClick={() => onCreateCodeAsset('styles')}
+              onClick={() => onOpenCodeResources('styles')}
             >
               <p className="inline-flex items-center gap-2 text-xs font-medium tracking-[0.12em] text-(--text-muted) uppercase">
                 <Plus size={14} />
@@ -302,7 +327,7 @@ export function ResourceOverviewPanel({
             <button
               type="button"
               className="group grid gap-1 rounded-2xl border border-black/8 bg-white p-4 text-left hover:border-black/16 hover:bg-black/[0.01]"
-              onClick={() => onCreateCodeAsset('shaders')}
+              onClick={() => onOpenCodeResources('shaders')}
             >
               <p className="inline-flex items-center gap-2 text-xs font-medium tracking-[0.12em] text-(--text-muted) uppercase">
                 <Plus size={14} />

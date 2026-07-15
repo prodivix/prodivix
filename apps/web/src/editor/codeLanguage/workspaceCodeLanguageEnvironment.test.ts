@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { createCodeSymbolId } from '@prodivix/authoring';
+import {
+  createCodeSymbolId,
+  queryCodeSlotSemanticRelations,
+} from '@prodivix/authoring';
 import {
   createCodeExportLocalSymbolId,
   createCssSymbolId,
   createShaderEntrySymbolId,
 } from '@prodivix/code-language';
 import { createEmptyPirDocument, type PIRDocument } from '@prodivix/pir';
-import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import {
+  createWorkspaceExternalAdapterCodeSlotId,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
 import {
   createWorkspaceCodeLanguageEnvironment,
   CODE_LANGUAGE_PROVIDER_IDS,
@@ -53,7 +59,13 @@ const createWorkspace = (): WorkspaceSnapshot => {
         kind: 'dir',
         name: '/',
         parentId: null,
-        children: ['page-node', 'code-node', 'style-node', 'shader-node'],
+        children: [
+          'page-node',
+          'code-node',
+          'style-node',
+          'shader-node',
+          'external-config-node',
+        ],
       },
       'page-node': {
         id: 'page-node',
@@ -82,6 +94,13 @@ const createWorkspace = (): WorkspaceSnapshot => {
         name: 'main.wgsl',
         parentId: 'root',
         docId: 'code-shader',
+      },
+      'external-config-node': {
+        id: 'external-config-node',
+        kind: 'doc',
+        name: 'external-libraries.json',
+        parentId: 'root',
+        docId: 'external-config',
       },
     },
     docsById: {
@@ -125,6 +144,33 @@ const createWorkspace = (): WorkspaceSnapshot => {
           language: 'wgsl',
           source:
             '@fragment fn main() -> @location(0) vec4f { return vec4f(1.0); }',
+        },
+      },
+      'external-config': {
+        id: 'external-config',
+        type: 'project-config',
+        path: '/config/external-libraries.json',
+        contentRev: 1,
+        metaRev: 1,
+        content: {
+          kind: 'config',
+          value: {
+            activeLibraries: [
+              {
+                id: 'example-library',
+                scope: 'utility',
+                version: '1.0.0',
+                adapter: {
+                  slotId:
+                    createWorkspaceExternalAdapterCodeSlotId('example-library'),
+                  reference: {
+                    artifactId: 'code-submit',
+                    exportName: 'submit',
+                  },
+                },
+              },
+            ],
+          },
         },
       },
     },
@@ -187,7 +233,16 @@ describe('workspace code language environment', () => {
     if (references.status !== 'resolved') return;
     expect(
       new Set(references.references.map(({ sourceRef }) => sourceRef.kind))
-    ).toEqual(new Set(['inspector-field', 'route']));
+    ).toEqual(new Set(['document', 'inspector-field', 'route']));
+    expect(environment.codeSlotRegistry).not.toBeNull();
+    if (!environment.codeSlotRegistry) return;
+    expect(
+      queryCodeSlotSemanticRelations({
+        registry: environment.codeSlotRegistry,
+        semanticIndex: environment.semanticComposition.index,
+        slotId: createWorkspaceExternalAdapterCodeSlotId('example-library'),
+      }).status
+    ).toBe('resolved');
 
     expect(
       environment.semanticComposition.index.getSymbol(

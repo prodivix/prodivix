@@ -1,13 +1,13 @@
 import {
-  AlertTriangle,
   Check,
   ChevronDown,
   ChevronUp,
+  Copy,
   Type,
   WandSparkles,
 } from 'lucide-react';
 import { PdxInput, PdxRichTextEditor } from '@prodivix/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { getTextFieldLabel } from '@/editor/features/blueprint/editor/controller/inspectorUtils';
 import {
@@ -28,90 +28,109 @@ const INSPECTOR_ACTION_ICON_BUTTON_CLASS =
  * 4) 更新统一走 updateNodeTextField / updateNodeTextFieldMode，最终写回同一份节点状态。
  */
 export function InspectorNodeIdentityFields() {
-  const {
-    t,
-    draftId,
-    setDraftId,
-    applyRename,
-    selectedNode,
-    isDirty,
-    canApply,
-    isDuplicate,
-    primaryTextField,
-    updateSelectedNode,
-    identityWriteAvailable,
-    identityDiagnostic,
-  } = useInspectorContext();
+  const { t, selectedNode, primaryTextField, updateSelectedNode } =
+    useInspectorContext();
+  const selectedNodeId = selectedNode?.id ?? '';
   const [isRichEditorCollapsed, setIsRichEditorCollapsed] = useState(false);
+  const [identityCopyState, setIdentityCopyState] = useState<
+    'idle' | 'copied' | 'failed'
+  >('idle');
+
+  useEffect(() => setIdentityCopyState('idle'), [selectedNodeId]);
+  useEffect(() => {
+    if (identityCopyState === 'idle') return;
+    const timeoutId = window.setTimeout(
+      () => setIdentityCopyState('idle'),
+      1600
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [identityCopyState]);
+
+  const copyNodeIdentity = async () => {
+    try {
+      if (!selectedNodeId) throw new Error('Node identity missing');
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard missing');
+      await navigator.clipboard.writeText(selectedNodeId);
+      setIdentityCopyState('copied');
+    } catch {
+      setIdentityCopyState('failed');
+    }
+  };
+
+  const identityFeedback =
+    identityCopyState === 'copied'
+      ? t('inspector.fields.id.copied', {
+          defaultValue: 'Node ID copied.',
+        })
+      : identityCopyState === 'failed'
+        ? t('inspector.fields.id.copyFailed', {
+            defaultValue: 'Copy failed. Select the value to copy it manually.',
+          })
+        : t('inspector.fields.id.description', {
+            defaultValue:
+              'System-generated stable identity. Renaming does not change it.',
+          });
+
+  if (!selectedNode) return null;
 
   return (
     <>
       <div className="InspectorField flex flex-col gap-1.5">
         <InspectorRow
           label={t('inspector.fields.id.label', {
-            defaultValue: 'Component ID',
+            defaultValue: 'Node ID',
           })}
           control={
-            <div className="InspectorInputRow group flex w-full items-center gap-1">
+            <div className="InspectorInputRow relative flex w-full items-center">
               <PdxInput
                 size="Small"
-                value={draftId}
-                disabled={!identityWriteAvailable}
+                className="pr-8 font-mono text-[11px]"
+                value={selectedNodeId}
+                readOnly
+                aria-label={t('inspector.fields.id.label', {
+                  defaultValue: 'Node ID',
+                })}
                 dataAttributes={{
                   'data-testid': 'inspector-id-input',
                 }}
-                onValueChange={(value) => setDraftId(value)}
-                onBlur={applyRename}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    applyRename();
-                  }
-                  if (event.key === 'Escape') {
-                    event.preventDefault();
-                    setDraftId(selectedNode.id);
-                  }
+                onFocus={(event) => {
+                  event.currentTarget.select();
                 }}
               />
-              {isDirty && (
-                <div className="InspectorFieldActions inline-flex items-center gap-1 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
-                  <button
-                    type="button"
-                    className="InspectorFieldAction inline-flex items-center justify-center rounded-full border-0 bg-transparent px-1 py-0.5 text-(--text-muted) hover:text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-45"
-                    onClick={applyRename}
-                    disabled={!canApply}
-                    aria-label={t('inspector.actions.apply', {
-                      defaultValue: 'Apply',
-                    })}
-                    title={t('inspector.actions.apply', {
-                      defaultValue: 'Apply',
-                    })}
-                  >
-                    <Check size={14} />
-                  </button>
-                </div>
-              )}
+              <button
+                type="button"
+                className="absolute top-1/2 right-1 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--border-strong)"
+                onClick={() => void copyNodeIdentity()}
+                aria-label={
+                  identityCopyState === 'copied'
+                    ? t('inspector.fields.id.copied', {
+                        defaultValue: 'Node ID copied.',
+                      })
+                    : t('inspector.fields.id.copy', {
+                        defaultValue: 'Copy node ID',
+                      })
+                }
+                title={
+                  identityCopyState === 'failed'
+                    ? identityFeedback
+                    : t('inspector.fields.id.copy', {
+                        defaultValue: 'Copy node ID',
+                      })
+                }
+                data-testid="inspector-id-copy"
+              >
+                {identityCopyState === 'copied' ? (
+                  <Check size={14} aria-hidden="true" />
+                ) : (
+                  <Copy size={14} aria-hidden="true" />
+                )}
+              </button>
             </div>
           }
         />
-        {isDuplicate && (
-          <div
-            className="InspectorWarning inline-flex items-center gap-1 text-[10px] text-(--danger-color)"
-            role="alert"
-          >
-            <AlertTriangle size={12} />
-            <span>
-              {t('inspector.fields.id.duplicate', {
-                defaultValue: 'ID already exists.',
-              })}
-            </span>
-          </div>
-        )}
-        {!identityWriteAvailable && identityDiagnostic ? (
-          <div className="text-[10px] text-(--text-muted)">
-            {identityDiagnostic}
-          </div>
-        ) : null}
+        <div className="text-[10px] text-(--text-muted)" aria-live="polite">
+          {identityFeedback}
+        </div>
       </div>
       {primaryTextField ? (
         <div className="InspectorField flex flex-col gap-1.5">
