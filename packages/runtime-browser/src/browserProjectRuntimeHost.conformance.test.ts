@@ -9,7 +9,8 @@ import { createBrowserProjectRuntimeHarness } from './__tests__/browserProjectRu
 const snapshot = (
   version: string,
   source = 'export const value = 1;',
-  dependencyInstall: 'reuse-if-matched' | 'isolated' = 'reuse-if-matched'
+  dependencyInstall: 'reuse-if-matched' | 'isolated' = 'reuse-if-matched',
+  withDataMock = false
 ) =>
   createExecutableProjectSnapshot({
     workspace: {
@@ -36,6 +37,15 @@ const snapshot = (
       test: ['filesystem', 'test'],
     },
     cacheHints: { dependencyInstall },
+    ...(withDataMock
+      ? {
+          dataMockProvision: {
+            fixtureSetId: 'browser-runtime-test',
+            emulatedAdapterIds: ['core.http'],
+            fixtures: [],
+          },
+        }
+      : {}),
   });
 
 describe('browser project runtime host conformance', () => {
@@ -49,6 +59,24 @@ describe('browser project runtime host conformance', () => {
     expect(
       harness.commands.filter((command) => command.args?.includes('install'))
     ).toHaveLength(2);
+    await host.dispose();
+  });
+
+  it('projects Data mock provisioning as a managed runtime file', async () => {
+    const harness = createBrowserProjectRuntimeHarness();
+    const host = createBrowserProjectRuntimeHost({
+      createRuntime: harness.createRuntime,
+    });
+    const preparation = await host.prepare(
+      'owner-data',
+      snapshot('data', undefined, 'reuse-if-matched', true)
+    );
+    await expect(
+      host.readFile(
+        'public/.prodivix/data-mock-provision.json',
+        preparation.lease
+      )
+    ).resolves.toContain('browser-runtime-test');
     await host.dispose();
   });
 

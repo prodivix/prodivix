@@ -1,11 +1,12 @@
 import type {
   ExecutionProviderCapability,
   ExecutionSourceTrace,
+  ExecutionValue,
   ExecutionWorkspaceSnapshotRef,
 } from './execution.types';
 
 export const EXECUTABLE_PROJECT_SNAPSHOT_FORMAT =
-  'prodivix.executable-project.v1' as const;
+  'prodivix.executable-project.v4' as const;
 
 export const EXECUTABLE_PROJECT_LIMITS = Object.freeze({
   maxFiles: 20_000,
@@ -17,6 +18,8 @@ export const EXECUTABLE_PROJECT_LIMITS = Object.freeze({
   maxSourceTracesPerFile: 256,
   maxEntrypoints: 32,
   maxPublicBuildConfigurationEntries: 128,
+  maxDataMockFixtures: 10_000,
+  maxDataMockProvisionBytes: 16 * 1024 * 1024,
 });
 
 export const EXECUTABLE_PROJECT_COMMANDS = Object.freeze([
@@ -30,6 +33,10 @@ export const EXECUTABLE_PROJECT_COMMANDS = Object.freeze([
 
 export const DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH =
   '.prodivix/test-report.json';
+export const DEFAULT_EXECUTABLE_PROJECT_BUILD_OUTPUT_DIRECTORY = 'dist';
+export const DEFAULT_EXECUTABLE_PROJECT_PREVIEW_ENTRY_FILE = 'index.html';
+export const EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH =
+  'public/.prodivix/data-mock-provision.json';
 
 export type ExecutableProjectCommandName =
   (typeof EXECUTABLE_PROJECT_COMMANDS)[number];
@@ -93,6 +100,67 @@ export type ExecutableProjectCacheHints = Readonly<{
   dependencyInstall: 'reuse-if-matched' | 'isolated';
 }>;
 
+export type ExecutableProjectDataMockPage =
+  | Readonly<{
+      kind: 'offset';
+      offset: number;
+      limit: number;
+      total?: number;
+      hasMore: boolean;
+    }>
+  | Readonly<{
+      kind: 'cursor';
+      nextCursor?: string;
+      previousCursor?: string;
+      hasMore: boolean;
+    }>;
+
+export type ExecutableProjectDataMockFixtureBehavior =
+  | Readonly<{
+      kind: 'result';
+      value: ExecutionValue;
+      empty: boolean;
+      page?: ExecutableProjectDataMockPage;
+      delayMs?: number;
+    }>
+  | Readonly<{
+      kind: 'error';
+      code: string;
+      retryable: boolean;
+      delayMs?: number;
+    }>
+  | Readonly<{
+      kind: 'crud';
+      collectionId: string;
+      action: 'list' | 'get' | 'create' | 'update' | 'delete';
+      idInputKey?: string;
+      valueInputKey?: string;
+      delayMs?: number;
+    }>;
+
+export type ExecutableProjectDataMockCollection = Readonly<{
+  id: string;
+  entityIdKey: string;
+  initialEntities: readonly Readonly<Record<string, ExecutionValue>>[];
+}>;
+
+export type ExecutableProjectDataMockFixture = Readonly<{
+  id: string;
+  documentId: string;
+  operationId: string;
+  operationKind: 'query' | 'mutation';
+  input?: ExecutionValue;
+  behavior: ExecutableProjectDataMockFixtureBehavior;
+}>;
+
+/** Runtime fixture provisioning is content-addressed execution input, never canonical authoring state. */
+export type ExecutableProjectDataMockProvision = Readonly<{
+  fixtureSetId: string;
+  emulatedAdapterIds: readonly string[];
+  collections?: readonly ExecutableProjectDataMockCollection[];
+  fixtures: readonly ExecutableProjectDataMockFixture[];
+}>;
+
 export type ExecutableProjectTestPlan = Readonly<{
   framework: 'vitest';
   command: ExecutableProjectCommand;
@@ -103,6 +171,28 @@ export type ExecutableProjectTestPlanInput = Readonly<{
   framework?: 'vitest';
   command?: ExecutableProjectCommand;
   reportFilePath?: string;
+}>;
+
+export type ExecutableProjectBuildPlan = Readonly<{
+  outputDirectoryPath: string;
+}>;
+
+export type ExecutableProjectBuildPlanInput = Readonly<{
+  outputDirectoryPath?: string;
+}>;
+
+export type ExecutableProjectPreviewPlan = Readonly<{
+  mode: 'static-bundle';
+  command: ExecutableProjectCommand;
+  outputDirectoryPath: string;
+  entryFilePath: string;
+}>;
+
+export type ExecutableProjectPreviewPlanInput = Readonly<{
+  mode?: 'static-bundle';
+  command?: ExecutableProjectCommand;
+  outputDirectoryPath?: string;
+  entryFilePath?: string;
 }>;
 
 export type ExecutableProjectSnapshot = Readonly<{
@@ -117,9 +207,12 @@ export type ExecutableProjectSnapshot = Readonly<{
   publicBuildConfiguration: readonly ExecutableProjectPublicBuildConfigurationEntry[];
   resourceHints: ExecutableProjectResourceHints;
   cacheHints: ExecutableProjectCacheHints;
+  dataMockProvision?: ExecutableProjectDataMockProvision;
   installCommand: ExecutableProjectCommand;
   previewCommand: ExecutableProjectCommand;
   buildCommand: ExecutableProjectCommand;
+  previewPlan: ExecutableProjectPreviewPlan;
+  buildPlan: ExecutableProjectBuildPlan;
   testPlan: ExecutableProjectTestPlan;
 }>;
 
@@ -133,8 +226,11 @@ export type ExecutableProjectSnapshotInput = Readonly<{
   publicBuildConfiguration?: readonly ExecutableProjectPublicBuildConfigurationEntry[];
   resourceHints?: ExecutableProjectResourceHints;
   cacheHints?: ExecutableProjectCacheHints;
+  dataMockProvision?: ExecutableProjectDataMockProvision;
   installCommand?: ExecutableProjectCommand;
   previewCommand?: ExecutableProjectCommand;
   buildCommand?: ExecutableProjectCommand;
+  previewPlan?: ExecutableProjectPreviewPlanInput;
+  buildPlan?: ExecutableProjectBuildPlanInput;
   testPlan?: ExecutableProjectTestPlanInput;
 }>;

@@ -13,6 +13,7 @@ import {
   createMemoryRemoteExecutionSnapshotStore,
   createRemoteExecutionClient,
   createRemoteExecutionControlPlane,
+  createRemoteExecutionHttpTransports,
   createScopeRemoteExecutionAuthorizationPolicy,
   createStaticRemoteExecutionProviderRouter,
 } from '@prodivix/runtime-remote';
@@ -20,6 +21,31 @@ import { createRemoteExecutionHttpHandler } from './httpHandler';
 
 let server: Server;
 let baseUrl: string;
+const httpPort = {
+  async request(input: {
+    url: string;
+    method: 'GET' | 'POST';
+    headers: Readonly<Record<string, string>>;
+    body?: Uint8Array;
+    maximumResponseBytes: number;
+  }) {
+    const response = await fetch(input.url, {
+      method: input.method,
+      headers: input.headers,
+      ...(input.body ? { body: Buffer.from(input.body) } : {}),
+    });
+    const body = new Uint8Array(await response.arrayBuffer());
+    if (body.byteLength > input.maximumResponseBytes)
+      throw new Error('HTTP response exceeded the caller byte limit.');
+    return {
+      status: response.status,
+      headers: {
+        'content-type': response.headers.get('content-type') ?? undefined,
+      },
+      body,
+    };
+  },
+} as const;
 const provider = createExecutionProviderDescriptor({
   id: 'prodivix.remote.http-test',
   version: '1',
@@ -119,21 +145,14 @@ describe('remote runner control-plane HTTP integration', () => {
   });
 
   it('runs the versioned Remote client through the authenticated HTTP boundary', async () => {
+    const { transport } = createRemoteExecutionHttpTransports({
+      baseUrl,
+      accessToken: 'client-token',
+      http: httpPort,
+    });
     const client = createRemoteExecutionClient({
       retryPolicy: { maxAttempts: 1 },
-      transport: {
-        async send(envelope) {
-          const response = await fetch(`${baseUrl}/v1/executions`, {
-            method: 'POST',
-            headers: {
-              authorization: 'Bearer client-token',
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify(envelope),
-          });
-          return response.json();
-        },
-      },
+      transport,
     });
     const result = await client.create({
       request,
@@ -159,6 +178,11 @@ describe('remote runner control-plane HTTP integration', () => {
           ).json();
         },
       },
+    });
+    const { contentTransport } = createRemoteExecutionHttpTransports({
+      baseUrl,
+      accessToken: 'client-token',
+      http: httpPort,
     });
     await createClient.create({
       request,
@@ -260,14 +284,13 @@ describe('remote runner control-plane HTTP integration', () => {
         digest: artifactDigest,
       },
     });
-    const download = await fetch(
-      `${baseUrl}/v1/executions/execution-1/artifacts/artifact-build/content`,
-      { headers: { authorization: 'Bearer client-token' } }
-    );
-    expect(download.status).toBe(200);
-    expect(new Uint8Array(await download.arrayBuffer())).toEqual(
-      artifactContents
-    );
+    await expect(
+      contentTransport.download({
+        executionId: 'execution-1',
+        artifactId: 'artifact-build',
+        maximumBytes: 1024,
+      })
+    ).resolves.toEqual(artifactContents);
     const stale = await fetch(
       `${baseUrl}/internal/v1/executions/execution-1/transition`,
       {

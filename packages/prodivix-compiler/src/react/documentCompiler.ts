@@ -33,6 +33,9 @@ export type CompilePIRReactDocumentInput = Readonly<{
   documentsById: Readonly<Record<string, WorkspacePirDocument>>;
   moduleIdByDocumentId: Readonly<Record<string, string>>;
   moduleNameByDocumentId: Readonly<Record<string, string>>;
+  dataOperationKindsByDocumentId: Readonly<
+    Record<string, Readonly<Record<string, 'query' | 'mutation'>>>
+  >;
   adapter?: TargetAdapter;
   packageResolver?: PackageResolverOptions;
 }>;
@@ -158,6 +161,7 @@ type __PdxRuntimePort = Readonly<{
   resolveCollectionPreviewState?(location: __PdxCollectionLocation): __PdxCollectionPreviewInput | undefined;
   reportCollectionProjectionIssues?(input: Readonly<{ location: __PdxCollectionLocation; issues: readonly __PdxCollectionProjectionIssue[] }>): void;
   resolveDataLifecycleSnapshot(request: __PdxDataLifecycleSnapshotRequest): __PdxDataLifecycleSnapshot | undefined;
+  subscribeDataLifecycle?(listener: () => void): () => void;
   resolveCodeValue(reference: __PdxCodeReference, scope: __PdxScope): unknown;
 }>;
 
@@ -222,14 +226,19 @@ export const compilePirReactDocument = (
     input.workspaceDocument.path
   );
   const diagnostics: CompileDiagnostic[] = [];
-  for (const dataId of Object.keys(document.logic?.dataById ?? {}).sort(
-    compareText
-  )) {
+  for (const [dataId, binding] of Object.entries(
+    document.logic?.dataById ?? {}
+  ).sort(([left], [right]) => compareText(left, right))) {
+    const operation =
+      input.dataOperationKindsByDocumentId[binding.operation.documentId]?.[
+        binding.operation.operationId
+      ];
+    if (operation) continue;
     diagnostics.push({
-      code: PIR_REACT_COMPILE_DIAGNOSTIC_CODES.dataRuntimeAdapterMissing,
+      code: PIR_REACT_COMPILE_DIAGNOSTIC_CODES.dataOperationUnresolved,
       severity: 'error',
       source: 'export',
-      message: `PIR data binding "${dataId}" requires a Data runtime adapter for React export.`,
+      message: `PIR data binding "${dataId}" references an unresolved Data operation for React export.`,
       path: `/docsById/${escapeJsonPointerToken(documentId)}/content/logic/dataById/${escapeJsonPointerToken(dataId)}`,
     });
   }
@@ -286,6 +295,10 @@ export default function ${moduleName}({
   const __pdxSetStateById = ${useCallbackLocal}<__PdxStateUpdater>((stateId, value) => {
     __pdxSetStateRecord((previous) => ({ ...previous, [stateId]: value }));
   }, []);
+  const [, __pdxSetDataRuntimeRevision] = ${useStateLocal}(0);
+  ${useEffectLocal}(() => __pdxRuntime.subscribeDataLifecycle?.(() => {
+    __pdxSetDataRuntimeRevision((previous) => previous + 1);
+  }), [__pdxRuntime]);
   const __pdxComponentPropsById = ${componentProps};
   const __pdxComponentVariantsById = ${componentVariants};
   const __pdxDataProjection = __pdxProjectDocumentDataLifecycle(

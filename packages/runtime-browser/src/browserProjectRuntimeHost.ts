@@ -1,5 +1,6 @@
 import {
   normalizeExecutableProjectPath,
+  projectExecutableProjectRuntimeFiles,
   type ExecutableProjectCommand,
   type ExecutableProjectSnapshot,
 } from '@prodivix/runtime-core';
@@ -177,7 +178,10 @@ const projectDependencyFingerprint = (
 
 const projectFileFingerprint = (snapshot: ExecutableProjectSnapshot): string =>
   JSON.stringify(
-    snapshot.files.map((file) => [file.path, contentFingerprint(file.contents)])
+    projectExecutableProjectRuntimeFiles(snapshot).map((file) => [
+      file.path,
+      contentFingerprint(file.contents),
+    ])
   );
 
 const parentDirectories = (path: string): string[] => {
@@ -287,24 +291,25 @@ export const createBrowserProjectRuntimeHost = (
     value: BrowserProjectRuntime,
     snapshot: ExecutableProjectSnapshot
   ): Promise<void> => {
+    const runtimeFiles = projectExecutableProjectRuntimeFiles(snapshot);
     if (!mounted) {
-      await value.mount(createBrowserProjectFileTree(snapshot.files));
+      await value.mount(createBrowserProjectFileTree(runtimeFiles));
       mounted = true;
       managedFiles = new Map(
-        snapshot.files.map((file) => [file.path, cloneContents(file.contents)])
+        runtimeFiles.map((file) => [file.path, cloneContents(file.contents)])
       );
       return;
     }
 
     const nextFiles = new Map(
-      snapshot.files.map((file) => [file.path, file.contents])
+      runtimeFiles.map((file) => [file.path, file.contents])
     );
     const deletedPaths = [...managedFiles.keys()]
       .filter((path) => !nextFiles.has(path))
       .sort((left, right) => right.length - left.length);
     for (const path of deletedPaths) await value.remove(path);
 
-    const changedFiles = snapshot.files.filter((file) => {
+    const changedFiles = runtimeFiles.filter((file) => {
       const previous = managedFiles.get(file.path);
       return previous === undefined || !contentsEqual(previous, file.contents);
     });
@@ -317,7 +322,7 @@ export const createBrowserProjectRuntimeHost = (
       await value.writeFile(file.path, file.contents);
     }
     managedFiles = new Map(
-      snapshot.files.map((file) => [file.path, cloneContents(file.contents)])
+      runtimeFiles.map((file) => [file.path, cloneContents(file.contents)])
     );
   };
 

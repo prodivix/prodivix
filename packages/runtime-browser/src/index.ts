@@ -9,6 +9,10 @@ export {
 export { createBrowserAnimationIdFactory } from './browserAnimationIds';
 export { createBrowserProjectFileTree } from './browserProjectFileTree';
 export {
+  createBrowserNetworkAdapter,
+  BrowserNetworkRequestError,
+} from './browserNetworkAdapter';
+export {
   createBrowserProjectRunner,
   WEB_CONTAINER_EXECUTION_PROVIDER_ID,
 } from './browserProjectRunner';
@@ -32,6 +36,12 @@ export type {
   CreateBrowserAnimationEffectStoreInput,
 } from './browserAnimationEffectStore';
 export type { BrowserProjectFileTree } from './browserProjectFileTree';
+export type {
+  BrowserNetworkAdapter,
+  BrowserNetworkRequest,
+  BrowserNetworkResponse,
+  CreateBrowserNetworkAdapterOptions,
+} from './browserNetworkAdapter';
 export type {
   BrowserProjectRunner,
   BrowserProjectRunnerOptions,

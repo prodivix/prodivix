@@ -10,6 +10,7 @@ import {
   type WorkspacePirDocument,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
+import type { ExecutableProjectDataMockProvision } from '@prodivix/runtime-core';
 import { compileAnimationExportContributions } from '#src/animation/compileAnimation';
 import type { TargetAdapter } from '#src/core/adapter';
 import {
@@ -54,6 +55,10 @@ import {
   compileWorkspacePirReactModules,
   createPirReactModuleId,
 } from '#src/react/index';
+import {
+  createWorkspaceStandaloneDataRuntimeModule,
+  WORKSPACE_DATA_RUNTIME_MODULE_ID,
+} from '#src/react/standaloneDataRuntime';
 import type {
   ReactExportBundle,
   ReactGeneratorCodeArtifact,
@@ -65,6 +70,7 @@ export type WorkspaceReactViteCompileOptions = Readonly<{
   packageResolver?: PackageResolverOptions;
   exportContributions?: ExportProgramContribution[];
   projectName?: string;
+  dataMockProvision?: ExecutableProjectDataMockProvision;
 }>;
 
 type CompiledWorkspacePirDocument = {
@@ -494,6 +500,13 @@ const createWorkspaceAppModule = (input: {
       imported: 'useSyncExternalStore',
       local: 'useSyncExternalStore',
     },
+    {
+      kind: 'named',
+      source: WORKSPACE_DATA_RUNTIME_MODULE_ID,
+      targetModuleId: WORKSPACE_DATA_RUNTIME_MODULE_ID,
+      imported: 'createWorkspaceDataRuntime',
+      local: 'createWorkspaceDataRuntime',
+    },
     ...input.compiledDocuments.map((compiled): ExportImportIntent => ({
       kind: 'default',
       source: compiled.module.id,
@@ -634,6 +647,7 @@ ${routeTable}
 ] as const;
 
 const workspacePirRuntime = {
+  ...createWorkspaceDataRuntime(),
   dispatchTrigger(input: Readonly<{ binding: unknown }>) {
     const binding = input.binding && typeof input.binding === 'object'
       ? input.binding as Readonly<Record<string, unknown>>
@@ -643,9 +657,6 @@ const workspacePirRuntime = {
     }
   },
   resolveCodeValue() {
-    return undefined;
-  },
-  resolveDataLifecycleSnapshot() {
     return undefined;
   },
 } as const;
@@ -822,6 +833,8 @@ export const compileWorkspaceToExportProgram = (
     executableModuleIdByArtifactId: code.executableModuleIdByArtifactId,
     routeTopology,
   });
+  const standaloneDataRuntime =
+    createWorkspaceStandaloneDataRuntimeModule(workspace);
   const projectContributions: ExportProgramContribution[] = [
     pirCompilation.contribution,
     code.contribution,
@@ -848,7 +861,7 @@ export const compileWorkspaceToExportProgram = (
           },
         },
       ],
-      modules: [app.module],
+      modules: [standaloneDataRuntime, app.module],
       diagnostics: [
         ...validationDiagnostics,
         ...unsupportedLayoutDiagnostics,

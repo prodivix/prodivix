@@ -11,6 +11,7 @@ import {
   selectWorkspaceId,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
+import { useAuthStore } from '@/auth/useAuthStore';
 import {
   ExecutionCenter,
   executionSessionCoordinator,
@@ -91,6 +92,7 @@ export function BlueprintEditor({
   compactHeader = false,
 }: BlueprintEditorProps = {}) {
   const workspace = useEditorStore((state) => state.workspace);
+  const accessToken = useAuthStore((state) => state.token);
   const workspaceId = useEditorStore(selectWorkspaceId);
   const activeDocumentId = useEditorStore(selectActiveDocumentId);
   const setActiveDocumentId = useEditorStore(
@@ -126,7 +128,9 @@ export function BlueprintEditor({
   const isRunMode = canvas.canvasMode === 'run';
   const projectRunner = useBlueprintProjectRunner(
     controller.workspace,
-    canAuthor && isRunMode
+    canAuthor && isRunMode,
+    viewportBar.runProvider,
+    accessToken
   );
   const projectExecutionSession = useExecutionSession(projectRunner.sessionId);
   const visibleExecutionSessionId = isRunMode
@@ -435,6 +439,9 @@ export function BlueprintEditor({
       <BlueprintEditorViewportBar
         canvasMode={viewportBar.canvasMode}
         onCanvasModeChange={viewportBar.onCanvasModeChange}
+        runProvider={viewportBar.runProvider}
+        remoteAvailable={Boolean(accessToken)}
+        onRunProviderChange={viewportBar.onRunProviderChange}
         viewportWidth={viewportBar.viewportWidth}
         viewportHeight={viewportBar.viewportHeight}
         onViewportWidthChange={viewportBar.onViewportWidthChange}

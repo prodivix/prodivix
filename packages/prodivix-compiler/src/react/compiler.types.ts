@@ -22,7 +22,7 @@ import type {
 } from '#src/export/types';
 
 export const PIR_REACT_COMPILE_DIAGNOSTIC_CODES = Object.freeze({
-  dataRuntimeAdapterMissing: 'PIR_EXPORT_DATA_RUNTIME_ADAPTER_MISSING',
+  dataOperationUnresolved: 'PIR_EXPORT_DATA_OPERATION_UNRESOLVED',
 } as const);
 
 export type PIRReactRuntimeTriggerDispatch = Readonly<{
@@ -63,6 +63,7 @@ export type PIRReactRuntimePort = Readonly<{
   resolveDataLifecycleSnapshot(
     request: PIRReactDataLifecycleSnapshotRequest
   ): DataLifecycleSnapshot | undefined;
+  subscribeDataLifecycle?(listener: () => void): () => void;
   resolveCodeValue(
     reference: PIRReactCodeReference,
     scope: PIRRuntimeValueScope

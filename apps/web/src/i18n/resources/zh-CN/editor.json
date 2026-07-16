@@ -9,7 +9,12 @@
     "openPreview": "在新标签页打开预览",
     "clear": "清空控制台",
     "empty": "暂无运行输出。",
+    "networkEmpty": "暂无脱敏网络记录。",
     "eventCount": "{{count}} 条事件",
+    "surface": {
+      "console": "控制台",
+      "network": "网络"
+    },
     "filter": {
       "all": "全部",
       "errors": "错误"

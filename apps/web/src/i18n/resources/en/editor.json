@@ -9,7 +9,12 @@
     "openPreview": "Open preview in a new tab",
     "clear": "Clear console",
     "empty": "No execution output yet.",
+    "networkEmpty": "No sanitized network traces yet.",
     "eventCount": "{{count}} events",
+    "surface": {
+      "console": "Console",
+      "network": "Network"
+    },
     "filter": {
       "all": "All",
       "errors": "Errors"

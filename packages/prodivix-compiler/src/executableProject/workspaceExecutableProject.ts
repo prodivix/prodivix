@@ -3,6 +3,7 @@ import {
   createExecutableProjectSnapshot,
   DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
   type ExecutableProjectCommand,
+  type ExecutableProjectDataMockProvision,
   type ExecutableProjectSnapshot,
   type ExecutionSourceTrace,
   type ExecutionWorkspaceSnapshotRef,
@@ -21,6 +22,10 @@ export type WorkspaceExecutableProjectResult =
       status: 'blocked';
       diagnostics: readonly CompileDiagnostic[];
     }>;
+
+export type GenerateWorkspaceExecutableProjectOptions = Readonly<{
+  dataMockProvision?: ExecutableProjectDataMockProvision;
+}>;
 
 type PackageManagerName = 'npm' | 'pnpm' | 'yarn' | 'bun';
 
@@ -136,9 +141,14 @@ const createWorkspaceExecutionSnapshotRef = (
 
 /** Compiles one exact Workspace revision into the provider-neutral project contract. */
 export const generateWorkspaceReactViteExecutableProject = (
-  workspace: WorkspaceSnapshot
+  workspace: WorkspaceSnapshot,
+  options: GenerateWorkspaceExecutableProjectOptions = {}
 ): WorkspaceExecutableProjectResult => {
-  const bundle = generateWorkspaceReactViteBundle(workspace);
+  const bundle = generateWorkspaceReactViteBundle(workspace, {
+    ...(options.dataMockProvision
+      ? { dataMockProvision: options.dataMockProvision }
+      : {}),
+  });
   const blockingDiagnostics =
     bundle.metadata?.blockingDiagnostics ??
     bundle.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
@@ -181,7 +191,6 @@ export const generateWorkspaceReactViteExecutableProject = (
         'console',
         'dependency-install',
         'filesystem',
-        'hmr',
         'source-trace',
         'streaming-logs',
       ],
@@ -206,6 +215,9 @@ export const generateWorkspaceReactViteExecutableProject = (
       maxOutputBytes: 16 * 1024 * 1024,
     },
     cacheHints: { dependencyInstall: 'reuse-if-matched' },
+    ...(options.dataMockProvision
+      ? { dataMockProvision: options.dataMockProvision }
+      : {}),
     installCommand: packageManagerCommand(packageManager, [
       'install',
       ...(packageManager === 'pnpm' ? ['--no-frozen-lockfile'] : []),
@@ -218,6 +230,13 @@ export const generateWorkspaceReactViteExecutableProject = (
       '0.0.0.0',
     ]),
     buildCommand: packageManagerCommand(packageManager, ['run', 'build']),
+    previewPlan: {
+      mode: 'static-bundle',
+      command: packageManagerCommand(packageManager, ['run', 'build']),
+      outputDirectoryPath: 'dist',
+      entryFilePath: 'index.html',
+    },
+    buildPlan: { outputDirectoryPath: 'dist' },
     testPlan: {
       framework: 'vitest',
       command: packageManagerCommand(packageManager, [

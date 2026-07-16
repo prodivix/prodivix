@@ -590,6 +590,12 @@
     "quickPresetMenu": "预设",
     "size": "{{width}}x{{height}}",
     "moreDevices": "更多设备",
+    "runProvider": {
+      "label": "运行器",
+      "browser": "浏览器",
+      "remote": "远端隔离",
+      "remoteSignIn": "远端（需登录）"
+    },
     "modes": {
       "design": "设计",
       "designTitle": "设计模式（Ctrl+Alt+I）",

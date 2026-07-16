@@ -109,9 +109,12 @@ export type RemoteExecutableProjectSnapshotWire = Readonly<{
   publicBuildConfiguration: ExecutableProjectSnapshot['publicBuildConfiguration'];
   resourceHints: ExecutableProjectSnapshot['resourceHints'];
   cacheHints: ExecutableProjectSnapshot['cacheHints'];
+  dataMockProvision?: ExecutableProjectSnapshot['dataMockProvision'];
   installCommand: ExecutableProjectSnapshot['installCommand'];
   previewCommand: ExecutableProjectSnapshot['previewCommand'];
   buildCommand: ExecutableProjectSnapshot['buildCommand'];
+  previewPlan: ExecutableProjectSnapshot['previewPlan'];
+  buildPlan: ExecutableProjectSnapshot['buildPlan'];
   testPlan: ExecutableProjectSnapshot['testPlan'];
 }>;
 

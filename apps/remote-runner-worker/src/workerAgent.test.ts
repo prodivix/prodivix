@@ -6,6 +6,8 @@ import {
   createExecutableProjectSnapshot,
   createExecutionProviderDescriptor,
   createExecutionRequest,
+  createExecutionTestReport,
+  toExecutionTestReportValue,
 } from '@prodivix/runtime-core';
 import type { RemoteExecutionClaimResult } from '@prodivix/runtime-remote';
 import { createFilesystemProcessSandbox } from './filesystemProcessSandbox';
@@ -176,6 +178,89 @@ describe('remote runner worker', () => {
     await expect(agent.pollOnce()).resolves.toBe(false);
   });
 
+  it('publishes sanitized install Network metadata as a transport-neutral trace', async () => {
+    const events: Parameters<
+      RemoteWorkerControlPlaneClient['appendEvent']
+    >[0]['event'][] = [];
+    let claimed = false;
+    const client: RemoteWorkerControlPlaneClient = {
+      async claim() {
+        if (claimed) return undefined;
+        claimed = true;
+        return claim();
+      },
+      async renew() {
+        return { lease: claim().lease, cancellationRequested: false };
+      },
+      async snapshot() {
+        return snapshot;
+      },
+      async transition() {
+        return true;
+      },
+      async appendEvent(input) {
+        events.push(input.event);
+        return 'stored';
+      },
+      async uploadArtifact() {
+        return 'stored';
+      },
+    };
+    const sandbox: RemoteWorkerSandbox = {
+      async execute() {
+        return {
+          status: 'succeeded',
+          stdout: '',
+          stderr: '',
+          outputTruncated: false,
+          networkTraces: [
+            {
+              requestId: 'install-trace-1:1',
+              method: 'CONNECT',
+              sanitizedUrl: 'https://registry.npmjs.org/',
+              protocol: 'https',
+              startedAt: 100,
+              completedAt: 125,
+              outcome: 'allowed',
+              status: 200,
+              requestBytes: 12,
+              responseBytes: 24,
+            },
+          ],
+        };
+      },
+    };
+    const agent = createRemoteWorkerAgent({
+      workerId: 'worker-1',
+      providerId: provider.id,
+      client,
+      sandbox,
+      leaseDurationMs: 100,
+      heartbeatIntervalMs: 20,
+      defaultTimeoutMs: 1_000,
+      defaultMaximumOutputBytes: 1_000,
+    });
+
+    await expect(agent.pollOnce()).resolves.toBe(true);
+    expect(events).toEqual([
+      {
+        kind: 'trace',
+        trace: expect.objectContaining({
+          name: 'network.request',
+          phase: 'event',
+          detail: expect.objectContaining({
+            format: 'prodivix.execution-network-trace.v1',
+            phase: 'dependency-install',
+            runtimeZone: 'build',
+            sanitizedUrl: 'https://registry.npmjs.org/',
+            redacted: true,
+          }),
+        }),
+      },
+    ]);
+    expect(JSON.stringify(events)).not.toMatch(/authorization|cookie|token=/u);
+  });
+
   it('aborts the sandbox and never publishes terminal state after lease loss', async () => {
     const transitions: string[] = [];
     const client: RemoteWorkerControlPlaneClient = {
@@ -329,8 +414,151 @@ describe('remote runner worker', () => {
     ]);
   });
 
+  it('publishes a canonical test.report trace before uploading the report artifact', async () => {
+    const testProvider = createExecutionProviderDescriptor({
+      id: 'remote-worker-test-report',
+      version: '1',
+      isolation: 'remote-isolated',
+      profiles: ['test'],
+      runtimeZones: ['test'],
+      invocationKinds: ['test'],
+      capabilities: ['artifacts', 'filesystem', 'test'],
+    });
+    const testRequest = createExecutionRequest({
+      requestId: 'request-test-report',
+      profile: 'test',
+      runtimeZone: 'test',
+      workspace: snapshot.workspace,
+      invocation: {
+        kind: 'test',
+        targetRef: { kind: 'workspace', workspaceId: 'workspace-1' },
+      },
+      requiredCapabilities: ['artifacts', 'filesystem', 'test'],
+    });
+    const testClaim = (): RemoteExecutionClaimResult => {
+      const base = claim();
+      return {
+        ...base,
+        execution: {
+          ...base.execution,
+          request: testRequest,
+          record: {
+            ...base.execution.record,
+            requestId: testRequest.requestId,
+            provider: testProvider,
+          },
+        },
+      };
+    };
+    const report = createExecutionTestReport({
+      reportId: 'report-1',
+      tool: { name: 'vitest' },
+      completedAt: 2_000,
+      files: [
+        {
+          fileId: 'src/App.test.tsx',
+          path: 'src/App.test.tsx',
+          status: 'passed',
+          cases: [
+            {
+              caseId: 'src/App.test.tsx#1',
+              name: 'renders',
+              status: 'passed',
+            },
+          ],
+        },
+      ],
+    });
+    const events: Array<
+      Parameters<RemoteWorkerControlPlaneClient['appendEvent']>[0]['event']
+    > = [];
+    const operationOrder: string[] = [];
+    const client: RemoteWorkerControlPlaneClient = {
+      async claim() {
+        return testClaim();
+      },
+      async renew() {
+        return { lease: testClaim().lease, cancellationRequested: false };
+      },
+      async snapshot() {
+        return snapshot;
+      },
+      async transition(input) {
+        operationOrder.push(`transition:${input.status}`);
+        return true;
+      },
+      async appendEvent(input) {
+        operationOrder.push(`event:${input.event.kind}`);
+        events.push(input.event);
+        return 'stored';
+      },
+      async uploadArtifact() {
+        operationOrder.push('artifact');
+        return 'stored';
+      },
+    };
+    const agent = createRemoteWorkerAgent({
+      workerId: 'worker-1',
+      providerId: testProvider.id,
+      client,
+      sandbox: {
+        async execute() {
+          return {
+            status: 'succeeded',
+            stdout: '',
+            stderr: '',
+            outputTruncated: false,
+            artifacts: [
+              {
+                artifactId: 'test-report',
+                kind: 'report',
+                mediaType: 'application/vnd.prodivix.test-report+json',
+                sourceTrace: [
+                  {
+                    sourceRef: {
+                      kind: 'workspace',
+                      workspaceId: 'workspace-1',
+                    },
+                  },
+                ],
+                contents: Buffer.from(
+                  JSON.stringify(toExecutionTestReportValue(report)),
+                  'utf8'
+                ),
+              },
+            ],
+          };
+        },
+      },
+      leaseDurationMs: 100,
+      heartbeatIntervalMs: 20,
+      defaultTimeoutMs: 1_000,
+      defaultMaximumOutputBytes: 1_000,
+    });
+
+    await expect(agent.pollOnce()).resolves.toBe(true);
+    expect(operationOrder).toEqual([
+      'transition:running',
+      'event:trace',
+      'artifact',
+      'transition:succeeded',
+    ]);
+    expect(events[0]).toMatchObject({
+      kind: 'trace',
+      trace: {
+        name: 'test.report',
+        detail: { kind: 'test-report', status: 'passed' },
+      },
+    });
+  });
+
   it('fails deterministically when durable artifact budget is exhausted', async () => {
     const transitions: Array<{ status: string; reason?: string }> = [];
+    let uploadedDescriptor:
+      | Parameters<
+          RemoteWorkerControlPlaneClient['uploadArtifact']
+        >[0]['descriptor']
+      | undefined;
     const client: RemoteWorkerControlPlaneClient = {
       async claim() {
         return claim();
@@ -348,7 +576,8 @@ describe('remote runner worker', () => {
       async appendEvent() {
         return 'stored';
       },
-      async uploadArtifact() {
+      async uploadArtifact(input) {
+        uploadedDescriptor = input.descriptor;
         return 'budget-exceeded';
       },
     };
@@ -365,15 +594,9 @@ describe('remote runner worker', () => {
             outputTruncated: false,
             artifacts: [
               {
-                descriptor: {
-                  artifactId: 'artifact-1',
-                  kind: 'bundle',
-                  mediaType: 'application/zip',
-                  size: 1,
-                  digest: `sha256-${'a'.repeat(64)}`,
-                  expiresAt: 10_000,
-                  authorizationScope: 'execution:execution-1',
-                },
+                artifactId: 'artifact-1',
+                kind: 'bundle',
+                mediaType: 'application/zip',
                 contents: new Uint8Array([1]),
               },
             ],
@@ -384,11 +607,23 @@ describe('remote runner worker', () => {
       heartbeatIntervalMs: 20,
       defaultTimeoutMs: 1_000,
       defaultMaximumOutputBytes: 1_000,
+      artifactRetentionMs: 5_000,
+      now: () => 2_000,
     });
     await expect(agent.pollOnce()).resolves.toBe(true);
     expect(transitions).toEqual([
       { status: 'running', reason: undefined },
       { status: 'failed', reason: 'artifact-budget-exceeded' },
     ]);
+    expect(uploadedDescriptor).toEqual({
+      artifactId: 'artifact-1',
+      kind: 'bundle',
+      mediaType: 'application/zip',
+      size: 1,
+      digest:
+        'sha256-4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a',
+      expiresAt: 7_000,
+      authorizationScope: 'execution:execution-1',
+    });
   });
 });

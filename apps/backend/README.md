@@ -16,6 +16,7 @@ apps/backend/
 │   │   ├── auth/              # 用户、会话与认证 API
 │   │   ├── integrations/      # GitHub App 等第三方集成
 │   │   ├── project/           # 项目元数据、社区查询与发布投影
+│   │   ├── remoteexecution/   # 用户授权的 Remote Runner gateway 与 execution grant
 │   │   └── workspace/         # Workspace snapshot、Atomic Commit 与语义校验
 │   └── platform/
 │       ├── database/          # PostgreSQL 连接与启动时迁移
@@ -68,6 +69,25 @@ cd apps/backend && go build ./...
 cd apps/backend && go test ./...
 cd apps/backend && go fmt ./...
 ```
+
+## Remote Runner gateway
+
+配置 `REMOTE_RUNNER_CONTROL_PLANE_URL` 与仅服务端可见的
+`REMOTE_RUNNER_CONTROL_PLANE_TOKEN` 后，Backend 暴露认证后的
+`POST /api/remote-executions` 和 artifact content proxy。create 前必须通过 Workspace owner
+校验；成功后 execution grant 持久化到 PostgreSQL，后续 status/events/cancel/artifact 请求均按
+当前用户校验。Control Plane token 不进入 Web、Workspace、ExecutionRequest、日志或 artifact。
+
+`REMOTE_RUNNER_GATEWAY_TIMEOUT` 默认 `30s`。生产 Control Plane URL 必须使用 HTTPS；仅
+localhost/loopback 开发环境允许 HTTP。
+
+配置 `REMOTE_PREVIEW_HOST_URL`、`REMOTE_PREVIEW_PUBLIC_BASE_URL`、仅服务端可见的
+`REMOTE_PREVIEW_HOST_TOKEN`、`REMOTE_PREVIEW_HOST_TIMEOUT` 与
+`REMOTE_PREVIEW_SESSION_TTL` 后，Backend 还会暴露
+`POST /api/remote-executions/:executionId/artifacts/:artifactId/preview-sessions`。该入口先重检
+execution owner，再从 Control Plane 解析权威 descriptor 与 artifact，交叉验证 ready/healthy、scope、
+expiry、snapshot、media type、size、ETag 与实际 SHA-256，最后交给独立 Preview Host。Host 返回的
+capability origin 必须属于配置的公网域名后缀。Web 只收到短期 origin，不会收到两类服务凭据。
 
 ## 数据库
 

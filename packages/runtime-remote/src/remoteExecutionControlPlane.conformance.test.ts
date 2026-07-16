@@ -1,3 +1,7 @@
+import {
+  createExecutionNetworkTrace,
+  toExecutionNetworkTraceValue,
+} from '@prodivix/runtime-core';
 import { describe, expect, it } from 'vitest';
 import {
   createActiveExecutionQuotaPolicy,
@@ -164,6 +168,32 @@ describe('remote execution control plane conformance', () => {
     ).rejects.toMatchObject({ remoteCode: 'not-found' });
   });
 
+  it('rejects upload and reference snapshots that exceed the routed provider capabilities', async () => {
+    const { controlPlane, snapshots } = createHarness();
+    const incompatible = createRemoteFixtureSnapshot(undefined, [
+      'filesystem',
+      'hmr',
+    ]);
+    await expect(
+      client(controlPlane, principal()).create({
+        request: createRemoteFixtureRequest('request-upload-capability'),
+        snapshot: { kind: 'upload', snapshot: incompatible },
+      })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+
+    await snapshots.put('user-1', incompatible, 900);
+    await expect(
+      client(controlPlane, principal()).create({
+        request: createRemoteFixtureRequest('request-reference-capability'),
+        snapshot: {
+          kind: 'reference',
+          snapshotId: incompatible.workspace.snapshotId,
+          contentDigest: incompatible.contentDigest,
+        },
+      })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+  });
+
   it('claims FIFO, renews the active lease, and rejects competing workers', async () => {
     const { controlPlane, setTime } = createHarness();
     await start(controlPlane, 'request-1');
@@ -201,6 +231,97 @@ describe('remote execution control plane conformance', () => {
         leaseDurationMs: 200,
       })
     ).resolves.toBeUndefined();
+  });
+
+  it('normalizes Network events before every durable repository path', async () => {
+    const { controlPlane, repository } = createHarness();
+    const started = await start(controlPlane);
+    const executionId = started.execution.executionId;
+    const claimed = await controlPlane.claimNext({
+      workerId: 'worker-1',
+      providerId: remoteFixtureProvider.id,
+      leaseDurationMs: 100,
+    });
+    const detail = toExecutionNetworkTraceValue(
+      createExecutionNetworkTrace({
+        requestId: 'request-1',
+        phase: 'runtime',
+        runtimeZone: 'client',
+        mode: 'live',
+        adapter: 'core.http',
+        method: 'GET',
+        sanitizedUrl: 'https://api.example.test/',
+        protocol: 'https',
+        startedAt: 1_000,
+        completedAt: 1_001,
+        outcome: 'allowed',
+        status: 200,
+        correlation: {
+          kind: 'data-operation',
+          documentId: 'data-products',
+          operationId: 'list',
+          invocationId: 'invocation-1',
+          sequence: 1,
+          attempt: 1,
+        },
+      })
+    );
+
+    await expect(
+      controlPlane.appendWorkerEvent({
+        executionId,
+        workerId: 'worker-1',
+        leaseToken: claimed!.lease.token,
+        workerEventId: 'network-1',
+        event: {
+          kind: 'trace',
+          trace: {
+            traceId: 'network:execution-1',
+            spanId: 'request-1',
+            name: 'network.request',
+            phase: 'event',
+            detail,
+          },
+        },
+      })
+    ).resolves.toMatchObject({ kind: 'stored' });
+    expect(
+      (await repository.get(executionId))?.events.find(
+        ({ event }) =>
+          event.kind === 'trace' && event.trace.name === 'network.request'
+      )
+    ).toMatchObject({
+      event: {
+        trace: {
+          detail: {
+            correlation: { invocationId: 'invocation-1' },
+            redacted: true,
+          },
+        },
+      },
+    });
+
+    await expect(
+      controlPlane.appendWorkerEvent({
+        executionId,
+        workerId: 'worker-1',
+        leaseToken: claimed!.lease.token,
+        workerEventId: 'network-unsafe',
+        event: {
+          kind: 'trace',
+          trace: {
+            traceId: 'network:execution-1',
+            spanId: 'request-unsafe',
+            name: 'network.request',
+            phase: 'event',
+            detail: {
+              ...(detail as Readonly<Record<string, unknown>>),
+              headers: { authorization: 'secret' },
+            },
+          },
+        },
+      })
+    ).rejects.toThrow(/canonical Network trace/u);
   });
 
   it('reclaims expired work with a new fencing token and rejects the old lease', async () => {
@@ -280,5 +401,56 @@ describe('remote execution control plane conformance', () => {
     expect(
       (await executionClient.readEvents({ executionId, afterCursor: 0 })).events
     ).toHaveLength(2);
+  });
+
+  it('replays artifact grants as authority-free canonical Job events', async () => {
+    const { controlPlane } = createHarness();
+    const started = await start(controlPlane, 'request-artifact');
+    const executionId = started.execution.executionId;
+    const claimed = await controlPlane.claimNext({
+      workerId: 'worker-1',
+      providerId: remoteFixtureProvider.id,
+      leaseDurationMs: 100,
+    });
+    await controlPlane.transition({
+      executionId,
+      workerId: 'worker-1',
+      leaseToken: claimed!.lease.token,
+      status: 'running',
+    });
+    const contents = new Uint8Array([1]);
+    await expect(
+      controlPlane.putArtifact({
+        executionId,
+        workerId: 'worker-1',
+        leaseToken: claimed!.lease.token,
+        workerEventId: 'artifact-1',
+        descriptor: {
+          artifactId: 'bundle-1',
+          kind: 'bundle',
+          mediaType: 'application/json',
+          size: contents.byteLength,
+          digest:
+            'sha256-4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a',
+          expiresAt: 2_000,
+          authorizationScope: `execution:${executionId}`,
+        },
+        contents,
+      })
+    ).resolves.toMatchObject({ kind: 'stored' });
+
+    const replay = await client(controlPlane, principal()).readEvents({
+      executionId,
+      afterCursor: 0,
+    });
+    const artifactEvent = replay.events.find(
+      ({ event }) => event.kind === 'artifact'
+    )?.event;
+    expect(artifactEvent).toMatchObject({
+      kind: 'artifact',
+      artifact: { artifactId: 'bundle-1', kind: 'bundle' },
+    });
+    expect(JSON.stringify(artifactEvent)).not.toContain('authorizationScope');
+    expect(JSON.stringify(artifactEvent)).not.toContain('expiresAt');
   });
 });

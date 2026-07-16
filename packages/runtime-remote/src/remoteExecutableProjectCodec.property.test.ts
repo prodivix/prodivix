@@ -24,6 +24,7 @@ describe('remote execution codec properties', () => {
     );
     const snapshot = createRemoteFixtureSnapshot();
     const wire = encodeRemoteExecutableProjectSnapshot(snapshot);
+    expect(wire.dataMockProvision).toEqual(snapshot.dataMockProvision);
     expect(() =>
       decodeRemoteExecutableProjectSnapshot({
         ...wire,
@@ -36,6 +37,12 @@ describe('remote execution codec properties', () => {
         contentDigest: 'sha256-not-a-digest',
       })
     ).toThrow(/canonical SHA-256 digest/u);
+    expect(() =>
+      decodeRemoteExecutableProjectSnapshot({
+        ...wire,
+        format: 'prodivix.executable-project.v3',
+      })
+    ).toThrow(/format is unsupported/u);
   });
 
   it('rejects unknown snapshot and nested source-trace fields', () => {

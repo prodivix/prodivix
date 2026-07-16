@@ -1,4 +1,24 @@
 export {
+  createDataNetworkCorrelation,
+  createDataOperationAdapterRegistry,
+  createDataOperationInvocation,
+  createDataOperationNetworkTrace,
+  DATA_OPERATION_ACTIVATIONS,
+  executeDataOperation,
+} from './dataRuntime';
+export type {
+  DataOperationActivation,
+  DataOperationAbortSignal,
+  DataOperationAdapter,
+  DataOperationAdapterDescriptor,
+  DataOperationAdapterInput,
+  DataOperationAdapterRegistry,
+  DataOperationAdapterResult,
+  DataOperationInvocation,
+  ExecuteDataOperationInput,
+  ExecuteDataOperationResult,
+} from './dataRuntime';
+export {
   createDataLifecycleSnapshot,
   createDataOperationReference,
   normalizeDataSourceDocument,

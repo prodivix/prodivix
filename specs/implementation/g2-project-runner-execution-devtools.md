@@ -47,7 +47,10 @@ capability、真实 network、server/edge Secret、完整 bundler 或独立 proc
 ### 未实现
 
 - Console 尚未形成完整的 structured、bounded、SourceTrace-aware 产品面。
-- Terminal 和 Network 尚无 transport-neutral session/trace contract。
+- Terminal 尚无 transport-neutral session contract；Network 已建立 metadata-only strict current contract、
+  Remote install proxy、Browser fetch、Data HTTP adapter、operation/invocation correlation 与基础产品视图，
+  generated-project mock query runtime 与 Browser/Remote runtime asset projection 已接入；standalone
+  mutation/live HTTP、policy correlation 与 Remote server/edge Data adapter 尚未接入。
 - Browser/Remote provider 切换、重连、artifact expiry、quota 与 permission UX 未完成。
 - Data operation correlation、Secret redaction 与 Golden CRUD 调试旅程未完成。
 
@@ -170,10 +173,11 @@ GraphQL 子请求作为相关 span 呈现，不覆盖成一条含糊记录。
 
 ### R4：Network
 
-- [ ] transport-neutral Network trace/span contract 与预算。
-- [ ] Browser fetch/data adapter 与 Remote proxy/agent adapter。
-- [ ] cache/retry/pagination/Data operation/source trace correlation。
-- [ ] header/query/body redaction、Secret canary 和 export-safe copy。
+- [x] transport-neutral metadata-only Network trace/span current contract 与 durable event 预算复用。
+- [x] Remote install allowlist proxy/agent、Browser client-safe fetch 与 Data HTTP adapter。
+- [x] Data operation/invocation/sequence/attempt/source trace correlation；cache/retry/pagination 待实现。
+- [x] header/query/body/credential 在 contract 层不可表达，Web 只接受 strict decode。
+- [ ] Secret canary 和 export-safe copy。
 
 完成条件：Browser/Remote 的 trace 字段语义一致，敏感字段不会抵达客户端。
 

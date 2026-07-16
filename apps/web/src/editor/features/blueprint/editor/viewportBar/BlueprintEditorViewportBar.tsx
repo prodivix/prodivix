@@ -17,6 +17,9 @@ import type { BlueprintCanvasMode } from '../canvas';
 type BlueprintEditorViewportBarProps = {
   canvasMode: BlueprintCanvasMode;
   onCanvasModeChange: (mode: BlueprintCanvasMode) => void;
+  runProvider: 'browser' | 'remote';
+  remoteAvailable: boolean;
+  onRunProviderChange: (provider: 'browser' | 'remote') => void;
   viewportWidth: string;
   viewportHeight: string;
   onViewportWidthChange: (value: string) => void;
@@ -38,6 +41,9 @@ const DEVICE_KIND_ICON_STYLES: Record<string, string> = {
 export function BlueprintEditorViewportBar({
   canvasMode,
   onCanvasModeChange,
+  runProvider,
+  remoteAvailable,
+  onRunProviderChange,
   viewportWidth,
   viewportHeight,
   onViewportWidthChange,
@@ -105,6 +111,26 @@ export function BlueprintEditorViewportBar({
           );
         })}
       </div>
+      <label className="inline-flex h-6 flex-none items-center gap-1.5 rounded-full border border-(--border-default) bg-(--bg-muted) px-2 text-[11px] text-(--text-secondary)">
+        <span className="max-[1100px]:hidden">
+          {t('viewport.runProvider.label')}
+        </span>
+        <select
+          className="bg-transparent text-[11px] text-(--text-primary) outline-none"
+          value={runProvider}
+          aria-label={t('viewport.runProvider.label')}
+          onChange={(event) =>
+            onRunProviderChange(event.target.value as 'browser' | 'remote')
+          }
+        >
+          <option value="browser">{t('viewport.runProvider.browser')}</option>
+          <option value="remote" disabled={!remoteAvailable}>
+            {remoteAvailable
+              ? t('viewport.runProvider.remote')
+              : t('viewport.runProvider.remoteSignIn')}
+          </option>
+        </select>
+      </label>
       <div className="flex flex-none items-center gap-2.5">
         <div className="font-medium text-(--text-secondary)">
           {t('viewport.label')}

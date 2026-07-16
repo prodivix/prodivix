@@ -6,6 +6,7 @@ import (
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
 	backendgithub "github.com/Prodivix/prodivix/apps/backend/internal/modules/integrations/github"
 	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
+	backendremoteexecution "github.com/Prodivix/prodivix/apps/backend/internal/modules/remoteexecution"
 	backendworkspace "github.com/Prodivix/prodivix/apps/backend/internal/modules/workspace"
 	"github.com/gin-gonic/gin"
 )
@@ -13,10 +14,11 @@ import (
 type Routes struct {
 	Ping gin.HandlerFunc
 
-	Auth      backendauth.RouteHandlers
-	GitHub    backendgithub.RouteHandlers
-	Project   backendproject.RouteHandlers
-	Workspace backendworkspace.RouteHandlers
+	Auth            backendauth.RouteHandlers
+	GitHub          backendgithub.RouteHandlers
+	Project         backendproject.RouteHandlers
+	Workspace       backendworkspace.RouteHandlers
+	RemoteExecution backendremoteexecution.RouteHandlers
 }
 
 func RegisterAPIRoutes(router *gin.Engine, routes Routes) {
@@ -26,6 +28,7 @@ func RegisterAPIRoutes(router *gin.Engine, routes Routes) {
 	backendgithub.RegisterRoutes(api, routes.GitHub)
 	backendproject.RegisterRoutes(api, routes.Project)
 	backendworkspace.RegisterRoutes(api, routes.Workspace)
+	backendremoteexecution.RegisterRoutes(api, routes.RemoteExecution)
 
 	if routes.Ping == nil {
 		api.GET("/ping", func(c *gin.Context) {

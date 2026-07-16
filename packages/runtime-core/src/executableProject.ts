@@ -8,10 +8,13 @@ import {
   assertExecutableProjectExactKeys,
   cloneExecutableProjectSourceTrace,
   normalizeExecutableProjectCacheHints,
+  normalizeExecutableProjectBuildPlan,
   normalizeExecutableProjectCapabilityRequirements,
   normalizeExecutableProjectCommands,
+  normalizeExecutableProjectDataMockProvision,
   normalizeExecutableProjectEntrypoints,
   normalizeExecutableProjectPath,
+  normalizeExecutableProjectPreviewPlan,
   normalizeExecutableProjectPublicBuildConfiguration,
   normalizeExecutableProjectResourceHints,
   normalizeExecutableProjectTarget,
@@ -19,16 +22,20 @@ import {
   normalizeExecutableProjectWorkspaceRef,
 } from './executableProjectNormalization';
 import {
+  EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
   EXECUTABLE_PROJECT_LIMITS,
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
   type ExecutableProjectCacheHints,
+  type ExecutableProjectBuildPlan,
   type ExecutableProjectCapabilityRequirements,
   type ExecutableProjectCommand,
   type ExecutableProjectDependencyPlan,
+  type ExecutableProjectDataMockProvision,
   type ExecutableProjectEntrypoint,
   type ExecutableProjectEntrypointKind,
   type ExecutableProjectFile,
   type ExecutableProjectPublicBuildConfigurationEntry,
+  type ExecutableProjectPreviewPlan,
   type ExecutableProjectResourceHints,
   type ExecutableProjectSnapshot,
   type ExecutableProjectSnapshotInput,
@@ -37,22 +44,34 @@ import {
 } from './executableProject.types';
 
 export {
+  DEFAULT_EXECUTABLE_PROJECT_BUILD_OUTPUT_DIRECTORY,
+  DEFAULT_EXECUTABLE_PROJECT_PREVIEW_ENTRY_FILE,
   DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
   EXECUTABLE_PROJECT_COMMANDS,
+  EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
   EXECUTABLE_PROJECT_LIMITS,
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
 } from './executableProject.types';
 export type {
+  ExecutableProjectBuildPlan,
+  ExecutableProjectBuildPlanInput,
   ExecutableProjectCacheHints,
   ExecutableProjectCapabilityRequirements,
   ExecutableProjectCommand,
   ExecutableProjectCommandName,
   ExecutableProjectDependencyPlan,
   ExecutableProjectDependencyPlanInput,
+  ExecutableProjectDataMockFixture,
+  ExecutableProjectDataMockFixtureBehavior,
+  ExecutableProjectDataMockCollection,
+  ExecutableProjectDataMockPage,
+  ExecutableProjectDataMockProvision,
   ExecutableProjectEntrypoint,
   ExecutableProjectEntrypointKind,
   ExecutableProjectFile,
   ExecutableProjectPublicBuildConfigurationEntry,
+  ExecutableProjectPreviewPlan,
+  ExecutableProjectPreviewPlanInput,
   ExecutableProjectResourceHints,
   ExecutableProjectSnapshot,
   ExecutableProjectSnapshotInput,
@@ -231,9 +250,12 @@ type ExecutableProjectDigestInput = Readonly<{
   publicBuildConfiguration: readonly ExecutableProjectPublicBuildConfigurationEntry[];
   resourceHints: ExecutableProjectResourceHints;
   cacheHints: ExecutableProjectCacheHints;
+  dataMockProvision?: ExecutableProjectDataMockProvision;
   installCommand: ExecutableProjectCommand;
   previewCommand: ExecutableProjectCommand;
   buildCommand: ExecutableProjectCommand;
+  previewPlan: ExecutableProjectPreviewPlan;
+  buildPlan: ExecutableProjectBuildPlan;
   testPlan: ExecutableProjectTestPlan;
 }>;
 
@@ -248,9 +270,12 @@ const createContentDigest = (input: ExecutableProjectDigestInput): string =>
     write(canonicalJson(input.publicBuildConfiguration));
     write(canonicalJson(input.resourceHints));
     write(canonicalJson(input.cacheHints));
+    write(canonicalJson(input.dataMockProvision ?? null));
     write(canonicalJson(input.installCommand));
     write(canonicalJson(input.previewCommand));
     write(canonicalJson(input.buildCommand));
+    write(canonicalJson(input.previewPlan));
+    write(canonicalJson(input.buildPlan));
     write(canonicalJson(input.testPlan));
     input.files.forEach((file) => {
       write(file.path);
@@ -275,9 +300,12 @@ export const createExecutableProjectSnapshot = (
       'publicBuildConfiguration',
       'resourceHints',
       'cacheHints',
+      'dataMockProvision',
       'installCommand',
       'previewCommand',
       'buildCommand',
+      'previewPlan',
+      'buildPlan',
       'testPlan',
     ],
     'Executable project snapshot input'
@@ -309,12 +337,52 @@ export const createExecutableProjectSnapshot = (
     record.resourceHints
   );
   const cacheHints = normalizeExecutableProjectCacheHints(record.cacheHints);
+  const dataMockProvision = normalizeExecutableProjectDataMockProvision(
+    record.dataMockProvision
+  );
+  const buildPlan = normalizeExecutableProjectBuildPlan(record.buildPlan);
+  const previewPlan = normalizeExecutableProjectPreviewPlan(
+    record.previewPlan,
+    buildCommand,
+    buildPlan
+  );
   const testPlan = normalizeExecutableProjectTestPlan(record.testPlan);
+  if (
+    files.some(
+      (file) =>
+        file.path === buildPlan.outputDirectoryPath ||
+        file.path.startsWith(`${buildPlan.outputDirectoryPath}/`)
+    )
+  ) {
+    throw new TypeError(
+      `Executable project build output directory conflicts with a project file: ${buildPlan.outputDirectoryPath}`
+    );
+  }
+  if (
+    files.some(
+      (file) =>
+        file.path === previewPlan.outputDirectoryPath ||
+        file.path.startsWith(`${previewPlan.outputDirectoryPath}/`)
+    )
+  ) {
+    throw new TypeError(
+      `Executable project preview output directory conflicts with a project file: ${previewPlan.outputDirectoryPath}`
+    );
+  }
   if (files.some((file) => file.path === testPlan.reportFilePath)) {
     throw new TypeError(
       `Executable project test report path conflicts with a project file: ${testPlan.reportFilePath}`
     );
   }
+  if (
+    dataMockProvision &&
+    files.some(
+      (file) => file.path === EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH
+    )
+  )
+    throw new TypeError(
+      'Executable project Data mock provision path is reserved for runtime projection.'
+    );
   const normalized = {
     workspace,
     target,
@@ -325,9 +393,12 @@ export const createExecutableProjectSnapshot = (
     publicBuildConfiguration,
     resourceHints,
     cacheHints,
+    ...(dataMockProvision ? { dataMockProvision } : {}),
     installCommand,
     previewCommand,
     buildCommand,
+    previewPlan,
+    buildPlan,
     testPlan,
   };
   return Object.freeze({
@@ -336,6 +407,23 @@ export const createExecutableProjectSnapshot = (
     contentDigest: createContentDigest(normalized),
   });
 };
+
+/** Projects non-authoring runtime assets from the immutable snapshot for every provider filesystem. */
+export const projectExecutableProjectRuntimeFiles = (
+  snapshot: ExecutableProjectSnapshot,
+  operation?: ExecutableProjectEntrypointKind
+): readonly ExecutableProjectFile[] =>
+  Object.freeze([
+    ...snapshot.files,
+    ...(snapshot.dataMockProvision && operation !== 'build'
+      ? [
+          Object.freeze({
+            path: EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
+            contents: `${JSON.stringify(snapshot.dataMockProvision)}\n`,
+          }),
+        ]
+      : []),
+  ]);
 
 /** Fails closed when an execution adapter cannot satisfy the selected project plan. */
 export const assertExecutableProjectCapabilitySupport = (

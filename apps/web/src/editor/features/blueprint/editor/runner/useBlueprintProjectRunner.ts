@@ -8,6 +8,7 @@ import {
   getBlueprintProjectExecutionSessionId,
   startBlueprintProject,
   stopBlueprintProject,
+  type BlueprintProjectRunProvider,
 } from './blueprintProjectRunnerClient';
 
 export type BlueprintProjectRunnerState = Readonly<{
@@ -15,16 +16,20 @@ export type BlueprintProjectRunnerState = Readonly<{
   previewUrl?: string;
   message?: string;
   diagnostics: readonly CompileDiagnostic[];
+  provider: BlueprintProjectRunProvider;
 }>;
 
 const INITIAL_STATE: BlueprintProjectRunnerState = Object.freeze({
   status: 'idle',
   diagnostics: Object.freeze([]),
+  provider: 'browser',
 });
 
 export const useBlueprintProjectRunner = (
   workspace: WorkspaceSnapshot | undefined,
-  enabled: boolean
+  enabled: boolean,
+  provider: BlueprintProjectRunProvider = 'browser',
+  accessToken?: string | null
 ) => {
   const workspaceId = workspace?.id;
   const [retryRevision, setRetryRevision] = useState(0);
@@ -47,13 +52,16 @@ export const useBlueprintProjectRunner = (
     let unsubscribe = () => undefined;
     setState((previous) => ({
       status: 'compiling',
-      ...(previous.previewUrl ? { previewUrl: previous.previewUrl } : {}),
+      provider,
+      ...(previous.provider === provider && previous.previewUrl
+        ? { previewUrl: previous.previewUrl }
+        : {}),
       message: 'Compiling the canonical Workspace.',
       diagnostics: Object.freeze([]),
     }));
 
     void Promise.resolve()
-      .then(() => createBlueprintProjectRunPlan(activeWorkspace))
+      .then(() => createBlueprintProjectRunPlan(activeWorkspace, provider))
       .then(async (plan) => {
         if (!active) return;
         if (plan.status === 'blocked') {
@@ -64,10 +72,14 @@ export const useBlueprintProjectRunner = (
               plan.diagnostics[0]?.message ??
               'Project compilation was blocked.',
             diagnostics: plan.diagnostics,
+            provider,
           }));
           return;
         }
-        const job = await startBlueprintProject(plan.snapshot, plan.request);
+        const job = await startBlueprintProject(plan.snapshot, plan.request, {
+          provider,
+          accessToken,
+        });
         if (!active) {
           await job.cancel({ reason: 'Run surface changed before startup.' });
           return;
@@ -119,6 +131,7 @@ export const useBlueprintProjectRunner = (
           previewUrl: undefined,
           message: error instanceof Error ? error.message : String(error),
           diagnostics: Object.freeze([]),
+          provider,
         }));
       });
 
@@ -126,7 +139,7 @@ export const useBlueprintProjectRunner = (
       active = false;
       unsubscribe();
     };
-  }, [enabled, retryRevision, workspace]);
+  }, [accessToken, enabled, provider, retryRevision, workspace]);
 
   const retry = useCallback(() => {
     setRetryRevision((revision) => revision + 1);

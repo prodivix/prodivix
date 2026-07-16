@@ -14,6 +14,7 @@ import type {
   RemoteExecutionRepository,
   RemoteExecutionStoredRecord,
 } from '@prodivix/runtime-remote';
+import { projectRemoteExecutionArtifact } from '@prodivix/runtime-remote';
 import { withPostgresTransaction } from './postgresTransaction';
 
 type ExecutionRow = {
@@ -609,7 +610,7 @@ export const createPostgresRemoteExecutionRepository = (
         jobId: row.execution_id,
         sequence: cursor,
         emittedAt: input.emittedAt,
-        artifact: input.descriptor,
+        artifact: projectRemoteExecutionArtifact(input.descriptor),
       });
       if (
         input.contents.byteLength > input.limits.maximumSingleArtifactBytes ||

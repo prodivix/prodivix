@@ -1,0 +1,34 @@
+{
+  "name": "@prodivix/runtime-vitest",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Bounded Vitest result adapter for Prodivix execution providers",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && tsc -p tsconfig.json",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
+    "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "typecheck": "tsc -b tsconfig.test.json --pretty false"
+  },
+  "dependencies": {
+    "@prodivix/runtime-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  }
+}

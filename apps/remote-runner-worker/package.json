@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@prodivix/runtime-core": "workspace:*",
-    "@prodivix/runtime-remote": "workspace:*"
+    "@prodivix/runtime-remote": "workspace:*",
+    "@prodivix/runtime-vitest": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

@@ -5,6 +5,12 @@
     "noEmit": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*", "fixtures/**/*.json"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "scripts/**/*", "fixtures/**/*.json"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../runtime-core" },
+    { "path": "../runtime-vitest" },
+    { "path": "../runtime-remote" },
+    { "path": "../runtime-browser" }
+  ]
 }

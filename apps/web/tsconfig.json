@@ -12,6 +12,8 @@
       "@prodivix/authoring": ["../../packages/authoring/src"],
       "@prodivix/code-language": ["../../packages/code-language/src"],
       "@prodivix/data": ["../../packages/data/src"],
+      "@prodivix/data-http": ["../../packages/data-http/src"],
+      "@prodivix/data-mock": ["../../packages/data-mock/src"],
       "@prodivix/diagnostics": ["../../packages/diagnostics/src"],
       "@prodivix/i18n": ["../../packages/i18n/src"],
       "@prodivix/nodegraph": ["../../packages/nodegraph/src"],
@@ -28,6 +30,7 @@
       "@prodivix/pir-react-renderer": ["../../packages/pir-react-renderer/src"],
       "@prodivix/prodivix-compiler": ["../../packages/prodivix-compiler/src"],
       "@prodivix/runtime-core": ["../../packages/runtime-core/src"],
+      "@prodivix/runtime-remote": ["../../packages/runtime-remote/src"],
       "@prodivix/runtime-browser": ["../../packages/runtime-browser/src"],
       "@prodivix/router": ["../../packages/router/src"],
       "@prodivix/shared": ["../../packages/shared/src"],
@@ -64,6 +67,12 @@
       "path": "../../packages/data"
     },
     {
+      "path": "../../packages/data-http"
+    },
+    {
+      "path": "../../packages/data-mock"
+    },
+    {
       "path": "../../packages/pir"
     },
     {
@@ -71,6 +80,9 @@
     },
     {
       "path": "../../packages/runtime-core"
+    },
+    {
+      "path": "../../packages/runtime-remote"
     },
     {
       "path": "../../packages/nodegraph"

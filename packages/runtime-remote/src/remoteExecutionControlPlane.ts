@@ -1,4 +1,5 @@
 import {
+  assertExecutableProjectCapabilitySupport,
   getExecutionProviderCompatibility,
   type ExecutionProviderDescriptor,
   type ExecutionRequest,
@@ -9,9 +10,11 @@ import {
   decodeRemoteExecutionRequestEnvelope,
   type DecodedRemoteExecutionRequestEnvelope,
 } from './remoteExecutionProtocolCodec';
+import { decodeRemoteExecutionJobEvent } from './remoteExecutionEventCodec';
 import type {
   RemoteExecutionAuthorizationPolicy,
   RemoteExecutionControlPlane,
+  RemoteExecutionWorkerEvent,
   RemoteExecutionPrincipal,
   RemoteExecutionProviderRouter,
   RemoteExecutionQuotaPolicy,
@@ -26,6 +29,31 @@ import type {
   RemoteExecutionResponseEnvelope,
   RemoteExecutionSnapshotSource,
 } from './remoteExecutionProtocol.types';
+
+const normalizeWorkerEvent = (
+  executionId: string,
+  event: RemoteExecutionWorkerEvent
+): RemoteExecutionWorkerEvent => {
+  const decoded = decodeRemoteExecutionJobEvent({
+    ...event,
+    jobId: executionId,
+    sequence: 1,
+    emittedAt: 0,
+  });
+  switch (decoded.kind) {
+    case 'log':
+      return Object.freeze({ kind: decoded.kind, log: decoded.log });
+    case 'diagnostic':
+      return Object.freeze({
+        kind: decoded.kind,
+        diagnostic: decoded.diagnostic,
+      });
+    case 'trace':
+      return Object.freeze({ kind: decoded.kind, trace: decoded.trace });
+    default:
+      throw new TypeError('Remote worker event kind is unsupported.');
+  }
+};
 
 type ControlPlaneFailure = Readonly<{
   code: RemoteExecutionErrorCode;
@@ -233,6 +261,17 @@ export const createRemoteExecutionControlPlane = (
             source.contentDigest
           );
     if (!snapshot) return respondFailure(envelope, 'not-found');
+    if (payload.request.profile === 'production')
+      return respondFailure(envelope, 'invalid-request');
+    try {
+      assertExecutableProjectCapabilitySupport(
+        snapshot.snapshot,
+        payload.request.profile,
+        provider.capabilities
+      );
+    } catch {
+      return respondFailure(envelope, 'invalid-request');
+    }
     const result = await options.repository.createOrGet({
       ownerId: principal.subjectId,
       identityKey: key,
@@ -362,7 +401,7 @@ export const createRemoteExecutionControlPlane = (
           afterCursor: request.payload.afterCursor,
           latestCursor: owned.execution.record.latestCursor,
           hasMore: events.length > page.length,
-          events: page,
+          events: page.map(({ cursor, event }) => ({ cursor, event })),
         });
       }
       case 'artifact.resolve': {
@@ -420,6 +459,7 @@ export const createRemoteExecutionControlPlane = (
     async appendWorkerEvent(input) {
       return options.repository.appendWorkerEvent({
         ...input,
+        event: normalizeWorkerEvent(input.executionId, input.event),
         emittedAt: now(),
         limits: ingestionLimits,
       });

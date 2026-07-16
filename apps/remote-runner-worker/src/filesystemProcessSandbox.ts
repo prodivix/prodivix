@@ -2,9 +2,10 @@ import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import type {
-  ExecutableProjectCommand,
-  ExecutableProjectSnapshot,
+import {
+  projectExecutableProjectRuntimeFiles,
+  type ExecutableProjectCommand,
+  type ExecutableProjectSnapshot,
 } from '@prodivix/runtime-core';
 import type {
   RemoteWorkerSandbox,
@@ -187,7 +188,10 @@ export const createFilesystemProcessSandbox = (
         throw new TypeError('Remote worker temporary root escaped its parent.');
       const output = collector(input.maximumOutputBytes);
       try {
-        for (const file of input.snapshot.files) {
+        for (const file of projectExecutableProjectRuntimeFiles(
+          input.snapshot,
+          input.profile
+        )) {
           const target = safeChildPath(root, file.path);
           await mkdir(dirname(target), { recursive: true });
           await writeFile(target, file.contents);

@@ -23,7 +23,8 @@ export type BlueprintProjectRunPlan =
 
 /** Compiles one canonical Workspace revision into a standalone runner input. */
 export const createBlueprintProjectRunPlan = (
-  workspace: WorkspaceSnapshot
+  workspace: WorkspaceSnapshot,
+  provider: 'browser' | 'remote' = 'browser'
 ): BlueprintProjectRunPlan => {
   const project = generateWorkspaceReactViteExecutableProject(workspace);
   if (project.status === 'blocked') return project;
@@ -36,15 +37,26 @@ export const createBlueprintProjectRunPlan = (
       kind: 'workspace',
       targetRef: { kind: 'workspace', workspaceId: workspace.id },
     },
-    requiredCapabilities: [
-      'artifacts',
-      'cancellation',
-      'console',
-      'dependency-install',
-      'filesystem',
-      'hmr',
-      'streaming-logs',
-    ],
+    requiredCapabilities:
+      provider === 'remote'
+        ? [
+            'artifacts',
+            'cancellation',
+            'console',
+            'dependency-install',
+            'filesystem',
+            'source-trace',
+            'streaming-logs',
+          ]
+        : [
+            'artifacts',
+            'cancellation',
+            'console',
+            'dependency-install',
+            'filesystem',
+            'hmr',
+            'streaming-logs',
+          ],
   });
   return Object.freeze({
     status: 'ready',

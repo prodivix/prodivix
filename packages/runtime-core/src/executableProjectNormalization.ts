@@ -1,21 +1,31 @@
 import type { DiagnosticTargetRef, SourceSpan } from '@prodivix/diagnostics';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 import {
   EXECUTION_PROVIDER_CAPABILITIES,
   type ExecutionProviderCapability,
   type ExecutionSourceTrace,
+  type ExecutionValue,
   type ExecutionWorkspaceSnapshotRef,
 } from './execution.types';
 import {
+  DEFAULT_EXECUTABLE_PROJECT_BUILD_OUTPUT_DIRECTORY,
+  DEFAULT_EXECUTABLE_PROJECT_PREVIEW_ENTRY_FILE,
   DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
   EXECUTABLE_PROJECT_COMMANDS,
   EXECUTABLE_PROJECT_LIMITS,
   type ExecutableProjectCacheHints,
+  type ExecutableProjectBuildPlan,
   type ExecutableProjectCapabilityRequirements,
   type ExecutableProjectCommand,
   type ExecutableProjectCommandName,
+  type ExecutableProjectDataMockFixtureBehavior,
+  type ExecutableProjectDataMockCollection,
+  type ExecutableProjectDataMockPage,
+  type ExecutableProjectDataMockProvision,
   type ExecutableProjectEntrypoint,
   type ExecutableProjectFile,
   type ExecutableProjectPublicBuildConfigurationEntry,
+  type ExecutableProjectPreviewPlan,
   type ExecutableProjectResourceHints,
   type ExecutableProjectTarget,
   type ExecutableProjectTestPlan,
@@ -88,6 +98,17 @@ const normalizeIdentifier = (value: unknown, label: string): string => {
   return normalized;
 };
 
+const normalizeBoundedIdentifier = (
+  value: unknown,
+  label: string,
+  maximumLength = 4_096
+): string => {
+  const result = normalizeIdentifier(value, label);
+  if (result.length > maximumLength)
+    throw new TypeError(`${label} exceeds the size limit.`);
+  return result;
+};
+
 export const normalizeExecutableProjectPath = (value: unknown): string => {
   const path = normalizeIdentifier(value, 'Executable project file path');
   if (path.length > EXECUTABLE_PROJECT_LIMITS.maxPathLength) {
@@ -146,6 +167,386 @@ const canonicalClone = (value: unknown, label: string, depth = 0): unknown => {
       ])
     )
   );
+};
+
+const normalizeNonNegativeInteger = (value: unknown, label: string): number => {
+  if (!Number.isSafeInteger(value) || (value as number) < 0)
+    throw new TypeError(`${label} must be a non-negative safe integer.`);
+  return value as number;
+};
+
+const normalizeDataMockPage = (
+  value: unknown,
+  label: string
+): ExecutableProjectDataMockPage => {
+  if (typeof value !== 'object' || value === null)
+    throw new TypeError(`${label} must be an object.`);
+  const kind = (value as Record<string, unknown>).kind;
+  if (kind === 'offset') {
+    const record = assertExecutableProjectExactKeys(
+      value,
+      ['kind', 'offset', 'limit', 'total', 'hasMore'],
+      label
+    );
+    if (typeof record.hasMore !== 'boolean')
+      throw new TypeError(`${label}.hasMore must be a boolean.`);
+    const limit = normalizeNonNegativeInteger(record.limit, `${label}.limit`);
+    if (limit < 1) throw new TypeError(`${label}.limit must be positive.`);
+    return Object.freeze({
+      kind,
+      offset: normalizeNonNegativeInteger(record.offset, `${label}.offset`),
+      limit,
+      ...(record.total === undefined
+        ? {}
+        : {
+            total: normalizeNonNegativeInteger(record.total, `${label}.total`),
+          }),
+      hasMore: record.hasMore,
+    });
+  }
+  if (kind === 'cursor') {
+    const record = assertExecutableProjectExactKeys(
+      value,
+      ['kind', 'nextCursor', 'previousCursor', 'hasMore'],
+      label
+    );
+    if (typeof record.hasMore !== 'boolean')
+      throw new TypeError(`${label}.hasMore must be a boolean.`);
+    return Object.freeze({
+      kind,
+      ...(record.nextCursor === undefined
+        ? {}
+        : {
+            nextCursor: normalizeBoundedIdentifier(
+              record.nextCursor,
+              `${label}.nextCursor`
+            ),
+          }),
+      ...(record.previousCursor === undefined
+        ? {}
+        : {
+            previousCursor: normalizeBoundedIdentifier(
+              record.previousCursor,
+              `${label}.previousCursor`
+            ),
+          }),
+      hasMore: record.hasMore,
+    });
+  }
+  throw new TypeError(`${label}.kind is unsupported.`);
+};
+
+const normalizeDataMockDelay = (
+  value: unknown,
+  label: string
+): number | undefined => {
+  if (value === undefined) return undefined;
+  const result = normalizeNonNegativeInteger(value, label);
+  if (result > 60_000)
+    throw new TypeError(`${label} exceeds the 60000ms limit.`);
+  return result;
+};
+
+const normalizeDataMockBehavior = (
+  value: unknown,
+  label: string,
+  collectionIds: ReadonlySet<string>
+): ExecutableProjectDataMockFixtureBehavior => {
+  if (typeof value !== 'object' || value === null)
+    throw new TypeError(`${label} must be an object.`);
+  const kind = (value as Record<string, unknown>).kind;
+  if (kind === 'result') {
+    const record = assertExecutableProjectExactKeys(
+      value,
+      ['kind', 'value', 'empty', 'page', 'delayMs'],
+      label
+    );
+    if (typeof record.empty !== 'boolean')
+      throw new TypeError(`${label}.empty must be a boolean.`);
+    const delayMs = normalizeDataMockDelay(record.delayMs, `${label}.delayMs`);
+    return Object.freeze({
+      kind,
+      value: canonicalClone(record.value, `${label}.value`) as never,
+      empty: record.empty,
+      ...(record.page === undefined
+        ? {}
+        : { page: normalizeDataMockPage(record.page, `${label}.page`) }),
+      ...(delayMs === undefined ? {} : { delayMs }),
+    });
+  }
+  if (kind === 'error') {
+    const record = assertExecutableProjectExactKeys(
+      value,
+      ['kind', 'code', 'retryable', 'delayMs'],
+      label
+    );
+    if (typeof record.retryable !== 'boolean')
+      throw new TypeError(`${label}.retryable must be a boolean.`);
+    const delayMs = normalizeDataMockDelay(record.delayMs, `${label}.delayMs`);
+    return Object.freeze({
+      kind,
+      code: normalizeBoundedIdentifier(record.code, `${label}.code`),
+      retryable: record.retryable,
+      ...(delayMs === undefined ? {} : { delayMs }),
+    });
+  }
+  if (kind === 'crud') {
+    const record = assertExecutableProjectExactKeys(
+      value,
+      [
+        'kind',
+        'collectionId',
+        'action',
+        'idInputKey',
+        'valueInputKey',
+        'delayMs',
+      ],
+      label
+    );
+    const collectionId = normalizeBoundedIdentifier(
+      record.collectionId,
+      `${label}.collectionId`
+    );
+    if (!collectionIds.has(collectionId))
+      throw new TypeError(`${label} references an unknown collection.`);
+    const action = record.action;
+    if (
+      action !== 'list' &&
+      action !== 'get' &&
+      action !== 'create' &&
+      action !== 'update' &&
+      action !== 'delete'
+    )
+      throw new TypeError(`${label}.action is unsupported.`);
+    const requiresId =
+      action === 'get' || action === 'update' || action === 'delete';
+    const requiresValue = action === 'create' || action === 'update';
+    if (requiresId !== (record.idInputKey !== undefined))
+      throw new TypeError(
+        `${label}.idInputKey must be present exactly for get/update/delete.`
+      );
+    if (requiresValue !== (record.valueInputKey !== undefined))
+      throw new TypeError(
+        `${label}.valueInputKey must be present exactly for create/update.`
+      );
+    const delayMs = normalizeDataMockDelay(record.delayMs, `${label}.delayMs`);
+    return Object.freeze({
+      kind,
+      collectionId,
+      action,
+      ...(requiresId
+        ? {
+            idInputKey: normalizeBoundedIdentifier(
+              record.idInputKey,
+              `${label}.idInputKey`
+            ),
+          }
+        : {}),
+      ...(requiresValue
+        ? {
+            valueInputKey: normalizeBoundedIdentifier(
+              record.valueInputKey,
+              `${label}.valueInputKey`
+            ),
+          }
+        : {}),
+      ...(delayMs === undefined ? {} : { delayMs }),
+    });
+  }
+  throw new TypeError(`${label}.kind is unsupported.`);
+};
+
+const normalizeDataMockCollections = (
+  value: unknown
+): readonly ExecutableProjectDataMockCollection[] => {
+  if (value === undefined) return Object.freeze([]);
+  if (!Array.isArray(value))
+    throw new TypeError(
+      'Executable project Data mock collections must be an array.'
+    );
+  if (value.length > EXECUTABLE_PROJECT_LIMITS.maxDataMockFixtures)
+    throw new TypeError(
+      'Executable project contains too many Data mock collections.'
+    );
+  const ids = new Set<string>();
+  let totalEntities = 0;
+  return Object.freeze(
+    value
+      .map((entry, index) => {
+        const label = `Executable project Data mock collection ${index}`;
+        const record = assertExecutableProjectExactKeys(
+          entry,
+          ['id', 'entityIdKey', 'initialEntities'],
+          label
+        );
+        const id = normalizeBoundedIdentifier(record.id, `${label}.id`);
+        if (ids.has(id))
+          throw new TypeError(`Duplicate Data mock collection: ${id}.`);
+        ids.add(id);
+        const entityIdKey = normalizeBoundedIdentifier(
+          record.entityIdKey,
+          `${label}.entityIdKey`
+        );
+        if (!Array.isArray(record.initialEntities))
+          throw new TypeError(`${label}.initialEntities must be an array.`);
+        totalEntities += record.initialEntities.length;
+        if (totalEntities > EXECUTABLE_PROJECT_LIMITS.maxDataMockFixtures)
+          throw new TypeError(
+            'Executable project contains too many Data mock collection entities.'
+          );
+        const entityIds = new Set<string>();
+        const initialEntities = Object.freeze(
+          record.initialEntities.map((entity, entityIndex) => {
+            const normalized = canonicalClone(
+              entity,
+              `${label}.initialEntities[${entityIndex}]`
+            );
+            if (!isPlainRecord(normalized))
+              throw new TypeError(`${label} entities must be JSON objects.`);
+            const entityId = normalized[entityIdKey];
+            if (
+              (typeof entityId !== 'string' || !entityId) &&
+              (typeof entityId !== 'number' || !Number.isFinite(entityId))
+            )
+              throw new TypeError(
+                `${label} entity ${entityIndex} has an invalid identity.`
+              );
+            const identity = JSON.stringify(entityId);
+            if (entityIds.has(identity))
+              throw new TypeError(
+                `${label} contains duplicate entity identities.`
+              );
+            entityIds.add(identity);
+            return normalized as Readonly<Record<string, ExecutionValue>>;
+          })
+        );
+        return Object.freeze({ id, entityIdKey, initialEntities });
+      })
+      .sort((left, right) => left.id.localeCompare(right.id))
+  );
+};
+
+export const normalizeExecutableProjectDataMockProvision = (
+  value: unknown
+): ExecutableProjectDataMockProvision | undefined => {
+  if (value === undefined) return undefined;
+  const record = assertExecutableProjectExactKeys(
+    value,
+    ['fixtureSetId', 'emulatedAdapterIds', 'collections', 'fixtures'],
+    'Executable project Data mock provision'
+  );
+  if (
+    !Array.isArray(record.emulatedAdapterIds) ||
+    !record.emulatedAdapterIds.length
+  )
+    throw new TypeError(
+      'Executable project Data mock provision must emulate at least one adapter.'
+    );
+  if (!Array.isArray(record.fixtures))
+    throw new TypeError(
+      'Executable project Data mock fixtures must be an array.'
+    );
+  if (record.fixtures.length > EXECUTABLE_PROJECT_LIMITS.maxDataMockFixtures)
+    throw new TypeError(
+      'Executable project contains too many Data mock fixtures.'
+    );
+  const adapterIds = new Set<string>();
+  const emulatedAdapterIds = Object.freeze(
+    record.emulatedAdapterIds
+      .map((adapterId, index) =>
+        normalizeBoundedIdentifier(
+          adapterId,
+          `Executable project emulated Data adapter ${index}`
+        )
+      )
+      .sort()
+      .map((adapterId) => {
+        if (adapterIds.has(adapterId))
+          throw new TypeError(`Duplicate emulated Data adapter: ${adapterId}.`);
+        adapterIds.add(adapterId);
+        return adapterId;
+      })
+  );
+  const fixtureIds = new Set<string>();
+  const matchKeys = new Set<string>();
+  const collections = normalizeDataMockCollections(record.collections);
+  const collectionIds = new Set(collections.map(({ id }) => id));
+  const fixtures = Object.freeze(
+    record.fixtures
+      .map((value, index) => {
+        const label = `Executable project Data mock fixture ${index}`;
+        const fixture = assertExecutableProjectExactKeys(
+          value,
+          [
+            'id',
+            'documentId',
+            'operationId',
+            'operationKind',
+            'input',
+            'behavior',
+          ],
+          label
+        );
+        const id = normalizeBoundedIdentifier(fixture.id, `${label}.id`);
+        if (fixtureIds.has(id))
+          throw new TypeError(`Duplicate Data mock fixture id: ${id}.`);
+        fixtureIds.add(id);
+        const documentId = normalizeBoundedIdentifier(
+          fixture.documentId,
+          `${label}.documentId`
+        );
+        const operationId = normalizeBoundedIdentifier(
+          fixture.operationId,
+          `${label}.operationId`
+        );
+        if (
+          fixture.operationKind !== 'query' &&
+          fixture.operationKind !== 'mutation'
+        )
+          throw new TypeError(`${label}.operationKind is unsupported.`);
+        const input =
+          fixture.input === undefined
+            ? undefined
+            : canonicalClone(fixture.input, `${label}.input`);
+        const matchKey = JSON.stringify([
+          documentId,
+          operationId,
+          fixture.operationKind,
+          input === undefined ? '*' : input,
+        ]);
+        if (matchKeys.has(matchKey))
+          throw new TypeError('Ambiguous Data mock fixture match key.');
+        matchKeys.add(matchKey);
+        return Object.freeze({
+          id,
+          documentId,
+          operationId,
+          operationKind: fixture.operationKind,
+          ...(input === undefined ? {} : { input: input as never }),
+          behavior: normalizeDataMockBehavior(
+            fixture.behavior,
+            `${label}.behavior`,
+            collectionIds
+          ),
+        });
+      })
+      .sort((left, right) => left.id.localeCompare(right.id))
+  );
+  const provision = Object.freeze({
+    fixtureSetId: normalizeBoundedIdentifier(
+      record.fixtureSetId,
+      'Executable project Data fixture set id'
+    ),
+    emulatedAdapterIds,
+    ...(collections.length ? { collections } : {}),
+    fixtures,
+  });
+  const byteLength = utf8ToBytes(JSON.stringify(provision)).byteLength;
+  if (byteLength > EXECUTABLE_PROJECT_LIMITS.maxDataMockProvisionBytes)
+    throw new TypeError(
+      'Executable project Data mock provision exceeds the size limit.'
+    );
+  return provision;
 };
 
 export const cloneExecutableProjectSourceTrace = (
@@ -469,6 +870,50 @@ export const normalizeExecutableProjectCacheHints = (
     );
   }
   return Object.freeze({ dependencyInstall: record.dependencyInstall });
+};
+
+export const normalizeExecutableProjectBuildPlan = (
+  value: unknown
+): ExecutableProjectBuildPlan => {
+  const record = assertExecutableProjectExactKeys(
+    value ?? {},
+    ['outputDirectoryPath'],
+    'Executable project build plan'
+  );
+  return Object.freeze({
+    outputDirectoryPath: normalizeExecutableProjectPath(
+      record.outputDirectoryPath ??
+        DEFAULT_EXECUTABLE_PROJECT_BUILD_OUTPUT_DIRECTORY
+    ),
+  });
+};
+
+export const normalizeExecutableProjectPreviewPlan = (
+  value: unknown,
+  buildCommand: ExecutableProjectCommand,
+  buildPlan: ExecutableProjectBuildPlan
+): ExecutableProjectPreviewPlan => {
+  const record = assertExecutableProjectExactKeys(
+    value ?? {},
+    ['mode', 'command', 'outputDirectoryPath', 'entryFilePath'],
+    'Executable project preview plan'
+  );
+  const mode = record.mode ?? 'static-bundle';
+  if (mode !== 'static-bundle')
+    throw new TypeError(`Unsupported executable project preview mode: ${mode}`);
+  return Object.freeze({
+    mode,
+    command: normalizeExecutableProjectCommand(
+      record.command ?? buildCommand,
+      'Executable project static preview command'
+    ),
+    outputDirectoryPath: normalizeExecutableProjectPath(
+      record.outputDirectoryPath ?? buildPlan.outputDirectoryPath
+    ),
+    entryFilePath: normalizeExecutableProjectPath(
+      record.entryFilePath ?? DEFAULT_EXECUTABLE_PROJECT_PREVIEW_ENTRY_FILE
+    ),
+  });
 };
 
 export const normalizeExecutableProjectTestPlan = (

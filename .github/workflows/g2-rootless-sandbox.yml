@@ -7,8 +7,7 @@ on:
       - main
     paths:
       - 'apps/remote-runner-worker/**'
-      - 'packages/runtime-core/**'
-      - 'packages/runtime-remote/**'
+      - 'packages/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -19,8 +18,7 @@ on:
       - main
     paths:
       - 'apps/remote-runner-worker/**'
-      - 'packages/runtime-core/**'
-      - 'packages/runtime-remote/**'
+      - 'packages/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -38,7 +36,7 @@ jobs:
   rootless-podman:
     name: Rootless Podman Isolation Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -87,9 +85,54 @@ jobs:
 
       - name: Run isolation Gate
         shell: bash
+        env:
+          PRODIVIX_ROOTLESS_EVIDENCE_PATH: rootless-sandbox-gate.json
+          REMOTE_WORKER_TOKEN: g2-rootless-gate-canary-not-secret
         run: |
           set -o pipefail
-          pnpm run verify:g2:rootless-sandbox | tee rootless-sandbox-gate.jsonl
+          install_network="prodivix-g2-install-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          proxy_egress_network="prodivix-g2-proxy-egress-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          proxy_container="prodivix-g2-install-proxy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          proxy_alias="prodivix-install-proxy"
+          proxy_image="localhost/prodivix-install-proxy:gate"
+
+          base_image="docker.io/library/node:22-bookworm-slim"
+          podman pull "${base_image}"
+          base_digest="$(podman image inspect --format '{{.Digest}}' "${base_image}")"
+          podman build \
+            --pull=never \
+            --build-arg "NODE_IMAGE=docker.io/library/node@${base_digest}" \
+            --file apps/remote-runner-worker/install-proxy/Dockerfile \
+            --tag "${proxy_image}" \
+            .
+
+          podman network create --internal "${install_network}"
+          podman network create "${proxy_egress_network}"
+          podman run \
+            --detach \
+            --name "${proxy_container}" \
+            --network "${proxy_egress_network}" \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --pids-limit 64 \
+            --memory 256m \
+            --env PRODIVIX_INSTALL_EGRESS_ALLOWLIST=registry.npmjs.org \
+            "${proxy_image}"
+          podman network connect --alias "${proxy_alias}" "${install_network}" "${proxy_container}"
+          cleanup() {
+            podman rm --force --ignore "${proxy_container}"
+            podman network rm --force "${install_network}" "${proxy_egress_network}"
+          }
+          trap cleanup EXIT
+
+          export PRODIVIX_ROOTLESS_INSTALL_NETWORK="${install_network}"
+          export PRODIVIX_ROOTLESS_INSTALL_PROXY_URL="http://${proxy_alias}:8080/"
+          export PRODIVIX_ROOTLESS_INSTALL_PROXY_CONTAINER="${proxy_container}"
+          pnpm run verify:g2:rootless-sandbox 2>&1 | tee rootless-sandbox-gate.log
+          gate_status="${PIPESTATUS[0]}"
+          podman logs "${proxy_container}" > rootless-install-egress-traces.jsonl
+          exit "${gate_status}"
 
       - name: Upload Gate evidence
         if: always()
@@ -98,6 +141,8 @@ jobs:
           name: g2-rootless-sandbox-evidence
           path: |
             rootless-podman-info.json
-            rootless-sandbox-gate.jsonl
+            rootless-sandbox-gate.json
+            rootless-sandbox-gate.log
+            rootless-install-egress-traces.jsonl
           if-no-files-found: warn
           retention-days: 14

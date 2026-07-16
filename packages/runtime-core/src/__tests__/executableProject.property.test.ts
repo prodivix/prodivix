@@ -3,6 +3,7 @@ import {
   assertExecutableProjectCapabilitySupport,
   createExecutableProjectSnapshot,
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
+  projectExecutableProjectRuntimeFiles,
   type ExecutableProjectSnapshotInput,
 } from '../executableProject';
 
@@ -43,6 +44,50 @@ const createInput = (): ExecutableProjectSnapshotInput => ({
   publicBuildConfiguration: [],
   resourceHints: { timeoutMs: 30_000 },
   cacheHints: { dependencyInstall: 'reuse-if-matched' as const },
+  dataMockProvision: {
+    fixtureSetId: 'catalog-test',
+    emulatedAdapterIds: ['core.http'],
+    collections: [
+      {
+        id: 'products',
+        entityIdKey: 'id',
+        initialEntities: [{ id: 'p1', name: 'Chair' }],
+      },
+    ],
+    fixtures: [
+      {
+        id: 'products-page-2',
+        documentId: 'data-products',
+        operationId: 'list-products',
+        operationKind: 'query',
+        input: { page: 2 },
+        behavior: {
+          kind: 'result',
+          value: { items: [{ id: 'p1' }] },
+          empty: false,
+          page: {
+            kind: 'offset',
+            offset: 20,
+            limit: 20,
+            total: 21,
+            hasMore: true,
+          },
+        },
+      },
+      {
+        id: 'products-state',
+        documentId: 'data-products',
+        operationId: 'create-product',
+        operationKind: 'mutation',
+        behavior: {
+          kind: 'crud',
+          collectionId: 'products',
+          action: 'create',
+          valueInputKey: 'value',
+        },
+      },
+    ],
+  },
   installCommand: { command: 'corepack', args: ['pnpm', 'install'] },
   previewCommand: { command: 'pnpm', args: ['run', 'dev'] },
   buildCommand: { command: 'pnpm', args: ['run', 'build'] },
@@ -97,7 +142,22 @@ describe('executable project snapshot properties', () => {
           args: ['run', 'preview'],
         },
       },
+      {
+        ...input,
+        buildPlan: { outputDirectoryPath: 'build-output' },
+      },
+      {
+        ...input,
+        previewPlan: { entryFilePath: 'preview.html' },
+      },
       { ...input, target: { ...input.target, framework: 'vue' } },
+      {
+        ...input,
+        dataMockProvision: {
+          ...input.dataMockProvision!,
+          fixtureSetId: 'catalog-test-changed',
+        },
+      },
       {
         ...input,
         files: input.files.map((file) =>
@@ -176,6 +236,84 @@ describe('executable project snapshot properties', () => {
         previewCommand: { command: 'powershell', args: ['-Command', 'echo'] },
       } as never)
     ).toThrow(/not allowlisted/u);
+
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...createInput(),
+        files: [
+          ...createInput().files,
+          { path: 'dist/already-authored.js', contents: '' },
+        ],
+      })
+    ).toThrow(/build output directory conflicts/u);
+  });
+
+  it('strictly normalizes bounded Data mock provisioning', () => {
+    const snapshot = createExecutableProjectSnapshot(createInput());
+    expect(snapshot.dataMockProvision).toMatchObject({
+      fixtureSetId: 'catalog-test',
+      emulatedAdapterIds: ['core.http'],
+      fixtures: expect.arrayContaining([
+        expect.objectContaining({
+          operationKind: 'query',
+          behavior: expect.objectContaining({ kind: 'result', empty: false }),
+        }),
+        expect.objectContaining({
+          operationKind: 'mutation',
+          behavior: expect.objectContaining({
+            kind: 'crud',
+            collectionId: 'products',
+          }),
+        }),
+      ]),
+      collections: [
+        {
+          id: 'products',
+          entityIdKey: 'id',
+          initialEntities: [{ id: 'p1', name: 'Chair' }],
+        },
+      ],
+    });
+    expect(Object.isFrozen(snapshot.dataMockProvision?.fixtures)).toBe(true);
+    const runtimeProvision = projectExecutableProjectRuntimeFiles(
+      snapshot
+    ).find(({ path }) => path === 'public/.prodivix/data-mock-provision.json');
+    expect(runtimeProvision?.contents).toContain('catalog-test');
+    expect(snapshot.files).not.toContainEqual(runtimeProvision);
+    expect(
+      projectExecutableProjectRuntimeFiles(snapshot, 'build').some(
+        ({ path }) => path === 'public/.prodivix/data-mock-provision.json'
+      )
+    ).toBe(false);
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...createInput(),
+        dataMockProvision: {
+          ...createInput().dataMockProvision!,
+          fixtures: [
+            {
+              ...createInput().dataMockProvision!.fixtures[0]!,
+              behavior: {
+                ...createInput().dataMockProvision!.fixtures[0]!.behavior,
+                secretRef: { secretId: 'must-not-pass' },
+              },
+            },
+          ],
+        },
+      } as never)
+    ).toThrow(/unsupported field: secretRef/u);
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...createInput(),
+        files: [
+          ...createInput().files,
+          {
+            path: 'public/.prodivix/data-mock-provision.json',
+            contents: '{}',
+          },
+        ],
+      })
+    ).toThrow(/reserved for runtime projection/u);
   });
 
   it('fails closed when an adapter cannot satisfy the operation capabilities', () => {

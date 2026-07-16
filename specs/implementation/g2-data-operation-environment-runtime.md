@@ -3,12 +3,12 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Canonical Foundation Implemented / Runtime D1-D8 Planned
+- ImplementationStatus：Canonical Foundation Implemented / Runtime D1-D2 In Progress
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-16
-- Owner：`@prodivix/data`、`@prodivix/runtime-core`、protocol/runtime adapters、
-  `@prodivix/prodivix-compiler`、composition root
+- Owner：`@prodivix/data`、`@prodivix/data-http`、`@prodivix/data-mock`、
+  `@prodivix/runtime-core`、protocol/runtime adapters、`@prodivix/prodivix-compiler`、composition root
 - 关联：
   - `specs/implementation/g2-executable-full-stack-workspace.md`
   - `specs/implementation/g2-execution-provider-remote-runner.md`
@@ -39,11 +39,15 @@ G2 完成的标志不是“能发一个 fetch”，而是同一 CRUD journey 在
 - 单个可逆 Workspace Transaction 原子写入 binding、source 与 lifecycle。
 - `ExecutionEnvironmentSnapshotRef`、`EnvironmentBindingReference`、`SecretRef` reference-only contract。
 - compiler/renderer 的 lifecycle projection port。
+- transport-safe invocation、mock/live-aware adapter registry、loading/success/empty/error execute kernel 与
+  operation/invocation/sequence/attempt Network correlation。
+- 独立 Browser live HTTP adapter/client-safe fetch，以及 session-scoped deterministic mock fixture adapter；
+  mock 能在不改写 canonical source adapterId 的前提下覆盖协议 adapter。
 
 ### 尚未实现
 
-- 真实 `DataOperationInvocation`、input binding、trigger、query activation 和 mutation dispatch。
-- adapter registry、runtime kernel、mock/live provisioning 和 schema validation pipeline。
+- input binding、trigger、query activation、mutation dispatch 与 schema validation pipeline。
+- 生成工程 runtime 注入与完整 Remote operation 调度。
 - cache/retry/pagination/optimistic policy executor。
 - Secret resolver、runtime-zone permission、principal/session 与 environment lease。
 - HTTP/OpenAPI、GraphQL、AsyncAPI importer/runtime adapter。
@@ -266,7 +270,8 @@ incremental update 语义，必须先修订 ADR/current model。
 
 ### D1：Invocation 与 lifecycle kernel
 
-- [ ] 定义 invocation、trigger origin、activation、input mapping 与 cancellation current contract。
+- [x] 定义 transport-safe invocation identity、activation、input、attempt/start、cancellation port 与
+      loading/success/empty/error execute projection；trigger dispatch 尚待产品接入。
 - [ ] query activation/refresh/input-change/pagination 与 mutation dispatch。
 - [ ] input/output JSON Schema validation、explicit empty 和 stale sequence fencing。
 - [ ] deterministic clock/scheduler/id ports 与 bounded lifecycle diagnostics。
@@ -275,10 +280,17 @@ incremental update 语义，必须先修订 ADR/current model。
 
 ### D2：Adapter registry 与 mock runtime
 
-- [ ] descriptor/config schema/capability registry 与 preflight compatibility。
-- [ ] deterministic mock adapter、fixture store/reference、delay/error/page/mutation behavior。
-- [ ] mock/live mode isolation；Test 默认 mock、missing fixture fail closed。
-- [ ] runtime/session/dispose 与 Network trace port。
+- [x] descriptor/operation kind/runtime zone/mode/capability registry 与 fail-closed compatibility。
+- [x] deterministic mock adapter、immutable fixture store/reference、exact-input/fallback、bounded delay、
+      error、page 与 query/mutation result behavior。
+- [x] registry mock-only adapter emulation；同一 canonical source 的 live/mock 运行实现隔离，Browser Test
+      Data composition 默认 mock，missing/ambiguous fixture fail closed，live 必须显式 opt-in。
+- [x] mock runtime session/dispose fencing，并复用 Data kernel 的 lifecycle/Network trace port；mock
+      本身不伪造网络请求。
+- [x] `ExecutableProjectSnapshot v4` 保存有界 `dataMockProvision` 并纳入 content digest；Compiler 可显式
+      投影该运行环境输入，Remote strict codec round-trip，Browser Test 从 exact snapshot 创建 mock session。
+- [x] fixture provision 可声明 immutable initial collection 与 CRUD behavior；每个 runtime session 必须
+      使用显式 namespace 持有独立可变副本，create/update/delete 不修改 snapshot，reset/dispose 清理状态。
 
 完成条件：CRUD fixture 在 interactive（允许范围）、Browser Preview 和 Browser Test 语义一致。
 
@@ -293,7 +305,8 @@ incremental update 语义，必须先修订 ADR/current model。
 
 ### D4：HTTP runtime 与 OpenAPI importer
 
-- [ ] HTTP adapter、abort/timeout/status/error/output mapping。
+- [x] 独立 `@prodivix/data-http` 的 Browser live HTTP 第一纵切：query scalar mapping、mutation JSON、
+      abort、safe status/error、显式 empty 与注入式 transport；timeout/schema/policy 继续建设。
 - [ ] cache/retry/pagination/optimistic policy kernel 第一实现。
 - [ ] OpenAPI import proposal、provenance、stable id、reimport diff/impact/conflict。
 - [ ] Data editor/Inspector/Issues/Network 产品纵切。
@@ -311,9 +324,14 @@ incremental update 语义，必须先修订 ADR/current model。
 
 ### D6：Preview/Test/Remote integration
 
-- [ ] Browser/Remote provider 解析相同 environment reference 和 adapter requirements。
-- [ ] Console/Network/Test report correlation 到 operation/invocation/source trace。
-- [ ] Test deterministic fixture、live opt-in、mutation namespace/cleanup。
+- [ ] Browser 已接 protocol-neutral registry + HTTP + client-safe fetch；Remote 与 environment resolver 待接。
+- [x] Browser Network trace 已 correlation 到 operation/invocation/sequence/attempt/source trace，并进入
+      active Project Job/Session；Console/Test/Data correlation 继续建设。
+- [ ] Browser Test Data composition 已具备 deterministic fixture、live opt-in、exact Executable Snapshot
+      provisioning 与 session-namespaced CRUD cleanup；Browser Host、filesystem adapter 与 rootless Worker
+      从同一 snapshot 投影 mock runtime asset。生成 React/Vite runtime 已对 PIR query binding 发布
+      loading/success/empty/error 并订阅刷新，Remote Preview/Test 通过同一 Worker 文件投影消费；standalone
+      mutation dispatch、live HTTP/policy correlation 待完成。
 - [ ] disconnect/retry/cancel/timeout 不重复 mutation、不发布 stale result。
 
 完成条件：相同 snapshot/environment/fixture 在 Browser/Remote 得到相同 lifecycle/test outcome。
@@ -321,7 +339,8 @@ incremental update 语义，必须先修订 ADR/current model。
 ### D7：Compiler 与 target parity
 
 - [ ] ExportProgram/target manifest 表达 Data adapter/runtime/server gateway requirements。
-- [ ] React/Vite standalone 不依赖 Prodivix editor/backend 私有 runtime。
+- [ ] React/Vite standalone mock query runtime 已不依赖 editor/backend 私有 runtime，并通过强制
+      install/typecheck/test/build Gate；mutation/live/policy 与完整 CRUD 仍待完成。
 - [ ] 单一第二 target 使用相同 Data current model、policy kernel 和 conformance fixtures。
 - [ ] client/server/edge split、Secret exclusion、install/typecheck/test/build/browser-smoke。
 

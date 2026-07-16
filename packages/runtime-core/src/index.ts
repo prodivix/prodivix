@@ -1,4 +1,26 @@
 export {
+  createExecutionNetworkTrace,
+  EXECUTION_NETWORK_TRACE_FORMAT,
+  EXECUTION_NETWORK_TRACE_NAME,
+  readExecutionNetworkTraceValue,
+  toExecutionNetworkTraceValue,
+} from './executionNetworkTrace';
+export type {
+  ExecutionNetworkTrace,
+  ExecutionNetworkCorrelation,
+  ExecutionNetworkTraceOutcome,
+} from './executionNetworkTrace';
+export {
+  decodeExecutionBuildBundle,
+  EXECUTION_BUILD_BUNDLE_FORMAT,
+  EXECUTION_BUILD_BUNDLE_MEDIA_TYPE,
+} from './executionBuildBundle';
+export {
+  decodeExecutionPreviewBundle,
+  EXECUTION_PREVIEW_BUNDLE_FORMAT,
+  EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE,
+} from './executionPreviewBundle';
+export {
   createRuntimeExecutorRegistry,
   RuntimeExecutorNotFoundError,
 } from './runtimeExecutorRegistry';
@@ -29,6 +51,7 @@ export {
 } from './executionEnvironment';
 export {
   createExecutionTestReport,
+  EXECUTION_TEST_REPORT_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_TRACE_NAME,
   EXECUTION_TEST_STATUSES,
   isExecutionTestReport,
@@ -38,8 +61,12 @@ export {
 export {
   assertExecutableProjectCapabilitySupport,
   createExecutableProjectSnapshot,
+  projectExecutableProjectRuntimeFiles,
+  DEFAULT_EXECUTABLE_PROJECT_BUILD_OUTPUT_DIRECTORY,
+  DEFAULT_EXECUTABLE_PROJECT_PREVIEW_ENTRY_FILE,
   DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
   EXECUTABLE_PROJECT_COMMANDS,
+  EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
   EXECUTABLE_PROJECT_LIMITS,
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
   normalizeExecutableProjectPath,
@@ -52,6 +79,11 @@ export {
   RUNTIME_ZONES,
 } from './execution.types';
 
+export type {
+  ExecutionBuildBundle,
+  ExecutionBuildBundleFile,
+} from './executionBuildBundle';
+export type { ExecutionPreviewBundle } from './executionPreviewBundle';
 export type {
   RuntimeExecutor,
   RuntimeExecutorRegistry,
@@ -98,16 +130,25 @@ export type {
   ExecutionTestTool,
 } from './executionTestReport';
 export type {
+  ExecutableProjectBuildPlan,
+  ExecutableProjectBuildPlanInput,
   ExecutableProjectCacheHints,
   ExecutableProjectCapabilityRequirements,
   ExecutableProjectCommand,
   ExecutableProjectCommandName,
   ExecutableProjectDependencyPlan,
   ExecutableProjectDependencyPlanInput,
+  ExecutableProjectDataMockFixture,
+  ExecutableProjectDataMockFixtureBehavior,
+  ExecutableProjectDataMockCollection,
+  ExecutableProjectDataMockPage,
+  ExecutableProjectDataMockProvision,
   ExecutableProjectEntrypoint,
   ExecutableProjectEntrypointKind,
   ExecutableProjectFile,
   ExecutableProjectPublicBuildConfigurationEntry,
+  ExecutableProjectPreviewPlan,
+  ExecutableProjectPreviewPlanInput,
   ExecutableProjectResourceHints,
   ExecutableProjectSnapshot,
   ExecutableProjectSnapshotInput,

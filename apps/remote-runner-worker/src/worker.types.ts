@@ -1,4 +1,6 @@
 import type {
+  ExecutionArtifactKind,
+  ExecutionSourceTrace,
   ExecutableProjectSnapshot,
   ExecutionJobStatus,
 } from '@prodivix/runtime-core';
@@ -75,10 +77,31 @@ export type RemoteWorkerSandboxResult = Readonly<{
   stderr: string;
   outputTruncated: boolean;
   reason?: string;
-  artifacts?: readonly Readonly<{
-    descriptor: RemoteExecutionArtifactDescriptor;
-    contents: Uint8Array;
-  }>[];
+  artifacts?: readonly RemoteWorkerSandboxArtifact[];
+  networkTraces?: readonly RemoteWorkerSandboxNetworkTrace[];
+}>;
+
+export type RemoteWorkerSandboxNetworkTrace = Readonly<{
+  requestId: string;
+  method: string;
+  sanitizedUrl: string;
+  protocol: 'http' | 'https';
+  startedAt: number;
+  completedAt: number;
+  outcome: 'allowed' | 'denied' | 'failed';
+  status: number;
+  requestBytes: number;
+  responseBytes: number;
+}>;
+
+export type RemoteWorkerSandboxArtifact = Readonly<{
+  artifactId: string;
+  kind: ExecutionArtifactKind;
+  label?: string;
+  mediaType: string;
+  sourceTrace?: readonly ExecutionSourceTrace[];
+  metadata?: Readonly<Record<string, string>>;
+  contents: Uint8Array;
 }>;
 
 export type RemoteWorkerSandbox = Readonly<{

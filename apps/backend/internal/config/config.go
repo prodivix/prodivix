@@ -17,6 +17,22 @@ type Config struct {
 	DBMaxIdleConns int
 	DBMaxLifetime  time.Duration
 	GitHub         GitHubAppConfig
+	RemoteRunner   RemoteRunnerConfig
+	RemotePreview  RemotePreviewHostConfig
+}
+
+type RemoteRunnerConfig struct {
+	BaseURL     string
+	ClientToken string
+	Timeout     time.Duration
+}
+
+type RemotePreviewHostConfig struct {
+	BaseURL       string
+	PublicBaseURL string
+	Token         string
+	Timeout       time.Duration
+	TTL           time.Duration
 }
 
 type GitHubAppConfig struct {
@@ -53,6 +69,18 @@ func LoadConfig() Config {
 			PrivateKey:    getEnv("GITHUB_APP_PRIVATE_KEY", ""),
 			WebhookSecret: getEnv("GITHUB_APP_WEBHOOK_SECRET", ""),
 			SetupURL:      getEnv("GITHUB_APP_SETUP_URL", ""),
+		},
+		RemoteRunner: RemoteRunnerConfig{
+			BaseURL:     strings.TrimRight(getEnv("REMOTE_RUNNER_CONTROL_PLANE_URL", ""), "/"),
+			ClientToken: getEnv("REMOTE_RUNNER_CONTROL_PLANE_TOKEN", ""),
+			Timeout:     getEnvDuration("REMOTE_RUNNER_GATEWAY_TIMEOUT", 30*time.Second),
+		},
+		RemotePreview: RemotePreviewHostConfig{
+			BaseURL:       strings.TrimRight(getEnv("REMOTE_PREVIEW_HOST_URL", ""), "/"),
+			PublicBaseURL: strings.TrimRight(getEnv("REMOTE_PREVIEW_PUBLIC_BASE_URL", ""), "/"),
+			Token:         getEnv("REMOTE_PREVIEW_HOST_TOKEN", ""),
+			Timeout:       getEnvDuration("REMOTE_PREVIEW_HOST_TIMEOUT", 30*time.Second),
+			TTL:           getEnvDuration("REMOTE_PREVIEW_SESSION_TTL", 10*time.Minute),
 		},
 	}
 }

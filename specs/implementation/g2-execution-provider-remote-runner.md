@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Browser Foundation + Neutral Snapshot + Remote Protocol/Client + Control Plane/PostgreSQL/HTTP + Worker Agent + D2 Durable Ingestion/Artifact Retention + Rootless Sandbox Adapter/GitHub Gate Implemented / Remote Providers Planned
+- ImplementationStatus：Browser Foundation + Neutral Snapshot + Remote Protocol/Client/Provider Preview/Build/Test Results + Authorized Artifact Resolver + Bounded HTTP Transport + Backend Auth Gateway/Durable Execution Grant + Web Composition Factory + Control Plane/PostgreSQL/HTTP + Worker Agent + D2 Durable Ingestion/Artifact Retention + Rootless Sandbox Adapter/GitHub Gate Implemented / Isolated Hosting and Provider Selection Planned
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-16
@@ -36,17 +36,40 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
 - `ExecutionEnvironmentSnapshotRef`、`EnvironmentBindingReference` 与 `SecretRef` 已建立
   reference-only contract。
 - `@prodivix/runtime-core` 已拥有 immutable `ExecutableProjectSnapshot` current contract、严格
-  constructor/validation 与 deterministic SHA-256 content digest；Compiler 直接生产，Browser
-  Preview/Test 只消费。
+  constructor/validation、显式 Build output plan、Remote static Preview plan 与 deterministic SHA-256
+  content digest；Compiler 直接生产，Browser Preview/Test 与 Remote 只消费。`ExecutionBuildBundle`
+  strict decoder 校验生成文件路径、顺序、base64、大小和逐文件 digest；`ExecutionPreviewBundle`
+  在其上继续校验 HTML entrypoint。新增必填 Preview plan 后 wire format 提升为
+  `prodivix.executable-project.v4`，current TypeScript model 继续保持无版本命名，不用默认值重解释
+  旧 wire payload。
 - `@prodivix/runtime-remote` 已拥有 versioned envelope、严格 request/response/event/snapshot codec、
   start/status/cancel/events/artifact client、版本协商、强幂等 identity、cursor recovery、bounded
   retry/backoff 与稳定、脱敏的 execution diagnostic mapping；in-memory control plane conformance
   覆盖重复、丢失响应、断线、乱序、缺口、provider drift 与 terminal regression。
+- `@prodivix/runtime-remote` 已建立供应商中立 Remote ExecutionProvider projection：Preview、Test、
+  Build 使用独立 descriptor，durable cursor replay 映射为 canonical Job log/diagnostic/artifact/trace
+  与 terminal result，取消保持独立 idempotency identity。provider contract、event cursor/sequence 或
+  state provider identity drift 时 fail closed。Build 已生成严格 `ExecutionBuildBundle`；Test 在可信
+  Worker 边界通过独立 `@prodivix/runtime-vitest` 有界 adapter 把 sandbox 私有 Vitest JSON 转换为
+  canonical `ExecutionTestReport`、report artifact 与 `test.report` durable trace，私有 schema 不进入
+  Control Plane 或 Provider。Preview 按显式 `static-bundle` plan 生成并严格校验 HTML entrypoint、
+  snapshot、target 与文件 digest，只有 canonical bundle 才发布 `ready/healthy` metadata。该结果不
+  伪造可访问 URL。transport-neutral artifact resolver 已校验 grant expiry/scope、descriptor digest/size、
+  下载字节与 Preview Bundle identity；注入式 HTTP envelope/content transport 与 Web bounded streaming
+  adapter 已接通，且不转发 ambient credential。Backend auth gateway 按 Workspace owner 授权 create，
+  durable 记录 execution grant，并在后续 get/cancel/events/artifact 与 content proxy 重检 owner；grant
+  持久化失败会补偿 cancel，Control Plane service credential 不进入 Web。Web composition factory 只接收
+  当前登录 session token。`apps/remote-preview-host` 通过 Backend 的 owner-scoped、digest-pinned 上传接收
+  strict Preview Bundle，以 hash-only 短期 capability 子域形成每 session 独立 origin，支持多文件与 SPA
+  document fallback，并施加 deny-by-default CSP、CSP sandbox、Permissions Policy、无缓存和无 Cookie 边界；
+  Host 不持有 Control Plane credential。Remote provider 的 async artifact materialization 只增加短期 URI，
+  不改变 durable artifact identity；Blueprint Run Mode 已显式提供 Browser/Remote selection。
 - `@prodivix/runtime-remote` 已进一步建立 transport-neutral Control Plane Core：principal/scope
   authorization、atomic active quota、provider compatibility routing、content-addressed snapshot store、
   owner-scoped execution repository、FIFO claim、lease renewal/expiry takeover、fencing token、取消与
-  terminal monotonicity。生产内存参考适配器及 conformance 已落地，durable adapter 必须实现同一
-  repository/snapshot contract。
+  terminal monotonicity。provider routing 后会对 authoritative upload/reference snapshot 的 profile
+  capability requirements 再次校验，request 少报 capability 无法绕过；生产内存参考适配器及
+  conformance 已落地，durable adapter 必须实现同一 repository/snapshot contract。
 - `@prodivix/runtime-remote-postgres` 已实现该 contract 的 PostgreSQL adapter 与 migration：snapshot
   blob/grant 分离、tenant-scoped request uniqueness、owner advisory transaction lock 下的原子
   create/quota、FIFO `FOR UPDATE SKIP LOCKED` claim、lease expiry takeover、renew/transition fencing 与
@@ -63,6 +86,10 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   独立的 rootless Podman sandbox，要求 digest-pinned image、非 root worker、只读 rootfs、零 capability、
   no-new-privileges、无 host mount、默认断网、execution-local tmpfs，以及 CPU/memory/disk/PID/fd/timeout/
   output 限额。缺失 Podman、rootless engine 或 immutable image 时启动 fail closed。
+  rootless result 使用独立 strict envelope，不与用户 stdout/stderr 混流；Build 只收集 snapshot 声明的
+  output directory，拒绝 symlink/特殊文件/预算越界，Worker 在 sandbox 外生成 digest、expiry 与
+  execution-scoped grant。durable artifact event 会移除 grant/retention authority 后再投影为 canonical
+  `ExecutionArtifact`，不会把 `authorizationScope` 或 `expiresAt` 混入 Job replay。
 - durable worker event ingestion 已贯通：worker 只发送无 cursor 的 log/diagnostic/trace payload，
   artifact 必须通过独立 binary upload；HTTP strict codec 拒绝未知字段与 artifact URL，repository 在
   lease-fenced transaction 内分配 execution-local cursor、追加 event、更新 latest cursor。真实 PostgreSQL
@@ -85,8 +112,22 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   credential denial、取消与 orphan cleanup。首次推送后仍需以 GitHub 证据确认 Passed；外部
   object-store/独立 queue scalability adapter 与 WebSocket/SSE replay adapter尚未实现，HTTP control
   plane 也尚未接入部署环境和 Web composition。
-- 没有 Remote Preview/Test/Build provider 与 browser/remote conformance matrix。
-- Secret resolver、zone authorization、quota、network egress policy 与 leak canary 尚未落地。
+- Remote Preview/Test/Build provider projection、三类 result、授权 artifact resolver、有界 HTTP
+  transport、Backend auth gateway/durable grant、独立 capability Preview Host、Web composition factory 与
+  Blueprint Browser/Remote selection 已接通。living Golden Workspace 现在只生成一次 neutral snapshot，
+  Browser Preview/Test 通过共享 Runtime Host 消费，三个独立 Remote provider 消费同一 snapshot digest；
+  matrix 对齐 canonical Test semantics、Preview readiness/URI 与 Remote Build bundle，并明确 Browser Build
+  unsupported、Browser live Preview 与 Remote finite Preview 的 lifecycle 差异。Gate 已从该 living
+  Workspace 导出 strict Remote snapshot，在 rootless Podman 内完成真实 install/Preview/Test/Build，且在
+  install 后断网并重新 inspect 才允许执行；首次阶段性推送后的远端通过证据仍待生成。
+- Remote install 已通过 internal network + infrastructure allowlist proxy 限制到显式 hostname/443；Worker
+  校验 internal flag、proxy attachment 与 exact policy，安装后断网再 inspect。代理实际 request 只投影为
+  origin-level `network.request`，strict contract 不可表达 header/path/query/body/credential，Execution Center
+  Network 视图只接受 strict decode。Browser client-safe fetch、Data invocation/registry、独立 HTTP adapter 与
+  operation/invocation/sequence/attempt/source trace correlation 已接 active Project Job；Executable Snapshot
+  v4 mock provision 已由 Browser Host/rootless Worker 投影为运行资产，生成 React/Vite query runtime 可在
+  Remote Preview/Test 内消费。standalone mutation/live Remote Data adapter、Secret resolver、zone
+  authorization 与 leak canary 尚未落地。
 
 ## 范围
 
@@ -236,10 +277,17 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
 
 ### E4：Remote providers
 
-- [ ] Remote Preview 返回受控 preview artifact，并支持 readiness/health 状态。
-- [ ] Remote Test 生成 transport-neutral `ExecutionTestReport`。
-- [ ] Remote Build 返回 bundle、manifest 与 source trace artifact。
-- [ ] 三个 provider 具有独立 descriptor、job/session 和 cancellation ownership。
+- [x] Remote Preview 返回 strict `ExecutionPreviewBundle`；HTML entrypoint、snapshot/target/file digest
+      验证通过后才发布 `readiness=ready`、`health=healthy`。rootless Gate 已加入真实 Preview 探针；
+      transport-neutral resolver、HTTP transport、Backend user-auth gateway、独立 capability origin hosting
+      与 Blueprint provider selection 已完成；远端通过证据仍待后续阶段性推送。
+- [x] Remote Test 生成 transport-neutral `ExecutionTestReport`，Worker 只持久化 canonical report
+      artifact/trace，Provider 对 artifact、trace、terminal status 与 snapshot identity 交叉校验并在
+      漂移时 fail closed；rootless GitHub Test 探针已加入 Gate，远端通过证据待阶段性推送生成。
+- [x] Remote Build 返回经过 strict manifest/digest 校验的 `ExecutionBuildBundle` 与 source trace
+      artifact；首次 rootless GitHub Gate 通过证据待阶段性推送生成。
+- [x] 三个 provider 具有独立 descriptor、job/session 和 cancellation ownership；durable replay 与
+      provider/state identity recovery conformance 已建立。
 
 完成条件：Web 仅使用 provider registry 与 shared result contract，不解析 Remote 私有 payload。
 
@@ -247,15 +295,22 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
 
 - [ ] resolver 仅在授权 runtime zone 将 reference 换为 execution-scoped lease。
 - [ ] process/operation 级 permission check 与 audit metadata。
-- [ ] install/runtime network policy 分离，Network Devtools 只显示允许的 sanitized trace。
+- [x] rootless Worker 将显式 install network 与默认断网 runtime 阶段硬分离，断网后 inspect 失败则
+      fail closed。
+- [x] install egress hostname/443 allowlist proxy与 Remote install sanitized Network trace/产品视图。
+- [x] Browser fetch + Data HTTP adapter、operation correlation 与 safe status/size response metadata。
+- [ ] generated-project/Remote mock query runtime 与 provider asset projection已完成；mutation/live
+      HTTP、server/edge adapter 与 policy correlation 待完成。
 - [ ] canary leak suite 覆盖 log、diagnostic、artifact、test report、cache 与 crash path。
 
 完成条件：任何 Secret canary 都无法出现在客户端或持久化输出；拒绝路径有稳定 diagnostic。
 
 ### E6：Provider selection 与 recovery UX
 
-- [ ] composition root 按 capability、zone、policy、availability 选择 provider。
-- [ ] 用户显式看到 Browser/Remote、queue/running/reconnecting/terminal 状态。
+- [x] Blueprint composition root 按 capability、zone、登录 availability 显式选择 Browser/Remote Preview
+      provider；选择只进入 UI state，不写 Workspace 或 provider 私有作者态配置。
+- [x] 用户显式看到 Browser/Remote selection，并继续通过 canonical Job/Execution Center 消费
+      queue/running/terminal 状态；Remote artifact 在发布给 iframe 前异步 materialize 为短期 origin。
 - [ ] retry 创建新 request 或按原 request 恢复的语义明确，mutation 不自动重放。
 - [ ] artifact expiry、quota、authorization 和 network denial 可定位、可操作。
 
@@ -263,10 +318,13 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
 
 ### E7：Conformance 与 Golden
 
-- [ ] Browser 与 Remote 执行同一 neutral snapshot fixture。
-- [ ] Preview/Test/Build contract matrix。
+- [x] Browser 与 Remote 执行同一 living Golden Workspace 生成的 neutral snapshot fixture；Browser
+      mount file set 与两个 resolver digest、三个 Remote upload digest 均绑定该 snapshot。
+- [x] Preview/Test/Build contract matrix；Browser 支持 Preview/Test，Remote 支持 Preview/Test/Build，
+      Browser Build 明确 `unsupported`，不伪造 provider。独立 GitHub Gate 为
+      `G2 Execution Contract Matrix`。
 - [ ] cancel/timeout/reconnect/replay/worker-loss/property tests。
-- [ ] Golden CRUD journey 在 Remote Preview、Remote Test 与 Remote Build 通过。
+- [ ] Golden CRUD journey 在真实 rootless Remote Preview、Remote Test 与 Remote Build 通过。
 
 完成条件：相同 snapshot digest 的语义结果一致；环境差异只能通过显式 capability/policy 表达。
 
@@ -293,9 +351,10 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
 ## 验收标准
 
 - [x] Provider-neutral snapshot Hard Cut 完成，Browser owner/alias 已删除。
-- [ ] Browser 与 Remote 消费同一 Executable Project Snapshot contract。
-- [ ] Remote Preview/Test/Build 不暴露供应商 SDK 类型。
+- [x] Browser 与 Remote 消费同一 Executable Project Snapshot contract。
+- [x] Remote Preview/Test/Build provider projection 不暴露供应商 SDK 类型。
 - [ ] start/cancel/reconnect/replay/timeout/worker-loss 语义可重复验证。
 - [ ] sandbox、quota、network 与 Secret zone permission fail closed。
-- [ ] Browser/Remote contract conformance 和 Golden CRUD journey 通过。
+- [x] Browser/Remote contract conformance matrix 通过。
+- [ ] 真实 rootless Golden CRUD journey 已进入 GitHub Gate；首次阶段性推送后确认远端 Passed 证据。
 - [ ] Runtime 输出不成为 Canonical Workspace 或第二套 durable truth。

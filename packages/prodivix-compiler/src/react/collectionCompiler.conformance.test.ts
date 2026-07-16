@@ -514,7 +514,7 @@ describe('PIR Collection compiler conformance', () => {
     expect(result.modules).toEqual([]);
     expect(result.diagnostics).toContainEqual(
       expect.objectContaining({
-        code: 'PIR_EXPORT_DATA_RUNTIME_ADAPTER_MISSING',
+        code: 'PIR_EXPORT_DATA_OPERATION_UNRESOLVED',
         severity: 'error',
         path: '/docsById/page/content/logic/dataById/products',
       })

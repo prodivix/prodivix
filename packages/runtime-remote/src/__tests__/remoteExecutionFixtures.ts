@@ -2,10 +2,12 @@ import {
   createExecutableProjectSnapshot,
   createExecutionProviderDescriptor,
   createExecutionRequest,
+  type ExecutionProviderCapability,
 } from '@prodivix/runtime-core';
 
 export const createRemoteFixtureSnapshot = (
-  source = 'export const value = 1;'
+  source = 'export const value = 1;',
+  previewCapabilities: readonly ExecutionProviderCapability[] = ['filesystem']
 ) =>
   createExecutableProjectSnapshot({
     workspace: {
@@ -31,15 +33,55 @@ export const createRemoteFixtureSnapshot = (
       },
     ],
     dependencyPlan: { manifestFilePath: 'package.json' },
-    entrypoints: [{ kind: 'preview', path: 'src/main.ts' }],
+    entrypoints: [
+      { kind: 'preview', path: 'src/main.ts' },
+      { kind: 'build', path: 'src/main.ts' },
+      { kind: 'test', path: 'src/main.ts' },
+    ],
     capabilityRequirements: {
-      preview: ['filesystem'],
+      preview: previewCapabilities,
       build: ['filesystem', 'build'],
       test: ['filesystem', 'test'],
     },
     publicBuildConfiguration: [],
     resourceHints: { timeoutMs: 30_000 },
     cacheHints: { dependencyInstall: 'reuse-if-matched' },
+    dataMockProvision: {
+      fixtureSetId: 'remote-catalog-test',
+      emulatedAdapterIds: ['core.http'],
+      collections: [
+        {
+          id: 'products',
+          entityIdKey: 'id',
+          initialEntities: [{ id: 'fixture-product', name: 'Desk' }],
+        },
+      ],
+      fixtures: [
+        {
+          id: 'products',
+          documentId: 'data-products',
+          operationId: 'list-products',
+          operationKind: 'query',
+          behavior: {
+            kind: 'result',
+            value: [{ id: 'fixture-product' }],
+            empty: false,
+          },
+        },
+        {
+          id: 'create-product',
+          documentId: 'data-products',
+          operationId: 'create-product',
+          operationKind: 'mutation',
+          behavior: {
+            kind: 'crud',
+            collectionId: 'products',
+            action: 'create',
+            valueInputKey: 'value',
+          },
+        },
+      ],
+    },
   });
 
 export const createRemoteFixtureRequest = (requestId = 'request-1') =>

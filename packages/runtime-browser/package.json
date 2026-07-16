@@ -26,6 +26,7 @@
   "dependencies": {
     "@prodivix/animation": "workspace:*",
     "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/runtime-vitest": "workspace:*",
     "@webcontainer/api": "^1.6.4"
   },
   "devDependencies": {

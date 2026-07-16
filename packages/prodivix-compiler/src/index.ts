@@ -47,6 +47,7 @@ export {
 } from '#src/react/workspaceProject';
 export {
   generateWorkspaceReactViteExecutableProject,
+  type GenerateWorkspaceExecutableProjectOptions,
   type WorkspaceExecutableProjectResult,
 } from '#src/executableProject/workspaceExecutableProject';
 export { compileAnimationExportContributions } from '#src/animation/compileAnimation';

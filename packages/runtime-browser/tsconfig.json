@@ -10,7 +10,8 @@
     "noEmit": false,
     "paths": {
       "@prodivix/animation": ["../animation/src"],
-      "@prodivix/runtime-core": ["../runtime-core/src"]
+      "@prodivix/runtime-core": ["../runtime-core/src"],
+      "@prodivix/runtime-vitest": ["../runtime-vitest/src"]
     }
   },
   "include": ["src/**/*"],
@@ -27,6 +28,9 @@
     },
     {
       "path": "../runtime-core"
+    },
+    {
+      "path": "../runtime-vitest"
     }
   ]
 }

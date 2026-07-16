@@ -1,0 +1,51 @@
+const permissionsPolicy = [
+  'accelerometer=()',
+  'autoplay=()',
+  'camera=()',
+  'display-capture=()',
+  'encrypted-media=()',
+  'fullscreen=()',
+  'geolocation=()',
+  'gyroscope=()',
+  'magnetometer=()',
+  'microphone=()',
+  'midi=()',
+  'payment=()',
+  'picture-in-picture=()',
+  'publickey-credentials-get=()',
+  'screen-wake-lock=()',
+  'serial=()',
+  'usb=()',
+  'xr-spatial-tracking=()',
+].join(', ');
+
+export const createPreviewSecurityHeaders = (
+  editorOrigins: readonly string[]
+): Readonly<Record<string, string>> =>
+  Object.freeze({
+    'access-control-allow-origin': '*',
+    'cache-control': 'private, no-store',
+    'content-security-policy': [
+      "default-src 'none'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "media-src 'self' data: blob:",
+      "connect-src 'none'",
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "frame-src 'none'",
+      "base-uri 'none'",
+      "form-action 'none'",
+      `frame-ancestors ${editorOrigins.join(' ')}`,
+      'sandbox allow-scripts',
+    ].join('; '),
+    'cross-origin-embedder-policy': 'credentialless',
+    'cross-origin-opener-policy': 'same-origin',
+    'cross-origin-resource-policy': 'cross-origin',
+    'origin-agent-cluster': '?1',
+    'permissions-policy': permissionsPolicy,
+    'referrer-policy': 'no-referrer',
+    'x-content-type-options': 'nosniff',
+  });

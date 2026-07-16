@@ -21,6 +21,11 @@ Optional:
 Tokens are runtime-only secrets. They must not be written to Workspace, execution
 requests, snapshots, events, diagnostics, artifacts, generated source, or logs.
 
+Provider routing uses the three canonical identities
+`prodivix.remote.preview`, `prodivix.remote.test`, and `prodivix.remote.build`.
+Workers set `REMOTE_WORKER_PROVIDER_ID` to exactly one identity; deployments that
+offer every profile run independently scalable worker pools for each identity.
+
 ## Endpoints
 
 - `GET /healthz`

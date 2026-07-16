@@ -16,6 +16,7 @@ export type BlueprintState = {
   zoom: number;
   pan: { x: number; y: number };
   canvasMode: 'design' | 'interactive' | 'run';
+  runProvider: 'browser' | 'remote';
   routePreviewPath: string;
   selectedId?: string;
   hiddenNodeIds: string[];
@@ -27,6 +28,7 @@ export const DEFAULT_BLUEPRINT_STATE: BlueprintState = {
   zoom: 100,
   pan: { x: 80, y: 60 },
   canvasMode: 'design',
+  runProvider: 'browser',
   routePreviewPath: '/',
   selectedId: undefined,
   hiddenNodeIds: [],

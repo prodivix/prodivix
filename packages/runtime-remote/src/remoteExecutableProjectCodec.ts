@@ -85,9 +85,14 @@ export const encodeRemoteExecutableProjectSnapshot = (
     publicBuildConfiguration: snapshot.publicBuildConfiguration,
     resourceHints: snapshot.resourceHints,
     cacheHints: snapshot.cacheHints,
+    ...(snapshot.dataMockProvision
+      ? { dataMockProvision: snapshot.dataMockProvision }
+      : {}),
     installCommand: snapshot.installCommand,
     previewCommand: snapshot.previewCommand,
     buildCommand: snapshot.buildCommand,
+    previewPlan: snapshot.previewPlan,
+    buildPlan: snapshot.buildPlan,
     testPlan: snapshot.testPlan,
   });
 
@@ -108,9 +113,12 @@ export const decodeRemoteExecutableProjectSnapshot = (
       'publicBuildConfiguration',
       'resourceHints',
       'cacheHints',
+      'dataMockProvision',
       'installCommand',
       'previewCommand',
       'buildCommand',
+      'previewPlan',
+      'buildPlan',
       'testPlan',
     ],
     [
@@ -128,6 +136,8 @@ export const decodeRemoteExecutableProjectSnapshot = (
       'installCommand',
       'previewCommand',
       'buildCommand',
+      'previewPlan',
+      'buildPlan',
       'testPlan',
     ],
     'Remote executable project snapshot'
@@ -191,9 +201,14 @@ export const decodeRemoteExecutableProjectSnapshot = (
     publicBuildConfiguration: record.publicBuildConfiguration as never,
     resourceHints: record.resourceHints as never,
     cacheHints: record.cacheHints as never,
+    ...(record.dataMockProvision === undefined
+      ? {}
+      : { dataMockProvision: record.dataMockProvision as never }),
     installCommand: record.installCommand as never,
     previewCommand: record.previewCommand as never,
     buildCommand: record.buildCommand as never,
+    previewPlan: record.previewPlan as never,
+    buildPlan: record.buildPlan as never,
     testPlan: record.testPlan as never,
   });
   const expectedDigest = sha256Digest(

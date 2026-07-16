@@ -2,6 +2,8 @@ import type { DiagnosticTargetRef, SourceSpan } from '@prodivix/diagnostics';
 import type { ExecutionSourceTrace, ExecutionValue } from './execution.types';
 
 export const EXECUTION_TEST_REPORT_TRACE_NAME = 'test.report' as const;
+export const EXECUTION_TEST_REPORT_MEDIA_TYPE =
+  'application/vnd.prodivix.test-report+json' as const;
 
 export const EXECUTION_TEST_STATUSES = Object.freeze([
   'passed',

@@ -77,6 +77,28 @@ importers:
         specifier: ^8.1.3
         version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
 
+  apps/remote-preview-host:
+    dependencies:
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../../packages/runtime-core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
   apps/remote-runner-control-plane:
     dependencies:
       '@prodivix/runtime-core':
@@ -119,6 +141,9 @@ importers:
       '@prodivix/runtime-remote':
         specifier: workspace:*
         version: link:../../packages/runtime-remote
+      '@prodivix/runtime-vitest':
+        specifier: workspace:*
+        version: link:../../packages/runtime-vitest
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -244,6 +269,12 @@ importers:
       '@prodivix/data':
         specifier: workspace:*
         version: link:../../packages/data
+      '@prodivix/data-http':
+        specifier: workspace:*
+        version: link:../../packages/data-http
+      '@prodivix/data-mock':
+        specifier: workspace:*
+        version: link:../../packages/data-mock
       '@prodivix/diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
@@ -298,6 +329,9 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../../packages/runtime-core
+      '@prodivix/runtime-remote':
+        specifier: workspace:*
+        version: link:../../packages/runtime-remote
       '@prodivix/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -578,6 +612,50 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
 
+  packages/data-http:
+    dependencies:
+      '@prodivix/data':
+        specifier: workspace:*
+        version: link:../data
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
+  packages/data-mock:
+    dependencies:
+      '@prodivix/data':
+        specifier: workspace:*
+        version: link:../data
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
   packages/diagnostics:
     devDependencies:
       '@types/node':
@@ -634,6 +712,18 @@ importers:
       '@prodivix/prodivix-compiler':
         specifier: workspace:*
         version: link:../prodivix-compiler
+      '@prodivix/runtime-browser':
+        specifier: workspace:*
+        version: link:../runtime-browser
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+      '@prodivix/runtime-remote':
+        specifier: workspace:*
+        version: link:../runtime-remote
+      '@prodivix/runtime-vitest':
+        specifier: workspace:*
+        version: link:../runtime-vitest
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -650,6 +740,9 @@ importers:
       fast-check:
         specifier: ^4.9.0
         version: 4.9.0
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1216,6 +1309,9 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@prodivix/runtime-vitest':
+        specifier: workspace:*
+        version: link:../runtime-vitest
       '@webcontainer/api':
         specifier: ^1.6.4
         version: 1.6.4
@@ -1307,6 +1403,25 @@ importers:
       '@types/pg':
         specifier: ^8.15.5
         version: 8.20.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
+  packages/runtime-vitest:
+    dependencies:
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

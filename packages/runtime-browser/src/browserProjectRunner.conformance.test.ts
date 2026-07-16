@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createExecutableProjectSnapshot,
   createExecutionRequest,
+  createExecutionNetworkTrace,
   type ExecutionJob,
 } from '@prodivix/runtime-core';
 import type {
@@ -141,6 +142,30 @@ describe('browser project runner conformance', () => {
 
     const first = await runner.provider.start(request('one'));
     await expect(waitForPreview(first)).resolves.toBe('https://preview.local');
+    const observed: string[] = [];
+    const unsubscribe = first.subscribe((event) => {
+      if (event.kind === 'trace') observed.push(event.trace.name);
+    });
+    expect(
+      runner.publishNetworkTrace(
+        createExecutionNetworkTrace({
+          requestId: 'data-request-1',
+          phase: 'runtime',
+          runtimeZone: 'client',
+          mode: 'live',
+          adapter: 'core.http',
+          method: 'GET',
+          sanitizedUrl: 'https://api.example.test/',
+          protocol: 'https',
+          startedAt: 1,
+          completedAt: 2,
+          outcome: 'allowed',
+          status: 200,
+        })
+      )
+    ).toBe(true);
+    expect(observed).toEqual(['network.request']);
+    unsubscribe();
     const second = await runner.provider.start(request('two'));
     await expect(waitForPreview(second)).resolves.toBe('https://preview.local');
 

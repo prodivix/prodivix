@@ -9,6 +9,9 @@
       "@prodivix/runtime-core": ["../../packages/runtime-core/dist/index.d.ts"],
       "@prodivix/runtime-remote": [
         "../../packages/runtime-remote/dist/index.d.ts"
+      ],
+      "@prodivix/runtime-vitest": [
+        "../../packages/runtime-vitest/dist/index.d.ts"
       ]
     }
   },
@@ -16,6 +19,7 @@
   "exclude": ["node_modules", "dist"],
   "references": [
     { "path": "../../packages/runtime-core" },
-    { "path": "../../packages/runtime-remote" }
+    { "path": "../../packages/runtime-remote" },
+    { "path": "../../packages/runtime-vitest" }
   ]
 }

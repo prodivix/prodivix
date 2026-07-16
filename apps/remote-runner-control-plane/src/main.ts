@@ -1,13 +1,15 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { Pool } from 'pg';
-import { createExecutionProviderDescriptor } from '@prodivix/runtime-core';
 import {
   createActiveExecutionQuotaPolicy,
   createRemoteExecutionControlPlane,
   createScopeRemoteExecutionAuthorizationPolicy,
   createStaticRemoteExecutionProviderRouter,
   encodeRemoteExecutableProjectSnapshot,
+  remoteBuildExecutionProviderDescriptor,
+  remotePreviewExecutionProviderDescriptor,
+  remoteTestExecutionProviderDescriptor,
 } from '@prodivix/runtime-remote';
 import {
   createPostgresRemoteExecutionRepository,
@@ -87,26 +89,6 @@ const artifactSweepBatch = integer(
   100
 );
 
-const provider = createExecutionProviderDescriptor({
-  id: 'prodivix.remote.project',
-  version: '1',
-  displayName: 'Prodivix Remote Project Runner',
-  isolation: 'remote-isolated',
-  profiles: ['preview', 'test', 'build'],
-  runtimeZones: ['client', 'test', 'build'],
-  invocationKinds: ['workspace', 'test', 'build'],
-  capabilities: [
-    'artifacts',
-    'build',
-    'cancellation',
-    'filesystem',
-    'source-trace',
-    'streaming-logs',
-    'test',
-    'timeout',
-  ],
-});
-
 const pool = new Pool({ connectionString: databaseUrl });
 await migrateRemoteExecutionPostgres(pool);
 const repository = createPostgresRemoteExecutionRepository(pool);
@@ -116,7 +98,11 @@ const controlPlane = createRemoteExecutionControlPlane({
   snapshots,
   authorization: createScopeRemoteExecutionAuthorizationPolicy(),
   quota: createActiveExecutionQuotaPolicy(maximumActiveExecutions),
-  router: createStaticRemoteExecutionProviderRouter([provider]),
+  router: createStaticRemoteExecutionProviderRouter([
+    remotePreviewExecutionProviderDescriptor,
+    remoteTestExecutionProviderDescriptor,
+    remoteBuildExecutionProviderDescriptor,
+  ]),
   createExecutionId: () => `execution-${randomUUID()}`,
   createLeaseToken: () => `lease-${randomUUID()}`,
 });

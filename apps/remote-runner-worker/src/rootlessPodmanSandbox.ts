@@ -5,12 +5,39 @@ import type {
   ExecutableProjectCommand,
   ExecutableProjectSnapshot,
 } from '@prodivix/runtime-core';
+import {
+  decodeExecutionBuildBundle,
+  decodeExecutionPreviewBundle,
+  EXECUTION_BUILD_BUNDLE_MEDIA_TYPE,
+  EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE,
+  EXECUTION_TEST_REPORT_MEDIA_TYPE,
+  projectExecutableProjectRuntimeFiles,
+  toExecutionTestReportValue,
+  type ExecutionSourceTrace,
+} from '@prodivix/runtime-core';
+import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
 import type {
   RemoteWorkerSandbox,
+  RemoteWorkerSandboxArtifact,
+  RemoteWorkerSandboxNetworkTrace,
   RemoteWorkerSandboxResult,
 } from './worker.types';
 
 const execFileAsync = promisify(execFile);
+const stopRetryIntervalMs = 50;
+const stopEscalationMs = 5_000;
+const stopDeadlineMs = 10_000;
+const installCompleteMarker = 'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1';
+const continueExecutionToken = 'PRODIVIX_SANDBOX_CONTINUE_V1';
+
+const podmanProcessEnvironment = (): NodeJS.ProcessEnv => ({
+  PATH: process.env.PATH,
+  HOME: process.env.HOME,
+  XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
+  DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS,
+  CONTAINERS_CONF: process.env.CONTAINERS_CONF,
+  CONTAINERS_STORAGE_CONF: process.env.CONTAINERS_STORAGE_CONF,
+});
 
 export type RootlessPodmanSandboxLimits = Readonly<{
   maximumCpuCores: number;
@@ -19,14 +46,26 @@ export type RootlessPodmanSandboxLimits = Readonly<{
   maximumPids: number;
   maximumOpenFiles: number;
   temporaryDirectoryMb: number;
+  maximumArtifactBytes: number;
 }>;
 
 export type CreateRootlessPodmanSandboxOptions = Readonly<{
   imageReference: string;
   podmanCommand?: string;
+  installNetworkPolicy?: RootlessPodmanInstallNetworkPolicy;
   limits: RootlessPodmanSandboxLimits;
-  allowUnpinnedImageForGate?: boolean;
+  now?: () => number;
 }>;
+
+export type RootlessPodmanInstallNetworkPolicy =
+  | Readonly<{ mode: 'none' }>
+  | Readonly<{
+      mode: 'proxy-allowlist';
+      networkName: string;
+      proxyUrl: string;
+      proxyContainerName: string;
+      allowedHosts: readonly string[];
+    }>;
 
 const imageIsImmutable = (value: string): boolean =>
   /^sha256:[a-f0-9]{64}$/u.test(value) || /@sha256:[a-f0-9]{64}$/u.test(value);
@@ -42,7 +81,7 @@ const profileCommand = (
   profile: 'preview' | 'test' | 'build'
 ): ExecutableProjectCommand =>
   profile === 'preview'
-    ? snapshot.previewCommand
+    ? snapshot.previewPlan.command
     : profile === 'test'
       ? snapshot.testPlan.command
       : snapshot.buildCommand;
@@ -100,23 +139,36 @@ export const createRootlessPodmanRunArguments = (
     openFiles: number;
     temporaryDirectoryMb: number;
     executionId?: string;
+    installNetworkName?: string;
+    installProxyUrl?: string;
   }>
-): readonly string[] =>
-  Object.freeze([
+): readonly string[] => {
+  const proxyEnvironment = input.installProxyUrl
+    ? [
+        `--env=HTTP_PROXY=${input.installProxyUrl}`,
+        `--env=HTTPS_PROXY=${input.installProxyUrl}`,
+        `--env=NO_PROXY=localhost,127.0.0.1,::1`,
+      ]
+    : [];
+  return Object.freeze([
     'run',
     '--rm',
+    '--interactive',
     '--pull=never',
     `--name=${input.name}`,
     `--label=prodivix.remote-execution=${input.executionId ?? input.name}`,
-    '--network=none',
+    `--network=${input.installNetworkName ?? 'none'}`,
     '--read-only',
     '--cap-drop=ALL',
     '--security-opt=no-new-privileges',
     '--userns=keep-id',
     `--user=${input.uid}:${input.gid}`,
+    '--pid=private',
     '--ipc=private',
     '--uts=private',
+    '--cgroupns=private',
     '--log-driver=none',
+    ...proxyEnvironment,
     `--cpus=${input.cpuCores}`,
     `--memory=${input.memoryMb}m`,
     `--memory-swap=${input.memoryMb}m`,
@@ -128,6 +180,7 @@ export const createRootlessPodmanRunArguments = (
     '--workdir=/workspace',
     input.imageReference,
   ]);
+};
 
 type Output = {
   stdout: string;
@@ -151,13 +204,25 @@ const appendOutput = (
 
 const payload = (
   snapshot: ExecutableProjectSnapshot,
-  profile: 'preview' | 'test' | 'build'
+  profile: 'preview' | 'test' | 'build',
+  maximumOutputBytes: number,
+  maximumArtifactBytes: number
 ) =>
   JSON.stringify({
-    files: snapshot.files.map((file) => ({
-      path: file.path,
-      contents: Buffer.from(file.contents).toString('base64'),
-    })),
+    profile,
+    snapshotDigest: snapshot.contentDigest,
+    target: snapshot.target,
+    previewPlan: snapshot.previewPlan,
+    buildPlan: snapshot.buildPlan,
+    testPlan: { reportFilePath: snapshot.testPlan.reportFilePath },
+    maximumOutputBytes,
+    maximumArtifactBytes,
+    files: projectExecutableProjectRuntimeFiles(snapshot, profile).map(
+      (file) => ({
+        path: file.path,
+        contents: Buffer.from(file.contents).toString('base64'),
+      })
+    ),
     publicEnvironment: snapshot.publicBuildConfiguration.map((entry) => ({
       name: entry.name,
       value: entry.value,
@@ -172,14 +237,567 @@ const payload = (
     },
   });
 
+const normalizeInstallNetworkPolicy = (
+  policy: RootlessPodmanInstallNetworkPolicy | undefined
+): RootlessPodmanInstallNetworkPolicy => {
+  if (!policy || policy.mode === 'none') return Object.freeze({ mode: 'none' });
+  if (
+    policy.mode !== 'proxy-allowlist' ||
+    !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/u.test(policy.networkName)
+  )
+    throw new TypeError('Sandbox install network policy is invalid.');
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/u.test(policy.proxyContainerName))
+    throw new TypeError('Sandbox install proxy container is invalid.');
+  let proxyUrl: URL;
+  try {
+    proxyUrl = new URL(policy.proxyUrl);
+  } catch {
+    throw new TypeError('Sandbox install proxy URL is invalid.');
+  }
+  if (
+    proxyUrl.protocol !== 'http:' ||
+    proxyUrl.username ||
+    proxyUrl.password ||
+    proxyUrl.pathname !== '/' ||
+    proxyUrl.search ||
+    proxyUrl.hash ||
+    proxyUrl.hostname !== policy.proxyContainerName
+  )
+    throw new TypeError(
+      'Sandbox install proxy URL is not infrastructure-safe.'
+    );
+  const allowedHosts = Object.freeze(
+    [...new Set(policy.allowedHosts)].sort().map((host) => {
+      if (
+        !/^(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(
+          host
+        )
+      )
+        throw new TypeError('Sandbox install egress host is invalid.');
+      return host;
+    })
+  );
+  if (!allowedHosts.length)
+    throw new TypeError('Sandbox install egress allowlist is empty.');
+  return Object.freeze({
+    mode: 'proxy-allowlist',
+    networkName: policy.networkName,
+    proxyUrl: proxyUrl.toString(),
+    proxyContainerName: policy.proxyContainerName,
+    allowedHosts,
+  });
+};
+
+const assertInstallProxyPolicy = async (
+  podmanCommand: string,
+  policy: Extract<
+    RootlessPodmanInstallNetworkPolicy,
+    { mode: 'proxy-allowlist' }
+  >
+): Promise<void> => {
+  const [
+    { stdout: internal },
+    { stdout: networks },
+    { stdout: environment },
+    { stdout: running },
+  ] = await Promise.all([
+    execFileAsync(podmanCommand, ['network', 'inspect', policy.networkName], {
+      env: podmanProcessEnvironment(),
+    }),
+    execFileAsync(
+      podmanCommand,
+      [
+        'inspect',
+        '--format',
+        '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{"\\n"}}{{end}}',
+        policy.proxyContainerName,
+      ],
+      { env: podmanProcessEnvironment() }
+    ),
+    execFileAsync(
+      podmanCommand,
+      [
+        'inspect',
+        '--format',
+        '{{range .Config.Env}}{{println .}}{{end}}',
+        policy.proxyContainerName,
+      ],
+      { env: podmanProcessEnvironment() }
+    ),
+    execFileAsync(
+      podmanCommand,
+      ['inspect', '--format', '{{.State.Running}}', policy.proxyContainerName],
+      { env: podmanProcessEnvironment() }
+    ),
+  ]);
+  let internalNetwork = false;
+  try {
+    const descriptors = JSON.parse(internal) as unknown;
+    internalNetwork =
+      Array.isArray(descriptors) &&
+      descriptors.length === 1 &&
+      !!descriptors[0] &&
+      typeof descriptors[0] === 'object' &&
+      (descriptors[0] as { internal?: unknown }).internal === true;
+  } catch {
+    internalNetwork = false;
+  }
+  const configuredAllowlist = environment
+    .split(/\r?\n/u)
+    .find((entry) => entry.startsWith('PRODIVIX_INSTALL_EGRESS_ALLOWLIST='))
+    ?.slice('PRODIVIX_INSTALL_EGRESS_ALLOWLIST='.length)
+    .split(',')
+    .filter(Boolean)
+    .sort();
+  if (
+    !internalNetwork ||
+    running.trim() !== 'true' ||
+    !networks.split(/\r?\n/u).includes(policy.networkName) ||
+    JSON.stringify(configuredAllowlist) !== JSON.stringify(policy.allowedHosts)
+  )
+    throw new Error(
+      'Sandbox install egress proxy policy could not be verified.'
+    );
+};
+
+export const decodeRootlessInstallProxyTraces = (
+  output: string,
+  traceId: string
+): readonly RemoteWorkerSandboxNetworkTrace[] => {
+  const traces: RemoteWorkerSandboxNetworkTrace[] = [];
+  for (const line of output.split(/\r?\n/u)) {
+    if (!line.includes(traceId)) continue;
+    let value: unknown;
+    try {
+      value = JSON.parse(line) as unknown;
+    } catch {
+      throw new TypeError('Install proxy returned an invalid trace.');
+    }
+    const record = exactRecord(
+      value,
+      [
+        'protocol',
+        'requestId',
+        'method',
+        'host',
+        'port',
+        'startedAt',
+        'completedAt',
+        'outcome',
+        'status',
+        'requestBytes',
+        'responseBytes',
+      ],
+      `Install proxy trace ${traces.length}`
+    );
+    if (
+      record.protocol !== 'prodivix.install-egress-trace.v1' ||
+      record.requestId !== traceId ||
+      record.method !== 'CONNECT' ||
+      typeof record.host !== 'string' ||
+      !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(
+        record.host
+      ) ||
+      record.port !== 443 ||
+      !Number.isSafeInteger(record.startedAt) ||
+      !Number.isSafeInteger(record.completedAt) ||
+      (record.startedAt as number) < 0 ||
+      (record.completedAt as number) < (record.startedAt as number) ||
+      !['allowed', 'denied', 'failed'].includes(String(record.outcome)) ||
+      !Number.isSafeInteger(record.status) ||
+      (record.status as number) < 100 ||
+      (record.status as number) > 599 ||
+      !Number.isSafeInteger(record.requestBytes) ||
+      (record.requestBytes as number) < 0 ||
+      !Number.isSafeInteger(record.responseBytes) ||
+      (record.responseBytes as number) < 0
+    )
+      throw new TypeError('Install proxy trace is not canonical.');
+    traces.push(
+      Object.freeze({
+        requestId: `${traceId}:${traces.length + 1}`,
+        method: 'CONNECT',
+        sanitizedUrl: `https://${record.host}/`,
+        protocol: 'https',
+        startedAt: record.startedAt as number,
+        completedAt: record.completedAt as number,
+        outcome: record.outcome as 'allowed' | 'denied' | 'failed',
+        status: record.status as number,
+        requestBytes: record.requestBytes as number,
+        responseBytes: record.responseBytes as number,
+      })
+    );
+    if (traces.length > 256)
+      throw new TypeError('Install proxy returned too many traces.');
+  }
+  return Object.freeze(traces);
+};
+
+const assertContainerHasNoNetwork = async (
+  podmanCommand: string,
+  name: string
+): Promise<void> => {
+  const { stdout } = await execFileAsync(
+    podmanCommand,
+    [
+      'inspect',
+      '--format',
+      '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{"\\n"}}{{end}}',
+      name,
+    ],
+    { env: podmanProcessEnvironment() }
+  );
+  if (stdout.trim())
+    throw new Error('Sandbox runtime network isolation could not be verified.');
+};
+
+const exactRecord = (
+  value: unknown,
+  keys: readonly string[],
+  label: string
+): Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new TypeError(`${label} must be an object.`);
+  const record = value as Record<string, unknown>;
+  const allowed = new Set(keys);
+  if (Object.keys(record).some((key) => !allowed.has(key)))
+    throw new TypeError(`${label} has unknown fields.`);
+  return record;
+};
+
+const stringRecord = (
+  value: unknown,
+  label: string
+): Readonly<Record<string, string>> => {
+  const record = exactRecord(
+    value,
+    Object.keys(value as Record<string, unknown>),
+    label
+  );
+  if (
+    Object.keys(record).length > 32 ||
+    Object.entries(record).some(
+      ([key, entry]) =>
+        !key ||
+        key.length > 256 ||
+        typeof entry !== 'string' ||
+        entry.length > 4_096
+    )
+  )
+    throw new TypeError(`${label} is invalid.`);
+  return Object.freeze(record as Record<string, string>);
+};
+
+const decodeBase64 = (value: unknown, label: string): Uint8Array => {
+  if (
+    typeof value !== 'string' ||
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
+      value
+    )
+  )
+    throw new TypeError(`${label} is not canonical base64.`);
+  return new Uint8Array(Buffer.from(value, 'base64'));
+};
+
+const buildSourceTrace = (snapshot: ExecutableProjectSnapshot) => {
+  const paths = new Set(
+    snapshot.entrypoints
+      .filter((entrypoint) => entrypoint.kind === 'build')
+      .map((entrypoint) => entrypoint.path)
+  );
+  return Object.freeze(
+    snapshot.files.flatMap((file) =>
+      paths.has(file.path) ? [...(file.sourceTrace ?? [])] : []
+    )
+  );
+};
+
+const previewSourceTrace = (snapshot: ExecutableProjectSnapshot) => {
+  const paths = new Set(
+    snapshot.entrypoints
+      .filter((entrypoint) => entrypoint.kind === 'preview')
+      .map((entrypoint) => entrypoint.path)
+  );
+  const traces = snapshot.files.flatMap((file) =>
+    paths.has(file.path) ? [...(file.sourceTrace ?? [])] : []
+  );
+  return Object.freeze(
+    traces.length
+      ? traces
+      : [
+          Object.freeze({
+            sourceRef: Object.freeze({
+              kind: 'workspace' as const,
+              workspaceId: snapshot.workspace.workspaceId,
+            }),
+            label: 'Remote static preview',
+          }),
+        ]
+  );
+};
+
+const testFallbackSourceTrace = (
+  snapshot: ExecutableProjectSnapshot
+): readonly ExecutionSourceTrace[] => {
+  const traces = snapshot.entrypoints
+    .filter((entrypoint) => entrypoint.kind === 'test')
+    .flatMap(
+      (entrypoint) =>
+        snapshot.files.find((file) => file.path === entrypoint.path)
+          ?.sourceTrace ?? []
+    );
+  return Object.freeze(
+    traces.length
+      ? traces
+      : [
+          Object.freeze({
+            sourceRef: Object.freeze({
+              kind: 'workspace' as const,
+              workspaceId: snapshot.workspace.workspaceId,
+            }),
+            label: 'Remote project test run',
+          }),
+        ]
+  );
+};
+
+const resolveTestSourceTrace = (
+  snapshot: ExecutableProjectSnapshot,
+  reportedPath: string,
+  fallback: readonly ExecutionSourceTrace[]
+): readonly ExecutionSourceTrace[] => {
+  const normalized = reportedPath.replaceAll('\\', '/');
+  const file = snapshot.files.find(
+    (candidate) =>
+      normalized === candidate.path || normalized.endsWith(`/${candidate.path}`)
+  );
+  return file?.sourceTrace?.length ? file.sourceTrace : fallback;
+};
+
+const collectTestReportSourceTrace = (
+  report: ReturnType<typeof parseVitestExecutionTestReport>,
+  fallback: readonly ExecutionSourceTrace[]
+): readonly ExecutionSourceTrace[] => {
+  const traces = report.files.flatMap((file) => file.sourceTrace ?? []);
+  if (!traces.length) return fallback;
+  const seen = new Set<string>();
+  return Object.freeze(
+    traces.filter((trace) => {
+      const identity = JSON.stringify(trace);
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    })
+  );
+};
+
+export const decodeRootlessPodmanSandboxResult = (
+  value: string,
+  snapshot: ExecutableProjectSnapshot,
+  profile: 'preview' | 'test' | 'build',
+  completedAt: number,
+  maximumOutputBytes: number,
+  maximumArtifactBytes: number
+): RemoteWorkerSandboxResult => {
+  const record = exactRecord(
+    JSON.parse(value) as unknown,
+    [
+      'protocol',
+      'exitCode',
+      'stdout',
+      'stderr',
+      'outputTruncated',
+      'artifacts',
+    ],
+    'Sandbox result'
+  );
+  if (
+    record.protocol !== 'prodivix.sandbox-result.v1' ||
+    !Number.isSafeInteger(record.exitCode) ||
+    (record.exitCode as number) < 0 ||
+    typeof record.outputTruncated !== 'boolean' ||
+    !Array.isArray(record.artifacts) ||
+    record.artifacts.length > 8
+  )
+    throw new TypeError('Sandbox result envelope is invalid.');
+  const stdout = decodeBase64(record.stdout, 'Sandbox stdout');
+  const stderr = decodeBase64(record.stderr, 'Sandbox stderr');
+  if (stdout.byteLength + stderr.byteLength > maximumOutputBytes)
+    throw new TypeError('Sandbox output exceeds the configured limit.');
+  let artifactBytes = 0;
+  if (
+    (profile === 'build' &&
+      (record.exitCode === 0
+        ? record.artifacts.length !== 1
+        : record.artifacts.length !== 0)) ||
+    (profile === 'test' && record.artifacts.length !== 1) ||
+    (profile === 'preview' &&
+      (record.exitCode === 0
+        ? record.artifacts.length !== 1
+        : record.artifacts.length !== 0))
+  )
+    throw new TypeError(
+      'Sandbox artifacts do not match the requested execution profile.'
+    );
+  const artifacts: RemoteWorkerSandboxArtifact[] = record.artifacts.map(
+    (value, index) => {
+      const artifact = exactRecord(
+        value,
+        ['artifactId', 'kind', 'label', 'mediaType', 'metadata', 'contents'],
+        `Sandbox artifact ${index}`
+      );
+      if (
+        typeof artifact.artifactId !== 'string' ||
+        !artifact.artifactId ||
+        artifact.artifactId !== artifact.artifactId.trim() ||
+        artifact.artifactId.length > 4_096 ||
+        (artifact.kind !== 'bundle' && artifact.kind !== 'report') ||
+        typeof artifact.mediaType !== 'string' ||
+        !artifact.mediaType ||
+        artifact.mediaType.length > 4_096 ||
+        (artifact.label !== undefined &&
+          (typeof artifact.label !== 'string' ||
+            !artifact.label ||
+            artifact.label.length > 4_096))
+      )
+        throw new TypeError(`Sandbox artifact ${index} is invalid.`);
+      const contents = decodeBase64(
+        artifact.contents,
+        `Sandbox artifact ${index} contents`
+      );
+      artifactBytes += contents.byteLength;
+      if (artifactBytes > maximumArtifactBytes)
+        throw new TypeError('Sandbox artifacts exceed the configured limit.');
+      let publishedContents = contents;
+      let publishedArtifactId = artifact.artifactId;
+      let publishedKind: RemoteWorkerSandboxArtifact['kind'] = artifact.kind;
+      let publishedLabel = artifact.label;
+      let publishedMediaType = artifact.mediaType;
+      let publishedMetadata = stringRecord(
+        artifact.metadata ?? {},
+        `Sandbox artifact ${index} metadata`
+      );
+      let sourceTrace = buildSourceTrace(snapshot);
+      if (artifact.kind === 'bundle') {
+        if (profile === 'preview') {
+          const previewBundle = decodeExecutionPreviewBundle(contents);
+          if (
+            artifact.artifactId !==
+              `preview-bundle:${snapshot.contentDigest}` ||
+            artifact.mediaType !== EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE ||
+            previewBundle.snapshotDigest !== snapshot.contentDigest ||
+            previewBundle.entryFilePath !==
+              snapshot.previewPlan.entryFilePath ||
+            JSON.stringify(previewBundle.target) !==
+              JSON.stringify(snapshot.target)
+          )
+            throw new TypeError(
+              `Sandbox artifact ${index} does not match the static preview contract.`
+            );
+          publishedMetadata = Object.freeze({
+            format: previewBundle.format,
+            snapshotDigest: snapshot.contentDigest,
+            presetId: previewBundle.target.presetId,
+            readiness: 'ready',
+            health: 'healthy',
+            entryFilePath: previewBundle.entryFilePath,
+            fileCount: String(previewBundle.files.length),
+            unpackedBytes: String(
+              previewBundle.files.reduce((total, file) => total + file.size, 0)
+            ),
+          });
+          sourceTrace = previewSourceTrace(snapshot);
+        } else {
+          if (profile !== 'build')
+            throw new TypeError(
+              'Sandbox Build artifact has the wrong profile.'
+            );
+          const buildBundle = decodeExecutionBuildBundle(contents);
+          if (
+            artifact.artifactId !== `build-bundle:${snapshot.contentDigest}` ||
+            artifact.mediaType !== EXECUTION_BUILD_BUNDLE_MEDIA_TYPE ||
+            buildBundle.snapshotDigest !== snapshot.contentDigest ||
+            JSON.stringify(buildBundle.target) !==
+              JSON.stringify(snapshot.target)
+          )
+            throw new TypeError(
+              `Sandbox artifact ${index} does not match the executable snapshot.`
+            );
+        }
+      } else {
+        if (profile !== 'test')
+          throw new TypeError('Sandbox Test artifact has the wrong profile.');
+        if (
+          artifact.artifactId !== `vitest-report:${snapshot.contentDigest}` ||
+          artifact.mediaType !== 'application/vnd.vitest.report+json'
+        )
+          throw new TypeError('Sandbox Test artifact is not a Vitest report.');
+        const fallback = testFallbackSourceTrace(snapshot);
+        const report = parseVitestExecutionTestReport({
+          source: contents,
+          reportId: `test-report:${snapshot.contentDigest}`,
+          completedAt,
+          sourceTrace: fallback,
+          resolveSourceTrace: (reportedPath) =>
+            resolveTestSourceTrace(snapshot, reportedPath, fallback),
+        });
+        if (
+          (record.exitCode === 0 && report.status !== 'passed') ||
+          (record.exitCode !== 0 && report.status !== 'failed')
+        )
+          throw new TypeError(
+            'Sandbox Test exit code and canonical report status diverged.'
+          );
+        publishedContents = Buffer.from(
+          JSON.stringify(toExecutionTestReportValue(report)),
+          'utf8'
+        );
+        if (publishedContents.byteLength > maximumArtifactBytes)
+          throw new TypeError(
+            'Canonical Test report exceeds the configured artifact limit.'
+          );
+        publishedArtifactId = `test-report:${snapshot.contentDigest}`;
+        publishedKind = 'report';
+        publishedLabel = 'Remote project test report';
+        publishedMediaType = EXECUTION_TEST_REPORT_MEDIA_TYPE;
+        publishedMetadata = Object.freeze({
+          reportId: report.reportId,
+          status: report.status,
+          snapshotDigest: snapshot.contentDigest,
+          totalFiles: String(report.summary.totalFiles),
+          totalCases: String(report.summary.totalCases),
+          failedFiles: String(report.summary.failedFiles),
+          failedCases: String(report.summary.failedCases),
+        });
+        sourceTrace = collectTestReportSourceTrace(report, fallback);
+      }
+      return Object.freeze({
+        artifactId: publishedArtifactId,
+        kind: publishedKind,
+        ...(publishedLabel ? { label: publishedLabel } : {}),
+        mediaType: publishedMediaType,
+        ...(sourceTrace.length ? { sourceTrace } : {}),
+        metadata: publishedMetadata,
+        contents: publishedContents,
+      });
+    }
+  );
+  const exitCode = record.exitCode as number;
+  return Object.freeze({
+    status: exitCode === 0 ? 'succeeded' : 'failed',
+    exitCode,
+    stdout: Buffer.from(stdout).toString('utf8'),
+    stderr: Buffer.from(stderr).toString('utf8'),
+    outputTruncated: record.outputTruncated,
+    artifacts: Object.freeze(artifacts),
+  });
+};
+
 /** Runs exact snapshots in a rootless OCI boundary without host mounts or inherited credentials. */
 export const createRootlessPodmanSandbox = (
   options: CreateRootlessPodmanSandboxOptions
 ): RemoteWorkerSandbox => {
-  if (
-    !options.allowUnpinnedImageForGate &&
-    !imageIsImmutable(options.imageReference)
-  )
+  if (!imageIsImmutable(options.imageReference))
     throw new TypeError(
       'Production sandbox image must use an immutable digest.'
     );
@@ -202,8 +820,16 @@ export const createRootlessPodmanSandbox = (
       options.limits.temporaryDirectoryMb,
       'Sandbox temporary-directory limit'
     ),
+    maximumArtifactBytes: positive(
+      options.limits.maximumArtifactBytes,
+      'Sandbox artifact limit'
+    ),
   });
   const podmanCommand = options.podmanCommand ?? 'podman';
+  const installNetworkPolicy = normalizeInstallNetworkPolicy(
+    options.installNetworkPolicy
+  );
+  const now = options.now ?? Date.now;
   return Object.freeze({
     async execute(input): Promise<RemoteWorkerSandboxResult> {
       if (process.platform !== 'linux' || !process.getuid || !process.getgid)
@@ -225,6 +851,17 @@ export const createRootlessPodmanSandbox = (
         input.snapshot.resourceHints.diskMb ?? limits.maximumDiskMb,
         limits.maximumDiskMb
       );
+      const installTraceId = `install-${randomUUID()}`;
+      if (installNetworkPolicy.mode === 'proxy-allowlist')
+        await assertInstallProxyPolicy(podmanCommand, installNetworkPolicy);
+      const installProxyUrl =
+        installNetworkPolicy.mode === 'proxy-allowlist'
+          ? (() => {
+              const url = new URL(installNetworkPolicy.proxyUrl);
+              url.username = installTraceId;
+              return url.toString();
+            })()
+          : undefined;
       const args = createRootlessPodmanRunArguments({
         name,
         imageReference: options.imageReference,
@@ -237,6 +874,12 @@ export const createRootlessPodmanSandbox = (
         openFiles: limits.maximumOpenFiles,
         temporaryDirectoryMb: limits.temporaryDirectoryMb,
         executionId: input.executionId,
+        ...(installNetworkPolicy.mode === 'proxy-allowlist'
+          ? {
+              installNetworkName: installNetworkPolicy.networkName,
+              installProxyUrl,
+            }
+          : {}),
       });
       const output: Output = {
         stdout: '',
@@ -244,21 +887,52 @@ export const createRootlessPodmanSandbox = (
         usedBytes: 0,
         truncated: false,
       };
+      const maximumEnvelopeBytes = Math.ceil(
+        limits.maximumArtifactBytes * (4 / 3) +
+          input.maximumOutputBytes * (4 / 3) +
+          1024 * 1024
+      );
       const child = spawn(podmanCommand, [...args], {
         shell: false,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { PATH: process.env.PATH },
+        env: podmanProcessEnvironment(),
       });
       let timedOut = false;
       let aborted = input.signal.aborted;
-      let stopping = false;
+      let childClosed = false;
+      let stopTask: Promise<void> | undefined;
+      let phaseIsolationFailure = false;
+      let phaseIsolationTask: Promise<void> | undefined;
       const stop = (): void => {
-        if (stopping) return;
-        stopping = true;
-        void execFileAsync(podmanCommand, ['stop', '--time=1', name])
-          .catch(() => execFileAsync(podmanCommand, ['kill', name]))
-          .catch(() => undefined);
+        if (stopTask) return;
+        stopTask = (async () => {
+          const escalationAt = Date.now() + stopEscalationMs;
+          const deadlineAt = Date.now() + stopDeadlineMs;
+          while (!childClosed && Date.now() < deadlineAt) {
+            try {
+              await execFileAsync(
+                podmanCommand,
+                Date.now() < escalationAt
+                  ? ['stop', '--time=1', name]
+                  : ['rm', '--force', name],
+                { env: podmanProcessEnvironment() }
+              );
+              return;
+            } catch {
+              if (childClosed) return;
+              await new Promise((resolveDelay) =>
+                setTimeout(resolveDelay, stopRetryIntervalMs)
+              );
+            }
+          }
+          if (!childClosed) child.kill('SIGKILL');
+          await execFileAsync(
+            podmanCommand,
+            ['rm', '--force', '--ignore', name],
+            { env: podmanProcessEnvironment() }
+          ).catch(() => undefined);
+        })();
       };
       const timer = setTimeout(() => {
         timedOut = true;
@@ -270,20 +944,132 @@ export const createRootlessPodmanSandbox = (
       };
       input.signal.addEventListener('abort', onAbort, { once: true });
       child.stdout.on('data', (chunk: Buffer) =>
-        appendOutput(output, 'stdout', chunk, input.maximumOutputBytes)
+        appendOutput(output, 'stdout', chunk, maximumEnvelopeBytes)
       );
-      child.stderr.on('data', (chunk: Buffer) =>
-        appendOutput(output, 'stderr', chunk, input.maximumOutputBytes)
+      let controlBuffer = '';
+      child.stderr.on('data', (chunk: Buffer) => {
+        appendOutput(output, 'stderr', chunk, maximumEnvelopeBytes);
+        if (
+          installNetworkPolicy.mode !== 'proxy-allowlist' ||
+          phaseIsolationTask
+        )
+          return;
+        controlBuffer = `${controlBuffer}${chunk.toString('utf8')}`.slice(
+          -installCompleteMarker.length * 2
+        );
+        if (!controlBuffer.includes(installCompleteMarker)) return;
+        phaseIsolationTask = (async () => {
+          try {
+            await execFileAsync(
+              podmanCommand,
+              [
+                'network',
+                'disconnect',
+                '--force',
+                installNetworkPolicy.networkName,
+                name,
+              ],
+              { env: podmanProcessEnvironment() }
+            );
+            await assertContainerHasNoNetwork(podmanCommand, name);
+            child.stdin.end(`${continueExecutionToken}\n`);
+          } catch {
+            phaseIsolationFailure = true;
+            stop();
+          }
+        })();
+      });
+      child.stdin.on('error', () => {
+        // Podman can reject the invocation before the bounded payload finishes writing.
+      });
+      child.stdin.write(
+        `${payload(
+          input.snapshot,
+          input.profile,
+          input.maximumOutputBytes,
+          limits.maximumArtifactBytes
+        )}\n`
       );
-      child.stdin.end(payload(input.snapshot, input.profile));
+      if (installNetworkPolicy.mode === 'none')
+        child.stdin.end(`${continueExecutionToken}\n`);
       const exitCode = await new Promise<number>((resolveExit, rejectExit) => {
-        child.once('error', rejectExit);
-        child.once('close', (code) => resolveExit(code ?? 1));
+        child.once('error', (error) => {
+          childClosed = true;
+          rejectExit(error);
+        });
+        child.once('close', (code) => {
+          childClosed = true;
+          resolveExit(code ?? 1);
+        });
         if (aborted) stop();
       }).finally(() => {
         clearTimeout(timer);
         input.signal.removeEventListener('abort', onAbort);
       });
+      await stopTask;
+      await phaseIsolationTask;
+      if (phaseIsolationFailure)
+        return Object.freeze({
+          status: 'failed',
+          exitCode: 125,
+          stdout: '',
+          stderr: 'Sandbox runtime network isolation failed.',
+          outputTruncated: output.truncated,
+          reason: 'runtime-network-isolation-failed',
+        });
+      let networkTraces: readonly RemoteWorkerSandboxNetworkTrace[] = [];
+      if (installNetworkPolicy.mode === 'proxy-allowlist') {
+        try {
+          const { stdout: proxyLogs } = await execFileAsync(
+            podmanCommand,
+            ['logs', installNetworkPolicy.proxyContainerName],
+            {
+              env: podmanProcessEnvironment(),
+              maxBuffer: 8 * 1024 * 1024,
+            }
+          );
+          networkTraces = decodeRootlessInstallProxyTraces(
+            proxyLogs,
+            installTraceId
+          );
+        } catch {
+          return Object.freeze({
+            status: 'failed',
+            exitCode: 125,
+            stdout: '',
+            stderr: 'Sandbox install network trace validation failed.',
+            outputTruncated: output.truncated,
+            reason: 'invalid-network-trace',
+          });
+        }
+      }
+      if (!aborted && !timedOut && exitCode === 0) {
+        try {
+          const result = decodeRootlessPodmanSandboxResult(
+            output.stdout,
+            input.snapshot,
+            input.profile,
+            now(),
+            input.maximumOutputBytes,
+            limits.maximumArtifactBytes
+          );
+          return Object.freeze({
+            ...result,
+            stdout: redact(result.stdout, input.redactValues),
+            stderr: redact(result.stderr, input.redactValues),
+            ...(networkTraces.length ? { networkTraces } : {}),
+          });
+        } catch {
+          return Object.freeze({
+            status: 'failed',
+            exitCode: 125,
+            stdout: '',
+            stderr: 'Sandbox returned an invalid result envelope.',
+            outputTruncated: output.truncated,
+            reason: 'invalid-sandbox-result',
+          });
+        }
+      }
       return Object.freeze({
         status: aborted
           ? 'cancelled'
@@ -293,9 +1079,10 @@ export const createRootlessPodmanSandbox = (
               ? 'succeeded'
               : 'failed',
         exitCode,
-        stdout: redact(output.stdout, input.redactValues),
+        stdout: '',
         stderr: redact(output.stderr, input.redactValues),
         outputTruncated: output.truncated,
+        ...(networkTraces.length ? { networkTraces } : {}),
       });
     },
   });

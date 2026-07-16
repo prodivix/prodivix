@@ -32,6 +32,9 @@
       "path": "./packages/runtime-core"
     },
     {
+      "path": "./packages/runtime-vitest"
+    },
+    {
       "path": "./packages/runtime-remote"
     },
     {
@@ -44,7 +47,16 @@
       "path": "./apps/remote-runner-worker"
     },
     {
+      "path": "./apps/remote-preview-host"
+    },
+    {
       "path": "./packages/data"
+    },
+    {
+      "path": "./packages/data-http"
+    },
+    {
+      "path": "./packages/data-mock"
     },
     {
       "path": "./packages/nodegraph"

@@ -16,6 +16,7 @@ import {
   type ExecutionConsoleDiagnostic,
   type ExecutionConsoleFilter,
 } from './executionConsoleModel';
+import { createExecutionNetworkEntries } from './executionNetworkModel';
 import { useExecutionSession } from './useExecutionSession';
 
 type ExecutionCenterProps = Readonly<{
@@ -67,6 +68,7 @@ export function ExecutionCenter({
   const { t } = useTranslation('editor');
   const session = useExecutionSession(sessionId);
   const [collapsed, setCollapsed] = useState(false);
+  const [surface, setSurface] = useState<'console' | 'network'>('console');
   const [filter, setFilter] = useState<ExecutionConsoleFilter>('all');
   const outputRef = useRef<HTMLDivElement | null>(null);
   const effectiveStatus = status ?? session?.status ?? 'idle';
@@ -75,12 +77,16 @@ export function ExecutionCenter({
     [diagnostics, filter, session]
   );
   const active = activeStatuses.has(effectiveStatus);
+  const networkEntries = useMemo(
+    () => createExecutionNetworkEntries(session),
+    [session]
+  );
 
   useEffect(() => {
     if (collapsed) return;
     const output = outputRef.current;
     if (output) output.scrollTop = output.scrollHeight;
-  }, [collapsed, lines.length]);
+  }, [collapsed, lines.length, networkEntries.length, surface]);
 
   const iconButtonClass =
     'inline-flex size-7 items-center justify-center rounded-md text-(--text-muted) transition-colors hover:bg-(--bg-raised) hover:text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-35';
@@ -183,26 +189,42 @@ export function ExecutionCenter({
       {!collapsed ? (
         <>
           <div className="flex h-8 shrink-0 items-center gap-1 border-b border-(--border-subtle) px-3">
-            {(['all', 'errors'] as const).map((value) => (
+            {(['console', 'network'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
-                className={`rounded-md px-2 py-1 text-[10px] ${filter === value ? 'bg-(--bg-raised) text-(--text-primary)' : 'text-(--text-muted) hover:text-(--text-primary)'}`}
-                aria-pressed={filter === value}
-                onClick={() => setFilter(value)}
+                className={`rounded-md px-2 py-1 text-[10px] ${surface === value ? 'bg-(--bg-raised) text-(--text-primary)' : 'text-(--text-muted) hover:text-(--text-primary)'}`}
+                aria-pressed={surface === value}
+                onClick={() => setSurface(value)}
               >
-                {t(`execution.filter.${value}`)}
+                {t(`execution.surface.${value}`)}
               </button>
             ))}
+            {surface === 'console'
+              ? (['all', 'errors'] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`rounded-md px-2 py-1 text-[10px] ${filter === value ? 'text-(--text-primary)' : 'text-(--text-muted) hover:text-(--text-primary)'}`}
+                    aria-pressed={filter === value}
+                    onClick={() => setFilter(value)}
+                  >
+                    {t(`execution.filter.${value}`)}
+                  </button>
+                ))
+              : null}
             <span className="ml-auto text-[10px] text-(--text-muted)">
-              {t('execution.eventCount', { count: lines.length })}
+              {t('execution.eventCount', {
+                count:
+                  surface === 'console' ? lines.length : networkEntries.length,
+              })}
             </span>
           </div>
           <div
             ref={outputRef}
             className="min-h-0 flex-1 overflow-auto bg-(--bg-panel) px-3 py-2 font-mono text-[10px] leading-4"
           >
-            {lines.length ? (
+            {surface === 'console' && lines.length ? (
               lines.map((line) => (
                 <div
                   key={line.id}
@@ -223,9 +245,44 @@ export function ExecutionCenter({
                   </span>
                 </div>
               ))
+            ) : surface === 'network' && networkEntries.length ? (
+              networkEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="grid grid-cols-[72px_minmax(160px,1fr)_72px_64px] gap-2 py-0.5"
+                >
+                  <span className="truncate text-(--text-secondary)">
+                    {entry.trace.correlation
+                      ? `${entry.trace.method} · ${entry.trace.correlation.operationId}`
+                      : entry.trace.method}
+                  </span>
+                  <span
+                    className="truncate text-(--text-secondary)"
+                    title={entry.trace.sanitizedUrl}
+                  >
+                    {entry.trace.sanitizedUrl}
+                  </span>
+                  <span
+                    className={
+                      entry.trace.outcome === 'allowed'
+                        ? 'text-(--text-muted)'
+                        : 'text-(--danger-color)'
+                    }
+                  >
+                    {entry.trace.status ?? entry.trace.outcome}
+                  </span>
+                  <span className="text-right text-(--text-muted)">
+                    {entry.trace.durationMs} ms
+                  </span>
+                </div>
+              ))
             ) : (
               <div className="flex h-full items-center justify-center text-(--text-muted)">
-                {t('execution.empty')}
+                {t(
+                  surface === 'console'
+                    ? 'execution.empty'
+                    : 'execution.networkEmpty'
+                )}
               </div>
             )}
           </div>

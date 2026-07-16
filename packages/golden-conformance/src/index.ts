@@ -22,3 +22,9 @@ export {
   type GoldenG1CompilerEvidence,
   type GoldenG1ConformanceReport,
 } from './goldenG1Scenario';
+export {
+  projectGoldenTestSemantics,
+  runGoldenG2ExecutionMatrix,
+  type GoldenG2ExecutionMatrixReport,
+  type GoldenTestSemantics,
+} from './goldenG2ExecutionMatrix';

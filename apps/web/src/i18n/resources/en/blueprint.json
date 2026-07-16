@@ -591,6 +591,12 @@
     "quickPresetMenu": "Presets",
     "size": "Size {{width}}x{{height}}",
     "moreDevices": "More devices",
+    "runProvider": {
+      "label": "Runner",
+      "browser": "Browser",
+      "remote": "Remote isolated",
+      "remoteSignIn": "Remote (sign in)"
+    },
     "modes": {
       "design": "Design",
       "designTitle": "Design mode (Ctrl+Alt+I)",

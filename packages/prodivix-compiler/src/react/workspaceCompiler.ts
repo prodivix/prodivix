@@ -1,5 +1,6 @@
 import {
   createWorkspacePirProjectionPlan,
+  decodeWorkspaceDataSourceDocument,
   isWorkspacePirDocument,
   type WorkspacePirProjectionIssue,
   type WorkspacePirDocument,
@@ -112,12 +113,39 @@ export const compileWorkspacePirReactModules = (
       ])
     )
   );
+  const dataOperationKindsByDocumentId = Object.freeze(
+    Object.fromEntries(
+      Object.values(input.workspace.docsById)
+        .filter((document) => document.type === 'data-source')
+        .sort((left, right) =>
+          left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+        )
+        .flatMap((document) => {
+          const read = decodeWorkspaceDataSourceDocument(document);
+          return read.status === 'valid'
+            ? [
+                [
+                  document.id,
+                  Object.freeze(
+                    Object.fromEntries(
+                      Object.values(read.decodedContent.operationsById).map(
+                        (operation) => [operation.id, operation.kind]
+                      )
+                    )
+                  ),
+                ],
+              ]
+            : [];
+        })
+    )
+  );
   const compiled = plan.dependencyFirstDocumentIds.map((documentId) =>
     compilePirReactDocument({
       workspaceDocument: plan.documentsById[documentId]!,
       documentsById: plan.documentsById,
       moduleIdByDocumentId,
       moduleNameByDocumentId,
+      dataOperationKindsByDocumentId,
       adapter: input.adapter,
       packageResolver: input.packageResolver,
     })

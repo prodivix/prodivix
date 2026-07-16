@@ -1,3 +1,8 @@
+export { projectRemoteExecutionArtifact } from './remoteExecutionArtifact';
+export {
+  createRemoteExecutionArtifactResolver,
+  RemoteExecutionArtifactResolutionError,
+} from './remoteExecutionArtifactResolver';
 export {
   createActiveExecutionQuotaPolicy,
   createRemoteExecutionControlPlane,
@@ -13,6 +18,22 @@ export {
   RemoteExecutionClientError,
   RemoteExecutionRecoveryRequiredError,
 } from './remoteExecutionClient';
+export {
+  createRemoteExecutionHttpTransports,
+  RemoteExecutionHttpTransportError,
+} from './remoteExecutionHttpTransport';
+export {
+  createRemoteBuildExecutionProvider,
+  createRemoteExecutionProvider,
+  createRemotePreviewExecutionProvider,
+  createRemoteTestExecutionProvider,
+  REMOTE_BUILD_EXECUTION_PROVIDER_ID,
+  REMOTE_PREVIEW_EXECUTION_PROVIDER_ID,
+  REMOTE_TEST_EXECUTION_PROVIDER_ID,
+  remoteBuildExecutionProviderDescriptor,
+  remotePreviewExecutionProviderDescriptor,
+  remoteTestExecutionProviderDescriptor,
+} from './remoteExecutionProvider';
 export {
   decodeRemoteExecutableProjectSnapshot,
   decodeRemoteExecutionSnapshotSource,
@@ -43,6 +64,11 @@ export {
 
 export type { CreateRemoteExecutionControlPlaneOptions } from './remoteExecutionControlPlane';
 export type {
+  CreateRemoteExecutionArtifactResolverOptions,
+  RemoteExecutionArtifactContentTransport,
+  ResolvedRemotePreviewBundle,
+} from './remoteExecutionArtifactResolver';
+export type {
   RemoteExecutionAuthorizationDecision,
   RemoteExecutionAuthorizationPolicy,
   RemoteExecutionArtifactBlob,
@@ -70,6 +96,16 @@ export type {
   CreateRemoteExecutionClientOptions,
   RemoteExecutionRetryPolicy,
 } from './remoteExecutionClient';
+export type {
+  CreateRemoteExecutionHttpTransportsOptions,
+  RemoteExecutionHttpPort,
+  RemoteExecutionHttpRequest,
+  RemoteExecutionHttpResponse,
+} from './remoteExecutionHttpTransport';
+export type {
+  CreateRemoteExecutionProviderOptions,
+  ResolveRemoteExecutionSnapshot,
+} from './remoteExecutionProvider';
 export type {
   DecodedRemoteExecutionRequest,
   DecodedRemoteExecutionRequestEnvelope,

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "noEmit": false,
+    "paths": {
+      "@prodivix/data": ["../data/src"],
+      "@prodivix/runtime-core": ["../runtime-core/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"],
+  "references": [{ "path": "../data" }, { "path": "../runtime-core" }]
+}

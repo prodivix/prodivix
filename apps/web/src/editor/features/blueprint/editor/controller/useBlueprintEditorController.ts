@@ -1052,6 +1052,9 @@ export const useBlueprintEditorController = (
     },
     viewportBar: {
       canvasMode: resolvedBlueprintState.canvasMode,
+      runProvider: resolvedBlueprintState.runProvider,
+      onRunProviderChange: (runProvider: 'browser' | 'remote') =>
+        setBlueprintState(blueprintKey, { runProvider }),
       onCanvasModeChange: (canvasMode: BlueprintCanvasMode) =>
         setBlueprintState(blueprintKey, { canvasMode }),
       onToggleInteractionMode: () =>

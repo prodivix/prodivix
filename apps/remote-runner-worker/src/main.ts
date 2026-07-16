@@ -24,11 +24,27 @@ const workerToken = required('REMOTE_WORKER_TOKEN');
 const leaseDurationMs = integer('REMOTE_WORKER_LEASE_MS', 30_000);
 const pollIntervalMs = integer('REMOTE_WORKER_POLL_MS', 1_000);
 const sandboxMode = process.env.REMOTE_WORKER_SANDBOX_MODE ?? 'rootless-podman';
+const installNetworkName = process.env.REMOTE_WORKER_INSTALL_NETWORK?.trim();
+const installAllowedHosts =
+  process.env.REMOTE_WORKER_INSTALL_ALLOWED_HOSTS?.split(',')
+    .map((host) => host.trim())
+    .filter(Boolean);
 const sandbox =
   sandboxMode === 'rootless-podman'
     ? createRootlessPodmanSandbox({
         imageReference: required('REMOTE_WORKER_SANDBOX_IMAGE'),
         podmanCommand: process.env.REMOTE_WORKER_PODMAN_COMMAND,
+        installNetworkPolicy: installNetworkName
+          ? {
+              mode: 'proxy-allowlist',
+              networkName: installNetworkName,
+              proxyUrl: required('REMOTE_WORKER_INSTALL_PROXY_URL'),
+              proxyContainerName: required(
+                'REMOTE_WORKER_INSTALL_PROXY_CONTAINER'
+              ),
+              allowedHosts: installAllowedHosts ?? [],
+            }
+          : { mode: 'none' },
         limits: {
           maximumCpuCores: integer('REMOTE_WORKER_MAX_CPU_CORES', 2),
           maximumMemoryMb: integer('REMOTE_WORKER_MAX_MEMORY_MB', 2_048),
@@ -36,6 +52,10 @@ const sandbox =
           maximumPids: integer('REMOTE_WORKER_MAX_PIDS', 256),
           maximumOpenFiles: integer('REMOTE_WORKER_MAX_OPEN_FILES', 1_024),
           temporaryDirectoryMb: integer('REMOTE_WORKER_TMP_MB', 256),
+          maximumArtifactBytes: integer(
+            'REMOTE_WORKER_MAX_ARTIFACT_BYTES',
+            64 * 1024 * 1024
+          ),
         },
       })
     : sandboxMode === 'filesystem-reference' &&
@@ -67,6 +87,10 @@ const agent = createRemoteWorkerAgent({
   defaultMaximumOutputBytes: integer(
     'REMOTE_WORKER_DEFAULT_OUTPUT_BYTES',
     4 * 1024 * 1024
+  ),
+  artifactRetentionMs: integer(
+    'REMOTE_WORKER_ARTIFACT_RETENTION_MS',
+    60 * 60 * 1_000
   ),
   redactValues: [workerToken],
 });

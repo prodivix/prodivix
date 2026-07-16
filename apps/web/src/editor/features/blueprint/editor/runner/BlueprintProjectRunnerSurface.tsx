@@ -56,8 +56,16 @@ export function BlueprintProjectRunnerSurface({
           className="h-full w-full border-0 bg-white"
           src={iframeUrl}
           title={t('runner.previewTitle')}
-          sandbox="allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
-          allow="clipboard-read; clipboard-write"
+          sandbox={
+            state.provider === 'remote'
+              ? 'allow-scripts'
+              : 'allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts'
+          }
+          allow={
+            state.provider === 'remote'
+              ? undefined
+              : 'clipboard-read; clipboard-write'
+          }
           referrerPolicy="no-referrer"
         />
       ) : null}

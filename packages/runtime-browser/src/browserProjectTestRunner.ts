@@ -1,5 +1,6 @@
 import {
   EXECUTION_TEST_REPORT_TRACE_NAME,
+  EXECUTION_TEST_REPORT_MEDIA_TYPE,
   assertExecutableProjectCapabilitySupport,
   createExecutionJobController,
   createExecutionProviderDescriptor,
@@ -22,7 +23,7 @@ import {
   createBrowserProjectRuntimeHost,
   type BrowserProjectRuntimeHost,
 } from './browserProjectRuntimeHost';
-import { parseVitestExecutionTestReport } from './vitestExecutionTestReport';
+import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
 
 export const BROWSER_PROJECT_TEST_EXECUTION_PROVIDER_ID =
   'prodivix.browser.web-container.test';
@@ -239,7 +240,7 @@ export const createBrowserProjectTestRunner = (
       artifactId: `test-report:${controller.job.id}`,
       kind: 'report',
       label: 'Project test report',
-      mediaType: 'application/vnd.prodivix.test-report+json',
+      mediaType: EXECUTION_TEST_REPORT_MEDIA_TYPE,
       uri: artifactUri(request, reportFilePath),
       sourceTrace,
       metadata: {

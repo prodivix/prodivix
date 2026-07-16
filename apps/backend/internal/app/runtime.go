@@ -8,6 +8,7 @@ import (
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
 	backendgithub "github.com/Prodivix/prodivix/apps/backend/internal/modules/integrations/github"
 	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
+	backendremoteexecution "github.com/Prodivix/prodivix/apps/backend/internal/modules/remoteexecution"
 	backendworkspace "github.com/Prodivix/prodivix/apps/backend/internal/modules/workspace"
 	"github.com/gin-gonic/gin"
 )
@@ -31,6 +32,10 @@ type RuntimeModules struct {
 		Module  *backendworkspace.Module
 		Handler *backendworkspace.Handler
 	}
+	RemoteExecution struct {
+		Store   *backendremoteexecution.Store
+		Handler *backendremoteexecution.Handler
+	}
 }
 
 func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Config) RuntimeModules {
@@ -46,6 +51,8 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	modules.Workspace.Handler = backendworkspace.NewHandler(modules.Workspace.Store, modules.Workspace.Module)
 	modules.Project.Handler = backendproject.NewHandler(modules.Project.Store, modules.Workspace.Module)
 	modules.GitHub.Handler = backendgithub.NewHandler(modules.GitHub.Store, modules.Project.Store, cfg.GitHub, cfg.Environment)
+	modules.RemoteExecution.Store = backendremoteexecution.NewStore(db)
+	modules.RemoteExecution.Handler = backendremoteexecution.NewHandler(modules.RemoteExecution.Store, cfg.RemoteRunner, cfg.RemotePreview)
 	return modules
 }
 
@@ -58,9 +65,10 @@ func (modules RuntimeModules) Routes(requireAuth gin.HandlerFunc) Routes {
 		Ping: func(c *gin.Context) {
 			c.JSON(200, gin.H{"message": "pong"})
 		},
-		Auth:      modules.Auth.Handler.Routes(requireAuth),
-		GitHub:    modules.GitHub.Handler.Routes(requireAuth),
-		Project:   modules.Project.Handler.Routes(requireAuth),
-		Workspace: modules.Workspace.Handler.Routes(requireAuth),
+		Auth:            modules.Auth.Handler.Routes(requireAuth),
+		GitHub:          modules.GitHub.Handler.Routes(requireAuth),
+		Project:         modules.Project.Handler.Routes(requireAuth),
+		Workspace:       modules.Workspace.Handler.Routes(requireAuth),
+		RemoteExecution: modules.RemoteExecution.Handler.Routes(requireAuth),
 	}
 }

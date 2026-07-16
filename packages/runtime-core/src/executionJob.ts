@@ -109,6 +109,7 @@ export type ExecutionJobController = Readonly<{
   job: ExecutionJob;
   markStarting(): ExecutionJobSnapshot;
   markRunning(): ExecutionJobSnapshot;
+  markCancelling(reason?: string): ExecutionJobSnapshot;
   emitLog(log: ExecutionLogRecord): ExecutionJobLogEvent;
   emitDiagnostic(diagnostic: ProdivixDiagnostic): ExecutionJobDiagnosticEvent;
   emitArtifact(artifact: ExecutionArtifact): ExecutionJobArtifactEvent;
@@ -443,6 +444,7 @@ export const createExecutionJobController = (
     job,
     markStarting: () => transition('starting'),
     markRunning: () => transition('running'),
+    markCancelling: (reason) => transition('cancelling', reason),
     emitLog: (log) =>
       publishEvent<ExecutionJobLogEvent>({
         kind: 'log',

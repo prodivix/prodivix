@@ -8,6 +8,11 @@ import type {
   ExecutionTraceRecord,
 } from '@prodivix/runtime-core';
 import {
+  EXECUTION_NETWORK_TRACE_NAME,
+  readExecutionNetworkTraceValue,
+  toExecutionNetworkTraceValue,
+} from '@prodivix/runtime-core';
+import {
   booleanValue,
   diagnostic,
   exactRecord,
@@ -199,6 +204,22 @@ const traceRecord = (value: unknown, label: string): ExecutionTraceRecord => {
   if (!['start', 'event', 'end'].includes(phase)) {
     throw new TypeError(`${label}.phase is unsupported.`);
   }
+  const name = normalizedString(record.name, `${label}.name`);
+  const detail =
+    record.detail === undefined
+      ? undefined
+      : executionValue(record.detail, `${label}.detail`);
+  const normalizedDetail =
+    name === EXECUTION_NETWORK_TRACE_NAME
+      ? (() => {
+          const network = readExecutionNetworkTraceValue(detail);
+          if (!network)
+            throw new TypeError(
+              `${label}.detail is not a canonical Network trace.`
+            );
+          return toExecutionNetworkTraceValue(network);
+        })()
+      : detail;
   return Object.freeze({
     traceId: normalizedString(record.traceId, `${label}.traceId`),
     spanId: normalizedString(record.spanId, `${label}.spanId`),
@@ -210,11 +231,9 @@ const traceRecord = (value: unknown, label: string): ExecutionTraceRecord => {
             `${label}.parentSpanId`
           ),
         }),
-    name: normalizedString(record.name, `${label}.name`),
+    name,
     phase: phase as ExecutionTraceRecord['phase'],
-    ...(record.detail === undefined
-      ? {}
-      : { detail: executionValue(record.detail, `${label}.detail`) }),
+    ...(normalizedDetail === undefined ? {} : { detail: normalizedDetail }),
     ...(record.sourceTrace === undefined
       ? {}
       : {

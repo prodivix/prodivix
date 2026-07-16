@@ -2,12 +2,15 @@ import {
   assertExecutableProjectCapabilitySupport,
   createExecutionJobController,
   createExecutionProviderDescriptor,
+  EXECUTION_NETWORK_TRACE_NAME,
   getExecutionProviderCompatibility,
   isExecutionJobTerminalStatus,
+  toExecutionNetworkTraceValue,
   type ExecutionJob,
   type ExecutionJobController,
   type ExecutionProvider,
   type ExecutionRequest,
+  type ExecutionNetworkTrace,
   type ExecutableProjectSnapshot,
 } from '@prodivix/runtime-core';
 import type {
@@ -40,6 +43,7 @@ export type BrowserProjectRunnerOptions = Readonly<{
 
 export type BrowserProjectRunner = Readonly<{
   provider: ExecutionProvider;
+  publishNetworkTrace(trace: ExecutionNetworkTrace): boolean;
   stop(reason?: string): Promise<void>;
   dispose(): Promise<void>;
 }>;
@@ -59,6 +63,7 @@ const providerDescriptor = createExecutionProviderDescriptor({
     'dependency-install',
     'filesystem',
     'hmr',
+    'network',
     'source-trace',
     'streaming-logs',
     'timeout',
@@ -398,6 +403,19 @@ export const createBrowserProjectRunner = (
 
   return Object.freeze({
     provider,
+    publishNetworkTrace(trace) {
+      const controller = activeController;
+      if (!controller || !isJobRunnable(controller)) return false;
+      controller.emitTrace({
+        traceId: `network:${controller.job.id}`,
+        spanId: trace.requestId,
+        name: EXECUTION_NETWORK_TRACE_NAME,
+        phase: 'event',
+        detail: toExecutionNetworkTraceValue(trace),
+        ...(trace.sourceTrace ? { sourceTrace: trace.sourceTrace } : {}),
+      });
+      return true;
+    },
     stop,
     dispose: async () => {
       if (disposed) return;

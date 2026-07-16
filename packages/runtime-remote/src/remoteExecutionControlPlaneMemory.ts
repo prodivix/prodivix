@@ -16,6 +16,7 @@ import type {
   RemoteExecutionStoredRecord,
   RemoteExecutionStoredSnapshot,
 } from './remoteExecutionControlPlane.types';
+import { projectRemoteExecutionArtifact } from './remoteExecutionArtifact';
 
 const terminalStatuses = new Set<ExecutionJobStatus>([
   'succeeded',
@@ -460,7 +461,7 @@ export const createMemoryRemoteExecutionRepository =
           jobId: execution.record.executionId,
           sequence,
           emittedAt: input.emittedAt,
-          artifact: input.descriptor,
+          artifact: projectRemoteExecutionArtifact(input.descriptor),
         });
         const totalEventBytes = execution.events.reduce(
           (sum, stored) => sum + utf8ByteLength(JSON.stringify(stored.event)),
