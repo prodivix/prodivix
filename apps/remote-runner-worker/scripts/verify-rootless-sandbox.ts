@@ -7,6 +7,8 @@ import {
   decodeExecutionBuildBundle,
   decodeExecutionFilesystemDiff,
   decodeExecutionPreviewBundle,
+  EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
+  EXECUTABLE_PROJECT_DATA_RUNTIME_MANIFEST_PATH,
   EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   readExecutionTestReportValue,
@@ -149,6 +151,13 @@ const previewSource = String.raw`
 import fs from 'node:fs';
 fs.mkdirSync('/workspace/dist', { recursive: true });
 fs.writeFileSync('/workspace/dist/index.html', '<main>Remote Preview ready</main>');
+`;
+
+const terminalSource = String.raw`
+import fs from 'node:fs';
+fs.mkdirSync('/workspace/dist', { recursive: true });
+fs.writeFileSync('/workspace/dist/index.html', '<main>Remote Terminal ready</main>');
+await new Promise((resolve) => setTimeout(resolve, 5000));
 `;
 
 const snapshot = (
@@ -392,10 +401,7 @@ let terminalConnected = false;
 let terminalTask: Promise<void> | undefined;
 const terminalResult = await sandbox.execute({
   executionId: 'gate-terminal',
-  snapshot: snapshot(
-    'gate-terminal',
-    'await new Promise((resolve) => setTimeout(resolve, 5000));'
-  ),
+  snapshot: snapshot('gate-terminal', terminalSource),
   profile: 'build',
   timeoutMs: 15_000,
   maximumOutputBytes: 256 * 1024,
@@ -414,22 +420,35 @@ const terminalResult = await sandbox.execute({
           onExit() {},
         });
         await process.write(
-          "if [ -t 0 ] && [ -t 1 ]; then printf 'PRODIVIX_TERMINAL_TTY_V1\\n'; else printf 'NO_TTY\\n'; fi\n"
+          "if [ -t 0 ] && [ -t 1 ]; then printf 'PRODIVIX_TERMINAL_%s\\n' 'TTY_V1'; else printf 'PRODIVIX_TERMINAL_%s\\n' 'NO_TTY_V1'; fi\n"
         );
         await process.resize({ columns: 101, rows: 31 });
-        await process.write("printf 'PRODIVIX_TERMINAL_SIZE='; stty size\n");
         await process.write(
-          "printf 'ephemeral-terminal-file' > /workspace/terminal-runtime-probe.txt; if [ \"$(cat /workspace/terminal-runtime-probe.txt)\" = 'ephemeral-terminal-file' ]; then printf 'PRODIVIX_TERMINAL_FS_LOCAL_V1\\n'; fi\n"
+          "set -- $(stty size); if [ \"$1\" = '31' ] && [ \"$2\" = '101' ]; then printf 'PRODIVIX_TERMINAL_%s\\n' 'SIZE_31_101_V1'; else printf 'PRODIVIX_TERMINAL_SIZE_MISMATCH_%sx%s\\n' \"$1\" \"$2\"; fi\n"
         );
-        for (let attempt = 0; attempt < 100; attempt += 1) {
+        await process.write(
+          "printf 'ephemeral-terminal-file' > /workspace/terminal-runtime-probe.txt; if [ \"$(cat /workspace/terminal-runtime-probe.txt)\" = 'ephemeral-terminal-file' ]; then printf 'PRODIVIX_TERMINAL_%s\\n' 'FS_LOCAL_V1'; fi\n"
+        );
+        for (let attempt = 0; attempt < 200; attempt += 1) {
           if (
             terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1') &&
-            terminalOutput.includes('PRODIVIX_TERMINAL_SIZE=31 101') &&
+            terminalOutput.includes('PRODIVIX_TERMINAL_SIZE_31_101_V1') &&
             terminalOutput.includes('PRODIVIX_TERMINAL_FS_LOCAL_V1')
           )
             break;
-          if (attempt === 99)
-            throw new Error('Rootless PTY did not produce canonical evidence.');
+          if (attempt === 199) {
+            const reportedSize =
+              /PRODIVIX_TERMINAL_SIZE_MISMATCH_(\d+)x(\d+)/u.exec(
+                terminalOutput
+              );
+            throw new Error(
+              'Rootless PTY did not produce canonical evidence ' +
+                `(tty=${terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1')}, ` +
+                `size=${reportedSize ? `${reportedSize[1]}x${reportedSize[2]}` : 'missing'}, ` +
+                `filesystem=${terminalOutput.includes('PRODIVIX_TERMINAL_FS_LOCAL_V1')}, ` +
+                `noTty=${terminalOutput.includes('PRODIVIX_TERMINAL_NO_TTY_V1')}).`
+            );
+          }
           await new Promise((resolve) => setTimeout(resolve, 25));
         }
         await process.write('exit\n');
@@ -445,11 +464,13 @@ if (
   terminalResult.status !== 'succeeded' ||
   !terminalConnected ||
   !terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1') ||
-  !terminalOutput.includes('PRODIVIX_TERMINAL_SIZE=31 101') ||
+  !terminalOutput.includes('PRODIVIX_TERMINAL_SIZE_31_101_V1') ||
   !terminalOutput.includes('PRODIVIX_TERMINAL_FS_LOCAL_V1') ||
-  terminalOutput.includes('NO_TTY')
+  terminalOutput.includes('PRODIVIX_TERMINAL_NO_TTY_V1')
 )
-  throw new Error('Rootless execution Terminal PTY Gate failed.');
+  throw new Error(
+    `Rootless execution Terminal PTY Gate failed (status=${terminalResult.status}, connected=${terminalConnected}, tty=${terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1')}, resized=${terminalOutput.includes('PRODIVIX_TERMINAL_SIZE_31_101_V1')}, filesystem=${terminalOutput.includes('PRODIVIX_TERMINAL_FS_LOCAL_V1')}, noTty=${terminalOutput.includes('PRODIVIX_TERMINAL_NO_TTY_V1')}).`
+  );
 const terminalArtifacts = requireExecutionArtifacts(
   terminalResult,
   'Rootless Terminal probe'
@@ -631,7 +652,17 @@ if (
   throw new Error('Golden rootless Build drifted from its exact snapshot.');
 const bundleFacts = (files: typeof goldenBuildBundle.files) =>
   files.map(({ path, size, digest }) => ({ path, size, digest }));
-const dataMockBundlePath = '.prodivix/data-mock-provision.json';
+const publicRuntimeBundlePath = (path: string): string => {
+  if (!path.startsWith('public/'))
+    throw new TypeError('Executable runtime asset is not public.');
+  return path.slice('public/'.length);
+};
+const dataMockBundlePath = publicRuntimeBundlePath(
+  EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH
+);
+const dataRuntimeBundlePath = publicRuntimeBundlePath(
+  EXECUTABLE_PROJECT_DATA_RUNTIME_MANIFEST_PATH
+);
 const previewDataMock = goldenPreviewBundle.files.find(
   ({ path }) => path === dataMockBundlePath
 );
@@ -642,14 +673,52 @@ if (!previewDataMock || buildDataMock)
   throw new Error(
     'Golden rootless profile-specific Data mock projection is invalid.'
   );
+const previewDataRuntime = goldenPreviewBundle.files.find(
+  ({ path }) => path === dataRuntimeBundlePath
+);
+const buildDataRuntime = goldenBuildBundle.files.find(
+  ({ path }) => path === dataRuntimeBundlePath
+);
+const dataRuntimeMode = (
+  file: (typeof goldenBuildBundle.files)[number] | undefined
+): unknown =>
+  file
+    ? (JSON.parse(Buffer.from(file.contents).toString('utf8')) as unknown)
+    : undefined;
+if (
+  JSON.stringify(dataRuntimeMode(previewDataRuntime)) !==
+    JSON.stringify({
+      format: 'prodivix.executable-data-runtime.v1',
+      mode: 'mock',
+    }) ||
+  JSON.stringify(dataRuntimeMode(buildDataRuntime)) !==
+    JSON.stringify({
+      format: 'prodivix.executable-data-runtime.v1',
+      mode: 'live',
+    })
+)
+  throw new Error(
+    'Golden rootless profile-specific Data runtime manifests are invalid.'
+  );
+const profileSpecificDataPaths = new Set([
+  dataMockBundlePath,
+  dataRuntimeBundlePath,
+]);
 if (
   JSON.stringify(
     bundleFacts(
       goldenPreviewBundle.files.filter(
-        ({ path }) => path !== dataMockBundlePath
+        ({ path }) => !profileSpecificDataPaths.has(path)
       )
     )
-  ) !== JSON.stringify(bundleFacts(goldenBuildBundle.files))
+  ) !==
+  JSON.stringify(
+    bundleFacts(
+      goldenBuildBundle.files.filter(
+        ({ path }) => !profileSpecificDataPaths.has(path)
+      )
+    )
+  )
 )
   throw new Error(
     'Golden rootless Preview and Build shared output facts diverged.'
@@ -718,7 +787,7 @@ const evidence = Object.freeze({
   terminal: {
     connected: terminalConnected,
     tty: terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1'),
-    resized: terminalOutput.includes('PRODIVIX_TERMINAL_SIZE=31 101'),
+    resized: terminalOutput.includes('PRODIVIX_TERMINAL_SIZE_31_101_V1'),
     filesystemEphemeral: terminalOutput.includes(
       'PRODIVIX_TERMINAL_FS_LOCAL_V1'
     ),

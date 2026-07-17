@@ -317,8 +317,7 @@ const synchronize = async (
             terminalReason = event.reason;
           if (
             event.kind === 'artifact' &&
-            event.artifact.mediaType ===
-              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE
+            event.artifact.mediaType === EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE
           ) {
             const changeCount = Number(event.artifact.metadata?.changeCount);
             if (
@@ -341,8 +340,7 @@ const synchronize = async (
           }
           if (
             event.kind === 'artifact' &&
-            event.artifact.mediaType !==
-              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
+            event.artifact.mediaType !== EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
             input.controller.job.request.profile === 'preview'
           ) {
             if (
@@ -366,8 +364,7 @@ const synchronize = async (
           }
           if (
             event.kind === 'artifact' &&
-            event.artifact.mediaType !==
-              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
+            event.artifact.mediaType !== EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
             input.controller.job.request.profile === 'build'
           ) {
             if (
@@ -385,8 +382,7 @@ const synchronize = async (
           }
           if (
             event.kind === 'artifact' &&
-            event.artifact.mediaType !==
-              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
+            event.artifact.mediaType !== EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
             input.controller.job.request.profile === 'test'
           ) {
             const status = event.artifact.metadata?.status;

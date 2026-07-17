@@ -353,9 +353,7 @@ const collectGoldenBrowserGpuEvidence = async (
     let device: MinimalGpuDevice | undefined;
     let webgpuShaderCompiled = false;
     if (gpu) {
-      adapter = await gpu.requestAdapter({
-        powerPreference: 'high-performance',
-      });
+      adapter = await gpu.requestAdapter();
       if (adapter) {
         device = await adapter.requestDevice();
         const shader = device.createShaderModule({
@@ -463,6 +461,11 @@ export const verifyGoldenBrowserProject = async (
     browser = await chromium.launch({
       channel: browserChannel === 'chromium' ? undefined : browserChannel,
       headless: true,
+      args: [
+        '--enable-unsafe-webgpu',
+        '--use-webgpu-adapter=swiftshader',
+        '--use-gpu-in-tests',
+      ],
     });
     const page = await browser.newPage();
     const runtimeErrors: string[] = [];
