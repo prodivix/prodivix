@@ -48,6 +48,8 @@ describe('project test report presentation', () => {
             sessionId: 'workspace:test:project-tests',
             revision: reports.length,
             status: 'succeeded',
+            observations: [],
+            consoleObservations: [],
             activeJob: {
               jobId: `job-${reports.length - 1}`,
               requestId: `request-${reports.length - 1}`,
@@ -56,6 +58,7 @@ describe('project test report presentation', () => {
               profile: 'test',
               runtimeZone: 'test',
               invocationKind: 'test',
+              capabilities: ['test'],
               workspace: {
                 workspaceId: 'workspace-test',
                 snapshotId: `snapshot-${reports.length - 1}`,

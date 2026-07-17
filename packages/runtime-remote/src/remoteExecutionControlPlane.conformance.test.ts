@@ -1,7 +1,9 @@
 import {
+  createExecutionSecretLeakGuard,
   createExecutionNetworkTrace,
   toExecutionNetworkTraceValue,
 } from '@prodivix/runtime-core';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
 import {
   createActiveExecutionQuotaPolicy,
@@ -30,12 +32,23 @@ const principal = (
   scopes: readonly string[] = ['remote-execution:*']
 ): RemoteExecutionPrincipal => Object.freeze({ subjectId, scopes });
 
-const createHarness = (maximumActiveExecutions = 4) => {
+const createHarness = (
+  maximumActiveExecutions = 4,
+  secretValues: readonly string[] = []
+) => {
   let currentTime = 1_000;
   let executionSequence = 0;
   let leaseSequence = 0;
   const repository = createMemoryRemoteExecutionRepository();
-  const snapshots = createMemoryRemoteExecutionSnapshotStore();
+  const snapshotStore = createMemoryRemoteExecutionSnapshotStore();
+  let snapshotPutCount = 0;
+  const snapshots = Object.freeze({
+    ...snapshotStore,
+    async put(...args: Parameters<typeof snapshotStore.put>) {
+      snapshotPutCount += 1;
+      return snapshotStore.put(...args);
+    },
+  });
   const controlPlane = createRemoteExecutionControlPlane({
     repository,
     snapshots,
@@ -45,11 +58,13 @@ const createHarness = (maximumActiveExecutions = 4) => {
     now: () => currentTime,
     createExecutionId: () => `execution-${++executionSequence}`,
     createLeaseToken: () => `lease-${++leaseSequence}`,
+    outputGuard: createExecutionSecretLeakGuard({ secretValues }),
   });
   return {
     controlPlane,
     repository,
     snapshots,
+    getSnapshotPutCount: () => snapshotPutCount,
     setTime(value: number) {
       currentTime = value;
     },
@@ -322,6 +337,244 @@ describe('remote execution control plane conformance', () => {
         },
       })
     ).rejects.toThrow(/canonical Network trace/u);
+  });
+
+  it('blocks Secret canaries before request, snapshot, event, report, artifact, or crash persistence', async () => {
+    const canary = 'remote-secret-canary-8af20c';
+    const requestHarness = createHarness(4, [canary]);
+    await expect(
+      client(requestHarness.controlPlane, principal()).create({
+        request: Object.freeze({
+          ...createRemoteFixtureRequest('request-secret'),
+          metadata: Object.freeze({ note: canary }),
+        }),
+        snapshot: { kind: 'upload', snapshot: createRemoteFixtureSnapshot() },
+      })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+    expect(await requestHarness.repository.countActive('user-1')).toBe(0);
+    expect(requestHarness.getSnapshotPutCount()).toBe(0);
+
+    const snapshotHarness = createHarness(4, [canary]);
+    await expect(
+      client(snapshotHarness.controlPlane, principal()).create({
+        request: createRemoteFixtureRequest('snapshot-secret'),
+        snapshot: {
+          kind: 'upload',
+          snapshot: createRemoteFixtureSnapshot(
+            `export const value = '${canary}';`
+          ),
+        },
+      })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+    expect(await snapshotHarness.repository.countActive('user-1')).toBe(0);
+    expect(snapshotHarness.getSnapshotPutCount()).toBe(0);
+
+    const workerCases = [
+      {
+        name: 'log',
+        invoke: (
+          controlPlane: RemoteExecutionControlPlane,
+          input: Readonly<{ executionId: string; leaseToken: string }>
+        ) =>
+          controlPlane.appendWorkerEvent({
+            executionId: input.executionId,
+            workerId: 'worker-1',
+            leaseToken: input.leaseToken,
+            workerEventId: 'output-log',
+            event: {
+              kind: 'log',
+              log: { stream: 'stdout', level: 'info', message: canary },
+            },
+          }),
+      },
+      {
+        name: 'diagnostic',
+        invoke: (
+          controlPlane: RemoteExecutionControlPlane,
+          input: Readonly<{ executionId: string; leaseToken: string }>
+        ) =>
+          controlPlane.appendWorkerEvent({
+            executionId: input.executionId,
+            workerId: 'worker-1',
+            leaseToken: input.leaseToken,
+            workerEventId: 'output-diagnostic',
+            event: {
+              kind: 'diagnostic',
+              diagnostic: {
+                code: 'RUN-5001',
+                severity: 'error',
+                domain: 'backend',
+                message: canary,
+              },
+            },
+          }),
+      },
+      {
+        name: 'trace',
+        invoke: (
+          controlPlane: RemoteExecutionControlPlane,
+          input: Readonly<{ executionId: string; leaseToken: string }>
+        ) =>
+          controlPlane.appendWorkerEvent({
+            executionId: input.executionId,
+            workerId: 'worker-1',
+            leaseToken: input.leaseToken,
+            workerEventId: 'output-trace',
+            event: {
+              kind: 'trace',
+              trace: {
+                traceId: 'trace-1',
+                spanId: 'span-1',
+                name: 'runtime.trace',
+                phase: 'event',
+                detail: { output: canary },
+              },
+            },
+          }),
+      },
+      {
+        name: 'artifact descriptor',
+        invoke: (
+          controlPlane: RemoteExecutionControlPlane,
+          input: Readonly<{ executionId: string; leaseToken: string }>
+        ) =>
+          controlPlane.putArtifact({
+            executionId: input.executionId,
+            workerId: 'worker-1',
+            leaseToken: input.leaseToken,
+            workerEventId: 'output-artifact-descriptor',
+            descriptor: {
+              artifactId: 'artifact-1',
+              kind: 'bundle',
+              label: canary,
+              mediaType: 'application/zip',
+              size: 1,
+              digest:
+                'sha256-4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a',
+              expiresAt: 2_000,
+              authorizationScope: `execution:${input.executionId}`,
+            },
+            contents: new Uint8Array([1]),
+          }),
+      },
+      {
+        name: 'test report content',
+        invoke: (
+          controlPlane: RemoteExecutionControlPlane,
+          input: Readonly<{ executionId: string; leaseToken: string }>
+        ) =>
+          controlPlane.putArtifact({
+            executionId: input.executionId,
+            workerId: 'worker-1',
+            leaseToken: input.leaseToken,
+            workerEventId: 'output-test-report',
+            descriptor: {
+              artifactId: 'test-report',
+              kind: 'report',
+              mediaType: 'application/vnd.prodivix.test-report+json',
+              size: canary.length,
+              digest: `sha256-${'0'.repeat(64)}`,
+              expiresAt: 2_000,
+              authorizationScope: `execution:${input.executionId}`,
+            },
+            contents: utf8ToBytes(canary),
+          }),
+      },
+      {
+        name: 'crash reason',
+        invoke: (
+          controlPlane: RemoteExecutionControlPlane,
+          input: Readonly<{ executionId: string; leaseToken: string }>
+        ) =>
+          controlPlane.transition({
+            executionId: input.executionId,
+            workerId: 'worker-1',
+            leaseToken: input.leaseToken,
+            status: 'failed',
+            reason: canary,
+          }),
+      },
+    ] as const;
+
+    for (const workerCase of workerCases) {
+      const harness = createHarness(4, [canary]);
+      const started = await start(
+        harness.controlPlane,
+        `request-${workerCase.name}`
+      );
+      const executionId = started.execution.executionId;
+      const claimed = await harness.controlPlane.claimNext({
+        workerId: 'worker-1',
+        providerId: remoteFixtureProvider.id,
+        leaseDurationMs: 100,
+      });
+      await harness.controlPlane.transition({
+        executionId,
+        workerId: 'worker-1',
+        leaseToken: claimed!.lease.token,
+        status: 'running',
+      });
+      await workerCase.invoke(harness.controlPlane, {
+        executionId,
+        leaseToken: claimed!.lease.token,
+      });
+      const stored = await harness.repository.get(executionId);
+      expect(stored?.record.status, workerCase.name).toBe('failed');
+      expect(JSON.stringify(stored), workerCase.name).not.toContain(canary);
+      expect(stored?.artifacts, workerCase.name).toEqual([]);
+      expect(
+        stored?.events.some(
+          ({ event }) =>
+            event.kind === 'diagnostic' && event.diagnostic.code === 'EXE-5004'
+        ),
+        workerCase.name
+      ).toBe(true);
+      expect(
+        stored?.events.some(
+          ({ event }) =>
+            event.kind === 'state' &&
+            event.snapshot.status === 'failed' &&
+            event.reason === 'secret-material-detected'
+        ),
+        workerCase.name
+      ).toBe(true);
+    }
+  });
+
+  it('adds the active lease token to the ingestion guard without persisting it', async () => {
+    const { controlPlane, repository } = createHarness();
+    const started = await start(controlPlane, 'request-lease-canary');
+    const executionId = started.execution.executionId;
+    const claimed = await controlPlane.claimNext({
+      workerId: 'worker-1',
+      providerId: remoteFixtureProvider.id,
+      leaseDurationMs: 100,
+    });
+    const result = await controlPlane.appendWorkerEvent({
+      executionId,
+      workerId: 'worker-1',
+      leaseToken: claimed!.lease.token,
+      workerEventId: 'lease-output',
+      event: {
+        kind: 'log',
+        log: {
+          stream: 'stdout',
+          level: 'info',
+          message: claimed!.lease.token,
+        },
+      },
+    });
+
+    expect(result).toEqual({ kind: 'secret-leak' });
+    const stored = await repository.get(executionId);
+    expect(stored?.record.status).toBe('failed');
+    expect(JSON.stringify(stored)).not.toContain(claimed!.lease.token);
+    expect(
+      stored?.events.some(
+        ({ event }) =>
+          event.kind === 'diagnostic' && event.diagnostic.code === 'EXE-5004'
+      )
+    ).toBe(true);
   });
 
   it('reclaims expired work with a new fencing token and rejects the old lease', async () => {

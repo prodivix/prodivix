@@ -36,6 +36,8 @@ describe('execution Network model', () => {
       sessionId: 'session-1',
       revision: 1,
       status: 'succeeded',
+      observations: [],
+      consoleObservations: [],
       events: [
         {
           sessionId: 'session-1',
@@ -98,5 +100,77 @@ describe('execution Network model', () => {
       },
     });
     expect(JSON.stringify(entries)).not.toContain('authorization');
+  });
+
+  it('projects post-terminal Session observations and rejects canary field drift', () => {
+    const detail = toExecutionNetworkTraceValue(
+      createExecutionNetworkTrace({
+        requestId: 'remote-query-1:1',
+        phase: 'runtime',
+        runtimeZone: 'server',
+        mode: 'live',
+        adapter: 'core.http',
+        method: 'GET',
+        sanitizedUrl: 'https://api.example.test/',
+        protocol: 'https',
+        startedAt: 200,
+        completedAt: 215,
+        outcome: 'allowed',
+        status: 200,
+      })
+    );
+    const base = {
+      sessionId: 'session-remote',
+      jobId: 'job-remote',
+      requestId: 'request-remote',
+      providerId: 'prodivix.remote.preview',
+      workspaceId: 'workspace-1',
+      snapshotId: 'snapshot-1',
+    } as const;
+    const session: ExecutionSessionSnapshot = {
+      sessionId: base.sessionId,
+      revision: 3,
+      status: 'succeeded',
+      events: [],
+      consoleObservations: [],
+      observations: [
+        {
+          ...base,
+          sequence: 1,
+          observedAt: 215,
+          trace: {
+            traceId: 'network:job-remote',
+            spanId: 'remote-query-1:1',
+            name: 'network.request',
+            phase: 'event',
+            detail,
+          },
+        },
+        {
+          ...base,
+          sequence: 2,
+          observedAt: 216,
+          trace: {
+            traceId: 'network:job-remote',
+            spanId: 'remote-query-secret:1',
+            name: 'network.request',
+            phase: 'event',
+            detail: {
+              ...(detail as Record<string, never>),
+              authorization: 'secret-canary-session-observation',
+            },
+          },
+        },
+      ],
+    };
+
+    const entries = createExecutionNetworkEntries(session);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      jobId: base.jobId,
+      providerId: base.providerId,
+      trace: { requestId: 'remote-query-1:1', runtimeZone: 'server' },
+    });
+    expect(JSON.stringify(entries)).not.toContain('secret-canary');
   });
 });

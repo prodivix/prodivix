@@ -1,4 +1,5 @@
 import {
+  createDataOperationIdempotencyKey,
   type DataConfigurationValue,
   type DataOperationAbortSignal,
   type DataJsonObject,
@@ -278,6 +279,41 @@ const secretConfiguration = (
   return value;
 };
 
+const reservedIdempotencyHeaders = new Set([
+  'authorization',
+  'connection',
+  'content-length',
+  'content-type',
+  'cookie',
+  'host',
+  'proxy-authorization',
+  'set-cookie',
+  'transfer-encoding',
+]);
+
+const idempotencyHeader = (
+  value: DataConfigurationValue | undefined,
+  environment: ExecutionEnvironmentResolutionLease | undefined
+): string => {
+  const header = literalString(
+    value,
+    'HTTP operation idempotencyHeader',
+    'operation.idempotencyHeader',
+    environment
+  );
+  if (
+    header !== header.toLowerCase() ||
+    header.length > 128 ||
+    !/^[!#$%&'*+.^_|~0-9a-z-]+$/u.test(header) ||
+    reservedIdempotencyHeaders.has(header)
+  )
+    throw new DataHttpOperationError(
+      'DATA_HTTP_CONFIGURATION_INVALID',
+      'HTTP operation idempotencyHeader is unsafe.'
+    );
+  return header;
+};
+
 /** Maps one canonical Data operation to HTTP without exposing protocol details to the Data kernel. */
 export const createDataHttpAdapter = (input: {
   transport: DataHttpTransport;
@@ -294,7 +330,11 @@ export const createDataHttpAdapter = (input: {
         'test',
       ] as const),
       modes: Object.freeze(['live'] as const),
-      capabilities: Object.freeze(['environment-binding', 'network'] as const),
+      capabilities: Object.freeze([
+        'environment-binding',
+        'idempotency-key',
+        'network',
+      ] as const),
     }),
     async invoke({
       invocation,
@@ -350,6 +390,23 @@ export const createDataHttpAdapter = (input: {
         operation.kind === 'mutation'
           ? JSON.stringify(invocation.input)
           : undefined;
+      if (
+        operation.configurationByKey.idempotencyHeader &&
+        !operation.policies.idempotency
+      )
+        throw new DataHttpOperationError(
+          'DATA_HTTP_CONFIGURATION_INVALID',
+          'HTTP idempotencyHeader requires an idempotency policy.'
+        );
+      const upstreamIdempotency = operation.policies.idempotency
+        ? {
+            header: idempotencyHeader(
+              operation.configurationByKey.idempotencyHeader,
+              environment
+            ),
+            key: createDataOperationIdempotencyKey(invocation),
+          }
+        : undefined;
       const authorization = secretConfiguration(
         source.configurationByKey.authorization,
         'HTTP source authorization'
@@ -384,6 +441,11 @@ export const createDataHttpAdapter = (input: {
                       : { 'content-type': 'application/json' }),
                     ...(authorizationMaterial
                       ? { authorization: authorizationMaterial }
+                      : {}),
+                    ...(upstreamIdempotency
+                      ? {
+                          [upstreamIdempotency.header]: upstreamIdempotency.key,
+                        }
                       : {}),
                   },
                 }),

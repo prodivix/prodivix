@@ -182,8 +182,6 @@ export const createPreviewHttpHandler = (
     throw new TypeError('Preview upload limit must be a positive integer.');
   if (!Number.isSafeInteger(defaultTtlMs) || defaultTtlMs < 1_000)
     throw new TypeError('Preview default TTL must be at least one second.');
-  const securityHeaders = createPreviewSecurityHeaders(editorOrigins);
-
   return async (
     request: IncomingMessage,
     response: ServerResponse
@@ -285,6 +283,12 @@ export const createPreviewHttpHandler = (
         responseJson(response, 404, { error: 'not-found' });
         return;
       }
+      const capabilityOrigin = new URL(publicBaseUrl);
+      capabilityOrigin.hostname = `${capability}.${publicBaseUrl.hostname}`;
+      const securityHeaders = createPreviewSecurityHeaders(
+        editorOrigins,
+        capabilityOrigin.origin
+      );
       const headers: Record<string, string | number> = {
         ...securityHeaders,
         'content-length': file.contents.byteLength,

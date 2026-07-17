@@ -423,6 +423,81 @@ describe('Data operation runtime contract', () => {
     expect(adapterCalls).toBe(0);
   });
 
+  it('retries an explicitly idempotent mutation only through a capable adapter', async () => {
+    const attempts: number[] = [];
+    const registry = createDataOperationAdapterRegistry();
+    registry.register({
+      descriptor: {
+        id: 'core.http',
+        version: '1',
+        operationKinds: ['mutation'],
+        runtimeZones: ['client'],
+        modes: ['live'],
+        capabilities: ['idempotency-key'],
+      },
+      async invoke(input) {
+        attempts.push(input.invocation.attempt);
+        if (input.invocation.attempt === 1)
+          throw Object.assign(new Error('transient'), {
+            code: 'TRANSIENT',
+            retryable: true,
+          });
+        return { value: ['created'], empty: false };
+      },
+    });
+    const mutationDocument: DataSourceDocument = {
+      ...document,
+      operationsById: {
+        list: {
+          ...document.operationsById.list!,
+          kind: 'mutation',
+          policies: {
+            idempotency: { kind: 'invocation-key' },
+            retry: {
+              maxAttempts: 2,
+              backoff: 'fixed',
+              initialDelayMs: 0,
+            },
+          },
+        },
+      },
+    };
+
+    const result = await executeDataOperation({
+      registry,
+      invocation: createInvocation('mutation-retry', 1),
+      document: mutationDocument,
+      lifecycleChannel: createDataLifecycleChannel(),
+      signal: new AbortController().signal,
+      scheduler: { wait: async () => undefined },
+    });
+
+    expect(attempts).toEqual([1, 2]);
+    expect(result.lifecycle).toMatchObject({ status: 'success', attempt: 2 });
+
+    const incapableRegistry = createDataOperationAdapterRegistry();
+    incapableRegistry.register({
+      descriptor: {
+        id: 'core.http',
+        version: '1',
+        operationKinds: ['mutation'],
+        runtimeZones: ['client'],
+        modes: ['live'],
+        capabilities: [],
+      },
+      invoke: async () => ({ value: [], empty: false }),
+    });
+    await expect(
+      executeDataOperation({
+        registry: incapableRegistry,
+        invocation: createInvocation('mutation-no-capability', 2),
+        document: mutationDocument,
+        lifecycleChannel: createDataLifecycleChannel(),
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow('cannot project an idempotency key');
+  });
+
   it('applies pagination defaults and rejects adapter page drift', async () => {
     const receivedInputs: DataJsonValue[] = [];
     let pageOffset = 0;

@@ -6,9 +6,15 @@ import type {
   ExecutableProjectSnapshot,
 } from '@prodivix/runtime-core';
 import {
+  createExecutionFilesystemDiff,
+  createExecutionSecretLeakGuard,
+  decodeExecutionFilesystemDiff,
   decodeExecutionBuildBundle,
   decodeExecutionPreviewBundle,
+  encodeExecutionFilesystemDiff,
   EXECUTION_BUILD_BUNDLE_MEDIA_TYPE,
+  EXECUTION_FILESYSTEM_DIFF_FORMAT,
+  EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   projectExecutableProjectRuntimeFiles,
@@ -22,6 +28,7 @@ import type {
   RemoteWorkerSandboxNetworkTrace,
   RemoteWorkerSandboxResult,
 } from './worker.types';
+import { createRootlessPodmanTerminalProcess } from './rootlessPodmanTerminal';
 
 const execFileAsync = promisify(execFile);
 const stopRetryIntervalMs = 50;
@@ -29,6 +36,8 @@ const stopEscalationMs = 5_000;
 const stopDeadlineMs = 10_000;
 const installCompleteMarker = 'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1';
 const continueExecutionToken = 'PRODIVIX_SANDBOX_CONTINUE_V1';
+const captureReadyMarker = 'PRODIVIX_SANDBOX_CAPTURE_READY_V1';
+const captureExecutionToken = 'PRODIVIX_SANDBOX_CAPTURE_V1';
 
 const podmanProcessEnvironment = (): NodeJS.ProcessEnv => ({
   PATH: process.env.PATH,
@@ -85,11 +94,6 @@ const profileCommand = (
     : profile === 'test'
       ? snapshot.testPlan.command
       : snapshot.buildCommand;
-
-const redact = (value: string, secrets: readonly string[]): string =>
-  secrets
-    .filter((secret) => secret.length >= 4)
-    .reduce((output, secret) => output.split(secret).join('[REDACTED]'), value);
 
 const rootlessFromInfo = (value: unknown): boolean => {
   if (!value || typeof value !== 'object') return false;
@@ -207,22 +211,34 @@ const payload = (
   profile: 'preview' | 'test' | 'build',
   maximumOutputBytes: number,
   maximumArtifactBytes: number
-) =>
-  JSON.stringify({
+) => {
+  const canonicalPaths = new Set(snapshot.files.map((file) => file.path));
+  const runtimeFiles = projectExecutableProjectRuntimeFiles(snapshot, profile);
+  return JSON.stringify({
     profile,
     snapshotDigest: snapshot.contentDigest,
+    workspace: snapshot.workspace,
     target: snapshot.target,
     previewPlan: snapshot.previewPlan,
     buildPlan: snapshot.buildPlan,
     testPlan: { reportFilePath: snapshot.testPlan.reportFilePath },
     maximumOutputBytes,
     maximumArtifactBytes,
-    files: projectExecutableProjectRuntimeFiles(snapshot, profile).map(
-      (file) => ({
-        path: file.path,
-        contents: Buffer.from(file.contents).toString('base64'),
-      })
-    ),
+    files: runtimeFiles.map((file) => ({
+      path: file.path,
+      contents: Buffer.from(file.contents).toString('base64'),
+      capture: canonicalPaths.has(file.path),
+    })),
+    ignoredPaths: [snapshot.testPlan.reportFilePath],
+    ignoredDirectories: [
+      '.git',
+      '.cache',
+      '.vite',
+      'coverage',
+      'node_modules',
+      snapshot.previewPlan.outputDirectoryPath,
+      snapshot.buildPlan.outputDirectoryPath,
+    ].filter((path, index, paths) => paths.indexOf(path) === index),
     publicEnvironment: snapshot.publicBuildConfiguration.map((entry) => ({
       name: entry.name,
       value: entry.value,
@@ -236,6 +252,7 @@ const payload = (
       args: [...(profileCommand(snapshot, profile).args ?? [])],
     },
   });
+};
 
 const normalizeInstallNetworkPolicy = (
   policy: RootlessPodmanInstallNetworkPolicy | undefined
@@ -540,6 +557,132 @@ const decodeBase64 = (value: unknown, label: string): Uint8Array => {
   return new Uint8Array(Buffer.from(value, 'base64'));
 };
 
+const filesystemCapturePolicy = (snapshot: ExecutableProjectSnapshot) => {
+  const canonicalPaths = new Set(snapshot.files.map((file) => file.path));
+  const ignoredPaths = new Set([
+    snapshot.testPlan.reportFilePath,
+    ...projectExecutableProjectRuntimeFiles(snapshot).flatMap((file) =>
+      canonicalPaths.has(file.path) ? [] : [file.path]
+    ),
+  ]);
+  const ignoredDirectories = new Set([
+    '.git',
+    '.cache',
+    '.vite',
+    'coverage',
+    'node_modules',
+    snapshot.previewPlan.outputDirectoryPath,
+    snapshot.buildPlan.outputDirectoryPath,
+  ]);
+  return Object.freeze({ ignoredPaths, ignoredDirectories });
+};
+
+const filesystemPathIsIgnored = (
+  path: string,
+  policy: ReturnType<typeof filesystemCapturePolicy>
+): boolean =>
+  policy.ignoredPaths.has(path) ||
+  [...policy.ignoredDirectories].some(
+    (directory) => path === directory || path.startsWith(`${directory}/`)
+  );
+
+const workspaceRefMatches = (
+  left: ExecutableProjectSnapshot['workspace'],
+  right: ExecutableProjectSnapshot['workspace']
+): boolean => {
+  const normalizeRevisions = (
+    value: Readonly<Record<string, string>> | undefined
+  ) =>
+    Object.entries(value ?? {}).sort(([leftKey], [rightKey]) =>
+      leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0
+    );
+  return (
+    left.workspaceId === right.workspaceId &&
+    left.snapshotId === right.snapshotId &&
+    JSON.stringify(normalizeRevisions(left.partitionRevisions)) ===
+      JSON.stringify(normalizeRevisions(right.partitionRevisions))
+  );
+};
+
+const canonicalizeSandboxFilesystemDiff = (
+  contents: Uint8Array,
+  snapshot: ExecutableProjectSnapshot
+): Readonly<{
+  contents: Uint8Array;
+  changeCount: number;
+  complete: boolean;
+  sourceTrace: readonly ExecutionSourceTrace[];
+}> => {
+  const observed = decodeExecutionFilesystemDiff(contents);
+  if (
+    observed.snapshotDigest !== snapshot.contentDigest ||
+    !workspaceRefMatches(observed.workspace, snapshot.workspace)
+  )
+    throw new TypeError(
+      'Sandbox filesystem diff identity does not match the executable snapshot.'
+    );
+  const policy = filesystemCapturePolicy(snapshot);
+  const files = new Map(snapshot.files.map((file) => [file.path, file]));
+  const sourceTrace: ExecutionSourceTrace[] = [];
+  const sourceTraceIds = new Set<string>();
+  const changes = observed.changes.map((change) => {
+    if (change.sourceTrace?.length)
+      throw new TypeError(
+        'Sandbox filesystem diff cannot supply trusted source trace.'
+      );
+    if (filesystemPathIsIgnored(change.path, policy))
+      throw new TypeError(
+        'Sandbox filesystem diff contains a provider-managed path.'
+      );
+    const file = files.get(change.path);
+    if ((change.kind === 'added') !== !file)
+      throw new TypeError(
+        'Sandbox filesystem diff change kind drifted from the snapshot.'
+      );
+    if (file) {
+      const expectedBaseline = Buffer.from(file.contents);
+      if (
+        !change.baseline ||
+        !Buffer.from(change.baseline.contents).equals(expectedBaseline)
+      )
+        throw new TypeError(
+          'Sandbox filesystem diff baseline does not match the snapshot.'
+        );
+    }
+    const traces = file?.sourceTrace ?? [];
+    for (const trace of traces) {
+      const id = JSON.stringify(trace);
+      if (sourceTraceIds.has(id)) continue;
+      sourceTraceIds.add(id);
+      sourceTrace.push(trace);
+    }
+    return Object.freeze({
+      kind: change.kind,
+      path: change.path,
+      ...(change.baseline
+        ? { baseline: { contents: change.baseline.contents } }
+        : {}),
+      ...(change.runtime
+        ? { runtime: { contents: change.runtime.contents } }
+        : {}),
+      ...(traces.length ? { sourceTrace: traces } : {}),
+    });
+  });
+  const canonical = createExecutionFilesystemDiff({
+    snapshotDigest: snapshot.contentDigest,
+    workspace: snapshot.workspace,
+    capturedAt: observed.capturedAt,
+    complete: observed.complete,
+    changes,
+  });
+  return Object.freeze({
+    contents: encodeExecutionFilesystemDiff(canonical),
+    changeCount: canonical.changes.length,
+    complete: canonical.complete,
+    sourceTrace: Object.freeze(sourceTrace),
+  });
+};
+
 const buildSourceTrace = (snapshot: ExecutableProjectSnapshot) => {
   const paths = new Set(
     snapshot.entrypoints
@@ -666,19 +809,30 @@ export const decodeRootlessPodmanSandboxResult = (
   if (stdout.byteLength + stderr.byteLength > maximumOutputBytes)
     throw new TypeError('Sandbox output exceeds the configured limit.');
   let artifactBytes = 0;
+  const filesystemDiffArtifacts = record.artifacts.filter(
+    (artifact) =>
+      !!artifact &&
+      typeof artifact === 'object' &&
+      (artifact as { mediaType?: unknown }).mediaType ===
+        EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE
+  );
+  const primaryArtifacts = record.artifacts.filter(
+    (artifact) => !filesystemDiffArtifacts.includes(artifact)
+  );
   if (
+    filesystemDiffArtifacts.length > 1 ||
     (profile === 'build' &&
       (record.exitCode === 0
-        ? record.artifacts.length !== 1
-        : record.artifacts.length !== 0)) ||
+        ? primaryArtifacts.length !== 1
+        : primaryArtifacts.length !== 0)) ||
     (profile === 'test' &&
       (record.exitCode === 0
-        ? record.artifacts.length !== 1
-        : record.artifacts.length > 1)) ||
+        ? primaryArtifacts.length !== 1
+        : primaryArtifacts.length > 1)) ||
     (profile === 'preview' &&
       (record.exitCode === 0
-        ? record.artifacts.length !== 1
-        : record.artifacts.length !== 0))
+        ? primaryArtifacts.length !== 1
+        : primaryArtifacts.length !== 0))
   )
     throw new TypeError(
       'Sandbox artifacts do not match the requested execution profile.'
@@ -709,9 +863,6 @@ export const decodeRootlessPodmanSandboxResult = (
         artifact.contents,
         `Sandbox artifact ${index} contents`
       );
-      artifactBytes += contents.byteLength;
-      if (artifactBytes > maximumArtifactBytes)
-        throw new TypeError('Sandbox artifacts exceed the configured limit.');
       let publishedContents = contents;
       let publishedArtifactId = artifact.artifactId;
       let publishedKind: RemoteWorkerSandboxArtifact['kind'] = artifact.kind;
@@ -722,7 +873,27 @@ export const decodeRootlessPodmanSandboxResult = (
         `Sandbox artifact ${index} metadata`
       );
       let sourceTrace = buildSourceTrace(snapshot);
-      if (artifact.kind === 'bundle') {
+      if (artifact.mediaType === EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE) {
+        if (
+          artifact.kind !== 'report' ||
+          artifact.artifactId !== `filesystem-diff:${snapshot.contentDigest}`
+        )
+          throw new TypeError('Sandbox filesystem diff descriptor is invalid.');
+        const canonical = canonicalizeSandboxFilesystemDiff(contents, snapshot);
+        publishedContents = canonical.contents;
+        publishedArtifactId = `filesystem-diff:${snapshot.contentDigest}`;
+        publishedKind = 'report';
+        publishedLabel = 'Remote runtime filesystem changes';
+        publishedMediaType = EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE;
+        publishedMetadata = Object.freeze({
+          format: EXECUTION_FILESYSTEM_DIFF_FORMAT,
+          snapshotDigest: snapshot.contentDigest,
+          workspaceSnapshotId: snapshot.workspace.snapshotId,
+          changeCount: String(canonical.changeCount),
+          complete: String(canonical.complete),
+        });
+        sourceTrace = canonical.sourceTrace;
+      } else if (artifact.kind === 'bundle') {
         if (profile === 'preview') {
           const previewBundle = decodeExecutionPreviewBundle(contents);
           if (
@@ -815,6 +986,9 @@ export const decodeRootlessPodmanSandboxResult = (
         });
         sourceTrace = collectTestReportSourceTrace(report, fallback);
       }
+      artifactBytes += publishedContents.byteLength;
+      if (artifactBytes > maximumArtifactBytes)
+        throw new TypeError('Sandbox artifacts exceed the configured limit.');
       return Object.freeze({
         artifactId: publishedArtifactId,
         kind: publishedKind,
@@ -876,6 +1050,9 @@ export const createRootlessPodmanSandbox = (
   const now = options.now ?? Date.now;
   return Object.freeze({
     async execute(input): Promise<RemoteWorkerSandboxResult> {
+      const outputGuard = createExecutionSecretLeakGuard({
+        secretValues: input.redactValues,
+      });
       if (process.platform !== 'linux' || !process.getuid || !process.getgid)
         throw new Error('Rootless Podman sandbox requires Linux.');
       const uid = process.getuid();
@@ -947,6 +1124,37 @@ export const createRootlessPodmanSandbox = (
       let stopTask: Promise<void> | undefined;
       let phaseIsolationFailure = false;
       let phaseIsolationTask: Promise<void> | undefined;
+      let captureTask: Promise<void> | undefined;
+      let terminalDisconnect:
+        | Awaited<ReturnType<NonNullable<typeof input.terminal>['connect']>>
+        | undefined;
+      let terminalConnectionTask: Promise<void> | undefined;
+      const connectTerminal = (): Promise<void> => {
+        if (!input.terminal) return Promise.resolve();
+        terminalConnectionTask ??= input.terminal
+          .connect(
+            createRootlessPodmanTerminalProcess({
+              podmanCommand,
+              containerName: name,
+              environment: podmanProcessEnvironment(),
+            })
+          )
+          .then((disconnect) => {
+            terminalDisconnect = disconnect;
+          });
+        return terminalConnectionTask;
+      };
+      const captureFilesystem = (): Promise<void> => {
+        captureTask ??= (async () => {
+          await phaseIsolationTask;
+          await terminalConnectionTask;
+          await terminalDisconnect?.();
+          terminalDisconnect = undefined;
+          if (!child.stdin.destroyed)
+            child.stdin.end(`${captureExecutionToken}\n`);
+        })();
+        return captureTask;
+      };
       const stop = (): void => {
         if (stopTask) return;
         stopTask = (async () => {
@@ -992,28 +1200,34 @@ export const createRootlessPodmanSandbox = (
       let controlBuffer = '';
       child.stderr.on('data', (chunk: Buffer) => {
         appendOutput(output, 'stderr', chunk, maximumEnvelopeBytes);
-        if (
-          installNetworkPolicy.mode !== 'proxy-allowlist' ||
-          phaseIsolationTask
-        )
-          return;
         controlBuffer = `${controlBuffer}${chunk.toString('utf8')}`.slice(
-          -installCompleteMarker.length * 2
+          -Math.max(installCompleteMarker.length, captureReadyMarker.length) * 4
         );
-        if (!controlBuffer.includes(installCompleteMarker)) return;
-        phaseIsolationTask = (async () => {
-          try {
-            await disconnectContainerNetwork(
-              podmanCommand,
-              installNetworkPolicy.networkName,
-              name
-            );
-            child.stdin.end(`${continueExecutionToken}\n`);
-          } catch {
+        if (
+          installNetworkPolicy.mode === 'proxy-allowlist' &&
+          !phaseIsolationTask &&
+          controlBuffer.includes(installCompleteMarker)
+        ) {
+          phaseIsolationTask = (async () => {
+            try {
+              await disconnectContainerNetwork(
+                podmanCommand,
+                installNetworkPolicy.networkName,
+                name
+              );
+              child.stdin.write(`${continueExecutionToken}\n`);
+              await connectTerminal();
+            } catch {
+              phaseIsolationFailure = true;
+              stop();
+            }
+          })();
+        }
+        if (!captureTask && controlBuffer.includes(captureReadyMarker))
+          void captureFilesystem().catch(() => {
             phaseIsolationFailure = true;
             stop();
-          }
-        })();
+          });
       });
       child.stdin.on('error', () => {
         // Podman can reject the invocation before the bounded payload finishes writing.
@@ -1027,7 +1241,9 @@ export const createRootlessPodmanSandbox = (
         )}\n`
       );
       if (installNetworkPolicy.mode === 'none')
-        child.stdin.end(`${continueExecutionToken}\n`);
+        child.stdin.write(`${continueExecutionToken}\n`);
+      if (installNetworkPolicy.mode === 'none')
+        terminalConnectionTask = connectTerminal();
       const exitCode = await new Promise<number>((resolveExit, rejectExit) => {
         child.once('error', (error) => {
           childClosed = true;
@@ -1044,6 +1260,9 @@ export const createRootlessPodmanSandbox = (
       });
       await stopTask;
       await phaseIsolationTask;
+      await captureTask;
+      await terminalConnectionTask;
+      await terminalDisconnect?.();
       if (phaseIsolationFailure)
         return Object.freeze({
           status: 'failed',
@@ -1089,28 +1308,45 @@ export const createRootlessPodmanSandbox = (
             input.maximumOutputBytes,
             limits.maximumArtifactBytes
           );
+          const stdout = outputGuard.redactText(result.stdout);
+          const stderr = outputGuard.redactText(result.stderr);
+          const artifactInspection = outputGuard.inspectValue(
+            'artifact-content',
+            result.artifacts ?? []
+          );
+          const networkInspection = outputGuard.inspectValue(
+            'trace',
+            networkTraces
+          );
           return Object.freeze({
             ...result,
-            stdout: redact(result.stdout, input.redactValues),
-            stderr: redact(result.stderr, input.redactValues),
+            stdout: stdout.value,
+            stderr: stderr.value,
+            secretLeakDetected:
+              stdout.redacted ||
+              stderr.redacted ||
+              !artifactInspection.safe ||
+              !networkInspection.safe,
             ...(networkTraces.length ? { networkTraces } : {}),
           });
         } catch (error) {
           const detail =
             error instanceof Error ? error.message : 'Unknown decoder error.';
+          const stderr = outputGuard.redactText(
+            `Sandbox returned an invalid result envelope: ${detail}`
+          );
           return Object.freeze({
             status: 'failed',
             exitCode: 125,
             stdout: '',
-            stderr: redact(
-              `Sandbox returned an invalid result envelope: ${detail}`,
-              input.redactValues
-            ),
+            stderr: stderr.value,
             outputTruncated: output.truncated,
+            secretLeakDetected: stderr.redacted,
             reason: 'invalid-sandbox-result',
           });
         }
       }
+      const stderr = outputGuard.redactText(output.stderr);
       return Object.freeze({
         status: aborted
           ? 'cancelled'
@@ -1121,8 +1357,9 @@ export const createRootlessPodmanSandbox = (
               : 'failed',
         exitCode,
         stdout: '',
-        stderr: redact(output.stderr, input.redactValues),
+        stderr: stderr.value,
         outputTruncated: output.truncated,
+        secretLeakDetected: stderr.redacted,
         ...(networkTraces.length ? { networkTraces } : {}),
       });
     },

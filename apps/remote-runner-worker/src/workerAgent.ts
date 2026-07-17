@@ -1,17 +1,24 @@
 import { createHash } from 'node:crypto';
 import {
   createExecutionNetworkTrace,
+  createExecutionSecretLeakDiagnostic,
+  createExecutionSecretLeakGuard,
+  EXECUTION_SECRET_LEAK_REASON,
   EXECUTION_NETWORK_TRACE_NAME,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_TRACE_NAME,
   readExecutionTestReportValue,
   toExecutionNetworkTraceValue,
   toExecutionTestReportValue,
+  type ExecutionSecretLeakGuard,
+  type ExecutionSecretLeakSurface,
   type ExecutionJobStatus,
 } from '@prodivix/runtime-core';
 import type {
   RemoteWorkerControlPlaneClient,
   RemoteWorkerSandbox,
+  RemoteWorkerSandboxResult,
+  RemoteWorkerTerminalCoordinator,
 } from './worker.types';
 
 export type CreateRemoteWorkerAgentOptions = Readonly<{
@@ -26,6 +33,7 @@ export type CreateRemoteWorkerAgentOptions = Readonly<{
   artifactRetentionMs?: number;
   now?: () => number;
   redactValues?: readonly string[];
+  terminal?: RemoteWorkerTerminalCoordinator;
 }>;
 
 const profiles = new Set(['preview', 'test', 'build']);
@@ -33,6 +41,65 @@ const profiles = new Set(['preview', 'test', 'build']);
 const terminalStatus = (
   status: 'succeeded' | 'failed' | 'timed-out' | 'cancelled'
 ): ExecutionJobStatus => status;
+
+const inspectSandboxResult = (
+  guard: ExecutionSecretLeakGuard,
+  result: RemoteWorkerSandboxResult
+): ExecutionSecretLeakSurface | undefined => {
+  if (result.secretLeakDetected) return 'log';
+  if (
+    !guard.inspectValue('log', { stdout: result.stdout, stderr: result.stderr })
+      .safe
+  )
+    return 'log';
+  if (!guard.inspectValue('crash', { reason: result.reason }).safe)
+    return 'crash';
+  if (!guard.inspectValue('trace', result.networkTraces ?? []).safe)
+    return 'trace';
+  for (const artifact of result.artifacts ?? []) {
+    const surface =
+      artifact.mediaType === EXECUTION_TEST_REPORT_MEDIA_TYPE
+        ? ('test-report' as const)
+        : ('artifact-content' as const);
+    const { contents, ...descriptor } = artifact;
+    if (!guard.inspectValue('artifact-descriptor', descriptor).safe)
+      return 'artifact-descriptor';
+    if (!guard.inspectBytes(surface, contents).safe) return surface;
+  }
+  return undefined;
+};
+
+const blockSecretLeak = async (
+  client: RemoteWorkerControlPlaneClient,
+  input: Readonly<{
+    executionId: string;
+    workerId: string;
+    leaseToken: string;
+    workerEventId: string;
+    surface: ExecutionSecretLeakSurface;
+  }>
+): Promise<void> => {
+  const appended = await client.appendEvent({
+    executionId: input.executionId,
+    workerId: input.workerId,
+    leaseToken: input.leaseToken,
+    workerEventId: input.workerEventId,
+    event: {
+      kind: 'diagnostic',
+      diagnostic: createExecutionSecretLeakDiagnostic({
+        surface: input.surface,
+      }),
+    },
+  });
+  if (appended === 'rejected') return;
+  await client.transition({
+    executionId: input.executionId,
+    workerId: input.workerId,
+    leaseToken: input.leaseToken,
+    status: 'failed',
+    reason: EXECUTION_SECRET_LEAK_REASON,
+  });
+};
 
 /** Coordinates one claim at a time and aborts execution immediately when lease ownership is lost. */
 export const createRemoteWorkerAgent = (
@@ -118,6 +185,10 @@ export const createRemoteWorkerAgent = (
         abort.abort('lease-lost');
         return true;
       }
+      const executionRedactValues = Object.freeze([
+        ...(options.redactValues ?? []),
+        leaseToken,
+      ]);
       const result = await options.sandbox.execute({
         executionId,
         snapshot,
@@ -129,8 +200,24 @@ export const createRemoteWorkerAgent = (
         maximumOutputBytes:
           snapshot.resourceHints.maxOutputBytes ??
           options.defaultMaximumOutputBytes,
-        redactValues: options.redactValues ?? [],
+        redactValues: executionRedactValues,
         signal: abort.signal,
+        ...(options.terminal
+          ? {
+              terminal: Object.freeze({
+                connect: (process) =>
+                  options.terminal!.connect({
+                    executionId,
+                    workerId: options.workerId,
+                    leaseToken,
+                    workerAttempt: claim.lease.attempt,
+                    process,
+                    signal: abort.signal,
+                    redactValues: executionRedactValues,
+                  }),
+              }),
+            }
+          : {}),
       });
       if (abort.signal.aborted) {
         if (cancellationRequested) {
@@ -142,6 +229,20 @@ export const createRemoteWorkerAgent = (
             reason: 'cancellation-requested',
           });
         }
+        return true;
+      }
+      const outputGuard = createExecutionSecretLeakGuard({
+        secretValues: executionRedactValues,
+      });
+      const secretLeakSurface = inspectSandboxResult(outputGuard, result);
+      if (secretLeakSurface) {
+        await blockSecretLeak(options.client, {
+          executionId,
+          workerId: options.workerId,
+          leaseToken,
+          workerEventId: `${claim.lease.attempt}:security:secret-leak`,
+          surface: secretLeakSurface,
+        });
         return true;
       }
       const installSourceTrace = snapshot.files.find(
@@ -212,6 +313,7 @@ export const createRemoteWorkerAgent = (
             log: {
               stream,
               level: stream === 'stderr' ? 'error' : 'info',
+              category: 'process',
               message,
               redacted: true,
             },
@@ -243,9 +345,11 @@ export const createRemoteWorkerAgent = (
             log: {
               stream: 'console',
               level: 'warning',
+              category: 'system',
               message:
                 'Remote execution output exceeded its configured budget and was truncated.',
               redacted: true,
+              truncated: true,
             },
           },
         });

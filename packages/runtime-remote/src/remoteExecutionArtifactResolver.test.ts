@@ -1,4 +1,8 @@
 import { createHash } from 'node:crypto';
+import {
+  createExecutionFilesystemDiff,
+  encodeExecutionFilesystemDiff,
+} from '@prodivix/runtime-core';
 import type { RemoteExecutionClient } from './remoteExecutionProtocol.types';
 import { describe, expect, it } from 'vitest';
 import { createRemoteExecutionArtifactResolver } from './remoteExecutionArtifactResolver';
@@ -121,5 +125,69 @@ describe('Remote execution artifact resolver', () => {
         snapshotDigest,
       })
     ).rejects.toThrow('do not match');
+  });
+
+  it('resolves an execution-scoped filesystem diff without materializing it as Preview', async () => {
+    const contents = encodeExecutionFilesystemDiff(
+      createExecutionFilesystemDiff({
+        snapshotDigest,
+        workspace: {
+          workspaceId: 'workspace-1',
+          snapshotId: 'snapshot-1',
+        },
+        capturedAt: 1_000,
+        complete: true,
+        changes: [
+          {
+            kind: 'added',
+            path: 'runtime-note.txt',
+            runtime: { contents: Buffer.from('runtime') },
+          },
+        ],
+      })
+    );
+    const artifactId = `filesystem-diff:${snapshotDigest}`;
+    const resolver = createRemoteExecutionArtifactResolver({
+      client: {
+        resolveArtifact: async () => ({
+          executionId: 'execution-1',
+          providerId: 'prodivix.remote.preview',
+          artifact: {
+            artifactId,
+            kind: 'report',
+            mediaType:
+              'application/vnd.prodivix.execution-filesystem-diff+json',
+            size: contents.byteLength,
+            digest: `sha256-${createHash('sha256').update(contents).digest('hex')}`,
+            expiresAt: 2_000,
+            authorizationScope: 'execution:execution-1',
+            metadata: {
+              format: 'prodivix.execution-filesystem-diff.v1',
+              snapshotDigest,
+              workspaceSnapshotId: 'snapshot-1',
+              changeCount: '1',
+              complete: 'true',
+            },
+          },
+        }),
+      },
+      contentTransport: { download: async () => contents },
+      now: () => 1_000,
+    });
+
+    await expect(
+      resolver.resolveFilesystemDiff({
+        executionId: 'execution-1',
+        artifactId,
+        snapshotDigest,
+        workspaceSnapshotId: 'snapshot-1',
+      })
+    ).resolves.toMatchObject({
+      artifact: { artifactId },
+      diff: {
+        complete: true,
+        changes: [{ kind: 'added', path: 'runtime-note.txt' }],
+      },
+    });
   });
 });

@@ -187,7 +187,12 @@ export const createBrowserProjectTestRunner = (
     level: 'info' | 'warning' | 'error' = 'info'
   ): void => {
     if (!isJobActive(controller)) return;
-    controller.emitLog({ stream, level, message });
+    controller.emitLog({
+      stream,
+      level,
+      category: stream === 'console' ? 'runtime' : 'process',
+      message,
+    });
   };
 
   const unsubscribeHost = runtimeHost.subscribe((event) => {

@@ -11,6 +11,7 @@ import {
   EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE,
 } from '@prodivix/runtime-core';
 import { createPreviewHttpHandler } from './previewHttpHandler';
+import { createPreviewSecurityHeaders } from './previewSecurityPolicy';
 import { createPreviewSessionStore } from './previewSessionStore';
 
 const digest = (contents: Uint8Array | string): string =>
@@ -102,6 +103,20 @@ const call = async (
   });
 
 describe('Remote Preview Host', () => {
+  it('allows only an exact normalized capability origin for runtime assets', () => {
+    expect(
+      createPreviewSecurityHeaders(['https://editor.example.test'])[
+        'content-security-policy'
+      ]
+    ).toContain("connect-src 'none'");
+    expect(() =>
+      createPreviewSecurityHeaders(
+        ['https://editor.example.test'],
+        'https://preview.example.test/runtime'
+      )
+    ).toThrow('Preview capability origin is invalid.');
+  });
+
   it('issues a short-lived origin and serves exact files plus SPA fallback', async () => {
     let now = 1_000;
     const capability = 'b'.repeat(64);
@@ -157,6 +172,12 @@ describe('Remote Preview Host', () => {
     );
     expect(document.headers['content-security-policy']).toContain(
       'frame-ancestors https://editor.example.test'
+    );
+    expect(document.headers['content-security-policy']).toContain(
+      `connect-src https://${capability}.preview.example.test`
+    );
+    expect(document.headers['content-security-policy']).not.toContain(
+      'connect-src https://editor.example.test'
     );
     expect(document.headers['permissions-policy']).toContain('camera=()');
     expect(document.headers['set-cookie']).toBeUndefined();

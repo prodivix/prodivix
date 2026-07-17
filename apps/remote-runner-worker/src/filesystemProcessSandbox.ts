@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import {
+  createExecutionSecretLeakGuard,
   projectExecutableProjectRuntimeFiles,
   type ExecutableProjectCommand,
   type ExecutableProjectSnapshot,
@@ -31,11 +32,6 @@ const safeChildPath = (root: string, path: string): string => {
     );
   return target;
 };
-
-const redact = (value: string, secrets: readonly string[]): string =>
-  secrets
-    .filter((secret) => secret.length >= 4)
-    .reduce((output, secret) => output.split(secret).join('[REDACTED]'), value);
 
 const terminate = (child: ReturnType<typeof spawn>): void => {
   if (child.exitCode !== null || child.signalCode !== null) return;
@@ -182,6 +178,9 @@ export const createFilesystemProcessSandbox = (
   );
   return Object.freeze({
     async execute(input): Promise<RemoteWorkerSandboxResult> {
+      const outputGuard = createExecutionSecretLeakGuard({
+        secretValues: input.redactValues,
+      });
       await mkdir(parent, { recursive: true });
       const root = await mkdtemp(resolve(parent, 'prodivix-remote-'));
       if (relative(parent, root).startsWith('..'))
@@ -228,6 +227,8 @@ export const createFilesystemProcessSandbox = (
             output,
           });
         }
+        const stdout = outputGuard.redactText(output.stdout);
+        const stderr = outputGuard.redactText(output.stderr);
         return Object.freeze({
           status: result.aborted
             ? 'cancelled'
@@ -239,9 +240,10 @@ export const createFilesystemProcessSandbox = (
           ...(result.exitCode === undefined
             ? {}
             : { exitCode: result.exitCode }),
-          stdout: redact(output.stdout, input.redactValues),
-          stderr: redact(output.stderr, input.redactValues),
+          stdout: stdout.value,
+          stderr: stderr.value,
           outputTruncated: output.truncated,
+          secretLeakDetected: stdout.redacted || stderr.redacted,
         });
       } finally {
         const resolvedRoot = resolve(root);

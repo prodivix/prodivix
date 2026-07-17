@@ -197,6 +197,57 @@ describe('Data source document properties', () => {
     );
   });
 
+  it('round-trips explicit mutation idempotency and rejects query misuse', () => {
+    const document = createDocument('data-doc', 'api');
+    const accepted = normalizeDataSourceDocument(
+      {
+        ...document,
+        operationsById: {
+          ...document.operationsById,
+          create: {
+            ...document.operationsById.create!,
+            policies: {
+              ...document.operationsById.create!.policies,
+              idempotency: { kind: 'invocation-key' },
+              retry: {
+                maxAttempts: 3,
+                backoff: 'fixed',
+                initialDelayMs: 10,
+              },
+            },
+          },
+        },
+      },
+      { documentId: 'data-doc' }
+    );
+    expect(accepted.operationsById.create?.policies).toMatchObject({
+      idempotency: { kind: 'invocation-key' },
+      retry: { maxAttempts: 3 },
+    });
+
+    const rejected = validateDataSourceDocument({
+      ...document,
+      operationsById: {
+        ...document.operationsById,
+        list: {
+          ...document.operationsById.list!,
+          policies: {
+            ...document.operationsById.list!.policies,
+            idempotency: { kind: 'invocation-key' },
+          },
+        },
+      },
+    });
+    expect(rejected.valid).toBe(false);
+    expect(rejected.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: '/operationsById/list/policies/idempotency',
+        }),
+      ])
+    );
+  });
+
   it('rejects ambiguous cache lifetime and non-JSON-Pointer key selection', () => {
     const document = createDocument('data-doc', 'api');
     const invalidPolicies = [

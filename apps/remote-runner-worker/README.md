@@ -23,6 +23,15 @@ Cancellation stops the named container and `--rm` removes it. The
 filesystem/process supervisor remains available only as an explicit non-production
 reference adapter. The Control Plane never executes user code.
 
+Remote Terminal connects only after the runtime network has been removed and
+verified. The worker runs `podman exec --interactive` without allocating a host
+TTY; `/opt/prodivix/terminal-entry.sh` uses util-linux `script` to allocate the
+PTY inside the already isolated container. Command cursors are acknowledged only
+after the local open/input/resize/signal/close effect succeeds. Output publication
+retries the same deterministic id, independently streaming-redacts stdout/stderr,
+and closes fail-closed on lease or identity loss. The shell and every runtime file
+are destroyed with the named execution container.
+
 Required environment:
 
 - `REMOTE_WORKER_ID`
@@ -33,6 +42,11 @@ Required environment:
 
 Optional lease, heartbeat, polling, timeout, output-budget, Podman command, and
 sandbox resource/artifact/retention limits use the `REMOTE_WORKER_*` prefix.
+`REMOTE_WORKER_TERMINAL_POLL_MS` controls the ephemeral command mailbox polling
+interval and defaults to `100`.
+`REMOTE_WORKER_SECRET_CANARIES_JSON` may contain a bounded JSON string array for
+deployment/Gate canaries. The active worker credential, lease token, and these
+canaries are held only by the runtime output guard.
 The optional install-egress boundary is configured as one fail-closed set:
 
 - `REMOTE_WORKER_INSTALL_NETWORK`: pre-provisioned internal network;
@@ -48,7 +62,12 @@ method, sanitized origin URL, timing, outcome/status, byte counts, runtime zone,
 and explicit redaction state. Headers, paths, queries, fragments, bodies, cookies,
 authorization and proxy internals are not representable by that contract.
 Worker credentials are not inherited by the sandbox and are included in output
-redaction values.
+redaction values. Both sandbox adapters mark a detected redaction, and the Worker
+independently scans log, crash, Network, artifact descriptor/content, and test
+report surfaces before the first durable publication. A hit discards every
+original output and artifact, publishes only safe `EXE-5004`, and terminates the
+execution with the fixed `secret-material-detected` reason. The Control Plane
+repeats the scan before persistence as a separate trust boundary.
 
 Successful Build executions collect only the exact
 `snapshot.buildPlan.outputDirectoryPath`. The trusted sandbox entry rejects
@@ -78,3 +97,6 @@ timeout, phase-network isolation and orphan cleanup, and uploads structured JSON
 evidence plus the full Gate log. It builds the worker and its complete workspace
 dependency graph from a clean checkout before entering Podman. Windows
 contributors do not need WSL, Docker Desktop, or Podman for ordinary development.
+The Terminal probe additionally verifies a real inner TTY, resize propagation,
+execution-local filesystem writes, absence of host Workspace writes, and terminal
+container cleanup.

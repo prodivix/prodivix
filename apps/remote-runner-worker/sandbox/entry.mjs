@@ -22,10 +22,18 @@ const allowedCommands = new Set([
 const resultProtocol = 'prodivix.sandbox-result.v1';
 const buildBundleFormat = 'prodivix.execution-build-bundle.v1';
 const previewBundleFormat = 'prodivix.execution-preview-bundle.v1';
+const filesystemDiffFormat = 'prodivix.execution-filesystem-diff.v1';
+const filesystemDiffMediaType =
+  'application/vnd.prodivix.execution-filesystem-diff+json';
 const vitestReportMediaType = 'application/vnd.vitest.report+json';
 const maximumResultFiles = 20_000;
+const maximumFilesystemChanges = 512;
+const maximumFilesystemFileBytes = 1024 * 1024;
+const maximumFilesystemContentBytes = 8 * 1024 * 1024;
 const installCompleteMarker = 'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1';
 const continueExecutionToken = 'PRODIVIX_SANDBOX_CONTINUE_V1';
+const captureReadyMarker = 'PRODIVIX_SANDBOX_CAPTURE_READY_V1';
+const captureExecutionToken = 'PRODIVIX_SANDBOX_CAPTURE_V1';
 const controlLines = createInterface({ input: process.stdin, terminal: false });
 const controlIterator = controlLines[Symbol.asyncIterator]();
 
@@ -44,6 +52,13 @@ const awaitExecutionPermission = async () => {
   const line = await controlIterator.next();
   if (line.done || line.value !== continueExecutionToken)
     throw new TypeError('Sandbox execution permission was not granted.');
+};
+
+const awaitCapturePermission = async () => {
+  process.stderr.write(`${captureReadyMarker}\n`);
+  const line = await controlIterator.next();
+  if (line.done || line.value !== captureExecutionToken)
+    throw new TypeError('Sandbox filesystem capture was not granted.');
   controlLines.close();
 };
 
@@ -129,6 +144,170 @@ const run = async (value, environment, append) =>
 
 const sha256Digest = (contents) =>
   `sha256-${createHash('sha256').update(contents).digest('hex')}`;
+
+const filesystemChangeId = (kind, path, baselineDigest, runtimeDigest) =>
+  `filesystem-change:${createHash('sha256')
+    .update(`${kind}\n${path}\n${baselineDigest}\n${runtimeDigest}`)
+    .digest('hex')}`;
+
+const normalizeCapturePaths = (value, label) => {
+  if (!Array.isArray(value) || value.length > maximumResultFiles)
+    throw new TypeError(`${label} is invalid.`);
+  return new Set(
+    value.map((path) => {
+      childPath(path);
+      return path;
+    })
+  );
+};
+
+const pathIsIgnored = (path, ignoredPaths, ignoredDirectories) =>
+  ignoredPaths.has(path) ||
+  [...ignoredDirectories].some(
+    (directory) => path === directory || path.startsWith(`${directory}/`)
+  );
+
+const createFilesystemDiffArtifact = async (
+  payload,
+  baselineFiles,
+  ignoredPaths,
+  ignoredDirectories,
+  maximumBytes
+) => {
+  const seen = new Set();
+  const changes = [];
+  let totalContentBytes = 0;
+  let complete = true;
+  const addChange = (change) => {
+    const contentBytes =
+      (change.baseline?.size ?? 0) + (change.runtime?.size ?? 0);
+    if (
+      changes.length >= maximumFilesystemChanges ||
+      totalContentBytes + contentBytes > maximumFilesystemContentBytes
+    ) {
+      complete = false;
+      return;
+    }
+    totalContentBytes += contentBytes;
+    changes.push(change);
+  };
+  const contentRecord = (contents) => ({
+    encoding: 'base64',
+    size: contents.byteLength,
+    digest: sha256Digest(contents),
+    contents: contents.toString('base64'),
+  });
+  const visit = async (directory, prefix) => {
+    const entries = await readdir(directory, { withFileTypes: true });
+    entries.sort((left, right) =>
+      left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+    );
+    for (const entry of entries) {
+      const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (pathIsIgnored(path, ignoredPaths, ignoredDirectories)) continue;
+      const absolutePath = childPath(path);
+      if (entry.isDirectory()) {
+        await visit(absolutePath, path);
+        continue;
+      }
+      seen.add(path);
+      if (entry.isSymbolicLink() || !entry.isFile()) {
+        complete = false;
+        continue;
+      }
+      const stats = await lstat(absolutePath);
+      if (stats.size > maximumFilesystemFileBytes) {
+        complete = false;
+        continue;
+      }
+      const runtimeContents = await readFile(absolutePath);
+      const runtime = contentRecord(runtimeContents);
+      const baselineContents = baselineFiles.get(path);
+      if (!baselineContents) {
+        addChange({
+          changeId: filesystemChangeId('added', path, '-', runtime.digest),
+          kind: 'added',
+          path,
+          runtime,
+        });
+        continue;
+      }
+      if (baselineContents.byteLength > maximumFilesystemFileBytes) {
+        complete = false;
+        continue;
+      }
+      const baseline = contentRecord(baselineContents);
+      if (baseline.digest === runtime.digest) continue;
+      addChange({
+        changeId: filesystemChangeId(
+          'modified',
+          path,
+          baseline.digest,
+          runtime.digest
+        ),
+        kind: 'modified',
+        path,
+        baseline,
+        runtime,
+      });
+    }
+  };
+  await visit('/workspace', '');
+  for (const [path, baselineContents] of baselineFiles) {
+    if (seen.has(path) || pathIsIgnored(path, ignoredPaths, ignoredDirectories))
+      continue;
+    if (baselineContents.byteLength > maximumFilesystemFileBytes) {
+      complete = false;
+      continue;
+    }
+    const baseline = contentRecord(baselineContents);
+    addChange({
+      changeId: filesystemChangeId('deleted', path, baseline.digest, '-'),
+      kind: 'deleted',
+      path,
+      baseline,
+    });
+  }
+  changes.sort((left, right) =>
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0
+  );
+  const serialize = () =>
+    Buffer.from(
+      JSON.stringify({
+        format: filesystemDiffFormat,
+        snapshotDigest: payload.snapshotDigest,
+        workspace: payload.workspace,
+        capturedAt: Date.now(),
+        complete,
+        changes,
+      }),
+      'utf8'
+    );
+  let diff = serialize();
+  while (diff.byteLength > maximumBytes && changes.length) {
+    changes.pop();
+    complete = false;
+    diff = serialize();
+  }
+  if (diff.byteLength > maximumBytes)
+    throw new TypeError(
+      'Filesystem diff envelope exceeds its artifact budget.'
+    );
+  return {
+    artifactId: `filesystem-diff:${payload.snapshotDigest}`,
+    kind: 'report',
+    label: 'Remote runtime filesystem changes',
+    mediaType: filesystemDiffMediaType,
+    metadata: {
+      format: filesystemDiffFormat,
+      snapshotDigest: payload.snapshotDigest,
+      workspaceSnapshotId: payload.workspace.snapshotId,
+      changeCount: String(changes.length),
+      complete: String(complete),
+    },
+    contents: diff.toString('base64'),
+  };
+};
 
 const collectBuildFiles = async (root, maximumBytes) => {
   const rootStats = await lstat(root);
@@ -298,17 +477,45 @@ try {
     payload.maximumArtifactBytes,
     'Maximum artifact bytes'
   );
+  const filesystemArtifactBudget = Math.min(
+    16 * 1024 * 1024,
+    Math.max(
+      1024,
+      Math.min(Math.floor(maximumArtifactBytes / 4), maximumArtifactBytes - 1)
+    )
+  );
+  const primaryArtifactBudget = maximumArtifactBytes - filesystemArtifactBudget;
+  if (primaryArtifactBudget < 1)
+    throw new TypeError('Maximum artifact bytes cannot reserve diff capacity.');
   const { output, append } = createOutputCollector(maximumOutputBytes);
   if (!Array.isArray(payload.files) || payload.files.length > 20_000)
     throw new TypeError('Sandbox files are invalid.');
+  const baselineFiles = new Map();
   for (const file of payload.files) {
-    if (!file || typeof file !== 'object' || typeof file.contents !== 'string')
+    if (
+      !file ||
+      typeof file !== 'object' ||
+      typeof file.contents !== 'string' ||
+      typeof file.capture !== 'boolean'
+    )
       throw new TypeError('Sandbox file is invalid.');
     const target = childPath(file.path);
     const contents = Buffer.from(file.contents, 'base64');
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, contents, { flag: 'wx', mode: 0o600 });
+    if (file.capture) baselineFiles.set(file.path, contents);
   }
+  const ignoredPaths = normalizeCapturePaths(
+    [
+      ...(Array.isArray(payload.ignoredPaths) ? payload.ignoredPaths : []),
+      ...payload.files.filter((file) => !file.capture).map((file) => file.path),
+    ],
+    'Sandbox ignored file paths'
+  );
+  const ignoredDirectories = normalizeCapturePaths(
+    payload.ignoredDirectories,
+    'Sandbox ignored directories'
+  );
   const environment = { PATH: process.env.PATH, HOME: '/tmp' };
   if (!Array.isArray(payload.publicEnvironment))
     throw new TypeError('Sandbox public environment is invalid.');
@@ -355,15 +562,16 @@ try {
     );
     await awaitExecutionPermission();
     const exitCode = await run(command(payload.command), environment, append);
+    await awaitCapturePermission();
     let resultExitCode = exitCode;
     let artifacts = [];
     if (payload.profile === 'preview' && exitCode === 0)
-      artifacts = [await createPreviewArtifact(payload, maximumArtifactBytes)];
+      artifacts = [await createPreviewArtifact(payload, primaryArtifactBudget)];
     else if (payload.profile === 'build' && exitCode === 0)
-      artifacts = [await createBuildArtifact(payload, maximumArtifactBytes)];
+      artifacts = [await createBuildArtifact(payload, primaryArtifactBudget)];
     else if (payload.profile === 'test') {
       try {
-        artifacts = [await createTestArtifact(payload, maximumArtifactBytes)];
+        artifacts = [await createTestArtifact(payload, primaryArtifactBudget)];
       } catch (error) {
         if (exitCode === 0) {
           resultExitCode = 125;
@@ -379,6 +587,15 @@ try {
         }
       }
     }
+    artifacts.push(
+      await createFilesystemDiffArtifact(
+        payload,
+        baselineFiles,
+        ignoredPaths,
+        ignoredDirectories,
+        filesystemArtifactBudget
+      )
+    );
     emitResult(resultExitCode, output, artifacts);
   }
 } catch {

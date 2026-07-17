@@ -1,10 +1,12 @@
 import {
+  EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
   generateWorkspaceReactViteExecutableProject,
   type CompileDiagnostic,
 } from '@prodivix/prodivix-compiler';
 import {
   createExecutionRequest,
   type ExecutableProjectSnapshot,
+  type ExecutionProviderCapability,
   type ExecutionRequest,
 } from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
@@ -26,8 +28,19 @@ export const createBlueprintProjectRunPlan = (
   workspace: WorkspaceSnapshot,
   provider: 'browser' | 'remote' = 'browser'
 ): BlueprintProjectRunPlan => {
-  const project = generateWorkspaceReactViteExecutableProject(workspace);
+  const project = generateWorkspaceReactViteExecutableProject(
+    workspace,
+    provider === 'remote'
+      ? { dataRuntimeTarget: EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET }
+      : {}
+  );
   if (project.status === 'blocked') return project;
+  const requiredCapabilities = Object.freeze([
+    ...new Set<ExecutionProviderCapability>([
+      ...project.snapshot.capabilityRequirements.preview,
+      ...(provider === 'browser' ? (['hmr'] as const) : []),
+    ]),
+  ]);
   const request = createExecutionRequest({
     requestId: createClientExecutionRequestId('project-run'),
     profile: 'preview',
@@ -37,26 +50,7 @@ export const createBlueprintProjectRunPlan = (
       kind: 'workspace',
       targetRef: { kind: 'workspace', workspaceId: workspace.id },
     },
-    requiredCapabilities:
-      provider === 'remote'
-        ? [
-            'artifacts',
-            'cancellation',
-            'console',
-            'dependency-install',
-            'filesystem',
-            'source-trace',
-            'streaming-logs',
-          ]
-        : [
-            'artifacts',
-            'cancellation',
-            'console',
-            'dependency-install',
-            'filesystem',
-            'hmr',
-            'streaming-logs',
-          ],
+    requiredCapabilities,
   });
   return Object.freeze({
     status: 'ready',

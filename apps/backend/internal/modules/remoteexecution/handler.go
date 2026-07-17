@@ -40,6 +40,7 @@ type Handler struct {
 	previewToken      string
 	previewTTL        time.Duration
 	previewHTTPClient *http.Client
+	dataGateway       *DataGateway
 }
 
 type remoteEnvelope struct {
@@ -53,7 +54,9 @@ type remoteEnvelope struct {
 type createPayload struct {
 	Request struct {
 		Workspace struct {
-			WorkspaceID string `json:"workspaceId"`
+			WorkspaceID        string            `json:"workspaceId"`
+			SnapshotID         string            `json:"snapshotId"`
+			PartitionRevisions map[string]string `json:"partitionRevisions"`
 		} `json:"workspace"`
 		Environment json.RawMessage `json:"environment"`
 	} `json:"request"`
@@ -65,8 +68,10 @@ type EnvironmentAccessVerifier interface {
 }
 
 type envelopeAuthority struct {
-	workspaceID string
-	environment *EnvironmentReference
+	workspaceID        string
+	snapshotID         string
+	partitionRevisions map[string]string
+	environment        *EnvironmentReference
 }
 
 type executionPayload struct {
@@ -85,6 +90,18 @@ type createResponse struct {
 type previewSessionResponse struct {
 	PreviewURL string `json:"previewUrl"`
 	ExpiresAt  int64  `json:"expiresAt"`
+}
+
+func validWorkspaceExecutionIdentity(workspaceID string, snapshotID string, revisions map[string]string) bool {
+	if workspaceID == "" || workspaceID != strings.TrimSpace(workspaceID) || snapshotID == "" || snapshotID != strings.TrimSpace(snapshotID) || len(snapshotID) > 16*1024 || strings.ContainsRune(snapshotID, '\x00') || len(revisions) == 0 || len(revisions) > 4096 || strings.TrimSpace(revisions["workspace"]) == "" {
+		return false
+	}
+	for partition, revision := range revisions {
+		if partition == "" || partition != strings.TrimSpace(partition) || len(partition) > 1024 || strings.ContainsRune(partition, '\x00') || revision == "" || revision != strings.TrimSpace(revision) || len(revision) > 1024 || strings.ContainsRune(revision, '\x00') {
+			return false
+		}
+	}
+	return true
 }
 
 type artifactResolveResponse struct {
@@ -138,6 +155,9 @@ func NewHandler(store GrantStore, cfg backendconfig.RemoteRunnerConfig, previewC
 	}
 	if len(environmentVerifier) > 0 {
 		handler.environments = environmentVerifier[0]
+		if environmentStore, ok := environmentVerifier[0].(DataGatewayEnvironmentStore); ok {
+			handler.dataGateway = NewDataGateway(store, environmentStore, newRemoteDataHTTPTransport())
+		}
 	}
 	if handler.baseURL != "" && handler.clientToken != "" && cfg.Timeout > 0 {
 		handler.httpClient = &http.Client{Timeout: cfg.Timeout}
@@ -149,7 +169,7 @@ func NewHandler(store GrantStore, cfg backendconfig.RemoteRunnerConfig, previewC
 }
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
-	return RouteHandlers{RequireAuth: requireAuth, Envelope: handler.HandleEnvelope, ArtifactContent: handler.HandleArtifactContent, PreviewSession: handler.HandlePreviewSession}
+	return RouteHandlers{RequireAuth: requireAuth, Envelope: handler.HandleEnvelope, ArtifactContent: handler.HandleArtifactContent, PreviewSession: handler.HandlePreviewSession, DataOperation: handler.HandleDataOperation, TerminalOpen: handler.HandleTerminalOpen, TerminalResume: handler.HandleTerminalResume, TerminalAction: handler.HandleTerminalAction}
 }
 
 func readBoundedBody(body io.Reader) ([]byte, error) {
@@ -236,7 +256,7 @@ func (handler *Handler) authorizeEnvelope(c *gin.Context, ownerID string, sessio
 		return envelopeAuthority{}, true
 	case "create":
 		var payload createPayload
-		if json.Unmarshal(envelope.Payload, &payload) != nil || strings.TrimSpace(payload.Request.Workspace.WorkspaceID) == "" {
+		if json.Unmarshal(envelope.Payload, &payload) != nil || !validWorkspaceExecutionIdentity(payload.Request.Workspace.WorkspaceID, payload.Request.Workspace.SnapshotID, payload.Request.Workspace.PartitionRevisions) {
 			backendresponse.Error(c, http.StatusBadRequest, "EXE-4001", "Remote create request has no Workspace identity.")
 			return envelopeAuthority{}, false
 		}
@@ -260,7 +280,7 @@ func (handler *Handler) authorizeEnvelope(c *gin.Context, ownerID string, sessio
 				return envelopeAuthority{}, false
 			}
 		}
-		return envelopeAuthority{workspaceID: workspaceID, environment: environment}, true
+		return envelopeAuthority{workspaceID: workspaceID, snapshotID: payload.Request.Workspace.SnapshotID, partitionRevisions: payload.Request.Workspace.PartitionRevisions, environment: environment}, true
 	case "get", "cancel", "events.read", "artifact.resolve":
 		var payload executionPayload
 		if json.Unmarshal(envelope.Payload, &payload) != nil || strings.TrimSpace(payload.ExecutionID) == "" {
@@ -358,11 +378,13 @@ func (handler *Handler) HandleEnvelope(c *gin.Context) {
 			return
 		}
 		if err := handler.store.RecordExecution(c.Request.Context(), ExecutionAuthority{
-			ExecutionID: created.Payload.Execution.ExecutionID,
-			WorkspaceID: authority.workspaceID,
-			OwnerID:     user.ID,
-			SessionID:   session.ID,
-			Environment: authority.environment,
+			ExecutionID:        created.Payload.Execution.ExecutionID,
+			WorkspaceID:        authority.workspaceID,
+			OwnerID:            user.ID,
+			SessionID:          session.ID,
+			SnapshotID:         authority.snapshotID,
+			PartitionRevisions: authority.partitionRevisions,
+			Environment:        authority.environment,
 		}); err != nil {
 			if errors.Is(err, ErrExecutionAuthorityConflict) {
 				backendresponse.Error(c, http.StatusConflict, "EXE-4009", "Remote execution identity conflicts with an existing authority.")
@@ -374,6 +396,46 @@ func (handler *Handler) HandleEnvelope(c *gin.Context) {
 		}
 	}
 	c.Data(response.StatusCode, "application/json", responseBody)
+}
+
+func (handler *Handler) HandleDataOperation(c *gin.Context) {
+	user, session, ok := authIdentity(c)
+	if !ok {
+		return
+	}
+	if handler == nil || handler.dataGateway == nil || !handler.dataGateway.Available() {
+		backendresponse.Error(c, http.StatusServiceUnavailable, "ENV-5001", "Remote Data gateway is unavailable.", backendresponse.WithRetryable(true))
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maximumDataGatewayRequestBytes+1))
+	if err != nil || int64(len(body)) > maximumDataGatewayRequestBytes {
+		backendresponse.Error(c, http.StatusRequestEntityTooLarge, "DAT-1001", "Remote Data invocation is too large.")
+		return
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(body, &fields) != nil || len(fields) != 4 {
+		backendresponse.Error(c, http.StatusBadRequest, "DAT-1001", "Remote Data invocation is invalid.")
+		return
+	}
+	for _, field := range []string{"invocationId", "sequence", "attempt", "input"} {
+		if _, exists := fields[field]; !exists {
+			backendresponse.Error(c, http.StatusBadRequest, "DAT-1001", "Remote Data invocation is invalid.")
+			return
+		}
+	}
+	var invocation DataGatewayInvocation
+	if json.Unmarshal(body, &invocation) != nil {
+		backendresponse.Error(c, http.StatusBadRequest, "DAT-1001", "Remote Data invocation is invalid.")
+		return
+	}
+	result, err := handler.dataGateway.Invoke(c.Request.Context(), backendenvironment.PrincipalSession{PrincipalID: user.ID, SessionID: session.ID}, c.Param("executionId"), c.Param("documentId"), c.Param("operationId"), invocation)
+	if err != nil {
+		status, code, message := dataGatewayErrorStatus(err)
+		backendresponse.Error(c, status, code, message, backendresponse.WithRetryable(status >= 500))
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	c.JSON(http.StatusOK, result)
 }
 
 func (handler *Handler) HandleArtifactContent(c *gin.Context) {

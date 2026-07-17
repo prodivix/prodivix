@@ -39,6 +39,8 @@
     "stoppedTitle": "项目 Runner 已停止",
     "start": "启动",
     "retry": "重试",
+    "startNewRequest": "创建新的运行请求",
+    "recoveryNotice": "旧运行事件会保留，已派发的 mutation 不会自动重放。",
     "updating": "正在更新项目预览…"
   },
   "assistant": {

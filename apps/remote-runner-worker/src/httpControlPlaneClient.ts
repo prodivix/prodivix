@@ -1,9 +1,15 @@
-import { decodeRemoteExecutableProjectSnapshot } from '@prodivix/runtime-remote';
+import {
+  decodeRemoteExecutableProjectSnapshot,
+  decodeRemoteExecutionTerminalWorkerReadResult,
+} from '@prodivix/runtime-remote';
 import type {
   RemoteExecutionClaimResult,
   RemoteExecutionLease,
 } from '@prodivix/runtime-remote';
-import type { RemoteWorkerControlPlaneClient } from './worker.types';
+import type {
+  RemoteWorkerControlPlaneClient,
+  RemoteWorkerTerminalControlPlaneClient,
+} from './worker.types';
 
 const jsonRequest = async (
   baseUrl: string,
@@ -34,7 +40,7 @@ export const createRemoteWorkerHttpControlPlaneClient = (
     baseUrl: string;
     workerToken: string;
   }>
-): RemoteWorkerControlPlaneClient => {
+): RemoteWorkerControlPlaneClient & RemoteWorkerTerminalControlPlaneClient => {
   const baseUrl = new URL(input.baseUrl).toString();
   return Object.freeze({
     async claim(request) {
@@ -152,6 +158,64 @@ export const createRemoteWorkerHttpControlPlaneClient = (
       throw new Error(
         `Remote worker artifact upload failed with status ${response.status}.`
       );
+    },
+    async readTerminalCommands(request) {
+      const response = await jsonRequest(
+        baseUrl,
+        input.workerToken,
+        `/internal/v1/executions/${encodeURIComponent(request.executionId)}/terminal/commands`,
+        request
+      );
+      if (response.status === 409) return undefined;
+      if (!response.ok)
+        throw new Error(
+          `Remote worker Terminal command read failed with status ${response.status}.`
+        );
+      const terminal = (await resultBody(response)).terminal;
+      return terminal === null
+        ? undefined
+        : decodeRemoteExecutionTerminalWorkerReadResult(terminal);
+    },
+    async publishTerminalOutput(request) {
+      const response = await jsonRequest(
+        baseUrl,
+        input.workerToken,
+        `/internal/v1/executions/${encodeURIComponent(request.executionId)}/terminal/output`,
+        request
+      );
+      if (response.status === 409) {
+        const body = await resultBody(response);
+        const code = (body.error as { code?: unknown } | undefined)?.code;
+        return code === 'identity-conflict'
+          ? 'identity-conflict'
+          : 'lease-rejected';
+      }
+      if (!response.ok)
+        throw new Error(
+          `Remote worker Terminal output failed with status ${response.status}.`
+        );
+      const result = (await resultBody(response)).result;
+      if (
+        result !== 'stored' &&
+        result !== 'existing' &&
+        result !== 'session-closed'
+      )
+        throw new TypeError('Remote worker Terminal output result is invalid.');
+      return result;
+    },
+    async closeTerminal(request) {
+      const response = await jsonRequest(
+        baseUrl,
+        input.workerToken,
+        `/internal/v1/executions/${encodeURIComponent(request.executionId)}/terminal/close`,
+        request
+      );
+      if (response.status === 409) return false;
+      if (!response.ok)
+        throw new Error(
+          `Remote worker Terminal close failed with status ${response.status}.`
+        );
+      return (await resultBody(response)).closed === true;
     },
   });
 };

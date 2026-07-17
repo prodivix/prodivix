@@ -5,6 +5,7 @@ import {
   verifyRootlessPodmanEngine,
 } from './rootlessPodmanSandbox';
 import { createRemoteWorkerAgent } from './workerAgent';
+import { createRemoteWorkerTerminalCoordinator } from './workerTerminalCoordinator';
 
 const required = (name: string): string => {
   const value = process.env[name]?.trim();
@@ -17,6 +18,26 @@ const integer = (name: string, fallback: number): number => {
   if (!Number.isSafeInteger(value) || value < 1)
     throw new TypeError(`${name} must be a positive integer.`);
   return value;
+};
+
+const optionalSecretValues = (name: string): readonly string[] => {
+  const raw = process.env[name];
+  if (raw === undefined) return Object.freeze([]);
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch {
+    throw new TypeError(`${name} must be valid JSON.`);
+  }
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (entry) =>
+        typeof entry !== 'string' || entry.length < 4 || entry.length > 8_192
+    )
+  )
+    throw new TypeError(`${name} must be an array of bounded strings.`);
+  return Object.freeze([...value]);
 };
 
 const workerId = required('REMOTE_WORKER_ID');
@@ -70,13 +91,14 @@ const sandbox =
         })();
 if (sandboxMode === 'rootless-podman')
   await verifyRootlessPodmanEngine(process.env.REMOTE_WORKER_PODMAN_COMMAND);
+const controlPlaneClient = createRemoteWorkerHttpControlPlaneClient({
+  baseUrl: required('REMOTE_WORKER_CONTROL_PLANE_URL'),
+  workerToken,
+});
 const agent = createRemoteWorkerAgent({
   workerId,
   providerId: required('REMOTE_WORKER_PROVIDER_ID'),
-  client: createRemoteWorkerHttpControlPlaneClient({
-    baseUrl: required('REMOTE_WORKER_CONTROL_PLANE_URL'),
-    workerToken,
-  }),
+  client: controlPlaneClient,
   sandbox,
   leaseDurationMs,
   heartbeatIntervalMs: integer(
@@ -92,7 +114,18 @@ const agent = createRemoteWorkerAgent({
     'REMOTE_WORKER_ARTIFACT_RETENTION_MS',
     60 * 60 * 1_000
   ),
-  redactValues: [workerToken],
+  redactValues: [
+    workerToken,
+    ...optionalSecretValues('REMOTE_WORKER_SECRET_CANARIES_JSON'),
+  ],
+  ...(sandboxMode === 'rootless-podman'
+    ? {
+        terminal: createRemoteWorkerTerminalCoordinator({
+          client: controlPlaneClient,
+          pollIntervalMs: integer('REMOTE_WORKER_TERMINAL_POLL_MS', 100),
+        }),
+      }
+    : {}),
 });
 
 let stopping = false;

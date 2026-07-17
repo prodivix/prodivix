@@ -104,28 +104,63 @@ const jobSnapshot = (value: unknown, label: string): ExecutionJobSnapshot => {
 const logRecord = (value: unknown, label: string): ExecutionLogRecord => {
   const record = exactRecord(
     value,
-    ['stream', 'level', 'message', 'data', 'redacted', 'sourceTrace'],
+    [
+      'stream',
+      'level',
+      'category',
+      'message',
+      'arguments',
+      'data',
+      'redacted',
+      'truncated',
+      'sourceTrace',
+    ],
     ['stream', 'level', 'message'],
     label
   );
   const stream = normalizedString(record.stream, `${label}.stream`);
   const level = normalizedString(record.level, `${label}.level`);
+  const category =
+    record.category === undefined
+      ? undefined
+      : normalizedString(record.category, `${label}.category`);
   if (!['stdout', 'stderr', 'console'].includes(stream)) {
     throw new TypeError(`${label}.stream is unsupported.`);
   }
   if (!['trace', 'debug', 'info', 'warning', 'error'].includes(level)) {
     throw new TypeError(`${label}.level is unsupported.`);
   }
+  if (
+    category !== undefined &&
+    !['application', 'runtime', 'process', 'system'].includes(category)
+  ) {
+    throw new TypeError(`${label}.category is unsupported.`);
+  }
+  const executionArguments =
+    record.arguments === undefined
+      ? undefined
+      : executionValue(record.arguments, `${label}.arguments`);
+  if (executionArguments !== undefined && !Array.isArray(executionArguments))
+    throw new TypeError(`${label}.arguments must be an array.`);
   return Object.freeze({
     stream: stream as ExecutionLogRecord['stream'],
     level: level as ExecutionLogRecord['level'],
+    ...(category === undefined
+      ? {}
+      : { category: category as ExecutionLogRecord['category'] }),
     message: safeString(record.message, `${label}.message`),
+    ...(executionArguments === undefined
+      ? {}
+      : { arguments: executionArguments }),
     ...(record.data === undefined
       ? {}
       : { data: executionValue(record.data, `${label}.data`) }),
     ...(record.redacted === undefined
       ? {}
       : { redacted: booleanValue(record.redacted, `${label}.redacted`) }),
+    ...(record.truncated === undefined
+      ? {}
+      : { truncated: booleanValue(record.truncated, `${label}.truncated`) }),
     ...(record.sourceTrace === undefined
       ? {}
       : {

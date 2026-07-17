@@ -101,6 +101,7 @@ type DataRuntimeOperation = Readonly<{
   policies: Readonly<{
     cache?: DataRuntimeCachePolicy;
     retry?: Readonly<{ maxAttempts: number; backoff: 'fixed' | 'exponential'; initialDelayMs: number; maxDelayMs?: number }>;
+    idempotency?: Readonly<{ kind: 'invocation-key' }>;
     pagination?: DataRuntimePaginationPolicy;
     optimistic?: Readonly<{
       kind: 'crud';
@@ -132,7 +133,7 @@ type DataRuntimeNetworkTrace = Readonly<{
   format: 'prodivix.execution-network-trace.v1';
   requestId: string;
   phase: 'runtime';
-  runtimeZone: 'client';
+  runtimeZone: 'client' | 'server' | 'edge';
   mode: 'live';
   adapter: 'core.http';
   method: string;
@@ -157,6 +158,14 @@ type DataRuntimeNetworkTrace = Readonly<{
   truncated?: boolean;
 }>;
 
+type DataGatewayBridgeResponse = Readonly<{
+  type: 'prodivix.execution-data-gateway-response.v1';
+  requestId: string;
+  ok: boolean;
+  result?: Readonly<{ value: unknown; empty: boolean; network: DataRuntimeNetworkTrace }>;
+  error?: Readonly<{ code: string; retryable: boolean }>;
+}>;
+
 class DataRuntimeFailure extends Error {
   readonly code: string;
   readonly retryable: boolean;
@@ -168,6 +177,16 @@ class DataRuntimeFailure extends Error {
     this.retryable = retryable;
   }
 }
+
+const remoteGatewaySafeErrorCodes = new Set([
+  'DATA_REMOTE_GATEWAY_UNAVAILABLE',
+  'DATA_REMOTE_GATEWAY_DENIED',
+  'DATA_REMOTE_GATEWAY_INVALID',
+  'DATA_HTTP_REQUEST_FAILED',
+  'DATA_MUTATION_REPLAY_CONFLICT',
+  'DATA_MUTATION_REPLAY_UNSAFE',
+  'DATA_MUTATION_REPLAY_CAPACITY',
+]);
 
 const runtimeFailureCode = (error: unknown): string => {
   const code = error && typeof error === 'object' && 'code' in error
@@ -431,6 +450,140 @@ const createNetworkTrace = (input: Readonly<{
   ...(input.truncated ? { truncated: true } : {}),
 });
 
+const exactBridgeRecord = (
+  value: unknown,
+  required: readonly string[],
+  optional: readonly string[] = []
+): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const allowed = new Set([...required, ...optional]);
+  return required.every((key) => Object.prototype.hasOwnProperty.call(record, key)) &&
+    Object.keys(record).every((key) => allowed.has(key))
+    ? record
+    : undefined;
+};
+
+const readGatewayNetworkTrace = (
+  value: unknown,
+  input: Readonly<{
+    documentId: string;
+    operationId: string;
+    invocationId: string;
+    sequence: number;
+    attempt: number;
+  }>
+): DataRuntimeNetworkTrace | undefined => {
+  const record = exactBridgeRecord(value, [
+    'format', 'requestId', 'phase', 'runtimeZone', 'mode', 'adapter', 'method',
+    'sanitizedUrl', 'protocol', 'startedAt', 'completedAt', 'durationMs',
+    'outcome', 'correlation', 'redacted',
+  ], ['status', 'requestBytes', 'responseBytes', 'truncated']);
+  const correlation = exactBridgeRecord(record?.correlation, [
+    'kind', 'documentId', 'operationId', 'invocationId', 'sequence', 'attempt',
+  ]);
+  let sanitizedUrl: URL;
+  try { sanitizedUrl = new URL(String(record?.sanitizedUrl)); }
+  catch { return undefined; }
+  if (
+    !record || !correlation ||
+    record.format !== 'prodivix.execution-network-trace.v1' ||
+    record.phase !== 'runtime' || !['server', 'edge'].includes(String(record.runtimeZone)) ||
+    record.mode !== 'live' || record.adapter !== 'core.http' || record.redacted !== true ||
+    !['https:'].includes(sanitizedUrl.protocol) || sanitizedUrl.pathname !== '/' ||
+    sanitizedUrl.username || sanitizedUrl.password || sanitizedUrl.search || sanitizedUrl.hash ||
+    correlation.kind !== 'data-operation' || correlation.documentId !== input.documentId ||
+    correlation.operationId !== input.operationId || correlation.invocationId !== input.invocationId ||
+    correlation.sequence !== input.sequence || correlation.attempt !== input.attempt ||
+    !Number.isSafeInteger(record.startedAt) || !Number.isSafeInteger(record.completedAt) ||
+    !Number.isSafeInteger(record.durationMs) ||
+    Number(record.completedAt) - Number(record.startedAt) !== record.durationMs ||
+    !['allowed', 'failed'].includes(String(record.outcome)) ||
+    typeof record.method !== 'string' || !record.method ||
+    record.protocol !== 'https' ||
+    (record.status !== undefined && (!Number.isSafeInteger(record.status) || Number(record.status) < 100 || Number(record.status) > 599)) ||
+    (record.requestBytes !== undefined && (!Number.isSafeInteger(record.requestBytes) || Number(record.requestBytes) < 0)) ||
+    (record.responseBytes !== undefined && (!Number.isSafeInteger(record.responseBytes) || Number(record.responseBytes) < 0)) ||
+    (record.truncated !== undefined && typeof record.truncated !== 'boolean')
+  ) return undefined;
+  return Object.freeze(cloneJson(record)) as DataRuntimeNetworkTrace;
+};
+
+const invokeRemoteDataGateway = async (input: Readonly<{
+  documentId: string;
+  document: DataRuntimeDocument;
+  operation: DataRuntimeOperation;
+  operationInput: unknown;
+  invocationId: string;
+  sequence: number;
+  attempt: number;
+  publishNetworkTrace(trace: DataRuntimeNetworkTrace): void;
+}>): Promise<DataRuntimeResult> => {
+  if (!['server', 'edge'].includes(input.document.source.runtimeZone))
+    throw new DataRuntimeFailure('DATA_STANDALONE_RUNTIME_ZONE_UNAVAILABLE');
+  if (dataRuntimeTarget.serverGateway !== 'execution-data-gateway-message-v1')
+    throw new DataRuntimeFailure('DATA_REMOTE_GATEWAY_UNAVAILABLE');
+  const runtimeWindow = globalThis as unknown as Window;
+  const parent = runtimeWindow.parent;
+  if (!parent || parent === runtimeWindow)
+    throw new DataRuntimeFailure('DATA_REMOTE_GATEWAY_UNAVAILABLE', true);
+  const requestId = input.invocationId + ':' + input.attempt;
+  const response = await new Promise<DataGatewayBridgeResponse>((resolve, reject) => {
+    const timeout = globalThis.setTimeout(() => {
+      globalThis.removeEventListener('message', onMessage);
+      reject(new DataRuntimeFailure('DATA_REMOTE_GATEWAY_TIMEOUT', true));
+    }, 30_000);
+    const onMessage = (event: MessageEvent<unknown>): void => {
+      if (event.source !== parent) return;
+      const record = exactBridgeRecord(event.data, ['type', 'requestId', 'ok'], ['result', 'error']);
+      if (
+        !record || record.type !== 'prodivix.execution-data-gateway-response.v1' ||
+        record.requestId !== requestId || typeof record.ok !== 'boolean'
+      ) return;
+      globalThis.clearTimeout(timeout);
+      globalThis.removeEventListener('message', onMessage);
+      resolve(record as unknown as DataGatewayBridgeResponse);
+    };
+    globalThis.addEventListener('message', onMessage);
+    parent.postMessage(Object.freeze({
+      type: 'prodivix.execution-data-gateway-request.v1',
+      requestId,
+      documentId: input.documentId,
+      operationId: input.operation.id,
+      invocationId: input.invocationId,
+      sequence: input.sequence,
+      attempt: input.attempt,
+      input: cloneJson(input.operationInput),
+    }), '*');
+  });
+  if (!response.ok) {
+    const error = exactBridgeRecord(response.error, ['code', 'retryable']);
+    if (
+      !error || typeof error.code !== 'string' ||
+      !remoteGatewaySafeErrorCodes.has(error.code) || typeof error.retryable !== 'boolean'
+    ) throw new DataRuntimeFailure('DATA_REMOTE_GATEWAY_INVALID');
+    throw new DataRuntimeFailure(error.code, error.retryable);
+  }
+  const result = exactBridgeRecord(response.result, ['value', 'empty', 'network']);
+  const network = readGatewayNetworkTrace(result?.network, {
+    documentId: input.documentId,
+    operationId: input.operation.id,
+    invocationId: input.invocationId,
+    sequence: input.sequence,
+    attempt: input.attempt,
+  });
+  if (!result || typeof result.empty !== 'boolean' || !network)
+    throw new DataRuntimeFailure('DATA_REMOTE_GATEWAY_INVALID');
+  const value = cloneJson(result.value);
+  input.publishNetworkTrace(network);
+  const page = projectHttpPage(input.operation, input.operationInput, value);
+  return Object.freeze({
+    value,
+    empty: result.empty,
+    ...(page === undefined ? {} : { page }),
+  });
+};
+
 const invokeLiveHttp = async (input: Readonly<{
   documentId: string;
   document: DataRuntimeDocument;
@@ -443,6 +596,8 @@ const invokeLiveHttp = async (input: Readonly<{
 }>): Promise<DataRuntimeResult> => {
   if (input.document.source.adapterId !== 'core.http')
     throw new DataRuntimeFailure('DATA_ADAPTER_UNAVAILABLE');
+  if (['server', 'edge'].includes(input.document.source.runtimeZone))
+    return invokeRemoteDataGateway(input);
   if (input.document.source.runtimeZone !== 'client')
     throw new DataRuntimeFailure('DATA_STANDALONE_RUNTIME_ZONE_UNAVAILABLE');
   if (input.document.source.configurationByKey.authorization)
@@ -462,6 +617,31 @@ const invokeLiveHttp = async (input: Readonly<{
   const url = httpEndpoint(baseUrl, path);
   if (input.operation.kind === 'query') appendHttpQuery(url, input.operationInput);
   const body = input.operation.kind === 'mutation' ? canonicalJson(input.operationInput) : undefined;
+  if (input.operation.configurationByKey.idempotencyHeader && !input.operation.policies.idempotency)
+    throw new DataRuntimeFailure('DATA_HTTP_CONFIGURATION_INVALID');
+  let upstreamIdempotency: Readonly<{ header: string; key: string }> | undefined;
+  if (input.operation.policies.idempotency) {
+    if (input.operation.policies.idempotency.kind !== 'invocation-key')
+      throw new DataRuntimeFailure('DATA_HTTP_CONFIGURATION_INVALID');
+    const header = literalConfigurationString(input.operation.configurationByKey.idempotencyHeader);
+    if (
+      header !== header.toLowerCase() || header.length > 128 ||
+      !/^[!#$%&'*+.^_|~0-9a-z-]+$/u.test(header) ||
+      ['authorization', 'connection', 'content-length', 'content-type', 'cookie', 'host', 'proxy-authorization', 'set-cookie', 'transfer-encoding'].includes(header)
+    ) throw new DataRuntimeFailure('DATA_HTTP_CONFIGURATION_INVALID');
+    upstreamIdempotency = Object.freeze({
+      header,
+      key: await dataIdempotencyKey({
+        documentId: input.documentId,
+        operationId: input.operation.id,
+        invocationId: input.invocationId,
+        sequence: input.sequence,
+        documentRevision: input.document.revision,
+        runtimeZone: input.document.source.runtimeZone,
+        operationInput: input.operationInput,
+      }),
+    });
+  }
   const requestBytes = body ? new TextEncoder().encode(body).byteLength : 0;
   const requestId = input.invocationId + ':' + input.attempt;
   const startedAt = Date.now();
@@ -469,7 +649,13 @@ const invokeLiveHttp = async (input: Readonly<{
   try {
     response = await fetch(url, {
       method,
-      ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body }),
+      ...(body === undefined && !upstreamIdempotency ? {} : {
+        headers: {
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+          ...(upstreamIdempotency ? { [upstreamIdempotency.header]: upstreamIdempotency.key } : {}),
+        },
+        ...(body === undefined ? {} : { body }),
+      }),
       credentials: 'omit',
       redirect: 'error',
       referrerPolicy: 'no-referrer',
@@ -567,11 +753,34 @@ const selectedCacheInput = (input: unknown, paths?: readonly string[]): unknown 
       })
     : cloneJson(input);
 
-const sha256Text = async (value: string): Promise<string> => {
-  if (!globalThis.crypto?.subtle) throw new DataRuntimeFailure('DATA_CACHE_RUNTIME_UNAVAILABLE');
+const sha256Text = async (
+  value: string,
+  unavailableCode = 'DATA_CACHE_RUNTIME_UNAVAILABLE'
+): Promise<string> => {
+  if (!globalThis.crypto?.subtle) throw new DataRuntimeFailure(unavailableCode);
   const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
   return [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 };
+
+const dataIdempotencyKey = async (input: Readonly<{
+  documentId: string;
+  operationId: string;
+  invocationId: string;
+  sequence: number;
+  documentRevision: string;
+  runtimeZone: string;
+  operationInput: unknown;
+}>): Promise<string> => 'prodivix-data-sha256-' + await sha256Text(canonicalJson({
+  format: 'prodivix.data-idempotency-key.v1',
+  documentId: input.documentId,
+  operationId: input.operationId,
+  invocationId: input.invocationId,
+  sequence: input.sequence,
+  documentRevision: input.documentRevision,
+  runtimeZone: input.runtimeZone,
+  mode: 'live',
+  input: input.operationInput,
+}), 'DATA_IDEMPOTENCY_RUNTIME_UNAVAILABLE');
 
 const dataCacheKey = async (input: Readonly<{
   documentId: string;

@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Canonical Foundation Implemented / Runtime D1-D4 In Progress
+- ImplementationStatus：D0-D2 Implemented / D3-D4、D6-D8 In Progress / D5 Planned
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-17
@@ -62,22 +62,47 @@ G2 完成的标志不是“能发一个 fetch”，而是同一 CRUD journey 在
 - React/Vite generated runtime 已从同一 Data current model 投影 public client live HTTP：显式 mock/live
   runtime manifest、JSON Schema 2020-12、retry、offset/cursor response mapping、bounded SHA-256 cache、
   optimistic CRUD/revalidation 与 sanitized Network correlation；environment/Secret 配置和非 client zone
-  在 standalone client 运行前 fail closed。Browser Preview iframe 仅允许 exact active frame/origin 的严格
-  Network bridge message 进入当前 Execution Job。
+  不进入 public client fetch。Remote Preview 的 server/edge query/mutation 通过 value-only strict invocation bridge
+  交给父窗口 product-authenticated Backend gateway；父窗口以 exact active frame、opaque origin 与 generation
+  fence 校验请求，Preview Host CSP 仅开放当前 hash capability origin 的 runtime asset 读取。Browser Preview
+  iframe 仍只允许 exact active frame/origin 的严格 Network bridge message 进入当前 Execution Job。
+- Remote mutation dispatch 使用 runtime-unique UUID invocation；Backend PostgreSQL ledger 在 effect 前
+  原子 claim，并以 SHA-256 fingerprint 绑定 exact snapshot/environment/document/input/method/endpoint/sequence。
+  completed duplicate 只读取 sanitized result，identity drift、pending 与 indeterminate outcome 不再次访问上游；
+  显式 `invocation-key` policy + bounded retry + HTTP `idempotencyHeader` mapping 会生成不含 input/Secret/raw
+  identity 的 opaque key；v3 ledger 只把 retryable outcome 原子释放给紧邻下一 attempt，所有 attempt 复用
+  同一 upstream key。无 contract 时 attempt 仍固定为 1；这不宣称 distributed exactly-once。ledger 每个
+  execution 最多 256 项，replay result 受约 1.25 MiB 预算限制，并随 execution authority 级联清理。
+- 独立 `G2 PostgreSQL Gates` GitHub workflow 已将 Backend replay ledger 与
+  `@prodivix/runtime-remote-postgres` Control Plane adapter 放入同一 PostgreSQL 16 service Gate。Backend
+  integration 使用随机 schema 跑完整 migration，并真实验证 24 路同 identity 竞争只能产生一个 claim、
+  16 路竞争最后容量槽只能插入一项、每个显式释放 retry attempt 仍只有一个 claimer、成功结果重放、
+  identity drift/indeterminate fence 与 authority cascade。
+  claim 先以独立语句获取 execution advisory transaction lock，再在新的 READ COMMITTED statement snapshot
+  中读取 identity/count；不得把 lock 放入 capacity CTE，否则等待者会沿用锁前 snapshot 越过 256 上限。
 
 ### 尚未实现
 
-- production server/edge generated runtime、完整 Remote live operation gateway/CSP 调度；当前 generated live
-  纵切仅允许 public literal client HTTP。
+- 完整 Remote live parity；当前 generated Remote Preview 已接 execution-bound server/edge HTTP
+  query/mutation gateway、durable replay/idempotency fence，以及 exact active-job Session observation。
+  finite Remote Preview 终态后产生的 metadata-only Network trace 通过 generation/stale fence、有限去重与
+  总 retention 预算进入产品 Session；manual cancellation/new-request restart 已完成，reconnect、artifact/
+  quota/worker-loss recovery presentation 仍待完成。
 - production Environment/Secret store first vertical、principal/session partition 与 durable permission/audit
-  adapter 已落地；Remote create authority 已接 authenticated session 与 exact environment preflight，
-  server HTTP gateway/material resolution、key rotation/KMS adapter 与完整 cross-surface canary Gate 继续建设。
+  adapter 已落地；Remote create authority 已接 authenticated session 与 exact environment/snapshot preflight，
+  server HTTP gateway/material resolution first vertical 已组合 exact Data revision、短期 grant 与公网 HTTPS/
+  SSRF policy；generated query bridge/CSP 已接入。Remote request/snapshot/cache/event/log/diagnostic/trace/
+  artifact/test-report/crash durable surface canary Gate 已闭环；Structured Console 已增加 generated/bridge/
+  core/copy 多层 credential redaction；Remote Terminal 已增加 Worker/Control Plane 双边、stdout/stderr 分流的
+  transport-wide/cross-chunk canary 与 bounded copy redaction。key rotation/KMS adapter 继续建设。
 - HTTP/OpenAPI、GraphQL、AsyncAPI importer/runtime adapter。
 - 完整 Data editor/Inspector/Issues/Network 产品旅程。
 - Preview/Test/Export 和第二 target 的 CRUD parity。
 
-当前 Browser/generated public client 与 mock lifecycle 已可执行，但 Remote live、server/edge
-environment/Secret 和第二 target 尚未闭环。这是明确边界，不能描述为完整 Data runtime。
+当前 Browser/generated public client、mock lifecycle 与 Remote server/edge query/mutation gateway first vertical
+已可执行，Remote Data Network、Structured Console、manual new-request recovery 和显式 upstream mutation
+idempotency/retry 也已关联产品 Session；但完整 Remote failure recovery、跨表面 correlation/canary 和第二 target 尚未闭环。这是明确
+边界，不能描述为完整 Data runtime。
 
 ## Canonical 与运行态边界
 
@@ -196,6 +221,12 @@ SWR stale hit 只返回 `revalidationRequired: true`，由产品层以新 sequen
   idempotency key 时才允许。
 - retry 使用注入 clock/scheduler、bounded attempts、deadline 和 cancellation。
 - 每次 attempt 进入 lifecycle/network correlation；Secret 或 raw response 不进入 diagnostic details。
+
+当前 `invocation-key` 是 protocol-neutral 作者态语义；HTTP wire mapping 由 operation public
+`idempotencyHeader` 提供。`@prodivix/data-http`、React/Vite standalone runtime 与 Backend Remote gateway
+都从 attempt-invariant invocation facts 派生 opaque SHA-256 key。adapter 必须声明 `idempotency-key`
+capability；header 缺失、大小写不 canonical、reserved/credential header、attempt 跳号或 policy drift
+均在 transport effect 前 fail closed。
 
 ### Pagination
 
@@ -336,9 +367,17 @@ incremental update 语义，必须先修订 ADR/current model。
 - [x] expiry/revoke、principal/session-bound resolution/cache partition 与 value-free audit metadata。
 - [x] Backend PostgreSQL production store first vertical：immutable revision、AES-256-GCM authenticated
       encryption、exact binding/field durable grant、callback-only material 与 API/at-rest/use canary Gate。
-- [x] Data/HTTP effect 前 preflight 与首条 result/Network/audit Secret canary suite；client-only export/
-      server gateway compile Gate、Remote HTTP/material gateway composition、key rotation/KMS adapter 和
-      log/diagnostic/artifact/report/Terminal 全表面 canary 仍未完成。
+- [x] Data/HTTP effect 前 preflight 与首条 result/Network/audit Secret canary suite；Backend execution-bound
+      Remote HTTP/material gateway query/mutation first vertical 已绑定 exact snapshot/document revision、principal/session、
+      短期 grant、public HTTPS/SSRF policy 与 metadata-only Network trace；generated Remote Preview 已通过
+      value-only bridge、exact frame/generation fence、父窗口 authenticated client 与 capability-origin CSP 接入。
+      Remote Network 已通过 strict result codec 与 exact active-job Session observation 关联产品视图，并在
+      generation replacement/stop 后拒绝 stale result。React/Vite target manifest 默认 static-client，只有
+      execution parent gateway target 可编译 server/edge Data；snapshot/provider/request 精确传播 `network`/
+      `environment-binding`，Browser/ZIP export fail closed，生成 source/diagnostic/snapshot 不投影 Secret
+      identity。Remote 当前 durable 输出的 log/diagnostic/trace/artifact/report/cache/crash canary 已由 Worker +
+      Control Plane 双 Gate 覆盖；Structured Console copy 与 Remote Terminal transport-wide/cross-chunk、
+      stdout/stderr 分流和 bounded copy redaction 已完成，key rotation/KMS adapter 仍未完成。
 
 完成条件：未授权、错误 zone、stale environment 或缺 binding 均在执行前稳定拒绝；无明文泄漏。
 
@@ -372,30 +411,42 @@ incremental update 语义，必须先修订 ADR/current model。
 
 ### D6：Preview/Test/Remote integration
 
-- [ ] Browser 已接 protocol-neutral registry + HTTP + client-safe fetch；Remote 与 environment resolver 待接。
+- [x] Browser 已接 protocol-neutral registry + HTTP + client-safe fetch；Backend Remote HTTP/environment
+      resolver first vertical 与 generated Remote Preview server/edge query/mutation invocation bridge/CSP 已建立。
 - [x] Browser Network trace 已 correlation 到 operation/invocation/sequence/attempt/source trace，并进入
       active Project Job/Session；generated iframe 通过 strict envelope、exact origin 与 exact frame source
       复用该 Job trace，Console/Test correlation 继续建设。
-- [ ] Browser Test Data composition 已具备 deterministic fixture、live opt-in、exact Executable Snapshot
+- [x] Browser Test Data composition 已具备 deterministic fixture、live opt-in、exact Executable Snapshot
       provisioning 与 session-namespaced CRUD cleanup；Browser Host、filesystem adapter 与 rootless Worker
       从同一 snapshot 投影 mock runtime asset。生成 React/Vite runtime 已对 PIR query binding 发布
       loading/success/empty/error 并订阅刷新，Remote Preview/Test 通过同一 Worker 文件投影消费；Browser
       typed mutation dispatch 已接共享 execute kernel；standalone generated mock runtime 已执行 mutation CRUD
       并重校验已激活 query，public client live HTTP 已执行 schema/retry/pagination/cache/optimistic 与 Network
-      correlation；Remote live gateway/CSP、server/edge environment injection 待完成。
-- [ ] disconnect/retry/cancel/timeout 不重复 mutation、不发布 stale result。
+      correlation；Remote server/edge query/mutation 已经父窗口 gateway 执行并返回 metadata-only Network，
+      mutation effect-before durable replay fence 已完成；Remote Network 使用 exact active Job identity 的
+      bounded Session observation，并对 generation replacement、stop、重复结果和 identity drift fail closed。
+- [ ] 完整 Remote Test/live policy parity、跨 Console/Test correlation 与 recovery presentation。
+- [x] Remote mutation identity drift、concurrent pending 与 disconnect/crash 后 indeterminate outcome 不重复 effect；
+      completed duplicate 返回相同 sanitized result。
+- [x] 显式 upstream `invocation-key` idempotency/retry contract：canonical policy、adapter capability、HTTP
+      header mapping、React/Vite public/Remote runtime、Backend v3 next-attempt ledger 与并发 Gate 已闭环。
+- [ ] cancellation/timeout 后的产品 stale-result/recovery presentation。
 
 完成条件：相同 snapshot/environment/fixture 在 Browser/Remote 得到相同 lifecycle/test outcome。
 
 ### D7：Compiler 与 target parity
 
 - [x] React/Vite executable snapshot 对 Data runtime 显式投影 mock/live manifest；public live Data 项目声明
-      `network` capability，Test 强制 mock，missing fixture 不回退 live。server gateway requirement 待后续 target manifest。
+      `network` capability，Test 强制 mock，missing fixture 不回退 live。
+- [x] React/Vite Data runtime target manifest 与 server-gateway compile Gate：默认 static-client；server/edge
+      只有 execution parent gateway target 可通过；Remote Preview 声明 `network`/`environment-binding`，
+      Browser/ZIP export、client environment reference 与 live worker/build/test Data zone 均稳定阻断；Workspace
+      Test 使用强制 mock-only target，若 provider 错投 live manifest 则运行前拒绝。
 - [x] React/Vite standalone query/mutation runtime 已不依赖 editor/backend 私有 runtime，执行 durable
       activation/input/event、mock CRUD 与 public client live HTTP/policy，并通过强制
       install/typecheck/test/build Gate。
 - [ ] 单一第二 target 使用相同 Data current model、policy kernel 和 conformance fixtures。
-- [ ] client/server/edge split、Secret exclusion、install/typecheck/test/build/browser-smoke。
+- [ ] 第二 target 的 client/server/edge split、Secret exclusion、install/typecheck/test/build/browser-smoke。
 
 完成条件：不能安全导出的 capability fail closed；两个 target 运行同一 CRUD journey。
 
@@ -441,8 +492,9 @@ incremental update 语义，必须先修订 ADR/current model。
 - [x] Canonical Data、PIR binding/lifecycle 和 reference-only environment foundation 完成。
 - [x] query/mutation invocation、transport-neutral trigger/input dispatch、schema 和 deterministic lifecycle kernel 完成。
 - [x] PIR/Inspector trigger/input durable authoring与 React/Vite generated runtime execution projection 完成。
-- [ ] adapter registry、mock/live、policy executor 与 HTTP runtime 已形成 public client 纵切；OpenAPI、
-      server/edge gateway 与完整 Remote parity 尚待完成。
+- [x] adapter registry、mock/live、policy executor 与 HTTP runtime 已形成 public client 与 Remote
+      server/edge gateway first vertical。
+- [ ] OpenAPI importer 与完整 Remote parity 尚待完成。
 - [ ] GraphQL 和明确冻结范围的 AsyncAPI capability 完成。
 - [ ] Environment/Secret resolver、zone permission 和 leak Gate 完成。
 - [ ] Browser/Remote Preview/Test 与 standalone 两 target CRUD parity 通过。

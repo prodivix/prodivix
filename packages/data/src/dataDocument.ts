@@ -918,6 +918,25 @@ const parseRetryPolicy = (
   });
 };
 
+const parseIdempotencyPolicy = (
+  value: unknown,
+  path: string,
+  issues: DataDocumentIssue[]
+): DataOperationPolicies['idempotency'] | undefined => {
+  const record = readRecord(value, path, issues);
+  if (!record) return undefined;
+  checkExactKeys(record, new Set(['kind']), new Set(), path, issues);
+  if (record.kind !== 'invocation-key') {
+    appendIssue(
+      issues,
+      childPath(path, 'kind'),
+      'Idempotency kind must be "invocation-key".'
+    );
+    return undefined;
+  }
+  return Object.freeze({ kind: 'invocation-key' });
+};
+
 const parsePaginationPolicy = (
   value: unknown,
   path: string,
@@ -1195,7 +1214,7 @@ const parsePolicies = (
   checkExactKeys(
     record,
     new Set(),
-    new Set(['cache', 'retry', 'pagination', 'optimistic']),
+    new Set(['cache', 'retry', 'idempotency', 'pagination', 'optimistic']),
     path,
     issues
   );
@@ -1207,6 +1226,14 @@ const parsePolicies = (
     record.retry === undefined
       ? undefined
       : parseRetryPolicy(record.retry, childPath(path, 'retry'), issues);
+  const idempotency =
+    record.idempotency === undefined
+      ? undefined
+      : parseIdempotencyPolicy(
+          record.idempotency,
+          childPath(path, 'idempotency'),
+          issues
+        );
   const pagination =
     record.pagination === undefined
       ? undefined
@@ -1226,6 +1253,7 @@ const parsePolicies = (
   return Object.freeze({
     ...(cache ? { cache } : {}),
     ...(retry ? { retry } : {}),
+    ...(idempotency ? { idempotency } : {}),
     ...(pagination ? { pagination } : {}),
     ...(optimistic ? { optimistic } : {}),
   });
@@ -1322,13 +1350,21 @@ const parseOperations = (
     if (
       rawOperation.kind === 'mutation' &&
       policies.retry &&
-      policies.retry.maxAttempts > 1
+      policies.retry.maxAttempts > 1 &&
+      !policies.idempotency
     )
       appendIssue(
         issues,
         childPath(childPath(operationPath, 'policies'), 'retry'),
-        'Mutation retry requires an explicit idempotency contract and is not currently supported.'
+        'Mutation retry requires an explicit invocation-key idempotency contract.'
       );
+    if (rawOperation.kind === 'query' && policies.idempotency) {
+      appendIssue(
+        issues,
+        childPath(childPath(operationPath, 'policies'), 'idempotency'),
+        'Idempotency policies are available only to mutation operations.'
+      );
+    }
     if (rawOperation.kind === 'query' && policies.optimistic) {
       appendIssue(
         issues,

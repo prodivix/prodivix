@@ -1,4 +1,19 @@
 export {
+  EXECUTION_DATA_GATEWAY_BRIDGE_REQUEST_TYPE,
+  EXECUTION_DATA_GATEWAY_BRIDGE_RESPONSE_TYPE,
+  readExecutionDataGatewayBridgeRequest,
+  readExecutionDataGatewayBridgeResponse,
+  readExecutionDataGatewayResult,
+  toExecutionDataGatewayBridgeFailure,
+  toExecutionDataGatewayBridgeSuccess,
+} from './executionDataGatewayBridge';
+export type {
+  ExecutionDataGatewayBridgeRequest,
+  ExecutionDataGatewayBridgeResponse,
+  ExecutionDataGatewayInvocation,
+  ExecutionDataGatewayResult,
+} from './executionDataGatewayBridge';
+export {
   createExecutionNetworkTrace,
   EXECUTION_NETWORK_BRIDGE_MESSAGE_TYPE,
   EXECUTION_NETWORK_TRACE_FORMAT,
@@ -25,6 +40,16 @@ export {
   EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE,
 } from './executionPreviewBundle';
 export {
+  createExecutionFilesystemDiff,
+  decodeExecutionFilesystemDiff,
+  encodeExecutionFilesystemDiff,
+} from './executionFilesystemDiff';
+export {
+  EXECUTION_FILESYSTEM_DIFF_FORMAT,
+  EXECUTION_FILESYSTEM_DIFF_LIMITS,
+  EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
+} from './executionFilesystemDiff.types';
+export {
   createRuntimeExecutorRegistry,
   RuntimeExecutorNotFoundError,
 } from './runtimeExecutorRegistry';
@@ -47,6 +72,26 @@ export {
   ExecutionProviderUnsupportedRequestError,
 } from './executionProviderRegistry';
 export { createExecutionSessionCoordinator } from './executionSession';
+export {
+  createExecutionLogRecord,
+  createExecutionConsoleSnapshot,
+  EXECUTION_CONSOLE_BRIDGE_MESSAGE_TYPE,
+  EXECUTION_CONSOLE_LIMITS,
+  EXECUTION_CONSOLE_TRUNCATION_MARKER,
+  redactExecutionConsoleText,
+  readExecutionConsoleBridgeMessage,
+} from './executionConsole';
+export { createExecutionSessionRecoveryPlan } from './executionRecovery';
+export { createExecutionTerminalController } from './executionTerminalController';
+export {
+  createExecutionTerminalCopyText,
+  EXECUTION_TERMINAL_CAPABILITIES,
+  EXECUTION_TERMINAL_CLOSE_REASONS,
+  EXECUTION_TERMINAL_LIMITS,
+  EXECUTION_TERMINAL_SIGNALS,
+  EXECUTION_TERMINAL_TRUNCATION_MARKER,
+  getExecutionTerminalAvailability,
+} from './executionTerminal';
 export {
   createEnvironmentBindingReference,
   createExecutionEnvironmentSnapshotRef,
@@ -71,6 +116,16 @@ export {
   toExecutionTestReportValue,
 } from './executionTestReport';
 export {
+  createExecutionSecretLeakDiagnostic,
+  createExecutionSecretLeakGuard,
+  createExecutionSecretTextStreamRedactor,
+  EXECUTION_SECRET_LEAK_DIAGNOSTIC_CODE,
+  EXECUTION_SECRET_LEAK_FAILURE_CODE,
+  EXECUTION_SECRET_LEAK_REASON,
+  EXECUTION_SECRET_LEAK_SURFACES,
+  EXECUTION_SECRET_REDACTION_MARKER,
+} from './executionSecretLeakGuard';
+export {
   assertExecutableProjectCapabilitySupport,
   createExecutableProjectSnapshot,
   projectExecutableProjectRuntimeFiles,
@@ -89,6 +144,7 @@ export {
   EXECUTION_PROFILES,
   EXECUTION_PROVIDER_CAPABILITIES,
   EXECUTION_PROVIDER_ISOLATIONS,
+  EXECUTION_LOG_CATEGORIES,
   RUNTIME_ZONES,
 } from './execution.types';
 
@@ -97,6 +153,15 @@ export type {
   ExecutionBuildBundleFile,
 } from './executionBuildBundle';
 export type { ExecutionPreviewBundle } from './executionPreviewBundle';
+export type {
+  ExecutionFilesystemDiff,
+  ExecutionFilesystemDiffChange,
+  ExecutionFilesystemDiffChangeInput,
+  ExecutionFilesystemDiffChangeKind,
+  ExecutionFilesystemDiffContent,
+  ExecutionFilesystemDiffContentInput,
+  ExecutionFilesystemDiffInput,
+} from './executionFilesystemDiff.types';
 export type {
   RuntimeExecutor,
   RuntimeExecutorRegistry,
@@ -119,12 +184,57 @@ export type {
   CreateExecutionSessionCoordinatorInput,
   ExecutionSessionActiveJob,
   ExecutionSessionCancellationResult,
+  ExecutionSessionConsoleObservation,
+  ExecutionSessionConsolePublication,
   ExecutionSessionCoordinator,
   ExecutionSessionEventRecord,
   ExecutionSessionListener,
   ExecutionSessionSnapshot,
   ExecutionSessionStatus,
+  ExecutionSessionTerminal,
+  ExecutionSessionTraceObservation,
+  ExecutionSessionTracePublication,
+  PublishExecutionSessionConsoleInput,
+  PublishExecutionSessionTraceInput,
 } from './executionSession';
+export type {
+  CreateExecutionConsoleSnapshotInput,
+  ExecutionConsoleBridgeMessage,
+  ExecutionConsoleCategory,
+  ExecutionConsoleCorrelation,
+  ExecutionConsoleLevel,
+  ExecutionConsoleRecord,
+  ExecutionConsoleRecordSource,
+  ExecutionConsoleSnapshot,
+  ExecutionConsoleTextRedaction,
+} from './executionConsole';
+export type { ExecutionSessionRecoveryPlan } from './executionRecovery';
+export type {
+  CreateExecutionTerminalControllerInput,
+  ExecutionTerminalAvailability,
+  ExecutionTerminalCapability,
+  ExecutionTerminalCloseHandler,
+  ExecutionTerminalCloseReason,
+  ExecutionTerminalCloseResult,
+  ExecutionTerminalController,
+  ExecutionTerminalGrant,
+  ExecutionTerminalInputHandler,
+  ExecutionTerminalListener,
+  ExecutionTerminalOutputRecord,
+  ExecutionTerminalOutputStream,
+  ExecutionTerminalPermissionStatus,
+  ExecutionTerminalReadResult,
+  ExecutionTerminalResizeHandler,
+  ExecutionTerminalResizeResult,
+  ExecutionTerminalSession,
+  ExecutionTerminalSignal,
+  ExecutionTerminalSignalHandler,
+  ExecutionTerminalSignalResult,
+  ExecutionTerminalSize,
+  ExecutionTerminalSnapshot,
+  ExecutionTerminalStatus,
+  ExecutionTerminalWriteResult,
+} from './executionTerminal';
 export type {
   EnvironmentBindingReference,
   ExecutionEnvironmentMode,
@@ -161,6 +271,14 @@ export type {
   ExecutionTestStatus,
   ExecutionTestTool,
 } from './executionTestReport';
+export type {
+  CreateExecutionSecretLeakGuardInput,
+  ExecutionSecretLeakGuard,
+  ExecutionSecretLeakInspection,
+  ExecutionSecretLeakSurface,
+  ExecutionSecretRedaction,
+  ExecutionSecretTextStreamRedactor,
+} from './executionSecretLeakGuard';
 export type {
   ExecutableProjectBuildPlan,
   ExecutableProjectBuildPlanInput,
@@ -214,6 +332,7 @@ export type {
   ExecutionJobTimedOutResult,
   ExecutionJobTraceEvent,
   ExecutionLogLevel,
+  ExecutionLogCategory,
   ExecutionLogRecord,
   ExecutionLogStream,
   ExecutionProfile,

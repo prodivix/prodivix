@@ -223,7 +223,11 @@ export const resolveDataRetryPolicy = (
 ): DataRetryPolicy | undefined => {
   const policy = operation.policies.retry;
   if (!policy) return undefined;
-  if (operation.kind === 'mutation' && policy.maxAttempts > 1)
+  if (
+    operation.kind === 'mutation' &&
+    policy.maxAttempts > 1 &&
+    operation.policies.idempotency?.kind !== 'invocation-key'
+  )
     throw new DataRetryRuntimeError(
       DATA_RETRY_RUNTIME_ERROR_CODES.mutationReplayDenied
     );

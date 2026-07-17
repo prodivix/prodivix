@@ -170,12 +170,24 @@ export type ExecutionLogStream = 'stdout' | 'stderr' | 'console';
 export type ExecutionLogLevel =
   'trace' | 'debug' | 'info' | 'warning' | 'error';
 
+export const EXECUTION_LOG_CATEGORIES = Object.freeze([
+  'application',
+  'runtime',
+  'process',
+  'system',
+] as const);
+
+export type ExecutionLogCategory = (typeof EXECUTION_LOG_CATEGORIES)[number];
+
 export type ExecutionLogRecord = Readonly<{
   stream: ExecutionLogStream;
   level: ExecutionLogLevel;
+  category?: ExecutionLogCategory;
   message: string;
+  arguments?: readonly ExecutionValue[];
   data?: ExecutionValue;
   redacted?: boolean;
+  truncated?: boolean;
   sourceTrace?: readonly ExecutionSourceTrace[];
 }>;
 

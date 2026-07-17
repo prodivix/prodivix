@@ -27,7 +27,12 @@ Production requires wildcard DNS and TLS for
   `REMOTE_PREVIEW_MAXIMUM_UPLOAD_BYTES`, `REMOTE_PREVIEW_MAXIMUM_TTL_SECONDS`,
   and `REMOTE_PREVIEW_DEFAULT_TTL_SECONDS`: bounded resource policy.
 
-Runtime requests use a deny-by-default CSP (`connect-src 'none'`), CSP sandbox,
-Permissions Policy, no credentials, no cache, MIME sniffing protection, and
-cross-origin isolation headers. Install-time package network access remains a
-separate Worker policy and is never inherited by Preview runtime code.
+Runtime requests use a deny-by-default CSP. A materialized session receives
+`connect-src` for its own exact hash capability origin only, so the opaque
+sandbox can read its immutable runtime manifest and projected mock assets;
+external and Backend origins remain blocked. Live server/edge Data invocation
+uses a value-only parent-frame bridge, and neither product credentials nor
+Secret material enter this Host. CSP sandbox, Permissions Policy, no
+credentials, no cache, MIME sniffing protection, and cross-origin isolation
+headers remain mandatory. Install-time package network access is a separate
+Worker policy and is never inherited by Preview runtime code.

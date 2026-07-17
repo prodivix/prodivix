@@ -3,12 +3,15 @@ import {
   createRemoteExecutionArtifactResolver,
   createRemoteExecutionClient,
   createRemoteExecutionHttpTransports,
+  createRemoteExecutionTerminalClient,
+  createRemoteExecutionTerminalHttpTransport,
   createRemotePreviewExecutionProvider,
   type RemoteExecutionSnapshotSource,
 } from '@prodivix/runtime-remote';
 import { API_ROOT } from '@/infra/api/apiConfig';
 import { createWebRemoteExecutionHttpPort } from './remoteExecutionHttpPort';
 import { createRemotePreviewOriginClient } from './remotePreviewOriginClient';
+import { createRemoteDataGatewayClient } from './remoteDataGatewayClient';
 
 export type CreateRemoteProjectExecutionEnvironmentOptions = Readonly<{
   accessToken: string;
@@ -39,6 +42,20 @@ export const createRemoteProjectExecutionEnvironment = (
     accessToken: options.accessToken,
     http,
   });
+  const dataGateway = createRemoteDataGatewayClient({
+    baseUrl,
+    accessToken: options.accessToken,
+    http,
+  });
+  const terminal = createRemoteExecutionTerminalClient({
+    transport: createRemoteExecutionTerminalHttpTransport({
+      baseUrl,
+      executionPath: '/remote-executions',
+      accessToken: options.accessToken,
+      terminalAccessMode: 'x-prodivix-terminal-token',
+      http,
+    }),
+  });
   return Object.freeze({
     client,
     provider: createRemotePreviewExecutionProvider({
@@ -51,6 +68,8 @@ export const createRemoteProjectExecutionEnvironment = (
       client,
       contentTransport,
     }),
+    dataGateway,
+    terminal,
     previewOrigins,
   });
 };

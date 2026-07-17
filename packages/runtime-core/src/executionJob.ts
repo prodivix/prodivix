@@ -27,6 +27,7 @@ import type {
   ExecutionValue,
 } from './execution.types';
 import { cloneExecutionValue } from './executionRequest';
+import { createExecutionLogRecord } from './executionConsole';
 
 const terminalStatuses = new Set<ExecutionJobStatus>([
   'succeeded',
@@ -448,15 +449,7 @@ export const createExecutionJobController = (
     emitLog: (log) =>
       publishEvent<ExecutionJobLogEvent>({
         kind: 'log',
-        log: Object.freeze({
-          ...log,
-          ...(log.data === undefined
-            ? {}
-            : { data: cloneExecutionValue(log.data) }),
-          ...(log.sourceTrace
-            ? { sourceTrace: freezeSourceTrace(log.sourceTrace) }
-            : {}),
-        }),
+        log: createExecutionLogRecord(log),
       }),
     emitDiagnostic: (diagnostic) => {
       assertCanPublish();

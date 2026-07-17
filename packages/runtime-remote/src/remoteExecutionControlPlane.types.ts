@@ -112,6 +112,7 @@ export type RemoteExecutionArtifactPutResult =
     }>
   | Readonly<{ kind: 'lease-rejected' }>
   | Readonly<{ kind: 'identity-conflict' }>
+  | Readonly<{ kind: 'secret-leak' }>
   | Readonly<{ kind: 'budget-exceeded' }>;
 
 export type RemoteExecutionEventAppendResult =
@@ -121,6 +122,7 @@ export type RemoteExecutionEventAppendResult =
     }>
   | Readonly<{ kind: 'lease-rejected' }>
   | Readonly<{ kind: 'identity-conflict' }>
+  | Readonly<{ kind: 'secret-leak' }>
   | Readonly<{ kind: 'budget-exceeded' }>;
 
 export type RemoteExecutionLease = Readonly<{

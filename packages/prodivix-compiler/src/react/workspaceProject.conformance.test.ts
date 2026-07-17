@@ -360,6 +360,9 @@ describe('standalone domain export conformance', () => {
     const runtime = result.snapshot.files.find(
       ({ path }) => path === 'src/prodivix-data-runtime.ts'
     );
+    const consoleRuntime = result.snapshot.files.find(
+      ({ path }) => path === 'src/prodivix-console-runtime.ts'
+    );
     const page = result.snapshot.files.find(({ path }) =>
       path.includes('components/page')
     );
@@ -371,11 +374,24 @@ describe('standalone domain export conformance', () => {
     expect(runtime?.contents).toContain('invokeLiveHttp');
     expect(runtime?.contents).toContain('prodivix.execution-network-bridge.v1');
     expect(runtime?.contents).toContain('dispatchDataMutation');
+    expect(consoleRuntime?.contents).toContain(
+      'prodivix.execution-console-bridge.v1'
+    );
+    expect(consoleRuntime?.contents).toContain('unhandledrejection');
+    expect(consoleRuntime?.contents).toContain(
+      'PRODIVIX_CONSOLE_MAX_BRIDGE_BYTES'
+    );
+    expect(consoleRuntime?.contents).toContain(
+      'PRODIVIX_CONSOLE_REDACTION_MARKER'
+    );
+    expect(consoleRuntime?.contents).toContain('prodivixSensitiveConsoleKey');
+    expect(consoleRuntime?.contents).toContain('redacted: budget.redacted');
     expect(page?.contents).toContain('subscribeDataLifecycle');
     expect(page?.contents).toContain('activateDataBindings');
     expect(page?.contents).toContain('dispatch-data-operation');
     expect(page?.contents).toContain('runtimeValuesById');
     expect(entry?.contents).toContain('workspaceDataRuntime');
+    expect(entry?.contents).toContain("import './prodivix-console-runtime';");
     expect(entry?.contents).toContain('__pdxRouteId={match.routeNodeId}');
     expect(
       projectExecutableProjectRuntimeFiles(result.snapshot).find(

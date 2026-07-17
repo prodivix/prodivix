@@ -1,9 +1,15 @@
 import {
   assertExecutableProjectCapabilitySupport,
+  createExecutionSecretLeakDiagnostic,
   createExecutionJobController,
   createExecutionProviderDescriptor,
   EXECUTION_BUILD_BUNDLE_MEDIA_TYPE,
+  EXECUTION_FILESYSTEM_DIFF_FORMAT,
+  EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE,
+  EXECUTION_SECRET_LEAK_DIAGNOSTIC_CODE,
+  EXECUTION_SECRET_LEAK_FAILURE_CODE,
+  EXECUTION_SECRET_LEAK_REASON,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_TRACE_NAME,
   getExecutionProviderCompatibility,
@@ -53,7 +59,12 @@ export const remotePreviewExecutionProviderDescriptor =
     profiles: ['preview'],
     runtimeZones: ['client'],
     invocationKinds: ['workspace', 'route'],
-    capabilities: [...commonCapabilities, 'console'],
+    capabilities: [
+      ...commonCapabilities,
+      'console',
+      'environment-binding',
+      'terminal',
+    ],
   });
 
 export const remoteTestExecutionProviderDescriptor =
@@ -123,6 +134,8 @@ const positiveSafeInteger = (value: number, label: string): number => {
 const active = (controller: ExecutionJobController): boolean =>
   !isExecutionJobTerminalStatus(controller.job.getSnapshot().status);
 
+const secretLeakDiagnosticControllers = new WeakSet<ExecutionJobController>();
+
 const acceptedProviderMatches = (
   expected: ExecutionProviderDescriptor,
   actual: ExecutionProviderDescriptor
@@ -147,6 +160,17 @@ const terminal = (
       controller.succeed();
       return;
     case 'failed':
+      if (reason === EXECUTION_SECRET_LEAK_REASON) {
+        if (!secretLeakDiagnosticControllers.has(controller))
+          controller.emitDiagnostic(createExecutionSecretLeakDiagnostic());
+        controller.fail({
+          code: EXECUTION_SECRET_LEAK_FAILURE_CODE,
+          message:
+            'Execution output was blocked because it contained protected material.',
+          retryable: false,
+        });
+        return;
+      }
       controller.fail({
         code: 'REMOTE_EXECUTION_FAILED',
         message: reason ?? 'Remote execution failed.',
@@ -207,6 +231,8 @@ const applyEvent = (
       controller.emitLog(event.log);
       return;
     case 'diagnostic':
+      if (event.diagnostic.code === EXECUTION_SECRET_LEAK_DIAGNOSTIC_CODE)
+        secretLeakDiagnosticControllers.add(controller);
       controller.emitDiagnostic(event.diagnostic);
       return;
     case 'artifact':
@@ -291,6 +317,32 @@ const synchronize = async (
             terminalReason = event.reason;
           if (
             event.kind === 'artifact' &&
+            event.artifact.mediaType ===
+              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE
+          ) {
+            const changeCount = Number(event.artifact.metadata?.changeCount);
+            if (
+              event.artifact.kind !== 'report' ||
+              event.artifact.artifactId !==
+                `filesystem-diff:${record.snapshotDigest}` ||
+              event.artifact.metadata?.format !==
+                EXECUTION_FILESYSTEM_DIFF_FORMAT ||
+              event.artifact.metadata?.snapshotDigest !==
+                record.snapshotDigest ||
+              !Number.isSafeInteger(changeCount) ||
+              changeCount < 0 ||
+              (event.artifact.metadata?.complete !== 'true' &&
+                event.artifact.metadata?.complete !== 'false')
+            )
+              throw new RemoteExecutionRecoveryRequiredError(
+                'Remote filesystem artifact does not match the execution snapshot.',
+                'events.read'
+              );
+          }
+          if (
+            event.kind === 'artifact' &&
+            event.artifact.mediaType !==
+              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
             input.controller.job.request.profile === 'preview'
           ) {
             if (
@@ -314,6 +366,8 @@ const synchronize = async (
           }
           if (
             event.kind === 'artifact' &&
+            event.artifact.mediaType !==
+              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
             input.controller.job.request.profile === 'build'
           ) {
             if (
@@ -331,6 +385,8 @@ const synchronize = async (
           }
           if (
             event.kind === 'artifact' &&
+            event.artifact.mediaType !==
+              EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
             input.controller.job.request.profile === 'test'
           ) {
             const status = event.artifact.metadata?.status;
@@ -414,7 +470,11 @@ const synchronize = async (
               'events.read'
             );
           let projectedEvent = event;
-          if (event.kind === 'artifact' && input.materializeArtifact) {
+          if (
+            event.kind === 'artifact' &&
+            event.artifact.mediaType === EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE &&
+            input.materializeArtifact
+          ) {
             const artifact = await input.materializeArtifact({
               executionId: record.executionId,
               snapshotDigest: record.snapshotDigest,

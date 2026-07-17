@@ -73,3 +73,50 @@ describe('Remote execution Network event codec', () => {
     ).toThrow(/canonical Network trace/u);
   });
 });
+
+describe('Remote execution structured log codec', () => {
+  const logEvent = (log: unknown) => ({
+    jobId: 'execution-1',
+    sequence: 2,
+    emittedAt: 130,
+    kind: 'log',
+    log,
+  });
+
+  it('preserves bounded Console category, arguments and truncation markers', () => {
+    expect(
+      decodeRemoteExecutionJobEvent(
+        logEvent({
+          stream: 'console',
+          level: 'warning',
+          category: 'application',
+          message: 'partial result',
+          arguments: [{ count: 3 }],
+          redacted: true,
+          truncated: true,
+        })
+      )
+    ).toMatchObject({
+      kind: 'log',
+      log: {
+        category: 'application',
+        arguments: [{ count: 3 }],
+        redacted: true,
+        truncated: true,
+      },
+    });
+  });
+
+  it('rejects private or unbounded log fields', () => {
+    expect(() =>
+      decodeRemoteExecutionJobEvent(
+        logEvent({
+          stream: 'console',
+          level: 'info',
+          message: 'unsafe',
+          authorization: 'secret',
+        })
+      )
+    ).toThrow(/unsupported field/u);
+  });
+});

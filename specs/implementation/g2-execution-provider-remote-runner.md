@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Browser Foundation + Neutral Snapshot + Remote Protocol/Client/Provider Preview/Build/Test Results + Authorized Artifact Resolver + Bounded HTTP Transport + Backend Auth Gateway/Durable Execution Grant + Web Composition Factory + Control Plane/PostgreSQL/HTTP + Worker Agent + D2 Durable Ingestion/Artifact Retention + Rootless Sandbox Adapter/GitHub Gate Implemented / Isolated Hosting and Provider Selection Planned
+- ImplementationStatus：E0-E4 Implemented / E5-E7 In Progress
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
-- 日期：2026-07-16
+- 日期：2026-07-17
 - Owner：`@prodivix/runtime-core`、`@prodivix/runtime-remote`、Remote Runner control plane / worker、composition root
 - 关联：
   - `specs/implementation/g2-executable-full-stack-workspace.md`
@@ -104,14 +104,18 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   upload/read/tenant denial/budget/idempotency/expiry sweep，真实 HTTP Gate 覆盖 binary upload/download。
   budget exhaustion 具有独立稳定结果；Worker 将 log 与 artifact budget 分别终止为
   `output-budget-exceeded` / `artifact-budget-exceeded`，不误判为 lease loss 或自动重放。
+- Structured Console 已在 runtime-core 建立 category/arguments/redacted/truncated/SourceTrace current
+  contract、strict generated iframe bridge、finite Preview post-terminal Session observation 与双预算产品投影；
+  Remote process log 继续由 durable Worker/Control Plane Secret guard 先行保护。Project Runner 取消保持旧
+  active Job 直到 terminal，manual restart 创建新 request、保留旧事件且不自动重放 mutation。
 
 ### 未实现
 
 - rootless Podman sandbox adapter 与 remote-only GitHub Isolation Gate 已实现；Gate 构建 digest-pinned
   image 并主动验证非 root、zero capabilities、read-only rootfs、tmpfs/cgroup 限额、network/host socket/
   credential denial、取消与 orphan cleanup。首次推送后仍需以 GitHub 证据确认 Passed；外部
-  object-store/独立 queue scalability adapter 与 WebSocket/SSE replay adapter尚未实现，HTTP control
-  plane 也尚未接入部署环境和 Web composition。
+  object-store/独立 queue scalability adapter 与 WebSocket/SSE replay adapter 尚未实现，HTTP control
+  plane 也尚未接入正式部署环境。
 - Remote Preview/Test/Build provider projection、三类 result、授权 artifact resolver、有界 HTTP
   transport、Backend auth gateway/durable grant、独立 capability Preview Host、Web composition factory 与
   Blueprint Browser/Remote selection 已接通。living Golden Workspace 现在只生成一次 neutral snapshot，
@@ -126,8 +130,16 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   Network 视图只接受 strict decode。Browser client-safe fetch、Data invocation/registry、独立 HTTP adapter 与
   operation/invocation/sequence/attempt/source trace correlation 已接 active Project Job；Executable Snapshot
   v4 mock provision 已由 Browser Host/rootless Worker 投影为运行资产，生成 React/Vite query runtime 可在
-  Remote Preview/Test 内消费。standalone mutation/live Remote Data adapter、Secret resolver、zone
-  authorization 与 leak canary 尚未落地。
+  Remote Preview/Test 内消费。standalone public client live HTTP/policy、Backend Secret resolver/zone
+  authorization 与 generated Remote server/edge query/mutation gateway 已落地；其 metadata-only Network
+  result 通过 exact active-job Session observation 关联产品视图。React/Vite server-gateway compile Gate 已
+  通过显式 target manifest、Remote `environment-binding` capability 与 Browser/ZIP denial 落地；upstream
+  `invocation-key` idempotency/retry 已通过 opaque HTTP header 与 v3 next-attempt ledger 落地。Remote 当前
+  持久化输出的 Secret leak Gate 已由 runtime-core guard、Worker
+  出站扫描与 Control Plane 入站扫描闭环；Structured Console 的 generated/bridge/core/copy 脱敏已接入。
+  Remote Terminal 已建立独立 wire/client/polling transport、Backend owner gateway、Control Plane ephemeral
+  broker、短期 token rotation、worker command mailbox 与 rootless inner PTY；stdout/stderr 分流的 streaming
+  canary redaction、cursor reconnect、lease fencing、execution cleanup 与产品交互测试已闭环。
 
 ## 范围
 
@@ -255,6 +267,8 @@ source。worker 输出进入共享层前执行结构化 redaction 和 canary sca
 - [x] 定义 protocol envelope、版本协商、error taxonomy 与 strict codec。
 - [x] 实现 start/status/cancel/events/artifact client。
 - [x] 实现 request idempotency、cursor replay、backoff 与 bounded retry。
+- [x] 独立 Remote Terminal v1 strict codec/client/polling transport；app credential 与短期 terminal token
+      使用不同 header/authority，resume 旋转旧 token。
 - [x] provider-specific error 映射为稳定 execution diagnostic，不泄漏内部堆栈或 credential。
 
 完成条件：in-memory fake control plane 能通过乱序、重复、断线与恢复 conformance。
@@ -270,6 +284,13 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
       adapter fail closed，filesystem adapter 仅允许非 production 显式使用。
 - [x] content-addressed snapshot/artifact store；校验上传与下载 digest。
 - [x] structured event/log capture、budget、redaction 与 retention。
+- [x] Control Plane ephemeral Terminal broker 只保存短期 token digest；worker mailbox 对 stdin 有界并在 ack
+      后删除，output id fingerprint、lease/attempt fence、终态 revoke/sweep 与 execution cleanup 已实现。
+- [x] Worker command coordinator 与 rootless Podman inner PTY：install 后 runtime 断网才连接，真实 TTY、
+      resize、interrupt/terminate、output retry/redaction 与 orphan cleanup 进入 rootless Gate。
+- [x] rootless entry 与 Worker 建立 capture-ready handshake：main command 结束后先关闭 PTY，再生成有界
+      `ExecutionFilesystemDiff`；dependency/build/test/runtime-managed path 被排除，baseline、Workspace identity
+      和 SourceTrace 由 Worker 对照 exact snapshot 复核并 canonicalize，artifact 继续经过 Secret 双 Gate。
 - [x] timeout、cancel、worker loss 和 orphan cleanup。（rootless isolation Gate 的 GitHub 远端证据待
       首次阶段性推送后生成）
 
@@ -288,6 +309,8 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
       artifact；首次 rootless GitHub Gate 通过证据待阶段性推送生成。
 - [x] 三个 provider 具有独立 descriptor、job/session 和 cancellation ownership；durable replay 与
       provider/state identity recovery conformance 已建立。
+- [x] Preview/Test/Build 可在 primary result 之外发布独立 filesystem diff report；Preview Host materializer
+      只处理 Preview Bundle，授权 artifact resolver 单独校验并下载 diff，二者不会混用 URI/媒体类型。
 
 完成条件：Web 仅使用 provider registry 与 shared result contract，不解析 Remote 私有 payload。
 
@@ -297,17 +320,41 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
       revision/mode，并将 reference 作为 value-free durable execution authority 保存；environment-bound
       status/cancel/events/artifact/Preview 访问按原 session partition，authority drift 幂等重试返回冲突且
       不取消已有 execution。
-- [ ] resolver 仅在授权 runtime zone 将 reference 换为 execution-scoped lease。
-- [ ] process/operation 级 permission check 与 audit metadata。
+- [x] Backend Remote Data HTTP query/mutation first vertical 仅在 execution-bound `server` / `edge` zone 将 exact reference
+      换为最长 30 秒、binding/field-scoped grant；generated Remote Preview 已通过 value-only strict envelope、
+      exact opaque frame/generation fence 与父窗口 product-authenticated client 接入，iframe 不持有 token、
+      environment identity 或 Secret material。
+- [x] gateway 对 exact operation/document revision、principal/session、provider、zone、purpose、binding/field
+      做 permission check，并只持久化 value-free audit metadata。
 - [x] rootless Worker 将显式 install network 与默认断网 runtime 阶段硬分离，断网后 inspect 失败则
       fail closed。
 - [x] install egress hostname/443 allowlist proxy与 Remote install sanitized Network trace/产品视图。
 - [x] Browser fetch + Data HTTP adapter、operation correlation 与 safe status/size response metadata。
-- [ ] generated-project/Remote mock query runtime 与 provider asset projection 已完成；mutation/live
-      HTTP、server/edge adapter 与 policy correlation 待完成。
-- [ ] canary leak suite 覆盖 log、diagnostic、artifact、test report、cache 与 crash path。
+- [x] generated-project/Remote mock query runtime 与 provider asset projection、Backend live HTTP server/edge
+      query/mutation first vertical，以及 generated invocation bridge/exact capability-origin CSP 已建立。
+- [x] Remote mutation effect-before PostgreSQL claim、exact request fingerprint、completed result replay、identity
+      drift/concurrent pending/indeterminate fail-closed；无 upstream idempotency contract 时 attempt 固定为 1。
+- [x] `G2 PostgreSQL Gates` 以真实 PostgreSQL service 同时验证 Control Plane adapter 与 Backend mutation
+      replay ledger；同 identity 并发 claim、最后容量槽、stored result、drift/fence 和 authority cascade 均有证据。
+- [x] Remote Data Network trace 通过 exact active-job Session observation 进入 Execution Center；finite
+      Remote Preview Job 保持 terminal，不被重新打开。generation replacement/stop、重复结果、identity drift
+      与共享 retention budget 均 fail closed 或有界处理。
+- [x] 显式 upstream `invocation-key` idempotency/retry contract：adapter capability/public header mapping、
+      attempt-invariant opaque key、v3 current/max attempt ledger、next-attempt-only claim 与真实 PostgreSQL
+      concurrency Gate；未声明 contract 的 mutation 仍固定 attempt 1。
+- [x] Project Runner manual cancellation/restart presentation：等待旧 Job terminal 后创建新 request，旧事件
+      有界保留，mutation 不自动重放，non-retryable failure 要求先修改。
+- [ ] reconnect、artifact expiry、quota、authorization、network denial 与 worker-loss 的完整 Remote
+      recovery/presentation parity。
+- [x] canary leak suite 覆盖 request/snapshot/cache key、log、diagnostic、trace、artifact descriptor/content、
+      test report 与 crash path；Worker 命中后在首次 durable publication 前丢弃原输出，Control Plane 对恶意/
+      绕过 Worker 的 ingestion 再次 fail closed，只持久化安全 `EXE-5004` 与固定 terminal reason。worker token、
+      active lease token 和部署 canary 均进入短期 guard closure，不进入事件或诊断。
 
-完成条件：任何 Secret canary 都无法出现在客户端或持久化输出；拒绝路径有稳定 diagnostic。
+完成条件：当前 Remote contract 可表达的任何 Secret canary 都无法出现在客户端或持久化输出；拒绝路径有
+稳定 diagnostic。Structured Console 已复用 durable guard并增加客户端多层脱敏；Remote Terminal 在
+Worker 出站、Control Plane 入站、Core retention 与 copy boundary 执行独立、跨 chunk 的 stdout/stderr
+redaction，token/lease/canary 不进入 durable payload 或客户端 replay。
 
 ### E6：Provider selection 与 recovery UX
 
@@ -315,7 +362,13 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
       provider；选择只进入 UI state，不写 Workspace 或 provider 私有作者态配置。
 - [x] 用户显式看到 Browser/Remote selection，并继续通过 canonical Job/Execution Center 消费
       queue/running/terminal 状态；Remote artifact 在发布给 iframe 前异步 materialize 为短期 origin。
-- [ ] retry 创建新 request 或按原 request 恢复的语义明确，mutation 不自动重放。
+- [x] retry 固定创建新 immutable request；取消先等待旧 Job terminal，保留旧事件，mutation 不自动重放，
+      不伪装为恢复原 Job。
+- [x] Blueprint Remote Preview 将 Terminal client 作为临时 capability 接入 Execution Center；短期 bearer
+      不进入 React state，UI 通过 output cursor 自动续租/重连，并提供有序输入、resize、interrupt 与 close。
+- [x] Execution Center Files 按需解析 Remote diff且默认不选择；revision/baseline/source-owner 全通过的
+      whole-file CodeArtifact modification，以及 exact Workspace/Route/lifecycle/VFS preflight 全通过的 add/delete，
+      可按确定性顺序显式组成单个 Workspace Transaction，经 Outbox/Atomic Commit 采纳。
 - [ ] artifact expiry、quota、authorization 和 network denial 可定位、可操作。
 
 完成条件：切换 provider 不改变作者态，不要求编辑器保存 provider 私有配置。
@@ -328,6 +381,9 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
       Browser Build 明确 `unsupported`，不伪造 provider。独立 GitHub Gate 为
       `G2 Execution Contract Matrix`。
 - [ ] cancel/timeout/reconnect/replay/worker-loss/property tests。
+- [x] Rootless Remote Terminal Gate 执行真实 inner PTY 命令、resize 与 execution-local FS 写入，并验证
+      host Workspace 无回写、container 无 orphan；同一 terminal-created file 必须出现在 canonical filesystem
+      diff，token rotation/cursor replay/lease loss 由非容器 Gate 覆盖。
 - [ ] Golden CRUD journey 在真实 rootless Remote Preview、Remote Test 与 Remote Build 通过。
 
 完成条件：相同 snapshot digest 的语义结果一致；环境差异只能通过显式 capability/policy 表达。

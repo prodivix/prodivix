@@ -63,6 +63,29 @@ func (store *fakeGrantStore) RecordExecution(_ context.Context, authority Execut
 	return nil
 }
 
+func (store *fakeGrantStore) GetExecutionAuthority(_ context.Context, ownerID string, sessionID string, executionID string) (*ExecutionAuthority, error) {
+	if err := store.VerifyExecutionOwner(context.Background(), ownerID, sessionID, executionID); err != nil {
+		return nil, err
+	}
+	authority := store.lastAuthority
+	return &authority, nil
+}
+
+func (store *fakeGrantStore) GetDataSourceDocument(_ context.Context, _ ExecutionAuthority, _ string) ([]byte, error) {
+	return nil, ErrExecutionNotFound
+}
+
+func workspaceAuthorityFixture() map[string]any {
+	return map[string]any{
+		"workspaceId": "workspace-1",
+		"snapshotId":  "snapshot-1",
+		"partitionRevisions": map[string]string{
+			"workspace":               "1",
+			"document:data-1:content": "1",
+		},
+	}
+}
+
 func TestGatewayCancelsExecutionWhenDurableGrantCannotBeRecorded(t *testing.T) {
 	operations := make([]string, 0, 2)
 	controlPlane := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
@@ -84,7 +107,7 @@ func TestGatewayCancelsExecutionWhenDurableGrantCannotBeRecorded(t *testing.T) {
 	}
 	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{})
 	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
-		"request": map[string]any{"workspace": map[string]any{"workspaceId": "workspace-1"}},
+		"request": map[string]any{"workspace": workspaceAuthorityFixture()},
 	})))
 	response := httptest.NewRecorder()
 	testRouter(handler, "user-1").ServeHTTP(response, request)
@@ -134,7 +157,7 @@ func TestGatewayPreflightsAndDurablyBindsExactEnvironmentSession(t *testing.T) {
 	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{}, verifier)
 	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
 		"request": map[string]any{
-			"workspace":   map[string]any{"workspaceId": "workspace-1"},
+			"workspace":   workspaceAuthorityFixture(),
 			"environment": map[string]any{"environmentId": "environment-1", "revision": "revision-7", "mode": "live"},
 		},
 	})))
@@ -146,7 +169,7 @@ func TestGatewayPreflightsAndDurablyBindsExactEnvironmentSession(t *testing.T) {
 	if verifier.principal != (backendenvironment.PrincipalSession{PrincipalID: "user-1", SessionID: "session-env-1"}) || verifier.workspaceID != "workspace-1" {
 		t.Fatalf("environment preflight identity drifted: %#v", verifier)
 	}
-	if store.lastAuthority.SessionID != "session-env-1" || store.lastAuthority.Environment == nil || *store.lastAuthority.Environment != (EnvironmentReference{EnvironmentID: "environment-1", Revision: "revision-7", Mode: "live"}) {
+	if store.lastAuthority.SessionID != "session-env-1" || store.lastAuthority.SnapshotID != "snapshot-1" || store.lastAuthority.PartitionRevisions["document:data-1:content"] != "1" || store.lastAuthority.Environment == nil || *store.lastAuthority.Environment != (EnvironmentReference{EnvironmentID: "environment-1", Revision: "revision-7", Mode: "live"}) {
 		t.Fatalf("durable environment authority drifted: %#v", store.lastAuthority)
 	}
 }
@@ -159,7 +182,7 @@ func TestGatewayRejectsStaleEnvironmentBeforeControlPlaneAndCrossSessionReplay(t
 	verifier := &fakeEnvironmentVerifier{available: true, err: backendenvironment.ErrPermissionDenied}
 	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{}, verifier)
 	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
-		"request": map[string]any{"workspace": map[string]any{"workspaceId": "workspace-1"}, "environment": map[string]any{"environmentId": "environment-1", "revision": "stale", "mode": "live"}},
+		"request": map[string]any{"workspace": workspaceAuthorityFixture(), "environment": map[string]any{"environmentId": "environment-1", "revision": "stale", "mode": "live"}},
 	})))
 	response := httptest.NewRecorder()
 	testRouterSession(handler, "user-1", "session-1").ServeHTTP(response, request)
@@ -186,7 +209,7 @@ func TestGatewayRejectsEnvironmentMaterialEscapeHatchBeforePreflight(t *testing.
 	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{}, verifier)
 	canary := "prodivix-secret-canary"
 	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
-		"request": map[string]any{"workspace": map[string]any{"workspaceId": "workspace-1"}, "environment": map[string]any{"environmentId": "environment-1", "revision": "revision-7", "mode": "live", "value": canary}},
+		"request": map[string]any{"workspace": workspaceAuthorityFixture(), "environment": map[string]any{"environmentId": "environment-1", "revision": "revision-7", "mode": "live", "value": canary}},
 	})))
 	response := httptest.NewRecorder()
 	testRouter(handler, "user-1").ServeHTTP(response, request)
@@ -210,7 +233,7 @@ func TestGatewayDoesNotCancelExistingExecutionOnAuthorityConflict(t *testing.T) 
 	defer controlPlane.Close()
 	store := &fakeGrantStore{workspaceOwner: map[string]string{"workspace-1": "user-1"}, executionOwner: map[string]string{}, recordError: ErrExecutionAuthorityConflict}
 	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{})
-	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{"request": map[string]any{"workspace": map[string]any{"workspaceId": "workspace-1"}}})))
+	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{"request": map[string]any{"workspace": workspaceAuthorityFixture()}})))
 	response := httptest.NewRecorder()
 	testRouter(handler, "user-1").ServeHTTP(response, request)
 	if response.Code != http.StatusConflict || len(operations) != 1 || operations[0] != "create" {
@@ -244,7 +267,7 @@ func TestGatewayRecordsCreateGrantAndKeepsServiceTokenServerSide(t *testing.T) {
 	defer controlPlane.Close()
 	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{})
 	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
-		"request": map[string]any{"workspace": map[string]any{"workspaceId": "workspace-1"}},
+		"request": map[string]any{"workspace": workspaceAuthorityFixture()},
 	})))
 	request.Header.Set("Authorization", "Bearer user-session-token")
 	response := httptest.NewRecorder()

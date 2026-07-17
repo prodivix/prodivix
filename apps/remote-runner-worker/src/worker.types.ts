@@ -3,12 +3,17 @@ import type {
   ExecutionSourceTrace,
   ExecutableProjectSnapshot,
   ExecutionJobStatus,
+  ExecutionTerminalCloseReason,
+  ExecutionTerminalSignal,
+  ExecutionTerminalSize,
 } from '@prodivix/runtime-core';
 import type {
   RemoteExecutionClaimResult,
   RemoteExecutionLease,
   RemoteExecutionArtifactDescriptor,
   RemoteExecutionWorkerEvent,
+  RemoteExecutionTerminalWorkerOutputResult,
+  RemoteExecutionTerminalWorkerReadResult,
 } from '@prodivix/runtime-remote';
 
 export type RemoteWorkerControlPlaneClient = Readonly<{
@@ -76,6 +81,7 @@ export type RemoteWorkerSandboxResult = Readonly<{
   stdout: string;
   stderr: string;
   outputTruncated: boolean;
+  secretLeakDetected?: boolean;
   reason?: string;
   artifacts?: readonly RemoteWorkerSandboxArtifact[];
   networkTraces?: readonly RemoteWorkerSandboxNetworkTrace[];
@@ -114,6 +120,68 @@ export type RemoteWorkerSandbox = Readonly<{
       maximumOutputBytes: number;
       redactValues: readonly string[];
       signal: AbortSignal;
+      terminal?: RemoteWorkerSandboxTerminalBinding;
     }>
   ): Promise<RemoteWorkerSandboxResult>;
+}>;
+
+export type RemoteWorkerTerminalControlPlaneClient = Readonly<{
+  readTerminalCommands(input: {
+    executionId: string;
+    workerId: string;
+    leaseToken: string;
+    acknowledgedCommandCursor: number;
+    maximumCommands?: number;
+  }): Promise<RemoteExecutionTerminalWorkerReadResult | undefined>;
+  publishTerminalOutput(input: {
+    executionId: string;
+    workerId: string;
+    leaseToken: string;
+    terminalSessionId: string;
+    workerOutputId: string;
+    stream: 'stdout' | 'stderr';
+    data: string;
+    redacted: boolean;
+  }): Promise<RemoteExecutionTerminalWorkerOutputResult>;
+  closeTerminal(input: {
+    executionId: string;
+    workerId: string;
+    leaseToken: string;
+    terminalSessionId: string;
+    reason: ExecutionTerminalCloseReason;
+    exitCode?: number;
+  }): Promise<boolean>;
+}>;
+
+export type RemoteWorkerTerminalProcess = Readonly<{
+  open(input: {
+    terminalSessionId: string;
+    size: ExecutionTerminalSize;
+    onOutput(output: { stream: 'stdout' | 'stderr'; data: string }): void;
+    onExit(exitCode?: number): void;
+  }): Promise<void>;
+  write(data: string): Promise<void>;
+  resize(size: ExecutionTerminalSize): Promise<void>;
+  signal(signal: ExecutionTerminalSignal): Promise<void>;
+  close(reason: ExecutionTerminalCloseReason): Promise<void>;
+}>;
+
+export type RemoteWorkerTerminalDisconnect = () => Promise<void>;
+
+export type RemoteWorkerSandboxTerminalBinding = Readonly<{
+  connect(
+    process: RemoteWorkerTerminalProcess
+  ): Promise<RemoteWorkerTerminalDisconnect>;
+}>;
+
+export type RemoteWorkerTerminalCoordinator = Readonly<{
+  connect(input: {
+    executionId: string;
+    workerId: string;
+    leaseToken: string;
+    workerAttempt: number;
+    process: RemoteWorkerTerminalProcess;
+    signal: AbortSignal;
+    redactValues: readonly string[];
+  }): Promise<RemoteWorkerTerminalDisconnect>;
 }>;

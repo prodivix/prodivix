@@ -8,6 +8,10 @@ import {
   projectStandaloneDataDocuments,
   STANDALONE_DATA_LIVE_RUNTIME_SOURCE,
 } from '#src/react/standaloneDataLiveRuntime';
+import {
+  STATIC_CLIENT_DATA_RUNTIME_TARGET,
+  type WorkspaceDataRuntimeTarget,
+} from '#src/react/workspaceDataRuntimeTarget';
 
 export const WORKSPACE_DATA_RUNTIME_MODULE_ID = 'workspace-data-runtime';
 
@@ -42,7 +46,8 @@ const operationKinds = (
   );
 
 const source = (
-  workspace: WorkspaceSnapshot
+  workspace: WorkspaceSnapshot,
+  dataRuntimeTarget: WorkspaceDataRuntimeTarget
 ): string => `type DataOperationReference = Readonly<{
   documentId: string;
   operationId: string;
@@ -140,8 +145,16 @@ type DataMockCollectionState = {
   entities: Readonly<Record<string, unknown>>[];
 };
 
+type DataRuntimeTarget = Readonly<{
+  format: 'prodivix.workspace-data-runtime-target.v1';
+  kind: 'static-client' | 'execution-parent-gateway' | 'provider-mock';
+  runtimeMode: 'live' | 'mock-only';
+  serverGateway: 'none' | 'execution-data-gateway-message-v1';
+}>;
+
 const operationKinds = ${JSON.stringify(operationKinds(workspace))} as const;
 const dataDocuments = ${JSON.stringify(projectStandaloneDataDocuments(workspace))} as Readonly<Record<string, DataRuntimeDocument>>;
+const dataRuntimeTarget: DataRuntimeTarget = ${JSON.stringify(dataRuntimeTarget)};
 const provisionUrl = '/.prodivix/data-mock-provision.json';
 
 const canonicalJson = (value: unknown): string => {
@@ -264,6 +277,12 @@ export const createWorkspaceDataRuntime = () => {
   let collectionStates: Map<string, DataMockCollectionState> | undefined;
   const cacheEntries = new Map<string, DataRuntimeCacheEntry>();
   let disposed = false;
+
+  const createMutationInvocationId = (mutationSequence: number): string => {
+    const dispatchId = globalThis.crypto?.randomUUID?.();
+    if (!dispatchId) throw new DataRuntimeFailure('DATA_MUTATION_IDENTITY_UNAVAILABLE');
+    return 'standalone:mutation:' + dispatchId + ':' + mutationSequence;
+  };
 
   const publish = () => listeners.forEach((listener) => listener());
   const publishNetworkTrace = (trace: DataRuntimeNetworkTrace): void => {
@@ -402,6 +421,11 @@ export const createWorkspaceDataRuntime = () => {
       'input'
     );
     const manifest = await (runtimeManifest ??= loadDataRuntimeManifest());
+    if (
+      dataRuntimeTarget.runtimeMode === 'mock-only' &&
+      manifest.mode !== 'mock'
+    )
+      throw new DataRuntimeFailure('DATA_RUNTIME_TARGET_MODE_INVALID');
     const cachePolicy = kind === 'query' ? operation.policies.cache : undefined;
     let cacheTtlMs = 0;
     let cacheStaleMs = 0;
@@ -456,7 +480,12 @@ export const createWorkspaceDataRuntime = () => {
       }
     }
     const retry = operation.policies.retry;
-    if (kind === 'mutation' && retry && retry.maxAttempts > 1)
+    if (
+      kind === 'mutation' &&
+      retry &&
+      retry.maxAttempts > 1 &&
+      operation.policies.idempotency?.kind !== 'invocation-key'
+    )
       throw new DataRuntimeFailure('DATA_MUTATION_RETRY_UNSUPPORTED');
     if (
       retry &&
@@ -767,7 +796,7 @@ export const createWorkspaceDataRuntime = () => {
         runtimeValuesById: request.runtimeValuesById,
       });
       const mutationSequence = ++sequence;
-      const invocationId = 'standalone:mutation:' + mutationSequence;
+      const invocationId = createMutationInvocationId(mutationSequence);
       const document = dataDocuments[request.binding.operation.documentId];
       const operation = document?.operationsById[request.binding.operation.operationId];
       if (!operation || operation.kind !== 'mutation')
@@ -817,7 +846,8 @@ export const createWorkspaceDataRuntime = () => {
 
 /** Generates the standalone projection that reads provider-projected runtime assets. */
 export const createWorkspaceStandaloneDataRuntimeModule = (
-  workspace: WorkspaceSnapshot
+  workspace: WorkspaceSnapshot,
+  dataRuntimeTarget: WorkspaceDataRuntimeTarget = STATIC_CLIENT_DATA_RUNTIME_TARGET
 ): ExportModule => ({
   id: WORKSPACE_DATA_RUNTIME_MODULE_ID,
   kind: 'runtime-helper',
@@ -832,7 +862,7 @@ export const createWorkspaceStandaloneDataRuntimeModule = (
       local: 'Ajv2020',
     },
   ],
-  body: source(workspace),
+  body: source(workspace, dataRuntimeTarget),
   sourceTrace: Object.values(workspace.docsById)
     .filter((document) => document.type === 'data-source')
     .sort((left, right) => compareText(left.id, right.id))

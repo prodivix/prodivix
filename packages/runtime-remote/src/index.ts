@@ -23,6 +23,28 @@ export {
   RemoteExecutionHttpTransportError,
 } from './remoteExecutionHttpTransport';
 export {
+  createRemoteExecutionTerminalBroker,
+  REMOTE_EXECUTION_TERMINAL_ERROR_CODES,
+  RemoteExecutionTerminalBrokerError,
+} from './remoteExecutionTerminalBroker';
+export { createRemoteExecutionTerminalClient } from './remoteExecutionTerminalClient';
+export {
+  createRemoteExecutionTerminalHttpTransport,
+  REMOTE_EXECUTION_TERMINAL_HTTP_OPERATIONS,
+  RemoteExecutionTerminalHttpTransportError,
+} from './remoteExecutionTerminalHttpTransport';
+export {
+  decodeRemoteExecutionTerminalCloseResult,
+  decodeRemoteExecutionTerminalOpenResult,
+  decodeRemoteExecutionTerminalReadResult,
+  decodeRemoteExecutionTerminalResizeResult,
+  decodeRemoteExecutionTerminalSignalResult,
+  decodeRemoteExecutionTerminalSize,
+  decodeRemoteExecutionTerminalSnapshot,
+  decodeRemoteExecutionTerminalWriteResult,
+} from './remoteExecutionTerminalCodec';
+export { decodeRemoteExecutionTerminalWorkerReadResult } from './remoteExecutionTerminalWorkerCodec';
+export {
   createRemoteBuildExecutionProvider,
   createRemoteExecutionProvider,
   createRemotePreviewExecutionProvider,
@@ -61,11 +83,24 @@ export {
   REMOTE_EXECUTION_PROTOCOL_LIMITS,
   REMOTE_EXECUTION_PROTOCOL_VERSIONS,
 } from './remoteExecutionProtocol.types';
+export {
+  REMOTE_EXECUTION_TERMINAL_LIMITS,
+  REMOTE_EXECUTION_TERMINAL_OPERATIONS,
+  REMOTE_EXECUTION_TERMINAL_PROTOCOL,
+  REMOTE_EXECUTION_TERMINAL_VERSION,
+} from './remoteExecutionTerminal.types';
 
 export type { CreateRemoteExecutionControlPlaneOptions } from './remoteExecutionControlPlane';
 export type {
+  CreateRemoteExecutionTerminalBrokerOptions,
+  RemoteExecutionTerminalErrorCode,
+} from './remoteExecutionTerminalBroker';
+export type { CreateRemoteExecutionTerminalClientOptions } from './remoteExecutionTerminalClient';
+export type { CreateRemoteExecutionTerminalHttpTransportOptions } from './remoteExecutionTerminalHttpTransport';
+export type {
   CreateRemoteExecutionArtifactResolverOptions,
   RemoteExecutionArtifactContentTransport,
+  ResolvedRemoteExecutionFilesystemDiff,
   ResolvedRemotePreviewBundle,
 } from './remoteExecutionArtifactResolver';
 export type {
@@ -134,3 +169,16 @@ export type {
   RemoteExecutionTransport,
   RemoteExecutionWireError,
 } from './remoteExecutionProtocol.types';
+export type {
+  RemoteExecutionTerminalAccess,
+  RemoteExecutionTerminalBroker,
+  RemoteExecutionTerminalClient,
+  RemoteExecutionTerminalCommand,
+  RemoteExecutionTerminalOpenResult,
+  RemoteExecutionTerminalOperation,
+  RemoteExecutionTerminalResumeResult,
+  RemoteExecutionTerminalTransport,
+  RemoteExecutionTerminalTransportRequest,
+  RemoteExecutionTerminalWorkerOutputResult,
+  RemoteExecutionTerminalWorkerReadResult,
+} from './remoteExecutionTerminal.types';

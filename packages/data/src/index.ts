@@ -9,6 +9,10 @@ export {
   executeDataOperation,
 } from './dataRuntime';
 export {
+  createDataOperationIdempotencyKey,
+  DATA_IDEMPOTENCY_KEY_PREFIX,
+} from './dataIdempotencyRuntime';
+export {
   createDataOperationCachePlan,
   createMemoryDataOperationCacheStore,
   DATA_CACHE_RUNTIME_ERROR_CODES,
@@ -152,6 +156,7 @@ export type {
   DataCursorPageSnapshot,
   DataCursorPaginationPolicy,
   DataDocumentIssue,
+  DataIdempotencyPolicy,
   DataJsonObject,
   DataJsonSchema202012,
   DataJsonSchemaType,

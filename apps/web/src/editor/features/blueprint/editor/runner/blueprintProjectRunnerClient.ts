@@ -1,7 +1,11 @@
 import { createBrowserProjectRunner } from '@prodivix/runtime-browser';
 import type {
   ExecutableProjectSnapshot,
+  ExecutionDataGatewayBridgeRequest,
+  ExecutionDataGatewayBridgeResponse,
+  ExecutionCancellationResult,
   ExecutionJob,
+  ExecutionLogRecord,
   ExecutionNetworkTrace,
   ExecutionRequest,
 } from '@prodivix/runtime-core';
@@ -10,9 +14,11 @@ import type {
   DataLifecycleChannel,
   DataSourceDocument,
 } from '@prodivix/data';
+import type { RemoteExecutionTerminalClient } from '@prodivix/runtime-remote';
 import {
   browserProjectRuntimeHost,
   createBrowserDataExecutionEnvironment,
+  createRemoteDataGatewayRunCoordinator,
   executionSessionCoordinator,
   createRemoteProjectExecutionEnvironment,
   resolveBrowserProjectExecutionSnapshot,
@@ -51,14 +57,69 @@ let consumerCount = 0;
 let pendingStop: ReturnType<typeof globalThis.setTimeout> | undefined;
 let activeJob: ExecutionJob | undefined;
 let activeProvider: 'browser' | 'remote' | undefined;
+let activeTerminalClient: RemoteExecutionTerminalClient | undefined;
+let activeArtifactResolver:
+  | ReturnType<typeof createRemoteProjectExecutionEnvironment>['artifacts']
+  | undefined;
+const cancellationTerminalWaitMs = 15_000;
+const remoteDataGatewayRuns = createRemoteDataGatewayRunCoordinator({
+  publishTrace: (input) => executionSessionCoordinator.publishTrace(input),
+});
 
 export type BlueprintProjectRunProvider = 'browser' | 'remote';
+
+export const getBlueprintProjectTerminalClient = () => activeTerminalClient;
+export const getBlueprintProjectArtifactResolver = () => activeArtifactResolver;
+
+export class BlueprintProjectCancellationPendingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BlueprintProjectCancellationPendingError';
+  }
+}
+
+/** Executes a strict value-only iframe request through the active authenticated Remote execution authority. */
+export const executeBlueprintProjectRemoteDataBridge = async (
+  request: ExecutionDataGatewayBridgeRequest
+): Promise<ExecutionDataGatewayBridgeResponse> =>
+  remoteDataGatewayRuns.execute(request);
 
 /** Publishes sanitized traces emitted by the active local preview iframe into the same Execution Job. */
 export const publishBlueprintProjectNetworkTrace = (
   trace: ExecutionNetworkTrace
 ): boolean =>
   activeProvider === 'browser' ? runner.publishNetworkTrace(trace) : false;
+
+/** Publishes an exact-frame application Console record into the active Session generation. */
+export const publishBlueprintProjectConsoleLog = (input: {
+  observationId: string;
+  log: ExecutionLogRecord;
+}): boolean => {
+  const job = activeJob;
+  if (!job) return false;
+  const sessionId = getBlueprintProjectExecutionSessionId(
+    job.request.workspace.workspaceId
+  );
+  const publication = executionSessionCoordinator.publishConsole({
+    sessionId,
+    jobId: job.id,
+    observationId: input.observationId,
+    log: {
+      ...input.log,
+      sourceTrace:
+        input.log.sourceTrace ??
+        Object.freeze([
+          Object.freeze({
+            sourceRef: job.request.invocation.targetRef,
+            label: 'Generated application console',
+          }),
+        ]),
+    },
+  });
+  return (
+    publication.status === 'published' || publication.status === 'duplicate'
+  );
+};
 
 export const startBlueprintProject = async (
   snapshot: ExecutableProjectSnapshot,
@@ -69,9 +130,23 @@ export const startBlueprintProject = async (
   }> = { provider: 'browser' }
 ): Promise<ExecutionJob> => {
   let job: ExecutionJob;
+  let remoteDataGatewayInvoke:
+    | ReturnType<
+        typeof createRemoteProjectExecutionEnvironment
+      >['dataGateway']['invoke']
+    | undefined;
   if (activeJob) {
-    await stopBlueprintProject('Execution provider changed or restarted.');
+    await stopBlueprintProject('Execution provider changed or restarted.', {
+      waitForTerminal: true,
+    });
+    if (activeJob)
+      throw new BlueprintProjectCancellationPendingError(
+        'The previous execution did not reach a terminal state; a new request was not created.'
+      );
   }
+  remoteDataGatewayRuns.deactivate();
+  activeTerminalClient = undefined;
+  activeArtifactResolver = undefined;
   if (options.provider === 'remote') {
     if (!options.accessToken)
       throw new Error('Remote Preview requires an authenticated session.');
@@ -87,6 +162,9 @@ export const startBlueprintProject = async (
       },
     });
     job = await environment.provider.start(request);
+    remoteDataGatewayInvoke = environment.dataGateway.invoke;
+    activeTerminalClient = environment.terminal;
+    activeArtifactResolver = environment.artifacts;
   } else {
     const releaseSnapshot = retainBrowserProjectExecutionSnapshot(snapshot);
     try {
@@ -99,31 +177,90 @@ export const startBlueprintProject = async (
   }
   activeJob = job;
   activeProvider = options.provider;
-  void job.completion.finally(() => {
-    if (activeJob === job) {
-      activeJob = undefined;
-      activeProvider = undefined;
-    }
-  });
+  const sessionId = getBlueprintProjectExecutionSessionId(
+    snapshot.workspace.workspaceId
+  );
   executionSessionCoordinator.activate({
-    sessionId: getBlueprintProjectExecutionSessionId(
-      snapshot.workspace.workspaceId
-    ),
+    sessionId,
     label: 'Project Preview',
     job,
+  });
+  if (remoteDataGatewayInvoke)
+    remoteDataGatewayRuns.activate({
+      executionId: job.id,
+      jobId: job.id,
+      sessionId,
+      invoke: remoteDataGatewayInvoke,
+    });
+  void job.completion.then((result) => {
+    if (activeJob !== job) return;
+    activeTerminalClient = undefined;
+    if (
+      options.provider === 'remote' &&
+      result.status === 'succeeded' &&
+      remoteDataGatewayRuns.hasActiveJob(job.id)
+    )
+      return;
+    remoteDataGatewayRuns.deactivate(job.id);
+    activeJob = undefined;
+    activeProvider = undefined;
   });
   return job;
 };
 
 export const stopBlueprintProject = async (
-  reason = 'Project execution stopped.'
-) => {
+  reason = 'Project execution stopped.',
+  options: Readonly<{ waitForTerminal?: boolean }> = {}
+): Promise<ExecutionCancellationResult | undefined> => {
+  remoteDataGatewayRuns.deactivate();
   const job = activeJob;
-  const provider = activeProvider;
-  activeJob = undefined;
-  activeProvider = undefined;
-  if (provider === 'remote' && job) await job.cancel({ reason });
-  if (provider === 'browser' || !provider) await runner.stop(reason);
+  if (!job) {
+    activeProvider = undefined;
+    activeTerminalClient = undefined;
+    activeArtifactResolver = undefined;
+    await runner.stop(reason);
+    return undefined;
+  }
+  const cancellation = await job.cancel({ reason });
+  if (
+    options.waitForTerminal &&
+    (cancellation.status === 'accepted' ||
+      cancellation.status === 'already-requested')
+  ) {
+    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+    try {
+      await Promise.race([
+        job.completion,
+        new Promise<never>((_resolve, reject) => {
+          timeout = globalThis.setTimeout(
+            () =>
+              reject(
+                new BlueprintProjectCancellationPendingError(
+                  'Execution cancellation did not reach a terminal state within its recovery budget.'
+                )
+              ),
+            cancellationTerminalWaitMs
+          );
+        }),
+      ]);
+    } finally {
+      if (timeout !== undefined) globalThis.clearTimeout(timeout);
+    }
+  }
+  if (
+    options.waitForTerminal &&
+    (cancellation.status === 'already-terminal' ||
+      ['succeeded', 'failed', 'cancelled', 'timed-out'].includes(
+        job.getSnapshot().status
+      )) &&
+    activeJob === job
+  ) {
+    activeJob = undefined;
+    activeProvider = undefined;
+    activeTerminalClient = undefined;
+    activeArtifactResolver = undefined;
+  }
+  return cancellation;
 };
 
 export const acquireBlueprintProjectRunner = (): (() => void) => {

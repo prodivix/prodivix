@@ -60,16 +60,16 @@
 
 ## 二、跨切片反复出现的模式
 
-| 模式 | 出现位置 | 性质 |
-|---|---|---|
-| `JSON.stringify` 当相等判断 | outbox 幂等（memory + IndexedDB）、PIR mutations 的 `changed` 检测、ComponentContractEditor `dirty`、`indexedDbCausalOutboxStore` | 键序敏感；当前因上游确定性生成而暂稳，属潜在隐患 |
-| `localeCompare` 当确定性排序 | `diagnosticIssueCollection`、`semanticSnapshotIdentity`、provider-set 摘要 | **跨 locale 不可移植**（dev Windows zh-CN 与 CI Linux en-US 会产生不同 fingerprint/键）；对照之下 outbox 的 `compareUnicodeCodePoints` 用码点比较才是正确范式 |
-| 模块级可变单例 | `persistedExpandedPanels`、`nextRevisionSequence`、`emptyMap`、runner 的 `activeJob`/`consumerCount`、`defaultCreateId` 用 `Date.now()+Math.random()` 生成 trace ID | HMR 或多实例下互相串状态；trace ID 非确定 |
-| async 闭包捕获 stale + 无取消 | blueprint nodegraph trigger 链、`AnimationEditor.runActiveTimeline`、NodeGraph `onNodeDragStop` 的 rAF、runner effect | 切换 workspace 或卸载后仍向 canonical workspace 写入 |
-| `as` 强转不校验 discriminator | TriggerDataMutationFields、CollectionInspectorPanel、token.go 解析、`openAICompatibleProvider` 的 `abortSignal` | record 形即放行，仅靠 plan 边界兜底 |
-| 关键模块零测试 | `auth`（7 文件 0 测试）、`project`（7 文件 0 测试）、`integrations/github`（仅 webhook 签名测试）、`RunMigrations`（300+ 行 DDL 无测试） | 信任边界最弱处反而保护最少 |
-| CI 死 gate | `verify:g0`、`verify:g1:standalone`、`verify:g1:browser` 脚本存在但**无任何 workflow 调用** | 形同虚设 |
-| GitHub Actions 未 SHA pin | 全部 workflow 用 `@v6`/`@v4` 标签而非 SHA | 标签被投毒即在 CI 执行攻击代码并可取 `secrets.GITHUB_TOKEN` |
+| 模式                          | 出现位置                                                                                                                                                            | 性质                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JSON.stringify` 当相等判断   | outbox 幂等（memory + IndexedDB）、PIR mutations 的 `changed` 检测、ComponentContractEditor `dirty`、`indexedDbCausalOutboxStore`                                   | 键序敏感；当前因上游确定性生成而暂稳，属潜在隐患                                                                                                              |
+| `localeCompare` 当确定性排序  | `diagnosticIssueCollection`、`semanticSnapshotIdentity`、provider-set 摘要                                                                                          | **跨 locale 不可移植**（dev Windows zh-CN 与 CI Linux en-US 会产生不同 fingerprint/键）；对照之下 outbox 的 `compareUnicodeCodePoints` 用码点比较才是正确范式 |
+| 模块级可变单例                | `persistedExpandedPanels`、`nextRevisionSequence`、`emptyMap`、runner 的 `activeJob`/`consumerCount`、`defaultCreateId` 用 `Date.now()+Math.random()` 生成 trace ID | HMR 或多实例下互相串状态；trace ID 非确定                                                                                                                     |
+| async 闭包捕获 stale + 无取消 | blueprint nodegraph trigger 链、`AnimationEditor.runActiveTimeline`、NodeGraph `onNodeDragStop` 的 rAF、runner effect                                               | 切换 workspace 或卸载后仍向 canonical workspace 写入                                                                                                          |
+| `as` 强转不校验 discriminator | TriggerDataMutationFields、CollectionInspectorPanel、token.go 解析、`openAICompatibleProvider` 的 `abortSignal`                                                     | record 形即放行，仅靠 plan 边界兜底                                                                                                                           |
+| 关键模块零测试                | `auth`（7 文件 0 测试）、`project`（7 文件 0 测试）、`integrations/github`（仅 webhook 签名测试）、`RunMigrations`（300+ 行 DDL 无测试）                            | 信任边界最弱处反而保护最少                                                                                                                                    |
+| CI 死 gate                    | `verify:g0`、`verify:g1:standalone`、`verify:g1:browser` 脚本存在但**无任何 workflow 调用**                                                                         | 形同虚设                                                                                                                                                      |
+| GitHub Actions 未 SHA pin     | 全部 workflow 用 `@v6`/`@v4` 标签而非 SHA                                                                                                                           | 标签被投毒即在 CI 执行攻击代码并可取 `secrets.GITHUB_TOKEN`                                                                                                   |
 
 ---
 
@@ -87,6 +87,7 @@
 6. **持久化始于 WorkspaceOperation**：persist-before-optimistic-apply 顺序正确，失败回滚（`workspaceVfsOutboxExecutor`）。
 
 **两处疑似不变量违例（需后续确认）**：
+
 - `packages/shared/src/llm/*` 把 `LlmGateway`/`LlmToolRegistry`/`LlmContextBuilder`/`InMemoryLlmTraceStore`/`MockLlmProvider` 的**实现**（不止类型）塞进 shared，而 `@prodivix/ai` 反向依赖 shared 获取自身域原语——违反「shared 只放真正跨域工具，勿把域归属搬回此处」。
 - `packages/shared/src/types/PdxComponent.ts` 引入 React 类型，把 UI 运行时耦合进每个 shared 消费者（backend/cli/workspace）。
 
@@ -109,18 +110,21 @@
 ## 五、未来方向与首要风险
 
 **最可能的下一步工作（推断）**：
-1. （高置信）闭环 Remote live Data runtime + Remote HTTP/material gateway + 完整 Secret canary gate——`global-phases.md` 反复列为「尚未实现」。
-2. （高置信）Browser Project Runtime 的 Terminal / 结构化 Console / 网络恢复 UX + 跨 provider Test 矩阵。
+
+1. （高置信）在已闭环的 Remote HTTP/material gateway、generated bridge、server-gateway compile Gate、upstream idempotency contract、当前 durable 输出 canary Gate、Structured Console copy redaction 与 manual new-request recovery 之上，完成 Terminal、KMS/key rotation 与完整 Remote failure recovery。
+2. （高置信）Browser Project Runtime 的 Terminal / Structured Console 完整 SourceTrace 导航 / 网络恢复 UX + 跨 provider Test 矩阵。
 3. （中置信）补两个缺失的 G2 ADR（二进制 Asset、Auth/server-function）。
 
 **Top 5 风险**：
+
 1. **G2 出口 gate 跨多个未建 ADR**，存在被拖延或被草率标「Passed」的风险（违反「no evidence = revert to Foundation/Partial」）。
 2. **Secret 处理有已知 shape-only 缺口**（ADR 45:72-73）：codec 拦不住自由格式 adapter 配置里的敏感字面量，任何新协议适配器都是潜在外泄路径（进 Workspace/logs/客户端 bundle）。**G2 闭合前最致命的安全缺口。**
 3. **后端 workspace 模块约 11755 行 Go**，所有持久化写入风险集中于此（blast radius 最大）；缓解：大量 `_test.go` + golden-conformance gate，但无其他模块可与之相比。
 4. **PIR wire rollout 端到端只演练过一次**（1.3→1.4），生产迁移策略（后端协同迁移、atomic first-write upgrade）已设计未实战。
-5. **Remote Runner + Postgres 控制面依赖未硬化的外部隔离**（in-repo sandbox 是「参考进程监督者」，生产需外部 rootless 沙箱）+ KMS/密钥轮换未建 + Secret canary gate 未完成。
+5. **Remote Runner + Postgres 控制面仍需持续硬化隔离与密钥生命周期**：生产 rootless Gate 已建立、当前 durable 输出 canary 已双边 fail closed，Structured Console copy Gate 已建，但 KMS/密钥轮换及尚未实现的 Terminal copy Gate 未建。
 
 **本审查补充的两条**：
+
 - `auth`/`project` 关键模块**零测试 + 零限流**是当前最暴露的攻击面。
 - `verify:g0` / `verify:g1:standalone` / `verify:g1:browser` 是 CI 死 gate，应接入 workflow。
 

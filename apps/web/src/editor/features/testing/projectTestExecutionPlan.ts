@@ -1,5 +1,6 @@
 import {
   generateWorkspaceReactViteExecutableProject,
+  PROVIDER_MOCK_DATA_RUNTIME_TARGET,
   type CompileDiagnostic,
 } from '@prodivix/prodivix-compiler';
 import {
@@ -25,7 +26,9 @@ export type ProjectTestExecutionPlan =
 export const createProjectTestExecutionPlan = (
   workspace: WorkspaceSnapshot
 ): ProjectTestExecutionPlan => {
-  const project = generateWorkspaceReactViteExecutableProject(workspace);
+  const project = generateWorkspaceReactViteExecutableProject(workspace, {
+    dataRuntimeTarget: PROVIDER_MOCK_DATA_RUNTIME_TARGET,
+  });
   if (project.status === 'blocked') return project;
   const request = createExecutionRequest({
     requestId: createClientExecutionRequestId('project-test'),

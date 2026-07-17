@@ -46,10 +46,34 @@ export {
   type WorkspaceReactViteCompileOptions,
 } from '#src/react/workspaceProject';
 export {
+  analyzeWorkspaceDataRuntimeTarget,
+  EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
+  PROVIDER_MOCK_DATA_RUNTIME_TARGET,
+  STATIC_CLIENT_DATA_RUNTIME_TARGET,
+  WORKSPACE_DATA_RUNTIME_TARGET_FORMAT,
+  type WorkspaceDataRuntimeRequirements,
+  type WorkspaceDataRuntimeTarget,
+  type WorkspaceDataRuntimeTargetAnalysis,
+} from '#src/react/workspaceDataRuntimeTarget';
+export {
+  createWorkspaceExecutionConsoleRuntimeModule,
+  WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
+} from '#src/react/standaloneExecutionConsoleRuntime';
+export {
+  createWorkspaceExecutionSnapshotRef,
   generateWorkspaceReactViteExecutableProject,
   type GenerateWorkspaceExecutableProjectOptions,
   type WorkspaceExecutableProjectResult,
 } from '#src/executableProject/workspaceExecutableProject';
+export {
+  analyzeWorkspaceRuntimeFilesystemDiff,
+  createWorkspaceRuntimeFilesystemProposal,
+  type CreateWorkspaceRuntimeFilesystemProposalInput,
+  type RuntimeFilesystemProposalBlockReason,
+  type RuntimeFilesystemProposalEntry,
+  type WorkspaceRuntimeFilesystemProposalAnalysis,
+  type WorkspaceRuntimeFilesystemProposalResult,
+} from '#src/executableProject/runtimeFilesystemProposal';
 export { compileAnimationExportContributions } from '#src/animation/compileAnimation';
 export { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
 export type {

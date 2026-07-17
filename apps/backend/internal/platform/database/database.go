@@ -183,6 +183,8 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
 			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS session_id TEXT`,
+			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS snapshot_id TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS partition_revisions_json JSONB NOT NULL DEFAULT '{}'::jsonb`,
 			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_id TEXT`,
 			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_revision TEXT`,
 			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_mode TEXT`,
@@ -313,6 +315,40 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			`CREATE INDEX IF NOT EXISTS idx_github_events_created_at ON github_events(created_at DESC)`,
 			`CREATE INDEX IF NOT EXISTS idx_github_events_installation ON github_events(installation_id, created_at DESC)`,
 			`DELETE FROM sessions WHERE expires_at <= NOW()`,
+		},
+	}, {
+		version: 2,
+		name:    "remote-data-mutation-replay-ledger",
+		statements: []string{
+			`CREATE TABLE IF NOT EXISTS remote_data_mutation_replays (
+			execution_id TEXT NOT NULL REFERENCES remote_execution_grants(execution_id) ON DELETE CASCADE,
+			document_id TEXT NOT NULL,
+			operation_id TEXT NOT NULL,
+			invocation_id TEXT NOT NULL,
+			request_hash TEXT NOT NULL,
+			status TEXT NOT NULL,
+			result_json JSONB,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (execution_id, document_id, operation_id, invocation_id),
+			CONSTRAINT remote_data_mutation_replays_request_hash_check CHECK (request_hash ~ '^[a-f0-9]{64}$'),
+			CONSTRAINT remote_data_mutation_replays_status_check CHECK (status IN ('pending', 'succeeded', 'indeterminate')),
+			CONSTRAINT remote_data_mutation_replays_result_check CHECK ((status = 'succeeded' AND result_json IS NOT NULL) OR (status IN ('pending', 'indeterminate') AND result_json IS NULL))
+		)`,
+			`CREATE INDEX IF NOT EXISTS idx_remote_data_mutation_replays_created_at ON remote_data_mutation_replays(created_at DESC)`,
+		},
+	}, {
+		version: 3,
+		name:    "remote-data-upstream-idempotency",
+		statements: []string{
+			`ALTER TABLE remote_data_mutation_replays ADD COLUMN IF NOT EXISTS attempt BIGINT NOT NULL DEFAULT 1`,
+			`ALTER TABLE remote_data_mutation_replays ADD COLUMN IF NOT EXISTS maximum_attempts BIGINT NOT NULL DEFAULT 1`,
+			`ALTER TABLE remote_data_mutation_replays DROP CONSTRAINT IF EXISTS remote_data_mutation_replays_status_check`,
+			`ALTER TABLE remote_data_mutation_replays DROP CONSTRAINT IF EXISTS remote_data_mutation_replays_result_check`,
+			`ALTER TABLE remote_data_mutation_replays ADD CONSTRAINT remote_data_mutation_replays_status_check CHECK (status IN ('pending', 'retryable', 'succeeded', 'indeterminate'))`,
+			`ALTER TABLE remote_data_mutation_replays ADD CONSTRAINT remote_data_mutation_replays_attempt_check CHECK (attempt >= 1 AND maximum_attempts >= 1 AND maximum_attempts <= 10 AND attempt <= maximum_attempts)`,
+			`ALTER TABLE remote_data_mutation_replays ADD CONSTRAINT remote_data_mutation_replays_result_check CHECK ((status = 'succeeded' AND result_json IS NOT NULL) OR (status IN ('pending', 'retryable', 'indeterminate') AND result_json IS NULL))`,
+			`ALTER TABLE remote_data_mutation_replays ADD CONSTRAINT remote_data_mutation_replays_retryable_check CHECK (status <> 'retryable' OR attempt < maximum_attempts)`,
 		},
 	}}
 

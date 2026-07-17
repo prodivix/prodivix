@@ -1,6 +1,13 @@
 import {
   assertExecutableProjectCapabilitySupport,
+  createExecutionSecretLeakDiagnostic,
+  createExecutionSecretLeakGuard,
+  EXECUTION_SECRET_LEAK_REASON,
+  EXECUTION_TEST_REPORT_MEDIA_TYPE,
+  EXECUTION_TEST_REPORT_TRACE_NAME,
   getExecutionProviderCompatibility,
+  type ExecutionSecretLeakGuard,
+  type ExecutionSecretLeakSurface,
   type ExecutionProviderDescriptor,
   type ExecutionRequest,
 } from '@prodivix/runtime-core';
@@ -71,6 +78,7 @@ export type CreateRemoteExecutionControlPlaneOptions = Readonly<{
   createExecutionId: () => string;
   createLeaseToken: () => string;
   ingestionLimits?: Partial<RemoteExecutionIngestionLimits>;
+  outputGuard?: ExecutionSecretLeakGuard;
 }>;
 
 const failureByCode: Readonly<
@@ -204,6 +212,73 @@ export const createRemoteExecutionControlPlane = (
       throw new TypeError(`Remote ingestion limit ${name} must be positive.`);
   });
 
+  const inspectValue = (
+    surface: ExecutionSecretLeakSurface,
+    value: unknown,
+    leaseToken?: string
+  ): boolean => {
+    if (
+      options.outputGuard &&
+      !options.outputGuard.inspectValue(surface, value).safe
+    )
+      return true;
+    return leaseToken === undefined
+      ? false
+      : !createExecutionSecretLeakGuard({
+          secretValues: [leaseToken],
+        }).inspectValue(surface, value).safe;
+  };
+
+  const inspectBytes = (
+    surface: ExecutionSecretLeakSurface,
+    value: Uint8Array,
+    leaseToken?: string
+  ): boolean => {
+    if (
+      options.outputGuard &&
+      !options.outputGuard.inspectBytes(surface, value).safe
+    )
+      return true;
+    return leaseToken === undefined
+      ? false
+      : !createExecutionSecretLeakGuard({
+          secretValues: [leaseToken],
+        }).inspectBytes(surface, value).safe;
+  };
+
+  const blockSecretLeak = async (
+    input: Readonly<{
+      executionId: string;
+      workerId: string;
+      leaseToken: string;
+      surface: ExecutionSecretLeakSurface;
+    }>
+  ): Promise<RemoteExecutionStoredRecord | undefined> => {
+    const emittedAt = now();
+    await options.repository.appendWorkerEvent({
+      executionId: input.executionId,
+      workerId: input.workerId,
+      leaseToken: input.leaseToken,
+      emittedAt,
+      workerEventId: 'prodivix:security:secret-leak',
+      event: Object.freeze({
+        kind: 'diagnostic',
+        diagnostic: createExecutionSecretLeakDiagnostic({
+          surface: input.surface,
+        }),
+      }),
+      limits: ingestionLimits,
+    });
+    return options.repository.transition({
+      executionId: input.executionId,
+      workerId: input.workerId,
+      leaseToken: input.leaseToken,
+      status: 'failed',
+      now: emittedAt,
+      reason: EXECUTION_SECRET_LEAK_REASON,
+    });
+  };
+
   const handleCreate = async (
     envelope: DecodedRemoteExecutionRequestEnvelope,
     context: RemoteExecutionRequestContext,
@@ -212,6 +287,11 @@ export const createRemoteExecutionControlPlane = (
       { operation: 'create' }
     >['payload']
   ): Promise<RemoteExecutionResponseEnvelope> => {
+    if (
+      inspectValue('request', payload.request) ||
+      inspectValue('snapshot', payload.snapshot)
+    )
+      return respondFailure(envelope, 'invalid-request');
     const principal = await authorize(
       options.authorization,
       envelope,
@@ -230,6 +310,8 @@ export const createRemoteExecutionControlPlane = (
       return respondFailure(envelope, 'invalid-request');
     }
     const key = identityKey(payload.request, source.contentDigest);
+    if (inspectValue('cache-key', key))
+      return respondFailure(envelope, 'invalid-request');
     const existing = await options.repository.getByOwnerRequest(
       principal.subjectId,
       payload.request.requestId
@@ -261,6 +343,8 @@ export const createRemoteExecutionControlPlane = (
             source.contentDigest
           );
     if (!snapshot) return respondFailure(envelope, 'not-found');
+    if (inspectValue('snapshot', snapshot.snapshot))
+      return respondFailure(envelope, 'invalid-request');
     if (payload.request.profile === 'production')
       return respondFailure(envelope, 'invalid-request');
     try {
@@ -336,6 +420,8 @@ export const createRemoteExecutionControlPlane = (
   ): Promise<RemoteExecutionResponseEnvelope> => {
     const envelope = decodeRemoteExecutionRequestEnvelope(rawEnvelope);
     const request = envelope.request;
+    if (request.operation !== 'create' && inspectValue('request', request))
+      return respondFailure(envelope, 'invalid-request');
     switch (request.operation) {
       case 'negotiate':
         return request.payload.supportedVersions.includes(envelope.version)
@@ -454,17 +540,78 @@ export const createRemoteExecutionControlPlane = (
       return options.repository.renewLease({ ...input, now: now() });
     },
     async transition(input) {
+      if (inspectValue('crash', input.reason, input.leaseToken))
+        return blockSecretLeak({
+          executionId: input.executionId,
+          workerId: input.workerId,
+          leaseToken: input.leaseToken,
+          surface: 'crash',
+        });
       return options.repository.transition({ ...input, now: now() });
     },
     async appendWorkerEvent(input) {
+      if (input.workerEventId.startsWith('prodivix:'))
+        return Object.freeze({ kind: 'identity-conflict' as const });
+      const event = normalizeWorkerEvent(input.executionId, input.event);
+      const surface: ExecutionSecretLeakSurface =
+        event.kind === 'log'
+          ? 'log'
+          : event.kind === 'diagnostic'
+            ? 'diagnostic'
+            : event.trace.name === EXECUTION_TEST_REPORT_TRACE_NAME
+              ? 'test-report'
+              : 'trace';
+      if (
+        inspectValue(
+          surface,
+          { workerEventId: input.workerEventId, event },
+          input.leaseToken
+        )
+      ) {
+        await blockSecretLeak({
+          executionId: input.executionId,
+          workerId: input.workerId,
+          leaseToken: input.leaseToken,
+          surface,
+        });
+        return Object.freeze({ kind: 'secret-leak' as const });
+      }
       return options.repository.appendWorkerEvent({
         ...input,
-        event: normalizeWorkerEvent(input.executionId, input.event),
+        event,
         emittedAt: now(),
         limits: ingestionLimits,
       });
     },
     async putArtifact(input) {
+      if (input.workerEventId.startsWith('prodivix:'))
+        return Object.freeze({ kind: 'identity-conflict' as const });
+      const contentSurface: ExecutionSecretLeakSurface =
+        input.descriptor.mediaType === EXECUTION_TEST_REPORT_MEDIA_TYPE
+          ? 'test-report'
+          : 'artifact-content';
+      const descriptorLeak = inspectValue(
+        'artifact-descriptor',
+        {
+          workerEventId: input.workerEventId,
+          descriptor: input.descriptor,
+        },
+        input.leaseToken
+      );
+      const contentLeak = inspectBytes(
+        contentSurface,
+        input.contents,
+        input.leaseToken
+      );
+      if (descriptorLeak || contentLeak) {
+        await blockSecretLeak({
+          executionId: input.executionId,
+          workerId: input.workerId,
+          leaseToken: input.leaseToken,
+          surface: descriptorLeak ? 'artifact-descriptor' : contentSurface,
+        });
+        return Object.freeze({ kind: 'secret-leak' as const });
+      }
       return options.repository.putArtifact({
         ...input,
         emittedAt: now(),

@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import Ajv2020 from 'ajv/dist/2020.js';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { createWorkspaceStandaloneDataRuntimeModule } from './standaloneDataRuntime';
+import {
+  EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
+  PROVIDER_MOCK_DATA_RUNTIME_TARGET,
+} from './workspaceDataRuntimeTarget';
 
 const workspace: WorkspaceSnapshot = {
   id: 'standalone-data-runtime',
@@ -79,6 +83,78 @@ const workspace: WorkspaceSnapshot = {
   routeManifest: { version: '1', root: { id: 'root-route' } },
 };
 
+const remoteServerWorkspace: WorkspaceSnapshot = {
+  ...workspace,
+  docsById: {
+    'data-products': {
+      ...workspace.docsById['data-products']!,
+      content: {
+        ...workspace.docsById['data-products']!.content,
+        source: {
+          id: 'products',
+          adapterId: 'core.http',
+          runtimeZone: 'server',
+          bindingsById: {
+            'api-url': {
+              kind: 'environment-ref',
+              reference: { bindingId: 'api-url' },
+            },
+            'api-token': {
+              kind: 'secret-ref',
+              reference: { bindingId: 'api-token' },
+            },
+          },
+          configurationByKey: {
+            baseUrl: {
+              kind: 'environment-ref',
+              reference: { bindingId: 'api-url' },
+            },
+            authorization: {
+              kind: 'secret-ref',
+              reference: { bindingId: 'api-token' },
+            },
+          },
+        },
+        operationsById: {
+          ...workspace.docsById['data-products']!.content.operationsById,
+          'list-products': {
+            ...workspace.docsById['data-products']!.content.operationsById[
+              'list-products'
+            ]!,
+            configurationByKey: {
+              method: { kind: 'literal', value: 'GET' },
+              path: { kind: 'literal', value: '/products' },
+              emptyWhen: { kind: 'literal', value: 'never' },
+            },
+          },
+          'create-product': {
+            ...workspace.docsById['data-products']!.content.operationsById[
+              'create-product'
+            ]!,
+            configurationByKey: {
+              method: { kind: 'literal', value: 'POST' },
+              path: { kind: 'literal', value: '/products' },
+              emptyWhen: { kind: 'literal', value: 'never' },
+              idempotencyHeader: {
+                kind: 'literal',
+                value: 'idempotency-key',
+              },
+            },
+            policies: {
+              idempotency: { kind: 'invocation-key' },
+              retry: {
+                maxAttempts: 2,
+                backoff: 'fixed',
+                initialDelayMs: 0,
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
 type Runtime = Readonly<{
   subscribeDataLifecycle(listener: () => void): () => void;
   subscribeNetworkTrace(listener: (trace: unknown) => void): () => void;
@@ -94,6 +170,238 @@ type Runtime = Readonly<{
 }>;
 
 describe('standalone Data runtime projection', () => {
+  it('routes server query and uniquely identified mutation through the value-only parent bridge', async () => {
+    const generated = createWorkspaceStandaloneDataRuntimeModule(
+      remoteServerWorkspace,
+      EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET
+    );
+    const transformed = await transformWithEsbuild(
+      generated.body,
+      'prodivix-data-runtime.ts',
+      { loader: 'ts', target: 'es2022', format: 'cjs' }
+    );
+    const listeners = new Set<
+      (event: { source: unknown; data: unknown }) => void
+    >();
+    const posted: unknown[] = [];
+    let gatewayMode: 'success' | 'malicious-error' = 'success';
+    const parent = {
+      postMessage(value: unknown) {
+        posted.push(value);
+        if (
+          !value ||
+          typeof value !== 'object' ||
+          (value as { type?: unknown }).type !==
+            'prodivix.execution-data-gateway-request.v1'
+        )
+          return;
+        const request = value as {
+          requestId: string;
+          documentId: string;
+          operationId: string;
+          invocationId: string;
+          sequence: number;
+          attempt: number;
+        };
+        queueMicrotask(() => {
+          const mutation = request.operationId === 'create-product';
+          const response =
+            gatewayMode === 'malicious-error'
+              ? {
+                  type: 'prodivix.execution-data-gateway-response.v1',
+                  requestId: request.requestId,
+                  ok: false,
+                  error: {
+                    code: 'SECRET_CANARY_FROM_GATEWAY',
+                    retryable: false,
+                  },
+                }
+              : mutation && request.attempt === 1
+                ? {
+                    type: 'prodivix.execution-data-gateway-response.v1',
+                    requestId: request.requestId,
+                    ok: false,
+                    error: {
+                      code: 'DATA_REMOTE_GATEWAY_UNAVAILABLE',
+                      retryable: true,
+                    },
+                  }
+                : {
+                    type: 'prodivix.execution-data-gateway-response.v1',
+                    requestId: request.requestId,
+                    ok: true,
+                    result: {
+                      value: mutation ? { id: 'p2', name: 'Desk' } : [],
+                      empty: false,
+                      network: {
+                        format: 'prodivix.execution-network-trace.v1',
+                        requestId: request.requestId,
+                        phase: 'runtime',
+                        runtimeZone: 'server',
+                        mode: 'live',
+                        adapter: 'core.http',
+                        method: mutation ? 'POST' : 'GET',
+                        sanitizedUrl: 'https://api.example.test/',
+                        protocol: 'https',
+                        startedAt: 100,
+                        completedAt: 120,
+                        durationMs: 20,
+                        outcome: 'allowed',
+                        status: mutation ? 201 : 200,
+                        correlation: {
+                          kind: 'data-operation',
+                          documentId: request.documentId,
+                          operationId: request.operationId,
+                          invocationId: request.invocationId,
+                          sequence: request.sequence,
+                          attempt: request.attempt,
+                        },
+                        redacted: true,
+                      },
+                    },
+                  };
+          listeners.forEach((listener) =>
+            listener({ source: parent, data: response })
+          );
+        });
+      },
+    };
+    const runtimeGlobal = {
+      parent,
+      crypto: globalThis.crypto,
+      setTimeout: globalThis.setTimeout.bind(globalThis),
+      clearTimeout: globalThis.clearTimeout.bind(globalThis),
+      addEventListener: (
+        _type: string,
+        listener: (event: { source: unknown; data: unknown }) => void
+      ) => listeners.add(listener),
+      removeEventListener: (
+        _type: string,
+        listener: (event: { source: unknown; data: unknown }) => void
+      ) => listeners.delete(listener),
+    };
+    const fetch = vi.fn(async () =>
+      Response.json({
+        format: 'prodivix.executable-data-runtime.v1',
+        mode: 'live',
+      })
+    );
+    const record: { exports: Record<string, unknown> } = { exports: {} };
+    Function(
+      'module',
+      'exports',
+      'fetch',
+      'Ajv2020',
+      'globalThis',
+      transformed.code
+    )(record, record.exports, fetch, Ajv2020, runtimeGlobal);
+    const runtime = (
+      record.exports.createWorkspaceDataRuntime as () => Runtime
+    )();
+    const binding = {
+      operation: {
+        documentId: 'data-products',
+        operationId: 'list-products',
+      },
+    } as const;
+    const lifecycleRequest = {
+      documentId: 'page',
+      instancePath: '/page',
+      dataId: 'products',
+      binding,
+    };
+    await runtime.activateDataBindings({
+      documentId: 'page',
+      instancePath: '/page',
+      bindingsByDataId: { products: binding },
+      runtimeValuesById: {},
+    });
+    const remoteSnapshot =
+      runtime.resolveDataLifecycleSnapshot(lifecycleRequest);
+    expect(remoteSnapshot).toMatchObject({
+      status: 'success',
+      value: [],
+    });
+    const request = posted.find(
+      (value) =>
+        (value as { type?: unknown })?.type ===
+        'prodivix.execution-data-gateway-request.v1'
+    );
+    expect(request).toMatchObject({
+      documentId: 'data-products',
+      operationId: 'list-products',
+      input: {},
+    });
+    expect(JSON.stringify(request)).not.toContain('api-url');
+    expect(JSON.stringify(request)).not.toContain('api-token');
+
+    await expect(
+      runtime.dispatchDataMutation({
+        binding: {
+          kind: 'dispatch-data-operation',
+          operation: {
+            documentId: 'data-products',
+            operationId: 'create-product',
+          },
+          input: {
+            kind: 'object',
+            propertiesByKey: {
+              name: { kind: 'trigger-payload', path: '/name' },
+            },
+          },
+        },
+        payload: { name: 'Desk' },
+        runtimeValuesById: {},
+      })
+    ).resolves.toEqual({ id: 'p2', name: 'Desk' });
+    const mutationRequests = posted.filter(
+      (value) =>
+        (value as { operationId?: unknown })?.operationId === 'create-product'
+    ) as Array<{
+      invocationId?: unknown;
+      attempt?: unknown;
+      input?: unknown;
+    }>;
+    expect(mutationRequests).toEqual([
+      expect.objectContaining({ attempt: 1, input: { name: 'Desk' } }),
+      expect.objectContaining({ attempt: 2, input: { name: 'Desk' } }),
+    ]);
+    expect(mutationRequests[0]?.invocationId).toBe(
+      mutationRequests[1]?.invocationId
+    );
+    expect(mutationRequests[0]?.invocationId).toMatch(
+      /^standalone:mutation:[0-9a-f-]{36}:\d+$/u
+    );
+    expect(JSON.stringify(mutationRequests)).not.toContain('api-token');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain(
+      '/.prodivix/data-runtime.json'
+    );
+    expect(
+      posted.some(
+        (value) =>
+          (value as { type?: unknown })?.type ===
+          'prodivix.execution-network-bridge.v1'
+      )
+    ).toBe(true);
+    gatewayMode = 'malicious-error';
+    await expect(
+      runtime.dispatchDataMutation({
+        binding: {
+          kind: 'dispatch-data-operation',
+          operation: {
+            documentId: 'data-products',
+            operationId: 'create-product',
+          },
+          input: { kind: 'literal', value: { name: 'Secret probe' } },
+        },
+        payload: undefined,
+        runtimeValuesById: {},
+      })
+    ).rejects.toMatchObject({ code: 'DATA_REMOTE_GATEWAY_INVALID' });
+    runtime.dispose();
+  });
+
   it('publishes loading then success from the provider-projected fixture asset', async () => {
     const generated = createWorkspaceStandaloneDataRuntimeModule(workspace);
     const transformed = await transformWithEsbuild(
@@ -510,6 +818,145 @@ describe('standalone Data runtime projection', () => {
     runtime.dispose();
   });
 
+  it('retries public live mutation with one opaque upstream idempotency key', async () => {
+    const liveWorkspace: WorkspaceSnapshot = {
+      ...workspace,
+      docsById: {
+        'data-products': {
+          ...workspace.docsById['data-products']!,
+          content: {
+            ...workspace.docsById['data-products']!.content,
+            source: {
+              id: 'products',
+              adapterId: 'core.http',
+              runtimeZone: 'client',
+              bindingsById: {},
+              configurationByKey: {
+                baseUrl: {
+                  kind: 'literal',
+                  value: 'https://api.example.test/v1/',
+                },
+              },
+            },
+            operationsById: {
+              ...workspace.docsById['data-products']!.content.operationsById,
+              'create-product': {
+                ...workspace.docsById['data-products']!.content.operationsById[
+                  'create-product'
+                ]!,
+                configurationByKey: {
+                  method: { kind: 'literal', value: 'POST' },
+                  path: { kind: 'literal', value: '/products' },
+                  emptyWhen: { kind: 'literal', value: 'never' },
+                  idempotencyHeader: {
+                    kind: 'literal',
+                    value: 'idempotency-key',
+                  },
+                },
+                policies: {
+                  idempotency: { kind: 'invocation-key' },
+                  retry: {
+                    maxAttempts: 2,
+                    backoff: 'fixed',
+                    initialDelayMs: 0,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const generated = createWorkspaceStandaloneDataRuntimeModule(liveWorkspace);
+    const transformed = await transformWithEsbuild(
+      generated.body,
+      'prodivix-data-runtime.ts',
+      { loader: 'ts', target: 'es2022', format: 'cjs' }
+    );
+    const upstreamKeys: string[] = [];
+    let apiAttempt = 0;
+    const fetch = vi.fn(
+      async (
+        input: string | URL | Request,
+        init?: RequestInit
+      ): Promise<Response> => {
+        if (String(input).endsWith('/.prodivix/data-runtime.json'))
+          return Response.json({
+            format: 'prodivix.executable-data-runtime.v1',
+            mode: 'live',
+          });
+        apiAttempt += 1;
+        upstreamKeys.push(
+          new Headers(init?.headers).get('idempotency-key') ?? ''
+        );
+        return new Response(
+          apiAttempt === 1 ? '{}' : JSON.stringify({ id: 'created' }),
+          {
+            status: apiAttempt === 1 ? 503 : 201,
+            headers: { 'content-type': 'application/json' },
+          }
+        );
+      }
+    );
+    const record: { exports: Record<string, unknown> } = { exports: {} };
+    Function(
+      'module',
+      'exports',
+      'fetch',
+      'Ajv2020',
+      transformed.code
+    )(record, record.exports, fetch, Ajv2020);
+    const runtime = (
+      record.exports.createWorkspaceDataRuntime as () => Runtime
+    )();
+    const traces: Array<Record<string, unknown>> = [];
+    runtime.subscribeNetworkTrace((trace) =>
+      traces.push(trace as Record<string, unknown>)
+    );
+
+    await expect(
+      runtime.dispatchDataMutation({
+        binding: {
+          kind: 'dispatch-data-operation',
+          operation: {
+            documentId: 'data-products',
+            operationId: 'create-product',
+          },
+          input: {
+            kind: 'object',
+            propertiesByKey: {
+              name: { kind: 'literal', value: 'Desk' },
+            },
+          },
+        },
+        payload: {},
+        runtimeValuesById: {},
+        source: {
+          documentId: 'page',
+          nodeId: 'create',
+          eventName: 'onClick',
+          instancePath: '/page/create',
+        },
+      })
+    ).resolves.toEqual({ id: 'created' });
+
+    expect(upstreamKeys).toHaveLength(2);
+    expect(upstreamKeys[0]).toBe(upstreamKeys[1]);
+    expect(upstreamKeys[0]).toMatch(/^prodivix-data-sha256-[0-9a-f]{64}$/u);
+    expect(upstreamKeys[0]).not.toContain('Desk');
+    expect(traces).toEqual([
+      expect.objectContaining({
+        status: 503,
+        correlation: expect.objectContaining({ attempt: 1 }),
+      }),
+      expect.objectContaining({
+        status: 201,
+        correlation: expect.objectContaining({ attempt: 2 }),
+      }),
+    ]);
+    runtime.dispose();
+  });
+
   it('never falls back to live HTTP when explicit mock provisioning is missing', async () => {
     const generated = createWorkspaceStandaloneDataRuntimeModule(workspace);
     const transformed = await transformWithEsbuild(
@@ -562,6 +1009,59 @@ describe('standalone Data runtime projection', () => {
     expect(
       fetch.mock.calls.some(([input]) => String(input).startsWith('http'))
     ).toBe(false);
+    runtime.dispose();
+  });
+
+  it('rejects a live manifest for the provider-forced mock target', async () => {
+    const generated = createWorkspaceStandaloneDataRuntimeModule(
+      workspace,
+      PROVIDER_MOCK_DATA_RUNTIME_TARGET
+    );
+    const transformed = await transformWithEsbuild(
+      generated.body,
+      'prodivix-data-runtime.ts',
+      { loader: 'ts', target: 'es2022', format: 'cjs' }
+    );
+    const fetch = vi.fn(async () =>
+      Response.json({
+        format: 'prodivix.executable-data-runtime.v1',
+        mode: 'live',
+      })
+    );
+    const record: { exports: Record<string, unknown> } = { exports: {} };
+    Function(
+      'module',
+      'exports',
+      'fetch',
+      'Ajv2020',
+      transformed.code
+    )(record, record.exports, fetch, Ajv2020);
+    const runtime = (
+      record.exports.createWorkspaceDataRuntime as () => Runtime
+    )();
+    const binding = {
+      operation: {
+        documentId: 'data-products',
+        operationId: 'list-products',
+      },
+    } as const;
+    const request = {
+      documentId: 'page',
+      instancePath: '/page',
+      dataId: 'products',
+      binding,
+    };
+    await runtime.activateDataBindings({
+      documentId: 'page',
+      instancePath: '/page',
+      bindingsByDataId: { products: binding },
+      runtimeValuesById: {},
+    });
+    expect(runtime.resolveDataLifecycleSnapshot(request)).toMatchObject({
+      status: 'error',
+      error: { code: 'DATA_RUNTIME_TARGET_MODE_INVALID' },
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
     runtime.dispose();
   });
 });

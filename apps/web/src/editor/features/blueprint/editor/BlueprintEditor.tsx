@@ -400,6 +400,21 @@ export function BlueprintEditor({
               ? projectRunner.state.diagnostics
               : undefined
           }
+          terminalClient={
+            showingProjectExecution ? projectRunner.terminalClient : undefined
+          }
+          terminalPermission={
+            showingProjectExecution && projectRunner.terminalClient
+              ? 'allowed'
+              : undefined
+          }
+          filesystemArtifact={
+            showingProjectExecution
+              ? projectRunner.state.filesystemChanges
+              : undefined
+          }
+          workspace={controller.workspace}
+          workspaceReadonly={controller.readonly}
           onRestart={
             showingProjectExecution
               ? () => {

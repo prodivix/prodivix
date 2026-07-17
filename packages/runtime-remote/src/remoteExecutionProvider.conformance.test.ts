@@ -3,8 +3,10 @@ import {
   createExecutionRequest,
   toExecutionTestReportValue,
   type ExecutionJobEvent,
+  type ExecutionJobStateEvent,
+  type ExecutionArtifact,
 } from '@prodivix/runtime-core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createRemoteFixtureSnapshot } from './__tests__/remoteExecutionFixtures';
 import {
   createRemoteBuildExecutionProvider,
@@ -94,7 +96,7 @@ const stateEvent = (
   sequence: number,
   status: RemoteExecutionRecord['status'],
   previousStatus?: RemoteExecutionRecord['status']
-): ExecutionJobEvent => ({
+): ExecutionJobStateEvent => ({
   kind: 'state',
   jobId: execution.executionId,
   sequence,
@@ -187,6 +189,9 @@ describe('remote ExecutionProvider conformance', () => {
     expect(remotePreviewExecutionProviderDescriptor.profiles).toEqual([
       'preview',
     ]);
+    expect(remotePreviewExecutionProviderDescriptor.capabilities).toContain(
+      'environment-binding'
+    );
     expect(remoteTestExecutionProviderDescriptor.profiles).toEqual(['test']);
     expect(remoteBuildExecutionProviderDescriptor.profiles).toEqual(['build']);
   });
@@ -240,6 +245,34 @@ describe('remote ExecutionProvider conformance', () => {
     expect(result.artifacts).toHaveLength(1);
     expect(observed.some((event) => event.kind === 'log')).toBe(true);
     expect(job.provider).toBe(remoteBuildExecutionProviderDescriptor);
+  });
+
+  it('projects a redaction-safe diagnostic when protected output was blocked', async () => {
+    const initial = record('build-secret-leak', 'running', 3);
+    const failed = stateEvent(initial, 3, 'failed', 'running');
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      { ...failed, reason: 'secret-material-detected' },
+    ];
+    const provider = createRemoteBuildExecutionProvider({
+      client: clientFor({ initial, events }),
+      resolveSnapshot: () => ({
+        kind: 'upload',
+        snapshot: createRemoteFixtureSnapshot(),
+      }),
+      delay: async () => undefined,
+    });
+
+    const job = await provider.start(request('build-secret-leak'));
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'EXECUTION_SECRET_LEAK_BLOCKED' },
+      diagnostics: [{ code: 'EXE-5004', severity: 'fatal' }],
+    });
+    expect(JSON.stringify(await job.completion)).not.toContain(
+      'secret-material-detected'
+    );
   });
 
   it('accepts cancellation before stale running events are replayed', async () => {
@@ -331,7 +364,7 @@ describe('remote ExecutionProvider conformance', () => {
   });
 
   it('accepts Remote Preview success only with a healthy ready bundle', async () => {
-    const buildRecord = record('preview-success', 'running', 4);
+    const buildRecord = record('preview-success', 'running', 5);
     const initial: RemoteExecutionRecord = {
       ...buildRecord,
       provider: remotePreviewExecutionProviderDescriptor,
@@ -363,8 +396,34 @@ describe('remote ExecutionProvider conformance', () => {
           },
         },
       },
-      stateEvent(initial, 4, 'succeeded', 'running'),
+      {
+        kind: 'artifact',
+        jobId: initial.executionId,
+        sequence: 4,
+        emittedAt: 1_004,
+        artifact: {
+          artifactId: `filesystem-diff:${initial.snapshotDigest}`,
+          kind: 'report',
+          mediaType: 'application/vnd.prodivix.execution-filesystem-diff+json',
+          size: 64,
+          digest: `sha256-${'c'.repeat(64)}`,
+          metadata: {
+            format: 'prodivix.execution-filesystem-diff.v1',
+            snapshotDigest: initial.snapshotDigest,
+            workspaceSnapshotId: 'snapshot-1',
+            changeCount: '0',
+            complete: 'true',
+          },
+        },
+      },
+      stateEvent(initial, 5, 'succeeded', 'running'),
     ];
+    const materializeArtifact = vi.fn(
+      async ({ artifact }: { artifact: ExecutionArtifact }) => ({
+        ...artifact,
+        uri: 'https://preview.example.test/',
+      })
+    );
     const provider = createRemotePreviewExecutionProvider({
       client: clientFor({ initial, events }),
       resolveSnapshot: () => ({
@@ -372,23 +431,37 @@ describe('remote ExecutionProvider conformance', () => {
         snapshot: createRemoteFixtureSnapshot(),
       }),
       delay: async () => undefined,
-      materializeArtifact: async ({ artifact }) => ({
-        ...artifact,
-        uri: 'https://preview.example.test/',
-      }),
+      materializeArtifact,
     });
 
     const job = await provider.start(previewRequest('preview-success'));
-    await expect(job.completion).resolves.toMatchObject({
-      status: 'succeeded',
-      artifacts: [
-        {
-          kind: 'bundle',
-          uri: 'https://preview.example.test/',
-          metadata: { readiness: 'ready', health: 'healthy' },
-        },
-      ],
-    });
+    const completion = await job.completion;
+    expect(completion).toEqual(
+      expect.objectContaining({
+        status: 'succeeded',
+        artifacts: expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'bundle',
+            uri: 'https://preview.example.test/',
+            metadata: expect.objectContaining({
+              readiness: 'ready',
+              health: 'healthy',
+            }),
+          }),
+        ]),
+      })
+    );
+    expect(materializeArtifact).toHaveBeenCalledTimes(1);
+    expect(
+      completion.status === 'succeeded' ? completion.artifacts : []
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'report',
+          mediaType: 'application/vnd.prodivix.execution-filesystem-diff+json',
+        }),
+      ])
+    );
   });
 
   it('fails closed when Remote Preview reports unhealthy readiness', async () => {

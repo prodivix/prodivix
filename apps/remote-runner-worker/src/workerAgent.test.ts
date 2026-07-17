@@ -15,6 +15,7 @@ import { createRemoteWorkerAgent } from './workerAgent';
 import type {
   RemoteWorkerControlPlaneClient,
   RemoteWorkerSandbox,
+  RemoteWorkerSandboxResult,
 } from './worker.types';
 
 const snapshot = createExecutableProjectSnapshot({
@@ -117,11 +118,177 @@ describe('remote runner worker', () => {
       expect(result.status).toBe('succeeded');
       expect(result.stdout).toContain('[REDACTED]');
       expect(result.stdout).not.toContain('secret-value');
+      expect(result.secretLeakDetected).toBe(true);
       expect(result.outputTruncated).toBe(true);
       await expect(readdir(parent)).resolves.toEqual([]);
     } finally {
       await rm(parent, { recursive: true, force: true });
     }
+  });
+
+  it.each([
+    {
+      surface: 'log',
+      result: {
+        status: 'succeeded',
+        stdout: 'worker-secret-canary',
+        stderr: '',
+        outputTruncated: false,
+      },
+    },
+    {
+      surface: 'crash',
+      result: {
+        status: 'failed',
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        reason: 'worker-secret-canary',
+      },
+    },
+    {
+      surface: 'trace',
+      result: {
+        status: 'succeeded',
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        networkTraces: [
+          {
+            requestId: 'network-1',
+            method: 'GET',
+            sanitizedUrl: 'https://worker-secret-canary.example.test/',
+            protocol: 'https',
+            startedAt: 1,
+            completedAt: 2,
+            outcome: 'allowed',
+            status: 200,
+            requestBytes: 0,
+            responseBytes: 0,
+          },
+        ],
+      },
+    },
+    {
+      surface: 'artifact-descriptor',
+      result: {
+        status: 'succeeded',
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        artifacts: [
+          {
+            artifactId: 'artifact-1',
+            kind: 'bundle',
+            label: 'worker-secret-canary',
+            mediaType: 'application/zip',
+            contents: new Uint8Array([1]),
+          },
+        ],
+      },
+    },
+    {
+      surface: 'artifact-content',
+      result: {
+        status: 'succeeded',
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        artifacts: [
+          {
+            artifactId: 'artifact-1',
+            kind: 'bundle',
+            mediaType: 'application/zip',
+            contents: Buffer.from('worker-secret-canary'),
+          },
+        ],
+      },
+    },
+    {
+      surface: 'test-report',
+      result: {
+        status: 'succeeded',
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        artifacts: [
+          {
+            artifactId: 'test-report',
+            kind: 'report',
+            mediaType: 'application/vnd.prodivix.test-report+json',
+            contents: Buffer.from('worker-secret-canary'),
+          },
+        ],
+      },
+    },
+  ] satisfies readonly Readonly<{
+    surface: string;
+    result: RemoteWorkerSandboxResult;
+  }>[])('blocks $surface before durable publication', async ({ result }) => {
+    const canary = 'worker-secret-canary';
+    const transitions: Array<{ status: string; reason?: string }> = [];
+    const events: Parameters<
+      RemoteWorkerControlPlaneClient['appendEvent']
+    >[0]['event'][] = [];
+    let uploads = 0;
+    let claimed = false;
+    const client: RemoteWorkerControlPlaneClient = {
+      async claim() {
+        if (claimed) return undefined;
+        claimed = true;
+        return claim();
+      },
+      async renew() {
+        return { lease: claim().lease, cancellationRequested: false };
+      },
+      async snapshot() {
+        return snapshot;
+      },
+      async transition(input) {
+        transitions.push({ status: input.status, reason: input.reason });
+        return true;
+      },
+      async appendEvent(input) {
+        events.push(input.event);
+        return 'stored';
+      },
+      async uploadArtifact() {
+        uploads += 1;
+        return 'stored';
+      },
+    };
+    const agent = createRemoteWorkerAgent({
+      workerId: 'worker-1',
+      providerId: provider.id,
+      client,
+      sandbox: {
+        async execute() {
+          return result;
+        },
+      },
+      leaseDurationMs: 100,
+      heartbeatIntervalMs: 20,
+      defaultTimeoutMs: 1_000,
+      defaultMaximumOutputBytes: 1_000,
+      redactValues: [canary],
+    });
+
+    await expect(agent.pollOnce()).resolves.toBe(true);
+    expect(transitions).toEqual([
+      { status: 'running', reason: undefined },
+      { status: 'failed', reason: 'secret-material-detected' },
+    ]);
+    expect(events).toEqual([
+      {
+        kind: 'diagnostic',
+        diagnostic: expect.objectContaining({
+          code: 'EXE-5004',
+          severity: 'fatal',
+        }),
+      },
+    ]);
+    expect(JSON.stringify({ events, transitions })).not.toContain(canary);
+    expect(uploads).toBe(0);
   });
 
   it('transitions a claimed execution through running to its terminal result', async () => {

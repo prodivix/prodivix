@@ -131,7 +131,12 @@ export const createBrowserProjectRunner = (
     level: 'info' | 'warning' | 'error' = 'info'
   ): void => {
     if (!isJobActive(controller)) return;
-    controller.emitLog({ stream, level, message });
+    controller.emitLog({
+      stream,
+      level,
+      category: stream === 'console' ? 'runtime' : 'process',
+      message,
+    });
   };
 
   const unsubscribeHost = runtimeHost.subscribe((event) => {
@@ -163,6 +168,7 @@ export const createBrowserProjectRunner = (
       controller.emitLog({
         stream: 'console',
         level: 'error',
+        category: 'runtime',
         message: event.error.message,
         data: {
           ...(event.error.pathname ? { pathname: event.error.pathname } : {}),

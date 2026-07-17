@@ -1,9 +1,11 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { Pool } from 'pg';
+import { createExecutionSecretLeakGuard } from '@prodivix/runtime-core';
 import {
   createActiveExecutionQuotaPolicy,
   createRemoteExecutionControlPlane,
+  createRemoteExecutionTerminalBroker,
   createScopeRemoteExecutionAuthorizationPolicy,
   createStaticRemoteExecutionProviderRouter,
   encodeRemoteExecutableProjectSnapshot,
@@ -30,6 +32,26 @@ const integer = (name: string, fallback: number): number => {
   if (!Number.isSafeInteger(value) || value < 1)
     throw new TypeError(`${name} must be a positive integer.`);
   return value;
+};
+
+const optionalSecretValues = (name: string): readonly string[] => {
+  const raw = process.env[name];
+  if (raw === undefined) return Object.freeze([]);
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch {
+    throw new TypeError(`${name} must be valid JSON.`);
+  }
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (entry) =>
+        typeof entry !== 'string' || entry.length < 4 || entry.length > 8_192
+    )
+  )
+    throw new TypeError(`${name} must be an array of bounded strings.`);
+  return Object.freeze([...value]);
 };
 
 const workerTokens = (): Readonly<Record<string, string>> => {
@@ -75,6 +97,9 @@ const databaseUrl = required('REMOTE_CONTROL_PLANE_DATABASE_URL');
 const clientToken = required('REMOTE_CONTROL_PLANE_CLIENT_TOKEN');
 const clientSubject = required('REMOTE_CONTROL_PLANE_CLIENT_SUBJECT');
 const workerTokenById = workerTokens();
+const secretCanaries = optionalSecretValues(
+  'REMOTE_CONTROL_PLANE_SECRET_CANARIES_JSON'
+);
 const port = integer('REMOTE_CONTROL_PLANE_PORT', 4310);
 const maximumActiveExecutions = integer(
   'REMOTE_CONTROL_PLANE_MAX_ACTIVE_EXECUTIONS',
@@ -105,9 +130,30 @@ const controlPlane = createRemoteExecutionControlPlane({
   ]),
   createExecutionId: () => `execution-${randomUUID()}`,
   createLeaseToken: () => `lease-${randomUUID()}`,
+  outputGuard: createExecutionSecretLeakGuard({
+    secretValues: [
+      clientToken,
+      databaseUrl,
+      ...Object.values(workerTokenById),
+      ...secretCanaries,
+    ],
+  }),
+});
+const terminalBroker = createRemoteExecutionTerminalBroker({
+  resolveExecution: (executionId) => repository.get(executionId),
+  createTerminalSessionId: () => `terminal-${randomUUID()}`,
+  createAccessToken: () => `terminal-access-${randomUUID()}-${randomUUID()}`,
+  accessTokenTtlMs: integer('REMOTE_TERMINAL_ACCESS_TTL_MS', 60_000),
+  secretValues: [
+    clientToken,
+    databaseUrl,
+    ...Object.values(workerTokenById),
+    ...secretCanaries,
+  ],
 });
 const handler = createRemoteExecutionHttpHandler({
   controlPlane,
+  terminalBroker,
   authenticator: Object.freeze({
     async authenticateClient(token: string) {
       return secretEqual(token, clientToken)
@@ -161,6 +207,7 @@ const artifactSweep = setInterval(() => {
   sweepBusy = true;
   void controlPlane
     .sweepExpiredArtifacts(artifactSweepBatch)
+    .then((swept) => swept + terminalBroker.sweepExpired())
     .catch(() => 0)
     .finally(() => {
       sweepBusy = false;

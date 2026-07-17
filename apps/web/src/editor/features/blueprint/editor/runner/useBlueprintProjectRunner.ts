@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { CompileDiagnostic } from '@prodivix/prodivix-compiler';
-import type { ExecutionJobStatus } from '@prodivix/runtime-core';
+import {
+  EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
+  type ExecutionJobStatus,
+} from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import type { ExecutionFilesystemArtifactReference } from '@/editor/features/execution';
 import { createBlueprintProjectRunPlan } from './blueprintProjectRunPlan';
 import {
   acquireBlueprintProjectRunner,
+  BlueprintProjectCancellationPendingError,
   getBlueprintProjectExecutionSessionId,
+  getBlueprintProjectArtifactResolver,
+  getBlueprintProjectTerminalClient,
   startBlueprintProject,
   stopBlueprintProject,
   type BlueprintProjectRunProvider,
@@ -17,6 +24,7 @@ export type BlueprintProjectRunnerState = Readonly<{
   message?: string;
   diagnostics: readonly CompileDiagnostic[];
   provider: BlueprintProjectRunProvider;
+  filesystemChanges?: ExecutionFilesystemArtifactReference;
 }>;
 
 const INITIAL_STATE: BlueprintProjectRunnerState = Object.freeze({
@@ -81,9 +89,12 @@ export const useBlueprintProjectRunner = (
           accessToken,
         });
         if (!active) {
-          await job.cancel({ reason: 'Run surface changed before startup.' });
+          await stopBlueprintProject(
+            'Run surface changed before startup completed.'
+          );
           return;
         }
+        const artifactResolver = getBlueprintProjectArtifactResolver();
         unsubscribe = job.subscribe((event) => {
           if (!active) return;
           if (event.kind === 'state') {
@@ -105,13 +116,50 @@ export const useBlueprintProjectRunner = (
             }));
             return;
           }
-          if (event.kind === 'artifact' && event.artifact.uri) {
-            setState((previous) => ({
-              ...previous,
-              previewUrl: event.artifact.uri,
-            }));
+          if (event.kind === 'artifact') {
+            if (event.artifact.uri) {
+              setState((previous) => ({
+                ...previous,
+                previewUrl: event.artifact.uri,
+              }));
+            }
+            if (
+              artifactResolver &&
+              event.artifact.mediaType ===
+                EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
+              event.artifact.metadata?.snapshotDigest &&
+              event.artifact.metadata.workspaceSnapshotId
+            ) {
+              const snapshotDigest = event.artifact.metadata.snapshotDigest;
+              const workspaceSnapshotId =
+                event.artifact.metadata.workspaceSnapshotId;
+              const artifactId = event.artifact.artifactId;
+              setState((previous) => ({
+                ...previous,
+                filesystemChanges: Object.freeze({
+                  executionId: job.id,
+                  artifactId,
+                  snapshotDigest,
+                  workspaceSnapshotId,
+                  async resolve() {
+                    const resolved =
+                      await artifactResolver.resolveFilesystemDiff({
+                        executionId: job.id,
+                        artifactId,
+                        snapshotDigest,
+                        workspaceSnapshotId,
+                      });
+                    return resolved.diff;
+                  },
+                }),
+              }));
+            }
           }
         });
+        setState((previous) => ({
+          ...previous,
+          status: job.getSnapshot().status,
+        }));
         void job.completion.then((result) => {
           if (!active) return;
           if (result.status === 'failed') {
@@ -125,6 +173,14 @@ export const useBlueprintProjectRunner = (
       })
       .catch((error: unknown) => {
         if (!active) return;
+        if (error instanceof BlueprintProjectCancellationPendingError) {
+          setState((previous) => ({
+            ...previous,
+            status: 'cancelling',
+            message: error.message,
+          }));
+          return;
+        }
         void stopBlueprintProject('Project startup failed.');
         setState(() => ({
           status: 'failed',
@@ -142,16 +198,30 @@ export const useBlueprintProjectRunner = (
   }, [accessToken, enabled, provider, retryRevision, workspace]);
 
   const retry = useCallback(() => {
+    if (state.status === 'cancelling') return;
     setRetryRevision((revision) => revision + 1);
-  }, []);
+  }, [state.status]);
 
   const stop = useCallback(async () => {
-    await stopBlueprintProject('Project execution stopped by the user.');
+    const cancellation = await stopBlueprintProject(
+      'Project execution stopped by the user.'
+    );
+    if (
+      cancellation?.status === 'rejected' ||
+      cancellation?.status === 'unsupported'
+    ) {
+      setState((previous) => ({
+        ...previous,
+        message:
+          cancellation.reason ?? 'Project execution could not be stopped.',
+      }));
+      return;
+    }
+    if (cancellation?.status === 'already-terminal') return;
     setState((previous) => ({
       ...previous,
-      status: 'cancelled',
-      previewUrl: undefined,
-      message: 'Project execution stopped.',
+      status: 'cancelling',
+      message: 'Waiting for the execution provider to confirm cancellation.',
     }));
   }, []);
 
@@ -164,6 +234,7 @@ export const useBlueprintProjectRunner = (
       workspace?.id ?? 'unavailable'
     ),
     state,
+    terminalClient: getBlueprintProjectTerminalClient(),
     frameRevision,
     retry,
     reloadPreview,

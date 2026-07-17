@@ -106,7 +106,9 @@ export type DataOperationAdapterDescriptor = Readonly<{
   operationKinds: readonly DataOperationKind[];
   runtimeZones: readonly RuntimeZone[];
   modes: readonly ('mock' | 'live')[];
-  capabilities: readonly ('network' | 'environment-binding')[];
+  capabilities: readonly (
+    'network' | 'environment-binding' | 'idempotency-key'
+  )[];
 }>;
 
 export type DataOperationAdapterInput = Readonly<{
@@ -440,7 +442,9 @@ const descriptor = (
   if (
     capabilities.some(
       (capability) =>
-        capability !== 'network' && capability !== 'environment-binding'
+        capability !== 'network' &&
+        capability !== 'environment-binding' &&
+        capability !== 'idempotency-key'
     )
   )
     throw new TypeError('Data adapter capability is unsupported.');
@@ -498,7 +502,12 @@ export const createDataOperationAdapterRegistry =
             adapter.descriptor.runtimeZones.includes(invocation.runtimeZone) &&
             adapter.descriptor.modes.includes(invocation.mode) &&
             (!invocation.environment ||
-              adapter.descriptor.capabilities.includes('environment-binding'))
+              adapter.descriptor.capabilities.includes(
+                'environment-binding'
+              )) &&
+            (!operation.policies.idempotency ||
+              invocation.mode === 'mock' ||
+              adapter.descriptor.capabilities.includes('idempotency-key'))
         );
         if (compatible.length > 1)
           throw new Error(
@@ -526,6 +535,14 @@ export const createDataOperationAdapterRegistry =
         )
           throw new Error(
             `Data adapter ${adapterId} cannot bind an environment.`
+          );
+        if (
+          operation.policies.idempotency &&
+          invocation.mode !== 'mock' &&
+          !adapter.descriptor.capabilities.includes('idempotency-key')
+        )
+          throw new Error(
+            `Data adapter ${adapterId} cannot project an idempotency key.`
           );
         throw new Error(
           `Data adapter ${adapterId} has no compatible implementation.`

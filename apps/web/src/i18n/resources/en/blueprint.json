@@ -39,6 +39,8 @@
     "stoppedTitle": "Project runner stopped",
     "start": "Start",
     "retry": "Retry",
+    "startNewRequest": "Start a new execution request",
+    "recoveryNotice": "Previous events are preserved and dispatched mutations are never replayed automatically.",
     "updating": "Updating project preview…"
   },
   "assistant": {

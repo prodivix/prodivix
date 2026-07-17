@@ -5,7 +5,9 @@ import { promisify } from 'node:util';
 import {
   createExecutableProjectSnapshot,
   decodeExecutionBuildBundle,
+  decodeExecutionFilesystemDiff,
   decodeExecutionPreviewBundle,
+  EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   readExecutionTestReportValue,
 } from '@prodivix/runtime-core';
@@ -290,6 +292,31 @@ const sandbox = createRootlessPodmanSandbox({
   },
 });
 
+const requireExecutionArtifacts = (
+  result: Awaited<ReturnType<typeof sandbox.execute>>,
+  label: string
+) => {
+  const filesystemArtifacts =
+    result.artifacts?.filter(
+      (artifact) => artifact.mediaType === EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE
+    ) ?? [];
+  const primaryArtifacts =
+    result.artifacts?.filter(
+      (artifact) => artifact.mediaType !== EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE
+    ) ?? [];
+  if (filesystemArtifacts.length !== 1 || primaryArtifacts.length !== 1)
+    throw new Error(
+      `${label} did not produce one primary artifact and one filesystem diff.`
+    );
+  return Object.freeze({
+    primary: primaryArtifacts[0]!,
+    filesystemArtifact: filesystemArtifacts[0]!,
+    filesystemDiff: decodeExecutionFilesystemDiff(
+      filesystemArtifacts[0]!.contents
+    ),
+  });
+};
+
 const probeResult = await sandbox.execute({
   executionId: 'gate-security',
   snapshot: snapshot('gate-security', probeSource),
@@ -301,14 +328,24 @@ const probeResult = await sandbox.execute({
 });
 if (probeResult.status !== 'succeeded')
   throw new Error(`Rootless security probe failed: ${probeResult.stderr}`);
+const probeArtifacts = requireExecutionArtifacts(
+  probeResult,
+  'Rootless security probe'
+);
 if (
-  probeResult.artifacts?.length !== 1 ||
-  probeResult.artifacts[0]?.kind !== 'bundle' ||
-  probeResult.artifacts[0].metadata?.format !==
+  probeArtifacts.primary.kind !== 'bundle' ||
+  probeArtifacts.primary.metadata?.format !==
     'prodivix.execution-build-bundle.v1'
 )
   throw new Error('Rootless build result artifact was not captured.');
-const buildArtifact = probeResult.artifacts[0];
+if (
+  !probeArtifacts.filesystemDiff.complete ||
+  !probeArtifacts.filesystemDiff.changes.some(
+    (change) => change.kind === 'added' && change.path === 'write-probe'
+  )
+)
+  throw new Error('Rootless security probe filesystem diff is incomplete.');
+const buildArtifact = probeArtifacts.primary;
 const probeLine = probeResult.stdout.trim().split(/\r?\n/u).at(-1);
 if (!probeLine) throw new Error('Rootless security probe produced no result.');
 const securityProbe = JSON.parse(probeLine) as unknown;
@@ -332,6 +369,105 @@ const assertNoExecutionContainer = async (executionId: string) => {
 };
 
 await assertNoExecutionContainer('gate-security');
+
+const hostTerminalProbePath = resolve(
+  repositoryRoot,
+  'terminal-runtime-probe.txt'
+);
+const assertHostTerminalProbeAbsent = async (): Promise<void> => {
+  try {
+    await readFile(hostTerminalProbePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+  throw new Error(
+    'Rootless Terminal wrote its runtime file into the host Workspace.'
+  );
+};
+await assertHostTerminalProbeAbsent();
+
+let terminalOutput = '';
+let terminalConnected = false;
+let terminalTask: Promise<void> | undefined;
+const terminalResult = await sandbox.execute({
+  executionId: 'gate-terminal',
+  snapshot: snapshot(
+    'gate-terminal',
+    'await new Promise((resolve) => setTimeout(resolve, 5000));'
+  ),
+  profile: 'build',
+  timeoutMs: 15_000,
+  maximumOutputBytes: 256 * 1024,
+  redactValues: [],
+  signal: new AbortController().signal,
+  terminal: {
+    async connect(process) {
+      terminalConnected = true;
+      terminalTask = (async () => {
+        await process.open({
+          terminalSessionId: 'gate-terminal-session',
+          size: { columns: 80, rows: 24 },
+          onOutput(output) {
+            terminalOutput += output.data;
+          },
+          onExit() {},
+        });
+        await process.write(
+          "if [ -t 0 ] && [ -t 1 ]; then printf 'PRODIVIX_TERMINAL_TTY_V1\\n'; else printf 'NO_TTY\\n'; fi\n"
+        );
+        await process.resize({ columns: 101, rows: 31 });
+        await process.write("printf 'PRODIVIX_TERMINAL_SIZE='; stty size\n");
+        await process.write(
+          "printf 'ephemeral-terminal-file' > /workspace/terminal-runtime-probe.txt; if [ \"$(cat /workspace/terminal-runtime-probe.txt)\" = 'ephemeral-terminal-file' ]; then printf 'PRODIVIX_TERMINAL_FS_LOCAL_V1\\n'; fi\n"
+        );
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          if (
+            terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1') &&
+            terminalOutput.includes('PRODIVIX_TERMINAL_SIZE=31 101') &&
+            terminalOutput.includes('PRODIVIX_TERMINAL_FS_LOCAL_V1')
+          )
+            break;
+          if (attempt === 99)
+            throw new Error('Rootless PTY did not produce canonical evidence.');
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        await process.write('exit\n');
+      })();
+      return async () => {
+        await terminalTask;
+        await process.close('execution-ended');
+      };
+    },
+  },
+});
+if (
+  terminalResult.status !== 'succeeded' ||
+  !terminalConnected ||
+  !terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1') ||
+  !terminalOutput.includes('PRODIVIX_TERMINAL_SIZE=31 101') ||
+  !terminalOutput.includes('PRODIVIX_TERMINAL_FS_LOCAL_V1') ||
+  terminalOutput.includes('NO_TTY')
+)
+  throw new Error('Rootless execution Terminal PTY Gate failed.');
+const terminalArtifacts = requireExecutionArtifacts(
+  terminalResult,
+  'Rootless Terminal probe'
+);
+const terminalFileChange = terminalArtifacts.filesystemDiff.changes.find(
+  (change) => change.path === 'terminal-runtime-probe.txt'
+);
+if (
+  terminalFileChange?.kind !== 'added' ||
+  !terminalFileChange.runtime ||
+  Buffer.from(terminalFileChange.runtime.contents).toString('utf8') !==
+    'ephemeral-terminal-file'
+)
+  throw new Error(
+    'Rootless Terminal file was not serialized into the filesystem diff.'
+  );
+await assertNoExecutionContainer('gate-terminal');
+await assertHostTerminalProbeAbsent();
 
 const deniedInstallResult = await sandbox.execute({
   executionId: 'gate-install-denied',
@@ -368,17 +504,20 @@ const previewResult = await sandbox.execute({
 });
 if (previewResult.status !== 'succeeded')
   throw new Error(`Rootless Preview probe failed: ${previewResult.stderr}`);
+const previewArtifacts = requireExecutionArtifacts(
+  previewResult,
+  'Rootless Preview probe'
+);
 if (
-  previewResult.artifacts?.length !== 1 ||
-  previewResult.artifacts[0]?.kind !== 'bundle' ||
-  previewResult.artifacts[0].mediaType !==
+  previewArtifacts.primary.kind !== 'bundle' ||
+  previewArtifacts.primary.mediaType !==
     'application/vnd.prodivix.execution-preview-bundle+json' ||
-  previewResult.artifacts[0].metadata?.readiness !== 'ready' ||
-  previewResult.artifacts[0].metadata?.health !== 'healthy' ||
-  !previewResult.artifacts[0].sourceTrace?.length
+  previewArtifacts.primary.metadata?.readiness !== 'ready' ||
+  previewArtifacts.primary.metadata?.health !== 'healthy' ||
+  !previewArtifacts.primary.sourceTrace?.length
 )
   throw new Error('Rootless Preview did not produce a healthy ready bundle.');
-const previewArtifact = previewResult.artifacts[0];
+const previewArtifact = previewArtifacts.primary;
 await assertNoExecutionContainer('gate-preview');
 
 const testResult = await sandbox.execute({
@@ -392,16 +531,19 @@ const testResult = await sandbox.execute({
 });
 if (testResult.status !== 'succeeded')
   throw new Error(`Rootless Test probe failed: ${testResult.stderr}`);
+const testArtifacts = requireExecutionArtifacts(
+  testResult,
+  'Rootless Test probe'
+);
 if (
-  testResult.artifacts?.length !== 1 ||
-  testResult.artifacts[0]?.kind !== 'report' ||
-  testResult.artifacts[0].mediaType !== EXECUTION_TEST_REPORT_MEDIA_TYPE ||
-  testResult.artifacts[0].metadata?.status !== 'passed'
+  testArtifacts.primary.kind !== 'report' ||
+  testArtifacts.primary.mediaType !== EXECUTION_TEST_REPORT_MEDIA_TYPE ||
+  testArtifacts.primary.metadata?.status !== 'passed'
 )
   throw new Error(
     'Rootless Test result was not converted to a canonical report.'
   );
-const testArtifact = testResult.artifacts[0];
+const testArtifact = testArtifacts.primary;
 const testReport = readExecutionTestReportValue(
   JSON.parse(Buffer.from(testArtifact.contents).toString('utf8')) as unknown
 );
@@ -441,8 +583,10 @@ const executeGolden = async (profile: 'preview' | 'test' | 'build') => {
         artifactCount: result.artifacts?.length ?? 0,
       })}:\n${[result.stderr, result.stdout].filter(Boolean).join('\n')}`
     );
-  if (result.artifacts?.length !== 1)
-    throw new Error(`Golden rootless ${profile} produced no exact artifact.`);
+  const artifacts = requireExecutionArtifacts(
+    result,
+    `Golden rootless ${profile}`
+  );
   if (
     !result.networkTraces?.length ||
     result.networkTraces.some(
@@ -456,7 +600,8 @@ const executeGolden = async (profile: 'preview' | 'test' | 'build') => {
     );
   await assertNoExecutionContainer(executionId);
   return Object.freeze({
-    artifact: result.artifacts[0],
+    artifact: artifacts.primary,
+    filesystemDiff: artifacts.filesystemDiff,
     networkTraces: result.networkTraces,
   });
 };
@@ -570,6 +715,19 @@ const evidence = Object.freeze({
     status: deniedInstallResult.status,
     trace: deniedInstallResult.networkTraces[0],
   },
+  terminal: {
+    connected: terminalConnected,
+    tty: terminalOutput.includes('PRODIVIX_TERMINAL_TTY_V1'),
+    resized: terminalOutput.includes('PRODIVIX_TERMINAL_SIZE=31 101'),
+    filesystemEphemeral: terminalOutput.includes(
+      'PRODIVIX_TERMINAL_FS_LOCAL_V1'
+    ),
+    filesystemDiffChange: {
+      kind: terminalFileChange.kind,
+      path: terminalFileChange.path,
+      size: terminalFileChange.runtime?.size,
+    },
+  },
   buildArtifact: {
     artifactId: buildArtifact.artifactId,
     mediaType: buildArtifact.mediaType,
@@ -602,12 +760,16 @@ const evidence = Object.freeze({
       fileCount: goldenPreviewBundle.files.length,
       sourceTraceCount: goldenPreviewArtifact.sourceTrace?.length ?? 0,
       networkTraceCount: goldenPreview.networkTraces.length,
+      filesystemChangeCount: goldenPreview.filesystemDiff.changes.length,
+      filesystemCaptureComplete: goldenPreview.filesystemDiff.complete,
     },
     build: {
       artifactId: goldenBuildArtifact.artifactId,
       fileCount: goldenBuildBundle.files.length,
       sourceTraceCount: goldenBuildArtifact.sourceTrace?.length ?? 0,
       networkTraceCount: goldenBuild.networkTraces.length,
+      filesystemChangeCount: goldenBuild.filesystemDiff.changes.length,
+      filesystemCaptureComplete: goldenBuild.filesystemDiff.complete,
     },
     test: {
       artifactId: goldenTestArtifact.artifactId,
@@ -615,6 +777,8 @@ const evidence = Object.freeze({
       summary: goldenTestReport.summary,
       sourceTraceCount: goldenTestArtifact.sourceTrace?.length ?? 0,
       networkTraceCount: goldenTest.networkTraces.length,
+      filesystemChangeCount: goldenTest.filesystemDiff.changes.length,
+      filesystemCaptureComplete: goldenTest.filesystemDiff.complete,
     },
     installNetwork: installNetworkName,
     runtimeNetwork: 'none-verified',

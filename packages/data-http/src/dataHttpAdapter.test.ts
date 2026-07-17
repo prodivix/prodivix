@@ -439,6 +439,131 @@ describe('Data HTTP adapter', () => {
     expect(result.networkTraces).toHaveLength(2);
   });
 
+  it('reuses one opaque adapter-projected idempotency header across mutation attempts', async () => {
+    const requests: Array<Readonly<{ attempt: number; key?: string }>> = [];
+    const registry = createDataOperationAdapterRegistry();
+    registry.register(
+      createDataHttpAdapter({
+        transport: {
+          async execute(request) {
+            const attempt = request.correlation?.attempt ?? 0;
+            requests.push({
+              attempt,
+              key: request.headers?.['idempotency-key'],
+            });
+            const status = attempt === 1 ? 503 : 201;
+            return {
+              status,
+              ok: status === 201,
+              text: status === 201 ? '{"id":"created"}' : '',
+              trace: createExecutionNetworkTrace({
+                requestId: request.requestId,
+                phase: 'runtime',
+                runtimeZone: 'client',
+                mode: 'live',
+                adapter: 'core.http',
+                method: 'POST',
+                sanitizedUrl: 'https://api.example.test/',
+                protocol: 'https',
+                startedAt: attempt,
+                completedAt: attempt + 1,
+                outcome: 'allowed',
+                status,
+                correlation: request.correlation,
+              }),
+            };
+          },
+        },
+      })
+    );
+    const mutationDocument: DataSourceDocument = {
+      ...document,
+      operationsById: {
+        list: {
+          ...operation,
+          kind: 'mutation',
+          configurationByKey: {
+            ...operation.configurationByKey,
+            method: { kind: 'literal', value: 'POST' },
+            idempotencyHeader: {
+              kind: 'literal',
+              value: 'idempotency-key',
+            },
+          },
+          policies: {
+            idempotency: { kind: 'invocation-key' },
+            retry: {
+              maxAttempts: 2,
+              backoff: 'fixed',
+              initialDelayMs: 0,
+            },
+          },
+        },
+      },
+    };
+
+    await executeDataOperation({
+      registry,
+      invocation: createDataOperationInvocation({
+        ...invocation,
+        activation: 'event',
+        input: { name: 'Desk' },
+      }),
+      document: mutationDocument,
+      lifecycleChannel: createDataLifecycleChannel(),
+      signal: new AbortController().signal,
+      scheduler: { wait: async () => undefined },
+    });
+
+    expect(requests.map(({ attempt }) => attempt)).toEqual([1, 2]);
+    expect(requests[0]?.key).toBe(requests[1]?.key);
+    expect(requests[0]?.key).toMatch(/^prodivix-data-sha256-[0-9a-f]{64}$/u);
+    expect(requests[0]?.key).not.toContain('Desk');
+  });
+
+  it('fails closed before transport for missing or unsafe idempotency header mappings', async () => {
+    const execute = vi.fn();
+    const registry = createDataOperationAdapterRegistry();
+    registry.register(createDataHttpAdapter({ transport: { execute } }));
+    for (const value of [undefined, 'authorization', 'X-Idempotency-Key']) {
+      const mutationDocument: DataSourceDocument = {
+        ...document,
+        operationsById: {
+          list: {
+            ...operation,
+            kind: 'mutation',
+            configurationByKey: {
+              ...operation.configurationByKey,
+              method: { kind: 'literal', value: 'POST' },
+              ...(value === undefined
+                ? {}
+                : {
+                    idempotencyHeader: {
+                      kind: 'literal' as const,
+                      value,
+                    },
+                  }),
+            },
+            policies: { idempotency: { kind: 'invocation-key' } },
+          },
+        },
+      };
+      await expect(
+        executeDataOperation({
+          registry,
+          invocation: createDataOperationInvocation({
+            ...invocation,
+            activation: 'event',
+          }),
+          document: mutationDocument,
+          lifecycleChannel: createDataLifecycleChannel(),
+          signal: new AbortController().signal,
+        })
+      ).rejects.toMatchObject({ code: 'DATA_HTTP_CONFIGURATION_INVALID' });
+    }
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it('projects exact offset and cursor pagination facts from declared response paths', async () => {
     const registry = createDataOperationAdapterRegistry();
     registry.register(

@@ -118,6 +118,14 @@ export type DataRetryPolicy = Readonly<{
   maxDelayMs?: number;
 }>;
 
+/**
+ * Declares that an adapter may derive one opaque upstream key from the stable
+ * invocation identity and reuse it across every retry attempt.
+ */
+export type DataIdempotencyPolicy = Readonly<{
+  kind: 'invocation-key';
+}>;
+
 export type DataOffsetPaginationPolicy = Readonly<{
   kind: 'offset';
   offsetInput: string;
@@ -154,6 +162,7 @@ export type DataOptimisticCrudEffectPolicy = Readonly<{
 export type DataOperationPolicies = Readonly<{
   cache?: DataCachePolicy;
   retry?: DataRetryPolicy;
+  idempotency?: DataIdempotencyPolicy;
   pagination?: DataPaginationPolicy;
   optimistic?: DataOptimisticCrudEffectPolicy;
 }>;

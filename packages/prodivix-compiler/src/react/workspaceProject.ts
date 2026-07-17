@@ -59,6 +59,14 @@ import {
   createWorkspaceStandaloneDataRuntimeModule,
   WORKSPACE_DATA_RUNTIME_MODULE_ID,
 } from '#src/react/standaloneDataRuntime';
+import {
+  createWorkspaceExecutionConsoleRuntimeModule,
+  WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
+} from '#src/react/standaloneExecutionConsoleRuntime';
+import {
+  analyzeWorkspaceDataRuntimeTarget,
+  type WorkspaceDataRuntimeTarget,
+} from '#src/react/workspaceDataRuntimeTarget';
 import type {
   ReactExportBundle,
   ReactGeneratorCodeArtifact,
@@ -71,6 +79,7 @@ export type WorkspaceReactViteCompileOptions = Readonly<{
   exportContributions?: ExportProgramContribution[];
   projectName?: string;
   dataMockProvision?: ExecutableProjectDataMockProvision;
+  dataRuntimeTarget?: WorkspaceDataRuntimeTarget;
 }>;
 
 type CompiledWorkspacePirDocument = {
@@ -489,6 +498,11 @@ const createWorkspaceAppModule = (input: {
   );
   const imports: ExportImportIntent[] = [
     {
+      kind: 'side-effect',
+      source: WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
+      targetModuleId: WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
+    },
+    {
       kind: 'default',
       source: 'react',
       imported: 'React',
@@ -734,6 +748,10 @@ export const compileWorkspaceToExportProgram = (
   options: WorkspaceReactViteCompileOptions = {}
 ): ExportProgram => {
   const preset = createReactViteExportPreset();
+  const dataRuntime = analyzeWorkspaceDataRuntimeTarget(
+    workspace,
+    options.dataRuntimeTarget
+  );
   const workspaceValidation = validateWorkspaceSnapshot(workspace);
   const validationDiagnostics: CompileDiagnostic[] =
     workspaceValidation.issues.map((issue) => ({
@@ -850,8 +868,12 @@ export const compileWorkspaceToExportProgram = (
     executableModuleIdByArtifactId: code.executableModuleIdByArtifactId,
     routeTopology,
   });
-  const standaloneDataRuntime =
-    createWorkspaceStandaloneDataRuntimeModule(workspace);
+  const standaloneDataRuntime = createWorkspaceStandaloneDataRuntimeModule(
+    workspace,
+    dataRuntime.target
+  );
+  const executionConsoleRuntime =
+    createWorkspaceExecutionConsoleRuntimeModule();
   const projectContributions: ExportProgramContribution[] = [
     pirCompilation.contribution,
     code.contribution,
@@ -878,11 +900,12 @@ export const compileWorkspaceToExportProgram = (
           },
         },
       ],
-      modules: [standaloneDataRuntime, app.module],
+      modules: [executionConsoleRuntime, standaloneDataRuntime, app.module],
       diagnostics: [
         ...validationDiagnostics,
         ...unsupportedLayoutDiagnostics,
         ...unsupportedOutletDiagnostics,
+        ...dataRuntime.diagnostics,
         ...app.diagnostics,
       ],
       metadata: {
@@ -891,6 +914,10 @@ export const compileWorkspaceToExportProgram = (
           workspaceRev: workspace.workspaceRev,
           routeRev: workspace.routeRev,
           opSeq: workspace.opSeq,
+        },
+        dataRuntime: {
+          target: dataRuntime.target,
+          requirements: dataRuntime.requirements,
         },
       },
     },

@@ -14,6 +14,7 @@ import {
   generateWorkspaceReactViteBundle,
   type WorkspaceReactViteCompileOptions,
 } from '#src/react/workspaceProject';
+import { analyzeWorkspaceDataRuntimeTarget } from '#src/react/workspaceDataRuntimeTarget';
 
 export type WorkspaceExecutableProjectResult =
   | Readonly<{
@@ -124,7 +125,7 @@ const executionSourceTrace = (
       `${trace.sourceRef.domain}:${trace.sourceRef.id}`,
   });
 
-const createWorkspaceExecutionSnapshotRef = (
+export const createWorkspaceExecutionSnapshotRef = (
   workspace: WorkspaceSnapshot
 ): ExecutionWorkspaceSnapshotRef => {
   const documents = Object.values(workspace.docsById).sort((left, right) =>
@@ -157,6 +158,10 @@ export const generateWorkspaceReactViteExecutableProject = (
   workspace: WorkspaceSnapshot,
   options: GenerateWorkspaceExecutableProjectOptions = {}
 ): WorkspaceExecutableProjectResult => {
+  const dataRuntime = analyzeWorkspaceDataRuntimeTarget(
+    workspace,
+    options.dataRuntimeTarget
+  );
   const bundle = generateWorkspaceReactViteBundle(workspace, options);
   const blockingDiagnostics =
     bundle.metadata?.blockingDiagnostics ??
@@ -171,10 +176,10 @@ export const generateWorkspaceReactViteExecutableProject = (
   const packageManager = readPackageManager(bundle.files);
   const lockFilePath = readLockFilePath(bundle.files);
   const requiresLiveDataNetwork =
+    !options.dataMockProvision && dataRuntime.requirements.requiresNetwork;
+  const requiresLiveEnvironmentBinding =
     !options.dataMockProvision &&
-    Object.values(workspace.docsById).some(
-      (document) => document.type === 'data-source'
-    );
+    dataRuntime.requirements.requiresEnvironmentBinding;
   const snapshot = createExecutableProjectSnapshot({
     workspace: createWorkspaceExecutionSnapshotRef(workspace),
     target: {
@@ -204,6 +209,9 @@ export const generateWorkspaceReactViteExecutableProject = (
         'cancellation',
         'console',
         'dependency-install',
+        ...(requiresLiveEnvironmentBinding
+          ? (['environment-binding'] as const)
+          : []),
         'filesystem',
         ...(requiresLiveDataNetwork ? (['network'] as const) : []),
         'source-trace',

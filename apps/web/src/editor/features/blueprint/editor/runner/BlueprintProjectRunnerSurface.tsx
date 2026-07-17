@@ -7,8 +7,16 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import type { BlueprintProjectRunnerState } from './useBlueprintProjectRunner';
-import { readBlueprintProjectNetworkBridgeMessage } from '@/editor/features/blueprint/editor/runner/blueprintProjectNetworkBridge';
-import { publishBlueprintProjectNetworkTrace } from '@/editor/features/blueprint/editor/runner/blueprintProjectRunnerClient';
+import {
+  readBlueprintProjectConsoleBridgeMessage,
+  readBlueprintProjectNetworkBridgeMessage,
+  readBlueprintRemoteDataBridgeMessage,
+} from '@/editor/features/blueprint/editor/runner/blueprintProjectNetworkBridge';
+import {
+  executeBlueprintProjectRemoteDataBridge,
+  publishBlueprintProjectConsoleLog,
+  publishBlueprintProjectNetworkTrace,
+} from '@/editor/features/blueprint/editor/runner/blueprintProjectRunnerClient';
 
 export type BlueprintProjectRunnerSurfaceController = Readonly<{
   state: BlueprintProjectRunnerState;
@@ -55,19 +63,51 @@ export function BlueprintProjectRunnerSurface({
     const previewUrl = state.previewUrl;
     const provider = state.provider;
     if (!previewUrl || !provider) return undefined;
+    let active = true;
     const onMessage = (event: MessageEvent<unknown>) => {
-      if (event.source !== frameRef.current?.contentWindow) return;
+      const frameWindow = frameRef.current?.contentWindow;
+      if (!frameWindow || event.source !== frameWindow) return;
+      const consoleMessage = readBlueprintProjectConsoleBridgeMessage({
+        provider,
+        previewUrl,
+        messageOrigin: event.origin,
+        value: event.data,
+      });
+      if (consoleMessage) {
+        publishBlueprintProjectConsoleLog({
+          observationId: consoleMessage.messageId,
+          log: consoleMessage.log,
+        });
+        return;
+      }
       const trace = readBlueprintProjectNetworkBridgeMessage({
         provider,
         previewUrl,
         messageOrigin: event.origin,
         value: event.data,
       });
-      if (trace) publishBlueprintProjectNetworkTrace(trace);
+      if (trace) {
+        publishBlueprintProjectNetworkTrace(trace);
+        return;
+      }
+      const request = readBlueprintRemoteDataBridgeMessage({
+        provider,
+        previewUrl,
+        messageOrigin: event.origin,
+        value: event.data,
+      });
+      if (!request) return;
+      void executeBlueprintProjectRemoteDataBridge(request).then((response) => {
+        if (!active || frameRef.current?.contentWindow !== frameWindow) return;
+        frameWindow.postMessage(response, '*');
+      });
     };
     window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [state.previewUrl, state.provider]);
+    return () => {
+      active = false;
+      window.removeEventListener('message', onMessage);
+    };
+  }, [frameRevision, state.previewUrl, state.provider]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-white">
@@ -121,8 +161,13 @@ export function BlueprintProjectRunnerSurface({
                 onClick={onRetry}
               >
                 <RefreshCcw size={13} />
-                {isStopped ? t('runner.start') : t('runner.retry')}
+                {t('runner.startNewRequest')}
               </button>
+            ) : null}
+            {isFailure || isStopped ? (
+              <div className="text-[10px] leading-4 text-(--text-muted)">
+                {t('runner.recoveryNotice')}
+              </div>
             ) : null}
           </div>
         </div>

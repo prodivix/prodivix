@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import {
   createExecutableProjectSnapshot,
+  createExecutionFilesystemDiff,
+  decodeExecutionFilesystemDiff,
+  encodeExecutionFilesystemDiff,
   readExecutionTestReportValue,
 } from '@prodivix/runtime-core';
 import { describe, expect, it } from 'vitest';
@@ -397,6 +400,126 @@ describe('rootless Podman sandbox contract', () => {
           ],
         },
       ],
+    });
+  });
+
+  it('canonicalizes a runtime filesystem diff against exact snapshot bytes', () => {
+    const snapshot = createExecutableProjectSnapshot({
+      workspace: {
+        workspaceId: 'workspace-1',
+        snapshotId: 'snapshot-1',
+        partitionRevisions: {
+          'document:code-1:content': 'content-1',
+          'document:code-1:meta': 'meta-1',
+        },
+      },
+      target: { presetId: 'react-vite', framework: 'react', runtime: 'vite' },
+      files: [
+        { path: 'package.json', contents: '{"private":true}' },
+        {
+          path: 'src/main.ts',
+          contents: 'export const value = 1;',
+          sourceTrace: [
+            { sourceRef: { kind: 'code-artifact', artifactId: 'code-1' } },
+          ],
+        },
+      ],
+      dependencyPlan: { manifestFilePath: 'package.json' },
+      entrypoints: [{ kind: 'build', path: 'src/main.ts' }],
+      capabilityRequirements: {
+        preview: ['filesystem'],
+        build: ['filesystem', 'build'],
+        test: ['filesystem', 'test'],
+      },
+    });
+    const buildFile = Buffer.from('<main>ready</main>');
+    const buildContents = Buffer.from(
+      JSON.stringify({
+        format: 'prodivix.execution-build-bundle.v1',
+        snapshotDigest: snapshot.contentDigest,
+        target: snapshot.target,
+        files: [
+          {
+            path: 'index.html',
+            size: buildFile.byteLength,
+            digest: `sha256-${createHash('sha256').update(buildFile).digest('hex')}`,
+            encoding: 'base64',
+            contents: buildFile.toString('base64'),
+          },
+        ],
+      })
+    );
+    const untrustedDiff = encodeExecutionFilesystemDiff(
+      createExecutionFilesystemDiff({
+        snapshotDigest: snapshot.contentDigest,
+        workspace: snapshot.workspace,
+        capturedAt: 2_000,
+        complete: true,
+        changes: [
+          {
+            kind: 'modified',
+            path: 'src/main.ts',
+            baseline: { contents: Buffer.from('export const value = 1;') },
+            runtime: { contents: Buffer.from('export const value = 2;') },
+          },
+          {
+            kind: 'added',
+            path: 'terminal-runtime-probe.txt',
+            runtime: { contents: Buffer.from('created in terminal') },
+          },
+        ],
+      })
+    );
+    const result = decodeRootlessPodmanSandboxResult(
+      JSON.stringify({
+        protocol: 'prodivix.sandbox-result.v1',
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        artifacts: [
+          {
+            artifactId: `build-bundle:${snapshot.contentDigest}`,
+            kind: 'bundle',
+            mediaType: 'application/vnd.prodivix.execution-build-bundle+json',
+            contents: buildContents.toString('base64'),
+          },
+          {
+            artifactId: `filesystem-diff:${snapshot.contentDigest}`,
+            kind: 'report',
+            mediaType:
+              'application/vnd.prodivix.execution-filesystem-diff+json',
+            contents: Buffer.from(untrustedDiff).toString('base64'),
+          },
+        ],
+      }),
+      snapshot,
+      'build',
+      2_000,
+      1_000,
+      buildContents.byteLength + untrustedDiff.byteLength + 4_096
+    );
+    const artifact = result.artifacts?.find((candidate) =>
+      candidate.artifactId.startsWith('filesystem-diff:')
+    );
+    const diff = decodeExecutionFilesystemDiff(artifact!.contents);
+
+    expect(artifact).toMatchObject({
+      kind: 'report',
+      metadata: { changeCount: '2', complete: 'true' },
+      sourceTrace: [
+        { sourceRef: { kind: 'code-artifact', artifactId: 'code-1' } },
+      ],
+    });
+    expect(diff.changes[0]).toMatchObject({
+      path: 'src/main.ts',
+      sourceTrace: [
+        { sourceRef: { kind: 'code-artifact', artifactId: 'code-1' } },
+      ],
+    });
+    expect(diff.changes[1]).toMatchObject({
+      kind: 'added',
+      path: 'terminal-runtime-probe.txt',
     });
   });
 
