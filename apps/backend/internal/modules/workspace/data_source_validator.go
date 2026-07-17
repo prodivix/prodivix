@@ -103,7 +103,7 @@ func validateDataOperationRelations(documentID string, operationsByID map[string
 			optimistic,
 			operationPath+"/policies/optimistic",
 			[]string{"kind", "action", "target", "rollback"},
-			[]string{"entityIdPath", "valueInputPath", "placement"},
+			[]string{"entityIdPath", "valueInputPath", "valueOutputPath", "placement"},
 		)
 		if err != nil {
 			return err

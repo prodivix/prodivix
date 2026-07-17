@@ -10,6 +10,12 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+type migration struct {
+	version    int64
+	name       string
+	statements []string
+}
+
 func OpenDatabase(cfg config.Config) (*sql.DB, error) {
 	db, err := sql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
@@ -20,15 +26,17 @@ func OpenDatabase(cfg config.Config) (*sql.DB, error) {
 	db.SetMaxIdleConns(cfg.DBMaxIdleConns)
 	db.SetConnMaxLifetime(cfg.DBMaxLifetime)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
+	pingCtx, cancelPing := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := db.PingContext(pingCtx); err != nil {
+		cancelPing()
 		_ = db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
+	cancelPing()
 
-	if err := RunMigrations(ctx, db); err != nil {
+	migrationCtx, cancelMigration := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancelMigration()
+	if err := RunMigrations(migrationCtx, db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -37,8 +45,14 @@ func OpenDatabase(cfg config.Config) (*sql.DB, error) {
 }
 
 func RunMigrations(ctx context.Context, db *sql.DB) error {
-	statements := []string{
-		`CREATE TABLE IF NOT EXISTS users (
+	if db == nil {
+		return fmt.Errorf("run migrations: database is required")
+	}
+	migrations := []migration{{
+		version: 1,
+		name:    "baseline",
+		statements: []string{
+			`CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
 			email TEXT NOT NULL UNIQUE,
 			name TEXT NOT NULL DEFAULT '',
@@ -47,17 +61,17 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			password_hash BYTEA NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''`,
-		`CREATE TABLE IF NOT EXISTS sessions (
+			`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''`,
+			`CREATE TABLE IF NOT EXISTS sessions (
 			token TEXT PRIMARY KEY,
 			id TEXT,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			created_at TIMESTAMPTZ NOT NULL,
 			expires_at TIMESTAMPTZ NOT NULL
 		)`,
-		`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS id TEXT`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id) WHERE id IS NOT NULL`,
-		`CREATE TABLE IF NOT EXISTS projects (
+			`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS id TEXT`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id) WHERE id IS NOT NULL`,
+			`CREATE TABLE IF NOT EXISTS projects (
 			id TEXT PRIMARY KEY,
 			owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			resource_type TEXT NOT NULL,
@@ -70,11 +84,11 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			updated_at TIMESTAMPTZ NOT NULL,
 			CONSTRAINT projects_resource_type_check CHECK (resource_type IN ('project', 'component', 'nodegraph'))
 		)`,
-		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE`,
-		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS stars_count INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS published_pir_json JSONB`,
-		`ALTER TABLE projects DROP COLUMN IF EXISTS pir_json`,
-		`CREATE TABLE IF NOT EXISTS workspaces (
+			`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE`,
+			`ALTER TABLE projects ADD COLUMN IF NOT EXISTS stars_count INTEGER NOT NULL DEFAULT 0`,
+			`ALTER TABLE projects ADD COLUMN IF NOT EXISTS published_pir_json JSONB`,
+			`ALTER TABLE projects DROP COLUMN IF EXISTS pir_json`,
+			`CREATE TABLE IF NOT EXISTS workspaces (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
 			owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -90,24 +104,24 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			CONSTRAINT workspaces_route_rev_check CHECK (route_rev BETWEEN 1 AND 9007199254740991),
 			CONSTRAINT workspaces_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)
 		)`,
-		`ALTER TABLE workspaces
+			`ALTER TABLE workspaces
 			DROP CONSTRAINT IF EXISTS workspaces_workspace_rev_check,
 			ADD CONSTRAINT workspaces_workspace_rev_check CHECK (workspace_rev BETWEEN 1 AND 9007199254740991),
 			DROP CONSTRAINT IF EXISTS workspaces_route_rev_check,
 			ADD CONSTRAINT workspaces_route_rev_check CHECK (route_rev BETWEEN 1 AND 9007199254740991),
 			DROP CONSTRAINT IF EXISTS workspaces_op_seq_check,
 			ADD CONSTRAINT workspaces_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)`,
-		`CREATE TABLE IF NOT EXISTS workspace_routes (
+			`CREATE TABLE IF NOT EXISTS workspace_routes (
 			workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
 			manifest_json JSONB NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS workspace_settings (
+			`CREATE TABLE IF NOT EXISTS workspace_settings (
 			workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
 			settings_json JSONB NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS workspace_documents (
+			`CREATE TABLE IF NOT EXISTS workspace_documents (
 			workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 			id TEXT NOT NULL,
 			doc_type TEXT NOT NULL,
@@ -122,17 +136,17 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
 			CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev BETWEEN 1 AND 9007199254740991)
 		)`,
-		`ALTER TABLE workspace_documents
+			`ALTER TABLE workspace_documents
 			DROP CONSTRAINT IF EXISTS workspace_documents_type_check,
 			ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'data-source', 'asset', 'project-config')),
 			DROP CONSTRAINT IF EXISTS workspace_documents_content_rev_check,
 			ADD CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
 			DROP CONSTRAINT IF EXISTS workspace_documents_meta_rev_check,
 			ADD CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev BETWEEN 1 AND 9007199254740991)`,
-		`ALTER TABLE workspace_documents ADD COLUMN IF NOT EXISTS capabilities_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_documents_workspace_path ON workspace_documents(workspace_id, path)`,
-		`CREATE INDEX IF NOT EXISTS idx_workspace_documents_workspace_updated_at ON workspace_documents(workspace_id, updated_at DESC)`,
-		`CREATE TABLE IF NOT EXISTS workspace_operations (
+			`ALTER TABLE workspace_documents ADD COLUMN IF NOT EXISTS capabilities_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_documents_workspace_path ON workspace_documents(workspace_id, path)`,
+			`CREATE INDEX IF NOT EXISTS idx_workspace_documents_workspace_updated_at ON workspace_documents(workspace_id, updated_at DESC)`,
+			`CREATE TABLE IF NOT EXISTS workspace_operations (
 			workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 			op_seq BIGINT NOT NULL,
 			domain TEXT NOT NULL,
@@ -142,23 +156,23 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			PRIMARY KEY (workspace_id, op_seq),
 			CONSTRAINT workspace_operations_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)
 		)`,
-		`ALTER TABLE workspace_operations
+			`ALTER TABLE workspace_operations
 			DROP CONSTRAINT IF EXISTS workspace_operations_op_seq_check,
 			ADD CONSTRAINT workspace_operations_op_seq_check CHECK (op_seq BETWEEN 1 AND 9007199254740991)`,
-		`CREATE INDEX IF NOT EXISTS idx_workspace_operations_workspace_created_at ON workspace_operations(workspace_id, created_at DESC)`,
-		`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS operation_id TEXT`,
-		`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS request_hash TEXT`,
-		`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS result_json JSONB`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_operations_workspace_operation_id ON workspace_operations(workspace_id, operation_id) WHERE operation_id IS NOT NULL`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
-		`CREATE INDEX IF NOT EXISTS idx_projects_owner_updated_at ON projects(owner_id, updated_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_projects_public_updated_at ON projects(updated_at DESC) WHERE is_public = TRUE`,
-		`CREATE INDEX IF NOT EXISTS idx_projects_public_stars ON projects(stars_count DESC, updated_at DESC) WHERE is_public = TRUE`,
-		`CREATE INDEX IF NOT EXISTS idx_projects_resource_type ON projects(resource_type)`,
-		`CREATE INDEX IF NOT EXISTS idx_workspaces_owner_updated_at ON workspaces(owner_id, updated_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_workspaces_project_id ON workspaces(project_id)`,
-		`CREATE TABLE IF NOT EXISTS remote_execution_grants (
+			`CREATE INDEX IF NOT EXISTS idx_workspace_operations_workspace_created_at ON workspace_operations(workspace_id, created_at DESC)`,
+			`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS operation_id TEXT`,
+			`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS request_hash TEXT`,
+			`ALTER TABLE workspace_operations ADD COLUMN IF NOT EXISTS result_json JSONB`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_operations_workspace_operation_id ON workspace_operations(workspace_id, operation_id) WHERE operation_id IS NOT NULL`,
+			`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
+			`CREATE INDEX IF NOT EXISTS idx_projects_owner_updated_at ON projects(owner_id, updated_at DESC)`,
+			`CREATE INDEX IF NOT EXISTS idx_projects_public_updated_at ON projects(updated_at DESC) WHERE is_public = TRUE`,
+			`CREATE INDEX IF NOT EXISTS idx_projects_public_stars ON projects(stars_count DESC, updated_at DESC) WHERE is_public = TRUE`,
+			`CREATE INDEX IF NOT EXISTS idx_projects_resource_type ON projects(resource_type)`,
+			`CREATE INDEX IF NOT EXISTS idx_workspaces_owner_updated_at ON workspaces(owner_id, updated_at DESC)`,
+			`CREATE INDEX IF NOT EXISTS idx_workspaces_project_id ON workspaces(project_id)`,
+			`CREATE TABLE IF NOT EXISTS remote_execution_grants (
 			execution_id TEXT PRIMARY KEY,
 			workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 			owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -168,12 +182,12 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			environment_mode TEXT,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
-		`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS session_id TEXT`,
-		`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_id TEXT`,
-		`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_revision TEXT`,
-		`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_mode TEXT`,
-		`CREATE INDEX IF NOT EXISTS idx_remote_execution_grants_owner ON remote_execution_grants(owner_id, created_at DESC)`,
-		`CREATE TABLE IF NOT EXISTS execution_environments (
+			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS session_id TEXT`,
+			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_id TEXT`,
+			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_revision TEXT`,
+			`ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS environment_mode TEXT`,
+			`CREATE INDEX IF NOT EXISTS idx_remote_execution_grants_owner ON remote_execution_grants(owner_id, created_at DESC)`,
+			`CREATE TABLE IF NOT EXISTS execution_environments (
 			id TEXT PRIMARY KEY,
 			workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 			owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -183,8 +197,8 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			updated_at TIMESTAMPTZ NOT NULL,
 			CONSTRAINT execution_environments_mode_check CHECK (mode IN ('mock', 'live'))
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_environments_workspace_id ON execution_environments(workspace_id, id)`,
-		`CREATE TABLE IF NOT EXISTS execution_environment_revisions (
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_environments_workspace_id ON execution_environments(workspace_id, id)`,
+			`CREATE TABLE IF NOT EXISTS execution_environment_revisions (
 			environment_id TEXT NOT NULL REFERENCES execution_environments(id) ON DELETE CASCADE,
 			revision TEXT NOT NULL,
 			public_bindings_json JSONB NOT NULL,
@@ -193,7 +207,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (environment_id, revision)
 		)`,
-		`CREATE TABLE IF NOT EXISTS execution_environment_secret_materials (
+			`CREATE TABLE IF NOT EXISTS execution_environment_secret_materials (
 			environment_id TEXT NOT NULL,
 			revision TEXT NOT NULL,
 			binding_id TEXT NOT NULL,
@@ -202,7 +216,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			PRIMARY KEY (environment_id, revision, binding_id),
 			FOREIGN KEY (environment_id, revision) REFERENCES execution_environment_revisions(environment_id, revision) ON DELETE CASCADE
 		)`,
-		`CREATE TABLE IF NOT EXISTS execution_environment_grants (
+			`CREATE TABLE IF NOT EXISTS execution_environment_grants (
 			grant_id TEXT PRIMARY KEY,
 			environment_id TEXT NOT NULL,
 			revision TEXT NOT NULL,
@@ -218,8 +232,8 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			FOREIGN KEY (environment_id, revision) REFERENCES execution_environment_revisions(environment_id, revision) ON DELETE CASCADE
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_execution_environment_grants_expiry ON execution_environment_grants(expires_at) WHERE revoked_at IS NULL`,
-		`CREATE TABLE IF NOT EXISTS execution_environment_resolution_audit (
+			`CREATE INDEX IF NOT EXISTS idx_execution_environment_grants_expiry ON execution_environment_grants(expires_at) WHERE revoked_at IS NULL`,
+			`CREATE TABLE IF NOT EXISTS execution_environment_resolution_audit (
 			id BIGSERIAL PRIMARY KEY,
 			kind TEXT NOT NULL,
 			grant_id TEXT NOT NULL,
@@ -235,8 +249,8 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			field TEXT,
 			occurred_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_execution_environment_audit_grant ON execution_environment_resolution_audit(grant_id, occurred_at)`,
-		`CREATE TABLE IF NOT EXISTS github_installations (
+			`CREATE INDEX IF NOT EXISTS idx_execution_environment_audit_grant ON execution_environment_resolution_audit(grant_id, occurred_at)`,
+			`CREATE TABLE IF NOT EXISTS github_installations (
 			installation_id BIGINT PRIMARY KEY,
 			account_login TEXT NOT NULL DEFAULT '',
 			account_type TEXT NOT NULL DEFAULT '',
@@ -246,7 +260,7 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS github_installation_repositories (
+			`CREATE TABLE IF NOT EXISTS github_installation_repositories (
 			installation_id BIGINT NOT NULL REFERENCES github_installations(installation_id) ON DELETE CASCADE,
 			repository_id BIGINT NOT NULL,
 			owner TEXT NOT NULL,
@@ -257,8 +271,8 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (installation_id, repository_id)
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_github_installation_repositories_full_name ON github_installation_repositories(installation_id, full_name)`,
-		`CREATE TABLE IF NOT EXISTS github_repository_bindings (
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_github_installation_repositories_full_name ON github_installation_repositories(installation_id, full_name)`,
+			`CREATE TABLE IF NOT EXISTS github_repository_bindings (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -285,9 +299,9 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			CONSTRAINT github_repository_bindings_provider_check CHECK (provider = 'github'),
 			CONSTRAINT github_repository_bindings_status_check CHECK (status IN ('active', 'disabled', 'revoked', 'error'))
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_github_repository_bindings_project ON github_repository_bindings(project_id) WHERE status = 'active'`,
-		`CREATE INDEX IF NOT EXISTS idx_github_repository_bindings_user ON github_repository_bindings(user_id, updated_at DESC)`,
-		`CREATE TABLE IF NOT EXISTS github_events (
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_github_repository_bindings_project ON github_repository_bindings(project_id) WHERE status = 'active'`,
+			`CREATE INDEX IF NOT EXISTS idx_github_repository_bindings_user ON github_repository_bindings(user_id, updated_at DESC)`,
+			`CREATE TABLE IF NOT EXISTS github_events (
 			delivery_id TEXT PRIMARY KEY,
 			event_type TEXT NOT NULL,
 			installation_id BIGINT,
@@ -296,16 +310,46 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			processed BOOLEAN NOT NULL DEFAULT FALSE,
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_github_events_created_at ON github_events(created_at DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_github_events_installation ON github_events(installation_id, created_at DESC)`,
-		`DELETE FROM sessions WHERE expires_at <= NOW()`,
-	}
+			`CREATE INDEX IF NOT EXISTS idx_github_events_created_at ON github_events(created_at DESC)`,
+			`CREATE INDEX IF NOT EXISTS idx_github_events_installation ON github_events(installation_id, created_at DESC)`,
+			`DELETE FROM sessions WHERE expires_at <= NOW()`,
+		},
+	}}
 
-	for _, statement := range statements {
-		if _, err := db.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("run migration: %w", err)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin migration transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+		version BIGINT PRIMARY KEY,
+		name TEXT NOT NULL,
+		applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	)`); err != nil {
+		return fmt.Errorf("create migration registry: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, int64(0x50726f6469766978)); err != nil {
+		return fmt.Errorf("acquire migration lock: %w", err)
+	}
+	for _, migration := range migrations {
+		var applied bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, migration.version).Scan(&applied); err != nil {
+			return fmt.Errorf("read migration registry: %w", err)
+		}
+		if applied {
+			continue
+		}
+		for _, statement := range migration.statements {
+			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("run migration version %d: %w", migration.version, err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, name) VALUES ($1, $2)`, migration.version, migration.name); err != nil {
+			return fmt.Errorf("record migration version %d: %w", migration.version, err)
 		}
 	}
-
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migrations: %w", err)
+	}
 	return nil
 }

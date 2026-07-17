@@ -2,14 +2,13 @@ package github
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
+
+	backendidentity "github.com/Prodivix/prodivix/apps/backend/internal/platform/identity"
 )
 
 var ErrRepositoryBindingNotFound = errors.New("github repository binding not found")
@@ -65,22 +64,22 @@ RETURNING installation_id, account_login, account_type, account_id, status, raw_
 	return scanInstallation(row)
 }
 
-func (store *Store) ListInstallations(ctx context.Context) ([]InstallationRecord, error) {
+func (store *Store) ListInstallationsForUser(ctx context.Context, userID string) ([]InstallationRecord, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("github store is not initialized")
 	}
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()
-
-	const query = `SELECT installation_id, account_login, account_type, account_id, status, raw_json, created_at, updated_at
-FROM github_installations
-ORDER BY updated_at DESC`
-	rows, err := store.db.QueryContext(ctx, query)
+	const query = `SELECT DISTINCT i.installation_id, i.account_login, i.account_type, i.account_id, i.status, i.raw_json, i.created_at, i.updated_at
+FROM github_installations i
+INNER JOIN github_repository_bindings b ON b.installation_id = i.installation_id
+WHERE b.user_id = $1 AND b.status = 'active'
+ORDER BY i.updated_at DESC`
+	rows, err := store.db.QueryContext(ctx, query, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	records := make([]InstallationRecord, 0)
 	for rows.Next() {
 		record, err := scanInstallation(rows)
@@ -89,10 +88,7 @@ ORDER BY updated_at DESC`
 		}
 		records = append(records, *record)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return records, nil
+	return records, rows.Err()
 }
 
 func (store *Store) UpsertInstallationRepositories(ctx context.Context, installationID int64, repositories []InstallationRepositoryRecord) error {
@@ -138,7 +134,7 @@ SET owner = EXCLUDED.owner,
 	return tx.Commit()
 }
 
-func (store *Store) ListInstallationRepositories(ctx context.Context, installationID int64) ([]InstallationRepositoryRecord, error) {
+func (store *Store) ListInstallationRepositoriesForUser(ctx context.Context, userID string, installationID int64) ([]InstallationRepositoryRecord, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("github store is not initialized")
 	}
@@ -147,17 +143,16 @@ func (store *Store) ListInstallationRepositories(ctx context.Context, installati
 	}
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()
-
-	const query = `SELECT installation_id, repository_id, owner, name, full_name, private, default_branch, updated_at
-FROM github_installation_repositories
-WHERE installation_id = $1
-ORDER BY full_name ASC`
-	rows, err := store.db.QueryContext(ctx, query, installationID)
+	const query = `SELECT DISTINCT r.installation_id, r.repository_id, r.owner, r.name, r.full_name, r.private, r.default_branch, r.updated_at
+FROM github_installation_repositories r
+INNER JOIN github_repository_bindings b ON b.installation_id = r.installation_id
+WHERE b.user_id = $1 AND b.status = 'active' AND r.installation_id = $2
+ORDER BY r.full_name ASC`
+	rows, err := store.db.QueryContext(ctx, query, strings.TrimSpace(userID), installationID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	records := make([]InstallationRepositoryRecord, 0)
 	for rows.Next() {
 		var record InstallationRepositoryRecord
@@ -166,10 +161,21 @@ ORDER BY full_name ASC`
 		}
 		records = append(records, record)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	return records, rows.Err()
+}
+
+func (store *Store) UserHasInstallationAccess(ctx context.Context, userID string, installationID int64) (bool, error) {
+	if store == nil || store.db == nil {
+		return false, errors.New("github store is not initialized")
 	}
-	return records, nil
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	var allowed bool
+	err := store.db.QueryRowContext(ctx, `SELECT EXISTS (
+		SELECT 1 FROM github_repository_bindings
+		WHERE user_id = $1 AND installation_id = $2 AND status = 'active'
+	)`, strings.TrimSpace(userID), installationID).Scan(&allowed)
+	return allowed, err
 }
 
 func (store *Store) RecordWebhookEvent(ctx context.Context, record WebhookEventRecord) (bool, error) {
@@ -190,16 +196,21 @@ func (store *Store) RecordWebhookEvent(ctx context.Context, record WebhookEventR
 	const query = `INSERT INTO github_events (
 	delivery_id, event_type, installation_id, action, payload_json, processed, created_at
 ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())
-ON CONFLICT (delivery_id) DO NOTHING`
-	result, err := store.db.ExecContext(ctx, query, record.DeliveryID, record.EventType, record.InstallationID, strings.TrimSpace(record.Action), string(record.Payload), record.Processed)
-	if err != nil {
-		return false, err
+ON CONFLICT (delivery_id) DO UPDATE SET delivery_id = EXCLUDED.delivery_id
+RETURNING processed`
+	var processed bool
+	err := store.db.QueryRowContext(ctx, query, record.DeliveryID, record.EventType, record.InstallationID, strings.TrimSpace(record.Action), string(record.Payload), false).Scan(&processed)
+	return !processed, err
+}
+
+func (store *Store) MarkWebhookEventProcessed(ctx context.Context, deliveryID string) error {
+	if store == nil || store.db == nil {
+		return errors.New("github store is not initialized")
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return false, err
-	}
-	return rowsAffected > 0, nil
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	_, err := store.db.ExecContext(ctx, `UPDATE github_events SET processed = TRUE WHERE delivery_id = $1`, strings.TrimSpace(deliveryID))
+	return err
 }
 
 func (store *Store) UpsertRepositoryBinding(ctx context.Context, params UpsertRepositoryBindingParams) (*RepositoryBindingRecord, error) {
@@ -221,7 +232,10 @@ func (store *Store) UpsertRepositoryBinding(ctx context.Context, params UpsertRe
 		branch = defaultBranch
 	}
 
-	bindingID := newID("ghb")
+	bindingID, err := backendidentity.NewID("ghb", 8)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()
 
@@ -339,12 +353,4 @@ func withStoreTimeout(ctx context.Context) (context.Context, context.CancelFunc)
 		ctx = context.Background()
 	}
 	return context.WithTimeout(ctx, 5*time.Second)
-}
-
-func newID(prefix string) string {
-	var bytes [8]byte
-	if _, err := rand.Read(bytes[:]); err != nil {
-		return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
-	}
-	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(bytes[:]))
 }

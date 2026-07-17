@@ -160,3 +160,10 @@ func TestStandaloneDomainPatchPathsUseCurrentCollections(t *testing.T) {
 		}
 	}
 }
+
+func TestDataSourceOptimisticRelationAcceptsValueOutputPath(t *testing.T) {
+	payload := mustRaw(`{"wireVersion":1,"source":{"id":"catalog","adapterId":"rest","runtimeZone":"server","bindingsById":{},"configurationByKey":{}},"schemasById":{"product":{"id":"product","schema":true}},"operationsById":{"list-products":{"id":"list-products","kind":"query","outputSchemaId":"product","configurationByKey":{},"policies":{}},"update-product":{"id":"update-product","kind":"mutation","outputSchemaId":"product","configurationByKey":{},"policies":{"optimistic":{"kind":"crud","action":"update","target":{"documentId":"data-products","operationId":"list-products"},"entityIdPath":"/id","valueInputPath":"/item","valueOutputPath":"/item","rollback":"on-error"}}}}}`)
+	if err := validateDataSourceDocument(payload, "data-products"); err != nil {
+		t.Fatalf("expected optimistic relation to accept valueOutputPath: %v", err)
+	}
+}

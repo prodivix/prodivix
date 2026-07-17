@@ -139,7 +139,6 @@ func (store *WorkspaceStore) importWorkspaceSnapshot(ctx context.Context, params
 	now := time.Now().UTC()
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()
-
 	tx, err := store.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -248,6 +247,11 @@ func (store *WorkspaceStore) GetSnapshotForOwner(ctx context.Context, ownerID st
 
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()
+	tx, err := store.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
 
 	const workspaceQuery = `SELECT w.id, w.project_id, w.owner_id, w.name, w.workspace_rev, w.route_rev, w.op_seq, w.tree_root_id, w.tree_json, w.created_at, w.updated_at, r.manifest_json, s.settings_json
 FROM workspaces w
@@ -259,7 +263,7 @@ WHERE w.id = $1 AND w.owner_id = $2`
 	var treeBytes []byte
 	var routeBytes []byte
 	var settingsBytes []byte
-	err := store.db.QueryRowContext(ctx, workspaceQuery, workspaceID, ownerID).Scan(
+	err = tx.QueryRowContext(ctx, workspaceQuery, workspaceID, ownerID).Scan(
 		&workspace.ID,
 		&workspace.ProjectID,
 		&workspace.OwnerID,
@@ -309,7 +313,7 @@ FROM workspace_documents
 WHERE workspace_id = $1
 ORDER BY path ASC`
 
-	rows, err := store.db.QueryContext(ctx, documentQuery, workspaceID)
+	rows, err := tx.QueryContext(ctx, documentQuery, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -334,6 +338,9 @@ ORDER BY path ASC`
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
 
 	tree, err := parseWorkspaceVFSTree(treeBytes, workspace.TreeRootID, documents)
 	if err != nil {
@@ -352,6 +359,9 @@ ORDER BY path ASC`
 	}
 	workspace.TreeRootID = tree.TreeRootID
 	workspace.Tree = canonicalTree
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 
 	return &WorkspaceSnapshot{
 		Workspace:     workspace,

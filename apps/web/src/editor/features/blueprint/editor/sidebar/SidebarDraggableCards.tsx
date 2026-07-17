@@ -41,20 +41,25 @@ export const DraggablePreviewCard = ({
     data: { kind: 'palette-item', itemId, selectedSize, selectedStatus },
   });
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    onKeyDown?.(event);
+    if (!event.defaultPrevented) listeners?.onKeyDown?.(event);
+  };
+
   return (
     <div
       ref={setNodeRef}
       className={`${className} ${isDragging ? 'IsDragging cursor-grabbing opacity-[0.55]' : ''}`.trim()}
+      {...attributes}
+      {...listeners}
       role={role}
       tabIndex={tabIndex}
       aria-expanded={ariaExpanded}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      onKeyDown={onKeyDown}
+      onKeyDown={handleKeyDown}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      {...attributes}
-      {...listeners}
     >
       {children}
     </div>

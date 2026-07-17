@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	backendidentity "github.com/Prodivix/prodivix/apps/backend/internal/platform/identity"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -30,8 +30,12 @@ func (store *UserStore) Create(email, name, description string, passwordHash []b
 	if normalized == "" {
 		return nil, errors.New("invalid email")
 	}
+	userID, err := backendidentity.NewID("usr", 16)
+	if err != nil {
+		return nil, err
+	}
 	user := &User{
-		ID:           newID("usr"),
+		ID:           userID,
 		Email:        normalized,
 		Name:         strings.TrimSpace(name),
 		Description:  strings.TrimSpace(description),
@@ -43,7 +47,7 @@ func (store *UserStore) Create(email, name, description string, passwordHash []b
 	defer cancel()
 	const query = `INSERT INTO users (id, email, name, description, avatar_url, password_hash, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := store.db.ExecContext(ctx, query, user.ID, user.Email, user.Name, user.Description, user.AvatarURL, user.PasswordHash, user.CreatedAt)
+	_, err = store.db.ExecContext(ctx, query, user.ID, user.Email, user.Name, user.Description, user.AvatarURL, user.PasswordHash, user.CreatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return nil, ErrEmailExists
@@ -159,10 +163,18 @@ func (store *SessionStore) Create(userID string, ttl time.Duration) *Session {
 	if ttl <= 0 {
 		ttl = 24 * time.Hour
 	}
+	sessionID, err := backendidentity.NewID("session", 16)
+	if err != nil {
+		return nil
+	}
+	token, err := backendidentity.NewRandomHex(32)
+	if err != nil {
+		return nil
+	}
 	createdAt := time.Now().UTC()
 	session := &Session{
-		ID:        newID("session"),
-		Token:     newToken(),
+		ID:        sessionID,
+		Token:     token,
 		UserID:    userID,
 		CreatedAt: createdAt,
 		ExpiresAt: createdAt.Add(ttl),
@@ -171,7 +183,7 @@ func (store *SessionStore) Create(userID string, ttl time.Duration) *Session {
 	defer cancel()
 	const query = `INSERT INTO sessions (id, token, user_id, created_at, expires_at)
 VALUES ($1, $2, $3, $4, $5)`
-	_, err := store.db.ExecContext(ctx, query, session.ID, session.Token, session.UserID, session.CreatedAt, session.ExpiresAt)
+	_, err = store.db.ExecContext(ctx, query, session.ID, sessionTokenDigest(session.Token), session.UserID, session.CreatedAt, session.ExpiresAt)
 	if err != nil {
 		return nil
 	}
@@ -185,21 +197,31 @@ func (store *SessionStore) Get(token string) (*Session, bool) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	const query = `SELECT id, token, user_id, created_at, expires_at
+	const query = `SELECT id, user_id, created_at, expires_at
 FROM sessions
 WHERE token = $1 AND expires_at > NOW()`
-	row := store.db.QueryRowContext(ctx, query, token)
+	digest := sessionTokenDigest(token)
+	row := store.db.QueryRowContext(ctx, query, digest)
 	session := &Session{}
 	var sessionID sql.NullString
-	err := row.Scan(&sessionID, &session.Token, &session.UserID, &session.CreatedAt, &session.ExpiresAt)
+	err := row.Scan(&sessionID, &session.UserID, &session.CreatedAt, &session.ExpiresAt)
+	legacyToken := false
+	if errors.Is(err, sql.ErrNoRows) {
+		row = store.db.QueryRowContext(ctx, query, token)
+		err = row.Scan(&sessionID, &session.UserID, &session.CreatedAt, &session.ExpiresAt)
+		legacyToken = err == nil
+	}
 	if err != nil {
 		return nil, false
 	}
+	session.Token = token
 	if sessionID.Valid && sessionID.String != "" {
 		session.ID = sessionID.String
 	} else {
 		session.ID = legacySessionID(token)
-		_, _ = store.db.ExecContext(ctx, `UPDATE sessions SET id = $1 WHERE token = $2 AND id IS NULL`, session.ID, token)
+	}
+	if legacyToken {
+		_, _ = store.db.ExecContext(ctx, `UPDATE sessions SET id = COALESCE(id, $1), token = $2 WHERE token = $3`, session.ID, digest, token)
 	}
 	return session, true
 }
@@ -209,6 +231,11 @@ func legacySessionID(token string) string {
 	return "session-sha256-" + hex.EncodeToString(digest[:])
 }
 
+func sessionTokenDigest(token string) string {
+	digest := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(digest[:])
+}
+
 func (store *SessionStore) Delete(token string) {
 	token = strings.TrimSpace(token)
 	if token == "" {
@@ -216,8 +243,8 @@ func (store *SessionStore) Delete(token string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	const query = `DELETE FROM sessions WHERE token = $1`
-	_, _ = store.db.ExecContext(ctx, query, token)
+	const query = `DELETE FROM sessions WHERE token = $1 OR token = $2`
+	_, _ = store.db.ExecContext(ctx, query, sessionTokenDigest(token), token)
 }
 
 func normalizeEmail(email string) string {
@@ -226,23 +253,6 @@ func normalizeEmail(email string) string {
 		return ""
 	}
 	return value
-}
-
-func newID(prefix string) string {
-	return prefix + "_" + newRandomHex(16)
-}
-
-func newToken() string {
-	return newRandomHex(32)
-}
-
-func newRandomHex(size int) string {
-	buffer := make([]byte, size)
-	_, err := rand.Read(buffer)
-	if err != nil {
-		return hex.EncodeToString([]byte(time.Now().Format("20060102150405.000")))
-	}
-	return hex.EncodeToString(buffer)
 }
 
 func scanUser(scanner interface{ Scan(dest ...any) error }) (*User, error) {

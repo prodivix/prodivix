@@ -229,12 +229,12 @@ const toEditableTrigger = (
   if (/^https:\/\//i.test(destination)) {
     return { kind: 'open-url', href: destination };
   }
+  const routeId =
+    typeof event.params.routeId === 'string' ? event.params.routeId.trim() : '';
+  if (!routeId) return null;
   return {
     kind: 'navigate-route',
-    routeId:
-      typeof event.params.routeId === 'string' && event.params.routeId.trim()
-        ? event.params.routeId.trim()
-        : destination,
+    routeId,
   };
 };
 

@@ -29,6 +29,8 @@ type Handler struct {
 	environment string
 }
 
+const maximumGitHubWebhookBytes = 2 << 20
+
 func NewHandler(store *Store, projects ProjectReader, cfg backendconfig.GitHubAppConfig, environment string) *Handler {
 	return &Handler{store: store, projects: projects, cfg: cfg, environment: strings.ToLower(strings.TrimSpace(environment))}
 }
@@ -47,6 +49,7 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 }
 
 func (handler *Handler) HandleWebhook(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maximumGitHubWebhookBytes)
 	payload, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, "API-1001", "Could not read webhook payload.")
@@ -59,7 +62,7 @@ func (handler *Handler) HandleWebhook(c *gin.Context) {
 
 	eventType := strings.TrimSpace(c.GetHeader("X-GitHub-Event"))
 	deliveryID := strings.TrimSpace(c.GetHeader("X-GitHub-Delivery"))
-	inserted, err := handler.processWebhookPayload(c.Request.Context(), eventType, deliveryID, payload, false)
+	inserted, err := handler.processWebhookPayload(c.Request.Context(), eventType, deliveryID, payload)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, "API-6001", "Could not process GitHub webhook.")
 		return
@@ -72,6 +75,7 @@ func (handler *Handler) HandleDevEvent(c *gin.Context) {
 		respondError(c, http.StatusNotFound, "API-4004", "Development GitHub events are disabled.")
 		return
 	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maximumGitHubWebhookBytes)
 	var request struct {
 		EventType  string          `json:"eventType"`
 		DeliveryID string          `json:"deliveryId"`
@@ -85,7 +89,7 @@ func (handler *Handler) HandleDevEvent(c *gin.Context) {
 	if deliveryID == "" {
 		deliveryID = fmt.Sprintf("dev-%d", time.Now().UnixNano())
 	}
-	inserted, err := handler.processWebhookPayload(c.Request.Context(), request.EventType, deliveryID, request.Payload, true)
+	inserted, err := handler.processWebhookPayload(c.Request.Context(), request.EventType, deliveryID, request.Payload)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, "API-6001", "Could not process development GitHub event.")
 		return
@@ -94,7 +98,12 @@ func (handler *Handler) HandleDevEvent(c *gin.Context) {
 }
 
 func (handler *Handler) HandleListInstallations(c *gin.Context) {
-	installations, err := handler.store.ListInstallations(c.Request.Context())
+	user, ok := backendauth.GetAuthUser[backendauth.User](c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
+		return
+	}
+	installations, err := handler.store.ListInstallationsForUser(c.Request.Context(), user.ID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "API-6001", "Could not load GitHub installations.")
 		return
@@ -103,12 +112,17 @@ func (handler *Handler) HandleListInstallations(c *gin.Context) {
 }
 
 func (handler *Handler) HandleListRepositories(c *gin.Context) {
+	user, ok := backendauth.GetAuthUser[backendauth.User](c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
+		return
+	}
 	installationID, err := parsePositiveInt64(c.Query("installationId"))
 	if err != nil {
 		respondError(c, http.StatusBadRequest, "API-4001", "installationId must be a positive integer.")
 		return
 	}
-	repositories, err := handler.store.ListInstallationRepositories(c.Request.Context(), installationID)
+	repositories, err := handler.store.ListInstallationRepositoriesForUser(c.Request.Context(), user.ID, installationID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "API-6001", "Could not load GitHub repositories.")
 		return
@@ -131,7 +145,6 @@ func (handler *Handler) HandleUpsertBinding(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not load project.")
 		return
 	}
-
 	var request struct {
 		WorkspaceID    string `json:"workspaceId"`
 		InstallationID int64  `json:"installationId"`
@@ -142,6 +155,15 @@ func (handler *Handler) HandleUpsertBinding(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
+		return
+	}
+	allowed, err := handler.store.UserHasInstallationAccess(c.Request.Context(), user.ID, request.InstallationID)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "API-6001", "Could not verify GitHub installation access.")
+		return
+	}
+	if !allowed {
+		respondError(c, http.StatusForbidden, "API-2003", "GitHub installation is not available to this user.")
 		return
 	}
 	workspaceID := strings.TrimSpace(request.WorkspaceID)
@@ -186,7 +208,7 @@ func (handler *Handler) HandleGetProjectSyncState(c *gin.Context) {
 	})
 }
 
-func (handler *Handler) processWebhookPayload(ctx context.Context, eventType, deliveryID string, payload json.RawMessage, devEvent bool) (bool, error) {
+func (handler *Handler) processWebhookPayload(ctx context.Context, eventType, deliveryID string, payload json.RawMessage) (bool, error) {
 	eventType = strings.TrimSpace(eventType)
 	deliveryID = strings.TrimSpace(deliveryID)
 	if eventType == "" || deliveryID == "" {
@@ -211,7 +233,7 @@ func (handler *Handler) processWebhookPayload(ctx context.Context, eventType, de
 		InstallationID: installationID,
 		Action:         decoded.Action,
 		Payload:        payload,
-		Processed:      devEvent,
+		Processed:      false,
 	})
 	if err != nil {
 		return false, err
@@ -220,6 +242,9 @@ func (handler *Handler) processWebhookPayload(ctx context.Context, eventType, de
 		return false, nil
 	}
 	if err := handler.applyInstallationPayload(ctx, eventType, payload, decoded); err != nil {
+		return true, err
+	}
+	if err := handler.store.MarkWebhookEventProcessed(ctx, deliveryID); err != nil {
 		return true, err
 	}
 	return true, nil

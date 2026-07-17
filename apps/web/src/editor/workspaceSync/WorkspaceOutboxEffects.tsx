@@ -150,6 +150,7 @@ export function WorkspaceOutboxEffects() {
       if (operationIsHead && operationHead?.state.kind === 'conflict') {
         const state = useEditorStore.getState();
         if (
+          state.workspace?.id === workspaceId &&
           state.workspaceRevisionConflict?.id !== operationHead.state.session.id
         ) {
           state.setWorkspaceSnapshot(operationHead.state.session.localSnapshot);

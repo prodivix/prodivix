@@ -19,7 +19,7 @@ export function TriggerNavigateFields({
   stateValue,
   disabled = false,
 }: TriggerNavigateFieldsProps) {
-  const { t, updateTrigger } = useInspectorContext();
+  const { t, routeOptions, updateTrigger } = useInspectorContext();
 
   return (
     <>
@@ -38,13 +38,20 @@ export function TriggerNavigateFields({
               'Use https:// for external links, or /path for in-app preview routes.',
           })}
           onChange={(event) => {
+            const destination = event.target.value;
+            const route = routeOptions.find(
+              (candidate) => candidate.path === destination
+            );
             updateTrigger(itemKey, (currentEvent) => ({
               ...currentEvent,
               action: 'navigate',
-              params: {
-                ...(currentEvent.params ?? {}),
-                to: event.target.value,
-              },
+              params: Object.fromEntries(
+                Object.entries({
+                  ...(currentEvent.params ?? {}),
+                  to: destination,
+                  routeId: route?.id,
+                }).filter(([, value]) => value !== undefined)
+              ),
             }));
           }}
           placeholder={t('inspector.groups.triggers.toPlaceholder', {

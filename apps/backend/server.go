@@ -3,6 +3,8 @@ package backend
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
+	"os"
 
 	backendapp "github.com/Prodivix/prodivix/apps/backend/internal/app"
 	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
@@ -10,6 +12,27 @@ import (
 	backendmiddleware "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/middleware"
 	"github.com/gin-gonic/gin"
 )
+
+type filesOnlyFS struct {
+	http.FileSystem
+}
+
+func (fs filesOnlyFS) Open(name string) (http.File, error) {
+	file, err := fs.FileSystem.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	if info.IsDir() {
+		_ = file.Close()
+		return nil, os.ErrNotExist
+	}
+	return file, nil
+}
 
 type Server struct {
 	cfg     backendconfig.Config
@@ -25,6 +48,10 @@ func NewServer(cfg backendconfig.Config) (*Server, error) {
 	}
 
 	router := gin.Default()
+	if err := router.SetTrustedProxies(nil); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("disable untrusted proxy headers: %w", err)
+	}
 	server := &Server{
 		cfg:     cfg,
 		db:      db,
@@ -38,7 +65,7 @@ func NewServer(cfg backendconfig.Config) (*Server, error) {
 
 func (server *Server) registerRoutes() {
 	requireAuth := server.modules.RequireAuth()
-	server.router.Static("/uploads", "./data/uploads")
+	server.router.StaticFS("/uploads", filesOnlyFS{FileSystem: http.Dir("./data/uploads")})
 	backendapp.RegisterAPIRoutes(server.router, server.modules.Routes(requireAuth))
 }
 

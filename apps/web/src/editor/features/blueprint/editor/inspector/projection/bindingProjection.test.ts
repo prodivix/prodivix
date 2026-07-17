@@ -41,3 +41,56 @@ describe('Blueprint Inspector Data mutation projection', () => {
     ).toEqual(current);
   });
 });
+
+describe('Blueprint Inspector navigation projection', () => {
+  it('does not persist an internal path as an opaque route id', () => {
+    const current: PIRElementNode = {
+      id: 'link',
+      kind: 'element',
+      type: 'a',
+    };
+    const next = toElementNode(
+      {
+        id: current.id,
+        type: current.type,
+        events: {
+          onClick: {
+            trigger: 'onClick',
+            action: 'navigate',
+            params: { to: '/products' },
+            editable: true,
+          },
+        },
+      },
+      current
+    );
+    expect(next.events).toBeUndefined();
+  });
+
+  it('persists the resolved route identity', () => {
+    const current: PIRElementNode = {
+      id: 'link',
+      kind: 'element',
+      type: 'a',
+    };
+    const next = toElementNode(
+      {
+        id: current.id,
+        type: current.type,
+        events: {
+          onClick: {
+            trigger: 'onClick',
+            action: 'navigate',
+            params: { to: '/products', routeId: 'route-products' },
+            editable: true,
+          },
+        },
+      },
+      current
+    );
+    expect(next.events?.onClick).toEqual({
+      kind: 'navigate-route',
+      routeId: 'route-products',
+    });
+  });
+});

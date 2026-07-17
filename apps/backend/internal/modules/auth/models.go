@@ -21,6 +21,14 @@ type PublicUser struct {
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
+type PublicProfile struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	AvatarURL   string    `json:"avatarUrl"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
 func NewPublicUser(user *User) PublicUser {
 	if user == nil {
 		return PublicUser{}
@@ -28,6 +36,19 @@ func NewPublicUser(user *User) PublicUser {
 	return PublicUser{
 		ID:          user.ID,
 		Email:       user.Email,
+		Name:        user.Name,
+		Description: user.Description,
+		AvatarURL:   user.AvatarURL,
+		CreatedAt:   user.CreatedAt,
+	}
+}
+
+func NewPublicProfile(user *User) PublicProfile {
+	if user == nil {
+		return PublicProfile{}
+	}
+	return PublicProfile{
+		ID:          user.ID,
 		Name:        user.Name,
 		Description: user.Description,
 		AvatarURL:   user.AvatarURL,

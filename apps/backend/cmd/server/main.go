@@ -8,7 +8,10 @@ import (
 )
 
 func main() {
-	cfg := backendconfig.LoadConfig()
+	cfg, err := backendconfig.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 	server, err := backend.NewServer(cfg)
 	if err != nil {
 		log.Fatal(err)

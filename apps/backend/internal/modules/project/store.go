@@ -7,6 +7,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	backendidentity "github.com/Prodivix/prodivix/apps/backend/internal/platform/identity"
 )
 
 type ProjectStore struct {
@@ -39,8 +41,12 @@ func (store *ProjectStore) PrepareProject(params PrepareProjectParams) (*Project
 		return nil, ErrInvalidResourceType
 	}
 
+	projectID, err := backendidentity.NewID("prj", 16)
+	if err != nil {
+		return nil, err
+	}
 	return &Project{
-		ID:           newID("prj"),
+		ID:           projectID,
 		OwnerID:      strings.TrimSpace(params.OwnerID),
 		ResourceType: resourceType,
 		Name:         strings.TrimSpace(params.Name),

@@ -52,16 +52,30 @@ const createDefaultActionParams = (
       : { to: '' };
 
 export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
-  const { t, graphOptions, dataMutationOptions, updateTrigger, removeTrigger } =
-    useInspectorContext();
+  const {
+    t,
+    graphOptions,
+    routeOptions,
+    dataMutationOptions,
+    updateTrigger,
+    removeTrigger,
+  } = useInspectorContext();
   const editable = item.editable !== false;
-  const toValue = typeof item.params.to === 'string' ? item.params.to : '';
+  const rawToValue = typeof item.params.to === 'string' ? item.params.to : '';
+  const routeId =
+    typeof item.params.routeId === 'string' ? item.params.routeId : rawToValue;
+  const selectedRoute = routeOptions.find((route) => route.id === routeId);
+  const toValue = selectedRoute?.path ?? rawToValue;
   const targetValue = item.params.target === '_self' ? '_self' : '_blank';
   const actionValue = normalizeBuiltInAction(
     typeof item.action === 'string' ? item.action : undefined
   );
   const replaceValue = Boolean(item.params.replace);
-  const isValidLinkValue = !toValue || Boolean(getNavigateLinkKind(toValue));
+  const isValidLinkValue =
+    !toValue ||
+    (Boolean(getNavigateLinkKind(toValue)) &&
+      (!toValue.startsWith('/') ||
+        routeOptions.some((route) => route.path === toValue)));
   const graphMode = item.params.graphMode === 'existing' ? 'existing' : 'new';
   const graphName =
     typeof item.params.graphName === 'string' ? item.params.graphName : '';

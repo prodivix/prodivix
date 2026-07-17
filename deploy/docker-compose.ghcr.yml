@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-prodivix}
       TZ: ${TZ:-UTC}
     command: ['postgres', '-c', 'config_file=/etc/postgresql/postgresql.conf']
@@ -24,7 +24,7 @@ services:
       timeout: 5s
       retries: 8
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '${POSTGRES_PORT:-127.0.0.1:5432}:5432'
 
   backend:
     image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/prodivix-backend:${IMAGE_TAG:-latest}
@@ -34,8 +34,9 @@ services:
         condition: service_healthy
     environment:
       BACKEND_ADDR: ':8080'
+      APP_ENV: production
       BACKEND_ALLOWED_ORIGINS: ${BACKEND_ALLOWED_ORIGINS:-http://localhost:4173}
-      BACKEND_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-prodivix}?sslmode=disable
+      BACKEND_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-prodivix}?sslmode=disable
       BACKEND_TOKEN_TTL: ${BACKEND_TOKEN_TTL:-24h}
       BACKEND_DB_MAX_OPEN_CONNS: ${BACKEND_DB_MAX_OPEN_CONNS:-10}
       BACKEND_DB_MAX_IDLE_CONNS: ${BACKEND_DB_MAX_IDLE_CONNS:-5}

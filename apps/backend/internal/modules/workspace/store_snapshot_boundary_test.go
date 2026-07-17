@@ -177,9 +177,11 @@ func TestGetSnapshotForOwnerRejectsUnsafePersistedRevisions(t *testing.T) {
 			}
 			defer db.Close()
 			now := time.Date(2026, time.July, 12, 10, 0, 0, 0, time.UTC)
+			mock.ExpectBegin()
 			mock.ExpectQuery(snapshotBoundaryWorkspaceQuery()).
 				WithArgs("ws_1", "owner_1").
 				WillReturnRows(snapshotBoundaryWorkspaceRows(test.workspaceRev, test.routeRev, test.opSeq, snapshotBoundaryTreeJSON, `{"version":"1","root":{"id":"root"}}`, now))
+			mock.ExpectRollback()
 			_, err = NewWorkspaceStore(db).GetSnapshotForOwner(context.Background(), "owner_1", "ws_1")
 			var limitErr *workspaceRevisionLimitError
 			if !errors.As(err, &limitErr) || limitErr.Field != test.expectedField {
@@ -216,12 +218,14 @@ func TestGetSnapshotForOwnerRejectsInvalidPersistedDocumentState(t *testing.T) {
 			}
 			defer db.Close()
 			now := time.Date(2026, time.July, 12, 10, 0, 0, 0, time.UTC)
+			mock.ExpectBegin()
 			mock.ExpectQuery(snapshotBoundaryWorkspaceQuery()).
 				WithArgs("ws_1", "owner_1").
 				WillReturnRows(snapshotBoundaryWorkspaceRows(1, 1, 1, test.tree, test.route, now))
 			mock.ExpectQuery(snapshotBoundaryDocumentQuery()).
 				WithArgs("ws_1").
 				WillReturnRows(test.documentRows)
+			mock.ExpectRollback()
 			_, err = NewWorkspaceStore(db).GetSnapshotForOwner(context.Background(), "owner_1", "ws_1")
 			switch {
 			case test.expectedField != "":

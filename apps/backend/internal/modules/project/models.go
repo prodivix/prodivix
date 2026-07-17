@@ -1,8 +1,6 @@
 package project
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"time"
@@ -58,17 +56,4 @@ type CommunityProjectDetail struct {
 	Project
 	PIR        json.RawMessage `json:"pir"`
 	AuthorName string          `json:"authorName"`
-}
-
-func newID(prefix string) string {
-	return prefix + "_" + newRandomHex(16)
-}
-
-func newRandomHex(size int) string {
-	buffer := make([]byte, size)
-	_, err := rand.Read(buffer)
-	if err != nil {
-		return hex.EncodeToString([]byte(time.Now().Format("20060102150405.000")))
-	}
-	return hex.EncodeToString(buffer)
 }

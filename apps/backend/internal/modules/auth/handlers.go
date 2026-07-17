@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
+	backendidentity "github.com/Prodivix/prodivix/apps/backend/internal/platform/identity"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -18,6 +20,7 @@ const (
 	avatarFormField       = "avatar"
 	maxAvatarBytes        = 2 << 20
 	maxAvatarRequestBytes = maxAvatarBytes + 64<<10
+	maxAuthJSONBytes      = 64 << 10
 )
 
 var allowedAvatarContentTypes = map[string]string{
@@ -27,14 +30,17 @@ var allowedAvatarContentTypes = map[string]string{
 	"image/avif": ".avif",
 }
 
+var dummyPasswordHash = []byte("$2a$10$XajjQvNhvvRt5GSeFk1xFeyqRrsxkhBkUiQeg0dt.wU1qD4aFDcga")
+
 type Handler struct {
 	users    *UserStore
 	sessions *SessionStore
 	tokenTTL time.Duration
+	logins   *loginAttemptLimiter
 }
 
 func NewHandler(users *UserStore, sessions *SessionStore, tokenTTL time.Duration) *Handler {
-	return &Handler{users: users, sessions: sessions, tokenTTL: tokenTTL}
+	return &Handler{users: users, sessions: sessions, tokenTTL: tokenTTL, logins: newLoginAttemptLimiter()}
 }
 
 func (handler *Handler) RequireAuth() gin.HandlerFunc {
@@ -74,6 +80,7 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 }
 
 func (handler *Handler) HandleRegister(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxAuthJSONBytes)
 	var request struct {
 		Email       string `json:"email"`
 		Password    string `json:"password"`
@@ -92,6 +99,10 @@ func (handler *Handler) HandleRegister(c *gin.Context) {
 	}
 	if len(password) < 8 {
 		respondError(c, http.StatusBadRequest, "API-4001", "Password must be at least 8 characters.")
+		return
+	}
+	if len([]byte(password)) > 72 {
+		respondError(c, http.StatusBadRequest, "API-4001", "Password must be 72 bytes or fewer.")
 		return
 	}
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -117,6 +128,7 @@ func (handler *Handler) HandleRegister(c *gin.Context) {
 }
 
 func (handler *Handler) HandleLogin(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxAuthJSONBytes)
 	var request struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -125,8 +137,18 @@ func (handler *Handler) HandleLogin(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
 		return
 	}
+	if allowed, retryAfter := handler.logins.allow(c.ClientIP(), request.Email); !allowed {
+		seconds := int(retryAfter.Round(time.Second) / time.Second)
+		if seconds < 1 {
+			seconds = 1
+		}
+		c.Header("Retry-After", strconv.Itoa(seconds))
+		respondError(c, http.StatusTooManyRequests, "API-4290", "Too many login attempts. Try again later.")
+		return
+	}
 	user, ok := handler.users.GetByEmail(request.Email)
 	if !ok {
+		_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(request.Password))
 		respondError(c, http.StatusUnauthorized, "API-2001", "Invalid email or password.")
 		return
 	}
@@ -166,7 +188,12 @@ func (handler *Handler) HandleGetUser(c *gin.Context) {
 		respondError(c, http.StatusNotFound, "API-4004", "User not found.")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"user": NewPublicUser(user)})
+	current, authenticated := GetAuthUser[User](c)
+	if authenticated && current.ID == user.ID {
+		c.JSON(http.StatusOK, gin.H{"user": NewPublicUser(user)})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"user": NewPublicProfile(user)})
 }
 
 func (handler *Handler) HandleUpdateMe(c *gin.Context) {
@@ -240,7 +267,12 @@ func (handler *Handler) HandleUpdateAvatar(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not prepare avatar storage.")
 		return
 	}
-	fileName := newID("avatar") + extension
+	avatarID, err := backendidentity.NewID("avatar", 16)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "API-9001", "Could not create avatar identity.")
+		return
+	}
+	fileName := avatarID + extension
 	destinationPath := filepath.Join(uploadDir, fileName)
 	destination, err := os.OpenFile(destinationPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
