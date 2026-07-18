@@ -1,3 +1,4 @@
+import { classifyBinaryAssetDelivery } from '@prodivix/assets';
 import {
   createAssetSymbolId,
   createSemanticId,
@@ -55,8 +56,8 @@ const createAssetCapabilityIds = (
         `asset:mime:${mime}`,
         ...(mimeFamily ? [`asset:family:${mimeFamily}`] : []),
         ...(category ? [`asset:category:${category}`] : []),
-        ...(content.dataUrl ? ['asset:inline'] : []),
-        ...(content.text !== undefined ? ['asset:text'] : []),
+        'asset:blob',
+        `asset:delivery:${classifyBinaryAssetDelivery(mime)}`,
       ])
     ).sort(compareText)
   );

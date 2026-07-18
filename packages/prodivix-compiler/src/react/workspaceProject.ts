@@ -1,4 +1,10 @@
 import {
+  classifyBinaryAssetDelivery,
+  createBinaryAssetMaterialization,
+  type BinaryAssetBlobReference,
+  type BinaryAssetMaterialization,
+} from '@prodivix/assets';
+import {
   decodeWorkspaceAnimationDocument,
   decodeWorkspaceNodeGraphDocument,
   isWorkspaceAssetDocumentContent,
@@ -11,6 +17,7 @@ import {
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import type { ExecutableProjectDataMockProvision } from '@prodivix/runtime-core';
+import type { ServerRuntimeTestProvision } from '@prodivix/server-runtime';
 import { compileAnimationExportContributions } from '#src/animation/compileAnimation';
 import type { TargetAdapter } from '#src/core/adapter';
 import {
@@ -67,6 +74,17 @@ import {
   analyzeWorkspaceDataRuntimeTarget,
   type WorkspaceDataRuntimeTarget,
 } from '#src/react/workspaceDataRuntimeTarget';
+import {
+  createWorkspaceStandaloneServerRuntimeModule,
+  WORKSPACE_SERVER_RUNTIME_MODULE_ID,
+} from '#src/react/standaloneServerRuntime';
+import {
+  analyzeWorkspaceServerRuntimeTarget,
+  isWorkspaceServerRuntimeDocument,
+  type WorkspaceServerRuntimeBinding,
+  type WorkspaceServerRuntimeTarget,
+  type WorkspaceServerRuntimeTargetAnalysis,
+} from '#src/react/workspaceServerRuntimeTarget';
 import type {
   ReactExportBundle,
   ReactGeneratorCodeArtifact,
@@ -80,6 +98,9 @@ export type WorkspaceReactViteCompileOptions = Readonly<{
   projectName?: string;
   dataMockProvision?: ExecutableProjectDataMockProvision;
   dataRuntimeTarget?: WorkspaceDataRuntimeTarget;
+  serverRuntimeTarget?: WorkspaceServerRuntimeTarget;
+  serverRuntimeMockProvision?: ServerRuntimeTestProvision;
+  assetMaterializations?: readonly BinaryAssetMaterialization[];
 }>;
 
 type CompiledWorkspacePirDocument = {
@@ -97,7 +118,8 @@ type WorkspaceRouteRuntimeBinding = {
   artifactId: string;
   exportName?: string;
   kind: 'loader' | 'action' | 'guard';
-  localName: string;
+  localName?: string;
+  serverFunction?: WorkspaceServerRuntimeBinding['definition'];
   routeNodeId: string;
 };
 
@@ -291,6 +313,7 @@ const createCodeContributions = (input: {
   const nonExecutableArtifacts: ReactGeneratorCodeArtifact[] = [];
   input.documents.forEach((document) => {
     if (!isWorkspaceCodeDocumentContent(document.content)) return;
+    if (isWorkspaceServerRuntimeDocument(document)) return;
     if (
       document.content.language !== 'ts' &&
       document.content.language !== 'js'
@@ -366,45 +389,46 @@ const createCodeContributions = (input: {
   };
 };
 
-const decodeBase64 = (value: string): Uint8Array | null => {
-  const alphabet =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  const normalized = value.replace(/\s+/g, '').replace(/=+$/, '');
-  if (!normalized || [...normalized].some((item) => !alphabet.includes(item))) {
-    return normalized ? null : new Uint8Array();
-  }
-  const bytes: number[] = [];
-  let buffer = 0;
-  let bits = 0;
-  for (const character of normalized) {
-    buffer = (buffer << 6) | alphabet.indexOf(character);
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buffer >> bits) & 0xff);
-    }
-  }
-  return new Uint8Array(bytes);
-};
-
-const decodeAssetDataUrl = (value: string): string | Uint8Array | null => {
-  const match = /^data:([^,]*?),(.*)$/s.exec(value);
-  if (!match) return null;
-  if (match[1]?.split(';').includes('base64')) {
-    return decodeBase64(match[2] ?? '');
-  }
-  try {
-    return decodeURIComponent(match[2] ?? '');
-  } catch {
-    return null;
-  }
-};
+const binaryAssetReferencesEqual = (
+  left: BinaryAssetBlobReference,
+  right: BinaryAssetBlobReference
+): boolean =>
+  left.kind === right.kind &&
+  left.digest === right.digest &&
+  left.byteLength === right.byteLength &&
+  left.mediaType === right.mediaType;
 
 const createWorkspaceResourceContribution = (
-  documents: readonly WorkspaceDocument[]
+  documents: readonly WorkspaceDocument[],
+  materializations: readonly BinaryAssetMaterialization[] = []
 ): ExportProgramContribution => {
   const artifacts: ExportArtifactContribution[] = [];
   const diagnostics: CompileDiagnostic[] = [];
+  const materializationsByDocumentId = new Map<
+    string,
+    BinaryAssetMaterialization[]
+  >();
+  materializations.forEach((materialization, index) => {
+    try {
+      const verified = createBinaryAssetMaterialization(materialization);
+      const existing =
+        materializationsByDocumentId.get(verified.assetDocumentId) ?? [];
+      existing.push(verified);
+      materializationsByDocumentId.set(verified.assetDocumentId, existing);
+    } catch (error) {
+      diagnostics.push({
+        code: 'AST-1004',
+        severity: 'error',
+        source: 'export',
+        message:
+          error instanceof Error
+            ? `Asset materialization ${index} is invalid: ${error.message}`
+            : `Asset materialization ${index} is invalid.`,
+        path: `/assetMaterializations/${index}`,
+      });
+    }
+  });
+  const referencedMaterializationIds = new Set<string>();
   documents.forEach((document) => {
     const sourceTrace = [createDocumentSourceTrace(document)];
     const origin = resolveWorkspaceDocumentExportSource({
@@ -414,29 +438,75 @@ const createWorkspaceResourceContribution = (
       document.type === 'asset' &&
       isWorkspaceAssetDocumentContent(document.content)
     ) {
-      const contents =
-        document.content.text ??
-        (document.content.dataUrl
-          ? decodeAssetDataUrl(document.content.dataUrl)
-          : null);
-      if (contents === null) {
+      const candidates = materializationsByDocumentId.get(document.id) ?? [];
+      if (candidates.length !== 1) {
         diagnostics.push({
-          code: 'WKS-EXPORT-ASSET-CONTENT',
+          code: candidates.length ? 'AST-1002' : 'AST-1001',
           severity: 'error',
           source: 'export',
-          message: `Asset ${document.id} has no decodable content.`,
+          message: candidates.length
+            ? `Asset ${document.id} has duplicate materializations.`
+            : `Asset ${document.id} has no verified materialization.`,
+          path: document.path,
+        });
+        return;
+      }
+      const candidate = candidates[0]!;
+      if (
+        !binaryAssetReferencesEqual(candidate.reference, document.content.blob)
+      ) {
+        diagnostics.push({
+          code: 'AST-1003',
+          severity: 'error',
+          source: 'export',
+          message: `Asset ${document.id} materialization identity drifted from its Workspace reference.`,
+          path: document.path,
+        });
+        return;
+      }
+      let verified: BinaryAssetMaterialization;
+      try {
+        verified = createBinaryAssetMaterialization({
+          assetDocumentId: document.id,
+          reference: document.content.blob,
+          contents: candidate.contents,
+        });
+      } catch (error) {
+        diagnostics.push({
+          code: 'AST-1004',
+          severity: 'error',
+          source: 'export',
+          message:
+            error instanceof Error
+              ? `Asset ${document.id} bytes failed verification: ${error.message}`
+              : `Asset ${document.id} bytes failed verification.`,
           path: document.path,
         });
         return;
       }
       const isPublic = document.path.startsWith('/public/');
+      const deliveryClass = classifyBinaryAssetDelivery(document.content.mime);
+      if (isPublic && deliveryClass !== 'static') {
+        diagnostics.push({
+          code: deliveryClass === 'active-content' ? 'AST-1101' : 'AST-1102',
+          severity: 'error',
+          source: 'export',
+          message:
+            deliveryClass === 'active-content'
+              ? `Asset ${document.id} uses active content media type ${document.content.mime}; public delivery requires a sanitizer and isolated-origin policy.`
+              : `Asset ${document.id} uses download-only media type ${document.content.mime}; public delivery requires an attachment-capable isolated origin.`,
+          path: document.path,
+        });
+        return;
+      }
+      referencedMaterializationIds.add(document.id);
       const emittedPath = normalizeExportPath(document.path);
       artifacts.push({
         id: `workspace-resource:${document.id}`,
         kind: 'asset',
         suggestedName: emittedPath.split('/').at(-1) ?? document.id,
         mimeType: document.content.mime,
-        contents,
+        contents: verified.contents,
         ...(isPublic
           ? { publicPath: emittedPath }
           : { sourcePath: joinExportPath('src', 'assets', emittedPath) }),
@@ -470,6 +540,24 @@ const createWorkspaceResourceContribution = (
       });
     }
   });
+  materializationsByDocumentId.forEach((_entries, assetDocumentId) => {
+    if (referencedMaterializationIds.has(assetDocumentId)) return;
+    if (
+      documents.some(
+        (document) =>
+          document.id === assetDocumentId && document.type === 'asset'
+      )
+    ) {
+      return;
+    }
+    diagnostics.push({
+      code: 'AST-1005',
+      severity: 'error',
+      source: 'export',
+      message: `Asset materialization ${assetDocumentId} does not match a canonical Workspace asset document.`,
+      path: `/assetMaterializations/${assetDocumentId}`,
+    });
+  });
   return { artifacts, diagnostics };
 };
 
@@ -492,6 +580,7 @@ const createWorkspaceAppModule = (input: {
   compiledDocuments: readonly CompiledWorkspacePirDocument[];
   executableModuleIdByArtifactId: ReadonlyMap<string, string>;
   routeTopology: ExportRouteTopology;
+  serverRuntime: WorkspaceServerRuntimeTargetAnalysis;
 }): { module: ExportModule; diagnostics: CompileDiagnostic[] } => {
   const moduleByDocumentId = new Map(
     input.compiledDocuments.map((compiled) => [compiled.document.id, compiled])
@@ -521,6 +610,13 @@ const createWorkspaceAppModule = (input: {
       imported: 'createWorkspaceDataRuntime',
       local: 'createWorkspaceDataRuntime',
     },
+    {
+      kind: 'named',
+      source: WORKSPACE_SERVER_RUNTIME_MODULE_ID,
+      targetModuleId: WORKSPACE_SERVER_RUNTIME_MODULE_ID,
+      imported: 'invokeWorkspaceServerFunction',
+      local: 'invokeWorkspaceServerFunction',
+    },
     ...input.compiledDocuments.map((compiled): ExportImportIntent => ({
       kind: 'default',
       source: compiled.module.id,
@@ -531,7 +627,26 @@ const createWorkspaceAppModule = (input: {
   const diagnostics: CompileDiagnostic[] = [];
   const runtimeBindings: WorkspaceRouteRuntimeBinding[] = [];
   const runtimeImportByKey = new Map<string, WorkspaceRouteRuntimeBinding>();
+  const serverArtifactIds = new Set(input.serverRuntime.serverArtifactIds);
   input.routeTopology.runtimeRefs.forEach((reference) => {
+    const serverBinding = input.serverRuntime.bindings.find(
+      (binding) =>
+        binding.routeNodeId === reference.routeNodeId &&
+        binding.routeKind === reference.kind &&
+        binding.definition.reference.artifactId === reference.artifactId &&
+        binding.definition.reference.exportName === reference.exportName
+    );
+    if (serverBinding) {
+      runtimeBindings.push({
+        artifactId: reference.artifactId,
+        exportName: reference.exportName,
+        kind: reference.kind,
+        routeNodeId: reference.routeNodeId,
+        serverFunction: serverBinding.definition,
+      });
+      return;
+    }
+    if (serverArtifactIds.has(reference.artifactId)) return;
     const targetModuleId = input.executableModuleIdByArtifactId.get(
       reference.artifactId
     );
@@ -627,7 +742,9 @@ const createWorkspaceAppModule = (input: {
   >();
   runtimeBindings.forEach((binding) => {
     const current = runtimeByRoute.get(binding.routeNodeId) ?? {};
-    current[binding.kind] = binding.localName;
+    current[binding.kind] = binding.serverFunction
+      ? `{ kind: 'server-function', functionRef: ${JSON.stringify(binding.serverFunction.reference)} }`
+      : binding.localName;
     runtimeByRoute.set(binding.routeNodeId, current);
   });
   const runtimeTable = [...runtimeByRoute.entries()]
@@ -661,6 +778,32 @@ ${routeTable}
 ] as const;
 
 const workspaceDataRuntime = createWorkspaceDataRuntime();
+
+type WorkspaceServerFunctionRouteRuntimeEntry = Readonly<{
+  kind: 'server-function';
+  functionRef: Readonly<{ artifactId: string; exportName: string }>;
+}>;
+
+const readWorkspaceRouteRuntime = (routeNodeId: string) =>
+  (workspaceRouteRuntime as Readonly<Record<string, Partial<Record<'loader' | 'action' | 'guard', unknown>>>>)[routeNodeId];
+
+const readWorkspaceServerFunctionRouteRuntimeEntry = (
+  value: unknown
+): WorkspaceServerFunctionRouteRuntimeEntry | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const entry = value as Readonly<Record<string, unknown>>;
+  const functionRef = entry.functionRef;
+  if (
+    entry.kind !== 'server-function' || !functionRef || typeof functionRef !== 'object' || Array.isArray(functionRef)
+  ) return undefined;
+  const reference = functionRef as Readonly<Record<string, unknown>>;
+  return typeof reference.artifactId === 'string' && typeof reference.exportName === 'string'
+    ? value as WorkspaceServerFunctionRouteRuntimeEntry
+    : undefined;
+};
+
+let activeWorkspaceRouteLoaderValue: unknown;
+export const readWorkspaceRouteLoaderValue = () => activeWorkspaceRouteLoaderValue;
 
 const workspacePirRuntime = {
   ...workspaceDataRuntime,
@@ -697,34 +840,265 @@ const normalizePath = (value: string) => {
   return normalized.length > 1 ? normalized.replace(/\\/$/, '') : '/';
 };
 
-const matchesRoutePath = (pattern: string, pathname: string) => {
+const matchWorkspaceRoutePath = (pattern: string, pathname: string): Readonly<Record<string, string>> | undefined => {
   const patternSegments = normalizePath(pattern).split('/').filter(Boolean);
   const pathSegments = normalizePath(pathname).split('/').filter(Boolean);
+  const params: Record<string, string> = {};
   let pathIndex = 0;
   for (const segment of patternSegments) {
-    if (segment.startsWith('*') || /^\\[\\.\\.\\..+\\]$/.test(segment)) return true;
-    if (pathIndex >= pathSegments.length) return false;
-    if (!(segment.startsWith(':') || /^\\[[^\\]]+\\]$/.test(segment)) && segment !== pathSegments[pathIndex]) {
-      return false;
+    if (segment.startsWith('*') || /^\\[\\.\\.\\..+\\]$/.test(segment)) {
+      const name = segment.startsWith('*') ? segment.slice(1) || 'splat' : segment.slice(4, -1);
+      try {
+        params[name] = decodeURIComponent(pathSegments.slice(pathIndex).join('/'));
+      } catch {
+        return undefined;
+      }
+      return Object.freeze(params);
+    }
+    if (pathIndex >= pathSegments.length) return undefined;
+    const dynamic = segment.startsWith(':') || /^\\[[^\\]]+\\]$/.test(segment);
+    if (!dynamic && segment !== pathSegments[pathIndex]) {
+      return undefined;
+    }
+    if (dynamic) {
+      const name = segment.startsWith(':') ? segment.slice(1) : segment.slice(1, -1);
+      try {
+        params[name] = decodeURIComponent(pathSegments[pathIndex]);
+      } catch {
+        return undefined;
+      }
     }
     pathIndex += 1;
   }
-  return pathIndex === pathSegments.length;
+  return pathIndex === pathSegments.length ? Object.freeze(params) : undefined;
 };
 
 const readPathname = () =>
   typeof window === 'undefined' ? '/' : normalizePath(window.location.pathname);
 
+const findWorkspaceRoute = (pathname: string) => {
+  for (const route of workspaceRoutes) {
+    const params = matchWorkspaceRoutePath(route.path, pathname);
+    if (params) return Object.freeze({ ...route, params });
+  }
+  return undefined;
+};
+
+let activeWorkspaceRouteActionController: AbortController | undefined;
+let workspaceRouteRuntimeRevision = 0;
+const workspaceRouteRuntimeSubscribers = new Set<() => void>();
+
+const readWorkspaceLocationSnapshot = () =>
+  readPathname() + '\\0' + String(workspaceRouteRuntimeRevision);
+
 const subscribeToLocation = (notify: () => void) => {
   if (typeof window === 'undefined') return () => undefined;
-  window.addEventListener('popstate', notify);
-  return () => window.removeEventListener('popstate', notify);
+  const onLocationChange = () => {
+    activeWorkspaceRouteActionController?.abort();
+    notify();
+  };
+  workspaceRouteRuntimeSubscribers.add(notify);
+  window.addEventListener('popstate', onLocationChange);
+  return () => {
+    workspaceRouteRuntimeSubscribers.delete(notify);
+    window.removeEventListener('popstate', onLocationChange);
+  };
+};
+
+const notifyWorkspaceRouteRevalidation = () => {
+  workspaceRouteRuntimeRevision += 1;
+  workspaceRouteRuntimeSubscribers.forEach((notify) => notify());
+};
+
+const readWorkspaceSearchParams = (): Readonly<Record<string, string | readonly string[]>> => {
+  if (typeof window === 'undefined') return Object.freeze({});
+  const values: Record<string, string | string[]> = {};
+  new URLSearchParams(window.location.search).forEach((value, key) => {
+    const current = values[key];
+    values[key] = current === undefined
+      ? value
+      : Array.isArray(current)
+        ? [...current, value]
+        : [current, value];
+  });
+  return Object.freeze(Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? Object.freeze(value) : value,
+    ])
+  ));
+};
+
+export type WorkspaceRouteActionSubmission = Readonly<{
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  encType: 'application/json' | 'application/x-www-form-urlencoded';
+  value: unknown;
+}>;
+
+export type WorkspaceRouteActionOptions = Readonly<{
+  invocationId?: string;
+  attempt?: number;
+  signal?: AbortSignal;
+}>;
+
+/** Dispatches one typed Route action and revalidates the active loader after a value outcome. */
+export const dispatchWorkspaceRouteAction = async (
+  submission: WorkspaceRouteActionSubmission,
+  options: WorkspaceRouteActionOptions = {}
+) => {
+  if (typeof window === 'undefined') throw new Error('SVR_ROUTE_ACTION_BROWSER_REQUIRED');
+  const currentPath = readPathname();
+  const match = findWorkspaceRoute(currentPath);
+  const action = match
+    ? readWorkspaceServerFunctionRouteRuntimeEntry(readWorkspaceRouteRuntime(match.routeNodeId)?.action)
+    : undefined;
+  if (!match || !action) throw new Error('SVR_ROUTE_ACTION_UNAVAILABLE');
+  if (
+    !submission ||
+    typeof submission !== 'object' ||
+    Array.isArray(submission) ||
+    Object.keys(submission).sort().join('\\0') !==
+    ['encType', 'method', 'value'].sort().join('\\0')
+  ) {
+    throw new Error('SVR_ROUTE_ACTION_INPUT_INVALID');
+  }
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(submission.method)) {
+    throw new Error('SVR_ROUTE_ACTION_INPUT_INVALID');
+  }
+  if (submission.encType !== 'application/json' && submission.encType !== 'application/x-www-form-urlencoded') {
+    throw new Error('SVR_ROUTE_ACTION_INPUT_INVALID');
+  }
+  activeWorkspaceRouteActionController?.abort();
+  const controller = new AbortController();
+  activeWorkspaceRouteActionController = controller;
+  const cancelFromCaller = () => controller.abort();
+  options.signal?.addEventListener('abort', cancelFromCaller, { once: true });
+  if (options.signal?.aborted) controller.abort();
+  try {
+    const outcome = await invokeWorkspaceServerFunction(
+      action.functionRef,
+      Object.freeze({
+        format: 'prodivix.route-action-input.v1',
+        route: Object.freeze({
+          routeNodeId: match.routeNodeId,
+          currentPath,
+          matchedPath: match.path,
+          params: match.params,
+          searchParams: readWorkspaceSearchParams(),
+          ...(window.location.hash ? { hash: window.location.hash } : {}),
+        }),
+        submission: Object.freeze({
+          method: submission.method,
+          encType: submission.encType,
+          value: submission.value,
+        }),
+      }),
+      {
+        ...(options.invocationId !== undefined
+          ? { invocationId: options.invocationId }
+          : {}),
+        ...(options.attempt !== undefined ? { attempt: options.attempt } : {}),
+        signal: controller.signal,
+      }
+    );
+    if (outcome.kind === 'redirect') {
+      window.location.assign(outcome.location);
+      return outcome;
+    }
+    if (outcome.kind !== 'value') throw new Error('SVR_ROUTE_ACTION_OUTCOME_INVALID');
+    notifyWorkspaceRouteRevalidation();
+    return outcome;
+  } finally {
+    options.signal?.removeEventListener('abort', cancelFromCaller);
+    if (activeWorkspaceRouteActionController === controller) {
+      activeWorkspaceRouteActionController = undefined;
+    }
+  }
 };
 
 export default function App() {
-  const pathname = useSyncExternalStore(subscribeToLocation, readPathname, () => '/');
-  const match = workspaceRoutes.find((route) => matchesRoutePath(route.path, pathname));
+  const locationSnapshot = useSyncExternalStore(
+    subscribeToLocation,
+    readWorkspaceLocationSnapshot,
+    () => '/\\0' + String(workspaceRouteRuntimeRevision)
+  );
+  const pathname = locationSnapshot.split('\\0', 1)[0] || '/';
+  const match = findWorkspaceRoute(pathname);
+  const routeRuntime = match ? readWorkspaceRouteRuntime(match.routeNodeId) : undefined;
+  const routeServerGuard = readWorkspaceServerFunctionRouteRuntimeEntry(routeRuntime?.guard);
+  const routeServerLoader = readWorkspaceServerFunctionRouteRuntimeEntry(routeRuntime?.loader);
+  const [routeRuntimeState, setRouteRuntimeState] = React.useState<
+    | Readonly<{ routeNodeId: string; status: 'pending' | 'ready' }>
+    | Readonly<{ routeNodeId: string; status: 'denied' | 'failed'; code: string }>
+  >(() => ({ routeNodeId: '', status: 'pending' }));
+
+  React.useEffect(() => {
+    if (!match || (!routeServerGuard && !routeServerLoader)) {
+      activeWorkspaceRouteLoaderValue = undefined;
+      return undefined;
+    }
+    let active = true;
+    const controller = new AbortController();
+    const routeNodeId = match.routeNodeId;
+    activeWorkspaceRouteLoaderValue = undefined;
+    setRouteRuntimeState({ routeNodeId, status: 'pending' });
+    const invoke = async (entry: WorkspaceServerFunctionRouteRuntimeEntry | undefined) => {
+      if (!entry) return undefined;
+      return invokeWorkspaceServerFunction(
+        entry.functionRef,
+        { routeId: routeNodeId },
+        { signal: controller.signal }
+      );
+    };
+    void (async () => {
+      try {
+        const guard = await invoke(routeServerGuard);
+        if (!active) return;
+        if (guard?.kind === 'deny') {
+          setRouteRuntimeState({ routeNodeId, status: 'denied', code: guard.code });
+          return;
+        }
+        if (guard?.kind === 'redirect') {
+          window.location.assign(guard.location);
+          return;
+        }
+        if (guard && guard.kind !== 'allow') throw new Error('SVR_ROUTE_GUARD_OUTCOME_INVALID');
+        const loader = await invoke(routeServerLoader);
+        if (!active) return;
+        if (loader?.kind === 'redirect') {
+          window.location.assign(loader.location);
+          return;
+        }
+        if (loader && loader.kind !== 'value') throw new Error('SVR_ROUTE_LOADER_OUTCOME_INVALID');
+        activeWorkspaceRouteLoaderValue = loader?.kind === 'value' ? loader.value : undefined;
+        setRouteRuntimeState({ routeNodeId, status: 'ready' });
+      } catch (error) {
+        if (!active) return;
+        setRouteRuntimeState({
+          routeNodeId,
+          status: 'failed',
+          code: error instanceof Error ? error.message : 'SVR_ROUTE_RUNTIME_FAILED',
+        });
+      }
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [match?.routeNodeId, locationSnapshot]);
+
   if (!match) return <main data-prodivix-route-not-found="true">Route not found.</main>;
+  if (routeServerGuard || routeServerLoader) {
+    if (routeRuntimeState.routeNodeId !== match.routeNodeId || routeRuntimeState.status === 'pending') {
+      return <main data-prodivix-route-runtime="pending">Loading route.</main>;
+    }
+    if (routeRuntimeState.status === 'denied') {
+      return <main data-prodivix-route-runtime="denied">Access denied.</main>;
+    }
+    if (routeRuntimeState.status === 'failed') {
+      return <main data-prodivix-route-runtime="failed">Route runtime failed: {routeRuntimeState.code}</main>;
+    }
+  }
   const Page = match.Component;
   return <Page __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} />;
 }
@@ -831,6 +1205,12 @@ export const compileWorkspaceToExportProgram = (
     },
   });
   const routeTopology = routeContribution.routes as ExportRouteTopology;
+  const serverRuntime = analyzeWorkspaceServerRuntimeTarget(
+    workspace,
+    routeTopology,
+    options.serverRuntimeTarget,
+    options.serverRuntimeMockProvision
+  );
   const unsupportedLayoutDiagnostics: CompileDiagnostic[] = routeTopology.routes
     .filter((route) => route.layoutDocId)
     .map((route) => ({
@@ -867,6 +1247,7 @@ export const compileWorkspaceToExportProgram = (
     compiledDocuments,
     executableModuleIdByArtifactId: code.executableModuleIdByArtifactId,
     routeTopology,
+    serverRuntime,
   });
   const standaloneDataRuntime = createWorkspaceStandaloneDataRuntimeModule(
     workspace,
@@ -874,12 +1255,19 @@ export const compileWorkspaceToExportProgram = (
   );
   const executionConsoleRuntime =
     createWorkspaceExecutionConsoleRuntimeModule();
+  const standaloneServerRuntime = createWorkspaceStandaloneServerRuntimeModule(
+    serverRuntime.target,
+    serverRuntime.bindings
+  );
   const projectContributions: ExportProgramContribution[] = [
     pirCompilation.contribution,
     code.contribution,
     ...nodeGraphContributions,
     ...animationContributions,
-    createWorkspaceResourceContribution(documents),
+    createWorkspaceResourceContribution(
+      documents,
+      options.assetMaterializations
+    ),
     routeContribution,
     createStaticDeploymentExportContribution({
       target: 'static-hosting',
@@ -900,12 +1288,18 @@ export const compileWorkspaceToExportProgram = (
           },
         },
       ],
-      modules: [executionConsoleRuntime, standaloneDataRuntime, app.module],
+      modules: [
+        executionConsoleRuntime,
+        standaloneDataRuntime,
+        standaloneServerRuntime,
+        app.module,
+      ],
       diagnostics: [
         ...validationDiagnostics,
         ...unsupportedLayoutDiagnostics,
         ...unsupportedOutletDiagnostics,
         ...dataRuntime.diagnostics,
+        ...serverRuntime.diagnostics,
         ...app.diagnostics,
       ],
       metadata: {
@@ -918,6 +1312,10 @@ export const compileWorkspaceToExportProgram = (
         dataRuntime: {
           target: dataRuntime.target,
           requirements: dataRuntime.requirements,
+        },
+        serverRuntime: {
+          target: serverRuntime.target,
+          requirements: serverRuntime.requirements,
         },
       },
     },

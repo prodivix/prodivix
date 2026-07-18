@@ -2,7 +2,11 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { generateWorkspaceReactViteBundle } from '@prodivix/prodivix-compiler';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
-import { GOLDEN_CODEGEN_POLICY, GOLDEN_IDS } from './goldenApp.fixture';
+import {
+  GOLDEN_ASSET_MATERIALIZATIONS,
+  GOLDEN_CODEGEN_POLICY,
+  GOLDEN_IDS,
+} from './goldenApp.fixture';
 import { authorGoldenWorkspace } from './goldenScenario';
 
 const propertyParameters = Object.freeze({
@@ -48,6 +52,7 @@ describe('Golden Workspace export properties', () => {
     const baseline = bundleSignature(
       generateWorkspaceReactViteBundle(authored.editedWorkspace, {
         codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
+        assetMaterializations: GOLDEN_ASSET_MATERIALIZATIONS,
       })
     );
     fc.assert(
@@ -89,6 +94,7 @@ describe('Golden Workspace export properties', () => {
             bundleSignature(
               generateWorkspaceReactViteBundle(candidate, {
                 codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
+                assetMaterializations: GOLDEN_ASSET_MATERIALIZATIONS,
               })
             )
           ).toBe(baseline);

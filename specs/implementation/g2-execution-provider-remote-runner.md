@@ -40,7 +40,7 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   content digest；Compiler 直接生产，Browser Preview/Test 与 Remote 只消费。`ExecutionBuildBundle`
   strict decoder 校验生成文件路径、顺序、base64、大小和逐文件 digest；`ExecutionPreviewBundle`
   在其上继续校验 HTML entrypoint。新增必填 Preview plan 后 wire format 提升为
-  `prodivix.executable-project.v4`，current TypeScript model 继续保持无版本命名，不用默认值重解释
+  `prodivix.executable-project.v6`，current TypeScript model 继续保持无版本命名，不用默认值重解释
   旧 wire payload。
 - `@prodivix/runtime-remote` 已拥有 versioned envelope、严格 request/response/event/snapshot codec、
   start/status/cancel/events/artifact client、版本协商、强幂等 identity、cursor recovery、bounded
@@ -116,7 +116,7 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   credential denial、取消与 orphan cleanup。首次推送后仍需以 GitHub 证据确认 Passed；外部
   object-store/独立 queue scalability adapter 与 WebSocket/SSE replay adapter 尚未实现，HTTP control
   plane 也尚未接入正式部署环境。
-- Remote Preview/Test/Build provider projection、三类 result、授权 artifact resolver、有界 HTTP
+- Remote Preview/Test/Build/Server Function provider projection、四类 result、授权 artifact resolver、有界 HTTP
   transport、Backend auth gateway/durable grant、独立 capability Preview Host、Web composition factory 与
   Blueprint Browser/Remote selection 已接通。living Golden Workspace 现在只生成一次 neutral snapshot，
   Browser Preview/Test 通过共享 Runtime Host 消费，三个独立 Remote provider 消费同一 snapshot digest；
@@ -412,7 +412,7 @@ redaction，token/lease/canary 不进入 durable payload 或客户端 replay。
 
 - [x] Provider-neutral snapshot Hard Cut 完成，Browser owner/alias 已删除。
 - [x] Browser 与 Remote 消费同一 Executable Project Snapshot contract。
-- [x] Remote Preview/Test/Build provider projection 不暴露供应商 SDK 类型。
+- [x] Remote Preview/Test/Build/Server Function provider projection 不暴露供应商 SDK 类型。
 - [ ] start/cancel/reconnect/replay/timeout/worker-loss 语义可重复验证。
 - [ ] sandbox、quota、network 与 Secret zone permission fail closed。
 - [x] Browser/Remote contract conformance matrix 通过。

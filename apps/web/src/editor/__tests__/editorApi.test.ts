@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  createBinaryAssetBlobReference,
+  createBinaryAssetMaterialization,
+} from '@prodivix/assets';
+import {
   createEmptyPirDocument,
   encodePirDocument,
   type PIRDocument,
@@ -10,11 +14,13 @@ import {
 } from '@prodivix/workspace';
 
 const apiRequestMock = vi.hoisted(() => vi.fn());
+const apiBinaryRequestMock = vi.hoisted(() => vi.fn());
 const encodePirContent = (content: unknown): unknown =>
   JSON.parse(encodePirDocument(content as PIRDocument));
 
 vi.mock('@/infra/api', () => ({
   apiRequest: apiRequestMock,
+  apiBinaryRequest: apiBinaryRequestMock,
 }));
 
 import { editorApi } from '@/editor/editorApi';
@@ -59,9 +65,380 @@ const createWorkspace = (): WorkspaceSnapshot => ({
   activeRouteNodeId: 'root',
 });
 
+const createWorkspaceWithAsset = () => {
+  const contents = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const reference = createBinaryAssetBlobReference({
+    contents,
+    mediaType: 'image/png',
+  });
+  const base = createWorkspace();
+  const workspace: WorkspaceSnapshot = {
+    ...base,
+    treeById: {
+      ...base.treeById,
+      root: {
+        ...base.treeById.root!,
+        children: [...base.treeById.root!.children, 'asset-node'],
+      },
+      'asset-node': {
+        id: 'asset-node',
+        kind: 'doc',
+        name: 'logo.png',
+        parentId: 'root',
+        docId: 'asset-1',
+      },
+    },
+    docsById: {
+      ...base.docsById,
+      'asset-1': {
+        id: 'asset-1',
+        type: 'asset',
+        path: '/logo.png',
+        contentRev: 1,
+        metaRev: 1,
+        content: {
+          kind: 'asset',
+          mime: reference.mediaType,
+          size: reference.byteLength,
+          blob: reference,
+          metadata: { originalFileName: 'logo.png' },
+        },
+      },
+    },
+  };
+  return {
+    workspace,
+    contents,
+    reference,
+    materialization: createBinaryAssetMaterialization({
+      assetDocumentId: 'asset-1',
+      reference,
+      contents,
+    }),
+  };
+};
+
 describe('editorApi workspace boundary', () => {
   beforeEach(() => {
     apiRequestMock.mockReset();
+    apiBinaryRequestMock.mockReset();
+  });
+
+  it('uploads exact bytes under their computed Workspace-scoped digest', async () => {
+    const contents = new Uint8Array([0, 255, 1, 2]);
+    const reference = createBinaryAssetBlobReference({
+      contents,
+      mediaType: 'image/png',
+    });
+    apiRequestMock.mockResolvedValueOnce({ status: 'stored', blob: reference });
+
+    const result = await editorApi.putWorkspaceAssetBlob(
+      'token',
+      'workspace-1',
+      contents,
+      'IMAGE/PNG'
+    );
+
+    expect(result).toEqual({ kind: 'stored', reference });
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      `/workspaces/workspace-1/asset-blobs/${reference.digest}`,
+      expect.objectContaining({
+        token: 'token',
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/png' },
+        body: expect.any(ArrayBuffer),
+      })
+    );
+    const requestBody = (apiRequestMock.mock.calls[0]?.[1] as RequestInit).body;
+    expect(new Uint8Array(requestBody as ArrayBuffer)).toEqual(contents);
+  });
+
+  it('verifies downloaded bytes against the canonical asset reference', async () => {
+    const contents = new Uint8Array([8, 6, 7, 5, 3, 0, 9]);
+    const reference = createBinaryAssetBlobReference({
+      contents,
+      mediaType: 'application/octet-stream',
+    });
+    apiBinaryRequestMock.mockResolvedValueOnce({
+      contents,
+      mediaType: reference.mediaType,
+    });
+
+    await expect(
+      editorApi.getWorkspaceAssetBlob(
+        'token',
+        'workspace-1',
+        'asset-1',
+        reference
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        assetDocumentId: 'asset-1',
+        reference,
+        contents,
+      })
+    );
+    expect(apiBinaryRequestMock).toHaveBeenCalledWith(
+      `/workspaces/workspace-1/asset-blobs/${reference.digest}`,
+      { token: 'token' }
+    );
+  });
+
+  it('rejects an upload response whose canonical identity drifts', async () => {
+    const contents = new Uint8Array([1, 2, 3]);
+    const drifted = createBinaryAssetBlobReference({
+      contents: new Uint8Array([1, 2, 4]),
+      mediaType: 'image/png',
+    });
+    apiRequestMock.mockResolvedValueOnce({
+      status: 'existing',
+      blob: drifted,
+    });
+
+    await expect(
+      editorApi.putWorkspaceAssetBlob(
+        'token',
+        'workspace-1',
+        contents,
+        'image/png'
+      )
+    ).rejects.toThrow('identity drifted');
+  });
+
+  it('rejects a downloaded blob whose media type drifts', async () => {
+    const contents = new Uint8Array([1]);
+    const reference = createBinaryAssetBlobReference({
+      contents,
+      mediaType: 'image/png',
+    });
+    apiBinaryRequestMock.mockResolvedValueOnce({
+      contents,
+      mediaType: 'image/jpeg',
+    });
+
+    await expect(
+      editorApi.getWorkspaceAssetBlob(
+        'token',
+        'workspace-1',
+        'asset-1',
+        reference
+      )
+    ).rejects.toThrow('media type drifted');
+  });
+
+  it('strictly accepts one capability-bound PNG delivery session', async () => {
+    const contents = new Uint8Array([137, 80, 78, 71]);
+    const reference = createBinaryAssetBlobReference({
+      contents,
+      mediaType: 'image/png',
+    });
+    const capability = 'b'.repeat(64);
+    apiRequestMock.mockResolvedValueOnce({
+      deliveryUrl: `https://${capability}.asset.example.test/asset`,
+      expiresAt: Date.now() + 60_000,
+      digest: `sha256-${'c'.repeat(64)}`,
+      mediaType: 'image/png',
+      byteLength: 67,
+      disposition: 'inline',
+      deliveryClass: 'static',
+      recipeDigest: `sha256-${'d'.repeat(64)}`,
+      metadata: { width: 1, height: 1 },
+      cacheStatus: 'transformed',
+    });
+
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        reference,
+        { transform: 'png-sanitize', disposition: 'inline' }
+      )
+    ).resolves.toMatchObject({
+      deliveryUrl: `https://${capability}.asset.example.test/asset`,
+      mediaType: 'image/png',
+      metadata: { width: 1, height: 1 },
+    });
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      `/workspaces/workspace-1/asset-blobs/${reference.digest}/delivery-sessions`,
+      expect.objectContaining({
+        token: 'token',
+        method: 'POST',
+        body: JSON.stringify({
+          transform: 'png-sanitize',
+          disposition: 'inline',
+        }),
+      })
+    );
+  });
+
+  it('strictly accepts one capability-bound baseline JPEG delivery session', async () => {
+    const reference = createBinaryAssetBlobReference({
+      contents: new Uint8Array([255, 216, 255, 224, 255, 217]),
+      mediaType: 'image/jpeg',
+    });
+    const capability = 'e'.repeat(64);
+    apiRequestMock.mockResolvedValueOnce({
+      deliveryUrl: `https://${capability}.asset.example.test/asset`,
+      expiresAt: Date.now() + 60_000,
+      digest: `sha256-${'f'.repeat(64)}`,
+      mediaType: 'image/jpeg',
+      byteLength: 633,
+      disposition: 'inline',
+      deliveryClass: 'static',
+      recipeDigest: `sha256-${'a'.repeat(64)}`,
+      metadata: { width: 2, height: 3 },
+      cacheStatus: 'cache-hit',
+    });
+
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        reference,
+        { transform: 'jpeg-sanitize', disposition: 'inline' }
+      )
+    ).resolves.toMatchObject({
+      deliveryUrl: `https://${capability}.asset.example.test/asset`,
+      mediaType: 'image/jpeg',
+      metadata: { width: 2, height: 3 },
+    });
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      `/workspaces/workspace-1/asset-blobs/${reference.digest}/delivery-sessions`,
+      expect.objectContaining({
+        token: 'token',
+        method: 'POST',
+        body: JSON.stringify({
+          transform: 'jpeg-sanitize',
+          disposition: 'inline',
+        }),
+      })
+    );
+  });
+
+  it('rejects JPEG transform policy drift before network access', async () => {
+    const jpeg = createBinaryAssetBlobReference({
+      contents: new Uint8Array([255, 216, 255, 217]),
+      mediaType: 'image/jpeg',
+    });
+    const png = createBinaryAssetBlobReference({
+      contents: new Uint8Array([137, 80, 78, 71]),
+      mediaType: 'image/png',
+    });
+
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        jpeg,
+        { transform: 'jpeg-sanitize', disposition: 'attachment' }
+      )
+    ).rejects.toThrow('invalid');
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        png,
+        { transform: 'jpeg-sanitize', disposition: 'inline' }
+      )
+    ).rejects.toThrow('invalid');
+    expect(apiRequestMock).not.toHaveBeenCalled();
+  });
+
+  it('requires exact source identity for scanned original delivery', async () => {
+    const reference = createBinaryAssetBlobReference({
+      contents: new Uint8Array([37, 80, 68, 70]),
+      mediaType: 'application/pdf',
+    });
+    const response = {
+      deliveryUrl: `https://${'9'.repeat(64)}.asset.example.test/asset`,
+      expiresAt: Date.now() + 60_000,
+      digest: reference.digest,
+      mediaType: reference.mediaType,
+      byteLength: reference.byteLength,
+      disposition: 'attachment',
+      deliveryClass: 'download-only',
+      recipeDigest: null,
+      metadata: null,
+      cacheStatus: 'not-applicable',
+    };
+    apiRequestMock.mockResolvedValueOnce(response);
+
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        reference,
+        { transform: 'original', disposition: 'attachment' }
+      )
+    ).resolves.toMatchObject({
+      digest: reference.digest,
+      mediaType: 'application/pdf',
+      deliveryClass: 'download-only',
+    });
+
+    apiRequestMock.mockResolvedValueOnce({
+      ...response,
+      digest: `sha256-${'8'.repeat(64)}`,
+    });
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        reference,
+        { transform: 'original', disposition: 'attachment' }
+      )
+    ).rejects.toThrow('identity drifted');
+  });
+
+  it('rejects unsafe or shape-drifted delivery sessions', async () => {
+    const reference = createBinaryAssetBlobReference({
+      contents: new Uint8Array([1]),
+      mediaType: 'image/png',
+    });
+    const response = {
+      deliveryUrl: `https://${'b'.repeat(64)}.asset.example.test/asset`,
+      expiresAt: Date.now() + 60_000,
+      digest: `sha256-${'c'.repeat(64)}`,
+      mediaType: 'image/png',
+      byteLength: 67,
+      disposition: 'inline',
+      deliveryClass: 'static',
+      recipeDigest: `sha256-${'d'.repeat(64)}`,
+      metadata: { width: 1, height: 1 },
+      cacheStatus: 'transformed',
+    };
+    apiRequestMock.mockResolvedValueOnce({ ...response, token: 'canary' });
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        reference,
+        { transform: 'png-sanitize', disposition: 'inline' }
+      )
+    ).rejects.toThrow('invalid');
+
+    apiRequestMock.mockResolvedValueOnce({
+      ...response,
+      deliveryUrl: 'javascript:alert(1)',
+    });
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        reference,
+        { transform: 'png-sanitize', disposition: 'inline' }
+      )
+    ).rejects.toThrow('invalid');
+
+    apiRequestMock.mockResolvedValueOnce({ ...response, byteLength: 0 });
+    await expect(
+      editorApi.createWorkspaceAssetDeliverySession(
+        'token',
+        'workspace-1',
+        reference,
+        { transform: 'png-sanitize', disposition: 'inline' }
+      )
+    ).rejects.toThrow('invalid');
   });
 
   it('decodes backend workspace wire DTOs into the canonical model', async () => {
@@ -107,15 +484,172 @@ describe('editorApi workspace boundary', () => {
       settings: { locale: 'en-US' },
     });
 
-    const [, options] = apiRequestMock.mock.calls[0] as [string, RequestInit];
+    const [, options] = apiRequestMock.mock.calls[0] as [
+      string,
+      RequestInit & { defaultHeaders?: HeadersInit },
+    ];
     const requestBody = JSON.parse(options.body as string) as Record<
       string,
       unknown
     >;
     expect(requestBody.workspace).toEqual(wireWorkspace);
     expect(requestBody.workspace).not.toHaveProperty('docsById');
+    expect(options.defaultHeaders).toEqual({
+      'Content-Type': 'application/json',
+    });
     expect(result.workspace.docsById['document-1']).toBeDefined();
     expect(result.settings).toEqual({ locale: 'en-US' });
+  });
+
+  it('atomically uploads referenced local asset bytes with a JSON-only manifest', async () => {
+    const { workspace, contents, reference, materialization } =
+      createWorkspaceWithAsset();
+    const wireWorkspace = encodeWorkspaceSnapshot(workspace, {
+      locale: 'zh-CN',
+    });
+    apiRequestMock.mockResolvedValueOnce({
+      project: {
+        id: 'project-asset',
+        resourceType: 'project',
+        name: 'Imported assets',
+        isPublic: false,
+        starsCount: 0,
+        createdAt: '2026-07-18T00:00:00.000Z',
+        updatedAt: '2026-07-18T00:00:00.000Z',
+      },
+      workspace: wireWorkspace,
+    });
+
+    await editorApi.importLocalProject('token', {
+      name: 'Imported assets',
+      resourceType: 'project',
+      workspace,
+      settings: { locale: 'zh-CN' },
+      assetMaterializations: [materialization],
+    });
+
+    const [path, options] = apiRequestMock.mock.calls[0] as [
+      string,
+      RequestInit & { token?: string },
+    ];
+    expect(path).toBe('/workspaces/import-local-project');
+    expect(options.token).toBe('token');
+    expect(options).not.toHaveProperty('defaultHeaders');
+    expect(options.body).toBeInstanceOf(FormData);
+    const body = options.body as FormData;
+    const manifest = body.get('manifest');
+    const asset = body.get('asset');
+    expect(manifest).toBeInstanceOf(Blob);
+    expect(asset).toBeInstanceOf(Blob);
+    expect((manifest as File).name).toBe('manifest.json');
+    expect((asset as File).name).toBe(reference.digest);
+    expect((asset as Blob).type).toBe(reference.mediaType);
+    expect(new Uint8Array(await (asset as Blob).arrayBuffer())).toEqual(
+      contents
+    );
+    const decodedManifest = JSON.parse(
+      await (manifest as Blob).text()
+    ) as Record<string, unknown>;
+    expect(decodedManifest.workspace).toEqual(wireWorkspace);
+    expect(JSON.stringify(decodedManifest)).not.toContain('data:image');
+    expect(JSON.stringify(decodedManifest)).not.toContain('iVBORw0KGgo=');
+  });
+
+  it('deduplicates shared asset bytes by digest while preserving every document reference', async () => {
+    const {
+      workspace: source,
+      contents,
+      reference,
+      materialization,
+    } = createWorkspaceWithAsset();
+    const workspace: WorkspaceSnapshot = {
+      ...source,
+      treeById: {
+        ...source.treeById,
+        root: {
+          ...source.treeById.root!,
+          children: [...source.treeById.root!.children, 'asset-copy-node'],
+        },
+        'asset-copy-node': {
+          id: 'asset-copy-node',
+          kind: 'doc',
+          name: 'logo-copy.png',
+          parentId: 'root',
+          docId: 'asset-2',
+        },
+      },
+      docsById: {
+        ...source.docsById,
+        'asset-2': {
+          ...source.docsById['asset-1']!,
+          id: 'asset-2',
+          path: '/logo-copy.png',
+        },
+      },
+    };
+    const wireWorkspace = encodeWorkspaceSnapshot(workspace, {});
+    apiRequestMock.mockResolvedValueOnce({
+      project: {
+        id: 'project-shared-asset',
+        resourceType: 'project',
+        name: 'Shared asset',
+        isPublic: false,
+        starsCount: 0,
+        createdAt: '2026-07-18T00:00:00.000Z',
+        updatedAt: '2026-07-18T00:00:00.000Z',
+      },
+      workspace: wireWorkspace,
+    });
+
+    await editorApi.importLocalProject('token', {
+      name: 'Shared asset',
+      resourceType: 'project',
+      workspace,
+      settings: {},
+      assetMaterializations: [
+        materialization,
+        createBinaryAssetMaterialization({
+          assetDocumentId: 'asset-2',
+          reference,
+          contents,
+        }),
+      ],
+    });
+
+    const body = apiRequestMock.mock.calls[0]?.[1].body as FormData;
+    expect(body.getAll('asset')).toHaveLength(1);
+    const manifest = JSON.parse(
+      await (body.get('manifest') as Blob).text()
+    ) as { workspace: { documents: Array<{ id: string }> } };
+    expect(
+      manifest.workspace.documents.filter((document) =>
+        ['asset-1', 'asset-2'].includes(document.id)
+      )
+    ).toHaveLength(2);
+  });
+
+  it('fails closed before network access when local asset materializations are incomplete or unreferenced', async () => {
+    const { workspace, materialization } = createWorkspaceWithAsset();
+    await expect(
+      editorApi.importLocalProject('token', {
+        name: 'Missing asset',
+        resourceType: 'project',
+        workspace,
+        settings: {},
+      })
+    ).rejects.toThrow('AST-2002');
+
+    const withoutAssets = createWorkspace();
+    await expect(
+      editorApi.importLocalProject('token', {
+        name: 'Unreferenced asset',
+        resourceType: 'project',
+        workspace: withoutAssets,
+        settings: {},
+        assetMaterializations: [materialization],
+      })
+    ).rejects.toThrow('AST-2001');
+    expect(apiRequestMock).not.toHaveBeenCalled();
   });
 
   it('commits a canonical WorkspaceOperation through the atomic endpoint', async () => {

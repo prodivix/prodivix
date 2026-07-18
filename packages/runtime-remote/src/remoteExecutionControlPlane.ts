@@ -11,6 +11,8 @@ import {
   type ExecutionProviderDescriptor,
   type ExecutionRequest,
 } from '@prodivix/runtime-core';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import {
   createRemoteExecutionFailureEnvelope,
   createRemoteExecutionSuccessEnvelope,
@@ -36,6 +38,11 @@ import type {
   RemoteExecutionResponseEnvelope,
   RemoteExecutionSnapshotSource,
 } from './remoteExecutionProtocol.types';
+import {
+  readRemoteExecutionServerAuthority,
+  REMOTE_EXECUTION_SERVER_AUTHORITY_LIMITS,
+  type RemoteExecutionServerAuthority,
+} from './remoteExecutionServerAuthority';
 
 const normalizeWorkerEvent = (
   executionId: string,
@@ -150,8 +157,28 @@ const sourceIdentity = (source: RemoteExecutionSnapshotSource) =>
 
 const identityKey = (
   request: ExecutionRequest,
-  snapshotDigest: string
-): string => JSON.stringify({ request, snapshotDigest });
+  snapshotDigest: string,
+  serverAuthority?: RemoteExecutionServerAuthority
+): string =>
+  `sha256-${bytesToHex(
+    sha256(
+      utf8ToBytes(
+        JSON.stringify({
+          request,
+          snapshotDigest,
+          serverAuthority:
+            serverAuthority === undefined
+              ? null
+              : {
+                  principal: serverAuthority.principal,
+                  permissions: serverAuthority.permissions,
+                  workspaceId: serverAuthority.workspaceId,
+                  snapshotId: serverAuthority.snapshotId,
+                },
+        })
+      )
+    )
+  )}`;
 
 const ownedExecution = (
   execution: RemoteExecutionStoredRecord | undefined,
@@ -301,7 +328,22 @@ export const createRemoteExecutionControlPlane = (
     if (isFailure(principal))
       return createRemoteExecutionFailureEnvelope(envelope, principal);
     const source = sourceIdentity(payload.snapshot);
+    const createdAt = now();
+    const serverAuthority =
+      context.serverAuthority === undefined
+        ? undefined
+        : readRemoteExecutionServerAuthority(context.serverAuthority);
     if (
+      (context.serverAuthority !== undefined && !serverAuthority) ||
+      (serverAuthority !== undefined &&
+        (inspectValue('request', serverAuthority) ||
+          serverAuthority.workspaceId !==
+            payload.request.workspace.workspaceId ||
+          serverAuthority.snapshotId !== source.snapshotId ||
+          serverAuthority.expiresAt <= createdAt ||
+          serverAuthority.expiresAt >
+            createdAt +
+              REMOTE_EXECUTION_SERVER_AUTHORITY_LIMITS.maximumTtlMs)) ||
       source.snapshotId !== payload.request.workspace.snapshotId ||
       (payload.snapshot.kind === 'upload' &&
         payload.snapshot.snapshot.workspace.workspaceId !==
@@ -309,7 +351,11 @@ export const createRemoteExecutionControlPlane = (
     ) {
       return respondFailure(envelope, 'invalid-request');
     }
-    const key = identityKey(payload.request, source.contentDigest);
+    const key = identityKey(
+      payload.request,
+      source.contentDigest,
+      serverAuthority
+    );
     if (inspectValue('cache-key', key))
       return respondFailure(envelope, 'invalid-request');
     const existing = await options.repository.getByOwnerRequest(
@@ -335,7 +381,7 @@ export const createRemoteExecutionControlPlane = (
         ? await options.snapshots.put(
             principal.subjectId,
             payload.snapshot.snapshot,
-            now()
+            createdAt
           )
         : await options.snapshots.get(
             principal.subjectId,
@@ -345,7 +391,10 @@ export const createRemoteExecutionControlPlane = (
     if (!snapshot) return respondFailure(envelope, 'not-found');
     if (inspectValue('snapshot', snapshot.snapshot))
       return respondFailure(envelope, 'invalid-request');
-    if (payload.request.profile === 'production')
+    if (
+      payload.request.profile === 'production' &&
+      !snapshot.snapshot.serverFunctionPlan
+    )
       return respondFailure(envelope, 'invalid-request');
     try {
       assertExecutableProjectCapabilitySupport(
@@ -364,8 +413,9 @@ export const createRemoteExecutionControlPlane = (
       snapshotDigest: source.contentDigest,
       provider,
       executionId: options.createExecutionId(),
-      createdAt: now(),
+      createdAt,
       maximumActiveExecutions: quota.maximumActiveExecutions,
+      ...(serverAuthority === undefined ? {} : { serverAuthority }),
     });
     if (result.kind === 'identity-conflict')
       return respondFailure(envelope, 'identity-conflict');
@@ -420,6 +470,8 @@ export const createRemoteExecutionControlPlane = (
   ): Promise<RemoteExecutionResponseEnvelope> => {
     const envelope = decodeRemoteExecutionRequestEnvelope(rawEnvelope);
     const request = envelope.request;
+    if (request.operation !== 'create' && context.serverAuthority !== undefined)
+      return respondFailure(envelope, 'invalid-request');
     if (request.operation !== 'create' && inspectValue('request', request))
       return respondFailure(envelope, 'invalid-request');
     switch (request.operation) {

@@ -24,5 +24,6 @@ describe('Remote project execution composition', () => {
       isolation: 'remote-isolated',
     });
     expect(environment.artifacts.resolvePreviewBundle).toBeTypeOf('function');
+    expect(environment.serverFunctions.invoke).toBeTypeOf('function');
   });
 });

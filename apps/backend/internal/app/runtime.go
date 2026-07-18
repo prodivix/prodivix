@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -29,9 +30,10 @@ type RuntimeModules struct {
 		Handler *backendproject.Handler
 	}
 	Workspace struct {
-		Store   *backendworkspace.WorkspaceStore
-		Module  *backendworkspace.Module
-		Handler *backendworkspace.Handler
+		Store       *backendworkspace.WorkspaceStore
+		Module      *backendworkspace.Module
+		Handler     *backendworkspace.Handler
+		Maintenance *WorkspaceAssetBlobMaintenance
 	}
 	RemoteExecution struct {
 		Store   *backendremoteexecution.Store
@@ -53,7 +55,8 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	modules.GitHub.Store = backendgithub.NewStore(db)
 	modules.Workspace.Store = backendworkspace.NewWorkspaceStore(db)
 	modules.Workspace.Module = backendworkspace.NewModule(modules.Workspace.Store, modules.Project.Store)
-	modules.Workspace.Handler = backendworkspace.NewHandler(modules.Workspace.Store, modules.Workspace.Module)
+	modules.Workspace.Handler = backendworkspace.NewHandler(modules.Workspace.Store, modules.Workspace.Module, cfg.AssetDelivery)
+	modules.Workspace.Maintenance = NewWorkspaceAssetBlobMaintenance(modules.Workspace.Store, cfg.AssetBlobRetention)
 	modules.Project.Handler = backendproject.NewHandler(modules.Project.Store, modules.Workspace.Module)
 	modules.GitHub.Handler = backendgithub.NewHandler(modules.GitHub.Store, modules.Project.Store, cfg.GitHub, cfg.Environment)
 	modules.RemoteExecution.Store = backendremoteexecution.NewStore(db)
@@ -61,6 +64,14 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	modules.Environment.Handler = backendenvironment.NewHandler(modules.Environment.Store)
 	modules.RemoteExecution.Handler = backendremoteexecution.NewHandler(modules.RemoteExecution.Store, cfg.RemoteRunner, cfg.RemotePreview, modules.Environment.Store)
 	return modules
+}
+
+func (modules RuntimeModules) StartMaintenance(ctx context.Context) {
+	modules.Workspace.Maintenance.Start(ctx)
+}
+
+func (modules RuntimeModules) CloseMaintenance() {
+	modules.Workspace.Maintenance.Close()
 }
 
 func (modules RuntimeModules) RequireAuth() gin.HandlerFunc {

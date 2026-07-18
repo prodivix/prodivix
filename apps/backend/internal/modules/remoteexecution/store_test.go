@@ -32,6 +32,124 @@ func TestRecordExecutionPersistsExactEnvironmentAuthority(t *testing.T) {
 	}
 }
 
+func TestRecordExecutionAlwaysBindsProductSessionWithoutEnvironment(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	store := NewStore(database)
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO remote_execution_grants")).
+		WithArgs("execution-auth", "workspace-1", "principal-1", "session-auth", "snapshot-1", []byte(`{"workspace":"7"}`), nil, nil, nil).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	err = store.RecordExecution(t.Context(), ExecutionAuthority{
+		ExecutionID:        "execution-auth",
+		WorkspaceID:        "workspace-1",
+		OwnerID:            "principal-1",
+		SessionID:          "session-auth",
+		SnapshotID:         "snapshot-1",
+		PartitionRevisions: map[string]string{"workspace": "7"},
+	})
+	if err != nil {
+		t.Fatalf("record session-bound authority: %v", err)
+	}
+	if err := store.RecordExecution(t.Context(), ExecutionAuthority{
+		ExecutionID:        "execution-without-session",
+		WorkspaceID:        "workspace-1",
+		OwnerID:            "principal-1",
+		SnapshotID:         "snapshot-1",
+		PartitionRevisions: map[string]string{"workspace": "7"},
+	}); !errors.Is(err, ErrExecutionAuthorityConflict) {
+		t.Fatalf("expected empty session authority conflict, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIsolatedSecretResolutionStoreRotatesOnlyToHigherStableWorkerAttempt(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	store := NewStore(database)
+	first := IsolatedSecretResolutionKey{
+		ExecutionID:        "execution-secret",
+		WorkerID:           "worker-1",
+		WorkerAttempt:      1,
+		ArtifactID:         "code-secret",
+		ExportName:         "useSecret",
+		InvocationID:       "invocation-secret",
+		RecipientPublicKey: strings.Repeat("a", 43),
+	}
+	second := first
+	second.WorkerID = "worker-2"
+	second.WorkerAttempt = 2
+	second.RecipientPublicKey = strings.Repeat("b", 43)
+	firstEnvelope := json.RawMessage(`{"attempt":1}`)
+	secondEnvelope := json.RawMessage(`{"attempt":2}`)
+	insert := regexp.QuoteMeta("INSERT INTO remote_isolated_secret_resolutions")
+	selectCurrent := regexp.QuoteMeta("SELECT execution_id, worker_id, worker_attempt, artifact_id, export_name, invocation_id, recipient_public_key, envelope_json")
+	complete := regexp.QuoteMeta("UPDATE remote_isolated_secret_resolutions SET envelope_json=$1, completed_at=$2")
+
+	mock.ExpectExec(insert).WithArgs(first.ExecutionID, first.WorkerID, first.WorkerAttempt, first.ArtifactID, first.ExportName, first.InvocationID, first.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 1))
+	reservation, err := store.ReserveIsolatedSecretResolution(t.Context(), first)
+	if err != nil || reservation.Kind != "reserved" {
+		t.Fatalf("reserve first attempt: reservation=%#v err=%v", reservation, err)
+	}
+	mock.ExpectExec(complete).WithArgs(firstEnvelope, sqlmock.AnyArg(), first.ExecutionID, first.WorkerID, first.WorkerAttempt, first.ArtifactID, first.ExportName, first.InvocationID, first.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := store.CompleteIsolatedSecretResolution(t.Context(), first, firstEnvelope); err != nil {
+		t.Fatalf("complete first attempt: %v", err)
+	}
+
+	mock.ExpectExec(insert).WithArgs(second.ExecutionID, second.WorkerID, second.WorkerAttempt, second.ArtifactID, second.ExportName, second.InvocationID, second.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 1))
+	reservation, err = store.ReserveIsolatedSecretResolution(t.Context(), second)
+	if err != nil || reservation.Kind != "reserved" {
+		t.Fatalf("rotate to second attempt: reservation=%#v err=%v", reservation, err)
+	}
+	mock.ExpectExec(complete).WithArgs(firstEnvelope, sqlmock.AnyArg(), first.ExecutionID, first.WorkerID, first.WorkerAttempt, first.ArtifactID, first.ExportName, first.InvocationID, first.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 0))
+	if err := store.CompleteIsolatedSecretResolution(t.Context(), first, firstEnvelope); !errors.Is(err, ErrIsolatedSecretResolutionConflict) {
+		t.Fatalf("superseded attempt completed after rotation: %v", err)
+	}
+
+	mock.ExpectExec(insert).WithArgs(second.ExecutionID, second.WorkerID, second.WorkerAttempt, second.ArtifactID, second.ExportName, second.InvocationID, second.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(selectCurrent).WithArgs(second.ExecutionID).WillReturnRows(sqlmock.NewRows([]string{"execution_id", "worker_id", "worker_attempt", "artifact_id", "export_name", "invocation_id", "recipient_public_key", "envelope_json"}).AddRow(second.ExecutionID, second.WorkerID, second.WorkerAttempt, second.ArtifactID, second.ExportName, second.InvocationID, second.RecipientPublicKey, nil))
+	reservation, err = store.ReserveIsolatedSecretResolution(t.Context(), second)
+	if err != nil || reservation.Kind != "pending" {
+		t.Fatalf("read pending recovered attempt: reservation=%#v err=%v", reservation, err)
+	}
+	mock.ExpectExec(complete).WithArgs(secondEnvelope, sqlmock.AnyArg(), second.ExecutionID, second.WorkerID, second.WorkerAttempt, second.ArtifactID, second.ExportName, second.InvocationID, second.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := store.CompleteIsolatedSecretResolution(t.Context(), second, secondEnvelope); err != nil {
+		t.Fatalf("complete recovered attempt: %v", err)
+	}
+	mock.ExpectExec(insert).WithArgs(second.ExecutionID, second.WorkerID, second.WorkerAttempt, second.ArtifactID, second.ExportName, second.InvocationID, second.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(selectCurrent).WithArgs(second.ExecutionID).WillReturnRows(sqlmock.NewRows([]string{"execution_id", "worker_id", "worker_attempt", "artifact_id", "export_name", "invocation_id", "recipient_public_key", "envelope_json"}).AddRow(second.ExecutionID, second.WorkerID, second.WorkerAttempt, second.ArtifactID, second.ExportName, second.InvocationID, second.RecipientPublicKey, []byte(secondEnvelope)))
+	reservation, err = store.ReserveIsolatedSecretResolution(t.Context(), second)
+	if err != nil || reservation.Kind != "existing" || string(reservation.Envelope) != string(secondEnvelope) {
+		t.Fatalf("replay recovered attempt: reservation=%#v err=%v", reservation, err)
+	}
+
+	for _, invalid := range []IsolatedSecretResolutionKey{
+		first,
+		func() IsolatedSecretResolutionKey {
+			drifted := second
+			drifted.WorkerAttempt = 3
+			drifted.InvocationID = "drifted-invocation"
+			return drifted
+		}(),
+	} {
+		mock.ExpectExec(insert).WithArgs(invalid.ExecutionID, invalid.WorkerID, invalid.WorkerAttempt, invalid.ArtifactID, invalid.ExportName, invalid.InvocationID, invalid.RecipientPublicKey).WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectQuery(selectCurrent).WithArgs(invalid.ExecutionID).WillReturnRows(sqlmock.NewRows([]string{"execution_id", "worker_id", "worker_attempt", "artifact_id", "export_name", "invocation_id", "recipient_public_key", "envelope_json"}).AddRow(second.ExecutionID, second.WorkerID, second.WorkerAttempt, second.ArtifactID, second.ExportName, second.InvocationID, second.RecipientPublicKey, []byte(secondEnvelope)))
+		if reservation, err := store.ReserveIsolatedSecretResolution(t.Context(), invalid); reservation != nil || !errors.Is(err, ErrIsolatedSecretResolutionConflict) {
+			t.Fatalf("invalid recovery identity was accepted: key=%#v reservation=%#v err=%v", invalid, reservation, err)
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func storedMutationResult() DataGatewayResult {
 	return DataGatewayResult{
 		Value: map[string]any{"id": "item-1"},
@@ -239,7 +357,7 @@ func TestGetExecutionAuthorityAndDataDocumentRequireExactSnapshotPartitions(t *t
 	mock.ExpectQuery(authorityQuery).
 		WithArgs("execution-1", "principal-1", "session-1").
 		WillReturnRows(sqlmock.NewRows([]string{"execution_id", "workspace_id", "owner_id", "session_id", "snapshot_id", "partition_revisions_json", "environment_id", "environment_revision", "environment_mode"}).
-			AddRow("execution-1", "workspace-1", "principal-1", "session-1", "snapshot-1", []byte(`{"workspace":"7","document:data-1:content":"3"}`), "environment-1", "revision-7", "live"))
+			AddRow("execution-1", "workspace-1", "principal-1", "session-1", "snapshot-1", []byte(`{"workspace":"7","document:data-1:content":"3","document:code-auth:content":"9"}`), "environment-1", "revision-7", "live"))
 	authority, err := store.GetExecutionAuthority(t.Context(), "principal-1", "session-1", "execution-1")
 	if err != nil || authority.SnapshotID != "snapshot-1" || authority.PartitionRevisions["document:data-1:content"] != "3" || authority.Environment == nil || authority.Environment.Revision != "revision-7" {
 		t.Fatalf("load exact authority: authority=%#v err=%v", authority, err)
@@ -250,11 +368,20 @@ func TestGetExecutionAuthorityAndDataDocumentRequireExactSnapshotPartitions(t *t
 	if err != nil || string(contents) != `{"wireVersion":1}` {
 		t.Fatalf("load exact Data document: contents=%s err=%v", contents, err)
 	}
+	codeQuery := regexp.QuoteMeta("SELECT content_json\nFROM workspace_documents\nWHERE workspace_id = $1 AND id = $2 AND doc_type = 'code' AND content_rev::text = $3")
+	mock.ExpectQuery(codeQuery).WithArgs("workspace-1", "code-auth", "9").WillReturnRows(sqlmock.NewRows([]string{"content_json"}).AddRow([]byte(`{"language":"ts","source":""}`)))
+	codeContents, err := store.GetCodeDocument(t.Context(), *authority, "code-auth")
+	if err != nil || string(codeContents) != `{"language":"ts","source":""}` {
+		t.Fatalf("load exact Code document: contents=%s err=%v", codeContents, err)
+	}
 
 	drifted := *authority
 	drifted.PartitionRevisions = map[string]string{"workspace": "7"}
 	if _, err := store.GetDataSourceDocument(t.Context(), drifted, "data-1"); !errors.Is(err, ErrExecutionAuthorityConflict) {
 		t.Fatalf("expected missing document partition conflict, got %v", err)
+	}
+	if _, err := store.GetCodeDocument(t.Context(), drifted, "code-auth"); !errors.Is(err, ErrExecutionAuthorityConflict) {
+		t.Fatalf("expected missing Code partition conflict, got %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

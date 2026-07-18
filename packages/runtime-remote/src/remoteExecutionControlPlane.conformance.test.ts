@@ -2,6 +2,7 @@ import {
   createExecutionSecretLeakGuard,
   createExecutionNetworkTrace,
   toExecutionNetworkTraceValue,
+  type ExecutionProviderDescriptor,
 } from '@prodivix/runtime-core';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
@@ -19,13 +20,18 @@ import { createRemoteExecutionClient } from './remoteExecutionClient';
 import type {
   RemoteExecutionControlPlane,
   RemoteExecutionPrincipal,
+  RemoteExecutionServerAuthority,
   RemoteExecutionTransport,
 } from './index';
+import { REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT } from './remoteExecutionServerAuthority';
 import {
   createRemoteFixtureRequest,
   createRemoteFixtureSnapshot,
+  createRemoteServerFunctionFixtureRequest,
+  createRemoteServerFunctionFixtureSnapshot,
   remoteFixtureProvider,
 } from './__tests__/remoteExecutionFixtures';
+import { remoteServerFunctionExecutionProviderDescriptor } from './remoteExecutionProvider';
 
 const principal = (
   subjectId = 'user-1',
@@ -34,7 +40,8 @@ const principal = (
 
 const createHarness = (
   maximumActiveExecutions = 4,
-  secretValues: readonly string[] = []
+  secretValues: readonly string[] = [],
+  providers: readonly ExecutionProviderDescriptor[] = [remoteFixtureProvider]
 ) => {
   let currentTime = 1_000;
   let executionSequence = 0;
@@ -54,7 +61,7 @@ const createHarness = (
     snapshots,
     authorization: createScopeRemoteExecutionAuthorizationPolicy(),
     quota: createActiveExecutionQuotaPolicy(maximumActiveExecutions),
-    router: createStaticRemoteExecutionProviderRouter([remoteFixtureProvider]),
+    router: createStaticRemoteExecutionProviderRouter(providers),
     now: () => currentTime,
     createExecutionId: () => `execution-${++executionSequence}`,
     createLeaseToken: () => `lease-${++leaseSequence}`,
@@ -73,22 +80,27 @@ const createHarness = (
 
 const transport = (
   controlPlane: RemoteExecutionControlPlane,
-  authPrincipal?: RemoteExecutionPrincipal
+  authPrincipal?: RemoteExecutionPrincipal,
+  serverAuthority?: RemoteExecutionServerAuthority
 ): RemoteExecutionTransport =>
   Object.freeze({
     async send(envelope) {
       return controlPlane.handle(envelope, {
         ...(authPrincipal === undefined ? {} : { principal: authPrincipal }),
+        ...(serverAuthority === undefined || envelope.operation !== 'create'
+          ? {}
+          : { serverAuthority }),
       });
     },
   });
 
 const client = (
   controlPlane: RemoteExecutionControlPlane,
-  authPrincipal?: RemoteExecutionPrincipal
+  authPrincipal?: RemoteExecutionPrincipal,
+  serverAuthority?: RemoteExecutionServerAuthority
 ) =>
   createRemoteExecutionClient({
-    transport: transport(controlPlane, authPrincipal),
+    transport: transport(controlPlane, authPrincipal, serverAuthority),
     retryPolicy: { maxAttempts: 1 },
   });
 
@@ -131,6 +143,102 @@ describe('remote execution control plane conformance', () => {
     await expect(
       otherOwner.get(first.execution.executionId)
     ).rejects.toMatchObject({ remoteCode: 'not-found' });
+  });
+
+  it('atomically claims a bounded server authority without projecting it into public records', async () => {
+    const { controlPlane, repository } = createHarness();
+    const authority = Object.freeze({
+      format: REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT,
+      principal: Object.freeze({
+        providerId: 'prodivix-product-session',
+        principalId: 'product-user-1',
+      }),
+      permissions: Object.freeze(['workspace.owner']),
+      workspaceId: 'workspace-1',
+      snapshotId: 'snapshot-1',
+      expiresAt: 1_100,
+    });
+    const started = await client(controlPlane, principal(), authority).create({
+      request: createRemoteFixtureRequest(),
+      snapshot: { kind: 'upload', snapshot: createRemoteFixtureSnapshot() },
+    });
+    const stored = await repository.get(started.execution.executionId);
+    expect(JSON.stringify(stored)).not.toContain('product-user-1');
+    const claimed = await controlPlane.claimNext({
+      workerId: 'worker-authority',
+      providerId: remoteFixtureProvider.id,
+      leaseDurationMs: 50,
+    });
+    expect(claimed?.authority).toMatchObject({
+      executionId: started.execution.executionId,
+      workerId: 'worker-authority',
+      workerAttempt: 1,
+      principal: authority.principal,
+      workspaceId: authority.workspaceId,
+      snapshotId: authority.snapshotId,
+      expiresAt: authority.expiresAt,
+    });
+    expect(JSON.stringify(claimed?.authority)).not.toContain('lease-1');
+  });
+
+  it('fences authority expiry, target drift and principal drift from idempotent replay', async () => {
+    const { controlPlane } = createHarness();
+    const authority: RemoteExecutionServerAuthority = Object.freeze({
+      format: REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT,
+      principal: Object.freeze({
+        providerId: 'prodivix-product-session',
+        principalId: 'product-user-1',
+      }),
+      permissions: Object.freeze(['workspace.owner']),
+      workspaceId: 'workspace-1',
+      snapshotId: 'snapshot-1',
+      expiresAt: 1_100,
+    });
+    const create = (candidate: RemoteExecutionServerAuthority) =>
+      client(controlPlane, principal(), candidate).create({
+        request: createRemoteFixtureRequest(),
+        snapshot: { kind: 'upload', snapshot: createRemoteFixtureSnapshot() },
+      });
+    const first = await create(authority);
+    const replay = await create({ ...authority, expiresAt: 1_200 });
+    expect(replay.execution.executionId).toBe(first.execution.executionId);
+    await expect(
+      create({
+        ...authority,
+        principal: { ...authority.principal, principalId: 'product-user-2' },
+      })
+    ).rejects.toMatchObject({ remoteCode: 'identity-conflict' });
+    await expect(
+      create({ ...authority, permissions: [] })
+    ).rejects.toMatchObject({ remoteCode: 'identity-conflict' });
+    await expect(
+      create({ ...authority, expiresAt: 1_000 })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+    await expect(
+      create({ ...authority, snapshotId: 'snapshot-drift' })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+  });
+
+  it('rejects a configured credential canary in server authority before snapshot persistence', async () => {
+    const canary = 'product-session-canary-secret';
+    const { controlPlane, getSnapshotPutCount } = createHarness(4, [canary]);
+    await expect(
+      client(controlPlane, principal(), {
+        format: REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT,
+        principal: {
+          providerId: 'prodivix-product-session',
+          principalId: canary,
+        },
+        permissions: ['workspace.owner'],
+        workspaceId: 'workspace-1',
+        snapshotId: 'snapshot-1',
+        expiresAt: 1_100,
+      }).create({
+        request: createRemoteFixtureRequest(),
+        snapshot: { kind: 'upload', snapshot: createRemoteFixtureSnapshot() },
+      })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+    expect(getSnapshotPutCount()).toBe(0);
   });
 
   it('does not let quota rejection break an existing idempotent replay', async () => {
@@ -204,6 +312,42 @@ describe('remote execution control plane conformance', () => {
           kind: 'reference',
           snapshotId: incompatible.workspace.snapshotId,
           contentDigest: incompatible.contentDigest,
+        },
+      })
+    ).rejects.toMatchObject({ remoteCode: 'invalid-request' });
+  });
+
+  it('accepts a production request only with an isolated Server Function plan', async () => {
+    const { controlPlane } = createHarness(
+      4,
+      [],
+      [remoteServerFunctionExecutionProviderDescriptor]
+    );
+    const executionRequest = createRemoteServerFunctionFixtureRequest();
+    const accepted = await client(controlPlane, principal()).create({
+      request: executionRequest,
+      snapshot: {
+        kind: 'upload',
+        snapshot: createRemoteServerFunctionFixtureSnapshot(),
+      },
+    });
+    expect(accepted.execution).toMatchObject({
+      requestId: executionRequest.requestId,
+      provider: {
+        id: remoteServerFunctionExecutionProviderDescriptor.id,
+        profiles: ['production'],
+      },
+      status: 'queued',
+    });
+
+    await expect(
+      client(controlPlane, principal()).create({
+        request: createRemoteServerFunctionFixtureRequest(
+          'missing-production-plan'
+        ),
+        snapshot: {
+          kind: 'upload',
+          snapshot: createRemoteFixtureSnapshot(),
         },
       })
     ).rejects.toMatchObject({ remoteCode: 'invalid-request' });

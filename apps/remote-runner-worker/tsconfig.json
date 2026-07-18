@@ -12,7 +12,8 @@
     "paths": {
       "@prodivix/runtime-core": ["../../packages/runtime-core/src"],
       "@prodivix/runtime-remote": ["../../packages/runtime-remote/src"],
-      "@prodivix/runtime-vitest": ["../../packages/runtime-vitest/src"]
+      "@prodivix/runtime-vitest": ["../../packages/runtime-vitest/src"],
+      "@prodivix/server-runtime": ["../../packages/server-runtime/src"]
     }
   },
   "include": ["src/**/*"],
@@ -20,6 +21,7 @@
   "references": [
     { "path": "../../packages/runtime-core" },
     { "path": "../../packages/runtime-remote" },
-    { "path": "../../packages/runtime-vitest" }
+    { "path": "../../packages/runtime-vitest" },
+    { "path": "../../packages/server-runtime" }
   ]
 }

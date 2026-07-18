@@ -7,6 +7,12 @@ import {
   type ExecutionNetworkTrace,
 } from '@prodivix/runtime-core';
 import type { BlueprintProjectRunProvider } from '@/editor/features/blueprint/editor/runner/blueprintProjectRunnerClient';
+import {
+  readExecutionServerFunctionBridgeCancellation,
+  readExecutionServerFunctionBridgeRequest,
+  type ExecutionServerFunctionBridgeCancellation,
+  type ExecutionServerFunctionBridgeRequest,
+} from '@prodivix/server-runtime';
 
 const readPreviewOrigin = (previewUrl: string): URL | undefined => {
   try {
@@ -76,4 +82,30 @@ export const readBlueprintRemoteDataBridgeMessage = (input: {
   if (input.provider !== 'remote' || !acceptsPreviewMessageOrigin(input))
     return undefined;
   return readExecutionDataGatewayBridgeRequest(input.value);
+};
+
+/** Accepts value-only Server Function requests only from the active Remote capability frame. */
+export const readBlueprintRemoteServerFunctionBridgeMessage = (input: {
+  provider: BlueprintProjectRunProvider;
+  previewUrl: string;
+  messageOrigin: string;
+  value: unknown;
+}): ExecutionServerFunctionBridgeRequest | undefined => {
+  if (input.provider !== 'remote' || !acceptsPreviewMessageOrigin(input)) {
+    return undefined;
+  }
+  return readExecutionServerFunctionBridgeRequest(input.value);
+};
+
+/** Accepts cancellation only from the exact frame that may issue the corresponding Server Function request. */
+export const readBlueprintRemoteServerFunctionBridgeCancellation = (input: {
+  provider: BlueprintProjectRunProvider;
+  previewUrl: string;
+  messageOrigin: string;
+  value: unknown;
+}): ExecutionServerFunctionBridgeCancellation | undefined => {
+  if (input.provider !== 'remote' || !acceptsPreviewMessageOrigin(input)) {
+    return undefined;
+  }
+  return readExecutionServerFunctionBridgeCancellation(input.value);
 };

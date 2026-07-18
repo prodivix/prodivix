@@ -9,6 +9,12 @@ import type {
 import type { MountedCssEntry } from '@/editor/features/blueprint/editor/inspector/components/classProtocol/mountedCss';
 import type { EditableTextField } from '@/editor/features/blueprint/editor/model/blueprintText';
 import type { DataOperationInspectorCandidate } from './domain/dataOperationInspectorModel';
+import type {
+  WorkspaceOwnerGuardTarget,
+  WorkspaceServerRuntimeAuthoringCandidate,
+  WorkspaceServerRuntimeAuthoringIssue,
+  WorkspaceServerRuntimeRouteSlot,
+} from '@prodivix/workspace';
 
 export type InspectorTab = 'basic' | 'style' | 'data' | 'code';
 
@@ -166,6 +172,15 @@ export type InspectorCodeContext = {
   triggerEntries: TriggerEntry[];
   graphOptions: Array<{ id: string; label: string }>;
   dataMutationOptions: readonly DataOperationInspectorCandidate[];
+  serverRuntimeCandidates: readonly WorkspaceServerRuntimeAuthoringCandidate[];
+  serverRuntimeIssues: readonly WorkspaceServerRuntimeAuthoringIssue[];
+  serverRuntimeWriteAvailable: boolean;
+  setServerRuntimeBinding: (
+    slot: WorkspaceServerRuntimeRouteSlot,
+    candidateKey: string | undefined
+  ) => void;
+  createWorkspaceOwnerGuard: (target: WorkspaceOwnerGuardTarget) => void;
+  openServerRuntimeArtifact: (artifactId: string) => void;
 };
 
 export type InspectorContextValue = InspectorCoreContext &

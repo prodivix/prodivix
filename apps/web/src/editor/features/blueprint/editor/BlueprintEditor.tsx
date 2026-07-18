@@ -15,6 +15,9 @@ import { useAuthStore } from '@/auth/useAuthStore';
 import {
   ExecutionCenter,
   executionSessionCoordinator,
+  openWorkspaceExecutionSourceTrace,
+  type ExecutionServerFunctionSourceNavigationInput,
+  type ExecutionServerFunctionSourceNavigationResult,
   useExecutionSession,
 } from '@/editor/features/execution';
 import { BlueprintAssistantPanel } from './assistant';
@@ -155,6 +158,19 @@ export function BlueprintEditor({
   const showExecutionCenter = Boolean(
     controller.workspace && (isRunMode || visibleExecutionSession)
   );
+  const openExecutionSourceTrace = (
+    input: ExecutionServerFunctionSourceNavigationInput
+  ): ExecutionServerFunctionSourceNavigationResult => {
+    if (!controller.workspace) {
+      return { status: 'unavailable', reason: 'source-unavailable' };
+    }
+    return openWorkspaceExecutionSourceTrace({
+      workspace: controller.workspace,
+      snapshotId: input.snapshotId,
+      sourceTrace: input.sourceTrace,
+      originSurface: 'blueprint-canvas',
+    });
+  };
 
   useEffect(() => {
     if (
@@ -449,6 +465,7 @@ export function BlueprintEditor({
                 }
               : undefined
           }
+          onOpenSourceTrace={openExecutionSourceTrace}
         />
       ) : null}
       <BlueprintEditorViewportBar

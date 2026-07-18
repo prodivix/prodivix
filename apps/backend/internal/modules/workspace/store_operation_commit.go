@@ -128,6 +128,24 @@ func (store *WorkspaceStore) CommitWorkspaceOperation(
 	if err := validateWorkspaceCommitRevisionCapacity(workspace, changes); err != nil {
 		return rollback(nil, err)
 	}
+	if err := validateWorkspaceAssetBlobReferences(
+		ctx,
+		tx,
+		params.WorkspaceID,
+		state.Documents,
+	); err != nil {
+		return rollback(nil, err)
+	}
+	if err := reconcileWorkspaceAssetBlobReferenceRetention(
+		ctx,
+		tx,
+		params.WorkspaceID,
+		originalDocuments,
+		state.Documents,
+		now,
+	); err != nil {
+		return rollback(nil, err)
+	}
 	if err := persistWorkspaceCommitChanges(ctx, tx, params.WorkspaceID, changes); err != nil {
 		return rollback(nil, err)
 	}

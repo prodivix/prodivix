@@ -9,7 +9,10 @@ import {
   buildGoldenExportBundle,
   type GoldenBuildEvidence,
 } from './generatedProjectHarness';
-import { GOLDEN_CODEGEN_POLICY } from './goldenApp.fixture';
+import {
+  GOLDEN_ASSET_MATERIALIZATIONS,
+  GOLDEN_CODEGEN_POLICY,
+} from './goldenApp.fixture';
 import {
   authorGoldenWorkspace,
   type GoldenAuthoringResult,
@@ -50,6 +53,7 @@ export const runGoldenConformance =
     const exportOptions = {
       projectName: 'Prodivix Golden App',
       codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
+      assetMaterializations: GOLDEN_ASSET_MATERIALIZATIONS,
       packageResolver: { strategy: 'npm' as const },
     };
     const program = compileWorkspaceToExportProgram(

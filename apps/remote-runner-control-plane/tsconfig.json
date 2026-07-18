@@ -14,7 +14,8 @@
       "@prodivix/runtime-remote": ["../../packages/runtime-remote/src"],
       "@prodivix/runtime-remote-postgres": [
         "../../packages/runtime-remote-postgres/src"
-      ]
+      ],
+      "@prodivix/server-runtime": ["../../packages/server-runtime/src"]
     }
   },
   "include": ["src/**/*"],
@@ -22,6 +23,7 @@
   "references": [
     { "path": "../../packages/runtime-core" },
     { "path": "../../packages/runtime-remote" },
-    { "path": "../../packages/runtime-remote-postgres" }
+    { "path": "../../packages/runtime-remote-postgres" },
+    { "path": "../../packages/server-runtime" }
   ]
 }

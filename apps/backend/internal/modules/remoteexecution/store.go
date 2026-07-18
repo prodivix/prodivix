@@ -73,8 +73,8 @@ func (store *Store) RecordExecution(ctx context.Context, authority ExecutionAuth
 		environmentMode = strings.TrimSpace(authority.Environment.Mode)
 	}
 	sessionID := strings.TrimSpace(authority.SessionID)
-	if authority.Environment == nil {
-		sessionID = ""
+	if sessionID == "" {
+		return ErrExecutionAuthorityConflict
 	}
 	partitionRevisions, err := json.Marshal(authority.PartitionRevisions)
 	if err != nil {
@@ -154,6 +154,23 @@ func (store *Store) GetDataSourceDocument(ctx context.Context, authority Executi
 	err := store.db.QueryRowContext(ctx, `SELECT content_json
 FROM workspace_documents
 WHERE workspace_id = $1 AND id = $2 AND doc_type = 'data-source' AND content_rev::text = $3`, authority.WorkspaceID, strings.TrimSpace(documentID), revision).Scan(&content)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrExecutionAuthorityConflict
+	}
+	return content, err
+}
+
+func (store *Store) GetCodeDocument(ctx context.Context, authority ExecutionAuthority, documentID string) ([]byte, error) {
+	revision := authority.PartitionRevisions["document:"+strings.TrimSpace(documentID)+":content"]
+	if revision == "" {
+		return nil, ErrExecutionAuthorityConflict
+	}
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+	var content []byte
+	err := store.db.QueryRowContext(ctx, `SELECT content_json
+FROM workspace_documents
+WHERE workspace_id = $1 AND id = $2 AND doc_type = 'code' AND content_rev::text = $3`, authority.WorkspaceID, strings.TrimSpace(documentID), revision).Scan(&content)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrExecutionAuthorityConflict
 	}

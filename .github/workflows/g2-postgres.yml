@@ -38,7 +38,7 @@ permissions:
 
 jobs:
   postgres-contracts:
-    name: Remote Control Plane and Data Replay
+    name: Remote Control Plane, Data/Server Replay, and Asset Retention
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -89,3 +89,11 @@ jobs:
       - name: Run Backend Data replay PostgreSQL Gate
         working-directory: apps/backend
         run: go test ./internal/modules/remoteexecution -run '^TestDataGatewayMutationReplayPostgreSQLGate$' -count=1 -v
+
+      - name: Run Backend Server Function live mutation PostgreSQL Gate
+        working-directory: apps/backend
+        run: go test ./internal/modules/remoteexecution -run '^TestServerFunctionLiveMutationPostgreSQLGate$' -count=1 -v
+
+      - name: Run Backend Binary Asset retention PostgreSQL Gate
+        working-directory: apps/backend
+        run: go test ./internal/modules/workspace -run '^TestWorkspaceAssetBlobRetentionPostgreSQLGate$' -count=1 -v

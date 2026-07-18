@@ -5,7 +5,12 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createBinaryAssetBlobReference } from '@prodivix/assets';
+import type {
+  RuntimeFilesystemAssetUploadReceipt,
+  RuntimeFilesystemAssetUploadRequest,
+} from '@prodivix/prodivix-compiler';
 import {
   createExecutionFilesystemDiff,
   createExecutionJobController,
@@ -14,16 +19,39 @@ import {
   type ExecutionProviderCapability,
 } from '@prodivix/runtime-core';
 import type { RemoteExecutionTerminalClient } from '@prodivix/runtime-remote';
+import {
+  createServerFunctionInvocationTrace,
+  EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+  SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+  toExecutionServerFunctionBridgeSuccess,
+  toServerFunctionInvocationTraceValue,
+} from '@prodivix/server-runtime';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { ExecutionCenter } from './ExecutionCenter';
 import { executionSessionCoordinator } from './executionSessionEnvironment';
 
 const dispatchWorkspaceOperation = vi.hoisted(() => vi.fn());
+const uploadRuntimeAssets = vi.hoisted(() =>
+  vi.fn<
+    (input: {
+      workspaceId: string;
+      token: string | null | undefined;
+      uploads: readonly RuntimeFilesystemAssetUploadRequest[];
+    }) => Promise<readonly RuntimeFilesystemAssetUploadReceipt[]>
+  >(async () => [])
+);
 vi.mock('@/editor/workspaceSync/workspaceAuthoringOperationDispatcher', () => ({
   dispatchWorkspaceAuthoringOperation: dispatchWorkspaceOperation,
 }));
+vi.mock('./runtimeFilesystemAssetUpload', () => ({
+  uploadRuntimeFilesystemAssets: uploadRuntimeAssets,
+}));
 
 const sessionIds = new Set<string>();
+
+beforeEach(() => {
+  uploadRuntimeAssets.mockResolvedValue([]);
+});
 
 const activateSession = (
   sessionId: string,
@@ -55,6 +83,7 @@ const activateSession = (
   });
   executionSessionCoordinator.activate({ sessionId, job: controller.job });
   controller.markRunning();
+  return controller;
 };
 
 const createTerminalClient = (): RemoteExecutionTerminalClient => {
@@ -147,6 +176,113 @@ afterEach(() => {
   });
   sessionIds.clear();
   dispatchWorkspaceOperation.mockReset();
+  uploadRuntimeAssets.mockReset();
+});
+
+describe('ExecutionCenter Server Function surface', () => {
+  it('shows exact sanitized invocation metadata after a finite Job is terminal', () => {
+    const sessionId = 'server-function-observation';
+    const controller = activateSession(sessionId, ['server-function']);
+    controller.succeed();
+    const inputCanary = 'server-input-credential-canary';
+    const request = Object.freeze({
+      type: EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+      requestId: 'server-observation:1',
+      invocationId: 'server-observation',
+      attempt: 1,
+      functionRef: Object.freeze({
+        artifactId: 'code-auth',
+        exportName: 'loadPrincipal',
+      }),
+      input: Object.freeze({ bearer: inputCanary }),
+    });
+    const trace = createServerFunctionInvocationTrace({
+      request,
+      response: toExecutionServerFunctionBridgeSuccess(request.requestId, {
+        kind: 'allow',
+      }),
+      startedAt: 100,
+      completedAt: 112,
+    });
+    executionSessionCoordinator.publishTrace({
+      sessionId,
+      jobId: controller.job.id,
+      observedAt: 112,
+      trace: {
+        traceId: `server-function:${controller.job.id}`,
+        spanId: request.requestId,
+        name: SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+        phase: 'event',
+        detail: toServerFunctionInvocationTraceValue(trace),
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: request.functionRef.artifactId,
+            },
+            label: 'code-auth#loadPrincipal',
+          },
+        ],
+      },
+    });
+
+    const openSourceTrace = vi.fn(() => ({ status: 'opened' as const }));
+    const { container, rerender } = render(
+      <ExecutionCenter
+        sessionId={sessionId}
+        onOpenSourceTrace={openSourceTrace}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'execution.surface.server' })
+    );
+
+    expect(screen.getByText('code-auth#loadPrincipal')).toBeTruthy();
+    expect(screen.getByText('#1')).toBeTruthy();
+    expect(screen.getByText('allow')).toBeTruthy();
+    expect(screen.getByText('12 ms')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'execution.openSource' })
+    );
+    expect(openSourceTrace).toHaveBeenCalledWith({
+      jobId: controller.job.id,
+      providerId: controller.job.provider.id,
+      snapshotId: controller.job.request.workspace.snapshotId,
+      sourceTrace: {
+        sourceRef: {
+          kind: 'code-artifact',
+          artifactId: request.functionRef.artifactId,
+        },
+        label: 'code-auth#loadPrincipal',
+      },
+    });
+    expect(container.textContent).not.toMatch(
+      new RegExp(`${inputCanary}|bearer|token`, 'iu')
+    );
+    expect(
+      (
+        screen.getByRole('button', {
+          name: 'execution.copy',
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+
+    rerender(
+      <ExecutionCenter
+        sessionId={sessionId}
+        onOpenSourceTrace={() => ({
+          status: 'unavailable',
+          reason: 'snapshot-stale',
+        })}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'execution.openSource' })
+    );
+    expect(
+      screen.getByText('execution.sourceNavigation.snapshotStale')
+    ).toBeTruthy();
+  });
 });
 
 describe('ExecutionCenter Terminal availability', () => {
@@ -475,6 +611,158 @@ describe('ExecutionCenter runtime filesystem proposal', () => {
     expect(operation.transaction?.commands?.map(({ type }) => type)).toEqual([
       'code-document.create',
       'code-document.delete',
+    ]);
+  });
+
+  it('uploads selected Asset bytes before dispatching one import/replace transaction', async () => {
+    const baseline = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+    const replacement = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
+    const imported = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 2]);
+    const baselineReference = createBinaryAssetBlobReference({
+      contents: baseline,
+      mediaType: 'image/png',
+    });
+    const workspace: WorkspaceSnapshot = {
+      id: 'local-workspace-assets',
+      workspaceRev: 3,
+      routeRev: 1,
+      opSeq: 2,
+      treeRootId: 'root',
+      treeById: {
+        root: {
+          id: 'root',
+          kind: 'dir',
+          name: '/',
+          parentId: null,
+          children: ['public-dir'],
+        },
+        'public-dir': {
+          id: 'public-dir',
+          kind: 'dir',
+          name: 'public',
+          parentId: 'root',
+          children: ['asset-node'],
+        },
+        'asset-node': {
+          id: 'asset-node',
+          kind: 'doc',
+          name: 'logo.png',
+          parentId: 'public-dir',
+          docId: 'asset-logo',
+        },
+      },
+      docsById: {
+        'asset-logo': {
+          id: 'asset-logo',
+          type: 'asset',
+          path: '/public/logo.png',
+          contentRev: 2,
+          metaRev: 1,
+          content: {
+            kind: 'asset',
+            mime: 'image/png',
+            size: baselineReference.byteLength,
+            blob: baselineReference,
+          },
+        },
+      },
+      routeManifest: {
+        version: '1',
+        root: { id: 'route-root', pageDocId: 'asset-logo' },
+      },
+    };
+    const snapshotDigest = `sha256-${'c'.repeat(64)}`;
+    const diff = createExecutionFilesystemDiff({
+      snapshotDigest,
+      workspace: {
+        workspaceId: workspace.id,
+        snapshotId: 'snapshot-assets',
+        partitionRevisions: {
+          workspace: '3',
+          route: '1',
+          'document:asset-logo:content': '2',
+          'document:asset-logo:meta': '1',
+        },
+      },
+      capturedAt: 3,
+      complete: true,
+      changes: [
+        {
+          kind: 'added',
+          path: 'public/generated.png',
+          runtime: { contents: imported },
+        },
+        {
+          kind: 'modified',
+          path: 'public/logo.png',
+          baseline: { contents: baseline },
+          runtime: { contents: replacement },
+          sourceTrace: [
+            { sourceRef: { kind: 'document', documentId: 'asset-logo' } },
+          ],
+        },
+      ],
+    });
+    uploadRuntimeAssets.mockImplementation(async (input) =>
+      input.uploads.map((upload) => ({
+        changeId: upload.changeId,
+        upload: {
+          kind: 'stored' as const,
+          reference: upload.expectedReference,
+        },
+      }))
+    );
+    dispatchWorkspaceOperation.mockResolvedValue({
+      status: 'applied',
+      operationId: 'operation-assets',
+    });
+    render(
+      <ExecutionCenter
+        sessionId="filesystem-asset-proposal"
+        workspace={workspace}
+        workspaceReadonly={false}
+        filesystemArtifact={{
+          executionId: 'execution-assets',
+          artifactId: `filesystem-diff:${snapshotDigest}`,
+          snapshotDigest,
+          workspaceSnapshotId: 'snapshot-assets',
+          resolve: vi.fn(async () => diff),
+        }}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'execution.surface.files' })
+    );
+    const checkboxes = await screen.findAllByRole('checkbox', {
+      name: 'execution.files.select',
+    });
+    expect(checkboxes).toHaveLength(2);
+    checkboxes.forEach((checkbox) => fireEvent.click(checkbox));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'execution.files.apply' })
+    );
+
+    await waitFor(() => expect(dispatchWorkspaceOperation).toHaveBeenCalled());
+    expect(uploadRuntimeAssets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: workspace.id,
+        uploads: [
+          expect.objectContaining({ contents: imported }),
+          expect.objectContaining({ contents: replacement }),
+        ],
+      })
+    );
+    expect(uploadRuntimeAssets.mock.invocationCallOrder[0]).toBeLessThan(
+      dispatchWorkspaceOperation.mock.invocationCallOrder[0]!
+    );
+    const operation = dispatchWorkspaceOperation.mock.calls[0]?.[0]
+      ?.operation as {
+      transaction?: { commands?: readonly { type: string }[] };
+    };
+    expect(operation.transaction?.commands?.map(({ type }) => type)).toEqual([
+      'document.create',
+      'asset.content.replace',
     ]);
   });
 });

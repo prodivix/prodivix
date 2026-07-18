@@ -15,7 +15,6 @@ export type ExportCodeFile = {
   language: ExportFileLanguage;
   content: string;
   binaryContent?: Uint8Array;
-  binaryDataUrl?: string;
 };
 
 export const EXPORT_AUDIT_FILE_PATHS = {

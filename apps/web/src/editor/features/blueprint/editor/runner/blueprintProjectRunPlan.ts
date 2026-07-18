@@ -1,8 +1,10 @@
 import {
   EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
+  EXECUTION_PARENT_GATEWAY_SERVER_RUNTIME_TARGET,
   generateWorkspaceReactViteExecutableProject,
   type CompileDiagnostic,
 } from '@prodivix/prodivix-compiler';
+import type { BinaryAssetMaterialization } from '@prodivix/assets';
 import {
   createExecutionRequest,
   type ExecutableProjectSnapshot,
@@ -26,13 +28,18 @@ export type BlueprintProjectRunPlan =
 /** Compiles one canonical Workspace revision into a standalone runner input. */
 export const createBlueprintProjectRunPlan = (
   workspace: WorkspaceSnapshot,
-  provider: 'browser' | 'remote' = 'browser'
+  provider: 'browser' | 'remote' = 'browser',
+  assetMaterializations: readonly BinaryAssetMaterialization[] = []
 ): BlueprintProjectRunPlan => {
   const project = generateWorkspaceReactViteExecutableProject(
     workspace,
     provider === 'remote'
-      ? { dataRuntimeTarget: EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET }
-      : {}
+      ? {
+          dataRuntimeTarget: EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
+          serverRuntimeTarget: EXECUTION_PARENT_GATEWAY_SERVER_RUNTIME_TARGET,
+          assetMaterializations,
+        }
+      : { assetMaterializations }
   );
   if (project.status === 'blocked') return project;
   const requiredCapabilities = Object.freeze([

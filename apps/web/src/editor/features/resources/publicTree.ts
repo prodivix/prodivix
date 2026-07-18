@@ -1,3 +1,5 @@
+import type { BinaryAssetBlobReference } from '@prodivix/assets';
+
 export type PublicFileCategory = 'image' | 'font' | 'document' | 'other';
 export type PublicResourceNodeType = 'folder' | 'file';
 
@@ -10,8 +12,11 @@ export type PublicResourceNode = {
   category?: PublicFileCategory;
   mime?: string;
   size?: number;
+  /** Ephemeral UI projection used by non-asset trees; never persisted in an asset document. */
   contentRef?: string;
+  /** Ephemeral UI projection used by non-asset trees; never persisted in an asset document. */
   textContent?: string;
+  blobReference?: BinaryAssetBlobReference;
   updatedAt: string;
   children?: PublicResourceNode[];
 };
@@ -83,14 +88,6 @@ export const inferCategoryByFile = (file: File): PublicFileCategory => {
   return 'other';
 };
 
-export const readFileAsDataUrl = async (file: File): Promise<string> =>
-  await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-
 export const resolveCategoryLabel = (category: PublicFileCategory): string => {
   if (category === 'image') return 'Image';
   if (category === 'font') return 'Font';
@@ -99,7 +96,8 @@ export const resolveCategoryLabel = (category: PublicFileCategory): string => {
 };
 
 export const collectBestPracticeHints = (
-  node: PublicResourceNode
+  node: PublicResourceNode,
+  materializedText?: string
 ): PublicBestPracticeHint[] => {
   if (node.type !== 'file') return [];
   const hints: PublicBestPracticeHint[] = [];
@@ -148,8 +146,8 @@ export const collectBestPracticeHints = (
       message: 'Font file size exceeds 220 KB, consider subsetting.',
     });
   }
-  if (node.mime?.includes('svg') && node.textContent) {
-    const svgSource = node.textContent.toLowerCase();
+  if (node.mime?.includes('svg') && materializedText) {
+    const svgSource = materializedText.toLowerCase();
     if (svgSource.includes('<script')) {
       hints.push({
         code: 'svg.script',

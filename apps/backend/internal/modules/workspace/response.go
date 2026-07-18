@@ -45,6 +45,15 @@ func MapStoreError(err error) *RequestFailure {
 	if errors.Is(err, ErrWorkspaceDocumentNotFound) {
 		return NewRequestFailure(http.StatusNotFound, ErrorWorkspaceDocumentNotFound, "Workspace document not found.", nil)
 	}
+	if errors.Is(err, ErrWorkspaceAssetBlobNotFound) {
+		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorWorkspaceAssetBlobNotFound, "Workspace asset blob is missing.", nil)
+	}
+	if errors.Is(err, ErrWorkspaceAssetBlobConflict) {
+		return NewRequestFailure(http.StatusConflict, ErrorWorkspaceAssetBlobConflict, "Workspace asset blob identity conflicts with stored bytes.", nil)
+	}
+	if errors.Is(err, ErrWorkspaceAssetBlobInvalid) {
+		return NewRequestFailure(http.StatusUnprocessableEntity, ErrorWorkspaceAssetBlobInvalid, "Workspace asset blob is invalid.", nil)
+	}
 	if errors.Is(err, ErrWorkspaceCommitIdentityMismatch) {
 		return NewRequestFailure(
 			http.StatusUnprocessableEntity,

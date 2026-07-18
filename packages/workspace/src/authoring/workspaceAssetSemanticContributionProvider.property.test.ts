@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { classifyBinaryAssetDelivery } from '@prodivix/assets';
 import {
   CURRENT_SEMANTIC_SCHEMA_VERSION,
   createAssetReferenceExpectedTypeRefs,
@@ -25,7 +26,6 @@ type AssetSpec = Readonly<{
   category: 'image' | 'font' | 'document' | 'other';
   contentRev: number;
   metaRev: number;
-  hasText: boolean;
 }>;
 
 const identifier = fc.stringMatching(/^[a-z][a-z0-9-]{0,11}$/);
@@ -43,7 +43,6 @@ const assetSpecs: fc.Arbitrary<AssetSpec[]> = fc.uniqueArray(
     category: fc.constantFrom('image', 'font', 'document', 'other'),
     contentRev: fc.integer({ min: 1, max: 50 }),
     metaRev: fc.integer({ min: 1, max: 50 }),
-    hasText: fc.boolean(),
   }),
   { minLength: 1, maxLength: 6, selector: ({ id }) => id }
 );
@@ -83,8 +82,14 @@ describe('createWorkspaceAssetSemanticContributionProvider', () => {
             kind: 'asset' as const,
             mime: spec.mime,
             category: spec.category,
-            dataUrl: `data:${spec.mime},`,
-            ...(spec.hasText ? { text: spec.id } : {}),
+            size: 0,
+            blob: {
+              kind: 'workspace-blob' as const,
+              digest:
+                'sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+              byteLength: 0,
+              mediaType: spec.mime,
+            },
           },
         }));
         const identity = createIdentity(workspaceId, specs);
@@ -111,8 +116,8 @@ describe('createWorkspaceAssetSemanticContributionProvider', () => {
                 `asset:mime:${spec.mime}`,
                 `asset:family:${spec.mime.split('/', 1)[0]}`,
                 `asset:category:${spec.category}`,
-                'asset:inline',
-                ...(spec.hasText ? ['asset:text'] : []),
+                'asset:blob',
+                `asset:delivery:${classifyBinaryAssetDelivery(spec.mime)}`,
               ]),
             })
           );
@@ -159,7 +164,18 @@ describe('createWorkspaceAssetSemanticContributionProvider', () => {
                 path,
                 contentRev: 1,
                 metaRev: 1,
-                content: { kind: 'asset', mime, dataUrl: `data:${mime},` },
+                content: {
+                  kind: 'asset',
+                  mime,
+                  size: 0,
+                  blob: {
+                    kind: 'workspace-blob',
+                    digest:
+                      'sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                    byteLength: 0,
+                    mediaType: mime,
+                  },
+                },
               },
             },
             routeManifest: { version: '1', root: { id: 'route-root' } },

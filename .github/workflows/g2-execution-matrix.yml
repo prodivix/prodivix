@@ -12,6 +12,7 @@ on:
       - 'packages/runtime-core/**'
       - 'packages/runtime-remote/**'
       - 'packages/runtime-vitest/**'
+      - 'packages/server-runtime/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -27,6 +28,7 @@ on:
       - 'packages/runtime-core/**'
       - 'packages/runtime-remote/**'
       - 'packages/runtime-vitest/**'
+      - 'packages/server-runtime/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -42,7 +44,7 @@ permissions:
 
 jobs:
   browser-remote-contracts:
-    name: Browser Remote Golden Matrix
+    name: Browser Remote and Auth Server Golden Matrix
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -67,3 +69,6 @@ jobs:
 
       - name: Run Golden execution contract matrix
         run: pnpm run verify:g2:execution-matrix
+
+      - name: Run Auth and Server Runtime Golden target matrix
+        run: pnpm run verify:g2:auth-server-golden

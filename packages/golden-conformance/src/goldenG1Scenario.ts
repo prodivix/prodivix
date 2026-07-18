@@ -49,7 +49,11 @@ import {
   type WorkspaceSnapshot,
   type WorkspaceTransactionEnvelope,
 } from '@prodivix/workspace';
-import { GOLDEN_CODEGEN_POLICY, GOLDEN_IDS } from './goldenApp.fixture';
+import {
+  GOLDEN_ASSET_MATERIALIZATIONS,
+  GOLDEN_CODEGEN_POLICY,
+  GOLDEN_IDS,
+} from './goldenApp.fixture';
 import { authorGoldenWorkspace } from './goldenAuthoring';
 
 export const GOLDEN_G1_IDS = Object.freeze({
@@ -1184,6 +1188,7 @@ const compileGoldenG1Program = (workspace: WorkspaceSnapshot): ExportProgram =>
   compileWorkspaceToExportProgram(workspace, {
     projectName: 'Prodivix Golden G1 App',
     codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
+    assetMaterializations: GOLDEN_ASSET_MATERIALIZATIONS,
     packageResolver: { strategy: 'npm' },
   });
 

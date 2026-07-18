@@ -8,6 +8,7 @@
     "stop": "停止运行",
     "reloadPreview": "重新加载预览",
     "openPreview": "在新标签页打开预览",
+    "openSource": "打开服务端函数源码",
     "clear": "清空控制台",
     "copy": "复制安全控制台输出",
     "copyFailed": "复制失败",
@@ -16,11 +17,17 @@
     "truncated": "已截断",
     "empty": "暂无运行输出。",
     "networkEmpty": "暂无脱敏网络记录。",
+    "serverEmpty": "暂无脱敏服务端函数调用记录。",
+    "sourceNavigation": {
+      "snapshotStale": "该调用属于较旧的 Workspace snapshot，请重新运行后再打开源码。",
+      "sourceUnavailable": "当前 Workspace 中不存在该服务端函数的精确源码。"
+    },
     "eventCount": "{{count}} 条事件",
     "surface": {
       "console": "控制台",
       "terminal": "终端",
       "network": "网络",
+      "server": "服务端",
       "files": "文件"
     },
     "files": {
@@ -43,6 +50,10 @@
         "modified": "修改",
         "deleted": "删除"
       },
+      "documentType": {
+        "code": "CodeArtifact",
+        "asset": "Asset"
+      },
       "reason": {
         "incomplete-capture": "捕获不完整",
         "workspace-mismatch": "Workspace 不一致",
@@ -53,15 +64,18 @@
         "unexpected-source-trace": "新增文件包含意外的源码 owner",
         "ambiguous-source-trace": "存在多个源码 owner",
         "partial-source-trace": "仅对应部分生成源码",
-        "unsupported-source-owner": "不是 CodeArtifact",
-        "unsupported-code-path": "文件扩展名不属于受支持的 CodeArtifact",
+        "unsupported-source-owner": "不是受支持的 CodeArtifact 或 Asset",
+        "unsupported-code-path": "文件扩展名不属于受支持的 CodeArtifact 或二进制 Asset",
         "path-conflict": "Workspace 路径已被占用",
         "document-id-conflict": "生成的文档 identity 已被占用",
         "missing-code-document": "代码文档不存在",
+        "missing-asset-document": "Asset 文档不存在",
         "stale-content-revision": "内容 revision 已变化",
         "stale-meta-revision": "元数据 revision 已变化",
         "baseline-drift": "baseline 已不匹配",
-        "binary-content": "不是完整 UTF-8 代码文件",
+        "binary-content": "不是受支持的完整 UTF-8 代码或可识别的二进制 Asset",
+        "asset-media-mismatch": "字节内容与 Asset 媒体类型不匹配",
+        "asset-deletion-unsupported": "运行时 Asset 删除必须通过显式 Resources 删除流程",
         "active-code-artifact": "删除前需先解除 active CodeSlot 绑定",
         "controlled-code-artifact": "删除前需先解除受控 PIR 投影",
         "lifecycle-unavailable": "无法解析 CodeArtifact lifecycle",
@@ -1324,6 +1338,7 @@
       "overview": "概览",
       "components": "组件",
       "tokens": "Token",
+      "auth": "认证与服务端",
       "public": "Public",
       "code": "代码文件",
       "i18n": "i18n",
@@ -1481,6 +1496,42 @@
         "created": "设计系统文档已原子创建。",
         "tokenCreated": "Token 文档已创建。",
         "createFailed": "无法创建 Token 文档。"
+      }
+    },
+    "auth": {
+      "header": {
+        "badge": "服务端权限边界",
+        "title": "认证与服务端运行时",
+        "description": "声明受保护 Server Function 使用的产品认证 provider 与权限目录。该 Workspace 文档只保存引用，绝不保存 session、token、cookie 或 Secret。"
+      },
+      "provider": {
+        "badge": "认证 Provider",
+        "productSession": "Prodivix 产品会话",
+        "description": "当前 Remote 与 isolated-production 首个纵切只在可信 Gateway 解析已登录的产品 principal。"
+      },
+      "permissions": {
+        "badge": "权限目录",
+        "workspaceOwner": "允许受保护的 Workspace owner guard 请求精确的运行时权限判定。",
+        "referenceOnly": "声明不等于授权。可信运行时的 permission port 仍会逐次判定调用。"
+      },
+      "bindings": {
+        "badge": "路由绑定",
+        "permission": "需要 {{permissionId}}",
+        "empty": "当前没有 Route loader、action 或 guard 绑定到 canonical Server Function。"
+      },
+      "status": {
+        "enabled": "已启用",
+        "disabled": "未配置",
+        "ready": "就绪",
+        "blocked": "已阻断"
+      },
+      "actions": {
+        "enable": "使用产品会话",
+        "saving": "保存中…"
+      },
+      "feedback": {
+        "saved": "Workspace 已接受 reference-only 认证配置操作。",
+        "unchanged": "canonical 认证配置已经是当前状态。"
       }
     },
     "code": {
@@ -1892,6 +1943,16 @@
         "targetNode": "目标节点",
         "targetHint": "绑定目标由蓝图检查器管理。",
         "empty": "暂无已挂载目标，请在蓝图检查器中挂载组件。"
+      },
+      "serverRuntime": {
+        "title": "身份验证与服务端运行时",
+        "description": "将 canonical Server Function 绑定到当前路由，不复制源码或权限材料。",
+        "openCode": "编辑代码",
+        "unbound": "未绑定",
+        "unavailable": "绑定无效或不可用",
+        "createRemoteOwner": "创建 Remote 所有者守卫",
+        "createIsolatedOwner": "创建隔离运行所有者守卫",
+        "readonly": "当前路由只读，或由已挂载的 Route 模块拥有。"
       },
       "track": {
         "title": "轨道",

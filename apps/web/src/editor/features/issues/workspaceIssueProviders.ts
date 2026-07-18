@@ -3,6 +3,8 @@ import {
   collectWorkspaceCodeArtifactLifecycleDiagnostics,
   createWorkspaceCodeArtifactProvider,
   decodeWorkspacePirDocument,
+  projectWorkspaceServerRuntimeAuthoring,
+  readWorkspaceServerRuntimeAuthConfiguration,
   validateWorkspaceSnapshot,
   type WorkspaceSnapshot,
   type WorkspaceValidationIssue,
@@ -91,6 +93,54 @@ const collectRouteDiagnostics = (
       ...(issue.artifactId ? { artifactId: issue.artifactId } : {}),
     },
   }));
+};
+
+const collectServerRuntimeAuthoringDiagnostics = (
+  workspace: WorkspaceSnapshot
+): ProdivixDiagnostic[] => {
+  const routeDiagnostics = projectWorkspaceServerRuntimeAuthoring(
+    workspace
+  ).issues.map((issue): ProdivixDiagnostic => ({
+    code: issue.code,
+    severity: 'error',
+    domain: 'route',
+    message: issue.message,
+    hint: 'Open Auth & Server Runtime Resources or the route Code inspector.',
+    docsUrl: '/reference/diagnostics/server-runtime-diagnostic-codes',
+    targetRef: { kind: 'route', routeId: issue.routeNodeId },
+    meta: {
+      path: issue.path,
+      routeNodeId: issue.routeNodeId,
+      slot: issue.slot,
+      artifactId: issue.artifactId,
+      ...(issue.exportName ? { exportName: issue.exportName } : {}),
+    },
+  }));
+  const configurationRead =
+    readWorkspaceServerRuntimeAuthConfiguration(workspace);
+  const configurationDiagnostics =
+    configurationRead.status === 'invalid'
+      ? configurationRead.issues.map((issue): ProdivixDiagnostic => ({
+          code: 'WKS-EXPORT-SERVER-AUTH-CONFIG-INVALID',
+          severity: 'error',
+          domain: 'workspace',
+          message: issue.message,
+          hint: 'Repair the reference-only Auth configuration before running or exporting protected Server Functions.',
+          docsUrl: '/reference/diagnostics/server-runtime-diagnostic-codes',
+          targetRef: issue.documentId
+            ? {
+                kind: 'document',
+                workspaceId: workspace.id,
+                documentId: issue.documentId,
+              }
+            : { kind: 'workspace', workspaceId: workspace.id },
+          meta: {
+            path: issue.path,
+            ...(issue.documentId ? { documentId: issue.documentId } : {}),
+          },
+        }))
+      : [];
+  return [...routeDiagnostics, ...configurationDiagnostics];
 };
 
 const mapPirTarget = (
@@ -218,6 +268,10 @@ export const collectWorkspaceModelIssueSnapshots = (input: {
     createSnapshot(
       'route-manifest-validator',
       collectRouteDiagnostics(input.workspace)
+    ),
+    createSnapshot(
+      'workspace-server-runtime-authoring',
+      collectServerRuntimeAuthoringDiagnostics(input.workspace)
     ),
     createSnapshot('pir-validator', collectPirDiagnostics(input.workspace)),
     createSnapshot(

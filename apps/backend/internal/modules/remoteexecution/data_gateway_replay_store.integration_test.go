@@ -128,6 +128,7 @@ func recordDataGatewayReplayExecution(t *testing.T, store *Store, executionID st
 		ExecutionID:        executionID,
 		WorkspaceID:        "postgres-replay-workspace",
 		OwnerID:            "postgres-replay-owner",
+		SessionID:          "postgres-replay-session-" + executionID,
 		SnapshotID:         "snapshot-" + executionID,
 		PartitionRevisions: map[string]string{"workspace": "1"},
 	}); err != nil {

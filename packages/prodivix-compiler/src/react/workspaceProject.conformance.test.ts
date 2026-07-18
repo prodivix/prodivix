@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import {
+  createBinaryAssetBlobReference,
+  createBinaryAssetMaterialization,
+} from '@prodivix/assets';
 import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   projectExecutableProjectRuntimeFiles,
@@ -89,6 +93,59 @@ const workspace: WorkspaceSnapshot = {
     version: '1',
     root: { id: 'route-root', pageDocId: 'page' },
   },
+};
+
+const PNG_BYTES = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
+const createWorkspaceWithAsset = (
+  mediaType = 'image/png',
+  path = '/public/pixel.png',
+  contents = PNG_BYTES
+): WorkspaceSnapshot => {
+  const blob = createBinaryAssetBlobReference({ contents, mediaType });
+  return {
+    ...workspace,
+    treeById: {
+      ...workspace.treeById,
+      root: {
+        ...workspace.treeById.root!,
+        children: [...workspace.treeById.root!.children, 'asset-public-dir'],
+      },
+      'asset-public-dir': {
+        id: 'asset-public-dir',
+        kind: 'dir',
+        name: 'public',
+        parentId: 'root',
+        children: ['asset-node'],
+      },
+      'asset-node': {
+        id: 'asset-node',
+        kind: 'doc',
+        name: path.split('/').at(-1) ?? 'asset.bin',
+        parentId: 'asset-public-dir',
+        docId: 'asset-pixel',
+      },
+    },
+    docsById: {
+      ...workspace.docsById,
+      'asset-pixel': {
+        id: 'asset-pixel',
+        type: 'asset',
+        path,
+        contentRev: 1,
+        metaRev: 1,
+        content: {
+          kind: 'asset',
+          mime: blob.mediaType,
+          category: 'image',
+          size: blob.byteLength,
+          blob,
+        },
+      },
+    },
+  };
 };
 
 const dataMockProvision: ExecutableProjectDataMockProvision = {
@@ -237,6 +294,148 @@ const workspaceWithData = (): WorkspaceSnapshot => ({
 });
 
 describe('standalone domain export conformance', () => {
+  it('fails closed when a canonical asset has no verified materialization', () => {
+    const project = generateWorkspaceReactViteExecutableProject(
+      createWorkspaceWithAsset()
+    );
+
+    expect(project).toMatchObject({
+      status: 'blocked',
+      diagnostics: [expect.objectContaining({ code: 'AST-1001' })],
+    });
+  });
+
+  it('preserves exact binary bytes in the provider-neutral executable snapshot', () => {
+    const assetWorkspace = createWorkspaceWithAsset();
+    const document = assetWorkspace.docsById['asset-pixel']!;
+    const reference = (
+      document.content as {
+        blob: ReturnType<typeof createBinaryAssetBlobReference>;
+      }
+    ).blob;
+    const project = generateWorkspaceReactViteExecutableProject(
+      assetWorkspace,
+      {
+        assetMaterializations: [
+          createBinaryAssetMaterialization({
+            assetDocumentId: document.id,
+            reference,
+            contents: PNG_BYTES,
+          }),
+        ],
+      }
+    );
+
+    expect(
+      project.status,
+      project.status === 'blocked' ? JSON.stringify(project.diagnostics) : ''
+    ).toBe('ready');
+    if (project.status !== 'ready') return;
+    const emitted = project.snapshot.files.find(
+      ({ path }) => path === 'public/pixel.png'
+    );
+    expect(emitted?.contents).toEqual(PNG_BYTES);
+    expect(emitted?.sourceTrace).toContainEqual(
+      expect.objectContaining({
+        sourceRef: {
+          kind: 'document',
+          workspaceId: assetWorkspace.id,
+          documentId: document.id,
+        },
+      })
+    );
+    expect(JSON.stringify(project.snapshot)).not.toContain(reference.digest);
+    expect(JSON.stringify(project.snapshot)).not.toContain('workspace-blob');
+  });
+
+  it('blocks materialization identity drift before export planning', () => {
+    const assetWorkspace = createWorkspaceWithAsset();
+    const driftedBytes = new Uint8Array([1, 2, 3]);
+    const driftedReference = createBinaryAssetBlobReference({
+      contents: driftedBytes,
+      mediaType: 'image/png',
+    });
+    const project = generateWorkspaceReactViteExecutableProject(
+      assetWorkspace,
+      {
+        assetMaterializations: [
+          createBinaryAssetMaterialization({
+            assetDocumentId: 'asset-pixel',
+            reference: driftedReference,
+            contents: driftedBytes,
+          }),
+        ],
+      }
+    );
+
+    expect(project).toMatchObject({
+      status: 'blocked',
+      diagnostics: [expect.objectContaining({ code: 'AST-1003' })],
+    });
+  });
+
+  it('blocks active content from the public delivery root', () => {
+    const svgBytes = new TextEncoder().encode('<svg></svg>');
+    const assetWorkspace = createWorkspaceWithAsset(
+      'image/svg+xml',
+      '/public/icon.svg',
+      svgBytes
+    );
+    const reference = (
+      assetWorkspace.docsById['asset-pixel']!.content as {
+        blob: ReturnType<typeof createBinaryAssetBlobReference>;
+      }
+    ).blob;
+    const project = generateWorkspaceReactViteExecutableProject(
+      assetWorkspace,
+      {
+        assetMaterializations: [
+          createBinaryAssetMaterialization({
+            assetDocumentId: 'asset-pixel',
+            reference,
+            contents: svgBytes,
+          }),
+        ],
+      }
+    );
+
+    expect(project).toMatchObject({
+      status: 'blocked',
+      diagnostics: [expect.objectContaining({ code: 'AST-1101' })],
+    });
+  });
+
+  it('blocks download-only media from static public delivery', () => {
+    const pdfBytes = new TextEncoder().encode('%PDF-1.7');
+    const assetWorkspace = createWorkspaceWithAsset(
+      'application/pdf',
+      '/public/manual.pdf',
+      pdfBytes
+    );
+    const reference = (
+      assetWorkspace.docsById['asset-pixel']!.content as {
+        blob: ReturnType<typeof createBinaryAssetBlobReference>;
+      }
+    ).blob;
+    const project = generateWorkspaceReactViteExecutableProject(
+      assetWorkspace,
+      {
+        assetMaterializations: [
+          createBinaryAssetMaterialization({
+            assetDocumentId: 'asset-pixel',
+            reference,
+            contents: pdfBytes,
+          }),
+        ],
+      }
+    );
+
+    expect(project).toMatchObject({
+      status: 'blocked',
+      diagnostics: [expect.objectContaining({ code: 'AST-1102' })],
+    });
+  });
+
   it('compiles NodeGraph and Animation documents into the Workspace program', () => {
     const program = compileWorkspaceToExportProgram(workspace);
 
@@ -260,7 +459,7 @@ describe('standalone domain export conformance', () => {
     ).toBe('ready');
     if (result.status !== 'ready') return;
     expect(result.snapshot).toMatchObject({
-      format: 'prodivix.executable-project.v4',
+      format: 'prodivix.executable-project.v6',
       workspace: {
         workspaceId: workspace.id,
         snapshotId: expect.stringContaining(`${workspace.id}|w=1|r=1|o=1`),

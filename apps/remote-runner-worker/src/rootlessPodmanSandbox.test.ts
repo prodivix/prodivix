@@ -1,15 +1,24 @@
 import { createHash } from 'node:crypto';
 import {
   createExecutableProjectSnapshot,
+  createExecutionRequest,
   createExecutionFilesystemDiff,
   decodeExecutionFilesystemDiff,
   encodeExecutionFilesystemDiff,
   readExecutionTestReportValue,
+  EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
 } from '@prodivix/runtime-core';
+import {
+  EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+  EXECUTION_SERVER_FUNCTION_BRIDGE_RESPONSE_TYPE,
+  ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
+  ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+} from '@prodivix/server-runtime';
 import { describe, expect, it } from 'vitest';
 import {
   createRootlessPodmanRunArguments,
   createRootlessPodmanSandbox,
+  createRootlessPodmanSandboxWirePayload,
   createRootlessInstallProxyUrl,
   decodeRootlessInstallProxyTraces,
   decodeRootlessPodmanSandboxResult,
@@ -157,6 +166,157 @@ describe('rootless Podman sandbox contract', () => {
     ).toThrow(/install network policy/u);
   });
 
+  it('keeps invocation and Secret material out of the install-phase payload', () => {
+    const secretCanary = 'post-install-secret-material-canary';
+    const functionRef = {
+      artifactId: 'code-secret',
+      exportName: 'useSecret',
+    } as const;
+    const snapshot = createExecutableProjectSnapshot({
+      workspace: { workspaceId: 'workspace-1', snapshotId: 'snapshot-1' },
+      target: {
+        presetId: 'isolated-server-function',
+        framework: 'typescript',
+        runtime: 'node',
+      },
+      files: [
+        { path: 'package.json', contents: '{"private":true}' },
+        {
+          path: 'src/.prodivix/server-runtime/invoke.mjs',
+          contents: 'export {};',
+        },
+        {
+          path: 'src/.prodivix/server-runtime/function.mjs',
+          contents: 'export const useSecret = () => undefined;',
+        },
+      ],
+      dependencyPlan: { manifestFilePath: 'package.json' },
+      entrypoints: [
+        {
+          kind: 'production',
+          path: 'src/.prodivix/server-runtime/invoke.mjs',
+        },
+      ],
+      capabilityRequirements: {
+        preview: [],
+        build: [],
+        test: [],
+        production: [
+          'artifacts',
+          'cancellation',
+          'dependency-install',
+          'environment-binding',
+          'filesystem',
+          'server-function',
+          'source-trace',
+          'streaming-logs',
+          'timeout',
+        ],
+      },
+      serverFunctionPlan: {
+        format: EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
+        command: {
+          command: 'node',
+          args: ['src/.prodivix/server-runtime/invoke.mjs'],
+        },
+        entrypointFilePath: 'src/.prodivix/server-runtime/invoke.mjs',
+        sourceFilePath: 'src/.prodivix/server-runtime/function.mjs',
+        functionRef,
+        runtimeManifest: {
+          schemaVersion: '1.0',
+          functionsByExport: {
+            useSecret: {
+              kind: 'function',
+              runtimeZone: 'server',
+              adapterId: 'prodivix.code-export',
+              effect: 'read',
+              auth: { kind: 'public' },
+              inputSchema: true,
+              outputSchema: true,
+              environment: {
+                secretsByField: {
+                  signingKey: { bindingId: 'signing-key' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const request = createExecutionRequest({
+      requestId: 'request-secret',
+      profile: 'production',
+      runtimeZone: 'server',
+      workspace: snapshot.workspace,
+      invocation: {
+        kind: 'code',
+        targetRef: {
+          kind: 'code-artifact',
+          artifactId: functionRef.artifactId,
+        },
+        entrypoint: functionRef.exportName,
+        input: {
+          type: EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+          requestId: 'invocation-secret:1',
+          invocationId: 'invocation-secret',
+          attempt: 1,
+          functionRef,
+          input: { value: 'invocation-input-canary' },
+        },
+      },
+      requiredCapabilities: ['environment-binding', 'server-function'],
+    });
+    const wire = createRootlessPodmanSandboxWirePayload(
+      snapshot,
+      'production',
+      64 * 1024,
+      4 * 1024 * 1024,
+      request,
+      undefined,
+      {
+        format: ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
+        fields: { signingKey: secretCanary },
+      }
+    );
+    const install = JSON.parse(wire.installPayload) as Record<string, unknown>;
+    const execution = JSON.parse(wire.executionPermission) as Record<
+      string,
+      unknown
+    >;
+    const controlNonce = String(install.controlNonce);
+
+    expect(wire.installPayload).not.toContain(secretCanary);
+    expect(wire.installPayload).not.toContain('invocation-input-canary');
+    expect(install).not.toHaveProperty('serverFunctionRequest');
+    expect(install).not.toHaveProperty('serverFunctionSecrets');
+    expect(install.serverFunctionRuntime).toEqual({
+      hasAuthority: false,
+      secretFields: ['signingKey'],
+    });
+    expect(execution).toMatchObject({
+      format: 'prodivix.sandbox-execution-permission.v1',
+      token: 'PRODIVIX_SANDBOX_CONTINUE_V1',
+      controlNonce,
+      serverFunctionSecrets: {
+        format: ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
+        fields: { signingKey: secretCanary },
+      },
+    });
+    expect(JSON.stringify(execution)).toContain('invocation-input-canary');
+    expect(wire.installCompleteMarker).toBe(
+      `PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1:${controlNonce}`
+    );
+    expect(wire.captureReadyMarker).toBe(
+      `PRODIVIX_SANDBOX_CAPTURE_READY_V1:${controlNonce}`
+    );
+    expect(wire.captureExecutionPermission).toBe(
+      `PRODIVIX_SANDBOX_CAPTURE_V1:${controlNonce}`
+    );
+    expect(wire.installCompleteMarker).not.toBe(
+      'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1'
+    );
+  });
+
   it('strictly sanitizes proxy traces to origin-only metadata', () => {
     const traces = decodeRootlessInstallProxyTraces(
       JSON.stringify({
@@ -208,6 +368,159 @@ describe('rootless Podman sandbox contract', () => {
         'install-trace-1234'
       )
     ).toThrow(/unknown fields/u);
+  });
+
+  it('canonicalizes one production Server Function result against its snapshot', () => {
+    const functionRef = {
+      artifactId: 'code-server-greeting',
+      exportName: 'getGreeting',
+    } as const;
+    const snapshot = createExecutableProjectSnapshot({
+      workspace: { workspaceId: 'workspace-1', snapshotId: 'snapshot-1' },
+      target: {
+        presetId: 'isolated-server-function',
+        framework: 'typescript',
+        runtime: 'node',
+      },
+      files: [
+        { path: 'package.json', contents: '{"private":true}' },
+        {
+          path: 'src/.prodivix/server-runtime/invoke.mjs',
+          contents: 'export {};',
+        },
+        {
+          path: 'src/.prodivix/server-runtime/function.mjs',
+          contents: 'export const getGreeting = () => undefined;',
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'code-artifact',
+                artifactId: functionRef.artifactId,
+              },
+            },
+          ],
+        },
+      ],
+      dependencyPlan: { manifestFilePath: 'package.json' },
+      entrypoints: [
+        {
+          kind: 'production',
+          path: 'src/.prodivix/server-runtime/invoke.mjs',
+        },
+      ],
+      capabilityRequirements: {
+        preview: [],
+        build: [],
+        test: [],
+        production: [
+          'artifacts',
+          'cancellation',
+          'dependency-install',
+          'filesystem',
+          'server-function',
+          'source-trace',
+          'streaming-logs',
+          'timeout',
+        ],
+      },
+      serverFunctionPlan: {
+        format: EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
+        command: {
+          command: 'node',
+          args: ['src/.prodivix/server-runtime/invoke.mjs'],
+        },
+        entrypointFilePath: 'src/.prodivix/server-runtime/invoke.mjs',
+        sourceFilePath: 'src/.prodivix/server-runtime/function.mjs',
+        functionRef,
+        runtimeManifest: {
+          schemaVersion: '1.0',
+          functionsByExport: {
+            getGreeting: {
+              kind: 'function',
+              runtimeZone: 'server',
+              adapterId: 'prodivix.code-export',
+              effect: 'read',
+              auth: { kind: 'public' },
+              inputSchema: true,
+              outputSchema: {
+                type: 'object',
+                required: ['greeting'],
+                properties: { greeting: { type: 'string' } },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+      },
+    });
+    const request = createExecutionRequest({
+      requestId: 'remote-server-function-1',
+      profile: 'production',
+      runtimeZone: 'server',
+      workspace: snapshot.workspace,
+      invocation: {
+        kind: 'code',
+        targetRef: {
+          kind: 'code-artifact',
+          artifactId: functionRef.artifactId,
+        },
+        entrypoint: functionRef.exportName,
+        input: {
+          type: EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+          requestId: 'invocation-1:1',
+          invocationId: 'invocation-1',
+          attempt: 1,
+          functionRef,
+          input: { name: 'Ada' },
+        },
+      },
+      requiredCapabilities: ['server-function'],
+    });
+    const response = Buffer.from(
+      JSON.stringify({
+        type: EXECUTION_SERVER_FUNCTION_BRIDGE_RESPONSE_TYPE,
+        requestId: 'invocation-1:1',
+        ok: true,
+        result: { kind: 'value', value: { greeting: 'Hello Ada' } },
+      })
+    );
+    const result = decodeRootlessPodmanSandboxResult(
+      JSON.stringify({
+        protocol: 'prodivix.sandbox-result.v1',
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        artifacts: [
+          {
+            artifactId: `server-function-result:${snapshot.contentDigest}:invocation-1:1`,
+            kind: 'report',
+            mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+            contents: response.toString('base64'),
+          },
+        ],
+      }),
+      snapshot,
+      'production',
+      request,
+      2_000,
+      1_000,
+      128 * 1024
+    );
+
+    expect(result).toMatchObject({
+      status: 'succeeded',
+      artifacts: [
+        {
+          kind: 'report',
+          mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+          metadata: {
+            requestId: 'invocation-1:1',
+            status: 'succeeded',
+          },
+        },
+      ],
+    });
   });
 
   it('strictly decodes bounded Build artifacts and restores source trace', () => {
@@ -274,6 +587,7 @@ describe('rootless Podman sandbox contract', () => {
       }),
       snapshot,
       'build',
+      undefined,
       2_000,
       1_000,
       contents.byteLength
@@ -308,6 +622,7 @@ describe('rootless Podman sandbox contract', () => {
         }),
         snapshot,
         'build',
+        undefined,
         2_000,
         1_000,
         contents.byteLength
@@ -384,6 +699,7 @@ describe('rootless Podman sandbox contract', () => {
       }),
       snapshot,
       'preview',
+      undefined,
       2_000,
       1_000,
       contents.byteLength
@@ -495,6 +811,7 @@ describe('rootless Podman sandbox contract', () => {
       }),
       snapshot,
       'build',
+      undefined,
       2_000,
       1_000,
       buildContents.byteLength + untrustedDiff.byteLength + 4_096
@@ -587,6 +904,7 @@ describe('rootless Podman sandbox contract', () => {
       }),
       snapshot,
       'test',
+      undefined,
       2_000,
       1_000,
       128 * 1024
@@ -622,6 +940,7 @@ describe('rootless Podman sandbox contract', () => {
         }),
         snapshot,
         'test',
+        undefined,
         2_000,
         1_000,
         128 * 1024

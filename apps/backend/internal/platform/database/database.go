@@ -350,6 +350,96 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			`ALTER TABLE remote_data_mutation_replays ADD CONSTRAINT remote_data_mutation_replays_result_check CHECK ((status = 'succeeded' AND result_json IS NOT NULL) OR (status IN ('pending', 'retryable', 'indeterminate') AND result_json IS NULL))`,
 			`ALTER TABLE remote_data_mutation_replays ADD CONSTRAINT remote_data_mutation_replays_retryable_check CHECK (status <> 'retryable' OR attempt < maximum_attempts)`,
 		},
+	}, {
+		version: 4,
+		name:    "workspace-binary-asset-blobs",
+		statements: []string{
+			`CREATE TABLE IF NOT EXISTS workspace_asset_blobs (
+			workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+			digest TEXT NOT NULL,
+			media_type TEXT NOT NULL,
+			byte_length BIGINT NOT NULL,
+			contents BYTEA NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (workspace_id, digest),
+			CONSTRAINT workspace_asset_blobs_digest_check CHECK (digest ~ '^sha256-[a-f0-9]{64}$'),
+			CONSTRAINT workspace_asset_blobs_media_type_check CHECK (char_length(media_type) BETWEEN 3 AND 127 AND media_type = lower(media_type) AND media_type ~ '^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$'),
+			CONSTRAINT workspace_asset_blobs_byte_length_check CHECK (byte_length BETWEEN 0 AND 33554432),
+			CONSTRAINT workspace_asset_blobs_contents_check CHECK (octet_length(contents) = byte_length)
+		)`,
+			`CREATE INDEX IF NOT EXISTS idx_workspace_asset_blobs_created_at ON workspace_asset_blobs(workspace_id, created_at)`,
+		},
+	}, {
+		version: 5,
+		name:    "workspace-asset-blob-retention",
+		statements: []string{
+			`ALTER TABLE workspace_asset_blobs ADD COLUMN IF NOT EXISTS unreferenced_since TIMESTAMPTZ`,
+			`UPDATE workspace_asset_blobs SET unreferenced_since = created_at WHERE unreferenced_since IS NULL`,
+			`ALTER TABLE workspace_asset_blobs ALTER COLUMN unreferenced_since SET DEFAULT NOW()`,
+			`CREATE INDEX IF NOT EXISTS idx_workspace_asset_blobs_unreferenced_since ON workspace_asset_blobs(unreferenced_since, workspace_id) WHERE unreferenced_since IS NOT NULL`,
+		},
+	}, {
+		version: 6,
+		name:    "remote-server-function-live-mutation",
+		statements: []string{
+			`CREATE TABLE IF NOT EXISTS remote_server_function_execution_state (
+			execution_id TEXT NOT NULL REFERENCES remote_execution_grants(execution_id) ON DELETE CASCADE,
+			artifact_id TEXT NOT NULL,
+			export_name TEXT NOT NULL,
+			state_key TEXT NOT NULL,
+			value_json JSONB NOT NULL,
+			revision BIGINT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (execution_id, artifact_id, export_name, state_key),
+			CONSTRAINT remote_server_function_execution_state_artifact_check CHECK (artifact_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$'),
+			CONSTRAINT remote_server_function_execution_state_export_check CHECK (export_name ~ '^[A-Za-z_$][A-Za-z0-9_$]{0,255}$'),
+			CONSTRAINT remote_server_function_execution_state_key_check CHECK (state_key ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),
+			CONSTRAINT remote_server_function_execution_state_value_check CHECK (octet_length(value_json::text) <= 1048576),
+			CONSTRAINT remote_server_function_execution_state_revision_check CHECK (revision >= 1)
+		)`,
+			`CREATE TABLE IF NOT EXISTS remote_server_function_mutation_replays (
+			execution_id TEXT NOT NULL REFERENCES remote_execution_grants(execution_id) ON DELETE CASCADE,
+			artifact_id TEXT NOT NULL,
+			export_name TEXT NOT NULL,
+			invocation_id TEXT NOT NULL,
+			request_hash TEXT NOT NULL,
+			result_json JSONB NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (execution_id, artifact_id, export_name, invocation_id),
+			CONSTRAINT remote_server_function_mutation_replays_artifact_check CHECK (artifact_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$'),
+			CONSTRAINT remote_server_function_mutation_replays_export_check CHECK (export_name ~ '^[A-Za-z_$][A-Za-z0-9_$]{0,255}$'),
+			CONSTRAINT remote_server_function_mutation_replays_invocation_check CHECK (char_length(invocation_id) BETWEEN 1 AND 512 AND invocation_id = btrim(invocation_id)),
+			CONSTRAINT remote_server_function_mutation_replays_hash_check CHECK (request_hash ~ '^[a-f0-9]{64}$'),
+			CONSTRAINT remote_server_function_mutation_replays_result_check CHECK (octet_length(result_json::text) <= 1049600)
+		)`,
+			`CREATE INDEX IF NOT EXISTS idx_remote_server_function_mutation_replays_created_at ON remote_server_function_mutation_replays(execution_id, created_at DESC)`,
+		},
+	}, {
+		version: 7,
+		name:    "isolated-server-function-secret-resolution",
+		statements: []string{
+			`CREATE TABLE IF NOT EXISTS remote_isolated_secret_resolutions (
+			execution_id TEXT PRIMARY KEY REFERENCES remote_execution_grants(execution_id) ON DELETE CASCADE,
+			worker_id TEXT NOT NULL,
+			worker_attempt BIGINT NOT NULL,
+			artifact_id TEXT NOT NULL,
+			export_name TEXT NOT NULL,
+			invocation_id TEXT NOT NULL,
+			recipient_public_key TEXT NOT NULL,
+			envelope_json JSONB,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			completed_at TIMESTAMPTZ,
+			CONSTRAINT remote_isolated_secret_resolutions_worker_check CHECK (worker_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$'),
+			CONSTRAINT remote_isolated_secret_resolutions_attempt_check CHECK (worker_attempt BETWEEN 1 AND 9007199254740991),
+			CONSTRAINT remote_isolated_secret_resolutions_artifact_check CHECK (artifact_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$'),
+			CONSTRAINT remote_isolated_secret_resolutions_export_check CHECK (export_name ~ '^[A-Za-z_$][A-Za-z0-9_$]{0,255}$'),
+			CONSTRAINT remote_isolated_secret_resolutions_invocation_check CHECK (char_length(invocation_id) BETWEEN 1 AND 512 AND invocation_id = btrim(invocation_id)),
+			CONSTRAINT remote_isolated_secret_resolutions_recipient_check CHECK (recipient_public_key ~ '^[A-Za-z0-9_-]{43}$'),
+			CONSTRAINT remote_isolated_secret_resolutions_envelope_check CHECK (envelope_json IS NULL OR octet_length(envelope_json::text) <= 786432),
+			CONSTRAINT remote_isolated_secret_resolutions_completion_check CHECK ((envelope_json IS NULL) = (completed_at IS NULL))
+		)`,
+		},
 	}}
 
 	tx, err := db.BeginTx(ctx, nil)

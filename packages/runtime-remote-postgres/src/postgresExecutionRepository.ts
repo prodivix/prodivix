@@ -14,7 +14,12 @@ import type {
   RemoteExecutionRepository,
   RemoteExecutionStoredRecord,
 } from '@prodivix/runtime-remote';
-import { projectRemoteExecutionArtifact } from '@prodivix/runtime-remote';
+import {
+  createRemoteExecutionServerAuthorityLease,
+  projectRemoteExecutionArtifact,
+  readRemoteExecutionServerAuthority,
+  type RemoteExecutionServerAuthority,
+} from '@prodivix/runtime-remote';
 import { withPostgresTransaction } from './postgresTransaction';
 
 type ExecutionRow = {
@@ -45,6 +50,10 @@ type EventRow = {
   event_json: ExecutionJobEvent;
   worker_event_id: string | null;
   worker_event_identity: string | null;
+};
+type ServerAuthorityRow = {
+  authority_json: unknown;
+  expires_at: string | number;
 };
 type Queryable = Pick<Pool | PoolClient, 'query'>;
 const terminal = new Set<ExecutionJobStatus>([
@@ -158,6 +167,29 @@ const one = <Row extends QueryResultRow>(
   result: QueryResult<Row>
 ): Row | undefined => (result.rowCount === 1 ? result.rows[0] : undefined);
 
+const loadServerAuthority = async (
+  queryable: Queryable,
+  executionId: string,
+  now: number
+): Promise<RemoteExecutionServerAuthority | undefined> => {
+  const row = one(
+    await queryable.query<ServerAuthorityRow>(
+      `SELECT authority_json, expires_at
+         FROM remote_execution_server_authorities
+        WHERE execution_id=$1 AND expires_at>$2`,
+      [executionId, now]
+    )
+  );
+  if (!row) return undefined;
+  const authority = readRemoteExecutionServerAuthority(row.authority_json);
+  if (
+    !authority ||
+    authority.expiresAt !== integer(row.expires_at, 'authority expiresAt')
+  )
+    throw new TypeError('Stored remote execution authority is corrupt.');
+  return authority;
+};
+
 const stateEvent = (
   row: ExecutionRow,
   status: ExecutionJobStatus,
@@ -215,6 +247,11 @@ const transitionLocked = async (
      WHERE execution_id=$1 RETURNING *`,
     [row.execution_id, status, cursor, now, [...terminal]]
   );
+  if (terminal.has(status))
+    await client.query(
+      `DELETE FROM remote_execution_server_authorities WHERE execution_id=$1`,
+      [row.execution_id]
+    );
   return one(updated)!;
 };
 
@@ -279,6 +316,16 @@ export const createPostgresRemoteExecutionRepository = (
           ]
         )
       )!;
+      if (input.serverAuthority)
+        await client.query(
+          `INSERT INTO remote_execution_server_authorities(execution_id,authority_json,expires_at)
+           VALUES($1,$2::jsonb,$3)`,
+          [
+            input.executionId,
+            JSON.stringify(input.serverAuthority),
+            input.serverAuthority.expiresAt,
+          ]
+        );
       await client.query(
         `INSERT INTO remote_execution_events(execution_id,cursor,event_json,emitted_at)
         VALUES($1,1,$2::jsonb,$3)`,
@@ -386,7 +433,26 @@ export const createPostgresRemoteExecutionRepository = (
         )
       )!;
       const execution = await load(client, result);
-      return { execution, lease: execution.lease! };
+      const lease = execution.lease!;
+      const serverAuthority = await loadServerAuthority(
+        client,
+        execution.record.executionId,
+        input.now
+      );
+      return {
+        execution,
+        lease,
+        ...(serverAuthority
+          ? {
+              authority: createRemoteExecutionServerAuthorityLease({
+                authority: serverAuthority,
+                executionId: execution.record.executionId,
+                workerId: input.workerId,
+                workerAttempt: lease.attempt,
+              }),
+            }
+          : {}),
+      };
     });
   },
   async renewLease(input): Promise<RemoteExecutionLease | undefined> {

@@ -8,9 +8,14 @@ import type {
 import {
   decodeRemoteExecutionJobEvent,
   decodeRemoteExecutionTerminalSize,
+  readRemoteExecutionSecretEnvelope,
+  readRemoteExecutionServerAuthority,
   RemoteExecutionTerminalBrokerError,
   type RemoteExecutionWorkerEvent,
 } from '@prodivix/runtime-remote';
+
+export const REMOTE_EXECUTION_SERVER_AUTHORITY_HEADER =
+  'x-prodivix-execution-server-authority' as const;
 
 export type RemoteExecutionHttpAuthenticator = Readonly<{
   authenticateClient(
@@ -37,6 +42,14 @@ export type CreateRemoteExecutionHttpHandlerOptions = Readonly<{
       leaseToken: string;
     }>
   ): Promise<boolean | undefined>;
+  resolveClaimedServerFunctionSecrets?(
+    input: Readonly<{
+      executionId: string;
+      workerId: string;
+      leaseToken: string;
+      recipientPublicKey: string;
+    }>
+  ): Promise<unknown | undefined>;
   publicBodyLimitBytes?: number;
   internalBodyLimitBytes?: number;
 }>;
@@ -133,6 +146,35 @@ const header = (request: IncomingMessage, name: string): string => {
   return text(value);
 };
 
+const serverAuthorityHeader = (request: IncomingMessage) => {
+  const value = request.headers[REMOTE_EXECUTION_SERVER_AUTHORITY_HEADER];
+  if (value === undefined) return undefined;
+  if (
+    typeof value !== 'string' ||
+    value.length < 1 ||
+    value.length > 32 * 1024 ||
+    !/^[A-Za-z0-9_-]+$/u.test(value)
+  )
+    throw new TypeError('Remote execution server authority is invalid.');
+  let parsed: unknown;
+  try {
+    const decoded = Buffer.from(value, 'base64url');
+    if (
+      !decoded.byteLength ||
+      decoded.byteLength > 24 * 1024 ||
+      decoded.toString('base64url') !== value
+    )
+      throw new TypeError('Remote execution server authority is invalid.');
+    parsed = JSON.parse(decoded.toString('utf8')) as unknown;
+  } catch {
+    throw new TypeError('Remote execution server authority is invalid.');
+  }
+  const authority = readRemoteExecutionServerAuthority(parsed);
+  if (!authority)
+    throw new TypeError('Remote execution server authority is invalid.');
+  return authority;
+};
+
 const record = (
   value: unknown,
   allowed: readonly string[],
@@ -163,6 +205,15 @@ const nonNegativeInteger = (value: unknown): number => {
   if (!Number.isSafeInteger(value) || (value as number) < 0)
     throw new TypeError('non-negative integer required');
   return value as number;
+};
+
+const x25519PublicKey = (value: unknown): string => {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{43}$/u.test(value))
+    throw new TypeError('X25519 public key is invalid');
+  const decoded = Buffer.from(value, 'base64url');
+  if (decoded.byteLength !== 32 || decoded.toString('base64url') !== value)
+    throw new TypeError('X25519 public key is invalid');
+  return value;
 };
 
 const terminalErrorStatus = (
@@ -257,8 +308,10 @@ export const createRemoteExecutionHttpHandler = (
           request,
           publicLimit
         )) as RemoteExecutionRequestEnvelope;
+        const serverAuthority = serverAuthorityHeader(request);
         const result = await options.controlPlane.handle(envelope, {
           principal,
+          ...(serverAuthority === undefined ? {} : { serverAuthority }),
         });
         json(response, 200, result);
         return;
@@ -503,6 +556,47 @@ export const createRemoteExecutionHttpHandler = (
         });
         if (!snapshot) return error(response, 409, 'lease-rejected');
         json(response, 200, { snapshot });
+        return;
+      }
+      const secretMatch =
+        /^\/internal\/v1\/executions\/([^/]+)\/server-function-secrets$/u.exec(
+          url.pathname
+        );
+      if (secretMatch) {
+        if (!options.resolveClaimedServerFunctionSecrets)
+          return error(response, 404, 'not-found');
+        const body = record(
+          await readJson(request, internalLimit),
+          ['workerId', 'leaseToken', 'recipientPublicKey'],
+          ['workerId', 'leaseToken', 'recipientPublicKey']
+        );
+        const workerId = text(body.workerId);
+        if (
+          !(await workerAuth(
+            request,
+            response,
+            options.authenticator,
+            workerId
+          ))
+        )
+          return;
+        const executionId = decodeURIComponent(secretMatch[1]!);
+        const envelope = readRemoteExecutionSecretEnvelope(
+          await options.resolveClaimedServerFunctionSecrets({
+            executionId,
+            workerId,
+            leaseToken: text(body.leaseToken),
+            recipientPublicKey: x25519PublicKey(body.recipientPublicKey),
+          })
+        );
+        if (!envelope) return error(response, 409, 'lease-rejected');
+        if (
+          envelope.executionId !== executionId ||
+          envelope.workerId !== workerId ||
+          envelope.recipientPublicKey !== body.recipientPublicKey
+        )
+          return error(response, 409, 'identity-conflict');
+        json(response, 200, { envelope });
         return;
       }
       const terminalCommandsMatch =

@@ -164,9 +164,11 @@ CloseTerminal(sessionId)
 Workspace 写入 API。stdin 原文只转交 adapter，不进入 replay/history；Core 仅保留 salted、有限的指纹尾部
 以判定 reconnect retry 的 duplicate/conflict。Remote broker/client/HTTP transport、Backend owner gateway、
 Worker command coordinator 与 rootless Podman inner PTY 已实现；Web 只保留短期 bearer 的 ref，并以 output cursor
-恢复。runtime filesystem 只通过 artifact/proposal 产品流采纳 whole-file CodeArtifact：modified 使用 fenced
-`source.update`，added/deleted 使用 fenced canonical VFS create/delete Intent；partial/aggregated、未知扩展名、
-active CodeSlot、controlled PIR projection、binary、stale、path conflict 与 incomplete change 明确 blocked，
+恢复。runtime filesystem 只通过 artifact/proposal 产品流采纳 whole-file CodeArtifact 与显式 Asset import/replace：
+Code modified 使用 fenced `source.update`，added/deleted 使用 fenced canonical VFS create/delete Intent；Asset added/modified
+要求 exact document/baseline/media 与 local/Backend upload receipt，再使用 `document.create` / `asset.content.replace`。
+所选 Code/Asset change 进入同一个可逆 Workspace Transaction；partial/aggregated、未知 binary、runtime Asset delete、
+active CodeSlot、controlled PIR projection、stale、path conflict、缺失/伪造 receipt 与 incomplete change 明确 blocked，
 不存在直接 Workspace 写入 API。
 
 ## Network contract

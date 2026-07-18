@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -261,11 +262,26 @@ func TestGatewayRecordsCreateGrantAndKeepsServiceTokenServerSide(t *testing.T) {
 		if request.Header.Get("Authorization") != "Bearer service-token" {
 			t.Fatalf("control plane did not receive the service credential")
 		}
+		rawAuthority := request.Header.Get(executionServerAuthorityHeader)
+		decodedAuthority, err := base64.RawURLEncoding.DecodeString(rawAuthority)
+		if err != nil {
+			t.Fatalf("execution authority header is not canonical base64url: %v", err)
+		}
+		var authority executionServerAuthority
+		if json.Unmarshal(decodedAuthority, &authority) != nil || authority.Format != executionServerAuthorityFormat || authority.Principal.ProviderID != productSessionProviderID || authority.Principal.PrincipalID != "user-1" || len(authority.Permissions) != 1 || authority.Permissions[0] != workspaceOwnerPermissionID || authority.WorkspaceID != "workspace-1" || authority.SnapshotID != "snapshot-1" || authority.ExpiresAt != 1_120_000 {
+			t.Fatalf("execution authority projection drifted: %s", decodedAuthority)
+		}
+		for _, forbidden := range []string{"session-1", "user-session-token", "service-token"} {
+			if bytes.Contains(decodedAuthority, []byte(forbidden)) {
+				t.Fatalf("server-only credential escaped into authority projection: %q", forbidden)
+			}
+		}
 		response.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(response, `{"protocol":"prodivix.remote-execution","version":1,"messageId":"message-1","operation":"create","ok":true,"payload":{"execution":{"executionId":"execution-1"}}}`)
 	}))
 	defer controlPlane.Close()
 	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{})
+	handler.now = func() time.Time { return time.UnixMilli(1_000_000).UTC() }
 	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
 		"request": map[string]any{"workspace": workspaceAuthorityFixture()},
 	})))

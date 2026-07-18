@@ -10,6 +10,7 @@ import { ResourceOverviewPanel } from './ResourceOverviewPanel';
 import { PublicResourcePage } from './PublicResourcePage';
 import { ComponentResourcePage } from './ComponentResourcePage';
 import { DesignTokenResourcePage } from './DesignTokenResourcePage';
+import { AuthServerRuntimeResourcePage } from './AuthServerRuntimeResourcePage';
 import {
   buildOverviewSnapshot,
   getResourceManagerViewStorageKey,
@@ -46,6 +47,7 @@ export function ProjectResources() {
       raw === 'overview' ||
       raw === 'components' ||
       raw === 'tokens' ||
+      raw === 'auth' ||
       raw === 'public' ||
       raw === 'code' ||
       raw === 'i18n' ||
@@ -86,7 +88,14 @@ export function ProjectResources() {
     ) {
       setActiveSection('tokens');
     }
-  }, [activeDocumentId, activeDocumentType]);
+    if (
+      activeDocumentType === 'project-config' &&
+      activeDocumentId &&
+      workspaceDocumentsById[activeDocumentId]?.path === '/config/auth.json'
+    ) {
+      setActiveSection('auth');
+    }
+  }, [activeDocumentId, activeDocumentType, workspaceDocumentsById]);
 
   const overviewSnapshot = useMemo(() => {
     if (activeSection !== 'overview') return null;
@@ -157,6 +166,8 @@ export function ProjectResources() {
       {activeSection === 'components' ? <ComponentResourcePage /> : null}
 
       {activeSection === 'tokens' ? <DesignTokenResourcePage /> : null}
+
+      {activeSection === 'auth' ? <AuthServerRuntimeResourcePage /> : null}
 
       {activeSection === 'public' ? <PublicResourcePage embedded /> : null}
 

@@ -15,7 +15,7 @@ describe('G2 Golden Browser/Remote execution contract matrix', () => {
 
   it('uses one neutral snapshot across every supported provider/profile pair', () => {
     expect(matrix.snapshot).toMatchObject({
-      format: 'prodivix.executable-project.v4',
+      format: 'prodivix.executable-project.v6',
       target: {
         presetId: 'react-vite',
         framework: 'react',
@@ -52,6 +52,10 @@ describe('G2 Golden Browser/Remote execution contract matrix', () => {
     expect(readFile(checkoutModule?.contents ?? '')).toContain(
       "import { Button } from 'antd';"
     );
+    expect(
+      matrix.snapshot.files.find((file) => file.path === 'public/logo.png')
+        ?.contents
+    ).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
     expect(matrix.browser.mountedFilePaths).toEqual(
       projectExecutableProjectRuntimeFiles(matrix.snapshot)
         .map((file) => file.path)

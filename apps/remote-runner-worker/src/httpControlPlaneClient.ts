@@ -1,6 +1,8 @@
 import {
   decodeRemoteExecutableProjectSnapshot,
   decodeRemoteExecutionTerminalWorkerReadResult,
+  readRemoteExecutionSecretEnvelope,
+  readRemoteExecutionServerAuthorityLease,
 } from '@prodivix/runtime-remote';
 import type {
   RemoteExecutionClaimResult,
@@ -11,11 +13,27 @@ import type {
   RemoteWorkerTerminalControlPlaneClient,
 } from './worker.types';
 
+const maximumSecretResolutionResponseBytes = 768 * 1024;
+const secretResolutionTimeoutMs = 15_000;
+
+const hasStrictSecretResponseHeaders = (response: Response): boolean =>
+  response.headers
+    .get('content-type')
+    ?.split(';', 1)[0]
+    ?.trim()
+    .toLowerCase() === 'application/json' &&
+  (response.headers.get('cache-control') ?? '')
+    .split(',')
+    .some((value) => value.trim().toLowerCase() === 'no-store') &&
+  response.headers.get('x-content-type-options')?.trim().toLowerCase() ===
+    'nosniff';
+
 const jsonRequest = async (
   baseUrl: string,
   workerToken: string,
   path: string,
-  body: unknown
+  body: unknown,
+  signal?: AbortSignal
 ): Promise<Response> =>
   fetch(new URL(path, baseUrl), {
     method: 'POST',
@@ -24,6 +42,7 @@ const jsonRequest = async (
       'content-type': 'application/json',
     },
     body: JSON.stringify(body),
+    ...(signal ? { signal } : {}),
   });
 
 const resultBody = async (
@@ -33,6 +52,51 @@ const resultBody = async (
   if (!body || typeof body !== 'object' || Array.isArray(body))
     throw new TypeError('Remote worker response is invalid.');
   return body as Record<string, unknown>;
+};
+
+const boundedResultBody = async (
+  response: Response,
+  maximumBytes: number
+): Promise<Record<string, unknown>> => {
+  const contentLength = response.headers.get('content-length');
+  if (
+    contentLength !== null &&
+    (!/^(?:0|[1-9][0-9]*)$/u.test(contentLength) ||
+      !Number.isSafeInteger(Number(contentLength)) ||
+      Number(contentLength) > maximumBytes)
+  ) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new TypeError('Remote worker response is invalid.');
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new TypeError('Remote worker response is invalid.');
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maximumBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new TypeError('Remote worker response is invalid.');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!total) throw new TypeError('Remote worker response is invalid.');
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const value = JSON.parse(Buffer.from(bytes).toString('utf8')) as unknown;
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new TypeError('Remote worker response is invalid.');
+  return value as Record<string, unknown>;
 };
 
 export const createRemoteWorkerHttpControlPlaneClient = (
@@ -55,9 +119,24 @@ export const createRemoteWorkerHttpControlPlaneClient = (
           `Remote worker claim failed with status ${response.status}.`
         );
       const body = await resultBody(response);
-      return body.claim === null
-        ? undefined
-        : (body.claim as RemoteExecutionClaimResult);
+      if (body.claim === null) return undefined;
+      if (
+        !body.claim ||
+        typeof body.claim !== 'object' ||
+        Array.isArray(body.claim)
+      )
+        throw new TypeError('Remote worker claim response is invalid.');
+      const raw = body.claim as Record<string, unknown>;
+      const authority =
+        raw.authority === undefined
+          ? undefined
+          : readRemoteExecutionServerAuthorityLease(raw.authority);
+      if (raw.authority !== undefined && !authority)
+        throw new TypeError('Remote worker authority lease is invalid.');
+      return Object.freeze({
+        ...(body.claim as RemoteExecutionClaimResult),
+        ...(authority === undefined ? {} : { authority }),
+      });
     },
     async renew(request) {
       const response = await jsonRequest(
@@ -110,6 +189,40 @@ export const createRemoteWorkerHttpControlPlaneClient = (
       return decodeRemoteExecutableProjectSnapshot(
         (await resultBody(response)).snapshot
       );
+    },
+    async resolveServerFunctionSecrets(request) {
+      const response = await jsonRequest(
+        baseUrl,
+        input.workerToken,
+        `/internal/v1/executions/${encodeURIComponent(request.executionId)}/server-function-secrets`,
+        request,
+        AbortSignal.timeout(secretResolutionTimeoutMs)
+      );
+      if (response.status === 404 || response.status === 409) {
+        await response.body?.cancel().catch(() => undefined);
+        return undefined;
+      }
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new Error(
+          `Remote worker Secret resolution failed with status ${response.status}.`
+        );
+      }
+      if (!hasStrictSecretResponseHeaders(response)) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new TypeError('Remote worker Secret response is invalid.');
+      }
+      const envelope = readRemoteExecutionSecretEnvelope(
+        (
+          await boundedResultBody(
+            response,
+            maximumSecretResolutionResponseBytes
+          )
+        ).envelope
+      );
+      if (!envelope)
+        throw new TypeError('Remote worker Secret envelope is invalid.');
+      return envelope;
     },
     async appendEvent(request) {
       const response = await jsonRequest(

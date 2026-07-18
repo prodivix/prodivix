@@ -2,12 +2,19 @@ import {
   createExecutableProjectSnapshot,
   createExecutionProviderDescriptor,
   createExecutionRequest,
+  EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
   type ExecutionProviderCapability,
 } from '@prodivix/runtime-core';
 
+export const remoteServerFunctionFixtureRef = Object.freeze({
+  artifactId: 'code-server-greeting',
+  exportName: 'getGreeting',
+});
+
 export const createRemoteFixtureSnapshot = (
   source = 'export const value = 1;',
-  previewCapabilities: readonly ExecutionProviderCapability[] = ['filesystem']
+  previewCapabilities: readonly ExecutionProviderCapability[] = ['filesystem'],
+  binaryAsset?: Uint8Array
 ) =>
   createExecutableProjectSnapshot({
     workspace: {
@@ -31,6 +38,9 @@ export const createRemoteFixtureSnapshot = (
           },
         ],
       },
+      ...(binaryAsset
+        ? [{ path: 'public/fixture.bin', contents: binaryAsset }]
+        : []),
     ],
     dependencyPlan: { manifestFilePath: 'package.json' },
     entrypoints: [
@@ -82,6 +92,16 @@ export const createRemoteFixtureSnapshot = (
         },
       ],
     },
+    serverRuntimeMockProvision: {
+      format: 'prodivix.server-runtime-test-provision.v1',
+      fixtureSetId: 'remote-auth-test',
+      principal: {
+        providerId: 'prodivix-test-fixture',
+        principalId: 'test-user',
+      },
+      permissions: [{ permissionId: 'workspace.owner', allowed: true }],
+      fixtures: [],
+    },
   });
 
 export const createRemoteFixtureRequest = (requestId = 'request-1') =>
@@ -99,6 +119,130 @@ export const createRemoteFixtureRequest = (requestId = 'request-1') =>
       targetRef: { kind: 'workspace', workspaceId: 'workspace-1' },
     },
     requiredCapabilities: ['filesystem'],
+  });
+
+export const createRemoteServerFunctionFixtureSnapshot = () =>
+  createExecutableProjectSnapshot({
+    workspace: {
+      workspaceId: 'workspace-1',
+      snapshotId: 'snapshot-1',
+      partitionRevisions: { workspace: '1' },
+    },
+    target: {
+      presetId: 'isolated-server-function',
+      framework: 'typescript',
+      runtime: 'node',
+    },
+    files: [
+      {
+        path: 'package.json',
+        contents: '{"private":true,"type":"module"}',
+      },
+      {
+        path: 'src/.prodivix/server-runtime/invoke.mjs',
+        contents: 'export {};',
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: remoteServerFunctionFixtureRef.artifactId,
+            },
+          },
+        ],
+      },
+      {
+        path: 'src/.prodivix/server-runtime/function.mjs',
+        contents:
+          'export const getGreeting = (input) => ({ kind: "value", value: input });',
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: remoteServerFunctionFixtureRef.artifactId,
+            },
+          },
+        ],
+      },
+    ],
+    dependencyPlan: { manifestFilePath: 'package.json' },
+    entrypoints: [
+      {
+        kind: 'production',
+        path: 'src/.prodivix/server-runtime/invoke.mjs',
+      },
+    ],
+    capabilityRequirements: {
+      preview: [],
+      build: [],
+      test: [],
+      production: [
+        'artifacts',
+        'cancellation',
+        'dependency-install',
+        'filesystem',
+        'server-function',
+        'source-trace',
+        'streaming-logs',
+        'timeout',
+      ],
+    },
+    publicBuildConfiguration: [],
+    cacheHints: { dependencyInstall: 'isolated' },
+    serverFunctionPlan: {
+      format: EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
+      command: {
+        command: 'node',
+        args: ['src/.prodivix/server-runtime/invoke.mjs'],
+      },
+      entrypointFilePath: 'src/.prodivix/server-runtime/invoke.mjs',
+      sourceFilePath: 'src/.prodivix/server-runtime/function.mjs',
+      functionRef: remoteServerFunctionFixtureRef,
+      runtimeManifest: {
+        schemaVersion: '1.0',
+        functionsByExport: {
+          getGreeting: {
+            kind: 'function',
+            runtimeZone: 'server',
+            adapterId: 'prodivix.code-export',
+            effect: 'read',
+            auth: { kind: 'public' },
+            inputSchema: true,
+            outputSchema: true,
+          },
+        },
+      },
+    },
+  });
+
+export const createRemoteServerFunctionFixtureRequest = (
+  invocationId = 'server-function-invocation-1'
+) =>
+  createExecutionRequest({
+    requestId: `remote-${invocationId}`,
+    profile: 'production',
+    runtimeZone: 'server',
+    workspace: {
+      workspaceId: 'workspace-1',
+      snapshotId: 'snapshot-1',
+      partitionRevisions: { workspace: '1' },
+    },
+    invocation: {
+      kind: 'code',
+      targetRef: {
+        kind: 'code-artifact',
+        artifactId: remoteServerFunctionFixtureRef.artifactId,
+      },
+      entrypoint: remoteServerFunctionFixtureRef.exportName,
+      input: {
+        type: 'prodivix.execution-server-function-gateway-request.v1',
+        requestId: `${invocationId}:1`,
+        invocationId,
+        attempt: 1,
+        functionRef: remoteServerFunctionFixtureRef,
+        input: { name: 'Ada' },
+      },
+    },
+    requiredCapabilities: ['artifacts', 'filesystem', 'server-function'],
   });
 
 export const remoteFixtureProvider = createExecutionProviderDescriptor({

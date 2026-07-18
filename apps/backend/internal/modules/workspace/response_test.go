@@ -138,6 +138,33 @@ func TestMapStoreErrorMapsRevisionLimitsTo422(t *testing.T) {
 	}
 }
 
+func TestMapStoreErrorPreservesBinaryAssetFailureCodes(t *testing.T) {
+	tests := []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{err: ErrWorkspaceAssetBlobInvalid, status: http.StatusUnprocessableEntity, code: ErrorWorkspaceAssetBlobInvalid},
+		{err: ErrWorkspaceAssetBlobNotFound, status: http.StatusUnprocessableEntity, code: ErrorWorkspaceAssetBlobNotFound},
+		{err: ErrWorkspaceAssetBlobConflict, status: http.StatusConflict, code: ErrorWorkspaceAssetBlobConflict},
+	}
+	for _, test := range tests {
+		failure := MapStoreError(fmt.Errorf("asset commit: %w", test.err))
+		encoded, err := json.Marshal(failure.Payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(encoded, &payload); err != nil {
+			t.Fatal(err)
+		}
+		errorPayload := payload["error"].(map[string]any)
+		if failure.Status != test.status || errorPayload["code"] != test.code {
+			t.Fatalf("unexpected asset failure mapping: %+v", failure)
+		}
+	}
+}
+
 func TestBuildConflictPayloadIncludesOnlyApplicableExpectedPartitions(t *testing.T) {
 	payload := BuildConflictPayload(newRouteRevisionConflict("ws_1", 9, 4, 9, 5, 35))
 	details := ExtractErrorDetails(payload)

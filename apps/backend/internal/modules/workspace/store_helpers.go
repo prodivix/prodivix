@@ -403,22 +403,70 @@ func validateWorkspaceAssetDocument(payload json.RawMessage) error {
 	if err := json.Unmarshal(payload, &document); err != nil {
 		return err
 	}
+	allowed := map[string]bool{
+		"kind": true, "mime": true, "category": true, "size": true, "blob": true, "metadata": true,
+	}
+	for key := range document {
+		if !allowed[key] {
+			return errors.New("asset document contains an unsupported field")
+		}
+	}
 	if document["kind"] != "asset" {
 		return errors.New("asset document kind must be asset")
 	}
 	mime, ok := document["mime"].(string)
-	if !ok || strings.TrimSpace(mime) == "" {
+	canonicalMediaType, mediaTypeErr := normalizeWorkspaceAssetMediaType(mime)
+	if !ok || mediaTypeErr != nil || canonicalMediaType != mime {
 		return errors.New("asset document mime is required")
 	}
-	if size, exists := document["size"]; exists {
-		number, ok := size.(float64)
-		if !ok || number < 0 || number != math.Trunc(number) || number > float64(maxJSONSafeInteger) {
-			return errors.New("asset document size must be a non-negative safe integer")
+	size, exists := document["size"]
+	number, sizeOK := size.(float64)
+	if !exists || !sizeOK || number < 0 || number != math.Trunc(number) || number > MaxWorkspaceAssetBlobBytes {
+		return errors.New("asset document size must be a bounded non-negative integer")
+	}
+	blob, blobOK := document["blob"].(map[string]any)
+	if !blobOK || len(blob) != 4 || blob["kind"] != "workspace-blob" {
+		return errors.New("asset document blob reference is invalid")
+	}
+	for _, key := range []string{"kind", "digest", "byteLength", "mediaType"} {
+		if _, present := blob[key]; !present {
+			return errors.New("asset document blob reference is incomplete")
+		}
+	}
+	digest, digestOK := blob["digest"].(string)
+	blobLength, blobLengthOK := blob["byteLength"].(float64)
+	blobMediaType, blobMediaTypeOK := blob["mediaType"].(string)
+	if !digestOK || !workspaceAssetDigestPattern.MatchString(digest) ||
+		!blobLengthOK || blobLength != number ||
+		!blobMediaTypeOK || blobMediaType != mime {
+		return errors.New("asset document blob identity must match mime and size")
+	}
+	if category, exists := document["category"]; exists {
+		value, ok := category.(string)
+		if !ok || strings.TrimSpace(value) == "" || len(value) > 128 {
+			return errors.New("asset document category must be a bounded string")
 		}
 	}
 	if metadata, exists := document["metadata"]; exists {
-		if _, ok := metadata.(map[string]any); !ok {
+		values, ok := metadata.(map[string]any)
+		if !ok {
 			return errors.New("asset document metadata must be an object")
+		}
+		for key, value := range values {
+			switch key {
+			case "originalFileName":
+				name, ok := value.(string)
+				if !ok || strings.TrimSpace(name) == "" || len(name) > 512 {
+					return errors.New("asset original file name is invalid")
+				}
+			case "width", "height", "durationMs":
+				dimension, ok := value.(float64)
+				if !ok || dimension < 0 || dimension != math.Trunc(dimension) || dimension > 1_000_000_000 {
+					return errors.New("asset numeric metadata is invalid")
+				}
+			default:
+				return errors.New("asset document metadata contains an unsupported field")
+			}
 		}
 	}
 	return nil

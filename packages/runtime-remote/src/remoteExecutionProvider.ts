@@ -22,7 +22,14 @@ import {
   type ExecutionProvider,
   type ExecutionProviderDescriptor,
   type ExecutionRequest,
+  type ExecutionSourceTrace,
 } from '@prodivix/runtime-core';
+import {
+  ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  readExecutionServerFunctionBridgeRequest,
+  readServerFunctionInvocationTraceValue,
+  SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+} from '@prodivix/server-runtime';
 import {
   RemoteExecutionClientError,
   RemoteExecutionRecoveryRequiredError,
@@ -37,6 +44,8 @@ import { REMOTE_EXECUTION_PROTOCOL_LIMITS } from './remoteExecutionProtocol.type
 export const REMOTE_PREVIEW_EXECUTION_PROVIDER_ID = 'prodivix.remote.preview';
 export const REMOTE_TEST_EXECUTION_PROVIDER_ID = 'prodivix.remote.test';
 export const REMOTE_BUILD_EXECUTION_PROVIDER_ID = 'prodivix.remote.build';
+export const REMOTE_SERVER_FUNCTION_EXECUTION_PROVIDER_ID =
+  'prodivix.remote.server-function';
 
 const commonCapabilities = [
   'artifacts',
@@ -63,6 +72,7 @@ export const remotePreviewExecutionProviderDescriptor =
       ...commonCapabilities,
       'console',
       'environment-binding',
+      'server-function',
       'terminal',
     ],
   });
@@ -89,6 +99,28 @@ export const remoteBuildExecutionProviderDescriptor =
     runtimeZones: ['build'],
     invocationKinds: ['build'],
     capabilities: [...commonCapabilities, 'build'],
+  });
+
+export const remoteServerFunctionExecutionProviderDescriptor =
+  createExecutionProviderDescriptor({
+    id: REMOTE_SERVER_FUNCTION_EXECUTION_PROVIDER_ID,
+    version: '1',
+    displayName: 'Remote Server Function',
+    isolation: 'remote-isolated',
+    profiles: ['production'],
+    runtimeZones: ['server'],
+    invocationKinds: ['code'],
+    capabilities: [
+      'artifacts',
+      'cancellation',
+      'dependency-install',
+      'diagnostics',
+      'filesystem',
+      'server-function',
+      'source-trace',
+      'streaming-logs',
+      'timeout',
+    ],
   });
 
 export type ResolveRemoteExecutionSnapshot = (
@@ -133,6 +165,28 @@ const positiveSafeInteger = (value: number, label: string): number => {
 
 const active = (controller: ExecutionJobController): boolean =>
   !isExecutionJobTerminalStatus(controller.job.getSnapshot().status);
+
+const maximumServerFunctionSourceTraces = 128;
+
+const hasSingleExactServerFunctionRootSource = (
+  sourceTrace: readonly ExecutionSourceTrace[] | undefined,
+  artifactId: string
+): sourceTrace is readonly ExecutionSourceTrace[] =>
+  Boolean(
+    sourceTrace?.length &&
+    sourceTrace.length <= maximumServerFunctionSourceTraces &&
+    sourceTrace.filter(
+      (trace) =>
+        trace.sourceRef.kind === 'code-artifact' &&
+        trace.sourceRef.artifactId === artifactId &&
+        (!trace.sourceSpan || trace.sourceSpan.artifactId === artifactId)
+    ).length === 1
+  );
+
+const sameSourceTrace = (
+  left: readonly ExecutionSourceTrace[] | undefined,
+  right: readonly ExecutionSourceTrace[] | undefined
+): boolean => JSON.stringify(left) === JSON.stringify(right);
 
 const secretLeakDiagnosticControllers = new WeakSet<ExecutionJobController>();
 
@@ -280,6 +334,11 @@ const synchronize = async (
   let terminalReason: string | undefined;
   let buildBundlePublished = false;
   let previewBundlePublished = false;
+  let serverFunctionResultStatus: 'succeeded' | 'failed' | undefined;
+  let serverFunctionResultErrorCode: string | undefined;
+  let serverFunctionResultSourceTrace:
+    readonly ExecutionSourceTrace[] | undefined;
+  let serverFunctionTracePublished = false;
   let testReportStatus: 'passed' | 'failed' | undefined;
   let testReportTraceStatus: 'passed' | 'failed' | undefined;
   try {
@@ -401,6 +460,99 @@ const synchronize = async (
             testReportStatus = status;
           }
           if (
+            event.kind === 'artifact' &&
+            event.artifact.mediaType !== EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE &&
+            input.controller.job.request.profile === 'production'
+          ) {
+            const invocation = readExecutionServerFunctionBridgeRequest(
+              input.controller.job.request.invocation.input
+            );
+            const target = input.controller.job.request.invocation.targetRef;
+            const status = event.artifact.metadata?.status;
+            const errorCode = event.artifact.metadata?.errorCode;
+            if (
+              serverFunctionResultStatus ||
+              !invocation ||
+              event.artifact.kind !== 'report' ||
+              event.artifact.mediaType !==
+                ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE ||
+              event.artifact.metadata?.snapshotDigest !==
+                record.snapshotDigest ||
+              event.artifact.metadata?.requestId !== invocation.requestId ||
+              event.artifact.artifactId !==
+                `server-function-result:${record.snapshotDigest}:${invocation.requestId}` ||
+              target.kind !== 'code-artifact' ||
+              event.artifact.metadata?.artifactId !==
+                invocation.functionRef.artifactId ||
+              target.artifactId !== invocation.functionRef.artifactId ||
+              event.artifact.metadata?.exportName !==
+                invocation.functionRef.exportName ||
+              input.controller.job.request.invocation.entrypoint !==
+                invocation.functionRef.exportName ||
+              (status !== 'succeeded' && status !== 'failed') ||
+              (status === 'succeeded'
+                ? errorCode !== undefined
+                : typeof errorCode !== 'string' ||
+                  !/^[A-Z][A-Z0-9_-]{0,127}$/u.test(errorCode)) ||
+              !hasSingleExactServerFunctionRootSource(
+                event.artifact.sourceTrace,
+                invocation.functionRef.artifactId
+              )
+            )
+              throw new RemoteExecutionRecoveryRequiredError(
+                'Remote Server Function artifact does not match the isolated result contract.',
+                'events.read'
+              );
+            serverFunctionResultStatus = status;
+            serverFunctionResultErrorCode = errorCode;
+            serverFunctionResultSourceTrace = event.artifact.sourceTrace;
+          }
+          if (
+            event.kind === 'trace' &&
+            input.controller.job.request.profile === 'production' &&
+            event.trace.name === SERVER_FUNCTION_INVOCATION_TRACE_NAME
+          ) {
+            const invocation = readExecutionServerFunctionBridgeRequest(
+              input.controller.job.request.invocation.input
+            );
+            const trace = readServerFunctionInvocationTraceValue(
+              event.trace.detail
+            );
+            if (
+              serverFunctionTracePublished ||
+              !invocation ||
+              !trace ||
+              !serverFunctionResultStatus ||
+              event.trace.phase !== 'event' ||
+              event.trace.traceId !== `server-function:${record.executionId}` ||
+              event.trace.spanId !== invocation.requestId ||
+              trace.requestId !== invocation.requestId ||
+              trace.invocationId !== invocation.invocationId ||
+              trace.attempt !== invocation.attempt ||
+              trace.functionRef.artifactId !==
+                invocation.functionRef.artifactId ||
+              trace.functionRef.exportName !==
+                invocation.functionRef.exportName ||
+              (serverFunctionResultStatus === 'succeeded'
+                ? trace.outcome !== 'succeeded'
+                : trace.outcome === 'succeeded' ||
+                  trace.errorCode !== serverFunctionResultErrorCode) ||
+              !hasSingleExactServerFunctionRootSource(
+                event.trace.sourceTrace,
+                invocation.functionRef.artifactId
+              ) ||
+              !sameSourceTrace(
+                event.trace.sourceTrace,
+                serverFunctionResultSourceTrace
+              )
+            )
+              throw new RemoteExecutionRecoveryRequiredError(
+                'Remote Server Function trace does not match its result artifact and invocation.',
+                'events.read'
+              );
+            serverFunctionTracePublished = true;
+          }
+          if (
             event.kind === 'trace' &&
             input.controller.job.request.profile === 'test' &&
             event.trace.name === EXECUTION_TEST_REPORT_TRACE_NAME
@@ -431,6 +583,16 @@ const synchronize = async (
           )
             throw new RemoteExecutionRecoveryRequiredError(
               'Remote Build succeeded without a verified bundle artifact.',
+              'events.read'
+            );
+          if (
+            event.kind === 'state' &&
+            event.snapshot.status === 'succeeded' &&
+            input.controller.job.request.profile === 'production' &&
+            (!serverFunctionResultStatus || !serverFunctionTracePublished)
+          )
+            throw new RemoteExecutionRecoveryRequiredError(
+              'Remote Server Function succeeded without a verified result artifact and trace.',
               'events.read'
             );
           if (
@@ -468,7 +630,9 @@ const synchronize = async (
           let projectedEvent = event;
           if (
             event.kind === 'artifact' &&
-            event.artifact.mediaType === EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE &&
+            (event.artifact.mediaType === EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE ||
+              event.artifact.mediaType ===
+                ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE) &&
             input.materializeArtifact
           ) {
             const artifact = await input.materializeArtifact({
@@ -531,10 +695,6 @@ export const createRemoteExecutionProvider = (
     throw new TypeError(
       'Remote provider projection requires cancellation capability.'
     );
-  if (options.descriptor.profiles.includes('production'))
-    throw new TypeError(
-      'Remote executable project provider cannot declare production profile.'
-    );
   const pollIntervalMs = positiveSafeInteger(
     options.pollIntervalMs ?? 250,
     'Remote provider poll interval'
@@ -561,9 +721,12 @@ export const createRemoteExecutionProvider = (
         );
       const snapshot = await options.resolveSnapshot(request);
       if (snapshot.kind === 'upload') {
-        if (request.profile === 'production') {
+        if (
+          request.profile === 'production' &&
+          !snapshot.snapshot.serverFunctionPlan
+        ) {
           throw new TypeError(
-            'Executable project snapshots do not define a production command.'
+            'Remote Server Function execution requires an isolated production plan.'
           );
         }
         assertExecutableProjectCapabilitySupport(
@@ -660,4 +823,12 @@ export const createRemoteBuildExecutionProvider = (
   createRemoteExecutionProvider({
     ...options,
     descriptor: remoteBuildExecutionProviderDescriptor,
+  });
+
+export const createRemoteServerFunctionExecutionProvider = (
+  options: StandardRemoteExecutionProviderOptions
+): ExecutionProvider =>
+  createRemoteExecutionProvider({
+    ...options,
+    descriptor: remoteServerFunctionExecutionProviderDescriptor,
   });

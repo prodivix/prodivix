@@ -18,6 +18,8 @@ Optional:
 - `REMOTE_CONTROL_PLANE_ARTIFACT_SWEEP_MS`, default `60000`
 - `REMOTE_CONTROL_PLANE_ARTIFACT_SWEEP_BATCH`, default `100`
 - `REMOTE_CONTROL_PLANE_SECRET_CANARIES_JSON`, a bounded JSON string array used by security Gates
+- `REMOTE_CONTROL_PLANE_SECRET_BROKER_URL` and `REMOTE_CONTROL_PLANE_SECRET_BROKER_TOKEN`, configured together to enable isolated Server Function Secret resolution; the URL is the Backend service origin
+- `REMOTE_CONTROL_PLANE_SECRET_BROKER_TIMEOUT_MS`, default `5000`
 - `REMOTE_TERMINAL_ACCESS_TTL_MS`, default `60000`, maximum `900000`
 
 Tokens are runtime-only secrets. They must not be written to Workspace, execution
@@ -43,10 +45,37 @@ with a single Control Plane replica or terminal-session sticky routing. A shared
 ephemeral broker and cross-replica failover/resume path remain part of the full
 Remote recovery milestone.
 
-Provider routing uses the three canonical identities
-`prodivix.remote.preview`, `prodivix.remote.test`, and `prodivix.remote.build`.
-Workers set `REMOTE_WORKER_PROVIDER_ID` to exactly one identity; deployments that
-offer every profile run independently scalable worker pools for each identity.
+Provider routing uses four canonical identities: `prodivix.remote.preview`,
+`prodivix.remote.test`, `prodivix.remote.build`, and the networkless one-shot
+`prodivix.remote.server-function` production profile. Workers set
+`REMOTE_WORKER_PROVIDER_ID` to exactly one identity; deployments that offer every
+profile run independently scalable worker pools for each identity. The Server
+Function pool accepts only an exact isolated production plan and never executes
+project source in the Control Plane process.
+
+Backend-authenticated create requests may carry the internal
+`X-Prodivix-Execution-Server-Authority` base64url attestation. The HTTP boundary
+strictly decodes its exact principal/sorted-permission/workspace/snapshot/expiry
+shape, enforces a
+five-minute maximum lifetime, and stores it outside request/snapshot JSON in the
+same PostgreSQL transaction as execution creation. Public execution responses and
+repository records do not expose it. The idempotency identity includes the permission
+grant. Only an unexpired worker claim receives a
+projection additionally fenced to execution id, worker id, and lease attempt;
+the lease token and product session are never copied. Terminal transition deletes
+the durable authority row.
+
+Secret-backed isolated code exports use a separate worker-only endpoint. After
+worker-token authentication, the composition verifies the current execution
+lease, attempt, snapshot digest, production plan, and `environment-binding`
+requirement. It forwards only immutable execution/function identity and the
+Worker's ephemeral X25519 public key to the Backend broker. The response is a
+strict short-lived AES-GCM ciphertext envelope sealed directly to that key; the
+Control Plane never receives plaintext and includes the broker token in its
+output leak guard. The Backend response must be JSON with no-store/nosniff
+hardening and is cut off while streaming past 768 KiB. Only an initial `starting`
+Job or a reclaimed `running` Job with the exact active positive-attempt lease can
+resolve it; `cancelling`, expired, stale-worker, and stale-token requests are denied.
 
 ## Endpoints
 
@@ -59,6 +88,7 @@ offer every profile run independently scalable worker pools for each identity.
 - `POST /internal/v1/executions/:executionId/lease`
 - `POST /internal/v1/executions/:executionId/transition`
 - `POST /internal/v1/executions/:executionId/snapshot`
+- `POST /internal/v1/executions/:executionId/server-function-secrets`
 - `POST /internal/v1/executions/:executionId/events`
 - `POST /internal/v1/executions/:executionId/terminal/commands`
 - `POST /internal/v1/executions/:executionId/terminal/output`

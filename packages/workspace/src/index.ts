@@ -11,6 +11,17 @@ export {
 } from './workspaceDocumentFactory';
 export { createWorkspacePirDocumentUpdateCommand } from './workspacePirDocument';
 export {
+  createWorkspaceOwnerGuardTransactionPlan,
+  createWorkspaceServerRuntimeBindingPlan,
+  createWorkspaceServerRuntimeCandidateKey,
+  projectWorkspaceServerRuntimeAuthoring,
+} from './workspaceServerRuntimeAuthoring';
+export {
+  createWorkspaceServerRuntimeAuthConfigurationPlan,
+  readWorkspaceServerRuntimeAuthConfiguration,
+  WORKSPACE_SERVER_RUNTIME_AUTH_CONFIG_PATH,
+} from './workspaceServerRuntimeAuthConfiguration';
+export {
   createWorkspaceAnimationDocumentUpdateCommand,
   decodeWorkspaceAnimationDocument,
   isCanonicalWorkspaceAnimationDocumentContent,
@@ -56,6 +67,7 @@ export { createWorkspaceDesignTokenSystemTransactionPlan } from './workspaceDesi
 export {
   createWorkspaceProjectConfigDocumentContent,
   createWorkspaceProjectConfigValueUpdateCommand,
+  createWorkspaceAssetContentUpdateCommand,
   isWorkspaceAssetDocumentContent,
   isWorkspaceProjectConfigDocumentContent,
 } from './workspaceResourceDocument';
@@ -328,6 +340,22 @@ export type {
 } from './workspaceDocumentFactory';
 export type { CreateWorkspacePirDocumentUpdateCommandInput } from './workspacePirDocument';
 export type {
+  WorkspaceOwnerGuardTarget,
+  WorkspaceOwnerGuardTransactionPlanResult,
+  WorkspaceServerRuntimeAuthoringCandidate,
+  WorkspaceServerRuntimeAuthoringIssue,
+  WorkspaceServerRuntimeAuthoringIssueCode,
+  WorkspaceServerRuntimeAuthoringProjection,
+  WorkspaceServerRuntimeBindingPlanResult,
+  WorkspaceServerRuntimeRouteBinding,
+  WorkspaceServerRuntimeRouteSlot,
+} from './workspaceServerRuntimeAuthoring';
+export type {
+  WorkspaceServerRuntimeAuthConfigurationIssue,
+  WorkspaceServerRuntimeAuthConfigurationPlanResult,
+  WorkspaceServerRuntimeAuthConfigurationReadResult,
+} from './workspaceServerRuntimeAuthConfiguration';
+export type {
   CreateWorkspaceAnimationDocumentUpdateCommandInput,
   WorkspaceAnimationDocument,
   WorkspaceAnimationReadIssue,
@@ -340,6 +368,7 @@ export type {
 } from './workspaceNodeGraphDocument';
 export type {
   WorkspaceAssetDocumentContent,
+  WorkspaceAssetMetadata,
   WorkspaceProjectConfigDocumentContent,
 } from './workspaceResourceDocument';
 export type {

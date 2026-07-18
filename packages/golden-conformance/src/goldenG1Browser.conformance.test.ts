@@ -1,7 +1,10 @@
 import { expect as expectPage } from '@playwright/test';
 import { describe, expect, it } from 'vitest';
 import { generateWorkspaceReactViteBundle } from '@prodivix/prodivix-compiler';
-import { GOLDEN_CODEGEN_POLICY } from './goldenApp.fixture';
+import {
+  GOLDEN_ASSET_MATERIALIZATIONS,
+  GOLDEN_CODEGEN_POLICY,
+} from './goldenApp.fixture';
 import {
   authorGoldenG1Workspace,
   GOLDEN_G1_DEFAULT_DEFINITION_TEXT,
@@ -17,6 +20,7 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G1_BROWSER === '1')(
       const bundle = generateWorkspaceReactViteBundle(authored.workspace, {
         projectName: 'Prodivix Golden G1 App',
         codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
+        assetMaterializations: GOLDEN_ASSET_MATERIALIZATIONS,
         packageResolver: { strategy: 'npm' },
       });
 

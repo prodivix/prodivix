@@ -15,6 +15,10 @@ import type {
   RemoteExecutionRequestEnvelope,
   RemoteExecutionResponseEnvelope,
 } from './remoteExecutionProtocol.types';
+import type {
+  RemoteExecutionServerAuthority,
+  RemoteExecutionServerAuthorityLease,
+} from './remoteExecutionServerAuthority';
 
 export type RemoteExecutionPrincipal = Readonly<{
   subjectId: string;
@@ -23,6 +27,8 @@ export type RemoteExecutionPrincipal = Readonly<{
 
 export type RemoteExecutionRequestContext = Readonly<{
   principal?: RemoteExecutionPrincipal;
+  /** Trusted transport metadata; never part of the public execution envelope. */
+  serverAuthority?: RemoteExecutionServerAuthority;
 }>;
 
 export type RemoteExecutionAuthorizationDecision =
@@ -163,6 +169,7 @@ export type RemoteExecutionCancelMutationResult =
 export type RemoteExecutionClaimResult = Readonly<{
   execution: RemoteExecutionStoredRecord;
   lease: RemoteExecutionLease;
+  authority?: RemoteExecutionServerAuthorityLease;
 }>;
 
 export type RemoteExecutionRepository = Readonly<{
@@ -177,6 +184,7 @@ export type RemoteExecutionRepository = Readonly<{
       executionId: string;
       createdAt: number;
       maximumActiveExecutions: number;
+      serverAuthority?: RemoteExecutionServerAuthority;
     }>
   ): Promise<RemoteExecutionCreateMutationResult>;
   get(executionId: string): Promise<RemoteExecutionStoredRecord | undefined>;

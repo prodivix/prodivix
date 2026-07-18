@@ -9,6 +9,7 @@
       "@/*": ["./src/*"],
       "@prodivix/ai": ["../../packages/ai/src"],
       "@prodivix/animation": ["../../packages/animation/src"],
+      "@prodivix/assets": ["../../packages/assets/src"],
       "@prodivix/authoring": ["../../packages/authoring/src"],
       "@prodivix/code-language": ["../../packages/code-language/src"],
       "@prodivix/data": ["../../packages/data/src"],
@@ -31,6 +32,7 @@
       "@prodivix/prodivix-compiler": ["../../packages/prodivix-compiler/src"],
       "@prodivix/runtime-core": ["../../packages/runtime-core/src"],
       "@prodivix/runtime-remote": ["../../packages/runtime-remote/src"],
+      "@prodivix/server-runtime": ["../../packages/server-runtime/src"],
       "@prodivix/runtime-browser": ["../../packages/runtime-browser/src"],
       "@prodivix/router": ["../../packages/router/src"],
       "@prodivix/shared": ["../../packages/shared/src"],
@@ -50,6 +52,9 @@
   "references": [
     {
       "path": "../../packages/animation"
+    },
+    {
+      "path": "../../packages/assets"
     },
     {
       "path": "../../packages/shared"
@@ -83,6 +88,9 @@
     },
     {
       "path": "../../packages/runtime-remote"
+    },
+    {
+      "path": "../../packages/server-runtime"
     },
     {
       "path": "../../packages/nodegraph"

@@ -14,6 +14,18 @@ import {
   type ExecutionSecretLeakSurface,
   type ExecutionJobStatus,
 } from '@prodivix/runtime-core';
+import {
+  createServerFunctionInvocationTrace,
+  ISOLATED_SERVER_FUNCTION_AUTHORITY_FORMAT,
+  ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  readIsolatedServerFunctionAuthority,
+  readIsolatedServerFunctionExecutionContext,
+  readIsolatedServerFunctionPlan,
+  SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+  toServerFunctionInvocationTraceValue,
+} from '@prodivix/server-runtime';
+import { readRemoteWorkerServerFunctionArtifact } from './serverFunctionArtifact';
+import { createRemoteWorkerSecretRecipient } from './remoteWorkerSecretRecipient';
 import type {
   RemoteWorkerControlPlaneClient,
   RemoteWorkerSandbox,
@@ -36,7 +48,7 @@ export type CreateRemoteWorkerAgentOptions = Readonly<{
   terminal?: RemoteWorkerTerminalCoordinator;
 }>;
 
-const profiles = new Set(['preview', 'test', 'build']);
+const profiles = new Set(['preview', 'test', 'build', 'production']);
 
 const terminalStatus = (
   status: 'succeeded' | 'failed' | 'timed-out' | 'cancelled'
@@ -129,6 +141,7 @@ export const createRemoteWorkerAgent = (
     let heartbeatFailure: unknown;
     let heartbeatBusy = false;
     let cancellationRequested = false;
+    let resolvedSecretFields: Record<string, string> | undefined;
     const heartbeat = setInterval(() => {
       if (heartbeatBusy || abort.signal.aborted) return;
       heartbeatBusy = true;
@@ -166,6 +179,30 @@ export const createRemoteWorkerAgent = (
         });
         return true;
       }
+      if (
+        (claim.execution.record.status === 'running' ||
+          claim.execution.record.status === 'cancelling') &&
+        claim.lease.attempt <= 1
+      ) {
+        await options.client.transition({
+          executionId,
+          workerId: options.workerId,
+          leaseToken,
+          status: 'failed',
+          reason: 'invalid-recovery-state',
+        });
+        return true;
+      }
+      if (claim.execution.record.status === 'cancelling') {
+        await options.client.transition({
+          executionId,
+          workerId: options.workerId,
+          leaseToken,
+          status: 'cancelled',
+          reason: 'cancellation-requested',
+        });
+        return true;
+      }
       const snapshot = await options.client.snapshot({
         executionId,
         workerId: options.workerId,
@@ -175,24 +212,128 @@ export const createRemoteWorkerAgent = (
         abort.abort('lease-lost');
         return true;
       }
-      const running = await options.client.transition({
-        executionId,
-        workerId: options.workerId,
-        leaseToken,
-        status: 'running',
-      });
+      const claimedAuthority = claim.authority;
+      const authorityProjection =
+        claimedAuthority &&
+        claimedAuthority.executionId === executionId &&
+        claimedAuthority.workerId === options.workerId &&
+        claimedAuthority.workerAttempt === claim.lease.attempt &&
+        claimedAuthority.workspaceId === snapshot.workspace.workspaceId &&
+        claimedAuthority.snapshotId === snapshot.workspace.snapshotId &&
+        claimedAuthority.expiresAt > now()
+          ? readIsolatedServerFunctionAuthority({
+              format: ISOLATED_SERVER_FUNCTION_AUTHORITY_FORMAT,
+              workspaceId: claimedAuthority.workspaceId,
+              snapshotId: claimedAuthority.snapshotId,
+              principal: claimedAuthority.principal,
+              permissions: claimedAuthority.permissions,
+              expiresAt: claimedAuthority.expiresAt,
+            })
+          : undefined;
+      const serverFunctionExecution =
+        profile === 'production'
+          ? readIsolatedServerFunctionExecutionContext(
+              claim.execution.request,
+              snapshot.serverFunctionPlan,
+              authorityProjection,
+              now()
+            )
+          : undefined;
+      if (profile === 'production' && !serverFunctionExecution) {
+        await options.client.transition({
+          executionId,
+          workerId: options.workerId,
+          leaseToken,
+          status: 'failed',
+          reason: 'invalid-server-function-request',
+        });
+        return true;
+      }
+      const isolatedPlan =
+        profile === 'production'
+          ? readIsolatedServerFunctionPlan(snapshot.serverFunctionPlan)
+          : undefined;
+      let serverFunctionSecrets;
+      const secretPolicy = isolatedPlan?.definition.environment;
+      if (secretPolicy) {
+        const recipient = createRemoteWorkerSecretRecipient();
+        try {
+          const envelope = options.client.resolveServerFunctionSecrets
+            ? await options.client.resolveServerFunctionSecrets({
+                executionId,
+                workerId: options.workerId,
+                leaseToken,
+                recipientPublicKey: recipient.publicKey,
+              })
+            : undefined;
+          serverFunctionSecrets = envelope
+            ? recipient.open(envelope, {
+                executionId,
+                workerId: options.workerId,
+                workerAttempt: claim.lease.attempt,
+                workspaceId: snapshot.workspace.workspaceId,
+                snapshotId: snapshot.workspace.snapshotId,
+                functionRef: isolatedPlan.definition.reference,
+                invocationId: serverFunctionExecution!.invocation.invocationId,
+                fields: Object.keys(secretPolicy.secretsByField),
+                now: now(),
+              })
+            : undefined;
+        } catch {
+          serverFunctionSecrets = undefined;
+        }
+        if (!serverFunctionSecrets) {
+          await options.client.transition({
+            executionId,
+            workerId: options.workerId,
+            leaseToken,
+            status: 'failed',
+            reason: 'secret-resolution-denied',
+          });
+          return true;
+        }
+        resolvedSecretFields = serverFunctionSecrets.fields as Record<
+          string,
+          string
+        >;
+      }
+      const running =
+        claim.execution.record.status === 'running'
+          ? true
+          : await options.client.transition({
+              executionId,
+              workerId: options.workerId,
+              leaseToken,
+              status: 'running',
+            });
       if (!running) {
         abort.abort('lease-lost');
         return true;
       }
+      const serverFunctionStartedAt =
+        profile === 'production'
+          ? (claim.execution.record.startedAt ??
+            claim.execution.record.createdAt)
+          : undefined;
       const executionRedactValues = Object.freeze([
         ...(options.redactValues ?? []),
         leaseToken,
+        ...Object.values(serverFunctionSecrets?.fields ?? {}),
       ]);
+      const terminal =
+        options.terminal &&
+        claim.execution.record.provider.capabilities.includes('terminal')
+          ? options.terminal
+          : undefined;
       const result = await options.sandbox.execute({
         executionId,
         snapshot,
-        profile: profile as 'preview' | 'test' | 'build',
+        profile: profile as 'preview' | 'test' | 'build' | 'production',
+        request: claim.execution.request,
+        ...(serverFunctionExecution?.authority
+          ? { serverFunctionAuthority: serverFunctionExecution.authority }
+          : {}),
+        ...(serverFunctionSecrets ? { serverFunctionSecrets } : {}),
         timeoutMs:
           claim.execution.request.timeoutMs ??
           snapshot.resourceHints.timeoutMs ??
@@ -202,11 +343,11 @@ export const createRemoteWorkerAgent = (
           options.defaultMaximumOutputBytes,
         redactValues: executionRedactValues,
         signal: abort.signal,
-        ...(options.terminal
+        ...(terminal
           ? {
               terminal: Object.freeze({
                 connect: (process) =>
-                  options.terminal!.connect({
+                  terminal.connect({
                     executionId,
                     workerId: options.workerId,
                     leaseToken,
@@ -244,6 +385,63 @@ export const createRemoteWorkerAgent = (
           surface: secretLeakSurface,
         });
         return true;
+      }
+      let serverFunctionTraceProjection:
+        | Readonly<{
+            artifact: NonNullable<
+              RemoteWorkerSandboxResult['artifacts']
+            >[number];
+            detail: ReturnType<typeof toServerFunctionInvocationTraceValue>;
+            sourceTrace: NonNullable<
+              NonNullable<
+                RemoteWorkerSandboxResult['artifacts']
+              >[number]['sourceTrace']
+            >;
+          }>
+        | undefined;
+      if (profile === 'production') {
+        const resultArtifacts = (result.artifacts ?? []).filter(
+          ({ mediaType }) =>
+            mediaType === ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE
+        );
+        const artifact = resultArtifacts[0];
+        const projection =
+          artifact && serverFunctionExecution
+            ? readRemoteWorkerServerFunctionArtifact({
+                snapshot,
+                request: claim.execution.request,
+                artifact,
+              })
+            : undefined;
+        if (
+          resultArtifacts.length !== 1 ||
+          !artifact ||
+          !serverFunctionExecution ||
+          !projection ||
+          serverFunctionStartedAt === undefined
+        ) {
+          await options.client.transition({
+            executionId,
+            workerId: options.workerId,
+            leaseToken,
+            status: 'failed',
+            reason: 'invalid-server-function-result',
+          });
+          return true;
+        }
+        const completedAt = Math.max(serverFunctionStartedAt, now());
+        serverFunctionTraceProjection = Object.freeze({
+          artifact,
+          detail: toServerFunctionInvocationTraceValue(
+            createServerFunctionInvocationTrace({
+              request: serverFunctionExecution.invocation,
+              response: projection.response,
+              startedAt: serverFunctionStartedAt,
+              completedAt,
+            })
+          ),
+          sourceTrace: projection.sourceTrace,
+        });
       }
       const installSourceTrace = snapshot.files.find(
         (file) => file.path === snapshot.dependencyPlan.manifestFilePath
@@ -463,6 +661,39 @@ export const createRemoteWorkerAgent = (
           abort.abort('artifact-rejected');
           return true;
         }
+        if (serverFunctionTraceProjection?.artifact === artifact) {
+          const appended = await options.client.appendEvent({
+            executionId,
+            workerId: options.workerId,
+            leaseToken,
+            workerEventId: `${claim.lease.attempt}:server-function:trace`,
+            event: {
+              kind: 'trace',
+              trace: {
+                traceId: `server-function:${executionId}`,
+                spanId: serverFunctionExecution!.invocation.requestId,
+                name: SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+                phase: 'event',
+                detail: serverFunctionTraceProjection.detail,
+                sourceTrace: serverFunctionTraceProjection.sourceTrace,
+              },
+            },
+          });
+          if (appended === 'budget-exceeded') {
+            await options.client.transition({
+              executionId,
+              workerId: options.workerId,
+              leaseToken,
+              status: 'failed',
+              reason: 'event-budget-exceeded',
+            });
+            return true;
+          }
+          if (appended === 'rejected') {
+            abort.abort('lease-lost');
+            return true;
+          }
+        }
       }
       await options.client.transition({
         executionId,
@@ -474,6 +705,10 @@ export const createRemoteWorkerAgent = (
       return true;
     } finally {
       clearInterval(heartbeat);
+      if (resolvedSecretFields)
+        Object.keys(resolvedSecretFields).forEach((field) => {
+          resolvedSecretFields![field] = '';
+        });
       if (heartbeatFailure) {
         // The lease is already treated as lost; never retry a terminal mutation.
       }

@@ -1,4 +1,8 @@
 import {
+  createBinaryAssetBlobReference,
+  createBinaryAssetMaterialization,
+} from '@prodivix/assets';
+import {
   createEmptyPirComponentContract,
   type PIRDocument,
 } from '@prodivix/pir';
@@ -34,6 +38,21 @@ export const GOLDEN_INITIAL_HANDLER_SOURCE = `export const submitCheckout = (inp
   input,
 });
 `;
+
+export const GOLDEN_LOGO_ASSET_BYTES = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+export const GOLDEN_LOGO_ASSET_REFERENCE = createBinaryAssetBlobReference({
+  contents: GOLDEN_LOGO_ASSET_BYTES,
+  mediaType: 'image/png',
+});
+export const GOLDEN_ASSET_MATERIALIZATIONS = Object.freeze([
+  createBinaryAssetMaterialization({
+    assetDocumentId: GOLDEN_IDS.logoAsset,
+    reference: GOLDEN_LOGO_ASSET_REFERENCE,
+    contents: GOLDEN_LOGO_ASSET_BYTES,
+  }),
+]);
 
 export const GOLDEN_EDITED_HANDLER_SOURCE = `export const submitCheckout = (input: unknown) => {
   if (!input || typeof input !== 'object') {
@@ -294,15 +313,16 @@ export const createGoldenDocuments = (): WorkspaceDocument[] => [
   {
     id: GOLDEN_IDS.logoAsset,
     type: 'asset',
-    name: 'logo.svg',
-    path: '/public/logo.svg',
+    name: 'logo.png',
+    path: '/public/logo.png',
     contentRev: 1,
     metaRev: 1,
     content: {
       kind: 'asset',
-      mime: 'image/svg+xml',
+      mime: 'image/png',
       category: 'image',
-      text: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#111"/></svg>',
+      size: GOLDEN_LOGO_ASSET_REFERENCE.byteLength,
+      blob: GOLDEN_LOGO_ASSET_REFERENCE,
     },
   },
   {

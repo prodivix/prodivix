@@ -37,6 +37,28 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  apps/asset-delivery-host:
+    dependencies:
+      '@prodivix/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
   apps/cli:
     dependencies:
       commander:
@@ -110,6 +132,9 @@ importers:
       '@prodivix/runtime-remote-postgres':
         specifier: workspace:*
         version: link:../../packages/runtime-remote-postgres
+      '@prodivix/server-runtime':
+        specifier: workspace:*
+        version: link:../../packages/server-runtime
       pg:
         specifier: ^8.16.3
         version: 8.22.0
@@ -144,6 +169,9 @@ importers:
       '@prodivix/runtime-vitest':
         specifier: workspace:*
         version: link:../../packages/runtime-vitest
+      '@prodivix/server-runtime':
+        specifier: workspace:*
+        version: link:../../packages/server-runtime
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -260,6 +288,9 @@ importers:
       '@prodivix/animation':
         specifier: workspace:*
         version: link:../../packages/animation
+      '@prodivix/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../../packages/authoring
@@ -332,6 +363,9 @@ importers:
       '@prodivix/runtime-remote':
         specifier: workspace:*
         version: link:../../packages/runtime-remote
+      '@prodivix/server-runtime':
+        specifier: workspace:*
+        version: link:../../packages/server-runtime
       '@prodivix/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -537,6 +571,28 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
 
+  packages/assets:
+    dependencies:
+      '@noble/hashes':
+        specifier: ^2.2.0
+        version: 2.2.0
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
   packages/authoring:
     dependencies:
       '@prodivix/diagnostics':
@@ -712,6 +768,9 @@ importers:
 
   packages/golden-conformance:
     dependencies:
+      '@prodivix/assets':
+        specifier: workspace:*
+        version: link:../assets
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
@@ -736,6 +795,9 @@ importers:
       '@prodivix/runtime-vitest':
         specifier: workspace:*
         version: link:../runtime-vitest
+      '@prodivix/server-runtime':
+        specifier: workspace:*
+        version: link:../server-runtime
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -749,6 +811,9 @@ importers:
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
       fast-check:
         specifier: ^4.9.0
         version: 4.9.0
@@ -1226,6 +1291,9 @@ importers:
       '@prodivix/animation':
         specifier: workspace:*
         version: link:../animation
+      '@prodivix/assets':
+        specifier: workspace:*
+        version: link:../assets
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
@@ -1247,6 +1315,9 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@prodivix/server-runtime':
+        specifier: workspace:*
+        version: link:../server-runtime
       '@prodivix/shared':
         specifier: workspace:*
         version: link:../shared
@@ -1383,6 +1454,9 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@prodivix/server-runtime':
+        specifier: workspace:*
+        version: link:../server-runtime
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1433,6 +1507,31 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
+  packages/server-runtime:
+    dependencies:
+      '@prodivix/authoring':
+        specifier: workspace:*
+        version: link:../authoring
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1630,6 +1729,9 @@ importers:
       '@prodivix/animation':
         specifier: workspace:*
         version: link:../animation
+      '@prodivix/assets':
+        specifier: workspace:*
+        version: link:../assets
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
@@ -1648,6 +1750,9 @@ importers:
       '@prodivix/router':
         specifier: workspace:*
         version: link:../router
+      '@prodivix/server-runtime':
+        specifier: workspace:*
+        version: link:../server-runtime
       '@prodivix/tokens':
         specifier: workspace:*
         version: link:../tokens

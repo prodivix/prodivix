@@ -6,6 +6,7 @@ import {
   createExecutionProviderDescriptor,
   createExecutionRequest,
 } from '@prodivix/runtime-core';
+import { REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT } from '@prodivix/runtime-remote';
 import { createPostgresRemoteExecutionRepository } from './postgresExecutionRepository';
 import { createPostgresRemoteExecutionSnapshotStore } from './postgresSnapshotStore';
 import { migrateRemoteExecutionPostgres } from './schema';
@@ -137,6 +138,85 @@ integration('remote execution PostgreSQL integration', () => {
       'quota-exceeded',
     ]);
     await expect(repository.countActive('owner-1')).resolves.toBe(1);
+  });
+
+  it('atomically persists, claims and revokes server authority outside the execution record', async () => {
+    const snapshots = createPostgresRemoteExecutionSnapshotStore(pool);
+    const repository = createPostgresRemoteExecutionRepository(pool);
+    await snapshots.put('owner-1', snapshot, 1_000);
+    await repository.createOrGet({
+      ownerId: 'owner-1',
+      identityKey: 'authority-identity',
+      request: request('authority-request'),
+      snapshotId: snapshot.workspace.snapshotId,
+      snapshotDigest: snapshot.contentDigest,
+      provider,
+      executionId: 'authority-execution',
+      createdAt: 1_000,
+      maximumActiveExecutions: 1,
+      serverAuthority: {
+        format: REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT,
+        principal: {
+          providerId: 'prodivix-product-session',
+          principalId: 'product-user-1',
+        },
+        permissions: ['workspace.owner'],
+        workspaceId: snapshot.workspace.workspaceId,
+        snapshotId: snapshot.workspace.snapshotId,
+        expiresAt: 2_000,
+      },
+    });
+    const execution = await repository.get('authority-execution');
+    expect(JSON.stringify(execution)).not.toContain('product-user-1');
+    const persisted = await pool.query<{
+      request_text: string;
+      authority_text: string;
+    }>(
+      `SELECT e.request_json::text AS request_text, a.authority_json::text AS authority_text
+         FROM remote_executions e
+         JOIN remote_execution_server_authorities a USING (execution_id)
+        WHERE e.execution_id=$1`,
+      ['authority-execution']
+    );
+    expect(persisted.rows[0]?.request_text).not.toContain('product-user-1');
+    expect(persisted.rows[0]?.authority_text).toContain('product-user-1');
+    expect(persisted.rows[0]?.authority_text).toContain('workspace.owner');
+
+    const claim = await repository.claimNext({
+      workerId: 'authority-worker',
+      providerId: provider.id,
+      leaseToken: 'authority-lease-token',
+      now: 1_100,
+      leaseDurationMs: 100,
+    });
+    expect(claim?.authority).toMatchObject({
+      executionId: 'authority-execution',
+      workerId: 'authority-worker',
+      workerAttempt: 1,
+      principal: { principalId: 'product-user-1' },
+      permissions: ['workspace.owner'],
+    });
+    expect(JSON.stringify(claim?.authority)).not.toContain(
+      'authority-lease-token'
+    );
+    await repository.transition({
+      executionId: 'authority-execution',
+      workerId: 'authority-worker',
+      leaseToken: 'authority-lease-token',
+      status: 'running',
+      now: 1_101,
+    });
+    await repository.transition({
+      executionId: 'authority-execution',
+      workerId: 'authority-worker',
+      leaseToken: 'authority-lease-token',
+      status: 'succeeded',
+      now: 1_102,
+    });
+    const remaining = await pool.query<{ count: string }>(
+      'SELECT COUNT(*)::text AS count FROM remote_execution_server_authorities'
+    );
+    expect(remaining.rows[0]?.count).toBe('0');
   });
 
   it('uses SKIP LOCKED claims and fences an expired worker lease', async () => {

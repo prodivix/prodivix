@@ -10,6 +10,7 @@
     "paths": {
       "#src/*": ["./src/*"],
       "@prodivix/animation": ["../animation/src"],
+      "@prodivix/assets": ["../assets/src"],
       "@prodivix/authoring": ["../authoring/src"],
       "@prodivix/data": ["../data/src"],
       "@prodivix/diagnostics": ["../diagnostics/src"],
@@ -17,6 +18,7 @@
       "@prodivix/pir": ["../pir/src"],
       "@prodivix/router": ["../router/src"],
       "@prodivix/runtime-core": ["../runtime-core/src"],
+      "@prodivix/server-runtime": ["../server-runtime/src"],
       "@prodivix/shared": ["../shared/src"],
       "@prodivix/shared/*": ["../shared/src/*"],
       "@prodivix/workspace": ["../workspace/src"]
@@ -33,6 +35,9 @@
   "references": [
     {
       "path": "../animation"
+    },
+    {
+      "path": "../assets"
     },
     {
       "path": "../authoring"
@@ -54,6 +59,9 @@
     },
     {
       "path": "../runtime-core"
+    },
+    {
+      "path": "../server-runtime"
     },
     {
       "path": "../shared"

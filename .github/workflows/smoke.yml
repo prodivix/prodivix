@@ -66,6 +66,9 @@ jobs:
       - name: Run Chromium smoke and official plugin conformance
         run: pnpm run test:e2e:smoke:chromium
 
+      - name: Run Binary Asset product journey Gate
+        run: pnpm run verify:g2:binary-assets:browser
+
       - name: Run plugin sandbox browser matrix
         run: pnpm run test:e2e:plugin-sandbox:matrix
 

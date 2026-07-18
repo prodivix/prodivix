@@ -386,6 +386,7 @@ type ImportWorkspaceSnapshotParams struct {
 	RouteManifest json.RawMessage
 	Settings      json.RawMessage
 	Documents     []WorkspaceImportDocumentRecord
+	AssetBlobs    []WorkspaceAssetBlobImport
 }
 
 type WorkspacePatchOp struct {

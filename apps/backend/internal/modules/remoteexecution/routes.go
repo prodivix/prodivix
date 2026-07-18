@@ -8,9 +8,11 @@ type RouteHandlers struct {
 	ArtifactContent gin.HandlerFunc
 	PreviewSession  gin.HandlerFunc
 	DataOperation   gin.HandlerFunc
+	ServerFunction  gin.HandlerFunc
 	TerminalOpen    gin.HandlerFunc
 	TerminalResume  gin.HandlerFunc
 	TerminalAction  gin.HandlerFunc
+	InternalSecrets gin.HandlerFunc
 }
 
 func RegisterRoutes(api *gin.RouterGroup, handlers RouteHandlers) {
@@ -18,9 +20,11 @@ func RegisterRoutes(api *gin.RouterGroup, handlers RouteHandlers) {
 	api.GET("/remote-executions/:executionId/artifacts/:artifactId/content", handlers.RequireAuth, handlers.ArtifactContent)
 	api.POST("/remote-executions/:executionId/artifacts/:artifactId/preview-sessions", handlers.RequireAuth, handlers.PreviewSession)
 	api.POST("/remote-executions/:executionId/data-sources/:documentId/operations/:operationId/invoke", handlers.RequireAuth, handlers.DataOperation)
+	api.POST("/remote-executions/:executionId/server-functions/:artifactId/:exportName/invoke", handlers.RequireAuth, handlers.ServerFunction)
 	api.POST("/remote-executions/:executionId/terminal-sessions", handlers.RequireAuth, handlers.TerminalOpen)
 	api.POST("/remote-executions/:executionId/terminal-sessions/:terminalSessionId/resume", handlers.RequireAuth, handlers.TerminalResume)
 	for _, action := range []string{"read", "write", "resize", "signal", "close"} {
 		api.POST("/remote-executions/:executionId/terminal-sessions/:terminalSessionId/"+action, handlers.RequireAuth, handlers.TerminalAction)
 	}
+	api.POST("/internal/remote-execution-secrets", handlers.InternalSecrets)
 }

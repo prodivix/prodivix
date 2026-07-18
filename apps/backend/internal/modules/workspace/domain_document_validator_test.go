@@ -63,6 +63,11 @@ func TestStandaloneDomainDocumentValidation(t *testing.T) {
 			wantError:    ErrDesignTokenResolverValidationFailed,
 		},
 		{
+			name:         "binary asset current reference",
+			documentType: WorkspaceDocumentTypeAsset,
+			content:      `{"kind":"asset","mime":"image/png","category":"image","size":0,"blob":{"kind":"workspace-blob","digest":"sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","byteLength":0,"mediaType":"image/png"},"metadata":{"originalFileName":"pixel.png","width":1,"height":1}}`,
+		},
+		{
 			name:         "data source wire current",
 			documentType: WorkspaceDocumentTypeDataSource,
 			content:      `{"wireVersion":1,"source":{"id":"catalog","adapterId":"rest","runtimeZone":"server","bindingsById":{"catalog-api-key":{"kind":"secret-ref","reference":{"bindingId":"catalog-api-key"}}},"configurationByKey":{"baseUrl":{"kind":"literal","value":"https://example.test"},"authorization":{"kind":"secret-ref","reference":{"bindingId":"catalog-api-key"}}}},"schemasById":{"product-list":{"id":"product-list","schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"array"}}},"operationsById":{"list-products":{"id":"list-products","kind":"query","outputSchemaId":"product-list","configurationByKey":{},"policies":{}}}}`,
@@ -128,6 +133,15 @@ func TestStandaloneDomainDocumentValidation(t *testing.T) {
 	}
 }
 
+func TestBinaryAssetDocumentRejectsInlinePayloads(t *testing.T) {
+	for _, field := range []string{"dataUrl", "text", "providerLocator"} {
+		content := `{"kind":"asset","mime":"image/png","size":0,"blob":{"kind":"workspace-blob","digest":"sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","byteLength":0,"mediaType":"image/png"},"` + field + `":"forbidden"}`
+		if err := validateWorkspaceDocumentContent(WorkspaceDocumentTypeAsset, mustRaw(content)); err == nil {
+			t.Fatalf("expected inline field %s to be rejected", field)
+		}
+	}
+}
+
 func TestStandaloneDomainPatchPathsUseCurrentCollections(t *testing.T) {
 	for _, path := range []string{"/version", "/nodes/-", "/edges/0/target"} {
 		if err := validateWorkspaceNodeGraphPatchPath(path); err != nil {
@@ -157,6 +171,16 @@ func TestStandaloneDomainPatchPathsUseCurrentCollections(t *testing.T) {
 	for _, path := range []string{"/wireVersion", "/secrets", "/metadata"} {
 		if !errors.Is(validateWorkspaceDataSourcePatchPath(path), ErrWorkspacePatchPathForbidden) {
 			t.Fatalf("expected Data source path %s to be rejected", path)
+		}
+	}
+	for _, path := range []string{"/mime", "/size", "/blob/digest", "/metadata/width"} {
+		if err := validateWorkspaceAssetPatchPath(path); err != nil {
+			t.Fatalf("expected Binary Asset path %s to be allowed: %v", path, err)
+		}
+	}
+	for _, path := range []string{"/dataUrl", "/text", "/providerLocator"} {
+		if !errors.Is(validateWorkspaceAssetPatchPath(path), ErrWorkspacePatchPathForbidden) {
+			t.Fatalf("expected inline Binary Asset path %s to be rejected", path)
 		}
 	}
 }

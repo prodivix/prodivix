@@ -1,15 +1,19 @@
 import { CONTROLLED_SOURCE_METADATA_KEY } from '@prodivix/authoring';
+import { createBinaryAssetBlobReference } from '@prodivix/assets';
 import type {
   ExecutionFilesystemDiff,
   ExecutionFilesystemDiffChange,
 } from '@prodivix/runtime-core';
 import {
   createWorkspaceCodeDocumentIntentRequest,
+  createWorkspaceDocumentIntentRequest,
   createWorkspaceVfsIntentPlan,
   deleteWorkspaceCodeDocumentIntentRequest,
   isWorkspaceCodeDocumentContent,
+  isWorkspaceAssetDocumentContent,
   projectWorkspaceCodeArtifactLifecycles,
   type WorkspaceCodeDocumentLanguage,
+  type WorkspaceAssetDocumentContent,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import type {
@@ -31,7 +35,8 @@ const PREFLIGHT_ISSUED_AT = '1970-01-01T00:00:00.000Z';
 const blocked = (
   change: ExecutionFilesystemDiffChange,
   reason: RuntimeFilesystemProposalBlockReason,
-  documentId?: string
+  documentId?: string,
+  documentType?: 'code' | 'asset'
 ): AnalyzedRuntimeFilesystemProposalEntry =>
   Object.freeze({
     changeId: change.changeId,
@@ -39,6 +44,7 @@ const blocked = (
     path: change.path,
     status: 'blocked',
     ...(documentId ? { documentId } : {}),
+    ...(documentType ? { documentType } : {}),
     reason,
   });
 
@@ -97,10 +103,176 @@ const inferLanguage = (
   return undefined;
 };
 
+const ASSET_MEDIA_TYPES_BY_EXTENSION = Object.freeze(
+  new Map<string, string>([
+    ['.avif', 'image/avif'],
+    ['.gif', 'image/gif'],
+    ['.ico', 'image/x-icon'],
+    ['.jpeg', 'image/jpeg'],
+    ['.jpg', 'image/jpeg'],
+    ['.otf', 'font/otf'],
+    ['.pdf', 'application/pdf'],
+    ['.png', 'image/png'],
+    ['.ttf', 'font/ttf'],
+    ['.webp', 'image/webp'],
+    ['.woff', 'font/woff'],
+    ['.woff2', 'font/woff2'],
+  ])
+);
+
+const inferAssetMediaType = (path: string): string | undefined => {
+  const fileName = path.split('/').at(-1)?.toLocaleLowerCase('en-US') ?? '';
+  const extension = [...ASSET_MEDIA_TYPES_BY_EXTENSION.keys()].find((entry) =>
+    fileName.endsWith(entry)
+  );
+  return extension ? ASSET_MEDIA_TYPES_BY_EXTENSION.get(extension) : undefined;
+};
+
+const startsWithBytes = (
+  contents: Uint8Array,
+  expected: readonly number[]
+): boolean =>
+  contents.byteLength >= expected.length &&
+  expected.every((value, index) => contents[index] === value);
+
+const startsWithAscii = (contents: Uint8Array, value: string): boolean =>
+  startsWithBytes(
+    contents,
+    [...value].map((character) => character.charCodeAt(0))
+  );
+
+const matchesKnownAssetMediaType = (
+  contents: Uint8Array,
+  mediaType: string
+): boolean => {
+  switch (mediaType) {
+    case 'image/png':
+      return startsWithBytes(contents, [137, 80, 78, 71, 13, 10, 26, 10]);
+    case 'image/jpeg':
+      return startsWithBytes(contents, [0xff, 0xd8, 0xff]);
+    case 'image/gif':
+      return (
+        startsWithAscii(contents, 'GIF87a') ||
+        startsWithAscii(contents, 'GIF89a')
+      );
+    case 'image/webp':
+      return (
+        startsWithAscii(contents, 'RIFF') &&
+        contents.byteLength >= 12 &&
+        startsWithAscii(contents.subarray(8), 'WEBP')
+      );
+    case 'image/avif':
+      return (
+        contents.byteLength >= 12 &&
+        startsWithAscii(contents.subarray(4), 'ftyp') &&
+        (startsWithAscii(contents.subarray(8), 'avif') ||
+          startsWithAscii(contents.subarray(8), 'avis'))
+      );
+    case 'image/x-icon':
+      return startsWithBytes(contents, [0, 0, 1, 0]);
+    case 'font/woff':
+      return startsWithAscii(contents, 'wOFF');
+    case 'font/woff2':
+      return startsWithAscii(contents, 'wOF2');
+    case 'font/ttf':
+      return (
+        startsWithBytes(contents, [0, 1, 0, 0]) ||
+        startsWithAscii(contents, 'true')
+      );
+    case 'font/otf':
+      return startsWithAscii(contents, 'OTTO');
+    case 'application/pdf':
+      return startsWithAscii(contents, '%PDF-');
+    default:
+      return true;
+  }
+};
+
 export const createRuntimeCodeDocumentId = (
   change: Pick<ExecutionFilesystemDiffChange, 'changeId'>
 ): string =>
   `runtime-code:${change.changeId.replace('filesystem-change:', '')}`;
+
+export const createRuntimeAssetDocumentId = (
+  change: Pick<ExecutionFilesystemDiffChange, 'changeId'>
+): string =>
+  `runtime-asset:${change.changeId.replace('filesystem-change:', '')}`;
+
+const createAssetContent = (
+  change: ExecutionFilesystemDiffChange,
+  mediaType: string
+): WorkspaceAssetDocumentContent | undefined => {
+  const contents = change.runtime?.contents;
+  if (!contents || !matchesKnownAssetMediaType(contents, mediaType)) {
+    return undefined;
+  }
+  const reference = createBinaryAssetBlobReference({ contents, mediaType });
+  const originalFileName = change.path.split('/').at(-1);
+  return Object.freeze({
+    kind: 'asset',
+    mime: reference.mediaType,
+    category: reference.mediaType.startsWith('image/')
+      ? 'image'
+      : reference.mediaType.startsWith('font/')
+        ? 'font'
+        : 'file',
+    size: reference.byteLength,
+    blob: reference,
+    ...(originalFileName
+      ? { metadata: Object.freeze({ originalFileName }) }
+      : {}),
+  });
+};
+
+const analyzeAddedAssetChange = (
+  workspace: WorkspaceSnapshot,
+  change: ExecutionFilesystemDiffChange,
+  mediaType: string
+): AnalyzedRuntimeFilesystemProposalEntry => {
+  const nextAssetContent = createAssetContent(change, mediaType);
+  if (!nextAssetContent) return blocked(change, 'asset-media-mismatch');
+  const canonicalPath = `/${change.path}`;
+  if (
+    Object.values(workspace.docsById).some(
+      (document) => document.path === canonicalPath
+    )
+  ) {
+    return blocked(change, 'path-conflict');
+  }
+  const documentId = createRuntimeAssetDocumentId(change);
+  if (workspace.docsById[documentId]) {
+    return blocked(change, 'document-id-conflict', documentId, 'asset');
+  }
+  const plan = createWorkspaceVfsIntentPlan(
+    workspace,
+    createWorkspaceDocumentIntentRequest({
+      workspaceRev: workspace.workspaceRev,
+      intentId: `${change.changeId}:preflight`,
+      issuedAt: PREFLIGHT_ISSUED_AT,
+      documentId,
+      path: canonicalPath,
+      type: 'asset',
+      content: nextAssetContent,
+    })
+  );
+  if (!plan) return blocked(change, 'operation-rejected', documentId, 'asset');
+  return Object.freeze({
+    changeId: change.changeId,
+    kind: change.kind,
+    path: change.path,
+    status: 'eligible',
+    documentId,
+    documentType: 'asset',
+    nextAssetContent,
+    assetUpload: Object.freeze({
+      changeId: change.changeId,
+      documentId,
+      mediaType: nextAssetContent.mime,
+      contents: new Uint8Array(change.runtime!.contents),
+      expectedReference: nextAssetContent.blob,
+    }),
+  });
+};
 
 const analyzeAddedChange = (
   workspace: WorkspaceSnapshot,
@@ -111,6 +283,8 @@ const analyzeAddedChange = (
     return blocked(change, 'stale-workspace-revision');
   if (change.sourceTrace?.length)
     return blocked(change, 'unexpected-source-trace');
+  const mediaType = inferAssetMediaType(change.path);
+  if (mediaType) return analyzeAddedAssetChange(workspace, change, mediaType);
   const nextSource = decodeCode(change.runtime?.contents);
   if (nextSource === undefined) return blocked(change, 'binary-content');
   const language = inferLanguage(change.path);
@@ -143,8 +317,80 @@ const analyzeAddedChange = (
     path: change.path,
     status: 'eligible',
     documentId,
+    documentType: 'code',
     nextSource,
     language,
+  });
+};
+
+const analyzeExistingAssetChange = (
+  workspace: WorkspaceSnapshot,
+  diff: ExecutionFilesystemDiff,
+  change: ExecutionFilesystemDiffChange,
+  documentId: string
+): AnalyzedRuntimeFilesystemProposalEntry => {
+  const document = workspace.docsById[documentId];
+  if (
+    !document ||
+    document.type !== 'asset' ||
+    !isWorkspaceAssetDocumentContent(document.content)
+  ) {
+    return blocked(change, 'missing-asset-document', documentId, 'asset');
+  }
+  if (
+    documentRevision(diff, documentId, 'content') !==
+    String(document.contentRev)
+  ) {
+    return blocked(change, 'stale-content-revision', documentId, 'asset');
+  }
+  if (documentRevision(diff, documentId, 'meta') !== String(document.metaRev)) {
+    return blocked(change, 'stale-meta-revision', documentId, 'asset');
+  }
+  if (
+    change.baseline?.digest !== document.content.blob.digest ||
+    change.baseline?.size !== document.content.blob.byteLength
+  ) {
+    return blocked(change, 'baseline-drift', documentId, 'asset');
+  }
+  if (change.kind === 'deleted') {
+    return blocked(change, 'asset-deletion-unsupported', documentId, 'asset');
+  }
+  if (change.kind !== 'modified' || !change.runtime) {
+    return blocked(change, 'unsupported-change-kind', documentId, 'asset');
+  }
+  if (
+    !matchesKnownAssetMediaType(change.runtime.contents, document.content.mime)
+  ) {
+    return blocked(change, 'asset-media-mismatch', documentId, 'asset');
+  }
+  const reference = createBinaryAssetBlobReference({
+    contents: change.runtime.contents,
+    mediaType: document.content.mime,
+  });
+  if (reference.digest === document.content.blob.digest) {
+    return blocked(change, 'unchanged-runtime', documentId, 'asset');
+  }
+  const nextAssetContent: WorkspaceAssetDocumentContent = Object.freeze({
+    ...document.content,
+    mime: reference.mediaType,
+    size: reference.byteLength,
+    blob: reference,
+  });
+  return Object.freeze({
+    changeId: change.changeId,
+    kind: change.kind,
+    path: change.path,
+    status: 'eligible',
+    documentId,
+    documentType: 'asset',
+    nextAssetContent,
+    assetUpload: Object.freeze({
+      changeId: change.changeId,
+      documentId,
+      mediaType: reference.mediaType,
+      contents: new Uint8Array(change.runtime.contents),
+      expectedReference: reference,
+    }),
   });
 };
 
@@ -160,6 +406,14 @@ const analyzeExistingCodeChange = (
     return blocked(change, 'ambiguous-source-trace');
   const trace = change.sourceTrace[0]!;
   if (trace.sourceSpan) return blocked(change, 'partial-source-trace');
+  if (trace.sourceRef.kind === 'document') {
+    return analyzeExistingAssetChange(
+      workspace,
+      diff,
+      change,
+      trace.sourceRef.documentId
+    );
+  }
   if (trace.sourceRef.kind !== 'code-artifact')
     return blocked(change, 'unsupported-source-owner');
   const documentId = trace.sourceRef.artifactId;
@@ -195,6 +449,7 @@ const analyzeExistingCodeChange = (
       path: change.path,
       status: 'eligible',
       documentId,
+      documentType: 'code',
       nextSource,
     });
   }
@@ -235,6 +490,7 @@ const analyzeExistingCodeChange = (
     path: change.path,
     status: 'eligible',
     documentId,
+    documentType: 'code',
   });
 };
 
@@ -290,7 +546,12 @@ export const analyzeRuntimeFilesystemEntries = (
       entry.status === 'eligible' &&
       entry.documentId &&
       (targetCounts.get(entry.documentId) ?? 0) > 1
-        ? blocked(diff.changes[index]!, 'duplicate-target', entry.documentId)
+        ? blocked(
+            diff.changes[index]!,
+            'duplicate-target',
+            entry.documentId,
+            entry.documentType
+          )
         : entry
     )
   );
@@ -308,6 +569,7 @@ export const projectRuntimeFilesystemAnalysis = (
         path: entry.path,
         status: entry.status,
         ...(entry.documentId ? { documentId: entry.documentId } : {}),
+        ...(entry.documentType ? { documentType: entry.documentType } : {}),
         ...(entry.reason ? { reason: entry.reason } : {}),
       })
     )

@@ -17,6 +17,7 @@ export const createWebRemoteExecutionHttpPort = (
         ...(input.body
           ? { body: new Uint8Array(input.body).buffer as ArrayBuffer }
           : {}),
+        ...(input.signal ? { signal: input.signal as AbortSignal } : {}),
         credentials: 'omit',
         cache: 'no-store',
         redirect: 'error',

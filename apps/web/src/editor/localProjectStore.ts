@@ -4,10 +4,15 @@ import { tryNormalizePirDocument, validatePirDocument } from '@prodivix/pir';
 import {
   decodeWorkspaceSnapshot,
   encodeWorkspaceSnapshot,
+  isWorkspaceAssetDocumentContent,
   type WorkspaceDocument,
   type WorkspaceSnapshot,
   type WorkspaceSnapshotWireDto,
 } from '@prodivix/workspace';
+import {
+  copyLocalWorkspaceAssetBlobs,
+  deleteLocalWorkspaceAssetBlobs,
+} from '@/editor/localWorkspaceAssetBlobStore';
 
 const LOCAL_PROJECT_ID_PREFIX = 'local-';
 const LOCAL_PROJECT_DB_NAME = 'prodivix-local-projects';
@@ -91,6 +96,20 @@ export const isLocalProjectId = (projectId?: string | null): boolean =>
 export const isSyncedLocalProject = (
   project?: Pick<LocalProjectRecord, 'syncBinding'> | null
 ): boolean => project?.syncBinding?.status === 'synced-readonly';
+
+const collectLocalWorkspaceAssetReferences = (workspace: WorkspaceSnapshot) =>
+  Object.values(workspace.docsById)
+    .filter(
+      (document) =>
+        document.type === 'asset' &&
+        isWorkspaceAssetDocumentContent(document.content)
+    )
+    .map((document) => {
+      if (!isWorkspaceAssetDocumentContent(document.content)) {
+        throw new TypeError('Local Workspace asset document is invalid.');
+      }
+      return document.content.blob;
+    });
 
 const createLocalProjectId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -614,6 +633,16 @@ export const duplicateLocalProject = async (
     workspaceSettings: cloneData(current.workspaceSettings),
   };
 
+  const assetReferences = collectLocalWorkspaceAssetReferences(
+    current.workspace
+  );
+  if (assetReferences.length > 0) {
+    await copyLocalWorkspaceAssetBlobs({
+      sourceWorkspaceId: current.workspace.id,
+      targetWorkspaceId: id,
+      references: assetReferences,
+    });
+  }
   await putPersistedProject(serializeRecord(copy));
   return copy;
 };
@@ -633,6 +662,15 @@ export const deleteLocalProject = async (
 ): Promise<boolean> => {
   const current = await getLocalProject(projectId);
   if (!current) return false;
+  const hasAssets =
+    collectLocalWorkspaceAssetReferences(current.workspace).length > 0;
   await deletePersistedProject(projectId);
+  if (hasAssets) {
+    try {
+      await deleteLocalWorkspaceAssetBlobs(current.workspace.id);
+    } catch (error) {
+      console.warn('[local-assets] orphan cleanup failed', error);
+    }
+  }
   return true;
 };

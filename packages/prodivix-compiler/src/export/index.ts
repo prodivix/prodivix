@@ -20,6 +20,10 @@ export {
   planExportAssetContributions,
 } from '#src/export/assetPlanner';
 export {
+  createWorkspaceGitAssetProjection,
+  type CreateWorkspaceGitAssetProjectionInput,
+} from '#src/export/workspaceGitAssetProjection';
+export {
   exportDependenciesToPackageFields,
   mergeExportDependencies,
 } from '#src/export/dependencyPlanner';

@@ -351,7 +351,7 @@ incremental update 语义，必须先修订 ADR/current model。
       Data composition 默认 mock，missing/ambiguous fixture fail closed，live 必须显式 opt-in。
 - [x] mock runtime session/dispose fencing，并复用 Data kernel 的 lifecycle/Network trace port；mock
       本身不伪造网络请求。
-- [x] `ExecutableProjectSnapshot v4` 保存有界 `dataMockProvision` 并纳入 content digest；Compiler 可显式
+- [x] `ExecutableProjectSnapshot v6` 保存有界 `dataMockProvision` 并纳入 content digest；Compiler 可显式
       投影该运行环境输入，Remote strict codec round-trip，Browser Test 从 exact snapshot 创建 mock session。
 - [x] fixture provision 可声明 immutable initial collection 与 CRUD behavior；每个 runtime session 必须
       使用显式 namespace 持有独立可变副本，create/update/delete 不修改 snapshot，reset/dispose 清理状态。

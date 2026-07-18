@@ -1,8 +1,12 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { createBinaryAssetBlobReference } from '@prodivix/assets';
 import { createEmptyPirDocument } from '@prodivix/pir';
 import { applyWorkspaceCommand } from './workspaceCommand';
-import { createWorkspaceProjectConfigValueUpdateCommand } from './workspaceResourceDocument';
+import {
+  createWorkspaceProjectConfigValueUpdateCommand,
+  isWorkspaceAssetDocumentContent,
+} from './workspaceResourceDocument';
 import type { WorkspaceSnapshot } from './types';
 
 const createWorkspace = (): WorkspaceSnapshot => ({
@@ -60,6 +64,42 @@ const createWorkspace = (): WorkspaceSnapshot => ({
 });
 
 describe('workspace resource document properties', () => {
+  it('accepts only a bounded binary blob reference and rejects inline payloads', () => {
+    const contents = new Uint8Array([0, 1, 2, 255]);
+    const blob = createBinaryAssetBlobReference({
+      contents,
+      mediaType: 'image/png',
+    });
+    const canonical = {
+      kind: 'asset',
+      mime: blob.mediaType,
+      category: 'image',
+      size: blob.byteLength,
+      blob,
+      metadata: { originalFileName: 'pixel.png', width: 1, height: 1 },
+    };
+
+    expect(isWorkspaceAssetDocumentContent(canonical)).toBe(true);
+    expect(
+      isWorkspaceAssetDocumentContent({ ...canonical, dataUrl: 'data:,' })
+    ).toBe(false);
+    expect(
+      isWorkspaceAssetDocumentContent({ ...canonical, text: 'inline' })
+    ).toBe(false);
+    expect(
+      isWorkspaceAssetDocumentContent({
+        ...canonical,
+        size: blob.byteLength + 1,
+      })
+    ).toBe(false);
+    expect(
+      isWorkspaceAssetDocumentContent({
+        ...canonical,
+        metadata: { originalFileName: 'pixel.png', providerLocator: 'secret' },
+      })
+    ).toBe(false);
+  });
+
   it('updates arbitrary JSON config values with an exact inverse', () => {
     fc.assert(
       fc.property(fc.jsonValue(), (generatedValue) => {

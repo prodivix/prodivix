@@ -73,7 +73,18 @@ const createDocumentContent = (type: TestDocumentKind): unknown => {
     return { language: 'ts', source: 'export const value = 1;' };
   }
   if (type === 'asset') {
-    return { kind: 'asset', mime: 'image/png', dataUrl: 'data:image/png,' };
+    return {
+      kind: 'asset',
+      mime: 'image/png',
+      size: 0,
+      blob: {
+        kind: 'workspace-blob',
+        digest:
+          'sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        byteLength: 0,
+        mediaType: 'image/png',
+      },
+    };
   }
   if (type === 'pir-component') {
     return createEmptyPirDocument();

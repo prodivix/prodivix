@@ -15,12 +15,14 @@ describe('Web Remote execution HTTP port', () => {
       )
     );
     const port = createWebRemoteExecutionHttpPort(fetcher);
+    const cancellation = new AbortController();
     await expect(
       port.request({
         url: 'https://runner.example.test/content',
         method: 'GET',
         headers: { authorization: 'Bearer scoped-token' },
         maximumResponseBytes: 3,
+        signal: cancellation.signal,
       })
     ).resolves.toMatchObject({ status: 200, body: new Uint8Array([1, 2, 3]) });
     expect(fetcher).toHaveBeenCalledWith(
@@ -29,6 +31,7 @@ describe('Web Remote execution HTTP port', () => {
         credentials: 'omit',
         cache: 'no-store',
         redirect: 'error',
+        signal: cancellation.signal,
       })
     );
   });

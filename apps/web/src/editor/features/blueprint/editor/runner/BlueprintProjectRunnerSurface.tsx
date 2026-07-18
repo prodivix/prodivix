@@ -11,9 +11,13 @@ import {
   readBlueprintProjectConsoleBridgeMessage,
   readBlueprintProjectNetworkBridgeMessage,
   readBlueprintRemoteDataBridgeMessage,
+  readBlueprintRemoteServerFunctionBridgeCancellation,
+  readBlueprintRemoteServerFunctionBridgeMessage,
 } from '@/editor/features/blueprint/editor/runner/blueprintProjectNetworkBridge';
 import {
+  cancelBlueprintProjectRemoteServerFunctionBridge,
   executeBlueprintProjectRemoteDataBridge,
+  executeBlueprintProjectRemoteServerFunctionBridge,
   publishBlueprintProjectConsoleLog,
   publishBlueprintProjectNetworkTrace,
 } from '@/editor/features/blueprint/editor/runner/blueprintProjectRunnerClient';
@@ -96,8 +100,40 @@ export function BlueprintProjectRunnerSurface({
         messageOrigin: event.origin,
         value: event.data,
       });
-      if (!request) return;
-      void executeBlueprintProjectRemoteDataBridge(request).then((response) => {
+      if (request) {
+        void executeBlueprintProjectRemoteDataBridge(request).then(
+          (response) => {
+            if (!active || frameRef.current?.contentWindow !== frameWindow)
+              return;
+            frameWindow.postMessage(response, '*');
+          }
+        );
+        return;
+      }
+      const serverFunctionCancellation =
+        readBlueprintRemoteServerFunctionBridgeCancellation({
+          provider,
+          previewUrl,
+          messageOrigin: event.origin,
+          value: event.data,
+        });
+      if (serverFunctionCancellation) {
+        cancelBlueprintProjectRemoteServerFunctionBridge(
+          serverFunctionCancellation
+        );
+        return;
+      }
+      const serverFunctionRequest =
+        readBlueprintRemoteServerFunctionBridgeMessage({
+          provider,
+          previewUrl,
+          messageOrigin: event.origin,
+          value: event.data,
+        });
+      if (!serverFunctionRequest) return;
+      void executeBlueprintProjectRemoteServerFunctionBridge(
+        serverFunctionRequest
+      ).then((response) => {
         if (!active || frameRef.current?.contentWindow !== frameWindow) return;
         frameWindow.postMessage(response, '*');
       });

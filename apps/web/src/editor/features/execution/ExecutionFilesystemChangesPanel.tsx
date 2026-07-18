@@ -70,10 +70,12 @@ export const ExecutionFilesystemChangesPanel = ({
         {controller.entries.length ? (
           controller.entries.map((entry) => {
             const eligible = entry.status === 'eligible';
+            const target =
+              entry.kind === 'added' ? `/${entry.path}` : entry.documentId;
             const detail = eligible
-              ? entry.kind === 'added'
-                ? `/${entry.path}`
-                : entry.documentId
+              ? entry.documentType
+                ? `${t(`execution.files.documentType.${entry.documentType}`)} · ${target}`
+                : target
               : t(`execution.files.reason.${entry.reason}`);
             return (
               <label

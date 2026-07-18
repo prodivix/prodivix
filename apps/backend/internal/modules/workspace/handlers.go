@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
 	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
 	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
@@ -14,12 +15,22 @@ import (
 )
 
 type Handler struct {
-	store  *WorkspaceStore
-	module *Module
+	store             *WorkspaceStore
+	module            *Module
+	assetDelivery     backendconfig.AssetDeliveryHostConfig
+	assetDeliveryHTTP *http.Client
 }
 
-func NewHandler(store *WorkspaceStore, module *Module) *Handler {
-	return &Handler{store: store, module: module}
+func NewHandler(store *WorkspaceStore, module *Module, assetDelivery ...backendconfig.AssetDeliveryHostConfig) *Handler {
+	config := backendconfig.AssetDeliveryHostConfig{}
+	if len(assetDelivery) > 0 {
+		config = assetDelivery[0]
+	}
+	timeout := config.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	return &Handler{store: store, module: module, assetDelivery: config, assetDeliveryHTTP: &http.Client{Timeout: timeout}}
 }
 
 func (handler *Handler) requireWorkspaceOwner(c *gin.Context, userID string, workspaceID string) bool {
@@ -43,6 +54,9 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		ImportLocalProject:       handler.HandleImportLocalProject,
 		CommitWorkspaceOperation: handler.HandleCommitWorkspaceOperation,
 		CommitWorkspaceSettings:  handler.HandleCommitWorkspaceSettings,
+		PutWorkspaceAssetBlob:    handler.HandlePutWorkspaceAssetBlob,
+		GetWorkspaceAssetBlob:    handler.HandleGetWorkspaceAssetBlob,
+		CreateAssetDelivery:      handler.HandleCreateAssetDelivery,
 	}
 }
 
@@ -130,15 +144,31 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 		return
 	}
 
-	var request importLocalProjectRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		failure := NewRequestFailure(http.StatusBadRequest, ErrorInvalidPayload, "Invalid request payload.", nil)
+	decoded, failure := decodeImportLocalProjectRequest(c)
+	if failure != nil {
 		c.JSON(failure.Status, failure.Payload)
 		return
 	}
+	request := decoded.Request
 	_, hasPIR := resolveImportCanonicalPIR(request.Workspace.Documents)
 	if !hasPIR {
 		failure := NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, "Workspace import requires a PIR page document.", nil)
+		c.JSON(failure.Status, failure.Payload)
+		return
+	}
+	for _, document := range request.Workspace.Documents {
+		if document.Type != WorkspaceDocumentTypeAsset {
+			continue
+		}
+		if decoded.UploadAware {
+			break
+		}
+		failure := NewRequestFailure(
+			http.StatusUnprocessableEntity,
+			ErrorWorkspaceAssetImportUnsupported,
+			"Workspace imports containing binary assets require the upload-aware import protocol.",
+			map[string]any{"documentId": document.ID},
+		)
 		c.JSON(failure.Status, failure.Payload)
 		return
 	}
@@ -171,6 +201,7 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 		RouteManifest: request.Workspace.RouteManifest,
 		Settings:      request.Workspace.Settings,
 		Documents:     request.Workspace.Documents,
+		AssetBlobs:    decoded.AssetBlobs,
 	})
 	if err != nil {
 		failure := MapStoreError(err)

@@ -16,6 +16,16 @@ import {
 
 const nowIso = () => new Date().toISOString();
 
+export const createPublicResourceAssetDeliveryRequest = (mediaType: string) => {
+  if (mediaType === 'image/png') {
+    return { transform: 'png-sanitize', disposition: 'inline' } as const;
+  }
+  if (mediaType === 'image/jpeg') {
+    return { transform: 'jpeg-sanitize', disposition: 'inline' } as const;
+  }
+  return { transform: 'original', disposition: 'attachment' } as const;
+};
+
 const toPublicCategory = (value: unknown): PublicFileCategory =>
   value === 'image' ||
   value === 'font' ||
@@ -145,8 +155,7 @@ export const buildPublicResourceTreeFromWorkspace = (
         category: toPublicCategory(content.category),
         mime: content.mime,
         size: content.size,
-        contentRef: content.dataUrl,
-        textContent: content.text,
+        blobReference: content.blob,
         updatedAt: document.updatedAt,
       });
     });

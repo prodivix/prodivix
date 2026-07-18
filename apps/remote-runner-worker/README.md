@@ -17,7 +17,8 @@ budgets. Dependency install can use only an internal
 `REMOTE_WORKER_INSTALL_NETWORK`, whose sole egress is the verified allowlist
 proxy. The Worker checks the network's internal flag, proxy attachment, and exact
 allowlist before starting; after install it disconnects the network and verifies
-the container has no attached network before releasing Preview, Test, or Build.
+the container has no attached network before releasing Preview, Test, Build, or
+one-shot Server Function execution.
 Without that configuration, install and runtime are both networkless.
 Cancellation stops the named container and `--rm` removes it. The
 filesystem/process supervisor remains available only as an explicit non-production
@@ -83,6 +84,53 @@ canonical artifact then declares `readiness=ready` and `health=healthy`; hosting
 gateway URLs remain an artifact-resolver concern and are not fabricated by the
 Worker.
 
+Remote Server Function uses the dedicated `production/server/code` provider and
+one exact Snapshot v6 plan. The Worker projects only the strict value request,
+runs a bounded, deterministically projected canonical TS/JS import graph after
+runtime network removal, and revalidates the result against the trusted snapshot
+profile before publishing one canonical report artifact. Only unique relative
+static ESM imports are supported; external, dynamic, CommonJS, reference,
+ambiguous, and over-budget graphs fail before execution. The result SourceTrace
+aggregates the root and imported CodeArtifacts. Authenticated and `workspace.owner`
+permission reads/guards
+additionally require an unexpired Control Plane authority bound to the exact
+execution, worker attempt, Workspace, and snapshot. The Worker reduces it to
+`AuthPrincipal` plus the bounded allowed-permission list, writes a mode-0600
+execution-local authority file, and the generated runner strictly validates the exact
+required permission and removes that file before invoking project code. Public
+functions never receive the projection. Session id, Bearer, cookie, lease token,
+other permission policies, runtime network, and project-source mutation remain
+fail closed in this isolated target.
+
+When the exact code-export profile declares reference-only Secret fields, the
+Worker creates a per-resolution X25519 key and calls the worker-token + lease
+fenced Control Plane endpoint. It accepts only a short-lived envelope bound to
+the exact execution, worker attempt, Workspace, snapshot, function, invocation,
+and recipient key. The request has a 15-second timeout; both ciphertext hops
+require JSON/no-store/nosniff and enforce their byte limit while streaming.
+The rootless install-phase payload contains no invocation, authority, or Secret.
+Only after install exits, residual processes are killed, and the runtime network
+is verified absent does a nonce-bound second control message deliver these values.
+Before materialization, the entrypoint deletes and recreates the reserved root
+`.prodivix` transport directory and requires the four canonical transport paths,
+so an installer cannot retain a pre-created file or symlink target for runtime
+invocation, authority, Secret, or result material.
+Decrypted fields are then added to the output guard and written to a mode-0600
+one-shot file. The generated runner validates and deletes that file before
+importing project code, exposes only declared fields through callback-bound
+`useSecret`, and blocks material-bearing output. A second residual-process hard
+cut precedes filesystem capture. The field projection is cleared after output/
+artifact inspection. Control Plane, claim, request, snapshot, durable event,
+trace, artifact, and the install payload never contain plaintext.
+
+If a lease expires while this read-only invocation is running, a new Worker can
+reclaim it with a strictly higher attempt. It generates a new recipient key and
+re-resolves the same immutable function/invocation identity. Backend atomically
+replaces the single current-attempt ciphertext row, so the old attempt cannot
+complete or replay and the new Worker cannot decrypt the old envelope. A reclaimed
+`running` Job skips a duplicate state transition; a reclaimed `cancelling` Job exits
+before snapshot, Secret resolution, or sandbox startup.
+
 ## Rootless sandbox Gate
 
 `pnpm run verify:g2:rootless-sandbox` is intentionally a Linux/Podman integration
@@ -91,7 +139,9 @@ Gate rather than a default local test. The dedicated
 runner and executes it as the non-root runner account. It builds the sandbox from a
 digest-pinned base, runs active isolation and cgroup probes, then emits the living
 Golden Workspace through the strict Remote snapshot codec and performs real
-dependency install, Preview, Build, and canonical Test inside Podman. The Gate
+dependency install, Preview, Build, canonical Test, and a workspace-owner-permission one-shot
+Server Function with a transitive canonical helper module and isolated Secret
+`useSecret` inside Podman. The Gate
 compares strict Preview/Build file facts, verifies source trace, cancellation,
 timeout, phase-network isolation and orphan cleanup, and uploads structured JSON
 evidence plus the full Gate log. It builds the worker and its complete workspace

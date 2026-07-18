@@ -6,12 +6,20 @@ import {
   createRemoteExecutionTerminalClient,
   createRemoteExecutionTerminalHttpTransport,
   createRemotePreviewExecutionProvider,
+  type RemoteExecutionTerminalClient,
   type RemoteExecutionSnapshotSource,
 } from '@prodivix/runtime-remote';
 import { API_ROOT } from '@/infra/api/apiConfig';
 import { createWebRemoteExecutionHttpPort } from './remoteExecutionHttpPort';
 import { createRemotePreviewOriginClient } from './remotePreviewOriginClient';
-import { createRemoteDataGatewayClient } from './remoteDataGatewayClient';
+import {
+  createRemoteDataGatewayClient,
+  type RemoteDataGatewayClient,
+} from './remoteDataGatewayClient';
+import {
+  createRemoteServerFunctionGatewayClient,
+  type RemoteServerFunctionGatewayClient,
+} from './remoteServerFunctionGatewayClient';
 
 export type CreateRemoteProjectExecutionEnvironmentOptions = Readonly<{
   accessToken: string;
@@ -20,10 +28,20 @@ export type CreateRemoteProjectExecutionEnvironmentOptions = Readonly<{
   ): RemoteExecutionSnapshotSource | Promise<RemoteExecutionSnapshotSource>;
 }>;
 
+export type RemoteProjectExecutionEnvironment = Readonly<{
+  client: ReturnType<typeof createRemoteExecutionClient>;
+  provider: ReturnType<typeof createRemotePreviewExecutionProvider>;
+  artifacts: ReturnType<typeof createRemoteExecutionArtifactResolver>;
+  dataGateway: RemoteDataGatewayClient;
+  serverFunctions: RemoteServerFunctionGatewayClient;
+  terminal: RemoteExecutionTerminalClient;
+  previewOrigins: ReturnType<typeof createRemotePreviewOriginClient>;
+}>;
+
 /** Composes Remote Preview through the authenticated Backend gateway; no service credential reaches Web. */
 export const createRemoteProjectExecutionEnvironment = (
   options: CreateRemoteProjectExecutionEnvironmentOptions
-) => {
+): RemoteProjectExecutionEnvironment => {
   if (!options.accessToken.trim())
     throw new TypeError(
       'Remote project execution requires an authenticated session.'
@@ -43,6 +61,11 @@ export const createRemoteProjectExecutionEnvironment = (
     http,
   });
   const dataGateway = createRemoteDataGatewayClient({
+    baseUrl,
+    accessToken: options.accessToken,
+    http,
+  });
+  const serverFunctions = createRemoteServerFunctionGatewayClient({
     baseUrl,
     accessToken: options.accessToken,
     http,
@@ -69,6 +92,7 @@ export const createRemoteProjectExecutionEnvironment = (
       contentTransport,
     }),
     dataGateway,
+    serverFunctions,
     terminal,
     previewOrigins,
   });

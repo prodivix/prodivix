@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   analyzeWorkspaceRuntimeFilesystemDiff,
+  createWorkspaceRuntimeFilesystemAssetUploadPlan,
   createWorkspaceRuntimeFilesystemProposal,
   type RuntimeFilesystemProposalEntry,
 } from '@prodivix/prodivix-compiler';
 import type { ExecutionFilesystemDiff } from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import { useAuthStore } from '@/auth/useAuthStore';
 import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 import type { ExecutionFilesystemArtifactReference } from './executionFilesystemChanges.types';
+import { uploadRuntimeFilesystemAssets } from './runtimeFilesystemAssetUpload';
 
 export type ExecutionFilesystemChangesController = Readonly<{
   status:
@@ -45,6 +48,7 @@ export const useExecutionFilesystemChanges = (input: {
   workspace?: WorkspaceSnapshot;
   readonly: boolean;
 }): ExecutionFilesystemChangesController => {
+  const token = useAuthStore((state) => state.token);
   const [load, setLoad] = useState<LoadState>(INITIAL_LOAD_STATE);
   const [retryRevision, setRetryRevision] = useState(0);
   const requestedKeyRef = useRef<string | undefined>(undefined);
@@ -134,16 +138,12 @@ export const useExecutionFilesystemChanges = (input: {
       load.status === 'applying'
     )
       return;
-    const proposal = createWorkspaceRuntimeFilesystemProposal({
+    const uploadPlan = createWorkspaceRuntimeFilesystemAssetUploadPlan({
       workspace: input.workspace,
       diff: load.diff,
       selectedChangeIds,
-      transactionId: createWorkspaceClientOperationId(
-        'runtime-filesystem-adoption'
-      ),
-      issuedAt: new Date().toISOString(),
     });
-    if (proposal.status !== 'ready') {
+    if (uploadPlan.status !== 'ready') {
       setLoad(
         Object.freeze({
           status: 'error',
@@ -161,12 +161,56 @@ export const useExecutionFilesystemChanges = (input: {
         diff: load.diff,
       })
     );
+    let proposal: ReturnType<typeof createWorkspaceRuntimeFilesystemProposal>;
+    let currentWorkspace: WorkspaceSnapshot;
+    try {
+      const assetUploadReceipts = await uploadRuntimeFilesystemAssets({
+        workspaceId: input.workspace.id,
+        token,
+        uploads: uploadPlan.uploads,
+      });
+      currentWorkspace = input.workspace;
+      proposal = createWorkspaceRuntimeFilesystemProposal({
+        workspace: currentWorkspace,
+        diff: load.diff,
+        selectedChangeIds,
+        assetUploadReceipts,
+        transactionId: createWorkspaceClientOperationId(
+          'runtime-filesystem-adoption'
+        ),
+        issuedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      setLoad(
+        Object.freeze({
+          status: 'error',
+          referenceKey,
+          diff: load.diff,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Runtime Asset upload failed.',
+        })
+      );
+      return;
+    }
+    if (proposal.status !== 'ready') {
+      setLoad(
+        Object.freeze({
+          status: 'error',
+          referenceKey,
+          diff: load.diff,
+          message: 'Runtime filesystem selection is no longer eligible.',
+        })
+      );
+      return;
+    }
     let outcome: Awaited<
       ReturnType<typeof dispatchWorkspaceAuthoringOperation>
     >;
     try {
       outcome = await dispatchWorkspaceAuthoringOperation({
-        workspace: input.workspace,
+        workspace: currentWorkspace,
         readonly: input.readonly,
         operation: { kind: 'transaction', transaction: proposal.transaction },
       });
@@ -201,7 +245,14 @@ export const useExecutionFilesystemChanges = (input: {
         message: outcome.operationId,
       })
     );
-  }, [input.readonly, input.workspace, load, referenceKey, selectedChangeIds]);
+  }, [
+    input.readonly,
+    input.workspace,
+    load,
+    referenceKey,
+    selectedChangeIds,
+    token,
+  ]);
 
   const retry = useCallback(() => {
     if (!input.reference || load.status === 'loading') return;

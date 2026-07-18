@@ -6,7 +6,7 @@ import type {
 } from './execution.types';
 
 export const EXECUTABLE_PROJECT_SNAPSHOT_FORMAT =
-  'prodivix.executable-project.v4' as const;
+  'prodivix.executable-project.v6' as const;
 
 export const EXECUTABLE_PROJECT_LIMITS = Object.freeze({
   maxFiles: 20_000,
@@ -20,6 +20,7 @@ export const EXECUTABLE_PROJECT_LIMITS = Object.freeze({
   maxPublicBuildConfigurationEntries: 128,
   maxDataMockFixtures: 10_000,
   maxDataMockProvisionBytes: 16 * 1024 * 1024,
+  maxServerRuntimeMockProvisionBytes: 4 * 1024 * 1024,
 });
 
 export const EXECUTABLE_PROJECT_COMMANDS = Object.freeze([
@@ -39,11 +40,21 @@ export const EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH =
   'public/.prodivix/data-mock-provision.json';
 export const EXECUTABLE_PROJECT_DATA_RUNTIME_MANIFEST_PATH =
   'public/.prodivix/data-runtime.json';
+export const EXECUTABLE_PROJECT_SERVER_RUNTIME_MOCK_PROVISION_PATH =
+  'src/.prodivix/server-runtime-test-provision.ts';
+export const DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_INVOCATION_PATH =
+  '.prodivix/server-function-invocation.json';
+export const DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_RESULT_PATH =
+  '.prodivix/server-function-result.json';
+export const EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT =
+  'prodivix.executable-server-function-plan.v1' as const;
 
 export type ExecutableProjectDataRuntimeManifest = Readonly<{
   format: 'prodivix.executable-data-runtime.v1';
   mode: 'mock' | 'live';
 }>;
+
+export type ExecutableProjectServerRuntimeMockProvision = ExecutionValue;
 
 export type ExecutableProjectCommandName =
   (typeof EXECUTABLE_PROJECT_COMMANDS)[number];
@@ -76,7 +87,8 @@ export type ExecutableProjectDependencyPlanInput = Readonly<{
   lockFilePath?: string;
 }>;
 
-export type ExecutableProjectEntrypointKind = 'preview' | 'build' | 'test';
+export type ExecutableProjectEntrypointKind =
+  'preview' | 'build' | 'test' | 'production';
 
 export type ExecutableProjectEntrypoint = Readonly<{
   kind: ExecutableProjectEntrypointKind;
@@ -87,6 +99,14 @@ export type ExecutableProjectCapabilityRequirements = Readonly<{
   preview: readonly ExecutionProviderCapability[];
   build: readonly ExecutionProviderCapability[];
   test: readonly ExecutionProviderCapability[];
+  production: readonly ExecutionProviderCapability[];
+}>;
+
+export type ExecutableProjectCapabilityRequirementsInput = Readonly<{
+  preview: readonly ExecutionProviderCapability[];
+  build: readonly ExecutionProviderCapability[];
+  test: readonly ExecutionProviderCapability[];
+  production?: readonly ExecutionProviderCapability[];
 }>;
 
 export type ExecutableProjectPublicBuildConfigurationEntry = Readonly<{
@@ -202,6 +222,29 @@ export type ExecutableProjectPreviewPlanInput = Readonly<{
   entryFilePath?: string;
 }>;
 
+/** Derived one-shot plan. The runtime manifest is decoded by @prodivix/server-runtime. */
+export type ExecutableProjectServerFunctionPlan = Readonly<{
+  format: typeof EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT;
+  command: ExecutableProjectCommand;
+  invocationFilePath: string;
+  resultFilePath: string;
+  entrypointFilePath: string;
+  sourceFilePath: string;
+  functionRef: Readonly<{ artifactId: string; exportName: string }>;
+  runtimeManifest: ExecutionValue;
+}>;
+
+export type ExecutableProjectServerFunctionPlanInput = Readonly<{
+  format?: typeof EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT;
+  command: ExecutableProjectCommand;
+  invocationFilePath?: string;
+  resultFilePath?: string;
+  entrypointFilePath: string;
+  sourceFilePath: string;
+  functionRef: Readonly<{ artifactId: string; exportName: string }>;
+  runtimeManifest: ExecutionValue;
+}>;
+
 export type ExecutableProjectSnapshot = Readonly<{
   format: typeof EXECUTABLE_PROJECT_SNAPSHOT_FORMAT;
   workspace: ExecutionWorkspaceSnapshotRef;
@@ -215,12 +258,14 @@ export type ExecutableProjectSnapshot = Readonly<{
   resourceHints: ExecutableProjectResourceHints;
   cacheHints: ExecutableProjectCacheHints;
   dataMockProvision?: ExecutableProjectDataMockProvision;
+  serverRuntimeMockProvision?: ExecutableProjectServerRuntimeMockProvision;
   installCommand: ExecutableProjectCommand;
   previewCommand: ExecutableProjectCommand;
   buildCommand: ExecutableProjectCommand;
   previewPlan: ExecutableProjectPreviewPlan;
   buildPlan: ExecutableProjectBuildPlan;
   testPlan: ExecutableProjectTestPlan;
+  serverFunctionPlan?: ExecutableProjectServerFunctionPlan;
 }>;
 
 export type ExecutableProjectSnapshotInput = Readonly<{
@@ -229,15 +274,17 @@ export type ExecutableProjectSnapshotInput = Readonly<{
   files: readonly ExecutableProjectFile[];
   dependencyPlan: ExecutableProjectDependencyPlanInput;
   entrypoints: readonly ExecutableProjectEntrypoint[];
-  capabilityRequirements: ExecutableProjectCapabilityRequirements;
+  capabilityRequirements: ExecutableProjectCapabilityRequirementsInput;
   publicBuildConfiguration?: readonly ExecutableProjectPublicBuildConfigurationEntry[];
   resourceHints?: ExecutableProjectResourceHints;
   cacheHints?: ExecutableProjectCacheHints;
   dataMockProvision?: ExecutableProjectDataMockProvision;
+  serverRuntimeMockProvision?: ExecutableProjectServerRuntimeMockProvision;
   installCommand?: ExecutableProjectCommand;
   previewCommand?: ExecutableProjectCommand;
   buildCommand?: ExecutableProjectCommand;
   previewPlan?: ExecutableProjectPreviewPlanInput;
   buildPlan?: ExecutableProjectBuildPlanInput;
   testPlan?: ExecutableProjectTestPlanInput;
+  serverFunctionPlan?: ExecutableProjectServerFunctionPlanInput;
 }>;

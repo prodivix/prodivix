@@ -6,6 +6,8 @@ on:
     branches:
       - main
     paths:
+      - 'apps/backend/**'
+      - 'apps/remote-runner-control-plane/**'
       - 'apps/remote-runner-worker/**'
       - 'packages/**'
       - 'package.json'
@@ -17,6 +19,8 @@ on:
     branches:
       - main
     paths:
+      - 'apps/backend/**'
+      - 'apps/remote-runner-control-plane/**'
       - 'apps/remote-runner-worker/**'
       - 'packages/**'
       - 'package.json'
@@ -82,6 +86,15 @@ jobs:
           podman system migrate
           test "$(podman info --format '{{.Host.Security.Rootless}}')" = 'true'
           podman info --format json > rootless-podman-info.json
+
+      - name: Run isolated Server Function import graph contract Gate
+        run: pnpm run verify:g2:isolated-server-import-graph
+
+      - name: Run Auth and Server Runtime Golden target matrix
+        run: pnpm run verify:g2:auth-server-golden
+
+      - name: Run authenticated, permission, sealed Secret and worker-attempt recovery Gate
+        run: pnpm run verify:g2:isolated-server-secret-recovery
 
       - name: Run isolation Gate
         shell: bash

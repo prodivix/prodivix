@@ -14,7 +14,6 @@ import {
 import type { WorkspaceRouteManifest } from '@prodivix/router';
 import type { WorkspaceDocument } from '@prodivix/workspace';
 import type { ProjectFile } from '@/editor/features/resources/projectFileStore';
-import type { PublicResourceNode } from '@/editor/features/resources/publicTree';
 import { LIBRARY_CATALOG } from '@/editor/features/resources/externalLibraryManager/libraryCatalog';
 import { getBundledOfficialPlugin } from '@/plugins/platform/bundledOfficialPlugins';
 import {
@@ -25,9 +24,6 @@ import {
   buildI18nResourceValueFromWorkspace,
   getWorkspaceI18nResourceDocument,
 } from '@/editor/features/resources/workspaceI18nResources';
-import { decodeDataUrlToBytes } from './exportBinary';
-
-type PublicExportFile = PublicResourceNode & { path: string };
 type WorkspaceDocumentsById = Record<string, WorkspaceDocument>;
 
 const projectFileKindByKind: Record<ProjectFile['kind'], ExportFileKind> = {
@@ -60,19 +56,6 @@ const getProjectSourceTrace = (file: ProjectFile): ExportSourceTrace[] => [
     ...(file.templateId ? { artifactId: file.templateId } : {}),
   },
 ];
-
-const getPublicSourceTrace = (file: PublicExportFile): ExportSourceTrace[] => [
-  {
-    sourceRef: {
-      domain: 'asset',
-      id: file.id,
-      path: file.path,
-    },
-  },
-];
-
-const getPublicFileName = (path: string) =>
-  path.split('/').filter(Boolean).at(-1) ?? path;
 
 const sortJsonValue = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(sortJsonValue);
@@ -146,34 +129,6 @@ const toProjectFileContribution = (
     },
     sourceTrace: getProjectSourceTrace(file),
     origin: resolvedSource.origin,
-  };
-};
-
-const toPublicAssetContribution = (
-  file: PublicExportFile
-): ExportArtifactContribution => {
-  const resolvedSource = resolveWorkspaceDocumentExportSource({
-    label: file.path,
-  });
-  const binaryContents =
-    file.textContent == null && file.contentRef?.startsWith('data:')
-      ? decodeDataUrlToBytes(file.contentRef)
-      : null;
-  return {
-    id: `public-asset:${file.id}`,
-    kind: 'asset',
-    suggestedName: getPublicFileName(file.path),
-    mimeType: file.mime,
-    contents: file.textContent ?? binaryContents ?? undefined,
-    publicPath: file.path,
-    placement: {
-      deliveryPolicy: 'public',
-    },
-    sourceTrace: getPublicSourceTrace(file),
-    origin: {
-      ...resolvedSource.origin,
-      writePolicy: 'copy',
-    },
   };
 };
 
@@ -362,14 +317,12 @@ const createExternalLibraryConfigContribution = (
 export const createWorkspaceResourceExportContributions = (input: {
   workspaceDocumentsById: WorkspaceDocumentsById;
   projectFiles: ProjectFile[];
-  publicFiles: PublicExportFile[];
 }): ExportProgramContribution[] => [
   {
     artifacts: [
       ...input.projectFiles.map(toProjectFileContribution),
       ...createI18nFileContributions(input.workspaceDocumentsById),
       ...createExternalLibraryConfigContribution(input.workspaceDocumentsById),
-      ...input.publicFiles.map(toPublicAssetContribution),
     ],
     dependencies: createExternalLibraryDependencies(
       input.workspaceDocumentsById

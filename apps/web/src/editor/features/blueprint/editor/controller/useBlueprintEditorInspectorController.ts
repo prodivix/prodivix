@@ -24,6 +24,7 @@ import {
 } from '@prodivix/pir-react-renderer';
 import {
   composeRouteManifestWithModules,
+  findRouteNodeById,
   findRouteNodeParentInfo,
   flattenRouteManifest,
   validateRouteManifest,
@@ -35,16 +36,21 @@ import {
   createWorkspaceCollectionUpdateTransactionPlan,
   createWorkspaceDocumentAtPathCommand,
   createWorkspacePIRCollectionUnwrapTransactionPlan,
+  createWorkspaceOwnerGuardTransactionPlan,
+  createWorkspaceServerRuntimeBindingPlan,
   createWorkspacePIRElementBatchUpdateTransactionPlan,
   createWorkspacePIRElementUpdateTransactionPlan,
   createWorkspacePirDataOperationTriggerTransactionPlan,
   createWorkspaceRouteIntentPlan,
   isWorkspaceCodeDocumentContent,
+  projectWorkspaceServerRuntimeAuthoring,
   selectWorkspaceAnimationDocumentResults,
   selectWorkspaceNodeGraphDocumentResults,
   selectWorkspacePirDocument,
   type WorkspaceDocument,
   type WorkspaceRouteIntent,
+  type WorkspaceOwnerGuardTarget,
+  type WorkspaceServerRuntimeRouteSlot,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import { createBrowserAnimationIdFactory } from '@prodivix/runtime-browser';
@@ -635,6 +641,24 @@ export const useBlueprintEditorInspectorController = ({
     routeManifest,
     workspace.docsById,
   ]);
+  const serverRuntimeAuthoring = useMemo(
+    () => projectWorkspaceServerRuntimeAuthoring(workspace),
+    [workspace]
+  );
+  const serverRuntimeIssues = useMemo(
+    () =>
+      activeRouteDetails
+        ? serverRuntimeAuthoring.issues.filter(
+            ({ routeNodeId }) => routeNodeId === activeRouteDetails.id
+          )
+        : [],
+    [activeRouteDetails, serverRuntimeAuthoring.issues]
+  );
+  const serverRuntimeWriteAvailable = Boolean(
+    activeRouteDetails &&
+    !workspaceReadonly &&
+    findRouteNodeById(routeManifest.root, activeRouteDetails.id)
+  );
 
   const persistRouteIntent = useCallback(
     (intent: WorkspaceRouteIntent) => {
@@ -651,6 +675,83 @@ export const useBlueprintEditorInspectorController = ({
       void dispatchOperation(plan);
     },
     [dispatchOperation, report, workspace]
+  );
+  const setServerRuntimeBinding = useCallback(
+    (
+      slot: WorkspaceServerRuntimeRouteSlot,
+      candidateKey: string | undefined
+    ) => {
+      if (!activeRouteDetails || workspaceReadonly) return;
+      const current = useEditorStore.getState().workspace;
+      const source = current?.id === workspace.id ? current : workspace;
+      const candidate = candidateKey
+        ? projectWorkspaceServerRuntimeAuthoring(source).candidates.find(
+            ({ key }) => key === candidateKey
+          )
+        : undefined;
+      if (candidateKey && !candidate) {
+        report('The selected Server Function is no longer available.');
+        return;
+      }
+      const plan = createWorkspaceServerRuntimeBindingPlan({
+        workspace: source,
+        routeNodeId: activeRouteDetails.id,
+        slot,
+        ...(candidate ? { reference: candidate.reference } : {}),
+        operationId: createWorkspaceClientOperationId('server-runtime-binding'),
+        issuedAt: new Date().toISOString(),
+      });
+      if (plan.status === 'rejected') {
+        report(plan.message);
+        return;
+      }
+      if (plan.status === 'ready') void dispatchOperation(plan.plan);
+    },
+    [
+      activeRouteDetails,
+      dispatchOperation,
+      report,
+      workspace,
+      workspaceReadonly,
+    ]
+  );
+  const createWorkspaceOwnerGuard = useCallback(
+    (target: WorkspaceOwnerGuardTarget) => {
+      if (!activeRouteDetails || workspaceReadonly) return;
+      const current = useEditorStore.getState().workspace;
+      const source = current?.id === workspace.id ? current : workspace;
+      const transactionId =
+        createWorkspaceClientOperationId('server-owner-guard');
+      const documentId = createWorkspaceClientOperationId(
+        'server-owner-guard-artifact'
+      );
+      const targetSlug =
+        target === 'remote-live' ? 'remote-owner' : 'isolated-owner';
+      const result = createWorkspaceOwnerGuardTransactionPlan({
+        workspace: source,
+        routeNodeId: activeRouteDetails.id,
+        target,
+        documentId,
+        path: `/server/${targetSlug}-${documentId.slice(0, 8)}.guard.server.ts`,
+        transactionId,
+        issuedAt: new Date().toISOString(),
+      });
+      if (result.status === 'rejected') {
+        report(result.message);
+        return;
+      }
+      void dispatchOperation({
+        kind: 'transaction',
+        transaction: result.plan.transaction,
+      });
+    },
+    [
+      activeRouteDetails,
+      dispatchOperation,
+      report,
+      workspace,
+      workspaceReadonly,
+    ]
   );
   const outletRouteNodeId =
     selectedNode?.type === 'PdxOutlet'
@@ -1268,6 +1369,14 @@ export const useBlueprintEditorInspectorController = ({
       triggerEntries,
       graphOptions,
       dataMutationOptions,
+      serverRuntimeCandidates: serverRuntimeAuthoring.candidates,
+      serverRuntimeIssues,
+      serverRuntimeWriteAvailable,
+      setServerRuntimeBinding,
+      createWorkspaceOwnerGuard,
+      openServerRuntimeArtifact: (artifactId) => {
+        navigateToCodeArtifact(artifactId);
+      },
     }),
     [
       SelectedIconComponent,
@@ -1283,6 +1392,7 @@ export const useBlueprintEditorInspectorController = ({
       expandedPanels,
       graphOptions,
       dataMutationOptions,
+      createWorkspaceOwnerGuard,
       hasAnimationDefinition,
       hasOnClickTrigger,
       isAnimationMounted,
@@ -1298,6 +1408,7 @@ export const useBlueprintEditorInspectorController = ({
       mountedCssEntries,
       openMountedCssEditor,
       openAnimationEditor,
+      navigateToCodeArtifact,
       outletRouteNodeId,
       openControlledCode,
       persistRouteIntent,
@@ -1310,6 +1421,10 @@ export const useBlueprintEditorInspectorController = ({
       selectedIconRef,
       selectedNode,
       selectedParentNode,
+      serverRuntimeAuthoring.candidates,
+      serverRuntimeIssues,
+      serverRuntimeWriteAvailable,
+      setServerRuntimeBinding,
       selection,
       targetPropKey,
       titlePropKey,

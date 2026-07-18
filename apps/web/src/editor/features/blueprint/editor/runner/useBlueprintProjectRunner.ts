@@ -5,7 +5,10 @@ import {
   type ExecutionJobStatus,
 } from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
-import type { ExecutionFilesystemArtifactReference } from '@/editor/features/execution';
+import {
+  materializeWorkspaceBinaryAssets,
+  type ExecutionFilesystemArtifactReference,
+} from '@/editor/features/execution';
 import { createBlueprintProjectRunPlan } from './blueprintProjectRunPlan';
 import {
   acquireBlueprintProjectRunner,
@@ -69,7 +72,19 @@ export const useBlueprintProjectRunner = (
     }));
 
     void Promise.resolve()
-      .then(() => createBlueprintProjectRunPlan(activeWorkspace, provider))
+      .then(() =>
+        materializeWorkspaceBinaryAssets({
+          workspace: activeWorkspace,
+          token: accessToken,
+        })
+      )
+      .then((assetMaterializations) =>
+        createBlueprintProjectRunPlan(
+          activeWorkspace,
+          provider,
+          assetMaterializations
+        )
+      )
       .then(async (plan) => {
         if (!active) return;
         if (plan.status === 'blocked') {

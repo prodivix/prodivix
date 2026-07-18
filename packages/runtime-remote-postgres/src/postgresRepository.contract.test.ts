@@ -25,4 +25,16 @@ describe('remote execution PostgreSQL contract', () => {
       'idx_remote_executions_expired_lease'
     );
   });
+
+  it('stores server authority outside request and snapshot JSON with bounded expiry', () => {
+    expect(REMOTE_EXECUTION_POSTGRES_MIGRATION).toContain(
+      'remote_execution_server_authorities'
+    );
+    expect(REMOTE_EXECUTION_POSTGRES_MIGRATION).toContain(
+      'idx_remote_execution_server_authority_expiry'
+    );
+    expect(REMOTE_EXECUTION_POSTGRES_MIGRATION).toContain(
+      'execution_id TEXT PRIMARY KEY REFERENCES remote_executions(execution_id) ON DELETE CASCADE'
+    );
+  });
 });

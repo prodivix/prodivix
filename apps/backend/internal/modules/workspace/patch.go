@@ -51,7 +51,7 @@ func validateWorkspaceDataSourcePatchPath(path string) error {
 }
 
 func validateWorkspaceAssetPatchPath(path string) error {
-	return validateWorkspaceDocumentRootPath(path, "mime", "category", "size", "dataUrl", "text", "metadata")
+	return validateWorkspaceDocumentRootPath(path, "mime", "category", "size", "blob", "metadata")
 }
 
 func validateWorkspaceProjectConfigPatchPath(path string) error {

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CompileDiagnostic } from '@prodivix/prodivix-compiler';
 import type { ExecutionJobStatus } from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import { useAuthStore } from '@/auth/useAuthStore';
 import {
   executionSessionCoordinator,
+  materializeWorkspaceBinaryAssets,
   useExecutionSession,
 } from '@/editor/features/execution';
 import { createProjectTestExecutionPlan } from './projectTestExecutionPlan';
@@ -20,6 +22,7 @@ export type ProjectTestRunnerStatus =
 export const useProjectTestRunner = (
   workspace: WorkspaceSnapshot | undefined
 ) => {
+  const token = useAuthStore((state) => state.token);
   const sessionId = getProjectTestExecutionSessionId(
     workspace?.id ?? 'unavailable'
   );
@@ -63,9 +66,13 @@ export const useProjectTestRunner = (
     setPreflightDiagnostics(Object.freeze([]));
     setPreflightMessage(undefined);
     try {
-      const plan = await Promise.resolve().then(() =>
-        createProjectTestExecutionPlan(workspace)
-      );
+      const assetMaterializations = await materializeWorkspaceBinaryAssets({
+        workspace,
+        token,
+      });
+      const plan = createProjectTestExecutionPlan(workspace, {
+        assetMaterializations,
+      });
       if (plan.status === 'blocked') {
         await stopProjectTests('Workspace test compilation was blocked.');
         setPreflightStatus('blocked');
@@ -84,7 +91,7 @@ export const useProjectTestRunner = (
         error instanceof Error ? error.message : String(error)
       );
     }
-  }, [workspace]);
+  }, [token, workspace]);
 
   const stop = useCallback(async () => {
     await executionSessionCoordinator.cancel(sessionId, {

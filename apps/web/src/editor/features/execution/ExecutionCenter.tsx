@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Copy,
   ExternalLink,
+  LocateFixed,
   RefreshCcw,
   RotateCw,
   Square,
@@ -30,6 +31,12 @@ import {
   type ExecutionConsoleFilter,
 } from './executionConsoleModel';
 import { createExecutionNetworkEntries } from './executionNetworkModel';
+import {
+  createExecutionServerFunctionEntries,
+  type ExecutionServerFunctionEntry,
+  type ExecutionServerFunctionSourceNavigationInput,
+  type ExecutionServerFunctionSourceNavigationResult,
+} from './executionServerFunctionModel';
 import { useExecutionSession } from './useExecutionSession';
 import { useExecutionFilesystemChanges } from './useExecutionFilesystemChanges';
 import { useRemoteExecutionTerminal } from './useRemoteExecutionTerminal';
@@ -48,6 +55,9 @@ type ExecutionCenterProps = Readonly<{
   onStop?(): void;
   onReloadPreview?(): void;
   onOpenPreview?(): void;
+  onOpenSourceTrace?(
+    input: ExecutionServerFunctionSourceNavigationInput
+  ): ExecutionServerFunctionSourceNavigationResult;
 }>;
 
 export type ExecutionCenterStatus =
@@ -99,17 +109,27 @@ export function ExecutionCenter({
   onStop,
   onReloadPreview,
   onOpenPreview,
+  onOpenSourceTrace,
 }: ExecutionCenterProps) {
   const { t } = useTranslation('editor');
   const session = useExecutionSession(sessionId);
   const [collapsed, setCollapsed] = useState(false);
   const [surface, setSurface] = useState<
-    'console' | 'terminal' | 'network' | 'files'
+    'console' | 'terminal' | 'network' | 'server' | 'files'
   >('console');
   const [filter, setFilter] = useState<ExecutionConsoleFilter>('all');
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(
     'idle'
   );
+  const [sourceNavigationFailure, setSourceNavigationFailure] = useState<
+    Readonly<{
+      entryId: string;
+      reason: Extract<
+        ExecutionServerFunctionSourceNavigationResult,
+        { status: 'unavailable' }
+      >['reason'];
+    }>
+  >();
   const [terminalInput, setTerminalInput] = useState('');
   const outputRef = useRef<HTMLDivElement | null>(null);
   const effectiveStatus = status ?? session?.status ?? 'idle';
@@ -125,6 +145,10 @@ export function ExecutionCenter({
   );
   const networkEntries = useMemo(
     () => createExecutionNetworkEntries(session),
+    [session]
+  );
+  const serverFunctionEntries = useMemo(
+    () => createExecutionServerFunctionEntries(session),
     [session]
   );
   const terminalAvailability = useMemo(
@@ -178,6 +202,7 @@ export function ExecutionCenter({
     lines.length,
     filesystem.entries.length,
     networkEntries.length,
+    serverFunctionEntries.length,
     surface,
     terminal.view.records.length,
   ]);
@@ -238,6 +263,34 @@ export function ExecutionCenter({
     const accepted = await terminal.send(`${terminalInput}\n`);
     if (accepted) setTerminalInput('');
   };
+
+  const openServerFunctionSource = (entry: ExecutionServerFunctionEntry) => {
+    if (!onOpenSourceTrace || !entry.primarySourceTrace) return;
+    let result: ExecutionServerFunctionSourceNavigationResult;
+    try {
+      result = onOpenSourceTrace({
+        jobId: entry.jobId,
+        providerId: entry.providerId,
+        snapshotId: entry.snapshotId,
+        sourceTrace: entry.primarySourceTrace,
+      });
+    } catch {
+      result = { status: 'unavailable', reason: 'source-unavailable' };
+    }
+    setSourceNavigationFailure(
+      result.status === 'unavailable'
+        ? { entryId: entry.id, reason: result.reason }
+        : undefined
+    );
+  };
+
+  const visibleSourceNavigationFailure =
+    sourceNavigationFailure &&
+    serverFunctionEntries.some(
+      (entry) => entry.id === sourceNavigationFailure.entryId
+    )
+      ? sourceNavigationFailure.reason
+      : undefined;
 
   const recoveryMessage =
     effectiveStatus === 'cancelling' || recovery.status === 'waiting'
@@ -353,6 +406,7 @@ export function ExecutionCenter({
             onClick={() => void copyOutput()}
             disabled={
               surface === 'network' ||
+              surface === 'server' ||
               surface === 'files' ||
               (surface === 'console' && !lines.length) ||
               (surface === 'terminal' &&
@@ -391,19 +445,19 @@ export function ExecutionCenter({
       {!collapsed ? (
         <>
           <div className="flex h-8 shrink-0 items-center gap-1 border-b border-(--border-subtle) px-3">
-            {(['console', 'terminal', 'network', 'files'] as const).map(
-              (value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`rounded-md px-2 py-1 text-[10px] ${surface === value ? 'bg-(--bg-raised) text-(--text-primary)' : 'text-(--text-muted) hover:text-(--text-primary)'}`}
-                  aria-pressed={surface === value}
-                  onClick={() => setSurface(value)}
-                >
-                  {t(`execution.surface.${value}`)}
-                </button>
-              )
-            )}
+            {(
+              ['console', 'terminal', 'network', 'server', 'files'] as const
+            ).map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={`rounded-md px-2 py-1 text-[10px] ${surface === value ? 'bg-(--bg-raised) text-(--text-primary)' : 'text-(--text-muted) hover:text-(--text-primary)'}`}
+                aria-pressed={surface === value}
+                onClick={() => setSurface(value)}
+              >
+                {t(`execution.surface.${value}`)}
+              </button>
+            ))}
             {surface === 'console'
               ? (['all', 'errors', 'application', 'system'] as const).map(
                   (value) => (
@@ -435,7 +489,9 @@ export function ExecutionCenter({
                       ? lines.length
                       : surface === 'network'
                         ? networkEntries.length
-                        : filesystem.entries.length,
+                        : surface === 'server'
+                          ? serverFunctionEntries.length
+                          : filesystem.entries.length,
                 })}
               </span>
             )}
@@ -630,6 +686,66 @@ export function ExecutionCenter({
                   </button>
                 </form>
               </div>
+            ) : surface === 'server' && serverFunctionEntries.length ? (
+              <div className="space-y-1">
+                {visibleSourceNavigationFailure ? (
+                  <div
+                    role="status"
+                    className="text-[10px] text-(--warning-color)"
+                  >
+                    {t(
+                      visibleSourceNavigationFailure === 'snapshot-stale'
+                        ? 'execution.sourceNavigation.snapshotStale'
+                        : 'execution.sourceNavigation.sourceUnavailable'
+                    )}
+                  </div>
+                ) : null}
+                {serverFunctionEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="grid grid-cols-[minmax(180px,1fr)_56px_96px_64px_28px] gap-2 py-0.5"
+                  >
+                    <span
+                      className="truncate text-(--text-secondary)"
+                      title={`${entry.trace.functionRef.artifactId}#${entry.trace.functionRef.exportName}`}
+                    >
+                      {entry.trace.functionRef.artifactId}#
+                      {entry.trace.functionRef.exportName}
+                    </span>
+                    <span className="text-(--text-muted)">
+                      #{entry.trace.attempt}
+                    </span>
+                    <span
+                      className={
+                        entry.trace.outcome === 'succeeded'
+                          ? 'truncate text-(--text-secondary)'
+                          : 'truncate text-(--danger-color)'
+                      }
+                      title={entry.trace.outcome}
+                    >
+                      {entry.trace.resultKind ??
+                        entry.trace.errorCode ??
+                        entry.trace.outcome}
+                    </span>
+                    <span className="text-right text-(--text-muted)">
+                      {entry.trace.durationMs} ms
+                    </span>
+                    {entry.primarySourceTrace && onOpenSourceTrace ? (
+                      <button
+                        type="button"
+                        className={iconButtonClass}
+                        onClick={() => openServerFunctionSource(entry)}
+                        title={t('execution.openSource')}
+                        aria-label={t('execution.openSource')}
+                      >
+                        <LocateFixed size={13} />
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : surface === 'files' ? (
               <ExecutionFilesystemChangesPanel controller={filesystem} />
             ) : surface === 'network' && networkEntries.length ? (
@@ -668,7 +784,9 @@ export function ExecutionCenter({
                 {t(
                   surface === 'console'
                     ? 'execution.empty'
-                    : 'execution.networkEmpty'
+                    : surface === 'server'
+                      ? 'execution.serverEmpty'
+                      : 'execution.networkEmpty'
                 )}
               </div>
             )}

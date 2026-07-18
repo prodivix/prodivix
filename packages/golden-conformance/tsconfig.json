@@ -11,6 +11,7 @@
     { "path": "../runtime-core" },
     { "path": "../runtime-vitest" },
     { "path": "../runtime-remote" },
-    { "path": "../runtime-browser" }
+    { "path": "../runtime-browser" },
+    { "path": "../server-runtime" }
   ]
 }

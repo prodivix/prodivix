@@ -3,6 +3,7 @@ import {
   decodeShaderCompileProfile,
   type CodeArtifactLanguage,
 } from '@prodivix/authoring';
+import { decodeServerRuntimeProfile } from '@prodivix/server-runtime';
 import type { WorkspaceCodeDocumentContent } from './types';
 
 const CODE_ARTIFACT_LANGUAGES = new Set<CodeArtifactLanguage>([
@@ -43,6 +44,10 @@ export const isWorkspaceCodeDocumentContent = (
       record.metadata as Record<string, unknown> | undefined
     ).status !== 'invalid' &&
     decodeShaderCompileProfile(
+      record.metadata as Record<string, unknown> | undefined,
+      record.language as CodeArtifactLanguage
+    ).status !== 'invalid' &&
+    decodeServerRuntimeProfile(
       record.metadata as Record<string, unknown> | undefined,
       record.language as CodeArtifactLanguage
     ).status !== 'invalid'

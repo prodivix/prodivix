@@ -8,6 +8,7 @@ import {
   Library,
   Boxes,
   Palette,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   decodeDtcgDesignTokenDocument,
@@ -30,6 +31,7 @@ export type SectionId =
   | 'overview'
   | 'components'
   | 'tokens'
+  | 'auth'
   | 'public'
   | 'code'
   | 'i18n'
@@ -45,6 +47,7 @@ export const sectionMetas: SectionMeta[] = [
   { id: 'overview', icon: LayoutDashboard },
   { id: 'components', icon: Boxes },
   { id: 'tokens', icon: Palette },
+  { id: 'auth', icon: ShieldCheck },
   { id: 'public', icon: FileArchive },
   { id: 'code', icon: FileCode2 },
   { id: 'i18n', icon: Globe2 },

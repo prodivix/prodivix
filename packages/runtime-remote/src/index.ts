@@ -48,12 +48,15 @@ export {
   createRemoteBuildExecutionProvider,
   createRemoteExecutionProvider,
   createRemotePreviewExecutionProvider,
+  createRemoteServerFunctionExecutionProvider,
   createRemoteTestExecutionProvider,
   REMOTE_BUILD_EXECUTION_PROVIDER_ID,
   REMOTE_PREVIEW_EXECUTION_PROVIDER_ID,
+  REMOTE_SERVER_FUNCTION_EXECUTION_PROVIDER_ID,
   REMOTE_TEST_EXECUTION_PROVIDER_ID,
   remoteBuildExecutionProviderDescriptor,
   remotePreviewExecutionProviderDescriptor,
+  remoteServerFunctionExecutionProviderDescriptor,
   remoteTestExecutionProviderDescriptor,
 } from './remoteExecutionProvider';
 export {
@@ -127,6 +130,29 @@ export type {
   RemoteExecutionStoredSnapshot,
   RemoteExecutionWorkerEvent,
 } from './remoteExecutionControlPlane.types';
+export {
+  createRemoteExecutionServerAuthorityLease,
+  readRemoteExecutionServerAuthority,
+  readRemoteExecutionServerAuthorityLease,
+  REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT,
+  REMOTE_EXECUTION_SERVER_AUTHORITY_LEASE_FORMAT,
+  REMOTE_EXECUTION_SERVER_AUTHORITY_LIMITS,
+} from './remoteExecutionServerAuthority';
+export type {
+  RemoteExecutionServerAuthority,
+  RemoteExecutionServerAuthorityLease,
+} from './remoteExecutionServerAuthority';
+export {
+  readRemoteExecutionSecretEnvelope,
+  remoteExecutionSecretEnvelopeAssociatedData,
+  REMOTE_EXECUTION_SECRET_ENVELOPE_ALGORITHM,
+  REMOTE_EXECUTION_SECRET_ENVELOPE_FORMAT,
+  REMOTE_EXECUTION_SECRET_ENVELOPE_LIMITS,
+} from './remoteExecutionSecretEnvelope';
+export type {
+  RemoteExecutionSecretEnvelope,
+  RemoteExecutionSecretEnvelopeIdentity,
+} from './remoteExecutionSecretEnvelope';
 export type {
   CreateRemoteExecutionClientOptions,
   RemoteExecutionRetryPolicy,

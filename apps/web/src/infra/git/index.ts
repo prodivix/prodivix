@@ -13,3 +13,10 @@ export {
   type BrowserGitPushOptions,
   type BrowserGitRepositoryOptions,
 } from './browserGitClient';
+export {
+  applyBrowserGitAssetProjection,
+  type BrowserGitAssetProjectionApplyResult,
+  type BrowserGitAssetProjectionClient,
+  type BrowserGitLfsObjectUploader,
+  type BrowserGitLfsUploadReceipt,
+} from './browserGitAssetProjection';

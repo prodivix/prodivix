@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TestCORSAllowsRemoteTerminalTokenPreflight(t *testing.T) {
+func TestCORSAllowsRemoteCapabilityHeadersPreflight(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(CORS([]string{"https://studio.example.com"}))
@@ -26,7 +26,7 @@ func TestCORSAllowsRemoteTerminalTokenPreflight(t *testing.T) {
 	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
 	request.Header.Set(
 		"Access-Control-Request-Headers",
-		"authorization,content-type,x-prodivix-terminal-token",
+		"authorization,content-type,x-prodivix-terminal-token,x-prodivix-server-function-intent",
 	)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
@@ -39,5 +39,8 @@ func TestCORSAllowsRemoteTerminalTokenPreflight(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(response.Header().Get("Access-Control-Allow-Headers")), "x-prodivix-terminal-token") {
 		t.Fatalf("terminal token header missing from CORS allowlist: %q", response.Header().Get("Access-Control-Allow-Headers"))
+	}
+	if !strings.Contains(strings.ToLower(response.Header().Get("Access-Control-Allow-Headers")), "x-prodivix-server-function-intent") {
+		t.Fatalf("Server Function mutation intent header missing from CORS allowlist: %q", response.Header().Get("Access-Control-Allow-Headers"))
 	}
 }

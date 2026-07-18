@@ -42,8 +42,13 @@ const editorBrowserStorageAllowlist = new Set([
   'apps/web/src/editor/store/useSettingsStore.ts',
 ]);
 
-const editorIndexedDbAllowlist = [
+const editorIndexedDbExactAllowlist = new Set([
   'apps/web/src/editor/localProjectStore.ts',
+  // Content-addressed exact bytes only; canonical authoring state keeps references.
+  'apps/web/src/editor/localWorkspaceAssetBlobStore.ts',
+]);
+
+const editorIndexedDbPrefixAllowlist = [
   'apps/web/src/editor/workspaceSync/indexedDb',
 ];
 
@@ -152,7 +157,8 @@ for (const path of trackedFiles) {
   if (
     path.startsWith('apps/web/src/editor/') &&
     /\b(?:indexedDB|indexedDb)\b/.test(source) &&
-    !editorIndexedDbAllowlist.some((prefix) => path.startsWith(prefix))
+    !editorIndexedDbExactAllowlist.has(path) &&
+    !editorIndexedDbPrefixAllowlist.some((prefix) => path.startsWith(prefix))
   ) {
     issues.push(
       `${path} creates an unaudited persistent editor mirror outside local project or Workspace Outbox/replica adapters.`

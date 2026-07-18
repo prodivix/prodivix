@@ -8,6 +8,7 @@
     "stop": "Stop execution",
     "reloadPreview": "Reload preview",
     "openPreview": "Open preview in a new tab",
+    "openSource": "Open Server Function source",
     "clear": "Clear console",
     "copy": "Copy safe console output",
     "copyFailed": "Copy failed",
@@ -16,11 +17,17 @@
     "truncated": "truncated",
     "empty": "No execution output yet.",
     "networkEmpty": "No sanitized network traces yet.",
+    "serverEmpty": "No sanitized Server Function invocations yet.",
+    "sourceNavigation": {
+      "snapshotStale": "The invocation belongs to an older Workspace snapshot. Run it again before opening source.",
+      "sourceUnavailable": "The exact Server Function source is unavailable in this Workspace."
+    },
     "eventCount": "{{count}} events",
     "surface": {
       "console": "Console",
       "terminal": "Terminal",
       "network": "Network",
+      "server": "Server",
       "files": "Files"
     },
     "files": {
@@ -43,6 +50,10 @@
         "modified": "Modified",
         "deleted": "Deleted"
       },
+      "documentType": {
+        "code": "CodeArtifact",
+        "asset": "Asset"
+      },
       "reason": {
         "incomplete-capture": "Capture is incomplete",
         "workspace-mismatch": "Different Workspace",
@@ -53,15 +64,18 @@
         "unexpected-source-trace": "Unexpected source owner for a new file",
         "ambiguous-source-trace": "Multiple source owners",
         "partial-source-trace": "Partial generated source",
-        "unsupported-source-owner": "Not a CodeArtifact",
-        "unsupported-code-path": "File extension is not a supported CodeArtifact",
+        "unsupported-source-owner": "Not a supported CodeArtifact or Asset",
+        "unsupported-code-path": "File extension is not a supported CodeArtifact or binary Asset",
         "path-conflict": "Workspace path is already occupied",
         "document-id-conflict": "Generated document identity is already occupied",
         "missing-code-document": "Code document is missing",
+        "missing-asset-document": "Asset document is missing",
         "stale-content-revision": "Content revision changed",
         "stale-meta-revision": "Metadata revision changed",
         "baseline-drift": "Baseline no longer matches",
-        "binary-content": "Not whole-file UTF-8 code",
+        "binary-content": "Not supported whole-file UTF-8 code or a recognized binary Asset",
+        "asset-media-mismatch": "Bytes do not match the Asset media type",
+        "asset-deletion-unsupported": "Runtime Asset deletion requires an explicit Resources delete flow",
         "active-code-artifact": "Detach active CodeSlot bindings before deletion",
         "controlled-code-artifact": "Detach the controlled PIR projection before deletion",
         "lifecycle-unavailable": "CodeArtifact lifecycle could not be resolved",
@@ -1324,6 +1338,7 @@
       "overview": "Overview",
       "components": "Components",
       "tokens": "Tokens",
+      "auth": "Auth & Server",
       "public": "Public",
       "code": "Code files",
       "i18n": "i18n",
@@ -1481,6 +1496,42 @@
         "created": "The design system documents were created atomically.",
         "tokenCreated": "The token document was created.",
         "createFailed": "Could not create the token document."
+      }
+    },
+    "auth": {
+      "header": {
+        "badge": "Server authority",
+        "title": "Auth & Server Runtime",
+        "description": "Declare the product Auth provider and permission catalog used by protected Server Functions. This Workspace document stores references only—never sessions, tokens, cookies, or secrets."
+      },
+      "provider": {
+        "badge": "Auth provider",
+        "productSession": "Prodivix product session",
+        "description": "The current Remote and isolated-production first vertical resolves the signed-in product principal at its trusted gateway."
+      },
+      "permissions": {
+        "badge": "Permission catalog",
+        "workspaceOwner": "Allows protected workspace-owner guards to request an exact runtime permission decision.",
+        "referenceOnly": "A declaration is not a grant. The trusted runtime permission port still decides every invocation."
+      },
+      "bindings": {
+        "badge": "Route bindings",
+        "permission": "Requires {{permissionId}}",
+        "empty": "No canonical Route loader, action, or guard is bound to a Server Function."
+      },
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Not configured",
+        "ready": "Ready",
+        "blocked": "Blocked"
+      },
+      "actions": {
+        "enable": "Use product session",
+        "saving": "Saving…"
+      },
+      "feedback": {
+        "saved": "The Workspace accepted the reference-only Auth configuration operation.",
+        "unchanged": "The canonical Auth configuration is already current."
       }
     },
     "code": {
@@ -1892,6 +1943,16 @@
         "targetNode": "target node",
         "targetHint": "Binding target is managed in Blueprint Inspector.",
         "empty": "No mounted targets. Use Blueprint Inspector to mount components."
+      },
+      "serverRuntime": {
+        "title": "Auth & Server Runtime",
+        "description": "Bind canonical Server Functions to the active route without copying source or authority material.",
+        "openCode": "Edit code",
+        "unbound": "Not bound",
+        "unavailable": "Invalid or unavailable binding",
+        "createRemoteOwner": "Create Remote owner guard",
+        "createIsolatedOwner": "Create isolated owner guard",
+        "readonly": "This route is read-only or owned by a mounted Route module."
       },
       "track": {
         "title": "Track",

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiRequest } from '@/infra/api';
+import { ApiError, apiBinaryRequest, apiRequest } from '@/infra/api';
 
 describe('apiRequest', () => {
   afterEach(() => {
@@ -55,5 +55,37 @@ describe('apiRequest', () => {
       retryable: true,
       payload,
     });
+  });
+
+  it('returns exact binary bytes and the declared response media type', async () => {
+    const bytes = new Uint8Array([0, 255, 1, 2]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(bytes.buffer, {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        })
+      )
+    );
+
+    await expect(
+      apiBinaryRequest('/asset', { token: 'token' })
+    ).resolves.toEqual({ contents: bytes, mediaType: 'image/png' });
+    const request = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(new Headers(request?.headers).get('Authorization')).toBe(
+      'Bearer token'
+    );
+  });
+
+  it('rejects a binary response without an explicit media type', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(new ArrayBuffer(0)))
+    );
+
+    await expect(apiBinaryRequest('/asset')).rejects.toThrow(
+      'missing its media type'
+    );
   });
 });

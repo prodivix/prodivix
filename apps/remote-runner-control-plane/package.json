@@ -15,6 +15,7 @@
     "@prodivix/runtime-core": "workspace:*",
     "@prodivix/runtime-remote": "workspace:*",
     "@prodivix/runtime-remote-postgres": "workspace:*",
+    "@prodivix/server-runtime": "workspace:*",
     "pg": "^8.16.3"
   },
   "devDependencies": {

@@ -1,9 +1,10 @@
 import { execFile, spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import type {
   ExecutableProjectCommand,
   ExecutableProjectSnapshot,
+  ExecutionRequest,
 } from '@prodivix/runtime-core';
 import {
   createExecutionFilesystemDiff,
@@ -22,6 +23,17 @@ import {
   type ExecutionSourceTrace,
 } from '@prodivix/runtime-core';
 import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
+import {
+  ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
+  ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH,
+  ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  readIsolatedServerFunctionExecutionContext,
+  readIsolatedServerFunctionPlan,
+  readIsolatedServerFunctionSecretMaterial,
+  type IsolatedServerFunctionAuthority,
+  type IsolatedServerFunctionSecretMaterial,
+} from '@prodivix/server-runtime';
+import { createRemoteWorkerServerFunctionArtifact } from './serverFunctionArtifact';
 import type {
   RemoteWorkerSandbox,
   RemoteWorkerSandboxArtifact,
@@ -34,10 +46,11 @@ const execFileAsync = promisify(execFile);
 const stopRetryIntervalMs = 50;
 const stopEscalationMs = 5_000;
 const stopDeadlineMs = 10_000;
-const installCompleteMarker = 'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1';
+const installCompleteMarkerPrefix = 'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1';
 const continueExecutionToken = 'PRODIVIX_SANDBOX_CONTINUE_V1';
-const captureReadyMarker = 'PRODIVIX_SANDBOX_CAPTURE_READY_V1';
-const captureExecutionToken = 'PRODIVIX_SANDBOX_CAPTURE_V1';
+const executionPermissionFormat = 'prodivix.sandbox-execution-permission.v1';
+const captureReadyMarkerPrefix = 'PRODIVIX_SANDBOX_CAPTURE_READY_V1';
+const captureExecutionTokenPrefix = 'PRODIVIX_SANDBOX_CAPTURE_V1';
 
 const podmanProcessEnvironment = (): NodeJS.ProcessEnv => ({
   PATH: process.env.PATH,
@@ -87,13 +100,17 @@ const positive = (value: number, label: string): number => {
 
 const profileCommand = (
   snapshot: ExecutableProjectSnapshot,
-  profile: 'preview' | 'test' | 'build'
-): ExecutableProjectCommand =>
-  profile === 'preview'
-    ? snapshot.previewPlan.command
-    : profile === 'test'
-      ? snapshot.testPlan.command
-      : snapshot.buildCommand;
+  profile: 'preview' | 'test' | 'build' | 'production'
+): ExecutableProjectCommand => {
+  if (profile === 'preview') return snapshot.previewPlan.command;
+  if (profile === 'test') return snapshot.testPlan.command;
+  if (profile === 'build') return snapshot.buildCommand;
+  if (!snapshot.serverFunctionPlan)
+    throw new TypeError(
+      'Production execution requires a Server Function plan.'
+    );
+  return snapshot.serverFunctionPlan.command;
+};
 
 const rootlessFromInfo = (value: unknown): boolean => {
   if (!value || typeof value !== 'object') return false;
@@ -206,22 +223,85 @@ const appendOutput = (
   if (accepted.byteLength < chunk.byteLength) output.truncated = true;
 };
 
-const payload = (
+export const createRootlessPodmanSandboxWirePayload = (
   snapshot: ExecutableProjectSnapshot,
-  profile: 'preview' | 'test' | 'build',
+  profile: 'preview' | 'test' | 'build' | 'production',
   maximumOutputBytes: number,
-  maximumArtifactBytes: number
+  maximumArtifactBytes: number,
+  request?: ExecutionRequest,
+  serverFunctionAuthority?: IsolatedServerFunctionAuthority,
+  serverFunctionSecrets?: IsolatedServerFunctionSecretMaterial
 ) => {
   const canonicalPaths = new Set(snapshot.files.map((file) => file.path));
   const runtimeFiles = projectExecutableProjectRuntimeFiles(snapshot, profile);
-  return JSON.stringify({
+  const serverFunctionExecution =
+    profile === 'production' && request
+      ? readIsolatedServerFunctionExecutionContext(
+          request,
+          snapshot.serverFunctionPlan,
+          serverFunctionAuthority
+        )
+      : undefined;
+  if (profile === 'production' && !serverFunctionExecution)
+    throw new TypeError(
+      'Production execution request is not a valid Server Function invocation.'
+    );
+  const isolatedPlan =
+    profile === 'production'
+      ? readIsolatedServerFunctionPlan(snapshot.serverFunctionPlan)
+      : undefined;
+  const secretPolicy = isolatedPlan?.definition.environment;
+  const secretMaterial = readIsolatedServerFunctionSecretMaterial(
+    serverFunctionSecrets
+  );
+  if (
+    profile !== 'production' &&
+    (serverFunctionAuthority !== undefined ||
+      serverFunctionSecrets !== undefined)
+  )
+    throw new TypeError(
+      'Server Function runtime projection requires production.'
+    );
+  if (Boolean(secretPolicy) !== Boolean(secretMaterial))
+    throw new TypeError('Production execution Secret projection is invalid.');
+  if (
+    secretPolicy &&
+    secretMaterial &&
+    JSON.stringify(Object.keys(secretMaterial.fields)) !==
+      JSON.stringify(Object.keys(secretPolicy.secretsByField).sort())
+  )
+    throw new TypeError('Production execution Secret projection is invalid.');
+  const secretFields = secretMaterial
+    ? Object.freeze(Object.keys(secretMaterial.fields))
+    : Object.freeze([] as string[]);
+  const controlNonce = randomBytes(32).toString('base64url');
+  const installCompleteMarker = `${installCompleteMarkerPrefix}:${controlNonce}`;
+  const captureReadyMarker = `${captureReadyMarkerPrefix}:${controlNonce}`;
+  const captureExecutionPermission = `${captureExecutionTokenPrefix}:${controlNonce}`;
+  const installPayload = JSON.stringify({
     profile,
+    controlNonce,
     snapshotDigest: snapshot.contentDigest,
     workspace: snapshot.workspace,
     target: snapshot.target,
     previewPlan: snapshot.previewPlan,
     buildPlan: snapshot.buildPlan,
     testPlan: { reportFilePath: snapshot.testPlan.reportFilePath },
+    ...(profile === 'production' && snapshot.serverFunctionPlan
+      ? {
+          serverFunctionPlan: {
+            invocationFilePath: snapshot.serverFunctionPlan.invocationFilePath,
+            resultFilePath: snapshot.serverFunctionPlan.resultFilePath,
+            authorityFilePath: ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
+            secretMaterialFilePath:
+              ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH,
+          },
+          serverFunctionRuntime: {
+            hasAuthority: Boolean(serverFunctionExecution?.authority),
+            secretFields,
+          },
+        }
+      : {}),
     maximumOutputBytes,
     maximumArtifactBytes,
     files: runtimeFiles.map((file) => ({
@@ -229,7 +309,17 @@ const payload = (
       contents: Buffer.from(file.contents).toString('base64'),
       capture: canonicalPaths.has(file.path),
     })),
-    ignoredPaths: [snapshot.testPlan.reportFilePath],
+    ignoredPaths: [
+      snapshot.testPlan.reportFilePath,
+      ...(snapshot.serverFunctionPlan
+        ? [
+            snapshot.serverFunctionPlan.invocationFilePath,
+            snapshot.serverFunctionPlan.resultFilePath,
+            ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
+            ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH,
+          ]
+        : []),
+    ],
     ignoredDirectories: [
       '.git',
       '.cache',
@@ -251,6 +341,27 @@ const payload = (
       command: profileCommand(snapshot, profile).command,
       args: [...(profileCommand(snapshot, profile).args ?? [])],
     },
+  });
+  const executionPermission = JSON.stringify({
+    format: executionPermissionFormat,
+    token: continueExecutionToken,
+    controlNonce,
+    ...(profile === 'production' && serverFunctionExecution
+      ? {
+          serverFunctionRequest: serverFunctionExecution.invocation,
+          ...(serverFunctionExecution.authority
+            ? { serverFunctionAuthority: serverFunctionExecution.authority }
+            : {}),
+          ...(secretMaterial ? { serverFunctionSecrets: secretMaterial } : {}),
+        }
+      : {}),
+  });
+  return Object.freeze({
+    installPayload,
+    executionPermission,
+    installCompleteMarker,
+    captureReadyMarker,
+    captureExecutionPermission,
   });
 };
 
@@ -778,7 +889,8 @@ const collectTestReportSourceTrace = (
 export const decodeRootlessPodmanSandboxResult = (
   value: string,
   snapshot: ExecutableProjectSnapshot,
-  profile: 'preview' | 'test' | 'build',
+  profile: 'preview' | 'test' | 'build' | 'production',
+  request: ExecutionRequest | undefined,
   completedAt: number,
   maximumOutputBytes: number,
   maximumArtifactBytes: number
@@ -830,6 +942,10 @@ export const decodeRootlessPodmanSandboxResult = (
         ? primaryArtifacts.length !== 1
         : primaryArtifacts.length > 1)) ||
     (profile === 'preview' &&
+      (record.exitCode === 0
+        ? primaryArtifacts.length !== 1
+        : primaryArtifacts.length !== 0)) ||
+    (profile === 'production' &&
       (record.exitCode === 0
         ? primaryArtifacts.length !== 1
         : primaryArtifacts.length !== 0))
@@ -893,6 +1009,32 @@ export const decodeRootlessPodmanSandboxResult = (
           complete: String(canonical.complete),
         });
         sourceTrace = canonical.sourceTrace;
+      } else if (
+        artifact.mediaType === ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE
+      ) {
+        if (profile !== 'production' || !request)
+          throw new TypeError(
+            'Sandbox Server Function artifact has the wrong profile.'
+          );
+        const canonical = createRemoteWorkerServerFunctionArtifact({
+          snapshot,
+          request,
+          contents,
+        });
+        if (
+          artifact.kind !== canonical.kind ||
+          artifact.artifactId !== canonical.artifactId
+        )
+          throw new TypeError(
+            'Sandbox Server Function artifact identity is invalid.'
+          );
+        publishedContents = canonical.contents;
+        publishedArtifactId = canonical.artifactId;
+        publishedKind = canonical.kind;
+        publishedLabel = canonical.label;
+        publishedMediaType = canonical.mediaType;
+        publishedMetadata = canonical.metadata ?? Object.freeze({});
+        sourceTrace = canonical.sourceTrace ?? Object.freeze([]);
       } else if (artifact.kind === 'bundle') {
         if (profile === 'preview') {
           const previewBundle = decodeExecutionPreviewBundle(contents);
@@ -1072,6 +1214,15 @@ export const createRootlessPodmanSandbox = (
         input.snapshot.resourceHints.diskMb ?? limits.maximumDiskMb,
         limits.maximumDiskMb
       );
+      const wirePayload = createRootlessPodmanSandboxWirePayload(
+        input.snapshot,
+        input.profile,
+        input.maximumOutputBytes,
+        limits.maximumArtifactBytes,
+        input.request,
+        input.serverFunctionAuthority,
+        input.serverFunctionSecrets
+      );
       const installTraceId = `install-${randomUUID()}`;
       if (installNetworkPolicy.mode === 'proxy-allowlist')
         await assertInstallProxyPolicy(podmanCommand, installNetworkPolicy);
@@ -1151,7 +1302,7 @@ export const createRootlessPodmanSandbox = (
           await terminalDisconnect?.();
           terminalDisconnect = undefined;
           if (!child.stdin.destroyed)
-            child.stdin.end(`${captureExecutionToken}\n`);
+            child.stdin.end(`${wirePayload.captureExecutionPermission}\n`);
         })();
         return captureTask;
       };
@@ -1201,21 +1352,33 @@ export const createRootlessPodmanSandbox = (
       child.stderr.on('data', (chunk: Buffer) => {
         appendOutput(output, 'stderr', chunk, maximumEnvelopeBytes);
         controlBuffer = `${controlBuffer}${chunk.toString('utf8')}`.slice(
-          -Math.max(installCompleteMarker.length, captureReadyMarker.length) * 4
+          -Math.max(
+            wirePayload.installCompleteMarker.length,
+            wirePayload.captureReadyMarker.length
+          ) * 4
         );
         if (
-          installNetworkPolicy.mode === 'proxy-allowlist' &&
           !phaseIsolationTask &&
-          controlBuffer.includes(installCompleteMarker)
+          controlBuffer.includes(wirePayload.installCompleteMarker)
         ) {
           phaseIsolationTask = (async () => {
             try {
-              await disconnectContainerNetwork(
-                podmanCommand,
-                installNetworkPolicy.networkName,
-                name
+              if (installNetworkPolicy.mode === 'proxy-allowlist')
+                await disconnectContainerNetwork(
+                  podmanCommand,
+                  installNetworkPolicy.networkName,
+                  name
+                );
+              if (child.stdin.destroyed)
+                throw new TypeError(
+                  'Sandbox execution permission transport is closed.'
+                );
+              await new Promise<void>((resolveWrite, rejectWrite) =>
+                child.stdin.write(
+                  `${wirePayload.executionPermission}\n`,
+                  (error) => (error ? rejectWrite(error) : resolveWrite())
+                )
               );
-              child.stdin.write(`${continueExecutionToken}\n`);
               await connectTerminal();
             } catch {
               phaseIsolationFailure = true;
@@ -1223,7 +1386,10 @@ export const createRootlessPodmanSandbox = (
             }
           })();
         }
-        if (!captureTask && controlBuffer.includes(captureReadyMarker))
+        if (
+          !captureTask &&
+          controlBuffer.includes(wirePayload.captureReadyMarker)
+        )
           void captureFilesystem().catch(() => {
             phaseIsolationFailure = true;
             stop();
@@ -1232,18 +1398,7 @@ export const createRootlessPodmanSandbox = (
       child.stdin.on('error', () => {
         // Podman can reject the invocation before the bounded payload finishes writing.
       });
-      child.stdin.write(
-        `${payload(
-          input.snapshot,
-          input.profile,
-          input.maximumOutputBytes,
-          limits.maximumArtifactBytes
-        )}\n`
-      );
-      if (installNetworkPolicy.mode === 'none')
-        child.stdin.write(`${continueExecutionToken}\n`);
-      if (installNetworkPolicy.mode === 'none')
-        terminalConnectionTask = connectTerminal();
+      child.stdin.write(`${wirePayload.installPayload}\n`);
       const exitCode = await new Promise<number>((resolveExit, rejectExit) => {
         child.once('error', (error) => {
           childClosed = true;
@@ -1304,6 +1459,7 @@ export const createRootlessPodmanSandbox = (
             output.stdout,
             input.snapshot,
             input.profile,
+            input.request,
             now(),
             input.maximumOutputBytes,
             limits.maximumArtifactBytes

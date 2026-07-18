@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import {
   createExecutableProjectSnapshot,
+  createExecutionRequest,
   decodeExecutionBuildBundle,
   decodeExecutionFilesystemDiff,
   decodeExecutionPreviewBundle,
@@ -11,15 +12,27 @@ import {
   EXECUTABLE_PROJECT_DATA_RUNTIME_MANIFEST_PATH,
   EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
+  EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
   readExecutionTestReportValue,
 } from '@prodivix/runtime-core';
 import { decodeRemoteExecutableProjectSnapshot } from '@prodivix/runtime-remote';
+import {
+  createIsolatedServerFunctionAuthority,
+  EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+  EXECUTION_SERVER_FUNCTION_BRIDGE_RESPONSE_TYPE,
+  ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
+  ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
+  ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH,
+  ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  readIsolatedServerFunctionExecutionResponse,
+} from '@prodivix/server-runtime';
 import {
   createRootlessPodmanSandbox,
   verifyRootlessPodmanEngine,
 } from '../src/rootlessPodmanSandbox';
 
 const execFileAsync = promisify(execFile);
+const rootlessSecretCanary = 'rootless-secret-material-canary';
 const podman = process.env.PRODIVIX_ROOTLESS_PODMAN_COMMAND ?? 'podman';
 const baseImage =
   process.env.PRODIVIX_ROOTLESS_BASE_IMAGE ??
@@ -160,6 +173,77 @@ fs.writeFileSync('/workspace/dist/index.html', '<main>Remote Terminal ready</mai
 await new Promise((resolve) => setTimeout(resolve, 5000));
 `;
 
+const isolatedServerFunctionSource = String.raw`
+import fs from 'node:fs';
+import Ajv2020 from 'ajv/dist/2020.js';
+const request = JSON.parse(fs.readFileSync('/workspace/.prodivix/server-function-invocation.json', 'utf8'));
+const authorityPath = '/workspace/.prodivix/server-function-authority.json';
+const authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
+fs.rmSync(authorityPath);
+const secretPath = '/workspace/.prodivix/server-function-secrets.json';
+const secretMaterial = JSON.parse(fs.readFileSync(secretPath, 'utf8'));
+fs.rmSync(secretPath);
+if (JSON.stringify(Object.keys(authority).sort()) !== JSON.stringify(['expiresAt', 'format', 'permissions', 'principal', 'snapshotId', 'workspaceId']) ||
+  JSON.stringify(Object.keys(authority.principal ?? {}).sort()) !== JSON.stringify(['principalId', 'providerId']) ||
+  authority.format !== 'prodivix.isolated-server-function-authority.v1' ||
+  authority.workspaceId !== 'workspace-gate-server-function' ||
+  authority.snapshotId !== 'snapshot-gate-server-function' ||
+  JSON.stringify(authority.permissions) !== JSON.stringify(['workspace.owner']) ||
+  authority.expiresAt <= Date.now())
+  throw new TypeError('Server Function Gate authority is invalid.');
+if (secretMaterial.format !== 'prodivix.isolated-server-function-secret-material.v1' ||
+  JSON.stringify(Object.keys(secretMaterial.fields ?? {})) !== JSON.stringify(['signingKey']) ||
+  typeof secretMaterial.fields.signingKey !== 'string' || !secretMaterial.fields.signingKey)
+  throw new TypeError('Server Function Gate Secret material is invalid.');
+const validateInput = new Ajv2020({ strict: true }).compile({
+  type: 'object', required: ['name'], properties: { name: { type: 'string' } }, additionalProperties: false,
+});
+if (!validateInput(request.input)) throw new TypeError('Server Function Gate input is invalid.');
+const { getGreeting } = await import('./function.mjs');
+const context = Object.freeze({
+  principal: authority.principal,
+  useSecret: async (field, consumer) => {
+    if (field !== 'signingKey' || typeof consumer !== 'function') throw new TypeError('Secret field is invalid.');
+    await consumer(secretMaterial.fields.signingKey);
+  },
+});
+const result = await getGreeting(request.input, context);
+if (JSON.stringify(result).includes(secretMaterial.fields.signingKey)) throw new TypeError('Secret output leak.');
+secretMaterial.fields.signingKey = '';
+fs.mkdirSync('/workspace/.prodivix', { recursive: true });
+fs.writeFileSync('/workspace/.prodivix/server-function-result.json', JSON.stringify({
+  type: 'prodivix.execution-server-function-gateway-response.v1',
+  requestId: request.requestId,
+  ok: true,
+  result,
+}));
+`;
+
+const isolatedServerFunctionInstallProbeSource = String.raw`
+import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
+for (const path of [
+  '/workspace/.prodivix/server-function-invocation.json',
+  '/workspace/.prodivix/server-function-authority.json',
+  '/workspace/.prodivix/server-function-secrets.json',
+]) {
+  if (fs.existsSync(path)) throw new TypeError('Runtime projection entered the install phase.');
+}
+const install = spawnSync('npm', [
+  'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false',
+], { cwd: '/workspace', env: process.env, stdio: 'inherit', shell: false });
+if (install.error) throw install.error;
+if (install.status === 0) {
+  fs.mkdirSync('/tmp/prodivix-install-trap', { recursive: true });
+  fs.writeFileSync(
+    '/tmp/prodivix-install-trap/server-function-secrets.json',
+    JSON.stringify({ poisonedByInstall: true })
+  );
+  fs.symlinkSync('/tmp/prodivix-install-trap', '/workspace/.prodivix', 'dir');
+}
+process.exit(install.status ?? 1);
+`;
+
 const snapshot = (
   executionId: string,
   source: string,
@@ -214,6 +298,184 @@ const snapshot = (
       reportFilePath: '.prodivix/test-report.json',
     },
   });
+
+const isolatedServerFunctionFixture = () => {
+  const functionRef = Object.freeze({
+    artifactId: 'code-rootless-greeting',
+    exportName: 'getGreeting',
+  });
+  const serverFunctionSnapshot = createExecutableProjectSnapshot({
+    workspace: {
+      workspaceId: 'workspace-gate-server-function',
+      snapshotId: 'snapshot-gate-server-function',
+      partitionRevisions: { workspace: '1' },
+    },
+    target: {
+      presetId: 'isolated-server-function',
+      framework: 'typescript',
+      runtime: 'node',
+    },
+    files: [
+      {
+        path: 'package.json',
+        contents:
+          '{"private":true,"type":"module","dependencies":{"ajv":"8.20.0"}}',
+      },
+      {
+        path: 'src/.prodivix/server-runtime/invoke.mjs',
+        contents: isolatedServerFunctionSource,
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: functionRef.artifactId,
+            },
+          },
+        ],
+      },
+      {
+        path: 'src/.prodivix/server-runtime/function.mjs',
+        contents:
+          "import { formatGreeting } from './modules/module-001.mjs';\nexport const getGreeting = async (input, context) => { let secretLength = 0; await context.useSecret('signingKey', (material) => { secretLength = material.length; }); return { kind: 'value', value: { greeting: formatGreeting(input.name) + ' ' + context.principal.principalId, secretLength } }; };\n",
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: functionRef.artifactId,
+            },
+          },
+        ],
+      },
+      {
+        path: 'src/.prodivix/server-runtime/modules/module-001.mjs',
+        contents: "export const formatGreeting = (name) => 'Hello ' + name;\n",
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: 'code-rootless-greeting-helper',
+            },
+          },
+        ],
+      },
+      {
+        path: 'scripts/install-phase-probe.mjs',
+        contents: isolatedServerFunctionInstallProbeSource,
+      },
+    ],
+    dependencyPlan: { manifestFilePath: 'package.json' },
+    entrypoints: [
+      {
+        kind: 'production',
+        path: 'src/.prodivix/server-runtime/invoke.mjs',
+      },
+    ],
+    capabilityRequirements: {
+      preview: [],
+      build: [],
+      test: [],
+      production: [
+        'artifacts',
+        'cancellation',
+        'dependency-install',
+        'filesystem',
+        'environment-binding',
+        'server-function',
+        'source-trace',
+        'streaming-logs',
+        'timeout',
+      ],
+    },
+    cacheHints: { dependencyInstall: 'isolated' },
+    installCommand: {
+      command: 'node',
+      args: ['scripts/install-phase-probe.mjs'],
+    },
+    serverFunctionPlan: {
+      format: EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
+      command: {
+        command: 'node',
+        args: ['src/.prodivix/server-runtime/invoke.mjs'],
+      },
+      entrypointFilePath: 'src/.prodivix/server-runtime/invoke.mjs',
+      sourceFilePath: 'src/.prodivix/server-runtime/function.mjs',
+      functionRef,
+      runtimeManifest: {
+        schemaVersion: '1.0',
+        functionsByExport: {
+          getGreeting: {
+            kind: 'function',
+            runtimeZone: 'server',
+            adapterId: 'prodivix.code-export',
+            effect: 'read',
+            auth: { kind: 'permission', permissionId: 'workspace.owner' },
+            inputSchema: {
+              type: 'object',
+              required: ['name'],
+              properties: { name: { type: 'string' } },
+              additionalProperties: false,
+            },
+            outputSchema: {
+              type: 'object',
+              properties: {
+                greeting: { type: 'string' },
+                secretLength: { type: 'number' },
+              },
+              required: ['greeting', 'secretLength'],
+              additionalProperties: false,
+            },
+            environment: {
+              secretsByField: {
+                signingKey: { bindingId: 'rootless-signing-key' },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  const serverFunctionRequest = createExecutionRequest({
+    requestId: 'remote-gate-server-function',
+    profile: 'production',
+    runtimeZone: 'server',
+    workspace: serverFunctionSnapshot.workspace,
+    invocation: {
+      kind: 'code',
+      targetRef: {
+        kind: 'code-artifact',
+        artifactId: functionRef.artifactId,
+      },
+      entrypoint: functionRef.exportName,
+      input: {
+        type: EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+        requestId: 'gate-server-function:1',
+        invocationId: 'gate-server-function',
+        attempt: 1,
+        functionRef,
+        input: { name: 'Rootless' },
+      },
+    },
+    requiredCapabilities: ['environment-binding', 'server-function'],
+  });
+  return Object.freeze({
+    snapshot: serverFunctionSnapshot,
+    request: serverFunctionRequest,
+    authority: createIsolatedServerFunctionAuthority({
+      workspaceId: serverFunctionSnapshot.workspace.workspaceId,
+      snapshotId: serverFunctionSnapshot.workspace.snapshotId,
+      principal: {
+        providerId: 'prodivix-product-session',
+        principalId: 'user-1',
+      },
+      permissions: ['workspace.owner'],
+      expiresAt: Date.now() + 60_000,
+    }),
+    secrets: {
+      format: ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
+      fields: { signingKey: rootlessSecretCanary },
+    },
+  });
+};
 
 const numberLimit = (value: string, label: string): number => {
   const result = Number(value);
@@ -578,6 +840,91 @@ if (
   throw new Error('Rootless canonical Test report is incomplete.');
 await assertNoExecutionContainer('gate-test');
 
+const serverFunctionFixture = isolatedServerFunctionFixture();
+const serverFunctionResult = await sandbox.execute({
+  executionId: 'gate-server-function',
+  snapshot: serverFunctionFixture.snapshot,
+  request: serverFunctionFixture.request,
+  serverFunctionAuthority: serverFunctionFixture.authority,
+  serverFunctionSecrets: serverFunctionFixture.secrets,
+  profile: 'production',
+  timeoutMs: 15_000,
+  maximumOutputBytes: 256 * 1024,
+  redactValues: [rootlessSecretCanary],
+  signal: new AbortController().signal,
+});
+if (serverFunctionResult.status !== 'succeeded')
+  throw new Error(
+    `Rootless Server Function probe failed: ${serverFunctionResult.stderr}`
+  );
+if (
+  !serverFunctionResult.networkTraces?.length ||
+  serverFunctionResult.networkTraces.some(
+    (trace) =>
+      trace.sanitizedUrl !== 'https://registry.npmjs.org/' ||
+      trace.outcome !== 'allowed'
+  )
+)
+  throw new Error(
+    'Rootless Server Function install did not use the sanitized allowlist proxy.'
+  );
+const serverFunctionArtifacts = requireExecutionArtifacts(
+  serverFunctionResult,
+  'Rootless Server Function probe'
+);
+if (
+  serverFunctionArtifacts.filesystemDiff.changes.some(
+    ({ path }) =>
+      path === '.prodivix/server-function-invocation.json' ||
+      path === '.prodivix/server-function-result.json' ||
+      path === ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH ||
+      path === ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH
+  )
+)
+  throw new Error(
+    'Rootless Server Function transport files leaked into filesystem diff.'
+  );
+if (
+  serverFunctionArtifacts.primary.kind !== 'report' ||
+  serverFunctionArtifacts.primary.mediaType !==
+    ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE ||
+  serverFunctionArtifacts.primary.metadata?.status !== 'succeeded' ||
+  !serverFunctionArtifacts.primary.sourceTrace?.some(
+    (trace) =>
+      trace.sourceRef.kind === 'code-artifact' &&
+      trace.sourceRef.artifactId === 'code-rootless-greeting'
+  ) ||
+  !serverFunctionArtifacts.primary.sourceTrace?.some(
+    (trace) =>
+      trace.sourceRef.kind === 'code-artifact' &&
+      trace.sourceRef.artifactId === 'code-rootless-greeting-helper'
+  )
+)
+  throw new Error(
+    'Rootless Server Function did not produce a canonical result artifact.'
+  );
+const serverFunctionResponse = readIsolatedServerFunctionExecutionResponse(
+  JSON.parse(
+    Buffer.from(serverFunctionArtifacts.primary.contents).toString('utf8')
+  ) as unknown,
+  serverFunctionFixture.request,
+  serverFunctionFixture.snapshot.serverFunctionPlan
+);
+if (
+  !serverFunctionResponse?.ok ||
+  serverFunctionResponse.type !==
+    EXECUTION_SERVER_FUNCTION_BRIDGE_RESPONSE_TYPE ||
+  serverFunctionResponse.result.kind !== 'value' ||
+  JSON.stringify(serverFunctionResponse.result.value) !==
+    JSON.stringify({
+      greeting: 'Hello Rootless user-1',
+      secretLength: rootlessSecretCanary.length,
+    }) ||
+  JSON.stringify(serverFunctionResponse).includes(rootlessSecretCanary)
+)
+  throw new Error('Rootless Server Function result content is invalid.');
+await assertNoExecutionContainer('gate-server-function');
+
 const goldenSnapshot = decodeRemoteExecutableProjectSnapshot(
   JSON.parse(
     await readFile(resolve(goldenSnapshotPath), { encoding: 'utf8' })
@@ -818,6 +1165,16 @@ const evidence = Object.freeze({
     size: previewArtifact.contents.byteLength,
     metadata: previewArtifact.metadata,
     sourceTraceCount: previewArtifact.sourceTrace?.length ?? 0,
+  },
+  serverFunctionArtifact: {
+    artifactId: serverFunctionArtifacts.primary.artifactId,
+    mediaType: serverFunctionArtifacts.primary.mediaType,
+    size: serverFunctionArtifacts.primary.contents.byteLength,
+    metadata: serverFunctionArtifacts.primary.metadata,
+    sourceTraceCount: serverFunctionArtifacts.primary.sourceTrace?.length ?? 0,
+    result: serverFunctionResponse,
+    installNetworkTraceCount: serverFunctionResult.networkTraces.length,
+    runtimeNetwork: 'none-verified',
   },
   goldenJourney: {
     snapshotDigest: goldenSnapshot.contentDigest,

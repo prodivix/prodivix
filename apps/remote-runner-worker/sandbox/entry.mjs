@@ -30,10 +30,16 @@ const maximumResultFiles = 20_000;
 const maximumFilesystemChanges = 512;
 const maximumFilesystemFileBytes = 1024 * 1024;
 const maximumFilesystemContentBytes = 8 * 1024 * 1024;
-const installCompleteMarker = 'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1';
+const installCompleteMarkerPrefix = 'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1';
 const continueExecutionToken = 'PRODIVIX_SANDBOX_CONTINUE_V1';
-const captureReadyMarker = 'PRODIVIX_SANDBOX_CAPTURE_READY_V1';
-const captureExecutionToken = 'PRODIVIX_SANDBOX_CAPTURE_V1';
+const executionPermissionFormat = 'prodivix.sandbox-execution-permission.v1';
+const captureReadyMarkerPrefix = 'PRODIVIX_SANDBOX_CAPTURE_READY_V1';
+const captureExecutionTokenPrefix = 'PRODIVIX_SANDBOX_CAPTURE_V1';
+const serverFunctionInvocationPath =
+  '.prodivix/server-function-invocation.json';
+const serverFunctionResultPath = '.prodivix/server-function-result.json';
+const serverFunctionAuthorityPath = '.prodivix/server-function-authority.json';
+const serverFunctionSecretPath = '.prodivix/server-function-secrets.json';
 const controlLines = createInterface({ input: process.stdin, terminal: false });
 const controlIterator = controlLines[Symbol.asyncIterator]();
 
@@ -47,17 +53,121 @@ const readPayload = async () => {
   return value;
 };
 
-const awaitExecutionPermission = async () => {
-  process.stderr.write(`${installCompleteMarker}\n`);
+const exactRecord = (value, keys) =>
+  value &&
+  typeof value === 'object' &&
+  !Array.isArray(value) &&
+  Object.keys(value).length === keys.length &&
+  keys.every((key) => Object.hasOwn(value, key));
+
+const awaitExecutionPermission = async (payload) => {
+  process.stderr.write(
+    `${installCompleteMarkerPrefix}:${payload.controlNonce}\n`
+  );
   const line = await controlIterator.next();
-  if (line.done || line.value !== continueExecutionToken)
+  if (line.done || Buffer.byteLength(line.value, 'utf8') > 4 * 1024 * 1024)
     throw new TypeError('Sandbox execution permission was not granted.');
+  let permission;
+  try {
+    permission = JSON.parse(line.value);
+  } catch {
+    throw new TypeError('Sandbox execution permission was not granted.');
+  }
+  const runtime =
+    payload.profile === 'production'
+      ? payload.serverFunctionRuntime
+      : undefined;
+  const keys = [
+    'format',
+    'token',
+    'controlNonce',
+    ...(runtime ? ['serverFunctionRequest'] : []),
+    ...(runtime?.hasAuthority ? ['serverFunctionAuthority'] : []),
+    ...(runtime?.secretFields?.length ? ['serverFunctionSecrets'] : []),
+  ];
+  if (
+    !exactRecord(permission, keys) ||
+    permission.format !== executionPermissionFormat ||
+    permission.token !== continueExecutionToken ||
+    permission.controlNonce !== payload.controlNonce
+  )
+    throw new TypeError('Sandbox execution permission was not granted.');
+  return permission;
 };
 
-const awaitCapturePermission = async () => {
-  process.stderr.write(`${captureReadyMarker}\n`);
+const writeServerFunctionRuntimeProjection = async (payload, permission) => {
+  if (payload.profile !== 'production') return;
+  await rm('/workspace/.prodivix', { recursive: true, force: true });
+  await mkdir('/workspace/.prodivix', { recursive: true, mode: 0o700 });
+  const request = permission.serverFunctionRequest;
+  if (!request || typeof request !== 'object' || Array.isArray(request))
+    throw new TypeError('Server Function invocation projection is invalid.');
+  const invocationPath = childPath(
+    payload.serverFunctionPlan.invocationFilePath
+  );
+  await mkdir(dirname(invocationPath), { recursive: true });
+  await writeFile(
+    invocationPath,
+    Buffer.from(JSON.stringify(request) + '\n', 'utf8'),
+    { flag: 'wx', mode: 0o600 }
+  );
+  if (payload.serverFunctionRuntime.hasAuthority) {
+    const authority = permission.serverFunctionAuthority;
+    if (!authority || typeof authority !== 'object' || Array.isArray(authority))
+      throw new TypeError('Server Function authority projection is invalid.');
+    const authorityPath = childPath(
+      payload.serverFunctionPlan.authorityFilePath
+    );
+    await mkdir(dirname(authorityPath), { recursive: true });
+    await writeFile(
+      authorityPath,
+      Buffer.from(JSON.stringify(authority) + '\n', 'utf8'),
+      { flag: 'wx', mode: 0o600 }
+    );
+  }
+  const expectedSecretFields = payload.serverFunctionRuntime.secretFields;
+  if (!expectedSecretFields.length) return;
+  const material = permission.serverFunctionSecrets;
+  if (
+    !exactRecord(material, ['format', 'fields']) ||
+    material.format !==
+      'prodivix.isolated-server-function-secret-material.v1' ||
+    !material.fields ||
+    typeof material.fields !== 'object' ||
+    Array.isArray(material.fields)
+  )
+    throw new TypeError('Server Function Secret projection is invalid.');
+  const secretEntries = Object.entries(material.fields);
+  if (
+    JSON.stringify(secretEntries.map(([field]) => field)) !==
+      JSON.stringify(expectedSecretFields) ||
+    secretEntries.some(
+      ([field, value]) =>
+        !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(field) ||
+        typeof value !== 'string' ||
+        !value.length ||
+        Buffer.byteLength(value, 'utf8') > 64 * 1024
+    )
+  )
+    throw new TypeError('Server Function Secret projection is invalid.');
+  const secretPath = childPath(
+    payload.serverFunctionPlan.secretMaterialFilePath
+  );
+  await mkdir(dirname(secretPath), { recursive: true });
+  await writeFile(
+    secretPath,
+    Buffer.from(JSON.stringify(material) + '\n', 'utf8'),
+    { flag: 'wx', mode: 0o600 }
+  );
+};
+
+const awaitCapturePermission = async (payload) => {
+  process.stderr.write(`${captureReadyMarkerPrefix}:${payload.controlNonce}\n`);
   const line = await controlIterator.next();
-  if (line.done || line.value !== captureExecutionToken)
+  if (
+    line.done ||
+    line.value !== `${captureExecutionTokenPrefix}:${payload.controlNonce}`
+  )
     throw new TypeError('Sandbox filesystem capture was not granted.');
   controlLines.close();
 };
@@ -141,6 +251,43 @@ const run = async (value, environment, append) =>
       else resolveRun(code ?? 1);
     });
   });
+
+const activeResidualProcessIds = async () => {
+  const entries = await readdir('/proc', { withFileTypes: true });
+  const ids = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !/^[0-9]+$/u.test(entry.name)) continue;
+    const pid = Number(entry.name);
+    if (!Number.isSafeInteger(pid) || pid < 1 || pid === process.pid) continue;
+    try {
+      const stat = await readFile(`/proc/${pid}/stat`, 'utf8');
+      const closing = stat.lastIndexOf(')');
+      if (closing < 0 || stat.slice(closing + 2, closing + 3) === 'Z') continue;
+      ids.push(pid);
+    } catch {
+      // The process already exited between /proc enumeration and inspection.
+    }
+  }
+  return ids;
+};
+
+const terminateResidualProcesses = async () => {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const ids = await activeResidualProcessIds();
+    if (!ids.length) return;
+    for (const pid of ids) {
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch (error) {
+        if (error?.code !== 'ESRCH')
+          throw new TypeError('Sandbox residual process cleanup failed.');
+      }
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
+  }
+  if ((await activeResidualProcessIds()).length)
+    throw new TypeError('Sandbox residual process cleanup failed.');
+};
 
 const sha256Digest = (contents) =>
   `sha256-${createHash('sha256').update(contents).digest('hex')}`;
@@ -447,6 +594,35 @@ const createTestArtifact = async (payload, maximumArtifactBytes) => {
   };
 };
 
+const createServerFunctionArtifact = async (
+  payload,
+  serverFunctionRequest,
+  maximumArtifactBytes
+) => {
+  if (
+    payload.profile !== 'production' ||
+    !payload.serverFunctionPlan ||
+    !serverFunctionRequest ||
+    typeof serverFunctionRequest.requestId !== 'string'
+  )
+    throw new TypeError('Server Function capture plan is invalid.');
+  const resultPath = childPath(payload.serverFunctionPlan.resultFilePath);
+  const resultStats = await lstat(resultPath);
+  if (!resultStats.isFile() || resultStats.isSymbolicLink())
+    throw new TypeError('Server Function result must be a real file.');
+  const contents = await readFile(resultPath);
+  if (!contents.byteLength || contents.byteLength > maximumArtifactBytes)
+    throw new TypeError('Server Function result exceeds the artifact budget.');
+  return {
+    artifactId: `server-function-result:${payload.snapshotDigest}:${serverFunctionRequest.requestId}`,
+    kind: 'report',
+    label: 'Isolated Server Function result',
+    mediaType: 'application/vnd.prodivix.server-function-result+json',
+    metadata: {},
+    contents: contents.toString('base64'),
+  };
+};
+
 const emitResult = (exitCode, output, artifacts = []) => {
   process.stdout.write(
     JSON.stringify({
@@ -469,6 +645,11 @@ const fallbackOutput = {
 
 try {
   const payload = await readPayload();
+  if (
+    typeof payload.controlNonce !== 'string' ||
+    !/^[A-Za-z0-9_-]{43}$/u.test(payload.controlNonce)
+  )
+    throw new TypeError('Sandbox control nonce is invalid.');
   const maximumOutputBytes = positiveInteger(
     payload.maximumOutputBytes,
     'Maximum output bytes'
@@ -504,6 +685,32 @@ try {
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, contents, { flag: 'wx', mode: 0o600 });
     if (file.capture) baselineFiles.set(file.path, contents);
+  }
+  if (payload.profile === 'production') {
+    if (
+      !payload.serverFunctionPlan ||
+      payload.serverFunctionPlan.invocationFilePath !==
+        serverFunctionInvocationPath ||
+      payload.serverFunctionPlan.resultFilePath !== serverFunctionResultPath ||
+      payload.serverFunctionPlan.authorityFilePath !==
+        serverFunctionAuthorityPath ||
+      payload.serverFunctionPlan.secretMaterialFilePath !==
+        serverFunctionSecretPath ||
+      !exactRecord(payload.serverFunctionRuntime, [
+        'hasAuthority',
+        'secretFields',
+      ]) ||
+      typeof payload.serverFunctionRuntime.hasAuthority !== 'boolean' ||
+      !Array.isArray(payload.serverFunctionRuntime.secretFields) ||
+      payload.serverFunctionRuntime.secretFields.length > 32 ||
+      payload.serverFunctionRuntime.secretFields.some(
+        (field, index, fields) =>
+          typeof field !== 'string' ||
+          !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(field) ||
+          (index > 0 && fields[index - 1].localeCompare(field) >= 0)
+      )
+    )
+      throw new TypeError('Server Function invocation projection is invalid.');
   }
   const ignoredPaths = normalizeCapturePaths(
     [
@@ -560,9 +767,12 @@ try {
         rm(path, { recursive: true, force: true })
       )
     );
-    await awaitExecutionPermission();
+    await terminateResidualProcesses();
+    const executionPermission = await awaitExecutionPermission(payload);
+    await writeServerFunctionRuntimeProjection(payload, executionPermission);
     const exitCode = await run(command(payload.command), environment, append);
-    await awaitCapturePermission();
+    await terminateResidualProcesses();
+    await awaitCapturePermission(payload);
     let resultExitCode = exitCode;
     let artifacts = [];
     if (payload.profile === 'preview' && exitCode === 0)
@@ -586,7 +796,14 @@ try {
           );
         }
       }
-    }
+    } else if (payload.profile === 'production' && exitCode === 0)
+      artifacts = [
+        await createServerFunctionArtifact(
+          payload,
+          executionPermission.serverFunctionRequest,
+          primaryArtifactBudget
+        ),
+      ];
     artifacts.push(
       await createFilesystemDiffArtifact(
         payload,

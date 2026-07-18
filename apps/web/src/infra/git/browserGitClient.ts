@@ -71,12 +71,21 @@ const DEFAULT_FS_NAME = 'prodivix-browser-git';
 const toText = (content: Uint8Array): string =>
   new TextDecoder().decode(content);
 
-const readBlobText = async (
+const isMissingFileError = (error: unknown): boolean =>
+  Boolean(
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    ((error as { code?: string }).code === 'NotFoundError' ||
+      (error as { code?: string }).code === 'ENOENT')
+  );
+
+const readBlobBytes = async (
   fs: LightningFS,
   repository: BrowserGitRepositoryOptions,
   ref: string,
   filepath: string
-): Promise<string | undefined> => {
+): Promise<Uint8Array | undefined> => {
   try {
     const oid = await resolveGitRef(fs, repository, ref);
     const { blob } = await git.readBlob({
@@ -86,16 +95,32 @@ const readBlobText = async (
       oid,
       filepath,
     });
-    return toText(blob);
+    return new Uint8Array(blob);
   } catch (error) {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error as { code?: string }).code === 'NotFoundError'
-    ) {
-      return undefined;
-    }
+    if (isMissingFileError(error)) return undefined;
+    throw error;
+  }
+};
+
+const readBlobText = async (
+  fs: LightningFS,
+  repository: BrowserGitRepositoryOptions,
+  ref: string,
+  filepath: string
+): Promise<string | undefined> => {
+  const contents = await readBlobBytes(fs, repository, ref, filepath);
+  return contents ? toText(contents) : undefined;
+};
+
+const readWorkingFileBytes = async (
+  fs: LightningFS,
+  dir: string,
+  filepath: string
+): Promise<Uint8Array | undefined> => {
+  try {
+    return new Uint8Array(await fs.promises.readFile(`${dir}/${filepath}`));
+  } catch (error) {
+    if (isMissingFileError(error)) return undefined;
     throw error;
   }
 };
@@ -110,26 +135,43 @@ const readWorkingFileText = async (
       encoding: 'utf8',
     });
   } catch (error) {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error as { code?: string }).code === 'ENOENT'
-    ) {
-      return undefined;
-    }
+    if (isMissingFileError(error)) return undefined;
     throw error;
   }
 };
 
-const hashTextBlob = async (content: string | undefined) =>
-  content === undefined
+const hashBlob = async (contents: Uint8Array | undefined) =>
+  contents === undefined
     ? undefined
     : (
         await git.hashBlob({
-          object: new TextEncoder().encode(content),
+          object: contents,
         })
       ).oid;
+
+const ensureWorkingFileParent = async (
+  fs: LightningFS,
+  dir: string,
+  filepath: string
+): Promise<void> => {
+  const segments = filepath.split('/').filter(Boolean).slice(0, -1);
+  let current = dir.replace(/\/$/u, '');
+  for (const segment of segments) {
+    current = `${current}/${segment}`;
+    try {
+      await fs.promises.mkdir(current);
+    } catch (error) {
+      if (
+        !error ||
+        typeof error !== 'object' ||
+        !('code' in error) ||
+        (error as { code?: string }).code !== 'EEXIST'
+      ) {
+        throw error;
+      }
+    }
+  }
+};
 
 const resolveGitRef = async (
   fs: LightningFS,
@@ -239,14 +281,45 @@ export const createBrowserGitClient = ({
     readFileAtRef: async (ref: string, filepath: string) =>
       readBlobText(fs, repository, ref, filepath),
 
+    readFileBytesAtRef: async (ref: string, filepath: string) =>
+      readBlobBytes(fs, repository, ref, filepath),
+
     readWorkingFile: (filepath: string) =>
       readWorkingFileText(fs, dir, filepath),
 
-    writeWorkingFile: (filepath: string, content: string) =>
-      fs.promises.writeFile(`${dir}/${filepath}`, content, 'utf8'),
+    readWorkingFileBytes: (filepath: string) =>
+      readWorkingFileBytes(fs, dir, filepath),
+
+    writeWorkingFile: async (filepath: string, content: string) => {
+      await ensureWorkingFileParent(fs, dir, filepath);
+      await fs.promises.writeFile(`${dir}/${filepath}`, content, 'utf8');
+    },
+
+    writeWorkingFileBytes: async (filepath: string, contents: Uint8Array) => {
+      await ensureWorkingFileParent(fs, dir, filepath);
+      await fs.promises.writeFile(
+        `${dir}/${filepath}`,
+        new Uint8Array(contents)
+      );
+    },
+
+    deleteWorkingFile: async (filepath: string) => {
+      try {
+        await fs.promises.unlink(`${dir}/${filepath}`);
+      } catch (error) {
+        if (!isMissingFileError(error)) throw error;
+      }
+    },
 
     add: (filepath: string | string[]) =>
       git.add({
+        fs,
+        ...repository,
+        filepath,
+      }),
+
+    remove: (filepath: string) =>
+      git.remove({
         fs,
         ...repository,
         filepath,
@@ -271,13 +344,15 @@ export const createBrowserGitClient = ({
       }
 
       const [, head, workdir, stage] = status;
-      const oldOid = await hashTextBlob(
+      const oldOid = await hashBlob(
         head === 0
           ? undefined
-          : await readBlobText(fs, repository, 'HEAD', filepath)
+          : await readBlobBytes(fs, repository, 'HEAD', filepath)
       );
-      const newOid = await hashTextBlob(
-        workdir === 0 ? undefined : await readWorkingFileText(fs, dir, filepath)
+      const newOid = await hashBlob(
+        workdir === 0
+          ? undefined
+          : await readWorkingFileBytes(fs, dir, filepath)
       );
 
       if (head === 0 && workdir !== 0) {

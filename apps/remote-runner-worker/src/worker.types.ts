@@ -2,6 +2,7 @@ import type {
   ExecutionArtifactKind,
   ExecutionSourceTrace,
   ExecutableProjectSnapshot,
+  ExecutionRequest,
   ExecutionJobStatus,
   ExecutionTerminalCloseReason,
   ExecutionTerminalSignal,
@@ -14,7 +15,12 @@ import type {
   RemoteExecutionWorkerEvent,
   RemoteExecutionTerminalWorkerOutputResult,
   RemoteExecutionTerminalWorkerReadResult,
+  RemoteExecutionSecretEnvelope,
 } from '@prodivix/runtime-remote';
+import type {
+  IsolatedServerFunctionAuthority,
+  IsolatedServerFunctionSecretMaterial,
+} from '@prodivix/server-runtime';
 
 export type RemoteWorkerControlPlaneClient = Readonly<{
   claim(
@@ -54,6 +60,14 @@ export type RemoteWorkerControlPlaneClient = Readonly<{
       leaseToken: string;
     }>
   ): Promise<ExecutableProjectSnapshot | undefined>;
+  resolveServerFunctionSecrets?(
+    input: Readonly<{
+      executionId: string;
+      workerId: string;
+      leaseToken: string;
+      recipientPublicKey: string;
+    }>
+  ): Promise<RemoteExecutionSecretEnvelope | undefined>;
   appendEvent(
     input: Readonly<{
       executionId: string;
@@ -115,7 +129,10 @@ export type RemoteWorkerSandbox = Readonly<{
     input: Readonly<{
       executionId: string;
       snapshot: ExecutableProjectSnapshot;
-      profile: 'preview' | 'test' | 'build';
+      profile: 'preview' | 'test' | 'build' | 'production';
+      request?: ExecutionRequest;
+      serverFunctionAuthority?: IsolatedServerFunctionAuthority;
+      serverFunctionSecrets?: IsolatedServerFunctionSecretMaterial;
       timeoutMs: number;
       maximumOutputBytes: number;
       redactValues: readonly string[];

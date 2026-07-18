@@ -160,4 +160,44 @@ describe('createWorkspaceCodeArtifactProvider', () => {
       })
     ).toBe(false);
   });
+
+  it('accepts only strict Server Function metadata on TypeScript/JavaScript documents', () => {
+    const profile = {
+      schemaVersion: '1.0',
+      functionsByExport: {
+        loadPrincipal: {
+          kind: 'route-loader',
+          runtimeZone: 'server',
+          adapterId: 'core.auth.current-principal',
+          effect: 'read',
+          auth: { kind: 'authenticated' },
+          inputSchema: true,
+          outputSchema: true,
+        },
+      },
+    };
+    expect(
+      isWorkspaceCodeDocumentContent({
+        language: 'ts',
+        source: 'export const loadPrincipal = () => undefined;',
+        metadata: { 'prodivix.serverRuntime': profile },
+      })
+    ).toBe(true);
+    expect(
+      isWorkspaceCodeDocumentContent({
+        language: 'ts',
+        source: '',
+        metadata: {
+          'prodivix.serverRuntime': { ...profile, sessionId: 'forbidden' },
+        },
+      })
+    ).toBe(false);
+    expect(
+      isWorkspaceCodeDocumentContent({
+        language: 'css',
+        source: '',
+        metadata: { 'prodivix.serverRuntime': profile },
+      })
+    ).toBe(false);
+  });
 });

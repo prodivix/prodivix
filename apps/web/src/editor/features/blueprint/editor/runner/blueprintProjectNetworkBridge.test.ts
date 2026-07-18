@@ -7,6 +7,8 @@ import {
   readBlueprintProjectConsoleBridgeMessage,
   readBlueprintProjectNetworkBridgeMessage,
   readBlueprintRemoteDataBridgeMessage,
+  readBlueprintRemoteServerFunctionBridgeCancellation,
+  readBlueprintRemoteServerFunctionBridgeMessage,
 } from '@/editor/features/blueprint/editor/runner/blueprintProjectNetworkBridge';
 
 const trace = createExecutionNetworkTrace({
@@ -113,6 +115,67 @@ describe('Blueprint project Network bridge', () => {
           'https://0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.preview.example.test/',
         messageOrigin: 'null',
         value: { ...value, authorization: 'secret-canary' },
+      })
+    ).toBeUndefined();
+  });
+
+  it('accepts Server Function input but rejects session material at the Remote frame boundary', () => {
+    const value = {
+      type: 'prodivix.execution-server-function-gateway-request.v1',
+      requestId: 'server-invocation-1:1',
+      invocationId: 'server-invocation-1',
+      attempt: 1,
+      functionRef: {
+        artifactId: 'code-auth',
+        exportName: 'loadPrincipal',
+      },
+      input: { routeId: 'route-home' },
+    };
+    const previewUrl =
+      'https://0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.preview.example.test/';
+    expect(
+      readBlueprintRemoteServerFunctionBridgeMessage({
+        provider: 'remote',
+        previewUrl,
+        messageOrigin: 'null',
+        value,
+      })
+    ).toEqual(value);
+    expect(
+      readBlueprintRemoteServerFunctionBridgeMessage({
+        provider: 'browser',
+        previewUrl: 'https://preview.localhost/',
+        messageOrigin: 'https://preview.localhost',
+        value,
+      })
+    ).toBeUndefined();
+    expect(
+      readBlueprintRemoteServerFunctionBridgeMessage({
+        provider: 'remote',
+        previewUrl,
+        messageOrigin: 'null',
+        value: { ...value, sessionId: 'server-only' },
+      })
+    ).toBeUndefined();
+    const cancellation = {
+      type: 'prodivix.execution-server-function-gateway-cancel.v1',
+      requestId: 'server-invocation-1:1',
+      invocationId: 'server-invocation-1',
+    };
+    expect(
+      readBlueprintRemoteServerFunctionBridgeCancellation({
+        provider: 'remote',
+        previewUrl,
+        messageOrigin: 'null',
+        value: cancellation,
+      })
+    ).toEqual(cancellation);
+    expect(
+      readBlueprintRemoteServerFunctionBridgeCancellation({
+        provider: 'remote',
+        previewUrl,
+        messageOrigin: 'https://attacker.example',
+        value: cancellation,
       })
     ).toBeUndefined();
   });

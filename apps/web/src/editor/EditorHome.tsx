@@ -12,6 +12,7 @@ import { useAuthStore } from '@/auth/useAuthStore';
 import { isAbortError } from '@/infra/api';
 import { useEditorShortcut } from './shortcuts';
 import { useEditorStore } from './store/useEditorStore';
+import { materializeWorkspaceBinaryAssets } from './features/execution/workspaceAssetMaterialization';
 import {
   deleteLocalProject,
   duplicateLocalProject,
@@ -329,6 +330,10 @@ function EditorHome() {
 
     setBusyByProject((prev) => ({ ...prev, [project.id]: 'syncing' }));
     try {
+      const assetMaterializations = await materializeWorkspaceBinaryAssets({
+        workspace: project.localRecord.workspace,
+        token: null,
+      });
       const { project: remoteProject, workspace } =
         await editorApi.importLocalProject(token, {
           name: project.localRecord.name,
@@ -336,6 +341,7 @@ function EditorHome() {
           resourceType: project.localRecord.resourceType,
           workspace: project.localRecord.workspace,
           settings: project.localRecord.workspaceSettings,
+          assetMaterializations,
         });
       await markLocalProjectSynced(project.id, {
         remoteProjectId: remoteProject.id,

@@ -12,6 +12,9 @@
       ],
       "@prodivix/runtime-vitest": [
         "../../packages/runtime-vitest/dist/index.d.ts"
+      ],
+      "@prodivix/server-runtime": [
+        "../../packages/server-runtime/dist/index.d.ts"
       ]
     }
   },
@@ -20,6 +23,7 @@
   "references": [
     { "path": "../../packages/runtime-core" },
     { "path": "../../packages/runtime-remote" },
-    { "path": "../../packages/runtime-vitest" }
+    { "path": "../../packages/runtime-vitest" },
+    { "path": "../../packages/server-runtime" }
   ]
 }

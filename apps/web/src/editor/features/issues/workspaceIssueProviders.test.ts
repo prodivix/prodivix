@@ -241,4 +241,118 @@ describe('workspace issue providers', () => {
       ],
     });
   });
+
+  it('publishes route Server Function profile/export/slot issues', () => {
+    const workspace = createWorkspace();
+    const codeDocument = workspace.docsById['code-checkout'];
+    const candidate: WorkspaceSnapshot = {
+      ...workspace,
+      docsById: {
+        ...workspace.docsById,
+        'code-checkout': {
+          ...codeDocument,
+          content: {
+            language: 'ts',
+            source: 'export const loadPrincipal = () => null;',
+            metadata: {
+              'prodivix.serverRuntime': {
+                schemaVersion: '1.0',
+                functionsByExport: {
+                  loadPrincipal: {
+                    kind: 'route-loader',
+                    runtimeZone: 'server',
+                    adapterId: 'core.auth.current-principal',
+                    effect: 'read',
+                    auth: { kind: 'authenticated' },
+                    inputSchema: true,
+                    outputSchema: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      routeManifest: {
+        ...workspace.routeManifest,
+        root: {
+          ...workspace.routeManifest.root,
+          runtime: {
+            guardRef: {
+              artifactId: 'code-checkout',
+              exportName: 'loadPrincipal',
+            },
+          },
+        },
+      },
+    };
+    const provider = collectWorkspaceModelIssueSnapshots({
+      workspace: candidate,
+      revision: { key: '2:1:4', sequence: 1 },
+      collectedAt: 12,
+    }).find(
+      ({ providerId }) => providerId === 'workspace-server-runtime-authoring'
+    );
+    expect(provider).toMatchObject({
+      diagnostics: [
+        {
+          code: 'WKS-EXPORT-SERVER-SLOT-MISMATCH',
+          domain: 'route',
+          targetRef: { kind: 'route', routeId: 'route-root' },
+          meta: {
+            slot: 'guard',
+            artifactId: 'code-checkout',
+            exportName: 'loadPrincipal',
+          },
+        },
+      ],
+    });
+  });
+
+  it('publishes an invalid Auth configuration even without a route binding', () => {
+    const workspace = createWorkspace();
+    const candidate: WorkspaceSnapshot = {
+      ...workspace,
+      docsById: {
+        ...workspace.docsById,
+        'config-auth': {
+          id: 'config-auth',
+          type: 'project-config',
+          path: '/config/auth.json',
+          contentRev: 1,
+          metaRev: 1,
+          content: {
+            kind: 'config',
+            value: {
+              schemaVersion: '1.0',
+              providerId: 'prodivix-product-session',
+              permissionIds: [],
+              token: 'credential-material-is-rejected',
+            },
+          },
+        },
+      },
+    };
+    const provider = collectWorkspaceModelIssueSnapshots({
+      workspace: candidate,
+      revision: { key: '2:1:4', sequence: 1 },
+      collectedAt: 13,
+    }).find(
+      ({ providerId }) => providerId === 'workspace-server-runtime-authoring'
+    );
+    expect(provider).toMatchObject({
+      diagnostics: [
+        {
+          code: 'WKS-EXPORT-SERVER-AUTH-CONFIG-INVALID',
+          domain: 'workspace',
+          targetRef: {
+            kind: 'document',
+            workspaceId: workspace.id,
+            documentId: 'config-auth',
+          },
+          meta: { path: '/config/auth.json', documentId: 'config-auth' },
+        },
+      ],
+    });
+  });
 });

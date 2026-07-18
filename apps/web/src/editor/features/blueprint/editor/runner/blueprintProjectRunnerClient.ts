@@ -19,11 +19,17 @@ import {
   browserProjectRuntimeHost,
   createBrowserDataExecutionEnvironment,
   createRemoteDataGatewayRunCoordinator,
+  createRemoteServerFunctionRunCoordinator,
   executionSessionCoordinator,
   createRemoteProjectExecutionEnvironment,
   resolveBrowserProjectExecutionSnapshot,
   retainBrowserProjectExecutionSnapshot,
 } from '@/editor/features/execution';
+import type {
+  ExecutionServerFunctionBridgeCancellation,
+  ExecutionServerFunctionBridgeRequest,
+  ExecutionServerFunctionBridgeResponse,
+} from '@prodivix/server-runtime';
 
 export const getBlueprintProjectExecutionSessionId = (
   workspaceId: string
@@ -65,6 +71,9 @@ const cancellationTerminalWaitMs = 15_000;
 const remoteDataGatewayRuns = createRemoteDataGatewayRunCoordinator({
   publishTrace: (input) => executionSessionCoordinator.publishTrace(input),
 });
+const remoteServerFunctionRuns = createRemoteServerFunctionRunCoordinator({
+  publishTrace: (input) => executionSessionCoordinator.publishTrace(input),
+});
 
 export type BlueprintProjectRunProvider = 'browser' | 'remote';
 
@@ -83,6 +92,15 @@ export const executeBlueprintProjectRemoteDataBridge = async (
   request: ExecutionDataGatewayBridgeRequest
 ): Promise<ExecutionDataGatewayBridgeResponse> =>
   remoteDataGatewayRuns.execute(request);
+
+export const executeBlueprintProjectRemoteServerFunctionBridge = async (
+  request: ExecutionServerFunctionBridgeRequest
+): Promise<ExecutionServerFunctionBridgeResponse> =>
+  remoteServerFunctionRuns.execute(request);
+
+export const cancelBlueprintProjectRemoteServerFunctionBridge = (
+  cancellation: ExecutionServerFunctionBridgeCancellation
+): boolean => remoteServerFunctionRuns.cancel(cancellation);
 
 /** Publishes sanitized traces emitted by the active local preview iframe into the same Execution Job. */
 export const publishBlueprintProjectNetworkTrace = (
@@ -135,6 +153,11 @@ export const startBlueprintProject = async (
         typeof createRemoteProjectExecutionEnvironment
       >['dataGateway']['invoke']
     | undefined;
+  let remoteServerFunctionInvoke:
+    | ReturnType<
+        typeof createRemoteProjectExecutionEnvironment
+      >['serverFunctions']['invoke']
+    | undefined;
   if (activeJob) {
     await stopBlueprintProject('Execution provider changed or restarted.', {
       waitForTerminal: true,
@@ -145,6 +168,7 @@ export const startBlueprintProject = async (
       );
   }
   remoteDataGatewayRuns.deactivate();
+  remoteServerFunctionRuns.deactivate();
   activeTerminalClient = undefined;
   activeArtifactResolver = undefined;
   if (options.provider === 'remote') {
@@ -163,6 +187,7 @@ export const startBlueprintProject = async (
     });
     job = await environment.provider.start(request);
     remoteDataGatewayInvoke = environment.dataGateway.invoke;
+    remoteServerFunctionInvoke = environment.serverFunctions.invoke;
     activeTerminalClient = environment.terminal;
     activeArtifactResolver = environment.artifacts;
   } else {
@@ -192,6 +217,13 @@ export const startBlueprintProject = async (
       sessionId,
       invoke: remoteDataGatewayInvoke,
     });
+  if (remoteServerFunctionInvoke)
+    remoteServerFunctionRuns.activate({
+      executionId: job.id,
+      jobId: job.id,
+      sessionId,
+      invoke: remoteServerFunctionInvoke,
+    });
   void job.completion.then((result) => {
     if (activeJob !== job) return;
     activeTerminalClient = undefined;
@@ -202,6 +234,7 @@ export const startBlueprintProject = async (
     )
       return;
     remoteDataGatewayRuns.deactivate(job.id);
+    remoteServerFunctionRuns.deactivate(job.id);
     activeJob = undefined;
     activeProvider = undefined;
   });
@@ -213,6 +246,7 @@ export const stopBlueprintProject = async (
   options: Readonly<{ waitForTerminal?: boolean }> = {}
 ): Promise<ExecutionCancellationResult | undefined> => {
   remoteDataGatewayRuns.deactivate();
+  remoteServerFunctionRuns.deactivate();
   const job = activeJob;
   if (!job) {
     activeProvider = undefined;

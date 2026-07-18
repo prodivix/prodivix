@@ -11,6 +11,7 @@ import {
 import {
   createRemoteFixtureRequest,
   createRemoteFixtureSnapshot,
+  createRemoteServerFunctionFixtureSnapshot,
 } from './__tests__/remoteExecutionFixtures';
 
 describe('remote execution codec properties', () => {
@@ -25,6 +26,19 @@ describe('remote execution codec properties', () => {
     const snapshot = createRemoteFixtureSnapshot();
     const wire = encodeRemoteExecutableProjectSnapshot(snapshot);
     expect(wire.dataMockProvision).toEqual(snapshot.dataMockProvision);
+    expect(wire.serverRuntimeMockProvision).toEqual(
+      snapshot.serverRuntimeMockProvision
+    );
+    const serverFunctionSnapshot = createRemoteServerFunctionFixtureSnapshot();
+    const serverFunctionWire = encodeRemoteExecutableProjectSnapshot(
+      serverFunctionSnapshot
+    );
+    expect(serverFunctionWire.serverFunctionPlan).toEqual(
+      serverFunctionSnapshot.serverFunctionPlan
+    );
+    expect(decodeRemoteExecutableProjectSnapshot(serverFunctionWire)).toEqual(
+      serverFunctionSnapshot
+    );
     expect(() =>
       decodeRemoteExecutableProjectSnapshot({
         ...wire,
@@ -43,6 +57,26 @@ describe('remote execution codec properties', () => {
         format: 'prodivix.executable-project.v3',
       })
     ).toThrow(/format is unsupported/u);
+  });
+
+  it('round-trips binary asset bytes without UTF-8 coercion', () => {
+    const contents = new Uint8Array([0, 255, 128, 1, 2, 3]);
+    const snapshot = createRemoteFixtureSnapshot(
+      'export const value = 1;',
+      ['filesystem'],
+      contents
+    );
+    const wire = encodeRemoteExecutableProjectSnapshot(snapshot);
+    const encoded = wire.files.find(
+      ({ path }) => path === 'public/fixture.bin'
+    )?.contents;
+
+    expect(encoded).toEqual({ encoding: 'bytes', value: [...contents] });
+    expect(
+      decodeRemoteExecutableProjectSnapshot(wire).files.find(
+        ({ path }) => path === 'public/fixture.bin'
+      )?.contents
+    ).toEqual(contents);
   });
 
   it('rejects unknown snapshot and nested source-trace fields', () => {

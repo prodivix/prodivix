@@ -6,7 +6,11 @@ import {
   type WorkspaceDocument,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
-import { GOLDEN_CODEGEN_POLICY, GOLDEN_IDS } from './goldenApp.fixture';
+import {
+  GOLDEN_ASSET_MATERIALIZATIONS,
+  GOLDEN_CODEGEN_POLICY,
+  GOLDEN_IDS,
+} from './goldenApp.fixture';
 import { applyGoldenOperation, authorGoldenWorkspace } from './goldenAuthoring';
 
 const CONTRACT_ISSUED_AT = '2026-07-13T08:02:00.000Z';
@@ -32,6 +36,7 @@ const generate = (workspace: WorkspaceSnapshot) =>
   generateWorkspaceReactViteBundle(workspace, {
     projectName: 'Prodivix Golden Contract',
     codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
+    assetMaterializations: GOLDEN_ASSET_MATERIALIZATIONS,
     packageResolver: { strategy: 'npm' },
   });
 

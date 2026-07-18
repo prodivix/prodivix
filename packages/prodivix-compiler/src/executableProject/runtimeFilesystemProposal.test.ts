@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createBinaryAssetBlobReference } from '@prodivix/assets';
 import { createEmptyPirDocument } from '@prodivix/pir';
 import { createExecutionFilesystemDiff } from '@prodivix/runtime-core';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@prodivix/workspace';
 import {
   analyzeWorkspaceRuntimeFilesystemDiff,
+  createWorkspaceRuntimeFilesystemAssetUploadPlan,
   createWorkspaceRuntimeFilesystemProposal,
 } from './runtimeFilesystemProposal';
 import { augmentWorkspaceOperationWithControlledSource } from '../react/controlledRoundTrip';
@@ -25,7 +27,7 @@ const workspace = (): WorkspaceSnapshot => ({
       kind: 'dir',
       name: '/',
       parentId: null,
-      children: ['page-node', 'code-node', 'delete-node'],
+      children: ['page-node', 'code-node', 'delete-node', 'public-dir'],
     },
     'page-node': {
       id: 'page-node',
@@ -47,6 +49,20 @@ const workspace = (): WorkspaceSnapshot => ({
       name: 'old.ts',
       parentId: 'root',
       docId: 'code-2',
+    },
+    'public-dir': {
+      id: 'public-dir',
+      kind: 'dir',
+      name: 'public',
+      parentId: 'root',
+      children: ['asset-node'],
+    },
+    'asset-node': {
+      id: 'asset-node',
+      kind: 'doc',
+      name: 'logo.png',
+      parentId: 'public-dir',
+      docId: 'asset-1',
     },
   },
   docsById: {
@@ -74,11 +90,35 @@ const workspace = (): WorkspaceSnapshot => ({
       metaRev: 2,
       content: { language: 'ts', source: 'export const old = true;\n' },
     },
+    'asset-1': {
+      id: 'asset-1',
+      type: 'asset',
+      path: '/public/logo.png',
+      contentRev: 6,
+      metaRev: 2,
+      content: {
+        kind: 'asset',
+        mime: 'image/png',
+        category: 'image',
+        size: ASSET_BASELINE_REFERENCE.byteLength,
+        blob: ASSET_BASELINE_REFERENCE,
+        metadata: { originalFileName: 'logo.png' },
+      },
+    },
   },
   routeManifest: {
     version: '1',
     root: { id: 'route-root', pageDocId: 'page-1' },
   },
+});
+
+const PNG_SIGNATURE = Object.freeze([137, 80, 78, 71, 13, 10, 26, 10]);
+const ASSET_BASELINE_BYTES = new Uint8Array([...PNG_SIGNATURE, 0]);
+const ASSET_RUNTIME_BYTES = new Uint8Array([...PNG_SIGNATURE, 1]);
+const ASSET_ADDED_BYTES = new Uint8Array([...PNG_SIGNATURE, 2]);
+const ASSET_BASELINE_REFERENCE = createBinaryAssetBlobReference({
+  contents: ASSET_BASELINE_BYTES,
+  mediaType: 'image/png',
 });
 
 const snapshotDigest = `sha256-${'a'.repeat(64)}`;
@@ -98,6 +138,8 @@ const diff = (
         'document:code-1:meta': '3',
         'document:code-2:content': '5',
         'document:code-2:meta': '2',
+        'document:asset-1:content': '6',
+        'document:asset-1:meta': '2',
       },
     },
     capturedAt: 1_000,
@@ -267,6 +309,199 @@ describe('runtime filesystem Workspace proposal', () => {
     const reversed = applyWorkspaceTransaction(applied.snapshot, reverse);
     expect(reversed.ok).toBe(true);
     if (reversed.ok) expect(reversed.snapshot).toEqual(current);
+  });
+
+  it('uploads exact runtime bytes before one reversible Asset import/replace transaction', () => {
+    const current = workspace();
+    const observed = diff({
+      changes: [
+        {
+          kind: 'added',
+          path: 'public/generated.png',
+          runtime: { contents: ASSET_ADDED_BYTES },
+        },
+        {
+          kind: 'modified',
+          path: 'public/logo.png',
+          baseline: { contents: ASSET_BASELINE_BYTES },
+          runtime: { contents: ASSET_RUNTIME_BYTES },
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'document',
+                workspaceId: current.id,
+                documentId: 'asset-1',
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const analysis = analyzeWorkspaceRuntimeFilesystemDiff(current, observed);
+    expect(analysis.entries).toEqual([
+      expect.objectContaining({
+        status: 'eligible',
+        documentId: expect.stringMatching(/^runtime-asset:/),
+        documentType: 'asset',
+      }),
+      expect.objectContaining({
+        status: 'eligible',
+        documentId: 'asset-1',
+        documentType: 'asset',
+      }),
+    ]);
+    const uploadPlan = createWorkspaceRuntimeFilesystemAssetUploadPlan({
+      workspace: current,
+      diff: observed,
+      selectedChangeIds: analysis.eligibleChangeIds,
+    });
+    expect(uploadPlan.status).toBe('ready');
+    if (uploadPlan.status !== 'ready') return;
+    expect(uploadPlan.uploads).toHaveLength(2);
+    expect(uploadPlan.uploads.map((upload) => upload.contents)).toEqual([
+      ASSET_ADDED_BYTES,
+      ASSET_RUNTIME_BYTES,
+    ]);
+
+    const withoutUpload = createWorkspaceRuntimeFilesystemProposal({
+      workspace: current,
+      diff: observed,
+      selectedChangeIds: analysis.eligibleChangeIds,
+      transactionId: 'runtime-asset-adopt-missing',
+      issuedAt: '2026-07-18T00:00:00.000Z',
+    });
+    expect(withoutUpload).toMatchObject({
+      status: 'blocked',
+      reason: 'missing-asset-upload',
+    });
+
+    const result = createWorkspaceRuntimeFilesystemProposal({
+      workspace: current,
+      diff: observed,
+      selectedChangeIds: analysis.eligibleChangeIds,
+      assetUploadReceipts: uploadPlan.uploads.map((upload) => ({
+        changeId: upload.changeId,
+        upload: { kind: 'stored', reference: upload.expectedReference },
+      })),
+      transactionId: 'runtime-asset-adopt-1',
+      issuedAt: '2026-07-18T00:00:00.000Z',
+    });
+    expect(result.status).toBe('ready');
+    if (result.status !== 'ready') return;
+    expect(result.transaction.commands.map((command) => command.type)).toEqual([
+      'document.create',
+      'asset.content.replace',
+    ]);
+    const applied = applyWorkspaceTransaction(current, result.transaction);
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
+    const importedId = analysis.entries[0]!.documentId!;
+    expect(applied.snapshot.docsById[importedId]).toMatchObject({
+      type: 'asset',
+      path: '/public/generated.png',
+      content: {
+        kind: 'asset',
+        mime: 'image/png',
+        size: ASSET_ADDED_BYTES.byteLength,
+        blob: uploadPlan.uploads[0]!.expectedReference,
+        metadata: { originalFileName: 'generated.png' },
+      },
+    });
+    expect(applied.snapshot.docsById['asset-1']?.content).toMatchObject({
+      kind: 'asset',
+      blob: uploadPlan.uploads[1]!.expectedReference,
+      metadata: { originalFileName: 'logo.png' },
+    });
+
+    const reverse: WorkspaceTransactionEnvelope = {
+      id: 'runtime-asset-adopt-1:reverse',
+      workspaceId: current.id,
+      issuedAt: '2026-07-18T00:00:01.000Z',
+      commands: [...result.transaction.commands]
+        .reverse()
+        .map((command, index): WorkspaceCommandEnvelope => ({
+          ...command,
+          id: `runtime-asset-adopt-1:reverse:${index + 1}`,
+          forwardOps: command.reverseOps,
+          reverseOps: command.forwardOps,
+        })),
+    };
+    const reversed = applyWorkspaceTransaction(applied.snapshot, reverse);
+    expect(reversed.ok).toBe(true);
+    if (reversed.ok) expect(reversed.snapshot).toEqual(current);
+  });
+
+  it('rejects forged Asset upload receipts, media drift, and runtime Asset deletion', () => {
+    const current = workspace();
+    const modified = diff({
+      changes: [
+        {
+          kind: 'modified',
+          path: 'public/logo.png',
+          baseline: { contents: ASSET_BASELINE_BYTES },
+          runtime: { contents: ASSET_RUNTIME_BYTES },
+          sourceTrace: [
+            { sourceRef: { kind: 'document', documentId: 'asset-1' } },
+          ],
+        },
+      ],
+    });
+    const changeId = modified.changes[0]!.changeId;
+    expect(
+      createWorkspaceRuntimeFilesystemProposal({
+        workspace: current,
+        diff: modified,
+        selectedChangeIds: [changeId],
+        assetUploadReceipts: [
+          {
+            changeId,
+            upload: { kind: 'existing', reference: ASSET_BASELINE_REFERENCE },
+          },
+        ],
+        transactionId: 'runtime-asset-forged',
+        issuedAt: '2026-07-18T00:00:00.000Z',
+      })
+    ).toMatchObject({ status: 'blocked', reason: 'invalid-asset-upload' });
+
+    const mediaDrift = diff({
+      changes: [
+        {
+          kind: 'modified',
+          path: 'public/logo.png',
+          baseline: { contents: ASSET_BASELINE_BYTES },
+          runtime: { contents: new Uint8Array([0xff, 0xd8, 0xff, 0xd9]) },
+          sourceTrace: [
+            { sourceRef: { kind: 'document', documentId: 'asset-1' } },
+          ],
+        },
+      ],
+    });
+    expect(
+      analyzeWorkspaceRuntimeFilesystemDiff(current, mediaDrift).entries[0]
+    ).toMatchObject({
+      status: 'blocked',
+      documentType: 'asset',
+      reason: 'asset-media-mismatch',
+    });
+
+    const deleted = diff({
+      changes: [
+        {
+          kind: 'deleted',
+          path: 'public/logo.png',
+          baseline: { contents: ASSET_BASELINE_BYTES },
+          sourceTrace: [
+            { sourceRef: { kind: 'document', documentId: 'asset-1' } },
+          ],
+        },
+      ],
+    });
+    expect(
+      analyzeWorkspaceRuntimeFilesystemDiff(current, deleted).entries[0]
+    ).toMatchObject({
+      status: 'blocked',
+      reason: 'asset-deletion-unsupported',
+    });
   });
 
   it('blocks stale revisions, baseline drift, and incomplete captures', () => {

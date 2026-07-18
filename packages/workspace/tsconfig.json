@@ -10,12 +10,14 @@
     "noEmit": false,
     "paths": {
       "@prodivix/animation": ["../animation/src"],
+      "@prodivix/assets": ["../assets/src"],
       "@prodivix/authoring": ["../authoring/src"],
       "@prodivix/data": ["../data/src"],
       "@prodivix/diagnostics": ["../diagnostics/src"],
       "@prodivix/nodegraph": ["../nodegraph/src"],
       "@prodivix/pir": ["../pir/src"],
       "@prodivix/router": ["../router/src"],
+      "@prodivix/server-runtime": ["../server-runtime/src"],
       "@prodivix/tokens": ["../tokens/src"]
     }
   },
@@ -30,6 +32,9 @@
   "references": [
     {
       "path": "../animation"
+    },
+    {
+      "path": "../assets"
     },
     {
       "path": "../authoring"
@@ -48,6 +53,9 @@
     },
     {
       "path": "../router"
+    },
+    {
+      "path": "../server-runtime"
     },
     {
       "path": "../tokens"

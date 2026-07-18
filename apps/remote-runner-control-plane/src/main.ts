@@ -11,6 +11,7 @@ import {
   encodeRemoteExecutableProjectSnapshot,
   remoteBuildExecutionProviderDescriptor,
   remotePreviewExecutionProviderDescriptor,
+  remoteServerFunctionExecutionProviderDescriptor,
   remoteTestExecutionProviderDescriptor,
 } from '@prodivix/runtime-remote';
 import {
@@ -18,7 +19,15 @@ import {
   createPostgresRemoteExecutionSnapshotStore,
   migrateRemoteExecutionPostgres,
 } from '@prodivix/runtime-remote-postgres';
+import {
+  readIsolatedServerFunctionExecutionRequest,
+  readIsolatedServerFunctionPlan,
+} from '@prodivix/server-runtime';
 import { createRemoteExecutionHttpHandler } from './httpHandler';
+import {
+  createRemoteExecutionSecretBroker,
+  isRemoteExecutionSecretResolutionLeaseEligible,
+} from './secretBrokerClient';
 
 const required = (name: string): string => {
   const value = process.env[name]?.trim();
@@ -97,6 +106,25 @@ const databaseUrl = required('REMOTE_CONTROL_PLANE_DATABASE_URL');
 const clientToken = required('REMOTE_CONTROL_PLANE_CLIENT_TOKEN');
 const clientSubject = required('REMOTE_CONTROL_PLANE_CLIENT_SUBJECT');
 const workerTokenById = workerTokens();
+const secretBrokerUrl =
+  process.env.REMOTE_CONTROL_PLANE_SECRET_BROKER_URL?.trim();
+const secretBrokerToken =
+  process.env.REMOTE_CONTROL_PLANE_SECRET_BROKER_TOKEN?.trim();
+if (Boolean(secretBrokerUrl) !== Boolean(secretBrokerToken))
+  throw new TypeError(
+    'REMOTE_CONTROL_PLANE_SECRET_BROKER_URL and REMOTE_CONTROL_PLANE_SECRET_BROKER_TOKEN must be configured together.'
+  );
+const secretBroker =
+  secretBrokerUrl && secretBrokerToken
+    ? createRemoteExecutionSecretBroker({
+        baseUrl: secretBrokerUrl,
+        token: secretBrokerToken,
+        timeoutMs: integer(
+          'REMOTE_CONTROL_PLANE_SECRET_BROKER_TIMEOUT_MS',
+          5_000
+        ),
+      })
+    : undefined;
 const secretCanaries = optionalSecretValues(
   'REMOTE_CONTROL_PLANE_SECRET_CANARIES_JSON'
 );
@@ -127,6 +155,7 @@ const controlPlane = createRemoteExecutionControlPlane({
     remotePreviewExecutionProviderDescriptor,
     remoteTestExecutionProviderDescriptor,
     remoteBuildExecutionProviderDescriptor,
+    remoteServerFunctionExecutionProviderDescriptor,
   ]),
   createExecutionId: () => `execution-${randomUUID()}`,
   createLeaseToken: () => `lease-${randomUUID()}`,
@@ -135,6 +164,7 @@ const controlPlane = createRemoteExecutionControlPlane({
       clientToken,
       databaseUrl,
       ...Object.values(workerTokenById),
+      ...(secretBrokerToken ? [secretBrokerToken] : []),
       ...secretCanaries,
     ],
   }),
@@ -148,6 +178,7 @@ const terminalBroker = createRemoteExecutionTerminalBroker({
     clientToken,
     databaseUrl,
     ...Object.values(workerTokenById),
+    ...(secretBrokerToken ? [secretBrokerToken] : []),
     ...secretCanaries,
   ],
 });
@@ -197,6 +228,75 @@ const handler = createRemoteExecutionHttpHandler({
       return undefined;
     return execution.record.status === 'cancelling';
   },
+  ...(secretBroker
+    ? {
+        async resolveClaimedServerFunctionSecrets(input: {
+          executionId: string;
+          workerId: string;
+          leaseToken: string;
+          recipientPublicKey: string;
+        }) {
+          const execution = await repository.get(input.executionId);
+          if (
+            !execution?.lease ||
+            !isRemoteExecutionSecretResolutionLeaseEligible(
+              execution,
+              input,
+              Date.now()
+            )
+          )
+            return undefined;
+          const stored = await snapshots.get(
+            execution.ownerId,
+            execution.snapshotId,
+            execution.record.snapshotDigest
+          );
+          const invocation = stored
+            ? readIsolatedServerFunctionExecutionRequest(
+                execution.request,
+                stored.snapshot.serverFunctionPlan
+              )
+            : undefined;
+          const plan = stored
+            ? readIsolatedServerFunctionPlan(stored.snapshot.serverFunctionPlan)
+            : undefined;
+          if (
+            !stored ||
+            !invocation ||
+            !plan?.definition.environment ||
+            !execution.request.requiredCapabilities.includes(
+              'environment-binding'
+            )
+          )
+            return undefined;
+          const identity = Object.freeze({
+            executionId: input.executionId,
+            workerId: input.workerId,
+            workerAttempt: execution.lease.attempt,
+            workspaceId: stored.snapshot.workspace.workspaceId,
+            snapshotId: stored.snapshot.workspace.snapshotId,
+            functionRef: invocation.functionRef,
+            invocationId: invocation.invocationId,
+            recipientPublicKey: input.recipientPublicKey,
+          });
+          const envelope = await secretBroker.resolve(identity);
+          return envelope &&
+            envelope.executionId === identity.executionId &&
+            envelope.workerId === identity.workerId &&
+            envelope.workerAttempt === identity.workerAttempt &&
+            envelope.workspaceId === identity.workspaceId &&
+            envelope.snapshotId === identity.snapshotId &&
+            envelope.functionRef.artifactId ===
+              identity.functionRef.artifactId &&
+            envelope.functionRef.exportName ===
+              identity.functionRef.exportName &&
+            envelope.invocationId === identity.invocationId &&
+            envelope.recipientPublicKey === identity.recipientPublicKey
+            ? envelope
+            : undefined;
+        },
+      }
+    : {}),
 });
 const server = createServer((request, response) => {
   void handler(request, response);

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { generateWorkspaceReactViteBundle } from '@prodivix/prodivix-compiler';
-import { GOLDEN_CODEGEN_POLICY } from './goldenApp.fixture';
+import {
+  GOLDEN_ASSET_MATERIALIZATIONS,
+  GOLDEN_CODEGEN_POLICY,
+} from './goldenApp.fixture';
 import { authorGoldenG1Workspace, GOLDEN_G1_IDS } from './goldenG1Scenario';
 import { verifyGoldenStandaloneProject } from './generatedProjectHarness';
 
@@ -12,6 +15,7 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G1_STANDALONE === '1')(
       const bundle = generateWorkspaceReactViteBundle(authored.workspace, {
         projectName: 'Prodivix Golden G1 App',
         codegenPolicySnapshot: GOLDEN_CODEGEN_POLICY,
+        assetMaterializations: GOLDEN_ASSET_MATERIALIZATIONS,
         packageResolver: { strategy: 'npm' },
       });
 

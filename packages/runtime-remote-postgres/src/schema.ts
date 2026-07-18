@@ -64,6 +64,14 @@ CREATE INDEX IF NOT EXISTS idx_remote_executions_expired_lease
   ON remote_executions(lease_expires_at)
   WHERE lease_expires_at IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS remote_execution_server_authorities (
+  execution_id TEXT PRIMARY KEY REFERENCES remote_executions(execution_id) ON DELETE CASCADE,
+  authority_json JSONB NOT NULL,
+  expires_at BIGINT NOT NULL CHECK (expires_at >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_remote_execution_server_authority_expiry
+  ON remote_execution_server_authorities(expires_at, execution_id);
+
 CREATE TABLE IF NOT EXISTS remote_execution_events (
   execution_id TEXT NOT NULL REFERENCES remote_executions(execution_id) ON DELETE CASCADE,
   cursor BIGINT NOT NULL CHECK (cursor >= 1),

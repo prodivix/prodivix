@@ -14,14 +14,22 @@ import {
   createMemoryRemoteExecutionSnapshotStore,
   createRemoteExecutionClient,
   createRemoteExecutionControlPlane,
+  createRemoteExecutionCreatePayload,
   createRemoteExecutionHttpTransports,
+  createRemoteExecutionRequestEnvelope,
   createRemoteExecutionTerminalBroker,
   createRemoteExecutionTerminalClient,
   createRemoteExecutionTerminalHttpTransport,
   createScopeRemoteExecutionAuthorizationPolicy,
   createStaticRemoteExecutionProviderRouter,
+  REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT,
+  REMOTE_EXECUTION_SECRET_ENVELOPE_ALGORITHM,
+  REMOTE_EXECUTION_SECRET_ENVELOPE_FORMAT,
 } from '@prodivix/runtime-remote';
-import { createRemoteExecutionHttpHandler } from './httpHandler';
+import {
+  createRemoteExecutionHttpHandler,
+  REMOTE_EXECUTION_SERVER_AUTHORITY_HEADER,
+} from './httpHandler';
 
 let server: Server;
 let baseUrl: string;
@@ -142,6 +150,31 @@ beforeEach(async () => {
         ? execution.record.status === 'cancelling'
         : undefined;
     },
+    async resolveClaimedServerFunctionSecrets(input) {
+      const execution = await repository.get(input.executionId);
+      if (
+        !execution?.lease ||
+        execution.lease.workerId !== input.workerId ||
+        execution.lease.token !== input.leaseToken
+      )
+        return undefined;
+      return {
+        format: REMOTE_EXECUTION_SECRET_ENVELOPE_FORMAT,
+        algorithm: REMOTE_EXECUTION_SECRET_ENVELOPE_ALGORITHM,
+        executionId: input.executionId,
+        workerId: input.workerId,
+        workerAttempt: execution.lease.attempt,
+        workspaceId: snapshot.workspace.workspaceId,
+        snapshotId: snapshot.workspace.snapshotId,
+        functionRef: { artifactId: 'code-secret', exportName: 'useSecret' },
+        invocationId: 'invocation-secret',
+        recipientPublicKey: input.recipientPublicKey,
+        ephemeralPublicKey: Buffer.alloc(32, 0x31).toString('base64url'),
+        nonce: Buffer.alloc(12, 0x32).toString('base64url'),
+        ciphertext: Buffer.alloc(17, 0x33).toString('base64url'),
+        expiresAt: 2_000,
+      };
+    },
   });
   server = createServer(
     (incoming, response) => void handler(incoming, response)
@@ -178,6 +211,177 @@ describe('remote runner control-plane HTTP integration', () => {
     expect(result.execution).toMatchObject({
       executionId: 'execution-1',
       status: 'queued',
+    });
+  });
+
+  it('returns only a ciphertext envelope through the worker-token and lease fence', async () => {
+    const { transport } = createRemoteExecutionHttpTransports({
+      baseUrl,
+      accessToken: 'client-token',
+      http: httpPort,
+    });
+    const client = createRemoteExecutionClient({
+      retryPolicy: { maxAttempts: 1 },
+      transport,
+    });
+    const created = await client.create({
+      request,
+      snapshot: { kind: 'upload', snapshot },
+    });
+    const claimResponse = await fetch(`${baseUrl}/internal/v1/claims`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer worker-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        workerId: 'worker-1',
+        providerId: provider.id,
+        leaseDurationMs: 1_000,
+      }),
+    });
+    const claimBody = (await claimResponse.json()) as {
+      claim: { lease: { token: string } };
+    };
+    const recipientPublicKey = Buffer.alloc(32, 0x41).toString('base64url');
+    const resolved = await fetch(
+      `${baseUrl}/internal/v1/executions/${created.execution.executionId}/server-function-secrets`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer worker-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          workerId: 'worker-1',
+          leaseToken: claimBody.claim.lease.token,
+          recipientPublicKey,
+        }),
+      }
+    );
+    expect(resolved.status).toBe(200);
+    await expect(resolved.json()).resolves.toMatchObject({
+      envelope: {
+        format: REMOTE_EXECUTION_SECRET_ENVELOPE_FORMAT,
+        executionId: created.execution.executionId,
+        workerId: 'worker-1',
+        recipientPublicKey,
+        ciphertext: expect.any(String),
+      },
+    });
+    const denied = await fetch(
+      `${baseUrl}/internal/v1/executions/${created.execution.executionId}/server-function-secrets`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer worker-token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          workerId: 'worker-1',
+          leaseToken: 'drifted-lease',
+          recipientPublicKey,
+        }),
+      }
+    );
+    expect(denied.status).toBe(409);
+  });
+
+  it('accepts a strict trusted authority header and returns it only on the fenced worker claim', async () => {
+    const authority = {
+      format: REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT,
+      principal: {
+        providerId: 'prodivix-product-session',
+        principalId: 'product-user-1',
+      },
+      permissions: ['workspace.owner'],
+      workspaceId: snapshot.workspace.workspaceId,
+      snapshotId: snapshot.workspace.snapshotId,
+      expiresAt: 1_100,
+    } as const;
+    const authorityHttp = {
+      async request(input: Parameters<typeof httpPort.request>[0]) {
+        const operation = input.body
+          ? (
+              JSON.parse(Buffer.from(input.body).toString('utf8')) as {
+                operation?: unknown;
+              }
+            ).operation
+          : undefined;
+        return httpPort.request({
+          ...input,
+          headers: {
+            ...input.headers,
+            ...(operation === 'create'
+              ? {
+                  [REMOTE_EXECUTION_SERVER_AUTHORITY_HEADER]: Buffer.from(
+                    JSON.stringify(authority)
+                  ).toString('base64url'),
+                }
+              : {}),
+          },
+        });
+      },
+    } as const;
+    const { transport } = createRemoteExecutionHttpTransports({
+      baseUrl,
+      accessToken: 'client-token',
+      http: authorityHttp,
+    });
+    const result = await createRemoteExecutionClient({
+      retryPolicy: { maxAttempts: 1 },
+      transport,
+    }).create({
+      request,
+      snapshot: { kind: 'upload', snapshot },
+    });
+    expect(JSON.stringify(result)).not.toContain('product-user-1');
+
+    const response = await fetch(`${baseUrl}/internal/v1/claims`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer worker-token' },
+      body: JSON.stringify({
+        workerId: 'worker-1',
+        providerId: provider.id,
+        leaseDurationMs: 50,
+      }),
+    });
+    const claimed = (await response.json()) as {
+      claim: { authority: unknown; lease: { token: string } };
+    };
+    expect(claimed.claim.authority).toMatchObject({
+      executionId: result.execution.executionId,
+      workerId: 'worker-1',
+      principal: authority.principal,
+      permissions: authority.permissions,
+    });
+    expect(JSON.stringify(claimed.claim.authority)).not.toContain(
+      claimed.claim.lease.token
+    );
+  });
+
+  it('rejects malformed or non-create authority headers before control-plane mutation', async () => {
+    const envelope = createRemoteExecutionRequestEnvelope(
+      1,
+      'malformed-authority',
+      'create',
+      createRemoteExecutionCreatePayload({
+        request,
+        snapshot: { kind: 'upload', snapshot },
+      })
+    );
+    const malformed = await fetch(`${baseUrl}/v1/executions`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer client-token',
+        'content-type': 'application/json',
+        [REMOTE_EXECUTION_SERVER_AUTHORITY_HEADER]: 'not_base64url!',
+      },
+      body: JSON.stringify(envelope),
+    });
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toEqual({
+      error: { code: 'invalid-request' },
     });
   });
 

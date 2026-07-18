@@ -7,11 +7,13 @@
   "scripts": {
     "emit:g2-execution-snapshot": "tsx scripts/emitGoldenG2ExecutableSnapshot.ts",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "test:g2-auth-server-matrix": "pnpm exec tsc -b ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2AuthServerMatrix.conformance.test.ts",
     "test:g2-execution-matrix": "pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2ExecutionMatrix.conformance.test.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --pretty false"
   },
   "dependencies": {
+    "@prodivix/assets": "workspace:*",
     "@prodivix/authoring": "workspace:*",
     "@prodivix/pir": "workspace:*",
     "@prodivix/plugin-antd": "workspace:*",
@@ -20,12 +22,14 @@
     "@prodivix/runtime-core": "workspace:*",
     "@prodivix/runtime-remote": "workspace:*",
     "@prodivix/runtime-vitest": "workspace:*",
+    "@prodivix/server-runtime": "workspace:*",
     "@prodivix/workspace": "workspace:*",
     "@prodivix/workspace-sync": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.0",
+    "ajv": "^8.20.0",
     "fast-check": "^4.9.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",

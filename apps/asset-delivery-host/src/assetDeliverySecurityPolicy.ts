@@ -1,0 +1,52 @@
+const permissionsPolicy = [
+  'accelerometer=()',
+  'autoplay=()',
+  'camera=()',
+  'display-capture=()',
+  'encrypted-media=()',
+  'fullscreen=()',
+  'geolocation=()',
+  'gyroscope=()',
+  'magnetometer=()',
+  'microphone=()',
+  'midi=()',
+  'payment=()',
+  'picture-in-picture=()',
+  'publickey-credentials-get=()',
+  'screen-wake-lock=()',
+  'serial=()',
+  'usb=()',
+  'xr-spatial-tracking=()',
+].join(', ');
+
+export const createAssetDeliverySecurityHeaders = (): Readonly<
+  Record<string, string>
+> =>
+  Object.freeze({
+    'access-control-allow-origin': '*',
+    'cache-control': 'private, no-store',
+    'content-security-policy': [
+      "default-src 'none'",
+      "script-src 'none'",
+      "style-src 'none'",
+      "img-src 'none'",
+      "font-src 'none'",
+      "media-src 'none'",
+      "connect-src 'none'",
+      "worker-src 'none'",
+      "object-src 'none'",
+      "frame-src 'none'",
+      "base-uri 'none'",
+      "form-action 'none'",
+      "frame-ancestors 'none'",
+      'sandbox',
+    ].join('; '),
+    'cross-origin-opener-policy': 'same-origin',
+    'cross-origin-resource-policy': 'cross-origin',
+    'origin-agent-cluster': '?1',
+    'permissions-policy': permissionsPolicy,
+    'referrer-policy': 'no-referrer',
+    'x-content-type-options': 'nosniff',
+    'x-download-options': 'noopen',
+    'x-frame-options': 'DENY',
+  });

@@ -12,6 +12,8 @@ import {
   normalizeExecutableProjectCapabilityRequirements,
   normalizeExecutableProjectCommands,
   normalizeExecutableProjectDataMockProvision,
+  normalizeExecutableProjectServerRuntimeMockProvision,
+  normalizeExecutableProjectServerFunctionPlan,
   normalizeExecutableProjectEntrypoints,
   normalizeExecutableProjectPath,
   normalizeExecutableProjectPreviewPlan,
@@ -24,6 +26,7 @@ import {
 import {
   EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
   EXECUTABLE_PROJECT_DATA_RUNTIME_MANIFEST_PATH,
+  EXECUTABLE_PROJECT_SERVER_RUNTIME_MOCK_PROVISION_PATH,
   EXECUTABLE_PROJECT_LIMITS,
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
   type ExecutableProjectCacheHints,
@@ -39,6 +42,8 @@ import {
   type ExecutableProjectPublicBuildConfigurationEntry,
   type ExecutableProjectPreviewPlan,
   type ExecutableProjectResourceHints,
+  type ExecutableProjectServerRuntimeMockProvision,
+  type ExecutableProjectServerFunctionPlan,
   type ExecutableProjectSnapshot,
   type ExecutableProjectSnapshotInput,
   type ExecutableProjectTarget,
@@ -49,9 +54,13 @@ export {
   DEFAULT_EXECUTABLE_PROJECT_BUILD_OUTPUT_DIRECTORY,
   DEFAULT_EXECUTABLE_PROJECT_PREVIEW_ENTRY_FILE,
   DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
+  DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_INVOCATION_PATH,
+  DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_RESULT_PATH,
   EXECUTABLE_PROJECT_COMMANDS,
   EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
   EXECUTABLE_PROJECT_DATA_RUNTIME_MANIFEST_PATH,
+  EXECUTABLE_PROJECT_SERVER_RUNTIME_MOCK_PROVISION_PATH,
+  EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
   EXECUTABLE_PROJECT_LIMITS,
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
 } from './executableProject.types';
@@ -60,6 +69,7 @@ export type {
   ExecutableProjectBuildPlanInput,
   ExecutableProjectCacheHints,
   ExecutableProjectCapabilityRequirements,
+  ExecutableProjectCapabilityRequirementsInput,
   ExecutableProjectCommand,
   ExecutableProjectCommandName,
   ExecutableProjectDependencyPlan,
@@ -77,6 +87,9 @@ export type {
   ExecutableProjectPreviewPlan,
   ExecutableProjectPreviewPlanInput,
   ExecutableProjectResourceHints,
+  ExecutableProjectServerRuntimeMockProvision,
+  ExecutableProjectServerFunctionPlan,
+  ExecutableProjectServerFunctionPlanInput,
   ExecutableProjectSnapshot,
   ExecutableProjectSnapshotInput,
   ExecutableProjectTarget,
@@ -255,6 +268,8 @@ type ExecutableProjectDigestInput = Readonly<{
   resourceHints: ExecutableProjectResourceHints;
   cacheHints: ExecutableProjectCacheHints;
   dataMockProvision?: ExecutableProjectDataMockProvision;
+  serverRuntimeMockProvision?: ExecutableProjectServerRuntimeMockProvision;
+  serverFunctionPlan?: ExecutableProjectServerFunctionPlan;
   installCommand: ExecutableProjectCommand;
   previewCommand: ExecutableProjectCommand;
   buildCommand: ExecutableProjectCommand;
@@ -275,6 +290,8 @@ const createContentDigest = (input: ExecutableProjectDigestInput): string =>
     write(canonicalJson(input.resourceHints));
     write(canonicalJson(input.cacheHints));
     write(canonicalJson(input.dataMockProvision ?? null));
+    write(canonicalJson(input.serverRuntimeMockProvision ?? null));
+    write(canonicalJson(input.serverFunctionPlan ?? null));
     write(canonicalJson(input.installCommand));
     write(canonicalJson(input.previewCommand));
     write(canonicalJson(input.buildCommand));
@@ -305,6 +322,8 @@ export const createExecutableProjectSnapshot = (
       'resourceHints',
       'cacheHints',
       'dataMockProvision',
+      'serverRuntimeMockProvision',
+      'serverFunctionPlan',
       'installCommand',
       'previewCommand',
       'buildCommand',
@@ -343,6 +362,13 @@ export const createExecutableProjectSnapshot = (
   const cacheHints = normalizeExecutableProjectCacheHints(record.cacheHints);
   const dataMockProvision = normalizeExecutableProjectDataMockProvision(
     record.dataMockProvision
+  );
+  const serverRuntimeMockProvision =
+    normalizeExecutableProjectServerRuntimeMockProvision(
+      record.serverRuntimeMockProvision
+    );
+  const serverFunctionPlan = normalizeExecutableProjectServerFunctionPlan(
+    record.serverFunctionPlan
   );
   const buildPlan = normalizeExecutableProjectBuildPlan(record.buildPlan);
   const previewPlan = normalizeExecutableProjectPreviewPlan(
@@ -395,6 +421,66 @@ export const createExecutableProjectSnapshot = (
     throw new TypeError(
       'Executable project Data runtime manifest path is reserved for runtime projection.'
     );
+  if (
+    serverRuntimeMockProvision &&
+    files.some(
+      (file) =>
+        file.path === EXECUTABLE_PROJECT_SERVER_RUNTIME_MOCK_PROVISION_PATH
+    )
+  )
+    throw new TypeError(
+      'Executable project Server Runtime mock provision path is reserved for runtime projection.'
+    );
+  const productionEntrypoints = entrypoints.filter(
+    ({ kind }) => kind === 'production'
+  );
+  if (
+    Boolean(serverFunctionPlan) !== Boolean(productionEntrypoints.length) ||
+    productionEntrypoints.length > 1 ||
+    (serverFunctionPlan &&
+      productionEntrypoints[0]?.path !== serverFunctionPlan.entrypointFilePath)
+  )
+    throw new TypeError(
+      'Executable project production entrypoint must match its Server Function plan.'
+    );
+  if (serverFunctionPlan) {
+    const paths = [
+      serverFunctionPlan.entrypointFilePath,
+      serverFunctionPlan.sourceFilePath,
+    ];
+    if (paths.some((path) => !files.some((file) => file.path === path)))
+      throw new TypeError(
+        'Executable project Server Function plan references a missing source file.'
+      );
+    if (
+      serverFunctionPlan.invocationFilePath ===
+        serverFunctionPlan.resultFilePath ||
+      files.some(
+        (file) =>
+          file.path === serverFunctionPlan.invocationFilePath ||
+          file.path === serverFunctionPlan.resultFilePath
+      )
+    )
+      throw new TypeError(
+        'Executable project Server Function runtime paths conflict with project files.'
+      );
+    const productionCapabilities = new Set(capabilityRequirements.production);
+    for (const required of [
+      'artifacts',
+      'cancellation',
+      'filesystem',
+      'server-function',
+    ] as const) {
+      if (!productionCapabilities.has(required))
+        throw new TypeError(
+          `Executable project Server Function plan requires capability: ${required}.`
+        );
+    }
+  } else if (capabilityRequirements.production.length) {
+    throw new TypeError(
+      'Executable project production capabilities require a Server Function plan.'
+    );
+  }
   const normalized = {
     workspace,
     target,
@@ -406,6 +492,8 @@ export const createExecutableProjectSnapshot = (
     resourceHints,
     cacheHints,
     ...(dataMockProvision ? { dataMockProvision } : {}),
+    ...(serverRuntimeMockProvision ? { serverRuntimeMockProvision } : {}),
+    ...(serverFunctionPlan ? { serverFunctionPlan } : {}),
     installCommand,
     previewCommand,
     buildCommand,
@@ -446,6 +534,25 @@ export const projectExecutableProjectRuntimeFiles = (
           Object.freeze({
             path: EXECUTABLE_PROJECT_DATA_MOCK_PROVISION_PATH,
             contents: `${JSON.stringify(snapshot.dataMockProvision)}\n`,
+          }),
+        ]
+      : []),
+    ...(snapshot.serverRuntimeMockProvision
+      ? [
+          Object.freeze({
+            path: EXECUTABLE_PROJECT_SERVER_RUNTIME_MOCK_PROVISION_PATH,
+            contents: `export default ${JSON.stringify(
+              operation === 'test'
+                ? Object.freeze({
+                    format: 'prodivix.executable-server-runtime-provision.v1',
+                    mode: 'deterministic-test',
+                    provision: snapshot.serverRuntimeMockProvision,
+                  })
+                : Object.freeze({
+                    format: 'prodivix.executable-server-runtime-provision.v1',
+                    mode: 'disabled',
+                  })
+            )} as const;\n`,
           }),
         ]
       : []),

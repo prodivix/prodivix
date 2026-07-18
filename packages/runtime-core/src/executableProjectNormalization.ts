@@ -8,11 +8,14 @@ import {
   type ExecutionWorkspaceSnapshotRef,
 } from './execution.types';
 import {
+  DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_INVOCATION_PATH,
+  DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_RESULT_PATH,
   DEFAULT_EXECUTABLE_PROJECT_BUILD_OUTPUT_DIRECTORY,
   DEFAULT_EXECUTABLE_PROJECT_PREVIEW_ENTRY_FILE,
   DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
   EXECUTABLE_PROJECT_COMMANDS,
   EXECUTABLE_PROJECT_LIMITS,
+  EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
   type ExecutableProjectCacheHints,
   type ExecutableProjectBuildPlan,
   type ExecutableProjectCapabilityRequirements,
@@ -27,6 +30,8 @@ import {
   type ExecutableProjectPublicBuildConfigurationEntry,
   type ExecutableProjectPreviewPlan,
   type ExecutableProjectResourceHints,
+  type ExecutableProjectServerRuntimeMockProvision,
+  type ExecutableProjectServerFunctionPlan,
   type ExecutableProjectTarget,
   type ExecutableProjectTestPlan,
 } from './executableProject.types';
@@ -549,6 +554,78 @@ export const normalizeExecutableProjectDataMockProvision = (
   return provision;
 };
 
+const serverRuntimeAuthorityKey = (value: string): boolean =>
+  /^(authorization|cookie|setcookie|password|secret|token|accesstoken|refreshtoken|sessionid|credential|privatekey)$/u.test(
+    value.replaceAll(/[-_]/gu, '').toLowerCase()
+  );
+
+const cloneServerRuntimeMockValue = (
+  value: unknown,
+  label: string,
+  budget: { nodes: number },
+  depth = 0
+): ExecutionValue => {
+  budget.nodes += 1;
+  if (depth > 64 || budget.nodes > 65_536)
+    throw new TypeError(`${label} exceeds the structural budget.`);
+  if (value === null || typeof value === 'string' || typeof value === 'boolean')
+    return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (Array.isArray(value))
+    return Object.freeze(
+      value.map((entry, index) =>
+        cloneServerRuntimeMockValue(
+          entry,
+          `${label}[${index}]`,
+          budget,
+          depth + 1
+        )
+      )
+    );
+  if (!isPlainRecord(value))
+    throw new TypeError(`${label} must contain transport-safe values.`);
+  const entries = Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => {
+      if (serverRuntimeAuthorityKey(key))
+        throw new TypeError(`${label} contains forbidden authority material.`);
+      return [
+        key,
+        cloneServerRuntimeMockValue(
+          entry,
+          `${label}.${key}`,
+          budget,
+          depth + 1
+        ),
+      ] as const;
+    });
+  return Object.freeze(Object.fromEntries(entries));
+};
+
+/** Runtime Core only owns bounded projection; Server Runtime owns the provision's semantic schema. */
+export const normalizeExecutableProjectServerRuntimeMockProvision = (
+  value: unknown
+): ExecutableProjectServerRuntimeMockProvision | undefined => {
+  if (value === undefined) return undefined;
+  if (!isPlainRecord(value))
+    throw new TypeError(
+      'Executable project Server Runtime mock provision must be an object.'
+    );
+  const provision = cloneServerRuntimeMockValue(
+    value,
+    'Executable project Server Runtime mock provision',
+    { nodes: 0 }
+  );
+  if (
+    utf8ToBytes(JSON.stringify(provision)).byteLength >
+    EXECUTABLE_PROJECT_LIMITS.maxServerRuntimeMockProvisionBytes
+  )
+    throw new TypeError(
+      'Executable project Server Runtime mock provision exceeds the size limit.'
+    );
+  return provision;
+};
+
 export const cloneExecutableProjectSourceTrace = (
   value: unknown,
   label: string
@@ -696,7 +773,12 @@ export const normalizeExecutableProjectEntrypoints = (
       `Executable project entrypoint ${index}`
     );
     const kind = record.kind;
-    if (kind !== 'preview' && kind !== 'build' && kind !== 'test') {
+    if (
+      kind !== 'preview' &&
+      kind !== 'build' &&
+      kind !== 'test' &&
+      kind !== 'production'
+    ) {
       throw new TypeError(
         `Unsupported executable project entrypoint kind: ${kind}`
       );
@@ -754,13 +836,17 @@ export const normalizeExecutableProjectCapabilityRequirements = (
 ): ExecutableProjectCapabilityRequirements => {
   const record = assertExecutableProjectExactKeys(
     value,
-    ['preview', 'build', 'test'],
+    ['preview', 'build', 'test', 'production'],
     'Executable project capability requirements'
   );
   return Object.freeze({
     preview: normalizeCapabilities(record.preview, 'Preview capabilities'),
     build: normalizeCapabilities(record.build, 'Build capabilities'),
     test: normalizeCapabilities(record.test, 'Test capabilities'),
+    production: normalizeCapabilities(
+      record.production ?? [],
+      'Production capabilities'
+    ),
   });
 };
 
@@ -940,6 +1026,86 @@ export const normalizeExecutableProjectTestPlan = (
       'Executable project test command'
     ),
     reportFilePath,
+  });
+};
+
+export const normalizeExecutableProjectServerFunctionPlan = (
+  value: unknown
+): ExecutableProjectServerFunctionPlan | undefined => {
+  if (value === undefined) return undefined;
+  const record = assertExecutableProjectExactKeys(
+    value,
+    [
+      'format',
+      'command',
+      'invocationFilePath',
+      'resultFilePath',
+      'entrypointFilePath',
+      'sourceFilePath',
+      'functionRef',
+      'runtimeManifest',
+    ],
+    'Executable project Server Function plan'
+  );
+  const format =
+    record.format ?? EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT;
+  if (format !== EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT)
+    throw new TypeError(
+      'Executable project Server Function plan format is unsupported.'
+    );
+  const reference = assertExecutableProjectExactKeys(
+    record.functionRef,
+    ['artifactId', 'exportName'],
+    'Executable project Server Function reference'
+  );
+  const artifactId = normalizeBoundedIdentifier(
+    reference.artifactId,
+    'Executable project Server Function artifact id',
+    256
+  );
+  const exportName = normalizeBoundedIdentifier(
+    reference.exportName,
+    'Executable project Server Function export name',
+    256
+  );
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(artifactId) ||
+    !/^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(exportName)
+  )
+    throw new TypeError(
+      'Executable project Server Function reference is invalid.'
+    );
+  const runtimeManifest = canonicalClone(
+    record.runtimeManifest,
+    'Executable project Server Function runtime manifest'
+  ) as ExecutionValue;
+  if (
+    utf8ToBytes(JSON.stringify(runtimeManifest)).byteLength >
+    EXECUTABLE_PROJECT_LIMITS.maxServerRuntimeMockProvisionBytes
+  )
+    throw new TypeError(
+      'Executable project Server Function runtime manifest exceeds the size limit.'
+    );
+  return Object.freeze({
+    format,
+    command: normalizeExecutableProjectCommand(
+      record.command,
+      'Executable project Server Function command'
+    ),
+    invocationFilePath: normalizeExecutableProjectPath(
+      record.invocationFilePath ??
+        DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_INVOCATION_PATH
+    ),
+    resultFilePath: normalizeExecutableProjectPath(
+      record.resultFilePath ??
+        DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_RESULT_PATH
+    ),
+    entrypointFilePath: normalizeExecutableProjectPath(
+      record.entrypointFilePath
+    ),
+    sourceFilePath: normalizeExecutableProjectPath(record.sourceFilePath),
+    functionRef: Object.freeze({ artifactId, exportName }),
+    runtimeManifest,
   });
 };
 

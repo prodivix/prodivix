@@ -8,6 +8,15 @@ export type RemoteExecutionHttpRequest = Readonly<{
   headers: Readonly<Record<string, string>>;
   body?: Uint8Array;
   maximumResponseBytes: number;
+  signal?: Readonly<{
+    aborted: boolean;
+    addEventListener(
+      type: 'abort',
+      listener: () => void,
+      options?: Readonly<{ once?: boolean }>
+    ): void;
+    removeEventListener(type: 'abort', listener: () => void): void;
+  }>;
 }>;
 
 export type RemoteExecutionHttpResponse = Readonly<{

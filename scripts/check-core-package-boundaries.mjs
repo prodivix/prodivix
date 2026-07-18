@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const corePackages = {
+  assets: new Set(),
   animation: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
   router: new Set(['@prodivix/authoring']),
   diagnostics: new Set(),
@@ -14,12 +15,14 @@ const corePackages = {
   pir: new Set(['@prodivix/authoring', '@prodivix/diagnostics']),
   workspace: new Set([
     '@prodivix/animation',
+    '@prodivix/assets',
     '@prodivix/authoring',
     '@prodivix/data',
     '@prodivix/diagnostics',
     '@prodivix/nodegraph',
     '@prodivix/pir',
     '@prodivix/router',
+    '@prodivix/server-runtime',
     '@prodivix/shared',
     '@prodivix/tokens',
   ]),
@@ -29,9 +32,11 @@ const corePackages = {
     '@prodivix/workspace',
   ]),
   'runtime-core': new Set(['@prodivix/diagnostics']),
+  'server-runtime': new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
   'runtime-remote': new Set([
     '@prodivix/diagnostics',
     '@prodivix/runtime-core',
+    '@prodivix/server-runtime',
   ]),
   'runtime-remote-postgres': new Set([
     '@prodivix/runtime-core',

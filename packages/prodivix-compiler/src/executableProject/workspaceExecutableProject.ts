@@ -163,6 +163,18 @@ export const generateWorkspaceReactViteExecutableProject = (
     options.dataRuntimeTarget
   );
   const bundle = generateWorkspaceReactViteBundle(workspace, options);
+  const serverRuntimeMetadata = bundle.metadata?.serverRuntime as
+    | Readonly<{
+        requirements?: Readonly<{
+          requiresServerGateway?: unknown;
+          requiresEnvironmentBinding?: unknown;
+        }>;
+      }>
+    | undefined;
+  const requiresServerFunctionGateway =
+    serverRuntimeMetadata?.requirements?.requiresServerGateway === true;
+  const requiresServerEnvironmentBinding =
+    serverRuntimeMetadata?.requirements?.requiresEnvironmentBinding === true;
   const blockingDiagnostics =
     bundle.metadata?.blockingDiagnostics ??
     bundle.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
@@ -178,8 +190,9 @@ export const generateWorkspaceReactViteExecutableProject = (
   const requiresLiveDataNetwork =
     !options.dataMockProvision && dataRuntime.requirements.requiresNetwork;
   const requiresLiveEnvironmentBinding =
-    !options.dataMockProvision &&
-    dataRuntime.requirements.requiresEnvironmentBinding;
+    requiresServerEnvironmentBinding ||
+    (!options.dataMockProvision &&
+      dataRuntime.requirements.requiresEnvironmentBinding);
   const snapshot = createExecutableProjectSnapshot({
     workspace: createWorkspaceExecutionSnapshotRef(workspace),
     target: {
@@ -214,6 +227,9 @@ export const generateWorkspaceReactViteExecutableProject = (
           : []),
         'filesystem',
         ...(requiresLiveDataNetwork ? (['network'] as const) : []),
+        ...(requiresServerFunctionGateway
+          ? (['server-function'] as const)
+          : []),
         'source-trace',
         'streaming-logs',
       ],
@@ -240,6 +256,9 @@ export const generateWorkspaceReactViteExecutableProject = (
     cacheHints: { dependencyInstall: 'reuse-if-matched' },
     ...(options.dataMockProvision
       ? { dataMockProvision: options.dataMockProvision }
+      : {}),
+    ...(options.serverRuntimeMockProvision
+      ? { serverRuntimeMockProvision: options.serverRuntimeMockProvision }
       : {}),
     installCommand: packageManagerCommand(packageManager, [
       'install',

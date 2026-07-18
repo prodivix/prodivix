@@ -88,12 +88,18 @@ export const encodeRemoteExecutableProjectSnapshot = (
     ...(snapshot.dataMockProvision
       ? { dataMockProvision: snapshot.dataMockProvision }
       : {}),
+    ...(snapshot.serverRuntimeMockProvision
+      ? { serverRuntimeMockProvision: snapshot.serverRuntimeMockProvision }
+      : {}),
     installCommand: snapshot.installCommand,
     previewCommand: snapshot.previewCommand,
     buildCommand: snapshot.buildCommand,
     previewPlan: snapshot.previewPlan,
     buildPlan: snapshot.buildPlan,
     testPlan: snapshot.testPlan,
+    ...(snapshot.serverFunctionPlan
+      ? { serverFunctionPlan: snapshot.serverFunctionPlan }
+      : {}),
   });
 
 export const decodeRemoteExecutableProjectSnapshot = (
@@ -114,12 +120,14 @@ export const decodeRemoteExecutableProjectSnapshot = (
       'resourceHints',
       'cacheHints',
       'dataMockProvision',
+      'serverRuntimeMockProvision',
       'installCommand',
       'previewCommand',
       'buildCommand',
       'previewPlan',
       'buildPlan',
       'testPlan',
+      'serverFunctionPlan',
     ],
     [
       'format',
@@ -204,12 +212,21 @@ export const decodeRemoteExecutableProjectSnapshot = (
     ...(record.dataMockProvision === undefined
       ? {}
       : { dataMockProvision: record.dataMockProvision as never }),
+    ...(record.serverRuntimeMockProvision === undefined
+      ? {}
+      : {
+          serverRuntimeMockProvision:
+            record.serverRuntimeMockProvision as never,
+        }),
     installCommand: record.installCommand as never,
     previewCommand: record.previewCommand as never,
     buildCommand: record.buildCommand as never,
     previewPlan: record.previewPlan as never,
     buildPlan: record.buildPlan as never,
     testPlan: record.testPlan as never,
+    ...(record.serverFunctionPlan === undefined
+      ? {}
+      : { serverFunctionPlan: record.serverFunctionPlan as never }),
   });
   const expectedDigest = sha256Digest(
     record.contentDigest,

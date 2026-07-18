@@ -26,6 +26,7 @@
   "dependencies": {
     "@prodivix/diagnostics": "workspace:*",
     "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/server-runtime": "workspace:*",
     "@noble/hashes": "^2.0.1"
   },
   "devDependencies": {

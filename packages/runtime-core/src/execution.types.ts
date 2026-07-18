@@ -51,6 +51,7 @@ export const EXECUTION_PROVIDER_CAPABILITIES = Object.freeze([
   'console',
   'network',
   'environment-binding',
+  'server-function',
   'terminal',
   'test',
   'build',

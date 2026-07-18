@@ -131,6 +131,10 @@ func (store *WorkspaceStore) importWorkspaceSnapshot(ctx context.Context, params
 	if err := validateWorkspaceRouteDocumentReferences(manifestJSON, documentsByID); err != nil {
 		return nil, err
 	}
+	assetBlobs, err := normalizeWorkspaceAssetBlobImports(params.AssetBlobs, documentsByID)
+	if err != nil {
+		return nil, err
+	}
 	treeJSON, err = tree.marshal()
 	if err != nil {
 		return nil, err
@@ -186,6 +190,26 @@ VALUES ($1, $2::jsonb, $3)`
 			_ = tx.Rollback()
 			return nil, err
 		}
+	}
+
+	if err := insertWorkspaceAssetBlobImports(ctx, tx, params.WorkspaceID, assetBlobs); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := validateWorkspaceAssetBlobReferences(ctx, tx, params.WorkspaceID, documentsByID); err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := reconcileWorkspaceAssetBlobReferenceRetention(
+		ctx,
+		tx,
+		params.WorkspaceID,
+		nil,
+		documentsByID,
+		now,
+	); err != nil {
+		_ = tx.Rollback()
+		return nil, err
 	}
 
 	const insertDocument = `INSERT INTO workspace_documents (

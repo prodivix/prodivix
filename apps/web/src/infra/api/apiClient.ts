@@ -122,6 +122,30 @@ export const apiRequest = async <T>(
   return payload as T;
 };
 
+export const apiBinaryRequest = async (
+  path: string,
+  options: ApiRequestOptions = {}
+): Promise<Readonly<{ contents: Uint8Array; mediaType: string }>> => {
+  const { headers, defaultHeaders, token, ...requestInit } = options;
+  const response = await fetch(`${API_ROOT}${path}`, {
+    ...requestInit,
+    headers: createHeaders({ defaultHeaders, headers, token }),
+  });
+  if (!response.ok) {
+    const payload = await parseResponsePayload(response);
+    throw toApiError(payload, response);
+  }
+  const contentType = response.headers.get('content-type');
+  const mediaType = contentType?.split(';', 1)[0]?.trim();
+  if (!mediaType) {
+    throw new TypeError('Binary API response is missing its media type.');
+  }
+  return Object.freeze({
+    contents: new Uint8Array(await response.arrayBuffer()),
+    mediaType,
+  });
+};
+
 export const isAbortError = (error: unknown): boolean =>
   Boolean(
     error &&

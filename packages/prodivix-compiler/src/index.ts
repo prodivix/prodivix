@@ -56,6 +56,21 @@ export {
   type WorkspaceDataRuntimeTargetAnalysis,
 } from '#src/react/workspaceDataRuntimeTarget';
 export {
+  analyzeWorkspaceServerRuntimeTarget,
+  DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
+  EXECUTION_PARENT_GATEWAY_SERVER_RUNTIME_TARGET,
+  STATIC_CLIENT_SERVER_RUNTIME_TARGET,
+  WORKSPACE_SERVER_RUNTIME_TARGET_FORMAT,
+  type WorkspaceServerRuntimeBinding,
+  type WorkspaceServerRuntimeRequirements,
+  type WorkspaceServerRuntimeTarget,
+  type WorkspaceServerRuntimeTargetAnalysis,
+} from '#src/react/workspaceServerRuntimeTarget';
+export {
+  createWorkspaceStandaloneServerRuntimeModule,
+  WORKSPACE_SERVER_RUNTIME_MODULE_ID,
+} from '#src/react/standaloneServerRuntime';
+export {
   createWorkspaceExecutionConsoleRuntimeModule,
   WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
 } from '#src/react/standaloneExecutionConsoleRuntime';
@@ -66,13 +81,24 @@ export {
   type WorkspaceExecutableProjectResult,
 } from '#src/executableProject/workspaceExecutableProject';
 export {
+  generateWorkspaceIsolatedServerFunctionExecutableProject,
+  ISOLATED_SERVER_FUNCTION_ADAPTER_ID,
+  type GenerateIsolatedServerFunctionExecutableProjectOptions,
+  type IsolatedServerFunctionExecutableProjectResult,
+} from '#src/executableProject/isolatedServerFunctionProject';
+export {
   analyzeWorkspaceRuntimeFilesystemDiff,
+  createWorkspaceRuntimeFilesystemAssetUploadPlan,
   createWorkspaceRuntimeFilesystemProposal,
+  type CreateWorkspaceRuntimeFilesystemAssetUploadPlanInput,
   type CreateWorkspaceRuntimeFilesystemProposalInput,
+  type RuntimeFilesystemAssetUploadReceipt,
+  type RuntimeFilesystemAssetUploadRequest,
   type RuntimeFilesystemProposalBlockReason,
   type RuntimeFilesystemProposalEntry,
   type WorkspaceRuntimeFilesystemProposalAnalysis,
   type WorkspaceRuntimeFilesystemProposalResult,
+  type WorkspaceRuntimeFilesystemAssetUploadPlanResult,
 } from '#src/executableProject/runtimeFilesystemProposal';
 export { compileAnimationExportContributions } from '#src/animation/compileAnimation';
 export { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
@@ -98,6 +124,7 @@ export {
   createStyleImportIntents,
   createStaticDeploymentExportContribution,
   collectReferencedExportAssets,
+  createWorkspaceGitAssetProjection,
   dedupeExportImportIntents,
   ensureFileExtension,
   completeExportDependencyOrigin,
@@ -130,6 +157,7 @@ export {
   EXPORT_KNOWN_PACKAGE_METADATA,
 } from '#src/export';
 export type {
+  CreateWorkspaceGitAssetProjectionInput,
   DiagnosticTargetRef,
   ExportArtifactContribution,
   ExportArtifactKind,

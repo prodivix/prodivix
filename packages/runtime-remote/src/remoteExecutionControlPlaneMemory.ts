@@ -17,6 +17,7 @@ import type {
   RemoteExecutionStoredSnapshot,
 } from './remoteExecutionControlPlane.types';
 import { projectRemoteExecutionArtifact } from './remoteExecutionArtifact';
+import { createRemoteExecutionServerAuthorityLease } from './remoteExecutionServerAuthority';
 
 const terminalStatuses = new Set<ExecutionJobStatus>([
   'succeeded',
@@ -105,6 +106,14 @@ export const createMemoryRemoteExecutionRepository =
     const byId = new Map<string, RemoteExecutionStoredRecord>();
     const idByOwnerRequest = new Map<string, string>();
     const artifactContentsByDigest = new Map<string, Uint8Array>();
+    const serverAuthorityByExecution = new Map<
+      string,
+      NonNullable<
+        Parameters<
+          RemoteExecutionRepository['createOrGet']
+        >[0]['serverAuthority']
+      >
+    >();
 
     const put = (
       record: RemoteExecutionStoredRecord
@@ -155,7 +164,7 @@ export const createMemoryRemoteExecutionRepository =
         );
       }
       const event = stateEvent(execution, status, now, reason);
-      return put(
+      const updated = put(
         freezeStored({
           ...execution,
           record: Object.freeze({
@@ -171,6 +180,9 @@ export const createMemoryRemoteExecutionRepository =
           events: [...execution.events, { cursor: event.sequence, event }],
         })
       );
+      if (terminalStatuses.has(status))
+        serverAuthorityByExecution.delete(execution.record.executionId);
+      return updated;
     };
 
     return Object.freeze({
@@ -223,6 +235,11 @@ export const createMemoryRemoteExecutionRepository =
         });
         idByOwnerRequest.set(key, input.executionId);
         put(execution);
+        if (input.serverAuthority)
+          serverAuthorityByExecution.set(
+            input.executionId,
+            input.serverAuthority
+          );
         return Object.freeze({ kind: 'created', execution });
       },
       async get(executionId) {
@@ -310,7 +327,25 @@ export const createMemoryRemoteExecutionRepository =
         const claimed = put(
           freezeStored({ ...starting, lease, events: starting.events })
         );
-        return Object.freeze({ execution: claimed, lease });
+        const serverAuthority = serverAuthorityByExecution.get(
+          claimed.record.executionId
+        );
+        if (serverAuthority && serverAuthority.expiresAt <= input.now)
+          serverAuthorityByExecution.delete(claimed.record.executionId);
+        return Object.freeze({
+          execution: claimed,
+          lease,
+          ...(serverAuthority && serverAuthority.expiresAt > input.now
+            ? {
+                authority: createRemoteExecutionServerAuthorityLease({
+                  authority: serverAuthority,
+                  executionId: claimed.record.executionId,
+                  workerId: input.workerId,
+                  workerAttempt: lease.attempt,
+                }),
+              }
+            : {}),
+        });
       },
       async renewLease(input): Promise<RemoteExecutionLease | undefined> {
         const execution = byId.get(input.executionId);

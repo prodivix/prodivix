@@ -25,12 +25,14 @@
   },
   "dependencies": {
     "@prodivix/animation": "workspace:*",
+    "@prodivix/assets": "workspace:*",
     "@prodivix/authoring": "workspace:*",
     "@prodivix/data": "workspace:*",
     "@prodivix/diagnostics": "workspace:*",
     "@prodivix/nodegraph": "workspace:*",
     "@prodivix/pir": "workspace:*",
     "@prodivix/router": "workspace:*",
+    "@prodivix/server-runtime": "workspace:*",
     "@prodivix/tokens": "workspace:*"
   },
   "devDependencies": {

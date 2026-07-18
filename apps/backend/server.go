@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -70,10 +71,12 @@ func (server *Server) registerRoutes() {
 }
 
 func (server *Server) Run() error {
+	server.modules.StartMaintenance(context.Background())
 	return server.router.Run(server.cfg.Address)
 }
 
 func (server *Server) Close() error {
+	server.modules.CloseMaintenance()
 	if server.db == nil {
 		return nil
 	}

@@ -1,4 +1,5 @@
 export {
+  GOLDEN_ASSET_MATERIALIZATIONS,
   GOLDEN_CODEGEN_POLICY,
   GOLDEN_IDS,
   createGoldenBaseWorkspace,
@@ -28,3 +29,10 @@ export {
   type GoldenG2ExecutionMatrixReport,
   type GoldenTestSemantics,
 } from './goldenG2ExecutionMatrix';
+export {
+  runGoldenG2AuthServerMatrix,
+  type GoldenG2AuthServerFunction,
+  type GoldenG2AuthServerMatrixReport,
+  type GoldenG2AuthServerTarget,
+  type GoldenG2AuthServerTargetMatrix,
+} from './goldenG2AuthServerMatrix';

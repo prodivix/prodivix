@@ -88,6 +88,16 @@ const createInput = (): ExecutableProjectSnapshotInput => ({
       },
     ],
   },
+  serverRuntimeMockProvision: {
+    format: 'prodivix.server-runtime-test-provision.v1',
+    fixtureSetId: 'auth-test',
+    principal: {
+      providerId: 'prodivix-test-fixture',
+      principalId: 'fixture-user',
+    },
+    permissions: [{ permissionId: 'workspace.owner', allowed: true }],
+    fixtures: [],
+  },
   installCommand: { command: 'corepack', args: ['pnpm', 'install'] },
   previewCommand: { command: 'pnpm', args: ['run', 'dev'] },
   buildCommand: { command: 'pnpm', args: ['run', 'build'] },
@@ -97,6 +107,73 @@ const createInput = (): ExecutableProjectSnapshotInput => ({
     reportFilePath: '.prodivix/report.json',
   },
 });
+
+const createProductionInput = (): ExecutableProjectSnapshotInput => {
+  const base = createInput();
+  return {
+    ...base,
+    files: [
+      ...base.files,
+      {
+        path: 'src/.prodivix/server-runtime/invoke.mjs',
+        contents: 'export {};',
+      },
+      {
+        path: 'src/.prodivix/server-runtime/function.mjs',
+        contents: 'export const getGreeting = () => undefined;',
+      },
+    ],
+    entrypoints: [
+      {
+        kind: 'production',
+        path: 'src/.prodivix/server-runtime/invoke.mjs',
+      },
+    ],
+    capabilityRequirements: {
+      preview: [],
+      build: [],
+      test: [],
+      production: [
+        'artifacts',
+        'cancellation',
+        'dependency-install',
+        'filesystem',
+        'server-function',
+        'source-trace',
+        'streaming-logs',
+        'timeout',
+      ],
+    },
+    dataMockProvision: undefined,
+    serverRuntimeMockProvision: undefined,
+    serverFunctionPlan: {
+      command: {
+        command: 'node',
+        args: ['src/.prodivix/server-runtime/invoke.mjs'],
+      },
+      entrypointFilePath: 'src/.prodivix/server-runtime/invoke.mjs',
+      sourceFilePath: 'src/.prodivix/server-runtime/function.mjs',
+      functionRef: {
+        artifactId: 'code-server-greeting',
+        exportName: 'getGreeting',
+      },
+      runtimeManifest: {
+        schemaVersion: '1.0',
+        functionsByExport: {
+          getGreeting: {
+            kind: 'function',
+            runtimeZone: 'server',
+            adapterId: 'prodivix.code-export',
+            effect: 'read',
+            auth: { kind: 'public' },
+            inputSchema: true,
+            outputSchema: true,
+          },
+        },
+      },
+    },
+  };
+};
 
 describe('executable project snapshot properties', () => {
   it('normalizes order and derives one deterministic SHA-256 content digest', () => {
@@ -156,6 +233,19 @@ describe('executable project snapshot properties', () => {
         dataMockProvision: {
           ...input.dataMockProvision!,
           fixtureSetId: 'catalog-test-changed',
+        },
+      },
+      {
+        ...input,
+        serverRuntimeMockProvision: {
+          format: 'prodivix.server-runtime-test-provision.v1',
+          fixtureSetId: 'auth-test-changed',
+          principal: {
+            providerId: 'prodivix-test-fixture',
+            principalId: 'fixture-user',
+          },
+          permissions: [{ permissionId: 'workspace.owner', allowed: true }],
+          fixtures: [],
         },
       },
       {
@@ -333,6 +423,149 @@ describe('executable project snapshot properties', () => {
         ],
       })
     ).toThrow(/reserved for runtime projection/u);
+  });
+
+  it('projects deterministic Server Runtime fixtures only into Test execution', () => {
+    const snapshot = createExecutableProjectSnapshot(createInput());
+    expect(snapshot.serverRuntimeMockProvision).toMatchObject({
+      format: 'prodivix.server-runtime-test-provision.v1',
+      fixtureSetId: 'auth-test',
+      principal: {
+        providerId: 'prodivix-test-fixture',
+        principalId: 'fixture-user',
+      },
+    });
+    expect(Object.isFrozen(snapshot.serverRuntimeMockProvision)).toBe(true);
+
+    const testProjection = projectExecutableProjectRuntimeFiles(
+      snapshot,
+      'test'
+    ).find(
+      ({ path }) => path === 'src/.prodivix/server-runtime-test-provision.ts'
+    );
+    const previewProjection = projectExecutableProjectRuntimeFiles(
+      snapshot,
+      'preview'
+    ).find(
+      ({ path }) => path === 'src/.prodivix/server-runtime-test-provision.ts'
+    );
+    const buildProjection = projectExecutableProjectRuntimeFiles(
+      snapshot,
+      'build'
+    ).find(
+      ({ path }) => path === 'src/.prodivix/server-runtime-test-provision.ts'
+    );
+    expect(testProjection?.contents).toContain('"mode":"deterministic-test"');
+    expect(testProjection?.contents).toContain('"fixtureSetId":"auth-test"');
+    expect(previewProjection?.contents).toContain('"mode":"disabled"');
+    expect(previewProjection?.contents).not.toContain('fixture-user');
+    expect(buildProjection?.contents).toContain('"mode":"disabled"');
+    expect(buildProjection?.contents).not.toContain('fixture-user');
+    expect(snapshot.files).not.toContainEqual(testProjection);
+
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...createInput(),
+        serverRuntimeMockProvision: {
+          format: 'prodivix.server-runtime-test-provision.v1',
+          fixtureSetId: 'auth-test',
+          permissions: [],
+          fixtures: [],
+          sessionId: 'authority-material',
+        },
+      } as never)
+    ).toThrow(/forbidden authority material/u);
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...createInput(),
+        files: [
+          ...createInput().files,
+          {
+            path: 'src/.prodivix/server-runtime-test-provision.ts',
+            contents: 'export default {};',
+          },
+        ],
+      })
+    ).toThrow(/reserved for runtime projection/u);
+  });
+
+  it('binds the production entrypoint and runtime manifest into the snapshot digest', () => {
+    const input = createProductionInput();
+    const snapshot = createExecutableProjectSnapshot(input);
+    expect(snapshot).toMatchObject({
+      format: 'prodivix.executable-project.v6',
+      entrypoints: [
+        {
+          kind: 'production',
+          path: 'src/.prodivix/server-runtime/invoke.mjs',
+        },
+      ],
+      serverFunctionPlan: {
+        format: 'prodivix.executable-server-function-plan.v1',
+        invocationFilePath: '.prodivix/server-function-invocation.json',
+        resultFilePath: '.prodivix/server-function-result.json',
+        functionRef: {
+          artifactId: 'code-server-greeting',
+          exportName: 'getGreeting',
+        },
+      },
+    });
+    expect(Object.isFrozen(snapshot.serverFunctionPlan)).toBe(true);
+    expect(
+      createExecutableProjectSnapshot({
+        ...input,
+        serverFunctionPlan: {
+          ...input.serverFunctionPlan!,
+          runtimeManifest: {
+            ...(input.serverFunctionPlan!.runtimeManifest as Readonly<
+              Record<string, unknown>
+            >),
+            schemaVersion: '1.1',
+          } as never,
+        },
+      }).contentDigest
+    ).not.toBe(snapshot.contentDigest);
+    expect(
+      projectExecutableProjectRuntimeFiles(snapshot, 'production').some(
+        ({ path }) =>
+          path === snapshot.serverFunctionPlan!.invocationFilePath ||
+          path === snapshot.serverFunctionPlan!.resultFilePath
+      )
+    ).toBe(false);
+  });
+
+  it('fails closed on incomplete or conflicting production plans', () => {
+    const input = createProductionInput();
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...input,
+        serverFunctionPlan: undefined,
+      })
+    ).toThrow(/production entrypoint/u);
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...input,
+        capabilityRequirements: {
+          ...input.capabilityRequirements,
+          production: ['artifacts', 'cancellation', 'filesystem'],
+        },
+      })
+    ).toThrow(/server-function/u);
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...input,
+        serverFunctionPlan: {
+          ...input.serverFunctionPlan!,
+          resultFilePath: 'src/.prodivix/server-runtime/function.mjs',
+        },
+      })
+    ).toThrow(/runtime paths conflict/u);
+    expect(() =>
+      createExecutableProjectSnapshot({
+        ...input,
+        entrypoints: [{ kind: 'preview', path: 'src/main.ts' }],
+      })
+    ).toThrow(/production entrypoint/u);
   });
 
   it('fails closed when an adapter cannot satisfy the operation capabilities', () => {

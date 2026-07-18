@@ -106,7 +106,7 @@ describe('Prodivix Golden App conformance', () => {
         'src/components/component-order-summary/GoldenOrderSummary.tsx',
         'src/actions/checkout.ts',
         'src/styles/checkout.css',
-        'public/logo.svg',
+        'public/logo.png',
         'config/golden.json',
         '.prodivix/routes.json',
         '.prodivix/export-manifest.json',
@@ -141,9 +141,11 @@ describe('Prodivix Golden App conformance', () => {
       '.golden-checkout { display: grid;'
     );
     const logo = report.bundle.files.find(
-      (file) => file.path === 'public/logo.svg'
+      (file) => file.path === 'public/logo.png'
     );
-    expect(String(logo?.contents)).toContain('<svg');
+    expect(logo?.contents).toEqual(
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    );
     const projectConfig = report.bundle.files.find(
       (file) => file.path === 'config/golden.json'
     );

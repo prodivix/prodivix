@@ -1,6 +1,7 @@
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 import { InspectorPanelFrame } from '@/editor/features/blueprint/editor/inspector/components/InspectorPanelFrame';
 import { resolveInspectorPanels } from '@/editor/features/blueprint/editor/inspector/panels/registry';
+import { ServerRuntimeRoutePanel } from '@/editor/features/blueprint/editor/inspector/domain/ServerRuntimeRoutePanel';
 
 export function InspectorCodeTab() {
   const {
@@ -22,6 +23,7 @@ export function InspectorCodeTab() {
 
   return (
     <div className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col gap-2 overflow-y-auto px-4 pt-2 pb-3 [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0">
+      <ServerRuntimeRoutePanel />
       <div className="rounded-md border border-(--border-default) px-3 py-2.5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

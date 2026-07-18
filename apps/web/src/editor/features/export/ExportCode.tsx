@@ -1,9 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
+import { useAuthStore } from '@/auth/useAuthStore';
+import { materializeWorkspaceBinaryAssets } from '@/editor/features/execution';
 import { selectWorkspace, useEditorStore } from '@/editor/store/useEditorStore';
 import {
   generateWorkspaceReactViteBundle,
+  type ReactExportBundle,
   type ReactExportFile,
 } from '@prodivix/prodivix-compiler';
 import {
@@ -66,6 +69,7 @@ const reactExportFileToCodeFile = (file: ReactExportFile): ExportCodeFile => {
 export function ExportCode() {
   const { t } = useTranslation('export');
   const { projectId } = useParams();
+  const token = useAuthStore((state) => state.token);
   const codegenPolicySnapshot = useCodegenPolicySnapshot();
   const projectName = useEditorStore((state) =>
     projectId ? state.projectsById[projectId]?.name : undefined
@@ -80,60 +84,75 @@ export function ExportCode() {
   const [expandedFolders, setExpandedFolders] = useState<
     Record<string, boolean>
   >({});
+  const [reactBundle, setReactBundle] = useState<ReactExportBundle | null>(
+    null
+  );
 
-  const reactBundle = useMemo(() => {
-    if (!workspaceSnapshot) return null;
-    try {
-      return generateWorkspaceReactViteBundle(workspaceSnapshot, {
-        projectName: projectName?.trim() || workspaceSnapshot.name,
-        packageResolver: {
-          strategy: 'npm',
-        },
-        codegenPolicySnapshot,
-      });
-    } catch (error) {
-      const message = t('react.error', {
-        defaultValue: 'React 代码生成失败',
-      });
-      return {
-        entryFilePath: 'error.ts',
-        type: 'project' as const,
-        files: [
-          {
-            path: 'error.ts',
-            kind: 'source-module' as const,
-            language: 'ts',
-            mimeType: 'text/typescript',
-            contents: `// ${message}\n${String(error)}`,
-            sourceTrace: [
-              {
-                sourceRef: {
-                  domain: 'codegen',
-                  id: 'error',
-                  path: 'error.ts',
+  useEffect(() => {
+    setReactBundle(null);
+    if (!workspaceSnapshot) return;
+    const controller = new AbortController();
+    let active = true;
+    void materializeWorkspaceBinaryAssets({
+      workspace: workspaceSnapshot,
+      token,
+      signal: controller.signal,
+    })
+      .then((assetMaterializations) => {
+        if (!active) return;
+        setReactBundle(
+          generateWorkspaceReactViteBundle(workspaceSnapshot, {
+            projectName: projectName?.trim() || workspaceSnapshot.name,
+            packageResolver: { strategy: 'npm' },
+            codegenPolicySnapshot,
+            assetMaterializations,
+          })
+        );
+      })
+      .catch((error: unknown) => {
+        if (!active || controller.signal.aborted) return;
+        const message = t('react.error', {
+          defaultValue: 'React 代码生成失败',
+        });
+        setReactBundle({
+          entryFilePath: 'error.ts',
+          type: 'project',
+          files: [
+            {
+              path: 'error.ts',
+              kind: 'source-module',
+              language: 'ts',
+              mimeType: 'text/typescript',
+              contents: `// ${message}\n${String(error)}`,
+              sourceTrace: [
+                {
+                  sourceRef: {
+                    domain: 'codegen',
+                    id: 'error',
+                    path: 'error.ts',
+                  },
                 },
-              },
-            ],
-          },
-        ],
-        diagnostics: [
-          {
-            code: 'WKS-EXPORT-UNEXPECTED',
-            severity: 'error' as const,
-            source: 'export' as const,
-            message,
-            path: '/',
-          },
-        ],
-        dependencies: [],
-        target: {
-          framework: 'react' as const,
-          preset: 'vite',
-        },
-        metadata: undefined,
-      };
-    }
-  }, [codegenPolicySnapshot, projectName, t, workspaceSnapshot]);
+              ],
+            },
+          ],
+          diagnostics: [
+            {
+              code: 'WKS-EXPORT-UNEXPECTED',
+              severity: 'error',
+              source: 'export',
+              message,
+              path: '/',
+            },
+          ],
+          dependencies: [],
+          target: { framework: 'react', preset: 'vite' },
+        });
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [codegenPolicySnapshot, projectName, t, token, workspaceSnapshot]);
 
   const reactProjectFiles = useMemo<ExportCodeFile[]>(
     () => reactBundle?.files.map(reactExportFileToCodeFile) ?? [],

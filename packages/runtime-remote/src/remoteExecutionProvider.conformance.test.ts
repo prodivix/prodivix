@@ -6,14 +6,29 @@ import {
   type ExecutionJobStateEvent,
   type ExecutionArtifact,
 } from '@prodivix/runtime-core';
+import {
+  createServerFunctionInvocationTrace,
+  ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  readExecutionServerFunctionBridgeRequest,
+  SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+  toExecutionServerFunctionBridgeSuccess,
+  toServerFunctionInvocationTraceValue,
+} from '@prodivix/server-runtime';
 import { describe, expect, it, vi } from 'vitest';
-import { createRemoteFixtureSnapshot } from './__tests__/remoteExecutionFixtures';
+import {
+  createRemoteFixtureSnapshot,
+  createRemoteServerFunctionFixtureRequest,
+  createRemoteServerFunctionFixtureSnapshot,
+  remoteServerFunctionFixtureRef,
+} from './__tests__/remoteExecutionFixtures';
 import {
   createRemoteBuildExecutionProvider,
   createRemotePreviewExecutionProvider,
+  createRemoteServerFunctionExecutionProvider,
   createRemoteTestExecutionProvider,
   remotePreviewExecutionProviderDescriptor,
   remoteBuildExecutionProviderDescriptor,
+  remoteServerFunctionExecutionProviderDescriptor,
   remoteTestExecutionProviderDescriptor,
 } from './remoteExecutionProvider';
 import type {
@@ -178,14 +193,15 @@ const clientFor = (
 };
 
 describe('remote ExecutionProvider conformance', () => {
-  it('keeps Preview, Test, and Build provider identities independent', () => {
+  it('keeps Preview, Test, Build, and Server Function provider identities independent', () => {
     expect(
       new Set([
         remotePreviewExecutionProviderDescriptor.id,
         remoteTestExecutionProviderDescriptor.id,
         remoteBuildExecutionProviderDescriptor.id,
+        remoteServerFunctionExecutionProviderDescriptor.id,
       ]).size
-    ).toBe(3);
+    ).toBe(4);
     expect(remotePreviewExecutionProviderDescriptor.profiles).toEqual([
       'preview',
     ]);
@@ -194,6 +210,239 @@ describe('remote ExecutionProvider conformance', () => {
     );
     expect(remoteTestExecutionProviderDescriptor.profiles).toEqual(['test']);
     expect(remoteBuildExecutionProviderDescriptor.profiles).toEqual(['build']);
+    expect(remoteServerFunctionExecutionProviderDescriptor).toMatchObject({
+      profiles: ['production'],
+      runtimeZones: ['server'],
+      invocationKinds: ['code'],
+    });
+    expect(
+      remoteServerFunctionExecutionProviderDescriptor.capabilities
+    ).not.toContain('network');
+  });
+
+  it('accepts one exact isolated Server Function result artifact', async () => {
+    const snapshot = createRemoteServerFunctionFixtureSnapshot();
+    const executionRequest = createRemoteServerFunctionFixtureRequest();
+    const invocation = readExecutionServerFunctionBridgeRequest(
+      executionRequest.invocation.input
+    );
+    if (!invocation) throw new Error('Fixture invocation is invalid.');
+    const sourceTrace = [
+      {
+        sourceRef: {
+          kind: 'code-artifact' as const,
+          artifactId: remoteServerFunctionFixtureRef.artifactId,
+        },
+      },
+    ];
+    const invocationTrace = createServerFunctionInvocationTrace({
+      request: invocation,
+      response: toExecutionServerFunctionBridgeSuccess(invocation.requestId, {
+        kind: 'value',
+        value: null,
+      }),
+      startedAt: 1_001,
+      completedAt: 1_004,
+    });
+    const initial: RemoteExecutionRecord = Object.freeze({
+      executionId: 'execution-server-function-success',
+      requestId: executionRequest.requestId,
+      snapshotDigest: snapshot.contentDigest,
+      provider: remoteServerFunctionExecutionProviderDescriptor,
+      status: 'running',
+      latestCursor: 5,
+      createdAt: 1_000,
+      startedAt: 1_001,
+    });
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      {
+        kind: 'artifact',
+        jobId: initial.executionId,
+        sequence: 3,
+        emittedAt: 1_003,
+        artifact: {
+          artifactId: `server-function-result:${snapshot.contentDigest}:${invocation.requestId}`,
+          kind: 'report',
+          mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+          sourceTrace,
+          metadata: {
+            snapshotDigest: snapshot.contentDigest,
+            requestId: invocation.requestId,
+            artifactId: remoteServerFunctionFixtureRef.artifactId,
+            exportName: remoteServerFunctionFixtureRef.exportName,
+            status: 'succeeded',
+          },
+        },
+      },
+      {
+        kind: 'trace',
+        jobId: initial.executionId,
+        sequence: 4,
+        emittedAt: 1_004,
+        trace: {
+          traceId: `server-function:${initial.executionId}`,
+          spanId: invocation.requestId,
+          name: SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+          phase: 'event',
+          detail: toServerFunctionInvocationTraceValue(invocationTrace),
+          sourceTrace,
+        },
+      },
+      stateEvent(initial, 5, 'succeeded', 'running'),
+    ];
+    const materializeArtifact = vi.fn(
+      async ({ artifact }: { artifact: ExecutionArtifact }) => ({
+        ...artifact,
+        uri: 'https://artifacts.example.test/server-function-result',
+      })
+    );
+    const provider = createRemoteServerFunctionExecutionProvider({
+      client: clientFor({ initial, events }),
+      resolveSnapshot: () => ({ kind: 'upload', snapshot }),
+      delay: async () => undefined,
+      materializeArtifact,
+    });
+
+    const job = await provider.start(executionRequest);
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'succeeded',
+      artifacts: [
+        {
+          kind: 'report',
+          mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+          metadata: { status: 'succeeded' },
+          uri: 'https://artifacts.example.test/server-function-result',
+        },
+      ],
+    });
+    expect(materializeArtifact).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when isolated Server Function success omits its correlated trace', async () => {
+    const snapshot = createRemoteServerFunctionFixtureSnapshot();
+    const executionRequest = createRemoteServerFunctionFixtureRequest(
+      'server-function-missing-trace'
+    );
+    const invocation = readExecutionServerFunctionBridgeRequest(
+      executionRequest.invocation.input
+    );
+    if (!invocation) throw new Error('Fixture invocation is invalid.');
+    const initial: RemoteExecutionRecord = Object.freeze({
+      executionId: 'execution-server-function-missing-trace',
+      requestId: executionRequest.requestId,
+      snapshotDigest: snapshot.contentDigest,
+      provider: remoteServerFunctionExecutionProviderDescriptor,
+      status: 'running',
+      latestCursor: 4,
+      createdAt: 1_000,
+      startedAt: 1_001,
+    });
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      {
+        kind: 'artifact',
+        jobId: initial.executionId,
+        sequence: 3,
+        emittedAt: 1_003,
+        artifact: {
+          artifactId: `server-function-result:${snapshot.contentDigest}:${invocation.requestId}`,
+          kind: 'report',
+          mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'code-artifact',
+                artifactId: remoteServerFunctionFixtureRef.artifactId,
+              },
+            },
+          ],
+          metadata: {
+            snapshotDigest: snapshot.contentDigest,
+            requestId: invocation.requestId,
+            artifactId: remoteServerFunctionFixtureRef.artifactId,
+            exportName: remoteServerFunctionFixtureRef.exportName,
+            status: 'succeeded',
+          },
+        },
+      },
+      stateEvent(initial, 4, 'succeeded', 'running'),
+    ];
+    const provider = createRemoteServerFunctionExecutionProvider({
+      client: clientFor({ initial, events }),
+      resolveSnapshot: () => ({ kind: 'upload', snapshot }),
+      delay: async () => undefined,
+    });
+
+    const job = await provider.start(executionRequest);
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'REMOTE_EXECUTION_SYNC_FAILED' },
+    });
+  });
+
+  it('fails closed when Remote Server Function result identity drifts', async () => {
+    const snapshot = createRemoteServerFunctionFixtureSnapshot();
+    const executionRequest = createRemoteServerFunctionFixtureRequest(
+      'server-function-drift'
+    );
+    const invocation = executionRequest.invocation.input as Readonly<{
+      requestId: string;
+    }>;
+    const initial: RemoteExecutionRecord = Object.freeze({
+      executionId: 'execution-server-function-drift',
+      requestId: executionRequest.requestId,
+      snapshotDigest: snapshot.contentDigest,
+      provider: remoteServerFunctionExecutionProviderDescriptor,
+      status: 'running',
+      latestCursor: 4,
+      createdAt: 1_000,
+      startedAt: 1_001,
+    });
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      {
+        kind: 'artifact',
+        jobId: initial.executionId,
+        sequence: 3,
+        emittedAt: 1_003,
+        artifact: {
+          artifactId: `server-function-result:${snapshot.contentDigest}:${invocation.requestId}`,
+          kind: 'report',
+          mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'code-artifact',
+                artifactId: remoteServerFunctionFixtureRef.artifactId,
+              },
+            },
+          ],
+          metadata: {
+            snapshotDigest: snapshot.contentDigest,
+            requestId: invocation.requestId,
+            artifactId: remoteServerFunctionFixtureRef.artifactId,
+            exportName: 'differentExport',
+            status: 'succeeded',
+          },
+        },
+      },
+      stateEvent(initial, 4, 'succeeded', 'running'),
+    ];
+    const provider = createRemoteServerFunctionExecutionProvider({
+      client: clientFor({ initial, events }),
+      resolveSnapshot: () => ({ kind: 'upload', snapshot }),
+      delay: async () => undefined,
+    });
+
+    const job = await provider.start(executionRequest);
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'REMOTE_EXECUTION_SYNC_FAILED' },
+    });
   });
 
   it('projects durable events and terminal results into a canonical Job', async () => {

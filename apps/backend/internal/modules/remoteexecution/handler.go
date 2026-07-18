@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,22 +27,33 @@ import (
 const maximumGatewayBodyBytes int64 = 64 * 1024 * 1024
 const maximumPreviewHostResponseBytes int64 = 64 * 1024
 const executionPreviewBundleMediaType = "application/vnd.prodivix.execution-preview-bundle+json"
+const executionServerAuthorityHeader = "X-Prodivix-Execution-Server-Authority"
+const executionServerAuthorityFormat = "prodivix.remote-execution-server-authority.v1"
+const productSessionProviderID = "prodivix-product-session"
+const workspaceOwnerPermissionID = "workspace.owner"
+const defaultExecutionAuthorityTTL = 2 * time.Minute
+const maximumExecutionAuthorityTTL = 5 * time.Minute
 
 var canonicalSHA256Digest = regexp.MustCompile(`^sha256-[a-f0-9]{64}$`)
 var previewCapabilityLabel = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 type Handler struct {
-	store             GrantStore
-	environments      EnvironmentAccessVerifier
-	baseURL           string
-	clientToken       string
-	httpClient        *http.Client
-	previewBaseURL    string
-	previewPublicURL  string
-	previewToken      string
-	previewTTL        time.Duration
-	previewHTTPClient *http.Client
-	dataGateway       *DataGateway
+	store                 GrantStore
+	environments          EnvironmentAccessVerifier
+	baseURL               string
+	clientToken           string
+	executionAuthorityTTL time.Duration
+	now                   func() time.Time
+	httpClient            *http.Client
+	previewBaseURL        string
+	previewPublicURL      string
+	previewToken          string
+	previewTTL            time.Duration
+	previewHTTPClient     *http.Client
+	dataGateway           *DataGateway
+	serverFunctions       *ServerFunctionGateway
+	secretBroker          *IsolatedSecretBroker
+	secretBrokerToken     string
 }
 
 type remoteEnvelope struct {
@@ -85,6 +98,18 @@ type createResponse struct {
 			ExecutionID string `json:"executionId"`
 		} `json:"execution"`
 	} `json:"payload"`
+}
+
+type executionServerAuthority struct {
+	Format    string `json:"format"`
+	Principal struct {
+		ProviderID  string `json:"providerId"`
+		PrincipalID string `json:"principalId"`
+	} `json:"principal"`
+	Permissions []string `json:"permissions"`
+	WorkspaceID string   `json:"workspaceId"`
+	SnapshotID  string   `json:"snapshotId"`
+	ExpiresAt   int64    `json:"expiresAt"`
 }
 
 type previewSessionResponse struct {
@@ -144,19 +169,38 @@ func normalizedPublicBaseURL(value string) string {
 func NewHandler(store GrantStore, cfg backendconfig.RemoteRunnerConfig, previewCfg backendconfig.RemotePreviewHostConfig, environmentVerifier ...EnvironmentAccessVerifier) *Handler {
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
 	clientToken := strings.TrimSpace(cfg.ClientToken)
+	executionAuthorityTTL := cfg.ExecutionAuthorityTTL
+	if executionAuthorityTTL == 0 {
+		executionAuthorityTTL = defaultExecutionAuthorityTTL
+	}
+	if executionAuthorityTTL < 0 || executionAuthorityTTL > maximumExecutionAuthorityTTL {
+		executionAuthorityTTL = 0
+	}
 	handler := &Handler{
-		store:            store,
-		baseURL:          normalizedServiceBaseURL(baseURL),
-		clientToken:      clientToken,
-		previewBaseURL:   normalizedServiceBaseURL(previewCfg.BaseURL),
-		previewPublicURL: normalizedPublicBaseURL(previewCfg.PublicBaseURL),
-		previewToken:     strings.TrimSpace(previewCfg.Token),
-		previewTTL:       previewCfg.TTL,
+		store:                 store,
+		baseURL:               normalizedServiceBaseURL(baseURL),
+		clientToken:           clientToken,
+		executionAuthorityTTL: executionAuthorityTTL,
+		now:                   func() time.Time { return time.Now().UTC() },
+		previewBaseURL:        normalizedServiceBaseURL(previewCfg.BaseURL),
+		previewPublicURL:      normalizedPublicBaseURL(previewCfg.PublicBaseURL),
+		previewToken:          strings.TrimSpace(previewCfg.Token),
+		previewTTL:            previewCfg.TTL,
+		secretBrokerToken:     strings.TrimSpace(cfg.SecretBrokerToken),
 	}
 	if len(environmentVerifier) > 0 {
 		handler.environments = environmentVerifier[0]
 		if environmentStore, ok := environmentVerifier[0].(DataGatewayEnvironmentStore); ok {
 			handler.dataGateway = NewDataGateway(store, environmentStore, newRemoteDataHTTPTransport())
+			if brokerStore, brokerOK := store.(IsolatedSecretBrokerStore); brokerOK && handler.secretBrokerToken != "" {
+				handler.secretBroker = NewIsolatedSecretBroker(brokerStore, environmentStore)
+			}
+		}
+	}
+	if serverFunctionStore, ok := store.(ServerFunctionGatewayStore); ok {
+		handler.serverFunctions = NewServerFunctionGateway(serverFunctionStore, cfg.ServerFunctionAllowedOrigins)
+		if environmentStore, ok := handler.environments.(DataGatewayEnvironmentStore); ok {
+			handler.serverFunctions.environments = environmentStore
 		}
 	}
 	if handler.baseURL != "" && handler.clientToken != "" && cfg.Timeout > 0 {
@@ -169,7 +213,52 @@ func NewHandler(store GrantStore, cfg backendconfig.RemoteRunnerConfig, previewC
 }
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
-	return RouteHandlers{RequireAuth: requireAuth, Envelope: handler.HandleEnvelope, ArtifactContent: handler.HandleArtifactContent, PreviewSession: handler.HandlePreviewSession, DataOperation: handler.HandleDataOperation, TerminalOpen: handler.HandleTerminalOpen, TerminalResume: handler.HandleTerminalResume, TerminalAction: handler.HandleTerminalAction}
+	return RouteHandlers{RequireAuth: requireAuth, Envelope: handler.HandleEnvelope, ArtifactContent: handler.HandleArtifactContent, PreviewSession: handler.HandlePreviewSession, DataOperation: handler.HandleDataOperation, ServerFunction: handler.HandleServerFunction, TerminalOpen: handler.HandleTerminalOpen, TerminalResume: handler.HandleTerminalResume, TerminalAction: handler.HandleTerminalAction, InternalSecrets: handler.HandleInternalSecrets}
+}
+
+func (handler *Handler) HandleInternalSecrets(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.Header("X-Content-Type-Options", "nosniff")
+	if handler == nil || handler.secretBroker == nil || handler.secretBrokerToken == "" {
+		backendresponse.Error(c, http.StatusNotFound, "EXE-5004", "Secret resolution is unavailable.")
+		return
+	}
+	authorization := c.GetHeader("Authorization")
+	if !strings.HasPrefix(authorization, "Bearer ") {
+		backendresponse.Error(c, http.StatusUnauthorized, "EXE-5004", "Secret resolution is denied.")
+		return
+	}
+	provided := strings.TrimPrefix(authorization, "Bearer ")
+	providedDigest := sha256.Sum256([]byte(provided))
+	expectedDigest := sha256.Sum256([]byte(handler.secretBrokerToken))
+	if provided == "" || subtle.ConstantTimeCompare(providedDigest[:], expectedDigest[:]) != 1 {
+		backendresponse.Error(c, http.StatusForbidden, "EXE-5004", "Secret resolution is denied.")
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maximumIsolatedSecretBrokerBodyBytes+1))
+	if err != nil || len(body) == 0 || len(body) > maximumIsolatedSecretBrokerBodyBytes {
+		backendresponse.Error(c, http.StatusBadRequest, "EXE-5004", "Secret resolution is denied.")
+		return
+	}
+	request, err := decodeIsolatedSecretResolutionRequest(body)
+	if err != nil {
+		backendresponse.Error(c, http.StatusBadRequest, "EXE-5004", "Secret resolution is denied.")
+		return
+	}
+	envelope, err := handler.secretBroker.Resolve(c.Request.Context(), *request)
+	if err != nil {
+		status := http.StatusConflict
+		if errors.Is(err, ErrIsolatedSecretUnavailable) {
+			status = http.StatusServiceUnavailable
+		}
+		backendresponse.Error(c, status, "EXE-5004", "Secret resolution is denied.")
+		return
+	}
+	response := make([]byte, 0, len(envelope)+16)
+	response = append(response, []byte(`{"envelope":`)...)
+	response = append(response, envelope...)
+	response = append(response, '}')
+	c.Data(http.StatusOK, "application/json; charset=utf-8", response)
 }
 
 func readBoundedBody(body io.Reader) ([]byte, error) {
@@ -184,7 +273,7 @@ func readBoundedBody(body io.Reader) ([]byte, error) {
 }
 
 func (handler *Handler) available(c *gin.Context) bool {
-	if handler == nil || handler.store == nil || handler.httpClient == nil || handler.baseURL == "" || handler.clientToken == "" {
+	if handler == nil || handler.store == nil || handler.httpClient == nil || handler.baseURL == "" || handler.clientToken == "" || handler.executionAuthorityTTL <= 0 {
 		backendresponse.Error(c, http.StatusServiceUnavailable, "EXE-5001", "Remote execution gateway is unavailable.", backendresponse.WithRetryable(true))
 		return false
 	}
@@ -221,6 +310,25 @@ func authIdentity(c *gin.Context) (*backendauth.User, *backendauth.Authenticated
 		return nil, nil, false
 	}
 	return user, session, true
+}
+
+func serverFunctionMutationRequestAuthority(c *gin.Context, sessionID string) ServerFunctionMutationRequestAuthority {
+	forbidden := []string{sessionID}
+	authorization := strings.TrimSpace(c.GetHeader("Authorization"))
+	if len(authorization) > 7 && strings.EqualFold(authorization[:7], "Bearer ") {
+		forbidden = append(forbidden, strings.TrimSpace(authorization[7:]))
+	}
+	for _, cookie := range c.Request.Cookies() {
+		name := strings.ToLower(cookie.Name)
+		if strings.Contains(name, "session") || strings.Contains(name, "auth") || strings.Contains(name, "token") {
+			forbidden = append(forbidden, cookie.Value)
+		}
+	}
+	return ServerFunctionMutationRequestAuthority{
+		Origin:          c.GetHeader("Origin"),
+		Intent:          c.GetHeader(serverFunctionMutationIntentHeader),
+		ForbiddenValues: forbidden,
+	}
 }
 
 func decodeEnvironmentReference(value json.RawMessage) (*EnvironmentReference, error) {
@@ -298,7 +406,7 @@ func (handler *Handler) authorizeEnvelope(c *gin.Context, ownerID string, sessio
 	}
 }
 
-func (handler *Handler) remoteRequest(ctx context.Context, method string, path string, body []byte, contentType string) (*http.Response, error) {
+func (handler *Handler) remoteRequestWithServerAuthority(ctx context.Context, method string, path string, body []byte, contentType string, authority *executionServerAuthority) (*http.Response, error) {
 	request, err := http.NewRequestWithContext(ctx, method, handler.baseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -308,7 +416,42 @@ func (handler *Handler) remoteRequest(ctx context.Context, method string, path s
 	if contentType != "" {
 		request.Header.Set("Content-Type", contentType)
 	}
+	if authority != nil {
+		encoded, encodeErr := json.Marshal(authority)
+		if encodeErr != nil {
+			return nil, encodeErr
+		}
+		request.Header.Set(executionServerAuthorityHeader, base64.RawURLEncoding.EncodeToString(encoded))
+	}
 	return handler.httpClient.Do(request)
+}
+
+func (handler *Handler) remoteRequest(ctx context.Context, method string, path string, body []byte, contentType string) (*http.Response, error) {
+	return handler.remoteRequestWithServerAuthority(ctx, method, path, body, contentType, nil)
+}
+
+func (handler *Handler) executionServerAuthority(userID string, session *backendauth.AuthenticatedSession, authority envelopeAuthority) (*executionServerAuthority, bool) {
+	if handler == nil || handler.now == nil || session == nil || authority.workspaceID == "" || authority.snapshotID == "" {
+		return nil, false
+	}
+	now := handler.now()
+	expiresAt := now.Add(handler.executionAuthorityTTL).UnixMilli()
+	if session.ExpiresAt < expiresAt {
+		expiresAt = session.ExpiresAt
+	}
+	if expiresAt <= now.UnixMilli() {
+		return nil, false
+	}
+	result := &executionServerAuthority{
+		Format:      executionServerAuthorityFormat,
+		Permissions: []string{workspaceOwnerPermissionID},
+		WorkspaceID: authority.workspaceID,
+		SnapshotID:  authority.snapshotID,
+		ExpiresAt:   expiresAt,
+	}
+	result.Principal.ProviderID = productSessionProviderID
+	result.Principal.PrincipalID = userID
+	return result, true
 }
 
 func (handler *Handler) compensateUnrecordedExecution(c *gin.Context, created createResponse, messageID string) {
@@ -360,7 +503,16 @@ func (handler *Handler) HandleEnvelope(c *gin.Context) {
 	if !authorized {
 		return
 	}
-	response, err := handler.remoteRequest(c.Request.Context(), http.MethodPost, "/v1/executions", body, "application/json")
+	var serverAuthority *executionServerAuthority
+	if envelope.Operation == "create" {
+		var authorityOK bool
+		serverAuthority, authorityOK = handler.executionServerAuthority(user.ID, session, authority)
+		if !authorityOK {
+			backendresponse.Error(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
+			return
+		}
+	}
+	response, err := handler.remoteRequestWithServerAuthority(c.Request.Context(), http.MethodPost, "/v1/executions", body, "application/json", serverAuthority)
 	if err != nil {
 		backendresponse.Error(c, http.StatusBadGateway, "EXE-5001", "Remote execution service is unavailable.", backendresponse.WithRetryable(true))
 		return
@@ -435,6 +587,39 @@ func (handler *Handler) HandleDataOperation(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "private, no-store")
+	c.JSON(http.StatusOK, result)
+}
+
+func (handler *Handler) HandleServerFunction(c *gin.Context) {
+	user, session, ok := authIdentity(c)
+	if !ok {
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	if handler == nil || handler.serverFunctions == nil || !handler.serverFunctions.Available() {
+		backendresponse.Error(c, http.StatusServiceUnavailable, "SVR-5001", "Remote Server Function gateway is unavailable.", backendresponse.WithRetryable(true))
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maximumServerFunctionRequestBytes+1))
+	if err != nil || int64(len(body)) > maximumServerFunctionRequestBytes {
+		backendresponse.Error(c, http.StatusRequestEntityTooLarge, "SVR-1001", "Remote Server Function invocation is too large.", backendresponse.WithRetryable(false))
+		return
+	}
+	invocation, err := decodeServerFunctionInvocation(body)
+	if err != nil || invocation.FunctionRef.ArtifactID != c.Param("artifactId") || invocation.FunctionRef.ExportName != c.Param("exportName") {
+		backendresponse.Error(c, http.StatusBadRequest, "SVR-1001", "Remote Server Function invocation is invalid.", backendresponse.WithRetryable(false))
+		return
+	}
+	result, err := handler.serverFunctions.Invoke(c.Request.Context(), ServerFunctionPrincipalSession{
+		PrincipalID: user.ID,
+		SessionID:   session.ID,
+		ExpiresAt:   session.ExpiresAt,
+	}, c.Param("executionId"), *invocation, serverFunctionMutationRequestAuthority(c, session.ID))
+	if err != nil {
+		status, code, message := serverFunctionGatewayErrorStatus(err)
+		backendresponse.Error(c, status, code, message, backendresponse.WithRetryable(code == "SVR-5001"))
+		return
+	}
 	c.JSON(http.StatusOK, result)
 }
 

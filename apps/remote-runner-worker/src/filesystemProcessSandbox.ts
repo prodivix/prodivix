@@ -1,13 +1,23 @@
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import {
   createExecutionSecretLeakGuard,
+  DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_INVOCATION_PATH,
+  DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_RESULT_PATH,
   projectExecutableProjectRuntimeFiles,
   type ExecutableProjectCommand,
   type ExecutableProjectSnapshot,
 } from '@prodivix/runtime-core';
+import {
+  ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
+  ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH,
+  readIsolatedServerFunctionPlan,
+  readIsolatedServerFunctionSecretMaterial,
+  readIsolatedServerFunctionExecutionContext,
+} from '@prodivix/server-runtime';
+import { createRemoteWorkerServerFunctionArtifact } from './serverFunctionArtifact';
 import type {
   RemoteWorkerSandbox,
   RemoteWorkerSandboxResult,
@@ -61,13 +71,15 @@ const forceTerminate = (child: ReturnType<typeof spawn>): void => {
 
 const commandFor = (
   snapshot: ExecutableProjectSnapshot,
-  profile: 'preview' | 'test' | 'build'
+  profile: 'preview' | 'test' | 'build' | 'production'
 ): ExecutableProjectCommand =>
   profile === 'preview'
     ? snapshot.previewCommand
     : profile === 'test'
       ? snapshot.testPlan.command
-      : snapshot.buildCommand;
+      : profile === 'production'
+        ? (snapshot.serverFunctionPlan?.command ?? snapshot.buildCommand)
+        : snapshot.buildCommand;
 
 type OutputCollector = {
   stdout: string;
@@ -195,6 +207,61 @@ export const createFilesystemProcessSandbox = (
           await mkdir(dirname(target), { recursive: true });
           await writeFile(target, file.contents);
         }
+        const serverFunctionExecution =
+          input.profile === 'production' && input.request
+            ? readIsolatedServerFunctionExecutionContext(
+                input.request,
+                input.snapshot.serverFunctionPlan,
+                input.serverFunctionAuthority
+              )
+            : undefined;
+        const serverFunctionPlan =
+          input.profile === 'production'
+            ? input.snapshot.serverFunctionPlan
+            : undefined;
+        const isolatedPlan = readIsolatedServerFunctionPlan(serverFunctionPlan);
+        const secretPolicy = isolatedPlan?.definition.environment;
+        const secretMaterial = readIsolatedServerFunctionSecretMaterial(
+          input.serverFunctionSecrets
+        );
+        if (
+          input.profile !== 'production' &&
+          input.serverFunctionSecrets !== undefined
+        )
+          throw new TypeError(
+            'Remote worker Secret projection requires production.'
+          );
+        if (input.profile === 'production') {
+          if (!serverFunctionExecution || !serverFunctionPlan || !input.request)
+            throw new TypeError(
+              'Remote worker production request is not a Server Function invocation.'
+            );
+          if (
+            serverFunctionPlan.invocationFilePath !==
+              DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_INVOCATION_PATH ||
+            serverFunctionPlan.resultFilePath !==
+              DEFAULT_EXECUTABLE_PROJECT_SERVER_FUNCTION_RESULT_PATH
+          )
+            throw new TypeError(
+              'Remote worker production transport path is invalid.'
+            );
+          if (Boolean(secretPolicy) !== Boolean(secretMaterial))
+            throw new TypeError(
+              'Remote worker production Secret projection is invalid.'
+            );
+          if (secretPolicy && secretMaterial) {
+            const expectedFields = Object.keys(
+              secretPolicy.secretsByField
+            ).sort();
+            if (
+              JSON.stringify(Object.keys(secretMaterial.fields)) !==
+              JSON.stringify(expectedFields)
+            )
+              throw new TypeError(
+                'Remote worker production Secret projection is invalid.'
+              );
+          }
+        }
         const environment: NodeJS.ProcessEnv = {};
         inheritedNames.forEach((name) => {
           if (process.env[name] !== undefined)
@@ -214,6 +281,45 @@ export const createFilesystemProcessSandbox = (
         });
         let result = install;
         if (!install.timedOut && !install.aborted && install.exitCode === 0) {
+          if (serverFunctionExecution && serverFunctionPlan) {
+            const runtimeDirectory = safeChildPath(root, '.prodivix');
+            await rm(runtimeDirectory, { recursive: true, force: true });
+            await mkdir(runtimeDirectory, { recursive: true, mode: 0o700 });
+            const invocationTarget = safeChildPath(
+              root,
+              serverFunctionPlan.invocationFilePath
+            );
+            await mkdir(dirname(invocationTarget), { recursive: true });
+            await writeFile(
+              invocationTarget,
+              `${JSON.stringify(serverFunctionExecution.invocation)}\n`,
+              { flag: 'wx', mode: 0o600 }
+            );
+            if (serverFunctionExecution.authority) {
+              const authorityTarget = safeChildPath(
+                root,
+                ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH
+              );
+              await mkdir(dirname(authorityTarget), { recursive: true });
+              await writeFile(
+                authorityTarget,
+                `${JSON.stringify(serverFunctionExecution.authority)}\n`,
+                { flag: 'wx', mode: 0o600 }
+              );
+            }
+            if (secretMaterial) {
+              const secretTarget = safeChildPath(
+                root,
+                ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH
+              );
+              await mkdir(dirname(secretTarget), { recursive: true });
+              await writeFile(
+                secretTarget,
+                `${JSON.stringify(secretMaterial)}\n`,
+                { flag: 'wx', mode: 0o600 }
+              );
+            }
+          }
           const remaining = Math.max(
             1,
             input.timeoutMs - (Date.now() - startedAt)
@@ -229,6 +335,40 @@ export const createFilesystemProcessSandbox = (
         }
         const stdout = outputGuard.redactText(output.stdout);
         const stderr = outputGuard.redactText(output.stderr);
+        let artifacts;
+        if (
+          input.profile === 'production' &&
+          !result.aborted &&
+          !result.timedOut &&
+          result.exitCode === 0 &&
+          input.request &&
+          input.snapshot.serverFunctionPlan
+        ) {
+          try {
+            artifacts = Object.freeze([
+              createRemoteWorkerServerFunctionArtifact({
+                snapshot: input.snapshot,
+                request: input.request,
+                contents: await readFile(
+                  safeChildPath(
+                    root,
+                    input.snapshot.serverFunctionPlan.resultFilePath
+                  )
+                ),
+              }),
+            ]);
+          } catch {
+            return Object.freeze({
+              status: 'failed',
+              exitCode: 125,
+              stdout: stdout.value,
+              stderr: stderr.value,
+              outputTruncated: output.truncated,
+              secretLeakDetected: stdout.redacted || stderr.redacted,
+              reason: 'invalid-server-function-result',
+            });
+          }
+        }
         return Object.freeze({
           status: result.aborted
             ? 'cancelled'
@@ -244,6 +384,7 @@ export const createFilesystemProcessSandbox = (
           stderr: stderr.value,
           outputTruncated: output.truncated,
           secretLeakDetected: stdout.redacted || stderr.redacted,
+          ...(artifacts ? { artifacts } : {}),
         });
       } finally {
         const resolvedRoot = resolve(root);
