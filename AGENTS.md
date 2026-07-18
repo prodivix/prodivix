@@ -34,8 +34,8 @@
   sorted `workspace.owner` + `workspace.read` 短期 authority，runner 仍要求 profile 的 exact read grant，owner grant不替代
   read grant。Resources 可声明 reference-only permission，Blueprint 以单个可逆 Workspace Transaction 创建/绑定
   isolated read guard；Living Golden 已固定 Browser/static blocked、deterministic Test supported、Remote live blocked、
-  isolated production supported，并实际执行 read authority。GitHub rootless Gate 已配置独立 networkless/Secret-free
-  read probe；`workspace.write`、其他 permission、read + Secret、collaborator role resolution与源码 mutation继续 fail closed。
+  isolated production supported，并实际执行 read authority。独立 networkless/Secret-free read probe 已通过 GitHub
+  rootless Gate 并上传远端证据；`workspace.write`、其他 permission、read + Secret、collaborator role resolution与源码 mutation继续 fail closed。
 - Canonical Workspace VFS 是作者态唯一真相。PIR、NodeGraph、Animation、Data Source、Code、Design Token、Design Token Resolver、Assets、Config 与 RouteManifest 是 Workspace 内由各领域 owner 管理的文档或清单；PIR 不是整个项目的单一巨型 JSON。
 
 ```mermaid
