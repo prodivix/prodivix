@@ -24,6 +24,7 @@ import {
   ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
   ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH,
   ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  readIsolatedServerFunctionPlan,
   readIsolatedServerFunctionExecutionResponse,
 } from '@prodivix/server-runtime';
 import {
@@ -32,6 +33,8 @@ import {
 } from '../src/rootlessPodmanSandbox';
 
 const execFileAsync = promisify(execFile);
+const snapshotContractOnly =
+  process.env.PRODIVIX_ROOTLESS_SNAPSHOT_CONTRACT_ONLY === '1';
 const rootlessSecretCanary = 'rootless-secret-material-canary';
 const podman = process.env.PRODIVIX_ROOTLESS_PODMAN_COMMAND ?? 'podman';
 const baseImage =
@@ -40,12 +43,18 @@ const baseImage =
 const gateImage = 'localhost/prodivix-remote-sandbox:gate';
 const repositoryRoot = resolve(import.meta.dirname, '../../..');
 const evidencePath = process.env.PRODIVIX_ROOTLESS_EVIDENCE_PATH;
-const goldenSnapshotPath = process.env.PRODIVIX_GOLDEN_SNAPSHOT_PATH?.trim();
+const goldenSnapshotPath =
+  process.env.PRODIVIX_GOLDEN_SNAPSHOT_PATH?.trim() ||
+  (snapshotContractOnly ? 'contract-only' : undefined);
 const installNetworkName =
-  process.env.PRODIVIX_ROOTLESS_INSTALL_NETWORK?.trim();
-const installProxyUrl = process.env.PRODIVIX_ROOTLESS_INSTALL_PROXY_URL?.trim();
+  process.env.PRODIVIX_ROOTLESS_INSTALL_NETWORK?.trim() ||
+  (snapshotContractOnly ? 'contract-only' : undefined);
+const installProxyUrl =
+  process.env.PRODIVIX_ROOTLESS_INSTALL_PROXY_URL?.trim() ||
+  (snapshotContractOnly ? 'http://contract-only.invalid/' : undefined);
 const installProxyContainer =
-  process.env.PRODIVIX_ROOTLESS_INSTALL_PROXY_CONTAINER?.trim();
+  process.env.PRODIVIX_ROOTLESS_INSTALL_PROXY_CONTAINER?.trim() ||
+  (snapshotContractOnly ? 'contract-only' : undefined);
 if (!goldenSnapshotPath)
   throw new TypeError('PRODIVIX_GOLDEN_SNAPSHOT_PATH is required.');
 if (!installNetworkName)
@@ -567,7 +576,12 @@ const isolatedWorkspaceReadServerFunctionFixture = () => {
         };
       return file;
     }),
-    dependencyPlan: base.dependencyPlan,
+    dependencyPlan: {
+      manifestFilePath: base.dependencyPlan.manifestFilePath,
+      ...(base.dependencyPlan.lockFilePath
+        ? { lockFilePath: base.dependencyPlan.lockFilePath }
+        : {}),
+    },
     entrypoints: base.entrypoints,
     capabilityRequirements: {
       ...base.capabilityRequirements,
@@ -648,6 +662,22 @@ const isolatedWorkspaceReadServerFunctionFixture = () => {
     }),
   });
 };
+
+if (snapshotContractOnly) {
+  const fixture = isolatedWorkspaceReadServerFunctionFixture();
+  const plan = readIsolatedServerFunctionPlan(
+    fixture.snapshot.serverFunctionPlan
+  );
+  if (
+    !plan ||
+    plan.definition.auth.kind !== 'permission' ||
+    plan.definition.auth.permissionId !== 'workspace.read' ||
+    plan.definition.environment !== undefined
+  )
+    throw new Error('Rootless workspace.read snapshot contract is invalid.');
+  process.stdout.write(`${fixture.snapshot.contentDigest}\n`);
+  process.exit(0);
+}
 
 const numberLimit = (value: string, label: string): number => {
   const result = Number(value);

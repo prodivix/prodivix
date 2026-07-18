@@ -9,6 +9,7 @@
     "dev": "tsx src/main.ts",
     "start": "node dist/main.js",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "test:rootless-snapshot-contract": "cross-env PRODIVIX_ROOTLESS_SNAPSHOT_CONTRACT_ONLY=1 tsx scripts/verify-rootless-sandbox.ts",
     "test:rootless-gate": "tsx scripts/verify-rootless-sandbox.ts",
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
