@@ -1,9 +1,13 @@
 package config
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -34,7 +38,72 @@ type WorkspaceAssetBlobRetentionConfig struct {
 }
 
 type EnvironmentSecretStoreConfig struct {
-	MasterKey string
+	MasterKey         string
+	ActiveKeyID       string
+	Keys              map[string]string
+	RotationInterval  time.Duration
+	RotationBatchSize int
+}
+
+var environmentSecretKeyIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$`)
+
+func validEnvironmentSecretKey(encoded string) bool {
+	for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		decoded, err := encoding.DecodeString(encoded)
+		valid := err == nil && len(decoded) == 32
+		for index := range decoded {
+			decoded[index] = 0
+		}
+		if valid {
+			return true
+		}
+	}
+	return false
+}
+
+func parseEnvironmentSecretKeyRing(raw string) (map[string]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return map[string]string{}, nil
+	}
+	if len(raw) > 64*1024 {
+		return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS exceeds its configuration budget")
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS must be a JSON object with 1 to 16 keys")
+	}
+	keys := map[string]string{}
+	for decoder.More() {
+		rawKeyID, err := decoder.Token()
+		keyID, ok := rawKeyID.(string)
+		if err != nil || !ok {
+			return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS must contain only string key material")
+		}
+		if _, duplicate := keys[keyID]; duplicate {
+			return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS contains a duplicate key id")
+		}
+		var encoded string
+		if err := decoder.Decode(&encoded); err != nil {
+			return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS must contain only string key material")
+		}
+		if !environmentSecretKeyIDPattern.MatchString(keyID) || !validEnvironmentSecretKey(encoded) {
+			return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS contains an invalid key id or key material")
+		}
+		keys[keyID] = encoded
+		if len(keys) > 16 {
+			return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS must be a JSON object with 1 to 16 keys")
+		}
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') || len(keys) == 0 {
+		return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS must be a JSON object with 1 to 16 keys")
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS must contain exactly one JSON object")
+	}
+	return keys, nil
 }
 
 type RemoteRunnerConfig struct {
@@ -109,6 +178,37 @@ func LoadConfig() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	environmentSecretRotationInterval, err := getEnvPositiveDuration("BACKEND_ENVIRONMENT_SECRET_ROTATION_INTERVAL", 5*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+	environmentSecretRotationBatchSize, err := getEnvBoundedPositiveInt("BACKEND_ENVIRONMENT_SECRET_ROTATION_BATCH_SIZE", 64, 256)
+	if err != nil {
+		return Config{}, err
+	}
+	environmentSecretMasterKey := strings.TrimSpace(getEnv("BACKEND_ENVIRONMENT_SECRET_KEY", ""))
+	if environmentSecretMasterKey != "" && !validEnvironmentSecretKey(environmentSecretMasterKey) {
+		return Config{}, errors.New("BACKEND_ENVIRONMENT_SECRET_KEY must be base64-encoded 256-bit material")
+	}
+	environmentSecretKeys, err := parseEnvironmentSecretKeyRing(os.Getenv("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS"))
+	if err != nil {
+		return Config{}, err
+	}
+	environmentSecretActiveKeyID := strings.TrimSpace(os.Getenv("BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID"))
+	if len(environmentSecretKeys) == 0 && environmentSecretMasterKey != "" {
+		environmentSecretKeys["legacy-v1"] = environmentSecretMasterKey
+		environmentSecretActiveKeyID = "legacy-v1"
+	}
+	if len(environmentSecretKeys) > 0 {
+		if !environmentSecretKeyIDPattern.MatchString(environmentSecretActiveKeyID) {
+			return Config{}, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID is required and must be canonical")
+		}
+		if _, ok := environmentSecretKeys[environmentSecretActiveKeyID]; !ok {
+			return Config{}, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID is not present in BACKEND_ENVIRONMENT_SECRET_KMS_KEYS")
+		}
+	} else if environmentSecretActiveKeyID != "" {
+		return Config{}, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS is required when an active key id is configured")
+	}
 	config := Config{
 		Address:        address,
 		Environment:    environment,
@@ -155,7 +255,11 @@ func LoadConfig() (Config, error) {
 			BlobLimit:       assetBlobSweepBlobLimit,
 		},
 		EnvironmentSecrets: EnvironmentSecretStoreConfig{
-			MasterKey: getEnv("BACKEND_ENVIRONMENT_SECRET_KEY", ""),
+			MasterKey:         environmentSecretMasterKey,
+			ActiveKeyID:       environmentSecretActiveKeyID,
+			Keys:              environmentSecretKeys,
+			RotationInterval:  environmentSecretRotationInterval,
+			RotationBatchSize: environmentSecretRotationBatchSize,
 		},
 	}
 	if err := validateOptionalCapabilities(config); err != nil {

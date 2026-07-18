@@ -55,11 +55,32 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build TypeScript project references
         run: pnpm exec tsc -b --pretty false
+
+      - name: Download Backend Go modules
+        working-directory: apps/backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if GOPROXY=https://proxy.golang.org,direct go mod download; then
+              exit 0
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+          done
 
       - name: Install rootless Podman
         shell: bash

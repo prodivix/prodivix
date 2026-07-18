@@ -14,7 +14,7 @@ type secretCipher struct {
 	aead cipher.AEAD
 }
 
-func newSecretCipher(encodedKey string) (*secretCipher, error) {
+func decodeSecretKey(encodedKey string) ([]byte, error) {
 	if encodedKey == "" {
 		return nil, ErrUnavailable
 	}
@@ -26,13 +26,24 @@ func newSecretCipher(encodedKey string) (*secretCipher, error) {
 		base64.URLEncoding,
 		base64.RawURLEncoding,
 	} {
-		key, decodeErr = encoding.DecodeString(encodedKey)
+		decoded, err := encoding.DecodeString(encodedKey)
+		clearBytes(key)
+		key, decodeErr = decoded, err
 		if decodeErr == nil {
 			break
 		}
 	}
 	if decodeErr != nil || len(key) != 32 {
+		clearBytes(key)
 		return nil, errors.New("environment Secret key must be base64-encoded 256-bit material")
+	}
+	return key, nil
+}
+
+func newSecretCipher(encodedKey string) (*secretCipher, error) {
+	key, err := decodeSecretKey(encodedKey)
+	if err != nil {
+		return nil, err
 	}
 	block, err := aes.NewCipher(key)
 	clearBytes(key)

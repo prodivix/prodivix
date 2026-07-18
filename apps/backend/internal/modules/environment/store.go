@@ -21,19 +21,45 @@ const (
 )
 
 type Store struct {
-	db        *sql.DB
-	cipher    *secretCipher
-	cipherErr error
-	now       func() time.Time
+	db             *sql.DB
+	cipher         *secretCipher
+	cipherErr      error
+	envelopeCipher *secretEnvelopeCipher
+	envelopeErr    error
+	now            func() time.Time
 }
 
 func NewStore(db *sql.DB, encodedMasterKey string) *Store {
-	cipher, err := newSecretCipher(strings.TrimSpace(encodedMasterKey))
-	return &Store{db: db, cipher: cipher, cipherErr: err, now: func() time.Time { return time.Now().UTC() }}
+	encodedMasterKey = strings.TrimSpace(encodedMasterKey)
+	keys := map[string]string{}
+	if encodedMasterKey != "" {
+		keys["legacy-v1"] = encodedMasterKey
+	}
+	return NewStoreWithKeyRing(db, encodedMasterKey, "legacy-v1", keys)
+}
+
+func NewStoreWithKeyRing(db *sql.DB, encodedLegacyMasterKey string, activeKeyID string, encodedKeys map[string]string) *Store {
+	legacyCipher, legacyErr := newSecretCipher(strings.TrimSpace(encodedLegacyMasterKey))
+	kms, kmsErr := newStaticKeyRingKMS(strings.TrimSpace(activeKeyID), encodedKeys)
+	var envelopeCipher *secretEnvelopeCipher
+	var envelopeErr error
+	if kmsErr == nil {
+		envelopeCipher, envelopeErr = newSecretEnvelopeCipher(kms)
+	} else {
+		envelopeErr = kmsErr
+	}
+	return &Store{
+		db:             db,
+		cipher:         legacyCipher,
+		cipherErr:      legacyErr,
+		envelopeCipher: envelopeCipher,
+		envelopeErr:    envelopeErr,
+		now:            func() time.Time { return time.Now().UTC() },
+	}
 }
 
 func (store *Store) Available() bool {
-	return store != nil && store.db != nil && store.cipher != nil && store.cipherErr == nil
+	return store != nil && store.db != nil && store.envelopeCipher != nil && store.envelopeErr == nil
 }
 
 func canonical(value string) (string, bool) {
@@ -173,12 +199,12 @@ func (store *Store) PutSnapshot(ctx context.Context, rawInput PutSnapshotInput) 
 	}
 	for _, bindingID := range secretBindingIDs {
 		material := []byte(input.Secrets[bindingID])
-		nonce, ciphertext, encryptErr := store.cipher.encrypt(material, secretAdditionalData(input.WorkspaceID, input.EnvironmentID, revision, bindingID))
+		envelope, encryptErr := store.envelopeCipher.encrypt(ctx, material, secretAdditionalData(input.WorkspaceID, input.EnvironmentID, revision, bindingID))
 		clearBytes(material)
 		if encryptErr != nil {
 			return nil, encryptErr
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_secret_materials (environment_id, revision, binding_id, nonce, ciphertext) VALUES ($1, $2, $3, $4, $5)`, input.EnvironmentID, revision, bindingID, nonce, ciphertext); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_secret_materials (environment_id, revision, binding_id, algorithm, key_provider, key_id, wrapped_key_nonce, wrapped_key, nonce, ciphertext) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, input.EnvironmentID, revision, bindingID, envelope.Algorithm, envelope.KeyProvider, envelope.KeyID, envelope.WrappedKeyNonce, envelope.WrappedKey, envelope.Nonce, envelope.Ciphertext); err != nil {
 			return nil, err
 		}
 	}
@@ -370,12 +396,13 @@ func (store *Store) UseSecret(ctx context.Context, input UseSecretInput, consume
 	}
 	ctx, cancel := databaseContext(ctx)
 	defer cancel()
-	var bindingJSON, nonce, ciphertext []byte
+	var bindingJSON, wrappedKeyNonce, wrappedKey, nonce, ciphertext []byte
+	var algorithm, keyProvider, keyID sql.NullString
 	var expiresAt time.Time
-	query := `SELECT g.secret_bindings_json, g.expires_at, m.nonce, m.ciphertext
+	query := `SELECT g.secret_bindings_json, g.expires_at, m.algorithm, m.key_provider, m.key_id, m.wrapped_key_nonce, m.wrapped_key, m.nonce, m.ciphertext
 		FROM execution_environment_grants g JOIN execution_environment_secret_materials m ON m.environment_id = g.environment_id AND m.revision = g.revision AND m.binding_id = $10
 		WHERE g.grant_id=$1 AND g.workspace_id=$2 AND g.environment_id=$3 AND g.revision=$4 AND g.principal_id=$5 AND g.session_id=$6 AND g.provider_id=$7 AND g.purpose_kind=$8 AND g.resource_id=$9 AND g.revoked_at IS NULL AND g.expires_at > NOW()`
-	err = store.db.QueryRowContext(ctx, query, input.GrantID, input.WorkspaceID, input.EnvironmentID, input.Revision, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, input.BindingID).Scan(&bindingJSON, &expiresAt, &nonce, &ciphertext)
+	err = store.db.QueryRowContext(ctx, query, input.GrantID, input.WorkspaceID, input.EnvironmentID, input.Revision, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, input.BindingID).Scan(&bindingJSON, &expiresAt, &algorithm, &keyProvider, &keyID, &wrappedKeyNonce, &wrappedKey, &nonce, &ciphertext)
 	if err != nil {
 		return ErrPermissionDenied
 	}
@@ -393,7 +420,21 @@ func (store *Store) UseSecret(ctx context.Context, input UseSecretInput, consume
 	if !allowed || !expiresAt.After(store.now()) {
 		return ErrPermissionDenied
 	}
-	material, err := store.cipher.decrypt(nonce, ciphertext, secretAdditionalData(input.WorkspaceID, input.EnvironmentID, input.Revision, input.BindingID))
+	additionalData := secretAdditionalData(input.WorkspaceID, input.EnvironmentID, input.Revision, input.BindingID)
+	var material []byte
+	if !algorithm.Valid && !keyProvider.Valid && !keyID.Valid && len(wrappedKeyNonce) == 0 && len(wrappedKey) == 0 {
+		if store.cipher == nil || store.cipherErr != nil {
+			return ErrPermissionDenied
+		}
+		material, err = store.cipher.decrypt(nonce, ciphertext, additionalData)
+	} else if algorithm.Valid && keyProvider.Valid && keyID.Valid && len(wrappedKeyNonce) > 0 && len(wrappedKey) > 0 {
+		material, err = store.envelopeCipher.decrypt(ctx, storedSecretEnvelope{
+			Algorithm: algorithm.String, KeyProvider: keyProvider.String, KeyID: keyID.String,
+			WrappedKeyNonce: wrappedKeyNonce, WrappedKey: wrappedKey, Nonce: nonce, Ciphertext: ciphertext,
+		}, additionalData)
+	} else {
+		return ErrPermissionDenied
+	}
 	if err != nil {
 		return err
 	}
@@ -430,8 +471,8 @@ func (store *Store) RevokeGrant(ctx context.Context, grantID string, principal P
 }
 
 func (store *Store) String() string {
-	if store == nil || store.cipherErr == nil {
+	if store == nil || store.envelopeErr == nil {
 		return "environment-store"
 	}
-	return fmt.Sprintf("environment-store(unavailable: %v)", store.cipherErr)
+	return fmt.Sprintf("environment-store(unavailable: %v)", store.envelopeErr)
 }

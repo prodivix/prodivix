@@ -1,9 +1,16 @@
 package config
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 )
+
+func encodedEnvironmentSecretTestKey(fill byte) string {
+	return base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{fill}, 32))
+}
 
 func TestLoadConfigRejectsMissingProductionDatabase(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
@@ -136,6 +143,76 @@ func TestLoadConfigRejectsUnsafeWorkspaceAssetBlobRetention(t *testing.T) {
 			t.Setenv(test.key, test.value)
 			if _, err := LoadConfig(); err == nil {
 				t.Fatalf("expected %s to fail closed", test.key)
+			}
+		})
+	}
+}
+
+func TestLoadConfigBuildsAKeyRingAndKeepsTheLegacyKeyMigrationOnly(t *testing.T) {
+	keys := map[string]string{
+		"key-2026-01": encodedEnvironmentSecretTestKey(0x11),
+		"key-2026-07": encodedEnvironmentSecretTestKey(0x77),
+	}
+	serialized, _ := json.Marshal(keys)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_KEY", encodedEnvironmentSecretTestKey(0x22))
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS", string(serialized))
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID", "key-2026-07")
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_ROTATION_INTERVAL", "30s")
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_ROTATION_BATCH_SIZE", "32")
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.EnvironmentSecrets.ActiveKeyID != "key-2026-07" || len(config.EnvironmentSecrets.Keys) != 2 || config.EnvironmentSecrets.MasterKey == "" {
+		t.Fatalf("unexpected environment Secret key configuration: active=%q keys=%d legacy=%t", config.EnvironmentSecrets.ActiveKeyID, len(config.EnvironmentSecrets.Keys), config.EnvironmentSecrets.MasterKey != "")
+	}
+	if config.EnvironmentSecrets.RotationInterval != 30*time.Second || config.EnvironmentSecrets.RotationBatchSize != 32 {
+		t.Fatalf("unexpected key rotation maintenance configuration: interval=%s batch=%d", config.EnvironmentSecrets.RotationInterval, config.EnvironmentSecrets.RotationBatchSize)
+	}
+}
+
+func TestLoadConfigMapsTheLegacySingleKeyToAnEnvelopeKeyRing(t *testing.T) {
+	legacy := encodedEnvironmentSecretTestKey(0x22)
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_KEY", legacy)
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS", "")
+	t.Setenv("BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID", "")
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.EnvironmentSecrets.ActiveKeyID != "legacy-v1" || config.EnvironmentSecrets.Keys["legacy-v1"] != legacy {
+		t.Fatalf("legacy key was not mapped to the envelope key ring: active=%q keys=%d", config.EnvironmentSecrets.ActiveKeyID, len(config.EnvironmentSecrets.Keys))
+	}
+}
+
+func TestLoadConfigRejectsUnsafeEnvironmentSecretKeyRotation(t *testing.T) {
+	validKey := encodedEnvironmentSecretTestKey(0x77)
+	for _, test := range []struct {
+		name   string
+		legacy string
+		keys   string
+		active string
+		batch  string
+	}{
+		{name: "invalid legacy key", legacy: "not-base64"},
+		{name: "invalid key ring", keys: `{"key-new":"not-base64"}`, active: "key-new"},
+		{name: "duplicate key id", keys: `{"key-new":"` + validKey + `","key-new":"` + validKey + `"}`, active: "key-new"},
+		{name: "non-string key material", keys: `{"key-new":42}`, active: "key-new"},
+		{name: "trailing JSON value", keys: `{"key-new":"` + validKey + `"} {}`, active: "key-new"},
+		{name: "missing active key", keys: `{"key-new":"` + validKey + `"}`},
+		{name: "unknown active key", keys: `{"key-new":"` + validKey + `"}`, active: "key-missing"},
+		{name: "unbounded batch", keys: `{"key-new":"` + validKey + `"}`, active: "key-new", batch: "257"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("APP_ENV", "test")
+			t.Setenv("BACKEND_ENVIRONMENT_SECRET_KEY", test.legacy)
+			t.Setenv("BACKEND_ENVIRONMENT_SECRET_KMS_KEYS", test.keys)
+			t.Setenv("BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID", test.active)
+			t.Setenv("BACKEND_ENVIRONMENT_SECRET_ROTATION_BATCH_SIZE", test.batch)
+			if _, err := LoadConfig(); err == nil {
+				t.Fatal("unsafe environment Secret rotation configuration was accepted")
 			}
 		})
 	}

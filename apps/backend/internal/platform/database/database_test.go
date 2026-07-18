@@ -45,6 +45,12 @@ func TestRunMigrationsUsesVersionedLockedTransaction(t *testing.T) {
 	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(7)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS remote_isolated_secret_resolutions").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(7), "isolated-server-function-secret-resolution").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(8)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	mock.ExpectExec("ALTER TABLE execution_environment_secret_materials").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("ALTER TABLE execution_environment_secret_materials").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_execution_environment_secret_materials_key").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS execution_environment_key_rotation_audit").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(8), "environment-secret-kms-key-rotation").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	if err := RunMigrations(context.Background(), db); err != nil {

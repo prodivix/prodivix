@@ -40,8 +40,9 @@ type RuntimeModules struct {
 		Handler *backendremoteexecution.Handler
 	}
 	Environment struct {
-		Store   *backendenvironment.Store
-		Handler *backendenvironment.Handler
+		Store       *backendenvironment.Store
+		Handler     *backendenvironment.Handler
+		Maintenance *EnvironmentSecretKeyRotationMaintenance
 	}
 }
 
@@ -60,17 +61,20 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	modules.Project.Handler = backendproject.NewHandler(modules.Project.Store, modules.Workspace.Module)
 	modules.GitHub.Handler = backendgithub.NewHandler(modules.GitHub.Store, modules.Project.Store, cfg.GitHub, cfg.Environment)
 	modules.RemoteExecution.Store = backendremoteexecution.NewStore(db)
-	modules.Environment.Store = backendenvironment.NewStore(db, cfg.EnvironmentSecrets.MasterKey)
+	modules.Environment.Store = backendenvironment.NewStoreWithKeyRing(db, cfg.EnvironmentSecrets.MasterKey, cfg.EnvironmentSecrets.ActiveKeyID, cfg.EnvironmentSecrets.Keys)
 	modules.Environment.Handler = backendenvironment.NewHandler(modules.Environment.Store)
+	modules.Environment.Maintenance = NewEnvironmentSecretKeyRotationMaintenance(modules.Environment.Store, cfg.EnvironmentSecrets)
 	modules.RemoteExecution.Handler = backendremoteexecution.NewHandler(modules.RemoteExecution.Store, cfg.RemoteRunner, cfg.RemotePreview, modules.Environment.Store)
 	return modules
 }
 
 func (modules RuntimeModules) StartMaintenance(ctx context.Context) {
 	modules.Workspace.Maintenance.Start(ctx)
+	modules.Environment.Maintenance.Start(ctx)
 }
 
 func (modules RuntimeModules) CloseMaintenance() {
+	modules.Environment.Maintenance.Close()
 	modules.Workspace.Maintenance.Close()
 }
 

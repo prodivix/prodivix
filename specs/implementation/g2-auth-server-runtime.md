@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：A0-A5 Implemented / A6 Authenticated + Permission First Vertical + Import Graph + Live Mutation Safety Gate Implemented / A7 Golden Target Matrix + Route/Auth Configuration Authoring/Issues + Cross-producer Invocation Devtools First Vertical Implemented / A8 Remote Live Audited Secret HMAC First Vertical Implemented / A9 Isolated Worker Sealed Secret Resolution First Vertical Implemented / A10 Worker-attempt Secret Recovery First Vertical Implemented
+- ImplementationStatus：A0-A5 Implemented / A6 Authenticated + Permission First Vertical + Import Graph + Live Mutation Safety Gate Implemented / A7 Golden Target Matrix + Route/Auth Configuration Authoring/Issues + Cross-producer Invocation Devtools First Vertical Implemented / A8 Remote Live Audited Secret HMAC First Vertical Implemented / A9 Isolated Worker Sealed Secret Resolution First Vertical Implemented / A10 Worker-attempt Secret Recovery First Vertical Implemented / A11 Backend Environment Secret KMS Envelope + Key Rotation First Vertical Implemented
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-19
@@ -274,6 +274,29 @@ authorization、schema、client/server partition、fixture isolation、取消和
   仍执行完整 identity校验。Worker Gate 真实覆盖 attempt 2 在 `running` 状态重新解析 Secret、执行、上传 canonical result
   并终态成功，且没有第二次 running transition。
 
+### A11：Backend Environment Secret KMS envelope 与 key rotation first vertical
+
+状态：Implemented；关闭 Backend at-rest versioned key ring、per-record envelope encryption、bounded concurrent
+rotation 与 legacy migration first vertical。managed-cloud KMS provider、完整跨表面 leak closure、其他 permission 和
+项目源码 mutation 继续关闭。
+
+- 每条新 Secret 生成独立 256-bit data key；material 使用 `AES-256-GCM` 和 exact
+  workspace/environment/revision/binding AAD 加密，data key 再由 active versioned KMS key authenticated wrap。
+  PostgreSQL migration 8 只保存 algorithm/provider/key id、wrapped data key、nonce 和 ciphertext；KMS key id 不进入
+  Workspace、request、snapshot、Control Plane、Worker sealed envelope、trace 或 artifact。
+- static key-ring KMS adapter 最多接受 16 个 canonical key id，active id 必须精确存在；旧单 key 只作为
+  `legacy-v1` 兼容入口。新写入固定 active key。旧 key 在 row 未完成 rewrap 前移除时，runtime resolution 与整批
+  rotation 都 fail closed，不会尝试错误 key 或明文降级。
+- rotation maintenance 以 1-256 bounded batch 和 `FOR UPDATE SKIP LOCKED` 原子领取 row。正常轮换只
+  unwrap/rewrap data key，保持 Secret nonce/ciphertext byte-exact；历史 direct-cipher row 才在一次性 migration 中
+  短暂解密并立即清零。任一 unwrap/update/audit 失败回滚整批。
+- durable rotation audit 仅记录 active provider/key id 与 rewrapped/migrated/remaining aggregate count，不记录
+  Workspace/environment/binding identity、wrapped key、ciphertext 或 material。最后一批 `remaining=0` 后才允许 operator
+  删除旧 key。
+- 真实 PostgreSQL Gate 使用四个并发 rotator 对八条旧 key row 验证 `SKIP LOCKED` exact-once claim、ciphertext
+  byte stability、aggregate audit、active-key-only resolution 与 retired-key denial；同一 Gate 已接入
+  `G2 PostgreSQL Gates`，unit contract 同时进入 Auth/Server 与 rootless aggregate。
+
 ## First vertical 调用链
 
 ```mermaid
@@ -307,6 +330,7 @@ sequenceDiagram
 - `pnpm --filter @prodivix/remote-runner-control-plane test`
 - `pnpm --filter @prodivix/remote-runner-worker test`
 - `cd apps/backend && go test ./internal/modules/remoteexecution`
+- `cd apps/backend && go test ./internal/modules/environment ./internal/app`
 - `pnpm check:core-boundaries`
 - 汇总 Gate：`pnpm verify:g2:auth-server-runtime`
 - Golden target matrix Gate：`pnpm verify:g2:auth-server-golden`
@@ -314,6 +338,9 @@ sequenceDiagram
 - live mutation PostgreSQL Gate：
   `go test ./internal/modules/remoteexecution -run '^TestServerFunctionLiveMutationPostgreSQLGate$' -count=1 -v`
 - isolated 汇总 Gate：`pnpm verify:g2:isolated-server-runtime`
+- Environment Secret key rotation 汇总 Gate：`pnpm verify:g2:environment-secret-key-rotation`
+- Environment Secret key rotation PostgreSQL Gate：
+  `go test ./internal/modules/environment -run '^TestEnvironmentSecretKeyRotationPostgreSQLGate$' -count=1 -v`
 - isolated import graph Gate：`pnpm verify:g2:isolated-server-import-graph`
 - isolated authenticated/permission authority Gate：`pnpm verify:g2:isolated-server-auth-authority`
 - isolated worker-attempt Secret recovery Gate：`pnpm verify:g2:isolated-server-secret-recovery`
@@ -379,5 +406,7 @@ ambiguous/budget-exhausted import graph 必须在执行前失败。
       PostgreSQL one-shot replay、remote-isolated grant、Worker/rootless one-shot `useSecret`、Golden target matrix 与 leak Gate。
 - [ ] 更新后的 transitive import rootless GitHub probe 取得阶段性推送后的远端证据。
 - [x] exact active lease 下的 read-only isolated Secret cross-worker-attempt recovery、旧 ciphertext/attempt revoke 与 PostgreSQL concurrency Gate。
-- [ ] KMS/key rotation、完整 leak closure、其他 permission 与任意项目源码 mutation target 完成。
+- [x] Backend Environment Secret per-record KMS envelope、versioned key ring、bounded atomic rewrap、legacy migration、
+      aggregate-only audit 与真实 PostgreSQL concurrency Gate。
+- [ ] managed-cloud KMS adapter、完整 leak closure、其他 permission 与任意项目源码 mutation target 完成。
 - [ ] Auth/Server 完整 Golden 与 G2 Product Gate closure 完成。

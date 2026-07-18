@@ -22,7 +22,12 @@
   Control Plane 允许 exact active `running` recovery，Backend 以单行 current-attempt CAS 原子清除旧 ciphertext/recipient，
   旧 attempt completion/replay、同 attempt key drift 与 function/invocation drift均 fail closed。
   Browser/static、deterministic Test、Remote live code-export、其他 adapter/permission、mutation 仍 fail closed；
-  KMS/key rotation、跨 replica artifact/quota closure 与完整跨表面 leak closure继续建设。
+  跨 replica artifact/quota closure 与完整跨表面 leak closure继续建设。
+- Auth/Server A11 最新状态（覆盖上方 KMS/key rotation 尚未实现的历史描述）：Backend Environment Secret 已完成
+  per-record data-key envelope、versioned static KMS key-ring、active-key-only 新写入、旧 key 保留读与 retirement fence；
+  1-256 bounded `FOR UPDATE ... SKIP LOCKED` maintenance 在单事务内只 rewrap data key，legacy direct-cipher row
+  一次性迁移为 envelope，并只写 aggregate audit。并发 rotation、ciphertext byte-preservation、old-key-only denial
+  与 active-key-only resolve 已通过本地真实 PostgreSQL Gate；managed-cloud KMS adapter 与完整跨表面 leak Gate 继续建设。
 - Canonical Workspace VFS 是作者态唯一真相。PIR、NodeGraph、Animation、Data Source、Code、Design Token、Design Token Resolver、Assets、Config 与 RouteManifest 是 Workspace 内由各领域 owner 管理的文档或清单；PIR 不是整个项目的单一巨型 JSON。
 
 ```mermaid

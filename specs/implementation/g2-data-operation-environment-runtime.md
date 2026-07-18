@@ -94,7 +94,9 @@ G2 完成的标志不是“能发一个 fetch”，而是同一 CRUD journey 在
   SSRF policy；generated query bridge/CSP 已接入。Remote request/snapshot/cache/event/log/diagnostic/trace/
   artifact/test-report/crash durable surface canary Gate 已闭环；Structured Console 已增加 generated/bridge/
   core/copy 多层 credential redaction；Remote Terminal 已增加 Worker/Control Plane 双边、stdout/stderr 分流的
-  transport-wide/cross-chunk canary 与 bounded copy redaction。key rotation/KMS adapter 继续建设。
+  transport-wide/cross-chunk canary 与 bounded copy redaction。Backend per-record KMS envelope、versioned static
+  key-ring first adapter、bounded atomic rewrap/legacy migration 与 aggregate-only rotation audit 已完成；
+  managed-cloud KMS adapter继续建设。
 - HTTP/OpenAPI、GraphQL、AsyncAPI importer/runtime adapter。
 - 完整 Data editor/Inspector/Issues/Network 产品旅程。
 - Preview/Test/Export 和第二 target 的 CRUD parity。
@@ -377,7 +379,8 @@ incremental update 语义，必须先修订 ADR/current model。
       `environment-binding`，Browser/ZIP export fail closed，生成 source/diagnostic/snapshot 不投影 Secret
       identity。Remote 当前 durable 输出的 log/diagnostic/trace/artifact/report/cache/crash canary 已由 Worker +
       Control Plane 双 Gate 覆盖；Structured Console copy 与 Remote Terminal transport-wide/cross-chunk、
-      stdout/stderr 分流和 bounded copy redaction 已完成，key rotation/KMS adapter 仍未完成。
+      stdout/stderr 分流和 bounded copy redaction，以及 Backend per-record KMS envelope、versioned static key-ring、
+      bounded atomic rewrap/legacy migration 与真实 PostgreSQL concurrency Gate 已完成；managed-cloud KMS adapter仍未完成。
 
 完成条件：未授权、错误 zone、stale environment 或缺 binding 均在执行前稳定拒绝；无明文泄漏。
 

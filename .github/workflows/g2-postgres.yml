@@ -94,6 +94,10 @@ jobs:
         working-directory: apps/backend
         run: go test ./internal/modules/remoteexecution -run '^TestServerFunctionLiveMutationPostgreSQLGate$' -count=1 -v
 
+      - name: Run Backend Environment Secret KMS rotation PostgreSQL Gate
+        working-directory: apps/backend
+        run: go test ./internal/modules/environment -run '^TestEnvironmentSecretKeyRotationPostgreSQLGate$' -count=1 -v
+
       - name: Run Backend Binary Asset retention PostgreSQL Gate
         working-directory: apps/backend
         run: go test ./internal/modules/workspace -run '^TestWorkspaceAssetBlobRetentionPostgreSQLGate$' -count=1 -v

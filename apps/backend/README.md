@@ -200,14 +200,31 @@ Workspace row lock，并通过 `SKIP LOCKED` 跳过正在 authoring 的 Workspac
 
 ## Environment / Secret store
 
-设置 `BACKEND_ENVIRONMENT_SECRET_KEY` 为 base64 编码的 32 字节随机 key 后，Backend 启用
-production Environment/Secret store。未配置或 key 无效时，Environment API 保持 fail closed 并返回
-`503 ENV-5001`；不会使用默认 key 或明文降级。
+生产 Environment/Secret store 使用 versioned KMS key ring：
+
+- `BACKEND_ENVIRONMENT_SECRET_KMS_KEYS` 是由 Secret manager 注入的 JSON object，最多 16 个 canonical key id，
+  每个值为 base64 编码的 32 字节 key；
+- `BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID` 必须精确指向 ring 中的当前 key；
+- `BACKEND_ENVIRONMENT_SECRET_ROTATION_INTERVAL=5m` 与
+  `BACKEND_ENVIRONMENT_SECRET_ROTATION_BATCH_SIZE=64` 控制有界 rotation maintenance，batch 上限 256；
+- 旧 `BACKEND_ENVIRONMENT_SECRET_KEY` 只用于迁移历史 direct-cipher row。仅配置该值时会兼容映射为
+  `legacy-v1`，但新的生产部署应显式配置 versioned key ring。
+
+未配置、key 无效、active key 缺失或 key 过早移除时，Environment API/rotation 保持 fail closed；不会使用
+默认 key 或明文降级。
 
 `PUT /api/workspaces/:workspaceId/environments/:environmentId` 创建 immutable revision。public binding
-以 JSON 保存，`secretsById` 仅在请求边界进入内存，并使用 AES-256-GCM 与绑定
-workspace/environment/revision/binding 的 authenticated context 加密后写入 PostgreSQL。响应和
-`GET` 仅包含 `secretBindingIds`，不返回 Secret material，并强制 `private, no-store`。
+以 JSON 保存，`secretsById` 仅在请求边界进入内存。每条 Secret 生成独立 256-bit data key，material
+使用 AES-256-GCM 与绑定 workspace/environment/revision/binding 的 authenticated context 加密；data key
+再由 active KMS key authenticated wrap。PostgreSQL 只保存 algorithm/provider/key id、wrapped data key、nonce
+与 ciphertext。响应和 `GET` 仅包含 `secretBindingIds`，不返回 Secret material，并强制
+`private, no-store`。
+
+轮换时先把新 key 加入 ring 并设为 active，同时保留旧 key。maintenance 使用 `FOR UPDATE SKIP LOCKED`
+原子领取 bounded rows，只 unwrap/rewrap data key，不解密或重写 Secret ciphertext；历史 direct-cipher row
+只在首次迁移时短暂解密并立即清零。每批 audit 只保存 active provider/key id 与 aggregate count。最后一批
+`remaining_count=0` 后才可移除旧 key。过早移除旧 key 会回滚整个 batch，旧 key row 的 runtime resolution
+同时拒绝，不会产生部分提交。
 
 运行时授权以 principal、认证 session、Workspace、environment revision、provider、runtime zone、
 purpose、binding 和 adapter field 形成最长五分钟的 durable grant。Secret 只能通过 store 的
@@ -223,8 +240,9 @@ client-only target 仍不得解析 Secret，Worker、snapshot、artifact 与 Pre
 - 本地开发可在 `apps/backend` 中运行 `docker compose up -d`。
 - 默认连接串为 `postgres://postgres:postgres@localhost:5432/prodivix?sslmode=disable`。
 - Windows 原生开发脚本读取仓库根目录 `.env.local`；可从 `.env.example` 复制后设置 `BACKEND_DB_URL`。
-- Environment/Secret 表由同一启动迁移创建；生产部署必须从 Secret manager 注入
-  `BACKEND_ENVIRONMENT_SECRET_KEY`，不得提交到仓库或写入 Workspace。
+- Environment/Secret 表由同一启动迁移创建；生产部署必须从 Secret manager 注入 KMS key ring。key material
+  不得提交到仓库、日志、Workspace、ExecutionRequest、Control Plane 或 Worker envelope；at-rest key id 也不进入
+  runtime transport。
 - Remote mutation replay 的真实数据库 Gate 读取 `PRODIVIX_BACKEND_POSTGRES_TEST_URL`，在随机 schema
   内执行完整 migration，并验证跨连接同 identity claim、最后一个容量槽、success replay、identity drift、
   indeterminate fence 与 execution authority 级联清理。运行方式：
@@ -250,6 +268,15 @@ client-only target 仍不得解析 Secret，Worker、snapshot、artifact 与 Pre
   ```powershell
   $env:PRODIVIX_BACKEND_POSTGRES_TEST_URL = $env:BACKEND_DB_URL
   go test ./internal/modules/remoteexecution -run '^TestIsolatedSecretResolutionPostgreSQLAttemptRecoveryGate$' -count=1 -v
+  ```
+
+- Environment Secret KMS rotation 使用独立随机 schema，以四个并发 rotator 对八条旧 key envelope 执行
+  `SKIP LOCKED` claim，验证每行只重包一次、Secret ciphertext byte-exact 不变、aggregate audit 完整、旧 key
+  retirement fail closed 且 active-key-only store 可继续 resolution：
+
+  ```powershell
+  $env:PRODIVIX_BACKEND_POSTGRES_TEST_URL = $env:BACKEND_DB_URL
+  go test ./internal/modules/environment -run '^TestEnvironmentSecretKeyRotationPostgreSQLGate$' -count=1 -v
   ```
 
 - Binary Asset retention 使用同一变量和独立随机 schema，验证 reference protection、跨 Workspace isolation、

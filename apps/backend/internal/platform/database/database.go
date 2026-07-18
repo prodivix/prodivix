@@ -213,10 +213,20 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			environment_id TEXT NOT NULL,
 			revision TEXT NOT NULL,
 			binding_id TEXT NOT NULL,
+			algorithm TEXT,
+			key_provider TEXT,
+			key_id TEXT,
+			wrapped_key_nonce BYTEA,
+			wrapped_key BYTEA,
 			nonce BYTEA NOT NULL,
 			ciphertext BYTEA NOT NULL,
 			PRIMARY KEY (environment_id, revision, binding_id),
-			FOREIGN KEY (environment_id, revision) REFERENCES execution_environment_revisions(environment_id, revision) ON DELETE CASCADE
+			FOREIGN KEY (environment_id, revision) REFERENCES execution_environment_revisions(environment_id, revision) ON DELETE CASCADE,
+			CONSTRAINT execution_environment_secret_materials_envelope_check CHECK (
+				(algorithm IS NULL AND key_provider IS NULL AND key_id IS NULL AND wrapped_key_nonce IS NULL AND wrapped_key IS NULL)
+				OR
+				(algorithm = 'AES-256-GCM+KMS-DATA-KEY/v1' AND key_provider ~ '^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,255}$' AND key_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$' AND octet_length(wrapped_key_nonce) BETWEEN 12 AND 32 AND octet_length(wrapped_key) BETWEEN 33 AND 4096)
+			)
 		)`,
 			`CREATE TABLE IF NOT EXISTS execution_environment_grants (
 			grant_id TEXT PRIMARY KEY,
@@ -438,6 +448,35 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			CONSTRAINT remote_isolated_secret_resolutions_recipient_check CHECK (recipient_public_key ~ '^[A-Za-z0-9_-]{43}$'),
 			CONSTRAINT remote_isolated_secret_resolutions_envelope_check CHECK (envelope_json IS NULL OR octet_length(envelope_json::text) <= 786432),
 			CONSTRAINT remote_isolated_secret_resolutions_completion_check CHECK ((envelope_json IS NULL) = (completed_at IS NULL))
+		)`,
+		},
+	}, {
+		version: 8,
+		name:    "environment-secret-kms-key-rotation",
+		statements: []string{
+			`ALTER TABLE execution_environment_secret_materials
+			ADD COLUMN IF NOT EXISTS algorithm TEXT,
+			ADD COLUMN IF NOT EXISTS key_provider TEXT,
+			ADD COLUMN IF NOT EXISTS key_id TEXT,
+			ADD COLUMN IF NOT EXISTS wrapped_key_nonce BYTEA,
+			ADD COLUMN IF NOT EXISTS wrapped_key BYTEA`,
+			`ALTER TABLE execution_environment_secret_materials
+			DROP CONSTRAINT IF EXISTS execution_environment_secret_materials_envelope_check,
+			ADD CONSTRAINT execution_environment_secret_materials_envelope_check CHECK (
+				(algorithm IS NULL AND key_provider IS NULL AND key_id IS NULL AND wrapped_key_nonce IS NULL AND wrapped_key IS NULL)
+				OR
+				(algorithm = 'AES-256-GCM+KMS-DATA-KEY/v1' AND key_provider ~ '^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,255}$' AND key_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$' AND octet_length(wrapped_key_nonce) BETWEEN 12 AND 32 AND octet_length(wrapped_key) BETWEEN 33 AND 4096)
+			)`,
+			`CREATE INDEX IF NOT EXISTS idx_execution_environment_secret_materials_key ON execution_environment_secret_materials(key_provider, key_id)`,
+			`CREATE TABLE IF NOT EXISTS execution_environment_key_rotation_audit (
+			id BIGSERIAL PRIMARY KEY,
+			active_key_provider TEXT NOT NULL,
+			active_key_id TEXT NOT NULL,
+			rewrapped_count INTEGER NOT NULL,
+			migrated_legacy_count INTEGER NOT NULL,
+			remaining_count INTEGER NOT NULL,
+			occurred_at TIMESTAMPTZ NOT NULL,
+			CONSTRAINT execution_environment_key_rotation_audit_count_check CHECK (rewrapped_count BETWEEN 1 AND 256 AND migrated_legacy_count BETWEEN 0 AND rewrapped_count AND remaining_count >= 0)
 		)`,
 		},
 	}}

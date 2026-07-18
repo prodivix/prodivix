@@ -49,7 +49,11 @@ export const createWorkspaceStandaloneServerRuntimeModule = (
     ],
     body: `${provisionImport}
 
-const serverRuntimeTarget = ${JSON.stringify(target)} as const;
+type EmbeddedServerRuntimeTarget = Readonly<{
+  serverGateway: 'none' | 'execution-server-function-gateway-message-v1' | 'deterministic-test-fixture-v1';
+}>;
+
+const serverRuntimeTarget = ${JSON.stringify(target)} as unknown as EmbeddedServerRuntimeTarget;
 
 type EmbeddedDefinition = Readonly<{
   reference: Readonly<{ artifactId: string; exportName: string }>;
@@ -85,11 +89,14 @@ export type WorkspaceServerFunctionInvokeOptions = Readonly<{
   signal?: AbortSignal;
 }>;
 
+const hasOwn = (value: object, key: PropertyKey): boolean =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
 const exactRecord = (value: unknown, required: readonly string[], optional: readonly string[] = []) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
   const allowed = new Set([...required, ...optional]);
-  return required.every((key) => Object.hasOwn(record, key)) &&
+  return required.every((key) => hasOwn(record, key)) &&
     Object.keys(record).every((key) => allowed.has(key)) ? record : undefined;
 };
 
@@ -211,7 +218,7 @@ const invokeRemoteServerFunction = async (
         response.requestId !== requestId || typeof response.ok !== 'boolean'
       ) return;
       if (!response.ok) {
-        if (Object.hasOwn(response, 'result')) {
+        if (hasOwn(response, 'result')) {
           settle(() => reject(runtimeError('SVR_REMOTE_GATEWAY_INVALID')));
           return;
         }
@@ -223,7 +230,7 @@ const invokeRemoteServerFunction = async (
         settle(() => reject(runtimeError(error.code as string, error.retryable as boolean)));
         return;
       }
-      if (Object.hasOwn(response, 'error')) {
+      if (hasOwn(response, 'error')) {
         settle(() => reject(runtimeError('SVR_REMOTE_GATEWAY_INVALID')));
         return;
       }
@@ -329,13 +336,15 @@ const invokeDeterministicTestServerFunction = async (
   const envelope = exactRecord(serverRuntimeTestProvision, ['format', 'mode'], ['provision']);
   if (
     !envelope || envelope.format !== 'prodivix.executable-server-runtime-provision.v1' ||
-    envelope.mode !== 'deterministic-test' || !Object.hasOwn(envelope, 'provision')
+    envelope.mode !== 'deterministic-test' || !hasOwn(envelope, 'provision')
   ) throw runtimeError('SVR_TEST_RUNTIME_DISABLED');
   const provision = exactRecord(envelope.provision, ['format', 'fixtureSetId', 'permissions', 'fixtures'], ['principal']);
   if (
     !provision || provision.format !== 'prodivix.server-runtime-test-provision.v1' ||
     !Array.isArray(provision.permissions) || !Array.isArray(provision.fixtures)
   ) throw runtimeError('SVR_TEST_PROVISION_INVALID');
+  const permissions = provision.permissions;
+  const fixtures = provision.fixtures;
   const definition = readDefinition(functionRef);
   if (!definition) throw runtimeError('SVR_TEST_FIXTURE_MISSING');
   const normalizedInput = cloneJson(input);
@@ -347,9 +356,10 @@ const invokeDeterministicTestServerFunction = async (
       throw runtimeError('AUTH_REQUIRED');
     }
     if (definition.auth.kind === 'permission') {
-      const permission = provision.permissions
+      const requiredPermissionId = definition.auth.permissionId;
+      const permission = permissions
         .map((entry) => exactRecord(entry, ['permissionId', 'allowed'], ['code']))
-        .find((entry) => entry?.permissionId === definition.auth.permissionId);
+        .find((entry) => entry?.permissionId === requiredPermissionId);
       if (!permission || permission.allowed !== true) throw runtimeError('AUTH_PERMISSION_DENIED');
     }
   }
@@ -364,16 +374,16 @@ const invokeDeterministicTestServerFunction = async (
   }
   const execute = async (): Promise<WorkspaceServerFunctionOutcome> => {
     if (options.signal?.aborted) throw runtimeError('SVR_CANCELLED');
-    const fixtures = provision.fixtures
+    const normalizedFixtures = fixtures
       .map((entry) => exactRecord(entry, ['id', 'functionRef', 'behavior'], ['input']))
       .filter((entry): entry is Record<string, unknown> => Boolean(entry));
-    const candidates = fixtures.filter((fixture) => {
+    const candidates = normalizedFixtures.filter((fixture) => {
       const reference = exactRecord(fixture.functionRef, ['artifactId', 'exportName']);
       return reference?.artifactId === functionRef.artifactId && reference.exportName === functionRef.exportName;
     });
     const fixture = candidates.find((candidate) =>
-      Object.hasOwn(candidate, 'input') && canonicalJson(candidate.input) === canonicalJson(normalizedInput)
-    ) ?? candidates.find((candidate) => !Object.hasOwn(candidate, 'input'));
+      hasOwn(candidate, 'input') && canonicalJson(candidate.input) === canonicalJson(normalizedInput)
+    ) ?? candidates.find((candidate) => !hasOwn(candidate, 'input'));
     if (!fixture) throw runtimeError('SVR_TEST_FIXTURE_MISSING');
     const behavior = exactRecord(fixture.behavior, ['kind'], ['outcome', 'code', 'retryable', 'delayMs']);
     if (!behavior) throw runtimeError('SVR_TEST_PROVISION_INVALID');
@@ -385,7 +395,7 @@ const invokeDeterministicTestServerFunction = async (
       }
       throw runtimeError(behavior.code, behavior.retryable);
     }
-    if (behavior.kind !== 'outcome' || !Object.hasOwn(behavior, 'outcome')) {
+    if (behavior.kind !== 'outcome' || !hasOwn(behavior, 'outcome')) {
       throw runtimeError('SVR_TEST_PROVISION_INVALID');
     }
     const outcome = normalizeOutcome(definition, behavior.outcome);
