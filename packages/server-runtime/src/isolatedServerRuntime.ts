@@ -270,9 +270,13 @@ export const readIsolatedServerFunctionExecutionContext = (
   authority: unknown,
   now = Date.now()
 ): IsolatedServerFunctionExecutionContext | undefined => {
-  const invocation = readIsolatedServerFunctionExecutionRequest(request, plan);
   const decodedPlan = readIsolatedServerFunctionPlan(plan);
-  if (!invocation || !decodedPlan) return undefined;
+  if (!decodedPlan) return undefined;
+  const invocation = readIsolatedServerFunctionExecutionRequestFromPlan(
+    request,
+    decodedPlan
+  );
+  if (!invocation) return undefined;
   if (decodedPlan.definition.auth.kind === 'public')
     return Object.freeze({ invocation });
   const decodedAuthority = readIsolatedServerFunctionAuthority(authority);
@@ -290,14 +294,11 @@ export const readIsolatedServerFunctionExecutionContext = (
     : undefined;
 };
 
-/** Requires one exact value-only request for the isolated production profile. */
-export const readIsolatedServerFunctionExecutionRequest = (
+const readIsolatedServerFunctionExecutionRequestFromPlan = (
   request: ExecutionRequest,
-  plan: ExecutableProjectServerFunctionPlan | undefined
+  decodedPlan: IsolatedServerFunctionPlan
 ): ExecutionServerFunctionBridgeRequest | undefined => {
-  const decodedPlan = readIsolatedServerFunctionPlan(plan);
   if (
-    !decodedPlan ||
     request.profile !== 'production' ||
     request.runtimeZone !== decodedPlan.definition.runtimeZone ||
     request.invocation.kind !== 'code' ||
@@ -319,15 +320,30 @@ export const readIsolatedServerFunctionExecutionRequest = (
     : undefined;
 };
 
+/** Requires one exact value-only request for the isolated production profile. */
+export const readIsolatedServerFunctionExecutionRequest = (
+  request: ExecutionRequest,
+  plan: ExecutableProjectServerFunctionPlan | undefined
+): ExecutionServerFunctionBridgeRequest | undefined => {
+  const decodedPlan = readIsolatedServerFunctionPlan(plan);
+  return decodedPlan
+    ? readIsolatedServerFunctionExecutionRequestFromPlan(request, decodedPlan)
+    : undefined;
+};
+
 /** Revalidates an untrusted sandbox response against the original snapshot definition. */
 export const readIsolatedServerFunctionExecutionResponse = (
   value: unknown,
   request: ExecutionRequest,
   plan: ExecutableProjectServerFunctionPlan | undefined
 ): ExecutionServerFunctionBridgeResponse | undefined => {
-  const invocation = readIsolatedServerFunctionExecutionRequest(request, plan);
   const decodedPlan = readIsolatedServerFunctionPlan(plan);
-  if (!invocation || !decodedPlan) return undefined;
+  if (!decodedPlan) return undefined;
+  const invocation = readIsolatedServerFunctionExecutionRequestFromPlan(
+    request,
+    decodedPlan
+  );
+  if (!invocation) return undefined;
   const response = readExecutionServerFunctionBridgeResponse(value, invocation);
   if (!response) return undefined;
   if (!response.ok)
