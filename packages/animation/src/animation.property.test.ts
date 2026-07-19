@@ -169,4 +169,49 @@ describe('animation domain properties', () => {
       )
     );
   });
+
+  it('resolves delay and terminal fill boundaries without wall-clock state', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10_000 }),
+        fc.integer({ min: 1, max: 10_000 }),
+        fc.integer({ min: 1, max: 8 }),
+        fc.constantFrom<NonNullable<AnimationTimeline['fillMode']>>(
+          'none',
+          'forwards',
+          'backwards',
+          'both'
+        ),
+        (durationMs, delayMs, iterations, fillMode) => {
+          const timeline: AnimationTimeline = {
+            id: 'timeline',
+            name: 'Timeline',
+            durationMs,
+            delayMs,
+            iterations,
+            fillMode,
+            bindings: [],
+          };
+          const before = resolveTimelineCursorMs(timeline, delayMs - 1);
+          const atStart = resolveTimelineCursorMs(timeline, delayMs);
+          const atEnd = resolveTimelineCursorMs(
+            timeline,
+            delayMs + durationMs * iterations
+          );
+
+          expect(before).toBe(
+            fillMode === 'backwards' || fillMode === 'both' ? 0 : null
+          );
+          expect(atStart).toBe(0);
+          expect(atEnd).toBe(
+            fillMode === 'forwards' || fillMode === 'both' ? durationMs : null
+          );
+          expect(resolveTimelineCursorMs(timeline, delayMs)).toBe(atStart);
+          expect(
+            resolveTimelineCursorMs(timeline, delayMs + durationMs * iterations)
+          ).toBe(atEnd);
+        }
+      )
+    );
+  });
 });

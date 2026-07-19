@@ -127,6 +127,33 @@ describe('Execution Data stream bridge', () => {
         {
           type: 'prodivix.execution-data-stream.v1',
           requestId: invocation.requestId,
+          phase: 'open',
+          network,
+          reconnect: { resume: 'sse-last-event-id' },
+        },
+        invocation,
+        0
+      )
+    ).toBeUndefined();
+    expect(
+      readExecutionDataStreamBridgeMessage(
+        {
+          type: 'prodivix.execution-data-stream.v1',
+          requestId: invocation.requestId,
+          phase: 'event',
+          cursor: 1,
+          value: { id: 'p1' },
+          resume: { cursor: 1, token: 'private-checkpoint' },
+        },
+        invocation,
+        0
+      )
+    ).toBeUndefined();
+    expect(
+      readExecutionDataStreamBridgeMessage(
+        {
+          type: 'prodivix.execution-data-stream.v1',
+          requestId: invocation.requestId,
           phase: 'event',
           cursor: 1,
           value: 'x'.repeat(

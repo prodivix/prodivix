@@ -201,6 +201,7 @@ type PirDocumentComponentProps = Readonly<{
   eventsById?: Readonly<Record<string, (payload: unknown) => void>>;
   variantsById?: Readonly<Record<string, string | undefined>>;
   slotsById?: Readonly<Record<string, (props: JsonRecord, instancePath: string) => any>>;
+  routeOutletsByNodeId?: Readonly<Record<string, () => any>>;
 }>;
 
 const documentsById = ${JSON.stringify(documentsById)} as unknown as Readonly<Record<string, PirDocument>>;
@@ -320,6 +321,7 @@ type RenderContext = Readonly<{
   setState(stateId: string, value: unknown): void;
   eventsById: Readonly<Record<string, (payload: unknown) => void>>;
   slotsById: Readonly<Record<string, (props: JsonRecord, instancePath: string) => any>>;
+  routeOutletsByNodeId: Readonly<Record<string, () => any>>;
 }>;
 
 const renderNodeList = (
@@ -388,6 +390,8 @@ const renderNode = (
   const graph = context.document.ui.graph;
   const node = graph.nodesById[nodeId];
   if (!node) return null;
+  const routeOutlet = context.routeOutletsByNodeId[nodeId];
+  if (routeOutlet) return routeOutlet();
   if (node.kind === 'collection') return renderCollection(context, node, parentScope, instancePath);
   if (node.kind === 'component-instance') {
     const target = createWorkspacePirDocumentComponent(node.componentDocumentId);
@@ -493,6 +497,7 @@ export const createWorkspacePirDocumentComponent = (documentId: string) => {
       eventsById: { type: Object, required: false },
       variantsById: { type: Object, required: false },
       slotsById: { type: Object, required: false },
+      routeOutletsByNodeId: { type: Object, required: false },
     },
     setup(rawProps) {
       const props = rawProps as unknown as PirDocumentComponentProps;
@@ -554,6 +559,7 @@ export const createWorkspacePirDocumentComponent = (documentId: string) => {
           setState,
           eventsById: props.eventsById ?? {},
           slotsById: props.slotsById ?? {},
+          routeOutletsByNodeId: props.routeOutletsByNodeId ?? {},
         }, document.ui.graph.rootId, scope, instancePath);
       };
     },

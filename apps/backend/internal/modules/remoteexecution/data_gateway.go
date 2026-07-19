@@ -3,6 +3,7 @@ package remoteexecution
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -28,7 +29,9 @@ const (
 func NewDataGateway(store GrantStore, environments DataGatewayEnvironmentStore, transport DataGatewayTransport) *DataGateway {
 	replays, _ := store.(DataGatewayMutationReplayStore)
 	streams, _ := transport.(DataGatewayStreamTransport)
-	return &DataGateway{store: store, replays: replays, environments: environments, transport: transport, streams: streams, activeStreams: map[string]struct{}{}, now: func() time.Time { return time.Now().UTC() }}
+	var checkpointKey [sha256.Size]byte
+	_, checkpointKeyError := rand.Read(checkpointKey[:])
+	return &DataGateway{store: store, replays: replays, environments: environments, transport: transport, streams: streams, activeStreams: map[string]struct{}{}, checkpointKey: checkpointKey, checkpointKeyReady: checkpointKeyError == nil, now: func() time.Time { return time.Now().UTC() }}
 }
 
 func (gateway *DataGateway) Available() bool {
@@ -52,6 +55,9 @@ func parseDataGatewayDocument(contents []byte, documentID string, operationID st
 		return nil, nil, ErrDataGatewayDenied
 	}
 	if operation.Policies.Idempotency != nil && (operation.Kind != "mutation" || operation.Policies.Idempotency.Kind != "invocation-key") {
+		return nil, nil, ErrDataGatewayDenied
+	}
+	if operation.Policies.Stream != nil && operation.Kind != "subscription" {
 		return nil, nil, ErrDataGatewayDenied
 	}
 	if retry := operation.Policies.Retry; retry != nil {
@@ -536,7 +542,7 @@ func (gateway *DataGateway) Invoke(ctx context.Context, principal backendenviron
 	documentID, documentOK := normalizedDataGatewayID(documentID)
 	operationID, operationOK := normalizedDataGatewayID(operationID)
 	invocationID, invocationOK := normalizedDataGatewayID(invocation.InvocationID)
-	if !executionOK || !documentOK || !operationOK || !invocationOK || invocation.Sequence < 0 || invocation.Attempt < 1 {
+	if !executionOK || !documentOK || !operationOK || !invocationOK || invocation.Sequence < 0 || invocation.Attempt < 1 || invocation.Resume != nil {
 		return nil, ErrDataGatewayInvalidRequest
 	}
 	authority, err := gateway.store.GetExecutionAuthority(ctx, principal.PrincipalID, principal.SessionID, executionID)

@@ -66,6 +66,10 @@ func TestRunMigrationsUsesVersionedLockedTransaction(t *testing.T) {
 	mock.ExpectExec("ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS runtime_zone").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("ALTER TABLE remote_execution_grants").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(10), "remote-execution-class-authority").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(11)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	mock.ExpectExec("ALTER TABLE workspace_execution_role_grants").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("ALTER TABLE remote_execution_grants").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(11), "workspace-execution-editor-role").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	if err := RunMigrations(context.Background(), db); err != nil {

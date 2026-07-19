@@ -35,6 +35,7 @@ import type {
   ExecutionServerFunctionBridgeRequest,
   ExecutionServerFunctionBridgeResponse,
 } from '@prodivix/server-runtime';
+import { useAuthStore } from '@/auth/useAuthStore';
 
 export const getBlueprintProjectExecutionSessionId = (
   workspaceId: string
@@ -203,6 +204,7 @@ export const startBlueprintProject = async (
       throw new Error('Remote Preview requires an authenticated session.');
     const environment = createRemoteProjectExecutionEnvironment({
       accessToken: options.accessToken,
+      resolveAccessToken: () => useAuthStore.getState().token ?? '',
       resolveSnapshot: (candidate) => {
         if (
           candidate.workspace.workspaceId !== snapshot.workspace.workspaceId ||

@@ -1,5 +1,6 @@
 import {
   createExecutionTestReport,
+  EXECUTION_TEST_REPORT_LIMITS,
   type ExecutionSourceTrace,
   type ExecutionTestReport,
   type ExecutionTestStatus,
@@ -9,12 +10,13 @@ type JsonObject = Readonly<Record<string, unknown>>;
 
 export const VITEST_EXECUTION_TEST_REPORT_LIMITS = Object.freeze({
   maxInputCharacters: 4_000_000,
-  maxFiles: 256,
-  maxCases: 4_096,
-  maxFailureMessages: 512,
-  maxFailureMessagesPerOwner: 16,
+  maxFiles: EXECUTION_TEST_REPORT_LIMITS.maxFiles,
+  maxCases: EXECUTION_TEST_REPORT_LIMITS.maxCases,
+  maxFailureMessages: EXECUTION_TEST_REPORT_LIMITS.maxFailureMessages,
+  maxFailureMessagesPerOwner:
+    EXECUTION_TEST_REPORT_LIMITS.maxFailureMessagesPerOwner,
   maxTextLength: 2_000,
-  maxSourceTracePerOwner: 8,
+  maxSourceTracePerOwner: EXECUTION_TEST_REPORT_LIMITS.maxSourceTracePerOwner,
 });
 
 export type ParseVitestExecutionTestReportInput = Readonly<{

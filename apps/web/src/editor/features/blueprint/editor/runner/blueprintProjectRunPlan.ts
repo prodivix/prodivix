@@ -20,6 +20,7 @@ export type BlueprintProjectRunPlan =
       status: 'ready';
       snapshot: ExecutableProjectSnapshot;
       request: ExecutionRequest;
+      composition: BlueprintProjectRunComposition;
     }>
   | Readonly<{
       status: 'blocked';
@@ -27,6 +28,15 @@ export type BlueprintProjectRunPlan =
     }>;
 
 export type BlueprintProjectRunTarget = 'react-vite' | 'vue-vite';
+
+export type BlueprintProjectRunComposition = Readonly<{
+  mode: 'run';
+  provider: 'browser' | 'remote';
+  target: BlueprintProjectRunTarget;
+  runtimeZone: 'client';
+  environmentPolicy: 'public-client' | 'execution-parent-gateway';
+  requiredCapabilities: readonly ExecutionProviderCapability[];
+}>;
 
 /** Compiles one canonical Workspace revision into a standalone runner input. */
 export const createBlueprintProjectRunPlan = (
@@ -67,9 +77,21 @@ export const createBlueprintProjectRunPlan = (
     },
     requiredCapabilities,
   });
+  const composition = Object.freeze({
+    mode: 'run' as const,
+    provider,
+    target,
+    runtimeZone: 'client' as const,
+    environmentPolicy:
+      provider === 'remote'
+        ? ('execution-parent-gateway' as const)
+        : ('public-client' as const),
+    requiredCapabilities,
+  });
   return Object.freeze({
     status: 'ready',
     snapshot: project.snapshot,
     request,
+    composition,
   });
 };

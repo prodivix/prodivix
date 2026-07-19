@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyPirDocument } from '@prodivix/pir';
+import { createWorkspaceExecutionSnapshotRef } from '@prodivix/prodivix-compiler';
+import {
+  createExecutionJobController,
+  createExecutionProviderDescriptor,
+  createExecutionRequest,
+  createExecutionSessionCoordinator,
+} from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import {
   collectWorkspaceAnimationDiagnostics,
@@ -7,6 +14,7 @@ import {
 } from './workspaceAnimationIssueProvider';
 import { collectWorkspaceCodeDiagnostics } from './workspaceCodeIssueProvider';
 import {
+  collectExecutionSessionIssueSnapshot,
   collectWorkspaceModelIssueSnapshots,
   collectWorkspaceShaderCompileIssueSnapshot,
 } from './workspaceIssueProviders';
@@ -409,5 +417,100 @@ describe('workspace issue providers', () => {
         }),
       ]),
     });
+  });
+
+  it('projects only exact-snapshot execution diagnostics and strips provider-private metadata', () => {
+    const workspace = createWorkspace();
+    const exactWorkspace = createWorkspaceExecutionSnapshotRef(workspace);
+    const provider = createExecutionProviderDescriptor({
+      id: 'execution-issues-test',
+      version: '1',
+      isolation: 'remote-isolated',
+      profiles: ['test'],
+      runtimeZones: ['test'],
+      invocationKinds: ['test'],
+      capabilities: [],
+    });
+    const sessions = createExecutionSessionCoordinator();
+    const activateDiagnostic = (
+      sessionId: string,
+      snapshotId: string,
+      code: string
+    ) => {
+      const controller = createExecutionJobController({
+        jobId: `job-${sessionId}`,
+        provider,
+        request: createExecutionRequest({
+          requestId: `request-${sessionId}`,
+          profile: 'test',
+          runtimeZone: 'test',
+          workspace: { ...exactWorkspace, snapshotId },
+          invocation: {
+            kind: 'test',
+            targetRef: {
+              kind: 'workspace',
+              workspaceId: workspace.id,
+            },
+          },
+          requiredCapabilities: [],
+        }),
+      });
+      sessions.activate({ sessionId, job: controller.job });
+      controller.markRunning();
+      controller.emitDiagnostic({
+        code,
+        severity: 'error',
+        domain: 'code',
+        message: `${code} failed safely.`,
+        targetRef: { kind: 'code-artifact', artifactId: 'code-checkout' },
+        sourceSpan: {
+          artifactId: 'code-checkout',
+          startLine: 1,
+          startColumn: 1,
+          endLine: 1,
+          endColumn: 2,
+        },
+        meta: {
+          accessToken: 'provider-private-credential-canary',
+          responseBody: 'must-not-enter-issues',
+        },
+      });
+    };
+    activateDiagnostic(
+      'execution-exact',
+      exactWorkspace.snapshotId,
+      'TST-5001'
+    );
+    activateDiagnostic('execution-stale', 'snapshot-stale', 'TST-STALE');
+
+    const snapshot = collectExecutionSessionIssueSnapshot({
+      workspace,
+      revision: { key: '2:1:4', sequence: 1 },
+      collectedAt: 20,
+      sessions: sessions.listSnapshots(),
+    });
+
+    expect(snapshot).toMatchObject({
+      providerId: 'execution-session-diagnostics',
+      workspaceId: workspace.id,
+      diagnostics: [
+        {
+          code: 'TST-5001',
+          targetRef: {
+            kind: 'code-artifact',
+            artifactId: 'code-checkout',
+          },
+          meta: {
+            executionSessionId: 'execution-exact',
+            executionJobId: 'job-execution-exact',
+            executionProviderId: provider.id,
+            executionSnapshotId: exactWorkspace.snapshotId,
+          },
+        },
+      ],
+    });
+    expect(JSON.stringify(snapshot)).not.toMatch(
+      /TST-STALE|provider-private-credential-canary|must-not-enter-issues|accessToken|responseBody/iu
+    );
   });
 });

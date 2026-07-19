@@ -216,7 +216,7 @@ func validateDataOperationRelations(documentID string, operationsByID map[string
 		if err != nil {
 			return err
 		}
-		policies, err := decodeDataObject(operationFields["policies"], operationPath+"/policies", nil, []string{"cache", "retry", "idempotency", "pagination", "optimistic"})
+		policies, err := decodeDataObject(operationFields["policies"], operationPath+"/policies", nil, []string{"cache", "retry", "idempotency", "pagination", "optimistic", "stream"})
 		if err != nil {
 			return err
 		}
@@ -421,7 +421,7 @@ func validateDataOperation(operationID string, payload json.RawMessage, schemasB
 	if err := validateDataConfigurationMap(fields["configurationByKey"], path+"/configurationByKey", context); err != nil {
 		return err
 	}
-	policies, err := decodeDataObject(fields["policies"], path+"/policies", nil, []string{"cache", "retry", "idempotency", "pagination", "optimistic"})
+	policies, err := decodeDataObject(fields["policies"], path+"/policies", nil, []string{"cache", "retry", "idempotency", "pagination", "optimistic", "stream"})
 	if err != nil {
 		return err
 	}

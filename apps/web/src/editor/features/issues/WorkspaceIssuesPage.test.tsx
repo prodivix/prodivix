@@ -10,6 +10,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { createDataOpenApiImportProposal } from '@prodivix/data-http';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { useWorkspaceSemanticNavigationStore } from '@/editor/navigation';
+import { useExecutionCenterNavigationStore } from '@/editor/features/execution/executionCenterNavigation';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { WorkspaceIssuesPage } from './WorkspaceIssuesPage';
 import { useWorkspaceIssuesStore } from './workspaceIssuesStore';
@@ -82,6 +83,7 @@ afterEach(() => {
     useEditorStore.setState({ workspace: null, workspaceReadonly: false });
     useWorkspaceIssuesStore.getState().clearWorkspace();
     useWorkspaceSemanticNavigationStore.getState().clearNavigation();
+    useExecutionCenterNavigationStore.getState().clear();
   });
 });
 
@@ -173,5 +175,62 @@ describe('WorkspaceIssuesPage Data navigation', () => {
     expect(useEditorStore.getState().workspace?.activeDocumentId).toBe(
       'data-catalog'
     );
+  });
+
+  it('opens an active runtime diagnostic in its exact Execution Center session', () => {
+    const current = workspace();
+    act(() => {
+      useEditorStore.setState({ workspace: current, workspaceReadonly: false });
+      useWorkspaceIssuesStore.getState().publishSnapshot({
+        providerId: 'execution-session-diagnostics',
+        workspaceId: current.id,
+        revision: { key: '2:1:2', sequence: 1 },
+        collectedAt: 20,
+        diagnostics: [
+          {
+            code: 'TST-5001',
+            severity: 'error',
+            domain: 'code',
+            message: 'Generated test failed.',
+            targetRef: {
+              kind: 'code-artifact',
+              artifactId: 'code-test',
+            },
+            meta: {
+              executionSessionId: 'project-test:project-data',
+              executionSnapshotId: 'snapshot-exact',
+            },
+          },
+        ],
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/editor/project/project-data/issues']}>
+        <Routes>
+          <Route
+            path="/editor/project/:projectId/issues"
+            element={<WorkspaceIssuesPage />}
+          />
+          <Route
+            path="/editor/project/:projectId/blueprint"
+            element={<RouteProbe />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'issues.actions.openExecution' })
+    );
+    expect(screen.getByTestId('route-probe').textContent).toBe(
+      '/editor/project/project-data/blueprint'
+    );
+    expect(useExecutionCenterNavigationStore.getState().request).toMatchObject({
+      workspaceId: current.id,
+      sessionId: 'project-test:project-data',
+      diagnosticCode: 'TST-5001',
+      surface: 'console',
+    });
   });
 });

@@ -6,6 +6,7 @@ import {
   BINARY_ASSET_TRANSFORM_FORMAT,
   type BinaryAssetBlobReference,
   type BinaryAssetDeliveryClass,
+  type BinaryAssetDeliveryRequest,
   type BinaryAssetMaterialization,
   type BinaryAssetTransformJsonValue,
   type BinaryAssetTransformRecipe,
@@ -167,6 +168,26 @@ export const classifyBinaryAssetDelivery = (
   if (ACTIVE_MEDIA_TYPES.has(normalized)) return 'active-content';
   if (STATIC_MEDIA_TYPES.has(normalized)) return 'static';
   return 'download-only';
+};
+
+/** Target-neutral public policy: raster images are fully re-encoded; other media stays attachment-only. */
+export const createBinaryAssetPublicDeliveryRequest = (
+  mediaType: string
+): BinaryAssetDeliveryRequest => {
+  const normalized = normalizeBinaryAssetMediaType(mediaType);
+  if (normalized === 'image/png') {
+    return Object.freeze({
+      transform: 'png-raster-reencode',
+      disposition: 'inline',
+    });
+  }
+  if (normalized === 'image/jpeg') {
+    return Object.freeze({
+      transform: 'jpeg-raster-reencode',
+      disposition: 'inline',
+    });
+  }
+  return Object.freeze({ transform: 'original', disposition: 'attachment' });
 };
 
 type CanonicalJsonState = { nodes: number };

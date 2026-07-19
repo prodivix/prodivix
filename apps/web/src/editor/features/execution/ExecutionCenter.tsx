@@ -7,6 +7,8 @@ import {
   Copy,
   ExternalLink,
   LocateFixed,
+  Pause,
+  Play,
   RefreshCcw,
   RotateCw,
   Square,
@@ -24,7 +26,6 @@ import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { ExecutionFilesystemChangesPanel } from './ExecutionFilesystemChangesPanel';
 import { ExecutionTerminalEmulatorSurface } from './ExecutionTerminalEmulatorSurface';
 import type { ExecutionFilesystemArtifactReference } from './executionFilesystemChanges.types';
-import { executionSessionCoordinator } from './executionSessionEnvironment';
 import {
   createExecutionConsoleCopyText,
   createExecutionConsoleView,
@@ -49,6 +50,7 @@ import type {
 import { useExecutionSession } from './useExecutionSession';
 import { useExecutionFilesystemChanges } from './useExecutionFilesystemChanges';
 import { useRemoteExecutionTerminal } from './useRemoteExecutionTerminal';
+import { createWorkspaceExecutionSnapshotId } from './workspaceExecutionIdentity';
 
 type ExecutionCenterProps = Readonly<{
   sessionId: string;
@@ -131,6 +133,18 @@ export function ExecutionCenter({
   const [networkFilter, setNetworkFilter] =
     useState<ExecutionNetworkOperationFilter>();
   const [filter, setFilter] = useState<ExecutionConsoleFilter>('all');
+  const [clearedConsoleLineIds, setClearedConsoleLineIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const [clearedNetworkEntryIds, setClearedNetworkEntryIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const [clearedServerEntryIds, setClearedServerEntryIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const [pausedConsoleLineIds, setPausedConsoleLineIds] = useState<
+    ReadonlySet<string> | undefined
+  >();
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(
     'idle'
   );
@@ -146,11 +160,30 @@ export function ExecutionCenter({
   >();
   const outputRef = useRef<HTMLDivElement | null>(null);
   const effectiveStatus = status ?? session?.status ?? 'idle';
+  const sessionSnapshotStale = Boolean(
+    workspace &&
+    session?.activeJob &&
+    createWorkspaceExecutionSnapshotId(workspace) !==
+      session.activeJob.workspace.snapshotId
+  );
+  const allConsoleLines = useMemo(
+    () =>
+      createExecutionConsoleView({ session, diagnostics, filter: 'all' }).lines,
+    [diagnostics, session]
+  );
   const consoleView = useMemo(
     () => createExecutionConsoleView({ session, diagnostics, filter }),
     [diagnostics, filter, session]
   );
-  const lines = consoleView.lines;
+  const lines = useMemo(
+    () =>
+      consoleView.lines.filter(
+        (line) =>
+          !clearedConsoleLineIds.has(line.id) &&
+          (!pausedConsoleLineIds || pausedConsoleLineIds.has(line.id))
+      ),
+    [clearedConsoleLineIds, consoleView.lines, pausedConsoleLineIds]
+  );
   const active = activeStatuses.has(effectiveStatus);
   const recovery = useMemo(
     () => createExecutionSessionRecoveryPlan(session),
@@ -161,8 +194,11 @@ export function ExecutionCenter({
     [session]
   );
   const visibleNetworkEntries = useMemo(
-    () => filterExecutionNetworkEntries(networkEntries, networkFilter),
-    [networkEntries, networkFilter]
+    () =>
+      filterExecutionNetworkEntries(networkEntries, networkFilter).filter(
+        (entry) => !clearedNetworkEntryIds.has(entry.id)
+      ),
+    [clearedNetworkEntryIds, networkEntries, networkFilter]
   );
   const navigationRequest = useExecutionCenterNavigationStore(
     (state) => state.request
@@ -170,9 +206,16 @@ export function ExecutionCenter({
   const consumeNavigationRequest = useExecutionCenterNavigationStore(
     (state) => state.consume
   );
-  const serverFunctionEntries = useMemo(
+  const allServerFunctionEntries = useMemo(
     () => createExecutionServerFunctionEntries(session),
     [session]
+  );
+  const serverFunctionEntries = useMemo(
+    () =>
+      allServerFunctionEntries.filter(
+        (entry) => !clearedServerEntryIds.has(entry.id)
+      ),
+    [allServerFunctionEntries, clearedServerEntryIds]
   );
   const terminalAvailability = useMemo(
     () =>
@@ -195,6 +238,13 @@ export function ExecutionCenter({
   });
 
   useEffect(() => {
+    setClearedConsoleLineIds(new Set());
+    setClearedNetworkEntryIds(new Set());
+    setClearedServerEntryIds(new Set());
+    setPausedConsoleLineIds(undefined);
+  }, [sessionId]);
+
+  useEffect(() => {
     if (
       !navigationRequest ||
       !workspace ||
@@ -203,15 +253,21 @@ export function ExecutionCenter({
       return;
     }
     setCollapsed(false);
-    setSurface('network');
-    setNetworkFilter(
-      Object.freeze({
-        documentId: navigationRequest.documentId,
-        operationId: navigationRequest.operationId,
-      })
-    );
+    if (navigationRequest.surface === 'network') {
+      setSurface('network');
+      setNetworkFilter(
+        Object.freeze({
+          documentId: navigationRequest.documentId,
+          operationId: navigationRequest.operationId,
+        })
+      );
+    } else {
+      if (navigationRequest.sessionId !== sessionId) return;
+      setSurface('console');
+      setFilter('errors');
+    }
     consumeNavigationRequest(navigationRequest.id);
-  }, [consumeNavigationRequest, navigationRequest, workspace]);
+  }, [consumeNavigationRequest, navigationRequest, sessionId, workspace]);
   const terminalMessage =
     terminalAvailability.status === 'unavailable'
       ? terminalAvailability.reason === 'no-active-execution'
@@ -298,6 +354,38 @@ export function ExecutionCenter({
       setCopyStatus('copied');
     } catch {
       setCopyStatus('failed');
+    }
+  };
+
+  const toggleConsolePause = () => {
+    setPausedConsoleLineIds((current) =>
+      current ? undefined : new Set(allConsoleLines.map((line) => line.id))
+    );
+  };
+
+  const clearCurrentView = () => {
+    if (surface === 'console') {
+      setClearedConsoleLineIds(
+        (current) =>
+          new Set([...current, ...allConsoleLines.map((line) => line.id)])
+      );
+      return;
+    }
+    if (surface === 'network') {
+      setClearedNetworkEntryIds(
+        (current) =>
+          new Set([...current, ...networkEntries.map((entry) => entry.id)])
+      );
+      return;
+    }
+    if (surface === 'server') {
+      setClearedServerEntryIds(
+        (current) =>
+          new Set([
+            ...current,
+            ...allServerFunctionEntries.map((entry) => entry.id),
+          ])
+      );
     }
   };
 
@@ -466,6 +554,14 @@ export function ExecutionCenter({
             {session.activeJob.workspace.snapshotId.slice(-12)}
           </span>
         ) : null}
+        {sessionSnapshotStale ? (
+          <span
+            className="rounded-full border border-(--warning-color)/45 px-2 py-0.5 text-[9px] text-(--warning-color)"
+            title={t('execution.sourceNavigation.snapshotStale')}
+          >
+            {t('execution.status.stale')}
+          </span>
+        ) : null}
         <div className="ml-auto flex items-center gap-0.5">
           {onRestart ? (
             <button
@@ -537,18 +633,36 @@ export function ExecutionCenter({
           >
             {copyStatus === 'copied' ? <Check size={13} /> : <Copy size={13} />}
           </button>
+          {surface === 'console' ? (
+            <button
+              type="button"
+              className={iconButtonClass}
+              onClick={toggleConsolePause}
+              title={
+                pausedConsoleLineIds
+                  ? t('execution.resume')
+                  : t('execution.pause')
+              }
+              aria-label={
+                pausedConsoleLineIds
+                  ? t('execution.resume')
+                  : t('execution.pause')
+              }
+              aria-pressed={Boolean(pausedConsoleLineIds)}
+            >
+              {pausedConsoleLineIds ? <Play size={13} /> : <Pause size={13} />}
+            </button>
+          ) : null}
           <button
             type="button"
             className={iconButtonClass}
-            onClick={() => executionSessionCoordinator.clearEvents(sessionId)}
+            onClick={clearCurrentView}
             disabled={
               surface === 'terminal' ||
               surface === 'files' ||
-              !session ||
-              session.events.length +
-                session.observations.length +
-                session.consoleObservations.length ===
-                0
+              (surface === 'console' && !lines.length) ||
+              (surface === 'network' && !visibleNetworkEntries.length) ||
+              (surface === 'server' && !serverFunctionEntries.length)
             }
             title={t('execution.clear')}
             aria-label={t('execution.clear')}
@@ -608,6 +722,9 @@ export function ExecutionCenter({
               </span>
             ) : (
               <span className="ml-auto text-[10px] text-(--text-muted)">
+                {surface === 'console' && pausedConsoleLineIds
+                  ? `${t('execution.paused')} · `
+                  : null}
                 {t('execution.eventCount', {
                   count:
                     surface === 'console'
@@ -701,6 +818,16 @@ export function ExecutionCenter({
                     >
                       <LocateFixed size={13} />
                     </button>
+                  ) : line.category === 'diagnostic' ? (
+                    <span
+                      className="inline-flex size-7 items-center justify-center text-(--text-muted) opacity-45"
+                      title={t('execution.sourceNavigation.sourceUnavailable')}
+                      aria-label={t(
+                        'execution.sourceNavigation.sourceUnavailable'
+                      )}
+                    >
+                      <LocateFixed size={13} />
+                    </span>
                   ) : (
                     <span />
                   )}

@@ -99,9 +99,13 @@ jobs:
         working-directory: apps/backend
         run: go test ./internal/modules/remoteexecution -run '^TestServerFunctionLiveMutationPostgreSQLGate$' -count=1 -v
 
-      - name: Run Backend collaborator viewer authority PostgreSQL Gate
+      - name: Run authenticated Vue Catalog Remote PostgreSQL Golden
         working-directory: apps/backend
-        run: go test ./internal/modules/remoteexecution -run '^TestWorkspaceExecutionViewerRolePostgreSQLGate$' -count=1 -v
+        run: go test ./internal/modules/remoteexecution -run '^TestAuthenticatedCatalogRemotePostgreSQLGolden$' -count=1 -v
+
+      - name: Run Backend collaborator roles authority PostgreSQL Gate
+        working-directory: apps/backend
+        run: go test ./internal/modules/remoteexecution -run '^TestWorkspaceExecutionCollaboratorRolesPostgreSQLGate$' -count=1 -v
 
       - name: Run Backend Environment Secret KMS rotation PostgreSQL Gate
         working-directory: apps/backend

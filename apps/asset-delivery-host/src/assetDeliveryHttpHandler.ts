@@ -5,8 +5,10 @@ import {
   BinaryAssetScannerUnavailableError,
   classifyBinaryAssetDelivery,
   createBinaryAssetBlobReference,
+  createBinaryAssetJpegRasterReencodeRecipe,
   createBinaryAssetJpegSanitizeRecipe,
   createBinaryAssetMaterialization,
+  createBinaryAssetPngRasterReencodeRecipe,
   createBinaryAssetPngSanitizeRecipe,
   createBinaryAssetScanAttestation,
   executeBinaryAssetTransformPipeline,
@@ -14,6 +16,7 @@ import {
   type BinaryAssetContentScanner,
   type BinaryAssetDerivedCache,
   type BinaryAssetTransformer,
+  type BinaryAssetTransformRecipe,
 } from '@prodivix/assets';
 import {
   AssetDeliveryCapacityError,
@@ -28,6 +31,7 @@ import {
   type AssetDeliveryScannerSnapshot,
 } from './assetDeliveryScannerRuntime';
 import { createAssetDeliverySecurityHeaders } from './assetDeliverySecurityPolicy';
+import { AssetRasterTransformUnavailableError } from './sharpRasterTransformer';
 
 export type CreateAssetDeliveryHttpHandlerOptions = Readonly<{
   internalToken: string;
@@ -172,19 +176,57 @@ const scannerForMediaType = (
   return matches[0] as BinaryAssetContentScanner;
 };
 
-const transformerForMediaType = (
+const transformerForRecipe = (
   transformers: readonly BinaryAssetTransformer[],
-  mediaType: string
+  recipe: BinaryAssetTransformRecipe
 ): BinaryAssetTransformer => {
   const matches = transformers.filter(
     (transformer) =>
-      transformer.descriptor.inputMediaTypes.includes(mediaType) &&
-      transformer.descriptor.outputMediaTypes.includes(mediaType)
+      transformer.descriptor.id === recipe.transformerId &&
+      transformer.descriptor.version === recipe.transformerVersion &&
+      transformer.descriptor.outputMediaTypes.includes(recipe.outputMediaType)
   );
   if (matches.length !== 1) {
     throw new BinaryAssetScannerUnavailableError('configuration');
   }
   return matches[0] as BinaryAssetTransformer;
+};
+
+type AssetImageTransform =
+  | 'jpeg-raster-reencode'
+  | 'jpeg-sanitize'
+  | 'png-raster-reencode'
+  | 'png-sanitize';
+
+const imageTransformRecipe = (
+  request: IncomingMessage,
+  mediaType: string,
+  sourceDigest: string,
+  legacyPngTransform: boolean
+): BinaryAssetTransformRecipe => {
+  const requested = String(
+    request.headers['x-prodivix-image-transform'] ?? ''
+  ) as AssetImageTransform | '';
+  const transform =
+    requested || (mediaType === 'image/png' ? 'png-sanitize' : 'jpeg-sanitize');
+  if (legacyPngTransform && transform !== 'png-sanitize') {
+    throw new TypeError('Legacy PNG transform cannot select another recipe.');
+  }
+  switch (transform) {
+    case 'png-sanitize':
+      if (mediaType !== 'image/png') break;
+      return createBinaryAssetPngSanitizeRecipe(sourceDigest);
+    case 'png-raster-reencode':
+      if (mediaType !== 'image/png') break;
+      return createBinaryAssetPngRasterReencodeRecipe(sourceDigest);
+    case 'jpeg-sanitize':
+      if (mediaType !== 'image/jpeg') break;
+      return createBinaryAssetJpegSanitizeRecipe(sourceDigest);
+    case 'jpeg-raster-reencode':
+      if (mediaType !== 'image/jpeg') break;
+      return createBinaryAssetJpegRasterReencodeRecipe(sourceDigest);
+  }
+  throw new TypeError('Asset delivery image transform is invalid.');
 };
 
 const sessionResponse = (
@@ -380,13 +422,16 @@ export const createAssetDeliveryHttpHandler = (
             scannerSnapshot.scanners,
             mediaType
           );
-          const transformer = transformerForMediaType(transformers, mediaType);
+          const recipe = imageTransformRecipe(
+            request,
+            mediaType,
+            reference.digest,
+            legacyPngTransform
+          );
+          const transformer = transformerForRecipe(transformers, recipe);
           const transformed = await executeBinaryAssetTransformPipeline({
             source,
-            recipe:
-              mediaType === 'image/png'
-                ? createBinaryAssetPngSanitizeRecipe(reference.digest)
-                : createBinaryAssetJpegSanitizeRecipe(reference.digest),
+            recipe,
             transformer,
             scanner,
             cache: options.derivedCache,
@@ -517,6 +562,10 @@ export const createAssetDeliveryHttpHandler = (
       }
       if (error instanceof AssetDeliveryCapacityError) {
         responseJson(response, 503, { error: 'delivery-capacity-exhausted' });
+        return;
+      }
+      if (error instanceof AssetRasterTransformUnavailableError) {
+        responseJson(response, 503, { error: 'image-transform-unavailable' });
         return;
       }
       responseJson(response, 400, { error: 'invalid-delivery-request' });

@@ -728,10 +728,18 @@ export const createDataGraphqlStreamingAdapter = (input: {
         operation.configurationByKey.authorization ??
           source.configurationByKey.authorization
       );
-      if (authorization)
+      if (
+        authorization &&
+        operation.policies.stream?.credentialRenewal !== 'per-connection'
+      )
         throw new DataGraphqlOperationError(
           'DATA_GRAPHQL_CONFIGURATION_INVALID',
-          'Secret-authenticated GraphQL subscriptions require a credential-renewal contract.'
+          'Secret-authenticated GraphQL subscriptions require per-connection credential renewal.'
+        );
+      if (authorization && !environment)
+        throw new DataGraphqlOperationError(
+          'DATA_GRAPHQL_CONFIGURATION_INVALID',
+          'GraphQL subscription credential renewal requires an environment lease.'
         );
       const correlation = Object.freeze({
         kind: 'data-operation' as const,
@@ -741,7 +749,7 @@ export const createDataGraphqlStreamingAdapter = (input: {
         sequence: invocation.sequence,
         attempt: invocation.attempt,
       });
-      const open = () =>
+      const open = (secret?: string) =>
         input.streamTransport.open({
           requestId: `${invocation.invocationId}:stream`,
           url,
@@ -749,6 +757,7 @@ export const createDataGraphqlStreamingAdapter = (input: {
           headers: Object.freeze({
             accept: 'text/event-stream, application/graphql-response+json',
             'content-type': 'application/json',
+            ...(secret ? { authorization: secret } : {}),
           }),
           body: JSON.stringify({
             query: document,
@@ -764,7 +773,18 @@ export const createDataGraphqlStreamingAdapter = (input: {
             ? { sourceTrace: invocation.sourceTrace }
             : {}),
         });
-      const stream = await open();
+      let stream: Awaited<ReturnType<typeof open>> | undefined;
+      if (authorization && environment)
+        await environment.useSecret(
+          authorization.reference,
+          operation.configurationByKey.authorization
+            ? 'operation.authorization'
+            : 'source.authorization',
+          async (material) => {
+            stream = await open(material);
+          }
+        );
+      else stream = await open();
       if (!stream)
         throw new DataGraphqlOperationError(
           'DATA_GRAPHQL_REQUEST_FAILED',

@@ -57,6 +57,8 @@ const network = createExecutionNetworkTrace({
   ],
 });
 
+const noNetworkUpdates = () => () => undefined;
+
 const terminalSession = () => {
   const controller = createExecutionJobController({
     jobId: 'execution-1',
@@ -96,7 +98,12 @@ describe('Remote Data stream run coordinator', () => {
       .mockResolvedValueOnce({ cursor: 1, value: { id: 'p1' } })
       .mockResolvedValueOnce({ cursor: 2, value: { id: 'p2' } })
       .mockResolvedValueOnce(undefined);
-    const open = vi.fn(async () => ({ network, next, close }));
+    const open = vi.fn(async () => ({
+      network,
+      next,
+      subscribeNetwork: noNetworkUpdates,
+      close,
+    }));
     const runs = createRemoteDataStreamRunCoordinator({
       publishTrace: (input) => sessions.publishTrace(input),
     });
@@ -135,6 +142,66 @@ describe('Remote Data stream run coordinator', () => {
       sessions.getSnapshot('project-preview')?.observations[0]?.trace
         .sourceTrace
     ).toEqual(network.sourceTrace);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('correlates every renewed connection Network trace to the exact active Job and unsubscribes at terminal', async () => {
+    const { job, sessions } = terminalSession();
+    const renewedNetwork = createExecutionNetworkTrace({
+      ...network,
+      requestId: `${request.requestId}:1`,
+      startedAt: 125,
+      completedAt: 126,
+    });
+    let listener: ((value: typeof network) => void) | undefined;
+    const unsubscribe = vi.fn();
+    const subscribeNetwork = vi.fn(
+      (candidate: (value: typeof network) => void) => {
+        listener = candidate;
+        return unsubscribe;
+      }
+    );
+    const next = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        listener?.(renewedNetwork);
+        return { cursor: 1, value: { id: 'p1' } };
+      })
+      .mockResolvedValueOnce(undefined);
+    const close = vi.fn();
+    const runs = createRemoteDataStreamRunCoordinator({
+      publishTrace: (input) => sessions.publishTrace(input),
+    });
+    runs.activate({
+      executionId: job.id,
+      jobId: job.id,
+      sessionId: 'project-preview',
+      open: async () => ({ network, next, subscribeNetwork, close }),
+    });
+    const messages: ExecutionDataStreamBridgeMessage[] = [];
+    await runs.open(request, (message) => messages.push(message));
+    await runs.pull({
+      type: 'prodivix.execution-data-stream-pull.v1',
+      requestId: request.requestId,
+      cursor: 0,
+    });
+    await runs.pull({
+      type: 'prodivix.execution-data-stream-pull.v1',
+      requestId: request.requestId,
+      cursor: 1,
+    });
+
+    expect(
+      sessions
+        .getSnapshot('project-preview')
+        ?.observations.map((observation) => observation.trace.spanId)
+    ).toEqual([network.requestId, renewedNetwork.requestId]);
+    expect(messages.map((message) => message.phase)).toEqual([
+      'open',
+      'event',
+      'complete',
+    ]);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);
   });
 
@@ -186,7 +253,12 @@ describe('Remote Data stream run coordinator', () => {
       executionId: job.id,
       jobId: job.id,
       sessionId: 'project-preview',
-      open: async () => ({ network, next: vi.fn(), close }),
+      open: async () => ({
+        network,
+        next: vi.fn(),
+        subscribeNetwork: noNetworkUpdates,
+        close,
+      }),
     });
     const messages: ExecutionDataStreamBridgeMessage[] = [];
     await runs.open(request, (message) => messages.push(message));
@@ -211,6 +283,7 @@ describe('Remote Data stream run coordinator', () => {
     const open = vi.fn(async () => ({
       network,
       next: vi.fn(),
+      subscribeNetwork: noNetworkUpdates,
       close,
     }));
     const runs = createRemoteDataStreamRunCoordinator({

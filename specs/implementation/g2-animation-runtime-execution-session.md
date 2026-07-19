@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：G2 Browser Slice Implemented / Closure Evidence Pending
+- ImplementationStatus：G2 Same-context Closure Verified / G3 Composition Explicitly Deferred
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-16
@@ -17,19 +17,21 @@
 ## G2 目标
 
 在保持 Animation current document 为唯一作者态的前提下，把确定性 timeline evaluator、Browser
-RAF/effect projection 和共享 Execution Session 串成可运行纵切。编辑器预览与导出工程应共享
-timeline sampling、loop/direction/fill/easing 与 target resolution 语义；DOM effect 只存在于
-Browser runtime adapter，不进入 `@prodivix/animation`。
+RAF/effect projection 和共享 Execution Session 串成可运行纵切。编辑器的 authoring scrub 与实时预览
+共享 timeline sampling、loop/direction/fill/easing 语义；浏览器时钟与 effect projection 只存在于
+`@prodivix/runtime-browser`，不进入 `@prodivix/animation`。
 
-该纵切已经实现。G2 剩余工作是固定 conformance/export parity 证据，以及确保 Project Runner
-切换 Browser/Remote 时仍在项目客户端执行动画，而不是通过网络传输每一帧。
+该纵切及其本地 closure evidence 已完成。Standalone export 当前只验证 Animation document、runtime
+module ownership 与 SourceTrace 投影；把 timeline 绑定到 Route/Blueprint 触发器，并证明 Browser、Remote
+preview client 与 Export 的组合行为等价，属于 `global-phases.md` 明确列入 G3 的组合行为语义，不能用
+“文件已导出”替代真实执行证据。
 
 ## 已实现边界
 
 - Animation current contract、strict codec、authoring factory 与 semantic validation。
 - deterministic timeline evaluator、sampling、loop/direction/fill 与 keyframe interpolation。
 - DOM-free Runtime Port 和 same-context ExecutionProvider。
-- Browser RAF clock、target resolver、style/effect projection 与 cleanup。
+- Browser RAF clock、mounted target manifest、style/effect projection 与 generation-fenced cleanup。
 - request/job/session lifecycle、cancel/timeout/result/event 和 revision-aware product surface。
 - runtime diagnostics 定位到 animation document、track、target 或 keyframe identity。
 
@@ -46,8 +48,10 @@ Browser runtime adapter，不进入 `@prodivix/animation`。
 
 ## Project Runner 与 Remote 边界
 
-Remote Project Runner 执行完整导出工程时，动画 JavaScript 在 preview 客户端的 Browser runtime
+Remote Project Runner 执行完整导出工程时，动画 JavaScript 应在 preview 客户端的 Browser runtime
 中运行。Remote worker 负责 build/dev server 和 artifact，不承担逐帧 evaluator/DOM projection RPC。
+当前 G2 只固定这条架构边界和 standalone projection；真正由 Route/Blueprint 触发的 Remote/export
+动画旅程在 G3 建立 typed binding 后验收。
 
 因此 G2 不需要 Remote Animation Provider。需要 server-side render、离线视频、GPU compute 或跨端
 timeline orchestration 时，应另立 capability/ADR；不能把它们塞进现有 Browser effect adapter。
@@ -110,18 +114,22 @@ timeline orchestration 时，应另立 capability/ADR；不能把它们塞进现
 
 ### A5：G2 closure evidence
 
-- [ ] property tests：sampling、boundary time、loop/direction/fill、authoring scrub 与 deterministic clock。
-- [ ] lifecycle tests：cancel/finish/error/target removal/dispose 均无 RAF/effect 泄漏。
-- [ ] instance isolation：同 target 的多个 owner 不相互撤销新值。
-- [ ] revision UX：作者态 revision 变化后，旧 Session/result 显式标记 stale。
-- [ ] export parity：editor Browser runtime 与 standalone React/Vite 使用同一 fixtures。
-- [ ] Project Runner：Browser/Remote preview artifact 内的动画语义一致。
+- [x] property tests：sampling、boundary time、loop/direction/fill、authoring scrub 与 deterministic clock。
+- [x] lifecycle tests：cancel/finish/error/target-unavailable/dispose 均释放 scheduler/effect ownership。
+- [x] instance isolation：独立 provider 的 cancel/result 不串扰，Browser effect lease 以 generation fence
+      防止旧 owner 撤销或覆盖新值。
+- [x] revision UX：Execution Center 以 exact Workspace snapshot 显式标记旧 Session/result stale。
+- [x] standalone export projection：Animation document、runtime module ownership 与 SourceTrace 进入
+      React/Vite contract；不将该证据误称为 timeline 行为 parity。
+- [x] Project Runner 边界：Browser/Remote 消费同一 immutable authoring snapshot，逐帧 effect 不经
+      Remote RPC；由 typed trigger 驱动的跨 target 行为 parity 显式归入 G3。
 
 完成条件：证据进入 G2 closure manifest；不等待 G3 Blueprint orchestration。
 
 ## G3 延后项
 
 - Blueprint `play-animation` Command 与跨编辑器 typed binding；
+- standalone/export/Remote preview client 的 invoked timeline 行为 parity；
 - multi-timeline composition、nested timeline、route lifecycle 与 choreography；
 - runtime pause/resume/seek，以及 Preview/Export 共用的 reduced-motion policy；
 - animation CodeSlot/easing script、shader track 和 richer SVG/filter authoring；
@@ -130,14 +138,14 @@ timeline orchestration 时，应另立 capability/ADR；不能把它们塞进现
 
 ## Gate
 
-| Gate             | 断言                                                           |
-| ---------------- | -------------------------------------------------------------- |
-| Determinism      | explicit clock 下相同 document/time/options 得到相同 sample    |
-| Runtime boundary | domain package 无 DOM/RAF/provider SDK                         |
-| Lifecycle        | cancel/finish/error/dispose 无 RAF、listener 或 effect 泄漏    |
-| Ownership        | cleanup 不覆盖其他 session 或新 revision 的 effect             |
-| Diagnostics      | failure 定位 stable animation/track/target/keyframe            |
-| Export parity    | editor、Browser Project Runner、Remote preview client 语义一致 |
+| Gate             | 断言                                                                   |
+| ---------------- | ---------------------------------------------------------------------- |
+| Determinism      | explicit clock 下相同 document/time/options 得到相同 sample            |
+| Runtime boundary | domain package 无 DOM/RAF/provider SDK                                 |
+| Lifecycle        | cancel/finish/error/dispose 无 RAF、listener 或 effect 泄漏            |
+| Ownership        | cleanup 不覆盖其他 session 或新 revision 的 effect                     |
+| Diagnostics      | failure 定位 stable animation/track/target/keyframe                    |
+| Export ownership | standalone document/runtime/SourceTrace 可导出；invoked parity 留在 G3 |
 
 ## 风险与停止条件
 
@@ -152,5 +160,5 @@ timeline orchestration 时，应另立 capability/ADR；不能把它们塞进现
 - [x] Animation 通过共享 execution contract 完成 Browser same-context 纵切。
 - [x] evaluator 与 DOM/RAF adapter owner 分离。
 - [x] runtime state/effect 不成为作者态。
-- [ ] A5 conformance、lifecycle、isolation 与 export parity 证据进入 G2 closure。
-- [ ] G3 orchestration/evidence 能力保持显式延后。
+- [x] A5 conformance、lifecycle、isolation、revision UX 与 standalone projection 证据进入 G2 closure。
+- [x] G3 orchestration、invoked cross-target parity 与 VerificationEvidence 保持显式延后。

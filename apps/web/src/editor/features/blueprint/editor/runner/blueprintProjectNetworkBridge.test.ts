@@ -4,6 +4,7 @@ import {
 } from '@prodivix/runtime-core';
 import { describe, expect, it } from 'vitest';
 import {
+  isBlueprintProjectFrameMessageSource,
   readBlueprintProjectConsoleBridgeMessage,
   readBlueprintProjectNetworkBridgeMessage,
   readBlueprintRemoteDataBridgeMessage,
@@ -30,6 +31,19 @@ const trace = createExecutionNetworkTrace({
 });
 
 describe('Blueprint project Network bridge', () => {
+  it('identity-fences every decoder to the exact active iframe Window', () => {
+    const activeFrame = Object.freeze({ frame: 'active' });
+    expect(isBlueprintProjectFrameMessageSource(activeFrame, activeFrame)).toBe(
+      true
+    );
+    expect(isBlueprintProjectFrameMessageSource(undefined, undefined)).toBe(
+      false
+    );
+    expect(
+      isBlueprintProjectFrameMessageSource(activeFrame, { frame: 'foreign' })
+    ).toBe(false);
+  });
+
   it('accepts only strict messages from the active local preview origin', () => {
     const value = toExecutionNetworkBridgeMessage(trace);
     expect(

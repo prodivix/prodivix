@@ -92,10 +92,16 @@ type DataGatewayMutationReplayStore interface {
 }
 
 type DataGatewayInvocation struct {
-	InvocationID string          `json:"invocationId"`
-	Sequence     int64           `json:"sequence"`
-	Attempt      int64           `json:"attempt"`
-	Input        json.RawMessage `json:"input"`
+	InvocationID string                   `json:"invocationId"`
+	Sequence     int64                    `json:"sequence"`
+	Attempt      int64                    `json:"attempt"`
+	Input        json.RawMessage          `json:"input"`
+	Resume       *DataGatewayStreamResume `json:"resume,omitempty"`
+}
+
+type DataGatewayStreamResume struct {
+	Cursor int64  `json:"cursor"`
+	Token  string `json:"token"`
 }
 
 type dataGatewayCorrelation struct {
@@ -185,6 +191,27 @@ type dataGatewayIdempotencyPolicy struct {
 type dataGatewayOperationPolicies struct {
 	Retry       *dataGatewayRetryPolicy       `json:"retry,omitempty"`
 	Idempotency *dataGatewayIdempotencyPolicy `json:"idempotency,omitempty"`
+	Stream      *dataGatewayStreamPolicy      `json:"stream,omitempty"`
+}
+
+type dataGatewayStreamReconnectPolicy struct {
+	Resume            string `json:"resume"`
+	MaximumReconnects int64  `json:"maxReconnectAttempts"`
+	Backoff           string `json:"backoff"`
+	InitialDelayMS    int64  `json:"initialDelayMs"`
+	MaximumDelayMS    *int64 `json:"maxDelayMs,omitempty"`
+}
+
+type dataGatewayStreamCollectionPolicy struct {
+	Kind         string `json:"kind"`
+	EntityIDPath string `json:"entityIdPath"`
+	MaximumItems int64  `json:"maxItems"`
+}
+
+type dataGatewayStreamPolicy struct {
+	Reconnect         dataGatewayStreamReconnectPolicy   `json:"reconnect"`
+	CredentialRenewal string                             `json:"credentialRenewal,omitempty"`
+	Collection        *dataGatewayStreamCollectionPolicy `json:"collection,omitempty"`
 }
 
 type dataGatewayDocument struct {
@@ -194,12 +221,14 @@ type dataGatewayDocument struct {
 }
 
 type DataGateway struct {
-	store         GrantStore
-	replays       DataGatewayMutationReplayStore
-	environments  DataGatewayEnvironmentStore
-	transport     DataGatewayTransport
-	streams       DataGatewayStreamTransport
-	streamMu      sync.Mutex
-	activeStreams map[string]struct{}
-	now           func() time.Time
+	store              GrantStore
+	replays            DataGatewayMutationReplayStore
+	environments       DataGatewayEnvironmentStore
+	transport          DataGatewayTransport
+	streams            DataGatewayStreamTransport
+	streamMu           sync.Mutex
+	activeStreams      map[string]struct{}
+	checkpointKey      [32]byte
+	checkpointKeyReady bool
+	now                func() time.Time
 }

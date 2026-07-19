@@ -55,6 +55,15 @@ const acceptsPreviewMessageOrigin = (input: {
     : input.messageOrigin === 'null' && isRemoteCapabilityPreview(preview);
 };
 
+/** Identity-fences every bridge decoder to the currently mounted iframe Window. */
+export const isBlueprintProjectFrameMessageSource = (
+  activeFrameWindow: unknown,
+  messageSource: unknown
+): boolean =>
+  activeFrameWindow !== null &&
+  activeFrameWindow !== undefined &&
+  messageSource === activeFrameWindow;
+
 /** Accepts Network messages only from the exact active local preview origin. */
 export const readBlueprintProjectNetworkBridgeMessage = (input: {
   provider: BlueprintProjectRunProvider;

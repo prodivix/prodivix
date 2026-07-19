@@ -59,6 +59,7 @@ export type GoldenBrowserProjectEvidence = Readonly<{
 export type VerifyGoldenBrowserProjectOptions = Readonly<{
   routePath: string;
   browserChannel?: string;
+  preparePage?: (page: Page, projectUrl: string) => Promise<void>;
   verifyPage?: (page: Page) => Promise<void>;
 }>;
 
@@ -252,6 +253,16 @@ const startGoldenStaticServer = async (
   const server = createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
+      if (requestUrl.pathname === '/__prodivix-golden-host.html') {
+        response.writeHead(200, {
+          'cache-control': 'no-store',
+          'content-type': 'text/html; charset=utf-8',
+        });
+        response.end(
+          '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'
+        );
+        return;
+      }
       const payload = await readGoldenStaticResponse(
         distRoot,
         requestUrl.pathname
@@ -481,9 +492,9 @@ export const verifyGoldenBrowserProject = async (
     page.on('console', (message) => {
       if (message.type() === 'error') runtimeErrors.push(message.text());
     });
-    await page.goto(new URL(options.routePath, staticServer.origin).href, {
-      waitUntil: 'networkidle',
-    });
+    const projectUrl = new URL(options.routePath, staticServer.origin).href;
+    if (options.preparePage) await options.preparePage(page, projectUrl);
+    else await page.goto(projectUrl, { waitUntil: 'networkidle' });
     await options.verifyPage?.(page);
     const gpu = await collectGoldenBrowserGpuEvidence(page);
     if (runtimeErrors.length > 0) {

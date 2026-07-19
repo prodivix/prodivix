@@ -13,6 +13,7 @@ import {
   EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
+  projectExecutableProjectRuntimeFiles,
   readExecutionTestReportValue,
 } from '@prodivix/runtime-core';
 import { decodeRemoteExecutableProjectSnapshot } from '@prodivix/runtime-remote';
@@ -26,6 +27,7 @@ import {
   ISOLATED_SERVER_FUNCTION_SOURCE_MUTATION_DIRECTORY,
   ISOLATED_SERVER_FUNCTION_SOURCE_MUTATION_MAX_BYTES,
   ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  normalizeServerRuntimeTestProvision,
   readIsolatedServerFunctionPlan,
   readIsolatedServerFunctionExecutionContext,
   readIsolatedServerFunctionExecutionResponse,
@@ -50,6 +52,9 @@ const evidencePath = process.env.PRODIVIX_ROOTLESS_EVIDENCE_PATH;
 const goldenSnapshotPath =
   process.env.PRODIVIX_GOLDEN_SNAPSHOT_PATH?.trim() ||
   (snapshotContractOnly ? 'contract-only' : undefined);
+const goldenCatalogSnapshotPath =
+  process.env.PRODIVIX_GOLDEN_CATALOG_SNAPSHOT_PATH?.trim() ||
+  (snapshotContractOnly ? 'contract-only' : undefined);
 const installNetworkName =
   process.env.PRODIVIX_ROOTLESS_INSTALL_NETWORK?.trim() ||
   (snapshotContractOnly ? 'contract-only' : undefined);
@@ -61,6 +66,8 @@ const installProxyContainer =
   (snapshotContractOnly ? 'contract-only' : undefined);
 if (!goldenSnapshotPath)
   throw new TypeError('PRODIVIX_GOLDEN_SNAPSHOT_PATH is required.');
+if (!goldenCatalogSnapshotPath)
+  throw new TypeError('PRODIVIX_GOLDEN_CATALOG_SNAPSHOT_PATH is required.');
 if (!installNetworkName)
   throw new TypeError('PRODIVIX_ROOTLESS_INSTALL_NETWORK is required.');
 if (!installProxyUrl || !installProxyContainer)
@@ -953,7 +960,84 @@ if (snapshotContractOnly) {
     )
   )
     throw new Error('Rootless workspace.write snapshot contract is invalid.');
-  process.stdout.write(`${mutationFixture.snapshot.contentDigest}\n`);
+  const snapshotDigests = [mutationFixture.snapshot.contentDigest];
+  if (
+    goldenSnapshotPath !== 'contract-only' &&
+    goldenCatalogSnapshotPath !== 'contract-only'
+  ) {
+    const goldenSnapshot = decodeRemoteExecutableProjectSnapshot(
+      JSON.parse(await readFile(resolve(goldenSnapshotPath), 'utf8')) as unknown
+    );
+    const goldenCatalogSnapshot = decodeRemoteExecutableProjectSnapshot(
+      JSON.parse(
+        await readFile(resolve(goldenCatalogSnapshotPath), 'utf8')
+      ) as unknown
+    );
+    const goldenCatalogServerProvision = normalizeServerRuntimeTestProvision(
+      goldenCatalogSnapshot.serverRuntimeMockProvision
+    );
+    const catalogPreviewFiles = projectExecutableProjectRuntimeFiles(
+      goldenCatalogSnapshot,
+      'preview'
+    );
+    const catalogTestFiles = projectExecutableProjectRuntimeFiles(
+      goldenCatalogSnapshot,
+      'test'
+    );
+    const catalogBuildFiles = projectExecutableProjectRuntimeFiles(
+      goldenCatalogSnapshot,
+      'build'
+    );
+    const catalogTestSource = catalogTestFiles.find(
+      ({ path }) => path === 'src/App.test.ts'
+    )?.contents;
+    const catalogAsset = goldenCatalogSnapshot.files.find(
+      ({ path }) => path === 'public/catalog/product.png'
+    );
+    if (
+      goldenSnapshot.target.presetId !== 'react-vite' ||
+      !goldenSnapshot.entrypoints.some(({ kind }) => kind === 'preview') ||
+      !goldenSnapshot.entrypoints.some(({ kind }) => kind === 'test') ||
+      !goldenSnapshot.entrypoints.some(({ kind }) => kind === 'build') ||
+      goldenCatalogSnapshot.target.presetId !== 'vue-vite' ||
+      goldenCatalogSnapshot.dataMockProvision?.fixtureSetId !==
+        'golden-g2-vue-catalog-crud' ||
+      goldenCatalogServerProvision.fixtureSetId !==
+        'golden-g2-vue-catalog-authenticated' ||
+      !catalogAsset ||
+      typeof catalogAsset.contents === 'string' ||
+      !catalogPreviewFiles.some(
+        ({ path, contents }) =>
+          path === 'src/.prodivix/server-runtime-test-provision.ts' &&
+          typeof contents === 'string' &&
+          contents.includes('"mode":"disabled"')
+      ) ||
+      !catalogTestFiles.some(
+        ({ path, contents }) =>
+          path === 'src/.prodivix/server-runtime-test-provision.ts' &&
+          typeof contents === 'string' &&
+          contents.includes('"mode":"deterministic-test"')
+      ) ||
+      catalogBuildFiles.some(
+        ({ path }) => path === 'public/.prodivix/data-mock-provision.json'
+      ) ||
+      typeof catalogTestSource !== 'string' ||
+      !catalogTestSource.includes(
+        'runs the exact mock CRUD journey through the shared standalone runtime'
+      ) ||
+      !catalogTestSource.includes(
+        'runs authenticated Route guard/loader/action fixtures through the source-free Server Runtime adapter'
+      )
+    )
+      throw new Error(
+        'Rootless Golden snapshot contract projection is invalid.'
+      );
+    snapshotDigests.push(
+      goldenSnapshot.contentDigest,
+      goldenCatalogSnapshot.contentDigest
+    );
+  }
+  process.stdout.write(`${snapshotDigests.join(' ')}\n`);
   process.exit(0);
 }
 
@@ -1568,11 +1652,16 @@ const goldenSnapshot = decodeRemoteExecutableProjectSnapshot(
     await readFile(resolve(goldenSnapshotPath), { encoding: 'utf8' })
   ) as unknown
 );
-const executeGolden = async (profile: 'preview' | 'test' | 'build') => {
-  const executionId = `golden-${profile}`;
+const executeRootlessSnapshot = async (
+  snapshot: typeof goldenSnapshot,
+  executionPrefix: string,
+  label: string,
+  profile: 'preview' | 'test' | 'build'
+) => {
+  const executionId = `${executionPrefix}-${profile}`;
   const result = await sandbox.execute({
     executionId,
-    snapshot: goldenSnapshot,
+    snapshot,
     profile,
     timeoutMs: 4 * 60_000,
     maximumOutputBytes: 16 * 1024 * 1024,
@@ -1581,7 +1670,7 @@ const executeGolden = async (profile: 'preview' | 'test' | 'build') => {
   });
   if (result.status !== 'succeeded')
     throw new Error(
-      `Golden rootless ${profile} failed ${JSON.stringify({
+      `${label} rootless ${profile} failed ${JSON.stringify({
         status: result.status,
         exitCode: result.exitCode,
         reason: result.reason,
@@ -1591,7 +1680,7 @@ const executeGolden = async (profile: 'preview' | 'test' | 'build') => {
     );
   const artifacts = requireExecutionArtifacts(
     result,
-    `Golden rootless ${profile}`
+    `${label} rootless ${profile}`
   );
   if (
     !result.networkTraces?.length ||
@@ -1602,7 +1691,7 @@ const executeGolden = async (profile: 'preview' | 'test' | 'build') => {
     )
   )
     throw new Error(
-      `Golden rootless ${profile} did not produce sanitized allowlisted install traces.`
+      `${label} rootless ${profile} did not produce sanitized allowlisted install traces.`
     );
   await assertNoExecutionContainer(executionId);
   return Object.freeze({
@@ -1611,6 +1700,8 @@ const executeGolden = async (profile: 'preview' | 'test' | 'build') => {
     networkTraces: result.networkTraces,
   });
 };
+const executeGolden = (profile: 'preview' | 'test' | 'build') =>
+  executeRootlessSnapshot(goldenSnapshot, 'golden', 'Golden', profile);
 
 const goldenPreview = await executeGolden('preview');
 const goldenPreviewArtifact = goldenPreview.artifact;
@@ -1724,6 +1815,123 @@ if (
   !goldenTestArtifact.sourceTrace?.length
 )
   throw new Error('Golden rootless Test report is incomplete or failed.');
+
+const goldenCatalogSnapshot = decodeRemoteExecutableProjectSnapshot(
+  JSON.parse(
+    await readFile(resolve(goldenCatalogSnapshotPath), { encoding: 'utf8' })
+  ) as unknown
+);
+const goldenCatalogServerProvision = normalizeServerRuntimeTestProvision(
+  goldenCatalogSnapshot.serverRuntimeMockProvision
+);
+if (
+  goldenCatalogSnapshot.target.presetId !== 'vue-vite' ||
+  goldenCatalogSnapshot.dataMockProvision?.fixtureSetId !==
+    'golden-g2-vue-catalog-crud' ||
+  goldenCatalogServerProvision.fixtureSetId !==
+    'golden-g2-vue-catalog-authenticated'
+)
+  throw new Error(
+    'Authenticated Vue Catalog rootless snapshot identity is invalid.'
+  );
+
+const goldenCatalogPreview = await executeRootlessSnapshot(
+  goldenCatalogSnapshot,
+  'golden-catalog',
+  'Authenticated Vue Catalog',
+  'preview'
+);
+const goldenCatalogPreviewArtifact = goldenCatalogPreview.artifact;
+const goldenCatalogPreviewBundle = decodeExecutionPreviewBundle(
+  goldenCatalogPreviewArtifact.contents
+);
+if (
+  goldenCatalogPreviewBundle.snapshotDigest !==
+    goldenCatalogSnapshot.contentDigest ||
+  goldenCatalogPreviewBundle.entryFilePath !==
+    goldenCatalogSnapshot.previewPlan.entryFilePath ||
+  !goldenCatalogPreviewArtifact.sourceTrace?.length
+)
+  throw new Error(
+    'Authenticated Vue Catalog rootless Preview drifted from its exact snapshot.'
+  );
+
+const goldenCatalogBuild = await executeRootlessSnapshot(
+  goldenCatalogSnapshot,
+  'golden-catalog',
+  'Authenticated Vue Catalog',
+  'build'
+);
+const goldenCatalogBuildArtifact = goldenCatalogBuild.artifact;
+const goldenCatalogBuildBundle = decodeExecutionBuildBundle(
+  goldenCatalogBuildArtifact.contents
+);
+if (
+  goldenCatalogBuildBundle.snapshotDigest !==
+    goldenCatalogSnapshot.contentDigest ||
+  !goldenCatalogBuildArtifact.sourceTrace?.length
+)
+  throw new Error(
+    'Authenticated Vue Catalog rootless Build drifted from its exact snapshot.'
+  );
+
+const catalogAssetPath = 'catalog/product.png';
+const catalogSnapshotAsset = goldenCatalogSnapshot.files.find(
+  ({ path }) => path === `public/${catalogAssetPath}`
+);
+const catalogPreviewAsset = goldenCatalogPreviewBundle.files.find(
+  ({ path }) => path === catalogAssetPath
+);
+const catalogBuildAsset = goldenCatalogBuildBundle.files.find(
+  ({ path }) => path === catalogAssetPath
+);
+if (
+  !catalogSnapshotAsset ||
+  typeof catalogSnapshotAsset.contents === 'string' ||
+  !catalogPreviewAsset ||
+  !catalogBuildAsset ||
+  !Buffer.from(catalogPreviewAsset.contents).equals(
+    Buffer.from(catalogSnapshotAsset.contents)
+  ) ||
+  !Buffer.from(catalogBuildAsset.contents).equals(
+    Buffer.from(catalogSnapshotAsset.contents)
+  )
+)
+  throw new Error(
+    'Authenticated Vue Catalog rootless Preview/Build changed exact Asset bytes.'
+  );
+
+const goldenCatalogTest = await executeRootlessSnapshot(
+  goldenCatalogSnapshot,
+  'golden-catalog',
+  'Authenticated Vue Catalog',
+  'test'
+);
+const goldenCatalogTestArtifact = goldenCatalogTest.artifact;
+const goldenCatalogTestReport = readExecutionTestReportValue(
+  JSON.parse(
+    Buffer.from(goldenCatalogTestArtifact.contents).toString('utf8')
+  ) as unknown
+);
+const goldenCatalogCaseNames =
+  goldenCatalogTestReport?.files.flatMap((file) =>
+    file.cases.map((testCase) => testCase.name)
+  ) ?? [];
+if (
+  !goldenCatalogTestReport ||
+  goldenCatalogTestReport.status !== 'passed' ||
+  goldenCatalogTestReport.summary.failedCases !== 0 ||
+  !goldenCatalogCaseNames.includes(
+    'runs the exact mock CRUD journey through the shared standalone runtime'
+  ) ||
+  !goldenCatalogCaseNames.includes(
+    'runs authenticated Route guard/loader/action fixtures through the source-free Server Runtime adapter'
+  ) ||
+  !goldenCatalogTestArtifact.sourceTrace?.length
+)
+  throw new Error(
+    'Authenticated Vue Catalog rootless Test did not prove CRUD and Auth/Server semantics.'
+  );
 
 const cancellation = new AbortController();
 setTimeout(() => cancellation.abort('gate-cancel'), 500);
@@ -1877,6 +2085,45 @@ const evidence = Object.freeze({
       filesystemCaptureComplete: goldenTest.filesystemDiff.complete,
     },
     installNetwork: installNetworkName,
+    runtimeNetwork: 'none-verified',
+  },
+  authenticatedCatalogGoldenJourney: {
+    snapshotDigest: goldenCatalogSnapshot.contentDigest,
+    target: goldenCatalogSnapshot.target,
+    dataFixtureSetId: goldenCatalogSnapshot.dataMockProvision?.fixtureSetId,
+    serverFixtureSetId: goldenCatalogServerProvision.fixtureSetId,
+    exactAsset: {
+      path: catalogAssetPath,
+      size: catalogSnapshotAsset.contents.byteLength,
+      previewDigest: catalogPreviewAsset.digest,
+      buildDigest: catalogBuildAsset.digest,
+    },
+    preview: {
+      artifactId: goldenCatalogPreviewArtifact.artifactId,
+      entryFilePath: goldenCatalogPreviewBundle.entryFilePath,
+      sourceTraceCount: goldenCatalogPreviewArtifact.sourceTrace?.length ?? 0,
+      networkTraceCount: goldenCatalogPreview.networkTraces.length,
+      filesystemCaptureComplete: goldenCatalogPreview.filesystemDiff.complete,
+    },
+    build: {
+      artifactId: goldenCatalogBuildArtifact.artifactId,
+      sourceTraceCount: goldenCatalogBuildArtifact.sourceTrace?.length ?? 0,
+      networkTraceCount: goldenCatalogBuild.networkTraces.length,
+      filesystemCaptureComplete: goldenCatalogBuild.filesystemDiff.complete,
+    },
+    test: {
+      artifactId: goldenCatalogTestArtifact.artifactId,
+      status: goldenCatalogTestReport.status,
+      summary: goldenCatalogTestReport.summary,
+      requiredCases: goldenCatalogCaseNames.filter(
+        (name) =>
+          name.includes('mock CRUD journey') ||
+          name.includes('authenticated Route guard/loader/action')
+      ),
+      sourceTraceCount: goldenCatalogTestArtifact.sourceTrace?.length ?? 0,
+      networkTraceCount: goldenCatalogTest.networkTraces.length,
+      filesystemCaptureComplete: goldenCatalogTest.filesystemDiff.complete,
+    },
     runtimeNetwork: 'none-verified',
   },
   cancellationCleanup: 'passed',

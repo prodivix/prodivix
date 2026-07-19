@@ -53,4 +53,18 @@ describe('Execution Center navigation visibility', () => {
     );
     expect(view.result.current).toBe(false);
   });
+
+  it('carries one bounded diagnostic focus to the exact execution session', () => {
+    useExecutionCenterNavigationStore.getState().openExecutionDiagnostic({
+      workspaceId: 'workspace-data',
+      sessionId: 'project-test:workspace-data',
+      diagnosticCode: 'TST-5001',
+    });
+    expect(useExecutionCenterNavigationStore.getState().request).toMatchObject({
+      workspaceId: 'workspace-data',
+      sessionId: 'project-test:workspace-data',
+      diagnosticCode: 'TST-5001',
+      surface: 'console',
+    });
+  });
 });

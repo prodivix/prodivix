@@ -634,33 +634,6 @@ export const compileWorkspaceToVueViteExportProgram = (
     options.serverRuntimeTarget,
     options.serverRuntimeMockProvision
   );
-  const unsupportedLayoutDiagnostics: CompileDiagnostic[] =
-    hasWorkspaceProductSurface
-      ? routeTopology.routes.flatMap((route) => [
-          ...(route.layoutDocId
-            ? [
-                {
-                  code: 'VUE-EXPORT-LAYOUT-UNSUPPORTED',
-                  severity: 'error' as const,
-                  source: 'export' as const,
-                  message: `Route ${route.routeNodeId} uses a layout that the bounded Vue/Vite route adapter cannot compose yet.`,
-                  path: `/routeManifest/routes/${route.routeNodeId}/layoutDocId`,
-                },
-              ]
-            : []),
-          ...(route.outletNodeId || route.outletBindings?.length
-            ? [
-                {
-                  code: 'VUE-EXPORT-OUTLET-UNSUPPORTED',
-                  severity: 'error' as const,
-                  source: 'export' as const,
-                  message: `Route ${route.routeNodeId} uses route outlets that the bounded Vue/Vite route adapter cannot compose yet.`,
-                  path: `/routeManifest/routes/${route.routeNodeId}/outletBindings`,
-                },
-              ]
-            : []),
-        ])
-      : [];
   const vuePirRuntime = hasWorkspaceProductSurface
     ? createWorkspaceVuePirRuntimeModule(workspace)
     : undefined;
@@ -734,7 +707,6 @@ export const compileWorkspaceToVueViteExportProgram = (
       ...unsupportedDiagnostics(workspace, hasWorkspaceProductSurface),
       ...dataRuntime.diagnostics,
       ...(hasWorkspaceProductSurface ? serverRuntime.diagnostics : []),
-      ...unsupportedLayoutDiagnostics,
       ...(vueApp?.diagnostics ?? []),
     ],
     metadata: {

@@ -2,12 +2,14 @@ package remoteexecution
 
 import (
 	"errors"
+	"regexp"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 )
 
-func TestResolveWorkspaceExecutionPermissionsProjectsOwnerAndViewerExactly(t *testing.T) {
+func TestResolveWorkspaceExecutionPermissionsProjectsCanonicalRolesExactly(t *testing.T) {
 	tests := []struct {
 		name        string
 		principalID string
@@ -27,6 +29,13 @@ func TestResolveWorkspaceExecutionPermissionsProjectsOwnerAndViewerExactly(t *te
 			isOwner:     false,
 			role:        workspaceExecutionViewerRole,
 			want:        []string{"workspace.read"},
+		},
+		{
+			name:        "editor",
+			principalID: "editor-1",
+			isOwner:     false,
+			role:        workspaceExecutionEditorRole,
+			want:        []string{"workspace.read", "workspace.write"},
 		},
 	}
 
@@ -54,13 +63,44 @@ func TestResolveWorkspaceExecutionPermissionsProjectsOwnerAndViewerExactly(t *te
 				}
 			}
 			permissions[0] = "mutated"
-			if workspaceOwnerExecutionPermissions[0] != workspaceOwnerPermissionID || workspaceViewerExecutionPermissions[0] != workspaceReadPermissionID {
+			if workspaceOwnerExecutionPermissions[0] != workspaceOwnerPermissionID || workspaceViewerExecutionPermissions[0] != workspaceReadPermissionID || workspaceEditorExecutionPermissions[0] != workspaceReadPermissionID {
 				t.Fatal("resolved permissions aliased the canonical role projection")
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestWorkspaceExecutionEditorGrantByEmailAndListAreOwnerFenced(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	store := NewStore(database)
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT u.id")).
+		WithArgs("workspace-1", "owner-1", "editor@example.test").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("editor-1"))
+	mock.ExpectExec("INSERT INTO workspace_execution_role_grants").
+		WithArgs("workspace-1", "owner-1", "editor-1", workspaceExecutionEditorRole).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := store.GrantWorkspaceExecutionRoleByEmail(t.Context(), "owner-1", "workspace-1", " Editor@Example.Test ", workspaceExecutionEditorRole); err != nil {
+		t.Fatalf("grant editor role: %v", err)
+	}
+
+	grantedAt := time.Unix(1_700_000_000, 0).UTC()
+	mock.ExpectQuery("SELECT r.principal_id, u.email, u.name, r.role, r.granted_at").
+		WithArgs("workspace-1", "owner-1").
+		WillReturnRows(sqlmock.NewRows([]string{"principal_id", "email", "name", "role", "granted_at"}).AddRow("editor-1", "editor@example.test", "Editor", workspaceExecutionEditorRole, grantedAt))
+	roles, err := store.ListWorkspaceExecutionRoles(t.Context(), "owner-1", "workspace-1")
+	if err != nil || len(roles) != 1 || roles[0].PrincipalID != "editor-1" || roles[0].Role != workspaceExecutionEditorRole || !roles[0].GrantedAt.Equal(grantedAt) {
+		t.Fatalf("list editor role: roles=%#v err=%v", roles, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -77,7 +117,7 @@ func TestResolveWorkspaceExecutionPermissionsFailsClosedForMissingOrCorruptRole(
 		},
 		{
 			name:    "unknown role",
-			rows:    sqlmock.NewRows([]string{"is_owner", "role"}).AddRow(false, "editor"),
+			rows:    sqlmock.NewRows([]string{"is_owner", "role"}).AddRow(false, "admin"),
 			wantErr: ErrExecutionAuthorityConflict,
 		},
 		{

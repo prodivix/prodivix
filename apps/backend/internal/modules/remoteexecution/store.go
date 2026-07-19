@@ -25,6 +25,20 @@ type ExecutionGatewayStore interface {
 	ResolveWorkspaceExecutionPermissions(ctx context.Context, principalID string, workspaceID string) ([]string, error)
 }
 
+type WorkspaceExecutionRoleGrant struct {
+	PrincipalID    string    `json:"principalId"`
+	PrincipalEmail string    `json:"principalEmail"`
+	PrincipalName  string    `json:"principalName"`
+	Role           string    `json:"role"`
+	GrantedAt      time.Time `json:"grantedAt"`
+}
+
+type WorkspaceExecutionRoleStore interface {
+	ListWorkspaceExecutionRoles(ctx context.Context, ownerID string, workspaceID string) ([]WorkspaceExecutionRoleGrant, error)
+	GrantWorkspaceExecutionRoleByEmail(ctx context.Context, ownerID string, workspaceID string, principalEmail string, role string) error
+	RevokeWorkspaceExecutionRole(ctx context.Context, ownerID string, workspaceID string, principalID string) error
+}
+
 type EnvironmentReference struct {
 	EnvironmentID string
 	Revision      string
@@ -82,10 +96,11 @@ WHERE w.id = $1`, strings.TrimSpace(workspaceID), strings.TrimSpace(principalID)
 	if !collaboratorRole.Valid {
 		return nil, ErrExecutionNotFound
 	}
-	if collaboratorRole.String != workspaceExecutionViewerRole {
+	permissions, validRole := canonicalWorkspaceExecutionRole(collaboratorRole.String)
+	if !validRole {
 		return nil, ErrExecutionAuthorityConflict
 	}
-	return cloneExecutionPermissions(workspaceViewerExecutionPermissions), nil
+	return permissions, nil
 }
 
 // VerifyWorkspaceOwner remains the stricter authority used by the current
@@ -102,14 +117,13 @@ func (store *Store) VerifyWorkspaceOwner(ctx context.Context, ownerID string, wo
 	return err
 }
 
-// GrantWorkspaceExecutionViewer is the owner-fenced persistence boundary used
-// by a future collaboration surface. A viewer receives only workspace.read;
-// this method does not grant Environment/Secret access or mutate Workspace VFS.
-func (store *Store) GrantWorkspaceExecutionViewer(ctx context.Context, ownerID string, workspaceID string, principalID string) error {
+// GrantWorkspaceExecutionRole is the owner-fenced persistence boundary for
+// bounded collaborators. Roles never imply workspace.owner or Secret access.
+func (store *Store) GrantWorkspaceExecutionRole(ctx context.Context, ownerID string, workspaceID string, principalID string, role string) error {
 	ownerID = strings.TrimSpace(ownerID)
 	workspaceID = strings.TrimSpace(workspaceID)
 	principalID = strings.TrimSpace(principalID)
-	if ownerID == "" || workspaceID == "" || principalID == "" || ownerID == principalID {
+	if _, validRole := canonicalWorkspaceExecutionRole(role); ownerID == "" || workspaceID == "" || principalID == "" || ownerID == principalID || !validRole {
 		return ErrExecutionAuthorityConflict
 	}
 	ctx, cancel := withTimeout(ctx)
@@ -122,7 +136,7 @@ WHERE w.id = $1 AND w.owner_id = $2 AND u.id <> w.owner_id
 ON CONFLICT (workspace_id, principal_id) DO UPDATE
 SET role = EXCLUDED.role,
 	granted_by = EXCLUDED.granted_by,
-	granted_at = EXCLUDED.granted_at`, workspaceID, ownerID, principalID, workspaceExecutionViewerRole)
+		granted_at = EXCLUDED.granted_at`, workspaceID, ownerID, principalID, role)
 	if err != nil {
 		return err
 	}
@@ -136,10 +150,99 @@ SET role = EXCLUDED.role,
 	return nil
 }
 
+// GrantWorkspaceExecutionViewer remains as a compatibility helper for the
+// original read-only authority tests and callers.
+func (store *Store) GrantWorkspaceExecutionViewer(ctx context.Context, ownerID string, workspaceID string, principalID string) error {
+	return store.GrantWorkspaceExecutionRole(ctx, ownerID, workspaceID, principalID, workspaceExecutionViewerRole)
+}
+
+func (store *Store) GrantWorkspaceExecutionRoleByEmail(ctx context.Context, ownerID string, workspaceID string, principalEmail string, role string) error {
+	ownerID = strings.TrimSpace(ownerID)
+	workspaceID = strings.TrimSpace(workspaceID)
+	principalEmail = strings.TrimSpace(strings.ToLower(principalEmail))
+	if ownerID == "" || workspaceID == "" || principalEmail == "" || len(principalEmail) > 320 {
+		return ErrExecutionAuthorityConflict
+	}
+	if _, validRole := canonicalWorkspaceExecutionRole(role); !validRole {
+		return ErrExecutionAuthorityConflict
+	}
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+	var principalID string
+	err := store.db.QueryRowContext(ctx, `SELECT u.id
+FROM users u
+JOIN workspaces w ON w.id = $1 AND w.owner_id = $2
+WHERE u.email = $3 AND u.id <> w.owner_id`, workspaceID, ownerID, principalEmail).Scan(&principalID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrExecutionNotFound
+	}
+	if err != nil {
+		return err
+	}
+	return store.GrantWorkspaceExecutionRole(ctx, ownerID, workspaceID, principalID, role)
+}
+
+func (store *Store) ListWorkspaceExecutionRoles(ctx context.Context, ownerID string, workspaceID string) ([]WorkspaceExecutionRoleGrant, error) {
+	ownerID = strings.TrimSpace(ownerID)
+	workspaceID = strings.TrimSpace(workspaceID)
+	if ownerID == "" || workspaceID == "" {
+		return nil, ErrExecutionAuthorityConflict
+	}
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+	rows, err := store.db.QueryContext(ctx, `SELECT r.principal_id, u.email, u.name, r.role, r.granted_at
+FROM workspaces w
+LEFT JOIN workspace_execution_role_grants r ON r.workspace_id = w.id
+LEFT JOIN users u ON u.id = r.principal_id
+WHERE w.id = $1 AND w.owner_id = $2
+ORDER BY u.email, r.principal_id
+LIMIT 257`, workspaceID, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	grants := make([]WorkspaceExecutionRoleGrant, 0)
+	workspaceFound := false
+	for rows.Next() {
+		workspaceFound = true
+		var principalID sql.NullString
+		var principalEmail sql.NullString
+		var principalName sql.NullString
+		var role sql.NullString
+		var grantedAt sql.NullTime
+		if err := rows.Scan(&principalID, &principalEmail, &principalName, &role, &grantedAt); err != nil {
+			return nil, err
+		}
+		if !principalID.Valid {
+			continue
+		}
+		if !principalEmail.Valid || !principalName.Valid || !role.Valid || !grantedAt.Valid {
+			return nil, ErrExecutionAuthorityConflict
+		}
+		if _, validRole := canonicalWorkspaceExecutionRole(role.String); !validRole {
+			return nil, ErrExecutionAuthorityConflict
+		}
+		grants = append(grants, WorkspaceExecutionRoleGrant{
+			PrincipalID: principalID.String, PrincipalEmail: principalEmail.String,
+			PrincipalName: principalName.String, Role: role.String, GrantedAt: grantedAt.Time.UTC(),
+		})
+		if len(grants) > 256 {
+			return nil, ErrExecutionAuthorityConflict
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if !workspaceFound {
+		return nil, ErrExecutionNotFound
+	}
+	return grants, nil
+}
+
 // RevokeWorkspaceExecutionViewer removes the canonical role before any later
 // execution authority is issued. Already-issued authority remains bounded by
 // its immutable execution/session identity and at-most-five-minute expiry.
-func (store *Store) RevokeWorkspaceExecutionViewer(ctx context.Context, ownerID string, workspaceID string, principalID string) error {
+func (store *Store) RevokeWorkspaceExecutionRole(ctx context.Context, ownerID string, workspaceID string, principalID string) error {
 	ownerID = strings.TrimSpace(ownerID)
 	workspaceID = strings.TrimSpace(workspaceID)
 	principalID = strings.TrimSpace(principalID)
@@ -165,6 +268,10 @@ WHERE r.workspace_id = $1
 		return ErrExecutionNotFound
 	}
 	return nil
+}
+
+func (store *Store) RevokeWorkspaceExecutionViewer(ctx context.Context, ownerID string, workspaceID string, principalID string) error {
+	return store.RevokeWorkspaceExecutionRole(ctx, ownerID, workspaceID, principalID)
 }
 
 func (store *Store) RecordExecution(ctx context.Context, authority ExecutionAuthority) error {

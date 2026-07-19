@@ -15,7 +15,7 @@ import (
 	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
 )
 
-func TestWorkspaceExecutionViewerRolePostgreSQLGate(t *testing.T) {
+func TestWorkspaceExecutionCollaboratorRolesPostgreSQLGate(t *testing.T) {
 	database := openDataGatewayReplayPostgreSQL(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -58,7 +58,7 @@ func TestWorkspaceExecutionViewerRolePostgreSQLGate(t *testing.T) {
 	if err := database.QueryRowContext(ctx, `SELECT role, granted_by FROM workspace_execution_role_grants WHERE workspace_id = $1 AND principal_id = $2`, "viewer-gate-workspace", "viewer-gate-reader").Scan(&role, &grantedBy); err != nil || role != workspaceExecutionViewerRole || grantedBy != "viewer-gate-owner" {
 		t.Fatalf("durable viewer role drifted: role=%q grantedBy=%q err=%v", role, grantedBy, err)
 	}
-	if _, err := database.ExecContext(ctx, `INSERT INTO workspace_execution_role_grants (workspace_id, principal_id, role, granted_by) VALUES ($1,$2,'editor',$3)`, "viewer-gate-workspace", "viewer-gate-stranger", "viewer-gate-owner"); err == nil {
+	if _, err := database.ExecContext(ctx, `INSERT INTO workspace_execution_role_grants (workspace_id, principal_id, role, granted_by) VALUES ($1,$2,'admin',$3)`, "viewer-gate-workspace", "viewer-gate-stranger", "viewer-gate-owner"); err == nil {
 		t.Fatal("database accepted an unsupported collaborator execution role")
 	}
 
@@ -75,11 +75,15 @@ func TestWorkspaceExecutionViewerRolePostgreSQLGate(t *testing.T) {
 				t.Fatalf("decode viewer authority header: %v", err)
 			}
 			var authority executionServerAuthority
-			if json.Unmarshal(decoded, &authority) != nil || authority.Principal.PrincipalID != "viewer-gate-reader" || len(authority.Permissions) != 1 || authority.Permissions[0] != workspaceReadPermissionID {
-				t.Fatalf("PostgreSQL-resolved viewer authority drifted: %s", decoded)
+			if json.Unmarshal(decoded, &authority) != nil || authority.Principal.PrincipalID != "viewer-gate-reader" || (len(authority.Permissions) != 1 && len(authority.Permissions) != 2) || authority.Permissions[0] != workspaceReadPermissionID || (len(authority.Permissions) == 2 && authority.Permissions[1] != workspaceWritePermissionID) {
+				t.Fatalf("PostgreSQL-resolved collaborator authority drifted: %s", decoded)
+			}
+			executionID := "viewer-gate-execution"
+			if len(authority.Permissions) == 2 {
+				executionID = "editor-gate-execution"
 			}
 			response.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(response, `{"protocol":"prodivix.remote-execution","version":1,"messageId":"message-1","operation":"create","ok":true,"payload":{"execution":{"executionId":"viewer-gate-execution","provider":{"id":"prodivix.remote.preview"}}}}`)
+			_, _ = io.WriteString(response, `{"protocol":"prodivix.remote-execution","version":1,"messageId":"message-1","operation":"create","ok":true,"payload":{"execution":{"executionId":"`+executionID+`","provider":{"id":"prodivix.remote.preview"}}}}`)
 			return
 		}
 		response.Header().Set("Content-Type", "application/json")
@@ -100,6 +104,27 @@ func TestWorkspaceExecutionViewerRolePostgreSQLGate(t *testing.T) {
 		t.Fatalf("durable viewer permissions drifted: permissions=%s err=%v", durablePermissions, err)
 	}
 
+	if err := store.GrantWorkspaceExecutionRoleByEmail(ctx, "viewer-gate-owner", "viewer-gate-workspace", "VIEWER-GATE-READER@EXAMPLE.TEST", workspaceExecutionEditorRole); err != nil {
+		t.Fatalf("owner upgrade editor role: %v", err)
+	}
+	editorPermissions, err := store.ResolveWorkspaceExecutionPermissions(ctx, "viewer-gate-reader", "viewer-gate-workspace")
+	if err != nil || len(editorPermissions) != 2 || editorPermissions[0] != workspaceReadPermissionID || editorPermissions[1] != workspaceWritePermissionID {
+		t.Fatalf("editor permission projection was not exact read/write: permissions=%v err=%v", editorPermissions, err)
+	}
+	roles, err := store.ListWorkspaceExecutionRoles(ctx, "viewer-gate-owner", "viewer-gate-workspace")
+	if err != nil || len(roles) != 1 || roles[0].PrincipalID != "viewer-gate-reader" || roles[0].Role != workspaceExecutionEditorRole {
+		t.Fatalf("durable role list drifted: roles=%#v err=%v", roles, err)
+	}
+	request = httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{"request": map[string]any{"workspace": workspace}})))
+	response = httptest.NewRecorder()
+	testRouterSession(handler, "viewer-gate-reader", "editor-gate-session").ServeHTTP(response, request)
+	if response.Code != http.StatusOK || proxiedCreates != 2 {
+		t.Fatalf("editor create did not complete through exact authority: status=%d creates=%d body=%s", response.Code, proxiedCreates, response.Body.String())
+	}
+	if err := database.QueryRowContext(ctx, `SELECT permissions_json FROM remote_execution_grants WHERE execution_id = $1`, "editor-gate-execution").Scan(&durablePermissions); err != nil || string(durablePermissions) != `["workspace.read", "workspace.write"]` && string(durablePermissions) != `["workspace.read","workspace.write"]` {
+		t.Fatalf("durable editor permissions drifted: permissions=%s err=%v", durablePermissions, err)
+	}
+
 	if err := store.RevokeWorkspaceExecutionViewer(ctx, "viewer-gate-owner", "viewer-gate-workspace", "viewer-gate-reader"); err != nil {
 		t.Fatalf("owner revoke viewer role: %v", err)
 	}
@@ -109,7 +134,7 @@ func TestWorkspaceExecutionViewerRolePostgreSQLGate(t *testing.T) {
 	request = httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{"request": map[string]any{"workspace": workspace}})))
 	response = httptest.NewRecorder()
 	testRouterSession(handler, "viewer-gate-reader", "viewer-gate-session").ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound || proxiedCreates != 1 {
+	if response.Code != http.StatusNotFound || proxiedCreates != 2 {
 		t.Fatalf("revoked viewer reached a new Control Plane create: status=%d creates=%d", response.Code, proxiedCreates)
 	}
 }

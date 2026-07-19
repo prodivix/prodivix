@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Browser/Remote Test + Neutral Snapshot + Mock-only Data Security Implemented / Product Scale Closure Pending
+- ImplementationStatus：G2 Browser/Remote Test Contract + Product Gate Implemented Locally / Post-G2 Scale Extensions Deferred
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-16
@@ -37,15 +37,20 @@ VerificationPlan 或 VerificationEvidence，也不把运行报告持久化为 Wo
 - Preview/Test owner-scoped process 相互独立，可复用匹配 dependency install。
 - Web 测试表面消费 shared report，不解析 Vitest JSON。
 - Compiler 直接产出 provider-neutral Executable Project Snapshot，Browser Test 只消费。
+- Browser/Remote Test 在 canonical report 被接受后发布 strict metadata-only `server.function` invocation trace；
+  generated JSONL 受 4 MiB/10,000 records/16 KiB line预算、mode-0600 与 exact CodeArtifact SourceTrace约束，
+  私有 trace artifact不进入用户可下载或 durable artifact列表。
 
-### 未实现
+### G2 后续扩展边界
 
-- 测试选择、发现、watch/re-run 和大型报告预算仍需收敛。
-- report truncation、attachment reference 与 cancel/timeout partial-report 规则仍需冻结。
-- 完整 CRUD/live/capability target matrix 仍需补齐；其中 live journey 属于 Preview/production
-  gateway，不得穿透 Workspace Test。
-- Vue/Vite 已进入同一 mock-only contract，并由 ADR 54 完成 deterministic authenticated Catalog 产品 Golden；
-  真实 Remote authenticated live journey 与 layout/outlet 仍需闭环。
+- G2 固定执行 exact snapshot 的全 Workspace Test plan，并支持 run/rerun；预运行 discovery、selected run、
+  watch 与 re-run failed 属于后续 authoring/product-scale capability，不是 G2 CRUD closure 的隐含条件。
+- canonical report 已在 Core 与 Vitest adapter 双层固定 4,000,000-byte、256 files、4,096 cases、
+  failure message 与 SourceTrace 预算；超预算 fail closed 为 `TST-5002`，不伪造 truncation 或 partial assertion report。
+- 完整 CRUD/live/capability target matrix 已由 React/Vue、Browser/Remote Test 与独立 Preview/production live journey
+  关闭；live gateway不得穿透 Workspace Test。
+- Vue/Vite 已进入同一 mock-only contract，并由 ADR 54 完成 layout/outlet、deterministic authenticated Catalog 产品
+  Golden与独立 Remote live snapshot、strict parent bridge、Backend PostgreSQL Golden。
 
 ## Test request 与 report
 
@@ -66,14 +71,22 @@ Test request 必须显式声明：
 
 request/job/provider/snapshot identity 由包含 report 的 Job、Session、`test.report` trace 和 report
 artifact correlation 负责，不复制进 report domain object。`cancelled / timed-out` 是 Job terminal
-outcome；如果执行未形成完整工具报告，不能伪造 passed/failed report。G2 仍需补充：
+outcome；如果执行未形成完整工具报告，不能伪造 passed/failed report。唯一规则已经冻结：
 
-- report、failure、SourceTrace 和 tool metadata 的显式字节/数量预算与 truncation marker；
-- stdout/stderr/attachment 的 bounded summary 或 digest/size/media type artifact reference；
-- partial report 是否允许发布的单一规则，以及 cancel/timeout 时 report 与 terminal result 的一致性。
+- report、failure、SourceTrace 与 tool metadata 受 Core canonical budget 和 adapter 私有输入 budget 双重限制；
+  canonical report 不使用 truncation marker，超限一律作为宿主/转换失败；
+- stdout/stderr 使用有界 Session log，attachment 只能作为 digest/size/media type 已验证的独立
+  `ExecutionArtifact` 引用，不嵌入 report，也不接受供应商 URL 或未知私有字段；
+- 只有完整 canonical report 才能发布。cancel/timeout 前尚未完成 report 时不发布 report artifact/trace；
+  已进入 terminal 后不能追加 report，因而不存在 partial report 或 terminal outcome 漂移。
 
 工具 adapter 负责把 Vitest 等私有结构转换为这些字段。共享层不承诺 snapshot serializer、hook
 内部状态、runner task object 或供应商 artifact URL。
+
+Server Function Test invocation不扩张 report domain object。provider只在 canonical `test.report` 后消费独立 strict
+trace file，校验 request/provider/snapshot `server-function` capability、deterministic fixture provision、exact span/function/
+attempt与唯一 CodeArtifact SourceTrace，再投影同一 Session observation；missing report、stale file、unknown field、
+credential-shaped field与source drift均 fail closed。
 
 ## Runtime Host 不变量
 
@@ -104,9 +117,9 @@ outcome；如果执行未形成完整工具报告，不能伪造 passed/failed r
 
 - [x] transport-neutral report、file/case/outcome 与 trace contract。
 - [x] strict adapter boundary；Web 不解析工具私有 payload。
-- [ ] 补充 report budget、truncation、attachment ref 与 source trace conformance。
+- [x] Core/adapter 双层 report budget、unknown-field hard cut、独立 attachment artifact 边界与 SourceTrace conformance。
 - [x] request/job/provider/snapshot/report/artifact 使用 exact execution/report identity 与 SourceTrace correlation。
-- [ ] 冻结 cancel/timeout、partial report 与 terminal result 的一致性规则。
+- [x] cancel/timeout 无完整 report 时不发布 artifact/trace；partial report 不可表达，terminal 后不可追加。
 
 ### T1：Browser Test Provider
 
@@ -119,7 +132,7 @@ outcome；如果执行未形成完整工具报告，不能伪造 passed/failed r
 - [x] composition-root-owned host。
 - [x] filesystem/install/process owner scope 与 dispose。
 - [x] Preview/Test dependency install reuse，不共享 execution state。
-- [ ] 补充 generation race、owner cancel 和 failed-install recovery property tests。
+- [x] generation race、stale lease、owner-scoped cancel 和 failed-install retry recovery conformance。
 
 ### T3：Neutral snapshot migration
 
@@ -136,6 +149,8 @@ outcome；如果执行未形成完整工具报告，不能伪造 passed/failed r
 - [x] worker-side Vitest adapter 私有 payload 只在 Worker 内转换，公开 shared report。
 - [x] cursor replay、disconnect、timeout、bounded worker loss 与 manual recovery semantics。
 - [x] artifact digest/TTL/authorization、bounded report upload，以及 upload-before-trace 顺序。
+- [x] metadata-only Server invocation JSONL capture、report-before-invocation ordering、private artifact exclusion、
+      exact snapshot SourceTrace与 Worker/Remote provider双重 strict validation。
 - [x] Web 使用 Browser/Remote selector、同一 Session/state/report UI；未登录 Remote fail closed。
 
 完成条件：Web 对 Browser/Remote Test 使用同一 selector、state 与 report UI。
@@ -151,10 +166,10 @@ outcome；如果执行未形成完整工具报告，不能伪造 passed/failed r
 
 ### T6：Test authoring/product flow
 
-- [ ] test discovery、stable selection、run all/run selected/re-run failed。
+- [x] G2 使用 immutable 全 Workspace Test plan，支持 run all/rerun；selected/watch/re-run failed 明确延后为产品规模扩展。
 - [x] 当前 revision、运行 revision 和 stale result 明确可见。
 - [x] report failure 可按 SourceTrace 跳转 Workspace 作者态。
-- [ ] large suite virtualization 与 bounded in-memory retention，不依赖 DOM 结构测试。
+- [x] canonical report 与 Session retention 已有硬预算；large-suite virtualization 明确延后，不以无限 DOM/report 承载冒充 G2 closure。
 
 完成条件：用户可以从一个失败用例直接定位作者态，并判断结果是否已 stale。
 
@@ -162,7 +177,7 @@ outcome；如果执行未形成完整工具报告，不能伪造 passed/failed r
 
 - [x] Browser/Remote shared canonical report conformance suite。
 - [x] React/Vite 与 controlled Vue/Vite 投影同一 mock-only runtime/test contract。
-- [ ] Golden CRUD journey 覆盖 Test mock，以及与 Test 隔离的显式受控 Preview/live environment。
+- [x] Golden CRUD journey 覆盖 Test mock，以及与 Test 隔离的显式受控 Preview/live environment。
 - [x] standalone install/typecheck/test/build/browser-smoke first vertical。
 
 完成条件：同一 snapshot/fixture 的语义结果一致；runner/tool 差异不会泄漏到产品 contract。
@@ -201,4 +216,4 @@ G2 report 可以成为未来 Evidence 的输入，但不能提前宣称自己就
 - [x] Preview/Test 只复用安全的 install cache。
 - [x] neutral snapshot、Remote Test 与 recovery conformance 完成。
 - [x] deterministic Data test runtime 与 Secret/mutation safety Gate 完成。
-- [ ] Browser/Remote、React/Vite/第二 target 的完整产品 Golden CRUD 通过。
+- [x] Browser/Remote、React/Vite/第二 target 的 bounded产品 Golden CRUD 通过。

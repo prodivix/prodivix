@@ -71,9 +71,9 @@ type assetDeliveryHostResponse struct {
 
 func assetDeliverySanitizedMediaType(transform string) (string, bool) {
 	switch transform {
-	case "png-sanitize":
+	case "png-sanitize", "png-raster-reencode":
 		return "image/png", true
-	case "jpeg-sanitize":
+	case "jpeg-sanitize", "jpeg-raster-reencode":
 		return "image/jpeg", true
 	default:
 		return "", false
@@ -237,6 +237,9 @@ func (handler *Handler) HandleCreateAssetDelivery(c *gin.Context) {
 	forward.Header.Set("Content-Type", blob.Reference.MediaType)
 	forward.Header.Set("X-Prodivix-Asset-Digest", blob.Reference.Digest)
 	forward.Header.Set("X-Prodivix-Delivery-Disposition", request.Disposition)
+	if sanitizedImage {
+		forward.Header.Set("X-Prodivix-Image-Transform", request.Transform)
+	}
 	ttl := handler.assetDelivery.TTL
 	if ttl <= 0 {
 		ttl = 10 * time.Minute

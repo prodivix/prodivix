@@ -10,6 +10,7 @@ import {
   type BinaryAssetBlobReference,
   type BinaryAssetBlobUploadResult,
   type BinaryAssetDeliveryClass,
+  type BinaryAssetDeliveryRequest,
   type BinaryAssetMaterialization,
 } from '@prodivix/assets';
 import {
@@ -44,16 +45,27 @@ export type WorkspaceCapabilitiesResponse = {
   capabilities: Record<string, boolean>;
 };
 
-export type WorkspaceAssetDeliveryRequest = Readonly<{
-  transform: 'original' | 'png-sanitize' | 'jpeg-sanitize';
-  disposition: 'attachment' | 'inline';
+export type WorkspaceExecutionRole = 'viewer' | 'editor';
+
+export type WorkspaceExecutionRoleGrant = Readonly<{
+  principalId: string;
+  principalEmail: string;
+  principalName: string;
+  role: WorkspaceExecutionRole;
+  grantedAt: string;
 }>;
+
+export type WorkspaceAssetDeliveryRequest = BinaryAssetDeliveryRequest;
 
 const workspaceAssetSanitizedMediaType = (
   transform: string
 ): 'image/png' | 'image/jpeg' | undefined => {
-  if (transform === 'png-sanitize') return 'image/png';
-  if (transform === 'jpeg-sanitize') return 'image/jpeg';
+  if (transform === 'png-sanitize' || transform === 'png-raster-reencode') {
+    return 'image/png';
+  }
+  if (transform === 'jpeg-sanitize' || transform === 'jpeg-raster-reencode') {
+    return 'image/jpeg';
+  }
   return undefined;
 };
 
@@ -228,6 +240,61 @@ const exactKeys = (
     actual.length === normalizedExpected.length &&
     actual.every((key, index) => key === normalizedExpected[index])
   );
+};
+
+const readWorkspaceExecutionRoleGrant = (
+  value: unknown
+): WorkspaceExecutionRoleGrant => {
+  if (
+    !isRecord(value) ||
+    !exactKeys(value, [
+      'principalId',
+      'principalEmail',
+      'principalName',
+      'role',
+      'grantedAt',
+    ]) ||
+    typeof value.principalId !== 'string' ||
+    !value.principalId ||
+    value.principalId !== value.principalId.trim() ||
+    typeof value.principalEmail !== 'string' ||
+    !value.principalEmail.includes('@') ||
+    value.principalEmail !== value.principalEmail.trim().toLowerCase() ||
+    typeof value.principalName !== 'string' ||
+    value.principalName !== value.principalName.trim() ||
+    (value.role !== 'viewer' && value.role !== 'editor') ||
+    typeof value.grantedAt !== 'string' ||
+    !value.grantedAt ||
+    Number.isNaN(Date.parse(value.grantedAt))
+  ) {
+    throw new TypeError('Workspace execution role grant is invalid.');
+  }
+  return Object.freeze({
+    principalId: value.principalId,
+    principalEmail: value.principalEmail,
+    principalName: value.principalName,
+    role: value.role,
+    grantedAt: value.grantedAt,
+  });
+};
+
+const readWorkspaceExecutionRoleList = (
+  value: unknown
+): readonly WorkspaceExecutionRoleGrant[] => {
+  if (
+    !isRecord(value) ||
+    !exactKeys(value, ['roles']) ||
+    !Array.isArray(value.roles) ||
+    value.roles.length > 256
+  ) {
+    throw new TypeError('Workspace execution role list is invalid.');
+  }
+  const roles = value.roles.map(readWorkspaceExecutionRoleGrant);
+  const identities = new Set(roles.map((role) => role.principalId));
+  if (identities.size !== roles.length) {
+    throw new TypeError('Workspace execution role list is invalid.');
+  }
+  return Object.freeze(roles);
 };
 
 const isCapabilityDeliveryUrl = (value: string): boolean => {
@@ -489,6 +556,55 @@ export const editorApi = {
       `/workspaces/${encodeURIComponent(workspaceId)}/capabilities`,
       options
     ),
+
+  listWorkspaceExecutionRoles: async (
+    token: string,
+    workspaceId: string,
+    options: RequestInit = {}
+  ): Promise<readonly WorkspaceExecutionRoleGrant[]> =>
+    readWorkspaceExecutionRoleList(
+      await request<unknown>(
+        token,
+        `/workspaces/${encodeURIComponent(workspaceId)}/execution-roles`,
+        options
+      )
+    ),
+
+  putWorkspaceExecutionRole: async (
+    token: string,
+    workspaceId: string,
+    principalEmail: string,
+    role: WorkspaceExecutionRole
+  ): Promise<void> => {
+    const email = principalEmail.trim().toLowerCase();
+    if (!email || email.length > 320 || !email.includes('@')) {
+      throw new TypeError('Workspace collaborator email is invalid.');
+    }
+    await request<void>(
+      token,
+      `/workspaces/${encodeURIComponent(workspaceId)}/execution-roles`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ principalEmail: email, role }),
+      }
+    );
+  },
+
+  deleteWorkspaceExecutionRole: async (
+    token: string,
+    workspaceId: string,
+    principalId: string
+  ): Promise<void> => {
+    const identity = principalId.trim();
+    if (!identity || identity !== principalId || identity.length > 255) {
+      throw new TypeError('Workspace collaborator identity is invalid.');
+    }
+    await request<void>(
+      token,
+      `/workspaces/${encodeURIComponent(workspaceId)}/execution-roles/${encodeURIComponent(identity)}`,
+      { method: 'DELETE' }
+    );
+  },
 
   putWorkspaceAssetBlob: async (
     token: string,

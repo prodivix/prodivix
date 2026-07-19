@@ -6,6 +6,7 @@ import type { ExecutableProjectDataMockProvision } from '@prodivix/runtime-core'
 import type { ServerRuntimeTestProvision } from '@prodivix/server-runtime';
 import {
   DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
+  EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
   EXECUTION_PARENT_GATEWAY_SERVER_RUNTIME_TARGET,
   PROVIDER_MOCK_DATA_RUNTIME_TARGET,
   generateWorkspaceVueViteExecutableProject,
@@ -23,8 +24,11 @@ export const GOLDEN_G2_VUE_CATALOG_SERVER_SOURCE_CANARY =
 
 export const GOLDEN_G2_VUE_CATALOG_IDS = Object.freeze({
   workspace: 'golden-g2-vue-catalog',
+  shellRoute: 'route-catalog-shell',
   route: 'route-catalog',
   page: 'page-catalog',
+  layout: 'layout-catalog-shell',
+  sidebar: 'page-catalog-sidebar',
   data: 'data-catalog',
   server: 'code-catalog-server',
   auth: 'config-catalog-auth',
@@ -53,6 +57,106 @@ export const GOLDEN_G2_VUE_CATALOG_ASSET_MATERIALIZATIONS = Object.freeze([
     contents: PRODUCT_PNG_BYTES,
   }),
 ]);
+
+const catalogLayoutPir = (): PIRDocument => ({
+  metadata: {
+    name: 'CatalogShell',
+    description: 'Canonical Vue Catalog layout with default and named outlets.',
+  },
+  ui: {
+    graph: {
+      rootId: 'catalog-shell',
+      nodesById: {
+        'catalog-shell': {
+          id: 'catalog-shell',
+          kind: 'element',
+          type: 'div',
+          props: {
+            'data-testid': { kind: 'literal', value: 'catalog-shell' },
+          },
+        },
+        'catalog-shell-title': {
+          id: 'catalog-shell-title',
+          kind: 'element',
+          type: 'header',
+          text: { kind: 'literal', value: 'Catalog Shell' },
+        },
+        'catalog-sidebar': {
+          id: 'catalog-sidebar',
+          kind: 'element',
+          type: 'aside',
+          props: {
+            'data-testid': { kind: 'literal', value: 'catalog-sidebar' },
+          },
+        },
+        'catalog-sidebar-outlet': {
+          id: 'catalog-sidebar-outlet',
+          kind: 'element',
+          type: 'p',
+          text: { kind: 'literal', value: 'Sidebar fallback' },
+        },
+        'catalog-main': {
+          id: 'catalog-main',
+          kind: 'element',
+          type: 'main',
+          props: {
+            'data-testid': { kind: 'literal', value: 'catalog-main' },
+          },
+        },
+        'catalog-default-outlet': {
+          id: 'catalog-default-outlet',
+          kind: 'element',
+          type: 'p',
+          text: { kind: 'literal', value: 'Catalog fallback' },
+        },
+      },
+      childIdsById: {
+        'catalog-shell': [
+          'catalog-shell-title',
+          'catalog-sidebar',
+          'catalog-main',
+        ],
+        'catalog-shell-title': [],
+        'catalog-sidebar': ['catalog-sidebar-outlet'],
+        'catalog-sidebar-outlet': [],
+        'catalog-main': ['catalog-default-outlet'],
+        'catalog-default-outlet': [],
+      },
+      regionsById: {},
+      order: { strategy: 'childIdsById' },
+    },
+  },
+});
+
+const catalogSidebarPir = (): PIRDocument => ({
+  metadata: {
+    name: 'CatalogSidebar',
+    description: 'Named Route outlet content for the authenticated Catalog.',
+  },
+  ui: {
+    graph: {
+      rootId: 'catalog-sidebar-page',
+      nodesById: {
+        'catalog-sidebar-page': {
+          id: 'catalog-sidebar-page',
+          kind: 'element',
+          type: 'nav',
+          props: {
+            'aria-label': { kind: 'literal', value: 'Catalog sections' },
+            'data-testid': {
+              kind: 'literal',
+              value: 'catalog-sidebar-page',
+            },
+          },
+          text: { kind: 'literal', value: 'Featured products' },
+        },
+      },
+      childIdsById: { 'catalog-sidebar-page': [] },
+      regionsById: {},
+      order: { strategy: 'childIdsById' },
+    },
+  },
+});
 
 const catalogPir = (): PIRDocument => ({
   metadata: {
@@ -314,9 +418,9 @@ const serverProfiles = Object.freeze({
 export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
   id: GOLDEN_G2_VUE_CATALOG_IDS.workspace,
   name: 'Authenticated Vue Catalog',
-  workspaceRev: 7,
-  routeRev: 3,
-  opSeq: 12,
+  workspaceRev: 8,
+  routeRev: 4,
+  opSeq: 14,
   treeRootId: 'root',
   treeById: {
     root: {
@@ -326,6 +430,8 @@ export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
       parentId: null,
       children: [
         'page-node',
+        'layout-node',
+        'sidebar-node',
         'data-node',
         'server-node',
         'config-dir',
@@ -338,6 +444,20 @@ export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
       name: 'catalog.pir.json',
       parentId: 'root',
       docId: GOLDEN_G2_VUE_CATALOG_IDS.page,
+    },
+    'layout-node': {
+      id: 'layout-node',
+      kind: 'doc',
+      name: 'catalog.layout.pir.json',
+      parentId: 'root',
+      docId: GOLDEN_G2_VUE_CATALOG_IDS.layout,
+    },
+    'sidebar-node': {
+      id: 'sidebar-node',
+      kind: 'doc',
+      name: 'catalog-sidebar.pir.json',
+      parentId: 'root',
+      docId: GOLDEN_G2_VUE_CATALOG_IDS.sidebar,
     },
     'data-node': {
       id: 'data-node',
@@ -390,6 +510,24 @@ export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
     },
   },
   docsById: {
+    [GOLDEN_G2_VUE_CATALOG_IDS.layout]: {
+      id: GOLDEN_G2_VUE_CATALOG_IDS.layout,
+      type: 'pir-layout',
+      name: 'Catalog Shell',
+      path: '/catalog.layout.pir.json',
+      contentRev: 1,
+      metaRev: 1,
+      content: catalogLayoutPir(),
+    },
+    [GOLDEN_G2_VUE_CATALOG_IDS.sidebar]: {
+      id: GOLDEN_G2_VUE_CATALOG_IDS.sidebar,
+      type: 'pir-page',
+      name: 'Catalog Sidebar',
+      path: '/catalog-sidebar.pir.json',
+      contentRev: 1,
+      metaRev: 1,
+      content: catalogSidebarPir(),
+    },
     [GOLDEN_G2_VUE_CATALOG_IDS.page]: {
       id: GOLDEN_G2_VUE_CATALOG_IDS.page,
       type: 'pir-page',
@@ -410,9 +548,14 @@ export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
         source: {
           id: 'catalog',
           adapterId: 'core.http',
-          runtimeZone: 'client',
+          runtimeZone: 'server',
           bindingsById: {},
-          configurationByKey: {},
+          configurationByKey: {
+            baseUrl: {
+              kind: 'literal',
+              value: 'https://catalog.example.test/',
+            },
+          },
         },
         schemasById: {
           product: {
@@ -436,7 +579,11 @@ export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
             name: 'List products',
             kind: 'query',
             outputSchemaId: 'products',
-            configurationByKey: {},
+            configurationByKey: {
+              method: { kind: 'literal', value: 'GET' },
+              path: { kind: 'literal', value: '/products' },
+              emptyWhen: { kind: 'literal', value: 'never' },
+            },
             policies: {},
           },
           'create-product': {
@@ -444,15 +591,31 @@ export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
             name: 'Create product',
             kind: 'mutation',
             outputSchemaId: 'product',
-            configurationByKey: {},
-            policies: {},
+            configurationByKey: {
+              method: { kind: 'literal', value: 'POST' },
+              path: { kind: 'literal', value: '/products' },
+              bodyInputPath: { kind: 'literal', value: '/product' },
+              idempotencyHeader: {
+                kind: 'literal',
+                value: 'idempotency-key',
+              },
+            },
+            policies: { idempotency: { kind: 'invocation-key' } },
           },
           'get-product': {
             id: 'get-product',
             name: 'Get product',
             kind: 'query',
             outputSchemaId: 'product',
-            configurationByKey: {},
+            configurationByKey: {
+              method: { kind: 'literal', value: 'GET' },
+              path: { kind: 'literal', value: '/products/{id}' },
+              parameterMappings: {
+                kind: 'literal',
+                value: { path: { id: '/id' } },
+              },
+              emptyWhen: { kind: 'literal', value: 'never' },
+            },
             policies: {},
           },
           'update-product': {
@@ -460,16 +623,39 @@ export const GOLDEN_G2_VUE_CATALOG_WORKSPACE: WorkspaceSnapshot = {
             name: 'Update product',
             kind: 'mutation',
             outputSchemaId: 'product',
-            configurationByKey: {},
-            policies: {},
+            configurationByKey: {
+              method: { kind: 'literal', value: 'PUT' },
+              path: { kind: 'literal', value: '/products/{id}' },
+              parameterMappings: {
+                kind: 'literal',
+                value: { path: { id: '/id' } },
+              },
+              bodyInputPath: { kind: 'literal', value: '/patch' },
+              idempotencyHeader: {
+                kind: 'literal',
+                value: 'idempotency-key',
+              },
+            },
+            policies: { idempotency: { kind: 'invocation-key' } },
           },
           'delete-product': {
             id: 'delete-product',
             name: 'Delete product',
             kind: 'mutation',
             outputSchemaId: 'product',
-            configurationByKey: {},
-            policies: {},
+            configurationByKey: {
+              method: { kind: 'literal', value: 'DELETE' },
+              path: { kind: 'literal', value: '/products/{id}' },
+              parameterMappings: {
+                kind: 'literal',
+                value: { path: { id: '/id' } },
+              },
+              idempotencyHeader: {
+                kind: 'literal',
+                value: 'idempotency-key',
+              },
+            },
+            policies: { idempotency: { kind: 'invocation-key' } },
           },
         },
       },
@@ -535,23 +721,36 @@ export const mutateCatalog = () => ({ kind: 'value' as const, value: { committed
       id: 'root',
       children: [
         {
-          id: GOLDEN_G2_VUE_CATALOG_IDS.route,
-          index: true,
-          pageDocId: GOLDEN_G2_VUE_CATALOG_IDS.page,
-          runtime: {
-            guardRef: {
-              artifactId: GOLDEN_G2_VUE_CATALOG_IDS.server,
-              exportName: GOLDEN_G2_VUE_CATALOG_IDS.guard,
-            },
-            loaderRef: {
-              artifactId: GOLDEN_G2_VUE_CATALOG_IDS.server,
-              exportName: GOLDEN_G2_VUE_CATALOG_IDS.loader,
-            },
-            actionRef: {
-              artifactId: GOLDEN_G2_VUE_CATALOG_IDS.server,
-              exportName: GOLDEN_G2_VUE_CATALOG_IDS.action,
+          id: GOLDEN_G2_VUE_CATALOG_IDS.shellRoute,
+          layoutDocId: GOLDEN_G2_VUE_CATALOG_IDS.layout,
+          outletNodeId: 'catalog-default-outlet',
+          outletBindings: {
+            sidebar: {
+              outletNodeId: 'catalog-sidebar-outlet',
+              pageDocId: GOLDEN_G2_VUE_CATALOG_IDS.sidebar,
             },
           },
+          children: [
+            {
+              id: GOLDEN_G2_VUE_CATALOG_IDS.route,
+              index: true,
+              pageDocId: GOLDEN_G2_VUE_CATALOG_IDS.page,
+              runtime: {
+                guardRef: {
+                  artifactId: GOLDEN_G2_VUE_CATALOG_IDS.server,
+                  exportName: GOLDEN_G2_VUE_CATALOG_IDS.guard,
+                },
+                loaderRef: {
+                  artifactId: GOLDEN_G2_VUE_CATALOG_IDS.server,
+                  exportName: GOLDEN_G2_VUE_CATALOG_IDS.loader,
+                },
+                actionRef: {
+                  artifactId: GOLDEN_G2_VUE_CATALOG_IDS.server,
+                  exportName: GOLDEN_G2_VUE_CATALOG_IDS.action,
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -717,8 +916,7 @@ export const createGoldenG2VueCatalogRemoteSnapshot =
       GOLDEN_G2_VUE_CATALOG_WORKSPACE,
       {
         projectName: 'Authenticated Vue Catalog',
-        dataRuntimeTarget: PROVIDER_MOCK_DATA_RUNTIME_TARGET,
-        dataMockProvision: GOLDEN_G2_VUE_CATALOG_DATA_PROVISION,
+        dataRuntimeTarget: EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
         serverRuntimeTarget: EXECUTION_PARENT_GATEWAY_SERVER_RUNTIME_TARGET,
         assetMaterializations: GOLDEN_G2_VUE_CATALOG_ASSET_MATERIALIZATIONS,
       }
@@ -735,5 +933,13 @@ export const createGoldenG2VueCatalogProjectedBundle =
     const snapshot = createGoldenG2VueCatalogTestSnapshot();
     return Object.freeze({
       files: projectExecutableProjectRuntimeFiles(snapshot, 'test'),
+    });
+  };
+
+export const createGoldenG2VueCatalogRemoteProjectedBundle =
+  (): GoldenGeneratedProjectBundle => {
+    const snapshot = createGoldenG2VueCatalogRemoteSnapshot();
+    return Object.freeze({
+      files: projectExecutableProjectRuntimeFiles(snapshot, 'preview'),
     });
   };

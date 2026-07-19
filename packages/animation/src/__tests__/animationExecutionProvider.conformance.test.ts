@@ -59,6 +59,7 @@ const createManualScheduler = () => {
   };
   return {
     scheduler,
+    pendingFrameCount: () => callbacks.size,
     advanceTo: async (timestampMs: number) => {
       for (let attempt = 0; attempt < 8 && !callbacks.size; attempt += 1) {
         await Promise.resolve();
@@ -72,7 +73,13 @@ const createManualScheduler = () => {
   };
 };
 
-const createRuntime = () => {
+const createRuntime = (
+  options: Readonly<{
+    targetSupported?: boolean;
+    failApply?: boolean;
+    failRelease?: boolean;
+  }> = {}
+) => {
   const manual = createManualScheduler();
   const frames: AnimationRuntimeFrame[] = [];
   const releases: AnimationEffectLeaseOutcome[] = [];
@@ -85,13 +92,21 @@ const createRuntime = () => {
         capabilities: ['style', 'css-filter', 'svg-filter'],
       },
       supportsTarget: ({ targetDocumentId, targetNodeId }) =>
-        targetDocumentId === 'page-home' && targetNodeId === 'hero',
+        options.targetSupported !== false &&
+        targetDocumentId === 'page-home' &&
+        targetNodeId === 'hero',
       acquire: () => ({
         applyFrame: (frame) => {
+          if (options.failApply) {
+            throw new Error('The effect target disappeared.');
+          }
           frames.push(frame);
         },
         release: ({ outcome }) => {
           releases.push(outcome);
+          if (options.failRelease) {
+            throw new Error('The effect lease could not be released.');
+          }
         },
       }),
     },
@@ -99,9 +114,11 @@ const createRuntime = () => {
   return { ...manual, frames, releases, runtime };
 };
 
-const createRequest = () =>
+const createRequest = (
+  options: Readonly<{ requestId?: string; timeoutMs?: number }> = {}
+) =>
   createExecutionRequest({
-    requestId: 'animation-request',
+    requestId: options.requestId ?? 'animation-request',
     profile: 'preview',
     runtimeZone: 'client',
     workspace: { workspaceId: 'workspace', snapshotId: 'snapshot' },
@@ -119,7 +136,11 @@ const createRequest = () =>
       'diagnostics',
       'source-trace',
       'streaming-logs',
+      ...(options.timeoutMs === undefined ? [] : (['timeout'] as const)),
     ],
+    ...(options.timeoutMs === undefined
+      ? {}
+      : { timeoutMs: options.timeoutMs }),
   });
 
 describe('Animation ExecutionProvider conformance', () => {
@@ -146,6 +167,7 @@ describe('Animation ExecutionProvider conformance', () => {
     });
     expect(host.frames.map((frame) => frame.cursorMs)).toEqual([0, 100]);
     expect(host.releases).toEqual(['completed']);
+    expect(host.pendingFrameCount()).toBe(0);
     const traces = events.filter((event) => event.kind === 'trace');
     expect(traces).toHaveLength(2);
     expect(traces.map((event) => event.trace.phase)).toEqual(['start', 'end']);
@@ -169,6 +191,127 @@ describe('Animation ExecutionProvider conformance', () => {
       reason: 'stop preview',
     });
     expect(host.releases).toEqual(['cancelled']);
+    expect(host.pendingFrameCount()).toBe(0);
+  });
+
+  it('times out one infinite playback and clears its scheduled frame and effect lease', async () => {
+    const host = createRuntime();
+    let fireTimeout: (() => void) | undefined;
+    const provider = createAnimationExecutionProvider({
+      resolveDocument: () => createDefinition({ iterations: 'infinite' }),
+      resolveRuntime: () => host.runtime,
+      scheduleTimeout: (callback) => {
+        fireTimeout = callback;
+        return () => {
+          fireTimeout = undefined;
+        };
+      },
+    });
+    const job = await provider.start(createRequest({ timeoutMs: 25 }));
+    await host.advanceTo(10);
+
+    expect(fireTimeout).toBeTypeOf('function');
+    fireTimeout?.();
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'timed-out',
+      timeoutMs: 25,
+    });
+    expect(host.releases).toEqual(['timed-out']);
+    expect(host.pendingFrameCount()).toBe(0);
+  });
+
+  it('maps a disappearing effect target to a stable failure and releases exactly once', async () => {
+    const host = createRuntime({ failApply: true });
+    const provider = createAnimationExecutionProvider({
+      resolveDocument: () => createDefinition(),
+      resolveRuntime: () => host.runtime,
+    });
+    const job = await provider.start(createRequest());
+    const result = await job.completion;
+
+    expect(result).toMatchObject({
+      status: 'failed',
+      failure: {
+        code: 'ANIMATION_EFFECT_FAILED',
+        message: 'The effect target disappeared.',
+      },
+      diagnostics: [
+        {
+          code: 'ANI-5001',
+          targetRef: {
+            kind: 'animation-track',
+            documentId: 'animation-document',
+            timelineId: 'intro',
+            bindingId: 'hero-binding',
+            trackId: 'opacity-track',
+          },
+        },
+      ],
+    });
+    expect(host.releases).toEqual(['failed']);
+    expect(host.pendingFrameCount()).toBe(0);
+  });
+
+  it('fails closed before acquiring effects when the target is unavailable', async () => {
+    const host = createRuntime({ targetSupported: false });
+    const provider = createAnimationExecutionProvider({
+      resolveDocument: () => createDefinition(),
+      resolveRuntime: () => host.runtime,
+    });
+    const result = await (await provider.start(createRequest())).completion;
+
+    expect(result).toMatchObject({
+      status: 'failed',
+      failure: { code: 'ANIMATION_RUNTIME_UNSUPPORTED' },
+      diagnostics: [
+        {
+          code: 'ANI-5202',
+          targetRef: {
+            kind: 'animation-track',
+            documentId: 'animation-document',
+            timelineId: 'intro',
+            bindingId: 'hero-binding',
+            trackId: 'opacity-track',
+          },
+        },
+      ],
+    });
+    expect(host.frames).toHaveLength(0);
+    expect(host.releases).toHaveLength(0);
+  });
+
+  it('keeps cancellation and effect ownership isolated between provider instances', async () => {
+    const firstHost = createRuntime();
+    const secondHost = createRuntime();
+    const firstProvider = createAnimationExecutionProvider({
+      resolveDocument: () => createDefinition({ iterations: 'infinite' }),
+      resolveRuntime: () => firstHost.runtime,
+    });
+    const secondProvider = createAnimationExecutionProvider({
+      resolveDocument: () => createDefinition(),
+      resolveRuntime: () => secondHost.runtime,
+    });
+    const firstJob = await firstProvider.start(
+      createRequest({ requestId: 'animation-request-first' })
+    );
+    const secondJob = await secondProvider.start(
+      createRequest({ requestId: 'animation-request-second' })
+    );
+    await firstHost.advanceTo(40);
+
+    await firstJob.cancel({ reason: 'cancel only the first playback' });
+    await secondHost.advanceTo(100);
+
+    await expect(firstJob.completion).resolves.toMatchObject({
+      status: 'cancelled',
+      reason: 'cancel only the first playback',
+    });
+    await expect(secondJob.completion).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    expect(firstHost.releases).toEqual(['cancelled']);
+    expect(secondHost.releases).toEqual(['completed']);
+    expect(secondHost.frames.map((frame) => frame.cursorMs)).toEqual([0, 100]);
   });
 
   it('fails closed when a timeline declares an unavailable CodeSlot', async () => {

@@ -59,7 +59,7 @@ const assetDigest = (contents: Uint8Array): string =>
 const SOURCE_DIGEST = assetDigest(SOURCE_JPEG);
 const SANITIZED_DIGEST = assetDigest(SANITIZED_JPEG);
 const RECIPE_DIGEST = assetDigest(
-  new TextEncoder().encode('prodivix.image.jpeg-sanitize@1')
+  new TextEncoder().encode('prodivix.image.jpeg-raster-reencode@1')
 );
 const CAPABILITY = sha256Hex(
   new TextEncoder().encode('binary-asset-product-journey-capability')
@@ -656,7 +656,7 @@ const installBinaryAssetApiHarness = async (
 };
 
 test.describe('Binary Asset product journey', () => {
-  test('uploads, durably reloads, sanitizes, and isolates a JPEG @binary-assets', async ({
+  test('uploads, durably reloads, raster re-encodes, and isolates a JPEG @binary-assets', async ({
     page,
   }) => {
     expect(Buffer.from(SOURCE_JPEG).includes(Buffer.from(JPEG_CANARY))).toBe(
@@ -739,7 +739,7 @@ test.describe('Binary Asset product journey', () => {
       .toBeGreaterThanOrEqual(1);
 
     await page
-      .getByRole('button', { name: 'Sanitize & isolate', exact: true })
+      .getByRole('button', { name: 'Re-encode & isolate', exact: true })
       .click();
     await expect(
       page.getByText('Isolated delivery ready · transformed', { exact: false })
@@ -763,7 +763,7 @@ test.describe('Binary Asset product journey', () => {
     expect(harness.deliverySessionCount).toBe(1);
     expect(harness.settingsCommitCount).toBe(1);
     expect(harness.deliveryRequests).toEqual([
-      { transform: 'jpeg-sanitize', disposition: 'inline' },
+      { transform: 'jpeg-raster-reencode', disposition: 'inline' },
     ]);
     expect(harness.canonicalWorkspace.workspaceRev).toBe(3);
     expect(harness.canonicalWorkspace.opSeq).toBe(3);

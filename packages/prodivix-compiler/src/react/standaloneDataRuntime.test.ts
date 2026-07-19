@@ -1,6 +1,7 @@
 import { transformWithEsbuild } from 'vite';
 import { describe, expect, it, vi } from 'vitest';
 import Ajv2020 from 'ajv/dist/2020.js';
+import { validateDataSourceDocument } from '@prodivix/data';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { createWorkspaceStandaloneDataRuntimeModule } from './standaloneDataRuntime';
 import {
@@ -275,7 +276,11 @@ type Runtime = Readonly<{
   openDataSubscription(request: unknown): Promise<
     Readonly<{
       network: unknown;
-      next(): Promise<Readonly<{ cursor: number; value: unknown }> | undefined>;
+      next(): Promise<
+        | Readonly<{ cursor: number; value: unknown; collection?: unknown }>
+        | undefined
+      >;
+      getCollectionSnapshot(): unknown;
       close(): void;
     }>
   >;
@@ -524,6 +529,20 @@ describe('standalone Data runtime projection', () => {
           ...sourceDocument,
           content: {
             ...sourceDocument.content,
+            schemasById: {
+              ...sourceDocument.content.schemasById,
+              'stream-event': {
+                id: 'stream-event',
+                schema: {
+                  $schema: 'https://json-schema.org/draft/2020-12/schema',
+                  type: 'object',
+                  required: ['action'],
+                  properties: {
+                    action: { enum: ['replace', 'upsert', 'delete'] },
+                  },
+                },
+              },
+            },
             source: {
               id: 'events',
               adapterId: 'core.graphql',
@@ -540,7 +559,7 @@ describe('standalone Data runtime projection', () => {
               watch: {
                 id: 'watch',
                 kind: 'subscription',
-                outputSchemaId: 'products',
+                outputSchemaId: 'stream-event',
                 configurationByKey: {
                   document: {
                     kind: 'literal',
@@ -549,13 +568,38 @@ describe('standalone Data runtime projection', () => {
                   operationName: { kind: 'literal', value: 'Watch' },
                   resultPath: { kind: 'literal', value: '/products' },
                 },
-                policies: {},
+                policies: {
+                  stream: {
+                    reconnect: {
+                      resume: 'sse-last-event-id',
+                      maxReconnectAttempts: 2,
+                      backoff: 'fixed',
+                      initialDelayMs: 10,
+                    },
+                    collection: {
+                      kind: 'keyed-event-v1',
+                      entityIdPath: '/id',
+                      maxItems: 4,
+                    },
+                  },
+                },
               },
             },
           },
         },
       },
     };
+    const streamDocument = streamWorkspace.docsById['data-products'];
+    if (!streamDocument || streamDocument.type !== 'data-source')
+      throw new Error('Expected the stream Data document.');
+    const streamValidation = validateDataSourceDocument(
+      streamDocument.content,
+      { documentId: streamDocument.id }
+    );
+    expect(
+      streamValidation.valid,
+      JSON.stringify(streamValidation.issues)
+    ).toBe(true);
     const generated = createWorkspaceStandaloneDataRuntimeModule(
       streamWorkspace,
       EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET
@@ -631,7 +675,7 @@ describe('standalone Data runtime projection', () => {
             listener({
               source: parent,
               data:
-                cursor < 2
+                cursor < 3
                   ? {
                       type: 'prodivix.execution-data-stream.v1',
                       requestId: request.requestId,
@@ -639,7 +683,17 @@ describe('standalone Data runtime projection', () => {
                       cursor: cursor + 1,
                       value: emitInvalidStreamEvent
                         ? { id: `p${cursor + 1}` }
-                        : [{ id: `p${cursor + 1}`, name: 'Chair' }],
+                        : cursor === 0
+                          ? {
+                              action: 'replace',
+                              items: [{ id: 'p1', name: 'Chair' }],
+                            }
+                          : cursor === 1
+                            ? {
+                                action: 'upsert',
+                                entity: { id: 'p2', name: 'Desk' },
+                              }
+                            : { action: 'delete', id: 'p1' },
                     }
                   : {
                       type: 'prodivix.execution-data-stream.v1',
@@ -694,19 +748,44 @@ describe('standalone Data runtime projection', () => {
       operation: { documentId: 'data-products', operationId: 'watch' },
       input: {},
     });
+    expect(stream.getCollectionSnapshot()).toEqual({
+      cursor: 0,
+      appliedEvents: 0,
+      items: [],
+    });
     await expect(stream.next()).resolves.toMatchObject({
       cursor: 1,
-      value: [{ id: 'p1' }],
+      collection: {
+        cursor: 1,
+        appliedEvents: 1,
+        items: [{ id: 'p1', name: 'Chair' }],
+      },
     });
     await expect(stream.next()).resolves.toMatchObject({
       cursor: 2,
-      value: [{ id: 'p2' }],
+      collection: {
+        cursor: 2,
+        appliedEvents: 2,
+        items: [
+          { id: 'p1', name: 'Chair' },
+          { id: 'p2', name: 'Desk' },
+        ],
+      },
+    });
+    await expect(stream.next()).resolves.toMatchObject({
+      cursor: 3,
+      collection: {
+        cursor: 3,
+        appliedEvents: 3,
+        items: [{ id: 'p2', name: 'Desk' }],
+      },
     });
     await expect(stream.next()).resolves.toBeUndefined();
     expect(traces).toHaveLength(1);
     expect(posted.map((entry) => entry.type)).toEqual([
       'prodivix.execution-data-stream-open.v1',
       'prodivix.execution-network-bridge.v1',
+      'prodivix.execution-data-stream-pull.v1',
       'prodivix.execution-data-stream-pull.v1',
       'prodivix.execution-data-stream-pull.v1',
       'prodivix.execution-data-stream-pull.v1',

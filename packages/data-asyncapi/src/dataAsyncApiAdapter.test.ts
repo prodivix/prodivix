@@ -249,7 +249,7 @@ describe('Data AsyncAPI subscription adapter', () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects callback-only Secret authorization before opening a long-lived transport', async () => {
+  it('rejects Secret authorization without an explicit per-connection renewal policy', async () => {
     const open = vi.fn<DataAsyncApiStreamTransport['open']>();
     const useSecret = vi.fn();
     const adapter = createDataAsyncApiStreamingAdapter({
@@ -287,5 +287,95 @@ describe('Data AsyncAPI subscription adapter', () => {
     ).rejects.toMatchObject({ code: 'DATA_ASYNCAPI_CONFIGURATION_INVALID' });
     expect(useSecret).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it('opens a Secret-authenticated connection only inside the current environment lease', async () => {
+    const close = vi.fn();
+    const open = vi.fn<DataAsyncApiStreamTransport['open']>(
+      async (request) => ({
+        trace: createExecutionNetworkTrace({
+          requestId: request.requestId,
+          phase: 'runtime',
+          runtimeZone: request.runtimeZone,
+          mode: request.mode,
+          adapter: request.adapter,
+          method: request.method,
+          sanitizedUrl: 'https://events.example.test/',
+          protocol: 'https',
+          startedAt: 100,
+          completedAt: 101,
+          outcome: 'allowed',
+          correlation: request.correlation,
+        }),
+        events: (async function* () {
+          yield '{"payload":{"id":"p1"}}';
+        })(),
+        close,
+      })
+    );
+    const useSecret = vi.fn(
+      async (
+        _reference: unknown,
+        _field: string,
+        consumer: (material: string) => void | Promise<void>
+      ) => consumer('Bearer renewed-asyncapi-token')
+    );
+    const adapter = createDataAsyncApiStreamingAdapter({
+      transport: { execute: vi.fn() },
+      streamTransport: { open },
+    });
+    const session = await adapter.openStream?.({
+      invocation: createDataOperationInvocation({
+        ...invocation('secret-watch'),
+        invocationId: 'asyncapi-secret-stream-renewed',
+        activation: 'document',
+      }),
+      source,
+      operation: {
+        id: 'secret-watch',
+        kind: 'subscription',
+        outputSchemaId: 'output',
+        configurationByKey: {
+          action: { kind: 'literal', value: 'receive' },
+          path: { kind: 'literal', value: '/events/products' },
+          responseBodyPath: { kind: 'literal', value: '/payload' },
+          authorization: {
+            kind: 'secret-ref',
+            reference: { bindingId: 'api-token' },
+          },
+        },
+        policies: {
+          stream: {
+            reconnect: {
+              resume: 'sse-last-event-id',
+              maxReconnectAttempts: 2,
+              backoff: 'fixed',
+              initialDelayMs: 10,
+            },
+            credentialRenewal: 'per-connection',
+          },
+        },
+      },
+      environment: { useSecret } as never,
+      signal: new AbortController().signal,
+      publishNetworkTrace: () => undefined,
+    });
+
+    expect(useSecret).toHaveBeenCalledWith(
+      { bindingId: 'api-token' },
+      'operation.authorization',
+      expect.any(Function)
+    );
+    expect(open.mock.calls[0]?.[0].headers.authorization).toBe(
+      'Bearer renewed-asyncapi-token'
+    );
+    await expect(
+      session?.events[Symbol.asyncIterator]().next()
+    ).resolves.toMatchObject({
+      value: { id: 'p1' },
+    });
+    expect(JSON.stringify(session)).not.toContain('renewed-asyncapi-token');
+    session?.close();
+    expect(close).toHaveBeenCalledTimes(1);
   });
 });

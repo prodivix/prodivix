@@ -38,6 +38,18 @@ export const createRemoteFixtureSnapshot = (
           },
         ],
       },
+      {
+        path: 'src/auth.server.ts',
+        contents: 'export const loadPrincipal = () => undefined;',
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: 'code-auth',
+            },
+          },
+        ],
+      },
       ...(binaryAsset
         ? [{ path: 'public/fixture.bin', contents: binaryAsset }]
         : []),
@@ -51,7 +63,7 @@ export const createRemoteFixtureSnapshot = (
     capabilityRequirements: {
       preview: previewCapabilities,
       build: ['filesystem', 'build'],
-      test: ['filesystem', 'test'],
+      test: ['filesystem', 'server-function', 'test'],
     },
     publicBuildConfiguration: [],
     resourceHints: { timeoutMs: 30_000 },

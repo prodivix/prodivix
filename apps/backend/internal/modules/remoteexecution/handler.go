@@ -235,7 +235,7 @@ func NewHandler(store ExecutionGatewayStore, cfg backendconfig.RemoteRunnerConfi
 }
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
-	return RouteHandlers{RequireAuth: requireAuth, Envelope: handler.HandleEnvelope, ArtifactContent: handler.HandleArtifactContent, PreviewSession: handler.HandlePreviewSession, DataOperation: handler.HandleDataOperation, DataStream: handler.HandleDataStream, ServerFunction: handler.HandleServerFunction, TerminalOpen: handler.HandleTerminalOpen, TerminalResume: handler.HandleTerminalResume, TerminalAction: handler.HandleTerminalAction, InternalSecrets: handler.HandleInternalSecrets}
+	return RouteHandlers{RequireAuth: requireAuth, Envelope: handler.HandleEnvelope, ArtifactContent: handler.HandleArtifactContent, PreviewSession: handler.HandlePreviewSession, DataOperation: handler.HandleDataOperation, DataStream: handler.HandleDataStream, ServerFunction: handler.HandleServerFunction, TerminalOpen: handler.HandleTerminalOpen, TerminalResume: handler.HandleTerminalResume, TerminalAction: handler.HandleTerminalAction, InternalSecrets: handler.HandleInternalSecrets, ListWorkspaceRoles: handler.HandleListWorkspaceExecutionRoles, PutWorkspaceRole: handler.HandlePutWorkspaceExecutionRole, DeleteWorkspaceRole: handler.HandleDeleteWorkspaceExecutionRole}
 }
 
 func (handler *Handler) HandleInternalSecrets(c *gin.Context) {
@@ -659,12 +659,18 @@ func (handler *Handler) HandleDataStream(c *gin.Context) {
 		return
 	}
 	var fields map[string]json.RawMessage
-	if json.Unmarshal(body, &fields) != nil || len(fields) != 4 {
+	if json.Unmarshal(body, &fields) != nil || (len(fields) != 4 && len(fields) != 5) {
 		backendresponse.Error(c, http.StatusBadRequest, "DAT-1001", "Remote Data stream invocation is invalid.")
 		return
 	}
 	for _, field := range []string{"invocationId", "sequence", "attempt", "input"} {
 		if _, exists := fields[field]; !exists {
+			backendresponse.Error(c, http.StatusBadRequest, "DAT-1001", "Remote Data stream invocation is invalid.")
+			return
+		}
+	}
+	for field := range fields {
+		if field != "invocationId" && field != "sequence" && field != "attempt" && field != "input" && field != "resume" {
 			backendresponse.Error(c, http.StatusBadRequest, "DAT-1001", "Remote Data stream invocation is invalid.")
 			return
 		}
@@ -685,9 +691,13 @@ func (handler *Handler) HandleDataStream(c *gin.Context) {
 	c.Header("Content-Type", "application/x-ndjson")
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Status(http.StatusOK)
-	if err := writeDataGatewayStreamRecord(c.Writer, map[string]any{
+	openRecord := map[string]any{
 		"type": "prodivix.execution-data-stream.v1", "phase": "open", "network": stream.Network,
-	}); err != nil {
+	}
+	if stream.resume != nil {
+		openRecord["reconnect"] = stream.resume.Reconnect
+	}
+	if err := writeDataGatewayStreamRecord(c.Writer, openRecord); err != nil {
 		return
 	}
 	c.Writer.Flush()
@@ -708,9 +718,13 @@ func (handler *Handler) HandleDataStream(c *gin.Context) {
 			c.Writer.Flush()
 			return
 		}
-		if writeDataGatewayStreamRecord(c.Writer, map[string]any{
+		eventRecord := map[string]any{
 			"type": "prodivix.execution-data-stream.v1", "phase": "event", "cursor": event.Cursor, "value": event.Value,
-		}) != nil {
+		}
+		if event.Resume != nil {
+			eventRecord["resume"] = event.Resume
+		}
+		if writeDataGatewayStreamRecord(c.Writer, eventRecord) != nil {
 			return
 		}
 		c.Writer.Flush()

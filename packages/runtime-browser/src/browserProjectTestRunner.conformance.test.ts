@@ -7,12 +7,40 @@ import {
   type ExecutionJobEvent,
 } from '@prodivix/runtime-core';
 import {
+  createServerFunctionInvocationTrace,
+  encodeServerRuntimeTestInvocationTraces,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
+  toExecutionServerFunctionBridgeSuccess,
+} from '@prodivix/server-runtime';
+import {
   BROWSER_PROJECT_TEST_EXECUTION_PROVIDER_ID,
   createBrowserProjectTestRunner,
 } from './browserProjectTestRunner';
 import { createBrowserProjectRuntimeHarness } from './__tests__/browserProjectRuntimeHarness';
 
 const REPORT_PATH = '.prodivix/test-report.json';
+
+const serverFunctionTraceFile = (): string => {
+  const request = {
+    requestId: 'browser-test-load-principal:1',
+    invocationId: 'browser-test-load-principal',
+    attempt: 1,
+    functionRef: { artifactId: 'code-auth', exportName: 'loadPrincipal' },
+  } as const;
+  return new TextDecoder().decode(
+    encodeServerRuntimeTestInvocationTraces([
+      createServerFunctionInvocationTrace({
+        request,
+        response: toExecutionServerFunctionBridgeSuccess(request.requestId, {
+          kind: 'value',
+          value: { credential: 'not-projected' },
+        }),
+        startedAt: 190,
+        completedAt: 195,
+      }),
+    ])
+  );
+};
 
 const vitestReport = (failed = false): string =>
   JSON.stringify({
@@ -68,13 +96,35 @@ const snapshot = (snapshotId: string) =>
           },
         ],
       },
+      {
+        path: 'src/auth.server.ts',
+        contents: 'export const loadPrincipal = () => undefined;',
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: 'code-auth',
+            },
+          },
+        ],
+      },
     ],
     dependencyPlan: { manifestFilePath: 'package.json' },
     entrypoints: [{ kind: 'test', path: 'src/App.test.tsx' }],
     capabilityRequirements: {
       preview: ['filesystem'],
       build: ['filesystem', 'build'],
-      test: ['filesystem', 'test'],
+      test: ['filesystem', 'server-function', 'test'],
+    },
+    serverRuntimeMockProvision: {
+      format: 'prodivix.server-runtime-test-provision.v1',
+      fixtureSetId: 'browser-auth-test',
+      principal: {
+        providerId: 'prodivix-test-fixture',
+        principalId: 'test-user',
+      },
+      permissions: [],
+      fixtures: [],
     },
   });
 
@@ -92,6 +142,7 @@ const request = (snapshotId: string, timeoutMs?: number) =>
       'artifacts',
       'diagnostics',
       'filesystem',
+      'server-function',
       'source-trace',
       'test',
     ],
@@ -126,7 +177,11 @@ describe('browser project test runner conformance', () => {
     harness.queueCommand({
       exitCode: 0,
       output: '✓ src/App.test.tsx (1 test)\n',
-      writeFiles: { [REPORT_PATH]: vitestReport() },
+      writeFiles: {
+        [REPORT_PATH]: vitestReport(),
+        [SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH]:
+          serverFunctionTraceFile(),
+      },
     });
     harness.queueCommand({
       exitCode: 0,
@@ -158,9 +213,16 @@ describe('browser project test runner conformance', () => {
       },
     });
     const second = await runner.provider.start(request('two'));
+    const secondEvents = collectEvents(second);
     await expect(second.completion).resolves.toMatchObject({
       status: 'succeeded',
     });
+    expect(
+      secondEvents.some(
+        (event) =>
+          event.kind === 'trace' && event.trace.name === 'server.function'
+      )
+    ).toBe(false);
 
     expect(
       harness.commands.filter((command) => command.args?.includes('install'))
@@ -182,6 +244,27 @@ describe('browser project test runner conformance', () => {
           }),
         }),
         expect.objectContaining({
+          kind: 'trace',
+          trace: expect.objectContaining({
+            traceId: 'server-function-test:job-request-one',
+            spanId: 'browser-test-load-principal:1:0',
+            name: 'server.function',
+            detail: expect.objectContaining({
+              requestId: 'browser-test-load-principal:1',
+              resultKind: 'value',
+              redacted: true,
+            }),
+            sourceTrace: [
+              {
+                sourceRef: {
+                  kind: 'code-artifact',
+                  artifactId: 'code-auth',
+                },
+              },
+            ],
+          }),
+        }),
+        expect.objectContaining({
           kind: 'artifact',
           artifact: expect.objectContaining({
             artifactId: 'test-report:job-request-one',
@@ -191,6 +274,15 @@ describe('browser project test runner conformance', () => {
         }),
       ])
     );
+    const reportArtifact = firstEvents.find(
+      (event) => event.kind === 'artifact' && event.artifact.kind === 'report'
+    );
+    expect(
+      reportArtifact?.kind === 'artifact'
+        ? reportArtifact.artifact.uri
+        : 'missing'
+    ).toBeUndefined();
+    expect(JSON.stringify(firstEvents)).not.toContain('not-projected');
     await runner.dispose();
   });
 
@@ -278,6 +370,7 @@ describe('browser project test runner conformance', () => {
     const cancelledJob = await cancelledRunner.provider.start(
       request('cancelled')
     );
+    const cancelledEvents = collectEvents(cancelledJob);
     await waitForStatus(cancelledJob, 'running');
     await cancelledJob.cancel({ reason: 'User stopped tests.' });
     await expect(cancelledJob.completion).resolves.toMatchObject({
@@ -285,6 +378,13 @@ describe('browser project test runner conformance', () => {
       reason: 'User stopped tests.',
     });
     expect(cancelledHarness.processes.at(-1)?.killed()).toBe(true);
+    expect(
+      cancelledEvents.some(
+        (event) =>
+          (event.kind === 'trace' && event.trace.name === 'test.report') ||
+          (event.kind === 'artifact' && event.artifact.kind === 'report')
+      )
+    ).toBe(false);
     await cancelledRunner.dispose();
 
     const timeoutHarness = createBrowserProjectRuntimeHarness();
@@ -296,11 +396,19 @@ describe('browser project test runner conformance', () => {
     const timedOutJob = await timeoutRunner.provider.start(
       request('timeout', 5)
     );
+    const timedOutEvents = collectEvents(timedOutJob);
     await expect(timedOutJob.completion).resolves.toMatchObject({
       status: 'timed-out',
       timeoutMs: 5,
     });
     expect(timeoutHarness.processes.at(-1)?.killed()).toBe(true);
+    expect(
+      timedOutEvents.some(
+        (event) =>
+          (event.kind === 'trace' && event.trace.name === 'test.report') ||
+          (event.kind === 'artifact' && event.artifact.kind === 'report')
+      )
+    ).toBe(false);
     await timeoutRunner.dispose();
   });
 });

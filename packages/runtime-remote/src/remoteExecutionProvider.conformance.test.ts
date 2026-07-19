@@ -7,6 +7,7 @@ import {
   type ExecutionJobEvent,
   type ExecutionJobStateEvent,
   type ExecutionArtifact,
+  type ExecutionValue,
 } from '@prodivix/runtime-core';
 import {
   createServerFunctionInvocationTrace,
@@ -70,7 +71,12 @@ const testRequest = (requestId: string) =>
       kind: 'test',
       targetRef: { kind: 'workspace', workspaceId: 'workspace-1' },
     },
-    requiredCapabilities: ['artifacts', 'filesystem', 'test'],
+    requiredCapabilities: [
+      'artifacts',
+      'filesystem',
+      'server-function',
+      'test',
+    ],
   });
 
 const previewRequest = (requestId: string) =>
@@ -882,8 +888,8 @@ describe('remote ExecutionProvider conformance', () => {
     });
   });
 
-  it('accepts Remote Test success only with a passing canonical report', async () => {
-    const buildRecord = record('test-success', 'running', 5);
+  it('accepts a trusted Remote Test Server Function trace and rejects widened or drifted traces', async () => {
+    const buildRecord = record('test-success', 'running', 6);
     const initial: RemoteExecutionRecord = {
       ...buildRecord,
       provider: remoteTestExecutionProviderDescriptor,
@@ -915,6 +921,24 @@ describe('remote ExecutionProvider conformance', () => {
           ],
         },
       ],
+    });
+    const invocationRequest = {
+      requestId: 'test-load-principal:1',
+      invocationId: 'test-load-principal',
+      attempt: 1,
+      functionRef: {
+        artifactId: 'code-auth',
+        exportName: 'loadPrincipal',
+      },
+    } as const;
+    const invocationTrace = createServerFunctionInvocationTrace({
+      request: invocationRequest,
+      response: toExecutionServerFunctionBridgeSuccess(
+        invocationRequest.requestId,
+        { kind: 'value', value: { credential: 'not-projected' } }
+      ),
+      startedAt: 1_003,
+      completedAt: 1_004,
     });
     const events: ExecutionJobEvent[] = [
       stateEvent(initial, 1, 'queued'),
@@ -950,7 +974,28 @@ describe('remote ExecutionProvider conformance', () => {
           sourceTrace,
         },
       },
-      stateEvent(initial, 5, 'succeeded', 'running'),
+      {
+        kind: 'trace',
+        jobId: initial.executionId,
+        sequence: 5,
+        emittedAt: 1_005,
+        trace: {
+          traceId: `server-function-test:${initial.executionId}`,
+          spanId: `${invocationTrace.requestId}:0`,
+          name: 'server.function',
+          phase: 'event',
+          detail: toServerFunctionInvocationTraceValue(invocationTrace),
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'code-artifact',
+                artifactId: 'code-auth',
+              },
+            },
+          ],
+        },
+      },
+      stateEvent(initial, 6, 'succeeded', 'running'),
     ];
     const provider = createRemoteTestExecutionProvider({
       client: clientFor({ initial, events }),
@@ -962,6 +1007,8 @@ describe('remote ExecutionProvider conformance', () => {
     });
 
     const job = await provider.start(testRequest('test-success'));
+    const observed: ExecutionJobEvent[] = [];
+    job.subscribe((event) => observed.push(event));
     await expect(job.completion).resolves.toMatchObject({
       status: 'succeeded',
       artifacts: [
@@ -971,6 +1018,83 @@ describe('remote ExecutionProvider conformance', () => {
         },
       ],
     });
+    expect(observed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'trace',
+          trace: expect.objectContaining({
+            name: 'server.function',
+            detail: expect.objectContaining({
+              requestId: 'test-load-principal:1',
+              redacted: true,
+            }),
+          }),
+        }),
+      ])
+    );
+    expect(JSON.stringify(observed)).not.toContain('not-projected');
+
+    const serverFunctionEvent = events.find(
+      (event) =>
+        event.kind === 'trace' && event.trace.name === 'server.function'
+    );
+    if (!serverFunctionEvent || serverFunctionEvent.kind !== 'trace')
+      throw new Error('Expected the Server Function fixture event.');
+    const detail = serverFunctionEvent.trace.detail as Readonly<
+      Record<string, ExecutionValue>
+    >;
+    const invalidServerFunctionEvents: readonly ExecutionJobEvent[] = [
+      {
+        ...serverFunctionEvent,
+        trace: {
+          ...serverFunctionEvent.trace,
+          detail: { ...detail, credential: 'must-be-rejected' },
+        },
+      },
+      {
+        ...serverFunctionEvent,
+        trace: {
+          ...serverFunctionEvent.trace,
+          detail: {
+            ...detail,
+            functionRef: {
+              artifactId: 'code-drift',
+              exportName: 'loadPrincipal',
+            },
+          },
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'code-artifact',
+                artifactId: 'code-drift',
+              },
+            },
+          ],
+        },
+      },
+    ];
+    for (const invalidServerFunctionEvent of invalidServerFunctionEvents) {
+      const invalidProvider = createRemoteTestExecutionProvider({
+        client: clientFor({
+          initial,
+          events: events.map((event) =>
+            event === serverFunctionEvent ? invalidServerFunctionEvent : event
+          ),
+        }),
+        resolveSnapshot: () => ({
+          kind: 'upload',
+          snapshot: createRemoteFixtureSnapshot(),
+        }),
+        delay: async () => undefined,
+      });
+      const invalidJob = await invalidProvider.start(
+        testRequest('test-success')
+      );
+      await expect(invalidJob.completion).resolves.toMatchObject({
+        status: 'failed',
+        failure: { code: 'REMOTE_EXECUTION_SYNC_FAILED' },
+      });
+    }
   });
 
   it('fails closed when Remote Test succeeds without a report', async () => {

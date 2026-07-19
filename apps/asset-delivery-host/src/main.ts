@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
 import {
   createBinaryAssetJpegSanitizeTransformer,
   createBinaryAssetPngSanitizeTransformer,
@@ -10,6 +11,12 @@ import {
   initializeClamAvScannerFleetRuntime,
   readClamAvScannerEngineConfiguration,
 } from './clamAvScannerFleet';
+import {
+  configureSharpRasterRuntime,
+  createSharpRasterReencodeTransformers,
+} from './sharpRasterTransformer';
+import { createRequiredAssetDeliveryScannerRuntime } from './requiredScannerRuntime';
+import { initializeYaraXScannerRuntime } from './yaraXScannerRuntime';
 
 const positiveInteger = (name: string, fallback: number): number => {
   const value = Number(process.env[name] ?? fallback);
@@ -41,7 +48,7 @@ const clamAvMaximumResponseBytes = positiveInteger(
   'ASSET_DELIVERY_CLAMAV_MAXIMUM_RESPONSE_BYTES',
   4 * 1024
 );
-const scannerRuntime = await initializeClamAvScannerFleetRuntime({
+const clamAvScannerRuntime = await initializeClamAvScannerFleetRuntime({
   engines: readClamAvScannerEngineConfiguration(
     process.env.ASSET_DELIVERY_CLAMAV_ENGINES_JSON,
     { host: clamAvHost, port: clamAvPort }
@@ -62,10 +69,72 @@ const scannerRuntime = await initializeClamAvScannerFleetRuntime({
   basePolicyVersion: scannerPolicyVersion,
   chunkBytes: positiveInteger('ASSET_DELIVERY_CLAMAV_CHUNK_BYTES', 64 * 1024),
 });
+const yaraXBinaryPath = process.env.ASSET_DELIVERY_YARAX_BINARY_PATH?.trim();
+if (!yaraXBinaryPath) {
+  throw new TypeError('ASSET_DELIVERY_YARAX_BINARY_PATH is required.');
+}
+const yaraXRulesDigest = process.env.ASSET_DELIVERY_YARAX_RULES_DIGEST?.trim();
+const yaraXScannerRuntime = await initializeYaraXScannerRuntime({
+  binaryPath: yaraXBinaryPath,
+  rulesPath:
+    process.env.ASSET_DELIVERY_YARAX_RULES_PATH?.trim() ||
+    fileURLToPath(new URL('../rules/prodivix-baseline.yar', import.meta.url)),
+  expectedVersion:
+    process.env.ASSET_DELIVERY_YARAX_EXPECTED_VERSION?.trim() || '1.15.0',
+  ...(yaraXRulesDigest ? { expectedRulesDigest: yaraXRulesDigest } : {}),
+  basePolicyVersion: scannerPolicyVersion,
+  timeoutSeconds: positiveInteger('ASSET_DELIVERY_YARAX_TIMEOUT_SECONDS', 15),
+  wallTimeoutMs: positiveInteger(
+    'ASSET_DELIVERY_YARAX_WALL_TIMEOUT_MS',
+    20_000
+  ),
+  maximumOutputBytes: positiveInteger(
+    'ASSET_DELIVERY_YARAX_MAXIMUM_OUTPUT_BYTES',
+    64 * 1024
+  ),
+  maximumRulesBytes: positiveInteger(
+    'ASSET_DELIVERY_YARAX_MAXIMUM_RULES_BYTES',
+    4 * 1024 * 1024
+  ),
+  maximumRulesAgeMs:
+    positiveInteger('ASSET_DELIVERY_YARAX_MAXIMUM_RULES_AGE_HOURS', 30 * 24) *
+    60 *
+    60 *
+    1_000,
+  maximumFutureSkewMs:
+    positiveInteger('ASSET_DELIVERY_YARAX_MAXIMUM_FUTURE_SKEW_SECONDS', 300) *
+    1_000,
+  maximumConcurrentScans: positiveInteger(
+    'ASSET_DELIVERY_YARAX_MAXIMUM_CONCURRENT',
+    4
+  ),
+  readinessCacheMs:
+    positiveInteger('ASSET_DELIVERY_YARAX_READINESS_CACHE_SECONDS', 30) * 1_000,
+});
+const scannerRuntime = createRequiredAssetDeliveryScannerRuntime({
+  primary: clamAvScannerRuntime,
+  required: [yaraXScannerRuntime],
+});
+await scannerRuntime.acquire();
 const maximumTotalBytes = positiveInteger(
   'ASSET_DELIVERY_MAXIMUM_TOTAL_BYTES',
   256 * 1024 * 1024
 );
+configureSharpRasterRuntime({
+  concurrency: positiveInteger('ASSET_DELIVERY_RASTER_THREADS', 2),
+  cacheMemoryMegabytes: positiveInteger(
+    'ASSET_DELIVERY_RASTER_CACHE_MEMORY_MIB',
+    64
+  ),
+  cacheItems: positiveInteger('ASSET_DELIVERY_RASTER_CACHE_ITEMS', 64),
+});
+const rasterTransformers = createSharpRasterReencodeTransformers({
+  maximumConcurrentTransforms: positiveInteger(
+    'ASSET_DELIVERY_RASTER_MAXIMUM_CONCURRENT',
+    2
+  ),
+  timeoutSeconds: positiveInteger('ASSET_DELIVERY_RASTER_TIMEOUT_SECONDS', 15),
+});
 const store = createAssetDeliverySessionStore({
   maximumSessions: positiveInteger('ASSET_DELIVERY_MAXIMUM_SESSIONS', 256),
   maximumTotalBytes,
@@ -90,6 +159,7 @@ const handler = createAssetDeliveryHttpHandler({
   transformers: [
     createBinaryAssetPngSanitizeTransformer(),
     createBinaryAssetJpegSanitizeTransformer(),
+    ...rasterTransformers,
   ],
   scannerRuntime,
   derivedCache,

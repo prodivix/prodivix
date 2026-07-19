@@ -95,6 +95,44 @@ describe('NodeGraph properties', () => {
     );
   });
 
+  it('fails closed for unknown executors and dangling control-flow targets', async () => {
+    const execute = createNodeGraphExecutor();
+    await expect(
+      execute(
+        {
+          version: 1,
+          nodes: [{ id: 'unknown', data: { kind: 'not-registered' } }],
+          edges: [],
+        },
+        request
+      )
+    ).resolves.toMatchObject({
+      status: 'unsupported-node',
+      steps: 1,
+    });
+    await expect(
+      execute(
+        {
+          version: 1,
+          nodes: [{ id: 'start', data: { kind: 'start' } }],
+          edges: [
+            {
+              id: 'dangling',
+              source: 'start',
+              target: 'missing',
+              sourceHandle: 'out.control.next',
+              targetHandle: 'in.control.prev',
+            },
+          ],
+        },
+        request
+      )
+    ).resolves.toMatchObject({
+      status: 'missing-target',
+      steps: 1,
+    });
+  });
+
   it('strictly round-trips canonical documents and rejects legacy identity fields', () => {
     fc.assert(
       fc.property(

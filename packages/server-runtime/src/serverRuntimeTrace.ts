@@ -12,6 +12,39 @@ import {
 export const SERVER_FUNCTION_INVOCATION_TRACE_NAME = 'server.function' as const;
 export const SERVER_FUNCTION_INVOCATION_TRACE_FORMAT =
   'prodivix.server-function-invocation-trace.v1' as const;
+export const SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH =
+  '.prodivix/server-function-invocation-traces.jsonl' as const;
+export const SERVER_RUNTIME_TEST_INVOCATION_TRACE_MEDIA_TYPE =
+  'application/vnd.prodivix.server-function-invocation-traces+jsonl' as const;
+export const SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS = Object.freeze({
+  maximumBytes: 4 * 1024 * 1024,
+  maximumTraces: 10_000,
+  maximumLineBytes: 16 * 1024,
+});
+
+type Utf8Encoder = Readonly<{ encode(value?: string): Uint8Array }>;
+type Utf8Decoder = Readonly<{ decode(value?: Uint8Array): string }>;
+
+const encodeUtf8 = (value: string): Uint8Array => {
+  const Encoder = (
+    globalThis as unknown as {
+      TextEncoder: new () => Utf8Encoder;
+    }
+  ).TextEncoder;
+  return new Encoder().encode(value);
+};
+
+const decodeUtf8 = (value: Uint8Array): string => {
+  const Decoder = (
+    globalThis as unknown as {
+      TextDecoder: new (
+        label?: string,
+        options?: Readonly<{ fatal?: boolean }>
+      ) => Utf8Decoder;
+    }
+  ).TextDecoder;
+  return new Decoder('utf-8', { fatal: true }).decode(value);
+};
 
 export type ServerFunctionInvocationTraceOutcome =
   'succeeded' | 'failed' | 'cancelled';
@@ -279,4 +312,92 @@ export const readServerFunctionInvocationTraceValue = (
   } catch {
     return undefined;
   }
+};
+
+/** Encodes the deterministic Test producer file without input/output material. */
+export const encodeServerRuntimeTestInvocationTraces = (
+  traces: readonly ServerFunctionInvocationTrace[]
+): Uint8Array => {
+  if (traces.length > SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumTraces)
+    throw new TypeError(
+      'Server Runtime Test invocation trace count is invalid.'
+    );
+  const lines = traces.map((trace) =>
+    JSON.stringify(toServerFunctionInvocationTraceValue(trace))
+  );
+  if (
+    lines.some(
+      (line) =>
+        encodeUtf8(line).byteLength >
+        SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumLineBytes
+    )
+  )
+    throw new TypeError(
+      'Server Runtime Test invocation trace line is invalid.'
+    );
+  const encoded = encodeUtf8(lines.length ? `${lines.join('\n')}\n` : '');
+  if (
+    encoded.byteLength >
+    SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumBytes
+  )
+    throw new TypeError(
+      'Server Runtime Test invocation trace file is invalid.'
+    );
+  return encoded;
+};
+
+/** Strictly decodes the bounded JSONL emitted by deterministic Browser/Remote Test. */
+export const decodeServerRuntimeTestInvocationTraces = (
+  value: Uint8Array | string
+): readonly ServerFunctionInvocationTrace[] => {
+  const bytes = typeof value === 'string' ? encodeUtf8(value) : value;
+  if (
+    bytes.byteLength > SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumBytes
+  )
+    throw new TypeError(
+      'Server Runtime Test invocation trace file is invalid.'
+    );
+  let text: string;
+  try {
+    text = typeof value === 'string' ? value : decodeUtf8(value);
+  } catch {
+    throw new TypeError(
+      'Server Runtime Test invocation trace file is invalid.'
+    );
+  }
+  if (!text) return Object.freeze([]);
+  if (!text.endsWith('\n'))
+    throw new TypeError(
+      'Server Runtime Test invocation trace file is incomplete.'
+    );
+  const lines = text.slice(0, -1).split('\n');
+  if (
+    lines.length > SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumTraces ||
+    lines.some(
+      (line) =>
+        !line ||
+        encodeUtf8(line).byteLength >
+          SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumLineBytes
+    )
+  )
+    throw new TypeError(
+      'Server Runtime Test invocation trace file is invalid.'
+    );
+  const traces = lines.map((line) => {
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(line) as unknown;
+    } catch {
+      throw new TypeError(
+        'Server Runtime Test invocation trace file is invalid.'
+      );
+    }
+    const trace = readServerFunctionInvocationTraceValue(decoded);
+    if (!trace)
+      throw new TypeError(
+        'Server Runtime Test invocation trace file is invalid.'
+      );
+    return trace;
+  });
+  return Object.freeze(traces);
 };

@@ -237,13 +237,15 @@ func TestWorkspaceAssetDeliveryGatewayForwardsAuthorizedExactImageBytes(t *testi
 	}{
 		{name: "PNG", contents: []byte{137, 80, 78, 71, 1, 2, 3}, mediaType: "image/png", transform: "png-sanitize", width: 1, height: 1},
 		{name: "baseline JPEG", contents: []byte{255, 216, 255, 224, 1, 2, 255, 217}, mediaType: "image/jpeg", transform: "jpeg-sanitize", width: 2, height: 3},
+		{name: "PNG full raster", contents: []byte{137, 80, 78, 71, 4, 5, 6}, mediaType: "image/png", transform: "png-raster-reencode", width: 1, height: 1},
+		{name: "JPEG full raster", contents: []byte{255, 216, 255, 224, 4, 5, 255, 217}, mediaType: "image/jpeg", transform: "jpeg-raster-reencode", width: 3, height: 2},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			digest := computeWorkspaceAssetDigest(test.contents)
 			capability := strings.Repeat("b", 64)
 			host := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-				if request.URL.Path != "/internal/image-transform-delivery-sessions" || request.Header.Get("Authorization") != "Bearer delivery-token" || request.Header.Get("Content-Type") != test.mediaType || request.Header.Get("X-Prodivix-Asset-Digest") != digest || request.Header.Get("X-Prodivix-Delivery-Disposition") != "inline" {
+				if request.URL.Path != "/internal/image-transform-delivery-sessions" || request.Header.Get("Authorization") != "Bearer delivery-token" || request.Header.Get("Content-Type") != test.mediaType || request.Header.Get("X-Prodivix-Asset-Digest") != digest || request.Header.Get("X-Prodivix-Delivery-Disposition") != "inline" || request.Header.Get("X-Prodivix-Image-Transform") != test.transform {
 					t.Fatalf("unexpected delivery request: %s %#v", request.URL.Path, request.Header)
 				}
 				body, err := io.ReadAll(request.Body)

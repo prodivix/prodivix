@@ -138,6 +138,7 @@ export {
 } from './executionEnvironmentResolution';
 export {
   createExecutionTestReport,
+  EXECUTION_TEST_REPORT_LIMITS,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_TRACE_NAME,
   EXECUTION_TEST_STATUSES,

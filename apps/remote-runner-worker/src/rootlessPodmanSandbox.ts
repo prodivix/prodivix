@@ -24,12 +24,15 @@ import {
 } from '@prodivix/runtime-core';
 import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
 import {
+  decodeServerRuntimeTestInvocationTraces,
   ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
   ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_PATH,
   ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
   readIsolatedServerFunctionExecutionContext,
   readIsolatedServerFunctionPlan,
   readIsolatedServerFunctionSecretMaterial,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_MEDIA_TYPE,
   type IsolatedServerFunctionAuthority,
   type IsolatedServerFunctionSecretMaterial,
 } from '@prodivix/server-runtime';
@@ -311,6 +314,7 @@ export const createRootlessPodmanSandboxWirePayload = (
     })),
     ignoredPaths: [
       snapshot.testPlan.reportFilePath,
+      SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
       ...(snapshot.serverFunctionPlan
         ? [
             snapshot.serverFunctionPlan.invocationFilePath,
@@ -672,6 +676,7 @@ const filesystemCapturePolicy = (snapshot: ExecutableProjectSnapshot) => {
   const canonicalPaths = new Set(snapshot.files.map((file) => file.path));
   const ignoredPaths = new Set([
     snapshot.testPlan.reportFilePath,
+    SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
     ...projectExecutableProjectRuntimeFiles(snapshot).flatMap((file) =>
       canonicalPaths.has(file.path) ? [] : [file.path]
     ),
@@ -886,6 +891,25 @@ const collectTestReportSourceTrace = (
   );
 };
 
+const serverFunctionTestSourceTrace = (
+  snapshot: ExecutableProjectSnapshot,
+  artifactId: string
+): readonly ExecutionSourceTrace[] => {
+  const matching = snapshot.files
+    .flatMap((file) => file.sourceTrace ?? [])
+    .filter(
+      (trace) =>
+        trace.sourceRef.kind === 'code-artifact' &&
+        trace.sourceRef.artifactId === artifactId &&
+        (!trace.sourceSpan || trace.sourceSpan.artifactId === artifactId)
+    );
+  if (matching.length !== 1)
+    throw new TypeError(
+      'Server Runtime Test trace source does not match one CodeArtifact root.'
+    );
+  return Object.freeze(matching);
+};
+
 export const decodeRootlessPodmanSandboxResult = (
   value: string,
   snapshot: ExecutableProjectSnapshot,
@@ -921,7 +945,6 @@ export const decodeRootlessPodmanSandboxResult = (
   const stderr = decodeBase64(record.stderr, 'Sandbox stderr');
   if (stdout.byteLength + stderr.byteLength > maximumOutputBytes)
     throw new TypeError('Sandbox output exceeds the configured limit.');
-  let artifactBytes = 0;
   const filesystemDiffArtifacts = record.artifacts.filter(
     (artifact) =>
       !!artifact &&
@@ -929,11 +952,26 @@ export const decodeRootlessPodmanSandboxResult = (
       (artifact as { mediaType?: unknown }).mediaType ===
         EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE
   );
+  const serverRuntimeTestTraceArtifacts = record.artifacts.filter(
+    (artifact) =>
+      !!artifact &&
+      typeof artifact === 'object' &&
+      (artifact as { mediaType?: unknown }).mediaType ===
+        SERVER_RUNTIME_TEST_INVOCATION_TRACE_MEDIA_TYPE
+  );
   const primaryArtifacts = record.artifacts.filter(
-    (artifact) => !filesystemDiffArtifacts.includes(artifact)
+    (artifact) =>
+      !filesystemDiffArtifacts.includes(artifact) &&
+      !serverRuntimeTestTraceArtifacts.includes(artifact)
   );
   if (
     filesystemDiffArtifacts.length > 1 ||
+    serverRuntimeTestTraceArtifacts.length > 1 ||
+    (serverRuntimeTestTraceArtifacts.length > 0 && profile !== 'test') ||
+    (serverRuntimeTestTraceArtifacts.length > 0 &&
+      (!snapshot.serverRuntimeMockProvision ||
+        !snapshot.capabilityRequirements.test.includes('server-function') ||
+        !request?.requiredCapabilities.includes('server-function'))) ||
     (profile === 'build' &&
       (record.exitCode === 0
         ? primaryArtifacts.length !== 1
@@ -954,8 +992,58 @@ export const decodeRootlessPodmanSandboxResult = (
     throw new TypeError(
       'Sandbox artifacts do not match the requested execution profile.'
     );
-  const artifacts: RemoteWorkerSandboxArtifact[] = record.artifacts.map(
+  let artifactBytes = 0;
+  const serverFunctionTraces = serverRuntimeTestTraceArtifacts.flatMap(
     (value, index) => {
+      const artifact = exactRecord(
+        value,
+        ['artifactId', 'kind', 'label', 'mediaType', 'metadata', 'contents'],
+        `Sandbox Server Runtime Test trace artifact ${index}`
+      );
+      if (
+        artifact.artifactId !==
+          `server-function-invocation-traces:${snapshot.contentDigest}` ||
+        artifact.kind !== 'report' ||
+        artifact.label !== 'Server Function Test invocation traces' ||
+        artifact.mediaType !== SERVER_RUNTIME_TEST_INVOCATION_TRACE_MEDIA_TYPE
+      )
+        throw new TypeError(
+          'Sandbox Server Runtime Test trace artifact is invalid.'
+        );
+      const metadata = stringRecord(
+        artifact.metadata ?? {},
+        'Sandbox Server Runtime Test trace metadata'
+      );
+      if (
+        JSON.stringify(metadata) !==
+        JSON.stringify({ adapter: 'prodivix.server-runtime-test' })
+      )
+        throw new TypeError(
+          'Sandbox Server Runtime Test trace metadata is invalid.'
+        );
+      const contents = decodeBase64(
+        artifact.contents,
+        'Sandbox Server Runtime Test trace contents'
+      );
+      artifactBytes += contents.byteLength;
+      if (artifactBytes > maximumArtifactBytes)
+        throw new TypeError('Sandbox artifacts exceed the configured limit.');
+      return decodeServerRuntimeTestInvocationTraces(contents).map((trace) =>
+        Object.freeze({
+          trace,
+          sourceTrace: serverFunctionTestSourceTrace(
+            snapshot,
+            trace.functionRef.artifactId
+          ),
+        })
+      );
+    }
+  );
+  const publishableArtifactValues = record.artifacts.filter(
+    (artifact) => !serverRuntimeTestTraceArtifacts.includes(artifact)
+  );
+  const artifacts: RemoteWorkerSandboxArtifact[] =
+    publishableArtifactValues.map((value, index) => {
       const artifact = exactRecord(
         value,
         ['artifactId', 'kind', 'label', 'mediaType', 'metadata', 'contents'],
@@ -1141,8 +1229,7 @@ export const decodeRootlessPodmanSandboxResult = (
         metadata: publishedMetadata,
         contents: publishedContents,
       });
-    }
-  );
+    });
   const exitCode = record.exitCode as number;
   return Object.freeze({
     status: exitCode === 0 ? 'succeeded' : 'failed',
@@ -1151,6 +1238,9 @@ export const decodeRootlessPodmanSandboxResult = (
     stderr: Buffer.from(stderr).toString('utf8'),
     outputTruncated: record.outputTruncated,
     artifacts: Object.freeze(artifacts),
+    ...(serverFunctionTraces.length
+      ? { serverFunctionTraces: Object.freeze(serverFunctionTraces) }
+      : {}),
   });
 };
 

@@ -754,26 +754,31 @@ func TestServerFunctionGatewayAllowsExactWorkspaceOwnerGuard(t *testing.T) {
 	}
 }
 
-func TestServerFunctionGatewayKeepsReadOnlyExecutionOutOfOwnerAdapter(t *testing.T) {
-	principalGateway, principalStore := serverFunctionTestGateway(currentPrincipalCodeDocument())
-	principalStore.authority.Permissions = []string{workspaceReadPermissionID}
-	if result, err := principalGateway.Invoke(t.Context(), serverFunctionPrincipal(), "execution-1", serverFunctionInvocation("loadPrincipal")); err != nil || result.Result.Kind != "value" {
-		t.Fatalf("read-only authenticated projection was rejected: result=%+v err=%v", result, err)
-	}
+func TestServerFunctionGatewayKeepsCollaboratorExecutionsOutOfOwnerAdapter(t *testing.T) {
+	for _, permissions := range [][]string{
+		{workspaceReadPermissionID},
+		{workspaceReadPermissionID, workspaceWritePermissionID},
+	} {
+		principalGateway, principalStore := serverFunctionTestGateway(currentPrincipalCodeDocument())
+		principalStore.authority.Permissions = permissions
+		if result, err := principalGateway.Invoke(t.Context(), serverFunctionPrincipal(), "execution-1", serverFunctionInvocation("loadPrincipal")); err != nil || result.Result.Kind != "value" {
+			t.Fatalf("authenticated collaborator projection was rejected: permissions=%v result=%+v err=%v", permissions, result, err)
+		}
 
-	document := serverFunctionDocumentFixture(
-		"guardWorkspace",
-		"route-guard",
-		"core.auth.require-workspace-owner",
-		`{"kind":"permission","permissionId":"workspace.owner"}`,
-		`true`,
-		`true`,
-	)
-	ownerGateway, ownerStore := serverFunctionTestGateway(document)
-	ownerStore.authority.Permissions = []string{workspaceReadPermissionID}
-	result, err := ownerGateway.Invoke(t.Context(), serverFunctionPrincipal(), "execution-1", serverFunctionInvocation("guardWorkspace"))
-	if result != nil || !errors.Is(err, ErrServerFunctionDenied) {
-		t.Fatalf("read-only execution reached the owner adapter: result=%+v err=%v", result, err)
+		document := serverFunctionDocumentFixture(
+			"guardWorkspace",
+			"route-guard",
+			"core.auth.require-workspace-owner",
+			`{"kind":"permission","permissionId":"workspace.owner"}`,
+			`true`,
+			`true`,
+		)
+		ownerGateway, ownerStore := serverFunctionTestGateway(document)
+		ownerStore.authority.Permissions = permissions
+		result, err := ownerGateway.Invoke(t.Context(), serverFunctionPrincipal(), "execution-1", serverFunctionInvocation("guardWorkspace"))
+		if result != nil || !errors.Is(err, ErrServerFunctionDenied) {
+			t.Fatalf("collaborator execution reached the owner adapter: permissions=%v result=%+v err=%v", permissions, result, err)
+		}
 	}
 }
 

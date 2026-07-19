@@ -1,4 +1,5 @@
 import { writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
   BinaryAssetScannerUnavailableError,
@@ -9,6 +10,11 @@ import {
   initializeClamAvScannerFleetRuntime,
   type InitializedClamAvScannerFleetRuntime,
 } from '../src/clamAvScannerFleet';
+import { createRequiredAssetDeliveryScannerRuntime } from '../src/requiredScannerRuntime';
+import {
+  initializeYaraXScannerRuntime,
+  YARAX_MALWARE_FINDING_CODE,
+} from '../src/yaraXScannerRuntime';
 
 const positiveInteger = (name: string, fallback: number): number => {
   const value = Number(process.env[name] ?? fallback);
@@ -65,8 +71,39 @@ const initializeWithRetry =
   };
 
 const runtime = await initializeWithRetry();
-const snapshot = await runtime.acquire();
+const yaraXBinaryPath = process.env.PRODIVIX_YARAX_BINARY_PATH?.trim();
+if (!yaraXBinaryPath) {
+  throw new TypeError('PRODIVIX_YARAX_BINARY_PATH is required.');
+}
+const yaraXRulesDigest = process.env.PRODIVIX_YARAX_RULES_DIGEST?.trim();
+const yaraXRuntime = await initializeYaraXScannerRuntime({
+  binaryPath: yaraXBinaryPath,
+  rulesPath:
+    process.env.PRODIVIX_YARAX_RULES_PATH?.trim() ||
+    fileURLToPath(new URL('../rules/prodivix-baseline.yar', import.meta.url)),
+  expectedVersion:
+    process.env.PRODIVIX_YARAX_EXPECTED_VERSION?.trim() || '1.15.0',
+  ...(yaraXRulesDigest ? { expectedRulesDigest: yaraXRulesDigest } : {}),
+  basePolicyVersion: 'github-yarax-gate-v1',
+  timeoutSeconds: positiveInteger('PRODIVIX_YARAX_TIMEOUT_SECONDS', 15),
+  wallTimeoutMs: positiveInteger('PRODIVIX_YARAX_WALL_TIMEOUT_MS', 20_000),
+  maximumOutputBytes: 64 * 1024,
+  maximumRulesBytes: 4 * 1024 * 1024,
+  maximumRulesAgeMs:
+    positiveInteger('PRODIVIX_YARAX_MAXIMUM_RULES_AGE_HOURS', 24) *
+    60 *
+    60 *
+    1_000,
+  maximumConcurrentScans: 2,
+  readinessCacheMs: 0,
+});
+const requiredRuntime = createRequiredAssetDeliveryScannerRuntime({
+  primary: runtime,
+  required: [yaraXRuntime],
+});
+const snapshot = await requiredRuntime.acquire();
 const fleet = runtime.inspect();
+const yaraX = yaraXRuntime.inspect();
 const engine = fleet.engines[0];
 if (!engine) throw new Error('ClamAV Gate fleet inspection is missing.');
 const matchingScanners = snapshot.scanners.filter((scanner) =>
@@ -100,21 +137,36 @@ const antivirusCanary = [
   '$H+H*',
 ].join('');
 const quarantined = await scan(new TextEncoder().encode(antivirusCanary));
+const expectedFindingCodes = [
+  CLAMAV_MALWARE_FINDING_CODE,
+  YARAX_MALWARE_FINDING_CODE,
+].sort();
 if (
   quarantined.verdict !== 'quarantined' ||
-  quarantined.findingCodes.length !== 1 ||
-  quarantined.findingCodes[0] !== CLAMAV_MALWARE_FINDING_CODE
+  JSON.stringify(quarantined.findingCodes) !==
+    JSON.stringify(expectedFindingCodes)
 ) {
-  throw new Error('ClamAV Gate did not quarantine the antivirus canary.');
+  throw new Error('Required malware engines did not quarantine the canary.');
 }
 
 const evidence = Object.freeze({
-  gate: 'g2-binary-asset-clamav',
-  transport: 'clamd-instream',
-  engineVersion: engine.engineVersion,
-  databaseVersion: engine.databaseVersion,
-  databaseTimestamp: new Date(engine.databaseTimestampMs).toISOString(),
-  policyDigest: engine.policyDigest,
+  gate: 'g2-binary-asset-required-malware-engines',
+  engines: Object.freeze({
+    clamav: Object.freeze({
+      transport: 'clamd-instream',
+      engineVersion: engine.engineVersion,
+      databaseVersion: engine.databaseVersion,
+      databaseTimestamp: new Date(engine.databaseTimestampMs).toISOString(),
+      policyDigest: engine.policyDigest,
+    }),
+    yaraX: Object.freeze({
+      transport: 'isolated-cli-exact-file',
+      engineVersion: yaraX.engineVersion,
+      rulesDigest: yaraX.rulesDigest,
+      rulesTimestamp: new Date(yaraX.rulesTimestampMs).toISOString(),
+      scannerPolicyVersion: yaraX.policyVersion,
+    }),
+  }),
   scannerPolicyVersion: snapshot.policyVersion,
   cleanVerdict: clean.verdict,
   quarantineVerdict: quarantined.verdict,
@@ -122,7 +174,9 @@ const evidence = Object.freeze({
 });
 const serialized = `${JSON.stringify(evidence, null, 2)}\n`;
 await writeFile(
-  process.env.PRODIVIX_CLAMAV_GATE_EVIDENCE_PATH ?? 'clamav-malware-gate.json',
+  process.env.PRODIVIX_MALWARE_GATE_EVIDENCE_PATH ??
+    process.env.PRODIVIX_CLAMAV_GATE_EVIDENCE_PATH ??
+    'binary-asset-malware-gate.json',
   serialized,
   'utf8'
 );

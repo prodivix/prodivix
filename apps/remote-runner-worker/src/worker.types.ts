@@ -20,6 +20,7 @@ import type {
 import type {
   IsolatedServerFunctionAuthority,
   IsolatedServerFunctionSecretMaterial,
+  ServerFunctionInvocationTrace,
 } from '@prodivix/server-runtime';
 
 export type RemoteWorkerControlPlaneClient = Readonly<{
@@ -99,6 +100,12 @@ export type RemoteWorkerSandboxResult = Readonly<{
   reason?: string;
   artifacts?: readonly RemoteWorkerSandboxArtifact[];
   networkTraces?: readonly RemoteWorkerSandboxNetworkTrace[];
+  serverFunctionTraces?: readonly RemoteWorkerSandboxServerFunctionTrace[];
+}>;
+
+export type RemoteWorkerSandboxServerFunctionTrace = Readonly<{
+  trace: ServerFunctionInvocationTrace;
+  sourceTrace: readonly ExecutionSourceTrace[];
 }>;
 
 export type RemoteWorkerSandboxNetworkTrace = Readonly<{

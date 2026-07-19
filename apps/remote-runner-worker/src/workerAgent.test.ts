@@ -9,6 +9,10 @@ import {
   createExecutionTestReport,
   toExecutionTestReportValue,
 } from '@prodivix/runtime-core';
+import {
+  createServerFunctionInvocationTrace,
+  toExecutionServerFunctionBridgeSuccess,
+} from '@prodivix/server-runtime';
 import type { RemoteExecutionClaimResult } from '@prodivix/runtime-remote';
 import { createFilesystemProcessSandbox } from './filesystemProcessSandbox';
 import { createRemoteWorkerAgent } from './workerAgent';
@@ -25,13 +29,37 @@ const snapshot = createExecutableProjectSnapshot({
     partitionRevisions: { workspace: '1' },
   },
   target: { presetId: 'node-test', framework: 'node', runtime: 'node' },
-  files: [{ path: 'package.json', contents: '{"private":true}' }],
+  files: [
+    { path: 'package.json', contents: '{"private":true}' },
+    {
+      path: 'src/auth.server.ts',
+      contents: 'export const loadPrincipal = () => undefined;',
+      sourceTrace: [
+        {
+          sourceRef: {
+            kind: 'code-artifact',
+            artifactId: 'code-auth',
+          },
+        },
+      ],
+    },
+  ],
   dependencyPlan: { manifestFilePath: 'package.json' },
   entrypoints: [{ kind: 'build', path: 'package.json' }],
   capabilityRequirements: {
     preview: ['filesystem'],
     build: ['filesystem', 'build'],
-    test: ['filesystem', 'test'],
+    test: ['filesystem', 'server-function', 'test'],
+  },
+  serverRuntimeMockProvision: {
+    format: 'prodivix.server-runtime-test-provision.v1',
+    fixtureSetId: 'worker-auth-test',
+    principal: {
+      providerId: 'prodivix-test-fixture',
+      principalId: 'test-user',
+    },
+    permissions: [],
+    fixtures: [],
   },
   publicBuildConfiguration: [],
   resourceHints: {},
@@ -656,7 +684,7 @@ describe('remote runner worker', () => {
       profiles: ['test'],
       runtimeZones: ['test'],
       invocationKinds: ['test'],
-      capabilities: ['artifacts', 'filesystem', 'test'],
+      capabilities: ['artifacts', 'filesystem', 'server-function', 'test'],
     });
     const testRequest = createExecutionRequest({
       requestId: 'request-test-report',
@@ -667,7 +695,12 @@ describe('remote runner worker', () => {
         kind: 'test',
         targetRef: { kind: 'workspace', workspaceId: 'workspace-1' },
       },
-      requiredCapabilities: ['artifacts', 'filesystem', 'test'],
+      requiredCapabilities: [
+        'artifacts',
+        'filesystem',
+        'server-function',
+        'test',
+      ],
     });
     const testClaim = (): RemoteExecutionClaimResult => {
       const base = claim();
@@ -703,6 +736,67 @@ describe('remote runner worker', () => {
         },
       ],
     });
+    const serverFunctionRequest = {
+      requestId: 'test-load-principal:1',
+      invocationId: 'test-load-principal',
+      attempt: 1,
+      functionRef: {
+        artifactId: 'code-auth',
+        exportName: 'loadPrincipal',
+      },
+    } as const;
+    const serverFunctionTrace = createServerFunctionInvocationTrace({
+      request: serverFunctionRequest,
+      response: toExecutionServerFunctionBridgeSuccess(
+        serverFunctionRequest.requestId,
+        { kind: 'value', value: { credential: 'not-projected' } }
+      ),
+      startedAt: 1_900,
+      completedAt: 1_910,
+    });
+    const successfulSandboxResult: RemoteWorkerSandboxResult = {
+      status: 'succeeded',
+      stdout: '',
+      stderr: '',
+      outputTruncated: false,
+      artifacts: [
+        {
+          artifactId: 'test-report:execution-1',
+          kind: 'report',
+          mediaType: 'application/vnd.prodivix.test-report+json',
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'workspace',
+                workspaceId: 'workspace-1',
+              },
+            },
+          ],
+          metadata: {
+            reportId: 'test-report:execution-1',
+            snapshotDigest: snapshot.contentDigest,
+            status: 'passed',
+          },
+          contents: Buffer.from(
+            JSON.stringify(toExecutionTestReportValue(report)),
+            'utf8'
+          ),
+        },
+      ],
+      serverFunctionTraces: [
+        {
+          trace: serverFunctionTrace,
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'code-artifact',
+                artifactId: 'code-auth',
+              },
+            },
+          ],
+        },
+      ],
+    };
     const events: Array<
       Parameters<RemoteWorkerControlPlaneClient['appendEvent']>[0]['event']
     > = [];
@@ -737,36 +831,7 @@ describe('remote runner worker', () => {
       client,
       sandbox: {
         async execute() {
-          return {
-            status: 'succeeded',
-            stdout: '',
-            stderr: '',
-            outputTruncated: false,
-            artifacts: [
-              {
-                artifactId: 'test-report:execution-1',
-                kind: 'report',
-                mediaType: 'application/vnd.prodivix.test-report+json',
-                sourceTrace: [
-                  {
-                    sourceRef: {
-                      kind: 'workspace',
-                      workspaceId: 'workspace-1',
-                    },
-                  },
-                ],
-                metadata: {
-                  reportId: 'test-report:execution-1',
-                  snapshotDigest: snapshot.contentDigest,
-                  status: 'passed',
-                },
-                contents: Buffer.from(
-                  JSON.stringify(toExecutionTestReportValue(report)),
-                  'utf8'
-                ),
-              },
-            ],
-          };
+          return successfulSandboxResult;
         },
       },
       leaseDurationMs: 100,
@@ -780,6 +845,7 @@ describe('remote runner worker', () => {
       'transition:running',
       'artifact',
       'event:trace',
+      'event:trace',
       'transition:succeeded',
     ]);
     expect(events[0]).toMatchObject({
@@ -789,6 +855,100 @@ describe('remote runner worker', () => {
         detail: { kind: 'test-report', status: 'passed' },
       },
     });
+    expect(events[1]).toMatchObject({
+      kind: 'trace',
+      trace: {
+        traceId: 'server-function-test:execution-1',
+        spanId: 'test-load-principal:1:0',
+        name: 'server.function',
+        detail: {
+          requestId: 'test-load-principal:1',
+          functionRef: serverFunctionRequest.functionRef,
+          outcome: 'succeeded',
+          resultKind: 'value',
+          redacted: true,
+        },
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: 'code-auth',
+            },
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify(events[1])).not.toContain('not-projected');
+
+    const runInvalidTrace = async (
+      result: RemoteWorkerSandboxResult
+    ): Promise<readonly { status: string; reason?: string }[]> => {
+      const transitions: Array<{ status: string; reason?: string }> = [];
+      const invalidAgent = createRemoteWorkerAgent({
+        workerId: 'worker-1',
+        providerId: testProvider.id,
+        client: {
+          ...client,
+          async transition(input) {
+            transitions.push({
+              status: input.status,
+              ...(input.reason ? { reason: input.reason } : {}),
+            });
+            return true;
+          },
+          async appendEvent() {
+            return 'stored';
+          },
+          async uploadArtifact() {
+            return 'stored';
+          },
+        },
+        sandbox: {
+          async execute() {
+            return result;
+          },
+        },
+        leaseDurationMs: 100,
+        heartbeatIntervalMs: 20,
+        defaultTimeoutMs: 1_000,
+        defaultMaximumOutputBytes: 1_000,
+      });
+      await invalidAgent.pollOnce();
+      return transitions;
+    };
+    await expect(
+      runInvalidTrace({ ...successfulSandboxResult, artifacts: [] })
+    ).resolves.toEqual([
+      { status: 'running' },
+      {
+        status: 'failed',
+        reason: 'invalid-server-function-test-trace',
+      },
+    ]);
+    await expect(
+      runInvalidTrace({
+        ...successfulSandboxResult,
+        serverFunctionTraces: [
+          {
+            trace: serverFunctionTrace,
+            sourceTrace: [
+              {
+                sourceRef: {
+                  kind: 'code-artifact',
+                  artifactId: 'code-untrusted',
+                },
+              },
+            ],
+          },
+        ],
+      })
+    ).resolves.toEqual([
+      { status: 'running' },
+      {
+        status: 'failed',
+        reason: 'invalid-server-function-test-trace',
+      },
+    ]);
   });
 
   it('fails deterministically when durable artifact budget is exhausted', async () => {

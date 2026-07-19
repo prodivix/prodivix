@@ -158,30 +158,134 @@ export const createWorkspaceVueAppModule = (
   });
 
   const routes = input.routeTopology.routes
-    .flatMap((route) => {
-      if (!route.pageDocId) return [];
-      const document = input.workspace.docsById[route.pageDocId];
-      if (!document || !isWorkspacePirDocument(document)) {
+    .map((route) => {
+      const pageDocument = route.pageDocId
+        ? input.workspace.docsById[route.pageDocId]
+        : undefined;
+      const layoutDocument = route.layoutDocId
+        ? input.workspace.docsById[route.layoutDocId]
+        : undefined;
+      if (
+        route.pageDocId &&
+        (!pageDocument || pageDocument.type !== 'pir-page')
+      ) {
         diagnostics.push({
           code: 'VUE-EXPORT-ROUTE-DOCUMENT',
           severity: 'error',
           source: 'export',
           message: `Route ${route.routeNodeId} references an unavailable PIR page document: ${route.pageDocId}.`,
-          path: `/routeManifest/routes/${route.routeNodeId}`,
+          path: `/routeManifest/routes/${route.routeNodeId}/pageDocId`,
         });
-        return [];
       }
-      return [
-        Object.freeze({
-          routeNodeId: route.routeNodeId,
-          path: route.path,
-          pageDocumentId: route.pageDocId,
-        }),
+      if (
+        route.layoutDocId &&
+        (!layoutDocument || layoutDocument.type !== 'pir-layout')
+      ) {
+        diagnostics.push({
+          code: 'VUE-EXPORT-LAYOUT-DOCUMENT',
+          severity: 'error',
+          source: 'export',
+          message: `Route ${route.routeNodeId} references an unavailable PIR layout document: ${route.layoutDocId}.`,
+          path: `/routeManifest/routes/${route.routeNodeId}/layoutDocId`,
+        });
+      }
+      const outletBindings = (route.outletBindings ?? []).map((binding) => {
+        const outletPage = binding.pageDocId
+          ? input.workspace.docsById[binding.pageDocId]
+          : undefined;
+        if (
+          binding.pageDocId &&
+          (!outletPage || outletPage.type !== 'pir-page')
+        ) {
+          diagnostics.push({
+            code: 'VUE-EXPORT-OUTLET-DOCUMENT',
+            severity: 'error',
+            source: 'export',
+            message: `Route ${route.routeNodeId} outlet ${binding.outletName} references an unavailable PIR page document: ${binding.pageDocId}.`,
+            path: `/routeManifest/routes/${route.routeNodeId}/outletBindings/${binding.outletName}/pageDocId`,
+          });
+        }
+        return Object.freeze({
+          outletName: binding.outletName,
+          outletNodeId: binding.outletNodeId,
+          ...(binding.pageDocId ? { pageDocumentId: binding.pageDocId } : {}),
+        });
+      });
+      const containerDocument = layoutDocument ?? pageDocument;
+      const outletNodeIds = [
+        ...(route.outletNodeId ? [route.outletNodeId] : []),
+        ...outletBindings.map(({ outletNodeId }) => outletNodeId),
       ];
+      const seenOutletNodeIds = new Set<string>();
+      outletNodeIds.forEach((outletNodeId) => {
+        if (
+          !containerDocument ||
+          !isWorkspacePirDocument(containerDocument) ||
+          !containerDocument.content.ui.graph.nodesById[outletNodeId]
+        ) {
+          diagnostics.push({
+            code: 'VUE-EXPORT-OUTLET-NODE',
+            severity: 'error',
+            source: 'export',
+            message: `Route ${route.routeNodeId} outlet node ${outletNodeId} is unavailable in its layout/page container.`,
+            path: `/routeManifest/routes/${route.routeNodeId}/outletBindings`,
+          });
+        }
+        if (seenOutletNodeIds.has(outletNodeId)) {
+          diagnostics.push({
+            code: 'VUE-EXPORT-OUTLET-CONFLICT',
+            severity: 'error',
+            source: 'export',
+            message: `Route ${route.routeNodeId} binds outlet node ${outletNodeId} more than once.`,
+            path: `/routeManifest/routes/${route.routeNodeId}/outletBindings`,
+          });
+        }
+        seenOutletNodeIds.add(outletNodeId);
+      });
+      const hasDefaultOutlet = Boolean(
+        route.outletNodeId ||
+        outletBindings.some(({ outletName }) => outletName === 'default')
+      );
+      const hasNestedContent = input.routeTopology.routes.some(
+        (candidate) =>
+          candidate.parentRouteNodeId === route.routeNodeId &&
+          Boolean(candidate.pageDocId || candidate.layoutDocId)
+      );
+      if (
+        layoutDocument?.type === 'pir-layout' &&
+        (pageDocument?.type === 'pir-page' || hasNestedContent) &&
+        !hasDefaultOutlet
+      ) {
+        diagnostics.push({
+          code: 'VUE-EXPORT-LAYOUT-OUTLET-REQUIRED',
+          severity: 'error',
+          source: 'export',
+          message: `Route ${route.routeNodeId} layout has page or child content but no default outlet target.`,
+          path: `/routeManifest/routes/${route.routeNodeId}/outletNodeId`,
+        });
+      }
+      return Object.freeze({
+        routeNodeId: route.routeNodeId,
+        path: route.path,
+        depth: route.depth,
+        ...(route.parentRouteNodeId
+          ? { parentRouteNodeId: route.parentRouteNodeId }
+          : {}),
+        ...(route.pageDocId ? { pageDocumentId: route.pageDocId } : {}),
+        ...(route.layoutDocId ? { layoutDocumentId: route.layoutDocId } : {}),
+        ...(route.outletNodeId ? { outletNodeId: route.outletNodeId } : {}),
+        ...(outletBindings.length ? { outletBindings } : {}),
+        routable: Boolean(
+          route.pageDocId ||
+          route.layoutDocId ||
+          outletBindings.some(({ pageDocumentId }) => pageDocumentId)
+        ),
+      });
     })
     .sort(
       (left, right) =>
         scoreRoutePath(right.path) - scoreRoutePath(left.path) ||
+        right.depth - left.depth ||
         compareText(left.path, right.path) ||
         compareText(left.routeNodeId, right.routeNodeId)
     );
@@ -230,6 +334,29 @@ export const createWorkspaceVueAppModule = (
   const body = `type JsonRecord = Readonly<Record<string, any>>;
 
 export const workspaceVueRoutes = ${JSON.stringify(routes)} as const;
+
+type WorkspaceVueRouteOutletBinding = Readonly<{
+  outletName: string;
+  outletNodeId: string;
+  pageDocumentId?: string;
+}>;
+
+type WorkspaceVueRoute = Readonly<{
+  routeNodeId: string;
+  path: string;
+  depth: number;
+  parentRouteNodeId?: string;
+  pageDocumentId?: string;
+  layoutDocumentId?: string;
+  outletNodeId?: string;
+  outletBindings?: readonly WorkspaceVueRouteOutletBinding[];
+  routable: boolean;
+}>;
+
+const workspaceVueRouteRecords = workspaceVueRoutes as readonly WorkspaceVueRoute[];
+const workspaceVueRouteById = Object.freeze(Object.fromEntries(
+  workspaceVueRouteRecords.map((route) => [route.routeNodeId, route])
+)) as Readonly<Record<string, WorkspaceVueRoute>>;
 
 export const workspaceVueRouteRuntime = {
 ${runtimeTable}
@@ -309,10 +436,30 @@ const matchRoutePath = (pattern: string, pathname: string): Readonly<Record<stri
 const readPathname = (): string =>
   typeof window === 'undefined' ? '/' : normalizePath(window.location.pathname);
 
+const routeMatchChain = (route: WorkspaceVueRoute): readonly WorkspaceVueRoute[] => {
+  const chain: WorkspaceVueRoute[] = [];
+  const seen = new Set<string>();
+  let current: WorkspaceVueRoute | undefined = route;
+  while (current) {
+    if (seen.has(current.routeNodeId)) throw new Error('VUE_ROUTE_CHAIN_INVALID');
+    seen.add(current.routeNodeId);
+    chain.unshift(current);
+    current = current.parentRouteNodeId
+      ? workspaceVueRouteById[current.parentRouteNodeId]
+      : undefined;
+  }
+  return Object.freeze(chain);
+};
+
 const findRoute = (pathname: string) => {
-  for (const route of workspaceVueRoutes) {
+  for (const route of workspaceVueRouteRecords) {
+    if (!route.routable) continue;
     const params = matchRoutePath(route.path, pathname);
-    if (params) return Object.freeze({ ...route, params });
+    if (params) return Object.freeze({
+      ...route,
+      params,
+      matchChain: routeMatchChain(route),
+    });
   }
   return undefined;
 };
@@ -377,7 +524,7 @@ export const dispatchWorkspaceRouteAction = async (
   return outcome;
 };
 
-const routePathById = Object.freeze(Object.fromEntries(workspaceVueRoutes.map((route) => [route.routeNodeId, route.path])));
+const routePathById = Object.freeze(Object.fromEntries(workspaceVueRouteRecords.map((route) => [route.routeNodeId, route.path])));
 
 const workspacePirRuntime = Object.freeze({
   ...workspaceDataRuntime,
@@ -424,9 +571,97 @@ const workspacePirRuntime = Object.freeze({
   },
 });
 
+const renderRouteDocument = (
+  documentId: string,
+  key: string,
+  routeId: string,
+  paramsById: JsonRecord,
+  routeOutletsByNodeId: Readonly<Record<string, () => any>> = {}
+) => {
+  const Document = createWorkspacePirDocumentComponent(documentId);
+  return h(Document, {
+    key,
+    runtime: workspacePirRuntime,
+    routeId,
+    paramsById,
+    instancePath: '/route:' + routeId + '/document:' + documentId,
+    routeOutletsByNodeId,
+  });
+};
+
+const renderRouteComposition = (
+  matchChain: readonly WorkspaceVueRoute[],
+  activeRouteId: string,
+  paramsById: JsonRecord
+) => {
+  let content: any = null;
+  for (let index = matchChain.length - 1; index >= 0; index -= 1) {
+    const route = matchChain[index];
+    const bindings = route.outletBindings ?? [];
+    const pageIsContainer = !route.layoutDocumentId &&
+      Boolean(route.pageDocumentId) &&
+      Boolean(route.outletNodeId || bindings.length);
+    const ownPage = route.pageDocumentId && !pageIsContainer
+      ? renderRouteDocument(
+          route.pageDocumentId,
+          route.routeNodeId + ':page',
+          activeRouteId,
+          paramsById
+        )
+      : null;
+    let defaultContent = content ?? ownPage;
+    const defaultBinding = bindings.find(({ outletName }) => outletName === 'default');
+    if (defaultBinding?.pageDocumentId) {
+      defaultContent = renderRouteDocument(
+        defaultBinding.pageDocumentId,
+        route.routeNodeId + ':outlet:default',
+        activeRouteId,
+        paramsById
+      );
+    }
+    const outletsByNodeId: Record<string, () => any> = {};
+    if (route.outletNodeId && defaultContent !== null) {
+      const projected = defaultContent;
+      outletsByNodeId[route.outletNodeId] = () => projected;
+    }
+    bindings.forEach((binding) => {
+      const projected = binding.pageDocumentId
+        ? renderRouteDocument(
+            binding.pageDocumentId,
+            route.routeNodeId + ':outlet:' + binding.outletName,
+            activeRouteId,
+            paramsById
+          )
+        : binding.outletName === 'default'
+          ? defaultContent
+          : null;
+      if (projected !== null) outletsByNodeId[binding.outletNodeId] = () => projected;
+    });
+    const containerDocumentId = route.layoutDocumentId ??
+      (pageIsContainer ? route.pageDocumentId : undefined);
+    if (containerDocumentId) {
+      content = renderRouteDocument(
+        containerDocumentId,
+        route.routeNodeId + ':container',
+        activeRouteId,
+        paramsById,
+        Object.freeze(outletsByNodeId)
+      );
+      continue;
+    }
+    if (content === null && ownPage !== null) content = ownPage;
+  }
+  return content ?? h('main', { 'data-prodivix-route-runtime': 'empty' }, 'Route has no renderable document.');
+};
+
 type RouteViewState =
   | Readonly<{ status: 'pending' }>
-  | Readonly<{ status: 'ready'; routeNodeId: string; pageDocumentId: string }>
+  | Readonly<{
+      status: 'ready';
+      routeNodeId: string;
+      params: JsonRecord;
+      matchChain: readonly WorkspaceVueRoute[];
+    }>
   | Readonly<{ status: 'not-found' }>
   | Readonly<{ status: 'denied'; code: string }>
   | Readonly<{ status: 'failed'; code: string }>;
@@ -450,37 +685,40 @@ export default defineComponent({
       }
       state.value = Object.freeze({ status: 'pending' });
       try {
-        const guard = await invokeRouteRuntime(
-          readRuntimeEntry(match.routeNodeId, 'guard'),
-          Object.freeze({ routeId: match.routeNodeId }),
-          { signal: controller.signal }
-        );
-        if (currentGeneration !== generation) return;
-        if (guard?.kind === 'deny') {
-          state.value = Object.freeze({ status: 'denied', code: guard.code });
-          return;
+        for (const route of match.matchChain) {
+          const guard = await invokeRouteRuntime(
+            readRuntimeEntry(route.routeNodeId, 'guard'),
+            Object.freeze({ routeId: route.routeNodeId }),
+            { signal: controller.signal }
+          );
+          if (currentGeneration !== generation) return;
+          if (guard?.kind === 'deny') {
+            state.value = Object.freeze({ status: 'denied', code: guard.code });
+            return;
+          }
+          if (guard?.kind === 'redirect') {
+            window.location.assign(guard.location);
+            return;
+          }
+          if (guard && guard.kind !== 'allow') throw new Error('SVR_ROUTE_GUARD_OUTCOME_INVALID');
+          const loader = await invokeRouteRuntime(
+            readRuntimeEntry(route.routeNodeId, 'loader'),
+            Object.freeze({ routeId: route.routeNodeId }),
+            { signal: controller.signal }
+          );
+          if (currentGeneration !== generation) return;
+          if (loader?.kind === 'redirect') {
+            window.location.assign(loader.location);
+            return;
+          }
+          if (loader && loader.kind !== 'value') throw new Error('SVR_ROUTE_LOADER_OUTCOME_INVALID');
+          if (loader?.kind === 'value') activeRouteLoaderValue = loader.value;
         }
-        if (guard?.kind === 'redirect') {
-          window.location.assign(guard.location);
-          return;
-        }
-        if (guard && guard.kind !== 'allow') throw new Error('SVR_ROUTE_GUARD_OUTCOME_INVALID');
-        const loader = await invokeRouteRuntime(
-          readRuntimeEntry(match.routeNodeId, 'loader'),
-          Object.freeze({ routeId: match.routeNodeId }),
-          { signal: controller.signal }
-        );
-        if (currentGeneration !== generation) return;
-        if (loader?.kind === 'redirect') {
-          window.location.assign(loader.location);
-          return;
-        }
-        if (loader && loader.kind !== 'value') throw new Error('SVR_ROUTE_LOADER_OUTCOME_INVALID');
-        activeRouteLoaderValue = loader?.kind === 'value' ? loader.value : undefined;
         state.value = Object.freeze({
           status: 'ready',
           routeNodeId: match.routeNodeId,
-          pageDocumentId: match.pageDocumentId,
+          params: match.params,
+          matchChain: match.matchChain,
         });
       } catch (error) {
         if (currentGeneration !== generation || controller.signal.aborted) return;
@@ -509,12 +747,11 @@ export default defineComponent({
       if (current.status === 'not-found') return h('main', { 'data-prodivix-route-not-found': 'true' }, 'Route not found.');
       if (current.status === 'denied') return h('main', { 'data-prodivix-route-runtime': 'denied', role: 'alert' }, 'Access denied.');
       if (current.status === 'failed') return h('main', { 'data-prodivix-route-runtime': 'failed', role: 'alert' }, 'Route runtime failed: ' + current.code);
-      const Page = createWorkspacePirDocumentComponent(current.pageDocumentId);
       return h('div', { 'data-prodivix-vue-workspace': 'ready' }, [
         activeRouteLoaderValue === undefined
           ? null
           : h('output', { 'data-prodivix-route-loader': 'ready', hidden: true }, JSON.stringify(activeRouteLoaderValue)),
-        h(Page, { key: current.routeNodeId, runtime: workspacePirRuntime, routeId: current.routeNodeId }),
+        renderRouteComposition(current.matchChain, current.routeNodeId, current.params),
       ]);
     };
   },

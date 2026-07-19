@@ -123,6 +123,124 @@ describe('Remote Data stream gateway client', () => {
     expect(String(failure)).not.toContain(canary);
   });
 
+  it('resumes from an opaque checkpoint with renewed auth and publishes only sanitized reconnect Network traces', async () => {
+    const reconnect = {
+      resume: 'sse-last-event-id',
+      maxReconnectAttempts: 2,
+      backoff: 'fixed',
+      initialDelayMs: 25,
+    } as const;
+    const renewedNetwork = {
+      ...network,
+      requestId: `${invocation.requestId}:1`,
+      startedAt: 125,
+      completedAt: 126,
+    } as const;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        streamResponse([
+          {
+            type: 'prodivix.execution-data-stream.v1',
+            phase: 'open',
+            network,
+            reconnect,
+          },
+          {
+            type: 'prodivix.execution-data-stream.v1',
+            phase: 'event',
+            cursor: 1,
+            value: { action: 'upsert', entity: { id: 'p1', name: 'Chair' } },
+            resume: { cursor: 1, token: 'opaque-checkpoint-1' },
+          },
+          {
+            type: 'prodivix.execution-data-stream.v1',
+            phase: 'error',
+            code: 'DATA_GRAPHQL_REQUEST_FAILED',
+          },
+        ])
+      )
+      .mockResolvedValueOnce(
+        streamResponse([
+          {
+            type: 'prodivix.execution-data-stream.v1',
+            phase: 'open',
+            network: renewedNetwork,
+            reconnect,
+          },
+          {
+            type: 'prodivix.execution-data-stream.v1',
+            phase: 'event',
+            cursor: 2,
+            value: { action: 'delete', id: 'p1' },
+            resume: { cursor: 2, token: 'opaque-checkpoint-2' },
+          },
+          {
+            type: 'prodivix.execution-data-stream.v1',
+            phase: 'complete',
+            cursor: 2,
+          },
+        ])
+      );
+    const resolveAccessToken = vi
+      .fn()
+      .mockReturnValueOnce('session-token-1')
+      .mockReturnValueOnce('session-token-2');
+    const wait = vi.fn(async () => undefined);
+    const client = createRemoteDataStreamGatewayClient({
+      baseUrl: 'https://editor.example.test/api',
+      accessToken: resolveAccessToken,
+      fetcher,
+      wait,
+    });
+    const session = await client.open('execution-1', invocation);
+    const renewedNetworks: unknown[] = [];
+    const unsubscribe = session.subscribeNetwork((value) =>
+      renewedNetworks.push(value)
+    );
+
+    await expect(session.next()).resolves.toEqual({
+      type: 'prodivix.execution-data-stream.v1',
+      requestId: invocation.requestId,
+      phase: 'event',
+      cursor: 1,
+      value: { action: 'upsert', entity: { id: 'p1', name: 'Chair' } },
+    });
+    await expect(session.next()).resolves.toEqual({
+      type: 'prodivix.execution-data-stream.v1',
+      requestId: invocation.requestId,
+      phase: 'event',
+      cursor: 2,
+      value: { action: 'delete', id: 'p1' },
+    });
+    await expect(session.next()).resolves.toBeUndefined();
+    unsubscribe();
+
+    expect(resolveAccessToken).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledWith(25, expect.any(AbortSignal));
+    expect(renewedNetworks).toEqual([renewedNetwork]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
+      headers: expect.objectContaining({
+        authorization: 'Bearer session-token-1',
+      }),
+    });
+    expect(fetcher.mock.calls[1]?.[1]).toMatchObject({
+      headers: expect.objectContaining({
+        authorization: 'Bearer session-token-2',
+      }),
+    });
+    expect(JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body))).toEqual({
+      invocationId: invocation.invocationId,
+      sequence: invocation.sequence,
+      attempt: invocation.attempt,
+      input: invocation.input,
+      resume: { cursor: 1, token: 'opaque-checkpoint-1' },
+    });
+    expect(JSON.stringify(renewedNetworks)).not.toContain('checkpoint');
+    expect(JSON.stringify(renewedNetworks)).not.toContain('session-token');
+  });
+
   it('does not dispatch a pre-cancelled stream request', async () => {
     expect(() =>
       createRemoteDataStreamGatewayClient({

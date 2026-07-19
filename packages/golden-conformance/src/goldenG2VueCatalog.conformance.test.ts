@@ -5,7 +5,10 @@ import {
   decodeRemoteExecutableProjectSnapshot,
   encodeRemoteExecutableProjectSnapshot,
 } from '@prodivix/runtime-remote';
-import { validateWorkspaceSnapshot } from '@prodivix/workspace';
+import {
+  validateWorkspaceSnapshot,
+  type WorkspaceSnapshot,
+} from '@prodivix/workspace';
 import {
   createGoldenG2VueCatalogRemoteSnapshot,
   createGoldenG2VueCatalogTestSnapshot,
@@ -24,6 +27,39 @@ const textFiles = (
     )
     .map(({ contents }) => contents)
     .join('\n');
+
+type CatalogRouteNode = NonNullable<
+  WorkspaceSnapshot['routeManifest']['root']['children']
+>[number];
+
+const catalogShellRoute = (): CatalogRouteNode => {
+  const route =
+    GOLDEN_G2_VUE_CATALOG_WORKSPACE.routeManifest.root.children?.[0];
+  if (!route) throw new Error('Expected the Catalog Golden shell route.');
+  return route;
+};
+
+const withCatalogShellRoute = (route: CatalogRouteNode): WorkspaceSnapshot => ({
+  ...GOLDEN_G2_VUE_CATALOG_WORKSPACE,
+  routeManifest: {
+    ...GOLDEN_G2_VUE_CATALOG_WORKSPACE.routeManifest,
+    root: {
+      ...GOLDEN_G2_VUE_CATALOG_WORKSPACE.routeManifest.root,
+      children: [route],
+    },
+  },
+});
+
+const vueDiagnosticCodes = (
+  workspace: WorkspaceSnapshot
+): readonly string[] => {
+  const result = generateWorkspaceVueViteExecutableProject(workspace);
+  if (result.status !== 'blocked')
+    throw new Error(
+      'Expected invalid Vue layout/outlet topology to fail closed.'
+    );
+  return result.diagnostics.map(({ code }) => code);
+};
 
 describe('Golden G2 authenticated Vue Catalog product surface', () => {
   it('keeps the authored PIR/Route/Auth/Server/Asset Workspace valid', () => {
@@ -77,6 +113,10 @@ describe('Golden G2 authenticated Vue Catalog product surface', () => {
     ).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
     const source = textFiles(files);
     expect(source).toContain('Authenticated Catalog');
+    expect(source).toContain('Catalog Shell');
+    expect(source).toContain('Featured products');
+    expect(source).toContain('catalog-default-outlet');
+    expect(source).toContain('catalog-sidebar-outlet');
     expect(source).toContain('dispatchWorkspaceRouteAction');
     expect(source).toContain('runs authenticated Route guard/loader/action');
     expect(source).not.toContain(GOLDEN_G2_VUE_CATALOG_SERVER_SOURCE_CANARY);
@@ -87,14 +127,12 @@ describe('Golden G2 authenticated Vue Catalog product surface', () => {
     expect(snapshot.capabilityRequirements.preview).toContain(
       'server-function'
     );
-    expect(snapshot.capabilityRequirements.preview).not.toContain(
-      'environment-binding'
+    expect(snapshot.capabilityRequirements.preview).toEqual(
+      expect.arrayContaining(['environment-binding', 'network'])
     );
     expect(snapshot.capabilityRequirements.build).toContain('build');
     expect(snapshot.capabilityRequirements.test).toContain('test');
-    expect(snapshot.dataMockProvision?.fixtureSetId).toBe(
-      'golden-g2-vue-catalog-crud'
-    );
+    expect(snapshot.dataMockProvision).toBeUndefined();
     const decoded = decodeRemoteExecutableProjectSnapshot(
       encodeRemoteExecutableProjectSnapshot(snapshot)
     );
@@ -103,10 +141,50 @@ describe('Golden G2 authenticated Vue Catalog product surface', () => {
     expect(decoded.capabilityRequirements).toEqual(
       snapshot.capabilityRequirements
     );
-    expect(decoded.dataMockProvision).toEqual(snapshot.dataMockProvision);
+    expect(decoded.dataMockProvision).toBeUndefined();
+    expect(
+      decoded.files.find(({ path }) => path === 'src/prodivix-data-runtime.ts')
+        ?.contents
+    ).toContain('prodivix.execution-data-gateway-request.v1');
     expect(textFiles(decoded.files)).not.toContain(
       GOLDEN_G2_VUE_CATALOG_SERVER_SOURCE_CANARY
     );
+  });
+
+  it('fails closed on invalid Vue layout and outlet topology with precise diagnostics', () => {
+    const route = catalogShellRoute();
+    expect(
+      vueDiagnosticCodes(
+        withCatalogShellRoute({
+          ...route,
+          layoutDocId: GOLDEN_G2_VUE_CATALOG_IDS.page,
+        })
+      )
+    ).toContain('VUE-EXPORT-LAYOUT-DOCUMENT');
+    expect(
+      vueDiagnosticCodes(
+        withCatalogShellRoute({
+          ...route,
+          outletNodeId: 'missing-outlet-node',
+        })
+      )
+    ).toContain('VUE-EXPORT-OUTLET-NODE');
+    expect(
+      vueDiagnosticCodes(
+        withCatalogShellRoute({
+          ...route,
+          outletBindings: {
+            ...route.outletBindings,
+            duplicate: { outletNodeId: route.outletNodeId! },
+          },
+        })
+      )
+    ).toContain('VUE-EXPORT-OUTLET-CONFLICT');
+    const { outletNodeId: _outletNodeId, ...withoutDefaultOutlet } = route;
+    void _outletNodeId;
+    expect(
+      vueDiagnosticCodes(withCatalogShellRoute(withoutDefaultOutlet))
+    ).toContain('VUE-EXPORT-LAYOUT-OUTLET-REQUIRED');
   });
 
   it('fails closed for static Vue export instead of leaking protected Server source', () => {

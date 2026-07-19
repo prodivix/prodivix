@@ -26,6 +26,10 @@ const filesystemDiffFormat = 'prodivix.execution-filesystem-diff.v1';
 const filesystemDiffMediaType =
   'application/vnd.prodivix.execution-filesystem-diff+json';
 const vitestReportMediaType = 'application/vnd.vitest.report+json';
+const serverRuntimeTestTraceMediaType =
+  'application/vnd.prodivix.server-function-invocation-traces+jsonl';
+const serverRuntimeTestTracePath =
+  '.prodivix/server-function-invocation-traces.jsonl';
 const maximumResultFiles = 20_000;
 const maximumFilesystemChanges = 512;
 const maximumFilesystemFileBytes = 1024 * 1024;
@@ -594,6 +598,36 @@ const createTestArtifact = async (payload, maximumArtifactBytes) => {
   };
 };
 
+const createServerRuntimeTestTraceArtifact = async (
+  payload,
+  maximumArtifactBytes
+) => {
+  const tracePath = childPath(serverRuntimeTestTracePath);
+  let traceStats;
+  try {
+    traceStats = await lstat(tracePath);
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT')
+      return undefined;
+    throw error;
+  }
+  if (!traceStats.isFile() || traceStats.isSymbolicLink())
+    throw new TypeError('Server Runtime Test trace must be a real file.');
+  const contents = await readFile(tracePath);
+  if (!contents.byteLength || contents.byteLength > maximumArtifactBytes)
+    throw new TypeError(
+      'Server Runtime Test trace exceeds the artifact budget.'
+    );
+  return {
+    artifactId: `server-function-invocation-traces:${payload.snapshotDigest}`,
+    kind: 'report',
+    label: 'Server Function Test invocation traces',
+    mediaType: serverRuntimeTestTraceMediaType,
+    metadata: { adapter: 'prodivix.server-runtime-test' },
+    contents: contents.toString('base64'),
+  };
+};
+
 const createServerFunctionArtifact = async (
   payload,
   serverFunctionRequest,
@@ -781,7 +815,22 @@ try {
       artifacts = [await createBuildArtifact(payload, primaryArtifactBudget)];
     else if (payload.profile === 'test') {
       try {
-        artifacts = [await createTestArtifact(payload, primaryArtifactBudget)];
+        const report = await createTestArtifact(payload, primaryArtifactBudget);
+        const invocationTraces = await createServerRuntimeTestTraceArtifact(
+          payload,
+          primaryArtifactBudget
+        );
+        artifacts = [report, ...(invocationTraces ? [invocationTraces] : [])];
+        if (
+          artifacts.reduce(
+            (total, artifact) =>
+              total + Buffer.from(artifact.contents, 'base64').byteLength,
+            0
+          ) > primaryArtifactBudget
+        )
+          throw new TypeError(
+            'Sandbox Test artifacts exceed their shared budget.'
+          );
       } catch (error) {
         if (exitCode === 0) {
           resultExitCode = 125;

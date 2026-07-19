@@ -24,6 +24,8 @@ import type {
   WorkspaceSettingsOutboxEntry,
 } from '@prodivix/workspace-sync';
 import { compileWorkspaceShaders } from '@/editor/codeCompile';
+import { createWorkspaceExecutionSnapshotRef } from '@prodivix/prodivix-compiler';
+import type { ExecutionSessionSnapshot } from '@prodivix/runtime-core';
 import { collectWorkspaceAnimationDiagnostics } from './workspaceAnimationIssueProvider';
 import { collectWorkspaceCodeDiagnostics } from './workspaceCodeIssueProvider';
 
@@ -327,6 +329,67 @@ export const collectWorkspaceModelIssueSnapshots = (input: {
       collectWorkspaceAnimationDiagnostics(input.workspace)
     ),
   ];
+};
+
+/**
+ * Publishes only diagnostics produced by the exact current Workspace snapshot.
+ * Provider-private metadata and causes are intentionally replaced with bounded
+ * execution correlation so Issues cannot widen the durable/runtime boundary.
+ */
+export const collectExecutionSessionIssueSnapshot = (input: {
+  workspace: WorkspaceSnapshot;
+  revision: DiagnosticIssueRevision;
+  collectedAt: number;
+  sessions: readonly ExecutionSessionSnapshot[];
+}): DiagnosticProviderSnapshot => {
+  const expectedSnapshotId = createWorkspaceExecutionSnapshotRef(
+    input.workspace
+  ).snapshotId;
+  const diagnostics = input.sessions.flatMap((session) =>
+    session.events.flatMap((record): readonly ProdivixDiagnostic[] => {
+      const event = record.event;
+      if (
+        record.workspaceId !== input.workspace.id ||
+        record.snapshotId !== expectedSnapshotId ||
+        event.kind !== 'diagnostic'
+      )
+        return [];
+      const diagnostic = event.diagnostic;
+      return [
+        Object.freeze({
+          code: diagnostic.code,
+          severity: diagnostic.severity,
+          domain: diagnostic.domain,
+          message: diagnostic.message,
+          ...(diagnostic.hint ? { hint: diagnostic.hint } : {}),
+          ...(diagnostic.docsUrl ? { docsUrl: diagnostic.docsUrl } : {}),
+          ...(diagnostic.retryable === undefined
+            ? {}
+            : { retryable: diagnostic.retryable }),
+          ...(diagnostic.targetRef
+            ? { targetRef: Object.freeze({ ...diagnostic.targetRef }) }
+            : {}),
+          ...(diagnostic.sourceSpan
+            ? { sourceSpan: Object.freeze({ ...diagnostic.sourceSpan }) }
+            : {}),
+          meta: Object.freeze({
+            executionSessionId: session.sessionId,
+            executionJobId: record.jobId,
+            executionProviderId: record.providerId,
+            executionSnapshotId: record.snapshotId,
+            executionSequence: event.sequence,
+          }),
+        }),
+      ];
+    })
+  );
+  return Object.freeze({
+    providerId: 'execution-session-diagnostics',
+    workspaceId: input.workspace.id,
+    revision: input.revision,
+    collectedAt: input.collectedAt,
+    diagnostics: Object.freeze(diagnostics),
+  });
 };
 
 export const collectWorkspaceShaderCompileIssueSnapshot = async (input: {

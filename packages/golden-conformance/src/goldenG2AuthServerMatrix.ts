@@ -8,6 +8,7 @@ import {
   createWorkspaceRuntimeFilesystemProposal,
   generateWorkspaceIsolatedServerFunctionExecutableProject,
   generateWorkspaceReactViteExecutableProject,
+  generateWorkspaceVueViteExecutableProject,
 } from '@prodivix/prodivix-compiler';
 import {
   createExecutionRequest,
@@ -17,9 +18,12 @@ import {
 } from '@prodivix/runtime-core';
 import {
   createIsolatedServerFunctionAuthority,
+  createServerFunctionInvocationTrace,
   createServerRouteActionInput,
   createServerRuntimeTestSession,
+  decodeServerRuntimeTestInvocationTraces,
   decodeServerRuntimeProfile,
+  encodeServerRuntimeTestInvocationTraces,
   EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
   ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
   ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
@@ -28,7 +32,10 @@ import {
   readExecutionServerFunctionBridgeRequest,
   readIsolatedServerFunctionAuthority,
   readIsolatedServerFunctionExecutionResponse,
+  readServerFunctionInvocationTraceValue,
   resolveServerFunctionDefinition,
+  toExecutionServerFunctionBridgeSuccess,
+  toServerFunctionInvocationTraceValue,
   type ExecutionServerFunctionBridgeResponse,
   type ServerFunctionDefinition,
   type ServerFunctionReference,
@@ -103,8 +110,12 @@ export type GoldenG2AuthServerMatrixReport = Readonly<{
     auditedAdapterSnapshotDigest: string;
     codeExportSnapshotDigest: string;
     workspaceReadSnapshotDigest: string;
+    vueAuditedAdapterSnapshotDigest: string;
     outcomes: readonly ['allow', 'allow', 'allow'];
     observationCount: number;
+    invocationTraceCount: number;
+    snapshotsRequireServerFunction: boolean;
+    snapshotsProvisionServerRuntime: boolean;
   }>;
   remoteLive: Readonly<{
     snapshot: ExecutableProjectSnapshot;
@@ -158,6 +169,8 @@ export type GoldenG2AuthServerMatrixReport = Readonly<{
     sourceTraceExcludesSourceText: boolean;
     strictInvocationRejectsCredentialField: boolean;
     strictAuthorityRejectsCredentialField: boolean;
+    invocationTraceExcludesCredentialCanaries: boolean;
+    strictInvocationTraceRejectsCredentialField: boolean;
   }>;
 }>;
 
@@ -357,6 +370,16 @@ const runDeterministicTest = async () => {
     ),
     'Deterministic workspace.read code-export target'
   );
+  const vueAuditedAdapter = requireReady(
+    generateWorkspaceVueViteExecutableProject(
+      createGoldenG2AuthServerWorkspace('remote-live'),
+      {
+        serverRuntimeTarget: DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
+        serverRuntimeMockProvision: provision,
+      }
+    ),
+    'Deterministic Vue audited-adapter target'
+  );
   const session = createServerRuntimeTestSession({
     workspaceId: GOLDEN_G2_AUTH_SERVER_IDS.workspace,
     definitions: definitions(),
@@ -393,6 +416,7 @@ const runDeterministicTest = async () => {
       auditedAdapter,
       codeExport,
       workspaceReadCodeExport,
+      vueAuditedAdapter,
       outcomes: Object.freeze(['allow', 'allow', 'allow'] as const),
       observationCount: session.listObservations().length,
     });
@@ -1054,6 +1078,7 @@ export const runGoldenG2AuthServerMatrix =
       deterministicTest.auditedAdapter.snapshot,
       deterministicTest.codeExport.snapshot,
       deterministicTest.workspaceReadCodeExport.snapshot,
+      deterministicTest.vueAuditedAdapter.snapshot,
     ];
     const allSnapshots = [
       ...clientSnapshots,
@@ -1093,6 +1118,44 @@ export const runGoldenG2AuthServerMatrix =
         ...isolatedProduction.authority,
         sessionId: GOLDEN_G2_AUTH_SERVER_CREDENTIAL_CANARIES[1],
       }) === undefined;
+    const invocationTraceRequest = Object.freeze({
+      requestId: 'golden-test-trace:1',
+      invocationId: 'golden-test-trace',
+      attempt: 1,
+      functionRef: GOLDEN_G2_REMOTE_OWNER_FUNCTION_REF,
+      input: Object.freeze({
+        authorization: GOLDEN_G2_AUTH_SERVER_CREDENTIAL_CANARIES[0],
+      }),
+    });
+    const invocationTrace = createServerFunctionInvocationTrace({
+      request: invocationTraceRequest,
+      response: toExecutionServerFunctionBridgeSuccess(
+        invocationTraceRequest.requestId,
+        {
+          kind: 'value',
+          value: {
+            privateValue: GOLDEN_G2_AUTH_SERVER_CREDENTIAL_CANARIES[1],
+          },
+        }
+      ),
+      startedAt: 1_000,
+      completedAt: 1_012,
+    });
+    const invocationTraceWire = encodeServerRuntimeTestInvocationTraces([
+      invocationTrace,
+    ]);
+    const decodedInvocationTraces =
+      decodeServerRuntimeTestInvocationTraces(invocationTraceWire);
+    const invocationTraceSerialization = new TextDecoder().decode(
+      invocationTraceWire
+    );
+    const strictInvocationTraceRejectsCredentialField =
+      readServerFunctionInvocationTraceValue({
+        ...(toServerFunctionInvocationTraceValue(invocationTrace) as Readonly<
+          Record<string, unknown>
+        >),
+        accessToken: GOLDEN_G2_AUTH_SERVER_CREDENTIAL_CANARIES[2],
+      }) === undefined;
     return Object.freeze({
       targetMatrix,
       blockedDiagnostics: Object.freeze({
@@ -1122,8 +1185,25 @@ export const runGoldenG2AuthServerMatrix =
           deterministicTest.codeExport.snapshot.contentDigest,
         workspaceReadSnapshotDigest:
           deterministicTest.workspaceReadCodeExport.snapshot.contentDigest,
+        vueAuditedAdapterSnapshotDigest:
+          deterministicTest.vueAuditedAdapter.snapshot.contentDigest,
         outcomes: deterministicTest.outcomes,
         observationCount: deterministicTest.observationCount,
+        invocationTraceCount: decodedInvocationTraces.length,
+        snapshotsRequireServerFunction: [
+          deterministicTest.auditedAdapter.snapshot,
+          deterministicTest.codeExport.snapshot,
+          deterministicTest.workspaceReadCodeExport.snapshot,
+          deterministicTest.vueAuditedAdapter.snapshot,
+        ].every((snapshot) =>
+          snapshot.capabilityRequirements.test.includes('server-function')
+        ),
+        snapshotsProvisionServerRuntime: [
+          deterministicTest.auditedAdapter.snapshot,
+          deterministicTest.codeExport.snapshot,
+          deterministicTest.workspaceReadCodeExport.snapshot,
+          deterministicTest.vueAuditedAdapter.snapshot,
+        ].every((snapshot) => Boolean(snapshot.serverRuntimeMockProvision)),
       }),
       remoteLive: Object.freeze({
         snapshot: remoteLive.snapshot,
@@ -1205,6 +1285,11 @@ export const runGoldenG2AuthServerMatrix =
         ),
         strictInvocationRejectsCredentialField,
         strictAuthorityRejectsCredentialField,
+        invocationTraceExcludesCredentialCanaries:
+          !GOLDEN_G2_AUTH_SERVER_CREDENTIAL_CANARIES.some((canary) =>
+            invocationTraceSerialization.includes(canary)
+          ),
+        strictInvocationTraceRejectsCredentialField,
       }),
     });
   };

@@ -62,6 +62,7 @@ const createDefaultTestCommand = (
       '--',
       '--reporter=default',
       '--reporter=json',
+      '--no-file-parallelism',
       `--outputFile.json=${reportFilePath}`,
     ]),
   });

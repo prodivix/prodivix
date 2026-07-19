@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExecutableProjectSnapshot } from '@prodivix/runtime-core';
 import {
+  BrowserProjectCommandError,
   BrowserProjectRuntimeHostBusyError,
   createBrowserProjectRuntimeHost,
 } from './browserProjectRuntimeHost';
@@ -202,6 +203,52 @@ describe('browser project runtime host conformance', () => {
     expect(
       harness.commands.filter((command) => command.command === 'node')
     ).toHaveLength(0);
+    await host.dispose();
+  });
+
+  it('does not cache a failed install and recovers on the next preparation', async () => {
+    const harness = createBrowserProjectRuntimeHarness();
+    harness.queueInstallCommand({ exitCode: 17, output: 'install failed\n' });
+    const host = createBrowserProjectRuntimeHost({
+      createRuntime: harness.createRuntime,
+    });
+
+    await expect(
+      host.prepare('owner-a', snapshot('failed-install'))
+    ).rejects.toBeInstanceOf(BrowserProjectCommandError);
+    const recovered = await host.prepare('owner-a', snapshot('failed-install'));
+
+    expect(recovered.dependenciesInstalled).toBe(true);
+    expect(
+      harness.commands.filter((command) => command.args?.includes('install'))
+    ).toHaveLength(2);
+    await host.dispose();
+  });
+
+  it('serializes competing preparations and generation-fences the older lease', async () => {
+    const harness = createBrowserProjectRuntimeHarness();
+    const host = createBrowserProjectRuntimeHost({
+      createRuntime: harness.createRuntime,
+    });
+
+    const [older, current] = await Promise.all([
+      host.prepare('owner-a', snapshot('race-a')),
+      host.prepare('owner-b', snapshot('race-b', 'export const value = 2;')),
+    ]);
+
+    await expect(
+      host.spawn(
+        'owner-a',
+        { command: 'node', args: ['src/main.ts'] },
+        { lease: older.lease }
+      )
+    ).rejects.toThrow('lease is stale');
+    const process = await host.spawn(
+      'owner-b',
+      { command: 'node', args: ['src/main.ts'] },
+      { lease: current.lease }
+    );
+    await expect(process.exit).resolves.toBe(0);
     await host.dispose();
   });
 });

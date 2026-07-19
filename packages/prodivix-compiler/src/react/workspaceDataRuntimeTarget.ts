@@ -199,12 +199,24 @@ export const analyzeWorkspaceDataRuntimeTarget = (
               'Move the source to server or edge and run it through Remote Preview.',
           });
         }
-        const streamUsesAuthorization =
-          subscriptions.some(
-            (operation) =>
-              operation.configurationByKey.authorization !== undefined
-          ) || data.source.configurationByKey.authorization !== undefined;
-        if (streamUsesAuthorization) {
+        const streamAuthorizations = [
+          data.source.configurationByKey.authorization,
+          ...subscriptions.map(
+            (operation) => operation.configurationByKey.authorization
+          ),
+        ].filter((authorization) => authorization !== undefined);
+        const streamUsesAuthorization = streamAuthorizations.length > 0;
+        const streamUsesUnsafeAuthorization = streamAuthorizations.some(
+          (authorization) => authorization?.kind !== 'secret-ref'
+        );
+        const streamCredentialRenewalReady = subscriptions.every(
+          (operation) =>
+            operation.policies.stream?.credentialRenewal === 'per-connection'
+        );
+        if (
+          streamUsesUnsafeAuthorization ||
+          (streamUsesAuthorization && !streamCredentialRenewalReady)
+        ) {
           diagnostics.push({
             code: 'WKS-EXPORT-DATA-STREAM-SECRET-UNAVAILABLE',
             severity: 'error',
@@ -213,7 +225,7 @@ export const analyzeWorkspaceDataRuntimeTarget = (
               'Long-lived Data streams cannot retain callback-only Secret material.',
             path: document.path,
             suggestion:
-              'Use a public bounded stream or a future credential-renewal stream adapter.',
+              'Declare the bounded SSE resume and per-connection credential-renewal stream policy, or use a public stream.',
           });
         }
       }

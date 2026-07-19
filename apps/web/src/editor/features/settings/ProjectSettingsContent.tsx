@@ -9,15 +9,23 @@ import {
   PdxTextarea,
 } from '@prodivix/ui';
 import { SettingsPanel, SettingsRow } from './SettingsShared';
+import { WorkspaceCollaborationSettings } from './WorkspaceCollaborationSettings';
 
-export const ProjectSettingsContent = () => {
+type ProjectSettingsContentProps = Readonly<{
+  token?: string | null;
+  workspaceId?: string;
+}>;
+
+export const ProjectSettingsContent = ({
+  token,
+  workspaceId,
+}: ProjectSettingsContentProps) => {
   const { t } = useTranslation('editor');
   const [projectValues, setProjectValues] = useState({
     name: 'Marketing Workspace',
     description: 'Landing pages and customer onboarding flows.',
     defaultRoute: '/home',
     timezone: 'UTC+8',
-    defaultRole: ['editor'],
     previewAccess: ['restricted'],
     auditRetention: 30,
     notifications: ['mentions', 'builds'],
@@ -125,31 +133,9 @@ export const ProjectSettingsContent = () => {
         title={t('settings.project.panels.collaboration.title')}
         description={t('settings.project.panels.collaboration.description')}
       >
-        <SettingsRow
-          label={t('settings.project.rows.defaultRole.label')}
-          description={t('settings.project.rows.defaultRole.description')}
-          control={
-            <PdxRadioGroup
-              options={[
-                {
-                  label: t('settings.project.rows.defaultRole.options.viewer'),
-                  value: 'viewer',
-                },
-                {
-                  label: t('settings.project.rows.defaultRole.options.editor'),
-                  value: 'editor',
-                },
-                {
-                  label: t('settings.project.rows.defaultRole.options.admin'),
-                  value: 'admin',
-                },
-              ]}
-              value={projectValues.defaultRole[0]}
-              onValueChange={(value) =>
-                updateProjectValue('defaultRole', [value])
-              }
-            />
-          }
+        <WorkspaceCollaborationSettings
+          token={token}
+          workspaceId={workspaceId}
         />
         <SettingsRow
           label={t('settings.project.rows.previewAccess.label')}

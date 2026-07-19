@@ -12,6 +12,14 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G2_VUE_PRODUCT === '1')(
         routePath: '/',
         browserChannel: process.env.E2E_BROWSER_CHANNEL,
         verifyPage: async (page) => {
+          await expectPage(page.getByTestId('catalog-shell')).toBeVisible();
+          await expectPage(page.getByTestId('catalog-main')).toBeVisible();
+          await expectPage(page.getByTestId('catalog-sidebar-page')).toHaveText(
+            'Featured products'
+          );
+          await expectPage(page.getByText('Catalog Shell')).toBeVisible();
+          await expectPage(page.getByText('Catalog fallback')).toHaveCount(0);
+          await expectPage(page.getByText('Sidebar fallback')).toHaveCount(0);
           await expectPage(
             page.getByRole('heading', { name: 'Authenticated Catalog' })
           ).toBeVisible();

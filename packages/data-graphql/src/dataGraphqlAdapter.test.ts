@@ -342,7 +342,7 @@ describe('Data GraphQL subscription adapter', () => {
     expect(close).toHaveBeenCalledTimes(2);
   });
 
-  it('rejects callback-only Secret authorization before opening a long-lived transport', async () => {
+  it('rejects Secret authorization without an explicit per-connection renewal policy', async () => {
     const open = vi.fn<DataGraphqlStreamTransport['open']>();
     const useSecret = vi.fn();
     const adapter = createDataGraphqlStreamingAdapter({
@@ -385,5 +385,85 @@ describe('Data GraphQL subscription adapter', () => {
     ).rejects.toMatchObject({ code: 'DATA_GRAPHQL_CONFIGURATION_INVALID' });
     expect(useSecret).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it('opens a Secret-authenticated connection only inside the current environment lease', async () => {
+    const close = vi.fn();
+    const open = vi.fn<DataGraphqlStreamTransport['open']>(async (request) => ({
+      trace: response(request, '', 200).trace,
+      events: (async function* () {
+        yield '{"data":{"productUpdated":{"id":"p1"}}}';
+      })(),
+      close,
+    }));
+    const useSecret = vi.fn(
+      async (
+        _reference: unknown,
+        _field: string,
+        consumer: (material: string) => void | Promise<void>
+      ) => consumer('Bearer renewed-graphql-token')
+    );
+    const adapter = createDataGraphqlStreamingAdapter({
+      transport: { execute: vi.fn() },
+      streamTransport: { open },
+    });
+    const session = await adapter.openStream?.({
+      invocation: createDataOperationInvocation({
+        ...invocation,
+        invocationId: 'graphql-secret-stream-renewed',
+        operation: {
+          documentId: 'data-catalog',
+          operationId: 'secret-watch',
+        },
+      }),
+      source,
+      operation: {
+        id: 'secret-watch',
+        kind: 'subscription',
+        outputSchemaId: 'output',
+        configurationByKey: {
+          document: {
+            kind: 'literal',
+            value: 'subscription SecretWatch { productUpdated { id } }',
+          },
+          resultPath: { kind: 'literal', value: '/productUpdated' },
+          authorization: {
+            kind: 'secret-ref',
+            reference: { bindingId: 'api-token' },
+          },
+        },
+        policies: {
+          stream: {
+            reconnect: {
+              resume: 'sse-last-event-id',
+              maxReconnectAttempts: 2,
+              backoff: 'fixed',
+              initialDelayMs: 10,
+            },
+            credentialRenewal: 'per-connection',
+          },
+        },
+      },
+      environment: { useSecret } as never,
+      signal: new AbortController().signal,
+      publishNetworkTrace: () => undefined,
+    });
+
+    expect(useSecret).toHaveBeenCalledWith(
+      { bindingId: 'api-token' },
+      'operation.authorization',
+      expect.any(Function)
+    );
+    expect(open.mock.calls[0]?.[0].headers.authorization).toBe(
+      'Bearer renewed-graphql-token'
+    );
+    await expect(
+      session?.events[Symbol.asyncIterator]().next()
+    ).resolves.toMatchObject({
+      value: { id: 'p1' },
+    });
+    expect(JSON.stringify(session)).not.toContain('renewed-graphql-token');
+    session?.close();
+    expect(close).toHaveBeenCalledTimes(1);
   });
 });

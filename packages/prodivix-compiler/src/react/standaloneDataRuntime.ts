@@ -843,6 +843,7 @@ export const createWorkspaceDataRuntime = () => {
       let closed = false;
       const session: DataRuntimeStreamSession = Object.freeze({
         network: upstream.network,
+        getCollectionSnapshot: () => upstream.getCollectionSnapshot(),
         async next() {
           if (closed) return undefined;
           const event = await upstream.next();

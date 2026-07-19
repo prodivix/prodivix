@@ -1,4 +1,8 @@
 import type { ExportModule } from '#src/export';
+import {
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS,
+} from '@prodivix/server-runtime';
 import type {
   WorkspaceServerRuntimeBinding,
   WorkspaceServerRuntimeTarget,
@@ -32,6 +36,66 @@ export const createWorkspaceStandaloneServerRuntimeModule = (
   const provisionImport = deterministicTest
     ? "import serverRuntimeTestProvision from './.prodivix/server-runtime-test-provision';"
     : 'const serverRuntimeTestProvision: unknown = undefined;';
+  const testTraceWriter = deterministicTest
+    ? `const serverRuntimeTestTracePath = ${JSON.stringify(SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH)};
+let serverRuntimeTestTraceCount = 0;
+type ServerRuntimeTestNodeProcess = Readonly<{
+  versions?: Readonly<{ node?: unknown }>;
+  getBuiltinModule?: (specifier: string) => unknown;
+}>;
+type ServerRuntimeTestNodeFs = Readonly<{
+  mkdirSync: (path: string, options: Readonly<{ recursive: boolean; mode: number }>) => unknown;
+  appendFileSync: (
+    path: string,
+    contents: string,
+    options: Readonly<{ encoding: 'utf8'; flag: 'a'; mode: number }>
+  ) => unknown;
+}>;
+const resolveServerRuntimeTestNodeFs = (): ServerRuntimeTestNodeFs | undefined => {
+  const candidate = (globalThis as unknown as Readonly<{ process?: unknown }>).process;
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return undefined;
+  const process = candidate as ServerRuntimeTestNodeProcess;
+  if (typeof process.versions?.node !== 'string') return undefined;
+  if (typeof process.getBuiltinModule !== 'function') {
+    throw runtimeError('SVR_TEST_TRACE_UNAVAILABLE');
+  }
+  let loaded: unknown;
+  try {
+    loaded = process.getBuiltinModule('node:fs');
+  } catch {
+    throw runtimeError('SVR_TEST_TRACE_UNAVAILABLE');
+  }
+  if (!loaded || typeof loaded !== 'object' || Array.isArray(loaded)) {
+    throw runtimeError('SVR_TEST_TRACE_UNAVAILABLE');
+  }
+  const fs = loaded as Partial<ServerRuntimeTestNodeFs>;
+  if (typeof fs.mkdirSync !== 'function' || typeof fs.appendFileSync !== 'function') {
+    throw runtimeError('SVR_TEST_TRACE_UNAVAILABLE');
+  }
+  return fs as ServerRuntimeTestNodeFs;
+};
+const writeServerRuntimeTestTrace = (trace: Readonly<Record<string, unknown>>): void => {
+  serverRuntimeTestTraceCount += 1;
+  const line = JSON.stringify(trace);
+  if (
+    serverRuntimeTestTraceCount > ${SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumTraces} ||
+    new TextEncoder().encode(line).byteLength > ${SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS.maximumLineBytes}
+  ) throw runtimeError('SVR_TEST_TRACE_UNAVAILABLE');
+  const fs = resolveServerRuntimeTestNodeFs();
+  // Browser deterministic fixtures are intentionally ephemeral and do not
+  // acquire a filesystem capability. The Node Test host must provide the
+  // bounded builtin-module port so the Worker can collect durable evidence.
+  if (!fs) return;
+  try {
+    fs.mkdirSync('.prodivix', { recursive: true, mode: 0o700 });
+    fs.appendFileSync(serverRuntimeTestTracePath, line + '\\n', { encoding: 'utf8', flag: 'a', mode: 0o600 });
+  } catch {
+    throw runtimeError('SVR_TEST_TRACE_UNAVAILABLE');
+  }
+};`
+    : `const writeServerRuntimeTestTrace = (_trace: Readonly<Record<string, unknown>>): void => {
+  throw runtimeError('SVR_TEST_RUNTIME_DISABLED');
+};`;
 
   return {
     id: WORKSPACE_SERVER_RUNTIME_MODULE_ID,
@@ -102,6 +166,8 @@ const exactRecord = (value: unknown, required: readonly string[], optional: read
 
 const runtimeError = (code: string, retryable = false) =>
   Object.assign(new Error(code), { code, retryable });
+
+${testTraceWriter}
 
 const cloneJsonValue = (
   value: unknown,
@@ -327,12 +393,12 @@ const waitForTestFixture = (delayMs: unknown, signal?: AbortSignal): Promise<voi
   });
 };
 
-const invokeDeterministicTestServerFunction = async (
+const executeDeterministicTestServerFunction = async (
   functionRef: WorkspaceServerFunctionReference,
   input: unknown,
-  options: WorkspaceServerFunctionInvokeOptions
+  options: WorkspaceServerFunctionInvokeOptions,
+  invocationId: string
 ): Promise<WorkspaceServerFunctionOutcome> => {
-  const { invocationId } = assertInvocation(functionRef, options);
   const envelope = exactRecord(serverRuntimeTestProvision, ['format', 'mode'], ['provision']);
   if (
     !envelope || envelope.format !== 'prodivix.executable-server-runtime-provision.v1' ||
@@ -408,6 +474,62 @@ const invokeDeterministicTestServerFunction = async (
   if (definition.effect === 'mutation') {
     testReplayByInvocation.set(invocationId, Object.freeze({ fingerprint, result }));
   }
+  return result;
+};
+
+const invokeDeterministicTestServerFunction = async (
+  functionRef: WorkspaceServerFunctionReference,
+  input: unknown,
+  options: WorkspaceServerFunctionInvokeOptions
+): Promise<WorkspaceServerFunctionOutcome> => {
+  const { invocationId, attempt } = assertInvocation(functionRef, options);
+  const startedAt = Date.now();
+  let result: WorkspaceServerFunctionOutcome;
+  try {
+    result = await executeDeterministicTestServerFunction(
+      functionRef,
+      input,
+      options,
+      invocationId
+    );
+  } catch (error) {
+    const completedAt = Date.now();
+    const candidate = error && typeof error === 'object'
+      ? error as Readonly<{ code?: unknown; retryable?: unknown }>
+      : undefined;
+    const errorCode = typeof candidate?.code === 'string' && /^[A-Z][A-Z0-9_-]{0,127}$/.test(candidate.code)
+      ? candidate.code
+      : 'SVR_TEST_FIXTURE_FAILURE';
+    writeServerRuntimeTestTrace(Object.freeze({
+      format: 'prodivix.server-function-invocation-trace.v1',
+      requestId: invocationId + ':' + String(attempt),
+      invocationId,
+      attempt,
+      functionRef: Object.freeze({ artifactId: functionRef.artifactId, exportName: functionRef.exportName }),
+      startedAt,
+      completedAt,
+      durationMs: completedAt - startedAt,
+      outcome: errorCode === 'SVR_CANCELLED' ? 'cancelled' : 'failed',
+      errorCode,
+      retryable: candidate?.retryable === true,
+      redacted: true,
+    }));
+    throw error;
+  }
+  const completedAt = Date.now();
+  writeServerRuntimeTestTrace(Object.freeze({
+    format: 'prodivix.server-function-invocation-trace.v1',
+    requestId: invocationId + ':' + String(attempt),
+    invocationId,
+    attempt,
+    functionRef: Object.freeze({ artifactId: functionRef.artifactId, exportName: functionRef.exportName }),
+    startedAt,
+    completedAt,
+    durationMs: completedAt - startedAt,
+    outcome: 'succeeded',
+    resultKind: result.kind,
+    redacted: true,
+  }));
   return result;
 };
 

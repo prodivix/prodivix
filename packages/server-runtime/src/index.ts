@@ -25,9 +25,14 @@ export type {
 } from './serverRuntimeAuthConfiguration';
 export {
   createServerFunctionInvocationTrace,
+  decodeServerRuntimeTestInvocationTraces,
+  encodeServerRuntimeTestInvocationTraces,
   readServerFunctionInvocationTraceValue,
   SERVER_FUNCTION_INVOCATION_TRACE_FORMAT,
   SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_MEDIA_TYPE,
   toServerFunctionInvocationTraceValue,
 } from './serverRuntimeTrace';
 export type {

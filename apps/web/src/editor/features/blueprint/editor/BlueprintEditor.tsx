@@ -15,6 +15,7 @@ import { useAuthStore } from '@/auth/useAuthStore';
 import {
   ExecutionCenter,
   executionSessionCoordinator,
+  useExecutionCenterNavigationStore,
   useExecutionCenterNavigationVisibility,
   useExecutionSession,
   useWorkspaceExecutionSourceNavigation,
@@ -96,6 +97,9 @@ export function BlueprintEditor({
   const workspace = useEditorStore((state) => state.workspace);
   const navigationOpenedExecutionCenter =
     useExecutionCenterNavigationVisibility(workspace?.id);
+  const executionNavigationRequest = useExecutionCenterNavigationStore(
+    (state) => state.request
+  );
   const accessToken = useAuthStore((state) => state.token);
   const workspaceId = useEditorStore(selectWorkspaceId);
   const activeDocumentId = useEditorStore(selectActiveDocumentId);
@@ -141,9 +145,15 @@ export function BlueprintEditor({
     runTarget
   );
   const projectExecutionSession = useExecutionSession(projectRunner.sessionId);
+  const requestedExecutionSessionId =
+    executionNavigationRequest?.surface === 'console' &&
+    executionNavigationRequest.workspaceId === workspace?.id
+      ? executionNavigationRequest.sessionId
+      : undefined;
   const visibleExecutionSessionId = isRunMode
     ? projectRunner.sessionId
-    : (controller.executionSessionId ??
+    : (requestedExecutionSessionId ??
+      controller.executionSessionId ??
       (projectExecutionSession ? projectRunner.sessionId : undefined));
   const visibleExecutionSession = useExecutionSession(
     visibleExecutionSessionId ?? 'execution:unavailable'

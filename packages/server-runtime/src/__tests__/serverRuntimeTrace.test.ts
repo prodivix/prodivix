@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
   createServerFunctionInvocationTrace,
+  decodeServerRuntimeTestInvocationTraces,
+  encodeServerRuntimeTestInvocationTraces,
   readServerFunctionInvocationTraceValue,
   toExecutionServerFunctionBridgeFailure,
   toExecutionServerFunctionBridgeSuccess,
@@ -118,5 +120,36 @@ describe('Server Function invocation trace', () => {
         requestId: 'different:2',
       })
     ).toBeUndefined();
+  });
+
+  it('round-trips a bounded deterministic Test JSONL file and rejects partial or widened records', () => {
+    const trace = createServerFunctionInvocationTrace({
+      request,
+      response: toExecutionServerFunctionBridgeSuccess(request.requestId, {
+        kind: 'value',
+        value: { secret: 'never-projected' },
+      }),
+      startedAt: 30,
+      completedAt: 31,
+    });
+    const encoded = encodeServerRuntimeTestInvocationTraces([trace]);
+    expect(decodeServerRuntimeTestInvocationTraces(encoded)).toEqual([trace]);
+    expect(new TextDecoder().decode(encoded)).not.toContain('never-projected');
+    expect(() =>
+      decodeServerRuntimeTestInvocationTraces(
+        new TextDecoder().decode(encoded).trimEnd()
+      )
+    ).toThrow('incomplete');
+    expect(() =>
+      decodeServerRuntimeTestInvocationTraces(
+        `${JSON.stringify({
+          ...(toServerFunctionInvocationTraceValue(trace) as Record<
+            string,
+            unknown
+          >),
+          authorization: 'credential-canary',
+        })}\n`
+      )
+    ).toThrow('invalid');
   });
 });

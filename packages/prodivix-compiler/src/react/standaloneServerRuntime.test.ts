@@ -27,6 +27,7 @@ const loadRuntime = (
     target?: WorkspaceServerRuntimeTarget;
     bindings?: readonly WorkspaceServerRuntimeBinding[];
     provisionModule?: unknown;
+    traceHost?: 'browser' | 'node' | 'node-without-builtin-port';
   } = {}
 ) => {
   const generated = createWorkspaceStandaloneServerRuntimeModule(
@@ -48,6 +49,7 @@ const loadRuntime = (
     (event: { source: unknown; data: unknown }) => void
   >();
   const posted: unknown[] = [];
+  const traceLines: string[] = [];
   const parent = {
     postMessage(value: unknown) {
       if (options.failPost) throw new Error('frame unavailable');
@@ -73,6 +75,28 @@ const loadRuntime = (
       return 1;
     },
     clearTimeout() {},
+    ...(options.traceHost === 'browser'
+      ? {}
+      : {
+          process: {
+            versions: { node: '22.0.0' },
+            ...(options.traceHost === 'node-without-builtin-port'
+              ? {}
+              : {
+                  getBuiltinModule(id: string) {
+                    if (id !== 'node:fs') {
+                      throw new Error(`Unexpected builtin module: ${id}`);
+                    }
+                    return {
+                      mkdirSync() {},
+                      appendFileSync(_path: string, line: string) {
+                        traceLines.push(line);
+                      },
+                    };
+                  },
+                }),
+          },
+        }),
   };
   const exports: Record<string, unknown> = {};
   const require = (id: string) => {
@@ -90,6 +114,7 @@ const loadRuntime = (
   return {
     runtime: exports as RuntimeExports,
     posted,
+    traceLines,
     listenerCount: () => listeners.size,
     reply(data: unknown) {
       [...listeners].forEach((listener) => listener({ source: parent, data }));
@@ -290,6 +315,134 @@ describe('standalone Server Function runtime', () => {
         { ...options, attempt: 2 }
       )
     ).rejects.toThrow('SVR_TEST_REPLAY_CONFLICT');
+    expect(harness.traceLines).toHaveLength(3);
+    const traces = harness.traceLines.map(
+      (line) => JSON.parse(line) as unknown
+    );
+    expect(traces).toMatchObject([
+      {
+        requestId: 'action-invocation-1:1',
+        functionRef: actionRef,
+        outcome: 'succeeded',
+        resultKind: 'value',
+        redacted: true,
+      },
+      {
+        requestId: 'action-invocation-1:2',
+        outcome: 'succeeded',
+        resultKind: 'value',
+        redacted: true,
+      },
+      {
+        requestId: 'action-invocation-1:2',
+        outcome: 'failed',
+        errorCode: 'SVR_TEST_REPLAY_CONFLICT',
+        retryable: false,
+        redacted: true,
+      },
+    ]);
+    expect(JSON.stringify(traces)).not.toMatch(/Ada|Grace|fixture-user/iu);
+  });
+
+  it('keeps deterministic browser fixtures filesystem-free and ephemeral', async () => {
+    const harness = loadRuntime({
+      target: DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
+      traceHost: 'browser',
+      bindings: [
+        {
+          routeNodeId: 'route-home',
+          routeKind: 'loader',
+          documentPath: '/auth.server.ts',
+          definition: {
+            reference: functionRef,
+            kind: 'route-loader',
+            runtimeZone: 'server',
+            adapterId: 'test.principal.load',
+            effect: 'read',
+            auth: { kind: 'public' },
+            inputSchema: true,
+            outputSchema: true,
+          },
+        },
+      ],
+      provisionModule: {
+        format: 'prodivix.executable-server-runtime-provision.v1',
+        mode: 'deterministic-test',
+        provision: {
+          format: 'prodivix.server-runtime-test-provision.v1',
+          fixtureSetId: 'browser-fixture',
+          permissions: [],
+          fixtures: [
+            {
+              id: 'load-principal',
+              functionRef,
+              behavior: {
+                kind: 'outcome',
+                outcome: { kind: 'value', value: { displayName: 'Ada' } },
+              },
+            },
+          ],
+        },
+      },
+    });
+    await expect(
+      harness.runtime.invokeWorkspaceServerFunction(
+        functionRef,
+        { routeId: 'route-home' },
+        { invocationId: 'browser-load', attempt: 1 }
+      )
+    ).resolves.toEqual({ kind: 'value', value: { displayName: 'Ada' } });
+    expect(harness.traceLines).toEqual([]);
+  });
+
+  it('fails closed when a Node Test host cannot expose the builtin trace port', async () => {
+    const harness = loadRuntime({
+      target: DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
+      traceHost: 'node-without-builtin-port',
+      bindings: [
+        {
+          routeNodeId: 'route-home',
+          routeKind: 'loader',
+          documentPath: '/auth.server.ts',
+          definition: {
+            reference: functionRef,
+            kind: 'route-loader',
+            runtimeZone: 'server',
+            adapterId: 'test.principal.load',
+            effect: 'read',
+            auth: { kind: 'public' },
+            inputSchema: true,
+            outputSchema: true,
+          },
+        },
+      ],
+      provisionModule: {
+        format: 'prodivix.executable-server-runtime-provision.v1',
+        mode: 'deterministic-test',
+        provision: {
+          format: 'prodivix.server-runtime-test-provision.v1',
+          fixtureSetId: 'node-fixture',
+          permissions: [],
+          fixtures: [
+            {
+              id: 'load-principal',
+              functionRef,
+              behavior: {
+                kind: 'outcome',
+                outcome: { kind: 'value', value: { displayName: 'Ada' } },
+              },
+            },
+          ],
+        },
+      },
+    });
+    await expect(
+      harness.runtime.invokeWorkspaceServerFunction(
+        functionRef,
+        { routeId: 'route-home' },
+        { invocationId: 'node-load', attempt: 1 }
+      )
+    ).rejects.toThrow('SVR_TEST_TRACE_UNAVAILABLE');
   });
 
   it('fails closed when deterministic fixtures are projected in disabled mode', async () => {

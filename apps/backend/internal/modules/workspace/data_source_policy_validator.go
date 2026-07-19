@@ -8,11 +8,17 @@ import (
 const (
 	maxDataCacheDurationMS    = 7 * 24 * 60 * 60 * 1000
 	maxDataCacheKeyInputPaths = 64
+	maxDataStreamReconnects   = 4
+	maxDataStreamDelayMS      = 30 * 1000
+	maxDataStreamItems        = 10 * 1000
 )
 
 func validateDataOperationPolicies(kind string, policies map[string]json.RawMessage, path string) error {
 	switch kind {
 	case "query":
+		if _, exists := policies["stream"]; exists {
+			return dataSourceValidationError("%s/stream is available only to subscriptions", path)
+		}
 		if _, exists := policies["optimistic"]; exists {
 			return dataSourceValidationError("%s/optimistic is available only to mutations", path)
 		}
@@ -20,6 +26,9 @@ func validateDataOperationPolicies(kind string, policies map[string]json.RawMess
 			return dataSourceValidationError("%s/idempotency is available only to mutations", path)
 		}
 	case "mutation":
+		if _, exists := policies["stream"]; exists {
+			return dataSourceValidationError("%s/stream is available only to subscriptions", path)
+		}
 		if _, exists := policies["cache"]; exists {
 			return dataSourceValidationError("%s/cache is available only to queries", path)
 		}
@@ -40,7 +49,7 @@ func validateDataOperationPolicies(kind string, policies map[string]json.RawMess
 			}
 		}
 	case "subscription":
-		if len(policies) != 0 {
+		if len(policies) > 1 || (len(policies) == 1 && policies["stream"] == nil) {
 			return dataSourceValidationError("%s subscription cannot declare finite invocation policies", path)
 		}
 	}
@@ -67,6 +76,71 @@ func validateDataOperationPolicies(kind string, policies map[string]json.RawMess
 	if optimistic, exists := policies["optimistic"]; exists {
 		if err := validateDataOptimisticPolicy(optimistic, path+"/optimistic"); err != nil {
 			return err
+		}
+	}
+	if stream, exists := policies["stream"]; exists {
+		if err := validateDataStreamPolicy(stream, path+"/stream"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateDataStreamPolicy(payload json.RawMessage, path string) error {
+	fields, err := decodeDataObject(payload, path, []string{"reconnect"}, []string{"credentialRenewal", "collection"})
+	if err != nil {
+		return err
+	}
+	reconnectPath := path + "/reconnect"
+	reconnect, err := decodeDataObject(fields["reconnect"], reconnectPath, []string{"resume", "maxReconnectAttempts", "backoff", "initialDelayMs"}, []string{"maxDelayMs"})
+	if err != nil {
+		return err
+	}
+	resume, err := decodeDataCanonicalString(reconnect["resume"], reconnectPath+"/resume")
+	if err != nil || resume != "sse-last-event-id" {
+		return dataSourceValidationError("%s/resume must equal sse-last-event-id", reconnectPath)
+	}
+	backoff, err := decodeDataCanonicalString(reconnect["backoff"], reconnectPath+"/backoff")
+	if err != nil || (backoff != "fixed" && backoff != "exponential") {
+		return dataSourceValidationError("%s/backoff must be fixed or exponential", reconnectPath)
+	}
+	attempts, err := decodeDataInteger(reconnect["maxReconnectAttempts"], reconnectPath+"/maxReconnectAttempts", 1)
+	if err != nil || attempts > maxDataStreamReconnects {
+		return dataSourceValidationError("%s/maxReconnectAttempts exceeds the stream reconnect budget", reconnectPath)
+	}
+	initial, err := decodeDataInteger(reconnect["initialDelayMs"], reconnectPath+"/initialDelayMs", 0)
+	if err != nil || initial > maxDataStreamDelayMS {
+		return dataSourceValidationError("%s/initialDelayMs exceeds the stream reconnect budget", reconnectPath)
+	}
+	if raw, exists := reconnect["maxDelayMs"]; exists {
+		maximum, decodeErr := decodeDataInteger(raw, reconnectPath+"/maxDelayMs", 0)
+		if decodeErr != nil || maximum < initial || maximum > maxDataStreamDelayMS {
+			return dataSourceValidationError("%s/maxDelayMs is outside the stream reconnect budget", reconnectPath)
+		}
+	}
+	if raw, exists := fields["credentialRenewal"]; exists {
+		value, decodeErr := decodeDataCanonicalString(raw, path+"/credentialRenewal")
+		if decodeErr != nil || value != "per-connection" {
+			return dataSourceValidationError("%s/credentialRenewal must equal per-connection", path)
+		}
+	}
+	if raw, exists := fields["collection"]; exists {
+		collectionPath := path + "/collection"
+		collection, decodeErr := decodeDataObject(raw, collectionPath, []string{"kind", "entityIdPath", "maxItems"}, nil)
+		if decodeErr != nil {
+			return decodeErr
+		}
+		kind, decodeErr := decodeDataCanonicalString(collection["kind"], collectionPath+"/kind")
+		if decodeErr != nil || kind != "keyed-event-v1" {
+			return dataSourceValidationError("%s/kind must equal keyed-event-v1", collectionPath)
+		}
+		identityPath, decodeErr := decodeDataCanonicalString(collection["entityIdPath"], collectionPath+"/entityIdPath")
+		if decodeErr != nil || !isDataJSONPointer(identityPath) {
+			return dataSourceValidationError("%s/entityIdPath must be an RFC 6901 JSON Pointer", collectionPath)
+		}
+		items, decodeErr := decodeDataInteger(collection["maxItems"], collectionPath+"/maxItems", 1)
+		if decodeErr != nil || items > maxDataStreamItems {
+			return dataSourceValidationError("%s/maxItems exceeds the incremental collection budget", collectionPath)
 		}
 	}
 	return nil

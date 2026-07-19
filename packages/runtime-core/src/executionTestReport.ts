@@ -1,3 +1,4 @@
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 import type { DiagnosticTargetRef, SourceSpan } from '@prodivix/diagnostics';
 import type { ExecutionSourceTrace, ExecutionValue } from './execution.types';
 
@@ -11,6 +12,22 @@ export const EXECUTION_TEST_STATUSES = Object.freeze([
   'skipped',
   'todo',
 ] as const);
+
+/**
+ * Canonical report limits apply again at the transport-neutral boundary. Tool
+ * adapters may be stricter, but a Remote producer cannot bypass these bounds.
+ * Oversized reports fail closed; they are never re-labelled as assertion
+ * failures or published as partial reports.
+ */
+export const EXECUTION_TEST_REPORT_LIMITS = Object.freeze({
+  maxEncodedBytes: 4_000_000,
+  maxFiles: 256,
+  maxCases: 4_096,
+  maxFailureMessages: 512,
+  maxFailureMessagesPerOwner: 16,
+  maxSourceTracePerOwner: 8,
+  maxTextBytes: 16_384,
+});
 
 export type ExecutionTestStatus = (typeof EXECUTION_TEST_STATUSES)[number];
 
@@ -102,12 +119,30 @@ const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
   (Object.getPrototypeOf(value) === Object.prototype ||
     Object.getPrototypeOf(value) === null);
 
+const hasExactKeys = (
+  value: Record<string, unknown>,
+  allowed: readonly string[]
+): boolean => {
+  const keys = Object.keys(value);
+  return (
+    keys.length <= allowed.length && keys.every((key) => allowed.includes(key))
+  );
+};
+
+const fitsTextBudget = (value: string): boolean =>
+  utf8ToBytes(value).byteLength <= EXECUTION_TEST_REPORT_LIMITS.maxTextBytes;
+
 const normalizeIdentifier = (value: string, label: string): string => {
   if (typeof value !== 'string') {
     throw new TypeError(`${label} must be a string.`);
   }
   const normalized = value.trim();
   if (!normalized) throw new TypeError(`${label} must not be empty.`);
+  if (!fitsTextBudget(normalized)) {
+    throw new TypeError(
+      `${label} exceeds the ${EXECUTION_TEST_REPORT_LIMITS.maxTextBytes} byte limit.`
+    );
+  }
   return normalized;
 };
 
@@ -152,17 +187,31 @@ const normalizeStatus = (
 const normalizeFailureMessages = (
   messages: readonly string[] | undefined,
   label: string
-): readonly string[] =>
-  Object.freeze(
+): readonly string[] => {
+  if (
+    (messages?.length ?? 0) >
+    EXECUTION_TEST_REPORT_LIMITS.maxFailureMessagesPerOwner
+  ) {
+    throw new TypeError(
+      `${label} exceeds the ${EXECUTION_TEST_REPORT_LIMITS.maxFailureMessagesPerOwner} message per-owner limit.`
+    );
+  }
+  return Object.freeze(
     (messages ?? []).map((message, index) =>
       normalizeIdentifier(message, `${label}[${index}]`)
     )
   );
+};
 
 const cloneSourceTrace = (
   traces: readonly ExecutionSourceTrace[] | undefined
 ): readonly ExecutionSourceTrace[] | undefined => {
   if (traces === undefined) return undefined;
+  if (traces.length > EXECUTION_TEST_REPORT_LIMITS.maxSourceTracePerOwner) {
+    throw new TypeError(
+      `Execution test sourceTrace exceeds the ${EXECUTION_TEST_REPORT_LIMITS.maxSourceTracePerOwner} entry per-owner limit.`
+    );
+  }
   return Object.freeze(
     traces.map((trace, index) => {
       if (!isPlainRecord(trace) || !isDiagnosticTargetRef(trace.sourceRef)) {
@@ -327,6 +376,11 @@ export const createExecutionTestReport = (
   if (!Array.isArray(input.files)) {
     throw new TypeError('Execution test report files must be an array.');
   }
+  if (input.files.length > EXECUTION_TEST_REPORT_LIMITS.maxFiles) {
+    throw new TypeError(
+      `Execution test report exceeds the ${EXECUTION_TEST_REPORT_LIMITS.maxFiles} file limit.`
+    );
+  }
   const startedAt = normalizeTimestamp(
     input.startedAt,
     'Execution test report startedAt'
@@ -347,6 +401,15 @@ export const createExecutionTestReport = (
   const files = Object.freeze(
     input.files.map((file, index) => normalizeFile(file, index))
   );
+  const totalCases = files.reduce(
+    (total, file) => total + file.cases.length,
+    0
+  );
+  if (totalCases > EXECUTION_TEST_REPORT_LIMITS.maxCases) {
+    throw new TypeError(
+      `Execution test report exceeds the ${EXECUTION_TEST_REPORT_LIMITS.maxCases} case limit.`
+    );
+  }
   const seenFileIds = new Set<string>();
   const seenPaths = new Set<string>();
   files.forEach((file) => {
@@ -373,7 +436,7 @@ export const createExecutionTestReport = (
     input.tool.version,
     'Execution test tool version'
   );
-  return Object.freeze({
+  const report = Object.freeze({
     kind: 'test-report',
     reportId: normalizeIdentifier(
       input.reportId,
@@ -393,10 +456,39 @@ export const createExecutionTestReport = (
     files,
     failureMessages,
   });
+  const totalFailureMessages =
+    report.failureMessages.length +
+    report.files.reduce(
+      (fileTotal, file) =>
+        fileTotal +
+        file.failureMessages.length +
+        file.cases.reduce(
+          (caseTotal, testCase) => caseTotal + testCase.failureMessages.length,
+          0
+        ),
+      0
+    );
+  if (totalFailureMessages > EXECUTION_TEST_REPORT_LIMITS.maxFailureMessages) {
+    throw new TypeError(
+      `Execution test report exceeds the ${EXECUTION_TEST_REPORT_LIMITS.maxFailureMessages} failure message limit.`
+    );
+  }
+  if (
+    utf8ToBytes(JSON.stringify(report)).byteLength >
+    EXECUTION_TEST_REPORT_LIMITS.maxEncodedBytes
+  ) {
+    throw new TypeError(
+      `Execution test report exceeds the ${EXECUTION_TEST_REPORT_LIMITS.maxEncodedBytes} byte limit.`
+    );
+  }
+  return report;
 };
 
 const isNormalizedIdentifier = (value: unknown): value is string =>
-  typeof value === 'string' && Boolean(value) && value === value.trim();
+  typeof value === 'string' &&
+  Boolean(value) &&
+  value === value.trim() &&
+  fitsTextBudget(value);
 
 const isNonNegativeFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0;
@@ -407,6 +499,13 @@ const isPositiveSafeInteger = (value: unknown): value is number =>
 const isSourceSpan = (value: unknown): value is SourceSpan => {
   if (
     !isPlainRecord(value) ||
+    !hasExactKeys(value, [
+      'artifactId',
+      'startLine',
+      'startColumn',
+      'endLine',
+      'endColumn',
+    ]) ||
     !isNormalizedIdentifier(value.artifactId) ||
     !isPositiveSafeInteger(value.startLine) ||
     !isPositiveSafeInteger(value.startColumn) ||
@@ -434,46 +533,91 @@ const isDiagnosticTargetRef = (
   }
   switch (value.kind) {
     case 'workspace':
-      return hasStrings(value, ['workspaceId']);
+      return (
+        hasExactKeys(value, ['kind', 'workspaceId']) &&
+        hasStrings(value, ['workspaceId'])
+      );
     case 'workspace-node':
-      return hasStrings(value, ['workspaceId', 'nodeId']);
+      return (
+        hasExactKeys(value, ['kind', 'workspaceId', 'nodeId']) &&
+        hasStrings(value, ['workspaceId', 'nodeId'])
+      );
     case 'document':
       return (
+        hasExactKeys(value, ['kind', 'workspaceId', 'documentId']) &&
         hasStrings(value, ['documentId']) &&
         (value.workspaceId === undefined ||
           isNormalizedIdentifier(value.workspaceId))
       );
     case 'pir-node':
-      return hasStrings(value, ['documentId', 'nodeId']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId', 'nodeId']) &&
+        hasStrings(value, ['documentId', 'nodeId'])
+      );
     case 'inspector-field':
-      return hasStrings(value, ['documentId', 'nodeId', 'fieldPath']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId', 'nodeId', 'fieldPath']) &&
+        hasStrings(value, ['documentId', 'nodeId', 'fieldPath'])
+      );
     case 'route':
-      return hasStrings(value, ['routeId']);
+      return (
+        hasExactKeys(value, ['kind', 'routeId']) &&
+        hasStrings(value, ['routeId'])
+      );
     case 'nodegraph-node':
-      return hasStrings(value, ['documentId', 'nodeId']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId', 'nodeId']) &&
+        hasStrings(value, ['documentId', 'nodeId'])
+      );
     case 'nodegraph-port':
-      return hasStrings(value, ['documentId', 'nodeId', 'portId']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId', 'nodeId', 'portId']) &&
+        hasStrings(value, ['documentId', 'nodeId', 'portId'])
+      );
     case 'animation-timeline':
-      return hasStrings(value, ['documentId', 'timelineId']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId', 'timelineId']) &&
+        hasStrings(value, ['documentId', 'timelineId'])
+      );
     case 'animation-track':
-      return hasStrings(value, [
-        'documentId',
-        'timelineId',
-        'bindingId',
-        'trackId',
-      ]);
+      return (
+        hasExactKeys(value, [
+          'kind',
+          'documentId',
+          'timelineId',
+          'bindingId',
+          'trackId',
+        ]) &&
+        hasStrings(value, ['documentId', 'timelineId', 'bindingId', 'trackId'])
+      );
     case 'data-source':
-      return hasStrings(value, ['documentId']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId']) &&
+        hasStrings(value, ['documentId'])
+      );
     case 'data-operation':
-      return hasStrings(value, ['documentId', 'operationId']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId', 'operationId']) &&
+        hasStrings(value, ['documentId', 'operationId'])
+      );
     case 'code-artifact':
-      return hasStrings(value, ['artifactId']);
+      return (
+        hasExactKeys(value, ['kind', 'artifactId']) &&
+        hasStrings(value, ['artifactId'])
+      );
     case 'operation':
-      return hasStrings(value, ['operation']);
+      return (
+        hasExactKeys(value, ['kind', 'operation']) &&
+        hasStrings(value, ['operation'])
+      );
     case 'theme-token':
-      return hasStrings(value, ['themeId', 'tokenPath']);
+      return (
+        hasExactKeys(value, ['kind', 'themeId', 'tokenPath']) &&
+        hasStrings(value, ['themeId', 'tokenPath'])
+      );
     case 'viewport':
       return (
+        hasExactKeys(value, ['kind', 'routeId', 'width', 'height']) &&
         (value.routeId === undefined ||
           isNormalizedIdentifier(value.routeId)) &&
         isNonNegativeFiniteNumber(value.width) &&
@@ -481,12 +625,16 @@ const isDiagnosticTargetRef = (
       );
     case 'runtime-dom':
       return (
+        hasExactKeys(value, ['kind', 'routeId', 'stablePath']) &&
         (value.routeId === undefined ||
           isNormalizedIdentifier(value.routeId)) &&
         hasStrings(value, ['stablePath'])
       );
     case 'component-slot':
-      return hasStrings(value, ['documentId', 'nodeId', 'slotName']);
+      return (
+        hasExactKeys(value, ['kind', 'documentId', 'nodeId', 'slotName']) &&
+        hasStrings(value, ['documentId', 'nodeId', 'slotName'])
+      );
     default:
       return false;
   }
@@ -494,6 +642,7 @@ const isDiagnosticTargetRef = (
 
 const isSourceTrace = (value: unknown): value is ExecutionSourceTrace =>
   isPlainRecord(value) &&
+  hasExactKeys(value, ['sourceRef', 'sourceSpan', 'label']) &&
   isDiagnosticTargetRef(value.sourceRef) &&
   (value.sourceSpan === undefined || isSourceSpan(value.sourceSpan)) &&
   (value.label === undefined || isNormalizedIdentifier(value.label));
@@ -503,6 +652,15 @@ const isFailureMessages = (value: unknown): value is readonly string[] =>
 
 const isTestCaseResult = (value: unknown): value is ExecutionTestCaseResult =>
   isPlainRecord(value) &&
+  hasExactKeys(value, [
+    'caseId',
+    'name',
+    'fullName',
+    'status',
+    'durationMs',
+    'failureMessages',
+    'sourceTrace',
+  ]) &&
   isNormalizedIdentifier(value.caseId) &&
   isNormalizedIdentifier(value.name) &&
   (value.fullName === undefined || isNormalizedIdentifier(value.fullName)) &&
@@ -510,14 +668,27 @@ const isTestCaseResult = (value: unknown): value is ExecutionTestCaseResult =>
   (value.durationMs === undefined ||
     isNonNegativeFiniteNumber(value.durationMs)) &&
   isFailureMessages(value.failureMessages) &&
+  value.failureMessages.length <=
+    EXECUTION_TEST_REPORT_LIMITS.maxFailureMessagesPerOwner &&
   (value.status === 'failed' || value.failureMessages.length === 0) &&
   (value.sourceTrace === undefined ||
     (Array.isArray(value.sourceTrace) &&
+      value.sourceTrace.length <=
+        EXECUTION_TEST_REPORT_LIMITS.maxSourceTracePerOwner &&
       value.sourceTrace.every(isSourceTrace)));
 
 const isTestFileResult = (value: unknown): value is ExecutionTestFileResult => {
   if (
     !isPlainRecord(value) ||
+    !hasExactKeys(value, [
+      'fileId',
+      'path',
+      'status',
+      'durationMs',
+      'cases',
+      'failureMessages',
+      'sourceTrace',
+    ]) ||
     !isNormalizedIdentifier(value.fileId) ||
     !isNormalizedIdentifier(value.path) ||
     !statuses.has(value.status as ExecutionTestStatus) ||
@@ -526,8 +697,12 @@ const isTestFileResult = (value: unknown): value is ExecutionTestFileResult => {
     !Array.isArray(value.cases) ||
     !value.cases.every(isTestCaseResult) ||
     !isFailureMessages(value.failureMessages) ||
+    value.failureMessages.length >
+      EXECUTION_TEST_REPORT_LIMITS.maxFailureMessagesPerOwner ||
     (value.sourceTrace !== undefined &&
       (!Array.isArray(value.sourceTrace) ||
+        value.sourceTrace.length >
+          EXECUTION_TEST_REPORT_LIMITS.maxSourceTracePerOwner ||
         !value.sourceTrace.every(isSourceTrace)))
   ) {
     return false;
@@ -558,6 +733,7 @@ const summaryEquals = (
   expected: ExecutionTestReportSummary
 ): value is ExecutionTestReportSummary =>
   isPlainRecord(value) &&
+  hasExactKeys(value, summaryFields) &&
   summaryFields.every(
     (field) =>
       Number.isSafeInteger(value[field]) &&
@@ -571,10 +747,23 @@ export const isExecutionTestReport = (
 ): value is ExecutionTestReport => {
   if (
     !isPlainRecord(value) ||
+    !hasExactKeys(value, [
+      'kind',
+      'reportId',
+      'status',
+      'tool',
+      'startedAt',
+      'completedAt',
+      'durationMs',
+      'summary',
+      'files',
+      'failureMessages',
+    ]) ||
     value.kind !== 'test-report' ||
     !isNormalizedIdentifier(value.reportId) ||
     (value.status !== 'passed' && value.status !== 'failed') ||
     !isPlainRecord(value.tool) ||
+    !hasExactKeys(value.tool, ['name', 'version']) ||
     !isNormalizedIdentifier(value.tool.name) ||
     (value.tool.version !== undefined &&
       !isNormalizedIdentifier(value.tool.version)) ||
@@ -583,8 +772,11 @@ export const isExecutionTestReport = (
     (value.completedAt !== undefined &&
       !isNonNegativeFiniteNumber(value.completedAt)) ||
     !Array.isArray(value.files) ||
+    value.files.length > EXECUTION_TEST_REPORT_LIMITS.maxFiles ||
     !value.files.every(isTestFileResult) ||
-    !isFailureMessages(value.failureMessages)
+    !isFailureMessages(value.failureMessages) ||
+    value.failureMessages.length >
+      EXECUTION_TEST_REPORT_LIMITS.maxFailureMessagesPerOwner
   ) {
     return false;
   }
@@ -608,10 +800,38 @@ export const isExecutionTestReport = (
   }
   const fileIds = value.files.map((file) => file.fileId);
   const filePaths = value.files.map((file) => file.path);
+  const totalCases = value.files.reduce(
+    (total, file) => total + file.cases.length,
+    0
+  );
+  const totalFailureMessages =
+    value.failureMessages.length +
+    value.files.reduce(
+      (fileTotal, file) =>
+        fileTotal +
+        file.failureMessages.length +
+        file.cases.reduce(
+          (caseTotal, testCase) => caseTotal + testCase.failureMessages.length,
+          0
+        ),
+      0
+    );
   if (
+    totalCases > EXECUTION_TEST_REPORT_LIMITS.maxCases ||
+    totalFailureMessages > EXECUTION_TEST_REPORT_LIMITS.maxFailureMessages ||
     new Set(fileIds).size !== fileIds.length ||
     new Set(filePaths).size !== filePaths.length
   ) {
+    return false;
+  }
+  try {
+    if (
+      utf8ToBytes(JSON.stringify(value)).byteLength >
+      EXECUTION_TEST_REPORT_LIMITS.maxEncodedBytes
+    ) {
+      return false;
+    }
+  } catch {
     return false;
   }
   const expectedSummary = createSummary(value.files);

@@ -433,29 +433,39 @@ func TestGatewayProjectsViewerAsExactReadOnlyExecutionAuthority(t *testing.T) {
 	}
 }
 
-func TestGatewayKeepsViewerEnvironmentAndSecretAuthorityClosed(t *testing.T) {
-	proxied := false
-	controlPlane := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { proxied = true }))
-	defer controlPlane.Close()
-	store := &fakeGrantStore{
-		workspaceOwner: map[string]string{"workspace-1": "owner-1"},
-		workspacePermissions: map[string][]string{
-			"workspace-1:viewer-1": {workspaceReadPermissionID},
-		},
-		executionOwner: map[string]string{},
-	}
-	verifier := &fakeEnvironmentVerifier{available: true}
-	handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{}, verifier)
-	request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
-		"request": map[string]any{
-			"workspace":   workspaceAuthorityFixture(),
-			"environment": map[string]any{"environmentId": "environment-1", "revision": "revision-1", "mode": "live"},
-		},
-	})))
-	response := httptest.NewRecorder()
-	testRouterSession(handler, "viewer-1", "session-viewer-1").ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound || proxied || verifier.workspaceID != "" {
-		t.Fatalf("viewer environment authority escaped its fail-close boundary: status=%d proxied=%v verifier=%#v", response.Code, proxied, verifier)
+func TestGatewayKeepsCollaboratorEnvironmentAndSecretAuthorityClosed(t *testing.T) {
+	for _, fixture := range []struct {
+		principalID string
+		permissions []string
+	}{
+		{principalID: "viewer-1", permissions: []string{workspaceReadPermissionID}},
+		{principalID: "editor-1", permissions: []string{workspaceReadPermissionID, workspaceWritePermissionID}},
+	} {
+		t.Run(fixture.principalID, func(t *testing.T) {
+			proxied := false
+			controlPlane := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { proxied = true }))
+			defer controlPlane.Close()
+			store := &fakeGrantStore{
+				workspaceOwner: map[string]string{"workspace-1": "owner-1"},
+				workspacePermissions: map[string][]string{
+					"workspace-1:" + fixture.principalID: fixture.permissions,
+				},
+				executionOwner: map[string]string{},
+			}
+			verifier := &fakeEnvironmentVerifier{available: true}
+			handler := NewHandler(store, backendconfig.RemoteRunnerConfig{BaseURL: controlPlane.URL, ClientToken: "service-token", Timeout: time.Second}, backendconfig.RemotePreviewHostConfig{}, verifier)
+			request := httptest.NewRequest(http.MethodPost, "/api/remote-executions", bytes.NewReader(envelope("create", map[string]any{
+				"request": map[string]any{
+					"workspace":   workspaceAuthorityFixture(),
+					"environment": map[string]any{"environmentId": "environment-1", "revision": "revision-1", "mode": "live"},
+				},
+			})))
+			response := httptest.NewRecorder()
+			testRouterSession(handler, fixture.principalID, "session-"+fixture.principalID).ServeHTTP(response, request)
+			if response.Code != http.StatusNotFound || proxied || verifier.workspaceID != "" {
+				t.Fatalf("collaborator environment authority escaped its fail-close boundary: status=%d proxied=%v verifier=%#v", response.Code, proxied, verifier)
+			}
+		})
 	}
 }
 
@@ -465,7 +475,7 @@ func TestGatewayRejectsNonCanonicalResolvedPermissionSetBeforeProxy(t *testing.T
 	defer controlPlane.Close()
 	store := &fakeGrantStore{
 		workspacePermissions: map[string][]string{
-			"workspace-1:viewer-1": {workspaceReadPermissionID, workspaceWritePermissionID},
+			"workspace-1:viewer-1": {workspaceWritePermissionID, workspaceReadPermissionID},
 		},
 		executionOwner: map[string]string{},
 	}

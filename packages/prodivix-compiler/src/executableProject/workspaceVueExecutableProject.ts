@@ -127,6 +127,9 @@ export const generateWorkspaceVueViteExecutableProject = (
         'artifacts',
         'dependency-install',
         'filesystem',
+        ...(options.serverRuntimeMockProvision
+          ? (['server-function'] as const)
+          : []),
         'source-trace',
         'test',
       ],
@@ -172,6 +175,7 @@ export const generateWorkspaceVueViteExecutableProject = (
         packageManagerRunArguments(packageManager, 'test', [
           '--reporter=default',
           '--reporter=json',
+          '--no-file-parallelism',
           `--outputFile.json=${DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH}`,
         ])
       ),

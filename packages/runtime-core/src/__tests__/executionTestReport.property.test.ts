@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
   createExecutionTestReport,
+  EXECUTION_TEST_REPORT_LIMITS,
   EXECUTION_TEST_REPORT_TRACE_NAME,
   isExecutionTestReport,
   readExecutionTestReportValue,
@@ -203,5 +204,101 @@ describe('execution test report properties', () => {
         'invalid sourceSpan'
       );
     });
+  });
+
+  it('rejects unknown private fields and enforces canonical transport budgets', () => {
+    const report = createExecutionTestReport({
+      reportId: 'strict-report',
+      tool: { name: 'portable-test-runner' },
+      files: [
+        {
+          fileId: 'strict-file',
+          path: 'tests/strict.test.ts',
+          status: 'passed',
+          cases: [
+            {
+              caseId: 'strict-case',
+              name: 'stays transport neutral',
+              status: 'passed',
+              sourceTrace: [
+                {
+                  sourceRef: {
+                    kind: 'code-artifact',
+                    artifactId: 'artifact-strict',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const withPrivateAttachment = JSON.parse(JSON.stringify(report)) as Record<
+      string,
+      unknown
+    >;
+    withPrivateAttachment.attachments = [
+      { url: 'https://runner.invalid/private-output' },
+    ];
+    expect(readExecutionTestReportValue(withPrivateAttachment)).toBeUndefined();
+
+    const withPrivateTraceField = JSON.parse(JSON.stringify(report)) as Record<
+      string,
+      unknown
+    >;
+    const files = withPrivateTraceField.files as Record<string, unknown>[];
+    const cases = files[0]!.cases as Record<string, unknown>[];
+    const traces = cases[0]!.sourceTrace as Record<string, unknown>[];
+    traces[0]!.principal = 'must-not-cross-the-boundary';
+    expect(readExecutionTestReportValue(withPrivateTraceField)).toBeUndefined();
+
+    expect(() =>
+      createExecutionTestReport({
+        reportId: 'too-many-files',
+        tool: { name: 'portable-test-runner' },
+        files: Array.from(
+          { length: EXECUTION_TEST_REPORT_LIMITS.maxFiles + 1 },
+          (_, index) => ({
+            fileId: `file-${index}`,
+            path: `tests/file-${index}.test.ts`,
+            status: 'passed' as const,
+            cases: [],
+          })
+        ),
+      })
+    ).toThrow('file limit');
+
+    expect(() =>
+      createExecutionTestReport({
+        reportId: 'too-many-source-traces',
+        tool: { name: 'portable-test-runner' },
+        files: [
+          {
+            fileId: 'trace-file',
+            path: 'tests/trace.test.ts',
+            status: 'passed',
+            cases: [
+              {
+                caseId: 'trace-case',
+                name: 'bounded trace',
+                status: 'passed',
+                sourceTrace: Array.from(
+                  {
+                    length:
+                      EXECUTION_TEST_REPORT_LIMITS.maxSourceTracePerOwner + 1,
+                  },
+                  (_, index) => ({
+                    sourceRef: {
+                      kind: 'code-artifact' as const,
+                      artifactId: `artifact-${index}`,
+                    },
+                  })
+                ),
+              },
+            ],
+          },
+        ],
+      })
+    ).toThrow('sourceTrace');
   });
 });

@@ -575,12 +575,22 @@ describe('Workspace Auth/Server runtime target Gate', () => {
     expect(result.snapshot.capabilityRequirements.preview).not.toContain(
       'server-function'
     );
+    expect(result.snapshot.capabilityRequirements.build).not.toContain(
+      'server-function'
+    );
+    expect(result.snapshot.capabilityRequirements.test).toContain(
+      'server-function'
+    );
     expect(result.snapshot.serverRuntimeMockProvision).toEqual(provision);
     const generatedRuntime = result.snapshot.files.find(
       ({ path }) => path === 'src/prodivix-server-runtime.ts'
     );
     expect(generatedRuntime?.contents).toContain(
       "import serverRuntimeTestProvision from './.prodivix/server-runtime-test-provision'"
+    );
+    expect(generatedRuntime?.contents).not.toContain("from 'node:fs'");
+    expect(generatedRuntime?.contents).toContain(
+      "process.getBuiltinModule('node:fs')"
     );
     expect(generatedRuntime?.contents).not.toContain('fixture-user');
     const testProvision = projectExecutableProjectRuntimeFiles(

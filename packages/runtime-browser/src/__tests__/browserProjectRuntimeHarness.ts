@@ -60,6 +60,7 @@ const flattenTree = (
 export const createBrowserProjectRuntimeHarness = () => {
   const files = new Map<string, string | Uint8Array>();
   const commands: ExecutableProjectCommand[] = [];
+  const installPlans: RuntimeCommandPlan[] = [];
   const commandPlans: RuntimeCommandPlan[] = [];
   const processes: RuntimeHarnessProcess[] = [];
   const serverReadyListeners = new Set<(url: string, port: number) => void>();
@@ -93,7 +94,8 @@ export const createBrowserProjectRuntimeHarness = () => {
       commands.push(command);
       const isInstall = command.args?.includes('install');
       const plan = isInstall
-        ? ({ exitCode: 0 } satisfies RuntimeCommandPlan)
+        ? (installPlans.shift() ??
+          ({ exitCode: 0 } satisfies RuntimeCommandPlan))
         : (commandPlans.shift() ?? { exitCode: 0 });
       Object.entries(plan.writeFiles ?? {}).forEach(([path, contents]) => {
         files.set(path, cloneContents(contents));
@@ -150,6 +152,7 @@ export const createBrowserProjectRuntimeHarness = () => {
     files,
     commands,
     processes,
+    queueInstallCommand: (plan: RuntimeCommandPlan) => installPlans.push(plan),
     queueCommand: (plan: RuntimeCommandPlan) => commandPlans.push(plan),
     createRuntime: async () => {
       bootCount += 1;

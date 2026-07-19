@@ -11,6 +11,7 @@ import {
 } from '@prodivix/diagnostics';
 import {
   AlertCircle,
+  Activity,
   CheckCircle2,
   CircleAlert,
   ExternalLink,
@@ -23,6 +24,7 @@ import {
   navigateToWorkspaceSemanticTarget,
   type WorkspaceNavigationSurface,
 } from '@/editor/navigation';
+import { useExecutionCenterNavigationStore } from '@/editor/features/execution/executionCenterNavigation';
 import { executeWorkspaceIssueQuickFix } from './workspaceIssueQuickFixRegistry';
 import { useWorkspaceIssuesStore } from './workspaceIssuesStore';
 
@@ -136,6 +138,11 @@ export function WorkspaceIssuesPage() {
   const presentation = selectedIssue
     ? buildDiagnosticPresentation({ diagnostic: selectedIssue.diagnostic })
     : null;
+  const executionSessionId =
+    selectedIssue?.status === 'active' &&
+    typeof selectedIssue.diagnostic.meta?.executionSessionId === 'string'
+      ? selectedIssue.diagnostic.meta.executionSessionId
+      : undefined;
 
   const openTarget = () => {
     if (!projectId || !selectedIssue?.diagnostic.targetRef) return;
@@ -165,6 +172,16 @@ export function WorkspaceIssuesPage() {
     if (result.status === 'unavailable') {
       setActionMessage(t('issues.actions.sourceUnavailable'));
     }
+  };
+  const openExecution = () => {
+    if (!projectId || !collection || !selectedIssue || !executionSessionId)
+      return;
+    useExecutionCenterNavigationStore.getState().openExecutionDiagnostic({
+      workspaceId: collection.workspaceId,
+      sessionId: executionSessionId,
+      diagnosticCode: selectedIssue.diagnostic.code,
+    });
+    navigate(`/editor/project/${projectId}/blueprint`);
   };
 
   return (
@@ -334,6 +351,16 @@ export function WorkspaceIssuesPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                {executionSessionId && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg bg-(--text-primary) px-3 py-2 text-sm text-(--bg-canvas)"
+                    onClick={openExecution}
+                  >
+                    <Activity size={15} />
+                    {t('issues.actions.openExecution')}
+                  </button>
+                )}
                 {selectedIssue.diagnostic.targetRef && (
                   <button
                     type="button"

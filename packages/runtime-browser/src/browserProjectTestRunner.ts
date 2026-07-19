@@ -24,6 +24,12 @@ import {
   type BrowserProjectRuntimeHost,
 } from './browserProjectRuntimeHost';
 import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
+import {
+  decodeServerRuntimeTestInvocationTraces,
+  SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
+  toServerFunctionInvocationTraceValue,
+} from '@prodivix/server-runtime';
 
 export const BROWSER_PROJECT_TEST_EXECUTION_PROVIDER_ID =
   'prodivix.browser.web-container.test';
@@ -62,6 +68,7 @@ const providerDescriptor = createExecutionProviderDescriptor({
     'dependency-install',
     'diagnostics',
     'filesystem',
+    'server-function',
     'source-trace',
     'streaming-logs',
     'test',
@@ -94,17 +101,6 @@ const parentDirectories = (path: string): readonly string[] => {
     .slice(0, -1)
     .map((_, index) => segments.slice(0, index + 1).join('/'));
 };
-
-const artifactUri = (
-  request: ExecutionRequest,
-  reportFilePath: string
-): string =>
-  `browser-project://${encodeURIComponent(
-    request.workspace.workspaceId
-  )}/${encodeURIComponent(request.workspace.snapshotId)}/${reportFilePath
-    .split('/')
-    .map(encodeURIComponent)
-    .join('/')}`;
 
 const reportSourceTrace = (
   request: ExecutionRequest
@@ -151,6 +147,25 @@ const collectReportSourceTrace = (
       return true;
     })
   );
+};
+
+const serverFunctionSourceTrace = (
+  snapshot: ExecutableProjectSnapshot,
+  artifactId: string
+): readonly ExecutionSourceTrace[] => {
+  const matching = snapshot.files
+    .flatMap((file) => file.sourceTrace ?? [])
+    .filter(
+      (trace) =>
+        trace.sourceRef.kind === 'code-artifact' &&
+        trace.sourceRef.artifactId === artifactId &&
+        (!trace.sourceSpan || trace.sourceSpan.artifactId === artifactId)
+    );
+  if (matching.length !== 1)
+    throw new TypeError(
+      'Browser Test Server Function trace does not match one CodeArtifact root.'
+    );
+  return Object.freeze(matching);
 };
 
 /** Runs the canonical project Test plan as a one-shot ExecutionJob. */
@@ -226,8 +241,7 @@ export const createBrowserProjectTestRunner = (
   const publishReport = (
     controller: ExecutionJobController,
     request: ExecutionRequest,
-    report: ExecutionTestReport,
-    reportFilePath: string
+    report: ExecutionTestReport
   ): void => {
     const sourceTrace = collectReportSourceTrace(
       report,
@@ -246,7 +260,6 @@ export const createBrowserProjectTestRunner = (
       kind: 'report',
       label: 'Project test report',
       mediaType: EXECUTION_TEST_REPORT_MEDIA_TYPE,
-      uri: artifactUri(request, reportFilePath),
       sourceTrace,
       metadata: {
         reportId: report.reportId,
@@ -291,6 +304,41 @@ export const createBrowserProjectTestRunner = (
     });
   };
 
+  const publishServerFunctionTraces = async (
+    controller: ExecutionJobController,
+    snapshot: ExecutableProjectSnapshot,
+    lease: Parameters<BrowserProjectRuntimeHost['readFile']>[1]
+  ): Promise<void> => {
+    if (
+      !snapshot.serverRuntimeMockProvision ||
+      !snapshot.capabilityRequirements.test.includes('server-function')
+    )
+      return;
+    let source: string | Uint8Array;
+    try {
+      source = await runtimeHost.readFile(
+        SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
+        lease
+      );
+    } catch {
+      return;
+    }
+    const traces = decodeServerRuntimeTestInvocationTraces(source);
+    traces.forEach((trace, index) => {
+      controller.emitTrace({
+        traceId: `server-function-test:${controller.job.id}`,
+        spanId: `${trace.requestId}:${index}`,
+        name: SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+        phase: 'event',
+        detail: toServerFunctionInvocationTraceValue(trace),
+        sourceTrace: serverFunctionSourceTrace(
+          snapshot,
+          trace.functionRef.artifactId
+        ),
+      });
+    });
+  };
+
   const execute = async (
     request: ExecutionRequest,
     controller: ExecutionJobController
@@ -325,12 +373,28 @@ export const createBrowserProjectTestRunner = (
           'Resolved executable project identity does not match the test execution request.'
         );
       }
+      const requestRequiresServerFunction =
+        request.requiredCapabilities.includes('server-function');
+      const snapshotRequiresServerFunction =
+        snapshot.capabilityRequirements.test.includes('server-function');
+      if (
+        requestRequiresServerFunction !== snapshotRequiresServerFunction ||
+        snapshotRequiresServerFunction !==
+          Boolean(snapshot.serverRuntimeMockProvision)
+      )
+        throw new TypeError(
+          'Browser Test Server Function capability does not match its deterministic runtime provision.'
+        );
       emitLog(controller, 'Preparing the project test snapshot.');
       const preparation = await runtimeHost.prepare(ownerId, snapshot, 'test');
       if (!isJobRunnable(controller)) return;
 
       await runtimeHost.remove(
         snapshot.testPlan.reportFilePath,
+        preparation.lease
+      );
+      await runtimeHost.remove(
+        SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
         preparation.lease
       );
       for (const directory of parentDirectories(
@@ -365,11 +429,11 @@ export const createBrowserProjectTestRunner = (
             reportSourceTrace(request)
           ),
       });
-      publishReport(
+      publishReport(controller, request, report);
+      await publishServerFunctionTraces(
         controller,
-        request,
-        report,
-        snapshot.testPlan.reportFilePath
+        snapshot,
+        preparation.lease
       );
       if (report.status === 'failed') {
         publishFailedTestDiagnostic(controller, request, report);

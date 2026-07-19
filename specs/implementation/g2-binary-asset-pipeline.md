@@ -83,7 +83,7 @@
 
 ### B5：Transform 与 delivery
 
-状态：Implemented（PNG + baseline JPEG/ClamAV isolated + multi-engine/failover/fresh-update first vertical）；full raster/more-format/public adapters Planned。
+状态：PNG/JPEG full-raster + ClamAV/YARA-X required-engine + isolated delivery locally implemented；新增 real-engine CI evidence pending。
 
 - `@prodivix/assets` 已实现 strict recipe decoder、transformer/scanner/cache port，以及 transformer ->
   exact-byte verification -> dimension policy -> scan attestation -> cache 的 fail-closed coordinator。
@@ -93,10 +93,12 @@
   DQT/DHT/SOF0/SOS/EOI、受限 segment/scan/sampling/dimensions；剥离 APP/COM metadata，仅保留渲染所需 Adobe
   APP14，并保持已验证 entropy bytes exact。progressive/arithmetic/CMYK、非默认 EXIF orientation、table
   redefinition、trailing/truncated/malformed 或超预算输入 fail closed。
-- `prodivix.scanner.png-structure@1` 与 `prodivix.scanner.jpeg-structure@1` 只给各自 canonical sanitized image
-  颁发 structural clean；versioned scanner chain 要求 structural 与全部 ClamAV malware policy 同时 clean 才能
-  颁发最终 attestation。完整 raster
-  decode/re-encode 仍 Planned，不能把 structural scanner 宣称为通用病毒扫描。
+- `prodivix.image.png-raster-reencode@1` 与 `prodivix.image.jpeg-raster-reencode@1` 由 bounded Sharp/libvips adapter
+  完整 decode、auto-orient、sRGB normalize 与 deterministic re-encode，再复用 structural sanitizer验证输出；输入/output
+  media、page/channel/pixel/byte、并发与 timeout均 hard cut。
+- `prodivix.scanner.png-structure@1` 与 `prodivix.scanner.jpeg-structure@1` 只给各自 canonical image颁发
+  structural clean；versioned scanner chain 要求 structural、ClamAV 与 YARA-X 全部 clean 才能颁发最终 attestation，
+  不能把 structural scanner宣称为通用病毒扫描。
 - `apps/asset-delivery-host` 已实现有界 ClamAV `INSTREAM` adapter：exact digest/length/media preflight、bounded
   request frame/response、timeout/backpressure、固定 malware finding code 与 daemon signature hard cut。daemon
   error、timeout、connection/protocol failure 统一 scanner-unavailable，不能分配 delivery session。
@@ -115,9 +117,13 @@
 - Host 在读取 upload 前取得 snapshot，并在 session 签发前二次验证 exact generation。新 generation 被观察时会
   撤销全部旧 capability session；旧 generation 的 in-flight scan 不能签发。derived cache 保留 exact bytes，因
   scanner policy version 改变而强制重新扫描并更新 attestation，不重新执行确定性 transform。
-- GitHub-only `g2-binary-asset-malware.yml` 已配置 official preloaded-database image、rootless capability-dropped
-  FreshClam updater、exact updated-image snapshot、internal-network daemon 与 clean/quarantine real-daemon canary；
-  updater 有界联网，真实扫描阶段保持断网，首次远端执行证据仍待阶段性提交推送后确认，当前不能宣称该 workflow 已通过。
+- YARA-X adapter固定 executable realpath、exact `yara-x-cli 1.15.0`、rules digest/mtime freshness、isolated temp
+  directory、exact target file、bounded process/output/timeout/concurrency与 strict JSONL protocol；clean/match、规则漂移、
+  stale/future rules、symlink/binary drift与 command failure均有正负向 Gate。
+- GitHub-only `g2-binary-asset-malware.yml` 已配置 pinned YARA-X archive/digest、official ClamAV
+  preloaded-database image、rootless capability-dropped FreshClam updater、exact updated-image snapshot、internal-network daemon
+  与 clean/quarantine required-engine canary；updater 有界联网，真实扫描阶段保持断网。旧 ClamAV-only evidence已通过，
+  新 ClamAV + YARA-X workflow尚未随本轮修改推送，不能宣称新增 Gate已通过。
 - bounded LRU derived cache 以 recipe digest 定位，命中后重新验证 output bytes、media、dimensions 与 clean
   attestation；同 recipe 的不同输出 hard conflict。
 - 独立 `apps/asset-delivery-host` 只接收 Backend internal-token 请求，保存短期 bytes 与 capability hash，按
@@ -128,8 +134,11 @@
 - active content 永远禁止 inline；即使 ClamAV 判 clean，也只能以 `application/octet-stream` + attachment、
   deny-all CSP、sandbox、nosniff、noopen、no-store 从 capability origin 交付。production registry 对明确
   allowlist 的 static/download/active media 提供唯一 scanner coverage，未知 media 继续 fail closed。
-- public/CDN projection、durable revocation list、多 vendor scanner adapter、完整 raster re-encode 与更多格式仍 Planned；
-  当前 production fleet adapter 是一个或多个 required ClamAV engine group，不宣称已有第二种 malware vendor。
+- G2 public policy由 target-neutral `createBinaryAssetPublicDeliveryRequest` 固定：PNG/JPEG必须 full-raster + inline，
+  其他 media只能 original + attachment；Backend/Web/Host strict wire与 React/Vue matrix消费同一请求。持久 public-CDN
+  publish/purge/revocation属于 deployment promotion，不写回 Workspace，也不作为 current G2 exact-byte delivery Gate。
+- 更多 raster格式与额外 scanner vendor可在不改变 current contract的 adapter扩展中继续；当前 required malware engines
+  是 ClamAV + YARA-X，任一 unavailable/quarantine都不能签发 delivery session。
 
 ### B6：Git 与 runtime import
 
@@ -169,24 +178,27 @@
 
 ### B7：G2 Golden 与 closure
 
-状态：Contract Matrix + Browser Product Journey Implemented / Cross-target Closure In Progress。
+状态：Contract Matrix + Browser Product Journey + React/Vue Cross-target Closure locally implemented / CI evidence pending。
 
 - Browser Catalog JPEG 已覆盖 bytes-first upload、Workspace durable reference commit、page reload 后按 canonical
-  reference 重新 materialize exact source bytes、`jpeg-sanitize` request 与 capability-origin isolated preview。
+  reference 重新 materialize exact source bytes、`jpeg-raster-reencode` request 与 capability-origin isolated preview。
 - Browser Gate 使用 strict service-boundary harness 校验 Auth、Settings/Operation durable outbox 排序、Atomic Commit
   aggregate response、source digest/length/media、delivery strict wire 与真实 Chromium image decode；source metadata
   canary 不得进入 isolated bytes。
 - `pnpm run verify:g2:binary-assets:browser` 是独立 Gate，并进入 GitHub Smoke；Backend/Host 的 transform、scanner 与
   owner gateway 继续由各自 integration Gate 覆盖，Browser harness 不替代 real-daemon malware Gate。
-- Vue deterministic authenticated Catalog 已覆盖 Test/Build、exact PNG projection 与真实 Chrome decode；Remote live、
-  static protected Export、完整 delivery/sanitize UI matrix 与跨表面 SourceTrace/cache/leak closure 继续进行。
+- React/Vue target matrix对 Browser/Test与 Remote Preview/Test/Build逐 profile验证 exact bytes、Remote wire不泄漏
+  Workspace blob locator/digest，并固定同一 PNG/JPEG full-raster public request；unprotected static Export保留 exact bytes，
+  protected React/Vue static Export均以 server gateway diagnostic fail closed。
+- Vue deterministic/Remote authenticated Catalog已覆盖 exact PNG projection、Test/Build、真实 Chrome decode与 live CRUD；
+  Browser JPEG产品面覆盖 full-raster delivery。持久 CDN publish/purge是 post-G2 deployment promotion。
 - 证据进入 `specs/roadmap/g2-closure-evidence.md`。
 
 当前 living Golden Workspace 已从 inline SVG 切换为 blob-backed PNG，并覆盖 Compiler、Executable Snapshot、
 Browser mount 与 Remote strict codec 的 exact bytes；local-only Resources/Run/Test/Export 和 upload-aware local-to-cloud
-sync 已有 verified materialization 纵切。真实 JPEG Browser E2E upload/reload/transform/isolated-delivery 产品旅程已进入
-B7 Gate；Vue second target 已完成 exact PNG deterministic Test/Build/Chrome first vertical，Remote live、static protected
-Export 与同级 delivery/sanitize 产品旅程仍待 closure。
+sync 已有 verified materialization 纵切。真实 JPEG Browser E2E upload/reload/full-raster/isolated-delivery产品旅程已进入
+B7 Gate；React/Vue second target matrix已覆盖 exact PNG Browser/Test/Remote Preview/Test/Build、Vue Chrome与 protected
+static Export fail-close。
 
 ## 验收标准
 
@@ -202,9 +214,11 @@ Export 与同级 delivery/sanitize 产品旅程仍待 closure。
       missing/drift/path conflict fail closed，Browser adapter 在工作树 mutation 前完成 LFS upload，并清理旧 manifest Asset。
 - [x] runtime filesystem Asset import/replace 先经 local/Backend uploader 验证 exact receipt，再与所选 Code change 合成
       单个可逆 Workspace Transaction；revision/baseline/media drift、缺失/伪造 receipt 与 runtime delete fail closed。
-- [x] PNG 与 baseline JPEG deterministic transform、各自 structural + ClamAV scan/quarantine、multi-engine required chain、replica failover、daemon readiness/database-age、atomic fresh-update、generation-fenced session revocation、policy-version cache re-scan 与 isolated capability delivery 通过本地 first-vertical Gate。
+- [x] PNG/JPEG deterministic sanitize + bounded Sharp full-raster re-encode、各自 structural + required ClamAV/YARA-X
+      scan/quarantine、replica failover、engine/rules freshness、atomic policy generation、session revocation、cache re-scan与
+      isolated capability delivery通过本地 Gate。
 - [x] Browser JPEG 产品旅程按 exact bytes 完成 upload、durable reference commit、reload materialization、sanitized
       delivery request 与 capability-origin image decode，并由独立 Playwright Gate/Smoke CI 固定。
-- [ ] GitHub rootless real-daemon malware workflow 取得首次通过证据，并完成 multi-vendor、完整 raster/更多格式 transform 与 public-CDN delivery Gate。
-- [ ] Golden product image 在 Remote live、standalone protected Export 与两个 target 的完整 delivery/sanitize matrix
-      中通过（React/Vite contract/Browser 与 Vue deterministic Test/Build/Chrome exact PNG first vertical 已覆盖）。
+- [ ] 新 ClamAV + YARA-X rootless real-engine workflow取得首次远端通过证据；本地 contract/negative corpus已通过。
+- [x] Golden product image在 Browser/Test、Remote Preview/Test/Build、unprotected Export与 React/Vue target matrix中
+      exact-byte通过；protected standalone Export显式 fail closed，Browser JPEG full-raster与 Vue Chrome decode产品 Gate通过。

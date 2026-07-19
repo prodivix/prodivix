@@ -175,6 +175,17 @@ export {
   DATA_SEMANTIC_PROVIDER_DESCRIPTOR,
 } from './dataSemanticContributionProvider';
 export {
+  createDataIncrementalCollectionRuntime,
+  DATA_INCREMENTAL_COLLECTION_ERROR_CODES,
+  DataIncrementalCollectionError,
+} from './dataIncrementalCollectionRuntime';
+export type {
+  DataIncrementalCollectionErrorCode,
+  DataIncrementalCollectionEvent,
+  DataIncrementalCollectionRuntime,
+  DataIncrementalCollectionSnapshot,
+} from './dataIncrementalCollectionRuntime';
+export {
   DATA_CACHE_POLICY_LIMITS,
   DATA_LIFECYCLE_STATUSES,
   DATA_DOCUMENT_ISSUE_CODES,
@@ -182,6 +193,7 @@ export {
   DATA_IMPORT_PROVENANCE_LIMITS,
   DATA_OPERATION_KINDS,
   DATA_SOURCE_WIRE_VERSION,
+  DATA_STREAM_POLICY_LIMITS,
   JSON_SCHEMA_2020_12_URI,
 } from './data.types';
 export type {
@@ -212,6 +224,9 @@ export type {
   DataPageSnapshot,
   DataPaginationPolicy,
   DataRetryPolicy,
+  DataStreamIncrementalCollectionPolicy,
+  DataStreamPolicy,
+  DataStreamReconnectPolicy,
   DataSchema,
   DataSourceBinding,
   DataSourceDefinition,

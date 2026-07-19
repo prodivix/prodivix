@@ -7,32 +7,58 @@ export type ExecutionNetworkOperationTarget = Readonly<{
   operationId: string;
 }>;
 
-export type ExecutionCenterNavigationRequest = ExecutionNetworkOperationTarget &
-  Readonly<{
-    id: number;
-    surface: 'network';
-  }>;
+export type ExecutionDiagnosticTarget = Readonly<{
+  workspaceId: string;
+  sessionId: string;
+  diagnosticCode: string;
+}>;
+
+export type ExecutionCenterNavigationRequest =
+  | (ExecutionNetworkOperationTarget &
+      Readonly<{
+        id: number;
+        surface: 'network';
+      }>)
+  | (ExecutionDiagnosticTarget &
+      Readonly<{
+        id: number;
+        surface: 'console';
+      }>);
 
 type ExecutionCenterNavigationStore = Readonly<{
   request: ExecutionCenterNavigationRequest | null;
   openNetworkOperation(target: ExecutionNetworkOperationTarget): void;
+  openExecutionDiagnostic(target: ExecutionDiagnosticTarget): void;
   consume(requestId: number): void;
   clear(workspaceId?: string): void;
 }>;
 
 let nextRequestId = 0;
 
+const nextNavigationRequestId = (): number => {
+  nextRequestId += 1;
+  return nextRequestId;
+};
+
 /** Carries only ephemeral UI focus; execution traces remain owned by the Session coordinator. */
 export const useExecutionCenterNavigationStore =
   create<ExecutionCenterNavigationStore>()((set) => ({
     request: null,
     openNetworkOperation: (target) => {
-      nextRequestId += 1;
       set({
         request: Object.freeze({
           ...target,
-          id: nextRequestId,
+          id: nextNavigationRequestId(),
           surface: 'network',
+        }),
+      });
+    },
+    openExecutionDiagnostic: (target) => {
+      set({
+        request: Object.freeze({
+          ...target,
+          id: nextNavigationRequestId(),
+          surface: 'console',
         }),
       });
     },
@@ -49,10 +75,9 @@ export const useExecutionCenterNavigationStore =
       ),
   }));
 
-/**
- * Keeps a requested Execution Center visible after its one-shot focus request
- * is consumed. The latch stays component-local, so leaving the owning surface
- * closes it without creating durable execution state.
+/*
+ * The visibility latch intentionally reacts to both Network and diagnostic
+ * requests while leaving their session/filter details in the one-shot store.
  */
 export const useExecutionCenterNavigationVisibility = (
   workspaceId: string | undefined

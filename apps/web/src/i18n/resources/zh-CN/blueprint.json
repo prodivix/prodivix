@@ -41,7 +41,8 @@
     "retry": "重试",
     "startNewRequest": "创建新的运行请求",
     "recoveryNotice": "旧运行事件会保留，已派发的 mutation 不会自动重放。",
-    "updating": "正在更新项目预览…"
+    "updating": "正在更新项目预览…",
+    "staleRevision": "当前 Workspace revision 编译期间，正在显示上一份 snapshot…"
   },
   "assistant": {
     "title": "AI 助手",

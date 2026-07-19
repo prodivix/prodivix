@@ -8,13 +8,15 @@
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "dev": "tsx src/main.ts",
     "start": "node dist/main.js",
-    "test:clamav-gate": "tsx scripts/verify-clamav-gate.ts",
+    "test:malware-gate": "tsx scripts/verify-clamav-gate.ts",
+    "test:clamav-gate": "pnpm run test:malware-gate",
     "test": "pnpm run typecheck && pnpm run typecheck:gate && vitest --config vitest.config.ts --run",
     "typecheck": "tsc -b tsconfig.test.json --pretty false",
     "typecheck:gate": "tsc -p tsconfig.gate.json --pretty false"
   },
   "dependencies": {
-    "@prodivix/assets": "workspace:*"
+    "@prodivix/assets": "workspace:*",
+    "sharp": "0.35.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

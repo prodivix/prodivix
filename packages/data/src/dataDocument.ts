@@ -5,6 +5,7 @@ import {
   DATA_IMPORT_KINDS,
   DATA_IMPORT_PROVENANCE_LIMITS,
   DATA_OPERATION_KINDS,
+  DATA_STREAM_POLICY_LIMITS,
   JSON_SCHEMA_2020_12_URI,
   type DataCachePolicy,
   type DataConfigurationValue,
@@ -27,6 +28,7 @@ import {
   type DataOptimisticCrudEffectPolicy,
   type DataPageSnapshot,
   type DataRetryPolicy,
+  type DataStreamPolicy,
   type DataSchema,
   type DataSourceBinding,
   type DataSourceDefinition,
@@ -923,6 +925,188 @@ const parseRetryPolicy = (
   });
 };
 
+const parseStreamPolicy = (
+  value: unknown,
+  path: string,
+  issues: DataDocumentIssue[]
+): DataStreamPolicy | undefined => {
+  const record = readRecord(value, path, issues);
+  if (!record) return undefined;
+  checkExactKeys(
+    record,
+    new Set(['reconnect']),
+    new Set(['credentialRenewal', 'collection']),
+    path,
+    issues
+  );
+  const reconnectPath = childPath(path, 'reconnect');
+  const reconnect = readRecord(record.reconnect, reconnectPath, issues);
+  if (!reconnect) return undefined;
+  checkExactKeys(
+    reconnect,
+    new Set(['resume', 'maxReconnectAttempts', 'backoff', 'initialDelayMs']),
+    new Set(['maxDelayMs']),
+    reconnectPath,
+    issues
+  );
+  if (reconnect.resume !== 'sse-last-event-id')
+    appendIssue(
+      issues,
+      childPath(reconnectPath, 'resume'),
+      'Stream resume must be "sse-last-event-id".'
+    );
+  if (reconnect.backoff !== 'fixed' && reconnect.backoff !== 'exponential')
+    appendIssue(
+      issues,
+      childPath(reconnectPath, 'backoff'),
+      'Stream reconnect backoff must be "fixed" or "exponential".'
+    );
+  const maxReconnectAttempts = readSafeInteger(
+    reconnect.maxReconnectAttempts,
+    childPath(reconnectPath, 'maxReconnectAttempts'),
+    issues,
+    1
+  );
+  const initialDelayMs = readSafeInteger(
+    reconnect.initialDelayMs,
+    childPath(reconnectPath, 'initialDelayMs'),
+    issues,
+    0
+  );
+  const maxDelayMs =
+    reconnect.maxDelayMs === undefined
+      ? undefined
+      : readSafeInteger(
+          reconnect.maxDelayMs,
+          childPath(reconnectPath, 'maxDelayMs'),
+          issues,
+          0
+        );
+  if (
+    maxReconnectAttempts !== undefined &&
+    maxReconnectAttempts > DATA_STREAM_POLICY_LIMITS.maxReconnectAttempts
+  )
+    appendIssue(
+      issues,
+      childPath(reconnectPath, 'maxReconnectAttempts'),
+      `Stream maxReconnectAttempts must not exceed ${DATA_STREAM_POLICY_LIMITS.maxReconnectAttempts}.`
+    );
+  if (
+    initialDelayMs !== undefined &&
+    initialDelayMs > DATA_STREAM_POLICY_LIMITS.maxReconnectDelayMs
+  )
+    appendIssue(
+      issues,
+      childPath(reconnectPath, 'initialDelayMs'),
+      `Stream initialDelayMs must not exceed ${DATA_STREAM_POLICY_LIMITS.maxReconnectDelayMs}.`
+    );
+  if (
+    maxDelayMs !== undefined &&
+    (maxDelayMs < (initialDelayMs ?? 0) ||
+      maxDelayMs > DATA_STREAM_POLICY_LIMITS.maxReconnectDelayMs)
+  )
+    appendIssue(
+      issues,
+      childPath(reconnectPath, 'maxDelayMs'),
+      `Stream maxDelayMs must be at least initialDelayMs and at most ${DATA_STREAM_POLICY_LIMITS.maxReconnectDelayMs}.`
+    );
+  if (
+    record.credentialRenewal !== undefined &&
+    record.credentialRenewal !== 'per-connection'
+  )
+    appendIssue(
+      issues,
+      childPath(path, 'credentialRenewal'),
+      'Stream credentialRenewal must be "per-connection".'
+    );
+
+  let collection: DataStreamPolicy['collection'];
+  if (record.collection !== undefined) {
+    const collectionPath = childPath(path, 'collection');
+    const candidate = readRecord(record.collection, collectionPath, issues);
+    if (candidate) {
+      checkExactKeys(
+        candidate,
+        new Set(['kind', 'entityIdPath', 'maxItems']),
+        new Set(),
+        collectionPath,
+        issues
+      );
+      if (candidate.kind !== 'keyed-event-v1')
+        appendIssue(
+          issues,
+          childPath(collectionPath, 'kind'),
+          'Stream collection kind must be "keyed-event-v1".'
+        );
+      const entityIdPath = readCanonicalString(
+        candidate.entityIdPath,
+        childPath(collectionPath, 'entityIdPath'),
+        issues
+      );
+      const maxItems = readSafeInteger(
+        candidate.maxItems,
+        childPath(collectionPath, 'maxItems'),
+        issues,
+        1
+      );
+      if (entityIdPath !== undefined && !isDataJsonPointer(entityIdPath))
+        appendIssue(
+          issues,
+          childPath(collectionPath, 'entityIdPath'),
+          'Stream collection entityIdPath must be an RFC 6901 JSON Pointer.'
+        );
+      if (
+        maxItems !== undefined &&
+        maxItems > DATA_STREAM_POLICY_LIMITS.maxCollectionItems
+      )
+        appendIssue(
+          issues,
+          childPath(collectionPath, 'maxItems'),
+          `Stream collection maxItems must not exceed ${DATA_STREAM_POLICY_LIMITS.maxCollectionItems}.`
+        );
+      if (
+        candidate.kind === 'keyed-event-v1' &&
+        entityIdPath !== undefined &&
+        isDataJsonPointer(entityIdPath) &&
+        maxItems !== undefined &&
+        maxItems <= DATA_STREAM_POLICY_LIMITS.maxCollectionItems
+      )
+        collection = Object.freeze({
+          kind: 'keyed-event-v1',
+          entityIdPath,
+          maxItems,
+        });
+    }
+  }
+  if (
+    reconnect.resume !== 'sse-last-event-id' ||
+    (reconnect.backoff !== 'fixed' && reconnect.backoff !== 'exponential') ||
+    maxReconnectAttempts === undefined ||
+    maxReconnectAttempts > DATA_STREAM_POLICY_LIMITS.maxReconnectAttempts ||
+    initialDelayMs === undefined ||
+    initialDelayMs > DATA_STREAM_POLICY_LIMITS.maxReconnectDelayMs ||
+    (maxDelayMs !== undefined &&
+      (maxDelayMs < initialDelayMs ||
+        maxDelayMs > DATA_STREAM_POLICY_LIMITS.maxReconnectDelayMs)) ||
+    (record.credentialRenewal !== undefined &&
+      record.credentialRenewal !== 'per-connection')
+  )
+    return undefined;
+  return Object.freeze({
+    reconnect: Object.freeze({
+      resume: 'sse-last-event-id',
+      maxReconnectAttempts,
+      backoff: reconnect.backoff,
+      initialDelayMs,
+      ...(maxDelayMs !== undefined ? { maxDelayMs } : {}),
+    }),
+    ...(record.credentialRenewal === 'per-connection'
+      ? { credentialRenewal: 'per-connection' as const }
+      : {}),
+    ...(collection ? { collection } : {}),
+  });
+};
+
 const parseIdempotencyPolicy = (
   value: unknown,
   path: string,
@@ -1219,7 +1403,14 @@ const parsePolicies = (
   checkExactKeys(
     record,
     new Set(),
-    new Set(['cache', 'retry', 'idempotency', 'pagination', 'optimistic']),
+    new Set([
+      'cache',
+      'retry',
+      'idempotency',
+      'pagination',
+      'optimistic',
+      'stream',
+    ]),
     path,
     issues
   );
@@ -1255,12 +1446,17 @@ const parsePolicies = (
           childPath(path, 'optimistic'),
           issues
         );
+  const stream =
+    record.stream === undefined
+      ? undefined
+      : parseStreamPolicy(record.stream, childPath(path, 'stream'), issues);
   return Object.freeze({
     ...(cache ? { cache } : {}),
     ...(retry ? { retry } : {}),
     ...(idempotency ? { idempotency } : {}),
     ...(pagination ? { pagination } : {}),
     ...(optimistic ? { optimistic } : {}),
+    ...(stream ? { stream } : {}),
   });
 };
 
@@ -1377,6 +1573,12 @@ const parseOperations = (
         'Optimistic CRUD effects are available only to mutation operations.'
       );
     }
+    if (rawOperation.kind !== 'subscription' && policies.stream)
+      appendIssue(
+        issues,
+        childPath(childPath(operationPath, 'policies'), 'stream'),
+        'Stream policy is available only to subscription operations.'
+      );
     if (
       rawOperation.kind === 'subscription' &&
       (policies.cache ||
@@ -1390,6 +1592,29 @@ const parseOperations = (
         childPath(operationPath, 'policies'),
         'Subscription operations use the bounded stream session policy and cannot use finite invocation policies.'
       );
+    }
+    if (rawOperation.kind === 'subscription') {
+      const authorization =
+        configurationByKey.authorization ??
+        source?.configurationByKey.authorization;
+      if (
+        authorization &&
+        policies.stream?.credentialRenewal !== 'per-connection'
+      )
+        appendIssue(
+          issues,
+          childPath(childPath(operationPath, 'policies'), 'stream'),
+          'Secret-authenticated subscriptions require per-connection credential renewal.'
+        );
+      if (!authorization && policies.stream?.credentialRenewal)
+        appendIssue(
+          issues,
+          childPath(
+            childPath(childPath(operationPath, 'policies'), 'stream'),
+            'credentialRenewal'
+          ),
+          'Stream credential renewal requires a Secret authorization binding.'
+        );
     }
     if (
       !id ||

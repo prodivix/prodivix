@@ -28,6 +28,7 @@ import {
 
 export type CreateRemoteProjectExecutionEnvironmentOptions = Readonly<{
   accessToken: string;
+  resolveAccessToken?: () => string | Promise<string>;
   resolveSnapshot(
     request: ExecutionRequest
   ): RemoteExecutionSnapshotSource | Promise<RemoteExecutionSnapshotSource>;
@@ -74,7 +75,7 @@ export const createRemoteProjectExecutionEnvironment = (
   });
   const dataStreams = createRemoteDataStreamGatewayClient({
     baseUrl,
-    accessToken: options.accessToken,
+    accessToken: options.resolveAccessToken ?? options.accessToken,
   });
   const serverFunctions = createRemoteServerFunctionGatewayClient({
     baseUrl,

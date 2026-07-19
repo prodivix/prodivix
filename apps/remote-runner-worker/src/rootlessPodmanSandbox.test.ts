@@ -11,8 +11,12 @@ import {
 import {
   EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
   EXECUTION_SERVER_FUNCTION_BRIDGE_RESPONSE_TYPE,
+  createServerFunctionInvocationTrace,
+  encodeServerRuntimeTestInvocationTraces,
   ISOLATED_SERVER_FUNCTION_SECRET_MATERIAL_FORMAT,
   ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+  SERVER_RUNTIME_TEST_INVOCATION_TRACE_MEDIA_TYPE,
+  toExecutionServerFunctionBridgeSuccess,
 } from '@prodivix/server-runtime';
 import { describe, expect, it } from 'vitest';
 import {
@@ -860,13 +864,35 @@ describe('rootless Podman sandbox contract', () => {
             },
           ],
         },
+        {
+          path: 'src/auth.server.ts',
+          contents: 'export const loadPrincipal = () => undefined;',
+          sourceTrace: [
+            {
+              sourceRef: {
+                kind: 'code-artifact',
+                artifactId: 'code-auth',
+              },
+            },
+          ],
+        },
       ],
       dependencyPlan: { manifestFilePath: 'package.json' },
       entrypoints: [{ kind: 'test', path: 'src/App.test.tsx' }],
       capabilityRequirements: {
         preview: ['filesystem'],
         build: ['filesystem', 'build'],
-        test: ['filesystem', 'test'],
+        test: ['filesystem', 'server-function', 'test'],
+      },
+      serverRuntimeMockProvision: {
+        format: 'prodivix.server-runtime-test-provision.v1',
+        fixtureSetId: 'rootless-auth-test',
+        principal: {
+          providerId: 'prodivix-test-fixture',
+          principalId: 'test-user',
+        },
+        permissions: [],
+        fixtures: [],
       },
     });
     const privateReport = Buffer.from(
@@ -889,6 +915,28 @@ describe('rootless Podman sandbox contract', () => {
       }),
       'utf8'
     );
+    const invocationRequest = {
+      type: EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
+      requestId: 'test-load-principal:1',
+      invocationId: 'test-load-principal',
+      attempt: 1,
+      functionRef: {
+        artifactId: 'code-auth',
+        exportName: 'loadPrincipal',
+      },
+      input: null,
+    } as const;
+    const invocationTraces = encodeServerRuntimeTestInvocationTraces([
+      createServerFunctionInvocationTrace({
+        request: invocationRequest,
+        response: toExecutionServerFunctionBridgeSuccess(
+          invocationRequest.requestId,
+          { kind: 'value', value: { credential: 'not-projected' } }
+        ),
+        startedAt: 1_900,
+        completedAt: 1_910,
+      }),
+    ]);
     const result = decodeRootlessPodmanSandboxResult(
       JSON.stringify({
         protocol: 'prodivix.sandbox-result.v1',
@@ -905,12 +953,33 @@ describe('rootless Podman sandbox contract', () => {
             metadata: { adapter: 'vitest' },
             contents: privateReport.toString('base64'),
           },
+          {
+            artifactId: `server-function-invocation-traces:${snapshot.contentDigest}`,
+            kind: 'report',
+            label: 'Server Function Test invocation traces',
+            mediaType: SERVER_RUNTIME_TEST_INVOCATION_TRACE_MEDIA_TYPE,
+            metadata: { adapter: 'prodivix.server-runtime-test' },
+            contents: Buffer.from(invocationTraces).toString('base64'),
+          },
         ],
       }),
       snapshot,
       'test',
       'execution-test-1',
-      undefined,
+      createExecutionRequest({
+        requestId: 'execution-test-request-1',
+        profile: 'test',
+        runtimeZone: 'test',
+        workspace: snapshot.workspace,
+        invocation: {
+          kind: 'test',
+          targetRef: {
+            kind: 'workspace',
+            workspaceId: snapshot.workspace.workspaceId,
+          },
+        },
+        requiredCapabilities: ['filesystem', 'server-function', 'test'],
+      }),
       2_000,
       1_000,
       128 * 1024
@@ -934,6 +1003,28 @@ describe('rootless Podman sandbox contract', () => {
       completedAt: 2_000,
       summary: { totalFiles: 1, totalCases: 1 },
     });
+    expect(result.serverFunctionTraces).toEqual([
+      {
+        trace: expect.objectContaining({
+          requestId: 'test-load-principal:1',
+          functionRef: invocationRequest.functionRef,
+          outcome: 'succeeded',
+          resultKind: 'value',
+          redacted: true,
+        }),
+        sourceTrace: [
+          {
+            sourceRef: {
+              kind: 'code-artifact',
+              artifactId: 'code-auth',
+            },
+          },
+        ],
+      },
+    ]);
+    expect(JSON.stringify(result.serverFunctionTraces)).not.toContain(
+      'not-projected'
+    );
 
     expect(
       decodeRootlessPodmanSandboxResult(

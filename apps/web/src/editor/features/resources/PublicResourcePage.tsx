@@ -709,7 +709,7 @@ export function PublicResourcePage({
                         ? 'Preparing…'
                         : selectedNode.mime === 'image/png' ||
                             selectedNode.mime === 'image/jpeg'
-                          ? 'Sanitize & isolate'
+                          ? 'Re-encode & isolate'
                           : 'Isolated download'}
                   </button>
                 ) : null}

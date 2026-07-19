@@ -6,13 +6,15 @@
   "description": "Living Golden App conformance gate for the Prodivix change and export kernels",
   "scripts": {
     "emit:g2-execution-snapshot": "tsx scripts/emitGoldenG2ExecutableSnapshot.ts",
+    "emit:g2-vue-catalog-snapshot": "tsx scripts/emitGoldenG2VueCatalogSnapshot.ts",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
     "test:g2-auth-server-matrix": "pnpm exec tsc -b ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2AuthServerMatrix.conformance.test.ts",
     "test:g2-execution-matrix": "pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2ExecutionMatrix.conformance.test.ts",
+    "test:g2-binary-asset-target-matrix": "pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2BinaryAssetTargetMatrix.conformance.test.ts",
     "test:g2-data-target-matrix": "pnpm exec tsc -b ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2DataTargetMatrix.conformance.test.ts src/goldenG2VueTarget.conformance.test.ts",
     "test:g2-data-security-matrix": "pnpm exec tsc -b ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2DataSecurityMatrix.conformance.test.ts",
     "test:g2-vue-target": "pnpm run test:g2-data-target-matrix && cross-env PRODIVIX_VERIFY_G2_VUE_TARGET=1 vitest --config vitest.config.ts --run src/goldenG2VueTarget.browser.test.ts",
-    "test:g2-vue-product": "pnpm exec tsc -b ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2VueCatalog.conformance.test.ts && cross-env PRODIVIX_VERIFY_G2_VUE_PRODUCT=1 vitest --config vitest.config.ts --run src/goldenG2VueCatalog.browser.test.ts",
+    "test:g2-vue-product": "pnpm exec tsc -b ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG2VueCatalog.conformance.test.ts && cross-env PRODIVIX_VERIFY_G2_VUE_PRODUCT=1 vitest --config vitest.config.ts --run src/goldenG2VueCatalog.browser.test.ts src/goldenG2VueCatalogRemote.browser.test.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --pretty false"
   },

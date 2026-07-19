@@ -12,6 +12,14 @@ export const BINARY_ASSET_PNG_STRUCTURAL_SCANNER_VERSION = '1' as const;
 export const BINARY_ASSET_JPEG_SANITIZE_TRANSFORMER_ID =
   'prodivix.image.jpeg-sanitize' as const;
 export const BINARY_ASSET_JPEG_SANITIZE_TRANSFORMER_VERSION = '1' as const;
+export const BINARY_ASSET_PNG_RASTER_REENCODE_TRANSFORMER_ID =
+  'prodivix.image.png-raster-reencode' as const;
+export const BINARY_ASSET_PNG_RASTER_REENCODE_TRANSFORMER_VERSION =
+  '1' as const;
+export const BINARY_ASSET_JPEG_RASTER_REENCODE_TRANSFORMER_ID =
+  'prodivix.image.jpeg-raster-reencode' as const;
+export const BINARY_ASSET_JPEG_RASTER_REENCODE_TRANSFORMER_VERSION =
+  '1' as const;
 export const BINARY_ASSET_JPEG_STRUCTURAL_SCANNER_ID =
   'prodivix.scanner.jpeg-structure' as const;
 export const BINARY_ASSET_JPEG_STRUCTURAL_SCANNER_VERSION = '1' as const;
@@ -76,6 +84,20 @@ export type BinaryAssetBlobUploader = Readonly<{
 
 export type BinaryAssetDeliveryClass =
   'static' | 'download-only' | 'active-content';
+
+export type BinaryAssetDeliveryTransform =
+  | 'original'
+  | 'png-sanitize'
+  | 'jpeg-sanitize'
+  | 'png-raster-reencode'
+  | 'jpeg-raster-reencode';
+
+export type BinaryAssetDeliveryDisposition = 'attachment' | 'inline';
+
+export type BinaryAssetDeliveryRequest = Readonly<{
+  transform: BinaryAssetDeliveryTransform;
+  disposition: BinaryAssetDeliveryDisposition;
+}>;
 
 export type BinaryAssetTransformJsonValue =
   | null

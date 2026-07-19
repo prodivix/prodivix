@@ -10,6 +10,8 @@ import {
   type OverrideState,
 } from './SettingsDefaults';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
+import { useEditorStore } from '@/editor/store/useEditorStore';
+import { useAuthStore } from '@/auth/useAuthStore';
 
 const createOverrideDefaults = () => {
   return getGlobalSettingsKeys().reduce((acc, key) => {
@@ -23,6 +25,8 @@ export const ProjectSettingsPage = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
+  const token = useAuthStore((state) => state.token);
+  const workspaceId = useEditorStore((state) => state.workspace?.id);
   const ensureProjectGlobal = useSettingsStore(
     (state) => state.ensureProjectGlobal
   );
@@ -66,7 +70,7 @@ export const ProjectSettingsPage = () => {
         </div>
       </header>
       <main className="flex flex-col gap-4.5 px-6 pt-4 pb-8 max-[1100px]:px-4.5 max-[1100px]:pt-3.5 max-[1100px]:pb-6">
-        <ProjectSettingsContent />
+        <ProjectSettingsContent token={token} workspaceId={workspaceId} />
         <section className="grid gap-3">
           <div className="flex items-center gap-2.5 rounded-xl bg-[rgba(0,0,0,0.04)] px-3 py-2 text-[12px] text-(--text-secondary) in-data-[theme='dark']:bg-[rgba(255,255,255,0.08)]">
             <span className="font-medium text-(--text-primary)">

@@ -7,6 +7,7 @@ import {
   computeBinaryAssetDigest,
   createBinaryAssetBlobReference,
   createBinaryAssetMaterialization,
+  createBinaryAssetPublicDeliveryRequest,
   createBinaryAssetTransformRecipe,
   readBinaryAssetBlobReference,
 } from './index';
@@ -85,6 +86,25 @@ describe('binary asset current contract', () => {
     expect(classifyBinaryAssetDelivery('application/pdf')).toBe(
       'download-only'
     );
+  });
+
+  it('uses one target-neutral full raster public delivery policy', () => {
+    expect(createBinaryAssetPublicDeliveryRequest('image/png')).toEqual({
+      transform: 'png-raster-reencode',
+      disposition: 'inline',
+    });
+    expect(createBinaryAssetPublicDeliveryRequest('image/jpeg')).toEqual({
+      transform: 'jpeg-raster-reencode',
+      disposition: 'inline',
+    });
+    expect(createBinaryAssetPublicDeliveryRequest('image/svg+xml')).toEqual({
+      transform: 'original',
+      disposition: 'attachment',
+    });
+    expect(createBinaryAssetPublicDeliveryRequest('application/pdf')).toEqual({
+      transform: 'original',
+      disposition: 'attachment',
+    });
   });
 
   it('creates deterministic transform identities independent of object key order', () => {

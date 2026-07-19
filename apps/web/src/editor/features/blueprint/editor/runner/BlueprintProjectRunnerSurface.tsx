@@ -9,6 +9,7 @@ import {
 import type { BlueprintProjectRunnerState } from './useBlueprintProjectRunner';
 import {
   readBlueprintProjectConsoleBridgeMessage,
+  isBlueprintProjectFrameMessageSource,
   readBlueprintProjectNetworkBridgeMessage,
   readBlueprintRemoteDataBridgeMessage,
   readBlueprintRemoteDataStreamCancellation,
@@ -51,6 +52,16 @@ export const resolveProjectPreviewUrl = (
   return url.href;
 };
 
+export const isBlueprintProjectRunnerSnapshotStale = (
+  state: BlueprintProjectRunnerState
+): boolean =>
+  Boolean(
+    state.previewUrl &&
+    state.activeSnapshotId &&
+    state.authoringSnapshotId &&
+    state.activeSnapshotId !== state.authoringSnapshotId
+  );
+
 export function BlueprintProjectRunnerSurface({
   currentPath,
   runner,
@@ -66,6 +77,7 @@ export function BlueprintProjectRunnerSurface({
     [currentPath, state.previewUrl]
   );
   const isPending = ['queued', 'starting', 'compiling'].includes(state.status);
+  const snapshotStale = isBlueprintProjectRunnerSnapshotStale(state);
   const isFailure = state.status === 'failed' || state.status === 'blocked';
   const isStopped = ['idle', 'cancelled', 'timed-out'].includes(state.status);
 
@@ -76,7 +88,8 @@ export function BlueprintProjectRunnerSurface({
     let active = true;
     const onMessage = (event: MessageEvent<unknown>) => {
       const frameWindow = frameRef.current?.contentWindow;
-      if (!frameWindow || event.source !== frameWindow) return;
+      if (!isBlueprintProjectFrameMessageSource(frameWindow, event.source))
+        return;
       const consoleMessage = readBlueprintProjectConsoleBridgeMessage({
         provider,
         previewUrl,
@@ -251,7 +264,9 @@ export function BlueprintProjectRunnerSurface({
       {iframeUrl && isPending ? (
         <div className="pointer-events-none absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-(--border-default) bg-(--bg-canvas)/92 px-3 py-1.5 text-[11px] text-(--text-muted) shadow-(--shadow-sm) backdrop-blur">
           <LoaderCircle size={12} className="animate-spin" />
-          {state.message ?? t('runner.updating')}
+          {snapshotStale
+            ? t('runner.staleRevision')
+            : (state.message ?? t('runner.updating'))}
         </div>
       ) : null}
     </div>

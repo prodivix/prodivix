@@ -3,6 +3,7 @@ package remoteexecution
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -144,10 +145,14 @@ func (store *fakeDataGatewayStore) FenceDataGatewayMutation(_ context.Context, k
 
 type fakeDataGatewayEnvironment struct {
 	canary       string
+	canaries     []string
 	principal    backendenvironment.PrincipalSession
 	grant        backendenvironment.IssueGrantInput
 	use          backendenvironment.UseSecretInput
 	revokedGrant string
+	grantCount   int
+	useCount     int
+	revokeCount  int
 }
 
 func (environment *fakeDataGatewayEnvironment) Available() bool { return true }
@@ -174,25 +179,33 @@ func (environment *fakeDataGatewayEnvironment) GetSnapshot(_ context.Context, pr
 
 func (environment *fakeDataGatewayEnvironment) IssueGrant(_ context.Context, input backendenvironment.IssueGrantInput) (*backendenvironment.Grant, error) {
 	environment.grant = input
-	return &backendenvironment.Grant{GrantID: "grant-1"}, nil
+	environment.grantCount++
+	return &backendenvironment.Grant{GrantID: fmt.Sprintf("grant-%d", environment.grantCount)}, nil
 }
 
 func (environment *fakeDataGatewayEnvironment) UseSecret(_ context.Context, input backendenvironment.UseSecretInput, consumer func([]byte) error) error {
 	environment.use = input
-	return consumer([]byte(environment.canary))
+	material := environment.canary
+	if environment.useCount < len(environment.canaries) {
+		material = environment.canaries[environment.useCount]
+	}
+	environment.useCount++
+	return consumer([]byte(material))
 }
 
 func (environment *fakeDataGatewayEnvironment) RevokeGrant(_ context.Context, grantID string, _ backendenvironment.PrincipalSession) error {
 	environment.revokedGrant = grantID
+	environment.revokeCount++
 	return nil
 }
 
 type fakeDataGatewayTransport struct {
-	requests       []DataGatewayTransportRequest
-	response       *DataGatewayTransportResponse
-	err            error
-	streamResponse *DataGatewayStreamTransportResponse
-	streamErr      error
+	requests        []DataGatewayTransportRequest
+	response        *DataGatewayTransportResponse
+	err             error
+	streamResponse  *DataGatewayStreamTransportResponse
+	streamResponses []*DataGatewayStreamTransportResponse
+	streamErr       error
 }
 
 func (transport *fakeDataGatewayTransport) OpenStream(_ context.Context, request DataGatewayTransportRequest) (*DataGatewayStreamTransportResponse, error) {
@@ -202,6 +215,11 @@ func (transport *fakeDataGatewayTransport) OpenStream(_ context.Context, request
 		copyRequest.Headers[name] = value
 	}
 	transport.requests = append(transport.requests, copyRequest)
+	if len(transport.streamResponses) > 0 {
+		response := transport.streamResponses[0]
+		transport.streamResponses = transport.streamResponses[1:]
+		return response, transport.streamErr
+	}
 	return transport.streamResponse, transport.streamErr
 }
 
@@ -418,6 +436,54 @@ func remoteGraphQLSubscriptionDocument() []byte {
 }`)
 }
 
+func remoteGraphQLResumableSecretSubscriptionDocument() []byte {
+	return []byte(`{
+  "wireVersion": 1,
+  "source": {
+    "id": "catalog-graphql",
+    "adapterId": "core.graphql",
+    "runtimeZone": "edge",
+    "bindingsById": {
+      "api-url":{"kind":"environment-ref","reference":{"bindingId":"api-url"}},
+      "api-token":{"kind":"secret-ref","reference":{"bindingId":"api-token"}}
+    },
+    "configurationByKey": {
+      "endpoint":{"kind":"environment-ref","reference":{"bindingId":"api-url"}},
+      "authorization":{"kind":"secret-ref","reference":{"bindingId":"api-token"}}
+    }
+  },
+  "schemasById": {},
+  "operationsById": {
+    "watch": {
+      "id": "watch",
+      "kind": "subscription",
+      "outputSchemaId": "event",
+      "configurationByKey": {
+        "document": {"kind":"literal","value":"subscription WatchProducts { products { id } }"},
+        "operationName": {"kind":"literal","value":"WatchProducts"},
+        "resultPath": {"kind":"literal","value":"/products"}
+      },
+      "policies": {
+        "stream": {
+          "reconnect": {
+            "resume": "sse-last-event-id",
+            "maxReconnectAttempts": 2,
+            "backoff": "fixed",
+            "initialDelayMs": 0
+          },
+          "credentialRenewal": "per-connection",
+          "collection": {
+            "kind": "keyed-event-v1",
+            "entityIdPath": "/id",
+            "maxItems": 100
+          }
+        }
+      }
+    }
+  }
+}`)
+}
+
 func remoteAsyncAPIStreamDocument() []byte {
 	return []byte(`{
   "wireVersion": 1,
@@ -530,6 +596,132 @@ func TestDataGatewayStreamsGraphQLSSEWithCursorBudgetAndIdentityFence(t *testing
 	}
 	if len(transport.requests) != 1 || transport.requests[0].Headers["accept"] != "text/event-stream" {
 		t.Fatalf("GraphQL stream transport drifted: %#v", transport.requests)
+	}
+}
+
+func TestDataGatewayResumesSSEAndRenewsSecretPerConnection(t *testing.T) {
+	transport := &fakeDataGatewayTransport{streamResponses: []*DataGatewayStreamTransportResponse{
+		{
+			Status: 200, ContentType: "text/event-stream",
+			Body: io.NopCloser(strings.NewReader("id: event-1\nevent: next\ndata: {\"data\":{\"products\":{\"action\":\"upsert\",\"entity\":{\"id\":\"p1\"}}}}\n\n")),
+		},
+		{
+			Status: 200, ContentType: "text/event-stream",
+			Body: io.NopCloser(strings.NewReader("id: event-2\nevent: next\ndata: {\"data\":{\"products\":{\"action\":\"delete\",\"id\":\"p1\"}}}\n\nevent: complete\n\n")),
+		},
+	}}
+	environment := &fakeDataGatewayEnvironment{canaries: []string{"stream-token-one", "stream-token-two"}}
+	gateway := NewDataGateway(newProtocolGatewayStore(remoteGraphQLResumableSecretSubscriptionDocument()), environment, transport)
+	principal := backendenvironment.PrincipalSession{PrincipalID: "user-1", SessionID: "session-1"}
+	invocation := DataGatewayInvocation{InvocationID: "graphql-resume", Sequence: 4, Attempt: 1, Input: json.RawMessage(`{}`)}
+
+	first, err := gateway.OpenStream(t.Context(), principal, "execution-1", "data-1", "watch", invocation)
+	if err != nil || first == nil || first.resume == nil {
+		t.Fatalf("open resumable stream: stream=%#v err=%v", first, err)
+	}
+	eventOne, complete, err := first.Next(t.Context())
+	if err != nil || complete || eventOne.Resume == nil || eventOne.Resume.Cursor != 1 {
+		t.Fatalf("first resumable event drifted: event=%#v complete=%v err=%v", eventOne, complete, err)
+	}
+	if _, complete, err = first.Next(t.Context()); !complete || !errors.Is(err, ErrDataGatewayGraphQLUpstream) {
+		t.Fatalf("unexpected SSE disconnect did not request reconnect: complete=%v err=%v", complete, err)
+	}
+	checkpointParts := strings.Split(eventOne.Resume.Token, ".")
+	if len(checkpointParts) != 2 {
+		t.Fatalf("signed checkpoint envelope drifted: token=%q", eventOne.Resume.Token)
+	}
+	checkpointPayload, decodeErr := base64.RawURLEncoding.DecodeString(checkpointParts[0])
+	if decodeErr != nil || len(checkpointPayload) == 0 {
+		t.Fatalf("signed checkpoint envelope drifted: token=%q err=%v", eventOne.Resume.Token, decodeErr)
+	}
+	checkpointPayload[len(checkpointPayload)-1] ^= 1
+	tamperedInvocation := invocation
+	tamperedInvocation.Resume = &DataGatewayStreamResume{
+		Cursor: eventOne.Resume.Cursor,
+		Token:  base64.RawURLEncoding.EncodeToString(checkpointPayload) + "." + checkpointParts[1],
+	}
+	if resumed, resumeErr := gateway.OpenStream(t.Context(), principal, "execution-1", "data-1", "watch", tamperedInvocation); resumed != nil || !errors.Is(resumeErr, ErrDataGatewayStreamConflict) {
+		t.Fatalf("HMAC-invalid checkpoint was accepted: stream=%#v err=%v", resumed, resumeErr)
+	}
+
+	invocation.Resume = eventOne.Resume
+	second, err := gateway.OpenStream(t.Context(), principal, "execution-1", "data-1", "watch", invocation)
+	if err != nil || second == nil {
+		t.Fatalf("resume stream: stream=%#v err=%v", second, err)
+	}
+	eventTwo, complete, err := second.Next(t.Context())
+	if err != nil || complete || eventTwo.Cursor != 2 || eventTwo.Resume == nil {
+		t.Fatalf("resumed event drifted: event=%#v complete=%v err=%v", eventTwo, complete, err)
+	}
+	if _, complete, err = second.Next(t.Context()); err != nil || !complete {
+		t.Fatalf("resumed completion drifted: complete=%v err=%v", complete, err)
+	}
+	if len(transport.requests) != 2 || transport.requests[0].Headers["authorization"] != "stream-token-one" || transport.requests[1].Headers["authorization"] != "stream-token-two" || transport.requests[1].Headers["last-event-id"] != "event-1" {
+		t.Fatalf("resume transport or credential renewal drifted: %#v", transport.requests)
+	}
+	if environment.grantCount != 2 || environment.useCount != 2 || environment.revokeCount != 2 {
+		t.Fatalf("per-connection Secret lifecycle drifted: grants=%d uses=%d revokes=%d", environment.grantCount, environment.useCount, environment.revokeCount)
+	}
+	if first.Network.RequestID != "graphql-resume:stream:0" || second.Network.RequestID != "graphql-resume:stream:1" {
+		t.Fatalf("reconnect Network identities drifted: first=%q second=%q", first.Network.RequestID, second.Network.RequestID)
+	}
+	encoded, _ := json.Marshal([]any{eventOne, eventTwo, first.Network, second.Network})
+	for _, forbidden := range []string{"stream-token-one", "stream-token-two", "event-1", "event-2"} {
+		if bytes.Contains(encoded, []byte(forbidden)) {
+			t.Fatalf("resumable stream projection leaked %q: %s", forbidden, encoded)
+		}
+	}
+}
+
+func TestDataGatewayResumableStreamRejectsCredentialEchoAndCheckpointDrift(t *testing.T) {
+	transport := &fakeDataGatewayTransport{streamResponse: &DataGatewayStreamTransportResponse{
+		Status: 200, ContentType: "text/event-stream",
+		Body: io.NopCloser(strings.NewReader("id: event-1\nevent: next\ndata: {\"data\":{\"products\":\"stream-token-canary\"}}\n\n")),
+	}}
+	gateway := NewDataGateway(newProtocolGatewayStore(remoteGraphQLResumableSecretSubscriptionDocument()), &fakeDataGatewayEnvironment{canary: "stream-token-canary"}, transport)
+	principal := backendenvironment.PrincipalSession{PrincipalID: "user-1", SessionID: "session-1"}
+	invocation := DataGatewayInvocation{InvocationID: "graphql-secret-echo", Sequence: 5, Attempt: 1, Input: json.RawMessage(`{}`)}
+	stream, err := gateway.OpenStream(t.Context(), principal, "execution-1", "data-1", "watch", invocation)
+	if err != nil {
+		t.Fatalf("open credential echo probe: %v", err)
+	}
+	if _, _, err = stream.Next(t.Context()); !errors.Is(err, ErrDataGatewayGraphQLUpstream) {
+		t.Fatalf("credential echo was not rejected: %v", err)
+	}
+
+	invocation.Resume = &DataGatewayStreamResume{Cursor: 1, Token: "tampered-checkpoint"}
+	if resumed, resumeErr := gateway.OpenStream(t.Context(), principal, "execution-1", "data-1", "watch", invocation); resumed != nil || !errors.Is(resumeErr, ErrDataGatewayStreamConflict) {
+		t.Fatalf("tampered checkpoint was accepted: stream=%#v err=%v", resumed, resumeErr)
+	}
+}
+
+func TestDataGatewayResumableHandlerProjectsPrivateRecoveryEnvelope(t *testing.T) {
+	transport := &fakeDataGatewayTransport{streamResponse: &DataGatewayStreamTransportResponse{
+		Status: 200, ContentType: "text/event-stream",
+		Body: io.NopCloser(strings.NewReader("id: event-private-1\nevent: next\ndata: {\"data\":{\"products\":{\"action\":\"upsert\",\"entity\":{\"id\":\"p1\"}}}}\n\n")),
+	}}
+	handler := &Handler{dataGateway: NewDataGateway(newProtocolGatewayStore(remoteGraphQLResumableSecretSubscriptionDocument()), &fakeDataGatewayEnvironment{canary: "private-stream-credential"}, transport)}
+	router := testRouterSession(handler, "user-1", "session-1")
+	path := "/api/remote-executions/execution-1/data-sources/data-1/operations/watch/stream"
+	request := httptest.NewRequest(http.MethodPost, path, bytes.NewReader([]byte(`{"invocationId":"graphql-handler-resume","sequence":8,"attempt":1,"input":{}}`)))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/x-ndjson" {
+		t.Fatalf("resumable handler response drifted: status=%d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
+	}
+	lines := strings.Split(strings.TrimSpace(response.Body.String()), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("resumable handler record count drifted: %q", lines)
+	}
+	var openRecord, eventRecord, errorRecord map[string]any
+	if json.Unmarshal([]byte(lines[0]), &openRecord) != nil || json.Unmarshal([]byte(lines[1]), &eventRecord) != nil || json.Unmarshal([]byte(lines[2]), &errorRecord) != nil {
+		t.Fatalf("resumable handler emitted invalid NDJSON: %q", lines)
+	}
+	if len(openRecord) != 4 || openRecord["phase"] != "open" || openRecord["reconnect"] == nil || len(eventRecord) != 5 || eventRecord["phase"] != "event" || eventRecord["resume"] == nil || len(errorRecord) != 3 || errorRecord["phase"] != "error" || errorRecord["code"] != "DATA_GRAPHQL_REQUEST_FAILED" {
+		t.Fatalf("resumable handler private envelope drifted: open=%#v event=%#v error=%#v", openRecord, eventRecord, errorRecord)
+	}
+	if strings.Contains(response.Body.String(), "private-stream-credential") || strings.Contains(response.Body.String(), "event-private-1") {
+		t.Fatalf("resumable handler leaked credential or upstream cursor: %s", response.Body.String())
 	}
 }
 

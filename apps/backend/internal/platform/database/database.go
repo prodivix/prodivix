@@ -523,6 +523,21 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 				OR (provider_id = 'prodivix.remote.server-function' AND profile = 'production' AND runtime_zone = 'server')
 			)`,
 		},
+	}, {
+		version: 11,
+		name:    "workspace-execution-editor-role",
+		statements: []string{
+			`ALTER TABLE workspace_execution_role_grants
+			DROP CONSTRAINT IF EXISTS workspace_execution_role_grants_role_check,
+			ADD CONSTRAINT workspace_execution_role_grants_role_check CHECK (role IN ('editor', 'viewer'))`,
+			`ALTER TABLE remote_execution_grants
+			DROP CONSTRAINT IF EXISTS remote_execution_grants_permissions_check,
+			ADD CONSTRAINT remote_execution_grants_permissions_check CHECK (
+				permissions_json = '["workspace.read"]'::jsonb
+				OR permissions_json = '["workspace.read","workspace.write"]'::jsonb
+				OR permissions_json = '["workspace.owner","workspace.read","workspace.write"]'::jsonb
+			)`,
+		},
 	}}
 
 	tx, err := db.BeginTx(ctx, nil)

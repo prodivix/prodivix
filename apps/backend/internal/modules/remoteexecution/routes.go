@@ -3,17 +3,20 @@ package remoteexecution
 import "github.com/gin-gonic/gin"
 
 type RouteHandlers struct {
-	RequireAuth     gin.HandlerFunc
-	Envelope        gin.HandlerFunc
-	ArtifactContent gin.HandlerFunc
-	PreviewSession  gin.HandlerFunc
-	DataOperation   gin.HandlerFunc
-	DataStream      gin.HandlerFunc
-	ServerFunction  gin.HandlerFunc
-	TerminalOpen    gin.HandlerFunc
-	TerminalResume  gin.HandlerFunc
-	TerminalAction  gin.HandlerFunc
-	InternalSecrets gin.HandlerFunc
+	RequireAuth         gin.HandlerFunc
+	Envelope            gin.HandlerFunc
+	ArtifactContent     gin.HandlerFunc
+	PreviewSession      gin.HandlerFunc
+	DataOperation       gin.HandlerFunc
+	DataStream          gin.HandlerFunc
+	ServerFunction      gin.HandlerFunc
+	TerminalOpen        gin.HandlerFunc
+	TerminalResume      gin.HandlerFunc
+	TerminalAction      gin.HandlerFunc
+	InternalSecrets     gin.HandlerFunc
+	ListWorkspaceRoles  gin.HandlerFunc
+	PutWorkspaceRole    gin.HandlerFunc
+	DeleteWorkspaceRole gin.HandlerFunc
 }
 
 func RegisterRoutes(api *gin.RouterGroup, handlers RouteHandlers) {
@@ -29,4 +32,7 @@ func RegisterRoutes(api *gin.RouterGroup, handlers RouteHandlers) {
 		api.POST("/remote-executions/:executionId/terminal-sessions/:terminalSessionId/"+action, handlers.RequireAuth, handlers.TerminalAction)
 	}
 	api.POST("/internal/remote-execution-secrets", handlers.InternalSecrets)
+	api.GET("/workspaces/:workspaceId/execution-roles", handlers.RequireAuth, handlers.ListWorkspaceRoles)
+	api.PUT("/workspaces/:workspaceId/execution-roles", handlers.RequireAuth, handlers.PutWorkspaceRole)
+	api.DELETE("/workspaces/:workspaceId/execution-roles/:principalId", handlers.RequireAuth, handlers.DeleteWorkspaceRole)
 }

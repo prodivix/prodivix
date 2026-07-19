@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BinaryAssetScannerUnavailableError,
   createBinaryAssetJpegSanitizeTransformer,
+  createBinaryAssetJpegRasterReencodeRecipe,
   createBinaryAssetJpegStructuralScanner,
   createBinaryAssetPngSanitizeTransformer,
   createBinaryAssetPngStructuralScanner,
@@ -23,6 +24,7 @@ import {
   type AssetDeliveryScannerRuntime,
 } from './assetDeliveryScannerRuntime';
 import { createAssetDeliverySessionStore } from './assetDeliverySessionStore';
+import { createSharpRasterReencodeTransformers } from './sharpRasterTransformer';
 
 const crcTable = (() => {
   const table = new Uint32Array(256);
@@ -361,6 +363,51 @@ describe('Asset Delivery Host', () => {
     );
     expect(delivered.body.toString()).not.toContain('private-jpeg-canary');
     expect(digest(delivered.body)).toBe(result.digest);
+  });
+
+  it('selects the explicit full raster recipe when sanitize and re-encode capabilities coexist', async () => {
+    const capability = 'f'.repeat(64);
+    const rasterTransformers = createSharpRasterReencodeTransformers({
+      maximumConcurrentTransforms: 1,
+      timeoutSeconds: 5,
+    });
+    const { port } = await startHost({
+      capabilities: [capability],
+      scanners: [
+        createBinaryAssetPngStructuralScanner(),
+        createBinaryAssetJpegStructuralScanner(),
+      ],
+      transformers: [
+        createBinaryAssetPngSanitizeTransformer(),
+        createBinaryAssetJpegSanitizeTransformer(),
+        ...rasterTransformers,
+      ],
+    });
+    const source = jpeg('full-raster-canary');
+    const expectedRecipe = createBinaryAssetJpegRasterReencodeRecipe(
+      digest(source)
+    );
+    const created = await call(port, {
+      method: 'POST',
+      path: '/internal/image-transform-delivery-sessions',
+      headers: {
+        Authorization: 'Bearer internal-token',
+        'Content-Type': 'image/jpeg',
+        'X-Prodivix-Asset-Digest': digest(source),
+        'X-Prodivix-Delivery-Disposition': 'inline',
+        'X-Prodivix-Image-Transform': 'jpeg-raster-reencode',
+      },
+      body: source,
+    });
+
+    expect(created.status).toBe(201);
+    expect(JSON.parse(created.body.toString())).toMatchObject({
+      deliveryUrl: `https://${capability}.asset.example.test/asset`,
+      mediaType: 'image/jpeg',
+      recipeDigest: expectedRecipe.recipeDigest,
+      metadata: { width: 2, height: 3 },
+      cacheStatus: 'transformed',
+    });
   });
 
   it('never serves active content inline and forces clean active bytes to attachment', async () => {

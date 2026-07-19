@@ -8,13 +8,13 @@ import {
 } from './workspacePublicResources';
 
 describe('createPublicResourceAssetDeliveryRequest', () => {
-  it('routes PNG and baseline JPEG through isolated sanitizers', () => {
+  it('routes PNG and JPEG through isolated full raster re-encoders', () => {
     expect(createPublicResourceAssetDeliveryRequest('image/png')).toEqual({
-      transform: 'png-sanitize',
+      transform: 'png-raster-reencode',
       disposition: 'inline',
     });
     expect(createPublicResourceAssetDeliveryRequest('image/jpeg')).toEqual({
-      transform: 'jpeg-sanitize',
+      transform: 'jpeg-raster-reencode',
       disposition: 'inline',
     });
   });

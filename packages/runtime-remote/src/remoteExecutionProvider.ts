@@ -93,7 +93,7 @@ export const remoteTestExecutionProviderDescriptor =
     profiles: ['test'],
     runtimeZones: ['test'],
     invocationKinds: ['test'],
-    capabilities: [...commonCapabilities, 'test'],
+    capabilities: [...commonCapabilities, 'server-function', 'test'],
   });
 
 export const remoteBuildExecutionProviderDescriptor =
@@ -191,10 +191,22 @@ const hasSingleExactServerFunctionRootSource = (
     ).length === 1
   );
 
+const canonicalJson = (value: unknown): string =>
+  JSON.stringify(value, (_key, candidate: unknown) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+      return candidate;
+    const record = candidate as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.keys(record)
+        .sort()
+        .map((key) => [key, record[key]])
+    );
+  });
+
 const sameSourceTrace = (
   left: readonly ExecutionSourceTrace[] | undefined,
   right: readonly ExecutionSourceTrace[] | undefined
-): boolean => JSON.stringify(left) === JSON.stringify(right);
+): boolean => canonicalJson(left) === canonicalJson(right);
 
 const secretLeakDiagnosticControllers = new WeakSet<ExecutionJobController>();
 
@@ -394,6 +406,7 @@ const synchronize = async (
     eventPageSize: number;
     maximumReconnectAttempts: number;
     delay: (milliseconds: number) => Promise<void>;
+    trustedServerFunctionSourceTrace?: readonly ExecutionSourceTrace[];
     materializeArtifact?: CreateRemoteExecutionProviderOptions['materializeArtifact'];
   }>
 ): Promise<void> => {
@@ -410,6 +423,7 @@ const synchronize = async (
   let testReportStatus: 'passed' | 'failed' | undefined;
   let testReportSourceTrace: readonly ExecutionSourceTrace[] | undefined;
   let testReportTraceStatus: 'passed' | 'failed' | undefined;
+  let testServerFunctionTraceCount = 0;
   let reconnectAttempts = 0;
   while (active(input.controller)) {
     try {
@@ -626,6 +640,44 @@ const synchronize = async (
                 'events.read'
               );
             serverFunctionTracePublished = true;
+          }
+          if (
+            event.kind === 'trace' &&
+            input.controller.job.request.profile === 'test' &&
+            event.trace.name === SERVER_FUNCTION_INVOCATION_TRACE_NAME
+          ) {
+            const trace = readServerFunctionInvocationTraceValue(
+              event.trace.detail
+            );
+            if (
+              !testReportTraceStatus ||
+              !input.controller.job.request.requiredCapabilities.includes(
+                'server-function'
+              ) ||
+              !trace ||
+              testServerFunctionTraceCount >= 10_000 ||
+              event.trace.phase !== 'event' ||
+              event.trace.traceId !==
+                `server-function-test:${record.executionId}` ||
+              event.trace.spanId !==
+                `${trace.requestId}:${testServerFunctionTraceCount}` ||
+              !hasSingleExactServerFunctionRootSource(
+                event.trace.sourceTrace,
+                trace.functionRef.artifactId
+              ) ||
+              (input.trustedServerFunctionSourceTrace !== undefined &&
+                event.trace.sourceTrace?.some(
+                  (candidate) =>
+                    !input.trustedServerFunctionSourceTrace!.some((trusted) =>
+                      sameSourceTrace([candidate], [trusted])
+                    )
+                ))
+            )
+              throw new RemoteExecutionRecoveryRequiredError(
+                'Remote Test Server Function trace does not match its report and CodeArtifact source.',
+                'events.read'
+              );
+            testServerFunctionTraceCount += 1;
           }
           if (
             event.kind === 'trace' &&
@@ -877,6 +929,10 @@ export const createRemoteExecutionProvider = (
           'Remote execution provider cannot satisfy this request.'
         );
       const snapshot = await options.resolveSnapshot(request);
+      const trustedServerFunctionSourceTrace =
+        snapshot.kind === 'upload'
+          ? snapshot.snapshot.files.flatMap((file) => file.sourceTrace ?? [])
+          : undefined;
       if (snapshot.kind === 'upload') {
         if (
           request.profile === 'production' &&
@@ -891,6 +947,22 @@ export const createRemoteExecutionProvider = (
           request.profile,
           options.descriptor.capabilities
         );
+        if (request.profile === 'test') {
+          const requestRequiresServerFunction =
+            request.requiredCapabilities.includes('server-function');
+          const snapshotRequiresServerFunction =
+            snapshot.snapshot.capabilityRequirements.test.includes(
+              'server-function'
+            );
+          if (
+            requestRequiresServerFunction !== snapshotRequiresServerFunction ||
+            snapshotRequiresServerFunction !==
+              Boolean(snapshot.snapshot.serverRuntimeMockProvision)
+          )
+            throw new TypeError(
+              'Remote Test Server Function capability does not match its deterministic runtime provision.'
+            );
+        }
       }
       const { execution } = await options.client.create({ request, snapshot });
       if (!acceptedProviderMatches(options.descriptor, execution.provider)) {
@@ -945,6 +1017,9 @@ export const createRemoteExecutionProvider = (
         eventPageSize,
         maximumReconnectAttempts,
         delay,
+        ...(trustedServerFunctionSourceTrace
+          ? { trustedServerFunctionSourceTrace }
+          : {}),
         ...(options.materializeArtifact
           ? { materializeArtifact: options.materializeArtifact }
           : {}),

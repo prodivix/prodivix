@@ -10,10 +10,14 @@ import {
   BINARY_ASSET_LIMITS,
   BINARY_ASSET_JPEG_SANITIZE_TRANSFORMER_ID,
   BINARY_ASSET_JPEG_SANITIZE_TRANSFORMER_VERSION,
+  BINARY_ASSET_JPEG_RASTER_REENCODE_TRANSFORMER_ID,
+  BINARY_ASSET_JPEG_RASTER_REENCODE_TRANSFORMER_VERSION,
   BINARY_ASSET_JPEG_STRUCTURAL_SCANNER_ID,
   BINARY_ASSET_JPEG_STRUCTURAL_SCANNER_VERSION,
   BINARY_ASSET_PNG_SANITIZE_TRANSFORMER_ID,
   BINARY_ASSET_PNG_SANITIZE_TRANSFORMER_VERSION,
+  BINARY_ASSET_PNG_RASTER_REENCODE_TRANSFORMER_ID,
+  BINARY_ASSET_PNG_RASTER_REENCODE_TRANSFORMER_VERSION,
   BINARY_ASSET_PNG_STRUCTURAL_SCANNER_ID,
   BINARY_ASSET_PNG_STRUCTURAL_SCANNER_VERSION,
   BINARY_ASSET_SCAN_ATTESTATION_FORMAT,
@@ -760,6 +764,23 @@ export const createBinaryAssetPngSanitizeRecipe = (
     parameters: { stripAncillaryMetadata: true },
   });
 
+/** Canonical full-decode PNG recipe. The concrete decoder remains deployment-owned. */
+export const createBinaryAssetPngRasterReencodeRecipe = (
+  sourceDigest: string
+): BinaryAssetTransformRecipe =>
+  createBinaryAssetTransformRecipe({
+    sourceDigest,
+    transformerId: BINARY_ASSET_PNG_RASTER_REENCODE_TRANSFORMER_ID,
+    transformerVersion: BINARY_ASSET_PNG_RASTER_REENCODE_TRANSFORMER_VERSION,
+    outputMediaType: 'image/png',
+    parameters: {
+      autoOrient: true,
+      colorSpace: 'srgb',
+      compressionLevel: 9,
+      stripMetadata: true,
+    },
+  });
+
 export const createBinaryAssetPngSanitizeTransformer =
   (): BinaryAssetTransformer =>
     Object.freeze({
@@ -857,6 +878,26 @@ export const createBinaryAssetJpegSanitizeRecipe = (
       coding: 'baseline-huffman',
       requiredOrientation: 1,
       stripApplicationMetadata: true,
+    },
+  });
+
+/** Canonical full-decode baseline JPEG recipe. The concrete decoder remains deployment-owned. */
+export const createBinaryAssetJpegRasterReencodeRecipe = (
+  sourceDigest: string
+): BinaryAssetTransformRecipe =>
+  createBinaryAssetTransformRecipe({
+    sourceDigest,
+    transformerId: BINARY_ASSET_JPEG_RASTER_REENCODE_TRANSFORMER_ID,
+    transformerVersion: BINARY_ASSET_JPEG_RASTER_REENCODE_TRANSFORMER_VERSION,
+    outputMediaType: 'image/jpeg',
+    parameters: {
+      autoOrient: true,
+      chromaSubsampling: '4:4:4',
+      colorSpace: 'srgb',
+      optimizeCoding: true,
+      progressive: false,
+      quality: 90,
+      stripMetadata: true,
     },
   });
 

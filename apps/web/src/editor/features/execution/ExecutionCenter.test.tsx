@@ -35,6 +35,7 @@ import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { ExecutionCenter } from './ExecutionCenter';
 import { useExecutionCenterNavigationStore } from './executionCenterNavigation';
 import { executionSessionCoordinator } from './executionSessionEnvironment';
+import { createWorkspaceExecutionSnapshotId } from './workspaceExecutionIdentity';
 
 const dispatchWorkspaceOperation = vi.hoisted(() => vi.fn());
 const uploadRuntimeAssets = vi.hoisted(() =>
@@ -61,7 +62,8 @@ beforeEach(() => {
 
 const activateSession = (
   sessionId: string,
-  capabilities: readonly ExecutionProviderCapability[]
+  capabilities: readonly ExecutionProviderCapability[],
+  snapshotId = 'snapshot'
 ) => {
   sessionIds.add(sessionId);
   const provider = createExecutionProviderDescriptor({
@@ -80,7 +82,7 @@ const activateSession = (
       requestId: `request-${sessionId}`,
       profile: 'preview',
       runtimeZone: 'client',
-      workspace: { workspaceId: 'workspace', snapshotId: 'snapshot' },
+      workspace: { workspaceId: 'workspace', snapshotId },
       invocation: {
         kind: 'workspace',
         targetRef: { kind: 'workspace', workspaceId: 'workspace' },
@@ -291,10 +293,11 @@ describe('ExecutionCenter Remote recovery', () => {
 });
 
 describe('ExecutionCenter Server Function surface', () => {
-  it('shows exact sanitized invocation metadata after a finite Job is terminal', () => {
+  it('shows exact sanitized invocation metadata after a finite Job is terminal', async () => {
     const sessionId = 'server-function-observation';
     const controller = activateSession(sessionId, ['server-function']);
     controller.succeed();
+    await controller.job.completion;
     const inputCanary = 'server-input-credential-canary';
     const request = Object.freeze({
       type: EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
@@ -396,8 +399,174 @@ describe('ExecutionCenter Server Function surface', () => {
   });
 });
 
+describe('ExecutionCenter local view controls', () => {
+  it('pauses and clears Console presentation without deleting Session history', async () => {
+    const sessionId = 'console-view-checkpoint';
+    const controller = activateSession(sessionId, ['diagnostics']);
+    act(() => {
+      controller.emitLog({
+        stream: 'console',
+        level: 'info',
+        category: 'application',
+        message: 'before-pause',
+      });
+    });
+    render(<ExecutionCenter sessionId={sessionId} />);
+    expect(screen.getByText('before-pause')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'execution.pause' }));
+    act(() => {
+      controller.emitLog({
+        stream: 'console',
+        level: 'info',
+        category: 'application',
+        message: 'while-paused',
+      });
+    });
+    expect(screen.queryByText('while-paused')).toBeNull();
+    expect(screen.getByText('execution.paused', { exact: false })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'execution.resume' }));
+    expect(await screen.findByText('while-paused')).toBeTruthy();
+    const retainedBeforeClear =
+      executionSessionCoordinator.getSnapshot(sessionId)!.events.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'execution.clear' }));
+    expect(screen.queryByText('before-pause')).toBeNull();
+    expect(screen.queryByText('while-paused')).toBeNull();
+    expect(
+      executionSessionCoordinator.getSnapshot(sessionId)!.events.length
+    ).toBe(retainedBeforeClear);
+
+    act(() => {
+      controller.emitLog({
+        stream: 'console',
+        level: 'info',
+        category: 'application',
+        message: 'after-clear',
+      });
+    });
+    expect(await screen.findByText('after-clear')).toBeTruthy();
+    expect(
+      executionSessionCoordinator.getSnapshot(sessionId)!.events.length
+    ).toBeGreaterThan(retainedBeforeClear);
+  });
+
+  it('marks a diagnostic without exact SourceTrace as explicitly unavailable', () => {
+    const sessionId = 'diagnostic-without-source';
+    activateSession(sessionId, ['diagnostics']);
+    render(
+      <ExecutionCenter
+        sessionId={sessionId}
+        diagnostics={[
+          {
+            code: 'RUN-5001',
+            severity: 'error',
+            message: 'Compilation failed before a stable source was emitted.',
+          },
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByText('Compilation failed before a stable source was emitted.')
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText('execution.sourceNavigation.sourceUnavailable')
+    ).toBeTruthy();
+  });
+
+  it('marks a retained NodeGraph or Animation session when the Workspace revision changes', () => {
+    const workspace: WorkspaceSnapshot = {
+      id: 'workspace',
+      workspaceRev: 1,
+      routeRev: 1,
+      opSeq: 1,
+      treeRootId: 'root',
+      treeById: {
+        root: {
+          id: 'root',
+          kind: 'dir',
+          name: '/',
+          parentId: null,
+          children: [],
+        },
+      },
+      docsById: {},
+      routeManifest: { version: '1', root: { id: 'route-root' } },
+    };
+    const sessionId = 'revision-aware-session';
+    activateSession(
+      sessionId,
+      ['source-trace'],
+      createWorkspaceExecutionSnapshotId(workspace)
+    );
+    const view = render(
+      <ExecutionCenter sessionId={sessionId} workspace={workspace} />
+    );
+    expect(screen.queryByText('execution.status.stale')).toBeNull();
+
+    view.rerender(
+      <ExecutionCenter
+        sessionId={sessionId}
+        workspace={{ ...workspace, workspaceRev: 2 }}
+      />
+    );
+    expect(screen.getByText('execution.status.stale')).toBeTruthy();
+  });
+});
+
 describe('ExecutionCenter Console SourceTrace navigation', () => {
-  it('opens a correlated artifact owner and preserves exact snapshot failures', () => {
+  it('consumes an exact Issues diagnostic focus and opens the error-filtered Console', async () => {
+    const sessionId = 'issues-diagnostic-focus';
+    const controller = activateSession(sessionId, ['diagnostics']);
+    controller.emitLog({
+      stream: 'console',
+      level: 'info',
+      category: 'application',
+      message: 'non-error application noise',
+    });
+    controller.emitDiagnostic({
+      code: 'TST-5001',
+      severity: 'error',
+      domain: 'code',
+      message: 'Generated test failed.',
+      targetRef: { kind: 'code-artifact', artifactId: 'code-test' },
+    });
+    const workspace: WorkspaceSnapshot = {
+      id: 'workspace',
+      workspaceRev: 1,
+      routeRev: 1,
+      opSeq: 1,
+      treeRootId: 'root',
+      treeById: {
+        root: {
+          id: 'root',
+          kind: 'dir',
+          name: '/',
+          parentId: null,
+          children: [],
+        },
+      },
+      docsById: {},
+      routeManifest: { version: '1', root: { id: 'route-root' } },
+    };
+    useExecutionCenterNavigationStore.getState().openExecutionDiagnostic({
+      workspaceId: workspace.id,
+      sessionId,
+      diagnosticCode: 'TST-5001',
+    });
+
+    render(<ExecutionCenter sessionId={sessionId} workspace={workspace} />);
+
+    await waitFor(() =>
+      expect(useExecutionCenterNavigationStore.getState().request).toBeNull()
+    );
+    expect(screen.getByText('Generated test failed.')).toBeTruthy();
+    expect(screen.queryByText('non-error application noise')).toBeNull();
+  });
+
+  it('opens a correlated artifact owner and preserves exact snapshot failures', async () => {
     const sessionId = 'console-artifact-source';
     const controller = activateSession(sessionId, ['artifacts']);
     controller.emitArtifact({
@@ -411,6 +580,7 @@ describe('ExecutionCenter Console SourceTrace navigation', () => {
       ],
     });
     controller.succeed();
+    await controller.job.completion;
     const openSourceTrace = vi.fn(() => ({ status: 'opened' as const }));
     const view = render(
       <ExecutionCenter

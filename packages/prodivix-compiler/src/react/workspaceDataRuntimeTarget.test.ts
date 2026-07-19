@@ -237,7 +237,16 @@ const createStreamWorkspace = (
                         value: '/payload',
                       },
                     },
-              policies: {},
+              policies: {
+                stream: {
+                  reconnect: {
+                    resume: 'sse-last-event-id',
+                    maxReconnectAttempts: 2,
+                    backoff: 'fixed',
+                    initialDelayMs: 10,
+                  },
+                },
+              },
             },
           },
         },
@@ -394,7 +403,7 @@ describe('Workspace Data runtime target Gate', () => {
     }
   );
 
-  it('keeps client and any authorization-bearing subscription target fail closed', () => {
+  it('keeps client, missing-renewal, and literal authorization stream targets fail closed', () => {
     const client = generateWorkspaceReactViteExecutableProject(
       createStreamWorkspace('core.graphql', 'client')
     );
@@ -429,6 +438,19 @@ describe('Workspace Data runtime target Gate', () => {
                   },
                 },
               },
+              operationsById: {
+                ...document.content.operationsById,
+                watch: {
+                  ...document.content.operationsById.watch!,
+                  policies: {
+                    stream: {
+                      ...document.content.operationsById.watch!.policies
+                        .stream!,
+                      credentialRenewal: undefined,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -439,7 +461,7 @@ describe('Workspace Data runtime target Gate', () => {
     if (secret.status === 'blocked')
       expect(secret.diagnostics).toContainEqual(
         expect.objectContaining({
-          code: 'WKS-EXPORT-DATA-STREAM-SECRET-UNAVAILABLE',
+          code: 'WKS_DOCUMENT_CONTENT_INVALID',
         })
       );
 
@@ -462,6 +484,13 @@ describe('Workspace Data runtime target Gate', () => {
                     authorization: {
                       kind: 'literal',
                       value: 'unsafe-inline-credential',
+                    },
+                  },
+                  policies: {
+                    stream: {
+                      ...document.content.operationsById.watch!.policies
+                        .stream!,
+                      credentialRenewal: 'per-connection',
                     },
                   },
                 },

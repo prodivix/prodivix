@@ -134,6 +134,9 @@ describe('G2 Golden Auth/Server target contract matrix', () => {
       'allow',
     ]);
     expect(matrix.deterministicTest.observationCount).toBe(3);
+    expect(matrix.deterministicTest.invocationTraceCount).toBe(1);
+    expect(matrix.deterministicTest.snapshotsRequireServerFunction).toBe(true);
+    expect(matrix.deterministicTest.snapshotsProvisionServerRuntime).toBe(true);
     expect(matrix.deterministicTest.auditedAdapterSnapshotDigest).toMatch(
       /^sha256-[a-f0-9]{64}$/u
     );
@@ -141,6 +144,9 @@ describe('G2 Golden Auth/Server target contract matrix', () => {
       /^sha256-[a-f0-9]{64}$/u
     );
     expect(matrix.deterministicTest.workspaceReadSnapshotDigest).toMatch(
+      /^sha256-[a-f0-9]{64}$/u
+    );
+    expect(matrix.deterministicTest.vueAuditedAdapterSnapshotDigest).toMatch(
       /^sha256-[a-f0-9]{64}$/u
     );
   });
@@ -407,6 +413,8 @@ describe('G2 Golden Auth/Server target contract matrix', () => {
       sourceTraceExcludesSourceText: true,
       strictInvocationRejectsCredentialField: true,
       strictAuthorityRejectsCredentialField: true,
+      invocationTraceExcludesCredentialCanaries: true,
+      strictInvocationTraceRejectsCredentialField: true,
     });
   });
 

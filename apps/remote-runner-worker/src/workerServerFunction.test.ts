@@ -310,13 +310,9 @@ const mutationAuthority: NonNullable<RemoteExecutionClaimResult['authority']> =
     workerAttempt: 1,
     principal: Object.freeze({
       providerId: 'prodivix-product-session',
-      principalId: 'owner-1',
+      principalId: 'editor-1',
     }),
-    permissions: Object.freeze([
-      'workspace.owner',
-      'workspace.read',
-      'workspace.write',
-    ]),
+    permissions: Object.freeze(['workspace.read', 'workspace.write']),
     workspaceId: mutationSnapshot.workspace.workspaceId,
     snapshotId: mutationSnapshot.workspace.snapshotId,
     expiresAt: 100,
@@ -615,7 +611,6 @@ describe('remote worker isolated Server Function', () => {
     const sandbox: RemoteWorkerSandbox = {
       async execute(input) {
         expect(input.serverFunctionAuthority?.permissions).toEqual([
-          'workspace.owner',
           'workspace.read',
           'workspace.write',
         ]);

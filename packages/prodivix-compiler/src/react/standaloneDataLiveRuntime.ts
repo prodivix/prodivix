@@ -92,6 +92,24 @@ type DataRuntimeCachePolicy = Readonly<{
   keyInputPaths?: readonly string[];
 }>;
 
+type DataRuntimeStreamCollectionPolicy = Readonly<{
+  kind: 'keyed-event-v1';
+  entityIdPath: string;
+  maxItems: number;
+}>;
+
+type DataRuntimeStreamPolicy = Readonly<{
+  reconnect: Readonly<{
+    resume: 'sse-last-event-id';
+    maxReconnectAttempts: number;
+    backoff: 'fixed' | 'exponential';
+    initialDelayMs: number;
+    maxDelayMs?: number;
+  }>;
+  credentialRenewal?: 'per-connection';
+  collection?: DataRuntimeStreamCollectionPolicy;
+}>;
+
 type DataRuntimeOperation = Readonly<{
   id: string;
   kind: 'query' | 'mutation' | 'subscription';
@@ -113,6 +131,7 @@ type DataRuntimeOperation = Readonly<{
       placement?: 'start' | 'end';
       rollback: 'on-error';
     }>;
+    stream?: DataRuntimeStreamPolicy;
   }>;
 }>;
 
@@ -211,11 +230,19 @@ type DataStreamBridgeMessage =
 type DataRuntimeStreamEvent = Readonly<{
   cursor: number;
   value: unknown;
+  collection?: DataRuntimeStreamCollectionSnapshot;
+}>;
+
+type DataRuntimeStreamCollectionSnapshot = Readonly<{
+  cursor: number;
+  appliedEvents: number;
+  items: readonly Readonly<Record<string, unknown>>[];
 }>;
 
 type DataRuntimeStreamSession = Readonly<{
   network: DataRuntimeNetworkTrace;
   next(): Promise<DataRuntimeStreamEvent | undefined>;
+  getCollectionSnapshot(): DataRuntimeStreamCollectionSnapshot | undefined;
   close(): void;
 }>;
 
@@ -232,6 +259,159 @@ class DataRuntimeFailure extends Error {
     this.attempt = attempt;
   }
 }
+
+type DataRuntimeStreamCollection = Readonly<{
+  getSnapshot(): DataRuntimeStreamCollectionSnapshot;
+  apply(cursor: number, value: unknown): DataRuntimeStreamCollectionSnapshot;
+}>;
+
+const streamCollectionRecord = (
+  value: unknown
+): value is Readonly<Record<string, unknown>> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const freezeStreamCollectionValue = (value: unknown): unknown => {
+  if (Array.isArray(value))
+    return Object.freeze(value.map((entry) => freezeStreamCollectionValue(entry)));
+  if (streamCollectionRecord(value))
+    return Object.freeze(
+      Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [
+          key,
+          freezeStreamCollectionValue(entry),
+        ])
+      )
+    );
+  return value;
+};
+
+const streamCollectionExactRecord = (
+  value: unknown,
+  keys: readonly string[]
+): Readonly<Record<string, unknown>> | undefined => {
+  if (!streamCollectionRecord(value)) return undefined;
+  const expected = new Set(keys);
+  return Object.keys(value).length === keys.length &&
+    keys.every((key) => Object.prototype.hasOwnProperty.call(value, key)) &&
+    Object.keys(value).every((key) => expected.has(key))
+    ? value
+    : undefined;
+};
+
+const createStreamCollection = (
+  policy: DataRuntimeStreamCollectionPolicy | undefined
+): DataRuntimeStreamCollection | undefined => {
+  if (!policy) return undefined;
+  if (
+    policy.kind !== 'keyed-event-v1' ||
+    typeof policy.entityIdPath !== 'string' ||
+    !policy.entityIdPath.startsWith('/') ||
+    /~(?:[^01]|$)/u.test(policy.entityIdPath) ||
+    !Number.isSafeInteger(policy.maxItems) ||
+    policy.maxItems < 1 ||
+    policy.maxItems > 10_000
+  ) throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_EVENT_INVALID');
+  const tokens = policy.entityIdPath
+    .slice(1)
+    .split('/')
+    .map((token) => token.replace(/~1/gu, '/').replace(/~0/gu, '~'));
+  const readIdentityValue = (value: unknown): unknown => {
+    let current = value;
+    for (const token of tokens) {
+      if (Array.isArray(current)) {
+        if (!/^(?:0|[1-9][0-9]*)$/u.test(token))
+          throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_IDENTITY_INVALID');
+        current = current[Number(token)];
+      } else if (
+        streamCollectionRecord(current) &&
+        Object.prototype.hasOwnProperty.call(current, token)
+      ) {
+        current = current[token];
+      } else {
+        throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_IDENTITY_INVALID');
+      }
+    }
+    return current;
+  };
+  const identity = (value: unknown): string => {
+    if (
+      (typeof value !== 'string' || !value) &&
+      (typeof value !== 'number' || !Number.isSafeInteger(value))
+    ) throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_IDENTITY_INVALID');
+    return JSON.stringify(value);
+  };
+  const normalizeItems = (
+    values: readonly unknown[]
+  ): readonly Readonly<Record<string, unknown>>[] => {
+    if (values.length > policy.maxItems)
+      throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_CAPACITY');
+    const seen = new Set<string>();
+    return Object.freeze(
+      values.map((candidate) => {
+        const cloned = freezeStreamCollectionValue(cloneJson(candidate));
+        if (!streamCollectionRecord(cloned))
+          throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_EVENT_INVALID');
+        const key = identity(readIdentityValue(cloned));
+        if (seen.has(key))
+          throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_IDENTITY_CONFLICT');
+        seen.add(key);
+        return cloned;
+      })
+    );
+  };
+  let snapshot: DataRuntimeStreamCollectionSnapshot = Object.freeze({
+    cursor: 0,
+    appliedEvents: 0,
+    items: Object.freeze([]),
+  });
+  return Object.freeze({
+    getSnapshot: () => snapshot,
+    apply(cursor, value) {
+      if (!Number.isSafeInteger(cursor) || cursor !== snapshot.cursor + 1)
+        throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_CURSOR_CONFLICT');
+      const replacement = streamCollectionExactRecord(value, ['action', 'items']);
+      const upsert = streamCollectionExactRecord(value, ['action', 'entity']);
+      const deletion = streamCollectionExactRecord(value, ['action', 'id']);
+      let items: readonly Readonly<Record<string, unknown>>[];
+      if (replacement?.action === 'replace' && Array.isArray(replacement.items)) {
+        items = normalizeItems(replacement.items);
+      } else if (upsert?.action === 'upsert' && streamCollectionRecord(upsert.entity)) {
+        const entity = normalizeItems([upsert.entity])[0]!;
+        const key = identity(readIdentityValue(entity));
+        const index = snapshot.items.findIndex(
+          (candidate) => identity(readIdentityValue(candidate)) === key
+        );
+        if (index < 0) {
+          if (snapshot.items.length >= policy.maxItems)
+            throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_CAPACITY');
+          items = Object.freeze([...snapshot.items, entity]);
+        } else {
+          const next = [...snapshot.items];
+          next[index] = entity;
+          items = Object.freeze(next);
+        }
+      } else if (
+        deletion?.action === 'delete' &&
+        (typeof deletion.id === 'string' || typeof deletion.id === 'number')
+      ) {
+        const key = identity(deletion.id);
+        items = Object.freeze(
+          snapshot.items.filter(
+            (candidate) => identity(readIdentityValue(candidate)) !== key
+          )
+        );
+      } else {
+        throw new DataRuntimeFailure('DATA_STREAM_COLLECTION_EVENT_INVALID');
+      }
+      snapshot = Object.freeze({
+        cursor,
+        appliedEvents: snapshot.appliedEvents + 1,
+        items,
+      });
+      return snapshot;
+    },
+  });
+};
 
 const remoteGatewaySafeErrorCodes = new Set([
   'DATA_REMOTE_GATEWAY_UNAVAILABLE',
@@ -1065,6 +1245,9 @@ const openRemoteDataStream = async (input: Readonly<{
   let pending = false;
   let terminal = false;
   let cancelPending: (() => void) | undefined;
+  const collection = createStreamCollection(
+    input.operation.policies.stream?.collection
+  );
 
   const readMessage = (value: unknown): DataStreamBridgeMessage | undefined => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -1190,6 +1373,7 @@ const openRemoteDataStream = async (input: Readonly<{
   input.publishNetworkTrace(opened.network);
   return Object.freeze({
     network: opened.network,
+    getCollectionSnapshot: () => collection?.getSnapshot(),
     async next() {
       if (terminal) return undefined;
       if (pending) throw new DataRuntimeFailure('DATA_STREAM_CONFLICT');
@@ -1219,7 +1403,14 @@ const openRemoteDataStream = async (input: Readonly<{
             throw new DataRuntimeFailure('DATA_STREAM_CAPACITY');
           }
           cursor = message.cursor;
-          return Object.freeze({ cursor, value: message.value });
+          const collectionSnapshot = collection?.apply(cursor, message.value);
+          return Object.freeze({
+            cursor,
+            value: message.value,
+            ...(collectionSnapshot
+              ? { collection: collectionSnapshot }
+              : {}),
+          });
         }
         terminal = true;
         if (message.phase === 'complete') return undefined;

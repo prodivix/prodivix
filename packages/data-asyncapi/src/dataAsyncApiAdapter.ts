@@ -568,10 +568,18 @@ export const createDataAsyncApiStreamingAdapter = (input: {
         operation.configurationByKey.authorization ??
           source.configurationByKey.authorization
       );
-      if (authorization)
+      if (
+        authorization &&
+        operation.policies.stream?.credentialRenewal !== 'per-connection'
+      )
         throw new DataAsyncApiOperationError(
           'DATA_ASYNCAPI_CONFIGURATION_INVALID',
-          'Secret-authenticated AsyncAPI streams require a credential-renewal contract.'
+          'Secret-authenticated AsyncAPI streams require per-connection credential renewal.'
+        );
+      if (authorization && !environment)
+        throw new DataAsyncApiOperationError(
+          'DATA_ASYNCAPI_CONFIGURATION_INVALID',
+          'AsyncAPI stream credential renewal requires an environment lease.'
         );
       const bodyInputPath = optionalString(
         operation.configurationByKey.bodyInputPath,
@@ -601,7 +609,7 @@ export const createDataAsyncApiStreamingAdapter = (input: {
         sequence: invocation.sequence,
         attempt: invocation.attempt,
       });
-      const open = () =>
+      const open = (secret?: string) =>
         input.streamTransport.open({
           requestId: `${invocation.invocationId}:stream`,
           url,
@@ -611,6 +619,7 @@ export const createDataAsyncApiStreamingAdapter = (input: {
             ...(action === 'stream'
               ? { 'content-type': 'application/json' }
               : {}),
+            ...(secret ? { authorization: secret } : {}),
           }),
           ...(action === 'stream' ? { body: JSON.stringify(bodyValue) } : {}),
           signal,
@@ -622,7 +631,18 @@ export const createDataAsyncApiStreamingAdapter = (input: {
             ? { sourceTrace: invocation.sourceTrace }
             : {}),
         });
-      const stream = await open();
+      let stream: Awaited<ReturnType<typeof open>> | undefined;
+      if (authorization && environment)
+        await environment.useSecret(
+          authorization.reference,
+          operation.configurationByKey.authorization
+            ? 'operation.authorization'
+            : 'source.authorization',
+          async (material) => {
+            stream = await open(material);
+          }
+        );
+      else stream = await open();
       if (!stream)
         throw new DataAsyncApiOperationError(
           'DATA_ASYNCAPI_REQUEST_FAILED',

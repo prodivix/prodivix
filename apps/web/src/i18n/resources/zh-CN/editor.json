@@ -10,7 +10,10 @@
     "openPreview": "在新标签页打开预览",
     "openSource": "打开精确运行源码",
     "openDataInspector": "打开 Data operation Inspector",
-    "clear": "清空控制台",
+    "clear": "清空当前运行视图",
+    "pause": "暂停控制台视图",
+    "resume": "恢复控制台视图",
+    "paused": "已暂停",
     "copy": "复制安全控制台输出",
     "copyFailed": "复制失败",
     "consoleTruncated": "控制台输出已按预算截断；丢弃 {{count}} 条较早记录。",
@@ -165,7 +168,8 @@
       "succeeded": "已完成",
       "failed": "失败",
       "cancelled": "已停止",
-      "timed-out": "已超时"
+      "timed-out": "已超时",
+      "stale": "旧 snapshot"
     }
   },
   "testing": {
@@ -378,6 +382,7 @@
     "actions": {
       "openTarget": "打开目标",
       "openSource": "打开源码",
+      "openExecution": "打开执行记录",
       "openDocs": "打开文档",
       "targetUnavailable": "当前工作区中已不存在这个目标。",
       "sourceUnavailable": "当前工作区中已不存在这个源码资源。"
@@ -1215,6 +1220,36 @@
             "viewer": "查看者",
             "editor": "编辑者",
             "admin": "管理员"
+          }
+        },
+        "workspaceRoles": {
+          "add": {
+            "label": "Workspace 协作者",
+            "description": "查看者可执行读取；编辑者还可生成隔离、可审查的源码变更提案。两者均不会获得 owner、Environment 或 Secret 权限。",
+            "email": "协作者账号邮箱",
+            "emailPlaceholder": "collaborator@example.com",
+            "role": "执行角色"
+          },
+          "current": {
+            "label": "当前协作者",
+            "description": "角色变更只影响新签发的执行授权；既有授权仍受其短期有效期约束。",
+            "unavailable": "请打开已认证的云端 Workspace 以管理角色。",
+            "loading": "正在加载协作者…",
+            "empty": "当前没有已授予执行角色的协作者。"
+          },
+          "roles": {
+            "viewer": "查看者",
+            "editor": "编辑者"
+          },
+          "actions": {
+            "save": "授予角色",
+            "saving": "正在保存…",
+            "remove": "移除"
+          },
+          "errors": {
+            "load": "只有 Workspace owner 可以管理协作者。",
+            "save": "无法保存协作者，请确认账号邮箱与 owner 权限。",
+            "revoke": "无法移除协作者。"
           }
         },
         "previewAccess": {

@@ -4,8 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"strings"
@@ -21,32 +25,146 @@ const (
 	maximumDataGatewayStreamDuration    = 5 * time.Minute
 	maximumDataGatewayStreamIdle        = 30 * time.Second
 	maximumConcurrentDataGatewayStreams = 32
+	maximumDataGatewayResumeTokenBytes  = 4096
+	maximumDataGatewayUpstreamCursor    = 1024
+	maximumDataGatewayReconnects        = 4
+	maximumDataGatewayReconnectDelay    = 30 * time.Second
+	maximumDataGatewayCollectionItems   = 10_000
 )
 
 type DataGatewayStreamEvent struct {
-	Cursor int64 `json:"cursor"`
-	Value  any   `json:"value"`
+	Cursor int64                    `json:"cursor"`
+	Value  any                      `json:"value"`
+	Resume *DataGatewayStreamResume `json:"resume,omitempty"`
+}
+
+type dataGatewayStreamCheckpoint struct {
+	Format         string `json:"format"`
+	ExecutionID    string `json:"executionId"`
+	DocumentID     string `json:"documentId"`
+	OperationID    string `json:"operationId"`
+	InvocationID   string `json:"invocationId"`
+	Sequence       int64  `json:"sequence"`
+	Cursor         int64  `json:"cursor"`
+	UpstreamCursor string `json:"upstreamCursor"`
+	OpenedAt       int64  `json:"openedAt"`
+	TotalBytes     int64  `json:"totalBytes"`
+}
+
+type dataGatewaySecretFingerprint struct {
+	byteLength int
+	digest     [sha256.Size]byte
 }
 
 type DataGatewayStreamSession struct {
 	Network dataGatewayNetworkTrace
 
-	body       io.ReadCloser
-	scanner    *bufio.Scanner
-	mediaType  string
-	adapter    string
-	mapFrame   func(string) (any, error)
-	openedAt   time.Time
-	cursor     int64
-	totalBytes int64
-	closed     bool
-	release    func()
+	body               io.ReadCloser
+	scanner            *bufio.Scanner
+	mediaType          string
+	adapter            string
+	mapFrame           func(string) (any, error)
+	openedAt           time.Time
+	cursor             int64
+	totalBytes         int64
+	resume             *dataGatewayStreamPolicy
+	checkpoint         dataGatewayStreamCheckpoint
+	secretFingerprints []dataGatewaySecretFingerprint
+	checkpointKey      [sha256.Size]byte
+	closed             bool
+	release            func()
 }
 
 type dataGatewayRawStreamFrame struct {
-	data     string
-	complete bool
-	err      error
+	data           string
+	upstreamCursor string
+	complete       bool
+	disconnected   bool
+	err            error
+}
+
+func validDataGatewayUpstreamCursor(value string) bool {
+	return value != "" && len(value) <= maximumDataGatewayUpstreamCursor && !strings.ContainsAny(value, "\x00\r\n")
+}
+
+func encodeDataGatewayStreamCheckpoint(value dataGatewayStreamCheckpoint, key [sha256.Size]byte) (string, error) {
+	if !validDataGatewayUpstreamCursor(value.UpstreamCursor) || value.Cursor < 1 || value.TotalBytes < 0 || value.TotalBytes > maximumDataGatewayStreamBytes {
+		return "", ErrDataGatewayStreamConflict
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return "", ErrDataGatewayStreamConflict
+	}
+	mac := hmac.New(sha256.New, key[:])
+	_, _ = mac.Write(encoded)
+	token := base64.RawURLEncoding.EncodeToString(encoded) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	if len(token) > maximumDataGatewayResumeTokenBytes {
+		return "", ErrDataGatewayStreamConflict
+	}
+	return token, nil
+}
+
+func decodeDataGatewayStreamCheckpoint(token string, expected dataGatewayStreamCheckpoint, now time.Time, key [sha256.Size]byte) (dataGatewayStreamCheckpoint, error) {
+	if token == "" || len(token) > maximumDataGatewayResumeTokenBytes {
+		return dataGatewayStreamCheckpoint{}, ErrDataGatewayStreamConflict
+	}
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 {
+		return dataGatewayStreamCheckpoint{}, ErrDataGatewayStreamConflict
+	}
+	encoded, err := base64.RawURLEncoding.DecodeString(parts[0])
+	signature, signatureErr := base64.RawURLEncoding.DecodeString(parts[1])
+	mac := hmac.New(sha256.New, key[:])
+	_, _ = mac.Write(encoded)
+	if err != nil || signatureErr != nil || len(encoded) > maximumDataGatewayResumeTokenBytes || !hmac.Equal(signature, mac.Sum(nil)) {
+		return dataGatewayStreamCheckpoint{}, ErrDataGatewayStreamConflict
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(encoded, &fields) != nil || len(fields) != 10 {
+		return dataGatewayStreamCheckpoint{}, ErrDataGatewayStreamConflict
+	}
+	for _, key := range []string{"format", "executionId", "documentId", "operationId", "invocationId", "sequence", "cursor", "upstreamCursor", "openedAt", "totalBytes"} {
+		if _, exists := fields[key]; !exists {
+			return dataGatewayStreamCheckpoint{}, ErrDataGatewayStreamConflict
+		}
+	}
+	var value dataGatewayStreamCheckpoint
+	if json.Unmarshal(encoded, &value) != nil || value.Format != "prodivix.data-stream-checkpoint.v1" || value.ExecutionID != expected.ExecutionID || value.DocumentID != expected.DocumentID || value.OperationID != expected.OperationID || value.InvocationID != expected.InvocationID || value.Sequence != expected.Sequence || value.Cursor < 1 || !validDataGatewayUpstreamCursor(value.UpstreamCursor) || value.TotalBytes < 0 || value.TotalBytes > maximumDataGatewayStreamBytes {
+		return dataGatewayStreamCheckpoint{}, ErrDataGatewayStreamConflict
+	}
+	openedAt := time.UnixMilli(value.OpenedAt)
+	if openedAt.After(now) || now.Sub(openedAt) >= maximumDataGatewayStreamDuration {
+		return dataGatewayStreamCheckpoint{}, ErrDataGatewayStreamCapacity
+	}
+	return value, nil
+}
+
+func dataGatewayStreamContainsCredential(value any, fingerprints []dataGatewaySecretFingerprint) bool {
+	if len(fingerprints) == 0 {
+		return false
+	}
+	switch current := value.(type) {
+	case string:
+		contents := []byte(current)
+		for _, fingerprint := range fingerprints {
+			if len(contents) == fingerprint.byteLength && sha256.Sum256(contents) == fingerprint.digest {
+				return true
+			}
+		}
+	case []any:
+		for _, entry := range current {
+			if dataGatewayStreamContainsCredential(entry, fingerprints) {
+				return true
+			}
+		}
+	case map[string]any:
+		for key, entry := range current {
+			if dataGatewayStreamContainsCredential(key, fingerprints) || dataGatewayStreamContainsCredential(entry, fingerprints) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (gateway *DataGateway) claimStream(identity string) (func(), error) {
@@ -94,18 +212,19 @@ func readNDJSONFrame(scanner *bufio.Scanner) dataGatewayRawStreamFrame {
 	return dataGatewayRawStreamFrame{complete: true}
 }
 
-func readSSEFrame(scanner *bufio.Scanner) dataGatewayRawStreamFrame {
+func readSSEFrame(scanner *bufio.Scanner, currentUpstreamCursor string) dataGatewayRawStreamFrame {
 	eventType := "message"
 	dataLines := make([]string, 0, 2)
 	bytesRead := 0
+	upstreamCursor := currentUpstreamCursor
 	for scanner.Scan() {
 		line := strings.TrimSuffix(scanner.Text(), "\r")
 		if line == "" {
 			if eventType == "complete" {
-				return dataGatewayRawStreamFrame{complete: true}
+				return dataGatewayRawStreamFrame{complete: true, upstreamCursor: upstreamCursor}
 			}
 			if len(dataLines) > 0 {
-				return dataGatewayRawStreamFrame{data: strings.Join(dataLines, "\n")}
+				return dataGatewayRawStreamFrame{data: strings.Join(dataLines, "\n"), upstreamCursor: upstreamCursor}
 			}
 			eventType = "message"
 			continue
@@ -120,6 +239,11 @@ func readSSEFrame(scanner *bufio.Scanner) dataGatewayRawStreamFrame {
 		switch name {
 		case "event":
 			eventType = value
+		case "id":
+			if value != "" && !validDataGatewayUpstreamCursor(value) {
+				return dataGatewayRawStreamFrame{err: ErrDataGatewayUpstream}
+			}
+			upstreamCursor = value
 		case "data":
 			bytesRead += len(value)
 			if bytesRead > maximumDataGatewayStreamFrameBytes {
@@ -132,12 +256,12 @@ func readSSEFrame(scanner *bufio.Scanner) dataGatewayRawStreamFrame {
 		return dataGatewayRawStreamFrame{err: ErrDataGatewayUpstream}
 	}
 	if eventType == "complete" {
-		return dataGatewayRawStreamFrame{complete: true}
+		return dataGatewayRawStreamFrame{complete: true, upstreamCursor: upstreamCursor}
 	}
 	if len(dataLines) > 0 {
-		return dataGatewayRawStreamFrame{data: strings.Join(dataLines, "\n")}
+		return dataGatewayRawStreamFrame{data: strings.Join(dataLines, "\n"), upstreamCursor: upstreamCursor}
 	}
-	return dataGatewayRawStreamFrame{complete: true}
+	return dataGatewayRawStreamFrame{complete: true, disconnected: true, upstreamCursor: upstreamCursor}
 }
 
 func (session *DataGatewayStreamSession) Close() error {
@@ -152,6 +276,17 @@ func (session *DataGatewayStreamSession) Close() error {
 	return session.body.Close()
 }
 
+func (session *DataGatewayStreamSession) upstreamError() error {
+	switch session.adapter {
+	case "core.graphql":
+		return ErrDataGatewayGraphQLUpstream
+	case "core.asyncapi":
+		return ErrDataGatewayAsyncAPIUpstream
+	default:
+		return ErrDataGatewayUpstream
+	}
+}
+
 func (session *DataGatewayStreamSession) Next(ctx context.Context) (*DataGatewayStreamEvent, bool, error) {
 	if session == nil || session.closed {
 		return nil, true, nil
@@ -163,7 +298,7 @@ func (session *DataGatewayStreamSession) Next(ctx context.Context) (*DataGateway
 	result := make(chan dataGatewayRawStreamFrame, 1)
 	go func() {
 		if session.mediaType == "text/event-stream" {
-			result <- readSSEFrame(session.scanner)
+			result <- readSSEFrame(session.scanner, session.checkpoint.UpstreamCursor)
 		} else {
 			result <- readNDJSONFrame(session.scanner)
 		}
@@ -175,12 +310,16 @@ func (session *DataGatewayStreamSession) Next(ctx context.Context) (*DataGateway
 		return nil, true, ctx.Err()
 	case <-time.After(maximumDataGatewayStreamIdle):
 		_ = session.Close()
-		return nil, true, ErrDataGatewayUpstream
+		return nil, true, session.upstreamError()
 	case raw = <-result:
 	}
 	if raw.err != nil {
 		_ = session.Close()
-		return nil, true, raw.err
+		return nil, true, session.upstreamError()
+	}
+	if raw.disconnected && session.resume != nil {
+		_ = session.Close()
+		return nil, true, session.upstreamError()
 	}
 	if raw.complete {
 		_ = session.Close()
@@ -196,8 +335,28 @@ func (session *DataGatewayStreamSession) Next(ctx context.Context) (*DataGateway
 		_ = session.Close()
 		return nil, true, err
 	}
+	if dataGatewayStreamContainsCredential(value, session.secretFingerprints) {
+		_ = session.Close()
+		return nil, true, session.upstreamError()
+	}
 	session.cursor++
-	return &DataGatewayStreamEvent{Cursor: session.cursor, Value: value}, false, nil
+	event := &DataGatewayStreamEvent{Cursor: session.cursor, Value: value}
+	if session.resume != nil {
+		if session.mediaType != "text/event-stream" || !validDataGatewayUpstreamCursor(raw.upstreamCursor) {
+			_ = session.Close()
+			return nil, true, session.upstreamError()
+		}
+		session.checkpoint.Cursor = session.cursor
+		session.checkpoint.UpstreamCursor = raw.upstreamCursor
+		session.checkpoint.TotalBytes = session.totalBytes
+		token, tokenErr := encodeDataGatewayStreamCheckpoint(session.checkpoint, session.checkpointKey)
+		if tokenErr != nil {
+			_ = session.Close()
+			return nil, true, tokenErr
+		}
+		event.Resume = &DataGatewayStreamResume{Cursor: session.cursor, Token: token}
+	}
+	return event, false, nil
 }
 
 func graphQLStreamMapper(operation dataGatewayOperation, snapshot *backendenvironment.Snapshot, bindings map[string]dataConfigurationValue) (func(string) (any, error), error) {
@@ -270,7 +429,27 @@ func asyncAPIStreamMapper(operation dataGatewayOperation, snapshot *backendenvir
 	}, nil
 }
 
-// OpenStream creates one public, execution-bound subscription. Secret-authenticated streams remain denied because material cannot outlive the authorization callback.
+func validDataGatewayStreamPolicy(policy *dataGatewayStreamPolicy) bool {
+	if policy == nil {
+		return true
+	}
+	reconnect := policy.Reconnect
+	if reconnect.Resume != "sse-last-event-id" || reconnect.MaximumReconnects < 1 || reconnect.MaximumReconnects > maximumDataGatewayReconnects || (reconnect.Backoff != "fixed" && reconnect.Backoff != "exponential") || reconnect.InitialDelayMS < 0 || time.Duration(reconnect.InitialDelayMS)*time.Millisecond > maximumDataGatewayReconnectDelay {
+		return false
+	}
+	if reconnect.MaximumDelayMS != nil && (*reconnect.MaximumDelayMS < reconnect.InitialDelayMS || time.Duration(*reconnect.MaximumDelayMS)*time.Millisecond > maximumDataGatewayReconnectDelay) {
+		return false
+	}
+	if policy.CredentialRenewal != "" && policy.CredentialRenewal != "per-connection" {
+		return false
+	}
+	if policy.Collection != nil && (policy.Collection.Kind != "keyed-event-v1" || !isDataGatewayJSONPointer(policy.Collection.EntityIDPath) || policy.Collection.MaximumItems < 1 || policy.Collection.MaximumItems > maximumDataGatewayCollectionItems) {
+		return false
+	}
+	return true
+}
+
+// OpenStream creates one execution-bound subscription and resolves Secret credentials only while each upstream connection is opened.
 func (gateway *DataGateway) OpenStream(ctx context.Context, principal backendenvironment.PrincipalSession, executionID string, documentID string, operationID string, invocation DataGatewayInvocation) (*DataGatewayStreamSession, error) {
 	if !gateway.Available() || gateway.streams == nil {
 		return nil, ErrDataGatewayUnavailable
@@ -291,16 +470,13 @@ func (gateway *DataGateway) OpenStream(ctx context.Context, principal backendenv
 		return nil, ErrDataGatewayDenied
 	}
 	document, operation, err := parseDataGatewayDocument(contents, documentID, operationID)
-	if err != nil || operation.Kind != "subscription" || len(operation.ConfigurationByKey) == 0 || operation.Policies.Retry != nil || operation.Policies.Idempotency != nil {
+	if err != nil || operation.Kind != "subscription" || len(operation.ConfigurationByKey) == 0 || operation.Policies.Retry != nil || operation.Policies.Idempotency != nil || !validDataGatewayStreamPolicy(operation.Policies.Stream) {
+		return nil, ErrDataGatewayDenied
+	}
+	if operation.Policies.Stream != nil && !gateway.checkpointKeyReady {
 		return nil, ErrDataGatewayDenied
 	}
 	if document.Source.AdapterID != "core.graphql" && document.Source.AdapterID != "core.asyncapi" {
-		return nil, ErrDataGatewayDenied
-	}
-	if _, sourceAuth := document.Source.ConfigurationByKey["authorization"]; sourceAuth {
-		return nil, ErrDataGatewayDenied
-	}
-	if _, operationAuth := operation.ConfigurationByKey["authorization"]; operationAuth {
 		return nil, ErrDataGatewayDenied
 	}
 	snapshot, err := gateway.environments.GetSnapshot(ctx, principal, authority.WorkspaceID, authority.Environment.EnvironmentID, authority.Environment.Revision)
@@ -310,6 +486,27 @@ func (gateway *DataGateway) OpenStream(ctx context.Context, principal backendenv
 	input, err := decodeInvocationInput(invocation.Input)
 	if err != nil {
 		return nil, err
+	}
+	bindingID, secretField, secretHeader, hasSecret, err := secretDataGatewayHeader(document.Source, *operation, snapshot)
+	credentialRenewal := ""
+	if operation.Policies.Stream != nil {
+		credentialRenewal = operation.Policies.Stream.CredentialRenewal
+	}
+	if err != nil || (hasSecret && credentialRenewal != "per-connection") || (!hasSecret && credentialRenewal != "") {
+		return nil, ErrDataGatewayDenied
+	}
+	checkpoint := dataGatewayStreamCheckpoint{
+		Format: "prodivix.data-stream-checkpoint.v1", ExecutionID: executionID, DocumentID: documentID, OperationID: operationID,
+		InvocationID: invocationID, Sequence: invocation.Sequence, OpenedAt: gateway.now().UnixMilli(),
+	}
+	if invocation.Resume != nil {
+		if operation.Policies.Stream == nil || invocation.Resume.Cursor < 1 {
+			return nil, ErrDataGatewayStreamConflict
+		}
+		checkpoint, err = decodeDataGatewayStreamCheckpoint(invocation.Resume.Token, checkpoint, gateway.now(), gateway.checkpointKey)
+		if err != nil || checkpoint.Cursor != invocation.Resume.Cursor {
+			return nil, ErrDataGatewayStreamConflict
+		}
 	}
 	identity := strings.Join([]string{executionID, documentID, operationID, invocationID}, "\x00")
 	release, err := gateway.claimStream(identity)
@@ -383,8 +580,45 @@ func (gateway *DataGateway) OpenStream(ctx context.Context, principal backendenv
 	if err != nil {
 		return nil, err
 	}
+	if invocation.Resume != nil {
+		request.Headers["last-event-id"] = checkpoint.UpstreamCursor
+	}
 	startedAt := gateway.now().UnixMilli()
-	upstream, err := gateway.streams.OpenStream(ctx, request)
+	var upstream *DataGatewayStreamTransportResponse
+	secretFingerprints := make([]dataGatewaySecretFingerprint, 0, 2)
+	openUpstream := func() error {
+		var openErr error
+		upstream, openErr = gateway.streams.OpenStream(ctx, request)
+		return openErr
+	}
+	if hasSecret {
+		resourceID := strings.Join([]string{executionID, documentID, operationID, invocationID, fmt.Sprint(checkpoint.Cursor)}, ":")
+		grant, grantErr := gateway.environments.IssueGrant(ctx, backendenvironment.IssueGrantInput{
+			Principal: principal, WorkspaceID: authority.WorkspaceID, EnvironmentID: snapshot.EnvironmentID, Revision: snapshot.Revision,
+			ProviderID: remoteDataGatewayProviderID, ProviderIsolation: "sandboxed", ExecutionClass: "trusted-service", RuntimeZone: document.Source.RuntimeZone,
+			PurposeKind: "data-operation", ResourceID: resourceID, SecretBindings: []backendenvironment.SecretBindingGrant{{BindingID: bindingID, Field: secretField}}, ExpiresAt: gateway.now().Add(30 * time.Second),
+		})
+		if grantErr != nil {
+			return nil, ErrDataGatewayDenied
+		}
+		defer func() { _ = gateway.environments.RevokeGrant(context.Background(), grant.GrantID, principal) }()
+		err = gateway.environments.UseSecret(ctx, backendenvironment.UseSecretInput{
+			GrantID: grant.GrantID, Principal: principal, WorkspaceID: authority.WorkspaceID, EnvironmentID: snapshot.EnvironmentID, Revision: snapshot.Revision,
+			ProviderID: remoteDataGatewayProviderID, PurposeKind: "data-operation", ResourceID: resourceID, BindingID: bindingID, Field: secretField,
+		}, func(material []byte) error {
+			request.Headers[secretHeader] = string(material)
+			secretFingerprints = append(secretFingerprints, dataGatewaySecretFingerprint{byteLength: len(material), digest: sha256.Sum256(material)})
+			bearer := append([]byte("Bearer "), material...)
+			secretFingerprints = append(secretFingerprints, dataGatewaySecretFingerprint{byteLength: len(bearer), digest: sha256.Sum256(bearer)})
+			for index := range bearer {
+				bearer[index] = 0
+			}
+			defer delete(request.Headers, secretHeader)
+			return openUpstream()
+		})
+	} else {
+		err = openUpstream()
+	}
 	if err != nil {
 		if upstream != nil && upstream.Body != nil {
 			_ = upstream.Body.Close()
@@ -399,7 +633,7 @@ func (gateway *DataGateway) OpenStream(ctx context.Context, principal backendenv
 		return nil, ErrDataGatewayUpstream
 	}
 	mediaType, ok := streamMediaType(upstream.ContentType)
-	if !ok {
+	if !ok || (operation.Policies.Stream != nil && mediaType != "text/event-stream") {
 		upstream.Body.Close()
 		return nil, ErrDataGatewayDenied
 	}
@@ -409,9 +643,10 @@ func (gateway *DataGateway) OpenStream(ctx context.Context, principal backendenv
 	}
 	session := &DataGatewayStreamSession{
 		body: upstream.Body, scanner: streamScanner(upstream.Body), mediaType: mediaType, adapter: document.Source.AdapterID, mapFrame: mapper,
-		openedAt: gateway.now(), release: release,
+		openedAt: time.UnixMilli(checkpoint.OpenedAt), cursor: checkpoint.Cursor, totalBytes: checkpoint.TotalBytes, resume: operation.Policies.Stream, checkpoint: checkpoint,
+		secretFingerprints: secretFingerprints, checkpointKey: gateway.checkpointKey, release: release,
 		Network: dataGatewayNetworkTrace{
-			Format: "prodivix.execution-network-trace.v1", RequestID: invocationID + ":stream", Phase: "runtime", RuntimeZone: document.Source.RuntimeZone, Mode: "live", Adapter: document.Source.AdapterID,
+			Format: "prodivix.execution-network-trace.v1", RequestID: invocationID + ":stream:" + fmt.Sprint(checkpoint.Cursor), Phase: "runtime", RuntimeZone: document.Source.RuntimeZone, Mode: "live", Adapter: document.Source.AdapterID,
 			Method: request.Method, SanitizedURL: func() string { parsed, _ := urlFromRequest(request.URL); return parsed }(), Protocol: "https", StartedAt: startedAt, CompletedAt: completedAt, DurationMS: completedAt - startedAt,
 			Outcome: "allowed", Status: upstream.Status, RequestBytes: int64(len(request.Body)), Correlation: dataGatewayCorrelation{Kind: "data-operation", DocumentID: documentID, OperationID: operationID, InvocationID: invocationID, Sequence: invocation.Sequence, Attempt: invocation.Attempt},
 			Redacted: true, SourceTrace: dataGatewayProtocolSourceTrace(documentID, operationID),

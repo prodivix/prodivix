@@ -1,3 +1,4 @@
+import { createBinaryAssetPublicDeliveryRequest } from '@prodivix/assets';
 import {
   isWorkspaceAssetDocumentContent,
   type WorkspaceAssetDocumentContent,
@@ -17,13 +18,7 @@ import {
 const nowIso = () => new Date().toISOString();
 
 export const createPublicResourceAssetDeliveryRequest = (mediaType: string) => {
-  if (mediaType === 'image/png') {
-    return { transform: 'png-sanitize', disposition: 'inline' } as const;
-  }
-  if (mediaType === 'image/jpeg') {
-    return { transform: 'jpeg-sanitize', disposition: 'inline' } as const;
-  }
-  return { transform: 'original', disposition: 'attachment' } as const;
+  return createBinaryAssetPublicDeliveryRequest(mediaType);
 };
 
 const toPublicCategory = (value: unknown): PublicFileCategory =>

@@ -486,6 +486,7 @@ describe('standalone domain export conformance', () => {
             'test',
             '--reporter=default',
             '--reporter=json',
+            '--no-file-parallelism',
             '--outputFile.json=.prodivix/test-report.json',
           ],
         },

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import {
   createExecutionNetworkTrace,
   createExecutionSecretLeakDiagnostic,
@@ -21,6 +22,7 @@ import {
   readIsolatedServerFunctionAuthority,
   readIsolatedServerFunctionExecutionContext,
   readIsolatedServerFunctionPlan,
+  readServerFunctionInvocationTraceValue,
   SERVER_FUNCTION_INVOCATION_TRACE_NAME,
   toServerFunctionInvocationTraceValue,
 } from '@prodivix/server-runtime';
@@ -68,6 +70,8 @@ const inspectSandboxResult = (
   if (!guard.inspectValue('crash', { reason: result.reason }).safe)
     return 'crash';
   if (!guard.inspectValue('trace', result.networkTraces ?? []).safe)
+    return 'trace';
+  if (!guard.inspectValue('trace', result.serverFunctionTraces ?? []).safe)
     return 'trace';
   for (const artifact of result.artifacts ?? []) {
     const surface =
@@ -585,6 +589,7 @@ export const createRemoteWorkerAgent = (
           return true;
         }
       }
+      let canonicalTestReportPublished = false;
       for (const [index, artifact] of (result.artifacts ?? []).entries()) {
         let canonicalTestReport: ReturnType<
           typeof readExecutionTestReportValue
@@ -694,6 +699,7 @@ export const createRemoteWorkerAgent = (
             abort.abort('lease-lost');
             return true;
           }
+          canonicalTestReportPublished = true;
         }
         if (serverFunctionTraceProjection?.artifact === artifact) {
           const appended = await options.client.appendEvent({
@@ -710,6 +716,108 @@ export const createRemoteWorkerAgent = (
                 phase: 'event',
                 detail: serverFunctionTraceProjection.detail,
                 sourceTrace: serverFunctionTraceProjection.sourceTrace,
+              },
+            },
+          });
+          if (appended === 'budget-exceeded') {
+            await options.client.transition({
+              executionId,
+              workerId: options.workerId,
+              leaseToken,
+              status: 'failed',
+              reason: 'event-budget-exceeded',
+            });
+            return true;
+          }
+          if (appended === 'rejected') {
+            abort.abort('lease-lost');
+            return true;
+          }
+        }
+      }
+      if (result.serverFunctionTraces?.length) {
+        if (
+          claim.execution.request.profile !== 'test' ||
+          !claim.execution.request.requiredCapabilities.includes(
+            'server-function'
+          ) ||
+          !claim.execution.record.provider.capabilities.includes(
+            'server-function'
+          ) ||
+          !snapshot.capabilityRequirements.test.includes('server-function') ||
+          !snapshot.serverRuntimeMockProvision ||
+          !canonicalTestReportPublished ||
+          result.serverFunctionTraces.length > 10_000
+        ) {
+          await options.client.transition({
+            executionId,
+            workerId: options.workerId,
+            leaseToken,
+            status: 'failed',
+            reason: 'invalid-server-function-test-trace',
+          });
+          return true;
+        }
+        for (const [
+          index,
+          candidate,
+        ] of result.serverFunctionTraces.entries()) {
+          const trace = readServerFunctionInvocationTraceValue(candidate.trace);
+          if (!trace) {
+            await options.client.transition({
+              executionId,
+              workerId: options.workerId,
+              leaseToken,
+              status: 'failed',
+              reason: 'invalid-server-function-test-trace',
+            });
+            return true;
+          }
+          const detail = toServerFunctionInvocationTraceValue(trace);
+          const trustedSourceTraces = snapshot.files.flatMap(
+            (file) => file.sourceTrace ?? []
+          );
+          const exactRootCount = candidate.sourceTrace.filter(
+            (source) =>
+              source.sourceRef.kind === 'code-artifact' &&
+              source.sourceRef.artifactId === trace.functionRef.artifactId &&
+              (!source.sourceSpan ||
+                source.sourceSpan.artifactId === trace.functionRef.artifactId)
+          ).length;
+          if (
+            !candidate.sourceTrace.length ||
+            candidate.sourceTrace.length > 128 ||
+            exactRootCount !== 1 ||
+            candidate.sourceTrace.some(
+              (source) =>
+                !trustedSourceTraces.some((trusted) =>
+                  isDeepStrictEqual(source, trusted)
+                )
+            )
+          ) {
+            await options.client.transition({
+              executionId,
+              workerId: options.workerId,
+              leaseToken,
+              status: 'failed',
+              reason: 'invalid-server-function-test-trace',
+            });
+            return true;
+          }
+          const appended = await options.client.appendEvent({
+            executionId,
+            workerId: options.workerId,
+            leaseToken,
+            workerEventId: `${claim.lease.attempt}:server-function-test:trace:${index}`,
+            event: {
+              kind: 'trace',
+              trace: {
+                traceId: `server-function-test:${executionId}`,
+                spanId: `${trace.requestId}:${index}`,
+                name: SERVER_FUNCTION_INVOCATION_TRACE_NAME,
+                phase: 'event',
+                detail,
+                sourceTrace: candidate.sourceTrace,
               },
             },
           });

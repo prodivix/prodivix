@@ -1,6 +1,6 @@
 # G2 Closure Evidence
 
-> StatusDate: 2026-07-19
+> StatusDate: 2026-07-20
 > ProductGateStatus: In Progress
 
 本文件只保存 G2 可重复验证证据和未覆盖边界。G2 当前状态仍以
@@ -38,9 +38,9 @@ pnpm run verify:g2:data-security-matrix
 4. Remote Provider 对重复、乱序、snapshot/report/source drift 及 Test live runtime Network fail closed；
    Test 页面与 Execution Center 消费同一 Session event stream。
 
-GitHub workflow `G2 Data and Second Target Closure / Remote Test correlation and D8 security matrix`
-已配置。由于本轮按要求不提交、不推送，首次远端 Actions 证据仍待后续 push 后确认；不得把“workflow 已配置”
-描述为远端 Gate 已通过。
+GitHub workflow `G2 Data and Second Target Closure / Remote Test correlation and D8 security matrix` 已在
+commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 通过：
+[Actions run 29692691096](https://github.com/prodivix/prodivix/actions/runs/29692691096)。
 
 ## D8 bounded protocol、journey 与 target matrix
 
@@ -68,14 +68,15 @@ pnpm run verify:g2:vue-target
 1. Workspace Test 对两个 target 和三个协议都只消费 provider-projected mock fixture；Export 不携带 fixture。
 2. Browser/static-client Preview 支持 HTTP、finite GraphQL 与 finite AsyncAPI live；Remote Preview 可运行同一
    client bundle，Remote Build 只构建且不解析协议私有结果。
-3. server/edge live 对 HTTP/GraphQL/AsyncAPI finite invocation 复用同一受审计 execution gateway；public
-   GraphQL subscription 与 AsyncAPI SSE/NDJSON stream 使用 ADR 49 的独立 pull bridge。client/static、HTTP
-   subscription、Secret stream 与未声明 transport 继续在 compile/runtime Gate fail closed。
+3. server/edge live 对 HTTP/GraphQL/AsyncAPI finite invocation 复用同一受审计 execution gateway；public或显式
+   `per-connection` renewal的GraphQL subscription与AsyncAPI SSE/NDJSON stream使用ADR 49/55的独立pull/recovery
+   bridge。client/static、HTTP subscription、缺失renewal stream与未声明transport继续在compile/runtime Gate fail closed。
 4. Target/runtime source equality、独立生成工程执行与 property Gate 共同构成 parity 证据；单纯 snapshot
    字段相等不被当作完整 journey 证据。
 
-GitHub workflow `G2 Data and Second Target Closure / Protocol target matrix and Vue Vite independent CRUD Gate`
-已更新 path filter 与命令。由于本轮未提交、未推送，远端 Actions 证据仍待后续确认。
+GitHub workflow `G2 Data and Second Target Closure / Protocol adapters, authoring, Test Operation, and Remote recovery`
+已在 commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 通过：
+[Actions run 29692691096](https://github.com/prodivix/prodivix/actions/runs/29692691096)。
 
 ## Vue PIR/Route/Auth/Server/Asset 与 authenticated Catalog CRUD
 
@@ -85,28 +86,34 @@ GitHub workflow `G2 Data and Second Target Closure / Protocol target matrix and 
 pnpm run verify:g2:vue-product
 ```
 
-2026-07-19 本地结果：完整聚合 Gate 通过（最近一次 48.6 秒）。
+2026-07-20 本地结果：扩展后的完整聚合 Gate 通过；contract 5 tests、deterministic/Remote Chrome 2 tests 全部通过。
 
-| 子 Gate                  | 证据                                                                                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Compiler current surface | Vue compiler conformance 1 file / 5 tests passed；PIR product path、Data-only compatibility、protocol parity、server/Secret 与 unsupported fail-close。     |
-| Catalog contract matrix  | 1 file / 4 tests passed；覆盖 canonical PIR/Route/Auth/Server/Data/PNG、deterministic Test provision、Remote Preview/Test/Build 与 strict codec。           |
-| Independent Catalog app  | 1 file / 1 test passed；fresh install、`vue-tsc`、Vitest、production build、真实 Chrome authenticated loader、PNG decode 与 list/create/update/delete。     |
-| Web product composition  | Web typecheck passed；4 files / 12 tests passed；覆盖 Export ZIP surface、Workspace Test selector、Blueprint Run target planning 与 mock-only/Test policy。 |
-| Client security boundary | server source canary 不进入 snapshot files；protected static Vue export 以 `WKS-EXPORT-SERVER-GATEWAY-REQUIRED` fail closed。                               |
-| Full regression          | Compiler 17 files / 116 tests、Golden 11 files / 53 tests、Web 88 files / 317 tests、Web production build 与 core package boundary passed。                 |
+| 子 Gate                  | 证据                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Compiler current surface | Vue compiler conformance 1 file / 5 tests passed；PIR product path、Data-only compatibility、protocol parity、server/Secret 与 unsupported fail-close。                                                                                                                                                                                                    |
+| Catalog contract matrix  | 1 file / 5 tests passed；覆盖 canonical PIR layout/page、parent/leaf Route、default/named outlet、Auth/Server/Data/PNG、精确 invalid topology diagnostics、deterministic Test provision、live execution-parent Remote Preview/Test/Build 与 strict codec。                                                                                                 |
+| Independent Catalog app  | 2 files / 2 tests passed；同一 Vue bundle fresh install、`vue-tsc`、Vitest、production build；deterministic 与 Remote Chrome 均覆盖 parent layout、default main outlet、named sidebar、fallback replacement、authenticated loader/PNG/CRUD；Remote 子 frame另覆盖 strict Data/Server parent bridge、owner guard、principal loader 与 Network correlation。 |
+| Backend Remote live      | 本机真实 PostgreSQL `TestAuthenticatedCatalogRemotePostgreSQLGolden` passed；从 authenticated Remote create 持久化 exact authority，再执行五个 Data operation、Data/Server mutation replay/state 与 non-owner denial；全部响应通过 token/session/server-source canary。                                                                                    |
+| Web product composition  | Web typecheck passed；4 files / 12 tests passed；覆盖 Export ZIP surface、Workspace Test selector、Blueprint Run target planning 与 mock-only/Test policy。                                                                                                                                                                                                |
+| Client security boundary | server source canary 不进入 snapshot files；protected static Vue export 以 `WKS-EXPORT-SERVER-GATEWAY-REQUIRED` fail closed。                                                                                                                                                                                                                              |
+| Full regression          | Compiler 17 files / 116 tests、Golden 11 files / 53 tests、Web 88 files / 317 tests、Web production build 与 core package boundary passed。                                                                                                                                                                                                                |
 
 当前声明边界：
 
 1. Vue current-contract product target 直接消费 canonical PIR/Route/Auth/Server/Data/Asset，并在 Export Code、Workspace Test、
    Blueprint Run Mode 提供显式 target selector；没有产生 Vue 私有 Workspace 或 runtime 持久化镜像。
-2. Browser authenticated journey 使用 deterministic Test adapter；Browser 不伪造 live Server Function。
-3. Remote 本 Gate 验证 exact snapshot、capability requirement、provider compatibility 与 strict codec round-trip；真实 Remote
-   authenticated live Catalog execution 仍待后续证据。
-4. Route layout/outlet、完整跨 target Asset delivery/sanitize UI matrix 与公共 Target SDK 不在本次完成声明内。
+2. Browser provider 仍不伪造 live Server Function；deterministic journey 使用 Test adapter，Remote journey 则只在 capability-origin
+   子 frame 中经 strict parent bridge 调用 execution-parent Data/Server gateway。
+3. Remote generated bundle 的真实 Chrome journey与 Backend authenticated create/真实 PostgreSQL gateway journey在 frozen wire
+   contract 处闭合；本次没有把本地通过冒充新的 GitHub Actions 证据。
+4. A17 sharing/editor与React/Vue Asset matrix已由后续Gate关闭；更高organization role、更多sanitize UI与public Target SDK属于post-G2。
 
 GitHub workflow `G2 Data and Second Target Closure / Vue Vite product surface and authenticated Catalog CRUD Gate`
-已配置。由于本轮按要求不提交、不推送，首次远端 Actions 证据仍待后续 push 后确认。
+已在 commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 通过：
+[Actions run 29692691096](https://github.com/prodivix/prodivix/actions/runs/29692691096)。
+
+新增 Remote Chrome Gate 已加入同一 `verify:g2:vue-product` 聚合；authenticated PostgreSQL Golden 已加入
+`.github/workflows/g2-postgres.yml`。由于本轮按要求未提交推送，这两项新增 Gate 的首次 GitHub Actions 证据尚未产生。
 
 ## Server/Edge GraphQL/AsyncAPI stream 与 SourceTrace debugger
 
@@ -116,31 +123,36 @@ GitHub workflow `G2 Data and Second Target Closure / Vue Vite product surface an
 pnpm run verify:g2:data-stream-debugger
 ```
 
-2026-07-19 本地结果：通过（42.1 秒）；并已进入 168.0 秒的完整 `data-closure`。
+2026-07-20 本地结果：通过（46.3 秒）。本轮扩展由 ADR 55 固定 same-execution recovery、credential renewal
+与 incremental collection；未提交推送，因此下方历史 Actions run 不包含这些新增断言。
 
-| 子 Gate                    | 证据                                                                                                                                                          |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime Core strict wire   | 20 files / 80 tests passed；覆盖 stream open/pull/cancel/event/complete、cursor 与 bounded strict decoder。                                                   |
-| Data stream kernel         | 13 files / 55 tests passed；覆盖单 pending pull、背压、event/byte/duration/idle budget、schema、Network correlation、abort、cleanup ordering与有限 snapshot。 |
-| Protocol stream adapters   | GraphQL 2 files / 8 tests、AsyncAPI 2 / 8 passed；覆盖 GraphQL SSE 与 AsyncAPI NDJSON frame mapping、finite/stream 明确分流和 malformed frame hard cut。      |
-| Generated runtime          | Compiler 2 files / 23 tests passed；覆盖真实 open → pull → event/complete postMessage journey，以及 client、HTTP subscription 与 Secret stream hard cut。     |
-| Target capability matrix   | Golden 2 files / 20 tests passed；覆盖 React/Vue × GraphQL/AsyncAPI edge subscription 的 `data-stream`/network/environment capability 与 Remote provider。    |
-| Product debugger journey   | Web typecheck 与 7 files / 32 tests passed；覆盖 streaming fetch、unsafe URL、stream/cursor budget、generation/cancel fence 与 Source stale fence。           |
-| Backend protocol authority | Workspace 与 Remote Execution Go tests passed；覆盖 canonical subscription、finite GraphQL/AsyncAPI、SSE/NDJSON、authority、identity conflict 与 envelope。   |
+| 子 Gate                    | 证据                                                                                                                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime Core strict wire   | 21 files / 91 tests passed；覆盖 stream open/pull/cancel/event/complete、cursor 与 bounded strict decoder，并证明 `reconnect`/`resume` 私有字段不能进入 iframe wire。                         |
+| Data stream kernel         | 14 files / 58 tests passed；覆盖单 pending pull、背压、event/byte/duration/idle budget、strict stream policy，以及 exact-cursor immutable replace/upsert/delete collection。                  |
+| Protocol stream adapters   | GraphQL 2 files / 9 tests、AsyncAPI 2 / 9 passed；覆盖 frame mapping、finite/stream 分流、malformed hard cut，以及显式 policy 下只在当前 environment lease 内打开 Secret connection。         |
+| Generated runtime          | Compiler 2 files / 23 tests passed；覆盖真实 open → pull → event/complete postMessage journey、schema-first incremental collection、client/HTTP/missing-renewal stream hard cut。             |
+| Target capability matrix   | Golden 2 files / 20 tests passed；覆盖 React/Vue × GraphQL/AsyncAPI edge subscription 的 `data-stream`/network/environment capability 与 Remote provider。                                    |
+| Product debugger journey   | Web typecheck 与 7 files / 39 tests passed；覆盖动态 bearer renewal、透明 resume、私有 checkpoint剥离、共享预算、独立 reconnect Network与generation/cancel fence。                            |
+| Backend protocol authority | Workspace 与 Remote Execution Go tests passed；覆盖 canonical policy、HMAC-authenticated checkpoint、Last-Event-ID、每连接 grant/use/revoke、credential echo/tamper denial与strict envelope。 |
 
 当前有界支持范围：
 
 1. server/edge HTTP、GraphQL 与 AsyncAPI finite invocation 共用同一 execution-bound authority、Workspace/environment
    revision、HTTPS/SSRF、response budget、mutation permission/replay 与 sanitized Network Gate。
-2. stream 只接受 public GraphQL subscription 与 AsyncAPI HTTP SSE/NDJSON receive/stream；HTTP adapter 仍为 finite-only，
-   client/static、mock-only stream 和 callback-only Secret stream fail closed。
+2. stream 接受 public或显式 `per-connection` renewal的GraphQL subscription与AsyncAPI HTTP SSE/NDJSON
+   receive/stream；只有SSE id stream可恢复。HTTP adapter仍为finite-only，client/static、mock-only与缺失renewal stream fail closed。
 3. generated iframe 必须显式 `open → pull(cursor) → event/complete → cancel`；一次 pull 最多读取一个事件，不能以
    provider 私有 emitter 绕过 consumer backpressure、schema、预算或取消。
-4. Network Source link 只接受 correlation 唯一的 metadata-only `data-operation` SourceTrace；先校验 producing snapshot，
+4. 每次重连产生独立 sanitized Network identity，并继续绑定 exact active Job/Session/generation；resume token、upstream SSE id
+   与credential不进入Session或iframe。Network Source link只接受correlation唯一的metadata-only `data-operation` SourceTrace；先校验producing snapshot，
    再校验 canonical document/operation，最后通过共享 semantic navigation 打开作者态 Resources。
+5. `keyed-event-v1` collection只接受 exact replace/upsert/delete envelope并生成execution-local immutable snapshot；不写Workspace/Outbox。
 
 GitHub workflow `G2 Data and Second Target Closure / Verify server and edge streams with SourceTrace debugging`
-已配置。由于本轮按要求不提交、不推送，首次远端 Actions 证据仍待后续 push 后确认。
+已在 commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 通过：
+[Actions run 29692691096](https://github.com/prodivix/prodivix/actions/runs/29692691096)。
+该历史 run 只证明 ADR 49 first vertical；ADR 55 新增 Gate 的首次远端证据要等后续显式提交推送后产生。
 
 ## Console/Artifact/Test/Files unified SourceTrace debugger
 
@@ -171,8 +183,9 @@ pnpm run verify:g2:execution-source-debugger
    Authoring overlay，Data/NodeGraph/Animation 等 canonical target 进入共享 semantic navigation。stale、missing、
    ambiguous 与 source-span identity drift 全部 fail closed。
 
-GitHub workflow `G2 Execution Contract Matrix / Run unified execution SourceTrace debugger Gate` 已配置。
-由于本轮按要求不提交、不推送，首次远端 Actions 证据仍待后续 push 后确认。
+GitHub workflow `G2 Execution Contract Matrix / Run unified execution SourceTrace debugger Gate` 已在
+commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 通过：
+[Actions run 29692691112](https://github.com/prodivix/prodivix/actions/runs/29692691112)。
 
 ## Remote Terminal encrypted cross-replica recovery
 
@@ -208,7 +221,9 @@ PRODIVIX_REMOTE_POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/pr
    revoke、清 mailbox 并以 exact revision 删除。Terminal state 仍是短期 recovery authority，不进入 Job event 或 Workspace。
 
 GitHub workflow `G2 Data and Second Target Closure / Verify encrypted cross-replica Terminal and Remote recovery contracts`
-以及真实 PostgreSQL workflow 已接入相应 Gate。由于本轮按要求不提交、不推送，远端 Actions 证据仍待后续确认。
+已在 commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 通过；真实 PostgreSQL adapter/DR Gate 也在同一
+commit 通过：[Data run 29692691096](https://github.com/prodivix/prodivix/actions/runs/29692691096)、
+[PostgreSQL run 29692691122](https://github.com/prodivix/prodivix/actions/runs/29692691122)。
 
 ## Remote Terminal managed KMS and multi-Region recovery
 
@@ -243,7 +258,9 @@ pnpm --filter @prodivix/remote-runner-control-plane build
    cryptographic portability 与 ADR 52 的 PostgreSQL/Worker/traffic DR contract 保持两个独立 Gate。
 
 GitHub `G2 Managed KMS` workflow 已配置本地 contract、OIDC old/active live rotation 和可选 related MRK replica live Gate。
-本轮按要求未提交、未推送，因此两个 live test 在本地无 AWS 环境时明确 skipped，首次远端证据仍待取得。
+截至 2026-07-20，该手工 workflow 尚无首次 run，`g2-managed-kms` GitHub Environment、OIDC Role 与 AWS key
+variables/secrets 待配置；两个 live test 在本地无 AWS 环境时明确 skipped，因此 A14 继续保持
+`Configured / Evidence pending`。
 
 ## Regional PostgreSQL / Worker / traffic disaster-recovery drill
 
@@ -260,7 +277,7 @@ PRODIVIX_REMOTE_POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:5432/p
 | Recovery contract            | 1 file / 6 tests passed；覆盖 target missing/behind/ahead、same-cursor drift、configured-region identity、queued/live/expired/exhausted/terminal mode 与 exclusive-section Terminal revocation。 |
 | 双 schema PostgreSQL         | 1 file / 2 tests passed；repeatable-read exact digest、cursor lag、state drift、shared request drain、epoch CAS、standby hard cut 与 immutable cutover evidence。                                |
 | 双 HTTP Control Plane/config | 2 files / 5 tests passed；all-or-none config、standby liveness/readiness、同 lease 目标区续租、旧区写拒绝，以及 attempt 1 -> 2、旧 lease rejection、旧 Terminal sweep 与新 generation。          |
-| GitHub Gate                  | `G2 PostgreSQL Gates` 的 PostgreSQL 16 service 已执行 `verify:g2:regional-dr`；远端证据待阶段性提交推送后确认。                                                                                  |
+| GitHub Gate                  | `G2 PostgreSQL Gates` 的 PostgreSQL 16 service 已在 run 29692691122 执行并通过 `verify:g2:regional-dr`。                                                                                         |
 
 关键闭环：
 
@@ -290,7 +307,7 @@ pnpm run verify:g2:terminal-emulator
 | Runtime Core     | typecheck 通过；3 files / 26 tests passed。覆盖 Terminal Session/Secret 基线，以及跨 record ANSI、cursor/erase、SGR、alternate screen、scrollback/resize、fragmentation、gap 与 conceal-safe copy。                  |
 | Execution Center | typecheck 通过；2 files / 17 tests passed。覆盖 normal/application key、Control/AltGr、bounded bracketed paste、ANSI render、rapid ordered input、exact retry、interrupt 与 invalid-output fail-close。              |
 | Full regression  | Runtime Core 21 files / 91 tests、Web 87 files / 312 tests、完整 `verify:g2:remote-recovery` 均通过；Core/Web production build、Web ESLint、package boundary、property naming、Prettier 与 `git diff --check` 通过。 |
-| GitHub workflow  | `G2 Execution Contract Matrix` 已加入 `verify:g2:terminal-emulator`；本轮按要求不提交、不推送，远端 Actions 证据待阶段性推送后确认。                                                                                 |
+| GitHub workflow  | `G2 Execution Contract Matrix` 已在 commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 执行并通过 `verify:g2:terminal-emulator`（run 29692691112）。                                                                  |
 
 关键闭环：
 
@@ -306,11 +323,96 @@ pnpm run verify:g2:terminal-emulator
 本 Gate 关闭 G2 的有界 Terminal emulator 产品纵切；完整 ECMA-48、graphics、host clipboard、search/selection 与 shell
 completion 是 ADR 53 的显式 non-goal，不以 unknown fallback 冒充支持。
 
-## 尚未形成 G2 closure 的边界
+## A13/A15/A16 GitHub rootless 与 PostgreSQL evidence
 
-- stream reconnect/resume、跨 execution replay、Secret credential renewal、更多 transport 与 incremental
-  collection semantics；
-- 真实 Remote authenticated Catalog live journey、Vue layout/outlet 与完整跨 target Asset delivery/sanitize UI matrix；
-- regional DR 首次真实云端 RPO/RTO evidence、AWS KMS/MRK 首次远端证据、其余
-  diagnostic/Issues producer debugger closure，以及
-  [`current-status.md`](./current-status.md) 中列出的其他 G2 剩余项。
+2026-07-19，commit `b9e83a00185a6fa9a4ab2a3e653c9e8579e6f1a2` 的
+[G2 Rootless Sandbox run 29692691087](https://github.com/prodivix/prodivix/actions/runs/29692691087) 与
+[G2 PostgreSQL Gates run 29692691122](https://github.com/prodivix/prodivix/actions/runs/29692691122) 通过。
+
+| Milestone                     | 远端证据                                                                                                                                                                                                                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A13 `workspace.write`         | rootless `prodivix.remote.server-function` 成功返回唯一 canonical result artifact；evidence 保存一个 complete `modified` whole-file diff、exact SourceTrace、Secret absent、runtime network-none、transport exclusion、cancellation/timeout cleanup。 |
+| A15 `workspace.read` + Secret | rootless invocation 在 exact `workspace.read` authority 后消费 one-shot sealed Secret，result artifact 与双 SourceTrace 通过；evidence 固定 `secretMaterial=one-shot-consumed`、runtime network-none，明文不进入 artifact。                           |
+| A16 collaborator viewer       | rootless read probe 使用唯一 `['workspace.read']` authority，不能执行 write mutation；PostgreSQL 16 的 `TestWorkspaceExecutionViewerRolePostgreSQLGate` 真实通过 role grant/resolve/create、durable permission、revoke 与 invalid role rejection。    |
+
+Rootless evidence artifact id 为 `8444116156`，上传 ZIP SHA-256 为
+`ac303a42f9c79e31622b6ab5d1e12f1591e0d99349387b900fcb1e81d1af6561`。A13/A15/A16 因而从
+`Configured / Evidence pending` 提升为 `Implemented`；A14 不受该证据替代。
+
+## Remote Test invocation、runtime Issues debugger 与 A17 local Gate
+
+2026-07-20 本地结果：通过；本轮尚未提交推送，因此以下证据不冒充 GitHub Actions 远端证据。
+
+| Gate                        | 本地证据                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth/Server Test invocation | `pnpm run verify:g2:auth-server-test-invocation` 通过：Server Runtime 1 file / 4 tests、Compiler 3 files / 27 tests、Browser 1 file / 4 tests、Worker/rootless 2 files / 27 tests、Remote provider 1 file / 19 tests、Golden 1 file / 14 tests。固定 browser filesystem hard cut、private bounded JSONL、canonical report-before-trace、exact capability/fixture/SourceTrace、artifact exclusion 与 credential canary。 |
+| Execution Source debugger   | `pnpm run verify:g2:execution-source-debugger` 通过：Runtime Core 3 files / 8 tests、Authoring 9 files / 24 tests、Web 10 files / 44 tests，并通过相关 typecheck。runtime diagnostic 只按 exact Workspace snapshot进入 Issues；private metadata被丢弃，Issues 打开 exact Session Console/error filter后仍使用同一 SourceTrace opener。                                                                                  |
+| A17 Workspace collaboration | `pnpm run verify:g2:workspace-collaboration` 通过：Worker 1 file / 20 tests、rootless snapshot contract、Web typecheck + 2 files / 22 tests、Backend remoteexecution/database。另以本机 PostgreSQL 18 运行 `TestWorkspaceExecutionCollaboratorRolesPostgreSQLGate`，真实通过 viewer -> editor upgrade、durable permission、Control Plane create、invalid-role constraint 与 revoke。                                    |
+
+对应 GitHub PostgreSQL workflow 已改为调用
+`TestWorkspaceExecutionCollaboratorRolesPostgreSQLGate`；只有后续实际 Actions run通过后，A17 才可从
+`Implemented locally / CI pending` 提升为完整 `Implemented`。
+
+## Binary Asset full-raster、required engines 与 cross-target local Gate
+
+2026-07-20，`pnpm run verify:g2:binary-assets` 完整通过，用时 113.3 秒：
+
+| 子 Gate                    | 本地证据                                                                                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Asset contract             | `@prodivix/assets` 4 files / 26 tests；固定 PNG/JPEG full-raster public request、reference/materialization与 negative policy。                                                                          |
+| Delivery Host              | 8 files / 30 tests；Sharp full decode/re-encode、ClamAV/YARA-X required runtime、rules/binary/freshness/concurrency/timeout hard cut与 capability delivery通过。                                        |
+| Workspace/Compiler/Runtime | Workspace 40 files / 170 tests、Compiler 17 / 116、Runtime Core 21 / 91、Runtime Remote 13 / 81全部通过。                                                                                               |
+| Golden target matrix       | Execution matrix 1 file / 4 tests、Binary Asset React/Vue matrix 1 file / 4 tests；Browser/Test和 Remote Preview/Test/Build exact bytes、wire locator/digest absence、protected static fail-close通过。 |
+| Product journey            | Web 89 files / 327 tests；Chromium Browser JPEG upload、durable reload、full-raster request与 capability-origin decode 1 test通过。                                                                     |
+| Boundaries/Backend         | Core package boundaries通过；Backend config/database/workspace/app Go Gate通过。                                                                                                                        |
+
+旧 ClamAV rootless real-daemon远端证据仍有效；本轮新增 workflow已升级为 pinned YARA-X + ClamAV required-engine
+Gate，但因用户要求暂不提交推送，尚无对应 Actions run，不把本地 mock/contract测试冒充真实双引擎远端证据。
+
+## Current-worktree G2 local aggregate closure
+
+2026-07-20，在不提交、不推送且不调用 Podman/AWS 的前提下，使用本机 PostgreSQL 18显式设置
+`PRODIVIX_BACKEND_POSTGRES_TEST_URL`与`PRODIVIX_REMOTE_POSTGRES_TEST_URL`，最终统一入口
+`pnpm run verify:g2`以退出码0完整通过，用时596.1s；其四个 aggregate 也已分别重复运行并全部通过：
+
+| Aggregate                       | 结果与关键证据                                                                                                                                                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify:g2:runner-devtools`     | 104.1s通过；Runtime report 3、Vitest adapter 2、Browser Host/Test 19、NodeGraph 14、Animation 16、Remote 84、Golden execution 4、Source debugger Core 9/Authoring 24/Web 47、Terminal Core 26/Web 21、regional DR 6+2+5与最终Web产品39。                            |
+| `verify:g2:data-closure`        | 214.6s通过；Data 58、HTTP 17、GraphQL 9、AsyncAPI 9、Core 92、target matrix 20、Remote 84、stream/debugger Web 46、D8 security与Vue deterministic/Remote独立工程 install/typecheck/test/build/Chrome全部通过。                                                      |
+| `verify:g2:auth-server-runtime` | 212.0s通过；Auth invocation 27、Server Runtime 52、Workspace 170、Core 92、Remote 84、PostgreSQL adapter 14、Compiler isolated 14、Control Plane 32（仅2个AWS live case按预期skip）、Worker 61、A17 Web 22/真实PostgreSQL、live mutation Web 338与本地managed-KMS。 |
+| `verify:g2:binary-assets`       | 116.8s通过；Assets 26、Delivery Host 30、Workspace 170、Compiler 118、Core 92、Remote 84、两组Golden各4、Web 338、Chromium JPEG产品旅程、Backend与package boundary全部通过。                                                                                        |
+
+统一 Gate之后，仓库级`pnpm run lint`通过全部ESLint与Core package/editor hard-cut/PIR-current/
+NodeGraph wire/property-name边界；`pnpm run build`通过46/46个可构建任务，包含Web、docs、服务、compiler
+与package declaration产物。monorepo `pnpm run test`用时85.5s，83/83个Turbo任务通过，其中Web为
+92 files / 339 tests、Golden为58 passed / 5个显式环境条件skip；随后定向复跑Execution Center 19 tests，
+并消除了终态Job completion未等待造成的React `act(...)`测试警告。`git diff --check`通过，构建未产生
+未追踪的`dist`或其他发布副产物。
+
+新增 `pnpm run verify:g2:rootless-contract` 在无Podman环境中生成、Remote wire round-trip并由Worker strict decoder
+消费通用React Golden与authenticated Vue Catalog snapshot；它校验Preview/Test/Build profile隔离、deterministic
+Auth fixture、mock CRUD fixture、exact PNG与两个canonical Test case。三份当前digest为：
+
+```text
+isolated mutation  sha256-9680cb1ff4fd3ae39a5e46b618ac97068000aad2a7939d8d84b9f7ac2846f8a6
+React Golden       sha256-962e6608f5524d459cb92efaac4cdf1b0693ba250baf41810a27973726301358
+Vue Catalog        sha256-2fc502ce32ced39232ed915cd505ac38feb17fe523a52391bde03a7bdfb7a74d
+```
+
+Vue deterministic generated runtime另外修复了共享客户端图静态导入`node:fs`的真实回归：浏览器fixture现在不获取
+filesystem capability，Node Test只通过`process.getBuiltinModule`受限port写bounded JSONL；独立Vue产品Gate与
+Auth/Server invocation Gate复跑均通过。该修复保持Worker trace evidence，同时不把Node类型或模块带进Preview/Build。
+
+## 尚未形成远端 closure 与明确 post-G2 边界
+
+当前 G2 evidence pending：
+
+- A17 collaborator editor/sharing、authenticated Catalog rootless Preview/Test/Build 与新增 ClamAV + YARA-X Gate
+  尚未随本轮修改推送，缺当前 worktree的 GitHub Actions证据；
+- regional DR首次真实云端 RPO/RTO、AWS KMS/MRK/OIDC/受保护 Environment与 Secrets证据按用户决定延后。
+
+以下是明确的 post-G2 adapter/product expansion，不再作为 G2 Passed 的伪阻塞项：
+
+- WebSocket/GraphQL WS、Kafka/MQTT与 durable/cross-execution stream recovery；
+- 更高 organization permission/role、第三方 Auth/managed KMS provider；
+- 更多 raster格式、额外 malware vendor、durable public-CDN publish/purge与 public Target SDK。

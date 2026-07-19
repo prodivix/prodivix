@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：E0-E4 Implemented / E5-E7 In Progress
+- ImplementationStatus：E0-E7 Implemented Locally / Current Rootless CI Evidence Pending
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-17
@@ -109,11 +109,13 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   Remote process log 继续由 durable Worker/Control Plane Secret guard 先行保护。Project Runner 取消保持旧
   active Job 直到 terminal，manual restart 创建新 request、保留旧事件且不自动重放 mutation。
 
-### 未实现
+### 外部部署证据与 post-G2 扩展
 
 - rootless Podman sandbox adapter 与 remote-only GitHub Isolation Gate 已实现；Gate 构建 digest-pinned
   image 并主动验证非 root、zero capabilities、read-only rootfs、tmpfs/cgroup 限额、network/host socket/
-  credential denial、取消与 orphan cleanup。首次推送后仍需以 GitHub 证据确认 Passed；外部
+  credential denial、取消与 orphan cleanup。历史通用 Golden Gate 已有远端通过证据；当前工作树新增
+  authenticated Vue Catalog CRUD/Auth/Asset Preview/Test/Build workload，因尚未提交推送而缺首次 Actions
+  证据。外部
   object-store/独立 queue scalability adapter 与 WebSocket/SSE replay adapter 尚未实现，HTTP control
   plane 也尚未接入正式部署环境。
 - Remote Preview/Test/Build/Server Function provider projection、四类 result、授权 artifact resolver、有界 HTTP
@@ -123,7 +125,9 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   matrix 对齐 canonical Test semantics、Preview readiness/URI 与 Remote Build bundle，并明确 Browser Build
   unsupported、Browser live Preview 与 Remote finite Preview 的 lifecycle 差异。Gate 已从该 living
   Workspace 导出 strict Remote snapshot，在 rootless Podman 内完成真实 install/Preview/Test/Build，且在
-  install 后断网并重新 inspect 才允许执行；首次阶段性推送后的远端通过证据仍待生成。
+  install 后断网并重新 inspect 才允许执行。当前 Gate 还会生成 authenticated Vue Catalog deterministic
+  snapshot，要求 rootless Preview/Build 保持 PNG exact bytes，Test 报告必须包含真实 mock CRUD 与
+  Authenticated Route guard/loader/action case；该新增 workload 的首次远端通过证据待后续显式推送。
 - Remote install 已通过 internal network + infrastructure allowlist proxy 限制到显式 hostname/443；Worker
   校验 internal flag、proxy attachment 与 exact policy，安装后断网再 inspect。代理实际 request 只投影为
   origin-level `network.request`，strict contract 不可表达 header/path/query/body/credential，Execution Center
@@ -392,11 +396,15 @@ redaction，token/lease/canary 不进入 durable payload 或客户端 replay。
       Browser Build 明确 `unsupported`，不伪造 provider。独立 GitHub Gate 为
       `G2 Execution Contract Matrix`。
 - [x] cancel/timeout/reconnect/replay/worker-loss deterministic conformance 与 repository recovery tests。
-- [ ] 扩展 protocol state-machine property tests 与恶意跨页 transport fuzz matrix。
+- [x] protocol state-machine property tests 覆盖 bounded transport loss/duplicate start、任意 confirmed
+      cursor replay 与 get/read/cancel 调度；Blueprint active iframe 以 exact Window identity fence，8 类
+      bridge 对任意 JSON、错误 origin/provider 与 credential-shaped unknown fields fail closed。
 - [x] Rootless Remote Terminal Gate 执行真实 inner PTY 命令、resize 与 execution-local FS 写入，并验证
       host Workspace 无回写、container 无 orphan；同一 terminal-created file 必须出现在 canonical filesystem
       diff，token rotation/cursor replay/lease loss 由非容器 Gate 覆盖。
-- [ ] Golden CRUD journey 在真实 rootless Remote Preview、Remote Test 与 Remote Build 通过。
+- [x] authenticated Vue Catalog CRUD/Auth/Asset snapshot 已进入真实 rootless Remote Preview/Test/Build
+      Gate；Preview/Build 校验 exact PNG bytes，Test 校验 CRUD 与 Auth/Server case、canonical report 与
+      SourceTrace。当前工作树的首次 Actions 容器执行证据仍单列 pending，不由 contract-only 测试冒充。
 
 完成条件：相同 snapshot digest 的语义结果一致；环境差异只能通过显式 capability/policy 表达。
 
@@ -426,7 +434,9 @@ redaction，token/lease/canary 不进入 durable payload 或客户端 replay。
 - [x] Browser 与 Remote 消费同一 Executable Project Snapshot contract。
 - [x] Remote Preview/Test/Build/Server Function provider projection 不暴露供应商 SDK 类型。
 - [x] start/cancel/reconnect/replay/timeout/worker-loss 语义可重复验证。
-- [ ] sandbox、quota、network 与 Secret zone permission fail closed。
+- [x] sandbox、quota、network 与 Secret zone permission fail closed。
 - [x] Browser/Remote contract conformance matrix 通过。
-- [ ] 真实 rootless Golden CRUD journey 已进入 GitHub Gate；首次阶段性推送后确认远端 Passed 证据。
-- [ ] Runtime 输出不成为 Canonical Workspace 或第二套 durable truth。
+- [x] 真实 rootless Golden CRUD journey 已进入 GitHub Gate；当前工作树首次远端 Passed 证据等待后续
+      显式提交推送。
+- [x] Runtime 输出不成为 Canonical Workspace 或第二套 durable truth；Files adoption 仍需 exact
+      revision/baseline/owner preflight 与单一 Workspace Transaction。

@@ -6,6 +6,7 @@ import {
 } from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import {
+  createWorkspaceExecutionSnapshotId,
   materializeWorkspaceBinaryAssets,
   type ExecutionFilesystemArtifactReference,
 } from '@/editor/features/execution';
@@ -31,6 +32,8 @@ export type BlueprintProjectRunnerState = Readonly<{
   diagnostics: readonly CompileDiagnostic[];
   provider: BlueprintProjectRunProvider;
   target: BlueprintProjectRunTarget;
+  authoringSnapshotId?: string;
+  activeSnapshotId?: string;
   filesystemChanges?: ExecutionFilesystemArtifactReference;
 }>;
 
@@ -65,16 +68,23 @@ export const useBlueprintProjectRunner = (
       return;
     }
     const activeWorkspace = workspace;
+    const authoringSnapshotId = createWorkspaceExecutionSnapshotId(workspace);
     let active = true;
     let unsubscribe = () => undefined;
     setState((previous) => ({
       status: 'compiling',
       provider,
       target,
+      authoringSnapshotId,
       ...(previous.provider === provider &&
       previous.target === target &&
       previous.previewUrl
-        ? { previewUrl: previous.previewUrl }
+        ? {
+            previewUrl: previous.previewUrl,
+            ...(previous.activeSnapshotId
+              ? { activeSnapshotId: previous.activeSnapshotId }
+              : {}),
+          }
         : {}),
       message: 'Compiling the canonical Workspace.',
       diagnostics: Object.freeze([]),
@@ -107,11 +117,12 @@ export const useBlueprintProjectRunner = (
             diagnostics: plan.diagnostics,
             provider,
             target,
+            authoringSnapshotId,
           }));
           return;
         }
         const job = await startBlueprintProject(plan.snapshot, plan.request, {
-          provider,
+          provider: plan.composition.provider,
           accessToken,
         });
         if (!active) {
@@ -187,6 +198,8 @@ export const useBlueprintProjectRunner = (
         setState((previous) => ({
           ...previous,
           status: job.getSnapshot().status,
+          activeSnapshotId: plan.request.workspace.snapshotId,
+          authoringSnapshotId,
         }));
         void job.completion.then((result) => {
           if (!active) return;
@@ -217,6 +230,7 @@ export const useBlueprintProjectRunner = (
           diagnostics: Object.freeze([]),
           provider,
           target,
+          authoringSnapshotId,
         }));
       });
 

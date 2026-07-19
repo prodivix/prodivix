@@ -226,7 +226,7 @@ describe('editorApi workspace boundary', () => {
     ).rejects.toThrow('media type drifted');
   });
 
-  it('strictly accepts one capability-bound PNG delivery session', async () => {
+  it('strictly accepts one capability-bound PNG raster delivery session', async () => {
     const contents = new Uint8Array([137, 80, 78, 71]);
     const reference = createBinaryAssetBlobReference({
       contents,
@@ -251,7 +251,7 @@ describe('editorApi workspace boundary', () => {
         'token',
         'workspace-1',
         reference,
-        { transform: 'png-sanitize', disposition: 'inline' }
+        { transform: 'png-raster-reencode', disposition: 'inline' }
       )
     ).resolves.toMatchObject({
       deliveryUrl: `https://${capability}.asset.example.test/asset`,
@@ -264,14 +264,14 @@ describe('editorApi workspace boundary', () => {
         token: 'token',
         method: 'POST',
         body: JSON.stringify({
-          transform: 'png-sanitize',
+          transform: 'png-raster-reencode',
           disposition: 'inline',
         }),
       })
     );
   });
 
-  it('strictly accepts one capability-bound baseline JPEG delivery session', async () => {
+  it('strictly accepts one capability-bound JPEG raster delivery session', async () => {
     const reference = createBinaryAssetBlobReference({
       contents: new Uint8Array([255, 216, 255, 224, 255, 217]),
       mediaType: 'image/jpeg',
@@ -295,7 +295,7 @@ describe('editorApi workspace boundary', () => {
         'token',
         'workspace-1',
         reference,
-        { transform: 'jpeg-sanitize', disposition: 'inline' }
+        { transform: 'jpeg-raster-reencode', disposition: 'inline' }
       )
     ).resolves.toMatchObject({
       deliveryUrl: `https://${capability}.asset.example.test/asset`,
@@ -308,7 +308,7 @@ describe('editorApi workspace boundary', () => {
         token: 'token',
         method: 'POST',
         body: JSON.stringify({
-          transform: 'jpeg-sanitize',
+          transform: 'jpeg-raster-reencode',
           disposition: 'inline',
         }),
       })
@@ -1040,5 +1040,78 @@ describe('editorApi workspace boundary', () => {
     await expect(
       editorApi.getWorkspace('token', 'workspace-1')
     ).rejects.toThrow('/workspace/documents');
+  });
+
+  it('projects strict Workspace collaborator roles and issues bounded mutations', async () => {
+    const grant = {
+      principalId: 'editor-1',
+      principalEmail: 'editor@example.test',
+      principalName: 'Editor',
+      role: 'editor' as const,
+      grantedAt: '2026-07-20T01:02:03Z',
+    };
+    apiRequestMock
+      .mockResolvedValueOnce({ roles: [grant] })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+
+    await expect(
+      editorApi.listWorkspaceExecutionRoles('token', 'workspace-1')
+    ).resolves.toEqual([grant]);
+    await editorApi.putWorkspaceExecutionRole(
+      'token',
+      'workspace-1',
+      ' Editor@Example.Test ',
+      'editor'
+    );
+    await editorApi.deleteWorkspaceExecutionRole(
+      'token',
+      'workspace-1',
+      'editor-1'
+    );
+
+    expect(apiRequestMock).toHaveBeenNthCalledWith(
+      1,
+      '/workspaces/workspace-1/execution-roles',
+      expect.objectContaining({ token: 'token' })
+    );
+    expect(apiRequestMock).toHaveBeenNthCalledWith(
+      2,
+      '/workspaces/workspace-1/execution-roles',
+      expect.objectContaining({
+        token: 'token',
+        method: 'PUT',
+        body: JSON.stringify({
+          principalEmail: 'editor@example.test',
+          role: 'editor',
+        }),
+      })
+    );
+    expect(apiRequestMock).toHaveBeenNthCalledWith(
+      3,
+      '/workspaces/workspace-1/execution-roles/editor-1',
+      expect.objectContaining({ token: 'token', method: 'DELETE' })
+    );
+  });
+
+  it('rejects widened or duplicate Workspace collaborator role projections', async () => {
+    const grant = {
+      principalId: 'viewer-1',
+      principalEmail: 'viewer@example.test',
+      principalName: 'Viewer',
+      role: 'viewer',
+      grantedAt: '2026-07-20T01:02:03Z',
+    };
+    apiRequestMock.mockResolvedValueOnce({
+      roles: [{ ...grant, permissions: ['workspace.owner'] }],
+    });
+    await expect(
+      editorApi.listWorkspaceExecutionRoles('token', 'workspace-1')
+    ).rejects.toThrow('role grant is invalid');
+
+    apiRequestMock.mockResolvedValueOnce({ roles: [grant, grant] });
+    await expect(
+      editorApi.listWorkspaceExecutionRoles('token', 'workspace-1')
+    ).rejects.toThrow('role list is invalid');
   });
 });

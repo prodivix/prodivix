@@ -64,6 +64,33 @@ const graph: NodeGraphDocument = {
   ],
 };
 
+const executionRequest = (requestId: string, timeoutMs?: number) =>
+  createExecutionRequest({
+    requestId,
+    profile: 'preview',
+    runtimeZone: 'client',
+    workspace: {
+      workspaceId: 'workspace',
+      snapshotId: `snapshot:${requestId}`,
+    },
+    invocation: {
+      kind: 'nodegraph',
+      targetRef: {
+        kind: 'document',
+        workspaceId: 'workspace',
+        documentId: 'graph-document',
+      },
+    },
+    requiredCapabilities: [
+      'cancellation',
+      'diagnostics',
+      'source-trace',
+      'streaming-logs',
+      ...(timeoutMs === undefined ? [] : (['timeout'] as const)),
+    ],
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
+  });
+
 describe('NodeGraph ExecutionProvider conformance', () => {
   it('maps domain trace, logs and completion into one canonical job', async () => {
     const provider = createNodeGraphExecutionProvider({
@@ -169,6 +196,96 @@ describe('NodeGraph ExecutionProvider conformance', () => {
     await expect(job.completion).resolves.toMatchObject({
       status: 'cancelled',
       reason: 'cancelled by conformance',
+    });
+  });
+
+  it('maps an unavailable executor to a stable node diagnostic', async () => {
+    const provider = createNodeGraphExecutionProvider({
+      resolveDocument: () => ({
+        version: 1,
+        nodes: [{ id: 'unknown', data: { kind: 'not-registered' } }],
+        edges: [],
+      }),
+      createJobId: () => 'unsupported-nodegraph-job',
+    });
+    const job = await provider.start(executionRequest('unsupported-node'));
+    const events: ExecutionJobEvent[] = [];
+    job.subscribe((event) => events.push(event));
+
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'NODEGRAPH_UNSUPPORTED_NODE' },
+    });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: 'diagnostic',
+        diagnostic: expect.objectContaining({
+          code: 'NGR-1001',
+          targetRef: {
+            kind: 'nodegraph-node',
+            documentId: 'graph-document',
+            nodeId: 'unknown',
+          },
+        }),
+      })
+    );
+  });
+
+  it('timeout is terminal and does not leak into an independent job', async () => {
+    let releaseTimedDocument: () => void = () => undefined;
+    const timedDocument = new Promise<NodeGraphDocument>((resolve) => {
+      releaseTimedDocument = () => resolve(graph);
+    });
+    let fireTimeout: () => void = () => undefined;
+    const provider = createNodeGraphExecutionProvider({
+      resolveDocument: (request) =>
+        request.requestId === 'timed-job' ? timedDocument : graph,
+      scheduleTimeout: (callback) => {
+        fireTimeout = callback;
+        return () => undefined;
+      },
+    });
+    const timedJob = await provider.start(executionRequest('timed-job', 25));
+    const independentJob = await provider.start(
+      executionRequest('independent-job')
+    );
+
+    fireTimeout();
+    releaseTimedDocument();
+
+    await expect(timedJob.completion).resolves.toMatchObject({
+      status: 'timed-out',
+      timeoutMs: 25,
+    });
+    await expect(independentJob.completion).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+  });
+
+  it('cancelling one provider instance does not affect another instance', async () => {
+    let releaseFirst: () => void = () => undefined;
+    const firstDocument = new Promise<NodeGraphDocument>((resolve) => {
+      releaseFirst = () => resolve(graph);
+    });
+    const firstProvider = createNodeGraphExecutionProvider({
+      resolveDocument: () => firstDocument,
+      createJobId: () => 'isolated-first-job',
+    });
+    const secondProvider = createNodeGraphExecutionProvider({
+      resolveDocument: () => graph,
+      createJobId: () => 'isolated-second-job',
+    });
+    const firstJob = await firstProvider.start(executionRequest('first'));
+    const secondJob = await secondProvider.start(executionRequest('second'));
+
+    await firstJob.cancel({ reason: 'stop only first instance' });
+    releaseFirst();
+
+    await expect(firstJob.completion).resolves.toMatchObject({
+      status: 'cancelled',
+    });
+    await expect(secondJob.completion).resolves.toMatchObject({
+      status: 'succeeded',
     });
   });
 });

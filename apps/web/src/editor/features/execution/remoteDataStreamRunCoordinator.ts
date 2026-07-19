@@ -45,6 +45,7 @@ type ActiveStream = {
   request: ExecutionDataStreamOpenRequest;
   abort: AbortController;
   session?: RemoteDataStreamGatewaySession;
+  unsubscribeNetwork?: () => void;
   cursor: number;
   pending: boolean;
   publish(message: ExecutionDataStreamBridgeMessage): void;
@@ -96,6 +97,8 @@ export const createRemoteDataStreamRunCoordinator = (options: {
   const current = (run: ActiveRun): boolean =>
     active === run && generation === run.generation;
   const release = (stream: ActiveStream): void => {
+    stream.unsubscribeNetwork?.();
+    stream.unsubscribeNetwork = undefined;
     if (streams.get(stream.request.requestId) === stream)
       streams.delete(stream.request.requestId);
   };
@@ -106,10 +109,47 @@ export const createRemoteDataStreamRunCoordinator = (options: {
   };
   const closeAll = (): void => {
     for (const stream of streams.values()) {
+      stream.unsubscribeNetwork?.();
+      stream.unsubscribeNetwork = undefined;
       stream.abort.abort();
       stream.session?.close();
     }
     streams.clear();
+  };
+  const publishNetworkTrace = (
+    stream: ActiveStream,
+    network: RemoteDataStreamGatewaySession['network']
+  ): boolean => {
+    if (
+      !current(stream.run) ||
+      streams.get(stream.request.requestId) !== stream
+    )
+      return false;
+    let publication: ExecutionSessionTracePublication;
+    try {
+      publication = options.publishTrace({
+        sessionId: stream.run.sessionId,
+        jobId: stream.run.jobId,
+        observedAt: network.completedAt,
+        trace: {
+          traceId: `network:${stream.run.jobId}`,
+          spanId: network.requestId,
+          name: EXECUTION_NETWORK_TRACE_NAME,
+          phase: 'event',
+          detail: toExecutionNetworkTraceValue(network),
+          ...(network.sourceTrace ? { sourceTrace: network.sourceTrace } : {}),
+        },
+      });
+    } catch {
+      return false;
+    }
+    return (
+      current(stream.run) &&
+      streams.get(stream.request.requestId) === stream &&
+      publication.status !== 'session-not-found' &&
+      publication.status !== 'stale-job' &&
+      publication.status !== 'conflict'
+    );
   };
 
   return Object.freeze({
@@ -193,44 +233,22 @@ export const createRemoteDataStreamRunCoordinator = (options: {
           stream.session.close();
           return;
         }
-        let publication: ExecutionSessionTracePublication;
-        try {
-          publication = options.publishTrace({
-            sessionId: run.sessionId,
-            jobId: run.jobId,
-            observedAt: stream.session.network.completedAt,
-            trace: {
-              traceId: `network:${run.jobId}`,
-              spanId: stream.session.network.requestId,
-              name: EXECUTION_NETWORK_TRACE_NAME,
-              phase: 'event',
-              detail: toExecutionNetworkTraceValue(stream.session.network),
-              ...(stream.session.network.sourceTrace
-                ? { sourceTrace: stream.session.network.sourceTrace }
-                : {}),
-            },
-          });
-        } catch {
-          publish(
-            toExecutionDataStreamTerminalMessage(request, {
-              phase: 'error',
-              code: 'DATA_REMOTE_GATEWAY_INVALID',
-              retryable: false,
-            })
-          );
-          terminate(stream);
-          return;
-        }
-        if (!current(run) || streams.get(request.requestId) !== stream) {
-          stream.session.close();
-          release(stream);
-          return;
-        }
-        if (
-          publication.status === 'session-not-found' ||
-          publication.status === 'stale-job' ||
-          publication.status === 'conflict'
-        ) {
+        stream.unsubscribeNetwork = stream.session.subscribeNetwork(
+          (network) => {
+            if (publishNetworkTrace(stream, network)) return;
+            if (current(run) && streams.get(request.requestId) === stream) {
+              publish(
+                toExecutionDataStreamTerminalMessage(request, {
+                  phase: 'error',
+                  code: 'DATA_REMOTE_GATEWAY_INVALID',
+                  retryable: false,
+                })
+              );
+              terminate(stream);
+            }
+          }
+        );
+        if (!publishNetworkTrace(stream, stream.session.network)) {
           publish(
             toExecutionDataStreamTerminalMessage(request, {
               phase: 'error',
@@ -325,6 +343,8 @@ export const createRemoteDataStreamRunCoordinator = (options: {
       const stream = streams.get(cancellation.requestId);
       if (!stream || !current(stream.run)) return false;
       streams.delete(cancellation.requestId);
+      stream.unsubscribeNetwork?.();
+      stream.unsubscribeNetwork = undefined;
       stream.abort.abort();
       stream.session?.close();
       return true;

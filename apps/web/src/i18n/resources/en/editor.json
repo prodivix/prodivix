@@ -10,7 +10,10 @@
     "openPreview": "Open preview in a new tab",
     "openSource": "Open exact execution source",
     "openDataInspector": "Open Data operation inspector",
-    "clear": "Clear console",
+    "clear": "Clear current execution view",
+    "pause": "Pause console view",
+    "resume": "Resume console view",
+    "paused": "Paused",
     "copy": "Copy safe console output",
     "copyFailed": "Copy failed",
     "consoleTruncated": "Console output was truncated to its budget; {{count}} older records were dropped.",
@@ -165,7 +168,8 @@
       "succeeded": "Succeeded",
       "failed": "Failed",
       "cancelled": "Stopped",
-      "timed-out": "Timed out"
+      "timed-out": "Timed out",
+      "stale": "Older snapshot"
     }
   },
   "testing": {
@@ -378,6 +382,7 @@
     "actions": {
       "openTarget": "Open target",
       "openSource": "Open source",
+      "openExecution": "Open execution",
       "openDocs": "Open docs",
       "targetUnavailable": "The target no longer exists in the current workspace.",
       "sourceUnavailable": "The source artifact no longer exists in the current workspace."
@@ -1215,6 +1220,36 @@
             "viewer": "Viewer",
             "editor": "Editor",
             "admin": "Admin"
+          }
+        },
+        "workspaceRoles": {
+          "add": {
+            "label": "Workspace collaborator",
+            "description": "Viewer can run reads. Editor can also create isolated, reviewable source proposals. Neither role receives owner, Environment, or Secret access.",
+            "email": "Collaborator account email",
+            "emailPlaceholder": "collaborator@example.com",
+            "role": "Execution role"
+          },
+          "current": {
+            "label": "Current collaborators",
+            "description": "Role changes affect new execution grants. Existing grants remain bounded by their short expiry.",
+            "unavailable": "Open an authenticated cloud Workspace to manage roles.",
+            "loading": "Loading collaborators…",
+            "empty": "No collaborators have an execution role."
+          },
+          "roles": {
+            "viewer": "Viewer",
+            "editor": "Editor"
+          },
+          "actions": {
+            "save": "Grant role",
+            "saving": "Saving…",
+            "remove": "Remove"
+          },
+          "errors": {
+            "load": "Only the Workspace owner can manage collaborators.",
+            "save": "The collaborator could not be saved. Confirm the account email and your owner access.",
+            "revoke": "The collaborator could not be removed."
           }
         },
         "previewAccess": {

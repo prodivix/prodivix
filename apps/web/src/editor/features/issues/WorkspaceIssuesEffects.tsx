@@ -4,7 +4,9 @@ import { selectWorkspace, useEditorStore } from '@/editor/store/useEditorStore';
 import { listWorkspaceOutboxEntries } from '@/editor/workspaceSync/workspaceOutboxExecutor';
 import { subscribeWorkspaceOutbox } from '@/editor/workspaceSync/workspaceOutboxSignals';
 import { listWorkspaceSettingsOutboxEntries } from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
+import { executionSessionCoordinator } from '@/editor/features/execution/executionSessionEnvironment';
 import {
+  collectExecutionSessionIssueSnapshot,
   collectRevisionConflictIssueSnapshot,
   collectWorkspaceModelIssueSnapshots,
   collectWorkspaceOutboxIssueSnapshot,
@@ -60,6 +62,18 @@ export function WorkspaceIssuesEffects() {
       })
     );
 
+    const refreshExecutionIssues = () => {
+      useWorkspaceIssuesStore.getState().publishSnapshot(
+        collectExecutionSessionIssueSnapshot({
+          workspace,
+          revision,
+          collectedAt: Date.now(),
+          sessions: executionSessionCoordinator.listSnapshots(),
+        })
+      );
+    };
+    refreshExecutionIssues();
+
     const refreshOutboxIssues = async () => {
       const [operationEntries, settingsEntries] = await Promise.all([
         listWorkspaceOutboxEntries(workspaceId),
@@ -99,10 +113,14 @@ export function WorkspaceIssuesEffects() {
         console.warn('[workspace-issues] outbox diagnostics failed', error);
       });
     });
+    const unsubscribeExecution = executionSessionCoordinator.subscribe(() => {
+      refreshExecutionIssues();
+    });
 
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribeExecution();
     };
   }, [conflict, workspace]);
 

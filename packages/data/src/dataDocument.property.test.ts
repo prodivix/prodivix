@@ -248,6 +248,109 @@ describe('Data source document properties', () => {
     );
   });
 
+  it('round-trips bounded subscription recovery and requires exact Secret renewal and collection policy', () => {
+    const document = createDocument('data-doc', 'api');
+    const watch = {
+      id: 'watch',
+      kind: 'subscription' as const,
+      outputSchemaId: 'items',
+      configurationByKey: {
+        authorization: {
+          kind: 'secret-ref' as const,
+          reference: { bindingId: 'apiToken' },
+        },
+      },
+      policies: {
+        stream: {
+          reconnect: {
+            resume: 'sse-last-event-id' as const,
+            maxReconnectAttempts: 3,
+            backoff: 'exponential' as const,
+            initialDelayMs: 25,
+            maxDelayMs: 200,
+          },
+          credentialRenewal: 'per-connection' as const,
+          collection: {
+            kind: 'keyed-event-v1' as const,
+            entityIdPath: '/id',
+            maxItems: 100,
+          },
+        },
+      },
+    };
+    const accepted = normalizeDataSourceDocument({
+      ...document,
+      operationsById: { ...document.operationsById, watch },
+    });
+    expect(accepted.operationsById.watch?.policies.stream).toEqual(
+      watch.policies.stream
+    );
+
+    const withoutRenewal = validateDataSourceDocument({
+      ...document,
+      operationsById: {
+        ...document.operationsById,
+        watch: {
+          ...watch,
+          policies: {
+            stream: {
+              ...watch.policies.stream,
+              credentialRenewal: undefined,
+            },
+          },
+        },
+      },
+    });
+    const queryMisuse = validateDataSourceDocument({
+      ...document,
+      operationsById: {
+        ...document.operationsById,
+        list: {
+          ...document.operationsById.list!,
+          policies: { stream: watch.policies.stream },
+        },
+      },
+    });
+    const invalidCollection = validateDataSourceDocument({
+      ...document,
+      operationsById: {
+        ...document.operationsById,
+        watch: {
+          ...watch,
+          policies: {
+            stream: {
+              ...watch.policies.stream,
+              collection: {
+                ...watch.policies.stream.collection,
+                entityIdPath: 'id',
+                maxItems: 10_001,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(withoutRenewal.valid).toBe(false);
+    expect(
+      withoutRenewal.issues.some((issue) =>
+        issue.path.endsWith('/policies/stream')
+      )
+    ).toBe(true);
+    expect(queryMisuse.valid).toBe(false);
+    expect(
+      queryMisuse.issues.some((issue) =>
+        issue.path.includes('/policies/stream')
+      )
+    ).toBe(true);
+    expect(invalidCollection.valid).toBe(false);
+    expect(
+      invalidCollection.issues.some((issue) =>
+        issue.path.includes('/policies/stream/collection')
+      )
+    ).toBe(true);
+  });
+
   it('rejects ambiguous cache lifetime and non-JSON-Pointer key selection', () => {
     const document = createDocument('data-doc', 'api');
     const invalidPolicies = [

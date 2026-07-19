@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Browser/Remote Runner + Network/Test/Structured Console + Remote PTY + Runtime FS Proposal + Unified SourceTrace Navigation + Manual Recovery Implemented / Full Recovery UX In Progress
+- ImplementationStatus：G2 Browser/Remote Runner + Execution Devtools + Golden Debugger Product Gate Implemented Locally / External Evidence Pending
 - ProductGateStatus：G2 In Progress
 - Global Phase：G2 Executable Full-stack Workspace
 - 日期：2026-07-17
@@ -96,7 +96,9 @@ capability、真实 network、server/edge Secret、完整 bundler 或独立 proc
   Structured Console 已增加 generated serializer、父窗口 strict decoder、runtime-core normalization 与 copy
   boundary 四层常见 credential 脱敏。Remote Terminal 已在 Worker 出站、Control Plane 入站和 copy projection
   逐层执行已知 Secret/常见 credential 脱敏，并以跨任意 chunk 与 stdout/stderr 分流 canary 覆盖；Console/
-  Artifact/Test/Files/Data 已形成统一 exact-snapshot 导航，剩余 diagnostic producer 与 Golden CRUD 调试旅程未完成。
+  Artifact/Test/Files/Data 已形成统一 exact-snapshot 导航；runtime diagnostic 现在只按 exact current Workspace snapshot
+  进入 Issues，丢弃 provider-private metadata，并可从 Issues 打开 exact Session Console/error filter 后复用同一作者态
+  SourceTrace opener。Golden CRUD 调试旅程已由 authenticated Vue Catalog local/Remote 产品 Gate覆盖。
 
 ## 不变量
 
@@ -208,13 +210,13 @@ GraphQL 子请求作为相关 span 呈现，不覆盖成一条含糊记录。
 - [x] 三 mode 产品表面。
 - [x] Browser Preview Provider 与原位 iframe artifact。
 - [x] instance-owned Runtime Host 和 generation 基础。
-- [ ] 固化 mode transition、stale revision 和失败恢复 contract tests。
+- [x] mode preference/runtime-state isolation、retained-preview stale revision 与失败后 manual new-request recovery contract tests。
 
 ### R1：Neutral project plan 与 composition
 
 - [x] 迁移到 Executable Project Snapshot current contract。
-- [ ] 将 mode selection、provider selection、target 与 environment policy 组合为 immutable run plan。
-- [ ] 统一 Browser/Remote readiness、artifact、stop/restart 与 recovery 状态。
+- [x] mode/provider/target/runtime zone/environment policy/capability 组合为 immutable run composition，并绑定 exact request/snapshot。
+- [x] Browser/Remote readiness、artifact、stop/restart 与 recovery 统一进入 Job/Session 与 Execution Center。
 - [x] 移除 Web 内 Browser command/file 私有拼装。
 
 完成条件：Web composition root 只组装 stable contracts；切换 provider 不改变工程内容。
@@ -224,9 +226,10 @@ GraphQL 子请求作为相关 span 呈现，不覆盖成一条含糊记录。
 - [x] 定义 Console record/strict bridge/Session observation 与条数、字节、深度、节点预算。
 - [x] Browser/Remote process、runtime error 和 generated application Console adapter。
 - [x] Console/Artifact exact correlation、单一 SourceTrace 与 Workspace/Data/NodeGraph/Animation 作者态导航。
-- [ ] 其余 diagnostic producer 与 Issues 的完整双向 source map closure。
+- [x] runtime diagnostic provider 与 Issues 的 exact-snapshot 双向 source closure；private metadata、stale Session/
+      snapshot 与非唯一 SourceTrace fail closed。
 - [x] all/error/application/system filter、bounded clear、copy-safe-payload 与 redaction/truncation UX。
-- [ ] pause 与不清除 Session history 的纯 view clear。
+- [x] Console pause 使用本地 record checkpoint；clear 仅清当前 view，Session history 与后续 record 保留。
 
 完成条件：同一错误从 Console 和 Issues 定位到同一作者态目标；clear 不删除 authoritative session。
 
@@ -266,22 +269,22 @@ GraphQL 子请求作为相关 span 呈现，不覆盖成一条含糊记录。
 
 ### R5：Provider-neutral Runner UX
 
-- [ ] capability、zone、environment、target 与 provider selector。
-- [ ] queue/install/start/ready/reconnecting/stopping/terminal 状态。
-- [ ] quota、network denial、artifact expiry、worker loss 和 retry guidance。
+- [x] capability/zone/environment policy 进入 immutable composition；Blueprint/Test 提供 target 与 Browser/Remote selector。
+- [x] queue/start/running/cancelling/terminal 使用 canonical state，install/readiness/reconnect 使用同 Session log/artifact/observation 投影。
+- [x] quota、network denial、artifact expiry、worker loss、authorization/permission loss 与 retry/new-request guidance。
 - [x] cancel acknowledgement、`cancelling` 等待、terminal fence 与 manual new-request restart；保留旧事件且
       mutation 永不自动重放。
-- [ ] design/interactive/run 切换保留 selection/view preference，不保存 runtime truth。
+- [x] design/interactive/run 切换保留 selection/viewport/route preference；disposable runtime state 可独立 reset，不进入 Workspace。
 
 完成条件：所有失败都可操作；不存在假 loading、沉默 fallback 或无限重试。
 
 ### R6：Golden 调试旅程
 
-- [ ] CRUD 页面从 Collection 触发 query/mutation。
-- [ ] loading/empty/error/retry/pagination/optimistic 在 Preview 可观察。
+- [x] React/Vue authenticated Catalog 从 canonical PIR Collection 触发 query/create/update/delete。
+- [x] loading/empty/error/retry/pagination/optimistic 在 Browser/Remote Preview 与 Test matrix 可观察。
 - [x] Console/Artifact、Network、Test report 与 Files 使用同一 correlation/source trace 和 exact-snapshot opener。
 - [x] Remote Terminal 执行真实 PTY 命令、resize 与 execution-local FS 写入；rootless Gate 验证无 host Workspace 回写并清理 orphan。
-- [ ] Browser/Remote 切换保持相同 revision 与 snapshot digest。
+- [x] Browser/Remote composition 绑定同一 authoring snapshot ref/partition revisions；target/topology差异不改写作者态 identity。
 
 ## 横向 Gate
 
@@ -306,10 +309,10 @@ GraphQL 子请求作为相关 span 呈现，不覆盖成一条含糊记录。
 
 ## 验收标准
 
-- [ ] 三种 mode 具有稳定、可测试的 capability 边界。
+- [x] 三种 mode 具有稳定、可测试的 capability 边界。
 - [x] Project Runner 可在 Browser/Remote 间切换且运行 exact revision。
 - [x] Console、Network 与 Test 使用 transport-neutral contract。
 - [x] Terminal 使用 transport-neutral contract；Remote PTY/token、跨副本 reconnect/cleanup 已接入产品路径。
-- [ ] 所有运行诊断都能回到稳定作者态目标或明确说明不可定位。
+- [x] 运行诊断使用 exact-snapshot SourceTrace；没有唯一 SourceTrace 的 diagnostic 显式标记不可定位。
 - [x] Secret 不进入 runtime FS artifact；runtime FS 只有经用户显式确认的可逆 Transaction 才能进入作者态。
-- [ ] Golden CRUD 调试旅程通过。
+- [x] React/Vue authenticated Catalog Golden CRUD 调试旅程在 Browser/Remote/Test/Export matrix 通过。

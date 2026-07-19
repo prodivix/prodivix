@@ -160,12 +160,44 @@ export type DataOptimisticCrudEffectPolicy = Readonly<{
   rollback: 'on-error';
 }>;
 
+export const DATA_STREAM_POLICY_LIMITS = Object.freeze({
+  maxReconnectAttempts: 4,
+  maxReconnectDelayMs: 30_000,
+  maxCollectionItems: 10_000,
+} as const);
+
+export type DataStreamReconnectPolicy = Readonly<{
+  resume: 'sse-last-event-id';
+  maxReconnectAttempts: number;
+  backoff: 'fixed' | 'exponential';
+  initialDelayMs: number;
+  maxDelayMs?: number;
+}>;
+
+export type DataStreamIncrementalCollectionPolicy = Readonly<{
+  kind: 'keyed-event-v1';
+  entityIdPath: string;
+  maxItems: number;
+}>;
+
+/**
+ * Bounded subscription recovery remains execution-local. A reconnect resumes
+ * the same invocation from an upstream SSE checkpoint; it never replays into a
+ * new execution or writes stream state into the Workspace.
+ */
+export type DataStreamPolicy = Readonly<{
+  reconnect: DataStreamReconnectPolicy;
+  credentialRenewal?: 'per-connection';
+  collection?: DataStreamIncrementalCollectionPolicy;
+}>;
+
 export type DataOperationPolicies = Readonly<{
   cache?: DataCachePolicy;
   retry?: DataRetryPolicy;
   idempotency?: DataIdempotencyPolicy;
   pagination?: DataPaginationPolicy;
   optimistic?: DataOptimisticCrudEffectPolicy;
+  stream?: DataStreamPolicy;
 }>;
 
 export type DataOperation = Readonly<{
