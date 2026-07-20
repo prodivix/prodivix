@@ -339,6 +339,21 @@ export const failWorkspaceOutboxEntry = <TEntry extends WorkspaceOutboxRecord>(
       }
     : null;
 
+/** Explicitly reopens a terminal failure without changing its exact request. */
+export const requeueFailedWorkspaceOutboxEntry = <
+  TEntry extends WorkspaceOutboxRecord,
+>(
+  entry: TEntry,
+  input: { now: number }
+): TEntry | null =>
+  entry.state.kind === 'failed'
+    ? {
+        ...entry,
+        updatedAt: Math.max(entry.updatedAt + 1, input.now),
+        state: { kind: 'queued' },
+      }
+    : null;
+
 export const releaseWorkspaceOutboxEntry = <
   TEntry extends WorkspaceOutboxRecord,
 >(

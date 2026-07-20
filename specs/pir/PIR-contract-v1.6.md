@@ -42,4 +42,4 @@ dispatch identity、sequence、attempt、environment 与 lifecycle 是 session-l
 
 v1.6 字段均为 additive optional contract。v1.5 → v1.6 migration 只不可变地提升 wire envelope 的 `version`，不改写既有作者态内容。
 
-仓库 current contract 已激活到 v1.6，但这不等同于 Canonical Backend 中的历史文档已经迁移。production rollout 仍必须通过 `39.pir-current-evolution.md` 的 persistence gate：在允许 current 路径 patch 前完成 backend coordinated migration，或以 content revision/CAS 保护的 Atomic first-write replacement 同事务升级整份文档。当前后端对旧 wire 的路径 patch 保持 fail-closed。
+v1.6 Canonical Backend production rollout 已采用 backend coordinated migration：database migration 12 在服务接受 current 路径 patch 前以写阻断 table lock 和有界 keyset batch 锁定全部 PIR 保存态，把 1.3 canonical baseline 及后续已激活版本确定性升级到 1.6，并通过 current schema 与 `contentRev + content_json` CAS 后原子写回；随后安装 database CHECK constraint，持续拒绝旧进程或旁路再次写入非 1.6 PIR。wire-only 升级不推进作者态 revision 或 `opSeq`；任一文档无法安全迁移时整批回滚并阻止启动。TypeScript 与 Backend 使用同一 `specs/pir/fixtures/pir-v1.3-to-current.json` fixture 验证确定性结果。

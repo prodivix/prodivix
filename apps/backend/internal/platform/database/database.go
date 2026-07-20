@@ -14,6 +14,7 @@ type migration struct {
 	version    int64
 	name       string
 	statements []string
+	run        func(context.Context, *sql.Tx) error
 }
 
 func OpenDatabase(cfg config.Config) (*sql.DB, error) {
@@ -538,6 +539,10 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 				OR permissions_json = '["workspace.owner","workspace.read","workspace.write"]'::jsonb
 			)`,
 		},
+	}, {
+		version: 12,
+		name:    "pir-wire-v1-6-rollout",
+		run:     migratePersistedPIRDocuments,
 	}}
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -565,6 +570,11 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 		}
 		for _, statement := range migration.statements {
 			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("run migration version %d: %w", migration.version, err)
+			}
+		}
+		if migration.run != nil {
+			if err := migration.run(ctx, tx); err != nil {
 				return fmt.Errorf("run migration version %d: %w", migration.version, err)
 			}
 		}

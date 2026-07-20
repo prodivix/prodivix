@@ -93,6 +93,24 @@ before attempt+1 can create a new session/PTY generation. Application code does 
 rows and does not migrate PTY processes: database replication/promotion and external DNS/Anycast
 routing remain infrastructure/runbook responsibilities.
 
+The protected recovery operator is a separate one-shot process, never an HTTP endpoint:
+
+```bash
+pnpm --filter @prodivix/remote-runner-control-plane regional-recovery
+```
+
+It accepts a strict credential-free request for 1-128 executions and callback-bound signed proof
+files through the independent `REMOTE_DR_*` configuration surface. Planned recovery requires exact
+source/target checkpoints. Source-unavailable recovery never queries the source, but additionally
+requires role-separated Ed25519 authorization, infrastructure-fence and exact target replication
+attestation proofs, an accepted RPO upper bound, and expiry of every old worker lease. Authorization
+proof digests are consumed once in PostgreSQL. Output is a create-new, mode-0600, self-digesting
+sanitized evidence file with no raw execution ids, credentials, ARNs, database locations, Terminal
+ids or application payloads. Schema migration and traffic initialization are deployment-time tasks;
+the operator does not run DDL or reset epochs. See
+[`docs/operations/regional-recovery.md`](../../docs/operations/regional-recovery.md) for the exact
+request, proof and failure procedure.
+
 Provider routing uses four canonical identities: `prodivix.remote.preview`,
 `prodivix.remote.test`, `prodivix.remote.build`, and the networkless one-shot
 `prodivix.remote.server-function` production profile. Workers set

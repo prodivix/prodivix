@@ -17,8 +17,11 @@ import (
 )
 
 const (
-	oldAWSKMSKeyARN = "arn:aws:kms:us-east-1:111122223333:key/11111111-1111-1111-1111-111111111111"
-	newAWSKMSKeyARN = "arn:aws:kms:us-east-1:111122223333:key/77777777-7777-7777-7777-777777777777"
+	oldAWSKMSKeyARN       = "arn:aws:kms:us-east-1:111122223333:key/11111111-1111-1111-1111-111111111111"
+	newAWSKMSKeyARN       = "arn:aws:kms:us-east-1:111122223333:key/77777777-7777-7777-7777-777777777777"
+	primaryAWSKMSMRKARN   = "arn:aws:kms:us-east-1:111122223333:key/mrk-1234abcd1234abcd1234abcd1234abcd"
+	replicaAWSKMSMRKARN   = "arn:aws:kms:eu-west-1:111122223333:key/mrk-1234abcd1234abcd1234abcd1234abcd"
+	unrelatedAWSKMSMRKARN = "arn:aws:kms:eu-west-1:111122223333:key/mrk-9999abcd9999abcd9999abcd9999abcd"
 )
 
 type fakeAWSKMSClient struct {
@@ -35,9 +38,9 @@ func (client *fakeAWSKMSClient) Decrypt(ctx context.Context, input *awskms.Decry
 }
 
 type memoryAWSKMSRecord struct {
-	keyARN     string
-	plaintext  []byte
-	contextMap map[string]string
+	keyIdentity string
+	plaintext   []byte
+	contextMap  map[string]string
 }
 
 type memoryAWSKMSClient struct {
@@ -56,7 +59,10 @@ func (client *memoryAWSKMSClient) Encrypt(_ context.Context, input *awskms.Encry
 	client.next++
 	ciphertext := bytes.Repeat([]byte{client.next}, 96)
 	client.records[string(ciphertext)] = memoryAWSKMSRecord{
-		keyARN:     aws.ToString(input.KeyId),
+		keyIdentity: func() string {
+			identity, _ := stableAWSKMSKeyIdentity(aws.ToString(input.KeyId))
+			return identity
+		}(),
 		plaintext:  append([]byte(nil), input.Plaintext...),
 		contextMap: cloneStringMap(input.EncryptionContext),
 	}
@@ -71,7 +77,8 @@ func (client *memoryAWSKMSClient) Decrypt(_ context.Context, input *awskms.Decry
 	client.mutex.Lock()
 	defer client.mutex.Unlock()
 	record, ok := client.records[string(input.CiphertextBlob)]
-	if !ok || record.keyARN != aws.ToString(input.KeyId) || !reflect.DeepEqual(record.contextMap, input.EncryptionContext) {
+	keyIdentity, _ := stableAWSKMSKeyIdentity(aws.ToString(input.KeyId))
+	if !ok || record.keyIdentity != keyIdentity || !reflect.DeepEqual(record.contextMap, input.EncryptionContext) {
 		return nil, errors.New("invalid ciphertext")
 	}
 	return &awskms.DecryptOutput{
@@ -96,7 +103,7 @@ func TestAWSKMSWrapAndUnwrapUseExactKeyAndHashedEncryptionContext(t *testing.T) 
 	digest := sha256.Sum256(additionalData)
 	expectedContext := map[string]string{
 		"prodivix-aad-sha256": hex.EncodeToString(digest[:]),
-		"prodivix-purpose":    "environment-secret-data-key-v1",
+		"prodivix-purpose":    "environment-secret-data-key-v2",
 	}
 	decryptCalls := 0
 	client := &fakeAWSKMSClient{
@@ -154,6 +161,62 @@ func TestAWSKMSWrapAndUnwrapUseExactKeyAndHashedEncryptionContext(t *testing.T) 
 	}
 	if decryptCalls != 1 {
 		t.Fatalf("local correlation gate called KMS for tampered envelopes: calls=%d", decryptCalls)
+	}
+}
+
+func TestAWSKMSMultiRegionReplicaUsesStableIdentityAndRejectsUnrelatedKeys(t *testing.T) {
+	if err := validateAWSKMSMultiRegionReplicaPair(primaryAWSKMSMRKARN, replicaAWSKMSMRKARN); err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2]string{
+		{primaryAWSKMSMRKARN, unrelatedAWSKMSMRKARN},
+		{oldAWSKMSKeyARN, newAWSKMSKeyARN},
+		{primaryAWSKMSMRKARN, primaryAWSKMSMRKARN},
+	} {
+		if err := validateAWSKMSMultiRegionReplicaPair(pair[0], pair[1]); err == nil {
+			t.Fatalf("unrelated or same-Region KMS keys were accepted: %q %q", pair[0], pair[1])
+		}
+	}
+	if err := validateAWSKMSRegion("us-east-1", map[string]string{"key-mrk": primaryAWSKMSMRKARN}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateAWSKMSRegion("eu-west-1", map[string]string{"key-mrk": replicaAWSKMSMRKARN}); err != nil {
+		t.Fatal(err)
+	}
+
+	client := newMemoryAWSKMSClient()
+	primary, err := newAWSKMS("key-mrk", map[string]string{"key-mrk": primaryAWSKMSMRKARN}, client, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replica, err := newAWSKMS("key-mrk", map[string]string{"key-mrk": replicaAWSKMSMRKARN}, client, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dataKey := bytes.Repeat([]byte{0x5a}, 32)
+	additionalData := []byte("workspace\x00environment\x00revision\x00binding")
+	keyID, metadata, ciphertext, err := primary.WrapDataKey(t.Context(), dataKey, additionalData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if primary.ProviderID() != "aws.kms/v2" || keyID != "key-mrk" {
+		t.Fatalf("unexpected MRK provider identity: provider=%q key=%q", primary.ProviderID(), keyID)
+	}
+	unwrapped, err := replica.UnwrapDataKey(t.Context(), keyID, metadata, ciphertext, additionalData)
+	if err != nil || !bytes.Equal(unwrapped, dataKey) {
+		t.Fatalf("related MRK replica did not unwrap the primary ciphertext: %v", err)
+	}
+	clearBytes(unwrapped)
+
+	unrelated, _ := newAWSKMS("key-mrk", map[string]string{"key-mrk": unrelatedAWSKMSMRKARN}, client, time.Second)
+	if _, err := unrelated.UnwrapDataKey(t.Context(), keyID, metadata, ciphertext, additionalData); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("unrelated MRK key passed the stable identity fence: %v", err)
+	}
+	nonMRKReplica, _ := newAWSKMS("key-mrk", map[string]string{
+		"key-mrk": "arn:aws:kms:eu-west-1:111122223333:key/11111111-1111-1111-1111-111111111111",
+	}, client, time.Second)
+	if _, err := nonMRKReplica.UnwrapDataKey(t.Context(), keyID, metadata, ciphertext, additionalData); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("single-Region key crossed the exact ARN fence: %v", err)
 	}
 }
 

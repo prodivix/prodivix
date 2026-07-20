@@ -1,14 +1,15 @@
 import './PdxSelect.scss';
+import * as SelectPrimitive from '@radix-ui/react-select';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { forwardRef, type ReactNode } from 'react';
 import {
   mergeClassNames,
   type PdxControlSize,
-  type PdxNativeProps,
+  type PdxDataAttributeProps,
   type PdxValidationState,
 } from '../foundation/component';
 import { useControllableState } from '../foundation/useControllableState';
 import PdxField, { usePdxFieldIds } from './PdxField';
-import { ChevronDown } from 'lucide-react';
-import { forwardRef, type ReactNode } from 'react';
 
 export interface PdxSelectOption {
   disabled?: boolean;
@@ -16,32 +17,43 @@ export interface PdxSelectOption {
   value: string;
 }
 
-export interface PdxSelectOwnProps {
+export interface PdxSelectOwnProps extends PdxDataAttributeProps {
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling';
+  'aria-label'?: string;
+  className?: string;
+  contentClassName?: string;
   controlClassName?: string;
   defaultValue?: string;
   description?: ReactNode;
+  disabled?: boolean;
+  id?: string;
   label?: ReactNode;
   message?: ReactNode;
+  name?: string;
+  onBlur?: React.FocusEventHandler<HTMLButtonElement>;
+  onFocus?: React.FocusEventHandler<HTMLButtonElement>;
   onValueChange?: (value: string, option?: PdxSelectOption) => void;
   options: PdxSelectOption[];
   placeholder?: string;
+  required?: boolean;
   size?: PdxControlSize;
   state?: PdxValidationState;
+  style?: React.CSSProperties;
+  title?: string;
   value?: string;
 }
 
-export type PdxSelectProps = Omit<
-  PdxNativeProps<'select'>,
-  'children' | 'defaultValue' | 'value'
-> &
-  PdxSelectOwnProps;
+export type PdxSelectProps = PdxSelectOwnProps;
 
-const PdxSelect = forwardRef<HTMLSelectElement, PdxSelectProps>(
+const PdxSelect = forwardRef<HTMLButtonElement, PdxSelectProps>(
   function PdxSelect(
     {
       'aria-describedby': ariaDescribedBy,
       'aria-invalid': ariaInvalid,
+      'aria-label': ariaLabel,
       className,
+      contentClassName,
       controlClassName,
       dataAttributes,
       defaultValue = '',
@@ -50,7 +62,9 @@ const PdxSelect = forwardRef<HTMLSelectElement, PdxSelectProps>(
       id,
       label,
       message,
-      onChange,
+      name,
+      onBlur,
+      onFocus,
       onValueChange,
       options,
       placeholder = 'Select item',
@@ -58,8 +72,8 @@ const PdxSelect = forwardRef<HTMLSelectElement, PdxSelectProps>(
       size = 'Medium',
       state = 'Default',
       style,
+      title,
       value,
-      ...rest
     },
     ref
   ) {
@@ -88,48 +102,75 @@ const PdxSelect = forwardRef<HTMLSelectElement, PdxSelectProps>(
         state={state}
         style={style}
       >
-        <span className="PdxSelectControlWrapper">
-          <select
-            {...rest}
-            aria-describedby={fieldIds.describedBy}
-            aria-invalid={ariaInvalid ?? (state === 'Error' || undefined)}
+        <SelectPrimitive.Root
+          disabled={disabled}
+          name={name}
+          onValueChange={(nextValue) => {
+            const option = options.find((item) => item.value === nextValue);
+            setCurrentValue(nextValue);
+            onValueChange?.(nextValue, option);
+          }}
+          required={required}
+          value={currentValue}
+        >
+          <SelectPrimitive.Trigger
+            ref={ref}
+            id={fieldIds.controlId}
             className={mergeClassNames(
               'PdxSelectControl',
               state !== 'Default' && state,
               controlClassName
             )}
-            disabled={disabled}
-            id={fieldIds.controlId}
-            onChange={(event) => {
-              onChange?.(event);
-              const nextValue = event.currentTarget.value;
-              const option = options.find((item) => item.value === nextValue);
-              setCurrentValue(nextValue);
-              onValueChange?.(nextValue, option);
-            }}
-            ref={ref}
-            required={required}
-            value={currentValue}
+            aria-describedby={fieldIds.describedBy}
+            aria-invalid={ariaInvalid ?? (state === 'Error' || undefined)}
+            aria-label={ariaLabel}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            title={title}
           >
-            <option value="" disabled hidden>
-              {placeholder}
-            </option>
-            {options.map((option) => (
-              <option
-                key={option.value}
-                disabled={option.disabled}
-                value={option.value}
-              >
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="PdxSelectIndicator"
-            aria-hidden="true"
-            size={14}
-          />
-        </span>
+            <SelectPrimitive.Value placeholder={placeholder} />
+            <SelectPrimitive.Icon asChild>
+              <ChevronDown
+                className="PdxSelectIndicator"
+                aria-hidden="true"
+                size={14}
+              />
+            </SelectPrimitive.Icon>
+          </SelectPrimitive.Trigger>
+
+          <SelectPrimitive.Portal>
+            <SelectPrimitive.Content
+              className={mergeClassNames('PdxSelectContent', contentClassName)}
+              collisionPadding={8}
+              position="popper"
+              sideOffset={6}
+            >
+              <SelectPrimitive.ScrollUpButton className="PdxSelectScrollButton">
+                <ChevronUp size={13} aria-hidden="true" />
+              </SelectPrimitive.ScrollUpButton>
+              <SelectPrimitive.Viewport className="PdxSelectViewport">
+                {options.map((option) => (
+                  <SelectPrimitive.Item
+                    key={option.value}
+                    className="PdxSelectItem"
+                    disabled={option.disabled}
+                    value={option.value}
+                  >
+                    <SelectPrimitive.ItemText>
+                      {option.label}
+                    </SelectPrimitive.ItemText>
+                    <SelectPrimitive.ItemIndicator className="PdxSelectItemIndicator">
+                      <Check size={13} aria-hidden="true" />
+                    </SelectPrimitive.ItemIndicator>
+                  </SelectPrimitive.Item>
+                ))}
+              </SelectPrimitive.Viewport>
+              <SelectPrimitive.ScrollDownButton className="PdxSelectScrollButton">
+                <ChevronDown size={13} aria-hidden="true" />
+              </SelectPrimitive.ScrollDownButton>
+            </SelectPrimitive.Content>
+          </SelectPrimitive.Portal>
+        </SelectPrimitive.Root>
       </PdxField>
     );
   }

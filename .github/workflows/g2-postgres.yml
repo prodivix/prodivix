@@ -118,3 +118,7 @@ jobs:
       - name: Run Backend Binary Asset retention PostgreSQL Gate
         working-directory: apps/backend
         run: go test ./internal/modules/workspace -run '^TestWorkspaceAssetBlobRetentionPostgreSQLGate$' -count=1 -v
+
+      - name: Run Backend PIR wire persistence rollout PostgreSQL Gate
+        working-directory: apps/backend
+        run: go test ./internal/platform/database -run '^TestPIRWireMigrationPostgreSQLGate$' -count=1 -v

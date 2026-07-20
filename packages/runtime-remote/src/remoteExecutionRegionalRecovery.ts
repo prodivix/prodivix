@@ -103,7 +103,7 @@ export type RemoteExecutionRegionalRecoveryAssessment =
       target?: RemoteExecutionRegionalRecoveryCheckpoint;
     }>;
 
-const recoveryIdentity = (
+export const remoteExecutionRegionalRecoveryIdentity = (
   checkpoint: RemoteExecutionRegionalRecoveryCheckpoint
 ): string =>
   JSON.stringify([
@@ -115,7 +115,7 @@ const recoveryIdentity = (
     checkpoint.snapshotDigest,
   ]);
 
-const checkpointDigest = (
+export const createRemoteExecutionRegionalRecoveryCheckpointDigest = (
   source: RemoteExecutionRegionalRecoveryCheckpoint,
   target: RemoteExecutionRegionalRecoveryCheckpoint,
   mode: RemoteExecutionRegionalRecoveryReadyMode | 'terminal'
@@ -138,7 +138,7 @@ const checkpointDigest = (
     )
   )}`;
 
-const exactLease = (
+export const hasExactRemoteExecutionRegionalRecoveryLease = (
   source: RemoteExecutionRegionalRecoveryCheckpoint,
   target: RemoteExecutionRegionalRecoveryCheckpoint
 ): boolean =>
@@ -179,7 +179,8 @@ export const assessRemoteExecutionRegionalRecovery = (input: {
     source.version !== REMOTE_EXECUTION_REGIONAL_RECOVERY_VERSION ||
     target.version !== REMOTE_EXECUTION_REGIONAL_RECOVERY_VERSION ||
     source.regionId === target.regionId ||
-    recoveryIdentity(source) !== recoveryIdentity(target)
+    remoteExecutionRegionalRecoveryIdentity(source) !==
+      remoteExecutionRegionalRecoveryIdentity(target)
   )
     return Object.freeze({
       kind: 'blocked',
@@ -218,7 +219,7 @@ export const assessRemoteExecutionRegionalRecovery = (input: {
       source,
       target,
     });
-  if (!exactLease(source, target))
+  if (!hasExactRemoteExecutionRegionalRecoveryLease(source, target))
     return Object.freeze({
       kind: 'blocked',
       reason: 'state-diverged',
@@ -228,7 +229,11 @@ export const assessRemoteExecutionRegionalRecovery = (input: {
   if (terminalStatuses.has(source.status))
     return Object.freeze({
       kind: 'terminal',
-      checkpointDigest: checkpointDigest(source, target, 'terminal'),
+      checkpointDigest: createRemoteExecutionRegionalRecoveryCheckpointDigest(
+        source,
+        target,
+        'terminal'
+      ),
       source,
       target,
     });
@@ -243,7 +248,11 @@ export const assessRemoteExecutionRegionalRecovery = (input: {
     return Object.freeze({
       kind: 'ready',
       mode: 'queued-claim',
-      checkpointDigest: checkpointDigest(source, target, 'queued-claim'),
+      checkpointDigest: createRemoteExecutionRegionalRecoveryCheckpointDigest(
+        source,
+        target,
+        'queued-claim'
+      ),
       source,
       target,
       terminalAction: 'none',
@@ -254,7 +263,7 @@ export const assessRemoteExecutionRegionalRecovery = (input: {
     return Object.freeze({
       kind: 'ready',
       mode: 'same-worker-continuation',
-      checkpointDigest: checkpointDigest(
+      checkpointDigest: createRemoteExecutionRegionalRecoveryCheckpointDigest(
         source,
         target,
         'same-worker-continuation'
@@ -269,7 +278,11 @@ export const assessRemoteExecutionRegionalRecovery = (input: {
   return Object.freeze({
     kind: 'ready',
     mode,
-    checkpointDigest: checkpointDigest(source, target, mode),
+    checkpointDigest: createRemoteExecutionRegionalRecoveryCheckpointDigest(
+      source,
+      target,
+      mode
+    ),
     source,
     target,
     terminalAction: source.terminal ? 'close-transport-lost' : 'none',
@@ -461,11 +474,14 @@ export const createRemoteExecutionRegionalRecoveryCoordinator = (input: {
             if (
               !revoked ||
               revoked.terminal ||
-              recoveryIdentity(revoked) !==
-                recoveryIdentity(assessment.target) ||
+              remoteExecutionRegionalRecoveryIdentity(revoked) !==
+                remoteExecutionRegionalRecoveryIdentity(assessment.target) ||
               revoked.status !== assessment.target.status ||
               revoked.latestCursor !== assessment.target.latestCursor ||
-              !exactLease(revoked, assessment.target) ||
+              !hasExactRemoteExecutionRegionalRecoveryLease(
+                revoked,
+                assessment.target
+              ) ||
               revoked.executionStateDigest !==
                 assessment.target.executionStateDigest
             )

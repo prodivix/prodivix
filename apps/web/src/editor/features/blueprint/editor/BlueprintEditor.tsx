@@ -11,6 +11,7 @@ import {
   selectWorkspaceId,
   useEditorStore,
 } from '@/editor/store/useEditorStore';
+import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 import {
   ExecutionCenter,
@@ -102,6 +103,14 @@ export function BlueprintEditor({
   );
   const accessToken = useAuthStore((state) => state.token);
   const workspaceId = useEditorStore(selectWorkspaceId);
+  const defaultFramework = useSettingsStore((state) => {
+    const projectSettings = workspaceId
+      ? state.projectGlobalById[workspaceId]
+      : undefined;
+    return projectSettings?.overrides.defaultFramework
+      ? projectSettings.values.defaultFramework
+      : state.global.defaultFramework;
+  });
   const activeDocumentId = useEditorStore(selectActiveDocumentId);
   const setActiveDocumentId = useEditorStore(
     (state) => state.setActiveDocumentId
@@ -134,9 +143,16 @@ export function BlueprintEditor({
     controller.entry?.status === 'valid'
   );
   const isRunMode = canvas.canvasMode === 'run';
-  const [runTarget, setRunTarget] = useState<'react-vite' | 'vue-vite'>(
-    'react-vite'
-  );
+  const settingsRunTarget =
+    defaultFramework === 'vue' ? 'vue-vite' : 'react-vite';
+  const [runTargetOverride, setRunTargetOverride] = useState<{
+    workspaceId: string | undefined;
+    target: 'react-vite' | 'vue-vite';
+  } | null>(null);
+  const runTarget =
+    runTargetOverride?.workspaceId === workspaceId
+      ? runTargetOverride.target
+      : settingsRunTarget;
   const projectRunner = useBlueprintProjectRunner(
     controller.workspace,
     canAuthor && isRunMode,
@@ -483,7 +499,9 @@ export function BlueprintEditor({
         remoteAvailable={Boolean(accessToken)}
         onRunProviderChange={viewportBar.onRunProviderChange}
         runTarget={runTarget}
-        onRunTargetChange={setRunTarget}
+        onRunTargetChange={(target) =>
+          setRunTargetOverride({ workspaceId, target })
+        }
         viewportWidth={viewportBar.viewportWidth}
         viewportHeight={viewportBar.viewportHeight}
         onViewportWidthChange={viewportBar.onViewportWidthChange}

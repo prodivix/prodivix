@@ -19,14 +19,14 @@ import (
 )
 
 const (
-	awsKMSProviderID                 = "aws.kms/v1"
+	awsKMSProviderID                 = "aws.kms/v2"
 	maximumAWSKMSWrappedDataKeyBytes = 4096
 	maximumAWSKMSOperationTimeout    = 30 * time.Second
 )
 
 var (
 	awsKMSRegionPattern = regexp.MustCompile(`^[a-z]{2}-[a-z0-9-]+-[0-9]+$`)
-	awsKMSKeyARNPattern = regexp.MustCompile(`^arn:(aws|aws-us-gov|aws-cn):kms:([a-z]{2}-[a-z0-9-]+-[0-9]+):[0-9]{12}:key/[A-Za-z0-9-]{1,128}$`)
+	awsKMSKeyARNPattern = regexp.MustCompile(`^arn:(aws|aws-us-gov|aws-cn):kms:([a-z]{2}-[a-z0-9-]+-[0-9]+):([0-9]{12}):key/([A-Za-z0-9-]{1,128})$`)
 )
 
 type awsKMSClient interface {
@@ -77,9 +77,34 @@ func validateAWSKMSRegion(region string, keyARNs map[string]string) error {
 	}
 	for _, keyARN := range keyARNs {
 		matches := awsKMSKeyARNPattern.FindStringSubmatch(keyARN)
-		if len(matches) != 3 || matches[2] != region {
+		if len(matches) != 5 || matches[2] != region {
 			return errors.New("environment Secret AWS KMS key ARN region does not match the client region")
 		}
+	}
+	return nil
+}
+
+func stableAWSKMSKeyIdentity(keyARN string) (string, bool) {
+	matches := awsKMSKeyARNPattern.FindStringSubmatch(keyARN)
+	if len(matches) != 5 {
+		return "", false
+	}
+	if len(matches[4]) > 4 && matches[4][:4] == "mrk-" {
+		return fmt.Sprintf("arn:%s:kms:*:%s:key/%s", matches[1], matches[3], matches[4]), true
+	}
+	return keyARN, true
+}
+
+func validateAWSKMSMultiRegionReplicaPair(primaryKeyARN string, replicaKeyARN string) error {
+	primaryMatches := awsKMSKeyARNPattern.FindStringSubmatch(primaryKeyARN)
+	replicaMatches := awsKMSKeyARNPattern.FindStringSubmatch(replicaKeyARN)
+	primaryIdentity, primaryOK := stableAWSKMSKeyIdentity(primaryKeyARN)
+	replicaIdentity, replicaOK := stableAWSKMSKeyIdentity(replicaKeyARN)
+	if !primaryOK || !replicaOK || len(primaryMatches) != 5 || len(replicaMatches) != 5 ||
+		len(primaryMatches[4]) <= 4 || primaryMatches[4][:4] != "mrk-" ||
+		len(replicaMatches[4]) <= 4 || replicaMatches[4][:4] != "mrk-" ||
+		primaryMatches[2] == replicaMatches[2] || primaryIdentity != replicaIdentity {
+		return errors.New("environment Secret AWS KMS keys are not related multi-Region replicas")
 	}
 	return nil
 }
@@ -99,15 +124,21 @@ func awsKMSEncryptionContext(additionalData []byte) map[string]string {
 	digest := sha256.Sum256(additionalData)
 	return map[string]string{
 		"prodivix-aad-sha256": hex.EncodeToString(digest[:]),
-		"prodivix-purpose":    "environment-secret-data-key-v1",
+		"prodivix-purpose":    "environment-secret-data-key-v2",
 	}
 }
 
-func awsKMSWrappedKeyMetadata(keyID string, ciphertext []byte, additionalData []byte) []byte {
+func awsKMSWrappedKeyMetadata(keyID string, keyARN string, ciphertext []byte, additionalData []byte) []byte {
+	stableIdentity, ok := stableAWSKMSKeyIdentity(keyARN)
+	if !ok {
+		return nil
+	}
 	digest := sha256.New()
-	_, _ = digest.Write([]byte("prodivix.environment-secret.aws-kms-wrapped-key.v1"))
+	_, _ = digest.Write([]byte("prodivix.environment-secret.aws-kms-wrapped-key.v2"))
 	_, _ = digest.Write([]byte{0})
 	_, _ = digest.Write([]byte(keyID))
+	_, _ = digest.Write([]byte{0})
+	_, _ = digest.Write([]byte(stableIdentity))
 	_, _ = digest.Write([]byte{0})
 	_, _ = digest.Write(ciphertext)
 	_, _ = digest.Write([]byte{0})
@@ -155,7 +186,7 @@ func (kms *awsKMS) WrapDataKey(ctx context.Context, dataKey []byte, additionalDa
 		return "", nil, nil, ErrPermissionDenied
 	}
 	ciphertext := append([]byte(nil), output.CiphertextBlob...)
-	return kms.activeKeyID, awsKMSWrappedKeyMetadata(kms.activeKeyID, ciphertext, additionalData), ciphertext, nil
+	return kms.activeKeyID, awsKMSWrappedKeyMetadata(kms.activeKeyID, keyARN, ciphertext, additionalData), ciphertext, nil
 }
 
 func (kms *awsKMS) UnwrapDataKey(ctx context.Context, keyID string, metadata []byte, ciphertext []byte, additionalData []byte) ([]byte, error) {
@@ -163,7 +194,7 @@ func (kms *awsKMS) UnwrapDataKey(ctx context.Context, keyID string, metadata []b
 		return nil, ErrPermissionDenied
 	}
 	keyARN := kms.keyARNs[keyID]
-	if keyARN == "" || subtle.ConstantTimeCompare(metadata, awsKMSWrappedKeyMetadata(keyID, ciphertext, additionalData)) != 1 {
+	if keyARN == "" || subtle.ConstantTimeCompare(metadata, awsKMSWrappedKeyMetadata(keyID, keyARN, ciphertext, additionalData)) != 1 {
 		return nil, ErrPermissionDenied
 	}
 	operationContext, cancel, err := kms.operationContext(ctx)

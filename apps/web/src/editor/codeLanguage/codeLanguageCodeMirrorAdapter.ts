@@ -175,7 +175,11 @@ export const createCodeLanguageCodeMirrorExtensions = (input: {
   source: string;
   additionalDiagnostics?: readonly ProdivixDiagnostic[];
   onOpenLocation(location: CodeLanguageLocation, view: EditorView): void;
-  onDefinitionResult?(result: CodeLanguageDefinitionResult | null): void;
+  onDefinitionResult?(
+    result: CodeLanguageDefinitionResult | null,
+    view: EditorView
+  ): void;
+  onReferencesRequest?(view: EditorView): void;
   onRenameRequest?(view: EditorView): void;
 }): readonly Extension[] => {
   const hasCurrentSource = (view: EditorView): boolean =>
@@ -275,11 +279,21 @@ export const createCodeLanguageCodeMirrorExtensions = (input: {
           source: input.source,
           offset: view.state.selection.main.head,
         }).then((result) => {
-          input.onDefinitionResult?.(result);
+          input.onDefinitionResult?.(result, view);
           if (result?.status === 'resolved' && result.value[0]) {
             input.onOpenLocation(result.value[0], view);
           }
         });
+        return true;
+      },
+    },
+    {
+      key: 'Shift-F12',
+      run(view) {
+        if (!input.onReferencesRequest || !hasCurrentSource(view)) {
+          return false;
+        }
+        input.onReferencesRequest(view);
         return true;
       },
     },

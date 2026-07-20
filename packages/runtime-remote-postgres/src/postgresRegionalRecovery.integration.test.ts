@@ -11,6 +11,7 @@ import {
   createRemoteExecutionRegionalTrafficGate,
 } from '@prodivix/runtime-remote';
 import { createPostgresRemoteExecutionRegionalRecoveryProbe } from './postgresRegionalRecovery';
+import { createPostgresRemoteExecutionRegionalRecoveryGrantReplayStore } from './postgresRegionalRecoveryOperatorGrantStore';
 import { createPostgresRemoteExecutionRepository } from './postgresExecutionRepository';
 import {
   createPostgresRemoteExecutionRegionalTrafficAuthority,
@@ -353,5 +354,42 @@ integration('remote execution regional PostgreSQL recovery', () => {
     await expect(
       authority.listCutovers('deployment-dr-rollback', 10)
     ).resolves.toEqual([]);
+  });
+
+  it('consumes only one copy of a concurrent signed operator grant', async () => {
+    const store =
+      createPostgresRemoteExecutionRegionalRecoveryGrantReplayStore(
+        trafficPool
+      );
+    const grantDigest = `sha256-${'f'.repeat(64)}`;
+    const results = await Promise.all(
+      Array.from({ length: 16 }, () =>
+        store.consume({
+          grantDigest,
+          consumedAt: 4_000,
+          expiresAt: 5_000,
+        })
+      )
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    await expect(
+      store.consume({
+        grantDigest: `sha256-${'e'.repeat(64)}`,
+        consumedAt: 5_000,
+        expiresAt: 5_000,
+      })
+    ).rejects.toThrow('grant is expired');
+    const columns = await trafficPool.query<{ column_name: string }>(
+      `SELECT column_name
+         FROM information_schema.columns
+        WHERE table_schema=current_schema()
+          AND table_name='remote_execution_regional_operator_grants'
+        ORDER BY ordinal_position`
+    );
+    expect(columns.rows.map(({ column_name }) => column_name)).toEqual([
+      'grant_digest',
+      'expires_at',
+      'consumed_at',
+    ]);
   });
 });

@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Prodivix G2 replica multi-Region KMS key reference stack
+
+Parameters:
+  PrimaryKeyArn:
+    Type: String
+    Description: Exact ARN emitted by the primary stack in another Region
+    AllowedPattern: '^arn:(aws|aws-us-gov|aws-cn):kms:[a-z]{2}-[a-z0-9-]+-[0-9]+:[0-9]{12}:key/mrk-[0-9a-f]{32}$'
+    ConstraintDescription: Must be an exact symmetric multi-Region primary key ARN
+
+Resources:
+  EnvironmentSecretReplicaKey:
+    Type: AWS::KMS::ReplicaKey
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Prodivix G2 related KMS replica for regional recovery evidence
+      Enabled: true
+      PendingWindowInDays: 30
+      PrimaryKeyArn: !Ref PrimaryKeyArn
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountIAMPolicies
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+      Tags:
+        - Key: prodivix:purpose
+          Value: g2-managed-kms-evidence
+        - Key: prodivix:managed-by
+          Value: cloudformation
+
+Outputs:
+  ReplicaKeyArn:
+    Description: Exact immutable ARN for PRODIVIX_AWS_KMS_TEST_ACTIVE_REPLICA_KEY_ARN
+    Value: !GetAtt EnvironmentSecretReplicaKey.Arn
+  ReplicaKeyId:
+    Value: !GetAtt EnvironmentSecretReplicaKey.KeyId

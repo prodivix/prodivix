@@ -8,6 +8,7 @@ import { isLocalProjectId } from '@/editor/localProjectStore';
 import { executeWorkspaceSettingsOutboxCommit } from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
 import { adoptWorkspaceSettingsOutboxResult } from '@/editor/workspaceSync/workspaceSettingsOutboxAdoption';
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
+import { workspaceSettingsEqual } from '@prodivix/workspace-sync';
 import {
   applyThemePreference,
   normalizeThemePreference,
@@ -60,14 +61,9 @@ export const SettingsEffects = () => {
     }),
     [globalSettings, projectGlobalById]
   );
-  const serializedSettingsPayload = useMemo(
-    () => JSON.stringify(settingsPayload),
-    [settingsPayload]
-  );
   const settingsSyncRequestSeqRef = useRef(0);
-  const syncedSettingsPayloadRef = useRef(serializedSettingsPayload);
   const syncedSettingsValueRef =
-    useRef<Record<string, unknown>>(settingsPayload);
+    useRef<Readonly<Record<string, unknown>>>(settingsPayload);
   const syncedWorkspaceRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -82,9 +78,8 @@ export const SettingsEffects = () => {
     }
     if (syncedWorkspaceRef.current === workspaceId) return;
     syncedWorkspaceRef.current = workspaceId;
-    syncedSettingsPayloadRef.current = serializedSettingsPayload;
     syncedSettingsValueRef.current = settingsPayload;
-  }, [workspaceId, serializedSettingsPayload, settingsPayload]);
+  }, [workspaceId, settingsPayload]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -92,7 +87,11 @@ export const SettingsEffects = () => {
     if (!isAuthenticated || !token) return;
     if (!workspace) return;
     if (typeof workspaceRev !== 'number' || workspaceRev <= 0) return;
-    if (serializedSettingsPayload === syncedSettingsPayloadRef.current) return;
+    if (
+      workspaceSettingsEqual(settingsPayload, syncedSettingsValueRef.current)
+    ) {
+      return;
+    }
 
     let disposed = false;
     const requestSeq = settingsSyncRequestSeqRef.current + 1;
@@ -114,7 +113,6 @@ export const SettingsEffects = () => {
           const syncedSettings =
             result.kind === 'queued' ? settingsPayload : result.settings;
           syncedSettingsValueRef.current = syncedSettings;
-          syncedSettingsPayloadRef.current = JSON.stringify(syncedSettings);
         })
         .catch((error) => {
           if (disposed || settingsSyncRequestSeqRef.current !== requestSeq) {
@@ -129,7 +127,6 @@ export const SettingsEffects = () => {
       window.clearTimeout(timeoutId);
     };
   }, [
-    serializedSettingsPayload,
     settingsPayload,
     isAuthenticated,
     projectId,

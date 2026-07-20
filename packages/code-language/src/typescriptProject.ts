@@ -103,6 +103,7 @@ export type TypeScriptCodeProject = Readonly<{
   artifacts: readonly CodeArtifact[];
   service: ts.LanguageService;
   compilerOptions: ts.CompilerOptions;
+  updateArtifacts(artifacts: readonly CodeArtifact[]): boolean;
   getArtifact(artifactId: string): CodeArtifact | null;
   getArtifactByFileName(fileName: string): CodeArtifact | null;
   getFileName(artifactId: string): string | null;
@@ -114,10 +115,17 @@ export type TypeScriptCodeProject = Readonly<{
   dispose(): void;
 }>;
 
-/** Creates an in-memory TypeScript/JavaScript project over immutable artifacts. */
-export const createTypeScriptCodeProject = (
+type TypeScriptProjectArtifactState = Readonly<{
+  artifacts: readonly CodeArtifact[];
+  artifactById: ReadonlyMap<string, CodeArtifact>;
+  artifactByFileName: ReadonlyMap<string, CodeArtifact>;
+  fileNameByArtifactId: ReadonlyMap<string, string>;
+  key: string;
+}>;
+
+const createArtifactState = (
   inputArtifacts: readonly CodeArtifact[]
-): TypeScriptCodeProject => {
+): TypeScriptProjectArtifactState => {
   const artifacts = Object.freeze(
     inputArtifacts.filter(isTypeScriptArtifact).sort((left, right) => {
       return (
@@ -142,6 +150,30 @@ export const createTypeScriptCodeProject = (
     artifactByFileName.set(fileName, artifact);
     fileNameByArtifactId.set(artifact.id, fileName);
   }
+  return Object.freeze({
+    artifacts,
+    artifactById,
+    artifactByFileName,
+    fileNameByArtifactId,
+    key: JSON.stringify(
+      artifacts.map(({ id, language, path, revision, source }) => [
+        id,
+        language,
+        path,
+        revision,
+        source,
+      ])
+    ),
+  });
+};
+
+/** Creates one incrementally updateable in-memory TypeScript/JavaScript project. */
+export const createTypeScriptCodeProject = (
+  inputArtifacts: readonly CodeArtifact[]
+): TypeScriptCodeProject => {
+  let artifactState = createArtifactState(inputArtifacts);
+  let projectVersion = 1;
+  let disposed = false;
 
   const system = safeSystem();
   const baseCompilerOptions: ts.CompilerOptions = {
@@ -165,9 +197,10 @@ export const createTypeScriptCodeProject = (
   });
 
   const readArtifact = (fileName: string): CodeArtifact | undefined =>
-    artifactByFileName.get(fileName);
+    artifactState.artifactByFileName.get(fileName);
   const fileExists = (fileName: string): boolean =>
-    artifactByFileName.has(fileName) || Boolean(system?.fileExists(fileName));
+    artifactState.artifactByFileName.has(fileName) ||
+    Boolean(system?.fileExists(fileName));
   const readFile = (fileName: string): string | undefined =>
     readArtifact(fileName)?.source ?? system?.readFile(fileName);
 
@@ -176,7 +209,7 @@ export const createTypeScriptCodeProject = (
     readFile,
     directoryExists: (directoryName) =>
       directoryName === VIRTUAL_WORKSPACE_ROOT ||
-      [...artifactByFileName.keys()].some((fileName) =>
+      [...artifactState.artifactByFileName.keys()].some((fileName) =>
         fileName.startsWith(`${directoryName.replace(/\/$/, '')}/`)
       ) ||
       Boolean(system?.directoryExists?.(directoryName)),
@@ -192,9 +225,8 @@ export const createTypeScriptCodeProject = (
     getCurrentDirectory: () => VIRTUAL_WORKSPACE_ROOT,
     getDefaultLibFileName: () => hostLibrary.defaultLibraryPath,
     getNewLine: () => '\n',
-    getProjectVersion: () =>
-      artifacts.map(({ id, revision }) => `${id}:${revision}`).join('|'),
-    getScriptFileNames: () => [...artifactByFileName.keys()],
+    getProjectVersion: () => String(projectVersion),
+    getScriptFileNames: () => [...artifactState.artifactByFileName.keys()],
     getScriptKind: (fileName) => {
       const artifact = readArtifact(fileName);
       return artifact ? scriptKindForArtifact(artifact) : ts.ScriptKind.Unknown;
@@ -209,8 +241,8 @@ export const createTypeScriptCodeProject = (
     fileExists,
     readFile,
     readDirectory: (rootDir, extensions, excludes, includes, depth) => {
-      const local = [...artifactByFileName.keys()].filter((fileName) =>
-        fileName.startsWith(`${rootDir.replace(/\/$/, '')}/`)
+      const local = [...artifactState.artifactByFileName.keys()].filter(
+        (fileName) => fileName.startsWith(`${rootDir.replace(/\/$/, '')}/`)
       );
       const systemEntries =
         system?.readDirectory?.(
@@ -244,15 +276,29 @@ export const createTypeScriptCodeProject = (
   );
 
   return Object.freeze({
-    artifacts,
+    get artifacts() {
+      return artifactState.artifacts;
+    },
     service,
     compilerOptions,
-    getArtifact: (artifactId) => artifactById.get(artifactId) ?? null,
+    updateArtifacts(nextArtifacts) {
+      if (disposed) {
+        throw new Error('The TypeScript code project has been disposed.');
+      }
+      const nextState = createArtifactState(nextArtifacts);
+      if (nextState.key === artifactState.key) return false;
+      artifactState = nextState;
+      projectVersion += 1;
+      return true;
+    },
+    getArtifact: (artifactId) =>
+      artifactState.artifactById.get(artifactId) ?? null,
     getArtifactByFileName: (fileName) =>
-      artifactByFileName.get(fileName) ?? null,
-    getFileName: (artifactId) => fileNameByArtifactId.get(artifactId) ?? null,
+      artifactState.artifactByFileName.get(fileName) ?? null,
+    getFileName: (artifactId) =>
+      artifactState.fileNameByArtifactId.get(artifactId) ?? null,
     getOffset(position) {
-      const artifact = artifactById.get(position.artifactId);
+      const artifact = artifactState.artifactById.get(position.artifactId);
       if (!artifact) return null;
       const range = resolveCodeSourceSpanOffsets(artifact.source, {
         artifactId: artifact.id,
@@ -264,7 +310,7 @@ export const createTypeScriptCodeProject = (
       return range?.from ?? null;
     },
     createSourceSpan(artifactId, textSpan) {
-      const artifact = artifactById.get(artifactId);
+      const artifact = artifactState.artifactById.get(artifactId);
       return artifact
         ? createCodeSourceSpanFromOffsets({
             artifactId,
@@ -274,6 +320,10 @@ export const createTypeScriptCodeProject = (
           })
         : null;
     },
-    dispose: () => service.dispose(),
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      service.dispose();
+    },
   });
 };

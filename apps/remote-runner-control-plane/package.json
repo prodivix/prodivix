@@ -7,10 +7,12 @@
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "dev": "tsx src/main.ts",
+    "regional-recovery": "tsx src/regionalRecoveryOperatorMain.ts",
     "start": "node dist/main.js",
+    "start:regional-recovery": "node dist/regionalRecoveryOperatorMain.js",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
     "test:aws-kms-gate": "vitest --config vitest.config.ts --run src/terminalStateAwsKms.live.test.ts",
-    "test:regional-dr": "pnpm run typecheck && vitest --config vitest.config.ts --run src/regionalConfiguration.test.ts src/regionalRecovery.integration.test.ts",
+    "test:regional-dr": "pnpm run typecheck && vitest --config vitest.config.ts --run src/regionalConfiguration.test.ts src/regionalRecoveryOperatorConfiguration.test.ts src/regionalRecoveryOperatorJob.test.ts src/regionalRecoverySignedProof.test.ts src/regionalRecovery.integration.test.ts",
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {

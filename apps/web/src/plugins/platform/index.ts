@@ -1,5 +1,9 @@
 export {
   WebPluginPlatformProvider,
+  type WebPluginPlatformFactory,
+  type WebPluginPlatformProviderProps,
+} from '@/plugins/platform/WebPluginPlatformProvider';
+export {
   usePaletteGroups,
   usePaletteQueryService,
   usePaletteRegistrySnapshot,
@@ -7,9 +11,7 @@ export {
   useWebExtensionRegistrySnapshot,
   useWebPluginQueries,
   useWebPluginRuntimeServices,
-  type WebPluginPlatformFactory,
-  type WebPluginPlatformProviderProps,
-} from '@/plugins/platform/WebPluginPlatformProvider';
+} from '@/plugins/platform/WebPluginPlatformContext';
 export {
   createWebPluginPlatform,
   type CreateWebPluginPlatformOptions,

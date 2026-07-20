@@ -5,7 +5,6 @@ import {
   PdxRadioGroup,
   PdxSelect,
   PdxSlider,
-  PdxTextarea,
 } from '@prodivix/ui';
 import type { GlobalSettingsState } from './SettingsDefaults';
 import { SettingsPanel, SettingsRow, withDisabled } from './SettingsShared';
@@ -142,50 +141,6 @@ function BehaviorSettingsPanel({ controller }: GlobalSettingsPanelProps) {
       description={t('settings.global.panels.behavior.description')}
     >
       <SettingsRow
-        label={t('settings.global.rows.autosaveMode.label')}
-        description={t('settings.global.rows.autosaveMode.description')}
-        meta={renderMeta('autosaveMode')}
-        control={
-          <PdxRadioGroup
-            options={[
-              {
-                label: t('settings.global.rows.autosaveMode.options.manual'),
-                value: 'manual',
-              },
-              {
-                label: t('settings.global.rows.autosaveMode.options.onChange'),
-                value: 'on-change',
-              },
-              {
-                label: t('settings.global.rows.autosaveMode.options.interval'),
-                value: 'interval',
-              },
-            ].map((option) => ({
-              ...option,
-              disabled: !canEditValue('autosaveMode'),
-            }))}
-            value={String(resolveValue('autosaveMode'))}
-            onValueChange={(value) => updateValue('autosaveMode', value)}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.autosaveInterval.label')}
-        description={t('settings.global.rows.autosaveInterval.description')}
-        meta={renderMeta('autosaveInterval')}
-        control={
-          <PdxSlider
-            min={5}
-            max={60}
-            step={5}
-            value={resolveValue('autosaveInterval') as number}
-            onChange={(value) => updateValue('autosaveInterval', value)}
-            size="Small"
-            disabled={!canEditValue('autosaveInterval')}
-          />
-        }
-      />
-      <SettingsRow
         label={t('settings.global.rows.undoSteps.label')}
         description={t('settings.global.rows.undoSteps.description')}
         meta={renderMeta('undoSteps')}
@@ -206,16 +161,6 @@ function BehaviorSettingsPanel({ controller }: GlobalSettingsPanelProps) {
           <PdxCheckList
             items={withDisabled(
               [
-                {
-                  label: t(
-                    'settings.global.rows.confirmPrompts.options.delete'
-                  ),
-                  value: 'delete',
-                },
-                {
-                  label: t('settings.global.rows.confirmPrompts.options.reset'),
-                  value: 'reset',
-                },
                 {
                   label: t('settings.global.rows.confirmPrompts.options.leave'),
                   value: 'leave',
@@ -252,36 +197,6 @@ function BehaviorSettingsPanel({ controller }: GlobalSettingsPanelProps) {
             value={String(resolveValue('panelLayout'))}
             onValueChange={(value) => updateValue('panelLayout', value)}
             disabled={!canEditValue('panelLayout')}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.classPxTransformMode.label')}
-        description={t('settings.global.rows.classPxTransformMode.description')}
-        meta={renderMeta('classPxTransformMode')}
-        control={
-          <PdxRadioGroup
-            options={[
-              {
-                label: t(
-                  'settings.global.rows.classPxTransformMode.options.preserveIntent'
-                ),
-                value: 'preserve-intent',
-              },
-              {
-                label: t(
-                  'settings.global.rows.classPxTransformMode.options.preferScaleToken'
-                ),
-                value: 'prefer-scale-token',
-              },
-            ].map((option) => ({
-              ...option,
-              disabled: !canEditValue('classPxTransformMode'),
-            }))}
-            value={String(resolveValue('classPxTransformMode'))}
-            onValueChange={(value) =>
-              updateValue('classPxTransformMode', value)
-            }
           />
         }
       />
@@ -347,14 +262,6 @@ function BlueprintSettingsPanel({ controller }: GlobalSettingsPanelProps) {
                   label: t('settings.global.rows.assist.options.grid'),
                   value: 'grid',
                 },
-                {
-                  label: t('settings.global.rows.assist.options.alignment'),
-                  value: 'align',
-                },
-                {
-                  label: t('settings.global.rows.assist.options.snap'),
-                  value: 'snap',
-                },
               ],
               !canEditValue('assist')
             )}
@@ -380,152 +287,35 @@ function BlueprintSettingsPanel({ controller }: GlobalSettingsPanelProps) {
         }
       />
       <SettingsRow
-        label={t('settings.global.rows.eventTriggerMode.label')}
-        description={t('settings.global.rows.eventTriggerMode.description')}
-        meta={renderMeta('eventTriggerMode')}
+        label={t('settings.global.rows.classPxTransformMode.label')}
+        description={t('settings.global.rows.classPxTransformMode.description')}
+        meta={renderMeta('classPxTransformMode')}
         control={
           <PdxRadioGroup
             options={[
               {
                 label: t(
-                  'settings.global.rows.eventTriggerMode.options.selectedOnly'
+                  'settings.global.rows.classPxTransformMode.options.preserveIntent'
                 ),
-                value: 'selected-only',
+                value: 'preserve-intent',
               },
               {
                 label: t(
-                  'settings.global.rows.eventTriggerMode.options.always'
+                  'settings.global.rows.classPxTransformMode.options.preferScaleToken'
                 ),
-                value: 'always',
+                value: 'prefer-scale-token',
               },
             ].map((option) => ({
               ...option,
-              disabled: !canEditValue('eventTriggerMode'),
+              disabled: !canEditValue('classPxTransformMode'),
             }))}
-            value={String(resolveValue('eventTriggerMode'))}
-            onValueChange={(value) => updateValue('eventTriggerMode', value)}
+            value={String(resolveValue('classPxTransformMode'))}
+            onValueChange={(value) =>
+              updateValue('classPxTransformMode', value)
+            }
           />
         }
       />
-    </SettingsPanel>
-  );
-}
-
-function ComponentSettingsPanel({ controller }: GlobalSettingsPanelProps) {
-  const { t, canEditValue, renderMeta, resolveValue, updateValue } = controller;
-
-  return (
-    <SettingsPanel
-      title={t('settings.global.panels.components.title')}
-      description={t('settings.global.panels.components.description')}
-    >
-      <SettingsRow
-        label={t('settings.global.rows.resolverOrder.label')}
-        description={t('settings.global.rows.resolverOrder.description')}
-        meta={renderMeta('resolverOrder')}
-        control={
-          <PdxSelect
-            size="Small"
-            options={[
-              {
-                label: t(
-                  'settings.global.rows.resolverOrder.options.customPdxNative'
-                ),
-                value: 'custom>prodivix>native',
-              },
-              {
-                label: t(
-                  'settings.global.rows.resolverOrder.options.prodivixNative'
-                ),
-                value: 'prodivix>native',
-              },
-              {
-                label: t(
-                  'settings.global.rows.resolverOrder.options.nativeOnly'
-                ),
-                value: 'native',
-              },
-            ]}
-            value={String(resolveValue('resolverOrder'))}
-            onValueChange={(value) => updateValue('resolverOrder', value)}
-            disabled={!canEditValue('resolverOrder')}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.customNamespaces.label')}
-        description={t('settings.global.rows.customNamespaces.description')}
-        meta={renderMeta('customNamespaces')}
-        control={
-          <PdxTextarea
-            size="Small"
-            rows={3}
-            value={String(resolveValue('customNamespaces'))}
-            onValueChange={(value) => updateValue('customNamespaces', value)}
-            disabled={!canEditValue('customNamespaces')}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.renderMode.label')}
-        description={t('settings.global.rows.renderMode.description')}
-        meta={renderMeta('renderMode')}
-        control={
-          <PdxRadioGroup
-            options={[
-              {
-                label: t('settings.global.rows.renderMode.options.strict'),
-                value: 'strict',
-              },
-              {
-                label: t('settings.global.rows.renderMode.options.tolerant'),
-                value: 'tolerant',
-              },
-            ].map((option) => ({
-              ...option,
-              disabled: !canEditValue('renderMode'),
-            }))}
-            value={String(resolveValue('renderMode'))}
-            onValueChange={(value) => updateValue('renderMode', value)}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.externalProps.label')}
-        description={t('settings.global.rows.externalProps.description')}
-        meta={renderMeta('allowExternalProps')}
-        control={
-          <PdxRadioGroup
-            options={[
-              {
-                label: t('settings.global.rows.externalProps.options.allow'),
-                value: 'enabled',
-              },
-              {
-                label: t('settings.global.rows.externalProps.options.disable'),
-                value: 'disabled',
-              },
-            ].map((option) => ({
-              ...option,
-              disabled: !canEditValue('allowExternalProps'),
-            }))}
-            value={String(resolveValue('allowExternalProps'))}
-            onValueChange={(value) => updateValue('allowExternalProps', value)}
-          />
-        }
-      />
-    </SettingsPanel>
-  );
-}
-
-function CodegenSettingsPanel({ controller }: GlobalSettingsPanelProps) {
-  const { t, canEditValue, renderMeta, resolveValue, updateValue } = controller;
-
-  return (
-    <SettingsPanel
-      title={t('settings.global.panels.codegen.title')}
-      description={t('settings.global.panels.codegen.description')}
-    >
       <SettingsRow
         label={t('settings.global.rows.defaultFramework.label')}
         description={t('settings.global.rows.defaultFramework.description')}
@@ -542,141 +332,10 @@ function CodegenSettingsPanel({ controller }: GlobalSettingsPanelProps) {
                 label: t('settings.global.rows.defaultFramework.options.vue'),
                 value: 'vue',
               },
-              {
-                label: t('settings.global.rows.defaultFramework.options.html'),
-                value: 'html',
-              },
             ]}
             value={String(resolveValue('defaultFramework'))}
             onValueChange={(value) => updateValue('defaultFramework', value)}
             disabled={!canEditValue('defaultFramework')}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.formatting.label')}
-        description={t('settings.global.rows.formatting.description')}
-        meta={renderMeta('formatting')}
-        control={
-          <PdxRadioGroup
-            options={[
-              {
-                label: t('settings.global.rows.formatting.options.prettier'),
-                value: 'prettier',
-              },
-              {
-                label: t('settings.global.rows.formatting.options.none'),
-                value: 'none',
-              },
-            ].map((option) => ({
-              ...option,
-              disabled: !canEditValue('formatting'),
-            }))}
-            value={String(resolveValue('formatting'))}
-            onValueChange={(value) => updateValue('formatting', value)}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.outputPath.label')}
-        description={t('settings.global.rows.outputPath.description')}
-        meta={renderMeta('outputPath')}
-        control={
-          <PdxInput
-            size="Small"
-            value={String(resolveValue('outputPath'))}
-            onValueChange={(value) => updateValue('outputPath', value)}
-            disabled={!canEditValue('outputPath')}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.importStyle.label')}
-        description={t('settings.global.rows.importStyle.description')}
-        meta={renderMeta('importStyle')}
-        control={
-          <PdxSelect
-            size="Small"
-            options={[
-              {
-                label: t('settings.global.rows.importStyle.options.auto'),
-                value: 'auto',
-              },
-              {
-                label: t('settings.global.rows.importStyle.options.grouped'),
-                value: 'grouped',
-              },
-              {
-                label: t('settings.global.rows.importStyle.options.single'),
-                value: 'single',
-              },
-            ]}
-            value={String(resolveValue('importStyle'))}
-            onValueChange={(value) => updateValue('importStyle', value)}
-            disabled={!canEditValue('importStyle')}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.metadata.label')}
-        description={t('settings.global.rows.metadata.description')}
-        meta={renderMeta('metadata')}
-        control={
-          <PdxRadioGroup
-            options={[
-              {
-                label: t('settings.global.rows.metadata.options.include'),
-                value: 'enabled',
-              },
-              {
-                label: t('settings.global.rows.metadata.options.skip'),
-                value: 'disabled',
-              },
-            ].map((option) => ({
-              ...option,
-              disabled: !canEditValue('metadata'),
-            }))}
-            value={String(resolveValue('metadata'))}
-            onValueChange={(value) => updateValue('metadata', value)}
-          />
-        }
-      />
-    </SettingsPanel>
-  );
-}
-
-function ShortcutSettingsPanel({ controller }: GlobalSettingsPanelProps) {
-  const { t, canEditValue, renderMeta, resolveValue, updateValue } = controller;
-
-  return (
-    <SettingsPanel
-      title={t('settings.global.panels.shortcuts.title')}
-      description={t('settings.global.panels.shortcuts.description')}
-    >
-      <SettingsRow
-        label={t('settings.global.rows.shortcutPreset.label')}
-        description={t('settings.global.rows.shortcutPreset.description')}
-        meta={renderMeta('shortcutPreset')}
-        control={
-          <PdxSelect
-            size="Small"
-            options={[
-              {
-                label: t('settings.global.rows.shortcutPreset.options.default'),
-                value: 'default',
-              },
-              {
-                label: t('settings.global.rows.shortcutPreset.options.vim'),
-                value: 'vim',
-              },
-              {
-                label: t('settings.global.rows.shortcutPreset.options.vscode'),
-                value: 'vscode',
-              },
-            ]}
-            value={String(resolveValue('shortcutPreset'))}
-            onValueChange={(value) => updateValue('shortcutPreset', value)}
-            disabled={!canEditValue('shortcutPreset')}
           />
         }
       />
@@ -694,74 +353,11 @@ function ShortcutSettingsPanel({ controller }: GlobalSettingsPanelProps) {
                   ),
                   value: 'selection',
                 },
-                {
-                  label: t(
-                    'settings.global.rows.diagnostics.options.perfHints'
-                  ),
-                  value: 'performance',
-                },
-                {
-                  label: t(
-                    'settings.global.rows.diagnostics.options.eventsLog'
-                  ),
-                  value: 'events',
-                },
               ],
               !canEditValue('diagnostics')
             )}
             value={resolveValue('diagnostics') as string[]}
             onChange={(values) => updateValue('diagnostics', values)}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.logLevel.label')}
-        description={t('settings.global.rows.logLevel.description')}
-        meta={renderMeta('logLevel')}
-        control={
-          <PdxSelect
-            size="Small"
-            options={[
-              {
-                label: t('settings.global.rows.logLevel.options.error'),
-                value: 'error',
-              },
-              {
-                label: t('settings.global.rows.logLevel.options.warn'),
-                value: 'warn',
-              },
-              {
-                label: t('settings.global.rows.logLevel.options.info'),
-                value: 'info',
-              },
-            ]}
-            value={String(resolveValue('logLevel'))}
-            onValueChange={(value) => updateValue('logLevel', value)}
-            disabled={!canEditValue('logLevel')}
-          />
-        }
-      />
-      <SettingsRow
-        label={t('settings.global.rows.telemetry.label')}
-        description={t('settings.global.rows.telemetry.description')}
-        meta={renderMeta('telemetry')}
-        control={
-          <PdxRadioGroup
-            options={[
-              {
-                label: t('settings.global.rows.telemetry.options.allow'),
-                value: 'on',
-              },
-              {
-                label: t('settings.global.rows.telemetry.options.disable'),
-                value: 'off',
-              },
-            ].map((option) => ({
-              ...option,
-              disabled: !canEditValue('telemetry'),
-            }))}
-            value={String(resolveValue('telemetry'))}
-            onValueChange={(value) => updateValue('telemetry', value)}
           />
         }
       />
@@ -775,9 +371,6 @@ export function GlobalSettingsPanels({ controller }: GlobalSettingsPanelProps) {
       <AppearanceSettingsPanel controller={controller} />
       <BehaviorSettingsPanel controller={controller} />
       <BlueprintSettingsPanel controller={controller} />
-      <ComponentSettingsPanel controller={controller} />
-      <CodegenSettingsPanel controller={controller} />
-      <ShortcutSettingsPanel controller={controller} />
     </div>
   );
 }

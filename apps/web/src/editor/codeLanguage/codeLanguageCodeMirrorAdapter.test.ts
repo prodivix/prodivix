@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import type { CodeLanguageSession } from '@prodivix/authoring';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  createCodeLanguageCodeMirrorExtensions,
   createCodeLanguagePositionAtOffset,
   projectCodeLanguageDiagnostics,
   projectCodeLanguageHover,
@@ -69,5 +73,36 @@ describe('Code Language CodeMirror adapter', () => {
       to: source.lastIndexOf('value') + 5,
       text: 'const value: number',
     });
+  });
+
+  it('uses Shift+F12 for in-editor reference navigation', () => {
+    const onReferencesRequest = vi.fn();
+    const parent = document.createElement('div');
+    document.body.append(parent);
+    const state = EditorState.create({
+      doc: 'const value = 1;',
+      extensions: createCodeLanguageCodeMirrorExtensions({
+        session: {
+          snapshotIdentity: {},
+        } as unknown as CodeLanguageSession,
+        artifactId: 'code-main',
+        source: 'const value = 1;',
+        onOpenLocation: vi.fn(),
+        onReferencesRequest,
+      }),
+    });
+    const view = new EditorView({ state, parent });
+
+    view.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'F12',
+        shiftKey: true,
+        bubbles: true,
+      })
+    );
+
+    expect(onReferencesRequest).toHaveBeenCalledWith(view);
+    view.destroy();
+    parent.remove();
   });
 });

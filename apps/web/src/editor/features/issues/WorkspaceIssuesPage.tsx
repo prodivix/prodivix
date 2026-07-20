@@ -16,6 +16,7 @@ import {
   CircleAlert,
   ExternalLink,
   LocateFixed,
+  RotateCcw,
   Search,
   TriangleAlert,
   Wrench,
@@ -25,6 +26,7 @@ import {
   type WorkspaceNavigationSurface,
 } from '@/editor/navigation';
 import { useExecutionCenterNavigationStore } from '@/editor/features/execution/executionCenterNavigation';
+import { requeueFailedWorkspaceOutboxOperation } from '@/editor/workspaceSync/workspaceOutboxExecutor';
 import { executeWorkspaceIssueQuickFix } from './workspaceIssueQuickFixRegistry';
 import { useWorkspaceIssuesStore } from './workspaceIssuesStore';
 
@@ -92,6 +94,7 @@ export function WorkspaceIssuesPage() {
   const [severity, setSeverity] = useState<SeverityFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [retryingOperation, setRetryingOperation] = useState(false);
   const dataDomain = searchParams.get('domain') === 'data';
   const dataDocumentId = dataDomain
     ? (searchParams.get('documentId') ?? undefined)
@@ -143,6 +146,13 @@ export function WorkspaceIssuesPage() {
     typeof selectedIssue.diagnostic.meta?.executionSessionId === 'string'
       ? selectedIssue.diagnostic.meta.executionSessionId
       : undefined;
+  const retryOperationId =
+    selectedIssue?.status === 'active' &&
+    selectedIssue.diagnostic.retryable === true &&
+    selectedIssue.diagnostic.meta?.entryKind === 'operation' &&
+    selectedIssue.diagnostic.targetRef?.kind === 'operation'
+      ? selectedIssue.diagnostic.targetRef.operation
+      : undefined;
 
   const openTarget = () => {
     if (!projectId || !selectedIssue?.diagnostic.targetRef) return;
@@ -182,6 +192,25 @@ export function WorkspaceIssuesPage() {
       diagnosticCode: selectedIssue.diagnostic.code,
     });
     navigate(`/editor/project/${projectId}/blueprint`);
+  };
+  const retryOperation = async () => {
+    if (!collection || !retryOperationId || retryingOperation) return;
+    setRetryingOperation(true);
+    try {
+      const result = await requeueFailedWorkspaceOutboxOperation({
+        workspaceId: collection.workspaceId,
+        entryId: retryOperationId,
+      });
+      setActionMessage(
+        t(
+          result === 'queued'
+            ? 'issues.actions.retryQueued'
+            : 'issues.actions.retryUnavailable'
+        )
+      );
+    } finally {
+      setRetryingOperation(false);
+    }
   };
 
   return (
@@ -351,6 +380,17 @@ export function WorkspaceIssuesPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                {retryOperationId && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg bg-(--text-primary) px-3 py-2 text-sm text-(--bg-canvas) disabled:opacity-50"
+                    disabled={retryingOperation}
+                    onClick={() => void retryOperation()}
+                  >
+                    <RotateCcw size={15} />
+                    {t('issues.actions.retry')}
+                  </button>
+                )}
                 {executionSessionId && (
                   <button
                     type="button"

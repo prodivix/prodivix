@@ -444,16 +444,20 @@ export const collectWorkspaceOutboxIssueSnapshot = (input: {
     ...input.settingsEntries,
   ].flatMap<ProdivixDiagnostic>((entry) => {
     if (entry.state.kind === 'failed') {
+      const code = getFailureCode(entry.state.failure);
+      const manuallyRetryable =
+        entry.entryKind === 'operation' && code === 'WKS-5002';
       return [
         {
-          code: getFailureCode(entry.state.failure),
+          code,
           severity: 'error',
           domain: 'workspace',
           message: entry.state.failure.message,
-          hint: entry.state.failure.retryable
-            ? 'Retry the operation after checking the connection and workspace state.'
-            : 'Review the operation and the current workspace state before trying again.',
-          retryable: entry.state.failure.retryable,
+          hint:
+            entry.state.failure.retryable || manuallyRetryable
+              ? 'Retry the operation after checking the connection and workspace state.'
+              : 'Review the operation and the current workspace state before trying again.',
+          retryable: entry.state.failure.retryable || manuallyRetryable,
           docsUrl: `${DIAGNOSTIC_INDEX_URL}#workspace`,
           targetRef: { kind: 'operation', operation: entry.id },
           meta: {

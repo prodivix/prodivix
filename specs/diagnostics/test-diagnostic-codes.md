@@ -18,7 +18,8 @@
 
 1. 生成独立工程前的 compiler/export blocking diagnostic，使用 `GEN-xxxx`。
 2. 测试进程的普通 stdout/stderr，继续作为 ExecutionJob log，不为每行创建诊断。
-3. G3 `BehaviorScenario`、`VerificationPlan` 或 `VerificationEvidence` 的 policy/evidence failure；本码表不提前定义 Verification 领域。
+3. G3 `BehaviorScenario` 的 authoring/compile/replay failure，使用 `BHV-xxxx`；`VerificationPlan`、adapter、
+   `VerificationEvidence` 与 Closure failure，使用 `VER-xxxx`。
 
 ## 2. 阶段
 
@@ -57,4 +58,7 @@ type WorkspaceTestDiagnosticStage = 'execute' | 'report';
 
 ## 5. G2/G3 边界
 
-`TST-5001` 和 `TST-5002` 只描述一次 Workspace Test ExecutionJob 的失败。它们不会创建 BehaviorScenario identity，也不会把 report 自动持久化为 VerificationEvidence。G3 后续如需证据诊断，应在 Verification contract 冻结后分配独立语义和码位。
+`TST-5001` 和 `TST-5002` 只描述一次 Workspace Test ExecutionJob 的失败。它们不会创建
+BehaviorScenario identity，也不会把 report 自动持久化为 VerificationEvidence。G3 的 Scenario 诊断使用
+[`BHV-xxxx`](behavior-diagnostic-codes.md)，Impact/Policy/Plan/adapter/Evidence/Closure 诊断使用
+[`VER-xxxx`](verification-diagnostic-codes.md)；只有经 promotion contract 的 candidate 才能成为 Evidence。

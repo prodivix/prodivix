@@ -6,9 +6,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
-  Pencil,
   Plus,
-  Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +14,11 @@ import {
   type CodeFileKind,
   type CodeResourceNode,
 } from './codeAuthoringModel';
+import {
+  CodeArtifactRelocationOverlay,
+  type CodeArtifactRelocationOverlayView,
+  type EditorSurfaceAnchor,
+} from './CodeEditorActionOverlays';
 import { useEditorShortcut } from '@/editor/shortcuts';
 
 type CodeFileTreeProps = {
@@ -26,9 +29,16 @@ type CodeFileTreeProps = {
   onCreateFolder?: (parentId: string) => void;
   onCreateCodeFile?: (parentId: string, kind?: CodeFileKind) => void;
   onRename?: (nodeId: string, nextName: string) => void;
+  onMove?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
+  relocation?: CodeArtifactRelocationOverlayView;
+  relocationBusy?: boolean;
+  onRelocationPathChange?: (value: string) => void;
+  onApplyRelocation?: () => void;
+  onCancelRelocation?: () => void;
   canCreateFolder?: boolean;
   canCreateCodeFile?: boolean;
+  canMove?: boolean;
 };
 
 const buildInitialExpandedState = (node: CodeResourceNode) => {
@@ -64,9 +74,16 @@ export function CodeFileTree({
   onCreateFolder,
   onCreateCodeFile,
   onRename,
+  onMove,
   onDelete,
+  relocation,
+  relocationBusy = false,
+  onRelocationPathChange,
+  onApplyRelocation,
+  onCancelRelocation,
   canCreateFolder = Boolean(onCreateFolder),
   canCreateCodeFile = Boolean(onCreateCodeFile),
+  canMove = Boolean(onMove),
 }: CodeFileTreeProps) {
   const { t } = useTranslation('editor');
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
@@ -79,6 +96,8 @@ export function CodeFileTree({
     x: number;
     y: number;
   } | null>(null);
+  const [relocationAnchor, setRelocationAnchor] =
+    useState<EditorSurfaceAnchor | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const lastClickRef = useRef<{ nodeId: string; at: number } | null>(null);
 
@@ -136,6 +155,11 @@ export function CodeFileTree({
     };
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (relocation) return;
+    setRelocationAnchor(null);
+  }, [relocation]);
+
   useEditorShortcut(
     'Escape',
     () => {
@@ -160,6 +184,7 @@ export function CodeFileTree({
           }`}
           onContextMenu={(event) => {
             event.preventDefault();
+            onSelect?.(node.id);
             setContextMenu({
               nodeId: node.id,
               x: event.clientX,
@@ -296,32 +321,6 @@ export function CodeFileTree({
                 </button>
               </>
             ) : null}
-            {node.id !== tree.id && (onRename || onDelete) ? (
-              <>
-                {onRename ? (
-                  <button
-                    type="button"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded border border-transparent text-(--text-secondary) hover:border-black/12 hover:text-(--text-primary)"
-                    aria-label={`rename-${node.id}`}
-                    title={t('resourceManager.tree.actions.renameF2')}
-                    onClick={() => startRenaming(node)}
-                  >
-                    <Pencil size={12} />
-                  </button>
-                ) : null}
-                {onDelete ? (
-                  <button
-                    type="button"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded border border-transparent text-(--text-secondary) hover:border-black/12 hover:text-(--text-primary)"
-                    aria-label={`delete-${node.id}`}
-                    title={t('resourceManager.tree.actions.delete')}
-                    onClick={() => onDelete?.(node.id)}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                ) : null}
-              </>
-            ) : null}
           </div>
         </div>
         {isFolder && isExpanded
@@ -387,30 +386,104 @@ export function CodeFileTree({
               node.type === 'folder' ? node.id : (node.parentId ?? tree.id);
             return (
               <>
-                {CODE_FILE_KINDS.map((kind) => (
+                {node.type === 'folder'
+                  ? CODE_FILE_KINDS.map((kind) => (
+                      <button
+                        key={kind}
+                        type="button"
+                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-black/5 disabled:cursor-not-allowed disabled:text-(--text-muted)"
+                        disabled={!canCreateCodeFile}
+                        onClick={() => {
+                          if (!canCreateCodeFile) return;
+                          setExpanded((current) => ({
+                            ...current,
+                            [targetParentId]: true,
+                          }));
+                          onCreateCodeFile?.(targetParentId, kind);
+                          setContextMenu(null);
+                        }}
+                      >
+                        <span>
+                          {t(`resourceManager.tree.codeKinds.${kind}`)}
+                        </span>
+                        <span>.{kind}</span>
+                      </button>
+                    ))
+                  : null}
+                {node.type === 'folder' && node.id !== tree.id ? (
+                  <div className="my-1 border-t border-black/8" />
+                ) : null}
+                {node.type === 'file' && onMove ? (
                   <button
-                    key={kind}
                     type="button"
-                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-black/5"
-                    disabled={!canCreateCodeFile}
+                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-black/5 disabled:cursor-not-allowed disabled:text-(--text-muted)"
+                    disabled={!canMove}
                     onClick={() => {
-                      if (!canCreateCodeFile) return;
-                      setExpanded((current) => ({
-                        ...current,
-                        [targetParentId]: true,
-                      }));
-                      onCreateCodeFile?.(targetParentId, kind);
+                      if (!canMove) return;
+                      const viewportWidth = window.innerWidth;
+                      const viewportHeight = window.innerHeight;
+                      setRelocationAnchor({
+                        left: Math.max(
+                          8,
+                          Math.min(contextMenu.x + 4, viewportWidth - 388)
+                        ),
+                        top: Math.max(
+                          8,
+                          Math.min(contextMenu.y + 4, viewportHeight - 180)
+                        ),
+                      });
+                      onMove(node.id);
                       setContextMenu(null);
                     }}
                   >
-                    <span>{t(`resourceManager.tree.codeKinds.${kind}`)}</span>
-                    <span>.{kind}</span>
+                    {t('resourceManager.code.refactor.move')}
                   </button>
-                ))}
+                ) : null}
+                {node.id !== tree.id && onRename ? (
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-black/5"
+                    onClick={() => {
+                      startRenaming(node);
+                      setContextMenu(null);
+                    }}
+                  >
+                    <span>{t('resourceManager.tree.menu.rename')}</span>
+                    <kbd className="text-[10px] text-(--text-muted)">F2</kbd>
+                  </button>
+                ) : null}
+                {node.id !== tree.id && onDelete ? (
+                  <>
+                    <div className="my-1 border-t border-black/8" />
+                    <button
+                      type="button"
+                      className="flex w-full items-center rounded px-2 py-1.5 text-left text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        onDelete(node.id);
+                        setContextMenu(null);
+                      }}
+                    >
+                      {t('resourceManager.tree.menu.delete')}
+                    </button>
+                  </>
+                ) : null}
               </>
             );
           })()}
         </div>
+      ) : null}
+      {relocation && relocationAnchor ? (
+        <CodeArtifactRelocationOverlay
+          anchor={relocationAnchor}
+          relocation={relocation}
+          busy={relocationBusy}
+          onPathChange={(value) => onRelocationPathChange?.(value)}
+          onApply={() => onApplyRelocation?.()}
+          onCancel={() => {
+            setRelocationAnchor(null);
+            onCancelRelocation?.();
+          }}
+        />
       ) : null}
     </div>
   );

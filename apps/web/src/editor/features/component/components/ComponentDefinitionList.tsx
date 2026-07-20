@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Box, Plus } from 'lucide-react';
+import { Braces, LoaderCircle, Network, Plus } from 'lucide-react';
+import { PdxSelect, PdxTooltip } from '@prodivix/ui';
 import type { WorkspaceComponentDefinitionSummary } from '@/editor/features/component/model/workspaceComponentAuthoringModel';
 
 export type ComponentDefinitionListProps = Readonly<{
@@ -41,18 +42,16 @@ export function ComponentDefinitionList({
   };
 
   return (
-    <aside className="flex min-h-0 w-[300px] shrink-0 flex-col border-r border-(--border-subtle) bg-(--bg-panel)">
-      <div className="border-b border-(--border-subtle) px-4 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="m-0 text-sm font-semibold">Definitions</h2>
-            <p className="m-0 mt-1 text-xs text-(--text-muted)">
-              {definitions.length} reusable component
-              {definitions.length === 1 ? '' : 's'}
-            </p>
-          </div>
-          <Box size={17} className="text-(--text-muted)" />
-        </div>
+    <aside className="flex min-h-0 w-[280px] shrink-0 flex-col border-r border-(--border-subtle) bg-(--bg-panel)">
+      <div className="flex h-11 items-center gap-2 border-b border-(--border-subtle) px-3">
+        <h2 className="m-0 text-xs font-semibold">Definitions</h2>
+        <span
+          className="rounded-full bg-(--bg-raised) px-1.5 py-0.5 text-[10px] text-(--text-muted) tabular-nums"
+          aria-label={`${definitions.length} definitions`}
+          title={`${definitions.length} definitions`}
+        >
+          {definitions.length}
+        </span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-2">
@@ -78,12 +77,22 @@ export function ComponentDefinitionList({
                     <span className="mt-1 block truncate font-mono text-[10px] text-(--text-muted)">
                       {definition.path}
                     </span>
-                    <span className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-(--text-secondary)">
-                      <span className="rounded-full border border-(--border-subtle) px-2 py-0.5">
-                        {definition.nodeCount} nodes
+                    <span className="mt-2 flex items-center gap-2 text-[10px] text-(--text-muted) tabular-nums">
+                      <span
+                        className="inline-flex items-center gap-1"
+                        aria-label={`${definition.nodeCount} nodes`}
+                        title={`${definition.nodeCount} nodes`}
+                      >
+                        <Network size={11} aria-hidden="true" />
+                        {definition.nodeCount}
                       </span>
-                      <span className="rounded-full border border-(--border-subtle) px-2 py-0.5">
-                        {contractMemberCount(definition)} contract members
+                      <span
+                        className="inline-flex items-center gap-1"
+                        aria-label={`${contractMemberCount(definition)} contract members`}
+                        title={`${contractMemberCount(definition)} contract members`}
+                      >
+                        <Braces size={11} aria-hidden="true" />
+                        {contractMemberCount(definition)}
                       </span>
                     </span>
                   </button>
@@ -91,52 +100,52 @@ export function ComponentDefinitionList({
               );
             })}
           </ul>
-        ) : (
-          <div className="flex min-h-40 flex-col items-center justify-center gap-2 px-4 text-center">
-            <Box size={20} className="text-(--text-muted)" />
-            <p className="m-0 text-xs font-medium">No Component Definition</p>
-            <p className="m-0 text-[11px] leading-5 text-(--text-muted)">
-              Create a canonical PIR Definition to establish a reusable public
-              contract.
-            </p>
-          </div>
-        )}
+        ) : null}
       </div>
 
       <form
-        className="space-y-2 border-t border-(--border-subtle) p-3"
+        className="flex items-center gap-1.5 border-t border-(--border-subtle) p-2"
         onSubmit={submit}
       >
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-wide text-(--text-muted) uppercase">
-            New definition
-          </span>
-          <input
-            value={name}
-            placeholder="Component name"
-            className="w-full rounded-lg border border-(--border-subtle) bg-(--bg-canvas) px-3 py-2 text-xs text-(--text-primary) outline-none focus:border-(--border-strong)"
-            disabled={readonly || creating}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <div className="flex gap-2">
-          <input
-            value={rootType}
-            aria-label="Root element type"
-            title="Root element type"
-            className="min-w-0 flex-1 rounded-lg border border-(--border-subtle) bg-(--bg-canvas) px-3 py-2 font-mono text-xs text-(--text-primary) outline-none focus:border-(--border-strong)"
-            disabled={readonly || creating}
-            onChange={(event) => setRootType(event.target.value)}
-          />
+        <input
+          value={name}
+          aria-label="Component name"
+          placeholder="Component name"
+          className="min-w-0 flex-1 rounded-md border border-(--border-subtle) bg-(--bg-canvas) px-2.5 py-1.5 text-xs text-(--text-primary) outline-none focus:border-(--border-strong)"
+          disabled={readonly || creating}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <PdxSelect
+          aria-label="Root element type"
+          title="Root element type"
+          controlClassName="font-mono!"
+          disabled={readonly || creating}
+          options={['div', 'section', 'article', 'button', 'span'].map(
+            (type) => ({ label: type, value: type })
+          )}
+          size="ExtraSmall"
+          style={{ flex: '0 0 82px', width: 82 }}
+          value={rootType}
+          onValueChange={setRootType}
+        />
+        <PdxTooltip
+          content={creating ? 'Creating definition' : 'Create definition'}
+        >
           <button
             type="submit"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-(--border-strong) bg-(--text-primary) px-3 py-2 text-xs font-medium text-(--bg-canvas) disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-(--border-strong) bg-(--text-primary) text-(--bg-canvas) transition-colors hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-35"
             disabled={readonly || creating || !name.trim()}
+            aria-label={creating ? 'Creating definition' : 'Create definition'}
+            aria-busy={creating || undefined}
+            title={creating ? 'Creating definition' : 'Create definition'}
           >
-            <Plus size={13} />
-            {creating ? 'Creating' : 'Create'}
+            {creating ? (
+              <LoaderCircle size={14} className="animate-spin" />
+            ) : (
+              <Plus size={14} />
+            )}
           </button>
-        </div>
+        </PdxTooltip>
       </form>
     </aside>
   );

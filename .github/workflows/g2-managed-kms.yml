@@ -22,6 +22,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
+      - name: Validate protected managed KMS inputs
+        shell: bash
+        env:
+          PRODIVIX_AWS_KMS_TEST_ROLE_ARN: ${{ secrets.PRODIVIX_AWS_KMS_TEST_ROLE_ARN }}
+          PRODIVIX_AWS_KMS_TEST_REGION: ${{ vars.PRODIVIX_AWS_KMS_TEST_REGION }}
+          PRODIVIX_AWS_KMS_TEST_OLD_KEY_ARN: ${{ vars.PRODIVIX_AWS_KMS_TEST_OLD_KEY_ARN }}
+          PRODIVIX_AWS_KMS_TEST_ACTIVE_KEY_ARN: ${{ vars.PRODIVIX_AWS_KMS_TEST_ACTIVE_KEY_ARN }}
+          PRODIVIX_AWS_KMS_TEST_REPLICA_REGION: ${{ vars.PRODIVIX_AWS_KMS_TEST_REPLICA_REGION }}
+          PRODIVIX_AWS_KMS_TEST_ACTIVE_REPLICA_KEY_ARN: ${{ vars.PRODIVIX_AWS_KMS_TEST_ACTIVE_REPLICA_KEY_ARN }}
+        run: |
+          required=(
+            PRODIVIX_AWS_KMS_TEST_ROLE_ARN
+            PRODIVIX_AWS_KMS_TEST_REGION
+            PRODIVIX_AWS_KMS_TEST_OLD_KEY_ARN
+            PRODIVIX_AWS_KMS_TEST_ACTIVE_KEY_ARN
+            PRODIVIX_AWS_KMS_TEST_REPLICA_REGION
+            PRODIVIX_AWS_KMS_TEST_ACTIVE_REPLICA_KEY_ARN
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error title=Managed KMS configuration missing::${name} is required by the protected live Gate."
+              exit 1
+            fi
+          done
+
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
@@ -43,6 +68,9 @@ jobs:
       - name: Verify Remote Terminal managed KMS contracts
         run: pnpm run verify:g2:terminal-managed-kms
 
+      - name: Verify Environment Secret managed KMS contracts
+        run: pnpm run verify:g2:environment-secret-managed-kms
+
       - name: Configure short-lived AWS credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
@@ -56,7 +84,9 @@ jobs:
           PRODIVIX_AWS_KMS_TEST_REGION: ${{ vars.PRODIVIX_AWS_KMS_TEST_REGION }}
           PRODIVIX_AWS_KMS_TEST_OLD_KEY_ARN: ${{ vars.PRODIVIX_AWS_KMS_TEST_OLD_KEY_ARN }}
           PRODIVIX_AWS_KMS_TEST_ACTIVE_KEY_ARN: ${{ vars.PRODIVIX_AWS_KMS_TEST_ACTIVE_KEY_ARN }}
-        run: go test ./internal/modules/environment -run '^TestEnvironmentSecretAWSKMSLiveGate$' -count=1 -v
+          PRODIVIX_AWS_KMS_TEST_REPLICA_REGION: ${{ vars.PRODIVIX_AWS_KMS_TEST_REPLICA_REGION }}
+          PRODIVIX_AWS_KMS_TEST_ACTIVE_REPLICA_KEY_ARN: ${{ vars.PRODIVIX_AWS_KMS_TEST_ACTIVE_REPLICA_KEY_ARN }}
+        run: go test ./internal/modules/environment -run '^TestEnvironmentSecretAWSKMS(LiveGate|MultiRegionLiveGate)$' -count=1 -v
 
       - name: Run live Remote Terminal managed KMS recovery Gate
         env:

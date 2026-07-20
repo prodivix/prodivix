@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Prodivix G2 primary or rotation-source KMS key reference stack
+
+Parameters:
+  KeyMode:
+    Type: String
+    Default: primary-multi-region
+    AllowedValues:
+      - primary-multi-region
+      - rotation-source-single-region
+    Description: Use a separate stack in single-Region mode for the old rotation source key
+
+Conditions:
+  IsMultiRegion: !Equals [!Ref KeyMode, primary-multi-region]
+
+Resources:
+  EnvironmentSecretPrimaryKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Prodivix G2 Environment Secret and Remote Terminal evidence key
+      Enabled: true
+      EnableKeyRotation: true
+      KeySpec: SYMMETRIC_DEFAULT
+      KeyUsage: ENCRYPT_DECRYPT
+      MultiRegion: !If [IsMultiRegion, true, false]
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountIAMPolicies
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+      Tags:
+        - Key: prodivix:purpose
+          Value: g2-managed-kms-evidence
+        - Key: prodivix:key-mode
+          Value: !Ref KeyMode
+        - Key: prodivix:managed-by
+          Value: cloudformation
+
+Outputs:
+  PrimaryKeyArn:
+    Description: Exact immutable ARN for the selected live Gate key role
+    Value: !GetAtt EnvironmentSecretPrimaryKey.Arn
+  PrimaryKeyId:
+    Value: !GetAtt EnvironmentSecretPrimaryKey.KeyId

@@ -88,6 +88,7 @@ export {
   failWorkspaceOutboxEntry,
   inheritWorkspaceOutboxCausalOrder,
   isWorkspaceOutboxEntryClaimable,
+  requeueFailedWorkspaceOutboxEntry,
   releaseWorkspaceOutboxEntry,
   retryWorkspaceOutboxEntry,
   selectWorkspaceOutboxClaimCandidate,

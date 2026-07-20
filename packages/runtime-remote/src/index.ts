@@ -36,6 +36,29 @@ export {
   RemoteExecutionRegionalRecoveryError,
 } from './remoteExecutionRegionalRecovery';
 export {
+  createRemoteExecutionRegionalRecoveryAuthorizationScopeDigest,
+  createRemoteExecutionRegionalRecoveryAuthorizationScope,
+  createRemoteExecutionRegionalRecoveryExecutionSetDigest,
+  createRemoteExecutionRegionalRecoveryOperator,
+  createRemoteExecutionRegionalRecoveryTargetCheckpointDigest,
+} from './remoteExecutionRegionalRecoveryOperator';
+export {
+  decodeRemoteExecutionRegionalRecoveryOperatorEvidence,
+  encodeRemoteExecutionRegionalRecoveryOperatorEvidence,
+  readRemoteExecutionRegionalRecoveryOperatorEvidence,
+} from './remoteExecutionRegionalRecoveryEvidence';
+export {
+  decodeRemoteExecutionRegionalRecoveryOperatorRequest,
+  encodeRemoteExecutionRegionalRecoveryOperatorRequest,
+  readRemoteExecutionRegionalRecoveryOperatorRequest,
+} from './remoteExecutionRegionalRecoveryOperatorCodec';
+export {
+  REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_FORMAT,
+  REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_LIMITS,
+  REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_VERSION,
+  RemoteExecutionRegionalRecoveryOperatorError,
+} from './remoteExecutionRegionalRecoveryOperator.types';
+export {
   createRemoteExecutionTerminalBroker,
   REMOTE_EXECUTION_TERMINAL_ERROR_CODES,
   RemoteExecutionTerminalBrokerError,
@@ -211,6 +234,26 @@ export type {
   RemoteExecutionRegionalTrafficPermit,
   RemoteExecutionRegionalTrafficState,
 } from './remoteExecutionRegionalRecovery';
+export type { CreateRemoteExecutionRegionalRecoveryOperatorOptions } from './remoteExecutionRegionalRecoveryOperator';
+export type {
+  RemoteExecutionRegionalInfrastructureFenceDecision,
+  RemoteExecutionRegionalInfrastructureFencePort,
+  RemoteExecutionRegionalRecoveryAuthorizationDecision,
+  RemoteExecutionRegionalRecoveryAuthorizationPort,
+  RemoteExecutionRegionalRecoveryAuthorizationScope,
+  RemoteExecutionRegionalRecoveryGrantReplayStore,
+  RemoteExecutionRegionalRecoveryOperator,
+  RemoteExecutionRegionalRecoveryOperatorCredentials,
+  RemoteExecutionRegionalRecoveryOperatorErrorCode,
+  RemoteExecutionRegionalRecoveryOperatorEvidence,
+  RemoteExecutionRegionalRecoveryOperatorMode,
+  RemoteExecutionRegionalRecoveryOperatorRequest,
+  RemoteExecutionRegionalRecoveryOperatorResult,
+  RemoteExecutionRegionalRecoveryOutcomeCounts,
+  RemoteExecutionRegionalRecoveryRpoEvidence,
+  RemoteExecutionRegionalReplicationAttestationDecision,
+  RemoteExecutionRegionalReplicationAttestationPort,
+} from './remoteExecutionRegionalRecoveryOperator.types';
 export type {
   CreateRemoteExecutionProviderOptions,
   ResolveRemoteExecutionSnapshot,

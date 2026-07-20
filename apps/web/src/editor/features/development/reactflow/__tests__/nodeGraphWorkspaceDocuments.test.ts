@@ -11,6 +11,7 @@ import {
   createAvailableNodeGraphPath,
   listWorkspaceNodeGraphs,
   selectWorkspaceNodeGraphId,
+  toSafeNodeGraphFileStem,
 } from '../nodeGraphWorkspaceDocuments';
 
 const createWorkspace = (): WorkspaceSnapshot => ({
@@ -81,7 +82,23 @@ describe('standalone NodeGraph Workspace documents', () => {
         workspace,
         name: 'Checkout',
       })
-    ).toEqual({ name: 'Checkout 2', path: '/graphs/Checkout 2.graph.json' });
+    ).toEqual({ name: 'checkout-2', path: '/graphs/checkout-2.graph.json' });
+  });
+
+  it('normalizes graph names into portable deterministic file stems', () => {
+    expect(toSafeNodeGraphFileStem('  Checkout / 支付 : 🚀  ')).toBe(
+      'checkout-支付'
+    );
+    expect(toSafeNodeGraphFileStem('CON')).toBe('graph-con');
+    expect(toSafeNodeGraphFileStem('...')).toBe('untitled');
+
+    const workspace = createWorkspace();
+    expect(
+      createAvailableNodeGraphPath({
+        workspace,
+        name: 'Checkout!',
+      })
+    ).toEqual({ name: 'checkout-2', path: '/graphs/checkout-2.graph.json' });
   });
 
   it('round-trips layout and grouping inside the canonical graph document', () => {

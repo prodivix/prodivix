@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { PdxInput, PdxPopover, PdxSlider } from '@prodivix/ui';
+import { PdxInput, PdxPopover, PdxSelect, PdxSlider } from '@prodivix/ui';
 import {
   ChevronDown,
   MousePointer2,
   Play,
   Rocket,
   RotateCcw,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   VIEWPORT_DEVICE_PRESETS,
@@ -116,42 +117,68 @@ export function BlueprintEditorViewportBar({
           );
         })}
       </div>
-      <label className="inline-flex h-6 flex-none items-center gap-1.5 rounded-full border border-(--border-default) bg-(--bg-muted) px-2 text-[11px] text-(--text-secondary)">
-        <span className="max-[1100px]:hidden">
-          {t('viewport.runProvider.label')}
-        </span>
-        <select
-          className="bg-transparent text-[11px] text-(--text-primary) outline-none"
-          value={runProvider}
-          aria-label={t('viewport.runProvider.label')}
-          onChange={(event) =>
-            onRunProviderChange(event.target.value as 'browser' | 'remote')
+      {canvasMode === 'run' ? (
+        <PdxPopover
+          align="Start"
+          panelClassName="w-[260px] space-y-3 p-3"
+          panelLabel={t('viewport.runConfiguration')}
+          placement="Top"
+          content={
+            <>
+              <PdxSelect
+                label={t('viewport.runProvider.label')}
+                options={[
+                  {
+                    label: t('viewport.runProvider.browser'),
+                    value: 'browser',
+                  },
+                  {
+                    label: remoteAvailable
+                      ? t('viewport.runProvider.remote')
+                      : t('viewport.runProvider.remoteSignIn'),
+                    value: 'remote',
+                    disabled: !remoteAvailable,
+                  },
+                ]}
+                size="Small"
+                value={runProvider}
+                onValueChange={(value) =>
+                  onRunProviderChange(value === 'remote' ? 'remote' : 'browser')
+                }
+              />
+              <PdxSelect
+                label={t('viewport.runTarget.label')}
+                options={[
+                  {
+                    label: t('viewport.runTarget.react'),
+                    value: 'react-vite',
+                  },
+                  {
+                    label: t('viewport.runTarget.vue'),
+                    value: 'vue-vite',
+                  },
+                ]}
+                size="Small"
+                value={runTarget}
+                onValueChange={(value) =>
+                  onRunTargetChange(
+                    value === 'vue-vite' ? 'vue-vite' : 'react-vite'
+                  )
+                }
+              />
+            </>
           }
         >
-          <option value="browser">{t('viewport.runProvider.browser')}</option>
-          <option value="remote" disabled={!remoteAvailable}>
-            {remoteAvailable
-              ? t('viewport.runProvider.remote')
-              : t('viewport.runProvider.remoteSignIn')}
-          </option>
-        </select>
-      </label>
-      <label className="inline-flex h-6 flex-none items-center gap-1.5 rounded-full border border-(--border-default) bg-(--bg-muted) px-2 text-[11px] text-(--text-secondary)">
-        <span className="max-[1100px]:hidden">
-          {t('viewport.runTarget.label')}
-        </span>
-        <select
-          className="bg-transparent text-[11px] text-(--text-primary) outline-none"
-          value={runTarget}
-          aria-label={t('viewport.runTarget.label')}
-          onChange={(event) =>
-            onRunTargetChange(event.target.value as BlueprintProjectRunTarget)
-          }
-        >
-          <option value="react-vite">{t('viewport.runTarget.react')}</option>
-          <option value="vue-vite">{t('viewport.runTarget.vue')}</option>
-        </select>
-      </label>
+          <button
+            type="button"
+            className="inline-flex size-6 flex-none items-center justify-center rounded-full border border-(--border-default) bg-(--bg-muted) text-(--text-muted) transition-colors hover:border-(--border-strong) hover:bg-(--bg-raised) hover:text-(--text-primary)"
+            aria-label={t('viewport.runConfiguration')}
+            title={t('viewport.runConfiguration')}
+          >
+            <SlidersHorizontal size={12} aria-hidden="true" />
+          </button>
+        </PdxPopover>
+      ) : null}
       <div className="flex flex-none items-center gap-2.5">
         <div className="font-medium text-(--text-secondary)">
           {t('viewport.label')}
@@ -217,38 +244,28 @@ export function BlueprintEditorViewportBar({
           );
         })}
       </div>
-      <div className="hidden min-w-0 flex-1 items-center gap-2 max-[980px]:inline-flex">
-        <label
-          className="font-medium whitespace-nowrap text-(--text-secondary)"
-          htmlFor="ViewportQuickPresetsSelect"
-        >
-          {t('viewport.quickPresetMenu')}
-        </label>
-        <select
-          id="ViewportQuickPresetsSelect"
-          className="h-6 min-w-0 rounded-full border border-(--border-default) bg-(--bg-canvas) px-2.5 text-[11px] text-(--text-primary)"
+      <div className="hidden min-w-0 flex-1 items-center max-[980px]:inline-flex">
+        <PdxSelect
+          aria-label={t('viewport.quickPresetMenu')}
+          className="min-w-0 flex-1"
           defaultValue=""
-          onChange={(event) => {
+          options={VIEWPORT_QUICK_PRESETS.map((preset) => ({
+            label: t(preset.labelKey, {
+              defaultValue: `${preset.width}×${preset.height}`,
+            }),
+            value: preset.id,
+          }))}
+          placeholder={t('viewport.quickPresetMenu')}
+          size="ExtraSmall"
+          onValueChange={(value) => {
             const preset = VIEWPORT_QUICK_PRESETS.find(
-              (item) => item.id === event.target.value
+              (item) => item.id === value
             );
             if (!preset) return;
             onViewportWidthChange(preset.width);
             onViewportHeightChange(preset.height);
           }}
-        >
-          <option value="">{t('viewport.quickPresetMenu')}</option>
-          {VIEWPORT_QUICK_PRESETS.map((preset) => {
-            const presetLabel = t(preset.labelKey, {
-              defaultValue: `${preset.width}×${preset.height}`,
-            });
-            return (
-              <option key={preset.id} value={preset.id}>
-                {presetLabel}
-              </option>
-            );
-          })}
-        </select>
+        />
       </div>
       <PdxPopover
         align="End"

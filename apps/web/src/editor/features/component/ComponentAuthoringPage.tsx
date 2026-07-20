@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Box, Boxes, CircleAlert } from 'lucide-react';
+import { CircleCheck, CircleX, LockKeyhole, TriangleAlert } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import type { DiagnosticTargetRef } from '@prodivix/diagnostics';
 import type { PIRComponentContract } from '@prodivix/pir';
@@ -60,6 +60,11 @@ const ownerLabel = (ownerRef: DiagnosticTargetRef): string => {
   }
 };
 
+type ComponentActionNotice = Readonly<{
+  kind: 'success' | 'error';
+  message: string;
+}>;
+
 /**
  * Hosts the Component surface. Selection is Workspace-backed while
  * drafts remain local UI state; all durable writes cross the controller's
@@ -82,7 +87,8 @@ export function ComponentAuthoringPage() {
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeView, setActiveView] = useState<'canvas' | 'contract'>('canvas');
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] =
+    useState<ComponentActionNotice | null>(null);
 
   const definitions = model?.definitions ?? [];
   const definitionIds = useMemo(
@@ -194,14 +200,17 @@ export function ComponentAuthoringPage() {
     (documentId: string) => {
       setUiSelectedDocumentId(documentId);
       setActiveDocumentId(documentId);
-      setActionMessage(null);
+      setActionNotice(null);
     },
     [setActiveDocumentId]
   );
   const navigateOwner = useCallback(
     (ownerRef: DiagnosticTargetRef) => {
       if (!projectId) {
-        setActionMessage('Project navigation is unavailable.');
+        setActionNotice({
+          kind: 'error',
+          message: 'Project navigation is unavailable.',
+        });
         return;
       }
       const result = navigateToWorkspaceSemanticTarget({
@@ -210,10 +219,16 @@ export function ComponentAuthoringPage() {
         navigate,
         resolveSemanticIndex: resolveWorkspaceSemanticIndex,
       });
-      setActionMessage(
+      setActionNotice(
         result.status === 'navigated'
-          ? `Opened ${ownerLabel(ownerRef)}.`
-          : `Navigation unavailable: ${result.reason}.`
+          ? {
+              kind: 'success',
+              message: `Opened ${ownerLabel(ownerRef)}.`,
+            }
+          : {
+              kind: 'error',
+              message: `Navigation unavailable: ${result.reason}.`,
+            }
       );
     },
     [navigate, projectId]
@@ -221,13 +236,13 @@ export function ComponentAuthoringPage() {
   const handleCreate = useCallback(
     async (input: { name: string; rootType: string }): Promise<boolean> => {
       setCreating(true);
-      setActionMessage(null);
+      setActionNotice(null);
       try {
         const result = await createDefinition(input);
-        setActionMessage(
+        setActionNotice(
           result.status === 'applied'
-            ? `Created ${input.name}.`
-            : result.message
+            ? { kind: 'success', message: `Created ${input.name}.` }
+            : { kind: 'error', message: result.message }
         );
         return result.status === 'applied';
       } finally {
@@ -240,16 +255,16 @@ export function ComponentAuthoringPage() {
     async (contract: PIRComponentContract): Promise<boolean> => {
       if (!selectedDefinition) return false;
       setSaving(true);
-      setActionMessage(null);
+      setActionNotice(null);
       try {
         const result = await updateContract(
           selectedDefinition.documentId,
           contract
         );
-        setActionMessage(
+        setActionNotice(
           result.status === 'applied'
-            ? 'Component Contract saved.'
-            : result.message
+            ? { kind: 'success', message: 'Component Contract saved.' }
+            : { kind: 'error', message: result.message }
         );
         return result.status === 'applied';
       } finally {
@@ -263,7 +278,11 @@ export function ComponentAuthoringPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-(--bg-canvas) p-8 text-(--text-primary)">
         <div className="max-w-sm space-y-2 text-center">
-          <Boxes size={24} className="mx-auto text-(--text-muted)" />
+          <CircleX
+            size={24}
+            className="mx-auto text-(--danger-color)"
+            aria-hidden="true"
+          />
           <h1 className="m-0 text-base font-semibold">Workspace unavailable</h1>
           <p className="m-0 text-xs leading-5 text-(--text-muted)">
             Load a project Workspace before opening Component authoring.
@@ -285,43 +304,45 @@ export function ComponentAuthoringPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-(--bg-canvas) text-(--text-primary)">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-(--border-subtle) px-6 py-5">
-        <div className="flex items-start gap-3">
-          <span className="rounded-xl border border-(--border-subtle) bg-(--bg-panel) p-2.5 text-(--text-secondary)">
-            <Boxes size={19} />
-          </span>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="m-0 text-xl font-semibold">Components</h1>
-              <span className="rounded-full border border-(--border-subtle) px-2 py-0.5 font-mono text-[10px] text-(--text-muted)">
-                Canonical PIR
-              </span>
-            </div>
-            <p className="m-0 mt-1 text-sm text-(--text-secondary)">
-              Reusable Definitions, public contracts, and revision-bound impact.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-(--text-muted)">
-          <span className="rounded-full border border-(--border-subtle) px-3 py-1.5">
-            Workspace r{workspace.workspaceRev}
-          </span>
-          <span className="rounded-full border border-(--border-subtle) px-3 py-1.5">
-            {semanticComposition?.status === 'ready'
-              ? 'Semantic index ready'
-              : 'Semantic index blocked'}
-          </span>
-          {readonly && (
-            <span className="rounded-full border border-(--border-subtle) px-3 py-1.5">
-              Read-only
+      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-(--border-subtle) px-5">
+        <h1 className="m-0 text-base font-semibold">Components</h1>
+        <div className="ml-auto flex items-center gap-2 text-(--text-muted)">
+          {semanticComposition?.status === 'blocked' ? (
+            <span
+              className="inline-flex size-7 items-center justify-center"
+              aria-label="Semantic index blocked"
+              title="Semantic index blocked"
+            >
+              <TriangleAlert size={15} aria-hidden="true" />
             </span>
-          )}
+          ) : null}
+          {readonly ? (
+            <span
+              className="inline-flex size-7 items-center justify-center"
+              aria-label="Read-only"
+              title="Read-only"
+            >
+              <LockKeyhole size={14} aria-hidden="true" />
+            </span>
+          ) : null}
         </div>
       </header>
 
-      {actionMessage && (
-        <div className="border-b border-(--border-subtle) bg-(--bg-panel) px-6 py-2 text-xs text-(--text-secondary)">
-          {actionMessage}
+      {actionNotice && (
+        <div
+          role={actionNotice.kind === 'error' ? 'alert' : 'status'}
+          className={`flex items-center gap-2 border-b border-(--border-subtle) bg-(--bg-panel) px-5 py-2 text-xs ${
+            actionNotice.kind === 'error'
+              ? 'text-(--danger-color)'
+              : 'text-(--text-secondary)'
+          }`}
+        >
+          {actionNotice.kind === 'error' ? (
+            <CircleX size={14} aria-hidden="true" />
+          ) : (
+            <CircleCheck size={14} aria-hidden="true" />
+          )}
+          {actionNotice.message}
         </div>
       )}
 
@@ -388,7 +409,7 @@ export function ComponentAuthoringPage() {
                     {selectedGraphIssues.length > 0 && (
                       <section className="rounded-xl border border-(--border-subtle) bg-(--bg-panel) px-4 py-3">
                         <div className="flex items-center gap-2 text-xs font-medium">
-                          <CircleAlert
+                          <TriangleAlert
                             size={14}
                             className="text-(--text-muted)"
                           />
@@ -419,20 +440,7 @@ export function ComponentAuthoringPage() {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="flex min-h-[440px] flex-col items-center justify-center gap-3 text-center">
-              <Box size={26} className="text-(--text-muted)" />
-              <div>
-                <h2 className="m-0 text-sm font-semibold">
-                  Create the first Definition
-                </h2>
-                <p className="m-0 mt-1 max-w-sm text-xs leading-5 text-(--text-muted)">
-                  A Definition owns a normalized PIR graph and a stable public
-                  contract. Create one to open its Canvas and Contract surface.
-                </p>
-              </div>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </main>

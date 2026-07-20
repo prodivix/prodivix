@@ -17,10 +17,13 @@ import {
   type CodeLanguageUnavailableResult,
   type CodeLanguageWorkspaceEditProposal,
 } from '@prodivix/authoring';
-import { createTypeScriptCodeProject } from './typescriptProject';
+import {
+  acquireTypeScriptCodeProject,
+  defaultTypeScriptCodeProjectHost,
+} from './typescriptProjectHost';
 import {
   collectTypeScriptProjectDiagnostics,
-  createTypeScriptSemanticContribution,
+  createTypeScriptSemanticContributionFromProject,
   TYPESCRIPT_CONFIGURATION_DIGEST,
   TYPESCRIPT_SEMANTIC_PROVIDER_ID,
   TYPESCRIPT_SEMANTIC_PROVIDER_VERSION,
@@ -122,17 +125,23 @@ const isCanonicalSemanticSnapshot = (snapshot: CodeLanguageSnapshot): boolean =>
     return revision && String(revision.contentRev) === artifact.revision;
   });
 
-/** Provides immutable TS/JS language sessions over canonical or draft CodeArtifacts. */
+/** Provides immutable TS/JS sessions over one shared incremental Workspace engine. */
 export const createTypeScriptCodeLanguageCapabilityProvider =
   (): CodeLanguageCapabilityProvider =>
     Object.freeze({
       descriptor,
       async openSession(snapshot): Promise<CodeLanguageSession> {
         const snapshotIdentity = createCodeLanguageSnapshotIdentity(snapshot);
-        const project = createTypeScriptCodeProject(snapshot.artifacts);
+        const projectLease = acquireTypeScriptCodeProject(
+          defaultTypeScriptCodeProjectHost,
+          snapshot.identity.workspaceRevisions.workspaceId,
+          snapshot.artifacts
+        );
+        const project = projectLease.project;
         let disposed = false;
         let semanticContribution:
-          ReturnType<typeof createTypeScriptSemanticContribution> | undefined;
+          | ReturnType<typeof createTypeScriptSemanticContributionFromProject>
+          | undefined;
 
         const blocked = (
           expectedSnapshotIdentity: CodeLanguageSnapshotIdentity
@@ -142,6 +151,14 @@ export const createTypeScriptCodeLanguageCapabilityProvider =
               status: 'unavailable',
               snapshotIdentity,
               reason: 'The code language session has been disposed.',
+            });
+          }
+          if (!projectLease.isCurrent()) {
+            return Object.freeze({
+              status: 'unavailable',
+              snapshotIdentity,
+              reason:
+                'The code language session was superseded by a newer Workspace code snapshot.',
             });
           }
           if (
@@ -503,16 +520,19 @@ export const createTypeScriptCodeLanguageCapabilityProvider =
               snapshotIdentity,
               value:
                 semanticContribution ??
-                (semanticContribution = createTypeScriptSemanticContribution({
-                  workspaceId: snapshot.identity.workspaceRevisions.workspaceId,
-                  artifacts: project.artifacts,
-                })),
+                (semanticContribution =
+                  createTypeScriptSemanticContributionFromProject({
+                    workspaceId:
+                      snapshot.identity.workspaceRevisions.workspaceId,
+                    artifacts: project.artifacts,
+                    project,
+                  })),
             });
           },
           dispose() {
             if (disposed) return;
             disposed = true;
-            project.dispose();
+            projectLease.release();
           },
         });
       },

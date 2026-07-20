@@ -365,7 +365,7 @@ real probe/evidence 已通过。
 状态：Configured / Evidence pending；official SDK adapter、配置、static-to-cloud migration、unit/PostgreSQL Gate 与
 GitHub OIDC live workflow 已实现，真实 AWS KMS run 尚未取得。
 
-- active provider 固定 `aws.kms/v1`。配置只接受 `aws-kms`、exact region、1-16 个 canonical local key label -> immutable
+- active provider已hard-cut为`aws.kms/v2`。配置只接受`aws-kms`、exact region、1-16个canonical local key label -> immutable
   AWS KMS key ARN 和一个 exact active label；alias、region drift、unknown active、generic HTTP provider、超过 30 秒 timeout、
   static active identity 与 AWS active identity 混用均启动失败。AWS credential 只来自官方 SDK default chain，不进入
   Prodivix config、Workspace、数据库、日志或 runtime transport。
@@ -373,18 +373,21 @@ GitHub OIDC live workflow 已实现，真实 AWS KMS run 尚未取得。
   purpose 和 canonical AAD 的 SHA-256，不发送 raw Workspace/environment/revision/binding identity；response 必须返回 exact
   configured key ARN、algorithm、32-byte plaintext且不得返回 recipient ciphertext。cloud error、timeout、identity/size drift
   与 wrong context 均 fail closed。
-- `wrapped_key` 保存 AWS KMS ciphertext；既有 `wrapped_key_nonce` 对 AWS provider 保存 32-byte local correlation digest，
-  绑定 provider-local label、ciphertext 与 AAD，在远端调用前拒绝 metadata/ciphertext/context drift。该 digest 不是 key
-  material，也不替代 KMS authentication。
+- `wrapped_key`保存AWS KMS ciphertext；`wrapped_key_nonce`对AWS provider保存32-byte local correlation digest，绑定
+  provider-local label、ciphertext、AAD与stable key identity。single-Region key固定exact ARN；MRK固定
+  partition/account/`mrk-*` resource id，同时Encrypt/Decrypt response仍必须返回当前Region exact local ARN。related replica可
+  解密primary envelope，unrelated MRK、account/partition drift和single-Region cross-Region均在远端调用/plaintext释放前fail closed。
+  该digest不是key material，也不替代KMS authentication。
 - static-to-cloud migration 只允许 AWS provider 作为 active writer。旧 static ring 通过 persisted provider identity 注册为
   decrypt-only source；bounded `SKIP LOCKED` transaction 只 unwrap/rewrap data key，保持 Secret nonce/ciphertext byte-exact，
   写入 aggregate-only active provider/key/count audit。source provider 缺失时整批回滚；`remaining=0` 后才可移除旧 key。
 - 本地 adapter matrix 覆盖 exact request/context、raw identity absence、tamper、wrong AAD、unknown/retired key、response drift、
   timeout、AWS-to-AWS rotation和 static-to-AWS migration。真实 PostgreSQL Gate 验证 provider migration、32-byte correlation
   metadata、ciphertext stability、aggregate audit 与 post-migration resolution。
-- `.github/workflows/g2-managed-kms.yml` 仅允许 `workflow_dispatch`，使用受保护 environment + GitHub OIDC 短期 role，
-  对两个 distinct exact key ARN 执行真实 Encrypt/Decrypt/rewrap/retirement fence。未取得首次 run 前不得标记 Implemented；
-  GCP/Azure/HSM 等其他 provider 继续关闭。
+- `.github/workflows/g2-managed-kms.yml`仅允许`workflow_dispatch`，使用受保护environment + GitHub OIDC短期role，
+  对两个distinct exact key ARN执行真实Encrypt/Decrypt/rewrap/retirement fence，并以related MRK primary/replica分别运行
+  Environment与Terminal跨区decrypt Gate。`deploy/aws/g2-managed-kms`提供不自动部署的primary/replica key与exact-sub OIDC role
+  CloudFormation参考；未取得首次run前不得标记Implemented，GCP/Azure/HSM等其他provider继续关闭。
 
 ### A15：isolated `workspace.read` + Secret permission composition first vertical
 

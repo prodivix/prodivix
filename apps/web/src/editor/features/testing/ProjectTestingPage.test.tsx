@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createExecutionTestReport } from '@prodivix/runtime-core';
@@ -76,7 +77,10 @@ const report = createExecutionTestReport({
   ],
 });
 
-const setRunner = (snapshotId: string) => {
+const setRunner = (
+  snapshotId: string,
+  overrides: Readonly<Record<string, unknown>> = {}
+) => {
   runnerState.current = Object.freeze({
     sessionId: 'workspace-tests:test:project-tests',
     session: undefined,
@@ -94,6 +98,7 @@ const setRunner = (snapshotId: string) => {
     remoteAvailable: false,
     run: vi.fn(async () => undefined),
     stop: vi.fn(async () => undefined),
+    ...overrides,
   });
 };
 
@@ -113,7 +118,54 @@ afterEach(() => {
 });
 
 describe('ProjectTestingPage SourceTrace debugger', () => {
-  it('lets the user select the Vue/Vite Workspace Test target', () => {
+  it('uses accessible icon actions and hides empty report counters', async () => {
+    const run = vi.fn(async () => undefined);
+    setRunner(createWorkspaceExecutionSnapshotId(workspace), {
+      status: 'idle',
+      report: undefined,
+      run,
+    });
+    render(
+      <MemoryRouter>
+        <ProjectTestingPage />
+      </MemoryRouter>
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'testing.actions.openCode' })
+    ).toBeTruthy();
+    expect(screen.queryByText('testing.actions.openCode')).toBeNull();
+    expect(screen.queryByLabelText('testing.report.title')).toBeNull();
+    expect(
+      screen.getAllByRole('button', { name: 'testing.actions.run' })
+    ).toHaveLength(1);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'testing.actions.run' })
+    );
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it('renders a failed execution as an alert instead of an empty-state icon', () => {
+    setRunner(createWorkspaceExecutionSnapshotId(workspace), {
+      status: 'failed',
+      report: undefined,
+      message: 'Browser project command exited with code 127.',
+    });
+    render(
+      <MemoryRouter>
+        <ProjectTestingPage />
+      </MemoryRouter>
+    );
+
+    expect(
+      screen.getByRole('alert', { name: 'testing.failed.title' }).textContent
+    ).toContain('Browser project command exited with code 127.');
+    expect(screen.queryByLabelText('testing.report.title')).toBeNull();
+  });
+
+  it('lets the user select the Vue/Vite Workspace Test target', async () => {
+    const user = userEvent.setup();
     setRunner(createWorkspaceExecutionSnapshotId(workspace));
     render(
       <MemoryRouter>
@@ -121,9 +173,10 @@ describe('ProjectTestingPage SourceTrace debugger', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByLabelText('testing.target.label'), {
-      target: { value: 'vue-vite' },
-    });
+    await user.click(screen.getByLabelText('testing.target.label'));
+    await user.click(
+      screen.getByRole('option', { name: 'testing.target.vue' })
+    );
     expect(runnerState.setTarget).toHaveBeenCalledWith('vue-vite');
   });
 

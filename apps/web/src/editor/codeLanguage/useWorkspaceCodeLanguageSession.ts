@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CodeArtifact, CodeLanguageSession } from '@prodivix/authoring';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { createWorkspaceCodeLanguageEnvironment } from './workspaceCodeLanguageEnvironment';
@@ -37,7 +37,7 @@ export const createWorkspaceCodeDraftRevision = (
   source: string
 ): string => `${canonicalRevision}:draft:${hashDraftSource(source)}`;
 
-/** Keeps one immutable provider session aligned with the current editor draft. */
+/** Atomically replaces immutable views while the provider keeps its engine alive. */
 export const useWorkspaceCodeLanguageSession = (input: {
   workspace: WorkspaceSnapshot | null;
   artifactId?: string;
@@ -58,16 +58,26 @@ export const useWorkspaceCodeLanguageSession = (input: {
   const [state, setState] = useState<WorkspaceCodeLanguageSessionState>({
     status: 'idle',
   });
+  const activeSessionRef = useRef<{
+    targetKey: string;
+    session: CodeLanguageSession;
+  } | null>(null);
 
   useEffect(() => {
     if (!environment || !artifact) {
+      activeSessionRef.current?.session.dispose();
+      activeSessionRef.current = null;
       setState({ status: 'idle' });
       return;
     }
 
     let cancelled = false;
-    let openedSession: CodeLanguageSession | null = null;
-    setState({ status: 'loading', artifact });
+    const targetKey = `${input.workspace?.id ?? ''}\u0000${artifact.id}`;
+    if (activeSessionRef.current?.targetKey !== targetKey) {
+      activeSessionRef.current?.session.dispose();
+      activeSessionRef.current = null;
+      setState({ status: 'loading', artifact });
+    }
     const source = input.source;
     const isDraft = source !== artifact.source;
     const timer = window.setTimeout(
@@ -95,15 +105,24 @@ export const useWorkspaceCodeLanguageSession = (input: {
               return;
             }
             if (result.status === 'ready') {
-              openedSession = result.session;
+              const previousSession = activeSessionRef.current?.session;
+              activeSessionRef.current = {
+                targetKey,
+                session: result.session,
+              };
               setState({
                 status: 'ready',
                 artifact,
                 source,
                 session: result.session,
               });
+              if (previousSession !== result.session) {
+                previousSession?.dispose();
+              }
               return;
             }
+            activeSessionRef.current?.session.dispose();
+            activeSessionRef.current = null;
             if (result.status === 'unsupported') {
               setState({
                 status: 'unsupported',
@@ -125,9 +144,16 @@ export const useWorkspaceCodeLanguageSession = (input: {
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
-      openedSession?.dispose();
     };
-  }, [artifact, environment, input.source]);
+  }, [artifact, environment, input.source, input.workspace?.id]);
+
+  useEffect(
+    () => () => {
+      activeSessionRef.current?.session.dispose();
+      activeSessionRef.current = null;
+    },
+    []
+  );
 
   return state;
 };

@@ -36,7 +36,7 @@ Phase 2 的目标是固定以下长期边界：
 4. 持久化 `CodeReference` 以 `artifactId` 为主引用，CodeSlotContract / Provider / Registry 与 TriggerBinding / ActionContract 已建立稳定边界。
 5. `@prodivix/authoring` 承载 CodeArtifact、CodeReference、CodeSlot、DiagnosticTargetRef、SourceSpan 与 provider composition；跨领域 symbol、scope、reference 与 impact contract 由 Workspace Semantic Index 统一定义。
 6. `@prodivix/authoring` 已冻结 revision-bound Code Language session、stale/unsupported/unavailable result、diagnostic、completion、hover、rename proposal 与 semantic contribution contract。
-7. `@prodivix/code-language` 已实现 TypeScript/JavaScript、CSS/SCSS 与 GLSL/WGSL adapter；同一 session 提供 definition、references、completion、diagnostics、hover、rename proposal，并向 Workspace Semantic Index 发布各语言的规范化 symbol/reference facts。
+7. `@prodivix/code-language` 已实现 TypeScript/JavaScript、CSS/SCSS 与 GLSL/WGSL adapter；同一 session 提供 definition、references、completion、diagnostics、hover、rename proposal，并向 Workspace Semantic Index 发布各语言的规范化 symbol/reference facts。TypeScript/JavaScript 的 bounded per-Workspace project host 在 canonical contribution 与 draft session 之间复用同一个增量 Language Service，session disposal 只释放 revision-bound lease。
 8. Code Editor 与 Issues 统一消费该 session 和 semantic diagnostic snapshot；Workspace planner 将带 artifact revision 的 language edits 严格合并为原子 Transaction。
 9. Route runtime、PIR event/mounted CSS、NodeGraph executor 与 Animation timeline 已提供领域 CodeSlot provider；Workspace 从同一 snapshot 组合 slot、binding projection 与 semantic reference。
 10. Shader compile 使用独立 session/provider registry；Workspace metadata 保存 target/stage/entry profile，WebGL2/WebGPU backend 只消费 canonical CodeArtifact，编译诊断以 `COD-5002` 同步进入 Code Editor 与 Issues。
@@ -345,7 +345,7 @@ type TriggerBinding =
 4. `WorkspaceCodeArtifactProvider` 从 Workspace snapshot 发布 CodeArtifact。
 5. `createCodeSlotRegistry` 提供 provider register / unregister、slot query，以及按 owner、artifact 和 semantic reference 查询领域 binding projection。
 6. TriggerBinding / ActionContract 区分结构化 action 与 code-owned action。
-7. `@prodivix/code-language` 从 immutable CodeArtifact snapshot 建立 TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL session，并发布对应 code semantic contribution。
+7. `@prodivix/code-language` 从 immutable CodeArtifact snapshot 建立 TypeScript/JavaScript/CSS/SCSS/GLSL/WGSL session，并发布对应 code semantic contribution；TypeScript/JavaScript 通过 bounded per-Workspace project host 增量更新 document/version，保存与无关 Workspace revision 不重建 Language Service。
 8. Code Editor 和 Issues 使用同一 revision-bound language result；rename proposal 通过 Workspace Transaction planner 进入正式写入链路。
 9. Route runtime、PIR event/mounted CSS、NodeGraph executor 与 Animation timeline 从同一 Workspace snapshot 组合 CodeSlot binding projection，并复用 Semantic Index definition/reference/impact 查询。
 10. Blueprint Inspector、NodeGraph、Animation Inspector 与 Code Resources 提供绑定、定义跳转和反向 usage 入口；NodeGraph 源码只保存在 Workspace code document。

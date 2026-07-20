@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import EditorBar from './EditorBar/EditorBar';
 import { EditorDebugFloatingBall } from './EditorDebugFloatingBall';
+import { isEditorDebugSurfaceEnabled } from './editorDebugVisibility';
 import { SettingsEffects } from './features/settings/SettingsEffects';
 import { WorkspaceRevisionConflictSurface } from './features/revisionConflict/WorkspaceRevisionConflictSurface';
 import { WorkspaceOutboxEffects } from './workspaceSync/WorkspaceOutboxEffects';
@@ -155,6 +156,12 @@ function EditorGlobalShortcuts({
 }
 
 function EditorSurface() {
+  const location = useLocation();
+  const showDebugSurface = isEditorDebugSurfaceEnabled(
+    location.search,
+    import.meta.env.DEV
+  );
+
   return (
     <div className="flex h-screen min-h-screen flex-row overflow-hidden bg-[linear-gradient(120deg,var(--bg-canvas)_20%,var(--bg-panel)_100%)]">
       <SettingsEffects />
@@ -166,7 +173,7 @@ function EditorSurface() {
       <div className="flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-auto">
         <Outlet />
       </div>
-      <EditorDebugFloatingBall />
+      {showDebugSurface ? <EditorDebugFloatingBall /> : null}
     </div>
   );
 }

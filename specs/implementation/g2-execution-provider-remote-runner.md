@@ -147,7 +147,9 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
   CAS 实现跨 Control Plane 副本 continuation，ADR 51 增加 PRT2 per-revision data key、AWS KMS、PRT1 migration、
   retryable outage revision fence 与 related MRK regional broker continuation；ADR 52 增加 repeatable-read exact regional
   checkpoint、shared request drain/exclusive traffic epoch、durable cutover evidence、双 Control Plane standby/readiness hard cut、
-  same-worker continuation、attempt+1 reclaim 与 Terminal generation replacement。stdout/stderr 分流的 streaming canary
+  same-worker continuation、attempt+1 reclaim 与 Terminal generation replacement，并补齐1-128 execution single-epoch batch、
+  非HTTP one-shot operator、role-separated Ed25519 proof、PostgreSQL grant replay fence、source-unavailable infrastructure fence +
+  exact target replication attestation/RPO upper-bound和strict sanitized evidence codec。stdout/stderr 分流的 streaming canary
   redaction、cursor reconnect、lease fencing、worker-loss sweep、execution cleanup 与产品交互测试已闭环。
 
 ## 范围

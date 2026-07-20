@@ -33,6 +33,8 @@ const editorBrowserStorageAllowlist = new Set([
   'apps/web/src/editor/features/issues/workspaceIssueNavigation.ts',
   'apps/web/src/editor/features/code/CodeAuthoringOverlay.tsx',
   'apps/web/src/editor/features/code/CodeAuthoringWorkspace.tsx',
+  // Resizable Execution panel height only; no Session or authoring state.
+  'apps/web/src/editor/features/execution/ExecutionCenter.tsx',
   'apps/web/src/editor/features/resources/I18nResourcePage.tsx',
   'apps/web/src/editor/features/resources/ProjectFileManager.tsx',
   'apps/web/src/editor/features/resources/ProjectResources.tsx',

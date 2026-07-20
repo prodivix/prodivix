@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
@@ -8,6 +9,16 @@ import {
 import { decodePirDocument, encodePirDocument } from './pirCodec';
 import { migratePirWireV14ToV15 } from './pirWireMigrationV14ToV15';
 import { migratePirWireV15ToV16 } from './pirWireMigrationV15ToV16';
+
+const migrationFixture = JSON.parse(
+  readFileSync(
+    new URL(
+      '../../../../specs/pir/fixtures/pir-v1.3-to-current.json',
+      import.meta.url
+    ),
+    'utf8'
+  )
+) as Readonly<{ source: unknown; expected: unknown }>;
 
 describe('PIR wire migration registry properties', () => {
   it('promotes v1.4 additively without mutating the source wire value', () => {
@@ -99,40 +110,13 @@ describe('PIR wire migration registry properties', () => {
   });
 
   it('deterministically migrates the frozen 1.3 wire contract into the current domain', () => {
-    const legacyWire = {
-      version: '1.3',
-      metadata: { name: 'Legacy page' },
-      ui: {
-        graph: {
-          version: 1,
-          rootId: 'root',
-          nodesById: {
-            root: {
-              id: 'root',
-              type: 'container',
-              text: 'Hello',
-              props: { title: { $param: 'title' } },
-              style: { color: 'red' },
-            },
-          },
-          childIdsById: { root: [] },
-          order: { strategy: 'childIdsById' },
-        },
-      },
-      logic: {
-        props: {
-          title: { type: 'string', default: 'Hello' },
-        },
-        state: {
-          count: { type: 'number', initial: 0 },
-        },
-      },
-    };
+    const legacyWire = structuredClone(migrationFixture.source);
 
     const first = upgradePirWireDocument(legacyWire);
     const second = upgradePirWireDocument(structuredClone(legacyWire));
 
     expect(first).toEqual(second);
+    expect(first).toMatchObject({ value: migrationFixture.expected });
     expect(first).toMatchObject({
       ok: true,
       sourceVersion: '1.3',

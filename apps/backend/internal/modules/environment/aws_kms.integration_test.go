@@ -79,3 +79,63 @@ func TestEnvironmentSecretAWSKMSLiveGate(t *testing.T) {
 		t.Fatalf("old key remained addressable after managed KMS retirement fence: %v", err)
 	}
 }
+
+func TestEnvironmentSecretAWSKMSMultiRegionLiveGate(t *testing.T) {
+	primaryRegion := strings.TrimSpace(os.Getenv("PRODIVIX_AWS_KMS_TEST_REGION"))
+	primaryKeyARN := strings.TrimSpace(os.Getenv("PRODIVIX_AWS_KMS_TEST_ACTIVE_KEY_ARN"))
+	replicaRegion := strings.TrimSpace(os.Getenv("PRODIVIX_AWS_KMS_TEST_REPLICA_REGION"))
+	replicaKeyARN := strings.TrimSpace(os.Getenv("PRODIVIX_AWS_KMS_TEST_ACTIVE_REPLICA_KEY_ARN"))
+	if replicaRegion == "" && replicaKeyARN == "" {
+		t.Skip("related AWS KMS multi-Region replica is not configured")
+	}
+	if primaryRegion == "" || primaryKeyARN == "" || replicaRegion == "" || replicaKeyARN == "" {
+		t.Fatal("managed KMS multi-Region live Gate requires primary/replica regions and exact key ARNs")
+	}
+	if err := validateAWSKMSRegion(primaryRegion, map[string]string{"key-mrk": primaryKeyARN}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateAWSKMSRegion(replicaRegion, map[string]string{"key-mrk": replicaKeyARN}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateAWSKMSMultiRegionReplicaPair(primaryKeyARN, replicaKeyARN); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
+	defer cancel()
+	primaryConfiguration, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(primaryRegion))
+	if err != nil {
+		t.Fatal(err)
+	}
+	replicaConfiguration, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(replicaRegion))
+	if err != nil {
+		t.Fatal(err)
+	}
+	primaryKMS, err := newAWSKMS("key-mrk", map[string]string{"key-mrk": primaryKeyARN}, awskms.NewFromConfig(primaryConfiguration), 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replicaKMS, err := newAWSKMS("key-mrk", map[string]string{"key-mrk": replicaKeyARN}, awskms.NewFromConfig(replicaConfiguration), 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	primaryCipher, _ := newSecretEnvelopeCipher(primaryKMS)
+	replicaCipher, _ := newSecretEnvelopeCipher(replicaKMS)
+	additionalData := []byte("managed-kms-mrk-live-gate\x00environment\x00revision\x00binding")
+	secret := []byte("prodivix-managed-kms-mrk-live-gate-canary")
+	envelope, err := primaryCipher.encrypt(ctx, secret, additionalData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if envelope.KeyProvider != "aws.kms/v2" || envelope.KeyID != "key-mrk" {
+		t.Fatalf("unexpected managed KMS MRK envelope identity: provider=%q key=%q", envelope.KeyProvider, envelope.KeyID)
+	}
+	material, err := replicaCipher.decrypt(ctx, envelope, additionalData)
+	if err != nil || !bytes.Equal(material, secret) {
+		t.Fatalf("related managed KMS replica did not decrypt primary envelope: %v", err)
+	}
+	clearBytes(material)
+	if _, err := replicaCipher.decrypt(ctx, envelope, []byte("wrong-aad")); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("managed KMS MRK envelope accepted wrong authenticated context: %v", err)
+	}
+}

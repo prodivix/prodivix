@@ -1,0 +1,104 @@
+{
+  "source": {
+    "version": "1.3",
+    "metadata": {
+      "name": "Legacy page"
+    },
+    "ui": {
+      "graph": {
+        "version": 1,
+        "rootId": "root",
+        "nodesById": {
+          "root": {
+            "id": "root",
+            "type": "container",
+            "text": "Hello",
+            "props": {
+              "title": {
+                "$param": "title"
+              }
+            },
+            "style": {
+              "color": "red"
+            }
+          }
+        },
+        "childIdsById": {
+          "root": []
+        },
+        "order": {
+          "strategy": "childIdsById"
+        }
+      }
+    },
+    "logic": {
+      "props": {
+        "title": {
+          "type": "string",
+          "default": "Hello"
+        }
+      },
+      "state": {
+        "count": {
+          "type": "number",
+          "initial": 0
+        }
+      }
+    }
+  },
+  "expected": {
+    "version": "1.6",
+    "metadata": {
+      "name": "Legacy page"
+    },
+    "ui": {
+      "graph": {
+        "version": 1,
+        "rootId": "root",
+        "nodesById": {
+          "root": {
+            "id": "root",
+            "kind": "element",
+            "type": "container",
+            "text": {
+              "kind": "literal",
+              "value": "Hello"
+            },
+            "props": {
+              "title": {
+                "kind": "param",
+                "paramId": "title"
+              }
+            },
+            "style": {
+              "color": {
+                "kind": "literal",
+                "value": "red"
+              }
+            }
+          }
+        },
+        "childIdsById": {
+          "root": []
+        },
+        "order": {
+          "strategy": "childIdsById"
+        }
+      }
+    },
+    "logic": {
+      "props": {
+        "title": {
+          "typeRef": "string",
+          "defaultValue": "Hello"
+        }
+      },
+      "state": {
+        "count": {
+          "typeRef": "number",
+          "initial": 0
+        }
+      }
+    }
+  }
+}

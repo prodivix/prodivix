@@ -38,6 +38,19 @@ CREATE TABLE IF NOT EXISTS remote_execution_regional_traffic_cutovers (
   CONSTRAINT remote_execution_regional_cutover_digest_check
     CHECK (checkpoint_digest ~ '^sha256-[0-9a-f]{64}$')
 );
+
+CREATE TABLE IF NOT EXISTS remote_execution_regional_operator_grants (
+  grant_digest TEXT PRIMARY KEY,
+  expires_at BIGINT NOT NULL CHECK (expires_at >= 0),
+  consumed_at BIGINT NOT NULL CHECK (consumed_at >= 0),
+  CONSTRAINT remote_execution_regional_operator_grant_digest_check
+    CHECK (grant_digest ~ '^sha256-[0-9a-f]{64}$'),
+  CONSTRAINT remote_execution_regional_operator_grant_time_check
+    CHECK (expires_at > consumed_at)
+);
+
+CREATE INDEX IF NOT EXISTS remote_execution_regional_operator_grants_expiry_idx
+  ON remote_execution_regional_operator_grants (expires_at);
 `;
 
 type TrafficRow = Readonly<{

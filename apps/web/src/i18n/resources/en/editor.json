@@ -3,6 +3,10 @@
     "title": "Execution",
     "expand": "Expand execution console",
     "collapse": "Collapse execution console",
+    "resizePanel": "Resize execution panel",
+    "resizePanelHint": "Drag to resize, use arrow keys, or double-click to reset",
+    "maximizePanel": "Maximize execution panel",
+    "restorePanel": "Restore execution panel",
     "restart": "Restart execution",
     "startNewRequest": "Start a new execution request",
     "stop": "Stop execution",
@@ -384,6 +388,9 @@
       "openSource": "Open source",
       "openExecution": "Open execution",
       "openDocs": "Open docs",
+      "retry": "Retry operation",
+      "retryQueued": "The exact operation was queued for retry.",
+      "retryUnavailable": "This operation can no longer be retried.",
       "targetUnavailable": "The target no longer exists in the current workspace.",
       "sourceUnavailable": "The source artifact no longer exists in the current workspace."
     },
@@ -913,18 +920,18 @@
     },
     "editorPage": {
       "title": "Editor Settings",
-      "subtitle": "Global defaults applied to every project and new workspace."
+      "subtitle": "Editor preferences and authoring defaults with active consumers."
     },
     "projectPage": {
       "title": "Project Settings",
-      "subtitle": "Manage project configuration and adjust global editor preferences here.",
+      "subtitle": "Manage server-backed collaboration and explicit project overrides.",
       "tabs": {
         "project": "Project settings",
         "global": "Global defaults"
       },
       "overrides": {
         "title": "Editor settings",
-        "body": "Most settings are global preferences. Only settings that affect project output or runtime semantics can be overridden for this project."
+        "body": "Most settings are global preferences. Only settings with a project-aware authoring or runtime consumer can be overridden here."
       }
     },
     "overrides": {
@@ -946,11 +953,11 @@
         },
         "behavior": {
           "title": "Editor behavior",
-          "description": "How the editor saves, confirms, and manages your work."
+          "description": "History capacity, exit confirmation, and the default panel layout."
         },
         "blueprint": {
           "title": "Blueprint defaults",
-          "description": "Defaults applied when creating or opening a new blueprint."
+          "description": "Canvas behavior, authoring transforms, diagnostics, and the default runtime target."
         },
         "components": {
           "title": "Components & rendering",
@@ -1014,7 +1021,7 @@
         },
         "confirmPrompts": {
           "label": "Confirm prompts",
-          "description": "When to show confirmation dialogs.",
+          "description": "Require confirmation before leaving a project.",
           "options": {
             "delete": "Delete",
             "reset": "Reset",
@@ -1048,7 +1055,7 @@
         },
         "assist": {
           "label": "Assist overlays",
-          "description": "Grid, guides, and snapping defaults.",
+          "description": "Show the canvas grid.",
           "options": {
             "grid": "Grid",
             "alignment": "Alignment",
@@ -1171,7 +1178,7 @@
         },
         "collaboration": {
           "title": "Collaboration",
-          "description": "Access, permissions, and team workflow defaults."
+          "description": "Server-backed Workspace role assignments."
         },
         "designSystem": {
           "title": "Design system",
@@ -1759,7 +1766,9 @@
         "bytes": "bytes"
       },
       "actions": {
-        "save": "Save"
+        "save": "Save",
+        "saveShortcut": "Save (Ctrl+S)",
+        "unsaved": "Unsaved changes"
       },
       "compile": {
         "title": "Target shader validation",
@@ -1783,11 +1792,14 @@
           "unavailable": "Language service unavailable: {{reason}}"
         },
         "actions": {
+          "contextMenu": "Code editor actions",
           "goToDefinition": "Go to definition",
           "definitionShortcut": "Go to definition (F12)",
           "findReferences": "Find references"
         },
         "query": {
+          "results": "Code locations",
+          "close": "Close code locations",
           "resolvingDefinition": "Resolving definition…",
           "findingReferences": "Finding references…",
           "definitionCount_one": "1 definition location found.",

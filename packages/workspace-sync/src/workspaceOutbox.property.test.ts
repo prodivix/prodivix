@@ -10,6 +10,8 @@ import {
   computeWorkspaceOutboxRetryDelay,
   createMemoryWorkspaceOutboxStore,
   createWorkspaceOutboxEntry,
+  failWorkspaceOutboxEntry,
+  requeueFailedWorkspaceOutboxEntry,
   retryWorkspaceOutboxEntry,
   selectWorkspaceOutboxClaimCandidate,
   type WorkspaceOutboxEntry,
@@ -138,6 +140,38 @@ describe('workspace outbox properties', () => {
       ),
       propertyParameters
     );
+  });
+
+  it('requeues an explicit terminal failure without changing exact identity or request', () => {
+    const entry = createEntry();
+    const claimed = claimWorkspaceOutboxEntry(entry, {
+      leaseOwnerId: 'tab-a',
+      now: 1,
+      leaseDurationMs: 30_000,
+    });
+    expect(claimed).not.toBeNull();
+    if (!claimed) return;
+    const failed = failWorkspaceOutboxEntry(claimed, {
+      leaseOwnerId: 'tab-a',
+      now: 2,
+      failure: {
+        code: 'WKS-5002',
+        message: 'Persisted PIR wire requires migration.',
+        retryable: false,
+      },
+    });
+    expect(failed).not.toBeNull();
+    if (!failed) return;
+
+    const requeued = requeueFailedWorkspaceOutboxEntry(failed, { now: 3 });
+    expect(requeued).toMatchObject({
+      id: entry.id,
+      request: entry.request,
+      operation: entry.operation,
+      attemptCount: 1,
+      state: { kind: 'queued' },
+    });
+    expect(requeueFailedWorkspaceOutboxEntry(entry, { now: 3 })).toBeNull();
   });
 
   it('keeps a fresh recovery operation at the original causal head', async () => {

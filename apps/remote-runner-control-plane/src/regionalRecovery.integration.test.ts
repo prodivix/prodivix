@@ -1,4 +1,9 @@
-import { randomBytes } from 'node:crypto';
+import {
+  generateKeyPairSync,
+  randomBytes,
+  sign,
+  type KeyObject,
+} from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Pool } from 'pg';
@@ -11,6 +16,9 @@ import {
 } from '@prodivix/runtime-core';
 import {
   createActiveExecutionQuotaPolicy,
+  createRemoteExecutionRegionalRecoveryAuthorizationScopeDigest,
+  createRemoteExecutionRegionalRecoveryExecutionSetDigest,
+  createRemoteExecutionRegionalRecoveryOperator,
   createRemoteExecutionControlPlane,
   createRemoteExecutionRegionalRecoveryCoordinator,
   createRemoteExecutionRegionalTrafficGate,
@@ -19,12 +27,15 @@ import {
   createStaticRemoteExecutionProviderRouter,
   type RemoteExecutionControlPlane,
   type RemoteExecutionRegionalTrafficAuthority,
+  REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_FORMAT,
+  REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_VERSION,
   type RemoteExecutionRepository,
   type RemoteExecutionSnapshotStore,
   type RemoteExecutionTerminalBroker,
 } from '@prodivix/runtime-remote';
 import {
   createPostgresRemoteExecutionRegionalRecoveryProbe,
+  createPostgresRemoteExecutionRegionalRecoveryGrantReplayStore,
   createPostgresRemoteExecutionRegionalTrafficAuthority,
   createPostgresRemoteExecutionRepository,
   createPostgresRemoteExecutionSnapshotStore,
@@ -34,6 +45,12 @@ import {
 } from '@prodivix/runtime-remote-postgres';
 import { createRemoteExecutionHttpHandler } from './httpHandler';
 import { createAesGcmRemoteExecutionTerminalStateCipher } from './terminalStateCipher';
+import {
+  createRemoteRegionalRecoverySignedProofPorts,
+  encodeRemoteRegionalRecoverySignedProof,
+  encodeRemoteRegionalRecoverySignedProofPayload,
+  type RemoteRegionalRecoveryUnsignedProof,
+} from './regionalRecoverySignedProof';
 
 const databaseUrl = process.env.PRODIVIX_REMOTE_POSTGRES_TEST_URL;
 const integration = databaseUrl ? describe : describe.skip;
@@ -276,6 +293,19 @@ const post = async (
   });
 };
 
+const signedRecoveryProof = (
+  proof: RemoteRegionalRecoveryUnsignedProof,
+  privateKey: KeyObject
+): Uint8Array =>
+  encodeRemoteRegionalRecoverySignedProof(
+    proof,
+    sign(
+      null,
+      encodeRemoteRegionalRecoverySignedProofPayload(proof),
+      privateKey
+    )
+  );
+
 integration('regional Control Plane disaster-recovery drill', () => {
   beforeAll(async () => {
     admin = new Pool({ connectionString: databaseUrl, max: 4 });
@@ -317,6 +347,124 @@ integration('regional Control Plane disaster-recovery drill', () => {
         await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       await admin.end();
     }
+  });
+
+  it('moves one signed and replay-fenced execution batch through a single traffic epoch', async () => {
+    const deploymentId = 'deployment-batch-operator';
+    await authority.initialize({
+      deploymentId,
+      activeRegionId: regionA.id,
+      initializedAt: 1_000,
+    });
+    await Promise.all([
+      createExecution(regionA, 'execution-batch-a', 'request-batch-a'),
+      createExecution(regionA, 'execution-batch-b', 'request-batch-b'),
+    ]);
+    await replicate(regionA, regionB);
+
+    const authorizationKey = generateKeyPairSync('ed25519');
+    const fenceKey = generateKeyPairSync('ed25519');
+    const replicationKey = generateKeyPairSync('ed25519');
+    const publicKey = (key: KeyObject) =>
+      key.export({ type: 'spki', format: 'pem' }).toString();
+    const proofPorts = createRemoteRegionalRecoverySignedProofPorts({
+      authorizationPublicKeys: {
+        authorization: publicKey(authorizationKey.publicKey),
+      },
+      infrastructureFencePublicKeys: {
+        fence: publicKey(fenceKey.publicKey),
+      },
+      replicationAttestationPublicKeys: {
+        replication: publicKey(replicationKey.publicKey),
+      },
+      grantReplayStore:
+        createPostgresRemoteExecutionRegionalRecoveryGrantReplayStore(
+          trafficPool
+        ),
+      now: () => 2_000,
+    });
+    const request = Object.freeze({
+      format: REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_FORMAT,
+      version: REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_VERSION,
+      operationId: 'operation-batch-1',
+      mode: 'planned' as const,
+      executionIds: Object.freeze(['execution-batch-b', 'execution-batch-a']),
+      expectedTrafficEpoch: 1,
+      initiatedAt: 1_900,
+      cutoverAt: 2_000,
+    });
+    const scope = Object.freeze({
+      format: request.format,
+      version: request.version,
+      operationId: request.operationId,
+      deploymentId,
+      sourceRegionId: regionA.id,
+      targetRegionId: regionB.id,
+      mode: request.mode,
+      expectedTrafficEpoch: request.expectedTrafficEpoch,
+      executionCount: request.executionIds.length,
+      executionSetDigest:
+        createRemoteExecutionRegionalRecoveryExecutionSetDigest(
+          request.executionIds
+        ),
+      initiatedAt: request.initiatedAt,
+      cutoverAt: request.cutoverAt,
+    });
+    const grant = signedRecoveryProof(
+      {
+        kind: 'operator-authorization',
+        keyId: 'authorization',
+        claim: {
+          scopeDigest:
+            createRemoteExecutionRegionalRecoveryAuthorizationScopeDigest(
+              scope
+            ),
+          principalDigest: `sha256-${'a'.repeat(64)}`,
+          expiresAt: 2_500,
+        },
+      },
+      authorizationKey.privateKey
+    );
+    let nowCalls = 0;
+    const operator = createRemoteExecutionRegionalRecoveryOperator({
+      deploymentId,
+      sourceRegionId: regionA.id,
+      targetRegionId: regionB.id,
+      source: createPostgresRemoteExecutionRegionalRecoveryProbe(regionA.pool, {
+        regionId: regionA.id,
+      }),
+      target: createPostgresRemoteExecutionRegionalRecoveryProbe(regionB.pool, {
+        regionId: regionB.id,
+      }),
+      trafficAuthority: authority,
+      authorization: proofPorts.authorization,
+      infrastructureFence: proofPorts.infrastructureFence,
+      replicationAttestation: proofPorts.replicationAttestation,
+      targetTerminalBroker: regionB.terminalBroker,
+      maximumWorkerAttempts: 3,
+      maximumRequestAgeMs: 1_000,
+      maximumProofLifetimeMs: 1_000,
+      maximumAcceptedRpoMs: 500,
+      now: () => (nowCalls++ === 0 ? 2_000 : 2_100),
+    });
+    const result = await operator.execute(request, {
+      authorizationGrant: grant,
+    });
+    expect(result).toMatchObject({
+      kind: 'cutover',
+      state: { activeRegionId: regionB.id, epoch: 2 },
+      evidence: {
+        executionCount: 2,
+        outcomes: { queuedClaim: 2 },
+      },
+    });
+    await expect(
+      operator.execute(request, { authorizationGrant: grant })
+    ).rejects.toMatchObject({ code: 'authorization-denied' });
+    const cutovers = await authority.listCutovers(deploymentId, 10);
+    expect(cutovers).toHaveLength(1);
+    if (result.kind !== 'cutover') throw new Error('expected cutover');
+    expect(cutovers[0]?.checkpointDigest).toBe(result.evidence.evidenceDigest);
   });
 
   it('continues one exact live lease on the target and fences the old HTTP plane', async () => {

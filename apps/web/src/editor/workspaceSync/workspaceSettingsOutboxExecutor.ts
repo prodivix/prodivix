@@ -318,6 +318,16 @@ export const executeWorkspaceSettingsOutboxCommit = async (input: {
   store?: WorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>;
   token: string;
 }): Promise<WorkspaceSettingsOutboxExecutionResult> => {
+  if (workspaceSettingsEqual(input.baseSettings, input.settings)) {
+    return {
+      kind: 'already-applied',
+      baseSnapshot: input.baseSnapshot,
+      baseSettings: input.baseSettings,
+      settings: input.baseSettings,
+      snapshot: input.baseSnapshot,
+      submittedSettings: input.settings,
+    };
+  }
   const store = input.store ?? workspaceSettingsOutboxStore;
   const replicaWriter =
     input.replicaWriter ??

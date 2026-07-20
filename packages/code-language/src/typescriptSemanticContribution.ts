@@ -22,7 +22,12 @@ import {
 import {
   createTypeScriptCodeProject,
   getTypeScriptHostLibraryMode,
+  type TypeScriptCodeProject,
 } from './typescriptProject';
+import {
+  acquireTypeScriptCodeProject,
+  defaultTypeScriptCodeProjectHost,
+} from './typescriptProjectHost';
 
 export const TYPESCRIPT_SEMANTIC_PROVIDER_ID = 'core.code-language.typescript';
 export const TYPESCRIPT_SEMANTIC_PROVIDER_VERSION = '1';
@@ -302,12 +307,13 @@ export const collectTypeScriptProjectDiagnostics = (
   );
 };
 
-export const createTypeScriptSemanticContribution = (input: {
+export const createTypeScriptSemanticContributionFromProject = (input: {
   workspaceId: string;
   artifacts: readonly CodeArtifact[];
+  project: TypeScriptCodeProject;
 }): SemanticContribution => {
-  const project = createTypeScriptCodeProject(input.artifacts);
-  try {
+  const { project } = input;
+  const buildContribution = (): SemanticContribution => {
     const exports = collectExports({ ...input, project });
     const scopes: WorkspaceScopeContribution[] = [];
     const symbols: WorkspaceSymbolContribution[] = [];
@@ -458,6 +464,20 @@ export const createTypeScriptSemanticContribution = (input: {
       dependencies: uniqueById(dependencies),
       diagnostics: collectTypeScriptProjectDiagnostics(project),
     });
+  };
+  return buildContribution();
+};
+
+export const createTypeScriptSemanticContribution = (input: {
+  workspaceId: string;
+  artifacts: readonly CodeArtifact[];
+}): SemanticContribution => {
+  const project = createTypeScriptCodeProject(input.artifacts);
+  try {
+    return createTypeScriptSemanticContributionFromProject({
+      ...input,
+      project,
+    });
   } finally {
     project.dispose();
   }
@@ -488,10 +508,22 @@ export const createTypeScriptSemanticContributionProvider = (
       );
     }
   }
-  const contribution = createTypeScriptSemanticContribution({
-    workspaceId: input.workspaceId,
-    artifacts,
-  });
+  const contribution = (() => {
+    const lease = acquireTypeScriptCodeProject(
+      defaultTypeScriptCodeProjectHost,
+      input.workspaceId,
+      artifacts
+    );
+    try {
+      return createTypeScriptSemanticContributionFromProject({
+        workspaceId: input.workspaceId,
+        artifacts,
+        project: lease.project,
+      });
+    } finally {
+      lease.release();
+    }
+  })();
 
   return Object.freeze({
     descriptor: Object.freeze({

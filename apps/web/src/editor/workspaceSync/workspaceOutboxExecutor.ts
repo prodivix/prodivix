@@ -16,6 +16,7 @@ import {
   createWorkspaceOutboxEntry,
   createWorkspaceResolutionOperation,
   failWorkspaceOutboxEntry,
+  requeueFailedWorkspaceOutboxEntry,
   retryWorkspaceOutboxEntry,
   type WorkspaceConflictSession,
   type WorkspaceOutboxEntry,
@@ -553,3 +554,24 @@ export const listWorkspaceOutboxEntries = (
   workspaceId: string,
   store: WorkspaceOutboxStore = workspaceOutboxStore
 ) => store.list(workspaceId);
+
+export type RequeueFailedWorkspaceOutboxOperationResult =
+  'queued' | 'not-found' | 'not-failed' | 'stale';
+
+/** Reopens one exact failed request; the mounted outbox effect owns dispatch. */
+export const requeueFailedWorkspaceOutboxOperation = async (input: {
+  entryId: string;
+  workspaceId: string;
+  store?: WorkspaceOutboxStore;
+}): Promise<RequeueFailedWorkspaceOutboxOperationResult> => {
+  const store = input.store ?? workspaceOutboxStore;
+  const entry = await store.get(input.entryId);
+  if (!entry || entry.workspaceId !== input.workspaceId) return 'not-found';
+  const requeued = requeueFailedWorkspaceOutboxEntry(entry, {
+    now: Date.now(),
+  });
+  if (!requeued) return 'not-failed';
+  if (!(await store.update(requeued))) return 'stale';
+  notifyWorkspaceOutboxChanged(input.workspaceId);
+  return 'queued';
+};

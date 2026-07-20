@@ -14,7 +14,8 @@
 pnpm run verify:g2:data-security-matrix
 ```
 
-2026-07-19 本地结果：通过。
+2026-07-20 本地复跑：通过。Environment Secret managed adapter已hard-cut为`aws.kms/v2`，新增related MRK
+primary/replica stable-identity contract；Remote Terminal既有`aws.kms/v1` PRT2 contract保持不变。
 
 | 子 Gate           | 证据                                                                                                                                                                                                                     |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -242,13 +243,14 @@ pnpm --filter @prodivix/remote-runner-control-plane build
 
 2026-07-19 本地结果：通过。
 
-| 子 Gate                        | 证据                                                                                                                                                                       |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Managed cipher/config          | 5 files / 13 tests passed；覆盖 PRT2 exact AAD/tamper、独立 replica、per-revision data key、old/new rotation/retirement、strict config 与 live PRT1 broker CAS migration。 |
-| AWS KMS adapter                | exact immutable ARN/region/algorithm/response、hashed CloudTrail context、pre-KMS metadata rejection、bounded timeout 与 retryable dependency classification 通过。        |
-| Multi-Region broker recovery   | related MRK primary/replica 通过同一 opaque row 双向继续 stdin、worker mailbox、output cursor、token rotation 与 revision CAS；unrelated MRK fail closed。                 |
-| Runtime outage preservation    | Runtime Remote 13 files / 81 tests passed；cipher open/seal outage 保持 exact revision，恢复后同 sequence 只产生一个 input command。                                       |
-| Full Control Plane / aggregate | 10 files / 32 passed + 2 live skipped；build 通过。完整 Remote recovery 32 秒通过：Core 19、Remote 81、managed KMS 13、HTTP 9、Worker 15、Web 12。                         |
+| 子 Gate                        | 证据                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Managed cipher/config          | 5 files / 13 tests passed；覆盖 PRT2 exact AAD/tamper、独立 replica、per-revision data key、old/new rotation/retirement、strict config 与 live PRT1 broker CAS migration。            |
+| AWS KMS adapter                | exact immutable ARN/region/algorithm/response、hashed CloudTrail context、pre-KMS metadata rejection、bounded timeout 与 retryable dependency classification 通过。                   |
+| Environment Secret MRK         | `verify:g2:environment-secret-managed-kms`通过；v2 metadata绑定single-Region exact ARN或MRK partition/account/resource，related replica unwrap通过，unrelated/single-Region替换拒绝。 |
+| Multi-Region broker recovery   | related MRK primary/replica 通过同一 opaque row 双向继续 stdin、worker mailbox、output cursor、token rotation 与 revision CAS；unrelated MRK fail closed。                            |
+| Runtime outage preservation    | Runtime Remote 13 files / 81 tests passed；cipher open/seal outage 保持 exact revision，恢复后同 sequence 只产生一个 input command。                                                  |
+| Full Control Plane / aggregate | 10 files / 32 passed + 2 live skipped；build 通过。完整 Remote recovery 32 秒通过：Core 19、Remote 81、managed KMS 13、HTTP 9、Worker 15、Web 12。                                    |
 
 关键闭环：
 
@@ -261,9 +263,10 @@ pnpm --filter @prodivix/remote-runner-control-plane build
 4. MRK metadata 固定 partition/account/`mrk-*` stable identity，但每个 Region 的请求/响应仍要求 exact local ARN；
    cryptographic portability 与 ADR 52 的 PostgreSQL/Worker/traffic DR contract 保持两个独立 Gate。
 
-GitHub `G2 Managed KMS` workflow 已配置本地 contract、OIDC old/active live rotation 和可选 related MRK replica live Gate。
+GitHub `G2 Managed KMS` workflow已配置Terminal与Environment本地contract、OIDC old/active live rotation，以及Terminal +
+Environment related MRK replica live Gate；`deploy/aws/g2-managed-kms`另提供不自动部署的Retain primary/replica与exact-sub OIDC role参考。
 截至 2026-07-20，该手工 workflow 尚无首次 run，`g2-managed-kms` GitHub Environment、OIDC Role 与 AWS key
-variables/secrets 待配置；两个 live test 在本地无 AWS 环境时明确 skipped，因此 A14 继续保持
+variables/secrets待配置；四条live路径在本地无AWS环境时明确skipped，因此A14继续保持
 `Configured / Evidence pending`。
 
 ## Regional PostgreSQL / Worker / traffic disaster-recovery drill
@@ -274,14 +277,16 @@ variables/secrets 待配置；两个 live test 在本地无 AWS 环境时明确 
 PRODIVIX_REMOTE_POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:5432/prodivix_test?sslmode=disable' pnpm run verify:g2:regional-dr
 ```
 
-2026-07-19 本地 PostgreSQL 结果：通过。
+2026-07-20 本地PostgreSQL复跑：通过。以下新增operator evidence尚未commit/push，因此旧GitHub run只证明此前single-execution
+baseline；更新后的GitHub PostgreSQL Gate必须在后续明确提交推送后重新取得。
 
-| 子 Gate                      | 证据                                                                                                                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Recovery contract            | 1 file / 6 tests passed；覆盖 target missing/behind/ahead、same-cursor drift、configured-region identity、queued/live/expired/exhausted/terminal mode 与 exclusive-section Terminal revocation。 |
-| 双 schema PostgreSQL         | 1 file / 2 tests passed；repeatable-read exact digest、cursor lag、state drift、shared request drain、epoch CAS、standby hard cut 与 immutable cutover evidence。                                |
-| 双 HTTP Control Plane/config | 2 files / 5 tests passed；all-or-none config、standby liveness/readiness、同 lease 目标区续租、旧区写拒绝，以及 attempt 1 -> 2、旧 lease rejection、旧 Terminal sweep 与新 generation。          |
-| GitHub Gate                  | `G2 PostgreSQL Gates` 的 PostgreSQL 16 service 已在 run 29692691122 执行并通过 `verify:g2:regional-dr`。                                                                                         |
+| 子 Gate                        | 证据                                                                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recovery/operator contract     | 2 files / 13 tests passed；除原exact recovery外，覆盖2-execution single-epoch batch、strict request/evidence codec、credential exclusion、scope drift、source-unavailable fence/attestation/RPO、active-lease wait与Terminal revoke。 |
+| 双 schema PostgreSQL           | 1 file / 3 tests passed；除repeatable-read/epoch外，16路并发signed grant只有一次消费，grant表只保存digest/expiry/consumed time。                                                                                                      |
+| 双 HTTP Control Plane/operator | 5 files / 14 tests passed；配置、bounded regular-file input、standby/readiness、lease/PTY recovery，以及三组Ed25519 key role separation、signature/claim drift、canonical replay identity和双execution signed batch。                 |
+| Full package regression        | Runtime Remote 15 files / 91 tests、PostgreSQL adapter 3 files / 15 tests、Control Plane 13 files / 41 passed + 2 AWS live skipped，build与core boundary通过。                                                                        |
+| GitHub Gate                    | 旧baseline在PostgreSQL 16 run 29692691122通过；本轮更新后的workflow command已包含operator suites，但远端新run待后续commit/push。                                                                                                      |
 
 关键闭环：
 
@@ -293,6 +298,11 @@ PRODIVIX_REMOTE_POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:5432/p
    Terminal row 关闭并 revision-fenced 删除后，新 Worker 才能创建不同 session id。
 4. `/healthz` 只表示进程活着；`/readyz` 与业务请求共同消费 current traffic authority。standby/authority outage 不降级写入，
    每次成功切换在同一 transaction 留下 source/target/epoch/checkpoint digest/time evidence。
+5. one-shot operator不注册HTTP route；authorization/fence/replication三个issuer key fingerprint不得复用，proof input Buffer在执行后best-effort清零。
+   source-unavailable不读源库，以external fence + exact target attestation给出非零RPO upper bound，并在旧lease到期前拒绝切换。
+6. sanitized evidence不含raw execution/request/owner id、ARN、URL、proof、Terminal id、ciphertext或应用payload；unknown field、
+   timing/outcome/digest drift由codec拒绝，整份evidence的`evidenceDigest`在traffic transaction中作为immutable checkpoint
+   trust anchor durable保存。
 
 本 Gate 关闭本地可重复 regional DR contract，不冒充真实跨 Region database promotion、DNS/Anycast 或 RPO/RTO 测量。
 
@@ -433,6 +443,7 @@ GitHub workflow全绿证据：CodeQL、G0/G1、G2 Data/Second Target、G2 Rootle
 
 当前 G2 evidence pending：
 
+- 本轮regional batch/operator/source-unavailable与Environment MRK v2变更的non-cloud GitHub Gate，待用户后续明确要求commit/push后运行；
 - regional DR首次真实云端 RPO/RTO、AWS KMS/MRK/OIDC/受保护 Environment与 Secrets证据按用户决定延后。
 
 以下是明确的 post-G2 adapter/product expansion，不再作为 G2 Passed 的伪阻塞项：

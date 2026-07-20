@@ -55,9 +55,27 @@ vi.mock('./runtimeFilesystemAssetUpload', () => ({
 }));
 
 const sessionIds = new Set<string>();
+const executionCenterHeightStorageKey =
+  'prodivix.editor.execution-center.height';
+const localStorageValues = new Map<string, string>();
+const localStorageStub: Storage = {
+  clear: vi.fn(() => localStorageValues.clear()),
+  getItem: vi.fn((key) => localStorageValues.get(key) ?? null),
+  key: vi.fn((index) => [...localStorageValues.keys()][index] ?? null),
+  get length() {
+    return localStorageValues.size;
+  },
+  removeItem: vi.fn((key) => localStorageValues.delete(key)),
+  setItem: vi.fn((key, value) => localStorageValues.set(key, value)),
+};
 
 beforeEach(() => {
   uploadRuntimeAssets.mockResolvedValue([]);
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: localStorageStub,
+  });
+  window.localStorage.removeItem(executionCenterHeightStorageKey);
 });
 
 const activateSession = (
@@ -190,6 +208,56 @@ afterEach(() => {
   useExecutionCenterNavigationStore.getState().clear();
 });
 
+describe('ExecutionCenter panel layout', () => {
+  it('resizes with the keyboard, persists the preference, and resets', () => {
+    render(<ExecutionCenter sessionId="resizable-panel" />);
+
+    const separator = screen.getByRole('separator', {
+      name: 'execution.resizePanel',
+    });
+    expect(separator.getAttribute('aria-valuenow')).toBe('210');
+
+    fireEvent.keyDown(separator, { key: 'ArrowUp' });
+    expect(separator.getAttribute('aria-valuenow')).toBe('226');
+    expect(window.localStorage.getItem(executionCenterHeightStorageKey)).toBe(
+      '226'
+    );
+
+    fireEvent.doubleClick(separator);
+    expect(separator.getAttribute('aria-valuenow')).toBe('210');
+  });
+
+  it('maximizes and restores without replacing the saved manual height', () => {
+    render(<ExecutionCenter sessionId="maximized-panel" />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'execution.maximizePanel' })
+    );
+    expect(
+      screen.getByRole('button', { name: 'execution.restorePanel' })
+    ).toBeTruthy();
+    expect(
+      Number(
+        screen
+          .getByRole('separator', { name: 'execution.resizePanel' })
+          .getAttribute('aria-valuenow')
+      )
+    ).toBeGreaterThan(210);
+    expect(window.localStorage.getItem(executionCenterHeightStorageKey)).toBe(
+      '210'
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'execution.restorePanel' })
+    );
+    expect(
+      screen
+        .getByRole('separator', { name: 'execution.resizePanel' })
+        .getAttribute('aria-valuenow')
+    ).toBe('210');
+  });
+});
+
 describe('ExecutionCenter Remote recovery', () => {
   it('presents quota and exhausted-worker recovery as explicit new-request policies', async () => {
     const controller = activateSession('worker-recovery', []);
@@ -212,6 +280,7 @@ describe('ExecutionCenter Remote recovery', () => {
       />
     );
     expect(screen.getByText('execution.recovery.quota')).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'failed' })).toBeTruthy();
   });
 
   it('presents authorization, permission, network, cancellation, and timeout repair paths', async () => {
@@ -504,7 +573,7 @@ describe('ExecutionCenter local view controls', () => {
     const view = render(
       <ExecutionCenter sessionId={sessionId} workspace={workspace} />
     );
-    expect(screen.queryByText('execution.status.stale')).toBeNull();
+    expect(screen.queryByLabelText('execution.status.stale')).toBeNull();
 
     view.rerender(
       <ExecutionCenter
@@ -512,7 +581,7 @@ describe('ExecutionCenter local view controls', () => {
         workspace={{ ...workspace, workspaceRev: 2 }}
       />
     );
-    expect(screen.getByText('execution.status.stale')).toBeTruthy();
+    expect(screen.getByLabelText('execution.status.stale')).toBeTruthy();
   });
 });
 

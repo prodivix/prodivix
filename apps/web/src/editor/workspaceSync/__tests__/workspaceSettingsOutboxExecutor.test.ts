@@ -10,6 +10,35 @@ import {
 describe('executeWorkspaceSettingsOutboxCommit', () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it('does not enqueue or commit semantically unchanged settings', async () => {
+    const base = createEditorWorkspace();
+    const store =
+      createMemoryWorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>();
+    const commit = vi.spyOn(editorApi, 'commitWorkspaceSettings');
+
+    const result = await executeWorkspaceSettingsOutboxCommit({
+      token: 'token',
+      baseSnapshot: base,
+      baseSettings: {
+        global: { density: 'compact', language: 'zh-CN' },
+        projectGlobalById: { project: { undoSteps: 80 } },
+      },
+      settings: {
+        projectGlobalById: { project: { undoSteps: 80 } },
+        global: { language: 'zh-CN', density: 'compact' },
+      },
+      commitId: 'settings-no-op',
+      store,
+    });
+
+    expect(result).toMatchObject({
+      kind: 'already-applied',
+      snapshot: { workspaceRev: base.workspaceRev, opSeq: base.opSeq },
+    });
+    expect(commit).not.toHaveBeenCalled();
+    await expect(store.get('settings-no-op')).resolves.toBeNull();
+  });
+
   it('keeps the exact settings request retryable when local ACK persistence fails', async () => {
     const base = createEditorWorkspace();
     const store =

@@ -1,12 +1,4 @@
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import type { BuiltInGatewayServicePorts } from '@prodivix/plugin-browser';
 import type { PluginHostResult } from '@prodivix/plugin-host';
 import {
@@ -15,20 +7,12 @@ import {
   type CreateWorkspaceWebPluginPlatformOptions,
 } from '@/plugins/platform/createWorkspaceWebPluginPlatform';
 import { installNativeCorePlugin } from '@/plugins/platform/nativeCorePlugin';
-import type {
-  PaletteQueryService,
-  WebPluginPlatform,
-  WebPluginQueryServices,
-  WebPluginRuntimeServices,
-} from '@/plugins/platform/types';
+import type { WebPluginPlatform } from '@/plugins/platform/types';
 import { OfficialSurfaceLeaseRegistryContext } from '@/plugins/platform/officialSurfaceHost';
-
-const WebPluginQueryContext = createContext<WebPluginQueryServices | null>(
-  null
-);
-const WebPluginRuntimeContext = createContext<WebPluginRuntimeServices | null>(
-  null
-);
+import {
+  WebPluginQueryContext,
+  WebPluginRuntimeContext,
+} from '@/plugins/platform/WebPluginPlatformContext';
 
 export type WebPluginPlatformFactory = (
   options: CreateWorkspaceWebPluginPlatformOptions
@@ -140,49 +124,3 @@ export function WebPluginPlatformProvider({
     </OfficialSurfaceLeaseRegistryContext.Provider>
   );
 }
-
-export const useWebPluginQueries = (): WebPluginQueryServices => {
-  const services = useContext(WebPluginQueryContext);
-  if (!services) {
-    throw new Error(
-      'Web plugin query services require WebPluginPlatformProvider.'
-    );
-  }
-  return services;
-};
-
-export const useWebPluginRuntimeServices = (): WebPluginRuntimeServices => {
-  const services = useContext(WebPluginRuntimeContext);
-  if (!services) {
-    throw new Error(
-      'Web plugin runtime services require WebPluginPlatformProvider.'
-    );
-  }
-  return services;
-};
-
-export const usePaletteQueryService = (): PaletteQueryService =>
-  useWebPluginQueries().palette;
-
-export const usePaletteRegistrySnapshot = () => {
-  const palette = usePaletteQueryService();
-  return useSyncExternalStore(
-    palette.subscribe,
-    palette.getSnapshot,
-    palette.getSnapshot
-  );
-};
-
-export const usePaletteGroups = () => usePaletteRegistrySnapshot().groups;
-
-export const useWebExtensionRegistrySnapshot = () => {
-  const extensions = useWebPluginQueries().extensions;
-  return useSyncExternalStore(
-    extensions.subscribe,
-    extensions.getSnapshot,
-    extensions.getSnapshot
-  );
-};
-
-export const useCodegenPolicySnapshot = () =>
-  useWebExtensionRegistrySnapshot().codegenPolicy;

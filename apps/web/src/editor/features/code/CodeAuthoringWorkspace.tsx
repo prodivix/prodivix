@@ -14,7 +14,6 @@ import type {
 } from '@prodivix/authoring';
 import {
   analyzeCodeLanguageRenameImpact,
-  decodeControlledSourceManifest,
   decodeShaderCompileProfile,
   hasCodeAuthoringCapability,
   queryCodeArtifactRefactorImpact,
@@ -25,10 +24,13 @@ import {
 import type { DiagnosticTargetRef } from '@prodivix/diagnostics';
 import { CodeFileTree } from './CodeFileTree';
 import {
-  CodeArtifactRefactorPanel,
-  type CodeArtifactRelocationRefactorView,
-  type CodeLanguageRenameRefactorView,
-} from './CodeArtifactRefactorPanel';
+  CodeEditorContextMenu,
+  CodeLanguageLocationsOverlay,
+  CodeLanguageRenameOverlay,
+  type CodeArtifactRelocationOverlayView,
+  type CodeLanguageRenameOverlayView,
+  type EditorSurfaceAnchor,
+} from './CodeEditorActionOverlays';
 import {
   glslCodeMirrorLanguage,
   wgslCodeMirrorLanguage,
@@ -123,7 +125,12 @@ type CodeLanguageRenameState =
 
 type CodeArtifactRelocationState =
   | Readonly<{ status: 'idle' }>
-  | Readonly<{ status: 'editing'; currentPath: string; nextPath: string }>;
+  | Readonly<{
+      status: 'editing';
+      artifactId: string;
+      currentPath: string;
+      nextPath: string;
+    }>;
 
 type LatestRequestGate = Readonly<{
   begin(): number;
@@ -133,6 +140,23 @@ type LatestRequestGate = Readonly<{
 
 const EMPTY_WORKSPACE_DOCUMENTS: WorkspaceSnapshot['docsById'] = {};
 const EMPTY_WORKSPACE_TREE: WorkspaceSnapshot['treeById'] = {};
+const EDITOR_CONTEXT_MENU_WIDTH = 230;
+const EDITOR_RENAME_OVERLAY_WIDTH = 340;
+const EDITOR_LOCATION_OVERLAY_WIDTH = 440;
+
+const resolveEditorSurfaceAnchor = (input: {
+  surface: HTMLElement;
+  clientX: number;
+  clientY: number;
+  overlayWidth: number;
+}): EditorSurfaceAnchor => {
+  const rect = input.surface.getBoundingClientRect();
+  const maxLeft = Math.max(8, rect.width - input.overlayWidth - 8);
+  return Object.freeze({
+    left: Math.max(8, Math.min(input.clientX - rect.left + 4, maxLeft)),
+    top: Math.max(8, input.clientY - rect.top + 4),
+  });
+};
 
 /** Orders asynchronous editor requests without coupling their lifecycle to render state. */
 const createLatestRequestGate = (): LatestRequestGate => {
@@ -260,6 +284,15 @@ export function CodeAuthoringWorkspace({
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string>('code-root');
   const [codeEditorView, setCodeEditorView] = useState<EditorView | null>(null);
+  const [editorSurface, setEditorSurface] = useState<HTMLDivElement | null>(
+    null
+  );
+  const [editorContextMenuAnchor, setEditorContextMenuAnchor] =
+    useState<EditorSurfaceAnchor | null>(null);
+  const [renameOverlayAnchor, setRenameOverlayAnchor] =
+    useState<EditorSurfaceAnchor | null>(null);
+  const [locationOverlayAnchor, setLocationOverlayAnchor] =
+    useState<EditorSurfaceAnchor | null>(null);
   const [isMutating, setMutating] = useState(false);
   const [renameState, setRenameState] = useState<CodeLanguageRenameState>({
     status: 'idle',
@@ -268,7 +301,7 @@ export function CodeAuthoringWorkspace({
     useState<CodeArtifactRelocationState>({ status: 'idle' });
   const [locationQuery, setLocationQuery] =
     useState<CodeLanguageLocationQueryView>(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
-  const locationQueryRequestIdRef = useRef(0);
+  const [locationQueryRequestGate] = useState(createLatestRequestGate);
   const [renameRequestGate] = useState(createLatestRequestGate);
   const requestedArtifactSelectionRef = useRef<string | undefined>(undefined);
   const requestSourceSpanFocusRef = useRef<string | undefined>(undefined);
@@ -356,8 +389,6 @@ export function CodeAuthoringWorkspace({
     selectedShaderProfileResult.status === 'valid'
       ? selectedShaderProfileResult.profile
       : null;
-  const selectedFileSize =
-    selectedFile?.size ?? selectedFile?.textContent?.length ?? 0;
   const codeLanguageSource = useMemo(
     () => editorValue.replaceAll(/\r\n?/g, '\n'),
     [editorValue]
@@ -443,14 +474,6 @@ export function CodeAuthoringWorkspace({
   }, [codeAuthoringEnvironment]);
   const isCompact = presentation === 'compact';
   const isOverlay = presentation === 'compact' || presentation === 'maximized';
-  const controlledSourceManifest = useMemo(() => {
-    if (!selectedFile) return { status: 'absent' as const };
-    const document = workspaceDocumentsById[selectedFile.id];
-    return document?.type === 'code' &&
-      isWorkspaceCodeDocumentContent(document.content)
-      ? decodeControlledSourceManifest(document.content.metadata)
-      : { status: 'absent' as const };
-  }, [selectedFile, workspaceDocumentsById]);
   useWorkspaceHistoryShortcuts({
     workspaceId,
     documentId: selectedFile?.id,
@@ -471,13 +494,16 @@ export function CodeAuthoringWorkspace({
   );
 
   useEffect(() => {
-    locationQueryRequestIdRef.current += 1;
+    locationQueryRequestGate.invalidate();
     setLocationQuery(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
-  }, [codeLanguageSource, selectedFile?.id]);
+    setLocationOverlayAnchor(null);
+    setEditorContextMenuAnchor(null);
+  }, [codeLanguageSource, locationQueryRequestGate, selectedFile?.id]);
 
   useEffect(() => {
     renameRequestGate.invalidate();
     setRenameState({ status: 'idle' });
+    setRenameOverlayAnchor(null);
   }, [
     codeLanguageSource,
     renameRequestGate,
@@ -486,8 +512,31 @@ export function CodeAuthoringWorkspace({
   ]);
 
   useEffect(() => {
+    setRelocationState((current) =>
+      current.status === 'editing' && current.artifactId === selectedFile?.id
+        ? current
+        : { status: 'idle' }
+    );
+  }, [selectedFile?.id]);
+
+  useEffect(() => {
     setRelocationState({ status: 'idle' });
-  }, [selectedFile?.id, workspace?.workspaceRev]);
+  }, [workspace?.workspaceRev]);
+
+  const resolveOverlayAnchorAtCursor = useCallback(
+    (view: EditorView, overlayWidth: number) => {
+      const cursor = view.coordsAtPos(view.state.selection.main.head);
+      if (!editorSurface) return null;
+      if (!cursor) return Object.freeze({ left: 8, top: 8 });
+      return resolveEditorSurfaceAnchor({
+        surface: editorSurface,
+        clientX: cursor.left,
+        clientY: cursor.bottom,
+        overlayWidth,
+      });
+    },
+    [editorSurface]
+  );
 
   const openCodeLanguageLocation = useCallback(
     (location: CodeLanguageLocation, view?: EditorView | null) => {
@@ -550,12 +599,22 @@ export function CodeAuthoringWorkspace({
   );
 
   const handleDefinitionResult = useCallback(
-    (result: CodeLanguageDefinitionResult | null) => {
-      setLocationQuery(
-        projectCodeLanguageLocationQuery({ kind: 'definition', result })
+    (result: CodeLanguageDefinitionResult | null, view: EditorView) => {
+      const projected = projectCodeLanguageLocationQuery({
+        kind: 'definition',
+        result,
+      });
+      if (projected.status === 'resolved' && projected.locations[0]) {
+        setLocationQuery(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
+        setLocationOverlayAnchor(null);
+        return;
+      }
+      setLocationOverlayAnchor(
+        resolveOverlayAnchorAtCursor(view, EDITOR_LOCATION_OVERLAY_WIDTH)
       );
+      setLocationQuery(projected);
     },
-    []
+    [resolveOverlayAnchorAtCursor]
   );
 
   const beginCodeLanguageRename = useCallback(
@@ -564,6 +623,8 @@ export function CodeAuthoringWorkspace({
         !canRefactorSymbol ||
         !view ||
         !workspace ||
+        !codeAuthoringEnvironment?.codeSlotRegistry ||
+        !codeAuthoringEnvironment.semanticIndex ||
         workspaceReadonly ||
         isSaving ||
         codeLanguageSession.status !== 'ready'
@@ -585,6 +646,12 @@ export function CodeAuthoringWorkspace({
       if (!position) return;
       const requestId = renameRequestGate.begin();
       setSaveError('');
+      setEditorContextMenuAnchor(null);
+      setLocationQuery(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
+      setLocationOverlayAnchor(null);
+      setRenameOverlayAnchor(
+        resolveOverlayAnchorAtCursor(view, EDITOR_RENAME_OVERLAY_WIDTH)
+      );
       setRenameState({ status: 'preparing' });
       const result = await codeLanguageSession.session.prepareRename({
         expectedSnapshotIdentity: codeLanguageSession.session.snapshotIdentity,
@@ -593,6 +660,7 @@ export function CodeAuthoringWorkspace({
       if (!renameRequestGate.isCurrent(requestId)) return;
       if (result.status !== 'resolved') {
         setRenameState({ status: 'idle' });
+        setRenameOverlayAnchor(null);
         setSaveError(t('resourceManager.code.refactor.renameUnavailable'));
         return;
       }
@@ -605,54 +673,36 @@ export function CodeAuthoringWorkspace({
     },
     [
       codeEditorView,
+      codeAuthoringEnvironment,
       codeLanguageSession,
       canRefactorSymbol,
       isSaving,
       isSourceDirty,
       renameRequestGate,
+      resolveOverlayAnchorAtCursor,
       t,
       workspace,
       workspaceReadonly,
     ]
   );
 
-  const codeLanguageExtensions = useMemo(
-    () =>
-      codeLanguageSession.status === 'ready'
-        ? createCodeLanguageCodeMirrorExtensions({
-            session: codeLanguageSession.session,
-            artifactId: codeLanguageSession.artifact.id,
-            source: codeLanguageSession.source,
-            additionalDiagnostics:
-              !isSourceDirty && shaderCompile.status === 'resolved'
-                ? shaderCompile.output.diagnostics
-                : Object.freeze([]),
-            onOpenLocation: (location, view) =>
-              openCodeLanguageLocation(location, view),
-            onDefinitionResult: handleDefinitionResult,
-            onRenameRequest: (view) => void beginCodeLanguageRename(view),
-          })
-        : Object.freeze([]),
-    [
-      codeLanguageSession,
-      beginCodeLanguageRename,
-      handleDefinitionResult,
-      isSourceDirty,
-      openCodeLanguageLocation,
-      shaderCompile,
-    ]
-  );
-
   const runCodeLanguageLocationQuery = useCallback(
-    async (kind: CodeLanguageLocationQueryKind) => {
+    async (
+      kind: CodeLanguageLocationQueryKind,
+      view: EditorView | null = codeEditorView
+    ) => {
       if (
         !canNavigateSemantics ||
         codeLanguageSession.status !== 'ready' ||
-        !codeEditorView
+        !view
       ) {
         return;
       }
-      if (codeEditorView.state.doc.toString() !== codeLanguageSession.source) {
+      setEditorContextMenuAnchor(null);
+      setLocationOverlayAnchor(
+        resolveOverlayAnchorAtCursor(view, EDITOR_LOCATION_OVERLAY_WIDTH)
+      );
+      if (view.state.doc.toString() !== codeLanguageSession.source) {
         setLocationQuery({
           status: 'unavailable',
           kind,
@@ -660,10 +710,9 @@ export function CodeAuthoringWorkspace({
         });
         return;
       }
-      const requestId = locationQueryRequestIdRef.current + 1;
-      locationQueryRequestIdRef.current = requestId;
+      const requestId = locationQueryRequestGate.begin();
       setLocationQuery(createLoadingCodeLanguageLocationQuery(kind));
-      const offset = codeEditorView.state.selection.main.head;
+      const offset = view.state.selection.main.head;
       const result =
         kind === 'definition'
           ? await requestCodeLanguageDefinition({
@@ -687,38 +736,55 @@ export function CodeAuthoringWorkspace({
                   })
                 : null;
             })();
-      if (locationQueryRequestIdRef.current !== requestId) return;
+      if (!locationQueryRequestGate.isCurrent(requestId)) return;
       const projected = projectCodeLanguageLocationQuery({ kind, result });
-      setLocationQuery(projected);
       if (kind === 'definition' && projected.locations[0]) {
-        openCodeLanguageLocation(projected.locations[0], codeEditorView);
+        setLocationQuery(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
+        setLocationOverlayAnchor(null);
+        openCodeLanguageLocation(projected.locations[0], view);
+        return;
       }
+      setLocationQuery(projected);
     },
     [
       canNavigateSemantics,
       codeEditorView,
       codeLanguageSession,
+      locationQueryRequestGate,
       openCodeLanguageLocation,
+      resolveOverlayAnchorAtCursor,
     ]
   );
 
-  const codeLanguageStatusText = useMemo(() => {
-    if (codeLanguageSession.status === 'ready') {
-      return t('resourceManager.code.language.status.ready');
-    }
-    if (codeLanguageSession.status === 'loading') {
-      return t('resourceManager.code.language.status.loading');
-    }
-    if (codeLanguageSession.status === 'unsupported') {
-      return t('resourceManager.code.language.status.unsupported');
-    }
-    if (codeLanguageSession.status === 'unavailable') {
-      return t('resourceManager.code.language.status.unavailable', {
-        reason: codeLanguageSession.reason,
-      });
-    }
-    return '';
-  }, [codeLanguageSession, t]);
+  const codeLanguageExtensions = useMemo(
+    () =>
+      codeLanguageSession.status === 'ready'
+        ? createCodeLanguageCodeMirrorExtensions({
+            session: codeLanguageSession.session,
+            artifactId: codeLanguageSession.artifact.id,
+            source: codeLanguageSession.source,
+            additionalDiagnostics:
+              !isSourceDirty && shaderCompile.status === 'resolved'
+                ? shaderCompile.output.diagnostics
+                : Object.freeze([]),
+            onOpenLocation: (location, view) =>
+              openCodeLanguageLocation(location, view),
+            onDefinitionResult: handleDefinitionResult,
+            onReferencesRequest: (view) =>
+              void runCodeLanguageLocationQuery('references', view),
+            onRenameRequest: (view) => void beginCodeLanguageRename(view),
+          })
+        : Object.freeze([]),
+    [
+      codeLanguageSession,
+      beginCodeLanguageRename,
+      handleDefinitionResult,
+      isSourceDirty,
+      openCodeLanguageLocation,
+      runCodeLanguageLocationQuery,
+      shaderCompile,
+    ]
+  );
 
   const locationQueryStatusText = useMemo(() => {
     if (locationQuery.status === 'loading') {
@@ -1259,15 +1325,17 @@ export function CodeAuthoringWorkspace({
         setEditorValue(nextSelectedSource);
       }
       setRenameState({ status: 'idle' });
+      setRenameOverlayAnchor(null);
     } finally {
       setMutating(false);
     }
   };
 
-  const startCodeArtifactRelocation = () => {
+  const startCodeArtifactRelocation = (artifactId: string) => {
+    const document = workspaceDocumentsById[artifactId];
     if (
-      !selectedCodeDocument ||
-      selectedCodeDocument.type !== 'code' ||
+      !document ||
+      document.type !== 'code' ||
       workspaceReadonly ||
       isSourceDirty ||
       isSaving
@@ -1277,15 +1345,16 @@ export function CodeAuthoringWorkspace({
     setSaveError('');
     setRelocationState({
       status: 'editing',
-      currentPath: selectedCodeDocument.path,
-      nextPath: selectedCodeDocument.path,
+      artifactId: document.id,
+      currentPath: document.path,
+      nextPath: document.path,
     });
   };
 
   const applySelectedCodeArtifactRelocation = async () => {
-    if (relocationState.status !== 'editing' || !selectedFile) return;
+    if (relocationState.status !== 'editing') return;
     const applied = await applyCodeArtifactRelocation(
-      selectedFile.id,
+      relocationState.artifactId,
       relocationState.nextPath
     );
     if (applied) setRelocationState({ status: 'idle' });
@@ -1460,7 +1529,7 @@ export function CodeAuthoringWorkspace({
     }
   );
 
-  const renameRefactorView: CodeLanguageRenameRefactorView =
+  const renameOverlayView: CodeLanguageRenameOverlayView | null =
     renameState.status === 'preview'
       ? {
           status: 'preview',
@@ -1479,16 +1548,24 @@ export function CodeAuthoringWorkspace({
             currentName: renameState.currentName,
             nextName: renameState.nextName,
           }
-        : renameState;
-  const relocationRefactorView: CodeArtifactRelocationRefactorView =
+        : renameState.status === 'preparing'
+          ? renameState
+          : null;
+  const relocationOverlayView: CodeArtifactRelocationOverlayView | null =
     relocationState.status === 'editing'
       ? {
-          ...relocationState,
+          currentPath: relocationState.currentPath,
+          nextPath: relocationState.nextPath,
           bindingCount: selectedRefactorImpact?.bindings.length ?? 0,
           referenceCount: selectedRefactorImpact?.referenceIds.length ?? 0,
           impactCount: selectedRefactorImpact?.impactedSymbolIds.length ?? 0,
         }
-      : relocationState;
+      : null;
+  const canUseCodeLanguageNavigation = Boolean(
+    canNavigateSemantics &&
+    codeLanguageSession.status === 'ready' &&
+    codeEditorView?.state.doc.toString() === codeLanguageSession.source
+  );
   const canStartCodeLanguageRename = Boolean(
     canRefactorSymbol &&
     codeLanguageSession.status === 'ready' &&
@@ -1508,6 +1585,17 @@ export function CodeAuthoringWorkspace({
     !isSourceDirty &&
     renameState.status === 'idle' &&
     relocationState.status === 'idle'
+  );
+  const locationOverlayItems = locationQuery.locations.map(
+    (location, index) => {
+      const span = location.sourceSpan;
+      const path =
+        workspaceDocumentsById[span.artifactId]?.path ?? span.artifactId;
+      return Object.freeze({
+        id: String(index),
+        label: `${path}:${span.startLine}:${span.startColumn}`,
+      });
+    }
   );
 
   const shellClassName =
@@ -1561,6 +1649,23 @@ export function CodeAuthoringWorkspace({
                 ? handleRenameCodeFile
                 : undefined
             }
+            onMove={
+              canRelocateArtifact
+                ? (nodeId) => startCodeArtifactRelocation(nodeId)
+                : undefined
+            }
+            canMove={canStartCodeArtifactRelocation}
+            relocation={relocationOverlayView ?? undefined}
+            relocationBusy={isSaving}
+            onRelocationPathChange={(nextPath) =>
+              setRelocationState((current) =>
+                current.status === 'editing'
+                  ? { ...current, nextPath }
+                  : current
+              )
+            }
+            onApplyRelocation={() => void applySelectedCodeArtifactRelocation()}
+            onCancelRelocation={() => setRelocationState({ status: 'idle' })}
             onDelete={
               canDeleteCodeDocument || canDeleteDirectory
                 ? handleDeleteCodeFile
@@ -1570,25 +1675,26 @@ export function CodeAuthoringWorkspace({
         ) : null}
 
         <article className={editorArticleClassName}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-[11px] tracking-[0.08em] text-(--text-muted) uppercase">
-                {t('resourceManager.code.labels.selected')}
-              </p>
-              <h3 className="text-sm font-medium text-(--text-primary)">
-                {selectedNode.type === 'file'
-                  ? selectedNode.name
-                  : t('resourceManager.code.labels.folder')}
-              </h3>
-              <p className="text-xs text-(--text-secondary)">
+          <div className="flex min-h-8 items-center justify-between gap-2 border-b border-black/8 pb-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <h3
+                className="truncate font-mono text-xs font-medium text-(--text-primary)"
+                title={selectedNode.path}
+              >
                 {selectedNode.path}
-              </p>
+              </h3>
+              {isSourceDirty ? (
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-(--text-primary)"
+                  title={t('resourceManager.code.actions.unsaved')}
+                />
+              ) : null}
               {isCompact &&
               request.artifactId &&
               selectedFile?.id !== request.artifactId ? (
                 <button
                   type="button"
-                  className="mt-1 text-[10px] font-medium text-(--text-primary) underline underline-offset-2"
+                  className="shrink-0 text-[10px] font-medium text-(--text-primary) underline underline-offset-2"
                   onClick={() => {
                     if (request.artifactId) {
                       setSelectedNodeId(request.artifactId);
@@ -1598,139 +1704,32 @@ export function CodeAuthoringWorkspace({
                   {t('codeAuthoring.session.returnToRequestedArtifact')}
                 </button>
               ) : null}
-              {controlledSourceManifest.status === 'valid' ? (
-                <p className="mt-1 text-[10px] text-(--text-muted)">
-                  Controlled visual/code ·{' '}
-                  {controlledSourceManifest.manifest.regions.length}{' '}
-                  {controlledSourceManifest.manifest.regions.length === 1
-                    ? 'region'
-                    : 'regions'}
-                </p>
-              ) : null}
             </div>
-            <div className="text-xs text-(--text-secondary)">
-              {t('resourceManager.code.labels.files')}:{' '}
-              <strong>{allFiles.length}</strong>
-            </div>
+            {selectedFile ? (
+              <button
+                type="button"
+                className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-35 ${
+                  isSourceDirty
+                    ? 'border-black bg-black text-white hover:bg-black/90'
+                    : 'border-transparent hover:border-black/10 hover:bg-black/5'
+                }`}
+                aria-label={t('resourceManager.code.actions.save')}
+                title={t('resourceManager.code.actions.saveShortcut')}
+                onClick={() => void authoringSession.save()}
+                disabled={
+                  !isSourceDirty ||
+                  !canPatchSelectedFile ||
+                  isSaving ||
+                  authoringSession.stale
+                }
+              >
+                <Save size={13} />
+              </button>
+            ) : null}
           </div>
 
           {selectedFile ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-(--text-secondary)">
-                  {t('resourceManager.code.labels.mime')}: {selectedFile.mime} |{' '}
-                  {t('resourceManager.code.labels.size')}: {selectedFileSize}{' '}
-                  {t('resourceManager.code.labels.bytes')}
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-black/12 px-2.5 py-1.5 text-xs text-(--text-primary) hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
-                    onClick={() =>
-                      void runCodeLanguageLocationQuery('definition')
-                    }
-                    disabled={
-                      !canNavigateSemantics ||
-                      codeLanguageSession.status !== 'ready'
-                    }
-                    title={t(
-                      'resourceManager.code.language.actions.definitionShortcut'
-                    )}
-                  >
-                    {t('resourceManager.code.language.actions.goToDefinition')}
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg border border-black/12 px-2.5 py-1.5 text-xs text-(--text-primary) hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
-                    onClick={() =>
-                      void runCodeLanguageLocationQuery('references')
-                    }
-                    disabled={
-                      !canNavigateSemantics ||
-                      codeLanguageSession.status !== 'ready'
-                    }
-                  >
-                    {t('resourceManager.code.language.actions.findReferences')}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-lg border border-black/12 bg-black px-2.5 py-1.5 text-xs text-white hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => void authoringSession.save()}
-                    disabled={
-                      !isSourceDirty ||
-                      !canPatchSelectedFile ||
-                      isSaving ||
-                      authoringSession.stale
-                    }
-                  >
-                    <Save size={12} />
-                    {t('resourceManager.code.actions.save')}
-                  </button>
-                </div>
-              </div>
-              {codeLanguageStatusText ? (
-                <p className="text-xs text-(--text-muted)" role="status">
-                  {codeLanguageStatusText}
-                </p>
-              ) : null}
-              {canRefactorSymbol || canRelocateArtifact ? (
-                <CodeArtifactRefactorPanel
-                  rename={renameRefactorView}
-                  relocation={relocationRefactorView}
-                  busy={isSaving}
-                  canRename={canStartCodeLanguageRename}
-                  canRelocate={canStartCodeArtifactRelocation}
-                  onStartRename={() => void beginCodeLanguageRename()}
-                  onRenameNameChange={(nextName) =>
-                    setRenameState((current) =>
-                      current.status === 'editing'
-                        ? { ...current, nextName }
-                        : current
-                    )
-                  }
-                  onPreviewRename={() => void previewCodeLanguageRename()}
-                  onApplyRename={() => void applyCodeLanguageRename()}
-                  onBackRename={() =>
-                    setRenameState((current) =>
-                      current.status === 'preview'
-                        ? {
-                            status: 'editing',
-                            position: current.position,
-                            currentName: current.currentName,
-                            nextName: current.nextName,
-                          }
-                        : current
-                    )
-                  }
-                  onCancelRename={() => {
-                    renameRequestGate.invalidate();
-                    setRenameState({ status: 'idle' });
-                  }}
-                  onOpenAffectedOwner={(slotId) => {
-                    if (!projectId || !workspace) return;
-                    navigateToWorkspaceCodeSlotOwner({
-                      projectId,
-                      workspace,
-                      slotId,
-                      navigate,
-                    });
-                  }}
-                  onStartRelocation={startCodeArtifactRelocation}
-                  onRelocationPathChange={(nextPath) =>
-                    setRelocationState((current) =>
-                      current.status === 'editing'
-                        ? { ...current, nextPath }
-                        : current
-                    )
-                  }
-                  onApplyRelocation={() =>
-                    void applySelectedCodeArtifactRelocation()
-                  }
-                  onCancelRelocation={() =>
-                    setRelocationState({ status: 'idle' })
-                  }
-                />
-              ) : null}
               {isShaderFile && canConfigureCompile ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-black/10 bg-black/[0.02] px-3 py-2">
                   <div>
@@ -1937,64 +1936,152 @@ export function CodeAuthoringWorkspace({
                   </div>
                 </div>
               ) : null}
-              <CodeMirror
-                data-editor-native-history="true"
-                value={editorValue}
-                editable={canEditSource && !workspaceReadonly}
-                onCreateEditor={setCodeEditorView}
-                onChange={(value) => {
-                  setEditorValue(value);
-                  if (saveError) setSaveError('');
-                }}
-                extensions={[
-                  resolveLanguageExtensionByName(selectedFile.name),
-                  codeMirrorTypographyTheme,
-                  ...codeLanguageExtensions,
-                ]}
-                basicSetup={{
-                  lineNumbers: true,
-                  foldGutter: true,
-                  highlightActiveLine: true,
-                  autocompletion: codeLanguageSession.status !== 'ready',
-                }}
-                height={
-                  isCompact
-                    ? 'min(52dvh, 480px)'
-                    : isOverlay
-                      ? 'max(480px, calc(100dvh - 390px))'
-                      : undefined
-                }
-                className={`rounded-lg border border-black/10 bg-black/[0.02] text-[12px] ${isOverlay ? '' : '[&_.cm-editor]:min-h-[460px]'}`}
-              />
-              {locationQuery.status !== 'idle' ? (
-                <div className="grid gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-3">
-                  <p className="text-xs text-(--text-secondary)" role="status">
-                    {locationQueryStatusText}
-                  </p>
-                  {locationQuery.locations.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {locationQuery.locations.map((location, index) => {
-                        const span = location.sourceSpan;
-                        const path =
-                          workspaceDocumentsById[span.artifactId]?.path ??
-                          span.artifactId;
-                        return (
-                          <button
-                            key={`${span.artifactId}:${span.startLine}:${span.startColumn}:${index}`}
-                            type="button"
-                            className="rounded-md border border-black/10 bg-(--bg-canvas) px-2 py-1 text-left text-xs text-(--text-primary) hover:bg-black/5"
-                            onClick={() =>
-                              openCodeLanguageLocation(location, codeEditorView)
-                            }
-                          >
-                            {path}:{span.startLine}:{span.startColumn}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
+              <div ref={setEditorSurface} className="relative">
+                <div
+                  onContextMenu={(event) => {
+                    if (!codeEditorView) return;
+                    event.preventDefault();
+                    const offset = codeEditorView.posAtCoords({
+                      x: event.clientX,
+                      y: event.clientY,
+                    });
+                    if (offset !== null) {
+                      codeEditorView.dispatch({
+                        selection: { anchor: offset },
+                      });
+                    }
+                    codeEditorView.focus();
+                    renameRequestGate.invalidate();
+                    setRenameState({ status: 'idle' });
+                    setRenameOverlayAnchor(null);
+                    locationQueryRequestGate.invalidate();
+                    setLocationQuery(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
+                    setLocationOverlayAnchor(null);
+                    setEditorContextMenuAnchor(
+                      resolveEditorSurfaceAnchor({
+                        surface: event.currentTarget,
+                        clientX: event.clientX,
+                        clientY: event.clientY,
+                        overlayWidth: EDITOR_CONTEXT_MENU_WIDTH,
+                      })
+                    );
+                  }}
+                >
+                  <CodeMirror
+                    data-editor-native-history="true"
+                    value={editorValue}
+                    editable={canEditSource && !workspaceReadonly}
+                    onCreateEditor={setCodeEditorView}
+                    onChange={(value) => {
+                      setEditorValue(value);
+                      if (saveError) setSaveError('');
+                    }}
+                    extensions={[
+                      resolveLanguageExtensionByName(selectedFile.name),
+                      codeMirrorTypographyTheme,
+                      ...codeLanguageExtensions,
+                    ]}
+                    basicSetup={{
+                      lineNumbers: true,
+                      foldGutter: true,
+                      highlightActiveLine: true,
+                      autocompletion: codeLanguageSession.status !== 'ready',
+                    }}
+                    height={
+                      isCompact
+                        ? 'min(52dvh, 480px)'
+                        : isOverlay
+                          ? 'max(480px, calc(100dvh - 390px))'
+                          : undefined
+                    }
+                    className={`rounded-lg border border-black/10 bg-black/[0.02] text-[12px] ${isOverlay ? '' : '[&_.cm-editor]:min-h-[460px]'}`}
+                  />
                 </div>
-              ) : null}
+                {editorContextMenuAnchor ? (
+                  <CodeEditorContextMenu
+                    anchor={editorContextMenuAnchor}
+                    canNavigate={canUseCodeLanguageNavigation}
+                    canRename={canStartCodeLanguageRename}
+                    onGoToDefinition={() =>
+                      void runCodeLanguageLocationQuery(
+                        'definition',
+                        codeEditorView
+                      )
+                    }
+                    onFindReferences={() =>
+                      void runCodeLanguageLocationQuery(
+                        'references',
+                        codeEditorView
+                      )
+                    }
+                    onRename={() =>
+                      void beginCodeLanguageRename(codeEditorView)
+                    }
+                    onDismiss={() => setEditorContextMenuAnchor(null)}
+                  />
+                ) : null}
+                {renameOverlayView && renameOverlayAnchor ? (
+                  <CodeLanguageRenameOverlay
+                    anchor={renameOverlayAnchor}
+                    rename={renameOverlayView}
+                    busy={isSaving}
+                    onNameChange={(nextName) =>
+                      setRenameState((current) =>
+                        current.status === 'editing'
+                          ? { ...current, nextName }
+                          : current
+                      )
+                    }
+                    onPreview={() => void previewCodeLanguageRename()}
+                    onApply={() => void applyCodeLanguageRename()}
+                    onBack={() =>
+                      setRenameState((current) =>
+                        current.status === 'preview'
+                          ? {
+                              status: 'editing',
+                              position: current.position,
+                              currentName: current.currentName,
+                              nextName: current.nextName,
+                            }
+                          : current
+                      )
+                    }
+                    onCancel={() => {
+                      renameRequestGate.invalidate();
+                      setRenameState({ status: 'idle' });
+                      setRenameOverlayAnchor(null);
+                    }}
+                    onOpenAffectedOwner={(slotId) => {
+                      if (!projectId || !workspace) return;
+                      navigateToWorkspaceCodeSlotOwner({
+                        projectId,
+                        workspace,
+                        slotId,
+                        navigate,
+                      });
+                    }}
+                  />
+                ) : null}
+                {locationQuery.status !== 'idle' && locationOverlayAnchor ? (
+                  <CodeLanguageLocationsOverlay
+                    anchor={locationOverlayAnchor}
+                    statusText={locationQueryStatusText}
+                    locations={locationOverlayItems}
+                    onOpen={(id) => {
+                      const location = locationQuery.locations[Number(id)];
+                      if (!location) return;
+                      openCodeLanguageLocation(location, codeEditorView);
+                      setLocationQuery(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
+                      setLocationOverlayAnchor(null);
+                    }}
+                    onDismiss={() => {
+                      locationQueryRequestGate.invalidate();
+                      setLocationQuery(EMPTY_CODE_LANGUAGE_LOCATION_QUERY);
+                      setLocationOverlayAnchor(null);
+                    }}
+                  />
+                ) : null}
+              </div>
             </>
           ) : (
             <div className="rounded-lg border border-black/10 bg-black/[0.02] p-4 text-sm text-(--text-secondary)">

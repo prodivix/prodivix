@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { createDataOpenApiImportProposal } from '@prodivix/data-http';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
@@ -14,6 +14,12 @@ import { useExecutionCenterNavigationStore } from '@/editor/features/execution/e
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { WorkspaceIssuesPage } from './WorkspaceIssuesPage';
 import { useWorkspaceIssuesStore } from './workspaceIssuesStore';
+
+const requeueFailedOperation = vi.hoisted(() => vi.fn());
+
+vi.mock('@/editor/workspaceSync/workspaceOutboxExecutor', () => ({
+  requeueFailedWorkspaceOutboxOperation: requeueFailedOperation,
+}));
 
 const workspace = (): WorkspaceSnapshot => {
   const proposal = createDataOpenApiImportProposal({
@@ -77,6 +83,11 @@ function RouteProbe() {
   const location = useLocation();
   return <output data-testid="route-probe">{location.pathname}</output>;
 }
+
+beforeEach(() => {
+  requeueFailedOperation.mockReset();
+  requeueFailedOperation.mockResolvedValue('queued');
+});
 
 afterEach(() => {
   act(() => {
@@ -232,5 +243,54 @@ describe('WorkspaceIssuesPage Data navigation', () => {
       diagnosticCode: 'TST-5001',
       surface: 'console',
     });
+  });
+
+  it('requeues an exact failed Workspace operation from its issue', async () => {
+    const current = workspace();
+    act(() => {
+      useEditorStore.setState({ workspace: current, workspaceReadonly: false });
+      useWorkspaceIssuesStore.getState().publishSnapshot({
+        providerId: 'workspace-outbox',
+        workspaceId: current.id,
+        revision: { key: '2:1:2', sequence: 1 },
+        collectedAt: 30,
+        diagnostics: [
+          {
+            code: 'WKS-5002',
+            severity: 'error',
+            domain: 'workspace',
+            message: 'Persisted PIR wire requires migration.',
+            retryable: true,
+            targetRef: {
+              kind: 'operation',
+              operation: 'operation-migrate-pir',
+            },
+            meta: { entryKind: 'operation' },
+          },
+        ],
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/editor/project/project-data/issues']}>
+        <Routes>
+          <Route
+            path="/editor/project/:projectId/issues"
+            element={<WorkspaceIssuesPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'issues.actions.retry' })
+    );
+    await waitFor(() =>
+      expect(requeueFailedOperation).toHaveBeenCalledWith({
+        workspaceId: current.id,
+        entryId: 'operation-migrate-pir',
+      })
+    );
+    expect(screen.getByText('issues.actions.retryQueued')).toBeTruthy();
   });
 });

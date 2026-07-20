@@ -152,11 +152,11 @@ export const useBlueprintEditorController = (
     (state) => state.setActiveRouteNodeId
   );
   const setBlueprintState = useEditorStore((state) => state.setBlueprintState);
-  const defaultViewportWidth = useSettingsStore(
-    (state) => state.global.viewportWidth
+  const defaultViewportWidth = useSettingsStore((state) =>
+    state.getEffectiveGlobalValue(projectId, 'viewportWidth')
   );
-  const defaultViewportHeight = useSettingsStore(
-    (state) => state.global.viewportHeight
+  const defaultViewportHeight = useSettingsStore((state) =>
+    state.getEffectiveGlobalValue(projectId, 'viewportHeight')
   );
   const zoomStep = useSettingsStore((state) => state.global.zoomStep);
   const panelLayout = useSettingsStore((state) => state.global.panelLayout);

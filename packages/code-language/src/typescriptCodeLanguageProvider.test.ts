@@ -245,4 +245,66 @@ describe('TypeScript code language capability provider', () => {
       reason: 'The code language session has been disposed.',
     });
   });
+
+  it('updates the shared Workspace engine and supersedes the older text session', async () => {
+    const provider = createTypeScriptCodeLanguageCapabilityProvider();
+    const firstSession = await provider.openSession(snapshot);
+    const updatedConsumer: CodeArtifact = {
+      ...consumerArtifact,
+      source: [
+        "import { add } from './math';",
+        'export const total = add(1, 2);',
+        'export const label: string = String(add(3, 4));',
+      ].join('\n'),
+      revision: '6',
+    };
+    const updatedSnapshot: CodeLanguageSnapshot = {
+      identity: {
+        ...semanticIdentity,
+        workspaceRevisions: {
+          ...semanticIdentity.workspaceRevisions,
+          workspaceRev: 9,
+          opSeq: 14,
+          documentRevs: {
+            ...semanticIdentity.workspaceRevisions.documentRevs,
+            [updatedConsumer.id]: { contentRev: 6, metaRev: 1 },
+          },
+        },
+      },
+      artifacts: [mathArtifact, updatedConsumer],
+    };
+    const updatedSession = await provider.openSession(updatedSnapshot);
+
+    await expect(
+      firstSession.getHover({
+        expectedSnapshotIdentity: firstSession.snapshotIdentity,
+        position: positionAt(consumerArtifact, 'add', 1, 1),
+      })
+    ).resolves.toMatchObject({
+      status: 'unavailable',
+      reason:
+        'The code language session was superseded by a newer Workspace code snapshot.',
+    });
+
+    const definition = await updatedSession.getDefinition({
+      expectedSnapshotIdentity: updatedSession.snapshotIdentity,
+      position: positionAt(updatedConsumer, 'add', 1, 1),
+    });
+    expect(definition).toMatchObject({
+      status: 'resolved',
+      value: [
+        {
+          targetRef: { kind: 'code-artifact', artifactId: mathArtifact.id },
+        },
+      ],
+    });
+    const diagnostics = await updatedSession.getDiagnostics({
+      expectedSnapshotIdentity: updatedSession.snapshotIdentity,
+      artifactId: updatedConsumer.id,
+    });
+    expect(diagnostics).toMatchObject({ status: 'resolved', value: [] });
+
+    firstSession.dispose();
+    updatedSession.dispose();
+  });
 });

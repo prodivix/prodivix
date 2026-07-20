@@ -50,8 +50,25 @@ export const selectWorkspaceNodeGraphId = (
     : (documents.find((document) => document.status === 'valid')?.id ??
       documents[0]?.id);
 
-const normalizeGraphName = (value: string): string =>
-  value.trimStart().slice(0, 40).replace(/[\\/]/g, '-').trim() || 'Untitled';
+const WINDOWS_RESERVED_FILE_STEM = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/**
+ * Produces one portable VFS filename stem while keeping non-Latin letters
+ * readable. NodeGraph display input never becomes a filesystem path verbatim.
+ */
+export const toSafeNodeGraphFileStem = (value: string): string => {
+  const normalized = value
+    .normalize('NFKC')
+    .trim()
+    .toLocaleLowerCase('en-US')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48)
+    .replace(/-+$/g, '');
+  const stem = normalized || 'untitled';
+  return WINDOWS_RESERVED_FILE_STEM.test(stem) ? `graph-${stem}` : stem;
+};
 
 const getDirectory = (path: string): string => {
   const normalized = path.replaceAll('\\', '/');
@@ -65,7 +82,7 @@ export const createAvailableNodeGraphPath = (input: {
   directory?: string;
   excludeDocumentId?: string;
 }): Readonly<{ name: string; path: string }> => {
-  const baseName = normalizeGraphName(input.name);
+  const baseName = toSafeNodeGraphFileStem(input.name);
   const directory = (input.directory ?? '/graphs').replace(/\/+$/, '');
   const usedPaths = new Set(
     Object.values(input.workspace.docsById)
@@ -74,7 +91,7 @@ export const createAvailableNodeGraphPath = (input: {
   );
   let suffix = 1;
   while (true) {
-    const name = suffix === 1 ? baseName : `${baseName} ${suffix}`;
+    const name = suffix === 1 ? baseName : `${baseName}-${suffix}`;
     const path = `${directory}/${name}${GRAPH_FILE_SUFFIX}`;
     if (!usedPaths.has(path.toLocaleLowerCase())) return { name, path };
     suffix += 1;

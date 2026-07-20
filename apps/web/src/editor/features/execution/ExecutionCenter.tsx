@@ -1,12 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
+  CircleDashed,
+  CircleSlash2,
   Copy,
   ExternalLink,
+  History,
+  LoaderCircle,
   LocateFixed,
+  Maximize2,
+  Minimize2,
   Pause,
   Play,
   RefreshCcw,
@@ -14,6 +28,8 @@ import {
   Square,
   SquareTerminal,
   Trash2,
+  TriangleAlert,
+  XCircle,
 } from 'lucide-react';
 import {
   createExecutionSessionRecoveryPlan,
@@ -75,6 +91,39 @@ type ExecutionCenterProps = Readonly<{
 export type ExecutionCenterStatus =
   ExecutionSessionStatus | 'compiling' | 'blocked';
 
+const EXECUTION_CENTER_HEIGHT_STORAGE_KEY =
+  'prodivix.editor.execution-center.height';
+const EXECUTION_CENTER_DEFAULT_HEIGHT = 210;
+const EXECUTION_CENTER_MIN_HEIGHT = 120;
+const EXECUTION_CENTER_HOST_RESERVE = 72;
+const EXECUTION_CENTER_KEYBOARD_STEP = 16;
+
+const clampPanelHeight = (value: number, maximum: number): number =>
+  Math.min(Math.max(Math.round(value), EXECUTION_CENTER_MIN_HEIGHT), maximum);
+
+const resolveViewportMaximumHeight = (): number => {
+  if (typeof window === 'undefined') return 640;
+  return Math.max(
+    EXECUTION_CENTER_MIN_HEIGHT,
+    window.innerHeight - EXECUTION_CENTER_HOST_RESERVE
+  );
+};
+
+const readStoredPanelHeight = (): number => {
+  if (typeof window === 'undefined') return EXECUTION_CENTER_DEFAULT_HEIGHT;
+  try {
+    const value = Number.parseInt(
+      window.localStorage.getItem(EXECUTION_CENTER_HEIGHT_STORAGE_KEY) ?? '',
+      10
+    );
+    return Number.isFinite(value)
+      ? clampPanelHeight(value, resolveViewportMaximumHeight())
+      : EXECUTION_CENTER_DEFAULT_HEIGHT;
+  } catch {
+    return EXECUTION_CENTER_DEFAULT_HEIGHT;
+  }
+};
+
 const activeStatuses = new Set<ExecutionCenterStatus>([
   'queued',
   'starting',
@@ -83,12 +132,22 @@ const activeStatuses = new Set<ExecutionCenterStatus>([
   'compiling',
 ]);
 
-const statusDotClass = (status: ExecutionCenterStatus): string => {
+const statusIcon = (status: ExecutionCenterStatus) => {
   if (status === 'failed' || status === 'timed-out' || status === 'blocked') {
-    return 'bg-(--danger-color)';
+    return <XCircle size={14} aria-hidden="true" />;
   }
-  if (status === 'running') return 'bg-(--text-primary)';
-  return 'bg-(--text-muted)';
+  if (status === 'succeeded') {
+    return <CheckCircle2 size={14} aria-hidden="true" />;
+  }
+  if (status === 'cancelled') {
+    return <CircleSlash2 size={14} aria-hidden="true" />;
+  }
+  if (activeStatuses.has(status)) {
+    return (
+      <LoaderCircle size={14} className="animate-spin" aria-hidden="true" />
+    );
+  }
+  return <CircleDashed size={14} aria-hidden="true" />;
 };
 
 const lineToneClass = (
@@ -127,6 +186,11 @@ export function ExecutionCenter({
   const { t } = useTranslation('editor');
   const session = useExecutionSession(sessionId);
   const [collapsed, setCollapsed] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(readStoredPanelHeight);
+  const [panelMaximumHeight, setPanelMaximumHeight] = useState(
+    resolveViewportMaximumHeight
+  );
+  const [panelMaximized, setPanelMaximized] = useState(false);
   const [surface, setSurface] = useState<
     'console' | 'terminal' | 'network' | 'server' | 'files'
   >('console');
@@ -158,8 +222,20 @@ export function ExecutionCenter({
       >['reason'];
     }>
   >();
+  const panelRef = useRef<HTMLElement | null>(null);
+  const resizeOriginRef = useRef<
+    | Readonly<{
+        pointerId: number;
+        startHeight: number;
+        startY: number;
+      }>
+    | undefined
+  >(undefined);
   const outputRef = useRef<HTMLDivElement | null>(null);
   const effectiveStatus = status ?? session?.status ?? 'idle';
+  const effectiveStatusLabel = t(`execution.status.${effectiveStatus}`, {
+    defaultValue: effectiveStatus,
+  });
   const sessionSnapshotStale = Boolean(
     workspace &&
     session?.activeJob &&
@@ -236,6 +312,50 @@ export function ExecutionCenter({
     ...(workspace ? { workspace } : {}),
     readonly: workspaceReadonly,
   });
+  const visiblePanelHeight = panelMaximized
+    ? panelMaximumHeight
+    : clampPanelHeight(panelHeight, panelMaximumHeight);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    const host = panel?.parentElement;
+    const updateMaximumHeight = () => {
+      const hostHeight = host?.getBoundingClientRect().height ?? 0;
+      setPanelMaximumHeight(
+        Math.max(
+          EXECUTION_CENTER_MIN_HEIGHT,
+          Math.floor(
+            (hostHeight > 0 ? hostHeight : window.innerHeight) -
+              EXECUTION_CENTER_HOST_RESERVE
+          )
+        )
+      );
+    };
+
+    updateMaximumHeight();
+    window.addEventListener('resize', updateMaximumHeight);
+    const observer =
+      host && typeof globalThis.ResizeObserver !== 'undefined'
+        ? new globalThis.ResizeObserver(updateMaximumHeight)
+        : undefined;
+    if (host) observer?.observe(host);
+
+    return () => {
+      window.removeEventListener('resize', updateMaximumHeight);
+      observer?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        EXECUTION_CENTER_HEIGHT_STORAGE_KEY,
+        String(panelHeight)
+      );
+    } catch {
+      // Storage is an optional view preference; restricted contexts stay usable.
+    }
+  }, [panelHeight]);
 
   useEffect(() => {
     setClearedConsoleLineIds(new Set());
@@ -516,14 +636,95 @@ export function ExecutionCenter({
   const restartDisabled =
     effectiveStatus === 'cancelling' || effectiveStatus === 'compiling';
 
+  const setManualPanelHeight = (nextHeight: number) => {
+    setPanelMaximized(false);
+    setPanelHeight(clampPanelHeight(nextHeight, panelMaximumHeight));
+  };
+
+  const beginPanelResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    resizeOriginRef.current = Object.freeze({
+      pointerId: event.pointerId,
+      startHeight: visiblePanelHeight,
+      startY: event.clientY,
+    });
+    setManualPanelHeight(visiblePanelHeight);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const continuePanelResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const origin = resizeOriginRef.current;
+    if (!origin || origin.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    setManualPanelHeight(origin.startHeight + (origin.startY - event.clientY));
+  };
+
+  const finishPanelResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const origin = resizeOriginRef.current;
+    if (!origin || origin.pointerId !== event.pointerId) return;
+    resizeOriginRef.current = undefined;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const resizePanelWithKeyboard = (
+    event: ReactKeyboardEvent<HTMLDivElement>
+  ) => {
+    const step = event.shiftKey
+      ? EXECUTION_CENTER_KEYBOARD_STEP * 3
+      : EXECUTION_CENTER_KEYBOARD_STEP;
+    const nextHeight =
+      event.key === 'ArrowUp'
+        ? visiblePanelHeight + step
+        : event.key === 'ArrowDown'
+          ? visiblePanelHeight - step
+          : event.key === 'Home'
+            ? EXECUTION_CENTER_MIN_HEIGHT
+            : event.key === 'End'
+              ? panelMaximumHeight
+              : undefined;
+    if (nextHeight === undefined) return;
+    event.preventDefault();
+    setManualPanelHeight(nextHeight);
+  };
+
+  const resetPanelHeight = () => {
+    setManualPanelHeight(EXECUTION_CENTER_DEFAULT_HEIGHT);
+  };
+
   const iconButtonClass =
     'inline-flex size-7 items-center justify-center rounded-md text-(--text-muted) transition-colors hover:bg-(--bg-raised) hover:text-(--text-primary) disabled:cursor-not-allowed disabled:opacity-35';
 
   return (
     <section
-      className={`flex shrink-0 flex-col border-t border-(--border-default) bg-(--bg-canvas) text-(--text-primary) ${collapsed ? 'h-9' : 'h-[210px]'}`}
+      ref={panelRef}
+      className={`relative flex shrink-0 flex-col border-t border-(--border-default) bg-(--bg-canvas) text-(--text-primary) ${collapsed ? 'h-9' : ''}`}
+      style={collapsed ? undefined : { height: visiblePanelHeight }}
       aria-label={t('execution.title')}
     >
+      {!collapsed ? (
+        <div
+          role="separator"
+          aria-label={t('execution.resizePanel')}
+          aria-orientation="horizontal"
+          aria-valuemax={panelMaximumHeight}
+          aria-valuemin={EXECUTION_CENTER_MIN_HEIGHT}
+          aria-valuenow={visiblePanelHeight}
+          className="group absolute -top-1 right-0 left-0 z-20 flex h-2 cursor-row-resize touch-none items-center justify-center outline-none"
+          tabIndex={0}
+          title={t('execution.resizePanelHint')}
+          onDoubleClick={resetPanelHeight}
+          onKeyDown={resizePanelWithKeyboard}
+          onPointerCancel={finishPanelResize}
+          onPointerDown={beginPanelResize}
+          onPointerMove={continuePanelResize}
+          onPointerUp={finishPanelResize}
+        >
+          <span className="h-0.5 w-10 rounded-full bg-transparent transition-colors group-hover:bg-(--border-strong) group-focus-visible:bg-(--accent-color)" />
+        </div>
+      ) : null}
       <header className="flex h-9 shrink-0 items-center gap-2 border-b border-(--border-subtle) px-2.5">
         <button
           type="button"
@@ -537,13 +738,19 @@ export function ExecutionCenter({
           {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         <span className="text-xs font-medium">{t('execution.title')}</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-(--border-default) px-2 py-0.5 text-[10px] text-(--text-muted)">
-          <span
-            className={`size-1.5 rounded-full ${statusDotClass(effectiveStatus)}`}
-          />
-          {t(`execution.status.${effectiveStatus}`, {
-            defaultValue: effectiveStatus,
-          })}
+        <span
+          role="status"
+          className={`inline-flex size-7 items-center justify-center rounded-md border border-(--border-default) ${
+            effectiveStatus === 'failed' ||
+            effectiveStatus === 'timed-out' ||
+            effectiveStatus === 'blocked'
+              ? 'text-(--danger-color)'
+              : 'text-(--text-muted)'
+          }`}
+          aria-label={effectiveStatusLabel}
+          title={effectiveStatusLabel}
+        >
+          {statusIcon(effectiveStatus)}
         </span>
         {session?.activeJob ? (
           <span
@@ -556,10 +763,11 @@ export function ExecutionCenter({
         ) : null}
         {sessionSnapshotStale ? (
           <span
-            className="rounded-full border border-(--warning-color)/45 px-2 py-0.5 text-[9px] text-(--warning-color)"
+            className="inline-flex size-7 items-center justify-center rounded-md border border-(--warning-color)/45 text-(--warning-color)"
+            aria-label={t('execution.status.stale')}
             title={t('execution.sourceNavigation.snapshotStale')}
           >
-            {t('execution.status.stale')}
+            <History size={13} aria-hidden="true" />
           </span>
         ) : null}
         <div className="ml-auto flex items-center gap-0.5">
@@ -609,6 +817,30 @@ export function ExecutionCenter({
               aria-label={t('execution.openPreview')}
             >
               <ExternalLink size={13} />
+            </button>
+          ) : null}
+          {!collapsed ? (
+            <button
+              type="button"
+              className={iconButtonClass}
+              onClick={() => setPanelMaximized((current) => !current)}
+              title={
+                panelMaximized
+                  ? t('execution.restorePanel')
+                  : t('execution.maximizePanel')
+              }
+              aria-label={
+                panelMaximized
+                  ? t('execution.restorePanel')
+                  : t('execution.maximizePanel')
+              }
+              aria-pressed={panelMaximized}
+            >
+              {panelMaximized ? (
+                <Minimize2 size={13} aria-hidden="true" />
+              ) : (
+                <Maximize2 size={13} aria-hidden="true" />
+              )}
             </button>
           ) : null}
           <button
@@ -740,7 +972,11 @@ export function ExecutionCenter({
           </div>
           {recoveryMessage ? (
             <div className="flex shrink-0 items-center gap-2 border-b border-(--border-subtle) bg-(--bg-raised)/55 px-3 py-1.5 text-[10px] text-(--text-secondary)">
-              <span className="size-1.5 shrink-0 rounded-full bg-(--warning-color)" />
+              <TriangleAlert
+                size={12}
+                className="shrink-0 text-(--warning-color)"
+                aria-hidden="true"
+              />
               <span className="min-w-0 flex-1">{recoveryMessage}</span>
               {recovery.status === 'restart' ? (
                 <span className="text-(--text-muted)">

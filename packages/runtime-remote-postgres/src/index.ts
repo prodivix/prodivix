@@ -3,6 +3,7 @@ export { createPostgresRemoteExecutionSnapshotStore } from './postgresSnapshotSt
 export { createPostgresRemoteExecutionTerminalStateStore } from './postgresTerminalStateStore';
 export { createPostgresRemoteExecutionRegionalRecoveryProbe } from './postgresRegionalRecovery';
 export type { CreatePostgresRemoteExecutionRegionalRecoveryProbeOptions } from './postgresRegionalRecovery';
+export { createPostgresRemoteExecutionRegionalRecoveryGrantReplayStore } from './postgresRegionalRecoveryOperatorGrantStore';
 export {
   createPostgresRemoteExecutionRegionalTrafficAuthority,
   migrateRemoteExecutionRegionalTrafficPostgres,

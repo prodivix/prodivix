@@ -594,6 +594,7 @@
     "quickPresetMenu": "Presets",
     "size": "Size {{width}}x{{height}}",
     "moreDevices": "More devices",
+    "runConfiguration": "Run configuration",
     "runProvider": {
       "label": "Runner",
       "browser": "Browser",

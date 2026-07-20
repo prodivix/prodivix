@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import {
   CheckCircle2,
   CircleDashed,
+  CircleMinus,
+  CircleSlash2,
   Code2,
   FileCode2,
-  FlaskConical,
+  ListChecks,
   LoaderCircle,
   LocateFixed,
   Play,
@@ -14,6 +16,7 @@ import {
   Square,
   XCircle,
 } from 'lucide-react';
+import { PdxSelect, PdxTooltip } from '@prodivix/ui';
 import type {
   ExecutionSourceTrace,
   ExecutionTestStatus,
@@ -65,15 +68,7 @@ export default function ProjectTestingPage() {
   const [sourceNavigationFailure, setSourceNavigationFailure] = useState<
     'snapshot-stale' | 'source-unavailable'
   >();
-  const counts = runner.report?.summary ?? {
-    totalFiles: 0,
-    failedFiles: 0,
-    totalCases: 0,
-    passedCases: 0,
-    failedCases: 0,
-    skippedCases: 0,
-    todoCases: 0,
-  };
+  const counts = runner.report?.summary;
   const reportIsCurrent = Boolean(
     workspace &&
     runner.reportSnapshotId === createWorkspaceExecutionSnapshotId(workspace)
@@ -96,8 +91,10 @@ export default function ProjectTestingPage() {
     setSourceNavigationFailure(undefined);
   }, [runner.reportJobId, runner.reportSnapshotId]);
 
-  const actionClass =
-    'inline-flex h-8 items-center gap-1.5 rounded-lg border border-(--border-default) bg-(--bg-canvas) px-3 text-xs font-medium text-(--text-primary) transition-colors hover:bg-(--bg-raised) disabled:cursor-not-allowed disabled:opacity-40';
+  const actionBaseClass =
+    'inline-flex size-8 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-40';
+  const actionClass = `${actionBaseClass} border-(--border-default) bg-(--bg-canvas) text-(--text-primary) hover:bg-(--bg-raised)`;
+  const primaryActionClass = `${actionBaseClass} border-(--text-primary) bg-(--text-primary) text-(--bg-canvas) hover:opacity-85`;
   const openSourceTrace = (trace: ExecutionSourceTrace | undefined): void => {
     if (
       !trace ||
@@ -121,142 +118,163 @@ export default function ProjectTestingPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-(--bg-canvas) text-(--text-primary)">
-      <header className="flex shrink-0 items-center gap-4 border-b border-(--border-default) px-6 py-4">
-        <span className="inline-flex size-9 items-center justify-center rounded-xl bg-(--bg-raised) text-(--text-secondary)">
-          <FlaskConical size={18} />
-        </span>
-        <div className="min-w-0">
-          <h1 className="m-0 text-base font-semibold">{t('testing.title')}</h1>
-          <p className="m-0 mt-1 text-xs text-(--text-muted)">
-            {t('testing.subtitle')}
-          </p>
-        </div>
+      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-(--border-default) px-5">
+        <h1 className="m-0 text-base font-semibold">{t('testing.title')}</h1>
         <div className="ml-auto flex items-center gap-2">
-          <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-(--border-default) bg-(--bg-canvas) px-2 text-xs text-(--text-secondary)">
-            <span>{t('testing.target.label')}</span>
-            <select
-              className="min-w-20 bg-transparent text-xs font-medium text-(--text-primary) outline-none"
-              value={runner.target}
-              disabled={active}
-              aria-label={t('testing.target.label')}
-              onChange={(event) =>
-                runner.setTarget(
-                  event.target.value === 'vue-vite' ? 'vue-vite' : 'react-vite'
-                )
-              }
-            >
-              <option value="react-vite">{t('testing.target.react')}</option>
-              <option value="vue-vite">{t('testing.target.vue')}</option>
-            </select>
-          </label>
-          <label className="inline-flex h-8 items-center gap-2 rounded-lg border border-(--border-default) bg-(--bg-canvas) px-2 text-xs text-(--text-secondary)">
-            <span>{t('testing.provider.label')}</span>
-            <select
-              className="min-w-20 bg-transparent text-xs font-medium text-(--text-primary) outline-none"
-              value={runner.provider}
-              disabled={active}
-              aria-label={t('testing.provider.label')}
-              title={
-                runner.remoteAvailable
-                  ? undefined
-                  : t('testing.provider.remoteSignIn')
-              }
-              onChange={(event) =>
-                runner.setProvider(
-                  event.target.value === 'remote' ? 'remote' : 'browser'
-                )
-              }
-            >
-              <option value="browser">{t('testing.provider.browser')}</option>
-              <option value="remote" disabled={!runner.remoteAvailable}>
-                {t('testing.provider.remote')}
-              </option>
-            </select>
-          </label>
-          <button
-            type="button"
-            className={actionClass}
-            onClick={() =>
-              workspace && navigate(`/editor/project/${workspace.id}/code`)
+          <PdxSelect
+            aria-label={t('testing.target.label')}
+            disabled={active}
+            options={[
+              { label: t('testing.target.react'), value: 'react-vite' },
+              { label: t('testing.target.vue'), value: 'vue-vite' },
+            ]}
+            size="ExtraSmall"
+            style={{ flex: '0 0 112px', width: 112 }}
+            value={runner.target}
+            onValueChange={(value) =>
+              runner.setTarget(value === 'vue-vite' ? 'vue-vite' : 'react-vite')
             }
-            disabled={!workspace}
-          >
-            <Code2 size={13} />
-            {t('testing.actions.openCode')}
-          </button>
-          {active ? (
+          />
+          <PdxSelect
+            aria-label={t('testing.provider.label')}
+            disabled={active}
+            options={[
+              { label: t('testing.provider.browser'), value: 'browser' },
+              {
+                label: t('testing.provider.remote'),
+                value: 'remote',
+                disabled: !runner.remoteAvailable,
+              },
+            ]}
+            size="ExtraSmall"
+            style={{ flex: '0 0 104px', width: 104 }}
+            title={
+              runner.remoteAvailable
+                ? undefined
+                : t('testing.provider.remoteSignIn')
+            }
+            value={runner.provider}
+            onValueChange={(value) =>
+              runner.setProvider(value === 'remote' ? 'remote' : 'browser')
+            }
+          />
+          <PdxTooltip content={t('testing.actions.openCode')}>
             <button
               type="button"
               className={actionClass}
-              onClick={() => void runner.stop()}
-            >
-              <Square size={12} />
-              {t('testing.actions.stop')}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={actionClass}
-              onClick={() => void runner.run()}
+              onClick={() =>
+                workspace && navigate(`/editor/project/${workspace.id}/code`)
+              }
               disabled={!workspace}
+              aria-label={t('testing.actions.openCode')}
+              title={t('testing.actions.openCode')}
             >
-              {runner.report ? <RotateCcw size={13} /> : <Play size={13} />}
-              {runner.report
-                ? t('testing.actions.rerun')
-                : t('testing.actions.run')}
+              <Code2 size={14} aria-hidden="true" />
             </button>
+          </PdxTooltip>
+          {active ? (
+            <PdxTooltip content={t('testing.actions.stop')}>
+              <button
+                type="button"
+                className={actionClass}
+                onClick={() => void runner.stop()}
+                aria-label={t('testing.actions.stop')}
+                title={t('testing.actions.stop')}
+              >
+                <Square size={13} aria-hidden="true" />
+              </button>
+            </PdxTooltip>
+          ) : (
+            <PdxTooltip
+              content={
+                runner.report
+                  ? t('testing.actions.rerun')
+                  : t('testing.actions.run')
+              }
+            >
+              <button
+                type="button"
+                className={primaryActionClass}
+                onClick={() => void runner.run()}
+                disabled={!workspace}
+                aria-label={
+                  runner.report
+                    ? t('testing.actions.rerun')
+                    : t('testing.actions.run')
+                }
+                title={
+                  runner.report
+                    ? t('testing.actions.rerun')
+                    : t('testing.actions.run')
+                }
+              >
+                {runner.report ? (
+                  <RotateCcw size={14} aria-hidden="true" />
+                ) : (
+                  <Play size={14} aria-hidden="true" />
+                )}
+              </button>
+            </PdxTooltip>
           )}
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto px-6 py-5">
+      <main className="min-h-0 flex-1 overflow-auto px-5 py-4">
         <div className="mx-auto flex max-w-6xl flex-col gap-4">
-          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {(
-              [
-                ['files', counts.totalFiles],
-                ['cases', counts.totalCases],
-                ['passed', counts.passedCases],
-                ['failed', counts.failedCases],
-                ['skipped', counts.skippedCases],
-                ['todo', counts.todoCases],
-              ] as const
-            ).map(([key, value]) => (
-              <div
-                key={key}
-                className="rounded-xl border border-(--border-default) bg-(--bg-panel) px-4 py-3"
-              >
-                <div className="text-[10px] font-medium tracking-wide text-(--text-muted) uppercase">
-                  {t(`testing.summary.${key}`)}
-                </div>
-                <div className="mt-1 text-xl font-semibold tabular-nums">
-                  {value}
-                </div>
-                {key === 'failed' ? (
-                  <div className="mt-0.5 text-[10px] text-(--text-muted)">
-                    {t('testing.summary.failedFiles', {
-                      count: counts.failedFiles,
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </section>
+          {counts ? (
+            <section
+              className="flex flex-wrap items-center justify-end gap-1.5"
+              aria-label={t('testing.report.title')}
+            >
+              {(
+                [
+                  ['files', counts.totalFiles, <FileCode2 size={13} />],
+                  ['cases', counts.totalCases, <ListChecks size={13} />],
+                  ['passed', counts.passedCases, <CheckCircle2 size={13} />],
+                  ['failed', counts.failedCases, <XCircle size={13} />],
+                  ['skipped', counts.skippedCases, <CircleMinus size={13} />],
+                  ['todo', counts.todoCases, <CircleDashed size={13} />],
+                ] as const
+              ).map(([key, value, icon]) => {
+                const label = t(`testing.summary.${key}`);
+                const detail =
+                  key === 'failed'
+                    ? `${label}: ${value} · ${t('testing.summary.failedFiles', {
+                        count: counts.failedFiles,
+                      })}`
+                    : `${label}: ${value}`;
+                return (
+                  <span
+                    key={key}
+                    className={`inline-flex h-7 items-center gap-1.5 rounded-md border border-(--border-subtle) bg-(--bg-panel) px-2 text-[11px] tabular-nums ${
+                      key === 'failed' && value > 0
+                        ? 'text-(--danger-color)'
+                        : 'text-(--text-muted)'
+                    }`}
+                    aria-label={detail}
+                    title={detail}
+                  >
+                    {icon}
+                    <span>{value}</span>
+                  </span>
+                );
+              })}
+            </section>
+          ) : null}
 
           {active && !runner.report ? (
-            <section className="flex min-h-52 items-center justify-center rounded-xl border border-(--border-default) bg-(--bg-panel)">
-              <div className="flex flex-col items-center gap-3 text-center">
-                <LoaderCircle
-                  size={20}
-                  className="animate-spin text-(--text-muted)"
-                />
-                <div className="text-sm font-medium">
-                  {t('testing.running.title')}
-                </div>
-                <div className="max-w-md text-xs leading-5 text-(--text-muted)">
-                  {runner.message ?? t('testing.running.description')}
-                </div>
-              </div>
+            <section
+              className="flex items-center justify-center gap-2 rounded-xl border border-(--border-default) bg-(--bg-panel) px-4 py-3"
+              role="status"
+            >
+              <LoaderCircle
+                size={15}
+                className="animate-spin text-(--text-muted)"
+                aria-hidden="true"
+              />
+              <span className="text-xs text-(--text-secondary)">
+                {runner.message ?? t('testing.running.title')}
+              </span>
             </section>
           ) : runner.report ? (
             <section className="overflow-hidden rounded-xl border border-(--border-default) bg-(--bg-panel)">
@@ -388,28 +406,39 @@ export default function ProjectTestingPage() {
                 })}
               </div>
             </section>
-          ) : (
-            <section className="flex min-h-52 items-center justify-center rounded-xl border border-dashed border-(--border-default) bg-(--bg-panel)">
-              <div className="flex max-w-md flex-col items-center gap-3 px-8 text-center">
-                <FlaskConical size={20} className="text-(--text-muted)" />
-                <div className="text-sm font-medium">
-                  {runner.status === 'blocked'
-                    ? t('testing.blocked.title')
-                    : executionFailed
-                      ? t('testing.failed.title')
-                      : t('testing.empty.title')}
-                </div>
-                <div className="text-xs leading-5 text-(--text-muted)">
+          ) : runner.status === 'blocked' || executionFailed ? (
+            <section
+              className="flex items-center rounded-lg border border-(--border-default) bg-(--bg-panel) px-4 py-3"
+              role="alert"
+              aria-label={
+                runner.status === 'blocked'
+                  ? t('testing.blocked.title')
+                  : t('testing.failed.title')
+              }
+            >
+              <div className="flex max-w-xl items-center gap-3">
+                {executionFailed ? (
+                  <XCircle
+                    size={18}
+                    className="shrink-0 text-(--danger-color)"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <CircleSlash2
+                    size={18}
+                    className="shrink-0 text-(--warning-color)"
+                    aria-hidden="true"
+                  />
+                )}
+                <p className="m-0 text-xs leading-5 text-(--text-secondary)">
                   {runner.message ??
                     (runner.status === 'blocked'
                       ? t('testing.blocked.description')
-                      : executionFailed
-                        ? t('testing.failed.description')
-                        : t('testing.empty.description'))}
-                </div>
+                      : t('testing.failed.description'))}
+                </p>
               </div>
             </section>
-          )}
+          ) : null}
         </div>
       </main>
 

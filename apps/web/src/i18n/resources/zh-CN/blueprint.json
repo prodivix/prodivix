@@ -593,6 +593,7 @@
     "quickPresetMenu": "预设",
     "size": "{{width}}x{{height}}",
     "moreDevices": "更多设备",
+    "runConfiguration": "运行配置",
     "runProvider": {
       "label": "运行器",
       "browser": "浏览器",

@@ -70,6 +70,18 @@ func TestRunMigrationsUsesVersionedLockedTransaction(t *testing.T) {
 	mock.ExpectExec("ALTER TABLE workspace_execution_role_grants").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("ALTER TABLE remote_execution_grants").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(11), "workspace-execution-editor-role").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(12)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	mock.ExpectExec(regexp.QuoteMeta(lockPersistedPIRDocuments)).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT workspace_id, id, content_rev, content_json
+FROM workspace_documents
+WHERE doc_type IN ('pir-page', 'pir-layout', 'pir-component')
+  AND ($1 OR (workspace_id, id) > ($2, $3))
+ORDER BY workspace_id, id
+LIMIT $4
+FOR UPDATE`)).WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "id", "content_rev", "content_json"}))
+	mock.ExpectExec(regexp.QuoteMeta(enforcePIRWireV16)).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(regexp.QuoteMeta(validatePIRWireV16)).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(12), "pir-wire-v1-6-rollout").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	if err := RunMigrations(context.Background(), db); err != nil {

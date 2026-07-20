@@ -314,10 +314,13 @@ Remote finite Preview 的 generation-fenced Session observation、Structured Con
 Core/显式 unsupported 产品状态、manual new-request recovery 与统一 SourceTrace navigation 已实现。ADR 50 已以
 Core/redactor checkpoint、PostgreSQL opaque revision CAS 和双副本 Gate 关闭 Control Plane process owner 故障；ADR 51
 进一步完成 PRT2 per-revision data key、AWS KMS exact envelope、PRT1 migration、retryable outage revision fence 与 related
-MRK regional broker continuation；ADR 52 完成 exact regional checkpoint、shared request drain/exclusive epoch、双 Control Plane
-HTTP hard cut、live lease continuation、attempt+1 reclaim 与旧 PTY generation replacement；ADR 53 完成 DOM-free bounded
+MRK regional broker continuation；ADR 52进一步完成1-128 execution single-epoch batch、独立one-shot operator、Ed25519
+authorization/fence/replication三签名角色、PostgreSQL grant replay fence、source-unavailable attested-RPO hard cut、strict sanitized
+evidence export，以及exact regional checkpoint、shared request drain/exclusive epoch、双Control Plane HTTP hard cut、live lease
+continuation、attempt+1 reclaim与旧PTY generation replacement；ADR 53 完成 DOM-free bounded
 Terminal emulator、ANSI/alternate screen/scrollback/resize、conceal-safe copy、可访问 keyboard/paste 与 exact input retry。
-regional DR 首次真实云端 RPO/RTO evidence与首次 live MRK evidence继续建设；当前 runtime diagnostic/Issues
+上述新增operator/batch/source-unavailable contract已取得本地真实PostgreSQL双schema Gate，但regional DR首次真实云端RPO/RTO
+evidence与首次live MRK evidence继续建设；当前 runtime diagnostic/Issues
 producer closure已由 exact-snapshot Gate关闭，未来 provider-specific debugger extension不作为该外部证据的替代。
 
 完成条件：

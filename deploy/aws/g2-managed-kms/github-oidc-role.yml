@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Least-privilege GitHub OIDC role for the Prodivix G2 managed KMS Gate
+
+Parameters:
+  GitHubOidcProviderArn:
+    Type: String
+    Description: Existing account-level token.actions.githubusercontent.com OIDC provider ARN
+    AllowedPattern: '^arn:(aws|aws-us-gov|aws-cn):iam::[0-9]{12}:oidc-provider/token\.actions\.githubusercontent\.com$'
+    ConstraintDescription: Must be the exact GitHub Actions OIDC provider ARN
+  GitHubSubject:
+    Type: String
+    Description: Exact GitHub OIDC sub claim, including the protected environment context
+    MinLength: 1
+    MaxLength: 255
+  KmsKeyArns:
+    Type: CommaDelimitedList
+    Description: Exact old, primary and replica KMS key ARNs used by the live Gate
+    AllowedPattern: '^arn:(aws|aws-us-gov|aws-cn):kms:[a-z]{2}-[a-z0-9-]+-[0-9]+:[0-9]{12}:key/[A-Za-z0-9-]{1,128}$'
+    ConstraintDescription: Every entry must be an exact KMS key ARN; aliases and wildcards are forbidden
+
+Resources:
+  ManagedKmsEvidenceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Short-lived GitHub Actions role for Prodivix managed KMS evidence
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Ref GitHubSubject
+      Policies:
+        - PolicyName: ExactManagedKmsEnvelopeOperations
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:Encrypt
+                Resource: !Ref KmsKeyArns
+      Tags:
+        - Key: prodivix:purpose
+          Value: g2-managed-kms-evidence
+        - Key: prodivix:managed-by
+          Value: cloudformation
+
+Outputs:
+  RoleArn:
+    Description: Store as the protected PRODIVIX_AWS_KMS_TEST_ROLE_ARN Environment secret
+    Value: !GetAtt ManagedKmsEvidenceRole.Arn

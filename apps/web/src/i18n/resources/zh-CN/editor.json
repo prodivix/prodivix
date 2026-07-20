@@ -3,6 +3,10 @@
     "title": "运行",
     "expand": "展开运行控制台",
     "collapse": "收起运行控制台",
+    "resizePanel": "调整运行面板大小",
+    "resizePanelHint": "拖动调整大小，方向键微调，双击恢复默认高度",
+    "maximizePanel": "最大化运行面板",
+    "restorePanel": "还原运行面板",
     "restart": "重新运行",
     "startNewRequest": "创建新的运行请求",
     "stop": "停止运行",
@@ -384,6 +388,9 @@
       "openSource": "打开源码",
       "openExecution": "打开执行记录",
       "openDocs": "打开文档",
+      "retry": "重试操作",
+      "retryQueued": "已将原操作重新加入重试队列。",
+      "retryUnavailable": "当前已无法重试这项操作。",
       "targetUnavailable": "当前工作区中已不存在这个目标。",
       "sourceUnavailable": "当前工作区中已不存在这个源码资源。"
     },
@@ -913,18 +920,18 @@
     },
     "editorPage": {
       "title": "编辑器设置",
-      "subtitle": "对每个项目和新工作区生效的全局默认值。"
+      "subtitle": "只展示已有实际消费者的编辑器偏好与创作默认值。"
     },
     "projectPage": {
       "title": "项目设置",
-      "subtitle": "管理项目配置，也可直接调整全局编辑器偏好。",
+      "subtitle": "管理服务端协作权限与明确的项目覆盖项。",
       "tabs": {
         "project": "项目设置",
         "global": "全局默认值"
       },
       "overrides": {
         "title": "编辑器设置",
-        "body": "多数设置是全局偏好；只有影响项目输出或运行语义的设置可开启项目覆盖。"
+        "body": "多数设置是全局偏好；只有具备项目级创作或运行消费者的设置才可在此覆盖。"
       }
     },
     "overrides": {
@@ -946,11 +953,11 @@
         },
         "behavior": {
           "title": "编辑器行为",
-          "description": "控制保存、确认提示和工作管理方式。"
+          "description": "历史容量、离开确认与默认面板布局。"
         },
         "blueprint": {
           "title": "蓝图默认值",
-          "description": "创建或打开新蓝图时应用的默认设置。"
+          "description": "画布行为、创作转换、诊断与默认运行目标。"
         },
         "components": {
           "title": "组件与渲染",
@@ -1014,7 +1021,7 @@
         },
         "confirmPrompts": {
           "label": "确认提示",
-          "description": "何时显示确认对话框。",
+          "description": "离开项目之前要求确认。",
           "options": {
             "delete": "删除",
             "reset": "重置",
@@ -1048,7 +1055,7 @@
         },
         "assist": {
           "label": "辅助覆盖层",
-          "description": "网格、对齐参考与吸附的默认设置。",
+          "description": "显示画布网格。",
           "options": {
             "grid": "网格",
             "alignment": "对齐",
@@ -1171,7 +1178,7 @@
         },
         "collaboration": {
           "title": "协作",
-          "description": "访问、权限与团队工作流的默认设置。"
+          "description": "由服务端持久化的工作区角色分配。"
         },
         "designSystem": {
           "title": "设计系统",
@@ -1759,7 +1766,9 @@
         "bytes": "字节"
       },
       "actions": {
-        "save": "保存"
+        "save": "保存",
+        "saveShortcut": "保存（Ctrl+S）",
+        "unsaved": "有未保存的更改"
       },
       "compile": {
         "title": "目标 Shader 校验",
@@ -1783,11 +1792,14 @@
           "unavailable": "语言服务不可用：{{reason}}"
         },
         "actions": {
+          "contextMenu": "代码编辑器操作",
           "goToDefinition": "转到定义",
           "definitionShortcut": "转到定义（F12）",
           "findReferences": "查找引用"
         },
         "query": {
+          "results": "代码位置",
+          "close": "关闭代码位置",
           "resolvingDefinition": "正在解析定义…",
           "findingReferences": "正在查找引用…",
           "definitionCount_one": "找到 1 个定义位置。",

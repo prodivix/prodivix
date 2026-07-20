@@ -222,12 +222,17 @@ Workspace row lock，并通过 `SKIP LOCKED` 跳过正在 authoring 的 Workspac
 
 AWS managed KMS first vertical 使用官方 AWS SDK 与 default credential chain：
 
-- `BACKEND_ENVIRONMENT_SECRET_KMS_PROVIDER=aws-kms` 显式选择 `aws.kms/v1`；
+- `BACKEND_ENVIRONMENT_SECRET_KMS_PROVIDER=aws-kms`显式选择当前`aws.kms/v2` envelope；
 - `BACKEND_ENVIRONMENT_SECRET_KMS_AWS_REGION` 必须是 canonical AWS region；
 - `BACKEND_ENVIRONMENT_SECRET_KMS_AWS_KEY_ARNS` 保存 1-16 个 local key label -> exact immutable KMS key ARN，
   不接受 alias；`BACKEND_ENVIRONMENT_SECRET_KMS_ACTIVE_KEY_ID` 指向其中唯一 active label；
 - `BACKEND_ENVIRONMENT_SECRET_KMS_TIMEOUT=5s` 控制单次 SDK 调用，必须为正且不超过 30 秒；
-- 不提供 AWS access key/secret 配置字段。生产应使用 workload identity；GitHub live Gate 使用 OIDC 短期 role。
+- 不提供AWS access key/secret配置字段。生产应使用workload identity；GitHub live Gate使用OIDC短期role。
+
+v2 correlation metadata额外绑定stable key identity：single-Region key绑定exact ARN；multi-Region key绑定同一
+partition/account/`mrk-*` resource id，而每个Region的SDK请求/响应仍要求当地exact ARN。因此related MRK replica可以本地
+解密primary Region产生的data-key ciphertext；unrelated MRK、跨account/partition或single-Region ARN替换都会fail closed。
+`deploy/aws/g2-managed-kms`只有可审查的CloudFormation参考，不会自动创建或收费。
 
 从 static provider 迁移到 AWS 时，`BACKEND_ENVIRONMENT_SECRET_KMS_KEYS` 可暂时保留为 decrypt-only source；新写入只使用
 AWS active key。rotation 的 `remaining_count=0` 后才能删除旧 static keys。static provider 与 AWS provider 不会同时成为
@@ -323,7 +328,16 @@ client-only target 仍不得解析 Secret，Worker、snapshot、artifact 与 Pre
   go test ./internal/modules/workspace -run '^TestWorkspaceAssetBlobRetentionPostgreSQLGate$' -count=1 -v
   ```
 
-- GitHub `G2 PostgreSQL Gates` 同时运行 Data replay、Server Function live mutation、Environment static/cloud KMS rotation、Binary Asset retention 等 Backend Gate 与
+- PIR wire persistence rollout 使用同一变量和独立随机 schema，验证任一不安全历史文档会回滚整批迁移、
+  1.3 canonical baseline 及后续版本会确定性升级到 current、保持 `contentRev`、Workspace revision 与
+  `opSeq` 不变，并由 rollout 后的 database constraint 持续拒绝旧 wire 写入：
+
+  ```powershell
+  $env:PRODIVIX_BACKEND_POSTGRES_TEST_URL = $env:BACKEND_DB_URL
+  go test ./internal/platform/database -run '^TestPIRWireMigrationPostgreSQLGate$' -count=1 -v
+  ```
+
+- GitHub `G2 PostgreSQL Gates` 同时运行 Data replay、Server Function live mutation、Environment static/cloud KMS rotation、Binary Asset retention、PIR wire persistence rollout 等 Backend Gate 与
   `@prodivix/runtime-remote-postgres` Control Plane integration Gate；未提供数据库 URL 的普通
   `go test ./...` 会显式 skip 真实数据库用例。
 
