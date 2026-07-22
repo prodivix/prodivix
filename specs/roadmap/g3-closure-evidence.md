@@ -3,13 +3,15 @@
 ## 状态
 
 - EvidenceStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ProductGateStatus：In Progress
 - 日期：2026-07-20
+- G2 Exit baseline：`3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184`
 - Canonical milestone：[`g3-behavior-verification-milestones.md`](g3-behavior-verification-milestones.md)
 - Contract：[`../implementation/g3-behavior-verification-closure.md`](../implementation/g3-behavior-verification-closure.md)
 
 本文预先冻结 G3 Exit Gate 的证据结构，避免实现完成后用零散日志、绿色徽章或一次本机运行倒推验收标准。
-当前没有 G3 通过证据；下列项目全部是待填 manifest，不得把文档存在解释为 Passed。
+G2 Exit Gate 已通过并允许 G3 从 V0 开始；当前仍没有 G3 通过证据，下列项目全部是待填 manifest，不得把
+contract、状态切换或文档存在解释为 G3 milestone 已实现或 Passed。
 
 ## Evidence identity
 

@@ -543,6 +543,29 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 		version: 12,
 		name:    "pir-wire-v1-6-rollout",
 		run:     migratePersistedPIRDocuments,
+	}, {
+		version: 13,
+		name:    "github-installation-user-access",
+		statements: []string{
+			`CREATE TABLE IF NOT EXISTS github_installation_user_access (
+			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			installation_id BIGINT NOT NULL REFERENCES github_installations(installation_id) ON DELETE CASCADE,
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (user_id, installation_id),
+			CONSTRAINT github_installation_user_access_status_check CHECK (status IN ('active', 'revoked'))
+		)`,
+			`CREATE INDEX IF NOT EXISTS idx_github_installation_user_access_installation ON github_installation_user_access(installation_id, status)`,
+			`CREATE TABLE IF NOT EXISTS github_installation_setup_states (
+			token_hash TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			expires_at TIMESTAMPTZ NOT NULL,
+			consumed_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ NOT NULL
+		)`,
+			`CREATE INDEX IF NOT EXISTS idx_github_installation_setup_states_expiry ON github_installation_setup_states(expires_at) WHERE consumed_at IS NULL`,
+		},
 	}}
 
 	tx, err := db.BeginTx(ctx, nil)

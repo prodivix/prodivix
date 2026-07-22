@@ -120,8 +120,24 @@ type TypeScriptProjectArtifactState = Readonly<{
   artifactById: ReadonlyMap<string, CodeArtifact>;
   artifactByFileName: ReadonlyMap<string, CodeArtifact>;
   fileNameByArtifactId: ReadonlyMap<string, string>;
-  key: string;
 }>;
+
+const artifactStatesEqual = (
+  left: TypeScriptProjectArtifactState,
+  right: TypeScriptProjectArtifactState
+): boolean =>
+  left.artifacts.length === right.artifacts.length &&
+  left.artifacts.every((artifact, index) => {
+    const candidate = right.artifacts[index];
+    return (
+      candidate !== undefined &&
+      artifact.id === candidate.id &&
+      artifact.language === candidate.language &&
+      artifact.path === candidate.path &&
+      artifact.revision === candidate.revision &&
+      artifact.source === candidate.source
+    );
+  });
 
 const createArtifactState = (
   inputArtifacts: readonly CodeArtifact[]
@@ -155,15 +171,6 @@ const createArtifactState = (
     artifactById,
     artifactByFileName,
     fileNameByArtifactId,
-    key: JSON.stringify(
-      artifacts.map(({ id, language, path, revision, source }) => [
-        id,
-        language,
-        path,
-        revision,
-        source,
-      ])
-    ),
   });
 };
 
@@ -286,7 +293,7 @@ export const createTypeScriptCodeProject = (
         throw new Error('The TypeScript code project has been disposed.');
       }
       const nextState = createArtifactState(nextArtifacts);
-      if (nextState.key === artifactState.key) return false;
+      if (artifactStatesEqual(artifactState, nextState)) return false;
       artifactState = nextState;
       projectVersion += 1;
       return true;

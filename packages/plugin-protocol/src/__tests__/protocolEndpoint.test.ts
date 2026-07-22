@@ -294,4 +294,35 @@ describe('protocol endpoint state machine', () => {
     expect(result.diagnostics[0]?.code).toBe('PLG-4020');
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it('does not consume an outbound sequence when encoding fails', () => {
+    const sent: string[] = [];
+    const endpoint = createProtocolEndpoint({
+      contracts: contracts(),
+      messagePrefix: 'host',
+      sendText: (text) => sent.push(text),
+      codecLimits: { maxBytes: 512 },
+    });
+
+    const oversized = endpoint.sendEvent({
+      channel: 'control',
+      method: 'runtime/error',
+      contractVersion: '1.0',
+      payload: { reasonCode: 'fixture', safeMessage: 'x'.repeat(400) },
+    });
+    const accepted = endpoint.sendEvent({
+      channel: 'control',
+      method: 'runtime/error',
+      contractVersion: '1.0',
+      payload: { reasonCode: 'fixture', safeMessage: 'Fixture.' },
+    });
+
+    expect(oversized.ok).toBe(false);
+    expect(accepted.ok).toBe(true);
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(sent[0]!) as RuntimeEnvelopeV1).toMatchObject({
+      messageId: 'host.1',
+      sequence: 1,
+    });
+  });
 });

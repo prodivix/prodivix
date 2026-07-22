@@ -235,7 +235,7 @@ describe('editorApi workspace boundary', () => {
     const capability = 'b'.repeat(64);
     apiRequestMock.mockResolvedValueOnce({
       deliveryUrl: `https://${capability}.asset.example.test/asset`,
-      expiresAt: Date.now() + 60_000,
+      expiresAt: 0,
       digest: `sha256-${'c'.repeat(64)}`,
       mediaType: 'image/png',
       byteLength: 67,

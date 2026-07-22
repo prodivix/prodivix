@@ -50,8 +50,17 @@ export const parseWebGlShaderCompileLog = (
   );
 
 export const createBrowserWebGl2ShaderCompilerBackend =
-  (): ShaderCompilerBackend =>
-    Object.freeze({
+  (): ShaderCompilerBackend => {
+    let context: WebGL2RenderingContext | null = null;
+    const getContext = (): WebGL2RenderingContext | null => {
+      if (context && !context.isContextLost()) return context;
+      context = document
+        .createElement('canvas')
+        .getContext('webgl2', { failIfMajorPerformanceCaveat: false });
+      return context;
+    };
+
+    return Object.freeze({
       id: 'browser-webgl2',
       target: 'webgl2' as const,
       async compile({
@@ -70,19 +79,17 @@ export const createBrowserWebGl2ShaderCompilerBackend =
             reason: 'WebGL 2 is unavailable outside a browser document.',
           });
         }
-        const context = document
-          .createElement('canvas')
-          .getContext('webgl2', { failIfMajorPerformanceCaveat: false });
-        if (!context) {
+        const compilerContext = getContext();
+        if (!compilerContext) {
           return Object.freeze({
             status: 'unavailable' as const,
             reason: 'This browser does not provide a WebGL 2 compiler.',
           });
         }
-        const shader = context.createShader(
+        const shader = compilerContext.createShader(
           profile.stage === 'vertex'
-            ? context.VERTEX_SHADER
-            : context.FRAGMENT_SHADER
+            ? compilerContext.VERTEX_SHADER
+            : compilerContext.FRAGMENT_SHADER
         );
         if (!shader) {
           return Object.freeze({
@@ -91,11 +98,14 @@ export const createBrowserWebGl2ShaderCompilerBackend =
           });
         }
         try {
-          context.shaderSource(shader, artifact.source);
-          context.compileShader(shader);
+          compilerContext.shaderSource(shader, artifact.source);
+          compilerContext.compileShader(shader);
           const success =
-            context.getShaderParameter(shader, context.COMPILE_STATUS) === true;
-          const log = context.getShaderInfoLog(shader) ?? '';
+            compilerContext.getShaderParameter(
+              shader,
+              compilerContext.COMPILE_STATUS
+            ) === true;
+          const log = compilerContext.getShaderInfoLog(shader) ?? '';
           return Object.freeze({
             status: 'compiled' as const,
             success,
@@ -105,10 +115,11 @@ export const createBrowserWebGl2ShaderCompilerBackend =
             ),
           });
         } finally {
-          context.deleteShader(shader);
+          compilerContext.deleteShader(shader);
         }
       },
     });
+  };
 
 type BrowserGpuCompilationMessage = Readonly<{
   type: 'error' | 'warning' | 'info';

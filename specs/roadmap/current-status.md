@@ -5,15 +5,15 @@
 
 ## 全局阶段
 
-| Phase                              | Product Gate | 当前判断                                                                                                                                                                            |
-| ---------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                          |
-| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
-| G2 Executable Full-stack Workspace | In Progress  | current G2 scope本地implementation/product/security closure已完成；本轮regional operator与MRK v2更新的GitHub non-cloud evidence待后续明确提交推送后取得，AWS/真实云evidence仍延后。 |
-| G3 Behavior & Verification Closure | Blocked      | ADR 56-63 与完整 implementation/milestone contract 已冻结；实现尚未开始并等待 G2 退出 Gate。当前 Test/trace 仍是运行态输入，不提前等同于 `VerificationEvidence`。                   |
-| G4 Verified Agentic Development    | Blocked      | 等待 G3。                                                                                                                                                                           |
-| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
-| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
+| Phase                              | Product Gate | 当前判断                                                                                                                                                                                      |
+| ---------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                                    |
+| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                                   |
+| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。           |
+| G3 Behavior & Verification Closure | In Progress  | G2 Exit Gate 已通过；ADR 56-63 与完整 implementation/milestone contract 已冻结，正式从 V0 owner/contract hard cut 开始。当前 Test/trace 仍是运行态输入，不提前等同于 `VerificationEvidence`。 |
+| G4 Verified Agentic Development    | Blocked      | 等待 G3。                                                                                                                                                                                     |
+| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                                |
+| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                                |
 
 阶段定义与退出条件：[`global-phases.md`](./global-phases.md)。G0/G1 重复验证边界：
 [`g0-closure-evidence.md`](./g0-closure-evidence.md)、[`g1-closure-evidence.md`](./g1-closure-evidence.md)。
@@ -27,7 +27,10 @@ G3 contract 与阶段状态：[`../implementation/g3-behavior-verification-closu
 2026-07-20，统一 `pnpm run verify:g2` 已在本机 PostgreSQL 18 下完整通过（596.1s），Runner/DR、Data、
 Auth/Server 与 Binary Asset 四个 aggregate 全部闭合；monorepo test、lint 与 build 也通过。随后 current-scope
 GitHub PostgreSQL、authenticated Catalog rootless Preview/Test/Build、ClamAV + YARA-X real-engine 与相关 matrix
-全部取得通过证据。`In Progress`不再表示已知本地或 non-cloud CI 功能缺口。
+全部取得通过证据。commit `3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184` 又完成 regional operator、MRK v2、
+PIR wire migration 与相关回归的远端闭环：14/14 个自动 workflow、25/25 个 check-run 全部成功。因此 current-scope
+G2 Exit Gate 已通过；真实云 regional RPO/RTO 与 A14 AWS OIDC/KMS/MRK live run 继续作为明确的外部 evidence pending，
+不升级对应 provider milestone，也不构成已经取得真实云证据的声明。
 
 | 主线                  | current G2 closure                                                                                                                                                                                                                                                                                                                                                               | 未取得的外部证据                                                       |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |

@@ -104,6 +104,23 @@ describe('routeCore', () => {
     ).toEqual(['root', 'route-docs']);
   });
 
+  it('ranks dynamic siblings ahead of an earlier catch-all route', () => {
+    const competingManifest: WorkspaceRouteManifest = {
+      version: '1',
+      root: {
+        id: 'root',
+        children: [
+          { id: 'catch-all', segment: '*', pageDocId: 'not-found' },
+          { id: 'detail', segment: ':itemId', pageDocId: 'detail' },
+        ],
+      },
+    };
+
+    expect(
+      matchRouteManifest(competingManifest, '/123').map((node) => node.id)
+    ).toEqual(['root', 'detail']);
+  });
+
   it('matches standalone route patterns with shared ranking rules', () => {
     expect(matchRoutePattern('/users/:userId', '/users/42')?.score).toBe(10360);
     expect(

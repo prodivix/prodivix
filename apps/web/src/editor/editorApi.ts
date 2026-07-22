@@ -341,7 +341,7 @@ const readWorkspaceAssetDeliverySession = (
     !isCapabilityDeliveryUrl(value.deliveryUrl) ||
     typeof value.expiresAt !== 'number' ||
     !Number.isSafeInteger(value.expiresAt) ||
-    value.expiresAt <= Date.now() ||
+    value.expiresAt < 0 ||
     typeof value.digest !== 'string' ||
     !isBinaryAssetDigest(value.digest) ||
     typeof value.mediaType !== 'string' ||

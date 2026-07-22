@@ -2,7 +2,11 @@ package github
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -13,6 +17,7 @@ import (
 
 var ErrRepositoryBindingNotFound = errors.New("github repository binding not found")
 var ErrInstallationNotFound = errors.New("github installation not found")
+var ErrInstallationSetupStateInvalid = errors.New("github installation setup state is invalid or expired")
 
 type Store struct {
 	db *sql.DB
@@ -72,8 +77,8 @@ func (store *Store) ListInstallationsForUser(ctx context.Context, userID string)
 	defer cancel()
 	const query = `SELECT DISTINCT i.installation_id, i.account_login, i.account_type, i.account_id, i.status, i.raw_json, i.created_at, i.updated_at
 FROM github_installations i
-INNER JOIN github_repository_bindings b ON b.installation_id = i.installation_id
-WHERE b.user_id = $1 AND b.status = 'active'
+INNER JOIN github_installation_user_access a ON a.installation_id = i.installation_id
+WHERE a.user_id = $1 AND a.status = 'active' AND i.status = 'active'
 ORDER BY i.updated_at DESC`
 	rows, err := store.db.QueryContext(ctx, query, strings.TrimSpace(userID))
 	if err != nil {
@@ -134,6 +139,43 @@ SET owner = EXCLUDED.owner,
 	return tx.Commit()
 }
 
+func (store *Store) RemoveInstallationRepositories(ctx context.Context, installationID int64, repositories []InstallationRepositoryRecord) error {
+	if store == nil || store.db == nil {
+		return errors.New("github store is not initialized")
+	}
+	if installationID <= 0 {
+		return errors.New("installationID is required")
+	}
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	tx, err := store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	const query = `WITH removed AS (
+	DELETE FROM github_installation_repositories
+	WHERE installation_id = $1 AND repository_id = $2
+	RETURNING owner, name
+)
+UPDATE github_repository_bindings AS binding
+SET status = 'revoked', updated_at = NOW()
+FROM removed
+WHERE binding.installation_id = $1
+  AND binding.status = 'active'
+  AND LOWER(binding.owner) = LOWER(removed.owner)
+  AND LOWER(binding.repo) = LOWER(removed.name)`
+	for _, repository := range repositories {
+		if repository.RepositoryID <= 0 {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, query, installationID, repository.RepositoryID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (store *Store) ListInstallationRepositoriesForUser(ctx context.Context, userID string, installationID int64) ([]InstallationRepositoryRecord, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("github store is not initialized")
@@ -145,8 +187,9 @@ func (store *Store) ListInstallationRepositoriesForUser(ctx context.Context, use
 	defer cancel()
 	const query = `SELECT DISTINCT r.installation_id, r.repository_id, r.owner, r.name, r.full_name, r.private, r.default_branch, r.updated_at
 FROM github_installation_repositories r
-INNER JOIN github_repository_bindings b ON b.installation_id = r.installation_id
-WHERE b.user_id = $1 AND b.status = 'active' AND r.installation_id = $2
+INNER JOIN github_installation_user_access a ON a.installation_id = r.installation_id
+INNER JOIN github_installations i ON i.installation_id = r.installation_id
+WHERE a.user_id = $1 AND a.status = 'active' AND i.status = 'active' AND r.installation_id = $2
 ORDER BY r.full_name ASC`
 	rows, err := store.db.QueryContext(ctx, query, strings.TrimSpace(userID), installationID)
 	if err != nil {
@@ -172,10 +215,138 @@ func (store *Store) UserHasInstallationAccess(ctx context.Context, userID string
 	defer cancel()
 	var allowed bool
 	err := store.db.QueryRowContext(ctx, `SELECT EXISTS (
-		SELECT 1 FROM github_repository_bindings
-		WHERE user_id = $1 AND installation_id = $2 AND status = 'active'
+		SELECT 1
+		FROM github_installation_user_access a
+		INNER JOIN github_installations i ON i.installation_id = a.installation_id
+		WHERE a.user_id = $1 AND a.installation_id = $2 AND a.status = 'active' AND i.status = 'active'
 	)`, strings.TrimSpace(userID), installationID).Scan(&allowed)
 	return allowed, err
+}
+
+func (store *Store) InstallationHasRepository(ctx context.Context, installationID int64, owner, repo string) (bool, error) {
+	if store == nil || store.db == nil {
+		return false, errors.New("github store is not initialized")
+	}
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	var available bool
+	err := store.db.QueryRowContext(ctx, `SELECT EXISTS (
+		SELECT 1
+		FROM github_installation_repositories r
+		INNER JOIN github_installations i ON i.installation_id = r.installation_id
+		WHERE r.installation_id = $1 AND LOWER(r.owner) = LOWER($2) AND LOWER(r.name) = LOWER($3) AND i.status = 'active'
+	)`, installationID, strings.TrimSpace(owner), strings.TrimSpace(repo)).Scan(&available)
+	return available, err
+}
+
+func installationSetupTokenHash(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+func (store *Store) CreateInstallationSetupState(ctx context.Context, userID string, ttl time.Duration) (string, time.Time, error) {
+	if store == nil || store.db == nil {
+		return "", time.Time{}, errors.New("github store is not initialized")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" || ttl <= 0 || ttl > 30*time.Minute {
+		return "", time.Time{}, errors.New("userID and a bounded setup state TTL are required")
+	}
+	rawToken := make([]byte, 32)
+	if _, err := rand.Read(rawToken); err != nil {
+		return "", time.Time{}, err
+	}
+	token := base64.RawURLEncoding.EncodeToString(rawToken)
+	expiresAt := time.Now().UTC().Add(ttl)
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	_, err := store.db.ExecContext(ctx, `INSERT INTO github_installation_setup_states (
+		token_hash, user_id, expires_at, created_at
+	) VALUES ($1, $2, $3, NOW())`, installationSetupTokenHash(token), userID, expiresAt)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return token, expiresAt, nil
+}
+
+func (store *Store) ConsumeInstallationSetupState(ctx context.Context, token string, installationID int64) (string, error) {
+	if store == nil || store.db == nil {
+		return "", errors.New("github store is not initialized")
+	}
+	if strings.TrimSpace(token) == "" || installationID <= 0 {
+		return "", ErrInstallationSetupStateInvalid
+	}
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	tx, err := store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var userID string
+	if err := tx.QueryRowContext(ctx, `SELECT user_id
+		FROM github_installation_setup_states
+		WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > NOW()
+		FOR UPDATE`, installationSetupTokenHash(token)).Scan(&userID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrInstallationSetupStateInvalid
+		}
+		return "", err
+	}
+	result, err := tx.ExecContext(ctx, `INSERT INTO github_installation_user_access (
+		user_id, installation_id, status, created_at, updated_at
+	)
+	SELECT $1, installation_id, 'active', NOW(), NOW()
+	FROM github_installations
+	WHERE installation_id = $2 AND status = 'active'
+	ON CONFLICT (user_id, installation_id) DO UPDATE
+	SET status = 'active', updated_at = NOW()`, userID, installationID)
+	if err != nil {
+		return "", err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return "", err
+	}
+	if rows == 0 {
+		return "", ErrInstallationNotFound
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE github_installation_setup_states
+		SET consumed_at = NOW()
+		WHERE token_hash = $1`, installationSetupTokenHash(token)); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	return userID, nil
+}
+
+func (store *Store) GrantInstallationAccess(ctx context.Context, userID string, installationID int64) error {
+	if store == nil || store.db == nil {
+		return errors.New("github store is not initialized")
+	}
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	result, err := store.db.ExecContext(ctx, `INSERT INTO github_installation_user_access (
+		user_id, installation_id, status, created_at, updated_at
+	)
+	SELECT $1, installation_id, 'active', NOW(), NOW()
+	FROM github_installations
+	WHERE installation_id = $2 AND status = 'active'
+	ON CONFLICT (user_id, installation_id) DO UPDATE
+	SET status = 'active', updated_at = NOW()`, strings.TrimSpace(userID), installationID)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrInstallationNotFound
+	}
+	return nil
 }
 
 func (store *Store) RecordWebhookEvent(ctx context.Context, record WebhookEventRecord) (bool, error) {

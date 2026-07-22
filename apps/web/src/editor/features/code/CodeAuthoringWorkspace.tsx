@@ -867,13 +867,25 @@ export function CodeAuthoringWorkspace({
     request: WorkspaceVfsIntentRequest
   ): Promise<boolean> => {
     if (!workspace || workspaceReadonly) return false;
-    const outcome = await dispatchWorkspaceVfsAuthoringIntent({
-      workspace,
-      readonly: workspaceReadonly,
-      request,
-    });
-    if (outcome.status === 'rejected') throw new Error(outcome.message);
-    return outcome.status === 'applied';
+    try {
+      const outcome = await dispatchWorkspaceVfsAuthoringIntent({
+        workspace,
+        readonly: workspaceReadonly,
+        request,
+      });
+      if (outcome.status === 'rejected') {
+        setSaveError(outcome.message);
+        return false;
+      }
+      return outcome.status === 'applied';
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : 'Could not apply the Workspace file operation.'
+      );
+      return false;
+    }
   };
 
   useEffect(() => {

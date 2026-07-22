@@ -60,4 +60,27 @@ describe('TypeScript project host library resolution', () => {
     expect(project.updateArtifacts(project.artifacts)).toBe(false);
     project.dispose();
   });
+
+  it('detects source drift even when an upstream revision was reused', () => {
+    const artifact: CodeArtifact = {
+      id: 'code-drift',
+      path: '/src/drift.ts',
+      language: 'ts',
+      ownership: 'code-owned',
+      owner: { kind: 'workspace-module', documentId: 'code-drift' },
+      source: 'export const value = 1;',
+      revision: '1',
+    };
+    const project = createTypeScriptCodeProject([artifact]);
+
+    expect(
+      project.updateArtifacts([
+        { ...artifact, source: 'export const value = 2;' },
+      ])
+    ).toBe(true);
+    expect(project.getArtifact(artifact.id)?.source).toBe(
+      'export const value = 2;'
+    );
+    project.dispose();
+  });
 });

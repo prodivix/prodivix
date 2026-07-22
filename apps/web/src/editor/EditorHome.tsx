@@ -15,13 +15,15 @@ import { useEditorStore } from './store/useEditorStore';
 import { materializeWorkspaceBinaryAssets } from './features/execution/workspaceAssetMaterialization';
 import {
   deleteLocalProject,
+  deleteLocalProjectsSyncedToRemote,
   duplicateLocalProject,
+  getLocalProject,
   isLocalProjectId,
   isSyncedLocalProject,
-  listLocalProjectRecords,
+  listLocalProjectCatalog,
   markLocalProjectSynced,
   updateLocalProject,
-  type LocalProjectRecord,
+  type LocalProjectCatalogRecord,
 } from './localProjectStore';
 
 const toRemoteItem = (project: ProjectSummary): ProjectHomeItem => ({
@@ -29,7 +31,7 @@ const toRemoteItem = (project: ProjectSummary): ProjectHomeItem => ({
   source: 'remote',
 });
 
-const toLocalItem = (project: LocalProjectRecord): ProjectHomeItem => ({
+const toLocalItem = (project: LocalProjectCatalogRecord): ProjectHomeItem => ({
   id: project.id,
   resourceType: project.resourceType,
   name: project.name,
@@ -78,7 +80,7 @@ function EditorHome() {
       let cancelled = false;
       setLoadError(null);
       setIsLoading(true);
-      void listLocalProjectRecords()
+      void listLocalProjectCatalog()
         .then((localProjects) => {
           if (cancelled) return;
           const items = localProjects.map(toLocalItem);
@@ -119,12 +121,18 @@ function EditorHome() {
     setIsLoading(true);
     setLoadError(null);
 
-    Promise.all([
+    Promise.allSettled([
       editorApi.listProjects(token, requestOptions),
-      listLocalProjectRecords(),
+      listLocalProjectCatalog(),
     ])
-      .then(([{ projects: remoteProjects }, localProjects]) => {
+      .then(([remoteResult, localResult]) => {
         if (cancelled) return;
+        const remoteProjects =
+          remoteResult.status === 'fulfilled'
+            ? remoteResult.value.projects
+            : [];
+        const localProjects =
+          localResult.status === 'fulfilled' ? localResult.value : [];
         const remoteItems = remoteProjects.map(toRemoteItem);
         const remoteIds = new Set(remoteProjects.map((project) => project.id));
         const unsyncedLocalItems = localProjects
@@ -146,12 +154,19 @@ function EditorHome() {
             starsCount: project.starsCount,
           }))
         );
-      })
-      .catch((error: unknown) => {
-        if (cancelled || isAbortError(error)) return;
-        setLoadError(
-          error instanceof Error ? error.message : 'Failed to load projects.'
+
+        const failures = [remoteResult, localResult].filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected' && !isAbortError(result.reason)
         );
+        if (failures.length > 0) {
+          const error = failures[0]!.reason;
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : t('home.loadFailed', 'Failed to load some projects.')
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -330,17 +345,19 @@ function EditorHome() {
 
     setBusyByProject((prev) => ({ ...prev, [project.id]: 'syncing' }));
     try {
+      const localProject = await getLocalProject(project.id);
+      if (!localProject || isSyncedLocalProject(localProject)) return;
       const assetMaterializations = await materializeWorkspaceBinaryAssets({
-        workspace: project.localRecord.workspace,
+        workspace: localProject.workspace,
         token: null,
       });
       const { project: remoteProject, workspace } =
         await editorApi.importLocalProject(token, {
-          name: project.localRecord.name,
-          description: project.localRecord.description,
-          resourceType: project.localRecord.resourceType,
-          workspace: project.localRecord.workspace,
-          settings: project.localRecord.workspaceSettings,
+          name: localProject.name,
+          description: localProject.description,
+          resourceType: localProject.resourceType,
+          workspace: localProject.workspace,
+          settings: localProject.workspaceSettings,
           assetMaterializations,
         });
       await markLocalProjectSynced(project.id, {
@@ -424,6 +441,7 @@ function EditorHome() {
       }
       if (!token) return;
       await editorApi.deleteProject(token, project.id);
+      await deleteLocalProjectsSyncedToRemote(project.id);
       setProjects((prev) => prev.filter((item) => item.id !== project.id));
       removeProjectInStore(project.id);
     } catch (error) {
@@ -512,7 +530,7 @@ function EditorHome() {
             const next = prev.filter((item) => item.id !== project.id);
             return [
               isLocalProjectId(project.id)
-                ? toLocalItem(project as LocalProjectRecord)
+                ? toLocalItem(project)
                 : toRemoteItem(project),
               ...next,
             ];

@@ -25,17 +25,17 @@ type Routes struct {
 
 func RegisterAPIRoutes(router *gin.Engine, routes Routes) {
 	api := router.Group("/api")
-	api.GET("/ping", routes.Ping)
+	ping := routes.Ping
+	if ping == nil {
+		ping = func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"message": "pong"})
+		}
+	}
+	api.GET("/ping", ping)
 	backendauth.RegisterRoutes(api, routes.Auth)
 	backendgithub.RegisterRoutes(api, routes.GitHub)
 	backendproject.RegisterRoutes(api, routes.Project)
 	backendworkspace.RegisterRoutes(api, routes.Workspace)
 	backendremoteexecution.RegisterRoutes(api, routes.RemoteExecution)
 	backendenvironment.RegisterRoutes(api, routes.Environment)
-
-	if routes.Ping == nil {
-		api.GET("/ping", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"message": "pong"})
-		})
-	}
 }

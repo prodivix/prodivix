@@ -2,7 +2,7 @@ import './PdxAvatar.scss';
 import { getDataAttributes, mergeClassNames } from '../foundation/component';
 import React from 'react';
 import { type PdxComponent } from '@prodivix/shared';
-import { User } from 'lucide-react';
+import User from 'lucide-react/dist/esm/icons/user.mjs';
 
 interface PdxAvatarSpecificProps {
   src?: string;

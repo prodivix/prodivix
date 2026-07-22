@@ -121,10 +121,14 @@ describe('Ant Design official plugin package', () => {
     ]);
     const rendered = render(
       <OfficialReactSurfaceHostContext.Provider value={host}>
-        {button?.preview}
+        <>
+          {button?.preview}
+          {button?.preview}
+        </>
       </OfficialReactSurfaceHostContext.Provider>
     );
-    expect(screen.getByRole('button', { name: 'Button' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Button' })).toHaveLength(2);
+    expect(cleanups.size).toBe(1);
     expect(styleContainer.childElementCount).toBeGreaterThan(0);
 
     const icons = implementation(

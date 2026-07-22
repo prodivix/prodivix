@@ -99,13 +99,14 @@ const readPersistedBlob = async (
       LOCAL_ASSET_STORE_NAME,
       'readonly'
     );
-    const completion = transactionComplete(transaction);
-    const result = await requestResult(
-      transaction
-        .objectStore(LOCAL_ASSET_STORE_NAME)
-        .get(createBlobId(workspaceId, digest))
-    );
-    await completion;
+    const [result] = await Promise.all([
+      requestResult(
+        transaction
+          .objectStore(LOCAL_ASSET_STORE_NAME)
+          .get(createBlobId(workspaceId, digest))
+      ),
+      transactionComplete(transaction),
+    ]);
     return result;
   } finally {
     database.close();
@@ -317,11 +318,13 @@ export const deleteLocalWorkspaceAssetBlobs = async (
       LOCAL_ASSET_STORE_NAME,
       'readwrite'
     );
-    const completion = transactionComplete(transaction);
     const store = transaction.objectStore(LOCAL_ASSET_STORE_NAME);
-    const keys = await requestResult(
+    const keysRequest = requestResult(
       store.index(LOCAL_ASSET_WORKSPACE_INDEX).getAllKeys(workspaceId)
     );
+    const completion = transactionComplete(transaction);
+    void completion.catch(() => undefined);
+    const keys = await keysRequest;
     for (const key of keys) store.delete(key);
     await completion;
   } finally {

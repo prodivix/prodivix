@@ -327,4 +327,37 @@ describe('OpenAPI 3.1 Data import proposal', () => {
       ]),
     });
   });
+
+  it('attaches only transitively reachable component definitions', () => {
+    const spec = catalogSpec();
+    (spec.components.schemas as Record<string, unknown>).Unused = {
+      type: 'object',
+      properties: { ignored: { type: 'string' } },
+    };
+    const proposal = propose(spec);
+    expect(proposal.status, JSON.stringify(proposal.issues)).toBe('ready');
+    if (proposal.status !== 'ready') return;
+
+    const operation = proposal.document.operationsById.getproduct!;
+    const schema = proposal.document.schemasById[operation.outputSchemaId]!
+      .schema as { $defs?: Record<string, unknown> };
+    expect(Object.keys(schema.$defs ?? {})).toEqual([
+      '__prodivix_openapi__Product',
+    ]);
+  });
+
+  it('reports an invalid component schema once instead of once per projection', () => {
+    const spec = catalogSpec();
+    (spec.components.schemas as Record<string, unknown>).Invalid = {
+      $ref: 'https://schemas.example.test/invalid.json',
+    };
+
+    const proposal = propose(spec);
+    expect(proposal.status).toBe('invalid');
+    expect(
+      proposal.issues.filter(
+        (entry) => entry.path === '/components/schemas/Invalid/$ref'
+      )
+    ).toHaveLength(1);
+  });
 });

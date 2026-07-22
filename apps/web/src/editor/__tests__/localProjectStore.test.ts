@@ -4,9 +4,11 @@ import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import {
   createLocalProject,
   deleteLocalProject,
+  deleteLocalProjectsSyncedToRemote,
   duplicateLocalProject,
   getLocalProject,
   isSyncedLocalProject,
+  listLocalProjectCatalog,
   listLocalProjects,
   markLocalProjectSynced,
   saveLocalWorkspaceSnapshot,
@@ -24,6 +26,7 @@ type MockRequest<T = unknown> = {
 type PersistedProject = Record<string, unknown> & { id: string };
 
 const records = new Map<string, PersistedProject>();
+const catalogRecords = new Map<string, PersistedProject>();
 
 const queue = (callback: () => void) => {
   setTimeout(callback, 0);
@@ -47,27 +50,43 @@ const createDatabase = () => ({
     const transaction = {
       error: null as Error | null,
       oncomplete: null as (() => void) | null,
+      onabort: null as (() => void) | null,
       onerror: null as (() => void) | null,
-      objectStore: () => ({
-        getAll: () => {
-          const request = createRequest<PersistedProject[]>();
-          queue(() => {
-            request.result = [...records.values()];
-            request.onsuccess?.();
-          });
-          return request;
-        },
-        put: (project: PersistedProject) => {
-          records.set(project.id, project);
-          queue(() => transaction.oncomplete?.());
-          return createRequest();
-        },
-        delete: (projectId: string) => {
-          records.delete(projectId);
-          queue(() => transaction.oncomplete?.());
-          return createRequest();
-        },
-      }),
+      abort: vi.fn(() => queue(() => transaction.onabort?.())),
+      objectStore: (storeName: string) => {
+        const selectedRecords =
+          storeName === 'projectCatalog' ? catalogRecords : records;
+        return {
+          getAll: () => {
+            const request = createRequest<PersistedProject[]>();
+            queue(() => {
+              request.result = [...selectedRecords.values()];
+              request.onsuccess?.();
+              transaction.oncomplete?.();
+            });
+            return request;
+          },
+          get: (projectId: string) => {
+            const request = createRequest<PersistedProject | undefined>();
+            queue(() => {
+              request.result = selectedRecords.get(projectId);
+              request.onsuccess?.();
+              transaction.oncomplete?.();
+            });
+            return request;
+          },
+          put: (project: PersistedProject) => {
+            selectedRecords.set(project.id, project);
+            queue(() => transaction.oncomplete?.());
+            return createRequest();
+          },
+          delete: (projectId: string) => {
+            selectedRecords.delete(projectId);
+            queue(() => transaction.oncomplete?.());
+            return createRequest();
+          },
+        };
+      },
     };
     return transaction;
   },
@@ -89,6 +108,7 @@ const installIndexedDbMock = () => {
 describe('localProjectStore', () => {
   beforeEach(() => {
     records.clear();
+    catalogRecords.clear();
     installIndexedDbMock();
   });
 
@@ -217,6 +237,26 @@ describe('localProjectStore', () => {
     });
   });
 
+  it('serializes concurrent read-modify-write updates in one transaction', async () => {
+    const project = await createLocalProject({
+      name: 'Before',
+      resourceType: 'project',
+      pir: createEmptyPirDocument(),
+    });
+
+    await Promise.all([
+      updateLocalProject(project.id, { name: 'After' }),
+      updateLocalProject(project.id, {
+        workspaceSettings: { locale: 'zh-CN' },
+      }),
+    ]);
+
+    await expect(getLocalProject(project.id)).resolves.toMatchObject({
+      name: 'After',
+      workspaceSettings: { locale: 'zh-CN' },
+    });
+  });
+
   it('rejects legacy single-PIR records instead of fabricating a workspace', async () => {
     records.set('local-legacy', {
       id: 'local-legacy',
@@ -227,9 +267,46 @@ describe('localProjectStore', () => {
       pir: createEmptyPirDocument(),
     });
 
-    await expect(listLocalProjects()).rejects.toThrow(
+    await expect(getLocalProject('local-legacy')).rejects.toThrow(
       'Legacy single-PIR local projects are not supported'
     );
+  });
+
+  it('lists only catalog metadata without decoding Workspace snapshots', async () => {
+    const project = await createLocalProject({
+      name: 'Catalog only',
+      resourceType: 'project',
+      pir: createEmptyPirDocument(),
+    });
+    records.set(project.id, {
+      ...records.get(project.id)!,
+      workspace: {},
+    });
+
+    await expect(listLocalProjectCatalog()).resolves.toEqual([
+      expect.objectContaining({ id: project.id, name: 'Catalog only' }),
+    ]);
+  });
+
+  it('reads one project without decoding unrelated records', async () => {
+    const project = await createLocalProject({
+      name: 'Target',
+      resourceType: 'project',
+      pir: createEmptyPirDocument(),
+    });
+    records.set('local-unrelated-corrupt', {
+      id: 'local-unrelated-corrupt',
+      resourceType: 'project',
+      name: 'Corrupt',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      workspace: {},
+    });
+
+    await expect(getLocalProject(project.id)).resolves.toMatchObject({
+      id: project.id,
+      name: 'Target',
+    });
   });
 
   it('rejects malformed current records instead of applying fallbacks', async () => {
@@ -279,6 +356,24 @@ describe('localProjectStore', () => {
       lastSyncedWorkspaceRev: 5,
       status: 'synced-readonly',
     });
+  });
+
+  it('removes every read-only cache when its remote project is deleted', async () => {
+    const project = await createLocalProject({
+      name: 'Remote cache',
+      resourceType: 'project',
+      pir: createEmptyPirDocument(),
+    });
+    await markLocalProjectSynced(project.id, {
+      remoteProjectId: 'prj_deleted',
+      remoteWorkspaceId: 'wsp_deleted',
+      workspaceRev: 3,
+    });
+
+    await expect(
+      deleteLocalProjectsSyncedToRemote('prj_deleted')
+    ).resolves.toBe(1);
+    await expect(getLocalProject(project.id)).resolves.toBeNull();
   });
 
   it('duplicates synced caches as editable canonical workspaces', async () => {

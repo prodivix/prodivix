@@ -141,4 +141,33 @@ describe('DTCG Design Token Resolver codec properties', () => {
       ],
     });
   });
+
+  it('validates references declared by inline resolution-order definitions', () => {
+    const decoded = decodeDtcgDesignTokenResolverDocument({
+      version: '2025.10',
+      modifiers: {
+        theme: {
+          contexts: { light: [], dark: [] },
+          default: 'light',
+        },
+      },
+      resolutionOrder: [
+        {
+          type: 'set',
+          name: 'inline-invalid',
+          sources: [{ $ref: '#/modifiers/theme' }],
+        },
+      ],
+    });
+
+    expect(decoded).toMatchObject({
+      ok: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'DTR_REFERENCE_TARGET_INVALID',
+          path: '/sets/inline-invalid/sources/0/$ref',
+        }),
+      ]),
+    });
+  });
 });

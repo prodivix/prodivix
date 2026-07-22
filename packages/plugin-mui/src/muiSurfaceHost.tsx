@@ -7,8 +7,8 @@ import {
 } from '@prodivix/plugin-react-host';
 import {
   createElement,
-  useEffect,
-  useMemo,
+  useLayoutEffect,
+  useState,
   type ElementType,
   type ReactNode,
 } from 'react';
@@ -25,30 +25,69 @@ const MUI_BASELINE_THEME = createTheme({
 
 type StyleLease = Readonly<{
   cache: EmotionCache;
+  host: OfficialReactSurfaceHost;
+  styleContainer: HTMLElement | ShadowRoot;
   dispose(): void;
 }>;
+
+type SharedStyleResource = {
+  cache: EmotionCache;
+  referenceCount: number;
+  dispose(): void;
+};
+
+const resourcesByHost = new WeakMap<
+  OfficialReactSurfaceHost,
+  Map<HTMLElement | ShadowRoot, SharedStyleResource>
+>();
 
 const createStyleLease = (
   host: OfficialReactSurfaceHost,
   styleContainer: HTMLElement | ShadowRoot
 ): StyleLease => {
-  const cache = createCache({
-    key: 'pdxmui',
-    prepend: true,
-    container: styleContainer,
-  });
-  let disposed = false;
-  const cleanup = () => {
-    if (disposed) return;
-    disposed = true;
-    cache.sheet.flush();
-  };
-  const registration = host.registerCleanup(cleanup);
+  let resources = resourcesByHost.get(host);
+  if (!resources) {
+    resources = new Map();
+    resourcesByHost.set(host, resources);
+  }
+  let resource = resources.get(styleContainer);
+  if (!resource) {
+    const cache = createCache({
+      key: 'pdxmui',
+      prepend: true,
+      container: styleContainer,
+    });
+    let disposed = false;
+    let registration: ReturnType<OfficialReactSurfaceHost['registerCleanup']>;
+    const cleanup = () => {
+      if (disposed) return;
+      disposed = true;
+      cache.sheet.flush();
+      resources?.delete(styleContainer);
+      if (resources?.size === 0) resourcesByHost.delete(host);
+    };
+    registration = host.registerCleanup(cleanup);
+    resource = {
+      cache,
+      referenceCount: 0,
+      dispose: () => {
+        cleanup();
+        registration.dispose();
+      },
+    };
+    resources.set(styleContainer, resource);
+  }
+  resource.referenceCount += 1;
+  let released = false;
   return Object.freeze({
-    cache,
+    cache: resource.cache,
+    host,
+    styleContainer,
     dispose: () => {
-      cleanup();
-      registration.dispose();
+      if (released) return;
+      released = true;
+      resource.referenceCount -= 1;
+      if (resource.referenceCount === 0) resource.dispose();
     },
   });
 };
@@ -62,12 +101,21 @@ const MuiControlledSurfaceProvider = ({
   host: OfficialReactSurfaceHost;
   styleContainer: HTMLElement | ShadowRoot;
 }) => {
-  const lease = useMemo(
-    () => createStyleLease(host, styleContainer),
-    [host, styleContainer]
-  );
+  const [lease, setLease] = useState<StyleLease | null>(null);
 
-  useEffect(() => () => lease.dispose(), [lease]);
+  useLayoutEffect(() => {
+    const acquired = createStyleLease(host, styleContainer);
+    setLease(acquired);
+    return () => acquired.dispose();
+  }, [host, styleContainer]);
+
+  if (
+    !lease ||
+    lease.host !== host ||
+    lease.styleContainer !== styleContainer
+  ) {
+    return null;
+  }
 
   return (
     <CacheProvider value={lease.cache}>

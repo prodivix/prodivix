@@ -1,6 +1,13 @@
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, GitBranch, Languages, Moon, Sun } from 'lucide-react';
-import { PdxAvatar, PdxButtonLink, PdxLink, PdxNav } from '@prodivix/ui';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.mjs';
+import GitBranch from 'lucide-react/dist/esm/icons/git-branch.mjs';
+import Languages from 'lucide-react/dist/esm/icons/languages.mjs';
+import Moon from 'lucide-react/dist/esm/icons/moon.mjs';
+import Sun from 'lucide-react/dist/esm/icons/sun.mjs';
+import PdxAvatar from '@prodivix/ui/avatar';
+import PdxButtonLink from '@prodivix/ui/button-link';
+import PdxLink from '@prodivix/ui/link';
+import PdxNav from '@prodivix/ui/nav';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { resolveUserAvatarUrl } from '@/auth/authApi';

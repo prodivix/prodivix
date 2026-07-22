@@ -1,7 +1,7 @@
 # G2 Closure Evidence
 
 > StatusDate: 2026-07-20
-> ProductGateStatus: In Progress
+> ProductGateStatus: Passed
 
 本文件只保存 G2 可重复验证证据和未覆盖边界。G2 当前状态仍以
 [`current-status.md`](./current-status.md) 为唯一来源；局部 Gate 通过不等于 G2 Product Gate 已通过。
@@ -439,12 +439,43 @@ Auth/Server invocation Gate复跑均通过。该修复保持Worker trace evidenc
 以上 current-worktree non-cloud closure在 commit `e70f9473c22e5448a53668e851897d07de809bd0` 形成6/6
 GitHub workflow全绿证据：CodeQL、G0/G1、G2 Data/Second Target、G2 Rootless、Security与Tests全部通过。
 
-## 尚未形成的真实云 closure 与明确 post-G2 边界
+## Global G2 Exit closure
 
-当前 G2 evidence pending：
+2026-07-20，commit `3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184` 将剩余 current-scope non-cloud
+closure 提交并直推 `main`。同一 SHA 的 14/14 个自动 GitHub workflow 与 25/25 个 check-run 全部成功：
 
-- 本轮regional batch/operator/source-unavailable与Environment MRK v2变更的non-cloud GitHub Gate，待用户后续明确要求commit/push后运行；
-- regional DR首次真实云端 RPO/RTO、AWS KMS/MRK/OIDC/受保护 Environment与 Secrets证据按用户决定延后。
+| Closure 面                                                                                                            | 远端证据                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL、regional operator、Data/Server replay、viewer authority、KMS migration、Asset retention、PIR wire rollout | [G2 PostgreSQL Gates run 29718352791](https://github.com/prodivix/prodivix/actions/runs/29718352791)                                                                                        |
+| Browser/Remote/Auth Server execution contract                                                                         | [G2 Execution Contract Matrix run 29718352788](https://github.com/prodivix/prodivix/actions/runs/29718352788)                                                                               |
+| Data adapters、controlled Vue target、Remote recovery、D8 security                                                    | [G2 Data and Second Target Closure run 29718352822](https://github.com/prodivix/prodivix/actions/runs/29718352822)                                                                          |
+| rootless Podman isolation                                                                                             | [G2 Rootless Sandbox run 29718352806](https://github.com/prodivix/prodivix/actions/runs/29718352806)                                                                                        |
+| monorepo Frontend/Backend regression                                                                                  | [Tests run 29718352805](https://github.com/prodivix/prodivix/actions/runs/29718352805)                                                                                                      |
+| G0/G1 regression                                                                                                      | [G0 and G1 gates run 29718352813](https://github.com/prodivix/prodivix/actions/runs/29718352813)                                                                                            |
+| dependency、CodeQL 与多语言静态安全                                                                                   | [Security run 29718352793](https://github.com/prodivix/prodivix/actions/runs/29718352793)、[CodeQL Advanced run 29718352807](https://github.com/prodivix/prodivix/actions/runs/29718352807) |
+| required ClamAV/YARA-X engines                                                                                        | [G2 Binary Asset Malware run 29718352850](https://github.com/prodivix/prodivix/actions/runs/29718352850)                                                                                    |
+
+同一 SHA 的 supporting Gate 也全部成功：[Deploy Smoke run 29718352804](https://github.com/prodivix/prodivix/actions/runs/29718352804)、
+[Smoke run 29718352784](https://github.com/prodivix/prodivix/actions/runs/29718352784)、
+[Docker Images run 29718352778](https://github.com/prodivix/prodivix/actions/runs/29718352778)、
+[Docs Link Check run 29718352834](https://github.com/prodivix/prodivix/actions/runs/29718352834) 与
+[Docs Pages run 29718352779](https://github.com/prodivix/prodivix/actions/runs/29718352779)。Rootless evidence artifact id 为
+`8451481434`，GitHub artifact digest 为
+`sha256:05afda0b6a7f4875f694ce03fe1df566f8e2ba67278944599a7cc0ded5f306f8`。
+
+这些证据关闭了此前 regional batch/operator/source-unavailable、Environment MRK v2 与 PIR wire rollout 的
+non-cloud pending。结合本地统一 `verify:g2`、真实 PostgreSQL、rootless real-engine、React/Vue target、产品旅程与
+negative security evidence，Global G2 current-scope Exit Gate 判定为 `Passed`。
+
+## 延后的真实云 evidence 与明确 post-G2 边界
+
+以下外部 evidence 仍未取得，不得写成 `Passed`：
+
+- regional DR 首次真实云端 promotion/fencing/RPO/RTO；
+- A14 AWS KMS/MRK/OIDC、受保护 `g2-managed-kms` Environment 与 Secrets 的 live run。
+
+这些项目按已批准范围继续保持 external `Configured / Evidence pending`；Global G2 通过不升级 A14 milestone，
+不证明真实云部署、真实 MRK 跨区解密或真实 traffic failover 已执行。
 
 以下是明确的 post-G2 adapter/product expansion，不再作为 G2 Passed 的伪阻塞项：
 

@@ -47,6 +47,13 @@ export const createWebResolveAliases = (): AliasOptions => ({
   '@prodivix/shared/package.json': packageManifest('shared'),
   '@prodivix/shared': packageSource('shared'),
   '@prodivix/ui/package.json': packageManifest('ui'),
+  '@prodivix/ui/avatar': resolve(packageSource('ui'), 'image/PdxAvatar.tsx'),
+  '@prodivix/ui/button-link': resolve(
+    packageSource('ui'),
+    'button/PdxButtonLink.tsx'
+  ),
+  '@prodivix/ui/link': resolve(packageSource('ui'), 'link/PdxLink.tsx'),
+  '@prodivix/ui/nav': resolve(packageSource('ui'), 'nav/PdxNav.tsx'),
   '@prodivix/ui': packageSource('ui'),
   '@prodivix/themes/package.json': packageManifest('themes'),
   '@prodivix/themes': packageSource('themes'),

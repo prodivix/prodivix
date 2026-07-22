@@ -37,40 +37,13 @@ export const normalizePersistedLibraries = (
           typeof record.version === 'string' && record.version.trim().length > 0
             ? record.version.trim()
             : 'latest',
+        ...(typeof record.license === 'string' && record.license.trim()
+          ? { license: record.license.trim() }
+          : {}),
         ...(adapter ? { adapter } : {}),
       };
     })
     .filter((item): item is PersistedLibrary => Boolean(item));
-};
-
-export const normalizeMetadataCache = (
-  value: unknown
-): Record<string, NpmMetadata> => {
-  if (!value || typeof value !== 'object') return {};
-  const next: Record<string, NpmMetadata> = {};
-  Object.entries(value).forEach(([key, value]) => {
-    if (!value || typeof value !== 'object') return;
-    const record = value as Record<string, unknown>;
-    if (
-      typeof record.updatedAt !== 'number' ||
-      !Number.isFinite(record.updatedAt)
-    ) {
-      return;
-    }
-    next[key] = {
-      description:
-        typeof record.description === 'string' &&
-        record.description.trim().length > 0
-          ? record.description.trim()
-          : null,
-      license:
-        typeof record.license === 'string' && record.license.trim().length > 0
-          ? record.license.trim()
-          : null,
-      updatedAt: record.updatedAt,
-    };
-  });
-  return next;
 };
 
 export const normalizeLicenseText = (license: unknown): string | null => {

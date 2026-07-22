@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type React from 'react';
+import { sanitizeRichTextEditorHtml } from './sanitizeRichTextEditorHtml';
 
 interface PdxRichTextEditorSpecificProps {
   label?: string;
@@ -64,13 +65,17 @@ function PdxRichTextEditor({
   const currentValue = value !== undefined ? value : internalValue;
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== currentValue) {
-      editorRef.current.innerHTML = currentValue;
+    const sanitizedValue = sanitizeRichTextEditorHtml(currentValue);
+    if (editorRef.current && editorRef.current.innerHTML !== sanitizedValue) {
+      editorRef.current.innerHTML = sanitizedValue;
     }
   }, [currentValue]);
 
   const emitChange = () => {
-    const html = editorRef.current?.innerHTML || '';
+    const html = sanitizeRichTextEditorHtml(editorRef.current?.innerHTML || '');
+    if (editorRef.current && editorRef.current.innerHTML !== html) {
+      editorRef.current.innerHTML = html;
+    }
     if (value === undefined) {
       setInternalValue(html);
     }
@@ -80,7 +85,11 @@ function PdxRichTextEditor({
   };
 
   const syncToolbarState = () => {
-    if (typeof document === 'undefined') return;
+    if (
+      typeof document === 'undefined' ||
+      typeof document.queryCommandState !== 'function'
+    )
+      return;
     setToolbarState({
       bold: document.queryCommandState('bold'),
       italic: document.queryCommandState('italic'),
@@ -96,7 +105,13 @@ function PdxRichTextEditor({
   };
 
   const runCommand = (command: string, commandValue?: string) => {
-    if (disabled || readOnly || typeof document === 'undefined') return;
+    if (
+      disabled ||
+      readOnly ||
+      typeof document === 'undefined' ||
+      typeof document.execCommand !== 'function'
+    )
+      return;
     focusEditor();
     document.execCommand(command, false, commandValue);
     syncToolbarState();
@@ -110,6 +125,50 @@ function PdxRichTextEditor({
     if (url) {
       runCommand('createLink', url);
     }
+  };
+
+  const insertSanitizedHtml = (html: string) => {
+    if (!editorRef.current || typeof document === 'undefined') return;
+    if (typeof document.execCommand === 'function') {
+      document.execCommand('insertHTML', false, html);
+      return;
+    }
+    const selection =
+      typeof window !== 'undefined' ? window.getSelection() : null;
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (!range || !editorRef.current.contains(range.commonAncestorContainer)) {
+      editorRef.current.insertAdjacentHTML('beforeend', html);
+      return;
+    }
+    range.deleteContents();
+    const fragment = range.createContextualFragment(html);
+    const lastNode = fragment.lastChild;
+    range.insertNode(fragment);
+    if (lastNode) {
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+  };
+
+  const insertClipboardHtml = (
+    event:
+      React.ClipboardEvent<HTMLDivElement> | React.DragEvent<HTMLDivElement>
+  ) => {
+    if (disabled || readOnly || typeof document === 'undefined') return;
+    event.preventDefault();
+    const transfer =
+      'clipboardData' in event ? event.clipboardData : event.dataTransfer;
+    const rawHtml = transfer.getData('text/html');
+    const rawText = transfer.getData('text/plain');
+    const textContainer = document.createElement('div');
+    textContainer.append(document.createTextNode(rawText));
+    const sanitized = rawHtml
+      ? sanitizeRichTextEditorHtml(rawHtml)
+      : textContainer.innerHTML;
+    insertSanitizedHtml(sanitized);
+    emitChange();
   };
 
   useEffect(() => {
@@ -223,6 +282,8 @@ function PdxRichTextEditor({
           onInput={emitChange}
           onKeyUp={syncToolbarState}
           onMouseUp={syncToolbarState}
+          onPaste={insertClipboardHtml}
+          onDrop={insertClipboardHtml}
           role="textbox"
           suppressContentEditableWarning
         />

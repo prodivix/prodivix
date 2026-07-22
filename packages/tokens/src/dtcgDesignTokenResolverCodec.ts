@@ -867,17 +867,31 @@ export const decodeDtcgDesignTokenResolverDocument = (
     issues,
     parseModifier
   );
-  validateReferences(
-    parsedSets.definitions,
-    parsedModifiers.definitions,
-    issues
-  );
   const resolutionOrder = parseResolutionOrder(
     source.resolutionOrder,
     parsedSets.definitions,
     parsedModifiers.definitions,
     parsedSets.rawByName,
     parsedModifiers.rawByName,
+    issues
+  );
+  validateReferences(
+    [
+      ...parsedSets.definitions,
+      ...resolutionOrder.flatMap((entry) =>
+        entry.kind === 'set' && entry.declaration === 'inline'
+          ? [entry.definition]
+          : []
+      ),
+    ],
+    [
+      ...parsedModifiers.definitions,
+      ...resolutionOrder.flatMap((entry) =>
+        entry.kind === 'modifier' && entry.declaration === 'inline'
+          ? [entry.definition]
+          : []
+      ),
+    ],
     issues
   );
   if (issues.length > 0) {

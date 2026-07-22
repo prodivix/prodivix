@@ -1,9 +1,9 @@
 import type { ProjectSummary } from './editorApi';
-import type { LocalProjectRecord } from './localProjectStore';
+import type { LocalProjectCatalogRecord } from './localProjectStore';
 
 export type ProjectHomeItem = ProjectSummary & {
   source: 'remote' | 'local';
-  localRecord?: LocalProjectRecord;
+  localRecord?: LocalProjectCatalogRecord;
 };
 
 export type ProjectBusyState =

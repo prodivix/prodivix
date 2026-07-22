@@ -16,15 +16,23 @@
     },
     "./button": {
       "types": "./dist/button/PdxButton.d.ts",
-      "import": "./dist/button/PdxButton.js"
+      "import": "./dist/button/PdxButton2.js"
+    },
+    "./button-link": {
+      "types": "./dist/button/PdxButtonLink.d.ts",
+      "import": "./dist/button/PdxButtonLink.js"
     },
     "./link": {
       "types": "./dist/link/PdxLink.d.ts",
-      "import": "./dist/link/PdxLink.js"
+      "import": "./dist/link/PdxLink2.js"
     },
     "./nav": {
       "types": "./dist/nav/PdxNav.d.ts",
-      "import": "./dist/nav/PdxNav.js"
+      "import": "./dist/nav/PdxNav2.js"
+    },
+    "./avatar": {
+      "types": "./dist/image/PdxAvatar.d.ts",
+      "import": "./dist/image/PdxAvatar2.js"
     },
     "./manifest": {
       "types": "./dist/manifest/index.d.ts",

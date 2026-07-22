@@ -651,23 +651,38 @@ export const createDataAsyncApiStreamingAdapter = (input: {
         );
       publishNetworkTrace(stream.trace);
       const upstream = stream;
+      let closePromise: Promise<void> | null = null;
+      const closeUpstream = (reason?: string): Promise<void> => {
+        if (!closePromise) {
+          try {
+            closePromise = Promise.resolve(upstream.close(reason));
+          } catch (error) {
+            closePromise = Promise.reject(error);
+          }
+        }
+        return closePromise;
+      };
       return Object.freeze({
         events: (async function* () {
-          for await (const frame of upstream.events) {
-            let value = readJson(frame);
-            if (responseBodyPath) {
-              const projected = readPointer(value, responseBodyPath);
-              if (projected === undefined)
-                throw new DataAsyncApiOperationError(
-                  'DATA_ASYNCAPI_RESPONSE_INVALID',
-                  'AsyncAPI stream event path did not resolve.'
-                );
-              value = projected;
+          try {
+            for await (const frame of upstream.events) {
+              let value = readJson(frame);
+              if (responseBodyPath) {
+                const projected = readPointer(value, responseBodyPath);
+                if (projected === undefined)
+                  throw new DataAsyncApiOperationError(
+                    'DATA_ASYNCAPI_RESPONSE_INVALID',
+                    'AsyncAPI stream event path did not resolve.'
+                  );
+                value = projected;
+              }
+              yield value;
             }
-            yield value;
+          } finally {
+            await closeUpstream('consumer-finished');
           }
         })(),
-        close: upstream.close,
+        close: closeUpstream,
       });
     },
   });

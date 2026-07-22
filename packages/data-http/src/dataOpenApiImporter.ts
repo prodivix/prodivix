@@ -25,6 +25,7 @@ export const DATA_OPENAPI_IMPORT_LIMITS = Object.freeze({
   maxOperations: 512,
   maxSchemas: 256,
   maxParametersPerOperation: 128,
+  maxGeneratedSchemaBytes: 16 * 1024 * 1024,
 } as const);
 
 export const DATA_OPENAPI_IMPORT_ISSUE_CODES = Object.freeze({
@@ -508,29 +509,134 @@ const convertSchemaNode = (
   return visit(value, path) as DataJsonSchema202012;
 };
 
-const withComponentDefinitions = (
+type ComponentSchemaRegistry = Readonly<{
+  names: readonly string[];
+  nameSet: ReadonlySet<string>;
+  definitionsByName: ReadonlyMap<string, DataJsonSchema202012>;
+  dependenciesByName: ReadonlyMap<string, ReadonlySet<string>>;
+  byteSizeByName: ReadonlyMap<string, number>;
+}>;
+
+type GeneratedSchemaBudget = {
+  usedBytes: number;
+  exceeded: boolean;
+};
+
+const collectComponentDefinitionReferences = (
   value: unknown,
-  path: string,
+  knownNames: ReadonlySet<string>
+): ReadonlySet<string> => {
+  const references = new Set<string>();
+  const stack: unknown[] = [value];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (Array.isArray(current)) {
+      stack.push(...current);
+      continue;
+    }
+    if (!isPlainRecord(current)) continue;
+    if (typeof current.$ref === 'string') {
+      const prefix = '#/$defs/';
+      if (current.$ref.startsWith(prefix)) {
+        const key = decodePointerToken(current.$ref.slice(prefix.length));
+        const componentPrefix = '__prodivix_openapi__';
+        if (key?.startsWith(componentPrefix)) {
+          const name = key.slice(componentPrefix.length);
+          if (knownNames.has(name)) references.add(name);
+        }
+      }
+    }
+    stack.push(...Object.values(current));
+  }
+  return references;
+};
+
+const createComponentSchemaRegistry = (
   componentSchemas: Readonly<Record<string, unknown>>,
   issues: DataOpenApiImportIssue[]
-): DataJsonSchema202012 => {
-  const names = Object.keys(componentSchemas).sort(compareText);
+): ComponentSchemaRegistry => {
+  const names = Object.freeze(Object.keys(componentSchemas).sort(compareText));
   const nameSet = new Set(names);
-  const converted = convertSchemaNode(value, path, nameSet, issues);
+  const definitionsByName = new Map<string, DataJsonSchema202012>();
+  const byteSizeByName = new Map<string, number>();
+  for (const name of names) {
+    const definition = convertSchemaNode(
+      componentSchemas[name],
+      `/components/schemas/${pointerSegment(name)}`,
+      nameSet,
+      issues
+    );
+    definitionsByName.set(name, definition);
+    byteSizeByName.set(name, utf8ToBytes(stableJson(definition)).length);
+  }
+  const dependenciesByName = new Map<string, ReadonlySet<string>>();
+  for (const name of names) {
+    dependenciesByName.set(
+      name,
+      collectComponentDefinitionReferences(definitionsByName.get(name), nameSet)
+    );
+  }
+  return Object.freeze({
+    names,
+    nameSet,
+    definitionsByName,
+    dependenciesByName,
+    byteSizeByName,
+  });
+};
+
+const attachComponentDefinitions = (
+  converted: DataJsonSchema202012,
+  path: string,
+  registry: ComponentSchemaRegistry,
+  issues: DataOpenApiImportIssue[],
+  budget: GeneratedSchemaBudget
+): DataJsonSchema202012 => {
   if (typeof converted === 'boolean') return converted;
+  const reachable = new Set(
+    collectComponentDefinitionReferences(converted, registry.nameSet)
+  );
+  const pending = [...reachable];
+  while (pending.length > 0) {
+    const name = pending.pop()!;
+    for (const dependency of registry.dependenciesByName.get(name) ?? []) {
+      if (reachable.has(dependency)) continue;
+      reachable.add(dependency);
+      pending.push(dependency);
+    }
+  }
+  const reachableNames = [...reachable].sort(compareText);
+  const projectedBytes =
+    utf8ToBytes(stableJson(converted)).length +
+    reachableNames.reduce(
+      (total, name) => total + (registry.byteSizeByName.get(name) ?? 0),
+      0
+    );
+  if (
+    budget.exceeded ||
+    budget.usedBytes + projectedBytes >
+      DATA_OPENAPI_IMPORT_LIMITS.maxGeneratedSchemaBytes
+  ) {
+    if (!budget.exceeded) {
+      budget.exceeded = true;
+      issue(
+        issues,
+        DATA_OPENAPI_IMPORT_ISSUE_CODES.limitExceeded,
+        path,
+        'Generated schema projections exceed the import byte budget.'
+      );
+    }
+    return true;
+  }
+  budget.usedBytes += projectedBytes;
   const existingDefinitions = isPlainRecord(converted.$defs)
     ? converted.$defs
     : {};
   const definitions = Object.fromEntries([
     ...Object.entries(existingDefinitions),
-    ...names.map((name) => [
+    ...reachableNames.map((name) => [
       componentDefinitionKey(name),
-      convertSchemaNode(
-        componentSchemas[name],
-        `/components/schemas/${pointerSegment(name)}`,
-        nameSet,
-        issues
-      ),
+      registry.definitionsByName.get(name)!,
     ]),
   ]);
   return Object.freeze({
@@ -541,6 +647,21 @@ const withComponentDefinitions = (
       : {}),
   });
 };
+
+const withComponentDefinitions = (
+  value: unknown,
+  path: string,
+  registry: ComponentSchemaRegistry,
+  issues: DataOpenApiImportIssue[],
+  budget: GeneratedSchemaBudget
+): DataJsonSchema202012 =>
+  attachComponentDefinitions(
+    convertSchemaNode(value, path, registry.nameSet, issues),
+    path,
+    registry,
+    issues,
+    budget
+  );
 
 const resolveParameter = (
   value: unknown,
@@ -894,6 +1015,14 @@ const compileProjection = (
       'Component schema count exceeds the import budget.'
     );
   }
+  const componentRegistry = createComponentSchemaRegistry(
+    componentSchemas,
+    issues
+  );
+  const generatedSchemaBudget: GeneratedSchemaBudget = {
+    usedBytes: 0,
+    exceeded: false,
+  };
   const paths = recordAt(root.paths, '/paths', issues);
   if (!paths || !server || !title) return undefined;
   const pathNames = Object.keys(paths).sort(compareText);
@@ -924,11 +1053,12 @@ const compileProjection = (
     const value = Object.freeze({
       id: targetId,
       name,
-      schema: withComponentDefinitions(
-        componentSchemas[name],
+      schema: attachComponentDefinitions(
+        componentRegistry.definitionsByName.get(name)!,
         externalId,
-        componentSchemas,
-        issues
+        componentRegistry,
+        issues,
+        generatedSchemaBudget
       ),
     });
     importedSchemas.set(
@@ -1037,7 +1167,7 @@ const compileProjection = (
         inputProperties[inputKey] = convertSchemaNode(
           parameter.schema,
           `${operationPath}/parameters/${pointerSegment(parameter.name)}/schema`,
-          new Set(schemaNames),
+          componentRegistry.nameSet,
           issues
         );
         if (parameter.required) inputRequired.push(inputKey);
@@ -1112,7 +1242,7 @@ const compileProjection = (
               operationPath,
               'requestBody/content/application~1json/schema'
             ),
-            new Set(schemaNames),
+            componentRegistry.nameSet,
             issues
           );
           if (requestBody?.required === true) inputRequired.push(bodyKey);
@@ -1140,8 +1270,9 @@ const compileProjection = (
               additionalProperties: false,
             },
             `${operationPath}/@input`,
-            componentSchemas,
-            issues
+            componentRegistry,
+            issues,
+            generatedSchemaBudget
           ),
         });
         importedSchemas.set(
@@ -1224,8 +1355,9 @@ const compileProjection = (
         schema: withComponentDefinitions(
           responseSchema,
           `${operationPath}/@response`,
-          componentSchemas,
-          issues
+          componentRegistry,
+          issues,
+          generatedSchemaBudget
         ),
       });
       importedSchemas.set(

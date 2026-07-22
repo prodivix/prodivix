@@ -16,14 +16,18 @@ import {
 
 const LOCAL_PROJECT_ID_PREFIX = 'local-';
 const LOCAL_PROJECT_DB_NAME = 'prodivix-local-projects';
-const LOCAL_PROJECT_DB_VERSION = 2;
+const LOCAL_PROJECT_DB_VERSION = 3;
 const LOCAL_PROJECT_STORE_NAME = 'projects';
+const LOCAL_PROJECT_CATALOG_STORE_NAME = 'projectCatalog';
 const ROOT_DOCUMENT_ID = 'doc_root';
 
-export type LocalProjectRecord = ProjectSummary & {
+export type LocalProjectCatalogRecord = ProjectSummary & {
+  syncBinding?: LocalProjectSyncBinding;
+};
+
+export type LocalProjectRecord = LocalProjectCatalogRecord & {
   workspace: WorkspaceSnapshot;
   workspaceSettings: Record<string, unknown>;
-  syncBinding?: LocalProjectSyncBinding;
 };
 
 export type LocalProjectSyncBinding = {
@@ -60,6 +64,8 @@ type PersistedLocalProject = {
   workspace: WorkspaceSnapshotWireDto;
   syncBinding?: LocalProjectSyncBinding;
 };
+
+type PersistedLocalProjectCatalog = Omit<PersistedLocalProject, 'workspace'>;
 
 export class LocalProjectRecordError extends Error {
   readonly path: string;
@@ -132,8 +138,50 @@ const openLocalProjectDatabase = (): Promise<IDBDatabase> =>
     );
     request.onupgradeneeded = () => {
       const database = request.result;
-      if (!database.objectStoreNames.contains(LOCAL_PROJECT_STORE_NAME)) {
+      const projectsStoreExists = database.objectStoreNames.contains(
+        LOCAL_PROJECT_STORE_NAME
+      );
+      if (!projectsStoreExists) {
         database.createObjectStore(LOCAL_PROJECT_STORE_NAME, { keyPath: 'id' });
+      }
+      if (
+        !database.objectStoreNames.contains(LOCAL_PROJECT_CATALOG_STORE_NAME)
+      ) {
+        const catalogStore = database.createObjectStore(
+          LOCAL_PROJECT_CATALOG_STORE_NAME,
+          { keyPath: 'id' }
+        );
+        if (projectsStoreExists && request.transaction) {
+          const cursorRequest = request.transaction
+            .objectStore(LOCAL_PROJECT_STORE_NAME)
+            .openCursor();
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) return;
+            const value = cursor.value as Partial<PersistedLocalProject>;
+            if (
+              typeof value.id === 'string' &&
+              typeof value.name === 'string' &&
+              typeof value.createdAt === 'string' &&
+              typeof value.updatedAt === 'string'
+            ) {
+              catalogStore.put({
+                id: value.id,
+                resourceType: value.resourceType,
+                name: value.name,
+                ...(value.description
+                  ? { description: value.description }
+                  : {}),
+                createdAt: value.createdAt,
+                updatedAt: value.updatedAt,
+                ...(value.syncBinding
+                  ? { syncBinding: value.syncBinding }
+                  : {}),
+              });
+            }
+            cursor.continue();
+          };
+        }
       }
     };
     request.onerror = () =>
@@ -141,27 +189,79 @@ const openLocalProjectDatabase = (): Promise<IDBDatabase> =>
     request.onsuccess = () => resolve(request.result);
   });
 
-const readAllPersistedProjects = async (): Promise<unknown[]> => {
+const readAllPersistedProjectCatalogs = async (): Promise<unknown[]> => {
+  const database = await openLocalProjectDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(
+      LOCAL_PROJECT_CATALOG_STORE_NAME,
+      'readonly'
+    );
+    const store = transaction.objectStore(LOCAL_PROJECT_CATALOG_STORE_NAME);
+    const request = store.getAll();
+    let result: unknown[] = [];
+    request.onerror = () =>
+      reject(
+        request.error ?? new Error('Could not read the local project catalog.')
+      );
+    request.onsuccess = () => {
+      result = Array.isArray(request.result) ? request.result : [];
+    };
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(result);
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(
+        transaction.error ??
+          new Error('Could not read the local project catalog.')
+      );
+    };
+  });
+};
+
+const readPersistedProject = async (
+  projectId: string
+): Promise<unknown | undefined> => {
   const database = await openLocalProjectDatabase();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(
       LOCAL_PROJECT_STORE_NAME,
       'readonly'
     );
-    const store = transaction.objectStore(LOCAL_PROJECT_STORE_NAME);
-    const request = store.getAll();
+    const request = transaction
+      .objectStore(LOCAL_PROJECT_STORE_NAME)
+      .get(projectId);
+    let result: unknown | undefined;
     request.onerror = () =>
-      reject(request.error ?? new Error('Could not read local projects.'));
+      reject(request.error ?? new Error('Could not read the local project.'));
     request.onsuccess = () => {
-      resolve(Array.isArray(request.result) ? request.result : []);
+      result = request.result;
     };
-    transaction.oncomplete = () => database.close();
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(result);
+    };
     transaction.onerror = () => {
       database.close();
-      reject(transaction.error ?? new Error('Could not read local projects.'));
+      reject(
+        transaction.error ?? new Error('Could not read the local project.')
+      );
     };
   });
 };
+
+const createPersistedCatalog = (
+  project: PersistedLocalProject
+): PersistedLocalProjectCatalog => ({
+  id: project.id,
+  resourceType: project.resourceType,
+  name: project.name,
+  ...(project.description ? { description: project.description } : {}),
+  createdAt: project.createdAt,
+  updatedAt: project.updatedAt,
+  ...(project.syncBinding ? { syncBinding: project.syncBinding } : {}),
+});
 
 const putPersistedProject = async (
   project: PersistedLocalProject
@@ -169,10 +269,13 @@ const putPersistedProject = async (
   const database = await openLocalProjectDatabase();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(
-      LOCAL_PROJECT_STORE_NAME,
+      [LOCAL_PROJECT_STORE_NAME, LOCAL_PROJECT_CATALOG_STORE_NAME],
       'readwrite'
     );
     transaction.objectStore(LOCAL_PROJECT_STORE_NAME).put(project);
+    transaction
+      .objectStore(LOCAL_PROJECT_CATALOG_STORE_NAME)
+      .put(createPersistedCatalog(project));
     transaction.oncomplete = () => {
       database.close();
       resolve();
@@ -188,10 +291,11 @@ const deletePersistedProject = async (projectId: string): Promise<void> => {
   const database = await openLocalProjectDatabase();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(
-      LOCAL_PROJECT_STORE_NAME,
+      [LOCAL_PROJECT_STORE_NAME, LOCAL_PROJECT_CATALOG_STORE_NAME],
       'readwrite'
     );
     transaction.objectStore(LOCAL_PROJECT_STORE_NAME).delete(projectId);
+    transaction.objectStore(LOCAL_PROJECT_CATALOG_STORE_NAME).delete(projectId);
     transaction.oncomplete = () => {
       database.close();
       resolve();
@@ -453,6 +557,41 @@ const decodePersistedProject = (value: unknown): LocalProjectRecord => {
   };
 };
 
+const decodePersistedProjectCatalog = (
+  value: unknown
+): LocalProjectCatalogRecord => {
+  const source = requireRecord(value, '/project');
+  const id = requireString(source.id, '/project/id');
+  if (!isLocalProjectId(id)) {
+    throw new LocalProjectRecordError(
+      '/project/id',
+      'Expected a local project id.'
+    );
+  }
+  const description = parseOptionalString(
+    source.description,
+    '/project/description'
+  );
+  const syncBinding =
+    source.syncBinding === undefined
+      ? undefined
+      : parseSyncBinding(source.syncBinding, '/project/syncBinding');
+  return {
+    id,
+    resourceType: parseResourceType(
+      source.resourceType,
+      '/project/resourceType'
+    ),
+    name: requireString(source.name, '/project/name'),
+    ...(description ? { description } : {}),
+    isPublic: false,
+    starsCount: 0,
+    createdAt: parseDate(source.createdAt, '/project/createdAt'),
+    updatedAt: parseDate(source.updatedAt, '/project/updatedAt'),
+    ...(syncBinding ? { syncBinding } : {}),
+  };
+};
+
 const serializeRecord = (record: LocalProjectRecord): PersistedLocalProject => {
   assertWorkspaceIdentity(record.id, record.workspace);
   const workspace = encodeWorkspaceSnapshot(
@@ -472,10 +611,116 @@ const serializeRecord = (record: LocalProjectRecord): PersistedLocalProject => {
   };
 };
 
-const readRecords = async (): Promise<LocalProjectRecord[]> =>
-  (await readAllPersistedProjects()).map(decodePersistedProject);
+const mutateLocalProject = async (
+  projectId: string,
+  mutate: (current: LocalProjectRecord) => LocalProjectRecord
+): Promise<LocalProjectRecord | null> => {
+  const database = await openLocalProjectDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(
+      [LOCAL_PROJECT_STORE_NAME, LOCAL_PROJECT_CATALOG_STORE_NAME],
+      'readwrite'
+    );
+    const projectStore = transaction.objectStore(LOCAL_PROJECT_STORE_NAME);
+    const catalogStore = transaction.objectStore(
+      LOCAL_PROJECT_CATALOG_STORE_NAME
+    );
+    const request = projectStore.get(projectId);
+    let result: LocalProjectRecord | null = null;
+    let failure: unknown;
+    let settled = false;
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      database.close();
+      reject(error);
+    };
 
-const toSummary = (project: LocalProjectRecord): ProjectSummary => ({
+    request.onerror = () => {
+      failure = request.error ?? new Error('Could not read local project.');
+    };
+    request.onsuccess = () => {
+      try {
+        if (request.result === undefined) return;
+        const current = decodePersistedProject(request.result);
+        const next = mutate(current);
+        result = next;
+        if (next === current) return;
+        const persisted = serializeRecord(next);
+        projectStore.put(persisted);
+        catalogStore.put(createPersistedCatalog(persisted));
+      } catch (error) {
+        failure = error;
+        try {
+          transaction.abort();
+        } catch {
+          fail(error);
+        }
+      }
+    };
+    transaction.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      database.close();
+      resolve(result);
+    };
+    transaction.onabort = () =>
+      fail(
+        failure ??
+          transaction.error ??
+          new Error('Could not update local project.')
+      );
+    transaction.onerror = () => {
+      failure ??=
+        transaction.error ?? new Error('Could not update local project.');
+    };
+  });
+};
+
+const applyLocalProjectUpdate = (
+  current: LocalProjectRecord,
+  update: LocalProjectUpdate
+): LocalProjectRecord => {
+  const name =
+    update.name !== undefined
+      ? update.name.trim() || current.name
+      : current.name;
+  const description =
+    update.description !== undefined
+      ? update.description.trim() || undefined
+      : current.description;
+  const workspace = update.workspace ?? current.workspace;
+  assertWorkspaceIdentity(current.id, workspace);
+  const workspaceSettings =
+    update.workspaceSettings === undefined
+      ? current.workspaceSettings
+      : cloneData(
+          requireRecord(update.workspaceSettings, '/workspace/settings')
+        );
+  const syncBinding =
+    update.syncBinding === undefined
+      ? current.syncBinding
+      : update.syncBinding === null
+        ? undefined
+        : parseSyncBinding(update.syncBinding, '/project/syncBinding');
+  const next: LocalProjectRecord = {
+    ...current,
+    name,
+    ...(description ? { description } : {}),
+    updatedAt: new Date().toISOString(),
+    workspace,
+    workspaceSettings,
+    ...(syncBinding ? { syncBinding } : {}),
+  };
+  if (!description) delete next.description;
+  if (!syncBinding) delete next.syncBinding;
+  return next;
+};
+
+const readCatalog = async (): Promise<LocalProjectCatalogRecord[]> =>
+  (await readAllPersistedProjectCatalogs()).map(decodePersistedProjectCatalog);
+
+const toSummary = (project: LocalProjectCatalogRecord): ProjectSummary => ({
   id: project.id,
   resourceType: project.resourceType,
   name: project.name,
@@ -487,16 +732,18 @@ const toSummary = (project: LocalProjectRecord): ProjectSummary => ({
 });
 
 export const listLocalProjects = async (): Promise<ProjectSummary[]> =>
-  (await readRecords()).map(toSummary);
+  (await readCatalog()).map(toSummary);
 
-export const listLocalProjectRecords = async (): Promise<
-  LocalProjectRecord[]
-> => readRecords();
+export const listLocalProjectCatalog = async (): Promise<
+  LocalProjectCatalogRecord[]
+> => readCatalog();
 
 export const getLocalProject = async (
   projectId: string
-): Promise<LocalProjectRecord | null> =>
-  (await readRecords()).find((project) => project.id === projectId) ?? null;
+): Promise<LocalProjectRecord | null> => {
+  const persisted = await readPersistedProject(projectId);
+  return persisted === undefined ? null : decodePersistedProject(persisted);
+};
 
 export const createLocalProject = async ({
   name,
@@ -532,45 +779,10 @@ export const createLocalProject = async ({
 export const updateLocalProject = async (
   projectId: string,
   update: LocalProjectUpdate
-): Promise<LocalProjectRecord | null> => {
-  const current = await getLocalProject(projectId);
-  if (!current) return null;
-  const name =
-    update.name !== undefined
-      ? update.name.trim() || current.name
-      : current.name;
-  const description =
-    update.description !== undefined
-      ? update.description.trim() || undefined
-      : current.description;
-  const workspace = update.workspace ?? current.workspace;
-  assertWorkspaceIdentity(projectId, workspace);
-  const workspaceSettings =
-    update.workspaceSettings === undefined
-      ? current.workspaceSettings
-      : cloneData(
-          requireRecord(update.workspaceSettings, '/workspace/settings')
-        );
-  const syncBinding =
-    update.syncBinding === undefined
-      ? current.syncBinding
-      : update.syncBinding === null
-        ? undefined
-        : parseSyncBinding(update.syncBinding, '/project/syncBinding');
-  const next: LocalProjectRecord = {
-    ...current,
-    name,
-    ...(description ? { description } : {}),
-    updatedAt: new Date().toISOString(),
-    workspace,
-    workspaceSettings,
-    ...(syncBinding ? { syncBinding } : {}),
-  };
-  if (!description) delete next.description;
-  if (!syncBinding) delete next.syncBinding;
-  await putPersistedProject(serializeRecord(next));
-  return next;
-};
+): Promise<LocalProjectRecord | null> =>
+  mutateLocalProject(projectId, (current) =>
+    applyLocalProjectUpdate(current, update)
+  );
 
 export const markLocalProjectSynced = async (
   projectId: string,
@@ -651,11 +863,12 @@ export const saveLocalWorkspaceSnapshot = async (
   projectId: string,
   workspace: WorkspaceSnapshot,
   workspaceSettings: Record<string, unknown>
-): Promise<LocalProjectRecord | null> => {
-  const current = await getLocalProject(projectId);
-  if (!current || isSyncedLocalProject(current)) return current;
-  return updateLocalProject(projectId, { workspace, workspaceSettings });
-};
+): Promise<LocalProjectRecord | null> =>
+  mutateLocalProject(projectId, (current) =>
+    isSyncedLocalProject(current)
+      ? current
+      : applyLocalProjectUpdate(current, { workspace, workspaceSettings })
+  );
 
 export const deleteLocalProject = async (
   projectId: string
@@ -673,4 +886,16 @@ export const deleteLocalProject = async (
     }
   }
   return true;
+};
+
+export const deleteLocalProjectsSyncedToRemote = async (
+  remoteProjectId: string
+): Promise<number> => {
+  const matchingProjects = (await listLocalProjectCatalog()).filter(
+    (project) => project.syncBinding?.remoteProjectId === remoteProjectId
+  );
+  const deleted = await Promise.all(
+    matchingProjects.map((project) => deleteLocalProject(project.id))
+  );
+  return deleted.filter(Boolean).length;
 };

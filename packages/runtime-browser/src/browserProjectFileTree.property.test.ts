@@ -11,6 +11,19 @@ const segmentArbitrary = fc
   .map((characters) => characters.join(''));
 
 describe('browser project file tree properties', () => {
+  it('treats Object prototype names as ordinary path segments', () => {
+    const tree = createBrowserProjectFileTree([
+      { path: 'constructor/toString.ts', contents: 'export {};' },
+    ]);
+
+    expect(Object.getPrototypeOf(tree)).toBeNull();
+    expect(tree.constructor).toEqual({
+      directory: {
+        'toString.ts': { file: { contents: 'export {};' } },
+      },
+    });
+  });
+
   it('materializes every normalized neutral project file exactly once', () => {
     fc.assert(
       fc.property(

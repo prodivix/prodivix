@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ type Handler struct {
 }
 
 const maximumGitHubWebhookBytes = 2 << 20
+const githubInstallationSetupStateTTL = 10 * time.Minute
 
 func NewHandler(store *Store, projects ProjectReader, cfg backendconfig.GitHubAppConfig, environment string) *Handler {
 	return &Handler{store: store, projects: projects, cfg: cfg, environment: strings.ToLower(strings.TrimSpace(environment))}
@@ -40,6 +42,8 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		RequireAuth:         requireAuth,
 		HandleWebhook:       handler.HandleWebhook,
 		HandleDevEvent:      handler.HandleDevEvent,
+		BeginSetup:          handler.HandleBeginSetup,
+		CompleteSetup:       handler.HandleCompleteSetup,
 		ListInstallations:   handler.HandleListInstallations,
 		ListRepositories:    handler.HandleListRepositories,
 		UpsertBinding:       handler.HandleUpsertBinding,
@@ -75,6 +79,11 @@ func (handler *Handler) HandleDevEvent(c *gin.Context) {
 		respondError(c, http.StatusNotFound, "API-4004", "Development GitHub events are disabled.")
 		return
 	}
+	user, ok := backendauth.GetAuthUser[backendauth.User](c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
+		return
+	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maximumGitHubWebhookBytes)
 	var request struct {
 		EventType  string          `json:"eventType"`
@@ -94,7 +103,57 @@ func (handler *Handler) HandleDevEvent(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "API-6001", "Could not process development GitHub event.")
 		return
 	}
+	var payload GitHubWebhookPayload
+	if err := json.Unmarshal(request.Payload, &payload); err == nil && payload.Installation != nil && payload.Installation.ID > 0 {
+		if err := handler.store.GrantInstallationAccess(c.Request.Context(), user.ID, payload.Installation.ID); err != nil {
+			respondError(c, http.StatusBadRequest, "API-6001", "Could not grant development GitHub installation access.")
+			return
+		}
+	}
 	c.JSON(http.StatusAccepted, gin.H{"accepted": true, "inserted": inserted, "deliveryId": deliveryID})
+}
+
+func (handler *Handler) HandleBeginSetup(c *gin.Context) {
+	user, ok := backendauth.GetAuthUser[backendauth.User](c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
+		return
+	}
+	setupURL, err := url.Parse(strings.TrimSpace(handler.cfg.SetupURL))
+	allowsInsecureDevelopmentURL := err == nil && setupURL != nil && handler.environment != "production" && setupURL.Scheme == "http"
+	if err != nil || setupURL == nil || setupURL.Host == "" || (setupURL.Scheme != "https" && !allowsInsecureDevelopmentURL) || setupURL.User != nil {
+		respondError(c, http.StatusServiceUnavailable, "API-5001", "GitHub App setup is not configured.")
+		return
+	}
+	state, expiresAt, err := handler.store.CreateInstallationSetupState(c.Request.Context(), user.ID, githubInstallationSetupStateTTL)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "API-6001", "Could not create GitHub installation setup state.")
+		return
+	}
+	query := setupURL.Query()
+	query.Set("state", state)
+	setupURL.RawQuery = query.Encode()
+	c.JSON(http.StatusOK, gin.H{"setupUrl": setupURL.String(), "expiresAt": expiresAt})
+}
+
+func (handler *Handler) HandleCompleteSetup(c *gin.Context) {
+	installationID, err := parsePositiveInt64(c.Query("installation_id"))
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "API-4001", "installation_id must be a positive integer.")
+		return
+	}
+	if _, err := handler.store.ConsumeInstallationSetupState(c.Request.Context(), c.Query("state"), installationID); err != nil {
+		switch {
+		case errors.Is(err, ErrInstallationSetupStateInvalid):
+			respondError(c, http.StatusBadRequest, "API-2001", "GitHub installation setup state is invalid or expired.")
+		case errors.Is(err, ErrInstallationNotFound):
+			respondError(c, http.StatusConflict, "API-6001", "GitHub installation webhook has not been received yet.")
+		default:
+			respondError(c, http.StatusInternalServerError, "API-6001", "Could not complete GitHub installation setup.")
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"connected": true, "installationId": installationID})
 }
 
 func (handler *Handler) HandleListInstallations(c *gin.Context) {
@@ -164,6 +223,15 @@ func (handler *Handler) HandleUpsertBinding(c *gin.Context) {
 	}
 	if !allowed {
 		respondError(c, http.StatusForbidden, "API-2003", "GitHub installation is not available to this user.")
+		return
+	}
+	available, err := handler.store.InstallationHasRepository(c.Request.Context(), request.InstallationID, request.Owner, request.Repo)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "API-6001", "Could not verify GitHub repository access.")
+		return
+	}
+	if !available {
+		respondError(c, http.StatusForbidden, "API-2003", "GitHub repository is not available to this installation.")
 		return
 	}
 	workspaceID := strings.TrimSpace(request.WorkspaceID)
@@ -276,7 +344,10 @@ func (handler *Handler) applyInstallationPayload(ctx context.Context, eventType 
 	if len(repositories) == 0 {
 		repositories = payload.RepositoriesAdded
 	}
-	return handler.store.UpsertInstallationRepositories(ctx, payload.Installation.ID, normalizeRepositories(repositories))
+	if err := handler.store.UpsertInstallationRepositories(ctx, payload.Installation.ID, normalizeRepositories(repositories)); err != nil {
+		return err
+	}
+	return handler.store.RemoveInstallationRepositories(ctx, payload.Installation.ID, normalizeRepositories(payload.RepositoriesRemoved))
 }
 
 func (handler *Handler) ensureProjectOwner(ctx context.Context, userID, projectID string) error {

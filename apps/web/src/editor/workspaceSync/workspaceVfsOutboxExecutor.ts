@@ -52,18 +52,29 @@ export const enqueueWorkspaceOperationOutboxAndDispatch = async (input: {
   }
   let applied = false;
   let rejectionMessage: string | undefined;
-  if (input.applyOptimistically) {
-    const result = input.applyOptimistically();
-    applied = result.ok;
-    rejectionMessage = result.message;
-  } else {
-    const result =
-      input.operation.kind === 'command'
-        ? state.dispatchWorkspaceCommand(input.operation.command)
-        : state.dispatchWorkspaceTransaction(input.operation.transaction);
-    applied = Boolean(result?.ok);
-    rejectionMessage =
-      result && result.ok === false ? result.issues[0]?.message : undefined;
+  try {
+    if (input.applyOptimistically) {
+      const result = input.applyOptimistically();
+      applied = result.ok;
+      rejectionMessage = result.message;
+    } else {
+      const result =
+        input.operation.kind === 'command'
+          ? state.dispatchWorkspaceCommand(input.operation.command)
+          : state.dispatchWorkspaceTransaction(input.operation.transaction);
+      applied = Boolean(result?.ok);
+      rejectionMessage =
+        result && result.ok === false ? result.issues[0]?.message : undefined;
+    }
+  } catch (error) {
+    await store.remove(created.entry.id);
+    return {
+      status: 'rejected',
+      message:
+        error instanceof Error && error.message
+          ? error.message
+          : 'Could not apply the Workspace operation.',
+    };
   }
   if (!applied) {
     await store.remove(created.entry.id);

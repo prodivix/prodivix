@@ -37,6 +37,7 @@ export type DiagnosticPresentationResolver = {
   formatEvidence(input: {
     diagnostic: ProdivixDiagnostic;
     template: DiagnosticPresentationTemplate;
+    locations: DiagnosticLocationPresentation[];
   }): DiagnosticEvidencePresentation[];
 };
 
@@ -226,7 +227,8 @@ const defaultResolveActions = ({
 
 const readEvidenceValue = (
   diagnostic: ProdivixDiagnostic,
-  evidence: DiagnosticEvidenceTemplate
+  evidence: DiagnosticEvidenceTemplate,
+  locations: DiagnosticLocationPresentation[]
 ): unknown => {
   if (evidence.source.kind === 'diagnostic') {
     return getPathValue(diagnostic, evidence.source.path);
@@ -240,20 +242,26 @@ const readEvidenceValue = (
     return getPathValue(diagnostic.meta, `upstream.${evidence.source.path}`);
   }
 
+  if (evidence.source.kind === 'location') {
+    return getPathValue(locations, evidence.source.path);
+  }
+
   return undefined;
 };
 
 const defaultFormatEvidence = ({
   diagnostic,
   template,
+  locations,
 }: {
   diagnostic: ProdivixDiagnostic;
   template: DiagnosticPresentationTemplate;
+  locations: DiagnosticLocationPresentation[];
 }): DiagnosticEvidencePresentation[] =>
   (template.evidence ?? []).flatMap((evidence) => {
     if (evidence.redaction === 'hidden') return [];
 
-    const value = readEvidenceValue(diagnostic, evidence);
+    const value = readEvidenceValue(diagnostic, evidence, locations);
     if (value === undefined || value === null || value === '') return [];
 
     return [
@@ -371,7 +379,7 @@ export const buildDiagnosticPresentation = ({
     severity: diagnostic.severity,
     domain: diagnostic.domain,
     locations,
-    evidence: formatEvidence({ diagnostic, template }),
+    evidence: formatEvidence({ diagnostic, template, locations }),
     sections: (template.sections ?? []).map((section) => ({
       id: section.id,
       kind: section.kind,

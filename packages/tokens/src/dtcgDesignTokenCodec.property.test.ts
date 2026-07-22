@@ -115,4 +115,24 @@ describe('DTCG design token codec properties', () => {
       propertyParameters
     );
   });
+
+  it('rejects a group extending its own descendant without recursing', () => {
+    const decoded = decodeDtcgDesignTokenDocument({
+      parent: {
+        $extends: '{parent.child}',
+        child: {
+          value: { $type: 'number', $value: 1 },
+        },
+      },
+    });
+
+    expect(decoded).toMatchObject({
+      ok: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          code: DESIGN_TOKEN_DECODE_ISSUE_CODES.groupExtensionCycle,
+        }),
+      ]),
+    });
+  });
 });

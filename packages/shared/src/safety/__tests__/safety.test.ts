@@ -41,6 +41,12 @@ describe('safety utilities', () => {
     ]);
   });
 
+  it('keeps out-of-range numeric entities inert', () => {
+    expect(parseSafeRichText('before &#x110000; after')).toEqual([
+      'before &#x110000; after',
+    ]);
+  });
+
   it('sanitizes SVG markup into a safe preview source', () => {
     const safe = sanitizeSvgMarkup(
       '<svg viewBox="0 0 10 10" onclick="alert(1)"><script>alert(1)</script><path d="M0 0L10 10" stroke="red" /></svg>'

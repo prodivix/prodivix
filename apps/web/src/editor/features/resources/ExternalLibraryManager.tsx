@@ -349,13 +349,6 @@ export function ExternalLibraryManager({
         ...current,
         [libraryId]: metadata,
       }));
-      updateExternalResourceValue((current) => ({
-        ...current,
-        metadataCache: {
-          ...current.metadataCache,
-          [libraryId]: metadata,
-        },
-      }));
       applyMetadataToActiveLibraries(libraryId, metadata);
     } catch (error) {
       if (isAbortError(error)) return;
@@ -441,7 +434,8 @@ export function ExternalLibraryManager({
       library.scope,
       library.versions,
       globalMode,
-      nextVersion
+      nextVersion,
+      metadataCache[normalized]?.license ?? library.license
     );
     if (persisted) {
       const nextComponentIds =
@@ -463,7 +457,6 @@ export function ExternalLibraryManager({
             iconLibraryIds: nextIconIds,
             mode: globalMode,
             packageSizeThresholds,
-            metadataCache,
           },
           persisted
         )
@@ -614,7 +607,6 @@ export function ExternalLibraryManager({
         const nextMode = externalResourceValue.mode;
         setGlobalMode(nextMode);
         setPackageSizeThresholds(externalResourceValue.packageSizeThresholds);
-        setMetadataCache(externalResourceValue.metadataCache);
 
         const storedManagerState = externalResourceValue.activeLibraries;
         const mergedIds = normalizeLibraryIds([
@@ -638,6 +630,7 @@ export function ExternalLibraryManager({
           return {
             ...library,
             version: persisted?.version ?? library.version,
+            license: persisted?.license ?? library.license,
             ...(persisted?.adapter ? { adapter: persisted.adapter } : {}),
           };
         });

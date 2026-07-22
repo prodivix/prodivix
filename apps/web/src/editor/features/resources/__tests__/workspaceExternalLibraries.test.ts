@@ -17,11 +17,19 @@ describe('workspace external library dependencies', () => {
         },
       ],
       mode: 'locked',
+      metadataCache: {
+        antd: {
+          description: 'volatile',
+          license: 'volatile-license',
+          updatedAt: Date.now(),
+        },
+      },
     });
 
     expect(value.activeLibraries).toEqual([
       { id: 'antd', scope: 'component', version: '5.28.0' },
     ]);
+    expect(value).not.toHaveProperty('metadataCache');
   });
 
   it('creates a versioned dependency declaration for a new library', () => {
@@ -30,12 +38,15 @@ describe('workspace external library dependencies', () => {
         '@example/components',
         'component',
         ['2.0.0', '1.5.0'],
-        'locked'
+        'locked',
+        undefined,
+        'MIT'
       )
     ).toEqual({
       id: '@example/components',
       scope: 'component',
       version: '2.0.0',
+      license: 'MIT',
     });
   });
 });

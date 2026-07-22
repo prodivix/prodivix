@@ -85,10 +85,6 @@ export function CommunityDetailPage() {
     };
   }, [projectId, t]);
 
-  const pirText = useMemo(
-    () => (project ? JSON.stringify(project.pir, null, 2) : ''),
-    [project]
-  );
   const publishedPir = useMemo(
     () =>
       project
@@ -282,11 +278,40 @@ export function CommunityDetailPage() {
 
               <article className="w-full min-w-0 rounded-3xl border border-black/10 bg-white p-4 shadow-[0_10px_20px_rgba(0,0,0,0.04)]">
                 <h2 className="mb-3 text-sm font-bold tracking-[0.12em] text-black/70 uppercase">
-                  {t('detail.pir', 'PIR Document')}
+                  {t('detail.pir', 'PIR Summary')}
                 </h2>
-                <pre className="max-h-[520px] overflow-auto rounded-2xl border border-black/10 bg-[#fafafa] p-4 text-xs leading-5 text-black/75">
-                  {pirText}
-                </pre>
+                <dl className="grid gap-3 rounded-2xl border border-black/10 bg-[#fafafa] p-4 text-xs text-black/75">
+                  <div className="grid grid-cols-[120px_1fr] gap-3">
+                    <dt className="font-semibold text-black/55">
+                      {t('detail.pirRoot', 'Root node')}
+                    </dt>
+                    <dd className="m-0 font-mono break-all">
+                      {publishedPir?.status === 'ready'
+                        ? publishedPir.document.ui.graph.rootId
+                        : '—'}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] gap-3">
+                    <dt className="font-semibold text-black/55">
+                      {t('detail.pirKind', 'Document kind')}
+                    </dt>
+                    <dd className="m-0">
+                      {project.resourceType === 'component'
+                        ? 'pir-component'
+                        : 'pir-page'}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] gap-3">
+                    <dt className="font-semibold text-black/55">
+                      {t('detail.pirStatus', 'Projection')}
+                    </dt>
+                    <dd className="m-0">
+                      {publishedPir?.status === 'ready'
+                        ? t('detail.pirReady', 'Ready')
+                        : t('detail.pirInvalid', 'Unavailable')}
+                    </dd>
+                  </div>
+                </dl>
               </article>
             </section>
           </>

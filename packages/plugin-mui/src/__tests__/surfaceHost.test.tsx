@@ -97,6 +97,25 @@ describe('Material UI controlled surface host', () => {
     expect(controlled.leaseCount()).toBe(0);
   });
 
+  it('shares one Emotion cache lease across sibling components', () => {
+    const controlled = createControlledHost();
+    const WrappedButton = wrapMuiComponent(MUI_COMPONENTS.Button);
+
+    const view = renderWithHost(
+      controlled.host,
+      <>
+        <WrappedButton>First</WrappedButton>
+        <WrappedButton>Second</WrappedButton>
+      </>
+    );
+
+    expect(screen.getByRole('button', { name: 'First' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Second' })).toBeVisible();
+    expect(controlled.leaseCount()).toBe(1);
+    view.unmount();
+    expect(controlled.leaseCount()).toBe(0);
+  });
+
   it('renders cached icon exports through the owner-scoped MUI surface', () => {
     const controlled = createControlledHost();
     const WrappedAddIcon = MUI_ICON_IMPLEMENTATION.resolveExport('Add');

@@ -46,6 +46,7 @@ export type PersistedLibrary = {
   id: string;
   scope: LibraryScope;
   version: string;
+  license?: string;
   adapter?: CodeSlotBinding;
 };
 import type { CodeSlotBinding } from '@prodivix/authoring';

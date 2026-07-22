@@ -224,7 +224,7 @@ export const createProtocolEndpoint = (
     if (!contract.ok) return contract;
     const validated = contract.value.validate(payload);
     if (!validated.ok) return validated;
-    outboundSequence += 1;
+    const sequence = outboundSequence + 1;
     const envelope: RuntimeEnvelopeV1 = {
       protocol: 'prodivix.plugin-runtime',
       protocolVersion: '1.0',
@@ -232,8 +232,8 @@ export const createProtocolEndpoint = (
       channel: identity.channel,
       method: identity.method,
       contractVersion: identity.contractVersion,
-      messageId: `${messagePrefix}.${outboundSequence}`,
-      sequence: outboundSequence,
+      messageId: `${messagePrefix}.${sequence}`,
+      sequence,
       payload: validated.value,
       ...(replyTo ? { replyTo } : {}),
     };
@@ -245,6 +245,7 @@ export const createProtocolEndpoint = (
     if (!encoded.ok) return encoded;
     try {
       options.sendText(encoded.value);
+      outboundSequence = envelope.sequence;
       return protocolSuccess(undefined);
     } catch {
       const diagnostic = sessionClosedDiagnostic(

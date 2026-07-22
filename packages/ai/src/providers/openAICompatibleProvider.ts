@@ -95,12 +95,25 @@ const readSseDataLines = async function* (
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let reachedEnd = false;
+
+  const readFrameData = (frame: string): string | null => {
+    const values = splitLines(frame).flatMap((line) => {
+      if (!line.startsWith('data:')) return [];
+      const value = line.slice(5);
+      return [value.startsWith(' ') ? value.slice(1) : value];
+    });
+    if (values.length === 0) return null;
+    const data = values.join('\n');
+    return data.trim() ? data : null;
+  };
 
   try {
     while (true) {
       const { value, done } = await reader.read();
 
       if (done) {
+        reachedEnd = true;
         break;
       }
 
@@ -109,28 +122,25 @@ const readSseDataLines = async function* (
       buffer = remainder;
 
       for (const frame of frames) {
-        for (const line of splitLines(frame)) {
-          const trimmed = line.trim();
-
-          if (trimmed.startsWith('data:')) {
-            yield trimmed.slice(5).trim();
-          }
-        }
+        const data = readFrameData(frame);
+        if (data !== null) yield data;
       }
     }
 
     buffer += decoder.decode();
 
     if (buffer.trim()) {
-      for (const line of splitLines(buffer)) {
-        const trimmed = line.trim();
-
-        if (trimmed.startsWith('data:')) {
-          yield trimmed.slice(5).trim();
-        }
-      }
+      const data = readFrameData(buffer);
+      if (data !== null) yield data;
     }
   } finally {
+    if (!reachedEnd) {
+      try {
+        await reader.cancel('sse-consumer-closed');
+      } catch {
+        // Preserve the stream consumer's original completion or failure.
+      }
+    }
     reader.releaseLock();
   }
 };

@@ -10,7 +10,7 @@ import { ThemeSync } from './components/ThemeSync';
 import { AuthSessionSync } from './auth/AuthSessionSync';
 
 initI18n().then((i18n) => {
-  const router = createBrowserRouter(createRoutes(i18n.t.bind(i18n)));
+  const router = createBrowserRouter(createRoutes(i18n));
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <I18nextProvider i18n={i18n}>

@@ -12,18 +12,23 @@ export type BrowserProjectFileTree = {
 const cloneContents = (contents: string | Uint8Array): string | Uint8Array =>
   typeof contents === 'string' ? contents : new Uint8Array(contents);
 
+const createDirectory = (): BrowserProjectFileTree =>
+  Object.create(null) as BrowserProjectFileTree;
+
 /** Projects neutral executable files into the WebContainer mount tree. */
 export const createBrowserProjectFileTree = (
   files: readonly ExecutableProjectFile[]
 ): BrowserProjectFileTree => {
-  const root: BrowserProjectFileTree = {};
+  const root = createDirectory();
   files.forEach((file) => {
     const path = normalizeExecutableProjectPath(file.path);
     const segments = path.split('/');
     let directory = root;
     segments.forEach((segment, index) => {
       const isFile = index === segments.length - 1;
-      const existing = directory[segment];
+      const existing = Object.hasOwn(directory, segment)
+        ? directory[segment]
+        : undefined;
       if (isFile) {
         if (existing) {
           throw new TypeError(
@@ -42,7 +47,7 @@ export const createBrowserProjectFileTree = (
             .join('/')}`
         );
       }
-      if (!existing) directory[segment] = { directory: {} };
+      if (!existing) directory[segment] = { directory: createDirectory() };
       directory = (directory[segment] as { directory: BrowserProjectFileTree })
         .directory;
     });

@@ -15,13 +15,12 @@ func CORS(allowed []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		if origin != "" {
-			if len(allowedMap) == 0 {
-				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Vary", "Origin")
-			} else if _, ok := allowedMap[origin]; ok {
-				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Vary", "Origin")
+			c.Header("Vary", "Origin")
+			if _, ok := allowedMap[origin]; !ok {
+				c.AbortWithStatus(http.StatusForbidden)
+				return
 			}
+			c.Header("Access-Control-Allow-Origin", origin)
 		}
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Authorization,Content-Type,X-Auth-Token,X-Prodivix-Terminal-Token,X-Prodivix-Server-Function-Intent")

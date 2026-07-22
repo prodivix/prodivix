@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PdxIcon, PdxIconLink } from '@prodivix/ui';
 import { useNavigate, useParams } from 'react-router';
-import { useEditorShortcut } from '@/editor/shortcuts';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import {
   LogIn,
@@ -50,14 +49,6 @@ function EditorBar() {
     'flex flex-col items-center gap-[14px] [--icon-link-badge-background:var(--text-primary)] [--icon-link-badge-color:var(--text-inverse)] [--icon-link-color:var(--editor-bar-icon)] [--icon-link-hover-color:var(--editor-bar-icon-hover)]';
   const barEdgeGroupClassName =
     'flex flex-col items-center gap-[12px] [--icon-link-color:var(--editor-bar-icon)] [--icon-link-hover-color:var(--editor-bar-icon-hover)]';
-
-  useEditorShortcut(
-    'Escape',
-    () => {
-      setExitOpen(true);
-    },
-    { enabled: Boolean(projectId) }
-  );
 
   return (
     <>

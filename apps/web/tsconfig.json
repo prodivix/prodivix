@@ -43,6 +43,12 @@
       "@prodivix/themes": ["../../packages/themes/src"],
       "@prodivix/themes/package.json": ["../../packages/themes/package.json"],
       "@prodivix/tokens": ["../../packages/tokens/src"],
+      "@prodivix/ui/avatar": ["../../packages/ui/src/image/PdxAvatar.tsx"],
+      "@prodivix/ui/button-link": [
+        "../../packages/ui/src/button/PdxButtonLink.tsx"
+      ],
+      "@prodivix/ui/link": ["../../packages/ui/src/link/PdxLink.tsx"],
+      "@prodivix/ui/nav": ["../../packages/ui/src/nav/PdxNav.tsx"],
       "@prodivix/ui": ["../../packages/ui/src"],
       "@prodivix/ui/package.json": ["../../packages/ui/package.json"],
       "@prodivix/workspace": ["../../packages/workspace/src"],

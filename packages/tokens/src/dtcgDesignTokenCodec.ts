@@ -395,13 +395,6 @@ const parseCurlyPath = (raw: string): readonly string[] | null => {
   return Object.freeze(path);
 };
 
-const isPathPrefix = (
-  prefix: readonly string[],
-  value: readonly string[]
-): boolean =>
-  prefix.length <= value.length &&
-  prefix.every((segment, index) => segment === value[index]);
-
 const getAtPointer = (
   root: DesignTokenJsonValue,
   path: readonly string[]
@@ -428,15 +421,21 @@ const createJsonPointerTarget = (
   tokensByPath: ReadonlyMap<string, RawToken>,
   groupsByPath: ReadonlyMap<string, RawGroup>
 ): DesignTokenReferenceTarget => {
-  const token = [...tokensByPath.values()]
-    .sort((left, right) => right.path.length - left.path.length)
-    .find(
-      (candidate) =>
-        isPathPrefix(candidate.path, pointerPath) &&
-        (pointerPath.length === candidate.path.length ||
-          pointerPath[candidate.path.length] === '$value' ||
-          pointerPath[candidate.path.length] === '$ref')
+  let token: RawToken | undefined;
+  for (let length = pointerPath.length; length > 0; length -= 1) {
+    const candidate = tokensByPath.get(
+      formatDesignTokenPath(pointerPath.slice(0, length))
     );
+    if (
+      candidate &&
+      (pointerPath.length === candidate.path.length ||
+        pointerPath[candidate.path.length] === '$value' ||
+        pointerPath[candidate.path.length] === '$ref')
+    ) {
+      token = candidate;
+      break;
+    }
+  }
   if (token) {
     const marker = pointerPath[token.path.length];
     return Object.freeze({
@@ -759,11 +758,16 @@ export const decodeDtcgDesignTokenDocument = (
   const groupGraph = new Map<string, readonly string[]>();
   groups.forEach((group) => {
     const target = group.extends?.target;
+    const references = new Set<string>();
+    if (target?.kind === 'group') {
+      references.add(formatDesignTokenPath(target.groupPath));
+    }
+    if (group.parentPath) {
+      references.add(formatDesignTokenPath(group.parentPath));
+    }
     groupGraph.set(
       formatDesignTokenPath(group.path),
-      target?.kind === 'group'
-        ? Object.freeze([formatDesignTokenPath(target.groupPath)])
-        : Object.freeze([])
+      Object.freeze([...references].sort(compareText))
     );
   });
   for (const path of findCycleNodes(groupGraph)) {

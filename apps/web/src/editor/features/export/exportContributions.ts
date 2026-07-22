@@ -15,7 +15,6 @@ import type { WorkspaceRouteManifest } from '@prodivix/router';
 import type { WorkspaceDocument } from '@prodivix/workspace';
 import type { ProjectFile } from '@/editor/features/resources/projectFileStore';
 import { LIBRARY_CATALOG } from '@/editor/features/resources/externalLibraryManager/libraryCatalog';
-import { getBundledOfficialPlugin } from '@/plugins/platform/bundledOfficialPlugins';
 import {
   buildExternalLibrariesValueFromWorkspace,
   getWorkspaceExternalLibrariesDocument,
@@ -214,9 +213,6 @@ const createExternalLibraryDependencies = (
   const value = buildExternalLibrariesValueFromWorkspace(documentsById);
   return value.activeLibraries.flatMap((library): ExportDependency[] => {
     const catalog = LIBRARY_CATALOG[library.id];
-    const metadata = getBundledOfficialPlugin(library.id)
-      ? undefined
-      : value.metadataCache[library.id];
     const primaryPackageName = catalog?.packageName ?? library.id;
     const dependencies = [
       {
@@ -242,7 +238,7 @@ const createExternalLibraryDependencies = (
           updatePolicy: value.mode === 'locked' ? 'pin' : 'follow-package',
           metadata: {
             [dependency.name]: {
-              license: metadata?.license ?? catalog?.license,
+              license: library.license ?? catalog?.license,
               owner: 'third-party',
             },
           },
@@ -269,9 +265,6 @@ const createExternalLibraryConfigContribution = (
 
   const libraries = value.activeLibraries.map((library) => {
     const catalog = LIBRARY_CATALOG[library.id];
-    const metadata = getBundledOfficialPlugin(library.id)
-      ? undefined
-      : value.metadataCache[library.id];
     const packageName = catalog?.packageName ?? library.id;
     return {
       id: library.id,
@@ -279,7 +272,7 @@ const createExternalLibraryConfigContribution = (
       packageDependencies: catalog?.packageDependencies ?? [],
       scope: library.scope,
       version: toDependencyVersion(library.version),
-      license: metadata?.license ?? catalog?.license ?? null,
+      license: library.license ?? catalog?.license ?? null,
     };
   });
   const resolvedSource = resolveWorkspaceDocumentExportSource({

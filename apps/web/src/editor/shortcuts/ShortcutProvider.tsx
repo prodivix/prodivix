@@ -28,6 +28,7 @@ export function EditorShortcutProvider({
 }: EditorShortcutProviderProps) {
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       const registrations = getEditorShortcuts()
         .filter((item) => item.enabled)
         .sort((a, b) => {

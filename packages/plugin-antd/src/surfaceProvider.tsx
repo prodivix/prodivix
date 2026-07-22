@@ -1,43 +1,112 @@
 import {
   createElement,
   useLayoutEffect,
-  useMemo,
-  useState,
   type ElementType,
   type ReactNode,
 } from 'react';
 import { createCache, StyleProvider } from '@ant-design/cssinjs';
 import { ConfigProvider, Drawer, Modal } from 'antd';
 import enUS from 'antd/locale/en_US';
-import { useOfficialReactSurfaceHost } from '@prodivix/plugin-react-host';
+import {
+  useOfficialReactSurfaceHost,
+  type OfficialReactSurfaceHost,
+} from '@prodivix/plugin-react-host';
 
 type AntdSurfaceProviderProps = Readonly<{ children: ReactNode }>;
+
+type AntdSurfaceResource = {
+  container: HTMLElement | ShadowRoot;
+  cache: ReturnType<typeof createCache>;
+  references: number;
+  disposed: boolean;
+  registration?: ReturnType<OfficialReactSurfaceHost['registerCleanup']>;
+};
+
+const cacheBySurfaceHost = new WeakMap<
+  OfficialReactSurfaceHost,
+  AntdSurfaceResource
+>();
+
+const getSurfaceResource = (
+  surfaceHost: OfficialReactSurfaceHost,
+  container: HTMLElement | ShadowRoot
+): AntdSurfaceResource => {
+  const current = cacheBySurfaceHost.get(surfaceHost);
+  if (current?.container === container && !current.disposed) return current;
+  const resource: AntdSurfaceResource = {
+    container,
+    cache: createCache(),
+    references: 0,
+    disposed: false,
+  };
+  cacheBySurfaceHost.set(surfaceHost, resource);
+  return resource;
+};
+
+const disposeSurfaceResource = (
+  surfaceHost: OfficialReactSurfaceHost,
+  resource: AntdSurfaceResource
+) => {
+  if (resource.disposed) return;
+  resource.disposed = true;
+  resource.cache.cache.clear();
+  resource.cache.extracted.clear();
+  resource.container
+    .querySelectorAll<HTMLStyleElement>('style[data-css-hash]')
+    .forEach((style) => {
+      if (
+        (style as HTMLStyleElement & { __cssinjs_instance__?: string })
+          .__cssinjs_instance__ === resource.cache.instanceId
+      ) {
+        style.remove();
+      }
+    });
+  if (cacheBySurfaceHost.get(surfaceHost) === resource) {
+    cacheBySurfaceHost.delete(surfaceHost);
+  }
+  resource.registration?.dispose();
+};
+
+const acquireSurfaceResource = (
+  surfaceHost: OfficialReactSurfaceHost,
+  resource: AntdSurfaceResource
+) => {
+  if (resource.disposed) {
+    resource.disposed = false;
+    cacheBySurfaceHost.set(surfaceHost, resource);
+  }
+  if (resource.references === 0) {
+    resource.registration = surfaceHost.registerCleanup(() =>
+      disposeSurfaceResource(surfaceHost, resource)
+    );
+  }
+  resource.references += 1;
+  let released = false;
+  return () => {
+    if (released || resource.disposed) return;
+    released = true;
+    resource.references -= 1;
+    if (resource.references === 0) {
+      disposeSurfaceResource(surfaceHost, resource);
+    }
+  };
+};
 
 export function AntdSurfaceProvider({ children }: AntdSurfaceProviderProps) {
   const surfaceHost = useOfficialReactSurfaceHost();
   const parentStyleContainer = surfaceHost?.getStyleContainer();
-  const [styleContainer, setStyleContainer] = useState<HTMLElement>();
-  const cache = useMemo(
-    () => (styleContainer ? createCache() : undefined),
-    [styleContainer]
-  );
-
-  useLayoutEffect(() => {
-    if (!surfaceHost || !parentStyleContainer) return;
-    const container = parentStyleContainer.ownerDocument.createElement('div');
-    container.style.display = 'contents';
-    container.dataset.prodivixOfficialStyleOwner = 'antd';
-    parentStyleContainer.append(container);
-    const lease = surfaceHost.registerCleanup(() => container.remove());
-    setStyleContainer(container);
-    return () => lease.dispose();
-  }, [parentStyleContainer, surfaceHost]);
 
   if (!surfaceHost || !parentStyleContainer) {
     throw new Error(
       'Ant Design rendering requires a controlled Prodivix style surface.'
     );
   }
+  const resource = getSurfaceResource(surfaceHost, parentStyleContainer);
+
+  useLayoutEffect(
+    () => acquireSurfaceResource(surfaceHost, resource),
+    [resource, surfaceHost]
+  );
 
   const configured = (
     <ConfigProvider
@@ -66,10 +135,12 @@ export function AntdSurfaceProvider({ children }: AntdSurfaceProviderProps) {
     </ConfigProvider>
   );
 
-  if (!styleContainer || !cache) return null;
-
   return (
-    <StyleProvider cache={cache} container={styleContainer} hashPriority="high">
+    <StyleProvider
+      cache={resource.cache}
+      container={parentStyleContainer}
+      hashPriority="high"
+    >
       {configured}
     </StyleProvider>
   );

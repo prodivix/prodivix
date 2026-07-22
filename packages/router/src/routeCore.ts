@@ -789,13 +789,29 @@ const matchChildren = (
   const children = parent.children ?? [];
   const rankedChildren = [...children].sort((left, right) => {
     if (left.index !== right.index) return left.index ? 1 : -1;
-    const leftStatic = createSegmentMatchers(left).filter(
-      (matcher) => matcher.kind === 'static'
-    ).length;
-    const rightStatic = createSegmentMatchers(right).filter(
-      (matcher) => matcher.kind === 'static'
-    ).length;
-    return rightStatic - leftStatic;
+    const rank = (node: WorkspaceRouteNode) => {
+      const matchers = createSegmentMatchers(node);
+      return {
+        kinds: matchers.map((matcher) =>
+          matcher.kind === 'static' ? 3 : matcher.kind === 'dynamic' ? 2 : 1
+        ),
+        length: matchers.length,
+      };
+    };
+    const leftRank = rank(left);
+    const rightRank = rank(right);
+    const maximumLength = Math.max(
+      leftRank.kinds.length,
+      rightRank.kinds.length
+    );
+    for (let index = 0; index < maximumLength; index += 1) {
+      const difference =
+        (rightRank.kinds[index] ?? 0) - (leftRank.kinds[index] ?? 0);
+      if (difference !== 0) return difference;
+    }
+    return (
+      rightRank.length - leftRank.length || left.id.localeCompare(right.id)
+    );
   });
 
   for (const child of rankedChildren) {

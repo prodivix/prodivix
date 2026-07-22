@@ -10,6 +10,13 @@ import {
 
 type EmbedType = SafeEmbedType;
 
+const BLOCKED_IFRAME_PROP_NAMES = new Set([
+  'children',
+  'dangerouslysetinnerhtml',
+  'src',
+  'srcdoc',
+]);
+
 interface PdxEmbedSpecificProps {
   type: EmbedType;
   url: string;
@@ -24,6 +31,9 @@ interface PdxEmbedSpecificProps {
 type PdxEmbedNativeProps = Omit<
   React.IframeHTMLAttributes<HTMLIFrameElement>,
   | 'src'
+  | 'srcDoc'
+  | 'children'
+  | 'dangerouslySetInnerHTML'
   | 'title'
   | 'width'
   | 'height'
@@ -77,6 +87,11 @@ function PdxEmbed({
   };
 
   const embedUrl = resolveSafeEmbedUrl(type, url);
+  const iframeProps = Object.fromEntries(
+    Object.entries(rest).filter(
+      ([name]) => !BLOCKED_IFRAME_PROP_NAMES.has(name.toLowerCase())
+    )
+  ) as React.IframeHTMLAttributes<HTMLIFrameElement>;
 
   return (
     <div
@@ -95,7 +110,7 @@ function PdxEmbed({
           onLoad={onLoad}
           src={embedUrl}
           title={title || `${type} embed`}
-          {...rest}
+          {...iframeProps}
         />
       </div>
     </div>

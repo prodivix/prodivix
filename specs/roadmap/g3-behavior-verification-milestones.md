@@ -8,8 +8,9 @@
 
 ## 当前判断
 
-G3 的 ADR 56-63 与实施计划已冻结 contract 和预期 Gate，但实现尚未开始；Global G3 Product Gate 被 G2 Exit Gate
-阻塞。本文中的命令和 Evidence 项是后续实施必须建立的验收入口，不代表当前已存在或已通过。
+G2 Exit Gate 已由 commit `3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184` 的 current-scope closure 通过，Global G3
+Product Gate 进入 `In Progress`。ADR 56-63 与实施计划已冻结 contract 和预期 Gate，但实现尚未开始；V0
+owner/contract hard cut 是唯一首个实施入口。本文中的命令和 Evidence 项是后续实施必须建立的验收入口，不代表当前已存在或已通过。
 
 | Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                   |
 | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -194,7 +195,7 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 
 只有同时满足以下条件才允许将 G3 ProductGateStatus 改为 Passed：
 
-- [ ] G2 Exit Gate 已 Passed。
+- [x] G2 Exit Gate 已 Passed。
 - [ ] V0-V7 所有 required milestone 已 Implemented 并有可重复 Gate。
 - [ ] Golden Plan digest 固定且所有 required cell current、compatible、trusted、passed。
 - [ ] 失败/blocked/unstable/过期/revoked negative Golden 正确阻止 Closure。

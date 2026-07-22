@@ -16,10 +16,8 @@ import {
   normalizePackageSizeThresholds,
 } from './externalLibraryManager/viewUtils';
 import {
-  normalizeMetadataCache as normalizeMetadataCacheValue,
   normalizePersistedLibraries as normalizePersistedLibrariesValue,
   pickVersionByMode,
-  type NpmMetadata,
 } from './externalLibraryManager/managerState';
 import {
   findWorkspaceDocumentByPath,
@@ -32,15 +30,10 @@ export type WorkspaceExternalLibrariesValue = {
   activeLibraries: PersistedLibrary[];
   mode: LibraryMode;
   packageSizeThresholds: PackageSizeThresholds;
-  metadataCache: Record<string, NpmMetadata>;
 };
 
 const normalizeMode = (value: unknown): LibraryMode =>
   value === 'latest' || value === 'dev' ? value : 'locked';
-
-const normalizeWorkspaceMetadataCache = (
-  value: unknown
-): Record<string, NpmMetadata> => normalizeMetadataCacheValue(value);
 
 const normalizeWorkspacePersistedLibraries = (
   value: unknown
@@ -53,7 +46,6 @@ const createDefaultExternalLibrariesValue =
     activeLibraries: [],
     mode: 'locked',
     packageSizeThresholds: DEFAULT_PACKAGE_SIZE_THRESHOLDS,
-    metadataCache: {},
   });
 
 export const normalizeExternalLibrariesValue = (
@@ -89,7 +81,6 @@ export const normalizeExternalLibrariesValue = (
         ? (record.packageSizeThresholds as Partial<PackageSizeThresholds>)
         : DEFAULT_PACKAGE_SIZE_THRESHOLDS
     ),
-    metadataCache: normalizeWorkspaceMetadataCache(record.metadataCache),
   };
 };
 
@@ -115,11 +106,20 @@ export const buildExternalLibrariesValueFromWorkspace = (
 const createPersistedLibraryValue = (
   libraryId: string,
   scope: PersistedLibrary['scope'],
-  version: string
+  version: string,
+  license?: string
 ): PersistedLibrary | null => {
   const id = normalizeLibraryIds([libraryId])[0];
   if (!id) return null;
-  return { id, scope, version };
+  const normalizedLicense = license?.trim();
+  return {
+    id,
+    scope,
+    version,
+    ...(normalizedLicense && normalizedLicense !== 'Unknown'
+      ? { license: normalizedLicense }
+      : {}),
+  };
 };
 
 export const ensurePersistedLibrary = (
@@ -138,10 +138,12 @@ export const createInitialPersistedLibrary = (
   scope: PersistedLibrary['scope'],
   versions: string[],
   mode: LibraryMode,
-  preferredVersion?: string
+  preferredVersion?: string,
+  license?: string
 ) =>
   createPersistedLibraryValue(
     libraryId,
     scope,
-    preferredVersion?.trim() || pickVersionByMode(versions, mode)
+    preferredVersion?.trim() || pickVersionByMode(versions, mode),
+    license
   );

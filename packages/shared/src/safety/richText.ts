@@ -72,13 +72,22 @@ const toCamelCase = (value: string) =>
   value.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
 
 const decodeHtmlEntity = (entity: string) => {
+  const decodeCodePoint = (value: string, radix: number) => {
+    const digits = radix === 16 ? /^[0-9a-f]+$/i : /^\d+$/;
+    if (!digits.test(value)) return null;
+    const codePoint = Number.parseInt(value, radix);
+    return Number.isInteger(codePoint) &&
+      codePoint >= 0 &&
+      codePoint <= 0x10ffff &&
+      !(codePoint >= 0xd800 && codePoint <= 0xdfff)
+      ? String.fromCodePoint(codePoint)
+      : null;
+  };
   if (entity.startsWith('#x') || entity.startsWith('#X')) {
-    const codePoint = Number.parseInt(entity.slice(2), 16);
-    return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : null;
+    return decodeCodePoint(entity.slice(2), 16);
   }
   if (entity.startsWith('#')) {
-    const codePoint = Number.parseInt(entity.slice(1), 10);
-    return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : null;
+    return decodeCodePoint(entity.slice(1), 10);
   }
   return HTML_ENTITIES[entity] ?? null;
 };

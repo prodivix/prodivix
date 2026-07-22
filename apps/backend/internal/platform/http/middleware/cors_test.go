@@ -44,3 +44,24 @@ func TestCORSAllowsRemoteCapabilityHeadersPreflight(t *testing.T) {
 		t.Fatalf("Server Function mutation intent header missing from CORS allowlist: %q", response.Header().Get("Access-Control-Allow-Headers"))
 	}
 }
+
+func TestCORSDeniesOriginsWhenAllowlistIsEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(CORS(nil))
+	router.GET("/api/ping", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/ping", nil)
+	request.Header.Set("Origin", "https://untrusted.example")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected empty allowlist to deny cross-origin request, got %d", response.Code)
+	}
+	if response.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("unexpected reflected origin %q", response.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
