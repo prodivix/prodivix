@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { editorApi } from '@/editor/editorApi';
-import { executeWorkspaceSettingsOutboxCommit } from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
+import {
+  enqueueWorkspaceSettingsOutboxCommit,
+  executeWorkspaceSettingsOutboxCommit,
+} from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
 import { createEditorWorkspace } from '@/test-utils/editorStore';
 import {
   createMemoryWorkspaceOutboxStore,
@@ -83,6 +86,42 @@ describe('executeWorkspaceSettingsOutboxCommit', () => {
     expect(await store.get('settings-local')).toMatchObject({
       request: { commitId: 'settings-local', settings: { theme: 'dark' } },
       state: { kind: 'retry-wait' },
+    });
+  });
+});
+
+describe('enqueueWorkspaceSettingsOutboxCommit', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('persists settings without bypassing the globally ordered outbox drain', async () => {
+    const base = createEditorWorkspace();
+    const store =
+      createMemoryWorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>();
+    const commit = vi.spyOn(editorApi, 'commitWorkspaceSettings');
+
+    const result = await enqueueWorkspaceSettingsOutboxCommit({
+      baseSnapshot: base,
+      baseSettings: { theme: 'light' },
+      settings: { theme: 'dark' },
+      commitId: 'settings-queued',
+      store,
+    });
+
+    expect(result).toMatchObject({
+      kind: 'queued',
+      entry: {
+        id: 'settings-queued',
+        request: {
+          expectedWorkspaceRev: base.workspaceRev,
+          settings: { theme: 'dark' },
+        },
+        state: { kind: 'queued' },
+      },
+    });
+    expect(commit).not.toHaveBeenCalled();
+    await expect(store.get('settings-queued')).resolves.toMatchObject({
+      request: { settings: { theme: 'dark' } },
+      state: { kind: 'queued' },
     });
   });
 });

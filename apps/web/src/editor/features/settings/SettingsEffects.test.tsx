@@ -11,7 +11,7 @@ const harness = vi.hoisted(() => ({
     setWorkspaceHistoryLimit: vi.fn(),
   },
   ensureProjectGlobal: vi.fn(),
-  executeCommit: vi.fn(),
+  enqueueCommit: vi.fn(),
   settingsState: {
     global: {
       language: 'zh-CN',
@@ -52,7 +52,7 @@ vi.mock('@/editor/localProjectStore', () => ({
 }));
 
 vi.mock('@/editor/workspaceSync/workspaceSettingsOutboxExecutor', () => ({
-  executeWorkspaceSettingsOutboxCommit: harness.executeCommit,
+  enqueueWorkspaceSettingsOutboxCommit: harness.enqueueCommit,
 }));
 
 vi.mock('@/editor/workspaceSync/workspaceSettingsOutboxAdoption', () => ({
@@ -89,20 +89,8 @@ describe('SettingsEffects', () => {
     vi.useRealTimers();
   });
 
-  it('does not resubmit an acknowledged value whose object keys were reordered', async () => {
-    harness.executeCommit.mockResolvedValue({
-      kind: 'acknowledged',
-      settings: {
-        global: {
-          density: 'comfortable',
-          fontScale: 100,
-          language: 'zh-CN',
-          theme: 'home',
-          undoSteps: 81,
-        },
-        projectGlobalById: {},
-      },
-    });
+  it('does not re-enqueue a value whose object keys were reordered', async () => {
+    harness.enqueueCommit.mockResolvedValue({ kind: 'queued' });
     const rendered = render(<SettingsEffects />);
 
     harness.settingsState.global = {
@@ -116,7 +104,7 @@ describe('SettingsEffects', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
-    expect(harness.executeCommit).toHaveBeenCalledTimes(1);
+    expect(harness.enqueueCommit).toHaveBeenCalledTimes(1);
 
     const acknowledgedWorkspace = harness.editorState.workspace as ReturnType<
       typeof createEditorWorkspace
@@ -131,6 +119,6 @@ describe('SettingsEffects', () => {
       await vi.advanceTimersByTimeAsync(1_000);
     });
 
-    expect(harness.executeCommit).toHaveBeenCalledTimes(1);
+    expect(harness.enqueueCommit).toHaveBeenCalledTimes(1);
   });
 });

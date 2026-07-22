@@ -48,6 +48,11 @@ export type WorkspaceSettingsOutboxExecutionResult =
       submittedSettings: Readonly<Record<string, unknown>>;
     }>;
 
+export type WorkspaceSettingsOutboxEnqueueResult = Extract<
+  WorkspaceSettingsOutboxExecutionResult,
+  Readonly<{ kind: 'already-applied' | 'queued' }>
+>;
+
 type ExecuteClaimedInput = {
   automaticRebaseAttempts: number;
   entry: WorkspaceSettingsOutboxEntry;
@@ -309,15 +314,13 @@ async function executeClaimed(
   }
 }
 
-export const executeWorkspaceSettingsOutboxCommit = async (input: {
+export const enqueueWorkspaceSettingsOutboxCommit = async (input: {
   baseSettings: Readonly<Record<string, unknown>>;
   baseSnapshot: WorkspaceSnapshot;
   commitId: string;
   settings: Readonly<Record<string, unknown>>;
-  replicaWriter?: WorkspaceLocalReplicaWriter;
   store?: WorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>;
-  token: string;
-}): Promise<WorkspaceSettingsOutboxExecutionResult> => {
+}): Promise<WorkspaceSettingsOutboxEnqueueResult> => {
   if (workspaceSettingsEqual(input.baseSettings, input.settings)) {
     return {
       kind: 'already-applied',
@@ -329,9 +332,6 @@ export const executeWorkspaceSettingsOutboxCommit = async (input: {
     };
   }
   const store = input.store ?? workspaceSettingsOutboxStore;
-  const replicaWriter =
-    input.replicaWriter ??
-    (input.store ? undefined : persistAcknowledgedWorkspaceLocalReplica);
   const created = createWorkspaceSettingsOutboxEntry({
     baseSnapshot: input.baseSnapshot,
     baseSettings: input.baseSettings,
@@ -343,9 +343,33 @@ export const executeWorkspaceSettingsOutboxCommit = async (input: {
   if (created.ok === false) throw new Error(created.message);
   await store.enqueue(created.entry);
   notifyWorkspaceOutboxChanged(created.entry.workspaceId);
+  return { kind: 'queued', entry: created.entry };
+};
+
+export const executeWorkspaceSettingsOutboxCommit = async (input: {
+  baseSettings: Readonly<Record<string, unknown>>;
+  baseSnapshot: WorkspaceSnapshot;
+  commitId: string;
+  settings: Readonly<Record<string, unknown>>;
+  replicaWriter?: WorkspaceLocalReplicaWriter;
+  store?: WorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>;
+  token: string;
+}): Promise<WorkspaceSettingsOutboxExecutionResult> => {
+  const store = input.store ?? workspaceSettingsOutboxStore;
+  const replicaWriter =
+    input.replicaWriter ??
+    (input.store ? undefined : persistAcknowledgedWorkspaceLocalReplica);
+  const enqueued = await enqueueWorkspaceSettingsOutboxCommit({
+    baseSettings: input.baseSettings,
+    baseSnapshot: input.baseSnapshot,
+    commitId: input.commitId,
+    settings: input.settings,
+    store,
+  });
+  if (enqueued.kind !== 'queued') return enqueued;
   const leaseOwnerId = createWorkspaceClientOperationId('settings-owner');
   const claimed = await store.claim({
-    entryId: created.entry.id,
+    entryId: enqueued.entry.id,
     leaseOwnerId,
     now: Date.now(),
     leaseDurationMs: LEASE_DURATION_MS,
@@ -353,7 +377,7 @@ export const executeWorkspaceSettingsOutboxCommit = async (input: {
   if (!claimed) {
     return {
       kind: 'queued',
-      entry: (await store.get(created.entry.id)) ?? created.entry,
+      entry: (await store.get(enqueued.entry.id)) ?? enqueued.entry,
     };
   }
   return executeClaimed({

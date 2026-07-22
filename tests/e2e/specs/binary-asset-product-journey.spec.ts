@@ -110,7 +110,9 @@ type WireWorkspace = {
 type BinaryAssetApiHarness = {
   uploadCount: number;
   settingsCommitCount: number;
+  settingsConflictCount: number;
   commitCount: number;
+  operationConflictCount: number;
   materializationCount: number;
   materializationCountAfterReload: number;
   deliverySessionCount: number;
@@ -230,6 +232,36 @@ const fulfillJson = (
     body: JSON.stringify(value),
   });
 
+const fulfillWorkspaceRevisionConflict = (
+  route: Route,
+  expectedWorkspaceRev: number,
+  workspace: WireWorkspace
+): Promise<void> =>
+  fulfillJson(
+    route,
+    {
+      error: {
+        code: 'WKS-4001',
+        message: 'Workspace revision conflict.',
+        severity: 'warning',
+        domain: 'workspace',
+        retryable: true,
+        requestId: 'binary-asset-e2e-conflict',
+        details: {
+          conflictType: 'WORKSPACE_CONFLICT',
+          workspaceId: workspace.id,
+          expected: { workspaceRev: expectedWorkspaceRev },
+          current: {
+            workspaceRev: workspace.workspaceRev,
+            routeRev: workspace.routeRev,
+            opSeq: workspace.opSeq,
+          },
+        },
+      },
+    },
+    409
+  );
+
 const readWireDocument = (value: unknown): WireDocument => {
   const document = requireRecord(value, 'operation document');
   const name =
@@ -329,7 +361,9 @@ const installBinaryAssetApiHarness = async (
   const harness: BinaryAssetApiHarness = {
     uploadCount: 0,
     settingsCommitCount: 0,
+    settingsConflictCount: 0,
     commitCount: 0,
+    operationConflictCount: 0,
     materializationCount: 0,
     materializationCountAfterReload: 0,
     deliverySessionCount: 0,
@@ -469,9 +503,22 @@ const installBinaryAssetApiHarness = async (
         settingsRequest.commitId,
         'settings commit request.commitId'
       );
-      expect(settingsRequest.expectedWorkspaceRev).toBe(
-        harness.canonicalWorkspace.workspaceRev
+      const expectedWorkspaceRev = requireInteger(
+        settingsRequest.expectedWorkspaceRev,
+        'settings commit request.expectedWorkspaceRev'
       );
+      if (expectedWorkspaceRev !== harness.canonicalWorkspace.workspaceRev) {
+        expect(expectedWorkspaceRev).toBeLessThan(
+          harness.canonicalWorkspace.workspaceRev
+        );
+        harness.settingsConflictCount += 1;
+        await fulfillWorkspaceRevisionConflict(
+          route,
+          expectedWorkspaceRev,
+          harness.canonicalWorkspace
+        );
+        return;
+      }
       const settings = requireRecord(
         settingsRequest.settings,
         'settings commit request.settings'
@@ -504,13 +551,26 @@ const installBinaryAssetApiHarness = async (
         'commit request'
       );
       const expected = requireRecord(requestBody.expected, 'commit expected');
-      expect(expected.workspaceRev).toBe(
-        harness.canonicalWorkspace.workspaceRev
+      const expectedWorkspaceRev = requireInteger(
+        expected.workspaceRev,
+        'commit expected.workspaceRev'
       );
       expect(expected).not.toHaveProperty('routeRev');
       expect(expected.documents).toEqual([
         { id: ASSET_DOCUMENT_ID, contentRev: null, metaRev: null },
       ]);
+      if (expectedWorkspaceRev !== harness.canonicalWorkspace.workspaceRev) {
+        expect(expectedWorkspaceRev).toBeLessThan(
+          harness.canonicalWorkspace.workspaceRev
+        );
+        harness.operationConflictCount += 1;
+        await fulfillWorkspaceRevisionConflict(
+          route,
+          expectedWorkspaceRev,
+          harness.canonicalWorkspace
+        );
+        return;
+      }
 
       const operation = requireRecord(
         requestBody.operation,
@@ -762,6 +822,11 @@ test.describe('Binary Asset product journey', () => {
 
     expect(harness.deliverySessionCount).toBe(1);
     expect(harness.settingsCommitCount).toBe(1);
+    expect(harness.settingsConflictCount).toBeLessThanOrEqual(1);
+    expect(harness.operationConflictCount).toBeLessThanOrEqual(1);
+    expect(
+      harness.settingsConflictCount + harness.operationConflictCount
+    ).toBeLessThanOrEqual(1);
     expect(harness.deliveryRequests).toEqual([
       { transform: 'jpeg-raster-reencode', disposition: 'inline' },
     ]);

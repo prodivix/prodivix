@@ -5,7 +5,7 @@ import { useAuthStore } from '@/auth/useAuthStore';
 import { selectWorkspace, useEditorStore } from '@/editor/store/useEditorStore';
 import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { isLocalProjectId } from '@/editor/localProjectStore';
-import { executeWorkspaceSettingsOutboxCommit } from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
+import { enqueueWorkspaceSettingsOutboxCommit } from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
 import { adoptWorkspaceSettingsOutboxResult } from '@/editor/workspaceSync/workspaceSettingsOutboxAdoption';
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 import { workspaceSettingsEqual } from '@prodivix/workspace-sync';
@@ -98,8 +98,7 @@ export const SettingsEffects = () => {
     settingsSyncRequestSeqRef.current = requestSeq;
     const baseSettings = syncedSettingsValueRef.current;
     const timeoutId = window.setTimeout(() => {
-      void executeWorkspaceSettingsOutboxCommit({
-        token,
+      void enqueueWorkspaceSettingsOutboxCommit({
         baseSnapshot: workspace,
         baseSettings,
         settings: settingsPayload,
