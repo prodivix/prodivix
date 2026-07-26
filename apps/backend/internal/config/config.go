@@ -196,6 +196,9 @@ type GitHubAppConfig struct {
 	PrivateKey    string
 	WebhookSecret string
 	SetupURL      string
+	// Overridable so a deployment can front GitHub with its own egress proxy.
+	OAuthBaseURL string
+	APIBaseURL   string
 }
 
 func LoadConfig() (Config, error) {
@@ -323,6 +326,8 @@ func LoadConfig() (Config, error) {
 			PrivateKey:    getEnv("GITHUB_APP_PRIVATE_KEY", ""),
 			WebhookSecret: getEnv("GITHUB_APP_WEBHOOK_SECRET", ""),
 			SetupURL:      getEnv("GITHUB_APP_SETUP_URL", ""),
+			OAuthBaseURL:  getEnv("GITHUB_OAUTH_BASE_URL", ""),
+			APIBaseURL:    getEnv("GITHUB_API_BASE_URL", ""),
 		},
 		RemoteRunner: RemoteRunnerConfig{
 			BaseURL:                      strings.TrimRight(getEnv("REMOTE_RUNNER_CONTROL_PLANE_URL", ""), "/"),

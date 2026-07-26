@@ -535,22 +535,26 @@ const mergeDocument = (
     target: documentTarget(remoteDocument, 'content', language),
     ...(remoteDocument.type === 'code' ? { textPath: '/source' } : {}),
   };
-  const content = forceStructuralConflict
-    ? chooseConflictState(
-        'structural',
-        '',
-        present(baseDocument.content),
-        present(localDocument.content),
-        present(remoteDocument.content),
-        contentContext
-      )
-    : mergeValueStates(
-        present(baseDocument.content),
-        present(localDocument.content),
-        present(remoteDocument.content),
-        '',
-        contentContext
-      );
+  const baseContent = present(baseDocument.content);
+  const localContent = present(localDocument.content);
+  const remoteContent = present(remoteDocument.content);
+  const content =
+    forceStructuralConflict && !statesEqual(localContent, remoteContent, '')
+      ? chooseConflictState(
+          'structural',
+          '',
+          baseContent,
+          localContent,
+          remoteContent,
+          contentContext
+        )
+      : mergeValueStates(
+          baseContent,
+          localContent,
+          remoteContent,
+          '',
+          contentContext
+        );
   if (!metadata.present || !isRecord(metadata.value) || !content.present) {
     return undefined;
   }
@@ -700,9 +704,16 @@ const mergeWorkspace = (
       : localActiveDocumentId && docsById[localActiveDocumentId]
         ? localActiveDocumentId
         : undefined;
+  // The stale remote selection must not survive the spread: when the merge
+  // removed both the remote and the local active document the candidate would
+  // otherwise keep a dangling `activeDocumentId` and fail snapshot validation.
+  const {
+    activeDocumentId: _staleActiveDocumentId,
+    ...remoteWithoutSelection
+  } = remote;
   return {
     snapshot: {
-      ...remote,
+      ...remoteWithoutSelection,
       treeRootId:
         typeof treeValue.treeRootId === 'string'
           ? treeValue.treeRootId

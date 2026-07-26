@@ -61,7 +61,10 @@ export const dispatchWorkspaceAuthoringOperation = async (input: {
     try {
       await commitLocalProjectWorkspaceOutbox(input.workspace.id);
     } catch (error) {
-      console.warn(
+      // The operation stays in the Durable Outbox, so the save indicator keeps
+      // reporting pending work and the next load surfaces the divergence. Log
+      // at error level so this is not filtered out as routine noise.
+      console.error(
         '[local-workspace-outbox] operation remains durably queued',
         error
       );

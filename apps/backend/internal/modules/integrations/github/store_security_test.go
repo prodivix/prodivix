@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 
@@ -118,7 +119,10 @@ WHERE binding.installation_id = $1
 	}
 }
 
-func TestConsumeInstallationSetupStateCreatesFirstInstallationGrant(t *testing.T) {
+// The setup state proves only which Prodivix user started the flow. It must
+// never grant anything on its own, and it must be burned on every attempt: a
+// reusable token turns the callback into an installation-id enumeration oracle.
+func TestConsumeInstallationSetupStateBurnsTheTokenAndGrantsNothing(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -132,22 +136,31 @@ func TestConsumeInstallationSetupStateCreatesFirstInstallationGrant(t *testing.T
 		FOR UPDATE`)).WithArgs(tokenHash).WillReturnRows(
 		sqlmock.NewRows([]string{"user_id"}).AddRow("usr_1"),
 	)
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO github_installation_user_access (
-		user_id, installation_id, status, created_at, updated_at
-	)
-	SELECT $1, installation_id, 'active', NOW(), NOW()
-	FROM github_installations
-	WHERE installation_id = $2 AND status = 'active'
-	ON CONFLICT (user_id, installation_id) DO UPDATE
-	SET status = 'active', updated_at = NOW()`)).WithArgs("usr_1", int64(42)).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta(`UPDATE github_installation_setup_states
 		SET consumed_at = NOW()
 		WHERE token_hash = $1`)).WithArgs(tokenHash).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
-	userID, err := NewStore(db).ConsumeInstallationSetupState(context.Background(), "setup-state", 42)
+	userID, err := NewStore(db).ConsumeInstallationSetupState(context.Background(), "setup-state")
 	if err != nil || userID != "usr_1" {
-		t.Fatalf("expected first installation grant: userID=%q err=%v", userID, err)
+		t.Fatalf("expected the state to resolve its user: userID=%q err=%v", userID, err)
+	}
+	// No INSERT into github_installation_user_access is expected here; an
+	// unmet-or-extra expectation fails the test.
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGrantInstallationAccessRejectsEmptyPrincipal(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := NewStore(db).GrantInstallationAccess(context.Background(), "  ", 42); !errors.Is(err, ErrInstallationSetupStateInvalid) {
+		t.Fatalf("expected an invalid principal to fail closed: err=%v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

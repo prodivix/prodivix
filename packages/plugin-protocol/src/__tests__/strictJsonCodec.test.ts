@@ -81,4 +81,24 @@ describe('strict protocol JSON codec', () => {
     expect(result.ok).toBe(false);
     expect(result.diagnostics[0]?.code).toBe('PLG-4020');
   });
+
+  it('rejects a __proto__ key instead of hiding the subtree from the limits', () => {
+    // A `__proto__` key reaches the prototype setter rather than becoming an
+    // own property, so limit inspection would walk an apparently empty object
+    // while schema validation still resolves the payload down the prototype
+    // chain — and every byte-accounting consumer would measure "{}".
+    const text = `{"__proto__":${JSON.stringify({ a: { b: { c: [1, 2, 3, 4] } } })}}`;
+
+    const result = decodeProtocolJsonText(text, { maxNodes: 5, maxDepth: 2 });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a __proto__-smuggled envelope that would pass schema validation', () => {
+    const result = decodeRuntimeEnvelopeV1(
+      `{"__proto__":${JSON.stringify(envelope())}}`
+    );
+
+    expect(result.ok).toBe(false);
+  });
 });

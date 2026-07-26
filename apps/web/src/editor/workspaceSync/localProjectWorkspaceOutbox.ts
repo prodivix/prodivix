@@ -4,6 +4,7 @@ import {
   type WorkspaceOperation,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import {
   compareWorkspaceOutboxEntries,
   type WorkspaceOutboxEntry,
@@ -18,11 +19,17 @@ import { notifyWorkspaceOutboxChanged } from './workspaceOutboxSignals';
 
 const localCommitChains = new Map<string, Promise<LocalProjectRecord | null>>();
 
+/**
+ * One side of this comparison came back through the Workspace codec, which
+ * re-sorts `docsById` by path and rebuilds document fields in canonical order,
+ * while the other side is the raw in-memory snapshot. Raw `JSON.stringify` is
+ * key-order sensitive, so it reports a divergence for two identical snapshots.
+ */
 const authoringSnapshotJson = (snapshot: WorkspaceSnapshot): string => {
   const authoring = { ...snapshot };
   delete authoring.activeDocumentId;
   delete authoring.activeRouteNodeId;
-  return JSON.stringify(authoring);
+  return canonicalJsonText(authoring);
 };
 
 const sameAuthoringSnapshot = (

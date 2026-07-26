@@ -35,9 +35,12 @@ type InstallationRecord struct {
 	AccountType    string             `json:"accountType"`
 	AccountID      int64              `json:"accountId"`
 	Status         InstallationStatus `json:"status"`
-	Raw            json.RawMessage    `json:"raw,omitempty"`
-	CreatedAt      time.Time          `json:"createdAt"`
-	UpdatedAt      time.Time          `json:"updatedAt"`
+	// InstallerGitHubUserID is the webhook sender for the `installation` event.
+	// Kept for audit; authorization is decided against GitHub, not this column.
+	InstallerGitHubUserID int64           `json:"-"`
+	Raw                   json.RawMessage `json:"raw,omitempty"`
+	CreatedAt             time.Time       `json:"createdAt"`
+	UpdatedAt             time.Time       `json:"updatedAt"`
 }
 
 type InstallationRepositoryRecord struct {
@@ -109,6 +112,13 @@ type GitHubWebhookPayload struct {
 			Type  string `json:"type"`
 		} `json:"account"`
 	} `json:"installation"`
+	// Sender is the GitHub account that performed the action. For an
+	// `installation` event it is the installer, which is the only server-side
+	// record of who created the installation.
+	Sender *struct {
+		ID    int64  `json:"id"`
+		Login string `json:"login"`
+	} `json:"sender"`
 	Repositories        []GitHubRepositoryPayload `json:"repositories"`
 	RepositoriesAdded   []GitHubRepositoryPayload `json:"repositories_added"`
 	RepositoriesRemoved []GitHubRepositoryPayload `json:"repositories_removed"`

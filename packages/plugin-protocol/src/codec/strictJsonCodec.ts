@@ -89,7 +89,16 @@ const isWellFormedUnicode = (source: string): boolean => {
   return true;
 };
 
-const duplicateKeyDiagnostics = (source: string): PluginDiagnostic[] => {
+/**
+ * `__proto__` must never reach the value builder: jsonc-parser assigns object
+ * properties with `parent[key] = value` on a plain `{}`, so the key would
+ * invoke the `Object.prototype.__proto__` setter and hide the whole subtree
+ * from every own-property consumer while schema validation still walks it
+ * through the prototype chain.
+ */
+const UNSAFE_OBJECT_KEYS: ReadonlySet<string> = new Set(['__proto__']);
+
+const objectKeyDiagnostics = (source: string): PluginDiagnostic[] => {
   const objectKeys: Array<Set<string>> = [];
   const diagnostics: PluginDiagnostic[] = [];
   visit(
@@ -99,6 +108,15 @@ const duplicateKeyDiagnostics = (source: string): PluginDiagnostic[] => {
         objectKeys.push(new Set());
       },
       onObjectProperty: (property, offset, length) => {
+        if (UNSAFE_OBJECT_KEYS.has(property)) {
+          diagnostics.push(
+            malformed(
+              `Protocol message uses the reserved object key ${JSON.stringify(property)}.`,
+              { offset, length }
+            )
+          );
+          return;
+        }
         const current = objectKeys.at(-1);
         if (!current?.has(property)) {
           current?.add(property);
@@ -169,6 +187,12 @@ const inspectJsonValue = (
       continue;
     }
     if (valueType === 'object') {
+      const prototype = Object.getPrototypeOf(current.value);
+      if (prototype !== Object.prototype && prototype !== null) {
+        return protocolFailure([
+          malformed('Protocol message contains a non-plain object.'),
+        ]);
+      }
       for (const child of Object.values(current.value as object)) {
         pending.push({ value: child, depth: current.depth + 1 });
       }
@@ -221,7 +245,7 @@ export const decodeProtocolJsonText = (
         { offset: error.offset, length: error.length }
       )
     ),
-    ...duplicateKeyDiagnostics(source),
+    ...objectKeyDiagnostics(source),
   ];
   if (diagnostics.length > 0) {
     return protocolFailure(

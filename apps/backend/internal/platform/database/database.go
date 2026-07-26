@@ -566,6 +566,24 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 		)`,
 			`CREATE INDEX IF NOT EXISTS idx_github_installation_setup_states_expiry ON github_installation_setup_states(expires_at) WHERE consumed_at IS NULL`,
 		},
+	}, {
+		version: 14,
+		name:    "github-user-identity-linkage",
+		statements: []string{
+			// Installation access is granted only to a Prodivix user whose linked
+			// GitHub account GitHub itself reports as able to reach the
+			// installation. Without this linkage the setup callback had to trust a
+			// client-supplied installation_id.
+			`CREATE TABLE IF NOT EXISTS github_user_identities (
+			user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+			github_user_id BIGINT NOT NULL,
+			github_login TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_github_user_identities_github_user ON github_user_identities(github_user_id)`,
+			`ALTER TABLE github_installations ADD COLUMN IF NOT EXISTS installer_github_user_id BIGINT NOT NULL DEFAULT 0`,
+		},
 	}}
 
 	tx, err := db.BeginTx(ctx, nil)

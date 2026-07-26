@@ -154,10 +154,11 @@ export function WorkspaceOutboxEffects() {
           state.workspace?.id === workspaceId &&
           state.workspaceRevisionConflict?.id !== operationHead.state.session.id
         ) {
-          state.setWorkspaceSnapshot(operationHead.state.session.localSnapshot);
-          useEditorStore
-            .getState()
-            .openWorkspaceRevisionConflict(operationHead.state.session);
+          // Only reopen the session. Seeding the canonical snapshot from the
+          // entry would discard every edit made after the session was captured,
+          // along with the undo stack. `prepareWorkspaceConflictResolution`
+          // already folds those edits in by rebasing onto the live snapshot.
+          state.openWorkspaceRevisionConflict(operationHead.state.session);
         }
       } else if (head?.state.kind === 'retry-wait') {
         const delay = Math.max(0, head.state.nextAttemptAt - Date.now());

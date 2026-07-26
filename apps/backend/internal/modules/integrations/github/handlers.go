@@ -26,6 +26,7 @@ type ProjectReader interface {
 type Handler struct {
 	store       *Store
 	projects    ProjectReader
+	identities  UserIdentityVerifier
 	cfg         backendconfig.GitHubAppConfig
 	environment string
 }
@@ -34,7 +35,23 @@ const maximumGitHubWebhookBytes = 2 << 20
 const githubInstallationSetupStateTTL = 10 * time.Minute
 
 func NewHandler(store *Store, projects ProjectReader, cfg backendconfig.GitHubAppConfig, environment string) *Handler {
-	return &Handler{store: store, projects: projects, cfg: cfg, environment: strings.ToLower(strings.TrimSpace(environment))}
+	handler := &Handler{
+		store:       store,
+		projects:    projects,
+		cfg:         cfg,
+		environment: strings.ToLower(strings.TrimSpace(environment)),
+	}
+	if strings.TrimSpace(cfg.ClientID) != "" && strings.TrimSpace(cfg.ClientSecret) != "" {
+		handler.identities = NewUserIdentityVerifier(cfg.ClientID, cfg.ClientSecret, cfg.OAuthBaseURL, cfg.APIBaseURL, nil)
+	}
+	return handler
+}
+
+// WithUserIdentityVerifier swaps the GitHub authority, for tests and for
+// deployments that front GitHub with their own egress proxy.
+func (handler *Handler) WithUserIdentityVerifier(verifier UserIdentityVerifier) *Handler {
+	handler.identities = verifier
+	return handler
 }
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
@@ -136,21 +153,64 @@ func (handler *Handler) HandleBeginSetup(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"setupUrl": setupURL.String(), "expiresAt": expiresAt})
 }
 
+// HandleCompleteSetup grants installation access only when GitHub itself
+// confirms that the account which just authorized the callback can reach the
+// installation. The client-supplied installation_id is never trusted on its
+// own, and the setup state is consumed on every attempt so a rejection cannot
+// be replayed to enumerate installation ids.
 func (handler *Handler) HandleCompleteSetup(c *gin.Context) {
 	installationID, err := parsePositiveInt64(c.Query("installation_id"))
 	if err != nil {
 		respondError(c, http.StatusBadRequest, "API-4001", "installation_id must be a positive integer.")
 		return
 	}
-	if _, err := handler.store.ConsumeInstallationSetupState(c.Request.Context(), c.Query("state"), installationID); err != nil {
-		switch {
-		case errors.Is(err, ErrInstallationSetupStateInvalid):
+	ctx := c.Request.Context()
+	userID, err := handler.store.ConsumeInstallationSetupState(ctx, c.Query("state"))
+	if err != nil {
+		if errors.Is(err, ErrInstallationSetupStateInvalid) {
 			respondError(c, http.StatusBadRequest, "API-2001", "GitHub installation setup state is invalid or expired.")
-		case errors.Is(err, ErrInstallationNotFound):
-			respondError(c, http.StatusConflict, "API-6001", "GitHub installation webhook has not been received yet.")
-		default:
-			respondError(c, http.StatusInternalServerError, "API-6001", "Could not complete GitHub installation setup.")
+			return
 		}
+		respondError(c, http.StatusInternalServerError, "API-6001", "Could not complete GitHub installation setup.")
+		return
+	}
+	if handler.identities == nil {
+		respondError(c, http.StatusServiceUnavailable, "API-5001", "GitHub user authorization is not configured.")
+		return
+	}
+	userToken, err := handler.identities.ExchangeUserAuthorization(ctx, c.Query("code"))
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "API-2001", "GitHub did not authorize this installation setup.")
+		return
+	}
+	identity, err := handler.identities.ResolveUserIdentity(ctx, userToken)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "API-2001", "GitHub did not authorize this installation setup.")
+		return
+	}
+	allowed, err := handler.identities.UserCanAccessInstallation(ctx, userToken, installationID)
+	if err != nil && !errors.Is(err, ErrUserInstallationAccessDenied) {
+		respondError(c, http.StatusInternalServerError, "API-6001", "Could not complete GitHub installation setup.")
+		return
+	}
+	if !allowed {
+		respondError(c, http.StatusForbidden, "API-2001", "This GitHub account cannot access the installation.")
+		return
+	}
+	if err := handler.store.LinkGitHubUserIdentity(ctx, userID, identity); err != nil {
+		if errors.Is(err, ErrGitHubIdentityConflict) {
+			respondError(c, http.StatusConflict, "API-2001", "This GitHub account is already linked to another user.")
+			return
+		}
+		respondError(c, http.StatusInternalServerError, "API-6001", "Could not complete GitHub installation setup.")
+		return
+	}
+	if err := handler.store.GrantInstallationAccess(ctx, userID, installationID); err != nil {
+		if errors.Is(err, ErrInstallationNotFound) {
+			respondError(c, http.StatusConflict, "API-6001", "GitHub installation webhook has not been received yet.")
+			return
+		}
+		respondError(c, http.StatusInternalServerError, "API-6001", "Could not complete GitHub installation setup.")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"connected": true, "installationId": installationID})
@@ -335,6 +395,9 @@ func (handler *Handler) applyInstallationPayload(ctx context.Context, eventType 
 		record.AccountID = payload.Installation.Account.ID
 		record.AccountLogin = payload.Installation.Account.Login
 		record.AccountType = payload.Installation.Account.Type
+	}
+	if eventType == "installation" && payload.Sender != nil && payload.Sender.ID > 0 {
+		record.InstallerGitHubUserID = payload.Sender.ID
 	}
 	if _, err := handler.store.UpsertInstallation(ctx, record); err != nil {
 		return err

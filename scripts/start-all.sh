@@ -208,7 +208,7 @@ docker compose -f apps/backend/docker-compose.yml up -d
 
 echo "==> Building backend"
 pushd apps/backend >/dev/null
-go build -o backend .
+go build -o backend ./cmd/server
 popd >/dev/null
 
 echo "==> Building frontend"

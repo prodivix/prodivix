@@ -88,6 +88,11 @@ FOR UPDATE`)).WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "id", "con
 	mock.ExpectExec("CREATE TABLE IF NOT EXISTS github_installation_setup_states").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_github_installation_setup_states_expiry").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(13), "github-installation-user-access").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(14)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS github_user_identities").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("CREATE UNIQUE INDEX IF NOT EXISTS idx_github_user_identities_github_user").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("ALTER TABLE github_installations ADD COLUMN IF NOT EXISTS installer_github_user_id").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(14), "github-user-identity-linkage").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	if err := RunMigrations(context.Background(), db); err != nil {

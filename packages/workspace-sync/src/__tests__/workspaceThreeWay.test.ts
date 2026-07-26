@@ -158,6 +158,38 @@ describe('workspace three-way recovery', () => {
     });
   });
 
+  it('accepts the same PIR node deletion on both sides as already applied', () => {
+    const base = createWorkspace({
+      ui: {
+        graph: {
+          rootId: 'root',
+          nodesById: {
+            root: { id: 'root', kind: 'element', type: 'container' },
+            heading: { id: 'heading', kind: 'element', type: 'heading' },
+          },
+          childIdsById: { root: ['heading'], heading: [] },
+          order: { strategy: 'childIdsById' },
+        },
+      },
+    });
+    const local = cloneWorkspace(base);
+    const remote = cloneWorkspace(base);
+    local.docsById['document-1']!.content = createPirContent();
+    remote.docsById['document-1']!.content = createPirContent();
+    remote.opSeq = 2;
+    remote.docsById['document-1']!.contentRev = 2;
+
+    const result = autoRebaseWorkspaceSnapshots(base, local, remote);
+
+    expect(result).toMatchObject({ ok: true, status: 'already-applied' });
+    if (!result.ok) return;
+    expect(result.analysis.conflicts).toEqual([]);
+    expect(result.snapshot.docsById['document-1']!.content).toEqual(
+      createPirContent()
+    );
+    expect(result.snapshot.docsById['document-1']!.contentRev).toBe(2);
+  });
+
   it('requires an explicit choice and builds fresh commands from remote to resolved', () => {
     const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
@@ -416,5 +448,44 @@ describe('workspace three-way recovery', () => {
       '/renamed.pir.json'
     );
     expect(node(applied.snapshot, 'node-a').data.label).toBe('Resolved');
+  });
+
+  it('drops the remote selection when the merge removed every candidate document', () => {
+    const base = createWorkspace();
+    base.docsById['document-2'] = {
+      ...base.docsById['document-1']!,
+      id: 'document-2',
+      path: '/second.pir.json',
+      content: createPirContent(),
+    };
+    base.treeById['document-node-2'] = {
+      id: 'document-node-2',
+      kind: 'doc',
+      name: 'second.pir.json',
+      parentId: 'root',
+      docId: 'document-2',
+    };
+    base.treeById['root']!.children = ['document-node', 'document-node-2'];
+
+    // A persisted operation strips `activeDocumentId`, so the local side never
+    // carries a selection; the server never sends one either, so the remote
+    // side always has one the codec derived.
+    const local = cloneWorkspace(base);
+    delete local.docsById['document-1'];
+    delete local.treeById['document-node'];
+    local.treeById['root']!.children = ['document-node-2'];
+    delete local.activeDocumentId;
+
+    const remote = cloneWorkspace(base);
+    remote.workspaceRev = 4;
+    remote.opSeq = 9;
+    remote.docsById['document-2']!.contentRev = 2;
+
+    const result = autoRebaseWorkspaceSnapshots(base, local, remote);
+
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.snapshot.docsById['document-1']).toBeUndefined();
+    expect(result.snapshot.activeDocumentId).toBeUndefined();
   });
 });

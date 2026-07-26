@@ -18,6 +18,7 @@ import (
 var ErrRepositoryBindingNotFound = errors.New("github repository binding not found")
 var ErrInstallationNotFound = errors.New("github installation not found")
 var ErrInstallationSetupStateInvalid = errors.New("github installation setup state is invalid or expired")
+var ErrGitHubIdentityConflict = errors.New("github account is already linked to another user")
 
 type Store struct {
 	db *sql.DB
@@ -44,14 +45,20 @@ func (store *Store) UpsertInstallation(ctx context.Context, record InstallationR
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()
 
+	// The installer is only known from the `installation` event, so a later
+	// repositories event must not blank it out.
 	const query = `INSERT INTO github_installations (
-	installation_id, account_login, account_type, account_id, status, raw_json, created_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW(), NOW())
+	installation_id, account_login, account_type, account_id, status, installer_github_user_id, raw_json, created_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
 ON CONFLICT (installation_id) DO UPDATE
 SET account_login = EXCLUDED.account_login,
     account_type = EXCLUDED.account_type,
     account_id = EXCLUDED.account_id,
     status = EXCLUDED.status,
+    installer_github_user_id = CASE
+        WHEN EXCLUDED.installer_github_user_id > 0 THEN EXCLUDED.installer_github_user_id
+        ELSE github_installations.installer_github_user_id
+    END,
     raw_json = EXCLUDED.raw_json,
     updated_at = NOW()
 RETURNING installation_id, account_login, account_type, account_id, status, raw_json, created_at, updated_at`
@@ -64,6 +71,7 @@ RETURNING installation_id, account_login, account_type, account_id, status, raw_
 		strings.TrimSpace(record.AccountType),
 		record.AccountID,
 		string(record.Status),
+		record.InstallerGitHubUserID,
 		string(record.Raw),
 	)
 	return scanInstallation(row)
@@ -269,11 +277,16 @@ func (store *Store) CreateInstallationSetupState(ctx context.Context, userID str
 	return token, expiresAt, nil
 }
 
-func (store *Store) ConsumeInstallationSetupState(ctx context.Context, token string, installationID int64) (string, error) {
+// ConsumeInstallationSetupState burns the one-shot setup token and returns the
+// Prodivix user that started the flow. It grants nothing: proving that this
+// user may reach a given installation is the caller's job, and only GitHub can
+// answer it. Every call consumes the token, so a rejected attempt cannot be
+// replayed to enumerate installation ids.
+func (store *Store) ConsumeInstallationSetupState(ctx context.Context, token string) (string, error) {
 	if store == nil || store.db == nil {
 		return "", errors.New("github store is not initialized")
 	}
-	if strings.TrimSpace(token) == "" || installationID <= 0 {
+	if strings.TrimSpace(token) == "" {
 		return "", ErrInstallationSetupStateInvalid
 	}
 	ctx, cancel := withStoreTimeout(ctx)
@@ -293,24 +306,6 @@ func (store *Store) ConsumeInstallationSetupState(ctx context.Context, token str
 		}
 		return "", err
 	}
-	result, err := tx.ExecContext(ctx, `INSERT INTO github_installation_user_access (
-		user_id, installation_id, status, created_at, updated_at
-	)
-	SELECT $1, installation_id, 'active', NOW(), NOW()
-	FROM github_installations
-	WHERE installation_id = $2 AND status = 'active'
-	ON CONFLICT (user_id, installation_id) DO UPDATE
-	SET status = 'active', updated_at = NOW()`, userID, installationID)
-	if err != nil {
-		return "", err
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return "", err
-	}
-	if rows == 0 {
-		return "", ErrInstallationNotFound
-	}
 	if _, err := tx.ExecContext(ctx, `UPDATE github_installation_setup_states
 		SET consumed_at = NOW()
 		WHERE token_hash = $1`, installationSetupTokenHash(token)); err != nil {
@@ -322,9 +317,49 @@ func (store *Store) ConsumeInstallationSetupState(ctx context.Context, token str
 	return userID, nil
 }
 
+// LinkGitHubUserIdentity binds a Prodivix user to the GitHub account that
+// authorized the callback. One GitHub account maps to at most one Prodivix
+// user; a collision fails closed rather than moving the linkage.
+func (store *Store) LinkGitHubUserIdentity(ctx context.Context, userID string, identity GitHubUserIdentity) error {
+	if store == nil || store.db == nil {
+		return errors.New("github store is not initialized")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" || identity.ID <= 0 {
+		return ErrInstallationSetupStateInvalid
+	}
+	ctx, cancel := withStoreTimeout(ctx)
+	defer cancel()
+	var ownerID string
+	err := store.db.QueryRowContext(ctx, `INSERT INTO github_user_identities (
+		user_id, github_user_id, github_login, created_at, updated_at
+	) VALUES ($1, $2, $3, NOW(), NOW())
+	ON CONFLICT (user_id) DO UPDATE
+	SET github_user_id = EXCLUDED.github_user_id,
+	    github_login = EXCLUDED.github_login,
+	    updated_at = NOW()
+	WHERE github_user_identities.github_user_id = EXCLUDED.github_user_id
+	RETURNING user_id`, userID, identity.ID, strings.TrimSpace(identity.Login)).Scan(&ownerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrGitHubIdentityConflict
+	}
+	if err != nil {
+		// A unique-index violation means the GitHub account is already linked to
+		// a different Prodivix user.
+		return ErrGitHubIdentityConflict
+	}
+	return nil
+}
+
+// GrantInstallationAccess records access that GitHub already confirmed. It is
+// not itself an authorization check: every caller must first establish that
+// this user may reach the installation.
 func (store *Store) GrantInstallationAccess(ctx context.Context, userID string, installationID int64) error {
 	if store == nil || store.db == nil {
 		return errors.New("github store is not initialized")
+	}
+	if strings.TrimSpace(userID) == "" || installationID <= 0 {
+		return ErrInstallationSetupStateInvalid
 	}
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()

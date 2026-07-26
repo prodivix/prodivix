@@ -8,10 +8,12 @@ import {
   type WorkspaceConflictSession,
   type WorkspaceOutboxStore,
 } from '@prodivix/workspace-sync';
+import { workspaceOutboxStore } from './indexedDbWorkspaceOutboxStore';
 import {
   executeWorkspaceOutboxOperation,
   type WorkspaceOutboxOperationExecutionResult,
 } from './workspaceOutboxExecutor';
+import { notifyWorkspaceOutboxChanged } from './workspaceOutboxSignals';
 
 export class WorkspaceConflictResolutionExecutionError extends Error {
   constructor(message: string) {
@@ -49,6 +51,21 @@ const unsupported = (
   message,
 });
 
+/** Clears the blocked causal head when a review produced no operation. */
+const releaseResolvedSourceEntry = async (input: {
+  workspaceId: string;
+  sourceOperation: WorkspaceOperation | undefined;
+  store?: WorkspaceOutboxStore;
+}): Promise<void> => {
+  if (!input.sourceOperation) return;
+  const store = input.store ?? workspaceOutboxStore;
+  const entryId = getWorkspaceOperationId(input.sourceOperation);
+  const existing = await store.get(entryId);
+  if (existing?.state.kind !== 'conflict') return;
+  const removed = await store.remove(entryId);
+  if (removed) notifyWorkspaceOutboxChanged(input.workspaceId);
+};
+
 /** Replaces the blocked entry with one reviewed, durable resolution operation. */
 export const executeWorkspaceConflictResolution = async (input: {
   session: WorkspaceConflictSession;
@@ -81,15 +98,24 @@ export const executeWorkspaceConflictResolution = async (input: {
       'Every conflict requires an explicit local or remote choice.'
     );
   }
+  const sourceOperation = effectiveSession.sourceOperation as
+    WorkspaceOperation | undefined;
   if (!built.operation) {
+    // Resolving every conflict to "remote" produces no operation, but the entry
+    // that opened this session is still blocked at the causal head. Nothing
+    // downstream replaces it on this path, so release it here or the Workspace
+    // never sends another authoring operation.
+    await releaseResolvedSourceEntry({
+      workspaceId: effectiveSession.workspaceId,
+      sourceOperation,
+      store: input.outboxStore,
+    });
     return {
       kind: 'already-applied',
       operation: null,
       snapshot: resolvedSnapshot,
     };
   }
-  const sourceOperation = effectiveSession.sourceOperation as
-    WorkspaceOperation | undefined;
   return executeWorkspaceOutboxOperation({
     token: input.token,
     baseSnapshot: input.session.remoteSnapshot,

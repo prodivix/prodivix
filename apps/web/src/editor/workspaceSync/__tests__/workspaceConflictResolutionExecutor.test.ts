@@ -3,11 +3,15 @@ import {
   getWorkspaceOperationCommands,
   getWorkspaceOperationId,
   type DecodedWorkspaceMutation,
+  type WorkspaceOperation,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import {
+  blockWorkspaceOutboxEntry,
+  claimWorkspaceOutboxEntry,
   createWorkspaceConflictSession,
   createMemoryWorkspaceOutboxStore,
+  createWorkspaceOutboxEntry,
   resolveWorkspaceConflictSessionBatch,
   type WorkspaceConflictSession,
   type WorkspaceOutboxStore,
@@ -102,6 +106,60 @@ const createSession = (includeCodeDocument: boolean) => {
     throw new Error('Expected a resolved snapshot.');
   }
   return { open: created.session, resolved: resolved.session };
+};
+
+/** Mirrors recovery: the blocked entry's operation is the session source. */
+const createSessionWithSourceOperation = () => {
+  // `base` keeps no metadata so the source operation's add/remove pair is a
+  // true inverse and plans cleanly against its confirmed base snapshot.
+  const base = createEditorWorkspace();
+  const local = cloneWorkspace(base);
+  const remote = cloneWorkspace(base);
+  setPageMetadata(local, { name: 'Local name' });
+  setPageMetadata(remote, { name: 'Remote name' });
+  remote.docsById['page-home']!.contentRev = 2;
+  remote.workspaceRev = 3;
+  remote.opSeq = 3;
+  const sourceOperation: WorkspaceOperation = {
+    kind: 'command',
+    command: {
+      id: 'operation-blocked-head',
+      namespace: 'core.pir',
+      type: 'document.update',
+      version: '1.0',
+      issuedAt: '2026-07-12T01:00:00.000Z',
+      forwardOps: [
+        { op: 'add', path: '/metadata', value: { name: 'Local name' } },
+      ],
+      reverseOps: [{ op: 'remove', path: '/metadata' }],
+      target: { workspaceId: base.id, documentId: 'page-home' },
+      domainHint: 'pir',
+    },
+  };
+  const created = createWorkspaceConflictSession({
+    id: 'session-blocked-head',
+    createdAt: '2026-07-12T01:00:00.000Z',
+    baseSnapshot: base,
+    localSnapshot: local,
+    remoteSnapshot: remote,
+    sourceOperation,
+  });
+  if (created.ok === false) throw new Error(created.issues[0]?.message);
+  const choices = Object.fromEntries(
+    created.session.unresolvedConflictIds.map((conflictId) => [
+      conflictId,
+      'remote' as const,
+    ])
+  );
+  const resolved = resolveWorkspaceConflictSessionBatch(
+    created.session,
+    choices,
+    '2026-07-12T01:01:00.000Z'
+  );
+  if (resolved.ok === false) {
+    throw new Error(JSON.stringify(resolved.issues, null, 2));
+  }
+  return { base, resolved: resolved.session, sourceOperation };
 };
 
 const createMutation = (
@@ -210,6 +268,42 @@ describe('executeWorkspaceConflictResolution', () => {
       snapshot: resolved.remoteSnapshot,
     });
     expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('releases the blocked causal head when the review produces no operation', async () => {
+    const { base, resolved, sourceOperation } =
+      createSessionWithSourceOperation();
+    const created = createWorkspaceOutboxEntry({
+      baseSnapshot: base,
+      operation: sourceOperation,
+      now: 1,
+    });
+    if (created.ok === false) throw new Error(created.issues[0]?.message);
+    const claimed = claimWorkspaceOutboxEntry(created.entry, {
+      leaseOwnerId: 'tab-a',
+      now: 2,
+      leaseDurationMs: 30_000,
+    });
+    if (!claimed) throw new Error('Fixture operation was not claimable.');
+    const blocked = blockWorkspaceOutboxEntry(claimed, {
+      leaseOwnerId: 'tab-a',
+      now: 3,
+      session: resolved,
+    });
+    if (!blocked) throw new Error('Fixture operation was not blocked.');
+    const store = createMemoryWorkspaceOutboxStore([blocked]);
+
+    const result = await executeWorkspaceConflictResolution({
+      session: resolved,
+      resolvedSnapshot: resolved.remoteSnapshot,
+      token: 'token',
+      outboxStore: store,
+    });
+
+    expect(result).toMatchObject({ kind: 'already-applied', operation: null });
+    // A 'conflict' entry is never claimable, so leaving it here would stop
+    // every later authoring operation for this Workspace.
+    expect(await store.get(blocked.id)).toBeNull();
   });
 
   it('commits one document operation with only its content CAS', async () => {

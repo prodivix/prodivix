@@ -14,6 +14,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./canonical": {
+      "types": "./dist/canonical/index.d.ts",
+      "import": "./dist/canonical/index.js"
+    },
     "./safety": {
       "types": "./dist/safety/index.d.ts",
       "import": "./dist/safety/index.js"
