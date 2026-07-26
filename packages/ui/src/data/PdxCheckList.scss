@@ -1,10 +1,12 @@
-@use '../foundation/control';
+@use '../foundation/control' as control;
 @use '../form/PdxField.scss';
 
 .PdxCheckList {
+  @include control.density-scale;
+
   min-width: 0;
-  border: 0;
   padding: 0;
+  border: 0;
   margin: 0;
 }
 
@@ -12,16 +14,16 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-xs);
   padding: 0;
+  margin-bottom: var(--spacing-xs);
 }
 
 .PdxCheckListItems {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 0;
   padding: 0;
+  margin: 0;
   list-style: none;
 }
 
@@ -30,30 +32,33 @@
   gap: var(--spacing-xs);
 }
 
+.PdxCheckList.Horizontal .PdxCheckListItem {
+  flex: 0 1 auto;
+}
+
+/*
+ * The same row treatment Table, DataGrid and List use: hover, focus and
+ * disabled come from the shared interaction language, and a checked row is
+ * marked on its leading edge rather than filled, so a column of labels still
+ * reads as a column.
+ */
 .PdxCheckListLabel {
+  @include control.interactive-surface;
+
+  position: relative;
   box-sizing: border-box;
-  min-height: 34px;
   display: flex;
+  min-height: var(--pdx-density-row-height);
   align-items: center;
   gap: var(--spacing-sm);
-  padding: 0 var(--spacing-sm);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background-color: transparent;
+  padding-inline: var(--pdx-density-inline-padding);
   color: var(--text-primary);
-  cursor: pointer;
   font-size: var(--font-size-sm);
   line-height: var(--line-height-compact);
-  transition:
-    background-color var(--motion-duration-fast) var(--motion-easing-standard),
-    border-color var(--motion-duration-fast) var(--motion-easing-standard);
-
-  &:hover:not(.Disabled) {
-    background-color: var(--bg-panel);
-  }
 
   &:has(input:checked) {
-    border-color: var(--border-subtle);
+    @include control.selection-marker(6px);
+
     background-color: var(--bg-raised);
   }
 
@@ -61,28 +66,22 @@
     @include control.focus-ring;
   }
 
+  /* Derived from the control rather than a parallel class, so a disabled item
+     and a disabled fieldset produce exactly one disabled treatment. */
+  &:has(input:disabled) {
+    @include control.disabled-control;
+  }
+
+  &:hover:has(input:disabled) {
+    background-color: transparent;
+  }
+
   input {
-    flex: 0 0 auto;
     width: 16px;
     height: 16px;
+    flex: 0 0 auto;
     margin: 0;
     accent-color: var(--accent-color);
     cursor: inherit;
-  }
-}
-
-.PdxCheckListLabel.Disabled,
-.PdxCheckList.Disabled .PdxCheckListLabel {
-  cursor: not-allowed;
-  opacity: 0.52;
-}
-
-.PdxCheckList.Horizontal .PdxCheckListItem {
-  flex: 0 1 auto;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .PdxCheckListLabel {
-    transition-duration: 0.01ms;
   }
 }

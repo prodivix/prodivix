@@ -112,3 +112,17 @@ export const Disabled: Story = {
     disabled: true,
   },
 };
+
+/**
+ * One calendar for both ends: the first day chosen opens the range and the
+ * second closes it. Either field also accepts a typed ISO date, and the control
+ * keeps the two in order whichever way round they are entered.
+ */
+export const Empty: Story = {
+  args: {
+    label: 'Campaign',
+    description: 'Pick a start day, then an end day.',
+    startValue: '',
+    endValue: '',
+  },
+};

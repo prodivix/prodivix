@@ -1,0 +1,154 @@
+@use './PdxField.scss';
+@use '../foundation/control' as control;
+
+.PdxSwitch {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  --pdx-switch-track-inline-size: 32px;
+  --pdx-switch-track-block-size: 18px;
+  --pdx-switch-thumb-size: 12px;
+  --pdx-switch-inset: 2px;
+
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-primary);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-compact);
+  text-align: start;
+  cursor: pointer;
+
+  &.ExtraSmall {
+    --pdx-switch-track-inline-size: 24px;
+    --pdx-switch-track-block-size: 14px;
+    --pdx-switch-thumb-size: 8px;
+
+    font-size: var(--font-size-xs);
+  }
+
+  &.Small {
+    --pdx-switch-track-inline-size: 28px;
+    --pdx-switch-track-block-size: 16px;
+    --pdx-switch-thumb-size: 10px;
+
+    font-size: var(--font-size-xs);
+  }
+
+  &.Large {
+    --pdx-switch-track-inline-size: 40px;
+    --pdx-switch-track-block-size: 22px;
+    --pdx-switch-thumb-size: 16px;
+
+    font-size: var(--font-size-md);
+  }
+
+  &.LabelStart {
+    flex-direction: row-reverse;
+  }
+
+  &:focus-visible {
+    @include control.focus-ring;
+  }
+
+  &:disabled {
+    @include control.disabled-control;
+  }
+}
+
+.PdxSwitchTrack {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: var(--pdx-switch-track-inline-size);
+  height: var(--pdx-switch-track-block-size);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background-color: var(--bg-raised);
+}
+
+.PdxSwitchThumb {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  position: absolute;
+  top: 50%;
+  inset-inline-start: var(--pdx-switch-inset);
+  width: var(--pdx-switch-thumb-size);
+  height: var(--pdx-switch-thumb-size);
+  border-radius: var(--radius-full);
+  background-color: var(--text-muted);
+  transform: translateY(-50%);
+}
+
+/*
+ * The bar and the ring stay visible under the thumb so the state is legible
+ * from shape alone, the way a hardware toggle prints `|` and `O`.
+ */
+.PdxSwitchMark {
+  position: absolute;
+  top: 50%;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+
+  &.On {
+    inset-inline-start: calc(var(--pdx-switch-inset) + 20%);
+    width: 2px;
+    height: calc(var(--pdx-switch-thumb-size) * 0.6);
+    border-radius: 1px;
+    background-color: currentcolor;
+  }
+
+  &.Off {
+    inset-inline-end: calc(var(--pdx-switch-inset) + 15%);
+    width: calc(var(--pdx-switch-thumb-size) * 0.6);
+    height: calc(var(--pdx-switch-thumb-size) * 0.6);
+    border: 1.5px solid currentcolor;
+    border-radius: var(--radius-full);
+  }
+}
+
+.PdxSwitch.Checked .PdxSwitchTrack {
+  border-color: var(--accent-color);
+  background-color: var(--accent-color);
+}
+
+.PdxSwitch.Checked .PdxSwitchMark {
+  color: var(--text-inverse);
+}
+
+.PdxSwitch.Checked .PdxSwitchThumb {
+  inset-inline-start: calc(
+    100% - var(--pdx-switch-thumb-size) - var(--pdx-switch-inset)
+  );
+  background-color: var(--bg-canvas);
+}
+
+.PdxSwitch:hover:not(:disabled) .PdxSwitchTrack {
+  border-color: var(--accent-color);
+}
+
+.PdxSwitchLabel {
+  min-width: 0;
+}
+
+.PdxSwitchField {
+  gap: var(--spacing-xs);
+  width: auto;
+}
+
+.PdxSwitchDescription {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}

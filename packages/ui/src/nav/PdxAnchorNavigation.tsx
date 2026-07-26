@@ -1,6 +1,7 @@
 import './PdxAnchorNavigation.scss';
 import { type PdxComponent } from '@prodivix/shared';
-import { getDataAttributes } from '../foundation/component';
+import { getDataAttributes, mergeClassNames } from '../foundation/component';
+import type React from 'react';
 
 export interface PdxAnchorItem {
   id: string;
@@ -11,6 +12,7 @@ export interface PdxAnchorItem {
 interface PdxAnchorNavigationSpecificProps {
   items: PdxAnchorItem[];
   activeId?: string;
+  navigationLabel?: string;
   orientation?: 'Vertical' | 'Horizontal';
   onSelect?: (item: PdxAnchorItem) => void;
 }
@@ -18,9 +20,16 @@ interface PdxAnchorNavigationSpecificProps {
 export interface PdxAnchorNavigationProps
   extends PdxComponent, PdxAnchorNavigationSpecificProps {}
 
+/**
+ * `aria-current="location"` — not `"page"` — is the correct claim here: the
+ * reader is somewhere inside the current page, not on a different one. It is
+ * also the only place the active state is recorded, and the stylesheet draws
+ * the marker from it.
+ */
 function PdxAnchorNavigation({
   items,
   activeId,
+  navigationLabel = 'On this page',
   orientation = 'Vertical',
   onSelect,
   className,
@@ -28,27 +37,34 @@ function PdxAnchorNavigation({
   id,
   dataAttributes = {},
 }: PdxAnchorNavigationProps) {
-  const fullClassName =
-    `PdxAnchorNavigation ${orientation} ${className || ''}`.trim();
+  const fullClassName = mergeClassNames(
+    'PdxAnchorNavigation',
+    orientation,
+    className
+  );
+
   return (
     <nav
-      aria-label="On this page"
+      aria-label={navigationLabel}
       className={fullClassName}
       {...getDataAttributes(dataAttributes)}
       id={id}
       style={style as React.CSSProperties}
     >
-      {items.map((item) => (
-        <a
-          key={item.id}
-          aria-current={activeId === item.id ? 'location' : undefined}
-          href={item.href || `#${item.id}`}
-          className={`PdxAnchorNavigationItem ${activeId === item.id ? 'Active' : ''}`}
-          onClick={() => onSelect?.(item)}
-        >
-          {item.label}
-        </a>
-      ))}
+      <ul className="PdxAnchorNavigationList">
+        {items.map((item) => (
+          <li key={item.id}>
+            <a
+              aria-current={activeId === item.id ? 'location' : undefined}
+              className="PdxAnchorNavigationItem"
+              href={item.href || `#${item.id}`}
+              onClick={() => onSelect?.(item)}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }

@@ -4,6 +4,7 @@ import {
   type JsonValue,
   type PluginDiagnostic,
 } from '@prodivix/plugin-contracts';
+import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
 import {
   parse,
   printParseErrorCode,
@@ -89,15 +90,6 @@ const isWellFormedUnicode = (source: string): boolean => {
   return true;
 };
 
-/**
- * `__proto__` must never reach the value builder: jsonc-parser assigns object
- * properties with `parent[key] = value` on a plain `{}`, so the key would
- * invoke the `Object.prototype.__proto__` setter and hide the whole subtree
- * from every own-property consumer while schema validation still walks it
- * through the prototype chain.
- */
-const UNSAFE_OBJECT_KEYS: ReadonlySet<string> = new Set(['__proto__']);
-
 const objectKeyDiagnostics = (source: string): PluginDiagnostic[] => {
   const objectKeys: Array<Set<string>> = [];
   const diagnostics: PluginDiagnostic[] = [];
@@ -108,7 +100,11 @@ const objectKeyDiagnostics = (source: string): PluginDiagnostic[] => {
         objectKeys.push(new Set());
       },
       onObjectProperty: (property, offset, length) => {
-        if (UNSAFE_OBJECT_KEYS.has(property)) {
+        // jsonc-parser assigns object properties with `parent[key] = value` on
+        // a plain `{}`, so a prototype-mutating key would hide the whole
+        // subtree from own-property consumers while schema validation still
+        // walks it through the prototype chain.
+        if (isUnsafeObjectKey(property)) {
           diagnostics.push(
             malformed(
               `Protocol message uses the reserved object key ${JSON.stringify(property)}.`,
@@ -187,13 +183,12 @@ const inspectJsonValue = (
       continue;
     }
     if (valueType === 'object') {
-      const prototype = Object.getPrototypeOf(current.value);
-      if (prototype !== Object.prototype && prototype !== null) {
+      if (!isPlainObject(current.value)) {
         return protocolFailure([
           malformed('Protocol message contains a non-plain object.'),
         ]);
       }
-      for (const child of Object.values(current.value as object)) {
+      for (const child of Object.values(current.value)) {
         pending.push({ value: child, depth: current.depth + 1 });
       }
       continue;

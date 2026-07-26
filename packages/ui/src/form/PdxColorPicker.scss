@@ -1,96 +1,125 @@
-@use '../foundation/control';
 @use './PdxField.scss';
+@use '../foundation/control' as control;
 
 .PdxColorPicker {
-  --pdx-color-picker-height: 36px;
-  --pdx-color-picker-swatch-size: 36px;
-
   width: 100%;
 }
 
-.PdxColorPickerControls {
-  display: flex;
-  align-items: center;
+.PdxColorPickerControl {
+  @include control.field-control-size(36px, var(--spacing-sm));
+
   gap: var(--spacing-sm);
-}
-
-.PdxColorPickerInput {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.PdxColorPickerText {
-  @include control.field-control;
-  @include control.field-control-size(
-    var(--pdx-color-picker-height),
-    var(--spacing-sm),
-    var(--font-size-sm)
-  );
-
-  flex: 1;
-  min-width: 88px;
-  font-family: var(--font-family-mono);
-  text-transform: uppercase;
+  padding-inline-end: var(--spacing-xs);
 }
 
 .PdxColorPickerSwatch {
-  position: relative;
-  box-sizing: border-box;
-  width: var(--pdx-color-picker-swatch-size);
-  height: var(--pdx-color-picker-swatch-size);
-  flex: 0 0 auto;
-  overflow: hidden;
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: none;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background:
     linear-gradient(var(--pdx-color-value), var(--pdx-color-value)),
     repeating-conic-gradient(var(--border-subtle) 0 25%, var(--bg-canvas) 0 50%)
       0 / 8px 8px;
+}
+
+.PdxColorPickerText,
+.PdxColorPickerReadout {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-family-mono);
+  text-transform: uppercase;
+}
+
+.PdxColorPickerPanel {
+  display: flex;
+  min-width: 232px;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.PdxColorPickerPreview {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-subtle);
+
+  .PdxColorPickerSwatch {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.PdxColorPickerPreviewValue {
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.PdxColorPickerChannel {
+  display: grid;
+  align-items: center;
+  gap: var(--spacing-sm);
+  grid-template-columns: 68px minmax(0, 1fr) 32px;
+  padding-inline: var(--spacing-xs);
+}
+
+.PdxColorPickerChannelName {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.PdxColorPickerChannelValue {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.PdxColorPickerSlider {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent-color);
+  background: transparent;
   cursor: pointer;
-  transition:
-    border-color var(--motion-duration-fast) var(--motion-easing-standard),
-    box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
-    transform var(--motion-duration-fast) var(--motion-easing-standard);
 
-  &:hover {
-    border-color: var(--border-strong);
-  }
-
-  &:has(input:focus-visible) {
+  &:focus-visible {
     @include control.focus-ring;
+
+    border-radius: var(--radius-sm);
   }
 
-  &:active {
-    transform: scale(0.96);
-  }
-}
-
-.PdxColorPicker.Disabled {
-  opacity: 0.52;
-
-  .PdxColorPickerSwatch {
-    cursor: not-allowed;
+  &:disabled {
+    @include control.disabled-control;
   }
 }
 
-.PdxColorPicker.Small {
-  --pdx-color-picker-height: 32px;
-  --pdx-color-picker-swatch-size: 32px;
+.PdxColorPicker.Small .PdxColorPickerControl {
+  @include control.field-control-size(
+    32px,
+    var(--spacing-sm),
+    var(--font-size-xs)
+  );
+
+  gap: var(--spacing-xs);
+  padding-inline-end: var(--spacing-xs);
 }
 
-.PdxColorPicker.Large {
-  --pdx-color-picker-height: 40px;
-  --pdx-color-picker-swatch-size: 40px;
-}
+.PdxColorPicker.Large .PdxColorPickerControl {
+  @include control.field-control-size(
+    44px,
+    var(--spacing-md),
+    var(--font-size-md)
+  );
 
-@media (prefers-reduced-motion: reduce) {
-  .PdxColorPickerSwatch {
-    transition-duration: 0.01ms;
-  }
+  gap: var(--spacing-sm);
+  padding-inline-end: var(--spacing-xs);
 }

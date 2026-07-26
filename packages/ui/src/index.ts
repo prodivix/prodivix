@@ -113,6 +113,16 @@ export {
   type PdxRadioOption,
 } from './form/PdxRadioGroup';
 export {
+  default as PdxCheckbox,
+  type PdxCheckboxOwnProps,
+  type PdxCheckboxProps,
+} from './form/PdxCheckbox';
+export {
+  default as PdxSwitch,
+  type PdxSwitchOwnProps,
+  type PdxSwitchProps,
+} from './form/PdxSwitch';
+export {
   default as PdxField,
   type PdxFieldProps,
   usePdxFieldIds,
@@ -122,6 +132,36 @@ export { default as PdxDiv } from './container/PdxDiv';
 export { default as PdxSection } from './container/PdxSection';
 export { default as PdxCard, type PdxCardProps } from './container/PdxCard';
 export { default as PdxPanel, type PdxPanelProps } from './container/PdxPanel';
+export {
+  default as PdxSplitter,
+  type PdxSplitterOrientation,
+  type PdxSplitterOwnProps,
+  type PdxSplitterPane,
+  type PdxSplitterProps,
+} from './container/PdxSplitter';
+export {
+  default as PdxStack,
+  type PdxSpacingScale,
+  type PdxStackAlign,
+  type PdxStackDirection,
+  type PdxStackJustify,
+  type PdxStackProps,
+} from './container/PdxStack';
+export {
+  default as PdxGrid,
+  type PdxGridAlign,
+  type PdxGridProps,
+} from './container/PdxGrid';
+export {
+  default as PdxDivider,
+  type PdxDividerOrientation,
+  type PdxDividerProps,
+} from './container/PdxDivider';
+export {
+  default as PdxSpacer,
+  type PdxSpacerAxis,
+  type PdxSpacerProps,
+} from './container/PdxSpacer';
 
 export { default as PdxImage } from './image/PdxImage';
 export { default as PdxAvatar, type PdxAvatarProps } from './image/PdxAvatar';
@@ -159,6 +199,12 @@ export { default as PdxSpinner, type PdxSpinnerProps } from './data/PdxSpinner';
 export { default as PdxStatistic } from './data/PdxStatistic';
 export { default as PdxTimeline } from './data/PdxTimeline';
 export { default as PdxSteps } from './data/PdxSteps';
+export {
+  default as PdxVirtualList,
+  type PdxVirtualListItem,
+  type PdxVirtualListOwnProps,
+  type PdxVirtualListProps,
+} from './data/PdxVirtualList';
 
 export {
   default as PdxModal,

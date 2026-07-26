@@ -20,6 +20,7 @@
 
 .PdxCollapseTrigger {
   @include control.control-transition;
+  @include control.reduced-motion;
 
   display: flex;
   width: 100%;
@@ -37,7 +38,7 @@
   text-align: left;
   cursor: pointer;
 
-  &:hover:not(:disabled) {
+  &:hover:not([aria-disabled='true']) {
     background: var(--bg-raised);
   }
 
@@ -48,12 +49,14 @@
     z-index: 1;
   }
 
-  &:disabled {
+  &[aria-disabled='true'] {
     @include control.disabled-control;
   }
 }
 
 .PdxCollapseIcon {
+  @include control.reduced-motion;
+
   flex: none;
   color: var(--text-muted);
   transition: transform var(--motion-duration-fast)

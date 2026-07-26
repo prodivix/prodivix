@@ -1,188 +1,189 @@
 import './PdxRegionPicker.scss';
-import { type PdxComponent } from '@prodivix/shared';
-import { getDataAttributes } from '../foundation/component';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type React from 'react';
+import { type PdxComponent } from '@prodivix/shared';
+import {
+  mergeClassNames,
+  type PdxValidationState,
+} from '../foundation/component';
+import PdxField, { usePdxFieldIds } from './PdxField';
+import PdxSelect, { type PdxSelectOption } from './PdxSelect';
 
 export interface PdxRegionOption {
+  children?: PdxRegionOption[];
   label: string;
   value: string;
-  children?: PdxRegionOption[];
 }
 
 export interface PdxRegionValue {
-  province?: string;
   city?: string;
   district?: string;
+  province?: string;
 }
 
 interface PdxRegionPickerSpecificProps {
-  label?: string;
-  description?: string;
-  message?: string;
-  size?: 'Small' | 'Medium' | 'Large';
-  state?: 'Default' | 'Error' | 'Warning' | 'Success';
-  disabled?: boolean;
-  required?: boolean;
-  options: PdxRegionOption[];
-  value?: PdxRegionValue;
   defaultValue?: PdxRegionValue;
+  description?: string;
+  disabled?: boolean;
+  label?: string;
+  message?: string;
+  onChange?: (value: PdxRegionValue, labels: PdxRegionValue) => void;
+  options: PdxRegionOption[];
   placeholder?: {
-    province?: string;
     city?: string;
     district?: string;
+    province?: string;
   };
-  onChange?: (value: PdxRegionValue, labels: PdxRegionValue) => void;
+  required?: boolean;
+  size?: 'Small' | 'Medium' | 'Large';
+  state?: PdxValidationState;
+  value?: PdxRegionValue;
 }
 
 export interface PdxRegionPickerProps
   extends PdxComponent, PdxRegionPickerSpecificProps {}
 
-const findLabel = (options: PdxRegionOption[], value?: string) => {
-  if (!value) return undefined;
-  return options.find((option) => option.value === value)?.label;
-};
+const toSelectOptions = (
+  options: PdxRegionOption[],
+  placeholder: string
+): PdxSelectOption[] => [
+  { label: placeholder, value: '' },
+  ...options.map((option) => ({ label: option.label, value: option.value })),
+];
 
+/**
+ * Three dependent selects rather than a private cascade widget.
+ *
+ * Region is a chain of choices, and `PdxSelect` already answers what a choice
+ * has to do — typeahead, roving keyboard, an announced current value. Building
+ * a second option list here would only mean two places to keep correct.
+ */
 function PdxRegionPicker({
-  label,
+  className,
+  dataAttributes = {},
+  defaultValue,
   description,
+  disabled = false,
+  id,
+  label,
   message,
+  onChange,
+  options,
+  placeholder,
+  required = false,
   size = 'Medium',
   state = 'Default',
-  disabled = false,
-  required = false,
-  options,
-  value,
-  defaultValue,
-  placeholder,
-  onChange,
-  className,
   style,
-  id,
-  dataAttributes = {},
+  value,
 }: PdxRegionPickerProps) {
   const [internalValue, setInternalValue] = useState<PdxRegionValue>(
-    defaultValue || {}
+    defaultValue ?? {}
   );
+  const fieldIds = usePdxFieldIds({ id, description, message });
+  const currentValue = value ?? internalValue;
 
-  useEffect(() => {
-    if (value) {
-      setInternalValue(value);
-    }
-  }, [value?.province, value?.city, value?.district]);
-
-  const currentValue = value || internalValue;
-
-  const provinces = options;
-  const selectedProvince = provinces.find(
-    (item) => item.value === currentValue.province
+  const selectedProvince = options.find(
+    (option) => option.value === currentValue.province
   );
-  const cities = selectedProvince?.children || [];
-  const selectedCity = cities.find((item) => item.value === currentValue.city);
-  const districts = selectedCity?.children || [];
+  const cities = selectedProvince?.children ?? [];
+  const selectedCity = cities.find(
+    (option) => option.value === currentValue.city
+  );
+  const districts = selectedCity?.children ?? [];
 
-  const emitChange = (nextValue: PdxRegionValue) => {
-    const labels: PdxRegionValue = {
-      province: findLabel(provinces, nextValue.province),
-      city: findLabel(cities, nextValue.city),
-      district: findLabel(districts, nextValue.district),
+  const resolveLabels = (next: PdxRegionValue): PdxRegionValue => {
+    const province = options.find((option) => option.value === next.province);
+    const city = province?.children?.find(
+      (option) => option.value === next.city
+    );
+    const district = city?.children?.find(
+      (option) => option.value === next.district
+    );
+
+    return {
+      city: city?.label,
+      district: district?.label,
+      province: province?.label,
     };
-
-    if (!value) {
-      setInternalValue(nextValue);
-    }
-    if (onChange) {
-      onChange(nextValue, labels);
-    }
   };
 
-  const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const province = e.target.value || undefined;
-    emitChange({ province, city: undefined, district: undefined });
+  const emitChange = (next: PdxRegionValue) => {
+    if (value === undefined) setInternalValue(next);
+    onChange?.(next, resolveLabels(next));
   };
 
-  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const city = e.target.value || undefined;
-    emitChange({
-      province: currentValue.province,
-      city,
-      district: undefined,
-    });
-  };
-
-  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const district = e.target.value || undefined;
-    emitChange({
-      province: currentValue.province,
-      city: currentValue.city,
-      district,
-    });
-  };
-
-  const fullClassName =
-    `PdxRegionPicker ${size} ${state} ${disabled ? 'Disabled' : ''} ${className || ''}`.trim();
-  const dataProps = getDataAttributes(dataAttributes);
+  const groupLabel = label ?? 'Region';
+  const provincePlaceholder = placeholder?.province ?? 'Province';
+  const cityPlaceholder = placeholder?.city ?? 'City';
+  const districtPlaceholder = placeholder?.district ?? 'District';
 
   return (
-    <div
-      className={`PdxField ${fullClassName}`}
+    <PdxField
+      className={mergeClassNames('PdxRegionPicker', size, state, className)}
+      controlId={fieldIds.controlId}
+      dataAttributes={dataAttributes}
+      description={description}
+      descriptionId={fieldIds.descriptionId}
+      label={label}
+      message={message}
+      messageId={fieldIds.messageId}
+      required={required}
+      state={state}
       style={style as React.CSSProperties}
-      id={id}
-      {...dataProps}
     >
-      {label && (
-        <div className="PdxFieldHeader">
-          <label className="PdxFieldLabel">{label}</label>
-          {required && <span className="PdxFieldRequired">*</span>}
-        </div>
-      )}
-      {description && <div className="PdxFieldDescription">{description}</div>}
       <div className="PdxRegionPickerControls">
-        <select
-          aria-label={`${label ?? 'Region'} province`}
-          className="PdxRegionPickerSelect"
+        <PdxSelect
+          aria-describedby={fieldIds.describedBy}
+          aria-label={`${groupLabel} province`}
           disabled={disabled}
-          value={currentValue.province || ''}
-          onChange={handleProvinceChange}
-        >
-          <option value="">{placeholder?.province || 'Province'}</option>
-          {provinces.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={`${label ?? 'Region'} city`}
-          className="PdxRegionPickerSelect"
+          id={fieldIds.controlId}
+          onValueChange={(province) => {
+            emitChange({
+              city: undefined,
+              district: undefined,
+              province: province || undefined,
+            });
+          }}
+          options={toSelectOptions(options, provincePlaceholder)}
+          placeholder={provincePlaceholder}
+          size={size}
+          state={state}
+          value={currentValue.province ?? ''}
+        />
+        <PdxSelect
+          aria-label={`${groupLabel} city`}
           disabled={disabled || !currentValue.province}
-          value={currentValue.city || ''}
-          onChange={handleCityChange}
-        >
-          <option value="">{placeholder?.city || 'City'}</option>
-          {cities.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={`${label ?? 'Region'} district`}
-          className="PdxRegionPickerSelect"
+          onValueChange={(city) => {
+            emitChange({
+              city: city || undefined,
+              district: undefined,
+              province: currentValue.province,
+            });
+          }}
+          options={toSelectOptions(cities, cityPlaceholder)}
+          placeholder={cityPlaceholder}
+          size={size}
+          state={state}
+          value={currentValue.city ?? ''}
+        />
+        <PdxSelect
+          aria-label={`${groupLabel} district`}
           disabled={disabled || !currentValue.city}
-          value={currentValue.district || ''}
-          onChange={handleDistrictChange}
-        >
-          <option value="">{placeholder?.district || 'District'}</option>
-          {districts.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onValueChange={(district) => {
+            emitChange({
+              city: currentValue.city,
+              district: district || undefined,
+              province: currentValue.province,
+            });
+          }}
+          options={toSelectOptions(districts, districtPlaceholder)}
+          placeholder={districtPlaceholder}
+          size={size}
+          state={state}
+          value={currentValue.district ?? ''}
+        />
       </div>
-      {message && <div className={`PdxFieldMessage ${state}`}>{message}</div>}
-    </div>
+    </PdxField>
   );
 }
 

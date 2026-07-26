@@ -60,22 +60,36 @@ const startsWithBom = (bytes: Uint8Array): boolean =>
     bytes[2] === 0xfe &&
     bytes[3] === 0xff);
 
+/**
+ * jsonc-parser recovers from every syntax error, so a hostile document can carry
+ * one error per byte. Reported problems stay bounded and positions resolve
+ * against a single line index instead of rescanning the source per error.
+ */
+const MAX_REPORTED_SOURCE_PROBLEMS = 32;
+
+type LineIndex = Readonly<{ starts: readonly number[]; length: number }>;
+
+const createLineIndex = (source: string): LineIndex => {
+  const starts = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source.charCodeAt(index) === 10) starts.push(index + 1);
+  }
+  return { starts, length: source.length };
+};
+
 const positionAt = (
-  source: string,
+  index: LineIndex,
   offset: number
 ): { line: number; column: number } => {
-  let line = 1;
-  let column = 1;
-  const end = Math.min(offset, source.length);
-  for (let index = 0; index < end; index += 1) {
-    if (source.charCodeAt(index) === 10) {
-      line += 1;
-      column = 1;
-    } else {
-      column += 1;
-    }
+  const target = Math.min(Math.max(offset, 0), index.length);
+  let low = 0;
+  let high = index.starts.length - 1;
+  while (low < high) {
+    const middle = (low + high + 1) >> 1;
+    if (index.starts[middle] <= target) low = middle;
+    else high = middle - 1;
   }
-  return { line, column };
+  return { line: low + 1, column: target - index.starts[low] + 1 };
 };
 
 const documentLabel = (kind: StrictJsonDocumentKind): string =>
@@ -103,11 +117,11 @@ const pathMeta = (
   kind === 'manifest' ? { manifestPath: path } : { documentPath: path };
 
 const parseErrorDiagnostic = (
-  source: string,
+  lineIndex: LineIndex,
   error: ParseError,
   options: ParseStrictJsonDocumentOptions
 ): PluginDiagnostic => {
-  const position = positionAt(source, error.offset);
+  const position = positionAt(lineIndex, error.offset);
   return createPluginDiagnostic(
     invalidSourceCode(options.documentKind),
     `${documentLabel(options.documentKind)} is not strict JSON: ${printParseErrorCode(error.error)}.`,
@@ -123,10 +137,12 @@ const parseErrorDiagnostic = (
 
 const findDuplicateKeys = (
   source: string,
-  options: ParseStrictJsonDocumentOptions
-): PluginDiagnostic[] => {
+  options: ParseStrictJsonDocumentOptions,
+  budget: number
+): { diagnostics: PluginDiagnostic[]; suppressed: number } => {
   const objectKeys: Array<Set<string>> = [];
   const diagnostics: PluginDiagnostic[] = [];
+  let suppressed = 0;
 
   visit(
     source,
@@ -145,6 +161,10 @@ const findDuplicateKeys = (
         const currentKeys = objectKeys.at(-1);
         if (!currentKeys || !currentKeys.has(property)) {
           currentKeys?.add(property);
+          return;
+        }
+        if (diagnostics.length >= budget) {
+          suppressed += 1;
           return;
         }
 
@@ -171,7 +191,7 @@ const findDuplicateKeys = (
     strictParseOptions
   );
 
-  return diagnostics;
+  return { diagnostics, suppressed };
 };
 
 const decodeSource = (
@@ -273,12 +293,35 @@ export const parseStrictJsonDocument = (
   try {
     const parseErrors: ParseError[] = [];
     const value: unknown = parse(decoded.text, parseErrors, strictParseOptions);
+    const lineIndex = createLineIndex(decoded.text);
+    const reportedParseErrors = parseErrors.slice(
+      0,
+      MAX_REPORTED_SOURCE_PROBLEMS
+    );
+    const duplicateKeys = findDuplicateKeys(
+      decoded.text,
+      options,
+      MAX_REPORTED_SOURCE_PROBLEMS
+    );
+    const suppressed =
+      parseErrors.length -
+      reportedParseErrors.length +
+      duplicateKeys.suppressed;
     const diagnostics = [
-      ...parseErrors.map((error) =>
-        parseErrorDiagnostic(decoded.text, error, options)
+      ...reportedParseErrors.map((error) =>
+        parseErrorDiagnostic(lineIndex, error, options)
       ),
-      ...findDuplicateKeys(decoded.text, options),
+      ...duplicateKeys.diagnostics,
     ];
+    if (suppressed > 0) {
+      diagnostics.push(
+        createPluginDiagnostic(
+          invalidSourceCode(options.documentKind),
+          `${documentLabel(options.documentKind)} has ${suppressed} further reported problems that were suppressed.`,
+          options.diagnosticMeta
+        )
+      );
+    }
     if (diagnostics.length > 0) {
       return { ok: false, diagnostics };
     }

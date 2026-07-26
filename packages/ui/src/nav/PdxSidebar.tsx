@@ -1,6 +1,6 @@
 import './PdxSidebar.scss';
 import { type PdxComponent } from '@prodivix/shared';
-import { getDataAttributes } from '../foundation/component';
+import { getDataAttributes, mergeClassNames } from '../foundation/component';
 import type React from 'react';
 
 export interface PdxSidebarItem {
@@ -16,6 +16,7 @@ interface PdxSidebarSpecificProps {
   items?: PdxSidebarItem[];
   footer?: React.ReactNode;
   collapsed?: boolean;
+  navigationLabel?: string;
   width?: number;
   children?: React.ReactNode;
   onItemSelect?: (item: PdxSidebarItem) => void;
@@ -24,11 +25,22 @@ interface PdxSidebarSpecificProps {
 export interface PdxSidebarProps
   extends PdxComponent, PdxSidebarSpecificProps {}
 
+const firstCodePoint = (value: string) => Array.from(value)[0] ?? '';
+
+/**
+ * Selection and availability are declared once, as `aria-current` and
+ * `aria-disabled`; the stylesheet reads those attributes rather than a parallel
+ * set of modifier classes, so the marker a sighted user sees and the state a
+ * screen reader hears cannot drift apart. Collapsing the rail hides item labels
+ * visually but keeps them in the accessibility tree, so every link keeps its
+ * name.
+ */
 function PdxSidebar({
   title,
   items = [],
   footer,
   collapsed = false,
+  navigationLabel,
   width = 240,
   children,
   onItemSelect,
@@ -37,9 +49,11 @@ function PdxSidebar({
   id,
   dataAttributes = {},
 }: PdxSidebarProps) {
-  const fullClassName =
-    `PdxSidebar ${collapsed ? 'Collapsed' : ''} ${className || ''}`.trim();
-  const firstCodePoint = (value: string) => Array.from(value)[0] ?? '';
+  const fullClassName = mergeClassNames(
+    'PdxSidebar',
+    collapsed && 'Collapsed',
+    className
+  );
 
   return (
     <aside
@@ -52,44 +66,50 @@ function PdxSidebar({
       }}
     >
       {title && (
-        <div
-          aria-label={collapsed ? title : undefined}
-          className="PdxSidebarTitle"
-          title={collapsed ? title : undefined}
-        >
-          {collapsed ? firstCodePoint(title) : title}
+        <div className="PdxSidebarTitle">
+          {collapsed && (
+            <span aria-hidden="true" className="PdxSidebarTitleGlyph">
+              {firstCodePoint(title)}
+            </span>
+          )}
+          <span className="PdxSidebarTitleText">{title}</span>
         </div>
       )}
       {children ? (
         children
       ) : (
-        <nav aria-label={title || 'Sidebar'} className="PdxSidebarNav">
-          {items.map((item) => (
-            <a
-              aria-current={item.active ? 'page' : undefined}
-              aria-disabled={item.disabled || undefined}
-              key={item.label}
-              href={item.href || '#'}
-              className={`PdxSidebarItem ${item.active ? 'Active' : ''} ${item.disabled ? 'Disabled' : ''}`}
-              onClick={(event) => {
-                if (!item.href || item.disabled) event.preventDefault();
-                if (!item.disabled) onItemSelect?.(item);
-              }}
-              tabIndex={item.disabled ? -1 : undefined}
-              title={collapsed ? item.label : undefined}
-            >
-              {item.icon ? (
-                <span className="PdxSidebarIcon" aria-hidden="true">
-                  {item.icon}
-                </span>
-              ) : collapsed ? (
-                <span className="PdxSidebarFallbackIcon" aria-hidden="true">
-                  {firstCodePoint(item.label)}
-                </span>
-              ) : null}
-              {!collapsed && <span>{item.label}</span>}
-            </a>
-          ))}
+        <nav
+          aria-label={navigationLabel ?? title ?? 'Sidebar'}
+          className="PdxSidebarNav"
+        >
+          <ul className="PdxSidebarList">
+            {items.map((item, index) => (
+              <li key={`${item.label}-${index}`}>
+                <a
+                  aria-current={item.active ? 'page' : undefined}
+                  aria-disabled={item.disabled || undefined}
+                  className="PdxSidebarItem"
+                  href={item.href || '#'}
+                  onClick={(event) => {
+                    if (!item.href || item.disabled) event.preventDefault();
+                    if (!item.disabled) onItemSelect?.(item);
+                  }}
+                  title={collapsed ? item.label : undefined}
+                >
+                  {item.icon ? (
+                    <span aria-hidden="true" className="PdxSidebarIcon">
+                      {item.icon}
+                    </span>
+                  ) : collapsed ? (
+                    <span aria-hidden="true" className="PdxSidebarFallbackIcon">
+                      {firstCodePoint(item.label)}
+                    </span>
+                  ) : null}
+                  <span className="PdxSidebarItemLabel">{item.label}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </nav>
       )}
       {footer && <div className="PdxSidebarFooter">{footer}</div>}

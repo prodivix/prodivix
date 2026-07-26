@@ -8,6 +8,7 @@ import {
   type PluginDiagnostic,
 } from '#contracts/diagnostics';
 import { appendJsonPointer } from '#contracts/jsonPointer';
+import { isUnsafeObjectKey } from '@prodivix/shared/safety';
 import {
   validateJsonValue,
   type JsonValueValidationOptions,
@@ -199,5 +200,36 @@ export const validatePropsTransform = (
       );
     }
   });
+
+  // Every name a transform declares indexes a props object at apply time —
+  // `to` and `defaults` keys are assigned onto it, `from` and `omit` read and
+  // delete from it. A prototype-mutating name therefore reaches the prototype
+  // chain rather than an own property, so the contract rejects it here instead
+  // of leaving each consumer to guard its own assignment.
+  const unsafeNames: Array<readonly [string, string]> = [
+    ...(transform.rename ?? []).flatMap((entry, index) => [
+      [entry.from, `${path}/rename/${index}/from`] as const,
+      [entry.to, `${path}/rename/${index}/to`] as const,
+    ]),
+    ...(transform.omit ?? []).map(
+      (property, index) => [property, `${path}/omit/${index}`] as const
+    ),
+    ...Object.keys(transform.defaults ?? {}).map(
+      (property) => [property, `${path}/defaults/${property}`] as const
+    ),
+  ];
+  unsafeNames.forEach(([property, propertyPath]) => {
+    if (!isUnsafeObjectKey(property)) return;
+    diagnostics.push(
+      contributionContractDiagnostic(
+        point,
+        `Property name ${JSON.stringify(property)} is reserved and cannot be used in a props transform.`,
+        propertyPath,
+        undefined,
+        contractVersion
+      )
+    );
+  });
+
   return diagnostics;
 };

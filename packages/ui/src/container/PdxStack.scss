@@ -1,0 +1,99 @@
+/*
+ * `PdxStack` owns the layout spacing vocabulary for the container primitives.
+ * `PdxGrid`, `PdxSpacer` and `PdxDivider` consume `spacing-scale` from here so
+ * the scale has one definition rather than four copies that drift.
+ */
+$pdx-spacing-scale: (
+  'None': var(--spacing-none),
+  'ExtraSmall': var(--spacing-xs),
+  'Small': var(--spacing-sm),
+  'Medium': var(--spacing-md),
+  'Large': var(--spacing-lg),
+  'ExtraLarge': var(--spacing-xl),
+  'ExtraExtraLarge': var(--spacing-2xl),
+);
+
+@mixin spacing-scale($property, $prefix) {
+  @each $name, $value in $pdx-spacing-scale {
+    &.#{$prefix}#{$name} {
+      #{$property}: #{$value};
+    }
+  }
+}
+
+.PdxStack {
+  @include spacing-scale(gap, 'Gap');
+
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  font-family: var(--font-family-ui);
+
+  &.Inline {
+    display: inline-flex;
+  }
+
+  &.Row {
+    flex-direction: row;
+  }
+
+  &.Column {
+    flex-direction: column;
+  }
+
+  &.RowReverse {
+    flex-direction: row-reverse;
+  }
+
+  &.ColumnReverse {
+    flex-direction: column-reverse;
+  }
+
+  &.Wrap {
+    flex-wrap: wrap;
+  }
+
+  &.AlignStart {
+    align-items: flex-start;
+  }
+
+  &.AlignCenter {
+    align-items: center;
+  }
+
+  &.AlignEnd {
+    align-items: flex-end;
+  }
+
+  &.AlignStretch {
+    align-items: stretch;
+  }
+
+  &.AlignBaseline {
+    align-items: baseline;
+  }
+
+  &.JustifyStart {
+    justify-content: flex-start;
+  }
+
+  &.JustifyCenter {
+    justify-content: center;
+  }
+
+  &.JustifyEnd {
+    justify-content: flex-end;
+  }
+
+  &.JustifySpaceBetween {
+    justify-content: space-between;
+  }
+
+  &.JustifySpaceAround {
+    justify-content: space-around;
+  }
+
+  &.JustifySpaceEvenly {
+    justify-content: space-evenly;
+  }
+}

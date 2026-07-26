@@ -96,3 +96,28 @@ export const WithDescription: Story = {
     value: '2026-01-22',
   },
 };
+
+/**
+ * Type an ISO date, or step it with ArrowUp/ArrowDown and PageUp/PageDown.
+ * Alt+ArrowDown opens the calendar and hands focus to the grid, where the arrow
+ * keys move by day and week, Home/End reach the ends of the week and
+ * PageUp/PageDown change month.
+ */
+export const BoundedRange: Story = {
+  args: {
+    label: 'Delivery date',
+    description: 'Only the last week of January is available.',
+    min: '2026-01-25',
+    max: '2026-01-31',
+    value: '2026-01-27',
+  },
+};
+
+export const TypedEntryOnly: Story = {
+  args: {
+    label: 'Effective from',
+    description: 'No calendar toggle; the field still steps with the keyboard.',
+    showIcon: false,
+    value: '2026-01-22',
+  },
+};

@@ -11,7 +11,19 @@ const meta: Meta<typeof PdxIframe> = {
   argTypes: {
     src: {
       control: 'text',
-      description: 'iframe 地址',
+      description: 'iframe 地址（仅 http/https，其余回退到 about:blank）',
+    },
+    srcDoc: {
+      control: 'text',
+      description: '内联文档，需要同时设置 allowInlineDocument',
+    },
+    allowInlineDocument: {
+      control: 'boolean',
+      description: '显式允许渲染内联文档（始终不带 allow-same-origin 沙箱）',
+    },
+    sandbox: {
+      control: 'text',
+      description: 'sandbox token；未知 token 会被丢弃',
     },
     title: {
       control: 'text',
@@ -109,7 +121,16 @@ export const WithSandbox: Story = {
   args: {
     src: 'https://www.example.com',
     title: 'Example website',
-    sandbox: 'allow-same-origin allow-scripts',
+    sandbox: 'allow-scripts allow-forms',
+    aspectRatio: '16:9',
+  },
+};
+
+export const InlineDocument: Story = {
+  args: {
+    title: 'Inline document',
+    srcDoc: '<p style="font-family:sans-serif">Inline document</p>',
+    allowInlineDocument: true,
     aspectRatio: '16:9',
   },
 };

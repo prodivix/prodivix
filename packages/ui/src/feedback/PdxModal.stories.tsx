@@ -59,6 +59,49 @@ function InteractiveModal() {
   );
 }
 
+function CloseReasonModal() {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<string>('not closed yet');
+
+  return (
+    <>
+      <PdxButton
+        onClick={() => setOpen(true)}
+        text="Open modal"
+        variant="Primary"
+      />
+      <p>Last close reason: {reason}</p>
+      <PdxModal
+        description="Escape, the scrim and the close button are three different answers."
+        footer={
+          <PdxButton
+            onClick={() => {
+              setOpen(false);
+              setReason('Programmatic');
+            }}
+            text="Save"
+            variant="Primary"
+          />
+        }
+        onClose={setReason}
+        onOpenChange={setOpen}
+        open={open}
+        title="Unsaved changes"
+      >
+        Dismiss this dialog in different ways and watch the reason change.
+      </PdxModal>
+    </>
+  );
+}
+
+/**
+ * A dismissal is not one event. `onClose` names which one it was so a caller
+ * can treat "cancel" and "close" differently.
+ */
+export const CloseReason: Story = {
+  render: () => <CloseReasonModal />,
+};
+
 export const Interactive: Story = {
   render: () => <InteractiveModal />,
   play: async ({ canvasElement }) => {

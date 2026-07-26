@@ -1,4 +1,5 @@
 import './PdxCheckList.scss';
+import PdxEmpty from '../feedback/PdxEmpty';
 import {
   getDataAttributes,
   mergeClassNames,
@@ -6,49 +7,62 @@ import {
 } from '../foundation/component';
 import { useControllableState } from '../foundation/useControllableState';
 import { type PdxComponent } from '@prodivix/shared';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import type React from 'react';
+import { rowDensityAttribute, type PdxRowSize } from './rowSurface';
 
 export interface PdxCheckListItem {
-  label: string;
-  value: string;
   checked?: boolean;
   disabled?: boolean;
+  label: string;
+  value: string;
 }
 
 interface PdxCheckListSpecificProps {
-  items: PdxCheckListItem[];
-  value?: string[];
   defaultValue?: string[];
-  label?: React.ReactNode;
   description?: React.ReactNode;
-  message?: React.ReactNode;
-  orientation?: 'Vertical' | 'Horizontal';
   disabled?: boolean;
-  required?: boolean;
-  state?: PdxValidationState;
+  emptyState?: ReactNode;
+  emptyText?: ReactNode;
+  items: PdxCheckListItem[];
+  label?: React.ReactNode;
+  message?: React.ReactNode;
   onChange?: (values: string[]) => void;
+  orientation?: 'Vertical' | 'Horizontal';
+  required?: boolean;
+  size?: PdxRowSize;
+  state?: PdxValidationState;
+  value?: string[];
 }
 
 export interface PdxCheckListProps
   extends PdxComponent, PdxCheckListSpecificProps {}
 
+/**
+ * A group of checkboxes is still a list of rows a user points at, so it shares
+ * the row treatment with Table, DataGrid and List. The keyboard contract is the
+ * native one — every checkbox is its own tab stop, toggled with Space — because
+ * a roving tabindex would take reachability away rather than add it.
+ */
 function PdxCheckList({
-  items,
-  value,
-  defaultValue,
-  label,
-  description,
-  message,
-  orientation = 'Vertical',
-  disabled = false,
-  required = false,
-  state = 'Default',
-  onChange,
   className,
-  style,
-  id,
   dataAttributes = {},
+  defaultValue,
+  description,
+  disabled = false,
+  emptyState,
+  emptyText = 'No options',
+  id,
+  items,
+  label,
+  message,
+  onChange,
+  orientation = 'Vertical',
+  required = false,
+  size = 'Medium',
+  state = 'Default',
+  style,
+  value,
 }: PdxCheckListProps) {
   const generatedId = useId().replaceAll(':', '');
   const fieldId = id ?? `pdx-check-list-${generatedId}`;
@@ -87,12 +101,15 @@ function PdxCheckList({
 
   return (
     <fieldset
+      {...(rowDensityAttribute(size)
+        ? { 'data-pdx-density': rowDensityAttribute(size) }
+        : {})}
+      {...getDataAttributes(dataAttributes)}
       aria-describedby={describedBy}
       className={fullClassName}
       disabled={disabled}
       id={fieldId}
       style={style as React.CSSProperties}
-      {...getDataAttributes(dataAttributes)}
     >
       {label && (
         <legend className="PdxCheckListLegend">
@@ -109,32 +126,31 @@ function PdxCheckList({
           {description}
         </div>
       )}
-      <ul className="PdxCheckListItems">
-        {items.map((item) => {
-          const checked = selectedValues.includes(item.value);
-          return (
-            <li key={item.value} className="PdxCheckListItem">
-              <label
-                className={mergeClassNames(
-                  'PdxCheckListLabel',
-                  item.disabled && 'Disabled'
-                )}
-              >
-                <input
-                  aria-invalid={state === 'Error' || undefined}
-                  checked={checked}
-                  disabled={item.disabled}
-                  name={fieldId}
-                  onChange={() => toggleValue(item)}
-                  type="checkbox"
-                  value={item.value}
-                />
-                <span>{item.label}</span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
+      {items.length === 0 ? (
+        (emptyState ?? <PdxEmpty size="Small" title={emptyText} />)
+      ) : (
+        <ul className="PdxCheckListItems">
+          {items.map((item) => {
+            const checked = selectedValues.includes(item.value);
+            return (
+              <li key={item.value} className="PdxCheckListItem">
+                <label className="PdxCheckListLabel">
+                  <input
+                    aria-invalid={state === 'Error' || undefined}
+                    checked={checked}
+                    disabled={item.disabled}
+                    name={fieldId}
+                    onChange={() => toggleValue(item)}
+                    type="checkbox"
+                    value={item.value}
+                  />
+                  <span>{item.label}</span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {message && (
         <div
           className="PdxFieldMessage"

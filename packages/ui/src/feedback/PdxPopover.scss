@@ -1,35 +1,33 @@
+@use 'overlay';
+
 .PdxPopover {
   display: inline-flex;
 }
 
 .PdxPopoverPanel {
-  z-index: 1100;
+  @include overlay.overlay-surface;
+  @include overlay.overlay-motion;
+
+  z-index: overlay.$transient-layer;
   min-width: 220px;
   max-width: min(440px, calc(100vw - 24px));
-  padding: 10px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  outline: none;
-  background: var(--bg-canvas);
-  box-shadow: var(--shadow-lg);
-  color: var(--text-primary);
-  font-family: var(--font-family-ui);
+  padding: var(--spacing-sm);
   transform-origin: var(--radix-popover-content-transform-origin);
 
   &[data-state='open'] {
-    animation: pdx-popover-in var(--motion-duration-normal)
+    animation: pdx-popover-in var(--pdx-overlay-enter)
       var(--motion-easing-standard);
   }
 
   &[data-state='closed'] {
-    animation: pdx-popover-out var(--motion-duration-fast)
+    animation: pdx-popover-out var(--pdx-overlay-exit)
       var(--motion-easing-standard);
   }
 }
 
 .PdxPopoverTitle {
-  margin: 0 0 7px;
-  padding: 1px 2px 8px;
+  margin: 0 0 var(--spacing-xs);
+  padding-bottom: var(--spacing-xs);
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
   font-size: var(--font-size-sm);
@@ -44,8 +42,8 @@
 }
 
 .PdxPopoverArrow {
-  fill: var(--bg-canvas);
-  stroke: var(--border-default);
+  fill: var(--bg-raised);
+  stroke: var(--border-subtle);
   stroke-width: 1px;
 }
 
@@ -70,11 +68,5 @@
   to {
     opacity: 0;
     transform: scale(0.98);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .PdxPopoverPanel {
-    animation-duration: 1ms !important;
   }
 }

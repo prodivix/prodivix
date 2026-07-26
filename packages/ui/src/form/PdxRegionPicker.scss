@@ -1,4 +1,3 @@
-@use '../foundation/control' as control;
 @use './PdxField.scss';
 
 .PdxRegionPicker {
@@ -7,33 +6,17 @@
 
 .PdxRegionPickerControls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-sm);
-}
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 
-.PdxRegionPickerSelect {
-  @include control.field-control;
-
-  width: 100%;
-  min-width: 0;
-  min-height: 36px;
-  padding-inline: var(--spacing-md);
-}
-
-.PdxRegionPicker.Small .PdxRegionPickerSelect {
-  min-height: 32px;
-  padding-inline: var(--spacing-sm);
-  font-size: var(--font-size-xs);
-}
-
-.PdxRegionPicker.Large .PdxRegionPickerSelect {
-  min-height: 44px;
-  padding-inline: var(--spacing-md);
-  font-size: var(--font-size-md);
+  /* The three selects are one field; only the group owns label and message. */
+  .PdxField {
+    gap: 0;
+  }
 }
 
 @media (max-width: 640px) {
   .PdxRegionPickerControls {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

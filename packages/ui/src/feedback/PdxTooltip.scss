@@ -1,17 +1,18 @@
+@use 'overlay';
+
 .PdxTooltip {
   display: inline-flex;
 }
 
 .PdxTooltipContent {
-  z-index: 1100;
+  @include overlay.overlay-surface;
+
+  /* A tooltip answers a hover, so it arrives at the speed of the pointer. */
+  @include overlay.overlay-motion(var(--motion-duration-fast));
+
+  z-index: overlay.$transient-layer;
   max-width: min(280px, calc(100vw - 24px));
-  padding: 6px 9px;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 78%, transparent);
-  border-radius: var(--radius-md);
-  background: var(--text-primary);
-  box-shadow: var(--shadow-md);
-  color: var(--bg-canvas);
-  font-family: var(--font-family-ui);
+  padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-compact);
   text-wrap: balance;
@@ -20,13 +21,15 @@
 
   &[data-state='delayed-open'],
   &[data-state='instant-open'] {
-    animation: pdx-tooltip-in var(--motion-duration-fast)
+    animation: pdx-tooltip-in var(--pdx-overlay-enter)
       var(--motion-easing-standard);
   }
 }
 
 .PdxTooltipArrow {
-  fill: var(--text-primary);
+  fill: var(--bg-raised);
+  stroke: var(--border-subtle);
+  stroke-width: 1px;
 }
 
 @keyframes pdx-tooltip-in {
@@ -38,11 +41,5 @@
   to {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .PdxTooltipContent {
-    animation-duration: 1ms !important;
   }
 }

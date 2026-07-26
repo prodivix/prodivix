@@ -1,10 +1,14 @@
 @use '../foundation/control' as control;
+@use './rowSurface' as row;
 
 .PdxTableRegion {
+  @include control.density-scale;
+
   display: grid;
   width: 100%;
   min-width: 0;
-  gap: 9px;
+  min-height: 0;
+  gap: var(--spacing-xs);
   color: var(--text-primary);
   font-family: var(--font-family-ui);
 }
@@ -16,9 +20,20 @@
   line-height: var(--line-height-compact);
 }
 
+.PdxTableStatus {
+  @include row.status-only;
+}
+
+/*
+ * The header only sticks to a scrollport that can actually scroll, so this is
+ * the scrollport: `min-height: 0` lets a flex or grid parent bound it, and
+ * `maxBodyHeight` bounds it when no parent does. Without one of the two a
+ * `position: sticky` header has nothing to stick to and silently does nothing.
+ */
 .PdxTableScroll {
   width: 100%;
-  overflow-x: auto;
+  min-height: 0;
+  overflow: auto;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-canvas);
@@ -39,25 +54,20 @@
 
   th,
   td {
+    @include row.cell-alignment;
+
+    height: var(--pdx-density-row-height);
     min-width: 96px;
-    padding: 10px 12px;
+    padding-block: var(--spacing-xs);
+    padding-inline: var(--pdx-density-inline-padding);
     border-bottom: 1px solid var(--border-subtle);
     vertical-align: middle;
   }
 
-  thead th {
-    background: var(--bg-panel);
-    color: var(--text-secondary);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-  }
-
   tbody tr {
+    @include row.static-row;
+
     background: var(--bg-canvas);
-    transition: background-color var(--motion-duration-fast)
-      var(--motion-easing-standard);
   }
 
   tbody tr:last-child td {
@@ -82,76 +92,67 @@
     background: var(--bg-raised);
   }
 
+  &.Selectable tbody tr {
+    @include row.table-row-surface;
+  }
+
+  &.Selectable tbody tr[aria-selected='true'] > td:first-child {
+    @include row.row-marker-cell;
+  }
+
   &.StickyHeader thead th {
     position: sticky;
     z-index: 1;
     top: 0;
-    box-shadow: 0 1px 0 var(--border-subtle);
+    box-shadow: inset 0 -1px 0 var(--border-default);
   }
 
-  &.Small th,
-  &.Small td {
-    padding: 7px 10px;
+  &.Small {
     font-size: var(--font-size-xs);
   }
 
-  &.Large th,
-  &.Large td {
-    padding: 14px 16px;
+  &.Large {
     font-size: var(--font-size-md);
   }
 
   caption {
     caption-side: bottom;
-    padding: 8px 2px 2px;
+    padding: var(--spacing-xs) 2px 2px;
     color: var(--text-muted);
     font-size: var(--font-size-xs);
     text-align: left;
   }
 }
 
-.PdxTableEmpty {
-  height: 112px;
-  padding: 24px !important;
-  color: var(--text-muted);
+.PdxTableHeaderCell {
+  @include row.header-cell;
+}
+
+.PdxTableSortButton {
+  @include row.sort-button;
+}
+
+.PdxTableSortLabel {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.PdxTableSortIcon {
+  @include row.sort-indicator;
+}
+
+.PdxTableHeaderCell.AlignCenter .PdxTableSortButton {
+  justify-content: center;
+}
+
+.PdxTableHeaderCell.AlignRight .PdxTableSortButton {
+  justify-content: flex-end;
+}
+
+.PdxTable .PdxTableEmptyCell {
+  padding: 0;
+  border-bottom: 0;
   text-align: center;
-}
-
-.PdxTableSkeleton {
-  display: block;
-  width: min(100%, 160px);
-  height: 10px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    var(--bg-panel) 20%,
-    var(--bg-raised) 50%,
-    var(--bg-panel) 80%
-  );
-  background-size: 220% 100%;
-  animation: pdx-table-shimmer 1.4s linear infinite;
-}
-
-.AlignLeft {
-  text-align: left;
-}
-
-.AlignCenter {
-  text-align: center;
-}
-
-.AlignRight {
-  text-align: right;
-}
-
-@keyframes pdx-table-shimmer {
-  to {
-    background-position: -220% 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .PdxTableSkeleton {
-    animation: none;
-  }
 }

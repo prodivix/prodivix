@@ -4,15 +4,14 @@ import {
   mergeClassNames,
   type PdxNativeProps,
 } from '../foundation/component';
-import type { PdxFeedbackType } from './PdxMessage';
 import {
-  AlertTriangle,
-  CheckCircle2,
-  CircleX,
-  Info,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+  PDX_FEEDBACK_ICONS,
+  PDX_FEEDBACK_TYPE_LABELS,
+  resolveFeedbackLiveness,
+  resolveFeedbackRole,
+  type PdxFeedbackType,
+} from './feedbackType';
+import { X } from 'lucide-react';
 import { forwardRef, type ReactNode } from 'react';
 
 export interface PdxNotificationOwnProps {
@@ -25,6 +24,8 @@ export interface PdxNotificationOwnProps {
   showIcon?: boolean;
   title: ReactNode;
   type?: PdxFeedbackType;
+  /** Spoken type name. `null` drops it when the title already says so. */
+  typeLabel?: string | null;
 }
 
 export type PdxNotificationProps = Omit<
@@ -33,17 +34,17 @@ export type PdxNotificationProps = Omit<
 > &
   PdxNotificationOwnProps;
 
-const NOTIFICATION_ICONS: Record<PdxFeedbackType, LucideIcon> = {
-  Info,
-  Success: CheckCircle2,
-  Warning: AlertTriangle,
-  Danger: CircleX,
-};
-
+/**
+ * A notification arrives unrequested, so it announces itself through a live
+ * region and leaves focus alone. Its actions stay reachable by Tab in the
+ * order the notification was rendered.
+ */
 const PdxNotification = forwardRef<HTMLDivElement, PdxNotificationProps>(
   function PdxNotification(
     {
       actions,
+      'aria-atomic': ariaAtomic,
+      'aria-live': ariaLive,
       className,
       closable = false,
       closeLabel = 'Dismiss notification',
@@ -55,22 +56,29 @@ const PdxNotification = forwardRef<HTMLDivElement, PdxNotificationProps>(
       showIcon = true,
       title,
       type = 'Info',
+      typeLabel,
       ...rest
     },
     ref
   ) {
-    const NotificationIcon = NOTIFICATION_ICONS[type];
+    const NotificationIcon = PDX_FEEDBACK_ICONS[type];
+    const resolvedRole = role ?? resolveFeedbackRole(type);
+    const spokenType =
+      typeLabel === undefined ? PDX_FEEDBACK_TYPE_LABELS[type] : typeLabel;
 
     return (
       <div
         {...rest}
         {...getDataAttributes(dataAttributes)}
+        aria-atomic={ariaAtomic ?? true}
+        aria-live={ariaLive ?? resolveFeedbackLiveness(resolvedRole)}
         className={mergeClassNames('PdxNotification', type, className)}
         ref={ref}
-        role={
-          role ?? (type === 'Danger' || type === 'Warning' ? 'alert' : 'status')
-        }
+        role={resolvedRole}
       >
+        {spokenType ? (
+          <span className="PdxNotificationType">{spokenType}</span>
+        ) : null}
         {showIcon ? (
           <span aria-hidden="true" className="PdxNotificationIcon">
             {icon ?? <NotificationIcon size={18} />}
@@ -90,7 +98,6 @@ const PdxNotification = forwardRef<HTMLDivElement, PdxNotificationProps>(
             aria-label={closeLabel}
             className="PdxNotificationClose"
             onClick={onClose}
-            title={closeLabel}
             type="button"
           >
             <X aria-hidden="true" size={15} />

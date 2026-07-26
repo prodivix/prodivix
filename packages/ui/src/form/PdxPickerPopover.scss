@@ -1,0 +1,130 @@
+@use '../foundation/control' as control;
+@use '../feedback/overlay' as overlay;
+
+.PdxPickerAnchor {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.PdxPickerPanel {
+  @include overlay.overlay-surface;
+  @include overlay.overlay-motion;
+
+  z-index: overlay.$transient-layer;
+  box-sizing: border-box;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  transform-origin: var(--radix-popover-content-transform-origin);
+
+  &[data-state='open'] {
+    animation: pdx-picker-panel-in var(--pdx-overlay-enter)
+      var(--motion-easing-standard);
+  }
+}
+
+/**
+ * The field row a picker types into. `field-control` styles this wrapper rather
+ * than the inner input so the toggle button sits inside the same border, which
+ * is what makes a closed picker read as an ordinary input.
+ */
+.PdxPickerControl {
+  @include control.field-control;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+
+  /* Size and inline padding come from each picker's `field-control-size` call
+     so the shorthand there cannot silently drop a gap declared here. */
+
+  &:focus-within {
+    @include control.focus-ring(
+      var(--pdx-field-focus-color, var(--accent-color))
+    );
+  }
+
+  /* A wrapper cannot match `:disabled` or `:read-only`, so the two states the
+     mixin already describes for an input are mirrored onto the row here. */
+  &[data-disabled='true'] {
+    @include control.disabled-control;
+
+    background-color: var(--bg-raised);
+  }
+
+  &[data-readonly='true'] {
+    background-color: var(--bg-raised);
+  }
+}
+
+/** The input inside `.PdxPickerControl`; the wrapper owns the visible surface. */
+.PdxPickerControlInput {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+
+  &::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+
+  &::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.PdxPickerToggle {
+  @include control.interactive-surface;
+
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
+}
+
+.PdxPickerPanelHint {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-compact);
+}
+
+.PdxPickerPanelStatus {
+  @include control.visually-hidden;
+}
+
+@keyframes pdx-picker-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

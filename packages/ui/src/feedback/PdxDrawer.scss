@@ -1,35 +1,23 @@
-@use '../foundation/control' as control;
+@use 'overlay';
 
 .PdxDrawerOverlay {
-  position: fixed;
-  z-index: 1000;
-  inset: 0;
-  background: rgb(0 0 0 / 0.48);
-  backdrop-filter: blur(3px);
-
-  &[data-state='open'] {
-    animation: pdx-drawer-overlay-in var(--motion-duration-fast)
-      var(--motion-easing-standard);
-  }
-
-  &[data-state='closed'] {
-    animation: pdx-drawer-overlay-out var(--motion-duration-fast)
-      var(--motion-easing-standard);
-  }
+  @include overlay.overlay-scrim;
 }
 
 .PdxDrawer {
+  @include overlay.overlay-surface;
+  @include overlay.overlay-motion;
+
   position: fixed;
-  z-index: 1001;
+  z-index: overlay.$dialog-layer;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-color: var(--border-default);
-  outline: none;
-  background: var(--bg-canvas);
-  box-shadow: var(--shadow-lg);
-  color: var(--text-primary);
-  font-family: var(--font-family-ui);
+
+  /* A drawer is flush with the viewport on every edge, so there is no corner
+     left to round. Elevation, border and background still come from the
+     shared surface. */
+  border-radius: 0;
 
   &.Right,
   &.Left {
@@ -40,30 +28,28 @@
 
   &.Right {
     right: 0;
-    border-left: 1px solid var(--border-default);
 
     &[data-state='open'] {
-      animation: pdx-drawer-right-in var(--motion-duration-normal)
+      animation: pdx-drawer-right-in var(--pdx-overlay-enter)
         var(--motion-easing-standard);
     }
 
     &[data-state='closed'] {
-      animation: pdx-drawer-right-out var(--motion-duration-fast)
+      animation: pdx-drawer-right-out var(--pdx-overlay-exit)
         var(--motion-easing-standard);
     }
   }
 
   &.Left {
     left: 0;
-    border-right: 1px solid var(--border-default);
 
     &[data-state='open'] {
-      animation: pdx-drawer-left-in var(--motion-duration-normal)
+      animation: pdx-drawer-left-in var(--pdx-overlay-enter)
         var(--motion-easing-standard);
     }
 
     &[data-state='closed'] {
-      animation: pdx-drawer-left-out var(--motion-duration-fast)
+      animation: pdx-drawer-left-out var(--pdx-overlay-exit)
         var(--motion-easing-standard);
     }
   }
@@ -77,126 +63,34 @@
 
   &.Top {
     top: 0;
-    border-bottom: 1px solid var(--border-default);
 
     &[data-state='open'] {
-      animation: pdx-drawer-top-in var(--motion-duration-normal)
+      animation: pdx-drawer-top-in var(--pdx-overlay-enter)
         var(--motion-easing-standard);
     }
 
     &[data-state='closed'] {
-      animation: pdx-drawer-top-out var(--motion-duration-fast)
+      animation: pdx-drawer-top-out var(--pdx-overlay-exit)
         var(--motion-easing-standard);
     }
   }
 
   &.Bottom {
     bottom: 0;
-    border-top: 1px solid var(--border-default);
 
     &[data-state='open'] {
-      animation: pdx-drawer-bottom-in var(--motion-duration-normal)
+      animation: pdx-drawer-bottom-in var(--pdx-overlay-enter)
         var(--motion-easing-standard);
     }
 
     &[data-state='closed'] {
-      animation: pdx-drawer-bottom-out var(--motion-duration-fast)
+      animation: pdx-drawer-bottom-out var(--pdx-overlay-exit)
         var(--motion-easing-standard);
     }
   }
 }
 
-.PdxDrawerHeader {
-  display: flex;
-  flex: none;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  padding: 18px 20px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.PdxDrawerHeading {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-}
-
-.PdxDrawerTitle {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-compact);
-}
-
-.PdxDrawerDescription {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
-}
-
-.PdxDrawerBody {
-  min-height: 0;
-  flex: 1;
-  padding: 20px;
-  overflow: auto;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
-  overscroll-behavior: contain;
-}
-
-.PdxDrawerFooter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--spacing-sm);
-  padding: 14px 20px;
-  border-top: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-panel) 55%, var(--bg-canvas));
-}
-
-.PdxDrawerClose {
-  @include control.control-transition;
-
-  display: inline-flex;
-  width: 30px;
-  height: 30px;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--border-subtle);
-    background: var(--bg-raised);
-    color: var(--text-primary);
-  }
-
-  &:focus-visible {
-    @include control.focus-ring;
-  }
-}
-
-@keyframes pdx-drawer-overlay-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes pdx-drawer-overlay-out {
-  to {
-    opacity: 0;
-  }
-}
+@include overlay.overlay-dialog-parts('PdxDrawer');
 
 @keyframes pdx-drawer-right-in {
   from {
@@ -243,12 +137,5 @@
 @keyframes pdx-drawer-bottom-out {
   to {
     transform: translateY(100%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .PdxDrawerOverlay,
-  .PdxDrawer {
-    animation-duration: 1ms !important;
   }
 }

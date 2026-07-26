@@ -1,119 +1,204 @@
 import './PdxDatePicker.scss';
-import { type PdxComponent } from '@prodivix/shared';
-import { getDataAttributes } from '../foundation/component';
+import { CalendarDays } from 'lucide-react';
+import { useRef, useState, type FocusEventHandler } from 'react';
 import type React from 'react';
+import { type PdxComponent } from '@prodivix/shared';
+import {
+  mergeClassNames,
+  type PdxValidationState,
+} from '../foundation/component';
+import { useControllableState } from '../foundation/useControllableState';
+import PdxCalendarPanel, {
+  clampIsoDate,
+  formatCalendarDayLabel,
+  todayIsoDate,
+  type PdxCalendarPanelHandle,
+} from './PdxDatePicker.calendar';
+import PdxIsoDateField from './PdxDatePicker.field';
+import PdxField, { usePdxFieldIds } from './PdxField';
+import PdxPickerPopover, { PdxPickerPopoverToggle } from './PdxPickerPopover';
 
 interface PdxDatePickerSpecificProps {
-  label?: string;
+  autoFocus?: boolean;
+  defaultValue?: string;
   description?: string;
-  message?: string;
-  value?: string;
-  placeholder?: string;
-  size?: 'Small' | 'Medium' | 'Large';
-  state?: 'Default' | 'Error' | 'Warning' | 'Success';
   disabled?: boolean;
+  label?: string;
+  max?: string;
+  message?: string;
+  min?: string;
+  name?: string;
+  onBlur?: FocusEventHandler<HTMLInputElement>;
+  onChange?: (value: string) => void;
+  onFocus?: FocusEventHandler<HTMLInputElement>;
+  placeholder?: string;
   readOnly?: boolean;
   required?: boolean;
-  min?: string;
-  max?: string;
-  name?: string;
-  autoFocus?: boolean;
+  /** Render the calendar toggle. Without it the field is typed-entry only. */
   showIcon?: boolean;
-  onChange?: (value: string) => void;
-  onFocus?: React.FocusEventHandler<HTMLInputElement>;
-  onBlur?: React.FocusEventHandler<HTMLInputElement>;
+  size?: 'Small' | 'Medium' | 'Large';
+  state?: PdxValidationState;
+  value?: string;
 }
 
 export interface PdxDatePickerProps
   extends PdxComponent, PdxDatePickerSpecificProps {}
 
+/**
+ * A date field with a calendar panel, both reachable without a pointer.
+ *
+ * The text field accepts an ISO date and steps it with the arrow keys; the
+ * toggle opens the shared month grid and hands focus to it. The two agree
+ * because they share one value and one set of bounds, not two code paths.
+ */
 function PdxDatePicker({
-  label,
+  autoFocus = false,
+  className,
+  dataAttributes = {},
+  defaultValue = '',
   description,
-  message,
-  value,
-  placeholder,
-  size = 'Medium',
-  state = 'Default',
   disabled = false,
+  id,
+  label,
+  max,
+  message,
+  min,
+  name,
+  onBlur,
+  onChange,
+  onClick,
+  onFocus,
+  placeholder,
   readOnly = false,
   required = false,
-  min,
-  max,
-  name,
-  autoFocus = false,
   showIcon = true,
-  onChange,
-  onFocus,
-  onBlur,
-  className,
+  size = 'Medium',
+  state = 'Default',
   style,
-  id,
-  dataAttributes = {},
-  onClick,
+  value,
 }: PdxDatePickerProps) {
-  const fullClassName =
-    `PdxDatePicker ${size} ${state} ${disabled ? 'Disabled' : ''} ${readOnly ? 'ReadOnly' : ''} ${className || ''}`.trim();
-  const dataProps = getDataAttributes(dataAttributes);
+  const [currentValue, setCurrentValue] = useControllableState({
+    value,
+    defaultValue,
+    onChange,
+  });
+  const [open, setOpen] = useState(false);
+  const [focusedDate, setFocusedDate] = useState(
+    () => currentValue || clampIsoDate(todayIsoDate(), min, max)
+  );
+  const calendarRef = useRef<PdxCalendarPanelHandle>(null);
+  const fieldIds = usePdxFieldIds({ id, description, message });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (onChange) {
-      onChange(e.target.value);
-    }
+  const applyValue = (nextValue: string) => {
+    setCurrentValue(nextValue);
+    if (nextValue) setFocusedDate(nextValue);
   };
 
-  return (
+  /* Focus lives inside the grid while the panel is open, so the panel may only
+     open when there is a toggle to hand focus back to on close. */
+  const canOpenCalendar = showIcon && !disabled && !readOnly;
+
+  const openCalendar = () => {
+    if (!canOpenCalendar) return;
+    setFocusedDate(currentValue || clampIsoDate(todayIsoDate(), min, max));
+    setOpen(true);
+  };
+
+  const selectedLabel = currentValue
+    ? formatCalendarDayLabel(currentValue)
+    : undefined;
+  const panelLabel = label ? `${label} calendar` : 'Calendar';
+
+  const control = (
     <div
-      className={`PdxField ${fullClassName}`}
-      style={style as React.CSSProperties}
-      {...dataProps}
+      className="PdxPickerControl PdxDatePickerControl"
+      data-disabled={disabled ? 'true' : undefined}
+      data-readonly={readOnly ? 'true' : undefined}
     >
-      {label && (
-        <div className="PdxFieldHeader">
-          <label className="PdxFieldLabel" htmlFor={id}>
-            {label}
-          </label>
-          {required && <span className="PdxFieldRequired">*</span>}
-        </div>
+      <PdxIsoDateField
+        autoFocus={autoFocus}
+        aria-describedby={fieldIds.describedBy}
+        disabled={disabled}
+        id={fieldIds.controlId}
+        invalid={state === 'Error'}
+        max={max}
+        min={min}
+        name={name}
+        onBlur={onBlur}
+        onClick={onClick}
+        onFocus={onFocus}
+        onRequestPanel={openCalendar}
+        onValueChange={applyValue}
+        placeholder={placeholder}
+        readOnly={readOnly}
+        required={required}
+        value={currentValue}
+      />
+      {showIcon && (
+        <PdxPickerPopoverToggle asChild>
+          <button
+            aria-label={
+              selectedLabel
+                ? `Choose date, ${selectedLabel} selected`
+                : 'Choose date'
+            }
+            className="PdxPickerToggle"
+            disabled={disabled || readOnly}
+            type="button"
+          >
+            <CalendarDays aria-hidden="true" size={15} />
+          </button>
+        </PdxPickerPopoverToggle>
       )}
-      {description && <div className="PdxFieldDescription">{description}</div>}
-      <div className="PdxDatePickerControl">
-        <input
-          className="PdxDatePickerInput"
-          id={id}
-          type="date"
-          placeholder={placeholder}
-          value={value}
-          disabled={disabled}
-          readOnly={readOnly}
-          required={required}
-          min={min}
-          max={max}
-          name={name}
-          autoFocus={autoFocus}
-          onChange={handleChange}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          onClick={onClick}
-        />
-        {showIcon && (
-          <span className="PdxDatePickerIcon">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-          </span>
-        )}
-      </div>
-      {message && <div className={`PdxFieldMessage ${state}`}>{message}</div>}
     </div>
+  );
+
+  return (
+    <PdxField
+      className={mergeClassNames('PdxDatePicker', size, state, className)}
+      controlId={fieldIds.controlId}
+      dataAttributes={dataAttributes}
+      description={description}
+      descriptionId={fieldIds.descriptionId}
+      label={label}
+      message={message}
+      messageId={fieldIds.messageId}
+      required={required}
+      state={state}
+      style={style as React.CSSProperties}
+    >
+      <PdxPickerPopover
+        className="PdxDatePickerPanel"
+        control={control}
+        label={panelLabel}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) openCalendar();
+          else setOpen(false);
+        }}
+        onPanelOpenAutoFocus={(event) => {
+          event.preventDefault();
+          calendarRef.current?.focusActiveDay();
+        }}
+        open={open && canOpenCalendar}
+      >
+        <PdxCalendarPanel
+          ref={calendarRef}
+          focusedDate={focusedDate}
+          max={max}
+          min={min}
+          onFocusedDateChange={setFocusedDate}
+          onSelect={(isoDate) => {
+            applyValue(isoDate);
+            setOpen(false);
+          }}
+          rangeEnd={currentValue || undefined}
+          rangeStart={currentValue || undefined}
+        />
+        <p className="PdxCalendarHint">
+          Arrow keys move by day, PageUp and PageDown by month.
+        </p>
+      </PdxPickerPopover>
+    </PdxField>
   );
 }
 

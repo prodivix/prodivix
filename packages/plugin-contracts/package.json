@@ -71,6 +71,7 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
+    "@prodivix/shared": "workspace:*",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "jsonc-parser": "^3.3.1",

@@ -1,26 +1,15 @@
-@use '../foundation/control' as control;
+@use 'overlay';
 
 .PdxModalOverlay {
-  position: fixed;
-  z-index: 1000;
-  inset: 0;
-  background: rgb(0 0 0 / 0.48);
-  backdrop-filter: blur(3px);
-
-  &[data-state='open'] {
-    animation: pdx-overlay-in var(--motion-duration-fast)
-      var(--motion-easing-standard);
-  }
-
-  &[data-state='closed'] {
-    animation: pdx-overlay-out var(--motion-duration-fast)
-      var(--motion-easing-standard);
-  }
+  @include overlay.overlay-scrim;
 }
 
 .PdxModal {
+  @include overlay.overlay-surface;
+  @include overlay.overlay-motion;
+
   position: fixed;
-  z-index: 1001;
+  z-index: overlay.$dialog-layer;
   top: 50%;
   left: 50%;
   display: flex;
@@ -29,22 +18,15 @@
   max-height: min(760px, calc(100dvh - 32px));
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  outline: none;
-  background: var(--bg-canvas);
-  box-shadow: var(--shadow-lg);
-  color: var(--text-primary);
-  font-family: var(--font-family-ui);
   transform: translate(-50%, -50%);
 
   &[data-state='open'] {
-    animation: pdx-modal-in var(--motion-duration-normal)
+    animation: pdx-modal-in var(--pdx-overlay-enter)
       var(--motion-easing-standard);
   }
 
   &[data-state='closed'] {
-    animation: pdx-modal-out var(--motion-duration-fast)
+    animation: pdx-modal-out var(--pdx-overlay-exit)
       var(--motion-easing-standard);
   }
 
@@ -57,97 +39,7 @@
   }
 }
 
-.PdxModalHeader {
-  display: flex;
-  flex: none;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  padding: 18px 20px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.PdxModalHeading {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-}
-
-.PdxModalTitle {
-  margin: 0;
-  color: var(--text-primary);
-  font-family: var(--font-family-ui);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-compact);
-}
-
-.PdxModalDescription {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
-}
-
-.PdxModalBody {
-  min-height: 0;
-  padding: 20px;
-  overflow: auto;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
-  overscroll-behavior: contain;
-}
-
-.PdxModalFooter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--spacing-sm);
-  padding: 14px 20px;
-  border-top: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-panel) 55%, var(--bg-canvas));
-}
-
-.PdxModalClose {
-  @include control.control-transition;
-
-  display: inline-flex;
-  width: 30px;
-  height: 30px;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--border-subtle);
-    background: var(--bg-raised);
-    color: var(--text-primary);
-  }
-
-  &:focus-visible {
-    @include control.focus-ring;
-  }
-}
-
-@keyframes pdx-overlay-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes pdx-overlay-out {
-  to {
-    opacity: 0;
-  }
-}
+@include overlay.overlay-dialog-parts('PdxModal');
 
 @keyframes pdx-modal-in {
   from {
@@ -170,12 +62,5 @@
   to {
     opacity: 0;
     transform: translate(-50%, -48%) scale(0.985);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .PdxModalOverlay,
-  .PdxModal {
-    animation-duration: 1ms !important;
   }
 }

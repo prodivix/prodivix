@@ -55,6 +55,15 @@ const entry = (
 
 const CONTROL_SIZES = ['ExtraSmall', 'Small', 'Medium', 'Large'] as const;
 const VALIDATION_STATES = ['Default', 'Error', 'Warning', 'Success'] as const;
+const SPACING_SCALE = [
+  'None',
+  'ExtraSmall',
+  'Small',
+  'Medium',
+  'Large',
+  'ExtraLarge',
+  'ExtraExtraLarge',
+] as const;
 
 export const PDX_COMPONENT_MANIFEST = [
   entry('PdxButton', 'button', 'stable', {
@@ -159,6 +168,132 @@ export const PDX_COMPONENT_MANIFEST = [
       disabled: { kind: 'boolean', defaultValue: false },
     },
     events: ['onValueChange'],
+  }),
+  entry('PdxCheckbox', 'form', 'preview', {
+    props: {
+      checked: { kind: 'boolean' },
+      defaultChecked: { kind: 'boolean', defaultValue: false },
+      indeterminate: { kind: 'boolean', defaultValue: false },
+      label: { kind: 'node' },
+      description: { kind: 'node' },
+      message: { kind: 'node' },
+      size: { kind: 'enum', options: CONTROL_SIZES, defaultValue: 'Medium' },
+      state: {
+        kind: 'enum',
+        options: VALIDATION_STATES,
+        defaultValue: 'Default',
+      },
+      disabled: { kind: 'boolean', defaultValue: false },
+      required: { kind: 'boolean', defaultValue: false },
+    },
+    events: ['onCheckedChange', 'onChange'],
+  }),
+  entry('PdxSwitch', 'form', 'preview', {
+    props: {
+      checked: { kind: 'boolean' },
+      defaultChecked: { kind: 'boolean', defaultValue: false },
+      label: { kind: 'node' },
+      description: { kind: 'node' },
+      labelPosition: {
+        kind: 'enum',
+        options: ['Start', 'End'],
+        defaultValue: 'End',
+      },
+      size: { kind: 'enum', options: CONTROL_SIZES, defaultValue: 'Medium' },
+      disabled: { kind: 'boolean', defaultValue: false },
+    },
+    events: ['onCheckedChange', 'onClick'],
+  }),
+  entry('PdxStack', 'container', 'preview', {
+    supportsChildren: true,
+    props: {
+      direction: {
+        kind: 'enum',
+        options: ['Row', 'Column', 'RowReverse', 'ColumnReverse'],
+        defaultValue: 'Column',
+      },
+      gap: { kind: 'enum', options: SPACING_SCALE, defaultValue: 'Small' },
+      align: {
+        kind: 'enum',
+        options: ['Start', 'Center', 'End', 'Stretch', 'Baseline'],
+        defaultValue: 'Stretch',
+      },
+      justify: {
+        kind: 'enum',
+        options: [
+          'Start',
+          'Center',
+          'End',
+          'SpaceBetween',
+          'SpaceAround',
+          'SpaceEvenly',
+        ],
+        defaultValue: 'Start',
+      },
+      wrap: { kind: 'boolean', defaultValue: false },
+      inline: { kind: 'boolean', defaultValue: false },
+    },
+    events: ['onClick'],
+    slots: ['children'],
+  }),
+  entry('PdxGrid', 'container', 'preview', {
+    supportsChildren: true,
+    props: {
+      columns: { kind: 'number', defaultValue: 2 },
+      columnsMedium: { kind: 'number' },
+      columnsLarge: { kind: 'number' },
+      gap: { kind: 'enum', options: SPACING_SCALE, defaultValue: 'Medium' },
+      rowGap: { kind: 'enum', options: SPACING_SCALE },
+      align: {
+        kind: 'enum',
+        options: ['Start', 'Center', 'End', 'Stretch'],
+        defaultValue: 'Stretch',
+      },
+      justify: {
+        kind: 'enum',
+        options: ['Start', 'Center', 'End', 'Stretch'],
+        defaultValue: 'Stretch',
+      },
+    },
+    events: ['onClick'],
+    slots: ['children'],
+  }),
+  entry('PdxDivider', 'container', 'preview', {
+    props: {
+      orientation: {
+        kind: 'enum',
+        options: ['Horizontal', 'Vertical'],
+        defaultValue: 'Horizontal',
+      },
+      label: { kind: 'node' },
+      labelPosition: {
+        kind: 'enum',
+        options: ['Start', 'Center', 'End'],
+        defaultValue: 'Center',
+      },
+      spacing: {
+        kind: 'enum',
+        options: SPACING_SCALE,
+        defaultValue: 'Medium',
+      },
+      variant: {
+        kind: 'enum',
+        options: ['Solid', 'Dashed'],
+        defaultValue: 'Solid',
+      },
+    },
+    events: ['onClick'],
+  }),
+  entry('PdxSpacer', 'container', 'preview', {
+    props: {
+      axis: {
+        kind: 'enum',
+        options: ['Horizontal', 'Vertical', 'Both'],
+        defaultValue: 'Vertical',
+      },
+      size: { kind: 'enum', options: SPACING_SCALE, defaultValue: 'Medium' },
+      flexible: { kind: 'boolean', defaultValue: false },
+    },
   }),
   entry('PdxTabs', 'navigation', 'stable', {
     props: {
@@ -417,6 +552,33 @@ export const PDX_COMPONENT_MANIFEST = [
     entry(runtimeType, 'data', 'lab')
   ),
   entry('PdxSkeleton', 'feedback', 'preview'),
+  entry('PdxSplitter', 'container', 'preview', {
+    props: {
+      panes: { kind: 'array', required: true },
+      orientation: {
+        kind: 'enum',
+        options: ['Horizontal', 'Vertical'],
+        defaultValue: 'Horizontal',
+      },
+      sizes: { kind: 'array' },
+      defaultSizes: { kind: 'array' },
+      keyboardStep: { kind: 'number', defaultValue: 16 },
+    },
+    events: ['onSizesChange'],
+  }),
+  entry('PdxVirtualList', 'data', 'preview', {
+    props: {
+      items: { kind: 'array', required: true },
+      rowHeight: { kind: 'number', defaultValue: 32 },
+      height: { kind: 'number', defaultValue: 320 },
+      overscan: { kind: 'number', defaultValue: 4 },
+      activeKey: { kind: 'string' },
+      defaultActiveKey: { kind: 'string' },
+      selectedKey: { kind: 'string' },
+      defaultSelectedKey: { kind: 'string' },
+    },
+    events: ['onActiveKeyChange', 'onSelectedKeyChange'],
+  }),
 ] as const satisfies readonly PdxComponentManifestEntry[];
 
 export const PDX_COMPONENT_MANIFEST_BY_TYPE = Object.fromEntries(

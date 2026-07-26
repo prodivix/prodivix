@@ -1,47 +1,42 @@
-@use '../foundation/control' as control;
 @use './PdxField.scss';
+@use '../foundation/control' as control;
 
 .PdxDateRangePicker {
   width: 100%;
 }
 
-.PdxDateRangePickerControls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--spacing-sm);
-}
+.PdxDateRangePickerControl {
+  @include control.field-control-size(36px, var(--spacing-md));
 
-.PdxDateRangePickerInput {
-  @include control.field-control;
-
-  width: 100%;
-  min-width: 0;
-  min-height: 36px;
-  padding-inline: var(--spacing-md);
-  font-variant-numeric: tabular-nums;
+  gap: var(--spacing-xs);
+  padding-inline-end: var(--spacing-xs);
 }
 
 .PdxDateRangePickerSeparator {
+  flex: none;
+  color: var(--text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--text-muted);
 }
 
-.PdxDateRangePicker.Small .PdxDateRangePickerInput {
-  min-height: 32px;
-  padding-inline: var(--spacing-sm);
-  font-size: var(--font-size-xs);
+.PdxDateRangePicker.Small .PdxDateRangePickerControl {
+  @include control.field-control-size(
+    32px,
+    var(--spacing-sm),
+    var(--font-size-xs)
+  );
+
+  gap: var(--spacing-xs);
+  padding-inline-end: var(--spacing-xs);
 }
 
-.PdxDateRangePicker.Large .PdxDateRangePickerInput {
-  min-height: 44px;
-  padding-inline: var(--spacing-md);
-  font-size: var(--font-size-md);
-}
+.PdxDateRangePicker.Large .PdxDateRangePickerControl {
+  @include control.field-control-size(
+    44px,
+    var(--spacing-md),
+    var(--font-size-md)
+  );
 
-@media (max-width: 560px) {
-  .PdxDateRangePickerControls {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  gap: var(--spacing-xs);
+  padding-inline-end: var(--spacing-xs);
 }

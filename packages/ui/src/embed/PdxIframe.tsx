@@ -1,4 +1,9 @@
 import './PdxIframe.scss';
+import {
+  filterFramePassThroughProps,
+  resolveFrameSandbox,
+  resolveSafeFrameSrc,
+} from './embedFrameSafety';
 import { getDataAttributes, mergeClassNames } from '../foundation/component';
 import {
   enumValueToKebabCase,
@@ -9,8 +14,11 @@ import React from 'react';
 import type { PdxComponent } from '@prodivix/shared';
 
 interface PdxIframeSpecificProps {
-  src: string;
+  src?: string;
+  /** Inline document markup. Only rendered when `allowInlineDocument` is set, and always inside a sandbox without `allow-same-origin`. */
   srcDoc?: string;
+  /** Explicit opt-in required before an inline `srcDoc` document is rendered at all. */
+  allowInlineDocument?: boolean;
   title?: string;
   allow?: string;
   allowFullScreen?: boolean;
@@ -38,6 +46,8 @@ type PdxIframeNativeProps = Omit<
   | 'referrerPolicy'
   | 'src'
   | 'srcDoc'
+  | 'children'
+  | 'dangerouslySetInnerHTML'
   | 'title'
   | 'allow'
   | 'allowFullScreen'
@@ -59,9 +69,15 @@ export interface PdxIframeProps
   onError?: React.ReactEventHandler<HTMLIFrameElement>;
 }
 
+/**
+ * Author-controlled iframe. `src` is resolved through the shared embed URL policy and
+ * the sandbox is always emitted, so neither a hostile `srcDoc` nor an embedder-origin
+ * `src` can reach the editor document. See `embedFrameSafety` for the invariants.
+ */
 function PdxIframe({
   src,
   srcDoc,
+  allowInlineDocument = false,
   title,
   allow,
   allowFullScreen = false,
@@ -94,6 +110,18 @@ function PdxIframe({
     ...(height !== undefined ? { height } : {}),
   };
 
+  const inlineDocument =
+    allowInlineDocument && srcDoc !== undefined ? srcDoc : undefined;
+  const frameSrc = resolveSafeFrameSrc('Custom', src);
+  const frameSandbox = resolveFrameSandbox({
+    requested: sandbox,
+    src: frameSrc,
+    inlineDocument: inlineDocument !== undefined,
+  });
+  const iframeProps = filterFramePassThroughProps(
+    rest
+  ) as React.IframeHTMLAttributes<HTMLIFrameElement>;
+
   return (
     <div
       className={fullClassName}
@@ -115,13 +143,13 @@ function PdxIframe({
                 ) as React.IframeHTMLAttributes<HTMLIFrameElement>['referrerPolicy'])
               : undefined
           }
-          sandbox={sandbox}
+          sandbox={frameSandbox}
           onError={onError}
           onLoad={onLoad}
-          src={src}
-          srcDoc={srcDoc}
+          src={inlineDocument === undefined ? frameSrc : undefined}
+          srcDoc={inlineDocument}
           title={title || 'Embedded content'}
-          {...rest}
+          {...iframeProps}
         />
       </div>
     </div>

@@ -1,68 +1,64 @@
+@use '../foundation/control' as control;
+@use './navigation' as navigation;
+
 .PdxAnchorNavigation {
-  display: flex;
-  gap: 2px;
   color: var(--text-muted);
   font-family: var(--font-family-ui);
 }
 
-.PdxAnchorNavigation.Vertical {
-  flex-direction: column;
-  border-left: 1px solid var(--border-default);
+.PdxAnchorNavigationList {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .PdxAnchorNavigationItem {
+  @include control.interactive-surface;
+
   position: relative;
-  text-decoration: none;
+  display: block;
+  padding: 7px var(--spacing-sm);
   color: inherit;
   font-size: var(--font-size-xs);
   line-height: var(--line-height-compact);
-  padding: 7px var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  transition:
-    background-color var(--motion-duration-fast) var(--motion-easing-standard),
-    color var(--motion-duration-fast) var(--motion-easing-standard);
+  text-decoration: none;
 
   &:hover {
-    background-color: var(--bg-panel);
     color: var(--text-primary);
   }
 
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px
-      color-mix(in srgb, var(--accent-color) 14%, transparent);
-  }
-
-  &.Active {
-    background-color: var(--bg-raised);
+  &[aria-current='location'] {
     color: var(--text-primary);
     font-weight: var(--font-weight-medium);
   }
 }
 
-.PdxAnchorNavigation.Vertical .PdxAnchorNavigationItem.Active::before {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: -1px;
-  width: 2px;
-  border-radius: var(--radius-full);
-  background: var(--accent-color);
-  content: '';
+.PdxAnchorNavigation.Vertical .PdxAnchorNavigationList {
+  flex-direction: column;
+  border-inline-start: 1px solid var(--border-default);
 }
 
-.PdxAnchorNavigation.Horizontal {
+/* Reading position rides the rule the list already hangs from. */
+.PdxAnchorNavigation.Vertical
+  .PdxAnchorNavigationItem[aria-current='location'] {
+  @include control.selection-marker($inset-block: 6px);
+
+  background-color: var(--bg-raised);
+}
+
+.PdxAnchorNavigation.Horizontal .PdxAnchorNavigationList {
   align-items: center;
   border-bottom: 1px solid var(--border-default);
 }
 
 .PdxAnchorNavigation.Horizontal .PdxAnchorNavigationItem {
   margin-bottom: -1px;
-  border-bottom: 2px solid transparent;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
-.PdxAnchorNavigation.Horizontal .PdxAnchorNavigationItem.Active {
-  border-bottom-color: var(--accent-color);
-  background: transparent;
+.PdxAnchorNavigation.Horizontal
+  .PdxAnchorNavigationItem[aria-current='location'] {
+  @include navigation.underline-marker($inset-inline: var(--spacing-xs));
 }

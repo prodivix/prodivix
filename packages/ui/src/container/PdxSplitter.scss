@@ -1,0 +1,103 @@
+@use '../foundation/control' as control;
+
+.PdxSplitter {
+  display: flex;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  color: var(--text-primary);
+  font-family: var(--font-family-ui);
+
+  &.Horizontal {
+    flex-direction: row;
+  }
+
+  &.Vertical {
+    flex-direction: column;
+  }
+
+  /*
+   * While a pointer owns the divider the layout must track the cursor exactly:
+   * a transition would make the divider lag behind, and a text selection would
+   * follow the drag across both panes.
+   */
+  &[data-pdx-dragging='true'] {
+    user-select: none;
+
+    .PdxSplitterDivider,
+    .PdxSplitterDivider::after {
+      transition: none;
+    }
+  }
+}
+
+.PdxSplitterPane {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.PdxSplitterDivider {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  touch-action: none;
+
+  &::after {
+    @include control.control-transition;
+    @include control.reduced-motion;
+
+    position: absolute;
+    border-radius: 1px;
+    background-color: var(--border-subtle);
+    content: '';
+  }
+
+  &:hover::after {
+    background-color: var(--border-strong);
+  }
+
+  &:focus-visible {
+    @include control.focus-ring;
+
+    z-index: 1;
+  }
+
+  &:focus-visible::after,
+  &[data-pdx-dragging='true']::after {
+    background-color: var(--accent-color);
+  }
+}
+
+.PdxSplitter.Horizontal > .PdxSplitterDivider {
+  width: 7px;
+  cursor: col-resize;
+
+  &::after {
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 1px;
+  }
+}
+
+.PdxSplitter.Vertical > .PdxSplitterDivider {
+  height: 7px;
+  cursor: row-resize;
+
+  &::after {
+    top: 3px;
+    right: 0;
+    left: 0;
+    height: 1px;
+  }
+}

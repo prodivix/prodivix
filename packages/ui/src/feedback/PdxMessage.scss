@@ -1,73 +1,46 @@
 @use '../foundation/control' as control;
+@use 'overlay';
 
 .PdxMessage {
-  --pdx-message-color: var(--text-secondary);
-  --pdx-message-border: var(--border-default);
-  --pdx-message-background: var(--bg-panel);
+  @include overlay.overlay-surface;
 
+  /* The type is a marker, not a fill: the surface stays neutral and only the
+     icon carries the colour, so several messages still read as one system. */
+  --pdx-message-color: var(--text-secondary);
+
+  position: relative;
   display: inline-grid;
   width: fit-content;
   max-width: 100%;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
-  gap: 8px;
-  padding: 9px 10px;
-  border: 1px solid var(--pdx-message-border);
-  border-radius: var(--radius-lg);
-  background: var(--pdx-message-background);
-  box-shadow: var(--shadow-sm);
-  color: var(--pdx-message-color);
-  font-family: var(--font-family-ui);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-normal);
 
   &.Success {
     --pdx-message-color: var(--success-color);
-    --pdx-message-border: color-mix(
-      in srgb,
-      var(--success-color) 32%,
-      var(--border-subtle)
-    );
-    --pdx-message-background: color-mix(
-      in srgb,
-      var(--success-color) 9%,
-      var(--bg-canvas)
-    );
   }
 
   &.Warning {
     --pdx-message-color: var(--warning-color);
-    --pdx-message-border: color-mix(
-      in srgb,
-      var(--warning-color) 38%,
-      var(--border-subtle)
-    );
-    --pdx-message-background: color-mix(
-      in srgb,
-      var(--warning-color) 10%,
-      var(--bg-canvas)
-    );
   }
 
   &.Danger {
     --pdx-message-color: var(--danger-color);
-    --pdx-message-border: color-mix(
-      in srgb,
-      var(--danger-color) 34%,
-      var(--border-subtle)
-    );
-    --pdx-message-background: color-mix(
-      in srgb,
-      var(--danger-color) 9%,
-      var(--bg-canvas)
-    );
   }
+}
+
+.PdxMessageType {
+  @include control.visually-hidden;
 }
 
 .PdxMessageIcon {
   display: inline-flex;
   min-height: 20px;
   align-items: center;
+  color: var(--pdx-message-color);
 }
 
 .PdxMessageText {
@@ -77,25 +50,5 @@
 }
 
 .PdxMessageClose {
-  @include control.control-transition;
-
-  display: inline-flex;
-  width: 22px;
-  height: 22px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--pdx-message-color);
-  cursor: pointer;
-
-  &:hover {
-    background: color-mix(in srgb, currentColor 10%, transparent);
-  }
-
-  &:focus-visible {
-    @include control.focus-ring;
-  }
+  @include overlay.overlay-dismiss(22px);
 }

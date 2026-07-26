@@ -1,4 +1,5 @@
 @use '../foundation/control' as control;
+@use './navigation' as navigation;
 
 .PdxTabs {
   display: grid;
@@ -16,6 +17,7 @@
 
 .PdxTabsTab {
   @include control.control-transition;
+  @include control.reduced-motion;
 
   position: relative;
   display: inline-flex;
@@ -34,28 +36,15 @@
   white-space: nowrap;
   cursor: pointer;
 
-  &::after {
-    position: absolute;
-    right: 8px;
-    bottom: -1px;
-    left: 8px;
-    height: 2px;
-    border-radius: 999px;
-    background: transparent;
-    content: '';
-  }
-
   &:hover:not(:disabled) {
     background: var(--bg-raised);
     color: var(--text-primary);
   }
 
   &[aria-selected='true'] {
-    color: var(--text-primary);
+    @include navigation.underline-marker;
 
-    &::after {
-      background: var(--accent-color);
-    }
+    color: var(--text-primary);
   }
 
   &:focus-visible {
@@ -87,13 +76,13 @@
   min-height: 30px;
   border-radius: var(--radius-md);
 
-  &::after {
-    display: none;
-  }
-
   &[aria-selected='true'] {
     background: var(--bg-canvas);
     box-shadow: var(--shadow-sm);
+
+    &::after {
+      display: none;
+    }
   }
 }
 
@@ -117,23 +106,25 @@
 
 .PdxTabs.Vertical .PdxTabsList {
   flex-direction: column;
+  padding-right: 8px;
   border-right: 1px solid var(--border-subtle);
   border-bottom: 0;
-  padding-right: 8px;
 }
 
+/* Stacked tabs are a list, so they take the system's leading-edge marker. */
 .PdxTabs.Vertical .PdxTabsTab {
   justify-content: flex-start;
   border-radius: var(--radius-md);
   text-align: left;
 
-  &::after {
-    top: 7px;
-    right: -9px;
-    bottom: 7px;
-    left: auto;
-    width: 2px;
-    height: auto;
+  &[aria-selected='true'] {
+    @include control.selection-marker($inset-block: 7px);
+
+    background: var(--bg-raised);
+
+    &::after {
+      display: none;
+    }
   }
 }
 

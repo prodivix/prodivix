@@ -1,0 +1,163 @@
+@use '../foundation/control' as control;
+
+/*
+ * The floating feedback family — dialog, drawer, popover, tooltip and toast —
+ * is one surface.
+ *
+ * `control.floating-surface` owns elevation, radius, border and background;
+ * nothing in this directory re-decides them. What lives here is what a scrim,
+ * an animated panel or a dismiss affordance needs on top of that surface, so
+ * those are decided once as well rather than per component.
+ */
+
+/* Stacking order for the family: scrim, the dialog it dims, then transient
+   layers (popover, tooltip) which must clear a dialog that opened them. */
+$scrim-layer: 1000;
+$dialog-layer: 1001;
+$transient-layer: 1100;
+
+/**
+ * Enter/exit duration is published as custom properties so the reduced-motion
+ * clamp lands on the same element, at the same specificity, as the
+ * `[data-state]` rules that read it. Clamping `animation-duration` directly
+ * always loses to those rules and forces `!important`.
+ */
+@mixin overlay-motion($enter: var(--motion-duration-normal)) {
+  --pdx-overlay-enter: #{$enter};
+  --pdx-overlay-exit: var(--motion-duration-fast);
+
+  @media (prefers-reduced-motion: reduce) {
+    --pdx-overlay-enter: 1ms;
+    --pdx-overlay-exit: 1ms;
+  }
+}
+
+/** Every panel that floats above the page. */
+@mixin overlay-surface {
+  @include control.floating-surface;
+
+  font-family: var(--font-family-ui);
+
+  /* Radix focuses the panel itself so its name is announced on open. The
+     focus ring belongs on the controls inside, not around the whole surface. */
+  outline: none;
+}
+
+/**
+ * The dimmed layer under a dialog or drawer. Themes may own `--overlay-scrim`;
+ * the fallback mirrors how the foundation states `--shadow-overlay`.
+ */
+@mixin overlay-scrim {
+  @include overlay-motion;
+
+  position: fixed;
+  z-index: $scrim-layer;
+  inset: 0;
+  background: var(--overlay-scrim, rgb(0 0 0 / 48%));
+  backdrop-filter: blur(3px);
+
+  &[data-state='open'] {
+    animation: pdx-overlay-scrim-in var(--pdx-overlay-enter)
+      var(--motion-easing-standard);
+  }
+
+  &[data-state='closed'] {
+    animation: pdx-overlay-scrim-out var(--pdx-overlay-exit)
+      var(--motion-easing-standard);
+  }
+}
+
+/** The dismiss affordance every feedback surface repeats. */
+@mixin overlay-dismiss($size: 30px) {
+  @include control.interactive-surface;
+
+  display: inline-flex;
+  width: $size;
+  height: $size;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
+}
+
+/**
+ * Header, body and footer of an overlay dialog. Modal and drawer render the
+ * same structure through `OverlayDialog`, so the chrome is described once and
+ * each surface only supplies its own class-name block.
+ */
+@mixin overlay-dialog-parts($block) {
+  .#{$block}Header {
+    display: flex;
+    flex: none;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .#{$block}Heading {
+    display: grid;
+    min-width: 0;
+    gap: var(--spacing-xs);
+  }
+
+  .#{$block}Title {
+    margin: 0;
+    color: var(--text-primary);
+    font-family: var(--font-family-ui);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-compact);
+  }
+
+  .#{$block}Description {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+  }
+
+  .#{$block}Body {
+    min-height: 0;
+    flex: 1;
+    padding: var(--spacing-md);
+    overflow: auto;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    overscroll-behavior: contain;
+  }
+
+  .#{$block}Footer {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .#{$block}Close {
+    @include overlay-dismiss;
+  }
+}
+
+@keyframes pdx-overlay-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pdx-overlay-scrim-out {
+  to {
+    opacity: 0;
+  }
+}

@@ -1,23 +1,42 @@
-.PdxList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+@use '../foundation/control' as control;
+@use './rowSurface' as row;
+
+.PdxListRegion {
+  @include control.density-scale;
+
+  display: block;
+  min-width: 0;
   color: var(--text-primary);
   font-family: var(--font-family-ui);
 }
 
-.PdxListItem {
-  min-height: 48px;
+.PdxList {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.PdxListItem {
+  @include row.static-row;
+
+  display: flex;
+  min-height: calc(var(--pdx-density-row-height) + var(--spacing-sm));
   align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding-block: var(--spacing-xs);
+  padding-inline: var(--pdx-density-inline-padding);
   border-radius: var(--radius-md);
   background-color: var(--bg-canvas);
+}
+
+.PdxList.Selectable .PdxListItem {
+  @include row.row-surface(6px);
+
+  min-height: calc(var(--pdx-density-row-height) + var(--spacing-sm));
 }
 
 .PdxList.Split .PdxListItem {
@@ -30,9 +49,13 @@
 }
 
 .PdxList.Bordered {
+  overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  overflow: hidden;
+}
+
+.PdxListContent {
+  min-width: 0;
 }
 
 .PdxListTitle {
@@ -43,25 +66,40 @@
 
 .PdxListDescription {
   margin-top: 2px;
+  color: var(--text-muted);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
-  color: var(--text-muted);
 }
 
 .PdxListExtra {
   flex: 0 0 auto;
-  font-size: var(--font-size-xs);
   color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 
 .PdxList.Small .PdxListItem {
-  min-height: 40px;
-  padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-size-xs);
 }
 
 .PdxList.Large .PdxListItem {
-  min-height: 56px;
-  padding: var(--spacing-md) var(--spacing-lg);
   font-size: var(--font-size-md);
+}
+
+.PdxListLoading {
+  display: flex;
+  flex-direction: column;
+}
+
+.PdxListLoadingRow {
+  display: flex;
+  min-height: calc(var(--pdx-density-row-height) + var(--spacing-sm));
+  flex-direction: column;
+  justify-content: center;
+  padding-block: var(--spacing-xs);
+  padding-inline: var(--pdx-density-inline-padding);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.PdxListLoadingRow:last-child {
+  border-bottom: 0;
 }

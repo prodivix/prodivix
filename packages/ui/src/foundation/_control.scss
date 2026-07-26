@@ -72,3 +72,98 @@
     transition-duration: 0.01ms;
   }
 }
+
+/*
+ * Interaction language for non-field surfaces.
+ *
+ * `field-control` covers inputs. Everything else a user points at — list rows,
+ * tree items, grid cells, menu items, tabs, steps — needs the same hover,
+ * selected and disabled vocabulary, or each component invents its own and the
+ * product reads as several products. These mixins are that vocabulary.
+ */
+
+/** A row, cell or item the pointer can act on. */
+@mixin interactive-surface {
+  @include control-transition;
+  @include reduced-motion;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover:not([aria-disabled='true'], :disabled) {
+    background-color: var(--bg-panel);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &[aria-disabled='true'],
+  &:disabled {
+    @include disabled-control;
+  }
+}
+
+/**
+ * Selection reads as a marker on the leading edge rather than a full-bleed
+ * fill, so indentation, columns and grouping stay legible underneath it.
+ * Requires a positioned ancestor.
+ */
+@mixin selection-marker($inset-block: 4px) {
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: $inset-block;
+    inset-inline-start: 0;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--accent-color);
+  }
+}
+
+/**
+ * Present to assistive technology, absent from layout. Live regions, sort-order
+ * announcements and skip links all need it, so it lives here rather than being
+ * redefined per component group.
+ */
+@mixin visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/** A floating surface: popover, dropdown, tooltip, menu, drawer, dialog. */
+@mixin floating-surface {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-raised);
+  box-shadow: var(--shadow-overlay, 0 12px 32px rgb(0 0 0 / 18%));
+  color: var(--text-primary);
+}
+
+/**
+ * Density is a single knob a surface sets once; controls inside read it rather
+ * than each exposing its own size prop. `compact` suits dense editor panels,
+ * `comfortable` suits content pages.
+ */
+@mixin density-scale {
+  --pdx-density-row-height: 32px;
+  --pdx-density-inline-padding: var(--spacing-sm);
+
+  &[data-pdx-density='compact'] {
+    --pdx-density-row-height: 26px;
+    --pdx-density-inline-padding: var(--spacing-xs);
+  }
+
+  &[data-pdx-density='comfortable'] {
+    --pdx-density-row-height: 40px;
+    --pdx-density-inline-padding: var(--spacing-md);
+  }
+}

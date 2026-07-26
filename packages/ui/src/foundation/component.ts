@@ -16,10 +16,16 @@ export type PdxNativeProps<Element extends React.ElementType> = Omit<
 > &
   PdxDataAttributeProps;
 
-export function mergeClassNames(
-  ...values: Array<string | false | null | undefined>
-) {
-  return values.filter(Boolean).join(' ');
+/**
+ * Every falsy value is dropped, which is what `presence && 'Modifier'` produces
+ * when `presence` is a ReactNode rather than a boolean. The parameter type says
+ * so instead of forcing call sites to coerce.
+ */
+export type PdxClassNameValue =
+  string | number | bigint | false | null | undefined;
+
+export function mergeClassNames(...values: PdxClassNameValue[]) {
+  return values.filter((value): value is string => Boolean(value)).join(' ');
 }
 
 export function getDataAttributes(dataAttributes?: PdxDataAttributes) {

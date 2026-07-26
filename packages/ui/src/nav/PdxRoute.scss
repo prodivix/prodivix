@@ -5,9 +5,10 @@
 }
 
 .PdxRouteEmpty {
+  padding: var(--spacing-xs) var(--spacing-sm);
   border: 1px dashed var(--border-default);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-xs);
 }

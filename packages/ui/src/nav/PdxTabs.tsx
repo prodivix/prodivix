@@ -37,6 +37,13 @@ export interface PdxTabsOwnProps {
 export type PdxTabsProps = Omit<PdxNativeProps<'div'>, 'children'> &
   PdxTabsOwnProps;
 
+/**
+ * The full ARIA tabs pattern: one tab in the tab order at a time, arrow keys
+ * (following `orientation`) plus Home/End to move between them, and every tab
+ * bound to its panel in both directions. `Manual` activation moves focus
+ * without selecting; selection then comes from the button's own activation, so
+ * Enter and Space need no special handling.
+ */
 const PdxTabs = forwardRef<HTMLDivElement, PdxTabsProps>(function PdxTabs(
   {
     'aria-label': ariaLabel = 'Tabs',
@@ -96,18 +103,13 @@ const PdxTabs = forwardRef<HTMLDivElement, PdxTabsProps>(function PdxTabs(
       nextIndex = 0;
     } else if (event.key === 'End') {
       nextIndex = enabledItems.length - 1;
-    } else if (
-      activationMode === 'Manual' &&
-      (event.key === 'Enter' || event.key === ' ')
-    ) {
-      event.preventDefault();
-      setRequestedKey(itemKey);
-      return;
     }
 
-    if (nextIndex === undefined || !enabledItems[nextIndex]) return;
+    const nextItem =
+      nextIndex === undefined ? undefined : enabledItems[nextIndex];
+    if (!nextItem) return;
     event.preventDefault();
-    focusTab(enabledItems[nextIndex].key);
+    focusTab(nextItem.key);
   };
 
   return (

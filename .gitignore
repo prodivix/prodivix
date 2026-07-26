@@ -90,3 +90,6 @@ packages/*/storybook-static/
 *.swo
 *.sublime-project
 *.sublime-workspace
+
+# `> nul` in a POSIX shell on Windows writes a real file instead of discarding.
+nul

@@ -1,0 +1,62 @@
+@use '../foundation/control' as control;
+
+.PdxVirtualList {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-sm);
+  outline: none;
+  overscroll-behavior: contain;
+
+  &:focus-visible {
+    @include control.focus-ring;
+  }
+}
+
+/* Gives the viewport its scroll range without wrapping the rows in a node that
+   would sit between the listbox and its options. */
+.PdxVirtualListSpacer {
+  width: 1px;
+  pointer-events: none;
+}
+
+.PdxVirtualListRow {
+  @include control.interactive-surface;
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  padding-inline: var(--spacing-sm);
+  border-radius: 0;
+  gap: var(--spacing-xs);
+  line-height: var(--line-height-compact);
+  white-space: nowrap;
+
+  &[data-pdx-active='true'] {
+    background-color: var(--bg-panel);
+  }
+
+  &[aria-selected='true'] {
+    @include control.selection-marker(3px);
+
+    background-color: var(--bg-raised);
+    color: var(--text-primary);
+  }
+}
+
+.PdxVirtualList:focus-visible .PdxVirtualListRow[data-pdx-active='true'] {
+  border-color: var(--border-default);
+}

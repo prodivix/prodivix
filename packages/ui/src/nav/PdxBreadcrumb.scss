@@ -1,3 +1,5 @@
+@use '../foundation/control' as control;
+
 .PdxBreadcrumb {
   color: var(--text-muted);
   font-family: var(--font-family-ui);
@@ -6,8 +8,8 @@
 
 .PdxBreadcrumbList {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--spacing-xs);
   margin: 0;
   padding: 0;
@@ -26,6 +28,9 @@
   gap: var(--spacing-xs);
 
   a {
+    @include control.control-transition;
+    @include control.reduced-motion;
+
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     text-decoration: none;
@@ -37,9 +42,7 @@
     }
 
     &:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 3px
-        color-mix(in srgb, var(--accent-color) 14%, transparent);
+      @include control.focus-ring;
     }
   }
 

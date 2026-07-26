@@ -1,82 +1,88 @@
+@use '../foundation/control' as control;
+@use './navigation' as navigation;
+
 .PdxSidebar {
+  @include control.density-scale;
+
   box-sizing: border-box;
   display: flex;
+  min-height: 100vh;
   flex-direction: column;
   gap: var(--spacing-sm);
-  background-color: var(--bg-canvas);
-  border-right: 1px solid var(--border-subtle);
   padding: var(--spacing-sm);
+  border-right: 1px solid var(--border-subtle);
+  background-color: var(--bg-canvas);
   color: var(--text-secondary);
-  min-height: 100vh;
   font-family: var(--font-family-ui);
 }
 
 .PdxSidebarTitle {
-  min-height: 36px;
   display: flex;
+  min-height: var(--pdx-density-row-height);
   align-items: center;
-  padding: 0 var(--spacing-sm);
+  gap: var(--spacing-sm);
+  padding-inline: var(--pdx-density-inline-padding);
   color: var(--text-primary);
-  font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
-.PdxSidebarNav {
+.PdxSidebarList {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .PdxSidebarItem {
-  min-height: 36px;
+  @include control.interactive-surface;
+
+  position: relative;
   display: flex;
+  min-height: var(--pdx-density-row-height);
   align-items: center;
   gap: var(--spacing-sm);
-  text-decoration: none;
+  padding-inline: var(--pdx-density-inline-padding);
   color: inherit;
-  padding: 0 var(--spacing-sm);
-  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-compact);
-  transition:
-    background-color var(--motion-duration-fast) var(--motion-easing-standard),
-    color var(--motion-duration-fast) var(--motion-easing-standard);
+  text-decoration: none;
 
-  &:hover:not(.Disabled) {
-    background-color: var(--bg-panel);
+  &:hover:not([aria-disabled='true']) {
     color: var(--text-primary);
   }
 
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px
-      color-mix(in srgb, var(--accent-color) 14%, transparent);
-  }
+  &[aria-current='page'] {
+    @include control.selection-marker;
 
-  &.Active {
     background-color: var(--bg-raised);
-    box-shadow: inset 2px 0 0 var(--accent-color);
     color: var(--text-primary);
     font-weight: var(--font-weight-semibold);
   }
+}
 
-  &.Disabled {
-    cursor: not-allowed;
-    opacity: 0.52;
-  }
+.PdxSidebarItemLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .PdxSidebarIcon,
-.PdxSidebarFallbackIcon {
+.PdxSidebarFallbackIcon,
+.PdxSidebarTitleGlyph {
+  display: inline-flex;
   width: 20px;
   height: 20px;
-  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
 }
 
-.PdxSidebarFallbackIcon {
+.PdxSidebarFallbackIcon,
+.PdxSidebarTitleGlyph {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--bg-panel);
@@ -99,4 +105,10 @@
 .PdxSidebar.Collapsed .PdxSidebarItem {
   justify-content: center;
   padding-inline: 0;
+}
+
+/* The rail loses room for the label, not the name it exposes. */
+.PdxSidebar.Collapsed .PdxSidebarTitleText,
+.PdxSidebar.Collapsed .PdxSidebarItemLabel {
+  @include control.visually-hidden;
 }

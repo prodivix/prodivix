@@ -1,21 +1,16 @@
 import './PdxEmbed.scss';
+import {
+  filterFramePassThroughProps,
+  resolveFrameSandbox,
+  resolveSafeFrameSrc,
+} from './embedFrameSafety';
 import { getDataAttributes, mergeClassNames } from '../foundation/component';
 import { getAspectRatioStyle, type PdxAspectRatio } from '../foundation/media';
 import React from 'react';
 import type { PdxComponent } from '@prodivix/shared';
-import {
-  resolveSafeEmbedUrl,
-  type SafeEmbedType,
-} from '@prodivix/shared/safety';
+import type { SafeEmbedType } from '@prodivix/shared/safety';
 
 type EmbedType = SafeEmbedType;
-
-const BLOCKED_IFRAME_PROP_NAMES = new Set([
-  'children',
-  'dangerouslysetinnerhtml',
-  'src',
-  'srcdoc',
-]);
 
 interface PdxEmbedSpecificProps {
   type: EmbedType;
@@ -23,6 +18,7 @@ interface PdxEmbedSpecificProps {
   title?: string;
   allowFullScreen?: boolean;
   loading?: 'Eager' | 'Lazy';
+  sandbox?: string;
   width?: number | string;
   height?: number | string;
   aspectRatio?: PdxAspectRatio;
@@ -34,6 +30,7 @@ type PdxEmbedNativeProps = Omit<
   | 'srcDoc'
   | 'children'
   | 'dangerouslySetInnerHTML'
+  | 'sandbox'
   | 'title'
   | 'width'
   | 'height'
@@ -53,12 +50,17 @@ export interface PdxEmbedProps
   onError?: React.ReactEventHandler<HTMLIFrameElement>;
 }
 
+/**
+ * Provider embed. Shares the frame hardening in `embedFrameSafety` with `PdxIframe`:
+ * the URL is resolved by provider policy and the sandbox is always emitted.
+ */
 function PdxEmbed({
   type,
   url,
   title,
   allowFullScreen = false,
   loading = 'Lazy',
+  sandbox,
   width,
   height,
   aspectRatio = '16:9',
@@ -86,11 +88,13 @@ function PdxEmbed({
     ...(height !== undefined ? { height } : {}),
   };
 
-  const embedUrl = resolveSafeEmbedUrl(type, url);
-  const iframeProps = Object.fromEntries(
-    Object.entries(rest).filter(
-      ([name]) => !BLOCKED_IFRAME_PROP_NAMES.has(name.toLowerCase())
-    )
+  const embedUrl = resolveSafeFrameSrc(type, url);
+  const frameSandbox = resolveFrameSandbox({
+    requested: sandbox,
+    src: embedUrl,
+  });
+  const iframeProps = filterFramePassThroughProps(
+    rest
   ) as React.IframeHTMLAttributes<HTMLIFrameElement>;
 
   return (
@@ -108,6 +112,7 @@ function PdxEmbed({
           loading={loading.toLowerCase() as 'eager' | 'lazy'}
           onError={onError}
           onLoad={onLoad}
+          sandbox={frameSandbox}
           src={embedUrl}
           title={title || `${type} embed`}
           {...iframeProps}

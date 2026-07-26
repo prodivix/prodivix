@@ -1,0 +1,70 @@
+@use './PdxStack.scss' as stack;
+
+/*
+ * Viewport steps for the responsive column count. They are layout breakpoints,
+ * not theme values: the column count a caller asks for at `columnsMedium`
+ * takes effect from the medium step up, and `columnsLarge` from the large step
+ * up, each falling back to the narrower declaration.
+ */
+$pdx-grid-medium: 640px;
+$pdx-grid-large: 1024px;
+
+.PdxGrid {
+  @include stack.spacing-scale(gap, 'Gap');
+  @include stack.spacing-scale(row-gap, 'RowGap');
+
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(var(--pdx-grid-columns, 1), minmax(0, 1fr));
+  min-width: 0;
+  font-family: var(--font-family-ui);
+
+  &.AlignStart {
+    align-items: start;
+  }
+
+  &.AlignCenter {
+    align-items: center;
+  }
+
+  &.AlignEnd {
+    align-items: end;
+  }
+
+  &.AlignStretch {
+    align-items: stretch;
+  }
+
+  &.JustifyStart {
+    justify-items: start;
+  }
+
+  &.JustifyCenter {
+    justify-items: center;
+  }
+
+  &.JustifyEnd {
+    justify-items: end;
+  }
+
+  &.JustifyStretch {
+    justify-items: stretch;
+  }
+
+  @media (min-width: $pdx-grid-medium) {
+    grid-template-columns: repeat(
+      var(--pdx-grid-columns-medium, var(--pdx-grid-columns, 1)),
+      minmax(0, 1fr)
+    );
+  }
+
+  @media (min-width: $pdx-grid-large) {
+    grid-template-columns: repeat(
+      var(
+        --pdx-grid-columns-large,
+        var(--pdx-grid-columns-medium, var(--pdx-grid-columns, 1))
+      ),
+      minmax(0, 1fr)
+    );
+  }
+}

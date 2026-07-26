@@ -8,9 +8,15 @@ interface GridRow {
 }
 
 const columns: Array<PdxDataGridColumn<GridRow>> = [
-  { key: 'product', title: 'Product', dataIndex: 'product' },
+  { key: 'product', title: 'Product', dataIndex: 'product', sortable: true },
   { key: 'price', title: 'Price', dataIndex: 'price', align: 'Right' },
-  { key: 'stock', title: 'Stock', dataIndex: 'stock', align: 'Center' },
+  {
+    key: 'stock',
+    title: 'Stock',
+    dataIndex: 'stock',
+    align: 'Center',
+    sortable: true,
+  },
 ];
 
 const data: GridRow[] = [
@@ -39,6 +45,49 @@ export const Default: Story = {
     striped: true,
     hoverable: true,
     bordered: true,
+  },
+};
+
+export const Sortable: Story = {
+  args: {
+    columns,
+    data,
+    defaultSort: { columnKey: 'stock', direction: 'Ascending' },
+    rowKey: 'product',
+  },
+};
+
+/** With selection on it becomes a real `grid`: rows carry focus and state. */
+export const SelectableRows: Story = {
+  args: {
+    columns,
+    data,
+    defaultSelectedRowKeys: ['Marker'],
+    rowKey: 'product',
+    selectionMode: 'Single',
+  },
+};
+
+export const StickyHeader: Story = {
+  args: {
+    columns,
+    data: Array.from({ length: 40 }, (_unused, index) => ({
+      product: `SKU ${index + 1}`,
+      price: `$${(index * 3 + 4).toFixed(2)}`,
+      stock: (index * 11) % 97,
+    })),
+    maxBodyHeight: 240,
+    rowKey: 'product',
+    stickyHeader: true,
+  },
+};
+
+export const Loading: Story = {
+  args: {
+    columns,
+    data: [],
+    loading: true,
+    loadingRows: 4,
   },
 };
 

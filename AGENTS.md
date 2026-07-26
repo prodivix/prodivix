@@ -40,6 +40,7 @@
 2. 读写文档统一使用 UTF-8。文档语言按目标读者、文件语境和同一文档一致性决定；根 `README.md` 使用英文，`README.zh-CN.md` 使用简体中文。
 3. 项目处于 alpha 阶段：直接实现当前 canonical 架构，不保留无依据的兼容层、重复 owner、临时 patch 或长期分叉。
 4. 代码必须考虑扩展性、健壮性和清晰 owner 边界。发现与当前改动直接相关的重复逻辑、错误抽象或临时补丁，应在同一范围内收敛；超出授权范围的重大扩张先说明。
+   - 两族跨切面正确性原语已有唯一 owner，必须导入而不是重写：`@prodivix/shared/canonical` 的 `compareUnicodeCodePoints` / `canonicalJsonText` / `sameCanonicalJson`，用于任何需要在浏览器、Node runner 与 Go 后端之间取得一致结果的排序、摘要、比较或持久化字节序列（`localeCompare` 依赖宿主 ICU locale，只在面向用户的展示列表中正确）；`@prodivix/shared/safety` 的 `isUnsafeObjectKey` / `isPlainObject`，用于任何把调用方提供的名字赋值到普通对象上的路径。
 5. 文件过长时按稳定职责拆分。只在重要模块的核心方法或组件前写能说明调用链与不变量的文档注释，不写复述代码的注释。
 6. 同包导入优先使用该包已配置的 `@/...` 或 `#src/...` alias；遵循现有 package boundary，不用相对路径绕过公开 owner。
 7. `@prodivix/ui` 使用 SCSS；其他产品样式使用 Tailwind 4。CSS variable 采用 `text-(--text-primary)` 等 Tailwind 4 语法，并保持 monochrome-ui 风格。

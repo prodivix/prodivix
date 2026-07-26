@@ -66,6 +66,12 @@ function createPaginationItems(
   ];
 }
 
+/**
+ * The edge buttons stay in the tab order and declare `aria-disabled` rather
+ * than using the `disabled` attribute: paging to the last page would otherwise
+ * destroy the focus the user was navigating with, and the reason they can go no
+ * further would never be announced.
+ */
 const PdxPagination = forwardRef<HTMLElement, PdxPaginationProps>(
   function PdxPagination(
     {
@@ -92,6 +98,8 @@ const PdxPagination = forwardRef<HTMLElement, PdxPaginationProps>(
     );
     const currentPage = Math.min(Math.max(1, page), totalPages);
     const items = createPaginationItems(currentPage, totalPages, maxButtons);
+    const atFirstPage = disabled || currentPage === 1;
+    const atLastPage = disabled || currentPage === totalPages;
 
     const changePage = (nextPage: number) => {
       if (
@@ -114,48 +122,49 @@ const PdxPagination = forwardRef<HTMLElement, PdxPaginationProps>(
         ref={ref}
       >
         <button
+          aria-disabled={atFirstPage || undefined}
           aria-label={previousLabel}
           className="PdxPaginationButton PdxPaginationDirection"
-          disabled={disabled || currentPage === 1}
           onClick={() => changePage(currentPage - 1)}
           type="button"
         >
           <ChevronLeft aria-hidden="true" size={15} />
-          <span>{previousLabel}</span>
+          <span className="PdxPaginationDirectionLabel">{previousLabel}</span>
         </button>
-        <div className="PdxPaginationPages">
+        <ol className="PdxPaginationPages">
           {items.map((item) =>
             typeof item === 'number' ? (
-              <button
-                aria-current={item === currentPage ? 'page' : undefined}
-                aria-label={pageLabel(item)}
-                className="PdxPaginationButton PdxPaginationPage"
-                disabled={disabled}
-                key={item}
-                onClick={() => changePage(item)}
-                type="button"
-              >
-                {item}
-              </button>
+              <li key={item}>
+                <button
+                  aria-current={item === currentPage ? 'page' : undefined}
+                  aria-disabled={disabled || undefined}
+                  aria-label={pageLabel(item)}
+                  className="PdxPaginationButton PdxPaginationPage"
+                  onClick={() => changePage(item)}
+                  type="button"
+                >
+                  {item}
+                </button>
+              </li>
             ) : (
-              <span
+              <li
                 aria-hidden="true"
                 className="PdxPaginationEllipsis"
                 key={item}
               >
                 …
-              </span>
+              </li>
             )
           )}
-        </div>
+        </ol>
         <button
+          aria-disabled={atLastPage || undefined}
           aria-label={nextLabel}
           className="PdxPaginationButton PdxPaginationDirection"
-          disabled={disabled || currentPage === totalPages}
           onClick={() => changePage(currentPage + 1)}
           type="button"
         >
-          <span>{nextLabel}</span>
+          <span className="PdxPaginationDirectionLabel">{nextLabel}</span>
           <ChevronRight aria-hidden="true" size={15} />
         </button>
       </nav>

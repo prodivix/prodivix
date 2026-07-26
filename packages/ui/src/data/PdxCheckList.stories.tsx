@@ -47,3 +47,23 @@ export const Horizontal: Story = {
     ],
   },
 };
+
+export const Compact: Story = {
+  args: {
+    label: 'Visible panels',
+    size: 'Small',
+    items: [
+      { label: 'Layers', value: 'layers', checked: true },
+      { label: 'Inspector', value: 'inspector' },
+      { label: 'Issues', value: 'issues' },
+    ],
+  },
+};
+
+export const Empty: Story = {
+  args: {
+    label: 'Archived channels',
+    items: [],
+    emptyText: 'No archived channels',
+  },
+};

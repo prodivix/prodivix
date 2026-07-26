@@ -6,7 +6,13 @@ import {
 } from '../foundation/component';
 import { useControllableState } from '../foundation/useControllableState';
 import { ChevronDown } from 'lucide-react';
-import { forwardRef, useId, type ReactNode } from 'react';
+import {
+  forwardRef,
+  useId,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 
 export interface PdxCollapseItem {
   content: ReactNode;
@@ -27,6 +33,13 @@ export interface PdxCollapseOwnProps {
 export type PdxCollapseProps = Omit<PdxNativeProps<'div'>, 'children'> &
   PdxCollapseOwnProps;
 
+/**
+ * The panel element is always rendered so `aria-controls` always resolves to a
+ * real region; `keepMounted` decides whether the *content* stays mounted, which
+ * is a rendering cost question and not an accessibility one. Arrow keys, Home
+ * and End move between headers, which is what makes a tall accordion navigable
+ * without tabbing through every panel in between.
+ */
 const PdxCollapse = forwardRef<HTMLDivElement, PdxCollapseProps>(
   function PdxCollapse(
     {
@@ -43,6 +56,7 @@ const PdxCollapse = forwardRef<HTMLDivElement, PdxCollapseProps>(
     ref
   ) {
     const baseId = useId();
+    const triggerRefs = useRef(new Map<string, HTMLButtonElement>());
     const [expandedKeys, setExpandedKeys] = useControllableState({
       value: activeKeys,
       defaultValue: accordion
@@ -60,6 +74,30 @@ const PdxCollapse = forwardRef<HTMLDivElement, PdxCollapseProps>(
           ? expandedKeys.filter((item) => item !== key)
           : [...expandedKeys, key];
       setExpandedKeys(nextKeys);
+    };
+
+    const handleTriggerKeyDown = (
+      event: KeyboardEvent<HTMLButtonElement>,
+      itemKey: string
+    ) => {
+      const currentIndex = items.findIndex((item) => item.key === itemKey);
+      if (currentIndex < 0 || items.length === 0) return;
+
+      let nextIndex: number | undefined;
+      if (event.key === 'ArrowDown') {
+        nextIndex = (currentIndex + 1) % items.length;
+      } else if (event.key === 'ArrowUp') {
+        nextIndex = (currentIndex - 1 + items.length) % items.length;
+      } else if (event.key === 'Home') {
+        nextIndex = 0;
+      } else if (event.key === 'End') {
+        nextIndex = items.length - 1;
+      }
+
+      const nextItem = nextIndex === undefined ? undefined : items[nextIndex];
+      if (!nextItem) return;
+      event.preventDefault();
+      triggerRefs.current.get(nextItem.key)?.focus();
     };
 
     return (
@@ -81,11 +119,18 @@ const PdxCollapse = forwardRef<HTMLDivElement, PdxCollapseProps>(
               <h3 className="PdxCollapseHeading">
                 <button
                   aria-controls={panelId}
+                  aria-disabled={item.disabled || undefined}
                   aria-expanded={isOpen}
                   className="PdxCollapseTrigger"
-                  disabled={item.disabled}
                   id={triggerId}
-                  onClick={() => toggleKey(item.key)}
+                  onClick={() => {
+                    if (!item.disabled) toggleKey(item.key);
+                  }}
+                  onKeyDown={(event) => handleTriggerKeyDown(event, item.key)}
+                  ref={(node) => {
+                    if (node) triggerRefs.current.set(item.key, node);
+                    else triggerRefs.current.delete(item.key);
+                  }}
                   type="button"
                 >
                   <span>{item.title}</span>
@@ -96,17 +141,17 @@ const PdxCollapse = forwardRef<HTMLDivElement, PdxCollapseProps>(
                   />
                 </button>
               </h3>
-              {isOpen || keepMounted ? (
-                <div
-                  aria-labelledby={triggerId}
-                  className="PdxCollapsePanel"
-                  hidden={!isOpen}
-                  id={panelId}
-                  role="region"
-                >
+              <div
+                aria-labelledby={triggerId}
+                className="PdxCollapsePanel"
+                hidden={!isOpen}
+                id={panelId}
+                role="region"
+              >
+                {isOpen || keepMounted ? (
                   <div className="PdxCollapseContent">{item.content}</div>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </section>
           );
         })}

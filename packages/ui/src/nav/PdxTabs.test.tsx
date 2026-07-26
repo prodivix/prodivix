@@ -20,8 +20,7 @@ describe('PdxTabs', () => {
     const user = userEvent.setup();
 
     render(<PdxTabs items={items} onActiveKeyChange={onActiveKeyChange} />);
-    const overview = screen.getByRole('tab', { name: 'Overview' });
-    overview.focus();
+    screen.getByRole('tab', { name: 'Overview' }).focus();
     await user.keyboard('{ArrowRight}');
 
     expect(screen.getByRole('tab', { name: 'Details' })).toHaveFocus();
@@ -31,5 +30,68 @@ describe('PdxTabs', () => {
     );
     expect(screen.getByRole('tabpanel')).toHaveTextContent('Details content');
     expect(onActiveKeyChange).toHaveBeenCalledWith('details');
+  });
+
+  it('jumps to the first and last enabled tab with Home and End', async () => {
+    const user = userEvent.setup();
+
+    render(<PdxTabs items={items} />);
+    screen.getByRole('tab', { name: 'Overview' }).focus();
+    await user.keyboard('{End}');
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toHaveFocus();
+
+    await user.keyboard('{Home}');
+
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+  });
+
+  it('keeps only one tab in the tab order so Tab reaches the panel next', async () => {
+    const user = userEvent.setup();
+
+    render(<PdxTabs items={items} />);
+    screen.getByRole('tab', { name: 'Overview' }).focus();
+    await user.tab();
+
+    expect(screen.getByRole('tabpanel', { name: 'Overview' })).toHaveFocus();
+  });
+
+  it('separates focus from selection in manual activation mode', async () => {
+    const user = userEvent.setup();
+
+    render(<PdxTabs activationMode="Manual" items={items} />);
+    screen.getByRole('tab', { name: 'Overview' }).focus();
+    await user.keyboard('{ArrowRight}');
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toHaveFocus();
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Overview content');
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Details content');
+  });
+
+  it('names each panel after the tab that controls it', () => {
+    render(<PdxTabs defaultActiveKey="details" items={items} />);
+
+    expect(screen.getByRole('tabpanel', { name: 'Details' })).toBeVisible();
+  });
+
+  it('follows the vertical axis when the tablist is vertical', async () => {
+    const user = userEvent.setup();
+
+    render(<PdxTabs items={items} orientation="Vertical" />);
+    screen.getByRole('tab', { name: 'Overview' }).focus();
+    await user.keyboard('{ArrowRight}');
+
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toHaveFocus();
   });
 });

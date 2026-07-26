@@ -85,7 +85,7 @@ All G1 production consumers use the version-neutral `PIR-current` domain model a
 - `packages/authoring` / `packages/code-language` / `packages/diagnostics` - Workspace Semantic Index contracts, revision-bound TS/JS/CSS/SCSS/GLSL/WGSL language capabilities, independent shader compile contracts/providers, artifact/slot foundations, and Issues contracts.
 - `packages/tokens` - canonical DTCG Format/Resolver profiles and codecs, versionless current Token/Resolver models, resolution plans, and revision-bound semantic providers.
 - `packages/golden-conformance` - Living Golden App, G0 non-browser conformance, and G1 Public Contract/controlled round-trip/standalone export/browser gates.
-- `packages/shared` - genuinely cross-domain types and utilities; do not move domain ownership back here.
+- `packages/shared` - genuinely cross-domain types and utilities; do not move domain ownership back here. It also owns the cross-cutting correctness primitives under `@prodivix/shared/canonical` and `@prodivix/shared/safety`; see `AGENTS.md` coding rule 4 for when they are mandatory.
 - `packages/ui` - shared UI package, styled with SCSS.
 - `packages/themes` - Prodivix product-theme manifests and CSS-variable projection.
 - `packages/prodivix-compiler` - domain compilation, ExportProgram, and production export planning.

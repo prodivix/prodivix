@@ -5,16 +5,16 @@ import {
   type PdxNativeProps,
 } from '../foundation/component';
 import {
-  AlertTriangle,
-  CheckCircle2,
-  CircleX,
-  Info,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+  PDX_FEEDBACK_ICONS,
+  PDX_FEEDBACK_TYPE_LABELS,
+  resolveFeedbackLiveness,
+  resolveFeedbackRole,
+  type PdxFeedbackType,
+} from './feedbackType';
+import { X } from 'lucide-react';
 import { forwardRef, type ReactNode } from 'react';
 
-export type PdxFeedbackType = 'Info' | 'Success' | 'Warning' | 'Danger';
+export type { PdxFeedbackType };
 
 export interface PdxMessageOwnProps {
   closable?: boolean;
@@ -24,21 +24,22 @@ export interface PdxMessageOwnProps {
   showIcon?: boolean;
   text: ReactNode;
   type?: PdxFeedbackType;
+  /** Spoken type name. `null` drops it when surrounding copy already says so. */
+  typeLabel?: string | null;
 }
 
 export type PdxMessageProps = Omit<PdxNativeProps<'div'>, 'children'> &
   PdxMessageOwnProps;
 
-const MESSAGE_ICONS: Record<PdxFeedbackType, LucideIcon> = {
-  Info,
-  Success: CheckCircle2,
-  Warning: AlertTriangle,
-  Danger: CircleX,
-};
-
+/**
+ * A message announces itself and never takes focus: it is a live region the
+ * reader is told about while their cursor stays where it was.
+ */
 const PdxMessage = forwardRef<HTMLDivElement, PdxMessageProps>(
   function PdxMessage(
     {
+      'aria-atomic': ariaAtomic,
+      'aria-live': ariaLive,
       className,
       closable = false,
       closeLabel = 'Dismiss message',
@@ -49,22 +50,29 @@ const PdxMessage = forwardRef<HTMLDivElement, PdxMessageProps>(
       showIcon = true,
       text,
       type = 'Info',
+      typeLabel,
       ...rest
     },
     ref
   ) {
-    const MessageIcon = MESSAGE_ICONS[type];
+    const MessageIcon = PDX_FEEDBACK_ICONS[type];
+    const resolvedRole = role ?? resolveFeedbackRole(type);
+    const spokenType =
+      typeLabel === undefined ? PDX_FEEDBACK_TYPE_LABELS[type] : typeLabel;
 
     return (
       <div
         {...rest}
         {...getDataAttributes(dataAttributes)}
+        aria-atomic={ariaAtomic ?? true}
+        aria-live={ariaLive ?? resolveFeedbackLiveness(resolvedRole)}
         className={mergeClassNames('PdxMessage', type, className)}
         ref={ref}
-        role={
-          role ?? (type === 'Danger' || type === 'Warning' ? 'alert' : 'status')
-        }
+        role={resolvedRole}
       >
+        {spokenType ? (
+          <span className="PdxMessageType">{spokenType}</span>
+        ) : null}
         {showIcon ? (
           <span aria-hidden="true" className="PdxMessageIcon">
             {icon ?? <MessageIcon size={16} />}
@@ -76,7 +84,6 @@ const PdxMessage = forwardRef<HTMLDivElement, PdxMessageProps>(
             aria-label={closeLabel}
             className="PdxMessageClose"
             onClick={onClose}
-            title={closeLabel}
             type="button"
           >
             <X aria-hidden="true" size={14} />

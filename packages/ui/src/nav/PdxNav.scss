@@ -1,3 +1,5 @@
+@use '../foundation/control' as control;
+
 .PdxNav {
   box-sizing: border-box;
   width: 100%;
@@ -20,10 +22,12 @@
   }
 
   &.CanHide {
+    @include control.reduced-motion;
+
     transition:
-      transform 0.25s ease,
-      opacity 0.25s ease,
-      visibility 0.25s ease;
+      transform var(--motion-duration-normal) var(--motion-easing-standard),
+      opacity var(--motion-duration-normal) var(--motion-easing-standard),
+      visibility var(--motion-duration-normal) var(--motion-easing-standard);
 
     &.Hidden {
       transform: translateY(-100%);
@@ -137,11 +141,5 @@
 
   .PdxNavCenter {
     justify-content: flex-start;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .PdxNav.CanHide {
-    transition-duration: 0.01ms;
   }
 }

@@ -1,0 +1,25 @@
+/*
+ * Navigation-local additions to the shared interaction language.
+ *
+ * `../foundation/control` owns the vocabulary every surface shares. What lives
+ * here is the part only navigation needs: the horizontal counterpart of
+ * `control.selection-marker` for bars that run along a rule.
+ */
+
+/**
+ * `control.selection-marker` draws a leading-edge spine, which is right for
+ * stacked lists. A tab strip, navbar or horizontal anchor bar reads along its
+ * bottom rule instead, so selection is the same 2px accent laid on that rule.
+ * Requires a positioned ancestor.
+ */
+@mixin underline-marker($inset-inline: 8px, $offset: -1px) {
+  &::after {
+    content: '';
+    position: absolute;
+    inset-inline: $inset-inline;
+    bottom: $offset;
+    height: 2px;
+    border-radius: var(--radius-full);
+    background: var(--accent-color);
+  }
+}

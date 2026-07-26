@@ -1,0 +1,145 @@
+@use '../foundation/control' as control;
+
+/*
+ * Row language for `data/`.
+ *
+ * `../foundation/control` owns the vocabulary every surface shares. Table,
+ * DataGrid, List and CheckList each used to redeclare hover, selection and row
+ * height for themselves, so the same row read four different ways. The mixins
+ * here are the parts only a record row needs, all of them built on the shared
+ * vocabulary rather than beside it.
+ */
+
+/** Removed from sight, kept in the accessibility tree. */
+@mixin status-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/**
+ * One row a pointer or caret can act on. Selection is the leading-edge accent
+ * spine rather than a full-row fill, so column boundaries, indentation and
+ * striping all stay legible underneath a selected row.
+ */
+@mixin row-surface($marker-inset: 5px) {
+  @include control.interactive-surface;
+
+  position: relative;
+  min-height: var(--pdx-density-row-height);
+
+  &[aria-selected='true'] {
+    @include control.selection-marker($marker-inset);
+
+    background-color: var(--bg-raised);
+  }
+}
+
+/**
+ * The same surface for a `tr`. An absolutely positioned pseudo-element on a
+ * table row is not a box every engine lays out identically, so the marker is
+ * handed to the row's first cell through `row-marker-cell` instead — which is
+ * also where it belongs visually, at the leading edge of the first column.
+ */
+@mixin table-row-surface {
+  @include control.interactive-surface;
+
+  &[aria-selected='true'] {
+    background-color: var(--bg-raised);
+  }
+}
+
+/** The leading-edge spine for a row whose marker cannot live on the row. */
+@mixin row-marker-cell($marker-inset: 6px) {
+  @include control.selection-marker($marker-inset);
+
+  position: relative;
+}
+
+/** A row that is only ever read, never pointed at. */
+@mixin static-row {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  position: relative;
+  min-height: var(--pdx-density-row-height);
+}
+
+/** Column header chrome, shared by the table head and the grid header row. */
+@mixin header-cell {
+  background-color: var(--bg-panel);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/**
+ * The sort affordance is a real button so it carries the shared focus ring and
+ * reaches the keyboard; `aria-sort` on the header cell carries the state.
+ */
+@mixin sort-button {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    @include control.focus-ring;
+  }
+}
+
+/** The sort glyph stays muted until the column is the one being sorted by. */
+@mixin sort-indicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0.55;
+
+  &.Active {
+    color: var(--accent-color);
+    opacity: 1;
+  }
+}
+
+/**
+ * Alignment is scoped to the cell it belongs to. Declared at the top level it
+ * was a global `.AlignLeft` that any consumer markup could collide with.
+ */
+@mixin cell-alignment {
+  &.AlignLeft {
+    text-align: left;
+  }
+
+  &.AlignCenter {
+    text-align: center;
+  }
+
+  &.AlignRight {
+    text-align: right;
+  }
+}

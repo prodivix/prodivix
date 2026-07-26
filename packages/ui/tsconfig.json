@@ -2,9 +2,6 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
     "declaration": true,
     "declarationMap": true,
     "rootDir": "./src",

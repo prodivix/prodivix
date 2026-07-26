@@ -1,55 +1,36 @@
-@use '../foundation/control' as control;
 @use './PdxField.scss';
+@use '../foundation/control' as control;
 
 .PdxTimePicker {
   width: 100%;
 }
 
 .PdxTimePickerControl {
-  position: relative;
-  display: flex;
-  align-items: center;
+  @include control.field-control-size(36px, var(--spacing-md));
 
-  &:focus-within .PdxTimePickerIcon {
-    color: var(--pdx-field-focus-color);
-  }
+  padding-inline-end: var(--spacing-xs);
 }
 
-.PdxTimePickerInput {
-  @include control.field-control;
-
-  width: 100%;
-  min-width: 0;
-  min-height: 36px;
-  padding: 0 40px 0 var(--spacing-md);
-  font-variant-numeric: tabular-nums;
-
-  &::-webkit-calendar-picker-indicator {
-    width: 20px;
-    height: 20px;
-    margin: 0;
-    cursor: pointer;
-    opacity: 0;
-  }
+.PdxTimePickerPanel {
+  min-width: var(--radix-popover-trigger-width);
 }
 
-.PdxTimePickerIcon {
-  position: absolute;
-  right: var(--spacing-md);
-  display: inline-flex;
-  color: var(--text-muted);
-  pointer-events: none;
-  transition: color var(--motion-duration-fast) var(--motion-easing-standard);
+.PdxTimePicker.Small .PdxTimePickerControl {
+  @include control.field-control-size(
+    32px,
+    var(--spacing-sm),
+    var(--font-size-xs)
+  );
+
+  padding-inline-end: var(--spacing-xs);
 }
 
-.PdxTimePicker.Small .PdxTimePickerInput {
-  min-height: 32px;
-  padding-inline: var(--spacing-sm) 36px;
-  font-size: var(--font-size-xs);
-}
+.PdxTimePicker.Large .PdxTimePickerControl {
+  @include control.field-control-size(
+    44px,
+    var(--spacing-md),
+    var(--font-size-md)
+  );
 
-.PdxTimePicker.Large .PdxTimePickerInput {
-  min-height: 44px;
-  padding-inline: var(--spacing-md) 44px;
-  font-size: var(--font-size-md);
+  padding-inline-end: var(--spacing-xs);
 }

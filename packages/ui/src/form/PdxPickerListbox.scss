@@ -1,0 +1,64 @@
+@use '../foundation/control' as control;
+
+.PdxPickerListbox {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(var(--radix-popover-content-available-height, 320px), 260px);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.PdxPickerOption {
+  @include control.interactive-surface;
+
+  position: relative;
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding-inline: var(--spacing-sm) var(--spacing-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-compact);
+  user-select: none;
+
+  /* The active option is where the keyboard is, so it reads like hover. */
+  &[data-active='true'] {
+    background-color: var(--bg-panel);
+    color: var(--text-primary);
+  }
+
+  &[aria-selected='true'] {
+    @include control.selection-marker;
+
+    color: var(--text-primary);
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+.PdxPickerOptionLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.PdxPickerOptionCheck {
+  flex: none;
+  color: var(--accent-color);
+}
+
+.PdxPickerOptionEmpty {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  padding-inline: var(--spacing-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-compact);
+}

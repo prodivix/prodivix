@@ -25,6 +25,13 @@ interface PdxNavbarSpecificProps {
 
 export interface PdxNavbarProps extends PdxComponent, PdxNavbarSpecificProps {}
 
+/**
+ * Item state lives in ARIA: `aria-current` marks the item the user is on and
+ * `aria-disabled` marks one they cannot reach, and the stylesheet keys off both
+ * so no modifier class can contradict them. A disabled item stays focusable
+ * rather than being dropped from the tab order, so its unavailability is
+ * announced instead of silently skipped.
+ */
 function PdxNavbar({
   brand,
   items = [],
@@ -32,7 +39,7 @@ function PdxNavbar({
   variant = 'Solid',
   size = 'Medium',
   sticky = false,
-  navigationLabel,
+  navigationLabel = 'Main',
   onItemSelect,
   children,
   className,
@@ -66,11 +73,6 @@ function PdxNavbar({
           <div className="PdxNavbarBrand">{brand}</div>
           <ul className="PdxNavbarItems">
             {items.map((item, index) => {
-              const itemClassName = mergeClassNames(
-                'PdxNavbarItem',
-                item.active && 'Active',
-                item.disabled && 'Disabled'
-              );
               const handleSelect = (
                 event: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>
               ) => {
@@ -87,11 +89,10 @@ function PdxNavbar({
                     <a
                       aria-current={item.active ? 'page' : undefined}
                       aria-disabled={item.disabled || undefined}
-                      className={itemClassName}
+                      className="PdxNavbarItem"
                       href={item.href}
                       onClick={handleSelect}
                       rel={item.target === '_blank' ? 'noreferrer' : undefined}
-                      tabIndex={item.disabled ? -1 : undefined}
                       target={item.target}
                     >
                       {item.label}
@@ -99,8 +100,8 @@ function PdxNavbar({
                   ) : (
                     <button
                       aria-current={item.active ? 'page' : undefined}
-                      className={itemClassName}
-                      disabled={item.disabled}
+                      aria-disabled={item.disabled || undefined}
+                      className="PdxNavbarItem"
                       onClick={handleSelect}
                       type="button"
                     >

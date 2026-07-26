@@ -1,0 +1,29 @@
+@use './PdxStack.scss' as stack;
+
+.PdxSpacer {
+  @include stack.spacing-scale(--pdx-spacer-size, 'Size');
+
+  box-sizing: border-box;
+  display: block;
+  flex: 0 0 auto;
+
+  &.Vertical {
+    block-size: var(--pdx-spacer-size, 0);
+  }
+
+  &.Horizontal {
+    inline-size: var(--pdx-spacer-size, 0);
+  }
+
+  &.Both {
+    block-size: var(--pdx-spacer-size, 0);
+    inline-size: var(--pdx-spacer-size, 0);
+  }
+
+  /* Declared last so a flexible spacer wins over any fixed axis size. */
+  &.Flexible {
+    flex: 1 1 auto;
+    block-size: auto;
+    inline-size: auto;
+  }
+}

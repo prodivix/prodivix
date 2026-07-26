@@ -1,4 +1,8 @@
+@use '../foundation/control' as control;
+
 .PdxTree {
+  @include control.density-scale;
+
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -7,57 +11,58 @@
   font-size: var(--font-size-sm);
 }
 
+.PdxTreeItem {
+  display: block;
+  outline: none;
+
+  &:focus-visible > .PdxTreeRow {
+    @include control.focus-ring;
+  }
+
+  &.Disabled > .PdxTreeRow {
+    @include control.disabled-control;
+  }
+}
+
 .PdxTreeRow {
-  min-height: 32px;
+  @include control.interactive-surface;
+
+  position: relative;
+  min-height: var(--pdx-density-row-height);
   display: flex;
   align-items: center;
   gap: 2px;
   min-width: 0;
-  border-radius: var(--radius-sm);
-  transition: background-color var(--motion-duration-fast)
-    var(--motion-easing-standard);
 
-  &:hover:not(.Disabled) {
-    background-color: var(--bg-panel);
-  }
+  .PdxTreeItem.Selected > & {
+    @include control.selection-marker;
 
-  &.Selected {
     background-color: var(--bg-raised);
-    box-shadow: inset 2px 0 0 var(--accent-color);
-  }
-
-  &.Disabled {
-    opacity: 0.52;
   }
 }
 
-.PdxTreeToggle {
+.PdxTreeChevron {
   width: 26px;
   height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: transparent;
-  cursor: pointer;
   color: var(--text-muted);
+  cursor: pointer;
   transition:
+    transform var(--motion-duration-fast) var(--motion-easing-standard),
     background-color var(--motion-duration-fast) var(--motion-easing-standard),
     color var(--motion-duration-fast) var(--motion-easing-standard);
 
   &:hover {
-    border-color: var(--border-subtle);
     background-color: var(--bg-canvas);
     color: var(--text-primary);
   }
 
-  &:focus-visible {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px
-      color-mix(in srgb, var(--accent-color) 14%, transparent);
+  &.Expanded {
+    transform: rotate(90deg);
   }
 }
 
@@ -68,30 +73,24 @@
 
 .PdxTreeLabel {
   min-width: 0;
-  min-height: 28px;
-  display: flex;
-  align-items: center;
   flex: 1;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  cursor: pointer;
-  color: inherit;
   padding: 4px var(--spacing-xs);
-  font: inherit;
-  text-align: left;
-  transition:
-    background-color var(--motion-duration-fast) var(--motion-easing-standard),
-    color var(--motion-duration-fast) var(--motion-easing-standard);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  &:focus-visible {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px
-      color-mix(in srgb, var(--accent-color) 14%, transparent);
-  }
+.PdxTreeChildren {
+  position: relative;
 
-  &:disabled {
-    cursor: not-allowed;
+  /* One hairline per level keeps deep trees scannable without per-row
+     indentation guides. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 13px;
+    width: 1px;
+    background: var(--border-subtle);
   }
 }

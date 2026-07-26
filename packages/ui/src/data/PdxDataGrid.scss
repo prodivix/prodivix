@@ -1,17 +1,43 @@
-.PdxDataGrid {
+@use '../foundation/control' as control;
+@use './rowSurface' as row;
+
+.PdxDataGridRegion {
+  @include control.density-scale;
+
+  display: grid;
   width: 100%;
+  min-width: 0;
+  min-height: 0;
+  color: var(--text-primary);
+  font-family: var(--font-family-ui);
+}
+
+.PdxDataGridStatus {
+  @include row.status-only;
+}
+
+/*
+ * This element is both the grid and its scrollport: `min-height: 0` lets a
+ * flex or grid parent bound it and `maxBodyHeight` bounds it otherwise, so a
+ * sticky header always has a scroll container to stick to.
+ */
+.PdxDataGrid {
   display: flex;
+  width: 100%;
+  min-height: 0;
   flex-direction: column;
-  gap: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background-color: var(--bg-canvas);
   color: var(--text-primary);
-  font-family: var(--font-family-ui);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-compact);
+  overscroll-behavior-inline: contain;
+
+  &:focus-visible {
+    @include control.focus-ring;
+  }
 }
 
 .PdxDataGridHeader,
@@ -21,19 +47,23 @@
 }
 
 .PdxDataGridHeader {
-  min-height: 38px;
-  background-color: color-mix(in srgb, var(--bg-panel) 72%, var(--bg-canvas));
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-secondary);
+  @include row.header-cell;
+
+  min-height: var(--pdx-density-row-height);
   border-bottom: 1px solid var(--border-default);
+  background-color: color-mix(in srgb, var(--bg-panel) 72%, var(--bg-canvas));
+}
+
+.PdxDataGrid.StickyHeader .PdxDataGridHeader {
+  position: sticky;
+  z-index: 1;
+  top: 0;
 }
 
 .PdxDataGridRow {
-  min-height: 40px;
+  @include row.static-row;
+
   border-bottom: 1px solid var(--border-subtle);
-  transition: background-color var(--motion-duration-fast)
-    var(--motion-easing-standard);
 }
 
 .PdxDataGridRow:last-child {
@@ -41,19 +71,57 @@
 }
 
 .PdxDataGridCell {
+  @include row.cell-alignment;
+
   min-width: 0;
   overflow: hidden;
-  padding: 9px var(--spacing-md);
+  padding-block: var(--spacing-xs);
+  padding-inline: var(--pdx-density-inline-padding);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.PdxDataGridHeaderCell {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.PdxDataGridSortButton {
+  @include row.sort-button;
+}
+
+.PdxDataGridSortLabel {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.PdxDataGridSortIcon {
+  @include row.sort-indicator;
+}
+
+.PdxDataGridHeaderCell.AlignCenter .PdxDataGridSortButton {
+  justify-content: center;
+}
+
+.PdxDataGridHeaderCell.AlignRight .PdxDataGridSortButton {
+  justify-content: flex-end;
+}
+
 .PdxDataGrid.Striped .PdxDataGridRow:nth-child(even) {
-  background-color: var(--bg-panel);
+  background-color: color-mix(in srgb, var(--bg-panel) 52%, var(--bg-canvas));
 }
 
 .PdxDataGrid.Hoverable .PdxDataGridRow:hover {
   background-color: var(--bg-raised);
+}
+
+.PdxDataGrid.Selectable .PdxDataGridRow {
+  @include row.row-surface(6px);
+
+  border-radius: 0;
 }
 
 .PdxDataGrid.Bordered .PdxDataGridCell {
@@ -65,22 +133,7 @@
 }
 
 .PdxDataGridEmpty {
-  min-height: 112px;
   display: grid;
   place-items: center;
-  padding: var(--spacing-lg);
-  text-align: center;
-  color: var(--text-muted);
-}
-
-.AlignLeft {
-  text-align: left;
-}
-
-.AlignCenter {
-  text-align: center;
-}
-
-.AlignRight {
-  text-align: right;
+  padding: var(--spacing-sm);
 }

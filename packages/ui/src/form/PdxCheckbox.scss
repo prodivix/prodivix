@@ -1,0 +1,152 @@
+@use './PdxField.scss';
+@use '../foundation/control' as control;
+
+/*
+ * The box size is published as a custom property on both the control and its
+ * field wrapper, so the description and message can indent to the text column
+ * without repeating the numbers.
+ */
+$pdx-checkbox-sizes: (
+  'ExtraSmall': 13px,
+  'Small': 14px,
+  'Medium': 16px,
+  'Large': 18px,
+);
+
+@each $name, $size in $pdx-checkbox-sizes {
+  .PdxCheckbox.#{$name},
+  .PdxCheckboxField.#{$name} {
+    --pdx-checkbox-size: #{$size};
+  }
+}
+
+.PdxCheckbox {
+  --pdx-checkbox-size: 16px;
+  --pdx-checkbox-border-color: var(--border-strong);
+  --pdx-checkbox-marker-color: var(--accent-color);
+
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--pdx-checkbox-size);
+  height: var(--pdx-checkbox-size);
+  vertical-align: middle;
+
+  &.Error {
+    --pdx-checkbox-border-color: var(--danger-color);
+    --pdx-checkbox-marker-color: var(--danger-color);
+  }
+
+  &.Warning {
+    --pdx-checkbox-border-color: var(--warning-color);
+    --pdx-checkbox-marker-color: var(--warning-color);
+  }
+
+  &.Success {
+    --pdx-checkbox-border-color: var(--success-color);
+    --pdx-checkbox-marker-color: var(--success-color);
+  }
+
+  &.Disabled {
+    @include control.disabled-control;
+  }
+}
+
+.PdxCheckboxInput {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: none;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.PdxCheckboxBox {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--pdx-checkbox-border-color);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-canvas);
+  color: var(--text-inverse);
+  pointer-events: none;
+}
+
+.PdxCheckboxGlyph {
+  width: 78%;
+  height: 78%;
+  color: inherit;
+}
+
+.PdxCheckboxInput:hover:not(:disabled) + .PdxCheckboxBox {
+  border-color: var(--pdx-checkbox-marker-color);
+}
+
+.PdxCheckboxInput:focus-visible + .PdxCheckboxBox {
+  @include control.focus-ring(var(--pdx-checkbox-marker-color));
+}
+
+.PdxCheckboxInput:checked + .PdxCheckboxBox,
+.PdxCheckboxInput:indeterminate + .PdxCheckboxBox {
+  border-color: var(--pdx-checkbox-marker-color);
+  background-color: var(--pdx-checkbox-marker-color);
+}
+
+.PdxCheckboxLabel {
+  @include control.control-transition;
+  @include control.reduced-motion;
+
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  cursor: pointer;
+
+  &.Disabled {
+    @include control.disabled-control;
+  }
+}
+
+.PdxCheckboxTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  min-width: 0;
+}
+
+.PdxCheckboxField {
+  gap: var(--spacing-xs);
+  width: auto;
+}
+
+.PdxCheckboxDescription,
+.PdxCheckboxMessage {
+  padding-inline-start: calc(var(--pdx-checkbox-size) + var(--spacing-sm));
+}
+
+.PdxCheckboxDescription {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}

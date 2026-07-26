@@ -88,3 +88,18 @@ export const Disabled: Story = {
     disabled: true,
   },
 };
+
+/**
+ * Arrow keys step the value while the list is closed and move through the list
+ * once it is open; typing narrows the offered times.
+ */
+export const BoundedShift: Story = {
+  args: {
+    label: 'Shift start',
+    description: 'Quarter-hour slots between 08:00 and 17:00.',
+    min: '08:00',
+    max: '17:00',
+    step: 15,
+    value: '09:30',
+  },
+};

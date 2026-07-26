@@ -1,0 +1,128 @@
+@use '../foundation/control' as control;
+
+.PdxCalendar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  min-width: 244px;
+}
+
+.PdxCalendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  padding-inline: var(--spacing-xs);
+}
+
+.PdxCalendarCaption {
+  flex: 1;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-compact);
+  text-align: center;
+}
+
+.PdxCalendarNav {
+  @include control.interactive-surface;
+
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
+}
+
+.PdxCalendarGrid {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.PdxCalendarWeekday {
+  width: calc(100% / 7);
+  padding-block: var(--spacing-xs);
+  color: var(--text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-compact);
+  text-align: center;
+}
+
+.PdxCalendarCell {
+  padding: 1px;
+}
+
+.PdxCalendarDay {
+  @include control.interactive-surface;
+
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+
+  /* Today is a marker, not a fill, so it never competes with the selection. */
+  &[aria-current='date'] {
+    color: var(--text-primary);
+    font-weight: var(--font-weight-medium);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block-end: 4px;
+      width: 3px;
+      height: 3px;
+      border-radius: var(--radius-full);
+      background: var(--accent-color);
+    }
+  }
+
+  /* Days between the two ends of a range read as a band, not as selections. */
+  &[data-range='true'] {
+    border-color: var(--border-subtle);
+    background-color: var(--bg-panel);
+    color: var(--text-primary);
+  }
+
+  &[data-edge='true'] {
+    @include control.selection-marker;
+
+    border-color: var(--border-strong);
+    background-color: var(--bg-panel);
+    color: var(--text-primary);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  &[aria-disabled='true'] {
+    @include control.disabled-control;
+
+    color: var(--text-muted);
+  }
+}
+
+.PdxCalendarHint {
+  padding-inline: var(--spacing-xs);
+  padding-block-start: var(--spacing-xs);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--font-size-2xs);
+  line-height: var(--line-height-compact);
+}

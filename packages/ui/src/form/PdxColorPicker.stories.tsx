@@ -30,6 +30,18 @@ export const WithoutTextInput: Story = {
   },
 };
 
+/**
+ * The toggle opens hue, saturation and lightness as range inputs, so every
+ * colour is reachable with the arrow keys, Home/End and PageUp/PageDown.
+ */
+export const Channels: Story = {
+  args: {
+    label: 'Accent colour',
+    description: 'Adjust the channels, or type a six-digit hex value.',
+    defaultValue: '#2F6FED',
+  },
+};
+
 export const ValidationStates: Story = {
   render: () => (
     <div style={{ display: 'grid', gap: 16, width: 320 }}>
