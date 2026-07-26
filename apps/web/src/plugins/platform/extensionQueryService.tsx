@@ -104,6 +104,7 @@ const createRendererComponents = (
           runtimeType: rule.runtimeType,
           component: scopeOfficialPluginComponent(record.owner, component),
           adapter: rule.adapter,
+          surface: rule.surface,
         })
       );
     });

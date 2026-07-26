@@ -22,7 +22,7 @@ git status -sb
 git rev-list --left-right --count HEAD...@{upstream}
 ```
 
-如果远端已有提交，先使用非破坏方式集成。仓库可能包含其他人的未提交改动，不要用 `git reset --hard` 或覆盖无关文件。
+如果远端已有新提交，先以非破坏性的方式合入。仓库中可能有其他人尚未提交的改动，不要用 `git reset --hard` 或覆盖无关文件。
 
 ## 启动入口
 
@@ -33,11 +33,11 @@ pnpm dev:docs
 pnpm storybook:ui
 ```
 
-通常只需启动正在修改的表面。Web 的本地项目作者链路不要求后端先运行。
+通常只需启动你正在修改的表面即可。Web 端的本地项目编辑流程不要求后端先行启动。
 
 ## 修改落点
 
-先判断能力 owner：
+先确认能力所属的 owner：
 
 - React 交互表面与 composition：`apps/web`
 - Canonical model、Command、History：`packages/workspace`
@@ -52,7 +52,7 @@ pnpm storybook:ui
 
 ## 完成前
 
-在与风险相称的范围运行测试，然后格式化：
+根据改动的风险范围运行相应测试，然后格式化代码：
 
 ```bash
 pnpm test

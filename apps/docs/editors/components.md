@@ -4,29 +4,29 @@
 
 ## 稳定身份
 
-每个 Definition 具有 Workspace 内稳定 identity。重命名显示名称不应改变引用地址；删除、移动或修改契约前，Semantic Index 会提供 references 与 impact。
+每个 Definition 在 Workspace 内拥有稳定的 identity。重命名显示名称不会改变其引用地址；在删除、移动或修改契约之前，Semantic Index 会提供 references 与 impact 信息。
 
 ## Public Contract
 
 公开契约描述实例与定义之间允许跨越的边界：
 
-| 契约    | 作用                         |
-| ------- | ---------------------------- |
-| Prop    | 调用者向组件提供类型化输入   |
-| Event   | 组件向外发布可绑定事件       |
-| Slot    | 调用者插入受约束的子结构     |
-| Variant | 组件声明有限的视觉或行为组合 |
+| 契约    | 作用                               |
+| ------- | ---------------------------------- |
+| Prop    | 调用者向组件提供类型化输入         |
+| Event   | 组件向外发布可绑定事件             |
+| Slot    | 调用者插入受约束的子结构           |
+| Variant | 组件声明一组预定义的视觉或行为变体 |
 
-内部 PIR location、私有 code symbol 和临时作者状态不会自动成为公共 API。
+内部 PIR location、私有 code symbol 和临时编辑状态不会自动暴露为公共 API。
 
 ## Instance
 
-Component Instance 保存 Definition 引用与 binding。Renderer、Semantic Index 和 Compiler 都解析同一个引用；不存在只对画布有效的实例格式。
+Component Instance 保存 Definition 引用与 binding。Renderer、Semantic Index 和 Compiler 都解析同一个引用，不存在仅在画布中生效的特殊实例格式。
 
-契约发生变化时，先查看受影响实例。安全重命名应生成跨文档 transaction，而不是只改 Definition 一侧的字符串。
+当契约发生变化时，应先检查受影响的实例。安全的重命名操作应生成跨文档 transaction，而不是仅修改 Definition 一侧的名称。
 
 ## 抽取事务
 
-从 Blueprint 抽取组件包含 definition 创建、subtree relocation、instance replacement、binding 提升和引用更新。整个过程必须原子提交并可撤销。
+从 Blueprint 中抽取组件的过程包括 definition 创建、subtree relocation、instance replacement、binding 提升和引用更新。整个过程必须以原子方式提交，且支持撤销。
 
 完整操作见[组件与 Collection 复用](/tutorials/component-collection)。底层契约见[PIR-current](/concepts/pir-current)。

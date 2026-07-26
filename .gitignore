@@ -71,6 +71,7 @@ packages/*/storybook-static/
 .claude/
 .codex/
 .agents/
+.erdou/
 .trellis/
 .tmp*
 

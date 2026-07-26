@@ -135,6 +135,8 @@
         "linkConflict": "该组件同时配置了目标地址和 onClick 触发器，点击时可能会同时执行。",
         "add": "新建触发器",
         "delete": "删除触发器",
+        "save": "保存触发器",
+        "cancel": "取消编辑",
         "eventLabel": "触发事件",
         "eventHelp": "选择触发该动作的 DOM 事件。",
         "actionLabel": "执行操作",
@@ -153,7 +155,21 @@
           "blank": "_blank"
         },
         "actions": {
-          "navigate": "跳转"
+          "navigate": "跳转",
+          "executeGraph": "执行节点图",
+          "executeDataMutation": "执行数据变更"
+        },
+        "validation": {
+          "source-missing": "编辑期间已保存的触发器发生变化，请取消后重新编辑。",
+          "event-conflict": "该事件已经配置了触发器。",
+          "destination-required": "请先填写目标地址再保存。",
+          "destination-invalid": "外链请使用 https://，内部跳转请选择已有路由。",
+          "route-unresolved": "请先选择已有内部路由再保存。",
+          "graph-required": "请先选择已有节点图再保存。",
+          "data-operation-required": "请先选择数据变更操作再保存。",
+          "data-input-required": "请先提供有效的类型化输入映射再保存。",
+          "all-events-used": "所有受支持的触发事件均已配置。",
+          "save-failed": "触发器草稿保存失败。"
         },
         "navigation": {
           "confirm": {

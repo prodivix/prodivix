@@ -1,0 +1,227 @@
+/**
+ * Generated from specs/plugins/render-policy-contribution-v2.schema.json.
+ * DO NOT EDIT. Run `pnpm --filter @prodivix/plugin-contracts generate`.
+ */
+
+export const RENDER_POLICY_CONTRIBUTION_V2_SCHEMA_ID =
+  'https://prodivix.dev/schemas/render-policy-contribution-v2.schema.json';
+export const RENDER_POLICY_CONTRIBUTION_V2_SCHEMA_VERSION = '2.0';
+export const RENDER_POLICY_CONTRIBUTION_V2_SCHEMA: object = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://prodivix.dev/schemas/render-policy-contribution-v2.schema.json',
+  title: 'RenderPolicyContributionV2',
+  description:
+    'Serializable canvas-safe component rendering policy with explicit render-surface compatibility requirements.',
+  $comment:
+    'React components, DOM handles, callbacks, and Surface Environment ports are host-side resolved values. This descriptor contains only bounded declarative rules and optional build-attested host implementation references.',
+  type: 'object',
+  additionalProperties: false,
+  required: ['schemaVersion', 'libraryId', 'surface', 'rules'],
+  properties: {
+    $schema: {
+      const:
+        'https://prodivix.dev/schemas/render-policy-contribution-v2.schema.json',
+    },
+    schemaVersion: { const: '2.0' },
+    libraryId: { $ref: '#/$defs/localId' },
+    surface: { $ref: '#/$defs/surfaceRequirements' },
+    rules: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 1024,
+      items: { $ref: '#/$defs/rule' },
+    },
+  },
+  $defs: {
+    localId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 160,
+      pattern: '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$',
+    },
+    runtimeType: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 200,
+      pattern: '^[A-Za-z][A-Za-z0-9._:-]*$',
+    },
+    exportName: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 200,
+      pattern: '^[A-Za-z_$][A-Za-z0-9_$]*$',
+    },
+    propertyName: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 120,
+      pattern: '^[A-Za-z_$][A-Za-z0-9_$-]*$',
+    },
+    label: { type: 'string', minLength: 1, maxLength: 500, pattern: '\\S' },
+    jsonValue: {
+      oneOf: [
+        { type: 'null' },
+        { type: 'boolean' },
+        { type: 'number' },
+        { type: 'string', maxLength: 2000 },
+        { type: 'array', maxItems: 256, items: { $ref: '#/$defs/jsonValue' } },
+        {
+          type: 'object',
+          maxProperties: 256,
+          additionalProperties: { $ref: '#/$defs/jsonValue' },
+        },
+      ],
+    },
+    jsonObject: {
+      type: 'object',
+      maxProperties: 256,
+      propertyNames: { $ref: '#/$defs/propertyName' },
+      additionalProperties: { $ref: '#/$defs/jsonValue' },
+    },
+    rename: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['from', 'to'],
+      properties: {
+        from: { $ref: '#/$defs/propertyName' },
+        to: { $ref: '#/$defs/propertyName' },
+      },
+    },
+    propsTransform: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        defaults: { $ref: '#/$defs/jsonObject' },
+        rename: {
+          type: 'array',
+          maxItems: 128,
+          items: { $ref: '#/$defs/rename' },
+        },
+        omit: {
+          type: 'array',
+          maxItems: 128,
+          items: { $ref: '#/$defs/propertyName' },
+        },
+      },
+    },
+    children: {
+      oneOf: [
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['mode'],
+          properties: {
+            mode: { enum: ['preserve', 'text-only', 'children-only', 'none'] },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['mode', 'prop'],
+          properties: {
+            mode: { const: 'text-prop' },
+            prop: { $ref: '#/$defs/propertyName' },
+          },
+        },
+      ],
+    },
+    canvasOpen: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['prop', 'when', 'value'],
+      properties: {
+        prop: { $ref: '#/$defs/propertyName' },
+        when: { enum: ['always', 'selected'] },
+        value: { type: 'boolean' },
+      },
+    },
+    portal: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['mode'],
+      properties: {
+        mode: { enum: ['inline', 'host-overlay', 'disabled'] },
+        canvasOpen: { $ref: '#/$defs/canvasOpen' },
+      },
+    },
+    surfaceRequirements: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'compatibility',
+        'viewport',
+        'browserMetrics',
+        'styles',
+        'focusKeyboard',
+        'intrinsicSize',
+      ],
+      properties: {
+        compatibility: {
+          enum: ['container-native', 'host-adapted', 'isolated'],
+        },
+        viewport: {
+          enum: ['container', 'container-projected', 'browser-native'],
+        },
+        browserMetrics: {
+          enum: ['none', 'surface-environment', 'browser-native'],
+        },
+        styles: {
+          enum: [
+            'inherited',
+            'owner-scoped',
+            'verified-transform',
+            'document-isolated',
+          ],
+        },
+        focusKeyboard: {
+          enum: [
+            'host-native',
+            'host-bridge',
+            'isolated-bridge',
+            'design-proxy',
+          ],
+        },
+        intrinsicSize: {
+          enum: [
+            'parent-constrained',
+            'surface-measured',
+            'explicit',
+            'isolation-handshake',
+          ],
+        },
+      },
+    },
+    fallback: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['behavior'],
+      properties: {
+        behavior: { enum: ['placeholder', 'omit', 'error'] },
+        message: { $ref: '#/$defs/label' },
+      },
+    },
+    rule: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'id',
+        'runtimeType',
+        'componentExport',
+        'children',
+        'portal',
+        'fallback',
+      ],
+      properties: {
+        id: { $ref: '#/$defs/localId' },
+        runtimeType: { $ref: '#/$defs/runtimeType' },
+        componentExport: { $ref: '#/$defs/exportName' },
+        props: { $ref: '#/$defs/propsTransform' },
+        children: { $ref: '#/$defs/children' },
+        portal: { $ref: '#/$defs/portal' },
+        surface: { $ref: '#/$defs/surfaceRequirements' },
+        fallback: { $ref: '#/$defs/fallback' },
+        hostImplementationId: { $ref: '#/$defs/localId' },
+      },
+    },
+  },
+};

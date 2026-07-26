@@ -19,6 +19,7 @@ import { createWorkspacePirProjectionPlan } from '@prodivix/workspace';
 import { OfficialReactSurfaceBoundary } from '@/plugins/platform/officialSurfaceHost';
 import { VIEWPORT_ZOOM_RANGE } from '@/editor/features/blueprint/editor/model/viewport';
 import { BlueprintProjectRunnerSurface } from '../runner';
+import { BlueprintPirEntrySurface } from './BlueprintPirEntrySurface';
 import { CanvasPlaceholder } from './CanvasPlaceholder';
 import { CanvasRouteDiagnostics } from './CanvasRouteDiagnostics';
 import {
@@ -414,28 +415,32 @@ export function BlueprintEditorCanvas({
                 <>
                   <OfficialReactSurfaceBoundary>
                     {projection.status === 'ready' ? (
-                      <PIRRenderer
-                        plan={projection.plan}
-                        host={rendererHost}
-                        dataOperationRuntime={dataOperationRuntime}
-                        rootParamsById={rootParamsById}
-                        rootStateById={rootStateById}
-                        rootDataById={rootDataById}
-                        rootComponentPropsById={rootComponentPropsById}
-                        rootComponentVariantsById={rootComponentVariantsById}
-                        resolveCollectionPreviewState={
-                          resolveCollectionPreviewState
-                        }
-                        dispatchTrigger={dispatchTrigger}
-                        selectedLocation={
-                          isDesignMode ? selectedLocation : undefined
-                        }
-                        hiddenLocations={hiddenLocations}
-                        onNodeSelect={
-                          isDesignMode ? handleNodeSelect : undefined
-                        }
-                        onBlockingIssues={reportBlockingIssues}
-                      />
+                      <BlueprintPirEntrySurface
+                        documentType={projection.plan.entryDocument.type}
+                      >
+                        <PIRRenderer
+                          plan={projection.plan}
+                          host={rendererHost}
+                          dataOperationRuntime={dataOperationRuntime}
+                          rootParamsById={rootParamsById}
+                          rootStateById={rootStateById}
+                          rootDataById={rootDataById}
+                          rootComponentPropsById={rootComponentPropsById}
+                          rootComponentVariantsById={rootComponentVariantsById}
+                          resolveCollectionPreviewState={
+                            resolveCollectionPreviewState
+                          }
+                          dispatchTrigger={dispatchTrigger}
+                          selectedLocation={
+                            isDesignMode ? selectedLocation : undefined
+                          }
+                          hiddenLocations={hiddenLocations}
+                          onNodeSelect={
+                            isDesignMode ? handleNodeSelect : undefined
+                          }
+                          onBlockingIssues={reportBlockingIssues}
+                        />
+                      </BlueprintPirEntrySurface>
                     ) : (
                       <CanvasPlaceholder
                         title={t('canvas.unavailableTitle', {

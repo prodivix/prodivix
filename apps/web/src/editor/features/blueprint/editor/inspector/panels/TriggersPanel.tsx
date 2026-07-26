@@ -4,14 +4,23 @@ import { InspectorTriggerItem } from '@/editor/features/blueprint/editor/inspect
 import type { InspectorPanelDefinition } from './types';
 
 function AddTriggerAction() {
-  const { t, addTrigger, expandedPanels, togglePanel } = useInspectorContext();
+  const {
+    t,
+    addTrigger,
+    expandedPanels,
+    togglePanel,
+    readonly,
+    triggerEntries,
+  } = useInspectorContext();
   const isExpanded = expandedPanels.triggers ?? true;
+  const disabled = readonly || triggerEntries.some((entry) => entry.draft);
 
   return (
     <button
       type="button"
       className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:text-(--text-primary)"
       data-testid="inspector-add-trigger"
+      disabled={disabled}
       onClick={() => {
         addTrigger();
         if (!isExpanded) {

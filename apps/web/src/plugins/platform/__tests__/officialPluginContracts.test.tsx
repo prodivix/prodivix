@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import {
   type CodegenPolicyContributionV1,
   PLUGIN_DIAGNOSTIC_CODES,
-  type RenderPolicyContributionV1,
+  type RenderPolicyContributionV2,
 } from '@prodivix/plugin-contracts';
 import { type PIRDocument } from '@prodivix/pir';
 import { PIRRenderer, resolveIconRef } from '@prodivix/pir-react-renderer';
@@ -104,7 +104,7 @@ describe('official plugin contracts', () => {
       (contribution) => contribution.point === 'renderPolicy'
     );
     const descriptor = renderContribution?.descriptor as unknown as
-      RenderPolicyContributionV1 | undefined;
+      RenderPolicyContributionV2 | undefined;
     if (!descriptor) throw new Error('Fixture Render Policy must exist.');
     descriptor.rules[0]!.runtimeType = 'UnknownNeutralButton';
 
@@ -130,6 +130,14 @@ describe('official plugin contracts', () => {
     );
 
     const extensions = platform.queries.extensions.getSnapshot();
+    expect(extensions.rendererComponents[0]?.surface).toEqual({
+      compatibility: 'container-native',
+      viewport: 'container',
+      browserMetrics: 'none',
+      styles: 'inherited',
+      focusKeyboard: 'host-native',
+      intrinsicSize: 'parent-constrained',
+    });
     const registry = createRendererProjectionRegistry(extensions);
     const host = createPirWebRendererHost(registry);
     render(
@@ -213,10 +221,46 @@ describe('official plugin contracts', () => {
       (contribution) => contribution.point === 'renderPolicy'
     );
     const descriptor = renderContribution?.descriptor as unknown as
-      RenderPolicyContributionV1 | undefined;
+      RenderPolicyContributionV2 | undefined;
     if (!descriptor) throw new Error('Fixture Render Policy must exist.');
     descriptor.rules[0]!.portal = { mode: 'host-overlay' };
     descriptor.rules[0]!.hostImplementationId = 'neutral.render';
+    descriptor.rules[0]!.surface = {
+      compatibility: 'host-adapted',
+      viewport: 'container',
+      browserMetrics: 'none',
+      styles: 'owner-scoped',
+      focusKeyboard: 'host-native',
+      intrinsicSize: 'parent-constrained',
+    };
+
+    const installed = await platform.runtime.packages.install(plugin);
+
+    expect(installed.ok).toBe(false);
+    expect(installed.diagnostics.map((item) => item.code)).toContain(
+      PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_RESOLVER_FAILED
+    );
+    expect(platform.runtime.packages.contributions.getRevision()).toBe(0);
+    expect(platform.listOfficialImplementationBindings()).toEqual([]);
+  });
+
+  it('fails closed when a valid surface requires unavailable isolation', async () => {
+    const platform = createPlatform();
+    const plugin = createNeutralOfficialPlugin();
+    const renderContribution = plugin.contributions.find(
+      (contribution) => contribution.point === 'renderPolicy'
+    );
+    const descriptor = renderContribution?.descriptor as unknown as
+      RenderPolicyContributionV2 | undefined;
+    if (!descriptor) throw new Error('Fixture Render Policy must exist.');
+    descriptor.surface = {
+      compatibility: 'isolated',
+      viewport: 'browser-native',
+      browserMetrics: 'browser-native',
+      styles: 'document-isolated',
+      focusKeyboard: 'isolated-bridge',
+      intrinsicSize: 'explicit',
+    };
 
     const installed = await platform.runtime.packages.install(plugin);
 

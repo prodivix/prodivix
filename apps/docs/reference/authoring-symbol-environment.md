@@ -1,6 +1,6 @@
 # Workspace Semantic Index
 
-Workspace Semantic Index 是 Prodivix 的跨领域语义查询层。它让 Blueprint、NodeGraph、Animation、Code Editor、Inspector、Resources 和 AI 使用同一套 identity、scope、reference、impact 与定位语义，并把 semantic diagnostic snapshot 交给统一 Issues 系统。
+Workspace Semantic Index 是 Prodivix 的跨领域语义查询层，使 Blueprint、NodeGraph、Animation、Code Editor、Inspector、Resources 和 AI 能够共享同一套 identity、scope、reference、impact 与定位语义，并将 semantic diagnostic snapshot 交由统一的 Issues 系统管理。
 
 `@prodivix/authoring` 提供 revision-bound Workspace Semantic Index、canonical semantic address、统一 resolution 与 `SEM-xxxx` diagnostics；`@prodivix/workspace` 从同一 WorkspaceSnapshot 组合 Workspace、Route、PIR-current Component/Collection、standalone NodeGraph、Animation、Code Language、Token/Resolver 与专用 Asset provider contribution。
 
@@ -15,11 +15,11 @@ Canonical Workspace VFS @ partitioned revisions
   -> Workspace Semantic Index snapshot
 ```
 
-1. Index 是绑定 partitioned Workspace revisions、semantic schema 和 provider-set digest、可丢弃和重建的只读投影；Canonical Workspace VFS 继续承载作者态真相。
-2. 全项目 symbol 在同一 snapshot 内都可寻址；持久对象使用跨 revision durable identity，语言推导的 local symbol 可以只拥有 revision-scoped address。Scope、type 和 capability 仍限制解析、补全与绑定可见性。
-3. Route、Component、Collection、NodeGraph、Animation 和 Code 等领域继续保存自己的类型化引用；Index 只生成统一 reference graph。
-4. TypeScript、CSS、GLSL/WGSL Language Service 通过 facts contribution 与 language-native capability 两类 Provider 接入，跨领域协议保持 language-neutral。
-5. Provider 读取 canonical snapshot，并在稳定的领域边界上发布语义 contribution。
+1. Index 是一个只读投影，绑定到 partitioned Workspace revisions、semantic schema 和 provider-set digest，可随时丢弃并重建；Canonical Workspace VFS 始终是作者态真相源。
+2. 全项目的 symbol 在同一 snapshot 内均可寻址；持久对象使用跨 revision 的 durable identity，语言推导的 local symbol 可以只拥有 revision-scoped address。Scope、type 和 capability 仍然限制解析、补全与绑定的可见性。
+3. Route、Component、Collection、NodeGraph、Animation 和 Code 等领域各自保存类型化引用；Index 只生成统一的 reference graph。
+4. TypeScript、CSS、GLSL/WGSL Language Service 通过 facts contribution 和 language-native capability 两类 Provider 接入，跨领域协议保持 language-neutral。
+5. Provider 读取 canonical snapshot，在稳定的领域边界上发布语义 contribution。
 
 ## 核心概念
 
@@ -54,9 +54,9 @@ type WorkspaceSemanticIndex = {
 };
 ```
 
-`resolveReference` 返回 discriminated `resolved / missing / not-visible / ambiguous / type-incompatible / stale` 结果，保留完整解析状态。`getSymbol(id)` 可以定位当前上下文不可见的对象；`queryVisibleSymbols`、completion 和 bind 操作必须应用统一跨领域 visibility policy。只有宿主上下文加入后才能绑定的 provisional fact 可以延迟 Issue 投影，但查询仍如实返回 `missing`；持久化显式引用不得借此隐藏错误。语言 Provider 继续执行语言原生 lexical/module/type resolution，Index 负责编排并规范化结果。
+`resolveReference` 返回 discriminated `resolved / missing / not-visible / ambiguous / type-incompatible / stale` 结果，保留完整的解析状态。`getSymbol(id)` 可以定位当前上下文不可见的对象；`queryVisibleSymbols`、completion 和 bind 操作必须应用统一的跨领域 visibility policy。只有在宿主上下文加入后才能绑定的 provisional fact 可以延迟 Issue 投影，但查询仍如实返回 `missing`；持久化的显式引用不得借此隐藏错误。语言 Provider 继续执行语言原生的 lexical/module/type resolution，Index 负责编排并规范化结果。
 
-rename、delete、move 和 component extraction 只从 Index 获取影响图，实际写入必须由领域 Command planner 形成一个原子 Workspace Transaction。
+rename、delete、move 和 component extraction 操作只从 Index 获取影响图；实际写入必须由领域 Command planner 形成原子 Workspace Transaction。
 
 ## 诊断落点
 
@@ -69,6 +69,6 @@ rename、delete、move 和 component extraction 只从 Index 获取影响图，�
 | Animation target 问题                         | Animation track / binding row |
 | 无法定位到单一对象的聚合错误                  | Issues                        |
 
-Code-owned 解析、符号和绑定问题使用 `COD-xxxx`；PIR、Route、NodeGraph、Animation、Workspace 和 Compiler 结构错误使用各自诊断域。Index 将 missing、not-visible、ambiguous、type-incompatible 与 stale 解析状态投影为 `SEM-2001` 至 `SEM-2005`；`@prodivix/diagnostics` 拥有全域 snapshot lifecycle、去重、presentation 和 Issues 查询。
+Code-owned 的解析、符号和绑定问题使用 `COD-xxxx`；PIR、Route、NodeGraph、Animation、Workspace 和 Compiler 的结构错误使用各自的诊断域。Index 将 missing、not-visible、ambiguous、type-incompatible 和 stale 等解析状态投影为 `SEM-2001` 至 `SEM-2005`；`@prodivix/diagnostics` 拥有全域 snapshot lifecycle、去重、presentation 和 Issues 查询。
 
 完整 contract 见 `specs/decisions/25.authoring-symbol-environment.md`；Component Instance 与 Collection scope 见 `specs/decisions/38.blueprint-component-instance-and-collection.md`。

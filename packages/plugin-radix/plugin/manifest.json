@@ -58,11 +58,11 @@
       }
     },
     {
-      "contractVersion": "1.0",
+      "contractVersion": "2.0",
       "id": "radix.render",
       "point": "renderPolicy",
       "source": {
-        "integrity": "sha256-SXkjW9fe1ng+GLoWWaoV+ZaQb5ZpU0qOa9NP8xBiDeg=",
+        "integrity": "sha256-2me0MTqT6TiyE9gVz0RmLhnOYyoftA3Vx50fjhq7fFs=",
         "kind": "resource",
         "path": "./contributions/render-policy.json"
       }

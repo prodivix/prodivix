@@ -7,7 +7,7 @@ import {
   type IconProviderContributionV1,
   type PaletteContributionV1,
   type PluginDiagnostic,
-  type RenderPolicyContributionV1,
+  type RenderPolicyContribution,
 } from '@prodivix/plugin-contracts';
 import {
   asNonEmptyDiagnostics,
@@ -99,7 +99,7 @@ export const validateWebContributionBatch: ContributionBatchValidator<
     context.descriptors,
     'externalLibrary'
   );
-  const renderEntries = entriesForPoint<RenderPolicyContributionV1>(
+  const renderEntries = entriesForPoint<RenderPolicyContribution>(
     context.descriptors,
     'renderPolicy'
   );

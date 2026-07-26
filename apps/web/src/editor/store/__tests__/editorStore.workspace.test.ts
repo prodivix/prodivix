@@ -528,6 +528,94 @@ describe('editor workspace store hard cut', () => {
     expect(requestDocument.content).toHaveProperty('metadata', { name: 'One' });
   });
 
+  it('adopts a confirmed PIR deletion when local and remote terminal states match', () => {
+    const workspace = createEditorWorkspace();
+    const emptyContent = createEmptyPirDocument();
+    const beforeContent = {
+      ...emptyContent,
+      ui: {
+        ...emptyContent.ui,
+        graph: {
+          ...emptyContent.ui.graph,
+          nodesById: {
+            ...emptyContent.ui.graph.nodesById,
+            heading: {
+              id: 'heading',
+              kind: 'element' as const,
+              type: 'heading',
+            },
+          },
+          childIdsById: {
+            ...emptyContent.ui.graph.childIdsById,
+            root: ['heading'],
+            heading: [],
+          },
+        },
+      },
+    };
+    workspace.docsById['page-home']!.content = beforeContent;
+    useEditorStore.getState().setWorkspaceSnapshot(workspace);
+
+    const afterContent = createEmptyPirDocument();
+    const command: WorkspaceCommandEnvelope = {
+      id: 'command-delete-heading',
+      namespace: 'core.pir',
+      type: 'subtree.delete',
+      version: '1.0',
+      issuedAt: '2026-07-12T00:00:00.000Z',
+      target: {
+        workspaceId: workspace.id,
+        documentId: 'page-home',
+      },
+      domainHint: 'pir',
+      forwardOps: [
+        { op: 'replace', path: '/ui/graph', value: afterContent.ui.graph },
+      ],
+      reverseOps: [
+        { op: 'replace', path: '/ui/graph', value: beforeContent.ui.graph },
+      ],
+    };
+    expect(
+      useEditorStore.getState().dispatchWorkspaceCommand(command)
+    ).toMatchObject({ ok: true });
+    const optimisticSnapshot = useEditorStore.getState().workspace!;
+    const editSeq = useEditorStore.getState().documentEditSeqById['page-home']!;
+
+    const result = useEditorStore.getState().adoptRebasedWorkspaceOperation({
+      requestSnapshot: workspace,
+      serverBaseSnapshot: workspace,
+      rebasedSnapshot: optimisticSnapshot,
+      operation: { kind: 'command', command },
+      mutation: {
+        workspaceId: workspace.id,
+        workspaceRev: 1,
+        routeRev: 1,
+        opSeq: 2,
+        updatedDocuments: [
+          {
+            ...optimisticSnapshot.docsById['page-home']!,
+            contentRev: 2,
+          },
+        ],
+        removedDocumentIds: [],
+        acceptedMutationId: command.id,
+      },
+      expectedDocumentEditSeqById: { 'page-home': editSeq },
+    });
+
+    expect(result).toMatchObject({
+      status: 'adopted',
+      documentEditsObservedDuringRequest: false,
+    });
+    expect(useEditorStore.getState().workspaceRevisionConflict).toBeNull();
+    expect(
+      useEditorStore.getState().workspace?.docsById['page-home']?.content
+    ).toEqual(afterContent);
+    expect(
+      useEditorStore.getState().workspace?.docsById['page-home']?.contentRev
+    ).toBe(2);
+  });
+
   it('opens a new conflict without replacing later local edits', () => {
     const workspace = createEditorWorkspace();
     useEditorStore.getState().setWorkspaceSnapshot(workspace);

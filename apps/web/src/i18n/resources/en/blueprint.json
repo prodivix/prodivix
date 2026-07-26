@@ -135,6 +135,8 @@
         "linkConflict": "This component has a destination and an onClick trigger. Click may run both.",
         "add": "Add trigger",
         "delete": "Delete trigger",
+        "save": "Save trigger",
+        "cancel": "Cancel trigger",
         "eventLabel": "Trigger Event",
         "eventHelp": "Choose which DOM event will trigger this action.",
         "actionLabel": "Run Action",
@@ -153,7 +155,21 @@
           "blank": "_blank"
         },
         "actions": {
-          "navigate": "Navigate"
+          "navigate": "Navigate",
+          "executeGraph": "Execute Graph",
+          "executeDataMutation": "Execute Data Mutation"
+        },
+        "validation": {
+          "source-missing": "The saved trigger changed while this draft was open. Cancel and edit it again.",
+          "event-conflict": "This event already has a trigger.",
+          "destination-required": "Enter a destination before saving.",
+          "destination-invalid": "Use https:// for external links or choose an existing internal route.",
+          "route-unresolved": "Choose an existing internal route before saving.",
+          "graph-required": "Select an existing graph before saving.",
+          "data-operation-required": "Select a mutation before saving.",
+          "data-input-required": "Provide a valid typed input mapping before saving.",
+          "all-events-used": "All supported trigger events are already configured.",
+          "save-failed": "The trigger draft could not be saved."
         },
         "navigation": {
           "confirm": {

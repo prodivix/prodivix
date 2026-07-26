@@ -45,6 +45,14 @@ const descriptorValidators = Object.freeze({
   codegenPolicy: validateCodegenPolicyContribution,
   iconProvider: validateIconProviderContribution,
 });
+const descriptorContractVersions = Object.freeze({
+  externalLibrary: '1.0',
+  paletteContribution: '1.0',
+  blueprintTemplate: '1.0',
+  renderPolicy: '2.0',
+  codegenPolicy: '1.0',
+  iconProvider: '1.0',
+});
 
 const dirname = (resourcePath) => {
   const index = resourcePath.lastIndexOf('/');
@@ -324,7 +332,12 @@ const descriptorEntriesFromManifest = (
       `Contribution ${declaration.id}`
     );
     const validator = descriptorValidators[declaration.point];
-    if (!validator || declaration.contractVersion !== '1.0') {
+    const contractVersion = descriptorContractVersions[declaration.point];
+    if (
+      !validator ||
+      !contractVersion ||
+      declaration.contractVersion !== contractVersion
+    ) {
       throw new Error(
         `Contribution ${declaration.id} uses an unsupported exact contract.`
       );

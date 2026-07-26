@@ -53,14 +53,15 @@ export const contributionContractDiagnostic = (
   point: string,
   message: string,
   documentPath: string,
-  schema?: Pick<ErrorObject, 'schemaPath' | 'keyword'>
+  schema?: Pick<ErrorObject, 'schemaPath' | 'keyword'>,
+  contractVersion = '1.0'
 ): PluginDiagnostic =>
   createPluginDiagnostic(
     PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_SCHEMA_VIOLATION,
     message,
     {
       contributionPoint: point,
-      contractVersion: '1.0',
+      contractVersion,
       documentPath,
       schemaPath: schema?.schemaPath,
       schemaKeyword: schema?.keyword,
@@ -74,6 +75,7 @@ export const validateContributionStructure = <TDescriptor>(
     label: string;
     validate: ValidateFunction<TDescriptor>;
     json?: JsonValueValidationOptions;
+    contractVersion?: string;
   }>
 ): ContributionDescriptorValidationResult<TDescriptor> => {
   const jsonResult = validateJsonValue(input, options.json);
@@ -93,7 +95,8 @@ export const validateContributionStructure = <TDescriptor>(
         options.point,
         `${options.label} field ${documentPath || '<root>'} ${error.message ?? 'is invalid'}.`,
         documentPath,
-        error
+        error,
+        options.contractVersion
       );
     }),
   };
@@ -108,7 +111,8 @@ type PropsTransform = Readonly<{
 export const validatePropsTransform = (
   point: string,
   transform: PropsTransform | undefined,
-  path: string
+  path: string,
+  contractVersion = '1.0'
 ): PluginDiagnostic[] => {
   if (!transform) return [];
   const diagnostics: PluginDiagnostic[] = [];
@@ -120,7 +124,9 @@ export const validatePropsTransform = (
         contributionContractDiagnostic(
           point,
           `Property rename source ${JSON.stringify(entry.from)} is declared more than once.`,
-          `${path}/rename/${index}/from`
+          `${path}/rename/${index}/from`,
+          undefined,
+          contractVersion
         )
       );
     }
@@ -129,7 +135,9 @@ export const validatePropsTransform = (
         contributionContractDiagnostic(
           point,
           `Property rename target ${JSON.stringify(entry.to)} is declared more than once.`,
-          `${path}/rename/${index}/to`
+          `${path}/rename/${index}/to`,
+          undefined,
+          contractVersion
         )
       );
     }
@@ -138,7 +146,9 @@ export const validatePropsTransform = (
         contributionContractDiagnostic(
           point,
           'Property rename source and target must differ.',
-          `${path}/rename/${index}`
+          `${path}/rename/${index}`,
+          undefined,
+          contractVersion
         )
       );
     }
@@ -152,7 +162,9 @@ export const validatePropsTransform = (
         contributionContractDiagnostic(
           point,
           `Property rename target ${JSON.stringify(entry.to)} cannot also be a rename source.`,
-          `${path}/rename/${index}/to`
+          `${path}/rename/${index}/to`,
+          undefined,
+          contractVersion
         )
       );
     }
@@ -165,7 +177,9 @@ export const validatePropsTransform = (
         contributionContractDiagnostic(
           point,
           `Omitted property ${JSON.stringify(property)} is declared more than once.`,
-          `${path}/omit/${index}`
+          `${path}/omit/${index}`,
+          undefined,
+          contractVersion
         )
       );
     }
@@ -178,7 +192,9 @@ export const validatePropsTransform = (
         contributionContractDiagnostic(
           point,
           `Defaulted property ${JSON.stringify(property)} is also omitted.`,
-          `${path}/defaults/${property}`
+          `${path}/defaults/${property}`,
+          undefined,
+          contractVersion
         )
       );
     }

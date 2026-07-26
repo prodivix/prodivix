@@ -11,7 +11,7 @@ import {
   type BlueprintTemplateContributionV1,
   type CodegenPolicyContributionV1,
   type PaletteContributionV1,
-  type RenderPolicyContributionV1,
+  type RenderPolicyContributionV2,
 } from '@prodivix/plugin-contracts';
 import { GENERATED_OFFICIAL_PLUGIN_CATALOG } from '#radix/catalog.generated';
 
@@ -51,7 +51,7 @@ describe('Radix official contribution resources', () => {
     const palette = paletteInput as unknown as PaletteContributionV1;
     const templates =
       templatesInput as unknown as BlueprintTemplateContributionV1;
-    const render = renderInput as unknown as RenderPolicyContributionV1;
+    const render = renderInput as unknown as RenderPolicyContributionV2;
     const codegen = codegenInput as unknown as CodegenPolicyContributionV1;
     const items = palette.groups.flatMap((group) => group.items);
     const templateTypes = new Set(
@@ -101,7 +101,7 @@ describe('Radix official contribution resources', () => {
     ]);
     const templates =
       templatesInput as unknown as BlueprintTemplateContributionV1;
-    const render = renderInput as unknown as RenderPolicyContributionV1;
+    const render = renderInput as unknown as RenderPolicyContributionV2;
     const codegen = codegenInput as unknown as CodegenPolicyContributionV1;
     const hostOverlayTypes = render.rules
       .filter((rule) => rule.portal.mode === 'host-overlay')

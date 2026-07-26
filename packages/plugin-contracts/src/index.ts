@@ -55,8 +55,19 @@ export type {
 } from '#contracts/generated/externalLibraryContribution.generated';
 export type {
   RenderPolicyContributionV1,
-  Rule as RenderPolicyRuleDescriptor,
+  Rule as RenderPolicyRuleV1Descriptor,
 } from '#contracts/generated/renderPolicyContribution.generated';
+export type {
+  RenderPolicyContributionV2,
+  Rule as RenderPolicyRuleV2Descriptor,
+  SurfaceRequirements as RenderSurfaceRequirementsV2,
+} from '#contracts/generated/renderPolicyContributionV2.generated';
+export {
+  decodeRenderPolicyContributionV2,
+  type RenderPolicyContribution,
+  type RenderPolicyRule as RenderPolicyRuleDescriptor,
+  type RenderSurfaceRequirements,
+} from '#contracts/renderPolicy';
 export type {
   CodegenPolicyContributionV1,
   Dependency as CodegenPolicyDependencyDescriptor,
@@ -93,6 +104,11 @@ export {
   RENDER_POLICY_CONTRIBUTION_V1_SCHEMA_ID,
   RENDER_POLICY_CONTRIBUTION_V1_SCHEMA_VERSION,
 } from '#contracts/generated/renderPolicyContributionSchema.generated';
+export {
+  RENDER_POLICY_CONTRIBUTION_V2_SCHEMA,
+  RENDER_POLICY_CONTRIBUTION_V2_SCHEMA_ID,
+  RENDER_POLICY_CONTRIBUTION_V2_SCHEMA_VERSION,
+} from '#contracts/generated/renderPolicyContributionV2Schema.generated';
 export {
   CODEGEN_POLICY_CONTRIBUTION_V1_SCHEMA,
   CODEGEN_POLICY_CONTRIBUTION_V1_SCHEMA_ID,
@@ -153,6 +169,11 @@ export {
   type ValidateRenderPolicyContributionOptions,
   type ValidateRenderPolicyContributionResult,
 } from '#contracts/validateRenderPolicyContribution';
+export {
+  validateRenderPolicyContributionV1,
+  type ValidateRenderPolicyContributionV1Options,
+  type ValidateRenderPolicyContributionV1Result,
+} from '#contracts/validateRenderPolicyContributionV1';
 export {
   validateCodegenPolicyContribution,
   type ValidateCodegenPolicyContributionOptions,

@@ -49,7 +49,7 @@ Phase 4.6-4.8 要把现有 Ant Design、MUI 和 Radix 库专属实现从 Web/Com
 
 - `paletteContribution@1.0`
 - `externalLibrary@1.0`
-- `renderPolicy@1.0`
+- `renderPolicy@2.0`（v1 仅保留为历史 wire）
 - `codegenPolicy@1.0`
 - `iconProvider@1.0`
 

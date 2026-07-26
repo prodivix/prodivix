@@ -1,6 +1,6 @@
 # 产品导览
 
-一个 Prodivix 项目由多个作者表面共同编辑，但它们读取的是同一个 Workspace revision。左侧项目导航用于切换表面，顶部状态用于理解保存、诊断和当前选择。
+一个 Prodivix 项目由多个编辑界面协同编辑，但它们读取的是同一个 Workspace revision。左侧项目导航用于切换界面，顶部状态栏可查看保存状态、诊断信息和当前选中项。
 
 ## 主要表面
 
@@ -20,9 +20,9 @@
 
 ## Blueprint 的工作区
 
-Blueprint 通常包含资源/组件入口、组件树、画布和 Inspector。组件树表达作者结构，画布是 PIR 的 React 投影，Inspector 则编辑所选目标的稳定语义。切换节点不会产生另一份页面副本。
+Blueprint 通常包含资源/组件入口、组件树、画布和 Inspector。组件树呈现作者结构，画布是 PIR 的 React 投影，Inspector 用于编辑所选目标的稳定语义属性。切换节点不会产生另一份页面副本。
 
-在组件树中隐藏节点，是一种作者视图偏好：它帮助检查遮挡和嵌套，但预览与导出仍按真实项目状态渲染。
+在组件树中隐藏节点只是一种编辑视图偏好，便于检查遮挡和嵌套关系，但预览与导出仍按真实项目状态渲染。
 
 ## 一处选择，多处定位
 
@@ -30,7 +30,7 @@ Workspace Semantic Index 为 Route、PIR、Component、Collection、NodeGraph、
 
 ## 保存与历史
 
-视觉编辑和代码编辑最终都形成可逆 Command 或原子 Transaction。变更先进入本地 History，再作为 exact `WorkspaceOperation` 写入 Durable Outbox，最后通过 Atomic Commit 持久化。保存失败不会静默生成第二份项目真相。
+视觉编辑和代码编辑最终都会生成可逆 Command 或原子 Transaction。变更先进入本地 History，再作为 exact `WorkspaceOperation` 写入 Durable Outbox，最后通过 Atomic Commit 持久化。保存失败时不会悄悄产生第二份项目真相。
 
 常用操作：
 
@@ -44,6 +44,6 @@ Workspace Semantic Index 为 Route、PIR、Component、Collection、NodeGraph、
 
 ## 从视觉进入代码
 
-三编辑器通过 Code Slot 引用代码，而不是把任意源码字符串塞进面板状态。Blueprint 的受控 JSX/CSS、事件 handler，NodeGraph executor，Animation function 和 Shader 都在共享代码环境中编辑，并向同一 Issues 视图发布诊断。
+三个编辑器通过 Code Slot 引用代码，而非将任意源码字符串存入面板状态。Blueprint 的受控 JSX/CSS、事件 handler，NodeGraph executor，Animation function 和 Shader 都在共享代码环境中编辑，并向同一个 Issues 视图发布诊断。
 
 继续阅读：[Blueprint 编辑器](/editors/blueprint)、[Code 与 Shader](/editors/code-and-shaders)和[视觉与代码双向编辑](/tutorials/visual-code-round-trip)。

@@ -1,8 +1,8 @@
 # PIR 语法规范
 
-本文描述 `pir-page`、`pir-layout` 与 `pir-component` Workspace documents 使用的无版本 `PIR-current` 领域模型。在单个 PIR 文档内部，`ui.graph` 是 UI 结构的规范写态。
+本文描述 `pir-page`、`pir-layout` 与 `pir-component` 三种 Workspace document 所使用的无版本 `PIR-current` 领域模型。在单个 PIR 文档中，`ui.graph` 是 UI 结构唯一的规范化写入格式。
 
-项目级唯一作者态真相是 **Canonical Workspace VFS**。它在同一个 `WorkspaceSnapshot` 中持有 Route Manifest、PIR、独立 NodeGraph / Animation documents、Code Documents、Assets 与 Project Config。
+整个项目唯一的作者态真相源是 **Canonical Workspace VFS**，它在同一个 `WorkspaceSnapshot` 中统一持有 Route Manifest、PIR、独立 NodeGraph / Animation documents、Code Documents、Assets 和 Project Config。
 
 ## Workspace 文档边界
 
@@ -23,9 +23,9 @@ PIR 可以通过类型化 Trigger / Reference 指向 NodeGraph、Animation 与 C
 - 不可变 wire snapshots：`specs/pir/PIR-v<version>.json`
 - 低成本演进规则：`specs/decisions/39.pir-current-evolution.md`
 
-数字 PIR 版本只属于 wire schema、generated wire types、codec、migration 与 persistence 边界。读取时，wire decoder 严格校验输入并通过确定性 migration 返回同一 `PIRDocument`；写出时，encoder 只生成 current wire contract。Workspace、Renderer、Compiler、Semantic Index 与 Web 不比较数字版本，也不随版本升级改名或复制。
+数字 PIR 版本仅限于 wire schema、generated wire types、codec、migration 与 persistence 边界。读取时，wire decoder 严格校验输入，并通过确定性 migration 返回同一 `PIRDocument`；写出时，encoder 只生成 current wire contract。Workspace、Renderer、Compiler、Semantic Index 和 Web 不比较数字版本，也不随版本升级而改名或复制。
 
-普通 wire 升级只新增下一份冻结 snapshot、更新 activation manifest、同步 generated wire contracts，并增加一段确定性 migration。若领域语义没有变化，所有生产消费者都保持不变。
+一次普通的 wire 升级只需添加一份新的冻结 snapshot、更新 activation manifest、同步 generated wire contracts，并增加一段确定性 migration。若领域语义没有变化，所有生产消费者均保持不变。
 
 ## Canonical 领域结构
 
@@ -83,7 +83,7 @@ wire encoder 会在持久化边界注入 manifest 选中的顶层 `version`，�
 
 ## 节点类型
 
-`PIRNode` 是以 `kind` 判别的严格 union：
+`PIRNode` 是以 `kind` 区分的严格 union：
 
 - `element`：native、built-in 或 adapter-backed runtime element。
 - `component-instance`：通过稳定 `componentDocumentId` 引用 `pir-component` Definition。
@@ -115,7 +115,7 @@ PIR 使用显式 discriminated binding 表示数据来源：
 - `regionsById` 表示 Component slot、Collection item/empty/loading/error 与其他具名 region。
 - Component Instance 不复制 Definition graph，也不允许任意内部 node override。
 - Collection 的 item/index/error lexical scope 由 stable symbol id 解析。
-- Renderer 与 Compiler 消费同一 revision-bound `WorkspacePirProjectionPlan`，不从保存态重建另一份领域模型。
+- Renderer 和 Compiler 使用同一份 revision-bound `WorkspacePirProjectionPlan`，不从保存态重建另一份领域模型。
 - PIR document 通过 Command / Transaction、History、Durable Outbox 与 Atomic Commit 写入 Canonical Workspace；编辑器不保存第二份 PIR 真相。
 
 ## 验证规则
@@ -128,10 +128,10 @@ PIR validator 至少检查：
 4. 结构无环、无重复父级、无孤儿。
 5. Component Contract member、Instance binding 与 slot outlet 可以解析。
 6. Collection source、key、symbols、lexical scope 与状态 region 合法。
-7. code、route、NodeGraph 与 Animation 引用保持类型化，并由对应 owner 与 Workspace Semantic Index 完成跨文档 resolution。
+7. code、route、NodeGraph 和 Animation 的引用须保持类型化，跨文档 resolution 由对应 owner 与 Workspace Semantic Index 完成。
 
 ## Owner
 
-`@prodivix/pir` 拥有 current 领域模型、factory、normalization、mutation、projection 与 semantic validation；`@prodivix/pir/wire` 拥有版本 dispatch、strict wire codec 与 migration。`@prodivix/workspace` 负责编排跨文档 Transaction 与 current projection；`@prodivix/pir-react-renderer` 和 `@prodivix/prodivix-compiler` 只消费稳定 projection contract；`apps/web` 通过这些无版本 package API 组合 Blueprint 与 Preview。
+`@prodivix/pir` 拥有 current 领域模型、factory、normalization、mutation、projection 和 semantic validation；`@prodivix/pir/wire` 拥有版本 dispatch、strict wire codec 和 migration。`@prodivix/workspace` 负责编排跨文档 Transaction 与 current projection；`@prodivix/pir-react-renderer` 和 `@prodivix/prodivix-compiler` 只使用稳定的 projection contract；`apps/web` 通过这些无版本 package API 组合 Blueprint 和 Preview。
 
 [查看 PIR 错误码与诊断](/reference/diagnostic-codes)。

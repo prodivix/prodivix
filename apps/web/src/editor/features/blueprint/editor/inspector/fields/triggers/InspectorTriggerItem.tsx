@@ -1,55 +1,20 @@
-import { useEffect, useMemo } from 'react';
-import { Trash2 } from 'lucide-react';
+import { useMemo } from 'react';
+import { Check, Trash2, X } from 'lucide-react';
 import { getNavigateLinkKind } from '@prodivix/router';
 import type { TriggerEntry } from '@/editor/features/blueprint/editor/inspector/InspectorContext.types';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 import { TriggerNavigateFields } from './TriggerNavigateFields';
 import { TriggerGraphFields } from './TriggerGraphFields';
 import { TriggerDataMutationFields } from './TriggerDataMutationFields';
-
-const DOM_EVENT_TRIGGERS = [
-  'onClick',
-  'onDoubleClick',
-  'onChange',
-  'onInput',
-  'onSubmit',
-  'onFocus',
-  'onBlur',
-  'onPointerEnter',
-  'onPointerLeave',
-] as const;
-const BUILT_IN_ACTION_OPTIONS = [
-  {
-    value: 'navigate',
-    label: 'Navigate',
-    labelKey: 'inspector.groups.triggers.actions.navigate',
-  },
-  {
-    value: 'executeGraph',
-    label: 'Execute Graph',
-    labelKey: 'inspector.groups.triggers.actions.executeGraph',
-  },
-  {
-    value: 'executeDataMutation',
-    label: 'Execute Data Mutation',
-    labelKey: 'inspector.groups.triggers.actions.executeDataMutation',
-  },
-] as const;
-type BuiltInActionName = (typeof BUILT_IN_ACTION_OPTIONS)[number]['value'];
-const normalizeBuiltInAction = (
-  value: string | undefined
-): BuiltInActionName =>
-  value === 'executeGraph' || value === 'executeDataMutation'
-    ? value
-    : 'navigate';
-const createDefaultActionParams = (
-  action: BuiltInActionName
-): Record<string, unknown> =>
-  action === 'executeGraph'
-    ? { graphMode: 'existing', graphId: '' }
-    : action === 'executeDataMutation'
-      ? { operation: {}, input: { kind: 'literal', value: null } }
-      : { to: '' };
+import {
+  BUILT_IN_ACTION_OPTIONS,
+  DOM_EVENT_TRIGGERS,
+  TRIGGER_AUTHORING_ISSUE_DEFAULT_MESSAGES,
+  createDefaultActionParams,
+  getTriggerDraftIssue,
+  normalizeBuiltInAction,
+  type BuiltInActionName,
+} from './triggerAuthoring';
 
 export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
   const {
@@ -57,10 +22,22 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
     graphOptions,
     routeOptions,
     dataMutationOptions,
+    triggerEntries,
     updateTrigger,
+    saveTrigger,
+    cancelTrigger,
     removeTrigger,
+    readonly,
   } = useInspectorContext();
   const editable = item.editable !== false;
+  const fieldsDisabled =
+    readonly || !editable || Boolean(item.locked) || item.saving;
+  const draftIssue = item.draft
+    ? getTriggerDraftIssue(
+        item,
+        triggerEntries.filter((entry) => !entry.draft)
+      )
+    : undefined;
   const rawToValue = typeof item.params.to === 'string' ? item.params.to : '';
   const routeId =
     typeof item.params.routeId === 'string' ? item.params.routeId : rawToValue;
@@ -127,7 +104,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           <select
             className="h-7 min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none"
             value={item.trigger}
-            disabled={!editable}
+            disabled={fieldsDisabled}
             title={t('inspector.groups.triggers.eventHelp', {
               defaultValue: 'Choose which DOM event will trigger this action.',
             })}
@@ -154,7 +131,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           <select
             className="h-7 min-w-0 rounded-md border border-(--border-default) bg-transparent px-2 text-xs text-(--text-primary) outline-none"
             value={actionValue}
-            disabled={!editable}
+            disabled={fieldsDisabled}
             title={t('inspector.groups.triggers.actionHelp', {
               defaultValue: 'Choose what should run when the event is fired.',
             })}
@@ -172,7 +149,13 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
                         ...params,
                         operation: dataMutationOptions[0].reference,
                       }
-                    : params,
+                    : action === 'executeGraph' && graphOptions[0]
+                      ? {
+                          ...params,
+                          graphId: graphOptions[0].id,
+                          graphName: graphOptions[0].label,
+                        }
+                      : params,
               }));
             }}
           >
@@ -185,21 +168,58 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
             ))}
           </select>
         </div>
-        <button
-          type="button"
-          className="mt-[18px] inline-flex h-7 w-7 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:text-(--danger-color)"
-          data-testid={`inspector-delete-trigger-${item.key}`}
-          onClick={() => removeTrigger(item.key)}
-          disabled={!editable}
-          aria-label={t('inspector.groups.triggers.delete', {
-            defaultValue: 'Delete trigger',
-          })}
-          title={t('inspector.groups.triggers.delete', {
-            defaultValue: 'Delete trigger',
-          })}
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="mt-[18px] inline-flex items-center gap-0.5">
+          {item.draft ? (
+            <>
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:text-(--text-primary)"
+                data-testid={`inspector-save-trigger-${item.key}`}
+                onClick={() => saveTrigger(item.key)}
+                disabled={fieldsDisabled || Boolean(draftIssue)}
+                aria-label={t('inspector.groups.triggers.save', {
+                  defaultValue: 'Save trigger',
+                })}
+                title={t('inspector.groups.triggers.save', {
+                  defaultValue: 'Save trigger',
+                })}
+              >
+                <Check size={14} />
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:text-(--danger-color)"
+                data-testid={`inspector-cancel-trigger-${item.key}`}
+                onClick={() => cancelTrigger(item.key)}
+                disabled={item.saving}
+                aria-label={t('inspector.groups.triggers.cancel', {
+                  defaultValue: 'Cancel trigger',
+                })}
+                title={t('inspector.groups.triggers.cancel', {
+                  defaultValue: 'Cancel trigger',
+                })}
+              >
+                <X size={14} />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:text-(--danger-color)"
+              data-testid={`inspector-delete-trigger-${item.key}`}
+              onClick={() => removeTrigger(item.key)}
+              disabled={fieldsDisabled}
+              aria-label={t('inspector.groups.triggers.delete', {
+                defaultValue: 'Delete trigger',
+              })}
+              title={t('inspector.groups.triggers.delete', {
+                defaultValue: 'Delete trigger',
+              })}
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       </div>
       {!editable ? (
         <div className="rounded-md border border-(--border-default) px-2 py-1.5 text-[10px] text-(--text-muted)">
@@ -214,7 +234,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           replaceValue={replaceValue}
           targetValue={targetValue}
           stateValue={stateValue}
-          disabled={!editable}
+          disabled={fieldsDisabled}
         />
       ) : actionValue === 'executeGraph' ? (
         <TriggerGraphFields
@@ -222,16 +242,26 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
           graphMode={graphMode}
           graphName={graphName}
           selectedGraphId={selectedGraphId}
-          disabled={!editable}
+          disabled={fieldsDisabled}
         />
       ) : (
         <TriggerDataMutationFields
           itemKey={item.key}
           operation={selectedDataOperation}
           input={dataInput}
-          disabled={!editable}
+          disabled={fieldsDisabled}
         />
       )}
+      {draftIssue ? (
+        <div
+          className="rounded-md border border-(--danger-color) bg-(--danger-subtle) px-2 py-1.5 text-[10px] text-(--danger-color)"
+          role="alert"
+        >
+          {t(`inspector.groups.triggers.validation.${draftIssue}`, {
+            defaultValue: TRIGGER_AUTHORING_ISSUE_DEFAULT_MESSAGES[draftIssue],
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

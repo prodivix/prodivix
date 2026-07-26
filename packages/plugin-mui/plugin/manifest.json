@@ -64,11 +64,11 @@
       }
     },
     {
-      "contractVersion": "1.0",
+      "contractVersion": "2.0",
       "id": "mui.render",
       "point": "renderPolicy",
       "source": {
-        "integrity": "sha256-OvYuA8QV9V5yXzScEqI0iB+Ye0zp9olZN/0OyPEnZPg=",
+        "integrity": "sha256-psDaz3a9DR1338zS/rb+nrG4WVjaSarmgv35oVzzk4k=",
         "kind": "resource",
         "path": "./contributions/render-policy.json"
       }

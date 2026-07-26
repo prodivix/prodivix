@@ -1,4 +1,5 @@
 {
+  "$schema": "https://prodivix.dev/schemas/render-policy-contribution-v2.schema.json",
   "libraryId": "antd",
   "rules": [
     {
@@ -1013,5 +1014,13 @@
       "runtimeType": "AntdWatermark"
     }
   ],
-  "schemaVersion": "1.0"
+  "schemaVersion": "2.0",
+  "surface": {
+    "browserMetrics": "none",
+    "compatibility": "host-adapted",
+    "focusKeyboard": "host-native",
+    "intrinsicSize": "parent-constrained",
+    "styles": "owner-scoped",
+    "viewport": "container"
+  }
 }

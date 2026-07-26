@@ -1,6 +1,6 @@
 # Backend API
 
-Prodivix Backend 是 Go 服务，负责账号、项目元数据、Canonical Workspace persistence、Atomic Commit 与显式发布投影。本页只说明稳定边界；精确 request/response 以 OpenAPI 和后端代码为准。
+Prodivix Backend 是一个 Go 服务，负责账号管理、项目元数据、Canonical Workspace persistence、Atomic Commit 和显式发布投影。本页仅说明稳定边界，精确的 request/response 格式以 OpenAPI 和后端代码为准。
 
 ## 服务职责
 
@@ -11,27 +11,27 @@ Prodivix Backend 是 Go 服务，负责账号、项目元数据、Canonical Work
 - 独立的 Settings commit
 - revision conflict 与安全错误 envelope
 
-Project 不保存可回读的 PIR 作者态镜像。Workspace 缺失时，服务端也不会从社区发布投影懒恢复。
+Project 不保存可回读的 PIR 作者态镜像。Workspace 缺失时，服务端也不会从社区发布投影中进行延迟恢复。
 
 ## Atomic WorkspaceOperation
 
-生产作者写入提交一个已规划好的 Command 或 Transaction，并携带精确 revision baseline。服务端在同一数据库事务中完成 CAS、apply、validator、revision 推进、operation log 与幂等结果。
+生产环境下的作者写入会提交一个已规划好的 Command 或 Transaction，并携带精确的 revision baseline。服务端在同一个数据库事务中完成 CAS、apply、validator、revision 推进、operation log 和幂等结果的生成。
 
 ```text
 POST /api/workspaces/{workspaceId}/operations/commit
 ```
 
-同一 operation identity 与相同 canonical request 重试，会返回首次结果而不重复应用；相同 identity 携带不同 request 必须拒绝。
+使用同一 operation identity 和相同的 canonical request 进行重试时，会返回首次的结果而不重复应用；若使用相同 identity 但携带不同的 request，则必须拒绝。
 
-Intent 不是 commit wire 的第三种 operation kind。客户端先把 Intent 转成 Command/Transaction，再持久化 exact request 到 Durable Outbox。
+Intent 不是 commit wire 中的第三种 operation kind。客户端应先将 Intent 转换为 Command/Transaction，再将 exact request 持久化到 Durable Outbox。
 
 ## Revision conflict
 
-Workspace、Route 与 Document revision 使用结构化 `409`。响应只暴露重新读取和 rebase 所需的安全 metadata，不返回未授权正文。客户端获取最新 snapshot 后进行 base/local/remote semantic analysis，并以新的 resolution operation 提交。
+Workspace、Route 和 Document revision 冲突使用结构化 `409` 响应。响应仅暴露重新读取和 rebase 所需的安全 metadata，不返回未经授权的正文。客户端获取最新 snapshot 后进行 base/local/remote semantic analysis，并以新的 resolution operation 提交。
 
 ## Settings
 
-Settings 使用独立 commit endpoint 与独立 durable outbox。选择节点、活动文档等 ephemeral UI 状态不写入服务端作者态。
+Settings 使用独立的 commit endpoint 和独立的 durable outbox。选中节点、活动文档等 ephemeral UI 状态不写入服务端作者态。
 
 ## 权威契约
 
@@ -46,4 +46,4 @@ Settings 使用独立 commit endpoint 与独立 durable outbox。选择节点、
 pnpm dev:backend
 ```
 
-数据库、CORS 与连接池配置以 `apps/backend` 的当前配置读取代码和部署环境为准。不要把开发默认值当成生产安全配置，也不要把真实 secret 写进 Workspace project files。
+数据库、CORS 和连接池配置以 `apps/backend` 中的当前配置读取代码和部署环境为准。不要把开发默认值当作生产安全配置，也不要把真实 secret 写入 Workspace project files。

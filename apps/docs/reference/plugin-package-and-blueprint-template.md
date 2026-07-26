@@ -1,6 +1,6 @@
 # 插件包与 Blueprint Template
 
-Prodivix 插件体系把安装/权限、可验证 package bytes 和框架 host 投影分成独立边界。插件不能成为 Workspace 作者态真相源。
+Prodivix 插件体系将安装/权限、可验证的 package bytes 和框架 host 投影划分为独立边界。插件不能成为 Workspace 的作者态真相源。
 
 ## Owner
 
@@ -14,9 +14,9 @@ Prodivix 插件体系把安装/权限、可验证 package bytes 和框架 host �
 
 ## Package identity
 
-Bundled artifact 由 canonical Manifest/resource bytes 和唯一 digest 标识。构建器与运行时必须使用同一 framing 和 hash 算法；摘要不匹配时 fail closed。
+Bundled artifact 由 canonical Manifest/resource bytes 和唯一 digest 来标识。构建阶段和运行时必须使用同一 framing 和 hash 算法；摘要不匹配时 fail closed。
 
-Bundled 只表示 Web build 可发现，不表示每个 Workspace 自动启用。Enable/disable 和 generation replacement 通过 contribution transaction 更新 registry。
+Bundled 仅表示 Web build 可以发现该插件，并不意味着每个 Workspace 自动启用。Enable/disable 和 generation replacement 通过 contribution transaction 更新 registry。
 
 ## Blueprint Template
 
@@ -39,7 +39,7 @@ Code-owned 内容仍通过 Code Artifact/Code Slot 接入。
 - `direct`：由 runtime type 创建单节点
 - `template`：实例化 normalized fragment
 
-非 core item 必须声明唯一 recipe。点击、画布 drop 和组件树 drop 应复用同一个 intent/command 路径。
+非 core item 必须声明唯一的 recipe。点击、画布 drop 和组件树 drop 应复用同一 intent/command 路径。
 
 ## Lifecycle
 
@@ -47,7 +47,7 @@ Palette、Template、Render Policy、Codegen Policy 和 Icon Provider 在一个 
 
 ## Export 与 Sandbox
 
-Compiler 只消费 serializable Codegen Policy snapshot，不读取 Web singleton 或 React runtime instance。导出项目只携带实际使用 policy 的 dependency closure。
+Compiler 只使用 serializable Codegen Policy snapshot，不读取 Web singleton 或 React runtime instance。导出项目只携带实际用到的 policy 的 dependency closure。
 
 不可信 browser runtime 必须运行在独立 sandbox origin，并使用 CSP、Permissions Policy、无 credential transport 与严格 protocol validation。未配置可信 broker 时 activation 应 fail closed。
 

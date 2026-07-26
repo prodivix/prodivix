@@ -1,6 +1,6 @@
 # 快捷键
 
-`Mod` 表示 macOS 的 `Command`，Windows/Linux 的 `Ctrl`。在文本或代码输入区内，原生编辑器撤销优先于 Workspace History。
+`Mod` 表示 macOS 的 `Command`，Windows/Linux 的 `Ctrl`。在文本或代码输入区域内，原生编辑器的撤销操作优先于 Workspace History。
 
 ## 项目导航
 
@@ -35,7 +35,7 @@ History 快捷键不会截获正在编辑的文本输入。CodeMirror 等编辑�
 | `Mod++` / `Mod+=` | 放大 |
 | `Mod+-`           | 缩小 |
 
-画布需要获得焦点，输入控件中不会触发缩放。
+画布需要获得焦点后才能使用；处于输入控件中时不会触发缩放。
 
 ## Resources 与 Code
 

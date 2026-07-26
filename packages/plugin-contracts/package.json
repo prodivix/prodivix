@@ -30,6 +30,11 @@
       "import": "./dist/generated/renderPolicyContributionSchema.generated.js"
     },
     "./schema/render-policy-contribution-v1.json": "./dist/schema/render-policy-contribution-v1.schema.json",
+    "./schema/render-policy-contribution-v2": {
+      "types": "./dist/generated/renderPolicyContributionV2Schema.generated.d.ts",
+      "import": "./dist/generated/renderPolicyContributionV2Schema.generated.js"
+    },
+    "./schema/render-policy-contribution-v2.json": "./dist/schema/render-policy-contribution-v2.schema.json",
     "./schema/codegen-policy-contribution-v1": {
       "types": "./dist/generated/codegenPolicyContributionSchema.generated.d.ts",
       "import": "./dist/generated/codegenPolicyContributionSchema.generated.js"

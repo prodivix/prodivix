@@ -4,7 +4,7 @@ Workspace Semantic Index 让 Route、PIR、Component、Collection、NodeGraph、
 
 ## 全局可寻址，不是全局可见
 
-每个 `WorkspaceSymbol` 有稳定 identity 和 owner，但解析仍受 `WorkspaceScope`、类型与 capability 约束。一个符号能被 Issues 定位，不代表它会出现在所有编辑器的 completion 中。
+每个 `WorkspaceSymbol` 都有稳定的 identity 和 owner，但解析仍受 `WorkspaceScope`、类型与 capability 约束。一个符号能被 Issues 定位，不代表它会出现在所有编辑器的 completion 中。
 
 ## Revision-bound snapshot
 
@@ -14,11 +14,11 @@ Semantic Index 绑定：
 - semantic schema
 - provider set
 
-任一身份发生变化，都应构建新 snapshot。索引只读、可丢弃、可重建，不允许保存领域作者态。
+其中任何一项发生变化，都应构建新的 snapshot。索引是只读的，可丢弃、可重建，不允许用来保存领域创作状态。
 
 ## Provider contribution
 
-各领域只发布自己的 symbols、scopes、references、diagnostic targets 与 source spans。Index 负责组合和稳定查询，但不扫描编辑器私有结构。
+各领域只发布自己的 symbols、scopes、references、diagnostic targets 与 source spans。Index 负责汇总并提供稳定的查询接口，但不扫描编辑器私有结构。
 
 ```mermaid
 flowchart TD
@@ -33,7 +33,7 @@ flowchart TD
 
 ## Code Language 的位置
 
-Language Service 通过 Code Semantic Contribution 接入，不拥有 Component、Route 或 Collection 的 identity policy。它发布代码符号事实并提供 language capability；跨领域 rename/impact 由 authoring 与 Workspace transaction 补全。
+Language Service 通过 Code Semantic Contribution 接入，不拥有 Component、Route 或 Collection 的 identity policy。它负责发布代码符号信息并提供 language capability；跨领域的 rename/impact 则由 authoring 与 Workspace transaction 协同完成。
 
 ## Diagnostics 的位置
 

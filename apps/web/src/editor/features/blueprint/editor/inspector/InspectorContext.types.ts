@@ -153,6 +153,10 @@ export type TriggerEntry = {
   params: Record<string, unknown>;
   editable?: boolean;
   diagnostic?: string;
+  draft?: boolean;
+  sourceKey?: string;
+  saving?: boolean;
+  locked?: boolean;
 };
 
 export type InspectorCodeContext = {
@@ -167,6 +171,8 @@ export type InspectorCodeContext = {
     triggerKey: string,
     updater: (event: TriggerEntry) => TriggerEntry
   ) => void;
+  saveTrigger: (triggerKey: string) => void;
+  cancelTrigger: (triggerKey: string) => void;
   removeTrigger: (triggerKey: string) => void;
   hasLinkTriggerConflict: boolean;
   triggerEntries: TriggerEntry[];

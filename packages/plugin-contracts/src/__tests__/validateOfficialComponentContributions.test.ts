@@ -4,10 +4,12 @@ import {
   validateExternalLibraryContribution,
   validateIconProviderContribution,
   validateRenderPolicyContribution,
+  validateRenderPolicyContributionV1,
   type CodegenPolicyContributionV1,
   type ExternalLibraryContributionV1,
   type IconProviderContributionV1,
   type RenderPolicyContributionV1,
+  type RenderPolicyContributionV2,
 } from '#contracts/index';
 
 const externalLibrary = (): ExternalLibraryContributionV1 => ({
@@ -36,9 +38,17 @@ const externalLibrary = (): ExternalLibraryContributionV1 => ({
   ],
 });
 
-const renderPolicy = (): RenderPolicyContributionV1 => ({
-  schemaVersion: '1.0',
+const renderPolicy = (): RenderPolicyContributionV2 => ({
+  schemaVersion: '2.0',
   libraryId: 'neutral-ui',
+  surface: {
+    compatibility: 'container-native',
+    viewport: 'container',
+    browserMetrics: 'none',
+    styles: 'inherited',
+    focusKeyboard: 'host-native',
+    intrinsicSize: 'parent-constrained',
+  },
   rules: [
     {
       id: 'neutral.button',
@@ -46,6 +56,21 @@ const renderPolicy = (): RenderPolicyContributionV1 => ({
       componentExport: 'Button',
       props: { rename: [{ from: 'text', to: 'label' }] },
       children: { mode: 'text-prop', prop: 'label' },
+      portal: { mode: 'inline' },
+      fallback: { behavior: 'placeholder', message: 'Button unavailable.' },
+    },
+  ],
+});
+
+const renderPolicyV1 = (): RenderPolicyContributionV1 => ({
+  schemaVersion: '1.0',
+  libraryId: 'neutral-ui',
+  rules: [
+    {
+      id: 'neutral.button',
+      runtimeType: 'NeutralButton',
+      componentExport: 'Button',
+      children: { mode: 'text-only' },
       portal: { mode: 'inline' },
       fallback: { behavior: 'placeholder', message: 'Button unavailable.' },
     },
@@ -107,6 +132,66 @@ describe('official component contribution validators', () => {
     expect(validateRenderPolicyContribution(renderPolicy()).ok).toBe(true);
     expect(validateCodegenPolicyContribution(codegenPolicy()).ok).toBe(true);
     expect(validateIconProviderContribution(iconProvider()).ok).toBe(true);
+  });
+
+  it('keeps v1 validation explicit while decoding v2 into one current model', () => {
+    expect(validateRenderPolicyContributionV1(renderPolicyV1()).ok).toBe(true);
+
+    const descriptor = renderPolicy();
+    descriptor.rules[0]!.surface = {
+      compatibility: 'host-adapted',
+      viewport: 'container-projected',
+      browserMetrics: 'none',
+      styles: 'inherited',
+      focusKeyboard: 'host-native',
+      intrinsicSize: 'parent-constrained',
+    };
+    const result = validateRenderPolicyContribution(descriptor);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.descriptor).not.toHaveProperty('schemaVersion');
+    expect(result.descriptor.rules[0]?.surface.compatibility).toBe(
+      'host-adapted'
+    );
+  });
+
+  it('rejects incoherent or undeclared surface requirements fail closed', () => {
+    const missing = renderPolicy() as unknown as Record<string, unknown>;
+    delete missing.surface;
+    const missingResult = validateRenderPolicyContribution(missing);
+    expect(missingResult.ok).toBe(false);
+    expect(missingResult.diagnostics[0]?.meta.documentPath).toBe('/surface');
+
+    const incompatible = renderPolicy();
+    incompatible.surface = {
+      ...incompatible.surface,
+      compatibility: 'container-native',
+      browserMetrics: 'browser-native',
+    };
+    const incompatibleResult = validateRenderPolicyContribution(incompatible);
+    expect(incompatibleResult.ok).toBe(false);
+    expect(incompatibleResult.diagnostics[0]?.meta.contractVersion).toBe('2.0');
+    expect(
+      incompatibleResult.diagnostics.some(
+        (item) => item.meta.documentPath === '/surface/browserMetrics'
+      )
+    ).toBe(true);
+  });
+
+  it('requires host-overlay rules to resolve as host-adapted', () => {
+    const descriptor = renderPolicy();
+    descriptor.rules[0]!.portal = { mode: 'host-overlay' };
+    descriptor.rules[0]!.hostImplementationId = 'neutral.overlay';
+
+    const result = validateRenderPolicyContribution(descriptor);
+
+    expect(result.ok).toBe(false);
+    expect(
+      result.diagnostics.some(
+        (item) => item.meta.documentPath === '/rules/0/portal/mode'
+      )
+    ).toBe(true);
   });
 
   it('rejects executable or URL-shaped descriptor escape hatches', () => {

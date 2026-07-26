@@ -12,6 +12,7 @@
   - `specs/decisions/14.plugin-sandbox-and-capability.md`
   - `specs/decisions/17.external-library-runtime-and-adapter.md`
   - `specs/decisions/29.plugin-extension-points.md`
+  - `specs/decisions/64.third-party-render-surface-compatibility.md`
 - 前置实现：
   - `specs/decisions/29.plugin-extension-points.md`
 - Phase 4.6-4.8 详细实现：
@@ -542,7 +543,11 @@ type WebContributionPointMap = Readonly<{
 }>;
 ```
 
-Palette、External Library、Render Policy、Codegen Policy 与 Icon Provider 的 `1.0` production contracts 均已注册。四个 Phase 4.5 point 使用独立 closed Schema、生成类型和 point-specific semantic validator；原 branded resolved slot 已删除，没有 permissive placeholder contract。Renderer、Compiler、Icon surface 和 Inspector 继续从同一 Host revision 读取投影，不创建平行 Host。
+Palette、External Library、Codegen Policy 与 Icon Provider 的 `1.0` production contracts，以及 Render Policy 的 `2.0`
+production contract 已注册。各 point 使用独立 closed Schema、生成类型和 point-specific semantic validator；Render
+Policy v2 在 codec 边界进入无版本 current model，v1 只作为历史 wire 保留。原 branded resolved slot 已删除，没有
+permissive placeholder contract。Renderer、Compiler、Icon surface 和 Inspector 继续从同一 Host revision 读取投影，
+不创建平行 Host。
 
 同一 Web composition root 已注册与 Host contracts 对齐的 `OfficialHostImplementationRegistry` 和 Host-controlled `LibraryArtifactResolver`。前者是 build-time trusted implementation catalog，不是第二个 contribution registry；实现按 plugin id、package digest、package coordinate、kind 与 owner/generation exact bind，并随 owner cleanup。community/verified package 不能注册 Host main-realm implementation。
 
@@ -578,12 +583,16 @@ Phase 4 独立版本化：
 specs/plugins/
 ├── external-library-contribution-v1.schema.json
 ├── render-policy-contribution-v1.schema.json
+├── render-policy-contribution-v2.schema.json
 ├── codegen-policy-contribution-v1.schema.json
 ├── icon-provider-contribution-v1.schema.json
 └── blueprint-template-contribution-v1.schema.json
 ```
 
-前四个 Schema 已在 Phase 4.5 完成；`blueprintTemplate@1.0` 在 Phase 4.6.0 落地，由 Ant Design Form.Item 首先验证，再供 MUI Accordion 与 Radix compound component 复用。所有 Schema 都保持 closed object、JSON-only、大小上限和 exact contract version。`@prodivix/plugin-contracts` 继续从 Schema 生成类型/runtime Schema，并实现 point-specific semantic validator。
+Phase 4.5 contracts 与 `blueprintTemplate@1.0` 均已落地。Render Policy v1 是历史 wire；ADR 64 引入的 v2
+是当前 Web Host exact contract。所有 Schema 都保持 closed object、JSON-only、大小上限和 exact contract version。
+`@prodivix/plugin-contracts` 继续从 Schema 生成 wire 类型/runtime Schema，由 codec/semantic validator 统一解码到
+无数字版本的 current model。
 
 ### 12.2 External Library descriptor
 
@@ -593,7 +602,7 @@ Host `LibraryArtifactResolver` 根据 package coordinate 和 Host policy 解析 
 
 ### 12.3 Render Policy descriptor
 
-Render Policy v1 优先是声明式规则：
+Render Policy v2 继续使用声明式 component rules，并新增必填 library-level surface requirements 与可选 rule override：
 
 - component match / runtime type mapping
 - props transform 与默认值
@@ -602,8 +611,13 @@ Render Policy v1 优先是声明式规则：
 - portal mode：`inline`、`host-overlay` 或 `disabled`
 - canvas-controlled open/selected state
 - fallback/diagnostic behavior
+- compatibility：`container-native`、`host-adapted` 或 `isolated`
+- viewport、browser metrics、style scope、focus/keyboard 与 intrinsic size requirements
 
-Host resolver把这些 JSON 规则转成 `ComponentAdapter` 与预览 projection。ReactNode、ElementType 和 `mapProps` callback 不进入 descriptor。无法由声明式 v1 安全表达的组件保持 unsupported/degraded，不能把任意 official callback 直接塞回 core。
+Host resolver 把 v2 wire 解码为单一 current model，再生成 `ComponentAdapter` 与带 resolved surface profile 的预览
+projection。ReactNode、ElementType、DOM handle、Surface Environment port 和 `mapProps` callback 不进入 descriptor。
+当前 Host 只接受可验证的 container-native 或有限 host-adapted profile；container projection、browser metrics、
+verified CSS transform 与 isolation 尚未实现时以 resolver diagnostic fail closed。
 
 确实需要 React/context/preview callback 的 official contribution 通过 descriptor 中稳定 `hostImplementationId` 绑定 build-attested `OfficialHostModule`。该 id 由 Host resolver 与 official implementation catalog exact match；callback 仍不进入 wire，也不能由 community package 注册。
 
@@ -651,7 +665,7 @@ Ant Design/MUI core 删除门禁包含 icon provider。Icon Provider v1 至少�
 迁移门禁：
 
 1. 先用公开行为测试冻结 Palette 分组、建节点默认值、Canvas render outcome 和 React import outcome。
-2. 用 `externalLibrary@1.0`、`paletteContribution@1.0`、`renderPolicy@1.0`、`codegenPolicy@1.0`、`iconProvider@1.0` 表达现有行为。
+2. 用 `externalLibrary@1.0`、`paletteContribution@1.0`、`renderPolicy@2.0`、`codegenPolicy@1.0`、`iconProvider@1.0` 表达现有行为。
 3. 以 `official` attestation 经完整 discover/permission/transaction 路径注册。
 4. Blueprint 真实使用 official plugin snapshot；不保留 core fallback。
 5. 删除 Ant Design profile、manifest、registration branch、renderer branch、compiler adapter 和 icon branch。

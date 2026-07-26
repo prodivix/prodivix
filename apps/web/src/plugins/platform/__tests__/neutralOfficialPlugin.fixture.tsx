@@ -4,7 +4,7 @@ import type {
   CodegenPolicyContributionV1,
   ExternalLibraryContributionV1,
   IconProviderContributionV1,
-  RenderPolicyContributionV1,
+  RenderPolicyContributionV2,
 } from '@prodivix/plugin-contracts';
 import {
   canonicalJsonBytes,
@@ -148,9 +148,17 @@ const createExternalDescriptor = (): ExternalLibraryContributionV1 => ({
   ],
 });
 
-const createRenderDescriptor = (): RenderPolicyContributionV1 => ({
-  schemaVersion: '1.0',
+const createRenderDescriptor = (): RenderPolicyContributionV2 => ({
+  schemaVersion: '2.0',
   libraryId: 'neutral-ui',
+  surface: {
+    compatibility: 'container-native',
+    viewport: 'container',
+    browserMetrics: 'none',
+    styles: 'inherited',
+    focusKeyboard: 'host-native',
+    intrinsicSize: 'parent-constrained',
+  },
   rules: [
     {
       id: 'neutral.button',
@@ -323,7 +331,7 @@ export const createNeutralOfficialPlugin = (
       Object.freeze({
         id: 'neutral.render',
         point: 'renderPolicy',
-        contractVersion: '1.0',
+        contractVersion: '2.0',
         descriptor: renderDescriptor,
       }),
       Object.freeze({

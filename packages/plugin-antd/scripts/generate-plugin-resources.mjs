@@ -630,8 +630,18 @@ const templates = {
 };
 
 const renderPolicy = {
-  schemaVersion: '1.0',
+  $schema:
+    'https://prodivix.dev/schemas/render-policy-contribution-v2.schema.json',
+  schemaVersion: '2.0',
   libraryId: 'antd',
+  surface: {
+    compatibility: 'host-adapted',
+    viewport: 'container',
+    browserMetrics: 'none',
+    styles: 'owner-scoped',
+    focusKeyboard: 'host-native',
+    intrinsicSize: 'parent-constrained',
+  },
   rules: components.map((component) => ({
     id: `antd.${toKebabCase(component.path)}`,
     runtimeType: component.runtimeType,
@@ -793,7 +803,7 @@ const manifest = {
     return {
       id,
       point,
-      contractVersion: '1.0',
+      contractVersion: point === 'renderPolicy' ? '2.0' : '1.0',
       source: {
         kind: 'resource',
         path: `./contributions/${fileName}`,

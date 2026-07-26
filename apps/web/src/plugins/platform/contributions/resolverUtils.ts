@@ -23,7 +23,8 @@ type DescriptorValidationResult<TDescriptor> =
 
 export const toHostDescriptorValidationResult = <TDescriptor>(
   result: DescriptorValidationResult<TDescriptor>,
-  point: string
+  point: string,
+  contractVersion = '1.0'
 ): PluginHostResult<TDescriptor> => {
   if (result.ok) return pluginHostSuccess(result.descriptor);
   return pluginHostFailure(
@@ -31,7 +32,7 @@ export const toHostDescriptorValidationResult = <TDescriptor>(
       createPluginDiagnostic(
         PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_SCHEMA_VIOLATION,
         `${point} descriptor validation failed without a diagnostic.`,
-        { contributionPoint: point, contractVersion: '1.0' }
+        { contributionPoint: point, contractVersion }
       ),
     ]
   );
@@ -40,7 +41,8 @@ export const toHostDescriptorValidationResult = <TDescriptor>(
 export const resolverFailure = (
   point: string,
   message: string,
-  meta: Record<string, string | number | boolean | undefined> = {}
+  meta: Record<string, string | number | boolean | undefined> = {},
+  contractVersion = '1.0'
 ): PluginHostResult<never> =>
   pluginHostFailure([
     createPluginDiagnostic(
@@ -48,7 +50,7 @@ export const resolverFailure = (
       message,
       {
         contributionPoint: point,
-        contractVersion: '1.0',
+        contractVersion,
         ...meta,
       }
     ),

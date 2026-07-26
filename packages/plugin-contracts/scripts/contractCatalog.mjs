@@ -29,6 +29,13 @@ export const CONTRACT_CATALOG = Object.freeze(
       schemaConstant: 'RENDER_POLICY_CONTRIBUTION_V1_SCHEMA',
     },
     {
+      schemaFile: 'render-policy-contribution-v2.schema.json',
+      rootType: 'RenderPolicyContributionV2',
+      typesFile: 'renderPolicyContributionV2.generated.ts',
+      schemaModuleFile: 'renderPolicyContributionV2Schema.generated.ts',
+      schemaConstant: 'RENDER_POLICY_CONTRIBUTION_V2_SCHEMA',
+    },
+    {
       schemaFile: 'codegen-policy-contribution-v1.schema.json',
       rootType: 'CodegenPolicyContributionV1',
       typesFile: 'codegenPolicyContribution.generated.ts',

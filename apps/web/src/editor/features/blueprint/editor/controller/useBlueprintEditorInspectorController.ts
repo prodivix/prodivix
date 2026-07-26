@@ -74,6 +74,11 @@ import { getPrimaryTextField } from '@/editor/features/blueprint/editor/model/bl
 import { findNodePlacement } from '@/editor/features/blueprint/editor/model/tree';
 import { createDataOperationInspectorCandidates } from '@/editor/features/blueprint/editor/inspector/domain/dataOperationInspectorModel';
 import {
+  TRIGGER_AUTHORING_ISSUE_DEFAULT_MESSAGES,
+  type TriggerAuthoringIssue,
+} from '@/editor/features/blueprint/editor/inspector/fields/triggers/triggerAuthoring';
+import { useTriggerDraftAuthoring } from '@/editor/features/blueprint/editor/inspector/fields/triggers/useTriggerDraftAuthoring';
+import {
   usePaletteRegistrySnapshot,
   useWebExtensionRegistrySnapshot,
 } from '@/plugins/platform';
@@ -418,11 +423,11 @@ export const useBlueprintEditorInspectorController = ({
     [report, workspace]
   );
 
-  const updateSelectedNode = useCallback(
-    (
+  const applySelectedNodeUpdate = useCallback(
+    async (
       updater: (node: BlueprintInspectorNodeView) => BlueprintInspectorNodeView
-    ) => {
-      if (!selection || workspaceReadonly) return;
+    ): Promise<boolean> => {
+      if (!selection || workspaceReadonly) return false;
       const currentWorkspace = useEditorStore.getState().workspace;
       const source =
         currentWorkspace?.id === workspace.id ? currentWorkspace : workspace;
@@ -430,16 +435,16 @@ export const useBlueprintEditorInspectorController = ({
         source,
         selection.documentId
       );
-      if (currentRead?.status !== 'valid') return;
+      if (currentRead?.status !== 'valid') return false;
       const currentNode =
         currentRead.decodedContent.ui.graph.nodesById[selection.nodeId];
-      if (currentNode?.kind !== 'element') return;
+      if (currentNode?.kind !== 'element') return false;
       const currentView = createBlueprintInspectorNodeView(
         currentRead.document.id,
         currentRead.decodedContent,
         currentNode.id
       );
-      if (!currentView) return;
+      if (!currentView) return false;
       const nextView = updater(currentView);
       const currentCollection = findParentCollection(
         currentRead.decodedContent.ui.graph,
@@ -453,7 +458,7 @@ export const useBlueprintEditorInspectorController = ({
         );
         if (!placement) {
           report('The selected node cannot be promoted to a Collection here.');
-          return;
+          return false;
         }
         const plan = createWorkspaceCollectionInsertTransactionPlan({
           workspace: source,
@@ -471,13 +476,12 @@ export const useBlueprintEditorInspectorController = ({
         });
         if (plan.status === 'rejected') {
           report(firstPlanIssue(plan));
-          return;
+          return false;
         }
-        void dispatchOperation({
+        return dispatchOperation({
           kind: 'transaction',
           transaction: plan.plan.transaction,
         });
-        return;
       }
 
       if (currentCollection && !nextView.list) {
@@ -491,13 +495,12 @@ export const useBlueprintEditorInspectorController = ({
         });
         if (plan.status === 'rejected') {
           report(firstPlanIssue(plan));
-          return;
+          return false;
         }
-        void dispatchOperation({
+        return dispatchOperation({
           kind: 'transaction',
           transaction: plan.plan.transaction,
         });
-        return;
       }
 
       if (currentCollection && nextView.list) {
@@ -527,13 +530,12 @@ export const useBlueprintEditorInspectorController = ({
           });
           if (plan.status === 'rejected') {
             report(firstPlanIssue(plan));
-            return;
+            return false;
           }
-          void dispatchOperation({
+          return dispatchOperation({
             kind: 'transaction',
             transaction: plan.plan.transaction,
           });
-          return;
         }
       }
 
@@ -548,7 +550,7 @@ export const useBlueprintEditorInspectorController = ({
           ? []
           : [{ nodeId, node: nextElement }];
       });
-      if (updates.length === 0) return;
+      if (updates.length === 0) return false;
       const envelope = {
         workspace: source,
         baseRevision: source.workspaceRev,
@@ -573,14 +575,22 @@ export const useBlueprintEditorInspectorController = ({
             });
       if (plan.status === 'rejected') {
         report(firstPlanIssue(plan));
-        return;
+        return false;
       }
-      void dispatchOperation({
+      return dispatchOperation({
         kind: 'transaction',
         transaction: plan.plan.transaction,
       });
     },
     [dispatchOperation, report, selection, workspace, workspaceReadonly]
+  );
+  const updateSelectedNode = useCallback(
+    (
+      updater: (node: BlueprintInspectorNodeView) => BlueprintInspectorNodeView
+    ) => {
+      void applySelectedNodeUpdate(updater);
+    },
+    [applySelectedNodeUpdate]
   );
 
   const routeManifest = workspace.routeManifest;
@@ -1046,14 +1056,102 @@ export const useBlueprintEditorInspectorController = ({
     () => createDataOperationInspectorCandidates(workspace, 'mutation'),
     [workspace]
   );
-  const triggerEntries = useMemo(
+  const canonicalTriggerEntries = useMemo(
     () =>
       Object.entries(selectedNode?.events ?? {}).map(([key, event]) =>
         toTriggerEntry(key, event)
       ),
     [selectedNode?.events]
   );
-  const hasOnClickTrigger = triggerEntries.some((entry) =>
+  const commitTriggerDraft = useCallback(
+    async (draft: TriggerEntry): Promise<boolean> => {
+      if (!selection || workspaceReadonly) return false;
+      if (draft.action === 'executeDataMutation') {
+        const trigger = toDataMutationTrigger(draft);
+        if (!trigger) {
+          report('Select a mutation and provide a valid typed input mapping.');
+          return false;
+        }
+        const currentWorkspace = useEditorStore.getState().workspace;
+        const source =
+          currentWorkspace?.id === workspace.id ? currentWorkspace : workspace;
+        const plan = createWorkspacePirDataOperationTriggerTransactionPlan({
+          workspace: source,
+          baseRevision: source.workspaceRev,
+          transactionId: createWorkspaceClientOperationId(
+            'data-mutation-trigger'
+          ),
+          issuedAt: new Date().toISOString(),
+          documentId: selection.documentId,
+          nodeId: selection.nodeId,
+          ...(draft.sourceKey
+            ? {
+                previousEventName: draft.sourceKey,
+                replaceExisting: true,
+              }
+            : {}),
+          eventName: draft.trigger,
+          trigger,
+        });
+        if (plan.status === 'rejected') {
+          report(firstPlanIssue(plan));
+          return false;
+        }
+        return dispatchOperation({
+          kind: 'transaction',
+          transaction: plan.plan.transaction,
+        });
+      }
+
+      return applySelectedNodeUpdate((current) => ({
+        ...current,
+        events: {
+          ...(current.events ?? {}),
+          [draft.sourceKey ?? draft.key]: {
+            trigger: draft.trigger,
+            action: draft.action ?? 'navigate',
+            params: draft.params,
+            editable: true,
+          },
+        },
+      }));
+    },
+    [
+      applySelectedNodeUpdate,
+      dispatchOperation,
+      report,
+      selection,
+      workspace,
+      workspaceReadonly,
+    ]
+  );
+  const reportTriggerAuthoringIssue = useCallback(
+    (issue: TriggerAuthoringIssue) => {
+      report(
+        translate(`inspector.groups.triggers.validation.${issue}`, {
+          defaultValue: TRIGGER_AUTHORING_ISSUE_DEFAULT_MESSAGES[issue],
+        })
+      );
+    },
+    [report, translate]
+  );
+  const triggerAuthoring = useTriggerDraftAuthoring({
+    ownerKey: selection
+      ? `${selection.documentId}\u0000${selection.nodeId}`
+      : undefined,
+    readOnly: workspaceReadonly,
+    canonicalEntries: canonicalTriggerEntries,
+    onCommit: commitTriggerDraft,
+    onIssue: reportTriggerAuthoringIssue,
+  });
+  const {
+    entries: triggerEntries,
+    add: addTrigger,
+    update: updateTrigger,
+    save: saveTrigger,
+    cancel: cancelTrigger,
+  } = triggerAuthoring;
+  const hasOnClickTrigger = canonicalTriggerEntries.some((entry) =>
     ['click', 'onclick'].includes(entry.trigger.trim().toLowerCase())
   );
 
@@ -1393,73 +1491,10 @@ export const useBlueprintEditorInspectorController = ({
       },
       openControlledJsx: () => openControlledCode('react-jsx'),
       openControlledCss: () => openControlledCode('css'),
-      addTrigger: () =>
-        updateSelectedNode((current) => {
-          const events = { ...(current.events ?? {}) };
-          let index = 1;
-          while (events[`trigger-${index}`]) index += 1;
-          events[`trigger-${index}`] = {
-            trigger: 'onClick',
-            action: 'navigate',
-            params: { to: '' },
-            editable: true,
-          };
-          return { ...current, events };
-        }),
-      updateTrigger: (triggerKey, updater) => {
-        const raw = selectedNode?.events?.[triggerKey];
-        if (!raw || raw.editable === false) return;
-        const next = updater(toTriggerEntry(triggerKey, raw));
-        if (next.action === 'executeDataMutation') {
-          const trigger = toDataMutationTrigger(next);
-          if (!trigger || !selection || workspaceReadonly) {
-            report(
-              'Select a mutation and provide a valid typed input mapping.'
-            );
-            return;
-          }
-          const currentWorkspace = useEditorStore.getState().workspace;
-          const source =
-            currentWorkspace?.id === workspace.id
-              ? currentWorkspace
-              : workspace;
-          const plan = createWorkspacePirDataOperationTriggerTransactionPlan({
-            workspace: source,
-            baseRevision: source.workspaceRev,
-            transactionId: createWorkspaceClientOperationId(
-              'data-mutation-trigger'
-            ),
-            issuedAt: new Date().toISOString(),
-            documentId: selection.documentId,
-            nodeId: selection.nodeId,
-            previousEventName: triggerKey,
-            eventName: next.trigger,
-            replaceExisting: true,
-            trigger,
-          });
-          if (plan.status === 'rejected') {
-            report(firstPlanIssue(plan));
-            return;
-          }
-          void dispatchOperation({
-            kind: 'transaction',
-            transaction: plan.plan.transaction,
-          });
-          return;
-        }
-        updateSelectedNode((current) => ({
-          ...current,
-          events: {
-            ...(current.events ?? {}),
-            [triggerKey]: {
-              trigger: next.trigger,
-              action: next.action,
-              params: next.params,
-              editable: true,
-            },
-          },
-        }));
-      },
+      addTrigger,
+      updateTrigger,
+      saveTrigger,
+      cancelTrigger,
       removeTrigger: (triggerKey) =>
         updateSelectedNode((current) => {
           const raw = current.events?.[triggerKey];
@@ -1495,6 +1530,8 @@ export const useBlueprintEditorInspectorController = ({
       SelectedIconComponent,
       activeRouteDetails,
       activeRouteNodeId,
+      addTrigger,
+      cancelTrigger,
       canAttachLayoutToActiveRoute,
       canDetachLayoutFromActiveRoute,
       componentMeta,
@@ -1533,6 +1570,7 @@ export const useBlueprintEditorInspectorController = ({
       relPropKey,
       report,
       routeOptions,
+      saveTrigger,
       selectedCanonicalNode,
       selectedIconRef,
       selectedNode,
@@ -1549,6 +1587,7 @@ export const useBlueprintEditorInspectorController = ({
       triggerEntries,
       unmountSelectedNodeFromAnimation,
       updateSelectedNode,
+      updateTrigger,
       workspace,
       workspaceReadonly,
     ]

@@ -2,11 +2,11 @@
 
 Prodivix 是一个运行在浏览器中的语义化前端作者环境。它把视觉编辑、真实代码、项目资源、诊断和生产导出放在同一个 Canonical Workspace 上，让设计意图与工程事实保持可追踪的一致性。
 
-它不是把页面压进私有 JSON 的传统页面搭建器，也不是用视觉表面遮住代码的“无代码黑盒”。视觉节点、组件契约、代码符号、路由、动画、节点图和资源都是可寻址、可诊断、可导出的项目事实。
+它不是将页面压进私有 JSON 的传统页面搭建器，也不是用视觉表面掩盖代码的”无代码黑盒”。视觉节点、组件契约、代码符号、路由、动画、节点图和资源都是可寻址、可诊断、可导出的项目事实。
 
-## 三编辑器与一个共享代码环境
+## 三个编辑器与一个共享代码环境
 
-Prodivix 的视觉作者表面由三个编辑器组成：
+Prodivix 的视觉编辑界面由三个编辑器组成：
 
 - **Blueprint**：页面、布局、组件实例和 Collection。
 - **NodeGraph**：可执行的数据流与行为图。
@@ -43,7 +43,7 @@ flowchart TD
 
 已经可用的核心链路包括：PIR-current、跨领域语义索引、组件契约与 Collection、视觉/代码受控双向编辑、统一 Issues、可逆 History、Durable Outbox、Atomic Commit，以及 React/Vite 独立导出验证。
 
-ExecutionProvider/ExecutionJob、Execution Session coordinator、共享 Browser Runtime Host，以及独立 Browser/Remote Preview/Test/Build provider 已形成可用纵切。蓝图可以选择 React/Vite 或 Vue/Vite 运行 revision-bound 导出工程；Test 页面执行独立的 mock-only test plan，并通过共享 Execution Center 观察报告、Console、Network、Terminal 与 Files。DataSourceDocument/DataOperationReference、typed Workspace/Semantic、PIR binding、HTTP/GraphQL/AsyncAPI adapter、deterministic mock、public client finite live runtime、execution-bound server/edge 三协议 gateway 与 public pull-driven stream 已建立；Data Network SourceTrace 可以通过 exact snapshot fence 回到 canonical operation。Vue current PIR/Route/Auth/Server/Asset 与 authenticated Catalog 本地产品 Gate 已建立；真实 Remote authenticated live journey、Vue layout/outlet、stream reconnect/resume、Secret credential renewal、更多 transport、Deployment、团队协作和生产 SLA 继续按各自产品 Gate 建设。
+ExecutionProvider/ExecutionJob、Execution Session coordinator、共享 Browser Runtime Host，以及独立 Browser/Remote Preview/Test/Build provider 已形成可用的纵向切片。Blueprint 可以选择 React/Vite 或 Vue/Vite 运行 revision-bound 导出工程；Test 页面执行独立的 mock-only test plan，并通过共享 Execution Center 查看报告、Console、Network、Terminal 与 Files。DataSourceDocument/DataOperationReference、typed Workspace/Semantic、PIR binding、HTTP/GraphQL/AsyncAPI adapter、deterministic mock、public client finite live runtime、execution-bound server/edge 三协议 gateway 与 public pull-driven stream 已建立；Data Network SourceTrace 可通过 exact snapshot fence 回溯到 canonical operation。Vue current PIR/Route/Auth/Server/Asset 与 authenticated Catalog 本地产品 Gate 已建立；真实 Remote authenticated live journey、Vue layout/outlet、stream reconnect/resume、Secret credential renewal、更多 transport、Deployment、团队协作和生产 SLA 仍在按各自产品 Gate 推进。
 
 ## 推荐阅读顺序
 
@@ -53,4 +53,4 @@ ExecutionProvider/ExecutionJob、Execution Session coordinator、共享 Browser 
 4. [Canonical Workspace VFS](/concepts/workspace-vfs)
 5. [当前产品状态](/roadmap/current-status)
 
-如果你要参与内核开发，直接从[架构与 Package Owner](/developer/architecture)开始。
+如果你想参与内核开发，可以直接从[架构与 Package Owner](/developer/architecture)开始。

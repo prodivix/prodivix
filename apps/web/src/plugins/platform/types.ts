@@ -8,7 +8,9 @@ import type {
   JsonValue,
   PaletteContributionV1,
   PluginManifestV1,
-  RenderPolicyContributionV1,
+  RenderPolicyContribution,
+  RenderPolicyContributionV2,
+  RenderSurfaceRequirements,
 } from '@prodivix/plugin-contracts';
 import type { CodegenPolicySnapshot } from '@prodivix/prodivix-compiler';
 import type { ElementType } from 'react';
@@ -69,13 +71,15 @@ export type ExternalComponentMetadataProjection = Readonly<{
 }>;
 
 export type ResolvedRenderPolicyContribution = Readonly<{
-  descriptor: RenderPolicyContributionV1;
+  descriptor: RenderPolicyContribution;
   libraryId: string;
+  surface: RenderSurfaceRequirements;
   rules: readonly Readonly<{
     id: string;
     runtimeType: string;
     componentExport: string;
     portalMode: 'inline' | 'host-overlay' | 'disabled';
+    surface: RenderSurfaceRequirements;
     adapter: ComponentAdapter;
     wrapComponent?: (component: ElementType) => ElementType;
     fallback: Readonly<{
@@ -163,6 +167,7 @@ export type RendererComponentProjection = Readonly<{
   runtimeType: string;
   component: ElementType;
   adapter: ComponentAdapter;
+  surface: RenderSurfaceRequirements;
 }>;
 
 export type WebExtensionRegistrySnapshot = Readonly<{
@@ -191,7 +196,7 @@ export type WebPluginQueryServices = Readonly<{
 type TrustedWebContributionDescriptorMap = {
   paletteContribution: PaletteContributionV1;
   externalLibrary: ExternalLibraryContributionV1;
-  renderPolicy: RenderPolicyContributionV1;
+  renderPolicy: RenderPolicyContributionV2;
   codegenPolicy: CodegenPolicyContributionV1;
   iconProvider: IconProviderContributionV1;
   blueprintTemplate: BlueprintTemplateContributionV1;

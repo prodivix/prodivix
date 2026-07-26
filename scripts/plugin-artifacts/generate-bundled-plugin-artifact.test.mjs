@@ -162,8 +162,16 @@ const officialResources = {
     ],
   },
   'render-policy.json': {
-    schemaVersion: '1.0',
+    schemaVersion: '2.0',
     libraryId: 'fixture-ui',
+    surface: {
+      compatibility: 'container-native',
+      viewport: 'container',
+      browserMetrics: 'none',
+      styles: 'inherited',
+      focusKeyboard: 'host-native',
+      intrinsicSize: 'parent-constrained',
+    },
     rules: [
       {
         id: 'fixture.accordion',
@@ -299,7 +307,7 @@ await writeFile(
     contributes: officialDeclarations.map(([id, point, fileName]) => ({
       id,
       point,
-      contractVersion: '1.0',
+      contractVersion: point === 'renderPolicy' ? '2.0' : '1.0',
       source: { kind: 'resource', path: `./contributions/${fileName}` },
     })),
   }),

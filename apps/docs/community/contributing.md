@@ -1,6 +1,6 @@
 # 贡献指南
 
-Prodivix 欢迎代码、文档、设计、诊断规范和测试贡献。项目仍处于 alpha，重大变更会直接收敛到 current architecture，不以保留旧兼容层为目标。
+Prodivix 欢迎代码、文档、设计、诊断规范和测试方面的贡献。项目目前仍处于 alpha 阶段，重大变更会直接收敛到 current architecture，不会刻意保留旧的兼容层。
 
 ## 报告问题
 
@@ -10,9 +10,9 @@ Prodivix 欢迎代码、文档、设计、诊断规范和测试贡献。项目�
 - 期望与实际结果
 - 浏览器、操作系统和 revision/commit
 - Issues 中的诊断码与可复制错误内容
-- 必要时附截图；不要附 secret 或完整私人 Workspace
+- 必要时可附截图；不要附带 secret 或完整的私人 Workspace
 
-架构或产品提案应说明用户问题、owner、Canonical Workspace 影响、迁移边界和退出 Gate，而不只描述一个 UI 控件。
+架构或产品提案应说明用户问题、owner、对 Canonical Workspace 的影响、迁移边界和退出 Gate，而不是仅仅描述一个 UI 控件。
 
 ## 本地开发
 
@@ -28,18 +28,18 @@ pnpm dev:web
 
 ## 修改原则
 
-- 先确认 package owner，不把核心逻辑写回 `apps/web`。
+- 先确认 package owner，不要把核心逻辑写回 `apps/web`。
 - 作者态写入必须使用可逆 Command/Transaction、History、Durable Outbox 和 Atomic Commit。
 - Code-owned 能力接入 Code Authoring Environment。
 - 跨领域 symbol/reference/impact 接入 Workspace Semantic Index。
 - PIR 生产代码只使用 PIR-current；数字版本只存在于 wire/migration 边界。
-- 不新增旧 API 兼容层或编辑器私有持久化镜像。
+- 不要新增旧 API 兼容层或编辑器私有的持久化镜像。
 
 完整规则以根 `AGENTS.md` 为准。
 
 ## 测试
 
-按改动风险选择最小充分验证：
+根据改动的风险程度选择最小且充分的验证：
 
 ```bash
 pnpm --filter @prodivix/web test
@@ -67,7 +67,7 @@ fix(renderer): preserve author-only hidden state
 docs(site): rebuild product documentation
 ```
 
-提交前检查 diff，保留工作区中不属于你的改动。Pull Request 应说明行为变化、架构 owner、验证命令和未覆盖风险。
+提交前检查 diff，不要误改工作区中不属于你的内容。Pull Request 应说明行为变化、架构 owner、验证命令和尚未覆盖的风险。
 
 ## 文档贡献
 

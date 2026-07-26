@@ -63,11 +63,11 @@
       }
     },
     {
-      "contractVersion": "1.0",
+      "contractVersion": "2.0",
       "id": "antd.render",
       "point": "renderPolicy",
       "source": {
-        "integrity": "sha256-Q7ybaYYWGn1s2Tvcq8LMFHk6bnmULcKY56OsTm4POx8=",
+        "integrity": "sha256-CyJDL/g/2ikAjtttakEs2XImtXm8/snBJ5F58z495BE=",
         "kind": "resource",
         "path": "./contributions/render-policy.json"
       }

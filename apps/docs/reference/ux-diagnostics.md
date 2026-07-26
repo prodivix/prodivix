@@ -17,14 +17,14 @@
 
 ## 与结构错误的区别
 
-同一个目标可以同时存在多个诊断：CSS 解析失败属于 `COD-1001`；CSS 能运行但文本对比不足属于 UX 诊断。Issues 保留各 provider 的原始主码，不把结构、代码或运行时错误统一改写成 UX。
+同一目标上可以同时存在多条诊断：CSS 解析失败属于 `COD-1001`；CSS 能正常运行但文本对比度不足则属于 UX 诊断。Issues 保留各 provider 的原始主码，不会把结构、代码或运行时错误统一改写为 UX。
 
 ## 证据与状态
 
-UX 检查必须区分 passed、failed、not-applicable 和 insufficient-evidence。无法获得浏览器、AX tree、视口或运行状态证据时，不能把“未检测到”当成通过。
+UX 检查必须区分 passed、failed、not-applicable 和 insufficient-evidence 四种状态。在无法获得浏览器、AX tree、视口或运行状态证据时，不能将”未检测到”视为通过。
 
 ## Quick Fix
 
-只有能生成稳定、可逆领域变更的规则才提供 Quick Fix。修复仍通过 Workspace Command/Transaction 应用；检查器不得直接操作 DOM 并把结果当成作者态。
+只有能生成稳定、可逆领域变更的规则才提供 Quick Fix。修复仍通过 Workspace Command/Transaction 应用；检查器不得直接操作 DOM 并将结果当作作者态。
 
-视觉回归、accessibility 和 performance 是后续独立产品 Gate。诊断目录存在不表示完整自动验证平台已经交付。
+视觉回归、accessibility 和 performance 是后续独立的产品 Gate。诊断目录的存在并不表示完整的自动验证平台已经交付。
