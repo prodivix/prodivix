@@ -22,7 +22,7 @@
 
 ## 架构不变量
 
-1. Canonical Workspace VFS 是作者态唯一真相。PIR、Route、NodeGraph、Animation、Data Source、BehaviorScenario、VerificationPolicy、Code、Token、Asset 与 Config 是由各领域 owner 管理的文档或清单；PIR 不是整个项目的单一巨型 JSON。
+1. Canonical Workspace VFS 是作者态唯一真相。PIR、Route、NodeGraph、Animation、Data Source、BehaviorScenario、BehaviorControlProfile、BehaviorFixtureSet、VerificationPolicy、VerificationBaselineSet、Code、Token、Asset 与 Config 是由各领域 owner 管理的文档或清单；PIR 不是整个项目的单一巨型 JSON。
 2. 所有生产作者态写入必须规划为可逆 `Command` 或原子 `Transaction`，再形成 exact `WorkspaceOperation` 进入 Durable Outbox 与强幂等 Atomic Commit。Editor、AI、plugin、runtime 与 adapter 不得直接覆盖 VFS。
 3. Intent 只作为本地或 AI planner 输入；Patch 是 Command 内部可逆、可校验的操作。Project publication projection 只承载显式发布结果，不保存 Workspace/PIR 镜像。
 4. Renderer、Semantic Index、Code Authoring、Execution Snapshot、runtime filesystem diff、Git 与 Export 都是 revision-bound projection，不得形成第二作者态。`localStorage` 只保存主题、选择和视图等 UI 偏好；领域持久化使用正式 replica/outbox adapter。

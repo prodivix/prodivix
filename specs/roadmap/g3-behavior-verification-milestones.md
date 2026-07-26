@@ -30,8 +30,13 @@ owner/contract hard cut 是唯一首个实施入口。本文中的命令和 Evid
 
 - [ ] 新建 `@prodivix/behavior`，只拥有 Scenario/Program/recorder semantic。
 - [ ] 新建 `@prodivix/verification`，只拥有 Impact/Policy/Plan/adapter SPI/Evidence/Closure contract。
-- [ ] 新建 `behavior-scenario`、`verification-policy` Workspace document 与 `core.behavior`、
-      `core.verification` Command namespace。
+- [ ] 新建 `behavior-scenario`、`behavior-control-profile`、`behavior-fixture-set`、
+      `verification-policy`、`verification-baseline-set` 五个 Workspace document 与 `core.behavior`、
+      `core.verification` Command namespace。control profile / fixture set / baseline set 是被 Scenario 与
+      Policy 共同引用的作者态输入，其 digest 同时是 Program digest、plan cell identity 与 Evidence manifest
+      的输入，因此必须是独立可寻址、可版本化的 document，不能内嵌进 Scenario。
+      `verification-baseline-set` 只拥有 identity/digest/采纳事务，实际图像字节委托给已有的
+      `@prodivix/assets` content-addressed store。
 - [ ] current/wire/codec/migration、Backend/Workspace validation conformance。
 - [ ] `behavior`/`verification` diagnostic domain、target 和 `BHV-*`/`VER-*` registry。
 - [ ] package ownership/dependency/boundary Gate，`apps/web` 无 duplicate domain type。

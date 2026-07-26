@@ -143,12 +143,12 @@ Exemption 是显式、可审计的 authoring decision，必须包含 stable id�
 初始 family：`diagnostics`、`build`、`unit`、`integration`、`behavior-e2e`、`visual`、`accessibility`、
 `performance`、`security`。
 
-一个 matrix cell 是不可变 identity：
+**一个 cell 就是一个 check。** cell 的字段形状由 ADR 57「Plan DAG 与 matrix cell」冻结，本节不重述；
+它同时是 Evidence 唯一键、Closure required 判定单位和 matrix UI 的一格，不存在多 check 容器或并列分组构造。
 
-```text
-check + scenario + surface + target + browser/runtime + environment profile
-+ control profile + fixture set + baseline set + adapter/tool identity
-```
+matrix 轴（surface、target、browser engine、viewport、color scheme、motion、locale）是 cell 上的具名字段；
+control profile 文档拥有其余确定性控制。两者不重叠，因此没有 `controlsDigest` 这类既进 digest 又与具名字段
+重复的摘要。
 
 cell identity 不包含 attempt；retry/replay 创建同一 cell 下的新 attempt。若某维度不适用，使用 canonical `none`
 或不纳入该 family 的 identity，不能由 adapter 自行省略并产生不同 digest。
@@ -193,19 +193,30 @@ Plan 生成不分配 worker、不读取 ambient clock/current queue、不生成�
 
 ## Cell status semantics
 
-| 状态             | 含义                                                         | 能否满足 required Closure                   |
-| ---------------- | ------------------------------------------------------------ | ------------------------------------------- |
-| `planned`        | 可执行、尚无 attempt                                         | 否                                          |
-| `running`        | 当前 attempt 执行中                                          | 否                                          |
-| `passed`         | 存在可接受 Evidence                                          | 是，仍受 trust/freshness/compatibility 约束 |
-| `failed`         | latest/required attempt 失败                                 | 否                                          |
-| `blocked`        | contract、permission、budget、fixture 或 dependency 阻止执行 | 否                                          |
-| `unsupported`    | adapter/provider 宣告不支持 required capability              | 否；advisory 可显示但不阻断                 |
-| `skipped`        | Policy 明确允许不运行，且有稳定 reason                       | 仅 non-required                             |
-| `not-applicable` | semantic predicate 证明不适用                                | 不形成 required cell                        |
-| `unstable`       | attempts 在同输入下不一致                                    | 默认否                                      |
+状态词汇表的唯一定义在 ADR 57「状态 taxonomy」；本节只说明每个 `VerificationCellStatus` 值的推导来源，
+不重述枚举，也不新增值。
 
-adapter 未安装、browser 缺失、baseline 不兼容、runner 无 deterministic control 均不能标为 skipped。
+| 状态                   | 推导来源                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `pending`              | 已规划、尚无 attempt                                                                 |
+| `running`              | 当前 attempt 执行中                                                                  |
+| `passed`               | 存在可接受 Evidence，且通过 trust/freshness/compatibility                            |
+| `failed`               | latest/required attempt 的 outcome 为 `failed`                                       |
+| `blocked`              | attempt outcome 为 `blocked`：contract/permission/budget/fixture/dependency 阻止执行 |
+| `cancelled`            | attempt outcome 为 `cancelled`                                                       |
+| `infrastructure-error` | attempt outcome 为 `infrastructure-error` 且已耗尽 retry                             |
+| `unsupported`          | adapter registry snapshot 宣告不支持该 cell 的 required capability                   |
+| `not-applicable`       | semantic predicate 证明不适用，因而不形成 required cell                              |
+| `unstable`             | 同输入下多个 attempt 的 outcome 不一致                                               |
+| `stale`                | Evidence 存在但绑定的 revision/plan/baseline 已改变                                  |
+| `incompatible`         | Evidence 存在但 baseline/toolchain compatibility key 不匹配                          |
+| `missing`              | required cell 完全没有 Evidence                                                      |
+
+只有 `passed` 满足 required Closure；其余值一律不满足，Closure evaluator 必须穷举而不设默认分支。
+
+**没有 `skipped`。** adapter 未安装、browser 缺失、baseline 不兼容、runner 无 deterministic control 都各有
+对应状态（`unsupported` / `incompatible`），不得折叠为一个「允许不跑」的口子；Policy 明确允许不跑的情形是
+exemption，记录在 Evidence 的 applied exemption 中，不是 cell 状态。
 
 ## Retry 与 flaky semantics
 

@@ -69,6 +69,8 @@ interface VerificationEvidence {
   policyRevision: WorkspaceDocumentRevision;
   impactDigest: Digest;
   planDigest: Digest;
+  // plan digest 的决定性时间输入。记录它，第三方才能用同一输入重算出同一个 planDigest。
+  policyEvaluationInstant: Instant;
   cellId: VerificationCellId;
   attemptId: VerificationAttemptId;
   result: VerificationNormalizedResult;
@@ -85,8 +87,11 @@ interface VerificationEvidence {
 }
 ```
 
-`result` 保留 passed/failed/blocked/unstable、normalized assertions/findings/metrics、failure classification、event
-summary 和 bounded diagnostic refs。它不保存工具私有 object 或任意 stdout。
+`result` 只保留 `VerificationAttemptOutcome`
+（`passed / failed / blocked / cancelled / infrastructure-error`，唯一定义见 ADR 57「状态 taxonomy」）、
+normalized assertions/findings/metrics、failure classification、event summary 和 bounded diagnostic refs。
+它不保存工具私有 object 或任意 stdout，也**不保存 `unstable`** —— 那是跨 attempt 的 per-cell 派生状态，
+单条不可编辑的 per-attempt Evidence 无法为自己判定，写进来只会逼出事后改写。
 
 identity chain 必须覆盖：
 

@@ -89,7 +89,7 @@ type VerificationDiagnosticStage =
 - Retryable: false
 - Trigger: Policy/Impact 选中的 required Scenario/check 无法发现、引用损坏或 definition invalid
 - User action: 恢复 definition、修复引用或显式修改 Policy
-- Developer notes: 不降级为 skipped
+- Developer notes: 只能记为 `missing`；不存在 `skipped` 这一 cell 状态可供降级
 
 ### `VER-3002` Required matrix cell 不受支持
 
@@ -195,7 +195,7 @@ type VerificationDiagnosticStage =
 - Severity: `error`
 - Stage: `close`
 - Retryable: false
-- Trigger: required cell failed/missing/blocked/unsupported/unstable，或 revision/policy/plan/evidence freshness 已变化
+- Trigger: required cell 的 `VerificationCellStatus` 不是 `passed`（见 ADR 57「状态 taxonomy」），或 revision/policy/plan/evidence freshness 已变化
 - User action: 打开 Closure 查看具体 cell 和 impact path，修复后重新执行/提升 Evidence
 - Developer notes: meta 只放 counts/ids/digests，不复制 findings/artifacts
 

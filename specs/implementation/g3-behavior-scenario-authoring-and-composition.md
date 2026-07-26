@@ -51,11 +51,12 @@ interface BehaviorScenario {
   name: string;
   description?: string;
   owner?: WorkspacePrincipalRef;
+  criticality: 'smoke' | 'standard' | 'critical';
   tags: readonly string[];
   entry: BehaviorTrigger;
   steps: readonly BehaviorStep[];
   fixtureRefs: readonly BehaviorFixtureRef[];
-  controlProfileRef?: BehaviorControlProfileRef;
+  controlProfileRef: BehaviorControlProfileRef;
   baselineRefs: readonly BehaviorBaselineRef[];
   timeoutPolicy: BehaviorTimeoutPolicy;
 }
@@ -74,6 +75,11 @@ interface BehaviorStep {
 约束：
 
 1. `id` 是稳定 opaque identity，重命名不会改变引用；名称不参与文件名、target resolve 或 Evidence identity。
+   `BehaviorStepId` 是 scenario 内唯一的序列身份：并发是 `parallel`/`barrier` step kind，观察是 observation
+   step kind，assertion 挂在 observation step 上。不存在与 step 并列的 lane 或 checkpoint 数组，所有下游
+   sub-scenario 引用（ImpactSet 粒度、Evidence 比较 key、baseline compatibility key）统一使用 step id。
+   `criticality` 是 Policy 选择 required cell 的唯一依据，不能用自由 tag 代替。
+   `controlProfileRef` 必填：可选会让缺省落回 ambient 默认值，等于给确定性控制开第二真相源。
 2. `BehaviorSourceRef` 指向 authoring location，不保存 editor component 或 DOM node handle。
 3. timeout 是有界 policy；禁止无界 wait 和以固定 sleep 作为 readiness 语义。
 4. fixture/control/baseline 都是 reference，不能内嵌 Secret、production payload 或任意大 binary。

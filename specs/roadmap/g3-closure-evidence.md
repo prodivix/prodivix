@@ -22,8 +22,16 @@ contract、状态切换或文档存在解释为 G3 milestone 已实现或 Passed
 - ImpactSet、VerificationPlan、`BehaviorScenarioProgram` 和 Closure digest；
 - fixture/control/baseline/toolchain/target/browser/sandbox identities；
 - Evidence ids、manifest/artifact digests、trust/attestation/retention；
+- 生成 Golden Plan 时使用的 `policyEvaluationInstant`（毫秒精度显式值，**不是**「开始时间」）；
+- Closure 重算所用的 evaluation instant，以及当时的 retention/revocation view 摘要
+  （evidence set digest + revocation record digest）；
 - run URL 或可重放的本地/CI命令；
 - 开始/完成时间、执行环境和已知限制。
+
+前两项是 plan digest 与 closure digest 的**决定性输入**：ADR 57 禁止 planner 读 ambient clock，
+时刻由调用方显式提供。不记录它们，第三方拿到 commit + revision + policy revision 也重算不出同一个 digest，
+「digest 相等」就只能由出证据的人自证 —— 所有以此为基础的 Exit 条件都会退化成主观陈述。
+复现命令必须能以 `--policy-evaluation-instant` / `--closure-instant` 重放。
 
 禁止记录 Secret、OIDC assertion、credential、cookie、生产 payload、raw artifact locator 或未清洗工具输出。
 

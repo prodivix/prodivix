@@ -43,21 +43,10 @@ planner、codec、adapter 和 Closure evaluator 的 provider-neutral CLI/CI cont
 
 ## Adapter SPI
 
-每个受控 adapter 包导出 descriptor + factory：
+每个受控 adapter 包导出 descriptor + factory。`VerificationAdapterDescriptor` 与 `VerificationAdapter`
+的形状由 ADR 62「Adapter 生命周期与信任边界」冻结，本节不重述,只补运行期签名细节：
 
 ```ts
-interface VerificationAdapterDescriptor {
-  id: VerificationAdapterId;
-  family: VerificationCheckFamily;
-  implementation: ImplementationIdentity;
-  supportedCells: VerificationCapabilityPredicate;
-  requiredControls: readonly RuntimeControlCapability[];
-  inputKinds: readonly VerificationInputKind[];
-  artifactKinds: readonly VerificationArtifactKind[];
-  trustCapabilities: readonly VerificationTrustClass[];
-  budgets: VerificationAdapterBudgets;
-}
-
 interface VerificationAdapter {
   preflight(
     cell: VerificationPlanCell,
@@ -67,11 +56,21 @@ interface VerificationAdapter {
   execute(
     invocation: PreparedVerificationInvocation,
     sink: VerificationEventSink
-  ): Promise<AdapterRawResultRef>;
-  normalize(input: AdapterNormalizeInput): Promise<EvidenceCandidate>;
+  ): Promise<VerificationCheckReportCandidate>;
   cleanup(input: AdapterCleanupInput): Promise<AdapterCleanupResult>;
 }
 ```
+
+两条约束直接来自 ADR 62，实现时不可绕过：
+
+1. **adapter 没有 `normalize()`。** `execute` 的产物是 bounded、未经信任的
+   `VerificationCheckReportCandidate`；normalization 与 `VerificationEvidenceCandidate` 构造由
+   `@prodivix/verification` Core 独家负责。若 adapter 自己产出 Evidence candidate，ADR 58 的 intake gate
+   就变成复核 adapter 的自述结论，Evidence 可信度随 adapter 数量线性劣化。
+2. **能力声明是可枚举数组，不是谓词。** descriptor 用 `checkKinds`/`surfaces`/`targets`/`browserEngines`/
+   `controlCapabilities` 数组，它们既驱动 matrix 展开，也进入 registry snapshot digest。
+   `VerificationCapabilityPredicate` 与 `VerificationCheckFamily` 不存在 —— 谓词无法进入 digest、
+   无法确定性展开，会击穿 ADR 57 的 byte-stable plan digest。
 
 边界：
 
