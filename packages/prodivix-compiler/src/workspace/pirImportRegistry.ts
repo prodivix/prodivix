@@ -13,7 +13,7 @@ const toIdentifier = (value: string): string => {
 const adapterImportKey = (item: AdapterImportSpec): string =>
   `${item.kind}\u0000${item.source}\u0000${item.imported}\u0000${item.local ?? ''}`;
 
-export class PIRReactImportRegistry {
+export class PirImportRegistry {
   private readonly adapterLocalByKey = new Map<string, string>();
   private readonly internalLocalByTarget = new Map<string, string>();
   private readonly usedLocals = new Map<string, string>();

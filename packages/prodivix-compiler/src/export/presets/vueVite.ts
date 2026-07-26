@@ -1,4 +1,5 @@
 import { exportDependenciesToPackageFields } from '#src/export/dependencyPlanner';
+import { createPirEntrySurfaceCss } from '#src/export/pirEntrySurface';
 import type {
   ExportFileContribution,
   ExportPlannerPreset,
@@ -162,9 +163,16 @@ export default defineConfig({
         { language: 'ts', mimeType: 'text/typescript' }
       ),
       textFile(
+        'src/prodivix-entry-surface.css',
+        'stylesheet',
+        createPirEntrySurfaceCss('vue'),
+        { language: 'css', mimeType: 'text/css' }
+      ),
+      textFile(
         'src/main.ts',
         'source-module',
         `import { createApp } from 'vue';
+import './prodivix-entry-surface.css';
 import App from './App.vue';
 
 createApp(App).mount('#app');`,

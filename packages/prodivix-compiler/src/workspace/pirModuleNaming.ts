@@ -18,10 +18,10 @@ const displayNameOf = (document: WorkspacePirDocument): string =>
   document.path.split('/').at(-1) ??
   document.id;
 
-export const createPirReactModuleId = (documentId: string): string =>
-  `pir-react:${documentId}`;
+export const createPirModuleId = (prefix: string, documentId: string): string =>
+  `${prefix}:${documentId}`;
 
-export const createPirReactModuleNames = (
+export const createPirModuleNames = (
   documentIds: readonly string[],
   documentsById: Readonly<Record<string, WorkspacePirDocument>>
 ): Readonly<Record<string, string>> => {

@@ -6,7 +6,7 @@ import {
 import type {
   WorkspaceServerRuntimeBinding,
   WorkspaceServerRuntimeTarget,
-} from '#src/react/workspaceServerRuntimeTarget';
+} from '#src/workspace/workspaceServerRuntimeTarget';
 
 export const WORKSPACE_SERVER_RUNTIME_MODULE_ID =
   'workspace-server-runtime' as const;

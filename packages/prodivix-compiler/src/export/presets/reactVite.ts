@@ -1,4 +1,5 @@
 import { exportDependenciesToPackageFields } from '#src/export/dependencyPlanner';
+import { createPirEntrySurfaceCss } from '#src/export/pirEntrySurface';
 import type {
   ExportFileContribution,
   ExportPlannerPreset,
@@ -203,10 +204,20 @@ describe('generated application', () => {
         }
       ),
       createTextFileContribution(
+        'src/prodivix-entry-surface.css',
+        'stylesheet',
+        createPirEntrySurfaceCss('react'),
+        {
+          language: 'css',
+          mimeType: 'text/css',
+        }
+      ),
+      createTextFileContribution(
         'src/main.tsx',
         'source-module',
         `import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './prodivix-entry-surface.css';
 import App from './App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

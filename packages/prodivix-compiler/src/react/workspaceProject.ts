@@ -1,95 +1,56 @@
-import {
-  classifyBinaryAssetDelivery,
-  createBinaryAssetMaterialization,
-  type BinaryAssetBlobReference,
-  type BinaryAssetMaterialization,
-} from '@prodivix/assets';
-import {
-  decodeWorkspaceAnimationDocument,
-  decodeWorkspaceNodeGraphDocument,
-  isWorkspaceAssetDocumentContent,
-  isWorkspaceCodeDocumentContent,
-  isWorkspacePirDocument,
-  isWorkspaceProjectConfigDocumentContent,
-  validateWorkspaceSnapshot,
-  type WorkspaceDocument,
-  type WorkspacePirDocument,
-  type WorkspaceSnapshot,
+import type { BinaryAssetMaterialization } from '@prodivix/assets';
+import type {
+  WorkspacePirDocument,
+  WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import type { ExecutableProjectDataMockProvision } from '@prodivix/runtime-core';
 import type { ServerRuntimeTestProvision } from '@prodivix/server-runtime';
-import { compileAnimationExportContributions } from '#src/animation/compileAnimation';
 import type { TargetAdapter } from '#src/core/adapter';
 import {
   createCodegenPolicyTargetAdapter,
-  getCodegenPolicyDependenciesForUsage,
   getCodegenPolicyPackageVersions,
   type CodegenPolicySnapshot,
 } from '#src/core/codegenPolicy';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
-import { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
 import type { PackageResolverOptions } from '#src/core/packageResolver';
 import {
   ProductionExportPlanner,
-  collectExportCodeArtifactContributions,
   createExportPackageOrigin,
-  createExportProgramBuilder,
   createReactViteExportPreset,
   createReactViteScaffoldContributions,
-  createRouteExportContribution,
-  createStaticDeploymentExportContribution,
-  joinExportPath,
-  getExportCodeArtifactLanguage,
-  mergeExportDependencies,
-  normalizeExportCodeArtifactPath,
-  normalizeExportPath,
-  resolveWorkspaceDocumentExportSource,
   REACT_VITE_DEPENDENCIES,
   REACT_VITE_DEV_DEPENDENCIES,
   REACT_VITE_PACKAGE_MANAGER,
-  type ExportArtifactContribution,
-  type ExportDependency,
   type ExportImportIntent,
   type ExportModule,
   type ExportProgram,
   type ExportProgramContribution,
-  type ExportRoot,
   type ExportRouteTopology,
-  type ExportSourceTrace,
 } from '#src/export';
 import { reactAdapter } from '#src/react/adapter';
+import { reactCompileTarget } from '#src/react/target';
 import {
   compileWorkspacePirReactModules,
   createPirReactModuleId,
 } from '#src/react/index';
-import {
-  createWorkspaceStandaloneDataRuntimeModule,
-  WORKSPACE_DATA_RUNTIME_MODULE_ID,
-} from '#src/react/standaloneDataRuntime';
-import {
-  createWorkspaceExecutionConsoleRuntimeModule,
-  WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
-} from '#src/react/standaloneExecutionConsoleRuntime';
-import {
-  analyzeWorkspaceDataRuntimeTarget,
-  PROVIDER_MOCK_DATA_RUNTIME_TARGET,
-  type WorkspaceDataRuntimeTarget,
-} from '#src/react/workspaceDataRuntimeTarget';
-import {
-  createWorkspaceStandaloneServerRuntimeModule,
-  WORKSPACE_SERVER_RUNTIME_MODULE_ID,
-} from '#src/react/standaloneServerRuntime';
-import {
-  analyzeWorkspaceServerRuntimeTarget,
-  isWorkspaceServerRuntimeDocument,
-  type WorkspaceServerRuntimeBinding,
-  type WorkspaceServerRuntimeTarget,
-  type WorkspaceServerRuntimeTargetAnalysis,
-} from '#src/react/workspaceServerRuntimeTarget';
+import { WORKSPACE_DATA_RUNTIME_MODULE_ID } from '#src/workspace/standaloneDataRuntime';
+import { WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID } from '#src/workspace/standaloneExecutionConsoleRuntime';
+import type { WorkspaceDataRuntimeTarget } from '#src/workspace/workspaceDataRuntimeTarget';
+import { WORKSPACE_SERVER_RUNTIME_MODULE_ID } from '#src/workspace/standaloneServerRuntime';
 import type {
-  ReactExportBundle,
-  ReactGeneratorCodeArtifact,
-} from '#src/react/types';
+  WorkspaceServerRuntimeBinding,
+  WorkspaceServerRuntimeTarget,
+  WorkspaceServerRuntimeTargetAnalysis,
+} from '#src/workspace/workspaceServerRuntimeTarget';
+import { compileWorkspaceToTargetExportProgram } from '#src/workspace/workspaceExportProgram';
+import { compileWorkspacePirDocumentProjection } from '#src/workspace/workspacePirProjection';
+import type {
+  WorkspacePirDocumentModuleCompiler,
+  WorkspaceTargetCompileOptions,
+  WorkspaceTargetRenderLayer,
+} from '#src/workspace/workspaceTargetRenderLayer';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
+import type { ReactExportBundle } from '#src/react/types';
 
 export type WorkspaceReactViteCompileOptions = Readonly<{
   adapter?: TargetAdapter;
@@ -110,11 +71,6 @@ type CompiledWorkspacePirDocument = {
   module: ExportModule;
 };
 
-type CompiledWorkspacePirProjection = Readonly<{
-  documents: readonly CompiledWorkspacePirDocument[];
-  contribution: ExportProgramContribution;
-}>;
-
 type WorkspaceRouteRuntimeBinding = {
   artifactId: string;
   exportName?: string;
@@ -123,104 +79,11 @@ type WorkspaceRouteRuntimeBinding = {
   serverFunction?: WorkspaceServerRuntimeBinding['definition'];
   routeNodeId: string;
 };
-
-const collectCodegenPolicyUsage = (
-  documents: readonly WorkspacePirDocument[]
-): Readonly<{
-  runtimeTypes: readonly string[];
-  iconProviderIds: readonly string[];
-}> => {
-  const runtimeTypes = new Set<string>();
-  const iconProviderIds = new Set<string>();
-  for (const document of documents) {
-    for (const node of Object.values(document.content.ui.graph.nodesById)) {
-      if (node.kind !== 'element') continue;
-      runtimeTypes.add(node.type);
-      const iconRef = node.props?.iconRef;
-      if (
-        node.type !== 'PdxIcon' ||
-        iconRef?.kind !== 'literal' ||
-        !iconRef.value ||
-        typeof iconRef.value !== 'object' ||
-        Array.isArray(iconRef.value)
-      ) {
-        continue;
-      }
-      const provider = (iconRef.value as Readonly<Record<string, unknown>>)
-        .provider;
-      if (typeof provider === 'string' && provider.trim()) {
-        iconProviderIds.add(provider.trim());
-      }
-    }
-  }
-  return {
-    runtimeTypes: [...runtimeTypes].sort(compareUnicodeCodePoints),
-    iconProviderIds: [...iconProviderIds].sort(compareUnicodeCodePoints),
-  };
-};
-
-const createCodegenPolicyExportDependencies = (
-  snapshot: CodegenPolicySnapshot,
-  documents: readonly WorkspacePirDocument[]
-): readonly ExportDependency[] =>
-  getCodegenPolicyDependenciesForUsage(
-    snapshot,
-    collectCodegenPolicyUsage(documents)
-  ).map((dependency) => ({
-    name: dependency.name,
-    version: dependency.version,
-    kind: dependency.kind,
-    origin: createExportPackageOrigin(dependency.name, dependency.version, {
-      updatePolicy: 'pin',
-      metadata: {
-        [dependency.name]: {
-          license: dependency.license,
-          owner: 'third-party',
-        },
-      },
-    }),
-  }));
-
-const compareUnicodeCodePoints = (left: string, right: string): number => {
-  const leftPoints = Array.from(left, (value) => value.codePointAt(0) ?? 0);
-  const rightPoints = Array.from(right, (value) => value.codePointAt(0) ?? 0);
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    const difference = leftPoints[index]! - rightPoints[index]!;
-    if (difference !== 0) return difference;
-  }
-  return leftPoints.length - rightPoints.length;
-};
-
-const sortJsonValue = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(sortJsonValue);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
-      .map(([key, item]) => [key, sortJsonValue(item)])
-  );
-};
-
-const toCanonicalJson = (value: unknown): string =>
-  `${JSON.stringify(sortJsonValue(value), null, 2)}\n`;
-
-const createDocumentSourceTrace = (
-  document: WorkspaceDocument
-): ExportSourceTrace => ({
-  sourceRef: {
-    domain: 'workspace-document',
-    id: document.id,
-    path: document.path,
-  },
-  ownerRootId: document.id,
-});
-
-const compileWorkspacePirDocuments = (input: {
+/** Emits one React component module per PIR document. */
+const createReactPirModuleCompiler = (input: {
   workspace: WorkspaceSnapshot;
-  documents: readonly WorkspacePirDocument[];
-  options: WorkspaceReactViteCompileOptions;
-}): CompiledWorkspacePirProjection => {
+  options: WorkspaceTargetCompileOptions;
+}): WorkspacePirDocumentModuleCompiler => {
   const fallbackAdapter = input.options.adapter ?? reactAdapter;
   const adapter = input.options.codegenPolicySnapshot
     ? createCodegenPolicyTargetAdapter(
@@ -239,328 +102,27 @@ const compileWorkspacePirDocuments = (input: {
         },
       }
     : input.options.packageResolver;
-  const modulesById = new Map<string, ExportModule>();
-  const rootsById = new Map<string, ExportRoot>();
-  const dependencies: ExportDependency[] = [];
-  const diagnostics = new Map<string, CompileDiagnostic>();
-  const componentNameByDocumentId = new Map<string, string>();
-
-  for (const document of input.documents) {
-    const result = compileWorkspacePirReactModules({
-      workspace: input.workspace,
-      entryDocumentId: document.id,
-      adapter,
-      packageResolver,
-    });
-    for (const diagnostic of result.diagnostics) {
-      diagnostics.set(
-        `${diagnostic.code}:${diagnostic.path}:${diagnostic.message}`,
-        diagnostic
-      );
-    }
-    if (result.status === 'blocked') continue;
-    for (const module of result.modules) {
-      if (!modulesById.has(module.id)) modulesById.set(module.id, module);
-    }
-    for (const root of result.contribution.roots ?? []) {
-      if (!rootsById.has(root.id)) rootsById.set(root.id, root);
-    }
-    dependencies.push(...(result.contribution.dependencies ?? []));
-    for (const [documentId, name] of Object.entries(
-      result.moduleNameByDocumentId
-    )) {
-      componentNameByDocumentId.set(documentId, name);
-    }
-  }
-
   return {
-    documents: input.documents.flatMap((document) => {
-      const module = modulesById.get(createPirReactModuleId(document.id));
-      const componentName = componentNameByDocumentId.get(document.id);
-      return module && componentName
-        ? [{ componentName, document, module }]
-        : [];
-    }),
-    contribution: {
-      roots: [...rootsById.values()],
-      modules: [...modulesById.values()],
-      dependencies: mergeExportDependencies([
-        ...dependencies,
-        ...(input.options.codegenPolicySnapshot
-          ? createCodegenPolicyExportDependencies(
-              input.options.codegenPolicySnapshot,
-              input.documents
-            )
-          : []),
-      ]),
-      diagnostics: [...diagnostics.values()],
-      metadata: {
-        pirProjection: {
-          entryDocumentIds: input.documents.map((document) => document.id),
-        },
-      },
+    moduleIdForDocument: createPirReactModuleId,
+    compileDocument: (documentId) => {
+      const result = compileWorkspacePirReactModules({
+        workspace: input.workspace,
+        entryDocumentId: documentId,
+        target: reactCompileTarget,
+        adapter,
+        packageResolver,
+      });
+      return {
+        status: result.status === 'blocked' ? 'blocked' : 'ready',
+        diagnostics: result.diagnostics,
+        modules: result.modules,
+        roots: result.contribution.roots ?? [],
+        dependencies: result.contribution.dependencies ?? [],
+        moduleNameByDocumentId:
+          result.status === 'blocked' ? {} : result.moduleNameByDocumentId,
+      };
     },
   };
-};
-
-/** Projects client-owned Workspace code while keeping Server Runtime source out of client bundles. */
-export const createWorkspaceCodeContribution = (input: {
-  documents: readonly WorkspaceDocument[];
-}): {
-  contribution: ExportProgramContribution;
-  executableModuleIdByArtifactId: Map<string, string>;
-} => {
-  const executableModuleIdByArtifactId = new Map<string, string>();
-  const modules: ExportModule[] = [];
-  const nonExecutableArtifacts: ReactGeneratorCodeArtifact[] = [];
-  input.documents.forEach((document) => {
-    if (!isWorkspaceCodeDocumentContent(document.content)) return;
-    if (isWorkspaceServerRuntimeDocument(document)) return;
-    if (
-      document.content.language !== 'ts' &&
-      document.content.language !== 'js'
-    ) {
-      nonExecutableArtifacts.push({
-        id: document.id,
-        path: document.path,
-        language: document.content.language,
-        source: document.content.source,
-      });
-      return;
-    }
-    const language = getExportCodeArtifactLanguage({
-      id: document.id,
-      path: document.path,
-      language: document.content.language,
-      source: document.content.source,
-    });
-    const moduleId = `workspace-code:${document.id}`;
-    executableModuleIdByArtifactId.set(document.id, moduleId);
-    modules.push({
-      id: moduleId,
-      kind: 'workspace-module',
-      suggestedName: document.path.split('/').at(-1) ?? document.id,
-      desiredPath: joinExportPath(
-        'src',
-        normalizeExportCodeArtifactPath(document.path)
-      ),
-      language:
-        language === 'tsx' || language === 'jsx'
-          ? language
-          : document.content.language,
-      imports: [],
-      body: document.content.source,
-      sourceTrace: [createDocumentSourceTrace(document)],
-      origin: resolveWorkspaceDocumentExportSource({
-        label: document.path,
-      }).origin,
-    });
-  });
-  return {
-    executableModuleIdByArtifactId,
-    contribution: {
-      modules,
-      artifacts: collectExportCodeArtifactContributions(
-        nonExecutableArtifacts.filter((artifact) => artifact.language !== 'css')
-      ),
-      files: nonExecutableArtifacts
-        .filter((artifact) => artifact.language === 'css')
-        .map((artifact) => ({
-          id: `workspace-code-file:${artifact.id}`,
-          desiredPath: normalizeExportCodeArtifactPath(artifact.path),
-          baseDirectory: 'source-root' as const,
-          kind: 'stylesheet' as const,
-          language: 'css',
-          mimeType: 'text/css',
-          importMode: 'copy-only' as const,
-          contents: artifact.source,
-          sourceTrace: [
-            {
-              sourceRef: {
-                domain: 'workspace-document',
-                id: artifact.id,
-                path: artifact.path,
-              },
-            },
-          ],
-          origin: resolveWorkspaceDocumentExportSource({
-            label: artifact.path,
-          }).origin,
-        })),
-    },
-  };
-};
-
-const binaryAssetReferencesEqual = (
-  left: BinaryAssetBlobReference,
-  right: BinaryAssetBlobReference
-): boolean =>
-  left.kind === right.kind &&
-  left.digest === right.digest &&
-  left.byteLength === right.byteLength &&
-  left.mediaType === right.mediaType;
-
-export const createWorkspaceResourceContribution = (
-  documents: readonly WorkspaceDocument[],
-  materializations: readonly BinaryAssetMaterialization[] = []
-): ExportProgramContribution => {
-  const artifacts: ExportArtifactContribution[] = [];
-  const diagnostics: CompileDiagnostic[] = [];
-  const materializationsByDocumentId = new Map<
-    string,
-    BinaryAssetMaterialization[]
-  >();
-  materializations.forEach((materialization, index) => {
-    try {
-      const verified = createBinaryAssetMaterialization(materialization);
-      const existing =
-        materializationsByDocumentId.get(verified.assetDocumentId) ?? [];
-      existing.push(verified);
-      materializationsByDocumentId.set(verified.assetDocumentId, existing);
-    } catch (error) {
-      diagnostics.push({
-        code: 'AST-1004',
-        severity: 'error',
-        source: 'export',
-        message:
-          error instanceof Error
-            ? `Asset materialization ${index} is invalid: ${error.message}`
-            : `Asset materialization ${index} is invalid.`,
-        path: `/assetMaterializations/${index}`,
-      });
-    }
-  });
-  const referencedMaterializationIds = new Set<string>();
-  documents.forEach((document) => {
-    const sourceTrace = [createDocumentSourceTrace(document)];
-    const origin = resolveWorkspaceDocumentExportSource({
-      label: document.path,
-    }).origin;
-    if (
-      document.type === 'asset' &&
-      isWorkspaceAssetDocumentContent(document.content)
-    ) {
-      const candidates = materializationsByDocumentId.get(document.id) ?? [];
-      if (candidates.length !== 1) {
-        diagnostics.push({
-          code: candidates.length ? 'AST-1002' : 'AST-1001',
-          severity: 'error',
-          source: 'export',
-          message: candidates.length
-            ? `Asset ${document.id} has duplicate materializations.`
-            : `Asset ${document.id} has no verified materialization.`,
-          path: document.path,
-        });
-        return;
-      }
-      const candidate = candidates[0]!;
-      if (
-        !binaryAssetReferencesEqual(candidate.reference, document.content.blob)
-      ) {
-        diagnostics.push({
-          code: 'AST-1003',
-          severity: 'error',
-          source: 'export',
-          message: `Asset ${document.id} materialization identity drifted from its Workspace reference.`,
-          path: document.path,
-        });
-        return;
-      }
-      let verified: BinaryAssetMaterialization;
-      try {
-        verified = createBinaryAssetMaterialization({
-          assetDocumentId: document.id,
-          reference: document.content.blob,
-          contents: candidate.contents,
-        });
-      } catch (error) {
-        diagnostics.push({
-          code: 'AST-1004',
-          severity: 'error',
-          source: 'export',
-          message:
-            error instanceof Error
-              ? `Asset ${document.id} bytes failed verification: ${error.message}`
-              : `Asset ${document.id} bytes failed verification.`,
-          path: document.path,
-        });
-        return;
-      }
-      const isPublic = document.path.startsWith('/public/');
-      const deliveryClass = classifyBinaryAssetDelivery(document.content.mime);
-      if (isPublic && deliveryClass !== 'static') {
-        diagnostics.push({
-          code: deliveryClass === 'active-content' ? 'AST-1101' : 'AST-1102',
-          severity: 'error',
-          source: 'export',
-          message:
-            deliveryClass === 'active-content'
-              ? `Asset ${document.id} uses active content media type ${document.content.mime}; public delivery requires a sanitizer and isolated-origin policy.`
-              : `Asset ${document.id} uses download-only media type ${document.content.mime}; public delivery requires an attachment-capable isolated origin.`,
-          path: document.path,
-        });
-        return;
-      }
-      referencedMaterializationIds.add(document.id);
-      const emittedPath = normalizeExportPath(document.path);
-      artifacts.push({
-        id: `workspace-resource:${document.id}`,
-        kind: 'asset',
-        suggestedName: emittedPath.split('/').at(-1) ?? document.id,
-        mimeType: document.content.mime,
-        contents: verified.contents,
-        ...(isPublic
-          ? { publicPath: emittedPath }
-          : { sourcePath: joinExportPath('src', 'assets', emittedPath) }),
-        placement: {
-          deliveryPolicy: isPublic ? 'public' : 'copy',
-        },
-        sourceTrace,
-        origin: { ...origin, writePolicy: 'copy' },
-      });
-      return;
-    }
-    if (
-      document.type === 'project-config' &&
-      isWorkspaceProjectConfigDocumentContent(document.content)
-    ) {
-      artifacts.push({
-        id: `workspace-resource:${document.id}`,
-        kind: 'config',
-        suggestedName: document.path,
-        language: 'json',
-        mimeType: 'application/json',
-        contents: toCanonicalJson(document.content.value),
-        placement: {
-          desiredPath: normalizeExportPath(document.path),
-          baseDirectory: 'project-root',
-          fileKind: 'config',
-          importMode: 'copy-only',
-        },
-        sourceTrace,
-        origin: { ...origin, writePolicy: 'copy' },
-      });
-    }
-  });
-  materializationsByDocumentId.forEach((_entries, assetDocumentId) => {
-    if (referencedMaterializationIds.has(assetDocumentId)) return;
-    if (
-      documents.some(
-        (document) =>
-          document.id === assetDocumentId && document.type === 'asset'
-      )
-    ) {
-      return;
-    }
-    diagnostics.push({
-      code: 'AST-1005',
-      severity: 'error',
-      source: 'export',
-      message: `Asset materialization ${assetDocumentId} does not match a canonical Workspace asset document.`,
-      path: `/assetMaterializations/${assetDocumentId}`,
-    });
-  });
-  return { artifacts, diagnostics };
 };
 
 const scoreRoutePath = (path: string): number =>
@@ -702,11 +264,46 @@ const createWorkspaceAppModule = (input: {
         });
         return [];
       }
+      const layout = route.layoutDocId
+        ? moduleByDocumentId.get(route.layoutDocId)
+        : undefined;
+      if (route.layoutDocId && !layout) {
+        diagnostics.push({
+          code: 'WKS-EXPORT-ROUTE-DOCUMENT',
+          severity: 'error',
+          source: 'export',
+          message: `Route ${route.routeNodeId} references an uncompiled layout document: ${route.layoutDocId}.`,
+          path: `/routeManifest/routes/${route.routeNodeId}/layoutDocId`,
+        });
+        return [];
+      }
+      // Named outlet bindings may mount a different document than the page.
+      const namedOutlets = (route.outletBindings ?? []).flatMap((binding) => {
+        const target = binding.pageDocId
+          ? moduleByDocumentId.get(binding.pageDocId)
+          : compiled;
+        if (!target) {
+          diagnostics.push({
+            code: 'WKS-EXPORT-ROUTE-DOCUMENT',
+            severity: 'error',
+            source: 'export',
+            message: `Route ${route.routeNodeId} binds outlet ${binding.outletName} to an uncompiled document: ${binding.pageDocId}.`,
+            path: `/routeManifest/routes/${route.routeNodeId}/outletBindings/${binding.outletName}`,
+          });
+          return [];
+        }
+        return [
+          { outletNodeId: binding.outletNodeId, target: target.componentName },
+        ];
+      });
       return [
         {
           path: route.path,
           routeNodeId: route.routeNodeId,
           componentName: compiled.componentName,
+          ...(layout ? { layoutComponentName: layout.componentName } : {}),
+          ...(route.outletNodeId ? { outletNodeId: route.outletNodeId } : {}),
+          namedOutlets,
         },
       ];
     })
@@ -733,10 +330,21 @@ const createWorkspaceAppModule = (input: {
     )
     .join('\n');
   const routeTable = routeEntries
-    .map(
-      (route) =>
-        `  { routeNodeId: ${JSON.stringify(route.routeNodeId)}, path: ${JSON.stringify(route.path)}, Component: ${route.componentName} },`
-    )
+    .map((route) => {
+      const outletEntries = [
+        ...(route.outletNodeId
+          ? [`${JSON.stringify(route.outletNodeId)}: ${route.componentName}`]
+          : []),
+        ...route.namedOutlets.map(
+          (outlet) => `${JSON.stringify(outlet.outletNodeId)}: ${outlet.target}`
+        ),
+      ];
+      return `  { routeNodeId: ${JSON.stringify(route.routeNodeId)}, path: ${JSON.stringify(route.path)}, Component: ${route.componentName}${
+        route.layoutComponentName
+          ? `, Layout: ${route.layoutComponentName}`
+          : ''
+      }${outletEntries.length ? `, outletComponentsById: { ${outletEntries.join(', ')} }` : ''} },`;
+    })
     .join('\n');
   const runtimeByRoute = new Map<
     string,
@@ -775,9 +383,19 @@ export const workspaceRouteRuntime = {
 ${runtimeTable}
 } as const;
 
-const workspaceRoutes = [
+type WorkspaceRouteComponent = (props: any) => any;
+
+type WorkspaceRouteEntry = Readonly<{
+  routeNodeId: string;
+  path: string;
+  Component: WorkspaceRouteComponent;
+  Layout?: WorkspaceRouteComponent;
+  outletComponentsById?: Readonly<Record<string, WorkspaceRouteComponent>>;
+}>;
+
+const workspaceRoutes: readonly WorkspaceRouteEntry[] = [
 ${routeTable}
-] as const;
+];
 
 const workspaceDataRuntime = createWorkspaceDataRuntime();
 
@@ -1102,7 +720,18 @@ export default function App() {
     }
   }
   const Page = match.Component;
-  return <Page __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} __pdxParamsById={match.params} />;
+  const pageElement = <Page __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} __pdxParamsById={match.params} />;
+  const Layout = match.Layout;
+  if (!Layout) return pageElement;
+  // Route outlets mount the matched content inside the layout document. Each
+  // outlet node id maps to the component that fills it.
+  const routeOutletsById = Object.fromEntries(
+    Object.entries(match.outletComponentsById ?? {}).map(([outletNodeId, Outlet]) => [
+      outletNodeId,
+      () => <Outlet __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} __pdxParamsById={match.params} />,
+    ])
+  );
+  return <Layout __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} __pdxParamsById={match.params} __pdxRouteOutletsById={routeOutletsById} />;
 }
 `,
       sourceTrace: input.routeTopology.routes.flatMap(
@@ -1118,247 +747,57 @@ export default function App() {
   };
 };
 
-/** Compiles the complete canonical Workspace into one React/Vite ExportProgram. */
-export const compileWorkspaceToExportProgram = (
-  workspace: WorkspaceSnapshot,
-  options: WorkspaceReactViteCompileOptions = {}
-): ExportProgram => {
-  const preset = createReactViteExportPreset();
-  const dataRuntime = analyzeWorkspaceDataRuntimeTarget(
-    workspace,
-    options.dataRuntimeTarget ??
-      (options.dataMockProvision
-        ? PROVIDER_MOCK_DATA_RUNTIME_TARGET
-        : undefined)
-  );
-  const workspaceValidation = validateWorkspaceSnapshot(workspace);
-  const validationDiagnostics: CompileDiagnostic[] =
-    workspaceValidation.issues.map((issue) => ({
-      code: issue.code,
-      severity: 'error',
-      source: 'export',
-      message: issue.message,
-      path: issue.path,
-    }));
-  const documents = Object.values(workspace.docsById).sort(
-    (left, right) =>
-      compareUnicodeCodePoints(left.path, right.path) ||
-      compareUnicodeCodePoints(left.id, right.id)
-  );
-  const nodeGraphContributions = documents.flatMap((document) => {
-    if (document.type !== 'pir-graph') return [];
-    const read = decodeWorkspaceNodeGraphDocument(document);
-    if (read.status !== 'valid') return [];
-    return compileNodeGraphExportContributions({
-      documentId: document.id,
-      ...(document.name ? { displayName: document.name } : {}),
-      definition: read.decodedContent,
-    });
-  });
-  const animationContributions = documents.flatMap((document) => {
-    if (document.type !== 'pir-animation') return [];
-    const read = decodeWorkspaceAnimationDocument(document);
-    if (read.status !== 'valid') return [];
-    return compileAnimationExportContributions({
-      documentId: document.id,
-      ...(document.name ? { displayName: document.name } : {}),
-      definition: read.decodedContent,
-    });
-  });
-  const pirDocuments = documents.filter(isWorkspacePirDocument);
-  const codeDocuments = documents.filter(
-    (document) =>
-      document.type === 'code' &&
-      isWorkspaceCodeDocumentContent(document.content)
-  );
-  const codeArtifacts: ReactGeneratorCodeArtifact[] = codeDocuments.flatMap(
-    (document) => {
-      const content = document.content;
-      return isWorkspaceCodeDocumentContent(content)
-        ? [
-            {
-              id: document.id,
-              path: document.path,
-              language: content.language,
-              source: content.source,
-            },
-          ]
-        : [];
-    }
-  );
-  const pirCompilation = compileWorkspacePirDocuments({
-    workspace,
-    documents: pirDocuments,
-    options,
-  });
-  const compiledDocuments = pirCompilation.documents;
-  const code = createWorkspaceCodeContribution({
-    documents: codeDocuments,
-  });
-  const routeContribution = createRouteExportContribution({
-    manifest: workspace.routeManifest,
-    target: preset.target,
-    documentInfo: (documentId) => {
-      const document = workspace.docsById[documentId];
-      return document
-        ? { id: document.id, path: document.path, type: document.type }
-        : null;
-    },
-    codeArtifactInfo: (artifactId) => {
-      const artifact = codeArtifacts.find((item) => item.id === artifactId);
-      return artifact ? { id: artifact.id, path: artifact.path } : null;
-    },
-  });
-  const routeTopology = routeContribution.routes as ExportRouteTopology;
-  const serverRuntime = analyzeWorkspaceServerRuntimeTarget(
-    workspace,
-    routeTopology,
-    options.serverRuntimeTarget,
-    options.serverRuntimeMockProvision
-  );
-  const unsupportedLayoutDiagnostics: CompileDiagnostic[] = routeTopology.routes
-    .filter((route) => route.layoutDocId)
-    .map((route) => ({
-      code: 'WKS-EXPORT-LAYOUT-UNSUPPORTED',
-      severity: 'error',
-      source: 'export',
-      message: `Route ${route.routeNodeId} uses a layout that the React/Vite route adapter cannot compose yet.`,
-      path: `/routeManifest/routes/${route.routeNodeId}/layoutDocId`,
-    }));
-  const unsupportedOutletDiagnostics: CompileDiagnostic[] =
-    routeTopology.routes.flatMap((route) => [
-      ...(route.outletNodeId
-        ? [
-            {
-              code: 'WKS-EXPORT-OUTLET-UNSUPPORTED',
-              severity: 'error' as const,
-              source: 'export' as const,
-              message: `Route ${route.routeNodeId} targets outlet node ${route.outletNodeId}, but the React/Vite route adapter cannot compose route outlets yet.`,
-              path: `/routeManifest/routes/${route.routeNodeId}/outletNodeId`,
-            },
-          ]
-        : []),
-      ...(route.outletBindings ?? []).map((binding) => ({
-        code: 'WKS-EXPORT-OUTLET-UNSUPPORTED',
-        severity: 'error' as const,
-        source: 'export' as const,
-        message: binding.pageDocId
-          ? `Route ${route.routeNodeId} reuses document ${binding.pageDocId} through outlet ${binding.outletName}, but the React/Vite route adapter cannot compose route outlets yet.`
-          : `Route ${route.routeNodeId} binds outlet ${binding.outletName}, but the React/Vite route adapter cannot compose route outlets yet.`,
-        path: `/routeManifest/routes/${route.routeNodeId}/outletBindings/${binding.outletName}`,
-      })),
-    ]);
-  const app = createWorkspaceAppModule({
-    compiledDocuments,
-    executableModuleIdByArtifactId: code.executableModuleIdByArtifactId,
-    routeTopology,
-    serverRuntime,
-  });
-  const standaloneDataRuntime = createWorkspaceStandaloneDataRuntimeModule(
-    workspace,
-    dataRuntime.target
-  );
-  const executionConsoleRuntime =
-    createWorkspaceExecutionConsoleRuntimeModule();
-  const standaloneServerRuntime = createWorkspaceStandaloneServerRuntimeModule(
-    serverRuntime.target,
-    serverRuntime.bindings
-  );
-  const projectContributions: ExportProgramContribution[] = [
-    pirCompilation.contribution,
-    code.contribution,
-    ...nodeGraphContributions,
-    ...animationContributions,
-    createWorkspaceResourceContribution(
-      documents,
-      options.assetMaterializations
-    ),
-    routeContribution,
-    createStaticDeploymentExportContribution({
-      target: 'static-hosting',
-      outputDirectory: 'dist',
+/**
+ * The React/Vite render layer. It owns framework syntax and nothing else — the
+ * ExportProgram assembly itself is shared with every other target so the two
+ * cannot drift into different module topologies (ADR 31:344).
+ */
+export const createReactViteRenderLayer = (): WorkspaceTargetRenderLayer => ({
+  preset: createReactViteExportPreset(),
+  routeAdapterName: 'React/Vite',
+  compilePirDocuments: (input) =>
+    compileWorkspacePirDocumentProjection({
+      documents: input.documents,
+      options: input.options,
+      moduleCompiler: createReactPirModuleCompiler({
+        workspace: input.workspace,
+        options: input.options,
+      }),
     }),
-    ...(options.exportContributions ?? []),
-    {
-      entryModuleId: app.module.id,
-      roots: [
-        {
-          id: 'app',
-          kind: 'app',
-          displayName: options.projectName ?? workspace.name ?? 'Prodivix App',
-          sourceRef: {
-            domain: 'workspace',
-            id: workspace.id,
-            path: '/',
-          },
-        },
-      ],
-      modules: [
-        executionConsoleRuntime,
-        standaloneDataRuntime,
-        standaloneServerRuntime,
-        app.module,
-      ],
-      diagnostics: [
-        ...validationDiagnostics,
-        ...unsupportedLayoutDiagnostics,
-        ...unsupportedOutletDiagnostics,
-        ...dataRuntime.diagnostics,
-        ...serverRuntime.diagnostics,
-        ...app.diagnostics,
-      ],
-      metadata: {
-        workspaceId: workspace.id,
-        workspaceRevision: {
-          workspaceRev: workspace.workspaceRev,
-          routeRev: workspace.routeRev,
-          opSeq: workspace.opSeq,
-        },
-        dataRuntime: {
-          target: dataRuntime.target,
-          requirements: dataRuntime.requirements,
-        },
-        serverRuntime: {
-          target: serverRuntime.target,
-          requirements: serverRuntime.requirements,
-        },
-      },
-    },
-  ];
-  const dependencies = mergeExportDependencies([
-    ...projectContributions.flatMap(
-      (contribution) => contribution.dependencies ?? []
-    ),
+  createAppModule: (input) => createWorkspaceAppModule(input),
+  createTargetDependencies: () => [
     ...Object.entries(REACT_VITE_DEPENDENCIES).map(([name, version]) => ({
       name,
       version,
       kind: 'dependency' as const,
-      origin: createExportPackageOrigin(name, version, {
-        updatePolicy: 'pin',
-      }),
+      origin: createExportPackageOrigin(name, version, { updatePolicy: 'pin' }),
     })),
     ...Object.entries(REACT_VITE_DEV_DEPENDENCIES).map(([name, version]) => ({
       name,
       version,
       kind: 'devDependency' as const,
-      origin: createExportPackageOrigin(name, version, {
-        updatePolicy: 'pin',
-      }),
+      origin: createExportPackageOrigin(name, version, { updatePolicy: 'pin' }),
     })),
-  ]);
-  const scaffoldContributions = createReactViteScaffoldContributions({
-    projectName: options.projectName ?? workspace.name ?? 'Prodivix App',
-    packageManager: REACT_VITE_PACKAGE_MANAGER,
-    dependencies,
-    entryModuleId: app.module.id,
-  });
-  return [...scaffoldContributions, ...projectContributions, { dependencies }]
-    .reduce(
-      (builder, contribution) => builder.addContribution(contribution),
-      createExportProgramBuilder(preset.target)
-    )
-    .build();
-};
+  ],
+  createScaffoldContributions: (input) =>
+    createReactViteScaffoldContributions({
+      projectName: input.projectName,
+      packageManager: REACT_VITE_PACKAGE_MANAGER,
+      dependencies: [...input.dependencies],
+      entryModuleId: input.entryModuleId,
+    }),
+});
+
+/** Compiles the complete canonical Workspace into one React/Vite ExportProgram. */
+export const compileWorkspaceToExportProgram = (
+  workspace: WorkspaceSnapshot,
+  options: WorkspaceReactViteCompileOptions = {}
+): ExportProgram =>
+  compileWorkspaceToTargetExportProgram(
+    workspace,
+    options,
+    createReactViteRenderLayer()
+  );
 
 /** Plans a buildable React/Vite project from the complete canonical Workspace. */
 export const generateWorkspaceReactViteBundle = (

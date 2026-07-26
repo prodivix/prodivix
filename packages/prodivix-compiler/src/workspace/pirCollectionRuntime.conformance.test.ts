@@ -16,13 +16,13 @@ import {
   type PIRDataOperationBinding,
   type PIRRuntimeValueScope,
 } from '@prodivix/pir';
-import { createPirCollectionRuntimeSource } from '#src/react/collectionRuntime';
+import { createPirCollectionRuntimeSource } from '#src/workspace/pirCollectionRuntime';
 import {
   compilePirComponentProjectionPath,
   compilePirRootProjectionPath,
   compilePirSlotProjectionPath,
   PIR_PROJECTION_PATH_RUNTIME_SOURCE,
-} from '#src/react/projectionPathRuntime';
+} from '#src/workspace/pirProjectionPathRuntime';
 
 type RuntimeProjection = (
   input: Readonly<{
@@ -75,7 +75,30 @@ type EffectHook = (effect: Effect, dependencies: readonly unknown[]) => void;
 const loadRuntime = async (effectHook: EffectHook): Promise<RuntimeExports> => {
   const source = `type __PdxScope = Readonly<Record<string, unknown>>;
 type __PdxRuntimePort = Readonly<{ reportCollectionProjectionIssues?: (input: unknown) => void }>;
-${createPirCollectionRuntimeSource('__testUseEffect')}
+${createPirCollectionRuntimeSource()}
+// The issue reporter is a component, so each target's shell emits its own
+// against these neutral props. This mirrors the React shell's effect shape so
+// the report/clear contract stays covered here.
+const __PdxCollectionIssueReporter = ({
+  runtime,
+  location,
+  issues,
+}: __PdxCollectionIssueReporterProps) => {
+  const issueIdentity = __pdxCollectionIssueIdentity(issues);
+  const report = runtime.reportCollectionProjectionIssues;
+  __testUseEffect(() => {
+    report?.({ location, issues });
+    return () =>
+      report?.({ location, issues: __pdxNoCollectionProjectionIssues });
+  }, [
+    report,
+    location.documentId,
+    location.nodeId,
+    location.instancePath,
+    issueIdentity,
+  ]);
+  return null;
+};
 ${PIR_PROJECTION_PATH_RUNTIME_SOURCE}
 (globalThis as Record<string, unknown>).__runtime = {
   project: __pdxProjectCollection,

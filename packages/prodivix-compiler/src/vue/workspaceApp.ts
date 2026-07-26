@@ -1,3 +1,4 @@
+import type { CompiledWorkspacePirDocument } from '#src/workspace/workspaceTargetRenderLayer';
 import {
   isWorkspacePirDocument,
   type WorkspaceSnapshot,
@@ -8,14 +9,13 @@ import type {
   ExportModule,
   ExportRouteTopology,
 } from '#src/export';
-import { WORKSPACE_DATA_RUNTIME_MODULE_ID } from '#src/react/standaloneDataRuntime';
-import { WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID } from '#src/react/standaloneExecutionConsoleRuntime';
-import { WORKSPACE_SERVER_RUNTIME_MODULE_ID } from '#src/react/standaloneServerRuntime';
+import { WORKSPACE_DATA_RUNTIME_MODULE_ID } from '#src/workspace/standaloneDataRuntime';
+import { WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID } from '#src/workspace/standaloneExecutionConsoleRuntime';
+import { WORKSPACE_SERVER_RUNTIME_MODULE_ID } from '#src/workspace/standaloneServerRuntime';
 import type {
   WorkspaceServerRuntimeBinding,
   WorkspaceServerRuntimeTargetAnalysis,
-} from '#src/react/workspaceServerRuntimeTarget';
-import { WORKSPACE_VUE_PIR_RUNTIME_MODULE_ID } from '#src/vue/workspacePirRuntime';
+} from '#src/workspace/workspaceServerRuntimeTarget';
 
 export const WORKSPACE_VUE_APP_MODULE_ID = 'workspace-vue-entry' as const;
 
@@ -50,6 +50,8 @@ export type CreateWorkspaceVueAppModuleInput = Readonly<{
   routeTopology: ExportRouteTopology;
   serverRuntime: WorkspaceServerRuntimeTargetAnalysis;
   executableModuleIdByArtifactId: ReadonlyMap<string, string>;
+  /** One compiled component module per PIR document, same as the React target. */
+  compiledDocuments: readonly CompiledWorkspacePirDocument[];
 }>;
 
 /** Creates the Vue route/auth/server composition root without embedding server-owned source. */
@@ -95,13 +97,12 @@ export const createWorkspaceVueAppModule = (
       imported: 'invokeWorkspaceServerFunction',
       local: 'invokeWorkspaceServerFunction',
     },
-    {
-      kind: 'named',
-      source: WORKSPACE_VUE_PIR_RUNTIME_MODULE_ID,
-      targetModuleId: WORKSPACE_VUE_PIR_RUNTIME_MODULE_ID,
-      imported: 'createWorkspacePirDocumentComponent',
-      local: 'createWorkspacePirDocumentComponent',
-    },
+    ...input.compiledDocuments.map((compiled): ExportImportIntent => ({
+      kind: 'default',
+      source: compiled.module.id,
+      targetModuleId: compiled.module.id,
+      local: compiled.componentName,
+    })),
   ];
 
   const codeModuleLocalByArtifactId = new Map<string, string>();
@@ -526,6 +527,15 @@ export const dispatchWorkspaceRouteAction = async (
 
 const routePathById = Object.freeze(Object.fromEntries(workspaceVueRouteRecords.map((route) => [route.routeNodeId, route.path])));
 
+const workspaceVueDocumentComponents: Readonly<Record<string, any>> = Object.freeze({
+${input.compiledDocuments
+  .map(
+    (compiled) =>
+      `  ${JSON.stringify(compiled.document.id)}: ${compiled.componentName},`
+  )
+  .join('\n')}
+});
+
 const workspacePirRuntime = Object.freeze({
   ...workspaceDataRuntime,
   dispatchTrigger(input: JsonRecord) {
@@ -580,14 +590,15 @@ const renderRouteDocument = (
   paramsById: JsonRecord,
   routeOutletsByNodeId: Readonly<Record<string, () => any>> = {}
 ) => {
-  const Document = createWorkspacePirDocumentComponent(documentId);
+  const Document = workspaceVueDocumentComponents[documentId];
+  if (!Document) return null;
   return h(Document, {
     key,
-    runtime: workspacePirRuntime,
-    routeId,
-    paramsById,
-    instancePath: '/route:' + routeId + '/document:' + documentId,
-    routeOutletsByNodeId,
+    __pdxRuntime: workspacePirRuntime,
+    __pdxRouteId: routeId,
+    __pdxParamsById: paramsById,
+    __pdxInstancePath: '/route:' + routeId + '/document:' + documentId,
+    __pdxRouteOutletsById: routeOutletsByNodeId,
   });
 };
 
@@ -749,7 +760,10 @@ export default defineComponent({
       if (current.status === 'not-found') return h('main', { 'data-prodivix-route-not-found': 'true' }, 'Route not found.');
       if (current.status === 'denied') return h('main', { 'data-prodivix-route-runtime': 'denied', role: 'alert' }, 'Access denied.');
       if (current.status === 'failed') return h('main', { 'data-prodivix-route-runtime': 'failed', role: 'alert' }, 'Route runtime failed: ' + current.code);
-      return h('div', { 'data-prodivix-vue-workspace': 'ready' }, [
+      return h('div', {
+        'data-prodivix-vue-workspace': 'ready',
+        style: { display: 'contents' },
+      }, [
         activeRouteLoaderValue === undefined
           ? null
           : h('output', { 'data-prodivix-route-loader': 'ready', hidden: true }, JSON.stringify(activeRouteLoaderValue)),

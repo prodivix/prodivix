@@ -65,7 +65,7 @@ const updateRouteNode = (
 };
 
 describe('Workspace export fail-closed contracts', () => {
-  it('blocks route-outlet composition without blocking route-level component reuse', () => {
+  it('compiles route-outlet composition and keeps the manifest binding addressable', () => {
     const authored = authorGoldenWorkspace();
     const workspace: WorkspaceSnapshot = {
       ...authored.editedWorkspace,
@@ -90,8 +90,10 @@ describe('Workspace export fail-closed contracts', () => {
 
     const bundle = generate(workspace);
 
-    expect(blockingCodes(bundle)).toContain('WKS-EXPORT-OUTLET-UNSUPPORTED');
-    expect(bundle.metadata?.exportBlocked).toBe(true);
+    expect(blockingCodes(bundle)).not.toContain(
+      'WKS-EXPORT-OUTLET-UNSUPPORTED'
+    );
+    expect(bundle.metadata?.exportBlocked).toBeFalsy();
     expect(
       bundle.metadata?.routeTopology?.routes.find(
         (route) => route.routeNodeId === GOLDEN_IDS.checkoutRoute
@@ -105,7 +107,7 @@ describe('Workspace export fail-closed contracts', () => {
     ]);
   });
 
-  it('blocks route layouts until page-to-outlet composition is implemented', () => {
+  it('compiles route layouts that mount their page through an outlet', () => {
     const authored = authorGoldenWorkspace();
     const plan = createWorkspaceRouteIntentPlan(
       authored.editedWorkspace,
@@ -128,8 +130,10 @@ describe('Workspace export fail-closed contracts', () => {
 
     const bundle = generate(workspace);
 
-    expect(blockingCodes(bundle)).toContain('WKS-EXPORT-LAYOUT-UNSUPPORTED');
-    expect(bundle.metadata?.exportBlocked).toBe(true);
+    expect(blockingCodes(bundle)).not.toContain(
+      'WKS-EXPORT-LAYOUT-UNSUPPORTED'
+    );
+    expect(bundle.metadata?.exportBlocked).toBeFalsy();
   });
 
   it('exports standalone NodeGraph and Animation documents', () => {

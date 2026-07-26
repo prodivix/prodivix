@@ -21,6 +21,8 @@ export type ExportRootKind =
 export type ExportModuleKind =
   | 'react-component'
   | 'react-entry'
+  | 'vue-component'
+  | 'vue-entry'
   | 'nodegraph-runtime'
   | 'animation-runtime'
   | 'event-handler'

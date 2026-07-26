@@ -90,9 +90,14 @@ describe('Golden G2 authenticated Vue Catalog product surface', () => {
 
     const files = projectExecutableProjectRuntimeFiles(snapshot, 'test');
     expect(files.some(({ path }) => path === 'src/App.vue')).toBe(true);
+    // The Vue target compiles one component module per PIR document through
+    // the shared compiler; there is no runtime PIR interpreter module.
     expect(
       files.some(({ path }) => path === 'src/prodivix-pir-runtime.ts')
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      files.filter(({ path }) => path.startsWith('src/components/')).length
+    ).toBe(3);
     expect(
       files.some(({ path }) => path === 'src/prodivix-workspace-app.ts')
     ).toBe(true);
@@ -119,6 +124,7 @@ describe('Golden G2 authenticated Vue Catalog product surface', () => {
     expect(source).toContain('catalog-sidebar-outlet');
     expect(source).toContain('dispatchWorkspaceRouteAction');
     expect(source).toContain('runs authenticated Route guard/loader/action');
+    expect(source).toContain("style: { display: 'contents' }");
     expect(source).not.toContain(GOLDEN_G2_VUE_CATALOG_SERVER_SOURCE_CANARY);
   });
 

@@ -1,29 +1,39 @@
 import {
   createPirCollectionProjectionPlan,
   projectPirCollection,
-  resolvePirComponentVariantValues,
   selectPirSlotProjection,
-  type PIRTriggerBinding,
-  type PIRValueBinding,
+  type PIRNode,
 } from '@prodivix/pir';
-import type { TargetAdapterNode } from '#src/core/adapter';
-import { compilePirBindingExpression } from '#src/react/bindingCompiler';
+import { compilePirBindingExpression } from '#src/workspace/pirBindingCompiler';
+import {
+  canStaticallyProjectCollection,
+  compareText,
+  compileDataScopeExpression,
+  compileInstanceVariantValues,
+  compileRecord,
+  compileTriggerHandler,
+  compileTriggerSource,
+  createAdapterNode,
+  escapeJsonPointerSegment,
+  toIdentifier,
+  toJson,
+} from '#src/workspace/pirNodeExpressions';
 import type {
   PIRNodeOfKind,
-  PIRReactNodeCompileContext,
-  PIRReactNodeCompiler,
-} from '#src/react/nodeCompiler.types';
+  PirNodeCompileContext,
+  PirNodeCompiler,
+} from '#src/workspace/pirNodeCompiler.types';
 import {
   compilePirComponentProjectionPath,
   compilePirSlotProjectionPath,
-} from '#src/react/projectionPathRuntime';
+} from '#src/workspace/pirProjectionPathRuntime';
 import {
   toPirContractMemberPath,
   toPirCollectionRegionPath,
   toPirCollectionSymbolPath,
   toPirInstanceRegionPath,
   toPirNodePath,
-} from '#src/react/sourceTrace';
+} from '#src/workspace/pirSourceTrace';
 
 const VOID_ELEMENTS = new Set([
   'area',
@@ -42,143 +52,9 @@ const VOID_ELEMENTS = new Set([
   'wbr',
 ]);
 
-const compareText = (left: string, right: string): number =>
-  left < right ? -1 : left > right ? 1 : 0;
-
-const escapeJsonPointerSegment = (value: string): string =>
-  value.replaceAll('~', '~0').replaceAll('/', '~1');
-
-const toJson = (value: unknown): string => JSON.stringify(value) ?? 'null';
-
-const toIdentifier = (value: string): string => {
-  const candidate = value.replace(/[^a-zA-Z0-9_$]/g, '_');
-  return /^[a-zA-Z_$]/.test(candidate) ? candidate : `_${candidate}`;
-};
-
-const toReactEventName = (eventName: string): string => {
-  if (/^on[A-Z]/.test(eventName)) return eventName;
-  const normalized = eventName.trim().replace(/^on/i, '');
-  return `on${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
-};
-
-const literalBindingValues = (
-  bindings: Readonly<Record<string, PIRValueBinding>> | undefined
-): Record<string, unknown> =>
-  Object.fromEntries(
-    Object.entries(bindings ?? {})
-      .filter(([, binding]) => binding.kind === 'literal')
-      .map(([key, binding]) => [
-        key,
-        binding.kind === 'literal' ? binding.value : undefined,
-      ])
-  );
-
-const createAdapterNode = (
-  node: PIRNodeOfKind<'element'>,
-  documentId: string
-): TargetAdapterNode => ({
-  id: node.id,
-  type: node.type,
-  path: `${documentId}${toPirNodePath(node.id)}`,
-  text: undefined,
-  style: literalBindingValues(node.style),
-  props: literalBindingValues(node.props),
-  events: {},
-  children: [],
-});
-
-const isValidJsxElement = (value: string): boolean =>
-  /^[A-Za-z][A-Za-z0-9_$.-]*$/.test(value);
-
-const compileRecord = (
-  bindings: Readonly<Record<string, PIRValueBinding>> | undefined,
-  scopeExpression: string
-): string => {
-  const entries = Object.entries(bindings ?? {})
-    .sort(([left], [right]) => compareText(left, right))
-    .map(
-      ([key, binding]) =>
-        `${toJson(key)}: ${compilePirBindingExpression(binding, scopeExpression)}`
-    );
-  return `{ ${entries.join(', ')} }`;
-};
-
-const compileTriggerHandler = (
-  trigger: PIRTriggerBinding,
-  scopeExpression: string,
-  payloadName: string,
-  sourceExpression: string,
-  context: PIRReactNodeCompileContext
-): string => {
-  if (trigger.kind === 'emit-component-event') {
-    context.traces.addPir(
-      toPirContractMemberPath('eventsById', trigger.memberId)
-    );
-    const payload = trigger.payload
-      ? compilePirBindingExpression(trigger.payload, scopeExpression)
-      : payloadName;
-    return `(${payloadName}: unknown) => __pdxEventsById[${toJson(trigger.memberId)}]?.(${payload})`;
-  }
-  return `(${payloadName}: unknown) => __pdxRuntime.dispatchTrigger({ binding: ${toJson(trigger)}, payload: ${payloadName}, scope: ${scopeExpression}, runtimeValuesById: __pdxDataRuntimeValuesFromScope(${scopeExpression}), setStateById: __pdxSetStateById, source: ${sourceExpression} })`;
-};
-
-const compileTriggerSource = (
-  context: PIRReactNodeCompileContext,
-  nodeId: string,
-  eventName: string,
-  instancePathExpression: string
-): string =>
-  `{ documentId: ${toJson(context.documentId)}, nodeId: ${toJson(nodeId)}, eventName: ${toJson(eventName)}, instancePath: ${instancePathExpression} }`;
-
-const compileDataScopeExpression = (
-  node: PIRNodeOfKind<'element'>,
-  parentScopeExpression: string
-): string => {
-  const data = node.data;
-  if (!data) return 'undefined';
-  const baseBinding = data.source ?? data.mock ?? data.value;
-  let baseExpression = baseBinding
-    ? compilePirBindingExpression(baseBinding, parentScopeExpression)
-    : 'undefined';
-  if (data.pick?.trim()) {
-    baseExpression = `__pdxReadPath(${baseExpression}, ${toJson(data.pick)})`;
-  }
-  if (data.extend === undefined) return baseExpression;
-  const extendExpression = compileRecord(data.extend, parentScopeExpression);
-  return `__pdxMergeData(${baseExpression}, ${extendExpression})`;
-};
-
-const compileInstanceVariantValues = (
-  target: PIRNodeOfKind<'component-instance'>,
-  context: PIRReactNodeCompileContext
-): string => {
-  const targetDocument = context.documentsById[target.componentDocumentId];
-  const contract = targetDocument?.content.componentContract;
-  if (!contract) return '{}';
-  return toJson(
-    resolvePirComponentVariantValues(contract, target.bindings.variants)
-  );
-};
-
-const canStaticallyProjectCollection = (
-  node: PIRNodeOfKind<'collection'>
-): boolean => {
-  if (node.source.kind !== 'literal' || node.source.value.length === 0) {
-    return node.source.kind === 'literal';
-  }
-  if (node.key.kind === 'index') return true;
-  const binding = node.key.value;
-  return (
-    binding.kind === 'literal' ||
-    (binding.kind === 'collection-symbol' &&
-      (binding.symbolId === node.symbols.itemId ||
-        binding.symbolId === node.symbols.indexId))
-  );
-};
-
-export const createPirReactNodeCompiler = (
-  context: PIRReactNodeCompileContext
-): PIRReactNodeCompiler => {
+export const createPirNodeCompiler = (
+  context: PirNodeCompileContext
+): PirNodeCompiler => {
   const graph = context.document.ui.graph;
 
   const addDiagnostic = (code: string, message: string, path: string): void => {
@@ -196,13 +72,12 @@ export const createPirReactNodeCompiler = (
     scopeExpression: string,
     instancePathExpression: string
   ): string => {
-    if (nodeIds.length === 0) return 'null';
-    return `<>${nodeIds
-      .map(
-        (nodeId) =>
-          `{${compileNode(nodeId, scopeExpression, instancePathExpression)}}`
+    if (nodeIds.length === 0) return context.emitter.emptyExpression;
+    return context.emitter.fragment(
+      nodeIds.map((nodeId) =>
+        compileNode(nodeId, scopeExpression, instancePathExpression)
       )
-      .join('')}</>`;
+    );
   };
 
   const compileElement = (
@@ -222,13 +97,13 @@ export const createPirReactNodeCompiler = (
       adapterResult.element,
       adapterResult.imports ?? []
     );
-    if (!isValidJsxElement(element)) {
+    if (!context.emitter.isEmittableElement(element)) {
       addDiagnostic(
         'PIR_EXPORT_ELEMENT_UNSUPPORTED',
-        `Element type ${node.type} cannot be emitted as a React element.`,
+        `Element type ${node.type} resolved to ${element}, which this target cannot emit.`,
         nodePath
       );
-      return 'null';
+      return context.emitter.emptyExpression;
     }
 
     const scopeExpression = node.data
@@ -280,18 +155,18 @@ export const createPirReactNodeCompiler = (
       ([left], [right]) => compareText(left, right)
     )) {
       propExpressions.set(
-        toReactEventName(eventName),
+        context.emitter.eventPropName(eventName),
         compileTriggerHandler(
           trigger,
           scopeExpression,
           '__pdxEvent',
           compileTriggerSource(
-            context,
+            context.documentId,
             node.id,
             eventName,
             instancePathExpression
           ),
-          context
+          (path) => context.traces.addPir(path)
         )
       );
     }
@@ -301,30 +176,31 @@ export const createPirReactNodeCompiler = (
     const propsExpression = `{ ${propEntries.join(', ')} }`;
     const textExpression =
       node.text && adapterResult.textMode !== 'omit'
-        ? `{__pdxRenderValue(${compilePirBindingExpression(node.text, scopeExpression)})}`
+        ? `__pdxRenderValue(${compilePirBindingExpression(node.text, scopeExpression)})`
         : '';
     const childIds =
       adapterResult.childrenMode === 'omit'
         ? []
         : (graph.childIdsById[node.id] ?? []);
-    const children = childIds
-      .map(
-        (childId) =>
-          `{${compileNode(childId, scopeExpression, instancePathExpression)}}`
-      )
-      .join('');
-    const hasChildren = Boolean(textExpression || children);
-    if (VOID_ELEMENTS.has(element.toLowerCase()) && hasChildren) {
+    const childExpressions = [
+      ...(textExpression ? [textExpression] : []),
+      ...childIds.map((childId) =>
+        compileNode(childId, scopeExpression, instancePathExpression)
+      ),
+    ];
+    const isVoidElement = VOID_ELEMENTS.has(element.toLowerCase());
+    if (isVoidElement && childExpressions.length > 0) {
       addDiagnostic(
         'PIR_EXPORT_VOID_ELEMENT_CHILDREN',
         `Void element ${element} cannot project text or children.`,
         nodePath
       );
     }
-    const elementExpression =
-      VOID_ELEMENTS.has(element.toLowerCase()) || !hasChildren
-        ? `<${element} {...${propsExpression}} />`
-        : `<${element} {...${propsExpression}}>${textExpression}${children}</${element}>`;
+    const elementExpression = context.emitter.element({
+      tag: element,
+      propsExpression,
+      children: isVoidElement ? [] : childExpressions,
+    });
     if (!node.data) return elementExpression;
 
     const dataExpression = compileDataScopeExpression(
@@ -352,7 +228,7 @@ export const createPirReactNodeCompiler = (
         `Component Instance ${node.id} has no reachable Definition module.`,
         `${nodePath}/componentDocumentId`
       );
-      return 'null';
+      return context.emitter.emptyExpression;
     }
     const targetLocal = context.imports.addInternalDefault(
       targetModuleId,
@@ -395,16 +271,20 @@ export const createPirReactNodeCompiler = (
             consumerScopeExpression,
             '__pdxPayload',
             compileTriggerSource(
-              context,
+              context.documentId,
               node.id,
               memberId,
               consumerInstancePathExpression
             ),
-            context
+            (path) => context.traces.addPir(path)
           )}`
       );
     const eventsExpression = `{ ${eventEntries.join(', ')} }`;
-    const variantsExpression = compileInstanceVariantValues(node, context);
+    const variantsExpression = compileInstanceVariantValues(
+      context.documentsById[node.componentDocumentId]?.content
+        .componentContract,
+      node
+    );
     const targetInstancePathExpression = compilePirComponentProjectionPath(
       consumerInstancePathExpression,
       context.documentId,
@@ -464,7 +344,10 @@ export const createPirReactNodeCompiler = (
       );
     }
     const slotsExpression = `{ ${slotEntries.join(', ')} }`;
-    return `<${targetLocal} {...{ __pdxRuntime, __pdxInstancePath: ${targetInstancePathExpression}, __pdxRouteId, __pdxPropsById: ${propsExpression}, __pdxEventsById: ${eventsExpression}, __pdxVariantsById: ${variantsExpression}, __pdxSlotsById: ${slotsExpression} }} />`;
+    return context.emitter.component({
+      localName: targetLocal,
+      propsExpression: `{ __pdxRuntime, __pdxInstancePath: ${targetInstancePathExpression}, __pdxRouteId, __pdxPropsById: ${propsExpression}, __pdxEventsById: ${eventsExpression}, __pdxVariantsById: ${variantsExpression}, __pdxSlotsById: ${slotsExpression} }`,
+    });
   };
 
   const compileSlotOutlet = (
@@ -549,10 +432,17 @@ export const createPirReactNodeCompiler = (
             plan.key.value,
             `__pdxCollectionScope_${suffix}`
           );
-    const fragmentLocal = context.imports.addNamedPackageImport(
-      'react',
-      'Fragment'
-    );
+    const fragmentLocal = context.emitter.resolveFragmentLocal(context.imports);
+    const issueReporter = (issuesExpression: string): string =>
+      context.emitter.component({
+        localName: '__PdxCollectionIssueReporter',
+        propsExpression: `{ runtime: __pdxRuntime, location: ${locationName}, issues: ${issuesExpression} }`,
+      });
+    const regionFragment = (body: string): string =>
+      context.emitter.wrappedFragment({
+        fragmentLocal,
+        children: [issueReporter('__pdxNoCollectionProjectionIssues'), body],
+      });
     const itemInstancePath = `__pdxAppendCollectionItemPath(${instancePathExpression}, ${toJson(context.documentId)}, ${toJson(node.id)}, ${itemName}.keyIdentity)`;
     const itemBody = compileNodeList(
       plan.regionsByState.item,
@@ -604,7 +494,7 @@ export const createPirReactNodeCompiler = (
             })
         : undefined;
       if (${lifecycleName}?.status === 'blocked') {
-        return <__PdxCollectionIssueReporter runtime={__pdxRuntime} location={${locationName}} issues={${lifecycleName}.issues} />;
+        return ${issueReporter(`${lifecycleName}.issues`)};
       }
       const ${previewName}: __PdxCollectionPreviewInput = ${lifecycleName}?.status === 'ready'
         ? {
@@ -625,24 +515,48 @@ export const createPirReactNodeCompiler = (
         resolveKey: (__pdxCollectionScope_${suffix}, __pdxCollectionIndex_${suffix}) => (${keyExpression}),
       });
       if (${projectionName}.status === 'blocked') {
-        return <__PdxCollectionIssueReporter runtime={__pdxRuntime} location={${locationName}} issues={${projectionName}.issues} />;
+        return ${issueReporter(`${projectionName}.issues`)};
       }
       if (${projectionName}.kind === 'items') {
-        return (
-          <${fragmentLocal}>
-            <__PdxCollectionIssueReporter runtime={__pdxRuntime} location={${locationName}} issues={__pdxNoCollectionProjectionIssues} />
-            {${projectionName}.items.map((${itemName}) => (
-              <${fragmentLocal} key={${itemName}.keyIdentity}>${itemBody}</${fragmentLocal}>
-            ))}
-          </${fragmentLocal}>
-        );
+        return ${context.emitter.wrappedFragment({
+          fragmentLocal,
+          children: [
+            issueReporter('__pdxNoCollectionProjectionIssues'),
+            `${projectionName}.items.map((${itemName}) => (${context.emitter.keyedFragment(
+              {
+                fragmentLocal,
+                keyExpression: `${itemName}.keyIdentity`,
+                children: [itemBody],
+              }
+            )}))`,
+          ],
+        })};
       }
       switch (${projectionName}.regionName) {
-        case 'empty': return (<${fragmentLocal}><__PdxCollectionIssueReporter runtime={__pdxRuntime} location={${locationName}} issues={__pdxNoCollectionProjectionIssues} />${emptyBody}</${fragmentLocal}>);
-        case 'loading': return (<${fragmentLocal}><__PdxCollectionIssueReporter runtime={__pdxRuntime} location={${locationName}} issues={__pdxNoCollectionProjectionIssues} />${loadingBody}</${fragmentLocal}>);
-        case 'error': return (<${fragmentLocal}><__PdxCollectionIssueReporter runtime={__pdxRuntime} location={${locationName}} issues={__pdxNoCollectionProjectionIssues} />${errorBody}</${fragmentLocal}>);
+        case 'empty': return ${regionFragment(emptyBody)};
+        case 'loading': return ${regionFragment(loadingBody)};
+        case 'error': return ${regionFragment(errorBody)};
       }
     })()`;
+  };
+
+  /**
+   * A route outlet renders the matched child route, falling back to the node's
+   * own children when no child route is mounted. Structurally identical to a
+   * component slot outlet, keyed by node id instead of slot member id.
+   */
+  const compileRouteOutlet = (
+    node: PIRNode,
+    scopeExpression: string,
+    instancePathExpression: string
+  ): string => {
+    const fallback = compileNodeList(
+      graph.childIdsById[node.id] ?? [],
+      scopeExpression,
+      instancePathExpression
+    );
+    const outletInstancePath = `${instancePathExpression} + '/route-outlet:' + ${toJson(node.id)}`;
+    return `(Object.prototype.hasOwnProperty.call(__pdxRouteOutletsById, ${toJson(node.id)}) ? (__pdxRouteOutletsById[${toJson(node.id)}] as __PdxRouteOutletRenderer)(${outletInstancePath}) : (${fallback}))`;
   };
 
   const compileNode = (
@@ -657,9 +571,12 @@ export const createPirReactNodeCompiler = (
         `PIR node ${nodeId} is missing from nodesById.`,
         toPirNodePath(nodeId)
       );
-      return 'null';
+      return context.emitter.emptyExpression;
     }
     context.traces.addPir(toPirNodePath(nodeId));
+    if (context.routeOutletNodeIds.has(nodeId)) {
+      return compileRouteOutlet(node, scopeExpression, instancePathExpression);
+    }
     switch (node.kind) {
       case 'element':
         return compileElement(node, scopeExpression, instancePathExpression);

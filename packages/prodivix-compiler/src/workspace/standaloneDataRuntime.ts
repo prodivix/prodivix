@@ -7,11 +7,11 @@ import type { ExportModule } from '#src/export/types';
 import {
   projectStandaloneDataDocuments,
   STANDALONE_DATA_LIVE_RUNTIME_SOURCE,
-} from '#src/react/standaloneDataLiveRuntime';
+} from '#src/workspace/standaloneDataLiveRuntime';
 import {
   STATIC_CLIENT_DATA_RUNTIME_TARGET,
   type WorkspaceDataRuntimeTarget,
-} from '#src/react/workspaceDataRuntimeTarget';
+} from '#src/workspace/workspaceDataRuntimeTarget';
 
 export const WORKSPACE_DATA_RUNTIME_MODULE_ID = 'workspace-data-runtime';
 

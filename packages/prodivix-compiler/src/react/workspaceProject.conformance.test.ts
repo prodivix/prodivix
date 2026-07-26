@@ -10,7 +10,10 @@ import {
 } from '@prodivix/runtime-core';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { generateWorkspaceReactViteExecutableProject } from '#src/executableProject/workspaceExecutableProject';
-import { compileWorkspaceToExportProgram } from './workspaceProject';
+import {
+  compileWorkspaceToExportProgram,
+  generateWorkspaceReactViteBundle,
+} from './workspaceProject';
 
 const workspace: WorkspaceSnapshot = {
   id: 'standalone-domain-export',
@@ -294,6 +297,22 @@ const workspaceWithData = (): WorkspaceSnapshot => ({
 });
 
 describe('standalone domain export conformance', () => {
+  it('establishes a viewport-sized React entry surface without mutating PIR', () => {
+    const bundle = generateWorkspaceReactViteBundle(workspace);
+    const surfaceCss = bundle.files.find(
+      ({ path }) => path === 'src/prodivix-entry-surface.css'
+    )?.contents;
+    const entrySource = bundle.files.find(
+      ({ path }) => path === 'src/main.tsx'
+    )?.contents;
+
+    expect(surfaceCss).toContain(':where(#root)');
+    expect(surfaceCss).toContain('display: grid');
+    expect(surfaceCss).toContain('grid-template-rows: minmax(100dvh, auto)');
+    expect(entrySource).toContain("import './prodivix-entry-surface.css';");
+    expect(workspace.docsById.page?.content).toEqual(createEmptyPirDocument());
+  });
+
   it('fails closed when a canonical asset has no verified materialization', () => {
     const project = generateWorkspaceReactViteExecutableProject(
       createWorkspaceWithAsset()

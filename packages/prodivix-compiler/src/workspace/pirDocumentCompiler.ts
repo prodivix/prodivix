@@ -17,28 +17,25 @@ import type { WorkspacePirDocument } from '@prodivix/workspace';
 import type { TargetAdapter } from '#src/core/adapter';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type { PackageResolverOptions } from '#src/core/packageResolver';
+import type { PirElementEmitter } from '#src/workspace/pirElementEmitter';
+import type { PirDocumentShellEmitter } from '#src/workspace/pirDocumentShellEmitter';
 import type {
   ExportDependency,
   ExportModule,
   ExportRoot,
 } from '#src/export/types';
-import { REACT_VITE_DEPENDENCIES } from '#src/export/presets/reactVite';
-import { reactAdapter } from '#src/react/adapter';
-import { createPirCollectionRuntimeSource } from '#src/react/collectionRuntime';
-import { PIR_REACT_COMPILE_DIAGNOSTIC_CODES } from '#src/react/compiler.types';
-import { createPirDataOperationRuntimeSource } from '#src/react/dataOperationRuntime';
-import { PIRReactImportRegistry } from '#src/react/importRegistry';
-import { createPirReactNodeCompiler } from '#src/react/nodeCompiler';
-import {
-  compilePirRootProjectionPath,
-  PIR_PROJECTION_PATH_RUNTIME_SOURCE,
-} from '#src/react/projectionPathRuntime';
-import {
-  PIRReactSourceTraceCollector,
-  toPirContractMemberPath,
-} from '#src/react/sourceTrace';
 
-export type CompilePIRReactDocumentInput = Readonly<{
+import { createPirGeneratedRuntimePrelude } from '#src/workspace/pirGeneratedRuntimePrelude';
+import { PIR_COMPILE_DIAGNOSTIC_CODES } from '#src/react/compiler.types';
+import { PirImportRegistry } from '#src/workspace/pirImportRegistry';
+import { createPirNodeCompiler } from '#src/workspace/pirNodeCompiler';
+import { compilePirRootProjectionPath } from '#src/workspace/pirProjectionPathRuntime';
+import {
+  PirSourceTraceCollector,
+  toPirContractMemberPath,
+} from '#src/workspace/pirSourceTrace';
+
+export type CompilePirDocumentInput = Readonly<{
   workspaceId: string;
   workspaceDocument: WorkspacePirDocument;
   documentsById: Readonly<Record<string, WorkspacePirDocument>>;
@@ -50,11 +47,16 @@ export type CompilePIRReactDocumentInput = Readonly<{
       Readonly<Record<string, 'query' | 'mutation' | 'subscription'>>
     >
   >;
-  adapter?: TargetAdapter;
+  adapter: TargetAdapter;
+  elementEmitter: PirElementEmitter;
+  shell: PirDocumentShellEmitter;
+  targetLabel: string;
+  /** Route-outlet node ids in this document, from the RouteManifest. */
+  routeOutletNodeIds?: ReadonlySet<string>;
   packageResolver?: PackageResolverOptions;
 }>;
 
-export type CompilePIRReactDocumentResult = Readonly<{
+export type CompilePirDocumentResult = Readonly<{
   module: ExportModule;
   root: ExportRoot;
   dependencies: readonly ExportDependency[];
@@ -288,7 +290,7 @@ const compileScopeDataRuntimeValues = (
 
 const addContractSourceTraces = (
   contract: PIRComponentContract | undefined,
-  traces: PIRReactSourceTraceCollector
+  traces: PirSourceTraceCollector
 ): void => {
   if (!contract) return;
   traces.addPir('/componentContract');
@@ -311,100 +313,15 @@ const getRootKind = (document: WorkspacePirDocument): ExportRoot['kind'] => {
   return 'component';
 };
 
-const createGeneratedRuntimePrelude = (useEffectExpression: string): string =>
-  `type __PdxScope = Readonly<{
-  paramsById: Readonly<Record<string, unknown>>;
-  stateById: Readonly<Record<string, unknown>>;
-  dataById: Readonly<Record<string, unknown>>;
-  dataLifecycleById: Readonly<Record<string, __PdxDataLifecycleSnapshot>>;
-  collectionSymbolsById: Readonly<Record<string, unknown>>;
-  componentPropsById: Readonly<Record<string, unknown>>;
-  componentVariantsById: Readonly<Record<string, unknown>>;
-  slotPropsById: Readonly<Record<string, unknown>>;
-}>;
-
-type __PdxSourceSpan = Readonly<{
-  artifactId: string;
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-}>;
-
-type __PdxCodeReference = Readonly<{
-  artifactId: string;
-  exportName?: string;
-  symbolId?: string;
-  sourceSpan?: __PdxSourceSpan;
-}>;
-
-type __PdxRuntimePort = Readonly<{
-  dispatchTrigger(input: Readonly<{ binding: unknown; payload: unknown; scope: __PdxScope; runtimeValuesById: Readonly<Record<string, unknown>>; setStateById: __PdxStateUpdater; source: Readonly<{ documentId: string; nodeId: string; eventName: string; instancePath: string }> }>): void;
-  resolveCollectionPreviewState?(location: __PdxCollectionLocation): __PdxCollectionPreviewInput | undefined;
-  reportCollectionProjectionIssues?(input: Readonly<{ location: __PdxCollectionLocation; issues: readonly __PdxCollectionProjectionIssue[] }>): void;
-  resolveDataLifecycleSnapshot(request: __PdxDataLifecycleSnapshotRequest): __PdxDataLifecycleSnapshot | undefined;
-  activateDataBindings?(request: __PdxDataBindingsActivationRequest): void | Promise<void>;
-  subscribeDataLifecycle?(listener: () => void): () => void;
-  resolveCodeValue(reference: __PdxCodeReference, scope: __PdxScope): unknown;
-}>;
-
-type __PdxStateUpdater = (stateId: string, value: unknown) => void;
-
-type __PdxSlotRenderer = (
-  slotPropsById: Readonly<Record<string, unknown>>,
-  outletInstancePath: string
-) => any;
-
-type __PdxModuleProps = Readonly<{
-  __pdxRuntime: __PdxRuntimePort;
-  __pdxInstancePath?: string;
-  __pdxRouteId?: string;
-  __pdxParamsById?: Readonly<Record<string, unknown>>;
-  __pdxPropsById?: Readonly<Record<string, unknown>>;
-  __pdxEventsById?: Readonly<Record<string, (payload: unknown) => void>>;
-  __pdxVariantsById?: Readonly<Record<string, string | undefined>>;
-  __pdxSlotsById?: Readonly<Record<string, __PdxSlotRenderer>>;
-}>;
-
-const __pdxReadPath = (source: unknown, path: string): unknown => {
-  const tokens = Array.from(path.trim().matchAll(/[^.[\\]]+|\\[(\\d+)\\]/g)).map((token) => token[1] ?? token[0]);
-  let cursor = source;
-  for (const token of tokens) {
-    if (cursor === null || cursor === undefined) return undefined;
-    if (Array.isArray(cursor)) {
-      const index = Number(token);
-      if (!Number.isInteger(index)) return undefined;
-      cursor = cursor[index];
-      continue;
-    }
-    if (typeof cursor !== 'object' || Array.isArray(cursor)) return undefined;
-    cursor = (cursor as Record<string, unknown>)[token];
-  }
-  return cursor;
-};
-
-const __pdxMergeData = (base: unknown, extension: Readonly<Record<string, unknown>>): unknown => ({
-  ...(base && typeof base === 'object' && !Array.isArray(base) ? base as Record<string, unknown> : {}),
-  ...extension,
-});
-
-const __pdxRenderValue = (value: unknown): any => value;
-
-${createPirCollectionRuntimeSource(useEffectExpression)}
-
-${createPirDataOperationRuntimeSource()}
-
-${PIR_PROJECTION_PATH_RUNTIME_SOURCE}`;
-
 /** Compiles one validated document from the shared PIR projection plan. */
-export const compilePirReactDocument = (
-  input: CompilePIRReactDocumentInput
-): CompilePIRReactDocumentResult => {
+export const compilePirDocument = (
+  input: CompilePirDocumentInput
+): CompilePirDocumentResult => {
   const documentId = input.workspaceDocument.id;
   const document = input.workspaceDocument.content;
   const moduleId = input.moduleIdByDocumentId[documentId];
   const moduleName = input.moduleNameByDocumentId[documentId];
-  const traces = new PIRReactSourceTraceCollector(
+  const traces = new PirSourceTraceCollector(
     documentId,
     moduleId,
     input.workspaceDocument.path
@@ -420,13 +337,13 @@ export const compilePirReactDocument = (
     if (operation === 'query') continue;
     diagnostics.push({
       code: operation
-        ? PIR_REACT_COMPILE_DIAGNOSTIC_CODES.dataOperationKindMismatch
-        : PIR_REACT_COMPILE_DIAGNOSTIC_CODES.dataOperationUnresolved,
+        ? PIR_COMPILE_DIAGNOSTIC_CODES.dataOperationKindMismatch
+        : PIR_COMPILE_DIAGNOSTIC_CODES.dataOperationUnresolved,
       severity: 'error',
       source: 'export',
       message: operation
-        ? `PIR data binding "${dataId}" must reference a query operation for React export.`
-        : `PIR data binding "${dataId}" references an unresolved Data operation for React export.`,
+        ? `PIR data binding "${dataId}" must reference a query operation for ${input.targetLabel} export.`
+        : `PIR data binding "${dataId}" references an unresolved Data operation for ${input.targetLabel} export.`,
       path: `/docsById/${escapeJsonPointerToken(documentId)}/content/logic/dataById/${escapeJsonPointerToken(dataId)}`,
     });
   }
@@ -455,39 +372,38 @@ export const compilePirReactDocument = (
           : `/events/${escapeJsonPointerToken(eventName)}`;
       diagnostics.push({
         code: operation
-          ? PIR_REACT_COMPILE_DIAGNOSTIC_CODES.dataOperationKindMismatch
-          : PIR_REACT_COMPILE_DIAGNOSTIC_CODES.dataOperationUnresolved,
+          ? PIR_COMPILE_DIAGNOSTIC_CODES.dataOperationKindMismatch
+          : PIR_COMPILE_DIAGNOSTIC_CODES.dataOperationUnresolved,
         severity: 'error',
         source: 'export',
         message: operation
-          ? `PIR event "${eventName}" on node "${nodeId}" must reference a mutation operation for React export.`
-          : `PIR event "${eventName}" on node "${nodeId}" references an unresolved Data operation for React export.`,
+          ? `PIR event "${eventName}" on node "${nodeId}" must reference a mutation operation for ${input.targetLabel} export.`
+          : `PIR event "${eventName}" on node "${nodeId}" references an unresolved Data operation for ${input.targetLabel} export.`,
         path: `/docsById/${escapeJsonPointerToken(documentId)}/content/ui/graph/nodesById/${escapeJsonPointerToken(nodeId)}${eventPath}`,
       });
     }
   }
-  const imports = new PIRReactImportRegistry({
+  const shell = input.shell;
+  const imports = new PirImportRegistry({
     ...input.packageResolver,
     packageVersions: {
-      react: REACT_VITE_DEPENDENCIES.react,
+      ...shell.packageVersions(),
       ...input.packageResolver?.packageVersions,
     },
   });
-  const useStateLocal = imports.addNamedPackageImport('react', 'useState');
-  const useCallbackLocal = imports.addNamedPackageImport(
-    'react',
-    'useCallback'
-  );
-  const useEffectLocal = imports.addNamedPackageImport('react', 'useEffect');
+  const collectionIssueReporterSource =
+    shell.createCollectionIssueReporterSource(imports);
   addContractSourceTraces(document.componentContract, traces);
-  const nodeCompiler = createPirReactNodeCompiler({
+  const nodeCompiler = createPirNodeCompiler({
     documentId,
     document,
     workspaceDocument: input.workspaceDocument,
     documentsById: input.documentsById,
     moduleIdByDocumentId: input.moduleIdByDocumentId,
     moduleNameByDocumentId: input.moduleNameByDocumentId,
-    adapter: input.adapter ?? reactAdapter,
+    adapter: input.adapter,
+    emitter: input.elementEmitter,
+    routeOutletNodeIds: input.routeOutletNodeIds ?? new Set<string>(),
     imports,
     traces,
     diagnostics,
@@ -519,72 +435,29 @@ export const compilePirReactDocument = (
     documentId,
     document
   );
-  const body = `${createGeneratedRuntimePrelude(useEffectLocal)}
-
-export default function ${moduleName}({
-  __pdxRuntime,
-  __pdxInstancePath = ${rootInstancePath},
-  __pdxRouteId,
-  __pdxParamsById = {},
-  __pdxPropsById = {},
-  __pdxEventsById = {},
-  __pdxVariantsById = {},
-  __pdxSlotsById = {},
-}: __PdxModuleProps) {
-  const [__pdxStateById, __pdxSetStateRecord] = ${useStateLocal}<Readonly<Record<string, unknown>>>(() => (${stateValues}));
-  const __pdxSetStateById = ${useCallbackLocal}<__PdxStateUpdater>((stateId, value) => {
-    __pdxSetStateRecord((previous) => ({ ...previous, [stateId]: value }));
-  }, []);
-  const [, __pdxSetDataRuntimeRevision] = ${useStateLocal}(0);
-  ${useEffectLocal}(() => __pdxRuntime.subscribeDataLifecycle?.(() => {
-    __pdxSetDataRuntimeRevision((previous) => previous + 1);
-  }), [__pdxRuntime]);
-  const __pdxComponentPropsById = ${componentProps};
-  const __pdxComponentVariantsById = ${componentVariants};
-  const __pdxBaseDataRuntimeValuesById = ${baseDataRuntimeValues};
-  const __pdxDataProjection = __pdxProjectDocumentDataLifecycle(
-    __pdxRuntime,
-    ${toJson(documentId)},
-    __pdxInstancePath,
-    ${dataOperationBindings}
-  );
-  const __pdxDataRuntimeValuesById = {
-    ...__pdxBaseDataRuntimeValuesById,
-    ...${dataRuntimeValues},
-  };
-  const __pdxDataRuntimeValuesFromScope = (__pdxScope: __PdxScope): Readonly<Record<string, unknown>> => (${scopeDataRuntimeValues});
-  const __pdxDataRuntimeValuesDigest = JSON.stringify(__pdxDataRuntimeValuesById);
-  ${useEffectLocal}(() => {
-    void __pdxRuntime.activateDataBindings?.({
-      documentId: ${toJson(documentId)},
-      instancePath: __pdxInstancePath,
-      ...(__pdxRouteId ? { currentRouteId: __pdxRouteId } : {}),
-      bindingsByDataId: ${dataOperationBindings},
-      runtimeValuesById: __pdxDataRuntimeValuesById,
-    });
-  }, [__pdxRuntime, __pdxInstancePath, __pdxRouteId, __pdxDataRuntimeValuesDigest]);
-  if (__pdxDataProjection.status === 'blocked') return null;
-  const __pdxDefinitionScope: __PdxScope = {
-    paramsById: __pdxParamsById,
-    stateById: __pdxStateById,
-    dataById: __pdxDataProjection.dataById,
-    dataLifecycleById: __pdxDataProjection.lifecycleByDataId,
-    collectionSymbolsById: {},
-    componentPropsById: __pdxComponentPropsById,
-    componentVariantsById: __pdxComponentVariantsById,
-    slotPropsById: {},
-  };
-  return (${rootExpression});
-}
-`;
+  const body = shell.createModuleBody({
+    imports,
+    prelude: createPirGeneratedRuntimePrelude(collectionIssueReporterSource),
+    moduleName,
+    documentIdJson: toJson(documentId),
+    rootInstancePath,
+    stateValues,
+    componentProps,
+    componentVariants,
+    baseDataRuntimeValues,
+    dataRuntimeValues,
+    scopeDataRuntimeValues,
+    dataOperationBindings,
+    rootExpression,
+  });
   const sourceTrace = traces.values();
   return {
     module: {
       id: moduleId,
-      kind: 'react-component',
+      kind: shell.moduleKind,
       ownerRootId: documentId,
       suggestedName: moduleName,
-      language: 'tsx',
+      language: shell.language,
       imports: imports.getImports(),
       body,
       sourceTrace,

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
 import Ajv2020 from 'ajv/dist/2020.js';
-import { createWorkspaceStandaloneServerRuntimeModule } from '#src/react/standaloneServerRuntime';
+import { createWorkspaceStandaloneServerRuntimeModule } from '#src/workspace/standaloneServerRuntime';
 import {
   DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
   EXECUTION_PARENT_GATEWAY_SERVER_RUNTIME_TARGET,
   type WorkspaceServerRuntimeBinding,
   type WorkspaceServerRuntimeTarget,
-} from '#src/react/workspaceServerRuntimeTarget';
+} from '#src/workspace/workspaceServerRuntimeTarget';
 
 type RuntimeExports = Readonly<{
   invokeWorkspaceServerFunction(

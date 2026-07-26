@@ -1,3 +1,8 @@
+import { compileWorkspacePirReactModules } from '#src/workspace/pirWorkspaceCompiler';
+import { compileWorkspacePirDocumentProjection } from '#src/workspace/workspacePirProjection';
+import { vueCompileTarget } from '#src/vue/target';
+import { vueAdapter } from '#src/vue/adapter';
+import { createPirVueModuleId } from '#src/vue/moduleNaming';
 import type { BinaryAssetMaterialization } from '@prodivix/assets';
 import type { DataOperationKind } from '@prodivix/data';
 import type { ExecutableProjectDataMockProvision } from '@prodivix/runtime-core';
@@ -35,22 +40,21 @@ import type {
 import {
   createWorkspaceCodeContribution,
   createWorkspaceResourceContribution,
-} from '#src/react/workspaceProject';
-import { createWorkspaceStandaloneDataRuntimeModule } from '#src/react/standaloneDataRuntime';
-import { createWorkspaceExecutionConsoleRuntimeModule } from '#src/react/standaloneExecutionConsoleRuntime';
-import { createWorkspaceStandaloneServerRuntimeModule } from '#src/react/standaloneServerRuntime';
+} from '#src/workspace/workspaceContributions';
+import { createWorkspaceStandaloneDataRuntimeModule } from '#src/workspace/standaloneDataRuntime';
+import { createWorkspaceExecutionConsoleRuntimeModule } from '#src/workspace/standaloneExecutionConsoleRuntime';
+import { createWorkspaceStandaloneServerRuntimeModule } from '#src/workspace/standaloneServerRuntime';
 import {
   analyzeWorkspaceDataRuntimeTarget,
   PROVIDER_MOCK_DATA_RUNTIME_TARGET,
   STATIC_CLIENT_DATA_RUNTIME_TARGET,
   type WorkspaceDataRuntimeTarget,
-} from '#src/react/workspaceDataRuntimeTarget';
+} from '#src/workspace/workspaceDataRuntimeTarget';
 import {
   analyzeWorkspaceServerRuntimeTarget,
   type WorkspaceServerRuntimeTarget,
-} from '#src/react/workspaceServerRuntimeTarget';
+} from '#src/workspace/workspaceServerRuntimeTarget';
 import { createWorkspaceVueAppModule } from '#src/vue/workspaceApp';
-import { createWorkspaceVuePirRuntimeModule } from '#src/vue/workspacePirRuntime';
 
 export type WorkspaceVueViteCompileOptions = Readonly<{
   projectName?: string;
@@ -634,8 +638,35 @@ export const compileWorkspaceToVueViteExportProgram = (
     options.serverRuntimeTarget,
     options.serverRuntimeMockProvision
   );
-  const vuePirRuntime = hasWorkspaceProductSurface
-    ? createWorkspaceVuePirRuntimeModule(workspace)
+  // One compiled Vue component module per PIR document, through the same
+  // shared projection the React target uses. There is no PIR interpreter.
+  const pirCompilation = hasWorkspaceProductSurface
+    ? compileWorkspacePirDocumentProjection({
+        documents: pirDocuments,
+        options,
+        moduleCompiler: {
+          moduleIdForDocument: createPirVueModuleId,
+          compileDocument: (documentId) => {
+            const result = compileWorkspacePirReactModules({
+              workspace,
+              entryDocumentId: documentId,
+              target: vueCompileTarget,
+              adapter: vueAdapter,
+            });
+            return {
+              status: result.status === 'blocked' ? 'blocked' : 'ready',
+              diagnostics: result.diagnostics,
+              modules: result.modules,
+              roots: result.contribution.roots ?? [],
+              dependencies: result.contribution.dependencies ?? [],
+              moduleNameByDocumentId:
+                result.status === 'blocked'
+                  ? {}
+                  : result.moduleNameByDocumentId,
+            };
+          },
+        },
+      })
     : undefined;
   const vueApp = hasWorkspaceProductSurface
     ? createWorkspaceVueAppModule({
@@ -643,6 +674,7 @@ export const compileWorkspaceToVueViteExportProgram = (
         routeTopology,
         serverRuntime,
         executableModuleIdByArtifactId: code.executableModuleIdByArtifactId,
+        compiledDocuments: pirCompilation?.documents ?? [],
       })
     : undefined;
   const serverRuntimeModule = hasWorkspaceProductSurface
@@ -668,7 +700,7 @@ export const compileWorkspaceToVueViteExportProgram = (
       runtime,
       ...(executionConsoleRuntime ? [executionConsoleRuntime] : []),
       ...(serverRuntimeModule ? [serverRuntimeModule] : []),
-      ...(vuePirRuntime ? [vuePirRuntime] : []),
+      ...(pirCompilation?.contribution.modules ?? []),
       ...(vueApp ? [vueApp.module] : []),
     ],
     files: [

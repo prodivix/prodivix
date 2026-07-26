@@ -72,6 +72,8 @@ const mimeTypeByModuleLanguage: Record<ExportModule['language'], string> = {
 const fileKindByModuleKind: Record<ExportModule['kind'], ExportFileKind> = {
   'react-component': 'source-module',
   'react-entry': 'source-module',
+  'vue-component': 'source-module',
+  'vue-entry': 'source-module',
   'nodegraph-runtime': 'domain-module',
   'animation-runtime': 'domain-module',
   'event-handler': 'source-module',

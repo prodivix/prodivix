@@ -16,12 +16,13 @@ import type {
 import type { TargetAdapter } from '#src/core/adapter';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type { PackageResolverOptions } from '#src/core/packageResolver';
+import type { PirCompileTarget } from '#src/workspace/pirTarget';
 import type {
   ExportModule,
   ExportProgramContribution,
 } from '#src/export/types';
 
-export const PIR_REACT_COMPILE_DIAGNOSTIC_CODES = Object.freeze({
+export const PIR_COMPILE_DIAGNOSTIC_CODES = Object.freeze({
   dataOperationUnresolved: 'PIR_EXPORT_DATA_OPERATION_UNRESOLVED',
   dataOperationKindMismatch: 'PIR_EXPORT_DATA_OPERATION_KIND_MISMATCH',
 } as const);
@@ -81,6 +82,7 @@ export type PIRReactRuntimePort = Readonly<{
 export type CompileWorkspacePirReactModulesInput = Readonly<{
   workspace: WorkspaceSnapshot;
   entryDocumentId: string;
+  target: PirCompileTarget;
   adapter?: TargetAdapter;
   packageResolver?: PackageResolverOptions;
 }>;

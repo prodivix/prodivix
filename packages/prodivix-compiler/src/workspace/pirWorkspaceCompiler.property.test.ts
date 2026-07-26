@@ -1,3 +1,4 @@
+import { reactCompileTarget } from '#src/react/target';
 import { describe, expect, it } from 'vitest';
 import type { PIRDocument, PIRNode } from '@prodivix/pir';
 import type {
@@ -5,7 +6,7 @@ import type {
   WorkspaceSnapshot,
   WorkspaceVfsNode,
 } from '@prodivix/workspace';
-import { compileWorkspacePirReactModules } from '#src/react/workspaceCompiler';
+import { compileWorkspacePirReactModules } from '#src/workspace/pirWorkspaceCompiler';
 import { createPirReactModuleId } from '#src/react/moduleNaming';
 
 const emptyContract = () => ({
@@ -123,6 +124,7 @@ describe('PIR React compiler properties', () => {
         const result = compileWorkspacePirReactModules({
           workspace: createWorkspace(documents),
           entryDocumentId: page.id,
+          target: reactCompileTarget,
         });
 
         expect(result.status).toBe('ready');

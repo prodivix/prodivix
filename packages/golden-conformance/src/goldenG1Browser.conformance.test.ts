@@ -33,6 +33,14 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G1_BROWSER === '1')(
         browserChannel: process.env.E2E_BROWSER_CHANNEL,
         verifyPage: async (page) => {
           await expectPage(page.locator('#root')).not.toBeEmpty();
+          const mountBox = await page.locator('#root').boundingBox();
+          const pageBox = await page.getByRole('main').boundingBox();
+          expect(mountBox).not.toBeNull();
+          expect(pageBox).not.toBeNull();
+          if (!mountBox || !pageBox) {
+            throw new Error('Generated React entry surface is not measurable.');
+          }
+          expect(pageBox.height).toBeGreaterThanOrEqual(mountBox.height - 1);
           await expectPage(
             page.locator('[data-prodivix-route-not-found="true"]')
           ).toHaveCount(0);

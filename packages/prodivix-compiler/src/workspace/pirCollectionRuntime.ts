@@ -3,9 +3,8 @@
  * algebra. Its behavior is kept locked to `projectPirCollection` by
  * conformance tests so exported applications do not depend on `@prodivix/pir`.
  */
-export const createPirCollectionRuntimeSource = (
-  useEffectExpression: string
-): string => `type __PdxCollectionPreviewState = 'auto' | 'item' | 'empty' | 'loading' | 'error';
+export const createPirCollectionRuntimeSource =
+  (): string => `type __PdxCollectionPreviewState = 'auto' | 'item' | 'empty' | 'loading' | 'error';
 
 type __PdxCollectionPreviewInput = Readonly<{
   state: __PdxCollectionPreviewState;
@@ -359,30 +358,8 @@ const __pdxCollectionIssueIdentity = (
     )
     .join('/issue/');
 
-const __PdxCollectionIssueReporter = ({
-  runtime,
-  location,
-  issues,
-}: Readonly<{
+type __PdxCollectionIssueReporterProps = Readonly<{
   runtime: __PdxRuntimePort;
   location: __PdxCollectionLocation;
   issues: readonly __PdxCollectionProjectionIssue[];
-}>) => {
-  const issueIdentity = __pdxCollectionIssueIdentity(issues);
-  const report = runtime.reportCollectionProjectionIssues;
-  ${useEffectExpression}(() => {
-    report?.({ location, issues });
-    return () =>
-      report?.({
-        location,
-        issues: __pdxNoCollectionProjectionIssues,
-      });
-  }, [
-    report,
-    location.documentId,
-    location.nodeId,
-    location.instancePath,
-    issueIdentity,
-  ]);
-  return null;
-};`;
+}>;`;

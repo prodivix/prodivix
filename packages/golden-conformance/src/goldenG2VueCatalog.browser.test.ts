@@ -13,6 +13,16 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G2_VUE_PRODUCT === '1')(
         browserChannel: process.env.E2E_BROWSER_CHANNEL,
         verifyPage: async (page) => {
           await expectPage(page.getByTestId('catalog-shell')).toBeVisible();
+          const mountBox = await page.locator('#app').boundingBox();
+          const shellBox = await page
+            .getByTestId('catalog-shell')
+            .boundingBox();
+          expect(mountBox).not.toBeNull();
+          expect(shellBox).not.toBeNull();
+          if (!mountBox || !shellBox) {
+            throw new Error('Generated Vue entry surface is not measurable.');
+          }
+          expect(shellBox.height).toBeGreaterThanOrEqual(mountBox.height - 1);
           await expectPage(page.getByTestId('catalog-main')).toBeVisible();
           await expectPage(page.getByTestId('catalog-sidebar-page')).toHaveText(
             'Featured products'

@@ -29,7 +29,7 @@ export const toPirCollectionSymbolPath = (
   symbol: 'itemId' | 'indexId' | 'errorId'
 ): string => `${toPirNodePath(collectionNodeId)}/symbols/${symbol}`;
 
-export class PIRReactSourceTraceCollector {
+export class PirSourceTraceCollector {
   private readonly traces = new Map<string, ExportSourceTrace>();
 
   constructor(

@@ -90,10 +90,15 @@ describe('Project Test Data target planning', () => {
     });
     expect(plan.request.profile).toBe('test');
     expect(plan.request.requiredCapabilities).not.toContain('server-function');
+    // The Vue target compiles one component module per PIR document; there is
+    // no runtime PIR interpreter module in the generated project.
     expect(
       plan.snapshot.files.some(
         ({ path }) => path === 'src/prodivix-pir-runtime.ts'
       )
+    ).toBe(false);
+    expect(
+      plan.snapshot.files.some(({ path }) => path.startsWith('src/components/'))
     ).toBe(true);
     expect(plan.snapshot.serverRuntimeMockProvision).toMatchObject({
       fixtureSetId: 'workspace-auth-default',

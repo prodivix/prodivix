@@ -10,7 +10,7 @@ import {
   DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
   EXECUTION_PARENT_GATEWAY_SERVER_RUNTIME_TARGET,
   STATIC_CLIENT_SERVER_RUNTIME_TARGET,
-} from '#src/react/workspaceServerRuntimeTarget';
+} from '#src/workspace/workspaceServerRuntimeTarget';
 
 const SERVER_SOURCE_CANARY = 'server-source-must-not-enter-client-import-graph';
 

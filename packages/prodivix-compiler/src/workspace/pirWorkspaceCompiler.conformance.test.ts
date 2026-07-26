@@ -1,3 +1,4 @@
+import { reactCompileTarget } from '#src/react/target';
 import { transformWithEsbuild } from 'vite';
 import { describe, expect, it } from 'vitest';
 import type { PIRComponentContract, PIRDocument, PIRNode } from '@prodivix/pir';
@@ -6,7 +7,7 @@ import type {
   WorkspaceSnapshot,
   WorkspaceVfsNode,
 } from '@prodivix/workspace';
-import { compileWorkspacePirReactModules } from '#src/react/workspaceCompiler';
+import { compileWorkspacePirReactModules } from '#src/workspace/pirWorkspaceCompiler';
 import { createPirReactModuleId } from '#src/react/moduleNaming';
 
 const contract: PIRComponentContract = {
@@ -191,6 +192,7 @@ describe('PIR Component compiler conformance', () => {
     const result = compileWorkspacePirReactModules({
       workspace: createWorkspace([createConsumer(), createDefinition()]),
       entryDocumentId: 'page',
+      target: reactCompileTarget,
     });
 
     expect(result.status).toBe('ready');
@@ -278,6 +280,7 @@ describe('PIR Component compiler conformance', () => {
         cycleDocument('component-b', 'component-a'),
       ]),
       entryDocumentId: 'component-a',
+      target: reactCompileTarget,
     });
 
     expect(result.status).toBe('blocked');
@@ -315,6 +318,7 @@ describe('PIR Component compiler conformance', () => {
     const result = compileWorkspacePirReactModules({
       workspace: createWorkspace([page, definition]),
       entryDocumentId: page.id,
+      target: reactCompileTarget,
     });
 
     expect(result.status).toBe('blocked');

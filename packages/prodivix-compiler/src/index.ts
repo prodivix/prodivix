@@ -7,7 +7,7 @@ export {
   CONTROLLED_REACT_JSX_NODE_ID_ATTRIBUTE,
   CONTROLLED_REACT_JSX_ISSUE_CODES,
   CONTROLLED_ROUND_TRIP_ISSUE_CODES,
-  PIR_REACT_COMPILE_DIAGNOSTIC_CODES,
+  PIR_COMPILE_DIAGNOSTIC_CODES,
   augmentWorkspaceOperationWithControlledSource,
   createControlledCodeDocumentsPlan,
   createControlledCodeEditPlan,
@@ -60,7 +60,7 @@ export {
   type WorkspaceDataRuntimeRequirements,
   type WorkspaceDataRuntimeTarget,
   type WorkspaceDataRuntimeTargetAnalysis,
-} from '#src/react/workspaceDataRuntimeTarget';
+} from '#src/workspace/workspaceDataRuntimeTarget';
 export {
   analyzeWorkspaceServerRuntimeTarget,
   DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
@@ -71,15 +71,15 @@ export {
   type WorkspaceServerRuntimeRequirements,
   type WorkspaceServerRuntimeTarget,
   type WorkspaceServerRuntimeTargetAnalysis,
-} from '#src/react/workspaceServerRuntimeTarget';
+} from '#src/workspace/workspaceServerRuntimeTarget';
 export {
   createWorkspaceStandaloneServerRuntimeModule,
   WORKSPACE_SERVER_RUNTIME_MODULE_ID,
-} from '#src/react/standaloneServerRuntime';
+} from '#src/workspace/standaloneServerRuntime';
 export {
   createWorkspaceExecutionConsoleRuntimeModule,
   WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
-} from '#src/react/standaloneExecutionConsoleRuntime';
+} from '#src/workspace/standaloneExecutionConsoleRuntime';
 export {
   createWorkspaceExecutionSnapshotRef,
   generateWorkspaceReactViteExecutableProject,

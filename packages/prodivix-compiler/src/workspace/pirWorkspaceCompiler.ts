@@ -11,11 +11,10 @@ import type {
   ExportModule,
   ExportProgramContribution,
 } from '#src/export/types';
-import { compilePirReactDocument } from '#src/react/documentCompiler';
-import {
-  createPirReactModuleId,
-  createPirReactModuleNames,
-} from '#src/react/moduleNaming';
+import { compilePirDocument } from '#src/workspace/pirDocumentCompiler';
+import { collectRouteOutletNodeIdsByDocumentId } from '#src/workspace/pirRouteOutlets';
+
+import { createPirModuleNames } from '#src/workspace/pirModuleNaming';
 import type {
   CompileWorkspacePirReactModulesInput,
   WorkspacePirReactCompileBlocked,
@@ -89,7 +88,7 @@ export const compileWorkspacePirReactModules = (
     Object.fromEntries(
       plan.dependencyFirstDocumentIds.map((documentId) => [
         documentId,
-        createPirReactModuleId(documentId),
+        input.target.createModuleId(documentId),
       ])
     )
   );
@@ -101,7 +100,7 @@ export const compileWorkspacePirReactModules = (
       )
       .map((document) => [document.id, document])
   ) as Readonly<Record<string, WorkspacePirDocument>>;
-  const workspaceModuleNameByDocumentId = createPirReactModuleNames(
+  const workspaceModuleNameByDocumentId = createPirModuleNames(
     Object.keys(allDocumentsById),
     allDocumentsById
   );
@@ -139,15 +138,23 @@ export const compileWorkspacePirReactModules = (
         })
     )
   );
+  const routeOutletNodeIdsByDocumentId = collectRouteOutletNodeIdsByDocumentId(
+    input.workspace.routeManifest
+  );
   const compiled = plan.dependencyFirstDocumentIds.map((documentId) =>
-    compilePirReactDocument({
+    compilePirDocument({
       workspaceId: input.workspace.id,
       workspaceDocument: plan.documentsById[documentId]!,
       documentsById: plan.documentsById,
       moduleIdByDocumentId,
       moduleNameByDocumentId,
       dataOperationKindsByDocumentId,
-      adapter: input.adapter,
+      adapter: input.adapter ?? input.target.adapter,
+      elementEmitter: input.target.elementEmitter,
+      shell: input.target.shell,
+      targetLabel: input.target.label,
+      routeOutletNodeIds:
+        routeOutletNodeIdsByDocumentId.get(documentId) ?? new Set<string>(),
       packageResolver: input.packageResolver,
     })
   );

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { transformWithEsbuild } from 'vite';
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
+import { reactCompileTarget } from '#src/react/target';
 import {
   createElement,
   Fragment,
@@ -25,7 +26,7 @@ import type {
   WorkspaceSnapshot,
   WorkspaceVfsNode,
 } from '@prodivix/workspace';
-import { compileWorkspacePirReactModules } from '#src/react/workspaceCompiler';
+import { compileWorkspacePirReactModules } from '#src/workspace/pirWorkspaceCompiler';
 import type { ExportModule } from '#src/export/types';
 
 const REACT_NAMED_EXPORTS: Readonly<Record<string, unknown>> = {
@@ -508,6 +509,7 @@ describe('PIR Collection compiler conformance', () => {
         createCardDefinition(),
       ]),
       entryDocumentId: 'page',
+      target: reactCompileTarget,
     });
 
     expect(result.status).toBe('blocked');
@@ -531,6 +533,7 @@ describe('PIR Collection compiler conformance', () => {
         createCardDefinition(),
       ]),
       entryDocumentId: 'page',
+      target: reactCompileTarget,
     });
 
     expect(result.status).toBe('ready');
@@ -583,6 +586,7 @@ describe('PIR Collection compiler conformance', () => {
         createCardDefinition(),
       ]),
       entryDocumentId: 'page',
+      target: reactCompileTarget,
     });
 
     expect(result.status).toBe('blocked');
@@ -603,6 +607,7 @@ describe('PIR Collection compiler conformance', () => {
         createCollectionSlotDefinition(),
       ]),
       entryDocumentId: 'slot-page',
+      target: reactCompileTarget,
     });
     expect(result.status).toBe('ready');
     if (result.status !== 'ready') return;

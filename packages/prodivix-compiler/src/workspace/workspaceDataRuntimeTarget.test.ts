@@ -9,7 +9,7 @@ import {
   EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
   PROVIDER_MOCK_DATA_RUNTIME_TARGET,
   STATIC_CLIENT_DATA_RUNTIME_TARGET,
-} from '#src/react/workspaceDataRuntimeTarget';
+} from '#src/workspace/workspaceDataRuntimeTarget';
 
 const SECRET_BINDING_CANARY = 'compile-secret-binding-canary';
 const PUBLIC_BINDING_CANARY = 'compile-public-binding-canary';

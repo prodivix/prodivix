@@ -17,7 +17,7 @@ import {
 import {
   analyzeWorkspaceDataRuntimeTarget,
   PROVIDER_MOCK_DATA_RUNTIME_TARGET,
-} from '#src/react/workspaceDataRuntimeTarget';
+} from '#src/workspace/workspaceDataRuntimeTarget';
 
 export type WorkspaceExecutableProjectResult =
   | Readonly<{

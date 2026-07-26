@@ -134,6 +134,13 @@ describe('controlled Vue/Vite G2 target', () => {
     expect(vue.files.find(({ path }) => path === 'src/App.vue')).toBeTruthy();
     expect(vue.files.find(({ path }) => path === 'src/main.ts')).toBeTruthy();
     expect(
+      vue.files.find(({ path }) => path === 'src/prodivix-entry-surface.css')
+        ?.contents
+    ).toContain('grid-template-rows: minmax(100dvh, auto)');
+    expect(
+      vue.files.find(({ path }) => path === 'src/main.ts')?.contents
+    ).toContain("import './prodivix-entry-surface.css';");
+    expect(
       vue.files.find(({ path }) => path === 'src/prodivix-data-runtime.ts')
         ?.contents
     ).toBe(
