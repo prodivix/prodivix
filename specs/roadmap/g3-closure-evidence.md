@@ -2,7 +2,7 @@
 
 ## 状态
 
-- EvidenceStatus：V0/V1/V2 Local Gates Passed / Durable Evidence Pending
+- EvidenceStatus：V0/V1/V2 Gates Passed
 - ProductGateStatus：In Progress
 - 日期：2026-07-27
 - G2 Exit baseline：`3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184`
@@ -10,9 +10,10 @@
 - Contract：[`../implementation/g3-behavior-verification-closure.md`](../implementation/g3-behavior-verification-closure.md)
 
 本文冻结 G3 Exit Gate 的证据结构，避免实现完成后用零散日志、绿色徽章或一次本机运行倒推验收标准。
-G2 Exit Gate 已通过；V0/V1/V2 aggregate 已在 2026-07-27 当前未提交 worktree
-本地通过，但尚无 repository commit 或 CI identity，因此只记为本地实现证据，不是 durable closure
-evidence。V3-V8 与 G3 aggregate 仍未运行，不得把 V2 Golden 解释为整个 G3 已 Passed。
+G2 Exit Gate 已通过；V0/V1/V2 aggregate 已在本地通过，并由 commit
+[`90fcf96134d880156c19c0da64692a3a39564841`](https://github.com/prodivix/prodivix/commit/90fcf96134d880156c19c0da64692a3a39564841)
+的 [G3 Behavior and Verification Boundaries run](https://github.com/prodivix/prodivix/actions/runs/30260091776)
+取得 durable CI identity。V3-V8 与 G3 aggregate 仍未运行，不得把 V2 Golden 解释为整个 G3 已 Passed。
 
 ## Evidence identity
 
@@ -38,20 +39,20 @@ evidence。V3-V8 与 G3 aggregate 仍未运行，不得把 V2 Golden 解释为�
 
 ## Required Gate manifest
 
-| Gate                             | 状态                          | 必须证明                                                             | Evidence                                                         |
-| -------------------------------- | ----------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `verify:g3:boundaries`           | Configured / Evidence pending | package owner、Workspace document/Command、codec/diagnostic hard cut | 2026-07-27 当前 worktree 本地通过；commit/CI identity 待补       |
-| `verify:g3:scenario-authoring`   | Configured / Evidence pending | semantic target、recorder、compiler、React/Vue target                | 2026-07-27 当前 worktree 本地通过；commit/CI identity 待补       |
-| `verify:g3:behavior-composition` | Configured / Evidence pending | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | 2026-07-27 V2 + browser Golden 本地通过；commit/CI identity 待补 |
-| `verify:g3:deterministic-replay` | Not Run                       | controls、fresh isolation、repeat/divergence、provider conformance   | —                                                                |
-| `verify:g3:verification-plan`    | Not Run                       | Impact/Policy/Plan determinism、budget、required semantics           | —                                                                |
-| `verify:g3:evidence`             | Not Run                       | promotion、attestation、Secret hard cut、retention/recovery          | —                                                                |
-| `verify:g3:adapter-matrix`       | Not Run                       | all required check families/surfaces/targets/browsers/motion         | —                                                                |
-| `verify:g3:product`              | Not Run                       | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                |
-| `verify:g3:golden`               | Not Run                       | Authenticated Catalog end-to-end trusted Closure                     | —                                                                |
-| `verify:g3`                      | Not Run                       | aggregate with no omitted required cell                              | —                                                                |
+| Gate                             | 状态    | 必须证明                                                             | Evidence                                                                                                                                                       |
+| -------------------------------- | ------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify:g3:boundaries`           | Passed  | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                         |
+| `verify:g3:scenario-authoring`   | Passed  | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                         |
+| `verify:g3:behavior-composition` | Passed  | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27 |
+| `verify:g3:deterministic-replay` | Not Run | controls、fresh isolation、repeat/divergence、provider conformance   | —                                                                                                                                                              |
+| `verify:g3:verification-plan`    | Not Run | Impact/Policy/Plan determinism、budget、required semantics           | —                                                                                                                                                              |
+| `verify:g3:evidence`             | Not Run | promotion、attestation、Secret hard cut、retention/recovery          | —                                                                                                                                                              |
+| `verify:g3:adapter-matrix`       | Not Run | all required check families/surfaces/targets/browsers/motion         | —                                                                                                                                                              |
+| `verify:g3:product`              | Not Run | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                                                                                                              |
+| `verify:g3:golden`               | Not Run | Authenticated Catalog end-to-end trusted Closure                     | —                                                                                                                                                              |
+| `verify:g3`                      | Not Run | aggregate with no omitted required cell                              | —                                                                                                                                                              |
 
-### V0 local run
+### V0 reproducible run
 
 - Command：`pnpm run verify:g3:boundaries`
 - TypeScript：Diagnostics 13 tests、Behavior 17 tests、Verification 5 tests、Workspace 187 tests、
@@ -62,10 +63,10 @@ evidence。V3-V8 与 G3 aggregate 仍未运行，不得把 V2 Golden 解释为�
 - Composition：`pnpm run build` 的 48 个 monorepo build tasks 全部通过。
 - Static checks：`pnpm run lint` 全部通过，包含 52 package lint coverage 与 core/G3/editor/PIR/wire/property
   boundary checks。
-- Limitation：运行绑定当前未提交 worktree，没有 repository commit、CI run URL 或 immutable source identity，
-  因而本表保持 `Configured / Evidence pending`。
+- CI identity：commit `90fcf96134d880156c19c0da64692a3a39564841`，Ubuntu 24.04 / Node 22，
+  [job `89957689069`](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)。
 
-### V1 local run
+### V1 reproducible run
 
 - Command：`pnpm run verify:g3:scenario-authoring`
 - Domain/authoring：Behavior 17 tests、Router 20 tests、PIR 49 tests、Data 64 tests、Workspace Scenario
@@ -82,10 +83,11 @@ evidence。V3-V8 与 G3 aggregate 仍未运行，不得把 V2 Golden 解释为�
 - Canonical hard cut：Program 不含 CSS/XPath、`data-testid`、DOM handle 或 React/Vue identity；generated target
   adapter 暴露 framework-neutral `data-pir-*` runtime metadata，Golden runner 只从 Program semantic source
   映射该 metadata。
-- Limitation：本结果不含 commit、CI run URL、Preview/Remote/Firefox/WebKit 或 V2 完整 closure /
-  V3-V8 Evidence，不能作为 G3 Closure。
+- CI identity：commit `90fcf96134d880156c19c0da64692a3a39564841`，
+  [job `89957688996`](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)。
+- Limitation：本结果不含 Preview/Remote/Firefox/WebKit 或 V3-V8 Evidence，不能作为 G3 Closure。
 
-### V2 local run
+### V2 reproducible run
 
 - Command：`pnpm run verify:g3:behavior-composition`
 - Domain/runtime：Behavior 17 tests、Router 20 tests、NodeGraph 37 tests、Animation 46 tests 全部通过；
@@ -116,16 +118,18 @@ evidence。V3-V8 与 G3 aggregate 仍未运行，不得把 V2 Golden 解释为�
   rollback + higher-sequence retry回到 Alpha/Beta/Gamma 稳定状态。
 - Boundaries：core/G3 boundary Gate 通过；Behavior Core 不 import domain owner，只有精确的 domain
   contribution 及其 conformance test 可 import Behavior contract。
+- CI identity：commit `90fcf96134d880156c19c0da64692a3a39564841`，
+  [job `89957688962`](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)。
 - Limitation：NodeGraph same-context `ExecutionSession` 尚未向产品 Inspector提供 live debug snapshot/command
   bridge，fresh replay/live stepping归入 V3；V6/V8 的 Browser/Remote、Firefox/WebKit、performance/
-  security 与 trusted Evidence matrix仍未运行。结果没有 commit、CI run URL 或 immutable source
-  identity，不能作为 durable Evidence 或 G3 Closure。
+  security 与 trusted Evidence matrix仍未运行。V2 Gate 已有 durable Evidence，但不能据此宣称整个 G3
+  Closure。
 
 ## Required Golden matrix
 
 最终表必须逐 cell 记录 Plan requirement、latest accepted Evidence、trust、compatibility 和 verdict；不得只写“matrix passed”。
 
-V2 的 Chromium full/reduced target slice 已本地通过，但下表是 V6/V8 最终 required matrix，仍保持
+V2 的 Chromium full/reduced target slice 已在本地与 GitHub CI 通过，但下表是 V6/V8 最终 required matrix，仍保持
 `Not Run`，不能用 V2 slice替代尚未执行的 Remote、多浏览器、performance/security 或 trusted Evidence。
 
 | Surface | Target                | Browser/runtime         | Motion         | Required families                                                             | 状态    |

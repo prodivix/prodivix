@@ -9,29 +9,30 @@
 ## 当前判断
 
 G2 Exit Gate 已由 commit `3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184` 的 current-scope closure 通过，Global G3
-Product Gate 处于 `In Progress`。V0 owner/contract hard cut 与 V1 Scenario authoring 已在当前 worktree 实现，
-V2 Cross-domain behavior 与目标 Golden 已在当前 worktree 实现：真实 Preview/Export/CI adapter执行
+Product Gate 处于 `In Progress`。V0 owner/contract hard cut、V1 Scenario authoring、V2 Cross-domain
+behavior 与目标 Golden 已实现：真实 Preview/Export/CI adapter执行
 Route lifecycle → parallel(NodeGraph Program、Animation composition) → barrier → owner observation，
 并在 React/Vue 独立项目验证 authenticated Catalog optimistic conflict、full/reduced、visual/a11y/focus。
 NodeGraph current/wire v2、bounded loop/Auth/subgraph closure、first-party executable runtime、strict planner/
 debug protocol/Inspector，以及 Animation wire v2、target/property conflict、CodeSlot/shader、policy resolution
 都已进入同一 Gate。
 2026-07-27 本地 `pnpm run verify:g3:boundaries`、
-`pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 通过；
-`.github/workflows/g3-boundaries.yml` 已配置对应独立 Job。由于改动尚未提交，repository/CI identity 和远端
-Evidence 仍待补；V3-V8 尚未完成，NodeGraph live step/fresh replay bridge归入 V3。
+`pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 通过；commit
+[`90fcf961`](https://github.com/prodivix/prodivix/commit/90fcf96134d880156c19c0da64692a3a39564841)
+的 [G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30260091776) 三个独立 Job 也全部通过。
+V3-V8 尚未完成，NodeGraph live step/fresh replay bridge归入 V3。
 
-| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                            |
-| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地 Gate 通过；workflow configured，commit/CI evidence 待补                        |
-| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地 authoring/compiler 与 React/Vue browser Golden 通过；远端 evidence 待补        |
-| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | V2 composition + React/Vue full/reduced browser Golden 本地通过；远端 evidence 待补 |
-| V3 Deterministic replay    | Not Started | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | repeat/divergence/isolation/provider conformance                                    |
-| V4 Impact/Policy/Plan      | Not Started | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate                                   |
-| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                          |
-| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                            |
-| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                   |
-| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                |
+| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                             |
+| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地与 CI Gate 通过，commit `90fcf961`                                               |
+| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地与 CI authoring/compiler、React/Vue browser Golden 通过，commit `90fcf961`       |
+| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961` |
+| V3 Deterministic replay    | Not Started | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | repeat/divergence/isolation/provider conformance                                     |
+| V4 Impact/Policy/Plan      | Not Started | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate                                    |
+| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                           |
+| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                             |
+| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                    |
+| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                 |
 
 ## V0：Owner 与 contract hard cut
 
@@ -75,7 +76,7 @@ framework component identity。
 
 ### 当前实现
 
-状态：`Implemented`（durable CI Evidence pending）：
+状态：`Implemented`（durable CI Evidence Passed）：
 
 - [x] provider-neutral Program runtime 按 canonical dependency wave 执行 parallel/barrier，并做 capability、
       runtime-zone、owner、取消、bounded value 与 assertion fail-closed。
@@ -126,7 +127,7 @@ browser target matrix均已完成 V2 scope。
 
 ### Golden slice
 
-当前本地 V2 Golden 已验证：
+当前本地与 CI V2 Golden 已验证：
 
 - authenticated Catalog semantic create-product 后，strict planned NodeGraph产生 `p2` 派生状态；
 - Route detail lifecycle 与 Animation composition 在 Preview/Export/CI × full/reduced 六个 cell 保持
@@ -261,8 +262,9 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 
 ## 计划 Gate 入口
 
-前三个入口已建立并在当前 worktree 本地通过，但缺少 commit/CI identity，durable evidence 状态仍为
-`Configured / Evidence pending`；其余入口随对应 milestone 建立：
+前三个入口已建立，并由 commit `90fcf961` 的
+[G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30260091776) 取得 durable Passed evidence；
+其余入口随对应 milestone 建立：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

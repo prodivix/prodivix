@@ -5,15 +5,15 @@
 
 ## 全局阶段
 
-| Phase                              | Product Gate | 当前判断                                                                                                                                                                                                                                                 |
-| ---------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                                                                                               |
-| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                                                                                              |
-| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。                                                                      |
-| G3 Behavior & Verification Closure | In Progress  | V0 owner hard cut、V1 Scenario authoring、V2 cross-domain behavior 与 V2 Golden 已在本地实现并通过；workflow 已配置但提交/CI evidence 待补，V3-V8 未完成。NodeGraph live step/fresh replay归入 V3，当前 Test/trace 不提前等同于 `VerificationEvidence`。 |
-| G4 Verified Agentic Development    | Blocked      | 等待 G3。                                                                                                                                                                                                                                                |
-| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                                                                                           |
-| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                                                                                           |
+| Phase                              | Product Gate | 当前判断                                                                                                                                                                                                                                   |
+| ---------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                                                                                 |
+| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                                                                                |
+| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。                                                        |
+| G3 Behavior & Verification Closure | In Progress  | V0 owner hard cut、V1 Scenario authoring、V2 cross-domain behavior 与 V2 Golden 已在本地和 commit `90fcf961` 的 CI Gate 通过；V3-V8 未完成。NodeGraph live step/fresh replay归入 V3，当前 Test/trace 不提前等同于 `VerificationEvidence`。 |
+| G4 Verified Agentic Development    | Blocked      | 等待 G3。                                                                                                                                                                                                                                  |
+| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                                                                             |
+| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                                                                             |
 
 阶段定义与退出条件：[`global-phases.md`](./global-phases.md)。G0/G1 重复验证边界：
 [`g0-closure-evidence.md`](./g0-closure-evidence.md)、[`g1-closure-evidence.md`](./g1-closure-evidence.md)。
@@ -39,9 +39,11 @@ test/build/Chromium smoke验证 authenticated Catalog optimistic conflict、目�
 focus 与 operability兼容。
 `pnpm run verify:g3:boundaries`、
 `pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 与 `pnpm run build`
-在当前未提交 worktree 通过；workflow 仅为已配置，尚无 repository commit、CI run URL 或 durable
-evidence。下一实施入口是 V3 deterministic replay/control profile、NodeGraph live debug command bridge与
-fresh replay；随后进入 V4-V8。G3 Product Gate 继续保持 `In Progress`。
+在本地通过；commit
+[`90fcf961`](https://github.com/prodivix/prodivix/commit/90fcf96134d880156c19c0da64692a3a39564841)
+的 [G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30260091776) 三个独立 Job 全部通过并形成
+V0-V2 durable evidence。下一实施入口是 V3 deterministic replay/control profile、NodeGraph live debug
+command bridge与 fresh replay；随后进入 V4-V8。G3 Product Gate 继续保持 `In Progress`。
 
 ## G2 当前完成面
 
