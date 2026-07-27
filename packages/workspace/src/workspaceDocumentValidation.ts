@@ -13,6 +13,7 @@ import {
 } from './workspaceResourceDocument';
 import { isCanonicalWorkspaceAnimationDocumentContent } from './workspaceAnimationDocument';
 import { isCanonicalWorkspaceNodeGraphDocumentContent } from './workspaceNodeGraphDocument';
+import { isCanonicalWorkspaceBehaviorVerificationDocumentContent } from './workspaceBehaviorVerificationDocument';
 import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 import {
   isDtcgDesignTokenDocument,
@@ -143,6 +144,19 @@ const isValidDocumentContent = (
   }
   if (documentType === 'data-source') {
     return isDataSourceDocument(document.content, { documentId });
+  }
+  if (
+    documentType === 'behavior-scenario' ||
+    documentType === 'behavior-control-profile' ||
+    documentType === 'behavior-fixture-set' ||
+    documentType === 'verification-policy' ||
+    documentType === 'verification-baseline-set'
+  ) {
+    return isCanonicalWorkspaceBehaviorVerificationDocumentContent(
+      documentType,
+      document.content,
+      documentId
+    );
   }
   if (documentType !== 'code') return true;
   if (!isWorkspaceCodeDocumentContent(document.content)) return false;

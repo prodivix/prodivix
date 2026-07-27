@@ -8,8 +8,8 @@ describe('isUnsafeObjectKey', () => {
   });
 
   it('accepts ordinary property names', () => {
-    ['title', 'proto', '_proto_', '__proto', 'constructorName'].forEach((name) =>
-      expect(isUnsafeObjectKey(name)).toBe(false)
+    ['title', 'proto', '_proto_', '__proto', 'constructorName'].forEach(
+      (name) => expect(isUnsafeObjectKey(name)).toBe(false)
     );
   });
 

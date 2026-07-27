@@ -43,7 +43,7 @@ VerificationPlan 在 Preview、Export 和 CI 中运行。
 
 ## Current model
 
-公开 current model 不带数字版本；wire codec 才携带 `schemaVersion`。核心对象至少包含：
+公开 current model 不带数字版本；wire codec 才携带 `wireVersion`。核心对象至少包含：
 
 ```ts
 interface BehaviorScenario {

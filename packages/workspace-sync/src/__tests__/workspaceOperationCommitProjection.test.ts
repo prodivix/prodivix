@@ -181,6 +181,54 @@ describe('Workspace Atomic Commit wire projection', () => {
     expect(projectedDocument.content).toMatchObject({ wireVersion: 1 });
   });
 
+  it('projects G3 documents through their strict wire codec before durable commit', () => {
+    const before = createWorkspace();
+    const document: WorkspaceDocument = {
+      id: 'fixture.catalog',
+      type: 'behavior-fixture-set',
+      path: '/behavior/fixture.catalog.json',
+      contentRev: 1,
+      metaRev: 1,
+      content: {
+        id: 'fixture.catalog',
+        name: 'Catalog fixtures',
+        fixtures: [],
+      },
+    };
+    const after = {
+      ...before,
+      docsById: { ...before.docsById, [document.id]: document },
+    };
+    const operation: WorkspaceOperation = {
+      kind: 'command',
+      command: {
+        id: 'behavior-fixture-create',
+        namespace: 'core.workspace',
+        type: 'document.create',
+        version: '1.0',
+        issuedAt,
+        target: { workspaceId: before.id },
+        domainHint: 'workspace',
+        forwardOps: [
+          { op: 'add', path: `/docsById/${document.id}`, value: document },
+        ],
+        reverseOps: [{ op: 'remove', path: `/docsById/${document.id}` }],
+      },
+    };
+
+    const projected = projectWorkspaceOperationToCommitWire(
+      before,
+      after,
+      operation
+    );
+    if (projected.kind !== 'command') return;
+    const projectedDocument = projected.command.forwardOps[0]
+      ?.value as WorkspaceDocument;
+
+    expect(document.content).not.toHaveProperty('wireVersion');
+    expect(projectedDocument.content).toMatchObject({ wireVersion: 1 });
+  });
+
   it('projects workspace-level PIR content replacements through the same codec', () => {
     const before = createWorkspace();
     const operation: WorkspaceOperation = {

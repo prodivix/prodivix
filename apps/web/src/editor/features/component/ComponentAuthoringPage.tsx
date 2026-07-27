@@ -33,6 +33,20 @@ const ownerLabel = (ownerRef: DiagnosticTargetRef): string => {
       return `Route · ${ownerRef.routeId}`;
     case 'code-artifact':
       return `Code · ${ownerRef.artifactId}`;
+    case 'behavior-scenario':
+      return `Behavior scenario · ${ownerRef.documentId}`;
+    case 'behavior-step':
+      return `Behavior step · ${ownerRef.documentId}/${ownerRef.stepId}`;
+    case 'behavior-replay-record':
+      return `Behavior replay · ${ownerRef.cellId}/${ownerRef.attemptId}`;
+    case 'verification-policy':
+      return `Verification policy · ${ownerRef.documentId}`;
+    case 'verification-plan-cell':
+      return `Verification plan · ${ownerRef.cellId}`;
+    case 'verification-evidence':
+      return `Verification evidence · ${ownerRef.cellId}/${ownerRef.attemptId}`;
+    case 'verification-closure':
+      return `Verification closure · ${ownerRef.planDigest}`;
     case 'workspace':
       return `Workspace · ${ownerRef.workspaceId}`;
     case 'workspace-node':

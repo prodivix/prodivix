@@ -10,10 +10,22 @@
     "noEmit": false,
     "paths": {
       "@prodivix/runtime-core": ["../runtime-core/src"],
-      "@prodivix/runtime-remote": ["../runtime-remote/src"]
+      "@prodivix/runtime-remote": ["../runtime-remote/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/**/*.test.ts"],
-  "references": [{ "path": "../runtime-core" }, { "path": "../runtime-remote" }]
+  "references": [
+    {
+      "path": "../runtime-core"
+    },
+    {
+      "path": "../runtime-remote"
+    },
+    {
+      "path": "../shared"
+    }
+  ]
 }

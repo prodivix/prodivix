@@ -10,10 +10,19 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
-      "@prodivix/assets": ["../../packages/assets/src"]
+      "@prodivix/assets": ["../../packages/assets/src"],
+      "@prodivix/shared": ["../../packages/shared/src"],
+      "@prodivix/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/**/*.test.ts"],
-  "references": [{ "path": "../../packages/assets" }]
+  "references": [
+    {
+      "path": "../../packages/assets"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
 }

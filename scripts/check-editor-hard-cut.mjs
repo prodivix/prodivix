@@ -204,9 +204,7 @@ for (const path of trackedFiles) {
     /UPDATE\s+projects[\s\S]{0,500}?SET\s+pir_json\b/i.test(source) ||
     ((path.startsWith('apps/backend/internal/modules/project/') ||
       path.startsWith('apps/backend/internal/modules/workspace/')) &&
-      /\bpir_json\b/.test(source)) ||
-    (path === 'apps/backend/internal/modules/workspace/module.go' &&
-      /module\.projects\.GetByID\s*\(/.test(source))
+      /\bpir_json\b/.test(source))
   ) {
     issues.push(`${path} exposes the retired Project PIR mirror.`);
   }

@@ -26,7 +26,7 @@ provider/capability snapshot、显式 `policyEvaluationInstant` 和 planner 版�
 - `verification-policy` Workspace document 与 authoring Command；
 - required/advisory/forbidden rule、matrix selector、budget、retry、exemption；
 - Scenario/check discovery 与 `VerificationPlan` DAG；
-- unsupported、blocked、skipped、not-applicable 的严格语义；
+- unsupported、blocked、not-applicable、missing 的严格语义，并明确不设 `skipped`；
 - Closure input requirement 与 UI explainability；
 - property/conformance/Golden plan evidence。
 
@@ -34,7 +34,7 @@ provider/capability snapshot、显式 `policyEvaluationInstant` 和 planner 版�
 
 - 用 CI YAML、package scripts 或测试工具 config 作为 canonical Policy；
 - 根据 UI 当前页面、最近失败或用户点击动态改变 required plan；
-- 自动创建 exemption、自动缩小矩阵或把缺失 provider 降级成 skipped；
+- 自动创建 exemption、自动缩小矩阵或把缺失 provider 当作可忽略项；
 - G4 的 AI 测试生成/修复，G5 的 review approval/deploy decision；
 - 把所有 revision 永远展开为所有 browser/target/check 的无界笛卡尔积。
 
@@ -277,7 +277,7 @@ UI 只能请求 planner 生成/刷新 Plan，不得在客户端过滤 required c
 
 - check discovery、matrix expansion、capability preflight；
 - resource dependency、canonical ordering、digest；
-- blocked/unsupported/skipped semantics。
+- blocked/unsupported/not-applicable/missing semantics。
 
 完成条件：跨进程/OS canonical fixture 得到相同 plan bytes；required cell 永不静默消失。
 
@@ -299,7 +299,7 @@ UI 只能请求 planner 生成/刷新 Plan，不得在客户端过滤 required c
 - Policy precedence/conflict/unknown/forbidden/expiry/exemption scope；
 - matrix expansion、critical subset、required over-budget、advisory trimming；
 - DAG cycle、shared dependency、canonical sort/digest 跨进程稳定；
-- unsupported vs blocked vs skipped vs not-applicable；
+- unsupported vs blocked vs not-applicable vs missing；
 - retry infrastructure/assertion/unstable/max-attempt；
 - Closure stale/expired/revoked/incompatible/missing evidence；
 - UI/CLI/CI contract conformance 与 SourceTrace explain journey。
@@ -317,5 +317,5 @@ UI 只能请求 planner 生成/刷新 Plan，不得在客户端过滤 required c
 - [ ] ImpactSet 对 exact revision 可重建、可解释，并在不完整时保守扩大。
 - [ ] Policy 仅由 Workspace Command 修改，规则、预算、retry 和 exemption 有稳定语义。
 - [ ] Plan 对完整输入 byte-stable，required matrix 不被 UI/CI/adapter 隐式改变。
-- [ ] blocked/unsupported/skipped/not-applicable/unstable 不混用。
+- [ ] blocked/unsupported/not-applicable/missing/unstable 不混用，且不产生 `skipped`。
 - [ ] Closure 只接受满足 trust、freshness、compatibility 的 Evidence，并可确定性重算。

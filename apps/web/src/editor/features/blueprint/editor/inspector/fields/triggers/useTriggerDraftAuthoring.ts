@@ -109,7 +109,11 @@ export const useTriggerDraftAuthoring = ({
       if (readOnly || saving || !draft || draft.key !== triggerKey) {
         return;
       }
-      const issue = getTriggerDraftIssue(draft, canonicalEntries, knownRouteIds);
+      const issue = getTriggerDraftIssue(
+        draft,
+        canonicalEntries,
+        knownRouteIds
+      );
       if (issue) {
         onIssue?.(issue);
         return;
@@ -131,7 +135,15 @@ export const useTriggerDraftAuthoring = ({
         }
       })();
     },
-    [canonicalEntries, draft, knownRouteIds, onCommit, onIssue, readOnly, saving]
+    [
+      canonicalEntries,
+      draft,
+      knownRouteIds,
+      onCommit,
+      onIssue,
+      readOnly,
+      saving,
+    ]
   );
 
   return {

@@ -298,6 +298,8 @@ func DefaultCapabilities() map[string]bool {
 		"core.design-tokens.document.update@1.0":          true,
 		"core.design-token-resolvers.document.update@1.0": true,
 		"core.data.document.update@1.0":                   true,
+		"core.behavior.document.update@1.0":               true,
+		"core.verification.document.update@1.0":           true,
 		"core.resource.project-config.value.update@1.0":   true,
 		"core.workspace.document.create@1.0":              true,
 		"core.workspace.document.rename@1.0":              true,

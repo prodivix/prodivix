@@ -12,13 +12,17 @@
       "@prodivix/animation": ["../animation/src"],
       "@prodivix/assets": ["../assets/src"],
       "@prodivix/authoring": ["../authoring/src"],
+      "@prodivix/behavior": ["../behavior/src"],
       "@prodivix/data": ["../data/src"],
       "@prodivix/diagnostics": ["../diagnostics/src"],
       "@prodivix/nodegraph": ["../nodegraph/src"],
       "@prodivix/pir": ["../pir/src"],
       "@prodivix/router": ["../router/src"],
       "@prodivix/server-runtime": ["../server-runtime/src"],
-      "@prodivix/tokens": ["../tokens/src"]
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"],
+      "@prodivix/tokens": ["../tokens/src"],
+      "@prodivix/verification": ["../verification/src"]
     }
   },
   "include": ["src/**/*"],
@@ -40,6 +44,9 @@
       "path": "../authoring"
     },
     {
+      "path": "../behavior"
+    },
+    {
       "path": "../data"
     },
     {
@@ -58,7 +65,13 @@
       "path": "../server-runtime"
     },
     {
+      "path": "../shared"
+    },
+    {
       "path": "../tokens"
+    },
+    {
+      "path": "../verification"
     }
   ]
 }

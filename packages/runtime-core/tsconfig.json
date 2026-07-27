@@ -9,7 +9,9 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
-      "@prodivix/diagnostics": ["../diagnostics/src"]
+      "@prodivix/diagnostics": ["../diagnostics/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
@@ -20,5 +22,12 @@
     "src/**/*.test.tsx",
     "src/**/__tests__/**"
   ],
-  "references": [{ "path": "../diagnostics" }]
+  "references": [
+    {
+      "path": "../diagnostics"
+    },
+    {
+      "path": "../shared"
+    }
+  ]
 }

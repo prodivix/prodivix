@@ -18,8 +18,14 @@ describe('isLoopbackHostname', () => {
   });
 
   it('rejects malformed literals that are not addresses at all', () => {
-    ['1270.0.0.1', '127.0.0.256', '127.0.0', '127.0.0.1.5', '127.a.b.c'].forEach(
-      (hostname) => expect(isLoopbackHostname(hostname), hostname).toBe(false)
+    [
+      '1270.0.0.1',
+      '127.0.0.256',
+      '127.0.0',
+      '127.0.0.1.5',
+      '127.a.b.c',
+    ].forEach((hostname) =>
+      expect(isLoopbackHostname(hostname), hostname).toBe(false)
     );
   });
 

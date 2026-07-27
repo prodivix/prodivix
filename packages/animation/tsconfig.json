@@ -10,7 +10,9 @@
     "noEmit": false,
     "paths": {
       "@prodivix/authoring": ["../authoring/src"],
-      "@prodivix/runtime-core": ["../runtime-core/src"]
+      "@prodivix/runtime-core": ["../runtime-core/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
@@ -27,6 +29,9 @@
     },
     {
       "path": "../runtime-core"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

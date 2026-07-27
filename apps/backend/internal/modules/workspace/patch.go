@@ -28,6 +28,21 @@ func applyWorkspaceDocumentPatch(documentType WorkspaceDocumentType, content jso
 	if documentType == WorkspaceDocumentTypeDataSource {
 		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceDataSourcePatchPath)
 	}
+	if documentType == WorkspaceDocumentTypeBehaviorScenario {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceBehaviorScenarioPatchPath)
+	}
+	if documentType == WorkspaceDocumentTypeBehaviorControlProfile {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceBehaviorControlProfilePatchPath)
+	}
+	if documentType == WorkspaceDocumentTypeBehaviorFixtureSet {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceBehaviorFixtureSetPatchPath)
+	}
+	if documentType == WorkspaceDocumentTypeVerificationPolicy {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceVerificationPolicyPatchPath)
+	}
+	if documentType == WorkspaceDocumentTypeVerificationBaselineSet {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceVerificationBaselineSetPatchPath)
+	}
 	if documentType == WorkspaceDocumentTypePIRGraph {
 		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceNodeGraphPatchPath)
 	}
@@ -48,6 +63,26 @@ func applyWorkspaceDocumentPatch(documentType WorkspaceDocumentType, content jso
 
 func validateWorkspaceDataSourcePatchPath(path string) error {
 	return validateWorkspaceDocumentRootPath(path, "source", "schemasById", "operationsById", "importProvenanceById")
+}
+
+func validateWorkspaceBehaviorScenarioPatchPath(path string) error {
+	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "description", "owner", "criticality", "tags", "entry", "steps", "fixtureRefs", "controlProfileRef", "baselineRefs", "timeoutPolicy")
+}
+
+func validateWorkspaceBehaviorControlProfilePatchPath(path string) error {
+	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "clock", "timezone", "random", "identifiers", "scheduler", "network", "storage", "rendering", "serviceWorker", "settle", "budgets")
+}
+
+func validateWorkspaceBehaviorFixtureSetPatchPath(path string) error {
+	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "fixtures")
+}
+
+func validateWorkspaceVerificationPolicyPatchPath(path string) error {
+	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "defaultRequirement", "rules", "matrixProfiles", "retryPolicies", "exemptions", "budgets", "evidenceRequirements", "baselinePolicy", "retentionRequest")
+}
+
+func validateWorkspaceVerificationBaselineSetPatchPath(path string) error {
+	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "entries")
 }
 
 func validateWorkspaceAssetPatchPath(path string) error {
@@ -111,6 +146,22 @@ func validateWorkspaceDocumentRootPath(path string, allowed ...string) error {
 	}
 	if strings.HasPrefix(pointer[0], "x-") {
 		return nil
+	}
+	return ErrWorkspacePatchPathForbidden
+}
+
+func validateStrictWorkspaceDocumentRootPath(path string, allowed ...string) error {
+	pointer, err := parseJSONPointer(path)
+	if err != nil {
+		return err
+	}
+	if len(pointer) == 0 {
+		return ErrWorkspacePatchPathForbidden
+	}
+	for _, root := range allowed {
+		if pointer[0] == root {
+			return nil
+		}
 	}
 	return ErrWorkspacePatchPathForbidden
 }

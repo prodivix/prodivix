@@ -32,6 +32,18 @@ import {
   isDataSourceDocument,
   type DataSourceDocument,
 } from '@prodivix/data';
+import {
+  decodeBehaviorDocument,
+  encodeBehaviorDocument,
+  validateBehaviorDocument,
+  type BehaviorDocumentByKind,
+} from '@prodivix/behavior';
+import {
+  decodeVerificationDocument,
+  encodeVerificationDocument,
+  validateVerificationDocument,
+  type VerificationDocumentByKind,
+} from '@prodivix/verification';
 import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 import {
   isCanonicalWorkspaceDocumentUpdatedAt,
@@ -300,6 +312,41 @@ const parseWorkspaceDocument = (
         `Workspace Data source document ${id} must use the canonical current model.`
       );
     }
+  } else if (
+    type === 'behavior-scenario' ||
+    type === 'behavior-control-profile' ||
+    type === 'behavior-fixture-set'
+  ) {
+    const decoded =
+      pirContentBoundary === 'wire'
+        ? decodeBehaviorDocument(type, content)
+        : validateBehaviorDocument(type, content);
+    if (!decoded.ok || decoded.value.id !== id) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.ok
+          ? 'Behavior content id must match the Workspace document id.'
+          : decoded.issues.map((issue) => issue.message).join('; ')
+      );
+    }
+    content = decoded.value;
+  } else if (
+    type === 'verification-policy' ||
+    type === 'verification-baseline-set'
+  ) {
+    const decoded =
+      pirContentBoundary === 'wire'
+        ? decodeVerificationDocument(type, content)
+        : validateVerificationDocument(type, content);
+    if (!decoded.ok || decoded.value.id !== id) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.ok
+          ? 'Verification content id must match the Workspace document id.'
+          : decoded.issues.map((issue) => issue.message).join('; ')
+      );
+    }
+    content = decoded.value;
   } else if (type === 'code' && !isWorkspaceCodeDocumentContent(content)) {
     throw new WorkspaceCodecError(
       `${path}/content`,
@@ -502,7 +549,20 @@ export const encodeWorkspaceDocument = (
       ? encodeDataSourceDocument(document.content as DataSourceDocument, {
           documentId: document.id,
         })
-      : document.content,
+      : document.type === 'behavior-scenario' ||
+          document.type === 'behavior-control-profile' ||
+          document.type === 'behavior-fixture-set'
+        ? encodeBehaviorDocument(
+            document.type,
+            document.content as BehaviorDocumentByKind[typeof document.type]
+          )
+        : document.type === 'verification-policy' ||
+            document.type === 'verification-baseline-set'
+          ? encodeVerificationDocument(
+              document.type,
+              document.content as VerificationDocumentByKind[typeof document.type]
+            )
+          : document.content,
 });
 
 /** Decodes the backend wire contract into the only canonical Workspace model. */

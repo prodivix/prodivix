@@ -67,7 +67,12 @@ export type DiagnosticTargetRef =
       stepId: string;
       assertionId?: string;
     }
-  | { kind: 'behavior-replay-record'; planDigest: string; cellId: string; attemptId: string }
+  | {
+      kind: 'behavior-replay-record';
+      planDigest: string;
+      cellId: string;
+      attemptId: string;
+    }
   | { kind: 'verification-policy'; documentId: string }
   | { kind: 'verification-plan-cell'; planDigest: string; cellId: string }
   | {

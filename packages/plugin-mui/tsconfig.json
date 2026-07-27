@@ -10,7 +10,9 @@
     "paths": {
       "#mui-plugin/*": ["./src/*"],
       "@prodivix/plugin-package": ["../plugin-package/src"],
-      "@prodivix/plugin-react-host": ["../plugin-react-host/src"]
+      "@prodivix/plugin-react-host": ["../plugin-react-host/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
@@ -22,7 +24,14 @@
     "src/**/__tests__/**"
   ],
   "references": [
-    { "path": "../plugin-package" },
-    { "path": "../plugin-react-host" }
+    {
+      "path": "../plugin-package"
+    },
+    {
+      "path": "../plugin-react-host"
+    },
+    {
+      "path": "../shared"
+    }
   ]
 }

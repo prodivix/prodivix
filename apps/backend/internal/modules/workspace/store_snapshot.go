@@ -65,12 +65,17 @@ func (store *WorkspaceStore) importWorkspaceSnapshot(ctx context.Context, params
 
 	documents := make([]WorkspaceImportDocumentRecord, 0, len(params.Documents))
 	paths := map[string]struct{}{}
+	documentTypeCounts := map[WorkspaceDocumentType]int{}
 	for _, document := range params.Documents {
 		if !isCanonicalWorkspaceVFSID(document.ID) {
 			return nil, fmt.Errorf("%w: workspace document id must be canonical", ErrWorkspaceVFSInvalid)
 		}
 		if !isValidWorkspaceDocumentType(document.Type) {
 			return nil, ErrInvalidWorkspaceDocumentType
+		}
+		documentTypeCounts[document.Type]++
+		if isSingletonWorkspaceDocumentType(document.Type) && documentTypeCounts[document.Type] > 1 {
+			return nil, fmt.Errorf("%w: workspace document type %s allows only one document", ErrWorkspaceVFSInvalid, document.Type)
 		}
 		normalizedPath, err := normalizeWorkspacePath(document.Path)
 		if err != nil {

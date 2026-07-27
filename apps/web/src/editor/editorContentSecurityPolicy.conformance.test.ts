@@ -87,8 +87,10 @@ describe('editor Content-Security-Policy', () => {
       directive(name).includes('https:')
     );
     widened.forEach((name) =>
-      expect(nginxConf, `${name} allows https: without a rationale comment`)
-        .toMatch(new RegExp(`#[^\\n]*${name}`))
+      expect(
+        nginxConf,
+        `${name} allows https: without a rationale comment`
+      ).toMatch(new RegExp(`#[^\\n]*${name}`))
     );
   });
 });

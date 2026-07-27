@@ -35,9 +35,10 @@ const isLoopbackIPv4Literal = (hostname: string): boolean => {
  * RFC 6761 reserves the name and requires it to resolve to loopback.
  */
 export const isLoopbackHostname = (hostname: string): boolean => {
-  const bare = hostname.startsWith('[') && hostname.endsWith(']')
-    ? hostname.slice(1, -1)
-    : hostname;
+  const bare =
+    hostname.startsWith('[') && hostname.endsWith(']')
+      ? hostname.slice(1, -1)
+      : hostname;
   const lower = bare.toLowerCase();
   if (lower === 'localhost' || lower.endsWith('.localhost')) return true;
   if (lower === '::1' || lower === '0:0:0:0:0:0:0:1') return true;

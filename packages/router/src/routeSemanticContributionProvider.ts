@@ -532,7 +532,9 @@ const createRouteSemanticContribution = ({
       contributeRouteModule(facts, workspaceId, manifestScopeId, module)
     );
   [...(manifest.mounts ?? [])]
-    .sort((left, right) => compareUnicodeCodePoints(left.mountId, right.mountId))
+    .sort((left, right) =>
+      compareUnicodeCodePoints(left.mountId, right.mountId)
+    )
     .forEach((mount) =>
       contributeRouteMount(facts, {
         workspaceId,

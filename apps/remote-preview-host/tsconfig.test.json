@@ -4,10 +4,19 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
     "paths": {
-      "@prodivix/runtime-core": ["../../packages/runtime-core/dist/index.d.ts"]
+      "@prodivix/runtime-core": ["../../packages/runtime-core/dist/index.d.ts"],
+      "@prodivix/shared": ["../../packages/shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../../packages/shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../packages/runtime-core" }]
+  "references": [
+    {
+      "path": "../../packages/runtime-core"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
 }

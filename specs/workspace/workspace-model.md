@@ -32,7 +32,15 @@ type WorkspaceDocumentType =
   | 'pir-component'
   | 'pir-graph'
   | 'pir-animation'
+  | 'design-tokens'
+  | 'design-token-resolver'
   | 'code'
+  | 'data-source'
+  | 'behavior-scenario'
+  | 'behavior-control-profile'
+  | 'behavior-fixture-set'
+  | 'verification-policy'
+  | 'verification-baseline-set'
   | 'asset'
   | 'project-config';
 
@@ -102,17 +110,21 @@ Workspace Validator 必须保证：
 
 ## 领域 owner
 
-| Workspace 内容                                                       | Owner                                              |
-| -------------------------------------------------------------------- | -------------------------------------------------- |
-| Snapshot、VFS、Command、Transaction、History、基础 validator         | `@prodivix/workspace`                              |
-| Revision vector、conflict、Outbox、Atomic Commit plan、local replica | `@prodivix/workspace-sync`                         |
-| RouteManifest、matching、navigation 与 route validation              | `@prodivix/router`                                 |
-| `pir-page` / `pir-layout` / `pir-component` graph                    | `@prodivix/pir`                                    |
-| `pir-graph`                                                          | `@prodivix/nodegraph`                              |
-| `pir-animation`                                                      | `@prodivix/animation`                              |
-| Workspace Semantic Index contract、provider composition 与稳定查询   | `@prodivix/authoring`                              |
-| CodeArtifact projection、CodeReference、CodeSlot 与代码作者体验      | `@prodivix/authoring` / Code Authoring Environment |
-| `asset` / `project-config`                                           | Workspace Resource owner 与对应 adapter            |
+| Workspace 内容                                                            | Owner                                              |
+| ------------------------------------------------------------------------- | -------------------------------------------------- |
+| Snapshot、VFS、Command、Transaction、History、基础 validator              | `@prodivix/workspace`                              |
+| Revision vector、conflict、Outbox、Atomic Commit plan、local replica      | `@prodivix/workspace-sync`                         |
+| RouteManifest、matching、navigation 与 route validation                   | `@prodivix/router`                                 |
+| `pir-page` / `pir-layout` / `pir-component` graph                         | `@prodivix/pir`                                    |
+| `pir-graph`                                                               | `@prodivix/nodegraph`                              |
+| `pir-animation`                                                           | `@prodivix/animation`                              |
+| `design-tokens` / `design-token-resolver`                                 | `@prodivix/tokens`                                 |
+| `data-source`                                                             | `@prodivix/data`                                   |
+| `behavior-scenario` / `behavior-control-profile` / `behavior-fixture-set` | `@prodivix/behavior` + `@prodivix/workspace`       |
+| `verification-policy` / `verification-baseline-set`                       | `@prodivix/verification` + `@prodivix/workspace`   |
+| Workspace Semantic Index contract、provider composition 与稳定查询        | `@prodivix/authoring`                              |
+| CodeArtifact projection、CodeReference、CodeSlot 与代码作者体验           | `@prodivix/authoring` / Code Authoring Environment |
+| `asset` / `project-config`                                                | Workspace Resource owner 与对应 adapter            |
 
 ## 唯一写入链路
 

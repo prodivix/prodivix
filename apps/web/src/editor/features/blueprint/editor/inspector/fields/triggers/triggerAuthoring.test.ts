@@ -45,38 +45,60 @@ describe('Trigger authoring drafts', () => {
 
   it('requires a complete destination and resolved internal route', () => {
     const blank = createNewTriggerDraft([])!;
-    expect(getTriggerDraftIssue(blank, [], KNOWN_ROUTE_IDS)).toBe('destination-required');
+    expect(getTriggerDraftIssue(blank, [], KNOWN_ROUTE_IDS)).toBe(
+      'destination-required'
+    );
 
     const invalid = {
       ...blank,
       params: { to: 'example.test' },
     };
-    expect(getTriggerDraftIssue(invalid, [], KNOWN_ROUTE_IDS)).toBe('destination-invalid');
+    expect(getTriggerDraftIssue(invalid, [], KNOWN_ROUTE_IDS)).toBe(
+      'destination-invalid'
+    );
 
     const unresolved = {
       ...blank,
       params: { to: '/products' },
     };
-    expect(getTriggerDraftIssue(unresolved, [], KNOWN_ROUTE_IDS)).toBe('route-unresolved');
+    expect(getTriggerDraftIssue(unresolved, [], KNOWN_ROUTE_IDS)).toBe(
+      'route-unresolved'
+    );
 
     expect(
-      getTriggerDraftIssue({
+      getTriggerDraftIssue(
+        {
           ...blank,
           params: { to: '/products', routeId: 'route-products' },
-        }, [], KNOWN_ROUTE_IDS)
+        },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBeUndefined();
     expect(
-      getTriggerDraftIssue({ ...blank, params: { to: 'https://example.test' } }, [], KNOWN_ROUTE_IDS)
+      getTriggerDraftIssue(
+        { ...blank, params: { to: 'https://example.test' } },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBeUndefined();
   });
 
   it('accepts a saved internal route whose destination text was never authored', () => {
     const draft = createNewTriggerDraft([])!;
     expect(
-      getTriggerDraftIssue({ ...draft, params: { routeId: 'route-2' } }, [], KNOWN_ROUTE_IDS)
+      getTriggerDraftIssue(
+        { ...draft, params: { routeId: 'route-2' } },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBeUndefined();
     expect(
-      getTriggerDraftIssue({ ...draft, params: { routeId: 'root' } }, [], KNOWN_ROUTE_IDS)
+      getTriggerDraftIssue(
+        { ...draft, params: { routeId: 'root' } },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBeUndefined();
   });
 
@@ -103,35 +125,51 @@ describe('Trigger authoring drafts', () => {
   it('requires typed targets for graph and data mutation actions', () => {
     const draft = createNewTriggerDraft([])!;
     expect(
-      getTriggerDraftIssue({
+      getTriggerDraftIssue(
+        {
           ...draft,
           action: 'executeGraph',
           params: { graphMode: 'existing', graphId: '' },
-        }, [], KNOWN_ROUTE_IDS)
+        },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBe('graph-required');
     expect(
-      getTriggerDraftIssue({
+      getTriggerDraftIssue(
+        {
           ...draft,
           action: 'executeGraph',
           params: { graphMode: 'existing', graphId: 'graph-main' },
-        }, [], KNOWN_ROUTE_IDS)
+        },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBeUndefined();
     expect(
-      getTriggerDraftIssue({
+      getTriggerDraftIssue(
+        {
           ...draft,
           action: 'executeDataMutation',
           params: { operation: {}, input: { kind: 'literal', value: null } },
-        }, [], KNOWN_ROUTE_IDS)
+        },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBe('data-operation-required');
     expect(
-      getTriggerDraftIssue({
+      getTriggerDraftIssue(
+        {
           ...draft,
           action: 'executeDataMutation',
           params: {
             operation: { documentId: 'catalog', operationId: 'remove' },
             input: { kind: 'literal', value: null },
           },
-        }, [], KNOWN_ROUTE_IDS)
+        },
+        [],
+        KNOWN_ROUTE_IDS
+      )
     ).toBeUndefined();
   });
 
@@ -142,9 +180,15 @@ describe('Trigger authoring drafts', () => {
       draft: true,
       sourceKey: 'onClick',
     };
-    expect(getTriggerDraftIssue(draft, entries, KNOWN_ROUTE_IDS)).toBeUndefined();
     expect(
-      getTriggerDraftIssue({ ...draft, trigger: 'onSubmit' }, entries, KNOWN_ROUTE_IDS)
+      getTriggerDraftIssue(draft, entries, KNOWN_ROUTE_IDS)
+    ).toBeUndefined();
+    expect(
+      getTriggerDraftIssue(
+        { ...draft, trigger: 'onSubmit' },
+        entries,
+        KNOWN_ROUTE_IDS
+      )
     ).toBe('event-conflict');
   });
 });

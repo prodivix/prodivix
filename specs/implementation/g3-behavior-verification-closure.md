@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ImplementationStatus：V0 Implemented / V1-V8 Not Started
+- ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-20
+- 日期：2026-07-27
 - Owner：`@prodivix/behavior`、`@prodivix/verification`、`@prodivix/workspace`、`@prodivix/authoring`、`@prodivix/runtime-core`、`@prodivix/diagnostics`、`apps/backend`、`apps/web` composition root
 - 关联：
   - `specs/roadmap/global-phases.md`
@@ -145,7 +145,7 @@ flowchart TD
 
 ### V0：Owner hard cut 与 contract skeleton
 
-状态：Not Started。
+状态：Implemented。当前证据来自 2026-07-27 未提交 worktree 的本地 aggregate Gate；commit/CI evidence 待补。
 
 交付 `@prodivix/behavior`、`@prodivix/verification` 包，Workspace document/Command registry、diagnostic
 domain/target、public codec 与 boundary check。任何 G3 domain type 不得先落在 `apps/web`。

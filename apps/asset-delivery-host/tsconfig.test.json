@@ -4,10 +4,19 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
     "paths": {
-      "@prodivix/assets": ["../../packages/assets/dist/index.d.ts"]
+      "@prodivix/assets": ["../../packages/assets/dist/index.d.ts"],
+      "@prodivix/shared": ["../../packages/shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../../packages/shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../packages/assets" }]
+  "references": [
+    {
+      "path": "../../packages/assets"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
 }

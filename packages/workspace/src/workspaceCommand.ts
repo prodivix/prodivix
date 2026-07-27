@@ -21,6 +21,7 @@ import { isCanonicalWorkspaceNodeGraphDocumentContent } from './workspaceNodeGra
 import { isCanonicalWorkspaceDesignTokenDocumentContent } from './workspaceDesignTokenDocument';
 import { isCanonicalWorkspaceDesignTokenResolverDocumentContent } from './workspaceDesignTokenResolverDocument';
 import { isCanonicalWorkspaceDataSourceDocumentContent } from './workspaceDataSourceDocument';
+import { isCanonicalWorkspaceBehaviorVerificationDocumentContent } from './workspaceBehaviorVerificationDocument';
 import {
   getWorkspaceDocumentDomain,
   isPirWorkspaceDocumentType,
@@ -1432,6 +1433,31 @@ const applyWorkspaceDocumentCommandInternal = <TContent>(
           path: '/target/documentId',
           message:
             'Data source Workspace documents must remain canonical Data current-model documents.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
+    (target.documentType === 'behavior-scenario' ||
+      target.documentType === 'behavior-control-profile' ||
+      target.documentType === 'behavior-fixture-set' ||
+      target.documentType === 'verification-policy' ||
+      target.documentType === 'verification-baseline-set') &&
+    !isCanonicalWorkspaceBehaviorVerificationDocumentContent(
+      target.documentType,
+      patchedContent.value,
+      target.documentId
+    )
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message:
+            'Behavior and Verification Workspace documents must remain canonical current-model documents.',
           documentId: target.documentId,
         },
       ],

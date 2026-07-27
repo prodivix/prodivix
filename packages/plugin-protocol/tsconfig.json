@@ -9,7 +9,9 @@
     "noEmit": false,
     "paths": {
       "#protocol/*": ["./src/*"],
-      "@prodivix/plugin-contracts": ["../plugin-contracts/src"]
+      "@prodivix/plugin-contracts": ["../plugin-contracts/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
@@ -22,6 +24,9 @@
   "references": [
     {
       "path": "../plugin-contracts"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

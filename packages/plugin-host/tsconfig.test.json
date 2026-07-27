@@ -4,7 +4,9 @@
     "noEmit": true,
     "paths": {
       "#host/*": ["./src/*"],
-      "@prodivix/plugin-contracts": ["../plugin-contracts/dist/index.d.ts"]
+      "@prodivix/plugin-contracts": ["../plugin-contracts/dist/index.d.ts"],
+      "@prodivix/shared": ["../shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
@@ -12,6 +14,9 @@
   "references": [
     {
       "path": "../plugin-contracts"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

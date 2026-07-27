@@ -1,0 +1,569 @@
+const canonicalStringSchema = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 512,
+  pattern: '^\\S(?:[\\s\\S]*\\S)?$',
+} as const;
+
+const canonicalIdSchema = {
+  ...canonicalStringSchema,
+  maxLength: 256,
+  pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$',
+} as const;
+
+const digestSchema = {
+  type: 'string',
+  pattern: '^sha256-[a-f0-9]{64}$',
+} as const;
+
+const canonicalIdArraySchema = {
+  type: 'array',
+  maxItems: 512,
+  uniqueItems: true,
+  items: { $ref: '#/$defs/canonicalId' },
+} as const;
+
+const controlProfileRefSchema = {
+  oneOf: [
+    {
+      type: 'object',
+      required: ['kind', 'documentId'],
+      properties: {
+        kind: { const: 'workspace' },
+        documentId: { $ref: '#/$defs/canonicalId' },
+        digest: { $ref: '#/$defs/digest' },
+      },
+      additionalProperties: false,
+    },
+    {
+      type: 'object',
+      required: ['kind', 'presetId', 'digest'],
+      properties: {
+        kind: { const: 'preset' },
+        presetId: { $ref: '#/$defs/canonicalId' },
+        digest: { $ref: '#/$defs/digest' },
+      },
+      additionalProperties: false,
+    },
+  ],
+} as const;
+
+const documentDigestRefSchema = {
+  type: 'object',
+  required: ['documentId'],
+  properties: {
+    documentId: { $ref: '#/$defs/canonicalId' },
+    digest: { $ref: '#/$defs/digest' },
+  },
+  additionalProperties: false,
+} as const;
+
+const viewportSchema = {
+  type: 'object',
+  required: ['id', 'width', 'height'],
+  properties: {
+    id: { $ref: '#/$defs/canonicalId' },
+    width: {
+      type: 'integer',
+      minimum: 1,
+      maximum: 16_384,
+    },
+    height: {
+      type: 'integer',
+      minimum: 1,
+      maximum: 16_384,
+    },
+  },
+  additionalProperties: false,
+} as const;
+
+const matrixSchema = {
+  type: 'object',
+  required: [
+    'frameworkTargets',
+    'surfaces',
+    'browserEngines',
+    'viewports',
+    'colorSchemes',
+    'motions',
+    'locales',
+  ],
+  properties: {
+    frameworkTargets: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 32,
+      uniqueItems: true,
+      items: { $ref: '#/$defs/canonicalId' },
+    },
+    surfaces: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 3,
+      uniqueItems: true,
+      items: { enum: ['preview', 'export', 'ci'] },
+    },
+    browserEngines: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 3,
+      uniqueItems: true,
+      items: { enum: ['chromium', 'firefox', 'webkit'] },
+    },
+    viewports: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 64,
+      items: { $ref: '#/$defs/viewport' },
+    },
+    colorSchemes: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 2,
+      uniqueItems: true,
+      items: { enum: ['light', 'dark'] },
+    },
+    motions: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 2,
+      uniqueItems: true,
+      items: { enum: ['full', 'reduced'] },
+    },
+    locales: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 64,
+      uniqueItems: true,
+      items: { $ref: '#/$defs/canonicalString' },
+    },
+  },
+  additionalProperties: false,
+} as const;
+
+const checkKindSchema = {
+  enum: [
+    'diagnostics',
+    'build',
+    'unit',
+    'integration',
+    'e2e',
+    'visual',
+    'accessibility',
+    'performance',
+    'security',
+  ],
+} as const;
+
+const evidenceTrustSchema = {
+  enum: [
+    'local-unattested',
+    'remote-attested',
+    'ci-attested',
+    'imported-untrusted',
+  ],
+} as const;
+
+const artifactKindSchema = {
+  enum: [
+    'screenshot',
+    'visual-diff',
+    'accessibility-report',
+    'trace',
+    'network-summary',
+    'console-summary',
+    'coverage-summary',
+    'performance-profile',
+    'security-report',
+    'build-log',
+    'replay-record',
+  ],
+} as const;
+
+const retentionClassSchema = {
+  enum: ['session', 'change', 'release', 'legal-hold'],
+} as const;
+
+/** Numeric evolution metadata is intentionally confined to this wire schema. */
+export const verificationPolicyWireSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://prodivix.dev/schemas/verification/policy/v1.json',
+  title: 'Prodivix VerificationPolicy wire document',
+  type: 'object',
+  required: [
+    'wireVersion',
+    'id',
+    'name',
+    'defaultRequirement',
+    'rules',
+    'matrixProfiles',
+    'retryPolicies',
+    'exemptions',
+    'budgets',
+    'evidenceRequirements',
+    'baselinePolicy',
+    'retentionRequest',
+  ],
+  properties: {
+    wireVersion: { const: 1 },
+    id: { $ref: '#/$defs/canonicalId' },
+    name: { $ref: '#/$defs/canonicalString' },
+    defaultRequirement: {
+      enum: ['required', 'advisory', 'forbidden'],
+    },
+    rules: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 512,
+      items: { $ref: '#/$defs/rule' },
+    },
+    matrixProfiles: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 128,
+      items: { $ref: '#/$defs/matrixProfile' },
+    },
+    retryPolicies: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 128,
+      items: { $ref: '#/$defs/retryPolicy' },
+    },
+    exemptions: {
+      type: 'array',
+      maxItems: 512,
+      items: { $ref: '#/$defs/exemption' },
+    },
+    budgets: {
+      type: 'object',
+      required: [
+        'maximumCells',
+        'maximumCellsPerCheckKind',
+        'maximumTargetExpansions',
+        'maximumBrowserExpansions',
+        'totalMs',
+        'artifactBytes',
+        'estimatedComputeUnits',
+        'parallelism',
+      ],
+      properties: {
+        maximumCells: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 100_000,
+        },
+        maximumCellsPerCheckKind: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 100_000,
+        },
+        maximumTargetExpansions: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 1_024,
+        },
+        maximumBrowserExpansions: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 3,
+        },
+        totalMs: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 604_800_000,
+        },
+        artifactBytes: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 10_737_418_240,
+        },
+        estimatedComputeUnits: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 1_000_000_000,
+        },
+        parallelism: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 1_024,
+        },
+      },
+      additionalProperties: false,
+    },
+    evidenceRequirements: {
+      $ref: '#/$defs/evidenceRequirements',
+    },
+    baselinePolicy: {
+      type: 'object',
+      required: ['visual', 'requireCompatibleIdentity'],
+      properties: {
+        visual: {
+          enum: ['required-when-observed', 'advisory', 'forbidden'],
+        },
+        requireCompatibleIdentity: { const: true },
+      },
+      additionalProperties: false,
+    },
+    retentionRequest: {
+      type: 'object',
+      required: ['successful', 'failed', 'protectReleaseEvidence'],
+      properties: {
+        successful: { $ref: '#/$defs/retentionClass' },
+        failed: { $ref: '#/$defs/retentionClass' },
+        protectReleaseEvidence: { type: 'boolean' },
+      },
+      additionalProperties: false,
+    },
+  },
+  additionalProperties: false,
+  $defs: {
+    canonicalString: canonicalStringSchema,
+    canonicalId: canonicalIdSchema,
+    digest: digestSchema,
+    canonicalIdArray: canonicalIdArraySchema,
+    controlProfileRef: controlProfileRefSchema,
+    documentDigestRef: documentDigestRefSchema,
+    viewport: viewportSchema,
+    matrix: matrixSchema,
+    checkKind: checkKindSchema,
+    evidenceTrust: evidenceTrustSchema,
+    artifactKind: artifactKindSchema,
+    retentionClass: retentionClassSchema,
+    matrixProfile: {
+      type: 'object',
+      required: ['id', 'name', 'matrix'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalId' },
+        name: { $ref: '#/$defs/canonicalString' },
+        matrix: { $ref: '#/$defs/matrix' },
+      },
+      additionalProperties: false,
+    },
+    retryPolicy: {
+      type: 'object',
+      required: [
+        'id',
+        'maximumAttempts',
+        'retryableOutcomes',
+        'stabilitySamples',
+        'freshFixtureNamespace',
+      ],
+      properties: {
+        id: { $ref: '#/$defs/canonicalId' },
+        maximumAttempts: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 100,
+        },
+        retryableOutcomes: {
+          type: 'array',
+          maxItems: 1,
+          uniqueItems: true,
+          items: { const: 'infrastructure-error' },
+        },
+        stabilitySamples: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 100,
+        },
+        freshFixtureNamespace: { const: true },
+      },
+      additionalProperties: false,
+    },
+    evidenceRequirements: {
+      type: 'object',
+      required: [
+        'acceptedTrust',
+        'maximumAgeMs',
+        'requireAttestation',
+        'requireCompatibleIdentity',
+        'requiredArtifactKinds',
+      ],
+      properties: {
+        acceptedTrust: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 4,
+          uniqueItems: true,
+          items: { $ref: '#/$defs/evidenceTrust' },
+        },
+        maximumAgeMs: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 31_536_000_000,
+        },
+        requireAttestation: { type: 'boolean' },
+        requireCompatibleIdentity: { const: true },
+        requiredArtifactKinds: {
+          type: 'array',
+          maxItems: 11,
+          uniqueItems: true,
+          items: { $ref: '#/$defs/artifactKind' },
+        },
+      },
+      additionalProperties: false,
+    },
+    rule: {
+      type: 'object',
+      required: [
+        'id',
+        'requirement',
+        'checkKinds',
+        'scenarioIds',
+        'scenarioTags',
+        'criticalities',
+        'impactedDomains',
+        'riskFlags',
+        'matrixProfileId',
+        'retryPolicyId',
+        'evidenceTrust',
+        'controlProfileRef',
+      ],
+      properties: {
+        id: { $ref: '#/$defs/canonicalId' },
+        requirement: { enum: ['required', 'advisory', 'forbidden'] },
+        checkKinds: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 9,
+          uniqueItems: true,
+          items: { $ref: '#/$defs/checkKind' },
+        },
+        scenarioIds: { $ref: '#/$defs/canonicalIdArray' },
+        scenarioTags: { $ref: '#/$defs/canonicalIdArray' },
+        criticalities: {
+          type: 'array',
+          maxItems: 3,
+          uniqueItems: true,
+          items: { enum: ['smoke', 'standard', 'critical'] },
+        },
+        impactedDomains: { $ref: '#/$defs/canonicalIdArray' },
+        riskFlags: { $ref: '#/$defs/canonicalIdArray' },
+        matrixProfileId: { $ref: '#/$defs/canonicalId' },
+        retryPolicyId: { $ref: '#/$defs/canonicalId' },
+        evidenceTrust: { $ref: '#/$defs/evidenceTrust' },
+        controlProfileRef: { $ref: '#/$defs/controlProfileRef' },
+        fixtureSetRef: { $ref: '#/$defs/documentDigestRef' },
+        baselineSetRef: { $ref: '#/$defs/documentDigestRef' },
+      },
+      additionalProperties: false,
+    },
+    exemption: {
+      type: 'object',
+      required: [
+        'id',
+        'ruleId',
+        'targetId',
+        'reason',
+        'actorRef',
+        'createdAt',
+        'expiresAt',
+        'reducesTo',
+        'issueRef',
+      ],
+      properties: {
+        id: { $ref: '#/$defs/canonicalId' },
+        ruleId: { $ref: '#/$defs/canonicalId' },
+        targetId: { $ref: '#/$defs/canonicalId' },
+        reason: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 4_096,
+        },
+        actorRef: { $ref: '#/$defs/canonicalId' },
+        createdAt: { $ref: '#/$defs/canonicalString' },
+        expiresAt: { $ref: '#/$defs/canonicalString' },
+        reducesTo: { const: 'advisory' },
+        issueRef: { $ref: '#/$defs/canonicalId' },
+      },
+      additionalProperties: false,
+    },
+  },
+} as const;
+
+export const verificationBaselineSetWireSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://prodivix.dev/schemas/verification/baseline-set/v1.json',
+  title: 'Prodivix VerificationBaselineSet wire document',
+  type: 'object',
+  required: ['wireVersion', 'id', 'name', 'entries'],
+  properties: {
+    wireVersion: { const: 1 },
+    id: { $ref: '#/$defs/canonicalId' },
+    name: { $ref: '#/$defs/canonicalString' },
+    entries: {
+      type: 'array',
+      maxItems: 10_000,
+      items: { $ref: '#/$defs/entry' },
+    },
+  },
+  additionalProperties: false,
+  $defs: {
+    canonicalString: canonicalStringSchema,
+    canonicalId: canonicalIdSchema,
+    digest: digestSchema,
+    viewport: viewportSchema,
+    entry: {
+      type: 'object',
+      required: [
+        'id',
+        'scenarioId',
+        'stepId',
+        'targetId',
+        'frameworkTarget',
+        'surface',
+        'viewport',
+        'colorScheme',
+        'motion',
+        'locale',
+        'devicePixelRatio',
+        'asset',
+        'normalizerDigest',
+        'adoptedAt',
+        'adoptedBy',
+      ],
+      properties: {
+        id: { $ref: '#/$defs/canonicalId' },
+        scenarioId: { $ref: '#/$defs/canonicalId' },
+        stepId: { $ref: '#/$defs/canonicalId' },
+        targetId: { $ref: '#/$defs/canonicalId' },
+        frameworkTarget: { $ref: '#/$defs/canonicalId' },
+        surface: { enum: ['preview', 'export', 'ci'] },
+        browserEngine: { enum: ['chromium', 'firefox', 'webkit'] },
+        viewport: { $ref: '#/$defs/viewport' },
+        colorScheme: { enum: ['light', 'dark'] },
+        motion: { enum: ['full', 'reduced'] },
+        locale: { $ref: '#/$defs/canonicalString' },
+        devicePixelRatio: {
+          type: 'number',
+          exclusiveMinimum: 0,
+          maximum: 8,
+        },
+        asset: {
+          type: 'object',
+          required: ['assetDocumentId', 'digest', 'mediaType'],
+          properties: {
+            assetDocumentId: { $ref: '#/$defs/canonicalId' },
+            digest: { $ref: '#/$defs/digest' },
+            mediaType: {
+              type: 'string',
+              pattern:
+                '^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$',
+              maxLength: 127,
+            },
+          },
+          additionalProperties: false,
+        },
+        normalizerDigest: { $ref: '#/$defs/digest' },
+        adoptedAt: { $ref: '#/$defs/canonicalString' },
+        adoptedBy: { $ref: '#/$defs/canonicalId' },
+      },
+      additionalProperties: false,
+    },
+  },
+} as const;
+
+export const verificationDocumentWireSchemas = Object.freeze({
+  'verification-policy': verificationPolicyWireSchema,
+  'verification-baseline-set': verificationBaselineSetWireSchema,
+});

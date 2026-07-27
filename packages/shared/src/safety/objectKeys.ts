@@ -20,7 +20,9 @@ export const isUnsafeObjectKey = (key: string): boolean =>
   UNSAFE_OBJECT_KEYS.has(key);
 
 /** The rejected names, for diagnostics that need to name what is disallowed. */
-export const unsafeObjectKeys = (): readonly string[] => [...UNSAFE_OBJECT_KEYS];
+export const unsafeObjectKeys = (): readonly string[] => [
+  ...UNSAFE_OBJECT_KEYS,
+];
 
 /**
  * True when `value` is a plain object safe to index: an own-property bag whose

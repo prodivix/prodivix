@@ -8,6 +8,11 @@ export const WORKSPACE_DOCUMENT_TYPES = Object.freeze([
   'design-token-resolver',
   'code',
   'data-source',
+  'behavior-scenario',
+  'behavior-control-profile',
+  'behavior-fixture-set',
+  'verification-policy',
+  'verification-baseline-set',
   'asset',
   'project-config',
 ] as const);
@@ -23,6 +28,8 @@ export const WORKSPACE_COMMAND_DOMAINS = Object.freeze([
   'token',
   'code',
   'data',
+  'behavior',
+  'verification',
   'resource',
 ] as const);
 
@@ -44,15 +51,18 @@ export type WorkspaceDocumentPatchPolicy =
 export type WorkspaceDocumentPolicy = Readonly<{
   domain: WorkspaceDocumentCommandDomain;
   patch: WorkspaceDocumentPatchPolicy;
+  cardinality: 'single' | 'many';
 }>;
 
 const roots = (
   domain: WorkspaceDocumentCommandDomain,
   values: readonly string[],
-  extensionRootPrefixes?: readonly string[]
+  extensionRootPrefixes?: readonly string[],
+  cardinality: 'single' | 'many' = 'many'
 ): WorkspaceDocumentPolicy =>
   Object.freeze({
     domain,
+    cardinality,
     patch: Object.freeze({
       kind: 'roots',
       roots: Object.freeze([...values]),
@@ -67,7 +77,11 @@ const roots = (
 const topLevel = (
   domain: WorkspaceDocumentCommandDomain
 ): WorkspaceDocumentPolicy =>
-  Object.freeze({ domain, patch: Object.freeze({ kind: 'top-level' }) });
+  Object.freeze({
+    domain,
+    cardinality: 'many',
+    patch: Object.freeze({ kind: 'top-level' }),
+  });
 
 export const WORKSPACE_DOCUMENT_POLICIES = Object.freeze({
   'pir-page': roots(
@@ -101,6 +115,59 @@ export const WORKSPACE_DOCUMENT_POLICIES = Object.freeze({
     '/operationsById',
     '/importProvenanceById',
   ]),
+  'behavior-scenario': roots('behavior', [
+    '/id',
+    '/name',
+    '/description',
+    '/owner',
+    '/criticality',
+    '/tags',
+    '/entry',
+    '/steps',
+    '/fixtureRefs',
+    '/controlProfileRef',
+    '/baselineRefs',
+    '/timeoutPolicy',
+  ]),
+  'behavior-control-profile': roots('behavior', [
+    '/id',
+    '/name',
+    '/clock',
+    '/timezone',
+    '/random',
+    '/identifiers',
+    '/scheduler',
+    '/network',
+    '/storage',
+    '/rendering',
+    '/serviceWorker',
+    '/settle',
+    '/budgets',
+  ]),
+  'behavior-fixture-set': roots('behavior', ['/id', '/name', '/fixtures']),
+  'verification-policy': roots(
+    'verification',
+    [
+      '/id',
+      '/name',
+      '/defaultRequirement',
+      '/rules',
+      '/matrixProfiles',
+      '/retryPolicies',
+      '/exemptions',
+      '/budgets',
+      '/evidenceRequirements',
+      '/baselinePolicy',
+      '/retentionRequest',
+    ],
+    undefined,
+    'single'
+  ),
+  'verification-baseline-set': roots('verification', [
+    '/id',
+    '/name',
+    '/entries',
+  ]),
   asset: roots('resource', [
     '/mime',
     '/category',
@@ -121,6 +188,11 @@ export const WORKSPACE_COMMAND_NAMESPACE_DOMAIN_RULES = Object.freeze([
   }),
   Object.freeze({ prefix: 'core.code', domain: 'code' as const }),
   Object.freeze({ prefix: 'core.data', domain: 'data' as const }),
+  Object.freeze({ prefix: 'core.behavior', domain: 'behavior' as const }),
+  Object.freeze({
+    prefix: 'core.verification',
+    domain: 'verification' as const,
+  }),
   Object.freeze({ prefix: 'core.resource', domain: 'resource' as const }),
   Object.freeze({ prefix: 'core.route', domain: 'route' as const }),
   Object.freeze({
@@ -167,6 +239,11 @@ export const getWorkspaceDocumentPolicy = (
 export const getWorkspaceDocumentDomain = (
   type: WorkspaceDocumentType
 ): WorkspaceDocumentCommandDomain => getWorkspaceDocumentPolicy(type).domain;
+
+export const getWorkspaceDocumentCardinality = (
+  type: WorkspaceDocumentType
+): WorkspaceDocumentPolicy['cardinality'] =>
+  getWorkspaceDocumentPolicy(type).cardinality;
 
 export const resolveWorkspaceCommandNamespaceDomain = (
   namespace: string

@@ -255,17 +255,22 @@ func newExistingDocumentAgainstAbsentConflictForCommit(
 type WorkspaceDocumentType string
 
 const (
-	WorkspaceDocumentTypePIRPage       WorkspaceDocumentType = "pir-page"
-	WorkspaceDocumentTypePIRLayout     WorkspaceDocumentType = "pir-layout"
-	WorkspaceDocumentTypePIRComponent  WorkspaceDocumentType = "pir-component"
-	WorkspaceDocumentTypePIRGraph      WorkspaceDocumentType = "pir-graph"
-	WorkspaceDocumentTypePIRAnimation  WorkspaceDocumentType = "pir-animation"
-	WorkspaceDocumentTypeDesignTokens  WorkspaceDocumentType = "design-tokens"
-	WorkspaceDocumentTypeTokenResolver WorkspaceDocumentType = "design-token-resolver"
-	WorkspaceDocumentTypeCode          WorkspaceDocumentType = "code"
-	WorkspaceDocumentTypeDataSource    WorkspaceDocumentType = "data-source"
-	WorkspaceDocumentTypeAsset         WorkspaceDocumentType = "asset"
-	WorkspaceDocumentTypeProjectConfig WorkspaceDocumentType = "project-config"
+	WorkspaceDocumentTypePIRPage                 WorkspaceDocumentType = "pir-page"
+	WorkspaceDocumentTypePIRLayout               WorkspaceDocumentType = "pir-layout"
+	WorkspaceDocumentTypePIRComponent            WorkspaceDocumentType = "pir-component"
+	WorkspaceDocumentTypePIRGraph                WorkspaceDocumentType = "pir-graph"
+	WorkspaceDocumentTypePIRAnimation            WorkspaceDocumentType = "pir-animation"
+	WorkspaceDocumentTypeDesignTokens            WorkspaceDocumentType = "design-tokens"
+	WorkspaceDocumentTypeTokenResolver           WorkspaceDocumentType = "design-token-resolver"
+	WorkspaceDocumentTypeCode                    WorkspaceDocumentType = "code"
+	WorkspaceDocumentTypeDataSource              WorkspaceDocumentType = "data-source"
+	WorkspaceDocumentTypeBehaviorScenario        WorkspaceDocumentType = "behavior-scenario"
+	WorkspaceDocumentTypeBehaviorControlProfile  WorkspaceDocumentType = "behavior-control-profile"
+	WorkspaceDocumentTypeBehaviorFixtureSet      WorkspaceDocumentType = "behavior-fixture-set"
+	WorkspaceDocumentTypeVerificationPolicy      WorkspaceDocumentType = "verification-policy"
+	WorkspaceDocumentTypeVerificationBaselineSet WorkspaceDocumentType = "verification-baseline-set"
+	WorkspaceDocumentTypeAsset                   WorkspaceDocumentType = "asset"
+	WorkspaceDocumentTypeProjectConfig           WorkspaceDocumentType = "project-config"
 )
 
 type WorkspaceStore struct {

@@ -8,14 +8,25 @@
     "paths": {
       "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"],
       "@prodivix/runtime-core": ["../runtime-core/dist/index.d.ts"],
-      "@prodivix/server-runtime": ["../server-runtime/dist/index.d.ts"]
+      "@prodivix/server-runtime": ["../server-runtime/dist/index.d.ts"],
+      "@prodivix/shared": ["../shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../diagnostics" },
-    { "path": "../runtime-core" },
-    { "path": "../server-runtime" }
+    {
+      "path": "../diagnostics"
+    },
+    {
+      "path": "../runtime-core"
+    },
+    {
+      "path": "../server-runtime"
+    },
+    {
+      "path": "../shared"
+    }
   ]
 }

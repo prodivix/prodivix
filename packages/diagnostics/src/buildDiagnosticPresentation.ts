@@ -30,6 +30,7 @@ export type DiagnosticPresentationResolver = {
   ): DiagnosticLocationPresentation[];
   resolveActions(input: {
     diagnostic: ProdivixDiagnostic;
+    definition?: DiagnosticDefinition;
     template: DiagnosticPresentationTemplate;
     locations: DiagnosticLocationPresentation[];
     surface: DiagnosticSurface;
@@ -185,6 +186,7 @@ const defaultResolveLocation = (
 const hasRequirement = (
   requirement: DiagnosticActionRequirement,
   diagnostic: ProdivixDiagnostic,
+  definition: DiagnosticDefinition | undefined,
   locations: DiagnosticLocationPresentation[]
 ): boolean => {
   switch (requirement) {
@@ -199,7 +201,7 @@ const hasRequirement = (
     case 'quickFix':
       return Boolean(diagnostic.quickFixes?.length);
     case 'exemptable':
-      return diagnostic.domain === 'ux';
+      return definition?.exemptable === true;
     case 'relatedDiagnostics':
       return Boolean(getPathValue(diagnostic.meta, 'relatedDiagnostics'));
     default:
@@ -209,17 +211,19 @@ const hasRequirement = (
 
 const defaultResolveActions = ({
   diagnostic,
+  definition,
   template,
   locations,
 }: {
   diagnostic: ProdivixDiagnostic;
+  definition?: DiagnosticDefinition;
   template: DiagnosticPresentationTemplate;
   locations: DiagnosticLocationPresentation[];
   surface: DiagnosticSurface;
 }): DiagnosticActionPresentation[] =>
   (template.actions ?? []).map((action) => {
     const enabled = (action.requires ?? []).every((requirement) =>
-      hasRequirement(requirement, diagnostic, locations)
+      hasRequirement(requirement, diagnostic, definition, locations)
     );
 
     return {
@@ -401,10 +405,16 @@ export const buildDiagnosticPresentation = ({
       kind: section.kind,
       title: section.titleFallback,
       visible: (section.visibleWhen ?? []).every((requirement) =>
-        hasRequirement(requirement, diagnostic, locations)
+        hasRequirement(requirement, diagnostic, definition, locations)
       ),
     })),
-    actions: resolveActions({ diagnostic, template, locations, surface }),
+    actions: resolveActions({
+      diagnostic,
+      definition,
+      template,
+      locations,
+      surface,
+    }),
     docsUrl: diagnostic.docsUrl ?? definition?.docsUrl,
   };
 };

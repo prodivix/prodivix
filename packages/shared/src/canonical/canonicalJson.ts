@@ -31,11 +31,7 @@ const collectKeys = (value: unknown, keys: Set<string>): void => {
 export const canonicalJsonText = (value: unknown, space?: number): string => {
   const keys = new Set<string>();
   collectKeys(value, keys);
-  return JSON.stringify(
-    value,
-    [...keys].sort(compareUnicodeCodePoints),
-    space
-  );
+  return JSON.stringify(value, [...keys].sort(compareUnicodeCodePoints), space);
 };
 
 /** Structural equality via canonical serialization. */

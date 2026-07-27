@@ -11,7 +11,9 @@
     "paths": {
       "@prodivix/diagnostics": ["../diagnostics/src"],
       "@prodivix/runtime-core": ["../runtime-core/src"],
-      "@prodivix/server-runtime": ["../server-runtime/src"]
+      "@prodivix/server-runtime": ["../server-runtime/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
@@ -22,8 +24,17 @@
     "src/**/__tests__/**"
   ],
   "references": [
-    { "path": "../diagnostics" },
-    { "path": "../runtime-core" },
-    { "path": "../server-runtime" }
+    {
+      "path": "../diagnostics"
+    },
+    {
+      "path": "../runtime-core"
+    },
+    {
+      "path": "../server-runtime"
+    },
+    {
+      "path": "../shared"
+    }
   ]
 }

@@ -57,6 +57,15 @@ export {
   selectWorkspaceDataSourceDocumentResults,
 } from './workspaceDataSourceDocument';
 export {
+  createWorkspaceBehaviorVerificationDocumentCommand,
+  createWorkspaceBehaviorVerificationDocumentUpdateCommand,
+  createWorkspaceBehaviorVerificationTransaction,
+  decodeWorkspaceBehaviorVerificationDocument,
+  isCanonicalWorkspaceBehaviorVerificationDocumentContent,
+  isWorkspaceBehaviorVerificationDocumentType,
+  selectWorkspaceBehaviorVerificationDocument,
+} from './workspaceBehaviorVerificationDocument';
+export {
   collectWorkspaceDesignTokenResolverDocumentReferences,
   createWorkspaceDesignTokenResolverDocumentUpdateCommand,
   decodeWorkspaceDesignTokenResolverDocument,
@@ -80,6 +89,7 @@ export {
   WORKSPACE_COMMAND_NAMESPACE_DOMAIN_RULES,
   WORKSPACE_DOCUMENT_POLICIES,
   WORKSPACE_DOCUMENT_TYPES,
+  getWorkspaceDocumentCardinality,
   getWorkspaceDocumentDomain,
   getWorkspaceDocumentPolicy,
   isWorkspaceCommandDomain,
@@ -389,6 +399,20 @@ export type {
   WorkspaceDataSourceDocument,
   WorkspaceDataSourceReadResult,
 } from './workspaceDataSourceDocument';
+export type {
+  CreateWorkspaceBehaviorVerificationDocumentInput,
+  CreateWorkspaceBehaviorVerificationDocumentUpdateCommandInput,
+  WorkspaceBehaviorControlProfileDocument,
+  WorkspaceBehaviorFixtureSetDocument,
+  WorkspaceBehaviorScenarioDocument,
+  WorkspaceBehaviorVerificationContentByType,
+  WorkspaceBehaviorVerificationDocument,
+  WorkspaceBehaviorVerificationDocumentType,
+  WorkspaceBehaviorVerificationReadIssue,
+  WorkspaceBehaviorVerificationReadResult,
+  WorkspaceVerificationBaselineSetDocument,
+  WorkspaceVerificationPolicyDocument,
+} from './workspaceBehaviorVerificationDocument';
 export type {
   WorkspaceVfsIntentPlan,
   WorkspaceVfsIntentRequest,

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -160,5 +161,30 @@ func TestMigrationSetVersionsAreUniqueAndOrdered(t *testing.T) {
 			t.Fatalf("migration %q has version %d, which does not follow %d", migration.name, migration.version, previous)
 		}
 		previous = migration.version
+	}
+}
+
+func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
+	migrations := migrationSet()
+	last := migrations[len(migrations)-1]
+	if last.version != 16 || last.name != "g3-behavior-verification-workspace-documents" {
+		t.Fatalf("last migration = %d %q, want G3 workspace document migration", last.version, last.name)
+	}
+	if len(last.statements) != 2 {
+		t.Fatalf("G3 migration statements = %d, want 2", len(last.statements))
+	}
+	for _, documentType := range []string{
+		"behavior-scenario",
+		"behavior-control-profile",
+		"behavior-fixture-set",
+		"verification-policy",
+		"verification-baseline-set",
+	} {
+		if !strings.Contains(last.statements[0], "'"+documentType+"'") {
+			t.Fatalf("G3 migration omits document type %q", documentType)
+		}
+	}
+	if !strings.Contains(last.statements[1], "idx_workspace_documents_single_verification_policy") {
+		t.Fatal("G3 migration must enforce one verification-policy per workspace")
 	}
 }

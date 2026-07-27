@@ -6,7 +6,9 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
     "paths": {
-      "@prodivix/authoring": ["../authoring/dist/index.d.ts"]
+      "@prodivix/authoring": ["../authoring/dist/index.d.ts"],
+      "@prodivix/shared": ["../shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
@@ -14,6 +16,9 @@
   "references": [
     {
       "path": "../authoring"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

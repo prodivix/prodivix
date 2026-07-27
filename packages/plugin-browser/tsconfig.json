@@ -11,7 +11,9 @@
       "#browser/*": ["./src/*"],
       "@prodivix/plugin-contracts": ["../plugin-contracts/src"],
       "@prodivix/plugin-host": ["../plugin-host/src"],
-      "@prodivix/plugin-protocol": ["../plugin-protocol/src"]
+      "@prodivix/plugin-protocol": ["../plugin-protocol/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
@@ -30,6 +32,9 @@
     },
     {
       "path": "../plugin-protocol"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

@@ -26,10 +26,10 @@ const FIXTURE = {
   a: 1,
   B: 'two',
   _x: true,
-  'é': [3, 1, 2],
+  é: [3, 1, 2],
   '10': { d: 2, c: [{ f: 3, e: 4 }] },
   '9': 'nine',
-  '中文': 'cjk',
+  中文: 'cjk',
   '𝐀': 'astral',
   empty: {},
   nested: { b: [true, false, null], a: -0.5, s: 'text with "quotes" and \\' },
@@ -41,8 +41,9 @@ const EXPECTED_TEXT =
   '"s":"text with \\"quotes\\" and \\\\"},"z":null,"é":[3,1,2],' +
   '"中文":"cjk","𝐀":"astral"}';
 
-const EXPECTED_SHA256 =
-  createHash('sha256').update(EXPECTED_TEXT, 'utf8').digest('hex');
+const EXPECTED_SHA256 = createHash('sha256')
+  .update(EXPECTED_TEXT, 'utf8')
+  .digest('hex');
 
 describe('canonical byte stability', () => {
   it('serializes the fixture to the exact pinned bytes', () => {

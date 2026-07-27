@@ -10,7 +10,9 @@
     "paths": {
       "#package/*": ["./src/*"],
       "@prodivix/plugin-contracts": ["../plugin-contracts/src"],
-      "@prodivix/plugin-host": ["../plugin-host/src"]
+      "@prodivix/plugin-host": ["../plugin-host/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
@@ -26,6 +28,9 @@
     },
     {
       "path": "../plugin-host"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

@@ -5,7 +5,9 @@
     "paths": {
       "#package/*": ["./src/*"],
       "@prodivix/plugin-contracts": ["../plugin-contracts/dist/index.d.ts"],
-      "@prodivix/plugin-host": ["../plugin-host/dist/index.d.ts"]
+      "@prodivix/plugin-host": ["../plugin-host/dist/index.d.ts"],
+      "@prodivix/shared": ["../shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
@@ -16,6 +18,9 @@
     },
     {
       "path": "../plugin-host"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

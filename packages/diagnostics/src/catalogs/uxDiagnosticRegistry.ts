@@ -47,6 +47,7 @@ const uxDefinition = (
     severity,
     stage,
     retryable,
+    exemptable: true,
     defaultPlacement: uxPlacementForStage(stage),
     primaryLocation: 'target-then-source',
     evidence: [uxStandardEvidence, uxEvidence],

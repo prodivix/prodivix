@@ -24,7 +24,7 @@ semantic observation sequence；无法控制的因素必须显式 unsupported/un
 
 - `BehaviorControlProfile`、control capability/preflight 与 canonical digest；
 - logical clock、random/id、scheduler、network/Data fixture、storage/session isolation；
-- viewport/DPR/color/motion/locale/timezone/font/service worker controls；
+- plan-cell viewport/color/motion/locale 轴的显式应用，以及 profile-owned DPR/timezone/font/service worker controls；
 - condition wait、settle、lane/barrier、bounded concurrency；
 - attempt-scoped `ReplayRecord`、divergence detection、fresh replay；
 - pause/step/continue debugger 与 SourceTrace；
@@ -43,14 +43,15 @@ semantic observation sequence；无法控制的因素必须显式 unsupported/un
 ```ts
 interface BehaviorControlProfile {
   id: BehaviorControlProfileId;
+  name: string;
   clock: ClockControl;
+  timezone: string;
   random: RandomControl;
   identifiers: IdentifierControl;
   scheduler: SchedulerControl;
   network: NetworkControl;
   storage: StorageControl;
   rendering: RenderingControl;
-  locale: LocaleControl;
   serviceWorker: ServiceWorkerControl;
   settle: SettlePolicy;
   budgets: ReplayBudgets;
@@ -131,8 +132,9 @@ debugger continue 在同一 attempt 内保留 runtime state。
 
 ## Rendering controls
 
-profile 明确 viewport、DPR、color scheme、contrast、reduced motion、locale、timezone、font manifest、animation settle、
-pixel normalization 和 screenshot region。
+Plan cell 明确 viewport、color scheme、motion 与 locale；profile 明确 DPR、timezone、font readiness/manifest、
+animation settle、pixel normalization 和 screenshot region。provider 必须组合并报告两者的 applied identity，
+不得把 cell axis 复制进 profile 或依赖宿主默认值。
 
 - 字体必须来自 content-addressed manifest 或明确 system fallback identity；加载失败 blocked visual cell；
 - `prefers-reduced-motion` 与 Scenario/Animation policy 联动，full/reduced 是不同 matrix cell；

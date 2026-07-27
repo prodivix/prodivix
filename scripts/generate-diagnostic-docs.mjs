@@ -31,6 +31,8 @@ const domainOrder = [
   'SVR',
   'TST',
   'EXE',
+  'BHV',
+  'VER',
 ];
 
 /**
@@ -39,10 +41,7 @@ const domainOrder = [
  * They are registered here only so `validateDomainSpecCoverage` cannot silently
  * skip a domain spec; move an entry into `domainInfo` when its codes ship.
  */
-const reservedDomainSpecFiles = {
-  BHV: 'behavior-diagnostic-codes.md',
-  VER: 'verification-diagnostic-codes.md',
-};
+const reservedDomainSpecFiles = {};
 
 const domainInfo = {
   PIR: {
@@ -156,6 +155,20 @@ const domainInfo = {
     title: 'Remote Execution',
     area: '远端执行',
     description: '远端协议、幂等、恢复、权限、配额、transport 和 Secret 边界',
+  },
+  BHV: {
+    file: 'behavior-diagnostic-codes.md',
+    title: 'Behavior',
+    area: '行为场景',
+    description:
+      'Scenario schema、semantic target、compile、execute、replay 和 recorder',
+  },
+  VER: {
+    file: 'verification-diagnostic-codes.md',
+    title: 'Verification',
+    area: '验证闭环',
+    description:
+      'Impact、Policy、Plan、adapter、Evidence、retention 和 Closure',
   },
 };
 

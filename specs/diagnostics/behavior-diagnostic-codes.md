@@ -3,8 +3,8 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- 日期：2026-07-20
+- ImplementationStatus：Registry and generated reference Implemented；runtime emission follows owning milestones
+- 日期：2026-07-27
 - Global Phase：G3 Behavior & Verification Closure
 - 关联：
   - `specs/diagnostics/README.md`
@@ -21,7 +21,9 @@ recorder 的稳定失败语义。Domain 固定为 `behavior`。
 1. Route/Data/NodeGraph/Animation owner 内部失败，继续使用 `RTE`/`DAT`/`NGR`/`ANI`，并通过 correlation 关联 Scenario step；
 2. Plan、adapter、Evidence、retention、Closure，使用 `VER-xxxx`；
 3. 单次 G2 Workspace Test host/report，使用 `TST-xxxx`；
-4. 普通 progress/debug event，不为每一事件创建诊断。
+4. 普通 progress/debug event，不为每一事件创建诊断；
+5. 通用 symbol/reference missing、ambiguous、incompatible 或 stale snapshot 继续由 `SEM-xxxx` 拥有；
+   `BHV-2001/2002` 只表示该上游语义失败已阻断 Scenario compile/execute，并通过安全 meta 关联上游 SEM code。
 
 ## 2. 阶段与分段
 

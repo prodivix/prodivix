@@ -178,6 +178,10 @@ export const navigateToWorkspaceSemanticTarget = (
       return finish(`${basePath}/resources`);
     case 'document':
       return openDocument(targetRef.documentId);
+    case 'behavior-scenario':
+    case 'behavior-step':
+    case 'verification-policy':
+      return openDocument(targetRef.documentId);
     case 'pir-node':
     case 'inspector-field':
       if (!workspace?.docsById[targetRef.documentId]) {
@@ -268,6 +272,10 @@ export const navigateToWorkspaceSemanticTarget = (
     case 'runtime-dom':
       return finish(`${basePath}/blueprint`);
     case 'operation':
+    case 'behavior-replay-record':
+    case 'verification-plan-cell':
+    case 'verification-evidence':
+    case 'verification-closure':
       return finish(`${basePath}/issues`);
   }
 };

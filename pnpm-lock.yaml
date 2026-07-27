@@ -615,6 +615,31 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
 
+  packages/behavior:
+    dependencies:
+      '@prodivix/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
   packages/code-language:
     dependencies:
       '@prodivix/authoring':
@@ -1849,6 +1874,34 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
 
+  packages/verification:
+    dependencies:
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
+      '@prodivix/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
   packages/vscode-debugger:
     dependencies:
       '@vscode/debugadapter':
@@ -1879,6 +1932,9 @@ importers:
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
       '@prodivix/data':
         specifier: workspace:*
         version: link:../data
@@ -1903,6 +1959,9 @@ importers:
       '@prodivix/tokens':
         specifier: workspace:*
         version: link:../tokens
+      '@prodivix/verification':
+        specifier: workspace:*
+        version: link:../verification
     devDependencies:
       '@types/node':
         specifier: ^26.1.0

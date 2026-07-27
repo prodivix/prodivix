@@ -9,37 +9,38 @@
 ## 当前判断
 
 G2 Exit Gate 已由 commit `3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184` 的 current-scope closure 通过，Global G3
-Product Gate 进入 `In Progress`。ADR 56-63 与实施计划已冻结 contract 和预期 Gate，但实现尚未开始；V0
-owner/contract hard cut 是唯一首个实施入口。本文中的命令和 Evidence 项是后续实施必须建立的验收入口，不代表当前已存在或已通过。
+Product Gate 处于 `In Progress`。V0 owner/contract hard cut 已在当前 worktree 实现，2026-07-27 本地
+`pnpm run verify:g3:boundaries` 与 `pnpm run build` 通过；由于改动尚未提交，repository/CI evidence 仍待补。
+V1 Scenario authoring 是下一实施入口，V1-V8 均未开始。
 
-| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                   |
-| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| V0 Owner/contract hard cut | Not Started | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | boundary、codec、Command、migration conformance            |
-| V1 Scenario authoring      | Not Started | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | authoring/recorder/compiler/target relocation Gate         |
-| V2 Cross-domain behavior   | Not Started | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | invoked Catalog behavior parity                            |
-| V3 Deterministic replay    | Not Started | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | repeat/divergence/isolation/provider conformance           |
-| V4 Impact/Policy/Plan      | Not Started | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate          |
-| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate |
-| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                   |
-| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity          |
-| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed       |
+| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                      |
+| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地 boundary、codec、Command、migration conformance；commit/CI evidence 待补 |
+| V1 Scenario authoring      | Not Started | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | authoring/recorder/compiler/target relocation Gate                            |
+| V2 Cross-domain behavior   | Not Started | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | invoked Catalog behavior parity                                               |
+| V3 Deterministic replay    | Not Started | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | repeat/divergence/isolation/provider conformance                              |
+| V4 Impact/Policy/Plan      | Not Started | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate                             |
+| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                    |
+| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                      |
+| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                             |
+| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                          |
 
 ## V0：Owner 与 contract hard cut
 
 ### 必须完成
 
-- [ ] 新建 `@prodivix/behavior`，只拥有 Scenario/Program/recorder semantic。
-- [ ] 新建 `@prodivix/verification`，只拥有 Impact/Policy/Plan/adapter SPI/Evidence/Closure contract。
-- [ ] 新建 `behavior-scenario`、`behavior-control-profile`、`behavior-fixture-set`、
+- [x] 新建 `@prodivix/behavior`，只拥有 Scenario/Program/recorder semantic。
+- [x] 新建 `@prodivix/verification`，只拥有 Impact/Policy/Plan/adapter SPI/Evidence/Closure contract。
+- [x] 新建 `behavior-scenario`、`behavior-control-profile`、`behavior-fixture-set`、
       `verification-policy`、`verification-baseline-set` 五个 Workspace document 与 `core.behavior`、
       `core.verification` Command namespace。control profile / fixture set / baseline set 是被 Scenario 与
       Policy 共同引用的作者态输入，其 digest 同时是 Program digest、plan cell identity 与 Evidence manifest
       的输入，因此必须是独立可寻址、可版本化的 document，不能内嵌进 Scenario。
       `verification-baseline-set` 只拥有 identity/digest/采纳事务，实际图像字节委托给已有的
       `@prodivix/assets` content-addressed store。
-- [ ] current/wire/codec/migration、Backend/Workspace validation conformance。
-- [ ] `behavior`/`verification` diagnostic domain、target 和 `BHV-*`/`VER-*` registry。
-- [ ] package ownership/dependency/boundary Gate，`apps/web` 无 duplicate domain type。
+- [x] current/wire/codec/migration、Backend/Workspace validation conformance。
+- [x] `behavior`/`verification` diagnostic domain、target 和 `BHV-*`/`VER-*` registry。
+- [x] package ownership/dependency/boundary Gate，`apps/web` 无 duplicate domain type。
 
 ### 停止条件
 
@@ -110,7 +111,7 @@ semantic sequence；注入 random/schedule/network drift 必须准确失败。
 - [ ] incomplete/unknown impact conservative expansion。
 - [ ] Policy rule precedence、required/advisory/forbidden、matrix profile、budget、retry、exemption。
 - [ ] deterministic check discovery、matrix expansion、DAG/resource dependency、plan digest。
-- [ ] blocked/unsupported/skipped/not-applicable/unstable 严格语义。
+- [ ] blocked/unsupported/not-applicable/missing/unstable 严格语义，且不产生 `skipped`。
 - [ ] Impact/Plan explain UI 与 CLI JSON parity。
 
 ### Golden slice

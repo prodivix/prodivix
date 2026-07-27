@@ -3,7 +3,11 @@
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
-    "rootDir": "."
+    "rootDir": ".",
+    "paths": {
+      "@prodivix/shared": ["../shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../shared/dist/*"]
+    }
   },
   "include": ["src/**/*", "vitest.config.ts"],
   "exclude": ["node_modules", "dist"],
@@ -16,6 +20,9 @@
     },
     {
       "path": "../plugin-protocol"
+    },
+    {
+      "path": "../shared"
     }
   ]
 }

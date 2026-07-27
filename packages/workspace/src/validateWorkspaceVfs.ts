@@ -11,6 +11,10 @@ import {
 } from './workspaceDocumentValidation';
 import { validateWorkspaceComponentGraph } from './component/workspaceComponentGraph';
 import { validateWorkspaceAnimationTargets } from './workspaceAnimationDocument';
+import {
+  getWorkspaceDocumentCardinality,
+  isWorkspaceDocumentType,
+} from './workspaceContractRegistry';
 
 type WorkspaceVfsValidationInput = Pick<
   WorkspaceSnapshot,
@@ -443,8 +447,26 @@ export const validateWorkspaceVfs = ({
   const pathsByNodeId = new Map<string, string>();
   collectTreePaths(treeRootId, treeById, ROOT_PATH, pathsByNodeId);
 
+  const singletonDocumentIdsByType = new Map<string, string>();
   Object.entries(docsById).forEach(([documentId, document]) => {
     issues.push(...validateWorkspaceDocumentRecord(documentId, document));
+    if (
+      isPlainWorkspaceRecord(document) &&
+      isWorkspaceDocumentType(document.type) &&
+      getWorkspaceDocumentCardinality(document.type) === 'single'
+    ) {
+      const previousDocumentId = singletonDocumentIdsByType.get(document.type);
+      if (previousDocumentId) {
+        addIssue(issues, {
+          code: 'WKS_DOCUMENT_CARDINALITY_INVALID',
+          path: `/docsById/${escapePointerSegment(documentId)}/type`,
+          message: `Workspace document type ${document.type} allows only one document; ${previousDocumentId} already owns it.`,
+          documentId,
+        });
+      } else {
+        singletonDocumentIdsByType.set(document.type, documentId);
+      }
+    }
     const nodeId = referencedDocumentIds.get(documentId);
     if (!nodeId) {
       addIssue(issues, {

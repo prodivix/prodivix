@@ -110,7 +110,9 @@ describe('GraphQL Data import proposal', () => {
       },
     });
     if (proposal.status !== 'ready') {
-      throw new Error(`empty description blocked the import: ${proposal.status}`);
+      throw new Error(
+        `empty description blocked the import: ${proposal.status}`
+      );
     }
     Object.values(proposal.document.operationsById).forEach((operation) =>
       expect(operation.description).toBeUndefined()

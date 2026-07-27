@@ -7,10 +7,22 @@
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
     "paths": {
       "@prodivix/data": ["../data/dist/index.d.ts"],
-      "@prodivix/runtime-core": ["../runtime-core/dist/index.d.ts"]
+      "@prodivix/runtime-core": ["../runtime-core/dist/index.d.ts"],
+      "@prodivix/shared": ["../shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../data" }, { "path": "../runtime-core" }]
+  "references": [
+    {
+      "path": "../data"
+    },
+    {
+      "path": "../runtime-core"
+    },
+    {
+      "path": "../shared"
+    }
+  ]
 }

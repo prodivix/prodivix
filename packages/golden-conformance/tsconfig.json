@@ -3,15 +3,32 @@
   "compilerOptions": {
     "lib": ["ES2022", "DOM"],
     "noEmit": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
+    }
   },
   "include": ["src/**/*", "scripts/**/*", "fixtures/**/*.json"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../runtime-core" },
-    { "path": "../runtime-vitest" },
-    { "path": "../runtime-remote" },
-    { "path": "../runtime-browser" },
-    { "path": "../server-runtime" }
+    {
+      "path": "../runtime-core"
+    },
+    {
+      "path": "../runtime-vitest"
+    },
+    {
+      "path": "../runtime-remote"
+    },
+    {
+      "path": "../runtime-browser"
+    },
+    {
+      "path": "../server-runtime"
+    },
+    {
+      "path": "../shared"
+    }
   ]
 }

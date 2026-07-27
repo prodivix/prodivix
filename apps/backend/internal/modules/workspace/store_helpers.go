@@ -12,6 +12,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/behaviorcontract"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/verificationcontract"
 )
 
 func queryWorkspaceDocumentsForUpdate(ctx context.Context, tx *sql.Tx, workspaceID string) ([]WorkspaceDocumentRecord, error) {
@@ -388,6 +391,15 @@ func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, docume
 	if documentType == WorkspaceDocumentTypeDataSource {
 		return validateDataSourceDocument(payload, documentID)
 	}
+	if documentType == WorkspaceDocumentTypeBehaviorScenario ||
+		documentType == WorkspaceDocumentTypeBehaviorControlProfile ||
+		documentType == WorkspaceDocumentTypeBehaviorFixtureSet {
+		return behaviorcontract.ValidateDocument(string(documentType), documentID, payload)
+	}
+	if documentType == WorkspaceDocumentTypeVerificationPolicy ||
+		documentType == WorkspaceDocumentTypeVerificationBaselineSet {
+		return verificationcontract.ValidateDocument(string(documentType), documentID, payload)
+	}
 	if documentType == WorkspaceDocumentTypeDesignTokens {
 		return validateDesignTokenDocument(payload)
 	}
@@ -541,11 +553,15 @@ func withStoreTimeout(ctx context.Context) (context.Context, context.CancelFunc)
 
 func isValidWorkspaceDocumentType(documentType WorkspaceDocumentType) bool {
 	switch documentType {
-	case WorkspaceDocumentTypePIRPage, WorkspaceDocumentTypePIRLayout, WorkspaceDocumentTypePIRComponent, WorkspaceDocumentTypePIRGraph, WorkspaceDocumentTypePIRAnimation, WorkspaceDocumentTypeDesignTokens, WorkspaceDocumentTypeTokenResolver, WorkspaceDocumentTypeCode, WorkspaceDocumentTypeDataSource, WorkspaceDocumentTypeAsset, WorkspaceDocumentTypeProjectConfig:
+	case WorkspaceDocumentTypePIRPage, WorkspaceDocumentTypePIRLayout, WorkspaceDocumentTypePIRComponent, WorkspaceDocumentTypePIRGraph, WorkspaceDocumentTypePIRAnimation, WorkspaceDocumentTypeDesignTokens, WorkspaceDocumentTypeTokenResolver, WorkspaceDocumentTypeCode, WorkspaceDocumentTypeDataSource, WorkspaceDocumentTypeBehaviorScenario, WorkspaceDocumentTypeBehaviorControlProfile, WorkspaceDocumentTypeBehaviorFixtureSet, WorkspaceDocumentTypeVerificationPolicy, WorkspaceDocumentTypeVerificationBaselineSet, WorkspaceDocumentTypeAsset, WorkspaceDocumentTypeProjectConfig:
 		return true
 	default:
 		return false
 	}
+}
+
+func isSingletonWorkspaceDocumentType(documentType WorkspaceDocumentType) bool {
+	return documentType == WorkspaceDocumentTypeVerificationPolicy
 }
 
 func isPIRWorkspaceDocumentType(documentType WorkspaceDocumentType) bool {

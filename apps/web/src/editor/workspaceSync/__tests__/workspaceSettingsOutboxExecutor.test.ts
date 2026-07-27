@@ -117,9 +117,10 @@ describe('executeWorkspaceSettingsOutboxCommit', () => {
       now: Date.now(),
     });
     if (created.ok === false) throw new Error(created.message);
-    const store = createMemoryWorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>(
-      [{ ...created.entry, attemptCount: 3 }]
-    );
+    const store =
+      createMemoryWorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>([
+        { ...created.entry, attemptCount: 3 },
+      ]);
 
     const results = await resumeWorkspaceSettingsOutbox({
       store,

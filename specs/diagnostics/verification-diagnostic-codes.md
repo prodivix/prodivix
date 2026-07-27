@@ -3,8 +3,8 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- 日期：2026-07-20
+- ImplementationStatus：Registry and generated reference Implemented；runtime emission follows owning milestones
+- 日期：2026-07-27
 - Global Phase：G3 Behavior & Verification Closure
 - 关联：
   - `specs/diagnostics/README.md`

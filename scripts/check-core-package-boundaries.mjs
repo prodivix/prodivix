@@ -23,6 +23,12 @@ const corePackages = {
   // router: route-matching tie-breaks and semantic-fact ordering use the shared code-point comparator.
   router: new Set(['@prodivix/authoring', '@prodivix/shared']),
   diagnostics: new Set(['@prodivix/shared']),
+  behavior: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
+  verification: new Set([
+    '@prodivix/behavior',
+    '@prodivix/diagnostics',
+    '@prodivix/shared',
+  ]),
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   'code-language': new Set(['@prodivix/authoring']),
   tokens: new Set(['@prodivix/authoring']),
@@ -31,6 +37,7 @@ const corePackages = {
     '@prodivix/animation',
     '@prodivix/assets',
     '@prodivix/authoring',
+    '@prodivix/behavior',
     '@prodivix/data',
     '@prodivix/diagnostics',
     '@prodivix/nodegraph',
@@ -39,6 +46,7 @@ const corePackages = {
     '@prodivix/server-runtime',
     '@prodivix/shared',
     '@prodivix/tokens',
+    '@prodivix/verification',
   ]),
   'workspace-sync': new Set([
     '@prodivix/pir',

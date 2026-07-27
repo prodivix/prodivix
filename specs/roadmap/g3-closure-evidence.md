@@ -2,16 +2,17 @@
 
 ## 状态
 
-- EvidenceStatus：Not Started
+- EvidenceStatus：V0 Local Gate Passed / Durable Evidence Pending
 - ProductGateStatus：In Progress
-- 日期：2026-07-20
+- 日期：2026-07-27
 - G2 Exit baseline：`3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184`
 - Canonical milestone：[`g3-behavior-verification-milestones.md`](g3-behavior-verification-milestones.md)
 - Contract：[`../implementation/g3-behavior-verification-closure.md`](../implementation/g3-behavior-verification-closure.md)
 
-本文预先冻结 G3 Exit Gate 的证据结构，避免实现完成后用零散日志、绿色徽章或一次本机运行倒推验收标准。
-G2 Exit Gate 已通过并允许 G3 从 V0 开始；当前仍没有 G3 通过证据，下列项目全部是待填 manifest，不得把
-contract、状态切换或文档存在解释为 G3 milestone 已实现或 Passed。
+本文冻结 G3 Exit Gate 的证据结构，避免实现完成后用零散日志、绿色徽章或一次本机运行倒推验收标准。
+G2 Exit Gate 已通过；V0 aggregate 已在 2026-07-27 当前未提交 worktree 本地通过，但尚无 repository commit
+或 CI identity，因此只记为本地实现证据，不是 durable closure evidence。V1-V8 与 G3 aggregate 仍未运行，
+不得把 V0 通过解释为整个 G3 已实现或 Passed。
 
 ## Evidence identity
 
@@ -37,18 +38,30 @@ contract、状态切换或文档存在解释为 G3 milestone 已实现或 Passed
 
 ## Required Gate manifest
 
-| Gate                             | 状态    | 必须证明                                                             | Evidence |
-| -------------------------------- | ------- | -------------------------------------------------------------------- | -------- |
-| `verify:g3:boundaries`           | Not Run | package owner、Workspace document/Command、codec/diagnostic hard cut | —        |
-| `verify:g3:scenario-authoring`   | Not Run | semantic target、recorder、compiler、React/Vue target                | —        |
-| `verify:g3:behavior-composition` | Not Run | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | —        |
-| `verify:g3:deterministic-replay` | Not Run | controls、fresh isolation、repeat/divergence、provider conformance   | —        |
-| `verify:g3:verification-plan`    | Not Run | Impact/Policy/Plan determinism、budget、required semantics           | —        |
-| `verify:g3:evidence`             | Not Run | promotion、attestation、Secret hard cut、retention/recovery          | —        |
-| `verify:g3:adapter-matrix`       | Not Run | all required check families/surfaces/targets/browsers/motion         | —        |
-| `verify:g3:product`              | Not Run | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —        |
-| `verify:g3:golden`               | Not Run | Authenticated Catalog end-to-end trusted Closure                     | —        |
-| `verify:g3`                      | Not Run | aggregate with no omitted required cell                              | —        |
+| Gate                             | 状态                          | 必须证明                                                             | Evidence                                                   |
+| -------------------------------- | ----------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `verify:g3:boundaries`           | Configured / Evidence pending | package owner、Workspace document/Command、codec/diagnostic hard cut | 2026-07-27 当前 worktree 本地通过；commit/CI identity 待补 |
+| `verify:g3:scenario-authoring`   | Not Run                       | semantic target、recorder、compiler、React/Vue target                | —                                                          |
+| `verify:g3:behavior-composition` | Not Run                       | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | —                                                          |
+| `verify:g3:deterministic-replay` | Not Run                       | controls、fresh isolation、repeat/divergence、provider conformance   | —                                                          |
+| `verify:g3:verification-plan`    | Not Run                       | Impact/Policy/Plan determinism、budget、required semantics           | —                                                          |
+| `verify:g3:evidence`             | Not Run                       | promotion、attestation、Secret hard cut、retention/recovery          | —                                                          |
+| `verify:g3:adapter-matrix`       | Not Run                       | all required check families/surfaces/targets/browsers/motion         | —                                                          |
+| `verify:g3:product`              | Not Run                       | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                          |
+| `verify:g3:golden`               | Not Run                       | Authenticated Catalog end-to-end trusted Closure                     | —                                                          |
+| `verify:g3`                      | Not Run                       | aggregate with no omitted required cell                              | —                                                          |
+
+### V0 local run
+
+- Command：`pnpm run verify:g3:boundaries`
+- TypeScript：Diagnostics 13 tests、Behavior 4 tests、Verification 5 tests、Workspace 179 tests、
+  Workspace Sync 118 tests 全部通过。
+- Contract checks：core/G3 package boundary、G3 wire mirror、404 个 diagnostic reference pages 全部通过。
+- Go：`behaviorcontract` / `verificationcontract` generated-wire 与 stable identity/reference semantic
+  fail-closed、Workspace module、database migration tests 全部通过。
+- Composition：`pnpm run build` 的 48 个 monorepo build tasks 全部通过。
+- Limitation：运行绑定当前未提交 worktree，没有 repository commit、CI run URL 或 immutable source identity，
+  因而本表保持 `Configured / Evidence pending`。
 
 ## Required Golden matrix
 

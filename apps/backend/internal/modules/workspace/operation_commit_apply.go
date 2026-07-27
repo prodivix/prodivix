@@ -165,6 +165,10 @@ func workspaceDocumentCommandDomain(documentType WorkspaceDocumentType) string {
 		return "code"
 	case WorkspaceDocumentTypeDataSource:
 		return "data"
+	case WorkspaceDocumentTypeBehaviorScenario, WorkspaceDocumentTypeBehaviorControlProfile, WorkspaceDocumentTypeBehaviorFixtureSet:
+		return "behavior"
+	case WorkspaceDocumentTypeVerificationPolicy, WorkspaceDocumentTypeVerificationBaselineSet:
+		return "verification"
 	case WorkspaceDocumentTypeAsset, WorkspaceDocumentTypeProjectConfig:
 		return "resource"
 	default:
@@ -453,12 +457,17 @@ func decodeWorkspaceCommitProjection(payload json.RawMessage) (workspaceCommitPr
 
 func (state *workspaceCommitState) validate() error {
 	paths := make(map[string]string, len(state.Documents))
+	documentTypeCounts := make(map[WorkspaceDocumentType]int)
 	for id, document := range state.Documents {
 		if !isCanonicalWorkspaceVFSID(id) || document.ID != id || !isCanonicalWorkspaceVFSID(document.ID) || !isValidWorkspaceDocumentType(document.Type) {
 			return fmt.Errorf("%w: document id or type is invalid", ErrWorkspaceVFSInvalid)
 		}
 		if document.Name != "" && strings.TrimSpace(document.Name) == "" {
 			return fmt.Errorf("%w: workspace document name must be non-empty when present", ErrWorkspaceVFSInvalid)
+		}
+		documentTypeCounts[document.Type]++
+		if isSingletonWorkspaceDocumentType(document.Type) && documentTypeCounts[document.Type] > 1 {
+			return fmt.Errorf("%w: workspace document type %s allows only one document", ErrWorkspaceVFSInvalid, document.Type)
 		}
 		path, err := normalizeWorkspacePath(document.Path)
 		if err != nil {

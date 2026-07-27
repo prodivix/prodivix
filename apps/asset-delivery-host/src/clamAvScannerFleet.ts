@@ -159,7 +159,9 @@ const normalizeEngines = (
     throw new TypeError('ClamAV scanner fleet topology is invalid.');
   }
   return Object.freeze(
-    [...engines].sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
+    [...engines].sort((left, right) =>
+      compareUnicodeCodePoints(left.id, right.id)
+    )
   );
 };
 

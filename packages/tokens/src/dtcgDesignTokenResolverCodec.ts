@@ -438,8 +438,7 @@ const parseModifier = (
       const requestedDefault = source.default;
       defaultContext = contexts.find(
         (context) =>
-          context.name.toLowerCase() ===
-          requestedDefault.toLowerCase()
+          context.name.toLowerCase() === requestedDefault.toLowerCase()
       )?.name;
       if (!defaultContext) {
         appendIssue(issues, {
@@ -539,9 +538,7 @@ const findName = <Definition extends { name: string }>(
   requested: string
 ): Definition | undefined =>
   definitions.find(
-    (definition) =>
-      definition.name.toLowerCase() ===
-      requested.toLowerCase()
+    (definition) => definition.name.toLowerCase() === requested.toLowerCase()
   );
 
 const parseResolutionOrder = (
@@ -563,9 +560,7 @@ const parseResolutionOrder = (
   const result: DesignTokenResolverOrderEntry[] = [];
   const orderNames = new Set<string>();
   const topLevelDefinitionNames = new Set(
-    [...sets, ...modifiers].map((definition) =>
-      definition.name.toLowerCase()
-    )
+    [...sets, ...modifiers].map((definition) => definition.name.toLowerCase())
   );
   const reserveOrderName = (name: string, path: string): boolean => {
     const foldedName = name.toLowerCase();
@@ -788,9 +783,7 @@ const validateReferences = (
   const graph = new Map(
     knownSets.map((set) => [
       set.name.toLowerCase(),
-      collectSetTargets(set.sources).map((name) =>
-        name.toLowerCase()
-      ),
+      collectSetTargets(set.sources).map((name) => name.toLowerCase()),
     ])
   );
   const visiting = new Set<string>();

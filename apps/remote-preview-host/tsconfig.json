@@ -10,10 +10,19 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
-      "@prodivix/runtime-core": ["../../packages/runtime-core/src"]
+      "@prodivix/runtime-core": ["../../packages/runtime-core/src"],
+      "@prodivix/shared": ["../../packages/shared/src"],
+      "@prodivix/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/**/*.test.ts"],
-  "references": [{ "path": "../../packages/runtime-core" }]
+  "references": [
+    {
+      "path": "../../packages/runtime-core"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
 }

@@ -28,6 +28,7 @@
     "@prodivix/animation": "workspace:*",
     "@prodivix/assets": "workspace:*",
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
     "@prodivix/data": "workspace:*",
     "@prodivix/diagnostics": "workspace:*",
     "@prodivix/nodegraph": "workspace:*",
@@ -35,7 +36,8 @@
     "@prodivix/router": "workspace:*",
     "@prodivix/server-runtime": "workspace:*",
     "@prodivix/shared": "workspace:*",
-    "@prodivix/tokens": "workspace:*"
+    "@prodivix/tokens": "workspace:*",
+    "@prodivix/verification": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

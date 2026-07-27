@@ -12,14 +12,25 @@
       ],
       "@prodivix/runtime-remote-postgres": [
         "../../packages/runtime-remote-postgres/dist/index.d.ts"
-      ]
+      ],
+      "@prodivix/shared": ["../../packages/shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../../packages/shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../../packages/runtime-core" },
-    { "path": "../../packages/runtime-remote" },
-    { "path": "../../packages/runtime-remote-postgres" }
+    {
+      "path": "../../packages/runtime-core"
+    },
+    {
+      "path": "../../packages/runtime-remote"
+    },
+    {
+      "path": "../../packages/runtime-remote-postgres"
+    },
+    {
+      "path": "../../packages/shared"
+    }
   ]
 }

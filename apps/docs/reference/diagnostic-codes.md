@@ -43,6 +43,8 @@ requestId
 | `SVR-xxxx` | 鉴权与服务端运行时 | Server Function 调用、输入输出边界、live mutation 防护和 gateway               |
 | `TST-xxxx` | 工程测试           | 导出工程的测试执行、报告读取和 canonical 报告转换                              |
 | `EXE-xxxx` | 远端执行           | 远端协议、幂等、恢复、权限、配额、transport 和 Secret 边界                     |
+| `BHV-xxxx` | 行为场景           | Scenario schema、semantic target、compile、execute、replay 和 recorder         |
+| `VER-xxxx` | 验证闭环           | Impact、Policy、Plan、adapter、Evidence、retention 和 Closure                  |
 
 ## 命名空间索引
 
@@ -64,6 +66,8 @@ requestId
 - [Auth/Server Runtime](/reference/diagnostics/svr)
 - [Workspace Test](/reference/diagnostics/tst)
 - [Remote Execution](/reference/diagnostics/exe)
+- [Behavior](/reference/diagnostics/bhv)
+- [Verification](/reference/diagnostics/ver)
 
 ## 所有错误码
 
@@ -508,6 +512,48 @@ requestId
 | [`EXE-5002`](/reference/diagnostics/exe-5002) | 远端 transport 请求超时             | `error`  |
 | [`EXE-5003`](/reference/diagnostics/exe-5003) | 已脱敏的远端内部失败                | `error`  |
 | [`EXE-5004`](/reference/diagnostics/exe-5004) | Secret 边界 fail closed             | `fatal`  |
+
+### Behavior
+
+| Code                                          | 名称                                  | 严重程度  |
+| --------------------------------------------- | ------------------------------------- | --------- |
+| [`BHV-1001`](/reference/diagnostics/bhv-1001) | BehaviorScenario 无效                 | `error`   |
+| [`BHV-2001`](/reference/diagnostics/bhv-2001) | 行为目标无法唯一解析                  | `error`   |
+| [`BHV-2002`](/reference/diagnostics/bhv-2002) | Action 与目标 capability 不兼容       | `error`   |
+| [`BHV-3001`](/reference/diagnostics/bhv-3001) | BehaviorScenarioProgram 编译失败      | `error`   |
+| [`BHV-3002`](/reference/diagnostics/bhv-3002) | 行为程序超出预算                      | `error`   |
+| [`BHV-4001`](/reference/diagnostics/bhv-4001) | 行为步骤失败                          | `error`   |
+| [`BHV-4002`](/reference/diagnostics/bhv-4002) | 行为条件等待超时                      | `error`   |
+| [`BHV-4003`](/reference/diagnostics/bhv-4003) | 确定性 replay 发生分歧                | `error`   |
+| [`BHV-4004`](/reference/diagnostics/bhv-4004) | 行为运行请求了禁止的网络或敏感能力    | `fatal`   |
+| [`BHV-4005`](/reference/diagnostics/bhv-4005) | Runtime control 未完整应用            | `error`   |
+| [`BHV-4006`](/reference/diagnostics/bhv-4006) | 行为运行状态未能安全清理              | `fatal`   |
+| [`BHV-5001`](/reference/diagnostics/bhv-5001) | Recorder 无法生成可提交的语义步骤     | `warning` |
+| [`BHV-5002`](/reference/diagnostics/bhv-5002) | Recorder draft 已因 revision 变化失效 | `warning` |
+| [`BHV-9001`](/reference/diagnostics/bhv-9001) | 未分类的 Behavior 异常                | `error`   |
+
+### Verification
+
+| Code                                          | 名称                                                   | 严重程度  |
+| --------------------------------------------- | ------------------------------------------------------ | --------- |
+| [`VER-1001`](/reference/diagnostics/ver-1001) | VerificationImpactSet 已失效或输入错配                 | `error`   |
+| [`VER-1002`](/reference/diagnostics/ver-1002) | Impact provider 不完整，已扩大验证范围                 | `warning` |
+| [`VER-2001`](/reference/diagnostics/ver-2001) | VerificationPolicy 无效                                | `error`   |
+| [`VER-2002`](/reference/diagnostics/ver-2002) | Verification exemption 已过期或不适用                  | `error`   |
+| [`VER-3001`](/reference/diagnostics/ver-3001) | Required Scenario 或 check 缺失                        | `error`   |
+| [`VER-3002`](/reference/diagnostics/ver-3002) | Required matrix cell 不受支持                          | `error`   |
+| [`VER-3003`](/reference/diagnostics/ver-3003) | Required cell 依赖无法满足                             | `error`   |
+| [`VER-3004`](/reference/diagnostics/ver-3004) | VerificationPlan 超出预算                              | `error`   |
+| [`VER-4001`](/reference/diagnostics/ver-4001) | Verification adapter 失败                              | `error`   |
+| [`VER-4002`](/reference/diagnostics/ver-4002) | EvidenceCandidate 无效或超出预算                       | `error`   |
+| [`VER-5001`](/reference/diagnostics/ver-5001) | Evidence identity 或 digest 链不匹配                   | `fatal`   |
+| [`VER-5002`](/reference/diagnostics/ver-5002) | Evidence 中检测到 Secret 或敏感数据                    | `fatal`   |
+| [`VER-5003`](/reference/diagnostics/ver-5003) | Evidence attestation 无效                              | `error`   |
+| [`VER-5004`](/reference/diagnostics/ver-5004) | Evidence 或 baseline 不兼容，无法比较                  | `warning` |
+| [`VER-5005`](/reference/diagnostics/ver-5005) | Artifact promotion 或安全校验失败                      | `error`   |
+| [`VER-6001`](/reference/diagnostics/ver-6001) | Evidence 已过期、撤销或受保护而无法执行 retention 操作 | `warning` |
+| [`VER-6002`](/reference/diagnostics/ver-6002) | VerificationClosure 不完整或已失效                     | `error`   |
+| [`VER-9001`](/reference/diagnostics/ver-9001) | 未分类的 Verification 异常                             | `error`   |
 
 ## Backend API
 

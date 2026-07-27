@@ -423,10 +423,7 @@ const contributeDocument = (
       rootSetsByName,
       documentReferences
     );
-    rootModifierSymbolIds.set(
-      modifier.name.toLowerCase(),
-      symbolId
-    );
+    rootModifierSymbolIds.set(modifier.name.toLowerCase(), symbolId);
   });
 
   document.resolutionOrder.forEach((entry, index) => {

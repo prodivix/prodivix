@@ -28,6 +28,7 @@ export type DiagnosticPlacement =
 export type DiagnosticDefinition = DiagnosticRegistryEntry & {
   stage: string;
   retryable: boolean;
+  exemptable: boolean;
   docsPath: string;
   defaultPlacement?: DiagnosticPlacement[];
   presentation?: DiagnosticPresentationTemplate;
@@ -177,6 +178,7 @@ export const createDefinition = ({
   primaryLocation,
   evidence,
   actions,
+  exemptable = false,
 }: {
   code: string;
   title: string;
@@ -188,12 +190,14 @@ export const createDefinition = ({
   primaryLocation: DiagnosticLocationPreference;
   evidence?: DiagnosticEvidenceTemplate[];
   actions: DiagnosticActionTemplate[];
+  exemptable?: boolean;
 }): DiagnosticDefinition => ({
   code,
   domain,
   severity,
   stage,
   retryable,
+  exemptable,
   docsPath: `/reference/diagnostics/${code.toLowerCase()}`,
   docsUrl: `/reference/diagnostics/${code.toLowerCase()}`,
   defaultPlacement,

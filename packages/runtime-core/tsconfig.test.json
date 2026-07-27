@@ -6,10 +6,19 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
     "paths": {
-      "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"]
+      "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"],
+      "@prodivix/shared": ["../shared/dist/index.d.ts"],
+      "@prodivix/shared/*": ["../shared/dist/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../diagnostics" }]
+  "references": [
+    {
+      "path": "../diagnostics"
+    },
+    {
+      "path": "../shared"
+    }
+  ]
 }

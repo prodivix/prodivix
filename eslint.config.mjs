@@ -24,6 +24,7 @@ export default defineConfig([
     '**/test-results/**',
     '**/playwright-report/**',
     '**/.tmp*/**',
+    '.claude/**',
     '**/*.generated.ts',
     'packages/*/lib/**',
     'packages/*/esm/**',
@@ -106,7 +107,8 @@ export default defineConfig([
             'toLocale* case mapping and formatting depend on the host ICU locale (e.g. Turkish dotless i). Use toLowerCase/toUpperCase for identity-relevant normalization, or move display formatting to the presentation layer.',
         },
         {
-          selector: "MemberExpression[object.name='Intl'][property.name='Collator']",
+          selector:
+            "MemberExpression[object.name='Intl'][property.name='Collator']",
           message:
             'Intl.Collator is locale collation by construction. Use compareUnicodeCodePoints from @prodivix/shared/canonical outside presentation surfaces.',
         },

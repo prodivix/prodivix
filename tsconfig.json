@@ -11,6 +11,12 @@
       "path": "./packages/diagnostics"
     },
     {
+      "path": "./packages/behavior"
+    },
+    {
+      "path": "./packages/verification"
+    },
+    {
       "path": "./packages/authoring"
     },
     {

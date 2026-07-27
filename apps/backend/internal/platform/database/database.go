@@ -136,19 +136,20 @@ func migrationSet() []migration {
 			content_json JSONB NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (workspace_id, id),
-			CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'data-source', 'asset', 'project-config')),
+			CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'data-source', 'behavior-scenario', 'behavior-control-profile', 'behavior-fixture-set', 'verification-policy', 'verification-baseline-set', 'asset', 'project-config')),
 			CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
 			CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev BETWEEN 1 AND 9007199254740991)
 		)`,
 			`ALTER TABLE workspace_documents
 			DROP CONSTRAINT IF EXISTS workspace_documents_type_check,
-			ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'data-source', 'asset', 'project-config')),
+			ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'data-source', 'behavior-scenario', 'behavior-control-profile', 'behavior-fixture-set', 'verification-policy', 'verification-baseline-set', 'asset', 'project-config')),
 			DROP CONSTRAINT IF EXISTS workspace_documents_content_rev_check,
 			ADD CONSTRAINT workspace_documents_content_rev_check CHECK (content_rev BETWEEN 1 AND 9007199254740991),
 			DROP CONSTRAINT IF EXISTS workspace_documents_meta_rev_check,
 			ADD CONSTRAINT workspace_documents_meta_rev_check CHECK (meta_rev BETWEEN 1 AND 9007199254740991)`,
 			`ALTER TABLE workspace_documents ADD COLUMN IF NOT EXISTS capabilities_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_documents_workspace_path ON workspace_documents(workspace_id, path)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_documents_single_verification_policy ON workspace_documents(workspace_id) WHERE doc_type = 'verification-policy'`,
 			`CREATE INDEX IF NOT EXISTS idx_workspace_documents_workspace_updated_at ON workspace_documents(workspace_id, updated_at DESC)`,
 			`CREATE TABLE IF NOT EXISTS workspace_operations (
 			workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -601,6 +602,15 @@ func migrationSet() []migration {
 			`ALTER TABLE execution_environments ALTER COLUMN environment_key SET NOT NULL`,
 			`DROP INDEX IF EXISTS idx_execution_environments_workspace_id`,
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_environments_workspace_key ON execution_environments(workspace_id, environment_key)`,
+		},
+	}, {
+		version: 16,
+		name:    "g3-behavior-verification-workspace-documents",
+		statements: []string{
+			`ALTER TABLE workspace_documents
+			DROP CONSTRAINT IF EXISTS workspace_documents_type_check,
+			ADD CONSTRAINT workspace_documents_type_check CHECK (doc_type IN ('pir-page', 'pir-layout', 'pir-component', 'pir-graph', 'pir-animation', 'design-tokens', 'design-token-resolver', 'code', 'data-source', 'behavior-scenario', 'behavior-control-profile', 'behavior-fixture-set', 'verification-policy', 'verification-baseline-set', 'asset', 'project-config'))`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_documents_single_verification_policy ON workspace_documents(workspace_id) WHERE doc_type = 'verification-policy'`,
 		},
 	}}
 }
