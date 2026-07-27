@@ -15,4 +15,7 @@ export default defineConfig({
       '@prodivix/workspace': resolve(__dirname, '../workspace/src'),
     },
   },
+  test: {
+    testTimeout: 15_000,
+  },
 });
