@@ -110,7 +110,11 @@ func TestEnvironmentSecretKeyRotationPostgreSQLGate(t *testing.T) {
 		t.Fatalf("create old-key environment snapshot: %v", err)
 	}
 	originalCiphertexts := map[string]string{}
-	rows, err := database.Query(`SELECT binding_id, encode(ciphertext, 'hex') FROM execution_environment_secret_materials WHERE environment_id=$1 AND revision=$2`, snapshot.EnvironmentID, snapshot.Revision)
+	rows, err := database.Query(`SELECT m.binding_id, encode(m.ciphertext, 'hex')
+		FROM execution_environment_secret_materials m
+		JOIN execution_environments e ON e.id = m.environment_id
+		WHERE e.workspace_id=$1 AND e.environment_key=$2 AND m.revision=$3`,
+		snapshot.WorkspaceID, snapshot.EnvironmentID, snapshot.Revision)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,13 +159,14 @@ func TestEnvironmentSecretKeyRotationPostgreSQLGate(t *testing.T) {
 		t.Fatalf("concurrent rotation did not claim every row exactly once: rotated=%d expected=%d", rotatedCount, len(secrets))
 	}
 	var activeCount, unchangedCiphertextCount, auditCount, auditRewrapped int
-	if err := database.QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE encode(ciphertext, 'hex') = CASE binding_id `+
+	if err := database.QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE encode(m.ciphertext, 'hex') = CASE m.binding_id `+
 		`WHEN 'binding-0' THEN $1 WHEN 'binding-1' THEN $2 WHEN 'binding-2' THEN $3 WHEN 'binding-3' THEN $4 `+
 		`WHEN 'binding-4' THEN $5 WHEN 'binding-5' THEN $6 WHEN 'binding-6' THEN $7 WHEN 'binding-7' THEN $8 END) `+
-		`FROM execution_environment_secret_materials WHERE environment_id=$9 AND revision=$10 AND key_id='key-new'`,
+		`FROM execution_environment_secret_materials m JOIN execution_environments e ON e.id = m.environment_id `+
+		`WHERE e.workspace_id=$9 AND e.environment_key=$10 AND m.revision=$11 AND m.key_id='key-new'`,
 		originalCiphertexts["binding-0"], originalCiphertexts["binding-1"], originalCiphertexts["binding-2"], originalCiphertexts["binding-3"],
 		originalCiphertexts["binding-4"], originalCiphertexts["binding-5"], originalCiphertexts["binding-6"], originalCiphertexts["binding-7"],
-		snapshot.EnvironmentID, snapshot.Revision).Scan(&activeCount, &unchangedCiphertextCount); err != nil {
+		snapshot.WorkspaceID, snapshot.EnvironmentID, snapshot.Revision).Scan(&activeCount, &unchangedCiphertextCount); err != nil {
 		t.Fatal(err)
 	}
 	if activeCount != len(secrets) || unchangedCiphertextCount != len(secrets) {
@@ -222,7 +227,11 @@ func TestEnvironmentSecretAWSKMSMigrationPostgreSQLGate(t *testing.T) {
 		t.Fatalf("create static-key environment snapshot: %v", err)
 	}
 	originalCiphertexts := map[string]string{}
-	rows, err := database.Query(`SELECT binding_id, encode(ciphertext, 'hex') FROM execution_environment_secret_materials WHERE environment_id=$1 AND revision=$2`, snapshot.EnvironmentID, snapshot.Revision)
+	rows, err := database.Query(`SELECT m.binding_id, encode(m.ciphertext, 'hex')
+		FROM execution_environment_secret_materials m
+		JOIN execution_environments e ON e.id = m.environment_id
+		WHERE e.workspace_id=$1 AND e.environment_key=$2 AND m.revision=$3`,
+		snapshot.WorkspaceID, snapshot.EnvironmentID, snapshot.Revision)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,8 +263,11 @@ func TestEnvironmentSecretAWSKMSMigrationPostgreSQLGate(t *testing.T) {
 	}
 
 	var migratedCount, unchangedCiphertextCount, metadataCount int
-	if err := database.QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE encode(ciphertext, 'hex') = CASE binding_id WHEN 'binding-a' THEN $1 WHEN 'binding-b' THEN $2 END), COUNT(*) FILTER (WHERE octet_length(wrapped_key_nonce)=32) FROM execution_environment_secret_materials WHERE environment_id=$3 AND revision=$4 AND key_provider=$5 AND key_id=$6`,
-		originalCiphertexts["binding-a"], originalCiphertexts["binding-b"], snapshot.EnvironmentID, snapshot.Revision, awsKMSProviderID, "key-cloud-active").Scan(&migratedCount, &unchangedCiphertextCount, &metadataCount); err != nil {
+	if err := database.QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE encode(m.ciphertext, 'hex') = CASE m.binding_id WHEN 'binding-a' THEN $1 WHEN 'binding-b' THEN $2 END), COUNT(*) FILTER (WHERE octet_length(m.wrapped_key_nonce)=32)
+		FROM execution_environment_secret_materials m
+		JOIN execution_environments e ON e.id = m.environment_id
+		WHERE e.workspace_id=$3 AND e.environment_key=$4 AND m.revision=$5 AND m.key_provider=$6 AND m.key_id=$7`,
+		originalCiphertexts["binding-a"], originalCiphertexts["binding-b"], snapshot.WorkspaceID, snapshot.EnvironmentID, snapshot.Revision, awsKMSProviderID, "key-cloud-active").Scan(&migratedCount, &unchangedCiphertextCount, &metadataCount); err != nil {
 		t.Fatal(err)
 	}
 	if migratedCount != len(secrets) || unchangedCiphertextCount != len(secrets) || metadataCount != len(secrets) {
