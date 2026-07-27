@@ -18,6 +18,36 @@
 
 ---
 
+## 处置记录(2026-07-27)
+
+修复战役分三轮完成:契约决策与 High 修复(`f61606f8`…`b2eec37c`)、PIR 编译器单一 owner 重构(`c562a4d6`)、Medium 并行修复与对抗验证(`f00984a2`、`9a51b3b3`)。每个实质修复都经过「临时撤销修复 → 确认回归测试失败 → 还原」验证;并行修复轮的每个区域另有独立对抗验证 agent 复核,验证者确认的缺陷全部人工复核后二次修复。下述状态于 2026-07-27 逐条对照当前源码核实,而非转录修复记录。
+
+### Critical 与 High(18/18 已修复)
+
+`X-SEC-01`、`H-C-01`~`H-C-07`、`H-SI-01`~`H-SI-04`、`H-SEC-01`~`H-SEC-03`、`H-DET-01`、`H-CV-01`、`H-BC-01` 全部已修复。其中 H-C-03/H-C-04 随 PIR 编译收敛到 `packages/prodivix-compiler/src/workspace/` 单一 owner 一并消除;H-SEC-03 的代码面(esm.sh 动态导入与 ESM bridge)已删除,编辑器 CSP 收紧至 loopback-only http 并新增 `editorContentSecurityPolicy.conformance.test.ts` 守卫,`connect-src https:` 因 AI 直连用户配置端点而保留(文档内注明理由)。
+
+### Medium(50/55 已修复,5 条留待 owner 级设计)
+
+已修复:`M-C-01`~`M-C-07`、`M-C-09`~`M-C-11`、`M-C-13`、`M-C-15`~`M-C-16`、`M-C-18`~`M-C-19`、`M-SEC-01`~`M-SEC-10`、`M-EH-01`~`M-EH-07`、`M-SI-01`~`M-SI-06`、`M-RL-01`、`M-RL-03`~`M-RL-04`、`M-MS-01`、`M-ARCH-01`~`M-ARCH-02`、`M-RX-01`~`M-RX-02`、`M-A11Y-01`、`M-DET-01`、`M-BC-01`、`M-CI-01`。
+
+未处置(均需要对应 owner 的设计决策,不适合顺手打补丁):
+
+| 发现 | 保留原因 |
+| --- | --- |
+| `M-C-08` | `hasSelectedDescendant` 需要渲染器 host 的选中态后代投影,属 `pir-react-renderer` 的 host 契约改动 |
+| `M-C-12` | `privateHostname` 需要按 CIDR 解析的地址分类,而非再叠一层前缀特判 |
+| `M-C-14` | Terminal sweep 100 条上限与区域恢复撤销的交互需要保留/分页策略设计 |
+| `M-C-17` | 同名值/类型导出碰撞需要符号命名空间感知的导出规划 |
+| `M-RL-02` | ExecutionJob 事件历史的上界属于事件保留策略,需与 G2 证据留存契约一致 |
+
+补充说明:`M-MS-01` 的迁移超时旋钮已接入 `deploy/docker-compose.ghcr.yml`、`deploy/start-app.sh`、`deploy/.env.example` 三处(此前仅存在于 config.go,GHCR 部署无法设置);12 号迁移逐文档幂等,预算耗尽后调大超时重跑即可续进。`M-C-10` 的修复同时删除了收敛期间引入的跨类型兜底(layout 文档不再可能顶替缺失的 page 成为发布投影)。
+
+### Low(102 条,未处置)
+
+Low 级发现本轮未处置,保留原文待后续分诊。
+
+---
+
 ## 2. 总览统计
 
 ### 2.1 审查与处置计数
