@@ -102,7 +102,7 @@ const normalizeGitPath = (value: string): string | undefined => {
     return undefined;
   }
   const path = segments.join('/');
-  const lowerPath = path.toLocaleLowerCase('en-US');
+  const lowerPath = path.toLowerCase();
   if (
     lowerPath === GIT_ATTRIBUTES_PATH ||
     lowerPath === BINARY_ASSET_GIT_MANIFEST_PATH ||
@@ -282,7 +282,7 @@ export const createBinaryAssetGitProjection = (
       );
       continue;
     }
-    const pathKey = gitPath.toLocaleLowerCase('en-US');
+    const pathKey = gitPath.toLowerCase();
     if (sourceIds.has(assetDocumentId) || pathKeys.has(pathKey)) {
       diagnostics.push(
         diagnostic(

@@ -56,7 +56,7 @@ export const isCanonicalWorkspaceDocumentPath = (
     return false;
   }
   const segments = value.slice(1).split('/');
-  if (segments[0]?.toLocaleLowerCase('en-US') === '.prodivix') return false;
+  if (segments[0]?.toLowerCase() === '.prodivix') return false;
   return segments.every(
     (segment) => segment.length > 0 && segment !== '.' && segment !== '..'
   );

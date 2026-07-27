@@ -20,7 +20,7 @@ export const createAssetReferenceExpectedTypeRefs = (
   const types = Array.from(
     new Set(
       (reference.expectedMimeTypes ?? [])
-        .map((value) => value.trim().toLocaleLowerCase('en-US'))
+        .map((value) => value.trim().toLowerCase())
         .filter(Boolean)
     )
   ).sort();

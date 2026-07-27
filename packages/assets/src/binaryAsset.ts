@@ -57,7 +57,7 @@ const exactKeys = (
 };
 
 export const normalizeBinaryAssetMediaType = (value: string): string => {
-  const normalized = value.trim().toLocaleLowerCase('en-US');
+  const normalized = value.trim().toLowerCase();
   if (
     !normalized ||
     normalized.length > BINARY_ASSET_LIMITS.maxMediaTypeLength ||

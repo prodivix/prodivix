@@ -36,7 +36,8 @@
   "dependencies": {
     "@prodivix/plugin-contracts": "workspace:*",
     "@prodivix/plugin-host": "workspace:*",
-    "@prodivix/plugin-protocol": "workspace:*"
+    "@prodivix/plugin-protocol": "workspace:*",
+    "@prodivix/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

@@ -1,4 +1,5 @@
 import type { CapabilityRequest } from '@prodivix/plugin-contracts';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 
 export type CapabilityIdentity = Readonly<{
   id: CapabilityRequest['id'];
@@ -28,5 +29,5 @@ export const compareCapabilityIdentity = (
   left: CapabilityIdentity,
   right: CapabilityIdentity
 ): number =>
-  left.id.localeCompare(right.id) ||
-  (left.scope ?? '').localeCompare(right.scope ?? '');
+  compareUnicodeCodePoints(left.id, right.id) ||
+  compareUnicodeCodePoints(left.scope ?? '', right.scope ?? '');

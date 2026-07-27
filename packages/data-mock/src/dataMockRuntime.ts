@@ -12,6 +12,7 @@ import type {
   ExecutableProjectSnapshot,
   RuntimeZone,
 } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 
 export const DATA_MOCK_ADAPTER_ID = 'prodivix.data.mock.fixture';
 const DEFAULT_DATA_MOCK_RUNTIME_ZONES: readonly RuntimeZone[] = Object.freeze([
@@ -151,7 +152,7 @@ const cloneJson = (
   const result = Object.freeze(
     Object.fromEntries(
       Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
         .map(([key, entry]) => [key, cloneJson(entry, seen)])
     )
   ) as Record<string, DataJsonValue>;

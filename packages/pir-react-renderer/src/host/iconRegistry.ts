@@ -171,11 +171,14 @@ export const setConfiguredIconLibraryIds = (libraryIds: string[]) => {
   return applyConfiguredIconLibraryIds(libraryIds);
 };
 
+/**
+ * Returns libraries in registration order. Display ordering (locale-aware
+ * label sorting) is owned by the presentation-layer callers.
+ */
 export const getRegisteredIconLibraries = (): IconLibraryMeta[] => {
   return [...iconProviders.values()]
     .filter((provider) => provider.configurable)
-    .map((provider) => ({ id: provider.id, label: provider.label }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+    .map((provider) => ({ id: provider.id, label: provider.label }));
 };
 
 export const isIconRef = (value: unknown): value is IconRef => {
@@ -320,11 +323,14 @@ export const resolveIconRef = (value: unknown) => {
   return DeferredIcon;
 };
 
+/**
+ * Returns providers in registration order. Display ordering (locale-aware
+ * label sorting) is owned by the presentation-layer callers.
+ */
 export const listIconProviders = (): IconProviderMeta[] => {
   return [...iconProviders.values()]
     .filter((provider) => provider.visible)
-    .map((provider) => ({ id: provider.id, label: provider.label }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+    .map((provider) => ({ id: provider.id, label: provider.label }));
 };
 
 export const listIconNamesByProvider = (providerId: string) => {
@@ -351,8 +357,7 @@ const resolveLucideIcon = (name: string) => {
 const LUCIDE_ICON_NAMES = Object.keys(dynamicIconImports)
   .map(toPascalCase)
   .filter((name, index, names) => names.indexOf(name) === index)
-  .filter((name) => Boolean(resolveLucideIcon(name)))
-  .sort((left, right) => left.localeCompare(right));
+  .filter((name) => Boolean(resolveLucideIcon(name)));
 
 type IconComponentRuntime = {
   iconNames: string[];
@@ -390,7 +395,7 @@ const buildIconComponentRuntime = (
   });
 
   return {
-    iconNames: [...iconNames].sort((left, right) => left.localeCompare(right)),
+    iconNames: [...iconNames],
     iconLookup,
   };
 };
@@ -500,7 +505,7 @@ const buildFontAwesomeRuntime = (
 
   return {
     FontAwesomeIcon: fontAwesomeIcon,
-    iconNames: [...iconNames].sort((left, right) => left.localeCompare(right)),
+    iconNames: [...iconNames],
     iconLookup,
   };
 };

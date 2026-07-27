@@ -402,7 +402,7 @@ const parseModifier = (
     Object.entries(contextsValue)
       .sort(([left], [right]) => compareText(left, right))
       .forEach(([contextName, value]) => {
-        const folded = contextName.toLocaleLowerCase('en-US');
+        const folded = contextName.toLowerCase();
         if (!contextName.trim() || caseFolded.has(folded)) {
           appendIssue(issues, {
             code: DESIGN_TOKEN_RESOLVER_DECODE_ISSUE_CODES.contextInvalid,
@@ -438,8 +438,8 @@ const parseModifier = (
       const requestedDefault = source.default;
       defaultContext = contexts.find(
         (context) =>
-          context.name.toLocaleLowerCase('en-US') ===
-          requestedDefault.toLocaleLowerCase('en-US')
+          context.name.toLowerCase() ===
+          requestedDefault.toLowerCase()
       )?.name;
       if (!defaultContext) {
         appendIssue(issues, {
@@ -502,7 +502,7 @@ const parseNamedDefinitions = <Definition>(
     .sort(([left], [right]) => compareText(left, right))
     .forEach(([name, definition]) => {
       const path = `/${property}/${escapePointerSegment(name)}`;
-      const folded = name.toLocaleLowerCase('en-US');
+      const folded = name.toLowerCase();
       if (!name.trim() || caseFolded.has(folded)) {
         appendIssue(issues, {
           code: DESIGN_TOKEN_RESOLVER_DECODE_ISSUE_CODES.nameInvalid,
@@ -540,8 +540,8 @@ const findName = <Definition extends { name: string }>(
 ): Definition | undefined =>
   definitions.find(
     (definition) =>
-      definition.name.toLocaleLowerCase('en-US') ===
-      requested.toLocaleLowerCase('en-US')
+      definition.name.toLowerCase() ===
+      requested.toLowerCase()
   );
 
 const parseResolutionOrder = (
@@ -564,11 +564,11 @@ const parseResolutionOrder = (
   const orderNames = new Set<string>();
   const topLevelDefinitionNames = new Set(
     [...sets, ...modifiers].map((definition) =>
-      definition.name.toLocaleLowerCase('en-US')
+      definition.name.toLowerCase()
     )
   );
   const reserveOrderName = (name: string, path: string): boolean => {
-    const foldedName = name.toLocaleLowerCase('en-US');
+    const foldedName = name.toLowerCase();
     if (orderNames.has(foldedName)) {
       appendIssue(issues, {
         code: DESIGN_TOKEN_RESOLVER_DECODE_ISSUE_CODES.orderInvalid,
@@ -683,7 +683,7 @@ const parseResolutionOrder = (
       });
       return;
     }
-    const foldedName = name.toLocaleLowerCase('en-US');
+    const foldedName = name.toLowerCase();
     if (topLevelDefinitionNames.has(foldedName)) {
       appendIssue(issues, {
         code: DESIGN_TOKEN_RESOLVER_DECODE_ISSUE_CODES.orderInvalid,
@@ -741,7 +741,7 @@ const validateReferences = (
   issues: DesignTokenResolverDecodeIssue[]
 ): void => {
   const setNames = new Map(
-    knownSets.map((set) => [set.name.toLocaleLowerCase('en-US'), set.name])
+    knownSets.map((set) => [set.name.toLowerCase(), set.name])
   );
   const validateSources = (
     sources: readonly DesignTokenResolverSource[],
@@ -760,7 +760,7 @@ const validateReferences = (
       }
       if (
         target.kind === 'set' &&
-        !setNames.has(target.setName.toLocaleLowerCase('en-US'))
+        !setNames.has(target.setName.toLowerCase())
       ) {
         appendIssue(issues, {
           code: DESIGN_TOKEN_RESOLVER_DECODE_ISSUE_CODES.referenceMissing,
@@ -787,9 +787,9 @@ const validateReferences = (
 
   const graph = new Map(
     knownSets.map((set) => [
-      set.name.toLocaleLowerCase('en-US'),
+      set.name.toLowerCase(),
       collectSetTargets(set.sources).map((name) =>
-        name.toLocaleLowerCase('en-US')
+        name.toLowerCase()
       ),
     ])
   );
@@ -827,7 +827,7 @@ const calculatePermutationCount = (
   let count = 1;
   order.forEach((entry) => {
     if (entry.kind !== 'modifier') return;
-    const key = entry.name.toLocaleLowerCase('en-US');
+    const key = entry.name.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
     count = Math.min(

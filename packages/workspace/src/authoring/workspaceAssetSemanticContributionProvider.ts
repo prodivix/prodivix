@@ -38,13 +38,13 @@ const compareText = (left: string, right: string): number =>
 const normalizeCapabilityPart = (value: string): string =>
   value
     .trim()
-    .toLocaleLowerCase('en-US')
+    .toLowerCase()
     .replaceAll(/[^a-z0-9.+/-]+/g, '-');
 
 const createAssetCapabilityIds = (
   content: WorkspaceAssetDocumentContent
 ): readonly string[] => {
-  const mime = content.mime.trim().toLocaleLowerCase('en-US');
+  const mime = content.mime.trim().toLowerCase();
   const mimeFamily = mime.split('/', 1)[0];
   const category = content.category
     ? normalizeCapabilityPart(content.category)
@@ -126,9 +126,7 @@ export const createWorkspaceAssetSemanticContributionProvider = (
             workspaceId: input.workspaceId,
             documentId: source.documentId,
           },
-          typeRef: `asset:${source.content.mime
-            .trim()
-            .toLocaleLowerCase('en-US')}`,
+          typeRef: `asset:${source.content.mime.trim().toLowerCase()}`,
           capabilityIds: createAssetCapabilityIds(source.content),
         });
         dependencies.push({

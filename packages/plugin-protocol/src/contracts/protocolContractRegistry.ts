@@ -3,6 +3,7 @@ import {
   PLUGIN_DIAGNOSTIC_CODES,
   type JsonValue,
 } from '@prodivix/plugin-contracts';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   protocolContractKey,
   type ProtocolContractIdentity,
@@ -46,7 +47,10 @@ export const createProtocolContractRegistry = (
   }
   const ordered = Object.freeze(
     [...byKey.values()].sort((left, right) =>
-      protocolContractKey(left).localeCompare(protocolContractKey(right))
+      compareUnicodeCodePoints(
+        protocolContractKey(left),
+        protocolContractKey(right)
+      )
     )
   );
   const get = (identity: ProtocolContractIdentity) =>

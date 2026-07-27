@@ -121,7 +121,7 @@ const ASSET_MEDIA_TYPES_BY_EXTENSION = Object.freeze(
 );
 
 const inferAssetMediaType = (path: string): string | undefined => {
-  const fileName = path.split('/').at(-1)?.toLocaleLowerCase('en-US') ?? '';
+  const fileName = path.split('/').at(-1)?.toLowerCase() ?? '';
   const extension = [...ASSET_MEDIA_TYPES_BY_EXTENSION.keys()].find((entry) =>
     fileName.endsWith(entry)
   );

@@ -34,6 +34,7 @@
     "@prodivix/pir": "workspace:*",
     "@prodivix/router": "workspace:*",
     "@prodivix/server-runtime": "workspace:*",
+    "@prodivix/shared": "workspace:*",
     "@prodivix/tokens": "workspace:*"
   },
   "devDependencies": {

@@ -20,6 +20,7 @@ import {
   type WorkspaceSymbolContribution,
   type WorkspaceSymbolKind,
 } from '@prodivix/authoring';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import { buildRoutePath, normalizeRouteSegment } from './routeCore';
 import type {
   RouteModule,
@@ -252,7 +253,7 @@ const addRouteReferences = (
     });
   }
   Object.entries(node.outletBindings ?? {})
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
     .forEach(([outletName, binding]) => {
       if (!binding.pageDocId) return;
       addDocumentReference(facts, {
@@ -526,12 +527,12 @@ const createRouteSemanticContribution = ({
   });
 
   Object.entries(manifest.modules ?? {})
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
     .forEach(([, module]) =>
       contributeRouteModule(facts, workspaceId, manifestScopeId, module)
     );
   [...(manifest.mounts ?? [])]
-    .sort((left, right) => left.mountId.localeCompare(right.mountId))
+    .sort((left, right) => compareUnicodeCodePoints(left.mountId, right.mountId))
     .forEach((mount) =>
       contributeRouteMount(facts, {
         workspaceId,

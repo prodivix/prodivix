@@ -3,6 +3,7 @@ import {
   PLUGIN_DIAGNOSTIC_CODES,
   type PluginDiagnostic,
 } from '@prodivix/plugin-contracts';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   capabilityIdentityKey,
   compareCapabilityIdentity,
@@ -117,8 +118,12 @@ const compareStoredContribution = <TMap extends HostContributionPointMap>(
 ): number =>
   left.order - right.order ||
   left.record.registrationOrdinal - right.record.registrationOrdinal ||
-  left.record.identity.pluginId.localeCompare(right.record.identity.pluginId) ||
-  left.record.identity.contributionId.localeCompare(
+  compareUnicodeCodePoints(
+    left.record.identity.pluginId,
+    right.record.identity.pluginId
+  ) ||
+  compareUnicodeCodePoints(
+    left.record.identity.contributionId,
     right.record.identity.contributionId
   );
 

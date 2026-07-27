@@ -1,4 +1,5 @@
 import * as MuiIcons from '@mui/icons-material';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   OfficialHostModule,
   OfficialIconProviderImplementation,
@@ -25,7 +26,7 @@ const iconExports = Object.freeze(
         name !== 'default' && name !== 'createSvgIcon' && isElementType(value)
     )
     .map(([name]) => name)
-    .sort((left, right) => left.localeCompare(right))
+    .sort(compareUnicodeCodePoints)
 );
 
 const iconModule = MuiIcons as Readonly<Record<string, unknown>>;

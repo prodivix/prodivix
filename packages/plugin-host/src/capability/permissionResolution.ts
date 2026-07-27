@@ -3,6 +3,7 @@ import {
   PLUGIN_DIAGNOSTIC_CODES,
   type CapabilityRequest,
 } from '@prodivix/plugin-contracts';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   capabilityIdentityFromRequest,
   capabilityIdentityKey,
@@ -49,7 +50,7 @@ const compareDecision = (
   return (
     decisionSourcePriority[left.source] -
       decisionSourcePriority[right.source] ||
-    left.reasonCode.localeCompare(right.reasonCode)
+    compareUnicodeCodePoints(left.reasonCode, right.reasonCode)
   );
 };
 

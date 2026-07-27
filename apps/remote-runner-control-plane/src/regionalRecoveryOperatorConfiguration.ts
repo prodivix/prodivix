@@ -1,4 +1,5 @@
 import { isAbsolute } from 'node:path';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 
 export type RemoteRegionalRecoveryOperatorConfiguration = Readonly<{
   deploymentId: string;
@@ -110,7 +111,7 @@ const publicKeys = (
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new TypeError(`${name} must be an object.`);
   const entries = Object.entries(value).sort(([left], [right]) =>
-    left.localeCompare(right)
+    compareUnicodeCodePoints(left, right)
   );
   if (
     entries.length < 1 ||

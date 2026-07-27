@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { BundledPluginArtifactV1 } from '#package/artifact';
 
 export type GeneratedOfficialPluginSupportStatus =
@@ -106,7 +107,7 @@ export const createBundledPluginCatalog = <TMetadata>(
   }
   const sorted = Object.freeze(
     [...byCatalogId.values()].sort((left, right) =>
-      left.catalogId.localeCompare(right.catalogId)
+      compareUnicodeCodePoints(left.catalogId, right.catalogId)
     )
   );
   return {
@@ -154,7 +155,9 @@ export const planBundledPluginReconciliation = <TMetadata>(
 
   const disable = current
     .filter((state) => !desiredPluginIds.has(state.pluginId))
-    .sort((left, right) => left.pluginId.localeCompare(right.pluginId));
+    .sort((left, right) =>
+      compareUnicodeCodePoints(left.pluginId, right.pluginId)
+    );
   return Object.freeze({
     install: Object.freeze(install),
     replace: Object.freeze(replace),

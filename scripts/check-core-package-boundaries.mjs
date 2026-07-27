@@ -14,8 +14,14 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
  */
 const corePackages = {
   assets: new Set(),
-  animation: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
-  router: new Set(['@prodivix/authoring']),
+  // animation: code-slot projection ordering uses the shared code-point comparator.
+  animation: new Set([
+    '@prodivix/authoring',
+    '@prodivix/runtime-core',
+    '@prodivix/shared',
+  ]),
+  // router: route-matching tie-breaks and semantic-fact ordering use the shared code-point comparator.
+  router: new Set(['@prodivix/authoring', '@prodivix/shared']),
   diagnostics: new Set(['@prodivix/shared']),
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   'code-language': new Set(['@prodivix/authoring']),
@@ -57,7 +63,12 @@ const corePackages = {
     '@prodivix/shared',
   ]),
   data: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
-  nodegraph: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
+  // nodegraph: executor-slot projection ordering uses the shared code-point comparator.
+  nodegraph: new Set([
+    '@prodivix/authoring',
+    '@prodivix/runtime-core',
+    '@prodivix/shared',
+  ]),
 };
 
 const forbiddenImports = [

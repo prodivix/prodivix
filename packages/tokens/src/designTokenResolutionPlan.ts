@@ -9,7 +9,7 @@ import {
 } from './designTokenResolver.types';
 
 const normalizeInputName = (value: string): string =>
-  value.toLocaleLowerCase('en-US');
+  value.toLowerCase();
 
 const compareText = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;

@@ -30,7 +30,8 @@
   },
   "dependencies": {
     "@prodivix/authoring": "workspace:*",
-    "@prodivix/runtime-core": "workspace:*"
+    "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

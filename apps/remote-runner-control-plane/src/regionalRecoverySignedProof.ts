@@ -4,6 +4,7 @@ import {
   verify as verifySignature,
   type KeyObject,
 } from 'node:crypto';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import { createRemoteExecutionRegionalRecoveryAuthorizationScopeDigest as scopeDigest } from '@prodivix/runtime-remote';
 import type {
   RemoteExecutionRegionalInfrastructureFencePort,
@@ -71,7 +72,7 @@ const stableJson = (value: unknown): string => {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
   return `{${Object.entries(value as Readonly<Record<string, unknown>>)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
     .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
     .join(',')}}`;
 };
@@ -270,7 +271,7 @@ const readTrustedKeys = (
   label: string
 ): TrustedKeySet => {
   const entries = Object.entries(values).sort(([left], [right]) =>
-    left.localeCompare(right)
+    compareUnicodeCodePoints(left, right)
   );
   if (entries.length < 1 || entries.length > maximumKeysPerRole)
     throw new TypeError(`${label} key count is invalid.`);

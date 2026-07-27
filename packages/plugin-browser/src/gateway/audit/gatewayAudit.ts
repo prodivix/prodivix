@@ -1,4 +1,5 @@
 import type { CapabilityIdentity, PluginOwnerRef } from '@prodivix/plugin-host';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   GatewayAuditMetadata,
   GatewayAuditMetadataValue,
@@ -89,7 +90,7 @@ export const redactGatewayAuditMetadata = (
 ): GatewayAuditMetadata => {
   const redacted: Record<string, GatewayAuditMetadataValue> = {};
   for (const [rawKey, rawValue] of Object.entries(metadata)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
     .slice(0, MAX_METADATA_KEYS)) {
     const key = rawKey.slice(0, MAX_METADATA_KEY_LENGTH);
     if (!key) continue;

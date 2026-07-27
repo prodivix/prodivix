@@ -631,7 +631,11 @@ export function ExternalLibraryManager({
     void import('@prodivix/pir-react-renderer')
       .then((iconRegistry) => {
         if (disposed) return;
-        setRegisteredIconLibraries(iconRegistry.getRegisteredIconLibraries());
+        setRegisteredIconLibraries(
+          iconRegistry
+            .getRegisteredIconLibraries()
+            .sort((left, right) => left.label.localeCompare(right.label))
+        );
 
         const componentIds = normalizeExternalComponentLibraryIds(
           externalResourceValue.componentLibraryIds

@@ -5,6 +5,7 @@ import {
   type CodeSlotContract,
   type CodeSlotProvider,
 } from '@prodivix/authoring';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { NodeGraphDocument } from '../nodeGraph.types';
 
 export const createNodeGraphExecutorCodeSlotId = (
@@ -51,7 +52,7 @@ export const createNodeGraphCodeSlotProvider = (input: {
   const bindings: CodeSlotBindingProjection[] = [];
 
   for (const node of [...input.graph.nodes].sort((left, right) =>
-    left.id.localeCompare(right.id)
+    compareUnicodeCodePoints(left.id, right.id)
   )) {
     const slot: CodeSlotContract = {
       id:

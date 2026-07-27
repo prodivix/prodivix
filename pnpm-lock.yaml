@@ -57,6 +57,9 @@ importers:
       '@prodivix/assets':
         specifier: workspace:*
         version: link:../../packages/assets
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       sharp:
         specifier: 0.35.3
         version: 0.35.3(@types/node@26.1.0)
@@ -548,6 +551,9 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -763,6 +769,9 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -855,6 +864,9 @@ importers:
       '@prodivix/server-runtime':
         specifier: workspace:*
         version: link:../server-runtime
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -908,6 +920,9 @@ importers:
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1080,6 +1095,9 @@ importers:
       '@prodivix/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1145,6 +1163,9 @@ importers:
       '@prodivix/plugin-contracts':
         specifier: workspace:*
         version: link:../plugin-contracts
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1182,6 +1203,9 @@ importers:
       '@prodivix/plugin-react-host':
         specifier: workspace:*
         version: link:../plugin-react-host
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.9.1
@@ -1225,6 +1249,9 @@ importers:
       '@prodivix/plugin-host':
         specifier: workspace:*
         version: link:../plugin-host
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1451,6 +1478,9 @@ importers:
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -1867,6 +1897,9 @@ importers:
       '@prodivix/server-runtime':
         specifier: workspace:*
         version: link:../server-runtime
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@prodivix/tokens':
         specifier: workspace:*
         version: link:../tokens

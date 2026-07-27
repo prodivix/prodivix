@@ -7,6 +7,7 @@ import {
   type CodeSlotKind,
   type CodeSlotProvider,
 } from '@prodivix/authoring';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   AnimationDefinition,
   AnimationTimelineCodeSlots,
@@ -99,7 +100,7 @@ export const createAnimationCodeSlotProvider = (input: {
   const timelineBySlotId = new Map<string, string>();
 
   for (const timeline of [...input.definition.timelines].sort((left, right) =>
-    left.id.localeCompare(right.id)
+    compareUnicodeCodePoints(left.id, right.id)
   )) {
     for (const descriptor of SLOT_DESCRIPTORS) {
       const binding: CodeSlotBinding | undefined =

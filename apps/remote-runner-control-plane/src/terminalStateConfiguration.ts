@@ -1,3 +1,5 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
+
 export const REMOTE_TERMINAL_STATE_KMS_PROVIDER_STATIC = 'static-key-ring';
 export const REMOTE_TERMINAL_STATE_KMS_PROVIDER_AWS = 'aws-kms';
 
@@ -63,7 +65,7 @@ const staticKeys = (
   encodedValues: readonly string[];
 }> => {
   const entries = Object.entries(jsonRecord(raw, name)).sort(
-    ([left], [right]) => left.localeCompare(right)
+    ([left], [right]) => compareUnicodeCodePoints(left, right)
   );
   const keys = entries.map(([rawKeyId, encoded]) => {
     const normalizedKeyId = keyId(rawKeyId, name);
@@ -92,7 +94,7 @@ const keyArns = (
   name: string
 ): Readonly<Record<string, string>> => {
   const entries = Object.entries(jsonRecord(raw, name)).sort(
-    ([left], [right]) => left.localeCompare(right)
+    ([left], [right]) => compareUnicodeCodePoints(left, right)
   );
   return Object.freeze(
     Object.fromEntries(

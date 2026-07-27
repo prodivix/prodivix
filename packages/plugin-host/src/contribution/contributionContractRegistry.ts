@@ -3,6 +3,7 @@ import {
   PLUGIN_DIAGNOSTIC_CODES,
   type ContributionPoint,
 } from '@prodivix/plugin-contracts';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { HostContributionPointMap } from '#host/contribution/contribution.types';
 import type { RegisteredContributionContract } from '#host/contribution/contributionContract';
 import {
@@ -54,8 +55,8 @@ export const createContributionContractRegistry = <
   const ordered = Object.freeze(
     [...byKey.values()].sort(
       (left, right) =>
-        left.point.localeCompare(right.point) ||
-        left.contractVersion.localeCompare(right.contractVersion)
+        compareUnicodeCodePoints(left.point, right.point) ||
+        compareUnicodeCodePoints(left.contractVersion, right.contractVersion)
     )
   );
   return pluginHostSuccess(

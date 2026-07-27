@@ -59,7 +59,7 @@ const createDefaultDocumentId = (
 export const createWorkspaceDesignTokenSystemTransactionPlan = (
   input: CreateWorkspaceDesignTokenSystemTransactionInput
 ): WorkspaceDesignTokenSystemTransactionPlanResult => {
-  const slug = input.slug.trim().toLocaleLowerCase('en-US');
+  const slug = input.slug.trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9-]{0,47}$/.test(slug)) {
     return Object.freeze({
       status: 'rejected',

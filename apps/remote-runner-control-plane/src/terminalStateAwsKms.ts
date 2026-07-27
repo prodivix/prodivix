@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   DecryptCommand,
   EncryptCommand,
@@ -58,7 +59,7 @@ const readConfiguration = (
   if (!regionPattern.test(input.region))
     throw new TypeError('Remote Terminal AWS KMS region is invalid.');
   const entries = Object.entries(input.keyArns).sort(([left], [right]) =>
-    left.localeCompare(right)
+    compareUnicodeCodePoints(left, right)
   );
   if (entries.length < 1 || entries.length > maximumKeys)
     throw new TypeError('Remote Terminal AWS KMS key count is invalid.');

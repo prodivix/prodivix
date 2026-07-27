@@ -336,7 +336,7 @@ export const queryDiagnosticIssues = (
   state: DiagnosticIssueCollectionState,
   query: DiagnosticIssueQuery = {}
 ): readonly DiagnosticIssue[] => {
-  const text = query.text?.trim().toLocaleLowerCase();
+  const text = query.text?.trim().toLowerCase();
 
   return state.issues.filter((issue) => {
     if (query.statuses && !query.statuses.includes(issue.status)) return false;
@@ -367,7 +367,7 @@ export const queryDiagnosticIssues = (
       ...issue.sources.map((source) => source.providerId),
     ]
       .filter(Boolean)
-      .some((value) => String(value).toLocaleLowerCase().includes(text));
+      .some((value) => String(value).toLowerCase().includes(text));
   });
 };
 

@@ -26,7 +26,8 @@
   },
   "dependencies": {
     "@prodivix/data": "workspace:*",
-    "@prodivix/runtime-core": "workspace:*"
+    "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

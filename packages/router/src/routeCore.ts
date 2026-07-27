@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   RouteModule,
   RouteModuleMount,
@@ -822,7 +823,8 @@ const matchChildren = (
       if (difference !== 0) return difference;
     }
     return (
-      rightRank.length - leftRank.length || left.id.localeCompare(right.id)
+      rightRank.length - leftRank.length ||
+      compareUnicodeCodePoints(left.id, right.id)
     );
   });
 

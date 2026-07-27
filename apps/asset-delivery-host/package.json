@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@prodivix/assets": "workspace:*",
+    "@prodivix/shared": "workspace:*",
     "sharp": "0.35.3"
   },
   "devDependencies": {

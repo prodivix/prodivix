@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   createWorkspaceCodeSourceUpdateCommand,
   type WorkspaceOperation,
@@ -65,7 +66,7 @@ const sortJsonValue = (value: unknown): unknown => {
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
       .map(([key, item]) => [key, sortJsonValue(item)])
   );
 };
@@ -79,8 +80,8 @@ const getDurableAuthoringState = (workspace: WorkspaceSnapshot): string =>
       documents: Object.values(workspace.docsById)
         .sort(
           (left, right) =>
-            left.path.localeCompare(right.path) ||
-            left.id.localeCompare(right.id)
+            compareUnicodeCodePoints(left.path, right.path) ||
+            compareUnicodeCodePoints(left.id, right.id)
         )
         .map(
           ({

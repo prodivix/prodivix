@@ -3,6 +3,7 @@ import {
   PLUGIN_DIAGNOSTIC_CODES,
   type PluginDiagnostic,
 } from '@prodivix/plugin-contracts';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { HostContributionPointMap } from '#host/contribution/contribution.types';
 import { createAvailabilityLifecycle } from '#host/lifecycle/availabilityLifecycle';
 import {
@@ -89,8 +90,8 @@ export const createPluginHost = <TMap extends HostContributionPointMap>(
     context.beginShutdown();
     shutdownPromise = (async () => {
       const diagnostics: PluginDiagnostic[] = [];
-      const pluginIds = [...context.records.keys()].sort((left, right) =>
-        left.localeCompare(right)
+      const pluginIds = [...context.records.keys()].sort(
+        compareUnicodeCodePoints
       );
       for (const pluginId of pluginIds) {
         if (!context.records.has(pluginId)) continue;
@@ -181,7 +182,9 @@ export const createPluginHost = <TMap extends HostContributionPointMap>(
         Object.freeze(
           [...context.records.values()]
             .map((record) => record.snapshot)
-            .sort((left, right) => left.pluginId.localeCompare(right.pluginId))
+            .sort((left, right) =>
+              compareUnicodeCodePoints(left.pluginId, right.pluginId)
+            )
         ),
       subscribe: (listener) => {
         if (state !== 'running') {

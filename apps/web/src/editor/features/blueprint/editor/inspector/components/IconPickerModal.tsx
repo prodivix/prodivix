@@ -60,7 +60,13 @@ export function IconPickerModal({
     getIconRegistryRevision,
     getIconRegistryRevision
   );
-  const providers = useMemo(() => listIconProviders(), [registryRevision]);
+  const providers = useMemo(
+    () =>
+      listIconProviders().sort((left, right) =>
+        left.label.localeCompare(right.label)
+      ),
+    [registryRevision]
+  );
   const providerOptions = useMemo(() => {
     return providers.flatMap((provider) => {
       if (provider.id !== 'heroicons') {
@@ -153,7 +159,10 @@ export function IconPickerModal({
     [providerId, registryRevision]
   );
   const iconNames = useMemo(
-    () => listIconNamesByProvider(providerId),
+    () =>
+      [...listIconNamesByProvider(providerId)].sort((left, right) =>
+        left.localeCompare(right)
+      ),
     [providerId, registryRevision]
   );
   const isProviderLoading =

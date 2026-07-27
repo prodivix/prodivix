@@ -1,4 +1,5 @@
 import type { DiagnosticTargetRef, SourceSpan } from '@prodivix/diagnostics';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { normalizeExecutableProjectPath } from './executableProjectNormalization';
@@ -215,8 +216,11 @@ const decodeWorkspace = (value: unknown): ExecutionWorkspaceSnapshotRef => {
       [],
       'Execution filesystem diff partition revisions'
     );
+    // This ordering enters the diff digest, so it uses the repository-wide
+    // code-point owner rather than `<` (UTF-16 code units), which diverges on
+    // astral characters and from the Go side's UTF-8 byte order.
     const entries = Object.entries(revisions).sort(([left], [right]) =>
-      left < right ? -1 : left > right ? 1 : 0
+      compareUnicodeCodePoints(left, right)
     );
     if (entries.length > EXECUTION_FILESYSTEM_DIFF_LIMITS.maxPartitionRevisions)
       throw new TypeError('Execution filesystem diff has too many revisions.');

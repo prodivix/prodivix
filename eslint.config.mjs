@@ -72,6 +72,48 @@ export default defineConfig([
     },
   },
   {
+    // Locale-dependent ordering and case mapping must never decide bytes that
+    // are digested, persisted or compared across processes — the host ICU
+    // locale differs between a browser, a Node runner and the Go backend
+    // (G2-GAP-04). `@prodivix/shared/canonical` owns the locale-independent
+    // primitives; see AGENTS.md coding rule 4. The restriction covers every
+    // package by default so a newly created package is inside the fence from
+    // its first line; presentation surfaces below opt out explicitly, because
+    // locale collation is CORRECT for user-facing display lists.
+    files: ['packages/**/*.{ts,tsx,mts,cts}', 'apps/**/*.{ts,tsx,mts,cts}'],
+    ignores: [
+      'apps/web/**',
+      'apps/docs/**',
+      'apps/vscode/**',
+      'packages/ui/**',
+      'packages/i18n/**',
+      '**/*.test.*',
+      '**/__tests__/**',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.property.name='localeCompare'], CallExpression[callee.property.value='localeCompare']",
+          message:
+            'localeCompare resolves against the host ICU locale. Use compareUnicodeCodePoints from @prodivix/shared/canonical for any ordering that reaches a digest, persisted bytes or a cross-process identity; if this is a user-facing display sort, move it to the presentation layer.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^toLocale(Lower|Upper)Case$/], CallExpression[callee.property.name='toLocaleString']",
+          message:
+            'toLocale* case mapping and formatting depend on the host ICU locale (e.g. Turkish dotless i). Use toLowerCase/toUpperCase for identity-relevant normalization, or move display formatting to the presentation layer.',
+        },
+        {
+          selector: "MemberExpression[object.name='Intl'][property.name='Collator']",
+          message:
+            'Intl.Collator is locale collation by construction. Use compareUnicodeCodePoints from @prodivix/shared/canonical outside presentation surfaces.',
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.tsx'],
     plugins: { 'react-hooks': reactHooks },
     rules: {

@@ -30,6 +30,7 @@
     "@prodivix/runtime-remote": "workspace:*",
     "@prodivix/runtime-vitest": "workspace:*",
     "@prodivix/server-runtime": "workspace:*",
+    "@prodivix/shared": "workspace:*",
     "@prodivix/workspace": "workspace:*",
     "@prodivix/workspace-sync": "workspace:*"
   },

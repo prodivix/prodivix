@@ -131,7 +131,7 @@ const contributeSourceReferences = (
     let targetName: string | undefined;
     let targetScopeId: string | undefined;
     if (target.kind === 'set') {
-      const set = rootSetsByName.get(target.setName.toLocaleLowerCase('en-US'));
+      const set = rootSetsByName.get(target.setName.toLowerCase());
       if (set) {
         targetSymbolId = createDesignTokenSetSymbolId(
           workspaceId,
@@ -284,7 +284,7 @@ const contributeModifier = (
     capabilityIds: Object.freeze([
       'design-token-modifier',
       'dtcg-resolver',
-      ...(modifier.name.toLocaleLowerCase('en-US') === 'theme'
+      ...(modifier.name.toLowerCase() === 'theme'
         ? ['design-token-theme']
         : []),
     ]),
@@ -389,7 +389,7 @@ const contributeDocument = (
   });
 
   const rootSetsByName = new Map(
-    document.sets.map((set) => [set.name.toLocaleLowerCase('en-US'), set])
+    document.sets.map((set) => [set.name.toLowerCase(), set])
   );
   const documentReferences = new Map(
     (source.documentReferences ?? []).map((reference) => [
@@ -409,7 +409,7 @@ const contributeDocument = (
       rootSetsByName,
       documentReferences
     );
-    rootSetSymbolIds.set(set.name.toLocaleLowerCase('en-US'), symbolId);
+    rootSetSymbolIds.set(set.name.toLowerCase(), symbolId);
   });
   const rootModifierSymbolIds = new Map<string, string>();
   document.modifiers.forEach((modifier) => {
@@ -424,7 +424,7 @@ const contributeDocument = (
       documentReferences
     );
     rootModifierSymbolIds.set(
-      modifier.name.toLocaleLowerCase('en-US'),
+      modifier.name.toLowerCase(),
       symbolId
     );
   });
@@ -458,8 +458,8 @@ const contributeDocument = (
     } else {
       targetSymbolId =
         entry.kind === 'set'
-          ? rootSetSymbolIds.get(entry.name.toLocaleLowerCase('en-US'))
-          : rootModifierSymbolIds.get(entry.name.toLocaleLowerCase('en-US'));
+          ? rootSetSymbolIds.get(entry.name.toLowerCase())
+          : rootModifierSymbolIds.get(entry.name.toLowerCase());
     }
     if (!targetSymbolId) return;
     contribution.references.push({
