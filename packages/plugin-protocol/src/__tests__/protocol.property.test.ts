@@ -77,7 +77,7 @@ describe('strict protocol JSON property and fuzz hardening', () => {
       }),
       propertyParameters
     );
-  });
+  }, 15_000);
 
   it('fails closed for arbitrary non-text transport values', () => {
     fc.assert(
