@@ -32,10 +32,10 @@ func TestRotateSecretMaterialsMigratesLegacyRowsAtomically(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mock.ExpectQuery(`SELECT e\.workspace_id`).WithArgs(staticKeyRingProviderID, "key-2026-07", 8).WillReturnRows(
+	mock.ExpectBegin()
+	mock.ExpectQuery(`(?s)SELECT e\.workspace_id.*FOR UPDATE OF m SKIP LOCKED`).WithArgs(staticKeyRingProviderID, "key-2026-07", 8).WillReturnRows(
 		sqlmock.NewRows(rotationColumns).AddRow("workspace-1", "environment-1", "env_storage-1", "revision-1", "binding-1", nil, nil, nil, nil, nil, nonce, ciphertext),
 	)
-	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE execution_environment_secret_materials`).WithArgs(
 		secretEnvelopeAlgorithm, staticKeyRingProviderID, "key-2026-07", sqlmock.AnyArg(), encryptedCanaryArgument{canary: canary}, sqlmock.AnyArg(), encryptedCanaryArgument{canary: canary},
 		"env_storage-1", "revision-1", "binding-1",
@@ -72,12 +72,14 @@ func TestRotateSecretMaterialsRollsBackWhenAnOldKeyWasRetiredEarly(t *testing.T)
 	}
 	store := NewStoreWithKeyRing(database, "", "key-new", map[string]string{"key-new": encodedKey(0x77)})
 
-	mock.ExpectQuery(`SELECT e\.workspace_id`).WithArgs(staticKeyRingProviderID, "key-new", 4).WillReturnRows(
+	mock.ExpectBegin()
+	mock.ExpectQuery(`(?s)SELECT e\.workspace_id.*FOR UPDATE OF m SKIP LOCKED`).WithArgs(staticKeyRingProviderID, "key-new", 4).WillReturnRows(
 		sqlmock.NewRows(rotationColumns).AddRow(
 			"workspace-1", "environment-1", "env_storage-1", "revision-1", "binding-1", envelope.Algorithm, envelope.KeyProvider, envelope.KeyID,
 			envelope.WrappedKeyNonce, envelope.WrappedKey, envelope.Nonce, envelope.Ciphertext,
 		),
 	)
+	mock.ExpectRollback()
 	_, err = store.RotateSecretMaterials(t.Context(), SecretKeyRotationPolicy{BatchSize: 4})
 	if !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("expected an early old-key retirement to fail closed, got %v", err)

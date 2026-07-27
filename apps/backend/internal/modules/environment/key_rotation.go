@@ -73,13 +73,19 @@ func (store *Store) RotateSecretMaterials(ctx context.Context, rawPolicy SecretK
 	activeProvider := store.envelopeCipher.kms.ProviderID()
 	activeKeyID := store.envelopeCipher.kms.ActiveKeyID()
 	result := SecretKeyRotationResult{ActiveKeyID: activeKeyID}
+	tx, err := store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return SecretKeyRotationResult{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
 	readContext, cancelRead := databaseContext(ctx)
-	rows, err := store.db.QueryContext(readContext, `SELECT e.workspace_id, e.environment_key, m.environment_id, m.revision, m.binding_id, m.algorithm, m.key_provider, m.key_id, m.wrapped_key_nonce, m.wrapped_key, m.nonce, m.ciphertext
+	rows, err := tx.QueryContext(readContext, `SELECT e.workspace_id, e.environment_key, m.environment_id, m.revision, m.binding_id, m.algorithm, m.key_provider, m.key_id, m.wrapped_key_nonce, m.wrapped_key, m.nonce, m.ciphertext
 		FROM execution_environment_secret_materials m
 		JOIN execution_environments e ON e.id = m.environment_id
 		WHERE m.algorithm IS NULL OR m.key_provider IS DISTINCT FROM $1 OR m.key_id IS DISTINCT FROM $2
 		ORDER BY m.environment_id, m.revision, m.binding_id
-		LIMIT $3`, activeProvider, activeKeyID, policy.BatchSize)
+		LIMIT $3
+		FOR UPDATE OF m SKIP LOCKED`, activeProvider, activeKeyID, policy.BatchSize)
 	if err != nil {
 		cancelRead()
 		return SecretKeyRotationResult{}, err
@@ -137,11 +143,6 @@ func (store *Store) RotateSecretMaterials(ctx context.Context, rawPolicy SecretK
 	}
 	databaseCtx, cancelDatabase := databaseContext(ctx)
 	defer cancelDatabase()
-	tx, err := store.db.BeginTx(databaseCtx, nil)
-	if err != nil {
-		return SecretKeyRotationResult{}, err
-	}
-	defer func() { _ = tx.Rollback() }()
 	for _, candidate := range prepared {
 		row := candidate.row
 		rotated := candidate.envelope
