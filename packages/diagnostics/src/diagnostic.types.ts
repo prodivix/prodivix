@@ -14,7 +14,9 @@ export type ProdivixDiagnosticDomain =
   | 'codegen'
   | 'backend'
   | 'semantic'
-  | 'ai';
+  | 'ai'
+  | 'behavior'
+  | 'verification';
 
 export type DiagnosticTargetRef =
   | { kind: 'workspace'; workspaceId: string }
@@ -58,6 +60,23 @@ export type DiagnosticTargetRef =
       operationId: string;
     }
   | { kind: 'code-artifact'; artifactId: string }
+  | { kind: 'behavior-scenario'; documentId: string }
+  | {
+      kind: 'behavior-step';
+      documentId: string;
+      stepId: string;
+      assertionId?: string;
+    }
+  | { kind: 'behavior-replay-record'; planDigest: string; cellId: string; attemptId: string }
+  | { kind: 'verification-policy'; documentId: string }
+  | { kind: 'verification-plan-cell'; planDigest: string; cellId: string }
+  | {
+      kind: 'verification-evidence';
+      planDigest: string;
+      cellId: string;
+      attemptId: string;
+    }
+  | { kind: 'verification-closure'; planDigest: string }
   | { kind: 'operation'; operation: string }
   | { kind: 'theme-token'; themeId: string; tokenPath: string }
   | { kind: 'viewport'; routeId?: string; width: number; height: number }

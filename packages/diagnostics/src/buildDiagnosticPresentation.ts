@@ -122,6 +122,22 @@ const labelForTargetRef = (targetRef: DiagnosticTargetRef): string => {
       return `Data operation ${targetRef.operationId}`;
     case 'code-artifact':
       return `Code artifact ${targetRef.artifactId}`;
+    case 'behavior-scenario':
+      return `Behavior scenario ${targetRef.documentId}`;
+    case 'behavior-step':
+      return targetRef.assertionId
+        ? `Behavior assertion ${targetRef.assertionId}`
+        : `Behavior step ${targetRef.stepId}`;
+    case 'behavior-replay-record':
+      return `Replay attempt ${targetRef.attemptId}`;
+    case 'verification-policy':
+      return `Verification policy ${targetRef.documentId}`;
+    case 'verification-plan-cell':
+      return `Verification cell ${targetRef.cellId}`;
+    case 'verification-evidence':
+      return `Verification evidence ${targetRef.attemptId}`;
+    case 'verification-closure':
+      return `Verification closure ${targetRef.planDigest}`;
     case 'operation':
       return `Operation ${targetRef.operation}`;
     case 'theme-token':

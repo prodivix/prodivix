@@ -26,6 +26,8 @@ export const PRODIVIX_DIAGNOSTIC_DOMAINS = [
   'backend',
   'semantic',
   'ai',
+  'behavior',
+  'verification',
 ] as const satisfies readonly ProdivixDiagnosticDomain[];
 
 const DIAGNOSTIC_DOMAINS: ReadonlySet<ProdivixDiagnosticDomain> = new Set(

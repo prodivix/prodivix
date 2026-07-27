@@ -154,7 +154,7 @@ domain/target、public codec 与 boundary check。任何 G3 domain type 不得�
 
 1. package dependency DAG 无环，应用只通过公开入口依赖 contract；
 2. current model 不暴露数字版本，wire/codec/migration 明确 fail closed；
-3. 两种 Workspace document 都有 schema、Command、Transaction、undo/redo、import/export round-trip；
+3. 五种 Workspace document(behavior-scenario、behavior-control-profile、behavior-fixture-set、verification-policy、verification-baseline-set)都有 schema、Command、Transaction、undo/redo、import/export round-trip；
 4. `BHV-*`、`VER-*` 能进入统一 Issues store；
 5. 建立 `verify:g3:boundaries` aggregate Gate。
 

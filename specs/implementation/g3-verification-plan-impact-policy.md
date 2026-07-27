@@ -140,7 +140,7 @@ Exemption 是显式、可审计的 authoring decision，必须包含 stable id�
 - adapter kind/version range；
 - SourceTrace contribution。
 
-初始 family：`diagnostics`、`build`、`unit`、`integration`、`behavior-e2e`、`visual`、`accessibility`、
+初始 family：`diagnostics`、`build`、`unit`、`integration`、`e2e`(即 Behavior E2E;拼写以 ADR 57 的 VerificationCheckKind 为准)、`visual`、`accessibility`、
 `performance`、`security`。
 
 **一个 cell 就是一个 check。** cell 的字段形状由 ADR 57「Plan DAG 与 matrix cell」冻结，本节不重述；
@@ -232,7 +232,7 @@ exemption，记录在 Evidence 的 applied exemption 中，不是 cell 状态。
 Closure 输入是 revision + Policy + immutable Plan + current acceptable Evidence set + evaluation time/retention view。
 输出至少包含：
 
-- verdict：`passed`、`failed`、`incomplete`、`blocked`、`stale`；
+- verdict：`VerificationClosureVerdict`(`satisfied` / `unsatisfied` / `stale`,唯一定义见 ADR 57「状态 taxonomy」;本文不重述取值);
 - satisfied/failed/missing/blocked/unstable required cells；
 - advisory summary；
 - applied exemptions 和即将过期项；
