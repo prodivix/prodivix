@@ -6,6 +6,7 @@ import {
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_TRACE_NAME,
   getExecutionProviderCompatibility,
+  inspectExecutionArtifactContents,
   type ExecutionSecretLeakGuard,
   type ExecutionSecretLeakSurface,
   type ExecutionProviderDescriptor,
@@ -13,6 +14,7 @@ import {
 } from '@prodivix/runtime-core';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import {
   createRemoteExecutionFailureEnvelope,
   createRemoteExecutionSuccessEnvelope,
@@ -158,6 +160,16 @@ const sourceIdentity = (source: RemoteExecutionSnapshotSource) =>
         contentDigest: source.snapshot.contentDigest,
       });
 
+/**
+ * Derives the strong idempotency key that `remote_executions.identity_key`
+ * stores and that a retry must reproduce exactly.
+ *
+ * The digest input is canonically serialized rather than `JSON.stringify`d:
+ * property insertion order in a decoded `ExecutionRequest` follows whatever
+ * order its `metadata` / `partitionRevisions` records were normalized into, so a
+ * key-order-sensitive digest would let two processes derive different keys for
+ * the same logical call and turn a legitimate retry into `identity-conflict`.
+ */
 const identityKey = (
   request: ExecutionRequest,
   snapshotDigest: string,
@@ -166,7 +178,7 @@ const identityKey = (
   `sha256-${bytesToHex(
     sha256(
       utf8ToBytes(
-        JSON.stringify({
+        canonicalJsonText({
           request,
           snapshotDigest,
           serverAuthority:
@@ -264,21 +276,30 @@ export const createRemoteExecutionControlPlane = (
         }).inspectValue(surface, value).safe;
   };
 
-  const inspectBytes = (
+  const inspectArtifactContents = (
     surface: ExecutionSecretLeakSurface,
+    mediaType: string,
     value: Uint8Array,
     leaseToken?: string
   ): boolean => {
     if (
       options.outputGuard &&
-      !options.outputGuard.inspectBytes(surface, value).safe
+      !inspectExecutionArtifactContents(
+        options.outputGuard,
+        surface,
+        mediaType,
+        value
+      ).safe
     )
       return true;
     return leaseToken === undefined
       ? false
-      : !createExecutionSecretLeakGuard({
-          secretValues: [leaseToken],
-        }).inspectBytes(surface, value).safe;
+      : !inspectExecutionArtifactContents(
+          createExecutionSecretLeakGuard({ secretValues: [leaseToken] }),
+          surface,
+          mediaType,
+          value
+        ).safe;
   };
 
   const blockSecretLeak = async (
@@ -661,8 +682,9 @@ export const createRemoteExecutionControlPlane = (
         },
         input.leaseToken
       );
-      const contentLeak = inspectBytes(
+      const contentLeak = inspectArtifactContents(
         contentSurface,
+        input.descriptor.mediaType,
         input.contents,
         input.leaseToken
       );

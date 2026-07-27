@@ -1,6 +1,6 @@
 export type DesignTokenJsonPrimitive = null | boolean | number | string;
 
-export interface DesignTokenJsonArray extends ReadonlyArray<DesignTokenJsonValue> {}
+export type DesignTokenJsonArray = readonly DesignTokenJsonValue[];
 
 export interface DesignTokenJsonObject {
   readonly [key: string]: DesignTokenJsonValue;

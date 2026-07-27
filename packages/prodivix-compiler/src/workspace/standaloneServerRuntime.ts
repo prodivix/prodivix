@@ -3,6 +3,7 @@ import {
   SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
   SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS,
 } from '@prodivix/server-runtime';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   WorkspaceServerRuntimeBinding,
   WorkspaceServerRuntimeTarget,
@@ -10,9 +11,6 @@ import type {
 
 export const WORKSPACE_SERVER_RUNTIME_MODULE_ID =
   'workspace-server-runtime' as const;
-
-const compareText = (left: string, right: string): number =>
-  left < right ? -1 : left > right ? 1 : 0;
 
 /** Emits a source-free Server Function client plus the deterministic Test adapter boundary. */
 export const createWorkspaceStandaloneServerRuntimeModule = (
@@ -28,8 +26,14 @@ export const createWorkspaceStandaloneServerRuntimeModule = (
     ).values(),
   ].sort(
     (left, right) =>
-      compareText(left.reference.artifactId, right.reference.artifactId) ||
-      compareText(left.reference.exportName, right.reference.exportName)
+      compareUnicodeCodePoints(
+        left.reference.artifactId,
+        right.reference.artifactId
+      ) ||
+      compareUnicodeCodePoints(
+        left.reference.exportName,
+        right.reference.exportName
+      )
   );
   const deterministicTest =
     target.kind === 'deterministic-test' && definitions.length > 0;
@@ -214,7 +218,7 @@ const canonicalJson = (value: unknown): string => {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
   return '{' + Object.entries(value as Record<string, unknown>)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([key, entry]) => JSON.stringify(key) + ':' + canonicalJson(entry))
     .join(',') + '}';
 };

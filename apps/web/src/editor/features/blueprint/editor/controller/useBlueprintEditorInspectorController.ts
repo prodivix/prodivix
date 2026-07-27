@@ -70,7 +70,10 @@ import {
 import { resolveInspectorPanels } from '@/editor/features/blueprint/editor/inspector/panels/registry';
 import { resolveInspectorComponentMeta } from '@/editor/features/blueprint/editor/inspector/meta/componentMetaProjection';
 import { resolveMountedCssEntries } from '@/editor/features/blueprint/editor/inspector/components/classProtocol/mountedCss';
-import { getPrimaryTextField } from '@/editor/features/blueprint/editor/model/blueprintText';
+import {
+  getPrimaryTextField,
+  type TextFieldMode,
+} from '@/editor/features/blueprint/editor/model/blueprintText';
 import { findNodePlacement } from '@/editor/features/blueprint/editor/model/tree';
 import { createDataOperationInspectorCandidates } from '@/editor/features/blueprint/editor/inspector/domain/dataOperationInspectorModel';
 import {
@@ -605,6 +608,16 @@ export const useBlueprintEditorInspectorController = ({
   const routeOptions = useMemo(
     () => routeItems.map((item) => ({ id: item.id, path: item.path })),
     [routeItems]
+  );
+  // Includes the root that flattenRouteManifest omits from the picker list —
+  // a trigger bound to the root route is resolved, just not re-pickable.
+  const knownRouteIds = useMemo(
+    () =>
+      new Set([
+        composedRouteManifest.root.id,
+        ...routeItems.map((item) => item.id),
+      ]),
+    [composedRouteManifest, routeItems]
   );
   const activeRouteDetails = useMemo(() => {
     if (!activeRouteNodeId) return null;
@@ -1141,6 +1154,7 @@ export const useBlueprintEditorInspectorController = ({
       : undefined,
     readOnly: workspaceReadonly,
     canonicalEntries: canonicalTriggerEntries,
+    knownRouteIds,
     onCommit: commitTriggerDraft,
     onIssue: reportTriggerAuthoringIssue,
   });
@@ -1184,6 +1198,28 @@ export const useBlueprintEditorInspectorController = ({
   const primaryTextField = useMemo(
     () => (selectedNode ? getPrimaryTextField(selectedNode) : null),
     [selectedNode]
+  );
+  // Plain/rich is how the author wants to edit the field, not what the document
+  // means, so it stays in editor session state instead of PIR element props.
+  const [textFieldModeByTarget, setTextFieldModeByTarget] = useState<
+    Record<string, TextFieldMode>
+  >({});
+  const primaryTextFieldModeKey =
+    selection && primaryTextField
+      ? `${selection.documentId}\u0000${selection.nodeId}\u0000${primaryTextField.key}`
+      : undefined;
+  const primaryTextFieldMode: TextFieldMode = primaryTextFieldModeKey
+    ? (textFieldModeByTarget[primaryTextFieldModeKey] ?? 'plain')
+    : 'plain';
+  const setPrimaryTextFieldMode = useCallback(
+    (mode: TextFieldMode) => {
+      if (!primaryTextFieldModeKey) return;
+      setTextFieldModeByTarget((current) => ({
+        ...current,
+        [primaryTextFieldModeKey]: mode,
+      }));
+    },
+    [primaryTextFieldModeKey]
   );
   const componentMeta = useMemo(
     () =>
@@ -1404,6 +1440,8 @@ export const useBlueprintEditorInspectorController = ({
         ? [...collectReadonlyBindingDiagnostics(selectedCanonicalNode)]
         : [],
       primaryTextField,
+      primaryTextFieldMode,
+      setPrimaryTextFieldMode,
       supportsClassProtocol: selectedNode?.type !== 'container',
       classNameValue:
         typeof selectedNode?.props?.className === 'string'
@@ -1426,6 +1464,7 @@ export const useBlueprintEditorInspectorController = ({
       relPropKey,
       titlePropKey,
       routeOptions,
+      knownRouteIds,
       outletRouteNodeId,
       activeRouteNodeId,
       bindOutletToRoute: (routeNodeId, outletNodeId) =>
@@ -1566,10 +1605,12 @@ export const useBlueprintEditorInspectorController = ({
       openControlledCode,
       persistRouteIntent,
       primaryTextField,
+      primaryTextFieldMode,
       projectId,
       relPropKey,
       report,
       routeOptions,
+      knownRouteIds,
       saveTrigger,
       selectedCanonicalNode,
       selectedIconRef,
@@ -1578,6 +1619,7 @@ export const useBlueprintEditorInspectorController = ({
       serverRuntimeAuthoring.candidates,
       serverRuntimeIssues,
       serverRuntimeWriteAvailable,
+      setPrimaryTextFieldMode,
       setServerRuntimeBinding,
       selection,
       targetPropKey,

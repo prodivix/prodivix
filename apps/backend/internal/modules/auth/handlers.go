@@ -12,6 +12,7 @@ import (
 
 	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 	backendidentity "github.com/Prodivix/prodivix/apps/backend/internal/platform/identity"
+	backendtext "github.com/Prodivix/prodivix/apps/backend/internal/platform/text"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -103,6 +104,11 @@ func (handler *Handler) HandleRegister(c *gin.Context) {
 	}
 	if len([]byte(password)) > 72 {
 		respondError(c, http.StatusBadRequest, "API-4001", "Password must be 72 bytes or fewer.")
+		return
+	}
+	if !backendtext.WithinDisplayBound(request.Name, backendtext.MaxDisplayNameRunes) ||
+		!backendtext.WithinDisplayBound(request.Description, backendtext.MaxDisplayDescriptionRunes) {
+		respondError(c, http.StatusBadRequest, "API-4001", "Name or description is too long.")
 		return
 	}
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -197,12 +203,18 @@ func (handler *Handler) HandleUpdateMe(c *gin.Context) {
 		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
 		return
 	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxAuthJSONBytes)
 	var request struct {
 		Name        *string `json:"name"`
 		Description *string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
+		return
+	}
+	if (request.Name != nil && !backendtext.WithinDisplayBound(*request.Name, backendtext.MaxDisplayNameRunes)) ||
+		(request.Description != nil && !backendtext.WithinDisplayBound(*request.Description, backendtext.MaxDisplayDescriptionRunes)) {
+		respondError(c, http.StatusBadRequest, "API-4001", "Name or description is too long.")
 		return
 	}
 	updated, err := handler.users.Update(user.ID, request.Name, request.Description)

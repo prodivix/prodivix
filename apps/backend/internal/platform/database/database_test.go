@@ -2,103 +2,163 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 )
 
-func TestRunMigrationsUsesVersionedLockedTransaction(t *testing.T) {
+func expectMigrationSession(mock sqlmock.Sqlmock) {
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS schema_migrations").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(regexp.QuoteMeta(`SELECT pg_advisory_lock($1)`)).
+		WithArgs(migrationAdvisoryLockKey).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+}
+
+func expectMigrationSessionRelease(mock sqlmock.Sqlmock) {
+	mock.ExpectExec(regexp.QuoteMeta(`SELECT pg_advisory_unlock($1)`)).
+		WithArgs(migrationAdvisoryLockKey).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+}
+
+func expectPendingCheck(mock sqlmock.Sqlmock, version int64, applied bool) {
+	mock.ExpectQuery("SELECT EXISTS").
+		WithArgs(version).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(applied))
+}
+
+// A failing migration must not discard the migrations that already succeeded,
+// otherwise every restart repeats the same work and fails at the same place.
+func TestAFailingMigrationKeepsEarlierMigrationsCommitted(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mock.ExpectBegin()
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS schema_migrations").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock($1)")).WithArgs(int64(0x50726f6469766978)).WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(1)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(2)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS remote_data_mutation_replays").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_remote_data_mutation_replays_created_at").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(2), "remote-data-mutation-replay-ledger").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(3)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	for range 8 {
-		mock.ExpectExec("ALTER TABLE remote_data_mutation_replays").WillReturnResult(sqlmock.NewResult(0, 0))
-	}
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(3), "remote-data-upstream-idempotency").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(4)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS workspace_asset_blobs").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_workspace_asset_blobs_created_at").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(4), "workspace-binary-asset-blobs").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(5)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("ALTER TABLE workspace_asset_blobs ADD COLUMN").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("UPDATE workspace_asset_blobs SET unreferenced_since").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE workspace_asset_blobs ALTER COLUMN").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_workspace_asset_blobs_unreferenced_since").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(5), "workspace-asset-blob-retention").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(6)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS remote_server_function_execution_state").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS remote_server_function_mutation_replays").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_remote_server_function_mutation_replays_created_at").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(6), "remote-server-function-live-mutation").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(7)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS remote_isolated_secret_resolutions").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(7), "isolated-server-function-secret-resolution").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(8)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("ALTER TABLE execution_environment_secret_materials").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE execution_environment_secret_materials").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_execution_environment_secret_materials_key").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS execution_environment_key_rotation_audit").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(8), "environment-secret-kms-key-rotation").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(9)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS workspace_execution_role_grants").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_workspace_execution_role_grants_principal").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants RENAME COLUMN owner_id TO principal_id").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("DROP INDEX IF EXISTS idx_remote_execution_grants_owner").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_remote_execution_grants_principal").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants ADD COLUMN").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(9), "workspace-execution-viewer-role").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(10)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS provider_id").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS profile").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants ADD COLUMN IF NOT EXISTS runtime_zone").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(10), "remote-execution-class-authority").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(11)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("ALTER TABLE workspace_execution_role_grants").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE remote_execution_grants").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(11), "workspace-execution-editor-role").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(12)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec(regexp.QuoteMeta(lockPersistedPIRDocuments)).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT workspace_id, id, content_rev, content_json
-FROM workspace_documents
-WHERE doc_type IN ('pir-page', 'pir-layout', 'pir-component')
-  AND ($1 OR (workspace_id, id) > ($2, $3))
-ORDER BY workspace_id, id
-LIMIT $4
-FOR UPDATE`)).WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "id", "content_rev", "content_json"}))
-	mock.ExpectExec(regexp.QuoteMeta(enforcePIRWireV16)).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec(regexp.QuoteMeta(validatePIRWireV16)).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(12), "pir-wire-v1-6-rollout").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(13)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS github_installation_user_access").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_github_installation_user_access_installation").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS github_installation_setup_states").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE INDEX IF NOT EXISTS idx_github_installation_setup_states_expiry").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(13), "github-installation-user-access").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(int64(14)).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-	mock.ExpectExec("CREATE TABLE IF NOT EXISTS github_user_identities").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("CREATE UNIQUE INDEX IF NOT EXISTS idx_github_user_identities_github_user").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("ALTER TABLE github_installations ADD COLUMN IF NOT EXISTS installer_github_user_id").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(14), "github-user-identity-linkage").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
 
-	if err := RunMigrations(context.Background(), db); err != nil {
+	migrations := []migration{
+		{version: 1, name: "first", statements: []string{`CREATE TABLE first ()`}},
+		{version: 2, name: "second", statements: []string{`CREATE TABLE second ()`}},
+	}
+
+	expectMigrationSession(mock)
+	mock.ExpectBegin()
+	expectPendingCheck(mock, 1, false)
+	mock.ExpectExec("CREATE TABLE first").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO schema_migrations").WithArgs(int64(1), "first").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	mock.ExpectBegin()
+	expectPendingCheck(mock, 2, false)
+	mock.ExpectExec("CREATE TABLE second").WillReturnError(errors.New("relation already exists"))
+	mock.ExpectRollback()
+	expectMigrationSessionRelease(mock)
+
+	if err := runMigrations(context.Background(), db, migrations, time.Minute); err == nil {
+		t.Fatal("expected the failing migration to be reported")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("migration 1 was not committed independently of migration 2: %v", err)
+	}
+}
+
+func TestAppliedMigrationsAreSkippedWithoutReplayingStatements(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
 		t.Fatal(err)
+	}
+	defer db.Close()
+
+	migrations := []migration{
+		{version: 1, name: "first", statements: []string{`CREATE TABLE first ()`}},
+		{version: 2, name: "second", run: func(context.Context, *sql.Tx) error {
+			t.Fatal("an applied migration must not run its data rewrite again")
+			return nil
+		}},
+	}
+
+	expectMigrationSession(mock)
+	for _, version := range []int64{1, 2} {
+		mock.ExpectBegin()
+		expectPendingCheck(mock, version, true)
+		mock.ExpectRollback()
+	}
+	expectMigrationSessionRelease(mock)
+
+	if err := runMigrations(context.Background(), db, migrations, time.Minute); err != nil {
+		t.Fatalf("run migrations: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The budget belongs to one migration, so a slow data rewrite cannot consume
+// the time the migrations after it need.
+func TestEachMigrationReceivesItsOwnBudget(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	const budget = 400 * time.Millisecond
+	remaining := make([]time.Duration, 0, 2)
+	recordRemaining := func(ctx context.Context, _ *sql.Tx) error {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			t.Fatal("a migration must run under a deadline")
+		}
+		remaining = append(remaining, time.Until(deadline))
+		return nil
+	}
+	migrations := []migration{
+		{version: 1, name: "first", run: func(ctx context.Context, tx *sql.Tx) error {
+			// A slow migration is the whole point: a shared budget would leave
+			// the next migration with whatever this one did not spend.
+			time.Sleep(budget / 2)
+			return recordRemaining(ctx, tx)
+		}},
+		{version: 2, name: "second", run: recordRemaining},
+	}
+
+	expectMigrationSession(mock)
+	for _, version := range []int64{1, 2} {
+		mock.ExpectBegin()
+		expectPendingCheck(mock, version, false)
+		mock.ExpectExec("INSERT INTO schema_migrations").
+			WithArgs(version, migrations[version-1].name).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+	}
+	expectMigrationSessionRelease(mock)
+
+	if err := runMigrations(context.Background(), db, migrations, budget); err != nil {
+		t.Fatalf("run migrations: %v", err)
+	}
+	if len(remaining) != 2 {
+		t.Fatalf("expected both migrations to run, got %d", len(remaining))
+	}
+	if remaining[1] <= remaining[0] {
+		t.Fatalf(
+			"the second migration inherited the first migration's remaining time (%v) instead of its own budget (%v)",
+			remaining[0],
+			remaining[1],
+		)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMigrationSetVersionsAreUniqueAndOrdered(t *testing.T) {
+	previous := int64(0)
+	for _, migration := range migrationSet() {
+		if migration.version <= previous {
+			t.Fatalf("migration %q has version %d, which does not follow %d", migration.name, migration.version, previous)
+		}
+		previous = migration.version
 	}
 }

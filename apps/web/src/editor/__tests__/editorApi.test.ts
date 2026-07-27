@@ -72,13 +72,15 @@ const createWorkspaceWithAsset = () => {
     mediaType: 'image/png',
   });
   const base = createWorkspace();
+  const baseRoot = base.treeById.root;
+  if (!baseRoot) throw new Error('Expected workspace root node.');
   const workspace: WorkspaceSnapshot = {
     ...base,
     treeById: {
       ...base.treeById,
       root: {
-        ...base.treeById.root!,
-        children: [...base.treeById.root!.children, 'asset-node'],
+        ...baseRoot,
+        children: [...(baseRoot.children ?? []), 'asset-node'],
       },
       'asset-node': {
         id: 'asset-node',
@@ -562,13 +564,15 @@ describe('editorApi workspace boundary', () => {
       reference,
       materialization,
     } = createWorkspaceWithAsset();
+    const sourceRoot = source.treeById.root;
+    if (!sourceRoot) throw new Error('Expected workspace root node.');
     const workspace: WorkspaceSnapshot = {
       ...source,
       treeById: {
         ...source.treeById,
         root: {
-          ...source.treeById.root!,
-          children: [...source.treeById.root!.children, 'asset-copy-node'],
+          ...sourceRoot,
+          children: [...(sourceRoot.children ?? []), 'asset-copy-node'],
         },
         'asset-copy-node': {
           id: 'asset-copy-node',

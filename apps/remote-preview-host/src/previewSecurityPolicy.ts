@@ -1,3 +1,5 @@
+import { carriesCredentialsSafely } from '@prodivix/shared/safety';
+
 const permissionsPolicy = [
   'accelerometer=()',
   'autoplay=()',
@@ -22,11 +24,8 @@ const permissionsPolicy = [
 const normalizedCapabilityOrigin = (value?: string): string => {
   if (!value) return "'none'";
   const url = new URL(value);
-  const loopback =
-    ['localhost', '127.0.0.1', '::1'].includes(url.hostname) ||
-    url.hostname.endsWith('.localhost');
   if (
-    (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) ||
+    !carriesCredentialsSafely(url) ||
     url.username ||
     url.password ||
     url.origin !== value
@@ -35,6 +34,21 @@ const normalizedCapabilityOrigin = (value?: string): string => {
   return url.origin;
 };
 
+/**
+ * Preview documents must keep the tuple origin of their per-session capability
+ * subdomain. The editor bridge authenticates every frame message by exact
+ * `event.origin` and answers with `postMessage(response, previewOrigin)`, so the
+ * origin model has to stay `https://<capability>.<preview-host>` on both sides.
+ *
+ * That is why no CSP `sandbox` directive is emitted: CSP sandbox flags union with
+ * the embedder's iframe `sandbox` attribute and can never widen it, so any
+ * `sandbox` value without `allow-same-origin` would force an opaque origin, make
+ * every bridge message arrive as `origin: 'null'`, and make every targeted reply
+ * undeliverable. Isolation is carried instead by the unguessable per-session
+ * capability origin, `frame-ancestors`, COOP/COEP/CORP, the `'none'`-by-default
+ * fetch directives with `connect-src` pinned to the capability origin, the
+ * Permissions-Policy denylist, and the embedder's own iframe `sandbox` attribute.
+ */
 export const createPreviewSecurityHeaders = (
   editorOrigins: readonly string[],
   capabilityOrigin?: string
@@ -57,7 +71,6 @@ export const createPreviewSecurityHeaders = (
       "base-uri 'none'",
       "form-action 'none'",
       `frame-ancestors ${editorOrigins.join(' ')}`,
-      'sandbox allow-scripts',
     ].join('; '),
     'cross-origin-embedder-policy': 'credentialless',
     'cross-origin-opener-policy': 'same-origin',

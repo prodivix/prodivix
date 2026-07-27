@@ -23,7 +23,8 @@ export default function CodeAuthoringPage() {
   }, [searchParams]);
   const workspaceId = workspace?.id ?? projectId ?? 'code-workspace';
   const requestedSourceSpan =
-    semanticNavigationRequest?.workspaceId === workspace?.id &&
+    semanticNavigationRequest &&
+    semanticNavigationRequest.workspaceId === workspace?.id &&
     semanticNavigationRequest.projectId === projectId &&
     semanticNavigationRequest.location.kind === 'source-span'
       ? semanticNavigationRequest.location.sourceSpan

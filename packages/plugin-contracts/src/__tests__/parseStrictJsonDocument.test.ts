@@ -25,10 +25,9 @@ describe('parseStrictJsonDocument', () => {
   });
 
   it('bounds the reported duplicate keys of a document that repeats one key', () => {
-    const repeated = Array.from(
-      { length: 5_000 },
-      () => '"id":"example"'
-    ).join(',');
+    const repeated = Array.from({ length: 5_000 }, () => '"id":"example"').join(
+      ','
+    );
 
     const result = parseManifestSource(`{${repeated}}`);
 

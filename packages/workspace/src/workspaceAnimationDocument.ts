@@ -3,6 +3,7 @@ import {
   type AnimationDefinition,
   type AnimationValidationIssue,
 } from '@prodivix/animation';
+import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceCommandEnvelope,
   WorkspacePatchOperation,
@@ -141,8 +142,8 @@ export const selectWorkspaceAnimationDocumentResults = (
     .filter((document) => document.type === 'pir-animation')
     .sort((left, right) =>
       left.path === right.path
-        ? left.id.localeCompare(right.id)
-        : left.path.localeCompare(right.path)
+        ? compareUnicodeCodePoints(left.id, right.id)
+        : compareUnicodeCodePoints(left.path, right.path)
     )
     .map((document) => decodeWorkspaceAnimationDocument(document, snapshot));
 

@@ -1,4 +1,5 @@
 export * from './providers/createProvider';
+export * from './providers/credentialTransport';
 export * from './providers/discoverOpenAICompatibleModels';
 export * from './providers/openAICompatiblePrompt';
 export * from './providers/openAICompatibleProvider';

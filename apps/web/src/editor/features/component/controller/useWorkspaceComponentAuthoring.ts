@@ -146,7 +146,7 @@ export const useWorkspaceComponentAuthoring = () => {
         rootType: input.rootType?.trim() || 'div',
         componentContract: createEmptyPirComponentContract(),
         parentDirectoryId: workspace.treeRootId,
-        index: root?.kind === 'dir' ? root.children.length : 0,
+        index: root?.kind === 'dir' ? (root.children?.length ?? 0) : 0,
       });
       if (plan.status === 'rejected') {
         return { status: 'rejected', message: firstIssueMessage(plan) };

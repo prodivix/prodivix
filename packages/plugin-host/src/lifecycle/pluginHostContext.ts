@@ -277,7 +277,10 @@ export const createPluginHostContext = <TMap extends HostContributionPointMap>(
     try {
       const id = options.idFactory.createId(kind);
       if (id.trim()) return id;
-    } catch {}
+    } catch {
+      // A host-supplied id factory is untrusted; fall through to the deterministic
+      // sequence below rather than failing the operation that needs an id.
+    }
     fallbackId += 1;
     return `plugin-host-${kind}-${fallbackId}`;
   };

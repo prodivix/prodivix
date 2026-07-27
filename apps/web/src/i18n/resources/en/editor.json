@@ -127,6 +127,8 @@
         "transport-disconnected": "The terminal transport disconnected; cursor-based reconnect is in progress.",
         "open-rejected": "The execution could not open a terminal session.",
         "input-pending": "The bounded terminal input queue is full; wait for acknowledgement before typing more.",
+        "input-rejected": "The execution refused the terminal input; the queued keystrokes were discarded and were not run.",
+        "input-desynchronized": "The terminal input sequence is out of step with the execution; reopen the terminal before typing again.",
         "input-unacknowledged": "Terminal input was not acknowledged; reconnect before retrying the exact input.",
         "resize-unacknowledged": "The terminal resize was not acknowledged; reconnect is in progress.",
         "output-invalid": "Terminal output failed its identity, cursor, or byte-length contract and was not rendered."
@@ -1842,7 +1844,8 @@
         "rebind": "Bind to {{libraryId}}",
         "rebindFailed": "Could not rebind the code artifact.",
         "convertToModule": "Convert to workspace module",
-        "deleteActiveBlocked": "Detach active CodeSlot bindings before deleting this code artifact or folder."
+        "deleteActiveBlocked": "Detach active CodeSlot bindings before deleting this code artifact or folder.",
+        "deleteProjectionBlocked": "CodeSlot lifecycles are unavailable, so deleting could drop an active binding. Fix the blocking Workspace documents first."
       },
       "empty": "Select a code file from the tree to edit its content."
     },
@@ -1918,6 +1921,8 @@
         "description": "Tri-pane translation workflow with key grid and real-time UI context."
       },
       "searchPlaceholder": "Search key or text",
+      "readonlyNotice": "This Workspace is read-only. Translations cannot be edited.",
+      "persistFailed": "The translation was not saved: {{message}}",
       "filters": {
         "missingOnly": "Missing only",
         "reviewedOnly": "Reviewed only"

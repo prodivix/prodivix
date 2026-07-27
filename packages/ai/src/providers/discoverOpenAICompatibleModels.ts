@@ -1,4 +1,5 @@
 import { normalizeBaseURL } from '@prodivix/shared/safety';
+import { assertOpenAICompatibleCredentialTransport } from './credentialTransport';
 import {
   readOpenAICompatibleJsonResponse,
   type ProdivixAiFetch,
@@ -44,6 +45,7 @@ export const discoverOpenAICompatibleModels = async ({
 }: DiscoverOpenAICompatibleModelsOptions): Promise<
   readonly ProdivixAiDiscoveredModel[]
 > => {
+  assertOpenAICompatibleCredentialTransport(baseURL, apiKey);
   const response = await fetcher(`${normalizeBaseURL(baseURL)}/models`, {
     method: 'GET',
     headers: {

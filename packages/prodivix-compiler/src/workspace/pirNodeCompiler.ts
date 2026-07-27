@@ -15,7 +15,6 @@ import {
   compileTriggerSource,
   createAdapterNode,
   escapeJsonPointerSegment,
-  toIdentifier,
   toJson,
 } from '#src/workspace/pirNodeExpressions';
 import type {
@@ -106,8 +105,9 @@ export const createPirNodeCompiler = (
       return context.emitter.emptyExpression;
     }
 
-    const scopeExpression = node.data
-      ? `__pdxNodeScope_${toIdentifier(node.id)}`
+    const nodeSuffix = node.data ? context.locals.reserve(node.id) : undefined;
+    const scopeExpression = nodeSuffix
+      ? `__pdxNodeScope_${nodeSuffix}`
       : parentScopeExpression;
     const propExpressions = new Map<string, string>();
     for (const [key, binding] of Object.entries(node.props ?? {}).sort(
@@ -207,7 +207,7 @@ export const createPirNodeCompiler = (
       node,
       parentScopeExpression
     );
-    return `(() => { const __pdxNodeData_${toIdentifier(node.id)} = ${dataExpression}; const ${scopeExpression} = { ...${parentScopeExpression}, dataById: { ...${parentScopeExpression}.dataById, ${toJson(node.id)}: __pdxNodeData_${toIdentifier(node.id)} } }; return (${elementExpression}); })()`;
+    return `(() => { const __pdxNodeData_${nodeSuffix} = ${dataExpression}; const ${scopeExpression} = { ...${parentScopeExpression}, dataById: { ...${parentScopeExpression}.dataById, ${toJson(node.id)}: __pdxNodeData_${nodeSuffix} } }; return (${elementExpression}); })()`;
   };
 
   const compileInstance = (
@@ -326,8 +326,9 @@ export const createPirNodeCompiler = (
         toPirContractMemberPath('slotsById', slotMemberId),
         targetDocument.id
       );
-      const slotScope = `__pdxSlotScope_${toIdentifier(node.id)}_${toIdentifier(slotMemberId)}`;
-      const outletInstancePath = `__pdxOutletInstancePath_${toIdentifier(node.id)}_${toIdentifier(slotMemberId)}`;
+      const slotSuffix = context.locals.reserve(node.id, slotMemberId);
+      const slotScope = `__pdxSlotScope_${slotSuffix}`;
+      const outletInstancePath = `__pdxOutletInstancePath_${slotSuffix}`;
       const slotInstancePathExpression = compilePirSlotProjectionPath(
         outletInstancePath,
         context.documentId,
@@ -414,7 +415,7 @@ export const createPirNodeCompiler = (
       }
     }
 
-    const suffix = toIdentifier(node.id);
+    const suffix = context.locals.reserve(node.id);
     const locationName = `__pdxCollectionLocation_${suffix}`;
     const manualPreviewName = `__pdxCollectionManualPreview_${suffix}`;
     const previewName = `__pdxCollectionPreview_${suffix}`;

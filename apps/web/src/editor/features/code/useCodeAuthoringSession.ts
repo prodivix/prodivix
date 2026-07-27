@@ -127,10 +127,16 @@ export const useCodeAuthoringSession = (input: {
     [updateSession]
   );
 
+  /**
+   * A save failure has to name the artifact it was saving, not whatever artifact
+   * happens to be active when the commit settles: only a matching id releases
+   * `savingArtifactId`, so an in-flight selection change would otherwise pin the
+   * session busy for the rest of its life.
+   */
   const reportError = useCallback(
-    (message: string) => {
+    (message: string, artifactId?: string) => {
       updateSession((current) =>
-        setCodeAuthoringSessionError(current, message)
+        setCodeAuthoringSessionError(current, message, artifactId)
       );
     },
     [updateSession]
@@ -163,7 +169,7 @@ export const useCodeAuthoringSession = (input: {
     if (isCodeAuthoringDraftStale(draft)) {
       const message =
         'The canonical code document changed while this draft was open. Discard or reconcile the draft before saving.';
-      reportError(message);
+      reportError(message, artifactId);
       return { status: 'unavailable', reason: 'stale-draft' };
     }
 
@@ -200,7 +206,7 @@ export const useCodeAuthoringSession = (input: {
         const message =
           controlledManifest.issues[0]?.message ||
           'The controlled source manifest is invalid.';
-        reportError(message);
+        reportError(message, artifactId);
         return { status: 'rejected', message };
       }
       const controlledPlan = createControlledCodeEditPlan({
@@ -215,7 +221,7 @@ export const useCodeAuthoringSession = (input: {
         const message =
           controlledPlan.issues[0]?.message ||
           'The controlled visual/code update was rejected.';
-        reportError(message);
+        reportError(message, artifactId);
         return { status: 'rejected', message };
       }
       if (controlledPlan.status === 'unchanged') {
@@ -250,7 +256,7 @@ export const useCodeAuthoringSession = (input: {
         operation,
       });
       if (outcome.status === 'rejected') {
-        reportError(outcome.message);
+        reportError(outcome.message, artifactId);
         return { status: 'rejected', message: outcome.message };
       }
 
@@ -274,7 +280,7 @@ export const useCodeAuthoringSession = (input: {
         cause instanceof Error && cause.message
           ? cause.message
           : 'Could not save the code document.';
-      reportError(message);
+      reportError(message, artifactId);
       return { status: 'rejected', message };
     }
   }, [input.readonly, reportError, updateSession]);

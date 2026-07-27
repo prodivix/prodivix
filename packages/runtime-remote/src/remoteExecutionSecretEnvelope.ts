@@ -57,6 +57,7 @@ const identity = (value: unknown, maximumBytes: number): string | undefined =>
   value.length > 0 &&
   value.length <= maximumBytes &&
   value === value.trim() &&
+  // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
   !/[\u0000-\u001f\u007f]/u.test(value)
     ? value
     : undefined;

@@ -1,5 +1,6 @@
 import type { DiagnosticTargetRef, SourceSpan } from '@prodivix/diagnostics';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   EXECUTION_PROVIDER_CAPABILITIES,
   type ExecutionProviderCapability,
@@ -50,11 +51,6 @@ const DEFAULT_BUILD_COMMAND: ExecutableProjectCommand = Object.freeze({
   command: 'npm',
   args: Object.freeze(['run', 'build']),
 });
-
-export const compareExecutableProjectText = (
-  left: string,
-  right: string
-): number => (left < right ? -1 : left > right ? 1 : 0);
 
 const createDefaultTestCommand = (
   reportFilePath: string
@@ -168,7 +164,7 @@ const canonicalClone = (value: unknown, label: string, depth = 0): unknown => {
     throw new TypeError(`${label} must contain transport-safe values.`);
   }
   const entries = Object.entries(value).sort(([left], [right]) =>
-    compareExecutableProjectText(left, right)
+    compareUnicodeCodePoints(left, right)
   );
   return Object.freeze(
     Object.fromEntries(
@@ -433,7 +429,7 @@ const normalizeDataMockCollections = (
         );
         return Object.freeze({ id, entityIdKey, initialEntities });
       })
-      .sort((left, right) => compareExecutableProjectText(left.id, right.id))
+      .sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
   );
 };
 
@@ -470,7 +466,7 @@ export const normalizeExecutableProjectDataMockProvision = (
           `Executable project emulated Data adapter ${index}`
         )
       )
-      .sort(compareExecutableProjectText)
+      .sort(compareUnicodeCodePoints)
       .map((adapterId) => {
         if (adapterIds.has(adapterId))
           throw new TypeError(`Duplicate emulated Data adapter: ${adapterId}.`);
@@ -541,7 +537,7 @@ export const normalizeExecutableProjectDataMockProvision = (
           ),
         });
       })
-      .sort((left, right) => compareExecutableProjectText(left.id, right.id))
+      .sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
   );
   const provision = Object.freeze({
     fixtureSetId: normalizeBoundedIdentifier(
@@ -591,7 +587,7 @@ const cloneServerRuntimeMockValue = (
   if (!isPlainRecord(value))
     throw new TypeError(`${label} must contain transport-safe values.`);
   const entries = Object.entries(value)
-    .sort(([left], [right]) => compareExecutableProjectText(left, right))
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
     .map(([key, entry]) => {
       if (serverRuntimeAuthorityKey(key))
         throw new TypeError(`${label} contains forbidden authority material.`);
@@ -688,9 +684,7 @@ export const normalizeExecutableProjectWorkspaceRef = (
               normalizeIdentifier(key, 'Workspace partition key'),
               normalizeIdentifier(revision, `Workspace partition ${key}`),
             ])
-            .sort(([left], [right]) =>
-              compareExecutableProjectText(left, right)
-            )
+            .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
         )
       )
     : undefined;
@@ -808,8 +802,8 @@ export const normalizeExecutableProjectEntrypoints = (
   });
   entrypoints.sort((left, right) =>
     left.kind === right.kind
-      ? compareExecutableProjectText(left.path, right.path)
-      : compareExecutableProjectText(left.kind, right.kind)
+      ? compareUnicodeCodePoints(left.path, right.path)
+      : compareUnicodeCodePoints(left.kind, right.kind)
   );
   return Object.freeze(entrypoints);
 };
@@ -835,7 +829,7 @@ const normalizeCapabilities = (
     seen.add(capability);
     return capability as ExecutionProviderCapability;
   });
-  capabilities.sort(compareExecutableProjectText);
+  capabilities.sort(compareUnicodeCodePoints);
   return Object.freeze(capabilities);
 };
 
@@ -905,7 +899,7 @@ export const normalizeExecutableProjectPublicBuildConfiguration = (
     });
   });
   entries.sort((left, right) =>
-    compareExecutableProjectText(left.name, right.name)
+    compareUnicodeCodePoints(left.name, right.name)
   );
   return Object.freeze(entries);
 };

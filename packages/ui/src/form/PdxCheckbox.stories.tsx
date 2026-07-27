@@ -74,7 +74,7 @@ export const States: Story = {
 
 /** A parent whose mixed state is derived from its children. */
 export const MixedParent: Story = {
-  render: () => {
+  render: function MixedParentStory() {
     const [targets, setTargets] = useState<Record<string, boolean>>({
       web: true,
       export: false,

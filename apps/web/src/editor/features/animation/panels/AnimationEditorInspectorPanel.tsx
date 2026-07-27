@@ -19,7 +19,6 @@ import {
 
 type TimelineDirection = NonNullable<AnimationTimeline['direction']>;
 type TimelineFillMode = NonNullable<AnimationTimeline['fillMode']>;
-type TimelineIterations = NonNullable<AnimationTimeline['iterations']>;
 
 const DIRECTION_OPTIONS: TimelineDirection[] = [
   'normal',

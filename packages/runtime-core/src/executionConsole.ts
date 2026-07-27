@@ -1,5 +1,6 @@
 import { utf8ToBytes } from '@noble/hashes/utils.js';
 import type { ProdivixDiagnostic } from '@prodivix/diagnostics';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import { cloneExecutionValue } from './executionRequest';
 import {
   EXECUTION_LOG_CATEGORIES,
@@ -741,7 +742,7 @@ export const createExecutionConsoleSnapshot = (
     (left, right) =>
       left.recordedAt - right.recordedAt ||
       left.correlation.sequence - right.correlation.sequence ||
-      left.recordId.localeCompare(right.recordId)
+      compareUnicodeCodePoints(left.recordId, right.recordId)
   );
   const retained: ExecutionConsoleRecord[] = [];
   let retainedBytes = 0;

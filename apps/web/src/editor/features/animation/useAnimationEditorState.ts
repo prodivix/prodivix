@@ -216,7 +216,7 @@ export const useAnimationEditorState = ({
     if (!persisted) return false;
     const currentWorkspace = useEditorStore.getState().workspace;
     const current = selectWorkspaceAnimationDocument(
-      currentWorkspace,
+      currentWorkspace ?? undefined,
       animationDocumentId
     );
     return (
@@ -975,14 +975,18 @@ export const useAnimationEditorState = ({
       const parsed = Number.parseInt(rawMs, 10);
       if (!Number.isFinite(parsed) || !activeTimeline) return;
       updateTrackById(bindingId, trackId, (track) => {
-        if (!track.keyframes[index]) return track;
+        const current = track.keyframes[index];
+        if (!current) return track;
+        const atMs = clampMs(parsed, activeTimeline.durationMs);
+        if (atMs === current.atMs) return track;
+        // Rows are deduplicated by time, so moving onto an occupied slot would
+        // destroy the keyframe already sitting there. Reject the move instead.
+        const occupied = track.keyframes.some(
+          (keyframe, itemIndex) => itemIndex !== index && keyframe.atMs === atMs
+        );
+        if (occupied) return track;
         const nextRows = track.keyframes.map((keyframe, itemIndex) =>
-          itemIndex === index
-            ? {
-                ...keyframe,
-                atMs: clampMs(parsed, activeTimeline.durationMs),
-              }
-            : keyframe
+          itemIndex === index ? { ...keyframe, atMs } : keyframe
         );
         return {
           ...track,

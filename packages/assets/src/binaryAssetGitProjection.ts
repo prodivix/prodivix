@@ -24,6 +24,7 @@ import {
 const GIT_ATTRIBUTES_PATH = '.gitattributes';
 const GIT_LFS_VERSION = 'https://git-lfs.github.com/spec/v1';
 const IDENTITY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/u;
+// eslint-disable-next-line no-control-regex -- rejecting control characters is the point
 const REVISION_PATTERN = /^[^\u0000-\u001f\u007f]+$/u;
 
 const normalizedIdentity = (
@@ -80,6 +81,7 @@ const normalizeGitPath = (value: string): string | undefined => {
     value !== value.trim() ||
     !value.startsWith('/') ||
     value.length > BINARY_ASSET_GIT_PROJECTION_LIMITS.maxPathLength ||
+    // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
     /[\u0000-\u001f\u007f\\<>:"|?*]/u.test(value)
   ) {
     return undefined;
@@ -168,7 +170,7 @@ export const createBinaryAssetGitLfsPointer = (
 };
 
 const escapeAttributePattern = (path: string): string => {
-  const escaped = `/${path}`.replace(/[\\*?\[\]]/gu, (character) =>
+  const escaped = `/${path}`.replace(/[\\*?[\]]/gu, (character) =>
     character === '\\' ? '\\\\' : `\\${character}`
   );
   return /[\s"#]/u.test(escaped) ? JSON.stringify(escaped) : escaped;

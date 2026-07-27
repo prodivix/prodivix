@@ -69,8 +69,6 @@ export function ExternalLibraryManager({
 }: ExternalLibraryManagerProps) {
   const { t } = useTranslation('editor');
   const workspace = useEditorStore((state) => state.workspace);
-  const workspaceId = workspace?.id;
-  const workspaceRev = workspace?.workspaceRev;
   const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;

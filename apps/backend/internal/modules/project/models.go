@@ -9,6 +9,10 @@ import (
 var ErrProjectNotFound = errors.New("project not found")
 var ErrInvalidResourceType = errors.New("invalid resource type")
 
+// ErrProjectNotPublishable marks a deterministic, permanent precondition: the
+// Workspace holds no PIR document the community projection could publish.
+var ErrProjectNotPublishable = errors.New("project has no publishable PIR document")
+
 type ResourceType string
 
 const (

@@ -99,8 +99,7 @@ describe('Workspace Design Token document properties', () => {
                   'design-token-reference',
                   workspace.id,
                   'tokens-main',
-                  'scale.alias',
-                  ''
+                  'scale.alias'
                 ),
                 targetSymbolId: tokenSymbolId,
               },

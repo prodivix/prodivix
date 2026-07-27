@@ -10,6 +10,7 @@ type UseTriggerDraftAuthoringInput = Readonly<{
   ownerKey?: string;
   readOnly: boolean;
   canonicalEntries: readonly TriggerEntry[];
+  knownRouteIds: ReadonlySet<string>;
   onCommit: (draft: TriggerEntry) => Promise<boolean>;
   onIssue?: (issue: TriggerAuthoringIssue) => void;
 }>;
@@ -22,6 +23,7 @@ export const useTriggerDraftAuthoring = ({
   ownerKey,
   readOnly,
   canonicalEntries,
+  knownRouteIds,
   onCommit,
   onIssue,
 }: UseTriggerDraftAuthoringInput) => {
@@ -107,7 +109,7 @@ export const useTriggerDraftAuthoring = ({
       if (readOnly || saving || !draft || draft.key !== triggerKey) {
         return;
       }
-      const issue = getTriggerDraftIssue(draft, canonicalEntries);
+      const issue = getTriggerDraftIssue(draft, canonicalEntries, knownRouteIds);
       if (issue) {
         onIssue?.(issue);
         return;
@@ -129,7 +131,7 @@ export const useTriggerDraftAuthoring = ({
         }
       })();
     },
-    [canonicalEntries, draft, onCommit, onIssue, readOnly, saving]
+    [canonicalEntries, draft, knownRouteIds, onCommit, onIssue, readOnly, saving]
   );
 
   return {

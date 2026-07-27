@@ -4,6 +4,7 @@
   "description": "VS Code Debug Adapter for PIR",
   "main": "lib/debugAdapter.js",
   "scripts": {
+    "lint": "eslint .",
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "echo \"No tests for vscode-debugger\" && exit 0",

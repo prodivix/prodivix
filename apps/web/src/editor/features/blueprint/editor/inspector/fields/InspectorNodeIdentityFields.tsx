@@ -10,11 +10,7 @@ import { PdxInput, PdxRichTextEditor } from '@prodivix/ui';
 import { useEffect, useState } from 'react';
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { getTextFieldLabel } from '@/editor/features/blueprint/editor/controller/inspectorUtils';
-import {
-  getNodeTextFieldMode,
-  updateNodeTextField,
-  updateNodeTextFieldMode,
-} from '@/editor/features/blueprint/editor/model/blueprintText';
+import { updateNodeTextField } from '@/editor/features/blueprint/editor/model/blueprintText';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
 
 const INSPECTOR_ACTION_ICON_BUTTON_CLASS =
@@ -24,12 +20,18 @@ const INSPECTOR_ACTION_ICON_BUTTON_CLASS =
  * 调用链路 / Call chain:
  * 1) BlueprintEditorInspector 通过 InspectorContext 提供 selectedNode、primaryTextField、updateSelectedNode。
  * 2) InspectorBasicTab 渲染本组件，作为「基础信息」中的文本编辑入口。
- * 3) 组件根据 getNodeTextFieldMode 在单行输入与富文本输入间切换。
- * 4) 更新统一走 updateNodeTextField / updateNodeTextFieldMode，最终写回同一份节点状态。
+ * 3) 组件根据 primaryTextFieldMode 在单行输入与富文本输入间切换，该偏好只存在于编辑器会话中。
+ * 4) 文本更新统一走 updateNodeTextField，最终写回同一份节点状态。
  */
 export function InspectorNodeIdentityFields() {
-  const { t, selectedNode, primaryTextField, updateSelectedNode } =
-    useInspectorContext();
+  const {
+    t,
+    selectedNode,
+    primaryTextField,
+    primaryTextFieldMode,
+    setPrimaryTextFieldMode,
+    updateSelectedNode,
+  } = useInspectorContext();
   const selectedNodeId = selectedNode?.id ?? '';
   const [isRichEditorCollapsed, setIsRichEditorCollapsed] = useState(false);
   const [identityCopyState, setIdentityCopyState] = useState<
@@ -138,7 +140,7 @@ export function InspectorNodeIdentityFields() {
             label={getTextFieldLabel(primaryTextField.key, t)}
             control={
               primaryTextField.key === 'text' &&
-              getNodeTextFieldMode(selectedNode, 'text') === 'rich' ? (
+              primaryTextFieldMode === 'rich' ? (
                 // 富文本框 + 俩按钮
                 <div className="flex w-full flex-col gap-1.5">
                   <div className="inline-flex items-center justify-end gap-1">
@@ -183,11 +185,7 @@ export function InspectorNodeIdentityFields() {
                       aria-label={t('inspector.panels.text.switchToPlain', {
                         defaultValue: 'Switch to plain text input',
                       })}
-                      onClick={() => {
-                        updateSelectedNode((current) =>
-                          updateNodeTextFieldMode(current, 'text', 'plain')
-                        );
-                      }}
+                      onClick={() => setPrimaryTextFieldMode('plain')}
                     >
                       <Type size={14} />
                     </button>
@@ -232,11 +230,7 @@ export function InspectorNodeIdentityFields() {
                           defaultValue:
                             'Switch to rich text editor (bold/italic/color/size)',
                         })}
-                        onClick={() => {
-                          updateSelectedNode((current) =>
-                            updateNodeTextFieldMode(current, 'text', 'rich')
-                          );
-                        }}
+                        onClick={() => setPrimaryTextFieldMode('rich')}
                       >
                         <WandSparkles size={14} />
                       </button>

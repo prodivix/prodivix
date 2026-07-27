@@ -1,8 +1,8 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import {
+  decodeCurrentDataSourceDocument,
   JSON_SCHEMA_2020_12_URI,
-  normalizeDataSourceDocument,
   type DataConfigurationValue,
   type DataImportEntityMapping,
   type DataImportProvenance,
@@ -556,6 +556,28 @@ const compileProjection = (
   for (const [index, entry] of input.bundle.operations.entries()) {
     const definition = operationDefinition(schema, entry, index, issues);
     if (!definition) continue;
+    // Caller-authored labels reach DataOperation.name/description unchanged, so
+    // they must be rejected here with their own path instead of surfacing later
+    // as an unattributable canonical-contract rejection of the whole projection.
+    // An empty description is exempt: the projection drops falsy descriptions,
+    // so only a description that will actually project is validated. An empty
+    // name is not exempt — `entry.name ?? operationName` keeps it and the
+    // canonical contract would reject the whole projection downstream.
+    const invalidLabel = (['name', 'description'] as const).find((key) => {
+      const value = entry[key];
+      if (value === undefined) return false;
+      if (key === 'description' && value === '') return false;
+      return !canonical(value);
+    });
+    if (invalidLabel) {
+      issue(
+        issues,
+        DATA_GRAPHQL_IMPORT_ISSUE_CODES.invalidDocument,
+        `/operations/${index}/${invalidLabel}`,
+        `GraphQL operation ${invalidLabel} must be a canonical string.`
+      );
+      continue;
+    }
     const operationName =
       entry.operationName ?? definition.name?.value ?? `operation-${index + 1}`;
     const externalId = `operation:${operationName}`;
@@ -843,18 +865,17 @@ export const createDataGraphqlImportProposal = (
   }
   let current: DataSourceDocument | undefined;
   if (input.currentDocument) {
-    try {
-      current = normalizeDataSourceDocument(input.currentDocument, {
-        documentId: input.documentId,
-      });
-    } catch {
+    const decoded = decodeCurrentDataSourceDocument(input.currentDocument, {
+      documentId: input.documentId,
+    });
+    if (decoded.ok) current = decoded.value;
+    else
       issue(
         issues,
         DATA_GRAPHQL_IMPORT_ISSUE_CODES.targetDrift,
         '/@currentDocument',
         'Current Data document is not canonical.'
       );
-    }
   }
   const previous = current?.importProvenanceById?.[input.importId];
   if (current && !previous)
@@ -895,7 +916,7 @@ export const createDataGraphqlImportProposal = (
     operationsByExternalId: mappingRecord(projection.operations),
   });
   if (!current || !previous) {
-    const document = normalizeDataSourceDocument(
+    const decoded = decodeCurrentDataSourceDocument(
       {
         source: projection.source,
         schemasById: Object.freeze(
@@ -918,6 +939,23 @@ export const createDataGraphqlImportProposal = (
       },
       { documentId: input.documentId }
     );
+    if (!decoded.ok) {
+      issue(
+        issues,
+        DATA_GRAPHQL_IMPORT_ISSUE_CODES.invalidDocument,
+        '/@proposal',
+        'Imported GraphQL projection does not satisfy the canonical Data source contract.'
+      );
+      return blocked(
+        'invalid',
+        target,
+        issues,
+        changes,
+        schemaImpact,
+        operationImpact
+      );
+    }
+    const document = decoded.value;
     changes.push(
       Object.freeze({
         entity: 'source',
@@ -1209,7 +1247,7 @@ export const createDataGraphqlImportProposal = (
       operationImpact
     );
   }
-  const document = normalizeDataSourceDocument(
+  const decoded = decodeCurrentDataSourceDocument(
     {
       source,
       schemasById: Object.freeze(schemasById),
@@ -1221,6 +1259,23 @@ export const createDataGraphqlImportProposal = (
     },
     { documentId: input.documentId }
   );
+  if (!decoded.ok) {
+    issue(
+      issues,
+      DATA_GRAPHQL_IMPORT_ISSUE_CODES.invalidDocument,
+      '/@proposal',
+      'GraphQL reimport projection does not satisfy the canonical Data source contract.'
+    );
+    return blocked(
+      'invalid',
+      target,
+      issues,
+      changes,
+      schemaImpact,
+      operationImpact
+    );
+  }
+  const document = decoded.value;
   return Object.freeze({
     status: 'ready',
     target,

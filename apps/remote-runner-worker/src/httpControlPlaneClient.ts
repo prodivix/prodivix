@@ -15,6 +15,22 @@ import type {
 
 const maximumSecretResolutionResponseBytes = 768 * 1024;
 const secretResolutionTimeoutMs = 15_000;
+const maximumArtifactDescriptorBytes = 64 * 1024;
+const artifactUploadMediaType =
+  'application/vnd.prodivix.remote-artifact-upload';
+
+/**
+ * Artifact uploads frame the complete descriptor as a UTF-8 JSON prefix of the request
+ * body because `label`, `sourceTrace` and `metadata` cannot survive scalar headers, and
+ * the browser Remote Execution provider rejects any artifact that reaches it without
+ * them. Over-sized descriptors fail closed here instead of being transmitted reduced.
+ */
+const artifactDescriptorPart = (descriptor: unknown): Buffer => {
+  const part = Buffer.from(JSON.stringify(descriptor), 'utf8');
+  if (!part.byteLength || part.byteLength > maximumArtifactDescriptorBytes)
+    throw new TypeError('Remote worker artifact descriptor is invalid.');
+  return part;
+};
 
 const hasStrictSecretResponseHeaders = (response: Response): boolean =>
   response.headers
@@ -241,6 +257,7 @@ export const createRemoteWorkerHttpControlPlaneClient = (
       return body.kind === 'existing' ? 'existing' : 'stored';
     },
     async uploadArtifact(request) {
+      const descriptor = artifactDescriptorPart(request.descriptor);
       const response = await fetch(
         new URL(
           `/internal/v1/executions/${encodeURIComponent(request.executionId)}/artifacts/${encodeURIComponent(request.descriptor.artifactId)}`,
@@ -250,18 +267,15 @@ export const createRemoteWorkerHttpControlPlaneClient = (
           method: 'POST',
           headers: {
             authorization: `Bearer ${input.workerToken}`,
-            'content-type': request.descriptor.mediaType,
+            'content-type': artifactUploadMediaType,
             'x-prodivix-worker-id': request.workerId,
             'x-prodivix-lease-token': request.leaseToken,
             'x-prodivix-worker-event-id': request.workerEventId,
-            'x-prodivix-artifact-kind': request.descriptor.kind,
-            'x-prodivix-artifact-size': String(request.descriptor.size),
-            'x-prodivix-artifact-digest': request.descriptor.digest,
-            'x-prodivix-artifact-expires-at': String(
-              request.descriptor.expiresAt
+            'x-prodivix-artifact-descriptor-bytes': String(
+              descriptor.byteLength
             ),
           },
-          body: Buffer.from(request.contents),
+          body: Buffer.concat([descriptor, Buffer.from(request.contents)]),
         }
       );
       if (response.status === 201) return 'stored';

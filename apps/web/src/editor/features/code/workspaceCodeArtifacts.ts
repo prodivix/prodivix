@@ -35,26 +35,6 @@ export const createCodeResourceFolderNode = (
   children: [],
 });
 
-const ensureFolder = (
-  foldersByPath: Map<string, CodeResourceNode>,
-  parentPath: string,
-  name: string
-) => {
-  const path = parentPath ? `${parentPath}/${name}` : name;
-  const existing = foldersByPath.get(path);
-  if (existing) return existing;
-  const parent = foldersByPath.get(parentPath || 'code');
-  const folder = createCodeResourceFolderNode(
-    path,
-    name,
-    path,
-    parent?.id ?? null
-  );
-  foldersByPath.set(path, folder);
-  parent?.children?.push(folder);
-  return folder;
-};
-
 const buildWorkspacePathByNodeId = (
   treeRootId: string | undefined,
   treeById: Record<string, WorkspaceVfsNode>

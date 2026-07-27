@@ -20,6 +20,7 @@ import {
   readRemoteExecutionServerAuthority,
   type RemoteExecutionServerAuthority,
 } from '@prodivix/runtime-remote';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import { withPostgresTransaction } from './postgresTransaction';
 
 type ExecutionRow = {
@@ -62,18 +63,6 @@ const terminal = new Set<ExecutionJobStatus>([
   'cancelled',
   'timed-out',
 ]);
-
-const canonicalJson = (value: unknown): string =>
-  JSON.stringify(value, (_key, candidate: unknown) => {
-    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
-      return candidate;
-    const record = candidate as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.keys(record)
-        .sort()
-        .map((key) => [key, record[key]])
-    );
-  });
 
 const integer = (value: string | number, label: string): number => {
   const result = typeof value === 'number' ? value : Number(value);
@@ -677,7 +666,7 @@ export const createPostgresRemoteExecutionRepository = (
         )
       );
       if (!row) return { kind: 'lease-rejected' } as const;
-      const identity = canonicalJson(input.descriptor);
+      const identity = canonicalJsonText(input.descriptor);
       const existingEvent = one(
         await client.query<EventRow>(
           `SELECT cursor,event_json,worker_event_id,worker_event_identity
@@ -698,7 +687,7 @@ export const createPostgresRemoteExecutionRepository = (
         )
       );
       if (existingGrant)
-        return canonicalJson(existingGrant.descriptor_json) === identity
+        return canonicalJsonText(existingGrant.descriptor_json) === identity
           ? ({ kind: 'existing', execution: await load(client, row) } as const)
           : ({ kind: 'identity-conflict' } as const);
       const usage = one(

@@ -8,6 +8,8 @@ import {
 
 export interface CreateProdivixAiProviderOptions {
   settings: ProdivixAiSettings;
+  /** Session-scoped provider credential. It is never part of persisted settings. */
+  apiKey?: string;
   fetcher?: ProdivixAiFetch;
   mockOutput?: LlmStructuredOutput;
 }
@@ -48,7 +50,7 @@ export const createProdivixAiProvider = (
 
   return new OpenAICompatibleProvider({
     baseURL: options.settings.baseURL,
-    apiKey: options.settings.apiKey,
+    apiKey: options.apiKey,
     model: options.settings.model,
     fetcher: options.fetcher,
   });

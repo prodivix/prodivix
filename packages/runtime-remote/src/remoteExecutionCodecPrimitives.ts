@@ -11,6 +11,7 @@ import {
   type ExecutionSourceTrace,
   type ExecutionValue,
 } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import { REMOTE_EXECUTION_PROTOCOL_LIMITS } from './remoteExecutionProtocol.types';
 
 export const isPlainRecord = (
@@ -123,7 +124,7 @@ export const stringRecord = (
           normalizedString(key, `${label} key`),
           normalizedString(entry, `${label}.${key}`),
         ])
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
     )
   );
 };
@@ -177,7 +178,7 @@ export const executionValue = (
   return Object.freeze(
     Object.fromEntries(
       Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
         .map(([key, entry]) => [
           key,
           executionValue(entry, `${label}.${key}`, depth + 1, state),

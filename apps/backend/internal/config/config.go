@@ -22,6 +22,7 @@ type Config struct {
 	DBMaxOpenConns     int
 	DBMaxIdleConns     int
 	DBMaxLifetime      time.Duration
+	DBMigrationTimeout time.Duration
 	GitHub             GitHubAppConfig
 	RemoteRunner       RemoteRunnerConfig
 	RemotePreview      RemotePreviewHostConfig
@@ -219,6 +220,12 @@ func LoadConfig() (Config, error) {
 	dbMaxOpenConns := getEnvInt("BACKEND_DB_MAX_OPEN_CONNS", 10)
 	dbMaxIdleConns := getEnvInt("BACKEND_DB_MAX_IDLE_CONNS", 5)
 	dbMaxLifetime := getEnvDuration("BACKEND_DB_MAX_LIFETIME", 30*time.Minute)
+	// Budget per migration, not for the whole set. A data rewrite over a large
+	// PIR corpus needs more than a fixed build-time constant can promise.
+	dbMigrationTimeout, err := getEnvPositiveDuration("BACKEND_DB_MIGRATION_TIMEOUT", 2*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
 	assetBlobOrphanRetention, err := getEnvPositiveDuration("BACKEND_ASSET_BLOB_ORPHAN_RETENTION", 7*24*time.Hour)
 	if err != nil {
 		return Config{}, err
@@ -319,6 +326,8 @@ func LoadConfig() (Config, error) {
 		DBMaxOpenConns: dbMaxOpenConns,
 		DBMaxIdleConns: dbMaxIdleConns,
 		DBMaxLifetime:  dbMaxLifetime,
+
+		DBMigrationTimeout: dbMigrationTimeout,
 		GitHub: GitHubAppConfig{
 			AppID:         getEnv("GITHUB_APP_ID", ""),
 			ClientID:      getEnv("GITHUB_APP_CLIENT_ID", ""),

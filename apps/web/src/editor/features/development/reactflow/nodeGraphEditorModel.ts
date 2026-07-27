@@ -1,7 +1,6 @@
 import type { Edge, Node } from '@xyflow/react';
 import {
   estimateStickyNoteSize,
-  normalizeBindingEntries,
   normalizeBranches,
   normalizeCases,
   normalizeStatusCodes,

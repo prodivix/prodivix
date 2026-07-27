@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type {
+  RemoteExecutionArtifactDescriptor,
   RemoteExecutionControlPlane,
   RemoteExecutionPrincipal,
   RemoteExecutionRegionalTrafficGate,
@@ -8,6 +9,7 @@ import type {
   RemoteExecutionTerminalBroker,
 } from '@prodivix/runtime-remote';
 import {
+  decodeRemoteExecutionArtifactResult,
   decodeRemoteExecutionJobEvent,
   decodeRemoteExecutionTerminalSize,
   readRemoteExecutionSecretEnvelope,
@@ -67,15 +69,6 @@ const statuses = new Set([
   'failed',
   'cancelled',
   'timed-out',
-]);
-const artifactKinds = new Set([
-  'file',
-  'bundle',
-  'report',
-  'coverage',
-  'screenshot',
-  'trace',
-  'custom',
 ]);
 const terminalCloseReasons = new Set([
   'client-closed',
@@ -239,6 +232,38 @@ const x25519PublicKey = (value: unknown): string => {
   if (decoded.byteLength !== 32 || decoded.toString('base64url') !== value)
     throw new TypeError('X25519 public key is invalid');
   return value;
+};
+
+/**
+ * Worker artifact uploads frame the complete descriptor as a UTF-8 JSON prefix of the
+ * request body. Scalar headers could not carry `label`, `sourceTrace` or `metadata`, and
+ * the browser Remote Execution provider rejects every artifact that arrives without them.
+ * Decoding reuses the canonical artifact-result codec so the control plane only stores a
+ * descriptor the Remote client can decode again; the surrounding envelope fields are
+ * locally known, are never trusted from the wire, and are discarded.
+ */
+const artifactUploadDescriptor = (
+  executionId: string,
+  artifactId: string,
+  part: Uint8Array
+): RemoteExecutionArtifactDescriptor => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(part).toString('utf8')) as unknown;
+  } catch {
+    throw new TypeError('artifact descriptor is invalid');
+  }
+  const { artifact } = decodeRemoteExecutionArtifactResult({
+    executionId,
+    providerId: executionId,
+    artifact: parsed,
+  });
+  if (
+    artifact.artifactId !== artifactId ||
+    artifact.authorizationScope !== `execution:${executionId}`
+  )
+    throw new TypeError('artifact descriptor identity is invalid');
+  return artifact;
 };
 
 const terminalErrorStatus = (
@@ -876,36 +901,29 @@ export const createRemoteExecutionHttpHandler = (
           return;
         const executionId = decodePathSegment(artifactUploadMatch[1]!);
         const artifactId = decodePathSegment(artifactUploadMatch[2]!);
-        const size = Number(header(request, 'x-prodivix-artifact-size'));
-        const expiresAt = Number(
-          header(request, 'x-prodivix-artifact-expires-at')
+        const descriptorBytes = Number(
+          header(request, 'x-prodivix-artifact-descriptor-bytes')
         );
         if (
-          !Number.isSafeInteger(size) ||
-          size < 0 ||
-          !Number.isSafeInteger(expiresAt) ||
-          expiresAt < 0
+          !Number.isSafeInteger(descriptorBytes) ||
+          descriptorBytes < 1 ||
+          descriptorBytes > internalLimit
         )
-          throw new TypeError('artifact size or expiry is invalid');
-        const contents = await readBytes(request, publicLimit);
-        const artifactKind = header(request, 'x-prodivix-artifact-kind');
-        if (!artifactKinds.has(artifactKind))
-          throw new TypeError('artifact kind is invalid');
+          throw new TypeError('artifact descriptor framing is invalid');
+        const framed = await readBytes(request, publicLimit);
+        if (framed.byteLength < descriptorBytes)
+          throw new TypeError('artifact descriptor framing is invalid');
         const result = await options.controlPlane.putArtifact({
           executionId,
           workerId,
           leaseToken: header(request, 'x-prodivix-lease-token'),
           workerEventId: header(request, 'x-prodivix-worker-event-id'),
-          descriptor: {
+          descriptor: artifactUploadDescriptor(
+            executionId,
             artifactId,
-            kind: artifactKind as 'file',
-            mediaType: header(request, 'content-type'),
-            size,
-            digest: header(request, 'x-prodivix-artifact-digest'),
-            expiresAt,
-            authorizationScope: `execution:${executionId}`,
-          },
-          contents,
+            framed.subarray(0, descriptorBytes)
+          ),
+          contents: framed.subarray(descriptorBytes),
         });
         if (result.kind === 'lease-rejected')
           return error(response, 409, 'lease-rejected');

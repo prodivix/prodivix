@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "dev": "tsx src/main.ts",
@@ -21,6 +22,7 @@
     "@prodivix/runtime-remote": "workspace:*",
     "@prodivix/runtime-remote-postgres": "workspace:*",
     "@prodivix/server-runtime": "workspace:*",
+    "@prodivix/shared": "workspace:*",
     "pg": "^8.16.3"
   },
   "devDependencies": {

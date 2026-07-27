@@ -33,11 +33,6 @@ export const escapeJsonPointerSegment = (value: string): string =>
 export const toJson = (value: unknown): string =>
   JSON.stringify(value) ?? 'null';
 
-export const toIdentifier = (value: string): string => {
-  const candidate = value.replace(/[^a-zA-Z0-9_$]/g, '_');
-  return /^[a-zA-Z_$]/.test(candidate) ? candidate : `_${candidate}`;
-};
-
 export const literalBindingValues = (
   bindings: Readonly<Record<string, PIRValueBinding>> | undefined
 ): Record<string, unknown> =>

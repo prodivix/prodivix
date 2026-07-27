@@ -10,10 +10,16 @@
     "noEmit": false,
     "paths": {
       "@prodivix/data": ["../data/src"],
-      "@prodivix/runtime-core": ["../runtime-core/src"]
+      "@prodivix/runtime-core": ["../runtime-core/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/**/*.test.ts"],
-  "references": [{ "path": "../data" }, { "path": "../runtime-core" }]
+  "references": [
+    { "path": "../data" },
+    { "path": "../runtime-core" },
+    { "path": "../shared" }
+  ]
 }

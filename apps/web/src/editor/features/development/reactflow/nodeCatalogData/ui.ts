@@ -3,9 +3,7 @@ import {
   CONTROL_IN,
   CONTROL_OUT,
   CONDITION_IN,
-  CONDITION_OUT,
   DATA_IN,
-  DATA_OUT,
 } from '../nodeCatalogConstants';
 
 export const uiNodeCatalog: NodeCatalogItem[] = [

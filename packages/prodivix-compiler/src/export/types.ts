@@ -410,6 +410,20 @@ export type ReserveExportPath = (
   }
 ) => string;
 
+export type ExportReservedPathOwner = 'entry-module' | 'scaffold';
+
+/**
+ * A path the generated entry chain hard-codes (`index.html` imports
+ * `src/main.tsx`, which imports `./App`). The planner reserves these before any
+ * contribution is planned so an authored document can never take the emitted
+ * entry's place through a silent conflict rename.
+ */
+export type ExportReservedPath = {
+  path: string;
+  ownerId: string;
+  owner: ExportReservedPathOwner;
+};
+
 export type ExportReferencedAsset = {
   id: string;
   suggestedName: string;
@@ -506,6 +520,8 @@ export type ExportPlannerPreset = {
   id: string;
   target: ExportTarget;
   sourceRoot: string;
+  /** Scaffold-owned paths; nothing else may be emitted at them. */
+  reservedPaths?: ExportReservedPath[];
   createScaffoldContributions?: (
     context: ExportScaffoldContext
   ) => ExportProgramContribution[];

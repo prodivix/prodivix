@@ -10,6 +10,9 @@
     "./resources/*": "./src/resources/*",
     "./types": "./src/index.ts"
   },
+  "scripts": {
+    "lint": "eslint ."
+  },
   "dependencies": {
     "i18next": "^26.3.4"
   },

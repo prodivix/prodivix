@@ -155,7 +155,7 @@ const authorityPermissions = (value) => {
   if (!Array.isArray(value) || value.length > maximumAuthorityPermissions) return undefined;
   const permissions = value.map(authorityPermissionId);
   if (permissions.some((permission) => permission === undefined) ||
-    permissions.some((permission, index) => index > 0 && permissions[index - 1].localeCompare(permission) >= 0))
+    permissions.some((permission, index) => index > 0 && permissions[index - 1] >= permission))
     return undefined;
   return Object.freeze(permissions);
 };

@@ -8,6 +8,7 @@
     "lib"
   ],
   "scripts": {
+    "lint": "eslint .",
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "echo \"No tests for eslint-plugin-prodivix\" && exit 0",

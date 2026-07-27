@@ -315,8 +315,7 @@ export const createAnimationExecutionProvider = (
       };
       let playback: AnimationPlayback | undefined;
       let timeoutRequested = false;
-      let controller: ExecutionJobController;
-      controller = createExecutionJobController({
+      const controller: ExecutionJobController = createExecutionJobController({
         jobId:
           options.createJobId?.(request) ??
           `animation:${request.requestId}:${++jobSequence}`,

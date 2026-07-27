@@ -30,7 +30,7 @@ func validDataGatewayRequestHash(value string) bool {
 }
 
 func validDataGatewayMutationReplayKey(key DataGatewayMutationReplayKey) bool {
-	if key.Sequence < 0 {
+	if key.Sequence < 0 || !validDataGatewayAdapterID(key.Adapter) {
 		return false
 	}
 	for _, value := range []string{key.ExecutionID, key.DocumentID, key.OperationID, key.InvocationID} {
@@ -59,7 +59,7 @@ func decodeDataGatewayReplayResult(contents []byte, key DataGatewayMutationRepla
 		return nil, ErrDataGatewayReplayConflict
 	}
 	correlation := result.Network.Correlation
-	if !result.Network.Redacted || result.Network.Format != "prodivix.execution-network-trace.v1" || result.Network.RequestID != key.InvocationID+":"+fmt.Sprint(attempt) || result.Network.Phase != "runtime" || (result.Network.RuntimeZone != "server" && result.Network.RuntimeZone != "edge") || result.Network.Mode != "live" || result.Network.Adapter != "core.http" || result.Network.Protocol != "https" || result.Network.Outcome != "allowed" || correlation.Kind != "data-operation" || correlation.DocumentID != key.DocumentID || correlation.OperationID != key.OperationID || correlation.InvocationID != key.InvocationID || correlation.Sequence != key.Sequence || correlation.Attempt != attempt {
+	if !result.Network.Redacted || result.Network.Format != "prodivix.execution-network-trace.v1" || result.Network.RequestID != key.InvocationID+":"+fmt.Sprint(attempt) || result.Network.Phase != "runtime" || (result.Network.RuntimeZone != "server" && result.Network.RuntimeZone != "edge") || result.Network.Mode != "live" || result.Network.Adapter != key.Adapter || result.Network.Protocol != "https" || result.Network.Outcome != "allowed" || correlation.Kind != "data-operation" || correlation.DocumentID != key.DocumentID || correlation.OperationID != key.OperationID || correlation.InvocationID != key.InvocationID || correlation.Sequence != key.Sequence || correlation.Attempt != attempt {
 		return nil, ErrDataGatewayReplayConflict
 	}
 	return &result, nil

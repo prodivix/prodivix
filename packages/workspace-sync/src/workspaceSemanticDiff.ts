@@ -9,8 +9,8 @@ import {
   cloneJsonValue,
   decodeJsonPointerSegment,
   isRecord,
+  jsonValuesEqual,
   resolveStableIdArrayPair,
-  semanticJsonValuesEqual,
   stableIdArrayPointer,
   type JsonValueState,
 } from './jsonValue';
@@ -126,10 +126,19 @@ const collectJsonChanges = (
     if (base.present !== next.present) collect(path, base, next);
     return;
   }
-  if (semanticJsonValuesEqual(base.value, next.value, path)) return;
+  if (jsonValuesEqual(base.value, next.value)) return;
   const stablePair = resolveStableIdArrayPair(base.value, next.value, path);
   if (stablePair) {
     const collectionPath = stableIdArrayPointer(path);
+    // Entity order is authored state, so it is reported on the collection itself
+    // instead of disappearing between the per-id entries.
+    if (!jsonValuesEqual(stablePair.left.order, stablePair.right.order)) {
+      collect(
+        collectionPath,
+        createValueState(stablePair.left.order),
+        createValueState(stablePair.right.order)
+      );
+    }
     const ids = new Set([
       ...Object.keys(stablePair.left.valuesById),
       ...Object.keys(stablePair.right.valuesById),

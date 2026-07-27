@@ -9,6 +9,7 @@ import {
   validatePirDocument,
   type PIRDocument,
 } from '@prodivix/pir';
+import { compareUnicodeCodePoints } from './canonicalOrder';
 import { resolveCanonicalWorkspaceDocumentId } from './resolveCanonicalWorkspaceDocumentId';
 import type {
   WorkspaceDocument,
@@ -602,7 +603,8 @@ export const encodeWorkspaceSnapshot = (
     documents: Object.values(workspace.docsById)
       .sort(
         (left, right) =>
-          left.path.localeCompare(right.path) || left.id.localeCompare(right.id)
+          compareUnicodeCodePoints(left.path, right.path) ||
+          compareUnicodeCodePoints(left.id, right.id)
       )
       .map(encodeWorkspaceDocument),
     routeManifest: workspace.routeManifest,

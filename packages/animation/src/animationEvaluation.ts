@@ -189,14 +189,16 @@ export const resolveTimelineCursorMs = (
 
   const iterationIndex = Math.floor(elapsedMs / durationMs);
   const loopMs = elapsedMs - iterationIndex * durationMs;
+  const reversed = isReversedIteration(timeline.direction, iterationIndex);
   const easing = timeline.easing?.trim();
-  const easedLoopMs =
-    !easing || easing === 'linear'
-      ? loopMs
-      : resolveEasing(easing)(clamp01(loopMs / durationMs)) * durationMs;
-  return isReversedIteration(timeline.direction, iterationIndex)
-    ? durationMs - easedLoopMs
-    : easedLoopMs;
+  if (!easing || easing === 'linear') {
+    return reversed ? durationMs - loopMs : loopMs;
+  }
+  // CSS/Web Animations reverses the iteration progress before the timeline
+  // easing runs, so asymmetric curves keep the same shape the exported
+  // `element.animate` timing produces instead of being mirrored after easing.
+  const progress = clamp01(loopMs / durationMs);
+  return resolveEasing(easing)(reversed ? 1 - progress : progress) * durationMs;
 };
 
 const coerceNumber = (value: number | string) => {

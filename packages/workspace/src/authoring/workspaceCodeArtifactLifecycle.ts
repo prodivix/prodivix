@@ -5,6 +5,7 @@ import {
   type CodeArtifactLifecycle,
 } from '@prodivix/authoring';
 import type { ProdivixDiagnostic } from '@prodivix/diagnostics';
+import { compareUnicodeCodePoints } from '../canonicalOrder';
 import {
   createWorkspaceCodeContentUpdateCommand,
   type WorkspaceCommandEnvelope,
@@ -47,7 +48,7 @@ export const projectWorkspaceCodeArtifactLifecycles = (
   if (composition.status === 'blocked') return composition;
   const artifacts = createWorkspaceCodeArtifactProvider(workspace)
     .listArtifacts({ surface: 'issues-panel' })
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareUnicodeCodePoints(left.id, right.id));
   return Object.freeze({
     status: 'ready',
     records: Object.freeze(

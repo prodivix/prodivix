@@ -2,6 +2,7 @@ import {
   writeShaderCompileProfile,
   type ShaderCompileProfile,
 } from '@prodivix/authoring';
+import type { WorkspaceCodeArtifactLifecycleProjectionResult } from '@prodivix/workspace';
 import type { PublicResourceNode } from '@/editor/features/resources/publicTree';
 
 export type CodeResourceNode = Omit<PublicResourceNode, 'children'> & {
@@ -131,4 +132,31 @@ export const resolveDefaultCodeKindByParentPath = (
   if (normalizedPath.startsWith('code/styles')) return 'css';
   if (normalizedPath.startsWith('code/shaders')) return 'glsl';
   return 'ts';
+};
+
+export type CodeArtifactDeletionDecision =
+  | Readonly<{ status: 'allowed' }>
+  | Readonly<{
+      status: 'blocked';
+      reason: 'projection-unavailable' | 'active-binding';
+    }>;
+
+/**
+ * Deleting a bound artifact leaves a dangling CodeReference behind, so a
+ * lifecycle projection that could not be built blocks the delete rather than
+ * reading as "nothing is bound".
+ */
+export const resolveCodeArtifactDeletion = (
+  projection: WorkspaceCodeArtifactLifecycleProjectionResult | null,
+  artifactIds: readonly string[]
+): CodeArtifactDeletionDecision => {
+  if (projection?.status !== 'ready') {
+    return { status: 'blocked', reason: 'projection-unavailable' };
+  }
+  return projection.records.some(
+    ({ artifact, lifecycle }) =>
+      lifecycle.status === 'active' && artifactIds.includes(artifact.id)
+  )
+    ? { status: 'blocked', reason: 'active-binding' }
+    : { status: 'allowed' };
 };

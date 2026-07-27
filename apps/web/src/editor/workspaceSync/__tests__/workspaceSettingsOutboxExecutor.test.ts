@@ -3,10 +3,12 @@ import { editorApi } from '@/editor/editorApi';
 import {
   enqueueWorkspaceSettingsOutboxCommit,
   executeWorkspaceSettingsOutboxCommit,
+  resumeWorkspaceSettingsOutbox,
 } from '@/editor/workspaceSync/workspaceSettingsOutboxExecutor';
 import { createEditorWorkspace } from '@/test-utils/editorStore';
 import {
   createMemoryWorkspaceOutboxStore,
+  createWorkspaceSettingsOutboxEntry,
   type WorkspaceSettingsOutboxEntry,
 } from '@prodivix/workspace-sync';
 
@@ -87,6 +89,50 @@ describe('executeWorkspaceSettingsOutboxCommit', () => {
       request: { commitId: 'settings-local', settings: { theme: 'dark' } },
       state: { kind: 'retry-wait' },
     });
+  });
+
+  it('stops resending confirmed settings once local replica writes keep failing', async () => {
+    // The server already owns the commit after acknowledgement; a replica cache
+    // that fails on every attempt must be abandoned, not retried forever ahead
+    // of every later commit in the causal chain.
+    const base = createEditorWorkspace();
+    const commit = vi
+      .spyOn(editorApi, 'commitWorkspaceSettings')
+      .mockResolvedValue({
+        workspaceId: base.id,
+        workspaceRev: base.workspaceRev + 1,
+        routeRev: base.routeRev,
+        opSeq: base.opSeq + 1,
+        updatedDocuments: [],
+        removedDocumentIds: [],
+        settings: { theme: 'dark' },
+        acceptedMutationId: 'settings-exhausted',
+      });
+    const created = createWorkspaceSettingsOutboxEntry({
+      baseSnapshot: base,
+      baseSettings: { theme: 'light' },
+      settings: { theme: 'dark' },
+      commitId: 'settings-exhausted',
+      issuedAt: new Date().toISOString(),
+      now: Date.now(),
+    });
+    if (created.ok === false) throw new Error(created.message);
+    const store = createMemoryWorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>(
+      [{ ...created.entry, attemptCount: 3 }]
+    );
+
+    const results = await resumeWorkspaceSettingsOutbox({
+      store,
+      token: 'token',
+      workspaceId: base.id,
+      replicaWriter: async () => {
+        throw new Error('IndexedDB write failed');
+      },
+    });
+
+    expect(results[0]?.kind).toBe('acknowledged');
+    expect(commit).toHaveBeenCalledTimes(1);
+    await expect(store.get('settings-exhausted')).resolves.toBeNull();
   });
 });
 

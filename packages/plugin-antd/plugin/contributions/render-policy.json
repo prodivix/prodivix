@@ -814,14 +814,11 @@
       "componentExport": "Tour",
       "fallback": {
         "behavior": "error",
-        "message": "Tour is unavailable because the Ant Design plugin is disabled."
+        "message": "Tour cannot render on the Prodivix canvas because its overlay escapes the owner-scoped surface."
       },
-      "hostImplementationId": "antd.render.overlay",
+      "hostImplementationId": "antd.render.provider",
       "id": "antd.tour",
-      "portal": {
-        "canvasOpen": { "prop": "open", "value": true, "when": "selected" },
-        "mode": "host-overlay"
-      },
+      "portal": { "mode": "disabled" },
       "runtimeType": "AntdTour"
     },
     {

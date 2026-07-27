@@ -1,7 +1,6 @@
 import type {
   PIRComponentContract,
   PIRComponentInstanceBindings,
-  PIRComponentInstanceNode,
   PIRComponentPropContract,
   PIRJsonValue,
   PIRTriggerBinding,
@@ -225,6 +224,8 @@ export const describeComponentEventBinding = (
       return `Code · ${binding.reference.artifactId}${binding.reference.exportName ? `#${binding.reference.exportName}` : ''}`;
     case 'emit-component-event':
       return `Emit component event · ${binding.memberId}`;
+    case 'dispatch-data-operation':
+      return `Data operation · ${binding.operation.documentId}/${binding.operation.operationId}`;
   }
 };
 

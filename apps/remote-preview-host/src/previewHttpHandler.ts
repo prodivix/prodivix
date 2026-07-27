@@ -1,3 +1,4 @@
+import { carriesCredentialsSafely } from '@prodivix/shared/safety';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { extname } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -48,11 +49,8 @@ const mediaTypes: Readonly<Record<string, string>> = Object.freeze({
 
 const validServiceUrl = (value: string, label: string): URL => {
   const url = new URL(value);
-  const loopback =
-    ['localhost', '127.0.0.1', '::1'].includes(url.hostname) ||
-    url.hostname.endsWith('.localhost');
   if (
-    (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) ||
+    !carriesCredentialsSafely(url) ||
     url.username ||
     url.password ||
     url.pathname !== '/' ||
@@ -160,11 +158,8 @@ export const createPreviewHttpHandler = (
     throw new TypeError('Preview editor origins are required.');
   const editorOrigins = options.editorOrigins.map((value) => {
     const url = new URL(value);
-    const loopback =
-      ['localhost', '127.0.0.1', '::1'].includes(url.hostname) ||
-      url.hostname.endsWith('.localhost');
     if (
-      (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) ||
+      !carriesCredentialsSafely(url) ||
       url.username ||
       url.password ||
       url.origin !== value

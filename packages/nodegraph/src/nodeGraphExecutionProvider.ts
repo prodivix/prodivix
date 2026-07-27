@@ -281,8 +281,7 @@ export const createNodeGraphExecutionProvider = (
         aborted: false,
         reason: undefined as unknown,
       };
-      let controller: ExecutionJobController;
-      controller = createExecutionJobController({
+      const controller: ExecutionJobController = createExecutionJobController({
         jobId:
           options.createJobId?.(request) ??
           `nodegraph:${request.requestId}:${++jobSequence}`,

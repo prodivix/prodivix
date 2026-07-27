@@ -22,7 +22,9 @@ import { notifyWorkspaceOutboxChanged } from './workspaceOutboxSignals';
 import {
   persistAcknowledgedWorkspaceLocalReplica,
   type WorkspaceLocalReplicaWriter,
+  type WorkspaceLocalReplicaWriterInput,
 } from './workspaceLocalReplica';
+import { settleAcknowledgedEntry as settleAcknowledgedOutboxEntry } from './acknowledgedEntrySettlement';
 
 const LEASE_DURATION_MS = 60_000;
 const MAX_REBASE_ATTEMPTS = 2;
@@ -150,6 +152,24 @@ const removeAcknowledgedEntry = async (
   }
 };
 
+/** Binds this executor's store and replica writer to the shared settlement owner. */
+const settleAcknowledgedEntry = (
+  input: ExecuteClaimedInput,
+  replica: WorkspaceLocalReplicaWriterInput,
+  resolve: () => WorkspaceSettingsOutboxExecutionResult
+): Promise<WorkspaceSettingsOutboxExecutionResult> =>
+  settleAcknowledgedOutboxEntry({
+    label: 'settings',
+    attemptCount: input.entry.attemptCount,
+    workspaceId: input.entry.workspaceId,
+    writeReplica: input.replicaWriter
+      ? async () => input.replicaWriter?.(replica)
+      : undefined,
+    persistFailure: (error) => persistAcknowledgementFailure(input, error),
+    removeEntry: () => removeAcknowledgedEntry(input),
+    resolve,
+  });
+
 const claimReplacement = async (
   store: WorkspaceOutboxStore<WorkspaceSettingsOutboxEntry>,
   entry: WorkspaceSettingsOutboxEntry,
@@ -190,26 +210,23 @@ const recoverRevision = async (
     latest.settings
   );
   if (workspaceSettingsEqual(mergedSettings, latest.settings)) {
-    try {
-      await input.replicaWriter?.({
+    return settleAcknowledgedEntry(
+      input,
+      {
         workspace: latest.workspace,
         settings: latest.settings,
         settingsOpSeq: latest.workspace.opSeq,
         acknowledgedEntryId: input.entry.id,
-      });
-      await removeAcknowledgedEntry(input);
-      notifyWorkspaceOutboxChanged(input.entry.workspaceId);
-      return {
+      },
+      () => ({
         kind: 'already-applied',
         baseSnapshot: input.entry.baseSnapshot,
         baseSettings: input.entry.baseSettings,
         submittedSettings: input.entry.request.settings,
         snapshot: latest.workspace,
         settings: latest.settings,
-      };
-    } catch (persistenceError) {
-      return persistAcknowledgementFailure(input, persistenceError);
-    }
+      })
+    );
   }
   const created = createWorkspaceSettingsOutboxEntry({
     baseSnapshot: latest.workspace,
@@ -276,39 +293,41 @@ async function executeClaimed(
           'The refreshed workspace predates the settings acknowledgement.'
         );
       }
-      await input.replicaWriter?.({
-        workspace: latest.workspace,
-        settings: latest.settings,
-        settingsOpSeq: latest.workspace.opSeq,
-        acknowledgedEntryId: input.entry.id,
-      });
-      await removeAcknowledgedEntry(input);
-      notifyWorkspaceOutboxChanged(input.entry.workspaceId);
-      return {
-        kind: 'already-applied',
-        baseSnapshot: input.entry.baseSnapshot,
-        baseSettings: input.entry.baseSettings,
-        submittedSettings: input.entry.request.settings,
-        snapshot: latest.workspace,
-        settings: latest.settings,
-      };
+      return settleAcknowledgedEntry(
+        input,
+        {
+          workspace: latest.workspace,
+          settings: latest.settings,
+          settingsOpSeq: latest.workspace.opSeq,
+          acknowledgedEntryId: input.entry.id,
+        },
+        () => ({
+          kind: 'already-applied',
+          baseSnapshot: input.entry.baseSnapshot,
+          baseSettings: input.entry.baseSettings,
+          submittedSettings: input.entry.request.settings,
+          snapshot: latest.workspace,
+          settings: latest.settings,
+        })
+      );
     }
     const settings = mutation.settings ?? input.entry.request.settings;
-    await input.replicaWriter?.({
-      workspace: applyWorkspaceMutation(input.entry.baseSnapshot, mutation),
-      settings,
-      settingsOpSeq: mutation.opSeq,
-      acknowledgedEntryId: input.entry.id,
-    });
-    await removeAcknowledgedEntry(input);
-    notifyWorkspaceOutboxChanged(input.entry.workspaceId);
-    return {
-      kind: 'acknowledged',
-      baseSettings: input.entry.baseSettings,
-      submittedSettings: input.entry.request.settings,
-      mutation,
-      settings,
-    };
+    return settleAcknowledgedEntry(
+      input,
+      {
+        workspace: applyWorkspaceMutation(input.entry.baseSnapshot, mutation),
+        settings,
+        settingsOpSeq: mutation.opSeq,
+        acknowledgedEntryId: input.entry.id,
+      },
+      () => ({
+        kind: 'acknowledged',
+        baseSettings: input.entry.baseSettings,
+        submittedSettings: input.entry.request.settings,
+        mutation,
+        settings,
+      })
+    );
   } catch (error) {
     return persistAcknowledgementFailure(input, error);
   }

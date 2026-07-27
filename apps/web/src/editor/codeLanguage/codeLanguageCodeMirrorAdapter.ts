@@ -182,8 +182,10 @@ export const createCodeLanguageCodeMirrorExtensions = (input: {
   onReferencesRequest?(view: EditorView): void;
   onRenameRequest?(view: EditorView): void;
 }): readonly Extension[] => {
-  const hasCurrentSource = (view: EditorView): boolean =>
-    view.state.doc.toString() === input.source;
+  // Completion contexts may run without a view; with no document to compare
+  // against, the snapshot identity is unverifiable and the request fails closed.
+  const hasCurrentSource = (view: EditorView | undefined): boolean =>
+    view !== undefined && view.state.doc.toString() === input.source;
 
   const completionSource: CompletionSource = async (context) => {
     if (!hasCurrentSource(context.view)) return null;

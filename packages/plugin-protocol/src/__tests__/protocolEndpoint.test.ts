@@ -6,7 +6,6 @@ import {
   createProtocolEndpoint,
   encodeRuntimeEnvelopeV1,
   protocolSuccess,
-  type ProtocolEndpoint,
   type RuntimeEnvelopeV1,
 } from '#protocol/index';
 
@@ -44,14 +43,12 @@ const response = (
 const createLinkedEndpoints = () => {
   const hostMessages: string[] = [];
   const runtimeMessages: string[] = [];
-  let host: ProtocolEndpoint;
-  let runtime: ProtocolEndpoint;
-  host = createProtocolEndpoint({
+  const host = createProtocolEndpoint({
     contracts: contracts(),
     messagePrefix: 'host',
     sendText: (text) => runtimeMessages.push(text),
   });
-  runtime = createProtocolEndpoint({
+  const runtime = createProtocolEndpoint({
     contracts: contracts(),
     messagePrefix: 'runtime',
     sendText: (text) => hostMessages.push(text),

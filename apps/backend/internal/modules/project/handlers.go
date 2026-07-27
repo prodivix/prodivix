@@ -9,7 +9,16 @@ import (
 
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
 	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
+	backendtext "github.com/Prodivix/prodivix/apps/backend/internal/platform/text"
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	// Project creation carries one bootstrap PIR document, which normalizePIR
+	// then expands into a schema value tree, a decoded map and a re-encoded
+	// copy. The budget bounds every one of those copies at once.
+	maxProjectCreateRequestBytes   int64 = 4 * 1024 * 1024
+	maxProjectMetadataRequestBytes int64 = 64 * 1024
 )
 
 type WorkspaceBootstrapper interface {
@@ -60,6 +69,7 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
 		return
 	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxProjectCreateRequestBytes)
 	var request struct {
 		Name         string          `json:"name"`
 		Description  string          `json:"description"`
@@ -68,6 +78,11 @@ func (handler *Handler) HandleCreateProject(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
+		return
+	}
+	if !backendtext.WithinDisplayBound(request.Name, backendtext.MaxDisplayNameRunes) ||
+		!backendtext.WithinDisplayBound(request.Description, backendtext.MaxDisplayDescriptionRunes) {
+		respondError(c, http.StatusBadRequest, "API-4001", "Project name or description is too long.")
 		return
 	}
 	resourceType := normalizeResourceType(request.ResourceType)
@@ -134,6 +149,7 @@ func (handler *Handler) HandleUpdateProject(c *gin.Context) {
 		respondError(c, http.StatusUnauthorized, "API-2001", "Authentication required.")
 		return
 	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxProjectMetadataRequestBytes)
 	var request struct {
 		Name        *string `json:"name"`
 		Description *string `json:"description"`
@@ -144,6 +160,11 @@ func (handler *Handler) HandleUpdateProject(c *gin.Context) {
 	}
 	if request.Name == nil && request.Description == nil {
 		respondError(c, http.StatusBadRequest, "API-1001", "No fields to update.")
+		return
+	}
+	if (request.Name != nil && !backendtext.WithinDisplayBound(*request.Name, backendtext.MaxDisplayNameRunes)) ||
+		(request.Description != nil && !backendtext.WithinDisplayBound(*request.Description, backendtext.MaxDisplayDescriptionRunes)) {
+		respondError(c, http.StatusBadRequest, "API-4001", "Project name or description is too long.")
 		return
 	}
 
@@ -173,6 +194,10 @@ func (handler *Handler) HandlePublishProject(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrProjectNotFound) {
 			respondError(c, http.StatusNotFound, "API-4004", "Project not found.")
+			return
+		}
+		if errors.Is(err, ErrProjectNotPublishable) {
+			respondError(c, http.StatusUnprocessableEntity, "API-4001", "Project has no publishable PIR document.")
 			return
 		}
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not publish project.")

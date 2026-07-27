@@ -130,6 +130,8 @@ export {
   DATA_RETRY_RUNTIME_ERROR_CODES,
   DataPaginationRuntimeError,
   DataRetryRuntimeError,
+  isDataRetryPolicyWithinBudget,
+  projectedDataRetryCeilingMs,
   validateDataPaginationPage,
 } from './dataPolicyRuntime';
 export type {
@@ -159,6 +161,7 @@ export type {
 export {
   createDataLifecycleSnapshot,
   createDataOperationReference,
+  decodeCurrentDataSourceDocument,
   normalizeDataSourceDocument,
   validateDataSourceDocument,
 } from './dataDocument';
@@ -193,6 +196,7 @@ export {
   DATA_IMPORT_KINDS,
   DATA_IMPORT_PROVENANCE_LIMITS,
   DATA_OPERATION_KINDS,
+  DATA_RETRY_POLICY_LIMITS,
   DATA_SOURCE_WIRE_VERSION,
   DATA_STREAM_POLICY_LIMITS,
   JSON_SCHEMA_2020_12_URI,

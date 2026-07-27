@@ -47,6 +47,7 @@ import {
   toNodeGraphCanvasNodes,
 } from './nodeGraphDocumentProjection';
 import { createNode, type ContextMenuState } from './nodeGraphEditorModel';
+import type { NodeGraphWorkspaceWriteOutcome } from './nodeGraphEditorTypes';
 import { NodeGraphGraphManager } from './NodeGraphGraphManager';
 import { useNodeGraphColorMode } from './useNodeGraphColorMode';
 import { useNodeGraphConnectionActions } from './nodeGraphConnectionActions';
@@ -101,7 +102,7 @@ export const NodeGraphEditorContent = () => {
     (state) => state.setActiveDocumentId
   );
   const graphDocs = useMemo(
-    () => listWorkspaceNodeGraphs(workspace),
+    () => listWorkspaceNodeGraphs(workspace ?? undefined),
     [workspace]
   );
   const activeGraphId = useMemo(
@@ -198,24 +199,28 @@ export const NodeGraphEditorContent = () => {
   });
 
   const scheduleWorkspaceCommand = useCallback(
-    (factory: WorkspaceCommandFactory): Promise<boolean> => {
-      const execution = persistenceChainRef.current.then(async () => {
-        const state = useEditorStore.getState();
-        const currentWorkspace = state.workspace;
-        if (!currentWorkspace) return false;
-        const command = factory(currentWorkspace);
-        if (!command) return false;
-        const outcome = await dispatchWorkspaceAuthoringOperation({
-          workspace: currentWorkspace,
-          readonly: state.workspaceReadonly,
-          operation: { kind: 'command', command },
-        });
-        if (outcome.status === 'rejected') {
-          setHint(outcome.message);
-          return false;
+    (
+      factory: WorkspaceCommandFactory
+    ): Promise<NodeGraphWorkspaceWriteOutcome> => {
+      const execution = persistenceChainRef.current.then(
+        async (): Promise<NodeGraphWorkspaceWriteOutcome> => {
+          const state = useEditorStore.getState();
+          const currentWorkspace = state.workspace;
+          if (!currentWorkspace) return 'rejected';
+          const command = factory(currentWorkspace);
+          if (!command) return 'unchanged';
+          const outcome = await dispatchWorkspaceAuthoringOperation({
+            workspace: currentWorkspace,
+            readonly: state.workspaceReadonly,
+            operation: { kind: 'command', command },
+          });
+          if (outcome.status === 'rejected') {
+            setHint(outcome.message);
+            return 'rejected';
+          }
+          return 'applied';
         }
-        return true;
-      });
+      );
       persistenceChainRef.current = execution.then(
         () => undefined,
         () => undefined
@@ -227,21 +232,27 @@ export const NodeGraphEditorContent = () => {
             ? error.message
             : 'The NodeGraph operation failed.'
         );
-        return false;
+        return 'rejected';
       });
     },
     []
   );
 
   const scheduleWorkspaceIntent = useCallback(
-    (factory: (workspace: WorkspaceSnapshot) => WorkspaceVfsIntentRequest) =>
-      scheduleWorkspaceCommand((currentWorkspace) => {
+    async (
+      factory: (workspace: WorkspaceSnapshot) => WorkspaceVfsIntentRequest
+    ) => {
+      // A VFS intent that cannot be planned produced nothing to activate, so
+      // only an applied command counts as success here.
+      const outcome = await scheduleWorkspaceCommand((currentWorkspace) => {
         const plan = createWorkspaceVfsIntentPlan(
           currentWorkspace,
           factory(currentWorkspace)
         );
         return plan?.command ?? null;
-      }),
+      });
+      return outcome === 'applied';
+    },
     [scheduleWorkspaceCommand]
   );
 
@@ -249,10 +260,10 @@ export const NodeGraphEditorContent = () => {
     (
       nextNodes: readonly Node<GraphNodeData>[],
       nextEdges: readonly Edge[]
-    ): Promise<boolean> => {
+    ): Promise<NodeGraphWorkspaceWriteOutcome> => {
       const documentId = activeGraphId;
       if (!documentId || activeRead?.status !== 'valid') {
-        return Promise.resolve(false);
+        return Promise.resolve('rejected');
       }
       const after = toCanonicalNodeGraphDocument(nextNodes, nextEdges);
       return scheduleWorkspaceCommand((currentWorkspace) =>

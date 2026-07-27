@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createEmptyPirDocument } from '@prodivix/pir';
 import {
-  applyWorkspaceTransaction,
   createWorkspaceDocumentAtPathCommand,
   createWorkspaceHistoryState,
   type DecodedWorkspaceMutation,
@@ -1010,9 +1009,11 @@ describe('editor workspace store hard cut', () => {
     if (!editedWorkspace) throw new Error('Expected edited workspace.');
     const { ['doc_page-about']: _removedNode, ...treeById } =
       editedWorkspace.treeById;
+    const pagesNode = treeById.pages;
+    if (!pagesNode?.children) throw new Error('Expected pages node children.');
     treeById.pages = {
-      ...treeById.pages,
-      children: treeById.pages.children.filter(
+      ...pagesNode,
+      children: pagesNode.children.filter(
         (nodeId) => nodeId !== 'doc_page-about'
       ),
     };

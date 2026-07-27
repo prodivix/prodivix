@@ -24,6 +24,7 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && pnpm run generate && tsc -p tsconfig.json",
     "check:generated": "node scripts/generate-worker-bootstrap.mjs --check",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
+    "fake-indexeddb": "^6.2.5",
     "prettier": "^3.9.4",
     "typescript": "^6.0.3",
     "vite": "^8.1.3",

@@ -13,7 +13,6 @@ import {
   createMemoryWorkspaceOutboxStore,
   createWorkspaceOutboxEntry,
   resolveWorkspaceConflictSessionBatch,
-  type WorkspaceConflictSession,
   type WorkspaceOutboxStore,
 } from '@prodivix/workspace-sync';
 import { editorApi } from '@/editor/editorApi';

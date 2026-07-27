@@ -2,6 +2,7 @@ import {
   cloneExecutionValue,
   type ExecutionValue,
 } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   SERVER_ROUTE_ACTION_INPUT_FORMAT,
   type ServerRouteActionInput,
@@ -54,7 +55,7 @@ const stringRecord = (
         : undefined
     )
     .filter((entry): entry is readonly [string, string] => Boolean(entry))
-    .sort(([left], [right]) => left.localeCompare(right));
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right));
   return entries.length === Object.keys(record).length
     ? Object.freeze(Object.fromEntries(entries))
     : undefined;
@@ -90,7 +91,7 @@ const searchRecord = (
     }
     entries.push([key, Object.freeze([...entry])]);
   }
-  entries.sort(([left], [right]) => left.localeCompare(right));
+  entries.sort(([left], [right]) => compareUnicodeCodePoints(left, right));
   return entries.length === Object.keys(record).length
     ? Object.freeze(Object.fromEntries(entries))
     : undefined;

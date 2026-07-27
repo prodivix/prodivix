@@ -20,7 +20,7 @@ export const createPluginAuditJournal = (
   const events: PluginAuditEvent[] = [];
 
   return Object.freeze({
-    sink: Object.freeze({
+    sink: Object.freeze<PluginAuditSink>({
       append: async (input) => {
         events.push(...input);
         if (events.length > limit) events.splice(0, events.length - limit);

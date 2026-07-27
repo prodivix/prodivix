@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "lint": "eslint .",
     "test": "echo \"No tests for docs\" && exit 0",
     "dev": "vitepress dev",
     "build": "pnpm --dir ../.. docs:diagnostics:check && vitepress build",

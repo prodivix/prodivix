@@ -113,24 +113,57 @@ func buildSnapshotResponse(snapshot *WorkspaceSnapshot) snapshotResponse {
 	return snapshotResponse{ID: snapshot.Workspace.ID, WorkspaceRev: snapshot.Workspace.WorkspaceRev, RouteRev: snapshot.Workspace.RouteRev, OpSeq: snapshot.Workspace.OpSeq, Tree: snapshot.Workspace.Tree, Documents: documents, RouteManifest: snapshot.RouteManifest, Settings: snapshot.Settings}
 }
 
-func resolveImportCanonicalPIR(documents []WorkspaceImportDocumentRecord) (json.RawMessage, bool) {
-	for _, document := range documents {
-		if document.Type == WorkspaceDocumentTypePIRPage &&
-			(strings.TrimSpace(document.Path) == "/" || strings.TrimSpace(document.Path) == "/pir.json" || strings.TrimSpace(document.Path) == "") {
-			return document.Content, true
+// canonicalPIRCandidate is the document projection that canonical PIR selection
+// needs. Import and publication share one selection order so a Workspace that
+// imports cleanly is also the Workspace that publishes.
+type canonicalPIRCandidate struct {
+	Type    WorkspaceDocumentType
+	Path    string
+	Content json.RawMessage
+}
+
+// resolveCanonicalPIRDocument selects the document a resource type owns as its
+// canonical projection: a project's root page, a component's component
+// document, a nodegraph's graph document. There is deliberately no cross-type
+// fallback — a layout can never stand in for a missing page, so a workspace
+// without its owner document is not publishable rather than silently
+// projecting something else.
+func resolveCanonicalPIRDocument(resourceType backendproject.ResourceType, candidates []canonicalPIRCandidate) (json.RawMessage, bool) {
+	switch resourceType {
+	case backendproject.ResourceTypeComponent:
+		for _, candidate := range candidates {
+			if candidate.Type == WorkspaceDocumentTypePIRComponent {
+				return candidate.Content, true
+			}
 		}
-	}
-	for _, document := range documents {
-		if document.Type == WorkspaceDocumentTypePIRPage {
-			return document.Content, true
+	case backendproject.ResourceTypeNodeGraph:
+		for _, candidate := range candidates {
+			if candidate.Type == WorkspaceDocumentTypePIRGraph {
+				return candidate.Content, true
+			}
 		}
-	}
-	for _, document := range documents {
-		if isPIRWorkspaceDocumentType(document.Type) {
-			return document.Content, true
+	default:
+		for _, candidate := range candidates {
+			path := strings.TrimSpace(candidate.Path)
+			if candidate.Type == WorkspaceDocumentTypePIRPage && (path == "/" || path == "/pir.json" || path == "") {
+				return candidate.Content, true
+			}
+		}
+		for _, candidate := range candidates {
+			if candidate.Type == WorkspaceDocumentTypePIRPage {
+				return candidate.Content, true
+			}
 		}
 	}
 	return nil, false
+}
+
+func resolveImportCanonicalPIR(resourceType backendproject.ResourceType, documents []WorkspaceImportDocumentRecord) (json.RawMessage, bool) {
+	candidates := make([]canonicalPIRCandidate, 0, len(documents))
+	for _, document := range documents {
+		candidates = append(candidates, canonicalPIRCandidate{Type: document.Type, Path: document.Path, Content: document.Content})
+	}
+	return resolveCanonicalPIRDocument(resourceType, candidates)
 }
 
 func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
@@ -150,9 +183,13 @@ func (handler *Handler) HandleImportLocalProject(c *gin.Context) {
 		return
 	}
 	request := decoded.Request
-	_, hasPIR := resolveImportCanonicalPIR(request.Workspace.Documents)
+	importResourceType := request.ResourceType
+	if strings.TrimSpace(string(importResourceType)) == "" {
+		importResourceType = backendproject.ResourceTypeProject
+	}
+	_, hasPIR := resolveImportCanonicalPIR(importResourceType, request.Workspace.Documents)
 	if !hasPIR {
-		failure := NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, "Workspace import requires a PIR page document.", nil)
+		failure := NewRequestFailure(http.StatusUnprocessableEntity, ErrorInvalidPayload, "Workspace import requires the PIR document its resource type owns.", nil)
 		c.JSON(failure.Status, failure.Payload)
 		return
 	}

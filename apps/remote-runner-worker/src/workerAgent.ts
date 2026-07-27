@@ -8,6 +8,7 @@ import {
   EXECUTION_NETWORK_TRACE_NAME,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_TRACE_NAME,
+  inspectExecutionArtifactContents,
   readExecutionTestReportValue,
   toExecutionNetworkTraceValue,
   toExecutionTestReportValue,
@@ -81,7 +82,15 @@ const inspectSandboxResult = (
     const { contents, ...descriptor } = artifact;
     if (!guard.inspectValue('artifact-descriptor', descriptor).safe)
       return 'artifact-descriptor';
-    if (!guard.inspectBytes(surface, contents).safe) return surface;
+    if (
+      !inspectExecutionArtifactContents(
+        guard,
+        surface,
+        artifact.mediaType,
+        contents
+      ).safe
+    )
+      return surface;
   }
   return undefined;
 };

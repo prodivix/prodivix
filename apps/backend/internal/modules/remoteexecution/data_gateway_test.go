@@ -105,6 +105,15 @@ func (store *fakeDataGatewayStore) ClaimDataGatewayMutation(_ context.Context, k
 }
 
 func (store *fakeDataGatewayStore) CompleteDataGatewayMutation(_ context.Context, key DataGatewayMutationReplayKey, requestHash string, attempt int64, result DataGatewayResult) error {
+	// The fake applies the durable store's own serialization and identity decoder so gateway
+	// tests fail on the same recorded-result drift PostgreSQL would reject.
+	contents, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+	if _, err := decodeDataGatewayReplayResult(contents, key, attempt); err != nil {
+		return err
+	}
 	store.replayMu.Lock()
 	defer store.replayMu.Unlock()
 	identity := fakeReplayKey(key)

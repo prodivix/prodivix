@@ -167,6 +167,87 @@ describe('execution session', () => {
     ).not.toContain('secret-canary');
   });
 
+  it('drops Console observations from the snapshot when a trace publication evicts them', () => {
+    const controller = createExecutionJobController({
+      jobId: 'shared-retention-job',
+      provider: descriptor,
+      request: createExecutionRequest({
+        requestId: 'shared-retention-request',
+        profile: 'test',
+        runtimeZone: 'test',
+        workspace: { workspaceId: 'workspace', snapshotId: 'snapshot' },
+        invocation: {
+          kind: 'test',
+          targetRef: { kind: 'workspace', workspaceId: 'workspace' },
+        },
+      }),
+    });
+    const coordinator = createExecutionSessionCoordinator({ maxEvents: 3 });
+    coordinator.activate({
+      sessionId: 'shared-retention',
+      job: controller.job,
+    });
+    ['console-1', 'console-2', 'console-3'].forEach((observationId, index) => {
+      expect(
+        coordinator.publishConsole({
+          sessionId: 'shared-retention',
+          jobId: controller.job.id,
+          observationId,
+          observedAt: 100 + index,
+          log: {
+            stream: 'console',
+            level: 'info',
+            category: 'application',
+            message: observationId,
+          },
+        })
+      ).toMatchObject({ status: 'published' });
+    });
+    expect(
+      coordinator
+        .getSnapshot('shared-retention')
+        ?.consoleObservations.map((entry) => entry.observationId)
+    ).toEqual(['console-1', 'console-2', 'console-3']);
+
+    // Traces and Console observations share one bounded retention ring, so a
+    // trace publication is what evicts the oldest Console line here.
+    expect(
+      coordinator.publishTrace({
+        sessionId: 'shared-retention',
+        jobId: controller.job.id,
+        trace: {
+          traceId: `network:${controller.job.id}`,
+          spanId: 'network-1',
+          name: EXECUTION_NETWORK_TRACE_NAME,
+          phase: 'event',
+          detail: toExecutionNetworkTraceValue(
+            createExecutionNetworkTrace({
+              requestId: 'network-1',
+              phase: 'runtime',
+              runtimeZone: 'server',
+              mode: 'live',
+              adapter: 'core.http',
+              method: 'GET',
+              sanitizedUrl: 'https://api.example.test/',
+              protocol: 'https',
+              startedAt: 195,
+              completedAt: 200,
+              outcome: 'allowed',
+              status: 200,
+            })
+          ),
+        },
+        observedAt: 200,
+      })
+    ).toMatchObject({ status: 'published' });
+
+    expect(
+      coordinator
+        .getSnapshot('shared-retention')
+        ?.consoleObservations.map((entry) => entry.observationId)
+    ).toEqual(['console-2', 'console-3']);
+  });
+
   it('deduplicates exact observations and rejects drift or stale Job ownership', () => {
     const first = createExecutionJobController({
       jobId: 'preview-job-1',

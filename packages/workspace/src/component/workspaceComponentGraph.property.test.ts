@@ -8,6 +8,7 @@ import {
   type PIRDocument,
   type PIRNode,
 } from '@prodivix/pir';
+import { compareUnicodeCodePoints } from '../canonicalOrder';
 import {
   WORKSPACE_COMPONENT_GRAPH_ISSUE_CODES,
   validateWorkspaceComponentGraph,
@@ -331,9 +332,9 @@ describe('Workspace canonical PIR Component graph properties', () => {
           expect(result.issues).toEqual(
             [...result.issues].sort(
               (left, right) =>
-                left.path.localeCompare(right.path) ||
-                left.code.localeCompare(right.code) ||
-                left.message.localeCompare(right.message)
+                compareUnicodeCodePoints(left.path, right.path) ||
+                compareUnicodeCodePoints(left.code, right.code) ||
+                compareUnicodeCodePoints(left.message, right.message)
             )
           );
         }

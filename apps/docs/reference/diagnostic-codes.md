@@ -23,21 +23,26 @@ requestId
 
 ## 编码域
 
-| 前缀       | 范围       | 说明                                                                       |
-| ---------- | ---------- | -------------------------------------------------------------------------- |
-| `PIR-xxxx` | PIR 文档   | 文档形状、UI graph、ValueRef、materialize 和运行前校验                     |
-| `WKS-xxxx` | 工作区     | 工作区加载、文档保存、同步冲突、capability 和 patch 应用                   |
-| `PLG-xxxx` | 插件       | Plugin Manifest、contribution contract、权限、注册事务和 runtime lifecycle |
-| `EDT-xxxx` | 编辑器     | 选择、拖拽、Inspector、画布、命令和 autosave                               |
-| `UX-xxxx`  | 用户体验   | 可访问性、交互、响应式布局、内容、视觉反馈和体验检查器                     |
-| `COD-xxxx` | 用户代码   | 代码片段、符号解析、类型、宿主绑定、运行时和转译编译                       |
-| `SEM-xxxx` | 跨领域语义 | Workspace 级符号、作用域、引用解析、能力约束和快照一致性                   |
-| `GEN-xxxx` | 代码生成   | Canonical IR、adapter、依赖解析、代码发射和导出产物                        |
-| `API-xxxx` | 后端/API   | 请求、鉴权、权限、业务校验、持久化和第三方集成                             |
-| `AI-xxxx`  | AI 助手    | Provider、模型发现、Prompt、响应解析和 AI command                          |
-| `RTE-xxxx` | 路由       | 路由清单、匹配、Outlet、导航和运行时                                       |
-| `NGR-xxxx` | 节点图     | 节点图结构、端口、连线、执行和调试                                         |
-| `ANI-xxxx` | 动画       | Timeline、binding、track、keyframe、filter 和预览运行时                    |
+| 前缀       | 范围               | 说明                                                                           |
+| ---------- | ------------------ | ------------------------------------------------------------------------------ |
+| `PIR-xxxx` | PIR 文档           | 文档形状、UI graph、ValueRef、materialize 和运行前校验                         |
+| `WKS-xxxx` | 工作区             | 工作区加载、文档保存、同步冲突、capability 和 patch 应用                       |
+| `PLG-xxxx` | 插件               | Plugin Manifest、contribution contract、权限、注册事务和 runtime lifecycle     |
+| `EDT-xxxx` | 编辑器             | 选择、拖拽、Inspector、画布、命令和 autosave                                   |
+| `UX-xxxx`  | 用户体验           | 可访问性、交互、响应式布局、内容、视觉反馈和体验检查器                         |
+| `COD-xxxx` | 用户代码           | 代码片段、符号解析、类型、宿主绑定、运行时和转译编译                           |
+| `SEM-xxxx` | 跨领域语义         | Workspace 级符号、作用域、引用解析、能力约束和快照一致性                       |
+| `GEN-xxxx` | 代码生成           | Canonical IR、adapter、依赖解析、代码发射和导出产物                            |
+| `API-xxxx` | 后端/API           | 请求、鉴权、权限、业务校验、持久化和第三方集成                                 |
+| `AI-xxxx`  | AI 助手            | Provider、模型发现、Prompt、响应解析和 AI command                              |
+| `RTE-xxxx` | 路由               | 路由清单、匹配、Outlet、导航和运行时                                           |
+| `NGR-xxxx` | 节点图             | 节点图结构、端口、连线、执行和调试                                             |
+| `ANI-xxxx` | 动画               | Timeline、binding、track、keyframe、filter 和预览运行时                        |
+| `DAT-xxxx` | 数据               | Data source、schema、operation、environment/Secret binding 和 protocol adapter |
+| `AST-xxxx` | 二进制资源         | blob 引用、materialization、Git/LFS 投影、后端 blob 边界和隔离交付             |
+| `SVR-xxxx` | 鉴权与服务端运行时 | Server Function 调用、输入输出边界、live mutation 防护和 gateway               |
+| `TST-xxxx` | 工程测试           | 导出工程的测试执行、报告读取和 canonical 报告转换                              |
+| `EXE-xxxx` | 远端执行           | 远端协议、幂等、恢复、权限、配额、transport 和 Secret 边界                     |
 
 ## 命名空间索引
 
@@ -54,6 +59,11 @@ requestId
 - [Route](/reference/diagnostics/rte)
 - [NodeGraph](/reference/diagnostics/ngr)
 - [Animation](/reference/diagnostics/ani)
+- [Data](/reference/diagnostics/dat)
+- [Binary Asset](/reference/diagnostics/ast)
+- [Auth/Server Runtime](/reference/diagnostics/svr)
+- [Workspace Test](/reference/diagnostics/tst)
+- [Remote Execution](/reference/diagnostics/exe)
 
 ## 所有错误码
 
@@ -369,6 +379,7 @@ requestId
 | ------------------------------------------- | -------------------------------------- | --------- |
 | [`AI-1001`](/reference/diagnostics/ai-1001) | Provider 配置缺失                      | `warning` |
 | [`AI-1002`](/reference/diagnostics/ai-1002) | Provider 请求失败                      | `error`   |
+| [`AI-1010`](/reference/diagnostics/ai-1010) | Provider baseURL 非法                  | `error`   |
 | [`AI-2001`](/reference/diagnostics/ai-2001) | 模型发现失败                           | `warning` |
 | [`AI-2002`](/reference/diagnostics/ai-2002) | 模型能力不满足当前任务                 | `warning` |
 | [`AI-3001`](/reference/diagnostics/ai-3001) | Prompt 上下文为空                      | `warning` |
@@ -426,6 +437,77 @@ requestId
 | [`ANI-5201`](/reference/diagnostics/ani-5201) | Effect capability 不受支持   | `error`   |
 | [`ANI-5202`](/reference/diagnostics/ani-5202) | Effect target 不可用         | `error`   |
 | [`ANI-9001`](/reference/diagnostics/ani-9001) | Animation 未知异常           | `error`   |
+
+### Data
+
+| Code                                          | 名称                        | 严重程度 |
+| --------------------------------------------- | --------------------------- | -------- |
+| [`DAT-1001`](/reference/diagnostics/dat-1001) | Data source document 无效   | `error`  |
+| [`DAT-2001`](/reference/diagnostics/dat-2001) | Data operation 引用无法解析 | `error`  |
+
+### Binary Asset
+
+| Code                                          | 名称                                                             | 严重程度 |
+| --------------------------------------------- | ---------------------------------------------------------------- | -------- |
+| [`AST-1001`](/reference/diagnostics/ast-1001) | canonical asset 缺少 verified materialization                    | `error`  |
+| [`AST-1002`](/reference/diagnostics/ast-1002) | 同一 asset document 收到多个 materialization                     | `error`  |
+| [`AST-1003`](/reference/diagnostics/ast-1003) | materialization reference 与 Workspace identity 不一致           | `error`  |
+| [`AST-1004`](/reference/diagnostics/ast-1004) | asset bytes 的 digest、size 或 materialization 形状无效          | `error`  |
+| [`AST-1005`](/reference/diagnostics/ast-1005) | materialization 没有对应 canonical asset document                | `error`  |
+| [`AST-1101`](/reference/diagnostics/ast-1101) | active content 缺少 sanitizer 与 isolated-origin policy          | `error`  |
+| [`AST-1102`](/reference/diagnostics/ast-1102) | download-only media 缺少 attachment-capable isolated origin      | `error`  |
+| [`AST-1201`](/reference/diagnostics/ast-1201) | canonical Asset 缺少 exact verified materialization              | `error`  |
+| [`AST-1202`](/reference/diagnostics/ast-1202) | 同一 Asset document 收到重复 materialization                     | `error`  |
+| [`AST-1203`](/reference/diagnostics/ast-1203) | Asset reference、revision 或 materialization identity 无效或漂移 | `error`  |
+| [`AST-1204`](/reference/diagnostics/ast-1204) | Asset checkout path 冲突                                         | `error`  |
+| [`AST-1205`](/reference/diagnostics/ast-1205) | materialization 没有对应本次 canonical Asset source              | `error`  |
+| [`AST-1206`](/reference/diagnostics/ast-1206) | Asset 投影超出 hard budget                                       | `error`  |
+| [`AST-2001`](/reference/diagnostics/ast-2001) | blob 上传请求无效                                                | `error`  |
+| [`AST-2002`](/reference/diagnostics/ast-2002) | 授权范围内找不到 blob                                            | `error`  |
+| [`AST-2003`](/reference/diagnostics/ast-2003) | blob metadata 或 bytes 与请求冲突                                | `error`  |
+| [`AST-2004`](/reference/diagnostics/ast-2004) | 旧 JSON-only import 未使用 upload-aware protocol                 | `error`  |
+| [`AST-3001`](/reference/diagnostics/ast-3001) | 当前 composition 没有授权的 blob materialization adapter         | `error`  |
+| [`AST-3002`](/reference/diagnostics/ast-3002) | 目标位置已存在同名 Asset                                         | `error`  |
+| [`AST-3101`](/reference/diagnostics/ast-3101) | 隔离交付宿主暂不可用                                             | `error`  |
+| [`AST-3102`](/reference/diagnostics/ast-3102) | 交付被 transform、媒体或内容策略拒绝                             | `error`  |
+| [`AST-3103`](/reference/diagnostics/ast-3103) | 隔离交付响应 identity 漂移                                       | `error`  |
+
+### Auth/Server Runtime
+
+| Code                                          | 名称                                                | 严重程度 |
+| --------------------------------------------- | --------------------------------------------------- | -------- |
+| [`SVR-1001`](/reference/diagnostics/svr-1001) | Server Function 调用请求形状非法                    | `error`  |
+| [`SVR-2001`](/reference/diagnostics/svr-2001) | Server Function 输入不符合 canonical JSON Schema    | `error`  |
+| [`SVR-3001`](/reference/diagnostics/svr-3001) | live mutation 缺少允许的 Origin 或 mutation intent  | `error`  |
+| [`SVR-3002`](/reference/diagnostics/svr-3002) | mutation invocation identity 与 durable ledger 冲突 | `error`  |
+| [`SVR-3003`](/reference/diagnostics/svr-3003) | mutation 有界容量耗尽                               | `error`  |
+| [`SVR-4004`](/reference/diagnostics/svr-4004) | Server Function 目标不可见                          | `error`  |
+| [`SVR-5001`](/reference/diagnostics/svr-5001) | 已鉴权的 Server Function gateway 不可用             | `error`  |
+| [`SVR-5002`](/reference/diagnostics/svr-5002) | Server Function 输出不符合边界契约                  | `error`  |
+
+### Workspace Test
+
+| Code                                          | 名称                   | 严重程度 |
+| --------------------------------------------- | ---------------------- | -------- |
+| [`TST-5001`](/reference/diagnostics/tst-5001) | 项目测试失败           | `error`  |
+| [`TST-5002`](/reference/diagnostics/tst-5002) | 测试宿主或报告读取失败 | `error`  |
+
+### Remote Execution
+
+| Code                                          | 名称                                | 严重程度 |
+| --------------------------------------------- | ----------------------------------- | -------- |
+| [`EXE-4001`](/reference/diagnostics/exe-4001) | 远端执行协议版本不受支持            | `error`  |
+| [`EXE-4002`](/reference/diagnostics/exe-4002) | 远端请求或响应未通过严格 codec 校验 | `error`  |
+| [`EXE-4011`](/reference/diagnostics/exe-4011) | 远端执行需要授权                    | `error`  |
+| [`EXE-4031`](/reference/diagnostics/exe-4031) | 远端执行操作被拒绝                  | `error`  |
+| [`EXE-4041`](/reference/diagnostics/exe-4041) | 远端执行或 artifact 未找到          | `error`  |
+| [`EXE-4091`](/reference/diagnostics/exe-4091) | 远端请求幂等 identity 冲突          | `error`  |
+| [`EXE-4092`](/reference/diagnostics/exe-4092) | 需要按 authoritative status 恢复    | `error`  |
+| [`EXE-4291`](/reference/diagnostics/exe-4291) | 远端执行配额已超出                  | `error`  |
+| [`EXE-5001`](/reference/diagnostics/exe-5001) | 远端 runner 不可用                  | `error`  |
+| [`EXE-5002`](/reference/diagnostics/exe-5002) | 远端 transport 请求超时             | `error`  |
+| [`EXE-5003`](/reference/diagnostics/exe-5003) | 已脱敏的远端内部失败                | `error`  |
+| [`EXE-5004`](/reference/diagnostics/exe-5004) | Secret 边界 fail closed             | `fatal`  |
 
 ## Backend API
 

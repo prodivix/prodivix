@@ -60,7 +60,7 @@ const identifier = (value: string, label: string): string => {
 
 const readSafeFailure = (
   response: Readonly<{
-    headers: Readonly<Record<string, string>>;
+    headers: Readonly<Record<string, string | undefined>>;
     body: Uint8Array;
   }>
 ): Readonly<{ code: string; retryable: boolean }> | undefined => {

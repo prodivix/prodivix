@@ -1,5 +1,6 @@
 import Ajv2020, { type ValidateFunction } from 'ajv/dist/2020.js';
 import { cloneExecutionValue } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   AuthPrincipal,
   AuthSessionReference,
@@ -87,7 +88,7 @@ export const createServerFunctionAdapterRegistry =
       list() {
         return Object.freeze(
           [...adapters.values()].sort((left, right) =>
-            left.id.localeCompare(right.id)
+            compareUnicodeCodePoints(left.id, right.id)
           )
         );
       },

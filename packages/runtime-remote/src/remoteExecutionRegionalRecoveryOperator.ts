@@ -2,6 +2,10 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import type { ExecutionJobStatus } from '@prodivix/runtime-core';
 import {
+  canonicalJsonText,
+  compareUnicodeCodePoints,
+} from '@prodivix/shared/canonical';
+import {
   assessRemoteExecutionRegionalRecovery,
   hasExactRemoteExecutionRegionalRecoveryLease,
   remoteExecutionRegionalRecoveryIdentity,
@@ -47,17 +51,8 @@ const executionStatuses = new Set<ExecutionJobStatus>([
   ...terminalStatuses,
 ]);
 
-const stableJson = (value: unknown): string => {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  return `{${Object.entries(value as Readonly<Record<string, unknown>>)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
-    .join(',')}}`;
-};
-
 const digest = (value: unknown): string =>
-  `sha256-${bytesToHex(sha256(utf8ToBytes(stableJson(value))))}`;
+  `sha256-${bytesToHex(sha256(utf8ToBytes(canonicalJsonText(value))))}`;
 
 export const createRemoteExecutionRegionalRecoveryAuthorizationScopeDigest = (
   scope: RemoteExecutionRegionalRecoveryAuthorizationScope
@@ -77,7 +72,7 @@ export const createRemoteExecutionRegionalRecoveryExecutionSetDigest = (
   );
   if (new Set(executionIds).size !== executionIds.length)
     throw new TypeError('Remote regional recovery batch is invalid.');
-  executionIds.sort((left, right) => left.localeCompare(right));
+  executionIds.sort(compareUnicodeCodePoints);
   return digest(executionIds);
 };
 
@@ -261,7 +256,7 @@ export const createRemoteExecutionRegionalRecoveryTargetCheckpointDigest = (
   )
     throw new TypeError('Remote regional recovery target batch is invalid.');
   const sorted = [...targets].sort((left, right) =>
-    left.executionId.localeCompare(right.executionId)
+    compareUnicodeCodePoints(left.executionId, right.executionId)
   );
   if (
     new Set(sorted.map(({ executionId }) => executionId)).size !==
@@ -725,7 +720,7 @@ export const createRemoteExecutionRegionalRecoveryOperator = (
         new Set(executionIds).size !== executionIds.length
       )
         throw new TypeError('Remote regional recovery batch is invalid.');
-      executionIds.sort((left, right) => left.localeCompare(right));
+      executionIds.sort(compareUnicodeCodePoints);
       const expectedTrafficEpoch = positiveInteger(
         request.expectedTrafficEpoch,
         'Remote regional recovery traffic epoch'

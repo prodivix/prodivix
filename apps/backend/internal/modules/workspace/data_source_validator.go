@@ -202,9 +202,6 @@ func decodeDataImportDigest(payload json.RawMessage, path string) (string, error
 }
 
 func validateDataOperationRelations(documentID string, operationsByID map[string]json.RawMessage) error {
-	if documentID == "" {
-		return nil
-	}
 	for _, operationID := range sortedDataKeys(operationsByID) {
 		operationPath := "/operationsById/" + escapeDataPointer(operationID)
 		operationFields, err := decodeDataObject(

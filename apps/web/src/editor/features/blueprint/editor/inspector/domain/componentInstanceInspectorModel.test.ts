@@ -3,12 +3,14 @@ import type {
   PIRComponentContract,
   PIRComponentInstanceNode,
   PIRDocument,
+  PIRTriggerBinding,
 } from '@prodivix/pir';
 import type { PIRRenderLocation } from '@prodivix/pir-react-renderer';
 import type { WorkspaceDocument, WorkspaceSnapshot } from '@prodivix/workspace';
 import {
   clearComponentInstancePropBinding,
   createComponentInstanceInspectorModel,
+  describeComponentEventBinding,
   setComponentInstanceLiteralPropBinding,
   setComponentInstanceVariantBinding,
 } from '@/editor/features/blueprint/editor/inspector/domain/componentInstanceInspectorModel';
@@ -266,5 +268,46 @@ describe('Component Instance Inspector model', () => {
       status: 'hidden',
       reason: 'selection-not-component-instance',
     });
+  });
+});
+
+describe('describeComponentEventBinding', () => {
+  it('summarises every PIR trigger binding kind, including data operations', () => {
+    const bindings: readonly PIRTriggerBinding[] = [
+      { kind: 'open-url', href: 'https://example.test' },
+      { kind: 'navigate-route', routeId: 'route-home' },
+      { kind: 'run-nodegraph', documentId: 'graph-1' },
+      {
+        kind: 'play-animation',
+        documentId: 'anim-1',
+        timelineId: 'timeline-1',
+        command: 'play',
+      },
+      {
+        kind: 'call-code',
+        slotId: 'slot-1',
+        reference: { artifactId: 'code-1' },
+      },
+      { kind: 'emit-component-event', memberId: 'onSubmit' },
+      {
+        kind: 'dispatch-data-operation',
+        operation: { documentId: 'data-1', operationId: 'createUser' },
+        input: { kind: 'literal', value: {} },
+      },
+    ];
+
+    for (const binding of bindings) {
+      expect(describeComponentEventBinding(binding)).toEqual(
+        expect.any(String)
+      );
+    }
+    expect(
+      describeComponentEventBinding({
+        kind: 'dispatch-data-operation',
+        operation: { documentId: 'data-1', operationId: 'createUser' },
+        input: { kind: 'literal', value: {} },
+      })
+    ).toContain('data-1/createUser');
+    expect(describeComponentEventBinding(undefined)).toBe('Not bound');
   });
 });

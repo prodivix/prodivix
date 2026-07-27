@@ -76,7 +76,7 @@ function LayoutPanelView({ node, updateNode }: InspectorPanelRenderProps) {
     updateNode,
     display,
     isPatternStructureControlled,
-    t: t as LayoutGroupContextValue['t'],
+    t,
   };
 
   return (

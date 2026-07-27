@@ -71,6 +71,7 @@
       },
       "baseURL": "Base URL",
       "apiKey": "API Key",
+      "apiKeyHint": "Kept in memory for this browser session only, so it is never written to browser storage. Re-enter it after a reload.",
       "model": "Model",
       "jsonMode": "Prefer JSON mode",
       "temperature": "Temperature",
@@ -82,7 +83,8 @@
       "validation": {
         "baseURL": "Base URL is required.",
         "model": "Model is required.",
-        "temperature": "Temperature must be between 0 and 2."
+        "temperature": "Temperature must be between 0 and 2.",
+        "credentialTransport": "An API key requires an https base URL, or a loopback address such as http://localhost."
       },
       "discovery": {
         "action": "Discover",
@@ -557,7 +559,7 @@
       "matched": "{{count}} matched",
       "showingRange": "showing {{from}}-{{to}} / {{total}}",
       "showingEmpty": "showing 0/0",
-      "loading": "Loading icons from esm.sh...",
+      "loading": "Loading icons...",
       "loadError": "Icon provider failed to load.",
       "retry": "Retry",
       "empty": "No icons found.",

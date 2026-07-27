@@ -3,8 +3,10 @@ import type {
   ExecutableProjectSnapshot,
   ExecutionJob,
   ExecutionRequest,
+  ExecutionWorkspaceSnapshotRef,
 } from '@prodivix/runtime-core';
 import { isExecutionJobTerminalStatus } from '@prodivix/runtime-core';
+import { sameCanonicalJson } from '@prodivix/shared/canonical';
 import {
   browserProjectRuntimeHost,
   createRemoteProjectExecutionEnvironment,
@@ -26,6 +28,30 @@ const runner = createBrowserProjectTestRunner({
 });
 
 export type ProjectTestExecutionProvider = 'browser' | 'remote';
+
+/**
+ * Remote Test may only execute the exact Workspace revision that the local plan
+ * compiled: same identity, same mock-only policy, same partition revisions.
+ *
+ * The two `partitionRevisions` records reach this guard from different
+ * normalizers — `createExecutionRequest` orders keys with the host locale while
+ * `ExecutableProjectSnapshot` orders them by code point — so identity is compared
+ * canonically. Comparing serialized text would reject a legitimate run whenever
+ * the two collations disagree on a document id.
+ */
+export const isRemoteProjectTestRequestAligned = (
+  request: ExecutionRequest,
+  workspace: ExecutionWorkspaceSnapshotRef
+): boolean =>
+  request.profile === 'test' &&
+  request.runtimeZone === 'test' &&
+  request.environment === undefined &&
+  request.workspace.workspaceId === workspace.workspaceId &&
+  request.workspace.snapshotId === workspace.snapshotId &&
+  sameCanonicalJson(
+    request.workspace.partitionRevisions ?? {},
+    workspace.partitionRevisions ?? {}
+  );
 
 let activeJob: ExecutionJob | undefined;
 
@@ -52,15 +78,7 @@ export const startProjectTests = async (
     const environment = createRemoteProjectExecutionEnvironment({
       accessToken: options.accessToken,
       resolveSnapshot: (candidate) => {
-        if (
-          candidate.profile !== 'test' ||
-          candidate.runtimeZone !== 'test' ||
-          candidate.environment !== undefined ||
-          candidate.workspace.workspaceId !== snapshot.workspace.workspaceId ||
-          candidate.workspace.snapshotId !== snapshot.workspace.snapshotId ||
-          JSON.stringify(candidate.workspace.partitionRevisions ?? {}) !==
-            JSON.stringify(snapshot.workspace.partitionRevisions ?? {})
-        )
+        if (!isRemoteProjectTestRequestAligned(candidate, snapshot.workspace))
           throw new Error(
             'Remote Test snapshot identity or mock-only policy drifted.'
           );

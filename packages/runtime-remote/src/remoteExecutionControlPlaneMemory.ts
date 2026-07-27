@@ -6,6 +6,7 @@ import {
 } from '@prodivix/runtime-core';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   RemoteExecutionCancelMutationResult,
   RemoteExecutionClaimResult,
@@ -318,7 +319,10 @@ export const createMemoryRemoteExecutionRepository =
             .sort(
               (left, right) =>
                 left.record.createdAt - right.record.createdAt ||
-                left.record.executionId.localeCompare(right.record.executionId)
+                compareUnicodeCodePoints(
+                  left.record.executionId,
+                  right.record.executionId
+                )
             )[0];
           if (!candidate) return undefined;
           if (

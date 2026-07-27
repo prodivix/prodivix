@@ -26,7 +26,8 @@ export function CodeAuthoringOverlay() {
   const [dirty, setDirty] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
-  const artifact = request ? workspace?.docsById[request.artifactId] : null;
+  const artifactId = request?.artifactId;
+  const artifact = artifactId ? workspace?.docsById[artifactId] : null;
   const isMaximized = request?.presentation === 'maximized';
 
   useEffect(() => {
@@ -40,15 +41,19 @@ export function CodeAuthoringOverlay() {
     }
   }, [close, request, workspace?.id]);
 
-  if (!request || workspace?.id !== request.workspaceId) return null;
+  // Compact and maximized requests always carry a resolved artifact; bail out
+  // instead of opening an overlay that has nothing to author.
+  if (!request || !artifactId || workspace?.id !== request.workspaceId) {
+    return null;
+  }
 
   const performAction = (action: Exclude<PendingAction, null>) => {
     if (action === 'open-workspace' && projectId) {
-      setActiveDocumentId(request.artifactId);
+      setActiveDocumentId(artifactId);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(
           getCodeAuthoringSelectionStorageKey(projectId),
-          request.artifactId
+          artifactId
         );
       }
       if (request.sourceSpan) {
@@ -78,7 +83,7 @@ export function CodeAuthoringOverlay() {
   const title = isMaximized
     ? t('codeAuthoring.overlay.maximizedTitle')
     : t('codeAuthoring.overlay.compactTitle');
-  const path = artifact?.path ?? request.artifactId;
+  const path = artifact?.path ?? artifactId;
 
   return (
     <>

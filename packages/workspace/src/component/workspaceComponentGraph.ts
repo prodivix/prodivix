@@ -4,6 +4,7 @@ import {
   type PIRComponentInstanceNode,
   type PIRDocument,
 } from '@prodivix/pir';
+import { compareUnicodeCodePoints } from '../canonicalOrder';
 import { decodeWorkspacePirDocument } from './workspacePirDocument';
 import type {
   WorkspaceDocument,
@@ -81,8 +82,7 @@ const WORKSPACE_COMPONENT_SOURCE_TYPES = new Set([
   'pir-component',
 ]);
 
-const compareText = (left: string, right: string) =>
-  left < right ? -1 : left > right ? 1 : 0;
+const compareText = compareUnicodeCodePoints;
 
 const escapeJsonPointerSegment = (value: string) =>
   value.replace(/~/g, '~0').replace(/\//g, '~1');

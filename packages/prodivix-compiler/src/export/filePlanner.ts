@@ -6,12 +6,12 @@ import type {
 } from '#src/export/types';
 import { joinExportPath } from '#src/export/pathPlanner';
 
-const getFileContributionDesiredPath = (
+export const getFileContributionDesiredPath = (
   file: ExportFileContribution,
-  preset: ExportPlannerPreset
+  sourceRoot: string
 ) => {
   if (file.baseDirectory === 'source-root') {
-    return joinExportPath(preset.sourceRoot, file.desiredPath);
+    return joinExportPath(sourceRoot, file.desiredPath);
   }
   if (file.baseDirectory === 'public-root') {
     return joinExportPath('public', file.desiredPath);
@@ -26,7 +26,7 @@ export const planExportFileContributions = (
 ): ExportFile[] =>
   files.map((file) => ({
     id: file.id,
-    path: reservePath(getFileContributionDesiredPath(file, preset), {
+    path: reservePath(getFileContributionDesiredPath(file, preset.sourceRoot), {
       id: file.id,
       kind: file.kind,
     }),

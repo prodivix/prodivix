@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { ExportDependency } from '#src/export/types';
 
 const dependencyKindRank: Record<
@@ -42,7 +43,7 @@ export const mergeExportDependencies = (
     );
   });
   return Array.from(byName.values()).sort((a, b) =>
-    a.name.localeCompare(b.name)
+    compareUnicodeCodePoints(a.name, b.name)
   );
 };
 

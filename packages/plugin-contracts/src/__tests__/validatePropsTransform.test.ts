@@ -25,8 +25,6 @@ describe('validatePropsTransform prototype safety', () => {
         >,
       },
     ],
-    ['constructor target', { rename: [{ from: 'title', to: 'constructor' }] }],
-    ['prototype target', { rename: [{ from: 'title', to: 'prototype' }] }],
   ])('rejects a %s that would reach the prototype chain', (_label, transform) =>
     expect(
       messages(transform).some((message) => message.includes('is reserved'))
@@ -40,6 +38,13 @@ describe('validatePropsTransform prototype safety', () => {
         omit: ['legacyProp'],
         defaults: { size: 'Medium' },
       })
+    ).toEqual([]));
+
+  it('accepts names that only look dangerous', () =>
+    // `constructor` and `prototype` assign as own properties, so a component
+    // whose prop is genuinely called either one stays expressible.
+    expect(
+      messages({ rename: [{ from: 'constructor', to: 'prototype' }] })
     ).toEqual([]));
 
   it('still reports the pre-existing duplicate and self-rename rules', () =>

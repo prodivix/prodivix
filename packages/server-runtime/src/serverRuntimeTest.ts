@@ -3,6 +3,10 @@ import {
   type ExecutionValue,
 } from '@prodivix/runtime-core';
 import {
+  canonicalJsonText,
+  compareUnicodeCodePoints,
+} from '@prodivix/shared/canonical';
+import {
   createServerFunctionAdapterRegistry,
   executeServerFunction,
   SERVER_RUNTIME_ERROR_CODES,
@@ -234,17 +238,6 @@ const normalizeBehavior = (
   });
 };
 
-const canonicalJson = (value: ExecutionValue): string => {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(',')}]`;
-  }
-  return `{${Object.entries(value)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
-    .join(',')}}`;
-};
-
 const referenceKey = (reference: ServerFunctionReference): string =>
   `${reference.artifactId}\0${reference.exportName}`;
 
@@ -314,7 +307,7 @@ export const normalizeServerRuntimeTestProvision = (
         });
       })
       .sort((left, right) =>
-        left.permissionId.localeCompare(right.permissionId)
+        compareUnicodeCodePoints(left.permissionId, right.permissionId)
       )
   );
   const ids = new Set<string>();
@@ -342,7 +335,7 @@ export const normalizeServerRuntimeTestProvision = (
             );
           }
         }
-        const matchKey = `${referenceKey(functionRef)}\0${input === undefined ? '*' : canonicalJson(input)}`;
+        const matchKey = `${referenceKey(functionRef)}\0${input === undefined ? '*' : canonicalJsonText(input)}`;
         if (matchKeys.has(matchKey)) {
           throw new TypeError(SERVER_RUNTIME_TEST_ERROR_CODES.provisionInvalid);
         }
@@ -354,7 +347,7 @@ export const normalizeServerRuntimeTestProvision = (
           behavior: normalizeBehavior(candidate.behavior),
         });
       })
-      .sort((left, right) => left.id.localeCompare(right.id))
+      .sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
   );
   return Object.freeze({
     format: SERVER_RUNTIME_TEST_PROVISION_FORMAT,
@@ -473,7 +466,7 @@ export const createServerRuntimeTestSession = (input: {
         const exact = candidates?.find(
           (fixture) =>
             fixture.input !== undefined &&
-            canonicalJson(fixture.input) === canonicalJson(value)
+            canonicalJsonText(fixture.input) === canonicalJsonText(value)
         );
         const fixture =
           exact ?? candidates?.find(({ input }) => input === undefined);
@@ -579,7 +572,7 @@ export const createServerRuntimeTestSession = (input: {
         );
       }
       const normalizedInput = cloneExecutionValue(request.input);
-      const fingerprint = `${referenceKey(request.functionRef)}\0${canonicalJson(normalizedInput)}`;
+      const fingerprint = `${referenceKey(request.functionRef)}\0${canonicalJsonText(normalizedInput)}`;
       if (definition.effect !== 'mutation') {
         return invokeOnce(definition, { ...request, input: normalizedInput });
       }

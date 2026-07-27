@@ -5,16 +5,15 @@
  * must reject these first, or a hostile name silently rewrites the prototype
  * every later lookup resolves through.
  *
- * `__proto__` is the only name that triggers the accessor on assignment.
- * `constructor` and `prototype` are included because the same call sites reach
- * `Function.prototype` through them once a value is walked, and no legitimate
- * authored payload needs either as a record key.
+ * Only `__proto__` belongs here, because only `__proto__` breaks that
+ * invariant. `constructor` and `prototype` look dangerous but assign as
+ * ordinary own properties, so listing them would reject authored payloads that
+ * are merely unusual — an API parameter named `constructor` is legal. The
+ * hazard those two carry is on *lookup*, not assignment, and the defence for
+ * that is reading through `Object.prototype.hasOwnProperty.call` or checking
+ * `isPlainObject` first, not a wider name blacklist.
  */
-const UNSAFE_OBJECT_KEYS: ReadonlySet<string> = new Set([
-  '__proto__',
-  'constructor',
-  'prototype',
-]);
+const UNSAFE_OBJECT_KEYS: ReadonlySet<string> = new Set(['__proto__']);
 
 /** True when assigning `key` onto a plain object would not create an own property. */
 export const isUnsafeObjectKey = (key: string): boolean =>

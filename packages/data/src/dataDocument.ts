@@ -5,6 +5,7 @@ import {
   DATA_IMPORT_KINDS,
   DATA_IMPORT_PROVENANCE_LIMITS,
   DATA_OPERATION_KINDS,
+  DATA_RETRY_POLICY_LIMITS,
   DATA_STREAM_POLICY_LIMITS,
   JSON_SCHEMA_2020_12_URI,
   type DataCachePolicy,
@@ -37,6 +38,7 @@ import {
   type DataSourceDocumentValidationOptions,
   type DataSourceDocumentValidationResult,
 } from './data.types';
+import { isDataRetryPolicyWithinBudget } from './dataPolicyRuntime';
 
 type JsonRecord = Readonly<Record<string, unknown>>;
 
@@ -900,6 +902,33 @@ const parseRetryPolicy = (
     );
   }
   if (
+    maxAttempts !== undefined &&
+    maxAttempts > DATA_RETRY_POLICY_LIMITS.maxAttempts
+  )
+    appendIssue(
+      issues,
+      childPath(path, 'maxAttempts'),
+      `Retry maxAttempts must not exceed ${DATA_RETRY_POLICY_LIMITS.maxAttempts}.`
+    );
+  if (
+    initialDelayMs !== undefined &&
+    initialDelayMs > DATA_RETRY_POLICY_LIMITS.maxDelayMs
+  )
+    appendIssue(
+      issues,
+      childPath(path, 'initialDelayMs'),
+      `Retry initialDelayMs must not exceed ${DATA_RETRY_POLICY_LIMITS.maxDelayMs}.`
+    );
+  if (
+    maxDelayMs !== undefined &&
+    maxDelayMs > DATA_RETRY_POLICY_LIMITS.maxDelayMs
+  )
+    appendIssue(
+      issues,
+      childPath(path, 'maxDelayMs'),
+      `Retry maxDelayMs must not exceed ${DATA_RETRY_POLICY_LIMITS.maxDelayMs}.`
+    );
+  if (
     initialDelayMs !== undefined &&
     maxDelayMs !== undefined &&
     maxDelayMs < initialDelayMs
@@ -917,12 +946,31 @@ const parseRetryPolicy = (
   ) {
     return undefined;
   }
-  return Object.freeze({
+  const policy: DataRetryPolicy = {
     maxAttempts,
     backoff: record.backoff,
     initialDelayMs,
     ...(maxDelayMs !== undefined ? { maxDelayMs } : {}),
-  });
+  };
+  // Attempt and delay ranges are diagnosed above; the shared budget owner is the
+  // authority on the projected exponential ceiling, and an out-of-budget ladder
+  // is rejected here so it can never reach a runtime that must re-derive it.
+  if (!isDataRetryPolicyWithinBudget(policy)) {
+    if (
+      maxAttempts <= DATA_RETRY_POLICY_LIMITS.maxAttempts &&
+      initialDelayMs <= DATA_RETRY_POLICY_LIMITS.maxDelayMs &&
+      (maxDelayMs === undefined ||
+        (maxDelayMs >= initialDelayMs &&
+          maxDelayMs <= DATA_RETRY_POLICY_LIMITS.maxDelayMs))
+    )
+      appendIssue(
+        issues,
+        path,
+        `Retry backoff must not project a delay above ${DATA_RETRY_POLICY_LIMITS.maxDelayMs}.`
+      );
+    return undefined;
+  }
+  return Object.freeze(policy);
 };
 
 const parseStreamPolicy = (
@@ -1923,7 +1971,11 @@ const validateRelations = (
   }
 };
 
-/** Internal current-model decoder shared by validation and the strict wire boundary. */
+/**
+ * Current-model decoder shared by validation, the strict wire boundary, and
+ * every importer. Callers whose own contract promises a blocked result instead
+ * of an exception must use this rather than catching `normalizeDataSourceDocument`.
+ */
 export const decodeCurrentDataSourceDocument = (
   input: unknown,
   options: DataSourceDocumentValidationOptions = {}

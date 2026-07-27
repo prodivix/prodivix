@@ -10,6 +10,7 @@ AI 命名空间覆盖Provider、模型发现、Prompt、响应解析和 AI comma
 | ------------------------------------------- | -------------------------------------- | --------- |
 | [`AI-1001`](/reference/diagnostics/ai-1001) | Provider 配置缺失                      | `warning` |
 | [`AI-1002`](/reference/diagnostics/ai-1002) | Provider 请求失败                      | `error`   |
+| [`AI-1010`](/reference/diagnostics/ai-1010) | Provider baseURL 非法                  | `error`   |
 | [`AI-2001`](/reference/diagnostics/ai-2001) | 模型发现失败                           | `warning` |
 | [`AI-2002`](/reference/diagnostics/ai-2002) | 模型能力不满足当前任务                 | `warning` |
 | [`AI-3001`](/reference/diagnostics/ai-3001) | Prompt 上下文为空                      | `warning` |

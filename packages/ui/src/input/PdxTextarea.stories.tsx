@@ -140,7 +140,7 @@ export const WithMaxLength: Story = {
 };
 
 export const Controlled: Story = {
-  render: () => {
+  render: function ControlledStory() {
     const [value, setValue] = useState('');
     return (
       <div style={{ width: '400px' }}>

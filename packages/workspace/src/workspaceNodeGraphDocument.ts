@@ -3,6 +3,7 @@ import {
   type NodeGraphDecodeIssue,
   type NodeGraphDocument,
 } from '@prodivix/nodegraph';
+import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceCommandEnvelope,
   WorkspacePatchOperation,
@@ -86,7 +87,7 @@ export const selectWorkspaceNodeGraphDocumentResults = (
   snapshot
     ? Object.values(snapshot.docsById)
         .filter((document) => document.type === 'pir-graph')
-        .sort((left, right) => left.id.localeCompare(right.id))
+        .sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
         .map(decodeWorkspaceNodeGraphDocument)
     : [];
 

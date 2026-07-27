@@ -153,13 +153,13 @@ export const openDataOperationStream = async (
   const expectedSourceTrace = normalizeExecutionSourceTraces(
     input.invocation.sourceTrace
   );
-  let environment: ExecutionEnvironmentResolutionLease | undefined;
-  environment = await resolveDataOperationEnvironment({
-    invocation: input.invocation,
-    source: input.document.source,
-    operation,
-    resolution: input.environmentResolution,
-  });
+  const environment: ExecutionEnvironmentResolutionLease | undefined =
+    await resolveDataOperationEnvironment({
+      invocation: input.invocation,
+      source: input.document.source,
+      operation,
+      resolution: input.environmentResolution,
+    });
   let protocolStream: Awaited<
     ReturnType<NonNullable<typeof adapter.openStream>>
   >;

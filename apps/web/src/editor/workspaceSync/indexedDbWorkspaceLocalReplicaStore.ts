@@ -315,23 +315,38 @@ const abortTransaction = async (
   await completed.catch(() => undefined);
 };
 
-export const saveWorkspaceLocalReplica = async (input: {
-  workspace: WorkspaceSnapshot;
-  settings?: Readonly<Record<string, unknown>>;
-  settingsOpSeq?: number;
-  project?: ProjectSummary;
-  capabilities?: Readonly<Record<string, boolean>>;
-  acknowledgedEntryIds?: readonly string[];
-  savedAt?: number;
-  options?: WorkspacePersistenceDatabaseOptions;
-}): Promise<WorkspaceLocalReplicaEnvelope> => {
-  const inputProject = input.project
-    ? decodeProject(input.project, input.workspace.id)
-    : undefined;
-  const inputCapabilities = input.capabilities
-    ? decodeCapabilities(input.capabilities)
-    : undefined;
-  const database = await openWorkspacePersistenceDatabase(input.options);
+/** An undecodable row cannot be advanced; only a full seed write replaces it. */
+const decodeExistingReplica = (
+  value: unknown
+): WorkspaceLocalReplicaEnvelope | null => {
+  if (value === undefined) return null;
+  try {
+    return decodePersistedReplica(value);
+  } catch {
+    return null;
+  }
+};
+
+const requireReplica = (
+  result: ReturnType<typeof createWorkspaceLocalReplica>
+): WorkspaceLocalReplica => {
+  if (result.ok === false) {
+    throw new WorkspaceLocalReplicaRecordError(
+      result.issues[0]?.path ?? '/replica',
+      result.issues[0]?.message ?? 'Could not save local replica.'
+    );
+  }
+  return result.replica;
+};
+
+const writeWorkspaceLocalReplicaRecord = async <
+  TEnvelope extends WorkspaceLocalReplicaEnvelope | null,
+>(
+  workspaceId: string,
+  options: WorkspacePersistenceDatabaseOptions | undefined,
+  resolveEnvelope: (existing: WorkspaceLocalReplicaEnvelope | null) => TEnvelope
+): Promise<TEnvelope> => {
+  const database = await openWorkspacePersistenceDatabase(options);
   const transaction = database.transaction(
     WORKSPACE_LOCAL_REPLICA_STORE,
     'readwrite'
@@ -339,65 +354,10 @@ export const saveWorkspaceLocalReplica = async (input: {
   const completed = transactionComplete(transaction);
   try {
     const store = transaction.objectStore(WORKSPACE_LOCAL_REPLICA_STORE);
-    const value = await requestResult(store.get(input.workspace.id));
-    let existing: WorkspaceLocalReplicaEnvelope | null = null;
-    if (value !== undefined) {
-      try {
-        existing = decodePersistedReplica(value);
-      } catch (error) {
-        if (!inputProject || input.settings === undefined) {
-          throw error;
-        }
-      }
-    }
-    const savedAt = input.savedAt ?? Date.now();
-    const nextReplica = existing
-      ? advanceWorkspaceLocalReplica(existing.replica, {
-          snapshot: input.workspace,
-          ...(input.settings !== undefined ? { settings: input.settings } : {}),
-          ...(input.settingsOpSeq !== undefined
-            ? { settingsOpSeq: input.settingsOpSeq }
-            : {}),
-          savedAt,
-          acknowledgedEntryIds: input.acknowledgedEntryIds,
-        })
-      : input.settings === undefined
-        ? {
-            ok: false as const,
-            issues: [
-              {
-                code: 'WKS_SYNC_REPLICA_INVALID' as const,
-                path: '/settings',
-                message: 'A new local replica requires workspace settings.',
-              },
-            ],
-          }
-        : createWorkspaceLocalReplica({
-            snapshot: input.workspace,
-            settings: input.settings,
-            settingsOpSeq: input.settingsOpSeq,
-            savedAt,
-            acknowledgedEntryIds: input.acknowledgedEntryIds,
-          });
-    if (nextReplica.ok === false) {
-      throw new WorkspaceLocalReplicaRecordError(
-        nextReplica.issues[0]?.path ?? '/replica',
-        nextReplica.issues[0]?.message ?? 'Could not save local replica.'
-      );
-    }
-    const project = inputProject ?? existing?.project;
-    if (!project) {
-      throw new WorkspaceLocalReplicaRecordError(
-        '/project',
-        'A new local replica requires project metadata.'
-      );
-    }
-    const envelope: WorkspaceLocalReplicaEnvelope = {
-      replica: nextReplica.replica,
-      project,
-      capabilities: inputCapabilities ?? existing?.capabilities ?? {},
-    };
-    store.put(serializeReplica(envelope));
+    const envelope = resolveEnvelope(
+      decodeExistingReplica(await requestResult(store.get(workspaceId)))
+    );
+    if (envelope) store.put(serializeReplica(envelope));
     await completed;
     return envelope;
   } catch (error) {
@@ -406,4 +366,90 @@ export const saveWorkspaceLocalReplica = async (input: {
   } finally {
     database.close();
   }
+};
+
+/** Seeds or advances the cached replica from a complete Workspace open. */
+export const saveWorkspaceLocalReplica = async (input: {
+  workspace: WorkspaceSnapshot;
+  settings: Readonly<Record<string, unknown>>;
+  settingsOpSeq?: number;
+  project: ProjectSummary;
+  capabilities?: Readonly<Record<string, boolean>>;
+  acknowledgedEntryIds?: readonly string[];
+  savedAt?: number;
+  options?: WorkspacePersistenceDatabaseOptions;
+}): Promise<WorkspaceLocalReplicaEnvelope> => {
+  const project = decodeProject(input.project, input.workspace.id);
+  const capabilities = input.capabilities
+    ? decodeCapabilities(input.capabilities)
+    : undefined;
+  const savedAt = input.savedAt ?? Date.now();
+  return writeWorkspaceLocalReplicaRecord(
+    input.workspace.id,
+    input.options,
+    (existing) => ({
+      replica: requireReplica(
+        existing
+          ? advanceWorkspaceLocalReplica(existing.replica, {
+              snapshot: input.workspace,
+              settings: input.settings,
+              ...(input.settingsOpSeq !== undefined
+                ? { settingsOpSeq: input.settingsOpSeq }
+                : {}),
+              savedAt,
+              acknowledgedEntryIds: input.acknowledgedEntryIds,
+            })
+          : createWorkspaceLocalReplica({
+              snapshot: input.workspace,
+              settings: input.settings,
+              settingsOpSeq: input.settingsOpSeq,
+              savedAt,
+              acknowledgedEntryIds: input.acknowledgedEntryIds,
+            })
+      ),
+      project,
+      capabilities: capabilities ?? existing?.capabilities ?? {},
+    })
+  );
+};
+
+/**
+ * Moves the cached replica forward after a confirmed commit. The replica is a
+ * rebuildable cache seeded by the Workspace open path, so an absent row is a
+ * cache miss rather than a failure that could push a durable operation back
+ * into the causal chain.
+ */
+export const advanceWorkspaceLocalReplicaCache = async (input: {
+  workspace: WorkspaceSnapshot;
+  settings?: Readonly<Record<string, unknown>>;
+  settingsOpSeq?: number;
+  acknowledgedEntryIds?: readonly string[];
+  savedAt?: number;
+  options?: WorkspacePersistenceDatabaseOptions;
+}): Promise<WorkspaceLocalReplicaEnvelope | null> => {
+  const savedAt = input.savedAt ?? Date.now();
+  return writeWorkspaceLocalReplicaRecord(
+    input.workspace.id,
+    input.options,
+    (existing) =>
+      existing
+        ? {
+            replica: requireReplica(
+              advanceWorkspaceLocalReplica(existing.replica, {
+                snapshot: input.workspace,
+                ...(input.settings !== undefined
+                  ? { settings: input.settings }
+                  : {}),
+                ...(input.settingsOpSeq !== undefined
+                  ? { settingsOpSeq: input.settingsOpSeq }
+                  : {}),
+                savedAt,
+                acknowledgedEntryIds: input.acknowledgedEntryIds,
+              })
+            ),
+            project: existing.project,
+            capabilities: existing.capabilities,
+          }
+        : null
+  );
 };

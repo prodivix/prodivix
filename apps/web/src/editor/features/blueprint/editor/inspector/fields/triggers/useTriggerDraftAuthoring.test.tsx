@@ -16,6 +16,8 @@ const canonicalEntry = (
   ...input,
 });
 
+const KNOWN_ROUTE_IDS: ReadonlySet<string> = new Set(['root', 'route-2']);
+
 describe('useTriggerDraftAuthoring', () => {
   it('keeps a new trigger local until an explicit valid save succeeds', async () => {
     const onCommit = vi.fn(async () => true);
@@ -23,6 +25,7 @@ describe('useTriggerDraftAuthoring', () => {
       useTriggerDraftAuthoring({
         ownerKey: 'page:button',
         readOnly: false,
+        knownRouteIds: KNOWN_ROUTE_IDS,
         canonicalEntries: [],
         onCommit,
       })
@@ -62,6 +65,7 @@ describe('useTriggerDraftAuthoring', () => {
       useTriggerDraftAuthoring({
         ownerKey: 'page:button',
         readOnly: false,
+        knownRouteIds: KNOWN_ROUTE_IDS,
         canonicalEntries: [],
         onCommit,
         onIssue,
@@ -83,6 +87,7 @@ describe('useTriggerDraftAuthoring', () => {
       useTriggerDraftAuthoring({
         ownerKey: 'page:button',
         readOnly: false,
+        knownRouteIds: KNOWN_ROUTE_IDS,
         canonicalEntries: [],
         onCommit,
       })
@@ -109,6 +114,7 @@ describe('useTriggerDraftAuthoring', () => {
       useTriggerDraftAuthoring({
         ownerKey: 'page:button',
         readOnly: false,
+        knownRouteIds: KNOWN_ROUTE_IDS,
         canonicalEntries: [entry],
         onCommit: vi.fn(async () => true),
       })
@@ -141,6 +147,7 @@ describe('useTriggerDraftAuthoring', () => {
       useTriggerDraftAuthoring({
         ownerKey: 'page:button',
         readOnly: false,
+        knownRouteIds: KNOWN_ROUTE_IDS,
         canonicalEntries,
         onCommit,
         onIssue,

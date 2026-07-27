@@ -21,6 +21,7 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
     t,
     graphOptions,
     routeOptions,
+    knownRouteIds,
     dataMutationOptions,
     triggerEntries,
     updateTrigger,
@@ -35,12 +36,13 @@ export function InspectorTriggerItem({ item }: { item: TriggerEntry }) {
   const draftIssue = item.draft
     ? getTriggerDraftIssue(
         item,
-        triggerEntries.filter((entry) => !entry.draft)
+        triggerEntries.filter((entry) => !entry.draft),
+        knownRouteIds
       )
     : undefined;
   const rawToValue = typeof item.params.to === 'string' ? item.params.to : '';
   const routeId =
-    typeof item.params.routeId === 'string' ? item.params.routeId : rawToValue;
+    typeof item.params.routeId === 'string' ? item.params.routeId : '';
   const selectedRoute = routeOptions.find((route) => route.id === routeId);
   const toValue = selectedRoute?.path ?? rawToValue;
   const targetValue = item.params.target === '_self' ? '_self' : '_blank';

@@ -126,10 +126,20 @@ export function ResourceFileTree({
     setRenamingValue(node.name);
   };
 
+  // The owner keeps its request set until the rename commits, and its callbacks
+  // are new on every render, so the request has to be consumed exactly once:
+  // otherwise each parent render reopens a cancelled rename and overwrites the
+  // name the author is typing.
+  const consumedRenameRequestRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!editable || !requestRenameNodeId) return;
+    if (!editable || !requestRenameNodeId) {
+      consumedRenameRequestRef.current = undefined;
+      return;
+    }
+    if (consumedRenameRequestRef.current === requestRenameNodeId) return;
     const targetNode = findNodeById(tree, requestRenameNodeId);
     if (!targetNode || targetNode.id === tree.id) return;
+    consumedRenameRequestRef.current = requestRenameNodeId;
     onSelect?.(targetNode.id);
     setRenamingNodeId(targetNode.id);
     setRenamingValue(targetNode.name);

@@ -33,7 +33,6 @@ apps/web/
 │   │   ├── features/       # animation / blueprint / development / issues / resources 等
 │   │   ├── store/          # Canonical Workspace、History、冲突等 UI 状态组合
 │   │   └── workspaceSync/  # IndexedDB outbox、local replica、恢复与 commit adapter
-│   ├── esm-bridge/         # 受限浏览器 ESM / React 互操作桥
 │   ├── home/               # 产品首页
 │   ├── i18n/               # i18next 初始化与应用资源
 │   ├── infra/api/          # HTTP client 与统一错误处理
@@ -91,7 +90,7 @@ pnpm test:e2e:plugin-sandbox:matrix
 
 ## 类型规范
 
-`@typescript-eslint/no-explicit-any` 在本应用为 `error`。新代码优先使用 `unknown` 与类型守卫；确需例外时必须给出局部禁用原因。规则入口为 `apps/web/eslint.config.js`。
+`@typescript-eslint/no-explicit-any` 在本应用为 `error`。新代码优先使用 `unknown` 与类型守卫；确需例外时必须给出局部禁用原因。lint 规则由仓库根目录的 `eslint.config.mjs` 统一拥有,不再有 per-app 配置。
 
 ## 常用命令
 

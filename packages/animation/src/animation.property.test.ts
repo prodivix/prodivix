@@ -211,6 +211,67 @@ describe('animation domain properties', () => {
     );
   });
 
+  it('reverses iteration progress before the timeline easing runs', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2, max: 10_000 }),
+        fc.integer({ min: 0, max: 10_000 }),
+        fc.constantFrom(
+          'linear',
+          'ease',
+          'ease-in',
+          'ease-out',
+          'ease-in-out',
+          'cubic-bezier(0.2, 0.9, 0.4, 1)'
+        ),
+        (durationMs, offsetSeed, easing) => {
+          const offset = 1 + (offsetSeed % (durationMs - 1));
+          const base = {
+            id: 'timeline',
+            name: 'Timeline',
+            durationMs,
+            iterations: 'infinite' as const,
+            easing,
+            bindings: [],
+          };
+          const forward: AnimationTimeline = { ...base, direction: 'normal' };
+          const reverse: AnimationTimeline = { ...base, direction: 'reverse' };
+          const alternate: AnimationTimeline = {
+            ...base,
+            direction: 'alternate',
+          };
+
+          expect(resolveTimelineCursorMs(reverse, offset)).toBeCloseTo(
+            resolveTimelineCursorMs(forward, durationMs - offset)!,
+            6
+          );
+          expect(
+            resolveTimelineCursorMs(alternate, durationMs + offset)
+          ).toBeCloseTo(
+            resolveTimelineCursorMs(alternate, durationMs - offset)!,
+            6
+          );
+        }
+      )
+    );
+  });
+
+  it('samples reversed CSS easing presets at the Web Animations cursor', () => {
+    const base = {
+      id: 'timeline',
+      name: 'Timeline',
+      durationMs: 1_000,
+      iterations: 'infinite' as const,
+      easing: 'ease-in',
+      bindings: [],
+    };
+    const forward: AnimationTimeline = { ...base, direction: 'normal' };
+    const reverse: AnimationTimeline = { ...base, direction: 'reverse' };
+
+    expect(resolveTimelineCursorMs(forward, 250)).toBeCloseTo(93.46, 1);
+    expect(resolveTimelineCursorMs(reverse, 250)).toBeCloseTo(621.86, 1);
+  });
+
   it('resolves delay and terminal fill boundaries without wall-clock state', () => {
     fc.assert(
       fc.property(

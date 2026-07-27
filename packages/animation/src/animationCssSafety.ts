@@ -18,6 +18,7 @@ export const isSafeAnimationCssColor = (value: string): boolean => {
     normalized === value &&
     normalized.length > 0 &&
     normalized.length <= 256 &&
+    // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
     !/[\u0000-\u001f\u007f;{}"'\\!]/u.test(normalized) &&
     !/url\s*\(/iu.test(normalized) &&
     /^[A-Za-z0-9#(),.%+\-/ ]+$/u.test(normalized)

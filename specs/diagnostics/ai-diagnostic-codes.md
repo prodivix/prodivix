@@ -57,6 +57,15 @@ type AiDiagnosticStage =
 - User action: 检查网络、baseURL、API key 和服务状态
 - Developer notes: 不在 UI 中暴露完整 Authorization header 或 secret
 
+### `AI-1010` Provider baseURL 非法
+
+- Severity: `error`
+- Stage: `provider`
+- Retryable: false
+- Trigger: 配置了 API key，但 baseURL 不是合法绝对 URL，或既非 `https:` 也非回环地址
+- User action: 改用 `https://` 的 baseURL，或使用 `http://localhost` 等本机地址
+- Developer notes: 凭据只能通过 TLS 或回环传输；无 API key 时不限制协议
+
 ### `AI-2001` 模型发现失败
 
 - Severity: `warning`
@@ -194,7 +203,6 @@ type AiDiagnosticStage =
 
 ## 5. 预留码位
 
-1. `AI-1010`：Provider baseURL 非法。
-2. `AI-2010`：模型列表为空。
-3. `AI-3010`：Prompt 超出上下文预算。
-4. `AI-5010`：用户拒绝 AI 计划后仍尝试应用。
+1. `AI-2010`：模型列表为空。
+2. `AI-3010`：Prompt 超出上下文预算。
+3. `AI-5010`：用户拒绝 AI 计划后仍尝试应用。

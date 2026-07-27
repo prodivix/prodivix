@@ -504,21 +504,24 @@ const projectDataOperationView = (
   });
 };
 
+const unavailableCandidateScope = (
+  location: PIRCollectionBindingLocation,
+  status: 'unavailable' | 'stale'
+): CollectionInspectorCandidateScope =>
+  Object.freeze({ location, status, candidates: Object.freeze([]) });
+
+/** Keys are spelled out so a new binding location fails the build instead of silently losing its scope. */
 const unavailableCandidateScopes = (
   status: 'unavailable' | 'stale'
 ): CollectionInspectorModel['candidateScopes'] =>
-  Object.freeze(
-    Object.fromEntries(
-      PIR_COLLECTION_BINDING_LOCATIONS.map((location) => [
-        location,
-        Object.freeze({
-          location,
-          status,
-          candidates: Object.freeze([]),
-        }),
-      ])
-    ) as Record<PIRCollectionBindingLocation, CollectionInspectorCandidateScope>
-  );
+  Object.freeze({
+    source: unavailableCandidateScope('source', status),
+    key: unavailableCandidateScope('key', status),
+    item: unavailableCandidateScope('item', status),
+    empty: unavailableCandidateScope('empty', status),
+    loading: unavailableCandidateScope('loading', status),
+    error: unavailableCandidateScope('error', status),
+  });
 
 const projectCandidateScope = (input: {
   workspace: WorkspaceSnapshot;

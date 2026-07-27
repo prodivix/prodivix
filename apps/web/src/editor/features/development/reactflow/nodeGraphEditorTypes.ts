@@ -27,6 +27,14 @@ export type ContextMenuItem = {
   tone?: 'default' | 'danger';
 };
 
+/**
+ * Separates an idempotent Workspace write from a refused one. A canvas that
+ * already matches its document produces no command, which is a success for
+ * callers gating on "the canvas is safe to leave".
+ */
+export type NodeGraphWorkspaceWriteOutcome =
+  'applied' | 'unchanged' | 'rejected';
+
 export type NodeValidationText = {
   playAnimationRequired: string;
   scrollToSelectorRequired: string;

@@ -1,4 +1,5 @@
 import { exportDependenciesToPackageFields } from '#src/export/dependencyPlanner';
+import { collectScaffoldReservedPaths } from '#src/export/pathOwnership';
 import { createPirEntrySurfaceCss } from '#src/export/pirEntrySurface';
 import type {
   ExportFileContribution,
@@ -199,9 +200,24 @@ declare module '*.vue' {
   },
 ];
 
+const VUE_VITE_SOURCE_ROOT = 'src';
+
+/**
+ * Scaffold file paths are fixed by the entry chain, not by the project, so the
+ * reservation list is read back from the scaffold with a placeholder context.
+ */
+const vueViteScaffoldPathProbeContext: ExportScaffoldContext = {
+  projectName: 'prodivix-export',
+  dependencies: [],
+};
+
 export const createVueViteExportPreset = (): ExportPlannerPreset => ({
   id: 'vue-vite',
   target: { framework: 'vue', preset: 'vite' },
-  sourceRoot: 'src',
+  sourceRoot: VUE_VITE_SOURCE_ROOT,
+  reservedPaths: collectScaffoldReservedPaths(
+    createVueViteScaffoldContributions(vueViteScaffoldPathProbeContext),
+    VUE_VITE_SOURCE_ROOT
+  ),
   createScaffoldContributions: createVueViteScaffoldContributions,
 });

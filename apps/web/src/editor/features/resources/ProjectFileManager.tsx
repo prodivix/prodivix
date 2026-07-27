@@ -66,7 +66,8 @@ const resolveLanguageExtensionByPath = (path: string) => {
   return javascript({ typescript: true, jsx: true });
 };
 
-const formatUpdatedAt = (value: string) => value.replace('T', ' ').slice(0, 16);
+const formatUpdatedAt = (value: string | undefined) =>
+  value ? value.replace('T', ' ').slice(0, 16) : '';
 
 const normalizeSnippetBlock = (content: string) => content.trim();
 

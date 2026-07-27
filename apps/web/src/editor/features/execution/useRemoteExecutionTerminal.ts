@@ -8,6 +8,7 @@ import {
   type ExecutionTerminalEmulatorSnapshot,
   type ExecutionTerminalOutputRecord,
   type ExecutionTerminalSize,
+  type ExecutionTerminalWriteResult,
 } from '@prodivix/runtime-core';
 import type {
   RemoteExecutionTerminalAccess,
@@ -23,10 +24,21 @@ export type RemoteExecutionTerminalView = Readonly<{
     | 'transport-disconnected'
     | 'open-rejected'
     | 'input-pending'
+    | 'input-rejected'
+    | 'input-desynchronized'
     | 'input-unacknowledged'
     | 'resize-unacknowledged'
     | 'output-invalid';
 }>;
+
+/**
+ * A successful output read only proves the transport is alive, which says
+ * nothing about a write the Broker refused, so the polling loop must not clear
+ * the errors the input path owns. Only an acknowledged write does.
+ */
+const inputOwnedErrors: ReadonlySet<
+  NonNullable<RemoteExecutionTerminalView['error']>
+> = new Set(['input-pending', 'input-rejected', 'input-desynchronized']);
 
 const initialView: RemoteExecutionTerminalView = Object.freeze({
   phase: 'idle',
@@ -43,6 +55,7 @@ const defaultTerminalSize = Object.freeze({ columns: 100, rows: 30 });
 type QueuedTerminalInput = {
   data: string;
   byteLength: number;
+  resynchronized: boolean;
   resolve(value: boolean): void;
 };
 
@@ -194,7 +207,10 @@ export const useRemoteExecutionTerminal = (input: {
             result.gap ||
             current.records.length + result.records.length >
               maximumLocalRecords,
-          error: undefined,
+          error:
+            current.error && inputOwnedErrors.has(current.error)
+              ? current.error
+              : undefined,
         }));
         if (result.status === 'closed') clearCredential();
         if (!result.hasMore) break;
@@ -317,27 +333,15 @@ export const useRemoteExecutionTerminal = (input: {
           clientSequence,
           data: queued.data,
         });
+        let result: ExecutionTerminalWriteResult;
         try {
-          const result = await input.client.write({
+          result = await input.client.write({
             executionId,
             terminalSessionId,
             accessToken: access.token,
             data: queued.data,
             clientSequence,
           });
-          if (result.status !== 'accepted' && result.status !== 'duplicate') {
-            inputQueueRef.current.shift();
-            queuedInputBytesRef.current -= queued.byteLength;
-            pendingInputRef.current = undefined;
-            queued.resolve(false);
-            continue;
-          }
-          inputQueueRef.current.shift();
-          queuedInputBytesRef.current -= queued.byteLength;
-          pendingInputRef.current = undefined;
-          clientSequenceRef.current += 1;
-          queued.resolve(true);
-          setView((current) => ({ ...current, error: undefined }));
         } catch {
           clearCredential();
           setView((current) => ({
@@ -347,11 +351,50 @@ export const useRemoteExecutionTerminal = (input: {
           }));
           return;
         }
+        if (result.status === 'accepted' || result.status === 'duplicate') {
+          inputQueueRef.current.shift();
+          queuedInputBytesRef.current -= queued.byteLength;
+          pendingInputRef.current = undefined;
+          clientSequenceRef.current += 1;
+          queued.resolve(true);
+          setView((current) => ({ ...current, error: undefined }));
+          continue;
+        }
+        if (result.status === 'out-of-order' && !queued.resynchronized) {
+          // The Broker's expected sequence is authoritative. Adopting it once
+          // and resending the exact chunk is what keeps a session usable after
+          // a controller checkpoint rewind; pinning the local sequence would
+          // silently discard every later keystroke.
+          queued.resynchronized = true;
+          clientSequenceRef.current = result.expectedClientSequence;
+          pendingInputRef.current = Object.freeze({
+            clientSequence: result.expectedClientSequence,
+            data: queued.data,
+          });
+          continue;
+        }
+        // Every remaining status drops this chunk, and a dropped chunk breaks
+        // the ordered input stream, so the queue behind it is abandoned instead
+        // of being applied out of order. The loss has to reach the author.
+        rejectQueuedInputs();
+        if (result.status === 'closed') {
+          clearCredential();
+          setView((current) => ({ ...current, phase: 'closed' }));
+          return;
+        }
+        setView((current) => ({
+          ...current,
+          error:
+            result.status === 'rejected'
+              ? 'input-rejected'
+              : 'input-desynchronized',
+        }));
+        return;
       }
     } finally {
       drainingInputRef.current = false;
     }
-  }, [clearCredential, input.client]);
+  }, [clearCredential, input.client, rejectQueuedInputs]);
 
   const send = useCallback(
     (data: string): Promise<boolean> => {
@@ -376,7 +419,12 @@ export const useRemoteExecutionTerminal = (input: {
         return Promise.resolve(false);
       }
       const queued = new Promise<boolean>((resolve) => {
-        inputQueueRef.current.push({ data, byteLength, resolve });
+        inputQueueRef.current.push({
+          data,
+          byteLength,
+          resynchronized: false,
+          resolve,
+        });
         queuedInputBytesRef.current += byteLength;
       });
       void drainInputQueue();

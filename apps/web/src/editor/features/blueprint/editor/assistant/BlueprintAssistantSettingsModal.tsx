@@ -4,9 +4,11 @@ import type { ProdivixAiSettings } from '@prodivix/ai';
 import {
   createDefaultProdivixAiSettings,
   discoverOpenAICompatibleModels,
+  readOpenAICompatibleCredentialTransportIssue,
   type ProdivixAiDiscoveredModel,
 } from '@prodivix/ai';
 import { useTranslation } from 'react-i18next';
+import { useAiCredentialStore } from '@/ai/aiCredentialStore';
 import { useAiSettingsStore } from '@/ai/aiSettingsStore';
 
 type BlueprintAssistantSettingsModalProps = {
@@ -24,12 +26,15 @@ type AiSettingsDraft = {
   maxOutputTokens: string;
 };
 
-const toDraft = (settings: ProdivixAiSettings): AiSettingsDraft => {
+const toDraft = (
+  settings: ProdivixAiSettings,
+  apiKey: string
+): AiSettingsDraft => {
   if (settings.provider === 'openai-compatible') {
     return {
       provider: settings.provider,
       baseURL: settings.baseURL,
-      apiKey: settings.apiKey ?? '',
+      apiKey,
       model: settings.model,
       jsonMode: settings.modelPreferences?.jsonMode ?? true,
       temperature: String(settings.budget?.temperature ?? 0.2),
@@ -72,7 +77,6 @@ const toSettings = (draft: AiSettingsDraft): ProdivixAiSettings => {
     enabled: true,
     provider: 'openai-compatible',
     baseURL: draft.baseURL.trim(),
-    apiKey: draft.apiKey.trim() || undefined,
     model: draft.model.trim(),
     modelPreferences: {
       jsonMode: draft.jsonMode,
@@ -104,7 +108,12 @@ export function BlueprintAssistantSettingsModal({
   const settings = useAiSettingsStore((state) => state.settings);
   const setSettings = useAiSettingsStore((state) => state.setSettings);
   const resetSettings = useAiSettingsStore((state) => state.resetSettings);
-  const [draft, setDraft] = useState<AiSettingsDraft>(() => toDraft(settings));
+  const apiKey = useAiCredentialStore((state) => state.apiKey);
+  const setApiKey = useAiCredentialStore((state) => state.setApiKey);
+  const clearApiKey = useAiCredentialStore((state) => state.clearApiKey);
+  const [draft, setDraft] = useState<AiSettingsDraft>(() =>
+    toDraft(settings, apiKey)
+  );
   const [models, setModels] = useState<readonly ProdivixAiDiscoveredModel[]>(
     []
   );
@@ -113,10 +122,10 @@ export function BlueprintAssistantSettingsModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setDraft(toDraft(settings));
+    setDraft(toDraft(settings, apiKey));
     setDiscoveryError('');
     setModels([]);
-  }, [isOpen, settings]);
+  }, [apiKey, isOpen, settings]);
 
   const validationMessage = useMemo(() => {
     if (draft.provider === 'mock') return '';
@@ -130,8 +139,23 @@ export function BlueprintAssistantSettingsModal({
     ) {
       return t('assistant.settings.validation.temperature');
     }
+    if (
+      readOpenAICompatibleCredentialTransportIssue(
+        draft.baseURL.trim(),
+        draft.apiKey.trim() || undefined
+      )
+    ) {
+      return t('assistant.settings.validation.credentialTransport');
+    }
     return '';
-  }, [draft.baseURL, draft.model, draft.provider, draft.temperature, t]);
+  }, [
+    draft.apiKey,
+    draft.baseURL,
+    draft.model,
+    draft.provider,
+    draft.temperature,
+    t,
+  ]);
 
   if (!isOpen) return null;
 
@@ -173,6 +197,9 @@ export function BlueprintAssistantSettingsModal({
 
   const saveSettings = () => {
     if (validationMessage) return;
+    setApiKey(
+      draft.provider === 'openai-compatible' ? draft.apiKey.trim() : ''
+    );
     setSettings(toSettings(draft));
     onClose();
   };
@@ -239,6 +266,9 @@ export function BlueprintAssistantSettingsModal({
                     updateDraft({ apiKey: event.target.value })
                   }
                 />
+                <span className="font-normal text-(--text-muted)">
+                  {t('assistant.settings.apiKeyHint')}
+                </span>
               </label>
               <div className="grid gap-2">
                 <div className="flex items-end gap-2">
@@ -330,7 +360,8 @@ export function BlueprintAssistantSettingsModal({
             className="inline-flex h-9 items-center justify-center gap-2 border-0 bg-transparent px-2 text-sm text-(--text-muted) hover:text-(--text-primary)"
             onClick={() => {
               resetSettings();
-              setDraft(toDraft(createDefaultProdivixAiSettings()));
+              clearApiKey();
+              setDraft(toDraft(createDefaultProdivixAiSettings(), ''));
             }}
           >
             <RotateCcw size={15} />

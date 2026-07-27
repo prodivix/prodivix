@@ -164,6 +164,16 @@ func databaseContext(ctx context.Context) (context.Context, context.CancelFunc) 
 	return context.WithTimeout(ctx, 5*time.Second)
 }
 
+// detachedDatabaseContext keeps request values but drops the caller's cancellation so a
+// disconnecting client cannot suppress a write that must survive the request.
+func detachedDatabaseContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+}
+
+// PutSnapshot addresses an environment by (workspace, environment key). The
+// row's own id is a server-owned storage key that child tables reference; a
+// client-named environment is never a global identifier, so one tenant cannot
+// take "production" away from every other tenant.
 func (store *Store) PutSnapshot(ctx context.Context, rawInput PutSnapshotInput) (*Snapshot, error) {
 	if !store.Available() {
 		return nil, ErrUnavailable
@@ -199,8 +209,8 @@ func (store *Store) PutSnapshot(ctx context.Context, rawInput PutSnapshotInput) 
 	if err := tx.QueryRowContext(ctx, `SELECT owner_id FROM workspaces WHERE id = $1`, input.WorkspaceID).Scan(&workspaceOwner); err != nil || workspaceOwner != input.Principal.PrincipalID {
 		return nil, ErrNotFound
 	}
-	var existingWorkspaceID, existingOwnerID, currentRevision string
-	err = tx.QueryRowContext(ctx, `SELECT workspace_id, owner_id, current_revision FROM execution_environments WHERE id = $1 FOR UPDATE`, input.EnvironmentID).Scan(&existingWorkspaceID, &existingOwnerID, &currentRevision)
+	var storageID, existingOwnerID, currentRevision string
+	err = tx.QueryRowContext(ctx, `SELECT id, owner_id, current_revision FROM execution_environments WHERE workspace_id = $1 AND environment_key = $2 FOR UPDATE`, input.WorkspaceID, input.EnvironmentID).Scan(&storageID, &existingOwnerID, &currentRevision)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -209,25 +219,28 @@ func (store *Store) PutSnapshot(ctx context.Context, rawInput PutSnapshotInput) 
 		if input.ExpectedRevision != "" {
 			return nil, ErrRevisionConflict
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO execution_environments (id, workspace_id, owner_id, mode, current_revision, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)`, input.EnvironmentID, input.WorkspaceID, input.Principal.PrincipalID, input.Mode, revision, now)
+		if storageID, err = randomID("env"); err != nil {
+			return nil, err
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO execution_environments (id, workspace_id, environment_key, owner_id, mode, current_revision, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $7)`, storageID, input.WorkspaceID, input.EnvironmentID, input.Principal.PrincipalID, input.Mode, revision, now)
 	} else {
-		if existingWorkspaceID != input.WorkspaceID || existingOwnerID != input.Principal.PrincipalID {
+		if existingOwnerID != input.Principal.PrincipalID {
 			return nil, ErrNotFound
 		}
 		if input.ExpectedRevision != currentRevision {
 			return nil, ErrRevisionConflict
 		}
-		_, err = tx.ExecContext(ctx, `UPDATE execution_environments SET mode = $1, current_revision = $2, updated_at = $3 WHERE id = $4 AND current_revision = $5`, input.Mode, revision, now, input.EnvironmentID, currentRevision)
+		_, err = tx.ExecContext(ctx, `UPDATE execution_environments SET mode = $1, current_revision = $2, updated_at = $3 WHERE id = $4 AND current_revision = $5`, input.Mode, revision, now, storageID, currentRevision)
 	}
 	if err != nil {
 		return nil, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_revisions (environment_id, revision, public_bindings_json, secret_binding_ids_json, created_by_session_id, created_at) VALUES ($1, $2, $3, $4, $5, $6)`, input.EnvironmentID, revision, publicJSON, secretBindingJSON, input.Principal.SessionID, now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_revisions (environment_id, revision, public_bindings_json, secret_binding_ids_json, created_by_session_id, created_at) VALUES ($1, $2, $3, $4, $5, $6)`, storageID, revision, publicJSON, secretBindingJSON, input.Principal.SessionID, now); err != nil {
 		return nil, err
 	}
 	for _, bindingID := range secretBindingIDs {
 		envelope := envelopesByBindingID[bindingID]
-		if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_secret_materials (environment_id, revision, binding_id, algorithm, key_provider, key_id, wrapped_key_nonce, wrapped_key, nonce, ciphertext) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, input.EnvironmentID, revision, bindingID, envelope.Algorithm, envelope.KeyProvider, envelope.KeyID, envelope.WrappedKeyNonce, envelope.WrappedKey, envelope.Nonce, envelope.Ciphertext); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_secret_materials (environment_id, revision, binding_id, algorithm, key_provider, key_id, wrapped_key_nonce, wrapped_key, nonce, ciphertext) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, storageID, revision, bindingID, envelope.Algorithm, envelope.KeyProvider, envelope.KeyID, envelope.WrappedKeyNonce, envelope.WrappedKey, envelope.Nonce, envelope.Ciphertext); err != nil {
 			return nil, err
 		}
 	}
@@ -255,9 +268,9 @@ func (store *Store) GetSnapshot(ctx context.Context, principal PrincipalSession,
 	defer cancel()
 	var snapshot Snapshot
 	var publicJSON, secretBindingJSON []byte
-	query := `SELECT e.id, e.workspace_id, r.revision, e.mode, r.public_bindings_json, r.secret_binding_ids_json, r.created_at
+	query := `SELECT e.environment_key, e.workspace_id, r.revision, e.mode, r.public_bindings_json, r.secret_binding_ids_json, r.created_at
 		FROM execution_environments e JOIN execution_environment_revisions r ON r.environment_id = e.id
-		WHERE e.id = $1 AND e.workspace_id = $2 AND e.owner_id = $3 AND r.revision = CASE WHEN $4 = '' THEN e.current_revision ELSE $4 END`
+		WHERE e.environment_key = $1 AND e.workspace_id = $2 AND e.owner_id = $3 AND r.revision = CASE WHEN $4 = '' THEN e.current_revision ELSE $4 END`
 	err = store.db.QueryRowContext(ctx, query, environmentID, workspaceID, principal.PrincipalID, revision).Scan(&snapshot.EnvironmentID, &snapshot.WorkspaceID, &snapshot.Revision, &snapshot.Mode, &publicJSON, &secretBindingJSON, &snapshot.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -356,12 +369,13 @@ func (store *Store) IssueGrant(ctx context.Context, rawInput IssueGrantInput) (*
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	var storageID string
 	var storedBindingJSON []byte
-	query := `SELECT r.secret_binding_ids_json FROM execution_environments e
+	query := `SELECT e.id, r.secret_binding_ids_json FROM execution_environments e
 		JOIN execution_environment_revisions r ON r.environment_id = e.id
 		JOIN sessions s ON s.id = $5 AND s.user_id = e.owner_id AND s.expires_at > $6
-		WHERE e.id = $1 AND e.workspace_id = $2 AND e.owner_id = $3 AND r.revision = $4`
-	if err := tx.QueryRowContext(ctx, query, input.EnvironmentID, input.WorkspaceID, input.Principal.PrincipalID, input.Revision, input.Principal.SessionID, now).Scan(&storedBindingJSON); err != nil {
+		WHERE e.environment_key = $1 AND e.workspace_id = $2 AND e.owner_id = $3 AND r.revision = $4`
+	if err := tx.QueryRowContext(ctx, query, input.EnvironmentID, input.WorkspaceID, input.Principal.PrincipalID, input.Revision, input.Principal.SessionID, now).Scan(&storageID, &storedBindingJSON); err != nil {
 		return nil, ErrPermissionDenied
 	}
 	var storedBindingIDs []string
@@ -381,10 +395,10 @@ func (store *Store) IssueGrant(ctx context.Context, rawInput IssueGrantInput) (*
 	if err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO execution_environment_grants (grant_id, environment_id, revision, workspace_id, principal_id, session_id, provider_id, purpose_kind, resource_id, secret_bindings_json, expires_at, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, grantID, input.EnvironmentID, input.Revision, input.WorkspaceID, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, bindingJSON, input.ExpiresAt, now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO execution_environment_grants (grant_id, environment_id, revision, workspace_id, principal_id, session_id, provider_id, purpose_kind, resource_id, secret_bindings_json, expires_at, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, grantID, storageID, input.Revision, input.WorkspaceID, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, bindingJSON, input.ExpiresAt, now); err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO execution_environment_resolution_audit (kind, grant_id, environment_id, revision, workspace_id, principal_id, session_id, provider_id, purpose_kind, resource_id, occurred_at) VALUES ('grant-issued',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, grantID, input.EnvironmentID, input.Revision, input.WorkspaceID, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO execution_environment_resolution_audit (kind, grant_id, environment_id, revision, workspace_id, principal_id, session_id, provider_id, purpose_kind, resource_id, occurred_at) VALUES ('grant-issued',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, grantID, storageID, input.Revision, input.WorkspaceID, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, now); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -420,11 +434,14 @@ func (store *Store) UseSecret(ctx context.Context, input UseSecretInput, consume
 	databaseCtx, cancelDatabase := databaseContext(ctx)
 	var bindingJSON, wrappedKeyNonce, wrappedKey, nonce, ciphertext []byte
 	var algorithm, keyProvider, keyID sql.NullString
+	var storageID string
 	var expiresAt time.Time
-	query := `SELECT g.secret_bindings_json, g.expires_at, m.algorithm, m.key_provider, m.key_id, m.wrapped_key_nonce, m.wrapped_key, m.nonce, m.ciphertext
-		FROM execution_environment_grants g JOIN execution_environment_secret_materials m ON m.environment_id = g.environment_id AND m.revision = g.revision AND m.binding_id = $10
-		WHERE g.grant_id=$1 AND g.workspace_id=$2 AND g.environment_id=$3 AND g.revision=$4 AND g.principal_id=$5 AND g.session_id=$6 AND g.provider_id=$7 AND g.purpose_kind=$8 AND g.resource_id=$9 AND g.revoked_at IS NULL AND g.expires_at > NOW()`
-	err = store.db.QueryRowContext(databaseCtx, query, input.GrantID, input.WorkspaceID, input.EnvironmentID, input.Revision, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, input.BindingID).Scan(&bindingJSON, &expiresAt, &algorithm, &keyProvider, &keyID, &wrappedKeyNonce, &wrappedKey, &nonce, &ciphertext)
+	query := `SELECT e.id, g.secret_bindings_json, g.expires_at, m.algorithm, m.key_provider, m.key_id, m.wrapped_key_nonce, m.wrapped_key, m.nonce, m.ciphertext
+		FROM execution_environment_grants g
+		JOIN execution_environments e ON e.id = g.environment_id AND e.workspace_id = g.workspace_id
+		JOIN execution_environment_secret_materials m ON m.environment_id = g.environment_id AND m.revision = g.revision AND m.binding_id = $10
+		WHERE g.grant_id=$1 AND g.workspace_id=$2 AND e.environment_key=$3 AND g.revision=$4 AND g.principal_id=$5 AND g.session_id=$6 AND g.provider_id=$7 AND g.purpose_kind=$8 AND g.resource_id=$9 AND g.revoked_at IS NULL AND g.expires_at > NOW()`
+	err = store.db.QueryRowContext(databaseCtx, query, input.GrantID, input.WorkspaceID, input.EnvironmentID, input.Revision, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, input.BindingID).Scan(&storageID, &bindingJSON, &expiresAt, &algorithm, &keyProvider, &keyID, &wrappedKeyNonce, &wrappedKey, &nonce, &ciphertext)
 	cancelDatabase()
 	if err != nil {
 		return ErrPermissionDenied
@@ -462,13 +479,15 @@ func (store *Store) UseSecret(ctx context.Context, input UseSecretInput, consume
 		return err
 	}
 	defer clearBytes(material)
-	if err := consumer(material); err != nil {
+	// The audit row is the only durable evidence that plaintext left this store, so it is
+	// written before the consumer can send it anywhere and on a context the caller cannot
+	// cancel. A failed audit write means no material is released at all.
+	auditCtx, cancelAudit := detachedDatabaseContext(ctx)
+	defer cancelAudit()
+	if _, err := store.db.ExecContext(auditCtx, `INSERT INTO execution_environment_resolution_audit (kind, grant_id, environment_id, revision, workspace_id, principal_id, session_id, provider_id, purpose_kind, resource_id, binding_id, field, occurred_at) VALUES ('secret-used',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, input.GrantID, storageID, input.Revision, input.WorkspaceID, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, input.BindingID, input.Field, store.now()); err != nil {
 		return err
 	}
-	auditCtx, cancelAudit := databaseContext(ctx)
-	defer cancelAudit()
-	_, err = store.db.ExecContext(auditCtx, `INSERT INTO execution_environment_resolution_audit (kind, grant_id, environment_id, revision, workspace_id, principal_id, session_id, provider_id, purpose_kind, resource_id, binding_id, field, occurred_at) VALUES ('secret-used',$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, input.GrantID, input.EnvironmentID, input.Revision, input.WorkspaceID, input.Principal.PrincipalID, input.Principal.SessionID, input.ProviderID, input.PurposeKind, input.ResourceID, input.BindingID, input.Field, store.now())
-	return err
+	return consumer(material)
 }
 
 func (store *Store) RevokeGrant(ctx context.Context, grantID string, principal PrincipalSession) error {

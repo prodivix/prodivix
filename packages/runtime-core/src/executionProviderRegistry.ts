@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   ExecutionJob,
   ExecutionProvider,
@@ -90,7 +91,7 @@ export const createExecutionProviderRegistry =
         Object.freeze(
           [...providers.values()]
             .map((provider) => provider.descriptor)
-            .sort((left, right) => left.id.localeCompare(right.id))
+            .sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
         ),
       listCompatibleDescriptors: (request) =>
         Object.freeze(
@@ -101,7 +102,7 @@ export const createExecutionProviderRegistry =
                 getExecutionProviderCompatibility(descriptor, request)
                   .compatible
             )
-            .sort((left, right) => left.id.localeCompare(right.id))
+            .sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
         ),
       start: async (providerId, request) => {
         const normalized = normalizeProviderId(providerId);

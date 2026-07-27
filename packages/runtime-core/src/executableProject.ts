@@ -1,12 +1,12 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   ExecutionProviderCapability,
   ExecutionWorkspaceSnapshotRef,
 } from './execution.types';
 import {
   assertExecutableProjectExactKeys,
-  compareExecutableProjectText,
   cloneExecutableProjectSourceTrace,
   normalizeExecutableProjectCacheHints,
   normalizeExecutableProjectBuildPlan,
@@ -176,9 +176,7 @@ const normalizeFiles = (value: unknown): readonly ExecutableProjectFile[] => {
       ...(sourceTrace ? { sourceTrace } : {}),
     });
   });
-  files.sort((left, right) =>
-    compareExecutableProjectText(left.path, right.path)
-  );
+  files.sort((left, right) => compareUnicodeCodePoints(left.path, right.path));
   const paths = new Set(files.map((file) => file.path));
   files.forEach((file) => {
     const segments = file.path.split('/');

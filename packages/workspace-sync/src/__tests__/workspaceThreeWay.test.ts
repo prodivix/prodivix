@@ -64,6 +64,48 @@ describe('workspace three-way recovery', () => {
     expect(result.snapshot.docsById['document-1']!.contentRev).toBe(4);
   });
 
+  it('keeps a local stable-id reorder when the remote branch only appended', () => {
+    const base = createNodeGraphWorkspace();
+    const local = cloneWorkspace(base);
+    const remote = cloneWorkspace(base);
+    graphContent(local).nodes.reverse();
+    graphContent(remote).nodes.push({
+      id: 'node-c',
+      data: { label: 'C', value: 1 },
+    });
+
+    const result = autoRebaseWorkspaceSnapshots(base, local, remote);
+
+    expect(result).toMatchObject({ ok: true, status: 'rebased' });
+    if (!result.ok) return;
+    expect(graphContent(result.snapshot).nodes.map(({ id }) => id)).toEqual([
+      'node-b',
+      'node-a',
+      'node-c',
+    ]);
+  });
+
+  it('conflicts instead of dropping one side when both branches reorder the same entities', () => {
+    const base = createNodeGraphWorkspace();
+    graphContent(base).nodes.push({
+      id: 'node-c',
+      data: { label: 'C', value: 1 },
+    });
+    const local = cloneWorkspace(base);
+    const remote = cloneWorkspace(base);
+    graphContent(local).nodes.reverse();
+    const remoteNodes = graphContent(remote).nodes;
+    remoteNodes.unshift(remoteNodes.pop()!);
+
+    const result = autoRebaseWorkspaceSnapshots(base, local, remote);
+
+    expect(result).toMatchObject({ ok: false, status: 'conflicted' });
+    if (result.ok || result.status !== 'conflicted') return;
+    expect(result.analysis.conflicts).toContainEqual(
+      expect.objectContaining({ kind: 'structural' })
+    );
+  });
+
   it('merges independent fields when both sides add the same object', () => {
     const base = createWorkspace();
     const baseContent = pirContent(base) as Record<string, unknown>;

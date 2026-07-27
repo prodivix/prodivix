@@ -1,4 +1,5 @@
 import {
+  compareUnicodeCodePoints,
   getWorkspaceOperationCommands,
   resolveWorkspaceCommandDomain,
   type WorkspaceDocument,
@@ -29,17 +30,6 @@ export type CommitWriteSet = {
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === 'object' && !Array.isArray(value));
-
-const compareUnicodeCodePoints = (left: string, right: string): number => {
-  const leftPoints = Array.from(left, (value) => value.codePointAt(0) ?? 0);
-  const rightPoints = Array.from(right, (value) => value.codePointAt(0) ?? 0);
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    const difference = leftPoints[index]! - rightPoints[index]!;
-    if (difference !== 0) return difference;
-  }
-  return leftPoints.length - rightPoints.length;
-};
 
 const markDocument = (
   writeSet: CommitWriteSet,

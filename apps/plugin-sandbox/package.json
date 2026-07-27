@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Dedicated no-cookie static origin for Prodivix plugin runtime and UI sandboxes",
   "scripts": {
+    "lint": "eslint .",
     "build": "node scripts/build.mjs",
     "check:production-dist": "node scripts/check-production-dist.mjs",
     "dev": "pnpm run build && node scripts/serve.mjs --port 4174",

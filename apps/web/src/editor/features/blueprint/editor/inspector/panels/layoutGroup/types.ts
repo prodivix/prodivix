@@ -1,14 +1,17 @@
 import type React from 'react';
-import type { TFunction } from 'i18next';
+import type { useTranslation } from 'react-i18next';
 import type { BlueprintInspectorNodeView } from '../../projection';
 import type { InspectorUpdateNode } from '../types';
+
+/** Bound to the app's own `react-i18next` declaration so layout groups cannot drift from the `t` the panel actually holds. */
+export type LayoutGroupTranslate = ReturnType<typeof useTranslation>['t'];
 
 export type LayoutGroupRenderProps = {
   node: BlueprintInspectorNodeView;
   updateNode: InspectorUpdateNode;
   display: string | undefined;
   isPatternStructureControlled: boolean;
-  t: TFunction;
+  t: LayoutGroupTranslate;
 };
 
 export type LayoutGroupDefinition = {

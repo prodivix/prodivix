@@ -292,6 +292,13 @@ const transportTrace = (error: unknown): ExecutionNetworkTrace | undefined =>
     ? (error as { trace?: ExecutionNetworkTrace }).trace
     : undefined;
 
+/**
+ * Pagination request policy fields (`offsetInput`, `limitInput`) are canonical input
+ * property names, not JSON Pointers: the kernel writes them as top-level keys through
+ * `applyDataPaginationInput` and reads them back the same way in
+ * `validateDataPaginationPage`, so the adapter must resolve them against the effective
+ * input object. Only response-side mappings (`totalPath`, cursor paths) are Pointers.
+ */
 const pageSnapshot = (
   operation: Parameters<DataOperationAdapter['invoke']>[0]['operation'],
   input: DataJsonValue,
@@ -299,23 +306,45 @@ const pageSnapshot = (
 ): DataPageSnapshot | undefined => {
   const policy = operation.policies.pagination;
   if (!policy) return undefined;
-  const readInputInteger = (pointer: string, fallback: number): number => {
-    const candidate = readPointer(input, pointer) ?? fallback;
-    if (!Number.isSafeInteger(candidate) || (candidate as number) < 0)
-      throw new DataGraphqlOperationError(
-        'DATA_GRAPHQL_INPUT_INVALID',
-        'GraphQL pagination input is invalid.'
-      );
-    return candidate as number;
-  };
   if (policy.kind === 'offset') {
     if (!policy.totalPath)
       throw new DataGraphqlOperationError(
         'DATA_GRAPHQL_CONFIGURATION_INVALID',
         'GraphQL offset pagination requires totalPath.'
       );
-    const offset = readInputInteger(policy.offsetInput, 0);
-    const limit = readInputInteger(policy.limitInput, policy.defaultLimit);
+    if (input === null || typeof input !== 'object' || Array.isArray(input))
+      throw new DataGraphqlOperationError(
+        'DATA_GRAPHQL_INPUT_INVALID',
+        'GraphQL pagination input must be an object.'
+      );
+    const record = input as DataJsonObject;
+    const readInputInteger = (
+      name: string,
+      fallback: number,
+      minimum: number,
+      maximum?: number
+    ): number => {
+      const raw = record[name];
+      const candidate = raw === undefined ? fallback : raw;
+      if (
+        typeof candidate !== 'number' ||
+        !Number.isSafeInteger(candidate) ||
+        candidate < minimum ||
+        (maximum !== undefined && candidate > maximum)
+      )
+        throw new DataGraphqlOperationError(
+          'DATA_GRAPHQL_INPUT_INVALID',
+          'GraphQL pagination input is invalid.'
+        );
+      return candidate;
+    };
+    const offset = readInputInteger(policy.offsetInput, 0, 0);
+    const limit = readInputInteger(
+      policy.limitInput,
+      policy.defaultLimit,
+      1,
+      policy.maxLimit
+    );
     const total = readPointer(value, policy.totalPath);
     if (!Number.isSafeInteger(total) || (total as number) < 0)
       throw new DataGraphqlOperationError(

@@ -423,7 +423,7 @@ func (gateway *DataGateway) invokeProtocol(ctx context.Context, principal backen
 		if gateway.replays == nil {
 			return nil, ErrDataGatewayUnavailable
 		}
-		replayKey = DataGatewayMutationReplayKey{ExecutionID: executionID, DocumentID: documentID, OperationID: operation.ID, InvocationID: invocation.InvocationID, Sequence: invocation.Sequence}
+		replayKey = DataGatewayMutationReplayKey{ExecutionID: executionID, DocumentID: documentID, OperationID: operation.ID, InvocationID: invocation.InvocationID, Sequence: invocation.Sequence, Adapter: plan.adapter}
 		replayHash, err = dataGatewayMutationReplayHash(authority, document, operation, documentID, invocation, plan.request.URL, plan.request.Method, input)
 		if err != nil {
 			return nil, err

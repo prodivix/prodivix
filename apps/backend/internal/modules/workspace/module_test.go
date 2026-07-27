@@ -3,6 +3,8 @@ package workspace
 import (
 	"encoding/json"
 	"testing"
+
+	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
 )
 
 func TestResolveWorkspacePublicationPIRPrefersRootPage(t *testing.T) {
@@ -13,7 +15,7 @@ func TestResolveWorkspacePublicationPIRPrefersRootPage(t *testing.T) {
 		{ID: "page-root", Type: WorkspaceDocumentTypePIRPage, Path: "/pir.json", Content: root},
 	}}
 
-	resolved, ok := ResolveWorkspacePublicationPIR(snapshot)
+	resolved, ok := ResolveWorkspacePublicationPIR(backendproject.ResourceTypeProject, snapshot)
 	if !ok {
 		t.Fatal("expected publication PIR document")
 	}
@@ -27,7 +29,7 @@ func TestResolveWorkspacePublicationPIRRejectsNonPIRDocuments(t *testing.T) {
 		{ID: "code-index", Type: WorkspaceDocumentTypeCode, Path: "/code/index.ts", Content: json.RawMessage(`{"language":"ts","source":""}`)},
 	}}
 
-	if _, ok := ResolveWorkspacePublicationPIR(snapshot); ok {
+	if _, ok := ResolveWorkspacePublicationPIR(backendproject.ResourceTypeProject, snapshot); ok {
 		t.Fatal("expected workspace without a PIR page to be rejected")
 	}
 }

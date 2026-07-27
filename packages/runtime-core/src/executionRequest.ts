@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   EXECUTION_INVOCATION_KINDS,
   EXECUTION_PROFILES,
@@ -65,7 +66,7 @@ const normalizeStringRecord = (
       normalizeIdentifier(key, `${label} key`),
       normalizeIdentifier(entryValue, `${label}.${key}`),
     ])
-    .sort(([left], [right]) => left.localeCompare(right));
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right));
   return Object.freeze(Object.fromEntries(entries));
 };
 

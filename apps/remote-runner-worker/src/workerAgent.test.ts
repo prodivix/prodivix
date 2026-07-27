@@ -4,9 +4,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createExecutableProjectSnapshot,
+  createExecutionFilesystemDiff,
   createExecutionProviderDescriptor,
   createExecutionRequest,
   createExecutionTestReport,
+  encodeExecutionFilesystemDiff,
+  EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   toExecutionTestReportValue,
 } from '@prodivix/runtime-core';
 import {
@@ -245,6 +248,39 @@ describe('remote runner worker', () => {
             kind: 'report',
             mediaType: 'application/vnd.prodivix.test-report+json',
             contents: Buffer.from('worker-secret-canary'),
+          },
+        ],
+      },
+    },
+    {
+      surface: 'artifact-content encoded inside a filesystem diff',
+      result: {
+        status: 'succeeded',
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        artifacts: [
+          {
+            artifactId: `filesystem-diff:${snapshot.contentDigest}`,
+            kind: 'report',
+            mediaType: EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
+            contents: encodeExecutionFilesystemDiff(
+              createExecutionFilesystemDiff({
+                snapshotDigest: snapshot.contentDigest,
+                workspace: snapshot.workspace,
+                capturedAt: 1,
+                complete: true,
+                changes: [
+                  {
+                    kind: 'added',
+                    path: 'debug.log',
+                    runtime: {
+                      contents: Buffer.from('token=worker-secret-canary'),
+                    },
+                  },
+                ],
+              })
+            ),
           },
         ],
       },

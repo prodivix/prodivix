@@ -26,6 +26,7 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run check:generated:raw && pnpm run clean && tsc -p tsconfig.json",
     "check:generated": "pnpm --filter @prodivix/plugin-contracts build && pnpm --filter @prodivix/plugin-package build && pnpm run check:generated:raw",
     "check:generated:raw": "node ../../scripts/plugin-artifacts/generate-bundled-plugin-artifact.mjs --package-root . --check",

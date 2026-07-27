@@ -10,7 +10,6 @@ import {
   buildNodeContainerClass,
   NODE_ICON_BUTTON_CLASS,
   NODE_REMOVE_BUTTON_CLASS,
-  NODE_TEXT_INPUT_CLASS,
   NodeHeader,
   SelectField,
 } from './nodePrimitives';

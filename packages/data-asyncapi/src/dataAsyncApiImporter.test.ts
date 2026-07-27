@@ -130,6 +130,31 @@ describe('AsyncAPI 3.0 finite Data import proposal', () => {
     );
   });
 
+  it('returns a blocked proposal instead of throwing for non-canonical operation keys', () => {
+    const whitespace = spec();
+    (
+      whitespace as unknown as { operations: Record<string, unknown> }
+    ).operations = {
+      ' sendProduct': {
+        action: 'send',
+        channel: { $ref: '#/channels/productEvents' },
+        messages: [
+          { $ref: '#/channels/productEvents/messages/ProductCreated' },
+        ],
+      },
+    };
+
+    const proposal = propose({ spec: whitespace });
+    expect(proposal.status).toBe('invalid');
+    expect(
+      proposal.issues.filter(
+        (entry) =>
+          entry.code === DATA_ASYNCAPI_IMPORT_ISSUE_CODES.invalidDocument &&
+          entry.path === '/operations/ sendProduct'
+      )
+    ).toHaveLength(1);
+  });
+
   it('requires exact impact approval when a managed message schema changes', () => {
     const initial = propose();
     expect(initial.status).toBe('ready');

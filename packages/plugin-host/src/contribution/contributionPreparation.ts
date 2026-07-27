@@ -474,7 +474,10 @@ export const prepareValidatedContributions = async <
       const cleanup = await disposePrepared(preparedEntries, context);
       try {
         await preparedResult.value.dispose?.();
-      } catch {}
+      } catch {
+        // Best-effort cleanup of the contribution that is already being rejected;
+        // its own failure must not replace the rejection diagnostic below.
+      }
       return pluginHostFailure([
         createPluginDiagnostic(
           PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_RESOLVER_FAILED,
@@ -491,7 +494,10 @@ export const prepareValidatedContributions = async <
       const cleanup = await disposePrepared(preparedEntries, context);
       try {
         await preparedResult.value.dispose?.();
-      } catch {}
+      } catch {
+        // Best-effort cleanup of the contribution that is already being rejected;
+        // its own failure must not replace the rejection diagnostic below.
+      }
       return pluginHostFailure([
         createPluginDiagnostic(
           PLUGIN_DIAGNOSTIC_CODES.CONTRIBUTION_RESOLVER_FAILED,

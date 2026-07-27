@@ -118,11 +118,17 @@ export type LayoutPatternDefinition<
   category: LayoutPatternCategory;
   description?: string;
   schema: TSchema;
-  build: (
+  /**
+   * `build` and `update` are declared as methods so a schema-specific definition
+   * stays assignable to the erased `LayoutPatternDefinition` the registry stores.
+   * The registry always derives `resolvedParams` from the same definition's own
+   * `schema`, so the erased call site can never hand a pattern foreign params.
+   */
+  build(
     context: LayoutPatternBuildContext<TSchema>
-  ) => BlueprintInspectorNodeView;
-  update: (
+  ): BlueprintInspectorNodeView;
+  update(
     root: BlueprintInspectorNodeView,
     context: LayoutPatternUpdateContext<TSchema>
-  ) => BlueprintInspectorNodeView;
+  ): BlueprintInspectorNodeView;
 };

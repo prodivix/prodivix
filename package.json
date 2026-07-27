@@ -87,7 +87,8 @@
     "test:web": "pnpm --filter @prodivix/web test",
     "test:web:watch": "pnpm --filter @prodivix/web test:watch",
     "test:web:coverage": "pnpm --filter @prodivix/web test:coverage",
-    "lint": "turbo run lint && pnpm run check:core-boundaries && pnpm run check:editor-hard-cut && pnpm run check:pir-current-boundary && pnpm run check:nodegraph-wire-contract && pnpm run check:property-test-names",
+    "lint": "eslint . && pnpm run check:lint-coverage && pnpm run check:core-boundaries && pnpm run check:editor-hard-cut && pnpm run check:pir-current-boundary && pnpm run check:nodegraph-wire-contract && pnpm run check:property-test-names",
+    "check:lint-coverage": "node scripts/check-lint-coverage.mjs",
     "check:core-boundaries": "node scripts/check-core-package-boundaries.mjs",
     "check:editor-hard-cut": "node scripts/check-editor-hard-cut.mjs",
     "check:pir-current-boundary": "node scripts/check-pir-current-boundary.mjs",
@@ -122,13 +123,18 @@
     "tw:migrate:check": "git diff --stat"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.61.1",
     "cross-env": "^10.1.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "husky": "^9.1.7",
     "prettier": "^3.9.4",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "turbo": "^2.10.2",
     "tsx": "^4.22.4",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.62.1"
   }
 }

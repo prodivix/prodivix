@@ -28,6 +28,7 @@ import {
   headerCollapseButtonClassName,
   rightCollapsedButtonClassName,
 } from '../collapseButtonStyles';
+import { useAiCredentialStore } from '@/ai/aiCredentialStore';
 import { useAiSettingsStore } from '@/ai/aiSettingsStore';
 import { BlueprintAssistantSettingsModal } from './BlueprintAssistantSettingsModal';
 
@@ -346,6 +347,7 @@ export function BlueprintAssistantPanel({
     []
   );
   const settings = useAiSettingsStore((state) => state.settings);
+  const apiKey = useAiCredentialStore((state) => state.apiKey);
   const contextPreview = useMemo(
     () => [
       { label: t('assistant.context.route'), value: currentPath },
@@ -384,6 +386,7 @@ export function BlueprintAssistantPanel({
     );
     const provider = createProdivixAiProvider({
       settings,
+      apiKey: apiKey.trim() || undefined,
       fetcher:
         settings.provider === 'openai-compatible'
           ? async (input, init) => {

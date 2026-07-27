@@ -1,7 +1,8 @@
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { useInspectorContext } from '@/editor/features/blueprint/editor/inspector/InspectorContext';
+import { useFocusGuardedDraft } from '@/editor/drafts/useFocusGuardedDraft';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -22,10 +23,12 @@ export function InspectorDataScopeFields() {
   const panelKey = 'basic-data-model';
   const isExpanded = expandedPanels[panelKey] ?? true;
 
-  const mountedDataModel = useMemo(() => {
+  // Serialized up front: the node view is rebuilt on every Workspace snapshot,
+  // so only the text itself is a stable reason to re-seed the textareas.
+  const mountedDataModelText = useMemo(() => {
     const data = selectedNodeData;
     if (isPlainObject(data?.value)) {
-      return data.value;
+      return asSchemaText(data.value);
     }
     const extendModel = data?.extend;
     if (
@@ -33,36 +36,34 @@ export function InspectorDataScopeFields() {
       typeof extendModel === 'object' &&
       !Array.isArray(extendModel)
     ) {
-      return extendModel;
+      return asSchemaText(extendModel);
     }
-    return {};
+    return asSchemaText({});
   }, [selectedNodeData]);
-  const mountedMockData = useMemo(() => {
+  const mountedMockDataText = useMemo(() => {
     const data = selectedNodeData;
     if (data?.mock !== undefined) {
-      return data.mock;
+      return asSchemaText(data.mock);
     }
     if (Array.isArray(data?.value)) {
-      return data.value;
+      return asSchemaText(data.value);
     }
-    return {};
+    return asSchemaText({});
   }, [selectedNodeData]);
-  const [schemaDraft, setSchemaDraft] = useState(
-    asSchemaText(mountedDataModel)
-  );
-  const [mockDraft, setMockDraft] = useState(asSchemaText(mountedMockData));
+  const [schemaDraft, setSchemaDraft] = useState(mountedDataModelText);
+  const [mockDraft, setMockDraft] = useState(mountedMockDataText);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [mockError, setMockError] = useState<string | null>(null);
   const isMounted = selectedNodeData !== undefined;
 
-  useEffect(() => {
-    setSchemaDraft(asSchemaText(mountedDataModel));
+  const schemaEditing = useFocusGuardedDraft(mountedDataModelText, (text) => {
+    setSchemaDraft(text);
     setSchemaError(null);
-  }, [mountedDataModel]);
-  useEffect(() => {
-    setMockDraft(asSchemaText(mountedMockData));
+  });
+  const mockEditing = useFocusGuardedDraft(mountedMockDataText, (text) => {
+    setMockDraft(text);
     setMockError(null);
-  }, [mountedMockData]);
+  });
 
   if (!selectedNode) return null;
 
@@ -217,7 +218,11 @@ export function InspectorDataScopeFields() {
                       setSchemaDraft(event.target.value);
                       setSchemaError(null);
                     }}
-                    onBlur={applySchemaDraft}
+                    onFocus={schemaEditing.beginEditing}
+                    onBlur={() => {
+                      schemaEditing.endEditing();
+                      applySchemaDraft();
+                    }}
                   />
                 }
               />
@@ -247,7 +252,11 @@ export function InspectorDataScopeFields() {
                       setMockDraft(event.target.value);
                       setMockError(null);
                     }}
-                    onBlur={applyMockDraft}
+                    onFocus={mockEditing.beginEditing}
+                    onBlur={() => {
+                      mockEditing.endEditing();
+                      applyMockDraft();
+                    }}
                   />
                 }
               />

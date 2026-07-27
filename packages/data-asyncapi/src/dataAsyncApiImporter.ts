@@ -1,8 +1,8 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import {
+  decodeCurrentDataSourceDocument,
   JSON_SCHEMA_2020_12_URI,
-  normalizeDataSourceDocument,
   type DataConfigurationValue,
   type DataImportEntityMapping,
   type DataImportProvenance,
@@ -529,6 +529,18 @@ const compileProjection = (
   const operations = new Map<string, ImportedEntity<DataOperation>>();
   for (const operationId of Object.keys(operationsRecord).sort(compare)) {
     const path = `/operations/${pointerSegment(operationId)}`;
+    // Schema and operation names are derived from this key verbatim, so a
+    // non-canonical key must be rejected with its own path instead of surfacing
+    // later as an unattributable canonical-contract rejection of the projection.
+    if (!canonical(operationId)) {
+      issue(
+        issues,
+        DATA_ASYNCAPI_IMPORT_ISSUE_CODES.invalidDocument,
+        path,
+        'AsyncAPI operation keys must be canonical strings.'
+      );
+      continue;
+    }
     const operation = resolveLocalRef(
       root,
       operationsRecord[operationId],
@@ -827,18 +839,17 @@ export const createDataAsyncApiImportProposal = (
       );
   let current: DataSourceDocument | undefined;
   if (input.currentDocument) {
-    try {
-      current = normalizeDataSourceDocument(input.currentDocument, {
-        documentId: input.documentId,
-      });
-    } catch {
+    const decoded = decodeCurrentDataSourceDocument(input.currentDocument, {
+      documentId: input.documentId,
+    });
+    if (decoded.ok) current = decoded.value;
+    else
       issue(
         issues,
         DATA_ASYNCAPI_IMPORT_ISSUE_CODES.targetDrift,
         '/@currentDocument',
         'Current Data document is not canonical.'
       );
-    }
   }
   const previous = current?.importProvenanceById?.[input.importId];
   if (current && !previous)
@@ -882,7 +893,7 @@ export const createDataAsyncApiImportProposal = (
     operationsByExternalId: mappings(projection.operations),
   });
   if (!current || !previous) {
-    const document = normalizeDataSourceDocument(
+    const decoded = decodeCurrentDataSourceDocument(
       {
         source: projection.source,
         schemasById: Object.freeze(
@@ -905,6 +916,23 @@ export const createDataAsyncApiImportProposal = (
       },
       { documentId: input.documentId }
     );
+    if (!decoded.ok) {
+      issue(
+        issues,
+        DATA_ASYNCAPI_IMPORT_ISSUE_CODES.invalidDocument,
+        '/@proposal',
+        'Imported AsyncAPI projection does not satisfy the canonical Data source contract.'
+      );
+      return blocked(
+        'invalid',
+        target,
+        issues,
+        changes,
+        schemaImpact,
+        operationImpact
+      );
+    }
+    const document = decoded.value;
     changes.push(
       Object.freeze({
         entity: 'source',
@@ -1191,7 +1219,7 @@ export const createDataAsyncApiImportProposal = (
       operationImpact
     );
   }
-  const document = normalizeDataSourceDocument(
+  const decoded = decodeCurrentDataSourceDocument(
     {
       source,
       schemasById: Object.freeze(schemasById),
@@ -1203,6 +1231,23 @@ export const createDataAsyncApiImportProposal = (
     },
     { documentId: input.documentId }
   );
+  if (!decoded.ok) {
+    issue(
+      issues,
+      DATA_ASYNCAPI_IMPORT_ISSUE_CODES.invalidDocument,
+      '/@proposal',
+      'AsyncAPI reimport projection does not satisfy the canonical Data source contract.'
+    );
+    return blocked(
+      'invalid',
+      target,
+      issues,
+      changes,
+      schemaImpact,
+      operationImpact
+    );
+  }
+  const document = decoded.value;
   return Object.freeze({
     status: 'ready',
     target,

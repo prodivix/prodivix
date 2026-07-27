@@ -146,7 +146,7 @@ const prodivixSerializeConsoleValue = (
     if (prototype !== Object.prototype && prototype !== null) return '[Unsupported object]';
     const descriptors = Object.getOwnPropertyDescriptors(value);
     const entries = Object.entries(descriptors)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
       .slice(0, PRODIVIX_CONSOLE_MAX_ENTRIES);
     budget.truncated ||= entries.length !== Object.keys(descriptors).length;
     return Object.freeze(

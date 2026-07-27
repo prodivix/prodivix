@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   ExecutionCancellationRequest,
   ExecutionCancellationResult,
@@ -528,7 +529,9 @@ export const createExecutionSessionCoordinator = (
       Object.freeze(
         [...sessions.values()]
           .map((session) => session.snapshot)
-          .sort((left, right) => left.sessionId.localeCompare(right.sessionId))
+          .sort((left, right) =>
+            compareUnicodeCodePoints(left.sessionId, right.sessionId)
+          )
       ),
     subscribe: (listener) => {
       listeners.add(listener);
@@ -587,6 +590,7 @@ export const createExecutionSessionCoordinator = (
         revision: session.snapshot.revision + 1,
         events: projected.events,
         observations: projected.observations,
+        consoleObservations: projected.consoleObservations,
         updatedAt: Math.max(
           session.snapshot.updatedAt ?? observedAt,
           observedAt

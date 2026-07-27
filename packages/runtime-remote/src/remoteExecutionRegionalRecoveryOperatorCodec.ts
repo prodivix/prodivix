@@ -1,4 +1,5 @@
 import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import {
   REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_FORMAT,
   REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_LIMITS,
@@ -8,15 +9,6 @@ import {
 
 const maximumRequestBytes = 64 * 1_024;
 const canonicalIdentifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
-
-const stableJson = (value: unknown): string => {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  return `{${Object.entries(value as Readonly<Record<string, unknown>>)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
-    .join(',')}}`;
-};
 
 const record = (
   value: unknown
@@ -116,4 +108,6 @@ export const decodeRemoteExecutionRegionalRecoveryOperatorRequest = (
 export const encodeRemoteExecutionRegionalRecoveryOperatorRequest = (
   request: RemoteExecutionRegionalRecoveryOperatorRequest
 ): string =>
-  `${stableJson(readRemoteExecutionRegionalRecoveryOperatorRequest(request))}\n`;
+  `${canonicalJsonText(
+    readRemoteExecutionRegionalRecoveryOperatorRequest(request)
+  )}\n`;

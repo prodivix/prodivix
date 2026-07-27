@@ -1,5 +1,6 @@
 import { validatePirDocument } from '@prodivix/pir';
 import { isDataSourceDocument } from '@prodivix/data';
+import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceDocument,
   WorkspaceDocumentType,
@@ -104,17 +105,6 @@ export const isCanonicalWorkspaceDocumentUpdatedAt = (
     offsetHour <= 23 &&
     offsetMinute <= 59
   );
-};
-
-const compareUnicodeCodePoints = (left: string, right: string): number => {
-  const leftPoints = Array.from(left, (value) => value.codePointAt(0) ?? 0);
-  const rightPoints = Array.from(right, (value) => value.codePointAt(0) ?? 0);
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    const difference = leftPoints[index]! - rightPoints[index]!;
-    if (difference !== 0) return difference;
-  }
-  return leftPoints.length - rightPoints.length;
 };
 
 export const isCanonicalPirDocumentContent = (content: unknown): boolean => {

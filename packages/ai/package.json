@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "lint": "eslint .",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },

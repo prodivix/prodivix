@@ -15,17 +15,26 @@ const content = (workspace: ReturnType<typeof createWorkspace>) =>
   >;
 
 describe('workspace semantic diff', () => {
-  it('ignores stable node and edge array reorder', () => {
+  it('reports a stable node array reorder on the collection without per-entity noise', () => {
     const base = createNodeGraphWorkspace();
     const reordered = cloneWorkspace(base);
     content(reordered).nodes.reverse();
-    content(reordered).edges.reverse();
 
     const result = diffWorkspaceSnapshots(base, reordered);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.changeSet.changes).toEqual([]);
+    expect(result.changeSet.changes).toEqual([
+      expect.objectContaining({
+        kind: 'modify',
+        target: expect.objectContaining({
+          documentId: 'document-1',
+          path: '/nodesById',
+        }),
+        base: { present: true, value: ['node-a', 'node-b'] },
+        next: { present: true, value: ['node-b', 'node-a'] },
+      }),
+    ]);
   });
 
   it('addresses standalone changes by document-owned node and edge ids', () => {

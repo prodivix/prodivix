@@ -131,6 +131,14 @@ yes_no() {
   [[ "$value" == "y" || "$value" == "Y" || "$value" == "yes" || "$value" == "YES" ]]
 }
 
+# The deployment env file holds the Postgres password in clear text, so it is created
+# owner-only from the first byte instead of inheriting the operator's umask.
+create_private_env_file() {
+  rm -f "$ENV_FILE"
+  (umask 077 && : >"$ENV_FILE")
+  chmod 600 "$ENV_FILE"
+}
+
 write_env_file() {
   local ghcr_namespace="$1"
   local image_tag="$2"
@@ -145,6 +153,7 @@ write_env_file() {
   local token_ttl="${11}"
   local timezone="${12}"
 
+  create_private_env_file
   cat >"$ENV_FILE" <<EOF
 GHCR_NAMESPACE=$ghcr_namespace
 IMAGE_TAG=$image_tag
@@ -160,6 +169,7 @@ BACKEND_TOKEN_TTL=$token_ttl
 BACKEND_DB_MAX_OPEN_CONNS=10
 BACKEND_DB_MAX_IDLE_CONNS=5
 BACKEND_DB_MAX_LIFETIME=30m
+BACKEND_DB_MIGRATION_TIMEOUT=2m
 
 WEB_PORT=$web_port
 SANDBOX_PORT=$sandbox_port
@@ -205,7 +215,8 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
 fi
 
 if [[ ! -f "$ENV_FILE" && -f "$ENV_EXAMPLE_FILE" ]]; then
-  cp "$ENV_EXAMPLE_FILE" "$ENV_FILE"
+  create_private_env_file
+  cat "$ENV_EXAMPLE_FILE" >"$ENV_FILE"
 fi
 
 current_namespace="$(load_env_value GHCR_NAMESPACE "$DEFAULT_GHCR_NAMESPACE" "$ENV_FILE")"

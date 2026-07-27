@@ -76,6 +76,71 @@ describe('GraphQL Data import proposal', () => {
     });
   });
 
+  it('returns a blocked proposal instead of throwing for non-canonical entry labels', () => {
+    const base = bundle();
+    for (const [key, value] of [
+      ['name', 'Get Products '],
+      ['description', ' padded '],
+    ] as const) {
+      const proposal = propose({
+        bundle: {
+          ...base,
+          operations: [{ ...base.operations[0]!, [key]: value }],
+        },
+      });
+      expect(proposal.status).toBe('invalid');
+      expect(
+        proposal.issues.filter(
+          (entry) =>
+            entry.code === DATA_GRAPHQL_IMPORT_ISSUE_CODES.invalidDocument &&
+            entry.path === `/operations/0/${key}`
+        )
+      ).toHaveLength(1);
+    }
+  });
+
+  it('imports an operation whose empty description never projects', () => {
+    // The projection drops falsy descriptions, so an empty string is absence,
+    // not an invalid label — blocking it would reject an import that succeeds.
+    const base = bundle();
+    const proposal = propose({
+      bundle: {
+        ...base,
+        operations: [{ ...base.operations[0]!, description: '' }],
+      },
+    });
+    if (proposal.status !== 'ready') {
+      throw new Error(`empty description blocked the import: ${proposal.status}`);
+    }
+    Object.values(proposal.document.operationsById).forEach((operation) =>
+      expect(operation.description).toBeUndefined()
+    );
+  });
+
+  it('returns a blocked proposal instead of throwing for prototype-shadowing variables', () => {
+    const base = bundle();
+    const proposal = propose({
+      bundle: {
+        ...base,
+        operations: [
+          {
+            document:
+              'query Products($__proto__: Int!) { products(limit: $__proto__) { id name } }',
+            operationName: 'Products',
+          },
+        ],
+      },
+    });
+
+    expect(proposal.status).toBe('invalid');
+    expect(
+      proposal.issues.some(
+        (entry) =>
+          entry.code === DATA_GRAPHQL_IMPORT_ISSUE_CODES.invalidDocument
+      )
+    ).toBe(true);
+  });
+
   it('keeps subscriptions fail closed with a stable unsupported issue', () => {
     const proposal = propose({
       bundle: {

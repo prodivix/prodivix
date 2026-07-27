@@ -3,7 +3,12 @@ import {
   buildCodeResourceTreeFromWorkspaceVfs,
   flattenCodeResourceFiles,
 } from '@/editor/features/code/workspaceCodeArtifacts';
-import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import { resolveCodeArtifactDeletion } from '@/editor/features/code/codeAuthoringModel';
+import type { CodeArtifact } from '@prodivix/authoring';
+import type {
+  WorkspaceCodeArtifactLifecycleProjectionResult,
+  WorkspaceSnapshot,
+} from '@prodivix/workspace';
 
 describe('code resource Workspace VFS projection', () => {
   it('keeps every canonical code document visible regardless of root folder', () => {
@@ -108,5 +113,58 @@ describe('code resource Workspace VFS projection', () => {
       { id: 'theme', path: 'code/theme/tokens.css' },
     ]);
     expect(tree.children?.map(({ name }) => name)).toEqual(['src', 'theme']);
+  });
+});
+
+describe('code artifact deletion guard', () => {
+  const readyProjection = (
+    status: 'active' | 'workspace-module'
+  ): WorkspaceCodeArtifactLifecycleProjectionResult => ({
+    status: 'ready',
+    records: [
+      {
+        artifact: { id: 'handler' } as CodeArtifact,
+        lifecycle:
+          status === 'active'
+            ? { status: 'active', bindings: [] }
+            : { status: 'workspace-module' },
+      },
+    ],
+  });
+
+  it('allows deleting an artifact that no CodeSlot binds', () => {
+    expect(
+      resolveCodeArtifactDeletion(readyProjection('workspace-module'), [
+        'handler',
+      ])
+    ).toEqual({ status: 'allowed' });
+  });
+
+  it('blocks deleting an artifact that an active CodeSlot binds', () => {
+    expect(
+      resolveCodeArtifactDeletion(readyProjection('active'), ['handler'])
+    ).toEqual({ status: 'blocked', reason: 'active-binding' });
+  });
+
+  it('blocks deletion while the lifecycle projection cannot be built', () => {
+    expect(
+      resolveCodeArtifactDeletion(
+        {
+          status: 'blocked',
+          issues: [
+            {
+              code: 'WKS_SEMANTIC_INDEX_DOCUMENT_INVALID',
+              path: '/docsById/config',
+              message: 'Invalid external adapter config.',
+            },
+          ],
+        },
+        ['handler']
+      )
+    ).toEqual({ status: 'blocked', reason: 'projection-unavailable' });
+    expect(resolveCodeArtifactDeletion(null, ['handler'])).toEqual({
+      status: 'blocked',
+      reason: 'projection-unavailable',
+    });
   });
 });

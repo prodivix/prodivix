@@ -1,3 +1,7 @@
+import {
+  canonicalJsonText,
+  compareUnicodeCodePoints,
+} from '@prodivix/shared/canonical';
 import type {
   DiagnosticIssue,
   DiagnosticIssueCollectionState,
@@ -22,21 +26,8 @@ const SEVERITY_RANK: Record<ProdivixDiagnosticSeverity, number> = {
   info: 1,
 };
 
-const stableSerialize = (value: unknown): string => {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value) ?? 'undefined';
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map(stableSerialize).join(',')}]`;
-  }
-
-  return `{${Object.entries(value as Record<string, unknown>)
-    .filter(([, entry]) => entry !== undefined)
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${stableSerialize(entry)}`)
-    .join(',')}}`;
-};
+const stableSerialize = (value: unknown): string =>
+  canonicalJsonText(value) ?? 'undefined';
 
 const readProtocolPath = (
   diagnostic: ProdivixDiagnostic
@@ -88,7 +79,8 @@ const compareDiagnostic = (
     targetRef: diagnostic.targetRef,
   });
 
-  return stableSerialize(comparable(left)).localeCompare(
+  return compareUnicodeCodePoints(
+    stableSerialize(comparable(left)),
     stableSerialize(comparable(right))
   );
 };
@@ -106,13 +98,19 @@ const compareIssue = (
     SEVERITY_RANK[left.diagnostic.severity];
   if (severity !== 0) return severity;
 
-  const domain = left.diagnostic.domain.localeCompare(right.diagnostic.domain);
+  const domain = compareUnicodeCodePoints(
+    left.diagnostic.domain,
+    right.diagnostic.domain
+  );
   if (domain !== 0) return domain;
 
-  const code = left.diagnostic.code.localeCompare(right.diagnostic.code);
+  const code = compareUnicodeCodePoints(
+    left.diagnostic.code,
+    right.diagnostic.code
+  );
   if (code !== 0) return code;
 
-  return left.fingerprint.localeCompare(right.fingerprint);
+  return compareUnicodeCodePoints(left.fingerprint, right.fingerprint);
 };
 
 type MutableIssue = {
@@ -178,7 +176,7 @@ const rebuildIssues = (
 
   for (const [fingerprint, groupedIssue] of grouped) {
     groupedIssue.sources.sort((left, right) =>
-      left.providerId.localeCompare(right.providerId)
+      compareUnicodeCodePoints(left.providerId, right.providerId)
     );
     groupedIssue.diagnostics.sort(compareDiagnostic);
     const previous = previousByFingerprint.get(fingerprint);
@@ -290,7 +288,9 @@ export const upsertDiagnosticProviderSnapshot = (
       (candidate) => candidate.providerId !== snapshot.providerId
     ),
     snapshot,
-  ].sort((left, right) => left.providerId.localeCompare(right.providerId));
+  ].sort((left, right) =>
+    compareUnicodeCodePoints(left.providerId, right.providerId)
+  );
   const nextState: DiagnosticIssueCollectionState = {
     ...state,
     revision,

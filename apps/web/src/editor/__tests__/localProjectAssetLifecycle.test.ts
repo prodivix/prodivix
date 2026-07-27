@@ -37,7 +37,10 @@ describe('local project Binary Asset lifecycle', () => {
         ...project.workspace.treeById,
         root: {
           ...project.workspace.treeById.root,
-          children: [...project.workspace.treeById.root.children, 'dir-public'],
+          children: [
+            ...(project.workspace.treeById.root?.children ?? []),
+            'dir-public',
+          ],
         },
         'dir-public': {
           id: 'dir-public',

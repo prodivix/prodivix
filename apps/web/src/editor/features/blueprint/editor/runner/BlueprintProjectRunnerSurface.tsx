@@ -18,6 +18,7 @@ import {
   readBlueprintRemoteServerFunctionBridgeCancellation,
   readBlueprintRemoteServerFunctionBridgeMessage,
 } from '@/editor/features/blueprint/editor/runner/blueprintProjectNetworkBridge';
+import type { BlueprintProjectRunProvider } from '@/editor/features/blueprint/editor/runner/blueprintProjectRunnerClient';
 import {
   cancelBlueprintProjectRemoteServerFunctionBridge,
   cancelBlueprintProjectRemoteDataStream,
@@ -51,6 +52,21 @@ export const resolveProjectPreviewUrl = (
   url.hash = '';
   return url.href;
 };
+
+/**
+ * Sandbox attribute mounted on the preview iframe. Both providers keep
+ * `allow-same-origin` so the preview document retains its own tuple origin: the
+ * bridge decoders in `blueprintProjectNetworkBridge` authenticate frame messages by
+ * exact `event.origin`, and replies are targeted at that same origin. The Remote
+ * capability origin drops every other capability because its document is untrusted
+ * compiled output served from a per-session origin.
+ */
+export const resolveProjectPreviewSandbox = (
+  provider: BlueprintProjectRunProvider
+): string =>
+  provider === 'remote'
+    ? 'allow-same-origin allow-scripts'
+    : 'allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts';
 
 export const isBlueprintProjectRunnerSnapshotStale = (
   state: BlueprintProjectRunnerState
@@ -208,11 +224,7 @@ export function BlueprintProjectRunnerSurface({
           className="h-full w-full border-0 bg-white"
           src={iframeUrl}
           title={t('runner.previewTitle')}
-          sandbox={
-            state.provider === 'remote'
-              ? 'allow-same-origin allow-scripts'
-              : 'allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts'
-          }
+          sandbox={resolveProjectPreviewSandbox(state.provider ?? 'browser')}
           allow={
             state.provider === 'remote'
               ? undefined

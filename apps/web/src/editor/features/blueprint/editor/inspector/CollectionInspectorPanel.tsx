@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, CircleAlert } from 'lucide-react';
 import type {
   DataOperationInputBinding,
@@ -20,6 +20,7 @@ import type {
   CollectionInspectorRegionName,
   CollectionInspectorSymbolRole,
 } from './domain/collectionInspectorModel';
+import { useFocusGuardedDraft } from '@/editor/drafts/useFocusGuardedDraft';
 
 export type CollectionInspectorRegionNavigation = Readonly<{
   documentId: string;
@@ -182,7 +183,6 @@ export function CollectionInspectorPanel({
   );
   const [literalDraft, setLiteralDraft] = useState(literalSourceText);
   const [literalError, setLiteralError] = useState<string>();
-  const literalEditingRef = useRef(false);
   const [resultPathDraft, setResultPathDraft] = useState(
     operationBinding?.path ?? ''
   );
@@ -195,11 +195,10 @@ export function CollectionInspectorPanel({
     useState(operationInputText);
   const [operationInputError, setOperationInputError] = useState<string>();
 
-  useEffect(() => {
-    if (literalEditingRef.current) return;
-    setLiteralDraft(literalSourceText);
+  const literalEditing = useFocusGuardedDraft(literalSourceText, (text) => {
+    setLiteralDraft(text);
     setLiteralError(undefined);
-  }, [literalSourceText]);
+  });
 
   useEffect(() => {
     setResultPathDraft(operationBinding?.path ?? '');
@@ -401,12 +400,8 @@ export function CollectionInspectorPanel({
               value={literalDraft}
               disabled={disabled}
               spellCheck={false}
-              onFocus={() => {
-                literalEditingRef.current = true;
-              }}
-              onBlur={() => {
-                literalEditingRef.current = false;
-              }}
+              onFocus={literalEditing.beginEditing}
+              onBlur={literalEditing.endEditing}
               onChange={(event) =>
                 changeLiteralSource(event.currentTarget.value)
               }

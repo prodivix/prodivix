@@ -91,7 +91,11 @@ export const PIRElementProjection: React.FC<{
     [host.resolveCodeValue, node.text, scoped]
   );
   const selected = isSameLocation(selectedLocation, location);
-  const hostEntry = host.elementsByType[node.type];
+  // Element types are author-controlled, so an inherited `Object.prototype`
+  // member must not be mistaken for a registered host entry.
+  const hostEntry = Object.hasOwn(host.elementsByType, node.type)
+    ? host.elementsByType[node.type]
+    : undefined;
   if (!hostEntry) return null;
   const projected =
     hostEntry.project?.({

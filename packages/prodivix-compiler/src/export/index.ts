@@ -51,12 +51,21 @@ export type {
   ExportPackageOriginOptions,
 } from '#src/export/packageOriginResolver';
 export { createStaticDeploymentExportContribution } from '#src/export/deploymentPresets';
-export { planExportFileContributions } from '#src/export/filePlanner';
+export {
+  getFileContributionDesiredPath,
+  planExportFileContributions,
+} from '#src/export/filePlanner';
 export {
   ExportProgramBuilder,
   createExportProgramBuilder,
 } from '#src/export/programBuilder';
 export { validateExportOriginPolicy } from '#src/export/originPolicy';
+export {
+  EXPORT_RESERVED_PATH_CONFLICT_CODE,
+  collectScaffoldReservedPaths,
+  createExportPathRegistry,
+} from '#src/export/pathOwnership';
+export type { ExportPathRegistry } from '#src/export/pathOwnership';
 export { createRouteExportContribution } from '#src/export/routeTopology';
 export type {
   CreateRouteExportContributionOptions,
@@ -126,6 +135,8 @@ export type {
   ExportPathRewrite,
   ExportPlannerPreset,
   ExportReferencedAsset,
+  ExportReservedPath,
+  ExportReservedPathOwner,
   ExportProgram,
   ExportProgramContribution,
   ExportProgramMetadata,

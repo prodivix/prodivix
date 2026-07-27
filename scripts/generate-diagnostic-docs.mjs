@@ -26,7 +26,23 @@ const domainOrder = [
   'RTE',
   'NGR',
   'ANI',
+  'DAT',
+  'AST',
+  'SVR',
+  'TST',
+  'EXE',
 ];
+
+/**
+ * Diagnostic domains whose code table exists in `specs/diagnostics` but whose
+ * implementation has not started, so they publish no user-facing page yet.
+ * They are registered here only so `validateDomainSpecCoverage` cannot silently
+ * skip a domain spec; move an entry into `domainInfo` when its codes ship.
+ */
+const reservedDomainSpecFiles = {
+  BHV: 'behavior-diagnostic-codes.md',
+  VER: 'verification-diagnostic-codes.md',
+};
 
 const domainInfo = {
   PIR: {
@@ -107,6 +123,39 @@ const domainInfo = {
     title: 'Animation',
     area: '动画',
     description: 'Timeline、binding、track、keyframe、filter 和预览运行时',
+  },
+  DAT: {
+    file: 'data-diagnostic-codes.md',
+    title: 'Data',
+    area: '数据',
+    description:
+      'Data source、schema、operation、environment/Secret binding 和 protocol adapter',
+  },
+  AST: {
+    file: 'asset-diagnostic-codes.md',
+    title: 'Binary Asset',
+    area: '二进制资源',
+    description:
+      'blob 引用、materialization、Git/LFS 投影、后端 blob 边界和隔离交付',
+  },
+  SVR: {
+    file: 'server-runtime-diagnostic-codes.md',
+    title: 'Auth/Server Runtime',
+    area: '鉴权与服务端运行时',
+    description:
+      'Server Function 调用、输入输出边界、live mutation 防护和 gateway',
+  },
+  TST: {
+    file: 'test-diagnostic-codes.md',
+    title: 'Workspace Test',
+    area: '工程测试',
+    description: '导出工程的测试执行、报告读取和 canonical 报告转换',
+  },
+  EXE: {
+    file: 'execution-diagnostic-codes.md',
+    title: 'Remote Execution',
+    area: '远端执行',
+    description: '远端协议、幂等、恢复、权限、配额、transport 和 Secret 边界',
   },
 };
 
@@ -196,7 +245,51 @@ function parseStandardSpec(domain, source) {
   return diagnostics;
 }
 
+/**
+ * Fails when a domain code table in `specs/diagnostics` is not claimed by
+ * `domainInfo` or `reservedDomainSpecFiles`. Without this the generator silently
+ * skips whole domains that already emit codes, and the check reports success by
+ * under-reporting.
+ */
+function validateDomainSpecCoverage() {
+  const registeredDomains = Object.keys(domainInfo).sort();
+  const orderedDomains = [...domainOrder].sort();
+  const missingFromOrder = registeredDomains.filter(
+    (domain) => !domainOrder.includes(domain)
+  );
+  const missingFromInfo = orderedDomains.filter(
+    (domain) => domainInfo[domain] === undefined
+  );
+
+  if (missingFromOrder.length > 0 || missingFromInfo.length > 0) {
+    throw new Error(
+      `Diagnostic domain registry drift: missing-from-order=[${missingFromOrder.join(', ')}], missing-from-info=[${missingFromInfo.join(', ')}]`
+    );
+  }
+
+  const claimedFiles = new Set([
+    ...Object.values(domainInfo).map((info) => info.file),
+    ...Object.values(reservedDomainSpecFiles),
+  ]);
+  const unregisteredFiles = fs
+    .readdirSync(specsDir, { withFileTypes: true })
+    .filter(
+      (entry) => entry.isFile() && entry.name.endsWith('-diagnostic-codes.md')
+    )
+    .map((entry) => entry.name)
+    .filter((name) => !claimedFiles.has(name))
+    .sort();
+
+  if (unregisteredFiles.length > 0) {
+    throw new Error(
+      `Unregistered diagnostic domain spec: [${unregisteredFiles.join(', ')}]. Add the domain to domainOrder/domainInfo, or to reservedDomainSpecFiles while it is not implemented.`
+    );
+  }
+}
+
 function readDiagnostics() {
+  validateDomainSpecCoverage();
+
   const grouped = new Map();
 
   for (const domain of domainOrder) {
@@ -204,6 +297,12 @@ function readDiagnostics() {
     const specPath = path.join(specsDir, info.file);
     const source = readUtf8(specPath);
     const diagnostics = parseStandardSpec(domain, source);
+
+    if (diagnostics.length === 0) {
+      throw new Error(
+        `Diagnostic domain ${domain} has no parseable code entry in specs/diagnostics/${info.file}. Each code needs a "### \`${domain}-xxxx\` title" heading with Severity/Stage/Retryable/Trigger/User action fields.`
+      );
+    }
 
     grouped.set(
       domain,
@@ -451,6 +550,7 @@ function listActualDiagnosticPages() {
 }
 
 function hasSuspiciousReplacementQuestion(content) {
+  // eslint-disable-next-line no-control-regex -- the ASCII range bound is the point
   return /[^\x00-\x7F]\?|\?[^\x00-\x7F]|\?{2,}/.test(content);
 }
 

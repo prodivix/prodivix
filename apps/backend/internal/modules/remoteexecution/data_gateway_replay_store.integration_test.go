@@ -86,7 +86,7 @@ func openDataGatewayReplayPostgreSQL(t *testing.T) *sql.DB {
 	if err := testDatabase.PingContext(ctx); err != nil {
 		t.Fatalf("connect to isolated PostgreSQL integration schema: %v", err)
 	}
-	if err := backenddatabase.RunMigrations(ctx, testDatabase); err != nil {
+	if err := backenddatabase.RunMigrations(ctx, testDatabase, 2*time.Minute); err != nil {
 		t.Fatalf("migrate isolated PostgreSQL integration schema: %v", err)
 	}
 	return testDatabase
@@ -185,7 +185,7 @@ func successfulDataGatewayReplayResult(key DataGatewayMutationReplayKey) DataGat
 			Phase:        "runtime",
 			RuntimeZone:  "server",
 			Mode:         "live",
-			Adapter:      "core.http",
+			Adapter:      key.Adapter,
 			Method:       "POST",
 			SanitizedURL: "https://api.example.com/items",
 			Protocol:     "https",
@@ -216,7 +216,7 @@ func TestDataGatewayMutationReplayPostgreSQLGate(t *testing.T) {
 		const executionID = "postgres-replay-concurrent"
 		recordDataGatewayReplayExecution(t, store, executionID)
 		key := DataGatewayMutationReplayKey{
-			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-one", Sequence: 1,
+			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-one", Sequence: 1, Adapter: "core.http",
 		}
 		keys := make([]DataGatewayMutationReplayKey, 24)
 		for index := range keys {
@@ -259,6 +259,7 @@ FROM generate_series(1, $3) AS value`, executionID, strings.Repeat("b", 64), max
 				OperationID:  "create",
 				InvocationID: fmt.Sprintf("capacity-contender-%d", index),
 				Sequence:     int64(index + 1),
+				Adapter:      "core.http",
 			}
 		}
 		acquired, capacity := 0, 0
@@ -284,7 +285,7 @@ FROM generate_series(1, $3) AS value`, executionID, strings.Repeat("b", 64), max
 		const executionID = "postgres-replay-retry"
 		recordDataGatewayReplayExecution(t, store, executionID)
 		key := DataGatewayMutationReplayKey{
-			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-retry", Sequence: 11,
+			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-retry", Sequence: 11, Adapter: "core.http",
 		}
 		requestHash := strings.Repeat("9", 64)
 		if claim, err := store.ClaimDataGatewayMutation(context.Background(), key, requestHash, DataGatewayMutationReplayPolicy{Attempt: 1, MaximumAttempts: 3}); err != nil || claim == nil || !claim.Acquired {
@@ -329,7 +330,7 @@ FROM generate_series(1, $3) AS value`, executionID, strings.Repeat("b", 64), max
 		const executionID = "postgres-replay-result"
 		recordDataGatewayReplayExecution(t, store, executionID)
 		key := DataGatewayMutationReplayKey{
-			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-result", Sequence: 7,
+			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-result", Sequence: 7, Adapter: "core.http",
 		}
 		requestHash := strings.Repeat("d", 64)
 		policy := DataGatewayMutationReplayPolicy{Attempt: 1, MaximumAttempts: 1}
@@ -353,7 +354,7 @@ FROM generate_series(1, $3) AS value`, executionID, strings.Repeat("b", 64), max
 		}
 
 		ambiguousKey := DataGatewayMutationReplayKey{
-			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-ambiguous", Sequence: 8,
+			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "create", InvocationID: "invocation-ambiguous", Sequence: 8, Adapter: "core.http",
 		}
 		ambiguousHash := strings.Repeat("f", 64)
 		if claim, err := store.ClaimDataGatewayMutation(context.Background(), ambiguousKey, ambiguousHash, policy); err != nil || claim == nil || !claim.Acquired {
@@ -371,7 +372,7 @@ FROM generate_series(1, $3) AS value`, executionID, strings.Repeat("b", 64), max
 		const executionID = "postgres-replay-cascade"
 		recordDataGatewayReplayExecution(t, store, executionID)
 		key := DataGatewayMutationReplayKey{
-			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "delete", InvocationID: "invocation-delete", Sequence: 1,
+			ExecutionID: executionID, DocumentID: "data-orders", OperationID: "delete", InvocationID: "invocation-delete", Sequence: 1, Adapter: "core.http",
 		}
 		if claim, err := store.ClaimDataGatewayMutation(context.Background(), key, strings.Repeat("a", 64), DataGatewayMutationReplayPolicy{Attempt: 1, MaximumAttempts: 1}); err != nil || claim == nil || !claim.Acquired {
 			t.Fatalf("acquire replay claim before cascade: claim=%+v err=%v", claim, err)

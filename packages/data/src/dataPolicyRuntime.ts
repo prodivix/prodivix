@@ -1,3 +1,4 @@
+import { DATA_RETRY_POLICY_LIMITS } from './data.types';
 import type {
   DataJsonValue,
   DataOperation,
@@ -52,9 +53,6 @@ export class DataPaginationRuntimeError extends Error {
     this.code = code;
   }
 }
-
-const MAX_DATA_RETRY_ATTEMPTS = 10;
-const MAX_DATA_RETRY_DELAY_MS = 5 * 60_000;
 
 const abortReason = (signal: DataOperationAbortSignal): unknown =>
   signal.reason ?? new Error('Data operation was aborted.');
@@ -220,6 +218,58 @@ export const validateDataPaginationPage = (
   }
 };
 
+/**
+ * Worst-case delay of one retry ladder, as a closed-form projection.
+ *
+ * The exponent is clamped to the attempt budget so an author-controlled
+ * `maxAttempts` can never turn this into an unbounded computation. Callers must
+ * still reject out-of-budget attempt counts separately — the clamp exists to
+ * keep the projection constant-time, never to make an oversized ladder look
+ * acceptable.
+ */
+export const projectedDataRetryCeilingMs = (
+  policy: DataRetryPolicy
+): number => {
+  if (policy.maxDelayMs !== undefined) return policy.maxDelayMs;
+  if (policy.backoff !== 'exponential' || policy.maxAttempts <= 1)
+    return policy.initialDelayMs;
+  const steps = Math.min(
+    policy.maxAttempts - 2,
+    DATA_RETRY_POLICY_LIMITS.maxAttempts
+  );
+  return policy.initialDelayMs * 2 ** steps;
+};
+
+/**
+ * Single owner of the retry budget rule shared by data-source document
+ * validation and the invocation runtime: every range check runs before the
+ * exponential ceiling is derived, and an out-of-budget ladder is rejected
+ * rather than clamped into something that looks valid.
+ */
+export const isDataRetryPolicyWithinBudget = (
+  policy: DataRetryPolicy
+): boolean => {
+  if (
+    !Number.isSafeInteger(policy.maxAttempts) ||
+    policy.maxAttempts < 1 ||
+    policy.maxAttempts > DATA_RETRY_POLICY_LIMITS.maxAttempts ||
+    !Number.isSafeInteger(policy.initialDelayMs) ||
+    policy.initialDelayMs < 0 ||
+    policy.initialDelayMs > DATA_RETRY_POLICY_LIMITS.maxDelayMs
+  )
+    return false;
+  if (
+    policy.maxDelayMs !== undefined &&
+    (!Number.isSafeInteger(policy.maxDelayMs) ||
+      policy.maxDelayMs < policy.initialDelayMs ||
+      policy.maxDelayMs > DATA_RETRY_POLICY_LIMITS.maxDelayMs)
+  )
+    return false;
+  return (
+    projectedDataRetryCeilingMs(policy) <= DATA_RETRY_POLICY_LIMITS.maxDelayMs
+  );
+};
+
 export const resolveDataRetryPolicy = (
   operation: DataOperation,
   initialAttempt: number
@@ -234,17 +284,9 @@ export const resolveDataRetryPolicy = (
     throw new DataRetryRuntimeError(
       DATA_RETRY_RUNTIME_ERROR_CODES.mutationReplayDenied
     );
-  const maximumDelay =
-    policy.maxDelayMs ??
-    (policy.backoff === 'exponential' && policy.maxAttempts > 1
-      ? policy.initialDelayMs * 2 ** (policy.maxAttempts - 2)
-      : policy.initialDelayMs);
   if (
-    policy.maxAttempts > MAX_DATA_RETRY_ATTEMPTS ||
-    initialAttempt > policy.maxAttempts ||
-    policy.initialDelayMs > MAX_DATA_RETRY_DELAY_MS ||
-    !Number.isSafeInteger(maximumDelay) ||
-    maximumDelay > MAX_DATA_RETRY_DELAY_MS
+    !isDataRetryPolicyWithinBudget(policy) ||
+    initialAttempt > policy.maxAttempts
   )
     throw new DataRetryRuntimeError(
       DATA_RETRY_RUNTIME_ERROR_CODES.policyBudgetExceeded

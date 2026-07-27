@@ -1,14 +1,10 @@
 import type {
   HostPackageCoordinate,
-  OfficialComponentLibraryImplementation,
   OfficialHostImplementation,
   OfficialHostImplementationKind,
   OfficialHostModule,
   OfficialHostModuleCatalogEntry,
-  OfficialIconExportContext,
-  OfficialIconProviderImplementation,
-  OfficialPaletteProjectionImplementation,
-  OfficialRenderPolicyImplementation,
+  OfficialPalettePreviewItem,
 } from '@prodivix/plugin-react-host';
 import {
   createPluginDiagnostic,
@@ -208,10 +204,13 @@ const normalizeModule = (module: OfficialHostModule): OfficialHostModule => {
         ) {
           throw new Error('Official Palette projection group is invalid.');
         }
+        // `Array.isArray` only proves the runtime shape; re-bind so the items keep
+        // their declared element type instead of collapsing to `any[]`.
+        const groupItems: readonly OfficialPalettePreviewItem[] = group.items;
         return Object.freeze({
           ...group,
           items: Object.freeze(
-            group.items.map((item) => {
+            groupItems.map((item) => {
               if (
                 !item ||
                 typeof item.id !== 'string' ||

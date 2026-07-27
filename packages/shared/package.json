@@ -32,6 +32,7 @@
     "access": "public"
   },
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "generate:pir-wire": "node scripts/sync-current-pir-schema.js && node scripts/generate-types.js",

@@ -283,12 +283,15 @@ const contributeToken = (
       valueReference.reference.target.kind === 'token' &&
       valueReference.reference.target.valuePath.length === 0;
     contribution.references.push({
+      // `$value` keys are unrestricted, so the path segments stay separate
+      // length-prefixed parts: joining them would let `['a/b']` and `['a','b']`
+      // collide and abort the whole Semantic Index build.
       id: createSemanticId(
         'design-token-reference',
         workspaceId,
         documentId,
         tokenPath,
-        valueReference.valuePath.join('/')
+        ...valueReference.valuePath
       ),
       kind: 'token-reference',
       sourceRef: ownerRef,

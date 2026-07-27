@@ -10,18 +10,18 @@ import {
   renderExportImportIntent,
 } from '#src/export/importPlanner';
 import { validateExportOriginPolicy } from '#src/export/originPolicy';
+import { createExportPathRegistry } from '#src/export/pathOwnership';
 import {
-  createUniqueExportPath,
   ensureFileExtension,
   getRelativeImportPath,
   joinExportPath,
-  normalizeExportPath,
 } from '#src/export/pathPlanner';
 import { createReactViteExportPreset } from '#src/export/presets/reactVite';
 import {
   createStyleImportIntents,
   planExportStyleSheets,
 } from '#src/export/stylePlanner';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type {
   ExportBundle,
@@ -32,7 +32,6 @@ import type {
   ExportFileKind,
   ExportLicenseSummary,
   ExportModule,
-  ExportModuleKind,
   ExportOriginSummary,
   ExportPathRewrite,
   ExportPlannerPreset,
@@ -40,6 +39,7 @@ import type {
   ExportRouteGeneratedFile,
   ExportRouteTopology,
   ExportReferencedAsset,
+  ExportReservedPath,
   ExportRuntimeRequirement,
   ExportImportIntent,
   ExportSourceOrigin,
@@ -148,11 +148,9 @@ const summarizeSourceTraces = (
     .map(([domain, summary]) => ({
       domain,
       count: summary.count,
-      files: Array.from(summary.files).sort((left, right) =>
-        left.localeCompare(right)
-      ),
+      files: Array.from(summary.files).sort(compareUnicodeCodePoints),
     }))
-    .sort((left, right) => left.domain.localeCompare(right.domain));
+    .sort((left, right) => compareUnicodeCodePoints(left.domain, right.domain));
 };
 
 const diagnosticSeverityRank: Record<CompileDiagnostic['severity'], number> = {
@@ -168,9 +166,9 @@ const summarizeDiagnostics = (
     (left, right) =>
       diagnosticSeverityRank[left.severity] -
         diagnosticSeverityRank[right.severity] ||
-      left.source.localeCompare(right.source) ||
-      left.code.localeCompare(right.code) ||
-      left.path.localeCompare(right.path)
+      compareUnicodeCodePoints(left.source, right.source) ||
+      compareUnicodeCodePoints(left.code, right.code) ||
+      compareUnicodeCodePoints(left.path, right.path)
   );
 
 const summarizeDiagnosticCounts = (
@@ -268,9 +266,9 @@ const summarizeOrigins = (input: {
   return Array.from(byId.values())
     .map((origin) => ({
       ...origin,
-      files: [...origin.files].sort((left, right) => left.localeCompare(right)),
+      files: [...origin.files].sort(compareUnicodeCodePoints),
     }))
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareUnicodeCodePoints(left.id, right.id));
 };
 
 const summarizeDeployments = (input: {
@@ -288,11 +286,11 @@ const summarizeDeployments = (input: {
       target: deployment.target,
       files: deployment.files
         .map((file) => emittedPathById.get(file.id) ?? file.desiredPath)
-        .sort((left, right) => left.localeCompare(right)),
+        .sort(compareUnicodeCodePoints),
       dependencies: summarizeDependencies(deployment.dependencies ?? []),
       metadata: deployment.metadata,
     }))
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareUnicodeCodePoints(left.id, right.id));
 };
 
 const summarizeLicenses = (
@@ -307,10 +305,12 @@ const summarizeLicenses = (
     .map(([license, licenseOrigins]) => ({
       license,
       origins: licenseOrigins.sort((left, right) =>
-        left.id.localeCompare(right.id)
+        compareUnicodeCodePoints(left.id, right.id)
       ),
     }))
-    .sort((left, right) => left.license.localeCompare(right.license));
+    .sort((left, right) =>
+      compareUnicodeCodePoints(left.license, right.license)
+    );
 };
 
 const getSourceSummaryId = (origin: ExportOriginSummary) =>
@@ -348,14 +348,17 @@ const summarizeSources = (
   return Array.from(byId.values())
     .map((source) => ({
       ...source,
-      files: source.files.sort((left, right) => left.localeCompare(right)),
+      files: source.files.sort(compareUnicodeCodePoints),
     }))
     .sort(
       (left, right) =>
-        left.kind.localeCompare(right.kind) ||
-        (left.packageName ?? '').localeCompare(right.packageName ?? '') ||
-        (left.url ?? '').localeCompare(right.url ?? '') ||
-        (left.owner ?? '').localeCompare(right.owner ?? '')
+        compareUnicodeCodePoints(left.kind, right.kind) ||
+        compareUnicodeCodePoints(
+          left.packageName ?? '',
+          right.packageName ?? ''
+        ) ||
+        compareUnicodeCodePoints(left.url ?? '', right.url ?? '') ||
+        compareUnicodeCodePoints(left.owner ?? '', right.owner ?? '')
     );
 };
 
@@ -600,10 +603,11 @@ export class ProductionExportPlanner {
   }
 
   plan(program: ExportProgram): ExportBundle {
-    const usedPaths = new Set<string>();
-    const pathRewrites: ExportPathRewrite[] = [];
-    const reservePath: ReserveExportPath = (desiredPath, source) =>
-      this.reservePath(desiredPath, usedPaths, pathRewrites, source);
+    const pathRegistry = createExportPathRegistry([
+      ...this.resolveEntryModuleReservations(program),
+      ...(this.preset.reservedPaths ?? []),
+    ]);
+    const { pathRewrites, reservePath } = pathRegistry;
     const artifactContribution = exportArtifactsToProgramContribution(
       program.artifacts
     );
@@ -751,6 +755,7 @@ export class ProductionExportPlanner {
       contents: licenses,
       reservePath,
     });
+    diagnostics.push(...pathRegistry.diagnostics);
     const manifestFile = createExportManifestFile({
       program,
       entryFilePath,
@@ -825,27 +830,28 @@ export class ProductionExportPlanner {
     };
   }
 
-  private reservePath(
-    desiredPath: string,
-    usedPaths: Set<string>,
-    pathRewrites: ExportPathRewrite[],
-    source?: {
-      id?: string;
-      kind?: ExportFileKind | ExportModuleKind | 'style' | 'asset';
-    }
-  ) {
-    const normalizedPath = normalizeExportPath(desiredPath);
-    const emittedPath = createUniqueExportPath(desiredPath, usedPaths);
-    if (emittedPath !== desiredPath) {
-      pathRewrites.push({
-        requestedPath: desiredPath,
-        emittedPath,
-        reason: emittedPath === normalizedPath ? 'normalization' : 'conflict',
-        sourceId: source?.id,
-        sourceKind: source?.kind,
-      });
-    }
-    return emittedPath;
+  /**
+   * The declared entry module is the one module the scaffold imports by a
+   * hard-coded specifier, so its path is reserved before any contribution is
+   * planned. Without this, an authored document that normalizes onto the same
+   * path would be planned first and push the real entry to a suffixed path
+   * while `src/main.tsx` still imported `./App`.
+   */
+  private resolveEntryModuleReservations(
+    program: ExportProgram
+  ): ExportReservedPath[] {
+    if (!program.entryModuleId) return [];
+    const entryModule = program.modules.find(
+      (module) => module.id === program.entryModuleId
+    );
+    if (!entryModule) return [];
+    return [
+      {
+        path: getModuleDesiredPath(entryModule, this.preset),
+        ownerId: entryModule.id,
+        owner: 'entry-module',
+      },
+    ];
   }
 
   private resolveRuntimeModules(

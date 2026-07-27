@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { compareUnicodeCodePoints } from '@prodivix/workspace';
 import {
   codeCommand,
   createWorkspace,
@@ -112,8 +113,11 @@ describe('workspace outbox properties', () => {
           const ordered = [...entries].sort(
             (left, right) =>
               left.createdAt - right.createdAt ||
-              left.causalOrderId.localeCompare(right.causalOrderId) ||
-              left.id.localeCompare(right.id)
+              compareUnicodeCodePoints(
+                left.causalOrderId,
+                right.causalOrderId
+              ) ||
+              compareUnicodeCodePoints(left.id, right.id)
           );
           const head = ordered[0]!;
           const blockedHead: WorkspaceOutboxEntry = {

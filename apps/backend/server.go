@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	backendapp "github.com/Prodivix/prodivix/apps/backend/internal/app"
 	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
@@ -13,6 +15,31 @@ import (
 	backendmiddleware "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/middleware"
 	"github.com/gin-gonic/gin"
 )
+
+// gin falls back to debug mode whenever GIN_MODE is unset, and debug mode makes
+// gin log framework internals a deployment never asked for. Only a development
+// process opts into it.
+func ginModeForEnvironment(environment string) string {
+	if strings.TrimSpace(strings.ToLower(environment)) == "development" {
+		return gin.DebugMode
+	}
+	return gin.ReleaseMode
+}
+
+// newBaseRouter builds the engine every request passes through, separated from
+// NewServer so a test can exercise the real middleware chain without a
+// database. Binding the safe Recovery here is the whole point: gin.Default()
+// installs gin's own Recovery, which dumps live X-Auth-Token and
+// X-Prodivix-Terminal-Token headers into the process log on any panic.
+func newBaseRouter(cfg backendconfig.Config, errorWriter io.Writer) (*gin.Engine, error) {
+	gin.SetMode(ginModeForEnvironment(cfg.Environment))
+	router := gin.New()
+	router.Use(gin.Logger(), backendmiddleware.Recovery(errorWriter))
+	if err := router.SetTrustedProxies(nil); err != nil {
+		return nil, fmt.Errorf("disable untrusted proxy headers: %w", err)
+	}
+	return router, nil
+}
 
 type filesOnlyFS struct {
 	http.FileSystem
@@ -48,10 +75,10 @@ func NewServer(cfg backendconfig.Config) (*Server, error) {
 		return nil, fmt.Errorf("initialize database: %w", err)
 	}
 
-	router := gin.Default()
-	if err := router.SetTrustedProxies(nil); err != nil {
+	router, err := newBaseRouter(cfg, gin.DefaultErrorWriter)
+	if err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("disable untrusted proxy headers: %w", err)
+		return nil, err
 	}
 	modules, err := backendapp.NewRuntimeModules(db, cfg.TokenTTL, cfg)
 	if err != nil {

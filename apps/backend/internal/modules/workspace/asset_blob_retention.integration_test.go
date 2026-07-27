@@ -72,7 +72,7 @@ func openWorkspaceAssetRetentionPostgreSQL(t *testing.T) *sql.DB {
 	if err := testDatabase.PingContext(ctx); err != nil {
 		t.Fatalf("connect to isolated PostgreSQL integration schema: %v", err)
 	}
-	if err := backenddatabase.RunMigrations(ctx, testDatabase); err != nil {
+	if err := backenddatabase.RunMigrations(ctx, testDatabase, 2*time.Minute); err != nil {
 		t.Fatalf("migrate isolated PostgreSQL integration schema: %v", err)
 	}
 	return testDatabase

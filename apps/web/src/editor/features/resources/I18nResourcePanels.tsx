@@ -15,6 +15,7 @@ type I18nResourceSidebarProps = {
   missingCount: number;
   newLocale: string;
   newNamespace: string;
+  readonly: boolean;
   onSearchKeywordChange: (value: string) => void;
   onMissingOnlyChange: (value: boolean) => void;
   onReviewOnlyChange: (value: boolean) => void;
@@ -37,6 +38,7 @@ export function I18nResourceSidebar({
   missingCount,
   newLocale,
   newNamespace,
+  readonly,
   onSearchKeywordChange,
   onMissingOnlyChange,
   onReviewOnlyChange,
@@ -134,6 +136,7 @@ export function I18nResourceSidebar({
           type="text"
           size="Small"
           value={newLocale}
+          disabled={readonly}
           onValueChange={onNewLocaleChange}
           placeholder={t('resourceManager.i18n.newLocalePlaceholder')}
         />
@@ -141,12 +144,14 @@ export function I18nResourceSidebar({
           text={t('resourceManager.i18n.actions.addLocale')}
           size="ExtraSmall"
           variant="Secondary"
+          disabled={readonly}
           onClick={onAddLocale}
         />
         <PdxInput
           type="text"
           size="Small"
           value={newNamespace}
+          disabled={readonly}
           onValueChange={onNewNamespaceChange}
           placeholder={t('resourceManager.i18n.newModulePlaceholder')}
         />
@@ -154,6 +159,7 @@ export function I18nResourceSidebar({
           text={t('resourceManager.i18n.actions.addModule')}
           size="ExtraSmall"
           variant="Secondary"
+          disabled={readonly}
           onClick={onAddNamespace}
         />
       </div>
@@ -171,6 +177,7 @@ type I18nResourceTableProps = {
   selectedKey?: string;
   newKey: string;
   newSourceValue: string;
+  readonly: boolean;
   onImport: (file: File) => Promise<void>;
   onExport: () => void;
   onDeleteKey: (key: string) => void;
@@ -192,6 +199,7 @@ export function I18nResourceTable({
   selectedKey,
   newKey,
   newSourceValue,
+  readonly,
   onImport,
   onExport,
   onDeleteKey,
@@ -211,7 +219,11 @@ export function I18nResourceTable({
         <div className="flex items-center gap-1">
           <label
             htmlFor={fileInputId}
-            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-(--text-secondary) hover:bg-black/5 hover:text-(--text-primary)"
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-(--text-secondary) ${
+              readonly
+                ? 'pointer-events-none opacity-40'
+                : 'cursor-pointer hover:bg-black/5 hover:text-(--text-primary)'
+            }`}
             aria-label={t('resourceManager.i18n.actions.import')}
             title={t('resourceManager.i18n.actions.import')}
           >
@@ -231,6 +243,7 @@ export function I18nResourceTable({
             type="file"
             accept="application/json,.json"
             className="hidden"
+            disabled={readonly}
             onChange={async (event) => {
               const file = event.target.files?.[0];
               if (!file) return;
@@ -284,6 +297,7 @@ export function I18nResourceTable({
                       className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-(--text-muted) hover:bg-red-50 hover:text-red-700"
                       aria-label={t('resourceManager.i18n.actions.delete')}
                       title={t('resourceManager.i18n.actions.delete')}
+                      disabled={readonly}
                       onClick={() => onDeleteKey(row.key)}
                     >
                       <Trash2 size={12} aria-hidden="true" />
@@ -311,6 +325,7 @@ export function I18nResourceTable({
                             ? 'font-medium text-(--text-primary)'
                             : 'text-(--text-secondary)'
                         }`}
+                        readOnly={readonly}
                         onFocus={() => onSelectKey(row.key)}
                         onChange={(event) =>
                           onUpdateLocaleValue(
@@ -335,6 +350,7 @@ export function I18nResourceTable({
                             ? 'bg-amber-200 text-amber-950'
                             : 'bg-slate-100 text-slate-700'
                     }`}
+                    disabled={readonly}
                     onClick={() => onToggleReviewed(row)}
                   >
                     {t(`resourceManager.i18n.status.${row.status}`)}
@@ -349,6 +365,7 @@ export function I18nResourceTable({
                     type="button"
                     className="inline-flex h-5 w-5 items-center justify-center rounded border-0 bg-transparent p-0 text-[14px] leading-none text-(--text-secondary) hover:bg-black/6 hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none"
                     aria-label="Add key"
+                    disabled={readonly}
                     onClick={onAddKey}
                   >
                     +
@@ -357,6 +374,7 @@ export function I18nResourceTable({
                     type="text"
                     size="Small"
                     value={newKey}
+                    disabled={readonly}
                     onValueChange={onNewKeyChange}
                     className="w-full"
                     placeholder={t('resourceManager.i18n.newKeyPlaceholder')}
@@ -373,6 +391,7 @@ export function I18nResourceTable({
                       type="text"
                       size="Small"
                       value={newSourceValue}
+                      disabled={readonly}
                       onValueChange={onNewSourceValueChange}
                       className="w-full"
                       placeholder={t(

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { access, readFile, readdir } from 'node:fs/promises';
-import { basename, join, relative, sep } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));

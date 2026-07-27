@@ -326,7 +326,7 @@ export function IconPickerModal({
             {isProviderLoading && !filteredNames.length && (
               <div className="border-b border-(--border-default) px-4 py-2 text-[11px] text-(--text-muted)">
                 {t('inspector.iconPicker.loading', {
-                  defaultValue: 'Loading icons from esm.sh...',
+                  defaultValue: 'Loading icons...',
                 })}
               </div>
             )}

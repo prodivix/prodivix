@@ -4,11 +4,19 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
+/**
+ * `@prodivix/shared` is the cross-domain utility leaf: it has no internal
+ * dependencies, so depending on it can never create a cycle or invert a layer.
+ * Its `./canonical` subpath owns the locale-independent code-point comparator
+ * and canonical JSON that identity, digest and persisted-byte ordering must
+ * share. Every package below that computes such an ordering depends on it
+ * rather than carrying its own comparator, which is what G2-GAP-04 was.
+ */
 const corePackages = {
   assets: new Set(),
   animation: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
   router: new Set(['@prodivix/authoring']),
-  diagnostics: new Set(),
+  diagnostics: new Set(['@prodivix/shared']),
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   'code-language': new Set(['@prodivix/authoring']),
   tokens: new Set(['@prodivix/authoring']),
@@ -31,16 +39,22 @@ const corePackages = {
     '@prodivix/router',
     '@prodivix/workspace',
   ]),
-  'runtime-core': new Set(['@prodivix/diagnostics']),
-  'server-runtime': new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
+  'runtime-core': new Set(['@prodivix/diagnostics', '@prodivix/shared']),
+  'server-runtime': new Set([
+    '@prodivix/authoring',
+    '@prodivix/runtime-core',
+    '@prodivix/shared',
+  ]),
   'runtime-remote': new Set([
     '@prodivix/diagnostics',
     '@prodivix/runtime-core',
     '@prodivix/server-runtime',
+    '@prodivix/shared',
   ]),
   'runtime-remote-postgres': new Set([
     '@prodivix/runtime-core',
     '@prodivix/runtime-remote',
+    '@prodivix/shared',
   ]),
   data: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
   nodegraph: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),

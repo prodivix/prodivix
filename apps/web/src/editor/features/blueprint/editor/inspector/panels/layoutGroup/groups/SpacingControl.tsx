@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import type { TFunction } from 'i18next';
 import { ChevronDown } from 'lucide-react';
 import { SpacingSidePreviewIcon } from '@/assets/icons';
 import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
@@ -9,8 +8,8 @@ import {
   toBoxSpacingShorthand,
   readCssValue,
   type SpacingKey,
-  type BoxSpacing,
 } from '../layoutPanelHelpers';
+import type { LayoutGroupTranslate } from '../types';
 
 type SpacingControlProps = {
   keyName: SpacingKey;
@@ -18,7 +17,7 @@ type SpacingControlProps = {
   expanded?: boolean;
   onToggleExpand?: () => void;
   onChange: (nextValue: string) => void;
-  t: TFunction;
+  t: LayoutGroupTranslate;
 };
 
 type ExpandedSpacingState = {

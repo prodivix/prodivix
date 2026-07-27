@@ -8,11 +8,12 @@ import {
   decodeJsonPointerSegment,
   indexStableIdArray,
   isRecord,
+  jsonValuesEqual,
   resolveStableIdArrayPair,
-  semanticJsonValuesEqual,
   stableIdArrayPointer,
   appendJsonPointer,
   type JsonValueState,
+  type StableIdCollection,
 } from './jsonValue';
 import {
   diffWorkspaceSnapshots,
@@ -113,14 +114,10 @@ const present = (
   value: cloneJsonValue(value),
 });
 
-const statesEqual = (
-  left: JsonValueState,
-  right: JsonValueState,
-  path: string
-): boolean =>
+const statesEqual = (left: JsonValueState, right: JsonValueState): boolean =>
   left.present === right.present &&
   (!left.present ||
-    (right.present && semanticJsonValuesEqual(left.value, right.value, path)));
+    (right.present && jsonValuesEqual(left.value, right.value)));
 
 const targetIdentity = (target: WorkspaceChangeTarget): string => {
   if (target.kind === 'workspace-tree') return 'workspace-tree';
@@ -133,7 +130,8 @@ const createConflictId = (
   target: WorkspaceChangeTarget
 ): string => `conflict:${kind}:${targetIdentity(target)}:${target.path || '/'}`;
 
-const chooseConflictState = (
+/** Records the conflict and reports which side the caller must keep. */
+const recordConflict = (
   kind: WorkspaceMergeConflictKind,
   path: string,
   base: WorkspaceChangeValue,
@@ -141,7 +139,7 @@ const chooseConflictState = (
   remote: WorkspaceChangeValue,
   context: MergeContext,
   textConflicts?: WorkspaceTextConflict[]
-): MergeResult => {
+): WorkspaceConflictResolutionChoice => {
   const descriptor = context.target(path, base, local, remote);
   const id = createConflictId(kind, descriptor.target);
   const conflict: WorkspaceMergeConflict = {
@@ -157,8 +155,24 @@ const chooseConflictState = (
       : {}),
   };
   context.conflicts.push(conflict);
-  return cloneJsonValue(context.resolutions[id] === 'local' ? local : remote);
+  return context.resolutions[id] === 'local' ? 'local' : 'remote';
 };
+
+const chooseConflictState = (
+  kind: WorkspaceMergeConflictKind,
+  path: string,
+  base: WorkspaceChangeValue,
+  local: WorkspaceChangeValue,
+  remote: WorkspaceChangeValue,
+  context: MergeContext,
+  textConflicts?: WorkspaceTextConflict[]
+): MergeResult =>
+  cloneJsonValue(
+    recordConflict(kind, path, base, local, remote, context, textConflicts) ===
+      'local'
+      ? local
+      : remote
+  );
 
 const mergeRecordStates = (
   base: Extract<JsonValueState, { present: true }>,
@@ -190,6 +204,54 @@ const mergeRecordStates = (
 };
 
 const stableCollection = (value: unknown) => indexStableIdArray(value);
+
+const sameSequence = (
+  left: readonly string[],
+  right: readonly string[]
+): boolean =>
+  left.length === right.length &&
+  left.every((id, index) => id === right[index]);
+
+const dedupeOrder = (...orders: readonly (readonly string[])[]): string[] =>
+  orders.flat().filter((id, index, all) => all.indexOf(id) === index);
+
+/**
+ * Entity order is authored state, so a branch that only reordered shared ids still
+ * owns the merged order; when both branches reorder the same ids differently no
+ * side can be dropped silently and the caller raises a structural conflict.
+ */
+const mergeStableArrayOrder = (
+  base: StableIdCollection,
+  local: StableIdCollection,
+  remote: StableIdCollection
+): { order: string[]; divergent: boolean } => {
+  const shared = base.order.filter(
+    (id) =>
+      Object.hasOwn(local.valuesById, id) &&
+      Object.hasOwn(remote.valuesById, id)
+  );
+  const sharedIds = new Set(shared);
+  const relative = (collection: StableIdCollection) =>
+    collection.order.filter((id) => sharedIds.has(id));
+  const localRelative = relative(local);
+  const remoteRelative = relative(remote);
+  const localReordered = !sameSequence(localRelative, shared);
+  const remoteReordered = !sameSequence(remoteRelative, shared);
+  if (localReordered && remoteReordered) {
+    return sameSequence(localRelative, remoteRelative)
+      ? {
+          order: dedupeOrder(local.order, remote.order, base.order),
+          divergent: false,
+        }
+      : { order: [], divergent: true };
+  }
+  return {
+    order: localReordered
+      ? dedupeOrder(local.order, remote.order, base.order)
+      : dedupeOrder(remote.order, local.order, base.order),
+    divergent: false,
+  };
+};
 
 const mergeStableArrayStates = (
   base: Extract<JsonValueState, { present: true }>,
@@ -230,11 +292,25 @@ const mergeStableArrayStates = (
     );
     if (next.present) resultById.set(id, next.value);
   });
-  const order = [
-    ...remoteCollection.order,
-    ...localCollection.order,
-    ...baseCollection.order,
-  ].filter((id, index, all) => all.indexOf(id) === index);
+  const merged = mergeStableArrayOrder(
+    baseCollection,
+    localCollection,
+    remoteCollection
+  );
+  const order = merged.divergent
+    ? recordConflict('structural', path, base, local, remote, context) ===
+      'local'
+      ? dedupeOrder(
+          localCollection.order,
+          remoteCollection.order,
+          baseCollection.order
+        )
+      : dedupeOrder(
+          remoteCollection.order,
+          localCollection.order,
+          baseCollection.order
+        )
+    : merged.order;
   return present(
     order.filter((id) => resultById.has(id)).map((id) => resultById.get(id))
   );
@@ -247,9 +323,9 @@ const mergeValueStates = (
   path: string,
   context: MergeContext
 ): MergeResult => {
-  if (statesEqual(local, remote, path)) return cloneJsonValue(local);
-  if (statesEqual(local, base, path)) return cloneJsonValue(remote);
-  if (statesEqual(remote, base, path)) return cloneJsonValue(local);
+  if (statesEqual(local, remote)) return cloneJsonValue(local);
+  if (statesEqual(local, base)) return cloneJsonValue(remote);
+  if (statesEqual(remote, base)) return cloneJsonValue(local);
 
   if (!base.present) {
     if (
@@ -539,7 +615,7 @@ const mergeDocument = (
   const localContent = present(localDocument.content);
   const remoteContent = present(remoteDocument.content);
   const content =
-    forceStructuralConflict && !statesEqual(localContent, remoteContent, '')
+    forceStructuralConflict && !statesEqual(localContent, remoteContent)
       ? chooseConflictState(
           'structural',
           '',

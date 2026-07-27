@@ -71,6 +71,7 @@
       },
       "baseURL": "Base URL",
       "apiKey": "API Key",
+      "apiKeyHint": "仅在本次浏览器会话的内存中保留，不会写入浏览器存储；刷新后需要重新输入。",
       "model": "模型",
       "jsonMode": "优先使用 JSON 模式",
       "temperature": "Temperature",
@@ -82,7 +83,8 @@
       "validation": {
         "baseURL": "请填写 Base URL。",
         "model": "请填写模型。",
-        "temperature": "Temperature 必须在 0 到 2 之间。"
+        "temperature": "Temperature 必须在 0 到 2 之间。",
+        "credentialTransport": "填写 API Key 时，Base URL 必须使用 https，或 http://localhost 等回环地址。"
       },
       "discovery": {
         "action": "发现模型",
@@ -556,7 +558,7 @@
       "matched": "匹配 {{count}} 个",
       "showingRange": "显示 {{from}}-{{to}} / {{total}}",
       "showingEmpty": "显示 0/0",
-      "loading": "正在从 esm.sh 加载图标...",
+      "loading": "正在加载图标...",
       "loadError": "图标源加载失败。",
       "retry": "重试",
       "empty": "未找到图标。",

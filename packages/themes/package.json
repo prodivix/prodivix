@@ -31,6 +31,7 @@
     "access": "public"
   },
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && vite build && tsc -p tsconfig.json && node scripts/copy-assets.mjs && node scripts/write-default-css.mjs",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\""
   },

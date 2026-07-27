@@ -10,7 +10,7 @@ import (
 )
 
 var rotationColumns = []string{
-	"workspace_id", "environment_id", "revision", "binding_id", "algorithm", "key_provider", "key_id",
+	"workspace_id", "environment_key", "environment_id", "revision", "binding_id", "algorithm", "key_provider", "key_id",
 	"wrapped_key_nonce", "wrapped_key", "nonce", "ciphertext",
 }
 
@@ -33,12 +33,12 @@ func TestRotateSecretMaterialsMigratesLegacyRowsAtomically(t *testing.T) {
 	}
 
 	mock.ExpectQuery(`SELECT e\.workspace_id`).WithArgs(staticKeyRingProviderID, "key-2026-07", 8).WillReturnRows(
-		sqlmock.NewRows(rotationColumns).AddRow("workspace-1", "environment-1", "revision-1", "binding-1", nil, nil, nil, nil, nil, nonce, ciphertext),
+		sqlmock.NewRows(rotationColumns).AddRow("workspace-1", "environment-1", "env_storage-1", "revision-1", "binding-1", nil, nil, nil, nil, nil, nonce, ciphertext),
 	)
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE execution_environment_secret_materials`).WithArgs(
 		secretEnvelopeAlgorithm, staticKeyRingProviderID, "key-2026-07", sqlmock.AnyArg(), encryptedCanaryArgument{canary: canary}, sqlmock.AnyArg(), encryptedCanaryArgument{canary: canary},
-		"environment-1", "revision-1", "binding-1",
+		"env_storage-1", "revision-1", "binding-1",
 		nil, nil, nil, sqlmock.AnyArg(), sqlmock.AnyArg(), nonce, ciphertext,
 	).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM execution_environment_secret_materials`).WithArgs(staticKeyRingProviderID, "key-2026-07").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
@@ -74,7 +74,7 @@ func TestRotateSecretMaterialsRollsBackWhenAnOldKeyWasRetiredEarly(t *testing.T)
 
 	mock.ExpectQuery(`SELECT e\.workspace_id`).WithArgs(staticKeyRingProviderID, "key-new", 4).WillReturnRows(
 		sqlmock.NewRows(rotationColumns).AddRow(
-			"workspace-1", "environment-1", "revision-1", "binding-1", envelope.Algorithm, envelope.KeyProvider, envelope.KeyID,
+			"workspace-1", "environment-1", "env_storage-1", "revision-1", "binding-1", envelope.Algorithm, envelope.KeyProvider, envelope.KeyID,
 			envelope.WrappedKeyNonce, envelope.WrappedKey, envelope.Nonce, envelope.Ciphertext,
 		),
 	)

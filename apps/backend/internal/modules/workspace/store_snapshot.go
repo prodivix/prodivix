@@ -81,7 +81,7 @@ func (store *WorkspaceStore) importWorkspaceSnapshot(ctx context.Context, params
 			return nil, fmt.Errorf("%w: duplicate workspace document path", ErrWorkspaceVFSInvalid)
 		}
 		paths[comparablePath] = struct{}{}
-		contentJSON, err := normalizeWorkspaceDocumentContent(document.Type, document.Content)
+		contentJSON, err := normalizeWorkspaceDocumentContent(document.Type, document.ID, document.Content)
 		if err != nil {
 			return nil, err
 		}

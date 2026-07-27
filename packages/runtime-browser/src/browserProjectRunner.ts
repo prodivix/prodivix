@@ -364,8 +364,7 @@ export const createBrowserProjectRunner = (
           'The browser project runner cannot satisfy this request.'
         );
       }
-      let controller: ExecutionJobController;
-      controller = createExecutionJobController({
+      const controller: ExecutionJobController = createExecutionJobController({
         jobId: (options.createJobId ?? createJobId)(request),
         request,
         provider: providerDescriptor,

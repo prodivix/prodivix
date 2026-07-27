@@ -150,11 +150,11 @@ export function BlueprintEditor({
     target: 'react-vite' | 'vue-vite';
   } | null>(null);
   const runTarget =
-    runTargetOverride?.workspaceId === workspaceId
+    runTargetOverride && runTargetOverride.workspaceId === workspaceId
       ? runTargetOverride.target
       : settingsRunTarget;
   const projectRunner = useBlueprintProjectRunner(
-    controller.workspace,
+    controller.workspace ?? undefined,
     canAuthor && isRunMode,
     viewportBar.runProvider,
     accessToken,
@@ -452,7 +452,7 @@ export function BlueprintEditor({
               ? projectRunner.state.filesystemChanges
               : undefined
           }
-          workspace={controller.workspace}
+          workspace={controller.workspace ?? undefined}
           workspaceReadonly={controller.readonly}
           onRestart={
             showingProjectExecution

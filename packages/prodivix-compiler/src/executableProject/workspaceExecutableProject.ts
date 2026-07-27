@@ -7,6 +7,7 @@ import {
   type ExecutionSourceTrace,
   type ExecutionWorkspaceSnapshotRef,
 } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type { ExportSourceTrace } from '#src/export/types';
@@ -132,7 +133,7 @@ export const createWorkspaceExecutionSnapshotRef = (
   workspace: WorkspaceSnapshot
 ): ExecutionWorkspaceSnapshotRef => {
   const documents = Object.values(workspace.docsById).sort((left, right) =>
-    left.id.localeCompare(right.id)
+    compareUnicodeCodePoints(left.id, right.id)
   );
   const documentRevisions = documents
     .map(

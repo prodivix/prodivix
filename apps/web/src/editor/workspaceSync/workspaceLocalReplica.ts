@@ -3,8 +3,8 @@ import type { ProjectSummary } from '@/editor/editorApi';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { materializeWorkspaceLocalReplica } from '@prodivix/workspace-sync';
 import {
+  advanceWorkspaceLocalReplicaCache,
   readWorkspaceLocalReplicaPersistenceState,
-  saveWorkspaceLocalReplica,
 } from './indexedDbWorkspaceLocalReplicaStore';
 
 export type MaterializedWorkspaceLocalReplica = Readonly<{
@@ -66,7 +66,7 @@ export const loadMaterializedWorkspaceLocalReplica = async (
 
 export const persistAcknowledgedWorkspaceLocalReplica: WorkspaceLocalReplicaWriter =
   async (input) => {
-    await saveWorkspaceLocalReplica({
+    await advanceWorkspaceLocalReplicaCache({
       workspace: input.workspace,
       ...(input.settings !== undefined ? { settings: input.settings } : {}),
       ...(input.settingsOpSeq !== undefined

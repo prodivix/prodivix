@@ -4,11 +4,7 @@ import { createExportPackageOrigin } from '#src/export/packageOriginResolver';
 import { dedupeExportImportIntents } from '#src/export/importPlanner';
 import type { ExportDependency, ExportImportIntent } from '#src/export/types';
 import type { PackageResolverOptions } from '#src/core/packageResolver';
-
-const toIdentifier = (value: string): string => {
-  const candidate = value.replace(/[^a-zA-Z0-9_$]/g, '_');
-  return /^[a-zA-Z_$]/.test(candidate) ? candidate : `_${candidate}`;
-};
+import { toIdentifier } from '#src/workspace/pirLocalNames';
 
 const adapterImportKey = (item: AdapterImportSpec): string =>
   `${item.kind}\u0000${item.source}\u0000${item.imported}\u0000${item.local ?? ''}`;

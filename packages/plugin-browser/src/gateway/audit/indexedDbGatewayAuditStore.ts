@@ -48,12 +48,17 @@ export const createIndexedDbGatewayAuditStore = (
   let disposed = false;
   let databasePromise: Promise<IDBDatabase> | undefined;
 
+  const forgetHandle = (pending: Promise<IDBDatabase>): void => {
+    if (databasePromise === pending) databasePromise = undefined;
+  };
+
   const openDatabase = (): Promise<IDBDatabase> => {
     if (disposed) return Promise.reject(new Error('Audit store is disposed.'));
     if (!factory) {
       return Promise.reject(new Error('IndexedDB is unavailable.'));
     }
-    databasePromise ??= new Promise((resolve, reject) => {
+    if (databasePromise) return databasePromise;
+    const pending: Promise<IDBDatabase> = new Promise((resolve, reject) => {
       const request = factory.open(databaseName, databaseVersion);
       request.onupgradeneeded = () => {
         const database = request.result;
@@ -66,7 +71,14 @@ export const createIndexedDbGatewayAuditStore = (
       };
       request.onsuccess = () => {
         const database = request.result;
-        database.onversionchange = () => database.close();
+        // A handle closed by another tab's upgrade or by site-data clearing can
+        // never serve another transaction, so the memo has to be dropped or the
+        // whole required-before-effect Gateway surface would stay failed closed.
+        database.onversionchange = () => {
+          forgetHandle(pending);
+          database.close();
+        };
+        database.onclose = () => forgetHandle(pending);
         resolve(database);
       };
       request.onerror = () =>
@@ -74,7 +86,25 @@ export const createIndexedDbGatewayAuditStore = (
       request.onblocked = () =>
         reject(new Error('Audit database upgrade is blocked.'));
     });
-    return databasePromise;
+    databasePromise = pending;
+    void pending.catch(() => forgetHandle(pending));
+    return pending;
+  };
+
+  /** Begins one audit transaction, reopening once when the memo went stale. */
+  const beginTransaction = async (
+    mode: IDBTransactionMode
+  ): Promise<IDBTransaction> => {
+    const pending = openDatabase();
+    const database = await pending;
+    try {
+      return database.transaction(STORE_NAME, mode);
+    } catch (error) {
+      if (disposed) throw error;
+      forgetHandle(pending);
+      const reopened = await openDatabase();
+      return reopened.transaction(STORE_NAME, mode);
+    }
   };
 
   const append = async (input: GatewayAuditRecord): Promise<void> => {
@@ -83,8 +113,7 @@ export const createIndexedDbGatewayAuditStore = (
     if (byteLength > policy.maxBytes) {
       throw new Error('Gateway audit record exceeds the retention byte limit.');
     }
-    const database = await openDatabase();
-    const transaction = database.transaction(STORE_NAME, 'readwrite');
+    const transaction = await beginTransaction('readwrite');
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(STORE_NAME);
     store.put({
@@ -132,8 +161,7 @@ export const createIndexedDbGatewayAuditStore = (
   const readRecent = async (
     limit = 100
   ): Promise<readonly GatewayAuditRecord[]> => {
-    const database = await openDatabase();
-    const transaction = database.transaction(STORE_NAME, 'readonly');
+    const transaction = await beginTransaction('readonly');
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(STORE_NAME);
     const normalizedLimit =
@@ -165,7 +193,9 @@ export const createIndexedDbGatewayAuditStore = (
     dispose: async () => {
       if (disposed) return;
       disposed = true;
-      const database = await databasePromise?.catch(() => undefined);
+      const pending = databasePromise;
+      databasePromise = undefined;
+      const database = await pending?.catch(() => undefined);
       database?.close();
     },
   });

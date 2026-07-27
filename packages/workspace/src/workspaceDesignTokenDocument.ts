@@ -5,6 +5,7 @@ import {
   type DesignTokenDocument,
   type DesignTokenJsonValue,
 } from '@prodivix/tokens';
+import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceCommandEnvelope,
   WorkspacePatchOperation,
@@ -94,8 +95,8 @@ export const selectWorkspaceDesignTokenDocumentResults = (
         .filter((document) => document.type === 'design-tokens')
         .sort((left, right) =>
           left.path === right.path
-            ? left.id.localeCompare(right.id)
-            : left.path.localeCompare(right.path)
+            ? compareUnicodeCodePoints(left.id, right.id)
+            : compareUnicodeCodePoints(left.path, right.path)
         )
         .map(decodeWorkspaceDesignTokenDocument)
     : [];

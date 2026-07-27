@@ -68,7 +68,7 @@ export const Disabled: Story = {
 };
 
 export const Controlled: Story = {
-  render: () => {
+  render: function ControlledStory() {
     const [value, setValue] = useState('');
     const handleClear = () => {
       setValue('');
@@ -99,7 +99,7 @@ export const CustomPlaceholder: Story = {
 };
 
 export const WithSearchAction: Story = {
-  render: () => {
+  render: function WithSearchActionStory() {
     const [value, setValue] = useState('');
     const [searchResults, setSearchResults] = useState<string[]>([]);
 

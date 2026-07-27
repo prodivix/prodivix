@@ -1,14 +1,14 @@
 import { createContext, useContext } from 'react';
-import type { TFunction } from 'i18next';
 import type { BlueprintInspectorNodeView } from '../../projection';
 import type { InspectorUpdateNode } from '../types';
+import type { LayoutGroupTranslate } from './types';
 
 export type LayoutGroupContextValue = {
   node: BlueprintInspectorNodeView;
   updateNode: InspectorUpdateNode;
   display: string | undefined;
   isPatternStructureControlled: boolean;
-  t: TFunction;
+  t: LayoutGroupTranslate;
 };
 
 export const LayoutGroupContext = createContext<LayoutGroupContextValue | null>(

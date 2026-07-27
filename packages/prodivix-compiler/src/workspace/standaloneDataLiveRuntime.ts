@@ -6,12 +6,20 @@ import {
 const compareText = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
 
+/**
+ * Server and edge zones invoke through the gateway, which resolves their
+ * configuration from the canonical Workspace, so the emitted client module
+ * never reads these keys. Shipping them anyway would publish internal base
+ * URLs, endpoints, request paths and literal authorization values to every
+ * browser that downloads the bundle.
+ */
 const projectConfiguration = (
-  values: Readonly<Record<string, Readonly<{ kind: string; value?: unknown }>>>
+  values: Readonly<Record<string, Readonly<{ kind: string; value?: unknown }>>>,
+  runtimeZone: string
 ): Readonly<Record<string, Readonly<{ kind: string; value?: unknown }>>> =>
   Object.freeze(
     Object.fromEntries(
-      Object.entries(values)
+      (runtimeZone === 'client' ? Object.entries(values) : [])
         .sort(([left], [right]) => compareText(left, right))
         .map(([key, value]) => [
           key,
@@ -44,7 +52,8 @@ export const projectStandaloneDataDocuments = (
                   adapterId: value.source.adapterId,
                   runtimeZone: value.source.runtimeZone,
                   configurationByKey: projectConfiguration(
-                    value.source.configurationByKey
+                    value.source.configurationByKey,
+                    value.source.runtimeZone
                   ),
                 }),
                 schemasById: value.schemasById,
@@ -62,7 +71,8 @@ export const projectStandaloneDataDocuments = (
                             : {}),
                           outputSchemaId: operation.outputSchemaId,
                           configurationByKey: projectConfiguration(
-                            operation.configurationByKey
+                            operation.configurationByKey,
+                            value.source.runtimeZone
                           ),
                           policies: operation.policies,
                         }),

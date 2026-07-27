@@ -130,6 +130,34 @@ func TestImportWorkspaceSnapshotRejectsInvalidVFSAndRouteReferencesBeforeWriting
 	}
 }
 
+func TestImportWorkspaceSnapshotAppliesIdentityScopedDocumentValidation(t *testing.T) {
+	const danglingOptimisticTarget = `{"wireVersion":1,"source":{"id":"catalog","adapterId":"rest","runtimeZone":"server","bindingsById":{},"configurationByKey":{}},"schemasById":{"product":{"id":"product","schema":true}},"operationsById":{"update-product":{"id":"update-product","kind":"mutation","outputSchemaId":"product","configurationByKey":{},"policies":{"optimistic":{"kind":"crud","action":"update","target":{"documentId":"doc-data","operationId":"missing-query"},"entityIdPath":"/id","valueInputPath":"/item","valueOutputPath":"/item","rollback":"on-error"}}}}}`
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer db.Close()
+	params := validSnapshotBoundaryImportParams()
+	params.Tree = json.RawMessage(`{"treeRootId":"root","treeById":{"root":{"id":"root","kind":"dir","name":"/","parentId":null,"children":["doc-data-node"]},"doc-data-node":{"id":"doc-data-node","kind":"doc","name":"catalog.data.json","parentId":"root","docId":"doc-data"}}}`)
+	params.Documents = []WorkspaceImportDocumentRecord{{
+		ID:         "doc-data",
+		Type:       WorkspaceDocumentTypeDataSource,
+		Path:       "/catalog.data.json",
+		ContentRev: 1,
+		MetaRev:    1,
+		Content:    json.RawMessage(danglingOptimisticTarget),
+	}}
+
+	_, err = NewWorkspaceStore(db).ImportWorkspaceSnapshot(context.Background(), params)
+	if !errors.Is(err, ErrDataSourceValidationFailed) {
+		t.Fatalf("expected the import to reject a dangling same-document optimistic target, got %T %v", err, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unexpected database access: %v", err)
+	}
+}
+
 func snapshotBoundaryWorkspaceQuery() string {
 	return regexp.QuoteMeta(`SELECT w.id, w.project_id, w.owner_id, w.name, w.workspace_rev, w.route_rev, w.op_seq, w.tree_root_id, w.tree_json, w.created_at, w.updated_at, r.manifest_json, s.settings_json
 FROM workspaces w

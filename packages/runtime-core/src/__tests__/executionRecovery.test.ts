@@ -18,22 +18,22 @@ const descriptor = createExecutionProviderDescriptor({
 });
 
 const createController = (jobId: string) => {
-  let controller: ReturnType<typeof createExecutionJobController>;
-  controller = createExecutionJobController({
-    jobId,
-    provider: descriptor,
-    request: createExecutionRequest({
-      requestId: `${jobId}-request`,
-      profile: 'preview',
-      runtimeZone: 'client',
-      workspace: { workspaceId: 'workspace', snapshotId: 'snapshot' },
-      invocation: {
-        kind: 'workspace',
-        targetRef: { kind: 'workspace', workspaceId: 'workspace' },
-      },
-    }),
-    requestCancellation: () => 'accepted',
-  });
+  const controller: ReturnType<typeof createExecutionJobController> =
+    createExecutionJobController({
+      jobId,
+      provider: descriptor,
+      request: createExecutionRequest({
+        requestId: `${jobId}-request`,
+        profile: 'preview',
+        runtimeZone: 'client',
+        workspace: { workspaceId: 'workspace', snapshotId: 'snapshot' },
+        invocation: {
+          kind: 'workspace',
+          targetRef: { kind: 'workspace', workspaceId: 'workspace' },
+        },
+      }),
+      requestCancellation: () => 'accepted',
+    });
   return controller;
 };
 

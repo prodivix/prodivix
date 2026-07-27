@@ -154,6 +154,106 @@ describe('Data HTTP adapter', () => {
     );
   });
 
+  it('reads a source-owned apiKeyHeader binding under its source field name', async () => {
+    const canary = 'secret-canary-api-key';
+    let injectedHeaders: Readonly<Record<string, string>> | undefined;
+    const execute = vi.fn(async (request) => {
+      injectedHeaders = request.headers;
+      return {
+        status: 200,
+        ok: true,
+        text: '{"items":[]}',
+        trace: createExecutionNetworkTrace({
+          requestId: request.requestId,
+          phase: 'runtime',
+          runtimeZone: request.runtimeZone,
+          mode: request.mode,
+          adapter: request.adapter,
+          method: request.method,
+          sanitizedUrl: 'https://api.example.test/',
+          protocol: 'https',
+          startedAt: 100,
+          completedAt: 125,
+          outcome: 'allowed',
+          status: 200,
+          correlation: request.correlation,
+        }),
+      };
+    });
+    const registry = createDataOperationAdapterRegistry();
+    registry.register(createDataHttpAdapter({ transport: { execute } }));
+    const environmentService = createExecutionEnvironmentResolutionService({
+      snapshots: {
+        load: () => ({
+          environmentId: 'environment-server',
+          revision: 'revision-1',
+          mode: 'live',
+          publicBindingsById: { apiKeyHeaderName: 'x-api-key' },
+          secretBindingIds: ['apiKey'],
+        }),
+      },
+      permissions: {
+        authorize: () => ({
+          allowed: true,
+          grantId: 'grant-api-key',
+          permissionRevision: 'permission-1',
+          expiresAt: 1_000,
+        }),
+      },
+      secrets: { read: () => canary },
+      now: () => 100,
+    });
+
+    await executeDataOperation({
+      registry,
+      invocation: createDataOperationInvocation({
+        ...invocation,
+        invocationId: 'source-api-key-header',
+        runtimeZone: 'server',
+        environment: {
+          environmentId: 'environment-server',
+          revision: 'revision-1',
+          mode: 'live',
+        },
+      }),
+      document: {
+        ...document,
+        source: {
+          ...source,
+          runtimeZone: 'server',
+          bindingsById: {
+            apiKey: { kind: 'secret-ref', reference: { bindingId: 'apiKey' } },
+            apiKeyHeaderName: {
+              kind: 'environment-ref',
+              reference: { bindingId: 'apiKeyHeaderName' },
+            },
+          },
+          configurationByKey: {
+            ...source.configurationByKey,
+            apiKey: { kind: 'secret-ref', reference: { bindingId: 'apiKey' } },
+            apiKeyHeader: {
+              kind: 'environment-ref',
+              reference: { bindingId: 'apiKeyHeaderName' },
+            },
+          },
+        },
+      },
+      lifecycleChannel: createDataLifecycleChannel(),
+      signal: new AbortController().signal,
+      environmentResolution: {
+        service: environmentService,
+        workspaceId: 'workspace-1',
+        principal: { principalId: 'principal-1', sessionId: 'session-1' },
+        providerId: 'remote-runner',
+        providerIsolation: 'remote-isolated',
+        executionClass: 'isolated-runner',
+        profile: 'production',
+      },
+    });
+
+    expect(injectedHeaders?.['x-api-key']).toBe(canary);
+  });
+
   it('injects an authorized server Secret only at transport and keeps result, trace, and audit canary-free', async () => {
     const canary = 'secret-canary-7f0c';
     const audits: object[] = [];

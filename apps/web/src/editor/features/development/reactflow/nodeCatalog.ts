@@ -3,12 +3,7 @@ import type {
   GraphNodeKind,
   PortSemantic,
 } from './graphNodeShared';
-import {
-  CONTROL_IN,
-  CONTROL_OUT,
-  CONDITION_OUT,
-  DATA_OUT,
-} from './nodeCatalogConstants';
+import { CONTROL_IN, CONTROL_OUT } from './nodeCatalogConstants';
 import { NODE_CATALOG } from './nodeCatalogData';
 
 type NodePortProfile = {

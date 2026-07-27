@@ -110,7 +110,13 @@ export const resolvePirRendererHost = (
   plan: WorkspacePirProjectionPlan,
   host: PIRRendererHost
 ): PIRRendererHostResolution => {
-  const elementsByType: Record<string, PIRElementHostEntry> = {};
+  /**
+   * Element types are author-controlled strings, so a prototype-bearing record
+   * would resolve `constructor` or `toString` to an inherited value and skip
+   * the host entirely — silently turning a blocking issue into a render crash.
+   */
+  const elementsByType: Record<string, PIRElementHostEntry> =
+    Object.create(null);
   const missingElementTypes = new Set<string>();
   const issues: PIRRendererBlockingIssue[] = [];
 

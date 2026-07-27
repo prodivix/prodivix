@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Braces, FilePenLine, ShieldCheck, TriangleAlert } from 'lucide-react';
 import {
@@ -14,6 +14,7 @@ import {
   decodeWorkspaceDataSourceDocument,
 } from '@prodivix/workspace';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import { useFocusGuardedDraft } from '@/editor/drafts/useFocusGuardedDraft';
 import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 
@@ -30,7 +31,26 @@ type Preview = Readonly<{
   expectedContentRev: number;
 }>;
 
+type AuthoringSeed =
+  | Readonly<{ kind: 'no-target' }>
+  | Readonly<{ kind: 'policy'; operationTarget: string; draft: string }>
+  | Readonly<{
+      kind: 'schema';
+      operationTarget: string;
+      schemaTarget: string;
+      schemaId: string;
+      draft: string;
+    }>;
+
 const NEW_SCHEMA = '@new';
+
+const NO_TARGET_SEED: AuthoringSeed = Object.freeze({ kind: 'no-target' });
+
+const NEW_SCHEMA_TEMPLATE = Object.freeze({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {},
+});
 
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
 
@@ -51,9 +71,11 @@ export function DataManualAuthoringPanel({
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Keyed on the Data document itself, not the snapshot: every adopted mutation
+  // hands out a new snapshot object while untouched documents keep identity.
+  const workspaceDocument =
+    workspace && documentId ? workspace.docsById[documentId] : undefined;
   const selected = useMemo(() => {
-    if (!workspace || !documentId) return undefined;
-    const workspaceDocument = workspace.docsById[documentId];
     if (!workspaceDocument || workspaceDocument.type !== 'data-source')
       return undefined;
     const read = decodeWorkspaceDataSourceDocument(workspaceDocument);
@@ -63,7 +85,7 @@ export function DataManualAuthoringPanel({
           document: read.decodedContent,
         })
       : undefined;
-  }, [documentId, workspace]);
+  }, [workspaceDocument]);
 
   const schemaIds = useMemo(
     () => Object.keys(selected?.document.schemasById ?? {}).sort(),
@@ -74,43 +96,51 @@ export function DataManualAuthoringPanel({
     [selected]
   );
 
-  useEffect(() => {
-    if (!selected) {
-      setSchemaTarget(NEW_SCHEMA);
-      setOperationTarget('');
-      setDraft('{}');
-      setPreview(undefined);
-      return;
-    }
-    const nextOperation =
+  const seed = useMemo<AuthoringSeed>(() => {
+    if (!selected) return NO_TARGET_SEED;
+    const operationTarget =
       (operationId && selected.document.operationsById[operationId]
         ? operationId
         : operationIds[0]) ?? '';
-    setOperationTarget(nextOperation);
-    if (mode === 'policy' && nextOperation) {
-      setDraft(
-        pretty(selected.document.operationsById[nextOperation]?.policies ?? {})
-      );
-    } else if (schemaIds[0]) {
-      setSchemaTarget(schemaIds[0]);
-      setSchemaId(schemaIds[0]);
-      setDraft(
-        pretty(selected.document.schemasById[schemaIds[0]]?.schema ?? {})
-      );
-    } else {
-      setSchemaTarget(NEW_SCHEMA);
-      setSchemaId('schema');
-      setDraft(
-        pretty({
-          $schema: 'https://json-schema.org/draft/2020-12/schema',
-          type: 'object',
-          properties: {},
-        })
-      );
+    if (mode === 'policy' && operationTarget) {
+      return Object.freeze({
+        kind: 'policy',
+        operationTarget,
+        draft: pretty(
+          selected.document.operationsById[operationTarget]?.policies ?? {}
+        ),
+      });
     }
-    setPreview(undefined);
-    setMessage('');
+    const storedSchemaId = schemaIds[0];
+    return Object.freeze({
+      kind: 'schema',
+      operationTarget,
+      schemaTarget: storedSchemaId ?? NEW_SCHEMA,
+      schemaId: storedSchemaId ?? 'schema',
+      draft: pretty(
+        storedSchemaId
+          ? (selected.document.schemasById[storedSchemaId]?.schema ?? {})
+          : NEW_SCHEMA_TEMPLATE
+      ),
+    });
   }, [mode, operationId, operationIds, schemaIds, selected]);
+
+  const draftEditing = useFocusGuardedDraft(seed, (nextSeed) => {
+    setPreview(undefined);
+    if (nextSeed.kind === 'no-target') {
+      setSchemaTarget(NEW_SCHEMA);
+      setOperationTarget('');
+      setDraft('{}');
+      return;
+    }
+    setOperationTarget(nextSeed.operationTarget);
+    if (nextSeed.kind === 'schema') {
+      setSchemaTarget(nextSeed.schemaTarget);
+      setSchemaId(nextSeed.schemaId);
+    }
+    setDraft(nextSeed.draft);
+    setMessage('');
+  });
 
   const selectSchema = (value: string) => {
     setSchemaTarget(value);
@@ -118,13 +148,7 @@ export function DataManualAuthoringPanel({
     setMessage('');
     if (value === NEW_SCHEMA) {
       setSchemaId('schema');
-      setDraft(
-        pretty({
-          $schema: 'https://json-schema.org/draft/2020-12/schema',
-          type: 'object',
-          properties: {},
-        })
-      );
+      setDraft(pretty(NEW_SCHEMA_TEMPLATE));
       return;
     }
     setSchemaId(value);
@@ -335,6 +359,8 @@ export function DataManualAuthoringPanel({
                 setPreview(undefined);
                 setMessage('');
               }}
+              onFocus={draftEditing.beginEditing}
+              onBlur={draftEditing.endEditing}
             />
           </label>
           <div className="flex flex-wrap gap-2">

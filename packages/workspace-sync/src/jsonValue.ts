@@ -103,62 +103,6 @@ export const stableIdArrayPointer = (path: string): string => {
   return `/${segments.map(escapeJsonPointerSegment).join('/')}`;
 };
 
-/** Compares authoring JSON while treating stable-id entity arrays as maps. */
-export const semanticJsonValuesEqual = (
-  left: unknown,
-  right: unknown,
-  path = ''
-): boolean => {
-  if (Object.is(left, right)) return true;
-  const stablePair = resolveStableIdArrayPair(left, right, path);
-  if (stablePair) {
-    const leftIds = Object.keys(stablePair.left.valuesById).sort();
-    const rightIds = Object.keys(stablePair.right.valuesById).sort();
-    if (
-      leftIds.length !== rightIds.length ||
-      leftIds.some((id, index) => id !== rightIds[index])
-    ) {
-      return false;
-    }
-    const collectionPath = stableIdArrayPointer(path);
-    return leftIds.every((id) =>
-      semanticJsonValuesEqual(
-        stablePair.left.valuesById[id],
-        stablePair.right.valuesById[id],
-        appendJsonPointer(collectionPath, id)
-      )
-    );
-  }
-  if (Array.isArray(left) || Array.isArray(right)) {
-    if (!Array.isArray(left) || !Array.isArray(right)) return false;
-    return (
-      left.length === right.length &&
-      left.every((entry, index) =>
-        semanticJsonValuesEqual(
-          entry,
-          right[index],
-          appendJsonPointer(path, String(index))
-        )
-      )
-    );
-  }
-  if (!isRecord(left) || !isRecord(right)) return false;
-  const leftKeys = Object.keys(left).sort();
-  const rightKeys = Object.keys(right).sort();
-  return (
-    leftKeys.length === rightKeys.length &&
-    leftKeys.every(
-      (key, index) =>
-        key === rightKeys[index] &&
-        semanticJsonValuesEqual(
-          left[key],
-          right[key],
-          appendJsonPointer(path, key)
-        )
-    )
-  );
-};
-
 export const valueStatesEqual = (
   left: JsonValueState,
   right: JsonValueState

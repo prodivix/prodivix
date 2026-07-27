@@ -155,7 +155,10 @@ export const createRuntimeLifecycle = <TMap extends HostContributionPointMap>(
         record.runtimeSession = undefined;
         try {
           await managed?.terminationSubscription.dispose();
-        } catch {}
+        } catch {
+          // The session is already terminating; a failing unsubscribe must not stop
+          // the owner-scoped contribution cleanup that follows.
+        }
         const cleanup = await context.registry.disposeByOwner(record.owner, {
           operationId: operation.operationId,
           lifetime: 'activation',

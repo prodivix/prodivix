@@ -8,6 +8,7 @@ import {
   CSS_PERCENTAGE_UNIT,
   CSS_VIEWPORT_LENGTH_UNITS,
 } from '@/editor/features/blueprint/editor/inspector/components/units/cssUnits';
+import { useFocusGuardedDraft } from '@/editor/drafts/useFocusGuardedDraft';
 
 type UnitGroup = {
   label: string;
@@ -147,7 +148,7 @@ const getGroupsForQuantity = (
 const isCompleteNumber = (value: string) => /^-?\d+(?:\.\d+)?$/.test(value);
 
 const sanitizeAmount = (raw: string) => {
-  const stripped = raw.replace(/[^\d.\-]/g, '');
+  const stripped = raw.replace(/[^\d.-]/g, '');
   if (!stripped) return '';
   const isNegative = stripped.startsWith('-');
   const withoutSigns = stripped.replace(/-/g, '');
@@ -218,13 +219,11 @@ export function UnitInput({
   } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const amountEditingRef = useRef(false);
 
-  useEffect(() => {
-    if (amountEditingRef.current) return;
-    setDraftAmount(parsed.amount);
-    setDraftUnit(parsed.unit);
-  }, [parsed.amount, parsed.unit]);
+  const amountEditing = useFocusGuardedDraft(parsed, (nextParsed) => {
+    setDraftAmount(nextParsed.amount);
+    setDraftUnit(nextParsed.unit);
+  });
 
   useEffect(() => {
     if (!isOpen || !buttonRef.current) return;
@@ -300,11 +299,9 @@ export function UnitInput({
                 return;
               }
             }}
-            onFocus={() => {
-              amountEditingRef.current = true;
-            }}
+            onFocus={amountEditing.beginEditing}
             onBlur={() => {
-              amountEditingRef.current = false;
+              amountEditing.endEditing();
               if (!draftAmount.trim()) {
                 onChange(undefined);
               } else if (isCompleteNumber(draftAmount)) {

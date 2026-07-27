@@ -1,5 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   EXECUTION_PROFILES,
   EXECUTION_PROVIDER_ISOLATIONS,
@@ -243,7 +244,7 @@ const cloneExecutionValue = (value: ExecutionValue): ExecutionValue => {
       : Object.freeze(
           Object.fromEntries(
             Object.entries(candidate)
-              .sort(([left], [right]) => left.localeCompare(right))
+              .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
               .map(([key, entry]) => [key, clone(entry, depth + 1)])
           )
         );
@@ -269,11 +270,11 @@ const normalizeSnapshot = (
           cloneExecutionValue(bindingValue),
         ] as const
     )
-    .sort(([left], [right]) => left.localeCompare(right));
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right));
   const secretBindingIds = Object.freeze(
     [...new Set(value.secretBindingIds)]
       .map((bindingId) => canonical(bindingId, 'Environment secret bindingId'))
-      .sort()
+      .sort(compareUnicodeCodePoints)
   );
   if (
     publicBindings.some(([bindingId]) => secretBindingIds.includes(bindingId))
@@ -311,7 +312,8 @@ const normalizeRequest = (
       })
     )
     .sort((left, right) =>
-      `${left.field}\0${left.bindingId}`.localeCompare(
+      compareUnicodeCodePoints(
+        `${left.field}\0${left.bindingId}`,
         `${right.field}\0${right.bindingId}`
       )
     );

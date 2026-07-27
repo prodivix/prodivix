@@ -6,6 +6,7 @@ import {
   type DesignTokenResolverDocument,
   type DesignTokenResolverSource,
 } from '@prodivix/tokens';
+import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceCommandEnvelope,
   WorkspacePatchOperation,
@@ -105,8 +106,8 @@ export const selectWorkspaceDesignTokenResolverDocumentResults = (
         .filter((document) => document.type === 'design-token-resolver')
         .sort((left, right) =>
           left.path === right.path
-            ? left.id.localeCompare(right.id)
-            : left.path.localeCompare(right.path)
+            ? compareUnicodeCodePoints(left.id, right.id)
+            : compareUnicodeCodePoints(left.path, right.path)
         )
         .map(decodeWorkspaceDesignTokenResolverDocument)
     : [];
@@ -167,7 +168,7 @@ export const collectWorkspaceDesignTokenResolverDocumentReferences = (
   });
   return Object.freeze(
     [...references.values()].sort((left, right) =>
-      left.reference.localeCompare(right.reference)
+      compareUnicodeCodePoints(left.reference, right.reference)
     )
   );
 };

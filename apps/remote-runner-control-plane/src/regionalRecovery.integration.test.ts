@@ -273,12 +273,23 @@ const startRegion = async (
 const stop = (server: Server): Promise<void> =>
   new Promise((resolve) => server.close(() => resolve()));
 
+/**
+ * Decoded JSON, shaped so an assertion can walk several levels down before it
+ * cares about a leaf. The recursion keeps intermediate property access typed;
+ * `readLease` is how a leaf is narrowed to the shape its endpoint returns.
+ */
+type ResponseBody = { readonly [key: string]: ResponseBody };
+
+/** Narrows a walked claim body to the lease fields the recovery flow asserts on. */
+const readLease = (value: ResponseBody): { token: string; attempt: number } =>
+  value as unknown as { token: string; attempt: number };
+
 const post = async (
   baseUrl: string,
   path: string,
   body: unknown,
   client = false
-): Promise<Readonly<{ status: number; body: any }>> => {
+): Promise<Readonly<{ status: number; body: ResponseBody }>> => {
   const response = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: {
@@ -500,10 +511,7 @@ integration('regional Control Plane disaster-recovery drill', () => {
         leaseDurationMs: 1_000,
       });
       expect(claimed.status).toBe(200);
-      const lease = claimed.body.claim.lease as {
-        token: string;
-        attempt: number;
-      };
+      const lease = readLease(claimed.body.claim.lease);
       expect(lease.attempt).toBe(1);
       regionA.setNow(1_001);
       await expect(
@@ -607,10 +615,7 @@ integration('regional Control Plane disaster-recovery drill', () => {
         providerId: provider.id,
         leaseDurationMs: 100,
       });
-      const oldLease = claimed.body.claim.lease as {
-        token: string;
-        attempt: number;
-      };
+      const oldLease = readLease(claimed.body.claim.lease);
       regionA.setNow(1_001);
       await post(
         httpA.baseUrl,
@@ -690,7 +695,7 @@ integration('regional Control Plane disaster-recovery drill', () => {
           },
         },
       });
-      const newLease = reclaimed.body.claim.lease as { token: string };
+      const newLease = readLease(reclaimed.body.claim.lease);
       expect(
         await post(
           httpB.baseUrl,

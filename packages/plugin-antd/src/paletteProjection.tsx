@@ -72,14 +72,13 @@ const withPreviewRuntimeProps = (
     props.render = (item: Readonly<{ title?: unknown; key?: unknown }>) =>
       String(item.title ?? item.key ?? 'Item');
   }
-  if (
-    componentPath === 'Modal' ||
-    componentPath === 'Drawer' ||
-    componentPath === 'Tour'
-  ) {
+  // Tour is deliberately absent: rc-tour portals its mask and target
+  // placeholder straight to document.body, so opening it in a palette preview
+  // would blanket the editor shell.
+  if (componentPath === 'Modal' || componentPath === 'Drawer') {
     props.open = true;
     props.getContainer = overlayContainer ? () => overlayContainer : false;
-    if (componentPath !== 'Tour') props.mask = false;
+    props.mask = false;
   } else if (
     [
       'Cascader',

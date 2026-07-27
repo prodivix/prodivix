@@ -7,6 +7,7 @@ import { createWorkspaceStandaloneDataRuntimeModule } from './standaloneDataRunt
 import {
   EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET,
   PROVIDER_MOCK_DATA_RUNTIME_TARGET,
+  STATIC_CLIENT_DATA_RUNTIME_TARGET,
 } from './workspaceDataRuntimeTarget';
 
 const workspace: WorkspaceSnapshot = {
@@ -254,6 +255,52 @@ const clientProtocolWorkspace = (
                     },
                   },
               policies: { idempotency: { kind: 'invocation-key' } },
+            },
+          },
+        },
+      },
+    },
+  };
+};
+
+const literalConfigurationWorkspace = (
+  runtimeZone: 'client' | 'server'
+): WorkspaceSnapshot => {
+  const document = workspace.docsById['data-products'];
+  if (!document || document.type !== 'data-source')
+    throw new Error('Expected the Data configuration test document.');
+  return {
+    ...workspace,
+    id: `standalone-data-runtime-${runtimeZone}-literals`,
+    docsById: {
+      ...workspace.docsById,
+      'data-products': {
+        ...document,
+        content: {
+          ...document.content,
+          source: {
+            ...document.content.source,
+            runtimeZone,
+            configurationByKey: {
+              baseUrl: {
+                kind: 'literal',
+                value: 'https://billing-internal.corp.example/v1',
+              },
+              authorization: {
+                kind: 'literal',
+                value: 'Basic ZGVwbG95OnMzY3IzdA==',
+              },
+            },
+          },
+          operationsById: {
+            ...document.content.operationsById,
+            'list-products': {
+              ...document.content.operationsById['list-products']!,
+              configurationByKey: {
+                method: { kind: 'literal', value: 'GET' },
+                path: { kind: 'literal', value: '/internal/billing/products' },
+                emptyWhen: { kind: 'literal', value: 'never' },
+              },
             },
           },
         },
@@ -1895,5 +1942,25 @@ describe('standalone Data runtime projection', () => {
     });
     expect(fetch).toHaveBeenCalledTimes(1);
     runtime.dispose();
+  });
+
+  it('withholds server zone configuration literals from the emitted client module', () => {
+    const serverModule = createWorkspaceStandaloneDataRuntimeModule(
+      literalConfigurationWorkspace('server'),
+      EXECUTION_PARENT_GATEWAY_DATA_RUNTIME_TARGET
+    );
+
+    expect(serverModule.body).toContain('"runtimeZone":"server"');
+    expect(serverModule.body).not.toContain('billing-internal.corp.example');
+    expect(serverModule.body).not.toContain('Basic ZGVwbG95OnMzY3IzdA==');
+    expect(serverModule.body).not.toContain('/internal/billing/products');
+
+    const clientModule = createWorkspaceStandaloneDataRuntimeModule(
+      literalConfigurationWorkspace('client'),
+      STATIC_CLIENT_DATA_RUNTIME_TARGET
+    );
+
+    expect(clientModule.body).toContain('billing-internal.corp.example');
+    expect(clientModule.body).toContain('/internal/billing/products');
   });
 });

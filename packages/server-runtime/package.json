@@ -17,6 +17,7 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
@@ -26,6 +27,7 @@
   "dependencies": {
     "@prodivix/authoring": "workspace:*",
     "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/shared": "workspace:*",
     "ajv": "^8.20.0"
   },
   "devDependencies": {

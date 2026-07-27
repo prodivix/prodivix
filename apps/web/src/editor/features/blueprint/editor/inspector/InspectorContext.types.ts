@@ -7,7 +7,10 @@ import type {
   InspectorUpdateNode,
 } from '@/editor/features/blueprint/editor/inspector/panels/types';
 import type { MountedCssEntry } from '@/editor/features/blueprint/editor/inspector/components/classProtocol/mountedCss';
-import type { EditableTextField } from '@/editor/features/blueprint/editor/model/blueprintText';
+import type {
+  EditableTextField,
+  TextFieldMode,
+} from '@/editor/features/blueprint/editor/model/blueprintText';
 import type { DataOperationInspectorCandidate } from './domain/dataOperationInspectorModel';
 import type {
   WorkspaceOwnerGuardTarget,
@@ -53,6 +56,9 @@ export type InspectorCoreContext = {
 
 export type InspectorIdentityContext = {
   primaryTextField: EditableTextField | null;
+  /** Editor-only presentation preference; never persisted into PIR props. */
+  primaryTextFieldMode: TextFieldMode;
+  setPrimaryTextFieldMode: (mode: TextFieldMode) => void;
 };
 
 export type InspectorCapabilitiesContext = {
@@ -82,6 +88,13 @@ export type InspectorCapabilitiesContext = {
   relPropKey: string;
   titlePropKey: string;
   routeOptions: Array<{ id: string; path: string }>;
+  /**
+   * Every route id in the composed manifest, including the root that
+   * `routeOptions` omits. Trigger validation resolves internal destinations
+   * against this set, so a routeId pointing at a deleted route reads as
+   * unresolved instead of silently valid.
+   */
+  knownRouteIds: ReadonlySet<string>;
   outletRouteNodeId: string;
   activeRouteNodeId?: string;
   bindOutletToRoute: (

@@ -4,6 +4,7 @@ import type { TargetAdapter } from '#src/core/adapter';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type { PirElementEmitter } from '#src/workspace/pirElementEmitter';
 import { PirImportRegistry } from '#src/workspace/pirImportRegistry';
+import { PirLocalNameRegistry } from '#src/workspace/pirLocalNames';
 import { PirSourceTraceCollector } from '#src/workspace/pirSourceTrace';
 
 export type PirNodeCompileContext = Readonly<{
@@ -23,6 +24,12 @@ export type PirNodeCompileContext = Readonly<{
    */
   routeOutletNodeIds: ReadonlySet<string>;
   imports: PirImportRegistry;
+  /**
+   * Allocates the generated `const` suffixes this module emits. PIR ids are
+   * unconstrained strings that normalise lossily into identifiers, so the
+   * mapping has to be reserved once per module instead of recomputed per use.
+   */
+  locals: PirLocalNameRegistry;
   traces: PirSourceTraceCollector;
   diagnostics: CompileDiagnostic[];
 }>;

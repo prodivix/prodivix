@@ -23,6 +23,7 @@ const sanitizeCompileText = (value: string): string => {
   const sanitized = value
     .replaceAll(/file:\/\/\/[\S]+/giu, '<source>')
     .replaceAll(/[A-Za-z]:[\\/](?:[^\\/\s:]+[\\/])*[^\\/\s:]+/gu, '<source>')
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
     .replaceAll(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, '')
     .replaceAll(/\s+/gu, ' ')
     .trim();

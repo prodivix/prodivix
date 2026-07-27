@@ -17,6 +17,7 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
@@ -24,10 +25,11 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
+    "@noble/hashes": "^2.0.1",
     "@prodivix/diagnostics": "workspace:*",
     "@prodivix/runtime-core": "workspace:*",
     "@prodivix/server-runtime": "workspace:*",
-    "@noble/hashes": "^2.0.1"
+    "@prodivix/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

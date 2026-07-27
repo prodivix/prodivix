@@ -4,7 +4,6 @@ import {
   updateLayoutValue,
   readCssValue,
 } from '../layoutPanelHelpers';
-import { InspectorRow } from '@/editor/features/blueprint/editor/inspector/components/InspectorRow';
 import { UnitInput } from '@/editor/features/blueprint/editor/inspector/components/UnitInput';
 
 const SizeGroupContent = ({ node, updateNode, t }: LayoutGroupRenderProps) => {

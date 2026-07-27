@@ -146,6 +146,7 @@ export {
   readExecutionTestReportValue,
   toExecutionTestReportValue,
 } from './executionTestReport';
+export { inspectExecutionArtifactContents } from './executionArtifactSecretInspection';
 export {
   createExecutionSecretLeakDiagnostic,
   createExecutionSecretLeakGuard,

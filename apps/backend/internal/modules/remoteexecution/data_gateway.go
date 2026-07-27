@@ -43,10 +43,22 @@ func normalizedDataGatewayID(value string) (string, bool) {
 	return normalized, value == normalized && normalized != "" && len(normalized) <= 512 && !strings.ContainsRune(normalized, '\x00')
 }
 
+// validDataGatewayAdapterID is the single allowlist of adapter identities the Remote Data
+// gateway can parse, plan, execute and record. Document parsing and mutation replay identity
+// share it so a new adapter cannot be dispatched without also being replayable.
+func validDataGatewayAdapterID(value string) bool {
+	switch value {
+	case "core.http", "core.graphql", "core.asyncapi":
+		return true
+	default:
+		return false
+	}
+}
+
 func parseDataGatewayDocument(contents []byte, documentID string, operationID string) (*dataGatewayDocument, *dataGatewayOperation, error) {
 	var document dataGatewayDocument
 	if json.Unmarshal(contents, &document) != nil || document.WireVersion != 1 ||
-		(document.Source.AdapterID != "core.http" && document.Source.AdapterID != "core.graphql" && document.Source.AdapterID != "core.asyncapi") ||
+		!validDataGatewayAdapterID(document.Source.AdapterID) ||
 		(document.Source.RuntimeZone != "server" && document.Source.RuntimeZone != "edge") {
 		return nil, nil, ErrDataGatewayDenied
 	}
@@ -61,6 +73,13 @@ func parseDataGatewayDocument(contents []byte, documentID string, operationID st
 		return nil, nil, ErrDataGatewayDenied
 	}
 	if retry := operation.Policies.Retry; retry != nil {
+		// Bound the attempt count before projecting the backoff ceiling. The
+		// projection loop runs MaximumAttempts-2 times, and with
+		// InitialDelayMS == 0 the accumulator never grows, so its early return
+		// cannot fire — an author-controlled document could otherwise pin a CPU.
+		if retry.MaximumAttempts < 1 || retry.MaximumAttempts > maximumDataGatewayRetryAttempts || (retry.Backoff != "fixed" && retry.Backoff != "exponential") || retry.InitialDelayMS < 0 || retry.InitialDelayMS > maximumDataGatewayRetryDelayMS {
+			return nil, nil, ErrDataGatewayDenied
+		}
 		maximumDelay := retry.InitialDelayMS
 		if retry.MaximumDelayMS != nil {
 			maximumDelay = *retry.MaximumDelayMS
@@ -72,7 +91,7 @@ func parseDataGatewayDocument(contents []byte, documentID string, operationID st
 				maximumDelay *= 2
 			}
 		}
-		if retry.MaximumAttempts < 1 || retry.MaximumAttempts > maximumDataGatewayRetryAttempts || (retry.Backoff != "fixed" && retry.Backoff != "exponential") || retry.InitialDelayMS < 0 || retry.InitialDelayMS > maximumDataGatewayRetryDelayMS || maximumDelay < retry.InitialDelayMS || maximumDelay > maximumDataGatewayRetryDelayMS {
+		if maximumDelay < retry.InitialDelayMS || maximumDelay > maximumDataGatewayRetryDelayMS {
 			return nil, nil, ErrDataGatewayDenied
 		}
 		if operation.Kind == "mutation" && retry.MaximumAttempts > 1 && operation.Policies.Idempotency == nil {
@@ -678,7 +697,7 @@ func (gateway *DataGateway) Invoke(ctx context.Context, principal backendenviron
 		if gateway.replays == nil {
 			return nil, ErrDataGatewayUnavailable
 		}
-		replayKey = DataGatewayMutationReplayKey{ExecutionID: executionID, DocumentID: documentID, OperationID: operationID, InvocationID: invocationID, Sequence: invocation.Sequence}
+		replayKey = DataGatewayMutationReplayKey{ExecutionID: executionID, DocumentID: documentID, OperationID: operationID, InvocationID: invocationID, Sequence: invocation.Sequence, Adapter: "core.http"}
 		replayHash, err = dataGatewayMutationReplayHash(*authority, *document, *operation, documentID, invocation, request.URL, method, input)
 		if err != nil {
 			return nil, err

@@ -2,12 +2,8 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import chalk from 'chalk';
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { resolvePirSchemaPath } from './pir-schema.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const schemaPath = resolvePirSchemaPath();
 const ajv = new Ajv2020({ allErrors: true, verbose: true });

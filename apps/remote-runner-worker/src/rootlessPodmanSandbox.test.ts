@@ -20,6 +20,7 @@ import {
 } from '@prodivix/server-runtime';
 import { describe, expect, it } from 'vitest';
 import {
+  createInstallProxyLogArguments,
   createRootlessPodmanRunArguments,
   createRootlessPodmanSandbox,
   createRootlessPodmanSandboxWirePayload,
@@ -319,6 +320,33 @@ describe('rootless Podman sandbox contract', () => {
     expect(wire.installCompleteMarker).not.toBe(
       'PRODIVIX_SANDBOX_INSTALL_COMPLETE_V1'
     );
+  });
+
+  it('reads install proxy traces through a bounded per-execution log window', () => {
+    const startedAt = 1_700_000_000_000;
+
+    expect(
+      createInstallProxyLogArguments(
+        'prodivix-install-proxy',
+        startedAt,
+        startedAt + 12_400
+      )
+    ).toEqual(['logs', '--since', '14s', 'prodivix-install-proxy']);
+    expect(
+      createInstallProxyLogArguments(
+        'prodivix-install-proxy',
+        startedAt,
+        startedAt
+      )
+    ).toEqual(['logs', '--since', '1s', 'prodivix-install-proxy']);
+    // A skewed or paused clock must never widen the window to the whole history.
+    expect(
+      createInstallProxyLogArguments(
+        'prodivix-install-proxy',
+        startedAt,
+        startedAt + 30 * 24 * 60 * 60 * 1_000
+      )
+    ).toEqual(['logs', '--since', '86400s', 'prodivix-install-proxy']);
   });
 
   it('strictly sanitizes proxy traces to origin-only metadata', () => {

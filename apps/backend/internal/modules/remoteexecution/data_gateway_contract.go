@@ -66,12 +66,17 @@ type DataGatewayStreamTransport interface {
 	OpenStream(ctx context.Context, request DataGatewayTransportRequest) (*DataGatewayStreamTransportResponse, error)
 }
 
+// DataGatewayMutationReplayKey pins the exact identity a durable mutation replay row may
+// answer for. ExecutionID/DocumentID/OperationID/InvocationID address the row; Sequence and
+// Adapter are call-pinned identity that the stored network trace must reproduce, so a
+// replayed result can never be projected onto a different dispatch than the one recorded.
 type DataGatewayMutationReplayKey struct {
 	ExecutionID  string
 	DocumentID   string
 	OperationID  string
 	InvocationID string
 	Sequence     int64
+	Adapter      string
 }
 
 type DataGatewayMutationReplayClaim struct {

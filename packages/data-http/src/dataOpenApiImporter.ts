@@ -1,8 +1,8 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import {
+  decodeCurrentDataSourceDocument,
   JSON_SCHEMA_2020_12_URI,
-  normalizeDataSourceDocument,
   type DataConfigurationValue,
   type DataImportEntityMapping,
   type DataImportProvenance,
@@ -15,6 +15,7 @@ import {
   type DataSourceDocument,
 } from '@prodivix/data';
 import type { RuntimeZone } from '@prodivix/runtime-core';
+import { isUnsafeObjectKey } from '@prodivix/shared/safety';
 import {
   DATA_HTTP_ADAPTER_ID,
   DATA_HTTP_RESERVED_HEADER_NAMES,
@@ -798,6 +799,19 @@ const parseParameters = (
         return;
       }
       const normalizedName = location === 'header' ? name.toLowerCase() : name;
+      // The projection keys input properties and parameter mappings by this
+      // name, so a prototype-mutating name would vanish from those records
+      // instead of becoming an own property, silently dropping the parameter
+      // from an otherwise "ready" proposal.
+      if (isUnsafeObjectKey(normalizedName)) {
+        issue(
+          issues,
+          DATA_OPENAPI_IMPORT_ISSUE_CODES.unsupportedShape,
+          childPath(entryPath, 'name'),
+          'Parameter names that shadow object prototype keys cannot be imported.'
+        );
+        return;
+      }
       if (
         location === 'header' &&
         DATA_HTTP_RESERVED_HEADER_NAMES.has(normalizedName)
@@ -1639,18 +1653,17 @@ export const createDataOpenApiImportProposal = (
   }
   let current: DataSourceDocument | undefined;
   if (input.currentDocument) {
-    try {
-      current = normalizeDataSourceDocument(input.currentDocument, {
-        documentId: input.documentId,
-      });
-    } catch {
+    const decoded = decodeCurrentDataSourceDocument(input.currentDocument, {
+      documentId: input.documentId,
+    });
+    if (decoded.ok) current = decoded.value;
+    else
       issue(
         issues,
         DATA_OPENAPI_IMPORT_ISSUE_CODES.targetDrift,
         '/@currentDocument',
         'Current Data source document is not canonical.'
       );
-    }
   }
   const previous = current?.importProvenanceById?.[input.importId];
   if (current && !previous) {
@@ -1699,36 +1712,30 @@ export const createDataOpenApiImportProposal = (
   }
   const nextProvenance = provenanceFromProjection(input, projection);
   if (!current || !previous) {
-    let document: DataSourceDocument;
-    try {
-      document = normalizeDataSourceDocument(
-        {
-          source: projection.source,
-          schemasById: Object.freeze(
-            Object.fromEntries(
-              [...projection.schemas.values()]
-                .sort((left, right) =>
-                  compareText(left.targetId, right.targetId)
-                )
-                .map((schema) => [schema.targetId, schema.value])
-            )
-          ),
-          operationsById: Object.freeze(
-            Object.fromEntries(
-              [...projection.operations.values()]
-                .sort((left, right) =>
-                  compareText(left.targetId, right.targetId)
-                )
-                .map((operation) => [operation.targetId, operation.value])
-            )
-          ),
-          importProvenanceById: Object.freeze({
-            [input.importId]: nextProvenance,
-          }),
-        },
-        { documentId: input.documentId }
-      );
-    } catch {
+    const decoded = decodeCurrentDataSourceDocument(
+      {
+        source: projection.source,
+        schemasById: Object.freeze(
+          Object.fromEntries(
+            [...projection.schemas.values()]
+              .sort((left, right) => compareText(left.targetId, right.targetId))
+              .map((schema) => [schema.targetId, schema.value])
+          )
+        ),
+        operationsById: Object.freeze(
+          Object.fromEntries(
+            [...projection.operations.values()]
+              .sort((left, right) => compareText(left.targetId, right.targetId))
+              .map((operation) => [operation.targetId, operation.value])
+          )
+        ),
+        importProvenanceById: Object.freeze({
+          [input.importId]: nextProvenance,
+        }),
+      },
+      { documentId: input.documentId }
+    );
+    if (!decoded.ok) {
       issue(
         issues,
         DATA_OPENAPI_IMPORT_ISSUE_CODES.invalidDocument,
@@ -1744,6 +1751,7 @@ export const createDataOpenApiImportProposal = (
         operationImpact
       );
     }
+    const document = decoded.value;
     changes.push(
       Object.freeze({
         entity: 'source',
@@ -2042,21 +2050,19 @@ export const createDataOpenApiImportProposal = (
       operationImpact
     );
   }
-  let document: DataSourceDocument;
-  try {
-    document = normalizeDataSourceDocument(
-      {
-        source,
-        schemasById: Object.freeze(schemasById),
-        operationsById: Object.freeze(operationsById),
-        importProvenanceById: Object.freeze({
-          ...(current.importProvenanceById ?? {}),
-          [input.importId]: nextProvenance,
-        }),
-      },
-      { documentId: input.documentId }
-    );
-  } catch {
+  const decoded = decodeCurrentDataSourceDocument(
+    {
+      source,
+      schemasById: Object.freeze(schemasById),
+      operationsById: Object.freeze(operationsById),
+      importProvenanceById: Object.freeze({
+        ...(current.importProvenanceById ?? {}),
+        [input.importId]: nextProvenance,
+      }),
+    },
+    { documentId: input.documentId }
+  );
+  if (!decoded.ok) {
     issue(
       issues,
       DATA_OPENAPI_IMPORT_ISSUE_CODES.invalidDocument,
@@ -2072,6 +2078,7 @@ export const createDataOpenApiImportProposal = (
       operationImpact
     );
   }
+  const document = decoded.value;
   return Object.freeze({
     status: 'ready',
     target,

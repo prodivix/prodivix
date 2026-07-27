@@ -82,7 +82,10 @@ export const createPluginAuditDispatcher = (
       try {
         const result = await sink.append(events);
         if (result.ok) return result.diagnostics;
-      } catch {}
+      } catch {
+        // A throwing sink is the same failure as a rejecting one: fall through to
+        // the AUDIT_SINK_FAILED diagnostic below.
+      }
       const first = inputs[0]!;
       return [
         createPluginDiagnostic(

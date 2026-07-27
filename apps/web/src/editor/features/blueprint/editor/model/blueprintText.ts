@@ -9,8 +9,6 @@ export type EditableTextField = {
   value: string;
 };
 
-type TextModeMap = Partial<Record<TextFieldKey, TextFieldMode>>;
-
 const TEXT_PROP_KEYS: TextFieldKey[] = [
   'text',
   'title',
@@ -38,17 +36,6 @@ const TEXTUAL_TYPE_HINTS = [
   'link',
   'label',
 ];
-
-const getTextModeMap = (node: BlueprintInspectorNodeView): TextModeMap => {
-  const raw = node.props?.textMode;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const modeMap: TextModeMap = {};
-  TEXT_PROP_KEYS.forEach((key) => {
-    const mode = (raw as Record<string, unknown>)[key];
-    if (mode === 'plain' || mode === 'rich') modeMap[key] = mode;
-  });
-  return modeMap;
-};
 
 const isTextCapableType = (type: string) => {
   const normalized = type.toLowerCase();
@@ -101,20 +88,3 @@ export const updateNodeTextField = (
         ...node,
         props: { ...node.props, [field.key]: value },
       };
-
-export const getNodeTextFieldMode = (
-  node: BlueprintInspectorNodeView,
-  fieldKey: TextFieldKey
-): TextFieldMode => getTextModeMap(node)[fieldKey] ?? 'plain';
-
-export const updateNodeTextFieldMode = (
-  node: BlueprintInspectorNodeView,
-  fieldKey: TextFieldKey,
-  mode: TextFieldMode
-): BlueprintInspectorNodeView => ({
-  ...node,
-  props: {
-    ...node.props,
-    textMode: { ...getTextModeMap(node), [fieldKey]: mode },
-  },
-});

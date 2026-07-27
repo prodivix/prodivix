@@ -89,6 +89,32 @@ describe('Blueprint Inspector navigation projection', () => {
     expect(next.events).toBeUndefined();
   });
 
+  it('re-saves a stored internal route after only its event changed', () => {
+    const current: PIRElementNode = {
+      id: 'link',
+      kind: 'element',
+      type: 'a',
+      events: { onClick: { kind: 'navigate-route', routeId: 'route-2' } },
+    };
+    const events = projectEvents(current.events)!;
+
+    expect(events.onClick.params.to).toBeUndefined();
+    expect(
+      toElementNode(
+        {
+          id: current.id,
+          type: current.type,
+          events: {
+            onClick: { ...events.onClick, trigger: 'onPointerEnter' },
+          },
+        },
+        current
+      ).events
+    ).toEqual({
+      onPointerEnter: { kind: 'navigate-route', routeId: 'route-2' },
+    });
+  });
+
   it('persists the resolved route identity', () => {
     const current: PIRElementNode = {
       id: 'link',

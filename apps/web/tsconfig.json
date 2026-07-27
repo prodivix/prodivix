@@ -2,9 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"],
       "@prodivix/ai": ["../../packages/ai/src"],
@@ -55,7 +53,12 @@
       "@prodivix/workspace-sync": ["../../packages/workspace-sync/src"]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*",
+    "config/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
   "exclude": ["node_modules"],
   "references": [
     {

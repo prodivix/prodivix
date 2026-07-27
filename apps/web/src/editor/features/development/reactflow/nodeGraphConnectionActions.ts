@@ -1,4 +1,10 @@
-import { addEdge, type Connection, type Edge, type Node } from '@xyflow/react';
+import {
+  addEdge,
+  type Connection,
+  type Edge,
+  type IsValidConnection,
+  type Node,
+} from '@xyflow/react';
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import type { GraphNodeData } from './GraphNode';
 import {
@@ -22,18 +28,29 @@ export const useNodeGraphConnectionActions = ({
   setEdges,
   setHint,
 }: UseNodeGraphConnectionActionsParams) => {
-  const isValidConnection = useCallback(
-    (connection: Connection) =>
-      validateConnectionWithState(connection, nodes, edges).valid,
+  // React Flow probes validity with either a live Connection or an existing
+  // Edge, whose handles are optional; both collapse to the same endpoint pair.
+  const isValidConnection = useCallback<IsValidConnection>(
+    (connection) =>
+      validateConnectionWithState(
+        {
+          source: connection.source,
+          target: connection.target,
+          sourceHandle: connection.sourceHandle ?? null,
+          targetHandle: connection.targetHandle ?? null,
+        },
+        nodes,
+        edges
+      ).valid,
     [edges, nodes]
   );
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      const normalizedConnection = {
+      const normalizedConnection: Connection = {
         ...connection,
-        sourceHandle: normalizeHandleId(connection.sourceHandle) ?? undefined,
-        targetHandle: normalizeHandleId(connection.targetHandle) ?? undefined,
+        sourceHandle: normalizeHandleId(connection.sourceHandle),
+        targetHandle: normalizeHandleId(connection.targetHandle),
       };
       const validation = validateConnectionWithState(
         normalizedConnection,
@@ -46,9 +63,13 @@ export const useNodeGraphConnectionActions = ({
         setHint(connectionHintTextByReason[reason]);
         return;
       }
-      setEdges((current) =>
-        addEdge({ ...normalizedConnection, type: 'smoothstep' }, current)
-      );
+      // `addEdge` mints the edge id for a Connection and copies every other
+      // field through, so the edge type rides along on the upgraded connection.
+      const connectionWithEdgeType: Connection & Pick<Edge, 'type'> = {
+        ...normalizedConnection,
+        type: 'smoothstep',
+      };
+      setEdges((current) => addEdge(connectionWithEdgeType, current));
     },
     [connectionHintTextByReason, edges, nodes, setEdges, setHint]
   );

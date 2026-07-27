@@ -47,6 +47,7 @@ type ActiveStream = {
   session?: RemoteDataStreamGatewaySession;
   unsubscribeNetwork?: () => void;
   cursor: number;
+  connection: number;
   pending: boolean;
   publish(message: ExecutionDataStreamBridgeMessage): void;
 };
@@ -56,6 +57,18 @@ const identifier = (value: string, label: string): string => {
     throw new TypeError(`${label} is invalid.`);
   return value;
 };
+
+/**
+ * Backend derives a stream Network request id from `invocation:stream:<cursor>`,
+ * so every resumed connection at an unchanged cursor repeats it. Session trace
+ * identity is `jobId + traceId + spanId + phase` and a Network observation must
+ * keep `spanId === detail.requestId`, so a resume has to carry its own local
+ * connection ordinal — otherwise a legitimate reconnect publishes a second trace
+ * under an identity that is already retained with different timings, which the
+ * Session reports as a conflict and the stream is torn down as divergence.
+ */
+const connectionRequestId = (requestId: string, connection: number): string =>
+  connection === 0 ? requestId : `${requestId}#resume-${connection}`;
 
 const failureMessage = (
   request: ExecutionDataStreamOpenRequest,
@@ -125,6 +138,7 @@ export const createRemoteDataStreamRunCoordinator = (options: {
       streams.get(stream.request.requestId) !== stream
     )
       return false;
+    const requestId = connectionRequestId(network.requestId, stream.connection);
     let publication: ExecutionSessionTracePublication;
     try {
       publication = options.publishTrace({
@@ -133,10 +147,10 @@ export const createRemoteDataStreamRunCoordinator = (options: {
         observedAt: network.completedAt,
         trace: {
           traceId: `network:${stream.run.jobId}`,
-          spanId: network.requestId,
+          spanId: requestId,
           name: EXECUTION_NETWORK_TRACE_NAME,
           phase: 'event',
-          detail: toExecutionNetworkTraceValue(network),
+          detail: toExecutionNetworkTraceValue({ ...network, requestId }),
           ...(network.sourceTrace ? { sourceTrace: network.sourceTrace } : {}),
         },
       });
@@ -219,6 +233,7 @@ export const createRemoteDataStreamRunCoordinator = (options: {
         request,
         abort: new AbortController(),
         cursor: 0,
+        connection: 0,
         pending: false,
         publish,
       };
@@ -235,6 +250,7 @@ export const createRemoteDataStreamRunCoordinator = (options: {
         }
         stream.unsubscribeNetwork = stream.session.subscribeNetwork(
           (network) => {
+            stream.connection += 1;
             if (publishNetworkTrace(stream, network)) return;
             if (current(run) && streams.get(request.requestId) === stream) {
               publish(

@@ -230,64 +230,72 @@ const createYaraXContentScanner = (input: {
             : 'protocol'
         );
       }
+      // The slot must be held across scratch-directory creation too: a mkdtemp
+      // rejection would otherwise leak it for the whole readiness cache window.
       activeScans += 1;
-      const directory = await mkdtemp(join(tmpdir(), 'prodivix-yarax-'));
       try {
-        const rulesPath = join(directory, 'rules.yar');
-        const targetPath = join(directory, 'target.bin');
-        await Promise.all([
-          writeFile(rulesPath, input.rulesContents, {
-            flag: 'wx',
-            mode: 0o600,
-          }),
-          writeFile(targetPath, request.contents, { flag: 'wx', mode: 0o600 }),
-        ]);
-        const result = await input.runCommand({
-          binaryPath: input.binaryPath,
-          args: [
-            'scan',
-            '--disable-console-logs',
-            '--disable-warnings=text_as_hex',
-            '--no-mmap',
-            '--max-matches-per-pattern',
-            '32',
-            '--output-format',
-            'json',
-            '--threads',
-            '1',
-            '--timeout',
-            String(input.timeoutSeconds),
-            rulesPath,
+        const directory = await mkdtemp(join(tmpdir(), 'prodivix-yarax-'));
+        try {
+          const rulesPath = join(directory, 'rules.yar');
+          const targetPath = join(directory, 'target.bin');
+          await Promise.all([
+            writeFile(rulesPath, input.rulesContents, {
+              flag: 'wx',
+              mode: 0o600,
+            }),
+            writeFile(targetPath, request.contents, {
+              flag: 'wx',
+              mode: 0o600,
+            }),
+          ]);
+          const result = await input.runCommand({
+            binaryPath: input.binaryPath,
+            args: [
+              'scan',
+              '--disable-console-logs',
+              '--disable-warnings=text_as_hex',
+              '--no-mmap',
+              '--max-matches-per-pattern',
+              '32',
+              '--output-format',
+              'json',
+              '--threads',
+              '1',
+              '--timeout',
+              String(input.timeoutSeconds),
+              rulesPath,
+              targetPath,
+            ],
+            cwd: directory,
+            timeoutMs: input.wallTimeoutMs,
+            maximumOutputBytes: input.maximumOutputBytes,
+          });
+          if (result.exitCode !== 0) {
+            throw new BinaryAssetScannerUnavailableError('daemon-error');
+          }
+          if (result.stderr.trim()) {
+            throw new BinaryAssetScannerUnavailableError('protocol');
+          }
+          const matches = readScanMatches(
+            result.stdout,
             targetPath,
-          ],
-          cwd: directory,
-          timeoutMs: input.wallTimeoutMs,
-          maximumOutputBytes: input.maximumOutputBytes,
-        });
-        if (result.exitCode !== 0) {
-          throw new BinaryAssetScannerUnavailableError('daemon-error');
+            input.engineVersion,
+            32
+          );
+          return matches.length
+            ? Object.freeze({
+                verdict: 'quarantined' as const,
+                findingCodes: Object.freeze([YARAX_MALWARE_FINDING_CODE]),
+              })
+            : Object.freeze({
+                verdict: 'clean' as const,
+                findingCodes: Object.freeze([]),
+              });
+        } finally {
+          await rm(directory, { force: true, recursive: true });
         }
-        if (result.stderr.trim()) {
-          throw new BinaryAssetScannerUnavailableError('protocol');
-        }
-        const matches = readScanMatches(
-          result.stdout,
-          targetPath,
-          input.engineVersion,
-          32
-        );
-        return matches.length
-          ? Object.freeze({
-              verdict: 'quarantined' as const,
-              findingCodes: Object.freeze([YARAX_MALWARE_FINDING_CODE]),
-            })
-          : Object.freeze({
-              verdict: 'clean' as const,
-              findingCodes: Object.freeze([]),
-            });
       } finally {
         activeScans -= 1;
-        await rm(directory, { force: true, recursive: true });
       }
     },
   });

@@ -70,7 +70,7 @@ export const useBlueprintProjectRunner = (
     const activeWorkspace = workspace;
     const authoringSnapshotId = createWorkspaceExecutionSnapshotId(workspace);
     let active = true;
-    let unsubscribe = () => undefined;
+    let unsubscribe: () => void = () => {};
     setState((previous) => ({
       status: 'compiling',
       provider,

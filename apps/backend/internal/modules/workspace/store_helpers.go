@@ -324,7 +324,7 @@ func normalizeJSONDocument(payload json.RawMessage, fallback json.RawMessage) (j
 	return normalized, nil
 }
 
-func normalizeWorkspaceDocumentContent(documentType WorkspaceDocumentType, payload json.RawMessage) (json.RawMessage, error) {
+func normalizeWorkspaceDocumentContent(documentType WorkspaceDocumentType, documentID string, payload json.RawMessage) (json.RawMessage, error) {
 	fallback := defaultPIRDocument
 	if documentType == WorkspaceDocumentTypePIRGraph {
 		fallback = defaultNodeGraphDocument
@@ -337,7 +337,7 @@ func normalizeWorkspaceDocumentContent(documentType WorkspaceDocumentType, paylo
 	if err != nil {
 		return nil, err
 	}
-	if err := validateWorkspaceDocumentContent(documentType, normalized); err != nil {
+	if err := validateWorkspaceDocumentContent(documentType, documentID, normalized); err != nil {
 		return nil, err
 	}
 	return normalized, nil
@@ -372,7 +372,10 @@ func mustMarshalWorkspaceCapabilities(capabilities []string) string {
 	return string(payload)
 }
 
-func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, payload json.RawMessage, documentIDs ...string) error {
+// documentID is required, not optional: identity-scoped checks such as the
+// same-document optimistic target of a Data source are silently skipped without
+// it, which is how an import could persist content every later commit rejects.
+func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, documentID string, payload json.RawMessage) error {
 	if documentType == WorkspaceDocumentTypePIRGraph {
 		return validateNodeGraphDocument(payload)
 	}
@@ -383,10 +386,6 @@ func validateWorkspaceDocumentContent(documentType WorkspaceDocumentType, payloa
 		return validateWorkspaceCodeDocument(payload)
 	}
 	if documentType == WorkspaceDocumentTypeDataSource {
-		documentID := ""
-		if len(documentIDs) > 0 {
-			documentID = documentIDs[0]
-		}
 		return validateDataSourceDocument(payload, documentID)
 	}
 	if documentType == WorkspaceDocumentTypeDesignTokens {

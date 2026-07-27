@@ -63,6 +63,7 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && pnpm run generate && tsc -p tsconfig.json && node scripts/copy-schema.mjs",
     "check:generated": "node scripts/generate-contracts.mjs --check",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",

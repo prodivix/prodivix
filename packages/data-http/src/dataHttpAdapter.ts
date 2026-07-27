@@ -624,7 +624,9 @@ export const createDataHttpAdapter = (input: {
             operation.configurationByKey.apiKeyHeader ??
               source.configurationByKey.apiKeyHeader,
             'HTTP API key header',
-            'operation.apiKeyHeader',
+            operation.configurationByKey.apiKeyHeader
+              ? 'operation.apiKeyHeader'
+              : 'source.apiKeyHeader',
             environment
           )
         : undefined;

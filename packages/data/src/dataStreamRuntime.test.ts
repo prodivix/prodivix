@@ -335,11 +335,13 @@ describe('bounded Data stream runtime', () => {
       async openStream() {
         return {
           events: {
-            async *[Symbol.asyncIterator]() {
-              await new Promise<IteratorResult<never>>((resolve) => {
-                releaseRead = resolve;
-              });
-            },
+            // Reads block until the test releases them; the stream never yields.
+            [Symbol.asyncIterator]: () => ({
+              next: () =>
+                new Promise<IteratorResult<never>>((resolve) => {
+                  releaseRead = resolve;
+                }),
+            }),
           },
           close,
         };

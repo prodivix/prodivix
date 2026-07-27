@@ -299,7 +299,10 @@ export const createBuiltInGatewayContracts = (
         let networkOrigin = 'invalid';
         try {
           networkOrigin = new URL(request.url).origin;
-        } catch {}
+        } catch {
+          // An unparsable URL stays recorded as the 'invalid' origin above; audit
+          // metadata must never fail the Gateway call it is describing.
+        }
         return {
           capabilityScope: request.scope,
           networkOrigin,

@@ -214,9 +214,17 @@ const overlayPaths = new Set([
   'Select',
   'TimePicker',
   'Tooltip',
-  'Tour',
   'TreeSelect',
 ]);
+/**
+ * Overlays that cannot be confined to the Prodivix overlay container. antd's
+ * Tour ignores `ConfigProvider.getPopupContainer`, and @rc-component/tour
+ * mounts its viewport mask and target placeholder through Portals that accept
+ * no container at all, so an opened Tour always escapes onto document.body and
+ * covers the whole editor shell. It renders the disabled-portal fallback on the
+ * canvas instead of pretending to honour the host-overlay contract.
+ */
+const canvasDisabledPaths = new Set(['Tour']);
 const childrenOnlyPaths = new Set([
   'App',
   'Affix',
@@ -481,16 +489,18 @@ const components = groups.flatMap((group) =>
         : supportedPaths.has(componentPath)
           ? 'supported'
           : 'degraded';
-    const portal = overlayPaths.has(componentPath)
-      ? {
-          mode: 'host-overlay',
-          canvasOpen: {
-            prop: 'open',
-            value: true,
-            when: 'selected',
-          },
-        }
-      : { mode: 'inline' };
+    const portal = canvasDisabledPaths.has(componentPath)
+      ? { mode: 'disabled' }
+      : overlayPaths.has(componentPath)
+        ? {
+            mode: 'host-overlay',
+            canvasOpen: {
+              prop: 'open',
+              value: true,
+              when: 'selected',
+            },
+          }
+        : { mode: 'inline' };
     return {
       groupId: group.id,
       groupTitle: group.title,
@@ -654,7 +664,10 @@ const renderPolicy = {
     portal: component.portal,
     fallback: {
       behavior: 'error',
-      message: `${component.path} is unavailable because the Ant Design plugin is disabled.`,
+      message:
+        component.portal.mode === 'disabled'
+          ? `${component.path} cannot render on the Prodivix canvas because its overlay escapes the owner-scoped surface.`
+          : `${component.path} is unavailable because the Ant Design plugin is disabled.`,
     },
   })),
 };

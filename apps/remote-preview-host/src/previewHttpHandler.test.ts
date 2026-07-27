@@ -167,8 +167,8 @@ describe('Remote Preview Host', () => {
     });
     expect(document.status).toBe(200);
     expect(document.body.toString()).toContain('/assets/app.js');
-    expect(document.headers['content-security-policy']).toContain(
-      'sandbox allow-scripts'
+    expect(document.headers['content-security-policy']).not.toContain(
+      'sandbox'
     );
     expect(document.headers['content-security-policy']).toContain(
       'frame-ancestors https://editor.example.test'

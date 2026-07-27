@@ -129,6 +129,88 @@ describe('Data GraphQL adapter', () => {
     });
   });
 
+  it('projects offset pagination facts from declared input property names', async () => {
+    const execute = vi.fn(async (request: DataGraphqlTransportRequest) =>
+      response(
+        request,
+        '{"data":{"products":{"items":[{"id":"p11"}],"total":23}}}'
+      )
+    );
+    const registry = createDataOperationAdapterRegistry();
+    registry.register(createDataGraphqlAdapter({ transport: { execute } }));
+    const paginated: DataOperation = {
+      ...query,
+      configurationByKey: {
+        document: {
+          kind: 'literal',
+          value:
+            'query Products($offset: Int!, $limit: Int!) { products(offset: $offset, limit: $limit) { items { id } total } }',
+        },
+        operationName: { kind: 'literal', value: 'Products' },
+        resultPath: { kind: 'literal', value: '/products' },
+      },
+      policies: {
+        pagination: {
+          kind: 'offset',
+          offsetInput: 'offset',
+          limitInput: 'limit',
+          defaultLimit: 20,
+          totalPath: '/total',
+        },
+      },
+    };
+    const paginatedDocument: DataSourceDocument = {
+      ...document,
+      operationsById: { products: paginated },
+    };
+
+    const explicit = await executeDataOperation({
+      registry,
+      invocation: createDataOperationInvocation({
+        ...invocation,
+        invocationId: 'graphql-offset-explicit',
+        input: { offset: 10, limit: 5 },
+      }),
+      document: paginatedDocument,
+      lifecycleChannel: createDataLifecycleChannel(),
+      signal: new AbortController().signal,
+    });
+    expect(explicit.result.value).toEqual({
+      items: [{ id: 'p11' }],
+      total: 23,
+    });
+    expect(explicit.result.page).toEqual({
+      kind: 'offset',
+      offset: 10,
+      limit: 5,
+      total: 23,
+      hasMore: true,
+    });
+    expect(JSON.parse(execute.mock.calls[0]![0].body).variables).toEqual({
+      offset: 10,
+      limit: 5,
+    });
+
+    const defaulted = await executeDataOperation({
+      registry,
+      invocation: createDataOperationInvocation({
+        ...invocation,
+        invocationId: 'graphql-offset-defaulted',
+        input: {},
+      }),
+      document: paginatedDocument,
+      lifecycleChannel: createDataLifecycleChannel(),
+      signal: new AbortController().signal,
+    });
+    expect(defaulted.result.page).toEqual({
+      kind: 'offset',
+      offset: 0,
+      limit: 20,
+      total: 23,
+      hasMore: true,
+    });
+  });
+
   it('rejects partial errors by default and allows bounded partial data only when explicit', async () => {
     const execute = vi.fn(async (request: DataGraphqlTransportRequest) =>
       response(

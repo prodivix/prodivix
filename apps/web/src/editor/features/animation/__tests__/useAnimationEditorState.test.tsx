@@ -79,6 +79,83 @@ const createWorkspace = (
   routeManifest: { version: '1', root: { id: 'route-root' } },
 });
 
+const createKeyframedAnimation = (): AnimationDefinition => ({
+  version: 1,
+  target: { kind: 'pir-document', documentId: 'page-home' },
+  timelines: [
+    {
+      id: 'timeline-test',
+      name: 'Timeline',
+      durationMs: 1000,
+      bindings: [
+        {
+          id: 'binding-1',
+          targetNodeId: 'root',
+          tracks: [
+            {
+              id: 'track-1',
+              kind: 'style',
+              property: 'opacity',
+              keyframes: [
+                { atMs: 0, value: 0 },
+                { atMs: 1000, value: 1 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+});
+
+const renderKeyframeEditorState = () => {
+  const animation = createKeyframedAnimation();
+  useEditorStore.getState().setWorkspaceSnapshot(createWorkspace(animation));
+  return renderHook(() =>
+    useAnimationEditorState({
+      animationDocumentId: 'animation-home',
+      persistedAnimation: animation,
+    })
+  );
+};
+
+const readKeyframes = (animation: AnimationDefinition) =>
+  animation.timelines[0]?.bindings[0]?.tracks[0]?.keyframes ?? [];
+
+describe('Animation keyframe time moves', () => {
+  beforeEach(() => resetEditorStore());
+
+  it('refuses a move onto a time another keyframe already occupies', () => {
+    const { result, unmount } = renderKeyframeEditorState();
+
+    act(() => {
+      result.current.updateKeyframeAtMs('binding-1', 'track-1', 1, '0');
+    });
+
+    expect(readKeyframes(result.current.animation)).toEqual([
+      { atMs: 0, value: 0 },
+      { atMs: 1000, value: 1 },
+    ]);
+    unmount();
+    resetEditorStore();
+  });
+
+  it('moves a keyframe onto a free time', () => {
+    const { result, unmount } = renderKeyframeEditorState();
+
+    act(() => {
+      result.current.updateKeyframeAtMs('binding-1', 'track-1', 1, '400');
+    });
+
+    expect(readKeyframes(result.current.animation)).toEqual([
+      { atMs: 0, value: 0 },
+      { atMs: 400, value: 1 },
+    ]);
+    unmount();
+    resetEditorStore();
+  });
+});
+
 describe('useAnimationEditorState workspace synchronization', () => {
   beforeEach(() => resetEditorStore());
 

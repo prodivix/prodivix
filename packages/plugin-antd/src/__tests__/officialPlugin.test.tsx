@@ -85,6 +85,42 @@ describe('Ant Design official plugin package', () => {
     });
   });
 
+  it('disables the canvas portal for an overlay that cannot be confined to the host surface', () => {
+    const renderPolicy = BUNDLED_PLUGIN_ARTIFACT.resources.find(
+      (resource) => resource.path === 'plugin/contributions/render-policy.json'
+    );
+    if (!renderPolicy) {
+      throw new Error('Ant Design render policy is required.');
+    }
+    const { rules } = JSON.parse(
+      new TextDecoder().decode(Uint8Array.from(renderPolicy.bytes))
+    ) as {
+      rules: Array<{
+        runtimeType: string;
+        hostImplementationId: string;
+        portal: Readonly<{ mode: string; canvasOpen?: unknown }>;
+      }>;
+    };
+
+    expect(
+      rules.find((rule) => rule.runtimeType === 'AntdTour')?.portal
+    ).toEqual({ mode: 'disabled' });
+    expect(
+      ANTD_COMPONENT_CATALOG.find((item) => item.runtimeType === 'AntdTour')
+        ?.portal.mode
+    ).toBe('disabled');
+    expect(
+      rules
+        .filter((rule) => rule.portal.canvasOpen !== undefined)
+        .every((rule) => rule.portal.mode === 'host-overlay')
+    ).toBe(true);
+    expect(
+      rules
+        .filter((rule) => rule.portal.mode === 'host-overlay')
+        .every((rule) => rule.hostImplementationId === 'antd.render.overlay')
+    ).toBe(true);
+  });
+
   it('projects real Button preview and static icon exports through controlled hosts', () => {
     const styleContainer = document.createElement('div');
     const overlayContainer = document.createElement('div');

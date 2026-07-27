@@ -1,6 +1,7 @@
 import Ajv2020 from 'ajv/dist/2020.js';
 import type { CodeArtifactLanguage } from '@prodivix/authoring';
 import { cloneExecutionValue, createSecretRef } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   SERVER_FUNCTION_EFFECTS,
   SERVER_FUNCTION_KINDS,
@@ -162,7 +163,7 @@ const readEnvironmentPolicy = (
   if (!isExactRecord(value, ['secretsByField'])) return undefined;
   if (!isRecord(value.secretsByField)) return undefined;
   const entries = Object.entries(value.secretsByField).sort(([left], [right]) =>
-    left.localeCompare(right)
+    compareUnicodeCodePoints(left, right)
   );
   if (entries.length === 0 || entries.length > 32) return undefined;
   try {
@@ -276,7 +277,7 @@ export const decodeServerRuntimeProfile = (
   }
   const functionsByExport: Record<string, ServerFunctionProfileEntry> = {};
   for (const [exportName, candidate] of entries.sort(([left], [right]) =>
-    left.localeCompare(right)
+    compareUnicodeCodePoints(left, right)
   )) {
     const entry = readEntry(candidate);
     if (!isExportName(exportName) || !entry) {

@@ -127,6 +127,8 @@
         "transport-disconnected": "终端传输已断开，正在按游标重连。",
         "open-rejected": "当前 execution 无法打开终端会话。",
         "input-pending": "有界终端输入队列已满；请等待确认后再继续输入。",
+        "input-rejected": "当前 execution 拒绝了终端输入；排队的按键已被丢弃且未执行。",
+        "input-desynchronized": "终端输入序号已与当前 execution 失步；请重新打开终端后再输入。",
         "input-unacknowledged": "终端输入未获确认；请重连后原样重试。",
         "resize-unacknowledged": "终端尺寸变更未获确认，正在重新连接。",
         "output-invalid": "终端输出未通过 identity、cursor 或 byte-length 契约，已拒绝渲染。"
@@ -1842,7 +1844,8 @@
         "rebind": "绑定到 {{libraryId}}",
         "rebindFailed": "无法重新绑定代码 artifact。",
         "convertToModule": "转为 Workspace module",
-        "deleteActiveBlocked": "删除代码 artifact 或目录前，请先解除 active CodeSlot binding。"
+        "deleteActiveBlocked": "删除代码 artifact 或目录前，请先解除 active CodeSlot binding。",
+        "deleteProjectionBlocked": "CodeSlot 生命周期投影不可用，删除可能丢弃仍处于 active 的 binding。请先修复被阻塞的 Workspace 文档。"
       },
       "empty": "请从左侧树中选择一个代码文件进行编辑。"
     },
@@ -1918,6 +1921,8 @@
         "description": "三栏翻译工作流：键表 + 翻译编辑 + 实时预览。"
       },
       "searchPlaceholder": "搜索 key 或文案",
+      "readonlyNotice": "当前 Workspace 为只读，无法编辑翻译。",
+      "persistFailed": "翻译未保存：{{message}}",
       "filters": {
         "missingOnly": "仅看缺失",
         "reviewedOnly": "仅看已审核"

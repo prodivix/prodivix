@@ -11,7 +11,8 @@ export type ProjectFile = {
   content: string;
   templateId?: ProjectFileTemplateId;
   enabled: boolean;
-  updatedAt: string;
+  /** Absent when the source Workspace document never recorded a timestamp. */
+  updatedAt?: string;
 };
 
 export type ProjectFileTemplateId =

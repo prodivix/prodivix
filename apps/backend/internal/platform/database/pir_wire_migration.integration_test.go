@@ -61,7 +61,7 @@ func openPIRWireMigrationPostgreSQL(t *testing.T) *sql.DB {
 	if err := testDatabase.PingContext(ctx); err != nil {
 		t.Fatalf("connect to isolated PostgreSQL integration schema: %v", err)
 	}
-	if err := RunMigrations(ctx, testDatabase); err != nil {
+	if err := RunMigrations(ctx, testDatabase, 2*time.Minute); err != nil {
 		t.Fatalf("migrate isolated PostgreSQL integration schema: %v", err)
 	}
 	return testDatabase
@@ -94,7 +94,7 @@ func TestPIRWireMigrationPostgreSQLGate(t *testing.T) {
 		}
 	}
 
-	if err := RunMigrations(ctx, database); err == nil {
+	if err := RunMigrations(ctx, database, 2*time.Minute); err == nil {
 		t.Fatal("unsupported PIR wire must roll back the complete coordinated migration")
 	}
 	var legacyVersion string
@@ -115,7 +115,7 @@ func TestPIRWireMigrationPostgreSQLGate(t *testing.T) {
 	if _, err := database.ExecContext(ctx, `UPDATE workspace_documents SET content_json=$1::jsonb WHERE workspace_id=$2 AND id=$3`, current, "pir-migration-workspace", "unsupported"); err != nil {
 		t.Fatal(err)
 	}
-	if err := RunMigrations(ctx, database); err != nil {
+	if err := RunMigrations(ctx, database, 2*time.Minute); err != nil {
 		t.Fatalf("complete coordinated migration: %v", err)
 	}
 	var legacyRevision, unsupportedRevision, opSeq int64

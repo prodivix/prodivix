@@ -19,7 +19,11 @@ import {
   projectAnimationFrameToBrowserPreview,
   type AnimationPreviewSnapshot,
 } from '@prodivix/runtime-browser';
-import { pirWebRendererHost } from '@/pir/pirWebRendererHost';
+import {
+  createRendererProjectionRegistry,
+  useWebExtensionRegistrySnapshot,
+} from '@/plugins/platform';
+import { createPirWebRendererHost } from '@/pir/pirWebRendererHost';
 
 type AnimationEditorPreviewCanvasProps = {
   workspace: WorkspaceSnapshot | null;
@@ -80,6 +84,15 @@ export const AnimationEditorPreviewCanvas = ({
   const [rendererIssues, setRendererIssues] = useState<
     readonly PIRRendererBlockingIssue[]
   >([]);
+  // The preview renders authored Workspace pages, so it needs the same
+  // plugin-aware element registry the Blueprint canvas builds; the native-only
+  // host would block the whole projection on the first plugin element.
+  const extensions = useWebExtensionRegistrySnapshot();
+  const rendererHost = useMemo(
+    () =>
+      createPirWebRendererHost(createRendererProjectionRegistry(extensions)),
+    [extensions]
+  );
 
   const authoredPreview = useMemo(
     () =>
@@ -229,7 +242,7 @@ export const AnimationEditorPreviewCanvas = ({
           {projection?.status === 'ready' && previewNodeId?.trim() ? (
             <PIRRenderer
               plan={projection.plan}
-              host={pirWebRendererHost}
+              host={rendererHost}
               dispatchTrigger={ignoreTrigger}
               selectedLocation={selectedLocation}
               onNodeSelect={(location) => {

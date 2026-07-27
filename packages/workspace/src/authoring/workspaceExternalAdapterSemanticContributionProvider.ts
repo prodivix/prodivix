@@ -9,6 +9,7 @@ import {
   type WorkspaceReferenceFact,
   type WorkspaceSymbolContribution,
 } from '@prodivix/authoring';
+import { compareUnicodeCodePoints } from '../canonicalOrder';
 import {
   createWorkspaceExternalAdapterCodeReferenceId,
   type WorkspaceExternalAdapterEntry,
@@ -27,7 +28,7 @@ const createExternalLibrarySymbolId = (
   createSemanticId('external-library-symbol', workspaceId, libraryId);
 
 const compareId = (left: { id: string }, right: { id: string }): number =>
-  left.id.localeCompare(right.id);
+  compareUnicodeCodePoints(left.id, right.id);
 
 const freezeFacts = <Fact extends { id: string }>(
   facts: Fact[]
@@ -72,7 +73,9 @@ export const createWorkspaceExternalAdapterSemanticContributionProvider = (
     const dependencies: WorkspaceDependencyContribution[] = [];
 
     [...input.entries]
-      .sort((left, right) => left.libraryId.localeCompare(right.libraryId))
+      .sort((left, right) =>
+        compareUnicodeCodePoints(left.libraryId, right.libraryId)
+      )
       .forEach((entry) => {
         const librarySymbolId = createExternalLibrarySymbolId(
           input.workspaceId,

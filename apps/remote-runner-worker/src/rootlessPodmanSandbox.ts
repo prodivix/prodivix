@@ -18,8 +18,10 @@ import {
   EXECUTION_FILESYSTEM_DIFF_MEDIA_TYPE,
   EXECUTION_PREVIEW_BUNDLE_MEDIA_TYPE,
   EXECUTION_TEST_REPORT_MEDIA_TYPE,
+  inspectExecutionArtifactContents,
   projectExecutableProjectRuntimeFiles,
   toExecutionTestReportValue,
+  type ExecutionSecretLeakGuard,
   type ExecutionSourceTrace,
 } from '@prodivix/runtime-core';
 import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
@@ -573,6 +575,28 @@ export const decodeRootlessInstallProxyTraces = (
       throw new TypeError('Install proxy returned too many traces.');
   }
   return Object.freeze(traces);
+};
+
+/**
+ * The install proxy is long-lived shared infrastructure whose log grows for every
+ * execution of every worker, so a trace read must be scoped to this execution's
+ * own window instead of replaying the container's whole history.
+ */
+export const createInstallProxyLogArguments = (
+  proxyContainerName: string,
+  windowStartedAtMs: number,
+  nowMs: number
+): readonly string[] => {
+  const elapsedSeconds = Math.ceil((nowMs - windowStartedAtMs) / 1000);
+  const windowSeconds = Number.isFinite(elapsedSeconds)
+    ? Math.min(Math.max(elapsedSeconds, 0) + 1, 86_400)
+    : 86_400;
+  return Object.freeze([
+    'logs',
+    '--since',
+    `${windowSeconds}s`,
+    proxyContainerName,
+  ]);
 };
 
 const assertContainerHasNoNetwork = async (
@@ -1249,6 +1273,28 @@ export const decodeRootlessPodmanSandboxResult = (
   });
 };
 
+/**
+ * Descriptor fields and every decoded artifact payload must clear the guard before
+ * a sandbox result is published. Envelope-only scanning fails open because the
+ * capture formats store each file body base64-encoded.
+ */
+const sandboxArtifactsAreSafe = (
+  guard: ExecutionSecretLeakGuard,
+  artifacts: readonly RemoteWorkerSandboxArtifact[]
+): boolean =>
+  artifacts.every((artifact) => {
+    const { contents, ...descriptor } = artifact;
+    return (
+      guard.inspectValue('artifact-content', descriptor).safe &&
+      inspectExecutionArtifactContents(
+        guard,
+        'artifact-content',
+        artifact.mediaType,
+        contents
+      ).safe
+    );
+  });
+
 /** Runs exact snapshots in a rootless OCI boundary without host mounts or inherited credentials. */
 export const createRootlessPodmanSandbox = (
   options: CreateRootlessPodmanSandboxOptions
@@ -1359,6 +1405,7 @@ export const createRootlessPodmanSandbox = (
           input.maximumOutputBytes * (4 / 3) +
           1024 * 1024
       );
+      const installProxyLogWindowStartedAtMs = Date.now();
       const child = spawn(podmanCommand, [...args], {
         shell: false,
         windowsHide: true,
@@ -1525,15 +1572,33 @@ export const createRootlessPodmanSandbox = (
         });
       let networkTraces: readonly RemoteWorkerSandboxNetworkTrace[] = [];
       if (installNetworkPolicy.mode === 'proxy-allowlist') {
+        let proxyLogs: string;
         try {
-          const { stdout: proxyLogs } = await execFileAsync(
+          ({ stdout: proxyLogs } = await execFileAsync(
             podmanCommand,
-            ['logs', installNetworkPolicy.proxyContainerName],
+            createInstallProxyLogArguments(
+              installNetworkPolicy.proxyContainerName,
+              installProxyLogWindowStartedAtMs,
+              Date.now()
+            ),
             {
               env: podmanProcessEnvironment(),
               maxBuffer: 8 * 1024 * 1024,
             }
-          );
+          ));
+        } catch {
+          // A log read that never produced a trace to judge is an infrastructure
+          // fault, not a policy violation, so it keeps its own reason.
+          return Object.freeze({
+            status: 'failed',
+            exitCode: 125,
+            stdout: '',
+            stderr: 'Sandbox install network trace could not be read.',
+            outputTruncated: output.truncated,
+            reason: 'network-trace-unavailable',
+          });
+        }
+        try {
           networkTraces = decodeRootlessInstallProxyTraces(
             proxyLogs,
             installTraceId
@@ -1563,8 +1628,8 @@ export const createRootlessPodmanSandbox = (
           );
           const stdout = outputGuard.redactText(result.stdout);
           const stderr = outputGuard.redactText(result.stderr);
-          const artifactInspection = outputGuard.inspectValue(
-            'artifact-content',
+          const artifactsSafe = sandboxArtifactsAreSafe(
+            outputGuard,
             result.artifacts ?? []
           );
           const networkInspection = outputGuard.inspectValue(
@@ -1578,7 +1643,7 @@ export const createRootlessPodmanSandbox = (
             secretLeakDetected:
               stdout.redacted ||
               stderr.redacted ||
-              !artifactInspection.safe ||
+              !artifactsSafe ||
               !networkInspection.safe,
             ...(networkTraces.length ? { networkTraces } : {}),
           });

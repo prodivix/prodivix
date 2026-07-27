@@ -1,5 +1,28 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
+
+const fsControl = vi.hoisted(() => ({
+  mkdtempFailure: undefined as Error | undefined,
+}));
+
+vi.mock('node:fs/promises', async () => {
+  const actual =
+    await vi.importActual<typeof import('node:fs/promises')>(
+      'node:fs/promises'
+    );
+  return {
+    ...actual,
+    mkdtemp: (...args: Parameters<typeof actual.mkdtemp>) => {
+      if (fsControl.mkdtempFailure) {
+        const failure = fsControl.mkdtempFailure;
+        fsControl.mkdtempFailure = undefined;
+        return Promise.reject(failure);
+      }
+      return actual.mkdtemp(...args);
+    },
+  };
+});
+
 import {
   BinaryAssetScannerUnavailableError,
   createBinaryAssetBlobReference,
@@ -38,6 +61,7 @@ const createRunner = (): YaraXCommandRunner =>
 const initialize = (overrides?: {
   now?: () => number;
   runCommand?: YaraXCommandRunner;
+  maximumConcurrentScans?: number;
 }) =>
   initializeYaraXScannerRuntime({
     binaryPath: process.execPath,
@@ -128,5 +152,34 @@ describe('YARA-X scanner runtime', () => {
         now: () => Date.now() + 366 * 24 * 60 * 60 * 1_000,
       })
     ).rejects.toMatchObject({ reason: 'stale-database' });
+  });
+
+  it('releases the concurrency slot when the scratch directory cannot be created', async () => {
+    const runtime = await initialize({
+      runCommand: createRunner(),
+      maximumConcurrentScans: 1,
+    });
+    const snapshot = await runtime.acquire();
+    const scanner = snapshot.scanners[0];
+    if (!scanner) throw new Error('Missing YARA-X scanner.');
+    const contents = new TextEncoder().encode('clean-image-bytes');
+    const request = {
+      reference: createBinaryAssetBlobReference({
+        contents,
+        mediaType: 'application/octet-stream',
+      }),
+      contents,
+    };
+
+    fsControl.mkdtempFailure = Object.assign(
+      new Error('no space left on device'),
+      { code: 'ENOSPC' }
+    );
+    await expect(scanner.scan(request)).rejects.toThrow('no space left');
+
+    await expect(scanner.scan(request)).resolves.toEqual({
+      verdict: 'clean',
+      findingCodes: [],
+    });
   });
 });

@@ -1,5 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import {
   REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_FORMAT,
   REMOTE_EXECUTION_REGIONAL_RECOVERY_OPERATOR_LIMITS,
@@ -11,17 +12,8 @@ const maximumEvidenceBytes = 64 * 1_024;
 const digestPattern = /^sha256-[0-9a-f]{64}$/u;
 const canonicalIdentifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
 
-const stableJson = (value: unknown): string => {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  return `{${Object.entries(value as Readonly<Record<string, unknown>>)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
-    .join(',')}}`;
-};
-
 const digest = (value: unknown): string =>
-  `sha256-${bytesToHex(sha256(utf8ToBytes(stableJson(value))))}`;
+  `sha256-${bytesToHex(sha256(utf8ToBytes(canonicalJsonText(value))))}`;
 
 const record = (
   value: unknown
@@ -215,4 +207,6 @@ export const decodeRemoteExecutionRegionalRecoveryOperatorEvidence = (
 export const encodeRemoteExecutionRegionalRecoveryOperatorEvidence = (
   evidence: RemoteExecutionRegionalRecoveryOperatorEvidence
 ): string =>
-  `${stableJson(readRemoteExecutionRegionalRecoveryOperatorEvidence(evidence))}\n`;
+  `${canonicalJsonText(
+    readRemoteExecutionRegionalRecoveryOperatorEvidence(evidence)
+  )}\n`;

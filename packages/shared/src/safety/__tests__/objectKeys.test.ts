@@ -13,6 +13,17 @@ describe('isUnsafeObjectKey', () => {
     );
   });
 
+  it('accepts names that only look dangerous, because they assign as own properties', () => {
+    // Rejecting these would refuse legal authored payloads — an API parameter
+    // named `constructor` is unusual, not hostile. Assignment proves the point.
+    ['constructor', 'prototype'].forEach((name) => {
+      expect(isUnsafeObjectKey(name)).toBe(false);
+      const target: Record<string, unknown> = {};
+      target[name] = 'value';
+      expect(Object.hasOwn(target, name)).toBe(true);
+    });
+  });
+
   it('names the key that assignment would route to the prototype', () => {
     // The reason the predicate exists: this assignment creates no own property.
     const target: Record<string, unknown> = {};

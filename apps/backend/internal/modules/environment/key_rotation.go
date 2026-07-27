@@ -23,7 +23,9 @@ type SecretKeyRotationResult struct {
 }
 
 type secretMaterialRotationRow struct {
-	WorkspaceID     string
+	WorkspaceID string
+	// EnvironmentKey binds the ciphertext; EnvironmentID addresses the row.
+	EnvironmentKey  string
 	EnvironmentID   string
 	Revision        string
 	BindingID       string
@@ -72,7 +74,7 @@ func (store *Store) RotateSecretMaterials(ctx context.Context, rawPolicy SecretK
 	activeKeyID := store.envelopeCipher.kms.ActiveKeyID()
 	result := SecretKeyRotationResult{ActiveKeyID: activeKeyID}
 	readContext, cancelRead := databaseContext(ctx)
-	rows, err := store.db.QueryContext(readContext, `SELECT e.workspace_id, m.environment_id, m.revision, m.binding_id, m.algorithm, m.key_provider, m.key_id, m.wrapped_key_nonce, m.wrapped_key, m.nonce, m.ciphertext
+	rows, err := store.db.QueryContext(readContext, `SELECT e.workspace_id, e.environment_key, m.environment_id, m.revision, m.binding_id, m.algorithm, m.key_provider, m.key_id, m.wrapped_key_nonce, m.wrapped_key, m.nonce, m.ciphertext
 		FROM execution_environment_secret_materials m
 		JOIN execution_environments e ON e.id = m.environment_id
 		WHERE m.algorithm IS NULL OR m.key_provider IS DISTINCT FROM $1 OR m.key_id IS DISTINCT FROM $2
@@ -85,7 +87,7 @@ func (store *Store) RotateSecretMaterials(ctx context.Context, rawPolicy SecretK
 	rotationRows := make([]secretMaterialRotationRow, 0, policy.BatchSize)
 	for rows.Next() {
 		var row secretMaterialRotationRow
-		if err := rows.Scan(&row.WorkspaceID, &row.EnvironmentID, &row.Revision, &row.BindingID, &row.Algorithm, &row.KeyProvider, &row.KeyID, &row.WrappedKeyNonce, &row.WrappedKey, &row.Nonce, &row.Ciphertext); err != nil {
+		if err := rows.Scan(&row.WorkspaceID, &row.EnvironmentKey, &row.EnvironmentID, &row.Revision, &row.BindingID, &row.Algorithm, &row.KeyProvider, &row.KeyID, &row.WrappedKeyNonce, &row.WrappedKey, &row.Nonce, &row.Ciphertext); err != nil {
 			_ = rows.Close()
 			cancelRead()
 			return SecretKeyRotationResult{}, err
@@ -104,7 +106,7 @@ func (store *Store) RotateSecretMaterials(ctx context.Context, rawPolicy SecretK
 	cancelRead()
 	prepared := make([]preparedSecretMaterialRotation, 0, len(rotationRows))
 	for _, row := range rotationRows {
-		additionalData := secretAdditionalData(row.WorkspaceID, row.EnvironmentID, row.Revision, row.BindingID)
+		additionalData := secretAdditionalData(row.WorkspaceID, row.EnvironmentKey, row.Revision, row.BindingID)
 		var rotated storedSecretEnvelope
 		if !row.Algorithm.Valid && !row.KeyProvider.Valid && !row.KeyID.Valid && len(row.WrappedKeyNonce) == 0 && len(row.WrappedKey) == 0 {
 			if store.cipher == nil || store.cipherErr != nil {

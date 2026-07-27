@@ -164,6 +164,7 @@ const isSafeRenameName = (value: string): boolean =>
     value &&
     value.length <= 256 &&
     value.trim() === value &&
+    // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
     !/[\s\u0000-\u001f{};]/u.test(value)
   );
 

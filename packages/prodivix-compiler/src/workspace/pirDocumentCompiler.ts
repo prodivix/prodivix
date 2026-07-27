@@ -28,6 +28,7 @@ import type {
 import { createPirGeneratedRuntimePrelude } from '#src/workspace/pirGeneratedRuntimePrelude';
 import { PIR_COMPILE_DIAGNOSTIC_CODES } from '#src/react/compiler.types';
 import { PirImportRegistry } from '#src/workspace/pirImportRegistry';
+import { PirLocalNameRegistry } from '#src/workspace/pirLocalNames';
 import { createPirNodeCompiler } from '#src/workspace/pirNodeCompiler';
 import { compilePirRootProjectionPath } from '#src/workspace/pirProjectionPathRuntime';
 import {
@@ -405,6 +406,7 @@ export const compilePirDocument = (
     emitter: input.elementEmitter,
     routeOutletNodeIds: input.routeOutletNodeIds ?? new Set<string>(),
     imports,
+    locals: new PirLocalNameRegistry(),
     traces,
     diagnostics,
   });

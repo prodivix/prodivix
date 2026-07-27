@@ -2,9 +2,7 @@ import type { NodeCatalogItem } from '../nodeCatalog';
 import {
   CONTROL_IN,
   CONTROL_OUT,
-  CONDITION_IN,
   CONDITION_OUT,
-  DATA_IN,
   DATA_OUT,
 } from '../nodeCatalogConstants';
 
@@ -43,7 +41,7 @@ export const dataInputNodeCatalog: NodeCatalogItem[] = [
     groupId: 'data-input',
     groupLabel: 'Data Input',
     ports: { dataOut: DATA_OUT },
-    defaults: { value: '{\"key\":\"value\"}', collapsed: false },
+    defaults: { value: '{"key":"value"}', collapsed: false },
   },
   {
     kind: 'array',

@@ -3,6 +3,7 @@ import type {
   ProdivixDiagnostic,
 } from '@prodivix/diagnostics';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 
 export const EXECUTION_SECRET_REDACTION_MARKER = '[REDACTED]' as const;
 export const EXECUTION_SECRET_LEAK_DIAGNOSTIC_CODE = 'EXE-5004' as const;
@@ -113,7 +114,8 @@ const normalizeSecretValues = (
   const normalized = [
     ...new Set(values.filter((value) => value.length >= minimumSecretLength)),
   ].sort(
-    (left, right) => right.length - left.length || left.localeCompare(right)
+    (left, right) =>
+      right.length - left.length || compareUnicodeCodePoints(left, right)
   );
   if (normalized.length > maximumSecretValues)
     throw new TypeError(

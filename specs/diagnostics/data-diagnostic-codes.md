@@ -37,7 +37,7 @@ type DataDiagnosticStage =
 | `DAT-40xx` | `execute` / `adapt` | operation execution 与 protocol adapter    |
 | `DAT-90xx` | `execute` / `adapt` | 尚未分类的 Data runtime 异常               |
 
-## 4. 首个稳定码位
+## 4. 已占用码位
 
 ### `DAT-1001` Data source document 无效
 
@@ -50,16 +50,25 @@ type DataDiagnosticStage =
 - User action: 打开 Data source，修正被标记的 schema、operation 或 configuration 后重新保存
 - Developer notes: Workspace envelope/revision 错误继续使用 `WKS-xxxx`；meta 只保留 document/field identity，不复制 literal configuration、environment value 或 Secret material
 
+### `DAT-2001` Data operation 引用无法解析
+
+- Severity: `error`
+- Domain: `data`
+- Stage: `resolve`
+- Retryable: false
+- Trigger: DataOperationReference 无法解析，或目标 operation 已不存在于被引用的 Data source
+- User action: 在 Inspector 中重新选择一个存在的 Data operation，或恢复被删除的 operation
+- Developer notes: PIR data binding transaction 在规划阶段发布该 issue 并 fail closed；meta 只保留 document/operation identity，不复制 configuration 或运行时值
+
 ## 5. 后续 runtime 码位预留
 
 以下码位在对应 runtime 纵切实现前只保留语义，不表示当前已经发布执行诊断：
 
-1. `DAT-2001`：DataOperationReference 无法解析或目标 operation 不存在。
-2. `DAT-2002`：operation 引用的 schema 不存在或不兼容。
-3. `DAT-3001`：ExecutionEnvironmentSnapshotRef 或公开 environment binding 不可用。
-4. `DAT-3002`：SecretRef 无法在目标 runtime zone 获授权解析。
-5. `DAT-4001`：runtime adapter 不支持 operation capability 或 runtime zone。
-6. `DAT-4002`：Data operation 执行失败，并已安全移除 credential、响应隐私数据与供应商私有对象。
+1. `DAT-2002`：operation 引用的 schema 不存在或不兼容。
+2. `DAT-3001`：ExecutionEnvironmentSnapshotRef 或公开 environment binding 不可用。
+3. `DAT-3002`：SecretRef 无法在目标 runtime zone 获授权解析。
+4. `DAT-4001`：runtime adapter 不支持 operation capability 或 runtime zone。
+5. `DAT-4002`：Data operation 执行失败，并已安全移除 credential、响应隐私数据与供应商私有对象。
 
 ## 6. 敏感信息边界
 

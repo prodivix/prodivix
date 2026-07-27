@@ -59,6 +59,31 @@ const httpPort = {
     };
   },
 } as const;
+const artifactUpload = (
+  input: Readonly<{
+    leaseToken: string;
+    workerEventId: string;
+    descriptor: unknown;
+    contents: Uint8Array;
+    descriptorBytes?: number;
+  }>
+): RequestInit => {
+  const descriptor = Buffer.from(JSON.stringify(input.descriptor), 'utf8');
+  return {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer worker-token',
+      'content-type': 'application/vnd.prodivix.remote-artifact-upload',
+      'x-prodivix-worker-id': 'worker-1',
+      'x-prodivix-lease-token': input.leaseToken,
+      'x-prodivix-worker-event-id': input.workerEventId,
+      'x-prodivix-artifact-descriptor-bytes': String(
+        input.descriptorBytes ?? descriptor.byteLength
+      ),
+    },
+    body: Buffer.concat([descriptor, Buffer.from(input.contents)]),
+  };
+};
 const provider = createExecutionProviderDescriptor({
   id: 'prodivix.remote.http-test',
   version: '1',
@@ -642,21 +667,20 @@ describe('remote runner control-plane HTTP integration', () => {
     const artifactDigest = `sha256-${createHash('sha256').update(artifactContents).digest('hex')}`;
     const artifactResponse = await fetch(
       `${baseUrl}/internal/v1/executions/execution-1/artifacts/artifact-build`,
-      {
-        method: 'POST',
-        headers: {
-          authorization: 'Bearer worker-token',
-          'content-type': 'application/zip',
-          'x-prodivix-worker-id': 'worker-1',
-          'x-prodivix-lease-token': claimedBody.claim.lease.token,
-          'x-prodivix-worker-event-id': 'attempt-1:artifact-build',
-          'x-prodivix-artifact-kind': 'bundle',
-          'x-prodivix-artifact-size': String(artifactContents.byteLength),
-          'x-prodivix-artifact-digest': artifactDigest,
-          'x-prodivix-artifact-expires-at': '60000',
+      artifactUpload({
+        leaseToken: claimedBody.claim.lease.token,
+        workerEventId: 'attempt-1:artifact-build',
+        descriptor: {
+          artifactId: 'artifact-build',
+          kind: 'bundle',
+          mediaType: 'application/zip',
+          size: artifactContents.byteLength,
+          digest: artifactDigest,
+          expiresAt: 60_000,
+          authorizationScope: 'execution:execution-1',
         },
-        body: artifactContents,
-      }
+        contents: artifactContents,
+      })
     );
     expect(artifactResponse.status).toBe(201);
     await expect(
@@ -693,6 +717,115 @@ describe('remote runner control-plane HTTP integration', () => {
     await expect(stale.json()).resolves.toEqual({
       error: { code: 'lease-rejected' },
     });
+  });
+
+  it('preserves the complete worker artifact descriptor and fails closed on invalid ones', async () => {
+    const createClient = createRemoteExecutionClient({
+      retryPolicy: { maxAttempts: 1 },
+      transport: {
+        async send(envelope) {
+          return (
+            await fetch(`${baseUrl}/v1/executions`, {
+              method: 'POST',
+              headers: { authorization: 'Bearer client-token' },
+              body: JSON.stringify(envelope),
+            })
+          ).json();
+        },
+      },
+    });
+    await createClient.create({
+      request,
+      snapshot: { kind: 'upload', snapshot },
+    });
+    const claimed = await fetch(`${baseUrl}/internal/v1/claims`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer worker-token' },
+      body: JSON.stringify({
+        workerId: 'worker-1',
+        providerId: provider.id,
+        leaseDurationMs: 100,
+      }),
+    });
+    const leaseToken = (
+      (await claimed.json()) as { claim: { lease: { token: string } } }
+    ).claim.lease.token;
+    const contents = new TextEncoder().encode('<html>preview</html>');
+    const descriptor = {
+      artifactId: 'preview-bundle',
+      kind: 'bundle',
+      label: 'Remote static preview',
+      mediaType: 'application/zip',
+      size: contents.byteLength,
+      digest: `sha256-${createHash('sha256').update(contents).digest('hex')}`,
+      expiresAt: 60_000,
+      authorizationScope: 'execution:execution-1',
+      sourceTrace: [
+        {
+          sourceRef: { kind: 'workspace', workspaceId: 'workspace-1' },
+          label: 'Remote static preview',
+        },
+      ],
+      metadata: {
+        entryFilePath: 'index.html',
+        health: 'healthy',
+        readiness: 'ready',
+        snapshotDigest: snapshot.contentDigest,
+      },
+    };
+
+    const stored = await fetch(
+      `${baseUrl}/internal/v1/executions/execution-1/artifacts/preview-bundle`,
+      artifactUpload({
+        leaseToken,
+        workerEventId: 'attempt-1:preview-bundle',
+        descriptor,
+        contents,
+      })
+    );
+    expect(stored.status).toBe(201);
+    await expect(
+      createClient.resolveArtifact({
+        executionId: 'execution-1',
+        artifactId: 'preview-bundle',
+      })
+    ).resolves.toMatchObject({ artifact: descriptor });
+
+    const malformed = await fetch(
+      `${baseUrl}/internal/v1/executions/execution-1/artifacts/preview-malformed`,
+      artifactUpload({
+        leaseToken,
+        workerEventId: 'attempt-1:preview-malformed',
+        descriptor: {
+          ...descriptor,
+          artifactId: 'preview-malformed',
+          metadata: { readiness: 7 },
+        },
+        contents,
+      })
+    );
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toEqual({
+      error: { code: 'invalid-request' },
+    });
+
+    const oversized = await fetch(
+      `${baseUrl}/internal/v1/executions/execution-1/artifacts/preview-oversized`,
+      artifactUpload({
+        leaseToken,
+        workerEventId: 'attempt-1:preview-oversized',
+        descriptor: { ...descriptor, artifactId: 'preview-oversized' },
+        contents,
+        descriptorBytes: 128 * 1024,
+      })
+    );
+    expect(oversized.status).toBe(400);
+    await expect(
+      createClient.resolveArtifact({
+        executionId: 'execution-1',
+        artifactId: 'preview-malformed',
+      })
+    ).rejects.toBeDefined();
   });
 
   it('returns a stable safe rejection when worker output contains a Secret canary', async () => {

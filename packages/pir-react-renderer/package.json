@@ -16,6 +16,7 @@
     "dist"
   ],
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
@@ -23,6 +24,10 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "7.3.1",
+    "@fortawesome/free-solid-svg-icons": "7.3.1",
+    "@fortawesome/react-fontawesome": "3.5.0",
+    "@heroicons/react": "2.2.0",
     "@prodivix/data": "workspace:*",
     "@prodivix/pir": "workspace:*",
     "@prodivix/router": "workspace:*",

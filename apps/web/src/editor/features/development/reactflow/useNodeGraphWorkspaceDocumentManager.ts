@@ -19,6 +19,7 @@ import {
   createStarterNodeGraphCanvas,
   toCanonicalNodeGraphDocument,
 } from './nodeGraphDocumentProjection';
+import type { NodeGraphWorkspaceWriteOutcome } from './nodeGraphEditorTypes';
 import type { NodeGraphTranslate } from './nodeGraphI18nTypes';
 import {
   createAvailableNodeGraphPath,
@@ -43,7 +44,7 @@ type UseNodeGraphWorkspaceDocumentManagerInput = Readonly<{
   persistCanvas: (
     nodes: readonly Node<GraphNodeData>[],
     edges: readonly Edge[]
-  ) => Promise<boolean>;
+  ) => Promise<NodeGraphWorkspaceWriteOutcome>;
   scheduleWorkspaceIntent: ScheduleWorkspaceIntent;
   setActiveDocumentId: (documentId: string | undefined) => void;
   setHint: Dispatch<SetStateAction<string | null>>;
@@ -237,8 +238,10 @@ export const useNodeGraphWorkspaceDocumentManager = ({
         selectNext();
         return;
       }
-      void persistCanvas(nodes, edges).then((persisted) => {
-        if (persisted) {
+      // A canvas that already matches its document writes no command; only a
+      // refused write may block the switch.
+      void persistCanvas(nodes, edges).then((outcome) => {
+        if (outcome !== 'rejected') {
           selectNext();
           return;
         }

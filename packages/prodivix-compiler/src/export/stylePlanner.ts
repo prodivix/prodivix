@@ -1,5 +1,6 @@
 import { dedupeExportImportIntents } from '#src/export/importPlanner';
 import { getRelativeImportPath, joinExportPath } from '#src/export/pathPlanner';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type {
   ExportImportIntent,
   ExportPlannerPreset,
@@ -39,7 +40,7 @@ const sortStyles = (
   return (
     scopeRank[left.scope] - scopeRank[right.scope] ||
     getStyleOrderIndex(left) - getStyleOrderIndex(right) ||
-    left.id.localeCompare(right.id)
+    compareUnicodeCodePoints(left.id, right.id)
   );
 };
 

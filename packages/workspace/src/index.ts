@@ -203,6 +203,7 @@ export {
   createWorkspaceSemanticContributionProvider,
 } from './authoring/workspaceSemanticContributionProvider';
 export { captureWorkspaceSemanticRevisions } from './authoring/workspaceSemanticRevision';
+export { compareUnicodeCodePoints } from './canonicalOrder';
 export {
   resolveCanonicalWorkspaceDocumentId,
   type WorkspaceLikeDocument,

@@ -72,7 +72,7 @@ export const Disabled: Story = {
 };
 
 export const Controlled: Story = {
-  render: () => {
+  render: function ControlledStory() {
     const [enabled, setEnabled] = useState(false);
 
     return (

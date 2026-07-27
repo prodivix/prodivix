@@ -2,10 +2,6 @@ import { createElement, useEffect, useSyncExternalStore } from 'react';
 import type React from 'react';
 import * as LucideIcons from 'lucide-react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
-import {
-  HOST_REACT_IMPORT_MAP_ID,
-  HOST_REACT_IMPORTS,
-} from './hostReactImportMap';
 
 export type IconRef = {
   provider: string;
@@ -358,41 +354,12 @@ const LUCIDE_ICON_NAMES = Object.keys(dynamicIconImports)
   .filter((name) => Boolean(resolveLucideIcon(name)))
   .sort((left, right) => left.localeCompare(right));
 
-const ensureHostReactImportMap = () => {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById(HOST_REACT_IMPORT_MAP_ID)) return;
-  const script = document.createElement('script');
-  script.id = HOST_REACT_IMPORT_MAP_ID;
-  script.type = 'importmap';
-  script.textContent = JSON.stringify({
-    imports: HOST_REACT_IMPORTS,
-  });
-  document.head.appendChild(script);
-};
-
-const loadEsmCandidates = async (urls: string[]) => {
-  const attempts: string[] = [];
-  for (const url of urls) {
-    try {
-      return (await import(/* @vite-ignore */ url)) as Record<string, unknown>;
-    } catch (error) {
-      attempts.push(`${url} -> ${String(error)}`);
-    }
-  }
-  throw new Error(
-    attempts.length > 0
-      ? attempts.join(' | ')
-      : 'No esm.sh candidate URL was provided.'
-  );
-};
-
 type IconComponentRuntime = {
   iconNames: string[];
   iconLookup: Map<string, IconComponent>;
 };
 
 type IconComponentRuntimeBuildOptions = {
-  excludeExports?: string[];
   stripIconSuffix?: boolean;
 };
 
@@ -400,14 +367,11 @@ const buildIconComponentRuntime = (
   iconModule: Record<string, unknown>,
   options: IconComponentRuntimeBuildOptions = {}
 ): IconComponentRuntime => {
-  const excluded = new Set(options.excludeExports ?? []);
-  excluded.add('default');
-
   const iconLookup = new Map<string, IconComponent>();
   const iconNames = new Set<string>();
 
   Object.entries(iconModule).forEach(([exportName, exported]) => {
-    if (excluded.has(exportName)) return;
+    if (exportName === 'default') return;
     if (!isIconComponent(exported)) return;
 
     const component = exported as IconComponent;
@@ -482,17 +446,6 @@ const buildFontAwesomeLookupKeys = (value: string) => {
   return [...keys];
 };
 
-const createFontAwesomeModuleCandidates = (cacheBust: string) => ({
-  react: [
-    `https://esm.sh/@fortawesome/react-fontawesome?target=es2022&external=react&v=${cacheBust}`,
-    `https://esm.sh/v135/@fortawesome/react-fontawesome/es2022/react-fontawesome.mjs?external=react&v=${cacheBust}`,
-  ],
-  solid: [
-    `https://esm.sh/@fortawesome/free-solid-svg-icons?target=es2022&v=${cacheBust}`,
-    `https://esm.sh/v135/@fortawesome/free-solid-svg-icons/es2022/free-solid-svg-icons.mjs?v=${cacheBust}`,
-  ],
-});
-
 const createFontAwesomeIconComponent = (icon: FontAwesomeIconDefinition) => {
   const cacheKey = `${icon.prefix}:${icon.iconName}`;
   const cached = fontAwesomeComponentCache.get(cacheKey);
@@ -526,13 +479,9 @@ const createFontAwesomeIconComponent = (icon: FontAwesomeIconDefinition) => {
 };
 
 const buildFontAwesomeRuntime = (
-  fontAwesomeIcon: unknown,
+  fontAwesomeIcon: IconComponent,
   iconModule: Record<string, unknown>
 ): FontAwesomeRuntime => {
-  if (!isIconComponent(fontAwesomeIcon)) {
-    throw new Error('Failed to load FontAwesomeIcon component from esm.sh.');
-  }
-
   const iconLookup = new Map<string, FontAwesomeIconDefinition>();
   const iconNames = new Set<string>();
 
@@ -556,19 +505,21 @@ const buildFontAwesomeRuntime = (
   };
 };
 
+/**
+ * Font Awesome ships as a workspace dependency and is only split out of the
+ * initial chunk, so `ensureReady` resolves a same-origin lazy chunk instead of a
+ * third-party module. Keeping it async preserves the picker's idle/loading/ready
+ * lifecycle without pulling the full solid icon set into the editor entry.
+ */
 const ensureFontAwesomeReady = async () => {
   if (fontAwesomeRuntime) return;
-  ensureHostReactImportMap();
-  const cacheBust = Date.now().toString(36);
-  const candidates = createFontAwesomeModuleCandidates(cacheBust);
-  const [fontAwesomeReactModule, fontAwesomeIconsModule] = await Promise.all([
-    loadEsmCandidates(candidates.react),
-    loadEsmCandidates(candidates.solid),
+  const [{ FontAwesomeIcon }, solidIcons] = await Promise.all([
+    import('@fortawesome/react-fontawesome'),
+    import('@fortawesome/free-solid-svg-icons'),
   ]);
-  fontAwesomeRuntime = buildFontAwesomeRuntime(
-    fontAwesomeReactModule.FontAwesomeIcon,
-    fontAwesomeIconsModule
-  );
+  fontAwesomeRuntime = buildFontAwesomeRuntime(FontAwesomeIcon, {
+    ...solidIcons,
+  });
 };
 
 const resolveFontAwesomeIcon = (name: string) => {
@@ -582,52 +533,28 @@ const resolveFontAwesomeIcon = (name: string) => {
 
 const listFontAwesomeIconNames = () => fontAwesomeRuntime?.iconNames ?? [];
 
+type HeroiconsIconVariant = 'outline' | 'solid';
+
 let heroiconsOutlineRuntime: IconComponentRuntime | null = null;
 let heroiconsSolidRuntime: IconComponentRuntime | null = null;
 
-const resolveHeroiconsVariant = (value: unknown): 'outline' | 'solid' =>
+const resolveHeroiconsVariant = (value: unknown): HeroiconsIconVariant =>
   value === 'solid' ? 'solid' : 'outline';
 
-const createHeroiconsModuleCandidates = (
-  cacheBust: string,
-  variant: 'outline' | 'solid'
-) => [
-  `https://esm.sh/@heroicons/react@2.2.0/24/${variant}?target=es2022&external=react&v=${cacheBust}`,
-  `https://esm.sh/@heroicons/react@2.2.0/24/${variant}?bundle&target=es2022&external=react&v=${cacheBust}`,
-];
-
-const ensureHeroiconsOutlineReady = async () => {
-  if (heroiconsOutlineRuntime) return;
-  ensureHostReactImportMap();
-  const cacheBust = Date.now().toString(36);
-  const iconModule = await loadEsmCandidates(
-    createHeroiconsModuleCandidates(cacheBust, 'outline')
-  );
-  heroiconsOutlineRuntime = buildIconComponentRuntime(iconModule, {
-    stripIconSuffix: true,
-  });
-};
-
-const ensureHeroiconsSolidReady = async () => {
-  if (heroiconsSolidRuntime) return;
-  ensureHostReactImportMap();
-  const cacheBust = Date.now().toString(36);
-  const iconModule = await loadEsmCandidates(
-    createHeroiconsModuleCandidates(cacheBust, 'solid')
-  );
-  heroiconsSolidRuntime = buildIconComponentRuntime(iconModule, {
-    stripIconSuffix: true,
-  });
-};
-
 const ensureHeroiconsReady = async () => {
-  await ensureHeroiconsOutlineReady();
-  await ensureHeroiconsSolidReady().catch((error) => {
-    console.warn(
-      '[iconRegistry] heroicons solid variant failed to load',
-      error
-    );
-  });
+  if (heroiconsOutlineRuntime && heroiconsSolidRuntime) return;
+  const [outlineIcons, solidIcons] = await Promise.all([
+    import('@heroicons/react/24/outline'),
+    import('@heroicons/react/24/solid'),
+  ]);
+  heroiconsOutlineRuntime = buildIconComponentRuntime(
+    { ...outlineIcons },
+    { stripIconSuffix: true }
+  );
+  heroiconsSolidRuntime = buildIconComponentRuntime(
+    { ...solidIcons },
+    { stripIconSuffix: true }
+  );
 };
 
 const resolveHeroiconsIcon = (name: string, iconRef?: IconRef) => {

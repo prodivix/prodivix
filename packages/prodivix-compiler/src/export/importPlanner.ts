@@ -1,3 +1,4 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { ExportImportIntent } from '#src/export/types';
 
 const renderNamedImport = (intent: ExportImportIntent) => {
@@ -41,6 +42,9 @@ export const dedupeExportImportIntents = (
     byKey.set(key, intent);
   });
   return Array.from(byKey.values()).sort((a, b) =>
-    renderExportImportIntent(a).localeCompare(renderExportImportIntent(b))
+    compareUnicodeCodePoints(
+      renderExportImportIntent(a),
+      renderExportImportIntent(b)
+    )
   );
 };

@@ -1,3 +1,5 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
+
 export const REMOTE_EXECUTION_TERMINAL_STATE_FORMAT =
   'prodivix.remote-terminal-state' as const;
 export const REMOTE_EXECUTION_TERMINAL_STATE_VERSION = 1 as const;
@@ -143,7 +145,7 @@ export const createMemoryRemoteExecutionTerminalStateStore =
             .sort(
               (left, right) =>
                 left.expiresAt - right.expiresAt ||
-                left.executionId.localeCompare(right.executionId)
+                compareUnicodeCodePoints(left.executionId, right.executionId)
             )
             .slice(0, maximumRecords)
             .map(cloneRecord)

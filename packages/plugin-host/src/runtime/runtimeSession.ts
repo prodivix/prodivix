@@ -39,7 +39,6 @@ export const runRuntimeOperation = async <T>(
   operation: () => Promise<PluginHostResult<T>>,
   onLateSuccess?: (value: T) => void | Promise<void>
 ): Promise<RuntimeOperationOutcome<T>> => {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let removeAbortListener = () => {};
   const abortOutcome = new Promise<'timed-out' | 'superseded'>((resolve) => {
     const onAbort = () =>
@@ -72,7 +71,7 @@ export const runRuntimeOperation = async <T>(
         ),
       ],
     }));
-  timeoutId = setTimeout(
+  const timeoutId = setTimeout(
     () => context.controller.abort('runtime-timeout'),
     context.timeoutMs
   );
@@ -81,7 +80,7 @@ export const runRuntimeOperation = async <T>(
     operationPromise.then((result) => ({ kind: 'completed' as const, result })),
     abortOutcome.then((kind) => ({ kind })),
   ]);
-  if (timeoutId !== undefined) clearTimeout(timeoutId);
+  clearTimeout(timeoutId);
   removeAbortListener();
   if (outcome.kind === 'completed') return outcome;
 

@@ -1,4 +1,5 @@
 import {
+  compareUnicodeCodePoints,
   getWorkspaceOperationId,
   type WorkspaceOperation,
   type WorkspaceSnapshot,
@@ -110,17 +111,6 @@ export const DEFAULT_WORKSPACE_OUTBOX_RETRY_POLICY: WorkspaceOutboxRetryPolicy =
     multiplier: 2,
     jitterRatio: 0.2,
   });
-
-const compareUnicodeCodePoints = (left: string, right: string): number => {
-  const leftPoints = Array.from(left, (value) => value.codePointAt(0) ?? 0);
-  const rightPoints = Array.from(right, (value) => value.codePointAt(0) ?? 0);
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    const difference = leftPoints[index]! - rightPoints[index]!;
-    if (difference !== 0) return difference;
-  }
-  return leftPoints.length - rightPoints.length;
-};
 
 const compareEntries = (
   left: WorkspaceOutboxRecord,

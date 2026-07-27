@@ -32,6 +32,7 @@ import {
   readServerFunctionInvocationTraceValue,
   SERVER_FUNCTION_INVOCATION_TRACE_NAME,
 } from '@prodivix/server-runtime';
+import { sameCanonicalJson } from '@prodivix/shared/canonical';
 import {
   RemoteExecutionClientError,
   RemoteExecutionRecoveryRequiredError,
@@ -191,22 +192,10 @@ const hasSingleExactServerFunctionRootSource = (
     ).length === 1
   );
 
-const canonicalJson = (value: unknown): string =>
-  JSON.stringify(value, (_key, candidate: unknown) => {
-    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
-      return candidate;
-    const record = candidate as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.keys(record)
-        .sort()
-        .map((key) => [key, record[key]])
-    );
-  });
-
 const sameSourceTrace = (
   left: readonly ExecutionSourceTrace[] | undefined,
   right: readonly ExecutionSourceTrace[] | undefined
-): boolean => canonicalJson(left) === canonicalJson(right);
+): boolean => sameCanonicalJson(left, right);
 
 const secretLeakDiagnosticControllers = new WeakSet<ExecutionJobController>();
 
@@ -817,7 +806,7 @@ const synchronize = async (
               ...event.artifact,
               uri: artifact.uri,
             });
-            if (canonicalJson(artifact) !== canonicalJson(expectedProjection))
+            if (!sameCanonicalJson(artifact, expectedProjection))
               throw new RemoteExecutionRecoveryRequiredError(
                 'Remote artifact materialization may only add its runtime URI.',
                 'events.read'
@@ -971,8 +960,7 @@ export const createRemoteExecutionProvider = (
           'create'
         );
       }
-      let controller: ExecutionJobController;
-      controller = createExecutionJobController({
+      const controller: ExecutionJobController = createExecutionJobController({
         jobId: execution.executionId,
         request,
         provider: options.descriptor,

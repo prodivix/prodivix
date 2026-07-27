@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Living Golden App conformance gate for the Prodivix change and export kernels",
   "scripts": {
+    "lint": "eslint .",
     "emit:g2-execution-snapshot": "tsx scripts/emitGoldenG2ExecutableSnapshot.ts",
     "emit:g2-vue-catalog-snapshot": "tsx scripts/emitGoldenG2VueCatalogSnapshot.ts",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",

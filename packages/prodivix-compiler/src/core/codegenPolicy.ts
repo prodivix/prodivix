@@ -8,6 +8,7 @@ import {
   isIconPolicyExportIdentifier,
   normalizeIconPolicyExport,
 } from '@prodivix/shared';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 
 export type CodegenPolicySource = Readonly<{
   pluginId: string;
@@ -367,7 +368,7 @@ export const getCodegenPolicyDependenciesForUsage = (
   });
   return Object.freeze(
     [...dependencies.values()].sort((left, right) =>
-      left.name.localeCompare(right.name)
+      compareUnicodeCodePoints(left.name, right.name)
     )
   );
 };

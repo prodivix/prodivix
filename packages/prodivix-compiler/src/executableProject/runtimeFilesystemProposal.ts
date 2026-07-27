@@ -1,4 +1,5 @@
 import type { ExecutionFilesystemDiff } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   applyWorkspaceCommand,
   applyWorkspaceTransaction,
@@ -266,8 +267,8 @@ const planCommands = (
   const ordered = [...entries].sort(
     (left, right) =>
       CHANGE_ORDER[left.kind] - CHANGE_ORDER[right.kind] ||
-      left.path.localeCompare(right.path) ||
-      left.changeId.localeCompare(right.changeId)
+      compareUnicodeCodePoints(left.path, right.path) ||
+      compareUnicodeCodePoints(left.changeId, right.changeId)
   );
   const commands: WorkspaceCommandEnvelope[] = [];
   let current = workspace;

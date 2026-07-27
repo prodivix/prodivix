@@ -66,6 +66,14 @@ jobs:
           chmod +x ./start-app.sh
           ./start-app.sh --yes --tag "$IMAGE_TAG"
 
+      - name: Verify deployment credential file permissions
+        run: |
+          mode="$(stat -c %a deploy/.env)"
+          if [[ "$mode" != "600" ]]; then
+            echo "deploy/.env holds the Postgres password and must be mode 600, found $mode." >&2
+            exit 1
+          fi
+
       - name: Check backend health
         run: |
           for attempt in $(seq 1 30); do

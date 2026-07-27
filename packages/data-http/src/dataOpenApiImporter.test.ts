@@ -346,6 +346,31 @@ describe('OpenAPI 3.1 Data import proposal', () => {
     ]);
   });
 
+  it('blocks parameter names that shadow object prototype keys instead of dropping them', () => {
+    const spec = catalogSpec();
+    (
+      spec.paths['/products/{id}'].get.parameters as Array<
+        Record<string, unknown>
+      >
+    ).push({
+      name: '__proto__',
+      in: 'query',
+      required: true,
+      schema: { type: 'string' },
+    });
+
+    expect(propose(catalogSpec()).status).toBe('ready');
+    const proposal = propose(spec);
+    expect(proposal.status).toBe('invalid');
+    expect(
+      proposal.issues.filter(
+        (entry) =>
+          entry.code === DATA_OPENAPI_IMPORT_ISSUE_CODES.unsupportedShape &&
+          entry.path.endsWith('/name')
+      )
+    ).toHaveLength(1);
+  });
+
   it('reports an invalid component schema once instead of once per projection', () => {
     const spec = catalogSpec();
     (spec.components.schemas as Record<string, unknown>).Invalid = {

@@ -195,7 +195,7 @@ describe('Remote Data stream run coordinator', () => {
       sessions
         .getSnapshot('project-preview')
         ?.observations.map((observation) => observation.trace.spanId)
-    ).toEqual([network.requestId, renewedNetwork.requestId]);
+    ).toEqual([network.requestId, `${renewedNetwork.requestId}#resume-1`]);
     expect(messages.map((message) => message.phase)).toEqual([
       'open',
       'event',
@@ -203,6 +203,69 @@ describe('Remote Data stream run coordinator', () => {
     ]);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a recovered stream alive when repeated resumes at one cursor repeat the Backend request identity', async () => {
+    const { job, sessions } = terminalSession();
+    // Backend derives the stream request id from `invocation:stream:<cursor>`,
+    // so two resumes without an intervening event repeat it with new timings.
+    const resumedAt = (startedAt: number) =>
+      createExecutionNetworkTrace({
+        ...network,
+        startedAt,
+        completedAt: startedAt + 1,
+      });
+    let listener: ((value: typeof network) => void) | undefined;
+    const next = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        listener?.(resumedAt(200));
+        listener?.(resumedAt(300));
+        return { cursor: 1, value: { id: 'p1' } };
+      })
+      .mockResolvedValueOnce(undefined);
+    const close = vi.fn();
+    const runs = createRemoteDataStreamRunCoordinator({
+      publishTrace: (input) => sessions.publishTrace(input),
+    });
+    runs.activate({
+      executionId: job.id,
+      jobId: job.id,
+      sessionId: 'project-preview',
+      open: async () => ({
+        network,
+        next,
+        subscribeNetwork: (candidate: (value: typeof network) => void) => {
+          listener = candidate;
+          return () => undefined;
+        },
+        close,
+      }),
+    });
+    const messages: ExecutionDataStreamBridgeMessage[] = [];
+    await runs.open(request, (message) => messages.push(message));
+    await runs.pull({
+      type: 'prodivix.execution-data-stream-pull.v1',
+      requestId: request.requestId,
+      cursor: 0,
+    });
+    await runs.pull({
+      type: 'prodivix.execution-data-stream-pull.v1',
+      requestId: request.requestId,
+      cursor: 1,
+    });
+
+    expect(messages.map((message) => message.phase)).toEqual([
+      'open',
+      'event',
+      'complete',
+    ]);
+    const spanIds =
+      sessions
+        .getSnapshot('project-preview')
+        ?.observations.map((observation) => observation.trace.spanId) ?? [];
+    expect(spanIds).toHaveLength(3);
+    expect(new Set(spanIds).size).toBe(3);
   });
 
   it('aborts an opening stream when its exact frame cancels or the generation changes', async () => {

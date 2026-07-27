@@ -3,7 +3,10 @@ import {
   PLUGIN_DIAGNOSTIC_CODES,
   validateJsonValue,
 } from '@prodivix/plugin-contracts';
-import type { BuiltInGatewayServicePorts } from '@prodivix/plugin-browser';
+import type {
+  BuiltInGatewayServicePorts,
+  GatewayDocumentPort,
+} from '@prodivix/plugin-browser';
 import {
   asNonEmptyDiagnostics,
   pluginHostFailure,
@@ -68,7 +71,7 @@ export const createEditorPluginGatewayServices = (
       },
       dispatchIntent: async () => unavailable('workspace/dispatch-intent'),
     }),
-    documents: Object.freeze({
+    documents: Object.freeze<GatewayDocumentPort>({
       read: async (_context, request) => {
         const current = requireWorkspaceState(workspaceId);
         if (current.ok === false) {

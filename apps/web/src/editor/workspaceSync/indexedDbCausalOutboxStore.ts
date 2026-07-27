@@ -271,9 +271,10 @@ export const createIndexedDbCausalOutboxStore = <
       replacement.id === entryId
         ? null
         : await readCurrent(store, replacement.id);
-    const replaced = Boolean(
-      current && !collision && ownsExpectedLease(current, expectedLeaseOwnerId)
-    );
+    const replaced =
+      current !== null &&
+      !collision &&
+      ownsExpectedLease(current, expectedLeaseOwnerId);
     if (replaced) {
       const causallyOrderedReplacement = inheritWorkspaceOutboxCausalOrder(
         current,

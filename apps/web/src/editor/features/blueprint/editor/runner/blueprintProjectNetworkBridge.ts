@@ -57,10 +57,10 @@ const acceptsPreviewMessageOrigin = (input: {
 };
 
 /** Identity-fences every bridge decoder to the currently mounted iframe Window. */
-export const isBlueprintProjectFrameMessageSource = (
-  activeFrameWindow: unknown,
+export const isBlueprintProjectFrameMessageSource = <TFrameWindow>(
+  activeFrameWindow: TFrameWindow,
   messageSource: unknown
-): boolean =>
+): activeFrameWindow is NonNullable<TFrameWindow> =>
   activeFrameWindow !== null &&
   activeFrameWindow !== undefined &&
   messageSource === activeFrameWindow;

@@ -67,7 +67,7 @@
       "id": "antd.render",
       "point": "renderPolicy",
       "source": {
-        "integrity": "sha256-CyJDL/g/2ikAjtttakEs2XImtXm8/snBJ5F58z495BE=",
+        "integrity": "sha256-jHoq/7YVG55XWfcE8l+XeUh1YIf4yZaF6AEO0ogEV28=",
         "kind": "resource",
         "path": "./contributions/render-policy.json"
       }

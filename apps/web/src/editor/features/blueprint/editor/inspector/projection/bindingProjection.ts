@@ -73,10 +73,12 @@ const projectTrigger = (
     };
   }
   if (binding.kind === 'navigate-route') {
+    // `to` is authored link text (a path or an external URL). Projecting the
+    // route id into it would make the draft validator read an id as a path.
     return {
       trigger,
       action: 'navigate',
-      params: { to: binding.routeId, routeId: binding.routeId },
+      params: { routeId: binding.routeId },
       editable: true,
     };
   }
@@ -226,19 +228,15 @@ const toEditableTrigger = (
       >['input'],
     };
   }
+  const routeId =
+    typeof event.params.routeId === 'string' ? event.params.routeId.trim() : '';
+  if (routeId) return { kind: 'navigate-route', routeId };
   const destination =
     typeof event.params.to === 'string' ? event.params.to.trim() : '';
   if (!destination) return null;
-  if (getNavigateLinkKind(destination) === 'external') {
-    return { kind: 'open-url', href: destination };
-  }
-  const routeId =
-    typeof event.params.routeId === 'string' ? event.params.routeId.trim() : '';
-  if (!routeId) return null;
-  return {
-    kind: 'navigate-route',
-    routeId,
-  };
+  return getNavigateLinkKind(destination) === 'external'
+    ? { kind: 'open-url', href: destination }
+    : null;
 };
 
 const toEvents = (

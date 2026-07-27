@@ -35,9 +35,7 @@ func OpenDatabase(cfg config.Config) (*sql.DB, error) {
 	}
 	cancelPing()
 
-	migrationCtx, cancelMigration := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancelMigration()
-	if err := RunMigrations(migrationCtx, db); err != nil {
+	if err := RunMigrations(context.Background(), db, cfg.DBMigrationTimeout); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -45,11 +43,16 @@ func OpenDatabase(cfg config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-func RunMigrations(ctx context.Context, db *sql.DB) error {
-	if db == nil {
-		return fmt.Errorf("run migrations: database is required")
-	}
-	migrations := []migration{{
+// RunMigrations applies every pending migration, each in its own transaction
+// under its own budget. A single shared budget meant one slow data rewrite
+// discarded every migration that had already succeeded, so the next start
+// repeated the same work and failed at the same place.
+func RunMigrations(ctx context.Context, db *sql.DB, migrationBudget time.Duration) error {
+	return runMigrations(ctx, db, migrationSet(), migrationBudget)
+}
+
+func migrationSet() []migration {
+	return []migration{{
 		version: 1,
 		name:    "baseline",
 		statements: []string{
@@ -584,47 +587,100 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_github_user_identities_github_user ON github_user_identities(github_user_id)`,
 			`ALTER TABLE github_installations ADD COLUMN IF NOT EXISTS installer_github_user_id BIGINT NOT NULL DEFAULT 0`,
 		},
+	}, {
+		version: 15,
+		name:    "workspace-scoped-environment-identity",
+		statements: []string{
+			// execution_environments.id was the client-supplied environment name
+			// and a global primary key, so the first tenant to PUT "production"
+			// took that name away from every other tenant permanently. The name
+			// becomes workspace scoped; id becomes a server-owned storage key that
+			// child tables keep referencing unchanged.
+			`ALTER TABLE execution_environments ADD COLUMN IF NOT EXISTS environment_key TEXT`,
+			`UPDATE execution_environments SET environment_key = id WHERE environment_key IS NULL`,
+			`ALTER TABLE execution_environments ALTER COLUMN environment_key SET NOT NULL`,
+			`DROP INDEX IF EXISTS idx_execution_environments_workspace_id`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_environments_workspace_key ON execution_environments(workspace_id, environment_key)`,
+		},
 	}}
+}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin migration transaction: %w", err)
+const migrationAdvisoryLockKey = int64(0x50726f6469766978)
+
+func runMigrations(ctx context.Context, db *sql.DB, migrations []migration, migrationBudget time.Duration) error {
+	if db == nil {
+		return fmt.Errorf("run migrations: database is required")
 	}
-	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+	if migrationBudget <= 0 {
+		return fmt.Errorf("run migrations: per-migration budget must be positive")
+	}
+	// The lock has to outlive each migration's transaction, so it is session
+	// scoped on one dedicated connection. Returning that connection to the pool
+	// would not end its session, hence the explicit unlock.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire migration connection: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+	registryCtx, cancelRegistry := context.WithTimeout(ctx, migrationBudget)
+	defer cancelRegistry()
+	if _, err := conn.ExecContext(registryCtx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version BIGINT PRIMARY KEY,
 		name TEXT NOT NULL,
 		applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`); err != nil {
 		return fmt.Errorf("create migration registry: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, int64(0x50726f6469766978)); err != nil {
+	if _, err := conn.ExecContext(registryCtx, `SELECT pg_advisory_lock($1)`, migrationAdvisoryLockKey); err != nil {
 		return fmt.Errorf("acquire migration lock: %w", err)
 	}
+	defer func() {
+		unlockCtx, cancelUnlock := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancelUnlock()
+		_, _ = conn.ExecContext(unlockCtx, `SELECT pg_advisory_unlock($1)`, migrationAdvisoryLockKey)
+	}()
 	for _, migration := range migrations {
-		var applied bool
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, migration.version).Scan(&applied); err != nil {
-			return fmt.Errorf("read migration registry: %w", err)
-		}
-		if applied {
-			continue
-		}
-		for _, statement := range migration.statements {
-			if _, err := tx.ExecContext(ctx, statement); err != nil {
-				return fmt.Errorf("run migration version %d: %w", migration.version, err)
-			}
-		}
-		if migration.run != nil {
-			if err := migration.run(ctx, tx); err != nil {
-				return fmt.Errorf("run migration version %d: %w", migration.version, err)
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, name) VALUES ($1, $2)`, migration.version, migration.name); err != nil {
-			return fmt.Errorf("record migration version %d: %w", migration.version, err)
+		if err := applyMigration(ctx, conn, migration, migrationBudget); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// applyMigration keeps one migration atomic: its statements, its data rewrite
+// and its registry row commit together or not at all. Exhausting the budget
+// discards only this migration, so the next start resumes here instead of
+// repeating everything that already succeeded.
+func applyMigration(ctx context.Context, conn *sql.Conn, migration migration, migrationBudget time.Duration) error {
+	migrationCtx, cancel := context.WithTimeout(ctx, migrationBudget)
+	defer cancel()
+	tx, err := conn.BeginTx(migrationCtx, nil)
+	if err != nil {
+		return fmt.Errorf("begin migration version %d: %w", migration.version, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	var applied bool
+	if err := tx.QueryRowContext(migrationCtx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, migration.version).Scan(&applied); err != nil {
+		return fmt.Errorf("read migration registry: %w", err)
+	}
+	if applied {
+		return nil
+	}
+	for _, statement := range migration.statements {
+		if _, err := tx.ExecContext(migrationCtx, statement); err != nil {
+			return fmt.Errorf("run migration version %d: %w", migration.version, err)
+		}
+	}
+	if migration.run != nil {
+		if err := migration.run(migrationCtx, tx); err != nil {
+			return fmt.Errorf("run migration version %d: %w", migration.version, err)
+		}
+	}
+	if _, err := tx.ExecContext(migrationCtx, `INSERT INTO schema_migrations (version, name) VALUES ($1, $2)`, migration.version, migration.name); err != nil {
+		return fmt.Errorf("record migration version %d: %w", migration.version, err)
+	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit migrations: %w", err)
+		return fmt.Errorf("commit migration version %d: %w", migration.version, err)
 	}
 	return nil
 }

@@ -67,8 +67,10 @@ import {
 import { useWorkspaceShaderCompile } from '@/editor/codeCompile';
 import {
   getCodeAuthoringSelectionStorageKey,
+  resolveCodeArtifactDeletion,
   resolveDefaultCodeKindByParentPath,
   resolveTemplateByCodeKind,
+  type CodeArtifactDeletionDecision,
   type CodeFileKind,
 } from './codeAuthoringModel';
 import { isWorkspaceCodeDocumentContent } from '@prodivix/workspace';
@@ -228,7 +230,8 @@ const resolveCodeKindByFolder = (
 
 const isWorkspaceVfsFolder = (
   node: ReturnType<typeof findCodeResourceNodeById>
-) => node?.type === 'folder' && node.source === 'workspace-vfs';
+): node is NonNullable<ReturnType<typeof findCodeResourceNodeById>> =>
+  node?.type === 'folder' && node.source === 'workspace-vfs';
 
 const describeCodeSlotOwner = (owner: DiagnosticTargetRef): string => {
   switch (owner.kind) {
@@ -1372,21 +1375,33 @@ export function CodeAuthoringWorkspace({
     if (applied) setRelocationState({ status: 'idle' });
   };
 
+  const rejectBlockedCodeDeletion = (
+    decision: CodeArtifactDeletionDecision
+  ): boolean => {
+    if (decision.status === 'allowed') return false;
+    setSaveError(
+      t(
+        decision.reason === 'active-binding'
+          ? 'resourceManager.code.lifecycle.deleteActiveBlocked'
+          : 'resourceManager.code.lifecycle.deleteProjectionBlocked'
+      )
+    );
+    return true;
+  };
+
   const handleDeleteCodeFile = async (nodeId: string) => {
     if (!workspace || !workspaceId || !workspaceRev) return;
     const node = findCodeResourceNodeById(tree, nodeId);
     if (node?.type === 'folder') {
       if (!canDeleteDirectory || node.id === tree.id) return;
       if (
-        lifecycleProjection?.status === 'ready' &&
-        flattenCodeResourceFiles(node).some((file) =>
-          lifecycleProjection.records.some(
-            ({ artifact, lifecycle }) =>
-              artifact.id === file.id && lifecycle.status === 'active'
+        rejectBlockedCodeDeletion(
+          resolveCodeArtifactDeletion(
+            lifecycleProjection,
+            flattenCodeResourceFiles(node).map((file) => file.id)
           )
         )
       ) {
-        setSaveError(t('resourceManager.code.lifecycle.deleteActiveBlocked'));
         return;
       }
       const applied = await executeVfsIntent(
@@ -1404,14 +1419,11 @@ export function CodeAuthoringWorkspace({
     if (!canDeleteCodeDocument) return;
     const document = workspaceDocumentsById[nodeId];
     if (!document || document.type !== 'code') return;
-    const lifecycle =
-      lifecycleProjection?.status === 'ready'
-        ? lifecycleProjection.records.find(
-            ({ artifact }) => artifact.id === document.id
-          )?.lifecycle
-        : undefined;
-    if (lifecycle?.status === 'active') {
-      setSaveError(t('resourceManager.code.lifecycle.deleteActiveBlocked'));
+    if (
+      rejectBlockedCodeDeletion(
+        resolveCodeArtifactDeletion(lifecycleProjection, [document.id])
+      )
+    ) {
       return;
     }
     const applied = await executeVfsIntent(

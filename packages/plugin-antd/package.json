@@ -25,6 +25,7 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && pnpm run check:generated:raw && tsc -p tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true}); fs.rmSync('tsconfig.test.tsbuildinfo',{force:true})\"",
     "generate:resources": "node scripts/generate-plugin-resources.mjs",

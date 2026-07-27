@@ -107,7 +107,8 @@ export const createNewTriggerDraft = (
 
 export const getTriggerDraftIssue = (
   entry: TriggerEntry,
-  canonicalEntries: readonly TriggerEntry[]
+  canonicalEntries: readonly TriggerEntry[],
+  knownRouteIds: ReadonlySet<string>
 ): TriggerDraftIssue | undefined => {
   if (entry.sourceKey) {
     const sourceExists = canonicalEntries.some(
@@ -147,13 +148,17 @@ export const getTriggerDraftIssue = (
     return isRecord(entry.params.input) ? undefined : 'data-input-required';
   }
 
+  // A resolved internal route owns the destination; the authored link text is
+  // only validated while no route has been resolved from it. Resolution means
+  // the route still exists — a routeId left behind by a deleted route falls
+  // through so the author is told to re-pick instead of saving dead navigation.
+  const routeId =
+    typeof entry.params.routeId === 'string' ? entry.params.routeId.trim() : '';
+  if (routeId && knownRouteIds.has(routeId)) return undefined;
   const destination =
     typeof entry.params.to === 'string' ? entry.params.to.trim() : '';
   if (!destination) return 'destination-required';
   const linkKind = getNavigateLinkKind(destination);
   if (!linkKind) return 'destination-invalid';
-  if (linkKind === 'external') return undefined;
-  const routeId =
-    typeof entry.params.routeId === 'string' ? entry.params.routeId.trim() : '';
-  return routeId ? undefined : 'route-unresolved';
+  return linkKind === 'external' ? undefined : 'route-unresolved';
 };

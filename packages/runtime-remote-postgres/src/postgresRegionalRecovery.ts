@@ -9,6 +9,7 @@ import {
   type RemoteExecutionRegionalRecoveryProbe,
 } from '@prodivix/runtime-remote';
 import type { ExecutionJobStatus } from '@prodivix/runtime-core';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import { withPostgresTransaction } from './postgresTransaction';
 
 type ExecutionRow = Readonly<{
@@ -60,20 +61,6 @@ const optionalInteger = (
   value: string | number | null,
   label: string
 ): number | null => (value === null ? null : integer(value, label));
-
-const stableJson = (value: unknown): string => {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  return `{${Object.keys(value as Record<string, unknown>)
-    .sort()
-    .map(
-      (key) =>
-        `${JSON.stringify(key)}:${stableJson(
-          (value as Record<string, unknown>)[key]
-        )}`
-    )
-    .join(',')}}`;
-};
 
 const digestBytes = (value: Uint8Array): string =>
   `sha256-${bytesToHex(sha256(value))}`;
@@ -359,9 +346,11 @@ export const createPostgresRemoteExecutionRegionalRecoveryProbe = (
               }
             : null,
         };
-        const executionStateDigest = digestText(stableJson(executionState));
+        const executionStateDigest = digestText(
+          canonicalJsonText(executionState)
+        );
         const stateDigest = digestText(
-          stableJson({
+          canonicalJsonText({
             executionStateDigest,
             terminal: terminal ?? null,
           })

@@ -1,3 +1,5 @@
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
+
 export const REMOTE_EXECUTION_SERVER_AUTHORITY_FORMAT =
   'prodivix.remote-execution-server-authority.v1' as const;
 export const REMOTE_EXECUTION_SERVER_AUTHORITY_LEASE_FORMAT =
@@ -54,6 +56,7 @@ const identifier = (value: unknown): string | undefined =>
   value.length <=
     REMOTE_EXECUTION_SERVER_AUTHORITY_LIMITS.maximumIdentifierLength &&
   value === value.trim() &&
+  // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
   !/[\u0000-\u001f\u007f]/u.test(value)
     ? value
     : undefined;
@@ -73,6 +76,12 @@ const permissionId = (value: unknown): string | undefined =>
     ? value
     : undefined;
 
+/**
+ * Accepts only strictly ascending, duplicate-free permissions. The order is
+ * part of the attested authority's identity: it survives into the worker lease
+ * and into the control-plane idempotency key, so the minter and every decoder
+ * must agree on it regardless of host locale.
+ */
 const readPermissions = (value: unknown): readonly string[] | undefined => {
   if (
     !Array.isArray(value) ||
@@ -85,7 +94,8 @@ const readPermissions = (value: unknown): readonly string[] | undefined => {
     permissions.some(
       (permission, index) =>
         index > 0 &&
-        (permissions[index - 1] as string).localeCompare(
+        compareUnicodeCodePoints(
+          permissions[index - 1] as string,
           permission as string
         ) >= 0
     )

@@ -305,12 +305,22 @@ export const normalizeRouteSegment = (input = ''): RouteSegmentValidation => {
   return { ok: true, segment, params: [...params], wildcard };
 };
 
+/**
+ * `WorkspaceRouteNode.index` is a tri-state wire value (`true` | `false` | `undefined`):
+ * `parseRouteNode` preserves an authored `index: false` and `cloneMountedRouteNode` writes
+ * one onto every mounted module root. Every index predicate normalizes through this helper
+ * so an omitted flag and an explicit `false` stay indistinguishable — sibling ranking in
+ * `matchChildren` depends on that normalization to stay a strict weak ordering.
+ */
+const isIndexRouteNode = (node: WorkspaceRouteNode): boolean =>
+  node.index === true;
+
 export const buildRoutePath = (
   parentPath: string,
   node: WorkspaceRouteNode
 ): string => {
   const normalizedParent = normalizeRoutePath(parentPath);
-  if (node.index) return normalizedParent;
+  if (isIndexRouteNode(node)) return normalizedParent;
   const segment = trimSlashes(node.segment ?? '');
   if (!segment) return normalizedParent;
   return normalizeRoutePath(
@@ -319,7 +329,7 @@ export const buildRoutePath = (
 };
 
 const getRouteLabel = (node: WorkspaceRouteNode, path: string): string => {
-  if (node.index) return '(index)';
+  if (isIndexRouteNode(node)) return '(index)';
   const segment = node.segment?.trim();
   return segment && segment.length > 0 ? segment : path;
 };
@@ -636,7 +646,7 @@ const createSegmentMatchersFromSegment = (
 };
 
 const createSegmentMatchers = (node: WorkspaceRouteNode): SegmentMatcher[] => {
-  if (node.index) return [];
+  if (isIndexRouteNode(node)) return [];
   return createSegmentMatchersFromSegment(node.segment);
 };
 
@@ -747,7 +757,7 @@ const matchNodeSegments = (
   node: WorkspaceRouteNode,
   segments: string[]
 ): { matched: boolean; consumed: number; params: Record<string, string> } => {
-  if (node.index) {
+  if (isIndexRouteNode(node)) {
     return { matched: segments.length === 0, consumed: 0, params: {} };
   }
   const matchers = createSegmentMatchers(node);
@@ -788,7 +798,9 @@ const matchChildren = (
 }> | null => {
   const children = parent.children ?? [];
   const rankedChildren = [...children].sort((left, right) => {
-    if (left.index !== right.index) return left.index ? 1 : -1;
+    const leftIsIndex = isIndexRouteNode(left);
+    const rightIsIndex = isIndexRouteNode(right);
+    if (leftIsIndex !== rightIsIndex) return leftIsIndex ? 1 : -1;
     const rank = (node: WorkspaceRouteNode) => {
       const matchers = createSegmentMatchers(node);
       return {
@@ -837,12 +849,13 @@ const completeEmptyRouteChain = (
   if (visited.has(parent.id)) return chain;
   const nextVisited = new Set(visited).add(parent.id);
   const children = parent.children ?? [];
-  const indexChild = children.find((candidate) => candidate.index);
+  const indexChild = children.find((candidate) => isIndexRouteNode(candidate));
   if (indexChild) return [...chain, { node: indexChild, params: {} }];
   const pathlessChild = [...children]
     .filter(
       (candidate) =>
-        !candidate.index && createSegmentMatchers(candidate).length === 0
+        !isIndexRouteNode(candidate) &&
+        createSegmentMatchers(candidate).length === 0
     )
     .sort((left, right) =>
       left.id < right.id ? -1 : left.id > right.id ? 1 : 0
@@ -1116,7 +1129,7 @@ export const collectRouteManifestDocumentRefs = (
 };
 
 const routeDuplicateKey = (node: WorkspaceRouteNode): string => {
-  if (node.index) return '__index__';
+  if (isIndexRouteNode(node)) return '__index__';
   const normalized = normalizeRouteSegment(node.segment);
   return normalized.ok ? normalized.segment : `__invalid__:${node.id}`;
 };
@@ -1149,7 +1162,7 @@ export const validateRouteManifest = ({
   const issues: RouteManifestIssue[] = [];
 
   const walk = (node: WorkspaceRouteNode) => {
-    if (node.index && node.segment?.trim()) {
+    if (isIndexRouteNode(node) && node.segment?.trim()) {
       issues.push({
         code: 'RTE-1002',
         routeNodeId: node.id,
@@ -1157,7 +1170,7 @@ export const validateRouteManifest = ({
       });
     }
     const invalidSegmentMessage = getInvalidSegmentMessage(node.segment);
-    if (!node.index && invalidSegmentMessage) {
+    if (!isIndexRouteNode(node) && invalidSegmentMessage) {
       issues.push({
         code: 'RTE-1010',
         routeNodeId: node.id,

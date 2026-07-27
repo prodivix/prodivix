@@ -1,4 +1,5 @@
 import { exportDependenciesToPackageFields } from '#src/export/dependencyPlanner';
+import { collectScaffoldReservedPaths } from '#src/export/pathOwnership';
 import { createPirEntrySurfaceCss } from '#src/export/pirEntrySurface';
 import type {
   ExportFileContribution,
@@ -321,13 +322,28 @@ export const createAnimationHandle = (animation: Animation): AnimationHandle => 
   ),
 };
 
+const REACT_VITE_SOURCE_ROOT = 'src';
+
+/**
+ * Scaffold file paths are fixed by the entry chain, not by the project, so the
+ * reservation list is read back from the scaffold with a placeholder context.
+ */
+const reactViteScaffoldPathProbeContext: ExportScaffoldContext = {
+  projectName: 'prodivix-export',
+  dependencies: [],
+};
+
 export const createReactViteExportPreset = (): ExportPlannerPreset => ({
   id: 'react-vite',
   target: {
     framework: 'react',
     preset: 'vite',
   },
-  sourceRoot: 'src',
+  sourceRoot: REACT_VITE_SOURCE_ROOT,
+  reservedPaths: collectScaffoldReservedPaths(
+    createReactViteScaffoldContributions(reactViteScaffoldPathProbeContext),
+    REACT_VITE_SOURCE_ROOT
+  ),
   createScaffoldContributions: createReactViteScaffoldContributions,
   runtimeModuleFactories: reactViteRuntimeModuleFactories,
 });

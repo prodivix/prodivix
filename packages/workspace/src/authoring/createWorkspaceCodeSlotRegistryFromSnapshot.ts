@@ -6,6 +6,7 @@ import { createAnimationCodeSlotProvider } from '@prodivix/animation';
 import { createNodeGraphCodeSlotProvider } from '@prodivix/nodegraph';
 import { createPirCodeSlotProvider } from '@prodivix/pir';
 import { createRouteRuntimeCodeSlotProvider } from '@prodivix/router';
+import { compareUnicodeCodePoints } from '../canonicalOrder';
 import {
   decodeWorkspacePirDocument,
   isWorkspacePirDocumentType,
@@ -72,7 +73,7 @@ export const createWorkspaceCodeSlotRegistryFromSnapshot = (
   }
 
   for (const document of Object.values(snapshot.docsById).sort((left, right) =>
-    left.id.localeCompare(right.id)
+    compareUnicodeCodePoints(left.id, right.id)
   )) {
     if (isWorkspacePirDocumentType(document.type)) {
       const read = decodeWorkspacePirDocument(document, {

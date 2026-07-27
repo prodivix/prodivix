@@ -136,7 +136,7 @@ func (state *workspaceCommitState) applyDocumentCommand(command WorkspaceCommand
 	if err != nil {
 		return err
 	}
-	if err := validateWorkspaceDocumentContent(document.Type, patched, documentID); err != nil {
+	if err := validateWorkspaceDocumentContent(document.Type, documentID, patched); err != nil {
 		return err
 	}
 	reversed, err := applyWorkspaceDocumentPatch(document.Type, patched, command.ReverseOps)
@@ -474,7 +474,7 @@ func (state *workspaceCommitState) validate() error {
 		if document.ContentRev <= 0 || document.MetaRev <= 0 || document.ContentRev > maxJSONSafeInteger || document.MetaRev > maxJSONSafeInteger {
 			return fmt.Errorf("%w: document revisions must be positive JSON safe integers", ErrWorkspaceVFSInvalid)
 		}
-		if err := validateWorkspaceDocumentContent(document.Type, document.Content, document.ID); err != nil {
+		if err := validateWorkspaceDocumentContent(document.Type, document.ID, document.Content); err != nil {
 			return err
 		}
 		if document.Capabilities != nil && len(document.Capabilities) == 0 {

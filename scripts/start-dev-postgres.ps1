@@ -74,7 +74,10 @@ if ($LASTEXITCODE -ne 0) {
   throw "database existence check failed with exit code $LASTEXITCODE"
 }
 
-if ($databaseExists.Trim() -ne '1') {
+# A missing database means psql -tA prints nothing at all, so the capture is $null
+# rather than an empty string; interpolate before trimming so the createdb branch
+# stays reachable in exactly the case it exists for.
+if ("$databaseExists".Trim() -ne '1') {
   & $createdb -h $config.Host -p $config.Port -U $config.User $config.Database
   if ($LASTEXITCODE -ne 0) {
     throw "createdb failed with exit code $LASTEXITCODE"

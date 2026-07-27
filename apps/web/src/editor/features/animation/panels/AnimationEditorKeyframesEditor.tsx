@@ -1,4 +1,5 @@
 import type { AnimationKeyframe, AnimationTrack } from '@prodivix/animation';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isHexColor } from '@/editor/features/animation/animationEditorUi';
 
@@ -34,6 +35,12 @@ type AnimationEditorKeyframesEditorProps = {
   ) => void;
 };
 
+type KeyframeTimeDraft = Readonly<{
+  trackId: string;
+  index: number;
+  text: string;
+}>;
+
 const getKeyframeValueText = (keyframe: AnimationKeyframe) =>
   typeof keyframe.value === 'number' ? String(keyframe.value) : keyframe.value;
 
@@ -50,6 +57,21 @@ export const AnimationEditorKeyframesEditor = ({
 }: AnimationEditorKeyframesEditorProps) => {
   const { t } = useTranslation('editor');
   const isColorTrack = track.kind === 'style' && track.property === 'color';
+  // Keyframe rows are ordered and deduplicated by time, so an in-progress time
+  // edit stays local until it is committed; otherwise every keystroke would
+  // reorder the list under the focused field.
+  const [timeDraft, setTimeDraft] = useState<KeyframeTimeDraft | null>(null);
+
+  const commitTimeDraft = () => {
+    if (!timeDraft) return;
+    setTimeDraft(null);
+    onUpdateKeyframeAtMs(
+      bindingId,
+      timeDraft.trackId,
+      timeDraft.index,
+      timeDraft.text
+    );
+  };
 
   return (
     <div className="rounded border border-black/8 bg-black/[0.015] p-2">
@@ -70,22 +92,30 @@ export const AnimationEditorKeyframesEditor = ({
       <div className="space-y-2">
         {track.keyframes.map((keyframe, index) => (
           <div
-            key={`${track.id}-${keyframe.atMs}-${index}`}
+            key={`${track.id}-${index}`}
             className="grid grid-cols-[84px_minmax(120px,1fr)_minmax(120px,1fr)_auto_auto] items-center gap-2 max-[900px]:grid-cols-1"
           >
             <input
               type="number"
               min={0}
               max={timelineDurationMs}
-              value={keyframe.atMs}
-              onChange={(event) =>
-                onUpdateKeyframeAtMs(
-                  bindingId,
-                  track.id,
-                  index,
-                  event.target.value
-                )
+              value={
+                timeDraft?.trackId === track.id && timeDraft.index === index
+                  ? timeDraft.text
+                  : keyframe.atMs
               }
+              onChange={(event) =>
+                setTimeDraft({
+                  trackId: track.id,
+                  index,
+                  text: event.target.value,
+                })
+              }
+              onBlur={commitTimeDraft}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') commitTimeDraft();
+                else if (event.key === 'Escape') setTimeDraft(null);
+              }}
               className="rounded border border-black/15 px-2 py-1 text-xs"
               aria-label={t('animationEditor.keyframes.atMs')}
               title={t('animationEditor.keyframes.atMs')}

@@ -481,4 +481,41 @@ describe('PIRRenderer Component projection conformance', () => {
       ])
     );
   });
+
+  it('fails closed for an Element type that names an Object prototype member', async () => {
+    const page = createWorkspaceDocument({
+      id: 'page',
+      type: 'pir-page',
+      rootId: 'root',
+      nodesById: {
+        root: {
+          id: 'root',
+          kind: 'element',
+          type: 'constructor',
+          text: { kind: 'literal', value: 'must-not-render' },
+        },
+      },
+    });
+    const onBlockingIssues = vi.fn();
+    render(
+      <PIRRenderer
+        plan={createProjectionPlan('page', [page])}
+        host={{ resolveElement: () => undefined }}
+        dispatchTrigger={vi.fn()}
+        onBlockingIssues={onBlockingIssues}
+      />
+    );
+
+    expect(screen.queryByText('must-not-render')).toBeNull();
+    await waitFor(() =>
+      expect(onBlockingIssues).toHaveBeenCalledWith([
+        expect.objectContaining({
+          code: 'PIR_RENDER_ELEMENT_RESOLVER_MISSING',
+          documentId: 'page',
+          nodeId: 'root',
+          elementType: 'constructor',
+        }),
+      ])
+    );
+  });
 });

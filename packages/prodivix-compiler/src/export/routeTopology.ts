@@ -8,6 +8,7 @@ import {
   type WorkspaceRouteManifest,
   type WorkspaceRouteNode,
 } from '@prodivix/router';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { CompileDiagnostic } from '#src/core/diagnostics';
 import type {
   ExportProgramContribution,
@@ -132,7 +133,7 @@ const toOutletBindings = (
   node: WorkspaceRouteNode
 ): NonNullable<ExportRouteTopologyNode['outletBindings']> =>
   Object.entries(node.outletBindings ?? {})
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
     .map(([outletName, binding]) => ({
       outletName,
       outletNodeId: binding.outletNodeId,

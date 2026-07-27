@@ -197,6 +197,7 @@ const parentDirectories = (path: string): string[] => {
 };
 
 const stripAnsi = (value: string): string =>
+  // eslint-disable-next-line no-control-regex -- stripping control characters is the point
   value.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '');
 
 const toError = (error: unknown): Error =>
@@ -413,9 +414,8 @@ export const createBrowserProjectRuntimeHost = (
     }
     const label = spawnOptions.label?.trim() || command.command;
     let stopRequested = false;
-    let hostProcess: BrowserProjectRuntimeHostProcess;
     const outputCompletion = consumeOutput(ownerId, label, process);
-    hostProcess = Object.freeze({
+    const hostProcess: BrowserProjectRuntimeHostProcess = Object.freeze({
       exit: process.exit,
       outputCompletion,
       kill: () => {

@@ -2447,12 +2447,7 @@ export const ANTD_COMPONENT_CATALOG = [
       mode: 'none',
     },
     portal: {
-      mode: 'host-overlay',
-      canvasOpen: {
-        prop: 'open',
-        value: true,
-        when: 'selected',
-      },
+      mode: 'disabled',
     },
     elementPath: ['Tour'],
     props: [

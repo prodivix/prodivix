@@ -147,7 +147,7 @@ const normalizeProjectGlobalById = (
   return normalized;
 };
 
-export const useSettingsStore = create<SettingsStore>()((set) => ({
+export const useSettingsStore = create<SettingsStore>()((set, get) => ({
   global: {
     ...createGlobalDefaults(),
     language: getInitialLanguage(),
@@ -240,10 +240,10 @@ export const useSettingsStore = create<SettingsStore>()((set) => ({
       };
     }),
   getEffectiveGlobalValue: (projectId, key) => {
+    const state = get();
     if (!projectId) {
-      return useSettingsStore.getState().global[key];
+      return state.global[key];
     }
-    const state = useSettingsStore.getState();
     const projectSettings = state.projectGlobalById[projectId];
     if (!projectSettings) return state.global[key];
     return isProjectOverridableSetting(key) && projectSettings.overrides[key]

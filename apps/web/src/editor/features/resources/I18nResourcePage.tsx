@@ -147,6 +147,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
   const workspace = useEditorStore((state) => state.workspace);
+  const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
   const workspaceDocumentsById =
     workspace?.docsById ?? EMPTY_WORKSPACE_DOCUMENTS;
   const workspaceResourceValue = useMemo(
@@ -154,6 +155,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
     [workspaceDocumentsById]
   );
   const [resourceValue, setResourceValue] = useState(workspaceResourceValue);
+  const [persistError, setPersistError] = useState<string | null>(null);
   const persistenceControllerRef =
     useRef<LatestResourceValuePersistenceController<WorkspaceI18nResourceValue> | null>(
       null
@@ -166,6 +168,14 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
           persist: persistI18nResourceValue,
           readExternal: readCurrentI18nResourceValue,
           onValue: (value) => setResourceValue(value),
+          // A rejected commit rolls the table back to the Workspace value, so the
+          // reason has to reach the page or the edit just vanishes.
+          onError: (error) =>
+            setPersistError(
+              error instanceof Error
+                ? error.message
+                : 'The i18n resource could not be saved.'
+            ),
         }
       );
   }
@@ -258,6 +268,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
   const updateI18nResourceValue = (
     updater: (current: WorkspaceI18nResourceValue) => WorkspaceI18nResourceValue
   ) => {
+    setPersistError(null);
     persistenceControllerRef.current?.update(updater);
   };
 
@@ -497,6 +508,16 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
         <p className="mt-1 text-sm text-(--text-secondary)">
           {t('resourceManager.i18n.header.description')}
         </p>
+        {workspaceReadonly ? (
+          <p className="mt-2 text-sm text-(--text-secondary)" role="status">
+            {t('resourceManager.i18n.readonlyNotice')}
+          </p>
+        ) : null}
+        {persistError ? (
+          <p className="mt-2 text-sm text-red-700" role="alert">
+            {t('resourceManager.i18n.persistFailed', { message: persistError })}
+          </p>
+        ) : null}
       </article>
 
       <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
@@ -512,6 +533,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
           missingCount={missingStats[selection.targetLocale] ?? 0}
           newLocale={newLocale}
           newNamespace={newNamespace}
+          readonly={workspaceReadonly}
           onSearchKeywordChange={setSearchKeyword}
           onMissingOnlyChange={setMissingOnly}
           onReviewOnlyChange={setReviewOnly}
@@ -532,6 +554,7 @@ export function I18nResourcePage({ embedded = false }: I18nResourcePageProps) {
           selectedKey={selection.key}
           newKey={newKey}
           newSourceValue={newSourceValue}
+          readonly={workspaceReadonly}
           onImport={importLocale}
           onExport={exportLocale}
           onDeleteKey={deleteKey}

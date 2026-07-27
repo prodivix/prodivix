@@ -4,6 +4,7 @@ import {
   type BinaryAssetGitProjectionResult,
   type BinaryAssetMaterialization,
 } from '@prodivix/assets';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   isWorkspaceAssetDocumentContent,
   type WorkspaceSnapshot,
@@ -23,7 +24,8 @@ export const createWorkspaceGitAssetProjection = (
     .filter((document) => document.type === 'asset')
     .sort(
       (left, right) =>
-        left.path.localeCompare(right.path) || left.id.localeCompare(right.id)
+        compareUnicodeCodePoints(left.path, right.path) ||
+        compareUnicodeCodePoints(left.id, right.id)
     );
   return createBinaryAssetGitProjection({
     workspaceId: input.workspace.id,

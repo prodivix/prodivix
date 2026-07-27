@@ -17,8 +17,11 @@ import {
 
 const nowIso = () => new Date().toISOString();
 
-export const createPublicResourceAssetDeliveryRequest = (mediaType: string) => {
-  return createBinaryAssetPublicDeliveryRequest(mediaType);
+/** A node with no recorded media type falls back to the scanned attachment path. */
+export const createPublicResourceAssetDeliveryRequest = (
+  mediaType: string | undefined
+) => {
+  return createBinaryAssetPublicDeliveryRequest(mediaType ?? '');
 };
 
 const toPublicCategory = (value: unknown): PublicFileCategory =>

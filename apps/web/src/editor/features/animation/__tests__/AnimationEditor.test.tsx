@@ -9,6 +9,7 @@ import {
 import AnimationEditor from '@/editor/features/animation/AnimationEditor';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { resetEditorStore } from '@/test-utils/editorStore';
+import { WebPluginQueryHarness } from './webPluginQueryHarness';
 
 const enqueueOperation = vi.hoisted(() => vi.fn());
 
@@ -72,7 +73,9 @@ describe('AnimationEditor standalone document authoring', () => {
 
     render(
       <MemoryRouter>
-        <AnimationEditor />
+        <WebPluginQueryHarness>
+          <AnimationEditor />
+        </WebPluginQueryHarness>
       </MemoryRouter>
     );
 

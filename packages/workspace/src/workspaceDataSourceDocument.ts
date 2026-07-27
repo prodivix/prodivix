@@ -5,6 +5,7 @@ import {
   type DataDocumentIssue,
   type DataSourceDocument,
 } from '@prodivix/data';
+import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceCommandEnvelope,
   WorkspacePatchOperation,
@@ -99,8 +100,8 @@ export const selectWorkspaceDataSourceDocumentResults = (
         .filter((document) => document.type === 'data-source')
         .sort((left, right) =>
           left.path === right.path
-            ? left.id.localeCompare(right.id)
-            : left.path.localeCompare(right.path)
+            ? compareUnicodeCodePoints(left.id, right.id)
+            : compareUnicodeCodePoints(left.path, right.path)
         )
         .map(decodeWorkspaceDataSourceDocument)
     : [];

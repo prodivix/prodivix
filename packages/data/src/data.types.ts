@@ -112,6 +112,11 @@ export type DataCachePolicy =
       keyInputPaths?: readonly string[];
     }>;
 
+export const DATA_RETRY_POLICY_LIMITS = Object.freeze({
+  maxAttempts: 10,
+  maxDelayMs: 5 * 60_000,
+} as const);
+
 export type DataRetryPolicy = Readonly<{
   maxAttempts: number;
   backoff: 'fixed' | 'exponential';

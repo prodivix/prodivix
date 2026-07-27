@@ -159,7 +159,7 @@ func TestStandaloneDomainDocumentValidation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := validateWorkspaceDocumentContent(test.documentType, mustRaw(test.content))
+			err := validateWorkspaceDocumentContent(test.documentType, "data-products", mustRaw(test.content))
 			if test.wantError == nil && err != nil {
 				t.Fatalf("expected valid document, got %v", err)
 			}
@@ -173,7 +173,7 @@ func TestStandaloneDomainDocumentValidation(t *testing.T) {
 func TestBinaryAssetDocumentRejectsInlinePayloads(t *testing.T) {
 	for _, field := range []string{"dataUrl", "text", "providerLocator"} {
 		content := `{"kind":"asset","mime":"image/png","size":0,"blob":{"kind":"workspace-blob","digest":"sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","byteLength":0,"mediaType":"image/png"},"` + field + `":"forbidden"}`
-		if err := validateWorkspaceDocumentContent(WorkspaceDocumentTypeAsset, mustRaw(content)); err == nil {
+		if err := validateWorkspaceDocumentContent(WorkspaceDocumentTypeAsset, "doc_asset", mustRaw(content)); err == nil {
 			t.Fatalf("expected inline field %s to be rejected", field)
 		}
 	}

@@ -810,6 +810,7 @@ export const createExecutionTerminalEmulator = (
     const command = raw.slice(0, separator);
     if (command !== '0' && command !== '2') return;
     const safe = redactExecutionConsoleText(raw.slice(separator + 1)).value;
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
     title = [...safe.replace(/[\u0000-\u001f\u007f]/gu, '')]
       .slice(0, EXECUTION_TERMINAL_EMULATOR_LIMITS.maximumTitleCodeUnits)
       .join('');

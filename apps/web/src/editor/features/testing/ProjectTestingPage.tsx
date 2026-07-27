@@ -60,7 +60,7 @@ export default function ProjectTestingPage() {
   const { t } = useTranslation('editor');
   const navigate = useNavigate();
   const workspace = useEditorStore(selectWorkspace);
-  const runner = useProjectTestRunner(workspace);
+  const runner = useProjectTestRunner(workspace ?? undefined);
   const sourceNavigation = useWorkspaceExecutionSourceNavigation({
     workspace,
     originSurface: 'execution-center',

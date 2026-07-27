@@ -16,7 +16,7 @@ import {
   appendJsonPointer,
   cloneJsonValue,
   isRecord,
-  semanticJsonValuesEqual,
+  jsonValuesEqual,
   type JsonValueState,
 } from './jsonValue';
 import { diffWorkspaceSnapshots } from './workspaceSemanticDiff';
@@ -79,8 +79,7 @@ const createPatchPair = (
   if (
     before.present === after.present &&
     (!before.present ||
-      (after.present &&
-        semanticJsonValuesEqual(before.value, after.value, path)))
+      (after.present && jsonValuesEqual(before.value, after.value)))
   ) {
     return null;
   }
@@ -291,13 +290,7 @@ const createDocumentDraft = (
       },
     };
   }
-  if (
-    semanticJsonValuesEqual(
-      remoteDocument.content,
-      resolvedDocument.content,
-      ''
-    )
-  ) {
+  if (jsonValuesEqual(remoteDocument.content, resolvedDocument.content)) {
     return { ok: true, draft: null };
   }
   const domainHint = getWorkspaceDocumentDomain(resolvedDocument.type);
@@ -368,10 +361,9 @@ const createDocumentDraft = (
   ].find(
     (key) =>
       !knownRootKeys.has(key) &&
-      !semanticJsonValuesEqual(
+      !jsonValuesEqual(
         (remoteDocument.content as Record<string, unknown>)[key],
-        (resolvedDocument.content as Record<string, unknown>)[key],
-        appendJsonPointer('', key)
+        (resolvedDocument.content as Record<string, unknown>)[key]
       )
   );
   if (unsupportedKey) {

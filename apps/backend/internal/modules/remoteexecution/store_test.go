@@ -191,7 +191,7 @@ func TestDataGatewayMutationReplayStoreClaimsCompletesAndReturnsStoredResult(t *
 	}
 	defer database.Close()
 	store := NewStore(database)
-	key := DataGatewayMutationReplayKey{ExecutionID: "execution-1", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-1", Sequence: 4}
+	key := DataGatewayMutationReplayKey{ExecutionID: "execution-1", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-1", Sequence: 4, Adapter: "core.http"}
 	hash := strings.Repeat("a", 64)
 	policy := DataGatewayMutationReplayPolicy{Attempt: 1, MaximumAttempts: 1}
 	insert := regexp.QuoteMeta("INSERT INTO remote_data_mutation_replays")
@@ -224,6 +224,75 @@ func TestDataGatewayMutationReplayStoreClaimsCompletesAndReturnsStoredResult(t *
 	}
 }
 
+func protocolMutationResult(adapter string) DataGatewayResult {
+	result := storedMutationResult()
+	result.Network.Adapter = adapter
+	result.Network.RuntimeZone = "edge"
+	result.Network.Status = 200
+	return result
+}
+
+func TestDataGatewayMutationReplayStoreRecordsAndReplaysProtocolAdapterMutation(t *testing.T) {
+	database, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	store := NewStore(database)
+	key := DataGatewayMutationReplayKey{ExecutionID: "execution-1", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-1", Sequence: 4, Adapter: "core.graphql"}
+	hash := strings.Repeat("a", 64)
+	policy := DataGatewayMutationReplayPolicy{Attempt: 1, MaximumAttempts: 1}
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")).WithArgs("execution-1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT request_hash, status, result_json")).WithArgs("execution-1", "data-1", "create", "mutation-1").WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM remote_data_mutation_replays WHERE execution_id = $1")).WithArgs("execution-1").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO remote_data_mutation_replays")).WithArgs("execution-1", "data-1", "create", "mutation-1", hash, int64(1), int64(1)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	if claim, err := store.ClaimDataGatewayMutation(t.Context(), key, hash, policy); err != nil || claim == nil || !claim.Acquired {
+		t.Fatalf("claim GraphQL mutation: claim=%#v err=%v", claim, err)
+	}
+
+	result := protocolMutationResult("core.graphql")
+	encoded, _ := json.Marshal(result)
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE remote_data_mutation_replays")).WithArgs("execution-1", "data-1", "create", "mutation-1", hash, encoded, int64(1)).WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := store.CompleteDataGatewayMutation(t.Context(), key, hash, 1, result); err != nil {
+		t.Fatalf("complete GraphQL mutation after the upstream effect happened: %v", err)
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")).WithArgs("execution-1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT request_hash, status, result_json")).WithArgs("execution-1", "data-1", "create", "mutation-1").WillReturnRows(sqlmock.NewRows([]string{"request_hash", "status", "result_json", "attempt", "maximum_attempts"}).AddRow(hash, "succeeded", encoded, int64(1), int64(1)))
+	mock.ExpectRollback()
+	replayed, err := store.ClaimDataGatewayMutation(t.Context(), key, hash, policy)
+	if err != nil || replayed == nil || replayed.Acquired || replayed.Result == nil || replayed.Result.Network.Adapter != "core.graphql" {
+		t.Fatalf("replay GraphQL mutation result: claim=%#v err=%v", replayed, err)
+	}
+
+	asyncKey := key
+	asyncKey.Adapter = "core.asyncapi"
+	asyncResult := protocolMutationResult("core.asyncapi")
+	asyncEncoded, _ := json.Marshal(asyncResult)
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE remote_data_mutation_replays")).WithArgs("execution-1", "data-1", "create", "mutation-1", hash, asyncEncoded, int64(1)).WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := store.CompleteDataGatewayMutation(t.Context(), asyncKey, hash, 1, asyncResult); err != nil {
+		t.Fatalf("complete AsyncAPI mutation after the upstream effect happened: %v", err)
+	}
+
+	if err := store.CompleteDataGatewayMutation(t.Context(), key, hash, 1, protocolMutationResult("core.http")); !errors.Is(err, ErrDataGatewayReplayConflict) {
+		t.Fatalf("expected adapter drift conflict for a GraphQL call, got %v", err)
+	}
+	if err := store.CompleteDataGatewayMutation(t.Context(), key, hash, 1, protocolMutationResult("core.unknown")); !errors.Is(err, ErrDataGatewayReplayConflict) {
+		t.Fatalf("expected unknown adapter conflict, got %v", err)
+	}
+	unpinned := key
+	unpinned.Adapter = ""
+	if err := store.CompleteDataGatewayMutation(t.Context(), unpinned, hash, 1, protocolMutationResult("")); !errors.Is(err, ErrDataGatewayReplayConflict) {
+		t.Fatalf("expected unpinned adapter conflict, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDataGatewayMutationReplayStoreClaimsExactlyNextReleasedAttempt(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	if err != nil {
@@ -231,7 +300,7 @@ func TestDataGatewayMutationReplayStoreClaimsExactlyNextReleasedAttempt(t *testi
 	}
 	defer database.Close()
 	store := NewStore(database)
-	key := DataGatewayMutationReplayKey{ExecutionID: "execution-1", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-1", Sequence: 4}
+	key := DataGatewayMutationReplayKey{ExecutionID: "execution-1", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-1", Sequence: 4, Adapter: "core.http"}
 	hash := strings.Repeat("f", 64)
 
 	mock.ExpectBegin()
@@ -279,7 +348,7 @@ func TestDataGatewayMutationReplayStoreRejectsDriftAndFencesUnknownOutcome(t *te
 	}
 	defer database.Close()
 	store := NewStore(database)
-	key := DataGatewayMutationReplayKey{ExecutionID: "execution-1", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-1", Sequence: 4}
+	key := DataGatewayMutationReplayKey{ExecutionID: "execution-1", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-1", Sequence: 4, Adapter: "core.http"}
 	hash := strings.Repeat("b", 64)
 	policy := DataGatewayMutationReplayPolicy{Attempt: 1, MaximumAttempts: 1}
 	mock.ExpectBegin()
@@ -312,7 +381,7 @@ func TestDataGatewayMutationReplayStoreRejectsCapacityBeforeClaim(t *testing.T) 
 	}
 	defer database.Close()
 	store := NewStore(database)
-	key := DataGatewayMutationReplayKey{ExecutionID: "execution-full", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-new", Sequence: 1}
+	key := DataGatewayMutationReplayKey{ExecutionID: "execution-full", DocumentID: "data-1", OperationID: "create", InvocationID: "mutation-new", Sequence: 1, Adapter: "core.http"}
 	hash := strings.Repeat("d", 64)
 	mock.ExpectBegin()
 	mock.ExpectExec(regexp.QuoteMeta("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")).WithArgs("execution-full").WillReturnResult(sqlmock.NewResult(0, 1))

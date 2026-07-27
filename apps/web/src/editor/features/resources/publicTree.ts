@@ -17,7 +17,8 @@ export type PublicResourceNode = {
   /** Ephemeral UI projection used by non-asset trees; never persisted in an asset document. */
   textContent?: string;
   blobReference?: BinaryAssetBlobReference;
-  updatedAt: string;
+  /** Absent when the source Workspace document never recorded a timestamp. */
+  updatedAt?: string;
   children?: PublicResourceNode[];
 };
 

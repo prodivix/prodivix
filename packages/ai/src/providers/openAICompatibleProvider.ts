@@ -12,6 +12,7 @@ import {
   stripJsonFence,
 } from '@prodivix/shared/safety';
 import { validateStructuredOutput } from '../validation/validateStructuredOutput';
+import { assertOpenAICompatibleCredentialTransport } from './credentialTransport';
 import { createOpenAICompatibleMessages } from './openAICompatiblePrompt';
 
 export type ProdivixAiFetchResponse = {
@@ -191,6 +192,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
   private readonly fetcher: ProdivixAiFetch;
 
   constructor(options: OpenAICompatibleProviderOptions) {
+    assertOpenAICompatibleCredentialTransport(options.baseURL, options.apiKey);
     this.baseURL = normalizeBaseURL(options.baseURL);
     this.apiKey = options.apiKey;
     this.model = options.model;

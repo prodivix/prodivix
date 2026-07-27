@@ -26,6 +26,7 @@
     "dist"
   ],
   "scripts": {
+    "lint": "eslint .",
     "build": "pnpm run clean && tsc -b tsconfig.json",
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "dev": "tsc --watch",
