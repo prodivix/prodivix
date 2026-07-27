@@ -1411,6 +1411,7 @@
       "tokens": "Tokens",
       "data": "Data & APIs",
       "auth": "Auth & Server",
+      "behavior": "Behavior",
       "public": "Public",
       "code": "Code files",
       "i18n": "i18n",
@@ -1574,6 +1575,87 @@
         "created": "The design system documents were created atomically.",
         "tokenCreated": "The token document was created.",
         "createFailed": "Could not create the token document."
+      }
+    },
+    "behavior": {
+      "header": {
+        "badge": "Scenario authoring",
+        "title": "Behavior scenarios",
+        "description": "Author revision-bound journeys with semantic targets, deterministic programs, reversible Workspace operations, and reviewed recorder drafts."
+      },
+      "documents": {
+        "title": "Scenarios",
+        "empty": "No Behavior Scenario exists yet."
+      },
+      "create": {
+        "name": "Scenario name",
+        "initialTarget": "Initial semantic target"
+      },
+      "editor": {
+        "name": "Scenario name",
+        "entryTrigger": "Entry trigger",
+        "stepLabel": "Label to apply to a step",
+        "actionInput": "Action input",
+        "expected": "Expected observation value",
+        "empty": "Create or select a valid Behavior Scenario."
+      },
+      "outline": {
+        "title": "Step outline",
+        "empty": "This Scenario has no steps."
+      },
+      "targets": {
+        "title": "Semantic target picker",
+        "description": "Targets come from the exact Workspace Semantic Index. No CSS, XPath, DOM handle, or framework identity is stored.",
+        "empty": "No Route, PIR, or Data target currently exposes a V1 Behavior capability.",
+        "manualTrigger": "Manual start",
+        "unavailableTarget": "Unavailable semantic target"
+      },
+      "recorder": {
+        "title": "Bounded recorder draft",
+        "description": "Preview/runtime adapters may send already-resolved semantic events. Sensitive input is removed before draft state exists.",
+        "recording": "Recording semantic events: {{count}} / 100",
+        "summary": "{{count}} reviewed events; {{truncated}} events were truncated."
+      },
+      "preview": {
+        "title": "Impact preview",
+        "create": "Create Scenario",
+        "delete": "Delete Scenario",
+        "rename": "Rename Scenario",
+        "set_entry": "Set entry trigger",
+        "insert_step": "Insert step",
+        "update_step": "Update step",
+        "move_step": "Move step",
+        "remove_step": "Remove step",
+        "replace_scenario": "Replace Scenario",
+        "adopt_recorder": "Atomically adopt recorder draft",
+        "added": "Added steps: {{value}}",
+        "updated": "Updated steps: {{value}}",
+        "removed": "Removed steps: {{value}}"
+      },
+      "actions": {
+        "create": "Stage Scenario",
+        "stage": "Preview change",
+        "delete": "Delete",
+        "undo": "Undo Scenario change",
+        "redo": "Redo Scenario change",
+        "moveUp": "Move step up",
+        "moveDown": "Move step down",
+        "applyLabel": "Apply label",
+        "removeStep": "Remove step",
+        "record": "Start recorder",
+        "stop": "Stop and review",
+        "adopt": "Preview adoption",
+        "confirm": "Commit change",
+        "cancel": "Cancel"
+      },
+      "feedback": {
+        "applied": "The canonical Workspace accepted the Behavior operation.",
+        "undo": "The Scenario change was undone through Workspace History.",
+        "redo": "The Scenario change was redone through Workspace History.",
+        "revision-conflict": "The Workspace revision changed. Rebuild the preview before committing.",
+        "scenario-missing": "The selected Scenario is no longer available.",
+        "invalid-mutation": "The requested Scenario change is invalid.",
+        "recorder-unresolved": "Resolve or remove every selected recorder event before adoption."
       }
     },
     "data": {

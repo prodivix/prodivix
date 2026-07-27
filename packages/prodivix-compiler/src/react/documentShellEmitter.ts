@@ -75,6 +75,10 @@ export default function ${input.moduleName}({
     __pdxInstancePath,
     ${input.dataOperationBindings}
   );
+  const __pdxDataById =
+    __pdxDataProjection.status === 'ready'
+      ? __pdxDataProjection.dataById
+      : {};
   const __pdxDataRuntimeValuesById = {
     ...__pdxBaseDataRuntimeValuesById,
     ...${input.dataRuntimeValues},
@@ -94,7 +98,7 @@ export default function ${input.moduleName}({
   const __pdxDefinitionScope: __PdxScope = {
     paramsById: __pdxParamsById,
     stateById: __pdxStateById,
-    dataById: __pdxDataProjection.dataById,
+    dataById: __pdxDataById,
     dataLifecycleById: __pdxDataProjection.lifecycleByDataId,
     collectionSymbolsById: {},
     componentPropsById: __pdxComponentPropsById,

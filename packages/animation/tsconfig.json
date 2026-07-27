@@ -10,6 +10,7 @@
     "noEmit": false,
     "paths": {
       "@prodivix/authoring": ["../authoring/src"],
+      "@prodivix/behavior": ["../behavior/src"],
       "@prodivix/runtime-core": ["../runtime-core/src"],
       "@prodivix/shared": ["../shared/src"],
       "@prodivix/shared/*": ["../shared/src/*"]
@@ -26,6 +27,9 @@
   "references": [
     {
       "path": "../authoring"
+    },
+    {
+      "path": "../behavior"
     },
     {
       "path": "../runtime-core"

@@ -180,7 +180,7 @@ const compileDataRuntimeValues = (
     .sort(compareText)
     .map(
       (dataId) =>
-        `${toJson(createPirDataSymbolId(workspaceId, documentId, dataId))}: __pdxDataProjection.dataById[${toJson(dataId)}]`
+        `${toJson(createPirDataSymbolId(workspaceId, documentId, dataId))}: __pdxDataById[${toJson(dataId)}]`
     )
     .join(', ')} }`;
 

@@ -60,7 +60,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/graphs/Checkout.graph.json',
       contentRev: 1,
       metaRev: 1,
-      content: { version: 1, nodes: [], edges: [] },
+      content: { version: 2, nodes: [], edges: [] },
     },
   },
   routeManifest: { version: '1', root: { id: 'root', children: [] } },
@@ -139,7 +139,8 @@ describe('standalone NodeGraph Workspace documents', () => {
     const restored = toNodeGraphCanvasNodes(canonical);
 
     expect(JSON.stringify(canonical)).not.toContain('onChangeValue');
-    expect(canonical.nodes[0]!.data).not.toHaveProperty('collapsed');
+    expect(canonical.nodes[0]!.configuration).not.toHaveProperty('collapsed');
+    expect(canonical.nodes[0]!.editor).toMatchObject({ collapsed: true });
     expect(restored[0]).toMatchObject({
       position: { x: 20, y: 30 },
       data: { collapsed: true },
@@ -171,7 +172,15 @@ describe('standalone NodeGraph Workspace documents', () => {
           },
         },
       ],
-      [{ id: 'edge', source: 'group', target: 'child' }]
+      [
+        {
+          id: 'edge',
+          source: 'group',
+          sourceHandle: 'out.control.next',
+          target: 'child',
+          targetHandle: 'in.control.prev',
+        },
+      ]
     );
     const ids = ['next-group', 'next-child', 'next-edge'];
     const duplicated = cloneNodeGraphDocument(source, 'graph-copy', () =>
@@ -181,8 +190,14 @@ describe('standalone NodeGraph Workspace documents', () => {
 
     expect(duplicated.edges[0]).toMatchObject({
       id: 'edge-next-edge',
-      source: 'next-group',
-      target: 'next-child',
+      source: {
+        nodeId: 'next-group',
+        portId: 'out.control.next',
+      },
+      target: {
+        nodeId: 'next-child',
+        portId: 'in.control.prev',
+      },
     });
     expect(restored[1]).toMatchObject({
       id: 'next-child',
@@ -193,12 +208,22 @@ describe('standalone NodeGraph Workspace documents', () => {
 
   it('rebases executor slot identities onto the duplicated graph', () => {
     const source = {
-      version: 1 as const,
       nodes: [
         {
           id: 'code-node',
-          data: {},
-          executor: {
+          descriptorRef: { id: 'core.code', version: '1' },
+          ports: [
+            {
+              id: 'out.control.next',
+              direction: 'output' as const,
+              flow: 'control' as const,
+              required: false,
+              cardinality: 'single' as const,
+            },
+          ],
+          configuration: {},
+          editor: {},
+          codeSlot: {
             slotId: createNodeGraphExecutorCodeSlotId(
               'graph-source',
               'code-node'
@@ -215,7 +240,7 @@ describe('standalone NodeGraph Workspace documents', () => {
       ids.shift()!
     );
 
-    expect(duplicated.nodes[0]!.executor).toEqual({
+    expect(duplicated.nodes[0]!.codeSlot).toEqual({
       slotId: createNodeGraphExecutorCodeSlotId('graph-copy', 'next-code-node'),
       reference: { artifactId: 'artifact-executor' },
     });

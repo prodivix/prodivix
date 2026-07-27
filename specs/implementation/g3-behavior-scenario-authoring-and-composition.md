@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ImplementationStatus：B0-B4 Implemented for V2 scope
+- ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-20
+- 日期：2026-07-27
 - Owner：`@prodivix/behavior`、`@prodivix/workspace`、`@prodivix/authoring`、各 domain capability owner、`apps/web`
 - 关联：
   - `specs/decisions/56.behavior-scenario-and-cross-domain-action-contract.md`
@@ -229,6 +229,8 @@ Scenarios surface 至少提供：
 
 ### B0：包、schema 与 registry
 
+状态：Implemented。V0 owner/wire/Workspace hard cut 已通过本地 aggregate Gate，远端 evidence 待补。
+
 - 建立 package public API、current model、strict wire codec、kind registry；
 - 建立 Workspace document codec、Command 与 boundary check；
 - 接入 `behavior` diagnostic domain/target。
@@ -236,6 +238,9 @@ Scenarios surface 至少提供：
 完成条件：round-trip/property/unknown-kind/fuzz budget 测试通过，应用无私有 duplicate type。
 
 ### B1：Semantic target 与最小 compiler
+
+状态：Implemented。manual/Route/PIR/Data first set、五态 target resolution 与 deterministic Program 已通过
+本地 conformance。
 
 - 接入 PIR、Route、Data stable target；
 - 实现 exact/relocated/ambiguous/missing/incompatible；
@@ -245,6 +250,9 @@ Scenarios surface 至少提供：
 
 ### B2：Authoring surface 与 recorder
 
+状态：Implemented。Scenario resource surface、CRUD/impact/history 与 recorder review/atomic adoption 已通过
+本地 Web/Workspace Gate。
+
 - Scenario CRUD/outline/step editor/target picker；
 - bounded recorder、draft review、Transaction preview；
 - keyboard/accessibility 与 revision drift handling。
@@ -253,13 +261,28 @@ Scenarios surface 至少提供：
 
 ### B3：Cross-domain composition
 
+状态：Implemented for V2 scope。canonical parallel/barrier lowering 与 provider-neutral capability runtime
+通过 domain owner adapter执行 Route lifecycle、NodeGraph invoke/output/frame correlation、Animation
+composition/result/marker，以及 authenticated Catalog PIR/Data/Auth/Server baseline。Behavior Core不
+import Router/NodeGraph/Animation；capability owner/runtime-zone mismatch、缺失 adapter、unsafe output、
+stale control 与 assertion drift均 fail closed。
+
 - 接入 Auth/Server、NodeGraph、Animation 与 Runtime actions/observations；
 - branch/parallel/barrier/repeat/subscenario；
 - unified SourceTrace/debug event。
 
+V2 Golden以真实 Preview/Export/CI surface adapter和 React/Vue独立 Chromium target关闭同一
+cross-domain vertical。更宽 branch/repeat/subscenario 与 fresh replay scheduler属于 V3，不扩张 V2
+Program first set；Remote 与完整多浏览器 adapter closure属于 V6/V8。
+
 完成条件：跨领域 Catalog journey 编译并运行，mutation replay 与 cancel 保持 owner 语义。
 
 ### B4：Controlled targets 与 hardening
+
+状态：Implemented for V2 scope。React/Vite 与 Vue/Vite使用同一 Program完成 independent
+install/typecheck/test/build/browser Golden；NodeGraph/Animation standalone projection复用相同 domain
+compiler contribution 与 framework-neutral runtime helper。Browser/Remote Program codec、large-scenario
+property hardening与完整 target matrix继续由 V3/V6负责。
 
 - React/Vite、Vue/Vite semantic target conformance；
 - Browser/Remote Program codec；
@@ -269,7 +292,9 @@ Scenarios surface 至少提供：
 
 ## 验证证据
 
-计划 Gate：`pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition`。
+Gate：`pnpm run verify:g3:scenario-authoring` 与 `pnpm run verify:g3:behavior-composition` 已在
+2026-07-27 当前未提交 worktree 本地通过；workflow 已配置独立 Job。两者均尚无 commit/CI identity，
+不是 durable evidence。
 
 必须覆盖：
 
@@ -292,9 +317,9 @@ Scenarios surface 至少提供：
 
 ## 验收标准
 
-- [ ] Scenario 只能通过 Workspace Command/Transaction 修改，可逆、可迁移、revision-bound。
-- [ ] canonical target 只使用 stable semantic identity，不保存 DOM/test-tool locator。
-- [ ] recorder 只生成受审查 draft，且 Secret 和事件预算 fail closed。
-- [ ] compiler 确定性产生 provider-neutral Program、SourceTrace 与 capability manifest。
+- [x] Scenario 只能通过 Workspace Command/Transaction 修改，可逆、可迁移、revision-bound。
+- [x] canonical target 只使用 stable semantic identity，不保存 DOM/test-tool locator。
+- [x] recorder 只生成受审查 draft，且 Secret 和事件预算 fail closed。
+- [x] compiler 确定性产生 provider-neutral Program、SourceTrace 与 capability manifest。
 - [ ] Route/PIR/Data/Auth/NodeGraph/Animation 由各自 owner 执行，不形成第二行为真相源。
-- [ ] React/Vite 与 Vue/Vite 能运行同一 Scenario semantic contract。
+- [x] React/Vite 与 Vue/Vite 能运行同一 Scenario semantic contract。

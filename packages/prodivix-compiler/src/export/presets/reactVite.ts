@@ -1,11 +1,11 @@
 import { exportDependenciesToPackageFields } from '#src/export/dependencyPlanner';
 import { collectScaffoldReservedPaths } from '#src/export/pathOwnership';
 import { createPirEntrySurfaceCss } from '#src/export/pirEntrySurface';
+import { DOMAIN_RUNTIME_MODULE_FACTORIES } from '#src/export/presets/domainRuntimeFactories';
 import type {
   ExportFileContribution,
   ExportPlannerPreset,
   ExportProgramContribution,
-  ExportRuntimeModuleFactory,
   ExportScaffoldContext,
   ExportSourceTrace,
 } from '#src/export/types';
@@ -246,82 +246,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   },
 ];
 
-const createRuntimeModuleFactory = (
-  kind: 'nodegraph-runtime' | 'animation-runtime',
-  suggestedName: string,
-  body: string
-): ExportRuntimeModuleFactory => {
-  return (requirement) => ({
-    id: `runtime:${kind}`,
-    kind: 'runtime-helper',
-    suggestedName,
-    language: 'ts',
-    imports: [],
-    body,
-    sourceTrace: requirement.sourceTrace,
-    origin: {
-      kind: 'generated',
-      owner: 'prodivix',
-      writePolicy: 'generated',
-      updatePolicy: 'regenerate',
-    },
-  });
-};
-
-const reactViteRuntimeModuleFactories = {
-  'nodegraph-runtime': createRuntimeModuleFactory(
-    'nodegraph-runtime',
-    'nodegraph-runtime',
-    `export type NodeGraphInput = Record<string, unknown>;
-export type NodeGraphOutput = unknown;
-export type NodeGraphDefinition = Record<string, unknown>;
-
-export type NodeGraphExecutionOptions = {
-  signal?: AbortSignal;
-  services?: Record<string, unknown>;
-};
-
-export type NodeGraphExecutionContext = NodeGraphExecutionOptions & {
-  input: NodeGraphInput;
-  definition: NodeGraphDefinition;
-};
-
-export type NodeGraphExecutor = (
-  input: NodeGraphInput,
-  options?: NodeGraphExecutionOptions
-) => Promise<NodeGraphOutput>;
-
-export const createNodeGraphExecutor = (
-  definition: NodeGraphDefinition,
-  executor?: (context: NodeGraphExecutionContext) => NodeGraphOutput | Promise<NodeGraphOutput>
-): NodeGraphExecutor => async (input, options = {}) => {
-  if (!executor) return { input, definition };
-  return executor({
-    ...options,
-    input,
-    definition,
-  });
-};`
-  ),
-  'animation-runtime': createRuntimeModuleFactory(
-    'animation-runtime',
-    'animation-runtime',
-    `export type AnimationHandle = {
-  play(): void;
-  pause(): void;
-  cancel(): void;
-};
-
-export const createAnimationHandle = (animation: Animation): AnimationHandle => {
-  return {
-    play: () => animation.play(),
-    pause: () => animation.pause(),
-    cancel: () => animation.cancel(),
-  };
-};`
-  ),
-};
-
 const REACT_VITE_SOURCE_ROOT = 'src';
 
 /**
@@ -345,5 +269,5 @@ export const createReactViteExportPreset = (): ExportPlannerPreset => ({
     REACT_VITE_SOURCE_ROOT
   ),
   createScaffoldContributions: createReactViteScaffoldContributions,
-  runtimeModuleFactories: reactViteRuntimeModuleFactories,
+  runtimeModuleFactories: DOMAIN_RUNTIME_MODULE_FACTORIES,
 });

@@ -66,6 +66,11 @@ export {
   selectWorkspaceBehaviorVerificationDocument,
 } from './workspaceBehaviorVerificationDocument';
 export {
+  createWorkspaceBehaviorScenario,
+  createWorkspaceBehaviorScenarioAuthoringPlan,
+  createWorkspaceBehaviorScenarioCreatePlan,
+} from './workspaceBehaviorScenarioAuthoring';
+export {
   collectWorkspaceDesignTokenResolverDocumentReferences,
   createWorkspaceDesignTokenResolverDocumentUpdateCommand,
   decodeWorkspaceDesignTokenResolverDocument,
@@ -183,6 +188,10 @@ export {
   WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES,
   createWorkspaceSemanticIndexFromSnapshot,
 } from './authoring/createWorkspaceSemanticIndexFromSnapshot';
+export {
+  WORKSPACE_BEHAVIOR_SEMANTIC_PROVIDER_DESCRIPTOR,
+  createWorkspaceBehaviorSemanticContributionProvider,
+} from './authoring/workspaceBehaviorSemanticContributionProvider';
 export { createWorkspaceCodeSlotRegistryFromSnapshot } from './authoring/createWorkspaceCodeSlotRegistryFromSnapshot';
 export {
   collectWorkspaceCodeArtifactLifecycleDiagnostics,
@@ -414,6 +423,12 @@ export type {
   WorkspaceVerificationPolicyDocument,
 } from './workspaceBehaviorVerificationDocument';
 export type {
+  WorkspaceBehaviorScenarioAuthoringPlan,
+  WorkspaceBehaviorScenarioAuthoringResult,
+  WorkspaceBehaviorScenarioImpactPreview,
+  WorkspaceBehaviorScenarioMutation,
+} from './workspaceBehaviorScenarioAuthoring';
+export type {
   WorkspaceVfsIntentPlan,
   WorkspaceVfsIntentRequest,
 } from './workspaceVfsIntent';
@@ -492,6 +507,10 @@ export type {
   WorkspaceSemanticIndexIssue,
   WorkspaceSemanticIndexIssueCode,
 } from './authoring/createWorkspaceSemanticIndexFromSnapshot';
+export type {
+  CreateWorkspaceBehaviorSemanticContributionProviderInput,
+  WorkspaceBehaviorSemanticDocumentInput,
+} from './authoring/workspaceBehaviorSemanticContributionProvider';
 export type {
   CreateWorkspaceAssetSemanticContributionProviderInput,
   WorkspaceAssetSemanticDocumentInput,

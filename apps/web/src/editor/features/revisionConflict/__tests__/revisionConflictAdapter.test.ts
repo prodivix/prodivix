@@ -20,34 +20,58 @@ type SnapshotOptions = {
 };
 
 const createSnapshot = (options: SnapshotOptions): WorkspaceSnapshot => {
+  const processNode = (
+    id: string,
+    label: string,
+    outputIds: readonly string[]
+  ) => ({
+    id,
+    descriptorRef: { id: 'core.process', version: '1' },
+    ports: [
+      {
+        id: 'in.control.prev',
+        direction: 'input' as const,
+        flow: 'control' as const,
+        required: false,
+        cardinality: 'single' as const,
+      },
+      ...outputIds.map((outputId) => ({
+        id: outputId,
+        direction: 'output' as const,
+        flow: 'control' as const,
+        required: false,
+        cardinality: 'single' as const,
+      })),
+    ],
+    configuration: {},
+    editor: { label },
+  });
   const graphNodes = [
-    {
-      id: 'node-a',
-      type: 'graphNode',
-      data: { kind: 'process', label: options.aLabel },
-    },
+    processNode('node-a', options.aLabel, [
+      'base edge',
+      'local edge',
+      'remote edge',
+    ]),
     {
       id: 'node-b',
-      type: 'graphNode',
-      data: { kind: 'end', label: 'Node B' },
+      descriptorRef: { id: 'core.end', version: '1' },
+      ports: [
+        {
+          id: 'in.control.prev',
+          direction: 'input' as const,
+          flow: 'control' as const,
+          required: true,
+          cardinality: 'single' as const,
+        },
+      ],
+      configuration: {},
+      editor: { label: 'Node B' },
     },
     ...(options.includeDeletedNode
-      ? [
-          {
-            id: 'node-delete',
-            type: 'graphNode',
-            data: { kind: 'process', label: 'Delete me' },
-          },
-        ]
+      ? [processNode('node-delete', 'Delete me', ['out.control.next'])]
       : []),
     ...(options.includeAddedNode
-      ? [
-          {
-            id: 'node-add',
-            type: 'graphNode',
-            data: { kind: 'process', label: 'Added locally' },
-          },
-        ]
+      ? [processNode('node-add', 'Added locally', ['out.control.next'])]
       : []),
   ];
   return {
@@ -88,14 +112,16 @@ const createSnapshot = (options: SnapshotOptions): WorkspaceSnapshot => {
         contentRev: options.revision,
         metaRev: 1,
         content: {
-          version: 1,
+          version: 2,
           nodes: graphNodes,
           edges: [
             {
               id: 'edge-submit',
-              source: 'node-a',
-              target: 'node-b',
-              sourceHandle: options.edgeLabel,
+              source: { nodeId: 'node-a', portId: options.edgeLabel },
+              target: {
+                nodeId: 'node-b',
+                portId: 'in.control.prev',
+              },
             },
           ],
         },
@@ -195,7 +221,7 @@ describe('revision conflict core presentation adapter', () => {
       conflictIds: expect.any(Array),
       isConflict: true,
       local: 'Local A',
-      path: '/data/label',
+      path: '/editor/label',
       remote: 'Remote A',
     });
     expect(localNode?.position).not.toEqual(remoteNode?.position);

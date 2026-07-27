@@ -99,10 +99,12 @@ export const WORKSPACE_DOCUMENT_POLICIES = Object.freeze({
     ['/ui/graph', '/componentContract', '/logic', '/metadata'],
     ['/x-']
   ),
-  'pir-graph': roots('nodegraph', ['/nodes', '/edges']),
+  'pir-graph': roots('nodegraph', ['/nodes', '/edges', '/publicContract']),
   'pir-animation': roots('animation', [
     '/target',
     '/timelines',
+    '/compositions',
+    '/entryCompositionId',
     '/svgFilters',
     '/x-animationEditor',
   ]),

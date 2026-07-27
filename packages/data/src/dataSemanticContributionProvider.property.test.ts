@@ -63,7 +63,7 @@ describe('Data semantic contribution provider properties', () => {
               opSeq: 8,
               documentRevs: { [documentId]: revision },
             },
-            schemaVersion: 'prodivix-semantic-v3',
+            schemaVersion: 'prodivix-semantic-v4',
             providerSetDigest: 'provider-set',
           });
 

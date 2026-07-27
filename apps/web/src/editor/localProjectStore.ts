@@ -486,7 +486,7 @@ const createWorkspaceSnapshot = ({
               path: '/main.pir-graph.json',
               contentRev: 1,
               metaRev: 1,
-              content: { version: 1, nodes: [], edges: [] },
+              content: { version: 2, nodes: [], edges: [] },
               updatedAt,
             },
           }

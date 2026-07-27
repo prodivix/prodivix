@@ -1,0 +1,52 @@
+{
+  "source": {
+    "version": 1,
+    "nodes": [
+      { "id": "start", "data": { "kind": "start" } },
+      { "id": "end", "data": { "kind": "end" } }
+    ],
+    "edges": [{ "id": "edge", "source": "start", "target": "end" }]
+  },
+  "expected": {
+    "version": 2,
+    "nodes": [
+      {
+        "id": "start",
+        "descriptorRef": { "id": "core.start", "version": "1" },
+        "ports": [
+          {
+            "id": "out.control.next",
+            "direction": "output",
+            "flow": "control",
+            "required": false,
+            "cardinality": "single"
+          }
+        ],
+        "configuration": {},
+        "editor": {}
+      },
+      {
+        "id": "end",
+        "descriptorRef": { "id": "core.end", "version": "1" },
+        "ports": [
+          {
+            "id": "in.control.prev",
+            "direction": "input",
+            "flow": "control",
+            "required": true,
+            "cardinality": "single"
+          }
+        ],
+        "configuration": {},
+        "editor": {}
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge",
+        "source": { "nodeId": "start", "portId": "out.control.next" },
+        "target": { "nodeId": "end", "portId": "in.control.prev" }
+      }
+    ]
+  }
+}

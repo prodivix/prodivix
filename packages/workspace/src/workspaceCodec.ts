@@ -20,8 +20,17 @@ import type {
 import { validateWorkspaceSnapshot } from './validateWorkspaceVfs';
 import { isWorkspaceCodeDocumentContent } from './workspaceCodeDocument';
 import { WorkspaceCodecError } from './workspaceCodecError';
-import { validateAnimationDefinition } from '@prodivix/animation';
-import { decodeNodeGraphDocument } from '@prodivix/nodegraph';
+import {
+  decodeAnimationDefinition,
+  encodeAnimationDefinition,
+  validateAnimationDefinition,
+  type AnimationDefinition,
+} from '@prodivix/animation';
+import {
+  decodeNodeGraphDocument,
+  encodeNodeGraphDocument,
+  type NodeGraphDocument,
+} from '@prodivix/nodegraph';
 import {
   decodeDtcgDesignTokenDocument,
   decodeDtcgDesignTokenResolverDocument,
@@ -272,14 +281,21 @@ const parseWorkspaceDocument = (
     }
     content = decoded.value;
   } else if (type === 'pir-animation') {
-    const validation = validateAnimationDefinition(content);
+    const decoded = decodeAnimationDefinition(content);
+    if (!decoded.ok) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.issues.map((issue) => issue.message).join('; ')
+      );
+    }
+    const validation = validateAnimationDefinition(decoded.value);
     if (!validation.valid) {
       throw new WorkspaceCodecError(
         `${path}/content`,
         validation.issues.map((issue) => issue.message).join('; ')
       );
     }
-    content = validation.definition;
+    content = decoded.value;
   } else if (type === 'design-tokens') {
     const decoded = decodeDtcgDesignTokenDocument(content);
     if (!decoded.ok) {
@@ -538,6 +554,20 @@ export type DecodedWorkspaceMutation = {
   acceptedMutationId?: string;
 };
 
+const encodeWorkspaceNodeGraphContent = (content: unknown) => {
+  const decoded = decodeNodeGraphDocument(content);
+  return encodeNodeGraphDocument(
+    decoded.ok ? decoded.value : (content as NodeGraphDocument)
+  );
+};
+
+const encodeWorkspaceAnimationContent = (content: unknown) => {
+  const decoded = decodeAnimationDefinition(content);
+  return encodeAnimationDefinition(
+    decoded.ok ? decoded.value : (content as AnimationDefinition)
+  );
+};
+
 /** Projects a canonical in-memory document into the backend wire contract. */
 export const encodeWorkspaceDocument = (
   document: WorkspaceDocument
@@ -545,24 +575,28 @@ export const encodeWorkspaceDocument = (
   ...document,
   content: isPirWorkspaceDocumentType(document.type)
     ? JSON.parse(encodePirDocument(document.content as PIRDocument))
-    : document.type === 'data-source'
-      ? encodeDataSourceDocument(document.content as DataSourceDocument, {
-          documentId: document.id,
-        })
-      : document.type === 'behavior-scenario' ||
-          document.type === 'behavior-control-profile' ||
-          document.type === 'behavior-fixture-set'
-        ? encodeBehaviorDocument(
-            document.type,
-            document.content as BehaviorDocumentByKind[typeof document.type]
-          )
-        : document.type === 'verification-policy' ||
-            document.type === 'verification-baseline-set'
-          ? encodeVerificationDocument(
-              document.type,
-              document.content as VerificationDocumentByKind[typeof document.type]
-            )
-          : document.content,
+    : document.type === 'pir-graph'
+      ? encodeWorkspaceNodeGraphContent(document.content)
+      : document.type === 'pir-animation'
+        ? encodeWorkspaceAnimationContent(document.content)
+        : document.type === 'data-source'
+          ? encodeDataSourceDocument(document.content as DataSourceDocument, {
+              documentId: document.id,
+            })
+          : document.type === 'behavior-scenario' ||
+              document.type === 'behavior-control-profile' ||
+              document.type === 'behavior-fixture-set'
+            ? encodeBehaviorDocument(
+                document.type,
+                document.content as BehaviorDocumentByKind[typeof document.type]
+              )
+            : document.type === 'verification-policy' ||
+                document.type === 'verification-baseline-set'
+              ? encodeVerificationDocument(
+                  document.type,
+                  document.content as VerificationDocumentByKind[typeof document.type]
+                )
+              : document.content,
 });
 
 /** Decodes the backend wire contract into the only canonical Workspace model. */

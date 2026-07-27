@@ -17,7 +17,7 @@ import {
 
 export const PIR_SEMANTIC_PROVIDER_DESCRIPTOR = Object.freeze({
   id: 'core.pir',
-  semanticVersion: '2.0.0',
+  semanticVersion: '3.0.0',
 });
 
 export type PIRSemanticDocumentType = PIRGraphDocumentType;

@@ -20,6 +20,7 @@ export {
   CURRENT_SEMANTIC_SCHEMA_VERSION,
   createAnimationBindingScopeId,
   createAnimationBindingSymbolId,
+  createAnimationCompositionSymbolId,
   createAnimationDocumentScopeId,
   createAnimationTimelineScopeId,
   createAnimationTimelineSymbolId,

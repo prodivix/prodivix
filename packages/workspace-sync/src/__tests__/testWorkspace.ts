@@ -17,17 +17,58 @@ export const createPirContent = () => ({
 });
 
 export const createNodeGraphContent = () => ({
-  version: 1 as const,
+  version: 2 as const,
   nodes: [
-    { id: 'node-a', data: { label: 'A', value: 1 } },
-    { id: 'node-b', data: { label: 'B', value: 1 } },
+    {
+      id: 'node-a',
+      descriptorRef: { id: 'core.process', version: '1' },
+      ports: [
+        {
+          id: 'in.control.prev',
+          direction: 'input' as const,
+          flow: 'control' as const,
+          required: false,
+          cardinality: 'single' as const,
+        },
+        {
+          id: 'out.control.next',
+          direction: 'output' as const,
+          flow: 'control' as const,
+          required: false,
+          cardinality: 'single' as const,
+        },
+      ],
+      configuration: { label: 'A', value: 1 },
+      editor: {},
+    },
+    {
+      id: 'node-b',
+      descriptorRef: { id: 'core.process', version: '1' },
+      ports: [
+        {
+          id: 'in.control.prev',
+          direction: 'input' as const,
+          flow: 'control' as const,
+          required: false,
+          cardinality: 'single' as const,
+        },
+        {
+          id: 'out.control.next',
+          direction: 'output' as const,
+          flow: 'control' as const,
+          required: false,
+          cardinality: 'single' as const,
+        },
+      ],
+      configuration: { label: 'B', value: 1 },
+      editor: {},
+    },
   ],
   edges: [
     {
       id: 'edge-a-b',
-      source: 'node-a',
-      target: 'node-b',
-      sourceHandle: 'next',
+      source: { nodeId: 'node-a', portId: 'out.control.next' },
+      target: { nodeId: 'node-b', portId: 'in.control.prev' },
     },
   ],
 });

@@ -56,7 +56,7 @@ export const createNodeGraphCodeSlotProvider = (input: {
   )) {
     const slot: CodeSlotContract = {
       id:
-        node.executor?.slotId ??
+        node.codeSlot?.slotId ??
         createNodeGraphExecutorCodeSlotId(input.documentId, node.id),
       ownerRef: {
         kind: 'nodegraph-node',
@@ -71,9 +71,9 @@ export const createNodeGraphCodeSlotProvider = (input: {
       defaultPlacement: ['nodegraph', 'code-editor', 'issues-panel'],
     };
     slots.push(slot);
-    if (!node.executor) continue;
+    if (!node.codeSlot) continue;
     bindings.push({
-      binding: node.executor,
+      binding: node.codeSlot,
       ownerRef: slot.ownerRef,
       semanticReferenceId: createNodeGraphExecutorCodeReferenceId(
         input.workspaceId,

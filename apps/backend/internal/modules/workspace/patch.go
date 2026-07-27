@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/animationcontract"
 )
 
 var (
@@ -102,11 +104,7 @@ func validateWorkspaceNodeGraphPatchPath(path string) error {
 		return ErrWorkspacePatchPathForbidden
 	}
 	switch pointer[0] {
-	case "version":
-		if len(pointer) == 1 {
-			return nil
-		}
-	case "nodes", "edges":
+	case "nodes", "edges", "publicContract":
 		return nil
 	}
 	return ErrWorkspacePatchPathForbidden
@@ -120,12 +118,7 @@ func validateWorkspaceAnimationPatchPath(path string) error {
 	if len(pointer) == 0 {
 		return ErrWorkspacePatchPathForbidden
 	}
-	switch pointer[0] {
-	case "version":
-		if len(pointer) == 1 {
-			return nil
-		}
-	case "target", "timelines", "svgFilters", "x-animationEditor":
+	if animationcontract.AllowsDocumentPatchRoot(pointer[0]) {
 		return nil
 	}
 	return ErrWorkspacePatchPathForbidden

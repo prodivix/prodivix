@@ -5,6 +5,7 @@ import {
   createDefaultBinding,
   createDefaultTimeline,
   createEmptyAnimationDefinition,
+  encodeAnimationDefinition,
   type AnimationDefinition,
 } from '@prodivix/animation';
 import { decodeControlledSourceManifest } from '@prodivix/authoring';
@@ -959,7 +960,7 @@ export const useBlueprintEditorInspectorController = ({
         path: identity.path,
         contentRev: 1,
         metaRev: 1,
-        content: after,
+        content: encodeAnimationDefinition(after),
       };
       const command = createWorkspaceDocumentAtPathCommand({
         workspace: source,

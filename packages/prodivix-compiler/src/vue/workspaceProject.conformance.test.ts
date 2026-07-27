@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { encodeAnimationDefinition } from '@prodivix/animation';
+import { encodeNodeGraphDocument } from '@prodivix/nodegraph';
 import {
   projectExecutableProjectRuntimeFiles,
   type ExecutableProjectDataMockProvision,
 } from '@prodivix/runtime-core';
+import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   decodeWorkspaceDataSourceDocument,
   type WorkspaceSnapshot,
@@ -122,6 +125,156 @@ const provision: ExecutableProjectDataMockProvision = {
   ],
 };
 
+const domainWorkspace: WorkspaceSnapshot = {
+  ...workspace,
+  treeById: {
+    ...workspace.treeById,
+    root: {
+      ...workspace.treeById.root!,
+      children: ['data-node', 'page-node', 'graph-node', 'animation-node'],
+    },
+    'page-node': {
+      id: 'page-node',
+      kind: 'doc',
+      name: 'page.pir.json',
+      parentId: 'root',
+      docId: 'page',
+    },
+    'graph-node': {
+      id: 'graph-node',
+      kind: 'doc',
+      name: 'catalog.pir-graph.json',
+      parentId: 'root',
+      docId: 'graph-catalog',
+    },
+    'animation-node': {
+      id: 'animation-node',
+      kind: 'doc',
+      name: 'catalog.pir-animation.json',
+      parentId: 'root',
+      docId: 'animation-catalog',
+    },
+  },
+  docsById: {
+    ...workspace.docsById,
+    page: {
+      id: 'page',
+      type: 'pir-page',
+      path: '/page.pir.json',
+      contentRev: 1,
+      metaRev: 1,
+      content: createEmptyPirDocument(),
+    },
+    'graph-catalog': {
+      id: 'graph-catalog',
+      type: 'pir-graph',
+      path: '/catalog.pir-graph.json',
+      contentRev: 9,
+      metaRev: 1,
+      content: encodeNodeGraphDocument({
+        nodes: [
+          {
+            id: 'start',
+            descriptorRef: { id: 'core.start', version: '1' },
+            ports: [
+              {
+                id: 'out.control.next',
+                direction: 'output',
+                flow: 'control',
+                required: false,
+                cardinality: 'single',
+              },
+              {
+                id: 'out.data.value',
+                direction: 'output',
+                flow: 'data',
+                typeRef: 'json',
+                required: false,
+                cardinality: 'single',
+              },
+            ],
+            configuration: {},
+            editor: {},
+          },
+          {
+            id: 'end',
+            descriptorRef: { id: 'core.end', version: '1' },
+            ports: [
+              {
+                id: 'in.control.prev',
+                direction: 'input',
+                flow: 'control',
+                required: true,
+                cardinality: 'single',
+              },
+              {
+                id: 'in.data.value',
+                direction: 'input',
+                flow: 'data',
+                typeRef: 'json',
+                required: true,
+                cardinality: 'single',
+              },
+            ],
+            configuration: {},
+            editor: {},
+          },
+        ],
+        edges: [
+          {
+            id: 'start-end-control',
+            source: { nodeId: 'start', portId: 'out.control.next' },
+            target: { nodeId: 'end', portId: 'in.control.prev' },
+          },
+          {
+            id: 'start-end-data',
+            source: { nodeId: 'start', portId: 'out.data.value' },
+            target: { nodeId: 'end', portId: 'in.data.value' },
+          },
+        ],
+      }),
+    },
+    'animation-catalog': {
+      id: 'animation-catalog',
+      type: 'pir-animation',
+      path: '/catalog.pir-animation.json',
+      contentRev: 1,
+      metaRev: 1,
+      content: encodeAnimationDefinition({
+        target: { kind: 'pir-document', documentId: 'page' },
+        timelines: [
+          {
+            id: 'catalog-enter',
+            name: 'Catalog enter',
+            durationMs: 120,
+            motionIntent: 'decorative',
+            reducedMotion: { kind: 'final-state' },
+            markers: [],
+            bindings: [],
+          },
+        ],
+        compositions: [
+          {
+            id: 'catalog-composition',
+            name: 'Catalog composition',
+            motionIntent: 'decorative',
+            root: {
+              id: 'catalog-composition-root',
+              kind: 'timeline-ref',
+              timelineId: 'catalog-enter',
+            },
+          },
+        ],
+        entryCompositionId: 'catalog-composition',
+      }),
+    },
+  },
+  routeManifest: {
+    version: '1',
+    root: { id: 'root-route', pageDocId: 'page' },
+  },
+};
+
 describe('controlled Vue/Vite G2 target', () => {
   it('uses the exact shared standalone Data runtime and independent Vue scaffold', () => {
     const vue = generateWorkspaceVueViteBundle(workspace, {
@@ -231,6 +384,55 @@ describe('controlled Vue/Vite G2 target', () => {
       );
     }
   );
+
+  it('projects NodeGraph and Animation with the exact shared domain runtime helpers', () => {
+    const vue = generateWorkspaceVueViteBundle(domainWorkspace, {
+      dataMockProvision: provision,
+    });
+    const react = generateWorkspaceReactViteBundle(domainWorkspace, {
+      dataMockProvision: provision,
+    });
+    expect(
+      vue.diagnostics.filter(({ severity }) => severity === 'error')
+    ).toEqual([]);
+    const graphFile = vue.files.find(({ path }) =>
+      path.includes('/logic/nodegraphs/')
+    );
+    const animationFile = vue.files.find(({ path }) =>
+      path.includes('/animations/')
+    );
+    expect(graphFile?.contents).toContain('createNodeGraphExecutor');
+    expect(graphFile?.contents).toContain('programDigest');
+    expect(graphFile?.contents).toContain('"documentRevision": 9');
+    expect(graphFile?.contents).not.toContain('context.definition');
+    expect(graphFile?.sourceTrace).toContainEqual(
+      expect.objectContaining({
+        sourceRef: expect.objectContaining({ id: 'graph-catalog' }),
+      })
+    );
+    expect(animationFile?.contents).toContain('catalog-enter');
+    expect(
+      vue.files.some(({ contents }) =>
+        typeof contents === 'string'
+          ? contents.includes('createAnimationCompositionController') &&
+            contents.includes('ProgramBundle')
+          : false
+      )
+    ).toBe(true);
+    expect(animationFile?.sourceTrace).toContainEqual(
+      expect.objectContaining({
+        sourceRef: expect.objectContaining({ id: 'animation-catalog' }),
+      })
+    );
+    for (const path of [
+      'src/runtime/nodegraph-runtime.ts',
+      'src/runtime/animation-runtime.ts',
+    ]) {
+      expect(vue.files.find((file) => file.path === path)?.contents).toBe(
+        react.files.find((file) => file.path === path)?.contents
+      );
+    }
+  });
 
   it('fails closed on server/Secret Data and unsupported authoring documents', () => {
     const source = workspace.docsById['data-products']!;

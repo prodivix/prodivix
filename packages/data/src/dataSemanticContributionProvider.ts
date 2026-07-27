@@ -22,7 +22,7 @@ import type { DataSourceDocument } from './data.types';
 
 export const DATA_SEMANTIC_PROVIDER_DESCRIPTOR = Object.freeze({
   id: 'core.data',
-  semanticVersion: '1',
+  semanticVersion: '2',
 });
 
 export type DataSemanticDocumentInput = Readonly<{
@@ -212,6 +212,8 @@ const contributeDocument = (
       ownerRef,
       typeRef: `data-operation:${operation.kind}`,
       capabilityIds: Object.freeze([
+        'behavior:data:dispatch',
+        'behavior:data:lifecycle',
         'data-operation',
         `data-operation:${operation.kind}`,
       ]),

@@ -1,8 +1,11 @@
 import {
   decodeNodeGraphDocument,
+  validateNodeGraphDocument,
   type NodeGraphDecodeIssue,
   type NodeGraphDocument,
 } from '@prodivix/nodegraph';
+import { NODEGRAPH_CURRENT_WIRE_VERSION } from '@prodivix/nodegraph/wire';
+import { sameCanonicalJson } from '@prodivix/shared/canonical';
 import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceCommandEnvelope,
@@ -30,6 +33,7 @@ export type WorkspaceNodeGraphReadResult =
       status: 'valid';
       document: WorkspaceNodeGraphDocument;
       decodedContent: NodeGraphDocument;
+      sourceWireVersion: number;
     }>;
 
 export type CreateWorkspaceNodeGraphDocumentUpdateCommandInput = Readonly<{
@@ -44,13 +48,33 @@ export type CreateWorkspaceNodeGraphDocumentUpdateCommandInput = Readonly<{
 
 export const isCanonicalWorkspaceNodeGraphDocumentContent = (
   content: unknown
-): content is NodeGraphDocument => decodeNodeGraphDocument(content).ok;
+): boolean => {
+  const current = validateNodeGraphDocument(content);
+  if (current.ok) return true;
+  const decoded = decodeNodeGraphDocument(content);
+  return (
+    decoded.ok && decoded.sourceWireVersion === NODEGRAPH_CURRENT_WIRE_VERSION
+  );
+};
 
 export const decodeWorkspaceNodeGraphDocument = (
   document: WorkspaceDocument
 ): WorkspaceNodeGraphReadResult => {
   if (document.type !== 'pir-graph') {
     return { status: 'unsupported-document-type', document };
+  }
+  const current = validateNodeGraphDocument(document.content);
+  if (current.ok) {
+    const typedDocument = Object.freeze({
+      ...document,
+      content: current.value,
+    }) as WorkspaceNodeGraphDocument;
+    return {
+      status: 'valid',
+      document: typedDocument,
+      decodedContent: current.value,
+      sourceWireVersion: NODEGRAPH_CURRENT_WIRE_VERSION,
+    };
   }
   const decoded = decodeNodeGraphDocument(document.content);
   if (!decoded.ok) {
@@ -64,6 +88,7 @@ export const decodeWorkspaceNodeGraphDocument = (
     status: 'valid',
     document: typedDocument,
     decodedContent: decoded.value,
+    sourceWireVersion: decoded.sourceWireVersion,
   };
 };
 
@@ -91,9 +116,6 @@ export const selectWorkspaceNodeGraphDocumentResults = (
         .map(decodeWorkspaceNodeGraphDocument)
     : [];
 
-const valuesEqual = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(left) === JSON.stringify(right);
-
 const appendPatch = (
   forwardOps: WorkspacePatchOperation[],
   reverseOps: WorkspacePatchOperation[],
@@ -101,7 +123,17 @@ const appendPatch = (
   before: unknown,
   after: unknown
 ): void => {
-  if (valuesEqual(before, after)) return;
+  if (sameCanonicalJson(before, after)) return;
+  if (before === undefined) {
+    forwardOps.push({ op: 'add', path, value: after });
+    reverseOps.unshift({ op: 'remove', path });
+    return;
+  }
+  if (after === undefined) {
+    forwardOps.push({ op: 'remove', path });
+    reverseOps.unshift({ op: 'add', path, value: before });
+    return;
+  }
   forwardOps.push({ op: 'replace', path, value: after });
   reverseOps.unshift({ op: 'replace', path, value: before });
 };
@@ -114,8 +146,13 @@ export const createWorkspaceNodeGraphDocumentUpdateCommand = (
     input.workspace,
     input.documentId
   );
-  if (current?.status !== 'valid') return null;
-  const after = decodeNodeGraphDocument(input.after);
+  if (
+    current?.status !== 'valid' ||
+    current.sourceWireVersion !== NODEGRAPH_CURRENT_WIRE_VERSION
+  ) {
+    return null;
+  }
+  const after = validateNodeGraphDocument(input.after);
   if (!after.ok) return null;
   const forwardOps: WorkspacePatchOperation[] = [];
   const reverseOps: WorkspacePatchOperation[] = [];
@@ -132,6 +169,13 @@ export const createWorkspaceNodeGraphDocumentUpdateCommand = (
     '/edges',
     current.decodedContent.edges,
     after.value.edges
+  );
+  appendPatch(
+    forwardOps,
+    reverseOps,
+    '/publicContract',
+    current.decodedContent.publicContract,
+    after.value.publicContract
   );
   if (!forwardOps.length) return null;
   return {

@@ -83,7 +83,7 @@ describe('workspace selectors', () => {
     workspace.docsById['page-home'] = {
       ...workspace.docsById['page-home'],
       type: 'pir-graph',
-      content: { version: 1, nodes: [], edges: [] },
+      content: { version: 2, nodes: [], edges: [] },
     };
 
     expect(selectActivePirDocument(workspace)).toBeUndefined();

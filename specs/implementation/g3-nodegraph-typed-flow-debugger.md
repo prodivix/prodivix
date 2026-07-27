@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ImplementationStatus：N0-N2 Implemented / N3 protocol + Inspector Implemented, live step bridge In Progress / N4 V2 Golden slice Implemented
+- ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-20
+- 日期：2026-07-27
 - Owner：`@prodivix/nodegraph`、`@prodivix/runtime-core`、`@prodivix/behavior`、Code/Data/Route/Animation owners、`apps/web`
 - 关联：
   - `specs/decisions/60.nodegraph-typed-flow-and-behavior-debugging.md`
@@ -233,6 +233,12 @@ breakpoint 默认是 attempt/view preference；需要共享 assertion/checkpoint
 
 ### N0：Current model、migration 与 validator
 
+状态：Implemented。NodeGraph current domain 已移除数字版本，wire v2 固化 explicit descriptor、typed port、
+exact edge、CodeSlot 与 public contract；TypeScript codec 只写 v2，并把可唯一推导的 v1 node-level edge
+确定性迁移到 exact port，歧义、未知字段与 unsafe object key fail closed。Workspace/Compiler/Web 已切到
+current/wire 边界，Go generated schema/semantic validator 与数据库 migration 17 使用 bounded batch、
+content revision/byte CAS 和最终 v2 constraint 完成同一 hard cut；共享 fixture 验证 TypeScript/Go 迁移结果。
+
 - typed port/edge/descriptor model；
 - strict codec/backend/workspace validation；
 - node-level edge migration；
@@ -242,6 +248,18 @@ breakpoint 默认是 attempt/view preference；需要共享 assertion/checkpoint
 
 ### N1：Planner 与 pure/state nodes
 
+状态：Implemented。`@prodivix/nodegraph` 已建立 descriptor registry，
+要求 graph 显式提供 port、required/multiple 与 exact edge handle，并在编译时验证 descriptor/config digest、
+type、reachability、cycle、effect、runtime-zone、capability 与 CodeSlot policy；成功结果是 immutable dependency
+waves、required capabilities、SourceTrace 与 canonical Program digest。property tests 覆盖 bounded arbitrary
+DAG、插入顺序稳定性、cycle/unreachable、required/cardinality/type 与 unsafe configuration fail-closed。
+
+first-party registry/runtime 已执行 start/end、constant/map/shape/compare、branch/switch/merge/assert/log/checkpoint、
+parallel fork/join，以及 temporary state read/update/scoped transaction。执行按 canonical wave 与稳定 node order
+收敛 bounded output/trace，state host 使用 invocation transaction、nested scope 和 CAS commit；失败或取消回滚，
+不产生 Workspace 写入。显式 bounded loop、first-success/cancel-losers、deterministic timeout budget 与
+node/value/trace/resource plan 均已进入 immutable Program，并有 budget、cycle、conflict 与取消回归。
+
 - type/reachability/cycle/effect/capability planner；
 - pure/control/state transaction/parallel/loop nodes；
 - deterministic Program/digest。
@@ -249,6 +267,18 @@ breakpoint 默认是 attempt/view preference；需要共享 assertion/checkpoint
 完成条件：property tests 覆盖 arbitrary DAG、cycle、merge、conflict、budget。
 
 ### N2：Domain/async/subgraph/CodeSlot
+
+状态：Implemented。Data query/mutation/page/cancel、Route navigate/back/params、
+Animation play/pause/marker wait、Server invoke、typed observation wait、revision-bound CodeSlot 与 subgraph call
+均只通过注入 gateway 执行。runtime 在调用前验证 capability，所有 input/output 使用 bounded JSON；pure/
+idempotent effect 允许 bounded retry，mutation effect 不自动重试；aggregate cancellation 会传播到 gateway，
+attempt generation fence 丢弃 late completion。subgraph 同时验证 expected contract digest 与 capability escalation，
+CodeSlot 只使用 planner 解析后的 slot identity。
+
+显式 Auth session/authenticated/permission node、compile-time subgraph missing/revision/contract/cycle/recursion/
+capability escalation closure、deterministic timeout scheduler 与 provider conformance 已关闭。Preview、Export、
+CI surface adapter 都校验 exact document revision、Program digest、capability 和 artifact identity；不存在
+`context.definition` 或按 node 的 provider fallback。
 
 - Data/Route/Animation/Auth/Server capability nodes；
 - async/error/cancel/retry；
@@ -259,6 +289,23 @@ breakpoint 默认是 attempt/view preference；需要共享 assertion/checkpoint
 
 ### N3：Behavior 与 debugger
 
+状态：In Progress（Behavior integration + domain debug protocol incremental slices）。`@prodivix/nodegraph` 已贡献 graph invoke/output
+registry、revision-bound graph/node/port semantic targets 与 runtime adapter；adapter 复用现有 G2
+deterministic executor，并只暴露 attempt-local bounded output。缺失 target、capability/owner mismatch
+fail closed，runtime result 不写 Workspace。
+
+domain debug controller 已实现 exact job/attempt/program/generation/lease identity、command sequence/expiry、
+breakpoint、pause、step into/over/out、continue、cancel、detach、bounded event/value projection 与 sensitive
+redaction；cancel/detach 后的 late completion 由 generation fence 丢弃，执行器异常与非法 output 只产生稳定的
+sanitized failure。
+
+Program runtime 已发布 subgraph/CodeSlot/domain frame enter/exit/cancel、checkpoint 与 Behavior correlation。
+产品 Runtime Inspector 只消费 `ExecutionSessionSnapshot` / `NodeGraphDebugSnapshot`，提供 bounded redacted
+variables、call stack、semantic trace、Source navigation、cancel 与 exact identity-bound pause/step/continue
+command；不读取 React Flow/DOM 状态。当前 same-context `ExecutionSession` 尚未提供 live debug snapshot/command
+bridge，因此普通 Run 中 step 控件会 fail closed 为 disabled；fresh replay 与 live step bridge归入 V3，N3
+保持 In Progress，不用 V2 Golden 冒充完成。
+
 - trigger/action/observation/impact；
 - debug lease/control/snapshot/value projector；
 - NodeGraph editor/debug panels/Issues/SourceTrace。
@@ -266,6 +313,12 @@ breakpoint 默认是 attempt/view preference；需要共享 assertion/checkpoint
 完成条件：Scenario 可在 node/checkpoint 断点、step/replay；UI 无 React Flow internal dependency。
 
 ### N4：Cross-surface Golden
+
+状态：V2 Golden slice Implemented。Preview/Export/CI 使用真实 `NodeGraphSurfaceRuntimeAdapter` 执行同一
+revision-bound Program；React/Vue standalone target 使用同一 compiler contribution 和 framework-neutral
+runtime helper，生成项目会实际 install、typecheck、test、production build 与 Chromium smoke。六个
+surface/motion cell 的 semantic result、Program digest 和 SourceTrace 一致；完整 Browser/Remote 与
+Firefox/WebKit adapter matrix仍属于 V6/V8，不在这里提前宣称。
 
 - Browser/Remote/Export/CI graph Program conformance；
 - React/Vue Catalog journey 中真实 graph trigger；
@@ -275,7 +328,10 @@ breakpoint 默认是 attempt/view preference；需要共享 assertion/checkpoint
 
 ## 验证证据
 
-计划 Gate：`pnpm run verify:g3:behavior-composition` 中的 NodeGraph suite。
+Gate：`pnpm run verify:g3:behavior-composition` 中 NodeGraph 8 files / 37 tests、Compiler React/Vue
+19 tests、Web Inspector/Animation 7 tests、V2 composition 7 tests与 Chromium browser Golden 1 test
+已在 2026-07-27 当前未提交 worktree 本地通过；`verify:g3:boundaries` 同时覆盖 Workspace/Go wire hard cut。
+workflow 已配置但缺少 commit/CI identity；N3 live step/replay 与 V6/V8 完整 adapter matrix仍待实现。
 
 必须覆盖：
 
@@ -300,9 +356,9 @@ breakpoint 默认是 attempt/view preference；需要共享 assertion/checkpoint
 
 ## 验收标准
 
-- [ ] typed ports/edges、descriptor、planner、codec/migration 在所有 owner 间一致。
-- [ ] async/error/cancel/retry/parallel/subgraph 在 deterministic scheduler 下可重复。
-- [ ] domain 与 CodeSlot node capability/permission/effect fail closed。
+- [x] typed ports/edges、descriptor、planner、codec/migration 在所有 owner 间一致。
+- [x] async/error/cancel/retry/parallel/subgraph 在 deterministic scheduler 下可重复。
+- [x] domain 与 CodeSlot node capability/permission/effect fail closed。
 - [ ] debugger 使用稳定 execution protocol，值 bounded/redacted 且可 SourceTrace。
-- [ ] Preview、Export、CI 的 invoked graph semantic trace/result compatible。
-- [ ] runtime state/result 不直接写 Workspace，Remote 不按 node 分布式调度。
+- [x] Preview、Export、CI 的 invoked graph semantic trace/result compatible。
+- [x] runtime state/result 不直接写 Workspace，Remote 不按 node 分布式调度。

@@ -40,8 +40,9 @@ describe('workspace semantic diff', () => {
   it('addresses standalone changes by document-owned node and edge ids', () => {
     const base = createNodeGraphWorkspace();
     const next = cloneWorkspace(base);
-    content(next).nodes[0]!.data.label = 'Local A';
-    content(next).edges[0]!.sourceHandle = 'changed';
+    content(next).nodes[0]!.configuration.label = 'Local A';
+    content(next).nodes[0]!.ports[1]!.id = 'changed';
+    content(next).edges[0]!.source.portId = 'changed';
 
     const result = diffWorkspaceSnapshots(base, next);
 
@@ -52,25 +53,25 @@ describe('workspace semantic diff', () => {
         expect.objectContaining({
           target: expect.objectContaining({
             documentId: 'document-1',
-            path: '/nodesById/node-a/data/label',
+            path: '/nodesById/node-a/configuration/label',
           }),
           semantic: {
             kind: 'graph-node',
             graphKind: 'nodegraph',
             nodeId: 'node-a',
-            fieldPath: '/data/label',
+            fieldPath: '/configuration/label',
           },
         }),
         expect.objectContaining({
           target: expect.objectContaining({
             documentId: 'document-1',
-            path: '/edgesById/edge-a-b/sourceHandle',
+            path: '/edgesById/edge-a-b/source/portId',
           }),
           semantic: {
             kind: 'graph-edge',
             graphKind: 'nodegraph',
             edgeId: 'edge-a-b',
-            fieldPath: '/sourceHandle',
+            fieldPath: '/source/portId',
           },
         }),
       ])

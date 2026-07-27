@@ -48,8 +48,8 @@ describe('workspace three-way recovery', () => {
     const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').data.value = 2;
-    node(remote, 'node-b').data.value = 3;
+    node(local, 'node-a').configuration.value = 2;
+    node(remote, 'node-b').configuration.value = 3;
     remote.workspaceRev = 7;
     remote.opSeq = 15;
     remote.docsById['document-1']!.contentRev = 4;
@@ -58,8 +58,8 @@ describe('workspace three-way recovery', () => {
 
     expect(result).toMatchObject({ ok: true, status: 'rebased' });
     if (!result.ok) return;
-    expect(node(result.snapshot, 'node-a').data.value).toBe(2);
-    expect(node(result.snapshot, 'node-b').data.value).toBe(3);
+    expect(node(result.snapshot, 'node-a').configuration.value).toBe(2);
+    expect(node(result.snapshot, 'node-b').configuration.value).toBe(3);
     expect(result.snapshot.workspaceRev).toBe(7);
     expect(result.snapshot.docsById['document-1']!.contentRev).toBe(4);
   });
@@ -71,7 +71,25 @@ describe('workspace three-way recovery', () => {
     graphContent(local).nodes.reverse();
     graphContent(remote).nodes.push({
       id: 'node-c',
-      data: { label: 'C', value: 1 },
+      descriptorRef: { id: 'core.process', version: '1' },
+      ports: [
+        {
+          id: 'in.control.prev',
+          direction: 'input',
+          flow: 'control',
+          required: false,
+          cardinality: 'single',
+        },
+        {
+          id: 'out.control.next',
+          direction: 'output',
+          flow: 'control',
+          required: false,
+          cardinality: 'single',
+        },
+      ],
+      configuration: { label: 'C', value: 1 },
+      editor: {},
     });
 
     const result = autoRebaseWorkspaceSnapshots(base, local, remote);
@@ -89,7 +107,25 @@ describe('workspace three-way recovery', () => {
     const base = createNodeGraphWorkspace();
     graphContent(base).nodes.push({
       id: 'node-c',
-      data: { label: 'C', value: 1 },
+      descriptorRef: { id: 'core.process', version: '1' },
+      ports: [
+        {
+          id: 'in.control.prev',
+          direction: 'input',
+          flow: 'control',
+          required: false,
+          cardinality: 'single',
+        },
+        {
+          id: 'out.control.next',
+          direction: 'output',
+          flow: 'control',
+          required: false,
+          cardinality: 'single',
+        },
+      ],
+      configuration: { label: 'C', value: 1 },
+      editor: {},
     });
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
@@ -187,7 +223,8 @@ describe('workspace three-way recovery', () => {
     graphContent(local).nodes = graphContent(local).nodes.filter(
       (candidate) => candidate.id !== 'node-a'
     );
-    graphContent(remote).edges[0]!.sourceHandle = 'remote-edge';
+    node(remote, 'node-a').ports[1]!.id = 'remote-edge';
+    graphContent(remote).edges[0]!.source.portId = 'remote-edge';
 
     const result = autoRebaseWorkspaceSnapshots(base, local, remote);
 
@@ -236,8 +273,8 @@ describe('workspace three-way recovery', () => {
     const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').data.label = 'LOCAL';
-    node(remote, 'node-a').data.label = 'REMOTE';
+    node(local, 'node-a').configuration.label = 'LOCAL';
+    node(remote, 'node-a').configuration.label = 'REMOTE';
     remote.workspaceRev = 9;
     remote.opSeq = 20;
     remote.docsById['document-1']!.contentRev = 5;
@@ -293,9 +330,9 @@ describe('workspace three-way recovery', () => {
       session: { status: 'resolved', unresolvedConflictIds: [] },
     });
     if (!resolved.ok || !resolved.session.resolvedSnapshot) return;
-    expect(node(resolved.session.resolvedSnapshot, 'node-a').data.label).toBe(
-      'LOCAL'
-    );
+    expect(
+      node(resolved.session.resolvedSnapshot, 'node-a').configuration.label
+    ).toBe('LOCAL');
     expect(resolved.session.resolvedSnapshot.workspaceRev).toBe(9);
 
     const built = createWorkspaceConflictResolutionOperation({
@@ -328,10 +365,10 @@ describe('workspace three-way recovery', () => {
     const base = createNodeGraphWorkspace();
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').data.label = 'LOCAL A';
-    node(local, 'node-b').data.label = 'LOCAL B';
-    node(remote, 'node-a').data.label = 'REMOTE A';
-    node(remote, 'node-b').data.label = 'REMOTE B';
+    node(local, 'node-a').configuration.label = 'LOCAL A';
+    node(local, 'node-b').configuration.label = 'LOCAL B';
+    node(remote, 'node-a').configuration.label = 'REMOTE A';
+    node(remote, 'node-b').configuration.label = 'REMOTE B';
     const created = createWorkspaceConflictSession({
       id: 'session-mixed',
       createdAt: '2026-07-12T02:00:00.000Z',
@@ -362,12 +399,12 @@ describe('workspace three-way recovery', () => {
       session: { status: 'resolved' },
     });
     if (!resolved.ok || !resolved.session.resolvedSnapshot) return;
-    expect(node(resolved.session.resolvedSnapshot, 'node-a').data.label).toBe(
-      'LOCAL A'
-    );
-    expect(node(resolved.session.resolvedSnapshot, 'node-b').data.label).toBe(
-      'REMOTE B'
-    );
+    expect(
+      node(resolved.session.resolvedSnapshot, 'node-a').configuration.label
+    ).toBe('LOCAL A');
+    expect(
+      node(resolved.session.resolvedSnapshot, 'node-b').configuration.label
+    ).toBe('REMOTE B');
   });
 
   it('rebirths a remotely deleted document when delete-versus-modify chooses local', () => {
@@ -376,7 +413,7 @@ describe('workspace three-way recovery', () => {
     base.docsById['document-1']!.metaRev = 3;
     const local = cloneWorkspace(base);
     const remote = cloneWorkspace(base);
-    node(local, 'node-a').data.label = 'LOCAL SURVIVES';
+    node(local, 'node-a').configuration.label = 'LOCAL SURVIVES';
     delete remote.docsById['document-1'];
     delete remote.treeById['document-node'];
     remote.treeById.root!.children = ['remote-only'];
@@ -462,7 +499,7 @@ describe('workspace three-way recovery', () => {
     const resolved = cloneWorkspace(remote);
     resolved.treeById['document-node']!.name = 'renamed.pir.json';
     resolved.docsById['document-1']!.path = '/renamed.pir.json';
-    node(resolved, 'node-a').data.label = 'Resolved';
+    node(resolved, 'node-a').configuration.label = 'Resolved';
 
     const built = createWorkspaceResolutionOperation({
       remoteSnapshot: remote,
@@ -489,7 +526,9 @@ describe('workspace three-way recovery', () => {
     expect(applied.snapshot.docsById['document-1']!.path).toBe(
       '/renamed.pir.json'
     );
-    expect(node(applied.snapshot, 'node-a').data.label).toBe('Resolved');
+    expect(node(applied.snapshot, 'node-a').configuration.label).toBe(
+      'Resolved'
+    );
   });
 
   it('drops the remote selection when the merge removed every candidate document', () => {

@@ -2,6 +2,11 @@ import { Code2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
   AnimationBinding,
+  AnimationComposition,
+  AnimationConflictContributor,
+  AnimationConflictIssue,
+  AnimationMotionMode,
+  ResolvedAnimationMotionPolicy,
   AnimationTimeline,
   AnimationTimelineCodeSlotRole,
   AnimationTrack,
@@ -42,11 +47,22 @@ export type AnimationEditorSelection = {
 
 type AnimationEditorInspectorPanelProps = {
   timeline: AnimationTimeline | undefined;
+  compositions: readonly AnimationComposition[];
+  entryCompositionId?: string;
+  motionPolicy: ResolvedAnimationMotionPolicy;
+  motionOverride: 'inherit' | AnimationMotionMode;
+  conflictContributors: readonly AnimationConflictContributor[];
+  conflictIssues: readonly AnimationConflictIssue[];
   cursorMs: number;
   svgFilters: SvgFilterDefinition[];
   canRemoveSvgFilter: boolean;
   selection: AnimationEditorSelection;
   onSelectionChange: (next: AnimationEditorSelection) => void;
+  onMotionOverrideChange: (override: 'inherit' | AnimationMotionMode) => void;
+  onAddComposition: () => void;
+  onUpdateCompositionName: (compositionId: string, name: string) => void;
+  onSetEntryComposition: (compositionId: string) => void;
+  onDeleteComposition: (compositionId: string) => void;
 
   onUpdateTimelineName: (name: string) => void;
   onUpdateTimelineDuration: (rawMs: string) => void;
@@ -156,11 +172,22 @@ const getTrackLabel = (track: AnimationTrack) => {
 
 export const AnimationEditorInspectorPanel = ({
   timeline,
+  compositions,
+  entryCompositionId,
+  motionPolicy,
+  motionOverride,
+  conflictContributors,
+  conflictIssues,
   cursorMs,
   svgFilters,
   canRemoveSvgFilter,
   selection,
   onSelectionChange,
+  onMotionOverrideChange,
+  onAddComposition,
+  onUpdateCompositionName,
+  onSetEntryComposition,
+  onDeleteComposition,
   onUpdateTimelineName,
   onUpdateTimelineDuration,
   onUpdateTimelineDelayMs,
@@ -204,6 +231,139 @@ export const AnimationEditorInspectorPanel = ({
   return (
     <aside className="flex h-full w-[var(--anim-inspector-width)] shrink-0 flex-col border-l border-black/8 bg-[rgb(var(--bg-canvas-rgb)_/_0.92)] backdrop-blur-sm">
       <div className="min-h-0 flex-1 space-y-5 overflow-auto p-4">
+        <section aria-label="Animation composition" className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-medium tracking-[0.08em] text-(--text-secondary)">
+              Compositions
+            </h2>
+            <button
+              type="button"
+              onClick={onAddComposition}
+              className="rounded-full border border-black/10 bg-white px-2 py-1 text-[11px]"
+            >
+              Add
+            </button>
+          </div>
+          {compositions.length ? (
+            <div className="space-y-2">
+              {compositions.map((composition) => (
+                <div
+                  key={composition.id}
+                  className="grid grid-cols-[1fr_auto] gap-2 rounded-xl bg-black/[0.03] p-2"
+                >
+                  <input
+                    value={composition.name}
+                    onChange={(event) =>
+                      onUpdateCompositionName(
+                        composition.id,
+                        event.target.value
+                      )
+                    }
+                    aria-label={`Composition name ${composition.id}`}
+                    className="min-w-0 rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs"
+                  />
+                  <button
+                    type="button"
+                    aria-pressed={entryCompositionId === composition.id}
+                    onClick={() => onSetEntryComposition(composition.id)}
+                    className="rounded-lg px-2 text-[10px]"
+                  >
+                    {entryCompositionId === composition.id
+                      ? 'Entry'
+                      : 'Set entry'}
+                  </button>
+                  <div className="text-[10px] text-(--text-muted)">
+                    {composition.motionIntent} · {composition.root.kind}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Delete composition ${composition.name}`}
+                    onClick={() => onDeleteComposition(composition.id)}
+                    className="justify-self-end rounded p-1 text-(--text-muted)"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-(--text-muted)">
+              No authored composition.
+            </p>
+          )}
+        </section>
+
+        <section aria-label="Motion policy" className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-medium tracking-[0.08em] text-(--text-secondary)">
+              Motion policy
+            </h2>
+            <span className="rounded-full bg-black/5 px-2 py-1 text-[10px]">
+              {motionPolicy.mode} · {motionPolicy.source}
+            </span>
+          </div>
+          <select
+            value={motionOverride}
+            onChange={(event) =>
+              onMotionOverrideChange(
+                event.target.value as 'inherit' | AnimationMotionMode
+              )
+            }
+            aria-label="Preview motion override"
+            className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs"
+          >
+            <option value="inherit">Follow system</option>
+            <option value="full">Full motion</option>
+            <option value="reduced">Reduced motion</option>
+          </select>
+          <div className="rounded-xl bg-black/[0.03] p-2 text-[10px] text-(--text-muted)">
+            {timeline?.reducedMotion.kind ?? 'No active timeline fallback'}
+          </div>
+        </section>
+
+        <section aria-label="Animation runtime conflicts" className="space-y-2">
+          <h2 className="text-xs font-medium tracking-[0.08em] text-(--text-secondary)">
+            Conflicts &amp; markers
+          </h2>
+          <div className="space-y-1">
+            {(timeline?.markers ?? []).map((marker) => (
+              <div
+                key={marker.id}
+                className="flex justify-between rounded-lg bg-black/[0.03] px-2 py-1 text-[10px]"
+              >
+                <span>{marker.id}</span>
+                <span className="text-(--text-muted)">
+                  {marker.kind} · {marker.atMs}ms
+                  {marker.requiredInReducedMotion ? ' · required' : ''}
+                </span>
+              </div>
+            ))}
+            {conflictContributors.map((contributor) => (
+              <div
+                key={`${contributor.ownerId}:${contributor.generation}`}
+                className="rounded-lg bg-black/[0.03] px-2 py-1 text-[10px]"
+              >
+                {contributor.ownerId} · generation {contributor.generation} ·{' '}
+                {contributor.mode}
+              </div>
+            ))}
+            {!timeline?.markers.length && !conflictContributors.length ? (
+              <p className="text-[11px] text-(--text-muted)">
+                No active markers or property conflicts.
+              </p>
+            ) : null}
+            {conflictIssues.map((issue) => (
+              <div
+                key={`${issue.code}:${issue.safeMessage}`}
+                role="alert"
+                className="rounded-lg border border-red-500/20 bg-red-500/5 px-2 py-1 text-[10px]"
+              >
+                {issue.code}: {issue.safeMessage}
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-medium tracking-[0.08em] text-(--text-secondary)">

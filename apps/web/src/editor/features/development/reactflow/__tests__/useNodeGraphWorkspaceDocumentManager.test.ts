@@ -11,7 +11,7 @@ const createGraphListItem = (id: string): WorkspaceNodeGraphListItem => {
     path: `/graphs/${id}.graph.json`,
     contentRev: 1,
     metaRev: 1,
-    content: { version: 1 as const, nodes: [], edges: [] },
+    content: { version: 2 as const, nodes: [], edges: [] },
   };
   return {
     id,
@@ -21,7 +21,8 @@ const createGraphListItem = (id: string): WorkspaceNodeGraphListItem => {
     read: {
       status: 'valid',
       document,
-      decodedContent: { version: 1, nodes: [], edges: [] },
+      decodedContent: { nodes: [], edges: [] },
+      sourceWireVersion: 2,
     },
   };
 };

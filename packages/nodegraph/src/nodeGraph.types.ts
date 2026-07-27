@@ -1,3 +1,4 @@
+import type { CodeSlotBinding } from '@prodivix/authoring';
 import type {
   RuntimeCancellationSignal,
   RuntimeExecutionRequest,
@@ -5,44 +6,78 @@ import type {
   RuntimeStatePatch,
   RuntimeTraceEvent,
 } from '@prodivix/runtime-core';
-import type { CodeSlotBinding } from '@prodivix/authoring';
+
+export type NodeGraphPortFlow = 'control' | 'data';
+export type NodeGraphPortCardinality = 'single' | 'multiple';
 
 export type NodeGraphPort = {
   id: string;
   direction: 'input' | 'output';
-  kind: 'control' | 'data';
+  flow: NodeGraphPortFlow;
   typeRef?: string;
-  required?: boolean;
-  multiple?: boolean;
+  required: boolean;
+  cardinality: NodeGraphPortCardinality;
 };
 
-export type NodeGraphNodeData = Record<string, unknown> & {
-  kind?: string;
-  value?: unknown;
+export type NodeGraphPortReference = {
+  nodeId: string;
+  portId: string;
+};
+
+export type NodeGraphDescriptorReference = {
+  id: string;
+  version: string;
+};
+
+export type NodeGraphConfiguration = Record<string, unknown>;
+
+export type NodeGraphEditorMetadata = {
+  position?: Readonly<{ x: number; y: number }>;
+  parentId?: string;
+  extent?: 'parent';
+  zIndex?: number;
+  collapsed?: boolean;
   label?: string;
-  description?: string;
 };
 
 export type NodeGraphNode = {
   id: string;
-  type?: string;
-  data: NodeGraphNodeData;
-  ports?: NodeGraphPort[];
-  executor?: CodeSlotBinding;
+  descriptorRef: NodeGraphDescriptorReference;
+  ports: NodeGraphPort[];
+  configuration: NodeGraphConfiguration;
+  editor: NodeGraphEditorMetadata;
+  codeSlot?: CodeSlotBinding;
 };
 
 export type NodeGraphEdge = {
   id: string;
-  source: string;
-  target: string;
-  sourceHandle?: string | null;
-  targetHandle?: string | null;
+  source: NodeGraphPortReference;
+  target: NodeGraphPortReference;
 };
 
+export type NodeGraphPublicPort = {
+  id: string;
+  port: NodeGraphPortReference;
+  typeRef: string;
+  required: boolean;
+};
+
+export type NodeGraphPublicContract = {
+  inputs: NodeGraphPublicPort[];
+  outputs: NodeGraphPublicPort[];
+  errors: string[];
+  requiredCapabilities: string[];
+  maximumSteps: number;
+};
+
+/**
+ * Version-neutral current NodeGraph domain model. Numeric versions only exist
+ * in the wire codec and persistence boundary.
+ */
 export type NodeGraphDocument = {
-  version: 1;
   nodes: NodeGraphNode[];
   edges: NodeGraphEdge[];
+  publicContract?: NodeGraphPublicContract;
 };
 
 export type NodeGraphDecodeIssue = {
@@ -51,6 +86,18 @@ export type NodeGraphDecodeIssue = {
 };
 
 export type NodeGraphDecodeResult =
+  | {
+      ok: true;
+      value: NodeGraphDocument;
+      sourceWireVersion: number;
+      appliedMigrations: readonly Readonly<{
+        fromVersion: number;
+        toVersion: number;
+      }>[];
+    }
+  | { ok: false; issues: NodeGraphDecodeIssue[] };
+
+export type NodeGraphValidationResult =
   | { ok: true; value: NodeGraphDocument }
   | { ok: false; issues: NodeGraphDecodeIssue[] };
 
@@ -77,7 +124,7 @@ export type NodeGraphNodeExecutionContext = {
 export type NodeGraphNodeExecutionOutcome = {
   output?: unknown;
   statePatch?: RuntimeStatePatch;
-  nextHandle?: string;
+  nextPortId?: string;
   stop?: boolean;
   trace?: NodeGraphNodeTrace[];
 };

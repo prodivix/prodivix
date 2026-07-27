@@ -107,6 +107,11 @@ const changeRecordScore = (change: WorkspaceSemanticChange): number => {
   if (!state.present || !isRecord(state.value)) return 0;
   if (
     isRecord(state.value.data) ||
+    isRecord(state.value.descriptorRef) ||
+    isRecord(state.value.editor) ||
+    isRecord(state.value.configuration) ||
+    isRecord(state.value.source) ||
+    isRecord(state.value.target) ||
     typeof state.value.source === 'string' ||
     typeof state.value.target === 'string' ||
     typeof state.value.type === 'string'
@@ -457,7 +462,12 @@ const resolveNodeLabel = (
   entityId: string
 ): string => {
   const data = record && isRecord(record.data) ? record.data : undefined;
+  const editor = record && isRecord(record.editor) ? record.editor : undefined;
+  const configuration =
+    record && isRecord(record.configuration) ? record.configuration : undefined;
   return (
+    asNonEmptyString(editor?.label) ??
+    asNonEmptyString(configuration?.label) ??
     asNonEmptyString(data?.label) ??
     asNonEmptyString(record?.label) ??
     asNonEmptyString(record?.name) ??
@@ -469,7 +479,13 @@ const resolveNodeKind = (
   record: Record<string, unknown> | undefined
 ): string | undefined => {
   const data = record && isRecord(record.data) ? record.data : undefined;
+  const descriptor =
+    record && isRecord(record.descriptorRef) ? record.descriptorRef : undefined;
+  const descriptorId = asNonEmptyString(descriptor?.id);
   return (
+    (descriptorId?.startsWith('core.')
+      ? descriptorId.slice('core.'.length)
+      : descriptorId) ??
     asNonEmptyString(data?.kind) ??
     asNonEmptyString(record?.type) ??
     asNonEmptyString(record?.kind)
@@ -480,8 +496,12 @@ const resolveNodeDescription = (
   record: Record<string, unknown> | undefined
 ): string | undefined => {
   const data = record && isRecord(record.data) ? record.data : undefined;
+  const configuration =
+    record && isRecord(record.configuration) ? record.configuration : undefined;
   return (
-    asNonEmptyString(data?.description) ?? asNonEmptyString(record?.description)
+    asNonEmptyString(configuration?.description) ??
+    asNonEmptyString(data?.description) ??
+    asNonEmptyString(record?.description)
   );
 };
 
@@ -622,7 +642,12 @@ const buildNodePresentations = (
 const resolveEdgeEndpoint = (
   record: Record<string, unknown> | undefined,
   field: 'source' | 'target'
-): string | undefined => asNonEmptyString(record?.[field]);
+): string | undefined => {
+  const endpoint = record?.[field];
+  return isRecord(endpoint)
+    ? asNonEmptyString(endpoint.nodeId)
+    : asNonEmptyString(endpoint);
+};
 
 const resolveEdgeLabel = (
   record: Record<string, unknown> | undefined

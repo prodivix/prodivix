@@ -10,6 +10,7 @@
     "noEmit": false,
     "paths": {
       "@prodivix/authoring": ["../authoring/src"],
+      "@prodivix/behavior": ["../behavior/src"],
       "@prodivix/shared": ["../shared/src"],
       "@prodivix/shared/*": ["../shared/src/*"]
     }
@@ -23,6 +24,9 @@
     "src/**/__tests__/**"
   ],
   "references": [
+    {
+      "path": "../behavior"
+    },
     {
       "path": "../authoring"
     },

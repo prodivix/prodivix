@@ -2,6 +2,7 @@ import {
   CURRENT_SEMANTIC_SCHEMA_VERSION,
   createAnimationBindingScopeId,
   createAnimationBindingSymbolId,
+  createAnimationCompositionSymbolId,
   createAnimationDocumentScopeId,
   createAnimationTimelineScopeId,
   createAnimationTimelineSymbolId,
@@ -63,7 +64,6 @@ const createDefinition = (
   timelineParts: readonly string[],
   reverse: boolean
 ): AnimationDefinition => ({
-  version: 1,
   target: {
     kind: 'pir-document',
     documentId: `target-${documentId}`,
@@ -79,10 +79,25 @@ const createDefinition = (
         id: `timeline-${part}`,
         name: `Timeline ${part}`,
         durationMs: 1000,
+        motionIntent: 'decorative',
+        reducedMotion: { kind: 'final-state' },
+        markers: [],
         bindings: reverse ? bindings.reverse() : bindings,
       };
     }
   ),
+  compositions: [
+    {
+      id: 'composition-catalog',
+      name: 'Catalog composition',
+      motionIntent: 'spatial',
+      root: {
+        id: 'composition-root',
+        kind: 'hold',
+        durationMs: 1,
+      },
+    },
+  ],
 });
 
 const createSources = (
@@ -154,6 +169,11 @@ describe('animation semantic contribution provider properties', () => {
             bindingId,
             'track-style'
           );
+          const compositionSymbolId = createAnimationCompositionSymbolId(
+            workspaceId,
+            documentId,
+            'composition-catalog'
+          );
 
           expect(forward.scopes).toEqual(
             expect.arrayContaining([
@@ -201,6 +221,16 @@ describe('animation semantic contribution provider properties', () => {
                   trackId: 'track-style',
                 },
               }),
+              expect.objectContaining({
+                id: compositionSymbolId,
+                stability: 'durable',
+                kind: 'animation-composition',
+                capabilityIds: expect.arrayContaining([
+                  'behavior:animation:play',
+                  'behavior:animation:composition',
+                  'behavior:animation:marker',
+                ]),
+              }),
             ])
           );
           expect(
@@ -241,6 +271,14 @@ describe('animation semantic contribution provider properties', () => {
                 sourceSymbolId: trackSymbolId,
                 targetSymbolId: bindingSymbolId,
               }),
+              expect.objectContaining({
+                kind: 'document',
+                sourceSymbolId: compositionSymbolId,
+                targetSymbolId: createWorkspaceDocumentSymbolId(
+                  workspaceId,
+                  documentId
+                ),
+              }),
             ])
           );
           expect(
@@ -255,6 +293,7 @@ describe('animation semantic contribution provider properties', () => {
           expect(new Set(forward.symbols?.map(({ kind }) => kind))).toEqual(
             new Set([
               'animation-timeline',
+              'animation-composition',
               'animation-binding',
               'animation-track',
             ])
@@ -276,12 +315,12 @@ describe('animation semantic contribution provider properties', () => {
             documentId: 'document-revision',
             revision: { contentRev, metaRev },
             definition: {
-              version: 1,
               target: {
                 kind: 'pir-document',
                 documentId: 'document-revision',
               },
               timelines: [],
+              compositions: [],
             },
           };
           const provider = createAnimationSemanticContributionProvider({

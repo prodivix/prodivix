@@ -12,12 +12,18 @@ export {
   createDefaultTimeline,
   createDefaultTrack,
   createEmptyAnimationDefinition,
+  decodeAnimationDefinition,
+  encodeAnimationDefinition,
   ensureAnimationDefinition,
   normalizeAnimationDefinition,
   resolveCssFilterUnit,
   resolveTrackFallbackValue,
   serializeAnimationDefinition,
 } from './animationCodec';
+export {
+  animationWireMigrationIsDeterministic,
+  upgradeAnimationWireDocument,
+} from './animationWireMigration';
 export {
   ANIMATION_VALIDATION_CODES,
   validateAnimationDefinition,
@@ -50,6 +56,17 @@ export {
   getAnimationTrackEffectCapability,
 } from './animationRuntime';
 export { startAnimationPlayback } from './animationPlayback';
+export { compileAnimationComposition } from './animationCompositionCompiler';
+export {
+  createAnimationCompositionCancellationController,
+  executeAnimationCompositionProgram,
+} from './animationCompositionRuntime';
+export {
+  createAnimationConflictCoordinator,
+  createAnimationRuntimePropertyRegistry,
+} from './animationConflictRuntime';
+export { resolveAnimationMotionPolicy } from './animationMotionPolicy';
+export { createAnimationSurfaceRuntimeAdapter } from './animationSurfaceRuntime';
 export {
   ANIMATION_EXECUTION_PROVIDER_ID,
   createAnimationExecutionInvocationInput,
@@ -66,27 +83,101 @@ export {
   createAnimationTimelineCodeSlotId,
   type AnimationTimelineCodeSlotRole,
 } from './animationCodeSlotProvider';
+export {
+  prepareAnimationCodeRuntime,
+  type AnimationCodeRuntimeGateway,
+  type AnimationCodeRuntimeIssue,
+  type AnimationCodeRuntimeSession,
+  type AnimationCodeSlotLeaseOutcome,
+  type AnimationCodeSlotPreparedLease,
+  type AnimationCodeSlotRuntimePlan,
+  type AnimationCodeSlotRuntimeRole,
+  type PrepareAnimationCodeRuntimeResult,
+} from './animationCodeRuntime';
+export {
+  ANIMATION_BEHAVIOR_REGISTRY_CONTRIBUTION,
+  createAnimationBehaviorRuntimeAdapters,
+} from './animationBehaviorContribution';
 
 export type {
   AnimationBinding,
+  AnimationComposition,
+  AnimationCompositionMarkerNode,
+  AnimationCompositionNode,
+  AnimationCompositionReferenceNode,
+  AnimationConditionalVariantNode,
+  AnimationDecodeIssue,
+  AnimationDecodeResult,
   AnimationCssFilterTrack,
   AnimationDefinition,
   AnimationEditorState,
   AnimationEntityKind,
   AnimationFrame,
+  AnimationHoldNode,
   AnimationIdFactory,
   AnimationIterations,
   AnimationKeyframe,
+  AnimationMarker,
+  AnimationMarkerKind,
+  AnimationMotionIntent,
+  AnimationMotionMode,
   AnimationNodeStyle,
+  AnimationParallelNode,
+  AnimationReducedMotionPolicy,
+  AnimationSequenceNode,
+  AnimationSettleNode,
+  AnimationStaggerNode,
   AnimationStyleTrack,
   AnimationSvgFilterAttributeTrack,
   AnimationTimeline,
   AnimationTimelineCodeSlots,
+  AnimationTimelineReferenceNode,
   AnimationTrack,
   AnimationTargetReference,
   SvgFilterDefinition,
   SvgFilterPrimitive,
 } from './animation.types';
+export type {
+  AnimationCompositionCompileBudgets,
+  AnimationCompositionCompileIssue,
+  AnimationCompositionCompileIssueCode,
+  AnimationCompositionCompileResult,
+  AnimationCompositionProgram,
+  AnimationCompositionProgramBundle,
+  AnimationCompositionProgramEvent,
+  AnimationTimelineEffectMode,
+} from './animationCompositionCompiler';
+export type {
+  AnimationCompositionCancellationSignal,
+  AnimationCompositionCancellationController,
+  AnimationCompositionExecutionResult,
+  AnimationCompositionObservation,
+  AnimationCompositionRuntimePort,
+} from './animationCompositionRuntime';
+export type {
+  AnimationConflictContributor,
+  AnimationConflictCoordinator,
+  AnimationConflictIssue,
+  AnimationConflictLease,
+  AnimationConflictMode,
+  AnimationConflictRuntimeAdapter,
+  AnimationConflictValue,
+  AnimationRuntimePropertyDescriptor,
+  AnimationRuntimePropertyKind,
+  AnimationRuntimePropertyRegistry,
+  AnimationSemanticEffectTarget,
+} from './animationConflictRuntime';
+export type {
+  AnimationProjectMotionPolicy,
+  AnimationSystemMotionPreference,
+  AnimationVerificationMotionOverride,
+  ResolvedAnimationMotionPolicy,
+} from './animationMotionPolicy';
+export type {
+  AnimationCompositionArtifact,
+  AnimationExecutionSurface,
+  AnimationSurfaceRuntimeAdapter,
+} from './animationSurfaceRuntime';
 export type {
   AnimationEffectCapability,
   AnimationEffectHost,
@@ -96,7 +187,9 @@ export type {
   AnimationEffectTarget,
   AnimationFrameScheduler,
   AnimationPlayback,
+  AnimationPlaybackObservation,
   AnimationPlaybackResult,
+  AnimationPlaybackSnapshot,
   AnimationRuntimeContributor,
   AnimationRuntimeFrame,
   AnimationRuntimePort,
@@ -105,6 +198,7 @@ export type { StartAnimationPlaybackInput } from './animationPlayback';
 export type {
   AnimationExecutionJobOutput,
   CreateAnimationExecutionProviderOptions,
+  ResolveAnimationCodeRuntime,
   ResolveAnimationExecutionDocument,
   ResolveAnimationExecutionRuntime,
 } from './animationExecutionProvider';
@@ -117,3 +211,10 @@ export type {
   AnimationSemanticSourceInput,
   CreateAnimationSemanticContributionProviderInput,
 } from './animationSemanticContributionProvider';
+export type {
+  AnimationBehaviorExecutionTarget,
+  AnimationBehaviorCompositionExecutionTarget,
+  AnimationBehaviorTimelineExecutionTarget,
+  CreateAnimationBehaviorRuntimeAdaptersInput,
+  ResolveAnimationBehaviorExecutionTarget,
+} from './animationBehaviorContribution';

@@ -1,8 +1,10 @@
-import type {
-  AnimationDefinition,
-  AnimationTimeline,
-  AnimationTrack,
-  SvgFilterDefinition,
+import {
+  compileAnimationComposition,
+  type AnimationComposition,
+  type AnimationDefinition,
+  type AnimationTimeline,
+  type AnimationTrack,
+  type SvgFilterDefinition,
 } from '@prodivix/animation';
 import {
   resolveCssFilterUnit,
@@ -32,6 +34,20 @@ const createTimelineSourceTrace = (
       domain: 'animation',
       id: documentId,
       path: `/timelines/${index}`,
+    },
+    ownerRootId: documentId,
+  },
+];
+
+const createCompositionSourceTrace = (
+  documentId: string,
+  index: number
+): ExportSourceTrace[] => [
+  {
+    sourceRef: {
+      domain: 'animation',
+      id: documentId,
+      path: `/compositions/${index}`,
     },
     ownerRootId: documentId,
   },
@@ -235,11 +251,14 @@ export const ${input.exportName}Keyframes = ${JSON.stringify(
     2
   )} as const;
 
-export const ${input.exportName}SvgFilterPatches = ${JSON.stringify(
-    svgFilterPatchManifest,
-    null,
-    2
-  )} as const;
+export const ${input.exportName}SvgFilterPatches: readonly Readonly<{
+  bindingId: string;
+  targetNodeId: string;
+  filterId: string;
+  primitiveId: string;
+  attr: string;
+  keyframes: readonly Readonly<{ offset: number; value: number | string }>[];
+}>[] = ${JSON.stringify(svgFilterPatchManifest, null, 2)} as const;
 
 const create${input.exportName.charAt(0).toUpperCase()}${input.exportName.slice(1)}Keyframes = (
   keyframes: readonly Record<string, number | string>[]
@@ -405,12 +424,47 @@ export type CompileAnimationExportInput = Readonly<{
   definition: AnimationDefinition;
 }>;
 
+const createCompositionModuleBody = (input: {
+  exportName: string;
+  documentId: string;
+  targetDocumentId: string;
+  composition: AnimationComposition;
+  definition: AnimationDefinition;
+}): string => {
+  const compiled = compileAnimationComposition({
+    definition: input.definition,
+    compositionId: input.composition.id,
+  });
+  const bundle = compiled.ok
+    ? compiled.bundle
+    : Object.freeze({
+        status: 'blocked' as const,
+        compositionId: input.composition.id,
+        issues: compiled.issues,
+      });
+  return `export const ${input.exportName}ProgramBundle = ${JSON.stringify(
+    bundle,
+    null,
+    2
+  )} as const;
+
+export const ${input.exportName}Composition = createAnimationCompositionController(
+  ${input.exportName}ProgramBundle,
+  {
+    animationDocumentId: ${JSON.stringify(input.documentId)},
+    targetDocumentId: ${JSON.stringify(input.targetDocumentId)},
+  }
+);
+`;
+};
+
 export const compileAnimationExportContributions = (
   input: CompileAnimationExportInput
 ): ExportProgramContribution[] => {
   const definition = input.definition;
   const timelines = definition.timelines;
-  if (!timelines.length) return [];
+  const compositions = definition.compositions;
+  if (!timelines.length && !compositions.length) return [];
 
   const modules: ExportModule[] = [];
   const styles: ExportStyleContribution[] = [];
@@ -459,15 +513,63 @@ export const compileAnimationExportContributions = (
     });
   });
 
+  compositions.forEach((composition, index) => {
+    const exportName = toSafeExportIdentifier(
+      composition.name,
+      `composition${index + 1}`
+    );
+    const sourceTrace = createCompositionSourceTrace(input.documentId, index);
+    const moduleId = `animation-composition:${input.documentId}:${composition.id}`;
+    modules.push({
+      id: moduleId,
+      kind: 'animation-runtime',
+      ownerRootId: input.documentId,
+      suggestedName: `${exportName}Composition`,
+      language: 'ts',
+      imports: [],
+      body: createCompositionModuleBody({
+        exportName,
+        documentId: input.documentId,
+        targetDocumentId: definition.target.documentId,
+        composition,
+        definition,
+      }),
+      sourceTrace,
+      origin: {
+        kind: 'generated',
+        owner: 'prodivix',
+        writePolicy: 'generated',
+        updatePolicy: 'regenerate',
+      },
+    });
+    runtimeRequirements.push({
+      id: `animation-composition-runtime:${input.documentId}:${composition.id}`,
+      kind: 'animation-runtime',
+      ownerModuleId: moduleId,
+      importName: 'createAnimationCompositionController',
+      importKind: 'named',
+      sourceTrace,
+    });
+  });
+
   return [
     {
-      roots: timelines.map((timeline, index) => ({
-        id: `${input.documentId}:${timeline.id}`,
-        kind: 'animation',
-        displayName: timeline.name,
-        sourceRef: createTimelineSourceTrace(input.documentId, index)[0]
-          .sourceRef,
-      })),
+      roots: [
+        ...timelines.map((timeline, index) => ({
+          id: `${input.documentId}:${timeline.id}`,
+          kind: 'animation' as const,
+          displayName: timeline.name,
+          sourceRef: createTimelineSourceTrace(input.documentId, index)[0]
+            .sourceRef,
+        })),
+        ...compositions.map((composition, index) => ({
+          id: `${input.documentId}:${composition.id}`,
+          kind: 'animation' as const,
+          displayName: composition.name,
+          sourceRef: createCompositionSourceTrace(input.documentId, index)[0]
+            .sourceRef,
+        })),
+      ],
       modules,
       styles,
       files: createSvgFilterContribution(

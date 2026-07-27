@@ -303,6 +303,9 @@ importers:
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../../packages/authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../../packages/behavior
       '@prodivix/code-language':
         specifier: workspace:*
         version: link:../../packages/code-language
@@ -545,9 +548,15 @@ importers:
 
   packages/animation:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
@@ -617,6 +626,9 @@ importers:
 
   packages/behavior:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
       '@prodivix/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics
@@ -682,6 +694,9 @@ importers:
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
@@ -859,12 +874,24 @@ importers:
 
   packages/golden-conformance:
     dependencies:
+      '@prodivix/animation':
+        specifier: workspace:*
+        version: link:../animation
       '@prodivix/assets':
         specifier: workspace:*
         version: link:../assets
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
+      '@prodivix/data':
+        specifier: workspace:*
+        version: link:../data
+      '@prodivix/nodegraph':
+        specifier: workspace:*
+        version: link:../nodegraph
       '@prodivix/pir':
         specifier: workspace:*
         version: link:../pir
@@ -874,6 +901,9 @@ importers:
       '@prodivix/prodivix-compiler':
         specifier: workspace:*
         version: link:../prodivix-compiler
+      '@prodivix/router':
+        specifier: workspace:*
+        version: link:../router
       '@prodivix/runtime-browser':
         specifier: workspace:*
         version: link:../runtime-browser
@@ -939,9 +969,15 @@ importers:
 
   packages/nodegraph:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
       '@prodivix/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
@@ -970,6 +1006,9 @@ importers:
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
       '@prodivix/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics
@@ -1503,6 +1542,9 @@ importers:
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
       '@prodivix/shared':
         specifier: workspace:*
         version: link:../shared

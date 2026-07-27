@@ -93,8 +93,24 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       contentRev: 1,
       metaRev: 1,
       content: {
-        version: 1,
-        nodes: [{ id: 'validateCart', data: { value: 0 } }],
+        version: 2,
+        nodes: [
+          {
+            id: 'validateCart',
+            descriptorRef: { id: 'core.process', version: '1' },
+            ports: [
+              {
+                id: 'out.control.next',
+                direction: 'output',
+                flow: 'control',
+                required: false,
+                cardinality: 'single',
+              },
+            ],
+            configuration: { value: 0 },
+            editor: {},
+          },
+        ],
         edges: [],
       },
     },
@@ -144,14 +160,14 @@ const createNodeGraphCommand = (
   forwardOps: [
     {
       op: 'replace',
-      path: '/nodes/0/data/value',
+      path: '/nodes/0/configuration/value',
       value: 120,
     },
   ],
   reverseOps: [
     {
       op: 'replace',
-      path: '/nodes/0/data/value',
+      path: '/nodes/0/configuration/value',
       value: 0,
     },
   ],
@@ -618,7 +634,7 @@ describe('workspace history operations', () => {
       literal('Initial')
     );
     expect(undone.snapshot.docsById['graph-checkout'].content).toHaveProperty(
-      'nodes.0.data.value',
+      'nodes.0.configuration.value',
       0
     );
   });

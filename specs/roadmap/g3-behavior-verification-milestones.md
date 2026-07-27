@@ -9,21 +9,29 @@
 ## 当前判断
 
 G2 Exit Gate 已由 commit `3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184` 的 current-scope closure 通过，Global G3
-Product Gate 处于 `In Progress`。V0 owner/contract hard cut 已在当前 worktree 实现，2026-07-27 本地
-`pnpm run verify:g3:boundaries` 与 `pnpm run build` 通过；由于改动尚未提交，repository/CI evidence 仍待补。
-V1 Scenario authoring 是下一实施入口，V1-V8 均未开始。
+Product Gate 处于 `In Progress`。V0 owner/contract hard cut 与 V1 Scenario authoring 已在当前 worktree 实现，
+V2 Cross-domain behavior 与目标 Golden 已在当前 worktree 实现：真实 Preview/Export/CI adapter执行
+Route lifecycle → parallel(NodeGraph Program、Animation composition) → barrier → owner observation，
+并在 React/Vue 独立项目验证 authenticated Catalog optimistic conflict、full/reduced、visual/a11y/focus。
+NodeGraph current/wire v2、bounded loop/Auth/subgraph closure、first-party executable runtime、strict planner/
+debug protocol/Inspector，以及 Animation wire v2、target/property conflict、CodeSlot/shader、policy resolution
+都已进入同一 Gate。
+2026-07-27 本地 `pnpm run verify:g3:boundaries`、
+`pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 通过；
+`.github/workflows/g3-boundaries.yml` 已配置对应独立 Job。由于改动尚未提交，repository/CI identity 和远端
+Evidence 仍待补；V3-V8 尚未完成，NodeGraph live step/fresh replay bridge归入 V3。
 
-| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                      |
-| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地 boundary、codec、Command、migration conformance；commit/CI evidence 待补 |
-| V1 Scenario authoring      | Not Started | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | authoring/recorder/compiler/target relocation Gate                            |
-| V2 Cross-domain behavior   | Not Started | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | invoked Catalog behavior parity                                               |
-| V3 Deterministic replay    | Not Started | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | repeat/divergence/isolation/provider conformance                              |
-| V4 Impact/Policy/Plan      | Not Started | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate                             |
-| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                    |
-| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                      |
-| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                             |
-| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                          |
+| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                            |
+| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地 Gate 通过；workflow configured，commit/CI evidence 待补                        |
+| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地 authoring/compiler 与 React/Vue browser Golden 通过；远端 evidence 待补        |
+| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | V2 composition + React/Vue full/reduced browser Golden 本地通过；远端 evidence 待补 |
+| V3 Deterministic replay    | Not Started | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | repeat/divergence/isolation/provider conformance                                    |
+| V4 Impact/Policy/Plan      | Not Started | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate                                   |
+| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                          |
+| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                            |
+| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                   |
+| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                |
 
 ## V0：Owner 与 contract hard cut
 
@@ -51,12 +59,12 @@ V2/V6/V8 产品 closure；V0 contract 可继续，但不得用 mock application 
 
 ### 必须完成
 
-- [ ] manual/Route/PIR/Data trigger/action/observation first set。
-- [ ] stable semantic target exact/relocated/ambiguous/missing/incompatible。
-- [ ] Scenario CRUD/step editor/target picker/impact preview/undo/redo。
-- [ ] bounded Secret-free recorder draft、review、atomic adoption。
-- [ ] deterministic `BehaviorScenarioProgram`、capability manifest、SourceTrace 和 digest。
-- [ ] React/Vite 与 Vue/Vite semantic target conformance。
+- [x] manual/Route/PIR/Data trigger/action/observation first set。
+- [x] stable semantic target exact/relocated/ambiguous/missing/incompatible。
+- [x] Scenario CRUD/step editor/target picker/impact preview/undo/redo。
+- [x] bounded Secret-free recorder draft、review、atomic adoption。
+- [x] deterministic `BehaviorScenarioProgram`、capability manifest、SourceTrace 和 digest。
+- [x] React/Vite 与 Vue/Vite semantic target conformance。
 
 ### Golden slice
 
@@ -65,26 +73,68 @@ framework component identity。
 
 ## V2：Cross-domain behavior
 
+### 当前实现
+
+状态：`Implemented`（durable CI Evidence pending）：
+
+- [x] provider-neutral Program runtime 按 canonical dependency wave 执行 parallel/barrier，并做 capability、
+      runtime-zone、owner、取消、bounded value 与 assertion fail-closed。
+- [x] Route `navigate/location`、NodeGraph `invoke/output`、Animation `play/pause/resume/seek/cancel/state`
+      由各 domain contribution/adapter 提供；Behavior Core 不反向 import domain owner。
+- [x] NodeGraph strict planner 验证 explicit port/edge/descriptor、type/reachability/cycle/effect/capability，
+      生成 immutable dependency waves、SourceTrace/digest；domain debugger protocol 已覆盖 lease、breakpoint、
+      pause/step/continue/cancel/detach、bounded redacted values 与 late-completion fencing。
+- [x] NodeGraph current/wire v2、唯一 v1 edge migration、TypeScript/Go/Workspace/DB hard cut 已落地；
+      first-party runtime 执行 pure/control/state、Data/Route/Animation/Server、async/retry/cancel、CodeSlot/
+      subgraph，并以 bounded value、capability、transaction/CAS 与 generation fence fail closed。
+- [x] Animation current/wire v2、timeline marker observation、sequence/parallel/stagger/nested composition
+      compiler/logical runtime，以及 full/reduced required marker parity 已落地。
+- [x] 同一 canonical Workspace/Scenario 生成完整 step/domain SourceTrace；React/Vue standalone projection
+      复用同一 NodeGraph/Animation compiler contribution 与 runtime helper。
+- [x] 真实 Preview/Export/CI surface adapter在 exact revision/Program/artifact digest 下产生兼容结果；
+      React/Vue standalone target实际完成 typecheck/test/build/browser smoke。
+
+NodeGraph live `ExecutionSession` 尚未向 Inspector提供 debug snapshot/command bridge，普通 Run 的 step 控件
+因此 fail closed；fresh replay/live stepping是 V3 工作，不用 V2 Golden 冒充完成。V6/V8 的 Remote、
+Firefox/WebKit 与完整 performance/security Evidence matrix同样不属于 V2。
+
 ### NodeGraph
 
-- [ ] typed port/edge、descriptor、planner 和旧 edge migration。
-- [ ] pure/state/Data/Route/Animation/CodeSlot nodes。
-- [ ] async/error/retry/cancel/parallel/subgraph 与 temporary state transaction。
-- [ ] debugger lease、step/call stack/value projection/SourceTrace。
-- [ ] Preview/Export/CI invoked graph semantic parity。
+current/wire typed hard cut、旧 edge migration、strict planner、first-party executable runtime 与 domain
+debug protocol 已有 property/conformance coverage；bounded loop、Auth gateway、compile-time dependency
+closure、Behavior/frame correlation、产品 Inspector 与 cross-surface invoked parity均已关闭。
+
+- [x] typed port/edge、descriptor、planner 和旧 edge migration。
+- [x] pure/state/Data/Route/Animation/CodeSlot nodes。
+- [x] async/error/retry/cancel/parallel/subgraph 与 temporary state transaction。
+- [x] debugger lease、step/call stack/value projection/SourceTrace。
+- [x] Preview/Export/CI invoked graph semantic parity。
 
 ### Animation/Route
 
-- [ ] typed play/pause/resume/seek/cancel 与 marker observation。
-- [ ] sequence/parallel/stagger/nested composition 和 conflict arbitration。
-- [ ] Route exit/commit/materialize/enter、replacement/back/forward/deep link。
-- [ ] decorative/spatial/essential/continuous reduced-motion variant。
-- [ ] visual/a11y stable observation 与 React/Vue target conformance。
+Behavior adapter 与 logical-clock playback 已支持 stable instance 的 play/pause/resume/seek/
+cancel/state/marker；composition compiler/runtime 已覆盖 sequence/parallel/stagger/nested 与 full/reduced
+required marker parity。target/property conflict、Route lifecycle、policy override/CodeSlot/shader 与真实
+browser target matrix均已完成 V2 scope。
+
+- [x] typed play/pause/resume/seek/cancel 与 marker observation。
+- [x] sequence/parallel/stagger/nested composition。
+- [x] target/property conflict arbitration。
+- [x] Route exit/commit/materialize/enter、replacement/back/forward/deep link。
+- [x] decorative/spatial/essential/continuous reduced-motion semantic variant。
+- [x] visual/a11y stable observation 与 React/Vue target conformance。
 
 ### Golden slice
 
-Catalog optimistic mutation 触发 graph 派生状态；Route detail transition 包含 full/reduced animation；mutation conflict 经
-typed retry/rollback 后回到稳定、可访问状态。
+当前本地 V2 Golden 已验证：
+
+- authenticated Catalog semantic create-product 后，strict planned NodeGraph产生 `p2` 派生状态；
+- Route detail lifecycle 与 Animation composition 在 Preview/Export/CI × full/reduced 六个 cell 保持
+  required marker、result、Program digest、SourceTrace兼容；
+- optimistic mutation 的 stale rollback被 generation fence跳过，冲突返回
+  `DATA_OPTIMISTIC_CONFLICT`，rollback + higher-sequence retry提交后回到 Alpha/Beta/Gamma 稳定状态；
+- React/Vue独立生成项目完成 install、typecheck、test、production build 与 Chromium smoke，
+  目标特定截图 hash 可追踪，跨框架版面几何、ARIA、focus 和 operability一致。
 
 ## V3：Deterministic replay
 
@@ -211,7 +261,8 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 
 ## 计划 Gate 入口
 
-这些入口在实现时建立；当前均不得标记 Passed：
+前三个入口已建立并在当前 worktree 本地通过，但缺少 commit/CI identity，durable evidence 状态仍为
+`Configured / Evidence pending`；其余入口随对应 milestone 建立：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

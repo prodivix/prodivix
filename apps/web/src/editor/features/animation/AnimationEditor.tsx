@@ -5,6 +5,7 @@ import {
   createDefaultTimeline,
   createDefaultTrack,
   createEmptyAnimationDefinition,
+  encodeAnimationDefinition,
   type AnimationDefinition,
   type AnimationIdFactory,
 } from '@prodivix/animation';
@@ -196,7 +197,9 @@ function AnimationEditor() {
           path: identity.path,
           contentRev: 1,
           metaRev: 1,
-          content: createEmptyAnimationDefinition({ targetDocumentId }),
+          content: encodeAnimationDefinition(
+            createEmptyAnimationDefinition({ targetDocumentId })
+          ),
         },
         commandId: createWorkspaceClientOperationId('animation-create'),
         issuedAt: new Date().toISOString(),

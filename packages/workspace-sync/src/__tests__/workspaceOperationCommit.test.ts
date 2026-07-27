@@ -152,7 +152,7 @@ describe('planWorkspaceOperationCommit', () => {
     firstAfter.nodes.reverse();
     const secondBefore = createNodeGraphContent();
     const secondAfter = structuredClone(secondBefore);
-    secondAfter.nodes[0]!.data.label = 'Changed';
+    secondAfter.nodes[0]!.configuration.label = 'Changed';
     const workspace = createPirWorkspace(firstBefore, 'pir-graph');
     workspace.docsById['document-1']!.contentRev = Number.MAX_SAFE_INTEGER;
     workspace.docsById['document-2'] = {

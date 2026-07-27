@@ -1,8 +1,11 @@
 import {
+  decodeAnimationDefinition,
   validateAnimationDefinition,
+  type AnimationDecodeIssue,
   type AnimationDefinition,
-  type AnimationValidationIssue,
 } from '@prodivix/animation';
+import { ANIMATION_CURRENT_WIRE_VERSION } from '@prodivix/animation/wire';
+import { sameCanonicalJson } from '@prodivix/shared/canonical';
 import { compareUnicodeCodePoints } from './canonicalOrder';
 import type {
   WorkspaceCommandEnvelope,
@@ -42,6 +45,7 @@ export type WorkspaceAnimationReadResult =
       status: 'valid';
       document: WorkspaceAnimationDocument;
       decodedContent: AnimationDefinition;
+      sourceWireVersion: number;
     }>;
 
 export type CreateWorkspaceAnimationDocumentUpdateCommandInput = Readonly<{
@@ -58,10 +62,10 @@ const escapePointerSegment = (value: string): string =>
   value.replaceAll('~', '~0').replaceAll('/', '~1');
 
 const mapAnimationIssue = (
-  issue: AnimationValidationIssue
+  issue: AnimationDecodeIssue
 ): WorkspaceAnimationReadIssue => ({
   stage: 'decode',
-  code: issue.code,
+  code: 'ANI_DOCUMENT_INVALID',
   path: issue.path,
   message: issue.message,
 });
@@ -85,7 +89,16 @@ const validateTarget = (
 
 export const isCanonicalWorkspaceAnimationDocumentContent = (
   content: unknown
-): content is AnimationDefinition => validateAnimationDefinition(content).valid;
+): boolean => {
+  const current = validateAnimationDefinition(content);
+  if (current.valid) return true;
+  const decoded = decodeAnimationDefinition(content);
+  return (
+    decoded.ok &&
+    decoded.sourceWireVersion === ANIMATION_CURRENT_WIRE_VERSION &&
+    validateAnimationDefinition(decoded.value).valid
+  );
+};
 
 export const decodeWorkspaceAnimationDocument = (
   document: WorkspaceDocument,
@@ -94,28 +107,59 @@ export const decodeWorkspaceAnimationDocument = (
   if (document.type !== 'pir-animation') {
     return { status: 'unsupported-document-type', document };
   }
-  const validation = validateAnimationDefinition(document.content);
-  if (!validation.valid) {
+  const current = validateAnimationDefinition(document.content);
+  if (current.valid) {
+    const targetIssues = snapshot
+      ? validateTarget(snapshot, current.definition)
+      : [];
+    if (targetIssues.length > 0) {
+      return { status: 'invalid', document, issues: targetIssues };
+    }
+    const typedDocument = Object.freeze({
+      ...document,
+      content: current.definition,
+    }) as WorkspaceAnimationDocument;
+    return {
+      status: 'valid',
+      document: typedDocument,
+      decodedContent: current.definition,
+      sourceWireVersion: ANIMATION_CURRENT_WIRE_VERSION,
+    };
+  }
+  const decoded = decodeAnimationDefinition(document.content);
+  if (!decoded.ok) {
     return {
       status: 'invalid',
       document,
-      issues: validation.issues.map(mapAnimationIssue),
+      issues: decoded.issues.map(mapAnimationIssue),
     };
   }
-  const targetIssues = snapshot
-    ? validateTarget(snapshot, validation.definition)
-    : [];
+  const semanticValidation = validateAnimationDefinition(decoded.value);
+  if (!semanticValidation.valid) {
+    return {
+      status: 'invalid',
+      document,
+      issues: semanticValidation.issues.map((issue) => ({
+        stage: 'decode' as const,
+        code: issue.code,
+        path: issue.path,
+        message: issue.message,
+      })),
+    };
+  }
+  const targetIssues = snapshot ? validateTarget(snapshot, decoded.value) : [];
   if (targetIssues.length > 0) {
     return { status: 'invalid', document, issues: targetIssues };
   }
   const typedDocument = Object.freeze({
     ...document,
-    content: validation.definition,
+    content: decoded.value,
   }) as WorkspaceAnimationDocument;
   return {
     status: 'valid',
     document: typedDocument,
-    decodedContent: validation.definition,
+    decodedContent: decoded.value,
+    sourceWireVersion: decoded.sourceWireVersion,
   };
 };
 
@@ -147,9 +191,6 @@ export const selectWorkspaceAnimationDocumentResults = (
     )
     .map((document) => decodeWorkspaceAnimationDocument(document, snapshot));
 
-const valuesEqual = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(left) === JSON.stringify(right);
-
 const appendPatch = (
   forwardOps: WorkspacePatchOperation[],
   reverseOps: WorkspacePatchOperation[],
@@ -157,7 +198,7 @@ const appendPatch = (
   before: unknown,
   after: unknown
 ): void => {
-  if (valuesEqual(before, after)) return;
+  if (sameCanonicalJson(before, after)) return;
   if (before === undefined) {
     forwardOps.push({ op: 'add', path, value: after });
     reverseOps.unshift({ op: 'remove', path });
@@ -181,6 +222,9 @@ export const createWorkspaceAnimationDocumentUpdateCommand = (
     input.documentId
   );
   if (current?.status !== 'valid') return null;
+  if (current.sourceWireVersion !== ANIMATION_CURRENT_WIRE_VERSION) {
+    return null;
+  }
   const afterValidation = validateAnimationDefinition(input.after);
   if (!afterValidation.valid) return null;
   if (validateTarget(input.workspace, afterValidation.definition).length > 0) {
@@ -198,6 +242,20 @@ export const createWorkspaceAnimationDocumentUpdateCommand = (
     '/timelines',
     before.timelines,
     after.timelines
+  );
+  appendPatch(
+    forwardOps,
+    reverseOps,
+    '/compositions',
+    before.compositions,
+    after.compositions
+  );
+  appendPatch(
+    forwardOps,
+    reverseOps,
+    '/entryCompositionId',
+    before.entryCompositionId,
+    after.entryCompositionId
   );
   appendPatch(
     forwardOps,
@@ -238,9 +296,17 @@ export const validateWorkspaceAnimationTargets = (
 ): WorkspaceValidationIssue[] =>
   Object.values(snapshot.docsById).flatMap((document) => {
     if (document.type !== 'pir-animation') return [];
-    const validation = validateAnimationDefinition(document.content);
-    if (!validation.valid) return [];
-    const targetDocumentId = validation.definition.target.documentId;
+    const current = validateAnimationDefinition(document.content);
+    const definition = current.valid
+      ? current.definition
+      : (() => {
+          const decoded = decodeAnimationDefinition(document.content);
+          return decoded.ok && validateAnimationDefinition(decoded.value).valid
+            ? decoded.value
+            : undefined;
+        })();
+    if (!definition) return [];
+    const targetDocumentId = definition.target.documentId;
     const target = snapshot.docsById[targetDocumentId];
     if (target && isWorkspacePirDocumentType(target.type)) return [];
     return [

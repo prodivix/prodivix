@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createDefaultTimeline,
+  encodeAnimationDefinition,
   type AnimationDefinition,
 } from '@prodivix/animation';
 import { createEmptyPirDocument } from '@prodivix/pir';
@@ -14,7 +15,6 @@ import { useEditorStore } from '@/editor/store/useEditorStore';
 import { resetEditorStore } from '@/test-utils/editorStore';
 
 const createAnimation = (name: string): AnimationDefinition => ({
-  version: 1,
   target: { kind: 'pir-document', documentId: 'page-home' },
   timelines: [
     {
@@ -24,6 +24,7 @@ const createAnimation = (name: string): AnimationDefinition => ({
       name,
     },
   ],
+  compositions: [],
 });
 
 const createWorkspace = (
@@ -73,20 +74,22 @@ const createWorkspace = (
       path: '/animations/home.pir-animation.json',
       contentRev: 1,
       metaRev: 1,
-      content: animation,
+      content: encodeAnimationDefinition(animation),
     },
   },
   routeManifest: { version: '1', root: { id: 'route-root' } },
 });
 
 const createKeyframedAnimation = (): AnimationDefinition => ({
-  version: 1,
   target: { kind: 'pir-document', documentId: 'page-home' },
   timelines: [
     {
       id: 'timeline-test',
       name: 'Timeline',
       durationMs: 1000,
+      motionIntent: 'decorative',
+      reducedMotion: { kind: 'final-state' },
+      markers: [],
       bindings: [
         {
           id: 'binding-1',
@@ -106,6 +109,7 @@ const createKeyframedAnimation = (): AnimationDefinition => ({
       ],
     },
   ],
+  compositions: [],
 });
 
 const renderKeyframeEditorState = () => {
@@ -156,6 +160,38 @@ describe('Animation keyframe time moves', () => {
   });
 });
 
+describe('Animation composition commands', () => {
+  beforeEach(() => resetEditorStore());
+
+  it('authors, renames, selects, and removes a composition through Workspace state', () => {
+    const { result, unmount } = renderKeyframeEditorState();
+    let compositionId = '';
+    act(() => {
+      compositionId = result.current.addComposition();
+    });
+    expect(result.current.animation.compositions[0]).toMatchObject({
+      id: compositionId,
+      root: {
+        kind: 'timeline-ref',
+        timelineId: 'timeline-test',
+      },
+    });
+    expect(result.current.animation.entryCompositionId).toBe(compositionId);
+
+    act(() => {
+      result.current.updateCompositionName(compositionId, 'Detail enter');
+    });
+    expect(result.current.animation.compositions[0]?.name).toBe('Detail enter');
+
+    act(() => {
+      result.current.deleteComposition(compositionId);
+    });
+    expect(result.current.animation.compositions).toEqual([]);
+    expect(result.current.animation.entryCompositionId).toBeUndefined();
+    unmount();
+  });
+});
+
 describe('useAnimationEditorState workspace synchronization', () => {
   beforeEach(() => resetEditorStore());
 
@@ -192,7 +228,7 @@ describe('useAnimationEditorState workspace synchronization', () => {
             ...current.docsById,
             'animation-home': {
               ...document,
-              content: externalAnimation,
+              content: encodeAnimationDefinition(externalAnimation),
             },
           },
         },
@@ -204,7 +240,7 @@ describe('useAnimationEditorState workspace synchronization', () => {
     });
     expect(
       useEditorStore.getState().workspace?.docsById['animation-home']?.content
-    ).toEqual(externalAnimation);
+    ).toEqual(encodeAnimationDefinition(externalAnimation));
     expect(
       useEditorStore.getState().documentEditSeqById['animation-home']
     ).toBe(undefined);

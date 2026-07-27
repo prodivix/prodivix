@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 import {
   createBinaryAssetBlobReference,
   createBinaryAssetMaterialization,
 } from '@prodivix/assets';
+import { encodeAnimationDefinition } from '@prodivix/animation';
+import { encodeNodeGraphDocument } from '@prodivix/nodegraph';
 import { createEmptyPirDocument } from '@prodivix/pir';
 import {
   projectExecutableProjectRuntimeFiles,
@@ -64,13 +67,70 @@ const workspace: WorkspaceSnapshot = {
       id: 'graph-main',
       type: 'pir-graph',
       path: '/main.pir-graph.json',
-      contentRev: 1,
+      contentRev: 7,
       metaRev: 1,
-      content: {
-        version: 1,
-        nodes: [{ id: 'start', data: { kind: 'start' } }],
-        edges: [],
-      },
+      content: encodeNodeGraphDocument({
+        nodes: [
+          {
+            id: 'start',
+            descriptorRef: { id: 'core.start', version: '1' },
+            ports: [
+              {
+                id: 'out.control.next',
+                direction: 'output',
+                flow: 'control',
+                required: false,
+                cardinality: 'single',
+              },
+              {
+                id: 'out.data.value',
+                direction: 'output',
+                flow: 'data',
+                typeRef: 'json',
+                required: false,
+                cardinality: 'single',
+              },
+            ],
+            configuration: {},
+            editor: {},
+          },
+          {
+            id: 'end',
+            descriptorRef: { id: 'core.end', version: '1' },
+            ports: [
+              {
+                id: 'in.control.prev',
+                direction: 'input',
+                flow: 'control',
+                required: true,
+                cardinality: 'single',
+              },
+              {
+                id: 'in.data.value',
+                direction: 'input',
+                flow: 'data',
+                typeRef: 'json',
+                required: true,
+                cardinality: 'single',
+              },
+            ],
+            configuration: {},
+            editor: {},
+          },
+        ],
+        edges: [
+          {
+            id: 'start-end-control',
+            source: { nodeId: 'start', portId: 'out.control.next' },
+            target: { nodeId: 'end', portId: 'in.control.prev' },
+          },
+          {
+            id: 'start-end-data',
+            source: { nodeId: 'start', portId: 'out.data.value' },
+            target: { nodeId: 'end', portId: 'in.data.value' },
+          },
+        ],
+      }),
     },
     'animation-main': {
       id: 'animation-main',
@@ -78,18 +138,33 @@ const workspace: WorkspaceSnapshot = {
       path: '/main.pir-animation.json',
       contentRev: 1,
       metaRev: 1,
-      content: {
-        version: 1,
+      content: encodeAnimationDefinition({
         target: { kind: 'pir-document', documentId: 'page' },
         timelines: [
           {
             id: 'timeline-main',
             name: 'Main',
             durationMs: 300,
+            motionIntent: 'decorative',
+            reducedMotion: { kind: 'final-state' },
+            markers: [],
             bindings: [],
           },
         ],
-      },
+        compositions: [
+          {
+            id: 'main-composition',
+            name: 'Main composition',
+            motionIntent: 'decorative',
+            root: {
+              id: 'main-composition-root',
+              kind: 'timeline-ref',
+              timelineId: 'timeline-main',
+            },
+          },
+        ],
+        entryCompositionId: 'main-composition',
+      }),
     },
   },
   routeManifest: {
@@ -462,11 +537,151 @@ describe('standalone domain export conformance', () => {
       expect.arrayContaining([
         'nodegraph:graph-main',
         'animation:animation-main:timeline-main',
+        'animation-composition:animation-main:main-composition',
       ])
     );
+    const graphModule = program.modules.find(
+      ({ id }) => id === 'nodegraph:graph-main'
+    );
+    const compositionModule = program.modules.find(
+      ({ id }) => id === 'animation-composition:animation-main:main-composition'
+    );
+    expect(graphModule?.body).toContain('programDigest');
+    expect(graphModule?.body).toContain('"documentRevision": 7');
+    expect(graphModule?.body).not.toContain('context.definition');
+    expect(compositionModule?.body).toContain(
+      'createAnimationCompositionController'
+    );
+    expect(compositionModule?.body).toContain('ProgramBundle');
     expect(program.diagnostics).not.toContainEqual(
       expect.objectContaining({ code: 'WKS-EXPORT-DOCUMENT-UNSUPPORTED' })
     );
+  });
+
+  it('executes the emitted immutable NodeGraph Program and rejects digest drift', async () => {
+    const bundle = generateWorkspaceReactViteBundle(workspace);
+    const runtime = bundle.files.find(
+      ({ path }) => path === 'src/runtime/nodegraph-runtime.ts'
+    )?.contents;
+    const graph = bundle.files.find(({ path }) =>
+      path.includes('/logic/nodegraphs/')
+    )?.contents;
+    if (typeof runtime !== 'string' || typeof graph !== 'string') {
+      throw new Error('Expected generated NodeGraph runtime modules.');
+    }
+    const combined = `${runtime}\n${graph.replace(/^import .*;\r?\n/gmu, '')}`;
+    const javascript = ts.transpileModule(combined, {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ES2022,
+      },
+    }).outputText;
+    const generated = (await import(
+      `data:text/javascript;base64,${Buffer.from(javascript).toString('base64')}`
+    )) as Record<string, unknown>;
+    const executorEntry = Object.entries(generated).find(
+      ([name, value]) =>
+        typeof value === 'function' && name !== 'createNodeGraphExecutor'
+    );
+    if (!executorEntry || typeof executorEntry[1] !== 'function') {
+      throw new Error('Expected one generated NodeGraph executor.');
+    }
+    const traces: unknown[] = [];
+    await expect(
+      executorEntry[1](
+        { productId: 'p2' },
+        { onTrace: (trace: unknown) => traces.push(trace) }
+      )
+    ).resolves.toEqual({ productId: 'p2' });
+    expect(traces).toHaveLength(4);
+
+    const programEntry = Object.entries(generated).find(([name]) =>
+      name.endsWith('Program')
+    );
+    if (!programEntry || !programEntry[1]) {
+      throw new Error('Expected one generated NodeGraph Program.');
+    }
+    const createExecutor = generated.createNodeGraphExecutor;
+    if (typeof createExecutor !== 'function') {
+      throw new Error('Expected the portable NodeGraph runtime factory.');
+    }
+    const tampered = {
+      ...(programEntry[1] as Record<string, unknown>),
+      programDigest:
+        'sha256-0000000000000000000000000000000000000000000000000000000000000000',
+    };
+    await expect(
+      (createExecutor as (program: unknown) => (input: unknown) => unknown)(
+        tampered
+      )({})
+    ).rejects.toThrow(/digest mismatch/u);
+  });
+
+  it('executes the emitted full/reduced Animation composition controller', async () => {
+    const bundle = generateWorkspaceReactViteBundle(workspace);
+    const runtime = bundle.files.find(
+      ({ path }) => path === 'src/runtime/animation-runtime.ts'
+    )?.contents;
+    const composition = bundle.files.find(
+      ({ contents }) =>
+        typeof contents === 'string' &&
+        contents.includes('createAnimationCompositionController') &&
+        contents.includes('ProgramBundle')
+    )?.contents;
+    if (typeof runtime !== 'string' || typeof composition !== 'string') {
+      throw new Error('Expected generated Animation composition modules.');
+    }
+    const javascript = ts.transpileModule(
+      `${runtime}\n${composition.replace(/^import .*;\r?\n/gmu, '')}`,
+      {
+        compilerOptions: {
+          target: ts.ScriptTarget.ES2022,
+          module: ts.ModuleKind.ES2022,
+        },
+      }
+    ).outputText;
+    const generated = (await import(
+      `data:text/javascript;base64,${Buffer.from(javascript).toString('base64')}`
+    )) as Record<string, unknown>;
+    const controller = Object.values(generated).find(
+      (value) =>
+        value &&
+        typeof value === 'object' &&
+        'run' in value &&
+        typeof value.run === 'function'
+    ) as
+      | Readonly<{
+          run(options: unknown): Promise<{
+            status: string;
+            observations: readonly unknown[];
+          }>;
+        }>
+      | undefined;
+    if (!controller) {
+      throw new Error('Expected one generated Animation controller.');
+    }
+    const applied: unknown[] = [];
+    const result = await controller.run({
+      motionMode: 'reduced',
+      instanceId: 'catalog-enter',
+      generation: 'route-generation-1',
+      clock: { advanceTo: () => undefined },
+      apply: (event: unknown) => applied.push(event),
+    });
+    expect(result.status).toBe('completed');
+    expect(result.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'composition-started',
+          motionMode: 'reduced',
+        }),
+        expect.objectContaining({
+          kind: 'composition-completed',
+          motionMode: 'reduced',
+        }),
+      ])
+    );
+    expect(applied.length).toBeGreaterThan(0);
   });
 
   it('produces the provider-neutral executable project from the exact revision', () => {
@@ -611,7 +826,8 @@ describe('standalone domain export conformance', () => {
     expect(page?.contents).toContain('runtimeValuesById');
     expect(entry?.contents).toContain('workspaceDataRuntime');
     expect(entry?.contents).toContain("import './prodivix-console-runtime';");
-    expect(entry?.contents).toContain('__pdxRouteId={match.routeNodeId}');
+    expect(entry?.contents).toContain('renderWorkspaceRouteComposition(');
+    expect(entry?.contents).toContain('__pdxRouteId={activeRouteId}');
     expect(
       projectExecutableProjectRuntimeFiles(result.snapshot).find(
         ({ path }) => path === 'public/.prodivix/data-mock-provision.json'

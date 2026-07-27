@@ -1,6 +1,7 @@
 import { exportDependenciesToPackageFields } from '#src/export/dependencyPlanner';
 import { collectScaffoldReservedPaths } from '#src/export/pathOwnership';
 import { createPirEntrySurfaceCss } from '#src/export/pirEntrySurface';
+import { DOMAIN_RUNTIME_MODULE_FACTORIES } from '#src/export/presets/domainRuntimeFactories';
 import type {
   ExportFileContribution,
   ExportPlannerPreset,
@@ -220,4 +221,5 @@ export const createVueViteExportPreset = (): ExportPlannerPreset => ({
     VUE_VITE_SOURCE_ROOT
   ),
   createScaffoldContributions: createVueViteScaffoldContributions,
+  runtimeModuleFactories: DOMAIN_RUNTIME_MODULE_FACTORIES,
 });

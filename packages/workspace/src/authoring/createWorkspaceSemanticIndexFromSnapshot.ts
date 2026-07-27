@@ -43,6 +43,10 @@ import {
   type WorkspaceDataSourceReadResult,
 } from '../workspaceDataSourceDocument';
 import {
+  decodeWorkspaceBehaviorVerificationDocument,
+  type WorkspaceBehaviorVerificationReadResult,
+} from '../workspaceBehaviorVerificationDocument';
+import {
   collectWorkspaceDesignTokenResolverDocumentReferences,
   decodeWorkspaceDesignTokenResolverDocument,
   type WorkspaceDesignTokenResolverReadResult,
@@ -52,6 +56,7 @@ import {
   type WorkspaceAssetDocumentContent,
 } from '../workspaceResourceDocument';
 import { createWorkspaceAssetSemanticContributionProvider } from './workspaceAssetSemanticContributionProvider';
+import { createWorkspaceBehaviorSemanticContributionProvider } from './workspaceBehaviorSemanticContributionProvider';
 import { createWorkspaceSemanticContributionProvider } from './workspaceSemanticContributionProvider';
 import { captureWorkspaceSemanticRevisions } from './workspaceSemanticRevision';
 import { readWorkspaceExternalAdapterConfig } from './workspaceExternalAdapter';
@@ -125,6 +130,10 @@ type ValidWorkspaceAssetDocument = Readonly<{
   metaRev: number;
   content: WorkspaceAssetDocumentContent;
 }>;
+type ValidWorkspaceBehaviorScenarioRead = Extract<
+  WorkspaceBehaviorVerificationReadResult<'behavior-scenario'>,
+  Readonly<{ status: 'valid' }>
+>;
 
 const compareText = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
@@ -472,6 +481,50 @@ const collectDataSourceDocuments = (
     : Object.freeze({ status: 'ready', reads: Object.freeze(reads) });
 };
 
+const collectBehaviorScenarioDocuments = (
+  snapshot: WorkspaceSnapshot
+):
+  | Readonly<{
+      status: 'ready';
+      reads: readonly ValidWorkspaceBehaviorScenarioRead[];
+    }>
+  | Readonly<{
+      status: 'blocked';
+      issues: readonly WorkspaceSemanticIndexIssue[];
+    }> => {
+  const reads: ValidWorkspaceBehaviorScenarioRead[] = [];
+  const issues: WorkspaceSemanticIndexIssue[] = [];
+  for (const document of Object.values(snapshot.docsById)
+    .filter((candidate) => candidate.type === 'behavior-scenario')
+    .sort(
+      (left, right) =>
+        compareText(left.id, right.id) || compareText(left.path, right.path)
+    )) {
+    const read = decodeWorkspaceBehaviorVerificationDocument(
+      document,
+      'behavior-scenario'
+    );
+    if (read.status === 'valid') {
+      reads.push(read);
+      continue;
+    }
+    if (read.status === 'invalid') {
+      issues.push(
+        ...read.issues.map((issue): WorkspaceSemanticIndexIssue => ({
+          code: WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES.documentInvalid,
+          path: qualifyDocumentPath(document.id, issue.path),
+          message: issue.message,
+          causeCode: issue.code,
+          documentId: document.id,
+        }))
+      );
+    }
+  }
+  return issues.length
+    ? Object.freeze({ status: 'blocked', issues: Object.freeze(issues) })
+    : Object.freeze({ status: 'ready', reads: Object.freeze(reads) });
+};
+
 const mapComponentGraphIssue = (
   issue: WorkspaceComponentGraphIssue
 ): WorkspaceSemanticIndexIssue => ({
@@ -541,6 +594,10 @@ export const createWorkspaceSemanticIndexFromSnapshot = (
   if (assets.status === 'blocked') return blocked(assets.issues);
   const dataSources = collectDataSourceDocuments(snapshot);
   if (dataSources.status === 'blocked') return blocked(dataSources.issues);
+  const behaviorScenarios = collectBehaviorScenarioDocuments(snapshot);
+  if (behaviorScenarios.status === 'blocked') {
+    return blocked(behaviorScenarios.issues);
+  }
   const externalAdapters = readWorkspaceExternalAdapterConfig(snapshot);
   if (externalAdapters.status === 'invalid') {
     return blocked(
@@ -580,6 +637,14 @@ export const createWorkspaceSemanticIndexFromSnapshot = (
           ...(read.document.name ? { displayName: read.document.name } : {}),
           revision: workspaceRevisions.documentRevs[read.document.id]!,
           content: read.decodedContent,
+        })),
+      }),
+      createWorkspaceBehaviorSemanticContributionProvider({
+        workspaceId: snapshot.id,
+        documents: behaviorScenarios.reads.map((read) => ({
+          documentId: read.document.id,
+          revision: workspaceRevisions.documentRevs[read.document.id]!,
+          scenario: read.decodedContent,
         })),
       }),
       createRouteSemanticContributionProvider({

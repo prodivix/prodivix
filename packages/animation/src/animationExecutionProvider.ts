@@ -12,6 +12,11 @@ import {
   type ExecutionValue,
 } from '@prodivix/runtime-core';
 import { isSupportedAnimationEasing } from './animationEvaluation';
+import {
+  prepareAnimationCodeRuntime,
+  type AnimationCodeRuntimeGateway,
+  type AnimationCodeRuntimeSession,
+} from './animationCodeRuntime';
 import { startAnimationPlayback } from './animationPlayback';
 import type {
   AnimationDefinition,
@@ -21,6 +26,7 @@ import type {
 import {
   getAnimationTimelineTotalDurationMs,
   getAnimationTrackEffectCapability,
+  type AnimationEffectLease,
   type AnimationPlayback,
   type AnimationPlaybackResult,
   type AnimationRuntimePort,
@@ -38,9 +44,17 @@ export type ResolveAnimationExecutionRuntime = (
   request: ExecutionRequest
 ) => AnimationRuntimePort | Promise<AnimationRuntimePort>;
 
+export type ResolveAnimationCodeRuntime = (
+  request: ExecutionRequest
+) =>
+  | AnimationCodeRuntimeGateway
+  | null
+  | Promise<AnimationCodeRuntimeGateway | null>;
+
 export type CreateAnimationExecutionProviderOptions = Readonly<{
   resolveDocument: ResolveAnimationExecutionDocument;
   resolveRuntime: ResolveAnimationExecutionRuntime;
+  resolveCodeRuntime?: ResolveAnimationCodeRuntime;
   createJobId?: (request: ExecutionRequest) => string;
   now?: () => number;
   scheduleTimeout?: (callback: () => void, timeoutMs: number) => () => void;
@@ -210,18 +224,6 @@ const findRuntimeIssue = (
   timeline: AnimationTimeline,
   runtime: AnimationRuntimePort
 ): AnimationRuntimeIssue | undefined => {
-  if (
-    timeline.codeSlots?.customEasing ||
-    timeline.codeSlots?.shader ||
-    timeline.codeSlots?.script
-  ) {
-    return {
-      code: 'ANI-5101',
-      message:
-        'This animation uses a CodeSlot that is not executable in the selected runtime.',
-      targetRef: timelineTarget(documentId, timeline.id),
-    };
-  }
   const easingIssue = findUnsupportedEasing(documentId, timeline);
   if (easingIssue) return easingIssue;
   const declaredCapabilities = new Set(runtime.effects.descriptor.capabilities);
@@ -258,6 +260,56 @@ const findRuntimeIssue = (
   }
   return undefined;
 };
+
+const withCodeRuntimeSession = (
+  runtime: AnimationRuntimePort,
+  session: AnimationCodeRuntimeSession
+): AnimationRuntimePort =>
+  Object.freeze({
+    scheduler: runtime.scheduler,
+    effects: Object.freeze({
+      descriptor: runtime.effects.descriptor,
+      supportsTarget: runtime.effects.supportsTarget,
+      async acquire(
+        input: Parameters<AnimationRuntimePort['effects']['acquire']>[0]
+      ) {
+        if (session.contextLost()) {
+          throw new Error(
+            'Animation CodeSlot context was lost before effect acquisition.'
+          );
+        }
+        let lease;
+        try {
+          lease = await runtime.effects.acquire(input);
+        } catch (error) {
+          await session.release('failed');
+          throw error;
+        }
+        let released = false;
+        return Object.freeze({
+          applyFrame(frame: Parameters<AnimationEffectLease['applyFrame']>[0]) {
+            if (session.contextLost()) {
+              throw new Error(
+                'Animation CodeSlot context was lost during playback.'
+              );
+            }
+            return lease.applyFrame(frame);
+          },
+          async release(
+            outcome: Parameters<AnimationEffectLease['release']>[0]
+          ) {
+            if (released) return;
+            released = true;
+            try {
+              await lease.release(outcome);
+            } finally {
+              await session.release(outcome.outcome);
+            }
+          },
+        });
+      },
+    }),
+  });
 
 const findTrackForFailure = (
   documentId: string,
@@ -400,17 +452,21 @@ export const createAnimationExecutionProvider = (
         id: timelineId,
         name: timelineId,
         durationMs: 1,
+        motionIntent: 'decorative',
+        reducedMotion: { kind: 'final-state' },
+        markers: [],
         bindings: [],
       };
 
       const execute = async (): Promise<void> => {
+        let codeRuntimeSession: AnimationCodeRuntimeSession | undefined;
         if (cancellation.aborted) {
           controller.finishCancelled(String(cancellation.reason));
           return;
         }
         controller.markStarting();
         try {
-          const [resolvedDefinition, runtime] = await Promise.all([
+          const [resolvedDefinition, resolvedRuntime] = await Promise.all([
             options.resolveDocument(request),
             options.resolveRuntime(request),
           ]);
@@ -450,7 +506,7 @@ export const createAnimationExecutionProvider = (
             documentId,
             definition,
             timeline,
-            runtime
+            resolvedRuntime
           );
           if (issue) {
             controller.emitDiagnostic({
@@ -469,6 +525,77 @@ export const createAnimationExecutionProvider = (
             });
             return;
           }
+          const codeSlots = timeline.codeSlots;
+          const hasCodeSlots = Boolean(
+            codeSlots?.customEasing || codeSlots?.shader || codeSlots?.script
+          );
+          if (hasCodeSlots) {
+            const gateway = await options.resolveCodeRuntime?.(request);
+            if (!gateway) {
+              const message =
+                'This animation uses a CodeSlot that is not executable in the selected runtime.';
+              controller.emitDiagnostic({
+                code: 'ANI-5101',
+                severity: 'error',
+                domain: 'animation',
+                message,
+                retryable: false,
+                targetRef: target,
+              });
+              controller.fail({
+                code: 'ANIMATION_RUNTIME_UNSUPPORTED',
+                message,
+                retryable: false,
+                sourceTrace: trace,
+              });
+              return;
+            }
+            const prepared = await prepareAnimationCodeRuntime({
+              bindings: codeSlots ?? {},
+              gateway,
+              motionMode: 'full',
+              signal: cancellation,
+            });
+            if (prepared.status === 'blocked') {
+              controller.emitDiagnostic({
+                code:
+                  prepared.issue.code === 'code-slot-capability-forbidden'
+                    ? 'ANI-5103'
+                    : prepared.issue.code === 'code-slot-contract-invalid'
+                      ? 'ANI-5104'
+                      : 'ANI-5101',
+                severity: 'error',
+                domain: 'animation',
+                message: prepared.issue.safeMessage,
+                retryable: false,
+                targetRef: target,
+              });
+              controller.fail({
+                code: 'ANIMATION_RUNTIME_UNSUPPORTED',
+                message: prepared.issue.safeMessage,
+                retryable: false,
+                sourceTrace: trace,
+              });
+              return;
+            }
+            codeRuntimeSession = prepared.session;
+            for (const log of prepared.session.compileLogs) {
+              controller.emitLog({
+                stream: 'console',
+                level: 'info',
+                message: `[${log.role}] ${log.text}`,
+                sourceTrace: trace,
+              });
+            }
+          }
+          if (cancellation.aborted) {
+            await codeRuntimeSession?.release('cancelled');
+            controller.finishCancelled(String(cancellation.reason));
+            return;
+          }
+          const runtime = codeRuntimeSession
+            ? withCodeRuntimeSession(resolvedRuntime, codeRuntimeSession)
+            : resolvedRuntime;
           const lease = await runtime.effects.acquire({
             playbackId: controller.job.id,
             animationDocumentId: documentId,
@@ -525,6 +652,13 @@ export const createAnimationExecutionProvider = (
           });
           settlePlayback(await playback.completion);
         } catch (error) {
+          await codeRuntimeSession?.release(
+            timeoutRequested
+              ? 'timed-out'
+              : cancellation.aborted
+                ? 'cancelled'
+                : 'failed'
+          );
           if (!canPublish(controller)) return;
           if (cancellation.aborted && !timeoutRequested) {
             controller.finishCancelled(String(cancellation.reason));

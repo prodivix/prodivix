@@ -16,13 +16,16 @@ import {
   type WorkspaceScopeContribution,
   type WorkspaceSymbolContribution,
 } from '@prodivix/authoring';
-import { decodeNodeGraphDocument } from '../nodeGraphCodec';
+import {
+  decodeNodeGraphDocument,
+  validateNodeGraphDocument,
+} from '../nodeGraphCodec';
 import type { NodeGraphDocument, NodeGraphNode } from '../nodeGraph.types';
 import { createNodeGraphExecutorCodeReferenceId } from './nodeGraphCodeSlotProvider';
 
 export const NODEGRAPH_SEMANTIC_PROVIDER_DESCRIPTOR = Object.freeze({
   id: 'core.nodegraph',
-  semanticVersion: '3',
+  semanticVersion: '4',
 });
 
 export type NodeGraphSemanticDocumentInput = Readonly<{
@@ -57,10 +60,8 @@ const freezeFacts = <Fact extends { id: string }>(
   );
 
 const getNodeDisplayName = (node: NodeGraphNode): string => {
-  const label =
-    typeof node.data.label === 'string' ? node.data.label.trim() : '';
-  const kind = typeof node.data.kind === 'string' ? node.data.kind.trim() : '';
-  return label || kind || node.type || node.id;
+  const label = node.editor.label?.trim() ?? '';
+  return label || node.descriptorRef.id || node.id;
 };
 
 const assertRevision = (
@@ -84,6 +85,8 @@ const assertRevision = (
 const decodeContent = (
   source: NodeGraphSemanticDocumentInput
 ): NodeGraphDocument => {
+  const current = validateNodeGraphDocument(source.content);
+  if (current.ok) return current.value;
   const decoded = decodeNodeGraphDocument(source.content);
   if (decoded.ok) return decoded.value;
   const summary = decoded.issues
@@ -129,6 +132,11 @@ const contributeDocument = (
     scopeId: documentScopeId,
     ownerRef: documentOwnerRef,
     typeRef: 'nodegraph:graph',
+    capabilityIds: [
+      'behavior:nodegraph:invoke',
+      'behavior:nodegraph:output',
+      'nodegraph:graph',
+    ],
   });
   contribution.dependencies.push({
     id: createSemanticId(
@@ -188,7 +196,7 @@ const contributeDocument = (
         targetSymbolId: graphSymbolId,
       });
 
-      [...(node.ports ?? [])]
+      [...node.ports]
         .sort((left, right) => compareText(left.id, right.id))
         .forEach((port) => {
           const portSymbolId = createNodeGraphPortSymbolId(
@@ -212,10 +220,13 @@ const contributeDocument = (
             qualifiedName: `${documentId}.${node.id}.${port.id}`,
             scopeId: nodeScopeId,
             ownerRef: portOwnerRef,
-            typeRef: port.typeRef ?? `nodegraph:${port.kind}`,
+            typeRef: port.typeRef ?? `nodegraph:${port.flow}`,
             capabilityIds: [
+              ...(port.direction === 'output'
+                ? ['behavior:nodegraph:output']
+                : []),
               `nodegraph-port:${port.direction}`,
-              `nodegraph-port:${port.kind}`,
+              `nodegraph-port:${port.flow}`,
             ],
           });
           contribution.dependencies.push({
@@ -232,7 +243,7 @@ const contributeDocument = (
           });
         });
 
-      if (node.executor) {
+      if (node.codeSlot) {
         contribution.references.push({
           id: createNodeGraphExecutorCodeReferenceId(
             workspaceId,
@@ -245,7 +256,7 @@ const contributeDocument = (
           scopeId: nodeScopeId,
           target: createCodeReferenceSemanticTarget(
             workspaceId,
-            node.executor.reference
+            node.codeSlot.reference
           ),
           resolutionMode: 'addressable',
           requiresDurableTarget: true,
@@ -256,25 +267,29 @@ const contributeDocument = (
   [...graph.edges]
     .sort((left, right) => compareText(left.id, right.id))
     .forEach((edge) => {
-      const sourceNode = graph.nodes.find((node) => node.id === edge.source);
-      const targetNode = graph.nodes.find((node) => node.id === edge.target);
-      const sourcePort = sourceNode?.ports?.find(
-        (port) => port.id === edge.sourceHandle
+      const sourceNode = graph.nodes.find(
+        (node) => node.id === edge.source.nodeId
       );
-      const targetPort = targetNode?.ports?.find(
-        (port) => port.id === edge.targetHandle
+      const targetNode = graph.nodes.find(
+        (node) => node.id === edge.target.nodeId
+      );
+      const sourcePort = sourceNode?.ports.find(
+        (port) => port.id === edge.source.portId
+      );
+      const targetPort = targetNode?.ports.find(
+        (port) => port.id === edge.target.portId
       );
       const sourceRef = sourcePort
         ? ({
             kind: 'nodegraph-port' as const,
             documentId,
-            nodeId: edge.source,
+            nodeId: edge.source.nodeId,
             portId: sourcePort.id,
           } as const)
         : ({
             kind: 'nodegraph-node' as const,
             documentId,
-            nodeId: edge.source,
+            nodeId: edge.source.nodeId,
           } as const);
       contribution.references.push({
         id: createSemanticId(
@@ -289,14 +304,18 @@ const contributeDocument = (
           ? createNodeGraphPortSymbolId(
               workspaceId,
               documentId,
-              edge.source,
+              edge.source.nodeId,
               sourcePort.id
             )
-          : createNodeGraphNodeSymbolId(workspaceId, documentId, edge.source),
+          : createNodeGraphNodeSymbolId(
+              workspaceId,
+              documentId,
+              edge.source.nodeId
+            ),
         scopeId: createNodeGraphNodeScopeId(
           workspaceId,
           documentId,
-          edge.source
+          edge.source.nodeId
         ),
         target: {
           kind: 'symbol-id',
@@ -304,10 +323,14 @@ const contributeDocument = (
             ? createNodeGraphPortSymbolId(
                 workspaceId,
                 documentId,
-                edge.target,
+                edge.target.nodeId,
                 targetPort.id
               )
-            : createNodeGraphNodeSymbolId(workspaceId, documentId, edge.target),
+            : createNodeGraphNodeSymbolId(
+                workspaceId,
+                documentId,
+                edge.target.nodeId
+              ),
         },
         resolutionMode: 'addressable',
         requiresDurableTarget: true,

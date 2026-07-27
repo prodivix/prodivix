@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./wire": {
+      "types": "./dist/wire.d.ts",
+      "import": "./dist/wire.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -25,7 +29,9 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
+    "@noble/hashes": "2.2.0",
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
     "@prodivix/runtime-core": "workspace:*",
     "@prodivix/shared": "workspace:*"
   },

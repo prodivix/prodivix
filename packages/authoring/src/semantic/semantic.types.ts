@@ -62,8 +62,12 @@ export type WorkspaceSymbolKind =
   | 'nodegraph-input'
   | 'nodegraph-output'
   | 'animation-timeline'
+  | 'animation-composition'
   | 'animation-track'
   | 'animation-binding'
+  | 'behavior-scenario'
+  | 'behavior-step'
+  | 'behavior-assertion'
   | 'code-artifact'
   | 'code-module'
   | 'code-export'
@@ -95,6 +99,7 @@ export type WorkspaceScopeKind =
   | 'nodegraph'
   | 'nodegraph-node'
   | 'animation'
+  | 'behavior-scenario'
   | 'code-artifact'
   | 'code-module'
   | 'design-system'
@@ -120,6 +125,7 @@ export type WorkspaceReferenceKind =
   | 'token-resolution'
   | 'token-reference'
   | 'asset-reference'
+  | 'behavior-target'
   | `plugin:${string}`;
 
 export type WorkspaceDependencyKind =
@@ -134,6 +140,7 @@ export type WorkspaceDependencyKind =
   | 'import'
   | 'runtime'
   | 'export'
+  | 'behavior'
   | `plugin:${string}`;
 
 export type SemanticSymbolStability = 'durable' | 'revision-scoped';
@@ -381,6 +388,7 @@ export type WorkspaceSemanticIndex = Readonly<{
   snapshotIdentity: SemanticSnapshotIdentity;
   getScope(id: string): WorkspaceScope | null;
   getSymbol(id: string): WorkspaceSymbol | null;
+  getSymbols(): readonly WorkspaceSymbol[];
   getReference(id: string): WorkspaceReferenceEdge | null;
   getDependency(id: string): WorkspaceDependencyEdge | null;
   queryVisibleSymbols(

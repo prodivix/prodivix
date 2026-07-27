@@ -54,9 +54,10 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       contentRev: 1,
       metaRev: 1,
       content: {
-        version: 1,
+        version: 2,
         target: { kind: 'pir-document', documentId: 'page-home' },
         timelines: [],
+        compositions: [],
       },
     },
   },
@@ -72,16 +73,19 @@ describe('standalone Workspace Animation document properties', () => {
           workspace,
           documentId: 'animation-home',
           after: {
-            version: 1,
             target: { kind: 'pir-document', documentId: 'page-home' },
             timelines: [
               {
                 id: 'timeline-main',
                 name: 'Main',
                 durationMs,
+                motionIntent: 'decorative',
+                reducedMotion: { kind: 'final-state' },
+                markers: [],
                 bindings: [],
               },
             ],
+            compositions: [],
           },
           commandId: 'animation-update',
           issuedAt: '2026-07-14T00:00:00.000Z',

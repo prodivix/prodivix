@@ -61,6 +61,8 @@ export type BehaviorTrigger = Readonly<{
 export type BehaviorAction = Readonly<{
   kind:
     | 'navigate'
+    | 'semantic-click'
+    | 'semantic-input'
     | 'dispatch-data-operation'
     | 'invoke-nodegraph'
     | 'control-animation'
@@ -86,6 +88,8 @@ export type BehaviorObservation = Readonly<{
     | 'console-absence'
     | 'nodegraph-output'
     | 'animation-state'
+    | 'composition-result'
+    | 'composition-marker'
     | 'accessible-tree'
     | 'visual-baseline'
     | 'code-assertion';
@@ -260,16 +264,38 @@ export type BehaviorScenarioProgram = Readonly<{
   fixtureSetDigests: readonly string[];
   baselineSetDigests: readonly string[];
   requiredCapabilities: readonly string[];
+  capabilityManifest: readonly Readonly<{
+    capabilityId: string;
+    descriptorKind: string;
+    targetCapability: string;
+    owner: string;
+    runtimeZones: readonly ('client' | 'server' | 'test')[];
+    effect: 'none' | 'read' | 'write';
+    cancellation: 'none' | 'cooperative' | 'required';
+  }>[];
+  targetManifest: readonly Readonly<{
+    targetId: string;
+    semanticSymbolId: string;
+    capability: string;
+    source: BehaviorSourceRef;
+    instanceScope?: BehaviorSemanticTargetRef['instanceScope'];
+  }>[];
   instructions: readonly Readonly<{
     id: string;
     stepId: string;
     dependencyInstructionIds: readonly string[];
     operation: string;
+    capabilityId?: string;
     targetId?: string;
+    input?: BehaviorJsonValue;
   }>[];
   observations: readonly Readonly<{
     stepId: string;
+    kind: BehaviorObservation['kind'];
+    targetId: string;
+    expected?: BehaviorJsonValue;
     assertionIds: readonly string[];
+    assertions: readonly BehaviorAssertion[];
     automatonDigest: string;
   }>[];
   sourceTrace: readonly Readonly<{
@@ -289,6 +315,8 @@ export type BehaviorRecorderDraft = Readonly<{
     id: string;
     resolution: 'resolved' | 'ambiguous' | 'unresolved' | 'sensitive';
     target?: BehaviorSemanticTargetRef;
+    alternatives?: readonly BehaviorSemanticTargetRef[];
+    confidence?: number;
     suggestedAction?: BehaviorAction;
   }>[];
 }>;

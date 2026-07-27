@@ -8,6 +8,7 @@
       "@prodivix/ai": ["../../packages/ai/src"],
       "@prodivix/animation": ["../../packages/animation/src"],
       "@prodivix/assets": ["../../packages/assets/src"],
+      "@prodivix/behavior": ["../../packages/behavior/src"],
       "@prodivix/authoring": ["../../packages/authoring/src"],
       "@prodivix/code-language": ["../../packages/code-language/src"],
       "@prodivix/data": ["../../packages/data/src"],
@@ -61,6 +62,9 @@
   ],
   "exclude": ["node_modules"],
   "references": [
+    {
+      "path": "../../packages/behavior"
+    },
     {
       "path": "../../packages/animation"
     },

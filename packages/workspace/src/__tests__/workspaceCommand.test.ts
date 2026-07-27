@@ -364,7 +364,7 @@ describe('applyWorkspaceCommand', () => {
       ...workspace.docsById['page-home'],
       type: 'pir-graph',
       content: {
-        version: 1,
+        version: 2,
         nodes: [],
         edges: [],
       },
@@ -379,7 +379,21 @@ describe('applyWorkspaceCommand', () => {
           {
             op: 'add',
             path: '/nodes/0',
-            value: { id: 'validateCart', data: {} },
+            value: {
+              id: 'validateCart',
+              descriptorRef: { id: 'core.process', version: '1' },
+              ports: [
+                {
+                  id: 'out.control.next',
+                  direction: 'output',
+                  flow: 'control',
+                  required: false,
+                  cardinality: 'single',
+                },
+              ],
+              configuration: {},
+              editor: {},
+            },
           },
         ],
         reverseOps: [{ op: 'remove', path: '/nodes/0' }],
@@ -417,7 +431,21 @@ describe('applyWorkspaceCommand', () => {
           {
             op: 'add',
             path: '/nodes/0',
-            value: { id: 'validateCart', data: {} },
+            value: {
+              id: 'validateCart',
+              descriptorRef: { id: 'core.process', version: '1' },
+              ports: [
+                {
+                  id: 'out.control.next',
+                  direction: 'output',
+                  flow: 'control',
+                  required: false,
+                  cardinality: 'single',
+                },
+              ],
+              configuration: {},
+              editor: {},
+            },
           },
         ],
         reverseOps: [{ op: 'remove', path: '/nodes/0' }],
@@ -454,9 +482,10 @@ describe('applyWorkspaceCommand', () => {
       contentRev: 1,
       metaRev: 1,
       content: {
-        version: 1,
+        version: 2,
         target: { kind: 'pir-document', documentId: 'page-home' },
         timelines: [],
+        compositions: [],
       },
     };
 
@@ -477,6 +506,9 @@ describe('applyWorkspaceCommand', () => {
               id: 'hero',
               name: 'Hero',
               durationMs: 1000,
+              motionIntent: 'decorative',
+              reducedMotion: { kind: 'final-state' },
+              markers: [],
               bindings: [],
             },
           },

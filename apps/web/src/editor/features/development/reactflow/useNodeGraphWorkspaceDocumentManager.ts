@@ -5,6 +5,7 @@ import {
   type SetStateAction,
 } from 'react';
 import type { Edge, Node } from '@xyflow/react';
+import { encodeNodeGraphDocument } from '@prodivix/nodegraph';
 import {
   createWorkspaceDocumentIntentRequest,
   deleteWorkspaceDocumentIntentRequest,
@@ -110,7 +111,7 @@ export const useNodeGraphWorkspaceDocumentManager = ({
           documentId: createdDocumentId,
           path: target.path,
           type: 'pir-graph',
-          content,
+          content: encodeNodeGraphDocument(content),
         });
       });
       if (applied && createdDocumentId) {
@@ -147,7 +148,9 @@ export const useNodeGraphWorkspaceDocumentManager = ({
           documentId: createdDocumentId,
           path: target.path,
           type: 'pir-graph',
-          content: cloneNodeGraphDocument(sourceContent, createdDocumentId),
+          content: encodeNodeGraphDocument(
+            cloneNodeGraphDocument(sourceContent, createdDocumentId)
+          ),
         });
       });
       if (applied && createdDocumentId) {

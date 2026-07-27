@@ -326,7 +326,20 @@ const addGraphFacts = (
       scopeId: context.baseScopeId,
       ownerRef: createNodeOwnerRef(context.documentId, nodeId),
       typeRef: `pir:node/${node.kind}`,
-      ...(nodeId === graph.rootId ? { capabilityIds: ['pir:root'] } : {}),
+      capabilityIds: [
+        ...(nodeId === graph.rootId
+          ? ['pir:root', 'behavior:pir:lifecycle']
+          : []),
+        'behavior:pir:visible',
+        ...(node.kind === 'element' ? ['behavior:pir:click'] : []),
+        ...(node.kind === 'element' && Object.keys(node.events ?? {}).length
+          ? ['behavior:pir:event']
+          : []),
+        ...(node.kind === 'element' &&
+        /^(?:input|textarea|select)$/i.test(node.type)
+          ? ['behavior:pir:input', 'behavior:pir:value']
+          : []),
+      ],
     });
     addDependency(contribution, {
       id: createSemanticId(

@@ -1,6 +1,8 @@
 import type { RuntimeCancellationSignal } from '@prodivix/runtime-core';
 import type {
   AnimationFrame,
+  AnimationMarkerKind,
+  AnimationMotionMode,
   AnimationTimeline,
   AnimationTrack,
 } from './animation.types';
@@ -52,6 +54,30 @@ export type AnimationRuntimeFrame = Readonly<{
   contributors: readonly AnimationRuntimeContributor[];
 }>;
 
+export type AnimationPlaybackObservation = Readonly<{
+  kind:
+    | 'started'
+    | 'marker-reached'
+    | 'paused'
+    | 'resumed'
+    | 'settled'
+    | 'completed'
+    | 'cancelled'
+    | 'failed';
+  sequence: number;
+  playbackId: string;
+  generation: string;
+  animationDocumentId: string;
+  timelineId: string;
+  targetDocumentId: string;
+  logicalTimeMs: number;
+  motionMode: AnimationMotionMode;
+  markerId?: string;
+  markerKind?: AnimationMarkerKind;
+  iteration?: number;
+  reason?: string;
+}>;
+
 export type AnimationEffectLeaseOutcome =
   'completed' | 'cancelled' | 'timed-out' | 'failed';
 
@@ -91,8 +117,21 @@ export type AnimationPlaybackResult = Readonly<{
   reason?: string;
 }>;
 
+export type AnimationPlaybackSnapshot = Readonly<{
+  status: 'running' | 'paused' | AnimationPlaybackResult['status'];
+  elapsedMs: number;
+  cursorMs: number | null;
+  framesApplied: number;
+  sequence: number;
+}>;
+
 export type AnimationPlayback = Readonly<{
+  ready: Promise<AnimationPlaybackSnapshot>;
   completion: Promise<AnimationPlaybackResult>;
+  snapshot(): AnimationPlaybackSnapshot;
+  pause(): Promise<AnimationPlaybackSnapshot>;
+  resume(): Promise<AnimationPlaybackSnapshot>;
+  seek(positionMs: number): Promise<AnimationPlaybackSnapshot>;
   cancel(
     reason?: string,
     outcome?: 'cancelled' | 'timed-out'

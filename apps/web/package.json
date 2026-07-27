@@ -37,6 +37,7 @@
     "@prodivix/animation": "workspace:*",
     "@prodivix/assets": "workspace:*",
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
     "@prodivix/code-language": "workspace:*",
     "@prodivix/data": "workspace:*",
     "@prodivix/data-asyncapi": "workspace:*",

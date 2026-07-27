@@ -165,7 +165,7 @@ describe('localProjectStore', () => {
     expect(project.workspace.docsById.graph_root).toMatchObject({
       id: 'graph_root',
       type: 'pir-graph',
-      content: { version: 1, nodes: [], edges: [] },
+      content: { version: 2, nodes: [], edges: [] },
     });
   });
 

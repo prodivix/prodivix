@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prodivix.dev/schemas/animation/v1.json",
+  "title": "Prodivix Animation wire document v1",
+  "type": "object",
+  "required": ["version", "target", "timelines"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "target": {
+      "$ref": "#/$defs/target"
+    },
+    "timelines": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/timeline"
+      }
+    },
+    "svgFilters": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/svgFilter"
+      }
+    },
+    "x-animationEditor": {
+      "$ref": "#/$defs/editorState"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "canonicalString": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+    },
+    "target": {
+      "type": "object",
+      "required": ["kind", "documentId"],
+      "properties": {
+        "kind": {
+          "const": "pir-document"
+        },
+        "documentId": {
+          "$ref": "#/$defs/canonicalString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourceSpan": {
+      "type": "object",
+      "required": [
+        "artifactId",
+        "startLine",
+        "startColumn",
+        "endLine",
+        "endColumn"
+      ],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "startLine": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "startColumn": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "endLine": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "endColumn": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "codeReference": {
+      "type": "object",
+      "required": ["artifactId"],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "exportName": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "symbolId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "sourceSpan": {
+          "$ref": "#/$defs/sourceSpan"
+        }
+      },
+      "additionalProperties": false
+    },
+    "codeSlotBinding": {
+      "type": "object",
+      "required": ["slotId", "reference"],
+      "properties": {
+        "slotId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "reference": {
+          "$ref": "#/$defs/codeReference"
+        }
+      },
+      "additionalProperties": false
+    },
+    "timelineCodeSlots": {
+      "type": "object",
+      "properties": {
+        "customEasing": {
+          "$ref": "#/$defs/codeSlotBinding"
+        },
+        "shader": {
+          "$ref": "#/$defs/codeSlotBinding"
+        },
+        "script": {
+          "$ref": "#/$defs/codeSlotBinding"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "keyframe": {
+      "type": "object",
+      "required": ["atMs", "value"],
+      "properties": {
+        "atMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "easing": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "hold": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "styleTrack": {
+      "type": "object",
+      "required": ["id", "kind", "property", "keyframes"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "kind": {
+          "const": "style"
+        },
+        "property": {
+          "enum": [
+            "opacity",
+            "transform.translateX",
+            "transform.translateY",
+            "transform.scale",
+            "color"
+          ]
+        },
+        "keyframes": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/keyframe"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "cssFilterTrack": {
+      "type": "object",
+      "required": ["id", "kind", "fn", "keyframes"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "kind": {
+          "const": "css-filter"
+        },
+        "fn": {
+          "enum": [
+            "blur",
+            "brightness",
+            "contrast",
+            "grayscale",
+            "hue-rotate",
+            "invert",
+            "saturate",
+            "sepia"
+          ]
+        },
+        "unit": {
+          "enum": ["px", "%", "deg"]
+        },
+        "keyframes": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/keyframe"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "svgFilterAttributeTrack": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "filterId",
+        "primitiveId",
+        "attr",
+        "keyframes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "kind": {
+          "const": "svg-filter-attr"
+        },
+        "filterId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "primitiveId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "attr": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "keyframes": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/keyframe"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "track": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/styleTrack"
+        },
+        {
+          "$ref": "#/$defs/cssFilterTrack"
+        },
+        {
+          "$ref": "#/$defs/svgFilterAttributeTrack"
+        }
+      ]
+    },
+    "binding": {
+      "type": "object",
+      "required": ["id", "targetNodeId", "tracks"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "targetNodeId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "tracks": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/track"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "timeline": {
+      "type": "object",
+      "required": ["id", "name", "durationMs", "bindings"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "name": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "durationMs": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "delayMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "iterations": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            {
+              "const": "infinite"
+            }
+          ]
+        },
+        "direction": {
+          "enum": ["normal", "reverse", "alternate", "alternate-reverse"]
+        },
+        "fillMode": {
+          "enum": ["none", "forwards", "backwards", "both"]
+        },
+        "easing": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "codeSlots": {
+          "$ref": "#/$defs/timelineCodeSlots"
+        },
+        "bindings": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "svgPrimitiveAttributes": {
+      "type": "object",
+      "propertyNames": {
+        "minLength": 1,
+        "not": {
+          "enum": ["__proto__", "prototype", "constructor"]
+        }
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "svgPrimitive": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "type": {
+          "enum": [
+            "feGaussianBlur",
+            "feColorMatrix",
+            "feComponentTransfer",
+            "feOffset",
+            "feBlend",
+            "feMerge"
+          ]
+        },
+        "in": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "in2": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "result": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "attrs": {
+          "$ref": "#/$defs/svgPrimitiveAttributes"
+        }
+      },
+      "additionalProperties": false
+    },
+    "svgFilter": {
+      "type": "object",
+      "required": ["id", "primitives"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "units": {
+          "enum": ["objectBoundingBox", "userSpaceOnUse"]
+        },
+        "primitives": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/svgPrimitive"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "editorState": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "activeTimelineId": {
+          "$ref": "#/$defs/canonicalString"
+        },
+        "cursorMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "zoom": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "expandedTrackIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/canonicalString"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "version": 1,
+      "target": {
+        "kind": "pir-document",
+        "documentId": "page-home"
+      },
+      "timelines": [
+        {
+          "id": "fade-in",
+          "name": "Fade in",
+          "durationMs": 200,
+          "bindings": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,29 +1,35 @@
 const canonicalStringSchema = {
   type: 'string',
   minLength: 1,
+  maxLength: 512,
   pattern: '^\\S(?:[\\s\\S]*\\S)?$',
 } as const;
 
+export const NODEGRAPH_CURRENT_WIRE_VERSION = 2 as const;
+
 /**
- * Machine-readable persistence contract for the version-neutral NodeGraph
- * domain model. Numeric versions remain confined to this wire boundary.
+ * Machine-readable persistence contract for the active NodeGraph wire
+ * snapshot. Production consumers use the version-neutral domain model.
  */
 export const nodeGraphCurrentWireSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://prodivix.dev/schemas/nodegraph/current.json',
-  title: 'Prodivix NodeGraph current wire document',
+  $id: 'https://prodivix.dev/schemas/nodegraph/v2.json',
+  title: 'Prodivix NodeGraph wire document v2',
   type: 'object',
   required: ['version', 'nodes', 'edges'],
   properties: {
-    version: { const: 1 },
+    version: { const: NODEGRAPH_CURRENT_WIRE_VERSION },
     nodes: {
       type: 'array',
+      maxItems: 10_000,
       items: { $ref: '#/$defs/node' },
     },
     edges: {
       type: 'array',
+      maxItems: 50_000,
       items: { $ref: '#/$defs/edge' },
     },
+    publicContract: { $ref: '#/$defs/publicContract' },
   },
   additionalProperties: false,
   $defs: {
@@ -66,31 +72,72 @@ export const nodeGraphCurrentWireSchema = {
       },
       additionalProperties: false,
     },
+    descriptorRef: {
+      type: 'object',
+      required: ['id', 'version'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        version: { $ref: '#/$defs/canonicalString' },
+      },
+      additionalProperties: false,
+    },
+    portReference: {
+      type: 'object',
+      required: ['nodeId', 'portId'],
+      properties: {
+        nodeId: { $ref: '#/$defs/canonicalString' },
+        portId: { $ref: '#/$defs/canonicalString' },
+      },
+      additionalProperties: false,
+    },
     port: {
       type: 'object',
-      required: ['id', 'direction', 'kind'],
+      required: ['id', 'direction', 'flow', 'required', 'cardinality'],
       properties: {
         id: { $ref: '#/$defs/canonicalString' },
         direction: { enum: ['input', 'output'] },
-        kind: { enum: ['control', 'data'] },
+        flow: { enum: ['control', 'data'] },
         typeRef: { $ref: '#/$defs/canonicalString' },
         required: { type: 'boolean' },
-        multiple: { type: 'boolean' },
+        cardinality: { enum: ['single', 'multiple'] },
+      },
+      additionalProperties: false,
+    },
+    editorPosition: {
+      type: 'object',
+      required: ['x', 'y'],
+      properties: {
+        x: { type: 'number' },
+        y: { type: 'number' },
+      },
+      additionalProperties: false,
+    },
+    editor: {
+      type: 'object',
+      properties: {
+        position: { $ref: '#/$defs/editorPosition' },
+        parentId: { $ref: '#/$defs/canonicalString' },
+        extent: { const: 'parent' },
+        zIndex: { type: 'integer' },
+        collapsed: { type: 'boolean' },
+        label: { $ref: '#/$defs/canonicalString' },
       },
       additionalProperties: false,
     },
     node: {
       type: 'object',
-      required: ['id', 'data'],
+      required: ['id', 'descriptorRef', 'ports', 'configuration', 'editor'],
       properties: {
         id: { $ref: '#/$defs/canonicalString' },
-        type: { $ref: '#/$defs/canonicalString' },
-        data: { type: 'object', additionalProperties: true },
+        descriptorRef: { $ref: '#/$defs/descriptorRef' },
         ports: {
           type: 'array',
+          minItems: 1,
           items: { $ref: '#/$defs/port' },
         },
-        executor: { $ref: '#/$defs/codeSlotBinding' },
+        configuration: { type: 'object', additionalProperties: true },
+        editor: { $ref: '#/$defs/editor' },
+        codeSlot: { $ref: '#/$defs/codeSlotBinding' },
       },
       additionalProperties: false,
     },
@@ -99,63 +146,103 @@ export const nodeGraphCurrentWireSchema = {
       required: ['id', 'source', 'target'],
       properties: {
         id: { $ref: '#/$defs/canonicalString' },
-        source: { $ref: '#/$defs/canonicalString' },
-        target: { $ref: '#/$defs/canonicalString' },
-        sourceHandle: { type: ['string', 'null'] },
-        targetHandle: { type: ['string', 'null'] },
+        source: { $ref: '#/$defs/portReference' },
+        target: { $ref: '#/$defs/portReference' },
+      },
+      additionalProperties: false,
+    },
+    publicPort: {
+      type: 'object',
+      required: ['id', 'port', 'typeRef', 'required'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        port: { $ref: '#/$defs/portReference' },
+        typeRef: { $ref: '#/$defs/canonicalString' },
+        required: { type: 'boolean' },
+      },
+      additionalProperties: false,
+    },
+    publicContract: {
+      type: 'object',
+      required: [
+        'inputs',
+        'outputs',
+        'errors',
+        'requiredCapabilities',
+        'maximumSteps',
+      ],
+      properties: {
+        inputs: {
+          type: 'array',
+          items: { $ref: '#/$defs/publicPort' },
+        },
+        outputs: {
+          type: 'array',
+          items: { $ref: '#/$defs/publicPort' },
+        },
+        errors: {
+          type: 'array',
+          items: { $ref: '#/$defs/canonicalString' },
+        },
+        requiredCapabilities: {
+          type: 'array',
+          items: { $ref: '#/$defs/canonicalString' },
+        },
+        maximumSteps: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 1_000_000,
+        },
       },
       additionalProperties: false,
     },
   },
   examples: [
     {
-      version: 1,
+      version: NODEGRAPH_CURRENT_WIRE_VERSION,
       nodes: [
         {
           id: 'source',
-          type: 'graphNode',
-          data: { kind: 'code' },
+          descriptorRef: { id: 'core.start', version: '1' },
           ports: [
             {
               id: 'out.control.next',
               direction: 'output',
-              kind: 'control',
+              flow: 'control',
+              required: false,
+              cardinality: 'single',
             },
           ],
-          executor: {
-            slotId: 'nodegraph-code-slot:source',
-            reference: {
-              artifactId: 'artifact-source',
-              exportName: 'run',
-              sourceSpan: {
-                artifactId: 'artifact-source',
-                startLine: 1,
-                startColumn: 1,
-                endLine: 1,
-                endColumn: 4,
-              },
-            },
-          },
+          configuration: {},
+          editor: {},
         },
         {
           id: 'target',
-          data: { kind: 'process' },
+          descriptorRef: { id: 'core.end', version: '1' },
           ports: [
             {
               id: 'in.control.prev',
               direction: 'input',
-              kind: 'control',
+              flow: 'control',
+              required: true,
+              cardinality: 'single',
             },
           ],
+          configuration: {},
+          editor: {},
         },
       ],
       edges: [
         {
           id: 'edge',
-          source: 'source',
-          target: 'target',
-          sourceHandle: 'out.control.next',
-          targetHandle: 'in.control.prev',
+          source: {
+            nodeId: 'source',
+            portId: 'out.control.next',
+          },
+          target: {
+            nodeId: 'target',
+            portId: 'in.control.prev',
+          },
         },
       ],
     },
@@ -167,8 +254,26 @@ export const nodeGraphCurrentWireFields = Object.freeze({
   node: Object.freeze(
     Object.keys(nodeGraphCurrentWireSchema.$defs.node.properties)
   ),
+  descriptorRef: Object.freeze(
+    Object.keys(nodeGraphCurrentWireSchema.$defs.descriptorRef.properties)
+  ),
   port: Object.freeze(
     Object.keys(nodeGraphCurrentWireSchema.$defs.port.properties)
+  ),
+  portReference: Object.freeze(
+    Object.keys(nodeGraphCurrentWireSchema.$defs.portReference.properties)
+  ),
+  editor: Object.freeze(
+    Object.keys(nodeGraphCurrentWireSchema.$defs.editor.properties)
+  ),
+  editorPosition: Object.freeze(
+    Object.keys(nodeGraphCurrentWireSchema.$defs.editorPosition.properties)
+  ),
+  publicContract: Object.freeze(
+    Object.keys(nodeGraphCurrentWireSchema.$defs.publicContract.properties)
+  ),
+  publicPort: Object.freeze(
+    Object.keys(nodeGraphCurrentWireSchema.$defs.publicPort.properties)
   ),
   codeSlotBinding: Object.freeze(
     Object.keys(nodeGraphCurrentWireSchema.$defs.codeSlotBinding.properties)

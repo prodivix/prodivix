@@ -1,6 +1,7 @@
 import {
   createAnimationBindingScopeId,
   createAnimationBindingSymbolId,
+  createAnimationCompositionSymbolId,
   createAnimationDocumentScopeId,
   createAnimationTimelineScopeId,
   createAnimationTimelineSymbolId,
@@ -27,7 +28,7 @@ import type { AnimationDefinition, AnimationTrack } from './animation.types';
 
 export const ANIMATION_SEMANTIC_PROVIDER_DESCRIPTOR = Object.freeze({
   id: 'core.animation',
-  semanticVersion: '2',
+  semanticVersion: '4',
 });
 
 export type AnimationSemanticSourceInput = Readonly<{
@@ -115,6 +116,50 @@ const contributeSource = (
     parentId: createWorkspaceDocumentScopeId(workspaceId, documentId),
   });
 
+  [...definition.compositions]
+    .sort((left, right) => compareText(left.id, right.id))
+    .forEach((composition) => {
+      const compositionSymbolId = createAnimationCompositionSymbolId(
+        workspaceId,
+        documentId,
+        composition.id
+      );
+
+      contribution.symbols.push({
+        id: compositionSymbolId,
+        stability: 'durable',
+        kind: 'animation-composition',
+        name: composition.id,
+        displayName: composition.name,
+        qualifiedName: `${documentId}::${composition.id}`,
+        scopeId: documentScopeId,
+        ownerRef: documentOwnerRef,
+        typeRef: 'animation:composition',
+        capabilityIds: [
+          'animation:composition',
+          'behavior:animation:play',
+          'behavior:animation:cancel',
+          'behavior:animation:state',
+          'behavior:animation:composition',
+          'behavior:animation:marker',
+        ],
+      });
+      contribution.dependencies.push({
+        id: createSemanticId(
+          'animation-document-composition-dependency',
+          workspaceId,
+          documentId,
+          composition.id
+        ),
+        kind: 'document',
+        sourceSymbolId: compositionSymbolId,
+        targetSymbolId: createWorkspaceDocumentSymbolId(
+          workspaceId,
+          documentId
+        ),
+      });
+    });
+
   [...definition.timelines]
     .sort((left, right) => compareText(left.id, right.id))
     .forEach((timeline) => {
@@ -150,6 +195,15 @@ const contributeSource = (
         scopeId: documentScopeId,
         ownerRef: timelineOwnerRef,
         typeRef: 'animation:timeline',
+        capabilityIds: [
+          'animation:timeline',
+          'behavior:animation:play',
+          'behavior:animation:pause',
+          'behavior:animation:resume',
+          'behavior:animation:seek',
+          'behavior:animation:cancel',
+          'behavior:animation:state',
+        ],
       });
       contribution.dependencies.push({
         id: createSemanticId(

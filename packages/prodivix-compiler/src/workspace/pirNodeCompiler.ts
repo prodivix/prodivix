@@ -151,6 +151,12 @@ export const createPirNodeCompiler = (
     if (styleExpression) {
       propExpressions.set('style', styleExpression);
     }
+    // Generated target adapters expose revision-bound PIR identity as
+    // framework-neutral runtime metadata. BehaviorScenario persists only the
+    // semantic source and never stores a DOM selector or element handle.
+    propExpressions.set('data-pir-document-id', toJson(context.documentId));
+    propExpressions.set('data-pir-node-id', toJson(node.id));
+    propExpressions.set('data-pir-instance-path', instancePathExpression);
     for (const [eventName, trigger] of Object.entries(node.events ?? {}).sort(
       ([left], [right]) => compareText(left, right)
     )) {

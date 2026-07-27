@@ -36,3 +36,28 @@ export {
   type GoldenG2AuthServerTarget,
   type GoldenG2AuthServerTargetMatrix,
 } from './goldenG2AuthServerMatrix';
+export {
+  createGoldenG3CatalogProgram,
+  createGoldenG3ReactCatalogBundle,
+  createGoldenG3ReactCatalogSnapshot,
+  createGoldenG3VueCatalogBundle,
+  createGoldenG3VueCatalogSnapshot,
+  GOLDEN_G3_CATALOG_SCENARIO,
+  GOLDEN_G3_CATALOG_WORKSPACE,
+  GOLDEN_G3_LOGIN_FIXTURE_DIGEST,
+  GOLDEN_G3_LOGIN_FIXTURE_SET,
+  GOLDEN_G3_SCENARIO_IDS,
+} from './goldenG3ScenarioFixture';
+export {
+  createGoldenG3BehaviorCompositionProgram,
+  createGoldenG3CompositionReactSnapshot,
+  createGoldenG3CompositionVueSnapshot,
+  GOLDEN_G3_COMPOSITION_ANIMATION,
+  GOLDEN_G3_COMPOSITION_GRAPH,
+  GOLDEN_G3_COMPOSITION_IDS,
+  GOLDEN_G3_COMPOSITION_SCENARIO,
+  GOLDEN_G3_COMPOSITION_WORKSPACE,
+  runGoldenG3AnimationComposition,
+  runGoldenG3BehaviorCompositionSurface,
+  type GoldenG3BehaviorCompositionSurface,
+} from './goldenG3BehaviorCompositionFixture';

@@ -129,6 +129,7 @@ export default ${defineComponentLocal}({
         ${input.dataOperationBindings}
       );
       if (__pdxDataProjection.status === 'blocked') return;
+      const __pdxDataById = __pdxDataProjection.dataById;
       void __pdxRuntime.activateDataBindings?.({
         documentId: ${input.documentIdJson},
         instancePath: __pdxInstancePath,
@@ -163,6 +164,7 @@ export default ${defineComponentLocal}({
         ${input.dataOperationBindings}
       );
       if (__pdxDataProjection.status === 'blocked') return null;
+      const __pdxDataById = __pdxDataProjection.dataById;
       const __pdxDataRuntimeValuesById = {
         ...__pdxBaseDataRuntimeValuesById,
         ...${input.dataRuntimeValues},
@@ -172,7 +174,7 @@ export default ${defineComponentLocal}({
       const __pdxDefinitionScope: __PdxScope = {
         paramsById: __pdxParamsById,
         stateById: __pdxStateById,
-        dataById: __pdxDataProjection.dataById,
+        dataById: __pdxDataById,
         dataLifecycleById: __pdxDataProjection.lifecycleByDataId,
         collectionSymbolsById: {},
         componentPropsById: __pdxComponentPropsById,

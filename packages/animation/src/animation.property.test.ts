@@ -53,7 +53,7 @@ describe('animation domain properties', () => {
 
   it('requires one explicit PIR document target', () => {
     expect(
-      validateAnimationDefinition({ version: 1, timelines: [] })
+      validateAnimationDefinition({ timelines: [], compositions: [] })
     ).toMatchObject({
       valid: false,
       issues: [{ code: 'ANI_TARGET_INVALID', path: '/target' }],
@@ -63,9 +63,9 @@ describe('animation domain properties', () => {
   it('keeps repair normalization outside canonical persistence validation', () => {
     expect(
       validateAnimationDefinition({
-        version: 1,
         target: { kind: 'pir-document', documentId: ' page-home ' },
         timelines: [],
+        compositions: [],
       })
     ).toMatchObject({
       valid: false,
@@ -75,7 +75,6 @@ describe('animation domain properties', () => {
 
   it('repairs unsafe color values and SVG fragment identities', () => {
     const source = {
-      version: 1 as const,
       target: { kind: 'pir-document' as const, documentId: 'page-home' },
       svgFilters: [
         {
@@ -88,6 +87,9 @@ describe('animation domain properties', () => {
           id: 'timeline',
           name: 'Timeline',
           durationMs: 1_000,
+          motionIntent: 'decorative' as const,
+          reducedMotion: { kind: 'final-state' as const },
+          markers: [],
           bindings: [
             {
               id: 'binding',
@@ -104,6 +106,7 @@ describe('animation domain properties', () => {
           ],
         },
       ],
+      compositions: [],
     };
 
     const normalized = normalizeAnimationDefinition(source)!;
@@ -121,7 +124,6 @@ describe('animation domain properties', () => {
         fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
         (timelineId, artifactId) => {
           const definition = {
-            version: 1 as const,
             target: {
               kind: 'pir-document' as const,
               documentId: 'page-home',
@@ -131,6 +133,9 @@ describe('animation domain properties', () => {
                 id: timelineId,
                 name: 'Timeline',
                 durationMs: 1000,
+                motionIntent: 'decorative' as const,
+                reducedMotion: { kind: 'final-state' as const },
+                markers: [],
                 codeSlots: {
                   shader: {
                     slotId: `animation-code-slot:${timelineId}:shader`,
@@ -140,6 +145,7 @@ describe('animation domain properties', () => {
                 bindings: [],
               },
             ],
+            compositions: [],
           };
 
           expect(normalizeAnimationDefinition(definition)).toEqual(definition);
@@ -195,6 +201,9 @@ describe('animation domain properties', () => {
             id: 'timeline',
             name: 'Timeline',
             durationMs,
+            motionIntent: 'decorative',
+            reducedMotion: { kind: 'final-state' },
+            markers: [],
             iterations: 'infinite',
             direction,
             bindings: [],
@@ -230,6 +239,9 @@ describe('animation domain properties', () => {
             id: 'timeline',
             name: 'Timeline',
             durationMs,
+            motionIntent: 'decorative' as const,
+            reducedMotion: { kind: 'final-state' as const },
+            markers: [],
             iterations: 'infinite' as const,
             easing,
             bindings: [],
@@ -261,6 +273,9 @@ describe('animation domain properties', () => {
       id: 'timeline',
       name: 'Timeline',
       durationMs: 1_000,
+      motionIntent: 'decorative' as const,
+      reducedMotion: { kind: 'final-state' as const },
+      markers: [],
       iterations: 'infinite' as const,
       easing: 'ease-in',
       bindings: [],
@@ -289,6 +304,9 @@ describe('animation domain properties', () => {
             id: 'timeline',
             name: 'Timeline',
             durationMs,
+            motionIntent: 'decorative',
+            reducedMotion: { kind: 'final-state' },
+            markers: [],
             delayMs,
             iterations,
             fillMode,

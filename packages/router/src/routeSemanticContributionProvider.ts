@@ -31,7 +31,7 @@ import type {
 } from './routeTypes';
 
 const ROUTE_SEMANTIC_PROVIDER_ID = 'prodivix.route-manifest';
-const ROUTE_SEMANTIC_PROVIDER_VERSION = '1';
+const ROUTE_SEMANTIC_PROVIDER_VERSION = '2';
 
 const ROUTE_NODE_TYPE_REF = 'route/node';
 const ROUTE_MODULE_TYPE_REF = 'route/module';
@@ -312,7 +312,13 @@ const contributeRouteTree = (
     typeRef: ROUTE_NODE_TYPE_REF,
     capabilityIds: context.qualifiedNamePrefix
       ? ['route:module-node', 'route:runtime-owner']
-      : ['route:navigation-target', 'route:runtime-owner'],
+      : [
+          'behavior:route:lifecycle',
+          'behavior:route:location',
+          'behavior:route:navigate',
+          'route:navigation-target',
+          'route:runtime-owner',
+        ],
   });
 
   const segment = normalizeRouteSegment(node.segment);

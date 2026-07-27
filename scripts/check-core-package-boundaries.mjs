@@ -17,11 +17,18 @@ const corePackages = {
   // animation: code-slot projection ordering uses the shared code-point comparator.
   animation: new Set([
     '@prodivix/authoring',
+    '@prodivix/behavior',
     '@prodivix/runtime-core',
     '@prodivix/shared',
   ]),
+  // Domain owners contribute descriptors to Behavior; Behavior never imports
+  // those owners, so this preserves the one-way contribution boundary.
   // router: route-matching tie-breaks and semantic-fact ordering use the shared code-point comparator.
-  router: new Set(['@prodivix/authoring', '@prodivix/shared']),
+  router: new Set([
+    '@prodivix/authoring',
+    '@prodivix/behavior',
+    '@prodivix/shared',
+  ]),
   diagnostics: new Set(['@prodivix/shared']),
   behavior: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   verification: new Set([
@@ -32,7 +39,11 @@ const corePackages = {
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   'code-language': new Set(['@prodivix/authoring']),
   tokens: new Set(['@prodivix/authoring']),
-  pir: new Set(['@prodivix/authoring', '@prodivix/diagnostics']),
+  pir: new Set([
+    '@prodivix/authoring',
+    '@prodivix/behavior',
+    '@prodivix/diagnostics',
+  ]),
   workspace: new Set([
     '@prodivix/animation',
     '@prodivix/assets',
@@ -70,10 +81,15 @@ const corePackages = {
     '@prodivix/runtime-remote',
     '@prodivix/shared',
   ]),
-  data: new Set(['@prodivix/authoring', '@prodivix/runtime-core']),
+  data: new Set([
+    '@prodivix/authoring',
+    '@prodivix/behavior',
+    '@prodivix/runtime-core',
+  ]),
   // nodegraph: executor-slot projection ordering uses the shared code-point comparator.
   nodegraph: new Set([
     '@prodivix/authoring',
+    '@prodivix/behavior',
     '@prodivix/runtime-core',
     '@prodivix/shared',
   ]),

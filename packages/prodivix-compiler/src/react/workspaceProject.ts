@@ -252,9 +252,10 @@ const createWorkspaceAppModule = (input: {
 
   const routeEntries = input.routeTopology.routes
     .flatMap((route) => {
-      if (!route.pageDocId) return [];
-      const compiled = moduleByDocumentId.get(route.pageDocId);
-      if (!compiled) {
+      const page = route.pageDocId
+        ? moduleByDocumentId.get(route.pageDocId)
+        : undefined;
+      if (route.pageDocId && !page) {
         diagnostics.push({
           code: 'WKS-EXPORT-ROUTE-DOCUMENT',
           severity: 'error',
@@ -281,8 +282,8 @@ const createWorkspaceAppModule = (input: {
       const namedOutlets = (route.outletBindings ?? []).flatMap((binding) => {
         const target = binding.pageDocId
           ? moduleByDocumentId.get(binding.pageDocId)
-          : compiled;
-        if (!target) {
+          : undefined;
+        if (binding.pageDocId && !target) {
           diagnostics.push({
             code: 'WKS-EXPORT-ROUTE-DOCUMENT',
             severity: 'error',
@@ -293,27 +294,39 @@ const createWorkspaceAppModule = (input: {
           return [];
         }
         return [
-          { outletNodeId: binding.outletNodeId, target: target.componentName },
+          {
+            outletName: binding.outletName,
+            outletNodeId: binding.outletNodeId,
+            ...(target ? { target: target.componentName } : {}),
+          },
         ];
       });
       return [
         {
           path: route.path,
+          depth: route.depth,
           routeNodeId: route.routeNodeId,
-          componentName: compiled.componentName,
+          ...(route.parentRouteNodeId
+            ? { parentRouteNodeId: route.parentRouteNodeId }
+            : {}),
+          ...(page ? { pageComponentName: page.componentName } : {}),
           ...(layout ? { layoutComponentName: layout.componentName } : {}),
           ...(route.outletNodeId ? { outletNodeId: route.outletNodeId } : {}),
           namedOutlets,
+          routable: Boolean(
+            page || layout || namedOutlets.some(({ target }) => target)
+          ),
         },
       ];
     })
     .sort(
       (left, right) =>
         scoreRoutePath(right.path) - scoreRoutePath(left.path) ||
+        right.depth - left.depth ||
         compareUnicodeCodePoints(left.path, right.path) ||
         compareUnicodeCodePoints(left.routeNodeId, right.routeNodeId)
     );
-  if (!routeEntries.length) {
+  if (!routeEntries.some(({ routable }) => routable)) {
     diagnostics.push({
       code: 'WKS-EXPORT-ROUTES-EMPTY',
       severity: 'error',
@@ -331,19 +344,29 @@ const createWorkspaceAppModule = (input: {
     .join('\n');
   const routeTable = routeEntries
     .map((route) => {
-      const outletEntries = [
-        ...(route.outletNodeId
-          ? [`${JSON.stringify(route.outletNodeId)}: ${route.componentName}`]
-          : []),
-        ...route.namedOutlets.map(
-          (outlet) => `${JSON.stringify(outlet.outletNodeId)}: ${outlet.target}`
-        ),
-      ];
-      return `  { routeNodeId: ${JSON.stringify(route.routeNodeId)}, path: ${JSON.stringify(route.path)}, Component: ${route.componentName}${
+      const outletBindings = route.namedOutlets.map(
+        (outlet) =>
+          `{ outletName: ${JSON.stringify(outlet.outletName)}, outletNodeId: ${JSON.stringify(outlet.outletNodeId)}${
+            outlet.target ? `, Component: ${outlet.target}` : ''
+          } }`
+      );
+      return `  { routeNodeId: ${JSON.stringify(route.routeNodeId)}, path: ${JSON.stringify(route.path)}, depth: ${route.depth}${
+        route.parentRouteNodeId
+          ? `, parentRouteNodeId: ${JSON.stringify(route.parentRouteNodeId)}`
+          : ''
+      }${route.pageComponentName ? `, Page: ${route.pageComponentName}` : ''}${
         route.layoutComponentName
           ? `, Layout: ${route.layoutComponentName}`
           : ''
-      }${outletEntries.length ? `, outletComponentsById: { ${outletEntries.join(', ')} }` : ''} },`;
+      }${
+        route.outletNodeId
+          ? `, outletNodeId: ${JSON.stringify(route.outletNodeId)}`
+          : ''
+      }${
+        outletBindings.length
+          ? `, outletBindings: [${outletBindings.join(', ')}]`
+          : ''
+      }, routable: ${String(route.routable)} },`;
     })
     .join('\n');
   const runtimeByRoute = new Map<
@@ -385,17 +408,30 @@ ${runtimeTable}
 
 type WorkspaceRouteComponent = (props: any) => any;
 
+type WorkspaceRouteOutletBinding = Readonly<{
+  outletName: string;
+  outletNodeId: string;
+  Component?: WorkspaceRouteComponent;
+}>;
+
 type WorkspaceRouteEntry = Readonly<{
   routeNodeId: string;
   path: string;
-  Component: WorkspaceRouteComponent;
+  depth: number;
+  parentRouteNodeId?: string;
+  Page?: WorkspaceRouteComponent;
   Layout?: WorkspaceRouteComponent;
-  outletComponentsById?: Readonly<Record<string, WorkspaceRouteComponent>>;
+  outletNodeId?: string;
+  outletBindings?: readonly WorkspaceRouteOutletBinding[];
+  routable: boolean;
 }>;
 
 const workspaceRoutes: readonly WorkspaceRouteEntry[] = [
 ${routeTable}
 ];
+const workspaceRouteById = Object.freeze(Object.fromEntries(
+  workspaceRoutes.map((route) => [route.routeNodeId, route])
+)) as Readonly<Record<string, WorkspaceRouteEntry>>;
 
 const workspaceDataRuntime = createWorkspaceDataRuntime();
 
@@ -496,10 +532,32 @@ const matchWorkspaceRoutePath = (pattern: string, pathname: string): Readonly<Re
 const readPathname = () =>
   typeof window === 'undefined' ? '/' : normalizePath(window.location.pathname);
 
+const workspaceRouteMatchChain = (route: WorkspaceRouteEntry): readonly WorkspaceRouteEntry[] => {
+  const chain: WorkspaceRouteEntry[] = [];
+  const seen = new Set<string>();
+  let current: WorkspaceRouteEntry | undefined = route;
+  while (current) {
+    if (seen.has(current.routeNodeId)) throw new Error('REACT_ROUTE_CHAIN_INVALID');
+    seen.add(current.routeNodeId);
+    chain.unshift(current);
+    current = current.parentRouteNodeId
+      ? workspaceRouteById[current.parentRouteNodeId]
+      : undefined;
+  }
+  return Object.freeze(chain);
+};
+
 const findWorkspaceRoute = (pathname: string) => {
   for (const route of workspaceRoutes) {
+    if (!route.routable) continue;
     const params = matchWorkspaceRoutePath(route.path, pathname);
-    if (params) return Object.freeze({ ...route, params });
+    if (params) {
+      return Object.freeze({
+        ...route,
+        params,
+        matchChain: workspaceRouteMatchChain(route),
+      });
+    }
   }
   return undefined;
 };
@@ -636,6 +694,102 @@ export const dispatchWorkspaceRouteAction = async (
   }
 };
 
+const renderWorkspaceRouteDocument = (
+  Document: WorkspaceRouteComponent,
+  key: string,
+  activeRouteId: string,
+  paramsById: Readonly<Record<string, string>>,
+  routeOutletsById: Readonly<Record<string, (outletInstancePath: string) => any>> = {}
+) => (
+  <Document
+    key={key}
+    __pdxRuntime={workspacePirRuntime}
+    __pdxRouteId={activeRouteId}
+    __pdxParamsById={paramsById}
+    __pdxInstancePath={'/route:' + activeRouteId + '/document:' + key}
+    __pdxRouteOutletsById={routeOutletsById}
+  />
+);
+
+const renderWorkspaceRouteComposition = (
+  matchChain: readonly WorkspaceRouteEntry[],
+  activeRouteId: string,
+  paramsById: Readonly<Record<string, string>>
+) => {
+  let content: any = null;
+  for (let index = matchChain.length - 1; index >= 0; index -= 1) {
+    const route = matchChain[index];
+    const bindings = route.outletBindings ?? [];
+    const pageIsContainer =
+      !route.Layout &&
+      Boolean(route.Page) &&
+      Boolean(route.outletNodeId || bindings.length);
+    const ownPage =
+      route.Page && !pageIsContainer
+        ? renderWorkspaceRouteDocument(
+            route.Page,
+            route.routeNodeId + ':page',
+            activeRouteId,
+            paramsById
+          )
+        : null;
+    let defaultContent = content ?? ownPage;
+    const defaultBinding = bindings.find(
+      ({ outletName }) => outletName === 'default'
+    );
+    if (defaultBinding?.Component) {
+      defaultContent = renderWorkspaceRouteDocument(
+        defaultBinding.Component,
+        route.routeNodeId + ':outlet:default',
+        activeRouteId,
+        paramsById
+      );
+    }
+    const routeOutletsById: Record<
+      string,
+      (outletInstancePath: string) => any
+    > = {};
+    if (route.outletNodeId && defaultContent !== null) {
+      const projected = defaultContent;
+      routeOutletsById[route.outletNodeId] = () => projected;
+    }
+    bindings.forEach((binding) => {
+      const projected = binding.Component
+        ? renderWorkspaceRouteDocument(
+            binding.Component,
+            route.routeNodeId + ':outlet:' + binding.outletName,
+            activeRouteId,
+            paramsById
+          )
+        : binding.outletName === 'default'
+          ? defaultContent
+          : null;
+      if (projected !== null) {
+        routeOutletsById[binding.outletNodeId] = () => projected;
+      }
+    });
+    const Container = route.Layout ?? (pageIsContainer ? route.Page : undefined);
+    if (Container) {
+      content = renderWorkspaceRouteDocument(
+        Container,
+        route.routeNodeId + ':container',
+        activeRouteId,
+        paramsById,
+        Object.freeze(routeOutletsById)
+      );
+      continue;
+    }
+    if (content === null && ownPage !== null) content = ownPage;
+  }
+  return (
+    content ?? (
+      <main data-prodivix-route-runtime="empty">
+        Route has no renderable document.
+      </main>
+    )
+  );
+};
+
 export default function App() {
   const locationSnapshot = useSyncExternalStore(
     subscribeToLocation,
@@ -644,16 +798,22 @@ export default function App() {
   );
   const pathname = locationSnapshot.split('\\0', 1)[0] || '/';
   const match = findWorkspaceRoute(pathname);
-  const routeRuntime = match ? readWorkspaceRouteRuntime(match.routeNodeId) : undefined;
-  const routeServerGuard = readWorkspaceServerFunctionRouteRuntimeEntry(routeRuntime?.guard);
-  const routeServerLoader = readWorkspaceServerFunctionRouteRuntimeEntry(routeRuntime?.loader);
+  const hasRouteServerRuntime = Boolean(
+    match?.matchChain.some((route) => {
+      const runtime = readWorkspaceRouteRuntime(route.routeNodeId);
+      return Boolean(
+        readWorkspaceServerFunctionRouteRuntimeEntry(runtime?.guard) ||
+          readWorkspaceServerFunctionRouteRuntimeEntry(runtime?.loader)
+      );
+    })
+  );
   const [routeRuntimeState, setRouteRuntimeState] = React.useState<
     | Readonly<{ routeNodeId: string; status: 'pending' | 'ready' }>
     | Readonly<{ routeNodeId: string; status: 'denied' | 'failed'; code: string }>
   >(() => ({ routeNodeId: '', status: 'pending' }));
 
   React.useEffect(() => {
-    if (!match || (!routeServerGuard && !routeServerLoader)) {
+    if (!match || !hasRouteServerRuntime) {
       activeWorkspaceRouteLoaderValue = undefined;
       return undefined;
     }
@@ -662,35 +822,57 @@ export default function App() {
     const routeNodeId = match.routeNodeId;
     activeWorkspaceRouteLoaderValue = undefined;
     setRouteRuntimeState({ routeNodeId, status: 'pending' });
-    const invoke = async (entry: WorkspaceServerFunctionRouteRuntimeEntry | undefined) => {
+    const invoke = async (
+      entry: WorkspaceServerFunctionRouteRuntimeEntry | undefined,
+      currentRouteNodeId: string
+    ) => {
       if (!entry) return undefined;
       return invokeWorkspaceServerFunction(
         entry.functionRef,
-        { routeId: routeNodeId },
+        { routeId: currentRouteNodeId },
         { signal: controller.signal }
       );
     };
     void (async () => {
       try {
-        const guard = await invoke(routeServerGuard);
-        if (!active) return;
-        if (guard?.kind === 'deny') {
-          setRouteRuntimeState({ routeNodeId, status: 'denied', code: guard.code });
-          return;
+        for (const route of match.matchChain) {
+          const runtime = readWorkspaceRouteRuntime(route.routeNodeId);
+          const guard = await invoke(
+            readWorkspaceServerFunctionRouteRuntimeEntry(runtime?.guard),
+            route.routeNodeId
+          );
+          if (!active) return;
+          if (guard?.kind === 'deny') {
+            setRouteRuntimeState({
+              routeNodeId,
+              status: 'denied',
+              code: guard.code,
+            });
+            return;
+          }
+          if (guard?.kind === 'redirect') {
+            window.location.assign(guard.location);
+            return;
+          }
+          if (guard && guard.kind !== 'allow') {
+            throw new Error('SVR_ROUTE_GUARD_OUTCOME_INVALID');
+          }
+          const loader = await invoke(
+            readWorkspaceServerFunctionRouteRuntimeEntry(runtime?.loader),
+            route.routeNodeId
+          );
+          if (!active) return;
+          if (loader?.kind === 'redirect') {
+            window.location.assign(loader.location);
+            return;
+          }
+          if (loader && loader.kind !== 'value') {
+            throw new Error('SVR_ROUTE_LOADER_OUTCOME_INVALID');
+          }
+          if (loader?.kind === 'value') {
+            activeWorkspaceRouteLoaderValue = loader.value;
+          }
         }
-        if (guard?.kind === 'redirect') {
-          window.location.assign(guard.location);
-          return;
-        }
-        if (guard && guard.kind !== 'allow') throw new Error('SVR_ROUTE_GUARD_OUTCOME_INVALID');
-        const loader = await invoke(routeServerLoader);
-        if (!active) return;
-        if (loader?.kind === 'redirect') {
-          window.location.assign(loader.location);
-          return;
-        }
-        if (loader && loader.kind !== 'value') throw new Error('SVR_ROUTE_LOADER_OUTCOME_INVALID');
-        activeWorkspaceRouteLoaderValue = loader?.kind === 'value' ? loader.value : undefined;
         setRouteRuntimeState({ routeNodeId, status: 'ready' });
       } catch (error) {
         if (!active) return;
@@ -708,7 +890,7 @@ export default function App() {
   }, [match?.routeNodeId, locationSnapshot]);
 
   if (!match) return <main data-prodivix-route-not-found="true">Route not found.</main>;
-  if (routeServerGuard || routeServerLoader) {
+  if (hasRouteServerRuntime) {
     if (routeRuntimeState.routeNodeId !== match.routeNodeId || routeRuntimeState.status === 'pending') {
       return <main data-prodivix-route-runtime="pending">Loading route.</main>;
     }
@@ -719,19 +901,11 @@ export default function App() {
       return <main data-prodivix-route-runtime="failed">Route runtime failed: {routeRuntimeState.code}</main>;
     }
   }
-  const Page = match.Component;
-  const pageElement = <Page __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} __pdxParamsById={match.params} />;
-  const Layout = match.Layout;
-  if (!Layout) return pageElement;
-  // Route outlets mount the matched content inside the layout document. Each
-  // outlet node id maps to the component that fills it.
-  const routeOutletsById = Object.fromEntries(
-    Object.entries(match.outletComponentsById ?? {}).map(([outletNodeId, Outlet]) => [
-      outletNodeId,
-      () => <Outlet __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} __pdxParamsById={match.params} />,
-    ])
+  return renderWorkspaceRouteComposition(
+    match.matchChain,
+    match.routeNodeId,
+    match.params
   );
-  return <Layout __pdxRuntime={workspacePirRuntime} __pdxRouteId={match.routeNodeId} __pdxParamsById={match.params} __pdxRouteOutletsById={routeOutletsById} />;
 }
 `,
       sourceTrace: input.routeTopology.routes.flatMap(

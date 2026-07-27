@@ -255,6 +255,7 @@ const createIndex = (
     snapshotIdentity,
     getScope: (id) => scopesById.get(id) ?? null,
     getSymbol: (id) => symbolsById.get(id) ?? null,
+    getSymbols: () => facts.symbols,
     getReference: (id) => referencesById.get(id) ?? null,
     getDependency: (id) => dependenciesById.get(id) ?? null,
     queryVisibleSymbols,

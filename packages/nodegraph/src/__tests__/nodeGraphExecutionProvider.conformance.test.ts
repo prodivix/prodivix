@@ -8,59 +8,82 @@ import {
   readNodeGraphExecutionJobOutput,
 } from '..';
 import type { NodeGraphDocument } from '..';
+import { controlPort, edge, node } from './nodeGraphTestFixtures';
 
 const graph: NodeGraphDocument = {
-  version: 1,
   nodes: [
-    { id: 'start', data: { kind: 'start' } },
-    {
-      id: 'switch',
-      data: {
-        kind: 'switch',
+    node('start', 'start', [controlPort('out.control.next', 'output')]),
+    node(
+      'switch',
+      'switch',
+      [
+        controlPort('in.control.prev', 'input', true),
+        controlPort('out.control.default', 'output'),
+      ],
+      {
         cases: [{ id: 'selected', label: 'selected' }],
-      },
-    },
-    { id: 'process', data: { kind: 'process' } },
-    { id: 'log-first', data: { kind: 'log', value: 'first' } },
-    { id: 'log-second', data: { kind: 'log', value: 'second' } },
-    { id: 'end', data: { kind: 'end' } },
+      }
+    ),
+    node('process', 'process', [
+      controlPort('in.control.prev', 'input', true),
+      controlPort('out.control.next', 'output'),
+    ]),
+    node(
+      'log-first',
+      'log',
+      [
+        controlPort('in.control.prev', 'input', true),
+        controlPort('out.control.next', 'output'),
+      ],
+      { value: 'first' }
+    ),
+    node(
+      'log-second',
+      'log',
+      [
+        controlPort('in.control.prev', 'input', true),
+        controlPort('out.control.next', 'output'),
+      ],
+      { value: 'second' }
+    ),
+    node('end', 'end', [controlPort('in.control.prev', 'input', true)]),
   ],
   edges: [
-    {
-      id: 'edge-start-first',
-      source: 'start',
-      target: 'switch',
-      sourceHandle: 'out.control.next',
-      targetHandle: 'in.control.prev',
-    },
-    {
-      id: 'edge-switch-process',
-      source: 'switch',
-      target: 'process',
-      sourceHandle: 'out.control.default',
-      targetHandle: 'in.control.prev',
-    },
-    {
-      id: 'edge-process-first',
-      source: 'process',
-      target: 'log-first',
-      sourceHandle: 'out.control.next',
-      targetHandle: 'in.control.prev',
-    },
-    {
-      id: 'edge-first-second',
-      source: 'log-first',
-      target: 'log-second',
-      sourceHandle: 'out.control.next',
-      targetHandle: 'in.control.prev',
-    },
-    {
-      id: 'edge-second-end',
-      source: 'log-second',
-      target: 'end',
-      sourceHandle: 'out.control.next',
-      targetHandle: 'in.control.prev',
-    },
+    edge(
+      'edge-start-first',
+      'start',
+      'out.control.next',
+      'switch',
+      'in.control.prev'
+    ),
+    edge(
+      'edge-switch-process',
+      'switch',
+      'out.control.default',
+      'process',
+      'in.control.prev'
+    ),
+    edge(
+      'edge-process-first',
+      'process',
+      'out.control.next',
+      'log-first',
+      'in.control.prev'
+    ),
+    edge(
+      'edge-first-second',
+      'log-first',
+      'out.control.next',
+      'log-second',
+      'in.control.prev'
+    ),
+    edge(
+      'edge-second-end',
+      'log-second',
+      'out.control.next',
+      'end',
+      'in.control.prev'
+    ),
   ],
 };
 
@@ -202,8 +225,11 @@ describe('NodeGraph ExecutionProvider conformance', () => {
   it('maps an unavailable executor to a stable node diagnostic', async () => {
     const provider = createNodeGraphExecutionProvider({
       resolveDocument: () => ({
-        version: 1,
-        nodes: [{ id: 'unknown', data: { kind: 'not-registered' } }],
+        nodes: [
+          node('unknown', 'not-registered', [
+            controlPort('out.control.next', 'output'),
+          ]),
+        ],
         edges: [],
       }),
       createJobId: () => 'unsupported-nodegraph-job',

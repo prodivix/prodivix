@@ -16,6 +16,7 @@ import {
   serializeAnimationDefinition,
   withEditorState,
   type AnimationBinding,
+  type AnimationComposition,
   type AnimationDefinition,
   type AnimationTimeline,
   type AnimationTimelineCodeSlotRole,
@@ -597,6 +598,86 @@ export const useAnimationEditorState = ({
     },
     [animationDocumentId, updateActiveTimeline]
   );
+
+  const addComposition = useCallback((): string => {
+    const compositionId = animationIdFactory('composition');
+    const rootId = animationIdFactory('composition-node');
+    setAnimation((prev) => {
+      const timelineId =
+        prev['x-animationEditor']?.activeTimelineId ?? prev.timelines[0]?.id;
+      const composition: AnimationComposition = {
+        id: compositionId,
+        name: `Composition ${prev.compositions.length + 1}`,
+        motionIntent: 'decorative',
+        root: timelineId
+          ? {
+              id: rootId,
+              kind: 'timeline-ref',
+              timelineId,
+            }
+          : {
+              id: rootId,
+              kind: 'hold',
+              durationMs: 1,
+            },
+      };
+      return {
+        ...prev,
+        compositions: [...prev.compositions, composition],
+        entryCompositionId: prev.entryCompositionId ?? compositionId,
+      };
+    });
+    return compositionId;
+  }, []);
+
+  const updateCompositionName = useCallback(
+    (compositionId: string, name: string) => {
+      setAnimation((prev) => {
+        let changed = false;
+        const compositions = prev.compositions.map((composition) => {
+          if (composition.id !== compositionId || composition.name === name) {
+            return composition;
+          }
+          changed = true;
+          return { ...composition, name };
+        });
+        return changed ? { ...prev, compositions } : prev;
+      });
+    },
+    []
+  );
+
+  const setEntryComposition = useCallback((compositionId: string) => {
+    setAnimation((prev) =>
+      prev.entryCompositionId === compositionId ||
+      !prev.compositions.some((composition) => composition.id === compositionId)
+        ? prev
+        : { ...prev, entryCompositionId: compositionId }
+    );
+  }, []);
+
+  const deleteComposition = useCallback((compositionId: string) => {
+    setAnimation((prev) => {
+      const compositions = prev.compositions.filter(
+        (composition) => composition.id !== compositionId
+      );
+      if (compositions.length === prev.compositions.length) return prev;
+      if (prev.entryCompositionId === compositionId) {
+        const { entryCompositionId: _removed, ...withoutEntry } = prev;
+        return {
+          ...withoutEntry,
+          compositions,
+          ...(compositions[0]
+            ? { entryCompositionId: compositions[0].id }
+            : {}),
+        };
+      }
+      return {
+        ...prev,
+        compositions,
+      };
+    });
+  }, []);
 
   const [cursorDraftMs, setCursorDraftMs] = useState(() => {
     const initialCursor = animation['x-animationEditor']?.cursorMs;
@@ -1262,6 +1343,10 @@ export const useAnimationEditorState = ({
     updateActiveTimelineFillMode,
     updateActiveTimelineEasing,
     updateActiveTimelineCodeSlot,
+    addComposition,
+    updateCompositionName,
+    setEntryComposition,
+    deleteComposition,
     cursorMs,
     setCursorMs,
     zoom,

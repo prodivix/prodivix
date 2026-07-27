@@ -1,0 +1,540 @@
+const canonicalStringSchema = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 512,
+  pattern: '^\\S(?:[\\s\\S]*\\S)?$',
+} as const;
+
+const nonNegativeFiniteNumberSchema = {
+  type: 'number',
+  minimum: 0,
+} as const;
+
+export const ANIMATION_CURRENT_WIRE_VERSION = 2 as const;
+
+/**
+ * Machine-readable persistence contract for the active Animation wire
+ * snapshot. Production consumers use the version-neutral domain model.
+ */
+export const animationCurrentWireSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  $id: 'https://prodivix.dev/schemas/animation/v2.json',
+  title: 'Prodivix Animation wire document v2',
+  type: 'object',
+  required: ['version', 'target', 'timelines', 'compositions'],
+  properties: {
+    version: { const: ANIMATION_CURRENT_WIRE_VERSION },
+    target: { $ref: '#/$defs/target' },
+    timelines: {
+      type: 'array',
+      maxItems: 10_000,
+      items: { $ref: '#/$defs/timeline' },
+    },
+    compositions: {
+      type: 'array',
+      maxItems: 10_000,
+      items: { $ref: '#/$defs/composition' },
+    },
+    entryCompositionId: { $ref: '#/$defs/canonicalString' },
+    svgFilters: {
+      type: 'array',
+      maxItems: 10_000,
+      items: { $ref: '#/$defs/svgFilter' },
+    },
+    'x-animationEditor': { $ref: '#/$defs/editorState' },
+  },
+  additionalProperties: false,
+  $defs: {
+    canonicalString: canonicalStringSchema,
+    target: {
+      type: 'object',
+      required: ['kind', 'documentId'],
+      properties: {
+        kind: { const: 'pir-document' },
+        documentId: { $ref: '#/$defs/canonicalString' },
+      },
+      additionalProperties: false,
+    },
+    sourceSpan: {
+      type: 'object',
+      required: [
+        'artifactId',
+        'startLine',
+        'startColumn',
+        'endLine',
+        'endColumn',
+      ],
+      properties: {
+        artifactId: { $ref: '#/$defs/canonicalString' },
+        startLine: { type: 'integer', minimum: 1 },
+        startColumn: { type: 'integer', minimum: 1 },
+        endLine: { type: 'integer', minimum: 1 },
+        endColumn: { type: 'integer', minimum: 1 },
+      },
+      additionalProperties: false,
+    },
+    codeReference: {
+      type: 'object',
+      required: ['artifactId'],
+      properties: {
+        artifactId: { $ref: '#/$defs/canonicalString' },
+        exportName: { $ref: '#/$defs/canonicalString' },
+        symbolId: { $ref: '#/$defs/canonicalString' },
+        sourceSpan: { $ref: '#/$defs/sourceSpan' },
+      },
+      additionalProperties: false,
+    },
+    codeSlotBinding: {
+      type: 'object',
+      required: ['slotId', 'reference'],
+      properties: {
+        slotId: { $ref: '#/$defs/canonicalString' },
+        reference: { $ref: '#/$defs/codeReference' },
+      },
+      additionalProperties: false,
+    },
+    timelineCodeSlots: {
+      type: 'object',
+      properties: {
+        customEasing: { $ref: '#/$defs/codeSlotBinding' },
+        shader: { $ref: '#/$defs/codeSlotBinding' },
+        script: { $ref: '#/$defs/codeSlotBinding' },
+      },
+      additionalProperties: false,
+      minProperties: 1,
+    },
+    marker: {
+      type: 'object',
+      required: ['id', 'atMs', 'kind', 'requiredInReducedMotion'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        atMs: nonNegativeFiniteNumberSchema,
+        kind: { enum: ['checkpoint', 'handoff', 'settle'] },
+        requiredInReducedMotion: { type: 'boolean' },
+      },
+      additionalProperties: false,
+    },
+    reducedMotion: {
+      oneOf: [
+        {
+          type: 'object',
+          required: ['kind'],
+          properties: { kind: { const: 'disabled' } },
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          required: ['kind'],
+          properties: { kind: { const: 'final-state' } },
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          required: ['kind'],
+          properties: { kind: { const: 'retain' } },
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          required: ['kind', 'timelineId'],
+          properties: {
+            kind: { const: 'timeline-ref' },
+            timelineId: { $ref: '#/$defs/canonicalString' },
+          },
+          additionalProperties: false,
+        },
+      ],
+    },
+    keyframe: {
+      type: 'object',
+      required: ['atMs', 'value'],
+      properties: {
+        atMs: nonNegativeFiniteNumberSchema,
+        value: { oneOf: [{ type: 'number' }, { type: 'string' }] },
+        easing: { $ref: '#/$defs/canonicalString' },
+        hold: { type: 'boolean' },
+      },
+      additionalProperties: false,
+    },
+    styleTrack: {
+      type: 'object',
+      required: ['id', 'kind', 'property', 'keyframes'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'style' },
+        property: {
+          enum: [
+            'opacity',
+            'transform.translateX',
+            'transform.translateY',
+            'transform.scale',
+            'color',
+          ],
+        },
+        keyframes: {
+          type: 'array',
+          maxItems: 100_000,
+          items: { $ref: '#/$defs/keyframe' },
+        },
+      },
+      additionalProperties: false,
+    },
+    cssFilterTrack: {
+      type: 'object',
+      required: ['id', 'kind', 'fn', 'keyframes'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'css-filter' },
+        fn: {
+          enum: [
+            'blur',
+            'brightness',
+            'contrast',
+            'grayscale',
+            'hue-rotate',
+            'invert',
+            'saturate',
+            'sepia',
+          ],
+        },
+        unit: { enum: ['px', '%', 'deg'] },
+        keyframes: {
+          type: 'array',
+          maxItems: 100_000,
+          items: { $ref: '#/$defs/keyframe' },
+        },
+      },
+      additionalProperties: false,
+    },
+    svgFilterAttributeTrack: {
+      type: 'object',
+      required: ['id', 'kind', 'filterId', 'primitiveId', 'attr', 'keyframes'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'svg-filter-attr' },
+        filterId: { $ref: '#/$defs/canonicalString' },
+        primitiveId: { $ref: '#/$defs/canonicalString' },
+        attr: { $ref: '#/$defs/canonicalString' },
+        keyframes: {
+          type: 'array',
+          maxItems: 100_000,
+          items: { $ref: '#/$defs/keyframe' },
+        },
+      },
+      additionalProperties: false,
+    },
+    track: {
+      oneOf: [
+        { $ref: '#/$defs/styleTrack' },
+        { $ref: '#/$defs/cssFilterTrack' },
+        { $ref: '#/$defs/svgFilterAttributeTrack' },
+      ],
+    },
+    binding: {
+      type: 'object',
+      required: ['id', 'targetNodeId', 'tracks'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        targetNodeId: { $ref: '#/$defs/canonicalString' },
+        tracks: {
+          type: 'array',
+          maxItems: 100_000,
+          items: { $ref: '#/$defs/track' },
+        },
+      },
+      additionalProperties: false,
+    },
+    timeline: {
+      type: 'object',
+      required: [
+        'id',
+        'name',
+        'durationMs',
+        'motionIntent',
+        'reducedMotion',
+        'markers',
+        'bindings',
+      ],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        name: { $ref: '#/$defs/canonicalString' },
+        durationMs: { type: 'number', exclusiveMinimum: 0 },
+        motionIntent: {
+          enum: ['decorative', 'spatial', 'essential', 'continuous'],
+        },
+        reducedMotion: { $ref: '#/$defs/reducedMotion' },
+        markers: {
+          type: 'array',
+          maxItems: 100_000,
+          items: { $ref: '#/$defs/marker' },
+        },
+        delayMs: nonNegativeFiniteNumberSchema,
+        iterations: {
+          oneOf: [
+            { type: 'integer', minimum: 1, maximum: 1_000_000 },
+            { const: 'infinite' },
+          ],
+        },
+        direction: {
+          enum: ['normal', 'reverse', 'alternate', 'alternate-reverse'],
+        },
+        fillMode: { enum: ['none', 'forwards', 'backwards', 'both'] },
+        easing: { $ref: '#/$defs/canonicalString' },
+        codeSlots: { $ref: '#/$defs/timelineCodeSlots' },
+        bindings: {
+          type: 'array',
+          maxItems: 100_000,
+          items: { $ref: '#/$defs/binding' },
+        },
+      },
+      additionalProperties: false,
+    },
+    compositionNode: {
+      oneOf: [
+        { $ref: '#/$defs/timelineReferenceNode' },
+        { $ref: '#/$defs/compositionReferenceNode' },
+        { $ref: '#/$defs/sequenceNode' },
+        { $ref: '#/$defs/parallelNode' },
+        { $ref: '#/$defs/staggerNode' },
+        { $ref: '#/$defs/conditionalVariantNode' },
+        { $ref: '#/$defs/compositionMarkerNode' },
+        { $ref: '#/$defs/holdNode' },
+        { $ref: '#/$defs/settleNode' },
+      ],
+    },
+    timelineReferenceNode: {
+      type: 'object',
+      required: ['id', 'kind', 'timelineId'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'timeline-ref' },
+        timelineId: { $ref: '#/$defs/canonicalString' },
+      },
+      additionalProperties: false,
+    },
+    compositionReferenceNode: {
+      type: 'object',
+      required: ['id', 'kind', 'compositionId'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'composition-ref' },
+        compositionId: { $ref: '#/$defs/canonicalString' },
+      },
+      additionalProperties: false,
+    },
+    sequenceNode: {
+      type: 'object',
+      required: ['id', 'kind', 'children'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'sequence' },
+        children: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 10_000,
+          items: { $ref: '#/$defs/compositionNode' },
+        },
+      },
+      additionalProperties: false,
+    },
+    parallelNode: {
+      type: 'object',
+      required: ['id', 'kind', 'join', 'cancelLosers', 'children'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'parallel' },
+        join: { enum: ['all', 'any', 'first-success'] },
+        cancelLosers: { type: 'boolean' },
+        children: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 10_000,
+          items: { $ref: '#/$defs/compositionNode' },
+        },
+      },
+      additionalProperties: false,
+    },
+    staggerNode: {
+      type: 'object',
+      required: ['id', 'kind', 'intervalMs', 'children'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'stagger' },
+        intervalMs: nonNegativeFiniteNumberSchema,
+        children: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 10_000,
+          items: { $ref: '#/$defs/compositionNode' },
+        },
+      },
+      additionalProperties: false,
+    },
+    conditionalVariantNode: {
+      type: 'object',
+      required: ['id', 'kind', 'full', 'reduced'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'conditional-variant' },
+        full: { $ref: '#/$defs/compositionNode' },
+        reduced: { $ref: '#/$defs/compositionNode' },
+      },
+      additionalProperties: false,
+    },
+    compositionMarkerNode: {
+      type: 'object',
+      required: [
+        'id',
+        'kind',
+        'markerId',
+        'markerKind',
+        'requiredInReducedMotion',
+      ],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'marker' },
+        markerId: { $ref: '#/$defs/canonicalString' },
+        markerKind: { enum: ['checkpoint', 'handoff', 'settle'] },
+        requiredInReducedMotion: { type: 'boolean' },
+      },
+      additionalProperties: false,
+    },
+    holdNode: {
+      type: 'object',
+      required: ['id', 'kind', 'durationMs'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'hold' },
+        durationMs: nonNegativeFiniteNumberSchema,
+      },
+      additionalProperties: false,
+    },
+    settleNode: {
+      type: 'object',
+      required: ['id', 'kind'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        kind: { const: 'settle' },
+        markerId: { $ref: '#/$defs/canonicalString' },
+      },
+      additionalProperties: false,
+    },
+    composition: {
+      type: 'object',
+      required: ['id', 'name', 'motionIntent', 'root'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        name: { $ref: '#/$defs/canonicalString' },
+        motionIntent: {
+          enum: ['decorative', 'spatial', 'essential', 'continuous'],
+        },
+        root: { $ref: '#/$defs/compositionNode' },
+        reducedRoot: { $ref: '#/$defs/compositionNode' },
+      },
+      additionalProperties: false,
+    },
+    svgPrimitiveAttributes: {
+      type: 'object',
+      propertyNames: {
+        minLength: 1,
+        not: { enum: ['__proto__', 'prototype', 'constructor'] },
+      },
+      additionalProperties: {
+        oneOf: [{ type: 'number' }, { type: 'string' }],
+      },
+    },
+    svgPrimitive: {
+      type: 'object',
+      required: ['id', 'type'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        type: {
+          enum: [
+            'feGaussianBlur',
+            'feColorMatrix',
+            'feComponentTransfer',
+            'feOffset',
+            'feBlend',
+            'feMerge',
+          ],
+        },
+        in: { $ref: '#/$defs/canonicalString' },
+        in2: { $ref: '#/$defs/canonicalString' },
+        result: { $ref: '#/$defs/canonicalString' },
+        attrs: { $ref: '#/$defs/svgPrimitiveAttributes' },
+      },
+      additionalProperties: false,
+    },
+    svgFilter: {
+      type: 'object',
+      required: ['id', 'primitives'],
+      properties: {
+        id: { $ref: '#/$defs/canonicalString' },
+        units: { enum: ['objectBoundingBox', 'userSpaceOnUse'] },
+        primitives: {
+          type: 'array',
+          maxItems: 100_000,
+          items: { $ref: '#/$defs/svgPrimitive' },
+        },
+      },
+      additionalProperties: false,
+    },
+    editorState: {
+      type: 'object',
+      required: ['version'],
+      properties: {
+        version: { const: 1 },
+        activeTimelineId: { $ref: '#/$defs/canonicalString' },
+        cursorMs: nonNegativeFiniteNumberSchema,
+        zoom: { type: 'number', exclusiveMinimum: 0 },
+        expandedTrackIds: {
+          type: 'array',
+          uniqueItems: true,
+          items: { $ref: '#/$defs/canonicalString' },
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  examples: [
+    {
+      version: ANIMATION_CURRENT_WIRE_VERSION,
+      target: { kind: 'pir-document', documentId: 'page-home' },
+      timelines: [
+        {
+          id: 'fade-in',
+          name: 'Fade in',
+          durationMs: 200,
+          motionIntent: 'decorative',
+          reducedMotion: { kind: 'final-state' },
+          markers: [
+            {
+              id: 'content-ready',
+              atMs: 200,
+              kind: 'checkpoint',
+              requiredInReducedMotion: true,
+            },
+          ],
+          bindings: [],
+        },
+      ],
+      compositions: [
+        {
+          id: 'enter',
+          name: 'Enter',
+          motionIntent: 'decorative',
+          root: {
+            id: 'play-fade',
+            kind: 'timeline-ref',
+            timelineId: 'fade-in',
+          },
+        },
+      ],
+      entryCompositionId: 'enter',
+    },
+  ],
+} as const;
+
+export const animationCurrentWireDocumentFields = Object.freeze(
+  Object.keys(animationCurrentWireSchema.properties)
+);

@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
     "@prodivix/diagnostics": "workspace:*"
   },
   "devDependencies": {

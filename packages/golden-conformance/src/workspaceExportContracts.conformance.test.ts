@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { encodeAnimationDefinition } from '@prodivix/animation';
+import { encodeNodeGraphDocument } from '@prodivix/nodegraph';
 import { generateWorkspaceReactViteBundle } from '@prodivix/prodivix-compiler';
 import {
   createWorkspaceDocumentAtPathCommand,
@@ -145,11 +147,26 @@ describe('Workspace export fail-closed contracts', () => {
       path: '/logic/standalone.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: {
-        version: 1,
-        nodes: [{ id: 'start', data: { kind: 'start' } }],
+      content: encodeNodeGraphDocument({
+        nodes: [
+          {
+            id: 'start',
+            descriptorRef: { id: 'core.start', version: '1' },
+            ports: [
+              {
+                id: 'out.control.next',
+                direction: 'output',
+                flow: 'control',
+                required: false,
+                cardinality: 'single',
+              },
+            ],
+            configuration: {},
+            editor: {},
+          },
+        ],
         edges: [],
-      },
+      }),
     });
     const workspace = addDocument(withGraph, {
       id: 'animation-golden-standalone',
@@ -158,8 +175,7 @@ describe('Workspace export fail-closed contracts', () => {
       path: '/animations/standalone.pir.json',
       contentRev: 1,
       metaRev: 1,
-      content: {
-        version: 1,
+      content: encodeAnimationDefinition({
         target: {
           kind: 'pir-document',
           documentId: GOLDEN_IDS.checkoutPage,
@@ -169,10 +185,14 @@ describe('Workspace export fail-closed contracts', () => {
             id: 'timeline-golden-standalone',
             name: 'Golden standalone',
             durationMs: 300,
+            motionIntent: 'decorative',
+            reducedMotion: { kind: 'final-state' },
+            markers: [],
             bindings: [],
           },
         ],
-      },
+        compositions: [],
+      }),
     });
 
     const bundle = generate(workspace);

@@ -178,6 +178,7 @@ export {
   createDataSourceSymbolId,
   DATA_SEMANTIC_PROVIDER_DESCRIPTOR,
 } from './dataSemanticContributionProvider';
+export { DATA_BEHAVIOR_REGISTRY_CONTRIBUTION } from './dataBehaviorRegistryContribution';
 export {
   createDataIncrementalCollectionRuntime,
   DATA_INCREMENTAL_COLLECTION_ERROR_CODES,

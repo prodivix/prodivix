@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
     "@prodivix/shared": "workspace:*"
   },
   "devDependencies": {

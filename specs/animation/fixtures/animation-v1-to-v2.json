@@ -1,0 +1,40 @@
+{
+  "source": {
+    "version": 1,
+    "target": {
+      "kind": "pir-document",
+      "documentId": "page-home"
+    },
+    "timelines": [
+      {
+        "id": "intro",
+        "name": "Intro",
+        "durationMs": 240,
+        "fillMode": "forwards",
+        "bindings": []
+      }
+    ]
+  },
+  "expected": {
+    "version": 2,
+    "target": {
+      "kind": "pir-document",
+      "documentId": "page-home"
+    },
+    "timelines": [
+      {
+        "id": "intro",
+        "name": "Intro",
+        "durationMs": 240,
+        "fillMode": "forwards",
+        "bindings": [],
+        "motionIntent": "decorative",
+        "reducedMotion": {
+          "kind": "final-state"
+        },
+        "markers": []
+      }
+    ],
+    "compositions": []
+  }
+}

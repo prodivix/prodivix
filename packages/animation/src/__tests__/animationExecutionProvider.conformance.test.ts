@@ -8,6 +8,7 @@ import {
   createAnimationExecutionProvider,
   readAnimationExecutionJobOutput,
   type AnimationDefinition,
+  type AnimationCodeRuntimeGateway,
   type AnimationEffectLeaseOutcome,
   type AnimationFrameScheduler,
   type AnimationRuntimeFrame,
@@ -17,13 +18,15 @@ import {
 const createDefinition = (
   overrides: Partial<AnimationDefinition['timelines'][number]> = {}
 ): AnimationDefinition => ({
-  version: 1,
   target: { kind: 'pir-document', documentId: 'page-home' },
   timelines: [
     {
       id: 'intro',
       name: 'Intro',
       durationMs: 100,
+      motionIntent: 'decorative',
+      reducedMotion: { kind: 'final-state' },
+      markers: [],
       fillMode: 'forwards',
       bindings: [
         {
@@ -45,6 +48,7 @@ const createDefinition = (
       ...overrides,
     },
   ],
+  compositions: [],
 });
 
 const createManualScheduler = () => {
@@ -343,5 +347,62 @@ describe('Animation ExecutionProvider conformance', () => {
       },
     ]);
     expect(host.frames).toHaveLength(0);
+  });
+
+  it('executes a revision-bound pure CodeSlot through the controlled gateway', async () => {
+    const host = createRuntime();
+    const codeReleases: string[] = [];
+    const gateway: AnimationCodeRuntimeGateway = {
+      resolve: ({ binding, role }) => ({
+        role,
+        slotId: binding.slotId,
+        artifactId: binding.reference.artifactId,
+        artifactRevision: 'revision-3',
+        implementationDigest:
+          'sha256-a3566fc292c2e9b5b46f40b199224c9f613f76cf4a48688677e57137ec1286b4',
+        inputTypeRef: 'number',
+        outputTypeRef: 'number',
+        effect: 'pure',
+        deterministic: true,
+        capabilityIds: [],
+        budget: {
+          maximumInvocations: 1000,
+          maximumCpuMs: 100,
+          maximumOutputBytes: 1024,
+          maximumCompileLogBytes: 128,
+        },
+      }),
+      prepare: () => ({
+        status: 'ready',
+        lease: {
+          release: (outcome) => {
+            codeReleases.push(outcome);
+          },
+        },
+      }),
+    };
+    const provider = createAnimationExecutionProvider({
+      resolveDocument: () =>
+        createDefinition({
+          codeSlots: {
+            customEasing: {
+              slotId: 'animation-code-slot:intro:custom-easing',
+              reference: { artifactId: 'easing-artifact' },
+            },
+          },
+        }),
+      resolveRuntime: () => host.runtime,
+      resolveCodeRuntime: () => gateway,
+    });
+    const job = await provider.start(createRequest());
+
+    for (let turn = 0; turn < 16; turn += 1) {
+      await Promise.resolve();
+    }
+    await host.advanceTo(100);
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    expect(codeReleases).toEqual(['completed']);
   });
 });

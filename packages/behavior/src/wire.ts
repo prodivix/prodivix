@@ -158,6 +158,8 @@ const behaviorActionSchema = {
     kind: {
       enum: [
         'navigate',
+        'semantic-click',
+        'semantic-input',
         'dispatch-data-operation',
         'invoke-nodegraph',
         'control-animation',
@@ -191,6 +193,8 @@ const behaviorObservationSchema = {
         'console-absence',
         'nodegraph-output',
         'animation-state',
+        'composition-result',
+        'composition-marker',
         'accessible-tree',
         'visual-baseline',
         'code-assertion',

@@ -8,7 +8,10 @@ import type { DataOperationKind } from '@prodivix/data';
 import type { ExecutableProjectDataMockProvision } from '@prodivix/runtime-core';
 import type { ServerRuntimeTestProvision } from '@prodivix/server-runtime';
 import {
+  decodeWorkspaceAnimationDocument,
   decodeWorkspaceDataSourceDocument,
+  decodeWorkspaceNodeGraphDocument,
+  isWorkspaceBehaviorVerificationDocumentType,
   isWorkspacePirDocument,
   validateWorkspaceSnapshot,
   type WorkspaceDocument,
@@ -55,6 +58,8 @@ import {
   type WorkspaceServerRuntimeTarget,
 } from '#src/workspace/workspaceServerRuntimeTarget';
 import { createWorkspaceVueAppModule } from '#src/vue/workspaceApp';
+import { compileAnimationExportContributions } from '#src/animation/compileAnimation';
+import { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
 
 export type WorkspaceVueViteCompileOptions = Readonly<{
   projectName?: string;
@@ -553,6 +558,9 @@ const unsupportedDiagnostics = (
         document.type !== 'data-source' &&
         document.type !== 'asset' &&
         document.type !== 'project-config' &&
+        !isWorkspaceBehaviorVerificationDocumentType(document.type) &&
+        document.type !== 'pir-graph' &&
+        document.type !== 'pir-animation' &&
         (document.type !== 'code' || !hasWorkspaceProductSurface) &&
         !isWorkspacePirDocument(document)
     )
@@ -561,7 +569,7 @@ const unsupportedDiagnostics = (
       code: 'VUE-TARGET-DOCUMENT-UNSUPPORTED',
       severity: 'error' as const,
       source: 'export' as const,
-      message: `The Vue/Vite G2 product target does not support ${document.type} document ${document.id}.`,
+      message: `The controlled Vue/Vite product target does not support ${document.type} document ${document.id}.`,
       path: document.path,
     }));
 
@@ -603,6 +611,27 @@ export const compileWorkspaceToVueViteExportProgram = (
   );
   const pirDocuments = documents.filter(isWorkspacePirDocument);
   const hasWorkspaceProductSurface = pirDocuments.length > 0;
+  const nodeGraphContributions = documents.flatMap((document) => {
+    if (document.type !== 'pir-graph') return [];
+    const read = decodeWorkspaceNodeGraphDocument(document);
+    if (read.status !== 'valid') return [];
+    return compileNodeGraphExportContributions({
+      documentId: document.id,
+      documentRevision: document.contentRev,
+      ...(document.name ? { displayName: document.name } : {}),
+      definition: read.decodedContent,
+    });
+  });
+  const animationContributions = documents.flatMap((document) => {
+    if (document.type !== 'pir-animation') return [];
+    const read = decodeWorkspaceAnimationDocument(document);
+    if (read.status !== 'valid') return [];
+    return compileAnimationExportContributions({
+      documentId: document.id,
+      ...(document.name ? { displayName: document.name } : {}),
+      definition: read.decodedContent,
+    });
+  });
   const dataDocuments = Object.values(workspace.docsById)
     .filter((document) => document.type === 'data-source')
     .sort((left, right) => compareText(left.path, right.path));
@@ -787,6 +816,8 @@ export const compileWorkspaceToVueViteExportProgram = (
   return [
     ...scaffold,
     resourceContribution,
+    ...nodeGraphContributions,
+    ...animationContributions,
     ...(hasWorkspaceProductSurface
       ? [
           code.contribution,

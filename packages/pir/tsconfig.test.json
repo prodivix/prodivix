@@ -6,12 +6,16 @@
     "noEmit": true,
     "paths": {
       "@prodivix/authoring": ["../authoring/dist/index.d.ts"],
+      "@prodivix/behavior": ["../behavior/dist/index.d.ts"],
       "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
+    {
+      "path": "../behavior"
+    },
     {
       "path": "../authoring"
     },

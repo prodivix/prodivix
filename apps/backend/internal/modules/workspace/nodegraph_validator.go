@@ -12,28 +12,38 @@ import (
 
 var ErrNodeGraphValidationFailed = errors.New("NodeGraph validation failed")
 
-var defaultNodeGraphDocument = json.RawMessage(`{"version":1,"nodes":[],"edges":[]}`)
+var defaultNodeGraphDocument = json.RawMessage(`{"version":2,"nodes":[],"edges":[]}`)
 
 type nodeGraphWireDocument struct {
-	Nodes []nodeGraphWireNode `json:"nodes"`
-	Edges []nodeGraphWireEdge `json:"edges"`
+	Nodes          []nodeGraphWireNode          `json:"nodes"`
+	Edges          []nodeGraphWireEdge          `json:"edges"`
+	PublicContract *nodeGraphWirePublicContract `json:"publicContract"`
 }
 
 type nodeGraphWireNode struct {
-	ID       string                        `json:"id"`
-	Data     map[string]json.RawMessage    `json:"data"`
-	Ports    []nodeGraphWirePort           `json:"ports"`
-	Executor *nodeGraphWireExecutorBinding `json:"executor"`
+	ID            string                        `json:"id"`
+	DescriptorRef nodeGraphWireDescriptorRef    `json:"descriptorRef"`
+	Ports         []nodeGraphWirePort           `json:"ports"`
+	Configuration map[string]json.RawMessage    `json:"configuration"`
+	CodeSlot      *nodeGraphWireCodeSlotBinding `json:"codeSlot"`
+}
+
+type nodeGraphWireDescriptorRef struct {
+	ID      string `json:"id"`
+	Version string `json:"version"`
 }
 
 type nodeGraphWirePort struct {
-	ID        string `json:"id"`
-	Direction string `json:"direction"`
-	Kind      string `json:"kind"`
-	TypeRef   string `json:"typeRef"`
+	ID          string `json:"id"`
+	Direction   string `json:"direction"`
+	Flow        string `json:"flow"`
+	TypeRef     string `json:"typeRef"`
+	Required    bool   `json:"required"`
+	Cardinality string `json:"cardinality"`
 }
 
-type nodeGraphWireExecutorBinding struct {
+type nodeGraphWireCodeSlotBinding struct {
+	SlotID    string                     `json:"slotId"`
 	Reference nodeGraphWireCodeReference `json:"reference"`
 }
 
@@ -46,17 +56,36 @@ type nodeGraphWireSourceSpan struct {
 	ArtifactID string `json:"artifactId"`
 }
 
-type nodeGraphWireEdge struct {
-	ID           string  `json:"id"`
-	Source       string  `json:"source"`
-	Target       string  `json:"target"`
-	SourceHandle *string `json:"sourceHandle"`
-	TargetHandle *string `json:"targetHandle"`
+type nodeGraphWirePortReference struct {
+	NodeID string `json:"nodeId"`
+	PortID string `json:"portId"`
 }
 
-type nodeGraphNodePorts struct {
-	declared bool
-	byID     map[string]nodeGraphWirePort
+type nodeGraphWireEdge struct {
+	ID     string                     `json:"id"`
+	Source nodeGraphWirePortReference `json:"source"`
+	Target nodeGraphWirePortReference `json:"target"`
+}
+
+type nodeGraphWirePublicPort struct {
+	ID       string                     `json:"id"`
+	Port     nodeGraphWirePortReference `json:"port"`
+	TypeRef  string                     `json:"typeRef"`
+	Required bool                       `json:"required"`
+}
+
+type nodeGraphWirePublicContract struct {
+	Inputs  []nodeGraphWirePublicPort `json:"inputs"`
+	Outputs []nodeGraphWirePublicPort `json:"outputs"`
+}
+
+type nodeGraphResolvedPort struct {
+	nodeID string
+	port   nodeGraphWirePort
+}
+
+func nodeGraphPortIdentity(reference nodeGraphWirePortReference) string {
+	return reference.NodeID + "\x00" + reference.PortID
 }
 
 func validateNodeGraphDocument(payload json.RawMessage) error {
@@ -69,117 +98,166 @@ func validateNodeGraphDocument(payload json.RawMessage) error {
 		return nodeGraphValidationError("/ must be a NodeGraph document")
 	}
 
-	nodesByID := make(map[string]nodeGraphNodePorts, len(document.Nodes))
-	for index, node := range document.Nodes {
-		path := fmt.Sprintf("/nodes/%d", index)
+	nodesByID := make(map[string]nodeGraphWireNode, len(document.Nodes))
+	portsByIdentity := make(map[string]nodeGraphResolvedPort)
+	codeSlotIDs := make(map[string]struct{})
+	for nodeIndex, node := range document.Nodes {
+		path := fmt.Sprintf("/nodes/%d", nodeIndex)
 		if _, duplicate := nodesByID[node.ID]; duplicate {
 			return nodeGraphValidationError("%s duplicates node id %q", path+"/id", node.ID)
 		}
+		nodesByID[node.ID] = node
 
-		ports := nodeGraphNodePorts{
-			declared: node.Ports != nil,
-			byID:     make(map[string]nodeGraphWirePort, len(node.Ports)),
-		}
+		portIDs := make(map[string]struct{}, len(node.Ports))
 		for portIndex, port := range node.Ports {
-			if _, duplicate := ports.byID[port.ID]; duplicate {
+			if _, duplicate := portIDs[port.ID]; duplicate {
 				return nodeGraphValidationError(
 					"%s duplicates port id %q",
 					fmt.Sprintf("%s/ports/%d/id", path, portIndex),
 					port.ID,
 				)
 			}
-			ports.byID[port.ID] = port
-		}
-		nodesByID[node.ID] = ports
-
-		if node.Executor != nil && node.Executor.Reference.SourceSpan != nil &&
-			node.Executor.Reference.SourceSpan.ArtifactID != node.Executor.Reference.ArtifactID {
-			return nodeGraphValidationError(
-				"%s must use the referenced artifact",
-				path+"/executor/reference/sourceSpan/artifactId",
-			)
-		}
-		if nodeGraphDataKind(node.Data) == "code" {
-			if _, embedded := node.Data["code"]; embedded {
-				return nodeGraphValidationError("%s must bind source through executor", path+"/data/code")
+			portIDs[port.ID] = struct{}{}
+			identity := nodeGraphPortIdentity(nodeGraphWirePortReference{
+				NodeID: node.ID,
+				PortID: port.ID,
+			})
+			portsByIdentity[identity] = nodeGraphResolvedPort{
+				nodeID: node.ID,
+				port:   port,
 			}
-			if _, embedded := node.Data["codeLanguage"]; embedded {
-				return nodeGraphValidationError("%s must bind source through executor", path+"/data/codeLanguage")
+		}
+
+		if node.CodeSlot != nil {
+			if _, duplicate := codeSlotIDs[node.CodeSlot.SlotID]; duplicate {
+				return nodeGraphValidationError(
+					"%s duplicates code slot id %q",
+					path+"/codeSlot/slotId",
+					node.CodeSlot.SlotID,
+				)
+			}
+			codeSlotIDs[node.CodeSlot.SlotID] = struct{}{}
+			if node.CodeSlot.Reference.SourceSpan != nil &&
+				node.CodeSlot.Reference.SourceSpan.ArtifactID != node.CodeSlot.Reference.ArtifactID {
+				return nodeGraphValidationError(
+					"%s must use the referenced artifact",
+					path+"/codeSlot/reference/sourceSpan/artifactId",
+				)
+			}
+		}
+		if node.DescriptorRef.ID == "core.code" {
+			if _, embedded := node.Configuration["code"]; embedded {
+				return nodeGraphValidationError(
+					"%s must bind source through codeSlot",
+					path+"/configuration/code",
+				)
+			}
+			if _, embedded := node.Configuration["codeLanguage"]; embedded {
+				return nodeGraphValidationError(
+					"%s must bind source through codeSlot",
+					path+"/configuration/codeLanguage",
+				)
 			}
 		}
 	}
 
 	edgeIDs := make(map[string]struct{}, len(document.Edges))
-	for index, edge := range document.Edges {
-		path := fmt.Sprintf("/edges/%d", index)
+	connections := make(map[string]int)
+	exactConnections := make(map[string]struct{})
+	for edgeIndex, edge := range document.Edges {
+		path := fmt.Sprintf("/edges/%d", edgeIndex)
 		if _, duplicate := edgeIDs[edge.ID]; duplicate {
 			return nodeGraphValidationError("%s duplicates edge id %q", path+"/id", edge.ID)
 		}
 		edgeIDs[edge.ID] = struct{}{}
 
-		sourcePorts, sourceExists := nodesByID[edge.Source]
+		sourceIdentity := nodeGraphPortIdentity(edge.Source)
+		targetIdentity := nodeGraphPortIdentity(edge.Target)
+		source, sourceExists := portsByIdentity[sourceIdentity]
 		if !sourceExists {
-			return nodeGraphValidationError("%s references unknown node %q", path+"/source", edge.Source)
+			return nodeGraphValidationError("%s references unknown output port", path+"/source")
 		}
-		targetPorts, targetExists := nodesByID[edge.Target]
+		target, targetExists := portsByIdentity[targetIdentity]
 		if !targetExists {
-			return nodeGraphValidationError("%s references unknown node %q", path+"/target", edge.Target)
+			return nodeGraphValidationError("%s references unknown input port", path+"/target")
 		}
+		if source.port.Direction != "output" ||
+			target.port.Direction != "input" ||
+			source.port.Flow != target.port.Flow ||
+			(source.port.Flow == "data" && source.port.TypeRef != target.port.TypeRef) {
+			return nodeGraphValidationError("%s connects incompatible exact ports", path)
+		}
+		exactIdentity := sourceIdentity + "\x00" + targetIdentity
+		if _, duplicate := exactConnections[exactIdentity]; duplicate {
+			return nodeGraphValidationError("%s duplicates an exact port connection", path)
+		}
+		exactConnections[exactIdentity] = struct{}{}
+		connections[sourceIdentity]++
+		connections[targetIdentity]++
+	}
 
-		sourcePort, hasSourcePort, err := resolveNodeGraphEdgePort(
-			sourcePorts,
-			edge.SourceHandle,
-			"output",
-			path+"/sourceHandle",
-		)
-		if err != nil {
-			return err
+	for nodeIndex, node := range document.Nodes {
+		for portIndex, port := range node.Ports {
+			count := connections[nodeGraphPortIdentity(nodeGraphWirePortReference{
+				NodeID: node.ID,
+				PortID: port.ID,
+			})]
+			path := fmt.Sprintf("/nodes/%d/ports/%d", nodeIndex, portIndex)
+			if port.Cardinality == "single" && count > 1 {
+				return nodeGraphValidationError("%s exceeds single cardinality", path)
+			}
+			if port.Direction == "input" && port.Required && count == 0 {
+				return nodeGraphValidationError("%s requires a connection", path)
+			}
 		}
-		targetPort, hasTargetPort, err := resolveNodeGraphEdgePort(
-			targetPorts,
-			edge.TargetHandle,
+	}
+
+	if document.PublicContract != nil {
+		publicIDs := make(map[string]struct{})
+		if err := validateNodeGraphPublicPorts(
+			document.PublicContract.Inputs,
 			"input",
-			path+"/targetHandle",
-		)
-		if err != nil {
+			portsByIdentity,
+			publicIDs,
+			"/publicContract/inputs",
+		); err != nil {
 			return err
 		}
-		if hasSourcePort && hasTargetPort &&
-			(sourcePort.Kind != targetPort.Kind ||
-				(sourcePort.TypeRef != "" && targetPort.TypeRef != "" && sourcePort.TypeRef != targetPort.TypeRef)) {
-			return nodeGraphValidationError("%s connects incompatible ports", path)
+		if err := validateNodeGraphPublicPorts(
+			document.PublicContract.Outputs,
+			"output",
+			portsByIdentity,
+			publicIDs,
+			"/publicContract/outputs",
+		); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func nodeGraphDataKind(data map[string]json.RawMessage) string {
-	var kind string
-	if rawKind, exists := data["kind"]; exists {
-		_ = json.Unmarshal(rawKind, &kind)
-	}
-	return kind
-}
-
-func resolveNodeGraphEdgePort(
-	ports nodeGraphNodePorts,
-	handle *string,
+func validateNodeGraphPublicPorts(
+	publicPorts []nodeGraphWirePublicPort,
 	direction string,
+	portsByIdentity map[string]nodeGraphResolvedPort,
+	publicIDs map[string]struct{},
 	path string,
-) (nodeGraphWirePort, bool, error) {
-	if !ports.declared || handle == nil {
-		return nodeGraphWirePort{}, false, nil
+) error {
+	for index, publicPort := range publicPorts {
+		itemPath := fmt.Sprintf("%s/%d", path, index)
+		if _, duplicate := publicIDs[publicPort.ID]; duplicate {
+			return nodeGraphValidationError("%s duplicates public port id %q", itemPath+"/id", publicPort.ID)
+		}
+		publicIDs[publicPort.ID] = struct{}{}
+		port, exists := portsByIdentity[nodeGraphPortIdentity(publicPort.Port)]
+		if !exists ||
+			port.port.Direction != direction ||
+			port.port.Flow != "data" ||
+			port.port.TypeRef != publicPort.TypeRef {
+			return nodeGraphValidationError("%s does not match an exact %s data port", itemPath+"/port", direction)
+		}
 	}
-	port, exists := ports.byID[*handle]
-	if !exists || port.Direction != direction {
-		return nodeGraphWirePort{}, false, nodeGraphValidationError(
-			"%s references unknown %s port %q",
-			path,
-			direction,
-			*handle,
-		)
-	}
-	return port, true, nil
+	return nil
 }
 
 func decodeNodeGraphCanonicalString(payload json.RawMessage, path string) (string, error) {

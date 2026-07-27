@@ -66,12 +66,23 @@ const documents: readonly WorkspaceDocument[] = [
     contentRev: 3,
     metaRev: 1,
     content: {
-      version: 1,
+      version: 2,
       nodes: [
         {
           id: 'run',
-          data: { kind: 'code' },
-          executor: {
+          descriptorRef: { id: 'core.code', version: '1' },
+          ports: [
+            {
+              id: 'out.control.next',
+              direction: 'output',
+              flow: 'control',
+              required: false,
+              cardinality: 'single',
+            },
+          ],
+          configuration: {},
+          editor: {},
+          codeSlot: {
             slotId: createNodeGraphExecutorCodeSlotId(GRAPH_ID, 'run'),
             reference: { artifactId: CODE_ID },
           },
@@ -87,13 +98,16 @@ const documents: readonly WorkspaceDocument[] = [
     contentRev: 4,
     metaRev: 1,
     content: {
-      version: 1,
+      version: 2,
       target: { kind: 'pir-document', documentId: PAGE_ID },
       timelines: [
         {
           id: 'intro',
           name: 'Intro',
           durationMs: 1000,
+          motionIntent: 'decorative',
+          reducedMotion: { kind: 'final-state' },
+          markers: [],
           bindings: [],
           codeSlots: {
             script: {
@@ -107,6 +121,7 @@ const documents: readonly WorkspaceDocument[] = [
           },
         },
       ],
+      compositions: [],
     },
   },
   {

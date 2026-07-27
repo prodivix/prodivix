@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0 Implemented / V1-V8 Not Started
+- ImplementationStatus：V0-V2 Implemented / V3-V8 Not Started
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-27
@@ -160,7 +160,8 @@ domain/target、public codec 与 boundary check。任何 G3 domain type 不得�
 
 ### V1：Scenario authoring、semantic target 与 recorder
 
-状态：Not Started。详见 `g3-behavior-scenario-authoring-and-composition.md`。
+状态：Implemented。2026-07-27 当前 worktree 本地 `verify:g3:scenario-authoring` 通过；workflow 已配置，
+commit/CI evidence 待补。详见 `g3-behavior-scenario-authoring-and-composition.md`。
 
 交付 Scenario CRUD、step editor、typed target picker、recording draft review、reference/impact contribution、
 compile diagnostics 和最小 semantic UI/Route/Data journey。
@@ -170,7 +171,18 @@ compile diagnostics 和最小 semantic UI/Route/Data journey。
 
 ### V2：跨领域行为 composition
 
-状态：Not Started。详见 NodeGraph 与 Animation/Route implementation 文档。
+状态：Implemented（durable CI Evidence pending）。deterministic parallel/barrier Program runtime通过
+domain-owned capability adapter执行 Route lifecycle、NodeGraph Program、Animation composition 与 owner
+observation；真实 Preview/Export/CI surface adapter在 exact revision/artifact/Program digest 下保持结果与
+SourceTrace兼容。NodeGraph current/wire v2、bounded loop/Auth/subgraph closure、first-party runtime/debug
+protocol/Inspector，以及 Animation current/wire v2、target/property conflict、motion policy、CodeSlot/shader、
+full/reduced composition 均已关闭 V2 scope。
+
+React/Vue独立生成项目完成 install、typecheck、test、production build 与 Chromium smoke；authenticated
+Catalog optimistic mutation、typed conflict/rollback/retry、Route transition、graph derived state、required
+marker、目标特定 visual hash、ARIA/focus/operability组成 V2 Golden。NodeGraph live step/fresh replay bridge
+归入 V3；Remote、多浏览器与完整 performance/security Evidence matrix归入 V6/V8。详见 NodeGraph 与
+Animation/Route implementation 文档。
 
 交付 NodeGraph typed flow/debugger、Route lifecycle、Animation composition/reduced-motion、Data/Auth actions 和
 统一 observation。所有领域 effect 通过 owner capability 执行，不允许 Scenario 复制领域语义。
@@ -272,7 +284,8 @@ loading/empty/error/retry/pagination、optimistic mutation/conflict、NodeGraph 
 
 ## 计划中的 Gate
 
-以下命令名是 G3 实施时必须建立的稳定入口；在脚本落地并取得证据前不得标记 Passed：
+以下命令名是 G3 实施时必须建立的稳定入口；前三个已落地并取得当前 worktree 本地结果，但在缺少
+commit/CI identity 时仍不得标记 durable `Passed`：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

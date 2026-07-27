@@ -5,13 +5,49 @@
     "noEmit": true,
     "types": ["node", "vitest/globals"],
     "paths": {
+      "@prodivix/animation": ["../animation/src"],
+      "@prodivix/authoring": ["../authoring/src"],
+      "@prodivix/behavior": ["../behavior/src"],
+      "@prodivix/data": ["../data/src"],
+      "@prodivix/nodegraph": ["../nodegraph/src"],
+      "@prodivix/pir": ["../pir/src"],
+      "@prodivix/prodivix-compiler": ["../prodivix-compiler/src"],
+      "@prodivix/router": ["../router/src"],
       "@prodivix/shared": ["../shared/src"],
-      "@prodivix/shared/*": ["../shared/src/*"]
+      "@prodivix/shared/*": ["../shared/src/*"],
+      "@prodivix/workspace": ["../workspace/src"]
     }
   },
   "include": ["src/**/*", "scripts/**/*", "fixtures/**/*.json"],
   "exclude": ["node_modules", "dist"],
   "references": [
+    {
+      "path": "../animation"
+    },
+    {
+      "path": "../authoring"
+    },
+    {
+      "path": "../behavior"
+    },
+    {
+      "path": "../data"
+    },
+    {
+      "path": "../nodegraph"
+    },
+    {
+      "path": "../pir"
+    },
+    {
+      "path": "../prodivix-compiler"
+    },
+    {
+      "path": "../router"
+    },
+    {
+      "path": "../workspace"
+    },
     {
       "path": "../runtime-core"
     },

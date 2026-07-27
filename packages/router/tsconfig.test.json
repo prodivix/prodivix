@@ -7,6 +7,7 @@
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
     "paths": {
       "@prodivix/authoring": ["../authoring/dist/index.d.ts"],
+      "@prodivix/behavior": ["../behavior/dist/index.d.ts"],
       "@prodivix/shared": ["../shared/dist/index.d.ts"],
       "@prodivix/shared/*": ["../shared/dist/*"]
     }
@@ -14,6 +15,9 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
+    {
+      "path": "../behavior"
+    },
     {
       "path": "../authoring"
     },

@@ -1,9 +1,16 @@
 import type {
   AnimationBinding,
+  AnimationComposition,
+  AnimationCompositionNode,
+  AnimationDecodeResult,
   AnimationDefinition,
   AnimationEditorState,
   AnimationIdFactory,
   AnimationKeyframe,
+  AnimationMarker,
+  AnimationMarkerKind,
+  AnimationMotionIntent,
+  AnimationReducedMotionPolicy,
   AnimationTrack,
   AnimationTimeline,
   AnimationTimelineCodeSlots,
@@ -13,9 +20,16 @@ import type {
 } from './animation.types';
 import type { CodeReference, CodeSlotBinding } from '@prodivix/authoring';
 import {
+  canonicalJsonText,
+  sameCanonicalJson,
+} from '@prodivix/shared/canonical';
+import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
+import {
   isSafeAnimationCssColor,
   isSafeAnimationCssFragmentId,
 } from './animationCssSafety';
+import { upgradeAnimationWireDocument } from './animationWireMigration';
+import { ANIMATION_CURRENT_WIRE_VERSION } from './wire';
 
 export const DEFAULT_TIMELINE_DURATION_MS = 1000;
 export const DEFAULT_TIMELINE_NAME = 'Timeline';
@@ -75,15 +89,28 @@ const STYLE_TRACK_PROPERTY_VALUES = new Set(STYLE_TRACK_PROPERTIES);
 const CSS_FILTER_FN_VALUES = new Set(CSS_FILTER_FUNCTIONS);
 const CSS_FILTER_UNIT_VALUES = new Set(CSS_FILTER_UNITS);
 const SVG_FILTER_PRIMITIVE_VALUES = new Set(SVG_FILTER_PRIMITIVE_TYPES);
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+const MOTION_INTENT_VALUES = new Set<AnimationMotionIntent>([
+  'decorative',
+  'spatial',
+  'essential',
+  'continuous',
+]);
+const MARKER_KIND_VALUES = new Set<AnimationMarkerKind>([
+  'checkpoint',
+  'handoff',
+  'settle',
+]);
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
 const normalizeId = (value: unknown) =>
-  typeof value === 'string' && value.trim() ? value.trim() : '';
+  typeof value === 'string' &&
+  value.length <= 512 &&
+  !value.includes('\u0000') &&
+  value.trim()
+    ? value.trim()
+    : '';
 
 const normalizeCssFragmentId = (value: unknown) => {
   const normalized = normalizeId(value);
@@ -279,7 +306,10 @@ const normalizeSvgPrimitive = (
     const attrs = Object.entries(source.attrs).reduce<
       Record<string, number | string>
     >((result, [key, value]) => {
-      if (typeof value === 'string' || isFiniteNumber(value))
+      if (
+        !isUnsafeObjectKey(key) &&
+        (typeof value === 'string' || isFiniteNumber(value))
+      )
         result[key] = value;
       return result;
     }, {});
@@ -473,6 +503,61 @@ const normalizeBinding = (
   };
 };
 
+const normalizeMotionIntent = (source: unknown): AnimationMotionIntent =>
+  MOTION_INTENT_VALUES.has(source as AnimationMotionIntent)
+    ? (source as AnimationMotionIntent)
+    : 'decorative';
+
+const normalizeReducedMotion = (
+  source: unknown
+): AnimationReducedMotionPolicy => {
+  if (!isPlainObject(source)) return { kind: 'final-state' };
+  if (
+    source.kind === 'disabled' ||
+    source.kind === 'final-state' ||
+    source.kind === 'retain'
+  ) {
+    return { kind: source.kind };
+  }
+  if (source.kind === 'timeline-ref' && normalizeId(source.timelineId)) {
+    return { kind: 'timeline-ref', timelineId: normalizeId(source.timelineId) };
+  }
+  return { kind: 'final-state' };
+};
+
+const normalizeMarkers = (
+  source: unknown,
+  durationMs: number
+): AnimationMarker[] => {
+  if (!Array.isArray(source)) return [];
+  const markerIds = new Set<string>();
+  return source
+    .map((candidate, index): AnimationMarker | null => {
+      if (!isPlainObject(candidate)) return null;
+      const id = allocateUniqueId(
+        candidate.id,
+        `marker-${index + 1}`,
+        markerIds
+      );
+      return {
+        id,
+        atMs: clampKeyframeAtMs(
+          isFiniteNumber(candidate.atMs) ? candidate.atMs : 0,
+          durationMs
+        ),
+        kind: MARKER_KIND_VALUES.has(candidate.kind as AnimationMarkerKind)
+          ? (candidate.kind as AnimationMarkerKind)
+          : 'checkpoint',
+        requiredInReducedMotion:
+          typeof candidate.requiredInReducedMotion === 'boolean'
+            ? candidate.requiredInReducedMotion
+            : true,
+      };
+    })
+    .filter((marker): marker is AnimationMarker => marker !== null)
+    .sort((left, right) => left.atMs - right.atMs);
+};
+
 const normalizeTimeline = (
   source: unknown,
   index: number,
@@ -493,6 +578,9 @@ const normalizeTimeline = (
         ? source.name.trim()
         : `${DEFAULT_TIMELINE_NAME} ${index + 1}`,
     durationMs,
+    motionIntent: normalizeMotionIntent(source.motionIntent),
+    reducedMotion: normalizeReducedMotion(source.reducedMotion),
+    markers: normalizeMarkers(source.markers, durationMs),
     bindings: (Array.isArray(source.bindings) ? source.bindings : [])
       .map((binding, bindingIndex) =>
         normalizeBinding(
@@ -543,6 +631,173 @@ const normalizeTimeline = (
   return timeline;
 };
 
+const normalizeCompositionNode = (
+  source: unknown,
+  fallbackId: string,
+  usedIds: Set<string>,
+  active: Set<object>,
+  depth = 0
+): AnimationCompositionNode | null => {
+  if (!isPlainObject(source) || depth > 64 || active.has(source)) return null;
+  active.add(source);
+  try {
+    const id = allocateUniqueId(source.id, fallbackId, usedIds);
+    if (source.kind === 'timeline-ref') {
+      const timelineId = normalizeId(source.timelineId);
+      return timelineId ? { id, kind: 'timeline-ref', timelineId } : null;
+    }
+    if (source.kind === 'composition-ref') {
+      const compositionId = normalizeId(source.compositionId);
+      return compositionId
+        ? { id, kind: 'composition-ref', compositionId }
+        : null;
+    }
+    if (
+      source.kind === 'sequence' ||
+      source.kind === 'parallel' ||
+      source.kind === 'stagger'
+    ) {
+      const children = (Array.isArray(source.children) ? source.children : [])
+        .map((child, index) =>
+          normalizeCompositionNode(
+            child,
+            `${id}-child-${index + 1}`,
+            usedIds,
+            active,
+            depth + 1
+          )
+        )
+        .filter((child): child is AnimationCompositionNode => child !== null);
+      if (source.kind === 'sequence') {
+        return { id, kind: 'sequence', children };
+      }
+      if (source.kind === 'parallel') {
+        return {
+          id,
+          kind: 'parallel',
+          join:
+            source.join === 'any' || source.join === 'first-success'
+              ? source.join
+              : 'all',
+          cancelLosers:
+            typeof source.cancelLosers === 'boolean'
+              ? source.cancelLosers
+              : false,
+          children,
+        };
+      }
+      return {
+        id,
+        kind: 'stagger',
+        intervalMs:
+          isFiniteNumber(source.intervalMs) && source.intervalMs >= 0
+            ? source.intervalMs
+            : 0,
+        children,
+      };
+    }
+    if (source.kind === 'conditional-variant') {
+      const full = normalizeCompositionNode(
+        source.full,
+        `${id}-full`,
+        usedIds,
+        active,
+        depth + 1
+      );
+      const reduced = normalizeCompositionNode(
+        source.reduced,
+        `${id}-reduced`,
+        usedIds,
+        active,
+        depth + 1
+      );
+      return full && reduced
+        ? { id, kind: 'conditional-variant', full, reduced }
+        : null;
+    }
+    if (source.kind === 'marker') {
+      const markerId = normalizeId(source.markerId);
+      if (!markerId) return null;
+      return {
+        id,
+        kind: 'marker',
+        markerId,
+        markerKind: MARKER_KIND_VALUES.has(
+          source.markerKind as AnimationMarkerKind
+        )
+          ? (source.markerKind as AnimationMarkerKind)
+          : 'checkpoint',
+        requiredInReducedMotion:
+          typeof source.requiredInReducedMotion === 'boolean'
+            ? source.requiredInReducedMotion
+            : true,
+      };
+    }
+    if (source.kind === 'hold') {
+      return {
+        id,
+        kind: 'hold',
+        durationMs:
+          isFiniteNumber(source.durationMs) && source.durationMs >= 0
+            ? source.durationMs
+            : 0,
+      };
+    }
+    if (source.kind === 'settle') {
+      const markerId = normalizeId(source.markerId);
+      return {
+        id,
+        kind: 'settle',
+        ...(markerId ? { markerId } : {}),
+      };
+    }
+    return null;
+  } finally {
+    active.delete(source);
+  }
+};
+
+const normalizeCompositions = (source: unknown): AnimationComposition[] => {
+  if (!Array.isArray(source)) return [];
+  const compositionIds = new Set<string>();
+  return source
+    .map((candidate, index): AnimationComposition | null => {
+      if (!isPlainObject(candidate)) return null;
+      const id = allocateUniqueId(
+        candidate.id,
+        `composition-${index + 1}`,
+        compositionIds
+      );
+      const nodeIds = new Set<string>();
+      const root = normalizeCompositionNode(
+        candidate.root,
+        `${id}-root`,
+        nodeIds,
+        new Set<object>()
+      );
+      if (!root) return null;
+      const reducedRoot = normalizeCompositionNode(
+        candidate.reducedRoot,
+        `${id}-reduced-root`,
+        nodeIds,
+        new Set<object>()
+      );
+      return {
+        id,
+        name:
+          typeof candidate.name === 'string' && candidate.name.trim()
+            ? candidate.name.trim()
+            : `Composition ${index + 1}`,
+        motionIntent: normalizeMotionIntent(candidate.motionIntent),
+        root,
+        ...(reducedRoot ? { reducedRoot } : {}),
+      };
+    })
+    .filter(
+      (composition): composition is AnimationComposition => composition !== null
+    );
+};
+
 const normalizeAnimationEditorState = (
   source: unknown
 ): AnimationEditorState | undefined => {
@@ -571,9 +826,9 @@ export const createEmptyAnimationDefinition = (input: {
     throw new TypeError('Animation target document id is required.');
   }
   return {
-    version: 1,
     target: { kind: 'pir-document', documentId: targetDocumentId },
     timelines: [],
+    compositions: [],
   };
 };
 
@@ -587,6 +842,9 @@ export const createDefaultTimeline = ({
   id: idFactory('timeline'),
   name: `${DEFAULT_TIMELINE_NAME} ${index + 1}`,
   durationMs: DEFAULT_TIMELINE_DURATION_MS,
+  motionIntent: 'decorative',
+  reducedMotion: { kind: 'final-state' },
+  markers: [],
   bindings: [],
 });
 
@@ -687,7 +945,19 @@ export const normalizeAnimationDefinition = (
       normalizeTimeline(timeline, index, svgFilters, timelineIds)
     )
     .filter((timeline): timeline is AnimationTimeline => timeline !== null);
-  const definition: AnimationDefinition = { version: 1, target, timelines };
+  const compositions = normalizeCompositions(source.compositions);
+  const definition: AnimationDefinition = {
+    target,
+    timelines,
+    compositions,
+  };
+  const entryCompositionId = normalizeId(source.entryCompositionId);
+  if (
+    entryCompositionId &&
+    compositions.some((composition) => composition.id === entryCompositionId)
+  ) {
+    definition.entryCompositionId = entryCompositionId;
+  }
   if (svgFilters.length) definition.svgFilters = svgFilters;
   const editorState = normalizeAnimationEditorState(
     source['x-animationEditor']
@@ -703,5 +973,72 @@ export const ensureAnimationDefinition = (
   normalizeAnimationDefinition(source) ??
   createEmptyAnimationDefinition({ targetDocumentId });
 
+const encodeNormalizedAnimationDefinition = (
+  source: AnimationDefinition
+): Readonly<Record<string, unknown>> =>
+  Object.freeze({
+    version: ANIMATION_CURRENT_WIRE_VERSION,
+    target: source.target,
+    timelines: source.timelines,
+    compositions: source.compositions,
+    ...(source.entryCompositionId
+      ? { entryCompositionId: source.entryCompositionId }
+      : {}),
+    ...(source.svgFilters ? { svgFilters: source.svgFilters } : {}),
+    ...(source['x-animationEditor']
+      ? { 'x-animationEditor': source['x-animationEditor'] }
+      : {}),
+  });
+
+/** Decodes any supported wire snapshot into the version-neutral current model. */
+export const decodeAnimationDefinition = (
+  source: unknown
+): AnimationDecodeResult => {
+  const upgraded = upgradeAnimationWireDocument(source);
+  if (!upgraded.ok) return upgraded;
+  const normalized = normalizeAnimationDefinition(upgraded.value);
+  if (!normalized) {
+    return {
+      ok: false,
+      issues: [
+        {
+          path: '/',
+          message: 'Animation wire document could not be decoded.',
+        },
+      ],
+    };
+  }
+  const expectedWire = encodeNormalizedAnimationDefinition(normalized);
+  if (!sameCanonicalJson(upgraded.value, expectedWire)) {
+    return {
+      ok: false,
+      issues: [
+        {
+          path: '/',
+          message:
+            'Animation wire document must already satisfy the canonical current schema.',
+        },
+      ],
+    };
+  }
+  return {
+    ok: true,
+    value: normalized,
+    sourceWireVersion: upgraded.sourceWireVersion,
+    appliedMigrations: upgraded.appliedMigrations,
+  };
+};
+
+/** Encodes a canonical current model as the activated immutable wire snapshot. */
+export const encodeAnimationDefinition = (
+  source: AnimationDefinition
+): Readonly<Record<string, unknown>> => {
+  const normalized = normalizeAnimationDefinition(source);
+  if (!normalized || !sameCanonicalJson(source, normalized)) {
+    throw new TypeError('Cannot encode a non-canonical Animation definition.');
+  }
+  return encodeNormalizedAnimationDefinition(normalized);
+};
+
 export const serializeAnimationDefinition = (source: AnimationDefinition) =>
-  JSON.stringify(source);
+  canonicalJsonText(source);

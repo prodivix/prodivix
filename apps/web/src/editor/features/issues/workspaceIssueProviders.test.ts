@@ -81,7 +81,7 @@ const createWorkspace = (): WorkspaceSnapshot => {
         contentRev: 2,
         metaRev: 1,
         content: {
-          version: 1,
+          version: 2,
           target: { kind: 'pir-document', documentId: 'page-home' },
           svgFilters: [{ id: 'filter-shadow', primitives: [{ id: 'blur' }] }],
           timelines: [
@@ -89,6 +89,9 @@ const createWorkspace = (): WorkspaceSnapshot => {
               id: 'timeline-checkout',
               name: 'Checkout',
               durationMs: 0,
+              motionIntent: 'decorative',
+              reducedMotion: { kind: 'final-state' },
+              markers: [],
               bindings: [
                 {
                   id: 'binding-card',
@@ -110,6 +113,7 @@ const createWorkspace = (): WorkspaceSnapshot => {
               ],
             },
           ],
+          compositions: [],
         },
       },
       'code-checkout': {

@@ -24,7 +24,19 @@ const projectStandaloneGraph = (
       .sort()
       .map((nodeId, index) => [
         nodeId,
-        { x: (index % 4) * 240, y: Math.floor(index / 4) * 140 },
+        (() => {
+          const editor = isRecord(nodesById[nodeId]?.editor)
+            ? nodesById[nodeId]!.editor
+            : undefined;
+          const position =
+            editor && isRecord(editor.position) ? editor.position : undefined;
+          return typeof position?.x === 'number' &&
+            Number.isFinite(position.x) &&
+            typeof position.y === 'number' &&
+            Number.isFinite(position.y)
+            ? { x: position.x, y: position.y }
+            : { x: (index % 4) * 240, y: Math.floor(index / 4) * 140 };
+        })(),
       ])
   );
   return {

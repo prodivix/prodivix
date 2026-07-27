@@ -1,12 +1,24 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { encodeNodeGraphDocument } from '@prodivix/nodegraph';
 import { createEmptyPirDocument } from '@prodivix/pir';
+import { isUnsafeObjectKey } from '@prodivix/shared/safety';
 import {
   applyWorkspaceCommand,
   createWorkspaceNodeGraphDocumentUpdateCommand,
   type WorkspaceCommandEnvelope,
   type WorkspaceSnapshot,
 } from './index';
+
+const hasUnsafeObjectKey = (value: unknown): boolean => {
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some(hasUnsafeObjectKey);
+  return Object.keys(value).some(
+    (key) =>
+      isUnsafeObjectKey(key) ||
+      hasUnsafeObjectKey((value as Record<string, unknown>)[key])
+  );
+};
 
 const createWorkspace = (): WorkspaceSnapshot => ({
   id: 'workspace-nodegraph',
@@ -53,7 +65,7 @@ const createWorkspace = (): WorkspaceSnapshot => ({
       path: '/graphs/main.pir-graph.json',
       contentRev: 1,
       metaRev: 1,
-      content: { version: 1, nodes: [], edges: [] },
+      content: encodeNodeGraphDocument({ nodes: [], edges: [] }),
     },
   },
   routeManifest: { version: '1', root: { id: 'route-root' } },
@@ -64,15 +76,32 @@ describe('standalone Workspace NodeGraph document properties', () => {
     fc.assert(
       fc.property(
         fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
-        fc.jsonValue({ maxDepth: 3 }),
+        fc
+          .jsonValue({ maxDepth: 3 })
+          .filter((value) => !hasUnsafeObjectKey(value)),
         (nodeId, value) => {
           const workspace = createWorkspace();
           const command = createWorkspaceNodeGraphDocumentUpdateCommand({
             workspace,
             documentId: 'graph-main',
             after: {
-              version: 1,
-              nodes: [{ id: nodeId, data: { value } }],
+              nodes: [
+                {
+                  id: nodeId,
+                  descriptorRef: { id: 'core.process', version: '1' },
+                  ports: [
+                    {
+                      id: 'out.control.next',
+                      direction: 'output',
+                      flow: 'control',
+                      required: false,
+                      cardinality: 'single',
+                    },
+                  ],
+                  configuration: { value },
+                  editor: {},
+                },
+              ],
               edges: [],
             },
             commandId: 'nodegraph-update',
@@ -99,5 +128,39 @@ describe('standalone Workspace NodeGraph document properties', () => {
       ),
       { numRuns: 24 }
     );
+  });
+
+  it('rejects unsafe caller-provided configuration keys', () => {
+    const workspace = createWorkspace();
+    expect(
+      createWorkspaceNodeGraphDocumentUpdateCommand({
+        workspace,
+        documentId: 'graph-main',
+        after: {
+          nodes: [
+            {
+              id: 'unsafe-node',
+              descriptorRef: { id: 'core.process', version: '1' },
+              ports: [
+                {
+                  id: 'out.control.next',
+                  direction: 'output',
+                  flow: 'control',
+                  required: false,
+                  cardinality: 'single',
+                },
+              ],
+              configuration: {
+                value: JSON.parse('{"__proto__":null}') as unknown,
+              },
+              editor: {},
+            },
+          ],
+          edges: [],
+        },
+        commandId: 'unsafe-nodegraph-update',
+        issuedAt: '2026-07-14T00:00:00.000Z',
+      })
+    ).toBeNull();
   });
 });

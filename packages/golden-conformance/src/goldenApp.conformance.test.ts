@@ -118,7 +118,7 @@ describe('Prodivix Golden App conformance', () => {
     expect(appSource).toContain('submitCheckout');
     expect(appSource).toContain('"/checkout"');
     expect(appSource.match(/import GoldenOrderSummary\b/g)).toHaveLength(1);
-    expect(appSource.match(/Component: GoldenOrderSummary\b/g)).toHaveLength(2);
+    expect(appSource.match(/Page: GoldenOrderSummary\b/g)).toHaveLength(2);
     expect(
       appSource.match(/"component-order-summary": GoldenOrderSummary,/g)
     ).toHaveLength(1);

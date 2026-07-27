@@ -49,6 +49,7 @@ import {
 import { createNode, type ContextMenuState } from './nodeGraphEditorModel';
 import type { NodeGraphWorkspaceWriteOutcome } from './nodeGraphEditorTypes';
 import { NodeGraphGraphManager } from './NodeGraphGraphManager';
+import { NodeGraphRuntimeInspector } from './NodeGraphRuntimeInspector';
 import { useNodeGraphColorMode } from './useNodeGraphColorMode';
 import { useNodeGraphConnectionActions } from './nodeGraphConnectionActions';
 import { useNodeGraphGroupLayout } from './nodeGraphGroupLayout';
@@ -70,7 +71,6 @@ import {
 import { useNodeGraphWorkspaceDocumentManager } from './useNodeGraphWorkspaceDocumentManager';
 
 const EMPTY_NODEGRAPH_DOCUMENT: NodeGraphDocument = {
-  version: 1,
   nodes: [],
   edges: [],
 };
@@ -746,6 +746,14 @@ export const NodeGraphEditorContent = () => {
           onMenuItemEnter={onMenuItemEnter}
         />
       </div>
+      {executionSession ? (
+        <NodeGraphRuntimeInspector
+          session={executionSession}
+          snapshotId={executionSession.activeJob?.workspace.snapshotId}
+          onCancel={stopActiveGraph}
+          onOpenSourceTrace={sourceNavigation.openSourceTrace}
+        />
+      ) : null}
       {executionSessionId && executionSession ? (
         <ExecutionCenter
           sessionId={executionSessionId}

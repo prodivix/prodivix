@@ -1,0 +1,154 @@
+name: G3 Behavior and Verification Boundaries
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/backend/internal/modules/workspace/**'
+      - 'apps/backend/internal/platform/behaviorcontract/**'
+      - 'apps/backend/internal/platform/database/**'
+      - 'apps/backend/internal/platform/verificationcontract/**'
+      - 'apps/docs/reference/diagnostics/**'
+      - 'apps/web/package.json'
+      - 'apps/web/tsconfig.json'
+      - 'apps/web/src/editor/features/resources/**'
+      - 'apps/web/src/i18n/resources/**'
+      - 'packages/authoring/**'
+      - 'packages/animation/**'
+      - 'packages/behavior/**'
+      - 'packages/data/**'
+      - 'packages/diagnostics/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/nodegraph/**'
+      - 'packages/pir/**'
+      - 'packages/prodivix-compiler/**'
+      - 'packages/router/**'
+      - 'packages/runtime-core/**'
+      - 'packages/shared/**'
+      - 'packages/verification/**'
+      - 'packages/workspace/**'
+      - 'packages/workspace-sync/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g3-*.mjs'
+      - 'specs/api/workspace-sync.openapi.yaml'
+      - 'specs/diagnostics/**'
+      - 'specs/implementation/g3-*.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g3-*.md'
+      - 'specs/workspace/workspace-model.md'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/g3-boundaries.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/backend/internal/modules/workspace/**'
+      - 'apps/backend/internal/platform/behaviorcontract/**'
+      - 'apps/backend/internal/platform/database/**'
+      - 'apps/backend/internal/platform/verificationcontract/**'
+      - 'apps/docs/reference/diagnostics/**'
+      - 'apps/web/package.json'
+      - 'apps/web/tsconfig.json'
+      - 'apps/web/src/editor/features/resources/**'
+      - 'apps/web/src/i18n/resources/**'
+      - 'packages/authoring/**'
+      - 'packages/animation/**'
+      - 'packages/behavior/**'
+      - 'packages/data/**'
+      - 'packages/diagnostics/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/nodegraph/**'
+      - 'packages/pir/**'
+      - 'packages/prodivix-compiler/**'
+      - 'packages/router/**'
+      - 'packages/runtime-core/**'
+      - 'packages/shared/**'
+      - 'packages/verification/**'
+      - 'packages/workspace/**'
+      - 'packages/workspace-sync/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g3-*.mjs'
+      - 'specs/api/workspace-sync.openapi.yaml'
+      - 'specs/diagnostics/**'
+      - 'specs/implementation/g3-*.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g3-*.md'
+      - 'specs/workspace/workspace-model.md'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/g3-boundaries.yml'
+
+concurrency:
+  group: g3-boundaries-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  boundaries:
+    name: Behavior, Verification, Workspace, and Backend Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify G3 owner and wire boundaries
+        run: pnpm run verify:g3:boundaries
+
+  scenario-authoring:
+    name: Scenario authoring and React/Vue semantic Golden Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify Scenario authoring, semantic lowering, and target parity
+        env:
+          E2E_BROWSER_CHANNEL: chrome
+        run: pnpm run verify:g3:scenario-authoring
+
+  behavior-composition:
+    name: V2 cross-domain Behavior and React/Vue Golden Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify owner-backed Route, NodeGraph, and Animation composition
+        run: pnpm run verify:g3:behavior-composition

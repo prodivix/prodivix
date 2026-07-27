@@ -12,6 +12,7 @@ import { ComponentResourcePage } from './ComponentResourcePage';
 import { DesignTokenResourcePage } from './DesignTokenResourcePage';
 import { AuthServerRuntimeResourcePage } from './AuthServerRuntimeResourcePage';
 import { DataResourcePage } from './DataResourcePage';
+import { BehaviorScenarioResourcePage } from './BehaviorScenarioResourcePage';
 import {
   buildOverviewSnapshot,
   getResourceManagerViewStorageKey,
@@ -50,6 +51,7 @@ export function ProjectResources() {
       raw === 'tokens' ||
       raw === 'data' ||
       raw === 'auth' ||
+      raw === 'behavior' ||
       raw === 'public' ||
       raw === 'code' ||
       raw === 'i18n' ||
@@ -98,6 +100,9 @@ export function ProjectResources() {
       setActiveSection('auth');
     }
     if (activeDocumentType === 'data-source') setActiveSection('data');
+    if (activeDocumentType === 'behavior-scenario') {
+      setActiveSection('behavior');
+    }
   }, [activeDocumentId, activeDocumentType, workspaceDocumentsById]);
 
   const overviewSnapshot = useMemo(() => {
@@ -173,6 +178,8 @@ export function ProjectResources() {
       {activeSection === 'data' ? <DataResourcePage /> : null}
 
       {activeSection === 'auth' ? <AuthServerRuntimeResourcePage /> : null}
+
+      {activeSection === 'behavior' ? <BehaviorScenarioResourcePage /> : null}
 
       {activeSection === 'public' ? <PublicResourcePage embedded /> : null}
 

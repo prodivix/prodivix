@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { decodeNodeGraphDocument } from '..';
+import { decodeNodeGraphDocument, encodeNodeGraphDocument } from '..';
 import { nodeGraphCurrentWireSchema } from '../wire';
 
 describe('NodeGraph current wire conformance', () => {
   it('decodes every canonical schema example through the current model', () => {
     for (const example of nodeGraphCurrentWireSchema.examples) {
-      expect(decodeNodeGraphDocument(example)).toEqual({
+      const decoded = decodeNodeGraphDocument(example);
+      expect(decoded).toEqual({
         ok: true,
-        value: example,
+        value: {
+          nodes: example.nodes,
+          edges: example.edges,
+        },
+        sourceWireVersion: 2,
+        appliedMigrations: [],
       });
+      if (decoded.ok) {
+        expect(encodeNodeGraphDocument(decoded.value)).toEqual(example);
+      }
     }
   });
 });

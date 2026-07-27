@@ -1,12 +1,35 @@
+import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { createNodeGraphExecutor, decodeNodeGraphDocument } from '..';
+import {
+  createNodeGraphExecutor,
+  decodeNodeGraphDocument,
+  encodeNodeGraphDocument,
+  nodeGraphWireMigrationIsDeterministic,
+  validateNodeGraphDocument,
+} from '..';
 import type { NodeGraphDocument, NodeGraphExecutionRequest } from '..';
+import {
+  controlPort,
+  edge,
+  linearControlGraph,
+  node,
+} from './nodeGraphTestFixtures';
 
 const propertyParameters = Object.freeze({
   numRuns: 250,
   seed: 0x13_07_2026,
 });
+
+const migrationFixture = JSON.parse(
+  readFileSync(
+    new URL(
+      '../../../../specs/nodegraph/fixtures/nodegraph-v1-to-v2.json',
+      import.meta.url
+    ),
+    'utf8'
+  )
+) as Readonly<{ source: unknown; expected: unknown }>;
 
 const request: NodeGraphExecutionRequest = {
   documentId: 'graph-document',
@@ -19,27 +42,16 @@ const request: NodeGraphExecutionRequest = {
   params: {},
 };
 
-const createLinearGraph = (messages: string[]): NodeGraphDocument => {
-  const nodes: NodeGraphDocument['nodes'] = [
-    { id: 'start', data: { kind: 'start' } },
+const createLinearGraph = (messages: string[]): NodeGraphDocument =>
+  linearControlGraph([
+    { id: 'start', descriptorId: 'start' },
     ...messages.map((message, index) => ({
       id: `log-${index}`,
-      data: { kind: 'log', description: message },
+      descriptorId: 'log',
+      configuration: { description: message },
     })),
-    { id: 'end', data: { kind: 'end' } },
-  ];
-  return {
-    version: 1,
-    nodes,
-    edges: nodes.slice(0, -1).map((node, index) => ({
-      id: `edge-${index}`,
-      source: node.id,
-      target: nodes[index + 1]!.id,
-      sourceHandle: 'out.control.next',
-      targetHandle: 'in.control.prev',
-    })),
-  };
-};
+    { id: 'end', descriptorId: 'end' },
+  ]);
 
 describe('NodeGraph properties', () => {
   it('executes arbitrary valid linear documents deterministically', async () => {
@@ -73,16 +85,20 @@ describe('NodeGraph properties', () => {
         const execute = createNodeGraphExecutor({ maxSteps });
         const result = await execute(
           {
-            version: 1,
-            nodes: [{ id: 'start', data: { kind: 'start' } }],
+            nodes: [
+              node('start', 'start', [
+                controlPort('in.control.loop', 'input'),
+                controlPort('out.control.next', 'output'),
+              ]),
+            ],
             edges: [
-              {
-                id: 'loop',
-                source: 'start',
-                target: 'start',
-                sourceHandle: 'out.control.next',
-                targetHandle: 'in.control.prev',
-              },
+              edge(
+                'loop',
+                'start',
+                'out.control.next',
+                'start',
+                'in.control.loop'
+              ),
             ],
           },
           request
@@ -100,8 +116,11 @@ describe('NodeGraph properties', () => {
     await expect(
       execute(
         {
-          version: 1,
-          nodes: [{ id: 'unknown', data: { kind: 'not-registered' } }],
+          nodes: [
+            node('unknown', 'not-registered', [
+              controlPort('out.control.next', 'output'),
+            ]),
+          ],
           edges: [],
         },
         request
@@ -113,16 +132,17 @@ describe('NodeGraph properties', () => {
     await expect(
       execute(
         {
-          version: 1,
-          nodes: [{ id: 'start', data: { kind: 'start' } }],
+          nodes: [
+            node('start', 'start', [controlPort('out.control.next', 'output')]),
+          ],
           edges: [
-            {
-              id: 'dangling',
-              source: 'start',
-              target: 'missing',
-              sourceHandle: 'out.control.next',
-              targetHandle: 'in.control.prev',
-            },
+            edge(
+              'dangling',
+              'start',
+              'out.control.next',
+              'missing',
+              'in.control.prev'
+            ),
           ],
         },
         request
@@ -133,56 +153,114 @@ describe('NodeGraph properties', () => {
     });
   });
 
-  it('strictly round-trips canonical documents and rejects legacy identity fields', () => {
+  it('round-trips the version-neutral current model through wire v2', () => {
     fc.assert(
       fc.property(
         fc.uniqueArray(fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/), {
           maxLength: 20,
         }),
         (nodeIds) => {
-          const canonical = {
-            version: 1,
-            nodes: nodeIds.map((id) => ({ id, data: {} })),
+          const canonical: NodeGraphDocument = {
+            nodes: nodeIds.map((id) =>
+              node(id, 'process', [
+                controlPort('in.control.prev', 'input'),
+                controlPort('out.control.next', 'output'),
+              ])
+            ),
             edges: [],
           };
-          const decoded = decodeNodeGraphDocument(canonical);
-          expect(decoded).toEqual({ ok: true, value: canonical });
-          expect(
-            decodeNodeGraphDocument({ ...canonical, id: 'legacy-graph' }).ok
-          ).toBe(false);
+          const wire = encodeNodeGraphDocument(canonical);
+          expect(wire).toMatchObject({ version: 2 });
+          const decoded = decodeNodeGraphDocument(wire);
+          expect(decoded).toMatchObject({
+            ok: true,
+            value: canonical,
+            sourceWireVersion: 2,
+            appliedMigrations: [],
+          });
+          expect(validateNodeGraphDocument(canonical)).toEqual({
+            ok: true,
+            value: canonical,
+          });
         }
       ),
       propertyParameters
     );
   });
 
-  it('keeps code source in Workspace artifacts while round-tripping typed executor nodes', () => {
+  it('migrates unambiguous v1 edges and rejects ambiguous node-level edges', () => {
+    const legacy = migrationFixture.source;
+    expect(decodeNodeGraphDocument(legacy)).toMatchObject({
+      ok: true,
+      sourceWireVersion: 1,
+      appliedMigrations: [{ fromVersion: 1, toVersion: 2 }],
+      value: {
+        nodes: [
+          { descriptorRef: { id: 'core.start', version: '1' } },
+          { descriptorRef: { id: 'core.end', version: '1' } },
+        ],
+        edges: [
+          {
+            source: { nodeId: 'start', portId: 'out.control.next' },
+            target: { nodeId: 'end', portId: 'in.control.prev' },
+          },
+        ],
+      },
+    });
+    expect(nodeGraphWireMigrationIsDeterministic(legacy)).toBe(true);
+    const migrated = decodeNodeGraphDocument(legacy);
+    expect(migrated.ok && encodeNodeGraphDocument(migrated.value)).toEqual(
+      migrationFixture.expected
+    );
+
+    const ambiguous = {
+      version: 1,
+      nodes: [
+        {
+          id: 'source',
+          data: { kind: 'process' },
+          ports: [
+            {
+              id: 'out.control.first',
+              direction: 'output',
+              kind: 'control',
+            },
+            {
+              id: 'out.control.second',
+              direction: 'output',
+              kind: 'control',
+            },
+          ],
+        },
+        { id: 'end', data: { kind: 'end' } },
+      ],
+      edges: [{ id: 'edge', source: 'source', target: 'end' }],
+    };
+    expect(decodeNodeGraphDocument(ambiguous)).toMatchObject({
+      ok: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          path: '/edges/0/sourceHandle',
+          message: expect.stringContaining('ambiguous'),
+        }),
+      ]),
+    });
+  });
+
+  it('keeps code source in Workspace artifacts while round-tripping CodeSlot nodes', () => {
     fc.assert(
       fc.property(
         fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
         fc.stringMatching(/^[a-z][a-z0-9-]{0,15}$/),
         (nodeId, artifactId) => {
           const canonical: NodeGraphDocument = {
-            version: 1,
             nodes: [
               {
-                id: nodeId,
-                data: { kind: 'code' },
-                ports: [
-                  {
-                    id: 'in.data.value',
-                    direction: 'input',
-                    kind: 'data',
-                    typeRef: 'unknown',
-                  },
-                  {
-                    id: 'out.data.value',
-                    direction: 'output',
-                    kind: 'data',
-                    typeRef: 'unknown',
-                  },
-                ],
-                executor: {
+                ...node(nodeId, 'code', [
+                  controlPort('in.control.prev', 'input'),
+                  controlPort('out.control.next', 'output'),
+                ]),
+                codeSlot: {
                   slotId: `nodegraph-code-slot:${nodeId}`,
                   reference: { artifactId },
                 },
@@ -191,17 +269,19 @@ describe('NodeGraph properties', () => {
             edges: [],
           };
 
-          expect(decodeNodeGraphDocument(canonical)).toEqual({
+          expect(
+            decodeNodeGraphDocument(encodeNodeGraphDocument(canonical))
+          ).toMatchObject({
             ok: true,
             value: canonical,
           });
           expect(
-            decodeNodeGraphDocument({
+            validateNodeGraphDocument({
               ...canonical,
               nodes: [
                 {
                   ...canonical.nodes[0],
-                  data: { kind: 'code', code: 'return input;' },
+                  configuration: { code: 'return input;' },
                 },
               ],
             }).ok
@@ -220,7 +300,9 @@ describe('NodeGraph properties', () => {
           expect(decoded.issues.length).toBeGreaterThan(0);
           return;
         }
-        expect(decodeNodeGraphDocument(decoded.value)).toEqual(decoded);
+        expect(
+          decodeNodeGraphDocument(encodeNodeGraphDocument(decoded.value))
+        ).toMatchObject({ ok: true, value: decoded.value });
       }),
       { ...propertyParameters, numRuns: 500 }
     );

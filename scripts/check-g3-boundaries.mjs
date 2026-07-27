@@ -109,6 +109,58 @@ const readImports = (source) =>
     ...source.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)(['"])([^'"]+)\1/g),
   ].map((match) => match[2]);
 
+const behaviorContributorFiles = new Map([
+  [
+    'router',
+    new Set([
+      'packages/router/src/routeBehaviorRegistryContribution.ts',
+      'packages/router/src/routeBehaviorRegistryContribution.test.ts',
+    ]),
+  ],
+  [
+    'pir',
+    new Set(['packages/pir/src/authoring/pirBehaviorRegistryContribution.ts']),
+  ],
+  ['data', new Set(['packages/data/src/dataBehaviorRegistryContribution.ts'])],
+  [
+    'nodegraph',
+    new Set([
+      'packages/nodegraph/src/nodeGraphBehaviorContribution.ts',
+      'packages/nodegraph/src/nodeGraphBehaviorContribution.test.ts',
+    ]),
+  ],
+  [
+    'animation',
+    new Set([
+      'packages/animation/src/animationBehaviorContribution.ts',
+      'packages/animation/src/animationBehaviorContribution.test.ts',
+    ]),
+  ],
+]);
+for (const [directory, contributorPaths] of behaviorContributorFiles) {
+  const packageName = `@prodivix/${directory}`;
+  if (!packages.get(packageName)?.dependencies.has('@prodivix/behavior')) {
+    issues.push(
+      `${packageName} must depend on the Behavior contribution contract.`
+    );
+  }
+  for (const file of await collectSourceFiles(
+    join(packagesRoot, directory, 'src')
+  )) {
+    const importsBehavior = readImports(await readFile(file, 'utf8')).some(
+      (specifier) => specifier === '@prodivix/behavior'
+    );
+    if (
+      importsBehavior &&
+      !contributorPaths.has(relative(repoRoot, file).replaceAll('\\', '/'))
+    ) {
+      issues.push(
+        `${relative(repoRoot, file)} may import @prodivix/behavior only from the domain registry contribution or its conformance test.`
+      );
+    }
+  }
+}
+
 const ownerImportRules = new Map([
   [
     'behavior',

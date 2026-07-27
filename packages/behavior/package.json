@@ -29,6 +29,7 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
+    "@noble/hashes": "2.2.0",
     "@prodivix/diagnostics": "workspace:*",
     "@prodivix/shared": "workspace:*",
     "ajv": "^8.20.0"

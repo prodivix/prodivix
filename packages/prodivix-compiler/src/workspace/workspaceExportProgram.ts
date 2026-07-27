@@ -90,6 +90,7 @@ export const compileWorkspaceToTargetExportProgram = (
     if (read.status !== 'valid') return [];
     return compileNodeGraphExportContributions({
       documentId: document.id,
+      documentRevision: document.contentRev,
       ...(document.name ? { displayName: document.name } : {}),
       definition: read.decodedContent,
     });

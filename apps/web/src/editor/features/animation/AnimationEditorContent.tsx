@@ -6,9 +6,11 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import type {
-  AnimationDefinition,
-  AnimationTimeline,
+import {
+  resolveAnimationMotionPolicy,
+  type AnimationDefinition,
+  type AnimationMotionMode,
+  type AnimationTimeline,
 } from '@prodivix/animation';
 import { createBrowserAnimationEffectStore } from '@prodivix/runtime-browser';
 import { createWorkspaceCodeArtifactProvider } from '@prodivix/workspace';
@@ -78,6 +80,10 @@ export const AnimationEditorContent = ({
     updateActiveTimelineFillMode,
     updateActiveTimelineEasing,
     updateActiveTimelineCodeSlot,
+    addComposition,
+    updateCompositionName,
+    setEntryComposition,
+    deleteComposition,
     setCursorMs,
     setZoom,
     addTrack,
@@ -145,6 +151,33 @@ export const AnimationEditorContent = ({
   const [executionDiagnostic, setExecutionDiagnostic] = useState<
     string | undefined
   >();
+  const [systemMotionMode, setSystemMotionMode] = useState<AnimationMotionMode>(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        ? 'reduced'
+        : 'full'
+  );
+  const [motionOverride, setMotionOverride] = useState<
+    'inherit' | AnimationMotionMode
+  >('inherit');
+  useEffect(() => {
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!media) return;
+    const update = () =>
+      setSystemMotionMode(media.matches ? 'reduced' : 'full');
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const motionPolicy = useMemo(
+    () =>
+      resolveAnimationMotionPolicy({
+        system: systemMotionMode,
+        verification: motionOverride,
+      }),
+    [motionOverride, systemMotionMode]
+  );
   const targetNodeIdsSignature = useMemo(
     () =>
       nodeTargetOptions
@@ -442,6 +475,12 @@ export const AnimationEditorContent = ({
 
         <AnimationEditorInspectorPanel
           timeline={activeTimelineForInspector}
+          compositions={animation.compositions}
+          entryCompositionId={animation.entryCompositionId}
+          motionPolicy={motionPolicy}
+          motionOverride={motionOverride}
+          conflictContributors={[]}
+          conflictIssues={[]}
           cursorMs={displayedCursorMs}
           svgFilters={svgFilters}
           canRemoveSvgFilter={canRemoveSvgFilter}
@@ -456,6 +495,13 @@ export const AnimationEditorContent = ({
               trackId: next.trackId,
             }));
           }}
+          onMotionOverrideChange={setMotionOverride}
+          onAddComposition={() => {
+            addComposition();
+          }}
+          onUpdateCompositionName={updateCompositionName}
+          onSetEntryComposition={setEntryComposition}
+          onDeleteComposition={deleteComposition}
           onUpdateTimelineName={updateActiveTimelineName}
           onUpdateTimelineDuration={updateActiveTimelineDuration}
           onUpdateTimelineDelayMs={updateActiveTimelineDelayMs}

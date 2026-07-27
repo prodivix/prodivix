@@ -19,26 +19,45 @@ import type {
 const DEFAULT_MAX_STEPS = 200;
 
 const normalizeNodeKind = (node: NodeGraphNode): string => {
-  const executorSlotId = node.executor?.slotId.trim();
+  const executorSlotId = node.codeSlot?.slotId.trim();
   if (executorSlotId) return executorSlotId;
-  const kind = typeof node.data.kind === 'string' ? node.data.kind.trim() : '';
-  if (kind) return kind;
-  return typeof node.type === 'string' ? node.type.trim() : '';
+  return node.descriptorRef.id;
 };
 
-const isControlEdge = (edge: NodeGraphEdge): boolean =>
-  (edge.sourceHandle ?? '').startsWith('out.control') &&
-  (edge.targetHandle ?? '').startsWith('in.control');
+const isControlEdge = (
+  graph: NodeGraphDocument,
+  edge: NodeGraphEdge
+): boolean => {
+  const sourceNode = graph.nodes.find((node) => node.id === edge.source.nodeId);
+  const targetNode = graph.nodes.find((node) => node.id === edge.target.nodeId);
+  const sourcePort = sourceNode?.ports.find(
+    (port) => port.id === edge.source.portId
+  );
+  const targetPort = targetNode?.ports.find(
+    (port) => port.id === edge.target.portId
+  );
+  return (
+    sourcePort?.direction === 'output' &&
+    sourcePort.flow === 'control' &&
+    (!targetPort ||
+      (targetPort.direction === 'input' && targetPort.flow === 'control'))
+  );
+};
 
 const buildControlAdjacency = (graph: NodeGraphDocument) => {
   const outgoing = new Map<string, NodeGraphEdge[]>();
   const incomingCount = new Map<string, number>();
-  graph.edges.filter(isControlEdge).forEach((edge) => {
-    const current = outgoing.get(edge.source) ?? [];
-    current.push(edge);
-    outgoing.set(edge.source, current);
-    incomingCount.set(edge.target, (incomingCount.get(edge.target) ?? 0) + 1);
-  });
+  graph.edges
+    .filter((edge) => isControlEdge(graph, edge))
+    .forEach((edge) => {
+      const current = outgoing.get(edge.source.nodeId) ?? [];
+      current.push(edge);
+      outgoing.set(edge.source.nodeId, current);
+      incomingCount.set(
+        edge.target.nodeId,
+        (incomingCount.get(edge.target.nodeId) ?? 0) + 1
+      );
+    });
   return { outgoing, incomingCount };
 };
 
@@ -46,16 +65,16 @@ const resolveEntryNode = (
   graph: NodeGraphDocument,
   incomingCount: Map<string, number>
 ): NodeGraphNode | null =>
-  graph.nodes.find((node) => normalizeNodeKind(node) === 'start') ??
+  graph.nodes.find((node) => normalizeNodeKind(node) === 'core.start') ??
   graph.nodes.find((node) => (incomingCount.get(node.id) ?? 0) === 0) ??
   null;
 
 const resolveNextEdge = (
   outgoing: NodeGraphEdge[],
-  nextHandle: string | undefined
+  nextPortId: string | undefined
 ): NodeGraphEdge | undefined => {
-  if (!nextHandle) return outgoing[0];
-  return outgoing.find((edge) => edge.sourceHandle === nextHandle);
+  if (!nextPortId) return outgoing[0];
+  return outgoing.find((edge) => edge.source.portId === nextPortId);
 };
 
 export const createDefaultNodeGraphNodeExecutorRegistry =
@@ -64,14 +83,14 @@ export const createDefaultNodeGraphNodeExecutorRegistry =
       NodeGraphNodeExecutionContext,
       NodeGraphNodeExecutionOutcome
     >();
-    registry.register('start', ({ node, input }) => ({
-      output: node.data.value ?? input,
+    registry.register('core.start', ({ node, input }) => ({
+      output: node.configuration.value ?? input,
     }));
-    registry.register('process', ({ input }) => ({ output: input }));
-    registry.register('switch', ({ node, input }) => {
-      const selector = node.data.value ?? input;
-      const cases = Array.isArray(node.data.cases)
-        ? node.data.cases.filter(
+    registry.register('core.process', ({ input }) => ({ output: input }));
+    registry.register('core.switch', ({ node, input }) => {
+      const selector = node.configuration.value ?? input;
+      const cases = Array.isArray(node.configuration.cases)
+        ? node.configuration.cases.filter(
             (candidate): candidate is { id: string; label?: string } =>
               Boolean(
                 candidate &&
@@ -87,19 +106,23 @@ export const createDefaultNodeGraphNodeExecutorRegistry =
       );
       return {
         output: input,
-        nextHandle: selectedCase
+        nextPortId: selectedCase
           ? `out.control.case-${selectedCase.id}`
           : 'out.control.default',
       };
     });
-    registry.register('log', ({ node, input }) => {
-      const output = node.data.description ?? node.data.value ?? input;
+    registry.register('core.log', ({ node, input }) => {
+      const output =
+        node.configuration.description ?? node.configuration.value ?? input;
       return {
         output,
         trace: [{ kind: 'log', detail: { value: output } }],
       };
     });
-    registry.register('end', ({ input }) => ({ output: input, stop: true }));
+    registry.register('core.end', ({ input }) => ({
+      output: input,
+      stop: true,
+    }));
     return registry;
   };
 
@@ -179,7 +202,7 @@ export const createNodeGraphExecutor = (
       if (request.signal?.aborted) {
         return finish('cancelled', steps, statePatch, input, {
           nodeId: currentNode.id,
-          reason: request.signal.reason,
+          reason: request.signal.reason ? 'cancelled' : undefined,
         });
       }
 
@@ -227,16 +250,27 @@ export const createNodeGraphExecutor = (
       }
       const nextEdge = resolveNextEdge(
         outgoing.get(currentNode.id) ?? [],
-        outcome.nextHandle
+        outcome.nextPortId
       );
       if (!nextEdge) {
         return finish('completed', steps, statePatch, input);
       }
-      const nextNode = graph.nodes.find((node) => node.id === nextEdge.target);
-      if (!nextNode) {
+      const nextNode = graph.nodes.find(
+        (node) => node.id === nextEdge.target.nodeId
+      );
+      const nextPort = nextNode?.ports.find(
+        (port) => port.id === nextEdge.target.portId
+      );
+      if (
+        !nextNode ||
+        !nextPort ||
+        nextPort.direction !== 'input' ||
+        nextPort.flow !== 'control'
+      ) {
         return finish('missing-target', steps, statePatch, input, {
           edgeId: nextEdge.id,
-          targetNodeId: nextEdge.target,
+          targetNodeId: nextEdge.target.nodeId,
+          targetPortId: nextEdge.target.portId,
         });
       }
       currentNode = nextNode;

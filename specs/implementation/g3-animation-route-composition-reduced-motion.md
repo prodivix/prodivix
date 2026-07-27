@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ImplementationStatus：A0-A3 Implemented / A4 V2 Golden slice Implemented
+- ProductGateStatus：V2 slice Passed / Global G3 In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-20
+- 日期：2026-07-27
 - Owner：`@prodivix/animation`、Route/PIR renderer owner、`@prodivix/runtime-core`、`@prodivix/behavior`、target adapters、`apps/web`
 - 关联：
   - `specs/decisions/61.animation-route-composition-and-reduced-motion.md`
@@ -193,6 +193,25 @@ WebGL adapter 必须声明 target/browser capability、resource budget、fallbac
 
 ### A0：Action/observation 与 CompositionProgram
 
+状态：Implemented。`@prodivix/animation` 已贡献 timeline play、pause、
+resume、seek、cancel 与 animation-state registry/semantic target/runtime adapter。play 使用 stable instance +
+generation；后续控制绑定 exact attempt + instance，跨 attempt 或失效实例 fail closed。playback 使用 explicit
+logical clock，pause 不计入 wall-clock duration，保留 effect lease；resume、seek、cancel 与 signal cancellation
+执行确定性 frame/cleanup，并发布 started/paused/resumed/marker-reached/settled/completed/cancelled/failed
+bounded observation。seek 默认不伪造业务 marker，可通过显式 crossing policy 开启。
+
+Animation current domain 已移除数字版本；wire v2、TypeScript/Go fail-closed codec/validator、v1 deterministic
+migration、数据库 migration 18 和 Workspace/Compiler/Web hard cut 已落地。Composition compiler 支持
+sequence、parallel、stagger、nested timeline/composition ref、conditional full/reduced、marker、hold 与 settle，
+并验证 cycle、unbounded timeline、duration/event/node/iteration budget、settle order 与 required marker parity。
+输出 full/reduced immutable program、canonical digest 和 stable event order；logical runtime 通过注入 clock/effect/
+observation port 执行，取消和异常产生 sanitized terminal result，不写 Workspace。
+
+composition Program 已接入 Behavior play/composition-result/required-marker action-observation 与真实
+Preview/Export/CI effect host；stable composition semantic symbol、Program digest、instance/generation 和
+marker SourceTrace 贯穿 compiler/runtime/Golden。产品 command generation 与 Inspector 也通过 Workspace
+Command 修改 composition，不保存第二作者态。
+
 - typed registry、instance/generation/lease；
 - sequence/parallel/stagger/ref/marker/hold；
 - compiler/digest/cycle/budget；
@@ -201,6 +220,9 @@ WebGL adapter 必须声明 target/browser capability、resource budget、fallbac
 完成条件：相同 composition 在 same-context runtime 产生稳定 marker/order/result。
 
 ### A1：Target/property/conflict runtime
+
+状态：Implemented。semantic target/property registry 支持 replace/queue/add/reject，所有 contender 使用
+generation fence；replace/cancel/error/context-loss 都幂等释放 lease，late frame 不得污染新 generation。
 
 - semantic target resolver、property registry；
 - replace/queue/add/reject arbitration；
@@ -211,6 +233,11 @@ WebGL adapter 必须声明 target/browser capability、resource budget、fallbac
 
 ### A2：Route lifecycle composition
 
+状态：Implemented。Route coordinator 以 resolve → guard → loader → scope prepare → exit/enter transition →
+handoff marker → outlet commit 的固定阶段运行，支持 replace/back/forward/deep-link、rapid replacement、
+loader/guard failure、missing/cancelled handoff 和 scope cleanup；真实 Route surface adapter供
+Preview/Export/CI 与 Behavior 共用。
+
 - guard/loader/navigation lifecycle；
 - exit/commit/materialize/enter barrier；
 - replace/back/forward/deep link/shared handoff；
@@ -219,6 +246,18 @@ WebGL adapter 必须声明 target/browser capability、resource budget、fallbac
 完成条件：路由取消、loader error、rapid navigation 和 missing handoff 均确定性结束。
 
 ### A3：Reduced motion、CodeSlot/shader 与 verification
+
+状态：Implemented。timeline/composition current model 已声明 decorative/spatial/
+essential/continuous intent 与 disabled/final-state/retain/timeline-ref policy；validator 拒绝 essential 无
+bounded retained variant、continuous retain 和 invalid ref。compiler 同时生成 full/reduced Program，reduced
+模式可跳过视觉时长但必须保留 required semantic marker/settle，Golden 已验证两个模式业务 marker 等价且
+reduced logical duration 更短。
+
+system/project/verification override 按 verification > project > system precedence 解析。revision/digest/type/
+effect/determinism/budget-bound CodeSlot runtime拒绝 network、Secret、Workspace write；shader 只允许显式
+WebGL2/WebGPU capability，并要求 full/reduced non-shader fallback，compile log bounded/sanitized，context loss
+幂等清理。React/Vue Chromium full/reduced Golden 验证必要 marker、focus、operability、ARIA 与目标特定
+visual signature。
 
 - motion intent/variant/fallback；
 - pure CodeSlot 与 controlled shader；
@@ -229,6 +268,12 @@ WebGL adapter 必须声明 target/browser capability、resource budget、fallbac
 
 ### A4：Cross-target Golden 与 product
 
+状态：V2 Golden slice Implemented。React/Vue standalone snapshot 共享 Animation compiler contribution 与
+framework-neutral runtime helper；Preview/Export/CI 六个 full/reduced cell 真实执行 composition、Route
+lifecycle 与 NodeGraph correlation。生成的两套独立项目实际完成 install、typecheck、test、production build、
+Chromium smoke，跨框架版面几何/ARIA/focus/操作结果兼容，并保留各 target screenshot hash。V6/V8 的完整
+Remote、Firefox/WebKit、performance/security Evidence matrix仍未运行。
+
 - authoring/preview/debug/Issues UI；
 - React/Vite、Vue/Vite Preview/Export/CI；
 - Authenticated Catalog Route transition + optimistic conflict journey。
@@ -237,7 +282,10 @@ WebGL adapter 必须声明 target/browser capability、resource budget、fallbac
 
 ## 验证证据
 
-计划 Gate：`pnpm run verify:g3:behavior-composition` 中的 Animation/Route suite。
+Gate：`pnpm run verify:g3:behavior-composition` 中 Animation 9 files / 46 tests、Router 5 files / 20 tests、
+Compiler React/Vue 19 tests、Web product 7 tests、V2 composition 7 tests与 Chromium browser Golden 1 test
+已在 2026-07-27 当前未提交 worktree 本地通过；`verify:g3:boundaries` 同时覆盖 Workspace/Go wire hard cut。
+workflow 已配置但缺少 commit/CI identity；完整 G3 V6/V8 adapter/evidence matrix仍待实现。
 
 必须覆盖：
 
@@ -263,8 +311,8 @@ WebGL adapter 必须声明 target/browser capability、resource budget、fallbac
 
 ## 验收标准
 
-- [ ] Animation action/observation、composition、target 和 effect lease 是 typed/current contract。
-- [ ] Route enter/exit/replace 与 Data readiness 在 deterministic scheduler 下有显式 barrier。
-- [ ] reduced-motion 由 motion intent 和 variant 驱动，保持必要 semantic behavior。
-- [ ] CodeSlot/shader capability 有严格 type、budget、sandbox 和 fallback。
-- [ ] Preview、Export、CI 与 React/Vue 的 semantic trace compatible，visual comparison 使用兼容 baseline。
+- [x] Animation action/observation、composition、target 和 effect lease 是 typed/current contract。
+- [x] Route enter/exit/replace 与 Data readiness 在 deterministic scheduler 下有显式 barrier。
+- [x] reduced-motion 由 motion intent 和 variant 驱动，保持必要 semantic behavior。
+- [x] CodeSlot/shader capability 有严格 type、budget、sandbox 和 fallback。
+- [x] Preview、Export、CI 与 React/Vue 的 semantic trace compatible，visual comparison 使用兼容 baseline。

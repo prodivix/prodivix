@@ -27,6 +27,7 @@
   "dependencies": {
     "@noble/hashes": "^2.2.0",
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
     "@prodivix/runtime-core": "workspace:*",
     "ajv": "^8.20.0"
   },

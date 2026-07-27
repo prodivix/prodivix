@@ -15,7 +15,7 @@ func TestStandaloneDomainDocumentValidation(t *testing.T) {
 		{
 			name:         "nodegraph current ports and executor",
 			documentType: WorkspaceDocumentTypePIRGraph,
-			content:      `{"version":1,"nodes":[{"id":"source","type":"graphNode","data":{"kind":"code"},"ports":[{"id":"out.control.next","direction":"output","kind":"control"}],"executor":{"slotId":"nodegraph-code-slot:source","reference":{"artifactId":"artifact-source","exportName":"run","sourceSpan":{"artifactId":"artifact-source","startLine":1,"startColumn":1,"endLine":1,"endColumn":4}}}},{"id":"target","data":{"kind":"process"},"ports":[{"id":"in.control.prev","direction":"input","kind":"control"}]}],"edges":[{"id":"edge","source":"source","target":"target","sourceHandle":"out.control.next","targetHandle":"in.control.prev"}]}`,
+			content:      `{"version":2,"nodes":[{"id":"source","descriptorRef":{"id":"core.code","version":"1"},"ports":[{"id":"out.control.next","direction":"output","flow":"control","required":false,"cardinality":"single"}],"configuration":{},"editor":{},"codeSlot":{"slotId":"nodegraph-code-slot:source","reference":{"artifactId":"artifact-source","exportName":"run","sourceSpan":{"artifactId":"artifact-source","startLine":1,"startColumn":1,"endLine":1,"endColumn":4}}}},{"id":"target","descriptorRef":{"id":"core.process","version":"1"},"ports":[{"id":"in.control.prev","direction":"input","flow":"control","required":true,"cardinality":"single"}],"configuration":{},"editor":{}}],"edges":[{"id":"edge","source":{"nodeId":"source","portId":"out.control.next"},"target":{"nodeId":"target","portId":"in.control.prev"}}]}`,
 		},
 		{
 			name:         "nodegraph rejects legacy maps",
@@ -26,18 +26,18 @@ func TestStandaloneDomainDocumentValidation(t *testing.T) {
 		{
 			name:         "nodegraph rejects dangling edges",
 			documentType: WorkspaceDocumentTypePIRGraph,
-			content:      `{"version":1,"nodes":[{"id":"source","data":{}}],"edges":[{"id":"edge","source":"source","target":"missing"}]}`,
+			content:      `{"version":2,"nodes":[{"id":"source","descriptorRef":{"id":"core.start","version":"1"},"ports":[{"id":"out.control.next","direction":"output","flow":"control","required":false,"cardinality":"single"}],"configuration":{},"editor":{}}],"edges":[{"id":"edge","source":{"nodeId":"source","portId":"out.control.next"},"target":{"nodeId":"missing","portId":"in.control.prev"}}]}`,
 			wantError:    ErrNodeGraphValidationFailed,
 		},
 		{
 			name:         "animation current",
 			documentType: WorkspaceDocumentTypePIRAnimation,
-			content:      `{"version":1,"target":{"kind":"pir-document","documentId":"page"},"timelines":[],"svgFilters":[]}`,
+			content:      `{"version":2,"target":{"kind":"pir-document","documentId":"page"},"timelines":[],"compositions":[],"svgFilters":[]}`,
 		},
 		{
 			name:         "animation requires target",
 			documentType: WorkspaceDocumentTypePIRAnimation,
-			content:      `{"version":1,"timelines":[]}`,
+			content:      `{"version":2,"timelines":[],"compositions":[]}`,
 			wantError:    ErrAnimationValidationFailed,
 		},
 		{
@@ -180,22 +180,22 @@ func TestBinaryAssetDocumentRejectsInlinePayloads(t *testing.T) {
 }
 
 func TestStandaloneDomainPatchPathsUseCurrentCollections(t *testing.T) {
-	for _, path := range []string{"/version", "/nodes/-", "/edges/0/target"} {
+	for _, path := range []string{"/nodes/-", "/edges/0/target", "/publicContract/inputs"} {
 		if err := validateWorkspaceNodeGraphPatchPath(path); err != nil {
 			t.Fatalf("expected NodeGraph path %s to be allowed: %v", path, err)
 		}
 	}
-	for _, path := range []string{"/nodesById/node", "/edgesById/edge", "/metadata"} {
+	for _, path := range []string{"/version", "/nodesById/node", "/edgesById/edge", "/metadata"} {
 		if !errors.Is(validateWorkspaceNodeGraphPatchPath(path), ErrWorkspacePatchPathForbidden) {
 			t.Fatalf("expected legacy NodeGraph path %s to be rejected", path)
 		}
 	}
-	for _, path := range []string{"/version", "/target/documentId", "/timelines/-", "/svgFilters"} {
+	for _, path := range []string{"/target/documentId", "/timelines/-", "/compositions/0/root", "/entryCompositionId", "/svgFilters"} {
 		if err := validateWorkspaceAnimationPatchPath(path); err != nil {
 			t.Fatalf("expected Animation path %s to be allowed: %v", path, err)
 		}
 	}
-	for _, path := range []string{"/timelinesById/timeline", "/tracksById/track", "/metadata"} {
+	for _, path := range []string{"/version", "/timelinesById/timeline", "/tracksById/track", "/metadata"} {
 		if !errors.Is(validateWorkspaceAnimationPatchPath(path), ErrWorkspacePatchPathForbidden) {
 			t.Fatalf("expected legacy Animation path %s to be rejected", path)
 		}

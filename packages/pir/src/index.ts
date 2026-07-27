@@ -43,6 +43,7 @@ export {
   createPirCodeSlotProvider,
   createPirMountedCssCodeSlotId,
 } from './authoring/pirCodeSlotProvider';
+export { PIR_BEHAVIOR_REGISTRY_CONTRIBUTION } from './authoring/pirBehaviorRegistryContribution';
 export * from './authoring/pirBindingScope';
 export * from './authoring/pirBindingCandidate';
 export * from './pir.types';

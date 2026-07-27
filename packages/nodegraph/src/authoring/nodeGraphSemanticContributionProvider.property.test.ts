@@ -4,10 +4,13 @@ import {
   CURRENT_SEMANTIC_SCHEMA_VERSION,
   createNodeGraphNodeScopeId,
   createNodeGraphNodeSymbolId,
+  createNodeGraphPortSymbolId,
   createNodeGraphSymbolId,
   type SemanticDocumentRevision,
   type SemanticSnapshotIdentity,
 } from '@prodivix/authoring';
+import { encodeNodeGraphDocument } from '../nodeGraphCodec';
+import { controlPort, edge, node } from '../__tests__/nodeGraphTestFixtures';
 import { createNodeGraphSemanticContributionProvider } from './nodeGraphSemanticContributionProvider';
 
 const propertyParameters = Object.freeze({
@@ -35,24 +38,34 @@ const createIdentity = (
 
 const createGraph = (nodeIds: readonly string[], reverse: boolean) => {
   const nodes = nodeIds.map((nodeId, index) => ({
-    id: nodeId,
-    type: 'fixture',
-    data: {
-      kind: index === 0 ? 'start' : 'transform',
-      label: `Node ${nodeId}`,
-      code: ignoredCodeMarker,
-    },
+    ...node(
+      nodeId,
+      index === 0 ? 'start' : 'process',
+      [
+        ...(index > 0 ? [controlPort('in.control.prev', 'input', true)] : []),
+        ...(index < nodeIds.length - 1
+          ? [controlPort('out.control.next', 'output')]
+          : []),
+      ],
+      { ignoredCode: ignoredCodeMarker }
+    ),
+    editor: { label: `Node ${nodeId}` },
   }));
-  const edges = nodeIds.slice(1).map((target, index) => ({
-    id: `edge-${index}`,
-    source: nodeIds[index]!,
-    target,
-  }));
-  return {
-    version: 1 as const,
+  const edges = nodeIds
+    .slice(1)
+    .map((target, index) =>
+      edge(
+        `edge-${index}`,
+        nodeIds[index]!,
+        'out.control.next',
+        target,
+        'in.control.prev'
+      )
+    );
+  return encodeNodeGraphDocument({
     nodes: reverse ? [...nodes].reverse() : nodes,
     edges: reverse ? [...edges].reverse() : edges,
-  };
+  });
 };
 
 describe('createNodeGraphSemanticContributionProvider properties', () => {
@@ -113,10 +126,11 @@ describe('createNodeGraphSemanticContributionProvider properties', () => {
           expect(contribution.references).toContainEqual(
             expect.objectContaining({
               kind: 'nodegraph-port',
-              sourceSymbolId: createNodeGraphNodeSymbolId(
+              sourceSymbolId: createNodeGraphPortSymbolId(
                 workspaceId,
                 firstDocumentId,
-                sourceNodeId!
+                sourceNodeId!,
+                'out.control.next'
               ),
               scopeId: createNodeGraphNodeScopeId(
                 workspaceId,
@@ -125,10 +139,11 @@ describe('createNodeGraphSemanticContributionProvider properties', () => {
               ),
               target: {
                 kind: 'symbol-id',
-                symbolId: createNodeGraphNodeSymbolId(
+                symbolId: createNodeGraphPortSymbolId(
                   workspaceId,
                   firstDocumentId,
-                  targetNodeId!
+                  targetNodeId!,
+                  'in.control.prev'
                 ),
               },
             })
@@ -150,7 +165,7 @@ describe('createNodeGraphSemanticContributionProvider properties', () => {
             {
               documentId,
               revision,
-              content: { version: 1, nodes: [], edges: [] },
+              content: encodeNodeGraphDocument({ nodes: [], edges: [] }),
             },
           ],
         });
@@ -165,7 +180,11 @@ describe('createNodeGraphSemanticContributionProvider properties', () => {
         const invalidProvider = createNodeGraphSemanticContributionProvider({
           workspaceId,
           documents: [
-            { documentId, revision, content: { nodes: [], edges: [] } },
+            {
+              documentId,
+              revision,
+              content: { nodes: 'invalid', edges: [] },
+            },
           ],
         });
         expect(() =>

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prodivix.dev/schemas/nodegraph/v1.json",
+  "title": "Prodivix NodeGraph wire document v1",
+  "type": "object",
+  "required": ["version", "nodes", "edges"],
+  "properties": {
+    "version": { "const": 1 },
+    "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "canonicalString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+    },
+    "sourceSpan": {
+      "type": "object",
+      "required": [
+        "artifactId",
+        "startLine",
+        "startColumn",
+        "endLine",
+        "endColumn"
+      ],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/canonicalString" },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "startColumn": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 },
+        "endColumn": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "codeReference": {
+      "type": "object",
+      "required": ["artifactId"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/canonicalString" },
+        "exportName": { "$ref": "#/$defs/canonicalString" },
+        "symbolId": { "$ref": "#/$defs/canonicalString" },
+        "sourceSpan": { "$ref": "#/$defs/sourceSpan" }
+      },
+      "additionalProperties": false
+    },
+    "codeSlotBinding": {
+      "type": "object",
+      "required": ["slotId", "reference"],
+      "properties": {
+        "slotId": { "$ref": "#/$defs/canonicalString" },
+        "reference": { "$ref": "#/$defs/codeReference" }
+      },
+      "additionalProperties": false
+    },
+    "port": {
+      "type": "object",
+      "required": ["id", "direction", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/canonicalString" },
+        "direction": { "enum": ["input", "output"] },
+        "kind": { "enum": ["control", "data"] },
+        "typeRef": { "$ref": "#/$defs/canonicalString" },
+        "required": { "type": "boolean" },
+        "multiple": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "data"],
+      "properties": {
+        "id": { "$ref": "#/$defs/canonicalString" },
+        "type": { "$ref": "#/$defs/canonicalString" },
+        "data": { "type": "object", "additionalProperties": true },
+        "ports": { "type": "array", "items": { "$ref": "#/$defs/port" } },
+        "executor": { "$ref": "#/$defs/codeSlotBinding" }
+      },
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "required": ["id", "source", "target"],
+      "properties": {
+        "id": { "$ref": "#/$defs/canonicalString" },
+        "source": { "$ref": "#/$defs/canonicalString" },
+        "target": { "$ref": "#/$defs/canonicalString" },
+        "sourceHandle": { "type": ["string", "null"] },
+        "targetHandle": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}
