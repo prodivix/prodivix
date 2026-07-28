@@ -4,7 +4,7 @@
 
 - DecisionStatus：Accepted
 - ImplementationStatus：Implemented
-- ProductGateStatus：V4 Local Gate Passed / CI Evidence Pending
+- ProductGateStatus：V4 Local and CI Gates Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-28
 - Owner：`@prodivix/verification`、`@prodivix/authoring`、`@prodivix/workspace`、`apps/web`、`apps/cli`
@@ -307,8 +307,10 @@ UI 只能请求 planner 生成/刷新 Plan，不得在客户端过滤 required c
 - CLI `plan` / `explain` 与共享 canonical projector byte-identical；Web resource surface 使用同一
   explanation contract；7 个定向测试覆盖 revision/identity drift、Policy Command 与 expected
   input/artifact 呈现；
-- core/G3 package boundary Gate 通过。GitHub workflow 已配置独立 V4 Job，但 durable CI identity
-  需在提交推送后取得。
+- core/G3 package boundary Gate 通过。commit
+  [`a6aa0bf9`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d66598c168e01f695f4d85deeacad)
+  的 [V4 CI Job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)
+  通过并形成 durable CI identity。
 
 必须覆盖：
 

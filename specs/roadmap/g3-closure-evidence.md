@@ -2,7 +2,7 @@
 
 ## 状态
 
-- EvidenceStatus：V0/V1/V2/V3 Gates Passed；V4 Local Gate Passed / CI Pending
+- EvidenceStatus：V0/V1/V2/V3/V4 Gates Passed
 - ProductGateStatus：In Progress
 - 日期：2026-07-28
 - G2 Exit baseline：`3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184`
@@ -16,8 +16,10 @@ G2 Exit Gate 已通过；V0/V1/V2 aggregate 已在本地通过，并由 commit
 取得 durable CI identity。V3 aggregate 已在本地通过，并由 commit
 [`3def9168a436594db1145274e011632e228a0db9`](https://github.com/prodivix/prodivix/commit/3def9168a436594db1145274e011632e228a0db9)
 的 [V3 CI Job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)
-取得 durable CI identity。V4 aggregate 已于 2026-07-28 在本地通过，GitHub workflow 已配置但尚无
-durable CI identity；V5-V8 与 G3 aggregate 仍未运行，不得把 V2/V3/V4 Golden 解释为整个 G3 已 Passed。
+取得 durable CI identity。V4 aggregate 已于 2026-07-28 在本地通过，并由 commit
+[`a6aa0bf9452d66598c168e01f695f4d85deeacad`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d66598c168e01f695f4d85deeacad)
+的 [V4 CI Job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)
+取得 durable CI identity；V5-V8 与 G3 aggregate 仍未运行，不得把 V2/V3/V4 Golden 解释为整个 G3 已 Passed。
 
 ## Evidence identity
 
@@ -43,18 +45,18 @@ durable CI identity；V5-V8 与 G3 aggregate 仍未运行，不得把 V2/V3/V4 G
 
 ## Required Gate manifest
 
-| Gate                             | 状态         | 必须证明                                                             | Evidence                                                                                                                                                       |
-| -------------------------------- | ------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify:g3:boundaries`           | Passed       | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                         |
-| `verify:g3:scenario-authoring`   | Passed       | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                         |
-| `verify:g3:behavior-composition` | Passed       | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27 |
-| `verify:g3:deterministic-replay` | Passed       | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                         |
-| `verify:g3:verification-plan`    | Local Passed | Impact/Policy/Plan determinism、budget、required semantics           | 2026-07-28 local working tree；CI identity pending                                                                                                             |
-| `verify:g3:evidence`             | Not Run      | promotion、attestation、Secret hard cut、retention/recovery          | —                                                                                                                                                              |
-| `verify:g3:adapter-matrix`       | Not Run      | all required check families/surfaces/targets/browsers/motion         | —                                                                                                                                                              |
-| `verify:g3:product`              | Not Run      | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                                                                                                              |
-| `verify:g3:golden`               | Not Run      | Authenticated Catalog end-to-end trusted Closure                     | —                                                                                                                                                              |
-| `verify:g3`                      | Not Run      | aggregate with no omitted required cell                              | —                                                                                                                                                              |
+| Gate                             | 状态    | 必须证明                                                             | Evidence                                                                                                                                                       |
+| -------------------------------- | ------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify:g3:boundaries`           | Passed  | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                         |
+| `verify:g3:scenario-authoring`   | Passed  | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                         |
+| `verify:g3:behavior-composition` | Passed  | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27 |
+| `verify:g3:deterministic-replay` | Passed  | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                         |
+| `verify:g3:verification-plan`    | Passed  | Impact/Policy/Plan determinism、budget、required semantics           | [CI job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)，commit `a6aa0bf9`，2026-07-28                                         |
+| `verify:g3:evidence`             | Not Run | promotion、attestation、Secret hard cut、retention/recovery          | —                                                                                                                                                              |
+| `verify:g3:adapter-matrix`       | Not Run | all required check families/surfaces/targets/browsers/motion         | —                                                                                                                                                              |
+| `verify:g3:product`              | Not Run | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                                                                                                              |
+| `verify:g3:golden`               | Not Run | Authenticated Catalog end-to-end trusted Closure                     | —                                                                                                                                                              |
+| `verify:g3`                      | Not Run | aggregate with no omitted required cell                              | —                                                                                                                                                              |
 
 ### V0 reproducible run
 
@@ -158,8 +160,8 @@ durable CI identity；V5-V8 与 G3 aggregate 仍未运行，不得把 V2/V3/V4 G
 ### V4 reproducible run
 
 - Command：`pnpm run verify:g3:verification-plan`
-- Local identity：2026-07-28 working tree；GitHub workflow 的独立 `verification-plan` Job 已配置，
-  commit/run URL 等 durable CI identity pending。
+- CI identity：commit `a6aa0bf9452d66598c168e01f695f4d85deeacad`，
+  [job `90176153041`](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)。
 - Impact/Policy：`@prodivix/verification` 3 files / 28 tests与 `@prodivix/workspace`
   46 files / 194 tests覆盖 deterministic contributor merge、before/after semantic path、
   provider/schema drift、conservative scope、required/advisory/forbidden precedence、conflict、expiry、
@@ -176,8 +178,8 @@ durable CI identity；V5-V8 与 G3 aggregate 仍未运行，不得把 V2/V3/V4 G
   `sha256-99a7139cd204c124c94b5ff36b74d7a62d0596feb70ff34177bdaf863db0fcd8`；删除 provider 的
   negative fixture产生 unknown/conservative scope。
 - Boundaries：core package/application 与 G3 boundaries 同一 Gate 通过。
-- Limitation：本地 V4 Gate 不等于 durable CI evidence；V5 的 PostgreSQL/object-store promotion、
-  trust/attestation/revocation/retention plane仍未实现，因此也不代表 V5-V8 或 G3 Closure。
+- Limitation：以上本地复现结果与 CI Job 已形成 durable V4 evidence；V5 的 PostgreSQL/object-store
+  promotion、trust/attestation/revocation/retention plane仍未实现，因此也不代表 V5-V8 或 G3 Closure。
 
 ## Required Golden matrix
 
@@ -203,8 +205,9 @@ slice替代尚未执行的完整 Remote、多浏览器、performance/security �
 - [x] missing/ambiguous semantic target 阻止 Scenario compile，无 selector fallback（V1 local Gate）。
 - [x] missing Behavior adapter、capability owner/runtime-zone mismatch、unsafe output 与 assertion drift 阻止
       V2 incremental Program 成功，无 domain fallback。
-- [x] incomplete Impact 扩大 Plan 或 blocked，无漏测（V4 local Gate）。
-- [x] required cell unsupported/over-budget/missing dependency 阻止 Closure，无 skipped 降级（V4 local Gate）。
+- [x] incomplete Impact 扩大 Plan 或 blocked，无漏测（V4 local/CI Gate）。
+- [x] required cell unsupported/over-budget/missing dependency 阻止 Closure，无 skipped 降级（V4
+      local/CI Gate）。
 - [x] random/time/network/storage/motion drift 触发 replay/control failure（V3 local Gate）。
 - [x] mutation conflict/retry/cancel 保持 attempt/generation fencing（V2 local Gate；worker loss 属 V5/V6）。
 - [ ] tool schema/adapter capability drift 阻止 normalization/promotion。
