@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0-V3 Implemented（V3 CI Evidence pending）/ V4-V8 Not Started
+- ImplementationStatus：V0-V3 Implemented / V4-V8 Not Started
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-28
@@ -161,8 +161,9 @@ domain/target、public codec 与 boundary check。任何 G3 domain type 不得�
 
 ### V1：Scenario authoring、semantic target 与 recorder
 
-状态：Implemented。2026-07-27 当前 worktree 本地 `verify:g3:scenario-authoring` 通过；workflow 已配置，
-commit/CI evidence 待补。详见 `g3-behavior-scenario-authoring-and-composition.md`。
+状态：Implemented。2026-07-27 本地 `verify:g3:scenario-authoring` 通过；commit `90fcf961` 的
+[GitHub CI Job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)
+也已通过并形成 durable evidence。详见 `g3-behavior-scenario-authoring-and-composition.md`。
 
 交付 Scenario CRUD、step editor、typed target picker、recording draft review、reference/impact contribution、
 compile diagnostics 和最小 semantic UI/Route/Data journey。
@@ -182,7 +183,8 @@ full/reduced composition 均已关闭 V2 scope。
 React/Vue独立生成项目完成 install、typecheck、test、production build 与 Chromium smoke；authenticated
 Catalog optimistic mutation、typed conflict/rollback/retry、Route transition、graph derived state、required
 marker、目标特定 visual hash、ARIA/focus/operability组成 V2 Golden。V2 已由 commit `90fcf961` 的
-GitHub CI取得 durable evidence；NodeGraph live step/fresh replay bridge已由当前 V3 worktree补齐。
+GitHub CI取得 durable evidence；NodeGraph live step/fresh replay bridge已由 commit `3def9168` 的 V3
+CI补齐。
 完整 Remote、多浏览器与 performance/security Evidence matrix归入 V6/V8。详见 NodeGraph 与
 Animation/Route implementation 文档。
 
@@ -193,7 +195,7 @@ Animation/Route implementation 文档。
 
 ### V3：Deterministic controls 与 replay
 
-状态：Implemented locally / CI Evidence pending。详见
+状态：Implemented。详见
 `g3-deterministic-replay-runtime-controls.md`。
 
 交付 clock/random/id/scheduler/network/storage/viewport/motion/font controls、condition wait、barrier、fresh replay
@@ -202,7 +204,10 @@ attempt、divergence detection 与 debugger time travel boundary。
 canonical scheduler/control profile、fresh isolation、fixture/render controls、bounded ReplayRecord codec、
 first-divergence/fresh replay debugger与 NodeGraph live bridge已落地；Browser/Remote/Export/CI × React/Vue ×
 full/reduced semantic matrix和真实 Chromium target均完成三次 fresh replay。2026-07-28 本地 aggregate
-Gate通过，workflow已配置但尚无 commit/CI identity。
+Gate通过；commit
+[`3def9168`](https://github.com/prodivix/prodivix/commit/3def9168a436594db1145274e011632e228a0db9)
+的 [GitHub CI Job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)
+也已通过并形成 durable V3 evidence。
 
 完成条件：相同 Program + control profile 在受支持 provider 上得到相同 semantic observation sequence；无法控制的
 环境因子明确标记 unsupported/unstable，不能静默通过。
@@ -293,8 +298,7 @@ loading/empty/error/retry/pagination、optimistic mutation/conflict、NodeGraph 
 ## 计划中的 Gate
 
 以下命令名是 G3 实施时必须建立的稳定入口；前三个已由 commit `90fcf961` 的 GitHub CI取得 durable
-`Passed` evidence；第四个已在当前 worktree 本地通过且 workflow已配置，但在缺少 commit/CI identity
-时仍不得标记 durable `Passed`：
+`Passed` evidence，第四个已由 commit `3def9168` 的 GitHub CI取得 durable `Passed` evidence：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

@@ -22,20 +22,22 @@ debug protocol/Inspector，以及 Animation wire v2、target/property conflict�
 的 [G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30260091776) 三个独立 Job 也全部通过。
 V3 deterministic replay/control profile、fresh isolation、bounded ReplayRecord/first-divergence debugger、
 NodeGraph live command bridge，以及 Browser/Remote/Export/CI × React/Vue × full/reduced Golden 已于
-2026-07-28 在当前 worktree 实现并通过本地 Gate；workflow 已配置但尚无 commit/CI identity，因此 V3
-保持 `Implemented / CI Evidence pending`。V4-V8 尚未完成。
+2026-07-28 实现并通过本地 Gate；commit
+[`3def9168`](https://github.com/prodivix/prodivix/commit/3def9168a436594db1145274e011632e228a0db9)
+的 [V3 CI Job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)
+也已通过并形成 durable evidence。V4-V8 尚未完成。
 
-| Milestone                  | 状态                              | 目标闭环                                                                                        | 退出证据                                                                             |
-| -------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| V0 Owner/contract hard cut | Implemented                       | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地与 CI Gate 通过，commit `90fcf961`                                               |
-| V1 Scenario authoring      | Implemented                       | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地与 CI authoring/compiler、React/Vue browser Golden 通过，commit `90fcf961`       |
-| V2 Cross-domain behavior   | Implemented                       | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961` |
-| V3 Deterministic replay    | Implemented / CI Evidence pending | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地 repeat/divergence/isolation/provider/Golden Gate 通过；commit/CI identity待取得 |
-| V4 Impact/Policy/Plan      | Not Started                       | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate                                    |
-| V5 Evidence plane          | Not Started                       | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                           |
-| V6 Adapter matrix          | Not Started                       | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                             |
-| V7 Product/CLI/CI          | Not Started                       | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                    |
-| V8 G3 Golden closure       | Not Started                       | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                 |
+| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                             |
+| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地与 CI Gate 通过，commit `90fcf961`                                               |
+| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地与 CI authoring/compiler、React/Vue browser Golden 通过，commit `90fcf961`       |
+| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961` |
+| V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                               |
+| V4 Impact/Policy/Plan      | Not Started | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | byte-stable plan、required hard-cut、explain Gate                                    |
+| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                           |
+| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                             |
+| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                    |
+| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                 |
 
 ## V0：Owner 与 contract hard cut
 
@@ -157,7 +159,7 @@ browser target matrix均已完成 V2 scope。
 同一 Catalog optimistic conflict/stale rollback fence/rollback/retry Scenario 已在 Browser、Remote、
 Export、CI × React/Vue × full/reduced 的 16 个 semantic cell 中各 fresh replay 三次，并产生一致
 semantic sequence；真实 React/Vue Chromium full/reduced target同样各运行三次。注入 random/schedule/
-network drift均在首个 semantic divergence 准确失败。以上为 2026-07-28 本地证据，远端 CI identity待取得。
+network drift均在首个 semantic divergence 准确失败。commit `3def9168` 的 V3 CI Job 也已通过。
 
 ## V4：Impact、Policy 与 Plan
 
@@ -269,8 +271,9 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 
 前三个入口已建立，并由 commit `90fcf961` 的
 [G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30260091776) 取得 durable Passed evidence；
-第四个入口已在当前 worktree 本地通过且 workflow 已配置，但 commit/CI identity待取得；其余入口随
-对应 milestone 建立：
+第四个入口已由 commit `3def9168` 的
+[V3 CI Job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)
+取得 durable Passed evidence；其余入口随对应 milestone 建立：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`
