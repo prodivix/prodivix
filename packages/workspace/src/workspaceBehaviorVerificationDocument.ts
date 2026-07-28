@@ -181,6 +181,8 @@ const contentRoots: Readonly<
     'retryPolicies',
     'exemptions',
     'budgets',
+    'artifactCapture',
+    'comparison',
     'evidenceRequirements',
     'baselinePolicy',
     'retentionRequest',

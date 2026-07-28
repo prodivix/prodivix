@@ -390,6 +390,7 @@ const goldenG3V4Policy: VerificationPolicy = {
     maximumCellsPerCheckKind: 32,
     maximumTargetExpansions: 8,
     maximumBrowserExpansions: 3,
+    maximumClosureEvidenceRecords: 1000,
     totalMs: 300_000,
     artifactBytes: 100_000_000,
     estimatedComputeUnits: 100,
@@ -405,6 +406,13 @@ const goldenG3V4Policy: VerificationPolicy = {
     },
   ],
   exemptions: [],
+  artifactCapture: {
+    defaultCapture: 'allowed',
+    targets: [],
+  },
+  comparison: {
+    allowedMismatchFields: [],
+  },
   evidenceRequirements: {
     acceptedTrust: ['ci-attested'],
     maximumAgeMs: 86_400_000,

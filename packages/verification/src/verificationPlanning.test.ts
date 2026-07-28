@@ -16,8 +16,14 @@ import {
   type VerificationPolicy,
   type VerificationScenarioDescriptor,
 } from './index';
+import { createVerificationEvidenceVerifiedView } from './verificationRetention';
 
 const TEST_DIGEST = `sha256-${'a'.repeat(64)}`;
+const TEST_CI_IDENTITY = Object.freeze({
+  repository: 'prodivix/prodivix',
+  ref: 'refs/heads/main',
+  commit: `sha1-${'a'.repeat(40)}`,
+});
 
 const controlProfileRef = Object.freeze({
   kind: 'workspace' as const,
@@ -79,6 +85,7 @@ const policy = (maximumCells = 64): VerificationPolicy => ({
     maximumCellsPerCheckKind: maximumCells,
     maximumTargetExpansions: 8,
     maximumBrowserExpansions: 3,
+    maximumClosureEvidenceRecords: 1_000,
     totalMs: 100_000,
     artifactBytes: 10_000_000,
     estimatedComputeUnits: 100,
@@ -94,6 +101,13 @@ const policy = (maximumCells = 64): VerificationPolicy => ({
     },
   ],
   exemptions: [],
+  artifactCapture: {
+    defaultCapture: 'allowed',
+    targets: [],
+  },
+  comparison: {
+    allowedMismatchFields: [],
+  },
   evidenceRequirements: {
     acceptedTrust: ['ci-attested'],
     maximumAgeMs: 60_000,
@@ -289,7 +303,8 @@ const evidenceFor = (
   overrides: Partial<VerificationEvidence> = {}
 ): VerificationEvidence => {
   const cell = plan.cells[0]!;
-  return {
+  const { manifestDigest: _manifestDigest, ...normalizedOverrides } = overrides;
+  const manifest = {
     id: `evidence:${outcome}`,
     projectId: 'project:g3',
     workspaceId: plan.workspaceId,
@@ -313,6 +328,8 @@ const evidenceFor = (
     policyEvaluationInstant: plan.policyEvaluationInstant,
     cellId: cell.id,
     checkId: cell.checkId,
+    checkKind: cell.checkKind,
+    targetId: cell.targetId,
     attemptId: `attempt:${outcome}`,
     run: {
       runId: 'run:1',
@@ -321,6 +338,14 @@ const evidenceFor = (
       frameworkTarget: cell.frameworkTarget,
       runtimeZone: 'browser',
       ...(cell.browserEngine ? { browserEngine: cell.browserEngine } : {}),
+      viewport: cell.viewport,
+      devicePixelRatio: 1,
+      colorScheme: cell.colorScheme,
+      motion: cell.motion,
+      locale: cell.locale,
+      timezone: 'UTC',
+      fontSetDigest: TEST_DIGEST,
+      sandboxImageDigest: TEST_DIGEST,
     },
     timing: {
       startedAt: '2026-07-28T00:00:01.000Z',
@@ -337,8 +362,9 @@ const evidenceFor = (
     provenance: {
       trust: 'ci-attested',
       producerId: 'ci',
-      attestationDigest: 'sha256-attestation',
+      attestationDigest: TEST_DIGEST,
       issuedAt: '2026-07-28T00:00:02.000Z',
+      ci: TEST_CI_IDENTITY,
     },
     toolchain: {
       packageName: '@prodivix/runtime-browser',
@@ -346,6 +372,13 @@ const evidenceFor = (
       buildDigest: 'sha256-build',
       toolchainDigest: cell.adapter.toolchainDigest,
       schemaDigest: 'sha256-schema',
+    },
+    normalization: {
+      packageName: '@prodivix/verification',
+      packageVersion: '0.0.1',
+      buildDigest: TEST_DIGEST,
+      toolchainDigest: TEST_DIGEST,
+      schemaDigest: TEST_DIGEST,
     },
     controls: {
       profileDigest: TEST_DIGEST,
@@ -361,7 +394,7 @@ const evidenceFor = (
       {
         id: 'artifact:replay',
         kind: 'replay-record',
-        digest: 'sha256-replay',
+        digest: TEST_DIGEST,
         size: 10,
         mediaType: 'application/json',
       },
@@ -369,41 +402,100 @@ const evidenceFor = (
     sourceTraceDigest: 'sha256-trace',
     dependencyLockDigest: 'sha256-lock',
     redactionPolicyId: 'redaction:v1',
+    targetPolicy: {
+      authority: 'verification-policy',
+      policyDigest: plan.policyDigest,
+      semanticTargetId: cell.targetId,
+      capture: 'allowed',
+    },
     createdAt: '2026-07-28T00:00:02.000Z',
     retention: 'change',
-    manifestDigest: `sha256-manifest-${outcome}`,
-    ...overrides,
+    ...normalizedOverrides,
   };
+  return {
+    ...manifest,
+    manifestDigest: digestVerificationValue(manifest),
+  } as VerificationEvidence;
 };
+
+const testRevocationRecordDigest = (
+  evaluationInstant: string,
+  revokedEvidenceIds: readonly string[] = []
+): string =>
+  digestVerificationValue({
+    format: 'test.verification-revocation-view.v1',
+    evaluationInstant,
+    revokedEvidenceIds: uniqueVerificationText(revokedEvidenceIds),
+  });
 
 const closureInput = (
   plan: ReturnType<typeof createVerificationPlan>['plan'],
   evidence: readonly VerificationEvidence[],
-  closureEvaluationInstant: string
-) => ({
-  plan,
-  evidence,
-  closureEvaluationInstant,
-  targetRevision: plan.targetRevision,
-  targetPartitionRevisions: plan.targetPartitionRevisions,
-  scenarioRegistryDigest: plan.scenarioRegistryDigest,
-  semanticSchemaDigest: plan.semanticSchemaDigest,
-  providerSetDigest: plan.providerSetDigest,
-  adapterRegistryDigest: plan.adapterRegistryDigest,
-  impactDigest: plan.impactDigest,
-  policyRevision: plan.policyRevision,
-  policyDigest: plan.policyDigest,
-  compilerDigest: plan.compilerDigest,
-  plannerDigest: plan.plannerDigest,
-  baselineSetDigests: [],
-  toolchainSetDigest: digestVerificationValue(
-    uniqueVerificationText(
-      plan.cells.map((cell) => cell.adapter.toolchainDigest)
-    )
-  ),
-  revocationRecordDigest: 'sha256-revocations',
-  revokedEvidenceIds: [],
-});
+  closureEvaluationInstant: string,
+  options: Readonly<{ revokedEvidenceIds?: readonly string[] }> = {}
+) => {
+  const revokedEvidenceIds = options.revokedEvidenceIds ?? [];
+  const revocationRecordDigest = testRevocationRecordDigest(
+    closureEvaluationInstant,
+    revokedEvidenceIds
+  );
+  const verifiedEvidenceView = createVerificationEvidenceVerifiedView({
+    closureEvaluationInstant,
+    revocationRecordDigest,
+    records: evidence.map((candidate) => {
+      const revoked = revokedEvidenceIds.includes(candidate.id);
+      return {
+        evidenceId: candidate.id,
+        manifestDigest: candidate.manifestDigest,
+        materializedEvidenceDigest: digestVerificationValue(candidate),
+        effectiveTrust: candidate.provenance.trust,
+        trustStatus: revoked ? ('revoked' as const) : ('verified' as const),
+        ...(candidate.provenance.attestationDigest
+          ? { attestationDigest: candidate.provenance.attestationDigest }
+          : {}),
+        retentionState: 'active' as const,
+        revocationRecordDigests: revoked
+          ? [
+              digestVerificationValue({
+                evidenceId: candidate.id,
+                revoked: true,
+              }),
+            ]
+          : [],
+        artifacts: candidate.artifacts.map((artifact) => ({
+          artifactId: artifact.id,
+          digest: artifact.digest,
+          status: 'available' as const,
+        })),
+      };
+    }),
+  });
+  return {
+    plan,
+    evidence,
+    closureEvaluationInstant,
+    targetRevision: plan.targetRevision,
+    targetPartitionRevisions: plan.targetPartitionRevisions,
+    scenarioRegistryDigest: plan.scenarioRegistryDigest,
+    semanticSchemaDigest: plan.semanticSchemaDigest,
+    providerSetDigest: plan.providerSetDigest,
+    adapterRegistryDigest: plan.adapterRegistryDigest,
+    impactDigest: plan.impactDigest,
+    policyRevision: plan.policyRevision,
+    policyDigest: plan.policyDigest,
+    compilerDigest: plan.compilerDigest,
+    plannerDigest: plan.plannerDigest,
+    baselineSetDigests: [],
+    toolchainSetDigest: digestVerificationValue(
+      uniqueVerificationText(
+        plan.cells.map((cell) => cell.adapter.toolchainDigest)
+      )
+    ),
+    revocationRecordDigest,
+    revokedEvidenceIds,
+    verifiedEvidenceView,
+  };
+};
 
 describe('Verification V4 planning', () => {
   it('merges Impact contributions in canonical order and broadens incomplete scope', () => {
@@ -651,6 +743,56 @@ describe('Verification V4 planning', () => {
     expect(new Set(first.plan.cells.map((cell) => cell.motion))).toEqual(
       new Set(['full', 'reduced'])
     );
+    expect(first.plan.retentionRequest).toEqual(policy().retentionRequest);
+    expect(
+      first.plan.cells.every(
+        (cell) =>
+          cell.targetPolicy.authority === 'verification-policy' &&
+          cell.targetPolicy.policyDigest === first.plan.policyDigest &&
+          cell.targetPolicy.semanticTargetId === cell.targetId &&
+          cell.targetPolicy.capture === 'allowed'
+      )
+    ).toBe(true);
+
+    const protectedTargetPolicy: VerificationPolicy = {
+      ...policy(),
+      artifactCapture: {
+        defaultCapture: 'masked',
+        targets: [
+          {
+            targetId: 'catalog',
+            capture: 'forbidden-sensitive',
+          },
+        ],
+      },
+    };
+    const protectedTarget = createVerificationPlan(
+      planInput(protectedTargetPolicy)
+    );
+    expect(
+      protectedTarget.plan.cells.every(
+        ({ targetPolicy }) =>
+          targetPolicy.capture === 'forbidden-sensitive' &&
+          targetPolicy.policyDigest === protectedTarget.plan.policyDigest
+      )
+    ).toBe(true);
+    expect(protectedTarget.plan.planDigest).not.toBe(first.plan.planDigest);
+
+    const releaseRetentionPolicy: VerificationPolicy = {
+      ...policy(),
+      retentionRequest: {
+        successful: 'release',
+        failed: 'session',
+        protectReleaseEvidence: false,
+      },
+    };
+    const releaseRetention = createVerificationPlan(
+      planInput(releaseRetentionPolicy)
+    );
+    expect(releaseRetention.plan.retentionRequest).toEqual(
+      releaseRetentionPolicy.retentionRequest
+    );
+    expect(releaseRetention.plan.planDigest).not.toBe(first.plan.planDigest);
 
     const unsupported = createVerificationPlan({
       ...planInput(),
@@ -726,6 +868,66 @@ describe('Verification V4 planning', () => {
         (explanation) => explanation.status === 'trimmed-advisory'
       )
     ).toBe(true);
+  });
+
+  it('bounds closure Evidence records from every generated cell attempt', () => {
+    const exactPolicy: VerificationPolicy = {
+      ...policy(),
+      budgets: {
+        ...policy().budgets,
+        maximumClosureEvidenceRecords: 16,
+      },
+    };
+    const exact = createVerificationPlan(planInput(exactPolicy));
+    expect(exact.status).toBe('ready');
+    expect(exact.plan.cells).toHaveLength(8);
+    expect(exact.plan.budget.closureEvidenceRecords).toBe(16);
+    const { planDigest, ...withoutDigest } = exact.plan;
+    expect(planDigest).toBe(digestVerificationValue(withoutDigest));
+
+    const overBudgetPolicy: VerificationPolicy = {
+      ...exactPolicy,
+      budgets: {
+        ...exactPolicy.budgets,
+        maximumClosureEvidenceRecords: 15,
+      },
+    };
+    const overBudget = createVerificationPlan(planInput(overBudgetPolicy));
+    expect(overBudget.status).toBe('blocked');
+    expect(overBudget.plan.budget.closureEvidenceRecords).toBe(16);
+    expect(overBudget.plan.budget.overBudgetDimensions).toContain(
+      'maximumClosureEvidenceRecords'
+    );
+    expect(overBudget.plan.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'VER-3004',
+        relatedIds: ['maximumClosureEvidenceRecords'],
+      })
+    );
+
+    const coreBoundaryPolicy: VerificationPolicy = {
+      ...policy(),
+      budgets: {
+        ...policy().budgets,
+        maximumClosureEvidenceRecords: 1_000,
+      },
+    };
+    expect(createVerificationPlan(planInput(coreBoundaryPolicy)).status).toBe(
+      'ready'
+    );
+    const aboveCorePolicy: VerificationPolicy = {
+      ...coreBoundaryPolicy,
+      budgets: {
+        ...coreBoundaryPolicy.budgets,
+        maximumClosureEvidenceRecords: 1_001,
+      },
+    };
+    expect(createVerificationPlan(planInput(aboveCorePolicy))).toMatchObject({
+      status: 'blocked',
+      plan: {
+        issues: [expect.objectContaining({ code: 'VER-2001' })],
+      },
+    });
   });
 
   it('builds exact dependency edges without allowing missing required checks', () => {
@@ -971,6 +1173,214 @@ describe('Verification V4 planning', () => {
 });
 
 describe('Verification V4 closure projection', () => {
+  it('requires canonical manifests and a Backend-verified acceptance view', () => {
+    const plan = createVerificationPlan(planInput()).plan;
+    const cell = plan.cells[0]!;
+    const passed = evidenceFor(plan, 'passed');
+    const verifiedInput = closureInput(
+      plan,
+      [passed],
+      '2026-07-28T00:00:03.000Z'
+    );
+    const {
+      verifiedEvidenceView: _verifiedEvidenceView,
+      ...withoutVerifiedView
+    } = verifiedInput;
+    expect(evaluateVerificationClosure(withoutVerifiedView)).toMatchObject({
+      status: 'invalid',
+      reasonCode: 'VER-6002',
+    });
+    expect(
+      evaluateVerificationClosure({
+        ...verifiedInput,
+        verifiedEvidenceView: {
+          ...verifiedInput.verifiedEvidenceView,
+          viewDigest: 'sha256-tampered-view',
+        },
+      })
+    ).toMatchObject({ status: 'invalid', reasonCode: 'VER-6002' });
+
+    const tampered = {
+      ...passed,
+      result: {
+        ...passed.result,
+        normalizedResultDigest: 'sha256-tampered-result',
+      },
+    };
+    expect(
+      evaluateVerificationClosure(
+        Object.freeze({
+          ...verifiedInput,
+          evidence: [tampered],
+        })
+      )
+    ).toMatchObject({ status: 'invalid', reasonCode: 'VER-6002' });
+
+    const downgradedView = createVerificationEvidenceVerifiedView({
+      closureEvaluationInstant: '2026-07-28T00:00:03.000Z',
+      revocationRecordDigest: verifiedInput.revocationRecordDigest,
+      records: [
+        {
+          evidenceId: passed.id,
+          manifestDigest: passed.manifestDigest,
+          materializedEvidenceDigest: digestVerificationValue(passed),
+          effectiveTrust: 'local-unattested',
+          trustStatus: 'verified',
+          attestationDigest: passed.provenance.attestationDigest,
+          retentionState: 'active',
+          revocationRecordDigests: [],
+          artifacts: passed.artifacts.map((artifact) => ({
+            artifactId: artifact.id,
+            digest: artifact.digest,
+            status: 'available',
+          })),
+        },
+      ],
+    });
+    expect(
+      evaluateVerificationClosure({
+        ...verifiedInput,
+        verifiedEvidenceView: downgradedView,
+        revocationRecordDigest: downgradedView.revocationRecordDigest,
+      })
+    ).toMatchObject({
+      status: 'ready',
+      closure: { cellStatuses: { [cell.id]: 'incompatible' } },
+    });
+
+    const baselineClosure = evaluateVerificationClosure(verifiedInput);
+    const boundedView = createVerificationEvidenceVerifiedView({
+      closureEvaluationInstant: verifiedInput.closureEvaluationInstant,
+      revocationRecordDigest: verifiedInput.revocationRecordDigest,
+      records: verifiedInput.verifiedEvidenceView.records.map(
+        ({ recordDigest: _recordDigest, ...record }) => ({
+          ...record,
+          retentionExpiresAt: '2026-07-29T00:00:00.000Z',
+        })
+      ),
+    });
+    const boundedClosure = evaluateVerificationClosure({
+      ...verifiedInput,
+      verifiedEvidenceView: boundedView,
+    });
+    expect(baselineClosure).toMatchObject({
+      status: 'ready',
+    });
+    expect(boundedClosure).toMatchObject({
+      status: 'ready',
+    });
+    if (
+      baselineClosure.status === 'ready' &&
+      boundedClosure.status === 'ready'
+    ) {
+      expect(boundedClosure.closure.verdict).toBe(
+        baselineClosure.closure.verdict
+      );
+      expect(boundedClosure.closure.cellStatuses).toEqual(
+        baselineClosure.closure.cellStatuses
+      );
+      expect(boundedClosure.closure.evidenceSetDigest).not.toBe(
+        baselineClosure.closure.evidenceSetDigest
+      );
+    }
+  });
+
+  it('removes tombstoned, unavailable, and explicitly superseded Evidence from Closure', () => {
+    const plan = createVerificationPlan(planInput()).plan;
+    const cell = plan.cells[0]!;
+    const failed = evidenceFor(plan, 'failed', {
+      id: 'evidence:failed-to-supersede',
+      attemptId: 'attempt:failed-to-supersede',
+    });
+    const passed = evidenceFor(plan, 'passed', {
+      id: 'evidence:corrected',
+      attemptId: 'attempt:corrected',
+      timing: {
+        startedAt: '2026-07-28T00:00:03.000Z',
+        completedAt: '2026-07-28T00:00:04.000Z',
+        durationMs: 1_000,
+      },
+      provenance: {
+        trust: 'ci-attested',
+        producerId: 'ci',
+        attestationDigest: TEST_DIGEST,
+        issuedAt: '2026-07-28T00:00:04.000Z',
+        ci: TEST_CI_IDENTITY,
+      },
+    });
+    const instant = '2026-07-28T00:00:05.000Z';
+    const supersessionView = createVerificationEvidenceVerifiedView({
+      closureEvaluationInstant: instant,
+      revocationRecordDigest: testRevocationRecordDigest(instant),
+      records: [failed, passed].map((candidate) => ({
+        evidenceId: candidate.id,
+        manifestDigest: candidate.manifestDigest,
+        materializedEvidenceDigest: digestVerificationValue(candidate),
+        effectiveTrust: 'ci-attested',
+        trustStatus: 'verified',
+        attestationDigest: candidate.provenance.attestationDigest,
+        retentionState: 'active',
+        ...(candidate.id === failed.id
+          ? { supersededByEvidenceId: passed.id }
+          : {}),
+        revocationRecordDigests: [],
+        artifacts: candidate.artifacts.map((artifact) => ({
+          artifactId: artifact.id,
+          digest: artifact.digest,
+          status: 'available',
+        })),
+      })),
+    });
+    const supersededInput = closureInput(plan, [failed, passed], instant);
+    expect(
+      evaluateVerificationClosure({
+        ...supersededInput,
+        verifiedEvidenceView: supersessionView,
+        revocationRecordDigest: supersessionView.revocationRecordDigest,
+      })
+    ).toMatchObject({
+      status: 'ready',
+      closure: { cellStatuses: { [cell.id]: 'passed' } },
+    });
+
+    for (const state of ['tombstoned', 'artifact-unavailable'] as const) {
+      const view = createVerificationEvidenceVerifiedView({
+        closureEvaluationInstant: instant,
+        revocationRecordDigest: testRevocationRecordDigest(instant),
+        records: [
+          {
+            evidenceId: passed.id,
+            manifestDigest: passed.manifestDigest,
+            materializedEvidenceDigest: digestVerificationValue(passed),
+            effectiveTrust: 'ci-attested',
+            trustStatus: 'verified',
+            attestationDigest: passed.provenance.attestationDigest,
+            retentionState: state === 'tombstoned' ? 'tombstoned' : 'active',
+            ...(state === 'tombstoned' ? { tombstoneDigest: TEST_DIGEST } : {}),
+            revocationRecordDigests: [],
+            artifacts: passed.artifacts.map((artifact) => ({
+              artifactId: artifact.id,
+              digest: artifact.digest,
+              status:
+                state === 'artifact-unavailable' ? 'deleted' : 'available',
+            })),
+          },
+        ],
+      });
+      const input = closureInput(plan, [passed], instant);
+      expect(
+        evaluateVerificationClosure({
+          ...input,
+          verifiedEvidenceView: view,
+          revocationRecordDigest: view.revocationRecordDigest,
+        })
+      ).toMatchObject({
+        status: 'ready',
+        closure: { cellStatuses: { [cell.id]: 'stale' } },
+      });
+    }
+  });
+
   it('accepts only current, trusted, compatible passing Evidence', () => {
     const plan = createVerificationPlan(planInput()).plan;
     const evidence = plan.cells.map((cell, index) =>
@@ -978,6 +1388,8 @@ describe('Verification V4 closure projection', () => {
         id: `evidence:${index}`,
         cellId: cell.id,
         checkId: cell.checkId,
+        checkKind: cell.checkKind,
+        targetId: cell.targetId,
         attemptId: `attempt:${index}`,
         inputs: {
           executableSnapshotDigest: 'sha256-executable',
@@ -994,6 +1406,14 @@ describe('Verification V4 closure projection', () => {
           frameworkTarget: cell.frameworkTarget,
           runtimeZone: 'browser',
           ...(cell.browserEngine ? { browserEngine: cell.browserEngine } : {}),
+          viewport: cell.viewport,
+          devicePixelRatio: 1,
+          colorScheme: cell.colorScheme,
+          motion: cell.motion,
+          locale: cell.locale,
+          timezone: 'UTC',
+          fontSetDigest: TEST_DIGEST,
+          sandboxImageDigest: TEST_DIGEST,
         },
         manifestDigest: `sha256-manifest-${index}`,
       })
@@ -1081,11 +1501,11 @@ describe('Verification V4 closure projection', () => {
     const plan = createVerificationPlan(planInput()).plan;
     const cell = plan.cells[0]!;
     const passed = evidenceFor(plan, 'passed');
-    const revoked = evaluateVerificationClosure({
-      ...closureInput(plan, [passed], '2026-07-28T00:00:03.000Z'),
-      revokedEvidenceIds: [passed.id],
-      revocationRecordDigest: 'sha256-revoked',
-    });
+    const revoked = evaluateVerificationClosure(
+      closureInput(plan, [passed], '2026-07-28T00:00:03.000Z', {
+        revokedEvidenceIds: [passed.id],
+      })
+    );
     expect(revoked).toMatchObject({
       status: 'ready',
       closure: {
@@ -1093,6 +1513,18 @@ describe('Verification V4 closure projection', () => {
         cellStatuses: { [cell.id]: 'stale' },
       },
     });
+    const duplicateRevocationIds = closureInput(
+      plan,
+      [passed],
+      '2026-07-28T00:00:03.000Z',
+      { revokedEvidenceIds: [passed.id] }
+    );
+    expect(
+      evaluateVerificationClosure({
+        ...duplicateRevocationIds,
+        revokedEvidenceIds: [passed.id, passed.id],
+      })
+    ).toMatchObject({ status: 'invalid', reasonCode: 'VER-6002' });
 
     const expired = evaluateVerificationClosure(
       closureInput(plan, [passed], '2026-07-29T00:00:03.000Z')
@@ -1136,8 +1568,9 @@ describe('Verification V4 closure projection', () => {
       provenance: {
         trust: 'ci-attested',
         producerId: 'ci',
-        attestationDigest: 'sha256-attestation',
+        attestationDigest: TEST_DIGEST,
         issuedAt: '2026-07-28T00:00:03.000Z',
+        ci: TEST_CI_IDENTITY,
       },
       manifestDigest: 'sha256-manifest-passed-after-infra',
     });
@@ -1147,6 +1580,28 @@ describe('Verification V4 closure projection', () => {
     expect(retried).toMatchObject({
       status: 'ready',
       closure: { cellStatuses: { [cell.id]: 'passed' } },
+    });
+    const driftedRetry = evidenceFor(plan, 'passed', {
+      id: 'evidence:passed-after-infra-drifted',
+      attemptId: 'attempt:passed-after-infra-drifted',
+      run: {
+        ...passed.run,
+        timezone: 'Asia/Shanghai',
+      },
+      timing: passed.timing,
+      provenance: passed.provenance,
+    });
+    expect(
+      evaluateVerificationClosure(
+        closureInput(
+          plan,
+          [infrastructure, driftedRetry],
+          '2026-07-28T00:00:04.000Z'
+        )
+      )
+    ).toMatchObject({
+      status: 'ready',
+      closure: { cellStatuses: { [cell.id]: 'incompatible' } },
     });
 
     const failed = evidenceFor(plan, 'failed', {
@@ -1165,8 +1620,9 @@ describe('Verification V4 closure projection', () => {
       provenance: {
         trust: 'ci-attested',
         producerId: 'ci',
-        attestationDigest: 'sha256-attestation',
+        attestationDigest: TEST_DIGEST,
         issuedAt: '2026-07-28T00:00:03.000Z',
+        ci: TEST_CI_IDENTITY,
       },
       manifestDigest: 'sha256-manifest-infra-after-failure',
     });
@@ -1213,8 +1669,9 @@ describe('Verification V4 closure projection', () => {
             provenance: {
               trust: 'ci-attested',
               producerId: 'ci',
-              attestationDigest: 'sha256-attestation',
+              attestationDigest: TEST_DIGEST,
               issuedAt: `2026-07-28T00:00:0${index + 2}.000Z`,
+              ci: TEST_CI_IDENTITY,
             },
             manifestDigest: `sha256-manifest-${suffix}`,
           })
@@ -1251,12 +1708,20 @@ describe('Verification V4 closure projection', () => {
     });
 
     const valid = evidenceFor(plan, 'passed');
-    const wrongProgram = {
+    const wrongProgramManifest = {
       ...valid,
       inputs: {
         ...valid.inputs,
         scenarioProgramDigest: 'sha256-wrong-program',
       },
+    };
+    const {
+      manifestDigest: _wrongProgramDigest,
+      ...wrongProgramWithoutDigest
+    } = wrongProgramManifest;
+    const wrongProgram = {
+      ...wrongProgramWithoutDigest,
+      manifestDigest: digestVerificationValue(wrongProgramWithoutDigest),
     };
     expect(
       evaluateVerificationClosure(

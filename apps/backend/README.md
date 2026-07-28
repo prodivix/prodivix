@@ -18,6 +18,7 @@ apps/backend/
 │   │   ├── integrations/      # GitHub App 等第三方集成
 │   │   ├── project/           # 项目元数据、社区查询与发布投影
 │   │   ├── remoteexecution/   # 用户授权的 Remote Runner gateway 与 execution grant
+│   │   ├── verification/      # Durable Evidence、artifact promotion、trust 与 retention
 │   │   └── workspace/         # Workspace snapshot、Atomic Commit 与语义校验
 │   └── platform/
 │       ├── database/          # PostgreSQL 连接与启动时迁移
@@ -70,6 +71,60 @@ cd apps/backend && go build ./...
 cd apps/backend && go test ./...
 cd apps/backend && go fmt ./...
 ```
+
+## Verification Evidence plane
+
+Backend 的 Verification service 位于 Canonical Workspace 与可丢弃 Execution runtime 之外。它把 strict
+`EvidenceCandidate` 经 artifact staging、Secret/PII/active-content validation、可选 attestation verification
+和 PostgreSQL 原子 promotion 转换为 immutable `VerificationEvidence`；Evidence 不进入 Workspace、Outbox、
+History、Git projection 或 `localStorage`。
+
+公开路由位于 `/api/workspaces/:workspaceId/verification`。所有读写都重新校验 authenticated principal 与
+Workspace permission；mutation 还要求显式 intent、强幂等 identity 和 operation-specific expected
+state/version。Artifact 只能通过 Evidence-bound authenticated route 下载，响应固定为 attachment，并附带
+`nosniff`、sandbox CSP、`private, no-store`、ETag 与完整 size/digest 校验。HTML、SVG、JavaScript、archive
+及未通过 bounded raster decode 的图像不会被 promotion。
+
+默认 artifact store 是 server-owned content-addressed filesystem namespace；PostgreSQL 只保存 locator、
+immutable manifest/reference、attestation claims、revocation、protection、tombstone 与 append-only audit。
+retention worker 先 CAS tombstone，再在 grace period 后释放 refcount，并在重启时有界核对 staging/durable
+orphan，永不删除仍被 Evidence 或 protection 引用的对象。
+
+Policy 的 `protectReleaseEvidence` 在 V5 只绑定到 Plan/AttemptGrant；Backend 不伪造没有真实 external
+reference 的 protection。G5/release owner 后续以真实 change/release ref 创建 protection；在此之前，
+`release` Evidence 没有 TTL，但 owner 显式 tombstone 仍合法，只有已持久化的 active protection/hold 会阻止。
+
+配置项与默认值：
+
+- `BACKEND_VERIFICATION_ARTIFACT_ROOT=./data/verification`
+- `BACKEND_VERIFICATION_PROMOTION_TTL=1h`（最大 `24h`）
+- `BACKEND_VERIFICATION_SESSION_RETENTION=24h`（最大 `720h`）
+- `BACKEND_VERIFICATION_TOMBSTONE_GRACE=24h`（最大 `720h`）
+- `BACKEND_VERIFICATION_SWEEP_INTERVAL=15m`
+- `BACKEND_VERIFICATION_SWEEP_BATCH_SIZE=128`（最大 `1000`）
+- `BACKEND_VERIFICATION_RESUME_KEY=<canonical base64 32-byte key>`（必填，仅服务端）
+- `BACKEND_VERIFICATION_ATTESTATION_POLICY_GENERATION=1`
+- `BACKEND_VERIFICATION_ATTESTATION_MAX_LIFETIME=15m`（最大 `1h`）
+- `BACKEND_VERIFICATION_ATTESTATION_KEYS=<strict JSON object>`
+- `BACKEND_VERIFICATION_SECRET_CANARIES=<comma-separated exact canaries>`
+
+`BACKEND_VERIFICATION_ATTESTATION_KEYS` 的每个 entry 只包含 base64 Ed25519 public key、issuer、audience、
+subject 与 `remote-attested|ci-attested` trust class。私钥、OIDC assertion、raw proof、nonce、provider
+credential 和 Secret 不得进入配置、Evidence、diagnostic、audit 或日志。
+
+`BACKEND_VERIFICATION_RESUME_KEY` 用于派生可恢复但不落库的 promotion capability 与 attestation nonce。
+它必须是恰好 32 个随机字节的 canonical standard-base64，在所有 Backend replica 上一致，并在任何 active
+promotion 及其丢失响应恢复窗口内跨重启保持稳定。轮换会使旧 key 下尚未完成的 promotion 无法恢复，因此只能
+在旧恢复窗口排空后协调轮换；不要把真实值提交到仓库。
+
+本地完整 Gate 需要一个隔离 PostgreSQL URL：
+
+```bash
+PRODIVIX_BACKEND_POSTGRES_TEST_URL='postgres://.../prodivix_test?sslmode=disable' pnpm run verify:g3:evidence
+```
+
+Gate 会在目标数据库中创建随机、测试专用 schema，并在结束时删除；缺少 URL 会 fail closed，不能以跳过
+PostgreSQL integration 的方式报告 V5 通过。
 
 ## Remote Runner gateway
 

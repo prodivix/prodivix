@@ -29,6 +29,7 @@ func TestRegisterAPIRoutesUsesDefaultPingHandler(t *testing.T) {
 	populateRouteHandlers(&routes.Workspace, noop)
 	populateRouteHandlers(&routes.RemoteExecution, noop)
 	populateRouteHandlers(&routes.Environment, noop)
+	populateRouteHandlers(&routes.Verification, noop)
 	router := gin.New()
 
 	RegisterAPIRoutes(router, routes)

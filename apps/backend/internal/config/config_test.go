@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -11,6 +12,33 @@ import (
 
 func encodedEnvironmentSecretTestKey(fill byte) string {
 	return base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{fill}, 32))
+}
+
+func TestMain(main *testing.M) {
+	if err := os.Setenv(
+		"BACKEND_VERIFICATION_RESUME_KEY",
+		encodedEnvironmentSecretTestKey(0x73),
+	); err != nil {
+		panic(err)
+	}
+	os.Exit(main.Run())
+}
+
+func TestLoadConfigRejectsUnsafeVerificationResumeKey(t *testing.T) {
+	for _, value := range []string{
+		"",
+		"not-base64",
+		base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x73}, 31)),
+		base64.RawStdEncoding.EncodeToString(bytes.Repeat([]byte{0x73}, 32)),
+	} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("APP_ENV", "test")
+			t.Setenv("BACKEND_VERIFICATION_RESUME_KEY", value)
+			if _, err := LoadConfig(); err == nil {
+				t.Fatal("unsafe Verification resume key was accepted")
+			}
+		})
+	}
 }
 
 func TestLoadConfigRejectsMissingProductionDatabase(t *testing.T) {

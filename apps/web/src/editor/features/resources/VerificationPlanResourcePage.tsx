@@ -8,6 +8,7 @@ import {
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/workspaceAuthoringOperationDispatcher';
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
+import { VerificationEvidencePanel } from '@/editor/features/verification/VerificationEvidencePanel';
 import {
   buildVerificationResourceModel,
   type VerificationPolicyResourceDocument,
@@ -527,6 +528,16 @@ export function VerificationPlanResourcePage() {
           {t('resourceManager.verification.plan.empty')}
         </article>
       )}
+
+      {workspace &&
+      projection?.plan &&
+      model.projectionStatus === 'ready' &&
+      model.explanation ? (
+        <VerificationEvidencePanel
+          workspace={workspace}
+          plan={projection.plan}
+        />
+      ) : null}
 
       {feedback ? (
         <p role="status" className="text-sm text-(--text-secondary)">

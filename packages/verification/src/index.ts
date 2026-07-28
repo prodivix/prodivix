@@ -27,14 +27,43 @@ export { createVerificationImpactSet } from './verificationImpact';
 export { evaluateVerificationPolicy } from './verificationPolicyEvaluator';
 export { createVerificationPlan } from './verificationPlanner';
 export {
+  decodeVerificationPlan,
+  encodeVerificationPlan,
+  normalizeVerificationPlan,
+  validateVerificationPlan,
+  type VerificationPlanDecodeResult,
+  type VerificationPlanWire,
+  type VerificationPlanWireIssue,
+} from './verificationPlanCodec';
+export { MAXIMUM_VERIFICATION_CLOSURE_EVIDENCE_RECORDS } from './verificationPlannerGraph';
+export {
   evaluateVerificationClosure,
   isVerificationClosureForPlan,
 } from './verificationClosure';
 export { projectVerificationPlanExplanation } from './verificationExplanation';
+export * from './verificationArtifactPolicy';
+export * from './verificationArtifactEnvelope';
+export * from './verificationAttestation';
+export * from './verificationComparison';
+export * from './verificationCiIdentity';
+export * from './verificationEvidenceCodec';
+export {
+  decodeVerificationEvidenceSourceTraces,
+  type VerificationEvidenceSourceTraceDecodeResult,
+} from './verificationEvidenceCandidateSourceTrace';
+export * from './verificationEvidenceManifest';
+export * from './verificationEvidenceNormalization';
+export * from './verificationEvidencePromotion';
+export * from './verificationEvidenceRepository';
+export * from './verificationEvidenceSupersession';
+export * from './verificationRetention';
+export * from './verificationRevocation';
 export {
   verificationBaselineSetWireSchema,
   verificationDocumentWireSchemas,
+  verificationPlanWireSchema,
   verificationPolicyWireSchema,
+  VERIFICATION_PLAN_WIRE_VERSION,
 } from './wire';
 export type {
   VerificationAdapter,
@@ -61,8 +90,15 @@ export type {
   VerificationDocumentByKind,
   VerificationDocumentKind,
   VerificationEvidence,
+  VerificationEvidenceCandidate,
+  VerificationEvidenceCandidateArtifact,
+  VerificationEvidenceCandidateIssue,
+  VerificationEvidenceCandidateProvenance,
+  VerificationEvidenceCandidateResult,
   VerificationEvidenceRequirements,
+  VerificationEvidenceSourceTrace,
   VerificationEvidenceTrust,
+  VerificationEvidenceTargetPolicy,
   VerificationExemption,
   VerificationImpactSet,
   VerificationImpactCompleteness,
@@ -102,6 +138,7 @@ export type {
   VerificationRetentionClass,
   VerificationRunContext,
   VerificationCheckReportCandidate,
+  VerificationCiRepositoryIdentity,
   VerificationPreflightResult,
   VerificationSurface,
   VerificationViewportAxis,

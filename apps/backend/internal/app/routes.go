@@ -8,6 +8,7 @@ import (
 	backendgithub "github.com/Prodivix/prodivix/apps/backend/internal/modules/integrations/github"
 	backendproject "github.com/Prodivix/prodivix/apps/backend/internal/modules/project"
 	backendremoteexecution "github.com/Prodivix/prodivix/apps/backend/internal/modules/remoteexecution"
+	backendverification "github.com/Prodivix/prodivix/apps/backend/internal/modules/verification"
 	backendworkspace "github.com/Prodivix/prodivix/apps/backend/internal/modules/workspace"
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +22,7 @@ type Routes struct {
 	Workspace       backendworkspace.RouteHandlers
 	RemoteExecution backendremoteexecution.RouteHandlers
 	Environment     backendenvironment.RouteHandlers
+	Verification    backendverification.RouteHandlers
 }
 
 func RegisterAPIRoutes(router *gin.Engine, routes Routes) {
@@ -38,4 +40,5 @@ func RegisterAPIRoutes(router *gin.Engine, routes Routes) {
 	backendworkspace.RegisterRoutes(api, routes.Workspace)
 	backendremoteexecution.RegisterRoutes(api, routes.RemoteExecution)
 	backendenvironment.RegisterRoutes(api, routes.Environment)
+	backendverification.RegisterRoutes(api, routes.Verification)
 }

@@ -10,6 +10,45 @@ func verificationDigest() string {
 	return "sha256-" + strings.Repeat("b", 64)
 }
 
+func TestGeneratedVerificationEvidenceSchemasRemainStrictAndVersioned(t *testing.T) {
+	type generatedEvidenceSchema struct {
+		ID                   string `json:"$id"`
+		AdditionalProperties *bool  `json:"additionalProperties"`
+		OneOf                []any  `json:"oneOf"`
+	}
+	var schemas map[string]generatedEvidenceSchema
+	if err := json.Unmarshal(generatedEvidenceSchemasJSON, &schemas); err != nil {
+		t.Fatalf("decode generated Verification Evidence schemas: %v", err)
+	}
+	expected := map[string]string{
+		"verification-plan":                   "https://prodivix.dev/schemas/verification-plan.v1.schema.json",
+		"verification-artifact-envelope":      "https://prodivix.dev/schemas/verification/artifact-envelope/v1.json",
+		"verification-evidence-candidate":     "https://prodivix.dev/schemas/verification/evidence-candidate/v1.json",
+		"verification-evidence-manifest":      "https://prodivix.dev/schemas/verification/evidence-manifest/v1.json",
+		"verification-evidence-verified-view": "https://prodivix.dev/schemas/verification/evidence-view/v1.json",
+	}
+	if len(schemas) != len(expected) {
+		t.Fatalf("generated Verification Evidence schema count = %d, want %d", len(schemas), len(expected))
+	}
+	for name, expectedID := range expected {
+		schema, exists := schemas[name]
+		if !exists {
+			t.Errorf("generated Verification Evidence schema %q is missing", name)
+			continue
+		}
+		if schema.ID != expectedID {
+			t.Errorf("generated Verification Evidence schema %q id = %q, want %q", name, schema.ID, expectedID)
+		}
+		if name == "verification-artifact-envelope" {
+			if len(schema.OneOf) != 8 {
+				t.Errorf("generated Verification artifact envelope must expose all 8 exact class schemas")
+			}
+		} else if schema.AdditionalProperties == nil || *schema.AdditionalProperties {
+			t.Errorf("generated Verification Evidence schema %q must reject unknown top-level properties", name)
+		}
+	}
+}
+
 func verificationDocuments() map[string]struct {
 	id      string
 	payload json.RawMessage
@@ -61,7 +100,9 @@ func verificationDocuments() map[string]struct {
 					"freshFixtureNamespace":true
 				}],
 				"exemptions":[],
-				"budgets":{"maximumCells":100,"maximumCellsPerCheckKind":50,"maximumTargetExpansions":8,"maximumBrowserExpansions":3,"totalMs":600000,"artifactBytes":100000000,"estimatedComputeUnits":10000,"parallelism":4},
+				"budgets":{"maximumCells":100,"maximumCellsPerCheckKind":50,"maximumTargetExpansions":8,"maximumBrowserExpansions":3,"maximumClosureEvidenceRecords":1000,"totalMs":600000,"artifactBytes":100000000,"estimatedComputeUnits":10000,"parallelism":4},
+				"artifactCapture":{"defaultCapture":"allowed","targets":[]},
+				"comparison":{"allowedMismatchFields":["browser-engine"]},
 				"evidenceRequirements":{"acceptedTrust":["ci-attested"],"maximumAgeMs":86400000,"requireAttestation":true,"requireCompatibleIdentity":true,"requiredArtifactKinds":["replay-record","screenshot"]},
 				"baselinePolicy":{"visual":"required-when-observed","requireCompatibleIdentity":true},
 				"retentionRequest":{"successful":"change","failed":"release","protectReleaseEvidence":false}

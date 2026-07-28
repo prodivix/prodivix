@@ -4,6 +4,14 @@ import {
   parseVerificationInstant,
   uniqueVerificationText,
 } from './verificationCanonical';
+import {
+  assessVerificationEvidenceAcceptance,
+  validateVerificationEvidenceSupersessions,
+  validateVerificationEvidenceVerifiedView,
+  type VerificationEvidenceAcceptance,
+  type VerificationEvidenceVerifiedViewRecord,
+} from './verificationRetention';
+import { compareVerificationEvidenceCompatibility } from './verificationComparison';
 import { sameCanonicalJson } from '@prodivix/shared/canonical';
 import type {
   EvaluateVerificationClosureInput,
@@ -16,6 +24,18 @@ import type {
   VerificationPlan,
   VerificationPlanCell,
 } from './verification.types';
+
+type VerifiedEvidenceContext = Readonly<{
+  acceptanceByEvidenceId: ReadonlyMap<string, VerificationEvidenceAcceptance>;
+  viewRecordByEvidenceId: ReadonlyMap<
+    string,
+    VerificationEvidenceVerifiedViewRecord
+  >;
+}>;
+
+type VerifiedEvidencePreparation =
+  | Readonly<{ status: 'ready'; context: VerifiedEvidenceContext }>
+  | Readonly<{ status: 'invalid'; message: string }>;
 
 const evidenceOrder = (
   left: VerificationEvidence,
@@ -38,6 +58,119 @@ const sameTextSet = (
     uniqueVerificationText(left),
     uniqueVerificationText(right)
   );
+
+const prepareVerifiedEvidence = (
+  input: EvaluateVerificationClosureInput
+): VerifiedEvidencePreparation => {
+  if (!input.verifiedEvidenceView) {
+    return input.evidence.length === 0
+      ? Object.freeze({
+          status: 'ready',
+          context: Object.freeze({
+            acceptanceByEvidenceId: new Map(),
+            viewRecordByEvidenceId: new Map(),
+          }),
+        })
+      : Object.freeze({
+          status: 'invalid',
+          message:
+            'Verification Evidence requires a Backend-verified trust, retention, revocation, and artifact availability view.',
+        });
+  }
+  const validated = validateVerificationEvidenceVerifiedView(
+    input.verifiedEvidenceView
+  );
+  if (validated.status === 'invalid') {
+    return Object.freeze({
+      status: 'invalid',
+      message: validated.message,
+    });
+  }
+  const view = validated.view;
+  if (
+    view.closureEvaluationInstant !== input.closureEvaluationInstant ||
+    view.revocationRecordDigest !== input.revocationRecordDigest
+  ) {
+    return Object.freeze({
+      status: 'invalid',
+      message:
+        'Verification Evidence view is not bound to the Closure evaluation or revocation input.',
+    });
+  }
+  const evidenceById = new Map(
+    input.evidence.map((candidate) => [candidate.id, candidate] as const)
+  );
+  const viewRecordByEvidenceId = new Map(
+    view.records.map((record) => [record.evidenceId, record] as const)
+  );
+  if (
+    evidenceById.size !== input.evidence.length ||
+    viewRecordByEvidenceId.size !== input.evidence.length ||
+    input.evidence.some(
+      (candidate) =>
+        viewRecordByEvidenceId.get(candidate.id)?.manifestDigest !==
+        candidate.manifestDigest
+    )
+  ) {
+    return Object.freeze({
+      status: 'invalid',
+      message:
+        'Verification Evidence view must exactly cover the supplied immutable manifests.',
+    });
+  }
+  const revokedEvidenceIds = view.records
+    .filter((record) => record.trustStatus === 'revoked')
+    .map((record) => record.evidenceId);
+  if (
+    new Set(input.revokedEvidenceIds).size !==
+      input.revokedEvidenceIds.length ||
+    !sameTextSet(revokedEvidenceIds, input.revokedEvidenceIds)
+  ) {
+    return Object.freeze({
+      status: 'invalid',
+      message:
+        'Verification Evidence revoked ids do not match the verified revocation view.',
+    });
+  }
+  const supersessionIssue = validateVerificationEvidenceSupersessions(
+    input.evidence,
+    view
+  );
+  if (supersessionIssue) {
+    return Object.freeze({
+      status: 'invalid',
+      message: supersessionIssue,
+    });
+  }
+  const acceptanceByEvidenceId = new Map<
+    string,
+    VerificationEvidenceAcceptance
+  >();
+  for (const candidate of input.evidence) {
+    const record = viewRecordByEvidenceId.get(candidate.id)!;
+    const acceptance = assessVerificationEvidenceAcceptance(
+      candidate,
+      record,
+      input.closureEvaluationInstant
+    );
+    if (acceptance.status === 'invalid') {
+      return Object.freeze({
+        status: 'invalid',
+        message:
+          acceptance.message ??
+          `Verification Evidence "${candidate.id}" verified view is invalid.`,
+      });
+    }
+    acceptanceByEvidenceId.set(candidate.id, acceptance);
+  }
+  return Object.freeze({
+    status: 'ready',
+    context: Object.freeze({
+      acceptanceByEvidenceId,
+      viewRecordByEvidenceId,
+    }),
+  });
+};
 
 const expectedBaselineSetDigests = (
   cells: readonly VerificationPlanCell[]
@@ -126,7 +259,8 @@ type CellEvaluation = Readonly<{
 const evaluateCell = (
   input: EvaluateVerificationClosureInput,
   cell: VerificationPlanCell,
-  instant: number
+  instant: number,
+  verified: VerifiedEvidenceContext
 ): CellEvaluation => {
   if (cell.preflight.status !== 'supported') {
     const status = cell.preflight.status;
@@ -181,8 +315,9 @@ const evaluateCell = (
       candidate.policyEvaluationInstant ===
         input.plan.policyEvaluationInstant &&
       candidate.checkId === cell.checkId &&
-      (cell.scenarioId === undefined ||
-        candidate.scenario?.id === cell.scenarioId)
+      candidate.checkKind === cell.checkKind &&
+      candidate.targetId === cell.targetId &&
+      candidate.scenario?.id === cell.scenarioId
   );
   if (identityCompatible.length === 0) {
     return Object.freeze({
@@ -234,10 +369,32 @@ const evaluateCell = (
     });
   }
 
-  const notRevoked = identityCompatible.filter(
-    (candidate) => !input.revokedEvidenceIds.includes(candidate.id)
+  const verifiedAcceptable = identityCompatible.filter(
+    (candidate) =>
+      verified.acceptanceByEvidenceId.get(candidate.id)?.status === 'acceptable'
   );
-  const fresh = notRevoked.filter((candidate) => {
+  if (verifiedAcceptable.length === 0) {
+    const unverified = identityCompatible.some(
+      (candidate) =>
+        verified.acceptanceByEvidenceId.get(candidate.id)?.status ===
+        'unverified'
+    );
+    return Object.freeze({
+      status: unverified ? 'incompatible' : 'stale',
+      acceptableEvidence: Object.freeze([]),
+      issues: Object.freeze([
+        statusIssue(
+          cell,
+          unverified ? 'incompatible' : 'stale',
+          unverified
+            ? 'Matching Evidence has no Backend-verified trust.'
+            : 'All matching Evidence is revoked, tombstoned, superseded, expired, or missing a durable artifact.',
+          identityCompatible
+        ),
+      ]),
+    });
+  }
+  const fresh = verifiedAcceptable.filter((candidate) => {
     const completedAt = parseVerificationInstant(candidate.timing.completedAt);
     const issuedAt = parseVerificationInstant(candidate.provenance.issuedAt);
     const expiresAt = candidate.provenance.expiresAt
@@ -285,6 +442,26 @@ const evaluateCell = (
       candidate.run.surface === cell.surface &&
       candidate.run.frameworkTarget === cell.frameworkTarget &&
       candidate.run.browserEngine === cell.browserEngine &&
+      sameCanonicalJson(candidate.run.viewport, cell.viewport) &&
+      candidate.run.colorScheme === cell.colorScheme &&
+      candidate.run.motion === cell.motion &&
+      candidate.run.locale === cell.locale &&
+      Number.isFinite(candidate.run.devicePixelRatio) &&
+      candidate.run.devicePixelRatio > 0 &&
+      Boolean(candidate.run.timezone.trim()) &&
+      Boolean(candidate.run.fontSetDigest.trim()) &&
+      Boolean(candidate.normalization.packageName.trim()) &&
+      Boolean(candidate.normalization.packageVersion.trim()) &&
+      Boolean(candidate.normalization.buildDigest.trim()) &&
+      Boolean(candidate.normalization.toolchainDigest.trim()) &&
+      Boolean(candidate.normalization.schemaDigest.trim()) &&
+      candidate.targetPolicy.authority === 'verification-policy' &&
+      candidate.targetPolicy.policyDigest === input.plan.policyDigest &&
+      candidate.targetPolicy.semanticTargetId === cell.targetId &&
+      (!candidate.artifacts.some(
+        ({ kind }) => kind === 'screenshot' || kind === 'visual-diff'
+      ) ||
+        candidate.targetPolicy.capture !== 'forbidden-sensitive') &&
       (cell.controlProfileRef.digest === undefined ||
         candidate.controls.profileDigest === cell.controlProfileRef.digest) &&
       (cell.fixtureSetRef?.digest === undefined
@@ -298,10 +475,12 @@ const evaluateCell = (
         cell.appliedExemptionIds
       ) &&
       cell.evidenceRequirements.acceptedTrust.includes(
-        candidate.provenance.trust
+        verified.acceptanceByEvidenceId.get(candidate.id)!.effectiveTrust!
       ) &&
       (!cell.evidenceRequirements.requireAttestation ||
-        Boolean(candidate.provenance.attestationDigest)) &&
+        Boolean(
+          verified.viewRecordByEvidenceId.get(candidate.id)?.attestationDigest
+        )) &&
       expectedArtifactKinds.every((kind) =>
         candidate.artifacts.some((artifact) => artifact.kind === kind)
       )
@@ -316,6 +495,29 @@ const evaluateCell = (
           'incompatible',
           'Evidence does not satisfy input, toolchain, trust, attestation, or artifact requirements.',
           fresh
+        ),
+      ]),
+    });
+  }
+  const comparisonAnchor = compatible[0]!;
+  if (
+    compatible
+      .slice(1)
+      .some(
+        (candidate) =>
+          compareVerificationEvidenceCompatibility(comparisonAnchor, candidate)
+            .compatibility !== 'exact-compatible'
+      )
+  ) {
+    return Object.freeze({
+      status: 'incompatible',
+      acceptableEvidence: Object.freeze([]),
+      issues: Object.freeze([
+        statusIssue(
+          cell,
+          'incompatible',
+          'Evidence attempts do not share one exact matrix and normalization identity.',
+          compatible
         ),
       ]),
     });
@@ -466,6 +668,14 @@ export const evaluateVerificationClosure = (
       message: 'Evidence ids must be non-empty and unique.',
     });
   }
+  const verifiedEvidence = prepareVerifiedEvidence(input);
+  if (verifiedEvidence.status === 'invalid') {
+    return Object.freeze({
+      status: 'invalid',
+      reasonCode: 'VER-6002',
+      message: verifiedEvidence.message,
+    });
+  }
 
   const staleInput = inputIsStale(input);
   const statuses: Record<string, VerificationCellStatus> = Object.create(null);
@@ -481,7 +691,12 @@ export const evaluateVerificationClosure = (
     : [];
   const acceptableEvidence: VerificationEvidence[] = [];
   for (const cell of input.plan.cells) {
-    const evaluation = evaluateCell(input, cell, instant);
+    const evaluation = evaluateCell(
+      input,
+      cell,
+      instant,
+      verifiedEvidence.context
+    );
     statuses[cell.id] = evaluation.status;
     issues.push(...evaluation.issues);
     acceptableEvidence.push(...evaluation.acceptableEvidence);
@@ -507,10 +722,16 @@ export const evaluateVerificationClosure = (
     ]),
   ]);
   const evidenceSetDigest = digestVerificationValue(
-    [...acceptableEvidence].sort(evidenceOrder).map((candidate) => ({
-      id: candidate.id,
-      manifestDigest: candidate.manifestDigest,
-    }))
+    Object.freeze({
+      verifiedViewDigest: input.verifiedEvidenceView?.viewDigest ?? null,
+      evidence: [...input.evidence].sort(evidenceOrder).map((candidate) => ({
+        id: candidate.id,
+        manifestDigest: candidate.manifestDigest,
+        verifiedViewRecordDigest:
+          verifiedEvidence.context.viewRecordByEvidenceId.get(candidate.id)
+            ?.recordDigest ?? null,
+      })),
+    })
   );
   const normalizedIssues = Object.freeze(
     [...issues].sort(

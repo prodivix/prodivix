@@ -33,6 +33,8 @@ const CHECK_KINDS: readonly VerificationCheckKind[] = Object.freeze([
   'security',
 ]);
 
+export const MAXIMUM_VERIFICATION_CLOSURE_EVIDENCE_RECORDS = 1_000;
+
 export const compareVerificationPlanCell = (
   left: Pick<
     VerificationPlanCell,
@@ -99,11 +101,13 @@ export const summarizeVerificationPlanBudget = (
   let totalMs = 0;
   let artifactBytes = 0;
   let estimatedComputeUnits = 0;
+  let closureEvidenceRecords = 0;
   for (const cell of cells) {
     cellsByCheckKind[cell.checkKind] += 1;
     totalMs += cell.estimatedCost.durationMs;
     artifactBytes += cell.estimatedCost.artifactBytes;
     estimatedComputeUnits += cell.estimatedCost.computeUnits;
+    closureEvidenceRecords += cell.retryPolicy.maximumAttempts;
   }
   const targetExpansions = new Set(
     cells.map((cell) => `${cell.targetId}\u0000${cell.frameworkTarget}`)
@@ -128,6 +132,12 @@ export const summarizeVerificationPlanBudget = (
   if (browserExpansions > budgets.maximumBrowserExpansions) {
     overBudgetDimensions.push('maximumBrowserExpansions');
   }
+  if (
+    closureEvidenceRecords > budgets.maximumClosureEvidenceRecords ||
+    closureEvidenceRecords > MAXIMUM_VERIFICATION_CLOSURE_EVIDENCE_RECORDS
+  ) {
+    overBudgetDimensions.push('maximumClosureEvidenceRecords');
+  }
   if (totalMs > budgets.totalMs) overBudgetDimensions.push('totalMs');
   if (artifactBytes > budgets.artifactBytes) {
     overBudgetDimensions.push('artifactBytes');
@@ -140,6 +150,7 @@ export const summarizeVerificationPlanBudget = (
     cellsByCheckKind: Object.freeze(cellsByCheckKind),
     targetExpansions,
     browserExpansions,
+    closureEvidenceRecords,
     totalMs,
     artifactBytes,
     estimatedComputeUnits,

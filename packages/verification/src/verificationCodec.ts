@@ -7,6 +7,7 @@ import {
   compareUnicodeCodePoints,
 } from '@prodivix/shared/canonical';
 import { isPlainObject } from '@prodivix/shared/safety';
+import { canonicalVerificationComparisonMismatchFields } from './verificationComparisonPolicyFields';
 import type {
   VerificationBaselineEntry,
   VerificationBaselineSet,
@@ -131,6 +132,19 @@ export const normalizeVerificationPolicy = (
   exemptions: [...policy.exemptions]
     .map(cloneJson)
     .sort((left, right) => compareUnicodeCodePoints(left.id, right.id)),
+  artifactCapture: {
+    defaultCapture: policy.artifactCapture.defaultCapture,
+    targets: [...policy.artifactCapture.targets]
+      .map(cloneJson)
+      .sort((left, right) =>
+        compareUnicodeCodePoints(left.targetId, right.targetId)
+      ),
+  },
+  comparison: {
+    allowedMismatchFields: canonicalVerificationComparisonMismatchFields(
+      policy.comparison.allowedMismatchFields
+    ),
+  },
   evidenceRequirements: {
     ...cloneJson(policy.evidenceRequirements),
     acceptedTrust: sortedStrings(policy.evidenceRequirements.acceptedTrust),
@@ -197,6 +211,19 @@ const collectPolicyIssues = (
     ...collectDuplicateIds(policy.retryPolicies, '/retryPolicies', kind),
     ...collectDuplicateIds(policy.exemptions, '/exemptions', kind),
   ];
+  const captureTargetIds = new Set<string>();
+  policy.artifactCapture.targets.forEach(({ targetId }, index) => {
+    if (captureTargetIds.has(targetId)) {
+      issues.push(
+        customIssue(
+          kind,
+          `/artifactCapture/targets/${index}/targetId`,
+          `Duplicate artifact capture target: ${targetId}.`
+        )
+      );
+    }
+    captureTargetIds.add(targetId);
+  });
   const ruleIds = new Set(policy.rules.map((rule) => rule.id));
   const matrixProfileIds = new Set(
     policy.matrixProfiles.map((profile) => profile.id)

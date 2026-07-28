@@ -1,0 +1,3192 @@
+{
+  "verification-plan": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification-plan.v1.schema.json",
+    "title": "VerificationPlanWire",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "status",
+      "workspaceId",
+      "targetRevision",
+      "targetPartitionRevisions",
+      "scenarioRegistryDigest",
+      "policyRevision",
+      "policyDigest",
+      "retentionRequest",
+      "policyEvaluationInstant",
+      "impactDigest",
+      "semanticSchemaDigest",
+      "providerSetDigest",
+      "compilerDigest",
+      "plannerDigest",
+      "adapterRegistryDigest",
+      "planDigest",
+      "cells",
+      "issues",
+      "explanations",
+      "budget"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "status": { "enum": ["ready", "blocked"] },
+      "workspaceId": { "$ref": "#/$defs/canonicalId" },
+      "targetRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+      "targetPartitionRevisions": { "$ref": "#/$defs/partitionRevisions" },
+      "scenarioRegistryDigest": { "$ref": "#/$defs/digest" },
+      "policyRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+      "policyDigest": { "$ref": "#/$defs/digest" },
+      "retentionRequest": {
+        "type": "object",
+        "required": ["successful", "failed", "protectReleaseEvidence"],
+        "properties": {
+          "successful": { "enum": ["session", "change", "release"] },
+          "failed": { "enum": ["session", "change", "release"] },
+          "protectReleaseEvidence": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "policyEvaluationInstant": { "$ref": "#/$defs/canonicalString" },
+      "impactDigest": { "$ref": "#/$defs/digest" },
+      "semanticSchemaDigest": { "$ref": "#/$defs/digest" },
+      "providerSetDigest": { "$ref": "#/$defs/digest" },
+      "compilerDigest": { "$ref": "#/$defs/digest" },
+      "plannerDigest": { "$ref": "#/$defs/digest" },
+      "adapterRegistryDigest": { "$ref": "#/$defs/digest" },
+      "planDigest": { "$ref": "#/$defs/sha256Digest" },
+      "cells": {
+        "type": "array",
+        "maxItems": 1000,
+        "items": { "$ref": "#/$defs/planCell" }
+      },
+      "issues": {
+        "type": "array",
+        "maxItems": 10000,
+        "items": { "$ref": "#/$defs/planIssue" }
+      },
+      "explanations": {
+        "type": "array",
+        "maxItems": 10000,
+        "items": { "$ref": "#/$defs/planExplanation" }
+      },
+      "budget": { "$ref": "#/$defs/planBudget" }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalString": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "digest": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "sha256Digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "nonNegativeSafeInteger": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "positiveSafeInteger": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      },
+      "revisionPair": {
+        "type": "object",
+        "required": ["contentRev", "metaRev"],
+        "properties": {
+          "contentRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "metaRev": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "partitionRevisions": {
+        "type": "object",
+        "required": ["workspaceRev", "routeRev", "opSeq", "documentRevisions"],
+        "properties": {
+          "workspaceRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "routeRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "opSeq": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "documentRevisions": {
+            "type": "object",
+            "maxProperties": 4096,
+            "propertyNames": { "$ref": "#/$defs/canonicalId" },
+            "additionalProperties": { "$ref": "#/$defs/revisionPair" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "controlProfileRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "workspace" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "digest": { "$ref": "#/$defs/digest" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "presetId", "digest"],
+            "properties": {
+              "kind": { "const": "preset" },
+              "presetId": { "$ref": "#/$defs/canonicalId" },
+              "digest": { "$ref": "#/$defs/digest" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "documentDigestRef": {
+        "type": "object",
+        "required": ["documentId"],
+        "properties": {
+          "documentId": { "$ref": "#/$defs/canonicalId" },
+          "digest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "viewport": {
+        "type": "object",
+        "required": ["id", "width", "height"],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "width": { "type": "integer", "minimum": 1, "maximum": 16384 },
+          "height": { "type": "integer", "minimum": 1, "maximum": 16384 }
+        },
+        "additionalProperties": false
+      },
+      "retryPolicy": {
+        "type": "object",
+        "required": [
+          "id",
+          "maximumAttempts",
+          "retryableOutcomes",
+          "stabilitySamples",
+          "freshFixtureNamespace"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "maximumAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "retryableOutcomes": {
+            "type": "array",
+            "maxItems": 1,
+            "uniqueItems": true,
+            "items": { "const": "infrastructure-error" }
+          },
+          "stabilitySamples": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "freshFixtureNamespace": { "const": true }
+        },
+        "additionalProperties": false
+      },
+      "evidenceRequirements": {
+        "type": "object",
+        "required": [
+          "acceptedTrust",
+          "maximumAgeMs",
+          "requireAttestation",
+          "requireCompatibleIdentity",
+          "requiredArtifactKinds"
+        ],
+        "properties": {
+          "acceptedTrust": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/evidenceTrust" }
+          },
+          "maximumAgeMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 31536000000
+          },
+          "requireAttestation": { "type": "boolean" },
+          "requireCompatibleIdentity": { "const": true },
+          "requiredArtifactKinds": {
+            "type": "array",
+            "maxItems": 11,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/artifactKind" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "targetPolicy": {
+        "type": "object",
+        "required": [
+          "authority",
+          "policyDigest",
+          "semanticTargetId",
+          "capture"
+        ],
+        "properties": {
+          "authority": { "const": "verification-policy" },
+          "policyDigest": { "$ref": "#/$defs/digest" },
+          "semanticTargetId": { "$ref": "#/$defs/canonicalId" },
+          "capture": { "enum": ["allowed", "masked", "forbidden-sensitive"] }
+        },
+        "additionalProperties": false
+      },
+      "canonicalIdArray": {
+        "type": "array",
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/canonicalId" }
+      },
+      "canonicalStringArray": {
+        "type": "array",
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/canonicalString" }
+      },
+      "adapterIdentity": {
+        "type": "object",
+        "required": ["adapterId", "toolchainDigest", "capabilityDigest"],
+        "properties": {
+          "adapterId": { "$ref": "#/$defs/canonicalId" },
+          "toolchainDigest": { "$ref": "#/$defs/digest" },
+          "capabilityDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "planResource": {
+        "type": "object",
+        "required": ["key", "mode"],
+        "properties": {
+          "key": { "$ref": "#/$defs/canonicalString" },
+          "mode": { "enum": ["shared", "exclusive"] }
+        },
+        "additionalProperties": false
+      },
+      "checkCost": {
+        "type": "object",
+        "required": ["durationMs", "artifactBytes", "computeUnits"],
+        "properties": {
+          "durationMs": {
+            "allOf": [
+              { "$ref": "#/$defs/nonNegativeSafeInteger" },
+              { "maximum": 604800000 }
+            ]
+          },
+          "artifactBytes": {
+            "allOf": [
+              { "$ref": "#/$defs/nonNegativeSafeInteger" },
+              { "maximum": 10737418240 }
+            ]
+          },
+          "computeUnits": {
+            "allOf": [
+              { "$ref": "#/$defs/nonNegativeSafeInteger" },
+              { "maximum": 1000000000 }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "planPreflight": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["status"],
+            "properties": { "status": { "const": "supported" } },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["status", "reasonCode", "message"],
+            "properties": {
+              "status": {
+                "enum": ["unsupported", "blocked", "not-applicable"]
+              },
+              "reasonCode": { "$ref": "#/$defs/canonicalId" },
+              "message": { "$ref": "#/$defs/canonicalString" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "planCell": {
+        "type": "object",
+        "required": [
+          "id",
+          "checkId",
+          "checkKind",
+          "targetId",
+          "targetPolicy",
+          "frameworkTarget",
+          "surface",
+          "viewport",
+          "colorScheme",
+          "motion",
+          "locale",
+          "controlProfileRef",
+          "adapter",
+          "requirement",
+          "policyRuleIds",
+          "appliedExemptionIds",
+          "retryPolicy",
+          "evidenceRequirements",
+          "resources",
+          "inputKinds",
+          "artifactKinds",
+          "estimatedCost",
+          "preflight",
+          "dependencyCellIds",
+          "inputDigest"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "checkId": { "$ref": "#/$defs/canonicalId" },
+          "checkKind": { "$ref": "#/$defs/checkKind" },
+          "scenarioId": { "$ref": "#/$defs/canonicalId" },
+          "targetId": { "$ref": "#/$defs/canonicalId" },
+          "targetPolicy": { "$ref": "#/$defs/targetPolicy" },
+          "frameworkTarget": { "$ref": "#/$defs/canonicalId" },
+          "surface": { "enum": ["preview", "export", "ci"] },
+          "browserEngine": { "enum": ["chromium", "firefox", "webkit"] },
+          "viewport": { "$ref": "#/$defs/viewport" },
+          "colorScheme": { "enum": ["light", "dark"] },
+          "motion": { "enum": ["full", "reduced"] },
+          "locale": { "$ref": "#/$defs/canonicalString" },
+          "controlProfileRef": { "$ref": "#/$defs/controlProfileRef" },
+          "fixtureSetRef": { "$ref": "#/$defs/documentDigestRef" },
+          "baselineSetRef": { "$ref": "#/$defs/documentDigestRef" },
+          "adapter": { "$ref": "#/$defs/adapterIdentity" },
+          "requirement": { "enum": ["required", "advisory"] },
+          "policyRuleIds": { "$ref": "#/$defs/canonicalIdArray" },
+          "appliedExemptionIds": { "$ref": "#/$defs/canonicalIdArray" },
+          "retryPolicy": { "$ref": "#/$defs/retryPolicy" },
+          "evidenceRequirements": { "$ref": "#/$defs/evidenceRequirements" },
+          "resources": {
+            "type": "array",
+            "maxItems": 512,
+            "items": { "$ref": "#/$defs/planResource" }
+          },
+          "inputKinds": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "diagnostic-snapshot",
+                "executable-snapshot",
+                "scenario-program",
+                "test-report",
+                "baseline-set"
+              ]
+            }
+          },
+          "artifactKinds": {
+            "type": "array",
+            "maxItems": 11,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/artifactKind" }
+          },
+          "estimatedCost": { "$ref": "#/$defs/checkCost" },
+          "preflight": { "$ref": "#/$defs/planPreflight" },
+          "dependencyCellIds": { "$ref": "#/$defs/canonicalIdArray" },
+          "inputDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "planIssue": {
+        "type": "object",
+        "required": ["code", "message", "relatedIds"],
+        "properties": {
+          "code": {
+            "enum": [
+              "VER-2001",
+              "VER-2002",
+              "VER-3001",
+              "VER-3002",
+              "VER-3003",
+              "VER-3004"
+            ]
+          },
+          "message": { "$ref": "#/$defs/canonicalString" },
+          "cellId": { "$ref": "#/$defs/canonicalId" },
+          "checkId": { "$ref": "#/$defs/canonicalId" },
+          "relatedIds": { "$ref": "#/$defs/canonicalIdArray" }
+        },
+        "additionalProperties": false
+      },
+      "planExplanation": {
+        "type": "object",
+        "required": [
+          "checkId",
+          "targetId",
+          "status",
+          "impactPathIds",
+          "policyRuleIds",
+          "messages"
+        ],
+        "properties": {
+          "cellId": { "$ref": "#/$defs/canonicalId" },
+          "checkId": { "$ref": "#/$defs/canonicalId" },
+          "scenarioId": { "$ref": "#/$defs/canonicalId" },
+          "targetId": { "$ref": "#/$defs/canonicalId" },
+          "status": {
+            "enum": [
+              "selected",
+              "forbidden",
+              "not-applicable",
+              "trimmed-advisory"
+            ]
+          },
+          "impactPathIds": { "$ref": "#/$defs/canonicalIdArray" },
+          "policyRuleIds": { "$ref": "#/$defs/canonicalIdArray" },
+          "messages": { "$ref": "#/$defs/canonicalStringArray" }
+        },
+        "additionalProperties": false
+      },
+      "checkKind": {
+        "enum": [
+          "diagnostics",
+          "build",
+          "unit",
+          "integration",
+          "e2e",
+          "visual",
+          "accessibility",
+          "performance",
+          "security"
+        ]
+      },
+      "evidenceTrust": {
+        "enum": [
+          "local-unattested",
+          "remote-attested",
+          "ci-attested",
+          "imported-untrusted"
+        ]
+      },
+      "artifactKind": {
+        "enum": [
+          "screenshot",
+          "visual-diff",
+          "accessibility-report",
+          "trace",
+          "network-summary",
+          "console-summary",
+          "coverage-summary",
+          "performance-profile",
+          "security-report",
+          "build-log",
+          "replay-record"
+        ]
+      },
+      "planBudget": {
+        "type": "object",
+        "required": [
+          "cells",
+          "cellsByCheckKind",
+          "targetExpansions",
+          "browserExpansions",
+          "closureEvidenceRecords",
+          "totalMs",
+          "artifactBytes",
+          "estimatedComputeUnits",
+          "maximumParallelism",
+          "overBudgetDimensions"
+        ],
+        "properties": {
+          "cells": { "type": "integer", "minimum": 0, "maximum": 1000 },
+          "cellsByCheckKind": {
+            "type": "object",
+            "required": [
+              "diagnostics",
+              "build",
+              "unit",
+              "integration",
+              "e2e",
+              "visual",
+              "accessibility",
+              "performance",
+              "security"
+            ],
+            "properties": {
+              "diagnostics": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "build": { "type": "integer", "minimum": 0, "maximum": 1000 },
+              "unit": { "type": "integer", "minimum": 0, "maximum": 1000 },
+              "integration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "e2e": { "type": "integer", "minimum": 0, "maximum": 1000 },
+              "visual": { "type": "integer", "minimum": 0, "maximum": 1000 },
+              "accessibility": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "performance": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "security": { "type": "integer", "minimum": 0, "maximum": 1000 }
+            },
+            "additionalProperties": false
+          },
+          "targetExpansions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "browserExpansions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "closureEvidenceRecords": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "totalMs": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "artifactBytes": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "estimatedComputeUnits": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "maximumParallelism": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          },
+          "overBudgetDimensions": {
+            "type": "array",
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "maximumCells",
+                "maximumCellsPerCheckKind",
+                "maximumTargetExpansions",
+                "maximumBrowserExpansions",
+                "maximumClosureEvidenceRecords",
+                "totalMs",
+                "artifactBytes",
+                "estimatedComputeUnits"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "verification-artifact-envelope": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification/artifact-envelope/v1.json",
+    "title": "Prodivix structured verification artifact envelope",
+    "oneOf": [
+      { "$ref": "#/$defs/accessibilityReport" },
+      { "$ref": "#/$defs/trace" },
+      { "$ref": "#/$defs/networkSummary" },
+      { "$ref": "#/$defs/consoleSummary" },
+      { "$ref": "#/$defs/coverageSummary" },
+      { "$ref": "#/$defs/performanceProfile" },
+      { "$ref": "#/$defs/securityReport" },
+      { "$ref": "#/$defs/replayRecord" }
+    ],
+    "$defs": {
+      "identifier": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "count": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+      "positiveCount": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000000000
+      },
+      "duration": { "type": "number", "minimum": 0, "maximum": 86400000 },
+      "nullableDuration": {
+        "type": ["number", "null"],
+        "minimum": 0,
+        "maximum": 86400000
+      },
+      "diagnosticCodes": {
+        "type": "array",
+        "maxItems": 16,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/identifier" }
+      },
+      "timing": {
+        "type": "object",
+        "required": ["startOffsetMs", "durationMs"],
+        "properties": {
+          "startOffsetMs": { "$ref": "#/$defs/duration" },
+          "durationMs": { "$ref": "#/$defs/duration" }
+        },
+        "additionalProperties": false
+      },
+      "accessibilityViolation": {
+        "type": "object",
+        "required": ["ruleId", "impact", "nodeCount", "diagnosticCodes"],
+        "properties": {
+          "ruleId": { "$ref": "#/$defs/identifier" },
+          "impact": { "enum": ["minor", "moderate", "serious", "critical"] },
+          "nodeCount": { "$ref": "#/$defs/positiveCount" },
+          "diagnosticCodes": {
+            "type": "array",
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "accessibilitySummary": {
+        "type": "object",
+        "required": ["passed", "failed", "incomplete", "violations"],
+        "properties": {
+          "passed": { "$ref": "#/$defs/count" },
+          "failed": { "$ref": "#/$defs/count" },
+          "incomplete": { "$ref": "#/$defs/count" },
+          "violations": {
+            "type": "array",
+            "maxItems": 1024,
+            "items": { "$ref": "#/$defs/accessibilityViolation" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "accessibilityReport": {
+        "type": "object",
+        "required": ["format", "version", "kind", "summary"],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "accessibility-report" },
+          "summary": { "$ref": "#/$defs/accessibilitySummary" }
+        },
+        "additionalProperties": false
+      },
+      "traceEvent": {
+        "type": "object",
+        "required": [
+          "sequence",
+          "eventId",
+          "category",
+          "timestampOffsetMs",
+          "durationMs",
+          "diagnosticCodes"
+        ],
+        "properties": {
+          "sequence": { "$ref": "#/$defs/count" },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "category": { "$ref": "#/$defs/identifier" },
+          "timestampOffsetMs": { "$ref": "#/$defs/duration" },
+          "durationMs": { "$ref": "#/$defs/duration" },
+          "diagnosticCodes": {
+            "type": "array",
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "trace": {
+        "type": "object",
+        "required": [
+          "format",
+          "version",
+          "kind",
+          "sourceTraceDigest",
+          "events"
+        ],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "trace" },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+          "events": {
+            "type": "array",
+            "maxItems": 4096,
+            "items": { "$ref": "#/$defs/traceEvent" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "networkOperation": {
+        "type": "object",
+        "required": [
+          "method",
+          "host",
+          "pathTemplate",
+          "status",
+          "timing",
+          "operationId"
+        ],
+        "properties": {
+          "method": {
+            "enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$"
+          },
+          "pathTemplate": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^/[^?#\\\\\\x00-\\x1f\\x7f]*$"
+          },
+          "status": {
+            "type": "integer",
+            "anyOf": [{ "const": 0 }, { "minimum": 100, "maximum": 599 }]
+          },
+          "timing": { "$ref": "#/$defs/timing" },
+          "operationId": { "$ref": "#/$defs/identifier" }
+        },
+        "additionalProperties": false
+      },
+      "networkSummary": {
+        "type": "object",
+        "required": ["format", "version", "kind", "operations"],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "network-summary" },
+          "operations": {
+            "type": "array",
+            "maxItems": 2048,
+            "items": { "$ref": "#/$defs/networkOperation" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "consoleEvent": {
+        "type": "object",
+        "required": [
+          "sequence",
+          "eventId",
+          "level",
+          "timestampOffsetMs",
+          "diagnosticCodes"
+        ],
+        "properties": {
+          "sequence": { "$ref": "#/$defs/count" },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "level": { "enum": ["debug", "info", "warning", "error"] },
+          "timestampOffsetMs": { "$ref": "#/$defs/duration" },
+          "diagnosticCodes": {
+            "type": "array",
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "consoleSummary": {
+        "type": "object",
+        "required": [
+          "format",
+          "version",
+          "kind",
+          "sourceTraceDigest",
+          "events"
+        ],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "console-summary" },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+          "events": {
+            "type": "array",
+            "maxItems": 2048,
+            "items": { "$ref": "#/$defs/consoleEvent" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "coverageMetric": {
+        "type": "object",
+        "required": ["covered", "total"],
+        "properties": {
+          "covered": { "$ref": "#/$defs/count" },
+          "total": { "$ref": "#/$defs/count" }
+        },
+        "additionalProperties": false
+      },
+      "coverageSummaryBody": {
+        "type": "object",
+        "required": ["lines", "functions", "branches", "statements"],
+        "properties": {
+          "lines": { "$ref": "#/$defs/coverageMetric" },
+          "functions": { "$ref": "#/$defs/coverageMetric" },
+          "branches": { "$ref": "#/$defs/coverageMetric" },
+          "statements": { "$ref": "#/$defs/coverageMetric" }
+        },
+        "additionalProperties": false
+      },
+      "coverageSummary": {
+        "type": "object",
+        "required": ["format", "version", "kind", "summary"],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "coverage-summary" },
+          "summary": { "$ref": "#/$defs/coverageSummaryBody" }
+        },
+        "additionalProperties": false
+      },
+      "performanceSummary": {
+        "type": "object",
+        "required": [
+          "durationMs",
+          "sampleCount",
+          "largestContentfulPaintMs",
+          "cumulativeLayoutShift",
+          "interactionToNextPaintMs",
+          "totalBlockingTimeMs"
+        ],
+        "properties": {
+          "durationMs": { "$ref": "#/$defs/duration" },
+          "sampleCount": { "$ref": "#/$defs/count" },
+          "largestContentfulPaintMs": { "$ref": "#/$defs/nullableDuration" },
+          "cumulativeLayoutShift": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "interactionToNextPaintMs": { "$ref": "#/$defs/nullableDuration" },
+          "totalBlockingTimeMs": { "$ref": "#/$defs/nullableDuration" }
+        },
+        "additionalProperties": false
+      },
+      "performanceProfile": {
+        "type": "object",
+        "required": ["format", "version", "kind", "summary"],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "performance-profile" },
+          "summary": { "$ref": "#/$defs/performanceSummary" }
+        },
+        "additionalProperties": false
+      },
+      "securityFinding": {
+        "type": "object",
+        "required": ["ruleId", "severity", "count", "diagnosticCodes"],
+        "properties": {
+          "ruleId": { "$ref": "#/$defs/identifier" },
+          "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+          "count": { "$ref": "#/$defs/positiveCount" },
+          "diagnosticCodes": {
+            "type": "array",
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "securitySummary": {
+        "type": "object",
+        "required": ["passed", "failed", "findings"],
+        "properties": {
+          "passed": { "$ref": "#/$defs/count" },
+          "failed": { "$ref": "#/$defs/count" },
+          "findings": {
+            "type": "array",
+            "maxItems": 1024,
+            "items": { "$ref": "#/$defs/securityFinding" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "securityReport": {
+        "type": "object",
+        "required": ["format", "version", "kind", "summary"],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "security-report" },
+          "summary": { "$ref": "#/$defs/securitySummary" }
+        },
+        "additionalProperties": false
+      },
+      "replaySummary": {
+        "type": "object",
+        "required": [
+          "eventCount",
+          "assertionCount",
+          "durationMs",
+          "outcome",
+          "diagnosticCodes"
+        ],
+        "properties": {
+          "eventCount": { "$ref": "#/$defs/count" },
+          "assertionCount": { "$ref": "#/$defs/count" },
+          "durationMs": { "$ref": "#/$defs/duration" },
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "cancelled",
+              "infrastructure-error"
+            ]
+          },
+          "diagnosticCodes": {
+            "type": "array",
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "replayRecord": {
+        "type": "object",
+        "required": [
+          "format",
+          "version",
+          "kind",
+          "sourceTraceDigest",
+          "summary"
+        ],
+        "properties": {
+          "format": { "const": "prodivix.verification-artifact" },
+          "version": { "const": 1 },
+          "kind": { "const": "replay-record" },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+          "summary": { "$ref": "#/$defs/replaySummary" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "verification-evidence-candidate": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification/evidence-candidate/v1.json",
+    "title": "Prodivix VerificationEvidenceCandidate wire document",
+    "type": "object",
+    "required": [
+      "candidateId",
+      "projectId",
+      "workspaceId",
+      "workspaceRevision",
+      "partitionRevisions",
+      "executableSnapshotDigest",
+      "policyRevision",
+      "policyDigest",
+      "impactDigest",
+      "planDigest",
+      "policyEvaluationInstant",
+      "cellId",
+      "checkId",
+      "checkKind",
+      "targetId",
+      "attemptId",
+      "run",
+      "timing",
+      "result",
+      "provenance",
+      "toolchain",
+      "normalization",
+      "controls",
+      "inputs",
+      "artifacts",
+      "sourceTraces",
+      "sourceTraceDigest",
+      "dependencyLockDigest",
+      "redaction",
+      "requestedRetention",
+      "promotion",
+      "candidateDigest",
+      "wireVersion"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "candidateId": { "$ref": "#/$defs/canonicalId" },
+      "projectId": { "$ref": "#/$defs/canonicalId" },
+      "workspaceId": { "$ref": "#/$defs/canonicalId" },
+      "workspaceRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+      "partitionRevisions": { "$ref": "#/$defs/partitionRevisions" },
+      "executableSnapshotDigest": { "$ref": "#/$defs/digest" },
+      "scenario": { "$ref": "#/$defs/scenario" },
+      "policyRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+      "policyDigest": { "$ref": "#/$defs/digest" },
+      "impactDigest": { "$ref": "#/$defs/digest" },
+      "planDigest": { "$ref": "#/$defs/digest" },
+      "policyEvaluationInstant": { "$ref": "#/$defs/instant" },
+      "cellId": { "$ref": "#/$defs/canonicalId" },
+      "checkId": { "$ref": "#/$defs/canonicalId" },
+      "checkKind": {
+        "enum": [
+          "diagnostics",
+          "build",
+          "unit",
+          "integration",
+          "e2e",
+          "visual",
+          "accessibility",
+          "performance",
+          "security"
+        ]
+      },
+      "targetId": { "$ref": "#/$defs/canonicalId" },
+      "attemptId": { "$ref": "#/$defs/canonicalId" },
+      "run": { "$ref": "#/$defs/run" },
+      "timing": { "$ref": "#/$defs/timing" },
+      "result": { "$ref": "#/$defs/result" },
+      "provenance": { "$ref": "#/$defs/provenance" },
+      "toolchain": { "$ref": "#/$defs/toolchain" },
+      "normalization": { "$ref": "#/$defs/toolchain" },
+      "controls": { "$ref": "#/$defs/controls" },
+      "inputs": { "$ref": "#/$defs/inputs" },
+      "artifacts": {
+        "type": "array",
+        "maxItems": 128,
+        "items": { "$ref": "#/$defs/artifact" }
+      },
+      "sourceTraces": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/sourceTrace" }
+      },
+      "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+      "dependencyLockDigest": { "$ref": "#/$defs/digest" },
+      "redaction": { "$ref": "#/$defs/redaction" },
+      "requestedRetention": { "enum": ["session", "change", "release"] },
+      "promotion": { "$ref": "#/$defs/promotion" },
+      "candidateDigest": { "$ref": "#/$defs/digest" }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "canonicalText": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "instant": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$"
+      },
+      "nonNegativeSafeInteger": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "positiveSafeInteger": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      },
+      "revisionPair": {
+        "type": "object",
+        "required": ["contentRev", "metaRev"],
+        "properties": {
+          "contentRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "metaRev": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "partitionRevisions": {
+        "type": "object",
+        "required": ["workspaceRev", "routeRev", "opSeq", "documentRevisions"],
+        "properties": {
+          "workspaceRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "routeRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "opSeq": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "documentRevisions": {
+            "type": "object",
+            "maxProperties": 4096,
+            "propertyNames": { "$ref": "#/$defs/canonicalId" },
+            "additionalProperties": { "$ref": "#/$defs/revisionPair" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "scenario": {
+        "type": "object",
+        "required": ["id", "revision", "digest", "programDigest"],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "revision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "programDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "viewport": {
+        "type": "object",
+        "required": ["id", "width", "height"],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "width": {
+            "allOf": [
+              { "$ref": "#/$defs/positiveSafeInteger" },
+              { "maximum": 100000 }
+            ]
+          },
+          "height": {
+            "allOf": [
+              { "$ref": "#/$defs/positiveSafeInteger" },
+              { "maximum": 100000 }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "run": {
+        "type": "object",
+        "required": [
+          "runId",
+          "providerId",
+          "surface",
+          "frameworkTarget",
+          "runtimeZone",
+          "viewport",
+          "devicePixelRatio",
+          "colorScheme",
+          "motion",
+          "locale",
+          "timezone",
+          "fontSetDigest"
+        ],
+        "properties": {
+          "runId": { "$ref": "#/$defs/canonicalId" },
+          "providerId": { "$ref": "#/$defs/canonicalId" },
+          "jobId": { "$ref": "#/$defs/canonicalId" },
+          "sessionId": { "$ref": "#/$defs/canonicalId" },
+          "parentAttemptId": { "$ref": "#/$defs/canonicalId" },
+          "surface": { "enum": ["preview", "export", "ci"] },
+          "frameworkTarget": { "$ref": "#/$defs/canonicalId" },
+          "runtimeZone": { "$ref": "#/$defs/canonicalId" },
+          "browserEngine": { "enum": ["chromium", "firefox", "webkit"] },
+          "operatingSystemIdentity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "viewport": { "$ref": "#/$defs/viewport" },
+          "devicePixelRatio": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 16
+          },
+          "colorScheme": { "enum": ["light", "dark"] },
+          "motion": { "enum": ["full", "reduced"] },
+          "locale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?$"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "fontSetDigest": { "$ref": "#/$defs/digest" },
+          "sandboxImageDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "timing": {
+        "type": "object",
+        "required": ["startedAt", "completedAt", "durationMs"],
+        "properties": {
+          "startedAt": { "$ref": "#/$defs/instant" },
+          "completedAt": { "$ref": "#/$defs/instant" },
+          "durationMs": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "jsonValue": {
+        "anyOf": [
+          { "type": "null" },
+          { "type": "boolean" },
+          { "type": "number" },
+          { "type": "string", "maxLength": 65536 },
+          {
+            "type": "array",
+            "maxItems": 16384,
+            "items": { "$ref": "#/$defs/jsonValue" }
+          },
+          {
+            "type": "object",
+            "maxProperties": 2048,
+            "propertyNames": { "type": "string", "maxLength": 512 },
+            "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+          }
+        ]
+      },
+      "canonicalIdSet": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/canonicalId" }
+      },
+      "digestSet": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/digest" }
+      },
+      "result": {
+        "type": "object",
+        "required": [
+          "outcome",
+          "normalizedResultDigest",
+          "summary",
+          "diagnosticCodes",
+          "appliedExemptionIds"
+        ],
+        "properties": {
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "cancelled",
+              "infrastructure-error"
+            ]
+          },
+          "normalizedResultDigest": { "$ref": "#/$defs/digest" },
+          "summary": { "$ref": "#/$defs/jsonValue" },
+          "diagnosticCodes": {
+            "allOf": [
+              { "$ref": "#/$defs/canonicalIdSet" },
+              { "maxItems": 2048 }
+            ]
+          },
+          "appliedExemptionIds": {
+            "allOf": [
+              { "$ref": "#/$defs/canonicalIdSet" },
+              { "maxItems": 2048 }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "provenance": {
+        "type": "object",
+        "required": ["origin", "producerId", "providerId", "issuedAt"],
+        "properties": {
+          "origin": { "enum": ["local", "remote", "ci", "import"] },
+          "producerId": { "$ref": "#/$defs/canonicalId" },
+          "providerId": { "$ref": "#/$defs/canonicalId" },
+          "issuedAt": { "$ref": "#/$defs/instant" },
+          "expiresAt": { "$ref": "#/$defs/instant" },
+          "ci": { "$ref": "#/$defs/ciRepositoryIdentity" }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": ["origin"],
+              "properties": { "origin": { "const": "ci" } }
+            },
+            "then": { "required": ["ci"] },
+            "else": { "not": { "required": ["ci"] } }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "ciRepositoryIdentity": {
+        "type": "object",
+        "required": ["repository", "ref", "commit"],
+        "properties": {
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}(?::[A-Za-z0-9][A-Za-z0-9._+-]{0,127})?(?:/[A-Za-z0-9][A-Za-z0-9._+-]{0,127})+$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 512,
+            "pattern": "^refs/(?!.*(?:\\.\\.|//|@\\{|[\\\\ ~^:?*\\[]))(?!.*[/.]$).+$"
+          },
+          "commit": {
+            "type": "string",
+            "pattern": "^(?:sha1-[a-f0-9]{40}|sha256-[a-f0-9]{64})$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "toolchain": {
+        "type": "object",
+        "required": [
+          "packageName",
+          "packageVersion",
+          "buildDigest",
+          "toolchainDigest",
+          "schemaDigest"
+        ],
+        "properties": {
+          "packageName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "packageVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "buildDigest": { "$ref": "#/$defs/digest" },
+          "toolchainDigest": { "$ref": "#/$defs/digest" },
+          "schemaDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "controls": {
+        "type": "object",
+        "required": ["profileDigest", "appliedDigest"],
+        "properties": {
+          "profileDigest": { "$ref": "#/$defs/digest" },
+          "appliedDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "inputs": {
+        "type": "object",
+        "required": [
+          "executableSnapshotDigest",
+          "fixtureSetDigests",
+          "inputDigest"
+        ],
+        "properties": {
+          "executableSnapshotDigest": { "$ref": "#/$defs/digest" },
+          "scenarioProgramDigest": { "$ref": "#/$defs/digest" },
+          "fixtureSetDigests": {
+            "allOf": [{ "$ref": "#/$defs/digestSet" }, { "maxItems": 2048 }]
+          },
+          "baselineSetDigest": { "$ref": "#/$defs/digest" },
+          "inputDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "sourceTrace": {
+        "type": "object",
+        "required": ["sourceRef"],
+        "properties": {
+          "sourceRef": { "$ref": "#/$defs/sourceRef" },
+          "sourceSpan": { "$ref": "#/$defs/sourceSpan" },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "sourceSpan": {
+        "type": "object",
+        "required": [
+          "artifactId",
+          "startLine",
+          "startColumn",
+          "endLine",
+          "endColumn"
+        ],
+        "properties": {
+          "artifactId": { "$ref": "#/$defs/canonicalId" },
+          "startLine": { "$ref": "#/$defs/positiveSafeInteger" },
+          "startColumn": { "$ref": "#/$defs/positiveSafeInteger" },
+          "endLine": { "$ref": "#/$defs/positiveSafeInteger" },
+          "endColumn": { "$ref": "#/$defs/positiveSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "sourceRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "workspaceId"],
+            "properties": {
+              "kind": { "const": "workspace" },
+              "workspaceId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "workspaceId", "nodeId"],
+            "properties": {
+              "kind": { "const": "workspace-node" },
+              "workspaceId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "document" },
+              "workspaceId": { "$ref": "#/$defs/canonicalId" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId"],
+            "properties": {
+              "kind": { "const": "pir-node" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId", "fieldPath"],
+            "properties": {
+              "kind": { "const": "inspector-field" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" },
+              "fieldPath": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "routeId"],
+            "properties": {
+              "kind": { "const": "route" },
+              "routeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId"],
+            "properties": {
+              "kind": { "const": "nodegraph-node" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId", "portId"],
+            "properties": {
+              "kind": { "const": "nodegraph-port" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" },
+              "portId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "timelineId"],
+            "properties": {
+              "kind": { "const": "animation-timeline" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "timelineId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "documentId",
+              "timelineId",
+              "bindingId",
+              "trackId"
+            ],
+            "properties": {
+              "kind": { "const": "animation-track" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "timelineId": { "$ref": "#/$defs/canonicalId" },
+              "bindingId": { "$ref": "#/$defs/canonicalId" },
+              "trackId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "data-source" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "operationId"],
+            "properties": {
+              "kind": { "const": "data-operation" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "operationId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "artifactId"],
+            "properties": {
+              "kind": { "const": "code-artifact" },
+              "artifactId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "behavior-scenario" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "stepId"],
+            "properties": {
+              "kind": { "const": "behavior-step" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "stepId": { "$ref": "#/$defs/canonicalId" },
+              "assertionId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest", "cellId", "attemptId"],
+            "properties": {
+              "kind": { "const": "behavior-replay-record" },
+              "planDigest": { "$ref": "#/$defs/digest" },
+              "cellId": { "$ref": "#/$defs/canonicalId" },
+              "attemptId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "verification-policy" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest", "cellId"],
+            "properties": {
+              "kind": { "const": "verification-plan-cell" },
+              "planDigest": { "$ref": "#/$defs/digest" },
+              "cellId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest", "cellId", "attemptId"],
+            "properties": {
+              "kind": { "const": "verification-evidence" },
+              "planDigest": { "$ref": "#/$defs/digest" },
+              "cellId": { "$ref": "#/$defs/canonicalId" },
+              "attemptId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest"],
+            "properties": {
+              "kind": { "const": "verification-closure" },
+              "planDigest": { "$ref": "#/$defs/digest" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "operation"],
+            "properties": {
+              "kind": { "const": "operation" },
+              "operation": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "themeId", "tokenPath"],
+            "properties": {
+              "kind": { "const": "theme-token" },
+              "themeId": { "$ref": "#/$defs/canonicalId" },
+              "tokenPath": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "width", "height"],
+            "properties": {
+              "kind": { "const": "viewport" },
+              "routeId": { "$ref": "#/$defs/canonicalId" },
+              "width": { "$ref": "#/$defs/positiveSafeInteger" },
+              "height": { "$ref": "#/$defs/positiveSafeInteger" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "stablePath"],
+            "properties": {
+              "kind": { "const": "runtime-dom" },
+              "routeId": { "$ref": "#/$defs/canonicalId" },
+              "stablePath": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId", "slotName"],
+            "properties": {
+              "kind": { "const": "component-slot" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" },
+              "slotName": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "artifact": {
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "stagingArtifactId",
+          "kind",
+          "expectedDigest",
+          "expectedSize",
+          "expectedMediaType"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$"
+          },
+          "stagingArtifactId": { "$ref": "#/$defs/canonicalId" },
+          "kind": {
+            "enum": [
+              "screenshot",
+              "visual-diff",
+              "accessibility-report",
+              "trace",
+              "network-summary",
+              "console-summary",
+              "coverage-summary",
+              "performance-profile",
+              "security-report",
+              "build-log",
+              "replay-record"
+            ]
+          },
+          "expectedDigest": { "$ref": "#/$defs/digest" },
+          "expectedSize": {
+            "allOf": [
+              { "$ref": "#/$defs/nonNegativeSafeInteger" },
+              { "maximum": 536870912 }
+            ]
+          },
+          "expectedMediaType": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+          },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "redaction": {
+        "type": "object",
+        "required": [
+          "policyId",
+          "scannerSetDigest",
+          "droppedFieldCounts",
+          "targetPolicy",
+          "safe"
+        ],
+        "properties": {
+          "policyId": { "$ref": "#/$defs/canonicalId" },
+          "scannerSetDigest": { "$ref": "#/$defs/digest" },
+          "droppedFieldCounts": {
+            "type": "object",
+            "maxProperties": 2048,
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "additionalProperties": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+          },
+          "targetPolicy": { "$ref": "#/$defs/targetPolicy" },
+          "safe": { "const": true }
+        },
+        "additionalProperties": false
+      },
+      "targetPolicy": {
+        "type": "object",
+        "required": [
+          "authority",
+          "policyDigest",
+          "semanticTargetId",
+          "capture"
+        ],
+        "properties": {
+          "authority": { "const": "verification-policy" },
+          "policyDigest": { "$ref": "#/$defs/digest" },
+          "semanticTargetId": { "$ref": "#/$defs/canonicalId" },
+          "capture": { "enum": ["allowed", "masked", "forbidden-sensitive"] }
+        },
+        "additionalProperties": false
+      },
+      "promotion": {
+        "type": "object",
+        "required": ["idempotencyKey", "deadline"],
+        "properties": {
+          "idempotencyKey": { "$ref": "#/$defs/canonicalId" },
+          "deadline": { "$ref": "#/$defs/instant" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "verification-evidence-manifest": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification/evidence-manifest/v1.json",
+    "title": "Prodivix VerificationEvidenceManifest wire document",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "format",
+      "candidateDigest",
+      "statement",
+      "statementDigest",
+      "verifiedProvenance",
+      "evidence",
+      "manifestDigest"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "format": { "const": "prodivix.verification-evidence-manifest" },
+      "candidateDigest": { "$ref": "#/$defs/digest" },
+      "statement": { "$ref": "#/$defs/statement" },
+      "statementDigest": { "$ref": "#/$defs/digest" },
+      "verifiedProvenance": { "$ref": "#/$defs/verifiedProvenance" },
+      "evidence": { "$ref": "#/$defs/evidence" },
+      "manifestDigest": { "$ref": "#/$defs/digest" }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "canonicalText": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "instant": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$"
+      },
+      "nonNegativeSafeInteger": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "positiveSafeInteger": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      },
+      "revisionPair": {
+        "type": "object",
+        "required": ["contentRev", "metaRev"],
+        "properties": {
+          "contentRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "metaRev": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "partitionRevisions": {
+        "type": "object",
+        "required": ["workspaceRev", "routeRev", "opSeq", "documentRevisions"],
+        "properties": {
+          "workspaceRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "routeRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "opSeq": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "documentRevisions": {
+            "type": "object",
+            "maxProperties": 4096,
+            "propertyNames": { "$ref": "#/$defs/canonicalId" },
+            "additionalProperties": { "$ref": "#/$defs/revisionPair" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "scenario": {
+        "type": "object",
+        "required": ["id", "revision", "digest", "programDigest"],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "revision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "programDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "viewport": {
+        "type": "object",
+        "required": ["id", "width", "height"],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "width": {
+            "allOf": [
+              { "$ref": "#/$defs/positiveSafeInteger" },
+              { "maximum": 100000 }
+            ]
+          },
+          "height": {
+            "allOf": [
+              { "$ref": "#/$defs/positiveSafeInteger" },
+              { "maximum": 100000 }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "run": {
+        "type": "object",
+        "required": [
+          "runId",
+          "providerId",
+          "surface",
+          "frameworkTarget",
+          "runtimeZone",
+          "viewport",
+          "devicePixelRatio",
+          "colorScheme",
+          "motion",
+          "locale",
+          "timezone",
+          "fontSetDigest"
+        ],
+        "properties": {
+          "runId": { "$ref": "#/$defs/canonicalId" },
+          "providerId": { "$ref": "#/$defs/canonicalId" },
+          "jobId": { "$ref": "#/$defs/canonicalId" },
+          "sessionId": { "$ref": "#/$defs/canonicalId" },
+          "parentAttemptId": { "$ref": "#/$defs/canonicalId" },
+          "surface": { "enum": ["preview", "export", "ci"] },
+          "frameworkTarget": { "$ref": "#/$defs/canonicalId" },
+          "runtimeZone": { "$ref": "#/$defs/canonicalId" },
+          "browserEngine": { "enum": ["chromium", "firefox", "webkit"] },
+          "operatingSystemIdentity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "viewport": { "$ref": "#/$defs/viewport" },
+          "devicePixelRatio": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 16
+          },
+          "colorScheme": { "enum": ["light", "dark"] },
+          "motion": { "enum": ["full", "reduced"] },
+          "locale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?$"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "fontSetDigest": { "$ref": "#/$defs/digest" },
+          "sandboxImageDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "timing": {
+        "type": "object",
+        "required": ["startedAt", "completedAt", "durationMs"],
+        "properties": {
+          "startedAt": { "$ref": "#/$defs/instant" },
+          "completedAt": { "$ref": "#/$defs/instant" },
+          "durationMs": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "jsonValue": {
+        "anyOf": [
+          { "type": "null" },
+          { "type": "boolean" },
+          { "type": "number" },
+          { "type": "string", "maxLength": 65536 },
+          {
+            "type": "array",
+            "maxItems": 16384,
+            "items": { "$ref": "#/$defs/jsonValue" }
+          },
+          {
+            "type": "object",
+            "maxProperties": 2048,
+            "propertyNames": { "type": "string", "maxLength": 512 },
+            "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+          }
+        ]
+      },
+      "canonicalIdSet": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/canonicalId" }
+      },
+      "digestSet": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/digest" }
+      },
+      "result": {
+        "type": "object",
+        "required": [
+          "outcome",
+          "normalizedResultDigest",
+          "summary",
+          "diagnosticCodes",
+          "appliedExemptionIds"
+        ],
+        "properties": {
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "cancelled",
+              "infrastructure-error"
+            ]
+          },
+          "normalizedResultDigest": { "$ref": "#/$defs/digest" },
+          "summary": { "$ref": "#/$defs/jsonValue" },
+          "diagnosticCodes": {
+            "allOf": [
+              { "$ref": "#/$defs/canonicalIdSet" },
+              { "maxItems": 2048 }
+            ]
+          },
+          "appliedExemptionIds": {
+            "allOf": [
+              { "$ref": "#/$defs/canonicalIdSet" },
+              { "maxItems": 2048 }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "provenance": {
+        "type": "object",
+        "required": ["origin", "producerId", "providerId", "issuedAt"],
+        "properties": {
+          "origin": { "enum": ["local", "remote", "ci", "import"] },
+          "producerId": { "$ref": "#/$defs/canonicalId" },
+          "providerId": { "$ref": "#/$defs/canonicalId" },
+          "issuedAt": { "$ref": "#/$defs/instant" },
+          "expiresAt": { "$ref": "#/$defs/instant" },
+          "ci": { "$ref": "#/$defs/ciRepositoryIdentity" }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": ["origin"],
+              "properties": { "origin": { "const": "ci" } }
+            },
+            "then": { "required": ["ci"] },
+            "else": { "not": { "required": ["ci"] } }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "ciRepositoryIdentity": {
+        "type": "object",
+        "required": ["repository", "ref", "commit"],
+        "properties": {
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}(?::[A-Za-z0-9][A-Za-z0-9._+-]{0,127})?(?:/[A-Za-z0-9][A-Za-z0-9._+-]{0,127})+$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 512,
+            "pattern": "^refs/(?!.*(?:\\.\\.|//|@\\{|[\\\\ ~^:?*\\[]))(?!.*[/.]$).+$"
+          },
+          "commit": {
+            "type": "string",
+            "pattern": "^(?:sha1-[a-f0-9]{40}|sha256-[a-f0-9]{64})$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "toolchain": {
+        "type": "object",
+        "required": [
+          "packageName",
+          "packageVersion",
+          "buildDigest",
+          "toolchainDigest",
+          "schemaDigest"
+        ],
+        "properties": {
+          "packageName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "packageVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          },
+          "buildDigest": { "$ref": "#/$defs/digest" },
+          "toolchainDigest": { "$ref": "#/$defs/digest" },
+          "schemaDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "controls": {
+        "type": "object",
+        "required": ["profileDigest", "appliedDigest"],
+        "properties": {
+          "profileDigest": { "$ref": "#/$defs/digest" },
+          "appliedDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "inputs": {
+        "type": "object",
+        "required": [
+          "executableSnapshotDigest",
+          "fixtureSetDigests",
+          "inputDigest"
+        ],
+        "properties": {
+          "executableSnapshotDigest": { "$ref": "#/$defs/digest" },
+          "scenarioProgramDigest": { "$ref": "#/$defs/digest" },
+          "fixtureSetDigests": {
+            "allOf": [{ "$ref": "#/$defs/digestSet" }, { "maxItems": 2048 }]
+          },
+          "baselineSetDigest": { "$ref": "#/$defs/digest" },
+          "inputDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "sourceTrace": {
+        "type": "object",
+        "required": ["sourceRef"],
+        "properties": {
+          "sourceRef": { "$ref": "#/$defs/sourceRef" },
+          "sourceSpan": { "$ref": "#/$defs/sourceSpan" },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "sourceSpan": {
+        "type": "object",
+        "required": [
+          "artifactId",
+          "startLine",
+          "startColumn",
+          "endLine",
+          "endColumn"
+        ],
+        "properties": {
+          "artifactId": { "$ref": "#/$defs/canonicalId" },
+          "startLine": { "$ref": "#/$defs/positiveSafeInteger" },
+          "startColumn": { "$ref": "#/$defs/positiveSafeInteger" },
+          "endLine": { "$ref": "#/$defs/positiveSafeInteger" },
+          "endColumn": { "$ref": "#/$defs/positiveSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "sourceRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "workspaceId"],
+            "properties": {
+              "kind": { "const": "workspace" },
+              "workspaceId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "workspaceId", "nodeId"],
+            "properties": {
+              "kind": { "const": "workspace-node" },
+              "workspaceId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "document" },
+              "workspaceId": { "$ref": "#/$defs/canonicalId" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId"],
+            "properties": {
+              "kind": { "const": "pir-node" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId", "fieldPath"],
+            "properties": {
+              "kind": { "const": "inspector-field" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" },
+              "fieldPath": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "routeId"],
+            "properties": {
+              "kind": { "const": "route" },
+              "routeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId"],
+            "properties": {
+              "kind": { "const": "nodegraph-node" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId", "portId"],
+            "properties": {
+              "kind": { "const": "nodegraph-port" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" },
+              "portId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "timelineId"],
+            "properties": {
+              "kind": { "const": "animation-timeline" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "timelineId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "documentId",
+              "timelineId",
+              "bindingId",
+              "trackId"
+            ],
+            "properties": {
+              "kind": { "const": "animation-track" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "timelineId": { "$ref": "#/$defs/canonicalId" },
+              "bindingId": { "$ref": "#/$defs/canonicalId" },
+              "trackId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "data-source" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "operationId"],
+            "properties": {
+              "kind": { "const": "data-operation" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "operationId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "artifactId"],
+            "properties": {
+              "kind": { "const": "code-artifact" },
+              "artifactId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "behavior-scenario" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "stepId"],
+            "properties": {
+              "kind": { "const": "behavior-step" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "stepId": { "$ref": "#/$defs/canonicalId" },
+              "assertionId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest", "cellId", "attemptId"],
+            "properties": {
+              "kind": { "const": "behavior-replay-record" },
+              "planDigest": { "$ref": "#/$defs/digest" },
+              "cellId": { "$ref": "#/$defs/canonicalId" },
+              "attemptId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId"],
+            "properties": {
+              "kind": { "const": "verification-policy" },
+              "documentId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest", "cellId"],
+            "properties": {
+              "kind": { "const": "verification-plan-cell" },
+              "planDigest": { "$ref": "#/$defs/digest" },
+              "cellId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest", "cellId", "attemptId"],
+            "properties": {
+              "kind": { "const": "verification-evidence" },
+              "planDigest": { "$ref": "#/$defs/digest" },
+              "cellId": { "$ref": "#/$defs/canonicalId" },
+              "attemptId": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "planDigest"],
+            "properties": {
+              "kind": { "const": "verification-closure" },
+              "planDigest": { "$ref": "#/$defs/digest" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "operation"],
+            "properties": {
+              "kind": { "const": "operation" },
+              "operation": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "themeId", "tokenPath"],
+            "properties": {
+              "kind": { "const": "theme-token" },
+              "themeId": { "$ref": "#/$defs/canonicalId" },
+              "tokenPath": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "width", "height"],
+            "properties": {
+              "kind": { "const": "viewport" },
+              "routeId": { "$ref": "#/$defs/canonicalId" },
+              "width": { "$ref": "#/$defs/positiveSafeInteger" },
+              "height": { "$ref": "#/$defs/positiveSafeInteger" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "stablePath"],
+            "properties": {
+              "kind": { "const": "runtime-dom" },
+              "routeId": { "$ref": "#/$defs/canonicalId" },
+              "stablePath": { "$ref": "#/$defs/canonicalText" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "documentId", "nodeId", "slotName"],
+            "properties": {
+              "kind": { "const": "component-slot" },
+              "documentId": { "$ref": "#/$defs/canonicalId" },
+              "nodeId": { "$ref": "#/$defs/canonicalId" },
+              "slotName": { "$ref": "#/$defs/canonicalId" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "artifact": {
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "stagingArtifactId",
+          "kind",
+          "expectedDigest",
+          "expectedSize",
+          "expectedMediaType"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$"
+          },
+          "stagingArtifactId": { "$ref": "#/$defs/canonicalId" },
+          "kind": {
+            "enum": [
+              "screenshot",
+              "visual-diff",
+              "accessibility-report",
+              "trace",
+              "network-summary",
+              "console-summary",
+              "coverage-summary",
+              "performance-profile",
+              "security-report",
+              "build-log",
+              "replay-record"
+            ]
+          },
+          "expectedDigest": { "$ref": "#/$defs/digest" },
+          "expectedSize": {
+            "allOf": [
+              { "$ref": "#/$defs/nonNegativeSafeInteger" },
+              { "maximum": 536870912 }
+            ]
+          },
+          "expectedMediaType": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+          },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "redaction": {
+        "type": "object",
+        "required": [
+          "policyId",
+          "scannerSetDigest",
+          "droppedFieldCounts",
+          "targetPolicy",
+          "safe"
+        ],
+        "properties": {
+          "policyId": { "$ref": "#/$defs/canonicalId" },
+          "scannerSetDigest": { "$ref": "#/$defs/digest" },
+          "droppedFieldCounts": {
+            "type": "object",
+            "maxProperties": 2048,
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "additionalProperties": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+          },
+          "targetPolicy": { "$ref": "#/$defs/targetPolicy" },
+          "safe": { "const": true }
+        },
+        "additionalProperties": false
+      },
+      "targetPolicy": {
+        "type": "object",
+        "required": [
+          "authority",
+          "policyDigest",
+          "semanticTargetId",
+          "capture"
+        ],
+        "properties": {
+          "authority": { "const": "verification-policy" },
+          "policyDigest": { "$ref": "#/$defs/digest" },
+          "semanticTargetId": { "$ref": "#/$defs/canonicalId" },
+          "capture": { "enum": ["allowed", "masked", "forbidden-sensitive"] }
+        },
+        "additionalProperties": false
+      },
+      "promotion": {
+        "type": "object",
+        "required": ["idempotencyKey", "deadline"],
+        "properties": {
+          "idempotencyKey": { "$ref": "#/$defs/canonicalId" },
+          "deadline": { "$ref": "#/$defs/instant" }
+        },
+        "additionalProperties": false
+      },
+      "serverId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,511}$"
+      },
+      "retention": { "enum": ["session", "change", "release", "legal-hold"] },
+      "artifactManifest": {
+        "type": "object",
+        "required": ["id", "path", "kind", "digest", "size", "mediaType"],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$"
+          },
+          "kind": {
+            "enum": [
+              "screenshot",
+              "visual-diff",
+              "accessibility-report",
+              "trace",
+              "network-summary",
+              "console-summary",
+              "coverage-summary",
+              "performance-profile",
+              "security-report",
+              "build-log",
+              "replay-record"
+            ]
+          },
+          "digest": { "$ref": "#/$defs/digest" },
+          "normalizedDigest": { "$ref": "#/$defs/digest" },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+          "size": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "mediaType": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 127,
+            "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "statementArtifact": {
+        "type": "object",
+        "required": ["id", "path", "kind", "digest", "size", "mediaType"],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$"
+          },
+          "kind": {
+            "enum": [
+              "screenshot",
+              "visual-diff",
+              "accessibility-report",
+              "trace",
+              "network-summary",
+              "console-summary",
+              "coverage-summary",
+              "performance-profile",
+              "security-report",
+              "build-log",
+              "replay-record"
+            ]
+          },
+          "digest": { "$ref": "#/$defs/digest" },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+          "size": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "mediaType": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 127,
+            "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "producer": {
+        "type": "object",
+        "required": ["origin", "producerId", "providerId", "runId"],
+        "properties": {
+          "origin": { "enum": ["local", "remote", "ci", "import"] },
+          "producerId": { "$ref": "#/$defs/canonicalId" },
+          "providerId": { "$ref": "#/$defs/canonicalId" },
+          "runId": { "$ref": "#/$defs/canonicalId" },
+          "jobId": { "$ref": "#/$defs/canonicalId" },
+          "sessionId": { "$ref": "#/$defs/canonicalId" },
+          "workerId": { "$ref": "#/$defs/canonicalId" },
+          "workerAttempt": { "$ref": "#/$defs/positiveSafeInteger" },
+          "sandboxImageDigest": { "$ref": "#/$defs/digest" },
+          "ci": { "$ref": "#/$defs/ciRepositoryIdentity" }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": { "origin": { "const": "ci" } },
+              "required": ["origin"]
+            },
+            "then": { "required": ["ci"] },
+            "else": { "not": { "required": ["ci"] } }
+          }
+        ]
+      },
+      "statementExecution": {
+        "type": "object",
+        "required": [
+          "surface",
+          "frameworkTarget",
+          "runtimeZone",
+          "viewport",
+          "devicePixelRatio",
+          "colorScheme",
+          "motion",
+          "locale",
+          "timezone",
+          "fontSetDigest"
+        ],
+        "properties": {
+          "surface": { "enum": ["preview", "export", "ci"] },
+          "frameworkTarget": { "$ref": "#/$defs/canonicalId" },
+          "runtimeZone": { "$ref": "#/$defs/canonicalId" },
+          "browserEngine": { "enum": ["chromium", "firefox", "webkit"] },
+          "operatingSystemIdentity": { "$ref": "#/$defs/canonicalText" },
+          "viewport": { "$ref": "#/$defs/viewport" },
+          "devicePixelRatio": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 16
+          },
+          "colorScheme": { "enum": ["light", "dark"] },
+          "motion": { "enum": ["full", "reduced"] },
+          "locale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?$"
+          },
+          "timezone": { "$ref": "#/$defs/canonicalText" },
+          "fontSetDigest": { "$ref": "#/$defs/digest" },
+          "sandboxImageDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "statement": {
+        "type": "object",
+        "required": [
+          "evidenceId",
+          "candidateId",
+          "candidateDigest",
+          "evidenceCoreDigest",
+          "projectId",
+          "workspaceId",
+          "workspaceRevision",
+          "partitionRevisionsDigest",
+          "executableSnapshotDigest",
+          "policyDigest",
+          "planDigest",
+          "cellId",
+          "checkId",
+          "checkKind",
+          "targetId",
+          "targetPolicyDigest",
+          "attemptId",
+          "producer",
+          "execution",
+          "toolchainDigest",
+          "normalizationDigest",
+          "controlDigest",
+          "inputDigest",
+          "resultDigest",
+          "sourceTraceDigest",
+          "createdAt",
+          "retention",
+          "artifacts"
+        ],
+        "properties": {
+          "evidenceId": { "$ref": "#/$defs/serverId" },
+          "candidateId": { "$ref": "#/$defs/canonicalId" },
+          "candidateDigest": { "$ref": "#/$defs/digest" },
+          "evidenceCoreDigest": { "$ref": "#/$defs/digest" },
+          "projectId": { "$ref": "#/$defs/canonicalId" },
+          "workspaceId": { "$ref": "#/$defs/canonicalId" },
+          "workspaceRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "partitionRevisionsDigest": { "$ref": "#/$defs/digest" },
+          "executableSnapshotDigest": { "$ref": "#/$defs/digest" },
+          "policyDigest": { "$ref": "#/$defs/digest" },
+          "planDigest": { "$ref": "#/$defs/digest" },
+          "cellId": { "$ref": "#/$defs/canonicalId" },
+          "checkId": { "$ref": "#/$defs/canonicalId" },
+          "checkKind": {
+            "enum": [
+              "diagnostics",
+              "build",
+              "unit",
+              "integration",
+              "e2e",
+              "visual",
+              "accessibility",
+              "performance",
+              "security"
+            ]
+          },
+          "targetId": { "$ref": "#/$defs/canonicalId" },
+          "targetPolicyDigest": { "$ref": "#/$defs/digest" },
+          "attemptId": { "$ref": "#/$defs/canonicalId" },
+          "producer": { "$ref": "#/$defs/producer" },
+          "execution": { "$ref": "#/$defs/statementExecution" },
+          "toolchainDigest": { "$ref": "#/$defs/digest" },
+          "normalizationDigest": { "$ref": "#/$defs/digest" },
+          "controlDigest": { "$ref": "#/$defs/digest" },
+          "inputDigest": { "$ref": "#/$defs/digest" },
+          "resultDigest": { "$ref": "#/$defs/digest" },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+          "createdAt": { "$ref": "#/$defs/instant" },
+          "retention": { "$ref": "#/$defs/retention" },
+          "artifacts": {
+            "type": "array",
+            "maxItems": 128,
+            "items": { "$ref": "#/$defs/statementArtifact" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "verifiedClaims": {
+        "type": "object",
+        "required": [
+          "trust",
+          "issuer",
+          "audience",
+          "subject",
+          "keyId",
+          "algorithm",
+          "issuedAt",
+          "notBefore",
+          "expiresAt",
+          "nonceDigest",
+          "replayKey",
+          "claimsDigest",
+          "proofDigest",
+          "attestationDigest",
+          "verifierId",
+          "verifierVersion",
+          "verifiedAt",
+          "policyGeneration",
+          "statementDigest",
+          "artifactSetDigest",
+          "candidateDigest",
+          "evidenceCoreDigest",
+          "projectId",
+          "workspaceId",
+          "workspaceRevision",
+          "executableSnapshotDigest",
+          "planDigest",
+          "cellId",
+          "checkId",
+          "checkKind",
+          "targetId",
+          "targetPolicyDigest",
+          "attemptId",
+          "producerDigest",
+          "executionDigest",
+          "toolchainDigest",
+          "normalizationDigest"
+        ],
+        "properties": {
+          "trust": { "enum": ["remote-attested", "ci-attested"] },
+          "issuer": { "$ref": "#/$defs/canonicalText" },
+          "audience": { "$ref": "#/$defs/canonicalText" },
+          "subject": { "$ref": "#/$defs/canonicalText" },
+          "keyId": { "$ref": "#/$defs/canonicalText" },
+          "algorithm": { "$ref": "#/$defs/canonicalText" },
+          "issuedAt": { "$ref": "#/$defs/instant" },
+          "notBefore": { "$ref": "#/$defs/instant" },
+          "expiresAt": { "$ref": "#/$defs/instant" },
+          "nonceDigest": { "$ref": "#/$defs/digest" },
+          "replayKey": { "$ref": "#/$defs/digest" },
+          "claimsDigest": { "$ref": "#/$defs/digest" },
+          "proofDigest": { "$ref": "#/$defs/digest" },
+          "attestationDigest": { "$ref": "#/$defs/digest" },
+          "verifierId": { "$ref": "#/$defs/canonicalId" },
+          "verifierVersion": { "$ref": "#/$defs/canonicalText" },
+          "verifiedAt": { "$ref": "#/$defs/instant" },
+          "policyGeneration": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "statementDigest": { "$ref": "#/$defs/digest" },
+          "artifactSetDigest": { "$ref": "#/$defs/digest" },
+          "candidateDigest": { "$ref": "#/$defs/digest" },
+          "evidenceCoreDigest": { "$ref": "#/$defs/digest" },
+          "projectId": { "$ref": "#/$defs/canonicalId" },
+          "workspaceId": { "$ref": "#/$defs/canonicalId" },
+          "workspaceRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "executableSnapshotDigest": { "$ref": "#/$defs/digest" },
+          "planDigest": { "$ref": "#/$defs/digest" },
+          "cellId": { "$ref": "#/$defs/canonicalId" },
+          "checkId": { "$ref": "#/$defs/canonicalId" },
+          "checkKind": {
+            "enum": [
+              "diagnostics",
+              "build",
+              "unit",
+              "integration",
+              "e2e",
+              "visual",
+              "accessibility",
+              "performance",
+              "security"
+            ]
+          },
+          "targetId": { "$ref": "#/$defs/canonicalId" },
+          "targetPolicyDigest": { "$ref": "#/$defs/digest" },
+          "attemptId": { "$ref": "#/$defs/canonicalId" },
+          "producerDigest": { "$ref": "#/$defs/digest" },
+          "executionDigest": { "$ref": "#/$defs/digest" },
+          "toolchainDigest": { "$ref": "#/$defs/digest" },
+          "normalizationDigest": { "$ref": "#/$defs/digest" },
+          "ci": { "$ref": "#/$defs/ciRepositoryIdentity" }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": { "trust": { "const": "ci-attested" } },
+              "required": ["trust"]
+            },
+            "then": { "required": ["ci"] },
+            "else": { "not": { "required": ["ci"] } }
+          }
+        ]
+      },
+      "verifiedProvenance": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "trust", "producerId", "issuedAt"],
+            "properties": {
+              "kind": { "const": "unattested" },
+              "trust": { "enum": ["local-unattested", "imported-untrusted"] },
+              "producerId": { "$ref": "#/$defs/canonicalId" },
+              "issuedAt": { "$ref": "#/$defs/instant" },
+              "expiresAt": { "$ref": "#/$defs/instant" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "claims"],
+            "properties": {
+              "kind": { "const": "attested" },
+              "claims": { "$ref": "#/$defs/verifiedClaims" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "evidenceRun": {
+        "type": "object",
+        "required": [
+          "runId",
+          "providerId",
+          "surface",
+          "frameworkTarget",
+          "runtimeZone",
+          "viewport",
+          "devicePixelRatio",
+          "colorScheme",
+          "motion",
+          "locale",
+          "timezone",
+          "fontSetDigest"
+        ],
+        "properties": {
+          "runId": { "$ref": "#/$defs/canonicalId" },
+          "providerId": { "$ref": "#/$defs/canonicalId" },
+          "jobId": { "$ref": "#/$defs/canonicalId" },
+          "sessionId": { "$ref": "#/$defs/canonicalId" },
+          "parentAttemptId": { "$ref": "#/$defs/canonicalId" },
+          "surface": { "enum": ["preview", "export", "ci"] },
+          "frameworkTarget": { "$ref": "#/$defs/canonicalId" },
+          "runtimeZone": { "$ref": "#/$defs/canonicalId" },
+          "browserEngine": { "enum": ["chromium", "firefox", "webkit"] },
+          "operatingSystemIdentity": { "$ref": "#/$defs/canonicalText" },
+          "viewport": { "$ref": "#/$defs/viewport" },
+          "devicePixelRatio": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 16
+          },
+          "colorScheme": { "enum": ["light", "dark"] },
+          "motion": { "enum": ["full", "reduced"] },
+          "locale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?$"
+          },
+          "timezone": { "$ref": "#/$defs/canonicalText" },
+          "fontSetDigest": { "$ref": "#/$defs/digest" },
+          "sandboxImageDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      },
+      "evidenceProvenance": {
+        "type": "object",
+        "required": ["trust", "producerId", "issuedAt"],
+        "properties": {
+          "trust": {
+            "enum": [
+              "local-unattested",
+              "remote-attested",
+              "ci-attested",
+              "imported-untrusted"
+            ]
+          },
+          "producerId": { "$ref": "#/$defs/canonicalId" },
+          "attestationDigest": { "$ref": "#/$defs/digest" },
+          "issuedAt": { "$ref": "#/$defs/instant" },
+          "expiresAt": { "$ref": "#/$defs/instant" },
+          "ci": { "$ref": "#/$defs/ciRepositoryIdentity" }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": { "trust": { "const": "ci-attested" } },
+              "required": ["trust"]
+            },
+            "then": { "required": ["ci"] },
+            "else": { "not": { "required": ["ci"] } }
+          }
+        ]
+      },
+      "evidence": {
+        "type": "object",
+        "required": [
+          "id",
+          "projectId",
+          "workspaceId",
+          "workspaceRevision",
+          "partitionRevisions",
+          "executableSnapshotDigest",
+          "policyRevision",
+          "policyDigest",
+          "impactDigest",
+          "planDigest",
+          "policyEvaluationInstant",
+          "cellId",
+          "checkId",
+          "checkKind",
+          "targetId",
+          "attemptId",
+          "run",
+          "timing",
+          "result",
+          "provenance",
+          "toolchain",
+          "normalization",
+          "controls",
+          "inputs",
+          "artifacts",
+          "sourceTraces",
+          "sourceTraceDigest",
+          "dependencyLockDigest",
+          "redactionPolicyId",
+          "targetPolicy",
+          "createdAt",
+          "retention"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/serverId" },
+          "projectId": { "$ref": "#/$defs/canonicalId" },
+          "workspaceId": { "$ref": "#/$defs/canonicalId" },
+          "workspaceRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "partitionRevisions": { "$ref": "#/$defs/partitionRevisions" },
+          "executableSnapshotDigest": { "$ref": "#/$defs/digest" },
+          "scenario": { "$ref": "#/$defs/scenario" },
+          "policyRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "policyDigest": { "$ref": "#/$defs/digest" },
+          "impactDigest": { "$ref": "#/$defs/digest" },
+          "planDigest": { "$ref": "#/$defs/digest" },
+          "policyEvaluationInstant": { "$ref": "#/$defs/instant" },
+          "cellId": { "$ref": "#/$defs/canonicalId" },
+          "checkId": { "$ref": "#/$defs/canonicalId" },
+          "checkKind": {
+            "enum": [
+              "diagnostics",
+              "build",
+              "unit",
+              "integration",
+              "e2e",
+              "visual",
+              "accessibility",
+              "performance",
+              "security"
+            ]
+          },
+          "targetId": { "$ref": "#/$defs/canonicalId" },
+          "attemptId": { "$ref": "#/$defs/canonicalId" },
+          "run": { "$ref": "#/$defs/evidenceRun" },
+          "timing": { "$ref": "#/$defs/timing" },
+          "result": { "$ref": "#/$defs/result" },
+          "provenance": { "$ref": "#/$defs/evidenceProvenance" },
+          "toolchain": { "$ref": "#/$defs/toolchain" },
+          "normalization": { "$ref": "#/$defs/toolchain" },
+          "controls": { "$ref": "#/$defs/controls" },
+          "inputs": { "$ref": "#/$defs/inputs" },
+          "artifacts": {
+            "type": "array",
+            "maxItems": 128,
+            "items": { "$ref": "#/$defs/artifactManifest" }
+          },
+          "sourceTraces": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 256,
+            "items": { "$ref": "#/$defs/sourceTrace" }
+          },
+          "sourceTraceDigest": { "$ref": "#/$defs/digest" },
+          "dependencyLockDigest": { "$ref": "#/$defs/digest" },
+          "redactionPolicyId": { "$ref": "#/$defs/canonicalId" },
+          "targetPolicy": { "$ref": "#/$defs/targetPolicy" },
+          "createdAt": { "$ref": "#/$defs/instant" },
+          "retention": { "$ref": "#/$defs/retention" },
+          "supersedes": { "$ref": "#/$defs/serverId" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "verification-evidence-verified-view": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification/evidence-view/v1.json",
+    "title": "Prodivix VerificationEvidenceVerifiedView wire document",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "format",
+      "closureEvaluationInstant",
+      "revocationRecordDigest",
+      "records",
+      "viewDigest"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "format": { "const": "prodivix.verification-evidence-view.v1" },
+      "closureEvaluationInstant": { "$ref": "#/$defs/instant" },
+      "revocationRecordDigest": { "$ref": "#/$defs/digest" },
+      "records": {
+        "type": "array",
+        "maxItems": 1000,
+        "items": { "$ref": "#/$defs/record" }
+      },
+      "viewDigest": { "$ref": "#/$defs/digest" }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "instant": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$"
+      },
+      "serverId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,511}$"
+      },
+      "artifactAvailability": {
+        "type": "object",
+        "required": ["artifactId", "digest", "status"],
+        "properties": {
+          "artifactId": { "$ref": "#/$defs/canonicalId" },
+          "digest": { "$ref": "#/$defs/digest" },
+          "status": { "enum": ["available", "missing", "deleted"] }
+        },
+        "additionalProperties": false
+      },
+      "record": {
+        "type": "object",
+        "required": [
+          "evidenceId",
+          "manifestDigest",
+          "materializedEvidenceDigest",
+          "effectiveTrust",
+          "trustStatus",
+          "retentionState",
+          "revocationRecordDigests",
+          "artifacts",
+          "recordDigest"
+        ],
+        "properties": {
+          "evidenceId": { "$ref": "#/$defs/serverId" },
+          "manifestDigest": { "$ref": "#/$defs/digest" },
+          "materializedEvidenceDigest": { "$ref": "#/$defs/digest" },
+          "effectiveTrust": {
+            "enum": [
+              "local-unattested",
+              "remote-attested",
+              "ci-attested",
+              "imported-untrusted"
+            ]
+          },
+          "trustStatus": {
+            "enum": ["verified", "unverified", "revoked", "expired"]
+          },
+          "attestationDigest": { "$ref": "#/$defs/digest" },
+          "retentionState": {
+            "enum": ["active", "tombstoned", "references-released"]
+          },
+          "retentionExpiresAt": { "$ref": "#/$defs/instant" },
+          "supersededByEvidenceId": { "$ref": "#/$defs/serverId" },
+          "revocationRecordDigests": {
+            "type": "array",
+            "maxItems": 10000,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/digest" }
+          },
+          "tombstoneDigest": { "$ref": "#/$defs/digest" },
+          "artifacts": {
+            "type": "array",
+            "maxItems": 128,
+            "items": { "$ref": "#/$defs/artifactAvailability" }
+          },
+          "recordDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

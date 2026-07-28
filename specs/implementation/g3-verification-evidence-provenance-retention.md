@@ -3,8 +3,8 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ImplementationStatus：Implemented
+- ProductGateStatus：Configured / Evidence pending
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-20
 - Owner：`@prodivix/verification`、`apps/backend` Evidence service、artifact store、`@prodivix/diagnostics`、`apps/web`
@@ -101,6 +101,12 @@ identity chain 必须覆盖：
 - artifact manifest 与 SourceTrace；
 - provenance issuer、subject、issued/expiry、attestation digest。
 
+摘要链使用两层 hard cut。Backend 在验证 proof 之前先冻结 server-owned evidence id、`createdAt`、retention 上限
+与 manifest statement，并计算 `statementDigest`；attestation 只签 statement/artifact/plan identity。verified
+claims 与 proof digest 随后进入最终 manifest，再计算 `manifestDigest`。`manifestDigest` 不作为自己的输入，
+Evidence id 也不从包含自身的 manifest 反推。raw proof、nonce、OIDC assertion 与 verifier credential 只存在于
+callback-bound transport，不进入 candidate、Evidence、diagnostic 或 audit。
+
 ## EvidenceCandidate
 
 candidate 由 adapter normalization boundary 创建：
@@ -115,6 +121,23 @@ candidate 由 adapter normalization boundary 创建：
 
 candidate codec 对未知字段/kind、重复 artifact path、path traversal、oversize count/depth/string、NaN/Infinity、
 non-normalized Unicode、时间逆序和 digest mismatch fail closed。
+
+## AttemptGrant authority
+
+runner 不能用一个与 candidate 自洽的 Plan 副本为自己授权。Backend 通过仅暴露给可信 in-process
+planner/scheduler 的 `AttemptGrantIssuer`，在执行前持久化 immutable、append-only grant：
+
+- 完整 canonical VerificationPlan bytes/digest 与 exact workspace/project/partition revisions；
+- cell/check/target、attempt、run/provider/job/session、producer 与 trust ceiling；
+- successful/failed retention mapping、`protectReleaseEvidence`、Closure record budget；
+- server-owned issued/expiry instant 与 grant digest。
+
+同一个 PostgreSQL authority instance 既作为 Service 的只读 consumer，也作为 composition root 给 V6
+pre-run coordinator 的 issuer capability；不存在普通 HTTP Plan issuance。Create promotion 在事务内锁定
+Canonical Workspace root 并一次性 claim grant，attestation prepare/final commit 再次锁定 authority。
+outcome 不进入 pre-run grant，最终 retention 按 Policy 的 outcome mapping 决定。丢失响应可由原
+actor/idempotency exact replay 恢复；相同 candidate id 的新 identity、第二个 replica claim、过期或 revision/
+Policy drift均拒绝且不产生 Evidence。
 
 ## Artifact promotion
 
@@ -134,6 +157,15 @@ promotion 步骤：
 
 HTML、SVG、JS、source map、archive、HAR、video 等高风险类型默认 attachment-only 或 unsupported；不得以内联
 active content 在 Web 打开。图像解码、archive entry、压缩比、尺寸、像素、总字节和 artifact count 均有上限。
+
+`redaction.targetPolicy` 由 authoritative Verification Policy 产生，并将 `policyDigest`、semantic `targetId` 与
+`allowed | masked | forbidden-sensitive` classification 纳入 candidate digest 和 attestation。缺失、identity
+不一致或 `forbidden-sensitive` 的 screenshot/visual-diff 必须在 upload/finalize fail closed，不能由像素坐标或 UI
+状态覆盖；`allowed`/`masked` 仍执行完整 artifact validation。
+
+JSON/text/structured payload 执行有界 credential pattern 与 high-entropy token scan；canonical SHA/hex identity
+不误报，PNG/JPEG 压缩 raster bytes 不按文本扫描。PNG/JPEG 在结构与 pixel budget preflight 后由 Backend 标准
+decoder 完整解码，CRC、IDAT、entropy corruption 或 decode bomb 均不得进入 durable Evidence。
 
 ## Provenance 与 trust
 
@@ -165,6 +197,7 @@ canonical verified claims。raw token、OIDC assertion、credential 不进入 Ev
 
 Backend 至少需要逻辑表/集合：
 
+- `verification_attempt_grants` / `verification_attempt_grant_claims`：pre-run authority 与一次性原子 claim；
 - `verification_evidence`：immutable manifest、identity columns、digest、result summary、retention；
 - `verification_artifacts`：content digest、media/size/class、store locator、scan state；
 - `verification_evidence_artifacts`：Evidence→artifact reference；
@@ -174,6 +207,8 @@ Backend 至少需要逻辑表/集合：
 - `verification_trust_revocations`：issuer/key/evidence scope；
 - `verification_retention_protections`：change/release/legal-hold external reference；
 - `verification_tombstones`：logical deletion/audit；
+- `verification_artifact_operation_leases`：finalize/GC/orphan recovery 的跨副本 fencing；
+- `verification_mutation_requests`：mutation intent、expected state 与 exact replay ledger；
 - `verification_audit_events`：append-only authorized operations。
 
 数据库仅保存 object-store locator，不把大 artifact 塞进 row。locator 是内部 reference；客户端通过短期、只读、
@@ -261,6 +296,8 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 
 ### E0：Manifest、codec 与 in-memory conformance
 
+状态：Implemented。
+
 - current model、candidate、artifact、provenance、retention、tombstone；
 - canonical serialization/digest/strict decoder；
 - in-memory repository、promotion state machine、Closure query port。
@@ -268,6 +305,8 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 完成条件：codec/property/idempotency/conflict/attempt history 通过。
 
 ### E1：Backend/PostgreSQL 与 artifact store
+
+状态：Implemented。
 
 - schema/repository/API/authorization；
 - staging capability、stream validate、content-addressed store、atomic finalize；
@@ -277,6 +316,8 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 
 ### E2：Attestation 与 trust
 
+状态：Implemented。
+
 - remote/CI canonical claims 与 verifier SPI；
 - key rotation/revocation/replay/expiry；
 - local/import hard cut。
@@ -285,6 +326,8 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 
 ### E3：Comparison、retention 与 product
 
+状态：Implemented。
+
 - compatibility evaluator、safe artifact viewers、compare；
 - retention worker/protection/tombstone；
 - Evidence/Closure UI、Issues/SourceTrace。
@@ -292,6 +335,9 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 完成条件：过期/删除/revoked 立即影响重算 Closure；受保护 artifact 不被 GC。
 
 ### E4：Security/recovery Golden
+
+状态：Implemented；本地真实 PostgreSQL 与 deterministic CI-attested fixture 已通过，durable GitHub Evidence
+仍待当前改动提交后运行。
 
 - Secret/PII/active artifact/bomb/path traversal canary；
 - upload interruption、Backend restart、duplicate finalize、store outage；
@@ -316,6 +362,11 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 - retention protection/expiry/tombstone/refcount/lease/GC worker recovery；
 - UI artifact isolation、download headers、authorization 与 SourceTrace navigation。
 
+Artifact promotion 的 canonical 默认预算是：每个 candidate 最多 128 个 artifact、单件最多 16 MiB、合计最多
+64 MiB、相对 POSIX path 最多 16 个 segment、PNG/JPEG 最大 8,192 × 8,192 且不超过 40,000,000 pixels。
+EvidenceCandidate wire codec 的更宽 byte limit 仅是 intake 上限，不授权 promotion；Core artifact policy、Backend
+upload/finalize validator 与 HTTP body limit 必须应用上述更严格预算。
+
 ## 风险与停止条件
 
 - 无法验证 candidate identity chain 或 attestation 时停止 promotion，保留安全诊断和 staging TTL。
@@ -327,9 +378,9 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 
 ## 验收标准
 
-- [ ] Evidence 与 Workspace/Execution 明确隔离，append-only 且 identity/provenance 完整。
-- [ ] promotion 对并发、重试、数据库/object-store 故障幂等且无半提交。
-- [ ] 所有 artifact 经 bounded validation/redaction，Secret 和 active content fail closed。
-- [ ] trust、attestation、revocation、freshness 和 compatibility 真实参与 Closure。
-- [ ] retention/tombstone/GC 保留审计且不误删受保护或共享 artifact。
-- [ ] 失败、retry、unstable history 不被后续成功覆盖。
+- [x] Evidence 与 Workspace/Execution 明确隔离，append-only 且 identity/provenance 完整。
+- [x] promotion 对并发、重试、数据库/object-store 故障幂等且无半提交。
+- [x] 所有 artifact 经 bounded validation/redaction，Secret 和 active content fail closed。
+- [x] trust、attestation、revocation、freshness 和 compatibility 真实参与 Closure。
+- [x] retention/tombstone/GC 保留审计且不误删受保护或共享 artifact。
+- [x] 失败、retry、unstable history 不被后续成功覆盖。

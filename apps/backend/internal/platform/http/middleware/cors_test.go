@@ -43,6 +43,12 @@ func TestCORSAllowsRemoteCapabilityHeadersPreflight(t *testing.T) {
 	if !strings.Contains(strings.ToLower(response.Header().Get("Access-Control-Allow-Headers")), "x-prodivix-server-function-intent") {
 		t.Fatalf("Server Function mutation intent header missing from CORS allowlist: %q", response.Header().Get("Access-Control-Allow-Headers"))
 	}
+	if !strings.Contains(strings.ToLower(response.Header().Get("Access-Control-Allow-Headers")), "idempotency-key") {
+		t.Fatalf("Verification idempotency header missing from CORS allowlist: %q", response.Header().Get("Access-Control-Allow-Headers"))
+	}
+	if !strings.Contains(strings.ToLower(response.Header().Get("Access-Control-Expose-Headers")), "idempotency-replayed") {
+		t.Fatalf("Verification replay header missing from CORS exposelist: %q", response.Header().Get("Access-Control-Expose-Headers"))
+	}
 }
 
 func TestCORSDeniesOriginsWhenAllowlistIsEmpty(t *testing.T) {

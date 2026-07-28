@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decodeVerificationPlan,
+  digestVerificationValue,
+  encodeVerificationPlan,
   projectVerificationPlanExplanation,
   serializeVerificationValue,
+  verificationPlanWireSchema,
 } from '@prodivix/verification';
 import { GOLDEN_G2_VUE_CATALOG_IDS } from './goldenG2VueCatalogFixture';
 import { GOLDEN_G3_COMPOSITION_IDS } from './goldenG3BehaviorCompositionFixture';
@@ -20,7 +24,7 @@ import {
 } from './goldenG3VerificationPlanFixture';
 
 const EXPECTED_PLAN_DIGEST =
-  'sha256-99a7139cd204c124c94b5ff36b74d7a62d0596feb70ff34177bdaf863db0fcd8';
+  'sha256-be24ff531ef1a8d388b2cd59cb00b0eba0cc3fe80749103bedb26e3c5b5c17cc';
 
 describe('G3 V4 Impact, Policy, and Plan Golden', () => {
   it('explains PIR, Data, Route guard, NodeGraph, Animation, and shared CodeSlot impact', () => {
@@ -258,6 +262,48 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
       serializeVerificationValue(GOLDEN_G3_V4_PLAN)
     );
     expect(GOLDEN_G3_V4_PLAN.planDigest).toBe(EXPECTED_PLAN_DIGEST);
+  });
+
+  it('round-trips the immutable Plan wire and rejects drift, excess budget, unknown fields, and malformed Unicode', () => {
+    const wire = encodeVerificationPlan(GOLDEN_G3_V4_PLAN);
+    expect(decodeVerificationPlan(wire)).toEqual({
+      ok: true,
+      value: GOLDEN_G3_V4_PLAN,
+    });
+
+    const reordered = structuredClone(wire) as unknown as {
+      cells: unknown[];
+    };
+    reordered.cells.reverse();
+    expect(decodeVerificationPlan(reordered).ok).toBe(false);
+
+    const drifted = structuredClone(wire) as unknown as {
+      cells: { targetId: string }[];
+    };
+    drifted.cells[0]!.targetId = 'target:forged';
+    expect(decodeVerificationPlan(drifted).ok).toBe(false);
+
+    const oversized = structuredClone(wire) as unknown as {
+      budget: { closureEvidenceRecords: number };
+    };
+    oversized.budget.closureEvidenceRecords = 1_001;
+    expect(decodeVerificationPlan(oversized).ok).toBe(false);
+
+    const unknown = structuredClone(wire) as typeof wire & {
+      producerHint?: string;
+    };
+    unknown.producerHint = 'untrusted';
+    expect(decodeVerificationPlan(unknown).ok).toBe(false);
+
+    const malformedUnicode = structuredClone(wire) as unknown as {
+      workspaceId: string;
+    };
+    malformedUnicode.workspaceId = '\ud800';
+    expect(decodeVerificationPlan(malformedUnicode).ok).toBe(false);
+
+    expect(digestVerificationValue(verificationPlanWireSchema)).toBe(
+      'sha256-e29a613f2f8319a1d79be228b4f15520df03bfea7c1b9041ac4d7e7d0f045231'
+    );
   });
 
   it('broadens missing provider scope and never creates a skipped escape hatch', () => {

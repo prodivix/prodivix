@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0-V3 Implemented / V4-V8 Not Started
+- ImplementationStatus：V0-V5 Implemented / V6-V8 Not Started
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-28
@@ -214,7 +214,8 @@ Gate通过；commit
 
 ### V4：Impact、Policy 与 Plan
 
-状态：Not Started。详见 `g3-verification-plan-impact-policy.md`。
+状态：Implemented；本地与 commit `a6aa0bf9` 的 durable CI Gate 已通过。详见
+`g3-verification-plan-impact-policy.md`。
 
 交付 revision diff→semantic ImpactSet、canonical Policy authoring、required/advisory rule evaluation、matrix
 expansion、budget、exemption、retry semantics 与 deterministic plan digest。
@@ -224,7 +225,8 @@ blocked，不降级为 skipped。
 
 ### V5：Evidence、provenance 与 retention
 
-状态：Not Started。详见 `g3-verification-evidence-provenance-retention.md`。
+状态：Implemented；2026-07-28 本地完整 Gate 与真实 PostgreSQL Gate 已通过，GitHub workflow 已配置，
+durable CI Evidence pending。详见 `g3-verification-evidence-provenance-retention.md`。
 
 交付 Backend Evidence store、artifact promotion、local/remote/CI/import trust、attestation verification、comparison、
 supersession、retention/tombstone 与 Closure evaluator。
@@ -323,9 +325,9 @@ loading/empty/error/retry/pagination、optimistic mutation/conflict、NodeGraph 
 
 ## 验收标准
 
-- [ ] Scenario 与 Policy 是唯一 canonical G3 authoring documents，所有写入可逆且 revision-bound。
-- [ ] Plan、Program、Impact、Closure 都是可重建 projection，无第二作者态。
-- [ ] Evidence 独立持久化、append-only、可验证 provenance，并与 Execution runtime 明确隔离。
+- [x] Scenario 与 Policy 是唯一 canonical G3 authoring documents，所有写入可逆且 revision-bound。
+- [x] Plan、Program、Impact、Closure 都是可重建 projection，无第二作者态。
+- [x] Evidence 独立持久化、append-only、可验证 provenance，并与 Execution runtime 明确隔离。
 - [ ] 同一 Scenario 在 Preview、Export、CI 和受控 target/browser matrix 中保持 semantic contract。
 - [x] NodeGraph、Animation、Route、Data、Auth/Server 行为由各领域 owner 执行，并共享 observation/SourceTrace。
 - [x] deterministic replay、reduced motion、retry/conflict 和网络隔离有正向、边界、fail-closed 本地证据。

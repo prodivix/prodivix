@@ -33,6 +33,15 @@ vi.mock('@/editor/workspaceSync/workspaceAuthoringOperationDispatcher', () => ({
   dispatchWorkspaceAuthoringOperation,
 }));
 
+vi.mock('@/editor/features/execution', () => ({
+  useWorkspaceExecutionSourceNavigation: () => ({
+    openSourceTrace: () => ({
+      status: 'unavailable',
+      reason: 'source-unavailable',
+    }),
+  }),
+}));
+
 import { VerificationPlanResourcePage } from './VerificationPlanResourcePage';
 
 const controlProfileRef = {
@@ -81,6 +90,7 @@ const policy: VerificationPolicy = {
     maximumCellsPerCheckKind: 10,
     maximumTargetExpansions: 2,
     maximumBrowserExpansions: 2,
+    maximumClosureEvidenceRecords: 1_000,
     totalMs: 10_000,
     artifactBytes: 1_000_000,
     estimatedComputeUnits: 10,
@@ -96,6 +106,13 @@ const policy: VerificationPolicy = {
     },
   ],
   exemptions: [],
+  artifactCapture: {
+    defaultCapture: 'allowed',
+    targets: [],
+  },
+  comparison: {
+    allowedMismatchFields: [],
+  },
   evidenceRequirements: {
     acceptedTrust: ['ci-attested'],
     maximumAgeMs: 60_000,

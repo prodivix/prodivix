@@ -23,8 +23,8 @@ func CORS(allowed []string) gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", origin)
 		}
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization,Content-Type,X-Auth-Token,X-Prodivix-Terminal-Token,X-Prodivix-Server-Function-Intent")
-		c.Header("Access-Control-Expose-Headers", "Authorization,Content-Type")
+		c.Header("Access-Control-Allow-Headers", "Authorization,Content-Type,Idempotency-Key,X-Auth-Token,X-Prodivix-Terminal-Token,X-Prodivix-Server-Function-Intent,X-Prodivix-Verification-Intent,X-Prodivix-Verification-Capability")
+		c.Header("Access-Control-Expose-Headers", "Authorization,Content-Type,Content-Disposition,ETag,X-Content-Type-Options,Content-Security-Policy,Cache-Control,Content-Length,Idempotency-Replayed")
 
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)

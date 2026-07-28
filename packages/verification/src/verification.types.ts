@@ -2,7 +2,9 @@ import type {
   BehaviorControlProfileRef,
   BehaviorDocumentDigestRef,
 } from '@prodivix/behavior';
-import type { SourceSpan } from '@prodivix/diagnostics';
+import type { VerificationCiIdentity } from './verificationCiIdentity';
+import type { DiagnosticTargetRef, SourceSpan } from '@prodivix/diagnostics';
+import type { VerificationComparisonAllowedMismatchField } from './verificationComparisonPolicyFields';
 
 export type VerificationCheckKind =
   | 'diagnostics'
@@ -22,8 +24,14 @@ export type VerificationMotion = 'full' | 'reduced';
 export type VerificationRequirement = 'required' | 'advisory';
 export type VerificationPolicyRequirement =
   VerificationRequirement | 'forbidden';
+export type VerificationArtifactCapture =
+  'allowed' | 'masked' | 'forbidden-sensitive';
 export type VerificationEvidenceTrust =
   'local-unattested' | 'remote-attested' | 'ci-attested' | 'imported-untrusted';
+export type VerificationEvidenceCandidateRetentionClass = Exclude<
+  VerificationRetentionClass,
+  'legal-hold'
+>;
 
 export type VerificationViewportAxis = Readonly<{
   id: string;
@@ -81,6 +89,7 @@ export type VerificationPlanBudgets = Readonly<{
   maximumCellsPerCheckKind: number;
   maximumTargetExpansions: number;
   maximumBrowserExpansions: number;
+  maximumClosureEvidenceRecords: number;
   totalMs: number;
   artifactBytes: number;
   estimatedComputeUnits: number;
@@ -103,6 +112,14 @@ export type VerificationEvidenceRequirements = Readonly<{
   requiredArtifactKinds: readonly VerificationArtifactKind[];
 }>;
 
+export type VerificationArtifactCapturePolicy = Readonly<{
+  defaultCapture: VerificationArtifactCapture;
+  targets: readonly Readonly<{
+    targetId: string;
+    capture: VerificationArtifactCapture;
+  }>[];
+}>;
+
 export type VerificationPolicy = Readonly<{
   id: string;
   name: string;
@@ -112,14 +129,18 @@ export type VerificationPolicy = Readonly<{
   budgets: VerificationPlanBudgets;
   retryPolicies: readonly VerificationRetryPolicy[];
   exemptions: readonly VerificationExemption[];
+  artifactCapture: VerificationArtifactCapturePolicy;
+  comparison: Readonly<{
+    allowedMismatchFields: readonly VerificationComparisonAllowedMismatchField[];
+  }>;
   evidenceRequirements: VerificationEvidenceRequirements;
   baselinePolicy: Readonly<{
     visual: 'required-when-observed' | 'advisory' | 'forbidden';
     requireCompatibleIdentity: true;
   }>;
   retentionRequest: Readonly<{
-    successful: VerificationRetentionClass;
-    failed: VerificationRetentionClass;
+    successful: VerificationEvidenceCandidateRetentionClass;
+    failed: VerificationEvidenceCandidateRetentionClass;
     protectReleaseEvidence: boolean;
   }>;
 }>;
@@ -393,6 +414,7 @@ export type VerificationPlanCell = Readonly<{
   checkKind: VerificationCheckKind;
   scenarioId?: string;
   targetId: string;
+  targetPolicy: VerificationEvidenceTargetPolicy;
   frameworkTarget: string;
   surface: VerificationSurface;
   browserEngine?: VerificationBrowserEngine;
@@ -443,6 +465,7 @@ export type VerificationPlanBudgetSummary = Readonly<{
   cellsByCheckKind: Readonly<Record<VerificationCheckKind, number>>;
   targetExpansions: number;
   browserExpansions: number;
+  closureEvidenceRecords: number;
   totalMs: number;
   artifactBytes: number;
   estimatedComputeUnits: number;
@@ -458,6 +481,7 @@ export type VerificationPlan = Readonly<{
   scenarioRegistryDigest: string;
   policyRevision: number;
   policyDigest: string;
+  retentionRequest: VerificationPolicy['retentionRequest'];
   policyEvaluationInstant: string;
   impactDigest: string;
   semanticSchemaDigest: string;
@@ -682,9 +706,11 @@ export type VerificationRetentionClass =
 
 export type VerificationArtifactManifest = Readonly<{
   id: string;
+  path: string;
   kind: VerificationArtifactKind;
   digest: string;
   normalizedDigest?: string;
+  sourceTraceDigest?: string;
   size: number;
   mediaType: string;
 }>;
@@ -718,6 +744,8 @@ export type VerificationEvidence = Readonly<{
   policyEvaluationInstant: string;
   cellId: string;
   checkId: string;
+  checkKind: VerificationCheckKind;
+  targetId: string;
   attemptId: string;
   run: Readonly<{
     runId: string;
@@ -730,6 +758,14 @@ export type VerificationEvidence = Readonly<{
     runtimeZone: string;
     browserEngine?: VerificationBrowserEngine;
     operatingSystemIdentity?: string;
+    viewport: VerificationViewportAxis;
+    devicePixelRatio: number;
+    colorScheme: VerificationColorScheme;
+    motion: VerificationMotion;
+    locale: string;
+    timezone: string;
+    fontSetDigest: string;
+    sandboxImageDigest?: string;
   }>;
   timing: Readonly<{
     startedAt: string;
@@ -744,13 +780,23 @@ export type VerificationEvidence = Readonly<{
     appliedExemptionIds: readonly string[];
   }>;
   provenance: Readonly<{
-    trust: VerificationEvidenceTrust;
     producerId: string;
     attestationDigest?: string;
     issuedAt: string;
     expiresAt?: string;
-  }>;
+  }> &
+    (
+      | Readonly<{
+          trust: 'ci-attested';
+          ci: VerificationCiRepositoryIdentity;
+        }>
+      | Readonly<{
+          trust: Exclude<VerificationEvidenceTrust, 'ci-attested'>;
+          ci?: never;
+        }>
+    );
   toolchain: VerificationImplementationIdentity;
+  normalization: VerificationImplementationIdentity;
   controls: Readonly<{
     profileDigest: string;
     appliedDigest: string;
@@ -763,13 +809,203 @@ export type VerificationEvidence = Readonly<{
     inputDigest: string;
   }>;
   artifacts: readonly VerificationArtifactManifest[];
+  sourceTraces: readonly VerificationEvidenceSourceTrace[];
   sourceTraceDigest: string;
   dependencyLockDigest: string;
   redactionPolicyId: string;
+  targetPolicy: VerificationEvidenceTargetPolicy;
   createdAt: string;
   retention: VerificationRetentionClass;
   supersedes?: string;
   manifestDigest: string;
+}>;
+
+/**
+ * Core-owned normalized candidate produced after an adapter report crosses the
+ * trust boundary. It deliberately contains no staging capability, object-store
+ * locator, raw attestation, credential, or tool-private payload.
+ */
+export type VerificationEvidenceCandidateArtifact = Readonly<{
+  id: string;
+  path: string;
+  stagingArtifactId: string;
+  kind: VerificationArtifactKind;
+  expectedDigest: string;
+  expectedSize: number;
+  expectedMediaType: string;
+  sourceTraceDigest?: string;
+}>;
+
+export type VerificationEvidenceSourceTrace = Readonly<{
+  sourceRef: DiagnosticTargetRef;
+  sourceSpan?: SourceSpan;
+  label?: string;
+}>;
+
+export type VerificationCiRepositoryIdentity = VerificationCiIdentity;
+
+export type VerificationEvidenceTargetPolicy = Readonly<{
+  authority: 'verification-policy';
+  policyDigest: string;
+  semanticTargetId: string;
+  capture: VerificationArtifactCapture;
+}>;
+
+export type VerificationEvidenceCandidateProvenance = Readonly<{
+  producerId: string;
+  providerId: string;
+  issuedAt: string;
+  expiresAt?: string;
+}> &
+  (
+    | Readonly<{
+        origin: 'ci';
+        ci: VerificationCiRepositoryIdentity;
+      }>
+    | Readonly<{
+        origin: 'local' | 'remote' | 'import';
+        ci?: never;
+      }>
+  );
+
+export type VerificationEvidenceCandidate = Readonly<{
+  candidateId: string;
+  projectId: string;
+  workspaceId: string;
+  workspaceRevision: number;
+  partitionRevisions: VerificationPartitionRevisions;
+  executableSnapshotDigest: string;
+  scenario?: Readonly<{
+    id: string;
+    revision: number;
+    digest: string;
+    programDigest: string;
+  }>;
+  policyRevision: number;
+  policyDigest: string;
+  impactDigest: string;
+  planDigest: string;
+  policyEvaluationInstant: string;
+  cellId: string;
+  checkId: string;
+  checkKind: VerificationCheckKind;
+  targetId: string;
+  attemptId: string;
+  run: Readonly<{
+    runId: string;
+    providerId: string;
+    jobId?: string;
+    sessionId?: string;
+    parentAttemptId?: string;
+    surface: VerificationSurface;
+    frameworkTarget: string;
+    runtimeZone: string;
+    browserEngine?: VerificationBrowserEngine;
+    operatingSystemIdentity?: string;
+    viewport: VerificationViewportAxis;
+    devicePixelRatio: number;
+    colorScheme: VerificationColorScheme;
+    motion: VerificationMotion;
+    locale: string;
+    timezone: string;
+    fontSetDigest: string;
+    sandboxImageDigest?: string;
+  }>;
+  timing: Readonly<{
+    startedAt: string;
+    completedAt: string;
+    durationMs: number;
+  }>;
+  result: VerificationEvidence['result'];
+  provenance: VerificationEvidenceCandidateProvenance;
+  toolchain: VerificationImplementationIdentity;
+  normalization: VerificationImplementationIdentity;
+  controls: VerificationEvidence['controls'];
+  inputs: VerificationEvidence['inputs'];
+  artifacts: readonly VerificationEvidenceCandidateArtifact[];
+  sourceTraces: readonly VerificationEvidenceSourceTrace[];
+  sourceTraceDigest: string;
+  dependencyLockDigest: string;
+  redaction: Readonly<{
+    policyId: string;
+    scannerSetDigest: string;
+    droppedFieldCounts: Readonly<Record<string, number>>;
+    targetPolicy: VerificationEvidenceTargetPolicy;
+    safe: true;
+  }>;
+  requestedRetention: VerificationEvidenceCandidateRetentionClass;
+  promotion: Readonly<{
+    idempotencyKey: string;
+    deadline: string;
+  }>;
+  candidateDigest: string;
+}>;
+
+export type VerificationEvidenceCandidateIssue = Readonly<{
+  code: 'VER-4002' | 'VER-5001' | 'VER-5002';
+  path: string;
+  message: string;
+}>;
+
+export type VerificationEvidenceCandidateResult =
+  | Readonly<{
+      status: 'ready';
+      candidate: VerificationEvidenceCandidate;
+    }>
+  | Readonly<{
+      status: 'invalid';
+      issues: readonly VerificationEvidenceCandidateIssue[];
+    }>;
+
+export type VerificationEvidenceTrustVerificationStatus =
+  'verified' | 'unverified' | 'revoked' | 'expired';
+
+export type VerificationEvidenceRetentionState =
+  'active' | 'tombstoned' | 'references-released';
+
+export type VerificationEvidenceArtifactAvailabilityStatus =
+  'available' | 'missing' | 'deleted';
+
+/**
+ * Backend-produced, digest-bound projection consumed by Closure. The immutable
+ * Evidence manifest is kept separate from mutable revocation, supersession,
+ * retention, tombstone, and artifact-availability facts.
+ */
+export type VerificationEvidenceVerifiedViewRecord = Readonly<{
+  evidenceId: string;
+  /**
+   * Digest of the complete immutable manifest envelope. This is the final
+   * statement + verified-provenance identity, not a projection digest.
+   */
+  manifestDigest: string;
+  /**
+   * Digest of the materialized VerificationEvidence projection, including its
+   * final manifestDigest. Closure checks both values to detect projection
+   * tampering without weakening the two-layer manifest chain.
+   */
+  materializedEvidenceDigest: string;
+  effectiveTrust: VerificationEvidenceTrust;
+  trustStatus: VerificationEvidenceTrustVerificationStatus;
+  attestationDigest?: string;
+  retentionState: VerificationEvidenceRetentionState;
+  retentionExpiresAt?: string;
+  supersededByEvidenceId?: string;
+  revocationRecordDigests: readonly string[];
+  tombstoneDigest?: string;
+  artifacts: readonly Readonly<{
+    artifactId: string;
+    digest: string;
+    status: VerificationEvidenceArtifactAvailabilityStatus;
+  }>[];
+  recordDigest: string;
+}>;
+
+export type VerificationEvidenceVerifiedView = Readonly<{
+  format: 'prodivix.verification-evidence-view.v1';
+  closureEvaluationInstant: string;
+  revocationRecordDigest: string;
+  records: readonly VerificationEvidenceVerifiedViewRecord[];
+  viewDigest: string;
 }>;
 
 export type VerificationClosure = Readonly<{
@@ -810,6 +1046,7 @@ export type VerificationClosureIssue = Readonly<{
 export type EvaluateVerificationClosureInput = Readonly<{
   plan: VerificationPlan;
   evidence: readonly VerificationEvidence[];
+  verifiedEvidenceView?: VerificationEvidenceVerifiedView;
   closureEvaluationInstant: string;
   targetRevision: number;
   targetPartitionRevisions: VerificationPartitionRevisions;

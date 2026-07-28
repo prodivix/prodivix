@@ -226,6 +226,7 @@ const policy: VerificationPolicy = {
     maximumCellsPerCheckKind: 50,
     maximumTargetExpansions: 8,
     maximumBrowserExpansions: 3,
+    maximumClosureEvidenceRecords: 1000,
     totalMs: 600_000,
     artifactBytes: 100_000_000,
     estimatedComputeUnits: 10_000,
@@ -241,6 +242,13 @@ const policy: VerificationPolicy = {
     },
   ],
   exemptions: [],
+  artifactCapture: {
+    defaultCapture: 'allowed',
+    targets: [],
+  },
+  comparison: {
+    allowedMismatchFields: [],
+  },
   evidenceRequirements: {
     acceptedTrust: ['ci-attested'],
     maximumAgeMs: 86_400_000,

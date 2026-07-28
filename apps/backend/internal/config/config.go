@@ -29,6 +29,7 @@ type Config struct {
 	AssetDelivery      AssetDeliveryHostConfig
 	AssetBlobRetention WorkspaceAssetBlobRetentionConfig
 	EnvironmentSecrets EnvironmentSecretStoreConfig
+	Verification       VerificationEvidenceConfig
 }
 
 type WorkspaceAssetBlobRetentionConfig struct {
@@ -50,6 +51,28 @@ type EnvironmentSecretStoreConfig struct {
 	RotationBatchSize   int
 }
 
+type VerificationAttestationKeyConfig struct {
+	PublicKey string `json:"publicKey"`
+	Issuer    string `json:"issuer"`
+	Audience  string `json:"audience"`
+	Subject   string `json:"subject"`
+	Trust     string `json:"trust"`
+}
+
+type VerificationEvidenceConfig struct {
+	ArtifactRoot                string
+	PromotionTTL                time.Duration
+	SessionRetention            time.Duration
+	TombstoneGrace              time.Duration
+	SweepInterval               time.Duration
+	SweepBatchSize              int
+	AttestationPolicyGeneration int
+	AttestationMaxLifetime      time.Duration
+	AttestationKeys             map[string]VerificationAttestationKeyConfig
+	ResumeKey                   []byte
+	SecretCanaries              []string
+}
+
 const (
 	EnvironmentSecretKMSProviderStaticKeyRing = "static-keyring"
 	EnvironmentSecretKMSProviderAWS           = "aws-kms"
@@ -59,6 +82,7 @@ var (
 	environmentSecretKeyIDPattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$`)
 	environmentSecretAWSRegionPattern = regexp.MustCompile(`^[a-z]{2}-[a-z0-9-]+-[0-9]+$`)
 	environmentSecretAWSKeyARNPattern = regexp.MustCompile(`^arn:(aws|aws-us-gov|aws-cn):kms:([a-z]{2}-[a-z0-9-]+-[0-9]+):[0-9]{12}:key/[A-Za-z0-9-]{1,128}$`)
+	verificationIdentityPattern       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,511}$`)
 )
 
 func validEnvironmentSecretKey(encoded string) bool {
@@ -163,6 +187,62 @@ func parseEnvironmentSecretAWSKeyARNs(raw string) (map[string]string, error) {
 		return nil, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_AWS_KEY_ARNS must contain exactly one JSON object")
 	}
 	return keyARNs, nil
+}
+
+func parseVerificationAttestationKeys(raw string) (map[string]VerificationAttestationKeyConfig, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return map[string]VerificationAttestationKeyConfig{}, nil
+	}
+	if len(raw) > 128*1024 {
+		return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS exceeds its configuration budget")
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS must be a JSON object")
+	}
+	keys := map[string]VerificationAttestationKeyConfig{}
+	for decoder.More() {
+		rawKeyID, err := decoder.Token()
+		keyID, ok := rawKeyID.(string)
+		if err != nil || !ok || !environmentSecretKeyIDPattern.MatchString(keyID) {
+			return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains an invalid key id")
+		}
+		if _, duplicate := keys[keyID]; duplicate {
+			return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains a duplicate key id")
+		}
+		var key VerificationAttestationKeyConfig
+		if err := decoder.Decode(&key); err != nil {
+			return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains an invalid key descriptor")
+		}
+		decoded, err := base64.StdEncoding.DecodeString(key.PublicKey)
+		if err != nil {
+			decoded, err = base64.RawStdEncoding.DecodeString(key.PublicKey)
+		}
+		if err != nil || len(decoded) != 32 ||
+			!verificationIdentityPattern.MatchString(key.Issuer) ||
+			!verificationIdentityPattern.MatchString(key.Audience) ||
+			!verificationIdentityPattern.MatchString(key.Subject) ||
+			(key.Trust != "remote-attested" && key.Trust != "ci-attested") {
+			return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains an invalid Ed25519 descriptor")
+		}
+		for index := range decoded {
+			decoded[index] = 0
+		}
+		keys[keyID] = key
+		if len(keys) > 32 {
+			return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS supports at most 32 keys")
+		}
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS must contain one JSON object")
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains trailing content")
+	}
+	return keys, nil
 }
 
 type RemoteRunnerConfig struct {
@@ -317,6 +397,57 @@ func LoadConfig() (Config, error) {
 	default:
 		return Config{}, errors.New("BACKEND_ENVIRONMENT_SECRET_KMS_PROVIDER must be static-keyring or aws-kms")
 	}
+	verificationPromotionTTL, err := getEnvPositiveDuration("BACKEND_VERIFICATION_PROMOTION_TTL", time.Hour)
+	if err != nil || verificationPromotionTTL > 24*time.Hour {
+		return Config{}, errors.New("BACKEND_VERIFICATION_PROMOTION_TTL must be positive and at most 24h")
+	}
+	verificationSessionRetention, err := getEnvPositiveDuration("BACKEND_VERIFICATION_SESSION_RETENTION", 24*time.Hour)
+	if err != nil || verificationSessionRetention > 30*24*time.Hour {
+		return Config{}, errors.New("BACKEND_VERIFICATION_SESSION_RETENTION must be positive and at most 720h")
+	}
+	verificationTombstoneGrace, err := getEnvPositiveDuration("BACKEND_VERIFICATION_TOMBSTONE_GRACE", 24*time.Hour)
+	if err != nil || verificationTombstoneGrace > 30*24*time.Hour {
+		return Config{}, errors.New("BACKEND_VERIFICATION_TOMBSTONE_GRACE must be positive and at most 720h")
+	}
+	verificationSweepInterval, err := getEnvPositiveDuration("BACKEND_VERIFICATION_SWEEP_INTERVAL", 15*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+	verificationSweepBatchSize, err := getEnvBoundedPositiveInt("BACKEND_VERIFICATION_SWEEP_BATCH_SIZE", 128, 1000)
+	if err != nil {
+		return Config{}, err
+	}
+	verificationAttestationMaxLifetime, err := getEnvPositiveDuration("BACKEND_VERIFICATION_ATTESTATION_MAX_LIFETIME", 15*time.Minute)
+	if err != nil || verificationAttestationMaxLifetime > time.Hour {
+		return Config{}, errors.New("BACKEND_VERIFICATION_ATTESTATION_MAX_LIFETIME must be positive and at most 1h")
+	}
+	verificationAttestationPolicyGeneration, err := getEnvBoundedPositiveInt("BACKEND_VERIFICATION_ATTESTATION_POLICY_GENERATION", 1, 1_000_000)
+	if err != nil {
+		return Config{}, err
+	}
+	verificationAttestationKeys, err := parseVerificationAttestationKeys(os.Getenv("BACKEND_VERIFICATION_ATTESTATION_KEYS"))
+	if err != nil {
+		return Config{}, err
+	}
+	verificationResumeKeyText := strings.TrimSpace(
+		os.Getenv("BACKEND_VERIFICATION_RESUME_KEY"),
+	)
+	verificationResumeKey, err := base64.StdEncoding.Strict().DecodeString(
+		verificationResumeKeyText,
+	)
+	if err != nil || len(verificationResumeKey) != 32 ||
+		base64.StdEncoding.EncodeToString(verificationResumeKey) != verificationResumeKeyText {
+		return Config{}, errors.New(
+			"BACKEND_VERIFICATION_RESUME_KEY must be canonical base64 for exactly 32 bytes",
+		)
+	}
+	verificationSecretCanaries := parseCSV(
+		os.Getenv("BACKEND_VERIFICATION_SECRET_CANARIES"),
+	)
+	verificationSecretCanaries = append(
+		verificationSecretCanaries,
+		verificationResumeKeyText,
+	)
 	config := Config{
 		Address:        address,
 		Environment:    environment,
@@ -377,6 +508,19 @@ func LoadConfig() (Config, error) {
 			RotationInterval:    environmentSecretRotationInterval,
 			RotationBatchSize:   environmentSecretRotationBatchSize,
 		},
+		Verification: VerificationEvidenceConfig{
+			ArtifactRoot:                getEnv("BACKEND_VERIFICATION_ARTIFACT_ROOT", "./data/verification"),
+			PromotionTTL:                verificationPromotionTTL,
+			SessionRetention:            verificationSessionRetention,
+			TombstoneGrace:              verificationTombstoneGrace,
+			SweepInterval:               verificationSweepInterval,
+			SweepBatchSize:              verificationSweepBatchSize,
+			AttestationPolicyGeneration: verificationAttestationPolicyGeneration,
+			AttestationMaxLifetime:      verificationAttestationMaxLifetime,
+			AttestationKeys:             verificationAttestationKeys,
+			ResumeKey:                   append([]byte(nil), verificationResumeKey...),
+			SecretCanaries:              verificationSecretCanaries,
+		},
 	}
 	if err := validateOptionalCapabilities(config); err != nil {
 		return Config{}, err
@@ -396,6 +540,25 @@ func validateOptionalCapabilities(config Config) error {
 	}
 	if config.AssetBlobRetention.BlobLimit <= 0 || config.AssetBlobRetention.BlobLimit > 4096 {
 		return errors.New("BACKEND_ASSET_BLOB_SWEEP_BLOB_LIMIT must be between 1 and 4096")
+	}
+	if strings.TrimSpace(config.Verification.ArtifactRoot) == "" {
+		return errors.New("BACKEND_VERIFICATION_ARTIFACT_ROOT is required")
+	}
+	if config.Verification.PromotionTTL <= 0 || config.Verification.PromotionTTL > 24*time.Hour {
+		return errors.New("BACKEND_VERIFICATION_PROMOTION_TTL must be positive and at most 24h")
+	}
+	if config.Verification.SessionRetention <= 0 || config.Verification.SessionRetention > 30*24*time.Hour {
+		return errors.New("BACKEND_VERIFICATION_SESSION_RETENTION must be positive and at most 720h")
+	}
+	if config.Verification.TombstoneGrace <= 0 || config.Verification.TombstoneGrace > 30*24*time.Hour {
+		return errors.New("BACKEND_VERIFICATION_TOMBSTONE_GRACE must be positive and at most 720h")
+	}
+	if config.Verification.SweepInterval <= 0 ||
+		config.Verification.SweepBatchSize <= 0 || config.Verification.SweepBatchSize > 1000 {
+		return errors.New("Verification retention sweep configuration is invalid")
+	}
+	if len(config.Verification.ResumeKey) != 32 {
+		return errors.New("BACKEND_VERIFICATION_RESUME_KEY must decode to exactly 32 bytes")
 	}
 	if config.RemoteRunner.BaseURL != "" && config.RemoteRunner.ClientToken == "" {
 		return errors.New("REMOTE_RUNNER_CONTROL_PLANE_TOKEN is required when REMOTE_RUNNER_CONTROL_PLANE_URL is configured")

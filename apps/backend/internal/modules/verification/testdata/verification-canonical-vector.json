@@ -1,0 +1,154 @@
+{
+  "format": "prodivix.verification-canonical-vector",
+  "version": 1,
+  "evidenceId": "evidence-vector",
+  "createdAt": "2026-07-28T00:00:02.000Z",
+  "retention": "session",
+  "canonicalJson": "{\"decimal\":1.25,\"integer\":9007199254740991,\"tiny\":0.000001,\"é\":\"café\",\"😀\":\"雪\"}",
+  "candidate": {
+    "candidateId": "candidate-vector",
+    "projectId": "project-vector",
+    "workspaceId": "workspace-vector",
+    "workspaceRevision": 0,
+    "partitionRevisions": {
+      "workspaceRev": 0,
+      "routeRev": 0,
+      "opSeq": 0,
+      "documentRevisions": {}
+    },
+    "executableSnapshotDigest": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "policyRevision": 0,
+    "policyDigest": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "impactDigest": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "planDigest": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "policyEvaluationInstant": "2026-07-28T00:00:00.000Z",
+    "cellId": "cell-vector",
+    "checkId": "check-vector",
+    "checkKind": "unit",
+    "targetId": "target-vector",
+    "attemptId": "attempt-vector",
+    "run": {
+      "runId": "run-vector",
+      "providerId": "provider-vector",
+      "surface": "preview",
+      "frameworkTarget": "react-vite",
+      "runtimeZone": "browser",
+      "viewport": { "id": "viewport-vector", "width": 1280, "height": 720 },
+      "devicePixelRatio": 1.25,
+      "colorScheme": "dark",
+      "motion": "reduced",
+      "locale": "zh-CN",
+      "timezone": "Asia/Shanghai",
+      "fontSetDigest": "sha256-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "timing": {
+      "startedAt": "2026-07-28T00:00:00.000Z",
+      "completedAt": "2026-07-28T00:00:01.250Z",
+      "durationMs": 1250
+    },
+    "result": {
+      "outcome": "passed",
+      "summary": {
+        "decimal": 1.25,
+        "integer": 9007199254740991,
+        "tiny": 0.000001,
+        "é": "café",
+        "😀": "雪"
+      },
+      "diagnosticCodes": [],
+      "appliedExemptionIds": [],
+      "normalizedResultDigest": "sha256-1e1a99c065d83f3b54e6223fe879e1c793190c62c17c215d215a17d9cc9f5be1"
+    },
+    "provenance": {
+      "origin": "local",
+      "producerId": "producer-vector",
+      "providerId": "provider-vector",
+      "issuedAt": "2026-07-28T00:00:01.250Z",
+      "expiresAt": "2026-07-29T00:00:00.000Z"
+    },
+    "toolchain": {
+      "packageName": "@prodivix/vector",
+      "packageVersion": "1.2.3",
+      "buildDigest": "sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "toolchainDigest": "sha256-1111111111111111111111111111111111111111111111111111111111111111",
+      "schemaDigest": "sha256-2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    "normalization": {
+      "packageName": "@prodivix/verification-normalizer",
+      "packageVersion": "1.0.0",
+      "buildDigest": "sha256-9999999999999999999999999999999999999999999999999999999999999999",
+      "toolchainDigest": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "schemaDigest": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "controls": {
+      "profileDigest": "sha256-3333333333333333333333333333333333333333333333333333333333333333",
+      "appliedDigest": "sha256-4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    "inputs": {
+      "executableSnapshotDigest": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "fixtureSetDigests": [],
+      "inputDigest": "sha256-5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    "artifacts": [
+      {
+        "id": "artifact-vector",
+        "path": "traces/vector.json",
+        "stagingArtifactId": "staging-vector",
+        "kind": "trace",
+        "expectedDigest": "sha256-6666666666666666666666666666666666666666666666666666666666666666",
+        "expectedSize": 128,
+        "expectedMediaType": "application/json",
+        "sourceTraceDigest": "sha256-215cd24e4491ba2126d166c8bd52cbb67e73ad2dd0b50afaa0d4329835e4e88f"
+      }
+    ],
+    "sourceTraces": [
+      {
+        "sourceRef": {
+          "kind": "verification-plan-cell",
+          "planDigest": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "cellId": "cell-vector"
+        },
+        "label": "向量"
+      }
+    ],
+    "sourceTraceDigest": "sha256-119ac747389558ae9625f194adddd882de47b10e9b5112d020306679a8dc502c",
+    "dependencyLockDigest": "sha256-7777777777777777777777777777777777777777777777777777777777777777",
+    "redaction": {
+      "policyId": "redaction-vector",
+      "scannerSetDigest": "sha256-8888888888888888888888888888888888888888888888888888888888888888",
+      "droppedFieldCounts": { "字段": 1 },
+      "targetPolicy": {
+        "authority": "verification-policy",
+        "policyDigest": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "semanticTargetId": "target-vector",
+        "capture": "allowed"
+      },
+      "safe": true
+    },
+    "requestedRetention": "session",
+    "promotion": {
+      "idempotencyKey": "idempotency-key-1",
+      "deadline": "2026-07-28T00:10:00.000Z"
+    },
+    "candidateDigest": "sha256-546c6aced448edd5fbbd1904c53664d5f64854e2ee8f0745692ef35d79337478"
+  },
+  "artifacts": [
+    {
+      "id": "artifact-vector",
+      "path": "traces/vector.json",
+      "kind": "trace",
+      "digest": "sha256-6666666666666666666666666666666666666666666666666666666666666666",
+      "normalizedDigest": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceTraceDigest": "sha256-215cd24e4491ba2126d166c8bd52cbb67e73ad2dd0b50afaa0d4329835e4e88f",
+      "size": 128,
+      "mediaType": "application/json"
+    }
+  ],
+  "expected": {
+    "normalizedResultDigest": "sha256-1e1a99c065d83f3b54e6223fe879e1c793190c62c17c215d215a17d9cc9f5be1",
+    "candidateDigest": "sha256-546c6aced448edd5fbbd1904c53664d5f64854e2ee8f0745692ef35d79337478",
+    "statementDigest": "sha256-09721ff3fe0e28fd60825c3f260df03c7ab1f2be326d65d8e45846114a0e41c4",
+    "manifestDigest": "sha256-4db6a4d29e043cc9b3c08d6655674794162020d8d6a183c8b8ca522424cff09c",
+    "materializedEvidenceDigest": "sha256-b847fa4da1a1434a0263566c2f5be8ff73558a85f28bb0ef688f5f10f9af376d"
+  }
+}

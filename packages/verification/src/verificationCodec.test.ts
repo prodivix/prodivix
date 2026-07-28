@@ -10,9 +10,11 @@ import {
   VERIFICATION_DIAGNOSTIC_REGISTRY,
   decodeVerificationBaselineSet,
   decodeVerificationPolicy,
+  digestVerificationValue,
   encodeVerificationBaselineSet,
   encodeVerificationPolicy,
   validateVerificationDocument,
+  verificationPolicyWireSchema,
   type VerificationBaselineSet,
   type VerificationPolicy,
 } from './index';
@@ -71,6 +73,7 @@ export const verificationPolicyFixture: VerificationPolicy = {
     maximumCellsPerCheckKind: 100,
     maximumTargetExpansions: 8,
     maximumBrowserExpansions: 3,
+    maximumClosureEvidenceRecords: 1_000,
     totalMs: 600_000,
     artifactBytes: 100_000_000,
     estimatedComputeUnits: 10_000,
@@ -86,6 +89,13 @@ export const verificationPolicyFixture: VerificationPolicy = {
     },
   ],
   exemptions: [],
+  artifactCapture: {
+    defaultCapture: 'allowed',
+    targets: [],
+  },
+  comparison: {
+    allowedMismatchFields: ['browser-engine', 'operating-system'],
+  },
   evidenceRequirements: {
     acceptedTrust: ['ci-attested'],
     maximumAgeMs: 86_400_000,
@@ -138,6 +148,12 @@ export const verificationBaselineSetFixture: VerificationBaselineSet = {
 };
 
 describe('Verification document codecs', () => {
+  it('pins the strict VerificationPolicy wire schema', () => {
+    expect(digestVerificationValue(verificationPolicyWireSchema)).toBe(
+      'sha256-8e5c0fa96f23ea2945e30cef3e3abc66ee4bb5a37a660d9f6561b43d0c4159c6'
+    );
+  });
+
   it('round-trips Policy and BaselineSet without current-model wire versions', () => {
     const policy = decodeVerificationPolicy(
       encodeVerificationPolicy(verificationPolicyFixture)
@@ -241,6 +257,103 @@ describe('Verification document codecs', () => {
         ],
       }).ok
     ).toBe(false);
+  });
+
+  it('canonicalizes artifact capture overrides and rejects duplicate or privileged retention input', () => {
+    const encoded = encodeVerificationPolicy({
+      ...verificationPolicyFixture,
+      artifactCapture: {
+        defaultCapture: 'masked',
+        targets: [
+          { targetId: 'target.z', capture: 'allowed' },
+          { targetId: 'target.a', capture: 'forbidden-sensitive' },
+        ],
+      },
+    });
+    const decoded = decodeVerificationPolicy(encoded);
+    expect(decoded).toMatchObject({
+      ok: true,
+      value: {
+        artifactCapture: {
+          defaultCapture: 'masked',
+          targets: [
+            { targetId: 'target.a', capture: 'forbidden-sensitive' },
+            { targetId: 'target.z', capture: 'allowed' },
+          ],
+        },
+      },
+    });
+
+    expect(
+      validateVerificationDocument('verification-policy', {
+        ...verificationPolicyFixture,
+        artifactCapture: {
+          defaultCapture: 'allowed',
+          targets: [
+            { targetId: 'target.same', capture: 'allowed' },
+            { targetId: 'target.same', capture: 'masked' },
+          ],
+        },
+      })
+    ).toMatchObject({
+      ok: false,
+      issues: [{ path: '/artifactCapture/targets/1/targetId' }],
+    });
+
+    const privilegedRetention = structuredClone(
+      encodeVerificationPolicy(verificationPolicyFixture)
+    ) as unknown as {
+      retentionRequest: { successful: string };
+    };
+    privilegedRetention.retentionRequest.successful = 'legal-hold';
+    expect(decodeVerificationPolicy(privilegedRetention)).toMatchObject({
+      ok: false,
+      issues: [{ path: '/retentionRequest/successful' }],
+    });
+  });
+
+  it('owns a strict canonical comparison mismatch allowlist in Policy', () => {
+    const unsorted: VerificationPolicy = {
+      ...verificationPolicyFixture,
+      comparison: {
+        allowedMismatchFields: ['operating-system', 'browser-engine'],
+      },
+    };
+    expect(encodeVerificationPolicy(unsorted)).toMatchObject({
+      comparison: {
+        allowedMismatchFields: ['browser-engine', 'operating-system'],
+      },
+    });
+
+    const duplicate = {
+      ...verificationPolicyFixture,
+      comparison: {
+        allowedMismatchFields: ['browser-engine', 'browser-engine'],
+      },
+    } as VerificationPolicy;
+    expect(() => encodeVerificationPolicy(duplicate)).toThrow();
+
+    const forbidden = structuredClone(
+      encodeVerificationPolicy(verificationPolicyFixture)
+    ) as unknown as {
+      comparison: { allowedMismatchFields: string[] };
+    };
+    forbidden.comparison.allowedMismatchFields = ['check-id'];
+    expect(decodeVerificationPolicy(forbidden)).toMatchObject({ ok: false });
+
+    const missing = structuredClone(
+      encodeVerificationPolicy(verificationPolicyFixture)
+    ) as unknown as { comparison?: unknown };
+    delete missing.comparison;
+    expect(decodeVerificationPolicy(missing)).toMatchObject({ ok: false });
+
+    const unknown = structuredClone(
+      encodeVerificationPolicy(verificationPolicyFixture)
+    );
+    const comparison = unknown.comparison as typeof unknown.comparison &
+      Record<string, unknown>;
+    comparison.legacyId = 'comparison:legacy';
+    expect(decodeVerificationPolicy(unknown)).toMatchObject({ ok: false });
   });
 
   it('exports the complete VER registry under the Verification domain', () => {

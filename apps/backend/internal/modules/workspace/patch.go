@@ -80,7 +80,7 @@ func validateWorkspaceBehaviorFixtureSetPatchPath(path string) error {
 }
 
 func validateWorkspaceVerificationPolicyPatchPath(path string) error {
-	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "defaultRequirement", "rules", "matrixProfiles", "retryPolicies", "exemptions", "budgets", "evidenceRequirements", "baselinePolicy", "retentionRequest")
+	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "defaultRequirement", "rules", "matrixProfiles", "retryPolicies", "exemptions", "budgets", "artifactCapture", "comparison", "evidenceRequirements", "baselinePolicy", "retentionRequest")
 }
 
 func validateWorkspaceVerificationBaselineSetPatchPath(path string) error {

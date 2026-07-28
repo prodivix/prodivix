@@ -28,7 +28,9 @@ NodeGraph live command bridge，以及 Browser/Remote/Export/CI × React/Vue × 
 也已通过并形成 durable evidence。V4 Impact/Policy/Plan 已于 2026-07-28 完成实现并通过本地独立 Gate；
 commit [`a6aa0bf9`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d66598c168e01f695f4d85deeacad)
 的 [V4 CI Job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)
-也已通过并形成 durable evidence。V5-V8 尚未完成。
+也已通过并形成 durable evidence。V5 Evidence plane 已于 2026-07-28 完成实现；本地
+`pnpm run verify:g3:evidence`、真实 PostgreSQL、security/attestation/recovery 与 V4 regression Gate
+均通过，GitHub workflow 已配置但尚无当前改动的 durable CI identity。V6-V8 尚未完成。
 
 | Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                                    |
 | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -37,7 +39,7 @@ commit [`a6aa0bf9`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d6659
 | V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961`        |
 | V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                                      |
 | V4 Impact/Policy/Plan      | Implemented | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | 本地与 CI byte-stable plan、required hard-cut、Web/CLI explain Gate 通过，commit `a6aa0bf9` |
-| V5 Evidence plane          | Not Started | promotion、artifact、provenance/trust、retention、Closure                                       | PostgreSQL/object store/security/attestation/recovery Gate                                  |
+| V5 Evidence plane          | Implemented | promotion、artifact、provenance/trust、retention、Closure                                       | 本地 PostgreSQL/object store/security/attestation/recovery Gate 通过；durable CI pending    |
 | V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                                    |
 | V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                           |
 | V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                        |
@@ -187,18 +189,23 @@ Golden 分别隔离修改 Catalog PIR、Data operation、Route guard、NodeGraph
 
 ### 必须完成
 
-- [ ] EvidenceCandidate strict codec、manifest/artifact identity chain。
-- [ ] Backend PostgreSQL repository、artifact staging/store、atomic idempotent promotion。
-- [ ] local/remote/CI/import trust 与 attestation/revocation/replay protection。
-- [ ] Secret/PII/active-content/path/archive/image budget hard cut。
-- [ ] comparison compatibility、supersession、failure/retry history。
-- [ ] session/change/release retention、protection、tombstone、GC recovery。
-- [ ] Closure evaluator freshness/trust/compatibility/revision semantics。
+- [x] EvidenceCandidate strict codec、manifest/artifact identity chain。
+- [x] Backend PostgreSQL repository、artifact staging/store、atomic idempotent promotion。
+- [x] local/remote/CI/import trust 与 attestation/revocation/replay protection。
+- [x] Secret/PII/active-content/path/archive/image budget hard cut。
+- [x] comparison compatibility、supersession、failure/retry history。
+- [x] session/change/release retention、protection、tombstone、GC recovery。
+- [x] Closure evaluator freshness/trust/compatibility/revision semantics。
 
 ### Golden slice
 
 同一 cell 先失败后重跑通过：两个 attempt 都保留；Policy 对 unstable 的规则决定 Closure。Backend 在 artifact upload/
 finalize/restart/并发重试中只产生一个 Evidence。过期或 revoked Evidence 使 Closure 立即 stale/incomplete。
+
+本地 Golden 固定 Candidate/statement/manifest/materialized Evidence identity，并验证失败 → retry passed history、
+trust/revocation/retention/compatibility 参与 Closure。PostgreSQL Gate 还覆盖 pre-run AttemptGrant 一次性 claim、
+create/attestation prepare/final commit 三阶段 authority drift、丢响应/重启、最后一个 Closure record 并发名额、
+object-store 中断、protection/tombstone 与 GC lease recovery。
 
 ## V6：Adapter matrix
 

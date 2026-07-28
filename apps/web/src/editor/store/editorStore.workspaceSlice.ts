@@ -304,6 +304,8 @@ export const createWorkspaceSlice: StateCreator<
       workspaceConflictResolutionStatus: 'idle',
       workspaceConflictResolutionError: null,
       runtimeStateByProject: {},
+      verificationProjectionByWorkspaceId: {},
+      verificationEvidenceProjectionByWorkspaceId: {},
     })),
   setActiveDocumentId: (documentId) =>
     set((state) => {

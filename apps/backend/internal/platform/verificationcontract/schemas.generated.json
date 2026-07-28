@@ -14,6 +14,8 @@
       "retryPolicies",
       "exemptions",
       "budgets",
+      "artifactCapture",
+      "comparison",
       "evidenceRequirements",
       "baselinePolicy",
       "retentionRequest"
@@ -46,6 +48,8 @@
         "maxItems": 512,
         "items": { "$ref": "#/$defs/exemption" }
       },
+      "artifactCapture": { "$ref": "#/$defs/artifactCapturePolicy" },
+      "comparison": { "$ref": "#/$defs/comparisonPolicy" },
       "budgets": {
         "type": "object",
         "required": [
@@ -53,6 +57,7 @@
           "maximumCellsPerCheckKind",
           "maximumTargetExpansions",
           "maximumBrowserExpansions",
+          "maximumClosureEvidenceRecords",
           "totalMs",
           "artifactBytes",
           "estimatedComputeUnits",
@@ -78,6 +83,11 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 3
+          },
+          "maximumClosureEvidenceRecords": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
           },
           "totalMs": { "type": "integer", "minimum": 1, "maximum": 604800000 },
           "artifactBytes": {
@@ -110,8 +120,8 @@
         "type": "object",
         "required": ["successful", "failed", "protectReleaseEvidence"],
         "properties": {
-          "successful": { "$ref": "#/$defs/retentionClass" },
-          "failed": { "$ref": "#/$defs/retentionClass" },
+          "successful": { "$ref": "#/$defs/candidateRetentionClass" },
+          "failed": { "$ref": "#/$defs/candidateRetentionClass" },
           "protectReleaseEvidence": { "type": "boolean" }
         },
         "additionalProperties": false
@@ -280,8 +290,31 @@
           "replay-record"
         ]
       },
-      "retentionClass": {
-        "enum": ["session", "change", "release", "legal-hold"]
+      "artifactCapture": {
+        "enum": ["allowed", "masked", "forbidden-sensitive"]
+      },
+      "candidateRetentionClass": { "enum": ["session", "change", "release"] },
+      "artifactCaptureTarget": {
+        "type": "object",
+        "required": ["targetId", "capture"],
+        "properties": {
+          "targetId": { "$ref": "#/$defs/canonicalId" },
+          "capture": { "$ref": "#/$defs/artifactCapture" }
+        },
+        "additionalProperties": false
+      },
+      "artifactCapturePolicy": {
+        "type": "object",
+        "required": ["defaultCapture", "targets"],
+        "properties": {
+          "defaultCapture": { "$ref": "#/$defs/artifactCapture" },
+          "targets": {
+            "type": "array",
+            "maxItems": 512,
+            "items": { "$ref": "#/$defs/artifactCaptureTarget" }
+          }
+        },
+        "additionalProperties": false
       },
       "matrixProfile": {
         "type": "object",
@@ -321,6 +354,62 @@
             "maximum": 100
           },
           "freshFixtureNamespace": { "const": true }
+        },
+        "additionalProperties": false
+      },
+      "comparisonPolicy": {
+        "type": "object",
+        "required": ["allowedMismatchFields"],
+        "properties": {
+          "allowedMismatchFields": {
+            "type": "array",
+            "maxItems": 40,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "workspace-revision",
+                "partition-revisions",
+                "executable-snapshot",
+                "policy-revision",
+                "policy-digest",
+                "impact-digest",
+                "plan-digest",
+                "cell-id",
+                "surface",
+                "framework-target",
+                "runtime-zone",
+                "browser-engine",
+                "operating-system",
+                "viewport",
+                "device-pixel-ratio",
+                "color-scheme",
+                "motion",
+                "locale",
+                "timezone",
+                "font-set",
+                "sandbox-image",
+                "tool-package",
+                "tool-version",
+                "tool-major",
+                "tool-build",
+                "toolchain",
+                "adapter-schema",
+                "normalization-package",
+                "normalization-version",
+                "normalization-build",
+                "normalization-toolchain",
+                "normalization-schema",
+                "control-profile",
+                "applied-controls",
+                "fixture-set",
+                "baseline-set",
+                "input-digest",
+                "dependency-lock",
+                "redaction-policy",
+                "target-policy"
+              ]
+            }
+          }
         },
         "additionalProperties": false
       },

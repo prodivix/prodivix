@@ -150,6 +150,7 @@ describe('Verification V4 canonical properties', () => {
         maximumCellsPerCheckKind: 1,
         maximumTargetExpansions: 1,
         maximumBrowserExpansions: 1,
+        maximumClosureEvidenceRecords: 1,
         totalMs: 1,
         artifactBytes: 1,
         estimatedComputeUnits: 1,
@@ -165,6 +166,13 @@ describe('Verification V4 canonical properties', () => {
         },
       ],
       exemptions: [],
+      artifactCapture: {
+        defaultCapture: 'allowed',
+        targets: [],
+      },
+      comparison: {
+        allowedMismatchFields: [],
+      },
       evidenceRequirements: {
         acceptedTrust: ['ci-attested'],
         maximumAgeMs: 1,

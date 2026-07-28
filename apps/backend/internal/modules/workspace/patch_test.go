@@ -71,6 +71,22 @@ func TestApplyWorkspacePatchUsesCurrentPIRRoots(t *testing.T) {
 	}
 }
 
+func TestVerificationPolicyPatchAllowsCurrentPolicyRootsAndRejectsUnknownRoots(t *testing.T) {
+	for _, path := range []string{
+		"/artifactCapture/targets/0/capture",
+		"/comparison/allowedMismatchFields/0",
+	} {
+		if err := validateWorkspaceVerificationPolicyPatchPath(path); err != nil {
+			t.Fatalf("current VerificationPolicy path %q must be writable: %v", path, err)
+		}
+	}
+	if err := validateWorkspaceVerificationPolicyPatchPath(
+		"/clientReportedCapture",
+	); !errors.Is(err, ErrWorkspacePatchPathForbidden) {
+		t.Fatalf("unknown VerificationPolicy root must be forbidden: %v", err)
+	}
+}
+
 func TestApplyWorkspaceDocumentPatchAllowsCodeSource(t *testing.T) {
 	patched, err := applyWorkspaceDocumentPatch(
 		WorkspaceDocumentTypeCode,

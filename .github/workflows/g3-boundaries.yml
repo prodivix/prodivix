@@ -6,9 +6,17 @@ on:
     branches:
       - main
     paths:
+      - '.env.example'
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+      - 'apps/backend/README.md'
+      - 'apps/backend/internal/app/**'
+      - 'apps/backend/internal/config/**'
+      - 'apps/backend/internal/modules/verification/**'
       - 'apps/backend/internal/modules/workspace/**'
       - 'apps/backend/internal/platform/behaviorcontract/**'
       - 'apps/backend/internal/platform/database/**'
+      - 'apps/backend/internal/platform/http/**'
       - 'apps/backend/internal/platform/verificationcontract/**'
       - 'apps/cli/**'
       - 'apps/docs/reference/diagnostics/**'
@@ -17,6 +25,7 @@ on:
       - 'apps/web/src/editor/features/development/reactflow/**'
       - 'apps/web/src/editor/features/execution/**'
       - 'apps/web/src/editor/features/resources/**'
+      - 'apps/web/src/editor/features/verification/**'
       - 'apps/web/src/editor/store/**'
       - 'apps/web/src/i18n/resources/**'
       - 'packages/authoring/**'
@@ -39,8 +48,12 @@ on:
       - 'packages/workspace-sync/**'
       - 'scripts/check-core-package-boundaries.mjs'
       - 'scripts/check-g3-*.mjs'
+      - 'scripts/g3-verification-canonical-vector.mjs'
+      - 'scripts/sync-g3-wire-contracts.mjs'
+      - 'scripts/verify-g3-evidence-postgres.mjs'
       - 'specs/api/workspace-sync.openapi.yaml'
       - 'specs/diagnostics/**'
+      - 'specs/decisions/58.verification-evidence-provenance-and-retention.md'
       - 'specs/implementation/g3-*.md'
       - 'specs/roadmap/current-status.md'
       - 'specs/roadmap/g3-*.md'
@@ -52,9 +65,17 @@ on:
     branches:
       - main
     paths:
+      - '.env.example'
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+      - 'apps/backend/README.md'
+      - 'apps/backend/internal/app/**'
+      - 'apps/backend/internal/config/**'
+      - 'apps/backend/internal/modules/verification/**'
       - 'apps/backend/internal/modules/workspace/**'
       - 'apps/backend/internal/platform/behaviorcontract/**'
       - 'apps/backend/internal/platform/database/**'
+      - 'apps/backend/internal/platform/http/**'
       - 'apps/backend/internal/platform/verificationcontract/**'
       - 'apps/cli/**'
       - 'apps/docs/reference/diagnostics/**'
@@ -63,6 +84,7 @@ on:
       - 'apps/web/src/editor/features/development/reactflow/**'
       - 'apps/web/src/editor/features/execution/**'
       - 'apps/web/src/editor/features/resources/**'
+      - 'apps/web/src/editor/features/verification/**'
       - 'apps/web/src/editor/store/**'
       - 'apps/web/src/i18n/resources/**'
       - 'packages/authoring/**'
@@ -85,8 +107,12 @@ on:
       - 'packages/workspace-sync/**'
       - 'scripts/check-core-package-boundaries.mjs'
       - 'scripts/check-g3-*.mjs'
+      - 'scripts/g3-verification-canonical-vector.mjs'
+      - 'scripts/sync-g3-wire-contracts.mjs'
+      - 'scripts/verify-g3-evidence-postgres.mjs'
       - 'specs/api/workspace-sync.openapi.yaml'
       - 'specs/diagnostics/**'
+      - 'specs/decisions/58.verification-evidence-provenance-and-retention.md'
       - 'specs/implementation/g3-*.md'
       - 'specs/roadmap/current-status.md'
       - 'specs/roadmap/g3-*.md'
@@ -206,3 +232,45 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify Impact, Policy, deterministic DAG, Closure, and Web/CLI parity
         run: pnpm run verify:g3:verification-plan
+
+  evidence:
+    name: V5 Evidence promotion, provenance, PostgreSQL retention, and Closure Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prodivix_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prodivix_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PRODIVIX_BACKEND_POSTGRES_TEST_URL: postgres://postgres:postgres@127.0.0.1:5432/prodivix_test?sslmode=disable
+      # Deterministic test-only 32-byte key; deployments must inject independent secret material.
+      BACKEND_VERIFICATION_RESUME_KEY: c3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3M=
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify Evidence promotion, trust, retention, recovery, and Closure
+        run: pnpm run verify:g3:evidence

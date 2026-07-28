@@ -158,6 +158,8 @@ export const WORKSPACE_DOCUMENT_POLICIES = Object.freeze({
       '/retryPolicies',
       '/exemptions',
       '/budgets',
+      '/artifactCapture',
+      '/comparison',
       '/evidenceRequirements',
       '/baselinePolicy',
       '/retentionRequest',

@@ -42,6 +42,13 @@ import type {
   VerificationScenarioDescriptor,
 } from './verification.types';
 
+const artifactCaptureForTarget = (
+  policy: CreateVerificationPlanInput['policy'],
+  targetId: string
+) =>
+  policy.artifactCapture.targets.find((target) => target.targetId === targetId)
+    ?.capture ?? policy.artifactCapture.defaultCapture;
+
 const cellIdentity = (
   input: CreateVerificationPlanInput,
   check: VerificationCheckDefinition,
@@ -361,6 +368,15 @@ export const createVerificationPlan = (
               checkKind: check.kind,
               ...(scenario ? { scenarioId: scenario.id } : {}),
               targetId,
+              targetPolicy: Object.freeze({
+                authority: 'verification-policy',
+                policyDigest: planningInput.policyDigest,
+                semanticTargetId: targetId,
+                capture: artifactCaptureForTarget(
+                  planningInput.policy,
+                  targetId
+                ),
+              }),
               ...coordinate,
               controlProfileRef,
               ...(fixtureSetRef
@@ -650,6 +666,9 @@ export const createVerificationPlan = (
     scenarioRegistryDigest: planningInput.scenarioRegistryDigest,
     policyRevision: planningInput.policyRevision,
     policyDigest: planningInput.policyDigest,
+    retentionRequest: Object.freeze({
+      ...planningInput.policy.retentionRequest,
+    }),
     policyEvaluationInstant: planningInput.policyEvaluationInstant,
     impactDigest: planningInput.impactSet.impactDigest,
     semanticSchemaDigest: planningInput.impactSet.semanticSchemaDigest,

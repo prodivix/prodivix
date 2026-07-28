@@ -188,14 +188,111 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 		t.Fatal("G3 migration must enforce one verification-policy per workspace")
 	}
 
-	last := migrations[len(migrations)-1]
-	if last.version != 18 ||
-		last.name != "animation-wire-v2-rollout" ||
-		last.run == nil {
+	evidence := migrations[len(migrations)-2]
+	if evidence.version != 19 ||
+		evidence.name != "verification-evidence-plane" ||
+		len(evidence.statements) < 20 {
 		t.Fatalf(
-			"last migration = %d %q, want Animation v2 rollout",
+			"migration before last = %d %q, want Verification Evidence plane",
+			evidence.version,
+			evidence.name,
+		)
+	}
+	last := migrations[len(migrations)-1]
+	if last.version != 20 ||
+		last.name != "verification-mutation-ledger" ||
+		len(last.statements) < 7 {
+		t.Fatalf(
+			"last migration = %d %q, want Verification mutation ledger",
 			last.version,
 			last.name,
 		)
+	}
+	for _, fragment := range []string{
+		"PRIMARY KEY (workspace_id, actor_id, idempotency_key_hash)",
+		"request_bytes BYTEA NOT NULL",
+		"result_bytes BYTEA NOT NULL",
+	} {
+		if !strings.Contains(last.statements[0], fragment) {
+			t.Fatalf("Verification mutation ledger omits %q", fragment)
+		}
+	}
+	if !strings.Contains(last.statements[6], "reject_verification_immutable_mutation") {
+		t.Fatal("Verification mutation ledger must be immutable after commit")
+	}
+}
+
+func TestVerificationEvidenceMigrationKeepsEvidenceOutsideWorkspaceCascade(t *testing.T) {
+	migration := verificationEvidenceMigration()
+	if migration.version != 19 || migration.name != "verification-evidence-plane" {
+		t.Fatalf("migration = %d %q, want version 19 Verification Evidence plane", migration.version, migration.name)
+	}
+	statements := strings.Join(migration.statements, "\n")
+	for _, table := range []string{
+		"verification_attempt_grants",
+		"verification_promotions",
+		"verification_attempt_grant_claims",
+		"verification_promotion_artifacts",
+		"verification_artifacts",
+		"verification_evidence",
+		"verification_evidence_artifacts",
+		"verification_attestations",
+		"verification_supersessions",
+		"verification_trust_revocations",
+		"verification_retention_protections",
+		"verification_tombstones",
+		"verification_audit_events",
+	} {
+		if !strings.Contains(statements, "CREATE TABLE IF NOT EXISTS "+table) {
+			t.Fatalf("Verification Evidence migration omits %s", table)
+		}
+	}
+	var grantStatement, evidenceStatement string
+	for _, statement := range migration.statements {
+		switch {
+		case strings.Contains(
+			statement,
+			"CREATE TABLE IF NOT EXISTS verification_attempt_grants",
+		):
+			grantStatement = statement
+		case strings.Contains(
+			statement,
+			"CREATE TABLE IF NOT EXISTS verification_evidence (",
+		):
+			evidenceStatement = statement
+		}
+	}
+	if grantStatement == "" || evidenceStatement == "" {
+		t.Fatal("Verification durable authority tables were not found")
+	}
+	if strings.Contains(grantStatement, "REFERENCES workspaces") ||
+		strings.Contains(grantStatement, "REFERENCES projects") ||
+		strings.Contains(grantStatement, "ON DELETE CASCADE") {
+		t.Fatal("immutable attempt grants must not block or cascade with project deletion")
+	}
+	for _, fragment := range []string{
+		"successful_retention_class TEXT NOT NULL",
+		"failed_retention_class TEXT NOT NULL",
+		"UNIQUE (workspace_id, plan_digest, cell_id, attempt_id)",
+	} {
+		if !strings.Contains(grantStatement, fragment) {
+			t.Fatalf("attempt grant authority omits %q", fragment)
+		}
+	}
+	if strings.Contains(grantStatement, "outcome TEXT") {
+		t.Fatal("pre-run attempt grants must not bind a result outcome")
+	}
+	if strings.Contains(evidenceStatement, "REFERENCES workspaces") ||
+		strings.Contains(evidenceStatement, "ON DELETE CASCADE") {
+		t.Fatal("durable Verification Evidence must not cascade with Canonical Workspace")
+	}
+	for _, trigger := range []string{
+		"verification_attempt_grants_immutable_mutation",
+		"verification_attempt_grant_claims_immutable_mutation",
+		"reject_verification_immutable_mutation",
+	} {
+		if !strings.Contains(statements, trigger) {
+			t.Fatalf("Verification Evidence migration omits immutable guard %q", trigger)
+		}
 	}
 }

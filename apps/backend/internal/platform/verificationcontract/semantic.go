@@ -9,10 +9,15 @@ import (
 )
 
 type verificationPolicySemanticDocument struct {
-	Rules          []verificationPolicySemanticRule `json:"rules"`
-	MatrixProfiles []verificationMatrixProfile      `json:"matrixProfiles"`
-	RetryPolicies  []verificationRetryPolicy        `json:"retryPolicies"`
-	Exemptions     []verificationExemption          `json:"exemptions"`
+	Rules           []verificationPolicySemanticRule `json:"rules"`
+	MatrixProfiles  []verificationMatrixProfile      `json:"matrixProfiles"`
+	RetryPolicies   []verificationRetryPolicy        `json:"retryPolicies"`
+	Exemptions      []verificationExemption          `json:"exemptions"`
+	ArtifactCapture struct {
+		Targets []struct {
+			TargetID string `json:"targetId"`
+		} `json:"targets"`
+	} `json:"artifactCapture"`
 }
 
 type verificationPolicySemanticRule struct {
@@ -132,6 +137,7 @@ func validatePolicySemantics(payload json.RawMessage) error {
 	matrixProfileIDs := make([]string, 0, len(policy.MatrixProfiles))
 	retryPolicyIDs := make([]string, 0, len(policy.RetryPolicies))
 	exemptionIDs := make([]string, 0, len(policy.Exemptions))
+	artifactCaptureTargetIDs := make([]string, 0, len(policy.ArtifactCapture.Targets))
 	for _, rule := range policy.Rules {
 		ruleIDs = append(ruleIDs, rule.ID)
 	}
@@ -144,11 +150,15 @@ func validatePolicySemantics(payload json.RawMessage) error {
 	for _, exemption := range policy.Exemptions {
 		exemptionIDs = append(exemptionIDs, exemption.ID)
 	}
+	for _, target := range policy.ArtifactCapture.Targets {
+		artifactCaptureTargetIDs = append(artifactCaptureTargetIDs, target.TargetID)
+	}
 	for label, ids := range map[string][]string{
-		"rule":           ruleIDs,
-		"matrix profile": matrixProfileIDs,
-		"retry policy":   retryPolicyIDs,
-		"exemption":      exemptionIDs,
+		"rule":                    ruleIDs,
+		"matrix profile":          matrixProfileIDs,
+		"retry policy":            retryPolicyIDs,
+		"exemption":               exemptionIDs,
+		"artifact capture target": artifactCaptureTargetIDs,
 	} {
 		if duplicate := duplicateID(ids); duplicate != "" {
 			return fmt.Errorf("duplicate Verification %s id: %s", label, duplicate)
