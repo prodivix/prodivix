@@ -6,15 +6,18 @@
   "bin": "./bin/prodivix.js",
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "tsc",
+    "build": "pnpm run typecheck && esbuild src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/cli.js",
     "start": "node dist/cli.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@prodivix/verification": "workspace:*",
     "commander": "^15.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
+    "esbuild": "^0.28.1",
     "tsx": "^4.22.4",
     "typescript": "~6.0.3"
   }

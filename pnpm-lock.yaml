@@ -82,6 +82,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@prodivix/verification':
+        specifier: workspace:*
+        version: link:../../packages/verification
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -89,6 +92,9 @@ importers:
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
@@ -396,6 +402,9 @@ importers:
       '@prodivix/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@prodivix/verification':
+        specifier: workspace:*
+        version: link:../../packages/verification
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../../packages/workspace
@@ -925,6 +934,9 @@ importers:
       '@prodivix/shared':
         specifier: workspace:*
         version: link:../shared
+      '@prodivix/verification':
+        specifier: workspace:*
+        version: link:../verification
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -1921,6 +1933,9 @@ importers:
 
   packages/verification:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
       '@prodivix/behavior':
         specifier: workspace:*
         version: link:../behavior
@@ -1937,6 +1952,9 @@ importers:
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0
+      fast-check:
+        specifier: 4.9.0
+        version: 4.9.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

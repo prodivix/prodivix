@@ -11,6 +11,7 @@ import {
   Palette,
   ShieldCheck,
   ListChecks,
+  FileCheck2,
 } from 'lucide-react';
 import {
   decodeDtcgDesignTokenDocument,
@@ -37,6 +38,7 @@ export type SectionId =
   | 'data'
   | 'auth'
   | 'behavior'
+  | 'verification'
   | 'public'
   | 'code'
   | 'i18n'
@@ -55,6 +57,7 @@ export const sectionMetas: SectionMeta[] = [
   { id: 'data', icon: Database },
   { id: 'auth', icon: ShieldCheck },
   { id: 'behavior', icon: ListChecks },
+  { id: 'verification', icon: FileCheck2 },
   { id: 'public', icon: FileArchive },
   { id: 'code', icon: FileCode2 },
   { id: 'i18n', icon: Globe2 },

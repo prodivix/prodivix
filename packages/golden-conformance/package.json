@@ -20,6 +20,8 @@
     "test:g3-behavior-composition": "pnpm exec tsc -b ../behavior ../router ../nodegraph ../animation ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG3BehaviorComposition.conformance.test.ts",
     "test:g3-v2-golden": "pnpm run test:g3-behavior-composition && cross-env PRODIVIX_VERIFY_G3_V2_GOLDEN=1 E2E_BROWSER_CHANNEL=chrome vitest --config vitest.config.ts --run src/goldenG3V2Golden.browser.test.ts",
     "test:g3-v3-golden": "pnpm exec tsc -b ../runtime-core ../behavior ../runtime-browser ../runtime-remote ../router ../nodegraph ../animation ../workspace ../prodivix-compiler --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG3DeterministicReplay.conformance.test.ts && cross-env PRODIVIX_VERIFY_G3_V3_GOLDEN=1 E2E_BROWSER_CHANNEL=chrome vitest --config vitest.config.ts --run src/goldenG3V3Golden.browser.test.ts",
+    "test:g3-v4-verification-plan": "pnpm exec tsc -b ../verification ../workspace --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG3VerificationPlan.conformance.test.ts",
+    "test:g3-v4-cli": "tsx scripts/verifyGoldenG3VerificationCli.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --pretty false"
   },
@@ -40,6 +42,7 @@
     "@prodivix/runtime-vitest": "workspace:*",
     "@prodivix/server-runtime": "workspace:*",
     "@prodivix/shared": "workspace:*",
+    "@prodivix/verification": "workspace:*",
     "@prodivix/workspace": "workspace:*",
     "@prodivix/workspace-sync": "workspace:*"
   },

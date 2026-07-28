@@ -209,6 +209,40 @@ describe('Verification document codecs', () => {
     ).toBe(false);
   });
 
+  it('rejects impossible retry sampling and non-canonical exemption instants', () => {
+    expect(
+      validateVerificationDocument('verification-policy', {
+        ...verificationPolicyFixture,
+        retryPolicies: [
+          {
+            ...verificationPolicyFixture.retryPolicies[0],
+            maximumAttempts: 1,
+            stabilitySamples: 2,
+          },
+        ],
+      }).ok
+    ).toBe(false);
+
+    expect(
+      validateVerificationDocument('verification-policy', {
+        ...verificationPolicyFixture,
+        exemptions: [
+          {
+            id: 'exemption.invalid-instant',
+            ruleId: verificationPolicyFixture.rules[0]!.id,
+            targetId: 'scenario.catalog.create',
+            reason: 'Invalid UTC instant must fail closed.',
+            actorRef: 'principal.owner',
+            createdAt: '2026-07-28T08:00:00+08:00',
+            expiresAt: '2026-07-29T00:00:00.000Z',
+            reducesTo: 'advisory',
+            issueRef: 'issue.invalid-instant',
+          },
+        ],
+      }).ok
+    ).toBe(false);
+  });
+
   it('exports the complete VER registry under the Verification domain', () => {
     expect(Object.keys(VERIFICATION_DIAGNOSTIC_REGISTRY)).toHaveLength(18);
     expect(VERIFICATION_DIAGNOSTIC_REGISTRY['VER-5002']).toMatchObject({

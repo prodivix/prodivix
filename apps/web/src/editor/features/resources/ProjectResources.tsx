@@ -13,6 +13,7 @@ import { DesignTokenResourcePage } from './DesignTokenResourcePage';
 import { AuthServerRuntimeResourcePage } from './AuthServerRuntimeResourcePage';
 import { DataResourcePage } from './DataResourcePage';
 import { BehaviorScenarioResourcePage } from './BehaviorScenarioResourcePage';
+import { VerificationPlanResourcePage } from './VerificationPlanResourcePage';
 import {
   buildOverviewSnapshot,
   getResourceManagerViewStorageKey,
@@ -52,6 +53,7 @@ export function ProjectResources() {
       raw === 'data' ||
       raw === 'auth' ||
       raw === 'behavior' ||
+      raw === 'verification' ||
       raw === 'public' ||
       raw === 'code' ||
       raw === 'i18n' ||
@@ -102,6 +104,12 @@ export function ProjectResources() {
     if (activeDocumentType === 'data-source') setActiveSection('data');
     if (activeDocumentType === 'behavior-scenario') {
       setActiveSection('behavior');
+    }
+    if (
+      activeDocumentType === 'verification-policy' ||
+      activeDocumentType === 'verification-baseline-set'
+    ) {
+      setActiveSection('verification');
     }
   }, [activeDocumentId, activeDocumentType, workspaceDocumentsById]);
 
@@ -180,6 +188,10 @@ export function ProjectResources() {
       {activeSection === 'auth' ? <AuthServerRuntimeResourcePage /> : null}
 
       {activeSection === 'behavior' ? <BehaviorScenarioResourcePage /> : null}
+
+      {activeSection === 'verification' ? (
+        <VerificationPlanResourcePage />
+      ) : null}
 
       {activeSection === 'public' ? <PublicResourcePage embedded /> : null}
 

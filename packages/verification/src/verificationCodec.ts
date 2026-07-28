@@ -25,6 +25,7 @@ import {
   verificationBaselineSetWireSchema,
   verificationPolicyWireSchema,
 } from './wire';
+import { parseVerificationInstant } from './verificationCanonical';
 
 const ajv = new Ajv2020({
   allErrors: true,
@@ -251,6 +252,17 @@ const collectPolicyIssues = (
       viewportIds.add(viewport.id);
     });
   });
+  policy.retryPolicies.forEach((retryPolicy, index) => {
+    if (retryPolicy.stabilitySamples > retryPolicy.maximumAttempts) {
+      issues.push(
+        customIssue(
+          kind,
+          `/retryPolicies/${index}/stabilitySamples`,
+          'Stability samples cannot exceed maximum attempts.'
+        )
+      );
+    }
+  });
   policy.exemptions.forEach((exemption, index) => {
     if (!ruleIds.has(exemption.ruleId)) {
       issues.push(
@@ -261,13 +273,9 @@ const collectPolicyIssues = (
         )
       );
     }
-    const created = Date.parse(exemption.createdAt);
-    const expires = Date.parse(exemption.expiresAt);
-    if (
-      !Number.isFinite(created) ||
-      !Number.isFinite(expires) ||
-      created >= expires
-    ) {
+    const created = parseVerificationInstant(exemption.createdAt);
+    const expires = parseVerificationInstant(exemption.expiresAt);
+    if (created === undefined || expires === undefined || created >= expires) {
       issues.push(
         customIssue(
           kind,

@@ -4,6 +4,7 @@ import { createProjectSlice } from './editorStore.projectSlice';
 import { createRouteSlice } from './editorStore.routeSlice';
 import { createWorkspaceSlice } from './editorStore.workspaceSlice';
 import { createWorkspaceSyncSlice } from './editorStore.workspaceSyncSlice';
+import { createVerificationSlice } from './editorStore.verificationSlice';
 import type { EditorStore } from './editorStore.shape';
 
 export {
@@ -23,4 +24,9 @@ export const useEditorStore = create<EditorStore>()((...args) => ({
   ...createRouteSlice(...args),
   ...createBlueprintSlice(...args),
   ...createProjectSlice(...args),
+  ...createVerificationSlice(...args),
 }));
+export type {
+  VerificationProjection,
+  VerificationSlice,
+} from './editorStore.verificationSlice';

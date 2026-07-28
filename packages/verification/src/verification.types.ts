@@ -2,6 +2,7 @@ import type {
   BehaviorControlProfileRef,
   BehaviorDocumentDigestRef,
 } from '@prodivix/behavior';
+import type { SourceSpan } from '@prodivix/diagnostics';
 
 export type VerificationCheckKind =
   | 'diagnostics'
@@ -157,27 +158,233 @@ export type VerificationBaselineSet = Readonly<{
 export type VerificationImpactSet = Readonly<{
   workspaceId: string;
   baseRevision?: number;
+  basePartitionRevisions?: VerificationPartitionRevisions;
   targetRevision: number;
+  targetPartitionRevisions: VerificationPartitionRevisions;
   semanticSchemaDigest: string;
   providerSetDigest: string;
   operationIds: readonly string[];
+  contributorIds: readonly string[];
   changedDocumentIds: readonly string[];
   changedSymbolIds: readonly string[];
+  changedSourceSpans: readonly SourceSpan[];
+  impactedSymbolIds: readonly string[];
   impactedScenarioIds: readonly string[];
   impactedDomains: readonly string[];
   frameworkTargets: readonly string[];
   runtimeZones: readonly string[];
   capabilityIds: readonly string[];
   riskFlags: readonly string[];
+  impactPaths: readonly VerificationImpactPath[];
   completeness: 'complete' | 'conservative' | 'unknown';
-  reasons: readonly string[];
+  reasons: readonly VerificationImpactReason[];
   impactDigest: string;
 }>;
+
+export type VerificationImpactCompleteness =
+  VerificationImpactSet['completeness'];
+
+export type VerificationImpactRelationship =
+  | 'changed'
+  | 'reference'
+  | 'dependency'
+  | 'capability'
+  | 'domain'
+  | 'conservative-expansion';
+
+export type VerificationImpactPath = Readonly<{
+  id: string;
+  relationship: VerificationImpactRelationship;
+  fromId: string;
+  toId: string;
+  nodes: readonly string[];
+  contributorId: string;
+}>;
+
+export type VerificationImpactReasonKind =
+  | 'document-change'
+  | 'symbol-change'
+  | 'reference'
+  | 'dependency'
+  | 'capability-change'
+  | 'target-change'
+  | 'schema-drift'
+  | 'provider-drift'
+  | 'missing-before'
+  | 'graph-budget-exceeded'
+  | 'contributor-incomplete'
+  | 'conservative-expansion';
+
+export type VerificationImpactReason = Readonly<{
+  id: string;
+  kind: VerificationImpactReasonKind;
+  message: string;
+  contributorId: string;
+  sourceId?: string;
+  targetId?: string;
+}>;
+
+export type VerificationImpactContribution = Readonly<{
+  contributorId: string;
+  completeness: VerificationImpactCompleteness;
+  changedDocumentIds?: readonly string[];
+  changedSymbolIds?: readonly string[];
+  changedSourceSpans?: readonly SourceSpan[];
+  impactedSymbolIds?: readonly string[];
+  impactedScenarioIds?: readonly string[];
+  impactedDomains?: readonly string[];
+  frameworkTargets?: readonly string[];
+  runtimeZones?: readonly string[];
+  capabilityIds?: readonly string[];
+  riskFlags?: readonly string[];
+  impactPaths?: readonly VerificationImpactPath[];
+  reasons?: readonly VerificationImpactReason[];
+}>;
+
+export type CreateVerificationImpactSetInput = Readonly<{
+  workspaceId: string;
+  baseRevision?: number;
+  basePartitionRevisions?: VerificationPartitionRevisions;
+  targetRevision: number;
+  targetPartitionRevisions: VerificationPartitionRevisions;
+  semanticSchemaDigest: string;
+  providerSetDigest: string;
+  operationIds: readonly string[];
+  contributions: readonly VerificationImpactContribution[];
+  conservativeScope?: Readonly<{
+    scenarioIds: readonly string[];
+    domains: readonly string[];
+    frameworkTargets: readonly string[];
+    runtimeZones: readonly string[];
+    capabilityIds: readonly string[];
+    riskFlags: readonly string[];
+  }>;
+}>;
+
+export type VerificationImpactSetResult =
+  | Readonly<{ status: 'ready'; impactSet: VerificationImpactSet }>
+  | Readonly<{
+      status: 'blocked';
+      reasonCode: 'VER-1001';
+      message: string;
+    }>;
 
 export type VerificationAdapterIdentity = Readonly<{
   adapterId: string;
   toolchainDigest: string;
   capabilityDigest: string;
+}>;
+
+export type VerificationMatrixAxis =
+  | 'frameworkTarget'
+  | 'surface'
+  | 'browserEngine'
+  | 'viewport'
+  | 'colorScheme'
+  | 'motion'
+  | 'locale';
+
+export type VerificationScenarioDescriptor = Readonly<{
+  id: string;
+  documentId: string;
+  criticality: 'smoke' | 'standard' | 'critical';
+  tags: readonly string[];
+  impactedDomains: readonly string[];
+  capabilityIds: readonly string[];
+  targetIds: readonly string[];
+  frameworkTargets: readonly string[];
+  controlProfileRef: BehaviorControlProfileRef;
+  fixtureSetRef?: BehaviorDocumentDigestRef;
+  baselineSetRef?: BehaviorDocumentDigestRef;
+}>;
+
+export type VerificationCheckCost = Readonly<{
+  durationMs: number;
+  artifactBytes: number;
+  computeUnits: number;
+}>;
+
+export type VerificationCheckDefinition = Readonly<{
+  id: string;
+  ownerId: string;
+  kind: VerificationCheckKind;
+  scenarioIds: readonly string[];
+  scenarioTags: readonly string[];
+  impactedDomains: readonly string[];
+  capabilityIds: readonly string[];
+  riskFlags: readonly string[];
+  targetIds: readonly string[];
+  frameworkTargets: readonly string[];
+  surfaces: readonly VerificationSurface[];
+  browserEngines: readonly VerificationBrowserEngine[];
+  matrixAxes: readonly VerificationMatrixAxis[];
+  adapterId: string;
+  dependencyCheckIds: readonly string[];
+  resources: readonly VerificationPlanResource[];
+  inputKinds: readonly VerificationInputKind[];
+  artifactKinds: readonly VerificationArtifactKind[];
+  estimatedCost: VerificationCheckCost;
+}>;
+
+export type VerificationAdapterRegistration = Readonly<{
+  descriptor: VerificationAdapterDescriptor;
+  identity: VerificationAdapterIdentity;
+}>;
+
+export type VerificationPolicyEvaluationFacts = Readonly<{
+  checkId: string;
+  checkKind: VerificationCheckKind;
+  scenarioId?: string;
+  scenarioTags: readonly string[];
+  criticality?: 'smoke' | 'standard' | 'critical';
+  impactedDomains: readonly string[];
+  riskFlags: readonly string[];
+  targetId: string;
+}>;
+
+export type VerificationPolicyEvaluationTrace = Readonly<{
+  matchedRuleIds: readonly string[];
+  winningRuleIds: readonly string[];
+  forbiddenRuleIds: readonly string[];
+  appliedExemptionIds: readonly string[];
+  specificity: number;
+  messages: readonly string[];
+}>;
+
+export type VerificationPolicyEvaluation = Readonly<{
+  requirement: VerificationPolicyRequirement;
+  matrixProfile?: VerificationMatrixProfile;
+  retryPolicy?: VerificationRetryPolicy;
+  evidenceRequirements: VerificationEvidenceRequirements;
+  controlProfileRef?: BehaviorControlProfileRef;
+  fixtureSetRef?: BehaviorDocumentDigestRef;
+  baselineSetRef?: BehaviorDocumentDigestRef;
+  trace: VerificationPolicyEvaluationTrace;
+}>;
+
+export type VerificationPolicyEvaluationResult =
+  | Readonly<{
+      status: 'resolved';
+      evaluation: VerificationPolicyEvaluation;
+    }>
+  | Readonly<{
+      status: 'invalid';
+      reasonCode: 'VER-2001' | 'VER-2002';
+      message: string;
+      conflictingRuleIds: readonly string[];
+    }>;
+
+export type VerificationPlanCellPreflight =
+  | Readonly<{ status: 'supported' }>
+  | Readonly<{
+      status: 'unsupported' | 'blocked' | 'not-applicable';
+      reasonCode: string;
+      message: string;
+    }>;
+
+export type VerificationPlanResource = Readonly<{
+  key: string;
+  mode: 'shared' | 'exclusive';
 }>;
 
 export type VerificationPlanCell = Readonly<{
@@ -198,13 +405,56 @@ export type VerificationPlanCell = Readonly<{
   baselineSetRef?: BehaviorDocumentDigestRef;
   adapter: VerificationAdapterIdentity;
   requirement: VerificationRequirement;
+  policyRuleIds: readonly string[];
+  appliedExemptionIds: readonly string[];
+  retryPolicy: VerificationRetryPolicy;
+  evidenceRequirements: VerificationEvidenceRequirements;
+  resources: readonly VerificationPlanResource[];
+  inputKinds: readonly VerificationInputKind[];
+  artifactKinds: readonly VerificationArtifactKind[];
+  estimatedCost: VerificationCheckCost;
+  preflight: VerificationPlanCellPreflight;
   dependencyCellIds: readonly string[];
   inputDigest: string;
 }>;
 
+export type VerificationPlanIssue = Readonly<{
+  code:
+    'VER-2001' | 'VER-2002' | 'VER-3001' | 'VER-3002' | 'VER-3003' | 'VER-3004';
+  message: string;
+  cellId?: string;
+  checkId?: string;
+  relatedIds: readonly string[];
+}>;
+
+export type VerificationPlanSelectionExplanation = Readonly<{
+  cellId?: string;
+  checkId: string;
+  scenarioId?: string;
+  targetId: string;
+  status: 'selected' | 'forbidden' | 'not-applicable' | 'trimmed-advisory';
+  impactPathIds: readonly string[];
+  policyRuleIds: readonly string[];
+  messages: readonly string[];
+}>;
+
+export type VerificationPlanBudgetSummary = Readonly<{
+  cells: number;
+  cellsByCheckKind: Readonly<Record<VerificationCheckKind, number>>;
+  targetExpansions: number;
+  browserExpansions: number;
+  totalMs: number;
+  artifactBytes: number;
+  estimatedComputeUnits: number;
+  maximumParallelism: number;
+  overBudgetDimensions: readonly string[];
+}>;
+
 export type VerificationPlan = Readonly<{
+  status: 'ready' | 'blocked';
   workspaceId: string;
   targetRevision: number;
+  targetPartitionRevisions: VerificationPartitionRevisions;
   scenarioRegistryDigest: string;
   policyRevision: number;
   policyDigest: string;
@@ -214,8 +464,90 @@ export type VerificationPlan = Readonly<{
   providerSetDigest: string;
   compilerDigest: string;
   plannerDigest: string;
+  adapterRegistryDigest: string;
   planDigest: string;
   cells: readonly VerificationPlanCell[];
+  issues: readonly VerificationPlanIssue[];
+  explanations: readonly VerificationPlanSelectionExplanation[];
+  budget: VerificationPlanBudgetSummary;
+}>;
+
+export type CreateVerificationPlanInput = Readonly<{
+  impactSet: VerificationImpactSet;
+  policy: VerificationPolicy;
+  policyRevision: number;
+  policyDigest: string;
+  policyEvaluationInstant: string;
+  scenarioRegistryDigest: string;
+  scenarios: readonly VerificationScenarioDescriptor[];
+  checks: readonly VerificationCheckDefinition[];
+  adapters: readonly VerificationAdapterRegistration[];
+  adapterRegistryDigest: string;
+  compilerDigest: string;
+  plannerDigest: string;
+}>;
+
+export type VerificationPlanResult =
+  | Readonly<{ status: 'ready'; plan: VerificationPlan }>
+  | Readonly<{ status: 'blocked'; plan: VerificationPlan }>;
+
+export type VerificationPlanExplanation = Readonly<{
+  schema: 'prodivix.verification-plan-explain.v1';
+  planDigest: string;
+  status: VerificationPlan['status'];
+  identity: Readonly<{
+    workspaceId: string;
+    targetRevision: number;
+    targetPartitionRevisions: VerificationPartitionRevisions;
+    impactDigest: string;
+    policyDigest: string;
+    policyRevision: number;
+    policyEvaluationInstant: string;
+    scenarioRegistryDigest: string;
+    semanticSchemaDigest: string;
+    providerSetDigest: string;
+    adapterRegistryDigest: string;
+    compilerDigest: string;
+    plannerDigest: string;
+  }>;
+  summary: Readonly<{
+    requiredCells: number;
+    advisoryCells: number;
+    blockedCells: number;
+    unsupportedCells: number;
+    selectedChecks: number;
+    selectedScenarios: number;
+  }>;
+  budget: VerificationPlanBudgetSummary;
+  issues: readonly VerificationPlanIssue[];
+  selections: readonly VerificationPlanSelectionExplanation[];
+  cells: readonly Readonly<{
+    id: string;
+    checkId: string;
+    checkKind: VerificationCheckKind;
+    scenarioId?: string;
+    targetId: string;
+    frameworkTarget: string;
+    surface: VerificationSurface;
+    browserEngine?: VerificationBrowserEngine;
+    viewportId: string;
+    colorScheme: VerificationColorScheme;
+    motion: VerificationMotion;
+    locale: string;
+    requirement: VerificationRequirement;
+    preflight: VerificationPlanCellPreflight;
+    policyRuleIds: readonly string[];
+    impactPathIds: readonly string[];
+    dependencyCellIds: readonly string[];
+    inputKinds: readonly VerificationInputKind[];
+    artifactKinds: readonly VerificationArtifactKind[];
+  }>[];
+  closure?: Readonly<{
+    closureDigest: string;
+    verdict: VerificationClosureVerdict;
+    cellStatuses: Readonly<Record<string, VerificationCellStatus>>;
+    issues: readonly VerificationClosureIssue[];
+  }>;
 }>;
 
 export type VerificationAttemptOutcome =
@@ -443,11 +775,16 @@ export type VerificationEvidence = Readonly<{
 export type VerificationClosure = Readonly<{
   workspaceId: string;
   targetRevision: number;
+  targetPartitionRevisions: VerificationPartitionRevisions;
   scenarioRegistryDigest: string;
   semanticSchemaDigest: string;
   providerSetDigest: string;
   adapterRegistryDigest: string;
+  impactDigest: string;
+  policyRevision: number;
   policyDigest: string;
+  compilerDigest: string;
+  plannerDigest: string;
   policyEvaluationInstant: string;
   planDigest: string;
   closureEvaluationInstant: string;
@@ -459,8 +796,42 @@ export type VerificationClosure = Readonly<{
   cellStatuses: Readonly<Record<string, VerificationCellStatus>>;
   evidenceDigests: readonly string[];
   appliedExemptionIds: readonly string[];
+  issues: readonly VerificationClosureIssue[];
   closureDigest: string;
 }>;
+
+export type VerificationClosureIssue = Readonly<{
+  cellId?: string;
+  status: VerificationCellStatus | 'closure-stale';
+  message: string;
+  evidenceIds: readonly string[];
+}>;
+
+export type EvaluateVerificationClosureInput = Readonly<{
+  plan: VerificationPlan;
+  evidence: readonly VerificationEvidence[];
+  closureEvaluationInstant: string;
+  targetRevision: number;
+  targetPartitionRevisions: VerificationPartitionRevisions;
+  scenarioRegistryDigest: string;
+  semanticSchemaDigest: string;
+  providerSetDigest: string;
+  adapterRegistryDigest: string;
+  impactDigest: string;
+  policyRevision: number;
+  policyDigest: string;
+  compilerDigest: string;
+  plannerDigest: string;
+  baselineSetDigests: readonly string[];
+  toolchainSetDigest: string;
+  revocationRecordDigest: string;
+  revokedEvidenceIds: readonly string[];
+  runningCellIds?: readonly string[];
+}>;
+
+export type VerificationClosureResult =
+  | Readonly<{ status: 'ready'; closure: VerificationClosure }>
+  | Readonly<{ status: 'invalid'; reasonCode: 'VER-6002'; message: string }>;
 
 export type VerificationDocumentKind =
   'verification-policy' | 'verification-baseline-set';

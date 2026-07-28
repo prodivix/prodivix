@@ -10,12 +10,14 @@ on:
       - 'apps/backend/internal/platform/behaviorcontract/**'
       - 'apps/backend/internal/platform/database/**'
       - 'apps/backend/internal/platform/verificationcontract/**'
+      - 'apps/cli/**'
       - 'apps/docs/reference/diagnostics/**'
       - 'apps/web/package.json'
       - 'apps/web/tsconfig.json'
       - 'apps/web/src/editor/features/development/reactflow/**'
       - 'apps/web/src/editor/features/execution/**'
       - 'apps/web/src/editor/features/resources/**'
+      - 'apps/web/src/editor/store/**'
       - 'apps/web/src/i18n/resources/**'
       - 'packages/authoring/**'
       - 'packages/animation/**'
@@ -54,12 +56,14 @@ on:
       - 'apps/backend/internal/platform/behaviorcontract/**'
       - 'apps/backend/internal/platform/database/**'
       - 'apps/backend/internal/platform/verificationcontract/**'
+      - 'apps/cli/**'
       - 'apps/docs/reference/diagnostics/**'
       - 'apps/web/package.json'
       - 'apps/web/tsconfig.json'
       - 'apps/web/src/editor/features/development/reactflow/**'
       - 'apps/web/src/editor/features/execution/**'
       - 'apps/web/src/editor/features/resources/**'
+      - 'apps/web/src/editor/store/**'
       - 'apps/web/src/i18n/resources/**'
       - 'packages/authoring/**'
       - 'packages/animation/**'
@@ -183,3 +187,22 @@ jobs:
         env:
           E2E_BROWSER_CHANNEL: chrome
         run: pnpm run verify:g3:deterministic-replay
+
+  verification-plan:
+    name: V4 semantic Impact, Policy, Plan, and explain parity Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify Impact, Policy, deterministic DAG, Closure, and Web/CLI parity
+        run: pnpm run verify:g3:verification-plan

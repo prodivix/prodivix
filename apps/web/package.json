@@ -68,6 +68,7 @@
     "@prodivix/themes": "workspace:*",
     "@prodivix/tokens": "workspace:*",
     "@prodivix/ui": "workspace:*",
+    "@prodivix/verification": "workspace:*",
     "@prodivix/workspace": "workspace:*",
     "@prodivix/workspace-sync": "workspace:*",
     "@react-three/fiber": "^9.6.1",

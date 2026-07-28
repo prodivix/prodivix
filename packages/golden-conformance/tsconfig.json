@@ -18,6 +18,7 @@
       "@prodivix/runtime-remote": ["../runtime-remote/src"],
       "@prodivix/shared": ["../shared/src"],
       "@prodivix/shared/*": ["../shared/src/*"],
+      "@prodivix/verification": ["../verification/src"],
       "@prodivix/workspace": ["../workspace/src"]
     }
   },
@@ -47,6 +48,9 @@
     },
     {
       "path": "../router"
+    },
+    {
+      "path": "../verification"
     },
     {
       "path": "../workspace"

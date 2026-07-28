@@ -1412,6 +1412,7 @@
       "data": "Data & APIs",
       "auth": "Auth & Server",
       "behavior": "Behavior",
+      "verification": "Verification",
       "public": "Public",
       "code": "Code files",
       "i18n": "i18n",
@@ -1656,6 +1657,59 @@
         "scenario-missing": "The selected Scenario is no longer available.",
         "invalid-mutation": "The requested Scenario change is invalid.",
         "recorder-unresolved": "Resolve or remove every selected recorder event before adoption."
+      }
+    },
+    "verification": {
+      "header": {
+        "badge": "Impact, policy, and plan",
+        "title": "Verification",
+        "description": "Inspect revision-bound semantic impact, author the canonical Policy, and explain the exact matrix/DAG shared by Web, CLI, and CI."
+      },
+      "projection": {
+        "missing": "No exact planner projection is loaded. Impact is conservatively expanded from the current Workspace; required cells are never inferred by this view.",
+        "stale": "The loaded projection belongs to an older Workspace revision. It is hidden until the planner rebuilds it."
+      },
+      "impact": {
+        "title": "Semantic ImpactSet",
+        "completenessHelp": "Incomplete providers broaden scope or block planning; they never narrow it.",
+        "documents": "Documents",
+        "scenarios": "Scenarios",
+        "domains": "Domains",
+        "paths": "Paths",
+        "explainPaths": "Show change to reference or capability paths"
+      },
+      "policy": {
+        "title": "Canonical Policy",
+        "name": "Policy name",
+        "stageRename": "Preview rename",
+        "rules": "Rules",
+        "matrixProfiles": "Matrix profiles",
+        "empty": "No valid verification-policy document is available.",
+        "preview": "Reversible Policy preview",
+        "apply": "Apply Workspace Command",
+        "cancel": "Cancel"
+      },
+      "plan": {
+        "title": "Deterministic VerificationPlan",
+        "statusHelp": "A blocked plan cannot execute; required cells are never silently trimmed.",
+        "budget": "Budget",
+        "check": "Check",
+        "scenario": "Scenario",
+        "matrix": "Named matrix",
+        "requirement": "Requirement",
+        "preflight": "Preflight",
+        "dependencies": "Dependencies",
+        "evidence": "Inputs / artifacts",
+        "decisions": "Forbidden, not-applicable, and budget decisions",
+        "why": "Why selected",
+        "empty": "No current Plan is loaded. The UI does not invent or locally filter required cells; load the canonical planner result."
+      },
+      "closure": {
+        "title": "Closure"
+      },
+      "feedback": {
+        "invalid": "The requested Policy mutation is invalid.",
+        "applied": "The canonical Workspace accepted the Verification Policy operation."
       }
     },
     "data": {

@@ -17,6 +17,21 @@ export {
   VERIFICATION_DIAGNOSTIC_REGISTRY,
 } from './verificationDiagnosticRegistry';
 export {
+  compareVerificationText,
+  digestVerificationValue,
+  parseVerificationInstant,
+  serializeVerificationValue,
+  uniqueVerificationText,
+} from './verificationCanonical';
+export { createVerificationImpactSet } from './verificationImpact';
+export { evaluateVerificationPolicy } from './verificationPolicyEvaluator';
+export { createVerificationPlan } from './verificationPlanner';
+export {
+  evaluateVerificationClosure,
+  isVerificationClosureForPlan,
+} from './verificationClosure';
+export { projectVerificationPlanExplanation } from './verificationExplanation';
+export {
   verificationBaselineSetWireSchema,
   verificationDocumentWireSchemas,
   verificationPolicyWireSchema,
@@ -37,6 +52,8 @@ export type {
   VerificationCellStatus,
   VerificationCheckKind,
   VerificationClosure,
+  VerificationClosureIssue,
+  VerificationClosureResult,
   VerificationClosureVerdict,
   VerificationColorScheme,
   VerificationDecodeIssue,
@@ -48,17 +65,36 @@ export type {
   VerificationEvidenceTrust,
   VerificationExemption,
   VerificationImpactSet,
+  VerificationImpactCompleteness,
+  VerificationImpactContribution,
+  VerificationImpactPath,
+  VerificationImpactReason,
+  VerificationImpactReasonKind,
+  VerificationImpactRelationship,
+  VerificationImpactSetResult,
   VerificationImplementationIdentity,
   VerificationInputKind,
   VerificationJsonValue,
   VerificationMatrix,
+  VerificationMatrixAxis,
   VerificationMatrixProfile,
   VerificationMotion,
   VerificationPartitionRevisions,
   VerificationPlan,
+  VerificationPlanBudgetSummary,
   VerificationPlanBudgets,
   VerificationPlanCell,
+  VerificationPlanCellPreflight,
+  VerificationPlanIssue,
+  VerificationPlanExplanation,
+  VerificationPlanResource,
+  VerificationPlanResult,
+  VerificationPlanSelectionExplanation,
   VerificationPolicy,
+  VerificationPolicyEvaluation,
+  VerificationPolicyEvaluationFacts,
+  VerificationPolicyEvaluationResult,
+  VerificationPolicyEvaluationTrace,
   VerificationPolicyRequirement,
   VerificationPolicyRule,
   VerificationRequirement,
@@ -70,5 +106,12 @@ export type {
   VerificationSurface,
   VerificationViewportAxis,
   VerificationWireDocument,
+  CreateVerificationImpactSetInput,
+  CreateVerificationPlanInput,
+  EvaluateVerificationClosureInput,
+  VerificationAdapterRegistration,
+  VerificationCheckCost,
+  VerificationCheckDefinition,
+  VerificationScenarioDescriptor,
 } from './verification.types';
 export type { VerificationDiagnosticCode } from './verificationDiagnosticRegistry';

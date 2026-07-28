@@ -1412,6 +1412,7 @@
       "data": "数据与 API",
       "auth": "认证与服务端",
       "behavior": "行为场景",
+      "verification": "验证",
       "public": "Public",
       "code": "代码文件",
       "i18n": "i18n",
@@ -1656,6 +1657,59 @@
         "scenario-missing": "所选场景已不存在。",
         "invalid-mutation": "该场景更改无效。",
         "recorder-unresolved": "采纳前必须解析或移除所有选中的录制事件。"
+      }
+    },
+    "verification": {
+      "header": {
+        "badge": "影响、策略与计划",
+        "title": "验证",
+        "description": "检查 revision-bound 语义影响、编辑 canonical Policy，并解释 Web、CLI 与 CI 共享的精确 matrix/DAG。"
+      },
+      "projection": {
+        "missing": "当前没有加载精确的 planner projection。页面仅从当前 Workspace 保守扩大 Impact；不会自行推断 required cell。",
+        "stale": "已加载的 projection 属于旧 Workspace revision；planner 重建前不会展示它。"
+      },
+      "impact": {
+        "title": "语义 ImpactSet",
+        "completenessHelp": "Provider 不完整时只能扩大范围或阻止规划，绝不能缩小范围。",
+        "documents": "文档",
+        "scenarios": "场景",
+        "domains": "领域",
+        "paths": "路径",
+        "explainPaths": "显示 change 到 reference 或 capability 的路径"
+      },
+      "policy": {
+        "title": "Canonical Policy",
+        "name": "策略名称",
+        "stageRename": "预览重命名",
+        "rules": "规则",
+        "matrixProfiles": "矩阵配置",
+        "empty": "当前没有有效的 verification-policy 文档。",
+        "preview": "可逆 Policy 预览",
+        "apply": "应用 Workspace Command",
+        "cancel": "取消"
+      },
+      "plan": {
+        "title": "确定性 VerificationPlan",
+        "statusHelp": "blocked Plan 不能执行；required cell 永远不会被静默裁剪。",
+        "budget": "预算",
+        "check": "检查",
+        "scenario": "场景",
+        "matrix": "具名矩阵",
+        "requirement": "要求",
+        "preflight": "预检",
+        "dependencies": "依赖",
+        "evidence": "输入 / 产物",
+        "decisions": "Forbidden、不适用与预算决策",
+        "why": "选择原因",
+        "empty": "当前没有加载 Plan。UI 不会自造或本地过滤 required cell；请加载 canonical planner 结果。"
+      },
+      "closure": {
+        "title": "闭包"
+      },
+      "feedback": {
+        "invalid": "请求的 Policy 变更无效。",
+        "applied": "Canonical Workspace 已接受该 Verification Policy operation。"
       }
     },
     "data": {

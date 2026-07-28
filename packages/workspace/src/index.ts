@@ -188,6 +188,8 @@ export {
   WORKSPACE_SEMANTIC_INDEX_ISSUE_CODES,
   createWorkspaceSemanticIndexFromSnapshot,
 } from './authoring/createWorkspaceSemanticIndexFromSnapshot';
+export { createWorkspaceVerificationImpactSet } from './verification/workspaceVerificationImpact';
+export { createWorkspaceVerificationPolicyMutationCommand } from './verification/workspaceVerificationPolicyAuthoring';
 export {
   WORKSPACE_BEHAVIOR_SEMANTIC_PROVIDER_DESCRIPTOR,
   createWorkspaceBehaviorSemanticContributionProvider,
@@ -507,6 +509,14 @@ export type {
   WorkspaceSemanticIndexIssue,
   WorkspaceSemanticIndexIssueCode,
 } from './authoring/createWorkspaceSemanticIndexFromSnapshot';
+export type {
+  CreateWorkspaceVerificationImpactInput,
+  WorkspaceVerificationImpactResult,
+} from './verification/workspaceVerificationImpact';
+export type {
+  CreateWorkspaceVerificationPolicyMutationCommandInput,
+  WorkspaceVerificationPolicyMutation,
+} from './verification/workspaceVerificationPolicyAuthoring';
 export type {
   CreateWorkspaceBehaviorSemanticContributionProviderInput,
   WorkspaceBehaviorSemanticDocumentInput,

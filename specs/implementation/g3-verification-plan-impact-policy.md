@@ -3,11 +3,11 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：G3 In Progress / V4 Ready
+- ImplementationStatus：Implemented
+- ProductGateStatus：V4 Local Gate Passed / CI Evidence Pending
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-20
-- Owner：`@prodivix/verification`、`@prodivix/authoring`、`@prodivix/workspace`、`apps/web`
+- 日期：2026-07-28
+- Owner：`@prodivix/verification`、`@prodivix/authoring`、`@prodivix/workspace`、`apps/web`、`apps/cli`
 - 关联：
   - `specs/decisions/57.verification-plan-impact-and-policy.md`
   - `specs/decisions/62.verification-adapter-matrix-and-cross-target-closure.md`
@@ -115,7 +115,6 @@ namespace/domain：`core.verification`。初始 Command：
 - `core.verification.rename-policy`
 - `core.verification.add-rule`
 - `core.verification.update-rule`
-- `core.verification.move-rule`
 - `core.verification.remove-rule`
 - `core.verification.set-matrix-profile`
 - `core.verification.set-budgets`
@@ -123,6 +122,9 @@ namespace/domain：`core.verification`。初始 Command：
 - `core.verification.add-exemption`
 - `core.verification.revoke-exemption`
 - `core.verification.replace-policy`
+
+Policy rule 数组按 stable id canonicalize；rule precedence 只由 selector specificity 与 forbidden hard cut
+决定，不读取数组位置。因此不存在 `move-rule` 作者态语义，展示层如需重排只能保存本地视图偏好。
 
 Exemption 是显式、可审计的 authoring decision，必须包含 stable id、scope、reason、creator、createdAt、expiresAt、
 允许降低的 requirement 和关联 issue/ref。过期 exemption 不能应用；修改 scope 或 expiry 创建新 revision。G3
@@ -291,7 +293,22 @@ UI 只能请求 planner 生成/刷新 Plan，不得在客户端过滤 required c
 
 ## 验证证据
 
-计划 Gate：`pnpm run verify:g3:verification-plan`。
+本地 Gate：`pnpm run verify:g3:verification-plan`。
+
+2026-07-28 的本地可重复运行已通过：
+
+- `@prodivix/verification`：3 个测试文件、28 个测试，覆盖 Impact、Policy、Plan、Closure 与
+  contributor/forbidden precedence property；
+- `@prodivix/workspace`：46 个测试文件、194 个测试，覆盖 before/after Semantic Index、
+  transitive impact path、provider drift/conservative expansion 与可逆 Policy Command；
+- V4 Golden：6 个隔离域变更 case 与六域组合变更共 11 个 conformance tests；组合 Plan 有
+  24 个 ready cell，固定 digest
+  `sha256-99a7139cd204c124c94b5ff36b74d7a62d0596feb70ff34177bdaf863db0fcd8`；
+- CLI `plan` / `explain` 与共享 canonical projector byte-identical；Web resource surface 使用同一
+  explanation contract；7 个定向测试覆盖 revision/identity drift、Policy Command 与 expected
+  input/artifact 呈现；
+- core/G3 package boundary Gate 通过。GitHub workflow 已配置独立 V4 Job，但 durable CI identity
+  需在提交推送后取得。
 
 必须覆盖：
 
@@ -314,8 +331,8 @@ UI 只能请求 planner 生成/刷新 Plan，不得在客户端过滤 required c
 
 ## 验收标准
 
-- [ ] ImpactSet 对 exact revision 可重建、可解释，并在不完整时保守扩大。
-- [ ] Policy 仅由 Workspace Command 修改，规则、预算、retry 和 exemption 有稳定语义。
-- [ ] Plan 对完整输入 byte-stable，required matrix 不被 UI/CI/adapter 隐式改变。
-- [ ] blocked/unsupported/not-applicable/missing/unstable 不混用，且不产生 `skipped`。
-- [ ] Closure 只接受满足 trust、freshness、compatibility 的 Evidence，并可确定性重算。
+- [x] ImpactSet 对 exact revision 可重建、可解释，并在不完整时保守扩大。
+- [x] Policy 仅由 Workspace Command 修改，规则、预算、retry 和 exemption 有稳定语义。
+- [x] Plan 对完整输入 byte-stable，required matrix 不被 UI/CI/adapter 隐式改变。
+- [x] blocked/unsupported/not-applicable/missing/unstable 不混用，且不产生 `skipped`。
+- [x] Closure 只接受满足 trust、freshness、compatibility 的 Evidence，并可确定性重算。
