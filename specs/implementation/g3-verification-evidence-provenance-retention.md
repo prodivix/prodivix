@@ -4,7 +4,7 @@
 
 - DecisionStatus：Accepted
 - ImplementationStatus：Implemented
-- ProductGateStatus：Configured / Evidence pending
+- ProductGateStatus：Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-20
 - Owner：`@prodivix/verification`、`apps/backend` Evidence service、artifact store、`@prodivix/diagnostics`、`apps/web`
@@ -336,8 +336,10 @@ provider 名、工具命令堆在主列表。危险 artifact 只下载，不内�
 
 ### E4：Security/recovery Golden
 
-状态：Implemented；本地真实 PostgreSQL 与 deterministic CI-attested fixture 已通过，durable GitHub Evidence
-仍待当前改动提交后运行。
+状态：Implemented；本地真实 PostgreSQL 与 deterministic CI-attested fixture 已通过，commit
+[`f3d91b9d`](https://github.com/prodivix/prodivix/commit/f3d91b9dfc786b167fa5df825cd45116441c725c)
+的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
+也已通过并形成 durable evidence。
 
 - Secret/PII/active artifact/bomb/path traversal canary；
 - upload interruption、Backend restart、duplicate finalize、store outage；

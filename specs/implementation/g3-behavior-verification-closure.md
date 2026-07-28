@@ -225,8 +225,8 @@ blocked，不降级为 skipped。
 
 ### V5：Evidence、provenance 与 retention
 
-状态：Implemented；2026-07-28 本地完整 Gate 与真实 PostgreSQL Gate 已通过，GitHub workflow 已配置，
-durable CI Evidence pending。详见 `g3-verification-evidence-provenance-retention.md`。
+状态：Implemented；2026-07-28 本地完整 Gate 与真实 PostgreSQL Gate 已通过，commit `f3d91b9d`
+的 durable CI Gate 也已通过。详见 `g3-verification-evidence-provenance-retention.md`。
 
 交付 Backend Evidence store、artifact promotion、local/remote/CI/import trust、attestation verification、comparison、
 supersession、retention/tombstone 与 Closure evaluator。
@@ -300,7 +300,8 @@ loading/empty/error/retry/pagination、optimistic mutation/conflict、NodeGraph 
 ## 计划中的 Gate
 
 以下命令名是 G3 实施时必须建立的稳定入口；前三个已由 commit `90fcf961` 的 GitHub CI取得 durable
-`Passed` evidence，第四个已由 commit `3def9168` 的 GitHub CI取得 durable `Passed` evidence：
+`Passed` evidence，第四至第六个分别由 commit `3def9168`、`a6aa0bf9`、`f3d91b9d` 的 GitHub CI
+取得 durable `Passed` evidence：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

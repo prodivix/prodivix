@@ -30,19 +30,22 @@ commit [`a6aa0bf9`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d6659
 的 [V4 CI Job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)
 也已通过并形成 durable evidence。V5 Evidence plane 已于 2026-07-28 完成实现；本地
 `pnpm run verify:g3:evidence`、真实 PostgreSQL、security/attestation/recovery 与 V4 regression Gate
-均通过，GitHub workflow 已配置但尚无当前改动的 durable CI identity。V6-V8 尚未完成。
+均通过，commit
+[`f3d91b9d`](https://github.com/prodivix/prodivix/commit/f3d91b9dfc786b167fa5df825cd45116441c725c)
+的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
+也已通过并形成 durable evidence。V6-V8 尚未完成。
 
-| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                                    |
-| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地与 CI Gate 通过，commit `90fcf961`                                                      |
-| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地与 CI authoring/compiler、React/Vue browser Golden 通过，commit `90fcf961`              |
-| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961`        |
-| V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                                      |
-| V4 Impact/Policy/Plan      | Implemented | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | 本地与 CI byte-stable plan、required hard-cut、Web/CLI explain Gate 通过，commit `a6aa0bf9` |
-| V5 Evidence plane          | Implemented | promotion、artifact、provenance/trust、retention、Closure                                       | 本地 PostgreSQL/object store/security/attestation/recovery Gate 通过；durable CI pending    |
-| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                                    |
-| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                           |
-| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                        |
+| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                                     |
+| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地与 CI Gate 通过，commit `90fcf961`                                                       |
+| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地与 CI authoring/compiler、React/Vue browser Golden 通过，commit `90fcf961`               |
+| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961`         |
+| V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                                       |
+| V4 Impact/Policy/Plan      | Implemented | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | 本地与 CI byte-stable plan、required hard-cut、Web/CLI explain Gate 通过，commit `a6aa0bf9`  |
+| V5 Evidence plane          | Implemented | promotion、artifact、provenance/trust、retention、Closure                                       | 本地与 CI PostgreSQL/object store/security/attestation/recovery Gate 通过，commit `f3d91b9d` |
+| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                                     |
+| V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                            |
+| V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                         |
 
 ## V0：Owner 与 contract hard cut
 
@@ -288,6 +291,8 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 [V3 CI Job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)
 取得 durable Passed evidence；第五个入口已由 commit `a6aa0bf9` 的
 [V4 CI Job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)
+取得 durable Passed evidence；第六个入口已由 commit `f3d91b9d` 的
+[V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
 取得 durable Passed evidence；其余入口随对应 milestone 建立：
 
 - `pnpm run verify:g3:boundaries`
