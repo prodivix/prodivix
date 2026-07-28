@@ -1,6 +1,13 @@
 import {
+  compileNodeGraphProgram,
+  createFirstPartyNodeGraphDescriptorRegistry,
+  createNodeGraphDebugController,
   createNodeGraphExecutionInvocationInput,
   createNodeGraphExecutionProvider,
+  createNodeGraphProgramDebugExecutor,
+  type NodeGraphDebugCommand,
+  type NodeGraphDebugCommandResult,
+  type NodeGraphDebugSnapshot,
   type NodeGraphDocument,
 } from '@prodivix/nodegraph';
 import {
@@ -12,6 +19,7 @@ import {
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
 import { executionSessionCoordinator } from './executionSessionEnvironment';
+import { nodeGraphDebugSessionEnvironment } from './nodeGraphDebugSession';
 import {
   createClientExecutionRequestId,
   createWorkspaceExecutionSnapshotRef,
@@ -34,6 +42,11 @@ export type WorkspaceNodeGraphExecution = Readonly<{
   job: ExecutionJob;
 }>;
 
+export type WorkspaceNodeGraphDebugExecution = Readonly<{
+  sessionId: string;
+  snapshot: NodeGraphDebugSnapshot;
+}>;
+
 const documentsByRequestId = new Map<string, NodeGraphDocument>();
 
 const provider = createNodeGraphExecutionProvider({
@@ -47,6 +60,61 @@ const provider = createNodeGraphExecutionProvider({
     return document;
   },
 });
+
+const createDebugController = (
+  documentId: string,
+  documentRevision: number,
+  requestId: string,
+  graph: NodeGraphDocument
+) => {
+  const descriptors = createFirstPartyNodeGraphDescriptorRegistry();
+  const availableCapabilities = ['observation:wait'];
+  const compiled = compileNodeGraphProgram({
+    documentId,
+    documentRevision,
+    graph,
+    registry: descriptors,
+    runtimeZone: 'client',
+    availableCapabilities,
+  });
+  if (!compiled.ok) {
+    throw new Error(
+      `NodeGraph debug Program is blocked: ${compiled.issues[0]?.message ?? 'unknown planning issue'}`
+    );
+  }
+  const controller = createNodeGraphDebugController({
+    program: compiled.program,
+    jobId: `nodegraph-debug:${requestId}`,
+    attemptId: `nodegraph-debug-attempt:${requestId}`,
+    leaseId: `nodegraph-debug-lease:${requestId}`,
+    executor: createNodeGraphProgramDebugExecutor({
+      program: compiled.program,
+      grantedCapabilities: availableCapabilities,
+    }),
+  });
+  if (!controller.ok) {
+    throw new Error(controller.issue.safeMessage);
+  }
+  return controller.controller;
+};
+
+const cancelNodeGraphDebugSession = async (
+  sessionId: string
+): Promise<void> => {
+  const debug = nodeGraphDebugSessionEnvironment.getSnapshot(sessionId);
+  if (debug && (debug.status === 'paused' || debug.status === 'running')) {
+    try {
+      await nodeGraphDebugSessionEnvironment.command(sessionId, {
+        ...debug.identity,
+        expectedCommandSequence: debug.commandSequence + 1,
+        kind: 'cancel',
+      });
+    } catch {
+      // Replacing the local debug projection must still dispose stale state.
+    }
+  }
+  nodeGraphDebugSessionEnvironment.dispose(sessionId);
+};
 
 export const getWorkspaceNodeGraphExecutionSessionId = (
   workspaceId: string,
@@ -74,6 +142,7 @@ export const startWorkspaceNodeGraphExecution = async (
   await executionSessionCoordinator.cancel(sessionId, {
     reason: 'Superseded by a newer NodeGraph execution.',
   });
+  await cancelNodeGraphDebugSession(sessionId);
   const request = createExecutionRequest({
     requestId,
     profile: 'preview',
@@ -117,16 +186,64 @@ export const startWorkspaceNodeGraphExecution = async (
     return Object.freeze({ sessionId, job });
   } catch (error) {
     documentsByRequestId.delete(requestId);
+    nodeGraphDebugSessionEnvironment.dispose(sessionId);
     throw error;
   }
 };
+
+export const startWorkspaceNodeGraphDebugExecution = async (
+  input: StartWorkspaceNodeGraphExecutionInput
+): Promise<WorkspaceNodeGraphDebugExecution> => {
+  const read = selectWorkspaceNodeGraphDocument(
+    input.workspace,
+    input.documentId
+  );
+  if (!read || read.status !== 'valid') {
+    throw new Error(
+      `NodeGraph document ${input.documentId} is unavailable or invalid.`
+    );
+  }
+  const sessionId = getWorkspaceNodeGraphExecutionSessionId(
+    input.workspace.id,
+    input.documentId
+  );
+  await executionSessionCoordinator.cancel(sessionId, {
+    reason: 'Superseded by a fresh NodeGraph debug attempt.',
+  });
+  await cancelNodeGraphDebugSession(sessionId);
+  const requestId = createClientExecutionRequestId('nodegraph-debug');
+  const controller = createDebugController(
+    input.documentId,
+    input.workspace.workspaceRev,
+    requestId,
+    read.decodedContent
+  );
+  nodeGraphDebugSessionEnvironment.activate(sessionId, controller);
+  return Object.freeze({
+    sessionId,
+    snapshot: controller.snapshot(),
+  });
+};
+
+export const commandWorkspaceNodeGraphDebug = (
+  workspaceId: string,
+  documentId: string,
+  command: NodeGraphDebugCommand
+): Promise<NodeGraphDebugCommandResult> =>
+  nodeGraphDebugSessionEnvironment.command(
+    getWorkspaceNodeGraphExecutionSessionId(workspaceId, documentId),
+    command
+  );
 
 export const stopWorkspaceNodeGraphExecution = (
   workspaceId: string,
   documentId: string,
   reason = 'NodeGraph execution stopped by the user.'
-) =>
-  executionSessionCoordinator.cancel(
-    getWorkspaceNodeGraphExecutionSessionId(workspaceId, documentId),
-    { reason }
+) => {
+  const sessionId = getWorkspaceNodeGraphExecutionSessionId(
+    workspaceId,
+    documentId
   );
+  void cancelNodeGraphDebugSession(sessionId);
+  return executionSessionCoordinator.cancel(sessionId, { reason });
+};

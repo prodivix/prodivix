@@ -12,6 +12,7 @@ export * from './executionSourceTraceModel';
 export * from './executionTerminalKeyboard';
 export * from './executionSessionEnvironment';
 export * from './nodeGraphExecutionClient';
+export * from './useNodeGraphDebugSession';
 export * from './remoteExecutionHttpPort';
 export * from './remoteDataGatewayRunCoordinator';
 export * from './remoteDataStreamGatewayClient';

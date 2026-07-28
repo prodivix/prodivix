@@ -405,3 +405,61 @@ export type {
   ExecutionWorkspaceSnapshotRef,
   RuntimeZone,
 } from './execution.types';
+export {
+  createDeterministicAttemptFence,
+  createDeterministicScheduler,
+} from './deterministicScheduler';
+export type {
+  CreateDeterministicSchedulerInput,
+  DeterministicAttemptFence,
+  DeterministicConditionWaitResult,
+  DeterministicObservationSource,
+  DeterministicScheduler,
+  DeterministicSchedulerClockPort,
+  DeterministicSchedulerEvent,
+  DeterministicSchedulerSnapshot,
+  DeterministicSchedulerTask,
+  DeterministicSchedulerTaskResult,
+} from './deterministicScheduler';
+export {
+  DETERMINISTIC_RANDOM_ALGORITHM,
+  DETERMINISTIC_RUNTIME_CONTROL_IDS,
+  createDeterministicRuntimeCapabilitySnapshot,
+  createDeterministicRuntimeControlPlan,
+  digestDeterministicRuntimeValue,
+  preflightDeterministicRuntimeControls,
+} from './deterministicRuntimeControl';
+export {
+  createDeterministicRuntimeProvider,
+  createCiDeterministicRuntimeProvider,
+  createExportDeterministicRuntimeProvider,
+} from './deterministicRuntimeProvider';
+export type {
+  CreateDeterministicRuntimeProviderInput,
+  CreateControlledSurfaceRuntimeProviderInput,
+  DeterministicClockPort,
+  DeterministicFixtureNetworkEvent,
+  DeterministicFixtureNetworkPort,
+  DeterministicFixtureNetworkResult,
+  DeterministicFixtureRequest,
+  DeterministicIdentifierPort,
+  DeterministicIsolationCanary,
+  DeterministicIsolationResidual,
+  DeterministicRandomPort,
+  DeterministicRandomStream,
+  DeterministicRuntimeAppliedControls,
+  DeterministicRuntimeAttemptStartResult,
+  DeterministicRuntimeCapabilitySnapshot,
+  DeterministicRuntimeControlDeclaration,
+  DeterministicRuntimeControlId,
+  DeterministicRuntimeControlPlan,
+  DeterministicRuntimeControlPlanInput,
+  DeterministicRuntimeControlStatus,
+  DeterministicRuntimeFixture,
+  DeterministicRuntimePlanCell,
+  DeterministicRuntimePreflightIssue,
+  DeterministicRuntimePreflightResult,
+  DeterministicRuntimeProvider,
+  DeterministicRuntimeProviderHooks,
+  DeterministicRuntimeSession,
+} from './deterministicRuntimeControl';

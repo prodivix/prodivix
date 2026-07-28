@@ -4,7 +4,7 @@
 
 - DecisionStatus：Accepted
 - ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ProductGateStatus：G3 In Progress / V4 Ready
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-20
 - Owner：`@prodivix/verification`、`@prodivix/authoring`、`@prodivix/workspace`、`apps/web`

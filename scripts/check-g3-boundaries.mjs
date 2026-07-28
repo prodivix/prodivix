@@ -30,7 +30,11 @@ const issues = [];
 const expectedDependencies = new Map([
   [
     '@prodivix/behavior',
-    new Set(['@prodivix/diagnostics', '@prodivix/shared']),
+    new Set([
+      '@prodivix/diagnostics',
+      '@prodivix/runtime-core',
+      '@prodivix/shared',
+    ]),
   ],
   [
     '@prodivix/verification',
@@ -166,6 +170,7 @@ const ownerImportRules = new Map([
     'behavior',
     new Set([
       '@prodivix/diagnostics',
+      '@prodivix/runtime-core',
       '@prodivix/shared/canonical',
       '@prodivix/shared/safety',
     ]),

@@ -13,6 +13,8 @@ on:
       - 'apps/docs/reference/diagnostics/**'
       - 'apps/web/package.json'
       - 'apps/web/tsconfig.json'
+      - 'apps/web/src/editor/features/development/reactflow/**'
+      - 'apps/web/src/editor/features/execution/**'
       - 'apps/web/src/editor/features/resources/**'
       - 'apps/web/src/i18n/resources/**'
       - 'packages/authoring/**'
@@ -25,7 +27,10 @@ on:
       - 'packages/pir/**'
       - 'packages/prodivix-compiler/**'
       - 'packages/router/**'
+      - 'packages/runtime-browser/**'
       - 'packages/runtime-core/**'
+      - 'packages/runtime-remote/**'
+      - 'packages/runtime-vitest/**'
       - 'packages/shared/**'
       - 'packages/verification/**'
       - 'packages/workspace/**'
@@ -52,6 +57,8 @@ on:
       - 'apps/docs/reference/diagnostics/**'
       - 'apps/web/package.json'
       - 'apps/web/tsconfig.json'
+      - 'apps/web/src/editor/features/development/reactflow/**'
+      - 'apps/web/src/editor/features/execution/**'
       - 'apps/web/src/editor/features/resources/**'
       - 'apps/web/src/i18n/resources/**'
       - 'packages/authoring/**'
@@ -64,7 +71,10 @@ on:
       - 'packages/pir/**'
       - 'packages/prodivix-compiler/**'
       - 'packages/router/**'
+      - 'packages/runtime-browser/**'
       - 'packages/runtime-core/**'
+      - 'packages/runtime-remote/**'
+      - 'packages/runtime-vitest/**'
       - 'packages/shared/**'
       - 'packages/verification/**'
       - 'packages/workspace/**'
@@ -152,3 +162,24 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify owner-backed Route, NodeGraph, and Animation composition
         run: pnpm run verify:g3:behavior-composition
+
+  deterministic-replay:
+    name: V3 deterministic replay and provider conformance Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify controls, isolation, ReplayRecord, and React/Vue replay
+        env:
+          E2E_BROWSER_CHANNEL: chrome
+        run: pnpm run verify:g3:deterministic-replay

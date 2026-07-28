@@ -37,6 +37,7 @@ export type NodeGraphRuntimeInspectorModel = Readonly<{
   canContinue: boolean;
   canStep: boolean;
   canCancel: boolean;
+  canFreshReplay: boolean;
 }>;
 
 const boundedText = (value: NodeGraphProgramValue): string => {
@@ -131,6 +132,11 @@ export const createNodeGraphRuntimeInspectorModel = (
     canContinue: debugStatus === 'paused',
     canStep: debugStatus === 'paused',
     canCancel: active,
+    canFreshReplay:
+      debugStatus === 'paused' ||
+      debugStatus === 'completed' ||
+      debugStatus === 'cancelled' ||
+      debugStatus === 'failed',
   });
 };
 

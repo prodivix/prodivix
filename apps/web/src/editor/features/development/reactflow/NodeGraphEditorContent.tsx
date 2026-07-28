@@ -23,10 +23,13 @@ import {
 import { openWorkspaceCodeSlotDefinition } from '@/editor/features/code';
 import {
   ExecutionCenter,
+  commandWorkspaceNodeGraphDebug,
   getWorkspaceNodeGraphExecutionSessionId,
+  startWorkspaceNodeGraphDebugExecution,
   startWorkspaceNodeGraphExecution,
   stopWorkspaceNodeGraphExecution,
   useExecutionSession,
+  useNodeGraphDebugSession,
   useWorkspaceExecutionSourceNavigation,
 } from '@/editor/features/execution';
 import { useWorkspaceSemanticNavigationStore } from '@/editor/navigation';
@@ -84,6 +87,7 @@ const ACTIVE_EXECUTION_STATUSES = new Set([
   'running',
   'cancelling',
 ]);
+const ACTIVE_DEBUG_STATUSES = new Set(['paused', 'running']);
 
 type WorkspaceCommandFactory = (
   workspace: WorkspaceSnapshot
@@ -129,9 +133,14 @@ export const NodeGraphEditorContent = () => {
   const executionSession = useExecutionSession(
     executionSessionId ?? 'nodegraph:unavailable'
   );
-  const isExecuting = Boolean(
-    executionSession && ACTIVE_EXECUTION_STATUSES.has(executionSession.status)
+  const debugSession = useNodeGraphDebugSession(
+    executionSessionId ?? 'nodegraph:unavailable'
   );
+  const isExecuting =
+    Boolean(
+      executionSession && ACTIVE_EXECUTION_STATUSES.has(executionSession.status)
+    ) ||
+    Boolean(debugSession && ACTIVE_DEBUG_STATUSES.has(debugSession.status));
   const codeArtifacts = useMemo(
     () =>
       workspace
@@ -369,7 +378,7 @@ export const NodeGraphEditorContent = () => {
     t,
   });
 
-  const runActiveGraph = useCallback(async () => {
+  const prepareActiveGraph = useCallback(async () => {
     if (!activeGraphId) return;
     const canvasDocument = toCanonicalNodeGraphDocument(nodes, edges);
     await persistCanvas(nodes, edges);
@@ -386,9 +395,18 @@ export const NodeGraphEditorContent = () => {
       serializeDocument(currentRead.decodedContent) !==
         serializeDocument(canvasDocument)
     ) {
-      setHint('Save the current NodeGraph revision before running it.');
+      setHint(
+        'Save the current NodeGraph revision before running or debugging it.'
+      );
       return;
     }
+    return currentWorkspace;
+  }, [activeGraphId, edges, nodes, persistCanvas]);
+
+  const runActiveGraph = useCallback(async () => {
+    if (!activeGraphId) return;
+    const currentWorkspace = await prepareActiveGraph();
+    if (!currentWorkspace) return;
     try {
       await startWorkspaceNodeGraphExecution({
         workspace: currentWorkspace,
@@ -397,7 +415,21 @@ export const NodeGraphEditorContent = () => {
     } catch (error) {
       setHint(error instanceof Error ? error.message : String(error));
     }
-  }, [activeGraphId, edges, nodes, persistCanvas]);
+  }, [activeGraphId, prepareActiveGraph]);
+
+  const debugActiveGraph = useCallback(async () => {
+    if (!activeGraphId) return;
+    const currentWorkspace = await prepareActiveGraph();
+    if (!currentWorkspace) return;
+    try {
+      await startWorkspaceNodeGraphDebugExecution({
+        workspace: currentWorkspace,
+        documentId: activeGraphId,
+      });
+    } catch (error) {
+      setHint(error instanceof Error ? error.message : String(error));
+    }
+  }, [activeGraphId, prepareActiveGraph]);
 
   const stopActiveGraph = useCallback(() => {
     if (!workspaceId || !activeGraphId) return;
@@ -717,6 +749,7 @@ export const NodeGraphEditorContent = () => {
           onDeleteGraph={deleteGraph}
           onDuplicateGraph={duplicateGraph}
           onRenameGraph={renameActiveGraph}
+          onDebugGraph={() => void debugActiveGraph()}
           onRunGraph={() => void runActiveGraph()}
           onStopGraph={stopActiveGraph}
           onSwitchGraph={switchGraph}
@@ -746,11 +779,23 @@ export const NodeGraphEditorContent = () => {
           onMenuItemEnter={onMenuItemEnter}
         />
       </div>
-      {executionSession ? (
+      {executionSession || debugSession ? (
         <NodeGraphRuntimeInspector
           session={executionSession}
-          snapshotId={executionSession.activeJob?.workspace.snapshotId}
+          debug={debugSession}
+          snapshotId={executionSession?.activeJob?.workspace.snapshotId}
+          onCommand={(command) => {
+            if (!workspaceId || !activeGraphId) {
+              throw new Error('NodeGraph debug target is unavailable.');
+            }
+            return commandWorkspaceNodeGraphDebug(
+              workspaceId,
+              activeGraphId,
+              command
+            );
+          }}
           onCancel={stopActiveGraph}
+          onFreshReplay={() => void debugActiveGraph()}
           onOpenSourceTrace={sourceNavigation.openSourceTrace}
         />
       ) : null}

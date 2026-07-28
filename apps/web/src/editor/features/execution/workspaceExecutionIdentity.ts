@@ -1,4 +1,5 @@
 import type { ExecutionWorkspaceSnapshotRef } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 
 export const createClientExecutionRequestId = (prefix: string): string =>
@@ -12,7 +13,7 @@ export const createWorkspaceExecutionSnapshotId = (
   workspace: WorkspaceSnapshot
 ): string => {
   const documentRevisions = Object.values(workspace.docsById)
-    .sort((left, right) => left.id.localeCompare(right.id))
+    .sort((left, right) => compareUnicodeCodePoints(left.id, right.id))
     .map(
       (document) =>
         `${encodeURIComponent(document.id)}@${document.contentRev}.${document.metaRev}`

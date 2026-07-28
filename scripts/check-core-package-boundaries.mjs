@@ -30,7 +30,14 @@ const corePackages = {
     '@prodivix/shared',
   ]),
   diagnostics: new Set(['@prodivix/shared']),
-  behavior: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
+  // Behavior owns deterministic replay orchestration while runtime-core owns
+  // the transport-neutral scheduler/control primitives. The reverse edge stays
+  // forbidden by runtime-core's leaf dependency set below.
+  behavior: new Set([
+    '@prodivix/diagnostics',
+    '@prodivix/runtime-core',
+    '@prodivix/shared',
+  ]),
   verification: new Set([
     '@prodivix/behavior',
     '@prodivix/diagnostics',

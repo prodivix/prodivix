@@ -11,22 +11,28 @@ import {
 } from '@prodivix/animation';
 import {
   createAnimationCompositionSymbolId,
+  createDataOperationSymbolId,
   createNodeGraphSymbolId,
   createRouteSymbolId,
 } from '@prodivix/authoring';
 import {
+  BEHAVIOR_DETERMINISTIC_CONTROL_PRESET,
   BEHAVIOR_CORE_REGISTRY_CONTRIBUTION,
   compileBehaviorScenario,
   createBehaviorRegistry,
   createBehaviorRuntimeCapabilityRegistry,
+  digestBehaviorControlProfile,
   digestBehaviorValue,
   executeBehaviorScenarioProgram,
+  type BehaviorControlProfile,
+  type BehaviorRuntimeCapabilityRegistry,
   type BehaviorRuntimeInvocation,
   type BehaviorRuntimeResult,
   type BehaviorScenario,
   type BehaviorScenarioProgram,
 } from '@prodivix/behavior';
 import {
+  DATA_BEHAVIOR_REGISTRY_CONTRIBUTION,
   DATA_OPTIMISTIC_RUNTIME_ERROR_CODES,
   DataOptimisticRuntimeError,
   createDataOperationInvocation,
@@ -85,8 +91,15 @@ export const GOLDEN_G3_COMPOSITION_IDS = Object.freeze({
   marker: 'detail-content-ready',
 });
 
-const CONTROL_PROFILE_DIGEST =
-  'sha256-5cf86a394f515213ad4ecebe8b7af52179794c1d3bce17c92f16618f0493f7f4';
+export const GOLDEN_G3_REPLAY_CONTROL_PROFILE: BehaviorControlProfile =
+  Object.freeze({
+    ...BEHAVIOR_DETERMINISTIC_CONTROL_PRESET,
+    id: 'deterministic-composition',
+    name: 'Golden deterministic composition',
+  });
+const CONTROL_PROFILE_DIGEST = digestBehaviorControlProfile(
+  GOLDEN_G3_REPLAY_CONTROL_PROFILE
+);
 const COMPILER_DIGEST =
   'sha256-7eb9337be4cc1f42ab7c333138b2248e10ac6b639c52bb693f9a49337a8b17de';
 
@@ -423,6 +436,16 @@ const routeLocationTarget = Object.freeze({
   ...routeNavigateTarget,
   capability: 'behavior:route:location',
 });
+const conflictRetryTarget = Object.freeze({
+  kind: 'semantic-symbol' as const,
+  id: createDataOperationSymbolId(
+    GOLDEN_G2_VUE_CATALOG_IDS.workspace,
+    GOLDEN_G2_VUE_CATALOG_IDS.data,
+    'update-product'
+  ),
+  workspaceDocumentId: GOLDEN_G2_VUE_CATALOG_IDS.data,
+  capability: 'behavior:data:dispatch',
+});
 const graphInvokeTarget = Object.freeze({
   kind: 'semantic-symbol' as const,
   id: createNodeGraphSymbolId(
@@ -476,6 +499,20 @@ export const GOLDEN_G3_COMPOSITION_SCENARIO: BehaviorScenario = Object.freeze({
         target: routeNavigateTarget,
         input: '/',
         capabilityId: 'route.navigate',
+        runtimeZone: 'test',
+        effect: 'write',
+        cancellation: 'cooperative',
+      }),
+    }),
+    Object.freeze({
+      id: 'catalog-conflict-retry',
+      kind: 'action',
+      failureMode: 'stop',
+      action: Object.freeze({
+        kind: 'dispatch-data-operation',
+        target: conflictRetryTarget,
+        input: Object.freeze({ productId: 'p3' }),
+        capabilityId: 'data.dispatch',
         runtimeZone: 'test',
         effect: 'write',
         cancellation: 'cooperative',
@@ -687,6 +724,7 @@ const compositionRegistry = () => {
   const result = createBehaviorRegistry([
     BEHAVIOR_CORE_REGISTRY_CONTRIBUTION,
     ROUTE_BEHAVIOR_REGISTRY_CONTRIBUTION,
+    DATA_BEHAVIOR_REGISTRY_CONTRIBUTION,
     NODEGRAPH_BEHAVIOR_REGISTRY_CONTRIBUTION,
     ANIMATION_BEHAVIOR_REGISTRY_CONTRIBUTION,
   ]);
@@ -730,6 +768,14 @@ export const createGoldenG3BehaviorCompositionProgram =
 
 export type GoldenG3BehaviorCompositionSurface = 'preview' | 'export' | 'ci';
 export type GoldenG3BehaviorCompositionMotionMode = 'full' | 'reduced';
+export type GoldenG3BehaviorProgramExecutor = (
+  input: Readonly<{
+    program: BehaviorScenarioProgram;
+    registry: BehaviorRuntimeCapabilityRegistry;
+    runtimeZone: 'test';
+    maximumConcurrency: number;
+  }>
+) => Promise<BehaviorRuntimeResult>;
 
 /**
  * Invokes the same Behavior, NodeGraph, Animation, and Route Programs through
@@ -737,7 +783,20 @@ export type GoldenG3BehaviorCompositionMotionMode = 'full' | 'reduced';
  */
 export const runGoldenG3BehaviorCompositionSurface = async (
   surface: GoldenG3BehaviorCompositionSurface,
-  motionMode: GoldenG3BehaviorCompositionMotionMode = 'full'
+  motionMode: GoldenG3BehaviorCompositionMotionMode = 'full',
+  executeProgram: GoldenG3BehaviorProgramExecutor = ({
+    program,
+    registry,
+    runtimeZone,
+    maximumConcurrency,
+  }) =>
+    executeBehaviorScenarioProgram({
+      program,
+      attemptId: 'golden-composition-attempt',
+      runtimeZone,
+      registry,
+      maximumConcurrency,
+    })
 ): Promise<
   Readonly<{
     surface: GoldenG3BehaviorCompositionSurface;
@@ -884,6 +943,23 @@ export const runGoldenG3BehaviorCompositionSurface = async (
 
   const runtimeRegistry = createBehaviorRuntimeCapabilityRegistry([
     ...createRouteBehaviorRuntimeAdapters(routePort),
+    Object.freeze({
+      capabilityId: 'data.dispatch',
+      owner: 'data',
+      async invoke() {
+        const journey = await runGoldenG3OptimisticConflictJourney();
+        return Object.freeze({
+          status: 'succeeded' as const,
+          output: Object.freeze({
+            staleRollback: journey.staleRollback,
+            rollback: journey.rollback,
+            retry: journey.retry,
+            conflictCode: journey.conflictCode,
+            finalProducts: journey.finalSnapshot.value,
+          }),
+        });
+      },
+    }),
     ...createNodeGraphBehaviorRuntimeAdapters({
       resolveTarget: (invocation: BehaviorRuntimeInvocation) =>
         invocation.target?.semanticSymbolId === graphInvokeTarget.id
@@ -918,11 +994,10 @@ export const runGoldenG3BehaviorCompositionSurface = async (
       `Golden composition runtime registry is invalid: ${JSON.stringify(runtimeRegistry.issues)}`
     );
   }
-  const result = await executeBehaviorScenarioProgram({
+  const result = await executeProgram({
     program: createGoldenG3BehaviorCompositionProgram(),
-    attemptId: 'golden-composition-attempt',
-    runtimeZone: 'test',
     registry: runtimeRegistry.registry,
+    runtimeZone: 'test',
     maximumConcurrency: 2,
   });
   const route = routeExecutions[0];

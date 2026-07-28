@@ -2,6 +2,7 @@ import {
   compareUnicodeCodePoints,
   sameCanonicalJson,
 } from '@prodivix/shared/canonical';
+import type { DeterministicRuntimeSession } from '@prodivix/runtime-core';
 import {
   digestBehaviorValue,
   readBehaviorJsonValue,
@@ -55,6 +56,7 @@ export type BehaviorRuntimeInvocation = Readonly<{
   target?: BehaviorScenarioProgram['targetManifest'][number];
   source: BehaviorSourceRef;
   signal: BehaviorRuntimeCancellationSignal;
+  controls?: DeterministicRuntimeSession;
   readStepOutput(stepId: string): BehaviorJsonValue | undefined;
 }>;
 
@@ -95,6 +97,7 @@ export type BehaviorRuntimeTraceEvent = Readonly<{
     | 'instruction-failed'
     | 'instruction-cancelled';
   attemptId: string;
+  logicalTime?: number;
   instructionId: string;
   stepId: string;
   capabilityId?: string;
@@ -141,6 +144,32 @@ export type BehaviorRuntimeResult =
       trace: readonly BehaviorRuntimeTraceEvent[];
     }>;
 
+export type BehaviorRuntimeDebugPort = Readonly<{
+  beforeInstruction(
+    input: Readonly<{
+      attemptId: string;
+      instructionId: string;
+      stepId: string;
+      source: BehaviorSourceRef;
+    }>
+  ): void | 'cancel' | Promise<void | 'cancel'>;
+  afterInstruction?(
+    input: Readonly<{
+      attemptId: string;
+      instructionId: string;
+      stepId: string;
+      source: BehaviorSourceRef;
+      status: 'completed' | 'failed' | 'cancelled';
+    }>
+  ): void | Promise<void>;
+  finish?(
+    input: Readonly<{
+      attemptId: string;
+      status: BehaviorRuntimeResult['status'];
+    }>
+  ): void;
+}>;
+
 export type ExecuteBehaviorScenarioProgramInput = Readonly<{
   program: BehaviorScenarioProgram;
   attemptId: string;
@@ -148,6 +177,8 @@ export type ExecuteBehaviorScenarioProgramInput = Readonly<{
   registry: BehaviorRuntimeCapabilityRegistry;
   signal?: BehaviorRuntimeCancellationSignal;
   maximumConcurrency?: number;
+  controls?: DeterministicRuntimeSession;
+  debugger?: BehaviorRuntimeDebugPort;
 }>;
 
 const freezeAdapter = (
@@ -324,6 +355,7 @@ export const executeBehaviorScenarioProgram = async (
       Object.freeze({
         sequence,
         attemptId: input.attemptId,
+        ...(input.controls ? { logicalTime: input.controls.clock.now() } : {}),
         ...event,
       })
     );
@@ -535,8 +567,26 @@ export const executeBehaviorScenarioProgram = async (
       });
     }
 
-    const invocations = ready.map(async (instruction) => {
+    const invokeInstruction = async (
+      instruction: BehaviorScenarioProgram['instructions'][number]
+    ) => {
       const source = sourcesByInstruction.get(instruction.id)!;
+      const debugDecision = await input.debugger?.beforeInstruction({
+        attemptId: input.attemptId,
+        instructionId: instruction.id,
+        stepId: instruction.stepId,
+        source,
+      });
+      if (debugDecision === 'cancel') {
+        return Object.freeze({
+          instruction,
+          source,
+          result: Object.freeze({
+            status: 'cancelled' as const,
+            reason: 'Cancelled by the Behavior debugger.',
+          }),
+        });
+      }
       appendTrace({
         kind: 'instruction-started',
         instructionId: instruction.id,
@@ -569,7 +619,9 @@ export const executeBehaviorScenarioProgram = async (
       try {
         const result = await adapter.invoke(
           Object.freeze({
-            invocationId: `${input.attemptId}:${instruction.id}`,
+            invocationId:
+              input.controls?.identifiers.next('action') ??
+              `${input.attemptId}:${instruction.id}`,
             attemptId: input.attemptId,
             mode: runtimeMode(instruction.operation),
             workspaceRevision: input.program.workspaceRevision,
@@ -593,6 +645,7 @@ export const executeBehaviorScenarioProgram = async (
               : {}),
             source,
             signal,
+            ...(input.controls ? { controls: input.controls } : {}),
             readStepOutput(stepId) {
               return outputs.get(stepId);
             },
@@ -612,13 +665,43 @@ export const executeBehaviorScenarioProgram = async (
           }),
         });
       }
-    });
-    const outcomes = await Promise.all(invocations);
+    };
+    const outcomes = input.controls
+      ? await (async () => {
+          const scheduled: Awaited<ReturnType<typeof invokeInstruction>>[] = [];
+          ready.forEach((instruction) => {
+            input.controls!.scheduler.enqueue({
+              id: instruction.id,
+              lane: instruction.operation.split(':', 1)[0] || 'scenario',
+              readyAt: input.controls!.clock.now(),
+              run: async () => {
+                scheduled.push(await invokeInstruction(instruction));
+              },
+            });
+          });
+          while (scheduled.length < ready.length) {
+            const result = await input.controls!.scheduler.runNext();
+            if (result.status !== 'completed') {
+              throw new Error(
+                'Deterministic scheduler stopped before the Behavior wave completed.'
+              );
+            }
+          }
+          return scheduled;
+        })()
+      : await Promise.all(ready.map(invokeInstruction));
 
     for (const { instruction, source, result } of outcomes.sort((left, right) =>
       compareUnicodeCodePoints(left.instruction.id, right.instruction.id)
     )) {
       if (result.status === 'cancelled') {
+        await input.debugger?.afterInstruction?.({
+          attemptId: input.attemptId,
+          instructionId: instruction.id,
+          stepId: instruction.stepId,
+          source,
+          status: 'cancelled',
+        });
         appendTrace({
           kind: 'instruction-cancelled',
           instructionId: instruction.id,
@@ -637,6 +720,13 @@ export const executeBehaviorScenarioProgram = async (
         });
       }
       if (result.status === 'failed') {
+        await input.debugger?.afterInstruction?.({
+          attemptId: input.attemptId,
+          instructionId: instruction.id,
+          stepId: instruction.stepId,
+          source,
+          status: 'failed',
+        });
         appendTrace({
           kind: 'instruction-failed',
           instructionId: instruction.id,
@@ -749,6 +839,13 @@ export const executeBehaviorScenarioProgram = async (
         ...(output !== undefined
           ? { outputDigest: digestBehaviorValue(output) }
           : {}),
+      });
+      await input.debugger?.afterInstruction?.({
+        attemptId: input.attemptId,
+        instructionId: instruction.id,
+        stepId: instruction.stepId,
+        source,
+        status: 'completed',
       });
       pending.delete(instruction.id);
       completed.add(instruction.id);

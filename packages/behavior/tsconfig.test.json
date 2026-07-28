@@ -7,6 +7,7 @@
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
     "paths": {
       "@prodivix/diagnostics": ["../diagnostics/src"],
+      "@prodivix/runtime-core": ["../runtime-core/src"],
       "@prodivix/shared": ["../shared/src"],
       "@prodivix/shared/*": ["../shared/src/*"]
     }
@@ -16,6 +17,9 @@
   "references": [
     {
       "path": "../diagnostics"
+    },
+    {
+      "path": "../runtime-core"
     },
     {
       "path": "../shared"

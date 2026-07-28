@@ -13,6 +13,14 @@ export {
   BrowserNetworkRequestError,
 } from './browserNetworkAdapter';
 export {
+  EMPTY_BROWSER_RUNTIME_RESIDUAL,
+  createBrowserDeterministicReplayProvider,
+} from './browserDeterministicReplayProvider';
+export type {
+  BrowserDeterministicControlHost,
+  CreateBrowserDeterministicReplayProviderInput,
+} from './browserDeterministicReplayProvider';
+export {
   createBrowserProjectRunner,
   WEB_CONTAINER_EXECUTION_PROVIDER_ID,
 } from './browserProjectRunner';

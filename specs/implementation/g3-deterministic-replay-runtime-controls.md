@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ImplementationStatus：R0-R4 Implemented / CI Evidence pending
+- ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-20
+- 日期：2026-07-28
 - Owner：`@prodivix/runtime-core`、`@prodivix/behavior`、Browser/Remote provider、Data/Animation/Route runtime owners
 - 关联：
   - `specs/decisions/59.deterministic-scenario-replay-and-runtime-controls.md`
@@ -220,6 +220,10 @@ CI adapter 必须通过同一 conformance：
 
 ### R0：Control model 与 preflight
 
+状态：Implemented。control current model、preset/plan/cell/fixture/capability identity、canonical digest、
+strict preflight，以及 scoped clock/random/id ports 已由 `@prodivix/runtime-core` 与
+`@prodivix/behavior` 共同提供。
+
 - current model、preset、digest、capability snapshot；
 - provider preflight 和 unsupported diagnostics；
 - logical clock/random/id ports。
@@ -227,6 +231,10 @@ CI adapter 必须通过同一 conformance：
 完成条件：profile 未声明/未应用字段可检测，跨 provider digest 一致。
 
 ### R1：Scheduler、wait 与 isolation
+
+状态：Implemented。canonical scheduler 提供 lane/task/barrier、typed condition wait、pause/resume/cancel、
+deadline、generation fence 与 bounded log；Browser/Remote provider 在每个 attempt 前后执行 fresh reset、
+residual canary 与 fail-closed cleanup。
 
 - canonical lane/task/barrier；
 - typed observation wait；
@@ -237,6 +245,10 @@ CI adapter 必须通过同一 conformance：
 
 ### R2：Network/Data/render controls
 
+状态：Implemented。fixture-only network、fault/retry、storage/auth/service-worker isolation，以及
+viewport/DPR/color/locale/timezone/font/motion controls 均进入 plan-cell application 与 applied-control
+verification；unknown/live egress、font/control drift 和 partial provider 均 fail closed。
+
 - deny-by-default network、fixture matcher、fault profile；
 - storage/service worker、viewport/DPR/color/locale/timezone/font/motion；
 - semantic settle 与 screenshot readiness。
@@ -244,6 +256,11 @@ CI adapter 必须通过同一 conformance：
 完成条件：live egress/unknown fixture/font failure 均 blocked，full/reduced 两 cell 可重复。
 
 ### R3：ReplayRecord、divergence 与 debugger
+
+状态：Implemented。ReplayRecord current/wire codec、预算/Secret hard cut、semantic digest、repeat series、
+first divergence 与 fresh-attempt debugger 已落地；NodeGraph 产品 Run/Debug attempt互斥，bridge以
+attempt/program/generation/lease/sequence identity fence pause/step/continue/cancel，避免 sidecar重复
+effect。
 
 - bounded event codec/digest；
 - repeat comparison/divergence；
@@ -253,6 +270,10 @@ CI adapter 必须通过同一 conformance：
 
 ### R4：Cross-surface conformance
 
+状态：Implemented。Browser、Remote、Export、CI provider conformance 与 React/Vue × full/reduced Golden
+matrix 已建立；worker/reset/cleanup failure、retry budget、unsupported/partial controls 均有 negative
+coverage。
+
 - Browser/Remote/Export/CI adapters；
 - React/Vue Golden；
 - worker crash/recovery、retry 与 cleanup。
@@ -261,7 +282,9 @@ CI adapter 必须通过同一 conformance：
 
 ## 验证证据
 
-计划 Gate：`pnpm run verify:g3:deterministic-replay`。
+Gate：`pnpm run verify:g3:deterministic-replay` 已于 2026-07-28 在当前 worktree 本地通过；GitHub
+workflow 已配置独立 Job。当前尚无 commit/CI identity，因此状态保持 `CI Evidence pending`，不构成
+durable Passed evidence，也不代表 V4-V8 或 G3 Exit Gate 已通过。
 
 必须覆盖：
 
@@ -286,8 +309,8 @@ CI adapter 必须通过同一 conformance：
 
 ## 验收标准
 
-- [ ] required run 的所有可控 factor 均显式进入 profile/capability/result digest。
-- [ ] Scenario 使用 typed condition 和 canonical scheduler，不依赖固定 sleep。
-- [ ] 每次 retry/replay 有新 attempt 与全新隔离 state，mutation 语义不被猜测。
-- [ ] ReplayRecord bounded、Secret-free、可定位首个 semantic divergence。
-- [ ] Browser/Remote/Export/CI 对同一 Scenario 提供声明一致的 control conformance。
+- [x] required run 的所有可控 factor 均显式进入 profile/capability/applied-control/result digest。
+- [x] Scenario 使用 typed condition 和 canonical scheduler，不依赖固定 sleep。
+- [x] 每次 retry/replay 有新 attempt 与全新隔离 state，mutation 语义不被猜测。
+- [x] ReplayRecord bounded、Secret-free、可定位首个 semantic divergence。
+- [x] Browser/Remote/Export/CI 对同一 Scenario 提供声明一致的 control conformance。

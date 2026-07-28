@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0-V2 Implemented / V3-V8 Not Started
+- ImplementationStatus：V0-V3 Implemented（V3 CI Evidence pending）/ V4-V8 Not Started
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-27
+- 日期：2026-07-28
 - Owner：`@prodivix/behavior`、`@prodivix/verification`、`@prodivix/workspace`、`@prodivix/authoring`、`@prodivix/runtime-core`、`@prodivix/diagnostics`、`apps/backend`、`apps/web` composition root
 - 关联：
   - `specs/roadmap/global-phases.md`
@@ -145,7 +145,8 @@ flowchart TD
 
 ### V0：Owner hard cut 与 contract skeleton
 
-状态：Implemented。当前证据来自 2026-07-27 未提交 worktree 的本地 aggregate Gate；commit/CI evidence 待补。
+状态：Implemented。commit `90fcf96134d880156c19c0da64692a3a39564841` 的 GitHub CI 已取得
+durable aggregate Gate evidence。
 
 交付 `@prodivix/behavior`、`@prodivix/verification` 包，Workspace document/Command registry、diagnostic
 domain/target、public codec 与 boundary check。任何 G3 domain type 不得先落在 `apps/web`。
@@ -171,7 +172,7 @@ compile diagnostics 和最小 semantic UI/Route/Data journey。
 
 ### V2：跨领域行为 composition
 
-状态：Implemented（durable CI Evidence pending）。deterministic parallel/barrier Program runtime通过
+状态：Implemented。deterministic parallel/barrier Program runtime通过
 domain-owned capability adapter执行 Route lifecycle、NodeGraph Program、Animation composition 与 owner
 observation；真实 Preview/Export/CI surface adapter在 exact revision/artifact/Program digest 下保持结果与
 SourceTrace兼容。NodeGraph current/wire v2、bounded loop/Auth/subgraph closure、first-party runtime/debug
@@ -180,8 +181,9 @@ full/reduced composition 均已关闭 V2 scope。
 
 React/Vue独立生成项目完成 install、typecheck、test、production build 与 Chromium smoke；authenticated
 Catalog optimistic mutation、typed conflict/rollback/retry、Route transition、graph derived state、required
-marker、目标特定 visual hash、ARIA/focus/operability组成 V2 Golden。NodeGraph live step/fresh replay bridge
-归入 V3；Remote、多浏览器与完整 performance/security Evidence matrix归入 V6/V8。详见 NodeGraph 与
+marker、目标特定 visual hash、ARIA/focus/operability组成 V2 Golden。V2 已由 commit `90fcf961` 的
+GitHub CI取得 durable evidence；NodeGraph live step/fresh replay bridge已由当前 V3 worktree补齐。
+完整 Remote、多浏览器与 performance/security Evidence matrix归入 V6/V8。详见 NodeGraph 与
 Animation/Route implementation 文档。
 
 交付 NodeGraph typed flow/debugger、Route lifecycle、Animation composition/reduced-motion、Data/Auth actions 和
@@ -191,10 +193,16 @@ Animation/Route implementation 文档。
 
 ### V3：Deterministic controls 与 replay
 
-状态：Not Started。详见 `g3-deterministic-replay-runtime-controls.md`。
+状态：Implemented locally / CI Evidence pending。详见
+`g3-deterministic-replay-runtime-controls.md`。
 
 交付 clock/random/id/scheduler/network/storage/viewport/motion/font controls、condition wait、barrier、fresh replay
 attempt、divergence detection 与 debugger time travel boundary。
+
+canonical scheduler/control profile、fresh isolation、fixture/render controls、bounded ReplayRecord codec、
+first-divergence/fresh replay debugger与 NodeGraph live bridge已落地；Browser/Remote/Export/CI × React/Vue ×
+full/reduced semantic matrix和真实 Chromium target均完成三次 fresh replay。2026-07-28 本地 aggregate
+Gate通过，workflow已配置但尚无 commit/CI identity。
 
 完成条件：相同 Program + control profile 在受支持 provider 上得到相同 semantic observation sequence；无法控制的
 环境因子明确标记 unsupported/unstable，不能静默通过。
@@ -284,8 +292,9 @@ loading/empty/error/retry/pagination、optimistic mutation/conflict、NodeGraph 
 
 ## 计划中的 Gate
 
-以下命令名是 G3 实施时必须建立的稳定入口；前三个已落地并取得当前 worktree 本地结果，但在缺少
-commit/CI identity 时仍不得标记 durable `Passed`：
+以下命令名是 G3 实施时必须建立的稳定入口；前三个已由 commit `90fcf961` 的 GitHub CI取得 durable
+`Passed` evidence；第四个已在当前 worktree 本地通过且 workflow已配置，但在缺少 commit/CI identity
+时仍不得标记 durable `Passed`：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`
@@ -314,7 +323,7 @@ commit/CI identity 时仍不得标记 durable `Passed`：
 - [ ] Plan、Program、Impact、Closure 都是可重建 projection，无第二作者态。
 - [ ] Evidence 独立持久化、append-only、可验证 provenance，并与 Execution runtime 明确隔离。
 - [ ] 同一 Scenario 在 Preview、Export、CI 和受控 target/browser matrix 中保持 semantic contract。
-- [ ] NodeGraph、Animation、Route、Data、Auth/Server 行为由各领域 owner 执行，并共享 observation/SourceTrace。
-- [ ] deterministic replay、reduced motion、retry/conflict 和网络隔离有正向、边界、fail-closed 证据。
+- [x] NodeGraph、Animation、Route、Data、Auth/Server 行为由各领域 owner 执行，并共享 observation/SourceTrace。
+- [x] deterministic replay、reduced motion、retry/conflict 和网络隔离有正向、边界、fail-closed 本地证据。
 - [ ] 产品 surface、CLI 和 CI 使用同一 planner、adapter 和 Closure evaluator。
 - [ ] G3 Golden 所有 required cells 具备 current、compatible、可信 Evidence，Global G3 Exit Gate 才可标记 Passed。

@@ -21,6 +21,7 @@ type NodeGraphRuntimeInspectorProps = Readonly<{
     command: NodeGraphDebugCommand
   ): NodeGraphDebugCommandResult | Promise<NodeGraphDebugCommandResult>;
   onCancel?(): void;
+  onFreshReplay?(): void;
   onOpenSourceTrace?(
     request: Readonly<{
       jobId: string;
@@ -37,6 +38,7 @@ export const NodeGraphRuntimeInspector = ({
   snapshotId,
   onCommand,
   onCancel,
+  onFreshReplay,
   onOpenSourceTrace,
 }: NodeGraphRuntimeInspectorProps) => {
   const [expanded, setExpanded] = useState(false);
@@ -112,6 +114,14 @@ export const NodeGraphRuntimeInspector = ({
           className="rounded-lg px-2 py-1 text-[11px] disabled:opacity-40"
         >
           Cancel
+        </button>
+        <button
+          type="button"
+          disabled={!model.canFreshReplay || !onFreshReplay}
+          onClick={onFreshReplay}
+          className="rounded-lg px-2 py-1 text-[11px] disabled:opacity-40"
+        >
+          Fresh replay
         </button>
         <button
           type="button"

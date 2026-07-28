@@ -632,6 +632,9 @@ importers:
       '@prodivix/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
       '@prodivix/shared':
         specifier: workspace:*
         version: link:../shared

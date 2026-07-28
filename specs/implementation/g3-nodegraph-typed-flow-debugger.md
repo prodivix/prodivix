@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：N0-N2 Implemented / N3 protocol + Inspector Implemented, live step bridge In Progress / N4 V2 Golden slice Implemented
+- ImplementationStatus：N0-N3 Implemented / N4 V2 Golden + V3 deterministic replay slice Implemented locally
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-27
+- 日期：2026-07-28
 - Owner：`@prodivix/nodegraph`、`@prodivix/runtime-core`、`@prodivix/behavior`、Code/Data/Route/Animation owners、`apps/web`
 - 关联：
   - `specs/decisions/60.nodegraph-typed-flow-and-behavior-debugging.md`
@@ -289,10 +289,10 @@ CI surface adapter 都校验 exact document revision、Program digest、capabili
 
 ### N3：Behavior 与 debugger
 
-状态：In Progress（Behavior integration + domain debug protocol incremental slices）。`@prodivix/nodegraph` 已贡献 graph invoke/output
-registry、revision-bound graph/node/port semantic targets 与 runtime adapter；adapter 复用现有 G2
-deterministic executor，并只暴露 attempt-local bounded output。缺失 target、capability/owner mismatch
-fail closed，runtime result 不写 Workspace。
+状态：Implemented。`@prodivix/nodegraph` 已贡献 graph invoke/output registry、revision-bound
+graph/node/port semantic targets 与 runtime adapter；adapter 复用 first-party deterministic executor，
+并只暴露 attempt-local bounded output。缺失 target、capability/owner mismatch fail closed，runtime
+result 不写 Workspace。
 
 domain debug controller 已实现 exact job/attempt/program/generation/lease identity、command sequence/expiry、
 breakpoint、pause、step into/over/out、continue、cancel、detach、bounded event/value projection 与 sensitive
@@ -302,9 +302,10 @@ sanitized failure。
 Program runtime 已发布 subgraph/CodeSlot/domain frame enter/exit/cancel、checkpoint 与 Behavior correlation。
 产品 Runtime Inspector 只消费 `ExecutionSessionSnapshot` / `NodeGraphDebugSnapshot`，提供 bounded redacted
 variables、call stack、semantic trace、Source navigation、cancel 与 exact identity-bound pause/step/continue
-command；不读取 React Flow/DOM 状态。当前 same-context `ExecutionSession` 尚未提供 live debug snapshot/command
-bridge，因此普通 Run 中 step 控件会 fail closed 为 disabled；fresh replay 与 live step bridge归入 V3，N3
-保持 In Progress，不用 V2 Golden 冒充完成。
+command；不读取 React Flow/DOM 状态。V3 产品提供互斥 Run/Debug 入口：Debug attempt将 strict Program
+连接到 first-party executor，不再与普通 Run sidecar并行或重复 effect；它以 attempt/program/generation/
+lease/sequence identity fence同一 fresh attempt中的 pause/step/continue/cancel。reverse/unknown mutation
+只允许 fresh replay，stale runtime boundary与 late completion均被丢弃。
 
 - trigger/action/observation/impact；
 - debug lease/control/snapshot/value projector；
@@ -328,10 +329,11 @@ Firefox/WebKit adapter matrix仍属于 V6/V8，不在这里提前宣称。
 
 ## 验证证据
 
-Gate：`pnpm run verify:g3:behavior-composition` 中 NodeGraph 8 files / 37 tests、Compiler React/Vue
-19 tests、Web Inspector/Animation 7 tests、V2 composition 7 tests与 Chromium browser Golden 1 test
-已在 2026-07-27 当前未提交 worktree 本地通过；`verify:g3:boundaries` 同时覆盖 Workspace/Go wire hard cut。
-workflow 已配置但缺少 commit/CI identity；N3 live step/replay 与 V6/V8 完整 adapter matrix仍待实现。
+V2 Gate：`pnpm run verify:g3:behavior-composition` 已由 commit `90fcf961` 的 GitHub CI 取得 durable
+Passed evidence。V3 Gate：`pnpm run verify:g3:deterministic-replay` 中 NodeGraph 9 files / 39 tests与
+Web live debug session/Inspector coverage已于 2026-07-28 在当前 worktree 本地通过；
+`verify:g3:boundaries` 同时覆盖 dependency hard cut。workflow 已配置但 V3 尚无 commit/CI identity；
+V6/V8 完整 adapter matrix仍待实现。
 
 必须覆盖：
 
@@ -359,6 +361,6 @@ workflow 已配置但缺少 commit/CI identity；N3 live step/replay 与 V6/V8 �
 - [x] typed ports/edges、descriptor、planner、codec/migration 在所有 owner 间一致。
 - [x] async/error/cancel/retry/parallel/subgraph 在 deterministic scheduler 下可重复。
 - [x] domain 与 CodeSlot node capability/permission/effect fail closed。
-- [ ] debugger 使用稳定 execution protocol，值 bounded/redacted 且可 SourceTrace。
+- [x] debugger 使用稳定 execution protocol，值 bounded/redacted 且可 SourceTrace。
 - [x] Preview、Export、CI 的 invoked graph semantic trace/result compatible。
 - [x] runtime state/result 不直接写 Workspace，Remote 不按 node 分布式调度。

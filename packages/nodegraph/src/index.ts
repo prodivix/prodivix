@@ -35,6 +35,7 @@ export {
   createNodeGraphDescriptorRegistry,
 } from './nodeGraphPlanner';
 export { createNodeGraphDebugController } from './nodeGraphDebugger';
+export { createNodeGraphProgramDebugExecutor } from './nodeGraphProgramDebugger';
 export { createNodeGraphSurfaceRuntimeAdapter } from './nodeGraphSurfaceRuntime';
 export {
   FIRST_PARTY_NODEGRAPH_DESCRIPTORS,
@@ -124,6 +125,7 @@ export type {
   NodeGraphDebugSnapshot,
   NodeGraphDebugStatus,
 } from './nodeGraphDebugger.types';
+export type { CreateNodeGraphProgramDebugExecutorInput } from './nodeGraphProgramDebugger';
 export type {
   NodeGraphExecutionSurface,
   NodeGraphProgramArtifact,

@@ -13,6 +13,7 @@ type NodeGraphGraphManagerProps = {
   onDeleteGraph: () => void;
   onDuplicateGraph: () => void;
   onRenameGraph: (value: string) => void;
+  onDebugGraph: () => void;
   onRunGraph: () => void;
   onStopGraph: () => void;
   onSwitchGraph: (graphId: string) => void;
@@ -29,6 +30,7 @@ export const NodeGraphGraphManager = ({
   onDeleteGraph,
   onDuplicateGraph,
   onRenameGraph,
+  onDebugGraph,
   onRunGraph,
   onStopGraph,
   onSwitchGraph,
@@ -107,6 +109,13 @@ export const NodeGraphGraphManager = ({
           {isExecuting
             ? t('nodeGraph.manager.stop', { defaultValue: 'Stop' })
             : t('nodeGraph.manager.run', { defaultValue: 'Run' })}
+        </button>
+        <button
+          type="button"
+          disabled={!activeGraphId || isBusy || isExecuting}
+          onClick={onDebugGraph}
+        >
+          {t('nodeGraph.manager.debug', { defaultValue: 'Debug' })}
         </button>
         <button type="button" disabled={isBusy} onClick={onCreateGraph}>
           {t('nodeGraph.manager.new', { defaultValue: 'New' })}

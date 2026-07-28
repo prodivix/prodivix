@@ -104,6 +104,11 @@ export {
   remoteServerFunctionExecutionProviderDescriptor,
   remoteTestExecutionProviderDescriptor,
 } from './remoteExecutionProvider';
+export { createRemoteDeterministicReplayProvider } from './remoteDeterministicReplayProvider';
+export type {
+  CreateRemoteDeterministicReplayProviderInput,
+  RemoteDeterministicControlTransport,
+} from './remoteDeterministicReplayProvider';
 export {
   decodeRemoteExecutableProjectSnapshot,
   decodeRemoteExecutionSnapshotSource,

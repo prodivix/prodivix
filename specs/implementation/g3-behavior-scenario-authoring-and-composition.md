@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：B0-B4 Implemented for V2 scope
+- ImplementationStatus：B0-B4 Implemented for V2 scope / V3 replay integration Implemented locally
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-27
+- 日期：2026-07-28
 - Owner：`@prodivix/behavior`、`@prodivix/workspace`、`@prodivix/authoring`、各 domain capability owner、`apps/web`
 - 关联：
   - `specs/decisions/56.behavior-scenario-and-cross-domain-action-contract.md`
@@ -272,8 +272,9 @@ stale control 与 assertion drift均 fail closed。
 - unified SourceTrace/debug event。
 
 V2 Golden以真实 Preview/Export/CI surface adapter和 React/Vue独立 Chromium target关闭同一
-cross-domain vertical。更宽 branch/repeat/subscenario 与 fresh replay scheduler属于 V3，不扩张 V2
-Program first set；Remote 与完整多浏览器 adapter closure属于 V6/V8。
+cross-domain vertical。V3 现已在该 Program first set 上增加共享 deterministic scheduler/control profile、
+fresh isolation、bounded ReplayRecord 与 fresh replay debugger；更宽 branch/repeat/subscenario仍不扩张
+本轮 Program，完整 Remote/多浏览器 adapter closure属于 V6/V8。
 
 完成条件：跨领域 Catalog journey 编译并运行，mutation replay 与 cancel 保持 owner 语义。
 
@@ -281,8 +282,9 @@ Program first set；Remote 与完整多浏览器 adapter closure属于 V6/V8。
 
 状态：Implemented for V2 scope。React/Vite 与 Vue/Vite使用同一 Program完成 independent
 install/typecheck/test/build/browser Golden；NodeGraph/Animation standalone projection复用相同 domain
-compiler contribution 与 framework-neutral runtime helper。Browser/Remote Program codec、large-scenario
-property hardening与完整 target matrix继续由 V3/V6负责。
+compiler contribution 与 framework-neutral runtime helper。Browser/Remote deterministic provider、
+ReplayRecord codec与 attempt/task/record budget hardening已由 V3 落地；完整 target/browser/check-family
+matrix继续由 V6负责。
 
 - React/Vite、Vue/Vite semantic target conformance；
 - Browser/Remote Program codec；
@@ -292,9 +294,10 @@ property hardening与完整 target matrix继续由 V3/V6负责。
 
 ## 验证证据
 
-Gate：`pnpm run verify:g3:scenario-authoring` 与 `pnpm run verify:g3:behavior-composition` 已在
-2026-07-27 当前未提交 worktree 本地通过；workflow 已配置独立 Job。两者均尚无 commit/CI identity，
-不是 durable evidence。
+Gate：`pnpm run verify:g3:scenario-authoring` 与 `pnpm run verify:g3:behavior-composition` 已由 commit
+`90fcf96134d880156c19c0da64692a3a39564841` 的 GitHub CI 取得 durable Passed evidence。
+`pnpm run verify:g3:deterministic-replay` 已于 2026-07-28 在当前 worktree 本地通过，workflow 已配置但
+尚无 commit/CI identity。
 
 必须覆盖：
 
@@ -321,5 +324,5 @@ Gate：`pnpm run verify:g3:scenario-authoring` 与 `pnpm run verify:g3:behavior-
 - [x] canonical target 只使用 stable semantic identity，不保存 DOM/test-tool locator。
 - [x] recorder 只生成受审查 draft，且 Secret 和事件预算 fail closed。
 - [x] compiler 确定性产生 provider-neutral Program、SourceTrace 与 capability manifest。
-- [ ] Route/PIR/Data/Auth/NodeGraph/Animation 由各自 owner 执行，不形成第二行为真相源。
+- [x] Route/PIR/Data/Auth/NodeGraph/Animation 由各自 owner 执行，不形成第二行为真相源。
 - [x] React/Vite 与 Vue/Vite 能运行同一 Scenario semantic contract。

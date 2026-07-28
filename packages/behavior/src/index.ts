@@ -22,6 +22,27 @@ export {
   executeBehaviorScenarioProgram,
 } from './behaviorRuntime';
 export {
+  BEHAVIOR_DETERMINISTIC_CONTROL_PRESET,
+  BEHAVIOR_DETERMINISTIC_CONTROL_PRESET_ID,
+  createBehaviorDeterministicControlPlan,
+  digestBehaviorControlProfile,
+  digestBehaviorFixtureSet,
+} from './behaviorControlProfile';
+export { executeBehaviorReplayAttempt } from './behaviorReplay';
+export {
+  compareBehaviorReplayRecords,
+  runBehaviorReplaySeries,
+} from './behaviorReplayComparison';
+export {
+  decodeBehaviorReplayRecord,
+  encodeBehaviorReplayRecord,
+  sortBehaviorReplayRecords,
+} from './behaviorReplayCodec';
+export {
+  createBehaviorReplayDebugCommand,
+  createBehaviorReplayDebugController,
+} from './behaviorReplayDebugger';
+export {
   decodeBehaviorControlProfile,
   decodeBehaviorDocument,
   decodeBehaviorFixtureSet,
@@ -72,6 +93,7 @@ export type {
   BehaviorRuntimeCapabilityRegistry,
   BehaviorRuntimeCapabilityResult,
   BehaviorRuntimeError,
+  BehaviorRuntimeDebugPort,
   BehaviorRuntimeInvocation,
   BehaviorRuntimeIssue,
   BehaviorRuntimeMode,
@@ -81,6 +103,35 @@ export type {
   CreateBehaviorRuntimeCapabilityRegistryResult,
   ExecuteBehaviorScenarioProgramInput,
 } from './behaviorRuntime';
+export type {
+  BehaviorControlPlanIssue,
+  CreateBehaviorDeterministicControlPlanInput,
+  CreateBehaviorDeterministicControlPlanResult,
+} from './behaviorControlProfile';
+export type {
+  BehaviorReplayAttemptResult,
+  BehaviorReplayDivergence,
+  BehaviorReplayDivergenceKind,
+  BehaviorReplayEvent,
+  BehaviorReplayRecord,
+  BehaviorReplayRecordBudget,
+  BehaviorReplayRecordWire,
+  BehaviorReplaySafeProjection,
+  BehaviorReplaySeriesResult,
+  CompareBehaviorReplayRecordsResult,
+  ExecuteBehaviorReplayAttemptInput,
+} from './behaviorReplay';
+export type {
+  BehaviorReplayDebugCommand,
+  BehaviorReplayDebugCommandResult,
+  BehaviorReplayDebugController,
+  BehaviorReplayDebugEvent,
+  BehaviorReplayDebugIdentity,
+  BehaviorReplayDebugIssue,
+  BehaviorReplayDebugSnapshot,
+  BehaviorReplayDebugStatus,
+  CreateBehaviorReplayDebugControllerInput,
+} from './behaviorReplayDebugger';
 export type {
   BehaviorRecorderAdoptionResult,
   BehaviorRecorderRawEvent,

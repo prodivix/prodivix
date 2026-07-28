@@ -94,4 +94,17 @@ describe('NodeGraph Runtime Inspector', () => {
       kind: 'continue',
     });
   });
+
+  it('offers a fresh replay instead of pretending to rewind runtime effects', () => {
+    const onFreshReplay = vi.fn();
+    render(
+      <NodeGraphRuntimeInspector
+        debug={snapshot}
+        onFreshReplay={onFreshReplay}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fresh replay' }));
+    expect(onFreshReplay).toHaveBeenCalledOnce();
+  });
 });
