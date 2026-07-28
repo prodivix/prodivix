@@ -70,7 +70,7 @@ jobs:
         run: |
           mode="$(stat -c %a deploy/.env)"
           if [[ "$mode" != "600" ]]; then
-            echo "deploy/.env holds the Postgres password and must be mode 600, found $mode." >&2
+            echo "deploy/.env holds server credentials and must be mode 600, found $mode." >&2
             exit 1
           fi
 

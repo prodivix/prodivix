@@ -38,6 +38,33 @@ func (repository *Repository) ClaimArtifactPromotionLeases(
 	observedAt time.Time,
 	expiresAt time.Time,
 ) ([]ArtifactOperationLease, error) {
+	var last error
+	for attempt := 0; attempt < 4; attempt++ {
+		leases, err := repository.claimArtifactPromotionLeasesOnce(
+			ctx,
+			ownerID,
+			targets,
+			observedAt,
+			expiresAt,
+		)
+		if !retryablePostgreSQLTransaction(err) {
+			return leases, err
+		}
+		last = err
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return nil, last
+}
+
+func (repository *Repository) claimArtifactPromotionLeasesOnce(
+	ctx context.Context,
+	ownerID string,
+	targets []ArtifactLeaseTarget,
+	observedAt time.Time,
+	expiresAt time.Time,
+) ([]ArtifactOperationLease, error) {
 	ctx, cancel := repositoryContext(ctx)
 	defer cancel()
 	observedAt = canonicalTime(observedAt)

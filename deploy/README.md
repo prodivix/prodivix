@@ -21,7 +21,8 @@ chmod +x ./start-app.sh
 ./start-app.sh
 ```
 
-脚本会交互式生成或更新 `.env`，拉取公开镜像并启动服务。常用非交互参数：
+脚本会交互式生成或更新 owner-only 的 `.env`，并生成或复用 Postgres 密码和
+`BACKEND_VERIFICATION_RESUME_KEY`，随后拉取公开镜像并启动服务。常用非交互参数：
 
 ```bash
 ./start-app.sh --yes --tag latest
@@ -36,7 +37,8 @@ chmod +x ./start-app.sh
 ```bash
 cd deploy
 cp .env.example .env
-# 编辑 .env，至少把 GHCR_NAMESPACE 改成你的组织/用户名
+# 编辑 .env：至少修改 GHCR_NAMESPACE、POSTGRES_PASSWORD，并把
+# BACKEND_VERIFICATION_RESUME_KEY 替换为 32 个随机字节的 canonical standard-base64
 docker compose -f docker-compose.ghcr.yml --env-file .env up -d
 ```
 
@@ -45,7 +47,8 @@ docker compose -f docker-compose.ghcr.yml --env-file .env up -d
 - `deploy/docker-compose.ghcr.yml`
   - `web` 使用 Nginx 托管前端，并将 `/api/*` 反向代理到 `backend`。
   - `sandbox` 使用独立 Nginx 容器和端口托管 opaque plugin broker，不携带登录 Cookie 或用户数据；未知路径固定返回 404。
-  - `backend` 通过 `BACKEND_DB_URL` 连接 `postgres`。
+  - `backend` 通过 `BACKEND_DB_URL` 连接 `postgres`；`BACKEND_VERIFICATION_RESUME_KEY`
+    必须在所有 Backend replica 和 active promotion 恢复窗口内保持一致。轮换前应先排空旧恢复窗口。
   - `postgres` 挂载了：
     - `deploy/postgres/postgresql.conf`
     - `deploy/postgres/init/001-extensions.sql`

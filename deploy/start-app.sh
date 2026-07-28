@@ -18,6 +18,7 @@ DEFAULT_POSTGRES_DB="prodivix"
 DEFAULT_TOKEN_TTL="24h"
 DEFAULT_TZ="UTC"
 PLACEHOLDER_POSTGRES_PASSWORD="replace-with-a-random-password"
+PLACEHOLDER_VERIFICATION_RESUME_KEY="replace-with-a-random-base64-key"
 
 ASSUME_YES="false"
 SKIP_PULL="false"
@@ -131,12 +132,33 @@ yes_no() {
   [[ "$value" == "y" || "$value" == "Y" || "$value" == "yes" || "$value" == "YES" ]]
 }
 
-# The deployment env file holds the Postgres password in clear text, so it is created
+# The deployment env file holds server credentials in clear text, so it is created
 # owner-only from the first byte instead of inheriting the operator's umask.
 create_private_env_file() {
   rm -f "$ENV_FILE"
   (umask 077 && : >"$ENV_FILE")
   chmod 600 "$ENV_FILE"
+}
+
+is_valid_verification_resume_key() {
+  [[ "$1" =~ ^[A-Za-z0-9+/]{43}=$ ]]
+}
+
+generate_verification_resume_key() {
+  local generated_key
+
+  if ! command_exists base64; then
+    echo "The base64 command is required to generate the verification resume key." >&2
+    return 1
+  fi
+
+  generated_key="$(LC_ALL=C head -c 32 /dev/urandom | base64 | tr -d '\r\n')"
+  if ! is_valid_verification_resume_key "$generated_key"; then
+    echo "Could not generate a canonical 32-byte verification resume key." >&2
+    return 1
+  fi
+
+  printf '%s' "$generated_key"
 }
 
 write_env_file() {
@@ -151,7 +173,8 @@ write_env_file() {
   local web_port="$9"
   local sandbox_port="${10}"
   local token_ttl="${11}"
-  local timezone="${12}"
+  local verification_resume_key="${12}"
+  local timezone="${13}"
 
   create_private_env_file
   cat >"$ENV_FILE" <<EOF
@@ -166,6 +189,7 @@ POSTGRES_DB=$postgres_db
 BACKEND_PORT=$backend_port
 BACKEND_ALLOWED_ORIGINS=$allowed_origins
 BACKEND_TOKEN_TTL=$token_ttl
+BACKEND_VERIFICATION_RESUME_KEY=$verification_resume_key
 BACKEND_DB_MAX_OPEN_CONNS=10
 BACKEND_DB_MAX_IDLE_CONNS=5
 BACKEND_DB_MAX_LIFETIME=30m
@@ -230,6 +254,7 @@ current_postgres_password="$(load_env_value POSTGRES_PASSWORD "" "$ENV_FILE")"
 current_postgres_db="$(load_env_value POSTGRES_DB "$DEFAULT_POSTGRES_DB" "$ENV_FILE")"
 current_allowed_origins="$(load_env_value BACKEND_ALLOWED_ORIGINS "http://localhost:${current_web_port}" "$ENV_FILE")"
 current_token_ttl="$(load_env_value BACKEND_TOKEN_TTL "$DEFAULT_TOKEN_TTL" "$ENV_FILE")"
+current_verification_resume_key="$(load_env_value BACKEND_VERIFICATION_RESUME_KEY "" "$ENV_FILE")"
 current_tz="$(load_env_value TZ "$DEFAULT_TZ" "$ENV_FILE")"
 
 if [[ -n "$TAG_OVERRIDE" ]]; then
@@ -263,6 +288,18 @@ fi
 postgres_db="$(prompt "Postgres database" "${current_postgres_db:-$DEFAULT_POSTGRES_DB}")"
 allowed_origins="$(prompt "Allowed browser origins" "$current_allowed_origins")"
 token_ttl="$(prompt "Backend token TTL" "${current_token_ttl:-$DEFAULT_TOKEN_TTL}")"
+if [[ -z "$current_verification_resume_key" || "$current_verification_resume_key" == "$PLACEHOLDER_VERIFICATION_RESUME_KEY" ]]; then
+  current_verification_resume_key="$(generate_verification_resume_key)"
+elif ! is_valid_verification_resume_key "$current_verification_resume_key"; then
+  echo "BACKEND_VERIFICATION_RESUME_KEY in $ENV_FILE is not canonical base64 for exactly 32 bytes." >&2
+  echo "Fix or remove it before restarting; the deploy script will not rotate an invalid persisted key automatically." >&2
+  exit 1
+fi
+verification_resume_key="$(prompt_secret "Verification resume key [hidden, press Enter to keep/generate]: " "$current_verification_resume_key")"
+if ! is_valid_verification_resume_key "$verification_resume_key"; then
+  echo "Verification resume key must be canonical standard-base64 for exactly 32 bytes." >&2
+  exit 1
+fi
 timezone="$(prompt "Timezone" "${current_tz:-$DEFAULT_TZ}")"
 
 echo
@@ -279,6 +316,7 @@ write_env_file \
   "$web_port" \
   "$sandbox_port" \
   "$token_ttl" \
+  "$verification_resume_key" \
   "$timezone"
 
 echo

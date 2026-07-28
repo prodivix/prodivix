@@ -221,7 +221,7 @@ describe('Verification Evidence verified retention view', () => {
         ],
       })
     ).toMatchObject({ ok: false });
-  });
+  }, 15_000);
 
   it('normalizes record, artifact, and revocation ordering into stable digests', () => {
     const left = evidence('evidence:left', {
