@@ -171,11 +171,11 @@ const LINUX_BROWSER_IMAGES = Object.freeze({
         executableContentDigest:
           'sha256-2d18db9d8608b052b6a552ee00ec1e830f93692e928b65ecc67d693bd33fe801',
         fileSetDigest:
-          'sha256-66352a58874b10309f73c57d1bbf7c5e4bcf0418a73d5c482aad21fc9b44575f',
+          'sha256-1d253d9e3e7a7b2a55650cecf1fa35a14855562294448690f24f2e82583e2173',
         fileCount: 303,
         totalByteLength: 396_335_288,
       },
-      'sha256-ef25a309e7789edc344ced422fdf8a06827f5917c35743b414d5c269579cae2d'
+      'sha256-b068eacdcf55000c263f4f1bac19fc91eee30ea5280b32ac2711c918c95cb58e'
     ),
   }),
   firefox: Object.freeze({
@@ -238,7 +238,7 @@ export const GOLDEN_G3_V6_FONT_FREE_SET_DIGEST =
   'sha256-cdc0cdb0eee82b4b1039323c9f4dde0b85c19aa3a207ef7426a61531764edb89';
 
 export const GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY_DIGEST =
-  'sha256-4f02035b5bd907b871099bab946f5468114d7b40b6e9407de284bec37314d6f5';
+  'sha256-289e104587c2b5041ab52ab211121ac66864627dff25b8256f056391948d1e8b';
 
 export const GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY = Object.freeze({
   format: 'prodivix.golden-g3-v6-browser-identity-registry',

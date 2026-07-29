@@ -52,7 +52,7 @@ gatedDescribe('Golden G3 V6 pre-adopted browser identities', () => {
       }),
       'linux-20260720': Object.freeze({
         chromium:
-          'sha256-ef25a309e7789edc344ced422fdf8a06827f5917c35743b414d5c269579cae2d',
+          'sha256-b068eacdcf55000c263f4f1bac19fc91eee30ea5280b32ac2711c918c95cb58e',
         firefox:
           'sha256-9fd0b52c767e011485c9b7efb93c6e815bf8924aeaf7ad1c2cfe88a1cdbc309e',
         webkit:
@@ -60,7 +60,7 @@ gatedDescribe('Golden G3 V6 pre-adopted browser identities', () => {
       }),
       'linux-20260726': Object.freeze({
         chromium:
-          'sha256-ef25a309e7789edc344ced422fdf8a06827f5917c35743b414d5c269579cae2d',
+          'sha256-b068eacdcf55000c263f4f1bac19fc91eee30ea5280b32ac2711c918c95cb58e',
         firefox:
           'sha256-9fd0b52c767e011485c9b7efb93c6e815bf8924aeaf7ad1c2cfe88a1cdbc309e',
         webkit:
