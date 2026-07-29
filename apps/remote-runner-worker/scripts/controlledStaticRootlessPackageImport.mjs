@@ -410,13 +410,17 @@ const decodePackageImport = async (authority) =>
   );
 
 export const materializeControlledStaticRootlessPackageImport = async (
-  authority
+  authority,
+  observePhase = () => undefined
 ) => {
+  observePhase('archive-decode');
   const decoded = await decodePackageImport(authority);
   const entries = decoded.entries;
   const root = workspacePath('node_modules');
+  observePhase('archive-create-root');
   await mkdir(root, { recursive: false, mode: 0o700 });
   const directories = entries.filter(({ kind }) => kind === 'directory');
+  observePhase('archive-write-tree');
   for (const entry of directories) {
     await mkdir(workspacePath(`node_modules/${entry.path}`), {
       recursive: true,
@@ -445,6 +449,7 @@ export const materializeControlledStaticRootlessPackageImport = async (
   for (const entry of directories) {
     await chmod(workspacePath(`node_modules/${entry.path}`), entry.mode);
   }
+  observePhase('archive-rehash');
   const observed = await collectPackageImportEntries();
   if (
     observed.manifestDigest !== authority.manifestDigest ||

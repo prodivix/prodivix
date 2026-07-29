@@ -83,6 +83,19 @@ type ControlledStaticRootlessCommandAuthorityFailureFacts = Readonly<{
   stderrTruncated: boolean;
 }>;
 
+type ControlledStaticRootlessPackageSeedFailureFacts = Readonly<{
+  phase:
+    | 'authority-read'
+    | 'authority-decode'
+    | 'archive-read'
+    | 'archive-write'
+    | 'archive-decode'
+    | 'archive-create-root'
+    | 'archive-write-tree'
+    | 'archive-rehash';
+  failureCode: 'EACCES' | 'EEXIST' | 'ENOENT' | 'ENOSPC' | 'EROFS' | null;
+}>;
+
 const decodeCommandAuthorityFailureFacts = (
   stderr: string
 ): ControlledStaticRootlessCommandAuthorityFailureFacts | null => {
@@ -155,12 +168,61 @@ const decodeCommandAuthorityFailureFacts = (
   }
 };
 
+const decodePackageSeedFailureFacts = (
+  stderr: string
+): ControlledStaticRootlessPackageSeedFailureFacts | null => {
+  const match =
+    /(?:^|\n)PRODIVIX_CONTROLLED_ROOTLESS_PACKAGE_SEED_FAILURE:([A-Za-z0-9+/]+={0,2})(?:\n|$)/u.exec(
+      stderr
+    );
+  if (!match?.[1] || match[1].length > 512) return null;
+  try {
+    const bytes = Buffer.from(match[1], 'base64');
+    if (bytes.toString('base64') !== match[1]) return null;
+    const value = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+    const phases = new Set([
+      'authority-read',
+      'authority-decode',
+      'archive-read',
+      'archive-write',
+      'archive-decode',
+      'archive-create-root',
+      'archive-write-tree',
+      'archive-rehash',
+    ]);
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Array.isArray(value) ||
+      Object.keys(value).length !== 2 ||
+      !Object.hasOwn(value, 'phase') ||
+      !Object.hasOwn(value, 'failureCode') ||
+      typeof value.phase !== 'string' ||
+      !phases.has(value.phase) ||
+      (value.failureCode !== null &&
+        (typeof value.failureCode !== 'string' ||
+          !/^(?:EACCES|EEXIST|ENOENT|ENOSPC|EROFS)$/u.test(value.failureCode)))
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      phase:
+        value.phase as ControlledStaticRootlessPackageSeedFailureFacts['phase'],
+      failureCode:
+        value.failureCode as ControlledStaticRootlessPackageSeedFailureFacts['failureCode'],
+    });
+  } catch {
+    return null;
+  }
+};
+
 export const decodeControlledStaticRootlessSandboxFailureFacts = (
   source: Buffer
 ): Readonly<{
   exitCode: number | null;
   innerPhase: string | null;
   commandAuthority: ControlledStaticRootlessCommandAuthorityFailureFacts | null;
+  packageSeed: ControlledStaticRootlessPackageSeedFailureFacts | null;
 }> => {
   try {
     const value = JSON.parse(source.toString('utf8')) as {
@@ -181,6 +243,7 @@ export const decodeControlledStaticRootlessSandboxFailureFacts = (
         exitCode,
         innerPhase: null,
         commandAuthority: null,
+        packageSeed: null,
       });
     }
     const stderr = Buffer.from(value.stderr, 'base64').toString('utf8');
@@ -192,12 +255,14 @@ export const decodeControlledStaticRootlessSandboxFailureFacts = (
       exitCode,
       innerPhase: match?.[1] ?? null,
       commandAuthority: decodeCommandAuthorityFailureFacts(stderr),
+      packageSeed: decodePackageSeedFailureFacts(stderr),
     });
   } catch {
     return Object.freeze({
       exitCode: null,
       innerPhase: null,
       commandAuthority: null,
+      packageSeed: null,
     });
   }
 };
@@ -601,6 +666,7 @@ export const runControlledStaticRootlessPodmanStage = async (
         sandboxExitCode: innerFailure.exitCode,
         innerPhase: innerFailure.innerPhase,
         innerCommandAuthority: innerFailure.commandAuthority,
+        innerPackageSeed: innerFailure.packageSeed,
       })}`
     );
   }

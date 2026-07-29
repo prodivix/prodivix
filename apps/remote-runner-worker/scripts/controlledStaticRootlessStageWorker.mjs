@@ -47,6 +47,7 @@ const RESULT_ALLOWLIST = Object.freeze({
 });
 let failurePhase = 'runtime-import';
 let commandAuthorityFailureFacts = null;
+let packageSeedFailurePhase = null;
 
 const sha256 = (contents) =>
   `sha256-${createHash('sha256').update(contents).digest('hex')}`;
@@ -327,19 +328,27 @@ export const decodeControlledStaticRootlessPackageSeedAuthorityBytes = (
 
 const materializeImagePackageSeed = async (plan) => {
   const seedRoot = `${PACKAGE_SEED_ROOT}/${plan.presetId}`;
+  packageSeedFailurePhase = 'authority-read';
+  const authoritySource = await readFile(`${seedRoot}/authority.json`);
+  packageSeedFailurePhase = 'authority-decode';
   const authority = decodeControlledStaticRootlessPackageSeedAuthorityBytes(
-    await readFile(`${seedRoot}/authority.json`),
+    authoritySource,
     {
       presetId: plan.presetId,
       lockDigest: plan.lockDigest,
     }
   );
+  packageSeedFailurePhase = 'archive-read';
+  const archive = await readFile(`${seedRoot}/package-import.json.gz`);
+  packageSeedFailurePhase = 'archive-write';
   await writeFile(
     workspacePath(PACKAGE_SEED_WORKSPACE_PATH),
-    await readFile(`${seedRoot}/package-import.json.gz`),
+    archive,
     { flag: 'wx', mode: 0o600 }
   );
-  await materializePackageImport(authority);
+  await materializePackageImport(authority, (phase) => {
+    packageSeedFailurePhase = phase;
+  });
   return authority;
 };
 
@@ -577,6 +586,7 @@ const sanitizeExecutionEnvironment = () => {
 const run = async () => {
   failurePhase = 'runtime-import';
   commandAuthorityFailureFacts = null;
+  packageSeedFailurePhase = null;
   const {
     assertControlledStageSucceeded,
     controlledExecutionEnvironment,
@@ -788,10 +798,26 @@ if (
 ) {
   try {
     await run();
-  } catch {
+  } catch (error) {
     process.stderr.write(
       `PRODIVIX_CONTROLLED_ROOTLESS_STAGE_FAILURE:${failurePhase}\n`
     );
+    if (failurePhase === 'package-seed' && packageSeedFailurePhase) {
+      const failureCode =
+        typeof error?.code === 'string' &&
+        /^(?:EACCES|EEXIST|ENOENT|ENOSPC|EROFS)$/u.test(error.code)
+          ? error.code
+          : null;
+      process.stderr.write(
+        `PRODIVIX_CONTROLLED_ROOTLESS_PACKAGE_SEED_FAILURE:${Buffer.from(
+          JSON.stringify({
+            phase: packageSeedFailurePhase,
+            failureCode,
+          }),
+          'utf8'
+        ).toString('base64')}\n`
+      );
+    }
     if (failurePhase === 'command-authority' && commandAuthorityFailureFacts) {
       process.stderr.write(
         `PRODIVIX_CONTROLLED_ROOTLESS_COMMAND_AUTHORITY_FAILURE:${Buffer.from(

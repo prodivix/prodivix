@@ -39,6 +39,7 @@ describe('controlled static rootless failure diagnostics', () => {
       exitCode: 1,
       innerPhase: 'command-authority',
       commandAuthority,
+      packageSeed: null,
     });
   });
 
@@ -70,6 +71,54 @@ describe('controlled static rootless failure diagnostics', () => {
       exitCode: 1,
       innerPhase: 'command-authority',
       commandAuthority: null,
+      packageSeed: null,
+    });
+  });
+
+  it('projects only bounded package-seed phase and filesystem facts', () => {
+    const packageSeed = {
+      phase: 'archive-rehash',
+      failureCode: 'ENOSPC',
+    };
+    const encoded = Buffer.from(JSON.stringify(packageSeed), 'utf8').toString(
+      'base64'
+    );
+
+    expect(
+      decodeControlledStaticRootlessSandboxFailureFacts(
+        envelope(
+          `PRODIVIX_CONTROLLED_ROOTLESS_STAGE_FAILURE:package-seed\nPRODIVIX_CONTROLLED_ROOTLESS_PACKAGE_SEED_FAILURE:${encoded}\n`
+        )
+      )
+    ).toEqual({
+      exitCode: 1,
+      innerPhase: 'package-seed',
+      commandAuthority: null,
+      packageSeed,
+    });
+  });
+
+  it('rejects package-seed paths and messages from diagnostics', () => {
+    const encoded = Buffer.from(
+      JSON.stringify({
+        phase: 'archive-rehash',
+        failureCode: null,
+        path: '/opt/prodivix/package-seeds/react-vite',
+      }),
+      'utf8'
+    ).toString('base64');
+
+    expect(
+      decodeControlledStaticRootlessSandboxFailureFacts(
+        envelope(
+          `PRODIVIX_CONTROLLED_ROOTLESS_STAGE_FAILURE:package-seed\nPRODIVIX_CONTROLLED_ROOTLESS_PACKAGE_SEED_FAILURE:${encoded}\n`
+        )
+      )
+    ).toEqual({
+      exitCode: 1,
+      innerPhase: 'package-seed',
+      commandAuthority: null,
+      packageSeed: null,
     });
   });
 });
