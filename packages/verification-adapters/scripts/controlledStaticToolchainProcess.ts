@@ -56,6 +56,7 @@ export type ControlledStaticToolchainExecution = Readonly<{
 
 type ControlledToolchainAuthority = ControlledStaticToolchainSandboxAuthority &
   Readonly<{
+    controlContents: string;
     packageContents: string;
     lockContents: Uint8Array;
     workspaceContents: string;
@@ -405,6 +406,7 @@ const loadControlledToolchainAuthority = async (
     ])
   );
   return Object.freeze({
+    controlContents: controlSource,
     packageContents,
     lockContents,
     workspaceContents,
@@ -452,6 +454,10 @@ const controlledRuntimeFiles = (
     Object.freeze({
       path: 'pnpm-lock.yaml',
       contents: authority.lockContents,
+    }),
+    Object.freeze({
+      path: '.prodivix/controlled-static-toolchain-control.json',
+      contents: authority.controlContents,
     }),
     Object.freeze({
       path: '.prodivix/controlled-vite.config.mjs',

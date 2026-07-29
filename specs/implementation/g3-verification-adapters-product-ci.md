@@ -127,10 +127,12 @@ code/target/source normalized；不得只保存 console text。可在 Preview/CI
 ### Build
 
 对 exact ExportProgram/materialized target 执行 install/build/static output validation，记录 toolchain、lockfile/content digest、
-output manifest、bounded log。Linux controlled static adapter 先在只含 `HOME`/`PATH` 的最小环境中，以不访问
-网络或 store、也不物化 `node_modules` 的 `--frozen-lockfile --offline --lockfile-only` 命令验证
-manifest/lock 一致性，再从 digest-bound image seed 物化依赖并验证 archive/content/manifest/file-set identity
-与 entry/bytes/depth 上限；两步不得合并成一个隐式 pnpm install。
+output manifest、bounded log。Linux controlled static adapter 的 image build 以真实 frozen/offline pnpm
+验证 exact fixture manifest/lock 并生成 immutable seed；runtime install 则在只含 `HOME`/`PATH` 的
+`network=none` 环境中，以 bounded Node authority command 重算 control、manifest、lock、workspace、Vite
+config 与 isolation probe 的 exact digest/file-set identity，不访问 network/store，也不物化 `node_modules`。
+通过后才从 digest-bound image seed 物化依赖并验证 archive/content/manifest/file-set identity 与
+entry/bytes/depth 上限；两步不得合并成一个隐式 package-manager install。
 build 环境 network phase 严格受 G2 allowlist，runtime phase无 egress；本机泄漏的 binary 不算依赖。
 
 ### Unit

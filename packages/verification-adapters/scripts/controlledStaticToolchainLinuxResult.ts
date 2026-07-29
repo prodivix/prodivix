@@ -124,21 +124,18 @@ const expectedCommands = (
       binary: 'pnpm',
       version: authority.pnpmVersion,
     }),
-    Object.freeze({
-      stage: 'install',
-      application: 'pnpm',
-      args: Object.freeze([
-        'install',
-        '--frozen-lockfile',
-        '--offline',
-        '--ignore-scripts',
-        '--lockfile-only',
-        '--reporter=append-only',
-        '--loglevel=error',
-      ]),
-      binary: 'pnpm',
-      version: authority.pnpmVersion,
-    }),
+    nodeSubject(
+      'install',
+      '.prodivix/controlled-static-rootless-stage-worker.mjs',
+      authority.toolchainFileSetDigest,
+      Object.freeze([
+        '.prodivix/controlled-static-rootless-stage-worker.mjs',
+        '--verify-toolchain-authority',
+        authority.manifestDigest,
+        authority.lockDigest,
+        authority.toolchainFileSetDigest,
+      ])
+    ),
     nodeSubject(
       'isolation',
       '.prodivix/isolation-probe.mjs',
@@ -217,11 +214,12 @@ export const decodeControlledStaticToolchainLinuxCommands = (
         ],
         `Controlled sandbox command ${index}`
       );
+      const expectedCommand = expected[index]!;
       const tool = exactRecord(
         record.tool,
-        index < 2
-          ? ['binary', 'version']
-          : ['binary', 'version', 'subjectBinary', 'subjectVersion'],
+        expectedCommand.subjectBinary
+          ? ['binary', 'version', 'subjectBinary', 'subjectVersion']
+          : ['binary', 'version'],
         `Controlled sandbox command ${index} tool`
       );
       const output = (
@@ -254,7 +252,6 @@ export const decodeControlledStaticToolchainLinuxCommands = (
           truncated: false,
         });
       };
-      const expectedCommand = expected[index]!;
       if (
         record.stage !== expectedCommand.stage ||
         record.application !== expectedCommand.application ||

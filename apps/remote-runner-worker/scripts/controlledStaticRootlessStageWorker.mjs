@@ -28,7 +28,33 @@ const PACKAGE_SEED_FORMAT =
   'prodivix.controlled-static-rootless-package-seed.v1';
 const PACKAGE_SEED_ROOT = '/opt/prodivix/package-seeds';
 const PACKAGE_SEED_WORKSPACE_PATH = '.prodivix/package-seed.json.gz';
+const STAGE_WORKER_PATH =
+  '.prodivix/controlled-static-rootless-stage-worker.mjs';
+const VERIFY_TOOLCHAIN_AUTHORITY_MODE = '--verify-toolchain-authority';
 const DIGEST_PATTERN = /^sha256-[a-f0-9]{64}$/u;
+const TOOLCHAIN_AUTHORITY_FILES = Object.freeze([
+  Object.freeze({
+    path: 'control.json',
+    workspacePath: '.prodivix/controlled-static-toolchain-control.json',
+  }),
+  Object.freeze({ path: 'package.json', workspacePath: 'package.json' }),
+  Object.freeze({
+    path: 'pnpm-lock.yaml',
+    workspacePath: 'pnpm-lock.yaml',
+  }),
+  Object.freeze({
+    path: 'pnpm-workspace.yaml',
+    workspacePath: 'pnpm-workspace.yaml',
+  }),
+  Object.freeze({
+    path: 'controlled-vite.config.mjs',
+    workspacePath: '.prodivix/controlled-vite.config.mjs',
+  }),
+  Object.freeze({
+    path: 'isolation-probe.mjs',
+    workspacePath: '.prodivix/isolation-probe.mjs',
+  }),
+]);
 const STAGES = Object.freeze([
   'version',
   'install',
@@ -114,6 +140,89 @@ const pathExists = async (path) => {
     if (error?.code === 'ENOENT') return false;
     throw error;
   }
+};
+
+export const createControlledStaticRootlessToolchainFileAuthority = (
+  sources
+) => {
+  const requiredPaths = TOOLCHAIN_AUTHORITY_FILES.map(({ path }) => path);
+  exactRecord(sources, requiredPaths, 'Controlled rootless toolchain files');
+  const fileDigests = Object.fromEntries(
+    requiredPaths.map((path) => {
+      const contents = sources[path];
+      if (
+        typeof contents !== 'string' &&
+        !Buffer.isBuffer(contents) &&
+        !(contents instanceof Uint8Array)
+      ) {
+        throw new TypeError(
+          'Controlled rootless toolchain file bytes drifted.'
+        );
+      }
+      return [path, sha256(contents)];
+    })
+  );
+  const fileSetFacts = TOOLCHAIN_AUTHORITY_FILES.map(({ path }) => ({
+    digest: fileDigests[path],
+    path,
+  }));
+  return Object.freeze({
+    manifestDigest: fileDigests['package.json'],
+    lockDigest: fileDigests['pnpm-lock.yaml'],
+    isolationProbeDigest: fileDigests['isolation-probe.mjs'],
+    toolchainFileSetDigest: sha256(
+      Buffer.from(JSON.stringify(fileSetFacts), 'utf8')
+    ),
+  });
+};
+
+const readControlledStaticRootlessToolchainFileAuthority = async () => {
+  const entries = await Promise.all(
+    TOOLCHAIN_AUTHORITY_FILES.map(async ({ path, workspacePath: sourcePath }) => [
+      path,
+      await readFile(workspacePath(sourcePath)),
+    ])
+  );
+  return createControlledStaticRootlessToolchainFileAuthority(
+    Object.fromEntries(entries)
+  );
+};
+
+const assertControlledStaticRootlessToolchainFileAuthority = (
+  observed,
+  expected
+) => {
+  if (
+    observed.manifestDigest !== expected.manifestDigest ||
+    observed.lockDigest !== expected.lockDigest ||
+    observed.toolchainFileSetDigest !== expected.toolchainFileSetDigest ||
+    (expected.isolationProbeDigest !== undefined &&
+      observed.isolationProbeDigest !== expected.isolationProbeDigest)
+  ) {
+    throw new TypeError('Controlled rootless toolchain file authority drifted.');
+  }
+};
+
+const runToolchainAuthorityVerification = async () => {
+  const args = process.argv.slice(2);
+  if (
+    args.length !== 4 ||
+    args[0] !== VERIFY_TOOLCHAIN_AUTHORITY_MODE ||
+    !args.slice(1).every((digest) => DIGEST_PATTERN.test(digest))
+  ) {
+    throw new TypeError(
+      'Controlled rootless toolchain verification arguments drifted.'
+    );
+  }
+  const [, manifestDigest, lockDigest, toolchainFileSetDigest] = args;
+  assertControlledStaticRootlessToolchainFileAuthority(
+    await readControlledStaticRootlessToolchainFileAuthority(),
+    {
+      manifestDigest,
+      lockDigest,
+      toolchainFileSetDigest,
+    }
+  );
 };
 
 const readStagePlan = async () => {
@@ -487,19 +596,17 @@ export const createControlledStaticRootlessCommandPlan = (
   if (plan.stage === 'install') {
     return {
       stage: plan.stage,
-      application: 'pnpm',
+      application: 'node',
       args: [
-        'install',
-        '--frozen-lockfile',
-        '--offline',
-        '--ignore-scripts',
-        '--lockfile-only',
-        '--reporter=append-only',
-        '--loglevel=error',
+        STAGE_WORKER_PATH,
+        VERIFY_TOOLCHAIN_AUTHORITY_MODE,
+        plan.manifestDigest,
+        plan.lockDigest,
+        plan.toolchainFileSetDigest,
       ],
       environmentDigest,
-      tool: { binary: 'pnpm', version: plan.pnpmVersion },
-      timeoutMs: 60_000,
+      tool: nodeTool(STAGE_WORKER_PATH, plan.toolchainFileSetDigest),
+      timeoutMs: 30_000,
     };
   }
   if (plan.stage === 'isolation') {
@@ -639,13 +746,19 @@ const run = async () => {
   if (plan.stage === 'install') {
     failurePhase = 'package-seed';
     packageSeedFailurePhase = 'lock-validation-postcondition';
+    const observedToolchainAuthority =
+      await readControlledStaticRootlessToolchainFileAuthority();
     if (
       (await pathExists('node_modules')) ||
-      sha256(await readFile(workspacePath('pnpm-lock.yaml'))) !==
-        plan.lockDigest
+      observedToolchainAuthority.manifestDigest !== plan.manifestDigest ||
+      observedToolchainAuthority.lockDigest !== plan.lockDigest ||
+      observedToolchainAuthority.toolchainFileSetDigest !==
+        plan.toolchainFileSetDigest ||
+      observedToolchainAuthority.isolationProbeDigest !==
+        plan.isolationProbeDigest
     ) {
       throw new TypeError(
-        'Controlled rootless lock validation mutated the workspace.'
+        'Controlled rootless toolchain validation mutated the workspace.'
       );
     }
     packageSeed = await materializeImagePackageSeed(plan);
@@ -802,7 +915,13 @@ if (
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {
-    await run();
+    if (process.argv[2] === VERIFY_TOOLCHAIN_AUTHORITY_MODE) {
+      await runToolchainAuthorityVerification();
+    } else if (process.argv.length === 2) {
+      await run();
+    } else {
+      throw new TypeError('Controlled rootless worker arguments drifted.');
+    }
   } catch (error) {
     process.stderr.write(
       `PRODIVIX_CONTROLLED_ROOTLESS_STAGE_FAILURE:${failurePhase}\n`

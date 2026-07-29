@@ -578,20 +578,18 @@ describe('controlled static rootless authority decoder', () => {
       rawCommand(
         'install',
         1,
-        'pnpm',
+        'node',
         [
-          'install',
-          '--frozen-lockfile',
-          '--offline',
-          '--ignore-scripts',
-          '--lockfile-only',
-          '--reporter=append-only',
-          '--loglevel=error',
+          '.prodivix/controlled-static-rootless-stage-worker.mjs',
+          '--verify-toolchain-authority',
+          authority.manifestDigest,
+          authority.lockDigest,
+          authority.toolchainFileSetDigest,
         ],
-        Object.freeze({
-          binary: 'pnpm',
-          version: authority.pnpmVersion,
-        })
+        nodeTool(
+          '.prodivix/controlled-static-rootless-stage-worker.mjs',
+          authority.toolchainFileSetDigest
+        )
       ),
       rawCommand(
         'isolation',

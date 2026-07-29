@@ -109,21 +109,17 @@ const expectedCommand = (
     });
   }
   if (stage === 'install') {
+    const subject = '.prodivix/controlled-static-rootless-stage-worker.mjs';
     return Object.freeze({
-      application: 'pnpm',
+      application: 'node',
       args: Object.freeze([
-        'install',
-        '--frozen-lockfile',
-        '--offline',
-        '--ignore-scripts',
-        '--lockfile-only',
-        '--reporter=append-only',
-        '--loglevel=error',
+        subject,
+        '--verify-toolchain-authority',
+        request.toolchain.manifestDigest,
+        request.toolchain.lockDigest,
+        request.toolchain.toolchainFileSetDigest,
       ]),
-      tool: Object.freeze({
-        binary: 'pnpm',
-        version: request.toolchain.pnpmVersion,
-      }),
+      tool: nodeTool(subject, request.toolchain.toolchainFileSetDigest),
     });
   }
   if (stage === 'isolation') {
@@ -236,9 +232,9 @@ const decodeInnerCommand = (
   const expected = expectedCommand(request, stage);
   const tool = controlledStaticRootlessExactRecord(
     command.tool,
-    stage === 'version' || stage === 'install'
-      ? ['binary', 'version']
-      : ['binary', 'version', 'subjectBinary', 'subjectVersion'],
+    'subjectBinary' in expected.tool
+      ? ['binary', 'version', 'subjectBinary', 'subjectVersion']
+      : ['binary', 'version'],
     `Controlled rootless ${stage} tool`
   );
   if (

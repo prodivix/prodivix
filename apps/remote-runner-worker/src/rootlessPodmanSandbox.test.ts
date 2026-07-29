@@ -1226,14 +1226,13 @@ describe('controlled static rootless stage isolation authority', () => {
       }),
       command: Object.freeze({
         stage,
-        application:
-          stage === 'version' || stage === 'install' ? 'pnpm' : 'node',
+        application: stage === 'version' ? 'pnpm' : 'node',
         args: Object.freeze([]),
         cwd: 'workspace:/',
         executionBoundary: 'sandbox',
         environmentDigest,
         tool: Object.freeze({
-          binary: stage === 'version' || stage === 'install' ? 'pnpm' : 'node',
+          binary: stage === 'version' ? 'pnpm' : 'node',
           version: '1.0.0',
         }),
         startedAtEpochMs: providerStartedAt + 1,
@@ -1486,43 +1485,74 @@ describe('controlled static rootless stage isolation authority', () => {
     ).toThrow(/zero residual/u);
   });
 
-  it('keeps rootless lock validation offline, metadata-only, and store-independent', async () => {
+  it('keeps rootless toolchain validation bounded and package-manager independent', async () => {
     const worker = await import(
       // @ts-expect-error -- the executable MJS intentionally has no TS facade
       '../scripts/controlledStaticRootlessStageWorker.mjs'
     );
-    const environmentDigest = digest('lock-validation-environment');
+    const sources = {
+      'control.json': 'control-authority',
+      'package.json': 'project-manifest',
+      'pnpm-lock.yaml': 'dependency-lock',
+      'pnpm-workspace.yaml': 'workspace-authority',
+      'controlled-vite.config.mjs': 'vite-authority',
+      'isolation-probe.mjs': 'isolation-authority',
+    };
+    const authority =
+      worker.createControlledStaticRootlessToolchainFileAuthority(sources);
+    expect(authority).toEqual({
+      manifestDigest: digest(sources['package.json']),
+      lockDigest: digest(sources['pnpm-lock.yaml']),
+      isolationProbeDigest: digest(sources['isolation-probe.mjs']),
+      toolchainFileSetDigest: digest(
+        canonicalJsonText(
+          Object.entries(sources).map(([path, contents]) => ({
+            path,
+            digest: digest(contents),
+          }))
+        )
+      ),
+    });
+    expect(() =>
+      worker.createControlledStaticRootlessToolchainFileAuthority({
+        ...sources,
+        'unexpected-cache': 'host-state',
+      })
+    ).toThrow(/toolchain files/u);
+
+    const environmentDigest = digest('toolchain-validation-environment');
     const command = worker.createControlledStaticRootlessCommandPlan(
       {
         stage: 'install',
+        nodeVersion: '22.23.1',
         pnpmVersion: '11.9.0',
+        ...authority,
       },
       environmentDigest
     );
 
     expect(command).toEqual({
       stage: 'install',
-      application: 'pnpm',
+      application: 'node',
       args: [
-        'install',
-        '--frozen-lockfile',
-        '--offline',
-        '--ignore-scripts',
-        '--lockfile-only',
-        '--reporter=append-only',
-        '--loglevel=error',
+        '.prodivix/controlled-static-rootless-stage-worker.mjs',
+        '--verify-toolchain-authority',
+        authority.manifestDigest,
+        authority.lockDigest,
+        authority.toolchainFileSetDigest,
       ],
       environmentDigest,
       tool: {
-        binary: 'pnpm',
-        version: '11.9.0',
+        binary: 'node',
+        version: '22.23.1',
+        subjectBinary: '.prodivix/controlled-static-rootless-stage-worker.mjs',
+        subjectVersion: authority.toolchainFileSetDigest,
       },
-      timeoutMs: 60_000,
+      timeoutMs: 30_000,
     });
-    expect(command.args).toContain('--offline');
-    expect(command.args).not.toContain('--frozen-store');
+    expect(command.args).not.toContain('install');
+    expect(command.args).not.toContain('--offline');
     expect(command.args).not.toContain('--store-dir=/opt/prodivix/pnpm-store');
-    expect(command.args).not.toContain('--package-import-method=copy');
   });
 
   it('rejects hostile package-import paths, links, kinds, bounds, and full-rehash manifest drift', async () => {

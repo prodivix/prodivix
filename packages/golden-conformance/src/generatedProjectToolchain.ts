@@ -345,7 +345,7 @@ const decodeControlledAuthorityReceipt = (
     },
     {
       stage: 'install',
-      application: provider === 'windows-appcontainer' ? 'node' : 'pnpm',
+      application: 'node',
       args:
         provider === 'windows-appcontainer'
           ? [
@@ -363,16 +363,24 @@ const decodeControlledAuthorityReceipt = (
               '--package-import-method=copy',
             ]
           : [
-              'install',
-              '--frozen-lockfile',
-              '--offline',
-              '--ignore-scripts',
-              '--lockfile-only',
-              '--reporter=append-only',
-              '--loglevel=error',
+              '.prodivix/controlled-static-rootless-stage-worker.mjs',
+              '--verify-toolchain-authority',
+              normalizedToolchain.manifestDigest,
+              normalizedToolchain.lockDigest,
+              normalizedToolchain.toolchainFileSetDigest,
             ],
-      binary: 'pnpm',
-      version: normalizedToolchain.pnpmVersion,
+      binary: provider === 'windows-appcontainer' ? 'pnpm' : 'node',
+      version:
+        provider === 'windows-appcontainer'
+          ? normalizedToolchain.pnpmVersion
+          : normalizedToolchain.nodeVersion,
+      ...(provider === 'linux-rootless-podman'
+        ? {
+            subjectBinary:
+              '.prodivix/controlled-static-rootless-stage-worker.mjs',
+            subjectVersion: normalizedToolchain.toolchainFileSetDigest,
+          }
+        : {}),
       cwd: 'workspace:/',
       executionBoundary: 'sandbox',
     },
@@ -475,9 +483,9 @@ const decodeControlledAuthorityReceipt = (
       );
       const tool = exactResultRecord(
         commandRecord.tool,
-        index < 2
-          ? ['binary', 'version']
-          : ['binary', 'version', 'subjectBinary', 'subjectVersion'],
+        expected.subjectBinary
+          ? ['binary', 'version', 'subjectBinary', 'subjectVersion']
+          : ['binary', 'version'],
         `Controlled static toolchain command ${index} tool`
       );
       const output = (
