@@ -1607,6 +1607,17 @@ describe('controlled static rootless stage isolation authority', () => {
       ])
     ).toThrow(/bounds|budget/u);
 
+    const largeContents = Buffer.alloc(2 * 1024 * 1024, 0xa5);
+    expect(() =>
+      decode([
+        fileEntry('large-package-file', {
+          contents: largeContents.toString('base64'),
+          digest: digest(largeContents),
+          size: largeContents.byteLength,
+        }),
+      ])
+    ).not.toThrow();
+
     const forged = archive([valid], (manifest) => ({
       ...manifest,
       fileSetDigest: digest('fully-rehashed-but-wrong-file-set'),

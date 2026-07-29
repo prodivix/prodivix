@@ -19,6 +19,8 @@ const PACKAGE_IMPORT_FORMAT =
 export const MAXIMUM_PACKAGE_IMPORT_ENTRIES = 100_000;
 export const MAXIMUM_PACKAGE_IMPORT_BYTES = 320 * 1024 * 1024;
 const MAXIMUM_PACKAGE_IMPORT_FILE_BYTES = 64 * 1024 * 1024;
+const MAXIMUM_PACKAGE_IMPORT_FILE_BASE64_LENGTH =
+  Math.ceil(MAXIMUM_PACKAGE_IMPORT_FILE_BYTES / 3) * 4;
 export const MAXIMUM_PACKAGE_IMPORT_TOTAL_FILE_BYTES = 256 * 1024 * 1024;
 export const MAXIMUM_PACKAGE_IMPORT_DEPTH = 64;
 
@@ -27,6 +29,43 @@ const sha256 = (contents) =>
 
 const compareCodePoints = (left, right) =>
   left < right ? -1 : left > right ? 1 : 0;
+
+const isBase64Text = (value) => {
+  if (
+    typeof value !== 'string' ||
+    value.length > MAXIMUM_PACKAGE_IMPORT_FILE_BASE64_LENGTH ||
+    value.length % 4 !== 0
+  ) {
+    return false;
+  }
+  let contentLength = value.length;
+  if (contentLength > 0 && value.charCodeAt(contentLength - 1) === 61) {
+    contentLength -= 1;
+    if (contentLength > 0 && value.charCodeAt(contentLength - 1) === 61) {
+      contentLength -= 1;
+    }
+  }
+  for (let index = 0; index < contentLength; index += 1) {
+    const code = value.charCodeAt(index);
+    if (
+      !(
+        (code >= 65 && code <= 90) ||
+        (code >= 97 && code <= 122) ||
+        (code >= 48 && code <= 57) ||
+        code === 43 ||
+        code === 47
+      )
+    ) {
+      return false;
+    }
+  }
+  for (let index = contentLength; index < value.length; index += 1) {
+    if (value.charCodeAt(index) !== 61) {
+      return false;
+    }
+  }
+  return true;
+};
 
 const exactRecord = (value, required, label) => {
   if (
@@ -129,8 +168,9 @@ export const createControlledStaticRootlessPackageManifest = (entries) => {
     entryCount: entries.length,
     fileCount: fileEntries.length,
     fileSetDigest: sha256(Buffer.from(JSON.stringify(facts), 'utf8')),
-    maximumDepth: Math.max(
-      ...entries.map(({ path }) => path.split('/').length)
+    maximumDepth: entries.reduce(
+      (maximum, { path }) => Math.max(maximum, path.split('/').length),
+      0
     ),
     symlinkCount: entries.filter(({ kind }) => kind === 'symlink').length,
     totalFileBytes: fileEntries.reduce((total, { size }) => total + size, 0),
@@ -361,10 +401,7 @@ export const decodeControlledStaticRootlessPackageImportBytes = (
       return Object.freeze({ kind, mode: record.mode, path });
     }
     if (
-      typeof record.contents !== 'string' ||
-      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-        record.contents
-      )
+      !isBase64Text(record.contents)
     ) {
       throw new TypeError(
         `Controlled package import entry ${index} contents drifted.`
