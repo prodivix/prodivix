@@ -1,4 +1,4 @@
-import { chromium, firefox, webkit } from 'playwright-core';
+import { chromium } from 'playwright-core';
 import { describe, expect, it } from 'vitest';
 import {
   armPlaywrightTrustedPerformanceObservation,
@@ -68,113 +68,105 @@ const VIRTUAL_CLOCK_HTML = `<!doctype html>
 describe.skipIf(!enabled)(
   'Playwright trusted performance probe browsers',
   () => {
-    for (const { name, browserType } of [
-      { name: 'chromium', browserType: chromium },
-      { name: 'firefox', browserType: firefox },
-      { name: 'webkit', browserType: webkit },
-    ] as const) {
-      it(`${name} keeps monotonic timing and trusted interactions outside author monkeypatches`, async () => {
-        const browser = await browserType.launch({ headless: true });
-        try {
-          const page = await browser.newPage();
-          const binding = await installPlaywrightPerformanceProbe(page);
-          await page.route('http://localhost/**', (route) =>
-            route.fulfill({
-              body: TAMPER_HTML,
-              contentType: 'text/html; charset=utf-8',
-              status: 200,
-            })
-          );
-          await page.goto('http://localhost/', { waitUntil: 'load' });
+    it('chromium keeps monotonic timing and trusted interactions outside author monkeypatches', async () => {
+      const browser = await chromium.launch({ headless: true });
+      try {
+        const page = await browser.newPage();
+        const binding = await installPlaywrightPerformanceProbe(page);
+        await page.route('http://localhost/**', (route) =>
+          route.fulfill({
+            body: TAMPER_HTML,
+            contentType: 'text/html; charset=utf-8',
+            status: 200,
+          })
+        );
+        await page.goto('http://localhost/', { waitUntil: 'load' });
 
-          const startedAt = await readPlaywrightTrustedMonotonicTimestamp(
-            page,
-            binding
-          );
-          await armPlaywrightTrustedPerformanceObservation(page, binding);
-          await page.waitForTimeout(300);
-          await page.getByRole('button', { name: 'Interact' }).click();
-          const finishedAt = await readPlaywrightTrustedMonotonicTimestamp(
-            page,
-            binding
-          );
-          const observation =
-            await finishPlaywrightTrustedPerformanceObservation(page, binding);
+        const startedAt = await readPlaywrightTrustedMonotonicTimestamp(
+          page,
+          binding
+        );
+        await armPlaywrightTrustedPerformanceObservation(page, binding);
+        await page.waitForTimeout(300);
+        await page.getByRole('button', { name: 'Interact' }).click();
+        const finishedAt = await readPlaywrightTrustedMonotonicTimestamp(
+          page,
+          binding
+        );
+        const observation = await finishPlaywrightTrustedPerformanceObservation(
+          page,
+          binding
+        );
 
-          expect(startedAt).toBeGreaterThan(0);
-          expect(finishedAt).toBeGreaterThan(startedAt);
-          expect(observation.trustedInteractionCount).toBeGreaterThanOrEqual(1);
-          expect(observation.frameCount).toBeGreaterThan(0);
-          expect(observation.missedFrames).toBeGreaterThanOrEqual(1);
+        expect(startedAt).toBeGreaterThan(0);
+        expect(finishedAt).toBeGreaterThan(startedAt);
+        expect(observation.trustedInteractionCount).toBeGreaterThanOrEqual(1);
+        expect(observation.frameCount).toBeGreaterThan(0);
+        expect(observation.missedFrames).toBeGreaterThanOrEqual(1);
 
-          await page.evaluate(() => {
-            const deadline = Date.now() + 80;
-            while (Date.now() < deadline) {
-              // Deliberately occupy the author main thread after sampling ends.
-            }
-          });
-          const afterScenario =
-            await finishPlaywrightTrustedPerformanceObservation(page, binding);
-          expect(afterScenario.missedFrames).toBe(observation.missedFrames);
-        } finally {
-          await browser.close();
-        }
-      }, 30_000);
-    }
+        await page.evaluate(() => {
+          const deadline = Date.now() + 80;
+          while (Date.now() < deadline) {
+            // Deliberately occupy the author main thread after sampling ends.
+          }
+        });
+        const afterScenario =
+          await finishPlaywrightTrustedPerformanceObservation(page, binding);
+        expect(afterScenario.missedFrames).toBe(observation.missedFrames);
+      } finally {
+        await browser.close();
+      }
+    }, 30_000);
 
-    for (const { name, browserType } of [
-      { name: 'chromium', browserType: chromium },
-      { name: 'firefox', browserType: firefox },
-      { name: 'webkit', browserType: webkit },
-    ] as const) {
-      it(`${name} keeps native monotonic time and animation frames outside a paused Playwright Clock`, async () => {
-        const browser = await browserType.launch({ headless: true });
-        try {
-          const page = await browser.newPage();
-          const binding = await installPlaywrightPerformanceProbe(page);
-          await page.route('http://localhost/**', (route) =>
-            route.fulfill({
-              body: VIRTUAL_CLOCK_HTML,
-              contentType: 'text/html; charset=utf-8',
-              status: 200,
-            })
-          );
-          await page.goto('http://localhost/', { waitUntil: 'load' });
+    it('chromium keeps native monotonic time and animation frames outside a paused Playwright Clock', async () => {
+      const browser = await chromium.launch({ headless: true });
+      try {
+        const page = await browser.newPage();
+        const binding = await installPlaywrightPerformanceProbe(page);
+        await page.route('http://localhost/**', (route) =>
+          route.fulfill({
+            body: VIRTUAL_CLOCK_HTML,
+            contentType: 'text/html; charset=utf-8',
+            status: 200,
+          })
+        );
+        await page.goto('http://localhost/', { waitUntil: 'load' });
 
-          const trustedBefore = await readPlaywrightTrustedMonotonicTimestamp(
-            page,
-            binding
-          );
-          const fixedTime = Date.UTC(2032, 3, 5, 6, 7, 8);
-          await page.clock.install({ time: fixedTime });
-          await page.clock.pauseAt(fixedTime + 1_000);
-          const authorBefore = await page.evaluate(() => ({
-            dateNow: Date.now(),
-            performanceNow: performance.now(),
-          }));
+        const trustedBefore = await readPlaywrightTrustedMonotonicTimestamp(
+          page,
+          binding
+        );
+        const fixedTime = Date.UTC(2032, 3, 5, 6, 7, 8);
+        await page.clock.install({ time: fixedTime });
+        await page.clock.pauseAt(fixedTime + 1_000);
+        const authorBefore = await page.evaluate(() => ({
+          dateNow: Date.now(),
+          performanceNow: performance.now(),
+        }));
 
-          await armPlaywrightTrustedPerformanceObservation(page, binding);
-          await page.waitForTimeout(120);
-          const trustedAfter = await readPlaywrightTrustedMonotonicTimestamp(
-            page,
-            binding
-          );
-          const authorAfter = await page.evaluate(() => ({
-            dateNow: Date.now(),
-            performanceNow: performance.now(),
-          }));
-          const observation =
-            await finishPlaywrightTrustedPerformanceObservation(page, binding);
+        await armPlaywrightTrustedPerformanceObservation(page, binding);
+        await page.waitForTimeout(120);
+        const trustedAfter = await readPlaywrightTrustedMonotonicTimestamp(
+          page,
+          binding
+        );
+        const authorAfter = await page.evaluate(() => ({
+          dateNow: Date.now(),
+          performanceNow: performance.now(),
+        }));
+        const observation = await finishPlaywrightTrustedPerformanceObservation(
+          page,
+          binding
+        );
 
-          expect(authorBefore.dateNow).toBe(fixedTime + 1_000);
-          expect(authorAfter).toEqual(authorBefore);
-          expect(trustedAfter).toBeGreaterThan(trustedBefore + 50);
-          expect(observation.frameCount).toBeGreaterThan(0);
-        } finally {
-          await browser.close();
-        }
-      }, 30_000);
-    }
+        expect(authorBefore.dateNow).toBe(fixedTime + 1_000);
+        expect(authorAfter).toEqual(authorBefore);
+        expect(trustedAfter).toBeGreaterThan(trustedBefore + 50);
+        expect(observation.frameCount).toBeGreaterThan(0);
+      } finally {
+        await browser.close();
+      }
+    }, 30_000);
 
     it('chromium keeps native navigation LCP INP and frame observations outside a paused Playwright Clock', async () => {
       const browser = await chromium.launch({ headless: true });

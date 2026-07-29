@@ -205,16 +205,27 @@ export const collectGoldenBrowserGpuEvidence = async (
     let device: MinimalGpuDevice | undefined;
     let webgpuShaderCompiled = false;
     if (gpu) {
-      adapter = await gpu.requestAdapter();
-      if (adapter) {
-        device = await adapter.requestDevice();
-        const shader = device.createShaderModule({
-          code: '@compute @workgroup_size(1) fn main() {}',
-        });
-        const compilation = await shader.getCompilationInfo();
-        webgpuShaderCompiled = !compilation.messages.some(
-          ({ type }) => type === 'error'
-        );
+      for (let attempt = 0; attempt < 2 && !device; attempt += 1) {
+        try {
+          adapter = await gpu.requestAdapter();
+          if (adapter) device = await adapter.requestDevice();
+        } catch {
+          adapter = null;
+          device = undefined;
+        }
+      }
+      if (device) {
+        try {
+          const shader = device.createShaderModule({
+            code: '@compute @workgroup_size(1) fn main() {}',
+          });
+          const compilation = await shader.getCompilationInfo();
+          webgpuShaderCompiled = !compilation.messages.some(
+            ({ type }) => type === 'error'
+          );
+        } catch {
+          webgpuShaderCompiled = false;
+        }
       }
     }
     const evidence: GoldenBrowserGpuEvidence = {

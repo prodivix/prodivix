@@ -55,6 +55,10 @@ const sandbox =
     ? createRootlessPodmanSandbox({
         imageReference: required('REMOTE_WORKER_SANDBOX_IMAGE'),
         podmanCommand: process.env.REMOTE_WORKER_PODMAN_COMMAND,
+        preparationTimeoutMs: integer(
+          'REMOTE_WORKER_PREPARATION_TIMEOUT_MS',
+          30_000
+        ),
         installNetworkPolicy: installNetworkName
           ? {
               mode: 'proxy-allowlist',

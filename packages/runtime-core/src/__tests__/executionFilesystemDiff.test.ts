@@ -86,6 +86,32 @@ describe('ExecutionFilesystemDiff', () => {
     );
   });
 
+  it('uses Unicode code-point order for canonical change paths', () => {
+    const diff = createExecutionFilesystemDiff({
+      snapshotDigest: digest,
+      workspace,
+      capturedAt: 42,
+      complete: true,
+      changes: [
+        {
+          kind: 'added',
+          path: '\u{e000}.ts',
+          runtime: { contents: new Uint8Array([1]) },
+        },
+        {
+          kind: 'added',
+          path: '\u{10000}.ts',
+          runtime: { contents: new Uint8Array([2]) },
+        },
+      ],
+    });
+
+    expect(diff.changes.map(({ path }) => path)).toEqual([
+      '\u{e000}.ts',
+      '\u{10000}.ts',
+    ]);
+  });
+
   it('rejects unchanged modified files and unsupported fields', () => {
     expect(() =>
       createExecutionFilesystemDiff({

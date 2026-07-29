@@ -239,6 +239,8 @@ G3 不在此阶段开放第三框架；若某 capability 尚未在 Vue public co
 - unit/build/server checks 不人为展开 browser 维度。
 
 critical subset 是 Policy 的显式 profile，并由 Impact/Scenario tag 选择，不是在 CI 中随机挑一部分。
+trusted performance probe 的完整 owner contract 只在 Chromium primary matrix 执行；Firefox/WebKit
+不得复制不属于 critical subset 的 runner-timing 测试来扩大 required Gate。
 
 ## V6 local adapter-matrix evidence record
 
@@ -262,7 +264,7 @@ root `verify:g3:adapter-matrix` 的成功输出必须能重算，不接受只有
 
 `pnpm run verify:g3:adapter-matrix` 已在 Windows 本地完整通过；这是一条连续 root aggregate，不以先前的局部
 通过代替。它验证了 29-package dependency build closure，以及 Verification `242/242`、Verification Adapters
-`40/40`、真实 Browser Adapters `197/197`、Runtime Core `138/138`、Runtime Vitest `20/20`、
+`40/40`、真实 Browser Adapters `193/193`、Runtime Core `142/142`、Runtime Vitest `20/20`、
 Runtime Browser `35/35`、Runtime Remote `109/109`、Compiler production probe `14/14`、static Golden
 `68/68` 与 browser Golden `3/3`。Core/G3 boundaries 和 wire-contract mirror 在同一命令末尾通过。
 
@@ -399,8 +401,10 @@ workflow 与 adapter composition 必须同时满足以下 Gate 不变式：
 4. rootless sandbox 必须保持 non-root、read-only rootfs、`network=none`、无 host mount/credential、
    bounded CPU/memory/pids/files/tmpfs，以及 success/failure/timeout 后零 residual container/process/workspace；
    typecheck 使用 non-emitting invocation，除显式 result allowlist 外每个 stage 的完整 filesystem diff 必须为零；
-5. command、container、transport、artifact 与 parser 各自有正数上限；payload parser 在分配前验证 byte/count/depth，
-   且对合法最大输入保持线性时间与有界调用栈；
+5. command、container、transport、artifact 与 parser 各自有正数上限；rootless preparation
+   （container start、dependency install、network isolation handoff）与 authored execution/capture 使用独立计时器，
+   preparation 默认 30 秒且硬上限 60 秒，只有 isolation handoff 成功后才启动 execution budget；payload parser
+   在分配前验证 byte/count/depth，且对合法最大输入保持线性时间与有界调用栈；
 6. snapshot、manifest、lock、toolchain file set、package seed、stage/result/artifact 都由 exact digest 串联；
    每次跨边界重新解码、重算并拒绝 mutation、forgery、partial capture 或 source-owner drift；进入 wire、
    digest 或持久化字节的展平路径/identity 集合必须在收集完成后直接使用 shared canonical code-point

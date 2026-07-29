@@ -41,7 +41,16 @@ import {
   type IsolatedServerFunctionAuthority,
   type IsolatedServerFunctionSecretMaterial,
 } from '@prodivix/server-runtime';
-import { decodeCanonicalBase64 } from '@prodivix/shared/canonical';
+import {
+  compareUnicodeCodePoints,
+  decodeCanonicalBase64,
+} from '@prodivix/shared/canonical';
+import {
+  createRootlessPodmanLifecycleTimeout,
+  resolveRootlessPodmanExecutionTimeoutMs,
+  resolveRootlessPodmanPreparationTimeoutMs,
+  type RootlessPodmanTimeoutPhase,
+} from './rootlessPodmanLifecycleTimeout';
 import { createRemoteWorkerServerFunctionArtifact } from './serverFunctionArtifact';
 import type {
   RemoteWorkerSandbox,
@@ -83,6 +92,7 @@ export type RootlessPodmanSandboxLimits = Readonly<{
 export type CreateRootlessPodmanSandboxOptions = Readonly<{
   imageReference: string;
   podmanCommand?: string;
+  preparationTimeoutMs?: number;
   installNetworkPolicy?: RootlessPodmanInstallNetworkPolicy;
   limits: RootlessPodmanSandboxLimits;
   now?: () => number;
@@ -277,7 +287,9 @@ export const createRootlessPodmanSandboxWirePayload = (
     secretPolicy &&
     secretMaterial &&
     JSON.stringify(Object.keys(secretMaterial.fields)) !==
-      JSON.stringify(Object.keys(secretPolicy.secretsByField).sort())
+      JSON.stringify(
+        Object.keys(secretPolicy.secretsByField).sort(compareUnicodeCodePoints)
+      )
   )
     throw new TypeError('Production execution Secret projection is invalid.');
   const secretFields = secretMaterial
@@ -405,15 +417,17 @@ const normalizeInstallNetworkPolicy = (
       'Sandbox install proxy URL is not infrastructure-safe.'
     );
   const allowedHosts = Object.freeze(
-    [...new Set(policy.allowedHosts)].sort().map((host) => {
-      if (
-        !/^(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(
-          host
+    [...new Set(policy.allowedHosts)]
+      .sort(compareUnicodeCodePoints)
+      .map((host) => {
+        if (
+          !/^(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(
+            host
+          )
         )
-      )
-        throw new TypeError('Sandbox install egress host is invalid.');
-      return host;
-    })
+          throw new TypeError('Sandbox install egress host is invalid.');
+        return host;
+      })
   );
   if (!allowedHosts.length)
     throw new TypeError('Sandbox install egress allowlist is empty.');
@@ -496,7 +510,7 @@ const assertInstallProxyPolicy = async (
     ?.slice('PRODIVIX_INSTALL_EGRESS_ALLOWLIST='.length)
     .split(',')
     .filter(Boolean)
-    .sort();
+    .sort(compareUnicodeCodePoints);
   if (
     !internalNetwork ||
     running.trim() !== 'true' ||
@@ -733,7 +747,7 @@ const workspaceRefMatches = (
     value: Readonly<Record<string, string>> | undefined
   ) =>
     Object.entries(value ?? {}).sort(([leftKey], [rightKey]) =>
-      leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0
+      compareUnicodeCodePoints(leftKey, rightKey)
     );
   return (
     left.workspaceId === right.workspaceId &&
@@ -1340,9 +1354,15 @@ export const createRootlessPodmanSandbox = (
   const installNetworkPolicy = normalizeInstallNetworkPolicy(
     options.installNetworkPolicy
   );
+  const preparationTimeoutMs = resolveRootlessPodmanPreparationTimeoutMs(
+    options.preparationTimeoutMs
+  );
   const now = options.now ?? Date.now;
   return Object.freeze({
     async execute(input): Promise<RemoteWorkerSandboxResult> {
+      const executionTimeoutMs = resolveRootlessPodmanExecutionTimeoutMs(
+        input.timeoutMs
+      );
       const outputGuard = createExecutionSecretLeakGuard({
         secretValues: input.redactValues,
       });
@@ -1421,7 +1441,7 @@ export const createRootlessPodmanSandbox = (
         stdio: ['pipe', 'pipe', 'pipe'],
         env: podmanProcessEnvironment(),
       });
-      let timedOut = false;
+      let timeoutPhase: RootlessPodmanTimeoutPhase | undefined;
       let aborted = input.signal.aborted;
       let childClosed = false;
       let stopTask: Promise<void> | undefined;
@@ -1488,10 +1508,14 @@ export const createRootlessPodmanSandbox = (
           ).catch(() => undefined);
         })();
       };
-      const timer = setTimeout(() => {
-        timedOut = true;
-        stop();
-      }, input.timeoutMs);
+      const lifecycleTimeout = createRootlessPodmanLifecycleTimeout({
+        preparationTimeoutMs,
+        executionTimeoutMs,
+        onTimeout(phase) {
+          timeoutPhase = phase;
+          stop();
+        },
+      });
       const onAbort = () => {
         aborted = true;
         stop();
@@ -1521,6 +1545,7 @@ export const createRootlessPodmanSandbox = (
                   installNetworkPolicy.networkName,
                   name
                 );
+              if (aborted || !lifecycleTimeout.enterExecutionPhase()) return;
               if (child.stdin.destroyed)
                 throw new TypeError(
                   'Sandbox execution permission transport is closed.'
@@ -1562,7 +1587,7 @@ export const createRootlessPodmanSandbox = (
         });
         if (aborted) stop();
       }).finally(() => {
-        clearTimeout(timer);
+        lifecycleTimeout.clear();
         input.signal.removeEventListener('abort', onAbort);
       });
       await stopTask;
@@ -1570,7 +1595,7 @@ export const createRootlessPodmanSandbox = (
       await captureTask;
       await terminalConnectionTask;
       await terminalDisconnect?.();
-      if (phaseIsolationFailure && !aborted && !timedOut)
+      if (phaseIsolationFailure && !aborted && !timeoutPhase)
         return Object.freeze({
           status: 'failed',
           exitCode: 125,
@@ -1623,7 +1648,7 @@ export const createRootlessPodmanSandbox = (
           });
         }
       }
-      if (!aborted && !timedOut && exitCode === 0) {
+      if (!aborted && !timeoutPhase && exitCode === 0) {
         try {
           const result = decodeRootlessPodmanSandboxResult(
             output.stdout,
@@ -1677,7 +1702,7 @@ export const createRootlessPodmanSandbox = (
       return Object.freeze({
         status: aborted
           ? 'cancelled'
-          : timedOut
+          : timeoutPhase
             ? 'timed-out'
             : exitCode === 0
               ? 'succeeded'
@@ -1687,6 +1712,7 @@ export const createRootlessPodmanSandbox = (
         stderr: stderr.value,
         outputTruncated: output.truncated,
         secretLeakDetected: stderr.redacted,
+        ...(timeoutPhase ? { reason: `sandbox-${timeoutPhase}-timeout` } : {}),
         ...(networkTraces.length ? { networkTraces } : {}),
       });
     },

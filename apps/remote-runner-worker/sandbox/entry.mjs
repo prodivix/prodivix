@@ -352,7 +352,7 @@ const createFilesystemDiffArtifact = async (
   const visit = async (directory, prefix) => {
     const entries = await readdir(directory, { withFileTypes: true });
     entries.sort((left, right) =>
-      left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+      compareUnicodeCodePoints(left.name, right.name)
     );
     for (const entry of entries) {
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -421,7 +421,7 @@ const createFilesystemDiffArtifact = async (
     });
   }
   changes.sort((left, right) =>
-    left.path < right.path ? -1 : left.path > right.path ? 1 : 0
+    compareUnicodeCodePoints(left.path, right.path)
   );
   const serialize = () =>
     Buffer.from(
@@ -500,9 +500,7 @@ const collectBuildFiles = async (root, maximumBytes) => {
   };
   await visit(root, '');
   if (!files.length) throw new TypeError('Build output directory is empty.');
-  files.sort((left, right) =>
-    compareUnicodeCodePoints(left.path, right.path)
-  );
+  files.sort((left, right) => compareUnicodeCodePoints(left.path, right.path));
   return { files, totalBytes };
 };
 
@@ -764,8 +762,7 @@ try {
         (field, index, fields) =>
           typeof field !== 'string' ||
           !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(field) ||
-          (index > 0 &&
-            compareUnicodeCodePoints(fields[index - 1], field) >= 0)
+          (index > 0 && compareUnicodeCodePoints(fields[index - 1], field) >= 0)
       )
     )
       throw new TypeError('Server Function invocation projection is invalid.');

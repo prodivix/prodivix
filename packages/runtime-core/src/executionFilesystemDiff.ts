@@ -422,7 +422,10 @@ export const decodeExecutionFilesystemDiff = (
   let totalBytes = 0;
   const changes = record.changes.map((entry, index) => {
     const change = decodeChange(entry, index);
-    if (previousPath && change.path <= previousPath)
+    if (
+      previousPath &&
+      compareUnicodeCodePoints(change.path, previousPath) <= 0
+    )
       throw new TypeError(
         'Execution filesystem diff changes must be uniquely sorted by path.'
       );
