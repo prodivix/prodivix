@@ -490,6 +490,7 @@ const commandPlan = (plan, environmentDigest) => {
         '--frozen-lockfile',
         '--offline',
         '--ignore-scripts',
+        '--lockfile-only',
         '--reporter=append-only',
         '--loglevel=error',
         '--frozen-store',

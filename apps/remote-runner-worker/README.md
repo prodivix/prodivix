@@ -142,7 +142,8 @@ pre-adopted Podman toolchain from the exact Ubuntu runner image, without mixing 
 with a second distro package family, and executes it as the non-root runner account.
 It builds the sandbox from a digest-pinned base, runs active isolation and cgroup
 probes, then emits the living Golden Workspace through the strict Remote snapshot
-codec and performs real dependency install, Preview, Build, canonical Test, an exact read-only
+codec, materializes an image-attested package tree, validates its frozen lock with
+the real pnpm CLI, and performs Preview, Build, canonical Test, an exact read-only
 `workspace.read` Server Function, a workspace-write staging mutation, and a
 read + Secret one-shot Server Function with a transitive canonical helper module
 inside Podman. The Gate
