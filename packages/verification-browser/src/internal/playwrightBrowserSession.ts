@@ -16,6 +16,11 @@ import type {
   BrowserToolSession,
   BrowserToolVisualCapture,
 } from '../browserVerificationPort';
+import {
+  BrowserVerificationAdapterContractError,
+  browserInfrastructureError,
+  type BrowserVerificationAdapterFailureCode,
+} from '../browserVerificationAdapterPreparation';
 import type { PerformancePolicyProfile } from '../performance';
 import type { BrowserSecurityPolicyProfile } from '../security';
 import {
@@ -40,6 +45,23 @@ import {
   type TrustedPageProbeBinding,
 } from './playwrightTrustedPageProbe';
 import { capturePlaywrightVisual } from './playwrightVisualCollector';
+
+const runBrowserPreparationStage = async <Value>(
+  code: BrowserVerificationAdapterFailureCode,
+  operation: () => Value | Promise<Value>
+): Promise<Value> => {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof BrowserVerificationAdapterContractError) {
+      throw error;
+    }
+    throw browserInfrastructureError(
+      'Playwright browser preparation stage failed.',
+      code
+    );
+  }
+};
 
 export class PlaywrightBrowserTool implements BrowserToolSession {
   readonly #page: Page;
@@ -91,34 +113,53 @@ export class PlaywrightBrowserTool implements BrowserToolSession {
   ): Promise<PlaywrightBrowserTool> {
     const origin = assertOrigin(input.origin);
     const controlHost = new PlaywrightDeterministicControlHost(browser, input);
-    const started = await input.runtimeControlLease.start(controlHost);
+    const started = await runBrowserPreparationStage(
+      'VER-BROWSER-RUNTIME-CONTROL-START',
+      () => input.runtimeControlLease.start(controlHost)
+    );
     if (started.status !== 'ready') {
-      throw new Error(
-        `Browser deterministic controls were blocked: ${started.code}.`
+      throw browserInfrastructureError(
+        'Browser deterministic controls were blocked.',
+        'VER-BROWSER-RUNTIME-CONTROL-START'
       );
     }
     try {
       const page = controlHost.page;
-      const preAuthorObservation =
-        await observePlaywrightPreAuthorRuntime(page);
+      const preAuthorObservation = await runBrowserPreparationStage(
+        'VER-BROWSER-PRE-AUTHOR-OBSERVATION',
+        () => observePlaywrightPreAuthorRuntime(page)
+      );
       const performanceProbe = createPlaywrightPerformanceProbeBinding();
       const trustedPageProbe = createTrustedPageProbeBinding();
-      await controlHost.installRuntimeControls(started.session, {
-        performanceProbe,
-        trustedPageProbe,
-      });
-      const sandboxObservation = await observePlaywrightProviderSandbox(page);
+      await runBrowserPreparationStage(
+        'VER-BROWSER-RUNTIME-CONTROL-INSTALL',
+        () =>
+          controlHost.installRuntimeControls(started.session, {
+            performanceProbe,
+            trustedPageProbe,
+          })
+      );
+      const sandboxObservation = await runBrowserPreparationStage(
+        'VER-BROWSER-SANDBOX-OBSERVATION',
+        () => observePlaywrightProviderSandbox(page)
+      );
       const telemetry = new PlaywrightSecurityTelemetry(
         page,
         sandboxObservation
       );
-      await controlHost.runControlledOperation(
-        started.session,
-        'initial-navigation',
-        () => controlHost.navigateToTarget()
+      await runBrowserPreparationStage('VER-BROWSER-INITIAL-NAVIGATION', () =>
+        controlHost.runControlledOperation(
+          started.session,
+          'initial-navigation',
+          () => controlHost.navigateToTarget()
+        )
       );
-      const runtimeControlAttestation = input.runtimeControlLease.assertIssued(
-        await input.runtimeControlLease.attest('initial')
+      const runtimeControlAttestation = await runBrowserPreparationStage(
+        'VER-BROWSER-INITIAL-ATTESTATION',
+        async () =>
+          input.runtimeControlLease.assertIssued(
+            await input.runtimeControlLease.attest('initial')
+          )
       );
       const tool = new PlaywrightBrowserTool(
         page,
@@ -131,10 +172,10 @@ export class PlaywrightBrowserTool implements BrowserToolSession {
         controlHost,
         runtimeControlAttestation
       );
-      tool.#runtimeIdentity = assertObservedRuntime(
-        input,
-        browser.version(),
-        preAuthorObservation
+      tool.#runtimeIdentity = await runBrowserPreparationStage(
+        'VER-BROWSER-RUNTIME-IDENTITY',
+        () =>
+          assertObservedRuntime(input, browser.version(), preAuthorObservation)
       );
       return tool;
     } catch (error) {

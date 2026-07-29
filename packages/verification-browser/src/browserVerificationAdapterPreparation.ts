@@ -111,13 +111,27 @@ export const BROWSER_CHECK_CONTRACTS = Object.freeze({
   >
 >);
 
-export class BrowserVerificationAdapterContractError extends Error {
-  readonly code: 'VER-4001' | 'VER-4002';
+export type BrowserVerificationAdapterFailureCode =
+  | 'VER-4001'
+  | 'VER-4002'
+  | 'VER-BROWSER-IMAGE-AUTHORITY'
+  | 'VER-BROWSER-INITIAL-ATTESTATION'
+  | 'VER-BROWSER-INITIAL-NAVIGATION'
+  | 'VER-BROWSER-LAUNCH'
+  | 'VER-BROWSER-PRE-AUTHOR-OBSERVATION'
+  | 'VER-BROWSER-RUNTIME-CONTROL-INSTALL'
+  | 'VER-BROWSER-RUNTIME-CONTROL-START'
+  | 'VER-BROWSER-RUNTIME-IDENTITY'
+  | 'VER-BROWSER-SANDBOX-OBSERVATION'
+  | 'VER-BROWSER-SESSION-PREPARE';
 
-  constructor(code: 'VER-4001' | 'VER-4002', message: string) {
+export class BrowserVerificationAdapterContractError extends Error {
+  constructor(
+    readonly code: BrowserVerificationAdapterFailureCode,
+    message: string
+  ) {
     super(message);
     this.name = 'BrowserVerificationAdapterContractError';
-    this.code = code;
   }
 }
 
@@ -127,9 +141,10 @@ export const browserContractError = (
   new BrowserVerificationAdapterContractError('VER-4001', message);
 
 export const browserInfrastructureError = (
-  message: string
+  message: string,
+  code: BrowserVerificationAdapterFailureCode = 'VER-4002'
 ): BrowserVerificationAdapterContractError =>
-  new BrowserVerificationAdapterContractError('VER-4002', message);
+  new BrowserVerificationAdapterContractError(code, message);
 
 export const assertBrowserDigest = (value: string, label: string): void => {
   if (!DIGEST_PATTERN.test(value)) {

@@ -124,9 +124,9 @@ describe('Playwright browser image authority', () => {
       },
     } as unknown as BrowserToolPoolAcquireInput;
     try {
-      await expect(pool.acquire(acquireInput)).rejects.toThrow(
-        /browser image authority mismatch/u
-      );
+      await expect(pool.acquire(acquireInput)).rejects.toMatchObject({
+        code: 'VER-BROWSER-IMAGE-AUTHORITY',
+      });
     } finally {
       await pool.dispose();
     }

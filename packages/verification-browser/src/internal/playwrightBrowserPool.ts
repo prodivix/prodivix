@@ -7,6 +7,10 @@ import type {
   BrowserToolSession,
 } from '../browserVerificationPort';
 import { assertPlaywrightBrowserImageAuthorityReceipt } from '../browserImageAuthority';
+import {
+  BrowserVerificationAdapterContractError,
+  browserInfrastructureError,
+} from '../browserVerificationAdapterPreparation';
 import { observePlaywrightBrowserImageAuthority } from './playwrightBrowserImageAuthority';
 import { PlaywrightBrowserTool } from './playwrightBrowserSession';
 
@@ -115,15 +119,29 @@ export class PlaywrightBrowserPool implements BrowserToolPool {
       executablePath,
       browserImageDigest: input.runtimeIdentity.browserImageDigest,
       browser: (async () => {
-        const authority = await observePlaywrightBrowserImageAuthority({
-          engine: input.engine,
-          executablePath,
-        });
-        assertPlaywrightBrowserImageAuthorityReceipt(
-          authority,
-          input.runtimeIdentity.browserImageDigest
-        );
-        return launchNetworkIsolatedBrowser(input, executablePath);
+        try {
+          const authority = await observePlaywrightBrowserImageAuthority({
+            engine: input.engine,
+            executablePath,
+          });
+          assertPlaywrightBrowserImageAuthorityReceipt(
+            authority,
+            input.runtimeIdentity.browserImageDigest
+          );
+        } catch {
+          throw browserInfrastructureError(
+            'Playwright browser image authority could not be verified.',
+            'VER-BROWSER-IMAGE-AUTHORITY'
+          );
+        }
+        try {
+          return await launchNetworkIsolatedBrowser(input, executablePath);
+        } catch {
+          throw browserInfrastructureError(
+            'Playwright browser process could not be launched.',
+            'VER-BROWSER-LAUNCH'
+          );
+        }
       })(),
     });
     this.#browsers.set(input.engine, entry);
@@ -146,7 +164,17 @@ export class PlaywrightBrowserPool implements BrowserToolPool {
     input: BrowserToolPoolAcquireInput
   ): Promise<BrowserToolSession> {
     const browser = await this.#browserFor(input);
-    return PlaywrightBrowserTool.create(browser, input);
+    try {
+      return await PlaywrightBrowserTool.create(browser, input);
+    } catch (error) {
+      if (error instanceof BrowserVerificationAdapterContractError) {
+        throw error;
+      }
+      throw browserInfrastructureError(
+        'Playwright browser session preparation failed.',
+        'VER-BROWSER-SESSION-PREPARE'
+      );
+    }
   }
 
   async dispose(): Promise<void> {

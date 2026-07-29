@@ -236,6 +236,26 @@ describe('Verification adapter lifecycle executor', () => {
     expect(execute.cleanupInputs[0]).toMatchObject({ cause: 'execute-failed' });
   });
 
+  it('preserves a bounded adapter-owned verification reason code without exposing its message', async () => {
+    const failure = Object.assign(
+      new Error('provider output that must not cross the lifecycle boundary'),
+      { code: 'VER-BROWSER-IMAGE-AUTHORITY' }
+    );
+    const harness = createHarness({ prepareError: failure });
+    const result = await executeVerificationAdapterLifecycle(
+      harness.lifecycleInput
+    );
+    expect(result).toMatchObject({
+      status: 'failed',
+      failureClass: 'adapter-infrastructure',
+      reasonCode: 'VER-BROWSER-IMAGE-AUTHORITY',
+      cleanup: { status: 'clean' },
+    });
+    expect(JSON.stringify(result)).not.toContain(failure.message);
+    expect(harness.cleanupInputs).toHaveLength(1);
+    expect(harness.retireAttempt).toHaveBeenCalledTimes(1);
+  });
+
   it('returns Core staged refs and never lets the adapter report opaque staging ids', async () => {
     let prepareInput: VerificationAdapterPrepareInput | undefined;
     const harness = createHarness({

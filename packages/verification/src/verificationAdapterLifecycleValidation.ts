@@ -502,10 +502,20 @@ export const normalizePreflight = (
   );
 };
 
-export const errorReasonCode = (error: unknown): string =>
-  error instanceof VerificationLifecycleContractError
-    ? error.reasonCode
-    : isPlainObject(error) &&
-        (error.code === 'VER-4001' || error.code === 'VER-4002')
-      ? error.code
-      : 'VER-4002';
+const ADAPTER_REASON_CODE_PATTERN = /^VER-[A-Z0-9]+(?:-[A-Z0-9]+)*$/u;
+
+export const errorReasonCode = (error: unknown): string => {
+  if (error instanceof VerificationLifecycleContractError) {
+    return error.reasonCode;
+  }
+  if (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    ADAPTER_REASON_CODE_PATTERN.test(error.code) &&
+    error.code.length <= 256
+  ) {
+    return error.code;
+  }
+  return 'VER-4002';
+};
