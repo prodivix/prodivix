@@ -232,9 +232,11 @@ const collectPackageImportEntries = async () => {
 
 export const decodeControlledStaticRootlessPackageImportBytes = (
   source,
-  authority
+  authority,
+  observePhase = () => undefined
 ) => {
-  const compressed = Buffer.from(source);
+  const compressed = Buffer.isBuffer(source) ? source : Buffer.from(source);
+  observePhase('archive-verify-bytes');
   if (
     compressed.byteLength !== authority.byteLength ||
     sha256(compressed) !== authority.digest
@@ -242,6 +244,7 @@ export const decodeControlledStaticRootlessPackageImportBytes = (
     throw new TypeError('Controlled package import bytes drifted.');
   }
   let contents;
+  observePhase('archive-inflate');
   try {
     contents = gunzipSync(compressed, {
       maxOutputLength: MAXIMUM_PACKAGE_IMPORT_BYTES,
@@ -249,18 +252,22 @@ export const decodeControlledStaticRootlessPackageImportBytes = (
   } catch {
     throw new TypeError('Controlled package import compression is invalid.');
   }
+  observePhase('archive-verify-content');
   if (sha256(contents) !== authority.contentDigest) {
     throw new TypeError('Controlled package import content drifted.');
   }
+  const text = contents.toString('utf8');
   let value;
+  observePhase('archive-parse-json');
   try {
-    value = JSON.parse(contents.toString('utf8'));
+    value = JSON.parse(text);
   } catch {
     throw new TypeError('Controlled package import JSON is invalid.');
   }
-  if (JSON.stringify(value) !== contents.toString('utf8')) {
+  if (JSON.stringify(value) !== text) {
     throw new TypeError('Controlled package import JSON is not canonical.');
   }
+  observePhase('archive-verify-envelope');
   const archive = exactRecord(
     value,
     ['format', 'manifest', 'entries'],
@@ -297,6 +304,7 @@ export const decodeControlledStaticRootlessPackageImportBytes = (
   let previousPath = '';
   let totalFileBytes = 0;
   const caseFoldedPaths = new Set();
+  observePhase('archive-verify-entries');
   const entries = archive.entries.map((entry, index) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
       throw new TypeError(`Controlled package import entry ${index} drifted.`);
@@ -387,6 +395,7 @@ export const decodeControlledStaticRootlessPackageImportBytes = (
       size: file.byteLength,
     });
   });
+  observePhase('archive-verify-manifest');
   const recomputed = createControlledStaticRootlessPackageManifest(entries);
   if (
     recomputed.manifestDigest !== authority.manifestDigest ||
@@ -403,18 +412,19 @@ export const decodeControlledStaticRootlessPackageImportBytes = (
       })();
 };
 
-const decodePackageImport = async (authority) =>
+const decodePackageImport = async (authority, observePhase, source) =>
   decodeControlledStaticRootlessPackageImportBytes(
-    await readFile(workspacePath(authority.path)),
-    authority
+    source ?? (await readFile(workspacePath(authority.path))),
+    authority,
+    observePhase
   );
 
 export const materializeControlledStaticRootlessPackageImport = async (
   authority,
-  observePhase = () => undefined
+  observePhase = () => undefined,
+  source
 ) => {
-  observePhase('archive-decode');
-  const decoded = await decodePackageImport(authority);
+  const decoded = await decodePackageImport(authority, observePhase, source);
   const entries = decoded.entries;
   const root = workspacePath('node_modules');
   observePhase('archive-create-root');

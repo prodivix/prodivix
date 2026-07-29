@@ -340,15 +340,13 @@ const materializeImagePackageSeed = async (plan) => {
   );
   packageSeedFailurePhase = 'archive-read';
   const archive = await readFile(`${seedRoot}/package-import.json.gz`);
-  packageSeedFailurePhase = 'archive-write';
-  await writeFile(
-    workspacePath(PACKAGE_SEED_WORKSPACE_PATH),
-    archive,
-    { flag: 'wx', mode: 0o600 }
+  await materializePackageImport(
+    authority,
+    (phase) => {
+      packageSeedFailurePhase = phase;
+    },
+    archive
   );
-  await materializePackageImport(authority, (phase) => {
-    packageSeedFailurePhase = phase;
-  });
   return authority;
 };
 

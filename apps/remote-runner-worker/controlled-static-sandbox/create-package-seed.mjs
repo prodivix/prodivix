@@ -1,7 +1,10 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 
-import { createControlledStaticRootlessPackageImport } from './controlledStaticRootlessPackageImport.mjs';
+import {
+  createControlledStaticRootlessPackageImport,
+  decodeControlledStaticRootlessPackageImportBytes,
+} from './controlledStaticRootlessPackageImport.mjs';
 
 const PACKAGE_SEED_FORMAT =
   'prodivix.controlled-static-rootless-package-seed.v1';
@@ -41,6 +44,13 @@ const authority = {
   },
   presetId,
 };
+decodeControlledStaticRootlessPackageImportBytes(
+  await readFile(`${outputRoot}/package-import.json.gz`),
+  {
+    ...authority.packageImport,
+    path: '.prodivix/package-seed.json.gz',
+  }
+);
 await writeFile(
   `${outputRoot}/authority.json`,
   Buffer.from(JSON.stringify(authority), 'utf8'),

@@ -90,6 +90,13 @@ type ControlledStaticRootlessPackageSeedFailureFacts = Readonly<{
     | 'archive-read'
     | 'archive-write'
     | 'archive-decode'
+    | 'archive-verify-bytes'
+    | 'archive-inflate'
+    | 'archive-verify-content'
+    | 'archive-parse-json'
+    | 'archive-verify-envelope'
+    | 'archive-verify-entries'
+    | 'archive-verify-manifest'
     | 'archive-create-root'
     | 'archive-write-tree'
     | 'archive-rehash';
@@ -186,6 +193,13 @@ const decodePackageSeedFailureFacts = (
       'archive-read',
       'archive-write',
       'archive-decode',
+      'archive-verify-bytes',
+      'archive-inflate',
+      'archive-verify-content',
+      'archive-parse-json',
+      'archive-verify-envelope',
+      'archive-verify-entries',
+      'archive-verify-manifest',
       'archive-create-root',
       'archive-write-tree',
       'archive-rehash',
