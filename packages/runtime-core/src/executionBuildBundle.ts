@@ -1,6 +1,9 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
-import { decodeCanonicalBase64 } from '@prodivix/shared/canonical';
+import {
+  compareUnicodeCodePoints,
+  decodeCanonicalBase64,
+} from '@prodivix/shared/canonical';
 import { normalizeExecutableProjectPath } from './executableProjectNormalization';
 import {
   EXECUTABLE_PROJECT_LIMITS,
@@ -120,7 +123,7 @@ export const decodeExecutionBuildBundle = (
       `Execution build bundle file ${index}`
     );
     const path = normalizeExecutableProjectPath(file.path);
-    if (path <= previousPath)
+    if (previousPath && compareUnicodeCodePoints(previousPath, path) >= 0)
       throw new TypeError(
         'Execution build bundle files must be uniquely sorted by path.'
       );

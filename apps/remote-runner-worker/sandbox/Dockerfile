@@ -6,6 +6,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY apps/remote-runner-worker/sandbox/entry.mjs /opt/prodivix/sandbox-entry.mjs
+COPY packages/shared/src/canonical/codePointOrder.ts /opt/prodivix/codePointOrder.ts
 COPY apps/remote-runner-worker/sandbox/terminal-entry.sh /opt/prodivix/terminal-entry.sh
 RUN chmod 0555 /opt/prodivix/terminal-entry.sh
 

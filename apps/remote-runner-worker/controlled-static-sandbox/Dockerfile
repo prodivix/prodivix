@@ -52,6 +52,7 @@ RUN set -eu; \
     chmod -R a+rX /opt/prodivix/pnpm-store /opt/prodivix/package-seeds
 
 COPY apps/remote-runner-worker/sandbox/entry.mjs /opt/prodivix/sandbox-entry.mjs
+COPY packages/shared/src/canonical/codePointOrder.ts /opt/prodivix/codePointOrder.ts
 
 ENV HOME=/tmp
 WORKDIR /workspace

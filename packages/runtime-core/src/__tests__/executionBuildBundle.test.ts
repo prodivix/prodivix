@@ -34,6 +34,34 @@ describe('ExecutionBuildBundle', () => {
     expect(new TextDecoder().decode(result.files[1]?.contents)).toBe('<main/>');
   });
 
+  it('uses locale-independent Unicode code-point order', () => {
+    const wire = bundle();
+    wire.files = [
+      file('assets/\uE000.js', 'export const bmp = true'),
+      file('assets/\u{10000}.js', 'export const astral = true'),
+    ];
+    const original = String.prototype.localeCompare;
+    Object.defineProperty(String.prototype, 'localeCompare', {
+      configurable: true,
+      value: () => {
+        throw new Error('canonical decoding must not consult the host locale');
+      },
+    });
+
+    try {
+      const result = decodeExecutionBuildBundle(JSON.stringify(wire));
+      expect(result.files.map(({ path }) => path)).toEqual([
+        'assets/\uE000.js',
+        'assets/\u{10000}.js',
+      ]);
+    } finally {
+      Object.defineProperty(String.prototype, 'localeCompare', {
+        configurable: true,
+        value: original,
+      });
+    }
+  });
+
   it('rejects path order, unknown fields, and digest drift', () => {
     const reversed = bundle();
     reversed.files.reverse();

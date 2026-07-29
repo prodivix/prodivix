@@ -10,6 +10,7 @@ import {
 } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
+import { compareUnicodeCodePoints } from '/opt/prodivix/codePointOrder.ts';
 
 const allowedCommands = new Set([
   'npm',
@@ -468,7 +469,9 @@ const collectBuildFiles = async (root, maximumBytes) => {
   let totalBytes = 0;
   const visit = async (directory, prefix) => {
     const entries = await readdir(directory, { withFileTypes: true });
-    entries.sort((left, right) => left.name.localeCompare(right.name));
+    entries.sort((left, right) =>
+      compareUnicodeCodePoints(left.name, right.name)
+    );
     for (const entry of entries) {
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
       const absolutePath = resolve(directory, entry.name);
@@ -758,7 +761,8 @@ try {
         (field, index, fields) =>
           typeof field !== 'string' ||
           !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(field) ||
-          (index > 0 && fields[index - 1].localeCompare(field) >= 0)
+          (index > 0 &&
+            compareUnicodeCodePoints(fields[index - 1], field) >= 0)
       )
     )
       throw new TypeError('Server Function invocation projection is invalid.');
