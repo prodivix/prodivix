@@ -395,6 +395,7 @@ const commandPlan = (plan, environmentDigest) => {
         '--reporter=append-only',
         '--loglevel=error',
         '--frozen-store',
+        '--no-verify-store-integrity',
         '--store-dir=/opt/prodivix/pnpm-store',
         '--package-import-method=copy',
       ],
