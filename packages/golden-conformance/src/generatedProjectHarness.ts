@@ -2,14 +2,19 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
-import type { ExecutableProjectSnapshot } from '@prodivix/runtime-core';
+import {
+  EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_MEDIA_TYPE,
+  type ExecutableProjectSnapshot,
+  type ExecutionAuthSessionFixtureResponse,
+} from '@prodivix/runtime-core';
 import { build, transformWithOxc } from 'vite';
 import {
   collectGoldenBrowserGpuEvidence,
   launchGoldenBrowser,
   resolveGoldenBrowserLaunchConfiguration,
   type GoldenBrowserProjectEvidence,
-  type VerifyGoldenBrowserProjectOptions,
+  type VerifyGoldenBrowserProjectOptions as GoldenBrowserInteractionOptions,
 } from './generatedProjectBrowserEngine';
 import {
   readGoldenGeneratedProjectPackageManager,
@@ -28,7 +33,6 @@ export {
   type GoldenBrowserGpuEvidence,
   type GoldenBrowserLaunchConfiguration,
   type GoldenBrowserProjectEvidence,
-  type VerifyGoldenBrowserProjectOptions,
 } from './generatedProjectBrowserEngine';
 export type {
   GoldenGeneratedProjectBundle,
@@ -57,7 +61,14 @@ export type GoldenPreparedBrowserProject = Readonly<{
 
 export type PrepareGoldenBrowserProjectOptions = Readonly<{
   executableSnapshot?: ExecutableProjectSnapshot;
+  authSessionFixtureResponse?: ExecutionAuthSessionFixtureResponse;
 }>;
+
+export type VerifyGoldenBrowserProjectOptions =
+  GoldenBrowserInteractionOptions &
+    Readonly<{
+      authSessionFixtureResponse?: ExecutionAuthSessionFixtureResponse;
+    }>;
 
 const isBareImport = (id: string): boolean =>
   !id.startsWith('.') &&
@@ -120,6 +131,12 @@ export const GOLDEN_BROWSER_RESPONSE_POLICIES = Object.freeze({
     'camera=(), display-capture=(), geolocation=(), microphone=(), payment=(), publickey-credentials-get=(), usb=()',
 });
 
+const GOLDEN_BROWSER_HOST_CONTENT_SECURITY_POLICY =
+  GOLDEN_BROWSER_RESPONSE_POLICIES.contentSecurityPolicy.replace(
+    "frame-src 'none'",
+    "frame-src 'self'"
+  );
+
 type GoldenStaticServer = Readonly<{
   origin: string;
   close: () => Promise<void>;
@@ -150,16 +167,43 @@ const readGoldenStaticResponse = async (
 };
 
 const startGoldenStaticServer = async (
-  distRoot: string
+  distRoot: string,
+  authSessionFixtureResponse?: ExecutionAuthSessionFixtureResponse
 ): Promise<GoldenStaticServer> => {
   const server = createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
+      if (
+        requestUrl.pathname === EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH
+      ) {
+        if (
+          !authSessionFixtureResponse ||
+          (request.method !== 'GET' && request.method !== 'HEAD')
+        ) {
+          response.writeHead(authSessionFixtureResponse ? 405 : 404, {
+            'cache-control': 'no-store',
+            'content-type': 'text/plain; charset=utf-8',
+          });
+          response.end();
+          return;
+        }
+        const payload = Buffer.from(
+          JSON.stringify(authSessionFixtureResponse),
+          'utf8'
+        );
+        response.writeHead(200, {
+          'cache-control': 'no-store',
+          'content-length': payload.byteLength,
+          'content-type': EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_MEDIA_TYPE,
+        });
+        response.end(request.method === 'HEAD' ? undefined : payload);
+        return;
+      }
       if (requestUrl.pathname === '/__prodivix-golden-host.html') {
         response.writeHead(200, {
           'cache-control': 'no-store',
           'content-security-policy':
-            GOLDEN_BROWSER_RESPONSE_POLICIES.contentSecurityPolicy,
+            GOLDEN_BROWSER_HOST_CONTENT_SECURITY_POLICY,
           'content-type': 'text/html; charset=utf-8',
           'permissions-policy':
             GOLDEN_BROWSER_RESPONSE_POLICIES.permissionsPolicy,
@@ -246,7 +290,8 @@ export const prepareGoldenBrowserProject = async (
       resolve(
         root,
         options.executableSnapshot?.buildPlan.outputDirectoryPath ?? 'dist'
-      )
+      ),
+      options.authSessionFixtureResponse
     );
     let disposed = false;
     return Object.freeze({
@@ -344,7 +389,9 @@ export const verifyGoldenBrowserProject = async (
   let project: GoldenPreparedBrowserProject | undefined;
   let browser: Awaited<ReturnType<typeof launchGoldenBrowser>> | undefined;
   try {
-    project = await prepareGoldenBrowserProject(bundle);
+    project = await prepareGoldenBrowserProject(bundle, {
+      authSessionFixtureResponse: options.authSessionFixtureResponse,
+    });
     browser = await launchGoldenBrowser(launch);
     const page = await browser.newPage();
     const runtimeErrors: string[] = [];
@@ -354,7 +401,7 @@ export const verifyGoldenBrowserProject = async (
     });
     const projectUrl = new URL(options.routePath, project.origin).href;
     if (options.preparePage) await options.preparePage(page, projectUrl);
-    else await page.goto(projectUrl, { waitUntil: 'networkidle' });
+    else await page.goto(projectUrl, { waitUntil: 'domcontentloaded' });
     await options.verifyPage?.(page);
     const gpu = await collectGoldenBrowserGpuEvidence(page);
     if (runtimeErrors.length > 0) {

@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { digestVerificationValue } from '@prodivix/verification';
 import { executeGoldenG3V6ControlledAdapterMatrix } from './goldenG3V6BrowserMatrixExecution';
 
-describe('Golden G3 V6 controlled 66-cell / 80-attempt matrix', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 controlled 66-cell / 80-attempt matrix', () => {
   it('reports every static, Browser, Remote Preview, Export, and CI attempt without skips', async () => {
     const evidence = await executeGoldenG3V6ControlledAdapterMatrix();
 

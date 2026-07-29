@@ -9,5 +9,6 @@ export type {
 } from './vitestExecutionTestReport';
 export {
   createVitestExecutionFileIdentityResolver,
-  readExecutableSnapshotVitestVersion,
+  readInstalledVitestVersion,
+  VITEST_INSTALLED_PACKAGE_MANIFEST_PATH,
 } from './vitestExecutionIdentity';

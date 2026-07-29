@@ -24,7 +24,7 @@ import {
 } from './goldenG3VerificationPlanFixture';
 
 const EXPECTED_PLAN_DIGEST =
-  'sha256-d00b9829832fb2e5854b8c915cafbc4800efaf365c0f72d07e60f7d48042713f';
+  'sha256-e538301b3cbd943133904591a0c97e00870d2ed9a9c21f96e212aaf9d2eea838';
 
 describe('G3 V4 Impact, Policy, and Plan Golden', () => {
   it('explains PIR, Data, Route guard, NodeGraph, Animation, and shared CodeSlot impact', () => {

@@ -19,9 +19,12 @@ import {
   type ExecutionProviderDescriptor,
   type ExecutionTestReport,
 } from '@prodivix/runtime-core';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
+import { VITEST_INSTALLED_PACKAGE_MANIFEST_PATH } from '@prodivix/runtime-vitest';
 import {
   GOLDEN_G2_BROWSER_PREVIEW_URL,
   GOLDEN_G2_REPORT_PATH,
+  GOLDEN_G2_VITEST_VERSION,
   GOLDEN_G2_VITEST_REPORT,
   createGoldenG2ExecutionRequest,
 } from './goldenG2ExecutionFixture';
@@ -87,6 +90,13 @@ const createGoldenBrowserRuntime = () => {
       commands.push(command);
       if (command.args?.includes('install')) {
         installCount += 1;
+        files.set(
+          VITEST_INSTALLED_PACKAGE_MANIFEST_PATH,
+          JSON.stringify({
+            name: 'vitest',
+            version: GOLDEN_G2_VITEST_VERSION,
+          })
+        );
         return { exit: Promise.resolve(0), output: emptyOutput(), kill() {} };
       }
       if (command.args?.includes('test')) {
@@ -201,7 +211,11 @@ export const runGoldenG2BrowserMatrix = async (
       createGoldenG2ExecutionRequest(snapshot, 'preview')
     );
     const previewArtifact = await waitForArtifact(previewJob);
-    const mountedFilePaths = Object.freeze([...harness.files.keys()].sort());
+    const mountedFilePaths = Object.freeze(
+      [...harness.files.keys()]
+        .filter((path) => !path.startsWith('node_modules/'))
+        .sort(compareUnicodeCodePoints)
+    );
     await preview.stop('Golden Preview contract captured.');
     const previewTerminal = await previewJob.completion;
 
@@ -215,7 +229,25 @@ export const runGoldenG2BrowserMatrix = async (
       (artifact) => artifact.mediaType === EXECUTION_TEST_REPORT_MEDIA_TYPE
     );
     if (!testArtifact)
-      throw new Error('Golden Browser Test did not publish a report artifact.');
+      throw new Error(
+        `Golden Browser Test did not publish a report artifact: ${JSON.stringify(
+          {
+            status: testResult.status,
+            ...(testResult.status === 'failed'
+              ? { failure: testResult.failure }
+              : {}),
+            diagnostics: testResult.diagnostics,
+            reportedTestPath: (
+              JSON.parse(GOLDEN_G2_VITEST_REPORT) as {
+                testResults?: readonly Readonly<{ name?: unknown }>[];
+              }
+            ).testResults?.[0]?.name,
+            snapshotTestPaths: snapshot.files
+              .map(({ path }) => path)
+              .filter((path) => path.endsWith('.test.tsx')),
+          }
+        )}`
+      );
 
     return Object.freeze({
       resolvedDigests: Object.freeze(resolvedDigests),

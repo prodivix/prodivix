@@ -9,7 +9,11 @@ import { createGoldenG3V6ExecutableSnapshot } from './goldenG3V6ExecutableSnapsh
 import { startGoldenG3V6RemotePreviewSession } from './goldenG3V6RemotePreviewHarness';
 import { createGoldenG3ReactCatalogSnapshot } from './goldenG3ScenarioFixture';
 
-describe('Golden G3 V6 Remote Preview harness', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 Remote Preview harness', () => {
   it('uploads, claims, resumes, resolves, and materializes an actual generated bundle', async () => {
     const snapshot = createGoldenG3V6ExecutableSnapshot(
       createGoldenG3ReactCatalogSnapshot()

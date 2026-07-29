@@ -402,7 +402,10 @@ describe('controlled Vue/Vite G2 target', () => {
 
     expect(result.diagnostics).toEqual([]);
     expect(result.module.body).toContain(
-      'invokeWorkspaceServerFunction(entry.functionRef'
+      'return invokeWorkspaceServerFunction('
+    );
+    expect(result.module.body).toContain(
+      'createWorkspaceRouteInvocationOptions(options)'
     );
     expect(result.module.body).toContain(
       "readRuntimeEntry(route.routeNodeId, 'guard')"

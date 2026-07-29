@@ -369,6 +369,18 @@ ${codeTable}
 
 const workspaceDataRuntime = createWorkspaceDataRuntime();
 
+const createWorkspaceRouteInvocationOptions = (
+  options: Readonly<{ invocationId?: string; attempt?: number; signal?: AbortSignal }> = {}
+) => {
+  const invocationId = options.invocationId ?? globalThis.crypto?.randomUUID?.();
+  if (!invocationId) throw new Error('SVR_INVOCATION_ID_UNAVAILABLE');
+  return Object.freeze({
+    invocationId,
+    attempt: options.attempt ?? 1,
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+};
+
 type ServerFunctionEntry = Readonly<{
   kind: 'server-function';
   functionRef: Readonly<{ artifactId: string; exportName: string }>;
@@ -399,7 +411,13 @@ const invokeRouteRuntime = async (
   options: Readonly<{ invocationId?: string; attempt?: number; signal?: AbortSignal }> = {}
 ) => {
   if (!entry) return undefined;
-  if (entry.kind === 'server-function') return invokeWorkspaceServerFunction(entry.functionRef, input, options);
+  if (entry.kind === 'server-function') {
+    return invokeWorkspaceServerFunction(
+      entry.functionRef,
+      input,
+      createWorkspaceRouteInvocationOptions(options)
+    );
+  }
   if (typeof entry.invoke !== 'function') throw new Error('VUE_ROUTE_RUNTIME_INVALID');
   return await entry.invoke(input, options);
 };

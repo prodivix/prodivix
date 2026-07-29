@@ -568,6 +568,19 @@ let activeWorkspaceRouteActionController: AbortController | undefined;
 let workspaceRouteRuntimeRevision = 0;
 const workspaceRouteRuntimeSubscribers = new Set<() => void>();
 
+const createWorkspaceRouteInvocationOptions = (
+  options: WorkspaceRouteActionOptions = {}
+): Required<Pick<WorkspaceRouteActionOptions, 'invocationId' | 'attempt'>> &
+  Pick<WorkspaceRouteActionOptions, 'signal'> => {
+  const invocationId = options.invocationId ?? globalThis.crypto?.randomUUID?.();
+  if (!invocationId) throw new Error('SVR_INVOCATION_ID_UNAVAILABLE');
+  return Object.freeze({
+    invocationId,
+    attempt: options.attempt ?? 1,
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+};
+
 const readWorkspaceLocationSnapshot = () =>
   readPathname() + '\\0' + String(workspaceRouteRuntimeRevision);
 
@@ -673,13 +686,13 @@ export const dispatchWorkspaceRouteAction = async (
           value: submission.value,
         }),
       }),
-      {
+      createWorkspaceRouteInvocationOptions({
         ...(options.invocationId !== undefined
           ? { invocationId: options.invocationId }
           : {}),
         ...(options.attempt !== undefined ? { attempt: options.attempt } : {}),
         signal: controller.signal,
-      }
+      })
     );
     if (outcome.kind === 'redirect') {
       window.location.assign(outcome.location);
@@ -832,7 +845,9 @@ export default function App() {
       return invokeWorkspaceServerFunction(
         entry.functionRef,
         { routeId: currentRouteNodeId },
-        { signal: controller.signal }
+        createWorkspaceRouteInvocationOptions({
+          signal: controller.signal,
+        })
       );
     };
     void (async () => {

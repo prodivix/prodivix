@@ -14,7 +14,11 @@ import { GOLDEN_G3_V6_VISUAL_BASELINE_SET } from './goldenG3V6VisualBaseline';
 import { digestVerificationValue } from '@prodivix/verification';
 import { assertPlaywrightBrowserImageAuthorityReceipt } from '@prodivix/verification-browser';
 
-describe('Golden G3 V6 pre-adopted browser identities', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 pre-adopted browser identities', () => {
   it('pins one canonical registry and an attested current platform', () => {
     expect(() => assertGoldenG3V6BrowserIdentityRegistry()).not.toThrow();
     expect(

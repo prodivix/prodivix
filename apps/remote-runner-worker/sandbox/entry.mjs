@@ -588,12 +588,29 @@ const createTestArtifact = async (payload, maximumArtifactBytes) => {
   const contents = await readFile(reportPath);
   if (!contents.byteLength || contents.byteLength > maximumArtifactBytes)
     throw new TypeError('Test report exceeds the artifact budget.');
+  const vitestManifest = JSON.parse(
+    await readFile(childPath('node_modules/vitest/package.json'), 'utf8')
+  );
+  if (
+    !vitestManifest ||
+    typeof vitestManifest !== 'object' ||
+    Array.isArray(vitestManifest) ||
+    vitestManifest.name !== 'vitest' ||
+    typeof vitestManifest.version !== 'string' ||
+    !/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/u.test(
+      vitestManifest.version
+    )
+  )
+    throw new TypeError('Installed Vitest identity is invalid.');
   return {
     artifactId: `vitest-report:${payload.snapshotDigest}`,
     kind: 'report',
     label: 'Vitest private report',
     mediaType: vitestReportMediaType,
-    metadata: { adapter: 'vitest' },
+    metadata: {
+      adapter: 'vitest',
+      toolVersion: vitestManifest.version,
+    },
     contents: contents.toString('base64'),
   };
 };

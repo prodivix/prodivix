@@ -29,7 +29,8 @@ import {
 import {
   createVitestExecutionFileIdentityResolver,
   parseVitestExecutionTestReport,
-  readExecutableSnapshotVitestVersion,
+  readInstalledVitestVersion,
+  VITEST_INSTALLED_PACKAGE_MANIFEST_PATH,
 } from '@prodivix/runtime-vitest';
 import {
   decodeServerRuntimeTestInvocationTraces,
@@ -438,6 +439,12 @@ export const createBrowserProjectTestRunner = (
       if (!isJobRunnable(controller)) return;
 
       const fallback = reportSourceTrace(request);
+      const toolVersion = readInstalledVitestVersion(
+        await runtimeHost.readFile(
+          VITEST_INSTALLED_PACKAGE_MANIFEST_PATH,
+          preparation.lease
+        )
+      );
       const report = parseVitestExecutionTestReport({
         source: await runtimeHost.readFile(
           snapshot.testPlan.reportFilePath,
@@ -445,7 +452,7 @@ export const createBrowserProjectTestRunner = (
         ),
         reportId: `test-report:${controller.job.id}`,
         completedAt: now(),
-        toolVersion: readExecutableSnapshotVitestVersion(snapshot),
+        toolVersion,
         sourceTrace: fallback,
         resolveFileIdentity: createVitestExecutionFileIdentityResolver(
           snapshot,

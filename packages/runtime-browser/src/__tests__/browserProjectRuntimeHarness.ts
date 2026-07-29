@@ -1,4 +1,5 @@
 import type { ExecutableProjectCommand } from '@prodivix/runtime-core';
+import { VITEST_INSTALLED_PACKAGE_MANIFEST_PATH } from '@prodivix/runtime-vitest';
 import type { BrowserProjectFileTree } from '../browserProjectFileTree';
 import type {
   BrowserProjectRuntime,
@@ -114,6 +115,12 @@ export const createBrowserProjectRuntimeHarness = () => {
       Object.entries(plan.writeFiles ?? {}).forEach(([path, contents]) => {
         files.set(path, cloneContents(contents));
       });
+      if (isInstall && !files.has(VITEST_INSTALLED_PACKAGE_MANIFEST_PATH)) {
+        files.set(
+          VITEST_INSTALLED_PACKAGE_MANIFEST_PATH,
+          JSON.stringify({ name: 'vitest', version: '4.1.9' })
+        );
+      }
       const deferred = createDeferred();
       let killed = false;
       let settled = false;

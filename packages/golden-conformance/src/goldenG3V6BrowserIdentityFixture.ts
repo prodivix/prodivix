@@ -290,8 +290,8 @@ export const currentGoldenG3V6ControlledPlatform =
       architecture: process.arch,
       kernelRelease: release(),
       githubActions: process.env.GITHUB_ACTIONS,
-      imageOS: process.env.ImageOS,
-      imageVersion: process.env.ImageVersion,
+      imageOS: process.env.PRODIVIX_G3_V6_RUNNER_IMAGE_OS,
+      imageVersion: process.env.PRODIVIX_G3_V6_RUNNER_IMAGE_VERSION,
     });
 
 export const createGoldenG3V6SelectedPlatformIdentity =

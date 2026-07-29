@@ -32,7 +32,7 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G2_VUE_PRODUCT === '1')(
           });
           await page.goto(
             new URL('/__prodivix-golden-host.html', projectUrl).href,
-            { waitUntil: 'networkidle' }
+            { waitUntil: 'domcontentloaded' }
           );
           await page.setContent(
             '<main><iframe id="project" title="Remote Catalog"></iframe></main>'

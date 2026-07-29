@@ -6,6 +6,9 @@ import type { VitestExecutionFileIdentity } from './vitestExecutionTestReport';
 
 const EXACT_VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/u;
 
+export const VITEST_INSTALLED_PACKAGE_MANIFEST_PATH =
+  'node_modules/vitest/package.json' as const;
+
 const normalizeAbsoluteRoot = (value: string): string => {
   let root = value.replace(/\\/gu, '/');
   while (
@@ -99,48 +102,42 @@ export const createVitestExecutionFileIdentityResolver = (
   };
 };
 
-export const readExecutableSnapshotVitestVersion = (
-  snapshot: ExecutableProjectSnapshot
+/** Reads the exact provider-installed Vitest identity after dependency resolution. */
+export const readInstalledVitestVersion = (
+  source: string | Uint8Array
 ): string => {
-  const manifest = snapshot.files.find(
-    ({ path }) => path === snapshot.dependencyPlan.manifestFilePath
-  );
-  if (!manifest) {
+  if (
+    (typeof source === 'string'
+      ? new TextEncoder().encode(source).byteLength
+      : source.byteLength) >
+    64 * 1024
+  ) {
     throw new TypeError(
-      'Vitest executable snapshot does not contain its dependency manifest.'
+      'Installed Vitest package manifest exceeds its provider budget.'
     );
   }
-  const source =
-    typeof manifest.contents === 'string'
-      ? manifest.contents
-      : new TextDecoder('utf-8', { fatal: true }).decode(manifest.contents);
+  const text =
+    typeof source === 'string'
+      ? source
+      : new TextDecoder('utf-8', { fatal: true }).decode(source);
   let value: unknown;
   try {
-    value = JSON.parse(source) as unknown;
+    value = JSON.parse(text) as unknown;
   } catch {
-    throw new TypeError(
-      'Vitest executable snapshot dependency manifest is invalid JSON.'
-    );
+    throw new TypeError('Installed Vitest package manifest is invalid JSON.');
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError('Installed Vitest package manifest must be an object.');
+  }
+  const manifest = value as Record<string, unknown>;
+  if (
+    manifest.name !== 'vitest' ||
+    typeof manifest.version !== 'string' ||
+    !EXACT_VERSION_PATTERN.test(manifest.version)
+  ) {
     throw new TypeError(
-      'Vitest executable snapshot dependency manifest must be an object.'
+      'Installed Vitest package manifest must attest one exact Vitest version.'
     );
   }
-  const manifestRecord = value as Record<string, unknown>;
-  const dependencyOwners = [
-    manifestRecord.devDependencies,
-    manifestRecord.dependencies,
-  ];
-  const versions = dependencyOwners.flatMap((owner) => {
-    if (!owner || typeof owner !== 'object' || Array.isArray(owner)) return [];
-    const version = (owner as Record<string, unknown>).vitest;
-    return typeof version === 'string' ? [version] : [];
-  });
-  if (versions.length !== 1 || !EXACT_VERSION_PATTERN.test(versions[0]!)) {
-    throw new TypeError(
-      'Vitest executable snapshot must pin one exact attested Vitest version.'
-    );
-  }
-  return versions[0]!;
+  return manifest.version;
 };

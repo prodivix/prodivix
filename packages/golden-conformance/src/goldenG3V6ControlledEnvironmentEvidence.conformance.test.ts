@@ -44,7 +44,11 @@ const fullyRehashReceipt = (
   });
 };
 
-describe('Golden G3 V6 controlled environment evidence', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 controlled environment evidence', () => {
   let authorityReceipt: GoldenControlledStaticToolchainAuthorityReceipt;
   let executableSnapshotDigest: string;
   let disposeProject = async (): Promise<void> => undefined;

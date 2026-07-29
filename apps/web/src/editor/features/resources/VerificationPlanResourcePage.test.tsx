@@ -8,6 +8,8 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  createVerificationAdapterRegistration,
+  createVerificationAdapterRegistrySnapshot,
   createVerificationImpactSet,
   createVerificationPlan,
   digestVerificationValue,
@@ -225,6 +227,30 @@ const projection = () => {
   if (impactResult.status !== 'ready') {
     throw new Error(impactResult.message);
   }
+  const adapter = createVerificationAdapterRegistration({
+    id: 'adapter:ci',
+    implementation: {
+      packageName: '@prodivix/runtime-browser',
+      packageVersion: '0.0.1',
+      buildDigest: digestVerificationValue('adapter:ci:build'),
+      toolchainDigest: digestVerificationValue('adapter:ci:toolchain'),
+      schemaDigest: digestVerificationValue('adapter:ci:schema'),
+    },
+    checkKinds: ['e2e'],
+    surfaces: ['ci'],
+    targets: ['react-vite'],
+    browserEngines: ['chromium'],
+    controlCapabilities: [],
+    inputKinds: ['scenario-program'],
+    artifactKinds: ['replay-record'],
+    budgets: {
+      maximumDurationMs: 10_000,
+      maximumArtifactBytes: 1_000_000,
+      maximumEvents: 4_096,
+    },
+    trustInputs: ['ci-attested'],
+  });
+  const adapterRegistry = createVerificationAdapterRegistrySnapshot([adapter]);
   const planResult = createVerificationPlan({
     impactSet: impactResult.impactSet,
     policy,
@@ -280,39 +306,8 @@ const projection = () => {
         },
       },
     ],
-    adapters: [
-      {
-        identity: {
-          adapterId: 'adapter:ci',
-          toolchainDigest: 'sha256-toolchain',
-          capabilityDigest: 'sha256-capabilities',
-        },
-        descriptor: {
-          id: 'adapter:ci',
-          implementation: {
-            packageName: '@prodivix/runtime-browser',
-            packageVersion: '0.0.1',
-            buildDigest: 'sha256-build',
-            toolchainDigest: 'sha256-toolchain',
-            schemaDigest: 'sha256-schema',
-          },
-          checkKinds: ['e2e'],
-          surfaces: ['ci'],
-          targets: ['react-vite'],
-          browserEngines: ['chromium'],
-          controlCapabilities: [],
-          inputKinds: ['scenario-program'],
-          artifactKinds: ['replay-record'],
-          budgets: {
-            maximumDurationMs: 10_000,
-            maximumArtifactBytes: 1_000_000,
-            maximumEvents: 10_000,
-          },
-          trustInputs: ['ci-attested'],
-        },
-      },
-    ],
-    adapterRegistryDigest: 'sha256-adapters',
+    adapters: [adapter],
+    adapterRegistryDigest: adapterRegistry.snapshotDigest,
     compilerDigest: 'sha256-compiler',
     plannerDigest: 'sha256-planner',
   });

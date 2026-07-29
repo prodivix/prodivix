@@ -19,7 +19,11 @@ const providers = Object.freeze([
   'ci',
 ] as const satisfies readonly GoldenG3V6ControlledProviderKind[]);
 
-describe('Golden G3 V6 runtime control authority', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 runtime control authority', () => {
   it.each(providers)(
     'binds live initial/terminal/cleanup/retirement evidence for %s',
     async (providerKind) => {

@@ -96,6 +96,7 @@ export const createPlanFixture = (): VerificationPlan => {
         }),
         adapter: Object.freeze({
           adapterId: 'adapter-a',
+          descriptorDigest: evidenceDigest('d'),
           toolchainDigest: evidenceDigest('5'),
           capabilityDigest: evidenceDigest('a'),
         }),

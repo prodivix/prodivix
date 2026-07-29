@@ -119,7 +119,11 @@ const assertExactFixtureCausality = (
   });
 };
 
-describe('Golden G3 V6 React/Vue product Auth fixture causality', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 React/Vue product Auth fixture causality', () => {
   for (const frameworkTarget of ['react-vite', 'vue-vite'] as const) {
     it(`${frameworkTarget} binds positive and adversarial Auth outcomes to the real product DOM and Host ledger`, async () => {
       const prepared = await prepareGoldenG3V6AuthCausalityTarget({

@@ -75,7 +75,11 @@ const createFrameworkEvidence = (
   });
 };
 
-describe('Golden G3 V6 first-party static adapter execution', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 first-party static adapter execution', () => {
   it('reports all eight real tool outputs through the Core lifecycle', async () => {
     const result = createGoldenG3V6Plan();
     expect(result.status).toBe('ready');

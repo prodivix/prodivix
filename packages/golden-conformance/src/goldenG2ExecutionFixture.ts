@@ -5,10 +5,8 @@ import {
   type ExecutionSourceTrace,
   type ExecutionTestReport,
 } from '@prodivix/runtime-core';
-import {
-  parseVitestExecutionTestReport,
-  readExecutableSnapshotVitestVersion,
-} from '@prodivix/runtime-vitest';
+import { WEB_CONTAINER_PROJECT_ROOT } from '@prodivix/runtime-browser';
+import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
 import { generateWorkspaceReactViteExecutableProject } from '@prodivix/prodivix-compiler';
 import { authorGoldenWorkspace } from './goldenAuthoring';
 import {
@@ -17,6 +15,7 @@ import {
 } from './goldenApp.fixture';
 
 export const GOLDEN_G2_REPORT_PATH = '.prodivix/test-report.json';
+export const GOLDEN_G2_VITEST_VERSION = '4.1.9' as const;
 export const GOLDEN_G2_BROWSER_PREVIEW_URL =
   'https://browser-preview.golden.test/';
 export const GOLDEN_G2_REMOTE_PREVIEW_URL = `https://${'a'.repeat(64)}.preview.golden.test/`;
@@ -44,9 +43,8 @@ export const GOLDEN_G2_VITEST_REPORT = JSON.stringify({
   success: true,
   testResults: [
     {
-      name: 'src/App.test.tsx',
+      name: `${WEB_CONTAINER_PROJECT_ROOT}/src/App.test.tsx`,
       status: 'passed',
-      duration: 5,
       assertionResults: [
         {
           title: 'exports the React application entry',
@@ -103,12 +101,12 @@ export const createGoldenG2TestReport = (
     source: GOLDEN_G2_VITEST_REPORT,
     reportId,
     completedAt: 2_000,
-    toolVersion: readExecutableSnapshotVitestVersion(snapshot),
+    toolVersion: GOLDEN_G2_VITEST_VERSION,
     resolveFileIdentity: (reportedPath) =>
-      reportedPath === 'src/App.test.tsx'
+      reportedPath === `${WEB_CONTAINER_PROJECT_ROOT}/src/App.test.tsx`
         ? {
-            fileId: reportedPath,
-            path: reportedPath,
+            fileId: 'src/App.test.tsx',
+            path: 'src/App.test.tsx',
             sourceTrace: goldenG2TestSourceTrace(snapshot),
           }
         : undefined,

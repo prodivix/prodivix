@@ -48,6 +48,7 @@ describe('G2 Golden Browser/Remote execution contract matrix', () => {
         : new TextDecoder().decode(contents);
     expect(JSON.parse(readFile(packageFile?.contents ?? ''))).toMatchObject({
       dependencies: { antd: '5.28.0' },
+      devDependencies: { vitest: '^4.1.9' },
     });
     expect(readFile(checkoutModule?.contents ?? '')).toContain(
       "import { Button } from 'antd';"
@@ -70,8 +71,8 @@ describe('G2 Golden Browser/Remote execution contract matrix', () => {
       matrix.snapshot.contentDigest,
       matrix.snapshot.contentDigest,
     ]);
-    expect(matrix.browser.installCount).toBe(1);
-    expect(matrix.browser.commandCount).toBe(3);
+    expect(matrix.browser.installCount).toBe(2);
+    expect(matrix.browser.commandCount).toBe(4);
   });
 
   it('keeps Preview lifecycle differences explicit while preserving readiness', () => {

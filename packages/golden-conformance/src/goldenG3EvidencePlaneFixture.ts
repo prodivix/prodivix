@@ -10,6 +10,7 @@ import {
   createVerificationAdapterRegistration,
   createVerificationAdapterInputDigest,
   createVerificationAdapterRegistrySnapshot,
+  createVerificationBehaviorAssertionReceipt,
   createInMemoryVerificationEvidenceRepository,
   createVerificationEvidenceStatementForCandidate,
   createVerificationEvidencePromotionCoordinator,
@@ -267,6 +268,22 @@ export const createGoldenG3V5Candidate = (
             diagnosticCodes: outcome === 'failed' ? ['BHV-4001'] : [],
           },
         ],
+        behaviorAssertionReceipt: createVerificationBehaviorAssertionReceipt({
+          attemptId,
+          cellId: GOLDEN_G3_V5_CELL.id,
+          scenarioId: selectedScenario.id,
+          executableSnapshotDigest,
+          scenarioProgramDigest,
+          controlProfileDigest,
+          fixtureSetDigests: [],
+          targetLeaseBindingDigest: digest(`target-lease:${attemptId}`),
+          runtimeFixtureBindingDigest: digest(
+            `runtime-fixture-binding:${attemptId}`
+          ),
+          blackBoxAssertionSetDigest: digest(
+            `black-box-assertions:${attemptId}:${outcome}`
+          ),
+        }),
       },
       artifacts: [
         {

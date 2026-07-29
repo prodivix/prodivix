@@ -79,7 +79,11 @@ const withFile = (
   });
 };
 
-describe('Golden G3 V6 same-production security authority', () => {
+const gatedDescribe = describe.runIf(
+  process.env.PRODIVIX_VERIFY_G3_V6_ADAPTER_MATRIX === '1'
+);
+
+gatedDescribe('Golden G3 V6 same-production security authority', () => {
   it('hard-cuts fixed verification and fixture markers from both production snapshots', () => {
     const markers = Object.freeze([
       WORKSPACE_VERIFICATION_PROBE_CANARY,

@@ -27,7 +27,6 @@ import {
 import {
   createVitestExecutionFileIdentityResolver,
   parseVitestExecutionTestReport,
-  readExecutableSnapshotVitestVersion,
 } from '@prodivix/runtime-vitest';
 import {
   decodeServerRuntimeTestInvocationTraces,
@@ -1199,13 +1198,21 @@ export const decodeRootlessPodmanSandboxResult = (
           artifact.mediaType !== 'application/vnd.vitest.report+json'
         )
           throw new TypeError('Sandbox Test artifact is not a Vitest report.');
+        if (
+          Object.keys(publishedMetadata).length !== 2 ||
+          publishedMetadata.adapter !== 'vitest' ||
+          typeof publishedMetadata.toolVersion !== 'string'
+        )
+          throw new TypeError(
+            'Sandbox Test artifact tool identity is invalid.'
+          );
         const fallback = testFallbackSourceTrace(snapshot);
         const report = parseVitestExecutionTestReport({
           source: contents,
           reportId: `test-report:${executionId}`,
           completedAt,
           exitCode,
-          toolVersion: readExecutableSnapshotVitestVersion(snapshot),
+          toolVersion: publishedMetadata.toolVersion!,
           sourceTrace: fallback,
           resolveFileIdentity: createVitestExecutionFileIdentityResolver(
             snapshot,

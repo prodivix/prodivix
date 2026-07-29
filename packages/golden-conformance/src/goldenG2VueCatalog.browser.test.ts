@@ -1,6 +1,9 @@
 import { expect as expectPage } from '@playwright/test';
 import { describe, expect, it } from 'vitest';
-import { createGoldenG2VueCatalogProjectedBundle } from './goldenG2VueCatalogFixture';
+import {
+  createGoldenG2VueCatalogProjectedBundle,
+  GOLDEN_G2_VUE_CATALOG_AUTH_SESSION_FIXTURE,
+} from './goldenG2VueCatalogFixture';
 import { verifyGoldenBrowserProject } from './generatedProjectHarness';
 
 describe.runIf(process.env.PRODIVIX_VERIFY_G2_VUE_PRODUCT === '1')(
@@ -11,6 +14,7 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G2_VUE_PRODUCT === '1')(
       const evidence = await verifyGoldenBrowserProject(bundle, {
         routePath: '/',
         browserChannel: process.env.E2E_BROWSER_CHANNEL,
+        authSessionFixtureResponse: GOLDEN_G2_VUE_CATALOG_AUTH_SESSION_FIXTURE,
         verifyPage: async (page) => {
           await expectPage(page.getByTestId('catalog-shell')).toBeVisible();
           const mountBox = await page.locator('#app').boundingBox();

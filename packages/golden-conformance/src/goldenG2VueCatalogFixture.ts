@@ -12,10 +12,15 @@ import {
   generateWorkspaceVueViteExecutableProject,
 } from '@prodivix/prodivix-compiler';
 import {
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_FORMAT,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_VERSION,
+  normalizeExecutionAuthSessionFixtureResponse,
   projectExecutableProjectRuntimeFiles,
+  type ExecutionAuthSessionFixtureResponse,
   type ExecutableProjectSnapshot,
 } from '@prodivix/runtime-core';
 import type { PIRDocument } from '@prodivix/pir';
+import { digestVerificationValue } from '@prodivix/verification';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import type { GoldenGeneratedProjectBundle } from './generatedProjectHarness';
 
@@ -906,6 +911,35 @@ export const GOLDEN_G2_VUE_CATALOG_SERVER_PROVISION: ServerRuntimeTestProvision 
         }),
       }),
     ]),
+  });
+
+export const GOLDEN_G2_VUE_CATALOG_AUTH_SESSION_FIXTURE: ExecutionAuthSessionFixtureResponse =
+  normalizeExecutionAuthSessionFixtureResponse({
+    format: EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_FORMAT,
+    version: EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_VERSION,
+    fixtureSetId: GOLDEN_G2_VUE_CATALOG_SERVER_PROVISION.fixtureSetId,
+    fixtureSetDigest: digestVerificationValue(
+      GOLDEN_G2_VUE_CATALOG_SERVER_PROVISION
+    ),
+    fixtureId: 'golden-g2-vue-catalog-auth-session',
+    resourceId: 'prodivix-product-session',
+    inputDigest: digestVerificationValue({
+      kind: 'auth-session',
+      routeId: GOLDEN_G2_VUE_CATALOG_IDS.route,
+    }),
+    outcomeDigest: digestVerificationValue({
+      providerId: 'prodivix-product-session',
+      principalId: 'golden-catalog-owner',
+      permissionIds: ['workspace.owner'],
+    }),
+    projectionDigest: digestVerificationValue({
+      target: 'golden-g2-vue-catalog-browser',
+    }),
+    providerId: 'prodivix-product-session',
+    principalId: 'golden-catalog-owner',
+    permissionIds: ['workspace.owner'],
+    invocationId: 'golden-g2-vue-catalog:auth-session',
+    attempt: 1,
   });
 
 export const createGoldenG2VueCatalogTestSnapshot =

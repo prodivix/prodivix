@@ -897,7 +897,7 @@ describe('rootless Podman sandbox contract', () => {
       files: [
         {
           path: 'package.json',
-          contents: '{"private":true,"devDependencies":{"vitest":"4.1.9"}}',
+          contents: '{"private":true,"devDependencies":{"vitest":"^4.1.9"}}',
         },
         {
           path: 'src/App.test.tsx',
@@ -1006,7 +1006,7 @@ describe('rootless Podman sandbox contract', () => {
             kind: 'report',
             label: 'Vitest private report',
             mediaType: 'application/vnd.vitest.report+json',
-            metadata: { adapter: 'vitest' },
+            metadata: { adapter: 'vitest', toolVersion: '4.1.9' },
             contents: privateReport.toString('base64'),
           },
           {

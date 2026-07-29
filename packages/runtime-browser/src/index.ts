@@ -34,7 +34,10 @@ export {
   BROWSER_PROJECT_TEST_EXECUTION_PROVIDER_ID,
   createBrowserProjectTestRunner,
 } from './browserProjectTestRunner';
-export { createWebContainerRuntime } from './browserProjectRuntime';
+export {
+  createWebContainerRuntime,
+  WEB_CONTAINER_PROJECT_ROOT,
+} from './browserProjectRuntime';
 
 export type { AnimationPreviewSnapshot } from './animationPreview';
 export type {
