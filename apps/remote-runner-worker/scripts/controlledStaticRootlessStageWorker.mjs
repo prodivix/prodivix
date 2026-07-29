@@ -42,6 +42,7 @@ const RESULT_ALLOWLIST = Object.freeze({
   test: Object.freeze(['coverage-summary', 'test-report']),
 });
 let failurePhase = 'runtime-import';
+let commandAuthorityFailureFacts = null;
 
 const sha256 = (contents) =>
   `sha256-${createHash('sha256').update(contents).digest('hex')}`;
@@ -480,6 +481,7 @@ const sanitizeExecutionEnvironment = () => {
 
 const run = async () => {
   failurePhase = 'runtime-import';
+  commandAuthorityFailureFacts = null;
   const {
     assertControlledStageSucceeded,
     controlledExecutionEnvironment,
@@ -507,6 +509,17 @@ const run = async () => {
     commandPlan(plan, environment.digest)
   );
   failurePhase = 'command-authority';
+  commandAuthorityFailureFacts = Object.freeze({
+    exitCode: command.receipt.exitCode,
+    signal: command.receipt.signal,
+    timedOut: command.receipt.timedOut,
+    stdoutByteLength: command.receipt.stdout.byteLength,
+    stdoutCapturedByteLength: command.receipt.stdout.capturedByteLength,
+    stdoutTruncated: command.receipt.stdout.truncated,
+    stderrByteLength: command.receipt.stderr.byteLength,
+    stderrCapturedByteLength: command.receipt.stderr.capturedByteLength,
+    stderrTruncated: command.receipt.stderr.truncated,
+  });
   assertControlledStageSucceeded(command);
   if (
     plan.stage === 'version' &&
@@ -658,6 +671,14 @@ if (
     process.stderr.write(
       `PRODIVIX_CONTROLLED_ROOTLESS_STAGE_FAILURE:${failurePhase}\n`
     );
+    if (failurePhase === 'command-authority' && commandAuthorityFailureFacts) {
+      process.stderr.write(
+        `PRODIVIX_CONTROLLED_ROOTLESS_COMMAND_AUTHORITY_FAILURE:${Buffer.from(
+          JSON.stringify(commandAuthorityFailureFacts),
+          'utf8'
+        ).toString('base64')}\n`
+      );
+    }
     process.exitCode = 1;
   }
 }

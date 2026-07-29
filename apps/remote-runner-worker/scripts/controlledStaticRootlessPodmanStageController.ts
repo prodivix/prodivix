@@ -69,9 +69,90 @@ const processOutput = (
     truncated: false,
   });
 
-const sandboxFailureFacts = (
+type ControlledStaticRootlessCommandAuthorityFailureFacts = Readonly<{
+  exitCode: number | null;
+  signal: string | null;
+  timedOut: boolean;
+  stdoutByteLength: number;
+  stdoutCapturedByteLength: number;
+  stdoutTruncated: boolean;
+  stderrByteLength: number;
+  stderrCapturedByteLength: number;
+  stderrTruncated: boolean;
+}>;
+
+const decodeCommandAuthorityFailureFacts = (
+  stderr: string
+): ControlledStaticRootlessCommandAuthorityFailureFacts | null => {
+  const match =
+    /(?:^|\n)PRODIVIX_CONTROLLED_ROOTLESS_COMMAND_AUTHORITY_FAILURE:([A-Za-z0-9+/]+={0,2})(?:\n|$)/u.exec(
+      stderr
+    );
+  if (!match?.[1] || match[1].length > 2_048) return null;
+  try {
+    const bytes = Buffer.from(match[1], 'base64');
+    if (bytes.toString('base64') !== match[1]) return null;
+    const value = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+    const required = [
+      'exitCode',
+      'signal',
+      'timedOut',
+      'stdoutByteLength',
+      'stdoutCapturedByteLength',
+      'stdoutTruncated',
+      'stderrByteLength',
+      'stderrCapturedByteLength',
+      'stderrTruncated',
+    ] as const;
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Array.isArray(value) ||
+      Object.keys(value).length !== required.length ||
+      required.some((key) => !Object.hasOwn(value, key)) ||
+      (value.exitCode !== null &&
+        (!Number.isSafeInteger(value.exitCode) ||
+          (value.exitCode as number) < 0)) ||
+      (value.signal !== null &&
+        (typeof value.signal !== 'string' ||
+          !/^SIG[A-Z0-9]+$/u.test(value.signal))) ||
+      typeof value.timedOut !== 'boolean' ||
+      typeof value.stdoutTruncated !== 'boolean' ||
+      typeof value.stderrTruncated !== 'boolean' ||
+      ![
+        value.stdoutByteLength,
+        value.stdoutCapturedByteLength,
+        value.stderrByteLength,
+        value.stderrCapturedByteLength,
+      ].every(
+        (length) => Number.isSafeInteger(length) && (length as number) >= 0
+      )
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      exitCode: value.exitCode as number | null,
+      signal: value.signal as string | null,
+      timedOut: value.timedOut,
+      stdoutByteLength: value.stdoutByteLength as number,
+      stdoutCapturedByteLength: value.stdoutCapturedByteLength as number,
+      stdoutTruncated: value.stdoutTruncated,
+      stderrByteLength: value.stderrByteLength as number,
+      stderrCapturedByteLength: value.stderrCapturedByteLength as number,
+      stderrTruncated: value.stderrTruncated,
+    });
+  } catch {
+    return null;
+  }
+};
+
+export const decodeControlledStaticRootlessSandboxFailureFacts = (
   source: Buffer
-): Readonly<{ exitCode: number | null; innerPhase: string | null }> => {
+): Readonly<{
+  exitCode: number | null;
+  innerPhase: string | null;
+  commandAuthority: ControlledStaticRootlessCommandAuthorityFailureFacts | null;
+}> => {
   try {
     const value = JSON.parse(source.toString('utf8')) as {
       exitCode?: unknown;
@@ -87,7 +168,11 @@ const sandboxFailureFacts = (
         value.stderr
       )
     ) {
-      return Object.freeze({ exitCode, innerPhase: null });
+      return Object.freeze({
+        exitCode,
+        innerPhase: null,
+        commandAuthority: null,
+      });
     }
     const stderr = Buffer.from(value.stderr, 'base64').toString('utf8');
     const match =
@@ -97,9 +182,14 @@ const sandboxFailureFacts = (
     return Object.freeze({
       exitCode,
       innerPhase: match?.[1] ?? null,
+      commandAuthority: decodeCommandAuthorityFailureFacts(stderr),
     });
   } catch {
-    return Object.freeze({ exitCode: null, innerPhase: null });
+    return Object.freeze({
+      exitCode: null,
+      innerPhase: null,
+      commandAuthority: null,
+    });
   }
 };
 
@@ -481,7 +571,8 @@ export const runControlledStaticRootlessPodmanStage = async (
     !captureGranted ||
     !providerProcess
   ) {
-    const innerFailure = sandboxFailureFacts(sandboxResult);
+    const innerFailure =
+      decodeControlledStaticRootlessSandboxFailureFacts(sandboxResult);
     throw new Error(
       `Controlled rootless stage failed closed: ${canonicalJsonText({
         stage: input.stage,
@@ -493,6 +584,7 @@ export const runControlledStaticRootlessPodmanStage = async (
         providerProcessCaptured: providerProcess !== undefined,
         sandboxExitCode: innerFailure.exitCode,
         innerPhase: innerFailure.innerPhase,
+        innerCommandAuthority: innerFailure.commandAuthority,
       })}`
     );
   }
