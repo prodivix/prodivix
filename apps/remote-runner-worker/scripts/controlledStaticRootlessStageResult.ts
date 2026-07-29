@@ -118,6 +118,7 @@ const expectedCommand = (
         '--ignore-scripts',
         '--reporter=append-only',
         '--loglevel=error',
+        '--frozen-store',
         '--store-dir=/opt/prodivix/pnpm-store',
         '--package-import-method=copy',
       ]),
