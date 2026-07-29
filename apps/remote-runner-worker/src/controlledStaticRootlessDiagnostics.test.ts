@@ -77,7 +77,7 @@ describe('controlled static rootless failure diagnostics', () => {
 
   it('projects only bounded package-seed phase and filesystem facts', () => {
     const packageSeed = {
-      phase: 'archive-rehash',
+      phase: 'lock-validation-postcondition',
       failureCode: 'ENOSPC',
     };
     const encoded = Buffer.from(JSON.stringify(packageSeed), 'utf8').toString(

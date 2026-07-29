@@ -605,10 +605,7 @@ const run = async () => {
     ? controlledInstallEnvironment()
     : controlledExecutionEnvironment();
   let packageSeed = null;
-  if (plan.stage === 'install') {
-    failurePhase = 'package-seed';
-    packageSeed = await materializeImagePackageSeed(plan);
-  } else if (plan.packageImport) {
+  if (plan.stage !== 'install' && plan.packageImport) {
     failurePhase = 'package-import';
     await materializePackageImport(plan.packageImport);
   }
@@ -643,6 +640,20 @@ const run = async () => {
     command.stdout.toString('utf8').trim() !== plan.pnpmVersion
   ) {
     throw new TypeError('Controlled rootless pnpm version drifted.');
+  }
+  if (plan.stage === 'install') {
+    failurePhase = 'package-seed';
+    packageSeedFailurePhase = 'lock-validation-postcondition';
+    if (
+      (await pathExists('node_modules')) ||
+      sha256(await readFile(workspacePath('pnpm-lock.yaml'))) !==
+        plan.lockDigest
+    ) {
+      throw new TypeError(
+        'Controlled rootless lock validation mutated the workspace.'
+      );
+    }
+    packageSeed = await materializeImagePackageSeed(plan);
   }
   await mkdir(workspacePath(OUTPUT_ROOT), {
     recursive: true,

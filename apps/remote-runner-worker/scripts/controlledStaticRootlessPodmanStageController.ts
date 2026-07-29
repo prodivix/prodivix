@@ -85,6 +85,7 @@ type ControlledStaticRootlessCommandAuthorityFailureFacts = Readonly<{
 
 type ControlledStaticRootlessPackageSeedFailureFacts = Readonly<{
   phase:
+    | 'lock-validation-postcondition'
     | 'authority-read'
     | 'authority-decode'
     | 'archive-read'
@@ -188,6 +189,7 @@ const decodePackageSeedFailureFacts = (
     if (bytes.toString('base64') !== match[1]) return null;
     const value = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const phases = new Set([
+      'lock-validation-postcondition',
       'authority-read',
       'authority-decode',
       'archive-read',
