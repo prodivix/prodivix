@@ -169,11 +169,15 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
+    let cancelAfterStageStarts = (): void => {
+      throw new Error('Raw staging cancellation was not configured.');
+    };
     let prepareInput: VerificationAdapterPrepareInput | undefined;
     const artifactBytes = new Uint8Array([8, 8]);
     const harness = createHarness({
-      maximumDurationMs: 10,
+      maximumDurationMs: 5_000,
       stage: async ({ artifact: { id, mediaType, bytes } }) => {
+        cancelAfterStageStarts();
         await gate;
         return {
           status: 'staged',
@@ -236,6 +240,8 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
         };
       },
     });
+    cancelAfterStageStarts = () =>
+      harness.externalAbort.abort('raw-stage-did-not-quiesce');
     const originalFactory = harness.lifecycleInput.factory;
     const lifecycleInput = {
       ...harness.lifecycleInput,
@@ -260,5 +266,5 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
     release();
     await gate;
     await Promise.resolve();
-  });
+  }, 15_000);
 });

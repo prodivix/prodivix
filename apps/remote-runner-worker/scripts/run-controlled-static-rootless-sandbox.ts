@@ -559,9 +559,17 @@ const run = async (): Promise<string> => {
 
 try {
   process.stdout.write(await run());
-} catch {
+} catch (error) {
+  const detail =
+    error instanceof Error
+      ? error.message
+          .replace(/[A-Za-z]:\\[^:\r\n"']*/gu, '<private-path>')
+          .replace(/\/(?:home|run|tmp)\/[^\s:'"]+/gu, '<private-path>')
+          .replace(/[\r\n]+/gu, ' ')
+          .slice(0, 4_096)
+      : 'unknown failure';
   process.stderr.write(
-    'Controlled static rootless sandbox execution failed.\n'
+    `Controlled static rootless sandbox execution failed: ${detail}\n`
   );
   process.exitCode = 1;
 }

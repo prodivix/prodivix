@@ -69,6 +69,40 @@ const processOutput = (
     truncated: false,
   });
 
+const sandboxFailureFacts = (
+  source: Buffer
+): Readonly<{ exitCode: number | null; innerPhase: string | null }> => {
+  try {
+    const value = JSON.parse(source.toString('utf8')) as {
+      exitCode?: unknown;
+      stderr?: unknown;
+    };
+    const exitCode =
+      Number.isSafeInteger(value.exitCode) && (value.exitCode as number) >= 0
+        ? (value.exitCode as number)
+        : null;
+    if (
+      typeof value.stderr !== 'string' ||
+      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
+        value.stderr
+      )
+    ) {
+      return Object.freeze({ exitCode, innerPhase: null });
+    }
+    const stderr = Buffer.from(value.stderr, 'base64').toString('utf8');
+    const match =
+      /(?:^|\n)PRODIVIX_CONTROLLED_ROOTLESS_STAGE_FAILURE:([a-z-]+)(?:\n|$)/u.exec(
+        stderr
+      );
+    return Object.freeze({
+      exitCode,
+      innerPhase: match?.[1] ?? null,
+    });
+  } catch {
+    return Object.freeze({ exitCode: null, innerPhase: null });
+  }
+};
+
 const appendFile = (
   files: ControlledStaticRootlessEncodedFile[],
   file: ControlledStaticRootlessEncodedFile
@@ -447,8 +481,19 @@ export const runControlledStaticRootlessPodmanStage = async (
     !captureGranted ||
     !providerProcess
   ) {
+    const innerFailure = sandboxFailureFacts(sandboxResult);
     throw new Error(
-      `Controlled rootless ${input.stage} container failed closed.`
+      `Controlled rootless stage failed closed: ${canonicalJsonText({
+        stage: input.stage,
+        timedOut,
+        processExitCode: processResult.exitCode,
+        processSignal: processResult.signal,
+        executionGranted,
+        captureGranted,
+        providerProcessCaptured: providerProcess !== undefined,
+        sandboxExitCode: innerFailure.exitCode,
+        innerPhase: innerFailure.innerPhase,
+      })}`
     );
   }
   return Object.freeze({

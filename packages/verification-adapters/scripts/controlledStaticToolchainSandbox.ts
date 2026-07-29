@@ -102,7 +102,9 @@ const runProvider = (
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const output: Buffer[] = [];
+    const diagnostics: Buffer[] = [];
     let outputBytes = 0;
+    let diagnosticBytes = 0;
     let settled = false;
     let timedOut = false;
     const rejectOnce = (error: Error): void => {
@@ -125,7 +127,13 @@ const runProvider = (
       }
       output.push(chunk);
     });
-    child.stderr.resume();
+    child.stderr.on('data', (chunk: Buffer) => {
+      const remaining = Math.max(0, 4 * 1024 - diagnosticBytes);
+      if (remaining > 0) {
+        diagnostics.push(chunk.subarray(0, remaining));
+        diagnosticBytes += Math.min(remaining, chunk.byteLength);
+      }
+    });
     const timeout = setTimeout(() => {
       timedOut = true;
       void terminateProviderTree(child).finally(() =>
@@ -143,8 +151,13 @@ const runProvider = (
       if (timedOut || settled) return;
       settled = true;
       if (code !== 0 || signal !== null) {
+        const detail =
+          Buffer.concat(diagnostics).toString('utf8').trim() ||
+          'no bounded diagnostic';
         rejectPromise(
-          new Error('Controlled static sandbox provider failed closed.')
+          new Error(
+            `Controlled static sandbox provider failed closed: ${detail}`
+          )
         );
         return;
       }

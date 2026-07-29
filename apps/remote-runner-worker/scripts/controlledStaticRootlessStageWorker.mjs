@@ -41,6 +41,7 @@ const RESULT_ALLOWLIST = Object.freeze({
   build: Object.freeze(['build-file-set', 'build-log']),
   test: Object.freeze(['coverage-summary', 'test-report']),
 });
+let failurePhase = 'runtime-import';
 
 const sha256 = (contents) =>
   `sha256-${createHash('sha256').update(contents).digest('hex')}`;
@@ -477,26 +478,34 @@ const sanitizeExecutionEnvironment = () => {
 };
 
 const run = async () => {
+  failurePhase = 'runtime-import';
   const {
     assertControlledStageSucceeded,
     controlledExecutionEnvironment,
     controlledInstallEnvironment,
     runControlledSandboxStage,
   } = await import('./controlled-static-sandbox-runtime.mjs');
+  failurePhase = 'stage-plan';
   const plan = await readStagePlan();
+  failurePhase = 'input-file-set';
   const inputFileSet = await scanInputFileSet();
+  failurePhase = 'fresh-baseline';
   const freshBaseline = await assertFreshBaseline(plan);
   const installPhase = plan.stage === 'version' || plan.stage === 'install';
   if (!installPhase) sanitizeExecutionEnvironment();
+  failurePhase = 'environment';
   const environment = installPhase
     ? controlledInstallEnvironment()
     : controlledExecutionEnvironment();
   if (plan.packageImport) {
+    failurePhase = 'package-import';
     await materializePackageImport(plan.packageImport);
   }
+  failurePhase = 'command';
   const command = await runControlledSandboxStage(
     commandPlan(plan, environment.digest)
   );
+  failurePhase = 'command-authority';
   assertControlledStageSucceeded(command);
   if (
     plan.stage === 'version' &&
@@ -508,6 +517,7 @@ const run = async () => {
     recursive: true,
     mode: 0o700,
   });
+  failurePhase = 'result-projection';
   const resultFiles = [];
   let packageImportResult = null;
   let isolationResult = null;
@@ -629,6 +639,7 @@ const run = async () => {
       cleanupVerified: true,
     },
   };
+  failurePhase = 'authority-write';
   await writeFile(
     workspacePath(`${OUTPUT_ROOT}/authority.json`),
     Buffer.from(JSON.stringify(authority), 'utf8'),
@@ -640,5 +651,12 @@ if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  await run();
+  try {
+    await run();
+  } catch {
+    process.stderr.write(
+      `PRODIVIX_CONTROLLED_ROOTLESS_STAGE_FAILURE:${failurePhase}\n`
+    );
+    process.exitCode = 1;
+  }
 }
