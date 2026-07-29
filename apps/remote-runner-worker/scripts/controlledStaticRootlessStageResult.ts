@@ -116,6 +116,7 @@ const expectedCommand = (
         '--frozen-lockfile',
         '--offline',
         '--ignore-scripts',
+        '--reporter=silent',
         '--store-dir=/opt/prodivix/pnpm-store',
       ]),
       tool: Object.freeze({

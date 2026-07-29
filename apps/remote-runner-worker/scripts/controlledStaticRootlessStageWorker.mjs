@@ -391,6 +391,7 @@ const commandPlan = (plan, environmentDigest) => {
         '--frozen-lockfile',
         '--offline',
         '--ignore-scripts',
+        '--reporter=silent',
         '--store-dir=/opt/prodivix/pnpm-store',
       ],
       environmentDigest,

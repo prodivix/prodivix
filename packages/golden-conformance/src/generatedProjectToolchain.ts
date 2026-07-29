@@ -374,6 +374,7 @@ const decodeControlledAuthorityReceipt = (
               '--frozen-lockfile',
               '--offline',
               '--ignore-scripts',
+              '--reporter=silent',
               '--store-dir=/opt/prodivix/pnpm-store',
             ],
       binary: 'pnpm',

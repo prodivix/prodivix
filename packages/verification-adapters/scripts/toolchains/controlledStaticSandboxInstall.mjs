@@ -32,6 +32,7 @@ const install = await runControlledSandboxStage({
     '--frozen-lockfile',
     '--offline',
     '--ignore-scripts',
+    '--reporter=silent',
     '--store-dir=/opt/prodivix/pnpm-store',
   ],
   environmentDigest: environment.digest,
