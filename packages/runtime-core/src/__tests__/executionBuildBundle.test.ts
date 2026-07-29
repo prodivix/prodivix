@@ -62,6 +62,25 @@ describe('ExecutionBuildBundle', () => {
     }
   });
 
+  it('requires global flattened order instead of directory traversal order', () => {
+    const wire = bundle();
+    wire.files = [
+      file('results/build-log.txt', '$ vite build'),
+      file('results/build/assets/app.js', 'export{}'),
+    ];
+
+    expect(
+      decodeExecutionBuildBundle(JSON.stringify(wire)).files.map(
+        ({ path }) => path
+      )
+    ).toEqual(['results/build-log.txt', 'results/build/assets/app.js']);
+
+    wire.files.reverse();
+    expect(() => decodeExecutionBuildBundle(JSON.stringify(wire))).toThrow(
+      /uniquely sorted/u
+    );
+  });
+
   it('rejects path order, unknown fields, and digest drift', () => {
     const reversed = bundle();
     reversed.files.reverse();

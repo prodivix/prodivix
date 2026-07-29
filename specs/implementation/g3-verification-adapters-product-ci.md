@@ -403,8 +403,8 @@ workflow 与 adapter composition 必须同时满足以下 Gate 不变式：
    且对合法最大输入保持线性时间与有界调用栈；
 6. snapshot、manifest、lock、toolchain file set、package seed、stage/result/artifact 都由 exact digest 串联；
    每次跨边界重新解码、重算并拒绝 mutation、forgery、partial capture 或 source-owner drift；进入 wire、
-   digest 或持久化字节的路径/identity 顺序必须直接使用 shared canonical code-point comparator，sandbox
-   不得使用 host ICU `localeCompare`；
+   digest 或持久化字节的展平路径/identity 集合必须在收集完成后直接使用 shared canonical code-point
+   comparator 做全局排序，sandbox 不得把 host ICU `localeCompare` 或目录遍历顺序当成 canonical 顺序；
 7. required step 的非零退出、signal、timeout、truncation、cleanup failure 与 missing result 必须传播为 Gate failure；
    wrapper 不得吞错、转成 skipped，或用后续成功步骤覆盖；
 8. `Configured`、`Local Pass` 与绑定 exact commit/job identity 的 durable `Passed` 分开记录；最终交付只在

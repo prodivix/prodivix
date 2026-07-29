@@ -500,6 +500,9 @@ const collectBuildFiles = async (root, maximumBytes) => {
   };
   await visit(root, '');
   if (!files.length) throw new TypeError('Build output directory is empty.');
+  files.sort((left, right) =>
+    compareUnicodeCodePoints(left.path, right.path)
+  );
   return { files, totalBytes };
 };
 
