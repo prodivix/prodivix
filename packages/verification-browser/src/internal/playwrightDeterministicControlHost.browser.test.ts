@@ -972,6 +972,7 @@ describe.skipIf(!enabled)(
         `${engine}:${caseLabel}:launch-server`,
         () => browserType.launchServer({ headless: true })
       );
+      const failures: unknown[] = [];
       try {
         const browser = await runBoundedPhase(
           `${engine}:${caseLabel}:connect`,
@@ -982,7 +983,10 @@ describe.skipIf(!enabled)(
           () => exercise(browser),
           50_000
         );
-      } finally {
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
         await runBoundedPhase(
           `${engine}:${caseLabel}:kill`,
           () => browserServer.kill(),
@@ -996,6 +1000,17 @@ describe.skipIf(!enabled)(
             `Playwright browser matrix phase "${engine}:${caseLabel}:kill" left a live browser process.`
           );
         }
+      } catch (error) {
+        failures.push(error);
+      }
+      if (failures.length === 1) {
+        throw failures[0];
+      }
+      if (failures.length > 1) {
+        throw new AggregateError(
+          failures,
+          `Playwright browser matrix phase "${engine}:${caseLabel}" and its cleanup both failed.`
+        );
       }
     };
     for (const { engine, browserType } of engines) {

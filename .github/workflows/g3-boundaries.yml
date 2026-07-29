@@ -345,37 +345,7 @@ jobs:
           echo "PRODIVIX_G3_V6_RUNNER_IMAGE_VERSION=${ImageVersion}" >> "${GITHUB_ENV}"
       - name: Configure and verify pre-adopted rootless Podman
         shell: bash
-        run: |
-          set -euo pipefail
-          case "${PRODIVIX_G3_V6_RUNNER_IMAGE_VERSION}" in
-            20260720.247.2)
-              expected_podman_path='/usr/bin/podman'
-              expected_podman_version='podman version 4.9.3'
-              ;;
-            20260726.254.1)
-              expected_podman_path='/usr/local/bin/podman'
-              expected_podman_version='podman version 5.8.4'
-              ;;
-          esac
-          test "$(command -v podman)" = "${expected_podman_path}"
-          test "$(podman --version)" = "${expected_podman_version}"
-
-          runner_user="$(id --user --name)"
-          runner_uid="$(id --user)"
-          grep --quiet "^${runner_user}:" /etc/subuid || sudo usermod --add-subuids 100000-165535 "${runner_user}"
-          grep --quiet "^${runner_user}:" /etc/subgid || sudo usermod --add-subgids 100000-165535 "${runner_user}"
-
-          sudo loginctl enable-linger "${runner_user}"
-          sudo systemctl start "user@${runner_uid}.service"
-          runtime_dir="/run/user/${runner_uid}"
-          test -S "${runtime_dir}/bus"
-          echo "XDG_RUNTIME_DIR=${runtime_dir}" >> "${GITHUB_ENV}"
-          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=${runtime_dir}/bus" >> "${GITHUB_ENV}"
-
-          mkdir --parents "${HOME}/.config/containers"
-          printf '[engine]\ncgroup_manager="systemd"\nevents_logger="file"\n' > "${HOME}/.config/containers/containers.conf"
-          podman system migrate
-          test "$(podman info --format '{{.Host.Security.Rootless}}')" = 'true'
+        run: bash scripts/ci/configure-rootless-podman.sh g3-v6-rootless-podman-info.json
       - name: Build immutable controlled static toolchain sandbox
         shell: bash
         run: |

@@ -64,8 +64,9 @@ root `verify:g3:adapter-matrix` 聚合 Verification Core、两类 adapter、Runt
 probe、66-cell/8-row/80-attempt Golden、Scenario-internal Data/Auth/Recovery companion Gate 与 owner
 boundaries。2026-07-29 本地 root aggregate 已完整通过：80 attempts 全部 reported/passed，真实三浏览器 adapter
 tests、Backend verification contract、remote worker 与 rootless snapshot contract 同步通过。独立 workflow 已
-pin `ubuntu-24.04` 并配置 pre-adopted runner `ImageVersion`、Chromium/Firefox/WebKit 与真实 rootless Podman
-执行，但远端 CI evidence 尚待固定 commit/run identity。
+pin `ubuntu-24.04`，并由共享 registry 按 pre-adopted runner `ImageVersion` 绑定同族 Podman、OCI runtime、
+conmon，同时配置 Chromium/Firefox/WebKit 与真实 rootless Podman 执行；远端 CI evidence 尚待固定
+commit/run identity。
 `pnpm run verify:g3:boundaries`、
 `pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 与 `pnpm run build`
 在本地通过；commit

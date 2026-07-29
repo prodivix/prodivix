@@ -113,7 +113,11 @@ request、job、session、event、diagnostic、artifact 与取消语义，并通
 
 - rootless Podman sandbox adapter 与 remote-only GitHub Isolation Gate 已实现；Gate 构建 digest-pinned
   image 并主动验证非 root、zero capabilities、read-only rootfs、tmpfs/cgroup 限额、network/host socket/
-  credential denial、取消与 orphan cleanup。历史通用 Golden Gate 已有远端通过证据；当前工作树新增
+  credential denial、取消与 orphan cleanup。CI runner identity 不能只绑定 Podman 主二进制版本；
+  `scripts/ci/configure-rootless-podman.sh` 是 pre-adopted toolchain registry 的唯一 owner，按 exact
+  `ImageOS:ImageVersion` 同时绑定 Podman、OCI runtime 与 conmon 的绝对路径，并在任何容器执行前通过
+  `podman info` 反向证明实际选择结果。未知 runner image、路径漂移或跨发行族混用一律 fail closed。
+  历史通用 Golden Gate 已有远端通过证据；当前工作树新增
   authenticated Vue Catalog CRUD/Auth/Asset Preview/Test/Build workload，因尚未提交推送而缺首次 Actions
   证据。外部
   object-store/独立 queue scalability adapter 与 WebSocket/SSE replay adapter 尚未实现，HTTP control

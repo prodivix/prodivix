@@ -157,6 +157,9 @@ OS/browser/font/viewport/DPR/color/motion/renderer。禁止把本次 current scr
 后自动改写 baseline/mask。
 GitHub workflow 固定 `ubuntu-24.04` 仍不等于 exact environment identity；runner 必须把实际
 `ImageVersion` 与 pre-adopted registry 精确匹配。缺失/未知/漂移时 fail closed，不能降级成泛化 Ubuntu label。
+容器工具链同样按组合身份验证：Podman、OCI runtime 与 conmon 必须映射到同一个已采纳 runner image
+toolchain family 的绝对路径。共享 CI owner 在初始化后读取 `podman info` 校验实际 runtime/conmon，
+避免 PATH 搜索把静态 Podman 与发行版组件混合；组件路径或选择结果不一致时，V6 不得开始构建 sandbox。
 
 ### Accessibility
 
