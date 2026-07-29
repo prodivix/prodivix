@@ -24,6 +24,10 @@ const RESULTS_ROOT = `${OUTPUT_ROOT}/results`;
 const STAGE_PLAN_FORMAT = 'prodivix.controlled-static-rootless-stage-plan.v1';
 const STAGE_AUTHORITY_FORMAT =
   'prodivix.controlled-static-rootless-inner-stage-authority.v1';
+const PACKAGE_SEED_FORMAT =
+  'prodivix.controlled-static-rootless-package-seed.v1';
+const PACKAGE_SEED_ROOT = '/opt/prodivix/package-seeds';
+const PACKAGE_SEED_WORKSPACE_PATH = '.prodivix/package-seed.json.gz';
 const DIGEST_PATTERN = /^sha256-[a-f0-9]{64}$/u;
 const STAGES = Object.freeze([
   'version',
@@ -250,6 +254,93 @@ const readStagePlan = async () => {
     ),
     packageImport,
   });
+};
+
+export const decodeControlledStaticRootlessPackageSeedAuthorityBytes = (
+  source,
+  expected
+) => {
+  const contents = Buffer.from(source).toString('utf8');
+  let value;
+  try {
+    value = JSON.parse(contents);
+  } catch {
+    throw new TypeError('Controlled rootless package seed JSON is invalid.');
+  }
+  if (JSON.stringify(value) !== contents) {
+    throw new TypeError(
+      'Controlled rootless package seed JSON is not canonical.'
+    );
+  }
+  const seed = exactRecord(
+    value,
+    ['format', 'lockDigest', 'packageImport', 'presetId'],
+    'Controlled rootless package seed'
+  );
+  const packageImport = exactRecord(
+    seed.packageImport,
+    [
+      'byteLength',
+      'contentDigest',
+      'digest',
+      'entryCount',
+      'fileSetDigest',
+      'manifestDigest',
+      'maximumDepth',
+      'totalFileBytes',
+    ],
+    'Controlled rootless package seed archive'
+  );
+  if (
+    seed.format !== PACKAGE_SEED_FORMAT ||
+    seed.presetId !== expected.presetId ||
+    seed.lockDigest !== expected.lockDigest ||
+    ![
+      seed.lockDigest,
+      packageImport.contentDigest,
+      packageImport.digest,
+      packageImport.fileSetDigest,
+      packageImport.manifestDigest,
+    ].every(
+      (digest) => typeof digest === 'string' && DIGEST_PATTERN.test(digest)
+    ) ||
+    !Number.isSafeInteger(packageImport.byteLength) ||
+    packageImport.byteLength < 1 ||
+    packageImport.byteLength > MAXIMUM_PACKAGE_IMPORT_BYTES ||
+    !Number.isSafeInteger(packageImport.entryCount) ||
+    packageImport.entryCount < 1 ||
+    packageImport.entryCount > MAXIMUM_PACKAGE_IMPORT_ENTRIES ||
+    !Number.isSafeInteger(packageImport.totalFileBytes) ||
+    packageImport.totalFileBytes < 1 ||
+    packageImport.totalFileBytes > MAXIMUM_PACKAGE_IMPORT_TOTAL_FILE_BYTES ||
+    !Number.isSafeInteger(packageImport.maximumDepth) ||
+    packageImport.maximumDepth < 1 ||
+    packageImport.maximumDepth > MAXIMUM_PACKAGE_IMPORT_DEPTH
+  ) {
+    throw new TypeError('Controlled rootless package seed drifted.');
+  }
+  return Object.freeze({
+    ...packageImport,
+    path: PACKAGE_SEED_WORKSPACE_PATH,
+  });
+};
+
+const materializeImagePackageSeed = async (plan) => {
+  const seedRoot = `${PACKAGE_SEED_ROOT}/${plan.presetId}`;
+  const authority = decodeControlledStaticRootlessPackageSeedAuthorityBytes(
+    await readFile(`${seedRoot}/authority.json`),
+    {
+      presetId: plan.presetId,
+      lockDigest: plan.lockDigest,
+    }
+  );
+  await writeFile(
+    workspacePath(PACKAGE_SEED_WORKSPACE_PATH),
+    await readFile(`${seedRoot}/package-import.json.gz`),
+    { flag: 'wx', mode: 0o600 }
+  );
+  await materializePackageImport(authority);
+  return authority;
 };
 
 const scanInputFileSet = async () => {
@@ -504,7 +595,11 @@ const run = async () => {
   const environment = installPhase
     ? controlledInstallEnvironment()
     : controlledExecutionEnvironment();
-  if (plan.packageImport) {
+  let packageSeed = null;
+  if (plan.stage === 'install') {
+    failurePhase = 'package-seed';
+    packageSeed = await materializeImagePackageSeed(plan);
+  } else if (plan.packageImport) {
     failurePhase = 'package-import';
     await materializePackageImport(plan.packageImport);
   }
@@ -550,6 +645,19 @@ const run = async () => {
   let isolationResult = null;
   if (plan.stage === 'install') {
     packageImportResult = await createPackageImport();
+    if (
+      !packageSeed ||
+      packageImportResult.contentDigest !== packageSeed.contentDigest ||
+      packageImportResult.manifestDigest !== packageSeed.manifestDigest ||
+      packageImportResult.fileSetDigest !== packageSeed.fileSetDigest ||
+      packageImportResult.entryCount !== packageSeed.entryCount ||
+      packageImportResult.totalFileBytes !== packageSeed.totalFileBytes ||
+      packageImportResult.maximumDepth !== packageSeed.maximumDepth
+    ) {
+      throw new TypeError(
+        'Controlled rootless installed package seed drifted.'
+      );
+    }
     resultFiles.push({
       path: packageImportResult.path,
       size: packageImportResult.size,

@@ -1618,4 +1618,61 @@ describe('controlled static rootless stage isolation authority', () => {
       )
     ).toThrow(/manifest|file set/u);
   });
+
+  it('binds immutable image package seeds to the exact preset, lock, and archive bounds', async () => {
+    const worker = await import(
+      // @ts-expect-error -- the executable MJS intentionally has no TS facade
+      '../scripts/controlledStaticRootlessStageWorker.mjs'
+    );
+    const lockDigest = digest('package-seed-lock');
+    const packageImport = {
+      byteLength: 1,
+      contentDigest: digest('package-seed-content'),
+      digest: digest('package-seed-archive'),
+      entryCount: 1,
+      fileSetDigest: digest('package-seed-files'),
+      manifestDigest: digest('package-seed-manifest'),
+      maximumDepth: 1,
+      totalFileBytes: 1,
+    };
+    const seed = {
+      format: 'prodivix.controlled-static-rootless-package-seed.v1',
+      lockDigest,
+      packageImport,
+      presetId: 'react-vite',
+    };
+    const decode = (
+      value: Readonly<Record<string, unknown>>,
+      expectedLockDigest = lockDigest
+    ) =>
+      worker.decodeControlledStaticRootlessPackageSeedAuthorityBytes(
+        Buffer.from(JSON.stringify(value), 'utf8'),
+        {
+          presetId: 'react-vite',
+          lockDigest: expectedLockDigest,
+        }
+      );
+
+    expect(decode(seed)).toEqual({
+      ...packageImport,
+      path: '.prodivix/package-seed.json.gz',
+    });
+    expect(() => decode({ ...seed, presetId: 'vue-vite' })).toThrow(/drift/u);
+    expect(() => decode(seed, digest('other-lock'))).toThrow(/drift/u);
+    expect(() =>
+      decode({
+        ...seed,
+        packageImport: { ...packageImport, byteLength: 0 },
+      })
+    ).toThrow(/drift/u);
+    expect(() =>
+      worker.decodeControlledStaticRootlessPackageSeedAuthorityBytes(
+        Buffer.from(`${JSON.stringify(seed)}\n`, 'utf8'),
+        {
+          presetId: 'react-vite',
+          lockDigest,
+        }
+      )
+    ).toThrow(/canonical/u);
+  });
 });
