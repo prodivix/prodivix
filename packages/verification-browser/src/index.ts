@@ -34,6 +34,7 @@ export {
   type PlaywrightBrowserImageAuthorityReceipt,
   type PlaywrightBrowserImageAuthorityReceiptInput,
 } from './browserImageAuthority';
+export { observePlaywrightBrowserImageAuthority } from './internal/playwrightBrowserImageAuthority';
 export {
   FIRST_PARTY_BROWSER_VERIFICATION_ADAPTER_DESCRIPTOR,
   FIRST_PARTY_BROWSER_VERIFICATION_ADAPTER_ID,

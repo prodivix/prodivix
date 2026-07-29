@@ -375,5 +375,9 @@ jobs:
           echo "PRODIVIX_CONTROLLED_STATIC_SANDBOX_IMAGE=${image_digest}" >> "${GITHUB_ENV}"
       - name: Install Playwright browser engines
         run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Build Golden dependency closure
+        run: pnpm run build:g2-golden-dependencies
+      - name: Attest installed Playwright browser images
+        run: pnpm --filter @prodivix/golden-conformance test:g3-v6-browser-image-authority
       - name: Verify adapters, providers, production probe, and controlled matrix
         run: pnpm run verify:g3:adapter-matrix
