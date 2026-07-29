@@ -137,11 +137,12 @@ before snapshot, Secret resolution, or sandbox startup.
 
 `pnpm run verify:g2:rootless-sandbox` is intentionally a Linux/Podman integration
 Gate rather than a default local test. The dedicated
-`.github/workflows/g2-rootless-sandbox.yml` workflow installs Podman on an Ubuntu
-runner and executes it as the non-root runner account. It builds the sandbox from a
-digest-pinned base, runs active isolation and cgroup probes, then emits the living
-Golden Workspace through the strict Remote snapshot codec and performs real
-dependency install, Preview, Build, canonical Test, an exact read-only
+`.github/workflows/g2-rootless-sandbox.yml` workflow attests and configures the
+pre-adopted Podman toolchain from the exact Ubuntu runner image, without mixing it
+with a second distro package family, and executes it as the non-root runner account.
+It builds the sandbox from a digest-pinned base, runs active isolation and cgroup
+probes, then emits the living Golden Workspace through the strict Remote snapshot
+codec and performs real dependency install, Preview, Build, canonical Test, an exact read-only
 `workspace.read` Server Function, a workspace-write staging mutation, and a
 read + Secret one-shot Server Function with a transitive canonical helper module
 inside Podman. The Gate
