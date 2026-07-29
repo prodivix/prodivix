@@ -671,6 +671,14 @@ export const createControlledStaticRootlessCommandPlan = (
   };
 };
 
+export const createControlledStaticRootlessBuildLog = (command) => {
+  const commandLine = Buffer.from(
+    `$ ${command.receipt.application} ${command.receipt.args.join(' ')}\n`,
+    'utf8'
+  );
+  return Buffer.concat([commandLine, command.stdout, command.stderr]);
+};
+
 const sanitizeExecutionEnvironment = () => {
   for (const key of [
     'npm_config_cache',
@@ -823,7 +831,7 @@ const run = async () => {
     resultFiles.push(
       ...(await copyRegularTree(plan.buildOutputDirectoryPath, 'results/build'))
     );
-    const buildLog = Buffer.concat([command.stdout, command.stderr]);
+    const buildLog = createControlledStaticRootlessBuildLog(command);
     const path = 'results/build-log.txt';
     await writeFile(workspacePath(`${OUTPUT_ROOT}/${path}`), buildLog, {
       flag: 'wx',

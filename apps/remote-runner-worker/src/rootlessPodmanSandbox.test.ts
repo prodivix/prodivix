@@ -1595,6 +1595,40 @@ describe('controlled static rootless stage isolation authority', () => {
     ]);
   });
 
+  it('binds rootless build logs to the exact receipted command', async () => {
+    const worker = await import(
+      // @ts-expect-error -- the executable MJS intentionally has no TS facade
+      '../scripts/controlledStaticRootlessStageWorker.mjs'
+    );
+    const commandPlan = worker.createControlledStaticRootlessCommandPlan(
+      {
+        stage: 'build',
+        nodeVersion: '22.23.1',
+        viteVersion: '8.1.3',
+      },
+      digest('build-environment')
+    );
+    const stdout = Buffer.from(
+      'vite v8.1.3 building client environment for production...\n',
+      'utf8'
+    );
+    const stderr = Buffer.from('build diagnostic\n', 'utf8');
+
+    expect(
+      worker
+        .createControlledStaticRootlessBuildLog({
+          receipt: commandPlan,
+          stdout,
+          stderr,
+        })
+        .toString('utf8')
+    ).toBe(
+      '$ node node_modules/vite/bin/vite.js build --config=.prodivix/controlled-vite.config.mjs\n' +
+        stdout.toString('utf8') +
+        stderr.toString('utf8')
+    );
+  });
+
   it('rejects hostile package-import paths, links, kinds, bounds, and full-rehash manifest drift', async () => {
     // The executable worker keeps its archive validator dependency-free so the
     // exact code injected into Podman can be exercised without a container.
