@@ -286,7 +286,8 @@ cells/attempts 为 `preview-react 7/14`、`preview-vue 7/14`、`export-react 10/
 补充 Gate 还验证 Backend verification/verificationcontract 非缓存 Go 测试、remote worker `75/75` 与
 rootless snapshot contract digest
 `sha256-9680cb1ff4fd3ae39a5e46b618ac97068000aad2a7939d8d84b9f7ac2846f8a6`。Windows 本地不伪装
-rootless Podman runtime evidence；真实 rootless sandbox、固定 `ubuntu-24.04` runner identity 和 durable CI
+rootless Podman runtime evidence；真实 rootless sandbox 的 runner registry 必须将 Podman、OCI runtime、
+conmon 与 cgroup manager 作为一个不可混用的 family 绑定。固定 `ubuntu-24.04` runner identity 和 durable CI
 identity 仍等待 workflow 在固定 commit 上通过。
 
 aggregate evidence digest 必须覆盖每个 attempt 的 report/resolved-input/artifact identity；只绑定

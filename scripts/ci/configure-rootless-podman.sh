@@ -15,12 +15,14 @@ case "${ImageOS:-}:${ImageVersion:-}" in
     expected_podman_version='podman version 4.9.3'
     expected_oci_runtime_path='/usr/bin/crun'
     expected_conmon_path='/usr/bin/conmon'
+    expected_cgroup_manager='systemd'
     ;;
   ubuntu24:20260726.254.1)
     expected_podman_path='/usr/local/bin/podman'
     expected_podman_version='podman version 5.8.4'
     expected_oci_runtime_path='/usr/local/bin/crun'
     expected_conmon_path='/usr/local/lib/podman/conmon'
+    expected_cgroup_manager='cgroupfs'
     ;;
   *)
     fail "Rootless Podman runner image is not pre-adopted: ${ImageOS:-missing}:${ImageVersion:-missing}"
@@ -63,7 +65,7 @@ containers_config="${HOME}/.config/containers/containers.conf"
 mkdir --parents "$(dirname "${containers_config}")"
 printf '%s\n' \
   '[engine]' \
-  'cgroup_manager = "systemd"' \
+  "cgroup_manager = \"${expected_cgroup_manager}\"" \
   'events_logger = "file"' \
   'runtime = "crun"' \
   "conmon_path = [\"${expected_conmon_path}\"]" \
@@ -81,6 +83,9 @@ test "${actual_oci_runtime_path}" = "${expected_oci_runtime_path}" ||
 actual_conmon_path="$("${expected_podman_path}" info --format '{{.Host.Conmon.Path}}')"
 test "${actual_conmon_path}" = "${expected_conmon_path}" ||
   fail "Podman selected the wrong conmon: expected ${expected_conmon_path}, received ${actual_conmon_path}"
+actual_cgroup_manager="$("${expected_podman_path}" info --format '{{.Host.CgroupManager}}')"
+test "${actual_cgroup_manager}" = "${expected_cgroup_manager}" ||
+  fail "Podman selected the wrong cgroup manager: expected ${expected_cgroup_manager}, received ${actual_cgroup_manager}"
 "${expected_podman_path}" info --format json >"${evidence_path}"
 
 {
@@ -93,6 +98,7 @@ test "${actual_conmon_path}" = "${expected_conmon_path}" ||
   echo "PRODIVIX_ROOTLESS_OCI_RUNTIME_SHA256=${oci_runtime_sha256}"
   echo "PRODIVIX_ROOTLESS_CONMON_PATH=${expected_conmon_path}"
   echo "PRODIVIX_ROOTLESS_CONMON_SHA256=${conmon_sha256}"
+  echo "PRODIVIX_ROOTLESS_CGROUP_MANAGER=${expected_cgroup_manager}"
 } >>"${GITHUB_ENV}"
 
 {
@@ -103,4 +109,6 @@ test "${actual_conmon_path}" = "${expected_conmon_path}" ||
   echo "| Podman | \`${expected_podman_path}\` | \`${podman_sha256}\` |"
   echo "| OCI runtime | \`${expected_oci_runtime_path}\` | \`${oci_runtime_sha256}\` |"
   echo "| conmon | \`${expected_conmon_path}\` | \`${conmon_sha256}\` |"
+  echo
+  echo "Cgroup manager: \`${expected_cgroup_manager}\`"
 } >>"${GITHUB_STEP_SUMMARY}"
