@@ -124,7 +124,12 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
   it.each(['prepare', 'execute'] as const)(
     'waits for a late timed-out %s continuation before cleanup',
     async (phase) => {
-      const harness = createHarness({ maximumDurationMs: 10 });
+      vi.useFakeTimers();
+      let markPhaseStarted!: () => void;
+      const phaseStarted = new Promise<void>((resolve) => {
+        markPhaseStarted = resolve;
+      });
+      const harness = createHarness({ maximumDurationMs: 100 });
       const originalFactory = harness.lifecycleInput.factory;
       let lateContinuationSettled = false;
       const lifecycleInput = {
@@ -134,8 +139,9 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
           const waitUntilAborted = async <T>(
             value: T,
             signal: VerificationAdapterPrepareInput['context']['abortSignal']
-          ): Promise<T> =>
-            new Promise<T>((resolve) => {
+          ): Promise<T> => {
+            markPhaseStarted();
+            return new Promise<T>((resolve) => {
               signal.subscribe(() => {
                 queueMicrotask(() => {
                   lateContinuationSettled = true;
@@ -143,6 +149,7 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
                 });
               });
             });
+          };
           let liveSignal:
             | VerificationAdapterPrepareInput['context']['abortSignal']
             | undefined;
@@ -168,15 +175,20 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
           };
         }) as VerificationAdapterFactory,
       };
-      await expect(
-        executeVerificationAdapterLifecycle(lifecycleInput)
-      ).resolves.toMatchObject({
-        status: 'timed-out',
-        failureClass: 'timeout',
-        cleanup: { status: 'clean' },
-      });
-      expect(harness.cleanupInputs).toHaveLength(1);
-      expect(harness.retireAttempt).toHaveBeenCalledTimes(1);
+      try {
+        const result = executeVerificationAdapterLifecycle(lifecycleInput);
+        await phaseStarted;
+        await vi.advanceTimersByTimeAsync(100);
+        await expect(result).resolves.toMatchObject({
+          status: 'timed-out',
+          failureClass: 'timeout',
+          cleanup: { status: 'clean' },
+        });
+        expect(harness.cleanupInputs).toHaveLength(1);
+        expect(harness.retireAttempt).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
     }
   );
 

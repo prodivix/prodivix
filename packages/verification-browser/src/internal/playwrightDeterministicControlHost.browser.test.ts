@@ -968,11 +968,15 @@ describe.skipIf(!enabled)(
       caseLabel: string,
       exercise: (browser: Browser) => Promise<void>
     ): Promise<void> => {
-      const browser = await runBoundedPhase(
-        `${engine}:${caseLabel}:launch`,
-        () => browserType.launch({ headless: true })
+      const browserServer = await runBoundedPhase(
+        `${engine}:${caseLabel}:launch-server`,
+        () => browserType.launchServer({ headless: true })
       );
       try {
+        const browser = await runBoundedPhase(
+          `${engine}:${caseLabel}:connect`,
+          () => browserType.connect(browserServer.wsEndpoint())
+        );
         await runBoundedPhase(
           `${engine}:${caseLabel}`,
           () => exercise(browser),
@@ -980,10 +984,18 @@ describe.skipIf(!enabled)(
         );
       } finally {
         await runBoundedPhase(
-          `${engine}:${caseLabel}:close`,
-          () => browser.close(),
+          `${engine}:${caseLabel}:kill`,
+          () => browserServer.kill(),
           CLEANUP_TIMEOUT_MS
         );
+        if (
+          browserServer.process().exitCode === null &&
+          browserServer.process().signalCode === null
+        ) {
+          throw new Error(
+            `Playwright browser matrix phase "${engine}:${caseLabel}:kill" left a live browser process.`
+          );
+        }
       }
     };
     for (const { engine, browserType } of engines) {
