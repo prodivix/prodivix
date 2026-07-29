@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
+import { decodeCanonicalBase64 } from '@prodivix/shared/canonical';
 import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
+
+const MAXIMUM_CANONICAL_BASE64_BYTES = 384 * 1024 * 1024;
 
 export const controlledStaticSandboxDigestBytes = (
   contents: Uint8Array | string
@@ -26,14 +29,8 @@ export const controlledStaticSandboxExactRecord = (
 export const decodeControlledStaticSandboxCanonicalBase64 = (
   value: unknown,
   label: string
-): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  ) {
-    throw new TypeError(`${label} must be canonical base64.`);
-  }
-  return new Uint8Array(Buffer.from(value, 'base64'));
-};
+): Uint8Array =>
+  decodeCanonicalBase64(value, {
+    label,
+    maximumBytes: MAXIMUM_CANONICAL_BASE64_BYTES,
+  });

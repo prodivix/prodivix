@@ -42,6 +42,7 @@ import {
   type ControlledStaticRootlessStage,
   type ControlledStaticRootlessStageAuthority,
 } from '../scripts/controlledStaticRootlessStageAuthority';
+import { decodeControlledStaticRootlessCanonicalBase64 } from '../scripts/controlledStaticRootlessRequestProtocol';
 
 describe('rootless Podman sandbox contract', () => {
   const limits = {
@@ -53,6 +54,18 @@ describe('rootless Podman sandbox contract', () => {
     temporaryDirectoryMb: 32,
     maximumArtifactBytes: 4 * 1024 * 1024,
   } as const;
+
+  it('decodes large canonical stage artifacts without regexp stack growth', () => {
+    const source = 'A'.repeat(8 * 1024 * 1024);
+
+    const decoded = decodeControlledStaticRootlessCanonicalBase64(
+      source,
+      'Stage artifact'
+    );
+
+    expect(decoded.byteLength).toBe(6 * 1024 * 1024);
+    expect(decoded.at(-1)).toBe(0);
+  });
 
   it('requires an immutable production image', () => {
     for (const imageReference of [

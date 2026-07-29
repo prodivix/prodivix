@@ -7,7 +7,10 @@ import {
   type ExecutionSourceTrace,
   type ExecutionTestReport,
 } from '@prodivix/runtime-core';
-import { canonicalJsonText } from '@prodivix/shared/canonical';
+import {
+  canonicalJsonText,
+  decodeCanonicalBase64,
+} from '@prodivix/shared/canonical';
 import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
 
 export const CONTROLLED_STATIC_TOOLCHAIN_REQUEST_FORMAT =
@@ -207,17 +210,11 @@ const relativePath = (value: unknown, label: string): string => {
   return value;
 };
 
-const decodeBase64 = (value: unknown, label: string): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  ) {
-    throw new TypeError(`${label} must be canonical base64.`);
-  }
-  return new Uint8Array(Buffer.from(value, 'base64'));
-};
+const decodeBase64 = (value: unknown, label: string): Uint8Array =>
+  decodeCanonicalBase64(value, {
+    label,
+    maximumBytes: MAXIMUM_PROTOCOL_BYTES,
+  });
 
 const decodeSnapshotFiles = (
   value: readonly unknown[]

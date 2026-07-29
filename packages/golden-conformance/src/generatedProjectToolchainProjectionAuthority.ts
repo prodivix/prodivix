@@ -5,7 +5,10 @@ import {
   type ExecutionBuildBundle,
   type ExecutionTestReport,
 } from '@prodivix/runtime-core';
-import { canonicalJsonText } from '@prodivix/shared/canonical';
+import {
+  canonicalJsonText,
+  decodeCanonicalBase64,
+} from '@prodivix/shared/canonical';
 
 const PROJECTION_AUTHORITY_FORMAT =
   'prodivix.controlled-static-toolchain-projection-authority.v1' as const;
@@ -121,23 +124,20 @@ const decodeRawEnvelope = (
     record.byteLength,
     `${label}.byteLength`
   );
+  const contents = record.contents;
   if (
     record.encoding !== 'base64' ||
-    typeof record.contents !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      record.contents
-    ) ||
+    typeof contents !== 'string' ||
     byteLength > MAXIMUM_RAW_PROJECTION_BYTES
   ) {
     throw new Error(`${label} is not a bounded canonical base64 envelope.`);
   }
-  const bytes = new Uint8Array(Buffer.from(record.contents, 'base64'));
+  const bytes = decodeCanonicalBase64(contents, {
+    label: `${label}.contents`,
+    maximumBytes: MAXIMUM_RAW_PROJECTION_BYTES,
+  });
   const digest = exactDigest(record.digest, `${label}.digest`);
-  if (
-    Buffer.from(bytes).toString('base64') !== record.contents ||
-    bytes.byteLength !== byteLength ||
-    digestBytes(bytes) !== digest
-  ) {
+  if (bytes.byteLength !== byteLength || digestBytes(bytes) !== digest) {
     throw new Error(`${label} bytes drifted from their envelope authority.`);
   }
   return Object.freeze({
@@ -145,7 +145,7 @@ const decodeRawEnvelope = (
       encoding: 'base64' as const,
       byteLength,
       digest,
-      contents: record.contents,
+      contents,
     }),
     bytes,
   });

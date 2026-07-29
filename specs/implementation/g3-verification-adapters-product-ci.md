@@ -133,6 +133,9 @@ output manifest、bounded log。Linux controlled static adapter 的 image build 
 config 与 isolation probe 的 exact digest/file-set identity，不访问 network/store，也不物化 `node_modules`。
 通过后才从 digest-bound image seed 物化依赖并验证 archive/content/manifest/file-set identity 与
 entry/bytes/depth 上限；两步不得合并成一个隐式 package-manager install。
+所有跨进程 raw/artifact base64 边界必须先验证 canonical padding 与 decoded-byte budget，再以
+`O(n)` 线性 scanner 解码；禁止用 quantified-group regexp 校验多 MiB payload，也禁止在预算检查前
+构造完整 decoded string/array。Node 22 阈值以上的合法 payload 必须有回归测试。
 build 环境 network phase 严格受 G2 allowlist，runtime phase无 egress；本机泄漏的 binary 不算依赖。
 
 ### Unit
@@ -384,6 +387,25 @@ CI workflow 只是 composition：
 7. 幂等 upload/finalize Evidence；
 8. 查询 Closure 并以规范 exit code 结束；
 9. 输出 concise summary + Evidence/Closure link。
+
+workflow 与 adapter composition 必须同时满足以下 Gate 不变式：
+
+1. pushed commit 的 expected workflow 集合可枚举；`paths`/`paths-ignore` 必须覆盖每个 Gate 的代码、
+   contract、fixture、toolchain 与 workflow dependency，不能因未触发而被解释为通过；
+2. checkout 后从 cold workspace 以 frozen lockfile 物化，Gate 不读取开发机遗留 dist、cache、store、
+   `node_modules` 或未跟踪文件；
+3. runner `ImageOS`/`ImageVersion`、Node、package manager、Podman、OCI runtime、conmon 与 cgroup manager
+   必须匹配同一个 pre-adopted toolchain family；部分匹配或 PATH 偶然命中均 fail closed；
+4. rootless sandbox 必须保持 non-root、read-only rootfs、`network=none`、无 host mount/credential、
+   bounded CPU/memory/pids/files/tmpfs，以及 success/failure/timeout 后零 residual container/process/workspace；
+5. command、container、transport、artifact 与 parser 各自有正数上限；payload parser 在分配前验证 byte/count/depth，
+   且对合法最大输入保持线性时间与有界调用栈；
+6. snapshot、manifest、lock、toolchain file set、package seed、stage/result/artifact 都由 exact digest 串联；
+   每次跨边界重新解码、重算并拒绝 mutation、forgery、partial capture 或 source-owner drift；
+7. required step 的非零退出、signal、timeout、truncation、cleanup failure 与 missing result 必须传播为 Gate failure；
+   wrapper 不得吞错、转成 skipped，或用后续成功步骤覆盖；
+8. `Configured`、`Local Pass` 与绑定 exact commit/job identity 的 durable `Passed` 分开记录；最终交付只在
+   expected workflows 全部 terminal success、远端 SHA 等于本地 SHA 且工作区 clean 后成立。
 
 GitHub Actions、其他 CI provider adapter 只负责 identity/token/job metadata，不定义 Policy/Plan。fork/untrusted PR 默认无 durable
 write/Secret；可以运行 local check 或上传 untrusted artifact，但不能 promotion 为 trusted Evidence。Environment approval 属于

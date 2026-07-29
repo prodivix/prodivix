@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import {
   canonicalJsonText,
   compareUnicodeCodePoints,
+  isCanonicalBase64Text,
 } from '@prodivix/shared/canonical';
 import { createRootlessPodmanRunArguments } from '../src/rootlessPodmanSandbox';
 import {
@@ -251,9 +252,7 @@ export const decodeControlledStaticRootlessSandboxFailureFacts = (
         : null;
     if (
       typeof value.stderr !== 'string' ||
-      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-        value.stderr
-      )
+      !isCanonicalBase64Text(value.stderr, MAXIMUM_CONTROLLER_OUTPUT_BYTES)
     ) {
       return Object.freeze({
         exitCode,

@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import { canonicalJsonText } from '@prodivix/shared/canonical';
+import {
+  canonicalJsonText,
+  decodeCanonicalBase64,
+} from '@prodivix/shared/canonical';
 import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
 
 export const CONTROLLED_STATIC_ROOTLESS_REQUEST_FORMAT =
@@ -100,17 +103,11 @@ export const controlledStaticRootlessRelativePath = (
 export const decodeControlledStaticRootlessCanonicalBase64 = (
   value: unknown,
   label: string
-): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  ) {
-    throw new TypeError(`${label} must be canonical base64.`);
-  }
-  return new Uint8Array(Buffer.from(value, 'base64'));
-};
+): Uint8Array =>
+  decodeCanonicalBase64(value, {
+    label,
+    maximumBytes: CONTROLLED_STATIC_ROOTLESS_MAXIMUM_INPUT_BYTES,
+  });
 
 const exactVersion = (value: unknown, label: string): string => {
   if (

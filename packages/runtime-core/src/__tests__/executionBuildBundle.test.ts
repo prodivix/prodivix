@@ -54,4 +54,23 @@ describe('ExecutionBuildBundle', () => {
       /digest does not match/u
     );
   });
+
+  it('decodes a file above the Node 22 base64-regexp stack threshold', () => {
+    const contents = Buffer.alloc(6 * 1024 * 1024);
+    const wire = bundle();
+    wire.files = [
+      {
+        path: 'assets/large.bin',
+        size: contents.byteLength,
+        digest: `sha256-${bytesToHex(sha256(contents))}`,
+        encoding: 'base64',
+        contents: contents.toString('base64'),
+      },
+    ];
+
+    const result = decodeExecutionBuildBundle(JSON.stringify(wire));
+
+    expect(result.files[0]?.contents.byteLength).toBe(contents.byteLength);
+    expect(result.files[0]?.contents.at(-1)).toBe(0);
+  });
 });

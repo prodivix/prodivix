@@ -41,6 +41,7 @@ import {
   type IsolatedServerFunctionAuthority,
   type IsolatedServerFunctionSecretMaterial,
 } from '@prodivix/server-runtime';
+import { decodeCanonicalBase64 } from '@prodivix/shared/canonical';
 import { createRemoteWorkerServerFunctionArtifact } from './serverFunctionArtifact';
 import type {
   RemoteWorkerSandbox,
@@ -688,16 +689,11 @@ const stringRecord = (
   return Object.freeze(record as Record<string, string>);
 };
 
-const decodeBase64 = (value: unknown, label: string): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  )
-    throw new TypeError(`${label} is not canonical base64.`);
-  return new Uint8Array(Buffer.from(value, 'base64'));
-};
+const decodeBase64 = (
+  value: unknown,
+  label: string,
+  maximumBytes: number
+): Uint8Array => decodeCanonicalBase64(value, { label, maximumBytes });
 
 const filesystemCapturePolicy = (snapshot: ExecutableProjectSnapshot) => {
   const canonicalPaths = new Set(snapshot.files.map((file) => file.path));
@@ -961,8 +957,16 @@ export const decodeRootlessPodmanSandboxResult = (
   )
     throw new TypeError('Sandbox result envelope is invalid.');
   const exitCode = record.exitCode as number;
-  const stdout = decodeBase64(record.stdout, 'Sandbox stdout');
-  const stderr = decodeBase64(record.stderr, 'Sandbox stderr');
+  const stdout = decodeBase64(
+    record.stdout,
+    'Sandbox stdout',
+    maximumOutputBytes
+  );
+  const stderr = decodeBase64(
+    record.stderr,
+    'Sandbox stderr',
+    maximumOutputBytes
+  );
   if (stdout.byteLength + stderr.byteLength > maximumOutputBytes)
     throw new TypeError('Sandbox output exceeds the configured limit.');
   const filesystemDiffArtifacts = record.artifacts.filter(
@@ -1043,7 +1047,8 @@ export const decodeRootlessPodmanSandboxResult = (
         );
       const contents = decodeBase64(
         artifact.contents,
-        'Sandbox Server Runtime Test trace contents'
+        'Sandbox Server Runtime Test trace contents',
+        maximumArtifactBytes
       );
       artifactBytes += contents.byteLength;
       if (artifactBytes > maximumArtifactBytes)
@@ -1086,7 +1091,8 @@ export const decodeRootlessPodmanSandboxResult = (
         throw new TypeError(`Sandbox artifact ${index} is invalid.`);
       const contents = decodeBase64(
         artifact.contents,
-        `Sandbox artifact ${index} contents`
+        `Sandbox artifact ${index} contents`,
+        maximumArtifactBytes
       );
       let publishedContents = contents;
       let publishedArtifactId = artifact.artifactId;

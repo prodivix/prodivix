@@ -11,7 +11,10 @@ import {
   type ExecutionSourceTrace,
   type ExecutionTestReport,
 } from '@prodivix/runtime-core';
-import { canonicalJsonText } from '@prodivix/shared/canonical';
+import {
+  canonicalJsonText,
+  decodeCanonicalBase64 as decodeCanonicalBase64Bytes,
+} from '@prodivix/shared/canonical';
 import { digestVerificationValue } from '@prodivix/verification';
 import {
   decodeGoldenControlledStaticToolchainProjectionAuthority,
@@ -69,15 +72,10 @@ const encodeSnapshotFile = (
   });
 
 const decodeCanonicalBase64 = (value: unknown, label: string): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  ) {
-    throw new Error(`${label} is not canonical base64.`);
-  }
-  return new Uint8Array(Buffer.from(value, 'base64'));
+  return decodeCanonicalBase64Bytes(value, {
+    label,
+    maximumBytes: 256 * 1024 * 1024,
+  });
 };
 
 const exactResultRecord = (

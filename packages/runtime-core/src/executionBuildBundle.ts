@@ -1,5 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { decodeCanonicalBase64 } from '@prodivix/shared/canonical';
 import { normalizeExecutableProjectPath } from './executableProjectNormalization';
 import {
   EXECUTABLE_PROJECT_LIMITS,
@@ -59,17 +60,10 @@ const digest = (value: unknown, label: string): string => {
 };
 
 const decodeBase64 = (value: unknown, label: string): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  )
-    throw new TypeError(`${label} must be canonical base64.`);
-  const binary = (
-    globalThis as unknown as { atob(encoded: string): string }
-  ).atob(value);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return decodeCanonicalBase64(value, {
+    label,
+    maximumBytes: EXECUTABLE_PROJECT_LIMITS.maxFileBytes,
+  });
 };
 
 const decodeTarget = (value: unknown): ExecutableProjectTarget => {

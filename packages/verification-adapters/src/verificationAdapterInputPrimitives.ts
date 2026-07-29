@@ -3,6 +3,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import {
   canonicalJsonText,
   compareUnicodeCodePoints,
+  decodeCanonicalBase64,
 } from '@prodivix/shared/canonical';
 import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
 import type {
@@ -168,20 +169,10 @@ const encodeBase64 = (bytes: Uint8Array): string => {
 };
 
 const decodeBase64 = (value: unknown, label: string): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  ) {
-    throw new TypeError(`${label} must be canonical base64.`);
-  }
-  const binary = atob(value);
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  if (encodeBase64(bytes) !== value) {
-    throw new TypeError(`${label} must use canonical base64 padding.`);
-  }
-  return bytes;
+  return decodeCanonicalBase64(value, {
+    label,
+    maximumBytes: VERIFICATION_ADAPTER_INPUT_LIMITS.maximumBuildBundleBytes,
+  });
 };
 
 const assertCanonicalStaticArtifact = (

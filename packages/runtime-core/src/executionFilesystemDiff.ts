@@ -1,5 +1,8 @@
 import type { DiagnosticTargetRef, SourceSpan } from '@prodivix/diagnostics';
-import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
+import {
+  compareUnicodeCodePoints,
+  decodeCanonicalBase64,
+} from '@prodivix/shared/canonical';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { normalizeExecutableProjectPath } from './executableProjectNormalization';
@@ -61,30 +64,19 @@ const canonicalDigest = (value: unknown, label: string): string => {
 
 const encodeBase64 = (contents: Uint8Array): string => {
   let binary = '';
-  for (let index = 0; index < contents.byteLength; index += 1)
+  for (let index = 0; index < contents.byteLength; index += 1) {
     binary += String.fromCharCode(contents[index]!);
+  }
   return (globalThis as unknown as { btoa(value: string): string }).btoa(
     binary
   );
 };
 
 const decodeBase64 = (value: unknown, label: string): Uint8Array => {
-  if (
-    typeof value !== 'string' ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-      value
-    )
-  )
-    throw new TypeError(`${label} must be canonical base64.`);
-  const binary = (
-    globalThis as unknown as { atob(encoded: string): string }
-  ).atob(value);
-  const contents = Uint8Array.from(binary, (character) =>
-    character.charCodeAt(0)
-  );
-  if (encodeBase64(contents) !== value)
-    throw new TypeError(`${label} must use canonical base64 padding.`);
-  return contents;
+  return decodeCanonicalBase64(value, {
+    label,
+    maximumBytes: EXECUTION_FILESYSTEM_DIFF_LIMITS.maxFileBytes,
+  });
 };
 
 const targetShapes: Readonly<
