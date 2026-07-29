@@ -130,6 +130,7 @@ const expectedCommands = (
       args: Object.freeze([
         'install',
         '--frozen-lockfile',
+        '--offline',
         '--ignore-scripts',
         '--lockfile-only',
         '--reporter=append-only',

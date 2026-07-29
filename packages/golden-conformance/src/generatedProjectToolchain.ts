@@ -365,6 +365,7 @@ const decodeControlledAuthorityReceipt = (
           : [
               'install',
               '--frozen-lockfile',
+              '--offline',
               '--ignore-scripts',
               '--lockfile-only',
               '--reporter=append-only',

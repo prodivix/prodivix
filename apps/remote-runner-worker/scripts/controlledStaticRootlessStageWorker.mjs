@@ -491,6 +491,7 @@ export const createControlledStaticRootlessCommandPlan = (
       args: [
         'install',
         '--frozen-lockfile',
+        '--offline',
         '--ignore-scripts',
         '--lockfile-only',
         '--reporter=append-only',

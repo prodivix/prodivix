@@ -349,10 +349,12 @@ content-addressed snapshot store、FIFO queue claim、lease renewal/expiry takeo
 - [x] rootless Worker 将显式 install network 与默认断网 runtime 阶段硬分离，断网后 inspect 失败则
       fail closed。
 - [x] controlled static rootless install 将 frozen lockfile 的纯元数据校验与 immutable package seed
-      物化硬分离：前者只运行 `pnpm install --frozen-lockfile --ignore-scripts --lockfile-only`，不绑定
-      store、offline 或 package-import 策略，也不继承任何 package-manager cache/store 环境键，且仍受
-      60 秒命令预算和容器 `network=none` 约束；校验确认 workspace 未生成 `node_modules` 且 lock bytes
-      未变后，才按 image-owned seed authority 解包、逐项校验与最终 rehash。
+      物化硬分离：前者只运行
+      `pnpm install --frozen-lockfile --offline --ignore-scripts --lockfile-only`，以 offline 关闭
+      package-manager 自身的网络解析/重试，同时不绑定 store 或 package-import 策略、不继承任何
+      package-manager cache/store 环境键，且仍受 60 秒命令预算和容器 `network=none` 约束；校验确认
+      workspace 未生成 `node_modules` 且 lock bytes 未变后，才按 image-owned seed authority 解包、
+      逐项校验与最终 rehash。
 - [x] install egress hostname/443 allowlist proxy与 Remote install sanitized Network trace/产品视图。
 - [x] Browser fetch + Data HTTP adapter、operation correlation 与 safe status/size response metadata。
 - [x] generated-project/Remote mock query runtime 与 provider asset projection、Backend live HTTP server/edge

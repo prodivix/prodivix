@@ -582,6 +582,7 @@ describe('controlled static rootless authority decoder', () => {
         [
           'install',
           '--frozen-lockfile',
+          '--offline',
           '--ignore-scripts',
           '--lockfile-only',
           '--reporter=append-only',

@@ -1486,7 +1486,7 @@ describe('controlled static rootless stage isolation authority', () => {
     ).toThrow(/zero residual/u);
   });
 
-  it('keeps rootless lock validation metadata-only and store-independent', async () => {
+  it('keeps rootless lock validation offline, metadata-only, and store-independent', async () => {
     const worker = await import(
       // @ts-expect-error -- the executable MJS intentionally has no TS facade
       '../scripts/controlledStaticRootlessStageWorker.mjs'
@@ -1506,6 +1506,7 @@ describe('controlled static rootless stage isolation authority', () => {
       args: [
         'install',
         '--frozen-lockfile',
+        '--offline',
         '--ignore-scripts',
         '--lockfile-only',
         '--reporter=append-only',
@@ -1518,7 +1519,7 @@ describe('controlled static rootless stage isolation authority', () => {
       },
       timeoutMs: 60_000,
     });
-    expect(command.args).not.toContain('--offline');
+    expect(command.args).toContain('--offline');
     expect(command.args).not.toContain('--frozen-store');
     expect(command.args).not.toContain('--store-dir=/opt/prodivix/pnpm-store');
     expect(command.args).not.toContain('--package-import-method=copy');

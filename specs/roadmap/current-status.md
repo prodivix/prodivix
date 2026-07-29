@@ -66,8 +66,9 @@ boundaries。2026-07-29 本地 root aggregate 已完整通过：80 attempts 全�
 tests、Backend verification contract、remote worker 与 rootless snapshot contract 同步通过。独立 workflow 已
 pin `ubuntu-24.04`，并由共享 registry 按 pre-adopted runner `ImageVersion` 绑定同族 Podman、OCI runtime、
 conmon 与受支持的 cgroup manager；Linux controlled static install 已将 60 秒 frozen lockfile-only 元数据校验与
-image-owned immutable package seed 物化分离，同时配置 Chromium/Firefox/WebKit 与真实 rootless Podman
-执行；远端 CI evidence 尚待固定 commit/run identity。
+image-owned immutable package seed 物化分离，并以 `--offline` 令 network-none 下的 package-manager
+解析快速闭合，同时配置 Chromium/Firefox/WebKit 与真实 rootless Podman 执行；远端 CI evidence 尚待固定
+commit/run identity。
 `pnpm run verify:g3:boundaries`、
 `pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 与 `pnpm run build`
 在本地通过；commit
