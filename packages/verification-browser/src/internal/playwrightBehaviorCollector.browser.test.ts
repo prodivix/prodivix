@@ -74,8 +74,8 @@ const program = (settleMs: number): BehaviorScenarioProgram =>
     ],
     sourceTrace: [],
     budgets: {
-      totalMs: 1_000,
-      stepMs: 500,
+      totalMs: 10_000,
+      stepMs: 5_000,
       settleMs,
     },
   }) as unknown as BehaviorScenarioProgram;
@@ -101,6 +101,7 @@ const fixture = (delayMs: number): string => `<!doctype html>
     >Ready</div>
     <script>
       document.getElementById('trigger').addEventListener('click', () => {
+        void globalThis.__prodivixBehaviorClickObserved();
         setTimeout(() => {
           document.getElementById('status').hidden = false;
         }, ${delayMs});
@@ -109,10 +110,24 @@ const fixture = (delayMs: number): string => `<!doctype html>
   </body>
 </html>`;
 
-const executeFixture = async (delayMs: number, settleMs: number) => {
+const executeFixture = async (
+  delayMs: number,
+  settleMs: number,
+  releaseTimerBeforeReport: boolean
+) => {
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
+    await page.clock.install({
+      time: Date.parse('2025-01-01T00:00:00.000Z'),
+    });
+    let resolveClickObserved: (() => void) | undefined;
+    const clickObserved = new Promise<void>((resolve) => {
+      resolveClickObserved = resolve;
+    });
+    await page.exposeBinding('__prodivixBehaviorClickObserved', () => {
+      resolveClickObserved?.();
+    });
     const trustedPageProbe = await installPlaywrightTrustedPageProbe(page);
     await page.route('http://localhost/**', (route) =>
       route.fulfill({
@@ -122,15 +137,25 @@ const executeFixture = async (delayMs: number, settleMs: number) => {
       })
     );
     await page.goto('http://localhost/', { waitUntil: 'load' });
-    return decodePlaywrightBehaviorPayload(
-      await executePlaywrightBehavior({
-        page,
-        origin: 'http://localhost',
-        cell,
-        program: program(settleMs),
-        trustedPageProbe,
-      })
-    );
+    const execution = executePlaywrightBehavior({
+      page,
+      origin: 'http://localhost',
+      cell,
+      program: program(settleMs),
+      trustedPageProbe,
+    });
+    await clickObserved;
+    if (releaseTimerBeforeReport) {
+      await page.clock.fastForward(delayMs);
+    }
+    const report = decodePlaywrightBehaviorPayload(await execution);
+    if (!releaseTimerBeforeReport) {
+      await page.clock.fastForward(delayMs);
+    }
+    return {
+      report,
+      visibleAfterTimerRelease: await page.locator('#status').isVisible(),
+    };
   } finally {
     await browser.close();
   }
@@ -138,8 +163,13 @@ const executeFixture = async (delayMs: number, settleMs: number) => {
 
 describe.skipIf(!enabled)('Playwright Behavior real DOM settle', () => {
   it('passes a delayed mutation inside the authored settle budget', async () => {
-    const report = await executeFixture(30, 250);
+    const { report, visibleAfterTimerRelease } = await executeFixture(
+      30,
+      250,
+      true
+    );
     expect(report.exitCode).toBe(0);
+    expect(visibleAfterTimerRelease).toBe(true);
     expect(report.checks).toEqual([
       expect.objectContaining({
         status: 'passed',
@@ -149,8 +179,13 @@ describe.skipIf(!enabled)('Playwright Behavior real DOM settle', () => {
   }, 30_000);
 
   it('fails a visible-state mutation after the authored settle budget', async () => {
-    const report = await executeFixture(500, 150);
+    const { report, visibleAfterTimerRelease } = await executeFixture(
+      500,
+      150,
+      false
+    );
     expect(report.exitCode).toBe(1);
+    expect(visibleAfterTimerRelease).toBe(true);
     expect(report.checks).toEqual([
       expect.objectContaining({
         status: 'failed',
