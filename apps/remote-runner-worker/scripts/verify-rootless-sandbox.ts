@@ -358,7 +358,18 @@ const snapshot = (
   installCommand: Readonly<{
     command: 'node' | 'npm';
     args: readonly string[];
-  }> = { command: 'node', args: ['-e', 'process.exit(0)'] }
+  }> = profile === 'test'
+    ? {
+        command: 'npm',
+        args: [
+          'install',
+          '--ignore-scripts',
+          '--no-audit',
+          '--no-fund',
+          '--package-lock=false',
+        ],
+      }
+    : { command: 'node', args: ['-e', 'process.exit(0)'] }
 ) =>
   createExecutableProjectSnapshot({
     workspace: {
@@ -370,7 +381,10 @@ const snapshot = (
     files: [
       {
         path: 'package.json',
-        contents: '{"private":true}',
+        contents:
+          profile === 'test'
+            ? '{"private":true,"devDependencies":{"vitest":"^4.1.9"}}'
+            : '{"private":true}',
         sourceTrace: [
           {
             sourceRef: {
@@ -389,7 +403,11 @@ const snapshot = (
       test: ['filesystem', 'test'],
     },
     publicBuildConfiguration: [],
-    resourceHints: { cpuCores: 1, memoryMb: 256, diskMb: 64 },
+    resourceHints: {
+      cpuCores: 1,
+      memoryMb: profile === 'test' ? 512 : 256,
+      diskMb: profile === 'test' ? 256 : 64,
+    },
     cacheHints: { dependencyInstall: 'isolated' },
     installCommand,
     buildCommand: {
@@ -1371,7 +1389,7 @@ const testResult = await sandbox.execute({
   executionId: 'gate-test',
   snapshot: snapshot('gate-test', testReportSource, 'test'),
   profile: 'test',
-  timeoutMs: 15_000,
+  timeoutMs: 60_000,
   maximumOutputBytes: 256 * 1024,
   redactValues: [],
   signal: new AbortController().signal,

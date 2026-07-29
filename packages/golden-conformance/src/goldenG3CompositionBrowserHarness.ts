@@ -6,6 +6,7 @@ import {
   runGoldenG3BehaviorCompositionSurface,
   type GoldenG3BehaviorCompositionMotionMode,
 } from './goldenG3BehaviorCompositionFixture';
+import { GOLDEN_G2_VUE_CATALOG_AUTH_SESSION_FIXTURE } from './goldenG2VueCatalogFixture';
 import {
   verifyGoldenBrowserProject,
   type GoldenGeneratedProjectBundle,
@@ -90,6 +91,7 @@ export const verifyGoldenG3CompositionBrowserTarget = async (
   const evidence = await verifyGoldenBrowserProject(bundle, {
     routePath: '/',
     browserChannel: process.env.E2E_BROWSER_CHANNEL,
+    authSessionFixtureResponse: GOLDEN_G2_VUE_CATALOG_AUTH_SESSION_FIXTURE,
     preparePage: async (page, projectUrl) => {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto(projectUrl, { waitUntil: 'networkidle' });

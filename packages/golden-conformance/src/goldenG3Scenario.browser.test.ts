@@ -8,6 +8,7 @@ import type {
   BehaviorScenarioProgram,
   BehaviorSourceRef,
 } from '@prodivix/behavior';
+import { GOLDEN_G2_VUE_CATALOG_AUTH_SESSION_FIXTURE } from './goldenG2VueCatalogFixture';
 import {
   createGoldenG3CatalogProgram,
   createGoldenG3ReactCatalogBundle,
@@ -91,6 +92,22 @@ const runCatalogProgram = async (
           `Observation instruction has no automaton: ${instruction.id}`
         );
       }
+      if (observation.kind === 'route') {
+        if (typeof observation.expected === 'string') {
+          expect(new URL(page.url()).pathname).toBe(observation.expected);
+          continue;
+        }
+        const loaderValue = await page
+          .locator('[data-prodivix-route-loader="ready"]')
+          .textContent();
+        if (loaderValue === null) {
+          throw new Error(
+            `Route observation has no loader projection: ${instruction.id}`
+          );
+        }
+        expect(JSON.parse(loaderValue)).toEqual(observation.expected);
+        continue;
+      }
       if (observation.kind !== 'visible') {
         throw new Error(
           `Golden adapter does not support observation ${observation.kind}.`
@@ -117,6 +134,7 @@ const verifyTarget = async (
   verifyGoldenBrowserProject(bundle, {
     routePath: '/',
     browserChannel: process.env.E2E_BROWSER_CHANNEL,
+    authSessionFixtureResponse: GOLDEN_G2_VUE_CATALOG_AUTH_SESSION_FIXTURE,
     verifyPage: async (page) => {
       await runCatalogProgram(page, program);
       await expectPage(page.getByText('Beta')).toBeVisible();

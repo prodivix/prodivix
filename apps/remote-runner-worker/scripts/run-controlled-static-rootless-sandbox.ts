@@ -35,6 +35,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const OCI_DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/u;
+const OCI_BARE_DIGEST_PATTERN = /^[a-f0-9]{64}$/u;
 
 type CompletedStage = Readonly<{
   stage: ControlledStaticRootlessStage;
@@ -78,7 +79,10 @@ const inspectImage = async (
     ['image', 'inspect', '--format', '{{.Id}}', imageReference],
     { env: environment }
   );
-  const imageId = stdout.trim();
+  const inspectedImageId = stdout.trim();
+  const imageId = OCI_BARE_DIGEST_PATTERN.test(inspectedImageId)
+    ? `sha256:${inspectedImageId}`
+    : inspectedImageId;
   if (imageId !== imageReference) {
     throw new Error(
       'Controlled static rootless sandbox image identity drifted.'
