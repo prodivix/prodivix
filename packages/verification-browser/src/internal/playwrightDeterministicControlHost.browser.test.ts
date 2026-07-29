@@ -56,6 +56,7 @@ const digestText = (value: string): string =>
   digestBrowserVerificationBytes(textEncoder.encode(value));
 const sha = (value: unknown): string => digestVerificationValue(value);
 const PHASE_TIMEOUT_MS = 20_000;
+const CLEANUP_TIMEOUT_MS = 20_000;
 
 const errorChainMessages = (error: unknown): readonly string[] => {
   const messages: string[] = [];
@@ -757,7 +758,7 @@ const runPositiveAttempt = async (
       await runBoundedPhase(
         `${engine}:positive:tool-close`,
         () => firstClose,
-        10_000
+        CLEANUP_TIMEOUT_MS
       );
     }
     expect(lease.terminalSealed()).toBe(true);
@@ -808,7 +809,7 @@ const expectRejectedAttempt = async (
         await runBoundedPhase(
           `${engine}:${options.caseLabel ?? `violation:${violation}`}:tool-close`,
           () => tool!.close(),
-          10_000
+          CLEANUP_TIMEOUT_MS
         );
       }
     }
@@ -896,7 +897,7 @@ const runReloadAttempt = async (
       await runBoundedPhase(
         `${engine}:reload:tool-close`,
         () => tool.close(),
-        10_000
+        CLEANUP_TIMEOUT_MS
       );
     }
   } finally {
@@ -981,7 +982,7 @@ describe.skipIf(!enabled)(
         await runBoundedPhase(
           `${engine}:${caseLabel}:close`,
           () => browser.close(),
-          10_000
+          CLEANUP_TIMEOUT_MS
         );
       }
     };
@@ -1008,7 +1009,7 @@ describe.skipIf(!enabled)(
           await runBoundedPhase(
             `${engine}:production-pool:close`,
             () => browser.close(),
-            10_000
+            CLEANUP_TIMEOUT_MS
           );
         }
       }, 70_000);

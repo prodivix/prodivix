@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { computeVerificationArtifactContentDigest } from './verificationArtifactDescriptor';
 import { executeVerificationAdapterLifecycle } from './verificationAdapterLifecycle';
 import { createHarness, sha } from './verificationAdapterLifecycle.testSupport';
@@ -86,23 +86,39 @@ describe('Verification adapter lifecycle cancellation and retirement races', () 
   });
 
   it('fails security-closed when a timed-out adapter never becomes quiescent', async () => {
+    vi.useFakeTimers();
+    let markExecuteStarted!: () => void;
+    const executeStarted = new Promise<void>((resolve) => {
+      markExecuteStarted = resolve;
+    });
     const harness = createHarness({
       checkKind: 'security',
-      maximumDurationMs: 10,
-      execute: async () => new Promise<never>(() => undefined),
-    });
-    await expect(
-      executeVerificationAdapterLifecycle(harness.lifecycleInput)
-    ).resolves.toMatchObject({
-      status: 'failed',
-      failureClass: 'security-denial',
-      cleanup: {
-        status: 'residual',
-        residualCanaryIds: ['canary:attempt-quiescence'],
+      maximumDurationMs: 100,
+      execute: async () => {
+        markExecuteStarted();
+        return new Promise<never>(() => undefined);
       },
     });
-    expect(harness.retireAttempt).toHaveBeenCalledTimes(1);
-    expect(harness.cleanupInputs).toHaveLength(1);
+    try {
+      const result = executeVerificationAdapterLifecycle(
+        harness.lifecycleInput
+      );
+      await executeStarted;
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
+      await expect(result).resolves.toMatchObject({
+        status: 'failed',
+        failureClass: 'security-denial',
+        cleanup: {
+          status: 'residual',
+          residualCanaryIds: ['canary:attempt-quiescence'],
+        },
+      });
+      expect(harness.retireAttempt).toHaveBeenCalledTimes(1);
+      expect(harness.cleanupInputs).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each(['prepare', 'execute'] as const)(
