@@ -605,7 +605,7 @@ describe('controlled static rootless authority decoder', () => {
         'typecheck',
         3,
         'node',
-        ['node_modules/typescript/bin/tsc', '-b'],
+        ['node_modules/typescript/bin/tsc', '--noEmit'],
         nodeTool('node_modules/typescript/bin/tsc', authority.typescriptVersion)
       ),
       rawCommand(

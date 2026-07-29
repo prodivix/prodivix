@@ -398,6 +398,7 @@ workflow 与 adapter composition 必须同时满足以下 Gate 不变式：
    必须匹配同一个 pre-adopted toolchain family；部分匹配或 PATH 偶然命中均 fail closed；
 4. rootless sandbox 必须保持 non-root、read-only rootfs、`network=none`、无 host mount/credential、
    bounded CPU/memory/pids/files/tmpfs，以及 success/failure/timeout 后零 residual container/process/workspace；
+   typecheck 使用 non-emitting invocation，除显式 result allowlist 外每个 stage 的完整 filesystem diff 必须为零；
 5. command、container、transport、artifact 与 parser 各自有正数上限；payload parser 在分配前验证 byte/count/depth，
    且对合法最大输入保持线性时间与有界调用栈；
 6. snapshot、manifest、lock、toolchain file set、package seed、stage/result/artifact 都由 exact digest 串联；

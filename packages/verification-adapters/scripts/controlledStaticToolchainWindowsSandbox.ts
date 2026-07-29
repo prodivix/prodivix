@@ -402,10 +402,7 @@ const commandPlans = (
       'typecheck',
       typecheckSubject,
       authority.typescriptVersion,
-      [
-        typecheckSubject,
-        ...(snapshot.target.presetId === 'vue-vite' ? ['--noEmit'] : ['-b']),
-      ],
+      [typecheckSubject, '--noEmit'],
       60_000
     ),
     nodePlan(

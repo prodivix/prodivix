@@ -133,14 +133,13 @@ const expectedCommand = (
     });
   }
   if (stage === 'typecheck') {
-    const isVue =
-      (request.target as { presetId?: unknown }).presetId === 'vue-vite';
-    const subject = isVue
-      ? 'node_modules/vue-tsc/bin/vue-tsc.js'
-      : 'node_modules/typescript/bin/tsc';
+    const subject =
+      (request.target as { presetId?: unknown }).presetId === 'vue-vite'
+        ? 'node_modules/vue-tsc/bin/vue-tsc.js'
+        : 'node_modules/typescript/bin/tsc';
     return Object.freeze({
       application: 'node',
-      args: Object.freeze([subject, ...(isVue ? ['--noEmit'] : ['-b'])]),
+      args: Object.freeze([subject, '--noEmit']),
       tool: nodeTool(subject, request.toolchain.typescriptVersion),
     });
   }

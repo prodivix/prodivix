@@ -77,10 +77,7 @@ const typecheckSubject =
 const typecheck = await runControlledSandboxStage({
   stage: 'typecheck',
   application: 'node',
-  args: [
-    typecheckSubject,
-    ...(plan.presetId === 'vue-vite' ? ['--noEmit'] : ['-b']),
-  ],
+  args: [typecheckSubject, '--noEmit'],
   environmentDigest: environment.digest,
   tool: nodeTool(typecheckSubject, plan.typescriptVersion),
   timeoutMs: 60_000,

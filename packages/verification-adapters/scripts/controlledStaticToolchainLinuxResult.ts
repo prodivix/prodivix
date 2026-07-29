@@ -146,10 +146,7 @@ const expectedCommands = (
       'typecheck',
       typecheckSubject,
       authority.typescriptVersion,
-      Object.freeze([
-        typecheckSubject,
-        ...(snapshot.target.presetId === 'vue-vite' ? ['--noEmit'] : ['-b']),
-      ])
+      Object.freeze([typecheckSubject, '--noEmit'])
     ),
     nodeSubject(
       'build',

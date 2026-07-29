@@ -630,10 +630,7 @@ export const createControlledStaticRootlessCommandPlan = (
     return {
       stage: plan.stage,
       application: 'node',
-      args: [
-        subject,
-        ...(plan.presetId === 'vue-vite' ? ['--noEmit'] : ['-b']),
-      ],
+      args: [subject, '--noEmit'],
       environmentDigest,
       tool: nodeTool(subject, plan.typescriptVersion),
       timeoutMs: 45_000,

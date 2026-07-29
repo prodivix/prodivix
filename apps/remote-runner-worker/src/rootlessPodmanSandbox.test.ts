@@ -1568,6 +1568,33 @@ describe('controlled static rootless stage isolation authority', () => {
     expect(command.args).not.toContain('--store-dir=/opt/prodivix/pnpm-store');
   });
 
+  it('keeps controlled typecheck stages read-only for both targets', async () => {
+    const worker = await import(
+      // @ts-expect-error -- the executable MJS intentionally has no TS facade
+      '../scripts/controlledStaticRootlessStageWorker.mjs'
+    );
+    const environmentDigest = digest('typecheck-environment');
+    const commandFor = (presetId: 'react-vite' | 'vue-vite') =>
+      worker.createControlledStaticRootlessCommandPlan(
+        {
+          stage: 'typecheck',
+          presetId,
+          nodeVersion: '22.23.1',
+          typescriptVersion: '6.0.3',
+        },
+        environmentDigest
+      );
+
+    expect(commandFor('react-vite').args).toEqual([
+      'node_modules/typescript/bin/tsc',
+      '--noEmit',
+    ]);
+    expect(commandFor('vue-vite').args).toEqual([
+      'node_modules/vue-tsc/bin/vue-tsc.js',
+      '--noEmit',
+    ]);
+  });
+
   it('rejects hostile package-import paths, links, kinds, bounds, and full-rehash manifest drift', async () => {
     // The executable worker keeps its archive validator dependency-free so the
     // exact code injected into Podman can be exercised without a container.

@@ -395,11 +395,7 @@ const decodeControlledAuthorityReceipt = (
     {
       stage: 'typecheck',
       application: 'node',
-      args: [
-        ...windowsNodePrefix,
-        typecheckSubject,
-        ...(snapshot.target.presetId === 'vue-vite' ? ['--noEmit'] : ['-b']),
-      ],
+      args: [...windowsNodePrefix, typecheckSubject, '--noEmit'],
       binary: 'node',
       version: normalizedToolchain.nodeVersion,
       subjectBinary: typecheckSubject,
