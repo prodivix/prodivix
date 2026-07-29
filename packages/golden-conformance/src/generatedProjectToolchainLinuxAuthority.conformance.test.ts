@@ -29,6 +29,7 @@ const decodeFixture = (fixture: RootlessFixture) =>
     isolationAuthority: fixture.isolationAuthority,
     processTree: fixture.processTree,
     commands: fixture.commands,
+    environment: fixture.environment,
     requestDigest,
     snapshotDigest,
     toolchain: goldenRootlessToolchain,
@@ -206,5 +207,21 @@ describe('Golden controlled static rootless authority', () => {
     }) as RootlessFixture;
 
     expect(() => decodeFixture(forged)).toThrow(/file-set/u);
+  });
+
+  it('rejects a forged aggregate phase environment digest', () => {
+    const fixture = createFixture();
+    const forged = Object.freeze({
+      ...fixture,
+      environment: Object.freeze({
+        ...fixture.environment,
+        install: Object.freeze({
+          ...fixture.environment.install,
+          digest: digest('forged-install-environment'),
+        }),
+      }),
+    }) as RootlessFixture;
+
+    expect(() => decodeFixture(forged)).toThrow(/phase environment/u);
   });
 });

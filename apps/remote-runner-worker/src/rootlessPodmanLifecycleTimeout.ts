@@ -1,4 +1,4 @@
-export const ROOTLESS_PODMAN_DEFAULT_PREPARATION_TIMEOUT_MS = 30_000;
+export const ROOTLESS_PODMAN_DEFAULT_PREPARATION_TIMEOUT_MS = 60_000;
 export const ROOTLESS_PODMAN_MAXIMUM_PREPARATION_TIMEOUT_MS = 60_000;
 
 export type RootlessPodmanTimeoutPhase = 'preparation' | 'execution';

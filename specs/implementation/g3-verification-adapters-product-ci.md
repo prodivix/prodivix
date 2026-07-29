@@ -266,7 +266,7 @@ root `verify:g3:adapter-matrix` 的成功输出必须能重算，不接受只有
 通过代替。它验证了 29-package dependency build closure，以及 Verification `242/242`、Verification Adapters
 `40/40`、真实 Browser Adapters `193/193`、Runtime Core `142/142`、Runtime Vitest `20/20`、
 Runtime Browser `35/35`、Runtime Remote `109/109`、Compiler production probe `14/14`、static Golden
-`68/68` 与 browser Golden `3/3`。Core/G3 boundaries 和 wire-contract mirror 在同一命令末尾通过。
+`69/69` 与 browser Golden `3/3`。Core/G3 boundaries 和 wire-contract mirror 在同一命令末尾通过。
 
 controlled Golden 实际执行 66 required cells、8 rows、72 browser attempts 与 8 static attempts，共 80 个
 `reported` + normalized `passed`；blocked、unsupported、skipped、failed 与 residual 均为零。逐行
@@ -403,7 +403,7 @@ workflow 与 adapter composition 必须同时满足以下 Gate 不变式：
    typecheck 使用 non-emitting invocation，除显式 result allowlist 外每个 stage 的完整 filesystem diff 必须为零；
 5. command、container、transport、artifact 与 parser 各自有正数上限；rootless preparation
    （container start、dependency install、network isolation handoff）与 authored execution/capture 使用独立计时器，
-   preparation 默认 30 秒且硬上限 60 秒，只有 isolation handoff 成功后才启动 execution budget；payload parser
+   preparation 默认与硬上限均为 60 秒（调用方只可下调），只有 isolation handoff 成功后才启动 execution budget；payload parser
    在分配前验证 byte/count/depth，且对合法最大输入保持线性时间与有界调用栈；
 6. snapshot、manifest、lock、toolchain file set、package seed、stage/result/artifact 都由 exact digest 串联；
    每次跨边界重新解码、重算并拒绝 mutation、forgery、partial capture 或 source-owner drift；进入 wire、

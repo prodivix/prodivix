@@ -247,6 +247,26 @@ export const createFixture = () => {
   const commands = Object.freeze(
     stages.map((stage, ordinal) => commandReceipt(stage, ordinal))
   );
+  const environmentFor = (
+    phase: 'install' | 'execution',
+    selected: readonly GoldenControlledStaticToolchainCommandReceipt[]
+  ) =>
+    Object.freeze({
+      keys: Object.freeze(['HOME', 'PATH']),
+      digest: digest(
+        canonicalJsonText({
+          phase,
+          stages: selected.map(({ stage, environmentDigest }) => ({
+            stage,
+            digest: environmentDigest,
+          })),
+        })
+      ),
+    });
+  const environment = Object.freeze({
+    install: environmentFor('install', commands.slice(0, 2)),
+    execution: environmentFor('execution', commands.slice(2)),
+  });
   const initialStages = [
     createStageAuthority('version', 0, commands[0]!, null),
     createStageAuthority('install', 1, commands[1]!, null),
@@ -421,6 +441,7 @@ export const createFixture = () => {
   });
   return Object.freeze({
     commands,
+    environment,
     isolationAuthority,
     processTree,
   });

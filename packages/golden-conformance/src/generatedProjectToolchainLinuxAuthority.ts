@@ -28,6 +28,7 @@ export const decodeGoldenControlledStaticRootlessAuthority = (input: {
   isolationAuthority: unknown;
   processTree: unknown;
   commands: readonly GoldenControlledStaticToolchainCommandReceipt[];
+  environment: GoldenControlledStaticToolchainAuthorityReceipt['environment'];
   requestDigest: string;
   snapshotDigest: string;
   toolchain: GoldenControlledStaticToolchainAuthorityReceipt['toolchain'];
@@ -48,6 +49,27 @@ export const decodeGoldenControlledStaticRootlessAuthority = (input: {
     esbuildImplementation: input.toolchain.esbuildImplementation,
     esbuildAliasSpec: input.toolchain.esbuildAliasSpec,
   });
+  const phaseEnvironmentDigest = (
+    phase: 'install' | 'execution',
+    commands: readonly GoldenControlledStaticToolchainCommandReceipt[]
+  ): string =>
+    goldenAuthorityCanonicalDigest({
+      phase,
+      stages: commands.map(({ stage, environmentDigest }) => ({
+        stage,
+        digest: environmentDigest,
+      })),
+    });
+  if (
+    !sameCanonicalJson(input.environment.install.keys, ['HOME', 'PATH']) ||
+    !sameCanonicalJson(input.environment.execution.keys, ['HOME', 'PATH']) ||
+    input.environment.install.digest !==
+      phaseEnvironmentDigest('install', input.commands.slice(0, 2)) ||
+    input.environment.execution.digest !==
+      phaseEnvironmentDigest('execution', input.commands.slice(2))
+  ) {
+    throw new Error('Golden rootless phase environment digest drifted.');
+  }
   const isolation = goldenAuthorityExactRecord(
     input.isolationAuthority,
     [

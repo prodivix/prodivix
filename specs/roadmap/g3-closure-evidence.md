@@ -274,7 +274,7 @@ CI evidence 仍待固定 commit/run identity。V7-V8 与 G3 aggregate 仍未运�
   不得进入 Core report、Web 或 Evidence。
 - Package/test evidence：29-package build closure；Verification `19 files / 242 tests`、Adapters
   `7/40`、真实 Browser Adapters `31/193`、Runtime Core `28/142`、Runtime Vitest `1/20`、Runtime Browser
-  `8/35`、Runtime Remote `17/109`、Compiler probe `1/14`、static Golden `14/68`、browser Golden
+  `8/35`、Runtime Remote `17/109`、Compiler probe `1/14`、static Golden `14/69`、browser Golden
   `2 files / 3 tests` 全部通过；Core/G3/wire boundaries 同次通过。
 - Canonical identities：Plan
   `sha256-bb49ad3980a1e1a8d84a3f4f74ec3c48ebda7cd3c72ee2f0605eb57259ef23a9`；matrix
@@ -295,7 +295,7 @@ CI evidence 仍待固定 commit/run identity。V7-V8 与 G3 aggregate 仍未运�
   `sha256-7b9f087795da302a9c4f181f485d57e76362f28e1b24eb0ab86815bac8e6425a`；aggregate evidence
   `sha256-ec243c6d645bfb58b7b869c09775c284f91b21fc5a8c345d91c35eb1eae1362e`。
 - Supplementary evidence：Backend verification 与 verificationcontract 非缓存 Go tests、remote worker
-  `12 files / 86 tests` 通过；rootless snapshot contract digest 为
+  `12 files / 87 tests` 通过；rootless snapshot contract digest 为
   `sha256-9680cb1ff4fd3ae39a5e46b618ac97068000aad2a7939d8d84b9f7ac2846f8a6`。
 - CI pending：Windows 本地运行不冒充 rootless Podman 或 GitHub runner identity；独立 V6 Job 尚无固定
   commit/run identity。

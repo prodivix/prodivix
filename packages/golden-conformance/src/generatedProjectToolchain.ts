@@ -512,8 +512,6 @@ const decodeControlledAuthorityReceipt = (
           truncated: false,
         });
       };
-      const expectedEnvironmentDigest =
-        index < 2 ? installEnvironment.digest : executionEnvironment.digest;
       const commandEnvironmentDigest = exactDigest(
         commandRecord.environmentDigest,
         `Controlled static toolchain command ${index} environment`
@@ -525,8 +523,6 @@ const decodeControlledAuthorityReceipt = (
           canonicalJsonText(expected.args) ||
         commandRecord.cwd !== expected.cwd ||
         commandRecord.executionBoundary !== expected.executionBoundary ||
-        (provider === 'linux-rootless-podman' &&
-          commandEnvironmentDigest !== expectedEnvironmentDigest) ||
         commandRecord.exitCode !== 0 ||
         commandRecord.signal !== null ||
         commandRecord.timedOut !== false ||
@@ -617,21 +613,22 @@ const decodeControlledAuthorityReceipt = (
     provider === 'linux-rootless-podman'
       ? ('read-only' as const)
       : ('appcontainer-lowbox' as const);
+  const normalizedEnvironment = Object.freeze({
+    install: installEnvironment,
+    execution: executionEnvironment,
+  });
   const decodedRootlessAuthority =
     provider === 'linux-rootless-podman'
       ? decodeGoldenControlledStaticRootlessAuthority({
           isolationAuthority: isolationRecord.authority,
           processTree: record.processTree,
           commands,
+          environment: normalizedEnvironment,
           requestDigest,
           snapshotDigest: snapshot.contentDigest,
           toolchain: normalizedToolchain,
         })
       : undefined;
-  const normalizedEnvironment = Object.freeze({
-    install: installEnvironment,
-    execution: executionEnvironment,
-  });
   const decodedWindowsAuthority =
     provider === 'windows-appcontainer'
       ? decodeGoldenControlledStaticWindowsAuthority({

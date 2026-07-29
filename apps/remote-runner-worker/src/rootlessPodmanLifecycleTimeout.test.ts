@@ -51,6 +51,8 @@ describe('rootless Podman lifecycle timeout', () => {
   });
 
   it('rejects unbounded preparation budgets', () => {
+    expect(ROOTLESS_PODMAN_DEFAULT_PREPARATION_TIMEOUT_MS).toBe(60_000);
+    expect(ROOTLESS_PODMAN_MAXIMUM_PREPARATION_TIMEOUT_MS).toBe(60_000);
     expect(resolveRootlessPodmanPreparationTimeoutMs()).toBe(
       ROOTLESS_PODMAN_DEFAULT_PREPARATION_TIMEOUT_MS
     );

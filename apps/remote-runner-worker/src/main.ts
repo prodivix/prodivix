@@ -4,6 +4,7 @@ import {
   createRootlessPodmanSandbox,
   verifyRootlessPodmanEngine,
 } from './rootlessPodmanSandbox';
+import { ROOTLESS_PODMAN_DEFAULT_PREPARATION_TIMEOUT_MS } from './rootlessPodmanLifecycleTimeout';
 import { createRemoteWorkerAgent } from './workerAgent';
 import { createRemoteWorkerTerminalCoordinator } from './workerTerminalCoordinator';
 
@@ -57,7 +58,7 @@ const sandbox =
         podmanCommand: process.env.REMOTE_WORKER_PODMAN_COMMAND,
         preparationTimeoutMs: integer(
           'REMOTE_WORKER_PREPARATION_TIMEOUT_MS',
-          30_000
+          ROOTLESS_PODMAN_DEFAULT_PREPARATION_TIMEOUT_MS
         ),
         installNetworkPolicy: installNetworkName
           ? {
