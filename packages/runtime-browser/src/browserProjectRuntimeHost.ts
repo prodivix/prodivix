@@ -15,41 +15,60 @@ import {
   type WebContainerRuntimeOptions,
 } from './browserProjectRuntime';
 
+export type BrowserProjectRuntimeProcessIdentity = Readonly<{
+  ownerId: string;
+  generation: number;
+  processId: string;
+}>;
+
 export type BrowserProjectRuntimeHostEvent =
   | Readonly<{
       kind: 'output';
       ownerId: string;
+      generation: number;
+      processId: string;
       label: string;
       message: string;
     }>
   | Readonly<{
       kind: 'output-error';
       ownerId: string;
+      generation: number;
+      processId: string;
       label: string;
       error: Error;
     }>
   | Readonly<{
       kind: 'server-ready';
-      ownerId?: string;
+      ownerId: string;
+      generation: number;
+      processId: string;
       url: string;
       port: number;
     }>
   | Readonly<{
       kind: 'preview-error';
-      ownerId?: string;
+      ownerId: string;
+      generation: number;
+      processId: string;
       error: BrowserProjectRuntimePreviewError;
     }>
   | Readonly<{
       kind: 'runtime-error';
+      ownerId: string;
+      generation: number;
+      processId: string;
       error: Error;
     }>;
 
-export type BrowserProjectRuntimeHostProcess = Readonly<{
-  exit: Promise<number>;
-  outputCompletion: Promise<void>;
-  kill(): void;
-  wasStopRequested(): boolean;
-}>;
+export type BrowserProjectRuntimeHostProcess =
+  BrowserProjectRuntimeProcessIdentity &
+    Readonly<{
+      exit: Promise<number>;
+      outputCompletion: Promise<void>;
+      kill(): void;
+      wasStopRequested(): boolean;
+    }>;
 
 export type BrowserProjectRuntimeHostLease = Readonly<{
   ownerId: string;
@@ -102,7 +121,7 @@ export class BrowserProjectRuntimeHostBusyError extends Error {
 
   constructor(ownerIds: readonly string[]) {
     super(
-      `Browser project snapshot cannot change while another owner is running: ${ownerIds.join(', ')}.`
+      `Browser project snapshot cannot change while runtime processes are still active: ${ownerIds.join(', ')}.`
     );
     this.name = 'BrowserProjectRuntimeHostBusyError';
     this.ownerIds = Object.freeze([...ownerIds]);
@@ -219,17 +238,21 @@ export const createBrowserProjectRuntimeHost = (
     string,
     Set<BrowserProjectRuntimeHostProcess>
   >();
+  const pendingProcessStartsByOwner = new Map<string, Set<Promise<void>>>();
   let runtimePromise: Promise<BrowserProjectRuntime> | undefined;
   let runtime: BrowserProjectRuntime | undefined;
   let runtimeUnsubscribers: readonly (() => void)[] = [];
+  let runtimeEventEpoch = 0;
+  let serverRuntimeRestartRequired = false;
   let mounted = false;
   let managedFiles = new Map<string, string | Uint8Array>();
   let installedDependencyFingerprint: string | undefined;
   let preparedProjectFingerprint: string | undefined;
   let leaseGeneration = 0;
+  let processSequence = 0;
   let activeLease: BrowserProjectRuntimeHostLease | undefined;
   const ownerStopEpochs = new Map<string, number>();
-  let serverOwnerId: string | undefined;
+  let serverIdentity: BrowserProjectRuntimeProcessIdentity | undefined;
   let serverProcess: BrowserProjectRuntimeHostProcess | undefined;
   let operationTail: Promise<void> = Promise.resolve();
   let disposed = false;
@@ -246,23 +269,55 @@ export const createBrowserProjectRuntimeHost = (
   };
 
   const attachRuntimeEvents = (value: BrowserProjectRuntime): void => {
+    runtimeEventEpoch += 1;
+    const sourceEpoch = runtimeEventEpoch;
+    const isCurrentSource = (): boolean =>
+      !disposed && runtime === value && runtimeEventEpoch === sourceEpoch;
     runtimeUnsubscribers = Object.freeze([
       value.onServerReady((url, port) => {
+        if (!isCurrentSource()) return;
+        const identity = serverIdentity;
+        if (!identity) return;
         publish({
           kind: 'server-ready',
-          ...(serverOwnerId ? { ownerId: serverOwnerId } : {}),
+          ...identity,
           url,
           port,
         });
       }),
       value.onPreviewError((error) => {
+        if (!isCurrentSource()) return;
+        const identity = serverIdentity;
+        if (!identity) return;
         publish({
           kind: 'preview-error',
-          ...(serverOwnerId ? { ownerId: serverOwnerId } : {}),
+          ...identity,
           error,
         });
       }),
-      value.onError((error) => publish({ kind: 'runtime-error', error })),
+      value.onError((error) => {
+        if (!isCurrentSource()) return;
+        const identities: BrowserProjectRuntimeProcessIdentity[] = [
+          ...new Map(
+            [...processesByOwner.values()]
+              .flatMap((processes) => [...processes])
+              .map((process) => [process.processId, process] as const)
+          ).values(),
+        ].map(({ ownerId, generation, processId }) =>
+          Object.freeze({ ownerId, generation, processId })
+        );
+        if (
+          serverIdentity &&
+          !identities.some(
+            (identity) => identity.processId === serverIdentity?.processId
+          )
+        ) {
+          identities.push(serverIdentity);
+        }
+        identities.forEach((identity) =>
+          publish({ kind: 'runtime-error', ...identity, error })
+        );
+      }),
     ]);
   };
 
@@ -283,6 +338,22 @@ export const createBrowserProjectRuntimeHost = (
         });
     }
     return runtimePromise;
+  };
+
+  const restartRuntimeAfterServer = (): void => {
+    runtimeEventEpoch += 1;
+    runtimeUnsubscribers.forEach((unsubscribe) => unsubscribe());
+    runtimeUnsubscribers = [];
+    runtime?.dispose();
+    runtime = undefined;
+    runtimePromise = undefined;
+    mounted = false;
+    managedFiles = new Map();
+    installedDependencyFingerprint = undefined;
+    preparedProjectFingerprint = undefined;
+    serverIdentity = undefined;
+    serverProcess = undefined;
+    serverRuntimeRestartRequired = false;
   };
 
   const enqueue = <Value>(operation: () => Promise<Value>): Promise<Value> => {
@@ -338,7 +409,7 @@ export const createBrowserProjectRuntimeHost = (
   };
 
   const consumeOutput = (
-    ownerId: string,
+    identity: BrowserProjectRuntimeProcessIdentity,
     label: string,
     process: BrowserProjectRuntimeProcess
   ): Promise<void> => {
@@ -353,14 +424,14 @@ export const createBrowserProjectRuntimeHost = (
               .map((line) => line.trimEnd())
               .filter(Boolean)
               .forEach((message) =>
-                publish({ kind: 'output', ownerId, label, message })
+                publish({ kind: 'output', ...identity, label, message })
               );
           },
           close() {
             if (remainder.trim()) {
               publish({
                 kind: 'output',
-                ownerId,
+                ...identity,
                 label,
                 message: remainder.trimEnd(),
               });
@@ -371,7 +442,7 @@ export const createBrowserProjectRuntimeHost = (
       .catch((error) => {
         publish({
           kind: 'output-error',
-          ownerId,
+          ...identity,
           label,
           error: toError(error),
         });
@@ -387,60 +458,116 @@ export const createBrowserProjectRuntimeHost = (
     }
   };
 
+  const waitForProcessCleanup = (
+    process: BrowserProjectRuntimeHostProcess
+  ): Promise<void> =>
+    Promise.race([
+      Promise.all([
+        process.exit.then(
+          () => undefined,
+          () => undefined
+        ),
+        process.outputCompletion,
+      ]).then(() => undefined),
+      new Promise<void>((resolve) => globalThis.setTimeout(resolve, 1_500)),
+    ]);
+
   const spawnOwnedProcess = async (
     ownerValue: string,
     command: ExecutableProjectCommand,
     spawnOptions: Readonly<{
       label?: string;
       kind?: 'command' | 'server';
-    }> = {}
+    }>,
+    generation: number
   ): Promise<BrowserProjectRuntimeHostProcess> => {
     const ownerId = normalizeOwnerId(ownerValue);
     const stopEpoch = ownerStopEpochs.get(ownerId) ?? 0;
-    if (
-      spawnOptions.kind === 'server' &&
-      serverOwnerId &&
-      serverOwnerId !== ownerId
-    ) {
-      throw new BrowserProjectRuntimeHostBusyError([serverOwnerId]);
-    }
-    const value = await resolveRuntime();
-    const process = await value.spawn(command);
-    if ((ownerStopEpochs.get(ownerId) ?? 0) !== stopEpoch) {
-      process.kill();
-      throw new Error(
-        `Browser project runtime owner ${ownerId} was stopped before its process started.`
-      );
-    }
-    const label = spawnOptions.label?.trim() || command.command;
-    let stopRequested = false;
-    const outputCompletion = consumeOutput(ownerId, label, process);
-    const hostProcess: BrowserProjectRuntimeHostProcess = Object.freeze({
-      exit: process.exit,
-      outputCompletion,
-      kill: () => {
-        if (stopRequested) return;
-        stopRequested = true;
-        process.kill();
-      },
-      wasStopRequested: () => stopRequested,
+    let resolvePendingStart!: () => void;
+    const pendingStart = new Promise<void>((resolve) => {
+      resolvePendingStart = resolve;
     });
-    if (spawnOptions.kind === 'server') {
-      serverOwnerId = ownerId;
-      serverProcess = hostProcess;
+    const pendingStarts =
+      pendingProcessStartsByOwner.get(ownerId) ?? new Set<Promise<void>>();
+    pendingStarts.add(pendingStart);
+    pendingProcessStartsByOwner.set(ownerId, pendingStarts);
+    if (spawnOptions.kind === 'server' && serverIdentity) {
+      pendingStarts.delete(pendingStart);
+      if (!pendingStarts.size) pendingProcessStartsByOwner.delete(ownerId);
+      resolvePendingStart();
+      throw new BrowserProjectRuntimeHostBusyError([serverIdentity.ownerId]);
     }
-    const owned = processesByOwner.get(ownerId) ?? new Set();
-    owned.add(hostProcess);
-    processesByOwner.set(ownerId, owned);
-    void process.exit.finally(() => {
-      owned.delete(hostProcess);
-      if (!owned.size) processesByOwner.delete(ownerId);
-      if (spawnOptions.kind === 'server' && serverProcess === hostProcess) {
-        serverOwnerId = undefined;
-        serverProcess = undefined;
+    try {
+      const value = await resolveRuntime();
+      processSequence += 1;
+      const identity: BrowserProjectRuntimeProcessIdentity = Object.freeze({
+        ownerId,
+        generation,
+        processId: `browser-process-${processSequence}`,
+      });
+      if (spawnOptions.kind === 'server') serverIdentity = identity;
+      let process: BrowserProjectRuntimeProcess;
+      try {
+        process = await value.spawn(command);
+      } catch (error) {
+        if (serverIdentity === identity) {
+          serverRuntimeRestartRequired = true;
+          serverIdentity = undefined;
+        }
+        throw error;
       }
-    });
-    return hostProcess;
+      const label = spawnOptions.label?.trim() || command.command;
+      let stopRequested = false;
+      const outputCompletion = consumeOutput(identity, label, process);
+      const hostProcess: BrowserProjectRuntimeHostProcess = Object.freeze({
+        ...identity,
+        exit: process.exit,
+        outputCompletion,
+        kill: () => {
+          if (stopRequested) return;
+          stopRequested = true;
+          process.kill();
+        },
+        wasStopRequested: () => stopRequested,
+      });
+      if (spawnOptions.kind === 'server') {
+        serverProcess = hostProcess;
+        const requireRuntimeRestart = (): void => {
+          serverRuntimeRestartRequired = true;
+        };
+        void process.exit.then(requireRuntimeRestart, requireRuntimeRestart);
+      }
+      const owned = processesByOwner.get(ownerId) ?? new Set();
+      owned.add(hostProcess);
+      processesByOwner.set(ownerId, owned);
+      const releaseProcess = (): void => {
+        owned.delete(hostProcess);
+        if (!owned.size) processesByOwner.delete(ownerId);
+        if (spawnOptions.kind === 'server' && serverProcess === hostProcess) {
+          serverIdentity = undefined;
+          serverProcess = undefined;
+        }
+      };
+      void Promise.all([
+        process.exit.then(
+          () => undefined,
+          () => undefined
+        ),
+        outputCompletion,
+      ]).then(releaseProcess);
+      if ((ownerStopEpochs.get(ownerId) ?? 0) !== stopEpoch) {
+        hostProcess.kill();
+        await waitForProcessCleanup(hostProcess);
+        throw new Error(
+          `Browser project runtime owner ${ownerId} was stopped before its process started.`
+        );
+      }
+      return hostProcess;
+    } finally {
+      pendingStarts.delete(pendingStart);
+      if (!pendingStarts.size) pendingProcessStartsByOwner.delete(ownerId);
+      resolvePendingStart();
+    }
   };
 
   const spawn = (
@@ -455,7 +582,12 @@ export const createBrowserProjectRuntimeHost = (
     const ownerId = normalizeOwnerId(ownerValue);
     return enqueue(async () => {
       assertLease(ownerId, spawnOptions.lease);
-      const process = await spawnOwnedProcess(ownerId, command, spawnOptions);
+      const process = await spawnOwnedProcess(
+        ownerId,
+        command,
+        spawnOptions,
+        spawnOptions.lease.generation
+      );
       try {
         assertLease(ownerId, spawnOptions.lease);
       } catch (error) {
@@ -471,15 +603,15 @@ export const createBrowserProjectRuntimeHost = (
     ownerStopEpochs.set(ownerId, (ownerStopEpochs.get(ownerId) ?? 0) + 1);
     if (activeLease?.ownerId === ownerId) activeLease = undefined;
     const processes = [...(processesByOwner.get(ownerId) ?? [])];
+    const pendingStarts = [...(pendingProcessStartsByOwner.get(ownerId) ?? [])];
+    if (serverProcess && processes.includes(serverProcess)) {
+      serverRuntimeRestartRequired = true;
+    }
     processes.forEach((process) => process.kill());
-    await Promise.all(
-      processes.map((process) =>
-        Promise.race([
-          process.exit.then(() => undefined),
-          new Promise<void>((resolve) => globalThis.setTimeout(resolve, 1_500)),
-        ])
-      )
-    );
+    await Promise.all([
+      ...processes.map(waitForProcessCleanup),
+      ...pendingStarts,
+    ]);
   };
 
   const prepare = (
@@ -493,6 +625,18 @@ export const createBrowserProjectRuntimeHost = (
         throw new Error('The browser project runtime host has been disposed.');
       }
       activeLease = undefined;
+      if (serverRuntimeRestartRequired) {
+        const blockingOwners = [
+          ...new Set([
+            ...processesByOwner.keys(),
+            ...pendingProcessStartsByOwner.keys(),
+          ]),
+        ].sort();
+        if (blockingOwners.length) {
+          throw new BrowserProjectRuntimeHostBusyError(blockingOwners);
+        }
+        restartRuntimeAfterServer();
+      }
       const dependencyFingerprint = projectDependencyFingerprint(snapshot);
       const fileFingerprint = projectFileFingerprint(snapshot, operation);
       const dependenciesChanged =
@@ -502,26 +646,29 @@ export const createBrowserProjectRuntimeHost = (
       const foreignOwners = [...processesByOwner.keys()].filter(
         (candidate) => candidate !== ownerId
       );
+      const cleanupPending = [...(processesByOwner.get(ownerId) ?? [])].some(
+        (process) => process.wasStopRequested()
+      );
+      if (cleanupPending) {
+        throw new BrowserProjectRuntimeHostBusyError([ownerId]);
+      }
       if ((dependenciesChanged || filesChanged) && foreignOwners.length) {
         throw new BrowserProjectRuntimeHostBusyError(foreignOwners.sort());
       }
       if (dependenciesChanged) {
         await stopOwner(ownerId);
       }
+      leaseGeneration += 1;
+      const generation = leaseGeneration;
       const value = await resolveRuntime();
       await syncFiles(value, snapshot, operation);
       preparedProjectFingerprint = fileFingerprint;
       if (dependenciesChanged) {
-        publish({
-          kind: 'output',
-          ownerId,
-          label: 'install',
-          message: 'Installing project dependencies.',
-        });
         const installProcess = await spawnOwnedProcess(
           ownerId,
           snapshot.installCommand,
-          { label: 'install' }
+          { label: 'install' },
+          generation
         );
         const exitCode = await installProcess.exit;
         await installProcess.outputCompletion;
@@ -533,10 +680,9 @@ export const createBrowserProjectRuntimeHost = (
         }
         installedDependencyFingerprint = dependencyFingerprint;
       }
-      leaseGeneration += 1;
       const lease = Object.freeze({
         ownerId,
-        generation: leaseGeneration,
+        generation,
         workspaceId: snapshot.workspace.workspaceId,
         snapshotId: snapshot.workspace.snapshotId,
       });
@@ -550,7 +696,14 @@ export const createBrowserProjectRuntimeHost = (
   };
 
   const stopAll = async (): Promise<void> => {
-    await Promise.all([...processesByOwner.keys()].map(stopOwner));
+    await Promise.all(
+      [
+        ...new Set([
+          ...processesByOwner.keys(),
+          ...pendingProcessStartsByOwner.keys(),
+        ]),
+      ].map(stopOwner)
+    );
   };
 
   return Object.freeze({
@@ -601,6 +754,7 @@ export const createBrowserProjectRuntimeHost = (
       disposePromise = (async () => {
         await stopAll();
         await operationTail;
+        runtimeEventEpoch += 1;
         runtimeUnsubscribers.forEach((unsubscribe) => unsubscribe());
         runtimeUnsubscribers = [];
         runtime?.dispose();
@@ -612,7 +766,8 @@ export const createBrowserProjectRuntimeHost = (
         preparedProjectFingerprint = undefined;
         activeLease = undefined;
         ownerStopEpochs.clear();
-        serverOwnerId = undefined;
+        pendingProcessStartsByOwner.clear();
+        serverIdentity = undefined;
         serverProcess = undefined;
         listeners.clear();
       })();

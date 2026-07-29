@@ -38,7 +38,10 @@ describe.runIf(process.env.PRODIVIX_VERIFY_G2_VUE_PRODUCT === '1')(
           );
           await expectPage(
             page.locator('[data-prodivix-route-loader]')
-          ).toHaveText(/Golden Owner/);
+          ).toHaveText(/prodivix-product-session/);
+          await expectPage(
+            page.locator('[data-prodivix-route-loader]')
+          ).toHaveText(/golden-catalog-owner/);
           await expectPage(page.getByTestId('catalog-image')).toHaveJSProperty(
             'naturalWidth',
             1

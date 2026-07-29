@@ -73,7 +73,7 @@ export {
   type WorkspaceServerRuntimeTargetAnalysis,
 } from '#src/workspace/workspaceServerRuntimeTarget';
 export {
-  createWorkspaceStandaloneServerRuntimeModule,
+  createWorkspaceStandaloneServerRuntimeModules,
   WORKSPACE_SERVER_RUNTIME_MODULE_ID,
 } from '#src/workspace/standaloneServerRuntime';
 export {
@@ -86,6 +86,100 @@ export {
   type GenerateWorkspaceExecutableProjectOptions,
   type WorkspaceExecutableProjectResult,
 } from '#src/executableProject/workspaceExecutableProject';
+export {
+  COMPILER_AUTH_SESSION_RUNTIME_CLIENT_SOURCE_PATH,
+  COMPILER_FIXTURE_PROJECTION_BUILD_PATH,
+  COMPILER_FIXTURE_PROJECTION_FILE_FORMAT,
+  COMPILER_FIXTURE_PROJECTION_RECEIPT_FORMAT,
+  COMPILER_FIXTURE_PROJECTION_SOURCE_PATH,
+  assertCompilerFixtureProjectionBuildFile,
+  assertCompilerFixtureProjectionReceipt,
+  createCompilerFixtureProjectionSnapshot,
+  issueCompilerFixtureProjectionReceipt,
+  type CompilerAuthSessionProjection,
+  type CompilerAuthSessionTransportBinding,
+  type CompilerAuthSessionTransportProjection,
+  type CompilerFixtureProjectionBinding,
+  type CompilerFixtureProjectionFileBinding,
+  type CompilerFixtureProjectionReceipt,
+  type CompilerGeneratedFixtureProjectionFileBinding,
+  type CreateCompilerFixtureProjectionSnapshotInput,
+  type IssueCompilerFixtureProjectionReceiptInput,
+} from '#src/executableProject/fixtureProjectionReceipt';
+export {
+  COMPILER_DIAGNOSTIC_TEST_EXTENSION_OWNER,
+  COMPILER_DIAGNOSTIC_TEST_EXTENSION_RECEIPT_FORMAT,
+  assertCompilerDiagnosticTestExtensionReceipt,
+  createCompilerDiagnosticTestExtension,
+  issueCompilerDiagnosticTestExtensionReceipt,
+  type CompilerDiagnosticTestExtension,
+  type CompilerDiagnosticTestExtensionFileBinding,
+  type CompilerDiagnosticTestExtensionReceipt,
+  type CreateCompilerDiagnosticTestExtensionInput,
+} from '#src/executableProject/diagnosticTestExtensionReceipt';
+export {
+  COMPILER_PRODUCTION_FIXTURE_ABSENCE_BUNDLE_ENVELOPE_PATH,
+  assertCompilerProductionFixtureAbsenceBuildBundle,
+  assertCompilerProductionFixtureAbsenceReceipt,
+  encodeCompilerProductionBuildBundle,
+  issueCompilerProductionFixtureAbsenceReceipt,
+} from '#src/executableProject/productionFixtureAbsenceReceipt';
+export {
+  COMPILER_PRODUCTION_FIXTURE_ABSENCE_OWNER,
+  COMPILER_PRODUCTION_FIXTURE_ABSENCE_RECEIPT_FORMAT,
+  CompilerProductionFixtureAbsenceError,
+  type CompilerProductionDiagnosticTestExtensionAuthority,
+  type CompilerProductionFixtureAbsenceFileBinding,
+  type CompilerProductionFixtureAbsenceFinding,
+  type CompilerProductionFixtureAbsenceMarker,
+  type CompilerProductionFixtureAbsenceReceipt,
+  type CompilerProductionFixtureAbsenceScanReceipt,
+  type CompilerProductionForbiddenFixtureAuthority,
+  type IssueCompilerProductionFixtureAbsenceReceiptInput,
+} from '#src/executableProject/productionFixtureAbsenceReceipt.types';
+export {
+  WORKSPACE_DIAGNOSTIC_PROJECTION_RECEIPT_FORMAT,
+  WORKSPACE_DIAGNOSTIC_TRACE_FORMAT,
+  assertWorkspaceDiagnosticProjectionReceipt,
+  issueWorkspaceDiagnosticProjectionReceipt,
+  type CompilerFixtureProjectionAuthority,
+  type IssueWorkspaceDiagnosticProjectionReceiptInput,
+  type WorkspaceDiagnosticCompilerTarget,
+  type WorkspaceDiagnosticProjectionFinding,
+  type WorkspaceDiagnosticProjectionReceipt,
+  type WorkspaceDiagnosticTrace,
+  type WorkspaceDiagnosticTraceEntry,
+} from '#src/executableProject/workspaceDiagnosticProjectionReceipt';
+export {
+  PRODUCTION_WORKSPACE_VERIFICATION_COMPILE_PROFILE,
+  WORKSPACE_VERIFICATION_PROBE_CANARY,
+  WORKSPACE_VERIFICATION_PROBE_ENDPOINT,
+  WORKSPACE_VERIFICATION_PROBE_MODULE_ID,
+  WORKSPACE_VERIFICATION_PROBE_MODULE_PATH,
+  WorkspaceVerificationCompileProfileError,
+  attachWorkspaceVerificationProbeToEntryModule,
+  createWorkspaceVerificationProbeContribution,
+  type WorkspaceVerificationCompileProfile,
+  type WorkspaceVerificationProbeMetadata,
+  type WorkspaceVerificationProbeInstanceScope,
+  type WorkspaceVerificationProbeReadiness,
+  type WorkspaceVerificationProbeSourceRef,
+  type WorkspaceVerificationProbeTarget,
+} from '#src/workspace/workspaceVerificationProbe';
+export {
+  WORKSPACE_VERIFICATION_CREDENTIAL_CANARY,
+  PRODUCTION_VERIFICATION_PROBE_SCAN_LIMITS,
+  ProductionVerificationProbeLeakError,
+  ProductionVerificationProbeScanInputError,
+  assertProductionBundleHasNoVerificationProbe,
+  scanProductionBundleForVerificationProbe,
+  type ProductionVerificationProbeMarker,
+  type ProductionVerificationProbeScanFile,
+  type ProductionVerificationProbeScanFinding,
+  type ProductionVerificationProbeScanInputErrorCode,
+  type ProductionVerificationProbeScanOptions,
+  type ProductionVerificationProbeScanResult,
+} from '#src/workspace/productionVerificationProbeScanner';
 export {
   generateWorkspaceVueViteExecutableProject,
   type GenerateWorkspaceVueViteExecutableProjectOptions,

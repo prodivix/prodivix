@@ -760,6 +760,22 @@ describe('remote execution control plane conformance', () => {
     );
     expect(reclaimed?.lease.attempt).toBe(2);
     await expect(
+      controlPlane.appendWorkerEvent({
+        executionId: started.execution.executionId,
+        workerId: 'worker-1',
+        leaseToken: first!.lease.token,
+        workerEventId: 'late-worker-1-event',
+        event: {
+          kind: 'log',
+          log: {
+            stream: 'stderr',
+            level: 'error',
+            message: 'late event from expired attempt',
+          },
+        },
+      })
+    ).resolves.toEqual({ kind: 'lease-rejected' });
+    await expect(
       controlPlane.transition({
         executionId: started.execution.executionId,
         workerId: 'worker-1',

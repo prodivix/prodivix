@@ -300,7 +300,15 @@ export const createWorkspaceExecutionConsoleRuntimeModule = (): ExportModule =>
     language: 'ts',
     imports: [],
     body: executionConsoleRuntimeSource,
-    sourceTrace: [],
+    sourceTrace: [
+      {
+        sourceRef: {
+          domain: 'workspace',
+          id: WORKSPACE_EXECUTION_CONSOLE_RUNTIME_MODULE_ID,
+          path: '/',
+        },
+      },
+    ],
     origin: Object.freeze({
       kind: 'generated',
       owner: 'prodivix',

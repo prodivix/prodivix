@@ -59,6 +59,7 @@ func verificationPlanForCandidate(
 			},
 			Adapter: VerificationPlanAdapterIdentity{
 				AdapterID:        "adapter-vector",
+				DescriptorDigest: repeatedDigest('e'),
 				ToolchainDigest:  candidate.Toolchain.ToolchainDigest,
 				CapabilityDigest: repeatedDigest('f'),
 			},
@@ -197,6 +198,12 @@ func TestVerificationPlanGrantBindsCompleteCandidate(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	descriptorDrift := plan
+	descriptorDrift.Cells = append([]VerificationPlanCell{}, plan.Cells...)
+	descriptorDrift.Cells[0].Adapter.DescriptorDigest = ""
+	if err := validateVerificationPlanGrant(descriptorDrift); err == nil {
+		t.Fatal("Plan without an adapter descriptor digest was accepted")
+	}
 }
 
 func TestVerificationPlanGrantRejectsCandidateSelfReportDrift(t *testing.T) {
@@ -262,6 +269,31 @@ func TestVerificationPlanGrantRejectsCandidateSelfReportDrift(t *testing.T) {
 	if _, _, err := decodeVerificationPlanWire(unknown); err == nil ||
 		diagnosticCode(err, "") != "VER-5001" {
 		t.Fatalf("unknown Plan field did not fail closed: %v", err)
+	}
+}
+
+func TestVerificationPlanGrantAcceptsCurrentInputKinds(t *testing.T) {
+	kinds := []string{
+		"baseline-set",
+		"diagnostic-snapshot",
+		"executable-snapshot",
+		"scenario-program",
+		"security-observation-set",
+		"test-report",
+		"verification-profile",
+	}
+	if err := validatePlanInputKinds(kinds); err != nil {
+		t.Fatalf("validate current input kinds: %v", err)
+	}
+
+	for _, invalid := range [][]string{
+		nil,
+		{"verification-profile", "security-observation-set"},
+		{"vendor-private-payload"},
+	} {
+		if err := validatePlanInputKinds(invalid); err == nil {
+			t.Fatalf("validatePlanInputKinds(%v) unexpectedly succeeded", invalid)
+		}
 	}
 }
 

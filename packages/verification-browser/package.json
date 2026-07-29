@@ -1,0 +1,42 @@
+{
+  "name": "@prodivix/verification-browser",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "First-party browser verification adapters with bounded private-tool decoders and deterministic comparison kernels",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "lint": "eslint .",
+    "build": "pnpm run clean && tsc -p tsconfig.json",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
+    "test": "pnpm run build && pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "test:watch": "vitest --config vitest.config.ts",
+    "typecheck": "tsc -b tsconfig.test.json --pretty false"
+  },
+  "dependencies": {
+    "@prodivix/behavior": "workspace:*",
+    "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/shared": "workspace:*",
+    "@prodivix/verification": "workspace:*",
+    "@noble/hashes": "2.2.0",
+    "axe-core": "4.12.1",
+    "playwright-core": "1.61.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  }
+}

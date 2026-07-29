@@ -34,9 +34,11 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
+    "@noble/hashes": "2.2.0",
     "@prodivix/animation": "workspace:*",
     "@prodivix/assets": "workspace:*",
     "@prodivix/authoring": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
     "@prodivix/data": "workspace:*",
     "@prodivix/diagnostics": "workspace:*",
     "@prodivix/nodegraph": "workspace:*",
@@ -48,6 +50,7 @@
     "@prodivix/themes": "workspace:*",
     "@prodivix/ui": "workspace:*",
     "@prodivix/workspace": "workspace:*",
+    "ajv": "^8.20.0",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
@@ -59,7 +62,6 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "ajv": "^8.20.0",
     "fast-check": "^4.9.0",
     "vite": "^8.1.3",
     "vitest": "^4.1.9"

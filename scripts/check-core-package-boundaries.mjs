@@ -43,6 +43,17 @@ const corePackages = {
     '@prodivix/diagnostics',
     '@prodivix/shared',
   ]),
+  'verification-adapters': new Set([
+    '@prodivix/runtime-core',
+    '@prodivix/shared',
+    '@prodivix/verification',
+  ]),
+  'verification-browser': new Set([
+    '@prodivix/behavior',
+    '@prodivix/runtime-core',
+    '@prodivix/shared',
+    '@prodivix/verification',
+  ]),
   authoring: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   'code-language': new Set(['@prodivix/authoring']),
   tokens: new Set(['@prodivix/authoring']),
@@ -130,6 +141,7 @@ const readImports = (source) =>
   ].map((match) => match[2]);
 
 const issues = [];
+const packageLibraries = new Map([['verification-browser', ['ES2022', 'DOM']]]);
 
 for (const [packageDirectory, allowedDependencies] of Object.entries(
   corePackages
@@ -153,8 +165,16 @@ for (const [packageDirectory, allowedDependencies] of Object.entries(
   const tsconfig = JSON.parse(
     await readFile(join(packageRoot, 'tsconfig.json'), 'utf8')
   );
-  if (JSON.stringify(tsconfig.compilerOptions?.lib) !== '["ES2022"]') {
-    issues.push(`${packageJson.name} must compile with lib: ["ES2022"].`);
+  const expectedLibraries = packageLibraries.get(packageDirectory) ?? [
+    'ES2022',
+  ];
+  if (
+    JSON.stringify(tsconfig.compilerOptions?.lib) !==
+    JSON.stringify(expectedLibraries)
+  ) {
+    issues.push(
+      `${packageJson.name} must compile with lib: ${JSON.stringify(expectedLibraries)}.`
+    );
   }
 
   for (const file of await collectSourceFiles(join(packageRoot, 'src'))) {

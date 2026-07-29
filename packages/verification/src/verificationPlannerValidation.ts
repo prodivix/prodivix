@@ -3,6 +3,10 @@ import {
   parseVerificationInstant,
   uniqueVerificationText,
 } from './verificationCanonical';
+import {
+  createVerificationAdapterRegistrySnapshot,
+  matchVerificationAdapterRegistryEntry,
+} from './verificationAdapterRegistry';
 import type {
   CreateVerificationPlanInput,
   VerificationAdapterRegistration,
@@ -97,12 +101,17 @@ export const preflightVerificationCell = (
     });
   }
   const descriptor = registration.descriptor;
-  if (
-    descriptor.id !== registration.identity.adapterId ||
-    descriptor.id !== check.adapterId ||
-    descriptor.implementation.toolchainDigest !==
-      registration.identity.toolchainDigest
-  ) {
+  let identityMatches = false;
+  try {
+    const snapshot = createVerificationAdapterRegistrySnapshot([registration]);
+    identityMatches =
+      descriptor.id === check.adapterId &&
+      matchVerificationAdapterRegistryEntry(snapshot, registration.identity) !==
+        undefined;
+  } catch {
+    identityMatches = false;
+  }
+  if (!identityMatches) {
     return Object.freeze({
       status: 'blocked',
       reasonCode: 'VER-3003',
@@ -236,6 +245,16 @@ export const validateVerificationPlanningInput = (
     ) {
       return `Adapter "${registration.identity.adapterId}" has invalid identity or budgets.`;
     }
+  }
+  try {
+    const registry = createVerificationAdapterRegistrySnapshot(input.adapters);
+    if (registry.snapshotDigest !== input.adapterRegistryDigest) {
+      return 'adapterRegistryDigest does not match the canonical adapter registry snapshot.';
+    }
+  } catch (error) {
+    return error instanceof Error
+      ? error.message
+      : 'Verification adapter registry is invalid.';
   }
   return undefined;
 };

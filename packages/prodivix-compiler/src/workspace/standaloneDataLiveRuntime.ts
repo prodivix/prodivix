@@ -1900,7 +1900,7 @@ const validateRuntimePayload = (
   let validator = schemaValidators.get(key);
   if (!validator) {
     try {
-      validator = new Ajv2020({ allErrors: true, messages: false, strict: false, validateFormats: false }).compile(schema as boolean | object);
+      validator = new Ajv2020({ allErrors: true, messages: false, strict: false, validateFormats: false }).compile(schema as boolean | object, key);
     } catch { throw new DataRuntimeFailure('DATA_SCHEMA_UNSUPPORTED'); }
     schemaValidators.set(key, validator);
   }

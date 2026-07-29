@@ -1,6 +1,6 @@
 import type { DiagnosticTargetRef } from '@prodivix/diagnostics';
 import {
-  canTransitionExecutionJob,
+  canReachExecutionJobStatus,
   type ExecutionJobStatus,
   type ExecutionRequest,
 } from '@prodivix/runtime-core';
@@ -369,8 +369,7 @@ export const createRemoteExecutionClient = (
         previous.requestId !== execution.requestId ||
         previous.snapshotDigest !== execution.snapshotDigest ||
         previous.latestCursor > execution.latestCursor ||
-        (previous.status !== execution.status &&
-          !canTransitionExecutionJob(previous.status, execution.status)))
+        !canReachExecutionJobStatus(previous.status, execution.status))
     ) {
       throw new RemoteExecutionRecoveryRequiredError(
         'Remote execution identity or provider drifted.',

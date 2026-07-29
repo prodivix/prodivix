@@ -1,17 +1,39 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { dirname, extname, join, resolve, sep } from 'node:path';
-import { chromium, type Browser, type Page } from '@playwright/test';
+import { extname, join, resolve, sep } from 'node:path';
+import type { ExecutableProjectSnapshot } from '@prodivix/runtime-core';
 import { build, transformWithOxc } from 'vite';
+import {
+  collectGoldenBrowserGpuEvidence,
+  launchGoldenBrowser,
+  resolveGoldenBrowserLaunchConfiguration,
+  type GoldenBrowserProjectEvidence,
+  type VerifyGoldenBrowserProjectOptions,
+} from './generatedProjectBrowserEngine';
+import {
+  readGoldenGeneratedProjectPackageManager,
+  runGoldenPreparedToolchainEvidence,
+  runGoldenStandaloneProjectCommands,
+  writeGoldenGeneratedProjectBundle,
+  type GoldenGeneratedProjectBundle,
+  type GoldenPreparedProjectToolchainEvidence,
+} from './generatedProjectToolchain';
 
-export type GoldenGeneratedProjectBundle = Readonly<{
-  files: readonly Readonly<{
-    path: string;
-    contents: string | Uint8Array;
-  }>[];
-}>;
+export {
+  observeGoldenBrowserEngineVersions,
+  resolveGoldenBrowserLaunchConfiguration,
+  type GoldenBrowserEngine,
+  type GoldenBrowserEngineVersions,
+  type GoldenBrowserGpuEvidence,
+  type GoldenBrowserLaunchConfiguration,
+  type GoldenBrowserProjectEvidence,
+  type VerifyGoldenBrowserProjectOptions,
+} from './generatedProjectBrowserEngine';
+export type {
+  GoldenGeneratedProjectBundle,
+  GoldenPreparedProjectToolchainEvidence,
+} from './generatedProjectToolchain';
 
 export type GoldenBuildEvidence = Readonly<{
   bundleFileCount: number;
@@ -25,64 +47,17 @@ export type GoldenStandaloneProjectEvidence = Readonly<{
   completedCommands: readonly ['install', 'typecheck', 'test', 'build'];
 }>;
 
-export type GoldenBrowserGpuEvidence = Readonly<{
-  secureContext: boolean;
-  webgl2: Readonly<{
-    available: boolean;
-    shaderCompiled: boolean;
-    version?: string;
-  }>;
-  webgpu: Readonly<{
-    apiAvailable: boolean;
-    adapterAvailable: boolean;
-    deviceAvailable: boolean;
-    shaderCompiled: boolean;
-  }>;
-}>;
-
-export type GoldenBrowserProjectEvidence = Readonly<{
+export type GoldenPreparedBrowserProject = Readonly<{
   bundleFileCount: number;
   packageManager: string;
-  completedCommands: readonly [
-    'install',
-    'typecheck',
-    'test',
-    'build',
-    'browser-smoke',
-  ];
-  browserChannel: string;
-  browserVersion: string;
-  routePath: string;
-  gpu: GoldenBrowserGpuEvidence;
+  origin: string;
+  toolchain?: GoldenPreparedProjectToolchainEvidence;
+  dispose(): Promise<void>;
 }>;
 
-export type VerifyGoldenBrowserProjectOptions = Readonly<{
-  routePath: string;
-  browserChannel?: string;
-  preparePage?: (page: Page, projectUrl: string) => Promise<void>;
-  verifyPage?: (page: Page) => Promise<void>;
+export type PrepareGoldenBrowserProjectOptions = Readonly<{
+  executableSnapshot?: ExecutableProjectSnapshot;
 }>;
-
-const resolveSafeOutputPath = (root: string, filePath: string): string => {
-  const target = resolve(root, filePath);
-  if (target !== root && !target.startsWith(`${root}${sep}`)) {
-    throw new Error(
-      `Generated file escaped the Golden build root: ${filePath}`
-    );
-  }
-  return target;
-};
-
-const writeBundle = async (
-  root: string,
-  bundle: GoldenGeneratedProjectBundle
-): Promise<void> => {
-  for (const file of bundle.files) {
-    const target = resolveSafeOutputPath(root, file.path);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, file.contents);
-  }
-};
 
 const isBareImport = (id: string): boolean =>
   !id.startsWith('.') &&
@@ -126,118 +101,6 @@ const transformGeneratedModules = async (
   return transformed;
 };
 
-const terminateProcessTree = async (child: ChildProcess): Promise<void> => {
-  if (!child.pid || child.exitCode !== null) return;
-  if (process.platform !== 'win32') {
-    child.kill('SIGKILL');
-    return;
-  }
-  await new Promise<void>((resolvePromise) => {
-    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
-      stdio: 'ignore',
-      windowsHide: true,
-    });
-    let settled = false;
-    const finish = (): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      resolvePromise();
-    };
-    const timeout = setTimeout(() => {
-      killer.kill();
-      finish();
-    }, 10_000);
-    killer.once('error', finish);
-    killer.once('close', finish);
-  });
-};
-
-const runPnpm = async (
-  root: string,
-  packageManager: string,
-  args: readonly string[],
-  timeoutMs = 300_000
-): Promise<void> => {
-  const command = `corepack ${packageManager} ${args.join(' ')}`;
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    const child = spawn(command, {
-      cwd: root,
-      env: {
-        ...process.env,
-        CI: '1',
-        COREPACK_ENABLE_PROJECT_SPEC: '0',
-      },
-      shell: true,
-      windowsHide: true,
-    });
-    let output = '';
-    const collect = (chunk: Buffer | string): void => {
-      output = `${output}${String(chunk)}`.slice(-32_000);
-    };
-    child.stdout?.on('data', collect);
-    child.stderr?.on('data', collect);
-    let timedOut = false;
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      void terminateProcessTree(child).finally(() => {
-        rejectPromise(
-          new Error(`${command} exceeded ${timeoutMs}ms.\n${output}`)
-        );
-      });
-    }, timeoutMs);
-    child.once('error', (error) => {
-      clearTimeout(timeout);
-      if (timedOut) return;
-      rejectPromise(error);
-    });
-    child.once('close', (code) => {
-      clearTimeout(timeout);
-      if (timedOut) return;
-      if (code === 0) resolvePromise();
-      else
-        rejectPromise(
-          new Error(`${command} exited with code ${code}.\n${output}`)
-        );
-    });
-  });
-};
-
-const readBundlePackageManager = (
-  bundle: GoldenGeneratedProjectBundle
-): string => {
-  const packageFile = bundle.files.find(({ path }) => path === 'package.json');
-  if (!packageFile || typeof packageFile.contents !== 'string') {
-    throw new Error('Golden standalone export has no package.json.');
-  }
-  const packageManager = (
-    JSON.parse(packageFile.contents) as Readonly<{ packageManager?: unknown }>
-  ).packageManager;
-  if (
-    typeof packageManager !== 'string' ||
-    !/^pnpm@[0-9A-Za-z._+-]+$/.test(packageManager)
-  ) {
-    throw new Error(
-      'Golden standalone export must declare one executable pnpm version.'
-    );
-  }
-  return packageManager;
-};
-
-const runStandaloneProjectCommands = async (
-  root: string,
-  packageManager: string
-): Promise<void> => {
-  await runPnpm(root, packageManager, [
-    'install',
-    '--frozen-lockfile=false',
-    '--prefer-offline',
-  ]);
-  await runPnpm(root, packageManager, ['typecheck']);
-  await runPnpm(root, packageManager, ['test']);
-  await runPnpm(root, packageManager, ['build']);
-};
-
 const goldenStaticContentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -249,6 +112,13 @@ const goldenStaticContentTypes = Object.freeze({
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
 } as const);
+
+export const GOLDEN_BROWSER_RESPONSE_POLICIES = Object.freeze({
+  contentSecurityPolicy:
+    "default-src 'none'; base-uri 'none'; child-src 'none'; connect-src 'self'; font-src 'self' data:; form-action 'none'; frame-src 'none'; img-src 'self' data:; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'none'",
+  permissionsPolicy:
+    'camera=(), display-capture=(), geolocation=(), microphone=(), payment=(), publickey-credentials-get=(), usb=()',
+});
 
 type GoldenStaticServer = Readonly<{
   origin: string;
@@ -288,7 +158,11 @@ const startGoldenStaticServer = async (
       if (requestUrl.pathname === '/__prodivix-golden-host.html') {
         response.writeHead(200, {
           'cache-control': 'no-store',
+          'content-security-policy':
+            GOLDEN_BROWSER_RESPONSE_POLICIES.contentSecurityPolicy,
           'content-type': 'text/html; charset=utf-8',
+          'permissions-policy':
+            GOLDEN_BROWSER_RESPONSE_POLICIES.permissionsPolicy,
         });
         response.end(
           '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'
@@ -307,7 +181,11 @@ const startGoldenStaticServer = async (
         ] ?? 'application/octet-stream';
       response.writeHead(200, {
         'cache-control': 'no-store',
+        'content-security-policy':
+          GOLDEN_BROWSER_RESPONSE_POLICIES.contentSecurityPolicy,
         'content-type': contentType,
+        'permissions-policy':
+          GOLDEN_BROWSER_RESPONSE_POLICIES.permissionsPolicy,
       });
       response.end(request.method === 'HEAD' ? undefined : payload.contents);
     } catch (error) {
@@ -338,101 +216,63 @@ const startGoldenStaticServer = async (
   });
 };
 
-const collectGoldenBrowserGpuEvidence = async (
-  page: Page
-): Promise<GoldenBrowserGpuEvidence> =>
-  page.evaluate(async (): Promise<GoldenBrowserGpuEvidence> => {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2');
-    let webglShaderCompiled = false;
-    let webglVersion: string | undefined;
-    if (gl) {
-      webglVersion = String(gl.getParameter(gl.VERSION));
-      const compileShader = (type: number, source: string) => {
-        const shader = gl.createShader(type);
-        if (!shader) return undefined;
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return shader;
-        gl.deleteShader(shader);
-        return undefined;
-      };
-      const vertex = compileShader(
-        gl.VERTEX_SHADER,
-        '#version 300 es\nvoid main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }'
-      );
-      const fragment = compileShader(
-        gl.FRAGMENT_SHADER,
-        '#version 300 es\nprecision highp float;\nout vec4 color;\nvoid main() { color = vec4(1.0); }'
-      );
-      if (vertex && fragment) {
-        const program = gl.createProgram();
-        if (program) {
-          gl.attachShader(program, vertex);
-          gl.attachShader(program, fragment);
-          gl.linkProgram(program);
-          webglShaderCompiled = Boolean(
-            gl.getProgramParameter(program, gl.LINK_STATUS)
-          );
-          gl.deleteProgram(program);
+/**
+ * Builds and serves a generated target once so a matrix can reuse the target
+ * while keeping every browser attempt in a fresh context.
+ */
+export const prepareGoldenBrowserProject = async (
+  bundle: GoldenGeneratedProjectBundle,
+  options: PrepareGoldenBrowserProjectOptions = {}
+): Promise<GoldenPreparedBrowserProject> => {
+  const root = await mkdtemp(join(tmpdir(), 'prodivix-golden-browser-'));
+  let staticServer: GoldenStaticServer | undefined;
+  try {
+    const packageManager = readGoldenGeneratedProjectPackageManager(bundle);
+    const toolchain = options.executableSnapshot
+      ? await runGoldenPreparedToolchainEvidence(options.executableSnapshot)
+      : undefined;
+    if (toolchain && options.executableSnapshot) {
+      await writeGoldenGeneratedProjectBundle(root, {
+        files: toolchain.buildBundle.files.map((file) => ({
+          path: `${options.executableSnapshot!.buildPlan.outputDirectoryPath}/${file.path}`,
+          contents: file.contents,
+        })),
+      });
+    } else {
+      await writeGoldenGeneratedProjectBundle(root, bundle);
+      await runGoldenStandaloneProjectCommands(root, packageManager);
+    }
+    staticServer = await startGoldenStaticServer(
+      resolve(
+        root,
+        options.executableSnapshot?.buildPlan.outputDirectoryPath ?? 'dist'
+      )
+    );
+    let disposed = false;
+    return Object.freeze({
+      bundleFileCount: bundle.files.length,
+      packageManager,
+      origin: staticServer.origin,
+      ...(toolchain ? { toolchain } : {}),
+      dispose: async (): Promise<void> => {
+        if (disposed) return;
+        disposed = true;
+        try {
+          await staticServer?.close();
+        } finally {
+          await rm(root, { recursive: true, force: true });
         }
-      }
-      if (vertex) gl.deleteShader(vertex);
-      if (fragment) gl.deleteShader(fragment);
-    }
-
-    type MinimalGpuDevice = Readonly<{
-      createShaderModule: (input: Readonly<{ code: string }>) => Readonly<{
-        getCompilationInfo: () => Promise<
-          Readonly<{
-            messages: readonly Readonly<{ type: string }>[];
-          }>
-        >;
-      }>;
-      destroy: () => void;
-    }>;
-    type MinimalGpuAdapter = Readonly<{
-      requestDevice: () => Promise<MinimalGpuDevice>;
-    }>;
-    type MinimalGpu = Readonly<{
-      requestAdapter: (
-        options?: Readonly<{ powerPreference?: string }>
-      ) => Promise<MinimalGpuAdapter | null>;
-    }>;
-    const gpu = (navigator as Navigator & { gpu?: MinimalGpu }).gpu;
-    let adapter: MinimalGpuAdapter | null = null;
-    let device: MinimalGpuDevice | undefined;
-    let webgpuShaderCompiled = false;
-    if (gpu) {
-      adapter = await gpu.requestAdapter();
-      if (adapter) {
-        device = await adapter.requestDevice();
-        const shader = device.createShaderModule({
-          code: '@compute @workgroup_size(1) fn main() {}',
-        });
-        const compilation = await shader.getCompilationInfo();
-        webgpuShaderCompiled = !compilation.messages.some(
-          ({ type }) => type === 'error'
-        );
-      }
-    }
-    const evidence: GoldenBrowserGpuEvidence = {
-      secureContext: window.isSecureContext,
-      webgl2: {
-        available: Boolean(gl),
-        shaderCompiled: webglShaderCompiled,
-        ...(webglVersion ? { version: webglVersion } : {}),
       },
-      webgpu: {
-        apiAvailable: Boolean(gpu),
-        adapterAvailable: Boolean(adapter),
-        deviceAvailable: Boolean(device),
-        shaderCompiled: webgpuShaderCompiled,
-      },
-    };
-    device?.destroy();
-    return evidence;
-  });
+    });
+  } catch (error) {
+    try {
+      await staticServer?.close();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+    throw error;
+  }
+};
 
 /** Syntax-checks every generated module and builds the reachable graph without a server. */
 export const buildGoldenExportBundle = async (
@@ -441,7 +281,7 @@ export const buildGoldenExportBundle = async (
   const root = await mkdtemp(join(tmpdir(), 'prodivix-golden-'));
   try {
     const transformedModuleCount = await transformGeneratedModules(bundle);
-    await writeBundle(root, bundle);
+    await writeGoldenGeneratedProjectBundle(root, bundle);
     const output = await build({
       root,
       configFile: false,
@@ -471,9 +311,9 @@ export const verifyGoldenStandaloneProject = async (
 ): Promise<GoldenStandaloneProjectEvidence> => {
   const root = await mkdtemp(join(tmpdir(), 'prodivix-golden-standalone-'));
   try {
-    const packageManager = readBundlePackageManager(bundle);
-    await writeBundle(root, bundle);
-    await runStandaloneProjectCommands(root, packageManager);
+    const packageManager = readGoldenGeneratedProjectPackageManager(bundle);
+    await writeGoldenGeneratedProjectBundle(root, bundle);
+    await runGoldenStandaloneProjectCommands(root, packageManager);
     return {
       bundleFileCount: bundle.files.length,
       packageManager,
@@ -500,31 +340,19 @@ export const verifyGoldenBrowserProject = async (
       'Golden browser routePath must be an origin-relative path.'
     );
   }
-  const root = await mkdtemp(join(tmpdir(), 'prodivix-golden-browser-'));
-  let staticServer: GoldenStaticServer | undefined;
-  let browser: Browser | undefined;
+  const launch = resolveGoldenBrowserLaunchConfiguration(options);
+  let project: GoldenPreparedBrowserProject | undefined;
+  let browser: Awaited<ReturnType<typeof launchGoldenBrowser>> | undefined;
   try {
-    const packageManager = readBundlePackageManager(bundle);
-    await writeBundle(root, bundle);
-    await runStandaloneProjectCommands(root, packageManager);
-    staticServer = await startGoldenStaticServer(resolve(root, 'dist'));
-    const browserChannel = options.browserChannel?.trim() || 'chrome';
-    browser = await chromium.launch({
-      channel: browserChannel === 'chromium' ? undefined : browserChannel,
-      headless: true,
-      args: [
-        '--enable-unsafe-webgpu',
-        '--use-webgpu-adapter=swiftshader',
-        '--use-gpu-in-tests',
-      ],
-    });
+    project = await prepareGoldenBrowserProject(bundle);
+    browser = await launchGoldenBrowser(launch);
     const page = await browser.newPage();
     const runtimeErrors: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(error.message));
     page.on('console', (message) => {
       if (message.type() === 'error') runtimeErrors.push(message.text());
     });
-    const projectUrl = new URL(options.routePath, staticServer.origin).href;
+    const projectUrl = new URL(options.routePath, project.origin).href;
     if (options.preparePage) await options.preparePage(page, projectUrl);
     else await page.goto(projectUrl, { waitUntil: 'networkidle' });
     await options.verifyPage?.(page);
@@ -536,7 +364,7 @@ export const verifyGoldenBrowserProject = async (
     }
     const evidence: GoldenBrowserProjectEvidence = {
       bundleFileCount: bundle.files.length,
-      packageManager,
+      packageManager: project.packageManager,
       completedCommands: [
         'install',
         'typecheck',
@@ -544,15 +372,18 @@ export const verifyGoldenBrowserProject = async (
         'build',
         'browser-smoke',
       ],
-      browserChannel,
+      browserEngine: launch.browserEngine,
+      browserChannel: launch.browserChannel,
       browserVersion: browser.version(),
       routePath: options.routePath,
       gpu,
     };
     return Object.freeze(evidence);
   } finally {
-    await browser?.close();
-    await staticServer?.close();
-    await rm(root, { recursive: true, force: true });
+    try {
+      await browser?.close();
+    } finally {
+      await project?.dispose();
+    }
   }
 };

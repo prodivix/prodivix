@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       '#src': resolve(__dirname, 'src'),
       '@prodivix/authoring': resolve(__dirname, '../authoring/src'),
+      '@prodivix/behavior': resolve(__dirname, '../behavior/src'),
       '@prodivix/data': resolve(__dirname, '../data/src'),
       '@prodivix/pir': resolve(__dirname, '../pir/src'),
       '@prodivix/nodegraph': resolve(__dirname, '../nodegraph/src'),

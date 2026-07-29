@@ -1,0 +1,41 @@
+{
+  "name": "@prodivix/verification-adapters",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "First-party controlled diagnostics, build, unit, and integration verification adapters for Prodivix",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "lint": "eslint .",
+    "build": "pnpm run clean && tsc -p tsconfig.json",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
+    "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "typecheck": "tsc -b tsconfig.test.json --pretty false && tsc -p tsconfig.scripts.json --pretty false"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.2.0",
+    "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/shared": "workspace:*",
+    "@prodivix/verification": "workspace:*"
+  },
+  "devDependencies": {
+    "@prodivix/runtime-vitest": "workspace:*",
+    "@types/node": "^26.1.0",
+    "pnpm": "11.9.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  }
+}

@@ -17,6 +17,12 @@
       "path": "./packages/verification"
     },
     {
+      "path": "./packages/verification-adapters"
+    },
+    {
+      "path": "./packages/verification-browser"
+    },
+    {
       "path": "./packages/authoring"
     },
     {

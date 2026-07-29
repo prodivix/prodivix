@@ -18,7 +18,8 @@
     "@prodivix/runtime-core": "workspace:*",
     "@prodivix/runtime-remote": "workspace:*",
     "@prodivix/runtime-vitest": "workspace:*",
-    "@prodivix/server-runtime": "workspace:*"
+    "@prodivix/server-runtime": "workspace:*",
+    "@prodivix/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

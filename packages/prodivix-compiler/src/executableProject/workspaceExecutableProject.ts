@@ -24,6 +24,7 @@ export type WorkspaceExecutableProjectResult =
   | Readonly<{
       status: 'ready';
       snapshot: ExecutableProjectSnapshot;
+      diagnostics: readonly CompileDiagnostic[];
     }>
   | Readonly<{
       status: 'blocked';
@@ -113,8 +114,9 @@ const executionTargetRef = (
 export const executionSourceTrace = (
   trace: ExportSourceTrace,
   workspaceId: string
-): ExecutionSourceTrace =>
-  Object.freeze({
+): ExecutionSourceTrace => {
+  const sourcePath = trace.sourceRef.path?.trim();
+  return Object.freeze({
     sourceRef: Object.freeze(executionTargetRef(trace, workspaceId)),
     ...(trace.sourceSpan
       ? {
@@ -124,10 +126,14 @@ export const executionSourceTrace = (
           }),
         }
       : {}),
-    label:
-      trace.sourceRef.path?.trim() ||
-      `${trace.sourceRef.domain}:${trace.sourceRef.id}`,
+    // Export paths are authored Workspace/JSON-pointer identities, not host
+    // filesystem paths. Keep the canonical domain prefix so public evidence
+    // can preserve navigation without presenting the path as a provider root.
+    label: sourcePath
+      ? `${trace.sourceRef.domain}:${sourcePath}`
+      : `${trace.sourceRef.domain}:${trace.sourceRef.id}`,
   });
+};
 
 export const createWorkspaceExecutionSnapshotRef = (
   workspace: WorkspaceSnapshot
@@ -264,7 +270,7 @@ export const generateWorkspaceReactViteExecutableProject = (
     },
     publicBuildConfiguration: [],
     resourceHints: {
-      timeoutMs: 120_000,
+      timeoutMs: 60_000,
       maxOutputBytes: 16 * 1024 * 1024,
     },
     cacheHints: { dependencyInstall: 'reuse-if-matched' },
@@ -310,5 +316,9 @@ export const generateWorkspaceReactViteExecutableProject = (
       reportFilePath: DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
     },
   });
-  return Object.freeze({ status: 'ready', snapshot });
+  return Object.freeze({
+    status: 'ready',
+    snapshot,
+    diagnostics: Object.freeze([...bundle.diagnostics]),
+  });
 };

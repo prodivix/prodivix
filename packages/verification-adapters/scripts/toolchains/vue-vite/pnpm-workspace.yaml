@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+overrides:
+  esbuild: npm:esbuild-wasm@0.27.7
+  rollup: npm:@rollup/wasm-node@4.62.3

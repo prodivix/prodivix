@@ -44,9 +44,9 @@ import {
   createWorkspaceCodeContribution,
   createWorkspaceResourceContribution,
 } from '#src/workspace/workspaceContributions';
-import { createWorkspaceStandaloneDataRuntimeModule } from '#src/workspace/standaloneDataRuntime';
+import { createWorkspaceStandaloneDataRuntimeModules } from '#src/workspace/standaloneDataRuntime';
 import { createWorkspaceExecutionConsoleRuntimeModule } from '#src/workspace/standaloneExecutionConsoleRuntime';
-import { createWorkspaceStandaloneServerRuntimeModule } from '#src/workspace/standaloneServerRuntime';
+import { createWorkspaceStandaloneServerRuntimeModules } from '#src/workspace/standaloneServerRuntime';
 import {
   analyzeWorkspaceDataRuntimeTarget,
   PROVIDER_MOCK_DATA_RUNTIME_TARGET,
@@ -60,6 +60,12 @@ import {
 import { createWorkspaceVueAppModule } from '#src/vue/workspaceApp';
 import { compileAnimationExportContributions } from '#src/animation/compileAnimation';
 import { compileNodeGraphExportContributions } from '#src/nodegraph/compileNodeGraph';
+import {
+  attachWorkspaceVerificationProbeToEntryModule,
+  createWorkspaceVerificationProbeContribution,
+  WorkspaceVerificationCompileProfileError,
+  type WorkspaceVerificationCompileProfile,
+} from '#src/workspace/workspaceVerificationProbe';
 
 export type WorkspaceVueViteCompileOptions = Readonly<{
   projectName?: string;
@@ -68,6 +74,7 @@ export type WorkspaceVueViteCompileOptions = Readonly<{
   serverRuntimeTarget?: WorkspaceServerRuntimeTarget;
   serverRuntimeMockProvision?: ServerRuntimeTestProvision;
   assetMaterializations?: readonly BinaryAssetMaterialization[];
+  verificationProfile?: WorkspaceVerificationCompileProfile;
 }>;
 
 export type VueExportBundle = Readonly<{
@@ -637,7 +644,7 @@ export const compileWorkspaceToVueViteExportProgram = (
     .sort((left, right) => compareText(left.path, right.path));
   const traces = dataDocuments.map(sourceTraceFor);
   const journey = mockCrudJourney(options.dataMockProvision, operations);
-  const runtime = createWorkspaceStandaloneDataRuntimeModule(
+  const runtimeModules = createWorkspaceStandaloneDataRuntimeModules(
     workspace,
     dataRuntime.target
   );
@@ -706,12 +713,28 @@ export const compileWorkspaceToVueViteExportProgram = (
         compiledDocuments: pirCompilation?.documents ?? [],
       })
     : undefined;
-  const serverRuntimeModule = hasWorkspaceProductSurface
-    ? createWorkspaceStandaloneServerRuntimeModule(
+  const verificationProbe = createWorkspaceVerificationProbeContribution(
+    workspace,
+    options.verificationProfile
+  );
+  if (verificationProbe.modules?.length && !vueApp) {
+    throw new WorkspaceVerificationCompileProfileError(
+      '/verificationProfile/targets',
+      'Vue verification profile requires a compiled PIR product entry.'
+    );
+  }
+  const vueAppModule = vueApp
+    ? attachWorkspaceVerificationProbeToEntryModule(
+        vueApp.module,
+        verificationProbe
+      )
+    : undefined;
+  const serverRuntimeModules = hasWorkspaceProductSurface
+    ? createWorkspaceStandaloneServerRuntimeModules(
         serverRuntime.target,
         serverRuntime.bindings
       )
-    : undefined;
+    : [];
   const executionConsoleRuntime = hasWorkspaceProductSurface
     ? createWorkspaceExecutionConsoleRuntimeModule()
     : undefined;
@@ -726,11 +749,11 @@ export const compileWorkspaceToVueViteExportProgram = (
       },
     ],
     modules: [
-      runtime,
+      ...runtimeModules,
       ...(executionConsoleRuntime ? [executionConsoleRuntime] : []),
-      ...(serverRuntimeModule ? [serverRuntimeModule] : []),
+      ...serverRuntimeModules,
       ...(pirCompilation?.contribution.modules ?? []),
-      ...(vueApp ? [vueApp.module] : []),
+      ...(vueAppModule ? [vueAppModule] : []),
     ],
     files: [
       generatedFile(
@@ -818,6 +841,7 @@ export const compileWorkspaceToVueViteExportProgram = (
     resourceContribution,
     ...nodeGraphContributions,
     ...animationContributions,
+    verificationProbe,
     ...(hasWorkspaceProductSurface
       ? [
           code.contribution,

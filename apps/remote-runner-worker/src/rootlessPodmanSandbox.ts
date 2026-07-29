@@ -24,7 +24,11 @@ import {
   type ExecutionSecretLeakGuard,
   type ExecutionSourceTrace,
 } from '@prodivix/runtime-core';
-import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
+import {
+  createVitestExecutionFileIdentityResolver,
+  parseVitestExecutionTestReport,
+  readExecutableSnapshotVitestVersion,
+} from '@prodivix/runtime-vitest';
 import {
   decodeServerRuntimeTestInvocationTraces,
   ISOLATED_SERVER_FUNCTION_AUTHORITY_PATH,
@@ -885,19 +889,6 @@ const testFallbackSourceTrace = (
   );
 };
 
-const resolveTestSourceTrace = (
-  snapshot: ExecutableProjectSnapshot,
-  reportedPath: string,
-  fallback: readonly ExecutionSourceTrace[]
-): readonly ExecutionSourceTrace[] => {
-  const normalized = reportedPath.replaceAll('\\', '/');
-  const file = snapshot.files.find(
-    (candidate) =>
-      normalized === candidate.path || normalized.endsWith(`/${candidate.path}`)
-  );
-  return file?.sourceTrace?.length ? file.sourceTrace : fallback;
-};
-
 const collectTestReportSourceTrace = (
   report: ReturnType<typeof parseVitestExecutionTestReport>,
   fallback: readonly ExecutionSourceTrace[]
@@ -970,6 +961,7 @@ export const decodeRootlessPodmanSandboxResult = (
     record.artifacts.length > 8
   )
     throw new TypeError('Sandbox result envelope is invalid.');
+  const exitCode = record.exitCode as number;
   const stdout = decodeBase64(record.stdout, 'Sandbox stdout');
   const stderr = decodeBase64(record.stderr, 'Sandbox stderr');
   if (stdout.byteLength + stderr.byteLength > maximumOutputBytes)
@@ -1212,13 +1204,18 @@ export const decodeRootlessPodmanSandboxResult = (
           source: contents,
           reportId: `test-report:${executionId}`,
           completedAt,
+          exitCode,
+          toolVersion: readExecutableSnapshotVitestVersion(snapshot),
           sourceTrace: fallback,
-          resolveSourceTrace: (reportedPath) =>
-            resolveTestSourceTrace(snapshot, reportedPath, fallback),
+          resolveFileIdentity: createVitestExecutionFileIdentityResolver(
+            snapshot,
+            '/workspace',
+            fallback
+          ),
         });
         if (
-          (record.exitCode === 0 && report.status !== 'passed') ||
-          (record.exitCode !== 0 && report.status !== 'failed')
+          (exitCode === 0 && report.status !== 'passed') ||
+          (exitCode !== 0 && report.status !== 'failed')
         )
           throw new TypeError(
             'Sandbox Test exit code and canonical report status diverged.'
@@ -1259,7 +1256,6 @@ export const decodeRootlessPodmanSandboxResult = (
         contents: publishedContents,
       });
     });
-  const exitCode = record.exitCode as number;
   return Object.freeze({
     status: exitCode === 0 ? 'succeeded' : 'failed',
     exitCode,

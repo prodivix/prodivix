@@ -19,12 +19,18 @@ import type {
   BrowserProjectRuntimeFactory,
   WebContainerRuntimeOptions,
 } from './browserProjectRuntime';
+import { WEB_CONTAINER_PROJECT_ROOT } from './browserProjectRuntime';
 import {
   BrowserProjectRuntimeHostLeaseError,
   createBrowserProjectRuntimeHost,
   type BrowserProjectRuntimeHost,
+  type BrowserProjectRuntimeHostProcess,
 } from './browserProjectRuntimeHost';
-import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
+import {
+  createVitestExecutionFileIdentityResolver,
+  parseVitestExecutionTestReport,
+  readExecutableSnapshotVitestVersion,
+} from '@prodivix/runtime-vitest';
 import {
   decodeServerRuntimeTestInvocationTraces,
   SERVER_FUNCTION_INVOCATION_TRACE_NAME,
@@ -113,19 +119,6 @@ const reportSourceTrace = (
     }),
   ]);
 
-const resolveSnapshotFileSourceTrace = (
-  snapshot: ExecutableProjectSnapshot,
-  reportedPath: string,
-  fallback: readonly ExecutionSourceTrace[]
-): readonly ExecutionSourceTrace[] => {
-  const normalized = reportedPath.replaceAll('\\', '/');
-  const file = snapshot.files.find(
-    (candidate) =>
-      normalized === candidate.path || normalized.endsWith(`/${candidate.path}`)
-  );
-  return file?.sourceTrace?.length ? file.sourceTrace : fallback;
-};
-
 const collectReportSourceTrace = (
   report: ExecutionTestReport,
   fallback: readonly ExecutionSourceTrace[],
@@ -194,6 +187,8 @@ export const createBrowserProjectTestRunner = (
   const now = options.now ?? Date.now;
   let disposed = false;
   let activeController: ExecutionJobController | undefined;
+  let activeGeneration: number | undefined;
+  let activeProcess: BrowserProjectRuntimeHostProcess | undefined;
   let executionTail: Promise<void> = Promise.resolve();
 
   const emitLog = (
@@ -212,11 +207,16 @@ export const createBrowserProjectTestRunner = (
   };
 
   const unsubscribeHost = runtimeHost.subscribe((event) => {
-    if ('ownerId' in event && event.ownerId && event.ownerId !== ownerId) {
-      return;
-    }
+    if (event.ownerId !== ownerId) return;
     const controller = activeController;
-    if (!controller || !isJobActive(controller)) return;
+    if (
+      !controller ||
+      !isJobActive(controller) ||
+      activeGeneration !== event.generation ||
+      (activeProcess !== undefined &&
+        activeProcess.processId !== event.processId)
+    )
+      return;
     if (event.kind === 'output') {
       emitLog(controller, `[${event.label}] ${event.message}`);
       return;
@@ -374,6 +374,8 @@ export const createBrowserProjectTestRunner = (
       }
     }
     activeController = controller;
+    activeGeneration = undefined;
+    activeProcess = undefined;
     controller.markStarting();
     try {
       const resolved = await options.resolveProject(request);
@@ -407,6 +409,7 @@ export const createBrowserProjectTestRunner = (
       emitLog(controller, 'Preparing the project test snapshot.');
       const preparation = await runtimeHost.prepare(ownerId, snapshot, 'test');
       if (!isJobRunnable(controller)) return;
+      activeGeneration = preparation.lease.generation;
 
       await runtimeHost.remove(
         snapshot.testPlan.reportFilePath,
@@ -429,10 +432,12 @@ export const createBrowserProjectTestRunner = (
         snapshot.testPlan.command,
         { lease: preparation.lease, label: 'test' }
       );
+      activeProcess = process;
       const exitCode = await process.exit;
       await process.outputCompletion;
       if (!isJobRunnable(controller)) return;
 
+      const fallback = reportSourceTrace(request);
       const report = parseVitestExecutionTestReport({
         source: await runtimeHost.readFile(
           snapshot.testPlan.reportFilePath,
@@ -440,14 +445,44 @@ export const createBrowserProjectTestRunner = (
         ),
         reportId: `test-report:${controller.job.id}`,
         completedAt: now(),
-        sourceTrace: reportSourceTrace(request),
-        resolveSourceTrace: (testFilePath) =>
-          resolveSnapshotFileSourceTrace(
-            snapshot,
-            testFilePath,
-            reportSourceTrace(request)
-          ),
+        toolVersion: readExecutableSnapshotVitestVersion(snapshot),
+        sourceTrace: fallback,
+        resolveFileIdentity: createVitestExecutionFileIdentityResolver(
+          snapshot,
+          WEB_CONTAINER_PROJECT_ROOT,
+          fallback
+        ),
       });
+      if ((exitCode === 0) !== (report.status === 'passed')) {
+        const message =
+          exitCode === 0
+            ? 'Project test process exited successfully after producing a failed report.'
+            : `Project test process exited with code ${exitCode} after producing a passing report.`;
+        controller.emitDiagnostic({
+          code: 'TST-5002',
+          severity: 'error',
+          domain: 'workspace',
+          message,
+          hint: 'Review the test command, setup files, and runner output.',
+          retryable: true,
+          targetRef: request.invocation.targetRef,
+          meta: { reportId: report.reportId, exitCode },
+        });
+        controller.fail(
+          {
+            code: 'BROWSER_PROJECT_TEST_PROCESS_FAILED',
+            message,
+            retryable: true,
+            details: { reportId: report.reportId, exitCode },
+            sourceTrace: collectReportSourceTrace(
+              report,
+              reportSourceTrace(request)
+            ),
+          },
+          { exitCode }
+        );
+        return;
+      }
       publishReport(controller, request, report);
       await publishServerFunctionTraces(
         controller,
@@ -470,33 +505,6 @@ export const createBrowserProjectTestRunner = (
               report,
               reportSourceTrace(request),
               true
-            ),
-          },
-          { exitCode }
-        );
-        return;
-      }
-      if (exitCode !== 0) {
-        const message = `Project test process exited with code ${exitCode} after producing a passing report.`;
-        controller.emitDiagnostic({
-          code: 'TST-5002',
-          severity: 'error',
-          domain: 'workspace',
-          message,
-          hint: 'Review the test command, setup files, and runner output.',
-          retryable: true,
-          targetRef: request.invocation.targetRef,
-          meta: { reportId: report.reportId, exitCode },
-        });
-        controller.fail(
-          {
-            code: 'BROWSER_PROJECT_TEST_PROCESS_FAILED',
-            message,
-            retryable: true,
-            details: { reportId: report.reportId, exitCode },
-            sourceTrace: collectReportSourceTrace(
-              report,
-              reportSourceTrace(request)
             ),
           },
           { exitCode }
@@ -528,6 +536,8 @@ export const createBrowserProjectTestRunner = (
     } finally {
       if (activeController === controller && !isJobActive(controller)) {
         activeController = undefined;
+        activeGeneration = undefined;
+        activeProcess = undefined;
       }
     }
   };
@@ -537,10 +547,52 @@ export const createBrowserProjectTestRunner = (
     reason: string
   ): Promise<void> => {
     if (activeController === controller) {
-      await runtimeHost.stopOwner(ownerId);
+      try {
+        await runtimeHost.stopOwner(ownerId);
+      } catch {
+        if (isJobActive(controller)) {
+          controller.fail({
+            code: 'BROWSER_PROJECT_CLEANUP_FAILED',
+            message:
+              'Browser project runtime cleanup failed before cancellation.',
+            retryable: true,
+          });
+        }
+        return;
+      }
       activeController = undefined;
+      activeGeneration = undefined;
+      activeProcess = undefined;
     }
     if (isJobActive(controller)) controller.finishCancelled(reason);
+  };
+
+  const timeoutController = async (
+    controller: ExecutionJobController,
+    timeoutMs: number
+  ): Promise<void> => {
+    if (!isJobActive(controller)) return;
+    if (controller.job.getSnapshot().status !== 'cancelling') {
+      controller.markCancelling('Project test execution timed out.');
+    }
+    if (activeController === controller) {
+      try {
+        await runtimeHost.stopOwner(ownerId);
+      } catch {
+        if (isJobActive(controller)) {
+          controller.fail({
+            code: 'BROWSER_PROJECT_CLEANUP_FAILED',
+            message: 'Browser project runtime cleanup failed after timeout.',
+            retryable: true,
+          });
+        }
+        return;
+      }
+      activeController = undefined;
+      activeGeneration = undefined;
+      activeProcess = undefined;
+    }
+    if (isJobActive(controller)) controller.finishTimedOut(timeoutMs);
   };
 
   const provider: ExecutionProvider = Object.freeze({
@@ -575,10 +627,7 @@ export const createBrowserProjectTestRunner = (
       });
       if (request.timeoutMs !== undefined) {
         const timeout = globalThis.setTimeout(() => {
-          if (!isJobActive(controller)) return;
-          if (activeController === controller) activeController = undefined;
-          void runtimeHost.stopOwner(ownerId);
-          controller.finishTimedOut(request.timeoutMs);
+          void timeoutController(controller, request.timeoutMs!);
         }, request.timeoutMs);
         void controller.job.completion.finally(() =>
           globalThis.clearTimeout(timeout)

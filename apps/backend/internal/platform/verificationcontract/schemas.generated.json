@@ -576,6 +576,7 @@
           "devicePixelRatio",
           "asset",
           "normalizerDigest",
+          "compatibilityProfileDigest",
           "adoptedAt",
           "adoptedBy"
         ],
@@ -611,6 +612,7 @@
             "additionalProperties": false
           },
           "normalizerDigest": { "$ref": "#/$defs/digest" },
+          "compatibilityProfileDigest": { "$ref": "#/$defs/digest" },
           "adoptedAt": { "$ref": "#/$defs/canonicalString" },
           "adoptedBy": { "$ref": "#/$defs/canonicalId" }
         },

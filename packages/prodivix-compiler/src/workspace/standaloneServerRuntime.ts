@@ -1,5 +1,12 @@
 import type { ExportModule } from '#src/export';
 import {
+  EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH,
+  EXECUTION_AUTH_SESSION_FIXTURE_LIMITS,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_FORMAT,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_MEDIA_TYPE,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_VERSION,
+} from '@prodivix/runtime-core';
+import {
   SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH,
   SERVER_RUNTIME_TEST_INVOCATION_TRACE_LIMITS,
 } from '@prodivix/server-runtime';
@@ -8,15 +15,16 @@ import type {
   WorkspaceServerRuntimeBinding,
   WorkspaceServerRuntimeTarget,
 } from '#src/workspace/workspaceServerRuntimeTarget';
+import { createStandaloneServerRuntimeValidatorProjection } from '#src/workspace/standaloneServerRuntimeValidators';
 
 export const WORKSPACE_SERVER_RUNTIME_MODULE_ID =
   'workspace-server-runtime' as const;
 
 /** Emits a source-free Server Function client plus the deterministic Test adapter boundary. */
-export const createWorkspaceStandaloneServerRuntimeModule = (
+export const createWorkspaceStandaloneServerRuntimeModules = (
   target: WorkspaceServerRuntimeTarget,
   bindings: readonly WorkspaceServerRuntimeBinding[] = []
-): ExportModule => {
+): readonly ExportModule[] => {
   const definitions = [
     ...new Map(
       bindings.map(({ definition }) => [
@@ -35,11 +43,16 @@ export const createWorkspaceStandaloneServerRuntimeModule = (
         right.reference.exportName
       )
   );
-  const deterministicTest =
-    target.kind === 'deterministic-test' && definitions.length > 0;
+  const deterministicTarget = target.kind === 'deterministic-test';
+  const deterministicTest = deterministicTarget && definitions.length > 0;
+  const validatorProjection = createStandaloneServerRuntimeValidatorProjection(
+    deterministicTarget ? definitions : []
+  );
   const provisionImport = deterministicTest
     ? "import serverRuntimeTestProvision from './.prodivix/server-runtime-test-provision';"
-    : 'const serverRuntimeTestProvision: unknown = undefined;';
+    : deterministicTarget
+      ? 'const serverRuntimeTestProvision: unknown = undefined;'
+      : '';
   const testTraceWriter = deterministicTest
     ? `const serverRuntimeTestTracePath = ${JSON.stringify(SERVER_RUNTIME_TEST_INVOCATION_TRACE_FILE_PATH)};
 let serverRuntimeTestTraceCount = 0;
@@ -97,31 +110,226 @@ const writeServerRuntimeTestTrace = (trace: Readonly<Record<string, unknown>>): 
     throw runtimeError('SVR_TEST_TRACE_UNAVAILABLE');
   }
 };`
-    : `const writeServerRuntimeTestTrace = (_trace: Readonly<Record<string, unknown>>): void => {
+    : deterministicTarget
+      ? `const writeServerRuntimeTestTrace = (_trace: Readonly<Record<string, unknown>>): void => {
   throw runtimeError('SVR_TEST_RUNTIME_DISABLED');
-};`;
+};`
+      : '';
 
-  return {
+  const authSessionTransport = deterministicTest
+    ? `type DeterministicTestAuthSession = Readonly<{
+  fixtureSetId: string;
+  fixtureSetDigest: string;
+  fixtureId: string;
+  resourceId: string;
+  inputDigest: string;
+  outcomeDigest: string;
+  projectionDigest: string;
+  providerId: string;
+  principalId: string;
+  permissionIds: readonly string[];
+  invocationId: string;
+  attempt: number;
+}>;
+const authSessionFixtureEndpointPath = ${JSON.stringify(EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH)};
+const authSessionFixtureResponseMediaType = ${JSON.stringify(EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_MEDIA_TYPE)};
+const authSessionFixtureResponseKeys = ${JSON.stringify(
+        [
+          'attempt',
+          'fixtureId',
+          'fixtureSetDigest',
+          'fixtureSetId',
+          'format',
+          'inputDigest',
+          'invocationId',
+          'outcomeDigest',
+          'permissionIds',
+          'principalId',
+          'projectionDigest',
+          'providerId',
+          'resourceId',
+          'version',
+        ].sort()
+      )} as const;
+const authSessionFixtureDigest = (value: unknown): value is string =>
+  typeof value === 'string' && /^sha256-[a-f0-9]{64}$/.test(value);
+const authSessionFixtureIdentifier = (
+  value: unknown,
+  maximumBytes = ${EXECUTION_AUTH_SESSION_FIXTURE_LIMITS.maximumIdentifierBytes}
+): value is string =>
+  typeof value === 'string' && value === value.trim() && value === value.normalize('NFC') &&
+  /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value) &&
+  new TextEncoder().encode(value).byteLength <= maximumBytes;
+const normalizeBrowserAuthSessionFixture = (value: unknown): DeterministicTestAuthSession => {
+  const record = exactRecord(value, authSessionFixtureResponseKeys);
+  if (
+    !record ||
+    record.format !== ${JSON.stringify(EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_FORMAT)} ||
+    record.version !== ${EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_VERSION} ||
+    !authSessionFixtureIdentifier(record.fixtureSetId) ||
+    !authSessionFixtureDigest(record.fixtureSetDigest) ||
+    !authSessionFixtureIdentifier(record.fixtureId) ||
+    !authSessionFixtureIdentifier(record.resourceId) ||
+    !authSessionFixtureDigest(record.inputDigest) ||
+    !authSessionFixtureDigest(record.outcomeDigest) ||
+    !authSessionFixtureDigest(record.projectionDigest) ||
+    !authSessionFixtureIdentifier(record.providerId) ||
+    record.resourceId !== record.providerId ||
+    !authSessionFixtureIdentifier(record.principalId) ||
+    !authSessionFixtureIdentifier(
+      record.invocationId,
+      ${EXECUTION_AUTH_SESSION_FIXTURE_LIMITS.maximumInvocationIdentifierBytes}
+    ) ||
+    !Number.isSafeInteger(record.attempt) ||
+    (record.attempt as number) < 1 ||
+    (record.attempt as number) > 10 ||
+    !Array.isArray(record.permissionIds) ||
+    record.permissionIds.length > ${EXECUTION_AUTH_SESSION_FIXTURE_LIMITS.maximumPermissionIds}
+  ) throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+  const permissionIds = record.permissionIds.map((permissionId) => {
+    if (!authSessionFixtureIdentifier(permissionId)) {
+      throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+    }
+    return permissionId;
+  });
+  if (permissionIds.some((permissionId, index) =>
+    index > 0 && permissionIds[index - 1]! >= permissionId
+  )) throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+  return Object.freeze({
+    fixtureSetId: record.fixtureSetId,
+    fixtureSetDigest: record.fixtureSetDigest,
+    fixtureId: record.fixtureId,
+    resourceId: record.resourceId,
+    inputDigest: record.inputDigest,
+    outcomeDigest: record.outcomeDigest,
+    projectionDigest: record.projectionDigest,
+    providerId: record.providerId,
+    principalId: record.principalId,
+    permissionIds: Object.freeze(permissionIds),
+    invocationId: record.invocationId,
+    attempt: record.attempt,
+  }) as DeterministicTestAuthSession;
+};
+const isBrowserDeterministicTestRuntime = (): boolean =>
+  (globalThis as unknown as Readonly<{ window?: unknown }>).window === globalThis &&
+  typeof (globalThis as unknown as Readonly<{ document?: unknown }>).document === 'object';
+const readBoundedAuthSessionFixtureText = async (
+  response: Response,
+  signal?: AbortSignal
+): Promise<string> => {
+  const reader = response.body?.getReader();
+  if (!reader) throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  let byteLength = 0;
+  let text = '';
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      byteLength += chunk.value.byteLength;
+      if (byteLength > ${EXECUTION_AUTH_SESSION_FIXTURE_LIMITS.maximumResponseBytes}) {
+        throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+      }
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    return text + decoder.decode();
+  } catch {
+    try {
+      await reader.cancel();
+    } catch {
+      // The original bounded-read failure remains authoritative.
+    }
+    if (signal?.aborted) throw runtimeError('SVR_CANCELLED');
+    throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+  } finally {
+    reader.releaseLock();
+  }
+};
+let browserAuthSessionFixturePromise: Promise<DeterministicTestAuthSession> | undefined;
+const resolveBrowserAuthSessionFixture = (
+  signal?: AbortSignal
+): Promise<DeterministicTestAuthSession | undefined> => {
+  if (!isBrowserDeterministicTestRuntime()) return Promise.resolve(undefined);
+  if (!browserAuthSessionFixturePromise) {
+    browserAuthSessionFixturePromise = (async () => {
+      let response: Response;
+      try {
+        response = await globalThis.fetch(authSessionFixtureEndpointPath, {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          redirect: 'error',
+          headers: Object.freeze({ Accept: authSessionFixtureResponseMediaType }),
+          ...(signal ? { signal } : {}),
+        });
+      } catch {
+        throw runtimeError('SVR_TEST_AUTH_SESSION_UNAVAILABLE');
+      }
+      const mediaType = response.headers.get('content-type')?.split(';', 1)[0]?.trim();
+      const declaredLength = response.headers.get('content-length');
+      if (
+        !response.ok ||
+        response.status !== 200 ||
+        mediaType !== authSessionFixtureResponseMediaType ||
+        (declaredLength !== null &&
+          (!/^\\d+$/.test(declaredLength) ||
+            Number(declaredLength) > ${EXECUTION_AUTH_SESSION_FIXTURE_LIMITS.maximumResponseBytes}))
+      ) throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+      const text = await readBoundedAuthSessionFixtureText(response, signal);
+      let value: unknown;
+      try {
+        value = JSON.parse(text);
+      } catch {
+        throw runtimeError('SVR_TEST_AUTH_SESSION_INVALID');
+      }
+      return normalizeBrowserAuthSessionFixture(value);
+    })();
+  }
+  return browserAuthSessionFixturePromise;
+};
+let browserAuthSessionInvocationSequence = 0;
+const createBrowserAuthSessionInvocationId = (
+  session: DeterministicTestAuthSession
+): string => {
+  browserAuthSessionInvocationSequence += 1;
+  const invocationId = session.invocationId + ':' + String(browserAuthSessionInvocationSequence);
+  if (!authSessionFixtureIdentifier(invocationId)) {
+    throw runtimeError('SVR_INVOCATION_ID_UNAVAILABLE');
+  }
+  return invocationId;
+};`
+    : deterministicTarget
+      ? `type DeterministicTestAuthSession = Readonly<{
+  providerId: string;
+  principalId: string;
+  permissionIds: readonly string[];
+  invocationId: string;
+  attempt: number;
+}>;
+const resolveBrowserAuthSessionFixture = (
+  _signal?: AbortSignal
+): Promise<DeterministicTestAuthSession | undefined> => Promise.resolve(undefined);
+const createBrowserAuthSessionInvocationId = (
+  _session: DeterministicTestAuthSession
+): string => {
+  throw runtimeError('SVR_INVOCATION_ID_UNAVAILABLE');
+};`
+      : '';
+  const invocationDispatch =
+    target.serverGateway === 'execution-server-function-gateway-message-v1'
+      ? 'return invokeRemoteServerFunction(functionRef, input, options);'
+      : deterministicTarget
+        ? 'return invokeDeterministicTestServerFunction(functionRef, input, options);'
+        : "throw runtimeError('SVR_REMOTE_GATEWAY_UNAVAILABLE');";
+
+  const runtimeModule: ExportModule = {
     id: WORKSPACE_SERVER_RUNTIME_MODULE_ID,
     kind: 'runtime-helper',
     suggestedName: 'prodivix-server-runtime',
     desiredPath: 'src/prodivix-server-runtime.ts',
     language: 'ts',
-    imports: [
-      {
-        kind: 'default',
-        source: 'ajv/dist/2020.js',
-        imported: 'Ajv2020',
-        local: 'Ajv2020',
-      },
-    ],
+    imports: [...validatorProjection.imports],
     body: `${provisionImport}
-
-type EmbeddedServerRuntimeTarget = Readonly<{
-  serverGateway: 'none' | 'execution-server-function-gateway-message-v1' | 'deterministic-test-fixture-v1';
-}>;
-
-const serverRuntimeTarget = ${JSON.stringify(target)} as unknown as EmbeddedServerRuntimeTarget;
 
 type EmbeddedDefinition = Readonly<{
   reference: Readonly<{ artifactId: string; exportName: string }>;
@@ -140,10 +348,14 @@ type EmbeddedDefinition = Readonly<{
 
 const serverFunctionDefinitions = ${JSON.stringify(definitions)} as unknown as readonly EmbeddedDefinition[];
 
+export const prodivixServerRuntimeTarget = Object.freeze(${JSON.stringify(target)} as const);
+
 export type WorkspaceServerFunctionReference = Readonly<{
   artifactId: string;
   exportName: string;
 }>;
+
+${validatorProjection.registrySource}
 
 export type WorkspaceServerFunctionOutcome =
   | Readonly<{ kind: 'value'; value: unknown }>
@@ -172,6 +384,8 @@ const runtimeError = (code: string, retryable = false) =>
   Object.assign(new Error(code), { code, retryable });
 
 ${testTraceWriter}
+
+${authSessionTransport}
 
 const cloneJsonValue = (
   value: unknown,
@@ -227,12 +441,17 @@ const canonicalIdentifier = (value: unknown, exportName = false): value is strin
   typeof value === 'string' && value.length > 0 && value.length <= 256 && value === value.trim() &&
   (exportName ? /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value) : /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value));
 
-const assertInvocation = (functionRef: WorkspaceServerFunctionReference, options: WorkspaceServerFunctionInvokeOptions) => {
+const assertInvocation = (
+  functionRef: WorkspaceServerFunctionReference,
+  options: WorkspaceServerFunctionInvokeOptions,
+  hostInvocationId?: string,
+  hostAttempt?: number
+) => {
   if (!canonicalIdentifier(functionRef.artifactId) || !canonicalIdentifier(functionRef.exportName, true)) {
     throw runtimeError('SVR_REMOTE_GATEWAY_INVALID');
   }
-  const invocationId = options.invocationId ?? globalThis.crypto?.randomUUID?.();
-  const attempt = options.attempt ?? 1;
+  const invocationId = options.invocationId ?? hostInvocationId;
+  const attempt = options.attempt ?? hostAttempt ?? 1;
   if (!canonicalIdentifier(invocationId) || !Number.isSafeInteger(attempt) || attempt < 1 || attempt > 10) {
     throw runtimeError('SVR_INVOCATION_ID_UNAVAILABLE');
   }
@@ -376,7 +595,9 @@ const normalizeOutcome = (
   return cloneJson(record) as WorkspaceServerFunctionOutcome;
 };
 
-const testReplayByInvocation = new Map<string, Readonly<{ fingerprint: string; result: Promise<WorkspaceServerFunctionOutcome> }>>();
+${
+  deterministicTarget
+    ? `const testReplayByInvocation = new Map<string, Readonly<{ fingerprint: string; result: Promise<WorkspaceServerFunctionOutcome> }>>();
 
 const waitForTestFixture = (delayMs: unknown, signal?: AbortSignal): Promise<void> => {
   if (delayMs === undefined || delayMs === 0) return Promise.resolve();
@@ -401,7 +622,8 @@ const executeDeterministicTestServerFunction = async (
   functionRef: WorkspaceServerFunctionReference,
   input: unknown,
   options: WorkspaceServerFunctionInvokeOptions,
-  invocationId: string
+  invocationId: string,
+  browserAuthSession: DeterministicTestAuthSession | undefined
 ): Promise<WorkspaceServerFunctionOutcome> => {
   const envelope = exactRecord(serverRuntimeTestProvision, ['format', 'mode'], ['provision']);
   if (
@@ -417,21 +639,63 @@ const executeDeterministicTestServerFunction = async (
   const fixtures = provision.fixtures;
   const definition = readDefinition(functionRef);
   if (!definition) throw runtimeError('SVR_TEST_FIXTURE_MISSING');
+  const schemaValidators = readServerRuntimeSchemaValidators(functionRef);
+  if (!schemaValidators) throw runtimeError('SVR_TEST_FIXTURE_MISSING');
   const normalizedInput = cloneJson(input);
-  const ajv = new Ajv2020({ allErrors: true, messages: false, strict: false, validateFormats: false });
-  if (!ajv.compile(definition.inputSchema)(normalizedInput)) throw runtimeError('SVR_INPUT_INVALID');
+  if (!schemaValidators.input(normalizedInput)) throw runtimeError('SVR_INPUT_INVALID');
+  let resolvedPrincipal: Readonly<{ providerId: string; principalId: string }> | undefined;
   if (definition.auth.kind !== 'public') {
-    const principal = exactRecord(provision.principal, ['providerId', 'principalId']);
+    const embeddedPrincipal = exactRecord(provision.principal, ['providerId', 'principalId']);
+    const principal = browserAuthSession
+      ? Object.freeze({
+          providerId: browserAuthSession.providerId,
+          principalId: browserAuthSession.principalId,
+        })
+      : embeddedPrincipal;
     if (!principal || !canonicalIdentifier(principal.providerId) || !canonicalIdentifier(principal.principalId)) {
+      if (definition.kind === 'route-guard') {
+        return normalizeOutcome(definition, Object.freeze({
+          kind: 'deny',
+          code: 'AUTH_REQUIRED',
+        }));
+      }
       throw runtimeError('AUTH_REQUIRED');
     }
+    resolvedPrincipal = principal as Readonly<{ providerId: string; principalId: string }>;
     if (definition.auth.kind === 'permission') {
       const requiredPermissionId = definition.auth.permissionId;
-      const permission = permissions
-        .map((entry) => exactRecord(entry, ['permissionId', 'allowed'], ['code']))
-        .find((entry) => entry?.permissionId === requiredPermissionId);
-      if (!permission || permission.allowed !== true) throw runtimeError('AUTH_PERMISSION_DENIED');
+      const allowed = browserAuthSession
+        ? browserAuthSession.permissionIds.includes(requiredPermissionId)
+        : permissions
+            .map((entry) => exactRecord(entry, ['permissionId', 'allowed'], ['code']))
+            .some((entry) => entry?.permissionId === requiredPermissionId && entry.allowed === true);
+      if (!allowed) {
+        if (definition.kind === 'route-guard') {
+          return normalizeOutcome(definition, Object.freeze({
+            kind: 'deny',
+            code: 'AUTH_PERMISSION_DENIED',
+          }));
+        }
+        throw runtimeError('AUTH_PERMISSION_DENIED');
+      }
     }
+  }
+  if (
+    definition.adapterId === 'core.auth.current-principal' &&
+    definition.kind === 'route-loader'
+  ) {
+    if (!resolvedPrincipal) throw runtimeError('AUTH_REQUIRED');
+    const outcome = normalizeOutcome(definition, Object.freeze({
+      kind: 'value',
+      value: Object.freeze({
+        providerId: resolvedPrincipal.providerId,
+        principalId: resolvedPrincipal.principalId,
+      }),
+    }));
+    if (outcome.kind !== 'value' || !schemaValidators.output(outcome.value)) {
+      throw runtimeError('SVR_OUTPUT_INVALID');
+    }
+    return outcome;
   }
   const fingerprint = functionRef.artifactId + '\0' + functionRef.exportName + '\0' + canonicalJson(normalizedInput);
   if (definition.effect === 'mutation') {
@@ -469,7 +733,7 @@ const executeDeterministicTestServerFunction = async (
       throw runtimeError('SVR_TEST_PROVISION_INVALID');
     }
     const outcome = normalizeOutcome(definition, behavior.outcome);
-    if (outcome.kind === 'value' && !ajv.compile(definition.outputSchema)(outcome.value)) {
+    if (outcome.kind === 'value' && !schemaValidators.output(outcome.value)) {
       throw runtimeError('SVR_OUTPUT_INVALID');
     }
     return outcome;
@@ -486,7 +750,19 @@ const invokeDeterministicTestServerFunction = async (
   input: unknown,
   options: WorkspaceServerFunctionInvokeOptions
 ): Promise<WorkspaceServerFunctionOutcome> => {
-  const { invocationId, attempt } = assertInvocation(functionRef, options);
+  const definition = readDefinition(functionRef);
+  const browserAuthSession =
+    definition && definition.auth.kind !== 'public'
+      ? await resolveBrowserAuthSessionFixture(options.signal)
+      : undefined;
+  const { invocationId, attempt } = assertInvocation(
+    functionRef,
+    options,
+    browserAuthSession
+      ? createBrowserAuthSessionInvocationId(browserAuthSession)
+      : undefined,
+    browserAuthSession?.attempt
+  );
   const startedAt = Date.now();
   let result: WorkspaceServerFunctionOutcome;
   try {
@@ -494,7 +770,8 @@ const invokeDeterministicTestServerFunction = async (
       functionRef,
       input,
       options,
-      invocationId
+      invocationId,
+      browserAuthSession
     );
   } catch (error) {
     const completedAt = Date.now();
@@ -535,23 +812,27 @@ const invokeDeterministicTestServerFunction = async (
     redacted: true,
   }));
   return result;
-};
+};`
+    : ''
+}
 
 export const invokeWorkspaceServerFunction = async (
   functionRef: WorkspaceServerFunctionReference,
   input: unknown,
   options: WorkspaceServerFunctionInvokeOptions = {}
 ): Promise<WorkspaceServerFunctionOutcome> => {
-  if (serverRuntimeTarget.serverGateway === 'execution-server-function-gateway-message-v1') {
-    return invokeRemoteServerFunction(functionRef, input, options);
-  }
-  if (serverRuntimeTarget.serverGateway === 'deterministic-test-fixture-v1') {
-    return invokeDeterministicTestServerFunction(functionRef, input, options);
-  }
-  throw runtimeError('SVR_REMOTE_GATEWAY_UNAVAILABLE');
+  ${invocationDispatch}
 };
 `,
-    sourceTrace: [],
+    sourceTrace: [
+      {
+        sourceRef: {
+          domain: 'workspace',
+          id: WORKSPACE_SERVER_RUNTIME_MODULE_ID,
+          path: '/',
+        },
+      },
+    ],
     origin: {
       kind: 'generated',
       owner: 'prodivix',
@@ -559,4 +840,5 @@ export const invokeWorkspaceServerFunction = async (
       updatePolicy: 'regenerate',
     },
   };
+  return Object.freeze([runtimeModule, ...validatorProjection.modules]);
 };

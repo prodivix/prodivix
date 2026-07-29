@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   EXECUTION_TEST_REPORT_TRACE_NAME,
   createExecutableProjectSnapshot,
@@ -16,7 +16,10 @@ import {
   BROWSER_PROJECT_TEST_EXECUTION_PROVIDER_ID,
   createBrowserProjectTestRunner,
 } from './browserProjectTestRunner';
-import { createBrowserProjectRuntimeHarness } from './__tests__/browserProjectRuntimeHarness';
+import {
+  createBrowserProjectRuntimeHarness,
+  createBrowserProjectRuntimeHostHarness,
+} from './__tests__/browserProjectRuntimeHarness';
 
 const REPORT_PATH = '.prodivix/test-report.json';
 
@@ -48,7 +51,7 @@ const vitestReport = (failed = false): string =>
     success: !failed,
     testResults: [
       {
-        name: 'D:/runtime/src/App.test.tsx',
+        name: '/home/projects/prodivix-runner/src/App.test.tsx',
         status: failed ? 'failed' : 'passed',
         assertionResults: [
           {
@@ -75,7 +78,10 @@ const snapshot = (snapshotId: string) =>
     files: [
       {
         path: 'package.json',
-        contents: JSON.stringify({ scripts: { test: 'vitest run' } }),
+        contents: JSON.stringify({
+          scripts: { test: 'vitest run' },
+          devDependencies: { vitest: '4.1.9' },
+        }),
       },
       {
         path: 'src/App.test.tsx',
@@ -410,5 +416,129 @@ describe('browser project test runner conformance', () => {
       )
     ).toBe(false);
     await timeoutRunner.dispose();
+  });
+
+  it('does not publish cancellation terminal before bounded process cleanup', async () => {
+    let releaseStop: () => void = () => undefined;
+    const stopGate = new Promise<void>((resolve) => {
+      releaseStop = resolve;
+    });
+    const harness = createBrowserProjectRuntimeHostHarness({
+      beforeStop: () => stopGate,
+    });
+    const runner = createBrowserProjectTestRunner({
+      runtimeHost: harness.host,
+      resolveProject: () => snapshot('cleanup-before-terminal'),
+    });
+    const job = await runner.provider.start(request('cleanup-before-terminal'));
+    await waitForStatus(job, 'running');
+    await vi.waitFor(() => expect(harness.processes).toHaveLength(1));
+
+    await job.cancel({ reason: 'Wait for process cleanup.' });
+    await waitForStatus(job, 'cancelling');
+    let completed = false;
+    void job.completion.then(() => {
+      completed = true;
+    });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    expect(harness.processes[0]?.killed()).toBe(false);
+
+    releaseStop();
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'cancelled',
+      reason: 'Wait for process cleanup.',
+    });
+    expect(harness.processes[0]?.killed()).toBe(true);
+    await runner.dispose();
+  });
+
+  it('rejects delayed output and runtime failure from an older process generation', async () => {
+    const harness = createBrowserProjectRuntimeHostHarness();
+    const runner = createBrowserProjectTestRunner({
+      runtimeHost: harness.host,
+      createOwnerId: () => 'test-owner',
+      resolveProject: (input) => snapshot(input.workspace.snapshotId),
+    });
+
+    const first = await runner.provider.start(request('generation-one'));
+    await waitForStatus(first, 'running');
+    await vi.waitFor(() => expect(harness.processes).toHaveLength(1));
+    const firstProcess = harness.processes[0]!;
+    await first.cancel({ reason: 'Superseded test attempt.' });
+    await expect(first.completion).resolves.toMatchObject({
+      status: 'cancelled',
+    });
+
+    const second = await runner.provider.start(request('generation-two'));
+    const events = collectEvents(second);
+    await waitForStatus(second, 'running');
+    await vi.waitFor(() => expect(harness.processes).toHaveLength(2));
+    const secondProcess = harness.processes[1]!;
+    harness.emit({
+      kind: 'output',
+      ownerId: firstProcess.ownerId,
+      generation: firstProcess.generation,
+      processId: firstProcess.processId,
+      label: 'test',
+      message: 'late old test output',
+    });
+    harness.emit({
+      kind: 'runtime-error',
+      ownerId: firstProcess.ownerId,
+      generation: firstProcess.generation,
+      processId: firstProcess.processId,
+      error: new Error('late old test failure'),
+    });
+    harness.emit({
+      kind: 'output',
+      ownerId: secondProcess.ownerId,
+      generation: secondProcess.generation,
+      processId: secondProcess.processId,
+      label: 'test',
+      message: 'current test output',
+    });
+
+    expect(second.getSnapshot().status).toBe('running');
+    const messages = events.flatMap((event) =>
+      event.kind === 'log' ? [event.log.message] : []
+    );
+    expect(messages).toContain('[test] current test output');
+    expect(JSON.stringify(messages)).not.toContain('late old test');
+    await second.cancel();
+    await second.completion;
+    await runner.dispose();
+  });
+
+  it('fails closed when asynchronous timeout cleanup rejects', async () => {
+    let stopAttempts = 0;
+    const harness = createBrowserProjectRuntimeHostHarness({
+      beforeStop: () => {
+        stopAttempts += 1;
+        if (stopAttempts === 1) {
+          throw new Error('runtime stop transport failed');
+        }
+      },
+    });
+    const runner = createBrowserProjectTestRunner({
+      runtimeHost: harness.host,
+      resolveProject: () => snapshot('timeout-cleanup-reject'),
+    });
+    const job = await runner.provider.start(
+      request('timeout-cleanup-reject', 10)
+    );
+    await waitForStatus(job, 'running');
+    await vi.waitFor(() => expect(harness.processes).toHaveLength(1));
+
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: {
+        code: 'BROWSER_PROJECT_CLEANUP_FAILED',
+        retryable: true,
+      },
+    });
+    expect(stopAttempts).toBe(1);
+    await runner.dispose();
+    expect(harness.processes[0]?.killed()).toBe(true);
   });
 });

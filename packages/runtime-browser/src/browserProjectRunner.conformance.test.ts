@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createExecutableProjectSnapshot,
   createExecutionRequest,
@@ -10,6 +10,7 @@ import type {
   BrowserProjectRuntimeProcess,
 } from './browserProjectRuntime';
 import { createBrowserProjectRunner } from './browserProjectRunner';
+import { createBrowserProjectRuntimeHostHarness } from './__tests__/browserProjectRuntimeHarness';
 
 type Deferred = Readonly<{
   promise: Promise<number>;
@@ -179,5 +180,171 @@ describe('browser project runner conformance', () => {
     expect(harness.writes).toContain('src/main.tsx');
 
     await runner.dispose();
+  });
+
+  it('generation-fences delayed events from a stopped preview process', async () => {
+    const harness = createBrowserProjectRuntimeHostHarness();
+    const runner = createBrowserProjectRunner({
+      runtimeHost: harness.host,
+      createOwnerId: () => 'preview-owner',
+      createJobId: (input) => `job-${input.requestId}`,
+      resolveProject: (input) =>
+        createExecutableProjectSnapshot({
+          workspace: input.workspace,
+          target: {
+            presetId: 'react-vite',
+            framework: 'react',
+            runtime: 'vite',
+          },
+          files: [
+            {
+              path: 'package.json',
+              contents: JSON.stringify({
+                scripts: { dev: 'vite' },
+                dependencies: {},
+              }),
+            },
+            { path: 'src/main.tsx', contents: 'export const app = true;' },
+          ],
+          dependencyPlan: { manifestFilePath: 'package.json' },
+          entrypoints: [{ kind: 'preview', path: 'src/main.tsx' }],
+          capabilityRequirements: {
+            preview: ['filesystem', 'hmr'],
+            build: ['filesystem', 'build'],
+            test: ['filesystem', 'test'],
+          },
+        }),
+    });
+
+    const first = await runner.provider.start(request('fenced-one'));
+    await vi.waitFor(() => expect(harness.processes).toHaveLength(1));
+    const firstProcess = harness.processes[0]!;
+    const firstPreview = waitForPreview(first);
+    harness.emit({
+      kind: 'server-ready',
+      ownerId: firstProcess.ownerId,
+      generation: firstProcess.generation,
+      processId: firstProcess.processId,
+      url: 'https://first.preview.local',
+      port: 5173,
+    });
+    await expect(firstPreview).resolves.toBe('https://first.preview.local');
+    await first.cancel({ reason: 'Replace preview process.' });
+    await expect(first.completion).resolves.toMatchObject({
+      status: 'cancelled',
+    });
+
+    const second = await runner.provider.start(request('fenced-two'));
+    const observed: string[] = [];
+    second.subscribe((event) => {
+      if (event.kind === 'log') observed.push(event.log.message);
+    });
+    await vi.waitFor(() => expect(harness.processes).toHaveLength(2));
+    const secondProcess = harness.processes[1]!;
+    harness.emit({
+      kind: 'output',
+      ownerId: firstProcess.ownerId,
+      generation: firstProcess.generation,
+      processId: firstProcess.processId,
+      label: 'dev',
+      message: 'late old process output',
+    });
+    harness.emit({
+      kind: 'runtime-error',
+      ownerId: firstProcess.ownerId,
+      generation: firstProcess.generation,
+      processId: firstProcess.processId,
+      error: new Error('late old process failure'),
+    });
+    harness.emit({
+      kind: 'server-ready',
+      ownerId: firstProcess.ownerId,
+      generation: firstProcess.generation,
+      processId: firstProcess.processId,
+      url: 'https://stale.preview.local',
+      port: 5173,
+    });
+    harness.emit({
+      kind: 'output',
+      ownerId: secondProcess.ownerId,
+      generation: secondProcess.generation,
+      processId: secondProcess.processId,
+      label: 'dev',
+      message: 'current process output',
+    });
+    const secondPreview = waitForPreview(second);
+    harness.emit({
+      kind: 'server-ready',
+      ownerId: secondProcess.ownerId,
+      generation: secondProcess.generation,
+      processId: secondProcess.processId,
+      url: 'https://second.preview.local',
+      port: 5173,
+    });
+
+    await expect(secondPreview).resolves.toBe('https://second.preview.local');
+    expect(observed).toContain('[dev] current process output');
+    expect(JSON.stringify(observed)).not.toContain('late old process');
+    expect(second.getSnapshot().status).toBe('running');
+    await second.cancel();
+    await second.completion;
+    await runner.dispose();
+  });
+
+  it('fails closed when asynchronous cancellation cleanup rejects', async () => {
+    let stopAttempts = 0;
+    const harness = createBrowserProjectRuntimeHostHarness({
+      beforeStop: () => {
+        stopAttempts += 1;
+        if (stopAttempts === 1) {
+          throw new Error('runtime stop transport failed');
+        }
+      },
+    });
+    const runner = createBrowserProjectRunner({
+      runtimeHost: harness.host,
+      resolveProject: (input) =>
+        createExecutableProjectSnapshot({
+          workspace: input.workspace,
+          target: {
+            presetId: 'react-vite',
+            framework: 'react',
+            runtime: 'vite',
+          },
+          files: [
+            {
+              path: 'package.json',
+              contents: JSON.stringify({
+                scripts: { dev: 'vite' },
+                dependencies: {},
+              }),
+            },
+            { path: 'src/main.tsx', contents: 'export const app = true;' },
+          ],
+          dependencyPlan: { manifestFilePath: 'package.json' },
+          entrypoints: [{ kind: 'preview', path: 'src/main.tsx' }],
+          capabilityRequirements: {
+            preview: ['filesystem', 'hmr'],
+            build: ['filesystem', 'build'],
+            test: ['filesystem', 'test'],
+          },
+        }),
+    });
+    const job = await runner.provider.start(request('cleanup-reject'));
+    await vi.waitFor(() => expect(harness.processes).toHaveLength(1));
+
+    await expect(
+      job.cancel({ reason: 'Cancel preview.' })
+    ).resolves.toMatchObject({ status: 'accepted' });
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: {
+        code: 'BROWSER_PROJECT_CLEANUP_FAILED',
+        retryable: true,
+      },
+    });
+    expect(stopAttempts).toBe(1);
+    await runner.dispose();
+    expect(harness.processes[0]?.killed()).toBe(true);
   });
 });

@@ -12,6 +12,7 @@
       "@prodivix/animation": ["../animation/src"],
       "@prodivix/assets": ["../assets/src"],
       "@prodivix/authoring": ["../authoring/src"],
+      "@prodivix/behavior": ["../behavior/src"],
       "@prodivix/data": ["../data/src"],
       "@prodivix/diagnostics": ["../diagnostics/src"],
       "@prodivix/nodegraph": ["../nodegraph/src"],
@@ -41,6 +42,9 @@
     },
     {
       "path": "../authoring"
+    },
+    {
+      "path": "../behavior"
     },
     {
       "path": "../data"

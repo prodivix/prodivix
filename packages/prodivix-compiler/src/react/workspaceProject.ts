@@ -49,6 +49,7 @@ import type {
   WorkspaceTargetCompileOptions,
   WorkspaceTargetRenderLayer,
 } from '#src/workspace/workspaceTargetRenderLayer';
+import type { WorkspaceVerificationCompileProfile } from '#src/workspace/workspaceVerificationProbe';
 import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import type { ReactExportBundle } from '#src/react/types';
 
@@ -63,6 +64,7 @@ export type WorkspaceReactViteCompileOptions = Readonly<{
   serverRuntimeTarget?: WorkspaceServerRuntimeTarget;
   serverRuntimeMockProvision?: ServerRuntimeTestProvision;
   assetMaterializations?: readonly BinaryAssetMaterialization[];
+  verificationProfile?: WorkspaceVerificationCompileProfile;
 }>;
 
 type CompiledWorkspacePirDocument = {
@@ -901,10 +903,19 @@ export default function App() {
       return <main data-prodivix-route-runtime="failed">Route runtime failed: {routeRuntimeState.code}</main>;
     }
   }
-  return renderWorkspaceRouteComposition(
-    match.matchChain,
-    match.routeNodeId,
-    match.params
+  return (
+    <>
+      {activeWorkspaceRouteLoaderValue === undefined ? null : (
+        <output data-prodivix-route-loader="ready" hidden>
+          {JSON.stringify(activeWorkspaceRouteLoaderValue)}
+        </output>
+      )}
+      {renderWorkspaceRouteComposition(
+        match.matchChain,
+        match.routeNodeId,
+        match.params
+      )}
+    </>
   );
 }
 `,

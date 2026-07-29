@@ -6,6 +6,10 @@ import {
 } from './verificationCanonical';
 import { validateVerificationDocument } from './verificationCodec';
 import {
+  createVerificationAdapterRegistrySnapshot,
+  verificationAdapterRegistrationFromEntry,
+} from './verificationAdapterRegistry';
+import {
   compareVerificationPlanCell,
   compareVerificationPlanExplanation,
   hasVerificationDependencyCycle,
@@ -69,6 +73,25 @@ const cellIdentity = (
     ...coordinate,
   });
 
+const missingVerificationAdapterIdentity = (
+  adapterId: string
+): VerificationPlanCell['adapter'] =>
+  Object.freeze({
+    adapterId,
+    descriptorDigest: digestVerificationValue({
+      kind: 'missing-verification-adapter-descriptor',
+      adapterId,
+    }),
+    toolchainDigest: digestVerificationValue({
+      kind: 'missing-verification-adapter-toolchain',
+      adapterId,
+    }),
+    capabilityDigest: digestVerificationValue({
+      kind: 'missing-verification-adapter-capability',
+      adapterId,
+    }),
+  });
+
 /**
  * Builds the immutable matrix/DAG projection. Required cells are never
  * trimmed; unsupported, dependency, conflict, and budget failures block it.
@@ -94,6 +117,14 @@ export const createVerificationPlan = (
     planningInput,
     policyValidation.ok
   );
+  let adapterRegistry;
+  try {
+    adapterRegistry = createVerificationAdapterRegistrySnapshot(
+      planningInput.adapters
+    );
+  } catch {
+    adapterRegistry = createVerificationAdapterRegistrySnapshot([]);
+  }
   if (invalid) {
     issues.push({
       code: 'VER-2001',
@@ -103,10 +134,10 @@ export const createVerificationPlan = (
   }
 
   const adapters = new Map(
-    planningInput.adapters.map((registration) => [
-      registration.identity.adapterId,
-      registration,
-    ])
+    adapterRegistry.entries.map((entry) => {
+      const registration = verificationAdapterRegistrationFromEntry(entry);
+      return [registration.identity.adapterId, registration] as const;
+    })
   );
   const scenarios = [...planningInput.scenarios].sort((left, right) =>
     compareVerificationText(left.id, right.id)
@@ -389,11 +420,9 @@ export const createVerificationPlan = (
                     baselineSetRef,
                   }
                 : {}),
-              adapter: registration?.identity ?? {
-                adapterId: check.adapterId,
-                toolchainDigest: 'missing',
-                capabilityDigest: 'missing',
-              },
+              adapter:
+                registration?.identity ??
+                missingVerificationAdapterIdentity(check.adapterId),
               requirement,
               policyRuleIds: evaluation.evaluation.trace.winningRuleIds,
               appliedExemptionIds:
@@ -675,7 +704,7 @@ export const createVerificationPlan = (
     providerSetDigest: planningInput.impactSet.providerSetDigest,
     compilerDigest: planningInput.compilerDigest,
     plannerDigest: planningInput.plannerDigest,
-    adapterRegistryDigest: planningInput.adapterRegistryDigest,
+    adapterRegistryDigest: adapterRegistry.snapshotDigest,
     cells: frozenCells,
     issues: normalizedIssues,
     explanations: normalizedExplanations,

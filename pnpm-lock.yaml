@@ -196,6 +196,9 @@ importers:
       '@prodivix/server-runtime':
         specifier: workspace:*
         version: link:../../packages/server-runtime
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
     devDependencies:
       '@types/node':
         specifier: ^26.1.0
@@ -937,6 +940,12 @@ importers:
       '@prodivix/verification':
         specifier: workspace:*
         version: link:../verification
+      '@prodivix/verification-adapters':
+        specifier: workspace:*
+        version: link:../verification-adapters
+      '@prodivix/verification-browser':
+        specifier: workspace:*
+        version: link:../verification-browser
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -1475,6 +1484,9 @@ importers:
 
   packages/prodivix-compiler:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
       '@prodivix/animation':
         specifier: workspace:*
         version: link:../animation
@@ -1484,6 +1496,9 @@ importers:
       '@prodivix/authoring':
         specifier: workspace:*
         version: link:../authoring
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
       '@prodivix/data':
         specifier: workspace:*
         version: link:../data
@@ -1517,6 +1532,9 @@ importers:
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../workspace
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
       react:
         specifier: ^19.1.1
         version: 19.2.3
@@ -1539,9 +1557,6 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.3
         version: 6.0.3(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
-      ajv:
-        specifier: ^8.20.0
-        version: 8.20.0
       fast-check:
         specifier: ^4.9.0
         version: 4.9.0
@@ -1955,6 +1970,80 @@ importers:
       fast-check:
         specifier: 4.9.0
         version: 4.9.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
+  packages/verification-adapters:
+    dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@prodivix/verification':
+        specifier: workspace:*
+        version: link:../verification
+    devDependencies:
+      '@prodivix/runtime-vitest':
+        specifier: workspace:*
+        version: link:../runtime-vitest
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      pnpm:
+        specifier: 11.9.0
+        version: 11.9.0
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.3
+        version: 8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@26.1.0)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(tsx@4.22.4))
+
+  packages/verification-browser:
+    dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
+      '@prodivix/behavior':
+        specifier: workspace:*
+        version: link:../behavior
+      '@prodivix/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@prodivix/verification':
+        specifier: workspace:*
+        version: link:../verification
+      axe-core:
+        specifier: 4.12.1
+        version: 4.12.1
+      playwright-core:
+        specifier: 1.61.1
+        version: 1.61.1
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -7061,6 +7150,11 @@ packages:
   playwright@1.61.1:
     resolution: {integrity: sha512-DWnY5o3YbLWK4GovuAVwpqL+1VwGNdUGrRr++8j8PtQQzvAVZUIMjKQ90fY689sEJZJBbZVw1rXaOKSTitkzPQ==}
     engines: {node: '>=18'}
+    hasBin: true
+
+  pnpm@11.9.0:
+    resolution: {integrity: sha512-vWgtXQP+Ul73yf1ngMaITR51asTJyf4AxTh4KCQxDc+Q493E9Tg18G3669UIXkGFXgvLs7YN4qxburieUDbwOw==}
+    engines: {node: '>=22.13'}
     hasBin: true
 
   possible-typed-array-names@1.1.0:
@@ -13809,6 +13903,8 @@ snapshots:
       playwright-core: 1.61.1
     optionalDependencies:
       fsevents: 2.3.2
+
+  pnpm@11.9.0: {}
 
   possible-typed-array-names@1.1.0: {}
 

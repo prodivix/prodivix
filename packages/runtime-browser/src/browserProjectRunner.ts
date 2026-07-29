@@ -119,10 +119,11 @@ export const createBrowserProjectRunner = (
   )();
   let disposed = false;
   let serverProcess: BrowserProjectRuntimeHostProcess | undefined;
-  let previewUrl: string | undefined;
+  const readyUrlByProcessId = new Map<string, string>();
   let activeController: ExecutionJobController | undefined;
+  let activeGeneration: number | undefined;
   let executionTail: Promise<void> = Promise.resolve();
-  const serverReadyWaiters = new Set<(url: string) => void>();
+  const serverReadyWaiters = new Map<string, Set<(url: string) => void>>();
 
   const emitLog = (
     controller: ExecutionJobController,
@@ -140,17 +141,23 @@ export const createBrowserProjectRunner = (
   };
 
   const unsubscribeHost = runtimeHost.subscribe((event) => {
-    if ('ownerId' in event && event.ownerId && event.ownerId !== ownerId) {
-      return;
-    }
+    if (event.ownerId !== ownerId) return;
     if (event.kind === 'server-ready') {
-      previewUrl = event.url;
-      [...serverReadyWaiters].forEach((resolve) => resolve(event.url));
-      serverReadyWaiters.clear();
+      readyUrlByProcessId.set(event.processId, event.url);
+      const waiters = serverReadyWaiters.get(event.processId);
+      waiters?.forEach((resolve) => resolve(event.url));
+      serverReadyWaiters.delete(event.processId);
       return;
     }
     const controller = activeController;
-    if (!controller || !isJobActive(controller)) return;
+    if (
+      !controller ||
+      !isJobActive(controller) ||
+      activeGeneration !== event.generation ||
+      (serverProcess !== undefined &&
+        serverProcess.processId !== event.processId)
+    )
+      return;
     if (event.kind === 'output') {
       emitLog(controller, `[${event.label}] ${event.message}`);
       return;
@@ -186,13 +193,16 @@ export const createBrowserProjectRunner = (
     }
   });
 
-  const waitForServerReady = (): Readonly<{
+  const waitForServerReady = (
+    processId: string
+  ): Readonly<{
     promise: Promise<string>;
     cancel(): void;
   }> => {
-    if (previewUrl) {
+    const readyUrl = readyUrlByProcessId.get(processId);
+    if (readyUrl) {
       return Object.freeze({
-        promise: Promise.resolve(previewUrl),
+        promise: Promise.resolve(readyUrl),
         cancel: () => undefined,
       });
     }
@@ -201,10 +211,15 @@ export const createBrowserProjectRunner = (
       resolvePromise = resolve;
     });
     const listener = (url: string) => resolvePromise(url);
-    serverReadyWaiters.add(listener);
+    const waiters = serverReadyWaiters.get(processId) ?? new Set();
+    waiters.add(listener);
+    serverReadyWaiters.set(processId, waiters);
     return Object.freeze({
       promise,
-      cancel: () => serverReadyWaiters.delete(listener),
+      cancel: () => {
+        waiters.delete(listener);
+        if (!waiters.size) serverReadyWaiters.delete(processId);
+      },
     });
   };
 
@@ -214,18 +229,19 @@ export const createBrowserProjectRunner = (
     lease: BrowserProjectRuntimeHostLease
   ): Promise<string> => {
     emitLog(controller, 'Starting the isolated project server.');
-    previewUrl = undefined;
-    const ready = waitForServerReady();
+    activeGeneration = lease.generation;
     const process = await runtimeHost.spawn(ownerId, snapshot.previewCommand, {
       lease,
       label: 'dev',
       kind: 'server',
     });
     serverProcess = process;
+    const ready = waitForServerReady(process.processId);
     void process.exit.then((exitCode) => {
+      readyUrlByProcessId.delete(process.processId);
+      serverReadyWaiters.delete(process.processId);
       if (serverProcess === process) {
         serverProcess = undefined;
-        previewUrl = undefined;
       }
       if (
         !process.wasStopRequested() &&
@@ -289,6 +305,7 @@ export const createBrowserProjectRunner = (
       );
     }
     activeController = controller;
+    activeGeneration = undefined;
     controller.markStarting();
     try {
       const resolved = await options.resolveProject(request);
@@ -318,12 +335,18 @@ export const createBrowserProjectRunner = (
         emitLog(controller, 'Project dependencies are ready.');
       }
       if (serverProcess?.wasStopRequested()) {
+        readyUrlByProcessId.delete(serverProcess.processId);
         serverProcess = undefined;
-        previewUrl = undefined;
+      }
+      const reusableUrl = serverProcess
+        ? readyUrlByProcessId.get(serverProcess.processId)
+        : undefined;
+      if (serverProcess && reusableUrl) {
+        activeGeneration = serverProcess.generation;
       }
       const url =
-        serverProcess && previewUrl
-          ? previewUrl
+        serverProcess && reusableUrl
+          ? reusableUrl
           : await startServer(snapshot, controller, preparation.lease);
       publishPreview(controller, request, url);
     } catch (error) {
@@ -341,12 +364,54 @@ export const createBrowserProjectRunner = (
     reason: string
   ): Promise<void> => {
     if (activeController === controller) {
-      await runtimeHost.stopOwner(ownerId);
+      try {
+        await runtimeHost.stopOwner(ownerId);
+      } catch {
+        if (isJobActive(controller)) {
+          controller.fail({
+            code: 'BROWSER_PROJECT_CLEANUP_FAILED',
+            message:
+              'Browser project runtime cleanup failed before cancellation.',
+            retryable: true,
+          });
+        }
+        return;
+      }
+      if (serverProcess) readyUrlByProcessId.delete(serverProcess.processId);
       serverProcess = undefined;
-      previewUrl = undefined;
       activeController = undefined;
+      activeGeneration = undefined;
     }
     if (isJobActive(controller)) controller.finishCancelled(reason);
+  };
+
+  const timeoutController = async (
+    controller: ExecutionJobController,
+    timeoutMs: number
+  ): Promise<void> => {
+    if (!isJobActive(controller)) return;
+    if (controller.job.getSnapshot().status !== 'cancelling') {
+      controller.markCancelling('Project execution timed out.');
+    }
+    if (activeController === controller) {
+      try {
+        await runtimeHost.stopOwner(ownerId);
+      } catch {
+        if (isJobActive(controller)) {
+          controller.fail({
+            code: 'BROWSER_PROJECT_CLEANUP_FAILED',
+            message: 'Browser project runtime cleanup failed after timeout.',
+            retryable: true,
+          });
+        }
+        return;
+      }
+      if (serverProcess) readyUrlByProcessId.delete(serverProcess.processId);
+      serverProcess = undefined;
+      activeController = undefined;
+      activeGeneration = undefined;
+    }
+    if (isJobActive(controller)) controller.finishTimedOut(timeoutMs);
   };
 
   const provider: ExecutionProvider = Object.freeze({
@@ -381,14 +446,7 @@ export const createBrowserProjectRunner = (
       });
       if (request.timeoutMs !== undefined) {
         const timeout = globalThis.setTimeout(() => {
-          if (!isJobActive(controller)) return;
-          if (activeController === controller) {
-            void runtimeHost.stopOwner(ownerId);
-            serverProcess = undefined;
-            previewUrl = undefined;
-            activeController = undefined;
-          }
-          controller.finishTimedOut(request.timeoutMs);
+          void timeoutController(controller, request.timeoutMs!);
         }, request.timeoutMs);
         void controller.job.completion.finally(() =>
           globalThis.clearTimeout(timeout)
@@ -405,8 +463,9 @@ export const createBrowserProjectRunner = (
     const controller = activeController;
     if (controller) await stopController(controller, reason);
     else await runtimeHost.stopOwner(ownerId);
+    if (serverProcess) readyUrlByProcessId.delete(serverProcess.processId);
     serverProcess = undefined;
-    previewUrl = undefined;
+    activeGeneration = undefined;
     await executionTail;
   };
 

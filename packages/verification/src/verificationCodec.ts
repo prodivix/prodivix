@@ -331,6 +331,7 @@ const baselineCompatibilityIdentity = (
     locale: entry.locale,
     devicePixelRatio: entry.devicePixelRatio,
     normalizerDigest: entry.normalizerDigest,
+    compatibilityProfileDigest: entry.compatibilityProfileDigest,
   });
 
 const collectBaselineIssues = (

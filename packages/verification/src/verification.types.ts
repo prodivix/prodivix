@@ -166,6 +166,7 @@ export type VerificationBaselineEntry = Readonly<{
   devicePixelRatio: number;
   asset: VerificationBaselineAssetRef;
   normalizerDigest: string;
+  compatibilityProfileDigest: string;
   adoptedAt: string;
   adoptedBy: string;
 }>;
@@ -292,6 +293,7 @@ export type VerificationImpactSetResult =
 
 export type VerificationAdapterIdentity = Readonly<{
   adapterId: string;
+  descriptorDigest: string;
   toolchainDigest: string;
   capabilityDigest: string;
 }>;
@@ -350,6 +352,9 @@ export type VerificationCheckDefinition = Readonly<{
 export type VerificationAdapterRegistration = Readonly<{
   descriptor: VerificationAdapterDescriptor;
   identity: VerificationAdapterIdentity;
+  tool?: VerificationAdapterToolIdentity;
+  runtimeZones?: readonly string[];
+  knownLimitations?: readonly VerificationAdapterKnownLimitation[];
 }>;
 
 export type VerificationPolicyEvaluationFacts = Readonly<{
@@ -599,7 +604,9 @@ export type VerificationInputKind =
   | 'executable-snapshot'
   | 'scenario-program'
   | 'test-report'
-  | 'baseline-set';
+  | 'baseline-set'
+  | 'verification-profile'
+  | 'security-observation-set';
 
 export type VerificationArtifactKind =
   | 'screenshot'
@@ -639,59 +646,46 @@ export type VerificationAdapterDescriptor = Readonly<{
   inputKinds: readonly VerificationInputKind[];
   artifactKinds: readonly VerificationArtifactKind[];
   budgets: VerificationAdapterBudgets;
-  trustInputs: readonly string[];
+  trustInputs: readonly VerificationEvidenceTrust[];
 }>;
 
-export type VerificationPreflightResult =
+export type VerificationAdapterRegistryEntry = Readonly<{
+  descriptor: VerificationAdapterDescriptor;
+  descriptorDigest: string;
+  capabilityDigest: string;
+  tool: VerificationAdapterToolIdentity;
+  runtimeZones: readonly string[];
+  knownLimitations: readonly VerificationAdapterKnownLimitation[];
+}>;
+
+export type VerificationAdapterRegistrySnapshot = Readonly<{
+  entries: readonly VerificationAdapterRegistryEntry[];
+  snapshotDigest: string;
+}>;
+
+export type VerificationAdapterToolIdentity = Readonly<{
+  name: string;
+  version: string;
+  schemaVersion: number;
+  schemaDigest: string;
+}>;
+
+export type VerificationAdapterKnownLimitation = Readonly<{
+  code: string;
+  messageKey: string;
+  checkKinds: readonly VerificationCheckKind[];
+  surfaces: readonly VerificationSurface[];
+  targets: readonly string[];
+  browserEngines: readonly VerificationBrowserEngine[];
+}>;
+
+export type VerificationAdapterPreflight =
   | Readonly<{ status: 'supported' }>
   | Readonly<{
       status: 'unsupported' | 'blocked';
       reasonCode: string;
       message: string;
     }>;
-
-export type VerificationAbortSignal = Readonly<{
-  aborted: boolean;
-  reason?: string;
-}>;
-
-export type VerificationRunContext = Readonly<{
-  cell: VerificationPlanCell;
-  attemptId: string;
-  executableSnapshotDigest: string;
-  scenarioProgramDigest?: string;
-  controlProfileDigest: string;
-  fixtureSetDigests: readonly string[];
-  baselineSetDigest?: string;
-  abortSignal: VerificationAbortSignal;
-}>;
-
-export type VerificationCheckReportCandidate = Readonly<{
-  candidateId: string;
-  cellId: string;
-  attemptId: string;
-  outcome: VerificationAttemptOutcome;
-  normalizedInputDigest: string;
-  report: VerificationJsonValue;
-  artifacts: readonly Readonly<{
-    id: string;
-    kind: VerificationArtifactKind;
-    digest: string;
-    size: number;
-    mediaType: string;
-  }>[];
-  diagnosticCodes: readonly string[];
-}>;
-
-export type VerificationAdapter = Readonly<{
-  descriptor: VerificationAdapterDescriptor;
-  preflight(cell: VerificationPlanCell): Promise<VerificationPreflightResult>;
-  prepare(context: VerificationRunContext): Promise<void>;
-  execute(
-    context: VerificationRunContext
-  ): Promise<VerificationCheckReportCandidate>;
-  cleanup(context: VerificationRunContext): Promise<void>;
-}>;
 
 export type VerificationJsonValue =
   | null
@@ -833,6 +827,12 @@ export type VerificationEvidenceCandidateArtifact = Readonly<{
   expectedDigest: string;
   expectedSize: number;
   expectedMediaType: string;
+  sourceTraceDigest?: string;
+}>;
+
+export type VerificationEvidenceCandidateArtifactMetadata = Readonly<{
+  id: string;
+  path: string;
   sourceTraceDigest?: string;
 }>;
 

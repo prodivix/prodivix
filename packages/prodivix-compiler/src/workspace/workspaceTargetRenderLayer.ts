@@ -22,6 +22,7 @@ import type {
   WorkspaceServerRuntimeTarget,
   WorkspaceServerRuntimeTargetAnalysis,
 } from '#src/workspace/workspaceServerRuntimeTarget';
+import type { WorkspaceVerificationCompileProfile } from '#src/workspace/workspaceVerificationProbe';
 
 /** Compile options shared by every framework target. */
 export type WorkspaceTargetCompileOptions = Readonly<{
@@ -35,6 +36,7 @@ export type WorkspaceTargetCompileOptions = Readonly<{
   serverRuntimeTarget?: WorkspaceServerRuntimeTarget;
   serverRuntimeMockProvision?: ServerRuntimeTestProvision;
   assetMaterializations?: readonly BinaryAssetMaterialization[];
+  verificationProfile?: WorkspaceVerificationCompileProfile;
 }>;
 
 export type WorkspaceExportCodeArtifact = {

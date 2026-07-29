@@ -7,6 +7,9 @@ import {
   createVerificationAttestationClaimSet,
   createVerificationAttestationClaimsDigest,
   createVerificationAttestationProofDigest,
+  createVerificationAdapterRegistration,
+  createVerificationAdapterInputDigest,
+  createVerificationAdapterRegistrySnapshot,
   createInMemoryVerificationEvidenceRepository,
   createVerificationEvidenceStatementForCandidate,
   createVerificationEvidencePromotionCoordinator,
@@ -62,14 +65,8 @@ const policy: VerificationPolicy = Object.freeze({
   }),
 });
 
-const adapter = Object.freeze({
-  ...GOLDEN_G3_V4_ADAPTER,
-  identity: Object.freeze({
-    ...GOLDEN_G3_V4_ADAPTER.identity,
-    toolchainDigest: digest('adapter-toolchain'),
-    capabilityDigest: digest('adapter-capabilities'),
-  }),
-  descriptor: Object.freeze({
+const adapter = createVerificationAdapterRegistration(
+  Object.freeze({
     ...GOLDEN_G3_V4_ADAPTER.descriptor,
     implementation: Object.freeze({
       ...GOLDEN_G3_V4_ADAPTER.descriptor.implementation,
@@ -77,9 +74,10 @@ const adapter = Object.freeze({
       toolchainDigest: digest('adapter-toolchain'),
       schemaDigest: digest('adapter-schema'),
     }),
-    trustInputs: Object.freeze(['ci-attested']),
-  }),
-});
+    trustInputs: Object.freeze(['ci-attested'] as const),
+  })
+);
+const adapterRegistry = createVerificationAdapterRegistrySnapshot([adapter]);
 
 const planResult = createVerificationPlan({
   ...GOLDEN_G3_V4_PLAN_INPUT,
@@ -87,7 +85,7 @@ const planResult = createVerificationPlan({
   policyRevision: 2,
   policyDigest: digestVerificationValue(normalizeVerificationPolicy(policy)),
   adapters: [adapter],
-  adapterRegistryDigest: digestVerificationValue([adapter]),
+  adapterRegistryDigest: adapterRegistry.snapshotDigest,
 });
 if (planResult.plan.status !== 'ready') {
   throw new Error(
@@ -121,6 +119,10 @@ if (!selectedScenario) {
 const controlProfileDigest = GOLDEN_G3_V5_CELL.controlProfileRef.digest;
 if (!controlProfileDigest) {
   throw new Error('Golden V5 cell requires an exact control profile digest.');
+}
+const adapterTool = adapter.tool;
+if (!adapterTool) {
+  throw new Error('Golden V5 adapter requires a canonical tool identity.');
 }
 
 const attemptInstant = (attemptIndex: number, offsetSeconds: number): string =>
@@ -162,13 +164,50 @@ const goldenG3V5ArtifactManifests = (
   );
 
 export const createGoldenG3V5Candidate = (
-  outcome: VerificationAttemptOutcome,
+  outcome: Extract<VerificationAttemptOutcome, 'passed' | 'failed'>,
   attemptIndex: number,
   parentAttemptId?: string
 ): VerificationEvidenceCandidate => {
   const attemptId = `attempt:g3-v5:${attemptIndex}`;
   const artifactDigest = digest(`artifact:${attemptId}`);
   const scenarioProgramDigest = digest('catalog-program');
+  const executableSnapshotDigest = digest('executable-snapshot');
+  const runtimeEnvironmentDigest = digest('runtime-environment');
+  const appliedControlDigest = digest('applied-controls');
+  const controlCapabilitySnapshotDigest = digest('control-capabilities');
+  const inputRefs = Object.freeze(
+    GOLDEN_G3_V5_CELL.inputKinds.map((kind) =>
+      Object.freeze({
+        id: `input:${kind}`,
+        kind,
+        digest:
+          kind === 'executable-snapshot'
+            ? executableSnapshotDigest
+            : kind === 'scenario-program'
+              ? scenarioProgramDigest
+              : kind === 'baseline-set' &&
+                  GOLDEN_G3_V5_CELL.baselineSetRef?.digest
+                ? GOLDEN_G3_V5_CELL.baselineSetRef.digest
+                : digest(`input:${kind}`),
+        size: 64,
+        mediaType: 'application/json',
+      })
+    )
+  );
+  const resolvedInputSetDigest = createVerificationAdapterInputDigest({
+    runtimeEnvironmentDigest,
+    executableSnapshotDigest,
+    scenarioProgramDigest,
+    controlProfileDigest,
+    fixtureSetDigests: Object.freeze([]),
+    ...(GOLDEN_G3_V5_CELL.baselineSetRef?.digest
+      ? { baselineSetDigest: GOLDEN_G3_V5_CELL.baselineSetRef.digest }
+      : {}),
+    controlCapabilityIds: Object.freeze([]),
+    controlCapabilitySnapshotDigest,
+    appliedControlDigest,
+    inputRefs,
+  });
   const sourceTraces = Object.freeze([
     Object.freeze({
       sourceRef: Object.freeze({
@@ -182,27 +221,52 @@ export const createGoldenG3V5Candidate = (
   const result = normalizeVerificationCheckReport({
     projectId: 'project:g3-v5',
     plan: GOLDEN_G3_V5_PLAN,
+    adapterRegistry,
     cellId: GOLDEN_G3_V5_CELL.id,
     context: {
       cell: GOLDEN_G3_V5_CELL,
       attemptId,
-      executableSnapshotDigest: digest('executable-snapshot'),
+      resolvedInputSetDigest,
+      runtimeEnvironmentDigest,
+      executableSnapshotDigest,
       scenarioProgramDigest,
       controlProfileDigest,
       fixtureSetDigests: [],
       ...(GOLDEN_G3_V5_CELL.baselineSetRef?.digest
         ? { baselineSetDigest: GOLDEN_G3_V5_CELL.baselineSetRef.digest }
         : {}),
+      controlCapabilityIds: [],
+      controlCapabilitySnapshotDigest,
+      appliedControlDigest,
+      inputRefs,
     },
     report: {
-      candidateId: `candidate:g3-v5:${attemptIndex}`,
+      format: 'prodivix.verification-check-report-candidate',
+      version: 1,
       cellId: GOLDEN_G3_V5_CELL.id,
       attemptId,
-      outcome,
-      normalizedInputDigest: GOLDEN_G3_V5_CELL.inputDigest,
-      report: {
-        assertion: outcome === 'passed' ? 'catalog-visible' : 'catalog-missing',
-        outcome,
+      checkKind: GOLDEN_G3_V5_CELL.checkKind,
+      inputDigest: GOLDEN_G3_V5_CELL.inputDigest,
+      adapter: GOLDEN_G3_V5_CELL.adapter,
+      tool: adapterTool,
+      terminal: {
+        status: 'completed',
+        complete: true,
+        exitCode: 0,
+      },
+      payload: {
+        kind: 'e2e',
+        scenarioId: selectedScenario.id,
+        steps: [
+          {
+            stepId: 'catalog-visible',
+            targetId: GOLDEN_G3_V5_CELL.targetId,
+            assertionCode: 'catalog-visible',
+            status: outcome,
+            blackBox: true,
+            diagnosticCodes: outcome === 'failed' ? ['BHV-4001'] : [],
+          },
+        ],
       },
       artifacts: [
         {
@@ -236,31 +300,21 @@ export const createGoldenG3V5Candidate = (
       completedAt: attemptInstant(attemptIndex, 1),
       durationMs: 1_000,
     },
-    toolchain: {
-      packageName: '@prodivix/golden-conformance',
-      packageVersion: '0.0.1',
-      buildDigest: digest('golden-build'),
-      toolchainDigest: GOLDEN_G3_V5_CELL.adapter.toolchainDigest,
-      schemaDigest: digest('evidence-schema'),
-    },
-    normalization: {
-      packageName: '@prodivix/verification',
-      packageVersion: '0.0.1',
-      buildDigest: digest('normalization-build'),
-      toolchainDigest: digest('normalization-toolchain'),
-      schemaDigest: digest('normalization-schema'),
-    },
-    appliedControlDigest: digest('applied-controls'),
     artifacts: [
       {
         id: `artifact:g3-v5:${attemptIndex}`,
         path: `replay/g3-v5-${attemptIndex}.json`,
+        sourceTraceDigest: digestVerificationValue(sourceTraces[0]),
+      },
+    ],
+    stagedArtifacts: [
+      {
+        id: `artifact:g3-v5:${attemptIndex}`,
         stagingArtifactId: `staging:g3-v5:${attemptIndex}`,
         kind: 'replay-record',
-        expectedDigest: artifactDigest,
-        expectedSize: 64,
-        expectedMediaType: 'application/json',
-        sourceTraceDigest: digestVerificationValue(sourceTraces[0]),
+        digest: artifactDigest,
+        size: 64,
+        mediaType: 'application/json',
       },
     ],
     sourceTraces,
@@ -277,7 +331,6 @@ export const createGoldenG3V5Candidate = (
       policyId: 'redaction:g3-v5',
       scannerSetDigest: digest('scanner-set'),
       droppedFieldCounts: {},
-      safe: true,
     },
     promotion: {
       idempotencyKey: `promotion:g3-v5:${attemptIndex}`,

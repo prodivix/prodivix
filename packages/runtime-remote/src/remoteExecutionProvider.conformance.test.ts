@@ -4,6 +4,7 @@ import {
   createExecutionRequest,
   toExecutionNetworkTraceValue,
   toExecutionTestReportValue,
+  type ExecutionJob,
   type ExecutionJobEvent,
   type ExecutionJobStateEvent,
   type ExecutionArtifact,
@@ -37,6 +38,7 @@ import {
 } from './remoteExecutionProvider';
 import type {
   RemoteExecutionClient,
+  RemoteExecutionEventsResult,
   RemoteExecutionRecord,
 } from './remoteExecutionProtocol.types';
 
@@ -201,6 +203,14 @@ const clientFor = (
   return Object.freeze(client);
 };
 
+const deferred = <Value>() => {
+  let resolve: (value: Value) => void = () => undefined;
+  const promise = new Promise<Value>((settle) => {
+    resolve = settle;
+  });
+  return Object.freeze({ promise, resolve });
+};
+
 describe('remote ExecutionProvider conformance', () => {
   it('keeps Preview, Test, Build, and Server Function provider identities independent', () => {
     expect(
@@ -229,7 +239,7 @@ describe('remote ExecutionProvider conformance', () => {
     ).not.toContain('network');
   });
 
-  it('accepts one exact isolated Server Function result artifact', async () => {
+  it('fences delayed old-generation Server Function materialization', async () => {
     const snapshot = createRemoteServerFunctionFixtureSnapshot();
     const executionRequest = createRemoteServerFunctionFixtureRequest();
     const invocation = readExecutionServerFunctionBridgeRequest(
@@ -301,13 +311,37 @@ describe('remote ExecutionProvider conformance', () => {
       },
       stateEvent(initial, 5, 'succeeded', 'running'),
     ];
+    const jobReady = deferred<ExecutionJob>();
+    const releaseOldMaterialization = deferred<void>();
+    const oldMaterializationFinished = deferred<void>();
+    let provider:
+      | ReturnType<typeof createRemoteServerFunctionExecutionProvider>
+      | undefined;
+    let materializationAttempt = 0;
     const materializeArtifact = vi.fn(
-      async ({ artifact }: { artifact: ExecutionArtifact }) => ({
-        ...artifact,
-        uri: 'https://artifacts.example.test/server-function-result',
-      })
+      async ({ artifact }: { artifact: ExecutionArtifact }) => {
+        materializationAttempt += 1;
+        if (materializationAttempt === 1) {
+          const job = await jobReady.promise;
+          if (!provider) {
+            throw new Error('Remote resume fixture was not initialized.');
+          }
+          const checkpoint = provider.checkpoint(job);
+          await provider.resume({ job, checkpoint });
+          await releaseOldMaterialization.promise;
+          oldMaterializationFinished.resolve();
+          return {
+            ...artifact,
+            uri: 'https://stale.example.test/server-function-result',
+          };
+        }
+        return {
+          ...artifact,
+          uri: 'https://artifacts.example.test/server-function-result',
+        };
+      }
     );
-    const provider = createRemoteServerFunctionExecutionProvider({
+    provider = createRemoteServerFunctionExecutionProvider({
       client: clientFor({ initial, events }),
       resolveSnapshot: () => ({ kind: 'upload', snapshot }),
       delay: async () => undefined,
@@ -315,18 +349,32 @@ describe('remote ExecutionProvider conformance', () => {
     });
 
     const job = await provider.start(executionRequest);
-    await expect(job.completion).resolves.toMatchObject({
-      status: 'succeeded',
+    jobReady.resolve(job);
+    try {
+      await expect(job.completion).resolves.toMatchObject({
+        status: 'succeeded',
+        artifacts: [
+          {
+            kind: 'report',
+            mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
+            metadata: { status: 'succeeded' },
+            uri: 'https://artifacts.example.test/server-function-result',
+          },
+        ],
+      });
+    } finally {
+      releaseOldMaterialization.resolve();
+    }
+    await oldMaterializationFinished.promise;
+    await Promise.resolve();
+    expect(materializeArtifact).toHaveBeenCalledTimes(2);
+    await expect(job.completion).resolves.not.toMatchObject({
       artifacts: [
         {
-          kind: 'report',
-          mediaType: ISOLATED_SERVER_FUNCTION_RESULT_MEDIA_TYPE,
-          metadata: { status: 'succeeded' },
-          uri: 'https://artifacts.example.test/server-function-result',
+          uri: 'https://stale.example.test/server-function-result',
         },
       ],
     });
-    expect(materializeArtifact).toHaveBeenCalledTimes(1);
   });
 
   it('fails closed when isolated Server Function success omits its correlated trace', async () => {
@@ -558,6 +606,461 @@ describe('remote ExecutionProvider conformance', () => {
     expect(readEvents.mock.calls.map(([call]) => call.afterCursor)).toEqual([
       0, 0, 0,
     ]);
+  });
+
+  it('accepts an exact boundary duplicate once and rejects payload drift', async () => {
+    const initial = record('build-duplicate', 'running', 4);
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      {
+        kind: 'artifact',
+        jobId: initial.executionId,
+        sequence: 3,
+        emittedAt: 1_003,
+        artifact: {
+          artifactId: 'bundle-duplicate',
+          kind: 'bundle',
+          mediaType: 'application/vnd.prodivix.execution-build-bundle+json',
+          sourceTrace: [
+            { sourceRef: { kind: 'workspace', workspaceId: 'workspace-1' } },
+          ],
+          metadata: { snapshotDigest: initial.snapshotDigest },
+        },
+      },
+      stateEvent(initial, 4, 'succeeded', 'running'),
+    ];
+    const base = clientFor({ initial, events });
+    const page = (
+      afterCursor: number,
+      drift = false
+    ): RemoteExecutionEventsResult => ({
+      executionId: initial.executionId,
+      providerId: initial.provider.id,
+      afterCursor,
+      latestCursor: 4,
+      hasMore: afterCursor === 0,
+      events:
+        afterCursor === 0
+          ? events.slice(0, 2).map((event) => ({
+              cursor: event.sequence,
+              event,
+            }))
+          : [
+              {
+                cursor: 2,
+                event: drift ? { ...events[1]!, emittedAt: 9_999 } : events[1]!,
+              },
+              ...events.slice(2).map((event) => ({
+                cursor: event.sequence,
+                event,
+              })),
+            ],
+    });
+    const exactProvider = createRemoteBuildExecutionProvider({
+      client: Object.freeze({
+        ...base,
+        readEvents: async ({ afterCursor }) => page(afterCursor),
+      }),
+      resolveSnapshot: () => ({
+        kind: 'upload',
+        snapshot: createRemoteFixtureSnapshot(),
+      }),
+      delay: async () => undefined,
+    });
+    const exactJob = await exactProvider.start(request('build-duplicate'));
+    await expect(exactJob.completion).resolves.toMatchObject({
+      status: 'succeeded',
+      artifacts: [{ artifactId: 'bundle-duplicate' }],
+    });
+
+    const driftInitial = record('build-duplicate-drift', 'running', 4);
+    const driftEvents = events.map((event) => ({
+      ...event,
+      jobId: driftInitial.executionId,
+      ...(event.kind === 'state'
+        ? {
+            snapshot: {
+              ...event.snapshot,
+              jobId: driftInitial.executionId,
+              requestId: driftInitial.requestId,
+            },
+          }
+        : {}),
+    })) as ExecutionJobEvent[];
+    const driftBase = clientFor({
+      initial: driftInitial,
+      events: driftEvents,
+    });
+    const driftProvider = createRemoteBuildExecutionProvider({
+      client: Object.freeze({
+        ...driftBase,
+        readEvents: async ({ afterCursor }) => ({
+          executionId: driftInitial.executionId,
+          providerId: driftInitial.provider.id,
+          afterCursor,
+          latestCursor: 4,
+          hasMore: afterCursor === 0,
+          events:
+            afterCursor === 0
+              ? driftEvents.slice(0, 2).map((event) => ({
+                  cursor: event.sequence,
+                  event,
+                }))
+              : [
+                  {
+                    cursor: 2,
+                    event: { ...driftEvents[1]!, emittedAt: 9_999 },
+                  },
+                  ...driftEvents.slice(2).map((event) => ({
+                    cursor: event.sequence,
+                    event,
+                  })),
+                ],
+        }),
+      }),
+      resolveSnapshot: () => ({
+        kind: 'upload',
+        snapshot: createRemoteFixtureSnapshot(),
+      }),
+      delay: async () => undefined,
+      maximumReconnectAttempts: 1,
+    });
+    const driftJob = await driftProvider.start(
+      request('build-duplicate-drift')
+    );
+    await expect(driftJob.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'REMOTE_EXECUTION_SYNC_FAILED' },
+    });
+  });
+
+  it.each([
+    ['cursor gap', [0, 2]],
+    ['out-of-order cursor', [0, 1, 3, 2]],
+  ] as const)('fails closed on a remote event %s', async (label, order) => {
+    const requestId = `build-${label.replaceAll(' ', '-')}`;
+    const initial = record(requestId, 'running', 4);
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      {
+        kind: 'log',
+        jobId: initial.executionId,
+        sequence: 3,
+        emittedAt: 1_003,
+        log: { stream: 'stdout', level: 'info', message: 'building' },
+      },
+      stateEvent(initial, 4, 'failed', 'running'),
+    ];
+    const base = clientFor({ initial, events });
+    const provider = createRemoteBuildExecutionProvider({
+      client: Object.freeze({
+        ...base,
+        readEvents: async ({ afterCursor }) => ({
+          executionId: initial.executionId,
+          providerId: initial.provider.id,
+          afterCursor,
+          latestCursor: 4,
+          hasMore: false,
+          events: order.map((index) => {
+            const event = events[index]!;
+            return { cursor: event.sequence, event };
+          }),
+        }),
+      }),
+      resolveSnapshot: () => ({
+        kind: 'upload',
+        snapshot: createRemoteFixtureSnapshot(),
+      }),
+      delay: async () => undefined,
+      maximumReconnectAttempts: 1,
+    });
+
+    const job = await provider.start(request(requestId));
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'REMOTE_EXECUTION_SYNC_FAILED' },
+    });
+  });
+
+  it('deduplicates concurrent resume, accepts its anchor duplicate, and fences a delayed old read', async () => {
+    const initial = record('build-resume', 'running', 4);
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      {
+        kind: 'artifact',
+        jobId: initial.executionId,
+        sequence: 3,
+        emittedAt: 1_003,
+        artifact: {
+          artifactId: 'bundle-resume',
+          kind: 'bundle',
+          mediaType: 'application/vnd.prodivix.execution-build-bundle+json',
+          sourceTrace: [
+            { sourceRef: { kind: 'workspace', workspaceId: 'workspace-1' } },
+          ],
+          metadata: { snapshotDigest: initial.snapshotDigest },
+        },
+      },
+      stateEvent(initial, 4, 'succeeded', 'running'),
+    ];
+    const base = clientFor({ initial, events });
+    const oldReadStarted = deferred<void>();
+    const latePage = deferred<RemoteExecutionEventsResult>();
+    let readsAfterTwo = 0;
+    const provider = createRemoteBuildExecutionProvider({
+      client: Object.freeze({
+        ...base,
+        readEvents: async ({ afterCursor }) => {
+          if (afterCursor === 0) {
+            return {
+              executionId: initial.executionId,
+              providerId: initial.provider.id,
+              afterCursor,
+              latestCursor: 4,
+              hasMore: true,
+              events: events.slice(0, 2).map((event) => ({
+                cursor: event.sequence,
+                event,
+              })),
+            };
+          }
+          if (afterCursor === 1) {
+            return {
+              executionId: initial.executionId,
+              providerId: initial.provider.id,
+              afterCursor,
+              latestCursor: 4,
+              hasMore: true,
+              events: [{ cursor: 2, event: events[1]! }],
+            };
+          }
+          readsAfterTwo += 1;
+          if (readsAfterTwo === 1) {
+            oldReadStarted.resolve();
+            return latePage.promise;
+          }
+          return {
+            executionId: initial.executionId,
+            providerId: initial.provider.id,
+            afterCursor,
+            latestCursor: 4,
+            hasMore: false,
+            events: [
+              { cursor: 2, event: events[1]! },
+              ...events.slice(2).map((event) => ({
+                cursor: event.sequence,
+                event,
+              })),
+            ],
+          };
+        },
+      }),
+      resolveSnapshot: () => ({
+        kind: 'upload',
+        snapshot: createRemoteFixtureSnapshot(),
+      }),
+      delay: async () => undefined,
+    });
+
+    const job = await provider.start(request('build-resume'));
+    const observed: ExecutionJobEvent[] = [];
+    job.subscribe((event) => observed.push(event));
+    await oldReadStarted.promise;
+    const checkpoint = provider.checkpoint(job);
+    expect(checkpoint).toMatchObject({
+      confirmedAfterCursor: 2,
+      generation: 1,
+    });
+    expect(checkpoint.confirmedEventDigest).toMatch(/^sha256-[a-f0-9]{64}$/u);
+    await expect(
+      provider.resume({
+        job,
+        checkpoint: {
+          ...checkpoint,
+          confirmedEventDigest: `sha256-${'0'.repeat(64)}`,
+        },
+      })
+    ).rejects.toThrow('checkpoint is stale or no longer active');
+    await expect(
+      Promise.all([
+        provider.resume({ job, checkpoint }),
+        provider.resume({ job, checkpoint }),
+      ])
+    ).resolves.toEqual([job, job]);
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'succeeded',
+      artifacts: [{ artifactId: 'bundle-resume' }],
+    });
+    expect(provider.checkpoint(job).generation).toBe(2);
+
+    latePage.resolve({
+      executionId: initial.executionId,
+      providerId: initial.provider.id,
+      afterCursor: 2,
+      latestCursor: 3,
+      hasMore: false,
+      events: [
+        {
+          cursor: 3,
+          event: {
+            kind: 'log',
+            jobId: initial.executionId,
+            sequence: 3,
+            emittedAt: 9_999,
+            log: {
+              stream: 'stderr',
+              level: 'error',
+              message: 'late old generation',
+            },
+          },
+        },
+      ],
+    });
+    await Promise.resolve();
+    expect(JSON.stringify(observed)).not.toContain('late old generation');
+    expect(readsAfterTwo).toBe(2);
+  });
+
+  it('allows an authoritative summary to advance across unread transitions during reconnect', async () => {
+    const initial = record('build-summary-jump', 'queued', 0);
+    const finalRecord = record('build-summary-jump', 'succeeded', 5);
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'starting', 'queued'),
+      stateEvent(initial, 3, 'running', 'starting'),
+      {
+        kind: 'artifact',
+        jobId: initial.executionId,
+        sequence: 4,
+        emittedAt: 1_004,
+        artifact: {
+          artifactId: 'bundle-summary-jump',
+          kind: 'bundle',
+          mediaType: 'application/vnd.prodivix.execution-build-bundle+json',
+          sourceTrace: [
+            { sourceRef: { kind: 'workspace', workspaceId: 'workspace-1' } },
+          ],
+          metadata: { snapshotDigest: initial.snapshotDigest },
+        },
+      },
+      stateEvent(initial, 5, 'succeeded', 'running'),
+    ];
+    let readsAfterThree = 0;
+    const client = clientFor({ initial, events });
+    const provider = createRemoteBuildExecutionProvider({
+      client: Object.freeze({
+        ...client,
+        get: async () => finalRecord,
+        readEvents: async ({ executionId, afterCursor }) => {
+          if (afterCursor === 0) {
+            return {
+              executionId,
+              providerId: initial.provider.id,
+              afterCursor,
+              latestCursor: 5,
+              hasMore: true,
+              events: events.slice(0, 3).map((event) => ({
+                cursor: event.sequence,
+                event,
+              })),
+            };
+          }
+          readsAfterThree += 1;
+          if (readsAfterThree === 1) {
+            throw new RemoteExecutionClientError(
+              {
+                code: 'unavailable',
+                message: 'worker connection lost',
+                retryable: true,
+              },
+              'events.read'
+            );
+          }
+          return {
+            executionId,
+            providerId: initial.provider.id,
+            afterCursor,
+            latestCursor: 5,
+            hasMore: false,
+            events: events.slice(3).map((event) => ({
+              cursor: event.sequence,
+              event,
+            })),
+          };
+        },
+      }),
+      resolveSnapshot: () => ({
+        kind: 'upload',
+        snapshot: createRemoteFixtureSnapshot(),
+      }),
+      delay: async () => undefined,
+      maximumReconnectAttempts: 2,
+    });
+
+    const job = await provider.start(request('build-summary-jump'));
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'succeeded',
+      artifacts: [{ artifactId: 'bundle-summary-jump' }],
+    });
+    expect(readsAfterThree).toBe(3);
+  });
+
+  it('fails closed before projecting an event after terminal state across pages', async () => {
+    const initial = record('build-terminal-regression', 'running', 4);
+    const events: ExecutionJobEvent[] = [
+      stateEvent(initial, 1, 'queued'),
+      stateEvent(initial, 2, 'running', 'queued'),
+      stateEvent(initial, 3, 'failed', 'running'),
+      {
+        kind: 'log',
+        jobId: initial.executionId,
+        sequence: 4,
+        emittedAt: 1_004,
+        log: {
+          stream: 'stdout',
+          level: 'info',
+          message: 'illegal late event',
+        },
+      },
+    ];
+    const base = clientFor({ initial, events });
+    const provider = createRemoteBuildExecutionProvider({
+      client: Object.freeze({
+        ...base,
+        readEvents: async ({ afterCursor }) => ({
+          executionId: initial.executionId,
+          providerId: initial.provider.id,
+          afterCursor,
+          latestCursor: 4,
+          hasMore: afterCursor === 0,
+          events: (afterCursor === 0
+            ? events.slice(0, 3)
+            : events.slice(3)
+          ).map((event) => ({
+            cursor: event.sequence,
+            event,
+          })),
+        }),
+      }),
+      resolveSnapshot: () => ({
+        kind: 'upload',
+        snapshot: createRemoteFixtureSnapshot(),
+      }),
+      delay: async () => undefined,
+      maximumReconnectAttempts: 1,
+    });
+    const job = await provider.start(request('build-terminal-regression'));
+    const observed: ExecutionJobEvent[] = [];
+    job.subscribe((event) => observed.push(event));
+
+    await expect(job.completion).resolves.toMatchObject({
+      status: 'failed',
+      failure: { code: 'REMOTE_EXECUTION_SYNC_FAILED' },
+    });
+    expect(JSON.stringify(observed)).not.toContain('illegal late event');
   });
 
   it('surfaces authorization loss as an explicit restore-access recovery', async () => {

@@ -11,6 +11,9 @@ import {
 import type { PIRDocument } from '@prodivix/pir';
 import type { DataSourceDocument } from '@prodivix/data';
 import {
+  compareVerificationText,
+  createVerificationAdapterRegistration,
+  createVerificationAdapterRegistrySnapshot,
   createVerificationPlan,
   digestVerificationValue,
   normalizeVerificationPolicy,
@@ -38,6 +41,7 @@ import { GOLDEN_G3_SCENARIO_IDS } from './goldenG3ScenarioFixture';
 export const GOLDEN_G3_V4_IDS = Object.freeze({
   sharedCode: GOLDEN_G2_VUE_CATALOG_IDS.server,
   catalogScenario: GOLDEN_G3_SCENARIO_IDS.scenario,
+  productionSecurityScenario: GOLDEN_G3_SCENARIO_IDS.productionSecurityScenario,
   compositionScenario: GOLDEN_G3_COMPOSITION_IDS.scenario,
   policy: 'policy:g3-v4',
   matrix: 'matrix:g3-v4',
@@ -576,41 +580,34 @@ export const GOLDEN_G3_V4_CHECKS: readonly VerificationCheckDefinition[] =
   ]);
 
 export const GOLDEN_G3_V4_ADAPTER: VerificationAdapterRegistration =
-  Object.freeze({
-    identity: {
-      adapterId: GOLDEN_G3_V4_IDS.adapter,
-      toolchainDigest: 'sha256-g3-v4-toolchain',
-      capabilityDigest: 'sha256-g3-v4-capabilities',
+  createVerificationAdapterRegistration({
+    id: GOLDEN_G3_V4_IDS.adapter,
+    implementation: {
+      packageName: '@prodivix/golden-conformance',
+      packageVersion: '0.0.1',
+      buildDigest: digestVerificationValue('g3-v4-build'),
+      toolchainDigest: digestVerificationValue('g3-v4-toolchain'),
+      schemaDigest: digestVerificationValue('g3-v4-adapter-schema'),
     },
-    descriptor: {
-      id: GOLDEN_G3_V4_IDS.adapter,
-      implementation: {
-        packageName: '@prodivix/golden-conformance',
-        packageVersion: '0.0.1',
-        buildDigest: 'sha256-g3-v4-build',
-        toolchainDigest: 'sha256-g3-v4-toolchain',
-        schemaDigest: 'sha256-g3-v4-adapter-schema',
-      },
-      checkKinds: ['build', 'e2e', 'security', 'visual'],
-      surfaces: ['ci'],
-      targets: ['react-vite', 'vue-vite'],
-      browserEngines: ['chromium', 'firefox'],
-      controlCapabilities: [],
-      inputKinds: ['executable-snapshot', 'scenario-program', 'baseline-set'],
-      artifactKinds: [
-        'build-log',
-        'replay-record',
-        'security-report',
-        'screenshot',
-        'visual-diff',
-      ],
-      budgets: {
-        maximumDurationMs: 60_000,
-        maximumArtifactBytes: 10_000_000,
-        maximumEvents: 100_000,
-      },
-      trustInputs: ['ci-attested'],
+    checkKinds: ['build', 'e2e', 'security', 'visual'],
+    surfaces: ['ci'],
+    targets: ['react-vite', 'vue-vite'],
+    browserEngines: ['chromium', 'firefox'],
+    controlCapabilities: [],
+    inputKinds: ['executable-snapshot', 'scenario-program', 'baseline-set'],
+    artifactKinds: [
+      'build-log',
+      'replay-record',
+      'security-report',
+      'screenshot',
+      'visual-diff',
+    ],
+    budgets: {
+      maximumDurationMs: 60_000,
+      maximumArtifactBytes: 10_000_000,
+      maximumEvents: 4_096,
     },
+    trustInputs: ['ci-attested'],
   });
 
 export const createGoldenG3V4PlanInput = (
@@ -620,22 +617,31 @@ export const createGoldenG3V4PlanInput = (
     checks?: readonly VerificationCheckDefinition[];
     adapters?: readonly VerificationAdapterRegistration[];
   }> = {}
-): CreateVerificationPlanInput => ({
-  impactSet: overrides.impactSet ?? GOLDEN_G3_V4_IMPACT,
-  policy: GOLDEN_G3_V4_POLICY,
-  policyRevision: 1,
-  policyDigest: digestVerificationValue(
-    normalizeVerificationPolicy(GOLDEN_G3_V4_POLICY)
-  ),
-  policyEvaluationInstant: '2026-07-28T00:00:00.000Z',
-  scenarioRegistryDigest: digestVerificationValue(GOLDEN_G3_V4_SCENARIOS),
-  scenarios: overrides.scenarios ?? GOLDEN_G3_V4_SCENARIOS,
-  checks: overrides.checks ?? GOLDEN_G3_V4_CHECKS,
-  adapters: overrides.adapters ?? [GOLDEN_G3_V4_ADAPTER],
-  adapterRegistryDigest: digestVerificationValue([GOLDEN_G3_V4_ADAPTER]),
-  compilerDigest: 'sha256-g3-v4-compiler',
-  plannerDigest: 'sha256-g3-v4-planner',
-});
+): CreateVerificationPlanInput => {
+  const scenarios = Object.freeze(
+    [...(overrides.scenarios ?? GOLDEN_G3_V4_SCENARIOS)].sort((left, right) =>
+      compareVerificationText(left.id, right.id)
+    )
+  );
+  const adapters = overrides.adapters ?? [GOLDEN_G3_V4_ADAPTER];
+  return {
+    impactSet: overrides.impactSet ?? GOLDEN_G3_V4_IMPACT,
+    policy: GOLDEN_G3_V4_POLICY,
+    policyRevision: 1,
+    policyDigest: digestVerificationValue(
+      normalizeVerificationPolicy(GOLDEN_G3_V4_POLICY)
+    ),
+    policyEvaluationInstant: '2026-07-28T00:00:00.000Z',
+    scenarioRegistryDigest: digestVerificationValue(scenarios),
+    scenarios,
+    checks: overrides.checks ?? GOLDEN_G3_V4_CHECKS,
+    adapters,
+    adapterRegistryDigest:
+      createVerificationAdapterRegistrySnapshot(adapters).snapshotDigest,
+    compilerDigest: 'sha256-g3-v4-compiler',
+    plannerDigest: 'sha256-g3-v4-planner',
+  };
+};
 
 export const GOLDEN_G3_V4_PLAN_INPUT = createGoldenG3V4PlanInput();
 

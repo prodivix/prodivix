@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
+  canReachExecutionJobStatus,
   createExecutionJobController,
   createExecutionProviderDescriptor,
   createExecutionRequest,
@@ -33,6 +34,13 @@ const createRequest = (
   });
 
 describe('execution job properties', () => {
+  it('allows summaries to skip legal intermediate states without permitting regression', () => {
+    expect(canReachExecutionJobStatus('queued', 'succeeded')).toBe(true);
+    expect(canReachExecutionJobStatus('starting', 'timed-out')).toBe(true);
+    expect(canReachExecutionJobStatus('running', 'queued')).toBe(false);
+    expect(canReachExecutionJobStatus('succeeded', 'running')).toBe(false);
+  });
+
   it('keeps event replay ordered and settles once for arbitrary log streams', async () => {
     await fc.assert(
       fc.asyncProperty(

@@ -177,6 +177,27 @@ describe('verification structured artifact envelope', () => {
     }
   });
 
+  it('binds the aggregate trace while retaining exact per-event SourceTrace digests', () => {
+    const trace = cloneFixture('trace');
+    (
+      (trace.events as Array<Record<string, unknown>>)[0] as Record<
+        string,
+        unknown
+      >
+    ).sourceTraceDigest = sha('5');
+    expect(
+      decodeVerificationArtifactEnvelope(trace, 'trace', {
+        expectedSourceTraceDigest: sourceTraceDigest,
+      })
+    ).toMatchObject({
+      ok: true,
+      value: {
+        sourceTraceDigest,
+        events: [{ sourceTraceDigest: sha('5') }],
+      },
+    });
+  });
+
   it('rejects format, version, kind, class, and unknown-field drift', () => {
     const mutations: ReadonlyArray<
       readonly [string, (value: Record<string, unknown>) => void]

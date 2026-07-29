@@ -5,7 +5,10 @@ import {
   type ExecutionSourceTrace,
   type ExecutionTestReport,
 } from '@prodivix/runtime-core';
-import { parseVitestExecutionTestReport } from '@prodivix/runtime-vitest';
+import {
+  parseVitestExecutionTestReport,
+  readExecutableSnapshotVitestVersion,
+} from '@prodivix/runtime-vitest';
 import { generateWorkspaceReactViteExecutableProject } from '@prodivix/prodivix-compiler';
 import { authorGoldenWorkspace } from './goldenAuthoring';
 import {
@@ -100,7 +103,15 @@ export const createGoldenG2TestReport = (
     source: GOLDEN_G2_VITEST_REPORT,
     reportId,
     completedAt: 2_000,
-    resolveSourceTrace: () => goldenG2TestSourceTrace(snapshot),
+    toolVersion: readExecutableSnapshotVitestVersion(snapshot),
+    resolveFileIdentity: (reportedPath) =>
+      reportedPath === 'src/App.test.tsx'
+        ? {
+            fileId: reportedPath,
+            path: reportedPath,
+            sourceTrace: goldenG2TestSourceTrace(snapshot),
+          }
+        : undefined,
   });
 
 export const createGoldenG2ExecutionRequest = (

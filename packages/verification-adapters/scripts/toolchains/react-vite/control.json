@@ -1,0 +1,25 @@
+{
+  "format": "prodivix.controlled-static-toolchain-authority.v1",
+  "targetPresetId": "react-vite",
+  "packageManager": "pnpm@11.9.0",
+  "expectedScripts": {
+    "build": "tsc -b && vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc -b"
+  },
+  "expectedDependencies": {
+    "ajv": "^8.20.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "expectedDevDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^4.1.9"
+  }
+}

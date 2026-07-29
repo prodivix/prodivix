@@ -45,6 +45,15 @@ export {
   toExecutionNetworkBridgeMessage,
   toExecutionNetworkTraceValue,
 } from './executionNetworkTrace';
+export {
+  EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH,
+  EXECUTION_AUTH_SESSION_FIXTURE_LIMITS,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_FORMAT,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_MEDIA_TYPE,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_VERSION,
+  normalizeExecutionAuthSessionFixtureResponse,
+} from './executionAuthSessionFixture';
+export type { ExecutionAuthSessionFixtureResponse } from './executionAuthSessionFixture';
 export type {
   ExecutionNetworkBridgeMessage,
   ExecutionNetworkTrace,
@@ -75,8 +84,13 @@ export {
   createRuntimeExecutorRegistry,
   RuntimeExecutorNotFoundError,
 } from './runtimeExecutorRegistry';
-export { mergeRuntimeStatePatch } from './runtimeExecution';
 export {
+  createRuntimeCancellationController,
+  mergeRuntimeStatePatch,
+  RuntimeCancellationError,
+} from './runtimeExecution';
+export {
+  canReachExecutionJobStatus,
   canTransitionExecutionJob,
   createExecutionJobController,
   ExecutionJobTransitionError,
@@ -177,6 +191,7 @@ export {
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
   normalizeExecutableProjectPath,
 } from './executableProject';
+export { cloneExecutableProjectSourceTrace } from './executableProjectNormalization';
 export {
   EXECUTION_INVOCATION_KINDS,
   EXECUTION_PROFILES,
@@ -205,6 +220,10 @@ export type {
   RuntimeExecutorRegistry,
 } from './runtimeExecutorRegistry';
 export type {
+  CreateRuntimeCancellationControllerInput,
+  RuntimeCancellationController,
+  RuntimeCancellationListener,
+  RuntimeLiveCancellationSignal,
   RuntimeCancellationSignal,
   RuntimeExecutionRequest,
   RuntimeExecutionSource,

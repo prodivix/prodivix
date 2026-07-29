@@ -26,7 +26,11 @@ export type GenerateWorkspaceVueViteExecutableProjectOptions =
   WorkspaceVueViteCompileOptions;
 
 export type WorkspaceVueViteExecutableProjectResult =
-  | Readonly<{ status: 'ready'; snapshot: ExecutableProjectSnapshot }>
+  | Readonly<{
+      status: 'ready';
+      snapshot: ExecutableProjectSnapshot;
+      diagnostics: readonly CompileDiagnostic[];
+    }>
   | Readonly<{
       status: 'blocked';
       diagnostics: readonly CompileDiagnostic[];
@@ -136,7 +140,7 @@ export const generateWorkspaceVueViteExecutableProject = (
     },
     publicBuildConfiguration: [],
     resourceHints: {
-      timeoutMs: 120_000,
+      timeoutMs: 60_000,
       maxOutputBytes: 16 * 1024 * 1024,
     },
     cacheHints: { dependencyInstall: 'reuse-if-matched' },
@@ -182,5 +186,9 @@ export const generateWorkspaceVueViteExecutableProject = (
       reportFilePath: DEFAULT_EXECUTABLE_PROJECT_TEST_REPORT_PATH,
     },
   });
-  return Object.freeze({ status: 'ready', snapshot });
+  return Object.freeze({
+    status: 'ready',
+    snapshot,
+    diagnostics: Object.freeze([...bundle.diagnostics]),
+  });
 };

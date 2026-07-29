@@ -37,6 +37,9 @@ export type WebContainerRuntimeOptions = Readonly<{
   coep?: 'require-corp' | 'credentialless';
 }>;
 
+export const WEB_CONTAINER_PROJECT_ROOT =
+  '/home/projects/prodivix-runner' as const;
+
 const assertWebContainerEnvironment = (): void => {
   if (typeof window === 'undefined') {
     throw new Error(
@@ -72,7 +75,9 @@ export const createWebContainerRuntime = async (
   const container = await api.WebContainer.boot({
     coep: options.coep ?? 'credentialless',
     forwardPreviewErrors: true,
-    workdirName: 'prodivix-runner',
+    workdirName: WEB_CONTAINER_PROJECT_ROOT.slice(
+      WEB_CONTAINER_PROJECT_ROOT.lastIndexOf('/') + 1
+    ),
   });
 
   return Object.freeze({

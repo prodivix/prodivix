@@ -129,6 +129,7 @@ func verificationDocuments() map[string]struct {
 					"devicePixelRatio":1,
 					"asset":{"assetDocumentId":"asset.baseline","digest":"` + digest + `","mediaType":"image/png"},
 					"normalizerDigest":"` + digest + `",
+					"compatibilityProfileDigest":"` + digest + `",
 					"adoptedAt":"2026-07-27T00:00:00Z",
 					"adoptedBy":"principal.owner"
 				}]

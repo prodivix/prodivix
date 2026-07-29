@@ -28,13 +28,17 @@ import {
   PROVIDER_MOCK_DATA_RUNTIME_TARGET,
 } from '#src/workspace/workspaceDataRuntimeTarget';
 import { analyzeWorkspaceServerRuntimeTarget } from '#src/workspace/workspaceServerRuntimeTarget';
-import { createWorkspaceStandaloneDataRuntimeModule } from '#src/workspace/standaloneDataRuntime';
+import { createWorkspaceStandaloneDataRuntimeModules } from '#src/workspace/standaloneDataRuntime';
 import { createWorkspaceExecutionConsoleRuntimeModule } from '#src/workspace/standaloneExecutionConsoleRuntime';
-import { createWorkspaceStandaloneServerRuntimeModule } from '#src/workspace/standaloneServerRuntime';
+import { createWorkspaceStandaloneServerRuntimeModules } from '#src/workspace/standaloneServerRuntime';
 import {
   createWorkspaceCodeContribution,
   createWorkspaceResourceContribution,
 } from '#src/workspace/workspaceContributions';
+import {
+  attachWorkspaceVerificationProbeToEntryModule,
+  createWorkspaceVerificationProbeContribution,
+} from '#src/workspace/workspaceVerificationProbe';
 import type {
   CompiledWorkspacePirProjection,
   WorkspaceExportCodeArtifact,
@@ -170,6 +174,14 @@ export const compileWorkspaceToTargetExportProgram = (
     routeTopology,
     serverRuntime,
   });
+  const verificationProbe = createWorkspaceVerificationProbeContribution(
+    workspace,
+    options.verificationProfile
+  );
+  const appModule = attachWorkspaceVerificationProbeToEntryModule(
+    app.module,
+    verificationProbe
+  );
 
   const projectContributions: ExportProgramContribution[] = [
     pirCompilation.contribution,
@@ -186,8 +198,9 @@ export const compileWorkspaceToTargetExportProgram = (
       outputDirectory: 'dist',
     }),
     ...(options.exportContributions ?? []),
+    verificationProbe,
     {
-      entryModuleId: app.module.id,
+      entryModuleId: appModule.id,
       roots: [
         {
           id: 'app',
@@ -198,15 +211,15 @@ export const compileWorkspaceToTargetExportProgram = (
       ],
       modules: [
         createWorkspaceExecutionConsoleRuntimeModule(),
-        createWorkspaceStandaloneDataRuntimeModule(
+        ...createWorkspaceStandaloneDataRuntimeModules(
           workspace,
           dataRuntime.target
         ),
-        createWorkspaceStandaloneServerRuntimeModule(
+        ...createWorkspaceStandaloneServerRuntimeModules(
           serverRuntime.target,
           serverRuntime.bindings
         ),
-        app.module,
+        appModule,
       ],
       diagnostics: [
         ...validationDiagnostics,
@@ -243,7 +256,7 @@ export const compileWorkspaceToTargetExportProgram = (
   const scaffoldContributions = renderLayer.createScaffoldContributions({
     projectName: options.projectName ?? workspace.name ?? 'Prodivix App',
     dependencies,
-    entryModuleId: app.module.id,
+    entryModuleId: appModule.id,
   });
 
   return [...scaffoldContributions, ...projectContributions, { dependencies }]

@@ -12,6 +12,10 @@ import {
   STATIC_CLIENT_DATA_RUNTIME_TARGET,
   type WorkspaceDataRuntimeTarget,
 } from '#src/workspace/workspaceDataRuntimeTarget';
+import {
+  createStandaloneDataRuntimeValidatorProjection,
+  WORKSPACE_DATA_RUNTIME_VALIDATOR_AUTHORITY_MODULE_ID,
+} from '#src/workspace/standaloneDataRuntimeValidators';
 
 export const WORKSPACE_DATA_RUNTIME_MODULE_ID = 'workspace-data-runtime';
 
@@ -931,7 +935,8 @@ export const createWorkspaceDataRuntime = () => {
 /** Generates the standalone projection that reads provider-projected runtime assets. */
 export const createWorkspaceStandaloneDataRuntimeModule = (
   workspace: WorkspaceSnapshot,
-  dataRuntimeTarget: WorkspaceDataRuntimeTarget = STATIC_CLIENT_DATA_RUNTIME_TARGET
+  dataRuntimeTarget: WorkspaceDataRuntimeTarget = STATIC_CLIENT_DATA_RUNTIME_TARGET,
+  validatorAuthorityModuleId?: string
 ): ExportModule => ({
   id: WORKSPACE_DATA_RUNTIME_MODULE_ID,
   kind: 'runtime-helper',
@@ -939,12 +944,19 @@ export const createWorkspaceStandaloneDataRuntimeModule = (
   desiredPath: 'src/prodivix-data-runtime.ts',
   language: 'ts',
   imports: [
-    {
-      kind: 'default',
-      source: 'ajv/dist/2020.js',
-      imported: 'Ajv2020',
-      local: 'Ajv2020',
-    },
+    validatorAuthorityModuleId
+      ? {
+          kind: 'default',
+          source: validatorAuthorityModuleId,
+          targetModuleId: validatorAuthorityModuleId,
+          local: 'Ajv2020',
+        }
+      : {
+          kind: 'default',
+          source: 'ajv/dist/2020.js',
+          imported: 'Ajv2020',
+          local: 'Ajv2020',
+        },
   ],
   body: source(workspace, dataRuntimeTarget),
   sourceTrace: Object.values(workspace.docsById)
@@ -964,3 +976,20 @@ export const createWorkspaceStandaloneDataRuntimeModule = (
     updatePolicy: 'regenerate',
   },
 });
+
+/** Emits the production Data runtime plus its CSP-safe schema authority. */
+export const createWorkspaceStandaloneDataRuntimeModules = (
+  workspace: WorkspaceSnapshot,
+  dataRuntimeTarget: WorkspaceDataRuntimeTarget = STATIC_CLIENT_DATA_RUNTIME_TARGET
+): readonly ExportModule[] => {
+  const projection = createStandaloneDataRuntimeValidatorProjection(workspace);
+  return Object.freeze([
+    createWorkspaceStandaloneDataRuntimeModule(
+      workspace,
+      dataRuntimeTarget,
+      WORKSPACE_DATA_RUNTIME_VALIDATOR_AUTHORITY_MODULE_ID
+    ),
+    projection.authorityModule,
+    ...projection.validatorModules,
+  ]);
+};

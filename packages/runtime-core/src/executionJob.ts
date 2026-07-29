@@ -77,6 +77,28 @@ export const canTransitionExecutionJob = (
   to: ExecutionJobStatus
 ): boolean => allowedTransitions[from].has(to);
 
+/** Allows status summaries to advance across omitted intermediate events. */
+export const canReachExecutionJobStatus = (
+  from: ExecutionJobStatus,
+  to: ExecutionJobStatus
+): boolean => {
+  if (from === to) return true;
+  const visited = new Set<ExecutionJobStatus>([from]);
+  const pending = [from];
+  while (pending.length) {
+    const current = pending.shift();
+    if (!current) continue;
+    for (const next of allowedTransitions[current]) {
+      if (next === to) return true;
+      if (!visited.has(next)) {
+        visited.add(next);
+        pending.push(next);
+      }
+    }
+  }
+  return false;
+};
+
 export class ExecutionJobTransitionError extends Error {
   readonly from: ExecutionJobStatus;
   readonly to: ExecutionJobStatus;

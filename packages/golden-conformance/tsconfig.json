@@ -19,6 +19,8 @@
       "@prodivix/shared": ["../shared/src"],
       "@prodivix/shared/*": ["../shared/src/*"],
       "@prodivix/verification": ["../verification/src"],
+      "@prodivix/verification-adapters": ["../verification-adapters/src"],
+      "@prodivix/verification-browser": ["../verification-browser/src"],
       "@prodivix/workspace": ["../workspace/src"]
     }
   },
@@ -51,6 +53,12 @@
     },
     {
       "path": "../verification"
+    },
+    {
+      "path": "../verification-adapters"
+    },
+    {
+      "path": "../verification-browser"
     },
     {
       "path": "../workspace"

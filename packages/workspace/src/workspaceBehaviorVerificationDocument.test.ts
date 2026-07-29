@@ -178,6 +178,7 @@ const baselineSet: VerificationBaselineSet = {
         mediaType: 'image/png',
       },
       normalizerDigest: digest,
+      compatibilityProfileDigest: digest,
       adoptedAt: issuedAt,
       adoptedBy: 'principal.owner',
     },

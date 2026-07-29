@@ -24,7 +24,7 @@ import {
 } from './goldenG3VerificationPlanFixture';
 
 const EXPECTED_PLAN_DIGEST =
-  'sha256-be24ff531ef1a8d388b2cd59cb00b0eba0cc3fe80749103bedb26e3c5b5c17cc';
+  'sha256-d00b9829832fb2e5854b8c915cafbc4800efaf365c0f72d07e60f7d48042713f';
 
 describe('G3 V4 Impact, Policy, and Plan Golden', () => {
   it('explains PIR, Data, Route guard, NodeGraph, Animation, and shared CodeSlot impact', () => {
@@ -50,6 +50,7 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
     expect(GOLDEN_G3_V4_IMPACT.impactedScenarioIds).toEqual([
       GOLDEN_G3_V4_IDS.catalogScenario,
       GOLDEN_G3_V4_IDS.compositionScenario,
+      GOLDEN_G3_V4_IDS.productionSecurityScenario,
     ]);
     expect(GOLDEN_G3_V4_IMPACT.riskFlags).toEqual([
       'route-guard',
@@ -92,7 +93,11 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
     [
       'pir',
       'pir-node-symbol',
-      [GOLDEN_G3_V4_IDS.catalogScenario, GOLDEN_G3_V4_IDS.compositionScenario],
+      [
+        GOLDEN_G3_V4_IDS.catalogScenario,
+        GOLDEN_G3_V4_IDS.compositionScenario,
+        GOLDEN_G3_V4_IDS.productionSecurityScenario,
+      ],
       [
         GOLDEN_G3_V4_IDS.buildCheck,
         GOLDEN_G3_V4_IDS.catalogCheck,
@@ -115,7 +120,11 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
     [
       'route',
       'route-symbol',
-      [GOLDEN_G3_V4_IDS.catalogScenario, GOLDEN_G3_V4_IDS.compositionScenario],
+      [
+        GOLDEN_G3_V4_IDS.catalogScenario,
+        GOLDEN_G3_V4_IDS.compositionScenario,
+        GOLDEN_G3_V4_IDS.productionSecurityScenario,
+      ],
       [
         GOLDEN_G3_V4_IDS.buildCheck,
         GOLDEN_G3_V4_IDS.catalogCheck,
@@ -143,7 +152,11 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
     [
       'shared-code',
       'code-artifact-symbol',
-      [GOLDEN_G3_V4_IDS.catalogScenario, GOLDEN_G3_V4_IDS.compositionScenario],
+      [
+        GOLDEN_G3_V4_IDS.catalogScenario,
+        GOLDEN_G3_V4_IDS.compositionScenario,
+        GOLDEN_G3_V4_IDS.productionSecurityScenario,
+      ],
       [
         GOLDEN_G3_V4_IDS.buildCheck,
         GOLDEN_G3_V4_IDS.catalogCheck,
@@ -188,7 +201,10 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
                 GOLDEN_G3_V4_IDS.catalogScenario,
                 GOLDEN_G3_V4_IDS.compositionScenario,
               ]
-            : expectedScenarios
+            : expectedScenarios.filter(
+                (scenarioId) =>
+                  scenarioId !== GOLDEN_G3_V4_IDS.productionSecurityScenario
+              )
         )
       );
     }
@@ -302,7 +318,7 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
     expect(decodeVerificationPlan(malformedUnicode).ok).toBe(false);
 
     expect(digestVerificationValue(verificationPlanWireSchema)).toBe(
-      'sha256-e29a613f2f8319a1d79be228b4f15520df03bfea7c1b9041ac4d7e7d0f045231'
+      'sha256-451c4997badd2a7587ee7e31e7ccd50d89c1165dfde195397e652320f08b3a48'
     );
   });
 
@@ -314,6 +330,7 @@ describe('G3 V4 Impact, Policy, and Plan Golden', () => {
     expect(conservative.impactSet.impactedScenarioIds).toEqual([
       GOLDEN_G3_V4_IDS.catalogScenario,
       GOLDEN_G3_V4_IDS.compositionScenario,
+      GOLDEN_G3_V4_IDS.productionSecurityScenario,
     ]);
     expect(conservative.impactSet.capabilityIds).toContain(
       'verification:project'

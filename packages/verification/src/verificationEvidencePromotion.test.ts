@@ -36,6 +36,11 @@ import {
   projectVerificationEvidenceManifest,
 } from './verificationEvidenceManifest';
 import { normalizeVerificationCheckReport } from './verificationEvidenceNormalization';
+import {
+  createVerificationAdapterRegistration,
+  createVerificationAdapterRegistrySnapshot,
+} from './verificationAdapterRegistry';
+import { createVerificationAdapterInputDigest } from './verificationAdapterInputDigest';
 import { createVerificationEvidenceVerifiedView } from './verificationRetention';
 import type {
   EvaluateVerificationClosureInput,
@@ -45,6 +50,36 @@ import type {
 } from './verification.types';
 
 const sha = (label: string): string => digestVerificationValue(label);
+
+const UNIT_ADAPTER_REGISTRATION = createVerificationAdapterRegistration(
+  Object.freeze({
+    id: 'adapter:unit',
+    implementation: Object.freeze({
+      packageName: '@prodivix/verification-test-adapter',
+      packageVersion: '1.0.0',
+      buildDigest: sha('build'),
+      toolchainDigest: sha('toolchain'),
+      schemaDigest: sha('adapter-schema'),
+    }),
+    checkKinds: Object.freeze(['unit'] as const),
+    surfaces: Object.freeze(['preview'] as const),
+    targets: Object.freeze(['react-vite']),
+    browserEngines: Object.freeze(['chromium'] as const),
+    controlCapabilities: Object.freeze([]),
+    inputKinds: Object.freeze(['executable-snapshot'] as const),
+    artifactKinds: Object.freeze(['screenshot'] as const),
+    budgets: Object.freeze({
+      maximumDurationMs: 10_000,
+      maximumArtifactBytes: 1024,
+      maximumEvents: 100,
+    }),
+    trustInputs: Object.freeze(['local-unattested'] as const),
+  }),
+  Object.freeze({ runtimeZones: Object.freeze(['browser']) })
+);
+const UNIT_ADAPTER_REGISTRY = createVerificationAdapterRegistrySnapshot([
+  UNIT_ADAPTER_REGISTRATION,
+]);
 
 const createPlan = (
   options: Readonly<{
@@ -77,9 +112,7 @@ const createPlan = (
       digest: sha('control-profile'),
     }),
     adapter: Object.freeze({
-      adapterId: 'adapter:unit',
-      toolchainDigest: sha('toolchain'),
-      capabilityDigest: sha('capability'),
+      ...UNIT_ADAPTER_REGISTRATION.identity,
     }),
     requirement: 'required' as const,
     policyRuleIds: Object.freeze(['rule:unit']),
@@ -151,7 +184,7 @@ const createPlan = (
     providerSetDigest: sha('providers'),
     compilerDigest: sha('compiler'),
     plannerDigest: sha('planner'),
-    adapterRegistryDigest: sha('adapters'),
+    adapterRegistryDigest: UNIT_ADAPTER_REGISTRY.snapshotDigest,
     cells: Object.freeze([cell]),
     issues: Object.freeze([]),
     explanations: Object.freeze([]),
@@ -302,7 +335,7 @@ const createCandidate = (
 const normalizeCandidateForPlan = (
   plan: VerificationPlan,
   outcome: 'passed' | 'failed',
-  callerTargetPolicy?: Readonly<{
+  _callerTargetPolicy?: Readonly<{
     authority: 'verification-policy';
     policyDigest: string;
     semanticTargetId: string;
@@ -332,30 +365,76 @@ const normalizeCandidateForPlan = (
     expectedMediaType: 'image/png',
     sourceTraceDigest: digestVerificationValue(sourceTraces[0]),
   });
+  const inputRefs = Object.freeze([
+    Object.freeze({
+      id: 'input:executable',
+      kind: 'executable-snapshot' as const,
+      digest: sha('snapshot'),
+      size: 4,
+      mediaType: 'application/octet-stream',
+    }),
+  ]);
+  const inputCoordinates = Object.freeze({
+    runtimeEnvironmentDigest: sha('runtime-environment'),
+    executableSnapshotDigest: sha('snapshot'),
+    controlProfileDigest: sha('control-profile'),
+    fixtureSetDigests: Object.freeze([]),
+    controlCapabilityIds: Object.freeze([]),
+    controlCapabilitySnapshotDigest: sha('control-capabilities'),
+    appliedControlDigest: sha('applied-controls'),
+    inputRefs,
+  });
   return normalizeVerificationCheckReport({
     projectId: 'project:v5',
     plan,
+    adapterRegistry: UNIT_ADAPTER_REGISTRY,
     cellId: cell.id,
     context: Object.freeze({
       cell,
       attemptId,
-      executableSnapshotDigest: sha('snapshot'),
-      controlProfileDigest: sha('control-profile'),
-      fixtureSetDigests: Object.freeze([]),
+      ...inputCoordinates,
+      resolvedInputSetDigest:
+        createVerificationAdapterInputDigest(inputCoordinates),
     }),
     report: Object.freeze({
-      candidateId: `candidate:normalized:${outcome}`,
+      format: 'prodivix.verification-check-report-candidate',
+      version: 1,
       cellId: cell.id,
       attemptId,
-      outcome,
-      normalizedInputDigest: cell.inputDigest,
-      report:
-        reportOverride ??
-        Object.freeze({ assertions: outcome === 'passed' ? 1 : 0 }),
+      checkKind: 'unit',
+      inputDigest: cell.inputDigest,
+      adapter: cell.adapter,
+      tool: UNIT_ADAPTER_REGISTRATION.tool,
+      terminal: Object.freeze({
+        status: 'completed' as const,
+        complete: true as const,
+        exitCode: outcome === 'passed' ? 0 : 1,
+      }),
+      payload: Object.freeze({
+        kind: 'unit' as const,
+        suites: Object.freeze([
+          Object.freeze({
+            suiteId: 'suite:normalized',
+            status:
+              outcome === 'passed' ? ('passed' as const) : ('failed' as const),
+            cases: Object.freeze([
+              Object.freeze({
+                caseId: 'case:normalized',
+                status:
+                  outcome === 'passed'
+                    ? ('passed' as const)
+                    : ('failed' as const),
+                diagnosticCodes: Object.freeze([]),
+                sourceTraceDigest: digestVerificationValue(sourceTraces[0]),
+              }),
+            ]),
+          }),
+        ]),
+        ...(reportOverride ?? {}),
+      }),
       artifacts: Object.freeze([
         Object.freeze({
           id: artifact.id,
-          path: artifact.path,
           kind: artifact.kind,
           digest: artifact.expectedDigest,
           size: artifact.expectedSize,
@@ -378,22 +457,23 @@ const normalizeCandidateForPlan = (
       completedAt: '2026-07-28T00:00:01.000Z',
       durationMs: 1_000,
     }),
-    toolchain: Object.freeze({
-      packageName: '@prodivix/verification-test-adapter',
-      packageVersion: '1.0.0',
-      buildDigest: sha('build'),
-      toolchainDigest: cell.adapter.toolchainDigest,
-      schemaDigest: sha('adapter-schema'),
-    }),
-    normalization: Object.freeze({
-      packageName: '@prodivix/verification',
-      packageVersion: '1.0.0',
-      buildDigest: sha('normalization-build'),
-      toolchainDigest: sha('normalization-toolchain'),
-      schemaDigest: sha('normalization-schema'),
-    }),
-    appliedControlDigest: sha('applied-controls'),
-    artifacts: Object.freeze([artifact]),
+    artifacts: Object.freeze([
+      Object.freeze({
+        id: artifact.id,
+        path: artifact.path,
+        sourceTraceDigest: artifact.sourceTraceDigest,
+      }),
+    ]),
+    stagedArtifacts: Object.freeze([
+      Object.freeze({
+        id: artifact.id,
+        stagingArtifactId: artifact.stagingArtifactId,
+        kind: artifact.kind,
+        digest: artifact.expectedDigest,
+        size: artifact.expectedSize,
+        mediaType: artifact.expectedMediaType,
+      }),
+    ]),
     sourceTraces,
     dependencyLockDigest: sha('lockfile'),
     provenance: Object.freeze({
@@ -407,8 +487,6 @@ const normalizeCandidateForPlan = (
       policyId: 'redaction:default',
       scannerSetDigest: sha('scanners'),
       droppedFieldCounts: Object.freeze({}),
-      safe: true as const,
-      ...(callerTargetPolicy ? { targetPolicy: callerTargetPolicy } : {}),
     }),
     promotion: Object.freeze({
       idempotencyKey: `promotion:normalized:${outcome}`,
@@ -459,7 +537,11 @@ describe('Verification Evidence promotion and wire boundary', () => {
       })
     ).toMatchObject({
       status: 'invalid',
-      issues: [{ path: '/result/summary/unsafeInteger' }],
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          path: '/report/payload/unsafeInteger',
+        }),
+      ]),
     });
     expect(
       normalizeCandidateForPlan(plan, 'passed', undefined, {
@@ -467,7 +549,11 @@ describe('Verification Evidence promotion and wire boundary', () => {
       })
     ).toMatchObject({
       status: 'invalid',
-      issues: [{ path: '/result/summary/invalidUnicode' }],
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          path: '/report/payload',
+        }),
+      ]),
     });
 
     const created = createVerificationEvidenceManifest({

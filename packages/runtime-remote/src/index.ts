@@ -95,6 +95,8 @@ export {
   createRemotePreviewExecutionProvider,
   createRemoteServerFunctionExecutionProvider,
   createRemoteTestExecutionProvider,
+  REMOTE_EXECUTION_PROJECTION_CHECKPOINT_FORMAT,
+  REMOTE_EXECUTION_PROJECTION_CHECKPOINT_VERSION,
   REMOTE_BUILD_EXECUTION_PROVIDER_ID,
   REMOTE_PREVIEW_EXECUTION_PROVIDER_ID,
   REMOTE_SERVER_FUNCTION_EXECUTION_PROVIDER_ID,
@@ -262,6 +264,8 @@ export type {
 } from './remoteExecutionRegionalRecoveryOperator.types';
 export type {
   CreateRemoteExecutionProviderOptions,
+  RemoteExecutionProjectionCheckpoint,
+  RemoteExecutionProvider,
   ResolveRemoteExecutionSnapshot,
 } from './remoteExecutionProvider';
 export type {

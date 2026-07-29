@@ -61,6 +61,7 @@ export type {
   BrowserProjectRuntimeHostLease,
   BrowserProjectRuntimeHostPrepareResult,
   BrowserProjectRuntimeHostProcess,
+  BrowserProjectRuntimeProcessIdentity,
   CreateBrowserProjectRuntimeHostOptions,
 } from './browserProjectRuntimeHost';
 export type {

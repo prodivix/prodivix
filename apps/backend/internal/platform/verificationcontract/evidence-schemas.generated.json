@@ -264,11 +264,17 @@
       },
       "adapterIdentity": {
         "type": "object",
-        "required": ["adapterId", "toolchainDigest", "capabilityDigest"],
+        "required": [
+          "adapterId",
+          "descriptorDigest",
+          "toolchainDigest",
+          "capabilityDigest"
+        ],
         "properties": {
           "adapterId": { "$ref": "#/$defs/canonicalId" },
-          "toolchainDigest": { "$ref": "#/$defs/digest" },
-          "capabilityDigest": { "$ref": "#/$defs/digest" }
+          "descriptorDigest": { "$ref": "#/$defs/sha256Digest" },
+          "toolchainDigest": { "$ref": "#/$defs/sha256Digest" },
+          "capabilityDigest": { "$ref": "#/$defs/sha256Digest" }
         },
         "additionalProperties": false
       },
@@ -395,7 +401,9 @@
                 "executable-snapshot",
                 "scenario-program",
                 "test-report",
-                "baseline-set"
+                "baseline-set",
+                "verification-profile",
+                "security-observation-set"
               ]
             }
           },

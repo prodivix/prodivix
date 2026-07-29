@@ -1,0 +1,32 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
+    "paths": {
+      "@prodivix/behavior": ["../behavior/src"],
+      "@prodivix/runtime-core": ["../runtime-core/src"],
+      "@prodivix/shared": ["../shared/src"],
+      "@prodivix/shared/*": ["../shared/src/*"],
+      "@prodivix/verification": ["../verification/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    {
+      "path": "../behavior"
+    },
+    {
+      "path": "../runtime-core"
+    },
+    {
+      "path": "../shared"
+    },
+    {
+      "path": "../verification"
+    }
+  ]
+}

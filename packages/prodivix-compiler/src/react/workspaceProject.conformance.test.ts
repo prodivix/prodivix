@@ -703,6 +703,9 @@ describe('standalone domain export conformance', () => {
         framework: 'react',
         runtime: 'vite',
       },
+      resourceHints: {
+        timeoutMs: 60_000,
+      },
       buildCommand: {
         command: 'corepack',
         args: ['pnpm', 'run', 'build'],
@@ -818,6 +821,14 @@ describe('standalone domain export conformance', () => {
     expect(consoleRuntime?.contents).toContain(
       'PRODIVIX_CONSOLE_REDACTION_MARKER'
     );
+    expect(consoleRuntime?.sourceTrace).toContainEqual(
+      expect.objectContaining({
+        sourceRef: expect.objectContaining({
+          kind: 'workspace',
+          workspaceId: workspace.id,
+        }),
+      })
+    );
     expect(consoleRuntime?.contents).toContain('prodivixSensitiveConsoleKey');
     expect(consoleRuntime?.contents).toContain('redacted: budget.redacted');
     expect(page?.contents).toContain('subscribeDataLifecycle');
@@ -827,6 +838,7 @@ describe('standalone domain export conformance', () => {
     expect(entry?.contents).toContain('workspaceDataRuntime');
     expect(entry?.contents).toContain("import './prodivix-console-runtime';");
     expect(entry?.contents).toContain('renderWorkspaceRouteComposition(');
+    expect(entry?.contents).toContain('data-prodivix-route-loader="ready"');
     expect(entry?.contents).toContain('__pdxRouteId={activeRouteId}');
     expect(
       projectExecutableProjectRuntimeFiles(result.snapshot).find(

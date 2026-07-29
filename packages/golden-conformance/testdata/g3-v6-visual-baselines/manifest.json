@@ -1,0 +1,17 @@
+{
+  "format": "prodivix.golden-g3-v6-visual-baseline-assets.v1",
+  "assets": [
+    {
+      "id": "asset:g3-v6:catalog-image-black-64x64",
+      "path": "catalog-image-black-64x64.png",
+      "mediaType": "image/png",
+      "width": 64,
+      "height": 64,
+      "assetDigest": "sha256-774d02c24278eb5c0c9eb4f8d5f4eabb5891a6b9c01429492d43d5c89b7a3928",
+      "rasterDigest": "sha256-9ebde0e380725ce43da1288d7b5116011dbba8215a5b8ce1c73af23d64c9c5cc",
+      "authoredFrom": "asset-catalog-product 1x1 opaque black PNG expanded to the authored 64x64 font-free semantic capture region",
+      "adoptedAt": "2026-07-28T00:00:00.000Z",
+      "adoptedBy": "owner:golden-conformance"
+    }
+  ]
+}

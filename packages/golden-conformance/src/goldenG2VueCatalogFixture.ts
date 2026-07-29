@@ -185,7 +185,7 @@ const catalogPir = (): PIRDocument => ({
         'catalog-root': {
           id: 'catalog-root',
           kind: 'element',
-          type: 'main',
+          type: 'section',
           props: {
             className: { kind: 'literal', value: 'catalog' },
             'data-testid': { kind: 'literal', value: 'catalog' },
@@ -204,9 +204,23 @@ const catalogPir = (): PIRDocument => ({
           props: {
             src: { kind: 'literal', value: '/catalog/product.png' },
             alt: { kind: 'literal', value: 'Catalog product' },
-            width: { kind: 'literal', value: 1 },
-            height: { kind: 'literal', value: 1 },
+            width: { kind: 'literal', value: 64 },
+            height: { kind: 'literal', value: 64 },
             'data-testid': { kind: 'literal', value: 'catalog-image' },
+          },
+        },
+        'catalog-live-status': {
+          id: 'catalog-live-status',
+          kind: 'element',
+          type: 'section',
+          props: {
+            role: { kind: 'literal', value: 'status' },
+            'aria-live': { kind: 'literal', value: 'polite' },
+            'aria-atomic': { kind: 'literal', value: true },
+            'data-testid': {
+              kind: 'literal',
+              value: 'catalog-live-status',
+            },
           },
         },
         products: {
@@ -345,13 +359,14 @@ const catalogPir = (): PIRDocument => ({
         'catalog-root': [
           'catalog-title',
           'catalog-image',
-          'products',
+          'catalog-live-status',
           'create-product',
           'update-product',
           'delete-product',
         ],
         'catalog-title': [],
         'catalog-image': [],
+        'catalog-live-status': ['products'],
         products: [],
         'product-card': [],
         'products-loading': [],
@@ -869,7 +884,10 @@ export const GOLDEN_G2_VUE_CATALOG_SERVER_PROVISION: ServerRuntimeTestProvision 
           kind: 'outcome' as const,
           outcome: Object.freeze({
             kind: 'value' as const,
-            value: Object.freeze({ displayName: 'Golden Owner' }),
+            value: Object.freeze({
+              providerId: 'prodivix-product-session',
+              principalId: 'golden-catalog-owner',
+            }),
           }),
         }),
       }),

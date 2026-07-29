@@ -1,44 +1,45 @@
-import { utf8ToBytes } from '@noble/hashes/utils.js';
 import {
   canonicalJsonText,
   compareUnicodeCodePoints,
+  sameCanonicalJson,
 } from '@prodivix/shared/canonical';
-import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
+import { isUnsafeObjectKey } from '@prodivix/shared/safety';
 import {
   digestVerificationValue,
   parseVerificationInstant,
   uniqueVerificationText,
 } from './verificationCanonical';
+import { matchVerificationAdapterRegistryEntry } from './verificationAdapterRegistry';
+import { createVerificationAdapterInputDigest } from './verificationAdapterInputDigest';
+import { normalizeVerificationCheckReportCandidate } from './verificationCheckReportNormalization';
+import {
+  normalizeVerificationArtifactSecretCanaries,
+  scanVerificationArtifactSensitiveText,
+} from './verificationArtifactSensitive';
 import { validateVerificationEvidenceCandidate } from './verificationEvidenceCandidateCodec';
 import { sourceTraces as normalizeVerificationEvidenceSourceTraces } from './verificationEvidenceCandidateSourceTrace';
 import { isVerificationEvidenceUnicodeScalarText } from './verificationEvidenceCodec.primitives';
+import type { VerificationCheckReportCandidate } from './verificationCheckReport.types';
 import type {
-  VerificationCheckReportCandidate,
+  VerificationAdapterInputRef,
+  VerificationAdapterStagedArtifactRef,
+} from './verificationAdapterRuntime.types';
+import type {
+  VerificationAdapterRegistrySnapshot,
   VerificationEvidenceCandidate,
   VerificationEvidenceCandidateArtifact,
+  VerificationEvidenceCandidateArtifactMetadata,
   VerificationEvidenceCandidateIssue,
   VerificationEvidenceCandidateProvenance,
   VerificationEvidenceCandidateResult,
   VerificationEvidenceSourceTrace,
   VerificationImplementationIdentity,
-  VerificationJsonValue,
   VerificationPlan,
-  VerificationRunContext,
 } from './verification.types';
 
 const DIGEST_PATTERN = /^sha256-[a-f0-9]{64}$/u;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
 const ARTIFACT_PATH_SEGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
-const MAXIMUM_REPORT_DEPTH = 32;
-const MAXIMUM_REPORT_NODES = 16_384;
-const MAXIMUM_REPORT_BYTES = 512 * 1024;
-const MAXIMUM_REPORT_STRING_BYTES = 64 * 1024;
-const MAXIMUM_REPORT_OBJECT_KEYS = 2_048;
-
-type ReportState = {
-  nodes: number;
-  objectKeys: number;
-};
 
 const issue = (
   code: VerificationEvidenceCandidateIssue['code'],
@@ -49,113 +50,6 @@ const issue = (
 const isCanonicalString = (value: string): boolean =>
   isVerificationEvidenceUnicodeScalarText(value) &&
   value === value.normalize('NFC');
-
-const normalizeReportValue = (
-  value: unknown,
-  path: string,
-  depth: number,
-  state: ReportState,
-  issues: VerificationEvidenceCandidateIssue[]
-): VerificationJsonValue | undefined => {
-  state.nodes += 1;
-  if (depth > MAXIMUM_REPORT_DEPTH || state.nodes > MAXIMUM_REPORT_NODES) {
-    issues.push(
-      issue('VER-4002', path, 'The normalized report exceeds its shape budget.')
-    );
-    return undefined;
-  }
-  if (value === null || typeof value === 'boolean') return value;
-  if (typeof value === 'number') {
-    if (
-      !Number.isFinite(value) ||
-      (Number.isInteger(value) && !Number.isSafeInteger(value))
-    ) {
-      issues.push(
-        issue(
-          'VER-4002',
-          path,
-          'The normalized report contains a non-finite or unsafe integer.'
-        )
-      );
-      return undefined;
-    }
-    return Object.is(value, -0) ? 0 : value;
-  }
-  if (typeof value === 'string') {
-    if (
-      !isCanonicalString(value) ||
-      utf8ToBytes(value).byteLength > MAXIMUM_REPORT_STRING_BYTES
-    ) {
-      issues.push(
-        issue(
-          'VER-4002',
-          path,
-          'The normalized report string is non-canonical or over budget.'
-        )
-      );
-      return undefined;
-    }
-    return value;
-  }
-  if (Array.isArray(value)) {
-    const normalized: VerificationJsonValue[] = [];
-    value.forEach((entry, index) => {
-      const result = normalizeReportValue(
-        entry,
-        `${path}/${index}`,
-        depth + 1,
-        state,
-        issues
-      );
-      if (result !== undefined) normalized.push(result);
-    });
-    return Object.freeze(normalized);
-  }
-  if (!isPlainObject(value)) {
-    issues.push(
-      issue(
-        'VER-4002',
-        path,
-        'The normalized report must contain only plain JSON values.'
-      )
-    );
-    return undefined;
-  }
-  const keys = Object.keys(value).sort(compareUnicodeCodePoints);
-  state.objectKeys += keys.length;
-  if (
-    state.objectKeys > MAXIMUM_REPORT_OBJECT_KEYS ||
-    keys.some(
-      (key) =>
-        !isCanonicalString(key) ||
-        isUnsafeObjectKey(key) ||
-        utf8ToBytes(key).byteLength > 512
-    )
-  ) {
-    issues.push(
-      issue(
-        'VER-4002',
-        path,
-        'The normalized report contains unsafe, non-canonical, or excessive object keys.'
-      )
-    );
-    return undefined;
-  }
-  const normalized: Record<string, VerificationJsonValue> = Object.create(
-    null
-  ) as Record<string, VerificationJsonValue>;
-  for (const key of keys) {
-    const result = normalizeReportValue(
-      value[key],
-      `${path}/${key}`,
-      depth + 1,
-      state,
-      issues
-    );
-    if (result !== undefined) normalized[key] = result;
-  }
-  return Object.freeze(normalized);
-};
 
 const canonicalArtifactPath = (value: string): boolean => {
   if (
@@ -181,41 +75,73 @@ const canonicalArtifactPath = (value: string): boolean => {
   );
 };
 
-const canonicalArtifact = (
-  artifact: VerificationEvidenceCandidateArtifact
-): VerificationEvidenceCandidateArtifact =>
+const canonicalArtifactMetadata = (
+  artifact: VerificationEvidenceCandidateArtifactMetadata
+): VerificationEvidenceCandidateArtifactMetadata =>
   Object.freeze({
     id: artifact.id,
     path: artifact.path,
-    stagingArtifactId: artifact.stagingArtifactId,
-    kind: artifact.kind,
-    expectedDigest: artifact.expectedDigest,
-    expectedSize: artifact.expectedSize,
-    expectedMediaType: artifact.expectedMediaType,
     ...(artifact.sourceTraceDigest
       ? { sourceTraceDigest: artifact.sourceTraceDigest }
       : {}),
   });
 
+export const VERIFICATION_CORE_NORMALIZATION_IDENTITY: VerificationImplementationIdentity =
+  Object.freeze({
+    packageName: '@prodivix/verification',
+    packageVersion: '0.0.1',
+    buildDigest: digestVerificationValue({
+      owner: '@prodivix/verification',
+      normalizer: 'verification-check-report',
+      version: 1,
+    }),
+    toolchainDigest: digestVerificationValue({
+      owner: '@prodivix/verification',
+      runtime: 'transport-neutral-core',
+      version: 1,
+    }),
+    schemaDigest: digestVerificationValue({
+      schema: 'prodivix.verification-normalized-check-report.v1',
+      candidateSchema: 'prodivix.verification-evidence-candidate.v1',
+    }),
+  });
+
+export type VerificationEvidenceNormalizationContext = Readonly<{
+  cell: VerificationPlan['cells'][number];
+  attemptId: string;
+  resolvedInputSetDigest: string;
+  runtimeEnvironmentDigest: string;
+  executableSnapshotDigest: string;
+  scenarioProgramDigest?: string;
+  controlProfileDigest: string;
+  fixtureSetDigests: readonly string[];
+  baselineSetDigest?: string;
+  controlCapabilityIds: readonly string[];
+  controlCapabilitySnapshotDigest: string;
+  appliedControlDigest: string;
+  inputRefs: readonly VerificationAdapterInputRef[];
+}>;
+
 const validateArtifactDescriptors = (
   report: VerificationCheckReportCandidate,
-  artifacts: readonly VerificationEvidenceCandidateArtifact[],
+  artifactMetadata: readonly VerificationEvidenceCandidateArtifactMetadata[],
+  stagedArtifacts: readonly VerificationAdapterStagedArtifactRef[],
   issues: VerificationEvidenceCandidateIssue[]
 ): readonly VerificationEvidenceCandidateArtifact[] => {
-  if (artifacts.length > 128) {
+  if (artifactMetadata.length > 128 || stagedArtifacts.length > 128) {
     issues.push(
       issue('VER-4002', '/artifacts', 'The candidate has too many artifacts.')
     );
   }
-  const normalized = [...artifacts]
-    .map(canonicalArtifact)
+  const metadata = [...artifactMetadata]
+    .map(canonicalArtifactMetadata)
     .sort((left, right) => compareUnicodeCodePoints(left.id, right.id));
   const identities = [
-    ['id', normalized.map(({ id }) => id)],
-    ['path', normalized.map(({ path }) => path)],
+    ['id', metadata.map(({ id }) => id)],
+    ['path', metadata.map(({ path }) => path)],
     [
       'stagingArtifactId',
-      normalized.map(({ stagingArtifactId }) => stagingArtifactId),
+      stagedArtifacts.map(({ stagingArtifactId }) => stagingArtifactId),
     ],
   ] as const;
   for (const [label, values] of identities) {
@@ -229,21 +155,11 @@ const validateArtifactDescriptors = (
       );
     }
   }
-  normalized.forEach((artifact, index) => {
+  metadata.forEach((artifact, index) => {
     const path = `/artifacts/${index}`;
     if (
       !ID_PATTERN.test(artifact.id) ||
-      !ID_PATTERN.test(artifact.stagingArtifactId) ||
       !canonicalArtifactPath(artifact.path) ||
-      !DIGEST_PATTERN.test(artifact.expectedDigest) ||
-      !Number.isSafeInteger(artifact.expectedSize) ||
-      artifact.expectedSize < 0 ||
-      artifact.expectedSize > 512 * 1024 * 1024 ||
-      artifact.expectedMediaType !==
-        artifact.expectedMediaType.trim().toLowerCase() ||
-      !/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(
-        artifact.expectedMediaType
-      ) ||
       (artifact.sourceTraceDigest !== undefined &&
         !DIGEST_PATTERN.test(artifact.sourceTraceDigest))
     ) {
@@ -256,12 +172,17 @@ const validateArtifactDescriptors = (
       );
     }
   });
+  const stagedById = new Map(
+    stagedArtifacts.map((artifact) => [artifact.id, artifact])
+  );
   const reportById = new Map(
     report.artifacts.map((artifact) => [artifact.id, artifact])
   );
   if (
     reportById.size !== report.artifacts.length ||
-    report.artifacts.length !== normalized.length
+    stagedById.size !== stagedArtifacts.length ||
+    report.artifacts.length !== metadata.length ||
+    stagedArtifacts.length !== metadata.length
   ) {
     issues.push(
       issue(
@@ -271,14 +192,26 @@ const validateArtifactDescriptors = (
       )
     );
   }
-  for (const artifact of normalized) {
+  const normalized: VerificationEvidenceCandidateArtifact[] = [];
+  for (const artifact of metadata) {
     const claimed = reportById.get(artifact.id);
+    const staged = stagedById.get(artifact.id);
     if (
       !claimed ||
-      claimed.kind !== artifact.kind ||
-      claimed.digest !== artifact.expectedDigest ||
-      claimed.size !== artifact.expectedSize ||
-      claimed.mediaType !== artifact.expectedMediaType
+      !staged ||
+      !ID_PATTERN.test(staged.stagingArtifactId) ||
+      !DIGEST_PATTERN.test(staged.digest) ||
+      !Number.isSafeInteger(staged.size) ||
+      staged.size < 0 ||
+      staged.size > 512 * 1024 * 1024 ||
+      staged.mediaType !== staged.mediaType.trim().toLowerCase() ||
+      !/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(
+        staged.mediaType
+      ) ||
+      claimed.kind !== staged.kind ||
+      claimed.digest !== staged.digest ||
+      claimed.size !== staged.size ||
+      claimed.mediaType !== staged.mediaType
     ) {
       issues.push(
         issue(
@@ -287,7 +220,22 @@ const validateArtifactDescriptors = (
           'Adapter and staged artifact descriptors do not match exactly.'
         )
       );
+      continue;
     }
+    normalized.push(
+      Object.freeze({
+        id: artifact.id,
+        path: artifact.path,
+        stagingArtifactId: staged.stagingArtifactId,
+        kind: staged.kind,
+        expectedDigest: staged.digest,
+        expectedSize: staged.size,
+        expectedMediaType: staged.mediaType,
+        ...(artifact.sourceTraceDigest
+          ? { sourceTraceDigest: artifact.sourceTraceDigest }
+          : {}),
+      })
+    );
   }
   return Object.freeze(normalized);
 };
@@ -295,9 +243,10 @@ const validateArtifactDescriptors = (
 export type NormalizeVerificationCheckReportInput = Readonly<{
   projectId: string;
   plan: VerificationPlan;
+  adapterRegistry: VerificationAdapterRegistrySnapshot;
   cellId: string;
-  context: Omit<VerificationRunContext, 'abortSignal'>;
-  report: VerificationCheckReportCandidate;
+  context: VerificationEvidenceNormalizationContext;
+  report: unknown;
   scenario?: Readonly<{
     id: string;
     revision: number;
@@ -322,10 +271,8 @@ export type NormalizeVerificationCheckReportInput = Readonly<{
     completedAt: string;
     durationMs: number;
   }>;
-  toolchain: VerificationImplementationIdentity;
-  normalization: VerificationImplementationIdentity;
-  appliedControlDigest: string;
-  artifacts: readonly VerificationEvidenceCandidateArtifact[];
+  artifacts: readonly VerificationEvidenceCandidateArtifactMetadata[];
+  stagedArtifacts: readonly VerificationAdapterStagedArtifactRef[];
   sourceTraces: readonly VerificationEvidenceSourceTrace[];
   dependencyLockDigest: string;
   provenance: VerificationEvidenceCandidateProvenance;
@@ -333,7 +280,7 @@ export type NormalizeVerificationCheckReportInput = Readonly<{
     policyId: string;
     scannerSetDigest: string;
     droppedFieldCounts: Readonly<Record<string, number>>;
-    safe: true;
+    secretCanaries?: readonly string[];
   }>;
   promotion: Readonly<{
     idempotencyKey: string;
@@ -349,6 +296,41 @@ const invalidInput = (
   issues.push(issue('VER-5001', path, message));
 };
 
+const reportSourceTraceDigests = (
+  payload: VerificationCheckReportCandidate['payload']
+): readonly string[] => {
+  switch (payload.kind) {
+    case 'diagnostics':
+    case 'build':
+    case 'security':
+      return payload.findings.flatMap(({ sourceTraceDigest }) =>
+        sourceTraceDigest ? [sourceTraceDigest] : []
+      );
+    case 'unit':
+    case 'integration':
+      return payload.suites.flatMap(({ cases }) =>
+        cases.flatMap(({ sourceTraceDigest }) =>
+          sourceTraceDigest ? [sourceTraceDigest] : []
+        )
+      );
+    case 'e2e':
+      return payload.steps.flatMap(({ sourceTraceDigest }) =>
+        sourceTraceDigest ? [sourceTraceDigest] : []
+      );
+    case 'visual':
+      return payload.comparisons.flatMap(({ sourceTraceDigest }) =>
+        sourceTraceDigest ? [sourceTraceDigest] : []
+      );
+    case 'accessibility':
+      return [...payload.findings, ...payload.journeys].flatMap(
+        ({ sourceTraceDigest }) =>
+          sourceTraceDigest ? [sourceTraceDigest] : []
+      );
+    case 'performance':
+      return [];
+  }
+};
+
 /**
  * Converts the bounded adapter report into the only candidate shape accepted by
  * Evidence intake. Adapters cannot choose trust, retention escalation, Plan
@@ -358,6 +340,25 @@ export const normalizeVerificationCheckReport = (
   input: NormalizeVerificationCheckReportInput
 ): VerificationEvidenceCandidateResult => {
   const issues: VerificationEvidenceCandidateIssue[] = [];
+  const normalizedCheckReport = normalizeVerificationCheckReportCandidate(
+    input.report
+  );
+  if (normalizedCheckReport.status === 'invalid') {
+    return Object.freeze({
+      status: 'invalid',
+      issues: Object.freeze(
+        normalizedCheckReport.issues.map((entry) =>
+          issue(
+            entry.code === 'VER-5002' ? 'VER-5002' : 'VER-4002',
+            `/report${entry.path}`,
+            entry.message
+          )
+        )
+      ),
+    });
+  }
+  const reportCandidate = normalizedCheckReport.candidate;
+  const normalizedReport = normalizedCheckReport.report;
   const { planDigest, ...planWithoutDigest } = input.plan;
   if (digestVerificationValue(planWithoutDigest) !== planDigest) {
     invalidInput(
@@ -389,6 +390,37 @@ export const normalizeVerificationCheckReport = (
       issues
     );
   }
+  let registryEntry:
+    VerificationAdapterRegistrySnapshot['entries'][number] | undefined;
+  try {
+    if (
+      input.adapterRegistry.snapshotDigest !== input.plan.adapterRegistryDigest
+    ) {
+      invalidInput(
+        '/adapterRegistry/snapshotDigest',
+        'The adapter registry snapshot does not match the Plan.',
+        issues
+      );
+    } else {
+      registryEntry = matchVerificationAdapterRegistryEntry(
+        input.adapterRegistry,
+        cell.adapter
+      );
+      if (!registryEntry) {
+        invalidInput(
+          '/adapterRegistry',
+          'The Plan cell adapter identity is absent or drifted in the registry snapshot.',
+          issues
+        );
+      }
+    }
+  } catch {
+    invalidInput(
+      '/adapterRegistry',
+      'The adapter registry snapshot is malformed or non-canonical.',
+      issues
+    );
+  }
   if (
     cell.targetPolicy.authority !== 'verification-policy' ||
     cell.targetPolicy.policyDigest !== input.plan.policyDigest ||
@@ -401,9 +433,13 @@ export const normalizeVerificationCheckReport = (
     );
   }
   if (
-    input.report.cellId !== cell.id ||
-    input.report.attemptId !== input.context.attemptId ||
-    input.report.normalizedInputDigest !== cell.inputDigest
+    reportCandidate.cellId !== cell.id ||
+    reportCandidate.attemptId !== input.context.attemptId ||
+    reportCandidate.checkKind !== cell.checkKind ||
+    reportCandidate.inputDigest !== cell.inputDigest ||
+    !sameCanonicalJson(reportCandidate.adapter, cell.adapter) ||
+    (registryEntry !== undefined &&
+      !sameCanonicalJson(reportCandidate.tool, registryEntry.tool))
   ) {
     invalidInput(
       '/report',
@@ -424,13 +460,10 @@ export const normalizeVerificationCheckReport = (
       issues
     );
   }
-  if (
-    input.toolchain.toolchainDigest !== cell.adapter.toolchainDigest ||
-    input.provenance.providerId !== input.run.providerId
-  ) {
+  if (input.provenance.providerId !== input.run.providerId) {
     invalidInput(
-      '/toolchain',
-      'Toolchain or provider identity drifted from the Plan/run context.',
+      '/provenance/providerId',
+      'Provider identity drifted from the run context.',
       issues
     );
   }
@@ -441,6 +474,49 @@ export const normalizeVerificationCheckReport = (
     invalidInput(
       '/controls/profileDigest',
       'The control profile digest drifted from the Plan cell.',
+      issues
+    );
+  }
+  if (!DIGEST_PATTERN.test(input.context.appliedControlDigest)) {
+    invalidInput(
+      '/controls/appliedDigest',
+      'The Core-applied control digest is invalid.',
+      issues
+    );
+  }
+  let recomputedResolvedInputSetDigest: string | undefined;
+  try {
+    recomputedResolvedInputSetDigest = createVerificationAdapterInputDigest({
+      runtimeEnvironmentDigest: input.context.runtimeEnvironmentDigest,
+      executableSnapshotDigest: input.context.executableSnapshotDigest,
+      ...(input.context.scenarioProgramDigest === undefined
+        ? {}
+        : { scenarioProgramDigest: input.context.scenarioProgramDigest }),
+      controlProfileDigest: input.context.controlProfileDigest,
+      fixtureSetDigests: input.context.fixtureSetDigests,
+      ...(input.context.baselineSetDigest === undefined
+        ? {}
+        : { baselineSetDigest: input.context.baselineSetDigest }),
+      controlCapabilityIds: input.context.controlCapabilityIds,
+      controlCapabilitySnapshotDigest:
+        input.context.controlCapabilitySnapshotDigest,
+      appliedControlDigest: input.context.appliedControlDigest,
+      inputRefs: input.context.inputRefs,
+    });
+  } catch {
+    invalidInput(
+      '/context/resolvedInputSetDigest',
+      'The resolved adapter input set is malformed.',
+      issues
+    );
+  }
+  if (
+    recomputedResolvedInputSetDigest !== undefined &&
+    recomputedResolvedInputSetDigest !== input.context.resolvedInputSetDigest
+  ) {
+    invalidInput(
+      '/context/resolvedInputSetDigest',
+      'The resolved adapter input set digest drifted.',
       issues
     );
   }
@@ -499,28 +575,10 @@ export const normalizeVerificationCheckReport = (
       issues
     );
   }
-  const report = normalizeReportValue(
-    input.report.report,
-    '/result/summary',
-    0,
-    { nodes: 0, objectKeys: 0 },
-    issues
-  );
-  if (
-    report !== undefined &&
-    utf8ToBytes(canonicalJsonText(report)).byteLength > MAXIMUM_REPORT_BYTES
-  ) {
-    issues.push(
-      issue(
-        'VER-4002',
-        '/result/summary',
-        'The normalized report is over budget.'
-      )
-    );
-  }
   const artifacts = validateArtifactDescriptors(
-    input.report,
+    reportCandidate,
     input.artifacts,
+    input.stagedArtifacts,
     issues
   );
   const sourceTraces = normalizeVerificationEvidenceSourceTraces(
@@ -546,17 +604,97 @@ export const normalizeVerificationCheckReport = (
         );
       }
     });
+    reportSourceTraceDigests(reportCandidate.payload).forEach(
+      (sourceTraceDigest, index) => {
+        if (!sourceTraceDigests.has(sourceTraceDigest)) {
+          issues.push(
+            issue(
+              'VER-5001',
+              `/report/sourceTraceDigests/${index}`,
+              'The report source trace digest does not identify one canonical source trace.'
+            )
+          );
+        }
+      }
+    );
+    let secretCanaries: readonly string[] = [];
+    try {
+      secretCanaries = normalizeVerificationArtifactSecretCanaries(
+        input.redaction.secretCanaries
+      );
+    } catch {
+      issues.push(
+        issue(
+          'VER-5002',
+          '/redaction/secretCanaries',
+          'The secret canary set is invalid or over budget.'
+        )
+      );
+    }
+    const freeTextFields = [
+      ...sourceTraces.flatMap(({ label }, index) =>
+        label ? [{ path: `/sourceTraces/${index}/label`, value: label }] : []
+      ),
+      ...(input.run.operatingSystemIdentity
+        ? [
+            {
+              path: '/run/operatingSystemIdentity',
+              value: input.run.operatingSystemIdentity,
+            },
+          ]
+        : []),
+    ];
+    for (const field of freeTextFields) {
+      if (
+        scanVerificationArtifactSensitiveText(field.value, secretCanaries)
+          .length > 0
+      ) {
+        issues.push(
+          issue(
+            'VER-5002',
+            field.path,
+            'A free-text Evidence field contains sensitive content.'
+          )
+        );
+      }
+    }
   }
-  if (issues.length > 0 || report === undefined || !sourceTraces) {
+  const droppedFieldEntries = Object.entries(
+    input.redaction.droppedFieldCounts
+  );
+  if (
+    droppedFieldEntries.some(
+      ([key, count]) =>
+        !isCanonicalString(key) ||
+        isUnsafeObjectKey(key) ||
+        !Number.isSafeInteger(count) ||
+        count < 0
+    )
+  ) {
+    issues.push(
+      issue(
+        'VER-4002',
+        '/redaction/droppedFieldCounts',
+        'Dropped-field counts are unsafe or non-canonical.'
+      )
+    );
+  }
+  if (issues.length > 0 || !sourceTraces || !registryEntry) {
     return Object.freeze({
       status: 'invalid',
       issues: Object.freeze(issues),
     });
   }
-  const diagnosticCodes = uniqueVerificationText(input.report.diagnosticCodes);
+  const diagnosticCodes = uniqueVerificationText(
+    normalizedReport.diagnosticCodes
+  );
   const normalizedResultWithoutDigest = Object.freeze({
-    outcome: input.report.outcome,
-    summary: report,
+    outcome: normalizedReport.outcome,
+    summary: Object.freeze({
+      schema: 'prodivix.verification-evidence-bound-report.v1',
+      resolvedInputSetDigest: input.context.resolvedInputSetDigest,
+      report: normalizedReport.summary,
+    }),
     diagnosticCodes,
     appliedExemptionIds: Object.freeze([...cell.appliedExemptionIds]),
   });
@@ -565,13 +703,16 @@ export const normalizeVerificationCheckReport = (
   );
   const droppedFieldCounts = Object.freeze(
     Object.fromEntries(
-      Object.entries(input.redaction.droppedFieldCounts).sort(
-        ([left], [right]) => compareUnicodeCodePoints(left, right)
+      droppedFieldEntries.sort(([left], [right]) =>
+        compareUnicodeCodePoints(left, right)
       )
     )
   );
   const candidateWithoutDigest = Object.freeze({
-    candidateId: input.report.candidateId,
+    candidateId: `candidate:${digestVerificationValue({
+      checkReportCandidateId: normalizedReport.candidateId,
+      resolvedInputSetDigest: input.context.resolvedInputSetDigest,
+    })}`,
     projectId: input.projectId,
     workspaceId: input.plan.workspaceId,
     workspaceRevision: input.plan.targetRevision,
@@ -624,11 +765,11 @@ export const normalizeVerificationCheckReport = (
       normalizedResultDigest,
     }),
     provenance: Object.freeze({ ...input.provenance }),
-    toolchain: Object.freeze({ ...input.toolchain }),
-    normalization: Object.freeze({ ...input.normalization }),
+    toolchain: registryEntry.descriptor.implementation,
+    normalization: VERIFICATION_CORE_NORMALIZATION_IDENTITY,
     controls: Object.freeze({
       profileDigest: input.context.controlProfileDigest,
-      appliedDigest: input.appliedControlDigest,
+      appliedDigest: input.context.appliedControlDigest,
     }),
     inputs: Object.freeze({
       executableSnapshotDigest: input.context.executableSnapshotDigest,
@@ -639,7 +780,7 @@ export const normalizeVerificationCheckReport = (
       ...(input.context.baselineSetDigest
         ? { baselineSetDigest: input.context.baselineSetDigest }
         : {}),
-      inputDigest: input.report.normalizedInputDigest,
+      inputDigest: reportCandidate.inputDigest,
     }),
     artifacts,
     sourceTraces,
@@ -653,7 +794,7 @@ export const normalizeVerificationCheckReport = (
       safe: true as const,
     }),
     requestedRetention:
-      input.report.outcome === 'passed'
+      normalizedReport.outcome === 'passed'
         ? input.plan.retentionRequest.successful
         : input.plan.retentionRequest.failed,
     promotion: Object.freeze({ ...input.promotion }),

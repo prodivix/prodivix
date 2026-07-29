@@ -3,11 +3,11 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Not Started
-- ProductGateStatus：Blocked by G2 Exit Gate
+- ImplementationStatus：Implemented locally / CI Evidence pending
+- ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-20
-- Owner：`@prodivix/verification`、verification adapters、`@prodivix/runtime-core`、`apps/backend`、`apps/web`、CI composition
+- 日期：2026-07-29
+- Owner：`@prodivix/verification`、`@prodivix/verification-adapters`、`@prodivix/verification-browser`、`@prodivix/runtime-core`、Compiler/Runtime providers、`apps/backend`、`apps/web`、CI composition
 - 关联：
   - `specs/decisions/62.verification-adapter-matrix-and-cross-target-closure.md`
   - `specs/decisions/63.verification-product-surface-diagnostics-and-ci.md`
@@ -17,8 +17,10 @@
 
 ## 目标
 
-用受控 adapter 把 canonical VerificationPlan cell 映射到具体检查工具和 runner，并把私有结果规范化为
-EvidenceCandidate。交付 Scenarios/Verification/Issues/Execution/SourceTrace 一体的产品 journey，以及与 Web 使用同一
+用受控 adapter 把 canonical VerificationPlan cell 映射到具体检查工具和 runner，将工具私有结果收敛为 bounded、
+未经信任的 `VerificationCheckReportCandidate`，再由 Verification Core 独家规范化为
+`VerificationEvidenceCandidate`。交付
+Scenarios/Verification/Issues/Execution/SourceTrace 一体的产品 journey，以及与 Web 使用同一
 planner、codec、adapter 和 Closure evaluator 的 provider-neutral CLI/CI contract。
 
 ## 范围
@@ -47,18 +49,22 @@ planner、codec、adapter 和 Closure evaluator 的 provider-neutral CLI/CI cont
 的形状由 ADR 62「Adapter 生命周期与信任边界」冻结，本节不重述,只补运行期签名细节：
 
 ```ts
-interface VerificationAdapter {
+type VerificationAdapter = Readonly<{
   preflight(
     cell: VerificationPlanCell,
-    context: AdapterContext
-  ): Promise<AdapterPreflight>;
-  prepare(input: AdapterPrepareInput): Promise<PreparedVerificationInvocation>;
+    context: VerificationAdapterContext
+  ): Promise<VerificationAdapterPreflight>;
+  prepare(
+    input: VerificationAdapterPrepareInput
+  ): Promise<VerificationAdapterPreparedInvocationCandidate>;
   execute(
     invocation: PreparedVerificationInvocation,
     sink: VerificationEventSink
   ): Promise<VerificationCheckReportCandidate>;
-  cleanup(input: AdapterCleanupInput): Promise<AdapterCleanupResult>;
-}
+  cleanup(
+    input: VerificationAdapterCleanupInput
+  ): Promise<VerificationAdapterCleanupResult>;
+}>;
 ```
 
 两条约束直接来自 ADR 62，实现时不可绕过：
@@ -77,10 +83,26 @@ interface VerificationAdapter {
 - descriptor 是构建期 registry contribution，不从 Workspace 动态加载代码；
 - `preflight` 只判断 capability/contract，不执行检查或修改 Plan；
 - `prepare` 只接收 exact plan cell 和 content-addressed inputs；
-- raw tool output 留在 adapter/sandbox staging，只有 normalized candidate 越界；
+- raw tool output 留在 adapter/sandbox staging，只有 bounded、未经信任的
+  `VerificationCheckReportCandidate` 越过 adapter 边界；Evidence normalization 仍只在 Core；
 - event sink 使用 canonical lifecycle/progress/diagnostic/artifact envelope 并有预算；
 - cleanup 无论 success/failure/cancel/timeout 都运行，并报告 residual canary；
 - adapter 不写 Workspace/Evidence DB，不解析 Secret，不改变 required/advisory。
+
+Core lifecycle kernel 对同一 attempt generation 强制 concurrent single-flight，并把 resolved input、event 与
+artifact staging 绑定到 exact `planDigest/cellId/attemptId/generation`。registered first-party adapter 的
+`cleanup` 是 terminal acknowledgement；cleanup 后 Core port 永久拒绝该 generation 的 event/stage，detached
+JavaScript timer、late promise 或回调不能成为可追溯结果。跨进程/序贯 exact-once 继续由 V5 PostgreSQL
+AttemptGrant 的 `UNIQUE(workspace, plan, cell, attempt)` 与一次性 claim authority负责；generation 不写入 V5
+Evidence wire。
+
+当前 package owner 配置为：
+
+- `@prodivix/verification`：descriptor/registry/SPI、lifecycle kernel、candidate normalization 与 Evidence 构造；
+- `@prodivix/verification-adapters`：diagnostics/build/unit/integration 的 first-party controlled factory；
+- `@prodivix/verification-browser`：E2E/visual/accessibility/performance/security 的 private decoder、
+  comparison kernel 与 Browser invocation port；
+- Runtime/Compiler/Golden 只组合 exact snapshot/provider/probe 与 matrix，不重新拥有 adapter contract。
 
 ## Registry 与 capability snapshot
 
@@ -90,6 +112,10 @@ runtime support、control support 和 known limitations。Planner 使用 immutab
 
 public adapter API 不暴露 Playwright `Page`、Vitest task、axe result、browser context、filesystem path 或 vendor SDK。
 future G6 adapter 必须先通过相同 conformance/security boundary，G3 只允许 first-party/explicitly bundled adapters。
+
+Golden conformance 的 AJV runtime schema compile 暂时需要 `unsafe-eval`；受控 Golden CSP 基线显式声明该
+能力并绑定独立固定 digest，Browser security cell 对同一 Golden production output验证 exact policy/no widening。
+这不等于 hardened production CSP；移除 `unsafe-eval` 需由 Compiler 预编译 AJV validator 后另行收口。
 
 ## Check families
 
@@ -126,6 +152,12 @@ identity、normalized state、SourceTrace 和 owner-declared readiness；生产 
 comparison。diff 算法/version/threshold/mask semantic refs 进入 identity；动态区域只能用 authored semantic mask，不能运行时
 自动忽略失败像素。
 
+Baseline 必须在 attempt 前已由 Workspace Transaction 采纳并 content-addressed；compatibility identity 至少绑定
+OS/browser/font/viewport/DPR/color/motion/renderer。禁止把本次 current screenshot 同时当作 baseline，或在 failure
+后自动改写 baseline/mask。
+GitHub workflow 固定 `ubuntu-24.04` 仍不等于 exact environment identity；runner 必须把实际
+`ImageVersion` 与 pre-adopted registry 精确匹配。缺失/未知/漂移时 fail closed，不能降级成泛化 Ubuntu label。
+
 ### Accessibility
 
 组合自动规则与 Scenario semantic assertions：可访问名称、role/state、focus order/restore、keyboard interaction、live region、
@@ -141,6 +173,24 @@ sampling policy 来自 Policy；环境不可比时只 view-only/unstable。G3 �
 验证 no-Secret/client bundle、CSP/headers、network allowlist、permission denial、artifact redaction、verification probe stripped、
 path/archive/binary bounds 和 known unsafe capability。它不取代完整供应链/渗透测试，也不执行未批准 live target。
 
+Security report 采用固定的 `4 + 3 + 2 = 9` owner/时序：
+
+1. `@prodivix/verification-browser` runtime 只采集 network、CSP、Permissions Policy、sandbox 四项；
+2. adapter 通过 content-addressed `security-observation-set` 接收 Secret scanner、full production bundle
+   probe scanner、output artifact inspector 三项 G2 authority-bound observation；Secret/output owner 是
+   `@prodivix/runtime-core`，bundle scan owner 是 `@prodivix/prodivix-compiler`。adapter 逐项按 source digest 与
+   exact attempt binding 向真实 owner re-resolve；四项与三项组成 strict seven-rule pre-finalization report；
+3. `@prodivix/verification` Core 在 artifact staging descriptor/bytes exact match、transport drain、terminal-port
+   fence 和 clean cleanup 全部成功后，才 finalization `security.artifact-digest-drift` 与
+   `security.cleanup-residual` 两项，并以
+   public decoder 要求 strict nine-rule report。失败路径不得伪造这两项为已观察，也不得产生 Evidence candidate。
+
+production probe scanner 的输入必须是 Compiler 产出的 exact full production bundle/source manifest。
+`page.content()`/rendered DOM 只代表某一时刻的渲染结果，会遗漏未执行 chunk、worker、source map 与其他输出，因此
+不得作为 `security.production-probe-leak` 证据。
+Browser-owned network/header/sandbox observation 必须在 browser/provider trusted boundary 采集；author realm 对
+`window`、DOM prototype、frame state 或公开 collector 的 monkeypatch 不得改变安全 verdict。
+
 ## Surface / target / browser matrix
 
 ### Surface
@@ -150,6 +200,15 @@ path/archive/binary bounds 和 known unsafe capability。它不取代完整供�
 - `ci`：非交互 runner 执行 canonical Plan，并生成 CI-attested Evidence。
 
 同一 Scenario/Check identity 跨 surface，cell identity 区分 surface。Preview pass 不能替代 required Export/CI cell。
+controlled Golden 的 Preview Browser 与 Remote 是同一 Plan cell 的两个 required attempts，而不是新增 matrix axis。
+Remote attempt 必须实际经过 `@prodivix/runtime-remote` execution/control-plane、exact bundle、readiness 与 cursor
+lifecycle；仅回显 request/result 的 fake transport 只可用于单元测试，不能计入 matrix evidence。
+Data、Auth 与 Recovery 使用 Scenario-internal controlled profiles，不继续扩张 66-cell Plan；V6 aggregate 必须直接
+运行各 profile 的 owner test/manifest，并在 evidence 中逐项列出，不得用旧 V2/V3 结果代替。
+canonical companion manifest 位于
+`packages/golden-conformance/src/goldenG3V6ControlledDimensionManifest.ts`，由
+`test:g3-v6-controlled-dimensions` 精确重跑 8 个 owner suites、绑定 28 个指定 cases，并拒绝所选文件中的任何
+failed/skipped/todo；其 manifest digest 与实际计数必须进入 V6 local/CI evidence。
 
 ### Target
 
@@ -168,6 +227,64 @@ G3 不在此阶段开放第三框架；若某 capability 尚未在 Vue public co
 - unit/build/server checks 不人为展开 browser 维度。
 
 critical subset 是 Policy 的显式 profile，并由 Impact/Scenario tag 选择，不是在 CI 中随机挑一部分。
+
+## V6 local adapter-matrix evidence record
+
+root `verify:g3:adapter-matrix` 的成功输出必须能重算，不接受只有绿色退出码或测试文件数量的摘要：
+
+| Evidence section       | Required fields                                                                                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canonical identities   | `planDigest`、adapter registry digest、matrix manifest digest、browser identity registry digest、visual baseline set/asset/normalizer digests、controlled-dimension manifest digest、aggregate evidence digest |
+| Matrix totals          | 66 required cells、8 rows、58 browser cells、72 browser attempts、8 static attempts、80 total attempts；blocked/unsupported/skipped/failed 均为 0                                                              |
+| Per-row totals         | `7/14、7/14、10/10、10/10、12/12、12/12、4/4、4/4` 的 cells/attempts，顺序绑定 manifest row id                                                                                                                 |
+| Per-attempt binding    | cell/check/surface/target/browser/motion/provider identity、attempt id、report digest、resolved input-set digest、artifact digest set、normalized verdict、terminal/cleanup status                             |
+| Runtime control        | 每个 browser attempt 的 initial/terminal same-context attestation、exact attempt/context binding、terminal residual=0 与 cleanup release receipt；不能只记录 start-time applied-control digest                 |
+| Static retirement      | 每个 static attempt 的 artifact retirement receipt/digest，以及 aggregate `activeAttemptCount=0 activeArtifactCount=0`                                                                                         |
+| Remote Preview         | 14 个 execution/provider ids、exact snapshot/durable bundle/materialized bundle digests、ready/healthy、resume/terminal cursor、independent origin/entry、clean cleanup/retirement                             |
+| Security               | 8 个 attempts 的三项 G2 owner resolution exact-once audit、七项 pre-finalization digest、Core successful staging/clean cleanup 后 exact 九项 hard-rule report digest                                           |
+| Private-path hard cut  | `VerificationCoverageSummary`、`VerificationBuildSummary`、`VerificationTrace` 三类 projection 的 absolute path/URL/vendor-field negative、codec/projector conformance 与 Golden staged bytes no-canary        |
+| Controlled dimensions  | 17 profile ids、8 exact owner suites、28 bound cases、all-selected-files total passed count、`failed=0 skipped=0 todo=0`                                                                                       |
+| Environment / residual | exact OS/runner `ImageVersion`、browser versions/image digests、Node/pnpm/toolchain；target lease、authority、artifact、late event/write 与 cleanup residual 全部为 0                                          |
+
+### 2026-07-29 local result
+
+`pnpm run verify:g3:adapter-matrix` 已在 Windows 本地完整通过；这是一条连续 root aggregate，不以先前的局部
+通过代替。它验证了 29-package dependency build closure，以及 Verification `242/242`、Verification Adapters
+`40/40`、真实 Browser Adapters `197/197`、Runtime Core `138/138`、Runtime Vitest `20/20`、
+Runtime Browser `35/35`、Runtime Remote `109/109`、Compiler production probe `14/14`、static Golden
+`68/68` 与 browser Golden `3/3`。Core/G3 boundaries 和 wire-contract mirror 在同一命令末尾通过。
+
+controlled Golden 实际执行 66 required cells、8 rows、72 browser attempts 与 8 static attempts，共 80 个
+`reported` + normalized `passed`；blocked、unsupported、skipped、failed 与 residual 均为零。逐行
+cells/attempts 为 `preview-react 7/14`、`preview-vue 7/14`、`export-react 10/10`、
+`export-vue 10/10`、`ci-react 12/12`、`ci-vue 12/12`、`ci-firefox-critical 4/4`、
+`ci-webkit-critical 4/4`。本次 root run 的 canonical/run-bound digests 为：
+
+- Plan：`sha256-bb49ad3980a1e1a8d84a3f4f74ec3c48ebda7cd3c72ee2f0605eb57259ef23a9`；
+- matrix manifest：`sha256-f9f137d4744e08a5f452611305c3e4295e4fce3a4992f8328f2673eb71a688f3`；
+- attempt manifest：`sha256-5ef7da56d9e6fcb5c112bd8823e10a89b297f97bdbdd8becd4594dbc8b80849b`；
+- adapter/browser/visual identities：`sha256-06f219930d74f9365a694b53fb18a553264460a550d6635ba9149a0bfde263d1`、
+  `sha256-4f02035b5bd907b871099bab946f5468114d7b40b6e9407de284bec37314d6f5`、
+  `sha256-384a345e825802dbc73fbf8449a026ff60106196056d93f437d5292758076734`；
+- baseline set/asset/raster/normalizer：`sha256-acf94061ff276ba26aa7a14a9d1adfc62dc1a214a2b832d894b1c6cf2d727a56`、
+  `sha256-774d02c24278eb5c0c9eb4f8d5f4eabb5891a6b9c01429492d43d5c89b7a3928`、
+  `sha256-9ebde0e380725ce43da1288d7b5116011dbba8215a5b8ce1c73af23d64c9c5cc`、
+  `sha256-a58ee5c8f675cdba49dee439fb7db48bbc5ff8efb0d066bc8758816db7101069`；
+- controlled manifest/evidence/environment：`sha256-5d7140c03a80aaeb24b43b535dec058827535844ed3d6bc435afc54e3fceeeb9`、
+  `sha256-d61ffd2a9f30867449cf0e28e44cb9a1cbfd3cfcb52944900f5a307d463ff215`、
+  `sha256-6158d900c7e842d14fe71d062aec83330742e25e84f5825173336c579e26515e`；
+- runtime-control evidence set：`sha256-7b9f087795da302a9c4f181f485d57e76362f28e1b24eb0ab86815bac8e6425a`；
+- aggregate evidence：`sha256-ec243c6d645bfb58b7b869c09775c284f91b21fc5a8c345d91c35eb1eae1362e`。
+
+补充 Gate 还验证 Backend verification/verificationcontract 非缓存 Go 测试、remote worker `75/75` 与
+rootless snapshot contract digest
+`sha256-9680cb1ff4fd3ae39a5e46b618ac97068000aad2a7939d8d84b9f7ac2846f8a6`。Windows 本地不伪装
+rootless Podman runtime evidence；真实 rootless sandbox、固定 `ubuntu-24.04` runner identity 和 durable CI
+identity 仍等待 workflow 在固定 commit 上通过。
+
+aggregate evidence digest 必须覆盖每个 attempt 的 report/resolved-input/artifact identity；只绑定
+`status: reported` 会遗漏仍在 passed threshold 内的 visual/performance/a11y/security 输出漂移。Remote evidence
+不能只记录 `providerKind: remote`，也必须绑定上述 execution/materialization/cursor/cleanup identity。
 
 ## Result normalization
 

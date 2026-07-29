@@ -3,11 +3,11 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0-V5 Implemented / V6-V8 Not Started
+- ImplementationStatus：V0-V6 Implemented / V7-V8 Not Started
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-28
-- Owner：`@prodivix/behavior`、`@prodivix/verification`、`@prodivix/workspace`、`@prodivix/authoring`、`@prodivix/runtime-core`、`@prodivix/diagnostics`、`apps/backend`、`apps/web` composition root
+- 日期：2026-07-29
+- Owner：`@prodivix/behavior`、`@prodivix/verification`、`@prodivix/verification-adapters`、`@prodivix/verification-browser`、`@prodivix/workspace`、`@prodivix/authoring`、`@prodivix/runtime-core`、`@prodivix/diagnostics`、`apps/backend`、`apps/web` composition root
 - 关联：
   - `specs/roadmap/global-phases.md`
   - `specs/decisions/34.core-package-boundaries.md`
@@ -62,35 +62,38 @@ G3 关闭的是“同一行为是否在受控环境和目标上得到可信证�
 
 ## Canonical artifact matrix
 
-| Artifact                  | 类型                          | Canonical owner                                  | 可变性                  | 身份绑定                                           | 禁止承载                                   |
-| ------------------------- | ----------------------------- | ------------------------------------------------ | ----------------------- | -------------------------------------------------- | ------------------------------------------ |
-| `BehaviorScenario`        | Workspace authoring document  | `@prodivix/behavior` + `@prodivix/workspace`     | 仅 Command/Transaction  | document revision、semantic schema                 | CSS/XPath、编辑器 state、provider 私有脚本 |
-| `VerificationPolicy`      | Workspace authoring document  | `@prodivix/verification` + `@prodivix/workspace` | 仅 Command/Transaction  | policy revision                                    | CI YAML、运行结果、Secret                  |
-| `VerificationImpactSet`   | derived projection            | `@prodivix/verification`                         | 可重建                  | before/after revision、provider set                | 用户决策、测试结果                         |
-| `VerificationPlan`        | derived immutable plan        | `@prodivix/verification`                         | 重新生成，不原地编辑    | workspace revision、policy/evaluation、plan digest | artifact bytes、mutable progress           |
-| `BehaviorScenarioProgram` | compiled projection           | `@prodivix/behavior`                             | 可重建                  | scenario/revision/compiler digest                  | provider handle、live credential           |
-| `ReplayRecord`            | attempt-scoped runtime result | `@prodivix/runtime-core`                         | append-only for attempt | plan/cell/attempt                                  | Workspace mutation、Secret value           |
-| `EvidenceCandidate`       | transient promotion input     | verification adapter                             | 一次性                  | run/result/artifact digests                        | 未清洗日志、任意工具对象                   |
-| `VerificationEvidence`    | durable append-only record    | `@prodivix/verification` + `apps/backend`        | immutable/superseding   | revision/plan/cell/attempt/provenance              | Workspace mirror、可变 passed flag         |
-| `VerificationClosure`     | derived verdict               | `@prodivix/verification`                         | 对输入确定性重算        | revision、policy、plan、evidence set               | 部署决定、自动修复决定                     |
+| Artifact                           | 类型                          | Canonical owner                                  | 可变性                  | 身份绑定                                           | 禁止承载                                   |
+| ---------------------------------- | ----------------------------- | ------------------------------------------------ | ----------------------- | -------------------------------------------------- | ------------------------------------------ |
+| `BehaviorScenario`                 | Workspace authoring document  | `@prodivix/behavior` + `@prodivix/workspace`     | 仅 Command/Transaction  | document revision、semantic schema                 | CSS/XPath、编辑器 state、provider 私有脚本 |
+| `VerificationPolicy`               | Workspace authoring document  | `@prodivix/verification` + `@prodivix/workspace` | 仅 Command/Transaction  | policy revision                                    | CI YAML、运行结果、Secret                  |
+| `VerificationImpactSet`            | derived projection            | `@prodivix/verification`                         | 可重建                  | before/after revision、provider set                | 用户决策、测试结果                         |
+| `VerificationPlan`                 | derived immutable plan        | `@prodivix/verification`                         | 重新生成，不原地编辑    | workspace revision、policy/evaluation、plan digest | artifact bytes、mutable progress           |
+| `BehaviorScenarioProgram`          | compiled projection           | `@prodivix/behavior`                             | 可重建                  | scenario/revision/compiler digest                  | provider handle、live credential           |
+| `ReplayRecord`                     | attempt-scoped runtime result | `@prodivix/runtime-core`                         | append-only for attempt | plan/cell/attempt                                  | Workspace mutation、Secret value           |
+| `VerificationCheckReportCandidate` | transient adapter output      | controlled verification adapter                  | attempt-scoped          | plan/cell/attempt/tool/input                       | Evidence trust claim、未清洗工具对象       |
+| `EvidenceCandidate`                | transient promotion input     | `@prodivix/verification`                         | 一次性                  | run/result/artifact digests                        | 未清洗日志、任意工具对象                   |
+| `VerificationEvidence`             | durable append-only record    | `@prodivix/verification` + `apps/backend`        | immutable/superseding   | revision/plan/cell/attempt/provenance              | Workspace mirror、可变 passed flag         |
+| `VerificationClosure`              | derived verdict               | `@prodivix/verification`                         | 对输入确定性重算        | revision、policy、plan、evidence set               | 部署决定、自动修复决定                     |
 
 Baseline 是被 Scenario 或 Policy 引用的作者态输入。Baseline 更新必须通过 Workspace Transaction；
 Evidence 只能引用 baseline digest，不能通过一次运行自动覆盖 baseline。
 
 ## Owner 与依赖边界
 
-| Owner                                       | G3 职责                                                                                                                                                                              | 明确不拥有                                                           |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| `@prodivix/behavior`                        | Scenario current model、typed trigger/action/observation、compiler、Program、recorder draft、replay semantic                                                                         | Workspace persistence、browser driver、Evidence store、领域运行实现  |
-| `@prodivix/verification`                    | Impact、Policy、Plan DAG、adapter SPI、Evidence manifest、retention、Closure                                                                                                         | Workspace authoring transport、具体测试工具私有对象、CI provider API |
-| `@prodivix/workspace`                       | `behavior-scenario`、`behavior-control-profile`、`behavior-fixture-set`、`verification-policy`、`verification-baseline-set` document，Command/Transaction、revision 与 import/export | Scenario 执行、Evidence 存储、baseline 图像字节                      |
-| `@prodivix/assets`                          | `verification-baseline-set` 引用的 baseline 图像 content-addressed 存储与投递                                                                                                        | baseline set identity/digest、采纳事务                               |
-| `@prodivix/authoring`                       | Workspace Semantic Index 的 target/reference/impact contribution、跨领域 resolve 与 SourceTrace                                                                                      | 执行和验证 policy                                                    |
-| `@prodivix/runtime-core`                    | deterministic controls、attempt/replay event、cancellation/budget、runtime observation ports                                                                                         | canonical Scenario/Policy、durable Evidence                          |
-| NodeGraph / Animation / Route / Data owners | 各自 typed capability、effect 与 observation provider                                                                                                                                | 通用 Scenario、Plan 或 Evidence                                      |
-| Verification adapters                       | 将 canonical plan cell 映射到 Vitest/Browser/a11y/visual/perf/security runner 并规范化 candidate                                                                                     | policy 决策、Workspace 写入、Evidence 直接落库                       |
-| `apps/backend`                              | Evidence API/store、artifact promotion、attestation、retention worker、authorization                                                                                                 | 行为语义、测试工具解码规则                                           |
-| `apps/web`                                  | Scenarios、Verification、debugger、Issues/Execution composition                                                                                                                      | domain contract、plan selection、证据可信性判断                      |
+| Owner                                       | G3 职责                                                                                                                                                                                             | 明确不拥有                                                                   |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `@prodivix/behavior`                        | Scenario current model、typed trigger/action/observation、compiler、Program、recorder draft、replay semantic                                                                                        | Workspace persistence、browser driver、Evidence store、领域运行实现          |
+| `@prodivix/verification`                    | Impact、Policy、Plan DAG、adapter SPI/lifecycle、CheckReport normalization、security post-staging/post-cleanup finalization、Evidence manifest、retention、Closure                                  | Workspace authoring transport、具体测试工具私有对象、CI provider API         |
+| `@prodivix/verification-adapters`           | diagnostics/build/unit/integration first-party adapter、exact input decode、lifecycle 与 bounded report candidate                                                                                   | Core normalization、Policy/Plan、Evidence promotion、provider Secret         |
+| `@prodivix/verification-browser`            | E2E/visual/a11y/performance/security private decoder、comparison kernel 与 Browser invocation port；security 只采集四项 browser observation，并与三个 G2 authority input 组成 pre-finalization 七项 | raw browser handle/DOM 越界、Core 两项 security finalization、Evidence store |
+| `@prodivix/workspace`                       | `behavior-scenario`、`behavior-control-profile`、`behavior-fixture-set`、`verification-policy`、`verification-baseline-set` document，Command/Transaction、revision 与 import/export                | Scenario 执行、Evidence 存储、baseline 图像字节                              |
+| `@prodivix/assets`                          | `verification-baseline-set` 引用的 baseline 图像 content-addressed 存储与投递                                                                                                                       | baseline set identity/digest、采纳事务                                       |
+| `@prodivix/authoring`                       | Workspace Semantic Index 的 target/reference/impact contribution、跨领域 resolve 与 SourceTrace                                                                                                     | 执行和验证 policy                                                            |
+| `@prodivix/runtime-core`                    | deterministic controls、attempt/replay event、cancellation/budget、runtime observation ports                                                                                                        | canonical Scenario/Policy、durable Evidence                                  |
+| NodeGraph / Animation / Route / Data owners | 各自 typed capability、effect 与 observation provider                                                                                                                                               | 通用 Scenario、Plan 或 Evidence                                              |
+| Verification adapters                       | 将 canonical plan cell 映射到受控 runner，并只产出 bounded、未经信任的 `VerificationCheckReportCandidate`                                                                                           | policy 决策、Core normalization、Workspace 写入、Evidence 直接落库           |
+| `apps/backend`                              | Evidence API/store、artifact promotion、attestation、retention worker、authorization                                                                                                                | 行为语义、测试工具解码规则                                                   |
+| `apps/web`                                  | Scenarios、Verification、debugger、Issues/Execution composition                                                                                                                                     | domain contract、plan selection、证据可信性判断                              |
 
 依赖必须单向：
 
@@ -236,7 +239,10 @@ supersession、retention/tombstone 与 Closure evaluator。
 
 ### V6：Verification adapter matrix
 
-状态：Not Started。详见 `g3-verification-adapters-product-ci.md`。
+状态：Implemented locally / CI Evidence pending。2026-07-29 本地 root aggregate、package boundary、
+66-cell/8-row/80-attempt controlled matrix、Scenario-internal Data/Auth/Recovery companion Gate、真实
+Chromium/Firefox/WebKit adapter tests 与 Backend/worker 补充 Gate 已通过；独立三浏览器 CI Job 已配置但尚无固定
+commit/run identity。详见 `g3-verification-adapters-product-ci.md`。
 
 交付 diagnostics/build/unit/integration/E2E/visual/a11y/performance/security adapters，Preview/Export/CI surface，
 React/Vite 与 Vue/Vite controlled target，以及 Chromium 主矩阵和 Firefox/WebKit critical subset。

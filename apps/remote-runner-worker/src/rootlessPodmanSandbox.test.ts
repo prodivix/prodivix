@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import {
   createExecutableProjectSnapshot,
   createExecutionRequest,
@@ -8,6 +9,7 @@ import {
   readExecutionTestReportValue,
   EXECUTABLE_PROJECT_SERVER_FUNCTION_PLAN_FORMAT,
 } from '@prodivix/runtime-core';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import {
   EXECUTION_SERVER_FUNCTION_BRIDGE_REQUEST_TYPE,
   EXECUTION_SERVER_FUNCTION_BRIDGE_RESPONSE_TYPE,
@@ -29,6 +31,17 @@ import {
   decodeRootlessPodmanSandboxResult,
   verifyRootlessPodmanEngine,
 } from './rootlessPodmanSandbox';
+import {
+  assertControlledStaticRootlessAggregateAuthority,
+  assertControlledStaticRootlessStageAuthoritySequence,
+  CONTROLLED_STATIC_ROOTLESS_STAGE_ORDER,
+  createControlledStaticRootlessAggregateAuthority,
+  createControlledStaticRootlessStageAuthority,
+  createControlledStaticRootlessStageCleanupAuthority,
+  type ControlledStaticRootlessControllerProcessReceipt,
+  type ControlledStaticRootlessStage,
+  type ControlledStaticRootlessStageAuthority,
+} from '../scripts/controlledStaticRootlessStageAuthority';
 
 describe('rootless Podman sandbox contract', () => {
   const limits = {
@@ -882,7 +895,10 @@ describe('rootless Podman sandbox contract', () => {
       workspace: { workspaceId: 'workspace-1', snapshotId: 'snapshot-1' },
       target: { presetId: 'react-vite', framework: 'react', runtime: 'vite' },
       files: [
-        { path: 'package.json', contents: '{"private":true}' },
+        {
+          path: 'package.json',
+          contents: '{"private":true,"devDependencies":{"vitest":"4.1.9"}}',
+        },
         {
           path: 'src/App.test.tsx',
           contents: 'export {}',
@@ -1090,5 +1106,516 @@ describe('rootless Podman sandbox contract', () => {
       stdout: 'vitest configuration failed',
       artifacts: [],
     });
+  });
+});
+
+describe('controlled static rootless stage isolation authority', () => {
+  const digest = (value: string | Uint8Array): string =>
+    `sha256-${createHash('sha256').update(value).digest('hex')}`;
+  const emptyDigest = digest('');
+  const environmentDigest = digest('controller-environment');
+  const imageDigest = `sha256:${'a'.repeat(64)}`;
+
+  const processReceipt = (
+    args: readonly string[],
+    exitCode: number,
+    startedAtEpochMs: number,
+    stdout = ''
+  ): ControlledStaticRootlessControllerProcessReceipt =>
+    Object.freeze({
+      application: 'podman',
+      args: Object.freeze([...args]),
+      cwd: 'repository:/',
+      environmentDigest,
+      startedAtEpochMs,
+      completedAtEpochMs: startedAtEpochMs + 1,
+      exitCode,
+      signal: null,
+      timedOut: false,
+      stdout: Object.freeze({
+        digest: stdout ? digest(stdout) : emptyDigest,
+        byteLength: Buffer.byteLength(stdout),
+        capturedByteLength: Buffer.byteLength(stdout),
+        truncated: false,
+      }),
+      stderr: Object.freeze({
+        digest: emptyDigest,
+        byteLength: 0,
+        capturedByteLength: 0,
+        truncated: false,
+      }),
+    });
+
+  const cleanupAuthority = (
+    stage: ControlledStaticRootlessStage,
+    ordinal: number,
+    overrides: Readonly<{
+      removeExitCode?: number;
+      residualStdout?: string;
+    }> = {}
+  ) => {
+    const name = `prodivix-g3-v6-static-${stage}-${String(ordinal).repeat(8)}`;
+    const executionId = `g3-v6-${'b'.repeat(16)}-${stage}-${ordinal}`;
+    const base = ordinal * 100 + 20;
+    return createControlledStaticRootlessStageCleanupAuthority({
+      stage,
+      ordinal,
+      containerName: name,
+      executionId,
+      imageDigest,
+      remove: processReceipt(
+        ['rm', '--force', '--ignore', name],
+        overrides.removeExitCode ?? 0,
+        base
+      ),
+      absence: processReceipt(['container', 'exists', name], 1, base + 2),
+      residualQuery: processReceipt(
+        [
+          'ps',
+          '--all',
+          '--filter',
+          `label=prodivix.remote-execution=${executionId}`,
+          '--format',
+          '{{.ID}}',
+        ],
+        0,
+        base + 4,
+        overrides.residualStdout ?? ''
+      ),
+    });
+  };
+
+  const stageAuthority = (
+    stage: ControlledStaticRootlessStage,
+    ordinal: number
+  ): ControlledStaticRootlessStageAuthority => {
+    const cleanup = cleanupAuthority(stage, ordinal);
+    const providerStartedAt = ordinal * 100 + 10;
+    const output = Object.freeze({
+      digest: emptyDigest,
+      byteLength: 0,
+      capturedByteLength: 0,
+      truncated: false as const,
+    });
+    return createControlledStaticRootlessStageAuthority({
+      stage,
+      ordinal,
+      requestDigest: digest('request'),
+      snapshotDigest: digest('snapshot'),
+      projectManifestDigest: digest('manifest'),
+      lockDigest: digest('lock'),
+      toolchainFileSetDigest: digest('toolchain-files'),
+      rollupVersion: '4.62.3',
+      rollupImplementation: '@rollup/wasm-node',
+      rollupAliasSpec: 'npm:@rollup/wasm-node@4.62.3',
+      esbuildVersion: '0.27.7',
+      esbuildImplementation: 'esbuild-wasm',
+      esbuildAliasSpec: 'npm:esbuild-wasm@0.27.7',
+      sourceBaselineDigest: digest('source-baseline'),
+      providerFileSetDigest: digest(`provider-files:${ordinal}`),
+      observedInputFileSetDigest: digest(`provider-files:${ordinal}`),
+      observedInputFileCount: 10 + ordinal,
+      packageImportDigest: ordinal < 2 ? null : digest('package-import'),
+      resultSetDigest: digest(`results:${stage}`),
+      innerAuthorityDigest: digest(`inner:${stage}`),
+      innerCleanupClaim: Object.freeze({
+        source: 'sandbox-self-report',
+        directCommandCount: 1,
+        residualProcessCount: 0,
+        cleanupVerified: true,
+      }),
+      command: Object.freeze({
+        stage,
+        application:
+          stage === 'version' || stage === 'install' ? 'pnpm' : 'node',
+        args: Object.freeze([]),
+        cwd: 'workspace:/',
+        executionBoundary: 'sandbox',
+        environmentDigest,
+        tool: Object.freeze({
+          binary: stage === 'version' || stage === 'install' ? 'pnpm' : 'node',
+          version: '1.0.0',
+        }),
+        startedAtEpochMs: providerStartedAt + 1,
+        completedAtEpochMs: providerStartedAt + 8,
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        stdout: output,
+        stderr: output,
+      }),
+      providerProcess: processReceipt(
+        [
+          'run',
+          `--name=${cleanup.container.name}`,
+          `--label=prodivix.remote-execution=${cleanup.container.executionId}`,
+          '--network=none',
+          '--read-only',
+          imageDigest,
+        ],
+        0,
+        providerStartedAt
+      ),
+      cleanup,
+    });
+  };
+
+  const validStages = (): ControlledStaticRootlessStageAuthority[] =>
+    CONTROLLED_STATIC_ROOTLESS_STAGE_ORDER.map((stage, ordinal) =>
+      stageAuthority(stage, ordinal)
+    );
+  const rehashAuthority = <T extends { authorityDigest: string }>(
+    value: T
+  ): T => {
+    const { authorityDigest: _authorityDigest, ...base } = value;
+    return {
+      ...base,
+      authorityDigest: digest(canonicalJsonText(base)),
+    } as unknown as T;
+  };
+
+  it('accepts six fresh sequential stages with build before test', () => {
+    const stages = validStages();
+
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(stages)
+    ).not.toThrow();
+    expect(stages.map(({ stage }) => stage)).toEqual([
+      'version',
+      'install',
+      'isolation',
+      'typecheck',
+      'build',
+      'test',
+    ]);
+    expect(
+      stages.every(({ command }) => command.executionBoundary === 'sandbox')
+    ).toBe(true);
+  });
+
+  it('rejects cross-stage baseline and carried-result tampering', () => {
+    expect(() =>
+      createControlledStaticRootlessStageAuthority({
+        ...stageAuthority('isolation', 2),
+        observedInputFileSetDigest: digest('foreign-stage-files'),
+      })
+    ).toThrow(/fresh baseline/u);
+
+    const stages = validStages();
+    stages[3] = {
+      ...stages[3]!,
+      freshBaseline: {
+        ...stages[3]!.freshBaseline,
+        priorStageResultCount: 1,
+      },
+    } as unknown as ControlledStaticRootlessStageAuthority;
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(stages)
+    ).toThrow(/cleanup authority|stage authority/u);
+  });
+
+  it('rejects a misordered build/test result sequence', () => {
+    const stages = validStages();
+    [stages[4], stages[5]] = [stages[5]!, stages[4]!];
+
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(stages)
+    ).toThrow(/cleanup authority|stage authority/u);
+  });
+
+  it('does not accept a forged inner cleanup claim without outer cleanup', () => {
+    const stages = validStages();
+    stages[2] = {
+      ...stages[2]!,
+      cleanup: {
+        ...stages[2]!.cleanup,
+        cleanupVerified: false,
+        residualProcessCount: 1,
+      },
+    } as unknown as ControlledStaticRootlessStageAuthority;
+
+    expect(stages[2]!.innerCleanupClaim).toMatchObject({
+      cleanupVerified: true,
+      directCommandCount: 1,
+      residualProcessCount: 0,
+    });
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(stages)
+    ).toThrow(/cleanup authority|stage authority/u);
+  });
+
+  it('rejects outer remove failure and label residual containers', () => {
+    expect(() => cleanupAuthority('build', 4, { removeExitCode: 1 })).toThrow(
+      /zero residual/u
+    );
+    expect(() =>
+      cleanupAuthority('build', 4, { residualStdout: 'container-id\n' })
+    ).toThrow(/zero residual/u);
+  });
+
+  it('rejects reused container identity, overlapping stages, and provider file-set drift', () => {
+    const reused = validStages();
+    const forgedCleanup = rehashAuthority({
+      ...reused[1]!.cleanup,
+      container: reused[0]!.cleanup.container,
+      remove: reused[0]!.cleanup.remove,
+      absence: reused[0]!.cleanup.absence,
+      residualQuery: reused[0]!.cleanup.residualQuery,
+    });
+    reused[1] = rehashAuthority({
+      ...reused[1]!,
+      cleanup: forgedCleanup,
+    });
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(reused)
+    ).toThrow(/provider boundary|cleanup identity|cleanup authority/u);
+
+    const overlapping = validStages();
+    const providerProcess = {
+      ...overlapping[1]!.providerProcess,
+      startedAtEpochMs: 10,
+      completedAtEpochMs: 11,
+    };
+    overlapping[1] = rehashAuthority({
+      ...overlapping[1]!,
+      providerProcess,
+    });
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(overlapping)
+    ).toThrow(/overlapped|prior cleanup/u);
+
+    expect(() =>
+      createControlledStaticRootlessStageAuthority({
+        ...stageAuthority('test', 5),
+        observedInputFileSetDigest: digest(
+          'test-mutated-source-or-vite-node-modules'
+        ),
+      })
+    ).toThrow(/fresh baseline/u);
+  });
+
+  it('rejects package imports before install and result allowlist escape after full rehash', () => {
+    expect(() =>
+      createControlledStaticRootlessStageAuthority({
+        ...stageAuthority('install', 1),
+        packageImportDigest: digest('premature-package-import'),
+      })
+    ).toThrow(/fresh baseline/u);
+
+    const stages = validStages();
+    stages[4] = rehashAuthority({
+      ...stages[4]!,
+      resultAllowlist: Object.freeze([
+        ...stages[4]!.resultAllowlist,
+        'test-report',
+      ]),
+    });
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(stages)
+    ).toThrow(/stage authority drifted/u);
+  });
+
+  it('rejects full-rehash cleanup, stage, and aggregate authority forgeries', () => {
+    const cleanupStages = validStages();
+    const cleanup = rehashAuthority({
+      ...cleanupStages[3]!.cleanup,
+      residualWorkspaceCount: 1,
+    });
+    cleanupStages[3] = rehashAuthority({
+      ...cleanupStages[3]!,
+      cleanup,
+    } as unknown as ControlledStaticRootlessStageAuthority);
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(cleanupStages)
+    ).toThrow(/cleanup authority|stage authority/u);
+
+    const stageStages = validStages();
+    stageStages[5] = rehashAuthority({
+      ...stageStages[5]!,
+      sourceBaselineDigest: digest('test-mutated-source'),
+    });
+    expect(() =>
+      assertControlledStaticRootlessStageAuthoritySequence(stageStages)
+    ).toThrow(/source baseline/u);
+
+    const valid = validStages();
+    const aggregate = createControlledStaticRootlessAggregateAuthority(valid);
+    const forgedAggregate = rehashAuthority({
+      ...aggregate,
+      activeContainerCount: 1,
+    });
+    expect(() =>
+      assertControlledStaticRootlessAggregateAuthority(
+        forgedAggregate as never,
+        valid
+      )
+    ).toThrow(/aggregate stage authority drifted/u);
+  });
+
+  it('binds cleanup queries to the exact execution label and container only', () => {
+    const own = cleanupAuthority('test', 5);
+    expect(() =>
+      createControlledStaticRootlessStageCleanupAuthority({
+        stage: own.stage,
+        ordinal: own.ordinal,
+        containerName: own.container.name,
+        executionId: own.container.executionId,
+        imageDigest: own.container.imageDigest,
+        remove: {
+          ...own.remove,
+          args: [
+            'rm',
+            '--force',
+            '--ignore',
+            'prodivix-g3-v6-static-test-deadbeef',
+          ],
+        },
+        absence: own.absence,
+        residualQuery: {
+          ...own.residualQuery,
+          args: [
+            'ps',
+            '--all',
+            '--filter',
+            'label=prodivix.remote-execution=another-container',
+            '--format',
+            '{{.ID}}',
+          ],
+        },
+      })
+    ).toThrow(/zero residual/u);
+  });
+
+  it('rejects hostile package-import paths, links, kinds, bounds, and full-rehash manifest drift', async () => {
+    // The executable worker keeps its archive validator dependency-free so the
+    // exact code injected into Podman can be exercised without a container.
+    const worker = await import(
+      // @ts-expect-error -- the executable MJS intentionally has no TS facade
+      '../scripts/controlledStaticRootlessStageWorker.mjs'
+    );
+    type PackageEntry = Readonly<Record<string, unknown>>;
+    const fileEntry = (
+      path: string,
+      overrides: Readonly<Record<string, unknown>> = {}
+    ): PackageEntry => {
+      const contents = Buffer.from('package-file', 'utf8');
+      return {
+        contents: contents.toString('base64'),
+        digest: digest(contents),
+        kind: 'file',
+        mode: 0o644,
+        path,
+        size: contents.byteLength,
+        ...overrides,
+      };
+    };
+    const archive = (
+      entries: readonly PackageEntry[],
+      mutateManifest?: (
+        manifest: Readonly<Record<string, unknown>>
+      ) => Readonly<Record<string, unknown>>
+    ) => {
+      const created =
+        worker.createControlledStaticRootlessPackageManifest(entries);
+      const manifest = mutateManifest
+        ? mutateManifest(created.manifest)
+        : created.manifest;
+      const manifestDigest = digest(canonicalJsonText(manifest));
+      const contents = Buffer.from(
+        JSON.stringify({
+          format: 'prodivix.controlled-static-rootless-package-import.v1',
+          manifest,
+          entries,
+        }),
+        'utf8'
+      );
+      const compressed = gzipSync(contents, { level: 9 });
+      return {
+        compressed,
+        authority: {
+          path: '.prodivix/package-import.json.gz',
+          digest: digest(compressed),
+          byteLength: compressed.byteLength,
+          contentDigest: digest(contents),
+          manifestDigest,
+          fileSetDigest: manifest.fileSetDigest,
+          entryCount: manifest.entryCount,
+          totalFileBytes: manifest.totalFileBytes,
+          maximumDepth: manifest.maximumDepth,
+        },
+      };
+    };
+    const decode = (entries: readonly PackageEntry[]) => {
+      const value = archive(entries);
+      return worker.decodeControlledStaticRootlessPackageImportBytes(
+        value.compressed,
+        value.authority
+      );
+    };
+    const valid = fileEntry('.pnpm/package/index.js');
+
+    expect(() => decode([valid])).not.toThrow();
+    for (const entries of [
+      [fileEntry('/absolute')],
+      [fileEntry('../escape')],
+      [fileEntry('duplicate'), fileEntry('duplicate')],
+      [fileEntry('Case'), fileEntry('case')],
+      [
+        valid,
+        {
+          kind: 'symlink',
+          path: 'escape-link',
+          target: '../../outside-node-modules',
+        },
+      ],
+      [
+        valid,
+        {
+          digest: digest('device'),
+          kind: 'device',
+          mode: 0o600,
+          path: 'special-device',
+          size: 1,
+        },
+      ],
+      [
+        valid,
+        {
+          digest: digest('hardlink'),
+          kind: 'hardlink',
+          mode: 0o644,
+          path: 'hardlink',
+          size: 1,
+          target: 'other',
+        },
+      ],
+    ] as const) {
+      expect(() => decode(entries)).toThrow();
+    }
+    expect(() =>
+      decode([
+        fileEntry(
+          Array.from({ length: 65 }, (_, index) => `d${index}`).join('/')
+        ),
+      ])
+    ).toThrow(/depth|bounds/u);
+    expect(() =>
+      decode([
+        fileEntry('oversized', {
+          size: 256 * 1024 * 1024 + 1,
+        }),
+      ])
+    ).toThrow(/bounds|budget/u);
+
+    const forged = archive([valid], (manifest) => ({
+      ...manifest,
+      fileSetDigest: digest('fully-rehashed-but-wrong-file-set'),
+    }));
+    expect(() =>
+      worker.decodeControlledStaticRootlessPackageImportBytes(
+        forged.compressed,
+        forged.authority
+      )
+    ).toThrow(/manifest|file set/u);
   });
 });

@@ -33,7 +33,9 @@ commit [`a6aa0bf9`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d6659
 均通过，commit
 [`f3d91b9d`](https://github.com/prodivix/prodivix/commit/f3d91b9dfc786b167fa5df825cd45116441c725c)
 的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
-也已通过并形成 durable evidence。V6-V8 尚未完成。
+也已通过并形成 durable evidence。V6 adapter packages、66-cell/8-row/80-attempt contract、
+Scenario-internal Data/Auth/Recovery companion Gate、root aggregate 与 owner boundary 已于 2026-07-29
+在本地完整通过；独立三浏览器 workflow 已配置但 CI evidence 仍待固定 commit/run identity。V7-V8 尚未完成。
 
 | Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                                     |
 | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -43,7 +45,7 @@ commit [`a6aa0bf9`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d6659
 | V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                                       |
 | V4 Impact/Policy/Plan      | Implemented | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | 本地与 CI byte-stable plan、required hard-cut、Web/CLI explain Gate 通过，commit `a6aa0bf9`  |
 | V5 Evidence plane          | Implemented | promotion、artifact、provenance/trust、retention、Closure                                       | 本地与 CI PostgreSQL/object store/security/attestation/recovery Gate 通过，commit `f3d91b9d` |
-| V6 Adapter matrix          | Not Started | functional/visual/a11y/performance/security across surface/target/browser                       | adapter conformance 与 controlled matrix                                                     |
+| V6 Adapter matrix          | Implemented | functional/visual/a11y/performance/security across surface/target/browser                       | 66-cell/80-attempt local root aggregate 通过；CI evidence pending                            |
 | V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                            |
 | V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                         |
 
@@ -212,28 +214,57 @@ object-store 中断、protection/tombstone 与 GC lease recovery。
 
 ## V6：Adapter matrix
 
+状态：Implemented locally / CI Evidence pending。`@prodivix/verification-adapters`、
+`@prodivix/verification-browser`、66-cell/8-row/80-attempt controlled matrix、Scenario-internal
+Data/Auth/Recovery companion Gate 与 root `verify:g3:adapter-matrix` 已于 2026-07-29 在本地通过；
+Chromium/Firefox/WebKit workflow Job 已接入但尚无 durable CI identity。
+
 ### Required family
 
-- [ ] diagnostics/build/unit/integration。
-- [ ] Behavior E2E。
-- [ ] visual comparison。
-- [ ] accessibility automated + keyboard/focus journey。
-- [ ] performance regression budget。
-- [ ] security/no-Secret/probe-stripped/network/permission checks。
+- [x] diagnostics/build/unit/integration。
+- [x] Behavior E2E。
+- [x] visual comparison。
+- [x] accessibility automated + keyboard/focus journey。
+- [x] performance regression budget。
+- [x] security/no-Secret/probe-stripped/network/permission checks。
 
 ### Required controlled matrix
 
-| Dimension   | Required coverage                                                          |
-| ----------- | -------------------------------------------------------------------------- |
-| Surface     | Preview、standalone Export、CI                                             |
-| Target      | React/Vite、Vue/Vite controlled target                                     |
-| Browser     | Chromium full；Firefox/WebKit Policy-defined critical subset               |
-| Motion      | full、reduced                                                              |
-| Data        | loading、empty、error、retry、pagination、optimistic mutation/conflict     |
-| Auth/Server | signed-out、signed-in、expired/denied、authorized function result          |
-| Recovery    | cancel、timeout、worker loss、cursor resume、duplicate/out-of-order result |
+| Coverage class | Required coverage                                                          | Plan axis |
+| -------------- | -------------------------------------------------------------------------- | --------- |
+| Surface        | Preview、standalone Export、CI                                             | yes       |
+| Target         | React/Vite、Vue/Vite controlled target                                     | yes       |
+| Browser        | Chromium full；Firefox/WebKit Policy-defined critical subset               | yes       |
+| Motion         | full、reduced                                                              | yes       |
+| Data           | loading、empty、error、retry、pagination、optimistic mutation/conflict     | no        |
+| Auth/Server    | signed-out、signed-in、expired/denied、authorized function result          | no        |
+| Recovery       | cancel、timeout、worker loss、cursor resume、duplicate/out-of-order result | no        |
+
+Data/Auth/Recovery 是 Scenario-internal controlled profiles；由 V6 root Gate 直接重跑的 exact owner
+test/manifest 证明，不与前四个 Plan axes 做笛卡尔积。
 
 tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonical candidate 或明确 blocked/unsupported reason。
+
+### V6 local exit record
+
+- [x] 66 required Plan cells 被 8 rows 精确覆盖，58 browser cells / 72 browser attempts 与 8 static attempts
+      实际执行；controlled Golden 为 80 reported/passed、零 blocked/unsupported/skipped/failed。
+- [x] 八行 cells/attempts 固定为 `7/14、7/14、10/10、10/10、12/12、12/12、4/4、4/4`。
+- [x] aggregate evidence 记录 Plan/matrix/browser identity/baseline/report/artifact/resolved-input digests，
+      per-attempt clean cleanup 与零 residual。
+- [x] 每个 browser attempt 记录 runtime-control initial/terminal same-context attestation 与 cleanup release；
+      terminal attestation 绑定 exact attempt/context 并证明零 residual。
+- [x] 每个 static attempt 记录 artifact retirement digest，static transport 最终
+      `activeAttemptCount=0 activeArtifactCount=0`。
+- [x] Preview Remote 14 attempts 经过 runtime-remote control-plane、exact bundle materialization、
+      readiness/cursor/resume 与 retirement；Browser/Remote origin identity 不混用。
+- [x] `VerificationCoverageSummary`、`VerificationBuildSummary` 与 `VerificationTrace` 三类 canonical artifact
+      projection 的 absolute path/URL/vendor-field hard cut、codec/projector conformance 与 Golden staged bytes
+      no-canary 通过，Core/Web/Evidence 只接收 canonical identity。
+- [x] Data/Auth/Recovery companion manifest 记录 17 profiles、8 suites、28 exact cases、manifest digest 与零
+      failed/skipped/todo。
+- [x] root Gate、Compiler production probe、Core/G3/wire boundaries 与 exact runner/browser identity 同次通过；
+      本地完成后仍保持 CI Evidence pending，等待固定 commit/workflow identity。
 
 ## V7：产品、CLI 与 CI
 
@@ -293,7 +324,8 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 [V4 CI Job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)
 取得 durable Passed evidence；第六个入口已由 commit `f3d91b9d` 的
 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
-取得 durable Passed evidence；其余入口随对应 milestone 建立：
+取得 durable Passed evidence；第七个入口已在 2026-07-29 本地通过但尚无 CI evidence，其余入口随对应
+milestone 建立：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

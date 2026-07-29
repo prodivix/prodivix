@@ -2,9 +2,9 @@
 
 ## 状态
 
-- EvidenceStatus：V0/V1/V2/V3/V4/V5 Gates Passed
+- EvidenceStatus：V0-V5 durable CI Passed / V6 local Gate Passed, CI Evidence pending
 - ProductGateStatus：In Progress
-- 日期：2026-07-28
+- 日期：2026-07-29
 - G2 Exit baseline：`3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184`
 - Canonical milestone：[`g3-behavior-verification-milestones.md`](g3-behavior-verification-milestones.md)
 - Contract：[`../implementation/g3-behavior-verification-closure.md`](../implementation/g3-behavior-verification-closure.md)
@@ -24,7 +24,10 @@ G2 Exit Gate 已通过；V0/V1/V2 aggregate 已在本地通过，并由 commit
 [`f3d91b9dfc786b167fa5df825cd45116441c725c`](https://github.com/prodivix/prodivix/commit/f3d91b9dfc786b167fa5df825cd45116441c725c)
 的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
 取得 durable CI identity。
-V6-V8 与 G3 aggregate 仍未运行，不得把 V2-V5 Golden 解释为整个 G3 已 Passed。
+V6 root aggregate、owner boundary、66-cell/8-row/80-attempt contract、Scenario-internal Data/Auth/Recovery
+companion Gate 与真实三浏览器 adapter tests 已于 2026-07-29 在本地通过；独立三浏览器 workflow 已配置但
+CI evidence 仍待固定 commit/run identity。V7-V8 与 G3 aggregate 仍未运行，不得把 V2-V6 Golden 解释为
+整个 G3 已 Passed。
 
 ## Evidence identity
 
@@ -50,18 +53,18 @@ V6-V8 与 G3 aggregate 仍未运行，不得把 V2-V5 Golden 解释为整个 G3 
 
 ## Required Gate manifest
 
-| Gate                             | 状态    | 必须证明                                                             | Evidence                                                                                                                                                       |
-| -------------------------------- | ------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify:g3:boundaries`           | Passed  | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                         |
-| `verify:g3:scenario-authoring`   | Passed  | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                         |
-| `verify:g3:behavior-composition` | Passed  | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27 |
-| `verify:g3:deterministic-replay` | Passed  | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                         |
-| `verify:g3:verification-plan`    | Passed  | Impact/Policy/Plan determinism、budget、required semantics           | [CI job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)，commit `a6aa0bf9`，2026-07-28                                         |
-| `verify:g3:evidence`             | Passed  | promotion、attestation、Secret hard cut、retention/recovery          | [CI job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)，commit `f3d91b9d`，本地与 CI real PostgreSQL Gate，2026-07-28         |
-| `verify:g3:adapter-matrix`       | Not Run | all required check families/surfaces/targets/browsers/motion         | —                                                                                                                                                              |
-| `verify:g3:product`              | Not Run | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                                                                                                              |
-| `verify:g3:golden`               | Not Run | Authenticated Catalog end-to-end trusted Closure                     | —                                                                                                                                                              |
-| `verify:g3`                      | Not Run | aggregate with no omitted required cell                              | —                                                                                                                                                              |
+| Gate                             | 状态       | 必须证明                                                             | Evidence                                                                                                                                                       |
+| -------------------------------- | ---------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify:g3:boundaries`           | Passed     | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                         |
+| `verify:g3:scenario-authoring`   | Passed     | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                         |
+| `verify:g3:behavior-composition` | Passed     | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27 |
+| `verify:g3:deterministic-replay` | Passed     | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                         |
+| `verify:g3:verification-plan`    | Passed     | Impact/Policy/Plan determinism、budget、required semantics           | [CI job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)，commit `a6aa0bf9`，2026-07-28                                         |
+| `verify:g3:evidence`             | Passed     | promotion、attestation、Secret hard cut、retention/recovery          | [CI job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)，commit `f3d91b9d`，本地与 CI real PostgreSQL Gate，2026-07-28         |
+| `verify:g3:adapter-matrix`       | Local Pass | all required check families/surfaces/targets/browsers/motion         | 2026-07-29 local root aggregate：66 cells / 8 rows / 80 attempts 全部 passed；独立 Chromium/Firefox/WebKit CI evidence pending                                 |
+| `verify:g3:product`              | Not Run    | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                                                                                                              |
+| `verify:g3:golden`               | Not Run    | Authenticated Catalog end-to-end trusted Closure                     | —                                                                                                                                                              |
+| `verify:g3`                      | Not Run    | aggregate with no omitted required cell                              | —                                                                                                                                                              |
 
 ### V0 reproducible run
 
@@ -232,26 +235,108 @@ V6-V8 与 G3 aggregate 仍未运行，不得把 V2-V5 Golden 解释为整个 G3 
   `verify:g3:evidence` 全部通过；同一 commit 的 Tests、Deploy Smoke、Rootless、Security、CodeQL、
   Docker Images、G0/G1、G2 PostgreSQL 与 Smoke workflows 也全部通过。
 - Limitation：deterministic CI-attested fixture 与 GitHub PostgreSQL Gate 不等于真实云 OIDC deployment
-  evidence；V6 adapter matrix、V7完整产品/CLI/CI和V8 Golden未运行。
+  evidence；V6 本地 66/80 aggregate 已通过但独立 CI Job 尚无固定 commit/run identity，V7完整产品/CLI/CI和
+  V8 Golden未运行。
+
+### V6 reproducible run
+
+- Status：`Implemented locally / CI Evidence pending`。
+- Root command：`pnpm run verify:g3:adapter-matrix`。
+- Environment contract：workflow 固定 `ubuntu-24.04`，并由 pre-adopted browser identity registry exact
+  绑定 GitHub runner `ImageVersion`；使用 Node 22、frozen pnpm lockfile 与 Playwright
+  Chromium/Firefox/WebKit，先执行 `pnpm exec playwright install --with-deps chromium firefox webkit`，再运行
+  root command。
+- Composition：cold-build Golden dependency closure、Verification Core、static/browser first-party adapters、
+  Runtime Core/Vitest/Browser/Remote、Compiler full production bundle probe、66-cell/8-row/80-attempt Golden、
+  Scenario-internal controlled-dimension owner manifest 与 Core/G3/wire boundaries。
+- Local result：2026-07-29 root command 完整通过；66 required Plan cells 全部被 8 rows 精确覆盖，58
+  browser-family cells 形成 72 个真实
+  Browser/Remote/standalone/CI attempts，8 static-family cells 形成 8 个真实 attempts；每个 attempt 必须产生
+  Core 接受的 candidate，未使用 6 个 target/engine smoke 替代逐-cell evidence。
+- Controlled Golden exit：本次支持矩阵为 80 个 `reported` + normalized `passed`，且
+  blocked/unsupported/skipped/failed、late write、active artifact、target lease、security authority 与 cleanup
+  residual 均为零；generic adapter contract 仍保留 blocked/unsupported 语义，但本次 Golden 未使用它们代替
+  completion。
+- Required identity fields：Plan、adapter registry、matrix manifest、browser identity registry、visual baseline
+  set/asset/normalizer、controlled-dimension manifest 与 aggregate evidence digests；每个 browser/static attempt
+  还必须记录 exact cell/provider、report digest、resolved input-set digest、artifact digest set 与 cleanup status。
+- Required runtime/static cleanup fields：每个 browser attempt 记录 runtime-control initial/terminal
+  same-context attestation、exact attempt/context binding、terminal zero-residual 与 cleanup release receipt；每个
+  static attempt 记录 artifact retirement digest，且 static transport 最终
+  `activeAttemptCount=0 activeArtifactCount=0`。
+- Required Remote/security fields：14 个 Preview Remote attempts 分别记录 execution/provider、snapshot、
+  durable/materialized bundle、readiness/health、resume/terminal cursor、origin/entry 与 cleanup/retirement
+  evidence；8 个 security attempts 分别记录三项 owner-resolution exact-once audit、七项 pre-finalization 与 Core
+  补齐后的九项 hard-rule report digest。
+- Required artifact-boundary fields：`VerificationCoverageSummary`、`VerificationBuildSummary` 与
+  `VerificationTrace` 三类 canonical artifact projection 必须逐类记录 codec/projector conformance、
+  absolute path/URL/vendor-field negative 与 Golden staged bytes no-canary；raw tool locator 与私有 payload
+  不得进入 Core report、Web 或 Evidence。
+- Package/test evidence：29-package build closure；Verification `19 files / 242 tests`、Adapters
+  `7/40`、真实 Browser Adapters `31/197`、Runtime Core `28/138`、Runtime Vitest `1/20`、Runtime Browser
+  `8/35`、Runtime Remote `17/109`、Compiler probe `1/14`、static Golden `14/68`、browser Golden
+  `2 files / 3 tests` 全部通过；Core/G3/wire boundaries 同次通过。
+- Canonical identities：Plan
+  `sha256-bb49ad3980a1e1a8d84a3f4f74ec3c48ebda7cd3c72ee2f0605eb57259ef23a9`；matrix
+  `sha256-f9f137d4744e08a5f452611305c3e4295e4fce3a4992f8328f2673eb71a688f3`；adapter registry
+  `sha256-06f219930d74f9365a694b53fb18a553264460a550d6635ba9149a0bfde263d1`；browser identities
+  `sha256-4f02035b5bd907b871099bab946f5468114d7b40b6e9407de284bec37314d6f5`；visual identities
+  `sha256-384a345e825802dbc73fbf8449a026ff60106196056d93f437d5292758076734`。
+- Baseline identities：set
+  `sha256-acf94061ff276ba26aa7a14a9d1adfc62dc1a214a2b832d894b1c6cf2d727a56`；asset
+  `sha256-774d02c24278eb5c0c9eb4f8d5f4eabb5891a6b9c01429492d43d5c89b7a3928`；raster
+  `sha256-9ebde0e380725ce43da1288d7b5116011dbba8215a5b8ce1c73af23d64c9c5cc`；normalizer
+  `sha256-a58ee5c8f675cdba49dee439fb7db48bbc5ff8efb0d066bc8758816db7101069`。
+- Run-bound identities：attempt manifest
+  `sha256-5ef7da56d9e6fcb5c112bd8823e10a89b297f97bdbdd8becd4594dbc8b80849b`；controlled manifest/evidence/
+  environment `sha256-5d7140c03a80aaeb24b43b535dec058827535844ed3d6bc435afc54e3fceeeb9`、
+  `sha256-d61ffd2a9f30867449cf0e28e44cb9a1cbfd3cfcb52944900f5a307d463ff215`、
+  `sha256-6158d900c7e842d14fe71d062aec83330742e25e84f5825173336c579e26515e`；runtime controls
+  `sha256-7b9f087795da302a9c4f181f485d57e76362f28e1b24eb0ab86815bac8e6425a`；aggregate evidence
+  `sha256-ec243c6d645bfb58b7b869c09775c284f91b21fc5a8c345d91c35eb1eae1362e`。
+- Supplementary evidence：Backend verification 与 verificationcontract 非缓存 Go tests、remote worker
+  `10 files / 75 tests` 通过；rootless snapshot contract digest 为
+  `sha256-9680cb1ff4fd3ae39a5e46b618ac97068000aad2a7939d8d84b9f7ac2846f8a6`。
+- CI pending：Windows 本地运行不冒充 rootless Podman 或 GitHub runner identity；独立 V6 Job 尚无固定
+  commit/run identity。
 
 ## Required Golden matrix
 
 最终表必须逐 cell 记录 Plan requirement、latest accepted Evidence、trust、compatibility 和 verdict；不得只写“matrix passed”。
 
 V2 的 Chromium full/reduced target slice 已在本地与 GitHub CI 通过；V3 又完成受控 provider semantic
-matrix与三次 fresh replay，但下表是 V6/V8 最终 required matrix，仍保持 `Not Run`，不能用 V2/V3
-slice替代尚未执行的完整 Remote、多浏览器、performance/security 或 trusted Evidence。
+matrix与三次 fresh replay。下表是 2026-07-29 实际通过的 V6 required matrix；状态只代表本地 V6
+adapter-matrix evidence，不代表 V8 trusted Closure 或 durable CI evidence。
 
-| Surface | Target                | Browser/runtime         | Motion         | Required families                                                             | 状态    |
-| ------- | --------------------- | ----------------------- | -------------- | ----------------------------------------------------------------------------- | ------- |
-| Preview | React/Vite            | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              | Not Run |
-| Preview | Vue/Vite              | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              | Not Run |
-| Export  | React/Vite            | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          | Not Run |
-| Export  | Vue/Vite              | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          | Not Run |
-| CI      | React/Vite            | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security | Not Run |
-| CI      | Vue/Vite              | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security | Not Run |
-| CI      | React/Vite + Vue/Vite | Firefox critical subset | Policy-defined | behavior、a11y                                                                | Not Run |
-| CI      | React/Vite + Vue/Vite | WebKit critical subset  | Policy-defined | behavior、a11y                                                                | Not Run |
+| Surface | Target                | Browser/runtime         | Motion         | Required families                                                             | Cells | Attempts | 状态       |
+| ------- | --------------------- | ----------------------- | -------------- | ----------------------------------------------------------------------------- | ----: | -------: | ---------- |
+| Preview | React/Vite            | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              |     7 |       14 | Local Pass |
+| Preview | Vue/Vite              | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              |     7 |       14 | Local Pass |
+| Export  | React/Vite            | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          |    10 |       10 | Local Pass |
+| Export  | Vue/Vite              | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          |    10 |       10 | Local Pass |
+| CI      | React/Vite            | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security |    12 |       12 | Local Pass |
+| CI      | Vue/Vite              | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security |    12 |       12 | Local Pass |
+| CI      | React/Vite + Vue/Vite | Firefox critical subset | Policy-defined | behavior、a11y                                                                |     4 |        4 | Local Pass |
+| CI      | React/Vite + Vue/Vite | WebKit critical subset  | Policy-defined | behavior、a11y                                                                |     4 |        4 | Local Pass |
+| Total   | —                     | —                       | —              | 9 check families                                                              |    66 |       80 | Local Pass |
+
+### Scenario-internal controlled dimensions
+
+Data、Auth 与 Recovery 不扩张上述 66 个 Plan cells。root `verify:g3:adapter-matrix` 必须通过
+`@prodivix/golden-conformance` 的 `test:g3-v6-controlled-dimensions` 子 Gate，按
+`goldenG3V6ControlledDimensionManifest.ts` 精确重跑 owner tests；manifest 当前绑定 17 个 profile IDs、
+8 个 suites 与 28 个指定 cases，并要求所选文件中的所有用例均 passed、零 failed/skipped/todo。本次 root Gate
+已直接重跑这些 owner suites，下表记录实际本地结果。
+
+| Controlled dimension | Scenario-internal profile IDs                                        | Exact owner manifest suites                                                                  | 状态       |
+| -------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------- |
+| Data                 | loading、empty、error、retry、pagination、optimistic conflict        | `data-owner-runtime`、`data-golden-controlled-journeys`、`data-generated-production-runtime` | Local Pass |
+| Auth                 | signed-out、signed-in、expired、denied、authorized                   | `auth-owner-principal-projection`、`auth-golden-target-matrix`                               | Local Pass |
+| Recovery             | cancel、timeout、worker loss、cursor resume、duplicate、out-of-order | `recovery-adapter-lifecycle`、`recovery-browser-process`、`recovery-remote-protocol`         | Local Pass |
+
+本地 evidence 已记录 exact manifest digest
+`sha256-5d7140c03a80aaeb24b43b535dec058827535844ed3d6bc435afc54e3fceeeb9`、`controlled=28`、
+owner-passed cases `127` 与 `skipped=0 todo=0 failed=0`；远端 CI identity 仍须由独立 V6 Job 提供。
 
 ## Required negative evidence
 
@@ -269,7 +354,18 @@ slice替代尚未执行的完整 Remote、多浏览器、performance/security �
 - [x] visual/baseline/control/tool incompatibility 不生成 pass/fail compare（V5 local/CI Gate）。
 - [x] failed → retry passed 保留全部 attempts，并按 Policy 标 unstable/failed/pass（V5 Golden）。
 - [x] expired/revoked/deleted Evidence 使 Closure stale/incomplete（V5 local/CI PostgreSQL Gate）。
-- [ ] production bundle 不包含 verification-only probe、fixture 或 credential。
+- [x] missing/unknown/drifted runner `ImageVersion` 阻止 visual/performance comparison，无泛 Ubuntu fallback。
+- [x] author realm monkeypatch 不能伪造 browser identity、sandbox、a11y、performance 或 security observation。
+- [x] 同次 attempt 的 current screenshot 不能临时充当 baseline；baseline/compatibility drift 必须 blocked。
+- [x] Preview Remote 必须经过 control-plane、exact bundle materialization、readiness/cursor 与 cleanup；echo
+      provider 不计入 attempt。
+- [x] required browser cell 不得由 smoke、skip 或未启用的 `describe.skipIf` 替代。
+- [x] runtime-control 只有 initial digest、缺少同 context terminal attestation 或 cleanup release 时阻止 pass。
+- [x] static artifact 缺少 per-attempt retirement，或 transport 仍有 active attempt/artifact 时阻止 pass。
+- [x] 三类 canonical artifact 仍携带 absolute path、URL、vendor field、raw tool locator、private payload 或
+      canary 时阻止 normalization/staging。
+- [x] late callback、artifact digest drift 或 cleanup residual 阻止 Core finalization。
+- [x] production bundle 不包含 verification-only probe、fixture 或 credential。
 
 ## Product journey evidence
 

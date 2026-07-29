@@ -27,6 +27,65 @@ for (const entry of packageEntries) {
 }
 
 const issues = [];
+
+const collectPackageDependencyClosure = (packageName, closure = new Set()) => {
+  if (closure.has(packageName)) return closure;
+  closure.add(packageName);
+  for (const dependency of packages.get(packageName)?.dependencies ?? []) {
+    collectPackageDependencyClosure(dependency, closure);
+  }
+  return closure;
+};
+
+const g3WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g3-boundaries.yml'),
+  'utf8'
+);
+const g3WorkflowPathBlocks = [
+  ...g3WorkflowSource.matchAll(
+    /^\s{4}paths:\r?\n((?:\s{6}- '[^']+'\r?\n)+)/gmu
+  ),
+].map(
+  (match) =>
+    new Set(
+      [...match[1].matchAll(/^\s{6}- '([^']+)'\r?$/gmu)].map(
+        (pathMatch) => pathMatch[1]
+      )
+    )
+);
+if (g3WorkflowPathBlocks.length !== 2) {
+  issues.push(
+    `G3 workflow must declare exactly two quoted path filters, found ${g3WorkflowPathBlocks.length}.`
+  );
+} else {
+  const [pullRequestPaths, pushPaths] = g3WorkflowPathBlocks;
+  const filtersMatch =
+    pullRequestPaths.size === pushPaths.size &&
+    [...pullRequestPaths].every((path) => pushPaths.has(path));
+  if (!filtersMatch) {
+    issues.push('G3 workflow pull_request and push path filters must match.');
+  }
+
+  const requiredWorkflowPaths = new Set([
+    'package.json',
+    'pnpm-lock.yaml',
+    'pnpm-workspace.yaml',
+    'turbo.json',
+    'tsconfig.json',
+    ...[...collectPackageDependencyClosure('@prodivix/golden-conformance')]
+      .map((packageName) => packages.get(packageName)?.directory)
+      .filter((directory) => directory !== undefined)
+      .map((directory) => `packages/${directory}/**`),
+  ]);
+  for (const requiredPath of requiredWorkflowPaths) {
+    if (!pullRequestPaths.has(requiredPath)) {
+      issues.push(
+        `G3 workflow path filters must cover Golden dependency ${requiredPath}.`
+      );
+    }
+  }
+}
+
 const expectedDependencies = new Map([
   [
     '@prodivix/behavior',
@@ -42,6 +101,23 @@ const expectedDependencies = new Map([
       '@prodivix/behavior',
       '@prodivix/diagnostics',
       '@prodivix/shared',
+    ]),
+  ],
+  [
+    '@prodivix/verification-adapters',
+    new Set([
+      '@prodivix/runtime-core',
+      '@prodivix/shared',
+      '@prodivix/verification',
+    ]),
+  ],
+  [
+    '@prodivix/verification-browser',
+    new Set([
+      '@prodivix/behavior',
+      '@prodivix/runtime-core',
+      '@prodivix/shared',
+      '@prodivix/verification',
     ]),
   ],
 ]);
@@ -83,6 +159,8 @@ const findPath = (from, target, visited = new Set()) => {
 for (const owner of [
   '@prodivix/behavior',
   '@prodivix/verification',
+  '@prodivix/verification-adapters',
+  '@prodivix/verification-browser',
   '@prodivix/workspace',
 ]) {
   for (const dependency of packages.get(owner)?.dependencies ?? []) {
@@ -182,6 +260,25 @@ const ownerImportRules = new Map([
       '@prodivix/diagnostics',
       '@prodivix/shared/canonical',
       '@prodivix/shared/safety',
+    ]),
+  ],
+  [
+    'verification-adapters',
+    new Set([
+      '@prodivix/runtime-core',
+      '@prodivix/shared/canonical',
+      '@prodivix/shared/safety',
+      '@prodivix/verification',
+    ]),
+  ],
+  [
+    'verification-browser',
+    new Set([
+      '@prodivix/behavior',
+      '@prodivix/runtime-core',
+      '@prodivix/shared/canonical',
+      '@prodivix/shared/safety',
+      '@prodivix/verification',
     ]),
   ],
 ]);
@@ -337,7 +434,12 @@ for (const domain of [
 for (const [path, tokens] of [
   [
     join(repoRoot, 'docs', 'architecture', 'package-ownership.md'),
-    ['`@prodivix/behavior`', '`@prodivix/verification`'],
+    [
+      '`@prodivix/behavior`',
+      '`@prodivix/verification`',
+      '`@prodivix/verification-adapters`',
+      '`@prodivix/verification-browser`',
+    ],
   ],
   [
     join(packagesRoot, 'behavior', 'src', 'behavior.types.ts'),

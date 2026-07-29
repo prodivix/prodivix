@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   createVerificationImpactSet,
   createVerificationPlan,
+  createVerificationAdapterRegistration,
+  createVerificationAdapterRegistrySnapshot,
+  decodeVerificationPlan,
   digestVerificationValue,
+  encodeVerificationPlan,
   evaluateVerificationClosure,
   evaluateVerificationPolicy,
   isVerificationClosureForPlan,
@@ -10,7 +14,6 @@ import {
   projectVerificationPlanExplanation,
   uniqueVerificationText,
   type CreateVerificationPlanInput,
-  type VerificationAdapterRegistration,
   type VerificationCheckDefinition,
   type VerificationEvidence,
   type VerificationPolicy,
@@ -190,36 +193,29 @@ const e2eCheck: VerificationCheckDefinition = {
   },
 };
 
-const adapter: VerificationAdapterRegistration = {
-  identity: {
-    adapterId: 'adapter:ci',
-    toolchainDigest: 'sha256-toolchain',
-    capabilityDigest: 'sha256-capabilities',
+const adapter = createVerificationAdapterRegistration({
+  id: 'adapter:ci',
+  implementation: {
+    packageName: '@prodivix/runtime-browser',
+    packageVersion: '0.0.1',
+    buildDigest: TEST_DIGEST,
+    toolchainDigest: TEST_DIGEST,
+    schemaDigest: TEST_DIGEST,
   },
-  descriptor: {
-    id: 'adapter:ci',
-    implementation: {
-      packageName: '@prodivix/runtime-browser',
-      packageVersion: '0.0.1',
-      buildDigest: 'sha256-build',
-      toolchainDigest: 'sha256-toolchain',
-      schemaDigest: 'sha256-schema',
-    },
-    checkKinds: ['build', 'e2e'],
-    surfaces: ['ci'],
-    targets: ['react-vite', 'vue-vite'],
-    browserEngines: ['chromium', 'firefox'],
-    controlCapabilities: [],
-    inputKinds: ['executable-snapshot', 'scenario-program'],
-    artifactKinds: ['build-log', 'replay-record'],
-    budgets: {
-      maximumDurationMs: 10_000,
-      maximumArtifactBytes: 1_000_000,
-      maximumEvents: 10_000,
-    },
-    trustInputs: ['ci-attested'],
+  checkKinds: ['build', 'e2e'],
+  surfaces: ['ci'],
+  targets: ['react-vite', 'vue-vite'],
+  browserEngines: ['chromium', 'firefox'],
+  controlCapabilities: [],
+  inputKinds: ['executable-snapshot', 'scenario-program'],
+  artifactKinds: ['build-log', 'replay-record'],
+  budgets: {
+    maximumDurationMs: 10_000,
+    maximumArtifactBytes: 1_000_000,
+    maximumEvents: 4_096,
   },
-};
+  trustInputs: ['ci-attested'],
+});
 
 const impact = () => {
   const result = createVerificationImpactSet({
@@ -292,7 +288,8 @@ const planInput = (
   scenarios: [scenario],
   checks: [e2eCheck],
   adapters: [adapter],
-  adapterRegistryDigest: 'sha256-adapters',
+  adapterRegistryDigest: createVerificationAdapterRegistrySnapshot([adapter])
+    .snapshotDigest,
   compilerDigest: 'sha256-compiler',
   plannerDigest: 'sha256-planner-v4',
 });
@@ -733,6 +730,14 @@ describe('Verification V4 planning', () => {
     });
     expect(first.status).toBe('ready');
     expect(second.plan).toEqual(first.plan);
+    const malformedWire = structuredClone(
+      encodeVerificationPlan(first.plan)
+    ) as unknown as {
+      cells: Array<{ adapter: { toolchainDigest: string } }>;
+    };
+    malformedWire.cells[0]!.adapter.toolchainDigest =
+      'sha256-not-a-canonical-digest';
+    expect(decodeVerificationPlan(malformedWire)).toMatchObject({ ok: false });
     expect(first.plan.cells).toHaveLength(8);
     expect(
       new Set(first.plan.cells.map((cell) => cell.frameworkTarget))
@@ -797,6 +802,8 @@ describe('Verification V4 planning', () => {
     const unsupported = createVerificationPlan({
       ...planInput(),
       adapters: [],
+      adapterRegistryDigest: createVerificationAdapterRegistrySnapshot([])
+        .snapshotDigest,
     });
     expect(unsupported.status).toBe('blocked');
     expect(
@@ -1100,23 +1107,23 @@ describe('Verification V4 planning', () => {
       inputKinds: ['executable-snapshot', 'scenario-program', 'baseline-set'],
       artifactKinds: ['screenshot', 'visual-diff'],
     };
-    const visualAdapter: VerificationAdapterRegistration = {
-      ...adapter,
-      descriptor: {
-        ...adapter.descriptor,
-        checkKinds: [...adapter.descriptor.checkKinds, 'visual'],
-        inputKinds: [...adapter.descriptor.inputKinds, 'baseline-set'],
-        artifactKinds: [
-          ...adapter.descriptor.artifactKinds,
-          'screenshot',
-          'visual-diff',
-        ],
-      },
-    };
+    const visualAdapter = createVerificationAdapterRegistration({
+      ...adapter.descriptor,
+      checkKinds: [...adapter.descriptor.checkKinds, 'visual'],
+      inputKinds: [...adapter.descriptor.inputKinds, 'baseline-set'],
+      artifactKinds: [
+        ...adapter.descriptor.artifactKinds,
+        'screenshot',
+        'visual-diff',
+      ],
+    });
+    const visualAdapterRegistryDigest =
+      createVerificationAdapterRegistrySnapshot([visualAdapter]).snapshotDigest;
     const missingBaseline = createVerificationPlan({
       ...planInput(visualPolicy),
       checks: [visualCheck],
       adapters: [visualAdapter],
+      adapterRegistryDigest: visualAdapterRegistryDigest,
     });
     expect(missingBaseline.status).toBe('blocked');
     expect(missingBaseline.plan.issues).toContainEqual(
@@ -1142,6 +1149,7 @@ describe('Verification V4 planning', () => {
       ...planInput(boundPolicy),
       checks: [visualCheck],
       adapters: [visualAdapter],
+      adapterRegistryDigest: visualAdapterRegistryDigest,
     });
     expect(bound.status).toBe('ready');
     expect(bound.plan.cells[0]).toMatchObject({
@@ -1161,6 +1169,7 @@ describe('Verification V4 planning', () => {
       ...planInput(forbiddenBaselinePolicy),
       checks: [visualCheck],
       adapters: [visualAdapter],
+      adapterRegistryDigest: visualAdapterRegistryDigest,
     });
     expect(forbiddenBaseline.status).toBe('blocked');
     expect(forbiddenBaseline.plan.issues).toContainEqual(

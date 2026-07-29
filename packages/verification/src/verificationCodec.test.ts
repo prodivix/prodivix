@@ -141,6 +141,7 @@ export const verificationBaselineSetFixture: VerificationBaselineSet = {
         mediaType: 'image/png',
       },
       normalizerDigest: digest,
+      compatibilityProfileDigest: digest,
       adoptedAt: '2026-07-20T00:00:00Z',
       adoptedBy: 'principal.owner',
     },
@@ -195,6 +196,30 @@ describe('Verification document codecs', () => {
         ],
       }).ok
     ).toBe(false);
+
+    const {
+      compatibilityProfileDigest: _compatibilityProfileDigest,
+      ...missingCompatibilityProfile
+    } = verificationBaselineSetFixture.entries[0]!;
+    expect(
+      validateVerificationDocument('verification-baseline-set', {
+        ...verificationBaselineSetFixture,
+        entries: [missingCompatibilityProfile],
+      }).ok
+    ).toBe(false);
+    expect(
+      validateVerificationDocument('verification-baseline-set', {
+        ...verificationBaselineSetFixture,
+        entries: [
+          verificationBaselineSetFixture.entries[0],
+          {
+            ...verificationBaselineSetFixture.entries[0],
+            id: 'baseline.catalog.other-environment',
+            compatibilityProfileDigest: `sha256-${'c'.repeat(64)}`,
+          },
+        ],
+      }).ok
+    ).toBe(true);
   });
 
   it('rejects a duplicate policy selector with conflicting closure requirements', () => {

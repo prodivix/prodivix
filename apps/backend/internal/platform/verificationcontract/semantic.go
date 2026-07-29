@@ -70,12 +70,13 @@ type verificationBaselineSemanticEntry struct {
 		Width  int64  `json:"width"`
 		Height int64  `json:"height"`
 	} `json:"viewport"`
-	ColorScheme      string  `json:"colorScheme"`
-	Motion           string  `json:"motion"`
-	Locale           string  `json:"locale"`
-	DevicePixelRatio float64 `json:"devicePixelRatio"`
-	NormalizerDigest string  `json:"normalizerDigest"`
-	Asset            struct {
+	ColorScheme                string  `json:"colorScheme"`
+	Motion                     string  `json:"motion"`
+	Locale                     string  `json:"locale"`
+	DevicePixelRatio           float64 `json:"devicePixelRatio"`
+	NormalizerDigest           string  `json:"normalizerDigest"`
+	CompatibilityProfileDigest string  `json:"compatibilityProfileDigest"`
+	Asset                      struct {
 		MediaType string `json:"mediaType"`
 	} `json:"asset"`
 }
@@ -226,31 +227,33 @@ func validateBaselineSetSemantics(payload json.RawMessage) error {
 	for _, entry := range baselineSet.Entries {
 		entryIDs = append(entryIDs, entry.ID)
 		identity, err := json.Marshal(struct {
-			ScenarioID       string  `json:"scenarioId"`
-			StepID           string  `json:"stepId"`
-			TargetID         string  `json:"targetId"`
-			FrameworkTarget  string  `json:"frameworkTarget"`
-			Surface          string  `json:"surface"`
-			BrowserEngine    string  `json:"browserEngine"`
-			Viewport         any     `json:"viewport"`
-			ColorScheme      string  `json:"colorScheme"`
-			Motion           string  `json:"motion"`
-			Locale           string  `json:"locale"`
-			DevicePixelRatio float64 `json:"devicePixelRatio"`
-			NormalizerDigest string  `json:"normalizerDigest"`
+			ScenarioID                 string  `json:"scenarioId"`
+			StepID                     string  `json:"stepId"`
+			TargetID                   string  `json:"targetId"`
+			FrameworkTarget            string  `json:"frameworkTarget"`
+			Surface                    string  `json:"surface"`
+			BrowserEngine              string  `json:"browserEngine"`
+			Viewport                   any     `json:"viewport"`
+			ColorScheme                string  `json:"colorScheme"`
+			Motion                     string  `json:"motion"`
+			Locale                     string  `json:"locale"`
+			DevicePixelRatio           float64 `json:"devicePixelRatio"`
+			NormalizerDigest           string  `json:"normalizerDigest"`
+			CompatibilityProfileDigest string  `json:"compatibilityProfileDigest"`
 		}{
-			ScenarioID:       entry.ScenarioID,
-			StepID:           entry.StepID,
-			TargetID:         entry.TargetID,
-			FrameworkTarget:  entry.FrameworkTarget,
-			Surface:          entry.Surface,
-			BrowserEngine:    entry.BrowserEngine,
-			Viewport:         entry.Viewport,
-			ColorScheme:      entry.ColorScheme,
-			Motion:           entry.Motion,
-			Locale:           entry.Locale,
-			DevicePixelRatio: entry.DevicePixelRatio,
-			NormalizerDigest: entry.NormalizerDigest,
+			ScenarioID:                 entry.ScenarioID,
+			StepID:                     entry.StepID,
+			TargetID:                   entry.TargetID,
+			FrameworkTarget:            entry.FrameworkTarget,
+			Surface:                    entry.Surface,
+			BrowserEngine:              entry.BrowserEngine,
+			Viewport:                   entry.Viewport,
+			ColorScheme:                entry.ColorScheme,
+			Motion:                     entry.Motion,
+			Locale:                     entry.Locale,
+			DevicePixelRatio:           entry.DevicePixelRatio,
+			NormalizerDigest:           entry.NormalizerDigest,
+			CompatibilityProfileDigest: entry.CompatibilityProfileDigest,
 		})
 		if err != nil {
 			return err

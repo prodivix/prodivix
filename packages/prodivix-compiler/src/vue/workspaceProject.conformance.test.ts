@@ -12,6 +12,12 @@ import {
 } from '@prodivix/workspace';
 import { generateWorkspaceReactViteBundle } from '#src/react/workspaceProject';
 import { generateWorkspaceVueViteExecutableProject } from '#src/executableProject/workspaceVueExecutableProject';
+import type { ExportRouteTopology } from '#src/export';
+import {
+  DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
+  type WorkspaceServerRuntimeTargetAnalysis,
+} from '#src/workspace/workspaceServerRuntimeTarget';
+import { createWorkspaceVueAppModule } from './workspaceApp';
 import { generateWorkspaceVueViteBundle } from './workspaceProject';
 
 const workspace: WorkspaceSnapshot = {
@@ -276,6 +282,141 @@ const domainWorkspace: WorkspaceSnapshot = {
 };
 
 describe('controlled Vue/Vite G2 target', () => {
+  it('wires protected product routes through the generated Server Runtime client', () => {
+    const runtimeRefs = [
+      {
+        kind: 'guard' as const,
+        artifactId: 'code-auth',
+        exportName: 'requireOwner',
+        sourceTrace: [],
+      },
+      {
+        kind: 'loader' as const,
+        artifactId: 'code-auth',
+        exportName: 'loadPrincipal',
+        sourceTrace: [],
+      },
+      {
+        kind: 'action' as const,
+        artifactId: 'code-auth',
+        exportName: 'mutateCatalog',
+        sourceTrace: [],
+      },
+    ];
+    const routeTopology: ExportRouteTopology = {
+      version: '1',
+      rootRouteNodeId: 'route-auth',
+      target: { framework: 'vue', preset: 'vite' },
+      routes: [
+        {
+          routeNodeId: 'route-auth',
+          path: '/',
+          depth: 0,
+          runtimeRefs,
+          sourceTrace: [],
+        },
+      ],
+      runtimeRefs: runtimeRefs.map((runtimeRef) => ({
+        routeNodeId: 'route-auth',
+        ...runtimeRef,
+      })),
+      adapter: {
+        framework: 'vue',
+        preset: 'vite',
+        runtimeRefs: runtimeRefs.map(
+          ({ sourceTrace: _sourceTrace, ...runtimeRef }) => ({
+            routeNodeId: 'route-auth',
+            ...runtimeRef,
+          })
+        ),
+      },
+    };
+    const definition = (
+      exportName: string,
+      kind: 'route-guard' | 'route-loader' | 'route-action'
+    ) => ({
+      reference: { artifactId: 'code-auth', exportName },
+      kind,
+      runtimeZone: 'server' as const,
+      adapterId:
+        kind === 'route-guard'
+          ? 'core.auth.require-workspace-owner'
+          : kind === 'route-loader'
+            ? 'core.auth.current-principal'
+            : 'core.server.execution-state.put',
+      effect:
+        kind === 'route-action' ? ('mutation' as const) : ('read' as const),
+      auth:
+        kind === 'route-guard'
+          ? ({
+              kind: 'permission' as const,
+              permissionId: 'workspace.owner',
+            } as const)
+          : ({ kind: 'authenticated' as const } as const),
+      inputSchema: true,
+      outputSchema: true,
+      ...(kind === 'route-action'
+        ? { idempotency: { kind: 'invocation-key' as const } }
+        : {}),
+    });
+    const serverRuntime: WorkspaceServerRuntimeTargetAnalysis = {
+      target: DETERMINISTIC_TEST_SERVER_RUNTIME_TARGET,
+      serverArtifactIds: ['code-auth'],
+      bindings: [
+        {
+          routeNodeId: 'route-auth',
+          routeKind: 'guard',
+          documentPath: '/auth.server.ts',
+          definition: definition('requireOwner', 'route-guard'),
+        },
+        {
+          routeNodeId: 'route-auth',
+          routeKind: 'loader',
+          documentPath: '/auth.server.ts',
+          definition: definition('loadPrincipal', 'route-loader'),
+        },
+        {
+          routeNodeId: 'route-auth',
+          routeKind: 'action',
+          documentPath: '/auth.server.ts',
+          definition: definition('mutateCatalog', 'route-action'),
+        },
+      ],
+      requirements: {
+        functionCount: 3,
+        routeNodeCount: 1,
+        requiresServerGateway: true,
+        requiresEnvironmentBinding: false,
+        requiresProductAuth: false,
+        requiresDeterministicTestRuntime: true,
+      },
+      diagnostics: [],
+    };
+    const result = createWorkspaceVueAppModule({
+      workspace,
+      routeTopology,
+      serverRuntime,
+      executableModuleIdByArtifactId: new Map(),
+      compiledDocuments: [],
+    });
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.module.body).toContain(
+      'invokeWorkspaceServerFunction(entry.functionRef'
+    );
+    expect(result.module.body).toContain(
+      "readRuntimeEntry(route.routeNodeId, 'guard')"
+    );
+    expect(result.module.body).toContain(
+      "readRuntimeEntry(route.routeNodeId, 'loader')"
+    );
+    expect(result.module.body).toContain('dispatchWorkspaceRouteAction');
+    expect(result.module.body).toContain('data-prodivix-route-loader');
+    expect(result.module.body).toContain(
+      "'data-prodivix-route-runtime': 'denied'"
+    );
+  });
+
   it('uses the exact shared standalone Data runtime and independent Vue scaffold', () => {
     const vue = generateWorkspaceVueViteBundle(workspace, {
       dataMockProvision: provision,
@@ -317,6 +458,7 @@ describe('controlled Vue/Vite G2 target', () => {
       framework: 'vue',
       runtime: 'vite',
     });
+    expect(result.snapshot.resourceHints.timeoutMs).toBe(60_000);
     expect(result.snapshot.dataMockProvision).toMatchObject({
       fixtureSetId: provision.fixtureSetId,
       emulatedAdapterIds: ['core.http'],
