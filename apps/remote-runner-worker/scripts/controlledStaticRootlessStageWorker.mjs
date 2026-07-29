@@ -464,7 +464,10 @@ const copyRegularFile = async (sourcePath, outputPath) => {
   });
 };
 
-const commandPlan = (plan, environmentDigest) => {
+export const createControlledStaticRootlessCommandPlan = (
+  plan,
+  environmentDigest
+) => {
   const nodeTool = (subjectBinary, subjectVersion) => ({
     binary: 'node',
     version: plan.nodeVersion,
@@ -488,15 +491,10 @@ const commandPlan = (plan, environmentDigest) => {
       args: [
         'install',
         '--frozen-lockfile',
-        '--offline',
         '--ignore-scripts',
         '--lockfile-only',
         '--reporter=append-only',
         '--loglevel=error',
-        '--frozen-store',
-        '--no-verify-store-integrity',
-        '--store-dir=/opt/prodivix/pnpm-store',
-        '--package-import-method=copy',
       ],
       environmentDigest,
       tool: { binary: 'pnpm', version: plan.pnpmVersion },
@@ -589,7 +587,6 @@ const run = async () => {
   const {
     assertControlledStageSucceeded,
     controlledExecutionEnvironment,
-    controlledInstallEnvironment,
     runControlledSandboxStage,
   } = await import('./controlled-static-sandbox-runtime.mjs');
   failurePhase = 'stage-plan';
@@ -598,12 +595,9 @@ const run = async () => {
   const inputFileSet = await scanInputFileSet();
   failurePhase = 'fresh-baseline';
   const freshBaseline = await assertFreshBaseline(plan);
-  const installPhase = plan.stage === 'version' || plan.stage === 'install';
-  if (!installPhase) sanitizeExecutionEnvironment();
+  sanitizeExecutionEnvironment();
   failurePhase = 'environment';
-  const environment = installPhase
-    ? controlledInstallEnvironment()
-    : controlledExecutionEnvironment();
+  const environment = controlledExecutionEnvironment();
   let packageSeed = null;
   if (plan.stage !== 'install' && plan.packageImport) {
     failurePhase = 'package-import';
@@ -611,7 +605,7 @@ const run = async () => {
   }
   failurePhase = 'command';
   const command = await runControlledSandboxStage(
-    commandPlan(plan, environment.digest)
+    createControlledStaticRootlessCommandPlan(plan, environment.digest)
   );
   failurePhase = 'command-authority';
   const commandFailureSource = Buffer.concat([

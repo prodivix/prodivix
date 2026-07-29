@@ -114,15 +114,10 @@ const expectedCommand = (
       args: Object.freeze([
         'install',
         '--frozen-lockfile',
-        '--offline',
         '--ignore-scripts',
         '--lockfile-only',
         '--reporter=append-only',
         '--loglevel=error',
-        '--frozen-store',
-        '--no-verify-store-integrity',
-        '--store-dir=/opt/prodivix/pnpm-store',
-        '--package-import-method=copy',
       ]),
       tool: Object.freeze({
         binary: 'pnpm',
@@ -563,17 +558,7 @@ export const decodeControlledStaticRootlessStageResult = (
     ['keys', 'digest'],
     `Controlled rootless ${stage} environment`
   );
-  const expectedEnvironmentKeys =
-    ordinal < 2
-      ? [
-          'BUN_INSTALL_CACHE_DIR',
-          'HOME',
-          'PATH',
-          'YARN_CACHE_FOLDER',
-          'npm_config_cache',
-          'npm_config_store_dir',
-        ]
-      : ['HOME', 'PATH'];
+  const expectedEnvironmentKeys = ['HOME', 'PATH'];
   if (
     !sameCanonicalJson(environment.keys, expectedEnvironmentKeys) ||
     typeof environment.digest !== 'string' ||

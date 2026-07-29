@@ -228,14 +228,7 @@ const decodeControlledAuthorityReceipt = (
         canonicalJsonText(executionEnvironment.keys) !==
           canonicalJsonText(expectedEnvironmentKeys)
       : canonicalJsonText(installEnvironment.keys) !==
-          canonicalJsonText([
-            'BUN_INSTALL_CACHE_DIR',
-            'HOME',
-            'PATH',
-            'YARN_CACHE_FOLDER',
-            'npm_config_cache',
-            'npm_config_store_dir',
-          ]) ||
+          canonicalJsonText(['HOME', 'PATH']) ||
         canonicalJsonText(executionEnvironment.keys) !==
           canonicalJsonText(['HOME', 'PATH'])
   ) {
@@ -372,15 +365,10 @@ const decodeControlledAuthorityReceipt = (
           : [
               'install',
               '--frozen-lockfile',
-              '--offline',
               '--ignore-scripts',
               '--lockfile-only',
               '--reporter=append-only',
               '--loglevel=error',
-              '--frozen-store',
-              '--no-verify-store-integrity',
-              '--store-dir=/opt/prodivix/pnpm-store',
-              '--package-import-method=copy',
             ],
       binary: 'pnpm',
       version: normalizedToolchain.pnpmVersion,

@@ -1486,6 +1486,44 @@ describe('controlled static rootless stage isolation authority', () => {
     ).toThrow(/zero residual/u);
   });
 
+  it('keeps rootless lock validation metadata-only and store-independent', async () => {
+    const worker = await import(
+      // @ts-expect-error -- the executable MJS intentionally has no TS facade
+      '../scripts/controlledStaticRootlessStageWorker.mjs'
+    );
+    const environmentDigest = digest('lock-validation-environment');
+    const command = worker.createControlledStaticRootlessCommandPlan(
+      {
+        stage: 'install',
+        pnpmVersion: '11.9.0',
+      },
+      environmentDigest
+    );
+
+    expect(command).toEqual({
+      stage: 'install',
+      application: 'pnpm',
+      args: [
+        'install',
+        '--frozen-lockfile',
+        '--ignore-scripts',
+        '--lockfile-only',
+        '--reporter=append-only',
+        '--loglevel=error',
+      ],
+      environmentDigest,
+      tool: {
+        binary: 'pnpm',
+        version: '11.9.0',
+      },
+      timeoutMs: 60_000,
+    });
+    expect(command.args).not.toContain('--offline');
+    expect(command.args).not.toContain('--frozen-store');
+    expect(command.args).not.toContain('--store-dir=/opt/prodivix/pnpm-store');
+    expect(command.args).not.toContain('--package-import-method=copy');
+  });
+
   it('rejects hostile package-import paths, links, kinds, bounds, and full-rehash manifest drift', async () => {
     // The executable worker keeps its archive validator dependency-free so the
     // exact code injected into Podman can be exercised without a container.

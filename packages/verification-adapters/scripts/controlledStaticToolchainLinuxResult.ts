@@ -75,14 +75,7 @@ const decodeEnvironment = (
     'Controlled sandbox execution environment'
   );
   if (
-    !sameCanonicalJson(install.keys, [
-      'BUN_INSTALL_CACHE_DIR',
-      'HOME',
-      'PATH',
-      'YARN_CACHE_FOLDER',
-      'npm_config_cache',
-      'npm_config_store_dir',
-    ]) ||
+    !sameCanonicalJson(install.keys, ['HOME', 'PATH']) ||
     !sameCanonicalJson(execution.keys, ['HOME', 'PATH'])
   ) {
     throw new TypeError(
@@ -137,14 +130,10 @@ const expectedCommands = (
       args: Object.freeze([
         'install',
         '--frozen-lockfile',
-        '--offline',
         '--ignore-scripts',
+        '--lockfile-only',
         '--reporter=append-only',
         '--loglevel=error',
-        '--frozen-store',
-        '--no-verify-store-integrity',
-        '--store-dir=/opt/prodivix/pnpm-store',
-        '--package-import-method=copy',
       ]),
       binary: 'pnpm',
       version: authority.pnpmVersion,
