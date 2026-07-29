@@ -400,7 +400,7 @@ const commandPlan = (plan, environmentDigest) => {
       ],
       environmentDigest,
       tool: { binary: 'pnpm', version: plan.pnpmVersion },
-      timeoutMs: 45_000,
+      timeoutMs: 60_000,
     };
   }
   if (plan.stage === 'isolation') {

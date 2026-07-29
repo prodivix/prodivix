@@ -27,6 +27,7 @@ const EXECUTION_PERMISSION_FORMAT = 'prodivix.sandbox-execution-permission.v1';
 const CONTINUE_TOKEN = 'PRODIVIX_SANDBOX_CONTINUE_V1';
 const CAPTURE_TOKEN = 'PRODIVIX_SANDBOX_CAPTURE_V1';
 const CONTAINER_TIMEOUT_MS = 60_000;
+const INSTALL_CONTAINER_TIMEOUT_MS = 90_000;
 const MAXIMUM_CONTROLLER_OUTPUT_BYTES = 1024 * 1024;
 
 type ControllerProcessResult = Readonly<{
@@ -507,10 +508,17 @@ export const runControlledStaticRootlessPodmanStage = async (
   });
   child.stdin.on('error', () => undefined);
   child.stdin.write(`${wirePayload}\n`);
+  // Installation must finish within the same 60-second command budget as the
+  // canonical installer, while the container envelope also bounds the
+  // subsequent package-import rehash, compression, projection, and capture.
+  const containerTimeoutMs =
+    input.stage === 'install'
+      ? INSTALL_CONTAINER_TIMEOUT_MS
+      : CONTAINER_TIMEOUT_MS;
   const timeout = setTimeout(() => {
     timedOut = true;
     stop();
-  }, CONTAINER_TIMEOUT_MS);
+  }, containerTimeoutMs);
   const processResult = await new Promise<{
     exitCode: number | null;
     signal: NodeJS.Signals | null;
