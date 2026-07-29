@@ -73,6 +73,7 @@ type ControlledStaticRootlessCommandAuthorityFailureFacts = Readonly<{
   exitCode: number | null;
   signal: string | null;
   timedOut: boolean;
+  failureCode: string | null;
   stdoutByteLength: number;
   stdoutCapturedByteLength: number;
   stdoutTruncated: boolean;
@@ -97,6 +98,7 @@ const decodeCommandAuthorityFailureFacts = (
       'exitCode',
       'signal',
       'timedOut',
+      'failureCode',
       'stdoutByteLength',
       'stdoutCapturedByteLength',
       'stdoutTruncated',
@@ -116,6 +118,11 @@ const decodeCommandAuthorityFailureFacts = (
       (value.signal !== null &&
         (typeof value.signal !== 'string' ||
           !/^SIG[A-Z0-9]+$/u.test(value.signal))) ||
+      (value.failureCode !== null &&
+        (typeof value.failureCode !== 'string' ||
+          !/^(?:ERR_PNPM_[A-Z0-9_]+|EACCES|EROFS|EXDEV|ENOENT|ENOSPC)$/u.test(
+            value.failureCode
+          ))) ||
       typeof value.timedOut !== 'boolean' ||
       typeof value.stdoutTruncated !== 'boolean' ||
       typeof value.stderrTruncated !== 'boolean' ||
@@ -134,6 +141,7 @@ const decodeCommandAuthorityFailureFacts = (
       exitCode: value.exitCode as number | null,
       signal: value.signal as string | null,
       timedOut: value.timedOut,
+      failureCode: value.failureCode as string | null,
       stdoutByteLength: value.stdoutByteLength as number,
       stdoutCapturedByteLength: value.stdoutCapturedByteLength as number,
       stdoutTruncated: value.stdoutTruncated,

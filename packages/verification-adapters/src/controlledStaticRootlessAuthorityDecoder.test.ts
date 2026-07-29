@@ -584,8 +584,10 @@ describe('controlled static rootless authority decoder', () => {
           '--frozen-lockfile',
           '--offline',
           '--ignore-scripts',
-          '--reporter=silent',
+          '--reporter=append-only',
+          '--loglevel=error',
           '--store-dir=/opt/prodivix/pnpm-store',
+          '--package-import-method=copy',
         ],
         Object.freeze({
           binary: 'pnpm',

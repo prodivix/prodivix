@@ -392,8 +392,10 @@ const commandPlan = (plan, environmentDigest) => {
         '--frozen-lockfile',
         '--offline',
         '--ignore-scripts',
-        '--reporter=silent',
+        '--reporter=append-only',
+        '--loglevel=error',
         '--store-dir=/opt/prodivix/pnpm-store',
+        '--package-import-method=copy',
       ],
       environmentDigest,
       tool: { binary: 'pnpm', version: plan.pnpmVersion },
@@ -509,10 +511,19 @@ const run = async () => {
     commandPlan(plan, environment.digest)
   );
   failurePhase = 'command-authority';
+  const commandFailureSource = Buffer.concat([
+    command.stderr,
+    command.stdout,
+  ]).toString('utf8');
+  const commandFailureCode =
+    /(?:^|[^A-Z0-9_])(ERR_PNPM_[A-Z0-9_]+|EACCES|EROFS|EXDEV|ENOENT|ENOSPC)(?:[^A-Z0-9_]|$)/u.exec(
+      commandFailureSource
+    )?.[1] ?? null;
   commandAuthorityFailureFacts = Object.freeze({
     exitCode: command.receipt.exitCode,
     signal: command.receipt.signal,
     timedOut: command.receipt.timedOut,
+    failureCode: commandFailureCode,
     stdoutByteLength: command.receipt.stdout.byteLength,
     stdoutCapturedByteLength: command.receipt.stdout.capturedByteLength,
     stdoutTruncated: command.receipt.stdout.truncated,
