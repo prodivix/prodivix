@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：Implemented locally / CI Evidence pending
+- ImplementationStatus：V6 Implemented / durable CI Evidence Passed；V7 product/CLI pending
 - ProductGateStatus：In Progress
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-29
+- 日期：2026-07-30
 - Owner：`@prodivix/verification`、`@prodivix/verification-adapters`、`@prodivix/verification-browser`、`@prodivix/runtime-core`、Compiler/Runtime providers、`apps/backend`、`apps/web`、CI composition
 - 关联：
   - `specs/decisions/62.verification-adapter-matrix-and-cross-target-closure.md`
@@ -266,7 +266,8 @@ root `verify:g3:adapter-matrix` 的成功输出必须能重算，不接受只有
 通过代替。它验证了 29-package dependency build closure，以及 Verification `242/242`、Verification Adapters
 `40/40`、真实 Browser Adapters `193/193`、Runtime Core `142/142`、Runtime Vitest `20/20`、
 Runtime Browser `35/35`、Runtime Remote `109/109`、Compiler production probe `14/14`、static Golden
-`69/69` 与 browser Golden `3/3`。Core/G3 boundaries 和 wire-contract mirror 在同一命令末尾通过。
+`69/69` 与 browser Golden `3/3`。Core/G3 boundaries 和 wire-contract mirror 在同一命令末尾通过。下列
+digests 绑定该次 pre-CI-hardening 本地运行；当前 durable Linux identity 链以下一节为准。
 
 controlled Golden 实际执行 66 required cells、8 rows、72 browser attempts 与 8 static attempts，共 80 个
 `reported` + normalized `passed`；blocked、unsupported、skipped、failed 与 residual 均为零。逐行
@@ -295,7 +296,22 @@ rootless snapshot contract digest
 `sha256-9680cb1ff4fd3ae39a5e46b618ac97068000aad2a7939d8d84b9f7ac2846f8a6`。Windows 本地不伪装
 rootless Podman runtime evidence；真实 rootless sandbox 的 runner registry 必须将 Podman、OCI runtime、
 conmon 与 cgroup manager 作为一个不可混用的 family 绑定。固定 `ubuntu-24.04` runner identity 和 durable CI
-identity 仍等待 workflow 在固定 commit 上通过。
+identity 由下述固定 commit Job 提供。
+
+### 2026-07-30 durable CI result
+
+commit [`bd6ef590`](https://github.com/prodivix/prodivix/commit/bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb)
+的 [V6 CI Job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
+在 `ubuntu24` image `20260720.247.2`、kernel `6.17.0-1020-azure` 上通过。Job 在 expensive matrix 前
+依次 attest runner、Podman/crun/conmon/systemd-cgroup family、controlled static sandbox image，以及安装后的
+Chromium/Firefox/WebKit executable 与完整 file set；随后 29-package cold build、Verification `243/243`、
+Adapters `40/40`、Browser Adapters `193/193`、Runtime Core `142/142`、Runtime Vitest `24/24`、
+Runtime Browser `35/35`、Runtime Remote `109/109`、Compiler `14/14`、static Golden `69/69` 与 browser
+Golden `3/3` 全部通过。
+
+本次 Linux root run 仍精确覆盖 66 cells / 8 rows / 80 attempts，aggregate evidence digest 为
+`sha256-10f2ac6393aaa598ae8676b1665705c5654e5498794772182431f9e999b9fe83`；完整 identity 链记录在
+[`g3-closure-evidence.md`](../roadmap/g3-closure-evidence.md#v6-reproducible-run)。
 
 aggregate evidence digest 必须覆盖每个 attempt 的 report/resolved-input/artifact identity；只绑定
 `status: reported` 会遗漏仍在 passed threshold 内的 visual/performance/a11y/security 输出漂移。Remote evidence
@@ -411,7 +427,11 @@ workflow 与 adapter composition 必须同时满足以下 Gate 不变式：
    comparator 做全局排序，sandbox 不得把 host ICU `localeCompare` 或目录遍历顺序当成 canonical 顺序；
 7. required step 的非零退出、signal、timeout、truncation、cleanup failure 与 missing result 必须传播为 Gate failure；
    wrapper 不得吞错、转成 skipped，或用后续成功步骤覆盖；
-8. `Configured`、`Local Pass` 与绑定 exact commit/job identity 的 durable `Passed` 分开记录；最终交付只在
+8. expensive matrix 开始前必须重新观测并 attest 已物化的 runner、rootless toolchain、sandbox image 与每个
+   browser engine file set，不能只信 pre-adopted registry；adapter lifecycle failure 必须携带稳定、有界且不泄漏
+   raw error message 的 stage-owned `VER-*` code 穿过 Core，使 prepare、launch、runtime-control、navigation、
+   identity、capture 与 cleanup 可独立归因；
+9. `Configured`、`Local Pass` 与绑定 exact commit/job identity 的 durable `Passed` 分开记录；最终交付只在
    expected workflows 全部 terminal success、远端 SHA 等于本地 SHA 且工作区 clean 后成立。
 
 GitHub Actions、其他 CI provider adapter 只负责 identity/token/job metadata，不定义 Policy/Plan。fork/untrusted PR 默认无 durable

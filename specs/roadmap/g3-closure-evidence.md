@@ -2,9 +2,9 @@
 
 ## 状态
 
-- EvidenceStatus：V0-V5 durable CI Passed / V6 local Gate Passed, CI Evidence pending
+- EvidenceStatus：V0-V6 durable CI Passed
 - ProductGateStatus：In Progress
-- 日期：2026-07-29
+- 日期：2026-07-30
 - G2 Exit baseline：`3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184`
 - Canonical milestone：[`g3-behavior-verification-milestones.md`](g3-behavior-verification-milestones.md)
 - Contract：[`../implementation/g3-behavior-verification-closure.md`](../implementation/g3-behavior-verification-closure.md)
@@ -25,9 +25,10 @@ G2 Exit Gate 已通过；V0/V1/V2 aggregate 已在本地通过，并由 commit
 的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
 取得 durable CI identity。
 V6 root aggregate、owner boundary、66-cell/8-row/80-attempt contract、Scenario-internal Data/Auth/Recovery
-companion Gate 与真实三浏览器 adapter tests 已于 2026-07-29 在本地通过；独立三浏览器 workflow 已配置但
-CI evidence 仍待固定 commit/run identity。V7-V8 与 G3 aggregate 仍未运行，不得把 V2-V6 Golden 解释为
-整个 G3 已 Passed。
+companion Gate 与真实三浏览器 adapter tests 已于 2026-07-29 在本地通过，并由 commit
+[`bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb`](https://github.com/prodivix/prodivix/commit/bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb)
+的 [V6 CI Job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
+取得 durable CI identity。V7-V8 与 G3 aggregate 仍未运行，不得把 V2-V6 Golden 解释为整个 G3 已 Passed。
 
 ## Evidence identity
 
@@ -53,18 +54,18 @@ CI evidence 仍待固定 commit/run identity。V7-V8 与 G3 aggregate 仍未运�
 
 ## Required Gate manifest
 
-| Gate                             | 状态       | 必须证明                                                             | Evidence                                                                                                                                                       |
-| -------------------------------- | ---------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify:g3:boundaries`           | Passed     | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                         |
-| `verify:g3:scenario-authoring`   | Passed     | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                         |
-| `verify:g3:behavior-composition` | Passed     | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27 |
-| `verify:g3:deterministic-replay` | Passed     | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                         |
-| `verify:g3:verification-plan`    | Passed     | Impact/Policy/Plan determinism、budget、required semantics           | [CI job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)，commit `a6aa0bf9`，2026-07-28                                         |
-| `verify:g3:evidence`             | Passed     | promotion、attestation、Secret hard cut、retention/recovery          | [CI job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)，commit `f3d91b9d`，本地与 CI real PostgreSQL Gate，2026-07-28         |
-| `verify:g3:adapter-matrix`       | Local Pass | all required check families/surfaces/targets/browsers/motion         | 2026-07-29 local root aggregate：66 cells / 8 rows / 80 attempts 全部 passed；独立 Chromium/Firefox/WebKit CI evidence pending                                 |
-| `verify:g3:product`              | Not Run    | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                                                                                                              |
-| `verify:g3:golden`               | Not Run    | Authenticated Catalog end-to-end trusted Closure                     | —                                                                                                                                                              |
-| `verify:g3`                      | Not Run    | aggregate with no omitted required cell                              | —                                                                                                                                                              |
+| Gate                             | 状态    | 必须证明                                                             | Evidence                                                                                                                                                            |
+| -------------------------------- | ------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify:g3:boundaries`           | Passed  | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                              |
+| `verify:g3:scenario-authoring`   | Passed  | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                              |
+| `verify:g3:behavior-composition` | Passed  | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27      |
+| `verify:g3:deterministic-replay` | Passed  | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                              |
+| `verify:g3:verification-plan`    | Passed  | Impact/Policy/Plan determinism、budget、required semantics           | [CI job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)，commit `a6aa0bf9`，2026-07-28                                              |
+| `verify:g3:evidence`             | Passed  | promotion、attestation、Secret hard cut、retention/recovery          | [CI job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)，commit `f3d91b9d`，本地与 CI real PostgreSQL Gate，2026-07-28              |
+| `verify:g3:adapter-matrix`       | Passed  | all required check families/surfaces/targets/browsers/motion         | [CI job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)，commit `bd6ef590`，66 cells / 8 rows / 80 attempts 全部 passed，2026-07-30 |
+| `verify:g3:product`              | Not Run | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | —                                                                                                                                                                   |
+| `verify:g3:golden`               | Not Run | Authenticated Catalog end-to-end trusted Closure                     | —                                                                                                                                                                   |
+| `verify:g3`                      | Not Run | aggregate with no omitted required cell                              | —                                                                                                                                                                   |
 
 ### V0 reproducible run
 
@@ -235,17 +236,16 @@ CI evidence 仍待固定 commit/run identity。V7-V8 与 G3 aggregate 仍未运�
   `verify:g3:evidence` 全部通过；同一 commit 的 Tests、Deploy Smoke、Rootless、Security、CodeQL、
   Docker Images、G0/G1、G2 PostgreSQL 与 Smoke workflows 也全部通过。
 - Limitation：deterministic CI-attested fixture 与 GitHub PostgreSQL Gate 不等于真实云 OIDC deployment
-  evidence；V6 本地 66/80 aggregate 已通过但独立 CI Job 尚无固定 commit/run identity，V7完整产品/CLI/CI和
-  V8 Golden未运行。
+  evidence；V6 已在后述固定 CI Job 取得 66/80 durable evidence，但 V7 完整产品/CLI/CI 和 V8 Golden 未运行。
 
 ### V6 reproducible run
 
-- Status：`Implemented locally / CI Evidence pending`。
+- Status：`Implemented / durable CI Evidence Passed`。
 - Root command：`pnpm run verify:g3:adapter-matrix`。
 - Environment contract：workflow 固定 `ubuntu-24.04`，并由 pre-adopted browser identity registry exact
   绑定 GitHub runner `ImageVersion`；使用 Node 22、frozen pnpm lockfile 与 Playwright
-  Chromium/Firefox/WebKit，先执行 `pnpm exec playwright install --with-deps chromium firefox webkit`，再运行
-  root command。
+  Chromium/Firefox/WebKit，先执行 `pnpm exec playwright install --with-deps chromium firefox webkit`，
+  cold-build Golden dependency closure，再逐引擎重算 installed browser file-set authority，最后运行 root command。
 - Composition：cold-build Golden dependency closure、Verification Core、static/browser first-party adapters、
   Runtime Core/Vitest/Browser/Remote、Compiler full production bundle probe、66-cell/8-row/80-attempt Golden、
   Scenario-internal controlled-dimension owner manifest 与 Core/G3/wire boundaries。
@@ -272,53 +272,59 @@ CI evidence 仍待固定 commit/run identity。V7-V8 与 G3 aggregate 仍未运�
   `VerificationTrace` 三类 canonical artifact projection 必须逐类记录 codec/projector conformance、
   absolute path/URL/vendor-field negative 与 Golden staged bytes no-canary；raw tool locator 与私有 payload
   不得进入 Core report、Web 或 Evidence。
-- Package/test evidence：29-package build closure；Verification `19 files / 242 tests`、Adapters
-  `7/40`、真实 Browser Adapters `31/193`、Runtime Core `28/142`、Runtime Vitest `1/20`、Runtime Browser
+- Package/test evidence：29-package build closure；installed browser authority `1 file / 1 test`、Verification
+  `19 files / 243 tests`、Adapters
+  `7/40`、真实 Browser Adapters `31/193`、Runtime Core `28/142`、Runtime Vitest `2/24`、Runtime Browser
   `8/35`、Runtime Remote `17/109`、Compiler probe `1/14`、static Golden `14/69`、browser Golden
   `2 files / 3 tests` 全部通过；Core/G3/wire boundaries 同次通过。
 - Canonical identities：Plan
-  `sha256-bb49ad3980a1e1a8d84a3f4f74ec3c48ebda7cd3c72ee2f0605eb57259ef23a9`；matrix
-  `sha256-f9f137d4744e08a5f452611305c3e4295e4fce3a4992f8328f2673eb71a688f3`；adapter registry
+  `sha256-dcb7b509b0a580276e6ffd1400ae2a27a8188fbbd17ff27e4d248253c0d7d4c1`；matrix
+  `sha256-39ad50cf2e07dc3b93eaec6a5e7d22b61a8d7e41c26ccd92ea5cf0c244a0510c`；adapter registry
   `sha256-06f219930d74f9365a694b53fb18a553264460a550d6635ba9149a0bfde263d1`；browser identities
-  `sha256-4f02035b5bd907b871099bab946f5468114d7b40b6e9407de284bec37314d6f5`；visual identities
-  `sha256-384a345e825802dbc73fbf8449a026ff60106196056d93f437d5292758076734`。
+  `sha256-289e104587c2b5041ab52ab211121ac66864627dff25b8256f056391948d1e8b`；visual identities
+  `sha256-3a447bc1379e2e7152a5dfc28ccfcff1f738572bac96dcdd9407f1fc169b73a4`。
 - Baseline identities：set
-  `sha256-acf94061ff276ba26aa7a14a9d1adfc62dc1a214a2b832d894b1c6cf2d727a56`；asset
+  `sha256-d8bc197e694c432a7bc0ebd1a6aec5b6cb1db52ca960be1172b8a6bc0ff3e334`；asset
   `sha256-774d02c24278eb5c0c9eb4f8d5f4eabb5891a6b9c01429492d43d5c89b7a3928`；raster
   `sha256-9ebde0e380725ce43da1288d7b5116011dbba8215a5b8ce1c73af23d64c9c5cc`；normalizer
   `sha256-a58ee5c8f675cdba49dee439fb7db48bbc5ff8efb0d066bc8758816db7101069`。
 - Run-bound identities：attempt manifest
-  `sha256-5ef7da56d9e6fcb5c112bd8823e10a89b297f97bdbdd8becd4594dbc8b80849b`；controlled manifest/evidence/
+  `sha256-56eaa952be69c0b9cd601bd2483348799431e36e19d14e89daedc6ce7a24530d`；controlled manifest/evidence/
   environment `sha256-5d7140c03a80aaeb24b43b535dec058827535844ed3d6bc435afc54e3fceeeb9`、
   `sha256-d61ffd2a9f30867449cf0e28e44cb9a1cbfd3cfcb52944900f5a307d463ff215`、
-  `sha256-6158d900c7e842d14fe71d062aec83330742e25e84f5825173336c579e26515e`；runtime controls
-  `sha256-7b9f087795da302a9c4f181f485d57e76362f28e1b24eb0ab86815bac8e6425a`；aggregate evidence
-  `sha256-ec243c6d645bfb58b7b869c09775c284f91b21fc5a8c345d91c35eb1eae1362e`。
+  `sha256-aa82ff63c4dc2e901db00678995b2940b4d1ca13d3c96dc64ba49b190c1aad81`；runtime controls
+  `sha256-a50e34aba65feaa503301a1082f6c2a80809c31eb557df31bedd3f64eed30b73`；aggregate evidence
+  `sha256-10f2ac6393aaa598ae8676b1665705c5654e5498794772182431f9e999b9fe83`。
 - Supplementary evidence：Backend verification 与 verificationcontract 非缓存 Go tests、remote worker
   `12 files / 87 tests` 通过；rootless snapshot contract digest 为
   `sha256-9680cb1ff4fd3ae39a5e46b618ac97068000aad2a7939d8d84b9f7ac2846f8a6`。
-- CI pending：Windows 本地运行不冒充 rootless Podman 或 GitHub runner identity；独立 V6 Job 尚无固定
-  commit/run identity。
+- Durable CI：commit `bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb` 的
+  [run `30494182310`](https://github.com/prodivix/prodivix/actions/runs/30494182310) /
+  [job `90719037327`](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
+  在 `ubuntu24` runner image `20260720.247.2`、kernel `6.17.0-1020-azure`、rootless Podman +
+  crun + conmon + systemd cgroup family 与三种已 attested browser images 上全部通过；同一 commit 的
+  Docker、G2 Execution、CodeQL、G0/G1、Tests、独立 Rootless、Smoke、Security 与 G2 Data workflows
+  也全部 terminal success。
 
 ## Required Golden matrix
 
 最终表必须逐 cell 记录 Plan requirement、latest accepted Evidence、trust、compatibility 和 verdict；不得只写“matrix passed”。
 
 V2 的 Chromium full/reduced target slice 已在本地与 GitHub CI 通过；V3 又完成受控 provider semantic
-matrix与三次 fresh replay。下表是 2026-07-29 实际通过的 V6 required matrix；状态只代表本地 V6
-adapter-matrix evidence，不代表 V8 trusted Closure 或 durable CI evidence。
+matrix与三次 fresh replay。下表是本地与 commit `bd6ef590` 的 CI Job 实际通过的 V6 required matrix；
+状态不代表 V8 trusted Closure。
 
-| Surface | Target                | Browser/runtime         | Motion         | Required families                                                             | Cells | Attempts | 状态       |
-| ------- | --------------------- | ----------------------- | -------------- | ----------------------------------------------------------------------------- | ----: | -------: | ---------- |
-| Preview | React/Vite            | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              |     7 |       14 | Local Pass |
-| Preview | Vue/Vite              | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              |     7 |       14 | Local Pass |
-| Export  | React/Vite            | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          |    10 |       10 | Local Pass |
-| Export  | Vue/Vite              | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          |    10 |       10 | Local Pass |
-| CI      | React/Vite            | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security |    12 |       12 | Local Pass |
-| CI      | Vue/Vite              | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security |    12 |       12 | Local Pass |
-| CI      | React/Vite + Vue/Vite | Firefox critical subset | Policy-defined | behavior、a11y                                                                |     4 |        4 | Local Pass |
-| CI      | React/Vite + Vue/Vite | WebKit critical subset  | Policy-defined | behavior、a11y                                                                |     4 |        4 | Local Pass |
-| Total   | —                     | —                       | —              | 9 check families                                                              |    66 |       80 | Local Pass |
+| Surface | Target                | Browser/runtime         | Motion         | Required families                                                             | Cells | Attempts | 状态   |
+| ------- | --------------------- | ----------------------- | -------------- | ----------------------------------------------------------------------------- | ----: | -------: | ------ |
+| Preview | React/Vite            | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              |     7 |       14 | Passed |
+| Preview | Vue/Vite              | Chromium Browser/Remote | full + reduced | behavior、visual、a11y、security                                              |     7 |       14 | Passed |
+| Export  | React/Vite            | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          |    10 |       10 | Passed |
+| Export  | Vue/Vite              | Chromium standalone     | full + reduced | build、behavior、visual、a11y、performance、security                          |    10 |       10 | Passed |
+| CI      | React/Vite            | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security |    12 |       12 | Passed |
+| CI      | Vue/Vite              | Chromium                | full + reduced | diagnostics、unit、integration、behavior、visual、a11y、performance、security |    12 |       12 | Passed |
+| CI      | React/Vite + Vue/Vite | Firefox critical subset | Policy-defined | behavior、a11y                                                                |     4 |        4 | Passed |
+| CI      | React/Vite + Vue/Vite | WebKit critical subset  | Policy-defined | behavior、a11y                                                                |     4 |        4 | Passed |
+| Total   | —                     | —                       | —              | 9 check families                                                              |    66 |       80 | Passed |
 
 ### Scenario-internal controlled dimensions
 
@@ -328,15 +334,16 @@ Data、Auth 与 Recovery 不扩张上述 66 个 Plan cells。root `verify:g3:ada
 8 个 suites 与 28 个指定 cases，并要求所选文件中的所有用例均 passed、零 failed/skipped/todo。本次 root Gate
 已直接重跑这些 owner suites，下表记录实际本地结果。
 
-| Controlled dimension | Scenario-internal profile IDs                                        | Exact owner manifest suites                                                                  | 状态       |
-| -------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------- |
-| Data                 | loading、empty、error、retry、pagination、optimistic conflict        | `data-owner-runtime`、`data-golden-controlled-journeys`、`data-generated-production-runtime` | Local Pass |
-| Auth                 | signed-out、signed-in、expired、denied、authorized                   | `auth-owner-principal-projection`、`auth-golden-target-matrix`                               | Local Pass |
-| Recovery             | cancel、timeout、worker loss、cursor resume、duplicate、out-of-order | `recovery-adapter-lifecycle`、`recovery-browser-process`、`recovery-remote-protocol`         | Local Pass |
+| Controlled dimension | Scenario-internal profile IDs                                        | Exact owner manifest suites                                                                  | 状态   |
+| -------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------ |
+| Data                 | loading、empty、error、retry、pagination、optimistic conflict        | `data-owner-runtime`、`data-golden-controlled-journeys`、`data-generated-production-runtime` | Passed |
+| Auth                 | signed-out、signed-in、expired、denied、authorized                   | `auth-owner-principal-projection`、`auth-golden-target-matrix`                               | Passed |
+| Recovery             | cancel、timeout、worker loss、cursor resume、duplicate、out-of-order | `recovery-adapter-lifecycle`、`recovery-browser-process`、`recovery-remote-protocol`         | Passed |
 
 本地 evidence 已记录 exact manifest digest
 `sha256-5d7140c03a80aaeb24b43b535dec058827535844ed3d6bc435afc54e3fceeeb9`、`controlled=28`、
-owner-passed cases `127` 与 `skipped=0 todo=0 failed=0`；远端 CI identity 仍须由独立 V6 Job 提供。
+owner-passed cases `127` 与 `skipped=0 todo=0 failed=0`；commit `bd6ef590` 的 V6 Job 已重复执行并绑定
+同一 manifest/evidence digest。
 
 ## Required negative evidence
 

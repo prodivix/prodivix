@@ -35,7 +35,8 @@ commit [`a6aa0bf9`](https://github.com/prodivix/prodivix/commit/a6aa0bf9452d6659
 的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
 也已通过并形成 durable evidence。V6 adapter packages、66-cell/8-row/80-attempt contract、
 Scenario-internal Data/Auth/Recovery companion Gate、root aggregate 与 owner boundary 已于 2026-07-29
-在本地完整通过；独立三浏览器 workflow 已配置但 CI evidence 仍待固定 commit/run identity。V7-V8 尚未完成。
+在本地完整通过，并由 commit `bd6ef590` 的独立三浏览器 CI Job 于 2026-07-30 取得 durable evidence。
+V7-V8 尚未完成。
 
 | Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                                     |
 | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -45,7 +46,7 @@ Scenario-internal Data/Auth/Recovery companion Gate、root aggregate 与 owner b
 | V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                                       |
 | V4 Impact/Policy/Plan      | Implemented | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | 本地与 CI byte-stable plan、required hard-cut、Web/CLI explain Gate 通过，commit `a6aa0bf9`  |
 | V5 Evidence plane          | Implemented | promotion、artifact、provenance/trust、retention、Closure                                       | 本地与 CI PostgreSQL/object store/security/attestation/recovery Gate 通过，commit `f3d91b9d` |
-| V6 Adapter matrix          | Implemented | functional/visual/a11y/performance/security across surface/target/browser                       | 66-cell/80-attempt local root aggregate 通过；CI evidence pending                            |
+| V6 Adapter matrix          | Implemented | functional/visual/a11y/performance/security across surface/target/browser                       | 66-cell/80-attempt 本地与 CI root aggregate 通过，commit `bd6ef590`                          |
 | V7 Product/CLI/CI          | Not Started | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | product a11y/recovery 与 Web/CLI/CI digest parity                                            |
 | V8 G3 Golden closure       | Not Started | Authenticated Catalog full behavior and evidence closure                                        | all required cells current/compatible/trusted/passed                                         |
 
@@ -214,10 +215,12 @@ object-store 中断、protection/tombstone 与 GC lease recovery。
 
 ## V6：Adapter matrix
 
-状态：Implemented locally / CI Evidence pending。`@prodivix/verification-adapters`、
+状态：Implemented / durable CI Evidence Passed。`@prodivix/verification-adapters`、
 `@prodivix/verification-browser`、66-cell/8-row/80-attempt controlled matrix、Scenario-internal
 Data/Auth/Recovery companion Gate 与 root `verify:g3:adapter-matrix` 已于 2026-07-29 在本地通过；
-Chromium/Firefox/WebKit workflow Job 已接入但尚无 durable CI identity。
+commit [`bd6ef590`](https://github.com/prodivix/prodivix/commit/bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb)
+的 [Chromium/Firefox/WebKit CI Job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
+又于 2026-07-30 在 pre-adopted Ubuntu runner 与真实 rootless Podman 上通过。
 
 ### Required family
 
@@ -245,7 +248,7 @@ test/manifest 证明，不与前四个 Plan axes 做笛卡尔积。
 
 tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonical candidate 或明确 blocked/unsupported reason。
 
-### V6 local exit record
+### V6 exit record
 
 - [x] 66 required Plan cells 被 8 rows 精确覆盖，58 browser cells / 72 browser attempts 与 8 static attempts
       实际执行；controlled Golden 为 80 reported/passed、零 blocked/unsupported/skipped/failed。
@@ -264,7 +267,7 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 - [x] Data/Auth/Recovery companion manifest 记录 17 profiles、8 suites、28 exact cases、manifest digest 与零
       failed/skipped/todo。
 - [x] root Gate、Compiler production probe、Core/G3/wire boundaries 与 exact runner/browser identity 同次通过；
-      本地完成后仍保持 CI Evidence pending，等待固定 commit/workflow identity。
+      CI Job 还在 expensive matrix 前重新 attest 已安装三浏览器 file set，并绑定 exact commit/run/job identity。
 
 ## V7：产品、CLI 与 CI
 
@@ -324,8 +327,9 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 [V4 CI Job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)
 取得 durable Passed evidence；第六个入口已由 commit `f3d91b9d` 的
 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
-取得 durable Passed evidence；第七个入口已在 2026-07-29 本地通过但尚无 CI evidence，其余入口随对应
-milestone 建立：
+取得 durable Passed evidence；第七个入口已由 commit `bd6ef590` 的
+[V6 CI Job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
+取得 durable Passed evidence；其余入口随对应 milestone 建立：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

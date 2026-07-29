@@ -1,19 +1,19 @@
 # Prodivix 当前状态
 
-> StatusDate: 2026-07-29
+> StatusDate: 2026-07-30
 > 本文件是 G0/G1/G2/G3 当前完成状态的唯一来源。`global-phases.md` 定义阶段目标与退出条件；evidence 文档保存可重复验证证据，不重复声明当前状态。
 
 ## 全局阶段
 
-| Phase                              | Product Gate | 当前判断                                                                                                                                                                                                                                                                                               |
-| ---------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                                                                                                                                             |
-| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                                                                                                                                            |
-| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。                                                                                                                    |
-| G3 Behavior & Verification Closure | In Progress  | V0-V2 已有 commit `90fcf961` 的 durable CI evidence；V3 已由 commit `3def9168` 的 CI Gate 验证；V4 Impact/Policy/Plan 已由 commit `a6aa0bf9` 的本地与 CI Gate 验证；V5 Evidence plane 已由 commit `f3d91b9d` 的本地与 CI Gate 验证；V6 本地 root aggregate 已通过、CI evidence pending；V7-V8 未完成。 |
-| G4 Verified Agentic Development    | Blocked      | 等待 G3。                                                                                                                                                                                                                                                                                              |
-| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                                                                                                                                         |
-| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                                                                                                                                         |
+| Phase                              | Product Gate | 当前判断                                                                                                                                                                                                                                                                                            |
+| ---------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                                                                                                                                          |
+| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                                                                                                                                         |
+| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。                                                                                                                 |
+| G3 Behavior & Verification Closure | In Progress  | V0-V2 已有 commit `90fcf961` 的 durable CI evidence；V3 已由 commit `3def9168` 的 CI Gate 验证；V4 Impact/Policy/Plan 已由 commit `a6aa0bf9` 的本地与 CI Gate 验证；V5 Evidence plane 已由 commit `f3d91b9d` 的本地与 CI Gate 验证；V6 已由 commit `bd6ef590` 的本地与 CI Gate 验证；V7-V8 未完成。 |
+| G4 Verified Agentic Development    | Blocked      | 等待 G3。                                                                                                                                                                                                                                                                                           |
+| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                                                                                                                                      |
+| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                                                                                                                                      |
 
 阶段定义与退出条件：[`global-phases.md`](./global-phases.md)。G0/G1 重复验证边界：
 [`g0-closure-evidence.md`](./g0-closure-evidence.md)、[`g1-closure-evidence.md`](./g1-closure-evidence.md)。
@@ -67,8 +67,11 @@ tests、Backend verification contract、remote worker 与 rootless snapshot cont
 pin `ubuntu-24.04`，并由共享 registry 按 pre-adopted runner `ImageVersion` 绑定同族 Podman、OCI runtime、
 conmon 与受支持的 cgroup manager；Linux controlled static install 已将 image build 的 frozen package-manager
 验证与 runtime immutable package seed 物化分离，并以 30 秒 bounded Node authority command 取代
-network-none runtime 中不确定的 package-manager 调用，重算完整 toolchain file-set identity；同时配置
-Chromium/Firefox/WebKit 与真实 rootless Podman 执行，远端 CI evidence 尚待固定 commit/run identity。
+network-none runtime 中不确定的 package-manager 调用，重算完整 toolchain file-set identity。commit
+[`bd6ef590`](https://github.com/prodivix/prodivix/commit/bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb)
+的 [V6 CI Job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
+又在 pre-adopted runner、真实 rootless Podman 与 Chromium/Firefox/WebKit 上完成 post-install authority
+attestation 和 80-attempt matrix，形成 durable evidence。
 `pnpm run verify:g3:boundaries`、
 `pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 与 `pnpm run build`
 在本地通过；commit
@@ -85,8 +88,8 @@ V0-V2 durable evidence。`pnpm run verify:g3:deterministic-replay` 已在本地�
 Backend short suite 与 owner/wire boundaries；commit
 [`f3d91b9d`](https://github.com/prodivix/prodivix/commit/f3d91b9dfc786b167fa5df825cd45116441c725c)
 的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
-也已通过并形成 durable evidence。V6 Adapter matrix 的本地 Gate 已通过、CI 入口已配置；取得 durable CI
-evidence 后继续进入 V7-V8。G3
+也已通过并形成 durable evidence。V6 Adapter matrix 的本地 Gate 与上述固定 commit CI Job 均已通过；
+后续继续进入 V7-V8。G3
 Product Gate 继续保持 `In Progress`。
 
 ## G2 当前完成面
