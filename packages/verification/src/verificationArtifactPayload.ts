@@ -241,10 +241,27 @@ export const validateVerificationArtifactMediaAndStructure = (
   }
 
   if (candidate.kind === 'build-log') {
+    const jsonMediaType = isVerificationArtifactJsonMediaType(
+      candidate.mediaType
+    );
     if (
-      candidate.mediaType !== 'text/plain' ||
-      (detectedMediaType !== 'text/plain' &&
-        detectedMediaType !== 'application/json')
+      candidate.mediaType !== 'text/plain' &&
+      (!jsonMediaType || detectedMediaType !== 'application/json')
+    ) {
+      return Object.freeze({ accepted: false, reason: 'media-mismatch' });
+    }
+    if (jsonMediaType) {
+      const inspected = inspectJson(candidate.contents, policy);
+      return inspected === undefined
+        ? Object.freeze({ accepted: false, reason: 'invalid-json' })
+        : Object.freeze({
+            accepted: true,
+            inspectionText: inspected.text,
+          });
+    }
+    if (
+      detectedMediaType !== 'text/plain' &&
+      detectedMediaType !== 'application/json'
     ) {
       return Object.freeze({ accepted: false, reason: 'media-mismatch' });
     }

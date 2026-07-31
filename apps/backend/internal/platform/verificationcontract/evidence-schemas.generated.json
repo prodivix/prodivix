@@ -3196,5 +3196,607 @@
         "additionalProperties": false
       }
     }
+  },
+  "verification-closure": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification-closure.v1.schema.json",
+    "title": "VerificationClosureWire",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "workspaceId",
+      "targetRevision",
+      "targetPartitionRevisions",
+      "scenarioRegistryDigest",
+      "semanticSchemaDigest",
+      "providerSetDigest",
+      "adapterRegistryDigest",
+      "impactDigest",
+      "policyRevision",
+      "policyDigest",
+      "compilerDigest",
+      "plannerDigest",
+      "policyEvaluationInstant",
+      "planDigest",
+      "closureEvaluationInstant",
+      "evidenceSetDigest",
+      "revocationRecordDigest",
+      "baselineSetDigests",
+      "toolchainSetDigest",
+      "verdict",
+      "cellStatuses",
+      "evidenceDigests",
+      "appliedExemptionIds",
+      "issues",
+      "closureDigest"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "workspaceId": { "$ref": "#/$defs/canonicalId" },
+      "targetRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+      "targetPartitionRevisions": { "$ref": "#/$defs/partitionRevisions" },
+      "scenarioRegistryDigest": { "$ref": "#/$defs/digest" },
+      "semanticSchemaDigest": { "$ref": "#/$defs/digest" },
+      "providerSetDigest": { "$ref": "#/$defs/digest" },
+      "adapterRegistryDigest": { "$ref": "#/$defs/digest" },
+      "impactDigest": { "$ref": "#/$defs/digest" },
+      "policyRevision": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+      "policyDigest": { "$ref": "#/$defs/digest" },
+      "compilerDigest": { "$ref": "#/$defs/digest" },
+      "plannerDigest": { "$ref": "#/$defs/digest" },
+      "policyEvaluationInstant": { "$ref": "#/$defs/instant" },
+      "planDigest": { "$ref": "#/$defs/digest" },
+      "closureEvaluationInstant": { "$ref": "#/$defs/instant" },
+      "evidenceSetDigest": { "$ref": "#/$defs/digest" },
+      "revocationRecordDigest": { "$ref": "#/$defs/digest" },
+      "baselineSetDigests": { "$ref": "#/$defs/digestArray" },
+      "toolchainSetDigest": { "$ref": "#/$defs/digest" },
+      "verdict": { "enum": ["satisfied", "unsatisfied", "stale"] },
+      "cellStatuses": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1000,
+        "propertyNames": { "$ref": "#/$defs/canonicalId" },
+        "additionalProperties": {
+          "enum": [
+            "pending",
+            "running",
+            "passed",
+            "failed",
+            "blocked",
+            "cancelled",
+            "infrastructure-error",
+            "unsupported",
+            "not-applicable",
+            "unstable",
+            "stale",
+            "incompatible",
+            "missing"
+          ]
+        }
+      },
+      "evidenceDigests": { "$ref": "#/$defs/digestArray" },
+      "appliedExemptionIds": { "$ref": "#/$defs/idArray" },
+      "issues": {
+        "type": "array",
+        "maxItems": 1000,
+        "items": { "$ref": "#/$defs/issue" }
+      },
+      "closureDigest": { "$ref": "#/$defs/digest" }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "canonicalText": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "instant": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$"
+      },
+      "nonNegativeSafeInteger": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "revisionPair": {
+        "type": "object",
+        "required": ["contentRev", "metaRev"],
+        "properties": {
+          "contentRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "metaRev": { "$ref": "#/$defs/nonNegativeSafeInteger" }
+        },
+        "additionalProperties": false
+      },
+      "partitionRevisions": {
+        "type": "object",
+        "required": ["workspaceRev", "routeRev", "opSeq", "documentRevisions"],
+        "properties": {
+          "workspaceRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "routeRev": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "opSeq": { "$ref": "#/$defs/nonNegativeSafeInteger" },
+          "documentRevisions": {
+            "type": "object",
+            "maxProperties": 4096,
+            "propertyNames": { "$ref": "#/$defs/canonicalId" },
+            "additionalProperties": { "$ref": "#/$defs/revisionPair" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "digestArray": {
+        "type": "array",
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/digest" }
+      },
+      "idArray": {
+        "type": "array",
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/canonicalId" }
+      },
+      "issue": {
+        "type": "object",
+        "required": ["status", "message", "evidenceIds"],
+        "properties": {
+          "cellId": { "$ref": "#/$defs/canonicalId" },
+          "status": {
+            "enum": [
+              "pending",
+              "running",
+              "passed",
+              "failed",
+              "blocked",
+              "cancelled",
+              "infrastructure-error",
+              "unsupported",
+              "not-applicable",
+              "unstable",
+              "stale",
+              "incompatible",
+              "missing",
+              "closure-stale"
+            ]
+          },
+          "message": { "$ref": "#/$defs/canonicalText" },
+          "evidenceIds": { "$ref": "#/$defs/idArray" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "verification-run-snapshot": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification-run-snapshot.v1.schema.json",
+    "title": "VerificationRunSnapshotWire",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "runId",
+      "workspaceId",
+      "workspaceRevision",
+      "planDigest",
+      "surface",
+      "scope",
+      "providerId",
+      "origin",
+      "status",
+      "cursor",
+      "createdAt",
+      "updatedAt",
+      "selectedCellIds",
+      "cells",
+      "snapshotDigest"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "runId": { "$ref": "#/$defs/identifier" },
+      "workspaceId": { "$ref": "#/$defs/identifier" },
+      "workspaceRevision": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "planDigest": { "$ref": "#/$defs/digest" },
+      "surface": { "enum": ["preview", "export", "ci"] },
+      "scope": { "enum": ["impacted", "required", "all", "cell"] },
+      "providerId": { "$ref": "#/$defs/identifier" },
+      "origin": { "enum": ["web", "cli", "ci"] },
+      "ci": { "$ref": "#/$defs/ciIdentity" },
+      "status": {
+        "enum": [
+          "queued",
+          "running",
+          "cancelling",
+          "completed",
+          "failed",
+          "blocked",
+          "cancelled",
+          "interrupted"
+        ]
+      },
+      "cursor": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "createdAt": { "$ref": "#/$defs/instant" },
+      "updatedAt": { "$ref": "#/$defs/instant" },
+      "selectedCellIds": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 10000,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/identifier" }
+      },
+      "cells": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 10000,
+        "items": { "$ref": "#/$defs/cellState" }
+      },
+      "closureDigest": { "$ref": "#/$defs/digest" },
+      "closureVerdict": { "enum": ["satisfied", "unsatisfied", "stale"] },
+      "snapshotDigest": { "$ref": "#/$defs/digest" }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": { "origin": { "const": "ci" } },
+          "required": ["origin"]
+        },
+        "then": { "required": ["ci"] },
+        "else": { "not": { "required": ["ci"] } }
+      },
+      {
+        "if": { "required": ["closureDigest"] },
+        "then": { "required": ["closureVerdict"] },
+        "else": { "not": { "required": ["closureVerdict"] } }
+      }
+    ],
+    "additionalProperties": false,
+    "$defs": {
+      "identifier": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "instant": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 24,
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$"
+      },
+      "ciIdentity": {
+        "type": "object",
+        "required": ["repository", "ref", "commit"],
+        "properties": {
+          "repository": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "ref": { "type": "string", "minLength": 6, "maxLength": 512 },
+          "commit": {
+            "type": "string",
+            "pattern": "^(?:sha1-[0-9a-f]{40}|sha256-[0-9a-f]{64})$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "cellState": {
+        "type": "object",
+        "required": ["cellId", "attemptId", "status", "lastEventCursor"],
+        "properties": {
+          "cellId": { "$ref": "#/$defs/identifier" },
+          "attemptId": { "$ref": "#/$defs/identifier" },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "passed",
+              "failed",
+              "blocked",
+              "unsupported",
+              "unstable",
+              "not-applicable",
+              "cancelled",
+              "interrupted"
+            ]
+          },
+          "lastEventCursor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "startedAt": { "$ref": "#/$defs/instant" },
+          "completedAt": { "$ref": "#/$defs/instant" },
+          "candidateDigest": { "$ref": "#/$defs/digest" },
+          "evidenceId": { "$ref": "#/$defs/identifier" },
+          "diagnosticCode": {
+            "type": "string",
+            "pattern": "^(?:BHV|VER)-[0-9]{4}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "verification-run-event": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/verification-run-event.v1.schema.json",
+    "title": "VerificationRunEventWire",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "run-started" }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind",
+          "cellId",
+          "attemptId"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "cell-started" },
+          "cellId": { "$ref": "#/$defs/identifier" },
+          "attemptId": { "$ref": "#/$defs/identifier" }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind",
+          "cellId",
+          "attemptId",
+          "outcome",
+          "candidateDigest"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "cell-reported" },
+          "cellId": { "$ref": "#/$defs/identifier" },
+          "attemptId": { "$ref": "#/$defs/identifier" },
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "cancelled",
+              "infrastructure-error"
+            ]
+          },
+          "candidateDigest": { "$ref": "#/$defs/digest" },
+          "diagnosticCode": {
+            "type": "string",
+            "pattern": "^(?:BHV|VER)-[0-9]{4}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind",
+          "cellId",
+          "attemptId",
+          "candidateDigest",
+          "evidenceId"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "cell-promoted" },
+          "cellId": { "$ref": "#/$defs/identifier" },
+          "attemptId": { "$ref": "#/$defs/identifier" },
+          "candidateDigest": { "$ref": "#/$defs/digest" },
+          "evidenceId": { "$ref": "#/$defs/identifier" }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind",
+          "reason"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "run-cancel-requested" },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind",
+          "reasonCode"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "run-interrupted" },
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^(?:BHV|VER)-[0-9]{4}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "run-completed" }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "wireVersion",
+          "eventId",
+          "runId",
+          "cursor",
+          "occurredAt",
+          "eventDigest",
+          "kind",
+          "closureDigest",
+          "verdict"
+        ],
+        "properties": {
+          "wireVersion": { "const": 1 },
+          "eventId": { "$ref": "#/$defs/identifier" },
+          "runId": { "$ref": "#/$defs/identifier" },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "occurredAt": { "$ref": "#/$defs/instant" },
+          "eventDigest": { "$ref": "#/$defs/digest" },
+          "kind": { "const": "closure-evaluated" },
+          "closureDigest": { "$ref": "#/$defs/digest" },
+          "verdict": { "enum": ["satisfied", "unsatisfied", "stale"] }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "$defs": {
+      "identifier": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "digest": { "type": "string", "pattern": "^sha256-[a-f0-9]{64}$" },
+      "instant": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 24,
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$"
+      }
+    }
   }
 }

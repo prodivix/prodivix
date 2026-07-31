@@ -56,6 +56,7 @@ export {
   createBrowserBaselineSetInputRef,
   createBrowserScenarioProgramInputRef,
 } from './browserVerificationInputMaterial';
+export { createBrowserVerificationEvidenceSourceTrace } from './browserVerificationProjectionSupport';
 export {
   BrowserVerificationAdapterContractError,
   createFirstPartyBrowserVerificationAdapterFactory,

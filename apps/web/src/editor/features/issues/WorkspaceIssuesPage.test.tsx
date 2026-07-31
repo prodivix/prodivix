@@ -293,4 +293,79 @@ describe('WorkspaceIssuesPage Data navigation', () => {
     );
     expect(screen.getByText('issues.actions.retryQueued')).toBeTruthy();
   });
+
+  it('filters G3 issue facets and refuses approximate navigation for a historical revision', () => {
+    const current = workspace();
+    act(() => {
+      useEditorStore.setState({ workspace: current, workspaceReadonly: false });
+      useWorkspaceIssuesStore.getState().publishSnapshot({
+        providerId: 'behavior-validator',
+        workspaceId: current.id,
+        revision: { key: '1:1:1', sequence: 1 },
+        collectedAt: 40,
+        diagnostics: [
+          {
+            code: 'BHV-1001',
+            severity: 'error',
+            domain: 'behavior',
+            message: 'Checkout Scenario is invalid at the historical revision.',
+            targetRef: {
+              kind: 'behavior-scenario',
+              documentId: 'scenario-checkout',
+            },
+            meta: {
+              scenarioId: 'scenario-checkout',
+              checkId: 'check-checkout',
+              checkFamily: 'behavior',
+              surface: 'preview',
+              targetId: 'target-checkout',
+              providerId: 'provider-browser',
+              workspaceRevision: 1,
+            },
+          },
+        ],
+      });
+      useWorkspaceIssuesStore.getState().publishSnapshot({
+        providerId: 'verification-planner',
+        workspaceId: current.id,
+        revision: { key: '2:1:2', sequence: 2 },
+        collectedAt: 41,
+        diagnostics: [],
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/editor/project/project-data/issues']}>
+        <Routes>
+          <Route
+            path="/editor/project/:projectId/issues"
+            element={<WorkspaceIssuesPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    for (const facet of [
+      'scenario',
+      'check',
+      'family',
+      'surface',
+      'target',
+      'provider',
+      'revision',
+    ]) {
+      expect(
+        screen.getByRole('combobox', {
+          name: `issues.filters.${facet}`,
+        })
+      ).toBeTruthy();
+    }
+    fireEvent.click(
+      screen.getByRole('button', { name: 'issues.actions.openTarget' })
+    );
+    expect(screen.getByText('issues.actions.historicalRevision')).toBeTruthy();
+    expect(
+      useWorkspaceSemanticNavigationStore.getState().navigationRequest
+    ).toBeNull();
+  });
 });

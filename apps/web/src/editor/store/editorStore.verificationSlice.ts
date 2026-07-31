@@ -3,6 +3,7 @@ import type {
   VerificationClosure,
   VerificationImpactSet,
   VerificationPlan,
+  VerificationRunSnapshot,
 } from '@prodivix/verification';
 import { isUnsafeObjectKey } from '@prodivix/shared/safety';
 import type { VerificationEvidenceProjection } from '@/editor/features/verification/verificationEvidenceResourceModel';
@@ -21,6 +22,9 @@ export interface VerificationSlice {
   verificationEvidenceProjectionByWorkspaceId: Readonly<
     Record<string, VerificationEvidenceProjection>
   >;
+  verificationRunByWorkspaceId: Readonly<
+    Record<string, VerificationRunSnapshot>
+  >;
   setVerificationProjection: (
     workspaceId: string,
     projection: VerificationProjection
@@ -31,6 +35,11 @@ export interface VerificationSlice {
     projection: VerificationEvidenceProjection
   ) => void;
   clearVerificationEvidenceProjection: (workspaceId: string) => void;
+  setVerificationRun: (
+    workspaceId: string,
+    snapshot: VerificationRunSnapshot
+  ) => void;
+  clearVerificationRun: (workspaceId: string) => void;
 }
 
 export const createVerificationSlice: StateCreator<
@@ -41,6 +50,7 @@ export const createVerificationSlice: StateCreator<
 > = (set) => ({
   verificationProjectionByWorkspaceId: {},
   verificationEvidenceProjectionByWorkspaceId: {},
+  verificationRunByWorkspaceId: {},
   setVerificationProjection: (workspaceId, projection) =>
     set((state) =>
       isUnsafeObjectKey(workspaceId) ||
@@ -85,5 +95,28 @@ export const createVerificationSlice: StateCreator<
       };
       delete next[workspaceId];
       return { verificationEvidenceProjectionByWorkspaceId: next };
+    }),
+  setVerificationRun: (workspaceId, snapshot) =>
+    set((state) =>
+      isUnsafeObjectKey(workspaceId) || snapshot.workspaceId !== workspaceId
+        ? state
+        : {
+            verificationRunByWorkspaceId: {
+              ...state.verificationRunByWorkspaceId,
+              [workspaceId]: snapshot,
+            },
+          }
+    ),
+  clearVerificationRun: (workspaceId) =>
+    set((state) => {
+      if (
+        isUnsafeObjectKey(workspaceId) ||
+        !state.verificationRunByWorkspaceId[workspaceId]
+      ) {
+        return state;
+      }
+      const next = { ...state.verificationRunByWorkspaceId };
+      delete next[workspaceId];
+      return { verificationRunByWorkspaceId: next };
     }),
 });

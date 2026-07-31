@@ -306,6 +306,7 @@ export const createWorkspaceSlice: StateCreator<
       runtimeStateByProject: {},
       verificationProjectionByWorkspaceId: {},
       verificationEvidenceProjectionByWorkspaceId: {},
+      verificationRunByWorkspaceId: {},
     })),
   setActiveDocumentId: (documentId) =>
     set((state) => {

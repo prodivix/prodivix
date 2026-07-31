@@ -1,5 +1,4 @@
 import {
-  digestVerificationValue,
   VERIFICATION_ARTIFACT_ENVELOPE_FORMAT,
   VERIFICATION_ARTIFACT_ENVELOPE_VERSION,
   type VerificationCheckReportPayload,
@@ -30,7 +29,7 @@ import { compareVisualRgba, createRgbaRasterDigest } from './visualComparison';
 export const projectBrowserE2e = async (
   cell: VerificationPlanCell,
   input: BrowserVerificationCellInput,
-  policy: Extract<BrowserVerificationCellPolicy, Readonly<{ kind: 'e2e' }>>,
+  _policy: Extract<BrowserVerificationCellPolicy, Readonly<{ kind: 'e2e' }>>,
   session: BrowserToolSession,
   behavior: BrowserBehaviorAssertionObservation
 ): Promise<BrowserVerificationProjection> => {
@@ -44,7 +43,7 @@ export const projectBrowserE2e = async (
   ) {
     throw new TypeError('Playwright scenario identity drifted.');
   }
-  const sourceTraceDigest = digestVerificationValue(policy.program.sourceTrace);
+  const sourceTraceDigest = sourceTraceDigestFor(input);
   const codes = browserDiagnosticCodes(
     result.checks.map(({ diagnosticCodes: values }) => values)
   );
@@ -108,9 +107,7 @@ export const projectBrowserE2e = async (
             status: check.status,
             blackBox: check.blackBox,
             diagnosticCodes: check.diagnosticCodes,
-            ...(check.sourceTraceDigest === undefined
-              ? {}
-              : { sourceTraceDigest: check.sourceTraceDigest }),
+            sourceTraceDigest,
           })
         )
       ),

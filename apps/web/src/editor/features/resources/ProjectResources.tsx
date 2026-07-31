@@ -14,6 +14,7 @@ import { AuthServerRuntimeResourcePage } from './AuthServerRuntimeResourcePage';
 import { DataResourcePage } from './DataResourcePage';
 import { BehaviorScenarioResourcePage } from './BehaviorScenarioResourcePage';
 import { VerificationPlanResourcePage } from './VerificationPlanResourcePage';
+import type { VerificationRunRequest } from '@/editor/features/verification/VerificationRunPanel';
 import {
   buildOverviewSnapshot,
   getResourceManagerViewStorageKey,
@@ -21,6 +22,7 @@ import {
   type SectionId,
 } from './projectResourceOverview';
 import { useEditorStore } from '@/editor/store/useEditorStore';
+import { ExecutionCenter } from '@/editor/features/execution/ExecutionCenter';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 
 const EMPTY_WORKSPACE_DOCUMENTS: WorkspaceSnapshot['docsById'] = {};
@@ -30,6 +32,9 @@ export function ProjectResources() {
   const { t } = useTranslation('editor');
   const { projectId } = useParams();
   const workspace = useEditorStore((state) => state.workspace);
+  const verificationRun = useEditorStore((state) =>
+    workspace ? state.verificationRunByWorkspaceId[workspace.id] : undefined
+  );
   const setActiveDocumentId = useEditorStore(
     (state) => state.setActiveDocumentId
   );
@@ -67,6 +72,8 @@ export function ProjectResources() {
   const [pendingCodeFolder, setPendingCodeFolder] = useState<
     'scripts' | 'styles' | 'shaders' | null
   >(null);
+  const [verificationRunRequest, setVerificationRunRequest] =
+    useState<VerificationRunRequest>();
   const codeAuthoringRequest = useMemo(
     () =>
       createCodeAuthoringRequest({
@@ -134,84 +141,119 @@ export function ProjectResources() {
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-6 py-6">
-      <header className="rounded-2xl border border-black/8 bg-white/92 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.06)]">
-        <p className="mb-2 text-xs font-medium tracking-[0.12em] text-(--text-muted) uppercase">
-          {t('resourceManager.header.badge')}
-        </p>
-        <h1 className="text-2xl font-semibold text-(--text-primary)">
-          {t('resourceManager.header.title')}
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm text-(--text-secondary)">
-          {t('resourceManager.header.description')}
-        </p>
-      </header>
+    <div className="flex h-full min-h-0 flex-col">
+      <section className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-5 overflow-auto px-6 py-6">
+        <header className="rounded-2xl border border-black/8 bg-white/92 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.06)]">
+          <p className="mb-2 text-xs font-medium tracking-[0.12em] text-(--text-muted) uppercase">
+            {t('resourceManager.header.badge')}
+          </p>
+          <h1 className="text-2xl font-semibold text-(--text-primary)">
+            {t('resourceManager.header.title')}
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm text-(--text-secondary)">
+            {t('resourceManager.header.description')}
+          </p>
+        </header>
 
-      <nav className="rounded-2xl border border-black/8 bg-(--bg-canvas) p-2">
-        <div className="flex flex-wrap gap-2">
-          {sectionMetas.map((section) => {
-            const Icon = section.icon;
-            const isActive = activeSection === section.id;
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setActiveSection(section.id)}
-                className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
-                  isActive
-                    ? 'border border-black/16 bg-black text-white'
-                    : 'border border-transparent bg-transparent text-(--text-secondary) hover:border-black/10 hover:text-(--text-primary)'
-                }`}
-              >
-                <Icon size={14} />
-                {t(`resourceManager.tabs.${section.id}`)}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+        <nav className="rounded-2xl border border-black/8 bg-(--bg-canvas) p-2">
+          <div className="flex flex-wrap gap-2">
+            {sectionMetas.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => {
+                    if (section.id === 'verification') {
+                      setVerificationRunRequest(undefined);
+                    }
+                    setActiveSection(section.id);
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? 'border border-black/16 bg-black text-white'
+                      : 'border border-transparent bg-transparent text-(--text-secondary) hover:border-black/10 hover:text-(--text-primary)'
+                  }`}
+                >
+                  <Icon size={14} />
+                  {t(`resourceManager.tabs.${section.id}`)}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
 
-      {activeSection === 'overview' ? (
-        <ResourceOverviewPanel
-          overviewSnapshot={overviewSnapshot}
-          onOpenSection={setActiveSection}
-          onOpenCodeResources={openCodeResources}
+        {activeSection === 'overview' ? (
+          <ResourceOverviewPanel
+            overviewSnapshot={overviewSnapshot}
+            onOpenSection={setActiveSection}
+            onOpenCodeResources={openCodeResources}
+          />
+        ) : null}
+
+        {activeSection === 'components' ? <ComponentResourcePage /> : null}
+
+        {activeSection === 'tokens' ? <DesignTokenResourcePage /> : null}
+
+        {activeSection === 'data' ? <DataResourcePage /> : null}
+
+        {activeSection === 'auth' ? <AuthServerRuntimeResourcePage /> : null}
+
+        {activeSection === 'behavior' ? (
+          <BehaviorScenarioResourcePage
+            onOpenVerification={(scenarioId, mode) => {
+              setVerificationRunRequest({ scenarioId, mode });
+              setActiveSection('verification');
+            }}
+          />
+        ) : null}
+
+        {activeSection === 'verification' ? (
+          <VerificationPlanResourcePage
+            runRequest={verificationRunRequest}
+            onOpenScenario={(scenarioId) => {
+              const document = Object.values(workspaceDocumentsById).find(
+                (candidate) =>
+                  candidate.type === 'behavior-scenario' &&
+                  (candidate.content as Readonly<{ id?: unknown }>).id ===
+                    scenarioId
+              );
+              if (document) setActiveDocumentId(document.id);
+              setActiveSection('behavior');
+            }}
+          />
+        ) : null}
+
+        {activeSection === 'public' ? <PublicResourcePage embedded /> : null}
+
+        {activeSection === 'code' ? (
+          <CodeAuthoringWorkspace
+            request={codeAuthoringRequest}
+            requestedCreateFolder={pendingCodeFolder}
+            onCreateRequestConsumed={() => setPendingCodeFolder(null)}
+          />
+        ) : null}
+
+        {activeSection === 'i18n' ? <I18nResourcePage embedded /> : null}
+
+        {activeSection === 'external' ? (
+          <ExternalLibraryManager
+            onOpenCodeArtifact={openResourceCodeArtifact}
+          />
+        ) : null}
+
+        {activeSection === 'projectFiles' ? (
+          <ProjectFileManager embedded />
+        ) : null}
+      </section>
+      {workspace ? (
+        <ExecutionCenter
+          sessionId={`verification:${workspace.id}`}
+          verificationRun={verificationRun}
+          workspace={workspace}
         />
       ) : null}
-
-      {activeSection === 'components' ? <ComponentResourcePage /> : null}
-
-      {activeSection === 'tokens' ? <DesignTokenResourcePage /> : null}
-
-      {activeSection === 'data' ? <DataResourcePage /> : null}
-
-      {activeSection === 'auth' ? <AuthServerRuntimeResourcePage /> : null}
-
-      {activeSection === 'behavior' ? <BehaviorScenarioResourcePage /> : null}
-
-      {activeSection === 'verification' ? (
-        <VerificationPlanResourcePage />
-      ) : null}
-
-      {activeSection === 'public' ? <PublicResourcePage embedded /> : null}
-
-      {activeSection === 'code' ? (
-        <CodeAuthoringWorkspace
-          request={codeAuthoringRequest}
-          requestedCreateFolder={pendingCodeFolder}
-          onCreateRequestConsumed={() => setPendingCodeFolder(null)}
-        />
-      ) : null}
-
-      {activeSection === 'i18n' ? <I18nResourcePage embedded /> : null}
-
-      {activeSection === 'external' ? (
-        <ExternalLibraryManager onOpenCodeArtifact={openResourceCodeArtifact} />
-      ) : null}
-
-      {activeSection === 'projectFiles' ? (
-        <ProjectFileManager embedded />
-      ) : null}
-    </section>
+    </div>
   );
 }

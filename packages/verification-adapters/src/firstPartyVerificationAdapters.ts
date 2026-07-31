@@ -106,7 +106,7 @@ const sourceTraceDigest = (
   sourceTrace: ExecutionTestReport['files'][number]['sourceTrace']
 ): string | undefined =>
   sourceTrace && sourceTrace.length > 0
-    ? digestVerificationValue(sourceTrace)
+    ? digestVerificationValue(sourceTrace[0])
     : undefined;
 
 const caseIdentityDigest = (

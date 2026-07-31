@@ -188,7 +188,7 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 		t.Fatal("G3 migration must enforce one verification-policy per workspace")
 	}
 
-	evidence := migrations[len(migrations)-2]
+	evidence := migrations[len(migrations)-3]
 	if evidence.version != 19 ||
 		evidence.name != "verification-evidence-plane" ||
 		len(evidence.statements) < 20 {
@@ -198,14 +198,14 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 			evidence.name,
 		)
 	}
-	last := migrations[len(migrations)-1]
-	if last.version != 20 ||
-		last.name != "verification-mutation-ledger" ||
-		len(last.statements) < 7 {
+	ledger := migrations[len(migrations)-2]
+	if ledger.version != 20 ||
+		ledger.name != "verification-mutation-ledger" ||
+		len(ledger.statements) < 7 {
 		t.Fatalf(
-			"last migration = %d %q, want Verification mutation ledger",
-			last.version,
-			last.name,
+			"migration before last = %d %q, want Verification mutation ledger",
+			ledger.version,
+			ledger.name,
 		)
 	}
 	for _, fragment := range []string{
@@ -213,12 +213,33 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 		"request_bytes BYTEA NOT NULL",
 		"result_bytes BYTEA NOT NULL",
 	} {
-		if !strings.Contains(last.statements[0], fragment) {
+		if !strings.Contains(ledger.statements[0], fragment) {
 			t.Fatalf("Verification mutation ledger omits %q", fragment)
 		}
 	}
-	if !strings.Contains(last.statements[6], "reject_verification_immutable_mutation") {
+	if !strings.Contains(ledger.statements[6], "reject_verification_immutable_mutation") {
 		t.Fatal("Verification mutation ledger must be immutable after commit")
+	}
+	last := migrations[len(migrations)-1]
+	if last.version != 21 ||
+		last.name != "verification-run-registry" ||
+		len(last.statements) < 7 {
+		t.Fatalf(
+			"last migration = %d %q, want Verification run registry",
+			last.version,
+			last.name,
+		)
+	}
+	runStatements := strings.Join(last.statements, "\n")
+	for _, fragment := range []string{
+		"CREATE TABLE IF NOT EXISTS verification_runs",
+		"CREATE TABLE IF NOT EXISTS verification_run_events",
+		"PRIMARY KEY (workspace_id, run_id, cursor)",
+		"verification_run_events_immutable_mutation",
+	} {
+		if !strings.Contains(runStatements, fragment) {
+			t.Fatalf("Verification run registry omits %q", fragment)
+		}
 	}
 }
 

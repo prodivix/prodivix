@@ -26,6 +26,13 @@
     "empty": "暂无运行输出。",
     "networkEmpty": "暂无脱敏网络记录。",
     "serverEmpty": "暂无脱敏服务端函数调用记录。",
+    "verification": {
+      "empty": "当前 Workspace revision 暂无 Verification run。",
+      "cellCount": "{{count}} 个 cell",
+      "cursor": "cursor {{cursor}}",
+      "revision": "revision {{revision}}",
+      "cellStatusLabel": "Verification cell {{cell}} 当前为 {{status}}"
+    },
     "sourceNavigation": {
       "snapshotStale": "该结果属于较旧的 Workspace snapshot，请重新运行后再打开源码。",
       "sourceUnavailable": "当前 Workspace 中不存在唯一、精确的运行源码。"
@@ -36,7 +43,8 @@
       "terminal": "终端",
       "network": "网络",
       "server": "服务端",
-      "files": "文件"
+      "files": "文件",
+      "verification": "验证"
     },
     "files": {
       "unavailable": "仅当 Remote execution 发布经过校验的 diff artifact 时，运行时文件变更才可用。",
@@ -369,7 +377,27 @@
       "search": "搜索错误码、消息、目标或 provider",
       "status": "问题状态",
       "severity": "严重程度",
+      "domain": "诊断领域",
+      "scenario": "场景",
+      "scenarioAll": "全部场景",
+      "check": "检查",
+      "checkAll": "全部检查",
+      "family": "检查族",
+      "familyAll": "全部检查族",
+      "surface": "运行表面",
+      "surfaceAll": "全部表面",
+      "target": "目标",
+      "targetAll": "全部目标",
+      "provider": "Provider",
+      "providerAll": "全部 Provider",
+      "revision": "精确 revision",
+      "revisionAll": "全部 revision",
       "dataTarget": "Data 目标：{{target}}"
+    },
+    "domain": {
+      "all": "全部领域",
+      "behavior": "Behavior",
+      "verification": "Verification"
     },
     "status": {
       "open": "待处理",
@@ -394,7 +422,8 @@
       "retryQueued": "已将原操作重新加入重试队列。",
       "retryUnavailable": "当前已无法重试这项操作。",
       "targetUnavailable": "当前工作区中已不存在这个目标。",
-      "sourceUnavailable": "当前工作区中已不存在这个源码资源。"
+      "sourceUnavailable": "当前工作区中已不存在这个源码资源。",
+      "historicalRevision": "Revision {{revision}} 属于历史版本。系统已停止跳转，不会打开当前版本中的近似目标。"
     },
     "quickFix": {
       "applied": "Quick Fix 已通过工作区历史应用。",
@@ -404,7 +433,9 @@
     "details": {
       "location": "位置",
       "noLocation": "此诊断没有提供稳定位置。",
-      "sources": "Providers"
+      "sources": "Providers",
+      "revisionValue": "revision {{revision}}",
+      "historicalRevision": "该问题属于 revision {{revision}}。精确目标仅只读展示，已禁用当前 Workspace 跳转。"
     },
     "empty": {
       "title": "没有匹配的问题",
@@ -1643,6 +1674,8 @@
         "moveDown": "下移步骤",
         "applyLabel": "应用标签",
         "removeStep": "删除步骤",
+        "run": "运行场景",
+        "debug": "调试场景",
         "record": "开始录制",
         "stop": "停止并审查",
         "adopt": "预览采纳",
@@ -1704,6 +1737,20 @@
         "why": "选择原因",
         "empty": "当前没有加载 Plan。UI 不会自造或本地过滤 required cell；请加载 canonical planner 结果。"
       },
+      "runs": {
+        "title": "验证运行",
+        "runImpacted": "运行受影响项",
+        "runRequired": "运行必需项",
+        "runAll": "运行全部",
+        "cancel": "取消运行",
+        "loading": "正在恢复最近一次精确运行…",
+        "empty": "该精确 revision 与 Plan 暂无运行。",
+        "noMatchingCells": "Canonical Plan 中没有匹配该场景与范围的 cell。",
+        "started": "运行已登记并启动。",
+        "cancelled": "已为该精确运行记录取消请求。",
+        "statusLabel": "验证运行状态：{{status}}",
+        "cellStatusLabel": "Verification cell {{cell}} 状态：{{status}}"
+      },
       "evidence": {
         "title": "持久化 Verification Evidence",
         "description": "查看绑定精确 Plan 与 Workspace revision 的尝试历史。Evidence 始终由 Backend 持有，不会复制进 canonical Workspace 或 localStorage。",
@@ -1743,6 +1790,7 @@
         "rasterPreviewAlt": "Backend 已验证的 raster Evidence：{{path}}",
         "download": "下载附件",
         "noArtifacts": "没有附带 artifact descriptor。",
+        "inspectFailure": "检查失败",
         "compare": "比较尝试",
         "supersede": "取代尝试",
         "supersedeTarget": "替代尝试",

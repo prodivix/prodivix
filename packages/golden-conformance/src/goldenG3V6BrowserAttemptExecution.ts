@@ -5,11 +5,14 @@ import {
   digestVerificationValue,
   executeVerificationAdapterLifecycle,
   normalizeVerificationCheckReportCandidate,
+  type VerificationAdapterInputRef,
   type VerificationAdapterLifecycleResult,
+  type VerificationEvidenceSourceTrace,
   type VerificationPlan,
   type VerificationPlanCell,
 } from '@prodivix/verification';
 import {
+  createBrowserVerificationEvidenceSourceTrace,
   createBrowserVerificationTargetBinding,
   type BrowserVerificationTargetLease,
   type FirstPartyBrowserVerificationAdapterFactory,
@@ -128,6 +131,20 @@ export type GoldenG3V6BrowserAttempt = Readonly<{
   scenarioProgramDigest: string;
   targetOriginDigest: string;
   runtimeEnvironmentDigest: string;
+  normalizationContext: Readonly<{
+    resolvedInputSetDigest: string;
+    runtimeEnvironmentDigest: string;
+    executableSnapshotDigest: string;
+    scenarioProgramDigest: string;
+    controlProfileDigest: string;
+    fixtureSetDigests: readonly string[];
+    baselineSetDigest?: string;
+    controlCapabilityIds: readonly string[];
+    controlCapabilitySnapshotDigest: string;
+    appliedControlDigest: string;
+    inputRefs: readonly VerificationAdapterInputRef[];
+  }>;
+  sourceTraces: readonly VerificationEvidenceSourceTrace[];
   result: GoldenG3V6ReportedLifecycleResult;
   controlCapabilitySnapshotDigest: string;
   appliedControlDigest: string;
@@ -147,6 +164,7 @@ type BrowserAttemptDraft = Readonly<{
   scenarioProgramDigest: string;
   targetOriginDigest: string;
   runtimeEnvironmentDigest: string;
+  inputRefs: readonly VerificationAdapterInputRef[];
   result: GoldenG3V6ReportedLifecycleResult;
   runtimeControl: GoldenG3V6RuntimeControlExpectation;
   remoteEvidence?: GoldenG3V6RemotePreviewEvidence;
@@ -382,6 +400,7 @@ export const executeGoldenG3V6BrowserAttempt = async (input: {
       runtimeEnvironmentDigest: targetBinding.runtimeEnvironmentDigest,
       result,
       runtimeControl,
+      inputRefs: contextMaterial.context.inputRefs,
       ...(remoteSession ? { remoteEvidence: remoteSession.evidence } : {}),
       ...(authority ? { authority } : {}),
     });
@@ -445,6 +464,11 @@ export const executeGoldenG3V6BrowserAttempt = async (input: {
           securityResolutionAudit
         )
       : undefined;
+  const sourceTraces = Object.freeze([
+    createBrowserVerificationEvidenceSourceTrace({
+      scenarioId: input.cell.scenarioId!,
+    }),
+  ]);
   return Object.freeze({
     rowId: input.row.id,
     cellId: input.cell.id,
@@ -456,6 +480,27 @@ export const executeGoldenG3V6BrowserAttempt = async (input: {
     scenarioProgramDigest: draft.scenarioProgramDigest,
     targetOriginDigest: draft.targetOriginDigest,
     runtimeEnvironmentDigest: draft.runtimeEnvironmentDigest,
+    normalizationContext: Object.freeze({
+      resolvedInputSetDigest: draft.result.resolvedInputSetDigest,
+      runtimeEnvironmentDigest: draft.runtimeEnvironmentDigest,
+      executableSnapshotDigest: draft.snapshot.contentDigest,
+      scenarioProgramDigest: draft.scenarioProgramDigest,
+      controlProfileDigest: input.cell.controlProfileRef.digest!,
+      fixtureSetDigests: Object.freeze(
+        input.cell.fixtureSetRef?.digest
+          ? [input.cell.fixtureSetRef.digest]
+          : []
+      ),
+      ...(input.cell.baselineSetRef?.digest
+        ? { baselineSetDigest: input.cell.baselineSetRef.digest }
+        : {}),
+      controlCapabilityIds: draft.runtimeControl.controlCapabilityIds,
+      controlCapabilitySnapshotDigest:
+        draft.runtimeControl.controlCapabilitySnapshotDigest,
+      appliedControlDigest: draft.runtimeControl.appliedControlDigest,
+      inputRefs: draft.inputRefs,
+    }),
+    sourceTraces,
     result: draft.result,
     controlCapabilitySnapshotDigest:
       draft.runtimeControl.controlCapabilitySnapshotDigest,

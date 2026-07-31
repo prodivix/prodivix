@@ -413,6 +413,14 @@ describe('Verification resource', () => {
     expect(screen.getByText(/symbol:catalog → scenario:catalog/)).toBeTruthy();
   });
 
+  it('opens the Scenario surface from the plan matrix', () => {
+    const onOpenScenario = vi.fn();
+    render(<VerificationPlanResourcePage onOpenScenario={onOpenScenario} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'scenario:catalog' }));
+    expect(onOpenScenario).toHaveBeenCalledWith('scenario:catalog');
+  });
+
   it('previews Policy authoring and dispatches one reversible owner Command', async () => {
     render(<VerificationPlanResourcePage />);
     fireEvent.change(

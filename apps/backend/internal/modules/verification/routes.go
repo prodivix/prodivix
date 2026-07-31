@@ -5,6 +5,10 @@ import "github.com/gin-gonic/gin"
 type RouteHandlers struct {
 	RequireAuth       gin.HandlerFunc
 	CreatePromotion   gin.HandlerFunc
+	CreateRun         gin.HandlerFunc
+	ListRuns          gin.HandlerFunc
+	GetRun            gin.HandlerFunc
+	AppendRunEvent    gin.HandlerFunc
 	UploadArtifact    gin.HandlerFunc
 	FinalizePromotion gin.HandlerFunc
 	ListEvidence      gin.HandlerFunc
@@ -21,6 +25,10 @@ type RouteHandlers struct {
 func RegisterRoutes(api *gin.RouterGroup, handlers RouteHandlers) {
 	base := "/workspaces/:workspaceId/verification"
 	api.POST(base+"/promotions", handlers.RequireAuth, handlers.CreatePromotion)
+	api.POST(base+"/runs", handlers.RequireAuth, handlers.CreateRun)
+	api.GET(base+"/runs", handlers.RequireAuth, handlers.ListRuns)
+	api.GET(base+"/runs/:runId", handlers.RequireAuth, handlers.GetRun)
+	api.POST(base+"/runs/:runId/events", handlers.RequireAuth, handlers.AppendRunEvent)
 	api.PUT(base+"/promotions/:promotionId/artifacts/:artifactId", handlers.RequireAuth, handlers.UploadArtifact)
 	api.POST(base+"/promotions/:promotionId/finalize", handlers.RequireAuth, handlers.FinalizePromotion)
 	api.GET(base+"/evidence", handlers.RequireAuth, handlers.ListEvidence)

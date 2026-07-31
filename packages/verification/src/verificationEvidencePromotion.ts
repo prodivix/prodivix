@@ -150,7 +150,8 @@ const mediaTypeMatchesKind = (
   IMAGE_VERIFICATION_ARTIFACT_KINDS.has(kind)
     ? mediaType === 'image/png' || mediaType === 'image/jpeg'
     : kind === 'build-log'
-      ? mediaType === 'text/plain'
+      ? mediaType === 'text/plain' ||
+        isVerificationArtifactJsonMediaType(mediaType)
       : JSON_VERIFICATION_ARTIFACT_KINDS.has(kind) &&
         isVerificationArtifactJsonMediaType(mediaType);
 

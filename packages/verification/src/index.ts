@@ -86,16 +86,100 @@ export {
 } from './verificationPlanCodec';
 export { MAXIMUM_VERIFICATION_CLOSURE_EVIDENCE_RECORDS } from './verificationPlannerGraph';
 export {
+  applyVerificationRunEvent,
+  createVerificationRunEvent,
+  createVerificationRunSnapshot,
+  isVerificationRunTerminal,
+  projectVerificationRunSummary,
+} from './verificationRun';
+export {
+  decodeVerificationRunEvent,
+  decodeVerificationRunSnapshot,
+  encodeVerificationRunEvent,
+  encodeVerificationRunSnapshot,
+  validateVerificationRunEvent,
+  validateVerificationRunSnapshot,
+  type VerificationRunEventDecodeResult,
+  type VerificationRunEventWire,
+  type VerificationRunSnapshotDecodeResult,
+  type VerificationRunSnapshotWire,
+  type VerificationRunWireIssue,
+} from './verificationRunCodec';
+export type {
+  VerificationRunCancelRequestedEvent,
+  VerificationRunCellPromotedEvent,
+  VerificationRunCellReportedEvent,
+  VerificationRunCellStartedEvent,
+  VerificationRunCellState,
+  VerificationRunCellStatus,
+  VerificationRunClosureEvaluatedEvent,
+  VerificationRunCompletedEvent,
+  VerificationRunEvent,
+  VerificationRunEventInput,
+  VerificationRunInterruptedEvent,
+  VerificationRunOrigin,
+  VerificationRunScope,
+  VerificationRunSnapshot,
+  VerificationRunStartedEvent,
+  VerificationRunStatus,
+  VerificationRunSummary,
+  VerificationRunTransitionResult,
+} from './verificationRun.types';
+export {
   evaluateVerificationClosure,
   isVerificationClosureForPlan,
 } from './verificationClosure';
+export {
+  decodeVerificationClosure,
+  encodeVerificationClosure,
+  validateVerificationClosure,
+  type VerificationClosureDecodeResult,
+  type VerificationClosureWire,
+  type VerificationClosureWireIssue,
+} from './verificationClosureCodec';
 export { projectVerificationPlanExplanation } from './verificationExplanation';
 export * from './verificationArtifactPolicy';
 export * from './verificationArtifactEnvelope';
 export * from './verificationAttestation';
 export * from './verificationComparison';
-export * from './verificationCiIdentity';
-export * from './verificationEvidenceCodec';
+export {
+  normalizeVerificationCiIdentity,
+  type VerificationCiIdentity,
+} from './verificationCiIdentity';
+export {
+  assessVerificationCiPromotion,
+  createVerificationCiJobContext,
+  decodeVerificationCiJobContext,
+  encodeVerificationCiJobContext,
+  VERIFICATION_CI_JOB_CONTEXT_FORMAT,
+  VERIFICATION_CI_JOB_CONTEXT_WIRE_VERSION,
+  type VerificationCiJobContext,
+  type VerificationCiJobContextWire,
+  type VerificationCiJobEvent,
+  type VerificationCiPromotionAdmission,
+} from './verificationCiJobContext';
+export {
+  decodeVerificationEvidenceCandidate,
+  decodeVerificationEvidenceManifest,
+  decodeVerificationEvidenceVerifiedView,
+  encodeVerificationEvidenceCandidate,
+  encodeVerificationEvidenceManifest,
+  encodeVerificationEvidenceVerifiedView,
+  normalizeVerificationEvidenceCandidate,
+  validateVerificationEvidenceCandidate,
+  verificationEvidenceCandidateWireSchema,
+  verificationEvidenceManifestWireSchema,
+  verificationEvidenceVerifiedViewWireSchema,
+  VERIFICATION_EVIDENCE_CANDIDATE_WIRE_VERSION,
+  VERIFICATION_EVIDENCE_CODEC_LIMITS,
+  VERIFICATION_EVIDENCE_MANIFEST_WIRE_VERSION,
+  VERIFICATION_EVIDENCE_VERIFIED_VIEW_WIRE_VERSION,
+  type VerificationEvidenceCandidateWire,
+  type VerificationEvidenceManifestWire,
+  type VerificationEvidenceVerifiedViewWire,
+  type VerificationEvidenceWireDecodeResult,
+  type VerificationEvidenceWireIssue,
+} from './verificationEvidenceCodec';
 export {
   decodeVerificationEvidenceSourceTraces,
   type VerificationEvidenceSourceTraceDecodeResult,
@@ -109,10 +193,14 @@ export * from './verificationRetention';
 export * from './verificationRevocation';
 export {
   verificationBaselineSetWireSchema,
+  verificationClosureWireSchema,
   verificationDocumentWireSchemas,
   verificationPlanWireSchema,
   verificationPolicyWireSchema,
+  verificationRunEventWireSchema,
+  verificationRunSnapshotWireSchema,
   VERIFICATION_PLAN_WIRE_VERSION,
+  VERIFICATION_CLOSURE_WIRE_VERSION,
 } from './wire';
 export type {
   CreateVerificationImpactSetInput,
@@ -159,6 +247,8 @@ export type {
   VerificationEvidenceSourceTrace,
   VerificationEvidenceTargetPolicy,
   VerificationEvidenceTrust,
+  VerificationEvidenceVerifiedView,
+  VerificationEvidenceVerifiedViewRecord,
   VerificationExemption,
   VerificationImpactCompleteness,
   VerificationImpactContribution,

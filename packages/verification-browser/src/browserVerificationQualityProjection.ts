@@ -94,9 +94,7 @@ export const projectBrowserAccessibility = async (
           impact: finding.impact,
           nodeCount: finding.relatedNodeCount,
           diagnosticCodes: finding.diagnosticCodes,
-          ...(finding.sourceTraceDigest === undefined
-            ? {}
-            : { sourceTraceDigest: finding.sourceTraceDigest }),
+          sourceTraceDigest,
         })),
       },
     },
@@ -117,9 +115,7 @@ export const projectBrowserAccessibility = async (
           messageKey: finding.messageKey,
           relatedNodeCount: finding.relatedNodeCount,
           diagnosticCodes: finding.diagnosticCodes,
-          ...(finding.sourceTraceDigest === undefined
-            ? {}
-            : { sourceTraceDigest: finding.sourceTraceDigest }),
+          sourceTraceDigest,
         })
       ),
       journeys: keyboard.steps.map((step) =>
@@ -130,9 +126,7 @@ export const projectBrowserAccessibility = async (
           assertionCode: step.assertionCode,
           status: step.status,
           diagnosticCodes: step.diagnosticCodes,
-          ...(step.sourceTraceDigest === undefined
-            ? {}
-            : { sourceTraceDigest: step.sourceTraceDigest }),
+          sourceTraceDigest,
           ...(step.announcement === undefined
             ? {}
             : { announcement: step.announcement }),
@@ -335,9 +329,7 @@ export const projectBrowserSecurity = async (
             messageKey: finding.messageKey,
             count: finding.count,
             diagnosticCodes: finding.diagnosticCodes,
-            ...(finding.sourceTraceDigest === undefined
-              ? {}
-              : { sourceTraceDigest: finding.sourceTraceDigest }),
+            sourceTraceDigest,
           })
         )
       ),

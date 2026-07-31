@@ -38,6 +38,10 @@ import {
   type ExecutionTerminalPermissionStatus,
 } from '@prodivix/runtime-core';
 import type { RemoteExecutionTerminalClient } from '@prodivix/runtime-remote';
+import type {
+  VerificationRunCellStatus,
+  VerificationRunSnapshot,
+} from '@prodivix/verification';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { ExecutionFilesystemChangesPanel } from './ExecutionFilesystemChangesPanel';
 import { ExecutionTerminalEmulatorSurface } from './ExecutionTerminalEmulatorSurface';
@@ -76,6 +80,7 @@ type ExecutionCenterProps = Readonly<{
   terminalClient?: RemoteExecutionTerminalClient;
   terminalPermission?: ExecutionTerminalPermissionStatus;
   filesystemArtifact?: ExecutionFilesystemArtifactReference;
+  verificationRun?: VerificationRunSnapshot;
   workspace?: WorkspaceSnapshot;
   workspaceReadonly?: boolean;
   onRestart?(): void;
@@ -90,6 +95,9 @@ type ExecutionCenterProps = Readonly<{
 
 export type ExecutionCenterStatus =
   ExecutionSessionStatus | 'compiling' | 'blocked';
+
+type ExecutionCenterSurface =
+  'console' | 'terminal' | 'network' | 'server' | 'files' | 'verification';
 
 const EXECUTION_CENTER_HEIGHT_STORAGE_KEY =
   'prodivix.editor.execution-center.height';
@@ -150,6 +158,36 @@ const statusIcon = (status: ExecutionCenterStatus) => {
   return <CircleDashed size={14} aria-hidden="true" />;
 };
 
+const verificationRunStatus = (
+  run: VerificationRunSnapshot | undefined
+): ExecutionCenterStatus | undefined => {
+  if (!run) return undefined;
+  if (run.status === 'completed') {
+    if (run.closureVerdict === 'unsatisfied') return 'failed';
+    if (run.closureVerdict === 'stale') return 'blocked';
+    return 'succeeded';
+  }
+  if (run.status === 'interrupted') return 'failed';
+  return run.status;
+};
+
+const verificationCellToneClass = (
+  status: VerificationRunCellStatus
+): string => {
+  if (status === 'passed') return 'text-(--success-color)';
+  if (status === 'failed' || status === 'interrupted') {
+    return 'text-(--danger-color)';
+  }
+  if (
+    status === 'blocked' ||
+    status === 'unsupported' ||
+    status === 'unstable'
+  ) {
+    return 'text-(--warning-color)';
+  }
+  return 'text-(--text-muted)';
+};
+
 const lineToneClass = (
   level: 'debug' | 'info' | 'warning' | 'error'
 ): string => {
@@ -174,6 +212,7 @@ export function ExecutionCenter({
   terminalClient,
   terminalPermission,
   filesystemArtifact,
+  verificationRun,
   workspace,
   workspaceReadonly = true,
   onRestart,
@@ -191,9 +230,7 @@ export function ExecutionCenter({
     resolveViewportMaximumHeight
   );
   const [panelMaximized, setPanelMaximized] = useState(false);
-  const [surface, setSurface] = useState<
-    'console' | 'terminal' | 'network' | 'server' | 'files'
-  >('console');
+  const [surface, setSurface] = useState<ExecutionCenterSurface>('console');
   const [networkFilter, setNetworkFilter] =
     useState<ExecutionNetworkOperationFilter>();
   const [filter, setFilter] = useState<ExecutionConsoleFilter>('all');
@@ -232,7 +269,12 @@ export function ExecutionCenter({
     | undefined
   >(undefined);
   const outputRef = useRef<HTMLDivElement | null>(null);
-  const effectiveStatus = status ?? session?.status ?? 'idle';
+  const visibleVerificationRunIdRef = useRef<string | undefined>(undefined);
+  const effectiveStatus =
+    status ??
+    verificationRunStatus(verificationRun) ??
+    session?.status ??
+    'idle';
   const effectiveStatusLabel = t(`execution.status.${effectiveStatus}`, {
     defaultValue: effectiveStatus,
   });
@@ -366,6 +408,18 @@ export function ExecutionCenter({
 
   useEffect(() => {
     if (
+      !verificationRun ||
+      visibleVerificationRunIdRef.current === verificationRun.runId
+    ) {
+      return;
+    }
+    visibleVerificationRunIdRef.current = verificationRun.runId;
+    setCollapsed(false);
+    setSurface('verification');
+  }, [verificationRun]);
+
+  useEffect(() => {
+    if (
       !navigationRequest ||
       !workspace ||
       navigationRequest.workspaceId !== workspace.id
@@ -419,6 +473,7 @@ export function ExecutionCenter({
     collapsed,
     lines.length,
     filesystem.entries.length,
+    verificationRun?.cells.length,
     visibleNetworkEntries.length,
     serverFunctionEntries.length,
     surface,
@@ -511,7 +566,7 @@ export function ExecutionCenter({
 
   const openSourceTrace = (
     entryId: string,
-    entrySurface: 'console' | 'network' | 'server' | 'files',
+    entrySurface: Exclude<ExecutionCenterSurface, 'terminal' | 'verification'>,
     input: ExecutionSourceNavigationInput
   ) => {
     if (!onOpenSourceTrace) return;
@@ -851,6 +906,7 @@ export function ExecutionCenter({
               surface === 'network' ||
               surface === 'server' ||
               surface === 'files' ||
+              surface === 'verification' ||
               (surface === 'console' && !lines.length) ||
               (surface === 'terminal' &&
                 !terminal.view.records.length &&
@@ -892,6 +948,7 @@ export function ExecutionCenter({
             disabled={
               surface === 'terminal' ||
               surface === 'files' ||
+              surface === 'verification' ||
               (surface === 'console' && !lines.length) ||
               (surface === 'network' && !visibleNetworkEntries.length) ||
               (surface === 'server' && !serverFunctionEntries.length)
@@ -907,7 +964,14 @@ export function ExecutionCenter({
         <>
           <div className="flex h-8 shrink-0 items-center gap-1 border-b border-(--border-subtle) px-3">
             {(
-              ['console', 'terminal', 'network', 'server', 'files'] as const
+              [
+                'console',
+                'terminal',
+                'network',
+                'server',
+                'files',
+                'verification',
+              ] as const
             ).map((value) => (
               <button
                 key={value}
@@ -957,20 +1021,24 @@ export function ExecutionCenter({
                 {surface === 'console' && pausedConsoleLineIds
                   ? `${t('execution.paused')} · `
                   : null}
-                {t('execution.eventCount', {
-                  count:
-                    surface === 'console'
-                      ? lines.length
-                      : surface === 'network'
-                        ? visibleNetworkEntries.length
-                        : surface === 'server'
-                          ? serverFunctionEntries.length
-                          : filesystem.entries.length,
-                })}
+                {surface === 'verification'
+                  ? t('execution.verification.cellCount', {
+                      count: verificationRun?.cells.length ?? 0,
+                    })
+                  : t('execution.eventCount', {
+                      count:
+                        surface === 'console'
+                          ? lines.length
+                          : surface === 'network'
+                            ? visibleNetworkEntries.length
+                            : surface === 'server'
+                              ? serverFunctionEntries.length
+                              : filesystem.entries.length,
+                    })}
               </span>
             )}
           </div>
-          {recoveryMessage ? (
+          {surface !== 'verification' && recoveryMessage ? (
             <div className="flex shrink-0 items-center gap-2 border-b border-(--border-subtle) bg-(--bg-raised)/55 px-3 py-1.5 text-[10px] text-(--text-secondary)">
               <TriangleAlert
                 size={12}
@@ -1010,7 +1078,83 @@ export function ExecutionCenter({
                 )}
               </div>
             ) : null}
-            {surface === 'console' && lines.length ? (
+            {surface === 'verification' ? (
+              verificationRun ? (
+                <div className="space-y-1 font-sans">
+                  <div className="mb-2 flex items-center gap-2 border-b border-(--border-subtle) pb-2 text-[10px]">
+                    <span className="font-medium text-(--text-primary)">
+                      {verificationRun.runId}
+                    </span>
+                    <span className="text-(--text-muted)">
+                      {verificationRun.surface} · {verificationRun.scope} ·{' '}
+                      {t('execution.verification.cursor', {
+                        cursor: verificationRun.cursor,
+                      })}
+                    </span>
+                    <span className="ml-auto text-(--text-muted)">
+                      {t('execution.verification.revision', {
+                        revision: verificationRun.workspaceRevision,
+                      })}
+                    </span>
+                  </div>
+                  {verificationRun.cells.map((cell) => (
+                    <div
+                      key={cell.cellId}
+                      className="grid grid-cols-[18px_minmax(0,1fr)_110px_96px] items-center gap-2 rounded-md px-2 py-1 hover:bg-(--bg-raised)"
+                    >
+                      <span
+                        className={verificationCellToneClass(cell.status)}
+                        aria-label={t(
+                          'execution.verification.cellStatusLabel',
+                          {
+                            cell: cell.cellId,
+                            status: cell.status,
+                          }
+                        )}
+                      >
+                        {cell.status === 'passed' ? (
+                          <CheckCircle2 size={12} aria-hidden="true" />
+                        ) : cell.status === 'failed' ||
+                          cell.status === 'interrupted' ? (
+                          <XCircle size={12} aria-hidden="true" />
+                        ) : cell.status === 'running' ? (
+                          <LoaderCircle
+                            size={12}
+                            className="animate-spin"
+                            aria-hidden="true"
+                          />
+                        ) : cell.status === 'cancelled' ? (
+                          <CircleSlash2 size={12} aria-hidden="true" />
+                        ) : cell.status === 'blocked' ||
+                          cell.status === 'unsupported' ||
+                          cell.status === 'unstable' ? (
+                          <TriangleAlert size={12} aria-hidden="true" />
+                        ) : (
+                          <CircleDashed size={12} aria-hidden="true" />
+                        )}
+                      </span>
+                      <code className="truncate" title={cell.cellId}>
+                        {cell.cellId}
+                      </code>
+                      <span
+                        className={`truncate ${verificationCellToneClass(cell.status)}`}
+                      >
+                        {cell.status}
+                      </span>
+                      <span className="truncate text-right text-(--text-muted)">
+                        {cell.evidenceId ??
+                          cell.diagnosticCode ??
+                          cell.attemptId}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-full items-center justify-center font-sans text-(--text-muted)">
+                  {t('execution.verification.empty')}
+                </div>
+              )
+            ) : surface === 'console' && lines.length ? (
               lines.map((line) => (
                 <div
                   key={line.id}

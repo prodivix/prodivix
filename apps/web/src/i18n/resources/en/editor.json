@@ -26,6 +26,13 @@
     "empty": "No execution output yet.",
     "networkEmpty": "No sanitized network traces yet.",
     "serverEmpty": "No sanitized Server Function invocations yet.",
+    "verification": {
+      "empty": "No Verification run is active for this Workspace revision.",
+      "cellCount": "{{count}} cells",
+      "cursor": "cursor {{cursor}}",
+      "revision": "revision {{revision}}",
+      "cellStatusLabel": "Verification cell {{cell}} is {{status}}"
+    },
     "sourceNavigation": {
       "snapshotStale": "This result belongs to an older Workspace snapshot. Run it again before opening source.",
       "sourceUnavailable": "The exact execution source is unavailable or ambiguous in this Workspace."
@@ -36,7 +43,8 @@
       "terminal": "Terminal",
       "network": "Network",
       "server": "Server",
-      "files": "Files"
+      "files": "Files",
+      "verification": "Verification"
     },
     "files": {
       "unavailable": "Runtime filesystem changes are available only when a Remote execution publishes a verified diff artifact.",
@@ -369,7 +377,27 @@
       "search": "Search code, message, target, or provider",
       "status": "Issue status",
       "severity": "Issue severity",
+      "domain": "Diagnostic domain",
+      "scenario": "Scenario",
+      "scenarioAll": "All Scenarios",
+      "check": "Check",
+      "checkAll": "All checks",
+      "family": "Check family",
+      "familyAll": "All families",
+      "surface": "Surface",
+      "surfaceAll": "All surfaces",
+      "target": "Target",
+      "targetAll": "All targets",
+      "provider": "Provider",
+      "providerAll": "All providers",
+      "revision": "Exact revision",
+      "revisionAll": "All revisions",
       "dataTarget": "Data target: {{target}}"
+    },
+    "domain": {
+      "all": "All domains",
+      "behavior": "Behavior",
+      "verification": "Verification"
     },
     "status": {
       "open": "Open",
@@ -394,7 +422,8 @@
       "retryQueued": "The exact operation was queued for retry.",
       "retryUnavailable": "This operation can no longer be retried.",
       "targetUnavailable": "The target no longer exists in the current workspace.",
-      "sourceUnavailable": "The source artifact no longer exists in the current workspace."
+      "sourceUnavailable": "The source artifact no longer exists in the current workspace.",
+      "historicalRevision": "Revision {{revision}} is historical. Navigation was stopped instead of opening an approximate current target."
     },
     "quickFix": {
       "applied": "The Quick Fix was applied through workspace history.",
@@ -404,7 +433,9 @@
     "details": {
       "location": "Location",
       "noLocation": "No stable location was supplied.",
-      "sources": "Providers"
+      "sources": "Providers",
+      "revisionValue": "revision {{revision}}",
+      "historicalRevision": "This issue belongs to revision {{revision}}. Its exact target is shown read-only; current-Workspace navigation is disabled."
     },
     "empty": {
       "title": "No matching issues",
@@ -1643,6 +1674,8 @@
         "moveDown": "Move step down",
         "applyLabel": "Apply label",
         "removeStep": "Remove step",
+        "run": "Run Scenario",
+        "debug": "Debug Scenario",
         "record": "Start recorder",
         "stop": "Stop and review",
         "adopt": "Preview adoption",
@@ -1704,6 +1737,20 @@
         "why": "Why selected",
         "empty": "No current Plan is loaded. The UI does not invent or locally filter required cells; load the canonical planner result."
       },
+      "runs": {
+        "title": "Verification runs",
+        "runImpacted": "Run impacted",
+        "runRequired": "Run required",
+        "runAll": "Run all",
+        "cancel": "Cancel run",
+        "loading": "Recovering the latest exact run…",
+        "empty": "No run exists for this exact revision and Plan.",
+        "noMatchingCells": "The canonical Plan has no matching cell for this Scenario and scope.",
+        "started": "The run was registered and started.",
+        "cancelled": "Cancellation was recorded for the exact run.",
+        "statusLabel": "Verification run status: {{status}}",
+        "cellStatusLabel": "Verification cell {{cell}} status: {{status}}"
+      },
       "evidence": {
         "title": "Durable Verification Evidence",
         "description": "Review the exact Plan and Workspace revision attempt history. Evidence remains Backend-owned and is never copied into the canonical Workspace or local storage.",
@@ -1743,6 +1790,7 @@
         "rasterPreviewAlt": "Backend-validated raster Evidence: {{path}}",
         "download": "Download attachment",
         "noArtifacts": "No artifact descriptors are attached.",
+        "inspectFailure": "Inspect failure",
         "compare": "Compare attempts",
         "supersede": "Supersede attempt",
         "supersedeTarget": "Replacement attempt",

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FilePlus2,
+  Bug,
   ListChecks,
+  Play,
   Redo2,
   Save,
   Trash2,
@@ -139,7 +141,11 @@ const createStepFromTarget = (
   return null;
 };
 
-export function BehaviorScenarioResourcePage() {
+export function BehaviorScenarioResourcePage({
+  onOpenVerification,
+}: Readonly<{
+  onOpenVerification?(scenarioId: string, mode: 'run' | 'debug'): void;
+}> = {}) {
   const { t } = useTranslation('editor');
   const workspace = useEditorStore((state) => state.workspace);
   const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
@@ -550,6 +556,26 @@ export function BehaviorScenarioResourcePage() {
                     size="Small"
                     value={selectedEntryValue}
                   />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onOpenVerification?.(selected.scenario.id, 'run')
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm text-white"
+                  >
+                    <Play size={14} />
+                    {t('resourceManager.behavior.actions.run')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onOpenVerification?.(selected.scenario.id, 'debug')
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg border border-black/12 px-3 py-2 text-sm"
+                  >
+                    <Bug size={14} />
+                    {t('resourceManager.behavior.actions.debug')}
+                  </button>
                   <button
                     type="button"
                     disabled={workspaceReadonly || !scenarioName.trim()}

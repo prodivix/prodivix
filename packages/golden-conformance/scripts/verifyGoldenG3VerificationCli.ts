@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { serializeVerificationValue } from '@prodivix/verification';
+import {
+  encodeVerificationPlan,
+  serializeVerificationValue,
+} from '@prodivix/verification';
 import {
   GOLDEN_G3_V4_EXPLANATION,
   GOLDEN_G3_V4_PLAN,
@@ -27,7 +30,7 @@ try {
     process.execPath,
     [
       cliEntrypoint,
-      'verification',
+      'verify',
       'plan',
       '--input',
       inputPath,
@@ -37,7 +40,9 @@ try {
     { cwd: repositoryRoot, stdio: 'pipe' }
   );
   const cliPlan = readFileSync(planPath, 'utf8').trim();
-  const canonicalPlan = serializeVerificationValue(GOLDEN_G3_V4_PLAN);
+  const canonicalPlan = serializeVerificationValue(
+    encodeVerificationPlan(GOLDEN_G3_V4_PLAN)
+  );
   if (cliPlan !== canonicalPlan) {
     throw new Error('CLI and canonical planner produced different Plan bytes.');
   }
@@ -47,7 +52,7 @@ try {
     process.execPath,
     [
       cliEntrypoint,
-      'verification',
+      'verify',
       'explain',
       '--plan',
       planPath,

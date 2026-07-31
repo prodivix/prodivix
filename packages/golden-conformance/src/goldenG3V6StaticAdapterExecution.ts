@@ -13,6 +13,7 @@ import {
   type VerificationAdapterLifecycleResult,
   type VerificationAdapterRegistrySnapshot,
   type VerificationArtifactKind,
+  type VerificationEvidenceSourceTrace,
   type VerificationPlan,
   type VerificationPlanCell,
 } from '@prodivix/verification';
@@ -50,6 +51,19 @@ export type GoldenG3V6StaticAdapterAttempt = Readonly<{
   result: VerificationAdapterLifecycleResult;
   executableSnapshotDigest: string;
   runtimeEnvironmentDigest: string;
+  normalizationContext: Readonly<{
+    resolvedInputSetDigest: string;
+    runtimeEnvironmentDigest: string;
+    executableSnapshotDigest: string;
+    controlProfileDigest: string;
+    fixtureSetDigests: readonly string[];
+    baselineSetDigest?: string;
+    controlCapabilityIds: readonly string[];
+    controlCapabilitySnapshotDigest: string;
+    appliedControlDigest: string;
+    inputRefs: readonly VerificationAdapterInputRef[];
+  }>;
+  sourceTraces: readonly VerificationEvidenceSourceTrace[];
   toolchainAuthorityReceiptDigest: string;
   toolchainProjectionAuthorityReceiptDigest: string;
   toolchainProjectionAuthority: GoldenControlledStaticToolchainProjectionAuthority;
@@ -285,6 +299,25 @@ const executeStaticAttempt = async (input: {
     result,
     executableSnapshotDigest: inputSet.executableSnapshotDigest,
     runtimeEnvironmentDigest: inputSet.runtimeEnvironmentDigest,
+    normalizationContext: Object.freeze({
+      resolvedInputSetDigest: result.resolvedInputSetDigest,
+      runtimeEnvironmentDigest: inputSet.runtimeEnvironmentDigest,
+      executableSnapshotDigest: inputSet.executableSnapshotDigest,
+      controlProfileDigest: cell.controlProfileRef.digest!,
+      fixtureSetDigests: Object.freeze(
+        cell.fixtureSetRef?.digest ? [cell.fixtureSetRef.digest] : []
+      ),
+      ...(cell.baselineSetRef?.digest
+        ? { baselineSetDigest: cell.baselineSetRef.digest }
+        : {}),
+      controlCapabilityIds:
+        STATIC_NO_RUNTIME_CONTROL_DESCRIPTOR.controlCapabilityIds,
+      controlCapabilitySnapshotDigest:
+        STATIC_CONTROL_CAPABILITY_SNAPSHOT_DIGEST,
+      appliedControlDigest: STATIC_APPLIED_CONTROL_DIGEST,
+      inputRefs: Object.freeze(inputSet.entries.map(inputRef)),
+    }),
+    sourceTraces: inputSet.sourceTraces,
     toolchainAuthorityReceiptDigest: inputSet.toolchainAuthorityReceiptDigest,
     toolchainProjectionAuthorityReceiptDigest:
       inputSet.toolchainProjectionAuthorityReceiptDigest,

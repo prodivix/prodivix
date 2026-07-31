@@ -3,6 +3,14 @@ import { verificationEvidenceCandidateWireSchema } from './verificationEvidenceC
 import { verificationEvidenceManifestWireSchema } from './verificationEvidenceManifestCodec';
 import { verificationEvidenceVerifiedViewWireSchema } from './verificationEvidenceVerifiedViewCodec';
 import {
+  VERIFICATION_CLOSURE_WIRE_VERSION,
+  verificationClosureWireSchema,
+} from './verificationClosureSchema';
+import {
+  verificationRunEventWireSchema,
+  verificationRunSnapshotWireSchema,
+} from './verificationRunSchema';
+import {
   MAXIMUM_VERIFICATION_COMPARISON_ALLOWED_MISMATCH_FIELDS,
   VERIFICATION_COMPARISON_ALLOWED_MISMATCH_FIELDS,
 } from './verificationComparisonPolicyFields';
@@ -1053,6 +1061,10 @@ export {
   verificationEvidenceCandidateWireSchema,
   verificationEvidenceManifestWireSchema,
   verificationEvidenceVerifiedViewWireSchema,
+  VERIFICATION_CLOSURE_WIRE_VERSION,
+  verificationClosureWireSchema,
+  verificationRunEventWireSchema,
+  verificationRunSnapshotWireSchema,
 };
 
 export const verificationEvidenceTransportWireSchemas = Object.freeze({
@@ -1062,4 +1074,7 @@ export const verificationEvidenceTransportWireSchemas = Object.freeze({
   'verification-evidence-manifest': verificationEvidenceManifestWireSchema,
   'verification-evidence-verified-view':
     verificationEvidenceVerifiedViewWireSchema,
+  'verification-closure': verificationClosureWireSchema,
+  'verification-run-snapshot': verificationRunSnapshotWireSchema,
+  'verification-run-event': verificationRunEventWireSchema,
 });

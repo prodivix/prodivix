@@ -49,6 +49,7 @@ var (
 	redactedValuePattern = regexp.MustCompile(`(?i)^(?:\[redacted\]|<redacted>|redacted|\*{3,})$`)
 	digestTokenPattern   = regexp.MustCompile(`(?i)^sha(?:1|256|384|512)-[a-f0-9]+$`)
 	hexTokenPattern      = regexp.MustCompile(`(?i)^[a-f0-9]{32,128}$`)
+	uuidIdentityPattern  = regexp.MustCompile(`(?i)^(?:[a-z][a-z0-9._:-]{0,63}-)*[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}(?:-[0-9]{1,6})?$`)
 	ciRepositoryPattern  = regexp.MustCompile(
 		`^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}(:[A-Za-z0-9][A-Za-z0-9._+-]{0,127})?(/[A-Za-z0-9][A-Za-z0-9._+-]{0,127})+$`,
 	)
@@ -662,7 +663,9 @@ func isEntropyTokenByte(value byte) bool {
 }
 
 func isHighEntropyCredentialToken(value []byte) bool {
-	if digestTokenPattern.Match(value) || hexTokenPattern.Match(value) {
+	if digestTokenPattern.Match(value) ||
+		hexTokenPattern.Match(value) ||
+		uuidIdentityPattern.Match(value) {
 		return false
 	}
 	var (

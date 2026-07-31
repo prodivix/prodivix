@@ -28,6 +28,8 @@ func NewHandler(service *Service) *Handler {
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 	return RouteHandlers{
 		RequireAuth: requireAuth, CreatePromotion: handler.HandleCreatePromotion,
+		CreateRun: handler.HandleCreateRun, ListRuns: handler.HandleListRuns,
+		GetRun: handler.HandleGetRun, AppendRunEvent: handler.HandleAppendRunEvent,
 		UploadArtifact: handler.HandleUploadArtifact, FinalizePromotion: handler.HandleFinalizePromotion,
 		ListEvidence: handler.HandleListEvidence, GetEvidence: handler.HandleGetEvidence,
 		GetArtifact: handler.HandleGetArtifact, CompareEvidence: handler.HandleCompareEvidence,
@@ -35,6 +37,124 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		DeleteEvidence: handler.HandleDeleteEvidence, CreateRevocation: handler.HandleCreateRevocation,
 		GetClosure: handler.HandleGetClosure,
 	}
+}
+
+func (handler *Handler) HandleCreateRun(c *gin.Context) {
+	user, ok := verificationUser(c)
+	if !ok || !requireIntent(c, "create-run") {
+		return
+	}
+	payload, ok := readStrictJSONObject(c, maximumVerificationRunBytes)
+	if !ok {
+		return
+	}
+	run, replayed, err := handler.service.CreateVerificationRun(
+		c.Request.Context(),
+		user.ID,
+		c.Param("workspaceId"),
+		payload,
+	)
+	if err != nil {
+		respondVerificationError(c, err)
+		return
+	}
+	markMutationReplay(c, replayed)
+	status := http.StatusCreated
+	if replayed {
+		status = http.StatusOK
+	}
+	c.JSON(status, gin.H{"run": run})
+}
+
+func (handler *Handler) HandleAppendRunEvent(c *gin.Context) {
+	user, ok := verificationUser(c)
+	if !ok || !requireIntent(c, "append-run-event") {
+		return
+	}
+	payload, ok := readStrictJSONObject(c, maximumVerificationEventBytes)
+	if !ok {
+		return
+	}
+	run, replayed, err := handler.service.AppendVerificationRunEvent(
+		c.Request.Context(),
+		user.ID,
+		c.Param("workspaceId"),
+		c.Param("runId"),
+		payload,
+	)
+	if err != nil {
+		respondVerificationError(c, err)
+		return
+	}
+	markMutationReplay(c, replayed)
+	c.JSON(http.StatusOK, gin.H{"run": run})
+}
+
+func (handler *Handler) HandleGetRun(c *gin.Context) {
+	user, ok := verificationUser(c)
+	if !ok {
+		return
+	}
+	afterCursor := int64(0)
+	if value := c.Query("afterCursor"); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || !validRevision(parsed) {
+			respondVerificationError(c, ErrInvalid)
+			return
+		}
+		afterCursor = parsed
+	}
+	record, err := handler.service.GetVerificationRun(
+		c.Request.Context(),
+		user.ID,
+		c.Param("workspaceId"),
+		c.Param("runId"),
+		afterCursor,
+	)
+	if err != nil {
+		respondVerificationError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, record)
+}
+
+func (handler *Handler) HandleListRuns(c *gin.Context) {
+	user, ok := verificationUser(c)
+	if !ok {
+		return
+	}
+	var workspaceRevision *int64
+	if value := c.Query("workspaceRevision"); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || !validRevision(parsed) {
+			respondVerificationError(c, ErrInvalid)
+			return
+		}
+		workspaceRevision = &parsed
+	}
+	planDigest := c.Query("planDigest")
+	limit := 20
+	if value := c.Query("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			respondVerificationError(c, ErrInvalid)
+			return
+		}
+		limit = parsed
+	}
+	runs, err := handler.service.ListVerificationRuns(
+		c.Request.Context(),
+		user.ID,
+		c.Param("workspaceId"),
+		workspaceRevision,
+		planDigest,
+		limit,
+	)
+	if err != nil {
+		respondVerificationError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"runs": runs})
 }
 
 func (handler *Handler) HandleCreatePromotion(c *gin.Context) {
@@ -445,10 +565,8 @@ func markMutationReplay(c *gin.Context, replayed bool) {
 }
 
 func decodeStrictJSON(c *gin.Context, maximum int64, target any) bool {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maximum)
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil || validateJSONObject(body) != nil {
-		respondVerificationError(c, coded("VER-5001", "Request body is not strict bounded JSON.", ErrInvalid))
+	body, ok := readStrictJSONObject(c, maximum)
+	if !ok {
 		return false
 	}
 	decoder := json.NewDecoder(bytes.NewReader(body))
@@ -462,6 +580,26 @@ func decodeStrictJSON(c *gin.Context, maximum int64, target any) bool {
 		return false
 	}
 	return true
+}
+
+func readStrictJSONObject(c *gin.Context, maximum int64) (json.RawMessage, bool) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maximum)
+	body, err := io.ReadAll(c.Request.Body)
+	maximumMembers := maximumJSONMembers
+	if maximum > maximumCandidateBytes {
+		maximumMembers = maximumVerificationRunJSONMembers
+	}
+	if err != nil ||
+		len(body) > int(maximum) ||
+		validateJSONObjectWithinBudget(
+			body,
+			int(maximum),
+			maximumMembers,
+		) != nil {
+		respondVerificationError(c, coded("VER-5001", "Request body is not strict bounded JSON.", ErrInvalid))
+		return nil, false
+	}
+	return json.RawMessage(body), true
 }
 
 func evidenceFilter(c *gin.Context, requireIdentity bool) (ListFilter, bool) {

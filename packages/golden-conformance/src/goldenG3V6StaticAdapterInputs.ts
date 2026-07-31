@@ -13,11 +13,13 @@ import {
 } from '@prodivix/prodivix-compiler';
 import {
   canonicalJsonText,
+  compareUnicodeCodePoints,
   sameCanonicalJson,
 } from '@prodivix/shared/canonical';
 import {
   digestVerificationValue,
   type VerificationArtifactKind,
+  type VerificationEvidenceSourceTrace,
   type VerificationInputKind,
   type VerificationPlanCell,
 } from '@prodivix/verification';
@@ -61,6 +63,7 @@ export type GoldenG3V6StaticInputSet = Readonly<{
   toolchainAuthorityReceiptDigest: string;
   toolchainProjectionAuthorityReceiptDigest: string;
   workspaceDiagnosticProjectionReceiptDigest: string | null;
+  sourceTraces: readonly VerificationEvidenceSourceTrace[];
 }>;
 
 export type GoldenG3V6FrameworkToolchainEvidence = Readonly<{
@@ -275,10 +278,35 @@ const selectActualTestReport = (
       : [
           Object.freeze({
             ...file,
+            ...(file.sourceTrace
+              ? {
+                  sourceTrace: Object.freeze(
+                    file.sourceTrace.map(({ label: _label, ...trace }) =>
+                      Object.freeze(trace)
+                    )
+                  ),
+                }
+              : {}),
             status: matchingCases.every(({ status }) => status === 'passed')
               ? ('passed' as const)
               : ('failed' as const),
-            cases: Object.freeze(matchingCases),
+            cases: Object.freeze(
+              matchingCases.map((testCase) =>
+                Object.freeze({
+                  ...testCase,
+                  ...(testCase.sourceTrace
+                    ? {
+                        sourceTrace: Object.freeze(
+                          testCase.sourceTrace.map(
+                            ({ label: _label, ...trace }) =>
+                              Object.freeze(trace)
+                          )
+                        ),
+                      }
+                    : {}),
+                })
+              )
+            ),
             failureMessages: Object.freeze(
               matchingCases.flatMap(({ failureMessages }) => failureMessages)
             ),
@@ -364,6 +392,58 @@ const artifactsForCell = (
   }
 };
 
+const evidenceSourceTracesForCell = (
+  cell: VerificationPlanCell,
+  evidence: GoldenG3V6FrameworkToolchainEvidence
+): readonly VerificationEvidenceSourceTrace[] => {
+  const traces =
+    cell.checkKind === 'diagnostics'
+      ? (() => {
+          const referencedDigests = new Set(
+            evidence.diagnosticProjection.receipt.findings.flatMap(
+              ({ sourceTraceDigest }) =>
+                sourceTraceDigest ? [sourceTraceDigest] : []
+            )
+          );
+          return evidence.diagnosticProjection.receipt.trace.entries.flatMap(
+            ({ sourceTrace }) =>
+              sourceTrace.filter((trace) =>
+                referencedDigests.has(digestVerificationValue(trace))
+              )
+          );
+        })()
+      : cell.checkKind === 'unit' || cell.checkKind === 'integration'
+        ? selectActualTestReport(evidence, cell.checkKind).files.flatMap(
+            (file) =>
+              [
+                file.sourceTrace?.[0],
+                ...file.cases.map(({ sourceTrace }) => sourceTrace?.[0]),
+              ].filter(
+                (
+                  trace
+                ): trace is NonNullable<typeof file.sourceTrace>[number] =>
+                  trace !== undefined
+              )
+          )
+        : [];
+  const unique = new Map(
+    [
+      Object.freeze({
+        sourceRef: Object.freeze({
+          kind: 'workspace' as const,
+          workspaceId: evidence.snapshot.workspace.workspaceId,
+        }),
+      }),
+      ...traces,
+    ].map((trace) => [canonicalJsonText(trace), trace] as const)
+  );
+  return Object.freeze(
+    [...unique.entries()]
+      .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
+      .map(([, trace]) => Object.freeze({ ...trace }))
+  );
+};
+
 export const createGoldenG3V6StaticInputs = (
   cell: VerificationPlanCell,
   toolchainEvidence: GoldenG3V6StaticToolchainEvidence
@@ -392,6 +472,7 @@ export const createGoldenG3V6StaticInputs = (
       cell.checkKind === 'diagnostics'
         ? evidence.diagnosticProjection.receipt.receiptDigest
         : null,
+    sourceTraces: evidenceSourceTracesForCell(cell, evidence),
   });
   const artifacts = artifactsForCell(cell, evidence);
   switch (cell.checkKind) {

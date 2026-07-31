@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V6 Implemented / durable CI Evidence Passed；V7 product/CLI pending
-- ProductGateStatus：In Progress
+- ImplementationStatus：V6 Implemented / durable CI Evidence Passed；V7-V8 Implemented
+- ProductGateStatus：V7-V8 Local Passed / CI Configured / durable Evidence pending
 - Global Phase：G3 Behavior & Verification Closure
-- 日期：2026-07-30
+- 日期：2026-07-31
 - Owner：`@prodivix/verification`、`@prodivix/verification-adapters`、`@prodivix/verification-browser`、`@prodivix/runtime-core`、Compiler/Runtime providers、`apps/backend`、`apps/web`、CI composition
 - 关联：
   - `specs/decisions/62.verification-adapter-matrix-and-cross-target-closure.md`
@@ -317,6 +317,74 @@ aggregate evidence digest 必须覆盖每个 attempt 的 report/resolved-input/a
 `status: reported` 会遗漏仍在 passed threshold 内的 visual/performance/a11y/security 输出漂移。Remote evidence
 不能只记录 `providerKind: remote`，也必须绑定上述 execution/materialization/cursor/cleanup identity。
 
+## V7 local product/CLI/CI evidence record
+
+### 2026-07-31 local result
+
+`pnpm run verify:g3:product` 已作为一条连续 root aggregate 通过，覆盖：
+
+- Scenarios 的 authoring/recorder 与 run/debug 入口、Verification 的 Impact/Plan/Runs/Evidence/Compare/Closure、
+  shared docked Execution Center、Issues facets、exact-revision SourceTrace 与 failed Closure 导航；
+- strict versioned Plan、Run snapshot/event、CI job context、Candidate 与 Closure codec；Web、CLI 与 CI
+  继续直接复用 canonical planner、projector、Evidence promotion 与 Closure evaluator；
+- provider-neutral `verify plan/explain/run/resume/cancel/promote/closure`、稳定 exit code、bounded JSON/NDJSON、
+  唯一短期 credential channel、ACK loss 与两阶段 attestation/promotion recovery；
+- Backend v21 run registry migration、revision/plan-bound create/list/get/event API、cursor replay、idempotent
+  create/event/finalize，以及重启后由第二连接恢复同一 run/event projection；
+- GitHub Actions 无 OIDC 权限的 product job、PostgreSQL 16 service，以及仅在可信
+  `push/workflow_dispatch` 上运行的独立 `id-token: write` job、标准 `workflow_ref` OIDC identity、
+  fork/untrusted admission hard cut 与无 durable access token 的 credential boundary。
+
+本次本地结果为 29 个 dependency build tasks、Verification `22 files / 255 tests`、CLI `6/6`、V4
+planner Golden `12/12`、CLI parity、Web `9 files / 80 tests`、Backend verification/
+verificationcontract/database 三个 Go package，以及 Core/G3/wire boundaries 全部通过。Web typecheck 与 CLI
+production build 也在同一命令中通过。
+
+同日将 `PRODIVIX_BACKEND_POSTGRES_TEST_URL` 指向本机 PostgreSQL 18.4 的隔离测试数据库后，
+`TestVerificationRunRegistrySurvivesBackendRestartAndReplaysIdempotently` 与完整
+`pnpm run verify:g3:product` 再次通过。PostgreSQL Gate 每次创建随机 schema、经两个独立连接模拟
+Backend restart，并在结束时自动删除该 schema；现有业务表不参与测试。product workflow 仍提供隔离
+PostgreSQL 16 service，但在取得绑定当前变更 commit/job 的成功远端结果前状态保持
+`Configured / durable Evidence pending`，不得写成 CI Passed。
+
+## V8 local trusted Closure evidence record
+
+### 2026-07-31 local result
+
+`pnpm run verify:g3:golden` 复用 V6 controlled adapter execution，而不是另建只为 Closure 服务的
+mock matrix。固定 Plan digest
+`sha256-67676af5b3930e32906ba9d5a835d82a11bd2f6a2d48100497082d0b685ee011`
+精确包含 66 个 required cells；V6 path 实际执行 80 个 attempts 后，V8 为每个 cell 选择一个与
+Policy trust requirement 匹配的结果，规范化并 promotion 为 66 个 Evidence：
+
+- Preview React/Vue 的 14 个 cell 使用受控 Remote attempts，形成 `remote-attested` Evidence；
+- Export/CI、Chromium primary 与 Firefox/WebKit critical subset 的 52 个 cell 形成
+  `ci-attested` Evidence；
+- Candidate/Evidence 绑定真实 report、artifact bytes、SourceTrace、resolved inputs、runtime controls、
+  toolchain、target/browser 与 provider identity；
+- verified trust/artifact/revocation view 参与 Closure evaluator，66 个 cell 均为 `passed`，
+  verdict 为 `satisfied`；
+- missing、failed、retryable blocked、unstable、expired、revoked、unverified 与 artifact missing
+  negative 均阻止 `satisfied` Closure。
+
+Closure manifest 不再只输出 aggregate digest。当前 artifact 包含 66 条唯一 cell/Evidence 映射，逐条记录
+Plan axes、control/fixture/baseline/adapter identity、selected attempt/provider、Evidence manifest、
+attestation/trust、compatibility、SourceTrace/input/toolchain、retention 与 176 个 artifact availability；
+同时记录 `policyEvaluationInstant`、`closureEvaluationInstant`、revocation/evidence view、可重放命令和
+local/GitHub Actions execution identity。artifact 不含 artifact path、credential、OIDC token 或 raw proof。
+本地 345,709-byte manifest 的 cell manifest digest 为
+`sha256-85cf2d6e569c31541feffac32bc7dbe91bbb5f51c5ef9e25790a2f1c98ec7009`，顶层 digest 为
+`sha256-d0b6074c845f413826ca367fe10b87757258d739d28593e5c5ca57a5e75b3f88`；两者均从文件内容重算
+一致。manifest digest 绑定逐运行的真实 toolchain command receipts，独立运行产生不同 digest 是预期
+provenance，不影响 locked Plan digest 的 byte stability。
+
+GitHub `golden` job 依赖 V6 adapter matrix 与 V7 product job，并在 fixed Ubuntu runner 上重新验证
+rootless Podman/controlled static sandbox 与 Chromium/Firefox/WebKit authority 后运行同一 root Gate。
+成功后使用 `actions/upload-artifact` 上传完整 machine manifest，缺失文件直接失败。workflow 已配置；
+在取得绑定当前变更 commit/job 的成功远端结果前，状态保持
+`Configured / durable Evidence pending`。连接本机 PostgreSQL 18.4 的完整 `pnpm run verify:g3`
+已于同日连续通过 V0-V8；逐-cell manifest 增强后的 V8 package Gate 也以 `1 file / 6 tests` 再次通过。
+
 ## Result normalization
 
 所有 family 归一到：
@@ -531,8 +599,8 @@ run service 复用 G2 ExecutionProvider/Job/Session，新增 Verification correl
 
 ## 验收标准
 
-- [ ] 所有工具通过受控 adapter，私有 payload 不越过 normalization boundary。
-- [ ] Preview、Export、CI 与 React/Vue/browser matrix 使用同一 Scenario/Plan contract。
-- [ ] 产品面复用 Execution/Issues/SourceTrace，布局可调整、信息紧凑且可访问。
-- [ ] CLI/CI 与 Web 共享 planner、codec、adapter、Evidence promotion 和 Closure evaluator。
-- [ ] CI trust/fork/Secret/recovery fail closed，required matrix 所有 cell 都有可信状态。
+- [x] 所有工具通过受控 adapter，私有 payload 不越过 normalization boundary。
+- [x] Preview、Export、CI 与 React/Vue/browser matrix 使用同一 Scenario/Plan contract。
+- [x] 产品面复用 Execution/Issues/SourceTrace，布局可调整、信息紧凑且可访问。
+- [x] CLI/CI 与 Web 共享 planner、codec、adapter、Evidence promotion 和 Closure evaluator。
+- [x] CI trust/fork/Secret/recovery fail closed，required matrix 所有 cell 都有可信状态。

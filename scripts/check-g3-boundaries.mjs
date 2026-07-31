@@ -86,6 +86,138 @@ if (g3WorkflowPathBlocks.length !== 2) {
   }
 }
 
+for (const token of [
+  '  product:',
+  '  product-oidc:',
+  '  golden:',
+  'run: pnpm run verify:g3:product',
+  'run: pnpm run verify:g3:golden',
+  'audience=prodivix-verification',
+  'scripts/create-g3-ci-job-context.mjs',
+]) {
+  if (!g3WorkflowSource.includes(token)) {
+    issues.push(`G3 workflow product/CI contract is missing ${token}.`);
+  }
+}
+const workflowJobHeadings = [
+  ...g3WorkflowSource.matchAll(/^ {2}([A-Za-z0-9_-]+):\r?$/gmu),
+];
+const workflowJobBlock = (jobId) => {
+  const index = workflowJobHeadings.findIndex((match) => match[1] === jobId);
+  if (index < 0) return undefined;
+  const start = workflowJobHeadings[index].index;
+  const end = workflowJobHeadings[index + 1]?.index ?? g3WorkflowSource.length;
+  return g3WorkflowSource.slice(start, end);
+};
+const productJob = workflowJobBlock('product');
+const productOidcJob = workflowJobBlock('product-oidc');
+const goldenJob = workflowJobBlock('golden');
+if (
+  !productJob ||
+  productJob.includes('id-token: write') ||
+  productJob.includes('ACTIONS_ID_TOKEN_REQUEST_TOKEN')
+) {
+  issues.push(
+    'G3 pull-request product job must exist without GitHub OIDC permission.'
+  );
+}
+for (const token of [
+  "    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'",
+  '    needs: product',
+  '      id-token: write',
+  '        run: pnpm run build:g3-wire-dependencies',
+  'audience=prodivix-verification',
+  'scripts/create-g3-ci-job-context.mjs',
+]) {
+  if (!productOidcJob?.includes(token)) {
+    issues.push(`G3 trusted OIDC job is missing ${token}.`);
+  }
+}
+for (const token of [
+  '    needs: [adapter-matrix, product]',
+  '    runs-on: ubuntu-24.04',
+  'scripts/ci/configure-rootless-podman.sh',
+  'test:g3-v6-browser-image-authority',
+  'PRODIVIX_G3_V8_MANIFEST_PATH',
+  '        run: pnpm run verify:g3:golden',
+  'actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f',
+  'if-no-files-found: error',
+]) {
+  if (!goldenJob?.includes(token)) {
+    issues.push(`G3 V8 Golden job is missing ${token}.`);
+  }
+}
+if (
+  goldenJob?.includes('id-token: write') ||
+  goldenJob?.includes('ACTIONS_ID_TOKEN_REQUEST_TOKEN')
+) {
+  issues.push('G3 V8 Golden job must not receive GitHub OIDC credentials.');
+}
+if (
+  g3WorkflowSource.includes('PRODIVIX_VERIFICATION_ACCESS_TOKEN') ||
+  /^\s*pull_request_target:/mu.test(g3WorkflowSource)
+) {
+  issues.push(
+    'G3 workflow must not expose a durable Verification token or use pull_request_target.'
+  );
+}
+
+const rootManifest = await readJson(join(repoRoot, 'package.json'));
+for (const [scriptName, token] of [
+  ['verify:g3:golden', 'test:g3-v8-golden'],
+  ['verify:g3', 'verify:g3:product'],
+  ['verify:g3', 'verify:g3:golden'],
+]) {
+  if (!rootManifest.scripts?.[scriptName]?.includes(token)) {
+    issues.push(`Root ${scriptName} script must include ${token}.`);
+  }
+}
+
+const v8ClosureFixtureSource = await readFile(
+  join(
+    repoRoot,
+    'packages',
+    'golden-conformance',
+    'src',
+    'goldenG3V8ClosureFixture.ts'
+  ),
+  'utf8'
+);
+for (const token of [
+  'export type GoldenG3V8ClosureExecutionIdentity',
+  'export type GoldenG3V8ClosureCellRecord',
+  "mode: 'deterministic-test-only'",
+  'policyEvaluationInstant: input.closure.policyEvaluationInstant',
+  'closureEvaluationInstant: input.closure.closureEvaluationInstant',
+  'cells,',
+  'cellManifestDigest: digestVerificationValue(cells)',
+]) {
+  if (!v8ClosureFixtureSource.includes(token)) {
+    issues.push(`G3 V8 machine Closure manifest is missing ${token}.`);
+  }
+}
+const v8ClosureTestSource = await readFile(
+  join(
+    repoRoot,
+    'packages',
+    'golden-conformance',
+    'src',
+    'goldenG3V8Closure.conformance.test.ts'
+  ),
+  'utf8'
+);
+for (const token of [
+  'PRODIVIX_G3_V8_MANIFEST_PATH',
+  'isAbsolute(manifestPath)',
+  "flag: 'wx'",
+  'expect(manifest.cells).toHaveLength(66)',
+  'digestVerificationValue(manifest.cells)',
+]) {
+  if (!v8ClosureTestSource.includes(token)) {
+    issues.push(`G3 V8 machine Closure manifest Gate is missing ${token}.`);
+  }
+}
+
 const expectedDependencies = new Map([
   [
     '@prodivix/behavior',

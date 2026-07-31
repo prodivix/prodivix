@@ -10,6 +10,10 @@ import { dispatchWorkspaceAuthoringOperation } from '@/editor/workspaceSync/work
 import { createWorkspaceClientOperationId } from '@/editor/workspaceSync/workspaceOperationIdentity';
 import { VerificationEvidencePanel } from '@/editor/features/verification/VerificationEvidencePanel';
 import {
+  VerificationRunPanel,
+  type VerificationRunRequest,
+} from '@/editor/features/verification/VerificationRunPanel';
+import {
   buildVerificationResourceModel,
   type VerificationPolicyResourceDocument,
 } from './verificationResourceModel';
@@ -47,7 +51,13 @@ const resolveScenarioDocumentId = (
       })?.id
     : undefined;
 
-export function VerificationPlanResourcePage() {
+export function VerificationPlanResourcePage({
+  runRequest,
+  onOpenScenario,
+}: Readonly<{
+  runRequest?: VerificationRunRequest;
+  onOpenScenario?(scenarioId: string): void;
+}> = {}) {
   const { t } = useTranslation('editor');
   const workspace = useEditorStore((state) => state.workspace);
   const workspaceReadonly = useEditorStore((state) => state.workspaceReadonly);
@@ -451,6 +461,10 @@ export function VerificationPlanResourcePage() {
                         <button
                           type="button"
                           onClick={() => {
+                            if (onOpenScenario) {
+                              onOpenScenario(cell.scenarioId!);
+                              return;
+                            }
                             const documentId = resolveScenarioDocumentId(
                               workspace,
                               cell.scenarioId!
@@ -533,10 +547,28 @@ export function VerificationPlanResourcePage() {
       projection?.plan &&
       model.projectionStatus === 'ready' &&
       model.explanation ? (
-        <VerificationEvidencePanel
-          workspace={workspace}
-          plan={projection.plan}
-        />
+        <>
+          <VerificationRunPanel
+            workspace={workspace}
+            plan={projection.plan}
+            request={runRequest}
+            onOpenScenario={(scenarioId) => {
+              if (onOpenScenario) {
+                onOpenScenario(scenarioId);
+                return;
+              }
+              const documentId = resolveScenarioDocumentId(
+                workspace,
+                scenarioId
+              );
+              if (documentId) setActiveDocumentId(documentId);
+            }}
+          />
+          <VerificationEvidencePanel
+            workspace={workspace}
+            plan={projection.plan}
+          />
+        </>
       ) : null}
 
       {feedback ? (

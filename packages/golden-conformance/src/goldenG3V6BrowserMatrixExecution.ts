@@ -164,6 +164,7 @@ export type GoldenG3V6ControlledAdapterMatrixEvidence = Readonly<{
   attemptManifest: GoldenG3V6CanonicalAttemptManifest;
   rows: readonly GoldenG3V6MatrixRowEvidence[];
   attempts: readonly GoldenG3V6BrowserAttempt[];
+  staticAttempts: readonly GoldenG3V6StaticAdapterAttempt[];
   evidenceDigest: string;
 }>;
 
@@ -850,190 +851,195 @@ const createStableMatrixEvidence = (input: {
   });
 };
 
-export const executeGoldenG3V6ControlledAdapterMatrix =
-  async (): Promise<GoldenG3V6ControlledAdapterMatrixEvidence> => {
-    assertGoldenG3V6BrowserIdentityRegistry();
-    const controlledDimensions = await verifyGoldenG3V6ControlledDimensions();
-    const planResult = createGoldenG3V6Plan();
-    if (planResult.status !== 'ready') {
-      throw new Error('Golden V6 controlled matrix Plan is not ready.');
-    }
-    const plan = planResult.plan;
-    const manifest = createGoldenG3V6ControlledMatrixManifest(plan);
-    const browserCells = plan.cells.filter(
-      (cell) =>
-        cell.requirement === 'required' && cell.browserEngine !== undefined
-    );
-    if (browserCells.length !== EXPECTED_BROWSER_CELL_COUNT) {
-      throw new Error('Golden V6 controlled Plan cell counts drifted.');
-    }
+export const executeGoldenG3V6ControlledAdapterMatrix = async (
+  planOverride?: VerificationPlan
+): Promise<GoldenG3V6ControlledAdapterMatrixEvidence> => {
+  assertGoldenG3V6BrowserIdentityRegistry();
+  const controlledDimensions = await verifyGoldenG3V6ControlledDimensions();
+  const planResult = planOverride ? undefined : createGoldenG3V6Plan();
+  if (!planOverride && planResult?.status !== 'ready') {
+    throw new Error('Golden V6 controlled matrix Plan is not ready.');
+  }
+  const plan = planOverride ?? planResult!.plan;
+  if (plan.status !== 'ready') {
+    throw new Error('Golden V6 controlled matrix requires a ready Plan.');
+  }
+  const manifest = createGoldenG3V6ControlledMatrixManifest(plan);
+  const browserCells = plan.cells.filter(
+    (cell) =>
+      cell.requirement === 'required' && cell.browserEngine !== undefined
+  );
+  if (browserCells.length !== EXPECTED_BROWSER_CELL_COUNT) {
+    throw new Error('Golden V6 controlled Plan cell counts drifted.');
+  }
 
-    const frameworks = await prepareGoldenG3V6Frameworks();
-    const matrixCleanup = createGoldenG3V6AttemptCleanupScope();
-    matrixCleanup.defer('prepared-frameworks', () =>
-      disposeGoldenG3V6Frameworks(frameworks)
-    );
-    let evidence: GoldenG3V6ControlledAdapterMatrixEvidence | undefined;
-    let primaryError: unknown;
-    try {
-      const leases = createGoldenG3V6TargetLeaseRegistry();
-      const authorities = createGoldenG3V6SecurityAuthorityRegistry();
-      const runtimeControls = createGoldenG3V6RuntimeControlRegistry();
-      const artifactTransport = createGoldenG3V6ArtifactTransport();
-      const factory = createFirstPartyBrowserVerificationAdapterFactory({
-        targetLease: leases.port,
-        runtimeControls: runtimeControls.port,
-        securityObservationAuthority: authorities.port,
-        baselineAssets: createGoldenG3V6VisualBaselineAssetPort(),
-      });
-      matrixCleanup.defer('browser-factory', factory.dispose);
-      const reactDiagnosticProjection =
-        frameworks['react-vite'].testDiagnosticProjection;
-      const vueDiagnosticProjection =
-        frameworks['vue-vite'].testDiagnosticProjection;
-      if (!reactDiagnosticProjection || !vueDiagnosticProjection) {
-        throw new Error(
-          'Golden V6 canonical frameworks have no Compiler-owned diagnostic projection authority.'
-        );
-      }
-      const staticToolchainEvidence = Object.freeze({
-        'react-vite': {
-          snapshot: frameworks['react-vite'].testSnapshot,
-          toolchain: frameworks['react-vite'].testProject.toolchain!,
-          diagnosticProjection: reactDiagnosticProjection,
-        },
-        'vue-vite': {
-          snapshot: frameworks['vue-vite'].testSnapshot,
-          toolchain: frameworks['vue-vite'].testProject.toolchain!,
-          diagnosticProjection: vueDiagnosticProjection,
-        },
-      });
-      const staticExecution = await executeGoldenG3V6StaticAdapterCells(
-        plan,
-        staticToolchainEvidence
+  const frameworks = await prepareGoldenG3V6Frameworks();
+  const matrixCleanup = createGoldenG3V6AttemptCleanupScope();
+  matrixCleanup.defer('prepared-frameworks', () =>
+    disposeGoldenG3V6Frameworks(frameworks)
+  );
+  let evidence: GoldenG3V6ControlledAdapterMatrixEvidence | undefined;
+  let primaryError: unknown;
+  try {
+    const leases = createGoldenG3V6TargetLeaseRegistry();
+    const authorities = createGoldenG3V6SecurityAuthorityRegistry();
+    const runtimeControls = createGoldenG3V6RuntimeControlRegistry();
+    const artifactTransport = createGoldenG3V6ArtifactTransport();
+    const factory = createFirstPartyBrowserVerificationAdapterFactory({
+      targetLease: leases.port,
+      runtimeControls: runtimeControls.port,
+      securityObservationAuthority: authorities.port,
+      baselineAssets: createGoldenG3V6VisualBaselineAssetPort(),
+    });
+    matrixCleanup.defer('browser-factory', factory.dispose);
+    const reactDiagnosticProjection =
+      frameworks['react-vite'].testDiagnosticProjection;
+    const vueDiagnosticProjection =
+      frameworks['vue-vite'].testDiagnosticProjection;
+    if (!reactDiagnosticProjection || !vueDiagnosticProjection) {
+      throw new Error(
+        'Golden V6 canonical frameworks have no Compiler-owned diagnostic projection authority.'
       );
-      const staticAttempts = staticExecution.attempts;
-      assertStaticAttempts(staticAttempts);
+    }
+    const staticToolchainEvidence = Object.freeze({
+      'react-vite': {
+        snapshot: frameworks['react-vite'].testSnapshot,
+        toolchain: frameworks['react-vite'].testProject.toolchain!,
+        diagnosticProjection: reactDiagnosticProjection,
+      },
+      'vue-vite': {
+        snapshot: frameworks['vue-vite'].testSnapshot,
+        toolchain: frameworks['vue-vite'].testProject.toolchain!,
+        diagnosticProjection: vueDiagnosticProjection,
+      },
+    });
+    const staticExecution = await executeGoldenG3V6StaticAdapterCells(
+      plan,
+      staticToolchainEvidence
+    );
+    const staticAttempts = staticExecution.attempts;
+    assertStaticAttempts(staticAttempts);
 
-      const attempts: GoldenG3V6BrowserAttempt[] = [];
-      for (const row of manifest.rows) {
-        for (const cellManifest of row.cells) {
-          const cell = plan.cells.find(
-            (candidate) => candidate.id === cellManifest.cellId
+    const attempts: GoldenG3V6BrowserAttempt[] = [];
+    for (const row of manifest.rows) {
+      for (const cellManifest of row.cells) {
+        const cell = plan.cells.find(
+          (candidate) => candidate.id === cellManifest.cellId
+        );
+        if (!cell?.browserEngine) continue;
+        for (const provider of row.attemptProviderDimension.providers) {
+          attempts.push(
+            await executeGoldenG3V6BrowserAttempt({
+              plan,
+              row,
+              cell,
+              provider,
+              framework: goldenG3V6FrameworkForCell(cell, frameworks),
+              factory,
+              leases,
+              authorities,
+              runtimeControls,
+              artifactTransport,
+            })
           );
-          if (!cell?.browserEngine) continue;
-          for (const provider of row.attemptProviderDimension.providers) {
-            attempts.push(
-              await executeGoldenG3V6BrowserAttempt({
-                plan,
-                row,
-                cell,
-                provider,
-                framework: goldenG3V6FrameworkForCell(cell, frameworks),
-                factory,
-                leases,
-                authorities,
-                runtimeControls,
-                artifactTransport,
-              })
-            );
-          }
         }
       }
-      assertAttemptAggregates(
-        attempts,
-        leases,
-        authorities,
-        runtimeControls,
-        artifactTransport
-      );
-      const runtimeControl = createRuntimeControlAggregateEvidence(
-        attempts,
-        runtimeControls
-      );
-      const browserArtifactRetirement = createBrowserArtifactRetirementEvidence(
+    }
+    assertAttemptAggregates(
+      attempts,
+      leases,
+      authorities,
+      runtimeControls,
+      artifactTransport
+    );
+    const runtimeControl = createRuntimeControlAggregateEvidence(
+      attempts,
+      runtimeControls
+    );
+    const browserArtifactRetirement = createBrowserArtifactRetirementEvidence(
+      plan,
+      attempts,
+      artifactTransport
+    );
+    const rows = aggregateRows(manifest, attempts, staticAttempts);
+    const controlledEnvironment = createGoldenG3V6ControlledEnvironmentEvidence(
+      {
         plan,
-        attempts,
-        artifactTransport
-      );
-      const rows = aggregateRows(manifest, attempts, staticAttempts);
-      const controlledEnvironment =
-        createGoldenG3V6ControlledEnvironmentEvidence({
-          plan,
-          browserAttempts: attempts,
-          staticAttempts,
-          toolchainEvidence: staticToolchainEvidence,
-        });
-      const attemptAuthority = collectGoldenG3V6CanonicalAttemptAuthority({
-        plan,
-        matrix: manifest,
         browserAttempts: attempts,
         staticAttempts,
-        controlledEnvironmentDigest: controlledEnvironment.evidenceDigest,
-      });
-      const attemptManifest = createGoldenG3V6CanonicalAttemptManifest({
-        plan,
-        matrix: manifest,
-        browserAttempts: attempts,
-        staticAttempts,
-        authority: attemptAuthority,
-        controlledEnvironmentDigest: controlledEnvironment.evidenceDigest,
-      });
-      const stableEvidence = createStableMatrixEvidence({
-        plan,
-        manifest,
-        controlledDimensions,
-        controlledEnvironment,
-        rows,
-        attempts,
-        staticAttempts,
-        staticRuntimeControl: staticExecution.runtimeControl,
-        staticArtifactRetirement: staticExecution.artifactRetirement,
-        runtimeControl,
-        browserArtifactRetirement,
-        attemptAuthority,
-        attemptManifest,
-      });
-      evidence = Object.freeze({
-        planDigest: plan.planDigest,
-        manifestDigest: manifest.manifestDigest,
-        adapterRegistryDigest: GOLDEN_G3_V6_ADAPTER_REGISTRY_DIGEST,
-        browserIdentityRegistryDigest:
-          GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY_DIGEST,
-        visualIdentityManifestDigest:
-          GOLDEN_G3_V6_VISUAL_IDENTITY_MANIFEST_DIGEST,
-        visualBaselineSetDigest: GOLDEN_G3_V6_VISUAL_BASELINE_SET_DIGEST,
-        visualBaselineAssetDigest:
-          GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.assetDigest,
-        visualBaselineRasterDigest:
-          GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.rasterDigest,
-        visualNormalizerDigest: GOLDEN_G3_V6_VISUAL_NORMALIZER_DIGEST,
-        controlledDimensions,
-        controlledEnvironment,
-        staticRuntimeControl: staticExecution.runtimeControl,
-        staticArtifactRetirement: staticExecution.artifactRetirement,
-        requiredCellCount: 66,
-        aggregateRowCount: 8,
-        browserCellCount: 58,
-        browserAttemptCount: 72,
-        staticAttemptCount: 8,
-        totalAttemptCount: 80,
-        statusCounters: stableEvidence.statusCounters,
-        runtimeControl,
-        browserArtifactRetirement,
-        attemptAuthority,
-        attemptManifest,
-        rows,
-        attempts: Object.freeze(attempts),
-        evidenceDigest: digestVerificationValue(stableEvidence),
-      });
-    } catch (error) {
-      primaryError = error;
-    }
-    const cleanupErrors = await matrixCleanup.runAll();
-    throwGoldenG3V6AttemptFailure('matrix:g3-v6', primaryError, cleanupErrors);
-    if (!evidence) {
-      throw new Error('Golden V6 matrix produced no aggregate evidence.');
-    }
-    return evidence;
-  };
+        toolchainEvidence: staticToolchainEvidence,
+      }
+    );
+    const attemptAuthority = collectGoldenG3V6CanonicalAttemptAuthority({
+      plan,
+      matrix: manifest,
+      browserAttempts: attempts,
+      staticAttempts,
+      controlledEnvironmentDigest: controlledEnvironment.evidenceDigest,
+    });
+    const attemptManifest = createGoldenG3V6CanonicalAttemptManifest({
+      plan,
+      matrix: manifest,
+      browserAttempts: attempts,
+      staticAttempts,
+      authority: attemptAuthority,
+      controlledEnvironmentDigest: controlledEnvironment.evidenceDigest,
+    });
+    const stableEvidence = createStableMatrixEvidence({
+      plan,
+      manifest,
+      controlledDimensions,
+      controlledEnvironment,
+      rows,
+      attempts,
+      staticAttempts,
+      staticRuntimeControl: staticExecution.runtimeControl,
+      staticArtifactRetirement: staticExecution.artifactRetirement,
+      runtimeControl,
+      browserArtifactRetirement,
+      attemptAuthority,
+      attemptManifest,
+    });
+    evidence = Object.freeze({
+      planDigest: plan.planDigest,
+      manifestDigest: manifest.manifestDigest,
+      adapterRegistryDigest: GOLDEN_G3_V6_ADAPTER_REGISTRY_DIGEST,
+      browserIdentityRegistryDigest:
+        GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY_DIGEST,
+      visualIdentityManifestDigest:
+        GOLDEN_G3_V6_VISUAL_IDENTITY_MANIFEST_DIGEST,
+      visualBaselineSetDigest: GOLDEN_G3_V6_VISUAL_BASELINE_SET_DIGEST,
+      visualBaselineAssetDigest: GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.assetDigest,
+      visualBaselineRasterDigest:
+        GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.rasterDigest,
+      visualNormalizerDigest: GOLDEN_G3_V6_VISUAL_NORMALIZER_DIGEST,
+      controlledDimensions,
+      controlledEnvironment,
+      staticRuntimeControl: staticExecution.runtimeControl,
+      staticArtifactRetirement: staticExecution.artifactRetirement,
+      requiredCellCount: 66,
+      aggregateRowCount: 8,
+      browserCellCount: 58,
+      browserAttemptCount: 72,
+      staticAttemptCount: 8,
+      totalAttemptCount: 80,
+      statusCounters: stableEvidence.statusCounters,
+      runtimeControl,
+      browserArtifactRetirement,
+      attemptAuthority,
+      attemptManifest,
+      rows,
+      attempts: Object.freeze(attempts),
+      staticAttempts,
+      evidenceDigest: digestVerificationValue(stableEvidence),
+    });
+  } catch (error) {
+    primaryError = error;
+  }
+  const cleanupErrors = await matrixCleanup.runAll();
+  throwGoldenG3V6AttemptFailure('matrix:g3-v6', primaryError, cleanupErrors);
+  if (!evidence) {
+    throw new Error('Golden V6 matrix produced no aggregate evidence.');
+  }
+  return evidence;
+};

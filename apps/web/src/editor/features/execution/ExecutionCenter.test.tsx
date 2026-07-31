@@ -21,6 +21,11 @@ import {
   type ExecutionProviderCapability,
 } from '@prodivix/runtime-core';
 import {
+  applyVerificationRunEvent,
+  createVerificationRunEvent,
+  createVerificationRunSnapshot,
+} from '@prodivix/verification';
+import {
   RemoteExecutionArtifactResolutionError,
   type RemoteExecutionTerminalClient,
 } from '@prodivix/runtime-remote';
@@ -33,6 +38,7 @@ import {
 } from '@prodivix/server-runtime';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { ExecutionCenter } from './ExecutionCenter';
+import { createPlanFixture } from '../verification/__tests__/verificationEvidence.fixture';
 import { useExecutionCenterNavigationStore } from './executionCenterNavigation';
 import { executionSessionCoordinator } from './executionSessionEnvironment';
 import { createWorkspaceExecutionSnapshotId } from './workspaceExecutionIdentity';
@@ -255,6 +261,112 @@ describe('ExecutionCenter panel layout', () => {
         .getByRole('separator', { name: 'execution.resizePanel' })
         .getAttribute('aria-valuenow')
     ).toBe('210');
+  });
+
+  it('opens the shared Verification surface for a newly projected run', async () => {
+    const plan = createPlanFixture();
+    const run = createVerificationRunSnapshot({
+      runId: 'run-execution-center',
+      plan,
+      surface: 'ci',
+      scope: 'impacted',
+      providerId: 'provider-web',
+      origin: 'web',
+      selectedCellIds: ['cell-a'],
+      attemptIdByCellId: { 'cell-a': 'attempt-execution-center' },
+      createdAt: '2026-07-31T08:00:00.000Z',
+    });
+    render(
+      <ExecutionCenter sessionId="verification-run" verificationRun={run} />
+    );
+
+    const verificationTab = screen.getByRole('button', {
+      name: 'execution.surface.verification',
+    });
+    await waitFor(() =>
+      expect(verificationTab.getAttribute('aria-pressed')).toBe('true')
+    );
+    expect(screen.getByText('run-execution-center')).toBeTruthy();
+    expect(screen.getByText('cell-a')).toBeTruthy();
+    expect(
+      screen.getByLabelText('execution.verification.cellStatusLabel')
+    ).toBeTruthy();
+  });
+
+  it('does not present an unsatisfied Closure as a successful execution', () => {
+    const plan = createPlanFixture();
+    let run = createVerificationRunSnapshot({
+      runId: 'run-unsatisfied-closure',
+      plan,
+      surface: 'ci',
+      scope: 'impacted',
+      providerId: 'provider-web',
+      origin: 'web',
+      selectedCellIds: ['cell-a'],
+      attemptIdByCellId: { 'cell-a': 'attempt-unsatisfied-closure' },
+      createdAt: '2026-07-31T08:00:00.000Z',
+    });
+    const events = [
+      createVerificationRunEvent({
+        eventId: 'event-run-started',
+        runId: run.runId,
+        cursor: 1,
+        occurredAt: '2026-07-31T08:00:00.001Z',
+        kind: 'run-started',
+      }),
+      createVerificationRunEvent({
+        eventId: 'event-cell-started',
+        runId: run.runId,
+        cursor: 2,
+        occurredAt: '2026-07-31T08:00:00.002Z',
+        kind: 'cell-started',
+        cellId: 'cell-a',
+        attemptId: 'attempt-unsatisfied-closure',
+      }),
+      createVerificationRunEvent({
+        eventId: 'event-cell-reported',
+        runId: run.runId,
+        cursor: 3,
+        occurredAt: '2026-07-31T08:00:00.003Z',
+        kind: 'cell-reported',
+        cellId: 'cell-a',
+        attemptId: 'attempt-unsatisfied-closure',
+        outcome: 'passed',
+        candidateDigest: `sha256-${'1'.repeat(64)}`,
+      }),
+      createVerificationRunEvent({
+        eventId: 'event-run-completed',
+        runId: run.runId,
+        cursor: 4,
+        occurredAt: '2026-07-31T08:00:00.004Z',
+        kind: 'run-completed',
+      }),
+      createVerificationRunEvent({
+        eventId: 'event-closure-evaluated',
+        runId: run.runId,
+        cursor: 5,
+        occurredAt: '2026-07-31T08:00:00.005Z',
+        kind: 'closure-evaluated',
+        closureDigest: `sha256-${'2'.repeat(64)}`,
+        verdict: 'unsatisfied',
+      }),
+    ];
+    for (const event of events) {
+      const transition = applyVerificationRunEvent(run, event);
+      if (transition.status !== 'applied') {
+        throw new Error(transition.message);
+      }
+      run = transition.snapshot;
+    }
+
+    render(
+      <ExecutionCenter
+        sessionId="verification-unsatisfied"
+        verificationRun={run}
+      />
+    );
+
+    expect(screen.getByRole('status', { name: 'failed' })).toBeTruthy();
   });
 });
 

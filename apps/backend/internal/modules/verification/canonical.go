@@ -296,14 +296,33 @@ func isUnsafeJSONKey(value string) bool {
 // them into one value. It also applies a structural budget independent from the
 // HTTP content-length header.
 func validateJSONObject(body []byte) error {
-	if len(body) == 0 || len(body) > maximumCandidateBytes || !utf8.Valid(body) {
+	return validateJSONObjectWithinBudget(
+		body,
+		maximumCandidateBytes,
+		maximumJSONMembers,
+	)
+}
+
+func validateJSONObjectWithinBudget(
+	body []byte,
+	maximumBytes int,
+	maximumMembers int,
+) error {
+	if len(body) == 0 || len(body) > maximumBytes || !utf8.Valid(body) {
 		return errors.New("JSON body is empty or exceeds byte budget")
 	}
 	if err := validateJSONUnicodeEscapes(body); err != nil {
 		return invalidJSONUnicodeEscapeError(err)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(body))
-	if err := validateJSONValue(decoder, 0, new(int)); err != nil {
+	if err := validateJSONValueWithin(
+		decoder,
+		0,
+		new(int),
+		maximumJSONDepth,
+		maximumMembers,
+		maximumJSONString,
+	); err != nil {
 		return err
 	}
 	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {

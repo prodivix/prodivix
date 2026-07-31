@@ -26,6 +26,9 @@ func TestGeneratedVerificationEvidenceSchemasRemainStrictAndVersioned(t *testing
 		"verification-evidence-candidate":     "https://prodivix.dev/schemas/verification/evidence-candidate/v1.json",
 		"verification-evidence-manifest":      "https://prodivix.dev/schemas/verification/evidence-manifest/v1.json",
 		"verification-evidence-verified-view": "https://prodivix.dev/schemas/verification/evidence-view/v1.json",
+		"verification-closure":                "https://prodivix.dev/schemas/verification-closure.v1.schema.json",
+		"verification-run-snapshot":           "https://prodivix.dev/schemas/verification-run-snapshot.v1.schema.json",
+		"verification-run-event":              "https://prodivix.dev/schemas/verification-run-event.v1.schema.json",
 	}
 	if len(schemas) != len(expected) {
 		t.Fatalf("generated Verification Evidence schema count = %d, want %d", len(schemas), len(expected))
@@ -42,6 +45,10 @@ func TestGeneratedVerificationEvidenceSchemasRemainStrictAndVersioned(t *testing
 		if name == "verification-artifact-envelope" {
 			if len(schema.OneOf) != 8 {
 				t.Errorf("generated Verification artifact envelope must expose all 8 exact class schemas")
+			}
+		} else if name == "verification-run-event" {
+			if len(schema.OneOf) != 8 {
+				t.Errorf("generated Verification run event must expose all 8 exact event schemas")
 			}
 		} else if schema.AdditionalProperties == nil || *schema.AdditionalProperties {
 			t.Errorf("generated Verification Evidence schema %q must reject unknown top-level properties", name)

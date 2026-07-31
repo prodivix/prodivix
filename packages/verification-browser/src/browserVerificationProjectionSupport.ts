@@ -5,6 +5,7 @@ import {
   VERIFICATION_ARTIFACT_ENVELOPE_VERSION,
   type VerificationCheckReportPayload,
   type VerificationCheckReportTerminal,
+  type VerificationEvidenceSourceTrace,
   type VerificationPlanCell,
 } from '@prodivix/verification';
 import type { BrowserVerificationCellInput } from './browserAdapter.types';
@@ -20,16 +21,30 @@ export type BrowserVerificationProjection = Readonly<{
   diagnosticCodes: readonly string[];
 }>;
 
+/**
+ * Browser-private DOM and Behavior source identities are projected onto the
+ * canonical Scenario document before a report crosses the Evidence boundary.
+ * Detailed target traces remain available in bounded artifacts and receipts.
+ */
+export const createBrowserVerificationEvidenceSourceTrace = (
+  input: Pick<BrowserVerificationCellInput, 'scenarioId'>
+): VerificationEvidenceSourceTrace =>
+  Object.freeze({
+    sourceRef: Object.freeze({
+      kind: 'behavior-scenario' as const,
+      documentId: input.scenarioId,
+    }),
+  });
+
 export const sourceTraceDigestFor = (
   input: BrowserVerificationCellInput
 ): string =>
   input.profile.kind === 'visual' &&
   input.profile.sourceTraceDigest !== undefined
     ? input.profile.sourceTraceDigest
-    : digestVerificationValue({
-        scenarioProgramDigest: input.scenarioProgramDigest,
-        targetId: input.targetId,
-      });
+    : digestVerificationValue(
+        createBrowserVerificationEvidenceSourceTrace(input)
+      );
 
 export const browserArtifactId = (
   cell: VerificationPlanCell,

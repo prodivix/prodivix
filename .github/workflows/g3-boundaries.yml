@@ -26,6 +26,8 @@ on:
       - 'apps/web/tsconfig.json'
       - 'apps/web/src/editor/features/development/reactflow/**'
       - 'apps/web/src/editor/features/execution/**'
+      - 'apps/web/src/editor/features/issues/**'
+      - 'apps/web/src/editor/navigation/**'
       - 'apps/web/src/editor/features/resources/**'
       - 'apps/web/src/editor/features/verification/**'
       - 'apps/web/src/editor/store/**'
@@ -62,6 +64,7 @@ on:
       - 'packages/workspace-sync/**'
       - 'scripts/check-core-package-boundaries.mjs'
       - 'scripts/check-g3-*.mjs'
+      - 'scripts/create-g3-ci-job-context.mjs'
       - 'scripts/ci/configure-rootless-podman.sh'
       - 'scripts/g3-verification-canonical-vector.mjs'
       - 'scripts/sync-g3-wire-contracts.mjs'
@@ -70,6 +73,7 @@ on:
       - 'specs/diagnostics/**'
       - 'specs/decisions/58.verification-evidence-provenance-and-retention.md'
       - 'specs/decisions/62.verification-adapter-matrix-and-cross-target-closure.md'
+      - 'specs/decisions/63.verification-product-surface-diagnostics-and-ci.md'
       - 'specs/implementation/g3-*.md'
       - 'specs/roadmap/current-status.md'
       - 'specs/roadmap/g3-*.md'
@@ -104,6 +108,8 @@ on:
       - 'apps/web/tsconfig.json'
       - 'apps/web/src/editor/features/development/reactflow/**'
       - 'apps/web/src/editor/features/execution/**'
+      - 'apps/web/src/editor/features/issues/**'
+      - 'apps/web/src/editor/navigation/**'
       - 'apps/web/src/editor/features/resources/**'
       - 'apps/web/src/editor/features/verification/**'
       - 'apps/web/src/editor/store/**'
@@ -140,6 +146,7 @@ on:
       - 'packages/workspace-sync/**'
       - 'scripts/check-core-package-boundaries.mjs'
       - 'scripts/check-g3-*.mjs'
+      - 'scripts/create-g3-ci-job-context.mjs'
       - 'scripts/ci/configure-rootless-podman.sh'
       - 'scripts/g3-verification-canonical-vector.mjs'
       - 'scripts/sync-g3-wire-contracts.mjs'
@@ -148,6 +155,7 @@ on:
       - 'specs/diagnostics/**'
       - 'specs/decisions/58.verification-evidence-provenance-and-retention.md'
       - 'specs/decisions/62.verification-adapter-matrix-and-cross-target-closure.md'
+      - 'specs/decisions/63.verification-product-surface-diagnostics-and-ci.md'
       - 'specs/implementation/g3-*.md'
       - 'specs/roadmap/current-status.md'
       - 'specs/roadmap/g3-*.md'
@@ -381,3 +389,167 @@ jobs:
         run: pnpm --filter @prodivix/golden-conformance test:g3-v6-browser-image-authority
       - name: Verify adapters, providers, production probe, and controlled matrix
         run: pnpm run verify:g3:adapter-matrix
+
+  product:
+    name: V7 product, CLI, and recovery Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prodivix_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prodivix_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PRODIVIX_BACKEND_POSTGRES_TEST_URL: postgres://postgres:postgres@127.0.0.1:5432/prodivix_test?sslmode=disable
+      # Deterministic test-only 32-byte key; no durable promotion credential is exposed to this job.
+      BACKEND_VERIFICATION_RESUME_KEY: c3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3M=
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify V7 product, CLI, run recovery, and CI admission
+        run: pnpm run verify:g3:product
+
+  golden:
+    name: V8 Authenticated Catalog trusted Closure Gate
+    needs: [adapter-matrix, product]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.1
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Attest pre-adopted runner image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${ImageOS:-}" = 'ubuntu24'
+          case "${ImageVersion:-}" in
+            20260720.247.2|20260726.254.1) ;;
+            *)
+              echo "::error::Runner ImageVersion is not pre-adopted: ${ImageVersion:-missing}"
+              exit 1
+              ;;
+          esac
+          test "$(uname -m)" = 'x86_64'
+          test "$(uname -r)" = '6.17.0-1020-azure'
+          echo "PRODIVIX_G3_V6_RUNNER_IMAGE_OS=${ImageOS}" >> "${GITHUB_ENV}"
+          echo "PRODIVIX_G3_V6_RUNNER_IMAGE_VERSION=${ImageVersion}" >> "${GITHUB_ENV}"
+      - name: Configure and verify pre-adopted rootless Podman
+        shell: bash
+        run: bash scripts/ci/configure-rootless-podman.sh g3-v8-rootless-podman-info.json
+      - name: Build immutable controlled static toolchain sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_image="docker.io/library/node:22.23.1-bookworm-slim"
+          image_tag="localhost/prodivix-g3-v8-controlled-static:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          podman pull "${base_image}"
+          base_digest="$(podman image inspect --format '{{.Digest}}' "${base_image}")"
+          test "${base_digest#sha256:}" != "${base_digest}"
+          podman build \
+            --pull=never \
+            --build-arg "NODE_IMAGE=docker.io/library/node@${base_digest}" \
+            --file apps/remote-runner-worker/controlled-static-sandbox/Dockerfile \
+            --tag "${image_tag}" \
+            .
+          image_id="$(podman image inspect --format '{{.Id}}' "${image_tag}")"
+          if [[ "${image_id}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            image_digest="${image_id}"
+          elif [[ "${image_id}" =~ ^[0-9a-f]{64}$ ]]; then
+            image_digest="sha256:${image_id}"
+          else
+            echo "::error::Controlled static sandbox image id is not a canonical SHA-256 digest."
+            exit 1
+          fi
+          echo "PRODIVIX_CONTROLLED_STATIC_SANDBOX_IMAGE=${image_digest}" >> "${GITHUB_ENV}"
+      - name: Install Playwright browser engines
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Build Golden dependency closure
+        run: pnpm run build:g2-golden-dependencies
+      - name: Attest installed Playwright browser images
+        run: pnpm --filter @prodivix/golden-conformance test:g3-v6-browser-image-authority
+      - name: Verify trusted Evidence promotion and Authenticated Catalog Closure
+        env:
+          PRODIVIX_G3_V8_MANIFEST_PATH: ${{ runner.temp }}/prodivix-g3-v8-closure-manifest.json
+        run: pnpm run verify:g3:golden
+      - name: Upload the content-addressed V8 Closure manifest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: g3-v8-closure-manifest-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/prodivix-g3-v8-closure-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+  product-oidc:
+    name: V7 trusted GitHub OIDC identity Gate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: product
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build the Verification identity contract
+        run: pnpm run build:g3-wire-dependencies
+      - name: Bind the trusted job to a short-lived GitHub OIDC identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          oidc_response="$(
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --header "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=prodivix-verification"
+          )"
+          printf '%s' "${oidc_response}" |
+            pnpm exec tsx scripts/create-g3-ci-job-context.mjs \
+              "${RUNNER_TEMP}/prodivix-verification-ci-job.json"

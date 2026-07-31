@@ -140,6 +140,18 @@ func TestArtifactValidatorAllowsExplicitRedactionMarkers(t *testing.T) {
 	}
 }
 
+func TestSensitiveScannerAllowsCanonicalUUIDBackedIdentities(t *testing.T) {
+	validator := NewCandidateValidator(nil)
+	for _, identity := range []string{
+		"run-550e8400-e29b-41d4-a716-446655440000",
+		"attempt-run-550e8400-e29b-41d4-a716-446655440000-1",
+	} {
+		if validator.containsSensitiveText([]byte(identity)) {
+			t.Fatalf("canonical UUID-backed identity was classified as a credential: %s", identity)
+		}
+	}
+}
+
 func TestCandidateArtifactPathsFailClosed(t *testing.T) {
 	for _, unsafePath := range []string{
 		"../secret.json",

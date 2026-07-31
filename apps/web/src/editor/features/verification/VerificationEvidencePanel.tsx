@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Archive,
@@ -17,10 +17,12 @@ import {
   isVerificationStructuredArtifactKind,
 } from '@prodivix/verification';
 import type {
+  VerificationClosureIssue,
   VerificationEvidenceRetentionProtection,
   VerificationPlan,
 } from '@prodivix/verification';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
+import { PdxSelect } from '@prodivix/ui';
 import { useAuthStore } from '@/auth/useAuthStore';
 import { useWorkspaceExecutionSourceNavigation } from '@/editor/features/execution';
 import { isLocalProjectId } from '@/editor/localProjectStore';
@@ -209,6 +211,7 @@ export function VerificationEvidencePanel({
   const [sourceNavigationFailure, setSourceNavigationFailure] = useState<
     'snapshot-stale' | 'source-unavailable'
   >();
+  const evidenceDetailRef = useRef<HTMLElement | null>(null);
 
   const localOnly = isLocalProjectId(workspace.id);
   const sourceNavigation = useWorkspaceExecutionSourceNavigation({
@@ -278,6 +281,26 @@ export function VerificationEvidencePanel({
           model.records
         )
       : [];
+  const inspectClosureIssue = (issue: VerificationClosureIssue) => {
+    if (model.status !== 'ready') return;
+    const evidenceId =
+      issue.evidenceIds.find((id) =>
+        model.records.some(({ evidence }) => evidence.id === id)
+      ) ??
+      model.timelines
+        .find(({ cellId }) => cellId === issue.cellId)
+        ?.records.at(-1)?.evidence.id;
+    if (!evidenceId) return;
+    setSelectedEvidenceId(evidenceId);
+    globalThis.setTimeout(
+      () =>
+        evidenceDetailRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        }),
+      0
+    );
+  };
 
   useEffect(() => {
     if (selectedRecord && selectedEvidenceId !== selectedRecord.evidence.id) {
@@ -705,9 +728,26 @@ export function VerificationEvidencePanel({
                 {model.closure.issues.map((issue, index) => (
                   <li
                     key={`${issue.cellId ?? 'closure'}-${issue.status}-${index}`}
+                    className="flex flex-wrap items-center gap-2"
                   >
-                    {issue.cellId ? `${issue.cellId} · ` : ''}
-                    {issue.status} · {issue.message}
+                    <span className="min-w-0 flex-1">
+                      {issue.cellId ? `${issue.cellId} · ` : ''}
+                      {issue.status} · {issue.message}
+                    </span>
+                    {issue.evidenceIds.length ||
+                    model.timelines.some(
+                      ({ cellId }) => cellId === issue.cellId
+                    ) ? (
+                      <button
+                        type="button"
+                        className="rounded-md border border-black/12 px-2 py-1 text-[10px]"
+                        onClick={() => inspectClosureIssue(issue)}
+                      >
+                        {t(
+                          'resourceManager.verification.evidence.inspectFailure'
+                        )}
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -782,7 +822,10 @@ export function VerificationEvidencePanel({
           )}
 
           {selectedRecord ? (
-            <section className="mt-4 grid gap-4 rounded-xl border border-black/8 p-4">
+            <section
+              ref={evidenceDetailRef}
+              className="mt-4 grid scroll-mt-4 gap-4 rounded-xl border border-black/8 p-4"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h4 className="text-sm font-medium">
@@ -1154,29 +1197,21 @@ export function VerificationEvidencePanel({
                   </div>
                 ) : supersessionCandidates.length ? (
                   <div className="mt-2 grid gap-2">
-                    <label className="grid gap-1 text-xs text-(--text-secondary)">
-                      {t(
+                    <PdxSelect
+                      label={t(
                         'resourceManager.verification.evidence.supersedeTarget'
                       )}
-                      <select
-                        value={supersedeTargetEvidenceId}
-                        onChange={(event) =>
-                          setSupersedeTargetEvidenceId(event.target.value)
-                        }
-                        className="rounded-lg border border-black/12 bg-white px-3 py-2 text-sm text-(--text-primary)"
-                      >
-                        <option value="">
-                          {t(
-                            'resourceManager.verification.evidence.supersedeTargetPlaceholder'
-                          )}
-                        </option>
-                        {supersessionCandidates.map(({ evidence }) => (
-                          <option key={evidence.id} value={evidence.id}>
-                            {evidence.attemptId}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                      value={supersedeTargetEvidenceId}
+                      placeholder={t(
+                        'resourceManager.verification.evidence.supersedeTargetPlaceholder'
+                      )}
+                      options={supersessionCandidates.map(({ evidence }) => ({
+                        label: evidence.attemptId,
+                        value: evidence.id,
+                      }))}
+                      size="Small"
+                      onValueChange={setSupersedeTargetEvidenceId}
+                    />
                     <label className="grid gap-1 text-xs text-(--text-secondary)">
                       {t(
                         'resourceManager.verification.evidence.supersedeReason'

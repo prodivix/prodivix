@@ -264,6 +264,44 @@ describe('verification artifact policy', () => {
     });
   });
 
+  it('accepts a passive canonical vendor JSON build summary as a build log', () => {
+    const contents = encoder.encode(
+      JSON.stringify({
+        format: 'prodivix.verification-build-summary.v1',
+        subjectDigest: `sha256-${'b'.repeat(64)}`,
+        outcome: 'passed',
+        transformedModuleCount: 4,
+        emittedFileCount: 2,
+        outputs: ['dist/index.js'],
+        sourceTrace: [],
+      })
+    );
+    expect(
+      evaluateVerificationArtifactPromotion({
+        artifacts: [
+          artifact(contents, {
+            path: 'logs/build-summary.json',
+            kind: 'build-log',
+            mediaType:
+              'application/vnd.prodivix.verification-build-summary+json',
+          }),
+        ],
+      })
+    ).toMatchObject({
+      status: 'accepted',
+      totalBytes: contents.byteLength,
+      artifacts: [
+        {
+          detectedMediaType: 'application/json',
+          descriptor: {
+            path: 'logs/build-summary.json',
+            kind: 'build-log',
+          },
+        },
+      ],
+    });
+  });
+
   it('limits structured suffix JSON media to the application tree', () => {
     expect(
       isVerificationArtifactJsonMediaType(

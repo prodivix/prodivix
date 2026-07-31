@@ -719,11 +719,15 @@ describe('Verification Evidence product slice', () => {
     ).find((button) => button.getAttribute('aria-pressed') === 'false');
     expect(failedAttemptButton).toBeDefined();
     fireEvent.click(failedAttemptButton!);
-    fireEvent.change(
+    fireEvent.click(
       await screen.findByLabelText(
         'resourceManager.verification.evidence.supersedeTarget'
-      ),
-      { target: { value: 'evidence-passed' } }
+      )
+    );
+    fireEvent.click(
+      screen.getByRole('option', {
+        name: 'attempt-passed',
+      })
     );
     fireEvent.change(
       screen.getByLabelText(

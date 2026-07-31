@@ -25,7 +25,10 @@ func mustCompileEvidenceSchemas() map[string]*jsonschema.Schema {
 		// that Go's RE2-backed validator cannot compile. Compile only the
 		// generated schemas consumed at Backend byte-admission boundaries.
 		if documentType != "verification-artifact-envelope" &&
-			documentType != "verification-plan" {
+			documentType != "verification-plan" &&
+			documentType != "verification-closure" &&
+			documentType != "verification-run-snapshot" &&
+			documentType != "verification-run-event" {
 			continue
 		}
 		document, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
