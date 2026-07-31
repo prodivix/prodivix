@@ -10,6 +10,25 @@ import {
 const enabled =
   process.env.PRODIVIX_VERIFY_G3_V6_BROWSER_MATRIX?.trim() === '1';
 
+const finishWhenInpIsAvailable = async (
+  page: Parameters<typeof installPlaywrightPerformanceProbe>[0],
+  binding: Awaited<ReturnType<typeof installPlaywrightPerformanceProbe>>
+) => {
+  const deadline = performance.now() + 5_000;
+  let observation = await finishPlaywrightTrustedPerformanceObservation(
+    page,
+    binding
+  );
+  while (observation.inp <= 0 && performance.now() < deadline) {
+    await page.waitForTimeout(50);
+    observation = await finishPlaywrightTrustedPerformanceObservation(
+      page,
+      binding
+    );
+  }
+  return observation;
+};
+
 const TAMPER_HTML = `<!doctype html>
 <html lang="en">
   <head>
@@ -197,10 +216,7 @@ describe.skipIf(!enabled)(
           box!.y + box!.height / 2
         );
         await page.waitForTimeout(120);
-        const observation = await finishPlaywrightTrustedPerformanceObservation(
-          page,
-          binding
-        );
+        const observation = await finishWhenInpIsAvailable(page, binding);
 
         expect(observation.supportedEntryTypes).toContain('navigation');
         expect(observation.navigationEntryCount).toBe(1);
@@ -266,10 +282,7 @@ describe.skipIf(!enabled)(
           dateNow: Date.now(),
           performanceNow: performance.now(),
         }));
-        const observation = await finishPlaywrightTrustedPerformanceObservation(
-          page,
-          binding
-        );
+        const observation = await finishWhenInpIsAvailable(page, binding);
 
         expect(authorAfter).toEqual(authorBefore);
         expect(trustedAfter).toBeGreaterThan(trustedBefore + 50);
