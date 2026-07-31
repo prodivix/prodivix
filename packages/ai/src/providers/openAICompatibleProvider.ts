@@ -1,17 +1,17 @@
 import type {
-  LlmProvider,
-  LlmProviderGenerateResult,
-  LlmProviderRequest,
-  LlmStreamEvent,
-} from '@prodivix/shared';
-import { LlmProviderError } from '@prodivix/shared';
+  AiDraftProvider,
+  AiDraftProviderGenerateResult,
+  AiDraftProviderRequest,
+  AiDraftStreamEvent,
+} from '../draft/draft.types';
+import { AiDraftProviderError } from '../draft/draft.types';
 import {
   normalizeBaseURL,
   splitLines,
   splitSseFrames,
   stripJsonFence,
 } from '@prodivix/shared/safety';
-import { validateStructuredOutput } from '../validation/validateStructuredOutput';
+import { validateAiDraftPlan } from '../draft/validateAiDraftPlan';
 import { assertOpenAICompatibleCredentialTransport } from './credentialTransport';
 import { createOpenAICompatibleMessages } from './openAICompatiblePrompt';
 
@@ -45,7 +45,7 @@ export const readOpenAICompatibleJsonResponse = async (
     }
     return await response.json();
   } catch (caught) {
-    throw new LlmProviderError(
+    throw new AiDraftProviderError(
       caught instanceof Error
         ? `OpenAI-compatible provider returned invalid JSON: ${caught.message}`
         : 'OpenAI-compatible provider returned invalid JSON.',
@@ -97,15 +97,15 @@ const readPath = (value: unknown, path: readonly (string | number)[]) =>
 
 const createRequestBody = (
   model: string,
-  request: LlmProviderRequest,
+  request: AiDraftProviderRequest,
   options?: { stream?: boolean }
 ) =>
   JSON.stringify({
     model,
-    messages: createOpenAICompatibleMessages(request.task),
-    temperature: request.task.budget?.temperature ?? 0.2,
-    max_tokens: request.task.budget?.maxOutputTokens,
-    response_format: request.task.modelPreferences?.jsonMode
+    messages: createOpenAICompatibleMessages(request.draft),
+    temperature: request.draft.budget?.temperature ?? 0.2,
+    max_tokens: request.draft.budget?.maxOutputTokens,
+    response_format: request.draft.modelPreferences?.jsonMode
       ? { type: 'json_object' }
       : undefined,
     stream: options?.stream || undefined,
@@ -174,7 +174,7 @@ const extractDeltaContent = (data: string): string => {
   return typeof content === 'string' ? content : '';
 };
 
-export class OpenAICompatibleProvider implements LlmProvider {
+export class OpenAICompatibleProvider implements AiDraftProvider {
   readonly id = 'openai-compatible';
   readonly capabilities = {
     responseModes: ['json', 'tool-calls', 'text-with-json'],
@@ -200,16 +200,15 @@ export class OpenAICompatibleProvider implements LlmProvider {
   }
 
   /**
-   * 把 Prodivix 内部的 LlmProviderRequest 翻译为 OpenAI-compatible 请求，
-   * 再把模型返回的 JSON 解析回 Prodivix 结构化输出并执行通道校验。
+   * 把 Prodivix 内部的 AiDraftProviderRequest 翻译为 OpenAI-compatible 请求，
+   * 再把模型返回的 JSON 解析回无写权限的 explain/plan 草稿。
    *
-   * Translates Prodivix's LlmProviderRequest into an OpenAI-compatible request, then
-   * parses the model JSON response back into Prodivix structured output and validates
-   * the requested output channel.
+   * Translates Prodivix's AiDraftProviderRequest into an OpenAI-compatible request,
+   * then validates the result as an admission-only explain/plan draft.
    */
   async generate(
-    request: LlmProviderRequest
-  ): Promise<LlmProviderGenerateResult> {
+    request: AiDraftProviderRequest
+  ): Promise<AiDraftProviderGenerateResult> {
     const response = await this.fetcher(`${this.baseURL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -217,12 +216,12 @@ export class OpenAICompatibleProvider implements LlmProvider {
         ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : null),
       },
       body: this.createRequestBody(request),
-      signal: request.task.providerMetadata?.abortSignal as
+      signal: request.draft.providerMetadata?.abortSignal as
         AbortSignal | undefined,
     });
 
     if (!response.ok) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         `OpenAI-compatible provider failed: ${response.status} ${response.statusText}`,
         { code: 'AI-1002' }
       );
@@ -235,7 +234,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
     try {
       structuredOutput = extractStructuredOutput(body);
     } catch (error) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         error instanceof Error
           ? error.message
           : 'Failed to parse structured LLM output.',
@@ -243,13 +242,10 @@ export class OpenAICompatibleProvider implements LlmProvider {
       );
     }
 
-    const validation = validateStructuredOutput(
-      structuredOutput,
-      request.task.outputChannels
-    );
+    const validation = validateAiDraftPlan(structuredOutput);
 
     if (!validation.output) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         validation.diagnostics[0]?.message ?? 'Invalid structured LLM output.',
         { code: 'AI-4002', rawResponse }
       );
@@ -258,7 +254,9 @@ export class OpenAICompatibleProvider implements LlmProvider {
     return { output: validation.output, rawResponse };
   }
 
-  async *stream(request: LlmProviderRequest): AsyncIterable<LlmStreamEvent> {
+  async *stream(
+    request: AiDraftProviderRequest
+  ): AsyncIterable<AiDraftStreamEvent> {
     const response = await this.fetcher(`${this.baseURL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -266,19 +264,19 @@ export class OpenAICompatibleProvider implements LlmProvider {
         ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : null),
       },
       body: this.createRequestBody(request, { stream: true }),
-      signal: request.task.providerMetadata?.abortSignal as
+      signal: request.draft.providerMetadata?.abortSignal as
         AbortSignal | undefined,
     });
 
     if (!response.ok) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         `OpenAI-compatible provider failed: ${response.status} ${response.statusText}`,
         { code: 'AI-1002' }
       );
     }
 
     if (!response.body) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         'OpenAI-compatible provider did not return a readable stream.',
         { code: 'AI-4012', severity: 'warning' }
       );
@@ -304,7 +302,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
         yield { type: 'raw-delta', delta };
       }
     } catch (error) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         error instanceof Error
           ? error.message
           : 'Failed to read streaming LLM response.',
@@ -313,7 +311,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
     }
 
     if (!receivedDone) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         'OpenAI-compatible provider streaming response ended before completion.',
         { code: 'AI-4010', rawResponse }
       );
@@ -324,7 +322,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
     try {
       structuredOutput = parseStructuredOutputText(rawResponse);
     } catch (error) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         error instanceof Error
           ? error.message
           : 'Failed to parse streaming LLM output.',
@@ -332,13 +330,10 @@ export class OpenAICompatibleProvider implements LlmProvider {
       );
     }
 
-    const validation = validateStructuredOutput(
-      structuredOutput,
-      request.task.outputChannels
-    );
+    const validation = validateAiDraftPlan(structuredOutput);
 
     if (!validation.output) {
-      throw new LlmProviderError(
+      throw new AiDraftProviderError(
         validation.diagnostics[0]?.message ?? 'Invalid structured LLM output.',
         { code: 'AI-4011', rawResponse }
       );
@@ -352,7 +347,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
   }
 
   private createRequestBody(
-    request: LlmProviderRequest,
+    request: AiDraftProviderRequest,
     options?: { stream?: boolean }
   ) {
     return createRequestBody(this.model, request, options);

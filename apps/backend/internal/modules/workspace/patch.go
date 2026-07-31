@@ -45,6 +45,9 @@ func applyWorkspaceDocumentPatch(documentType WorkspaceDocumentType, content jso
 	if documentType == WorkspaceDocumentTypeVerificationBaselineSet {
 		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceVerificationBaselineSetPatchPath)
 	}
+	if documentType == WorkspaceDocumentTypeAgentPolicy {
+		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceAgentPolicyPatchPath)
+	}
 	if documentType == WorkspaceDocumentTypePIRGraph {
 		return applyWorkspacePatchWithValidator(content, ops, validateWorkspaceNodeGraphPatchPath)
 	}
@@ -85,6 +88,10 @@ func validateWorkspaceVerificationPolicyPatchPath(path string) error {
 
 func validateWorkspaceVerificationBaselineSetPatchPath(path string) error {
 	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "entries")
+}
+
+func validateWorkspaceAgentPolicyPatchPath(path string) error {
+	return validateStrictWorkspaceDocumentRootPath(path, "id", "name", "providerRules", "modelRules", "contextRules", "capabilityRules", "approvalRules", "networkRules", "secretRules", "budgetCeiling", "verificationRules", "retentionRules", "privacy")
 }
 
 func validateWorkspaceAssetPatchPath(path string) error {

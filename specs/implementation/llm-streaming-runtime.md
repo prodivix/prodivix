@@ -4,10 +4,17 @@
 
 - Draft
 - 日期：2026-06-06
+- 实现状态：Historical Pre-G4 design / Superseded by G4 V0 owner hard cut
 - 相关文档：
   - `specs/decisions/22.llm-integration-architecture.md`
   - `specs/implementation/llm-integration-foundation.md`
   - `specs/diagnostics/ai-diagnostic-codes.md`
+
+> 本文保留早期流式设计的历史推导，不再是当前实现说明。V0 已删除 `packages/shared/src/llm` 和 `Llm*`
+> contract；当前可导入实现位于 `@prodivix/ai`，使用 `AiDraftProvider.stream`、`AiDraftGateway.stream` 与
+> `AiDraftStreamEvent`。它只产生 admission-only plan，流式 delta、raw response 或 provider tool result
+> 均无 proposal、approval、Command、commit、rollback 或 Workspace write authority。G4 durable Run/trace、
+> recovery 与 audit streaming 仍属于 V4/V7，不能从本文的内存 gateway 推断为已实现。
 
 ## 目标
 

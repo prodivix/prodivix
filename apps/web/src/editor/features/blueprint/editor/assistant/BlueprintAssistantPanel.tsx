@@ -11,19 +11,16 @@ import {
   Settings,
 } from 'lucide-react';
 import {
-  createLlmTask,
+  AiDraftContextBuilder,
+  AiDraftGateway,
+  AiDraftToolRegistry,
+  createAiDraftRequest,
   createProdivixAiProvider,
   stringifyOpenAICompatibleMessages,
   createOpenAICompatibleMessages,
+  type AiDraftPlan,
+  type AiDraftRequest,
 } from '@prodivix/ai';
-import {
-  InMemoryLlmTraceStore,
-  LlmContextBuilder,
-  LlmGateway,
-  LlmToolRegistry,
-  type LlmPlanArtifact,
-  type LlmTaskRequest,
-} from '@prodivix/shared';
 import {
   headerCollapseButtonClassName,
   rightCollapsedButtonClassName,
@@ -45,9 +42,9 @@ const createTaskId = () => {
   return `ai-task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const isPlanArtifact = (value: unknown): value is LlmPlanArtifact => {
+const isPlanArtifact = (value: unknown): value is AiDraftPlan => {
   if (!value || typeof value !== 'object' || 'channel' in value) return false;
-  const candidate = value as Partial<LlmPlanArtifact>;
+  const candidate = value as Partial<AiDraftPlan>;
   return (
     typeof candidate.goal === 'string' && Array.isArray(candidate.milestones)
   );
@@ -226,18 +223,20 @@ const createBlueprintAssistantContext = (
   currentPath: string,
   selectedId?: string
 ) =>
-  new LlmContextBuilder()
+  new AiDraftContextBuilder()
     .add({
       id: 'blueprint.route',
       title: 'Current route',
-      authority: 'authoritative',
+      authority: 'canonical',
       value: currentPath,
+      instructionBoundary: 'data-only',
     })
     .add({
       id: 'blueprint.selection',
       title: 'Selected node',
-      authority: 'authoritative',
+      authority: 'canonical',
       value: selectedId ?? null,
+      instructionBoundary: 'data-only',
     })
     .omit('Full PIR is omitted in the minimal assistant loop.')
     .build(1600);
@@ -247,13 +246,11 @@ const createBlueprintAssistantTask = (
   currentPath: string,
   selectedId?: string,
   abortSignal?: AbortSignal
-): LlmTaskRequest =>
-  createLlmTask({
+): AiDraftRequest =>
+  createAiDraftRequest({
     id: createTaskId(),
     intent: normalizedIntent,
     context: createBlueprintAssistantContext(currentPath, selectedId),
-    outputChannels: ['pir-command'],
-    requiresPlan: true,
     responseMode: 'json',
     streaming: true,
     modelPreferences: {
@@ -325,7 +322,7 @@ export function BlueprintAssistantPanel({
     })
   );
   const [isRunning, setIsRunning] = useState(false);
-  const [plan, setPlan] = useState<LlmPlanArtifact | null>(null);
+  const [plan, setPlan] = useState<AiDraftPlan | null>(null);
   const [rawResponse, setRawResponse] = useState('');
   const [promptPreview, setPromptPreview] = useState('');
   const [traceId, setTraceId] = useState<string | undefined>();
@@ -422,10 +419,9 @@ export function BlueprintAssistantPanel({
         ],
       },
     });
-    const gateway = new LlmGateway({
+    const gateway = new AiDraftGateway({
       provider,
-      tools: new LlmToolRegistry(),
-      traceStore: new InMemoryLlmTraceStore(),
+      tools: new AiDraftToolRegistry(),
     });
 
     try {

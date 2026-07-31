@@ -30,6 +30,7 @@ const corePackages = {
     '@prodivix/shared',
   ]),
   diagnostics: new Set(['@prodivix/shared']),
+  ai: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
   // Behavior owns deterministic replay orchestration while runtime-core owns
   // the transport-neutral scheduler/control primitives. The reverse edge stays
   // forbidden by runtime-core's leaf dependency set below.
@@ -63,6 +64,7 @@ const corePackages = {
     '@prodivix/diagnostics',
   ]),
   workspace: new Set([
+    '@prodivix/ai',
     '@prodivix/animation',
     '@prodivix/assets',
     '@prodivix/authoring',
@@ -141,7 +143,10 @@ const readImports = (source) =>
   ].map((match) => match[2]);
 
 const issues = [];
-const packageLibraries = new Map([['verification-browser', ['ES2022', 'DOM']]]);
+const packageLibraries = new Map([
+  ['ai', ['ES2022', 'DOM']],
+  ['verification-browser', ['ES2022', 'DOM']],
+]);
 
 for (const [packageDirectory, allowedDependencies] of Object.entries(
   corePackages

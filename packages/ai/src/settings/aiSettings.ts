@@ -1,5 +1,8 @@
-import type { LlmExecutionBudget, LlmModelPreferences } from '@prodivix/shared';
 import { isPlainObject } from '@prodivix/shared/safety';
+import type {
+  AiDraftExecutionBudget,
+  AiDraftModelPreferences,
+} from '../draft/draft.types';
 
 export type ProdivixAiProviderKind = 'mock' | 'openai-compatible';
 
@@ -17,8 +20,8 @@ export interface ProdivixAiOpenAICompatibleSettings extends ProdivixAiBaseSettin
   provider: 'openai-compatible';
   baseURL: string;
   model: string;
-  modelPreferences?: LlmModelPreferences;
-  budget?: LlmExecutionBudget;
+  modelPreferences?: AiDraftModelPreferences;
+  budget?: AiDraftExecutionBudget;
 }
 
 export interface ProdivixAiMockSettings extends ProdivixAiBaseSettings {
@@ -62,7 +65,7 @@ export const normalizeProdivixAiSettings = (
     return { enabled, provider: 'mock' };
   }
   const preferences = isPlainObject(value.modelPreferences)
-    ? definedFields<LlmModelPreferences>({
+    ? definedFields<AiDraftModelPreferences>({
         jsonMode: optionalBoolean(value.modelPreferences.jsonMode),
         toolCalling: optionalBoolean(value.modelPreferences.toolCalling),
         vision: optionalBoolean(value.modelPreferences.vision),
@@ -70,7 +73,7 @@ export const normalizeProdivixAiSettings = (
       })
     : undefined;
   const budget = isPlainObject(value.budget)
-    ? definedFields<LlmExecutionBudget>({
+    ? definedFields<AiDraftExecutionBudget>({
         maxOutputTokens: optionalNumber(value.budget.maxOutputTokens),
         temperature: optionalNumber(value.budget.temperature),
         timeoutMs: optionalNumber(value.budget.timeoutMs),

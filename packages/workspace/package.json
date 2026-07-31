@@ -25,6 +25,7 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
+    "@prodivix/ai": "workspace:*",
     "@prodivix/animation": "workspace:*",
     "@prodivix/assets": "workspace:*",
     "@prodivix/authoring": "workspace:*",

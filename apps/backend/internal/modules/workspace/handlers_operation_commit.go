@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
 	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 	"github.com/gin-gonic/gin"
 )
@@ -27,6 +28,12 @@ func decodeWorkspaceOperationCommitRequest(c *gin.Context) (WorkspaceOperationCo
 		if err == nil {
 			return request, errors.New("request body must contain one JSON value")
 		}
+		return request, err
+	}
+	if err := canonicaljson.ValidateRawEnvelope(
+		payload,
+		int(maxWorkspaceOperationCommitRequestBytes),
+	); err != nil {
 		return request, err
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))

@@ -1,0 +1,372 @@
+{
+  "format": "prodivix.agent-policy-canonical-vector",
+  "version": 1,
+  "documentId": "agent.policy.default",
+  "current": {
+    "approvalRules": [
+      {
+        "capabilities": ["commit", "rollback"],
+        "decisionAuthority": "explicit-human",
+        "id": "approval.explicit-human",
+        "riskLevels": ["critical", "high", "low", "medium"],
+        "rollbackAuthorization": "none"
+      }
+    ],
+    "budgetCeiling": {
+      "costLimits": [
+        { "currency": "CNY", "maximum": "12.50" },
+        { "currency": "USD", "maximum": "2" }
+      ],
+      "maxArtifactBytes": 1048576,
+      "maxElapsedMs": 60000,
+      "maxModelInvocations": 4,
+      "maxRepairRounds": 0,
+      "maxToolCalls": 8,
+      "maxTransactions": 0,
+      "usageLimits": [
+        { "maximum": "2", "unit": "image" },
+        { "maximum": "12000", "unit": "text-token-input" }
+      ]
+    },
+    "capabilityRules": [
+      {
+        "capabilities": ["propose", "read"],
+        "effect": "allow",
+        "id": "capability.plan-only",
+        "maximumRisk": "medium",
+        "runtimeZones": ["browser", "server"],
+        "targetScope": {
+          "targets": [
+            { "id": "page.catalog", "kind": "document" },
+            { "id": "workspace.vector", "kind": "workspace" }
+          ]
+        },
+        "toolIds": ["tool.context.read"]
+      }
+    ],
+    "contextRules": {
+      "allowedAuthorities": ["canonical", "derived"],
+      "allowedItemKinds": [
+        "code-reference",
+        "semantic-symbol",
+        "source-trace",
+        "workspace-document"
+      ],
+      "externalInstructionBoundary": "data-only",
+      "maxBytes": 262144,
+      "maxItems": 256,
+      "maximumSensitivity": "internal",
+      "requireSourceTrace": true
+    },
+    "id": "agent.policy.default",
+    "modelRules": [
+      {
+        "capabilityProfileIds": ["profile.text-plan"],
+        "effect": "allow",
+        "id": "model.release-evaluated",
+        "minimumSupportTier": "release-evaluated",
+        "modelFamilyIds": ["family.primary"],
+        "modelIds": ["model.primary"]
+      }
+    ],
+    "name": "Canonical policy <&> — 雪 😀",
+    "networkRules": [
+      {
+        "effect": "allow",
+        "hosts": ["api.example.test"],
+        "id": "network.provider",
+        "maxRequestBytes": 262144,
+        "maxResponseBytes": 1048576,
+        "methods": ["GET", "HEAD", "POST"],
+        "redirectPolicy": "same-origin",
+        "tls": "required"
+      }
+    ],
+    "privacy": {
+      "allowedRegions": ["cn", "us"],
+      "maximumSensitivity": "internal",
+      "providerTelemetry": "deny",
+      "providerTraining": "deny",
+      "rawArtifactCapture": "deny"
+    },
+    "providerRules": [
+      {
+        "effect": "allow",
+        "endpointClasses": ["first-party-hosted", "self-hosted"],
+        "id": "provider.release-evaluated",
+        "maximumSensitivity": "internal",
+        "minimumSupportTier": "release-evaluated",
+        "protocolFamilies": ["anthropic-messages", "openai-responses"],
+        "providerConfigurationIds": ["provider.primary"],
+        "regions": ["cn", "us"]
+      }
+    ],
+    "retentionRules": {
+      "auditDays": 30,
+      "providerStateDays": 0,
+      "rawPrivateArtifactDays": 0,
+      "requireDeletionReceipt": true,
+      "sanitizedTraceDays": 7
+    },
+    "secretRules": [
+      {
+        "effect": "allow",
+        "id": "secret.provider-credential",
+        "purposes": ["model-invocation"],
+        "referenceKinds": ["provider-credential"],
+        "runtimeZones": ["server"]
+      }
+    ],
+    "verificationRules": {
+      "repair": "forbidden",
+      "requiredCheckKinds": [],
+      "requiredClosure": "satisfied",
+      "requiredModes": ["apply"],
+      "rollback": "forbidden"
+    }
+  },
+  "wire": {
+    "approvalRules": [
+      {
+        "capabilities": ["commit", "rollback"],
+        "decisionAuthority": "explicit-human",
+        "id": "approval.explicit-human",
+        "riskLevels": ["critical", "high", "low", "medium"],
+        "rollbackAuthorization": "none"
+      }
+    ],
+    "budgetCeiling": {
+      "costLimits": [
+        { "currency": "CNY", "maximum": "12.50" },
+        { "currency": "USD", "maximum": "2" }
+      ],
+      "maxArtifactBytes": 1048576,
+      "maxElapsedMs": 60000,
+      "maxModelInvocations": 4,
+      "maxRepairRounds": 0,
+      "maxToolCalls": 8,
+      "maxTransactions": 0,
+      "usageLimits": [
+        { "maximum": "2", "unit": "image" },
+        { "maximum": "12000", "unit": "text-token-input" }
+      ]
+    },
+    "capabilityRules": [
+      {
+        "capabilities": ["propose", "read"],
+        "effect": "allow",
+        "id": "capability.plan-only",
+        "maximumRisk": "medium",
+        "runtimeZones": ["browser", "server"],
+        "targetScope": {
+          "targets": [
+            { "id": "page.catalog", "kind": "document" },
+            { "id": "workspace.vector", "kind": "workspace" }
+          ]
+        },
+        "toolIds": ["tool.context.read"]
+      }
+    ],
+    "contextRules": {
+      "allowedAuthorities": ["canonical", "derived"],
+      "allowedItemKinds": [
+        "code-reference",
+        "semantic-symbol",
+        "source-trace",
+        "workspace-document"
+      ],
+      "externalInstructionBoundary": "data-only",
+      "maxBytes": 262144,
+      "maxItems": 256,
+      "maximumSensitivity": "internal",
+      "requireSourceTrace": true
+    },
+    "id": "agent.policy.default",
+    "modelRules": [
+      {
+        "capabilityProfileIds": ["profile.text-plan"],
+        "effect": "allow",
+        "id": "model.release-evaluated",
+        "minimumSupportTier": "release-evaluated",
+        "modelFamilyIds": ["family.primary"],
+        "modelIds": ["model.primary"]
+      }
+    ],
+    "name": "Canonical policy <&> — 雪 😀",
+    "networkRules": [
+      {
+        "effect": "allow",
+        "hosts": ["api.example.test"],
+        "id": "network.provider",
+        "maxRequestBytes": 262144,
+        "maxResponseBytes": 1048576,
+        "methods": ["GET", "HEAD", "POST"],
+        "redirectPolicy": "same-origin",
+        "tls": "required"
+      }
+    ],
+    "privacy": {
+      "allowedRegions": ["cn", "us"],
+      "maximumSensitivity": "internal",
+      "providerTelemetry": "deny",
+      "providerTraining": "deny",
+      "rawArtifactCapture": "deny"
+    },
+    "providerRules": [
+      {
+        "effect": "allow",
+        "endpointClasses": ["first-party-hosted", "self-hosted"],
+        "id": "provider.release-evaluated",
+        "maximumSensitivity": "internal",
+        "minimumSupportTier": "release-evaluated",
+        "protocolFamilies": ["anthropic-messages", "openai-responses"],
+        "providerConfigurationIds": ["provider.primary"],
+        "regions": ["cn", "us"]
+      }
+    ],
+    "retentionRules": {
+      "auditDays": 30,
+      "providerStateDays": 0,
+      "rawPrivateArtifactDays": 0,
+      "requireDeletionReceipt": true,
+      "sanitizedTraceDays": 7
+    },
+    "secretRules": [
+      {
+        "effect": "allow",
+        "id": "secret.provider-credential",
+        "purposes": ["model-invocation"],
+        "referenceKinds": ["provider-credential"],
+        "runtimeZones": ["server"]
+      }
+    ],
+    "verificationRules": {
+      "repair": "forbidden",
+      "requiredCheckKinds": [],
+      "requiredClosure": "satisfied",
+      "requiredModes": ["apply"],
+      "rollback": "forbidden"
+    },
+    "wireVersion": 1
+  },
+  "legacyWire": {
+    "approvalRules": [
+      {
+        "capabilities": ["commit", "rollback"],
+        "decisionAuthority": "explicit-human",
+        "id": "approval.explicit-human",
+        "riskLevels": ["critical", "high", "low", "medium"],
+        "rollbackAuthorization": "none"
+      }
+    ],
+    "budgetCeiling": {
+      "costLimits": [
+        { "currency": "CNY", "maximum": "12.50" },
+        { "currency": "USD", "maximum": "2" }
+      ],
+      "maxArtifactBytes": 1048576,
+      "maxElapsedMs": 60000,
+      "maxModelInvocations": 4,
+      "maxRepairRounds": 0,
+      "maxToolCalls": 8,
+      "maxTransactions": 0,
+      "usageLimits": [
+        { "maximum": "2", "unit": "image" },
+        { "maximum": "12000", "unit": "text-token-input" }
+      ]
+    },
+    "capabilityRules": [
+      {
+        "capabilities": ["propose", "read"],
+        "effect": "allow",
+        "id": "capability.plan-only",
+        "maximumRisk": "medium",
+        "runtimeZones": ["browser", "server"],
+        "targetScope": {
+          "targets": [
+            { "id": "page.catalog", "kind": "document" },
+            { "id": "workspace.vector", "kind": "workspace" }
+          ]
+        },
+        "toolIds": ["tool.context.read"]
+      }
+    ],
+    "contextRules": {
+      "allowedAuthorities": ["canonical", "derived"],
+      "allowedItemKinds": [
+        "code-reference",
+        "semantic-symbol",
+        "source-trace",
+        "workspace-document"
+      ],
+      "externalInstructionBoundary": "data-only",
+      "maxBytes": 262144,
+      "maxItems": 256,
+      "maximumSensitivity": "internal",
+      "requireSourceTrace": true
+    },
+    "id": "agent.policy.default",
+    "modelRules": [
+      {
+        "capabilityProfileIds": ["profile.text-plan"],
+        "effect": "allow",
+        "id": "model.release-evaluated",
+        "minimumSupportTier": "release-evaluated",
+        "modelFamilyIds": ["family.primary"],
+        "modelIds": ["model.primary"]
+      }
+    ],
+    "name": "Canonical policy <&> — 雪 😀",
+    "networkRules": [
+      {
+        "effect": "allow",
+        "hosts": ["api.example.test"],
+        "id": "network.provider",
+        "maxRequestBytes": 262144,
+        "maxResponseBytes": 1048576,
+        "methods": ["GET", "HEAD", "POST"],
+        "redirectPolicy": "same-origin",
+        "tls": "required"
+      }
+    ],
+    "providerRules": [
+      {
+        "effect": "allow",
+        "endpointClasses": ["first-party-hosted", "self-hosted"],
+        "id": "provider.release-evaluated",
+        "maximumSensitivity": "internal",
+        "minimumSupportTier": "release-evaluated",
+        "protocolFamilies": ["anthropic-messages", "openai-responses"],
+        "providerConfigurationIds": ["provider.primary"],
+        "regions": ["cn", "us"]
+      }
+    ],
+    "retentionRules": {
+      "auditDays": 30,
+      "providerStateDays": 0,
+      "rawPrivateArtifactDays": 0,
+      "requireDeletionReceipt": true,
+      "sanitizedTraceDays": 7
+    },
+    "secretRules": [
+      {
+        "effect": "allow",
+        "id": "secret.provider-credential",
+        "purposes": ["model-invocation"],
+        "referenceKinds": ["provider-credential"],
+        "runtimeZones": ["server"]
+      }
+    ],
+    "verificationRules": {
+      "repair": "forbidden",
+      "requiredCheckKinds": [],
+      "requiredClosure": "satisfied",
+      "requiredModes": ["apply"],
+      "rollback": "forbidden"
+    },
+    "wireVersion": 0
+  },
+  "canonicalCurrentJson": "{\"approvalRules\":[{\"capabilities\":[\"commit\",\"rollback\"],\"decisionAuthority\":\"explicit-human\",\"id\":\"approval.explicit-human\",\"riskLevels\":[\"critical\",\"high\",\"low\",\"medium\"],\"rollbackAuthorization\":\"none\"}],\"budgetCeiling\":{\"costLimits\":[{\"currency\":\"CNY\",\"maximum\":\"12.50\"},{\"currency\":\"USD\",\"maximum\":\"2\"}],\"maxArtifactBytes\":1048576,\"maxElapsedMs\":60000,\"maxModelInvocations\":4,\"maxRepairRounds\":0,\"maxToolCalls\":8,\"maxTransactions\":0,\"usageLimits\":[{\"maximum\":\"2\",\"unit\":\"image\"},{\"maximum\":\"12000\",\"unit\":\"text-token-input\"}]},\"capabilityRules\":[{\"capabilities\":[\"propose\",\"read\"],\"effect\":\"allow\",\"id\":\"capability.plan-only\",\"maximumRisk\":\"medium\",\"runtimeZones\":[\"browser\",\"server\"],\"targetScope\":{\"targets\":[{\"id\":\"page.catalog\",\"kind\":\"document\"},{\"id\":\"workspace.vector\",\"kind\":\"workspace\"}]},\"toolIds\":[\"tool.context.read\"]}],\"contextRules\":{\"allowedAuthorities\":[\"canonical\",\"derived\"],\"allowedItemKinds\":[\"code-reference\",\"semantic-symbol\",\"source-trace\",\"workspace-document\"],\"externalInstructionBoundary\":\"data-only\",\"maxBytes\":262144,\"maxItems\":256,\"maximumSensitivity\":\"internal\",\"requireSourceTrace\":true},\"id\":\"agent.policy.default\",\"modelRules\":[{\"capabilityProfileIds\":[\"profile.text-plan\"],\"effect\":\"allow\",\"id\":\"model.release-evaluated\",\"minimumSupportTier\":\"release-evaluated\",\"modelFamilyIds\":[\"family.primary\"],\"modelIds\":[\"model.primary\"]}],\"name\":\"Canonical policy <&> — 雪 😀\",\"networkRules\":[{\"effect\":\"allow\",\"hosts\":[\"api.example.test\"],\"id\":\"network.provider\",\"maxRequestBytes\":262144,\"maxResponseBytes\":1048576,\"methods\":[\"GET\",\"HEAD\",\"POST\"],\"redirectPolicy\":\"same-origin\",\"tls\":\"required\"}],\"privacy\":{\"allowedRegions\":[\"cn\",\"us\"],\"maximumSensitivity\":\"internal\",\"providerTelemetry\":\"deny\",\"providerTraining\":\"deny\",\"rawArtifactCapture\":\"deny\"},\"providerRules\":[{\"effect\":\"allow\",\"endpointClasses\":[\"first-party-hosted\",\"self-hosted\"],\"id\":\"provider.release-evaluated\",\"maximumSensitivity\":\"internal\",\"minimumSupportTier\":\"release-evaluated\",\"protocolFamilies\":[\"anthropic-messages\",\"openai-responses\"],\"providerConfigurationIds\":[\"provider.primary\"],\"regions\":[\"cn\",\"us\"]}],\"retentionRules\":{\"auditDays\":30,\"providerStateDays\":0,\"rawPrivateArtifactDays\":0,\"requireDeletionReceipt\":true,\"sanitizedTraceDays\":7},\"secretRules\":[{\"effect\":\"allow\",\"id\":\"secret.provider-credential\",\"purposes\":[\"model-invocation\"],\"referenceKinds\":[\"provider-credential\"],\"runtimeZones\":[\"server\"]}],\"verificationRules\":{\"repair\":\"forbidden\",\"requiredCheckKinds\":[],\"requiredClosure\":\"satisfied\",\"requiredModes\":[\"apply\"],\"rollback\":\"forbidden\"}}",
+  "canonicalWireJson": "{\"approvalRules\":[{\"capabilities\":[\"commit\",\"rollback\"],\"decisionAuthority\":\"explicit-human\",\"id\":\"approval.explicit-human\",\"riskLevels\":[\"critical\",\"high\",\"low\",\"medium\"],\"rollbackAuthorization\":\"none\"}],\"budgetCeiling\":{\"costLimits\":[{\"currency\":\"CNY\",\"maximum\":\"12.50\"},{\"currency\":\"USD\",\"maximum\":\"2\"}],\"maxArtifactBytes\":1048576,\"maxElapsedMs\":60000,\"maxModelInvocations\":4,\"maxRepairRounds\":0,\"maxToolCalls\":8,\"maxTransactions\":0,\"usageLimits\":[{\"maximum\":\"2\",\"unit\":\"image\"},{\"maximum\":\"12000\",\"unit\":\"text-token-input\"}]},\"capabilityRules\":[{\"capabilities\":[\"propose\",\"read\"],\"effect\":\"allow\",\"id\":\"capability.plan-only\",\"maximumRisk\":\"medium\",\"runtimeZones\":[\"browser\",\"server\"],\"targetScope\":{\"targets\":[{\"id\":\"page.catalog\",\"kind\":\"document\"},{\"id\":\"workspace.vector\",\"kind\":\"workspace\"}]},\"toolIds\":[\"tool.context.read\"]}],\"contextRules\":{\"allowedAuthorities\":[\"canonical\",\"derived\"],\"allowedItemKinds\":[\"code-reference\",\"semantic-symbol\",\"source-trace\",\"workspace-document\"],\"externalInstructionBoundary\":\"data-only\",\"maxBytes\":262144,\"maxItems\":256,\"maximumSensitivity\":\"internal\",\"requireSourceTrace\":true},\"id\":\"agent.policy.default\",\"modelRules\":[{\"capabilityProfileIds\":[\"profile.text-plan\"],\"effect\":\"allow\",\"id\":\"model.release-evaluated\",\"minimumSupportTier\":\"release-evaluated\",\"modelFamilyIds\":[\"family.primary\"],\"modelIds\":[\"model.primary\"]}],\"name\":\"Canonical policy <&> — 雪 😀\",\"networkRules\":[{\"effect\":\"allow\",\"hosts\":[\"api.example.test\"],\"id\":\"network.provider\",\"maxRequestBytes\":262144,\"maxResponseBytes\":1048576,\"methods\":[\"GET\",\"HEAD\",\"POST\"],\"redirectPolicy\":\"same-origin\",\"tls\":\"required\"}],\"privacy\":{\"allowedRegions\":[\"cn\",\"us\"],\"maximumSensitivity\":\"internal\",\"providerTelemetry\":\"deny\",\"providerTraining\":\"deny\",\"rawArtifactCapture\":\"deny\"},\"providerRules\":[{\"effect\":\"allow\",\"endpointClasses\":[\"first-party-hosted\",\"self-hosted\"],\"id\":\"provider.release-evaluated\",\"maximumSensitivity\":\"internal\",\"minimumSupportTier\":\"release-evaluated\",\"protocolFamilies\":[\"anthropic-messages\",\"openai-responses\"],\"providerConfigurationIds\":[\"provider.primary\"],\"regions\":[\"cn\",\"us\"]}],\"retentionRules\":{\"auditDays\":30,\"providerStateDays\":0,\"rawPrivateArtifactDays\":0,\"requireDeletionReceipt\":true,\"sanitizedTraceDays\":7},\"secretRules\":[{\"effect\":\"allow\",\"id\":\"secret.provider-credential\",\"purposes\":[\"model-invocation\"],\"referenceKinds\":[\"provider-credential\"],\"runtimeZones\":[\"server\"]}],\"verificationRules\":{\"repair\":\"forbidden\",\"requiredCheckKinds\":[],\"requiredClosure\":\"satisfied\",\"requiredModes\":[\"apply\"],\"rollback\":\"forbidden\"},\"wireVersion\":1}",
+  "expectedDigest": "sha256-714f95563ad522fef1ef0436dcb2f769e27d6f8606a157af8bec1548a69b37d7"
+}

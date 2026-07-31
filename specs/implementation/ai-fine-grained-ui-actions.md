@@ -4,6 +4,7 @@
 
 - Draft
 - Date: 2026-06-29
+- Implementation status: Pre-G4 UI exploration / Superseded for production apply
 - Related documents:
   - `specs/decisions/22.llm-integration-architecture.md`
   - `specs/decisions/12.command-transaction-planner.md`
@@ -13,6 +14,17 @@
   - `specs/router/route-manifest.md`
   - `specs/implementation/llm-integration-foundation.md`
   - `specs/implementation/llm-streaming-runtime.md`
+  - `specs/decisions/65.verified-agent-task-and-control-plane.md`
+  - `specs/decisions/66.model-provider-capability-and-invocation.md`
+  - `specs/decisions/67.multimodal-context-and-generated-artifact.md`
+  - `specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md`
+  - `specs/decisions/69.real-model-evaluation-and-release-qualification.md`
+
+> G4 precedence: this document remains a record of fine-grained UI entry points and the early plan-only
+> baseline. ADR 65–69 supersede its production action/apply、Provider capability、multimodal和 hosted-tool semantics.
+> An editor-side apply token, model-callable
+> apply tool, or UI-owned Workspace mutation must not be implemented; G4 uses domain-planned proposals, an exact
+> human approval decision, the canonical Workspace Transaction path, and G3 Closure.
 
 ## Goal
 
@@ -26,15 +38,19 @@ The goal is not to build a free-form agent. The goal is to make AI available at 
 
 Current code has an early AI foundation:
 
-- `packages/shared/src/llm` defines task, gateway, context, tool, trace, streaming event, and output channel primitives.
-- `packages/ai` provides settings, provider factory, OpenAI-compatible provider, streaming support, task creation, and basic structured output validation.
+- `packages/ai` is the sole owner of the transport-neutral G4 current/wire contract and the retained admission-only draft runtime.
+- `packages/shared/src/llm` has been removed; `@prodivix/shared` owns only cross-runtime canonical JSON and safety primitives used by the AI owner.
+- `AiDraftGateway`, `AiDraftContextBuilder`, and `AiDraftToolRegistry` expose only explain/plan drafts, data-only context, and read or ephemeral-execute tools.
+- `packages/ai` also provides settings, the provider factory, OpenAI-compatible draft transport, streaming, and bounded `AiDraftPlan` validation.
 - `apps/web/src/ai/aiSettingsStore.ts` stores browser-side AI settings.
 - `BlueprintAssistantPanel` provides a bottom-right assistant in the Blueprint editor.
 - The Blueprint assistant currently collects only current route and selected node id.
-- The assistant requests `outputChannels: ['pir-command']`, `requiresPlan: true`, JSON mode, and streaming.
+- The assistant creates an `AiDraftRequest` and requests a bounded plan in JSON mode with streaming.
 - The assistant displays plan, raw response, prompt preview, and trace id.
 
-Important limitation: the current Blueprint assistant is plan-only. It does not dry-run or apply changes. It also frames the AI task too narrowly as a Blueprint/PIR command task. `LlmPirCommandBatch.commands` is still `unknown[]`, and there is no workspace action validator for route, resource, settings, export, diagnostic, or test targets.
+Important limitation: the current Blueprint assistant is deliberately plan-only. It cannot emit a domain action, Command,
+approval, commit, rollback, generic file write, or JSON patch. The action/preview/approval flow described later in this
+document belongs to G4 V5 and is not implemented by the V0 draft gateway.
 
 ## Product Direction
 

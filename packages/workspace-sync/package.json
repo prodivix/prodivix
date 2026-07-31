@@ -30,6 +30,7 @@
     "@prodivix/workspace": "workspace:*"
   },
   "devDependencies": {
+    "@prodivix/ai": "workspace:*",
     "@types/node": "^26.1.0",
     "fast-check": "^4.9.0",
     "typescript": "^6.0.3",

@@ -188,7 +188,7 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 		t.Fatal("G3 migration must enforce one verification-policy per workspace")
 	}
 
-	evidence := migrations[len(migrations)-3]
+	evidence := migrations[len(migrations)-4]
 	if evidence.version != 19 ||
 		evidence.name != "verification-evidence-plane" ||
 		len(evidence.statements) < 20 {
@@ -198,7 +198,7 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 			evidence.name,
 		)
 	}
-	ledger := migrations[len(migrations)-2]
+	ledger := migrations[len(migrations)-3]
 	if ledger.version != 20 ||
 		ledger.name != "verification-mutation-ledger" ||
 		len(ledger.statements) < 7 {
@@ -220,17 +220,31 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 	if !strings.Contains(ledger.statements[6], "reject_verification_immutable_mutation") {
 		t.Fatal("Verification mutation ledger must be immutable after commit")
 	}
-	last := migrations[len(migrations)-1]
-	if last.version != 21 ||
-		last.name != "verification-run-registry" ||
-		len(last.statements) < 7 {
+	runs := migrations[len(migrations)-2]
+	if runs.version != 21 ||
+		runs.name != "verification-run-registry" ||
+		len(runs.statements) < 7 {
 		t.Fatalf(
-			"last migration = %d %q, want Verification run registry",
-			last.version,
-			last.name,
+			"migration before last = %d %q, want Verification run registry",
+			runs.version,
+			runs.name,
 		)
 	}
-	runStatements := strings.Join(last.statements, "\n")
+	agent := migrations[len(migrations)-1]
+	if agent.version != 22 ||
+		agent.name != "g4-agent-policy-workspace-document" ||
+		len(agent.statements) != 2 {
+		t.Fatalf(
+			"last migration = %d %q, want G4 AgentPolicy workspace document",
+			agent.version,
+			agent.name,
+		)
+	}
+	if !strings.Contains(agent.statements[0], "'agent-policy'") ||
+		!strings.Contains(agent.statements[1], "idx_workspace_documents_single_agent_policy") {
+		t.Fatal("G4 migration must admit one agent-policy per workspace")
+	}
+	runStatements := strings.Join(runs.statements, "\n")
 	for _, fragment := range []string{
 		"CREATE TABLE IF NOT EXISTS verification_runs",
 		"CREATE TABLE IF NOT EXISTS verification_run_events",

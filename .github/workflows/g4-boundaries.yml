@@ -1,0 +1,144 @@
+name: G4 Agent Boundaries
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-boundaries.yml'
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+      - 'apps/backend/internal/modules/workspace/**'
+      - 'apps/backend/internal/platform/agentcontract/**'
+      - 'apps/backend/internal/platform/canonicaljson/**'
+      - 'apps/backend/internal/platform/database/**'
+      - 'apps/docs/guide/ai-assistant.md'
+      - 'apps/docs/reference/diagnostic-codes.md'
+      - 'apps/docs/reference/diagnostics/**'
+      - 'apps/web/src/editor/features/blueprint/editor/assistant/**'
+      - 'docs/architecture/**'
+      - 'packages/ai/**'
+      - 'packages/diagnostics/**'
+      - 'packages/shared/**'
+      - 'packages/workspace/**'
+      - 'packages/workspace-sync/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'scripts/g4-agent-policy-canonical-vector.mjs'
+      - 'scripts/generate-diagnostic-docs.mjs'
+      - 'scripts/sync-g4-wire-contracts.mjs'
+      - 'scripts/verify-g4-agent-policy-postgres.mjs'
+      - 'specs/api/workspace-sync.openapi.yaml'
+      - 'specs/decisions/22.llm-integration-architecture.md'
+      - 'specs/decisions/37.verified-semantic-authoring-architecture.md'
+      - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
+      - 'specs/decisions/66.model-provider-capability-and-invocation.md'
+      - 'specs/decisions/67.multimodal-context-and-generated-artifact.md'
+      - 'specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md'
+      - 'specs/decisions/69.real-model-evaluation-and-release-qualification.md'
+      - 'specs/diagnostics/**'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-*.md'
+      - 'specs/workspace/workspace-model.md'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.json'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-boundaries.yml'
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+      - 'apps/backend/internal/modules/workspace/**'
+      - 'apps/backend/internal/platform/agentcontract/**'
+      - 'apps/backend/internal/platform/canonicaljson/**'
+      - 'apps/backend/internal/platform/database/**'
+      - 'apps/docs/guide/ai-assistant.md'
+      - 'apps/docs/reference/diagnostic-codes.md'
+      - 'apps/docs/reference/diagnostics/**'
+      - 'apps/web/src/editor/features/blueprint/editor/assistant/**'
+      - 'docs/architecture/**'
+      - 'packages/ai/**'
+      - 'packages/diagnostics/**'
+      - 'packages/shared/**'
+      - 'packages/workspace/**'
+      - 'packages/workspace-sync/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'scripts/g4-agent-policy-canonical-vector.mjs'
+      - 'scripts/generate-diagnostic-docs.mjs'
+      - 'scripts/sync-g4-wire-contracts.mjs'
+      - 'scripts/verify-g4-agent-policy-postgres.mjs'
+      - 'specs/api/workspace-sync.openapi.yaml'
+      - 'specs/decisions/22.llm-integration-architecture.md'
+      - 'specs/decisions/37.verified-semantic-authoring-architecture.md'
+      - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
+      - 'specs/decisions/66.model-provider-capability-and-invocation.md'
+      - 'specs/decisions/67.multimodal-context-and-generated-artifact.md'
+      - 'specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md'
+      - 'specs/decisions/69.real-model-evaluation-and-release-qualification.md'
+      - 'specs/diagnostics/**'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-*.md'
+      - 'specs/workspace/workspace-model.md'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.json'
+
+concurrency:
+  group: g4-boundaries-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  boundaries:
+    name: Agent owner, wire, Workspace, Backend, and PostgreSQL Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prodivix_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prodivix_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PRODIVIX_BACKEND_POSTGRES_TEST_URL: postgres://postgres:postgres@127.0.0.1:5432/prodivix_test?sslmode=disable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify deterministic G4 V0 boundaries
+        run: pnpm run verify:g4:boundaries
+      - name: Verify real PostgreSQL AgentPolicy round-trip
+        run: pnpm run verify:g4:boundaries:postgres

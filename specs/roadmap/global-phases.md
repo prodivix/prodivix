@@ -159,6 +159,17 @@ milestone 状态：[`g3-behavior-verification-milestones.md`](g3-behavior-verifi
 
 让 Agent 在受控权限、可逆 change、验证计划和证据约束下修改真实 Workspace。
 
+Canonical contract、实施顺序、里程碑与退出证据结构分别见：
+
+- [`../decisions/65.verified-agent-task-and-control-plane.md`](../decisions/65.verified-agent-task-and-control-plane.md)
+- [`../decisions/66.model-provider-capability-and-invocation.md`](../decisions/66.model-provider-capability-and-invocation.md)
+- [`../decisions/67.multimodal-context-and-generated-artifact.md`](../decisions/67.multimodal-context-and-generated-artifact.md)
+- [`../decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md`](../decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md)
+- [`../decisions/69.real-model-evaluation-and-release-qualification.md`](../decisions/69.real-model-evaluation-and-release-qualification.md)
+- [`../implementation/g4-verified-agentic-development.md`](../implementation/g4-verified-agentic-development.md)
+- [`g4-verified-agentic-development-milestones.md`](./g4-verified-agentic-development-milestones.md)
+- [`g4-closure-evidence.md`](./g4-closure-evidence.md)
+
 ### 必须具备
 
 - intent/proposal/approval/transaction/evidence contract。
@@ -167,12 +178,23 @@ milestone 状态：[`g3-behavior-verification-milestones.md`](g3-behavior-verifi
 - eval、counterexample、regression 与 provenance。
 - revision-bound AgentTask/Run lifecycle、tool call trace、cancel/timeout/retry/recovery 与强幂等。
 - Context Pack、Semantic/SourceTrace grounding 与可重建 Intelligence projection，不扫描编辑器私有状态。
-- model/provider/tool/version、输入摘要、cost、privacy 与 data-residency policy 的完整身份和审计。
+- exact model/provider/capability/inference/state/cache/job、multi-dimensional usage、privacy/data-residency identity。
+- required screenshot/image与PDF/document多模态 source/transform/omission/injection contract；generated media只经
+  G2 Asset candidate/proposal/approval写入。
+- Provider-hosted tool、retrieval/files/index、pinned MCP、hosted code、computer-use verification与
+  parallel/nested call均在统一 grant/budget/audit下；opaque managed agent与 alternate UI write禁止。
+- OpenAI Responses、Anthropic Messages、Gemini Interactions native adapters 与 generic
+  OpenAI-compatible compatibility adapter；protocol、provider operator 与 model-family-owner identity 分离。
 - prompt injection、untrusted content、Secret、network 与 permission escalation fail closed；Agent 不得自我审批或扩大授权。
+- deterministic control-plane/media/hosted-capability Gates 与独立、version-bound real-model evaluation Gate；
+  后者冻结128 cases、protected/rotating holdout、Context/media sentinels、三个独立 native Provider/model families
+  的 required capability profiles、10/30/100 risk repetitions、11,640+ journeys、grader/human review、
+  multi-dimensional budget与 identity-drift expiry。smoke、同协议换模型或 aggregator alias只证明 admission。
 
 ### 退出 Gate
 
-Agent 的每次生产写入都可解释、可预览、可撤销、可验证并携带足够 evidence；失败不会静默扩大权限或改写 truth。
+Agent 的每次生产写入都可解释、可预览、可撤销、可验证并携带足够 evidence；失败不会静默扩大权限或改写
+truth；deterministic authority 与未过期的真实模型行为质量 evidence 均通过。
 
 ## G5: Collaborative Production Loop
 

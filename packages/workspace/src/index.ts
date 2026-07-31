@@ -66,6 +66,14 @@ export {
   selectWorkspaceBehaviorVerificationDocument,
 } from './workspaceBehaviorVerificationDocument';
 export {
+  createWorkspaceAgentPolicyDocumentCommand,
+  createWorkspaceAgentPolicyTransaction,
+  createWorkspaceAgentPolicyUpdateCommand,
+  decodeWorkspaceAgentPolicyDocument,
+  isCanonicalWorkspaceAgentPolicyContent,
+  selectWorkspaceAgentPolicyDocument,
+} from './workspaceAgentPolicyDocument';
+export {
   createWorkspaceBehaviorScenario,
   createWorkspaceBehaviorScenarioAuthoringPlan,
   createWorkspaceBehaviorScenarioCreatePlan,
@@ -424,6 +432,13 @@ export type {
   WorkspaceVerificationBaselineSetDocument,
   WorkspaceVerificationPolicyDocument,
 } from './workspaceBehaviorVerificationDocument';
+export type {
+  CreateWorkspaceAgentPolicyDocumentInput,
+  CreateWorkspaceAgentPolicyUpdateCommandInput,
+  WorkspaceAgentPolicyDocument,
+  WorkspaceAgentPolicyReadIssue,
+  WorkspaceAgentPolicyReadResult,
+} from './workspaceAgentPolicyDocument';
 export type {
   WorkspaceBehaviorScenarioAuthoringPlan,
   WorkspaceBehaviorScenarioAuthoringResult,

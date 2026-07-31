@@ -103,7 +103,8 @@ const domainInfo = {
     file: 'ai-diagnostic-codes.md',
     title: 'AI',
     area: 'AI 助手',
-    description: 'Provider、模型发现、Prompt、响应解析和 AI command',
+    description:
+      'Provider/Capability、Context/Media、Task/Run、Tool/Retrieval、Approval 和 Evaluation/Verification',
   },
   RTE: {
     file: 'route-diagnostic-codes.md',

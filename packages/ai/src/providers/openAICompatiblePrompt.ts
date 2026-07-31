@@ -1,4 +1,4 @@
-import type { LlmTaskRequest } from '@prodivix/shared';
+import type { AiDraftRequest } from '../draft/draft.types';
 
 export interface OpenAICompatibleMessage {
   role: 'system' | 'user';
@@ -9,7 +9,7 @@ export const openAICompatibleSystemPrompt =
   'You are Prodivix AI runtime. Return only valid JSON. Do not wrap JSON in markdown fences. Do not include prose before or after the JSON.';
 
 export const createOpenAICompatibleMessages = (
-  task: LlmTaskRequest
+  draft: AiDraftRequest
 ): OpenAICompatibleMessage[] => [
   {
     role: 'system',
@@ -18,24 +18,21 @@ export const createOpenAICompatibleMessages = (
   {
     role: 'user',
     content: JSON.stringify({
-      intent: task.intent,
-      context: task.context,
-      outputChannels: task.outputChannels,
-      allowedTools: task.allowedTools,
-      requiresPlan: task.requiresPlan,
-      expectedOutput: task.requiresPlan
-        ? {
-            goal: 'string',
-            assumptions: ['string'],
-            milestones: [
-              {
-                id: 'string',
-                title: 'string',
-                description: 'string | optional',
-              },
-            ],
-          }
-        : undefined,
+      intent: draft.intent,
+      context: draft.context,
+      allowedTools: draft.allowedTools,
+      authority: 'explain-or-plan-only',
+      expectedOutput: {
+        goal: 'string',
+        assumptions: ['string'],
+        milestones: [
+          {
+            id: 'string',
+            title: 'string',
+            description: 'string | optional',
+          },
+        ],
+      },
     }),
   },
 ];

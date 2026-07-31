@@ -13,6 +13,7 @@ export const WORKSPACE_DOCUMENT_TYPES = Object.freeze([
   'behavior-fixture-set',
   'verification-policy',
   'verification-baseline-set',
+  'agent-policy',
   'asset',
   'project-config',
 ] as const);
@@ -30,6 +31,7 @@ export const WORKSPACE_COMMAND_DOMAINS = Object.freeze([
   'data',
   'behavior',
   'verification',
+  'agent',
   'resource',
 ] as const);
 
@@ -172,6 +174,26 @@ export const WORKSPACE_DOCUMENT_POLICIES = Object.freeze({
     '/name',
     '/entries',
   ]),
+  'agent-policy': roots(
+    'agent',
+    [
+      '/id',
+      '/name',
+      '/providerRules',
+      '/modelRules',
+      '/contextRules',
+      '/capabilityRules',
+      '/approvalRules',
+      '/networkRules',
+      '/secretRules',
+      '/budgetCeiling',
+      '/verificationRules',
+      '/retentionRules',
+      '/privacy',
+    ],
+    undefined,
+    'single'
+  ),
   asset: roots('resource', [
     '/mime',
     '/category',
@@ -197,6 +219,7 @@ export const WORKSPACE_COMMAND_NAMESPACE_DOMAIN_RULES = Object.freeze([
     prefix: 'core.verification',
     domain: 'verification' as const,
   }),
+  Object.freeze({ prefix: 'core.agent', domain: 'agent' as const }),
   Object.freeze({ prefix: 'core.resource', domain: 'resource' as const }),
   Object.freeze({ prefix: 'core.route', domain: 'route' as const }),
   Object.freeze({

@@ -379,7 +379,7 @@ func validateRawCommitCommand(command WorkspaceCommandEnvelope) error {
 	}
 	if command.DomainHint != "" {
 		switch command.DomainHint {
-		case "pir", "workspace", "route", "nodegraph", "animation", "token", "code", "data", "behavior", "verification", "resource":
+		case "pir", "workspace", "route", "nodegraph", "animation", "token", "code", "data", "behavior", "verification", "agent", "resource":
 		default:
 			return commitValidation("/operation/command/domainHint", "domainHint must use a canonical registered domain")
 		}
@@ -445,8 +445,8 @@ func validateCommitCommand(command WorkspaceCommandEnvelope, workspaceID string)
 		if documentDomain == "" {
 			documentDomain = namespaceDomain
 		}
-		if documentDomain != "pir" && documentDomain != "nodegraph" && documentDomain != "animation" && documentDomain != "token" && documentDomain != "code" && documentDomain != "data" && documentDomain != "behavior" && documentDomain != "verification" && documentDomain != "resource" {
-			return commitValidation("/operation/command/domainHint", "document-targeted commands require pir, nodegraph, animation, token, code, data, behavior, verification, or resource domain")
+		if documentDomain != "pir" && documentDomain != "nodegraph" && documentDomain != "animation" && documentDomain != "token" && documentDomain != "code" && documentDomain != "data" && documentDomain != "behavior" && documentDomain != "verification" && documentDomain != "agent" && documentDomain != "resource" {
+			return commitValidation("/operation/command/domainHint", "document-targeted commands require pir, nodegraph, animation, token, code, data, behavior, verification, agent, or resource domain")
 		}
 	}
 	return nil
@@ -471,6 +471,8 @@ func commitNamespaceDomain(namespace string) string {
 		return "behavior"
 	case matchesCommitNamespace(namespace, "core.verification"):
 		return "verification"
+	case matchesCommitNamespace(namespace, "core.agent"):
+		return "agent"
 	case matchesCommitNamespace(namespace, "core.resource"):
 		return "resource"
 	case matchesCommitNamespace(namespace, "core.route"):

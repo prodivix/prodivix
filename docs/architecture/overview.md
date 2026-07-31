@@ -15,6 +15,7 @@ flowchart TD
         DataSourceDocs["Data Source Documents<br/>schemas / operations / policies"]
         BehaviorDocs["BehaviorScenario Documents<br/>semantic steps / fixtures / controls"]
         VerificationPolicyDocs["VerificationPolicy Documents<br/>rules / matrix / budgets / exemptions"]
+        AgentPolicyDocs["AgentPolicy Document<br/>capabilities / approval / budget / privacy"]
         CodeDocuments["Code Documents<br/>TS / CSS / Shader / Adapter"]
         VFSAssets["Assets / Config"]
     end
@@ -50,7 +51,7 @@ flowchart TD
     CodeEnv <-->|"Code Semantic Provider / query"| SemanticIndex
     CodeEnv -->|"edit / diagnostics"| CodeDocuments
     CodeEnv -->|"CodeReference / diagnostics"| PIR & NodeGraphDocs & AnimationDocs
-    WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocuments & VFSAssets --> SemanticIndex
+    WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocuments & VFSAssets --> SemanticIndex
     Blueprint -->|"ui"| PIR
     NodeGraph -->|"node graph document"| NodeGraphDocs
     AnimEditor -->|"animation document"| AnimationDocs
@@ -72,24 +73,32 @@ flowchart TD
     Resources -->|"assets / dependencies"| VFSAssets
     ESM -.-> AnimEditor
 
-    LLM["LLM 辅助开发"] -->|"code context / patch proposal"| CodeEnv
-    LLM -->|"intent / proposal"| Planner["Intent / Action Proposal Planner"]
+    LLM["Model / Provider Adapter"]
+    ContextPack["Revision-bound Context Pack"]
+    AgentControl["Agent Task / Run Control Plane"]
+    AgentProposal["Typed Proposal / Exact Human Approval"]
+    SemanticIndex --> ContextPack
+    AgentPolicyDocs --> AgentControl
+    ContextPack --> AgentControl
+    LLM <--> AgentControl
+    AgentControl --> AgentProposal
+    AgentProposal --> Planner["Domain Action Planner / Dry Run"]
     Planner --> CommandLayer["Domain Command / Transaction"]
     Blueprint & NodeGraph & AnimEditor & ScenarioEditor & VerificationView --> CommandLayer
-    CommandLayer -->|"validated local apply + History"| WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocuments & VFSAssets
+    CommandLayer -->|"validated local apply + History"| WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocuments & VFSAssets
     CommandLayer --> DurableChange["Durable Operation / Settings Outbox"] --> AtomicCommit["Atomic WorkspaceOperation / Settings Commit"]
 
     subgraph BackendSys ["后端与社区"]
         Backend["后端"] --> Community["社区系统"] --> OtherPlatform["其他平台上的社区"]
     end
     AtomicCommit --> Backend
-    WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocuments & VFSAssets <--> Backend
+    WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocuments & VFSAssets <--> Backend
 
     subgraph VersionControl ["版本控制"]
         Git["Git"] <--> GitPlat["GitHub / Gitee / GitLab"]
         License["依赖项 LICENSE 处理"] --> Git
     end
-    WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocuments & VFSAssets -->|"VFS 投影"| Git
+    WorkspaceCore & PIR & NodeGraphDocs & AnimationDocs & DataSourceDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocuments & VFSAssets -->|"VFS 投影"| Git
 
     subgraph Compilation ["编译器与输出"]
         DomainCompilers["Domain Compilers<br/>Blueprint / NodeGraph / Animation / CodeArtifact"]
@@ -119,7 +128,10 @@ flowchart TD
 ```mermaid
 flowchart TD
     Editors["蓝图 / 节点图 / 动画编辑器"]
-    LLM["LLM 辅助开发"]
+    LLM["Model / Tool Adapter"]
+    AgentControl["Agent Task / Run Control Plane"]
+    ContextPack["Revision-bound Context Pack"]
+    ProposalApproval["Typed Proposal / Exact Human Approval"]
     Extensions["插件 / 导入器"]
     Planner["Intent / Action Proposal Planner"]
     Commands["Domain Command / Transaction"]
@@ -136,6 +148,7 @@ flowchart TD
         DataDocs["Data Source Documents / schemas / operations"]
         BehaviorDocs["BehaviorScenario Documents"]
         VerificationPolicyDocs["VerificationPolicy Documents"]
+        AgentPolicyDocs["AgentPolicy Document"]
         CodeDocs["Code Documents"]
         Assets["Assets / Config"]
     end
@@ -154,15 +167,18 @@ flowchart TD
     Codegen["Code Generator / Scaffold Writer"]
 
     Editors --> Commands
-    LLM --> Planner --> Commands
+    SemanticIndex --> ContextPack --> AgentControl
+    AgentPolicyDocs --> AgentControl
+    LLM <--> AgentControl
+    AgentControl --> ProposalApproval --> Planner --> Commands
     Extensions --> Planner
     Commands --> History --> Validators
-    Validators --> WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocs & Assets
+    Validators --> WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocs & Assets
     Commands --> Outbox --> AtomicCommit --> Persistence
     Persistence --> Replica
-    Persistence --> WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocs & Assets
-    WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocs & Assets --> GitProjection
-    WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & CodeDocs & Assets --> SemanticIndex
+    Persistence --> WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocs & Assets
+    WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocs & Assets --> GitProjection
+    WorkspaceCore & Graph & NodeGraphDocs & AnimationDocs & DataDocs & BehaviorDocs & VerificationPolicyDocs & AgentPolicyDocs & CodeDocs & Assets --> SemanticIndex
     Graph --> Materialize --> Renderer
     Materialize --> ExportProgramBuilder
     CodeDocs --> CodeAuthoring --> ExportProgramBuilder
@@ -170,7 +186,11 @@ flowchart TD
     ExportProgramBuilder --> ExportPlanner --> ExportBundle --> Codegen
 ```
 
-Intent 只作为本地或 AI planner 输入；planner 把它转换为可逆 Command 或原子 Transaction。Patch 是 Command 内部可逆、可校验的操作。生产作者态远端写入形成 exact `WorkspaceOperation`，先进入 Durable Outbox，再进入强幂等 Atomic Commit；Settings 使用独立但同样 durable 的写入链。
+Intent 只作为本地或 AI planner 输入；planner 把它转换为可逆 Command 或原子 Transaction。Patch 是 Command
+内部可逆、可校验的操作。Agent 路径额外要求 revision-bound Context Pack、typed Proposal、领域 dry-run 与
+exact human approval；模型或 tool 不能直接进入 Commands。生产作者态远端写入形成 exact
+`WorkspaceOperation`，先进入 Durable Outbox，再进入强幂等 Atomic Commit；Settings 使用独立但同样 durable
+的写入链。
 
 ## G3 Behavior 与 Verification 链路
 
@@ -209,6 +229,47 @@ Scenario 与 Policy 是 Workspace 作者态；Impact、Plan、Program 和 Closur
 可丢弃运行态；只有经过 identity、artifact、redaction、provenance 与 attestation 验证的 candidate 才能进入独立的
 append-only Evidence plane。Evidence 不随 Workspace undo 删除，baseline 更新仍通过 Workspace Transaction。
 
+## G4 Verified Agentic Development 链路
+
+```mermaid
+flowchart LR
+    Intent["Human intent"] --> Task["Immutable AgentTaskSpec"]
+    Policy["AgentPolicy<br/>Canonical Workspace"] --> Control["Agent Run Control Plane"]
+    Task --> Control
+    Workspace["Exact Workspace revision"] --> Context["Context Pack<br/>Semantic / SourceTrace grounding"]
+    Media["Media source / transform<br/>screenshot / PDF / document"] --> Context
+    Context --> Control
+    Control <--> Model["Provider capability plane<br/>model / state / cache / job / usage"]
+    Control <--> Hosted["Hosted capability plane<br/>tool / retrieval / MCP / computer"]
+    Model --> Receipt["Invocation / context-transform / usage receipts"]
+    Hosted --> Receipt
+    Receipt --> Control
+    Control --> Proposal["Untrusted typed proposal"]
+    Proposal --> DryRun["Domain owner dry-run"]
+    DryRun --> Preview["Semantic diff / Impact / Plan<br/>Transaction + reverse digests"]
+    Preview --> Approval["Exact human approval"]
+    Approval --> Transaction["Domain Command / Transaction"]
+    Transaction --> Commit["Durable Outbox / Atomic Commit ACK"]
+    Commit --> Verification["Committed G3 Plan / Evidence / Closure"]
+    Verification --> Outcome["AgentRun terminal outcome"]
+
+    subgraph AgentService ["Durable Agent service facts outside Workspace"]
+        Task
+        Control
+        Approval
+    end
+```
+
+`agent-policy` 与最终获批 change 是 Workspace 作者态；Task/Run/approval/audit 是 Agent service durable facts；
+Context Pack 与 proposal preview 是 revision-bound projection；model/tool output 无 write authority。只有 exact human
+approval 绑定的领域 Transaction 可以进入现有 Workspace 写入链，`apply` Run 只有在 Atomic Commit ACK 和 G3
+`satisfied` Closure 后成功。Provider matrix 包含 OpenAI Responses、Anthropic Messages、Gemini Interactions
+原生 adapter 与 generic OpenAI-compatible compatibility adapter。支持级别按 exact model/configuration/capability
+slice；visual/document media、Provider state/cache/background job、hosted tool/retrieval/MCP/computer use均生成
+bounded receipt并消费同一 grant/budget。三 Provider statistical quality evidence、deterministic control-plane/media/
+hosted-capability evidence与 G3 Closure分别成立。完整 contract 见
+[`ADR 65–69`](../../specs/decisions/README.md)。
+
 ## 不变量与子系统文档
 
 - Canonical Workspace VFS 是唯一作者态真相；PIR、Route、NodeGraph、Animation、Data、BehaviorScenario、VerificationPolicy、Code、Token、Asset 与 Config 由各自 owner 管理。PIR 不是整个项目的单一巨型 JSON。
@@ -216,4 +277,7 @@ append-only Evidence plane。Evidence 不随 Workspace undo 删除，baseline �
 - Code-owned 能力通过 [Code Authoring Environment ADR](../../specs/decisions/28.code-authoring-environment.md)；跨领域符号与引用通过 [Workspace Semantic Index ADR](../../specs/decisions/25.authoring-symbol-environment.md)。
 - Execution/Data/Auth 的长篇 contract 分别见 [Execution](../../specs/implementation/g2-execution-provider-remote-runner.md)、[Data](../../specs/implementation/g2-data-operation-environment-runtime.md) 与 [Auth/Server](../../specs/implementation/g2-auth-server-runtime.md)。
 - G3 Behavior/Verification contract 见 [总实施计划](../../specs/implementation/g3-behavior-verification-closure.md)、[ADR 56-63](../../specs/decisions/README.md) 与 [milestones](../../specs/roadmap/g3-behavior-verification-milestones.md)。
+- G4 Agent contract 见 [ADR 65–69](../../specs/decisions/README.md)、
+  [总实施计划](../../specs/implementation/g4-verified-agentic-development.md) 与
+  [milestones](../../specs/roadmap/g4-verified-agentic-development-milestones.md)。
 - package 与应用 owner 见 [`package-ownership.md`](./package-ownership.md)。

@@ -169,6 +169,8 @@ func workspaceDocumentCommandDomain(documentType WorkspaceDocumentType) string {
 		return "behavior"
 	case WorkspaceDocumentTypeVerificationPolicy, WorkspaceDocumentTypeVerificationBaselineSet:
 		return "verification"
+	case WorkspaceDocumentTypeAgentPolicy:
+		return "agent"
 	case WorkspaceDocumentTypeAsset, WorkspaceDocumentTypeProjectConfig:
 		return "resource"
 	default:

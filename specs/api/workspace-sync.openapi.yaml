@@ -521,6 +521,7 @@ components:
         - behavior-fixture-set
         - verification-policy
         - verification-baseline-set
+        - agent-policy
         - asset
         - project-config
     PatchOp:
@@ -601,6 +602,7 @@ components:
               data,
               behavior,
               verification,
+              agent,
               resource,
             ]
       additionalProperties: false
@@ -672,7 +674,8 @@ components:
         Commit. Design Token and Resolver documents require the token domain;
         Data documents require the data domain; Behavior documents require the
         behavior domain; Verification documents require the verification
-        domain; asset and project-config documents require the resource domain.
+        domain; AgentPolicy requires the agent domain; asset and project-config
+        documents require the resource domain.
     WorkspaceOperationCommitRequest:
       type: object
       required: [expected, operation]

@@ -22,6 +22,7 @@ import { isCanonicalWorkspaceDesignTokenDocumentContent } from './workspaceDesig
 import { isCanonicalWorkspaceDesignTokenResolverDocumentContent } from './workspaceDesignTokenResolverDocument';
 import { isCanonicalWorkspaceDataSourceDocumentContent } from './workspaceDataSourceDocument';
 import { isCanonicalWorkspaceBehaviorVerificationDocumentContent } from './workspaceBehaviorVerificationDocument';
+import { isCanonicalWorkspaceAgentPolicyContent } from './workspaceAgentPolicyDocument';
 import {
   getWorkspaceDocumentDomain,
   isPirWorkspaceDocumentType,
@@ -1458,6 +1459,26 @@ const applyWorkspaceDocumentCommandInternal = <TContent>(
           path: '/target/documentId',
           message:
             'Behavior and Verification Workspace documents must remain canonical current-model documents.',
+          documentId: target.documentId,
+        },
+      ],
+    };
+  }
+  if (
+    target.documentType === 'agent-policy' &&
+    !isCanonicalWorkspaceAgentPolicyContent(
+      patchedContent.value,
+      target.documentId
+    )
+  ) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'WKS_COMMAND_VALIDATION_FAILED',
+          path: '/target/documentId',
+          message:
+            'AgentPolicy Workspace documents must remain canonical current-model documents.',
           documentId: target.documentId,
         },
       ],

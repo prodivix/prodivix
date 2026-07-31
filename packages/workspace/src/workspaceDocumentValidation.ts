@@ -14,6 +14,7 @@ import {
 import { isCanonicalWorkspaceAnimationDocumentContent } from './workspaceAnimationDocument';
 import { isCanonicalWorkspaceNodeGraphDocumentContent } from './workspaceNodeGraphDocument';
 import { isCanonicalWorkspaceBehaviorVerificationDocumentContent } from './workspaceBehaviorVerificationDocument';
+import { isCanonicalWorkspaceAgentPolicyContent } from './workspaceAgentPolicyDocument';
 import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 import {
   isDtcgDesignTokenDocument,
@@ -157,6 +158,9 @@ const isValidDocumentContent = (
       document.content,
       documentId
     );
+  }
+  if (documentType === 'agent-policy') {
+    return isCanonicalWorkspaceAgentPolicyContent(document.content, documentId);
   }
   if (documentType !== 'code') return true;
   if (!isWorkspaceCodeDocumentContent(document.content)) return false;

@@ -4,7 +4,8 @@
 
 - `specs/roadmap/global-phases.md`
 
-该文档是 G0-G6 全局阶段、产品 Gate 与当前项目位置的唯一来源。各领域文档中的 Phase 编号只表示局部实施顺序。
+该文档是 G0-G6 全局阶段与产品 Gate 定义的唯一来源；当前项目位置见
+`specs/roadmap/current-status.md`。各领域文档中的 Phase 编号只表示局部实施顺序。
 
 ## 核心决策（按主题）
 
@@ -43,6 +44,11 @@
     - `specs/decisions/20.node-graph-port-semantics.md`
 11. **LLM 集成架构**
     - `specs/decisions/22.llm-integration-architecture.md`
+    - `specs/decisions/65.verified-agent-task-and-control-plane.md`
+    - `specs/decisions/66.model-provider-capability-and-invocation.md`
+    - `specs/decisions/67.multimodal-context-and-generated-artifact.md`
+    - `specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md`
+    - `specs/decisions/69.real-model-evaluation-and-release-qualification.md`
 12. **Workspace Semantic Index 与代码作者环境**
     - `specs/decisions/28.code-authoring-environment.md`
     - `specs/decisions/25.authoring-symbol-environment.md`
@@ -128,6 +134,15 @@
     - `specs/decisions/63.verification-product-surface-diagnostics-and-ci.md`
     - `specs/roadmap/g3-behavior-verification-milestones.md`
     - `specs/roadmap/g3-closure-evidence.md`
+39. **G4 Verified Agentic Development**
+    - `specs/decisions/65.verified-agent-task-and-control-plane.md`
+    - `specs/decisions/66.model-provider-capability-and-invocation.md`
+    - `specs/decisions/67.multimodal-context-and-generated-artifact.md`
+    - `specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md`
+    - `specs/decisions/69.real-model-evaluation-and-release-qualification.md`
+    - `specs/implementation/g4-verified-agentic-development.md`
+    - `specs/roadmap/g4-verified-agentic-development-milestones.md`
+    - `specs/roadmap/g4-closure-evidence.md`
 
 ## 实施主计划
 
@@ -152,6 +167,7 @@
 - `specs/implementation/g3-nodegraph-typed-flow-debugger.md`
 - `specs/implementation/g3-animation-route-composition-reduced-motion.md`
 - `specs/implementation/g3-verification-adapters-product-ci.md`
+- `specs/implementation/g4-verified-agentic-development.md`
 - `specs/implementation/ai-fine-grained-ui-actions.md`
 - `specs/implementation/blueprint-editor-feature-layout-migration.md`
 - `specs/implementation/blueprint-data-layer-cleanup-migration.md`
@@ -176,7 +192,7 @@ ADR 的 `状态` 描述决策成熟度，不等同于代码完成度。实现完
 | `17.external-library-runtime-and-adapter.md`                               | Draft       | Official Plugins Implemented / Generic Integration Planned                                            | Ant Design、MUI、Radix 由 bundled official plugins 提供 runtime、authoring 与 compiler contribution。                                                                                                                                                                                                                                                                               | 建设 generic arbitrary-library plugin、L0/L1 自动发现、可观测性与社区生态。                         |
 | `19.layout-pattern-and-builtin-inspector-schema.md`                        | Draft       | Implemented / Stabilizing                                                                             | Registry、preset 与 Inspector Panel 已落地。                                                                                                                                                                                                                                                                                                                                        | 稳定决策后升级为 Accepted。                                                                         |
 | `21.inspector-panel-architecture.md`                                       | Draft       | Implemented / Stabilizing                                                                             | Tab、Panel、Group、Field 体系是当前 Inspector 主结构。                                                                                                                                                                                                                                                                                                                              | 稳定 Section/Group 命名并升级决策状态。                                                             |
-| `22.llm-integration-architecture.md`                                       | Draft       | G1 Foundation                                                                                         | `@prodivix/shared` 与 `@prodivix/ai` 已提供 gateway、context、tool、trace、streaming 和 provider 基础；Blueprint assistant 提供 plan workflow。                                                                                                                                                                                                                                     | 按 `ai-fine-grained-ui-actions.md` 建设 Workspace Action Proposal、dry-run/apply 与 repair loop。   |
+| `22.llm-integration-architecture.md`                                       | Draft       | Historical Foundation / G4 V0 Owner Hard Cut Implemented Locally                                      | `packages/shared/src/llm` 已删除；`@prodivix/ai` 唯一拥有 current/wire 与 admission-only `AiDraft*` runtime，Blueprint assistant 只提供 bounded plan。G4 apply-capable production contract 由 ADR 65–69 拥有。                                                                                                                                                                      | 取得 V0 durable CI evidence；随后按 V1 实现 Policy/Context/Provider，不沿用 model-callable apply。  |
 | `24-27 diagnostics`                                                        | Draft       | G0/G1 Diagnostics + G2 Browser Test/Data Target Foundation Implemented                                | `@prodivix/diagnostics` 已承接 provider snapshot、revision、去重、presentation 与 typed Quick Fix；Web Issues 已接入主要作者态、语言/Shader、Browser Test 诊断，并提供 Data domain 与 data-source/data-operation target presentation。                                                                                                                                              | 接入 Data runtime、Plugin、UX、Export 与 Remote Execution provider。                                |
 | `25.authoring-symbol-environment.md`                                       | Accepted    | Workspace Semantic Index + Core Domain Provider Composition Implemented                               | Immutable snapshot、revision identity、visibility、resolution、references、impact query，以及 Workspace/Route/PIR/NodeGraph/Animation/Data/Code/Token/Resolver/Asset provider composition 已落地并通过属性测试。                                                                                                                                                                    | 推进 Data consumer binding 与 Language Service worker lifecycle。                                   |
 | `28.code-authoring-environment.md`                                         | Accepted    | Code Workspace, Language, CodeSlot and Controlled Round-trip Implemented / G1 Passed                  | Workspace code document、CodeArtifact/Reference、跨领域及 external adapter CodeSlot、orphan lifecycle、TS/JS/CSS/SCSS/GLSL/WGSL revision-bound session、独立 Shader Compile、PIR-current ↔ React/JSX + standalone CSS 原子 round-trip，以及 Golden/独立导出/browser Gate 已形成稳定边界。                                                                                           | 在 G2 扩展跨领域 owner-specific refactor 与 ExecutionProvider。                                     |
@@ -216,3 +232,8 @@ ADR 的 `状态` 描述决策成熟度，不等同于代码完成度。实现完
 | `62.verification-adapter-matrix-and-cross-target-closure.md`               | Accepted    | Configured                                                                                            | Verification Core SPI、`@prodivix/verification-adapters` 与 `@prodivix/verification-browser` owner、controlled 66-cell/8-row/80-attempt matrix、Scenario-internal Data/Auth/Recovery companion Gate、root aggregate 和独立三浏览器 workflow 已接入。                                                                                                                                | 完成 66/80 local aggregate Gate 并取得 CI evidence；V7/V8 继续关闭产品与 trusted Closure。          |
 | `63.verification-product-surface-diagnostics-and-ci.md`                    | Accepted    | Not Started                                                                                           | Scenarios/Verification/Issues/Execution/SourceTrace、BHV/VER diagnostics、provider-neutral CLI/CI、Backend recovery 与 G4-G6 hard cut 已冻结。                                                                                                                                                                                                                                      | 建立产品 surface、CLI/CI attestation/recovery，并完成 G3 Golden closure。                           |
 | `64.third-party-render-surface-compatibility.md`                           | Accepted    | Entry Surface and Render Policy V2 Foundation Implemented / Advanced Adaptation and Isolation Planned | 页面/布局入口已是 size query container；Render Policy v2 strict codec/current model、Host fail-closed resolution 与 bundled official declarations 已落地。                                                                                                                                                                                                                          | 完成 CSS AST container-unit、Surface Environment、隔离与跨 target Golden。                          |
+| `65.verified-agent-task-and-control-plane.md`                              | Accepted    | V0 Implemented Locally / Durable CI Pending；V1–V9 Not Started                                        | G4 truth/owner、AgentPolicy、Task/Run、Context grounding、Grant、Proposal/Approval/Transaction、Verification/repair、audit/recovery与唯一 Workspace write path已冻结；V0 已完成 owner/current/wire/diagnostics hard cut 与真实 PostgreSQL AgentPolicy round-trip。                                                                                                                  | 取得 V0 durable CI evidence 后进入 V1；禁止任何 alternate AI write path。                           |
+| `66.model-provider-capability-and-invocation.md`                           | Accepted    | Contract Frozen / Implementation Not Started                                                          | exact Provider/model lineage、typed capability qualification、inference/reasoning/state/cache/context transform、background job、usage vector与四类 adapter matrix已冻结。                                                                                                                                                                                                          | 实现 V1 capability probe、native/generic adapter、job/state/cache与 usage conformance。             |
+| `67.multimodal-context-and-generated-artifact.md`                          | Accepted    | Contract Frozen / Implementation Not Started                                                          | required visual/document profiles、媒体 source/transform/omission/injection、visual target、generated candidate到 G2 Asset pipeline及 optional realtime边界已冻结。                                                                                                                                                                                                                 | 实现 V2 media codec/transform/scanner bridge与三个 native Provider required profile conformance。   |
+| `68.hosted-tool-retrieval-and-computer-use-boundary.md`                    | Accepted    | Contract Frozen / Implementation Not Started                                                          | Provider-hosted tool、dynamic discovery、programmatic calls、retrieval/index、pinned MCP、hosted code、computer use、parallel与 managed-agent hard cut已冻结。                                                                                                                                                                                                                      | 实现 V3 exact registry、hosted adapter、retrieval lifecycle与 computer-use isolation。              |
+| `69.real-model-evaluation-and-release-qualification.md`                    | Accepted    | Contract Frozen / Implementation Not Started                                                          | 128-case corpus、protected/rotating holdout、risk-stratified 10/30/100 repetition、24 context/16 media sentinels、11,640+ journeys、grader/human review与 qualification expiry已冻结。                                                                                                                                                                                              | 实现 V8 planner/runner/sharding/holdout/statistical report；smoke不得声明 release quality。         |

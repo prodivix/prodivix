@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { createDefaultAgentPolicy } from '@prodivix/ai';
 import type {
   WorkspaceCommandEnvelope,
   WorkspaceDocument,
   WorkspaceOperation,
+} from '@prodivix/workspace';
+import {
+  createWorkspaceAgentPolicyDocumentCommand,
+  createWorkspaceCommandOperation,
 } from '@prodivix/workspace';
 import { projectWorkspaceOperationToCommitWire } from '../workspaceOperationCommitProjection';
 import { createWorkspaceOutboxEntry } from '../workspaceOutbox';
@@ -227,6 +232,44 @@ describe('Workspace Atomic Commit wire projection', () => {
 
     expect(document.content).not.toHaveProperty('wireVersion');
     expect(projectedDocument.content).toMatchObject({ wireVersion: 1 });
+  });
+
+  it('keeps AgentPolicy current in the outbox and wire-versioned in the exact commit request', () => {
+    const before = createWorkspace();
+    const policy = createDefaultAgentPolicy('agent.policy.default');
+    const command = createWorkspaceAgentPolicyDocumentCommand({
+      workspace: before,
+      documentId: policy.id,
+      path: '/agent/policy.default.json',
+      content: policy,
+      commandId: 'agent-policy-create',
+      issuedAt,
+    });
+    expect(command).not.toBeNull();
+    if (!command) return;
+    const created = createWorkspaceOutboxEntry({
+      baseSnapshot: before,
+      operation: createWorkspaceCommandOperation(command),
+      now: 1,
+    });
+    expect(created.ok).toBe(true);
+    if (
+      !created.ok ||
+      created.entry.operation.kind !== 'command' ||
+      created.entry.request.operation.kind !== 'command'
+    ) {
+      return;
+    }
+    const currentDocument = created.entry.operation.command.forwardOps[0]
+      ?.value as WorkspaceDocument;
+    const wireDocument = created.entry.request.operation.command.forwardOps[0]
+      ?.value as WorkspaceDocument;
+    expect(currentDocument.content).not.toHaveProperty('wireVersion');
+    expect(wireDocument.content).toMatchObject({ wireVersion: 1 });
+    expect(created.entry.request.operation.command).toMatchObject({
+      namespace: 'core.workspace',
+      domainHint: 'workspace',
+    });
   });
 
   it('projects workspace-level PIR content replacements through the same codec', () => {

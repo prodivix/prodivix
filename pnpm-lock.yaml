@@ -544,10 +544,22 @@ importers:
 
   packages/ai:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.2.0
+        version: 2.2.0
+      '@prodivix/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
       '@prodivix/shared':
         specifier: workspace:*
         version: link:../shared
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
     devDependencies:
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -2075,6 +2087,9 @@ importers:
 
   packages/workspace:
     dependencies:
+      '@prodivix/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@prodivix/animation':
         specifier: workspace:*
         version: link:../animation
@@ -2143,6 +2158,9 @@ importers:
         specifier: workspace:*
         version: link:../workspace
     devDependencies:
+      '@prodivix/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0

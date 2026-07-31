@@ -1,0 +1,1749 @@
+{
+  "agent-policy": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent/policy/v1.json",
+    "title": "Prodivix AgentPolicy wire document",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "id",
+      "name",
+      "providerRules",
+      "modelRules",
+      "contextRules",
+      "capabilityRules",
+      "approvalRules",
+      "networkRules",
+      "secretRules",
+      "budgetCeiling",
+      "verificationRules",
+      "retentionRules",
+      "privacy"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "id": { "$ref": "#/$defs/canonicalId" },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "providerRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/providerRule" }
+      },
+      "modelRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/modelRule" }
+      },
+      "contextRules": {
+        "type": "object",
+        "required": [
+          "allowedAuthorities",
+          "allowedItemKinds",
+          "maximumSensitivity",
+          "maxItems",
+          "maxBytes",
+          "requireSourceTrace",
+          "externalInstructionBoundary"
+        ],
+        "properties": {
+          "allowedAuthorities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "canonical",
+                "derived",
+                "user-provided",
+                "external-untrusted"
+              ]
+            }
+          },
+          "allowedItemKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          },
+          "maxItems": { "type": "integer", "minimum": 1, "maximum": 10000 },
+          "maxBytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+          "requireSourceTrace": { "type": "boolean" },
+          "externalInstructionBoundary": { "const": "data-only" }
+        },
+        "additionalProperties": false
+      },
+      "capabilityRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/capabilityRule" }
+      },
+      "approvalRules": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/approvalRule" }
+      },
+      "networkRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/networkRule" }
+      },
+      "secretRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/secretRule" }
+      },
+      "budgetCeiling": {
+        "type": "object",
+        "required": [
+          "usageLimits",
+          "costLimits",
+          "maxModelInvocations",
+          "maxToolCalls",
+          "maxRepairRounds",
+          "maxTransactions",
+          "maxArtifactBytes",
+          "maxElapsedMs"
+        ],
+        "properties": {
+          "usageLimits": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "required": ["unit", "maximum"],
+              "properties": {
+                "unit": {
+                  "enum": [
+                    "text-token-input",
+                    "text-token-output",
+                    "reasoning-token",
+                    "cache-read-token",
+                    "cache-write-token",
+                    "image",
+                    "image-pixel",
+                    "document-page",
+                    "audio-second",
+                    "video-second",
+                    "video-frame",
+                    "hosted-search-query",
+                    "hosted-tool-call",
+                    "sandbox-compute-second",
+                    "provider-storage-byte-second"
+                  ]
+                },
+                "maximum": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "costLimits": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "required": ["currency", "maximum"],
+              "properties": {
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+                "maximum": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "maxModelInvocations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "maxToolCalls": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "maxRepairRounds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "maxTransactions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "maxArtifactBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10737418240
+          },
+          "maxElapsedMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2592000000
+          }
+        },
+        "additionalProperties": false
+      },
+      "verificationRules": {
+        "type": "object",
+        "required": [
+          "requiredModes",
+          "requiredClosure",
+          "requiredCheckKinds",
+          "repair",
+          "rollback"
+        ],
+        "properties": {
+          "requiredModes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "items": { "const": "apply" }
+          },
+          "requiredClosure": { "const": "satisfied" },
+          "requiredCheckKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "repair": { "enum": ["forbidden", "approval-bound"] },
+          "rollback": { "enum": ["forbidden", "approval-bound"] }
+        },
+        "additionalProperties": false
+      },
+      "retentionRules": {
+        "type": "object",
+        "required": [
+          "auditDays",
+          "sanitizedTraceDays",
+          "rawPrivateArtifactDays",
+          "providerStateDays",
+          "requireDeletionReceipt"
+        ],
+        "properties": {
+          "auditDays": { "type": "integer", "minimum": 0, "maximum": 3650 },
+          "sanitizedTraceDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650
+          },
+          "rawPrivateArtifactDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "providerStateDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "requireDeletionReceipt": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "privacy": {
+        "type": "object",
+        "required": [
+          "maximumSensitivity",
+          "allowedRegions",
+          "providerTraining",
+          "providerTelemetry",
+          "rawArtifactCapture"
+        ],
+        "properties": {
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          },
+          "allowedRegions": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "providerTraining": { "enum": ["deny", "policy-qualified"] },
+          "providerTelemetry": { "enum": ["deny", "policy-qualified"] },
+          "rawArtifactCapture": { "enum": ["deny", "role-restricted"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalString": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "targetRef": {
+        "type": "object",
+        "required": ["kind", "id"],
+        "properties": {
+          "kind": { "enum": ["workspace", "document", "semantic-target"] },
+          "id": { "$ref": "#/$defs/canonicalId" }
+        },
+        "additionalProperties": false
+      },
+      "providerRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "providerConfigurationIds",
+          "protocolFamilies",
+          "endpointClasses",
+          "regions",
+          "minimumSupportTier",
+          "maximumSensitivity"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "providerConfigurationIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "protocolFamilies": {
+            "type": "array",
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "openai-responses",
+                "anthropic-messages",
+                "gemini-interactions",
+                "openai-compatible"
+              ]
+            }
+          },
+          "endpointClasses": {
+            "type": "array",
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "first-party-hosted",
+                "aggregator",
+                "self-hosted",
+                "local"
+              ]
+            }
+          },
+          "regions": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "minimumSupportTier": {
+            "enum": ["release-evaluated", "admission-only", "disabled"]
+          },
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "modelRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "modelIds",
+          "modelFamilyIds",
+          "capabilityProfileIds",
+          "minimumSupportTier"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "modelIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "modelFamilyIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "capabilityProfileIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "minimumSupportTier": {
+            "enum": ["release-evaluated", "admission-only", "disabled"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "capabilityRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "capabilities",
+          "targetScope",
+          "toolIds",
+          "runtimeZones",
+          "maximumRisk"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "read",
+                "execute",
+                "propose",
+                "approve",
+                "commit",
+                "rollback"
+              ]
+            }
+          },
+          "targetScope": {
+            "type": "object",
+            "required": ["targets"],
+            "properties": {
+              "targets": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 512,
+                "items": { "$ref": "#/$defs/targetRef" }
+              }
+            },
+            "additionalProperties": false
+          },
+          "toolIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "runtimeZones": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "enum": ["browser", "server", "native", "sandbox"] }
+          },
+          "maximumRisk": { "enum": ["low", "medium", "high", "critical"] }
+        },
+        "additionalProperties": false
+      },
+      "approvalRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "riskLevels",
+          "capabilities",
+          "decisionAuthority",
+          "rollbackAuthorization"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "riskLevels": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "enum": ["low", "medium", "high", "critical"] }
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "read",
+                "execute",
+                "propose",
+                "approve",
+                "commit",
+                "rollback"
+              ]
+            }
+          },
+          "decisionAuthority": { "const": "explicit-human" },
+          "rollbackAuthorization": {
+            "enum": ["none", "on-unsatisfied-closure"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "networkRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "hosts",
+          "methods",
+          "maxRequestBytes",
+          "maxResponseBytes",
+          "redirectPolicy",
+          "tls"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "hosts": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[A-Za-z0-9.-]+$"
+            }
+          },
+          "methods": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "enum": ["GET", "HEAD", "POST"] }
+          },
+          "maxRequestBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "maxResponseBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "redirectPolicy": { "enum": ["deny", "same-origin"] },
+          "tls": { "const": "required" }
+        },
+        "additionalProperties": false
+      },
+      "secretRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "referenceKinds",
+          "purposes",
+          "runtimeZones"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "referenceKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "purposes": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "runtimeZones": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "enum": ["server", "native", "sandbox"] }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "agent-policy@0": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent/policy/v0.json",
+    "title": "Prodivix AgentPolicy legacy wire document",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "id",
+      "name",
+      "providerRules",
+      "modelRules",
+      "contextRules",
+      "capabilityRules",
+      "approvalRules",
+      "networkRules",
+      "secretRules",
+      "budgetCeiling",
+      "verificationRules",
+      "retentionRules"
+    ],
+    "properties": {
+      "wireVersion": { "const": 0 },
+      "id": { "$ref": "#/$defs/canonicalId" },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "providerRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/providerRule" }
+      },
+      "modelRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/modelRule" }
+      },
+      "contextRules": {
+        "type": "object",
+        "required": [
+          "allowedAuthorities",
+          "allowedItemKinds",
+          "maximumSensitivity",
+          "maxItems",
+          "maxBytes",
+          "requireSourceTrace",
+          "externalInstructionBoundary"
+        ],
+        "properties": {
+          "allowedAuthorities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "canonical",
+                "derived",
+                "user-provided",
+                "external-untrusted"
+              ]
+            }
+          },
+          "allowedItemKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          },
+          "maxItems": { "type": "integer", "minimum": 1, "maximum": 10000 },
+          "maxBytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+          "requireSourceTrace": { "type": "boolean" },
+          "externalInstructionBoundary": { "const": "data-only" }
+        },
+        "additionalProperties": false
+      },
+      "capabilityRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/capabilityRule" }
+      },
+      "approvalRules": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/approvalRule" }
+      },
+      "networkRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/networkRule" }
+      },
+      "secretRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/secretRule" }
+      },
+      "budgetCeiling": {
+        "type": "object",
+        "required": [
+          "usageLimits",
+          "costLimits",
+          "maxModelInvocations",
+          "maxToolCalls",
+          "maxRepairRounds",
+          "maxTransactions",
+          "maxArtifactBytes",
+          "maxElapsedMs"
+        ],
+        "properties": {
+          "usageLimits": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "required": ["unit", "maximum"],
+              "properties": {
+                "unit": {
+                  "enum": [
+                    "text-token-input",
+                    "text-token-output",
+                    "reasoning-token",
+                    "cache-read-token",
+                    "cache-write-token",
+                    "image",
+                    "image-pixel",
+                    "document-page",
+                    "audio-second",
+                    "video-second",
+                    "video-frame",
+                    "hosted-search-query",
+                    "hosted-tool-call",
+                    "sandbox-compute-second",
+                    "provider-storage-byte-second"
+                  ]
+                },
+                "maximum": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "costLimits": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "required": ["currency", "maximum"],
+              "properties": {
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+                "maximum": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "maxModelInvocations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "maxToolCalls": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "maxRepairRounds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "maxTransactions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "maxArtifactBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10737418240
+          },
+          "maxElapsedMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2592000000
+          }
+        },
+        "additionalProperties": false
+      },
+      "verificationRules": {
+        "type": "object",
+        "required": [
+          "requiredModes",
+          "requiredClosure",
+          "requiredCheckKinds",
+          "repair",
+          "rollback"
+        ],
+        "properties": {
+          "requiredModes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "items": { "const": "apply" }
+          },
+          "requiredClosure": { "const": "satisfied" },
+          "requiredCheckKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "repair": { "enum": ["forbidden", "approval-bound"] },
+          "rollback": { "enum": ["forbidden", "approval-bound"] }
+        },
+        "additionalProperties": false
+      },
+      "retentionRules": {
+        "type": "object",
+        "required": [
+          "auditDays",
+          "sanitizedTraceDays",
+          "rawPrivateArtifactDays",
+          "providerStateDays",
+          "requireDeletionReceipt"
+        ],
+        "properties": {
+          "auditDays": { "type": "integer", "minimum": 0, "maximum": 3650 },
+          "sanitizedTraceDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650
+          },
+          "rawPrivateArtifactDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "providerStateDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "requireDeletionReceipt": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalString": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "targetRef": {
+        "type": "object",
+        "required": ["kind", "id"],
+        "properties": {
+          "kind": { "enum": ["workspace", "document", "semantic-target"] },
+          "id": { "$ref": "#/$defs/canonicalId" }
+        },
+        "additionalProperties": false
+      },
+      "providerRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "providerConfigurationIds",
+          "protocolFamilies",
+          "endpointClasses",
+          "regions",
+          "minimumSupportTier",
+          "maximumSensitivity"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "providerConfigurationIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "protocolFamilies": {
+            "type": "array",
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "openai-responses",
+                "anthropic-messages",
+                "gemini-interactions",
+                "openai-compatible"
+              ]
+            }
+          },
+          "endpointClasses": {
+            "type": "array",
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "first-party-hosted",
+                "aggregator",
+                "self-hosted",
+                "local"
+              ]
+            }
+          },
+          "regions": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "minimumSupportTier": {
+            "enum": ["release-evaluated", "admission-only", "disabled"]
+          },
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "modelRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "modelIds",
+          "modelFamilyIds",
+          "capabilityProfileIds",
+          "minimumSupportTier"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "modelIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "modelFamilyIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "capabilityProfileIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "minimumSupportTier": {
+            "enum": ["release-evaluated", "admission-only", "disabled"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "capabilityRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "capabilities",
+          "targetScope",
+          "toolIds",
+          "runtimeZones",
+          "maximumRisk"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "read",
+                "execute",
+                "propose",
+                "approve",
+                "commit",
+                "rollback"
+              ]
+            }
+          },
+          "targetScope": {
+            "type": "object",
+            "required": ["targets"],
+            "properties": {
+              "targets": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 512,
+                "items": { "$ref": "#/$defs/targetRef" }
+              }
+            },
+            "additionalProperties": false
+          },
+          "toolIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "runtimeZones": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "enum": ["browser", "server", "native", "sandbox"] }
+          },
+          "maximumRisk": { "enum": ["low", "medium", "high", "critical"] }
+        },
+        "additionalProperties": false
+      },
+      "approvalRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "riskLevels",
+          "capabilities",
+          "decisionAuthority",
+          "rollbackAuthorization"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "riskLevels": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "enum": ["low", "medium", "high", "critical"] }
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "read",
+                "execute",
+                "propose",
+                "approve",
+                "commit",
+                "rollback"
+              ]
+            }
+          },
+          "decisionAuthority": { "const": "explicit-human" },
+          "rollbackAuthorization": {
+            "enum": ["none", "on-unsatisfied-closure"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "networkRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "hosts",
+          "methods",
+          "maxRequestBytes",
+          "maxResponseBytes",
+          "redirectPolicy",
+          "tls"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "hosts": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[A-Za-z0-9.-]+$"
+            }
+          },
+          "methods": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "enum": ["GET", "HEAD", "POST"] }
+          },
+          "maxRequestBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "maxResponseBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "redirectPolicy": { "enum": ["deny", "same-origin"] },
+          "tls": { "const": "required" }
+        },
+        "additionalProperties": false
+      },
+      "secretRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "referenceKinds",
+          "purposes",
+          "runtimeZones"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "referenceKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "purposes": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "runtimeZones": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "enum": ["server", "native", "sandbox"] }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "agent-policy@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent/policy/v1.json",
+    "title": "Prodivix AgentPolicy wire document",
+    "type": "object",
+    "required": [
+      "wireVersion",
+      "id",
+      "name",
+      "providerRules",
+      "modelRules",
+      "contextRules",
+      "capabilityRules",
+      "approvalRules",
+      "networkRules",
+      "secretRules",
+      "budgetCeiling",
+      "verificationRules",
+      "retentionRules",
+      "privacy"
+    ],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "id": { "$ref": "#/$defs/canonicalId" },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "providerRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/providerRule" }
+      },
+      "modelRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/modelRule" }
+      },
+      "contextRules": {
+        "type": "object",
+        "required": [
+          "allowedAuthorities",
+          "allowedItemKinds",
+          "maximumSensitivity",
+          "maxItems",
+          "maxBytes",
+          "requireSourceTrace",
+          "externalInstructionBoundary"
+        ],
+        "properties": {
+          "allowedAuthorities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "canonical",
+                "derived",
+                "user-provided",
+                "external-untrusted"
+              ]
+            }
+          },
+          "allowedItemKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          },
+          "maxItems": { "type": "integer", "minimum": 1, "maximum": 10000 },
+          "maxBytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+          "requireSourceTrace": { "type": "boolean" },
+          "externalInstructionBoundary": { "const": "data-only" }
+        },
+        "additionalProperties": false
+      },
+      "capabilityRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/capabilityRule" }
+      },
+      "approvalRules": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/approvalRule" }
+      },
+      "networkRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/networkRule" }
+      },
+      "secretRules": {
+        "type": "array",
+        "maxItems": 256,
+        "items": { "$ref": "#/$defs/secretRule" }
+      },
+      "budgetCeiling": {
+        "type": "object",
+        "required": [
+          "usageLimits",
+          "costLimits",
+          "maxModelInvocations",
+          "maxToolCalls",
+          "maxRepairRounds",
+          "maxTransactions",
+          "maxArtifactBytes",
+          "maxElapsedMs"
+        ],
+        "properties": {
+          "usageLimits": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "required": ["unit", "maximum"],
+              "properties": {
+                "unit": {
+                  "enum": [
+                    "text-token-input",
+                    "text-token-output",
+                    "reasoning-token",
+                    "cache-read-token",
+                    "cache-write-token",
+                    "image",
+                    "image-pixel",
+                    "document-page",
+                    "audio-second",
+                    "video-second",
+                    "video-frame",
+                    "hosted-search-query",
+                    "hosted-tool-call",
+                    "sandbox-compute-second",
+                    "provider-storage-byte-second"
+                  ]
+                },
+                "maximum": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "costLimits": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "required": ["currency", "maximum"],
+              "properties": {
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+                "maximum": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "maxModelInvocations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "maxToolCalls": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "maxRepairRounds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "maxTransactions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "maxArtifactBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10737418240
+          },
+          "maxElapsedMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2592000000
+          }
+        },
+        "additionalProperties": false
+      },
+      "verificationRules": {
+        "type": "object",
+        "required": [
+          "requiredModes",
+          "requiredClosure",
+          "requiredCheckKinds",
+          "repair",
+          "rollback"
+        ],
+        "properties": {
+          "requiredModes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "items": { "const": "apply" }
+          },
+          "requiredClosure": { "const": "satisfied" },
+          "requiredCheckKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "repair": { "enum": ["forbidden", "approval-bound"] },
+          "rollback": { "enum": ["forbidden", "approval-bound"] }
+        },
+        "additionalProperties": false
+      },
+      "retentionRules": {
+        "type": "object",
+        "required": [
+          "auditDays",
+          "sanitizedTraceDays",
+          "rawPrivateArtifactDays",
+          "providerStateDays",
+          "requireDeletionReceipt"
+        ],
+        "properties": {
+          "auditDays": { "type": "integer", "minimum": 0, "maximum": 3650 },
+          "sanitizedTraceDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650
+          },
+          "rawPrivateArtifactDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "providerStateDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "requireDeletionReceipt": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "privacy": {
+        "type": "object",
+        "required": [
+          "maximumSensitivity",
+          "allowedRegions",
+          "providerTraining",
+          "providerTelemetry",
+          "rawArtifactCapture"
+        ],
+        "properties": {
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          },
+          "allowedRegions": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "providerTraining": { "enum": ["deny", "policy-qualified"] },
+          "providerTelemetry": { "enum": ["deny", "policy-qualified"] },
+          "rawArtifactCapture": { "enum": ["deny", "role-restricted"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false,
+    "$defs": {
+      "canonicalString": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+      },
+      "canonicalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+      },
+      "targetRef": {
+        "type": "object",
+        "required": ["kind", "id"],
+        "properties": {
+          "kind": { "enum": ["workspace", "document", "semantic-target"] },
+          "id": { "$ref": "#/$defs/canonicalId" }
+        },
+        "additionalProperties": false
+      },
+      "providerRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "providerConfigurationIds",
+          "protocolFamilies",
+          "endpointClasses",
+          "regions",
+          "minimumSupportTier",
+          "maximumSensitivity"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "providerConfigurationIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "protocolFamilies": {
+            "type": "array",
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "openai-responses",
+                "anthropic-messages",
+                "gemini-interactions",
+                "openai-compatible"
+              ]
+            }
+          },
+          "endpointClasses": {
+            "type": "array",
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "first-party-hosted",
+                "aggregator",
+                "self-hosted",
+                "local"
+              ]
+            }
+          },
+          "regions": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "minimumSupportTier": {
+            "enum": ["release-evaluated", "admission-only", "disabled"]
+          },
+          "maximumSensitivity": {
+            "enum": ["public", "internal", "confidential", "restricted"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "modelRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "modelIds",
+          "modelFamilyIds",
+          "capabilityProfileIds",
+          "minimumSupportTier"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "modelIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "modelFamilyIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "capabilityProfileIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "minimumSupportTier": {
+            "enum": ["release-evaluated", "admission-only", "disabled"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "capabilityRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "capabilities",
+          "targetScope",
+          "toolIds",
+          "runtimeZones",
+          "maximumRisk"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "read",
+                "execute",
+                "propose",
+                "approve",
+                "commit",
+                "rollback"
+              ]
+            }
+          },
+          "targetScope": {
+            "type": "object",
+            "required": ["targets"],
+            "properties": {
+              "targets": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 512,
+                "items": { "$ref": "#/$defs/targetRef" }
+              }
+            },
+            "additionalProperties": false
+          },
+          "toolIds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "runtimeZones": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "enum": ["browser", "server", "native", "sandbox"] }
+          },
+          "maximumRisk": { "enum": ["low", "medium", "high", "critical"] }
+        },
+        "additionalProperties": false
+      },
+      "approvalRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "riskLevels",
+          "capabilities",
+          "decisionAuthority",
+          "rollbackAuthorization"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "riskLevels": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "enum": ["low", "medium", "high", "critical"] }
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "read",
+                "execute",
+                "propose",
+                "approve",
+                "commit",
+                "rollback"
+              ]
+            }
+          },
+          "decisionAuthority": { "const": "explicit-human" },
+          "rollbackAuthorization": {
+            "enum": ["none", "on-unsatisfied-closure"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "networkRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "hosts",
+          "methods",
+          "maxRequestBytes",
+          "maxResponseBytes",
+          "redirectPolicy",
+          "tls"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "hosts": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[A-Za-z0-9.-]+$"
+            }
+          },
+          "methods": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "enum": ["GET", "HEAD", "POST"] }
+          },
+          "maxRequestBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "maxResponseBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "redirectPolicy": { "enum": ["deny", "same-origin"] },
+          "tls": { "const": "required" }
+        },
+        "additionalProperties": false
+      },
+      "secretRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect",
+          "referenceKinds",
+          "purposes",
+          "runtimeZones"
+        ],
+        "properties": {
+          "id": { "$ref": "#/$defs/canonicalId" },
+          "effect": { "enum": ["allow", "deny"] },
+          "referenceKinds": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "purposes": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/canonicalId" }
+          },
+          "runtimeZones": {
+            "type": "array",
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "enum": ["server", "native", "sandbox"] }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

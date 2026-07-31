@@ -53,6 +53,12 @@ import {
   validateVerificationDocument,
   type VerificationDocumentByKind,
 } from '@prodivix/verification';
+import {
+  decodeAgentPolicy,
+  encodeAgentPolicy,
+  validateAgentPolicy,
+  type AgentPolicy,
+} from '@prodivix/ai';
 import { tryNormalizeWorkspacePirContent } from './workspacePirContent';
 import {
   isCanonicalWorkspaceDocumentUpdatedAt,
@@ -363,6 +369,20 @@ const parseWorkspaceDocument = (
       );
     }
     content = decoded.value;
+  } else if (type === 'agent-policy') {
+    const decoded =
+      pirContentBoundary === 'wire'
+        ? decodeAgentPolicy(content)
+        : validateAgentPolicy(content);
+    if (!decoded.ok || decoded.value.id !== id) {
+      throw new WorkspaceCodecError(
+        `${path}/content`,
+        decoded.ok
+          ? 'AgentPolicy content id must match the Workspace document id.'
+          : decoded.issues.map((entry) => entry.message).join('; ')
+      );
+    }
+    content = decoded.value;
   } else if (type === 'code' && !isWorkspaceCodeDocumentContent(content)) {
     throw new WorkspaceCodecError(
       `${path}/content`,
@@ -596,7 +616,9 @@ export const encodeWorkspaceDocument = (
                   document.type,
                   document.content as VerificationDocumentByKind[typeof document.type]
                 )
-              : document.content,
+              : document.type === 'agent-policy'
+                ? encodeAgentPolicy(document.content as AgentPolicy)
+                : document.content,
 });
 
 /** Decodes the backend wire contract into the only canonical Workspace model. */

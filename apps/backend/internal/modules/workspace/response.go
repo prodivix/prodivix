@@ -300,6 +300,7 @@ func DefaultCapabilities() map[string]bool {
 		"core.data.document.update@1.0":                   true,
 		"core.behavior.document.update@1.0":               true,
 		"core.verification.document.update@1.0":           true,
+		"core.agent.document.update@1.0":                  true,
 		"core.resource.project-config.value.update@1.0":   true,
 		"core.workspace.document.create@1.0":              true,
 		"core.workspace.document.rename@1.0":              true,

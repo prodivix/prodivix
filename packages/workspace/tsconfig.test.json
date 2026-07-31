@@ -5,6 +5,7 @@
     "types": ["node"],
     "noEmit": true,
     "paths": {
+      "@prodivix/ai": ["../ai/dist/index.d.ts"],
       "@prodivix/animation": ["../animation/dist/index.d.ts"],
       "@prodivix/assets": ["../assets/dist/index.d.ts"],
       "@prodivix/authoring": ["../authoring/dist/index.d.ts"],
@@ -24,6 +25,9 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
+    {
+      "path": "../ai"
+    },
     {
       "path": "../animation"
     },

@@ -1,14 +1,13 @@
-import type { LlmProviderRequest } from '@prodivix/shared';
 import { describe, expect, it, vi } from 'vitest';
+import type { AiDraftProviderRequest } from '../draft/draft.types';
 import { OpenAICompatibleProvider } from './openAICompatibleProvider';
 
-const request: LlmProviderRequest = {
-  task: {
+const request: AiDraftProviderRequest = {
+  draft: {
     id: 'task-1',
     intent: 'Create a plan',
     context: { entries: [] },
     allowedTools: [],
-    outputChannels: [],
   },
   tools: [],
 };

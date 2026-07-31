@@ -41,6 +41,7 @@ type WorkspaceDocumentType =
   | 'behavior-fixture-set'
   | 'verification-policy'
   | 'verification-baseline-set'
+  | 'agent-policy'
   | 'asset'
   | 'project-config';
 
@@ -122,6 +123,7 @@ Workspace Validator 必须保证：
 | `data-source`                                                             | `@prodivix/data`                                   |
 | `behavior-scenario` / `behavior-control-profile` / `behavior-fixture-set` | `@prodivix/behavior` + `@prodivix/workspace`       |
 | `verification-policy` / `verification-baseline-set`                       | `@prodivix/verification` + `@prodivix/workspace`   |
+| `agent-policy`                                                            | `@prodivix/ai` + `@prodivix/workspace`             |
 | Workspace Semantic Index contract、provider composition 与稳定查询        | `@prodivix/authoring`                              |
 | CodeArtifact projection、CodeReference、CodeSlot 与代码作者体验           | `@prodivix/authoring` / Code Authoring Environment |
 | `asset` / `project-config`                                                | Workspace Resource owner 与对应 adapter            |

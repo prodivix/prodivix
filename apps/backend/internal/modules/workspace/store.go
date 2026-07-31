@@ -269,6 +269,7 @@ const (
 	WorkspaceDocumentTypeBehaviorFixtureSet      WorkspaceDocumentType = "behavior-fixture-set"
 	WorkspaceDocumentTypeVerificationPolicy      WorkspaceDocumentType = "verification-policy"
 	WorkspaceDocumentTypeVerificationBaselineSet WorkspaceDocumentType = "verification-baseline-set"
+	WorkspaceDocumentTypeAgentPolicy             WorkspaceDocumentType = "agent-policy"
 	WorkspaceDocumentTypeAsset                   WorkspaceDocumentType = "asset"
 	WorkspaceDocumentTypeProjectConfig           WorkspaceDocumentType = "project-config"
 )

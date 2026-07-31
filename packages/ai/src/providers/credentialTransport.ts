@@ -1,4 +1,4 @@
-import { LlmProviderError } from '@prodivix/shared';
+import { AiDraftProviderError } from '../draft/draft.types';
 import {
   carriesCredentialsSafely,
   normalizeBaseURL,
@@ -34,7 +34,7 @@ export const assertOpenAICompatibleCredentialTransport = (
 ): void => {
   const issue = readOpenAICompatibleCredentialTransportIssue(baseURL, apiKey);
   if (!issue) return;
-  throw new LlmProviderError(
+  throw new AiDraftProviderError(
     issue === 'invalid-base-url'
       ? 'OpenAI-compatible provider base URL is not a valid absolute URL.'
       : 'OpenAI-compatible provider API key requires an https base URL outside loopback.',

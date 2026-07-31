@@ -1,7 +1,7 @@
 # Prodivix 当前状态
 
 > StatusDate: 2026-07-31
-> 本文件是 G0/G1/G2/G3 当前完成状态的唯一来源。`global-phases.md` 定义阶段目标与退出条件；evidence 文档保存可重复验证证据，不重复声明当前状态。
+> 本文件是 G0/G1/G2/G3/G4 当前完成状态的唯一来源。`global-phases.md` 定义阶段目标与退出条件；evidence 文档保存可重复验证证据，不重复声明当前状态。
 
 ## 全局阶段
 
@@ -11,7 +11,7 @@
 | G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
 | G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。 |
 | G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                        |
-| G4 Verified Agentic Development    | In Progress  | G3 Exit Gate 已通过，G4 前置阻塞解除。                                                                                                                                              |
+| G4 Verified Agentic Development    | In Progress  | V0 已本地实现并通过 deterministic aggregate 与真实 PostgreSQL Gate；durable CI evidence pending，V1–V9 Not Started，Global G4 未 Passed。                                           |
 | G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 | G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 
@@ -21,6 +21,57 @@ G2 可重复证据与外部 pending：[`g2-closure-evidence.md`](./g2-closure-ev
 G3 contract 与阶段状态：[`../implementation/g3-behavior-verification-closure.md`](../implementation/g3-behavior-verification-closure.md)、
 [`g3-behavior-verification-milestones.md`](./g3-behavior-verification-milestones.md)；证据模板：
 [`g3-closure-evidence.md`](./g3-closure-evidence.md)。
+G4 contract 与阶段状态：
+[`../decisions/65.verified-agent-task-and-control-plane.md`](../decisions/65.verified-agent-task-and-control-plane.md)、
+[`ADR 66`](../decisions/66.model-provider-capability-and-invocation.md)、
+[`ADR 67`](../decisions/67.multimodal-context-and-generated-artifact.md)、
+[`ADR 68`](../decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md)、
+[`ADR 69`](../decisions/69.real-model-evaluation-and-release-qualification.md)、
+[`../implementation/g4-verified-agentic-development.md`](../implementation/g4-verified-agentic-development.md)、
+[`g4-verified-agentic-development-milestones.md`](./g4-verified-agentic-development-milestones.md)；证据结构：
+[`g4-closure-evidence.md`](./g4-closure-evidence.md)。
+
+## G4 当前进度
+
+2026-07-31，G4 ADR 65–69 production contract set 已冻结；V0 已本地实现，durable CI evidence pending，V1–V9
+尚未开始。当前实现与已确定边界如下：
+
+- `@prodivix/ai` 已成为 G4 transport-neutral current/wire 唯一 owner；旧 `packages/shared/src/llm` 已删除，
+  Blueprint assistant 迁移到只产出 bounded plan 的 `AiDraft*` boundary，不具备 proposal/apply/approval/commit 权限。
+- `agent-policy` 已成为 typed singleton Workspace document；current/wire v0→v1 migration、canonical digest、
+  TypeScript/Go schema/semantic conformance、reversible `core.agent` Command、Outbox/Atomic Commit/Reload 和
+  PostgreSQL migration/unique constraint 已实现。
+- AI diagnostics registry、generated docs、package/application/wire/Workspace boundary checker 与独立 G4 CI
+  workflow 已落地。本地 `verify:g4:boundaries` 和 `verify:g4:boundaries:postgres` 已通过；workflow 存在仅表示
+  Configured，尚无 exact-commit durable run/job evidence。
+
+- `@prodivix/ai` 是 AgentPolicy、Task/Run、Context、Provider/capability、media/tool/evaluation current domain 的
+  唯一 owner；各领域、Asset、Runtime与 Verification owner继续唯一生成各自 mutation/asset/evidence truth。
+- Workspace 只新增 `agent-policy` typed document；Task、Run、Context、trace、approval 与 Evidence 属于
+  derived projection 或 Agent service durable facts，不形成第二作者态。
+- 模型只能产出不可信 typed proposal；生产写入必须经领域 dry-run、exact human approval、现有
+  Durable Outbox / Atomic Commit，并在 actual target revision 上取得 G3 satisfied Closure。
+- exact capability qualification按 configuration × model × profile × policy slice；reasoning/state/cache/context
+  transform/background job、ambient memory与 multi-dimensional usage均进入 identity/receipt。
+- required visual/document profile冻结媒体 source/transform/omission、cross-modal injection和 generated candidate
+  到 G2 Asset pipeline；视觉坐标、OCR或 Provider URL不能直接写作者态。
+- Provider-hosted tool、retrieval/files/index、dynamic tool/MCP、code execution、computer use、parallel/nested call与
+  managed-agent能力消费相同 grant/budget/audit；opaque或 unrestricted effect禁止进入 production apply。
+- Secret、network、text/media injection、untrusted content、permission escalation、budget、cancel/retry/recovery
+  全部 fail closed；Agent 不得自我审批、扩大 grant、点击 UI绕过 proposal或自报验证通过。
+- G4 correctness/security 的普通 PR aggregate 使用 deterministic provider，消耗 0 remote-model tokens；
+  per-adapter smoke 只证明 transport admission。G4 baseline 冻结 OpenAI Responses、Anthropic Messages、
+  Gemini Interactions 三个 native adapters 和 generic OpenAI-compatible compatibility adapter。
+- G4 Exit另需未过期 `verify:g4:model-eval`：128 cases/52 families、每 bucket至少 25% protected holdout、
+  24 context与16 media sentinels；ordinary 10、48 critical 30、至少12 high-assurance 100 attempts/configuration，
+  首次规范性最低11,640 journeys。三个 native Provider/operator/model-family required text/visual/document profiles
+  分别满足 floor；同 adapter换模型或 aggregator alias不能凑数。
+- 非规范性容量规划：engineering shakedown约3亿–10亿 logical tokens；首次完整三 Provider closure约
+  10亿–50亿加 media/tool units；credible release约30亿–100亿加 human review；upgrade differential可能
+  50亿–200亿。authority是冻结的 provider/profile/corpus/holdout/tier/repetition/grader/threshold/usage budget与
+  实际 receipt，不能只用 token或成本表达工作量。
+- V0-V9、required Gate、Golden positive/negative matrix 与 evidence manifest 已提前冻结；当前只有 V0 为
+  `Implemented Locally / Durable CI Pending`，V1–V9 与其 required Gate 仍为 `Not Started` / `Pending`。
 
 ## G3 当前进度
 

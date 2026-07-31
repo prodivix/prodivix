@@ -1,5 +1,5 @@
-import type { LlmProvider, LlmStructuredOutput } from '@prodivix/shared';
-import { MockLlmProvider } from '@prodivix/shared';
+import type { AiDraftPlan, AiDraftProvider } from '../draft/draft.types';
+import { MockAiDraftProvider } from '../draft/mockAiDraftProvider';
 import type { ProdivixAiSettings } from '../settings/aiSettings';
 import {
   type ProdivixAiFetch,
@@ -11,10 +11,10 @@ export interface CreateProdivixAiProviderOptions {
   /** Session-scoped provider credential. It is never part of persisted settings. */
   apiKey?: string;
   fetcher?: ProdivixAiFetch;
-  mockOutput?: LlmStructuredOutput;
+  mockOutput?: AiDraftPlan;
 }
 
-const defaultMockOutput: LlmStructuredOutput = {
+const defaultMockOutput: AiDraftPlan = {
   goal: 'Draft an Prodivix AI task plan',
   assumptions: ['Use the current editor context summary only.'],
   milestones: [
@@ -39,9 +39,9 @@ const defaultMockOutput: LlmStructuredOutput = {
  */
 export const createProdivixAiProvider = (
   options: CreateProdivixAiProviderOptions
-): LlmProvider => {
+): AiDraftProvider => {
   if (options.settings.provider === 'mock') {
-    return new MockLlmProvider(options.mockOutput ?? defaultMockOutput);
+    return new MockAiDraftProvider(options.mockOutput ?? defaultMockOutput);
   }
 
   if (!options.fetcher) {
