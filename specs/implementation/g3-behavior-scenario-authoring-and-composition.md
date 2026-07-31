@@ -3,8 +3,8 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：B0-B4 Implemented for V2 scope / V3 replay integration Implemented locally
-- ProductGateStatus：In Progress
+- ImplementationStatus：B0-B4 Implemented / V3 replay integration durable CI Passed
+- ProductGateStatus：Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-28
 - Owner：`@prodivix/behavior`、`@prodivix/workspace`、`@prodivix/authoring`、各 domain capability owner、`apps/web`
@@ -295,9 +295,10 @@ matrix继续由 V6负责。
 ## 验证证据
 
 Gate：`pnpm run verify:g3:scenario-authoring` 与 `pnpm run verify:g3:behavior-composition` 已由 commit
-`90fcf96134d880156c19c0da64692a3a39564841` 的 GitHub CI 取得 durable Passed evidence。
-`pnpm run verify:g3:deterministic-replay` 已于 2026-07-28 在当前 worktree 本地通过，workflow 已配置但
-尚无 commit/CI identity。
+`90fcf96134d880156c19c0da64692a3a39564841` 的 GitHub CI 取得 durable Passed evidence；
+`pnpm run verify:g3:deterministic-replay` 又由 commit `3def9168` 取得 durable V3 evidence。
+commit `08db3e0f` 的最终 [G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30607438729)
+重跑相同 Scenario/Composition contract，并以 V8 trusted Closure 闭合 Global G3。
 
 必须覆盖：
 

@@ -4,7 +4,7 @@
 
 - DecisionStatus：Accepted
 - ImplementationStatus：V0-V8 Implemented
-- ProductGateStatus：In Progress
+- ProductGateStatus：Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-31
 - Owner：`@prodivix/behavior`、`@prodivix/verification`、`@prodivix/verification-adapters`、`@prodivix/verification-browser`、`@prodivix/workspace`、`@prodivix/authoring`、`@prodivix/runtime-core`、`@prodivix/diagnostics`、`apps/backend`、`apps/web` composition root
@@ -252,9 +252,12 @@ React/Vite 与 Vue/Vite controlled target，以及 Chromium 主矩阵和 Firefox
 
 ### V7：产品面、CLI 与 CI
 
-状态：Implemented / Local Passed / CI Configured / durable Evidence pending。2026-07-31 本地
-`verify:g3:product` 已通过，包含本机 PostgreSQL 18.4 restart/idempotency Gate；GitHub product 与 trusted
-OIDC jobs 已配置，但尚无绑定当前变更 SHA/job 的 durable identity。详见
+状态：Implemented / durable CI Evidence Passed。2026-07-31 本地 `verify:g3:product` 已通过，包含
+本机 PostgreSQL 18.4 restart/idempotency Gate；commit `08db3e0f` 的
+[product job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91082654078)
+又在 PostgreSQL 16 上通过，
+[trusted OIDC job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91083228854)
+也成功绑定该 commit/run/job 的短期 GitHub identity。详见
 `g3-verification-adapters-product-ci.md`。
 
 交付 Scenarios、Verification、Plan/Impact/Evidence/Compare/Replay surfaces，复用 Execution Center、Issues 和
@@ -265,9 +268,10 @@ SourceTrace；交付 provider-neutral CLI JSON contract 与 CI evidence upload/f
 
 ### V8：G3 Golden Closure
 
-状态：Implemented / Local Passed / CI Configured / durable Evidence pending。锁定 Plan digest 为
-`sha256-67676af5b3930e32906ba9d5a835d82a11bd2f6a2d48100497082d0b685ee011`；本地 Golden
-复用 V6 controlled matrix 实际执行 80 个 attempts，逐 cell 形成 66 个 attested Evidence
+状态：Implemented / durable CI Evidence Passed。锁定 Plan digest 为
+`sha256-67676af5b3930e32906ba9d5a835d82a11bd2f6a2d48100497082d0b685ee011`；本地与
+commit `08db3e0f` 的 [V8 CI Job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+均复用 V6 controlled matrix 实际执行 80 个 attempts，逐 cell 形成 66 个 attested Evidence
 （Preview 14 个 `remote-attested`，Export/CI 52 个 `ci-attested`），并从 Backend-verified
 trust/artifact/revocation view 重算出 `satisfied` Closure。
 
@@ -284,13 +288,15 @@ loading/empty/error/retry/pagination、optimistic mutation/conflict、NodeGraph 
 6. Closure 可从 revision 和 plan digest 重算，且所有失败可定位、可比较、可重放；
 7. 全程无 editor-private state、production Secret、live production data 或自动 baseline 接受。
 
-本地 negative Golden 已证明 missing、failed、retryable blocked、unstable、expired、revoked、
-unverified 与 artifact missing 均使 Closure unsatisfied。GitHub `golden` job 已配置 fixed runner、
+本地与 CI negative Golden 已证明 missing、failed、retryable blocked、unstable、expired、revoked、
+unverified 与 artifact missing 均使 Closure unsatisfied。GitHub `golden` job 使用 fixed runner、
 rootless controlled static sandbox 和 Chromium/Firefox/WebKit authority attestation。机器 manifest
 逐 cell 记录 accepted Evidence、trust/attestation、compatibility、artifact availability 与 verdict，并绑定
 Plan/Closure evaluation instant、retention/revocation view 和 local/GitHub Actions execution identity；
-workflow 成功后上传该完整 content-addressed artifact。远端 durable Evidence 仍 pending，因此此处的
-本地通过不升级 Global G3 ProductGateStatus。
+workflow 已上传
+[完整 content-addressed artifact](https://github.com/prodivix/prodivix/actions/runs/30607438729/artifacts/8784654298)；
+远端 manifest digest 为
+`sha256-bd756f69a90c2048d5da0fe333c5421d2ed7eb9dc78cb04ad93eb6ffa1711019`。
 
 ## 子计划索引
 
@@ -322,7 +328,8 @@ workflow 成功后上传该完整 content-addressed artifact。远端 durable Ev
 
 以下命令均已建立为稳定入口；前三个已由 commit `90fcf961` 的 GitHub CI取得 durable `Passed`
 evidence，第四至第七个分别由 commit `3def9168`、`a6aa0bf9`、`f3d91b9d`、`bd6ef590` 的 GitHub CI
-取得 durable `Passed` evidence。V7/V8 本地入口已通过且 CI 已配置，durable identity pending：
+取得 durable `Passed` evidence；V7、V8 与最终分布式 aggregate 又由 commit `08db3e0f` 的
+[G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30607438729) 取得 durable `Passed` evidence：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`
@@ -356,7 +363,7 @@ evidence，第四至第七个分别由 commit `3def9168`、`a6aa0bf9`、`f3d91b9
 - [x] 产品 surface、CLI 和 CI 使用同一 planner、adapter 和 Closure evaluator。
 - [x] G3 Golden 所有 required cells 具备 current、compatible、可信 Evidence。
 
-以上实现与本地 Gate 已闭合；连接本机 PostgreSQL 18.4 的完整 `pnpm run verify:g3` 已连续通过 V0-V8，
-逐-cell manifest 增强后也重新通过当前 V8 package Gate。Global G3 Exit Gate 仍要求 V7/V8 与最终
-aggregate 取得绑定当前 commit/job identity 的 durable CI Passed evidence，未满足前保持
-`In Progress`。
+以上实现、本地 Gate 与远端 durable evidence 已闭合：连接本机 PostgreSQL 18.4 的完整
+`pnpm run verify:g3` 连续通过 V0-V8，逐-cell manifest 增强后也重新通过当前 V8 package Gate；
+commit `08db3e0f` 的同一 G3 run 中 V0-V8、V7 OIDC、三浏览器 V6 与 V8 artifact upload 全部
+terminal success，因此 Global G3 Exit Gate 为 `Passed`。

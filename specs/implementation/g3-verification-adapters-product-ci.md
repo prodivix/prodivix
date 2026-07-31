@@ -3,8 +3,8 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V6 Implemented / durable CI Evidence Passed；V7-V8 Implemented
-- ProductGateStatus：V7-V8 Local Passed / CI Configured / durable Evidence pending
+- ImplementationStatus：V6-V8 Implemented / durable CI Evidence Passed
+- ProductGateStatus：Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-31
 - Owner：`@prodivix/verification`、`@prodivix/verification-adapters`、`@prodivix/verification-browser`、`@prodivix/runtime-core`、Compiler/Runtime providers、`apps/backend`、`apps/web`、CI composition
@@ -343,9 +343,15 @@ production build 也在同一命令中通过。
 同日将 `PRODIVIX_BACKEND_POSTGRES_TEST_URL` 指向本机 PostgreSQL 18.4 的隔离测试数据库后，
 `TestVerificationRunRegistrySurvivesBackendRestartAndReplaysIdempotently` 与完整
 `pnpm run verify:g3:product` 再次通过。PostgreSQL Gate 每次创建随机 schema、经两个独立连接模拟
-Backend restart，并在结束时自动删除该 schema；现有业务表不参与测试。product workflow 仍提供隔离
-PostgreSQL 16 service，但在取得绑定当前变更 commit/job 的成功远端结果前状态保持
-`Configured / durable Evidence pending`，不得写成 CI Passed。
+Backend restart，并在结束时自动删除该 schema；现有业务表不参与测试。commit `08db3e0f` 的
+[product job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91082654078)
+又在隔离 PostgreSQL 16 service 上通过，覆盖 Verification `22 files / 256 tests`、CLI `6/6`、
+V4 planner Golden `12/12`、Web `9 files / 80 tests` 与三个 Backend Go packages。
+[trusted OIDC job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91083228854)
+同时通过并生成 CI job context digest
+`sha256-488598b232f6197bbd6db4c10d177ad34373173fe5d2e024dae66e9a3aba74a6`；identity admission
+同时严格校验旧 name-based 与 GitHub immutable `name@id` subject、repository/ref/SHA/run/attempt/job，
+fork/untrusted event 继续 fail closed。
 
 ## V8 local trusted Closure evidence record
 
@@ -380,10 +386,20 @@ provenance，不影响 locked Plan digest 的 byte stability。
 
 GitHub `golden` job 依赖 V6 adapter matrix 与 V7 product job，并在 fixed Ubuntu runner 上重新验证
 rootless Podman/controlled static sandbox 与 Chromium/Firefox/WebKit authority 后运行同一 root Gate。
-成功后使用 `actions/upload-artifact` 上传完整 machine manifest，缺失文件直接失败。workflow 已配置；
-在取得绑定当前变更 commit/job 的成功远端结果前，状态保持
-`Configured / durable Evidence pending`。连接本机 PostgreSQL 18.4 的完整 `pnpm run verify:g3`
-已于同日连续通过 V0-V8；逐-cell manifest 增强后的 V8 package Gate 也以 `1 file / 6 tests` 再次通过。
+成功后使用 `actions/upload-artifact` 上传完整 machine manifest，缺失文件直接失败。commit
+`08db3e0f` 的 [V8 job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+已通过：V8 `1 file / 6 tests`，66 cells，Closure `satisfied`；上传的
+[artifact `8784654298`](https://github.com/prodivix/prodivix/actions/runs/30607438729/artifacts/8784654298)
+名为 `g3-v8-closure-manifest-08db3e0fe9f17ca4dc8fbd16829a43f85c0a012a-1`，archive digest 为
+`sha256:ce3f91e20ada9f0788df3a17150c5f6afb473979f9ef8810a9fe71fd263603a7`，保留至
+2026-08-30。下载后核验的 345,932-byte JSON 含 66 个唯一 cell 与 176 个 `available` artifacts，
+cell manifest digest 为
+`sha256-0c1c8c91f6247243ec6159c212d440de85f387cbc0b5c6ed6b9c283fea7de073`，顶层
+manifest digest 为
+`sha256-bd756f69a90c2048d5da0fe333c5421d2ed7eb9dc78cb04ad93eb6ffa1711019`，Closure digest 为
+`sha256-880b84aedd12810543786d8107250807c42c6467cae2c5a11d9816e938a9bb70`。
+连接本机 PostgreSQL 18.4 的完整 `pnpm run verify:g3` 也已于同日连续通过 V0-V8；逐-cell
+manifest 增强后的 V8 package Gate 以 `1 file / 6 tests` 再次通过。
 
 ## Result normalization
 

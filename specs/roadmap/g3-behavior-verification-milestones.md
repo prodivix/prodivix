@@ -9,7 +9,7 @@
 ## 当前判断
 
 G2 Exit Gate 已由 commit `3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184` 的 current-scope closure 通过，Global G3
-Product Gate 处于 `In Progress`。V0 owner/contract hard cut、V1 Scenario authoring、V2 Cross-domain
+Product Gate 已于 2026-07-31 进入 `Passed`。V0 owner/contract hard cut、V1 Scenario authoring、V2 Cross-domain
 behavior 与目标 Golden 已实现：真实 Preview/Export/CI adapter执行
 Route lifecycle → parallel(NodeGraph Program、Animation composition) → barrier → owner observation，
 并在 React/Vue 独立项目验证 authenticated Catalog optimistic conflict、full/reduced、visual/a11y/focus。
@@ -38,26 +38,33 @@ Scenario-internal Data/Auth/Recovery companion Gate、root aggregate 与 owner b
 在本地完整通过，并由 commit `bd6ef590` 的独立三浏览器 CI Job 于 2026-07-30 取得 durable evidence。
 V7 产品、CLI、Backend run registry 与 GitHub Actions OIDC adapter 已于 2026-07-31 实现并通过本地
 `pnpm run verify:g3:product`；本机 PostgreSQL 18.4 restart/idempotency Gate 也在隔离随机 schema
-中通过并完成清理。远端 workflow 已配置但尚无绑定当前变更 SHA/job 的 durable evidence。
+中通过并完成清理。commit `08db3e0f` 的
+[V7 product job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91082654078)
+与 [trusted OIDC job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91083228854)
+又取得绑定 exact commit/run/job 的 durable evidence。
 V8 Authenticated Catalog trusted Closure 已于 2026-07-31 实现并通过本地 Golden：锁定 66-cell
 Plan，从 V6 的 80 个真实 adapter attempts 中逐 cell 选择并规范化 66 个结果，完成 14 个
 `remote-attested` 与 52 个 `ci-attested` Evidence promotion，重算得到 `satisfied` Closure；missing、
 failed、retryable blocked、unstable、expired、revoked、unverified 与 artifact missing negative 均
 fail closed。机器 manifest 已补齐 66 条逐-cell accepted Evidence/trust/compatibility/verdict 明细；
-连接本机 PostgreSQL 18.4 的完整 `pnpm run verify:g3` 也已连续通过 V0-V8。V7/V8 workflow 已配置，
-但尚无绑定当前变更 SHA/job 的 durable evidence，因此 Global G3 仍保持 `In Progress`。
+连接本机 PostgreSQL 18.4 的完整 `pnpm run verify:g3` 也已连续通过 V0-V8。同一 commit 的
+[V8 CI Job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+重跑 controlled matrix 与 Closure，上传含 66 个唯一 cell、176 个 available artifacts 的
+[manifest artifact](https://github.com/prodivix/prodivix/actions/runs/30607438729/artifacts/8784654298)；
+整个 [G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30607438729) 的 10 个 jobs 全部
+terminal success，因此 Global G3 为 `Passed`。
 
-| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                                            |
-| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地与 CI Gate 通过，commit `90fcf961`                                                              |
-| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地与 CI authoring/compiler、React/Vue browser Golden 通过，commit `90fcf961`                      |
-| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961`                |
-| V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                                              |
-| V4 Impact/Policy/Plan      | Implemented | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | 本地与 CI byte-stable plan、required hard-cut、Web/CLI explain Gate 通过，commit `a6aa0bf9`         |
-| V5 Evidence plane          | Implemented | promotion、artifact、provenance/trust、retention、Closure                                       | 本地与 CI PostgreSQL/object store/security/attestation/recovery Gate 通过，commit `f3d91b9d`        |
-| V6 Adapter matrix          | Implemented | functional/visual/a11y/performance/security across surface/target/browser                       | 66-cell/80-attempt 本地与 CI root aggregate 通过，commit `bd6ef590`                                 |
-| V7 Product/CLI/CI          | Implemented | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | 本地 product/PostgreSQL restart/recovery/parity Gate 通过；CI Configured / durable Evidence pending |
-| V8 G3 Golden closure       | Implemented | Authenticated Catalog full behavior and evidence closure                                        | 66-cell trusted Closure 与逐-cell manifest 本地通过；CI Configured / durable Evidence pending       |
+| Milestone                  | 状态        | 目标闭环                                                                                        | 退出证据                                                                                       |
+| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| V0 Owner/contract hard cut | Implemented | `@prodivix/behavior`、`@prodivix/verification`、Workspace document/Command、BHV/VER diagnostics | 本地与 CI Gate 通过，commit `90fcf961`                                                         |
+| V1 Scenario authoring      | Implemented | semantic target、typed action/observation、recorder draft、`BehaviorScenarioProgram`            | 本地与 CI authoring/compiler、React/Vue browser Golden 通过，commit `90fcf961`                 |
+| V2 Cross-domain behavior   | Implemented | Route/PIR/Data/Auth/NodeGraph/Animation composition 与 SourceTrace                              | 本地与 CI composition、React/Vue full/reduced browser Golden 通过，commit `90fcf961`           |
+| V3 Deterministic replay    | Implemented | clock/random/scheduler/network/storage/render controls、ReplayRecord/debugger                   | 本地与 CI Gate 通过，commit `3def9168`                                                         |
+| V4 Impact/Policy/Plan      | Implemented | semantic ImpactSet、canonical Policy、deterministic DAG/matrix/budget                           | 本地与 CI byte-stable plan、required hard-cut、Web/CLI explain Gate 通过，commit `a6aa0bf9`    |
+| V5 Evidence plane          | Implemented | promotion、artifact、provenance/trust、retention、Closure                                       | 本地与 CI PostgreSQL/object store/security/attestation/recovery Gate 通过，commit `f3d91b9d`   |
+| V6 Adapter matrix          | Implemented | functional/visual/a11y/performance/security across surface/target/browser                       | 66-cell/80-attempt 本地与 CI root aggregate 通过，commit `bd6ef590`                            |
+| V7 Product/CLI/CI          | Implemented | Scenarios/Verification/Issues/Execution/SourceTrace、CLI/CI attestation                         | 本地与 commit `08db3e0f` product/OIDC jobs 通过，durable CI Evidence Passed                    |
+| V8 G3 Golden closure       | Implemented | Authenticated Catalog full behavior and evidence closure                                        | 本地与 commit `08db3e0f` 66-cell trusted Closure/manifest job 通过，durable CI Evidence Passed |
 
 ## V0：Owner 与 contract hard cut
 
@@ -333,6 +340,8 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 - [x] machine Closure manifest 逐 cell 记录 Plan/attempt/Evidence/trust/compatibility/verdict、
       artifact availability、显式 Plan/Closure evaluation instant 与运行 identity；manifest 与 66-cell
       sub-manifest 均可从 artifact 内容重算。
+- [x] commit `08db3e0f` 的 V7 product/OIDC、V8 Closure 与 artifact upload 绑定 exact run/job identity，
+      G3 run `30607438729` 全部 10 jobs terminal success。
 
 ### G3 Exit Gate
 
@@ -344,11 +353,11 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 - [x] 失败/blocked/unstable/过期/revoked negative Golden 正确阻止 Closure。
 - [x] Preview、Export、CI 使用同一 Scenario；无 editor-private state 或 framework-private canonical fork。
 - [x] 无 production Secret/live production data；artifacts/diagnostics/ReplayRecord Secret canary clean。
-- [ ] evidence manifest、CI run link/digest、target/browser/motion matrix 和复现命令写入 G3 closure evidence 文档。
+- [x] evidence manifest、CI run link/digest、target/browser/motion matrix 和复现命令写入 G3 closure evidence 文档。
 
-最后一项中的本地 manifest、matrix、完整本地 aggregate 与复现命令已记录；只有取得绑定当前 SHA/job
-的 V7/V8/final aggregate durable CI identity 后才能勾选完整 Exit 条件并把 Global G3 改为
-`Passed`。
+本地 manifest、matrix、完整本地 aggregate、复现命令以及绑定 commit `08db3e0f` / run
+`30607438729` / product、OIDC、V8 jobs 与 artifact `8784654298` 的 durable identity 均已记录，
+完整 Exit 条件满足，Global G3 为 `Passed`。
 
 ## 计划 Gate 入口
 
@@ -362,8 +371,9 @@ tool 私有 payload 必须停留在 adapter；所有 matrix cell 产生 canonica
 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
 取得 durable Passed evidence；第七个入口已由 commit `bd6ef590` 的
 [V6 CI Job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
-取得 durable Passed evidence；V7/V8 入口已建立并在本地通过，CI workflow 已配置但 durable Evidence
-pending；最终 aggregate 入口已建立：
+取得 durable Passed evidence；V7、V8 与最终分布式 aggregate 又由 commit `08db3e0f` 的
+[G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30607438729) 取得 durable Passed evidence。
+全部稳定入口为：
 
 - `pnpm run verify:g3:boundaries`
 - `pnpm run verify:g3:scenario-authoring`

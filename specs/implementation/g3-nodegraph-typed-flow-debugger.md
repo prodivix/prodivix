@@ -3,8 +3,8 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：N0-N3 Implemented / N4 V2 Golden + V3 deterministic replay slice Implemented locally
-- ProductGateStatus：In Progress
+- ImplementationStatus：N0-N4 Implemented
+- ProductGateStatus：Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-28
 - Owner：`@prodivix/nodegraph`、`@prodivix/runtime-core`、`@prodivix/behavior`、Code/Data/Route/Animation owners、`apps/web`
@@ -332,8 +332,9 @@ Firefox/WebKit adapter matrix仍属于 V6/V8，不在这里提前宣称。
 V2 Gate：`pnpm run verify:g3:behavior-composition` 已由 commit `90fcf961` 的 GitHub CI 取得 durable
 Passed evidence。V3 Gate：`pnpm run verify:g3:deterministic-replay` 中 NodeGraph 9 files / 39 tests与
 Web live debug session/Inspector coverage已于 2026-07-28 在当前 worktree 本地通过；
-`verify:g3:boundaries` 同时覆盖 dependency hard cut。workflow 已配置但 V3 尚无 commit/CI identity；
-V6/V8 完整 adapter matrix仍待实现。
+`verify:g3:boundaries` 同时覆盖 dependency hard cut，commit `3def9168` 已取得 V3 durable CI identity。
+commit `08db3e0f` 的 [V8 CI Job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+又通过完整 adapter matrix 与 trusted Closure。
 
 必须覆盖：
 

@@ -4,7 +4,7 @@
 
 - DecisionStatus：Accepted
 - ImplementationStatus：R0-R4 Implemented
-- ProductGateStatus：In Progress
+- ProductGateStatus：Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-28
 - Owner：`@prodivix/runtime-core`、`@prodivix/behavior`、Browser/Remote provider、Data/Animation/Route runtime owners
@@ -285,7 +285,9 @@ coverage。
 Gate：`pnpm run verify:g3:deterministic-replay` 已于 2026-07-28 在本地通过；commit
 [`3def9168`](https://github.com/prodivix/prodivix/commit/3def9168a436594db1145274e011632e228a0db9)
 的 [GitHub CI Job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)
-也已通过并形成 durable V3 evidence。该证据不代表 V4-V8 或 G3 Exit Gate 已通过。
+也已通过并形成 durable V3 evidence；commit `08db3e0f` 的最终
+[G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30607438729)
+进一步通过 V4-V8 与 Global G3 Exit Gate。
 
 必须覆盖：
 

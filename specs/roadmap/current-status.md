@@ -10,8 +10,8 @@
 | G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                          |
 | G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
 | G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。 |
-| G3 Behavior & Verification Closure | In Progress  | V0-V6 已有固定 commit/job 的 durable CI evidence；V7 product、V8 trusted Closure 与完整 `verify:g3` aggregate 已通过本地 Gate，CI 已配置但 V7/V8/final durable Evidence pending。   |
-| G4 Verified Agentic Development    | Blocked      | 等待 G3。                                                                                                                                                                           |
+| G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                        |
+| G4 Verified Agentic Development    | In Progress  | G3 Exit Gate 已通过，G4 前置阻塞解除。                                                                                                                                              |
 | G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 | G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 
@@ -77,10 +77,14 @@ revision/plan-bound API、provider-neutral `verify` CLI，以及 Scenarios/Verif
 SourceTrace 一体产品表面。root `pnpm run verify:g3:product` 于 2026-07-31 在本地通过：Verification
 255 tests、CLI 6 tests、V4 planner Golden 12 tests 与 CLI parity、Web 80 tests、Backend 三个 Go package、
 29-package build closure 和 Core/G3/wire boundaries 全部通过；设置隔离测试 URL 后，本机 PostgreSQL 18.4
-restart/idempotency Gate 与完整 product Gate 也通过，随机 schema 已自动清理。GitHub product job 已配置
-PostgreSQL 16 且不持有 OIDC 权限；独立 trusted job 只在 `push/workflow_dispatch` 获取短期 OIDC
-`workflow_ref` identity，形成 fork/untrusted hard cut，但尚无绑定当前变更 SHA/job 的远端成功证据，
-因此 V7 记为 `Implemented / Local Passed / CI Configured / durable Evidence pending`。
+restart/idempotency Gate 与完整 product Gate 也通过，随机 schema 已自动清理。commit
+[`08db3e0f`](https://github.com/prodivix/prodivix/commit/08db3e0fe9f17ca4dc8fbd16829a43f85c0a012a)
+的 [V7 product job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91082654078)
+又在 PostgreSQL 16 上通过；不持有 OIDC 权限的 product job 与仅在 `push/workflow_dispatch`
+取得短期 identity 的
+[trusted OIDC job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91083228854)
+均成功，fork/untrusted hard cut 与 GitHub immutable `name@id` subject admission 取得真实远端证据。
+因此 V7 为 `Implemented / durable CI Evidence Passed`。
 V8 已锁定 Authenticated Catalog trusted Plan digest
 `sha256-67676af5b3930e32906ba9d5a835d82a11bd2f6a2d48100497082d0b685ee011`，并复用 V6
 controlled execution path 实际执行 80 个 attempts。每个 required cell 精确选择一个结果并规范化为
@@ -89,11 +93,17 @@ Backend-verified trust/artifact/revocation view 重算得到 66 cell 全部 `pas
 missing、failed、retryable blocked、unstable、expired、revoked、unverified 与 artifact missing negative
 均阻止 Closure。机器 manifest 现逐 cell 记录 Plan identity、selected attempt、accepted Evidence、
 trust/attestation、compatibility、176 个 artifact availability 与 verdict；66 个唯一 cell/Evidence 的
-cell manifest digest 为
+本地 cell manifest digest 为
 `sha256-85cf2d6e569c31541feffac32bc7dbe91bbb5f51c5ef9e25790a2f1c98ec7009`。root
-`pnpm run verify:g3:golden` 与增强后 V8 package Gate 已在本地通过，GitHub Golden job 已配置 fixed
-runner、rootless controlled static sandbox、Chromium/Firefox/WebKit authority attestation 与 manifest
-artifact upload，但 durable identity 仍 pending。
+`pnpm run verify:g3:golden` 与增强后 V8 package Gate 已在本地通过。同一 commit 的
+[V8 CI Job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+又在 fixed runner、rootless controlled static sandbox 与 Chromium/Firefox/WebKit authority 上通过并上传
+[manifest artifact](https://github.com/prodivix/prodivix/actions/runs/30607438729/artifacts/8784654298)：
+66 个唯一 cell、176/176 个 `available` artifacts，远端 cell manifest digest
+`sha256-0c1c8c91f6247243ec6159c212d440de85f387cbc0b5c6ed6b9c283fea7de073`，顶层
+manifest digest
+`sha256-bd756f69a90c2048d5da0fe333c5421d2ed7eb9dc78cb04ad93eb6ffa1711019`，Closure 为
+`satisfied`。
 `pnpm run verify:g3:boundaries`、
 `pnpm run verify:g3:scenario-authoring`、`pnpm run verify:g3:behavior-composition` 与 `pnpm run build`
 在本地通过；commit
@@ -112,9 +122,11 @@ Backend short suite 与 owner/wire boundaries；commit
 的 [V5 CI Job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)
 也已通过并形成 durable evidence。V6 Adapter matrix 的本地 Gate 与上述固定 commit CI Job 均已通过。
 2026-07-31，连接本机 PostgreSQL 18.4 的完整 `pnpm run verify:g3` 在约 `32m55s` 内以 exit code `0`
-连续通过 V0-V8；增强后的逐-cell manifest 又通过当前 V8 package Gate。后续仍需取得 V7/V8 与最终
-aggregate 的 durable CI evidence；G3 Product Gate 在这些远端 identity 闭合前继续保持
-`In Progress`。
+连续通过 V0-V8；增强后的逐-cell manifest 又通过当前 V8 package Gate。commit `08db3e0f` 的
+[G3 CI run](https://github.com/prodivix/prodivix/actions/runs/30607438729) 随后以 10 个 G3 jobs 全部
+terminal success 闭合 V0-V8、V7 OIDC、V6 三浏览器与 V8 manifest upload；同一 SHA 触发的
+CodeQL、Security、Tests、Rootless、Docker、Smoke 与 G0/G1 workflows 也全部成功。Global G3
+Product Gate 因此为 `Passed`。
 
 ## G2 当前完成面
 

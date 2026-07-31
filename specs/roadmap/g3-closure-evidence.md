@@ -2,8 +2,8 @@
 
 ## 状态
 
-- EvidenceStatus：V0-V6 durable CI Passed；V7-V8 Implemented / Local Passed / CI Configured / durable Evidence pending
-- ProductGateStatus：In Progress
+- EvidenceStatus：V0-V8 durable CI Passed
+- ProductGateStatus：Passed
 - 日期：2026-07-31
 - G2 Exit baseline：`3f3047b895cf2806a0f8a6f7ecf4d7ab4ede0184`
 - Canonical milestone：[`g3-behavior-verification-milestones.md`](g3-behavior-verification-milestones.md)
@@ -28,10 +28,16 @@ V6 root aggregate、owner boundary、66-cell/8-row/80-attempt contract、Scenari
 companion Gate 与真实三浏览器 adapter tests 已于 2026-07-29 在本地通过，并由 commit
 [`bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb`](https://github.com/prodivix/prodivix/commit/bd6ef5900d8b9cfad1f0f792bd134c92e96c9ffb)
 的 [V6 CI Job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)
-取得 durable CI identity。V7 product aggregate 已于 2026-07-31 在本地通过，GitHub product workflow
-已配置但尚无绑定当前变更 SHA/job 的 durable identity；V8 trusted Closure 与完整 `verify:g3`
-aggregate 也已在本地通过，GitHub Golden workflow 已配置但 durable identity pending。最终 G3
-aggregate 尚未取得绑定当前 SHA/job 的远端结果，不得把这些本地结果解释为整个 G3 已 Passed。
+取得 durable CI identity。V7 product aggregate 已于 2026-07-31 在本地通过；commit
+[`08db3e0fe9f17ca4dc8fbd16829a43f85c0a012a`](https://github.com/prodivix/prodivix/commit/08db3e0fe9f17ca4dc8fbd16829a43f85c0a012a)
+的 [product job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91082654078) 与
+[trusted OIDC job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91083228854)
+又取得 durable CI identity。V8 trusted Closure 与完整 `verify:g3` aggregate 也已在本地通过；
+同一 commit 的 [V8 job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+与 [manifest artifact](https://github.com/prodivix/prodivix/actions/runs/30607438729/artifacts/8784654298)
+形成远端 durable evidence，整个
+[G3 run `30607438729`](https://github.com/prodivix/prodivix/actions/runs/30607438729)
+10 个 jobs 全部 terminal success，最终 G3 aggregate 已闭合。
 
 ## Evidence identity
 
@@ -57,18 +63,18 @@ aggregate 尚未取得绑定当前 SHA/job 的远端结果，不得把这些本�
 
 ## Required Gate manifest
 
-| Gate                             | 状态                         | 必须证明                                                             | Evidence                                                                                                                                                            |
-| -------------------------------- | ---------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify:g3:boundaries`           | Passed                       | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                              |
-| `verify:g3:scenario-authoring`   | Passed                       | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                              |
-| `verify:g3:behavior-composition` | Passed                       | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27      |
-| `verify:g3:deterministic-replay` | Passed                       | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                              |
-| `verify:g3:verification-plan`    | Passed                       | Impact/Policy/Plan determinism、budget、required semantics           | [CI job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)，commit `a6aa0bf9`，2026-07-28                                              |
-| `verify:g3:evidence`             | Passed                       | promotion、attestation、Secret hard cut、retention/recovery          | [CI job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)，commit `f3d91b9d`，本地与 CI real PostgreSQL Gate，2026-07-28              |
-| `verify:g3:adapter-matrix`       | Passed                       | all required check families/surfaces/targets/browsers/motion         | [CI job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)，commit `bd6ef590`，66 cells / 8 rows / 80 attempts 全部 passed，2026-07-30 |
-| `verify:g3:product`              | Local Passed / CI Configured | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | 本地 PostgreSQL 18.4 Gate 通过；durable CI identity pending                                                                                                         |
-| `verify:g3:golden`               | Local Passed / CI Configured | Authenticated Catalog end-to-end trusted Closure                     | 本地 66-cell trusted Closure 通过；durable CI identity pending                                                                                                      |
-| `verify:g3`                      | Local Passed / CI Configured | aggregate with no omitted required cell                              | 2026-07-31 本地全量 Gate 通过，包含 PostgreSQL 18.4、三浏览器、V0-V8；durable CI identity pending                                                                   |
+| Gate                             | 状态   | 必须证明                                                             | Evidence                                                                                                                                                                                                                       |
+| -------------------------------- | ------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `verify:g3:boundaries`           | Passed | package owner、Workspace document/Command、codec/diagnostic hard cut | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957689069)，commit `90fcf961`，2026-07-27                                                                                                         |
+| `verify:g3:scenario-authoring`   | Passed | semantic target、recorder、compiler、React/Vue target                | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688996)，commit `90fcf961`，2026-07-27                                                                                                         |
+| `verify:g3:behavior-composition` | Passed | Route/PIR/Data/Auth/NodeGraph/Animation typed composition            | [CI job](https://github.com/prodivix/prodivix/actions/runs/30260091776/job/89957688962)，commit `90fcf961`，React/Vue full/reduced Chromium Golden，2026-07-27                                                                 |
+| `verify:g3:deterministic-replay` | Passed | controls、fresh isolation、repeat/divergence、provider conformance   | [CI job](https://github.com/prodivix/prodivix/actions/runs/30319894969/job/90153389007)，commit `3def9168`，2026-07-28                                                                                                         |
+| `verify:g3:verification-plan`    | Passed | Impact/Policy/Plan determinism、budget、required semantics           | [CI job](https://github.com/prodivix/prodivix/actions/runs/30327609403/job/90176153041)，commit `a6aa0bf9`，2026-07-28                                                                                                         |
+| `verify:g3:evidence`             | Passed | promotion、attestation、Secret hard cut、retention/recovery          | [CI job](https://github.com/prodivix/prodivix/actions/runs/30343213393/job/90223334935)，commit `f3d91b9d`，本地与 CI real PostgreSQL Gate，2026-07-28                                                                         |
+| `verify:g3:adapter-matrix`       | Passed | all required check families/surfaces/targets/browsers/motion         | [CI job](https://github.com/prodivix/prodivix/actions/runs/30494182310/job/90719037327)，commit `bd6ef590`，66 cells / 8 rows / 80 attempts 全部 passed，2026-07-30                                                            |
+| `verify:g3:product`              | Passed | Scenarios/Verification/Issues/Execution/SourceTrace UX/a11y/recovery | [product job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91082654078) + [OIDC job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91083228854)，commit `08db3e0f`                    |
+| `verify:g3:golden`               | Passed | Authenticated Catalog end-to-end trusted Closure                     | [V8 job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980) + [manifest artifact](https://github.com/prodivix/prodivix/actions/runs/30607438729/artifacts/8784654298)，66 cells，Closure satisfied |
+| `verify:g3`                      | Passed | aggregate with no omitted required cell                              | 本地 PostgreSQL 18.4 V0-V8 root aggregate + [G3 distributed aggregate](https://github.com/prodivix/prodivix/actions/runs/30607438729)，10/10 jobs success，commit `08db3e0f`                                                   |
 
 ### V0 reproducible run
 
@@ -239,8 +245,8 @@ aggregate 尚未取得绑定当前 SHA/job 的远端结果，不得把这些本�
   `verify:g3:evidence` 全部通过；同一 commit 的 Tests、Deploy Smoke、Rootless、Security、CodeQL、
   Docker Images、G0/G1、G2 PostgreSQL 与 Smoke workflows 也全部通过。
 - Limitation：deterministic CI-attested fixture 与 GitHub PostgreSQL Gate 不等于真实云 OIDC deployment
-  evidence；V6 已在后述固定 CI Job 取得 66/80 durable evidence，V7/V8 已本地通过但 durable CI
-  identity 仍 pending。
+  evidence；该真实云边界不属于 G3 Exit。V6 已在后述固定 CI Job 取得 66/80 durable evidence，
+  V7/V8 又由 commit `08db3e0f` 取得 product/OIDC/Closure durable evidence。
 
 ### V6 reproducible run
 
@@ -312,7 +318,7 @@ aggregate 尚未取得绑定当前 SHA/job 的远端结果，不得把这些本�
 
 ### V7 reproducible run
 
-- Status：`Implemented / Local Passed / CI Configured / durable Evidence pending`。
+- Status：`Implemented / durable CI Evidence Passed`。
 - Root command：`pnpm run verify:g3:product`。
 - Product surface：Scenarios authoring/recorder/run/debug、Verification
   Impact/Plan/Runs/Evidence/Compare/Closure、shared docked Execution Center、Issues facets、exact-revision
@@ -323,23 +329,29 @@ aggregate 尚未取得绑定当前 SHA/job 的远端结果，不得把这些本�
   `0/1/2/3/4`、唯一短期 credential channel、two-stage attestation/promotion 与 ACK-loss recovery。
 - Backend：v21 run registry migration、revision/plan-bound create/list/get/event API、cursor replay、
   idempotent create/event/finalize 与 Backend restart recovery。
-- Local result：29 个 dependency build tasks、Verification `22 files / 255 tests`、CLI `6/6`、V4 planner
+- Local result：29 个 dependency build tasks、Verification `22 files / 255 tests`；OIDC 修复后 package
+  regression 为 `22 files / 256 tests`。CLI `6/6`、V4 planner
   Golden `12/12` 与 CLI parity、Web `9 files / 80 tests`、Backend verification/
   verificationcontract/database 三个 Go package、Web typecheck、CLI build、Core/G3/wire boundaries 全部通过。
 - PostgreSQL boundary：将 `PRODIVIX_BACKEND_POSTGRES_TEST_URL` 指向本机 PostgreSQL 18.4
   隔离测试数据库后，真实 restart/idempotency test 与完整 product Gate 均通过；测试使用随机 schema、
-  两个独立连接并自动清理。GitHub product job 已提供 PostgreSQL 16 service，但不能用本地结果或 workflow
-  配置替代 durable CI run result。
+  两个独立连接并自动清理。
 - CI identity：普通 product job 不持有 OIDC 权限；独立 trusted job 仅在 `push/workflow_dispatch`
   配置 `id-token: write`，并以短期 GitHub OIDC 标准 `workflow_ref` claim 绑定
   repository/ref/SHA/run/attempt/job；fork 与 untrusted PR fail closed，job 不注入 durable Verification access
-  token。当前没有可引用的 commit/run/job，故只记 `Configured / Evidence pending`。
-- Limitation：本地 product Gate 与 workflow 配置不等于 durable CI Passed；V8 已在本地通过，但 V7/V8
-  durable CI 与最终 G3 aggregate evidence 仍 pending。
+  token。GitHub 新旧 subject 均 fail-closed：legacy name-based identity 与 immutable `name@id` identity
+  都必须与 runner 提供的 repository owner/repository IDs、ref 和 job metadata 精确一致。
+- Durable CI：commit `08db3e0fe9f17ca4dc8fbd16829a43f85c0a012a` 的
+  [product job `91082654078`](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91082654078)
+  在 PostgreSQL 16 上通过 Verification `22 files / 256 tests`、CLI `6/6`、V4 Golden `12/12`、
+  Web `9 files / 80 tests` 与三个 Backend Go packages；
+  [OIDC job `91083228854`](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91083228854)
+  生成 CI job context digest
+  `sha256-488598b232f6197bbd6db4c10d177ad34373173fe5d2e024dae66e9a3aba74a6`。
 
 ### V8 reproducible run
 
-- Status：`Implemented / Local Passed / CI Configured / durable Evidence pending`。
+- Status：`Implemented / durable CI Evidence Passed`。
 - Root command：`pnpm run verify:g3:golden`。
 - Locked Plan：66 个 required cells，Plan digest
   `sha256-67676af5b3930e32906ba9d5a835d82a11bd2f6a2d48100497082d0b685ee011`；
@@ -370,14 +382,33 @@ aggregate 尚未取得绑定当前 SHA/job 的远端结果，不得把这些本�
   `7 files / 40 tests`、真实 Browser Adapters `31 files / 193 tests`、V8 Golden `1 file / 6 tests`
   以及 Core/G3/wire boundaries 全部通过；加入逐-cell manifest 后再次执行当前 V8 package Gate，
   `1 file / 6 tests` 全部通过，test duration `369.23s`。
-- CI configuration：GitHub `golden` job 依赖 V6 adapter matrix 与 V7 product，固定
+- Durable CI：GitHub `golden` job 依赖 V6 adapter matrix 与 V7 product；同一 workflow 的独立
+  trusted OIDC job 依赖 V7 product。`golden` 固定
   `ubuntu-24.04`，重新 attest runner、rootless Podman/controlled static sandbox 与
-  Chromium/Firefox/WebKit file-set authority；成功后上传完整自校验 Closure manifest artifact。
+  Chromium/Firefox/WebKit file-set authority。commit `08db3e0fe9f17ca4dc8fbd16829a43f85c0a012a` 的
+  [job `91085620980`](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+  于 2026-07-31 06:01:31–06:11:33 UTC 通过；主 Closure step 为 `1 file / 6 tests`，test duration
+  `290.05s`，输出 66 cells、Closure `satisfied`。
+- Remote manifest：上传的
+  [artifact `8784654298`](https://github.com/prodivix/prodivix/actions/runs/30607438729/artifacts/8784654298)
+  名为 `g3-v8-closure-manifest-08db3e0fe9f17ca4dc8fbd16829a43f85c0a012a-1`，archive size
+  44,043 bytes、archive digest
+  `sha256:ce3f91e20ada9f0788df3a17150c5f6afb473979f9ef8810a9fe71fd263603a7`、保留至
+  2026-08-30。下载后的 JSON 为 345,932 bytes，file SHA-256 为
+  `a5c6fc1522a74fa826c282a17d020d50b8f105a146b8dd673010de9879db7cc5`，含 66 个唯一 cell 与
+  176/176 个 `available` artifacts；cell manifest digest
+  `sha256-0c1c8c91f6247243ec6159c212d440de85f387cbc0b5c6ed6b9c283fea7de073`，顶层
+  manifest digest
+  `sha256-bd756f69a90c2048d5da0fe333c5421d2ed7eb9dc78cb04ad93eb6ffa1711019`，Closure digest
+  `sha256-880b84aedd12810543786d8107250807c42c6467cae2c5a11d9816e938a9bb70`。manifest execution
+  identity 精确记录 commit `08db3e0f`、run `30607438729`、job `golden` 与 command
+  `pnpm run verify:g3:golden`。
 - Digest semantics：locked Plan digest 对相同 Plan 输入 byte-stable；Closure manifest 还绑定每次真实
   toolchain command 的开始/完成 receipt 与输出摘要，因此不同执行应产生不同 manifest digest。每一份
   artifact 必须独立通过自摘要重算，不能用跨运行 digest 相等替代 provenance。
-- Limitation：本地 test attestor 与 workflow 配置不替代绑定当前 commit/job 的 durable CI identity；
-  取得 V7/V8 CI 与最终 aggregate evidence 前，Global G3 保持 `In Progress`。
+- Aggregate identity：同一
+  [G3 run `30607438729`](https://github.com/prodivix/prodivix/actions/runs/30607438729)
+  中 V0-V8、V7 OIDC、V6 三浏览器与 V8 artifact upload 共 10 个 jobs 全部 terminal success。
 
 ### Full G3 local aggregate
 
@@ -390,8 +421,9 @@ aggregate 尚未取得绑定当前 SHA/job 的远端结果，不得把这些本�
 - Browser/matrix：V6 66 cells / 8 rows / 80 attempts、Verification Browser `31 files / 193 tests`、
   V8 trusted Closure `1 file / 6 tests` 均通过；V8 当次 test duration `365.32s`。
 - Follow-up：全量 Gate 后仅扩展 V8 manifest 的机器明细投影；该最终代码又通过 golden-conformance
-  typecheck、定向 ESLint、diff check 与上述当前 V8 package Gate。远端仍缺少绑定当前 SHA/job 的
-  product/golden/final aggregate durable identity，因此本地 `Passed` 不升级 Global G3。
+  typecheck、定向 ESLint、diff check 与上述当前 V8 package Gate。commit `08db3e0f` 的 product、
+  OIDC、V8 与整个分布式 G3 aggregate 均取得 durable CI identity，因此本地与远端证据共同将
+  Global G3 升级为 `Passed`。
 
 ## Required Golden matrix
 
@@ -474,6 +506,10 @@ owner-passed cases `127` 与 `skipped=0 todo=0 failed=0`；commit `bd6ef590` 的
 7. resizable IDE panel、keyboard journey、screen-reader labels 和 compact states。
 
 截图/视频只能证明产品表面，不能替代 canonical digest、自动化 Gate、negative behavior 和 Evidence provenance。
+commit `08db3e0f` 的 product job 已通过 Web `9 files / 80 tests`、CLI/Backend recovery 与上述
+Scenarios/Verification/Execution/Issues/SourceTrace journey；同一 run 的 V8 job 又以 locked Plan
+执行 Authenticated Catalog 66-cell cross-target Closure。产品 journey 与 canonical evidence 因而均为
+`Passed`，不是由截图或绿色徽章单独推断。
 
 ## 状态更新规则
 

@@ -3,8 +3,8 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：A0-A3 Implemented / A4 V2 Golden slice Implemented
-- ProductGateStatus：V2 slice Passed / Global G3 In Progress
+- ImplementationStatus：A0-A4 Implemented
+- ProductGateStatus：Passed
 - Global Phase：G3 Behavior & Verification Closure
 - 日期：2026-07-27
 - Owner：`@prodivix/animation`、Route/PIR renderer owner、`@prodivix/runtime-core`、`@prodivix/behavior`、target adapters、`apps/web`
@@ -285,7 +285,10 @@ Remote、Firefox/WebKit、performance/security Evidence matrix仍未运行。
 Gate：`pnpm run verify:g3:behavior-composition` 中 Animation 9 files / 46 tests、Router 5 files / 20 tests、
 Compiler React/Vue 19 tests、Web product 7 tests、V2 composition 7 tests与 Chromium browser Golden 1 test
 已在 2026-07-27 当前未提交 worktree 本地通过；`verify:g3:boundaries` 同时覆盖 Workspace/Go wire hard cut。
-workflow 已配置但缺少 commit/CI identity；完整 G3 V6/V8 adapter/evidence matrix仍待实现。
+commit `90fcf961` 的 V2 CI 已形成 durable evidence；commit `08db3e0f` 的
+[V8 CI Job](https://github.com/prodivix/prodivix/actions/runs/30607438729/job/91085620980)
+又在 React/Vue、Preview/Export/CI、Chromium/Firefox/WebKit 与 full/reduced matrix 中闭合
+Animation/Route evidence。
 
 必须覆盖：
 
