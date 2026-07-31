@@ -66,6 +66,36 @@ describe('Verification CI job admission', () => {
     ).toMatchObject({ status: 'forbidden', reason: 'untrusted-event' });
   });
 
+  it('admits immutable GitHub repository subjects and rejects identity drift', () => {
+    const context = contextFixture();
+    const withSubject = (subject: string) =>
+      createVerificationCiJobContext({
+        ...context,
+        oidc: Object.freeze({ ...context.oidc, subject }),
+      });
+    const immutable = withSubject(
+      'repo:prodivix@305709063/prodivix@1079240203:ref:refs/heads/main'
+    );
+    expect(assessVerificationCiPromotion(immutable)).toEqual({
+      status: 'allowed',
+      contextDigest: immutable.contextDigest,
+    });
+    for (const subject of [
+      'repo:other@305709063/prodivix@1079240203:ref:refs/heads/main',
+      'repo:prodivix@305709063/other@1079240203:ref:refs/heads/main',
+      'repo:prodivix@0/prodivix@1079240203:ref:refs/heads/main',
+      'repo:prodivix@305709063/prodivix@0:ref:refs/heads/main',
+      'repo:prodivix@305709063/prodivix@1079240203:ref:refs/heads/dev',
+    ]) {
+      expect(assessVerificationCiPromotion(withSubject(subject))).toMatchObject(
+        {
+          status: 'forbidden',
+          reason: 'oidc-identity-mismatch',
+        }
+      );
+    }
+  });
+
   it('rejects digest drift and credential-shaped extra fields', () => {
     const wire = encodeVerificationCiJobContext(contextFixture());
     expect(

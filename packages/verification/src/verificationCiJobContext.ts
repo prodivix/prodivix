@@ -269,6 +269,41 @@ const repositoryPath = (repository: string): string => {
   return separator >= 0 ? repository.slice(separator + 1) : repository;
 };
 
+const GITHUB_DATABASE_ID_PATTERN = /^[1-9][0-9]*$/u;
+
+const matchesGithubOidcSubject = (
+  subject: string,
+  repository: string,
+  ref: string
+): boolean => {
+  if (subject === `repo:${repository}:ref:${ref}`) return true;
+  const [owner, name, ...extraSegments] = repository.split('/');
+  if (!owner || !name || extraSegments.length > 0) return false;
+  const prefix = `repo:${owner}@`;
+  const repositoryDelimiter = `/${name}@`;
+  const suffix = `:ref:${ref}`;
+  if (!subject.startsWith(prefix) || !subject.endsWith(suffix)) return false;
+  const identity = subject.slice(prefix.length, -suffix.length);
+  const delimiterIndex = identity.indexOf(repositoryDelimiter);
+  if (
+    delimiterIndex < 1 ||
+    identity.indexOf(
+      repositoryDelimiter,
+      delimiterIndex + repositoryDelimiter.length
+    ) >= 0
+  ) {
+    return false;
+  }
+  const ownerId = identity.slice(0, delimiterIndex);
+  const repositoryId = identity.slice(
+    delimiterIndex + repositoryDelimiter.length
+  );
+  return (
+    GITHUB_DATABASE_ID_PATTERN.test(ownerId) &&
+    GITHUB_DATABASE_ID_PATTERN.test(repositoryId)
+  );
+};
+
 export const assessVerificationCiPromotion = (
   context: VerificationCiJobContext,
   expectedAudience = 'prodivix-verification'
@@ -301,7 +336,11 @@ export const assessVerificationCiPromotion = (
   if (
     context.oidc.issuer !== 'https://token.actions.githubusercontent.com' ||
     context.oidc.audience !== expectedAudience ||
-    context.oidc.subject !== `repo:${path}:ref:${context.identity.ref}` ||
+    !matchesGithubOidcSubject(
+      context.oidc.subject,
+      path,
+      context.identity.ref
+    ) ||
     context.oidc.workflowRef !== context.workflowRef
   ) {
     return Object.freeze({

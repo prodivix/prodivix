@@ -67,6 +67,34 @@ const assertClaim = (claims, name, expected) => {
   return observed;
 };
 
+const assertRepositorySubject = (
+  claims,
+  repository,
+  ref,
+  repositoryOwnerId,
+  repositoryId
+) => {
+  const [owner, name, ...extraSegments] = repository.split('/');
+  if (
+    !owner ||
+    !name ||
+    extraSegments.length > 0 ||
+    !/^[1-9][0-9]*$/u.test(repositoryOwnerId) ||
+    !/^[1-9][0-9]*$/u.test(repositoryId)
+  ) {
+    throw new TypeError('GitHub repository identity is invalid.');
+  }
+  const observed = claimText(claims, 'sub');
+  const expectedSubjects = new Set([
+    `repo:${repository}:ref:${ref}`,
+    `repo:${owner}@${repositoryOwnerId}/${name}@${repositoryId}:ref:${ref}`,
+  ]);
+  if (!expectedSubjects.has(observed)) {
+    throw new TypeError('GitHub OIDC claim sub does not match the job.');
+  }
+  return observed;
+};
+
 const main = async () => {
   const outputPath = process.argv[2]?.trim();
   if (!outputPath) {
@@ -93,6 +121,8 @@ const main = async () => {
   const runAttemptText = requiredEnvironment('GITHUB_RUN_ATTEMPT');
   const jobId = requiredEnvironment('GITHUB_JOB');
   const workflowRef = requiredEnvironment('GITHUB_WORKFLOW_REF');
+  const repositoryOwnerId = requiredEnvironment('GITHUB_REPOSITORY_OWNER_ID');
+  const repositoryId = requiredEnvironment('GITHUB_REPOSITORY_ID');
   if (
     (event !== 'push' && event !== 'workflow_dispatch') ||
     !/^[a-f0-9]{40}$/u.test(commit) ||
@@ -113,6 +143,15 @@ const main = async () => {
   assertClaim(claims, 'run_id', runId);
   assertClaim(claims, 'run_attempt', runAttemptText);
   assertClaim(claims, 'workflow_ref', workflowRef);
+  assertClaim(claims, 'repository_owner_id', repositoryOwnerId);
+  assertClaim(claims, 'repository_id', repositoryId);
+  const subject = assertRepositorySubject(
+    claims,
+    repository,
+    ref,
+    repositoryOwnerId,
+    repositoryId
+  );
   const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
   if (
     audiences.length < 1 ||
@@ -136,13 +175,15 @@ const main = async () => {
     oidc: {
       issuer: claimText(claims, 'iss'),
       audience: EXPECTED_AUDIENCE,
-      subject: claimText(claims, 'sub'),
+      subject,
       workflowRef: claimText(claims, 'workflow_ref'),
       claimsDigest: digestVerificationValue({
         issuer: claims.iss,
         audience: audiences,
-        subject: claims.sub,
+        subject,
         repository: claims.repository,
+        repositoryOwnerId,
+        repositoryId,
         ref: claims.ref,
         commit: claims.sha,
         event: claims.event_name,
