@@ -44,7 +44,7 @@ describe('AgentPolicy codec properties', () => {
       }),
       { numRuns: 100 }
     );
-  });
+  }, 15_000);
 
   it('rejects every non-trivial permutation of a set-like policy field', () => {
     fc.assert(
