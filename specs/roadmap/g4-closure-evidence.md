@@ -2,9 +2,9 @@
 
 ## 状态
 
-- EvidenceStatus：V0 Local Evidence Passed / Durable CI Evidence Pending
+- EvidenceStatus：V0 Local + Durable CI Evidence Passed；V1–V9 Pending
 - ProductGateStatus：In Progress
-- 日期：2026-07-31
+- 日期：2026-08-01
 - Canonical milestone：
   [`g4-verified-agentic-development-milestones.md`](g4-verified-agentic-development-milestones.md)
 - Contract set：
@@ -16,10 +16,10 @@
 - Implementation：
   [`../implementation/g4-verified-agentic-development.md`](../implementation/g4-verified-agentic-development.md)
 
-本文提前冻结 G4 Exit Gate 的证据结构。V0 implementation、本地 deterministic Gate 与真实 PostgreSQL Gate
-已有证据；durable CI、V1–V9、model evaluation、Golden 与 Global G4 Closure 仍为 `Pending`。文档存在、
-mock provider 能响应、workflow 已配置、单次 provider smoke、一次模型回答看起来正确或 Agent 自报
-“测试通过”都不能替代对应 evidence。
+本文提前冻结 G4 Exit Gate 的证据结构。V0 implementation、本地与 durable CI deterministic Gate、真实
+PostgreSQL Gate 已有证据；V1–V9、model evaluation、Golden 与 Global G4 Closure 仍为 `Pending`。文档存在、
+mock provider 能响应、workflow 已配置、单次 provider smoke、一次模型回答看起来正确或 Agent 自报“测试通过”
+都不能替代对应 evidence。
 
 ## Closure identity
 
@@ -54,22 +54,22 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
 
 ## Required Gate manifest
 
-| Gate                              | 状态                      | 必须证明                                                              | Evidence                                                    |
-| --------------------------------- | ------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `verify:g4:boundaries`            | Local Passed / CI Pending | owner/current/wire/agent-policy/diagnostics/no alternate write        | local aggregate + real PostgreSQL Gate；durable run pending |
-| `verify:g4:context-policy`        | Pending                   | grounding/privacy/residency/instruction boundary                      | 待实现                                                      |
-| `verify:g4:provider-capabilities` | Pending                   | profile/model/state/cache/job/reasoning/usage/4-adapter conformance   | 待实现                                                      |
-| `verify:g4:multimodal`            | Pending                   | media source/transform/injection/visual target/generated asset        | 待实现                                                      |
-| `verify:g4:hosted-capabilities`   | Pending                   | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary | 待实现                                                      |
-| `verify:g4:control-plane`         | Pending                   | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL            | 待实现                                                      |
-| `verify:g4:proposal-approval`     | Pending                   | domain dry-run/exact approval/Transaction/ACK/rollback                | 待实现                                                      |
-| `verify:g4:verification`          | Pending                   | committed Plan/Evidence/Closure/repair/eval/counterexample            | 待实现                                                      |
-| `verify:g4:product`               | Pending                   | Web/CLI/a11y/reconnect/trace/audit                                    | 待实现                                                      |
-| `verify:g4:security`              | Pending                   | text/media injection/Secret/network/state/permission negatives        | 待实现                                                      |
-| `verify:g4:model-eval`            | Pending                   | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget | 待实现                                                      |
-| `verify:g4:golden`                | Pending                   | authenticated Catalog full positive/negative closure                  | 待实现                                                      |
-| `verify:g4`                       | Pending                   | zero-remote-token deterministic V0-V9 aggregate                       | 待实现                                                      |
-| `verify:g4:closure`               | Pending                   | exact-commit deterministic + model-eval + Golden manifest             | 待实现                                                      |
+| Gate                              | 状态    | 必须证明                                                              | Evidence                                                  |
+| --------------------------------- | ------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
+| `verify:g4:boundaries`            | Passed  | owner/current/wire/agent-policy/diagnostics/no alternate write        | commit `b9d4bbcd` / run `30674224519` / job `91298020728` |
+| `verify:g4:context-policy`        | Pending | grounding/privacy/residency/instruction boundary                      | 待实现                                                    |
+| `verify:g4:provider-capabilities` | Pending | profile/model/state/cache/job/reasoning/usage/4-adapter conformance   | 待实现                                                    |
+| `verify:g4:multimodal`            | Pending | media source/transform/injection/visual target/generated asset        | 待实现                                                    |
+| `verify:g4:hosted-capabilities`   | Pending | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary | 待实现                                                    |
+| `verify:g4:control-plane`         | Pending | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL            | 待实现                                                    |
+| `verify:g4:proposal-approval`     | Pending | domain dry-run/exact approval/Transaction/ACK/rollback                | 待实现                                                    |
+| `verify:g4:verification`          | Pending | committed Plan/Evidence/Closure/repair/eval/counterexample            | 待实现                                                    |
+| `verify:g4:product`               | Pending | Web/CLI/a11y/reconnect/trace/audit                                    | 待实现                                                    |
+| `verify:g4:security`              | Pending | text/media injection/Secret/network/state/permission negatives        | 待实现                                                    |
+| `verify:g4:model-eval`            | Pending | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget | 待实现                                                    |
+| `verify:g4:golden`                | Pending | authenticated Catalog full positive/negative closure                  | 待实现                                                    |
+| `verify:g4`                       | Pending | zero-remote-token deterministic V0-V9 aggregate                       | 待实现                                                    |
+| `verify:g4:closure`               | Pending | exact-commit deterministic + model-eval + Golden manifest             | 待实现                                                    |
 
 ## Required positive evidence
 
@@ -274,15 +274,24 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
 
 ## 当前 evidence
 
-### V0 local（2026-07-31）
+### V0 local + durable CI（2026-08-01）
 
-- Worktree identity：当前 `main` 基于本地 `HEAD`，包含未提交 V0 changes；因此只可作为 local evidence，不能
-  填写 exact commit 或 durable CI identity。
+- Implementation identity：`4428699b5dff60571518a215092575a10713608c` 实现 V0；
+  `b9d4bbcd4378bed945c15272d346af6521cec9f6` 保留全部语义与 property run count，仅为通用 Turbo 并发负载下的
+  重型 AgentPolicy property test 增加明确 15 秒预算，并作为最终 V0 durable evidence identity。
 - `pnpm run verify:g4:boundaries`：Passed。覆盖 17-package dependency build、`@prodivix/ai` 34 tests、
   `@prodivix/workspace` 198 tests、`@prodivix/workspace-sync` 119 tests、TS/Go canonical vector、Workspace/
   Backend/database contract、diagnostics docs 与 owner/wire/hard-cut boundary；remote-model units = 0。
 - `pnpm run verify:g4:boundaries:postgres`：Passed。`TestAgentPolicyAtomicCommitPostgreSQLGate` 和
   `TestAgentPolicyPostgreSQLRoundTripGate` 在本地 PostgreSQL 18 isolated schemas 中实际执行并通过；覆盖
   Atomic Commit、idempotent replay、snapshot reload、TS/Go digest、JSONB persistence、migration 与 singleton。
-- `.github/workflows/g4-boundaries.yml`：Configured / Evidence pending。尚无 exact-commit GitHub run/job/artifact，
-  所以 V0 durable promotion、V1 开始许可和 Global G4 `Passed` 均未满足。
+- [`G4 Agent Boundaries` run `30674224519`](https://github.com/prodivix/prodivix/actions/runs/30674224519)：Passed。
+  exact commit 为 `b9d4bbcd4378bed945c15272d346af6521cec9f6`；job
+  [`91298020728`](https://github.com/prodivix/prodivix/actions/runs/30674224519/job/91298020728) 在 Ubuntu 24.04、
+  Node 22、Go 与 PostgreSQL 16 上依次通过 deterministic G4 V0 boundaries 和真实 AgentPolicy PostgreSQL
+  round-trip，2026-08-01 07:59:02 +08:00 terminal success；remote-model units = 0。
+- [`Tests` run `30674224474`](https://github.com/prodivix/prodivix/actions/runs/30674224474)：Passed。Frontend job
+  [`91298020635`](https://github.com/prodivix/prodivix/actions/runs/30674224474/job/91298020635) 证明同一 exact commit
+  在通用并发负载下通过 formatting、lint、53-package non-Web tests、Web tests 与 Web typecheck；Backend 与
+  hostile-locale canonical bytes jobs 同时通过。
+- V0 durable promotion 已满足；V1–V9、model evaluation、Golden、closure artifact 与 Global G4 `Passed` 仍未满足。

@@ -1,6 +1,6 @@
 # Prodivix 当前状态
 
-> StatusDate: 2026-07-31
+> StatusDate: 2026-08-01
 > 本文件是 G0/G1/G2/G3/G4 当前完成状态的唯一来源。`global-phases.md` 定义阶段目标与退出条件；evidence 文档保存可重复验证证据，不重复声明当前状态。
 
 ## 全局阶段
@@ -11,7 +11,7 @@
 | G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
 | G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。 |
 | G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                        |
-| G4 Verified Agentic Development    | In Progress  | V0 已本地实现并通过 deterministic aggregate 与真实 PostgreSQL Gate；durable CI evidence pending，V1–V9 Not Started，Global G4 未 Passed。                                           |
+| G4 Verified Agentic Development    | In Progress  | V0 已实现且 exact-commit deterministic/真实 PostgreSQL durable CI evidence 已通过；V1–V9 Not Started，Global G4 未 Passed。                                                         |
 | G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 | G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 
@@ -33,8 +33,8 @@ G4 contract 与阶段状态：
 
 ## G4 当前进度
 
-2026-07-31，G4 ADR 65–69 production contract set 已冻结；V0 已本地实现，durable CI evidence pending，V1–V9
-尚未开始。当前实现与已确定边界如下：
+2026-08-01，G4 ADR 65–69 production contract set 已冻结；V0 已实现并取得 durable CI evidence，V1–V9 尚未开始。
+当前实现与已确定边界如下：
 
 - `@prodivix/ai` 已成为 G4 transport-neutral current/wire 唯一 owner；旧 `packages/shared/src/llm` 已删除，
   Blueprint assistant 迁移到只产出 bounded plan 的 `AiDraft*` boundary，不具备 proposal/apply/approval/commit 权限。
@@ -42,8 +42,9 @@ G4 contract 与阶段状态：
   TypeScript/Go schema/semantic conformance、reversible `core.agent` Command、Outbox/Atomic Commit/Reload 和
   PostgreSQL migration/unique constraint 已实现。
 - AI diagnostics registry、generated docs、package/application/wire/Workspace boundary checker 与独立 G4 CI
-  workflow 已落地。本地 `verify:g4:boundaries` 和 `verify:g4:boundaries:postgres` 已通过；workflow 存在仅表示
-  Configured，尚无 exact-commit durable run/job evidence。
+  workflow 已落地。本地 `verify:g4:boundaries` 和 `verify:g4:boundaries:postgres` 已通过；commit `b9d4bbcd`
+  的 G4 run `30674224519` / job `91298020728` 又在 Ubuntu、Node 22、Go 与 PostgreSQL 16 上通过相同
+  deterministic aggregate 和真实 PostgreSQL round-trip。
 
 - `@prodivix/ai` 是 AgentPolicy、Task/Run、Context、Provider/capability、media/tool/evaluation current domain 的
   唯一 owner；各领域、Asset、Runtime与 Verification owner继续唯一生成各自 mutation/asset/evidence truth。
@@ -71,7 +72,7 @@ G4 contract 与阶段状态：
   50亿–200亿。authority是冻结的 provider/profile/corpus/holdout/tier/repetition/grader/threshold/usage budget与
   实际 receipt，不能只用 token或成本表达工作量。
 - V0-V9、required Gate、Golden positive/negative matrix 与 evidence manifest 已提前冻结；当前只有 V0 为
-  `Implemented Locally / Durable CI Pending`，V1–V9 与其 required Gate 仍为 `Not Started` / `Pending`。
+  `Implemented / Durable CI Evidence Passed`，V1–V9 与其 required Gate 仍为 `Not Started` / `Pending`。
 
 ## G3 当前进度
 

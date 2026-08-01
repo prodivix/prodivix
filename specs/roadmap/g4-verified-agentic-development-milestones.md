@@ -13,7 +13,7 @@
 
 ## 当前判断
 
-状态：`V0 Implemented Locally / Durable CI Evidence Pending；V1–V9 Not Started`。
+状态：`V0 Implemented / Durable CI Evidence Passed；V1–V9 Not Started`。
 
 2026-07-31 已冻结 G4 owner、AgentPolicy、Task/Run lifecycle、Context Pack、Provider capability/invocation、
 多模态 transformation/generated asset、hosted tool/retrieval/MCP/computer-use boundary、multi-dimensional usage、
@@ -21,21 +21,22 @@ Proposal/dry-run、human approval、Atomic Commit、G3 Verification/repair、rol
 四类 Provider adapter 与三 Provider statistical real-model evaluation contract。G3 已 Passed，因此
 Global G4 前置阻塞解除。V0 已完成 `@prodivix/ai` owner/current/wire hard cut、AgentPolicy Workspace/Backend
 路径、plan-only draft boundary、diagnostics 与 boundary Gate，本地 deterministic aggregate 和真实 PostgreSQL
-Gate 已通过；`.github/workflows/g4-boundaries.yml` 已配置，但尚无 exact-commit durable CI run，因此 V0 不能写成
-durable `Passed`，Global G4 也仍是 `In Progress`。V1–V9 尚未开始。
+Gate 已通过；2026-08-01，commit `b9d4bbcd` 的 durable G4 run `30674224519` / job `91298020728` 又通过相同
+deterministic 与 PostgreSQL Gate，因此 V0 为 `Implemented / Durable CI Evidence Passed`。Global G4 仍是
+`In Progress`，V1–V9 尚未开始。
 
-| Milestone                             | 状态                     | 目标闭环                                                        | 升级所需证据                                                       |
-| ------------------------------------- | ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------ |
-| V0 Owner/current/wire hard cut        | Implemented / CI Pending | `@prodivix/ai`、agent-policy、codec、diagnostics、boundary      | durable CI `verify:g4:boundaries`                                  |
-| V1 Provider/Policy/Context/invocation | Not Started              | capability/state/cache/job/usage + grounded Context             | `verify:g4:context-policy` + `verify:g4:provider-capabilities`     |
-| V2 Multimodal/generated asset         | Not Started              | media transform/injection/visual target/G2 asset candidate      | local + CI `verify:g4:multimodal`                                  |
-| V3 Hosted capability boundary         | Not Started              | hosted tool/retrieval/MCP/computer/concurrency                  | local + CI `verify:g4:hosted-capabilities`                         |
-| V4 Task/Run/tool control plane        | Not Started              | lifecycle、budget、cancel/retry/recovery、PostgreSQL            | local + CI `verify:g4:control-plane`                               |
-| V5 Proposal/approval/Transaction      | Not Started              | domain dry-run、exact approval、Atomic Commit、rollback         | local + CI `verify:g4:proposal-approval`                           |
-| V6 Verification/repair/eval           | Not Started              | committed Plan、Evidence/Closure、bounded repair/regression     | local + CI `verify:g4:verification`                                |
-| V7 Web/CLI product loop               | Not Started              | Task/Trace/Proposal/Approval/Verification/Audit UX              | local + CI `verify:g4:product`                                     |
-| V8 Security/model evaluation          | Not Started              | fail-closed + 4 adapters + 3-Provider/128-case/11,640+ journeys | CI `verify:g4:security` + scheduled/release `verify:g4:model-eval` |
-| V9 G4 Golden closure                  | Not Started              | authenticated Catalog exact-write-to-satisfied-Closure loop     | exact-commit `verify:g4:golden`/`verify:g4`/`verify:g4:closure`    |
+| Milestone                             | 状态                    | 目标闭环                                                        | 升级所需证据                                                       |
+| ------------------------------------- | ----------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| V0 Owner/current/wire hard cut        | Implemented / CI Passed | `@prodivix/ai`、agent-policy、codec、diagnostics、boundary      | commit `b9d4bbcd` / run `30674224519` / job `91298020728`          |
+| V1 Provider/Policy/Context/invocation | Not Started             | capability/state/cache/job/usage + grounded Context             | `verify:g4:context-policy` + `verify:g4:provider-capabilities`     |
+| V2 Multimodal/generated asset         | Not Started             | media transform/injection/visual target/G2 asset candidate      | local + CI `verify:g4:multimodal`                                  |
+| V3 Hosted capability boundary         | Not Started             | hosted tool/retrieval/MCP/computer/concurrency                  | local + CI `verify:g4:hosted-capabilities`                         |
+| V4 Task/Run/tool control plane        | Not Started             | lifecycle、budget、cancel/retry/recovery、PostgreSQL            | local + CI `verify:g4:control-plane`                               |
+| V5 Proposal/approval/Transaction      | Not Started             | domain dry-run、exact approval、Atomic Commit、rollback         | local + CI `verify:g4:proposal-approval`                           |
+| V6 Verification/repair/eval           | Not Started             | committed Plan、Evidence/Closure、bounded repair/regression     | local + CI `verify:g4:verification`                                |
+| V7 Web/CLI product loop               | Not Started             | Task/Trace/Proposal/Approval/Verification/Audit UX              | local + CI `verify:g4:product`                                     |
+| V8 Security/model evaluation          | Not Started             | fail-closed + 4 adapters + 3-Provider/128-case/11,640+ journeys | CI `verify:g4:security` + scheduled/release `verify:g4:model-eval` |
+| V9 G4 Golden closure                  | Not Started             | authenticated Catalog exact-write-to-satisfied-Closure loop     | exact-commit `verify:g4:golden`/`verify:g4`/`verify:g4:closure`    |
 
 ## V0：Owner、current/wire 与 diagnostics hard cut
 
@@ -54,13 +55,16 @@ durable `Passed`，Global G4 也仍是 `In Progress`。V1–V9 尚未开始。
 Policy 创建、编辑、undo/redo、outbox/commit、reload round-trip；旧 wire 唯一迁移到 current；unknown version、
 unsafe key、oversize、duplicate id、non-canonical order fail closed。
 
-### V0 本地证据
+### V0 本地与 durable CI 证据
 
 - `pnpm run verify:g4:boundaries`：Passed；使用 scripted/deterministic fixtures，remote-model units 为 0。
 - `pnpm run verify:g4:boundaries:postgres`：Passed；真实 PostgreSQL 18 上执行 AgentPolicy Atomic Commit、
   幂等重放、snapshot reload、跨 TS/Go digest 与独立 JSONB/migration round-trip。
-- durable CI：workflow 已配置，exact commit/run/job evidence pending；不得据此进入 V1 的 durable promotion 或把
-  Global G4 标成 `Passed`。
+- durable CI：commit `b9d4bbcd4378bed945c15272d346af6521cec9f6` 的
+  [`G4 Agent Boundaries` run `30674224519`](https://github.com/prodivix/prodivix/actions/runs/30674224519) / job
+  [`91298020728`](https://github.com/prodivix/prodivix/actions/runs/30674224519/job/91298020728) terminal success；
+  deterministic aggregate 与真实 PostgreSQL AgentPolicy round-trip 均通过。
+- V0 durable promotion 已满足；这不代表 V1–V9、model evaluation、Golden、closure artifact 或 Global G4 Passed。
 
 ### 停止条件
 

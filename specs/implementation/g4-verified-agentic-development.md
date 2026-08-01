@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0 Implemented Locally / Durable CI Evidence Pending；V1–V9 Not Started
+- ImplementationStatus：V0 Implemented / Durable CI Evidence Passed；V1–V9 Not Started
 - ProductGateStatus：In Progress
 - Global Phase：G4 Verified Agentic Development
 - 日期：2026-07-31
@@ -23,9 +23,9 @@
   - `specs/decisions/57.verification-plan-impact-and-policy.md`
   - `specs/decisions/58.verification-evidence-provenance-and-retention.md`
 
-局部 V0-V9 只表示本计划内部顺序，不代表 Global G4 已通过。本文冻结实施分解与验证方法；V0 已由本地
-deterministic aggregate 和真实 PostgreSQL Gate 证明为 implemented，durable CI evidence pending。V1–V9
-仍不得因文档、mock、workflow 或单次 provider smoke 存在而标记为 Implemented。
+局部 V0-V9 只表示本计划内部顺序，不代表 Global G4 已通过。本文冻结实施分解与验证方法；V0 已由本地与
+exact-commit durable CI 的 deterministic aggregate 和真实 PostgreSQL Gate 证明为 implemented。V1–V9 仍不得因
+文档、mock、workflow 或单次 provider smoke 存在而标记为 Implemented。
 
 ## 目标
 
@@ -483,6 +483,6 @@ revision，blind human rubric只判断主观质量；四者互不替代。
 - [x] ADR 65–69、V0-V9 顺序、Golden 与 required evidence 已冻结。
 - [x] V0 范围内没有第二套生产写入协议或领域私有真相源。
 - [x] V0 公开 current/wire contract、错误语义和诊断落点已实现。
-- [ ] 本地所有 required Gate 可重复通过。
-- [ ] exact commit 的 durable CI Gate 与 artifact 已通过。
-- [x] `ImplementationStatus` 与 `ProductGateStatus` 已按 V0 本地证据和 durable CI pending 分层更新。
+- [ ] G4 Exit 本地所有 required Gate 可重复通过。
+- [ ] G4 Exit 所有 exact-commit durable CI Gate 与 artifact 已通过。
+- [x] `ImplementationStatus` 与 `ProductGateStatus` 已按 V0 local/durable evidence 和 V1–V9 pending 分层更新。
