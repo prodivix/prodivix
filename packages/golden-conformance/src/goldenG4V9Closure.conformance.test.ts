@@ -21,6 +21,10 @@ import { GOLDEN_G4_V8_EVALUATION_MATRIX } from './goldenG4V8SecurityModelEvalFix
 
 const verifyG4V9Closure = process.env.PRODIVIX_VERIFY_G4_V9_CLOSURE === '1';
 const describeG4V9Closure = describe.runIf(verifyG4V9Closure);
+const declaredWorktreeState =
+  process.env.PRODIVIX_G4_WORKTREE_STATE?.trim() === 'clean'
+    ? 'clean'
+    : 'dirty';
 let harness: GoldenG4V9ClosureHarness;
 
 beforeAll(async () => {
@@ -127,7 +131,7 @@ describeG4V9Closure('G4 V9 authenticated Catalog Golden Closure', () => {
 
   it('passes deterministic Golden but keeps G4 closure incomplete without real models and durable CI', () => {
     expect(harness.manifest).toMatchObject({
-      worktreeState: 'dirty',
+      worktreeState: declaredWorktreeState,
       goldenVerdict: 'satisfied',
       closureVerdict: 'incomplete',
       modelEvaluation: {
