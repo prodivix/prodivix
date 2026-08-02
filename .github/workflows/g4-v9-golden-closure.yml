@@ -13,6 +13,7 @@ on:
       - 'apps/backend/internal/platform/agentcontract/**'
       - 'apps/backend/internal/platform/canonicaljson/**'
       - 'apps/backend/internal/platform/database/**'
+      - 'apps/remote-runner-worker/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'packages/ai/**'
@@ -48,6 +49,7 @@ on:
       - 'apps/backend/internal/platform/agentcontract/**'
       - 'apps/backend/internal/platform/canonicaljson/**'
       - 'apps/backend/internal/platform/database/**'
+      - 'apps/remote-runner-worker/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'packages/ai/**'
@@ -172,7 +174,68 @@ jobs:
       - name: Attest installed Playwright browser images
         run: pnpm --filter @prodivix/golden-conformance test:g3-v6-browser-image-authority
       - name: Verify rootless runtime
-        run: pnpm run verify:g4:rootless
+        shell: bash
+        env:
+          PRODIVIX_ROOTLESS_EVIDENCE_PATH: g4-v9-rootless-sandbox-gate.json
+          REMOTE_WORKER_TOKEN: g4-v9-rootless-gate-canary-not-secret
+        run: |
+          set -euo pipefail
+          install_network="prodivix-g4-v9-install-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          proxy_egress_network="prodivix-g4-v9-proxy-egress-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          proxy_container="prodivix-g4-v9-install-proxy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          proxy_image="localhost/prodivix-g4-v9-install-proxy:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          base_image="docker.io/library/node:22-bookworm-slim"
+          podman pull "${base_image}"
+          base_digest="$(podman image inspect --format '{{.Digest}}' "${base_image}")"
+          podman build \
+            --pull=never \
+            --build-arg "NODE_IMAGE=docker.io/library/node@${base_digest}" \
+            --file apps/remote-runner-worker/install-proxy/Dockerfile \
+            --tag "${proxy_image}" \
+            .
+
+          podman network create --internal "${install_network}"
+          podman network create "${proxy_egress_network}"
+          podman run \
+            --detach \
+            --name "${proxy_container}" \
+            --network "${proxy_egress_network}" \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --pids-limit 64 \
+            --memory 256m \
+            --env PRODIVIX_INSTALL_EGRESS_ALLOWLIST=registry.npmjs.org \
+            "${proxy_image}"
+          podman network connect "${install_network}" "${proxy_container}"
+          cleanup() {
+            podman rm --force --ignore "${proxy_container}"
+            podman network rm --force "${install_network}" "${proxy_egress_network}"
+          }
+          trap cleanup EXIT
+
+          export PRODIVIX_ROOTLESS_INSTALL_NETWORK="${install_network}"
+          export PRODIVIX_ROOTLESS_INSTALL_PROXY_URL="http://${proxy_container}:8080/"
+          export PRODIVIX_ROOTLESS_INSTALL_PROXY_CONTAINER="${proxy_container}"
+          set +e
+          pnpm run verify:g4:rootless 2>&1 | tee g4-v9-rootless-sandbox-gate.log
+          gate_status="${PIPESTATUS[0]}"
+          set -e
+          podman logs "${proxy_container}" > g4-v9-rootless-install-egress-traces.jsonl
+          exit "${gate_status}"
+      - name: Upload rootless runtime evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: g4-v9-rootless-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            g4-v9-rootless-podman-info.json
+            g4-v9-rootless-sandbox-gate.json
+            g4-v9-rootless-sandbox-gate.log
+            g4-v9-rootless-install-egress-traces.jsonl
+          if-no-files-found: warn
+          retention-days: 30
       - name: Verify exact deterministic G4 aggregate and authenticated Catalog Golden
         env:
           PRODIVIX_G4_V9_MANIFEST_PATH: ${{ runner.temp }}/prodivix-g4-v9-closure-manifest.json

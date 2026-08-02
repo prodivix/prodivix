@@ -1289,6 +1289,7 @@ for (const token of [
   "- 'apps/backend/internal/modules/agent/**'",
   "- 'apps/backend/internal/platform/agentcontract/**'",
   "- 'apps/backend/internal/platform/database/**'",
+  "- 'apps/remote-runner-worker/**'",
   "- 'packages/ai/**'",
   "- 'packages/golden-conformance/**'",
   "- 'packages/shared/**'",
@@ -1301,6 +1302,8 @@ for (const token of [
   "PRODIVIX_G4_REMOTE_MODEL_UNITS: '0'",
   'run: bash scripts/ci/configure-rootless-podman.sh',
   'run: pnpm run build:g2-golden-dependencies',
+  'PRODIVIX_ROOTLESS_INSTALL_NETWORK',
+  'apps/remote-runner-worker/install-proxy/Dockerfile',
   'run: pnpm run verify:g4',
 ]) {
   if (!v9WorkflowSource.includes(token)) {
