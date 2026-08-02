@@ -17,6 +17,7 @@ import {
   Home,
   CircleAlert,
   Code2,
+  Bot,
 } from 'lucide-react';
 import { useWorkspaceIssuesStore } from '@/editor/features/issues/workspaceIssuesStore';
 import { EditorBarExitModal } from './EditorBarExitModal';
@@ -140,6 +141,13 @@ function EditorBar() {
                 size={22}
                 title={`${issuesLabel} · Alt+0`}
                 to={`${basePath}/issues`}
+              />
+              <PdxIconLink
+                icon={<Bot size={22} />}
+                label={t('projectHome.actions.agent.label')}
+                size={22}
+                title={t('projectHome.actions.agent.label')}
+                to={`${basePath}/agent`}
               />
               <PdxIconLink
                 icon={<TestTube size={22} />}

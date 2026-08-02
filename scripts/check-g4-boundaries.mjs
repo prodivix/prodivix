@@ -33,6 +33,7 @@ for (const entry of packageEntries) {
 
 const aiDependencies = packages.get('@prodivix/ai')?.dependencies;
 const expectedAiDependencies = new Set([
+  '@prodivix/assets',
   '@prodivix/diagnostics',
   '@prodivix/shared',
 ]);
@@ -103,9 +104,34 @@ const ownerTypes = [
   'AgentRun',
   'AgentCapabilityGrant',
   'AgentContextPack',
+  'AgentContextContributor',
+  'AgentCapabilityProfile',
+  'AgentCapabilityQualification',
+  'AgentProviderConfigurationIdentity',
+  'AgentModelLineage',
+  'AgentUsageVector',
+  'AgentModelInvocationReceipt',
+  'AgentModalityProfile',
+  'AgentMediaSourceDescriptor',
+  'AgentMediaTransformationReceipt',
+  'AgentMediaRepresentation',
+  'AgentGeneratedArtifactCandidate',
+  'AgentGeneratedAssetProposal',
+  'AgentToolDescriptor',
+  'AgentToolRegistrySnapshot',
+  'AgentRetrievalIndexIdentity',
+  'AgentHostedSandboxDescriptor',
+  'AgentMcpServerIdentity',
+  'AgentComputerUseSession',
   'AgentActionProposal',
+  'AgentProposalPlanningReceipt',
   'AgentProposalPreview',
   'AgentApprovalDecision',
+  'AgentWorkspaceMutationReceipt',
+  'AgentCommittedVerificationPlanBinding',
+  'AgentVerificationClosureReceipt',
+  'AgentRepairCounterexampleSet',
+  'AgentRepairRoundReceipt',
   'AgentAuditEvent',
 ];
 const declarationPattern = new RegExp(
@@ -119,7 +145,7 @@ for (const file of sourceFiles) {
   const source = await readFile(file, 'utf8');
   const path = relative(repoRoot, file).replaceAll('\\', '/');
   for (const match of source.matchAll(declarationPattern)) {
-    if (!path.startsWith('packages/ai/src/domain/')) {
+    if (!path.startsWith('packages/ai/src/')) {
       issues.push(
         `${path} duplicates @prodivix/ai owner type ${match[1] ?? match[2]}.`
       );
@@ -164,6 +190,467 @@ const currentSource = await readFile(
 );
 if (/\b(?:wireVersion|schemaVersion)\??\s*:/u.test(currentSource)) {
   issues.push('G4 current domain must not expose wire/schema version fields.');
+}
+
+const v1ProviderSource = (
+  await Promise.all(
+    [
+      'packages/ai/src/providers/agentProvider.types.ts',
+      'packages/ai/src/providers/agentProviderIdentity.ts',
+      'packages/ai/src/providers/agentProviderCodec.ts',
+      'packages/ai/src/providers/agentProviderAdapter.ts',
+      'packages/ai/src/providers/agentCapabilityQualification.ts',
+      'packages/ai/src/providers/agentInvocation.ts',
+      'packages/ai/src/providers/agentInvocationFacts.ts',
+      'packages/ai/src/providers/agentInvocationPreflight.ts',
+      'packages/ai/src/providers/agentInvocationReceipt.ts',
+      'packages/ai/src/providers/agentInvocationValidation.ts',
+      'packages/ai/src/providers/agentProviderJob.ts',
+      'packages/ai/src/usage/agentUsage.ts',
+      'packages/ai/src/usage/agentBudgetLedger.ts',
+      'packages/ai/src/wire/agentProviderWire.ts',
+    ].map((path) => readFile(join(repoRoot, path), 'utf8'))
+  )
+).join('\n');
+for (const token of [
+  'AgentProviderConfigurationIdentity',
+  'AgentModelLineage',
+  'AgentCapabilityProfile',
+  'AgentCapabilityQualification',
+  'AgentProviderAdapter',
+  'agentProviderFactWireSchema',
+  'migrateAgentProviderFactWire',
+  'runAgentCapabilityProbe',
+  'preflightAgentInvocation',
+  'provenIsolation',
+  'AgentProviderJobReceipt',
+  'AgentUsageVector',
+  'reserveAgentBudget',
+]) {
+  if (!v1ProviderSource.includes(token)) {
+    issues.push(`G4 V1 provider boundary is missing ${token}.`);
+  }
+}
+if (
+  /\bwireVersion\??\s*:/u.test(
+    await readFile(
+      join(packagesRoot, 'ai', 'src', 'providers', 'agentProvider.types.ts'),
+      'utf8'
+    )
+  )
+) {
+  issues.push('G4 V1 provider current models must not expose wireVersion.');
+}
+
+const v1ContextSources = await Promise.all(
+  [
+    'packages/ai/src/context/agentContext.types.ts',
+    'packages/ai/src/context/agentContextBuilder.ts',
+    'packages/ai/src/context/agentContextValidation.ts',
+    'packages/ai/src/policy/agentPolicyEvaluation.ts',
+    'packages/workspace/src/agent/workspaceAgentContextContributors.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v1ContextSource = v1ContextSources.map(({ source }) => source).join('\n');
+for (const token of [
+  'AgentPolicyLayerKind',
+  'evaluateEffectiveAgentPolicy',
+  'createAgentContextContributorDescriptor',
+  'buildAgentContextPack',
+  'createWorkspaceSemanticAgentContextContributor',
+  'createWorkspaceCodeAgentContextContributor',
+  'createWorkspaceSourceTraceAgentContextContributor',
+  'createWorkspaceIssuesAgentContextContributor',
+  'createWorkspaceScenarioAgentContextContributor',
+  'createWorkspaceVerificationAgentContextContributor',
+]) {
+  if (!v1ContextSource.includes(token)) {
+    issues.push(`G4 V1 Context/Policy boundary is missing ${token}.`);
+  }
+}
+
+const v2MediaSources = await Promise.all(
+  [
+    'packages/ai/src/multimodal/agentMultimodal.types.ts',
+    'packages/ai/src/multimodal/agentMediaIdentity.ts',
+    'packages/ai/src/multimodal/agentMediaTransform.ts',
+    'packages/ai/src/multimodal/agentMultimodalContext.ts',
+    'packages/ai/src/multimodal/agentVisualGrounding.ts',
+    'packages/ai/src/multimodal/agentGeneratedArtifact.ts',
+    'packages/ai/src/multimodal/agentRealtimeMedia.ts',
+    'packages/ai/src/multimodal/agentMediaCodec.ts',
+    'packages/ai/src/wire/agentMediaWire.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v2MediaSource = v2MediaSources.map(({ source }) => source).join('\n');
+for (const token of [
+  'createRequiredAgentMultimodalCapabilityProfiles',
+  'executeAgentMediaTransformChain',
+  'normalizeAgentProviderMediaBlock',
+  'resolveAgentVisualObservation',
+  'adoptAgentGeneratedArtifactCandidate',
+  'admitFinalAgentRealtimeTurn',
+  'agentMediaFactWireSchema',
+  "commitAuthority: 'none-before-approval'",
+]) {
+  if (!v2MediaSource.includes(token)) {
+    issues.push(`G4 V2 media boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v2MediaSources) {
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /document\.(?:querySelector|getElementById)/u,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(
+        `${path} crosses the G4 V2 transport-neutral media boundary.`
+      );
+    }
+  }
+}
+if (!v2MediaSource.includes("from '@prodivix/assets'")) {
+  issues.push('G4 V2 generated media must compose the public G2 Asset owner.');
+}
+
+const v3HostedSources = await Promise.all(
+  [
+    'packages/ai/src/hosted/agentHosted.types.ts',
+    'packages/ai/src/hosted/agentToolRegistry.ts',
+    'packages/ai/src/hosted/agentToolLifecycle.ts',
+    'packages/ai/src/hosted/agentRetrieval.ts',
+    'packages/ai/src/hosted/agentCapabilityBoundaries.ts',
+    'packages/ai/src/hosted/agentHostedSandbox.ts',
+    'packages/ai/src/hosted/agentMcp.ts',
+    'packages/ai/src/hosted/agentComputerUse.ts',
+    'packages/ai/src/hosted/agentManagedAgent.ts',
+    'packages/ai/src/hosted/agentParallelTool.ts',
+    'packages/ai/src/hosted/agentHostedCodec.ts',
+    'packages/ai/src/wire/agentHostedWire.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v3HostedSource = v3HostedSources.map(({ source }) => source).join('\n');
+for (const token of [
+  'createAgentToolDescriptor',
+  'discoverAgentTools',
+  'preflightAgentToolCall',
+  'executeAgentHostedToolCall',
+  'preflightAgentRetrievalFetch',
+  'createAgentRetrievalIndexIdentity',
+  'createAgentRetrievalIndexDeletionReceipt',
+  'createAgentHostedSandboxDescriptor',
+  'createAgentMcpServerIdentity',
+  'authorizeAgentComputerUseAction',
+  'createAgentParallelToolPlan',
+  'joinAgentParallelToolResults',
+  'createAgentManagedAgentAdmission',
+  'agentHostedFactWireSchema',
+  'decodeAgentHostedFact',
+  "'staged-proposal-only'",
+]) {
+  if (!v3HostedSource.includes(token)) {
+    issues.push(`G4 V3 Hosted capability boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v3HostedSources) {
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /from\s+['"]@prodivix\/(?:workspace|runtime|verification)/iu,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(`${path} crosses the G4 V3 transport-neutral owner boundary.`);
+    }
+  }
+}
+
+const v4ControlSources = await Promise.all(
+  [
+    'packages/ai/src/control/agentControl.types.ts',
+    'packages/ai/src/control/agentControlValidation.ts',
+    'packages/ai/src/control/agentTask.ts',
+    'packages/ai/src/control/agentRunFacts.ts',
+    'packages/ai/src/control/agentRunReducer.ts',
+    'packages/ai/src/control/agentControlPlane.ts',
+    'packages/ai/src/control/agentClaimLease.ts',
+    'packages/ai/src/control/agentRecovery.ts',
+    'packages/ai/src/control/agentAuditSanitizer.ts',
+    'packages/ai/src/control/agentAudit.ts',
+    'packages/ai/src/control/agentControlCodec.ts',
+    'packages/ai/src/usage/agentBudgetLedger.ts',
+    'packages/ai/src/wire/agentControlWire.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v4ControlSource = v4ControlSources
+  .map(({ source }) => source)
+  .join('\n');
+for (const token of [
+  'AgentTaskRecord',
+  'AgentRunSnapshot',
+  'AgentRunAttempt',
+  'AgentRunPendingOperation',
+  'AgentRunSuccessProof',
+  'createAgentTaskRecord',
+  'reduceAgentRun',
+  'reserveAgentRunBudget',
+  'settleAgentRunBudget',
+  'recoverAgentRun',
+  'claimAgentRunLease',
+  'createAgentAuditExport',
+  'agentControlFactWireSchema',
+  'callbackAuthority',
+]) {
+  if (!v4ControlSource.includes(token)) {
+    issues.push(`G4 V4 control-plane boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v4ControlSources) {
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /from\s+['"]@prodivix\/(?:workspace|workspace-sync|runtime|verification)/iu,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(`${path} crosses the G4 V4 transport-neutral owner boundary.`);
+    }
+  }
+}
+
+const v5ProposalSources = await Promise.all(
+  [
+    'packages/ai/src/proposal/agentProposal.types.ts',
+    'packages/ai/src/proposal/agentActionRegistry.ts',
+    'packages/ai/src/proposal/agentProposal.ts',
+    'packages/ai/src/proposal/agentProposalPreview.ts',
+    'packages/ai/src/proposal/agentApproval.ts',
+    'packages/ai/src/proposal/agentWorkspaceMutation.ts',
+    'packages/ai/src/proposal/agentProposalCodec.ts',
+    'packages/ai/src/wire/agentProposalWire.ts',
+    'packages/workspace/src/agent/workspaceAgentActionRegistry.ts',
+    'packages/workspace-sync/src/agent/workspaceAgentProposalCoordinator.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v5ProposalSource = v5ProposalSources
+  .map(({ source }) => source)
+  .join('\n');
+for (const token of [
+  'createAgentActionRegistrySnapshot',
+  'createAgentActionProposal',
+  'createAgentProposalPlanningReceipt',
+  'createAgentProposalPreview',
+  'createAgentApprovalDecision',
+  'preflightAgentApproval',
+  'preflightAgentRollback',
+  'decodeAgentProposalFact',
+  'WORKSPACE_AGENT_ACTION_REGISTRY',
+  'createWorkspaceAgentActionTransactionPlan',
+  'createWorkspaceAgentProposalProjection',
+  'prepareWorkspaceAgentCommit',
+  'reconcileWorkspaceAgentCommit',
+  'rejectWorkspaceAgentCommitConflict',
+  'prepareWorkspaceAgentRollback',
+  'createWorkspaceOutboxEntry',
+]) {
+  if (!v5ProposalSource.includes(token)) {
+    issues.push(`G4 V5 proposal/approval boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v5ProposalSources) {
+  if (
+    path.startsWith('packages/ai/') &&
+    /from\s+['"]@prodivix\/(?:workspace|workspace-sync|runtime|verification)/iu.test(
+      source
+    )
+  ) {
+    issues.push(`${path} crosses the G4 V5 transport-neutral AI owner boundary.`);
+  }
+  if (
+    path !==
+      'packages/workspace-sync/src/agent/workspaceAgentProposalCoordinator.ts' &&
+    /createWorkspaceOutboxEntry|prepareWorkspaceAgentCommit|prepareWorkspaceAgentRollback/u.test(
+      source
+    )
+  ) {
+    issues.push(`${path} creates a second G4 V5 Agent Workspace write path.`);
+  }
+}
+for (const { path, source } of v5ProposalSources.filter(({ path }) =>
+  path.startsWith('packages/ai/')
+)) {
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(`${path} crosses the G4 V5 transport-neutral proposal boundary.`);
+    }
+  }
+}
+
+const v6VerificationSources = await Promise.all(
+  [
+    'packages/ai/src/verification/agentVerification.types.ts',
+    'packages/ai/src/verification/agentVerification.ts',
+    'packages/ai/src/verification/agentVerificationCodec.ts',
+    'packages/ai/src/wire/agentVerificationWire.ts',
+    'packages/workspace-sync/src/agent/workspaceAgentVerificationCoordinator.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v6VerificationSource = v6VerificationSources
+  .map(({ source }) => source)
+  .join('\n');
+for (const token of [
+  'AgentCommittedVerificationPlanBinding',
+  'AgentVerificationClosureReceipt',
+  'AgentRepairCounterexampleSet',
+  'AgentRepairRoundReceipt',
+  'createAgentCommittedVerificationPlanBinding',
+  'createAgentVerificationClosureReceipt',
+  'createAgentRepairRoundReceipt',
+  'decodeAgentVerificationFact',
+  'createWorkspaceAgentVerificationPlanBinding',
+  'evaluateWorkspaceAgentVerificationClosure',
+  'createWorkspaceAgentApplySuccessProof',
+  'deriveWorkspaceAgentRepairCounterexamples',
+  'prepareWorkspaceAgentRepairRound',
+  'bindWorkspaceAgentRepairProposal',
+]) {
+  if (!v6VerificationSource.includes(token)) {
+    issues.push(`G4 V6 Verification/repair boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v6VerificationSources) {
+  if (
+    path.startsWith('packages/ai/') &&
+    /from\s+['"]@prodivix\/(?:workspace|workspace-sync|runtime|verification)/iu.test(
+      source
+    )
+  ) {
+    issues.push(`${path} crosses the G4 V6 transport-neutral AI owner boundary.`);
+  }
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(`${path} crosses the G4 V6 Verification/repair boundary.`);
+    }
+  }
+}
+
+const v7ProductSources = await Promise.all(
+  [
+    'packages/ai/src/product/agentProduct.types.ts',
+    'packages/ai/src/product/agentProduct.ts',
+    'packages/ai/src/product/agentProductCodec.ts',
+    'packages/ai/src/product/agentProductLedgerCodec.ts',
+    'packages/ai/src/wire/agentProductWire.ts',
+    'packages/workspace-sync/src/agent/workspaceAgentProductProjection.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v7ProductSource = v7ProductSources.map(({ source }) => source).join('\n');
+for (const token of [
+  'AgentProductView',
+  'AgentRunUserCommand',
+  'createAgentProductSupplement',
+  'createAgentRunUserCommand',
+  'createAgentProductView',
+  'decodeAgentProductLedgerBundle',
+  'agentProductViewWireSchema',
+  'createWorkspaceAgentProductSupplement',
+]) {
+  if (!v7ProductSource.includes(token)) {
+    issues.push(`G4 V7 product boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v7ProductSources) {
+  if (
+    path.startsWith('packages/ai/') &&
+    /from\s+['"]@prodivix\/(?:workspace|workspace-sync|runtime|verification)/iu.test(
+      source
+    )
+  ) {
+    issues.push(`${path} crosses the G4 V7 transport-neutral AI owner boundary.`);
+  }
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(`${path} crosses the G4 V7 product projection boundary.`);
+    }
+  }
+}
+
+const v7WebClientSource = await readFile(
+  join(
+    repoRoot,
+    'apps',
+    'web',
+    'src',
+    'editor',
+    'features',
+    'agent',
+    'agentProductClient.ts'
+  ),
+  'utf8'
+);
+const v7CliSource = await readFile(
+  join(repoRoot, 'apps', 'cli', 'src', 'commands', 'agent.ts'),
+  'utf8'
+);
+for (const [surface, source] of [
+  ['Web', v7WebClientSource],
+  ['CLI', v7CliSource],
+]) {
+  if (!source.includes('decodeAgentProductLedgerBundle')) {
+    issues.push(`G4 V7 ${surface} must consume the shared strict product decoder.`);
+  }
+  if (/skip[-_ ]approval/iu.test(source)) {
+    issues.push(`G4 V7 ${surface} exposes an approval bypass.`);
+  }
+}
+for (const { path, source } of v1ContextSources) {
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /editor(?:Store|\/store)/u,
+    /document\.(?:querySelector|getElementById)/u,
+    /\bwindow\./u,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(`${path} crosses the G4 V1 public Context boundary.`);
+    }
+  }
 }
 if (/\bversion\??\s*:\s*number\b/u.test(currentSource)) {
   issues.push('G4 current domain must not expose a numeric version field.');
@@ -214,8 +701,27 @@ for (const token of [
 
 const backendFiles = [
   'apps/backend/internal/platform/agentcontract/contract.go',
+  'apps/backend/internal/platform/agentcontract/control_semantic.go',
+  'apps/backend/internal/platform/agentcontract/proposal_semantic.go',
+  'apps/backend/internal/platform/agentcontract/verification_semantic.go',
   'apps/backend/internal/modules/workspace/store_helpers.go',
+  'apps/backend/internal/modules/agent/repository.go',
+  'apps/backend/internal/modules/agent/repository_transition.go',
+  'apps/backend/internal/modules/agent/repository_lease.go',
+  'apps/backend/internal/modules/agent/audit.go',
+  'apps/backend/internal/modules/agent/proposal_facts.go',
+  'apps/backend/internal/modules/agent/proposal_repository.go',
+  'apps/backend/internal/modules/agent/proposal_mutation_repository.go',
+  'apps/backend/internal/modules/agent/verification_facts.go',
+  'apps/backend/internal/modules/agent/verification_repository.go',
+  'apps/backend/internal/modules/agent/product_facts.go',
+  'apps/backend/internal/modules/agent/product_repository.go',
+  'apps/backend/internal/modules/agent/handler.go',
   'apps/backend/internal/platform/database/agent_policy_migration.go',
+  'apps/backend/internal/platform/database/agent_control_plane_migration.go',
+  'apps/backend/internal/platform/database/agent_proposal_approval_migration.go',
+  'apps/backend/internal/platform/database/agent_verification_repair_migration.go',
+  'apps/backend/internal/platform/database/agent_product_migration.go',
 ];
 const backendSource = (
   await Promise.all(
@@ -228,6 +734,39 @@ for (const token of [
   'WorkspaceDocumentTypeAgentPolicy',
   'g4-agent-policy-workspace-document',
   'idx_workspace_documents_single_agent_policy',
+  'ValidateControlFact',
+  'CreateTask',
+  'CreateRun',
+  'AppendTransition',
+  'ClaimRun',
+  'ClaimOperationDispatch',
+  'ExportAudit',
+  'g4-agent-control-plane',
+  'agent_run_events',
+  'agent_budget_reservations',
+  'ValidateProposalFact',
+  'StoreProposal',
+  'StoreProposalPreview',
+  'DecideProposal',
+  'RecordWorkspaceMutation',
+  'g4-agent-proposal-approval-ledger',
+  'agent_workspace_mutation_receipts',
+  'ValidateVerificationFact',
+  'StoreVerificationPlanBinding',
+  'StoreVerificationClosureReceipt',
+  'StoreRepairRoundReceipt',
+  'validateApplySuccessLedgerTx',
+  'g4-agent-verification-repair-ledger',
+  'agent_verification_plan_bindings',
+  'agent_verification_closure_receipts',
+  'agent_repair_round_receipts',
+  'ValidateProductFact',
+  'StoreProductSupplement',
+  'StoreRunUserCommand',
+  'GetProductLedgerBundle',
+  'g4-agent-product-ledger',
+  'agent_product_supplements',
+  'agent_run_user_commands',
 ]) {
   if (!backendSource.includes(token)) {
     issues.push(`Backend G4 boundary is missing ${token}.`);
@@ -238,7 +777,16 @@ const openApiSource = await readFile(
   join(repoRoot, 'specs', 'api', 'workspace-sync.openapi.yaml'),
   'utf8'
 );
-for (const token of ['- agent-policy', '              agent,']) {
+for (const token of [
+  '- agent-policy',
+  '              agent,',
+  '/api/projects/{projectId}/workspaces/{workspaceId}/agent/tasks:',
+  '/api/projects/{projectId}/workspaces/{workspaceId}/agent/approvals:',
+  '/api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/product:',
+  '/api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/commands:',
+  '/api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/audit:',
+  'AgentProductLedgerEnvelope:',
+]) {
   if (!openApiSource.includes(token)) {
     issues.push(`Workspace OpenAPI is missing ${token.trim()}.`);
   }
@@ -257,6 +805,227 @@ for (const token of [
 ]) {
   if (!workflowSource.includes(token)) {
     issues.push(`G4 V0 workflow is missing ${token}.`);
+  }
+}
+
+const v1WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v1-provider-context.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'packages/ai/**'",
+  "- 'packages/golden-conformance/**'",
+  "- 'packages/workspace/**'",
+  'run: pnpm run verify:g4:context-policy',
+  'run: pnpm run verify:g4:provider-capabilities',
+]) {
+  if (!v1WorkflowSource.includes(token)) {
+    issues.push(`G4 V1 workflow is missing ${token}.`);
+  }
+}
+
+const rootManifestSource = await readFile(
+  join(repoRoot, 'package.json'),
+  'utf8'
+);
+for (const token of [
+  '"verify:g4:context-policy"',
+  '"verify:g4:provider-capabilities"',
+  '"verify:g4:multimodal"',
+  '"verify:g4:hosted-capabilities"',
+  '"verify:g4:control-plane:core"',
+  '"verify:g4:control-plane:postgres"',
+  '"verify:g4:control-plane"',
+  '"verify:g4:proposal-approval:core"',
+  '"verify:g4:proposal-approval:postgres"',
+  '"verify:g4:proposal-approval"',
+  '"verify:g4:verification:core"',
+  '"verify:g4:verification:postgres"',
+  '"verify:g4:verification"',
+  '"verify:g4:product:core"',
+  '"verify:g4:product:postgres"',
+  '"verify:g4:product"',
+]) {
+  if (!rootManifestSource.includes(token)) {
+    issues.push(`G4 root Gate is missing ${token}.`);
+  }
+}
+const rootManifest = JSON.parse(rootManifestSource);
+if (
+  !rootManifest.scripts?.['verify:g4:proposal-approval:core']?.includes(
+    'pnpm run check:core-boundaries'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:proposal-approval:core']?.includes(
+    'pnpm run check:g4-wire-contracts'
+  )
+) {
+  issues.push(
+    'G4 V5 deterministic Gate must enforce core and wire boundaries.'
+  );
+}
+if (
+  !rootManifest.scripts?.['verify:g4:verification:core']?.includes(
+    'pnpm run check:core-boundaries'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:verification:core']?.includes(
+    'pnpm run check:g4-wire-contracts'
+  )
+) {
+  issues.push(
+    'G4 V6 deterministic Gate must enforce core and wire boundaries.'
+  );
+}
+if (
+  !rootManifest.scripts?.['verify:g4:product:core']?.includes(
+    'pnpm run check:core-boundaries'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:product:core']?.includes(
+    'pnpm run check:g4-wire-contracts'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:product:core']?.includes(
+    'pnpm --filter @prodivix/cli test'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:product:core']?.includes(
+    'pnpm --filter @prodivix/web typecheck'
+  )
+) {
+  issues.push(
+    'G4 V7 deterministic Gate must enforce Web, CLI, core, and wire boundaries.'
+  );
+}
+if (
+  !rootManifest.scripts?.['verify:g4:multimodal']?.includes(
+    'pnpm run check:core-boundaries'
+  )
+) {
+  issues.push('G4 V2 root Gate must enforce core package boundaries.');
+}
+if (
+  !rootManifest.scripts?.['verify:g4:hosted-capabilities']?.includes(
+    'pnpm run check:core-boundaries'
+  )
+) {
+  issues.push('G4 V3 root Gate must enforce core package boundaries.');
+}
+if (
+  !rootManifest.scripts?.['verify:g4:control-plane:core']?.includes(
+    'pnpm run check:core-boundaries'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:control-plane:core']?.includes(
+    'pnpm run check:g4-wire-contracts'
+  )
+) {
+  issues.push(
+    'G4 V4 deterministic Gate must enforce core and wire boundaries.'
+  );
+}
+
+const v2WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v2-multimodal.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'packages/ai/**'",
+  "- 'packages/assets/**'",
+  "- 'packages/golden-conformance/**'",
+  "- 'scripts/check-core-package-boundaries.mjs'",
+  'run: pnpm run verify:g4:multimodal',
+]) {
+  if (!v2WorkflowSource.includes(token)) {
+    issues.push(`G4 V2 workflow is missing ${token}.`);
+  }
+}
+
+const v3WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v3-hosted-capabilities.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'packages/ai/**'",
+  "- 'packages/golden-conformance/**'",
+  "- 'scripts/check-core-package-boundaries.mjs'",
+  "- 'specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md'",
+  'run: pnpm run verify:g4:hosted-capabilities',
+]) {
+  if (!v3WorkflowSource.includes(token)) {
+    issues.push(`G4 V3 workflow is missing ${token}.`);
+  }
+}
+
+const v4WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v4-control-plane.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'apps/backend/internal/modules/agent/**'",
+  "- 'packages/ai/**'",
+  "- 'packages/golden-conformance/**'",
+  "- 'scripts/g4-agent-control-canonical-vector.mjs'",
+  'image: postgres:16',
+  'run: pnpm run verify:g4:control-plane:core',
+  'run: pnpm run verify:g4:control-plane:postgres',
+]) {
+  if (!v4WorkflowSource.includes(token)) {
+    issues.push(`G4 V4 workflow is missing ${token}.`);
+  }
+}
+
+const v5WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v5-proposal-approval.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'apps/backend/internal/modules/agent/**'",
+  "- 'apps/backend/internal/modules/workspace/**'",
+  "- 'packages/ai/**'",
+  "- 'packages/workspace-sync/**'",
+  "- 'scripts/g4-agent-proposal-canonical-vector.mjs'",
+  'image: postgres:16',
+  'run: pnpm run verify:g4:proposal-approval:core',
+  'run: pnpm run verify:g4:proposal-approval:postgres',
+]) {
+  if (!v5WorkflowSource.includes(token)) {
+    issues.push(`G4 V5 workflow is missing ${token}.`);
+  }
+}
+
+const v6WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v6-verification-repair.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'apps/backend/internal/modules/agent/**'",
+  "- 'packages/ai/**'",
+  "- 'packages/verification/**'",
+  "- 'packages/workspace-sync/**'",
+  "- 'scripts/g4-agent-verification-canonical-vector.mjs'",
+  'image: postgres:16',
+  'run: pnpm run verify:g4:verification:core',
+  'run: pnpm run verify:g4:verification:postgres',
+]) {
+  if (!v6WorkflowSource.includes(token)) {
+    issues.push(`G4 V6 workflow is missing ${token}.`);
+  }
+}
+
+const v7WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v7-product.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'apps/backend/internal/modules/agent/**'",
+  "- 'apps/cli/**'",
+  "- 'apps/web/**'",
+  "- 'packages/ai/**'",
+  "- 'packages/workspace-sync/**'",
+  "- 'scripts/g4-agent-product-canonical-vector.mjs'",
+  "- 'specs/api/workspace-sync.openapi.yaml'",
+  'image: postgres:16',
+  'run: pnpm run verify:g4:product:core',
+  'run: pnpm run verify:g4:product:postgres',
+]) {
+  if (!v7WorkflowSource.includes(token)) {
+    issues.push(`G4 V7 workflow is missing ${token}.`);
   }
 }
 
@@ -310,6 +1079,6 @@ if (issues.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    'G4 V0 owner, current/wire, Workspace, diagnostics, and hard-cut boundaries are valid.'
+    'G4 V0/V1/V2/V3/V4/V5/V6/V7 owner, current/wire, Workspace, provider, Context, media, Hosted capability, durable control-plane, proposal/approval, Verification/repair, product, diagnostics, and hard-cut boundaries are valid.'
   );
 }

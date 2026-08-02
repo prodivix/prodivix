@@ -6,7 +6,15 @@ import {
   agentWorkspaceDocumentMigrationWireSchemas,
   agentWorkspaceDocumentWireSchemas,
 } from '../packages/ai/src/wire/agentPolicyWire.ts';
+import { agentControlFactWireSchemas } from '../packages/ai/src/wire/agentControlWire.ts';
+import { agentProposalFactWireSchemas } from '../packages/ai/src/wire/agentProposalWire.ts';
+import { agentVerificationFactWireSchemas } from '../packages/ai/src/wire/agentVerificationWire.ts';
+import { agentProductWireSchemas } from '../packages/ai/src/wire/agentProductWire.ts';
 import { createG4AgentPolicyCanonicalVector } from './g4-agent-policy-canonical-vector.mjs';
+import { createG4AgentControlCanonicalVector } from './g4-agent-control-canonical-vector.mjs';
+import { createG4AgentProposalCanonicalVector } from './g4-agent-proposal-canonical-vector.mjs';
+import { createG4AgentVerificationCanonicalVector } from './g4-agent-verification-canonical-vector.mjs';
+import { createG4AgentProductCanonicalVector } from './g4-agent-product-canonical-vector.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const targets = [
@@ -19,6 +27,10 @@ const targets = [
     value: {
       ...agentWorkspaceDocumentWireSchemas,
       ...agentWorkspaceDocumentMigrationWireSchemas,
+      ...agentControlFactWireSchemas,
+      ...agentProposalFactWireSchemas,
+      ...agentVerificationFactWireSchemas,
+      ...agentProductWireSchemas,
     },
   },
   {
@@ -28,6 +40,38 @@ const targets = [
       'apps/backend/internal/platform/agentcontract/testdata/agent-policy-vector.json'
     ),
     value: createG4AgentPolicyCanonicalVector(),
+  },
+  {
+    label: 'Agent control canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-control-vector.json'
+    ),
+    value: createG4AgentControlCanonicalVector(),
+  },
+  {
+    label: 'Agent proposal canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-proposal-vector.json'
+    ),
+    value: createG4AgentProposalCanonicalVector(),
+  },
+  {
+    label: 'Agent product canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-product-vector.json'
+    ),
+    value: createG4AgentProductCanonicalVector(),
+  },
+  {
+    label: 'Agent verification canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-verification-vector.json'
+    ),
+    value: createG4AgentVerificationCanonicalVector(),
   },
 ];
 const mode = process.argv[2] ?? 'check';

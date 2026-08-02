@@ -188,7 +188,7 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 		t.Fatal("G3 migration must enforce one verification-policy per workspace")
 	}
 
-	evidence := migrations[len(migrations)-4]
+	evidence := migrations[len(migrations)-8]
 	if evidence.version != 19 ||
 		evidence.name != "verification-evidence-plane" ||
 		len(evidence.statements) < 20 {
@@ -198,7 +198,7 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 			evidence.name,
 		)
 	}
-	ledger := migrations[len(migrations)-3]
+	ledger := migrations[len(migrations)-7]
 	if ledger.version != 20 ||
 		ledger.name != "verification-mutation-ledger" ||
 		len(ledger.statements) < 7 {
@@ -220,7 +220,7 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 	if !strings.Contains(ledger.statements[6], "reject_verification_immutable_mutation") {
 		t.Fatal("Verification mutation ledger must be immutable after commit")
 	}
-	runs := migrations[len(migrations)-2]
+	runs := migrations[len(migrations)-6]
 	if runs.version != 21 ||
 		runs.name != "verification-run-registry" ||
 		len(runs.statements) < 7 {
@@ -230,7 +230,7 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 			runs.name,
 		)
 	}
-	agent := migrations[len(migrations)-1]
+	agent := migrations[len(migrations)-5]
 	if agent.version != 22 ||
 		agent.name != "g4-agent-policy-workspace-document" ||
 		len(agent.statements) != 2 {
@@ -243,6 +243,102 @@ func TestG3WorkspaceDocumentMigrationIsRegistered(t *testing.T) {
 	if !strings.Contains(agent.statements[0], "'agent-policy'") ||
 		!strings.Contains(agent.statements[1], "idx_workspace_documents_single_agent_policy") {
 		t.Fatal("G4 migration must admit one agent-policy per workspace")
+	}
+	control := migrations[len(migrations)-4]
+	if control.version != 23 ||
+		control.name != "g4-agent-control-plane" ||
+		len(control.statements) < 17 {
+		t.Fatalf(
+			"last migration = %d %q, want G4 Agent control plane",
+			control.version,
+			control.name,
+		)
+	}
+	controlStatements := strings.Join(control.statements, "\n")
+	for _, fragment := range []string{
+		"CREATE TABLE IF NOT EXISTS agent_tasks",
+		"CREATE TABLE IF NOT EXISTS agent_runs",
+		"CREATE TABLE IF NOT EXISTS agent_run_attempts",
+		"CREATE TABLE IF NOT EXISTS agent_run_events",
+		"CREATE TABLE IF NOT EXISTS agent_run_operations",
+		"CREATE TABLE IF NOT EXISTS agent_budget_reservations",
+		"UNIQUE (workspace_id, run_id, idempotency_key)",
+		"agent_run_events_immutable_mutation",
+		"lease_generation",
+	} {
+		if !strings.Contains(controlStatements, fragment) {
+			t.Fatalf("G4 Agent control plane omits %q", fragment)
+		}
+	}
+	proposal := migrations[len(migrations)-3]
+	if proposal.version != 24 ||
+		proposal.name != "g4-agent-proposal-approval-ledger" ||
+		len(proposal.statements) < 18 {
+		t.Fatalf(
+			"last migration = %d %q, want G4 Agent proposal and approval ledger",
+			proposal.version,
+			proposal.name,
+		)
+	}
+	proposalStatements := strings.Join(proposal.statements, "\n")
+	for _, fragment := range []string{
+		"CREATE TABLE IF NOT EXISTS agent_proposals",
+		"CREATE TABLE IF NOT EXISTS agent_proposal_previews",
+		"CREATE TABLE IF NOT EXISTS agent_approval_decisions",
+		"CREATE TABLE IF NOT EXISTS agent_workspace_mutation_receipts",
+		"UNIQUE (workspace_id, preview_id)",
+		"idx_agent_workspace_mutation_receipts_terminal",
+		"agent_workspace_mutation_receipts_immutable_mutation",
+	} {
+		if !strings.Contains(proposalStatements, fragment) {
+			t.Fatalf("G4 Agent proposal and approval ledger omits %q", fragment)
+		}
+	}
+	verification := migrations[len(migrations)-2]
+	if verification.version != 25 ||
+		verification.name != "g4-agent-verification-repair-ledger" ||
+		len(verification.statements) < 14 {
+		t.Fatalf(
+			"last migration = %d %q, want G4 Agent verification and repair ledger",
+			verification.version,
+			verification.name,
+		)
+	}
+	verificationStatements := strings.Join(verification.statements, "\n")
+	for _, fragment := range []string{
+		"CREATE TABLE IF NOT EXISTS agent_verification_plan_bindings",
+		"CREATE TABLE IF NOT EXISTS agent_verification_closure_receipts",
+		"CREATE TABLE IF NOT EXISTS agent_verification_closure_evidence",
+		"CREATE TABLE IF NOT EXISTS agent_repair_round_receipts",
+		"plan_compatibility IN ('exact', 'compatible', 'post-rollback')",
+		"agent_verification_closure_evidence_immutable_mutation",
+		"agent_repair_round_receipts_immutable_mutation",
+	} {
+		if !strings.Contains(verificationStatements, fragment) {
+			t.Fatalf("G4 Agent verification and repair ledger omits %q", fragment)
+		}
+	}
+	product := migrations[len(migrations)-1]
+	if product.version != 26 ||
+		product.name != "g4-agent-product-ledger" ||
+		len(product.statements) < 8 {
+		t.Fatalf(
+			"last migration = %d %q, want G4 Agent product ledger",
+			product.version,
+			product.name,
+		)
+	}
+	productStatements := strings.Join(product.statements, "\n")
+	for _, fragment := range []string{
+		"CREATE TABLE IF NOT EXISTS agent_product_supplements",
+		"CREATE TABLE IF NOT EXISTS agent_run_user_commands",
+		"UNIQUE (workspace_id, actor_id, idempotency_key)",
+		"agent_product_supplements_immutable_mutation",
+		"agent_run_user_commands_immutable_mutation",
+	} {
+		if !strings.Contains(productStatements, fragment) {
+			t.Fatalf("G4 Agent product ledger omits %q", fragment)
+		}
 	}
 	runStatements := strings.Join(runs.statements, "\n")
 	for _, fragment := range []string{

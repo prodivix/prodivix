@@ -30,7 +30,13 @@ const corePackages = {
     '@prodivix/shared',
   ]),
   diagnostics: new Set(['@prodivix/shared']),
-  ai: new Set(['@prodivix/diagnostics', '@prodivix/shared']),
+  // AI owns multimodal orchestration while the leaf Asset owner remains the
+  // only source of binary digest, sanitizer, scanner, and provenance semantics.
+  ai: new Set([
+    '@prodivix/assets',
+    '@prodivix/diagnostics',
+    '@prodivix/shared',
+  ]),
   // Behavior owns deterministic replay orchestration while runtime-core owns
   // the transport-neutral scheduler/control primitives. The reverse edge stays
   // forbidden by runtime-core's leaf dependency set below.
@@ -80,8 +86,10 @@ const corePackages = {
     '@prodivix/verification',
   ]),
   'workspace-sync': new Set([
+    '@prodivix/ai',
     '@prodivix/pir',
     '@prodivix/router',
+    '@prodivix/verification',
     '@prodivix/workspace',
   ]),
   'runtime-core': new Set(['@prodivix/diagnostics', '@prodivix/shared']),

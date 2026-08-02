@@ -621,7 +621,9 @@ func migrationSet() []migration {
 		name:    "animation-wire-v2-rollout",
 		run:     migratePersistedAnimationDocuments,
 	}, verificationEvidenceMigration(), verificationMutationLedgerMigration(),
-		verificationRunMigration(), agentPolicyWorkspaceDocumentMigration()}
+		verificationRunMigration(), agentPolicyWorkspaceDocumentMigration(),
+		agentControlPlaneMigration(), agentProposalApprovalMigration(),
+		agentVerificationRepairMigration(), agentProductMigration()}
 }
 
 const migrationAdvisoryLockKey = int64(0x50726f6469766978)

@@ -1,0 +1,79 @@
+name: G4 V1 Provider and Context
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-v1-provider-context.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.json'
+      - 'packages/ai/**'
+      - 'packages/authoring/**'
+      - 'packages/diagnostics/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/shared/**'
+      - 'packages/workspace/**'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
+      - 'specs/decisions/66.model-provider-capability-and-invocation.md'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-closure-evidence.md'
+      - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-v1-provider-context.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.json'
+      - 'packages/ai/**'
+      - 'packages/authoring/**'
+      - 'packages/diagnostics/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/shared/**'
+      - 'packages/workspace/**'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
+      - 'specs/decisions/66.model-provider-capability-and-invocation.md'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-closure-evidence.md'
+      - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
+
+concurrency:
+  group: g4-v1-provider-context-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  provider-context:
+    name: Provider capability, Policy, Context, invocation, and usage Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify G4 V1 Context and effective Policy
+        run: pnpm run verify:g4:context-policy
+      - name: Verify G4 V1 provider capabilities and invocation facts
+        run: pnpm run verify:g4:provider-capabilities

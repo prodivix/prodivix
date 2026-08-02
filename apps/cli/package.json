@@ -9,11 +9,14 @@
     "build": "pnpm run typecheck && esbuild src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/cli.js",
     "start": "node dist/cli.js",
     "lint": "eslint .",
-    "test": "pnpm run typecheck && tsx --test src/verification.test.ts",
+    "test": "pnpm run typecheck && tsx --test src/verification.test.ts src/agent.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@prodivix/ai": "workspace:*",
+    "@prodivix/shared": "workspace:*",
     "@prodivix/verification": "workspace:*",
+    "@prodivix/workspace": "workspace:*",
     "commander": "^15.0.0"
   },
   "devDependencies": {

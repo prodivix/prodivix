@@ -9,9 +9,11 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
+      "@prodivix/ai": ["../ai/src"],
       "@prodivix/pir": ["../pir/src"],
       "@prodivix/pir/*": ["../pir/src/*"],
       "@prodivix/router": ["../router/src"],
+      "@prodivix/verification": ["../verification/src"],
       "@prodivix/workspace": ["../workspace/src"]
     }
   },
@@ -25,10 +27,16 @@
   ],
   "references": [
     {
+      "path": "../ai"
+    },
+    {
       "path": "../pir"
     },
     {
       "path": "../router"
+    },
+    {
+      "path": "../verification"
     },
     {
       "path": "../workspace"

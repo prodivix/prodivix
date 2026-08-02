@@ -10,6 +10,7 @@ import (
 	"time"
 
 	backendconfig "github.com/Prodivix/prodivix/apps/backend/internal/config"
+	backendagent "github.com/Prodivix/prodivix/apps/backend/internal/modules/agent"
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
 	backendenvironment "github.com/Prodivix/prodivix/apps/backend/internal/modules/environment"
 	backendgithub "github.com/Prodivix/prodivix/apps/backend/internal/modules/integrations/github"
@@ -21,6 +22,10 @@ import (
 )
 
 type RuntimeModules struct {
+	Agent struct {
+		Repository *backendagent.Repository
+		Handler    *backendagent.Handler
+	}
 	Auth struct {
 		Users    *backendauth.UserStore
 		Sessions *backendauth.SessionStore
@@ -65,6 +70,8 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	modules.Auth.Users = backendauth.NewUserStore(db)
 	modules.Auth.Sessions = backendauth.NewSessionStore(db)
 	modules.Auth.Handler = backendauth.NewHandler(modules.Auth.Users, modules.Auth.Sessions, tokenTTL)
+	modules.Agent.Repository = backendagent.NewRepository(db)
+	modules.Agent.Handler = backendagent.NewHandler(modules.Agent.Repository)
 
 	modules.Project.Store = backendproject.NewProjectStore(db)
 	modules.GitHub.Store = backendgithub.NewStore(db)
@@ -195,6 +202,7 @@ func (modules RuntimeModules) Routes(requireAuth gin.HandlerFunc) Routes {
 			c.JSON(200, gin.H{"message": "pong"})
 		},
 		Auth:            modules.Auth.Handler.Routes(requireAuth),
+		Agent:           modules.Agent.Handler.Routes(requireAuth),
 		GitHub:          modules.GitHub.Handler.Routes(requireAuth),
 		Project:         modules.Project.Handler.Routes(requireAuth),
 		Workspace:       modules.Workspace.Handler.Routes(requireAuth),

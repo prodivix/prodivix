@@ -19,9 +19,12 @@ import {
   Plus,
   Search,
   Trash2,
+  Bot,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link, useParams } from 'react-router';
 import type { RouteItem } from '@/editor/features/blueprint/editor/model/types';
+import { createAgentTaskComposerPath } from '@/editor/features/agent/agentTaskComposerModel';
 
 type BlueprintEditorAddressBarProps = {
   compact?: boolean;
@@ -59,6 +62,7 @@ export function BlueprintEditorAddressBar({
   statusIndicator,
 }: BlueprintEditorAddressBarProps) {
   const { t } = useTranslation('blueprint');
+  const { projectId } = useParams();
   const [isRouteTreeOpen, setRouteTreeOpen] = useState(false);
   const [routeSearch, setRouteSearch] = useState('');
   const routeTreeRootRef = useRef<HTMLDivElement | null>(null);
@@ -338,6 +342,19 @@ export function BlueprintEditorAddressBar({
           <div className="inline-flex shrink-0 items-center">
             {statusIndicator}
           </div>
+        ) : null}
+        {projectId && matchedRoute ? (
+          <Link
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-(--border-default) px-2.5 py-1 text-[11px] text-(--text-secondary) no-underline hover:text-(--text-primary)"
+            to={createAgentTaskComposerPath(projectId, {
+              kind: 'route',
+              id: matchedRoute.id,
+            })}
+            title={`Create Agent Task for route ${matchedRoute.path}`}
+          >
+            <Bot size={13} aria-hidden="true" />
+            Agent Task
+          </Link>
         ) : null}
       </div>
 

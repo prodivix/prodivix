@@ -15,6 +15,7 @@ import {
   Globe,
   CircleAlert,
   Code2,
+  Bot,
 } from 'lucide-react';
 import { useEditorStore } from '@/editor/store/useEditorStore';
 import { useAuthStore } from '@/auth/useAuthStore';
@@ -71,6 +72,11 @@ function ProjectHome() {
         key: 'issues',
         path: `/editor/project/${resolvedProjectId}/issues`,
         icon: <CircleAlert size={18} />,
+      },
+      {
+        key: 'agent',
+        path: `/editor/project/${resolvedProjectId}/agent`,
+        icon: <Bot size={18} />,
       },
       {
         key: 'nodegraph',

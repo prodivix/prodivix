@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: Prodivix Workspace Sync API
-  version: 0.2.0
+  version: 0.3.0
   description: >
     Canonical API for workspace-first editing, partitioned revision recovery,
-    and atomic WorkspaceOperation commits. API-003 was amended by the Atomic
-    Commit Hard Cut on 2026-07-12; the former /batch contract is removed.
+    atomic WorkspaceOperation commits, and authenticated Verified Agent product
+    facts. API-003 was amended by the Atomic Commit Hard Cut on 2026-07-12; the
+    former /batch contract is removed.
 servers:
   - url: http://localhost:8080
 security:
@@ -213,13 +214,319 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/tasks:
+    post:
+      summary: Create one immutable Agent Task fact
+      description: >
+        Admits one strict task-record wire fact for the authenticated workspace
+        principal. The task identity is strongly idempotent: an exact replay
+        returns the original fact and a conflicting reuse is rejected. Creating
+        a task grants no approval, mutation, or rollback authority.
+      operationId: createAgentTask
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentStrictFact'
+      responses:
+        '200':
+          description: Exact idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTaskWriteResponse'
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTaskWriteResponse'
+        '400':
+          $ref: '#/components/responses/AgentBadRequest'
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '409':
+          $ref: '#/components/responses/AgentConflict'
+        '415':
+          $ref: '#/components/responses/AgentUnsupportedMediaType'
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/approvals:
+    post:
+      summary: Record one exact human approval or rejection
+      description: >
+        Admits one strict actor-bound approval fact. The fact binds the exact
+        preview, transaction, Impact, VerificationPlan, grant, policy, expiry,
+        and explicit rollback authorization. Approval and rejection are
+        separate decisions and there is no implicit or skip-approval mode.
+      operationId: decideAgentProposal
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentStrictFact'
+      responses:
+        '200':
+          description: Exact idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentApprovalWriteResponse'
+        '201':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentApprovalWriteResponse'
+        '400':
+          $ref: '#/components/responses/AgentBadRequest'
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '409':
+          $ref: '#/components/responses/AgentConflict'
+        '415':
+          $ref: '#/components/responses/AgentUnsupportedMediaType'
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/product:
+    get:
+      summary: Read the strict Agent product projection
+      description: >
+        Authenticates the caller before loading a repeatable-read ledger bundle,
+        validates every durable fact, and returns the same strict projection
+        consumed by Web and CLI. No streaming text is represented as applied
+        state; only durable facts determine the returned status and identities.
+      operationId: getAgentProductProjection
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+        - $ref: '#/components/parameters/AgentRunId'
+      responses:
+        '200':
+          description: Authenticated durable ledger bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentProductLedgerEnvelope'
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '404':
+          $ref: '#/components/responses/AgentNotFound'
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/commands:
+    post:
+      summary: Record an explicit Run cancel, cleanup, or recovery command
+      description: >
+        Admits one strict user-command fact fenced by the exact durable Run
+        generation and snapshot digest. Recording an intent does not directly
+        perform a side effect and does not grant proposal approval.
+      operationId: commandAgentRun
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+        - $ref: '#/components/parameters/AgentRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentStrictFact'
+      responses:
+        '200':
+          description: Exact idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRunCommandWriteResponse'
+        '202':
+          description: Command recorded for the durable Run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRunCommandWriteResponse'
+        '400':
+          $ref: '#/components/responses/AgentBadRequest'
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '404':
+          $ref: '#/components/responses/AgentNotFound'
+        '409':
+          $ref: '#/components/responses/AgentConflict'
+        '415':
+          $ref: '#/components/responses/AgentUnsupportedMediaType'
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/audit:
+    get:
+      summary: Export a bounded authenticated Agent audit chain
+      description: >
+        Exports a sanitized bounded slice of the immutable Run event chain only
+        after authorizing the exact project/workspace/run identity. The export
+        retains canonical digests and continuity metadata but never includes
+        secret values.
+      operationId: exportAgentRunAudit
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+        - $ref: '#/components/parameters/AgentRunId'
+        - in: query
+          name: fromSequence
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+        - in: query
+          name: exportedAt
+          description: Deterministic RFC 3339 timestamp for evidence replay.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Bounded canonical audit export
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStrictFact'
+        '400':
+          $ref: '#/components/responses/AgentBadRequest'
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '404':
+          $ref: '#/components/responses/AgentNotFound'
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: opaque session token
+  parameters:
+    AgentProjectId:
+      in: path
+      name: projectId
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    AgentWorkspaceId:
+      in: path
+      name: workspaceId
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    AgentRunId:
+      in: path
+      name: runId
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    AgentBadRequest:
+      description: Malformed, unknown, oversized, or semantically invalid strict fact
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    AgentUnauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    AgentUnauthorized:
+      description: Agent authority is stale or missing
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    AgentNotFound:
+      description: Agent record not found for the authenticated identity
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    AgentConflict:
+      description: Fact identity conflicts with durable state or a terminal Run
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    AgentUnsupportedMediaType:
+      description: Agent facts require application/json
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    AgentStrictFact:
+      type: object
+      minProperties: 1
+      description: >
+        One versioned Agent wire fact. The authoritative closed schemas and
+        semantic validators are generated from @prodivix/ai into
+        apps/backend/internal/platform/agentcontract/schemas.generated.json;
+        unknown fields and unknown wire versions fail closed at admission.
+    AgentTaskWriteResponse:
+      type: object
+      required: [task, replayed]
+      properties:
+        task:
+          $ref: '#/components/schemas/AgentStrictFact'
+        replayed:
+          type: boolean
+      additionalProperties: false
+    AgentApprovalWriteResponse:
+      type: object
+      required: [approval, replayed]
+      properties:
+        approval:
+          $ref: '#/components/schemas/AgentStrictFact'
+        replayed:
+          type: boolean
+      additionalProperties: false
+    AgentRunCommandWriteResponse:
+      type: object
+      required: [command, replayed]
+      properties:
+        command:
+          $ref: '#/components/schemas/AgentStrictFact'
+        replayed:
+          type: boolean
+      additionalProperties: false
+    AgentProductLedgerEnvelope:
+      type: object
+      required: [ledger]
+      properties:
+        ledger:
+          type: object
+          description: >
+            Strict authenticated product ledger bundle decoded identically by
+            Web and CLI through @prodivix/ai.
+      additionalProperties: false
     GetWorkspaceResponse:
       type: object
       required: [workspace]

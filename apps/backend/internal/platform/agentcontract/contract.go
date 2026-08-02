@@ -12,6 +12,10 @@ import (
 )
 
 const maximumAgentPolicyBytes = 1_048_576
+const maximumAgentControlBytes = 8_388_608
+const maximumAgentProposalBytes = 8_388_608
+const maximumAgentVerificationBytes = 8_388_608
+const maximumAgentProductBytes = 8_388_608
 
 //go:embed schemas.generated.json
 var generatedSchemasJSON []byte
@@ -45,8 +49,20 @@ func mustCompileSchemas() map[string]*jsonschema.Schema {
 }
 
 func validateWithSchema(identity string, payload json.RawMessage) (map[string]any, error) {
-	if err := canonicaljson.ValidateRaw(payload, maximumAgentPolicyBytes); err != nil {
-		return nil, fmt.Errorf("invalid AgentPolicy JSON: %w", err)
+	var rawError error
+	if identity == "agent-control-fact@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentControlBytes)
+	} else if identity == "agent-proposal-fact@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentProposalBytes)
+	} else if identity == "agent-verification-fact@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentVerificationBytes)
+	} else if identity == "agent-product-fact@1" || identity == "agent-product-view@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentProductBytes)
+	} else {
+		rawError = canonicaljson.ValidateRaw(payload, maximumAgentPolicyBytes)
+	}
+	if rawError != nil {
+		return nil, fmt.Errorf("invalid Agent JSON: %w", rawError)
 	}
 	schema := schemas[identity]
 	if schema == nil {
@@ -63,10 +79,100 @@ func validateWithSchema(identity string, payload json.RawMessage) (map[string]an
 	if err := json.Unmarshal(payload, &decoded); err != nil {
 		return nil, err
 	}
-	if err := validateAgentPolicySemantics(decoded); err != nil {
+	if identity == "agent-control-fact@1" {
+		if err := validateAgentControlSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if identity == "agent-proposal-fact@1" {
+		if err := validateAgentProposalSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if identity == "agent-verification-fact@1" {
+		if err := validateAgentVerificationSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if identity == "agent-product-fact@1" {
+		if err := validateAgentProductSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if identity == "agent-product-view@1" {
+		if err := validateAgentProductViewSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if err := validateAgentPolicySemantics(decoded); err != nil {
 		return nil, err
 	}
 	return decoded, nil
+}
+
+// ValidateControlFact applies the shared V4 wire schema, bounded strict JSON,
+// canonical digests, and sanitized audit invariants before service persistence.
+func ValidateControlFact(payload json.RawMessage) error {
+	_, err := validateWithSchema("agent-control-fact@1", payload)
+	return err
+}
+
+// ValidateProposalFact applies the strict V5 proposal/approval/mutation wire
+// contract before an immutable fact can enter the server ledger.
+func ValidateProposalFact(payload json.RawMessage) error {
+	_, err := validateWithSchema("agent-proposal-fact@1", payload)
+	return err
+}
+
+// CanonicalProposalFactDigest matches digestAgentCanonicalValue over the fact.
+func CanonicalProposalFactDigest(payload json.RawMessage) (string, error) {
+	document, err := validateWithSchema("agent-proposal-fact@1", payload)
+	if err != nil {
+		return "", err
+	}
+	return canonicaljson.Digest(document)
+}
+
+// ValidateVerificationFact applies the strict V6 Plan/Closure/repair fact
+// contract before an immutable fact can enter the server ledger.
+func ValidateVerificationFact(payload json.RawMessage) error {
+	_, err := validateWithSchema("agent-verification-fact@1", payload)
+	return err
+}
+
+// CanonicalVerificationFactDigest matches digestAgentCanonicalValue over the fact.
+func CanonicalVerificationFactDigest(payload json.RawMessage) (string, error) {
+	document, err := validateWithSchema("agent-verification-fact@1", payload)
+	if err != nil {
+		return "", err
+	}
+	return canonicaljson.Digest(document)
+}
+
+// ValidateProductFact applies the V7 immutable product supplement and user
+// command contract before either fact can enter the server ledger.
+func ValidateProductFact(payload json.RawMessage) error {
+	_, err := validateWithSchema("agent-product-fact@1", payload)
+	return err
+}
+
+// CanonicalProductFactDigest matches digestAgentCanonicalValue over the fact.
+func CanonicalProductFactDigest(payload json.RawMessage) (string, error) {
+	document, err := validateWithSchema("agent-product-fact@1", payload)
+	if err != nil {
+		return "", err
+	}
+	return canonicaljson.Digest(document)
+}
+
+// ValidateProductView applies the strict shared Web/CLI view contract.
+func ValidateProductView(payload json.RawMessage) error {
+	_, err := validateWithSchema("agent-product-view@1", payload)
+	return err
+}
+
+// CanonicalControlFactDigest matches digestAgentCanonicalValue over the wire fact.
+func CanonicalControlFactDigest(payload json.RawMessage) (string, error) {
+	document, err := validateWithSchema("agent-control-fact@1", payload)
+	if err != nil {
+		return "", err
+	}
+	return canonicaljson.Digest(document)
 }
 
 // ValidateDocument applies the generated owner schema and semantic invariants

@@ -305,6 +305,10 @@
         "label": "Issues",
         "description": "Review diagnostics across the workspace."
       },
+      "agent": {
+        "label": "Verified Agent",
+        "description": "Create Tasks and inspect durable Runs, proposals, verification, and audit evidence."
+      },
       "nodegraph": {
         "label": "Node Graph",
         "description": "Build logic and data flows."

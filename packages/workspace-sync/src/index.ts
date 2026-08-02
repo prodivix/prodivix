@@ -119,3 +119,39 @@ export {
   type WorkspaceLocalReplicaIssue,
   type WorkspaceLocalReplicaMaterializationResult,
 } from './workspaceLocalReplica';
+export {
+  createWorkspaceAgentProposalProjection,
+  prepareWorkspaceAgentCommit,
+  prepareWorkspaceAgentRollback,
+  reconcileWorkspaceAgentCommit,
+  rejectWorkspaceAgentCommitConflict,
+  type AgentProposalVerificationPlanner,
+  type CreateWorkspaceAgentProposalProjectionInput,
+  type PrepareWorkspaceAgentCommitInput,
+  type PrepareWorkspaceAgentMutationResult,
+  type WorkspaceAgentCommitReconciliationResult,
+  type WorkspaceAgentConflictResult,
+  type WorkspaceAgentProposalProjection,
+  type WorkspaceAgentProposalProjectionResult,
+} from './agent/workspaceAgentProposalCoordinator';
+export {
+  bindWorkspaceAgentRepairProposal,
+  createWorkspaceAgentApplySuccessProof,
+  createWorkspaceAgentVerificationPlanBinding,
+  deriveWorkspaceAgentRepairCounterexamples,
+  digestWorkspaceAgentStableVerificationCell,
+  digestWorkspaceAgentVerificationRun,
+  evaluateWorkspaceAgentVerificationClosure,
+  prepareWorkspaceAgentRepairRound,
+  type CreateWorkspaceAgentVerificationPlanBindingInput,
+  type EvaluateWorkspaceAgentVerificationClosureInput,
+  type PrepareWorkspaceAgentRepairRoundInput,
+  type WorkspaceAgentRepairRoundPreparation,
+  type WorkspaceAgentVerificationClosure,
+  type WorkspaceAgentVerificationIssue,
+  type WorkspaceAgentVerificationResult,
+} from './agent/workspaceAgentVerificationCoordinator';
+export {
+  createWorkspaceAgentProductSupplement,
+  type CreateWorkspaceAgentProductSupplementInput,
+} from './agent/workspaceAgentProductProjection';

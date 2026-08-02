@@ -1,0 +1,437 @@
+{
+  "format": "prodivix.agent-product-canonical-vector",
+  "version": 1,
+  "control": {
+    "task": {
+      "wireVersion": 1,
+      "factType": "task-record",
+      "value": {
+        "lineage": { "reason": "initial" },
+        "spec": {
+          "actor": { "kind": "user", "principalId": "user.test" },
+          "baseRevision": {
+            "documents": [
+              { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 },
+              { "contentRev": 2, "documentId": "policy.agent", "metaRev": 1 }
+            ],
+            "opSeq": 144,
+            "routeRev": 8,
+            "workspaceRev": 42
+          },
+          "budget": {
+            "costLimits": [{ "currency": "USD", "maximum": "25" }],
+            "maxArtifactBytes": 1048576,
+            "maxElapsedMs": 600000,
+            "maxModelInvocations": 8,
+            "maxRepairRounds": 2,
+            "maxToolCalls": 8,
+            "maxTransactions": 1,
+            "usageLimits": [
+              { "maximum": "8", "unit": "hosted-tool-call" },
+              { "maximum": "20000", "unit": "text-token-input" },
+              { "maximum": "4000", "unit": "text-token-output" }
+            ]
+          },
+          "createdAt": "2026-08-01T08:00:00.000Z",
+          "idempotencyKey": "idempotency.task.canonical-vector",
+          "initialGrantRef": { "grantId": "grant.g4-v4.catalog" },
+          "intent": "Inspect the authenticated Catalog and produce a explain result.",
+          "intentDigest": "sha256-7e67352e8a40300cfd02686de82dca985165921489c1cee3cde68b41026cf71f",
+          "mode": "explain",
+          "policyDigest": "sha256-e18a7e8cbcc1ce5b63fba5225b4671d9f8441681c2bd723798baddf588fd82bf",
+          "policyRef": { "documentId": "policy.agent" },
+          "projectId": "project.catalog",
+          "targetScope": {
+            "targets": [{ "id": "page.catalog", "kind": "document" }]
+          },
+          "taskId": "task.g4-v4.canonical-vector",
+          "verificationRequirement": {
+            "policyRef": "verification.policy.catalog",
+            "requiredCheckKinds": ["browser-e2e", "unit"]
+          },
+          "workspaceId": "workspace.catalog"
+        },
+        "taskDigest": "sha256-38f722bb10f235e0be9cc431359d9a275038335e68c175f40cad9fc98a52096b"
+      }
+    },
+    "run": {
+      "wireVersion": 1,
+      "factType": "run-snapshot",
+      "value": {
+        "attempts": [
+          {
+            "attempt": 1,
+            "attemptDigest": "sha256-6ca683b17c0f7a6b785e9813ce9427094ddbadb23303b662e3b5bff5e0574dff",
+            "attemptId": "attempt.recovery-vector.1",
+            "completedAt": "2026-08-01T08:00:06.000Z",
+            "failureDigest": "sha256-7463acdad757a69a1128afc4d9b3acfc4318f3ac08e0f5a3b1e947cdb04ac2f8",
+            "generation": 1,
+            "outcome": "superseded",
+            "reason": "initial",
+            "startedAt": "2026-08-01T08:00:02.000Z"
+          },
+          {
+            "attempt": 2,
+            "attemptDigest": "sha256-a724d2a34ec078a985d0e445a594b7671ec2d41aac59c2738f60248bb0380295",
+            "attemptId": "attempt.recovery-vector.2",
+            "generation": 2,
+            "parentAttemptId": "attempt.recovery-vector.1",
+            "reason": "provider-disconnect",
+            "startedAt": "2026-08-01T08:00:06.000Z"
+          }
+        ],
+        "budgetLedger": {
+          "budget": {
+            "costLimits": [{ "currency": "USD", "maximum": "25" }],
+            "maxArtifactBytes": 1048576,
+            "maxElapsedMs": 600000,
+            "maxModelInvocations": 8,
+            "maxRepairRounds": 2,
+            "maxToolCalls": 8,
+            "maxTransactions": 1,
+            "usageLimits": [
+              { "maximum": "8", "unit": "hosted-tool-call" },
+              { "maximum": "20000", "unit": "text-token-input" },
+              { "maximum": "4000", "unit": "text-token-output" }
+            ]
+          },
+          "ledgerDigest": "sha256-56db7b3862bcbff36579365c99405784caddfec061a3ab3c7413ca631399edad",
+          "reservations": [],
+          "revision": 0
+        },
+        "callbackAuthority": "active",
+        "cleanupState": "not-required",
+        "cursor": 5,
+        "processedEvents": [
+          {
+            "eventDigest": "sha256-d1fc06ac7b658025d44de9de7f2e51938a8a45fe53d8f05fe9f9c82a2e11af06",
+            "eventId": "event.recovery-vector.created",
+            "idempotencyKey": "idempotency.recovery-vector.created",
+            "requestDigest": "sha256-e32c9e075a2806ea2789cb4f71e6521bf344d24707ae2b469fd84dc8f4007bac",
+            "type": "run.created"
+          },
+          {
+            "eventDigest": "sha256-8891227147d363d2ca215f1c90d70572f9a2e90f1d3d4c1969b327ab1159d9e5",
+            "eventId": "event.recovery-vector.started",
+            "idempotencyKey": "idempotency.recovery-vector.started",
+            "requestDigest": "sha256-995f4d44acce21bbb42c820e6182aa1d691c820cebb1c498e3b53801ac398219",
+            "type": "run.started"
+          },
+          {
+            "eventDigest": "sha256-0f692800ccf42d9af169e0d5e6772b765b19852495e5ddb937b35515eee0b620",
+            "eventId": "event.recovery-vector.running",
+            "idempotencyKey": "idempotency.recovery-vector.running",
+            "requestDigest": "sha256-14c68fc71875a77cf6c0c6b93973d7900a546a842c3d3387f78245dbea442e87",
+            "type": "run.phase-changed"
+          },
+          {
+            "eventDigest": "sha256-60b363e01d2e232ec49c896a7e2877703140538d5a0df77d3cab194864ca835f",
+            "eventId": "event.recovery-vector.model-started",
+            "idempotencyKey": "idempotency.recovery-vector.model-started",
+            "requestDigest": "sha256-07c970270583e8590fae2a4a012f1a699633f1d9b90dc4979e5c1e4d15b4b9ad",
+            "type": "model.started"
+          },
+          {
+            "eventDigest": "sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c",
+            "eventId": "event.recovery-vector.recovery",
+            "idempotencyKey": "idempotency.recovery-vector.recovery",
+            "requestDigest": "sha256-75dff4b371968b4c90eb2c7178b88536a81e94519c3f41b52f1c4a94fb9600bc",
+            "type": "run.recovery-started"
+          }
+        ],
+        "run": {
+          "attempt": 2,
+          "baseRevision": {
+            "documents": [
+              { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 },
+              { "contentRev": 2, "documentId": "policy.agent", "metaRev": 1 }
+            ],
+            "opSeq": 144,
+            "routeRev": 8,
+            "workspaceRev": 42
+          },
+          "createdAt": "2026-08-01T08:00:01.000Z",
+          "generation": 2,
+          "grantRef": { "grantId": "grant.g4-v4.catalog" },
+          "latestEventDigest": "sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c",
+          "phase": "preparing",
+          "policyDigest": "sha256-e18a7e8cbcc1ce5b63fba5225b4671d9f8441681c2bd723798baddf588fd82bf",
+          "runId": "run.g4-v4.recovery-vector",
+          "taskId": "task.g4-v4.canonical-vector",
+          "updatedAt": "2026-08-01T08:00:06.000Z"
+        },
+        "snapshotDigest": "sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e",
+        "taskDigest": "sha256-38f722bb10f235e0be9cc431359d9a275038335e68c175f40cad9fc98a52096b"
+      }
+    }
+  },
+  "facts": {
+    "supplement": {
+      "wireVersion": 1,
+      "factType": "product-supplement",
+      "value": {
+        "diagnostics": [
+          {
+            "code": "AI-6004",
+            "identityRefs": ["run.g4-v4.recovery-vector"],
+            "message": "The disconnected model stream was fenced before recovery.",
+            "severity": "warning",
+            "state": "resolved"
+          }
+        ],
+        "generation": 2,
+        "producer": {
+          "kind": "service",
+          "principalId": "agent.product-projector"
+        },
+        "projectedAt": "2026-08-01T08:00:08.000Z",
+        "runId": "run.g4-v4.recovery-vector",
+        "runSnapshotDigest": "sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e",
+        "runtime": {
+          "budgetLedgerDigest": "sha256-56db7b3862bcbff36579365c99405784caddfec061a3ab3c7413ca631399edad",
+          "costs": [],
+          "models": [
+            {
+              "capabilityProfileId": "capability-profile.g4-v7.vector",
+              "invocationId": "invocation.g4-v7.vector",
+              "modelId": "model.g4-v7.vector",
+              "outcome": "failed",
+              "protocolFamily": "openai-responses",
+              "providerConfigurationId": "provider-configuration.g4-v7.vector",
+              "providerOperatorId": "provider.g4-v7.vector"
+            }
+          ],
+          "tools": [],
+          "usage": []
+        },
+        "supplementDigest": "sha256-3994954650885693337f96f31369aa7d6077e9b7c5edacae7e6adf79f76eda6f",
+        "supplementId": "supplement.g4-v7.vector",
+        "taskId": "task.g4-v4.canonical-vector"
+      }
+    },
+    "command": {
+      "wireVersion": 1,
+      "factType": "run-user-command",
+      "value": {
+        "actor": { "kind": "user", "principalId": "user.test" },
+        "commandDigest": "sha256-e7505ddbd574e965b64ff948936af265e7f8966ee33ffd7ab8ba17a0f7450b23",
+        "commandId": "command.g4-v7.vector.cancel",
+        "expectedGeneration": 2,
+        "expectedSnapshotDigest": "sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e",
+        "idempotencyKey": "idempotency.g4-v7.vector.cancel",
+        "kind": "cancel",
+        "reason": "Stop the recovered Run before another invocation.",
+        "requestedAt": "2026-08-01T08:00:08.000Z",
+        "runId": "run.g4-v4.recovery-vector",
+        "taskId": "task.g4-v4.canonical-vector"
+      }
+    }
+  },
+  "view": {
+    "wireVersion": 1,
+    "kind": "agent-product-view",
+    "value": {
+      "availableActions": ["export-audit"],
+      "budgetLedger": {
+        "budget": {
+          "costLimits": [{ "currency": "USD", "maximum": "25" }],
+          "maxArtifactBytes": 1048576,
+          "maxElapsedMs": 600000,
+          "maxModelInvocations": 8,
+          "maxRepairRounds": 2,
+          "maxToolCalls": 8,
+          "maxTransactions": 1,
+          "usageLimits": [
+            { "maximum": "8", "unit": "hosted-tool-call" },
+            { "maximum": "20000", "unit": "text-token-input" },
+            { "maximum": "4000", "unit": "text-token-output" }
+          ]
+        },
+        "ledgerDigest": "sha256-56db7b3862bcbff36579365c99405784caddfec061a3ab3c7413ca631399edad",
+        "reservations": [],
+        "revision": 0
+      },
+      "cleanupState": "not-required",
+      "commands": [
+        {
+          "actor": { "kind": "user", "principalId": "user.test" },
+          "commandDigest": "sha256-e7505ddbd574e965b64ff948936af265e7f8966ee33ffd7ab8ba17a0f7450b23",
+          "commandId": "command.g4-v7.vector.cancel",
+          "expectedGeneration": 2,
+          "expectedSnapshotDigest": "sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e",
+          "idempotencyKey": "idempotency.g4-v7.vector.cancel",
+          "kind": "cancel",
+          "reason": "Stop the recovered Run before another invocation.",
+          "requestedAt": "2026-08-01T08:00:08.000Z",
+          "runId": "run.g4-v4.recovery-vector",
+          "taskId": "task.g4-v4.canonical-vector"
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": "AI-6004",
+          "identityRefs": ["run.g4-v4.recovery-vector"],
+          "message": "The disconnected model stream was fenced before recovery.",
+          "severity": "warning",
+          "state": "resolved"
+        }
+      ],
+      "identity": {
+        "attempt": 2,
+        "cursor": 5,
+        "generation": 2,
+        "latestEventDigest": "sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c",
+        "projectId": "project.catalog",
+        "runId": "run.g4-v4.recovery-vector",
+        "runSnapshotDigest": "sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e",
+        "taskDigest": "sha256-38f722bb10f235e0be9cc431359d9a275038335e68c175f40cad9fc98a52096b",
+        "taskId": "task.g4-v4.canonical-vector",
+        "workspaceId": "workspace.catalog"
+      },
+      "mutations": [],
+      "repairRounds": [],
+      "run": {
+        "attempt": 2,
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 },
+            { "contentRev": 2, "documentId": "policy.agent", "metaRev": 1 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "createdAt": "2026-08-01T08:00:01.000Z",
+        "generation": 2,
+        "grantRef": { "grantId": "grant.g4-v4.catalog" },
+        "latestEventDigest": "sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c",
+        "phase": "preparing",
+        "policyDigest": "sha256-e18a7e8cbcc1ce5b63fba5225b4671d9f8441681c2bd723798baddf588fd82bf",
+        "runId": "run.g4-v4.recovery-vector",
+        "taskId": "task.g4-v4.canonical-vector",
+        "updatedAt": "2026-08-01T08:00:06.000Z"
+      },
+      "runtime": {
+        "budgetLedgerDigest": "sha256-56db7b3862bcbff36579365c99405784caddfec061a3ab3c7413ca631399edad",
+        "costs": [],
+        "models": [
+          {
+            "capabilityProfileId": "capability-profile.g4-v7.vector",
+            "invocationId": "invocation.g4-v7.vector",
+            "modelId": "model.g4-v7.vector",
+            "outcome": "failed",
+            "protocolFamily": "openai-responses",
+            "providerConfigurationId": "provider-configuration.g4-v7.vector",
+            "providerOperatorId": "provider.g4-v7.vector"
+          }
+        ],
+        "tools": [],
+        "usage": []
+      },
+      "task": {
+        "actor": { "kind": "user", "principalId": "user.test" },
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 },
+            { "contentRev": 2, "documentId": "policy.agent", "metaRev": 1 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "budget": {
+          "costLimits": [{ "currency": "USD", "maximum": "25" }],
+          "maxArtifactBytes": 1048576,
+          "maxElapsedMs": 600000,
+          "maxModelInvocations": 8,
+          "maxRepairRounds": 2,
+          "maxToolCalls": 8,
+          "maxTransactions": 1,
+          "usageLimits": [
+            { "maximum": "8", "unit": "hosted-tool-call" },
+            { "maximum": "20000", "unit": "text-token-input" },
+            { "maximum": "4000", "unit": "text-token-output" }
+          ]
+        },
+        "createdAt": "2026-08-01T08:00:00.000Z",
+        "idempotencyKey": "idempotency.task.canonical-vector",
+        "initialGrantRef": { "grantId": "grant.g4-v4.catalog" },
+        "intent": "Inspect the authenticated Catalog and produce a explain result.",
+        "intentDigest": "sha256-7e67352e8a40300cfd02686de82dca985165921489c1cee3cde68b41026cf71f",
+        "mode": "explain",
+        "policyDigest": "sha256-e18a7e8cbcc1ce5b63fba5225b4671d9f8441681c2bd723798baddf588fd82bf",
+        "policyRef": { "documentId": "policy.agent" },
+        "projectId": "project.catalog",
+        "targetScope": {
+          "targets": [{ "id": "page.catalog", "kind": "document" }]
+        },
+        "taskId": "task.g4-v4.canonical-vector",
+        "verificationRequirement": {
+          "policyRef": "verification.policy.catalog",
+          "requiredCheckKinds": ["browser-e2e", "unit"]
+        },
+        "workspaceId": "workspace.catalog"
+      },
+      "timeline": [
+        {
+          "eventDigest": "sha256-d1fc06ac7b658025d44de9de7f2e51938a8a45fe53d8f05fe9f9c82a2e11af06",
+          "eventId": "event.recovery-vector.created",
+          "family": "run",
+          "generation": 0,
+          "occurredAt": "2026-08-01T08:00:01.000Z",
+          "sequence": 1,
+          "type": "run.created"
+        },
+        {
+          "eventDigest": "sha256-8891227147d363d2ca215f1c90d70572f9a2e90f1d3d4c1969b327ab1159d9e5",
+          "eventId": "event.recovery-vector.started",
+          "family": "run",
+          "generation": 1,
+          "occurredAt": "2026-08-01T08:00:02.000Z",
+          "sequence": 2,
+          "type": "run.started"
+        },
+        {
+          "eventDigest": "sha256-0f692800ccf42d9af169e0d5e6772b765b19852495e5ddb937b35515eee0b620",
+          "eventId": "event.recovery-vector.running",
+          "family": "run",
+          "generation": 1,
+          "occurredAt": "2026-08-01T08:00:03.000Z",
+          "sequence": 3,
+          "type": "run.phase-changed"
+        },
+        {
+          "eventDigest": "sha256-60b363e01d2e232ec49c896a7e2877703140538d5a0df77d3cab194864ca835f",
+          "eventId": "event.recovery-vector.model-started",
+          "family": "model",
+          "generation": 1,
+          "occurredAt": "2026-08-01T08:00:04.000Z",
+          "sequence": 4,
+          "type": "model.started"
+        },
+        {
+          "eventDigest": "sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c",
+          "eventId": "event.recovery-vector.recovery",
+          "family": "run",
+          "generation": 2,
+          "occurredAt": "2026-08-01T08:00:06.000Z",
+          "sequence": 5,
+          "type": "run.recovery-started"
+        }
+      ],
+      "verificationBindings": [],
+      "verificationClosures": [],
+      "viewDigest": "sha256-ae0d9ba75879cfd51db4573d0af129a1a6cf6cc08f0e65493cb6c2711f3099e8"
+    }
+  },
+  "canonicalJson": {
+    "supplement": "{\"factType\":\"product-supplement\",\"value\":{\"diagnostics\":[{\"code\":\"AI-6004\",\"identityRefs\":[\"run.g4-v4.recovery-vector\"],\"message\":\"The disconnected model stream was fenced before recovery.\",\"severity\":\"warning\",\"state\":\"resolved\"}],\"generation\":2,\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.product-projector\"},\"projectedAt\":\"2026-08-01T08:00:08.000Z\",\"runId\":\"run.g4-v4.recovery-vector\",\"runSnapshotDigest\":\"sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e\",\"runtime\":{\"budgetLedgerDigest\":\"sha256-56db7b3862bcbff36579365c99405784caddfec061a3ab3c7413ca631399edad\",\"costs\":[],\"models\":[{\"capabilityProfileId\":\"capability-profile.g4-v7.vector\",\"invocationId\":\"invocation.g4-v7.vector\",\"modelId\":\"model.g4-v7.vector\",\"outcome\":\"failed\",\"protocolFamily\":\"openai-responses\",\"providerConfigurationId\":\"provider-configuration.g4-v7.vector\",\"providerOperatorId\":\"provider.g4-v7.vector\"}],\"tools\":[],\"usage\":[]},\"supplementDigest\":\"sha256-3994954650885693337f96f31369aa7d6077e9b7c5edacae7e6adf79f76eda6f\",\"supplementId\":\"supplement.g4-v7.vector\",\"taskId\":\"task.g4-v4.canonical-vector\"},\"wireVersion\":1}",
+    "command": "{\"factType\":\"run-user-command\",\"value\":{\"actor\":{\"kind\":\"user\",\"principalId\":\"user.test\"},\"commandDigest\":\"sha256-e7505ddbd574e965b64ff948936af265e7f8966ee33ffd7ab8ba17a0f7450b23\",\"commandId\":\"command.g4-v7.vector.cancel\",\"expectedGeneration\":2,\"expectedSnapshotDigest\":\"sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e\",\"idempotencyKey\":\"idempotency.g4-v7.vector.cancel\",\"kind\":\"cancel\",\"reason\":\"Stop the recovered Run before another invocation.\",\"requestedAt\":\"2026-08-01T08:00:08.000Z\",\"runId\":\"run.g4-v4.recovery-vector\",\"taskId\":\"task.g4-v4.canonical-vector\"},\"wireVersion\":1}",
+    "view": "{\"kind\":\"agent-product-view\",\"value\":{\"availableActions\":[\"export-audit\"],\"budgetLedger\":{\"budget\":{\"costLimits\":[{\"currency\":\"USD\",\"maximum\":\"25\"}],\"maxArtifactBytes\":1048576,\"maxElapsedMs\":600000,\"maxModelInvocations\":8,\"maxRepairRounds\":2,\"maxToolCalls\":8,\"maxTransactions\":1,\"usageLimits\":[{\"maximum\":\"8\",\"unit\":\"hosted-tool-call\"},{\"maximum\":\"20000\",\"unit\":\"text-token-input\"},{\"maximum\":\"4000\",\"unit\":\"text-token-output\"}]},\"ledgerDigest\":\"sha256-56db7b3862bcbff36579365c99405784caddfec061a3ab3c7413ca631399edad\",\"reservations\":[],\"revision\":0},\"cleanupState\":\"not-required\",\"commands\":[{\"actor\":{\"kind\":\"user\",\"principalId\":\"user.test\"},\"commandDigest\":\"sha256-e7505ddbd574e965b64ff948936af265e7f8966ee33ffd7ab8ba17a0f7450b23\",\"commandId\":\"command.g4-v7.vector.cancel\",\"expectedGeneration\":2,\"expectedSnapshotDigest\":\"sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e\",\"idempotencyKey\":\"idempotency.g4-v7.vector.cancel\",\"kind\":\"cancel\",\"reason\":\"Stop the recovered Run before another invocation.\",\"requestedAt\":\"2026-08-01T08:00:08.000Z\",\"runId\":\"run.g4-v4.recovery-vector\",\"taskId\":\"task.g4-v4.canonical-vector\"}],\"diagnostics\":[{\"code\":\"AI-6004\",\"identityRefs\":[\"run.g4-v4.recovery-vector\"],\"message\":\"The disconnected model stream was fenced before recovery.\",\"severity\":\"warning\",\"state\":\"resolved\"}],\"identity\":{\"attempt\":2,\"cursor\":5,\"generation\":2,\"latestEventDigest\":\"sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c\",\"projectId\":\"project.catalog\",\"runId\":\"run.g4-v4.recovery-vector\",\"runSnapshotDigest\":\"sha256-702933ac9c970dac583de420e84261de1f0cd90875a378ee08403fdbfe5f3c1e\",\"taskDigest\":\"sha256-38f722bb10f235e0be9cc431359d9a275038335e68c175f40cad9fc98a52096b\",\"taskId\":\"task.g4-v4.canonical-vector\",\"workspaceId\":\"workspace.catalog\"},\"mutations\":[],\"repairRounds\":[],\"run\":{\"attempt\":2,\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3},{\"contentRev\":2,\"documentId\":\"policy.agent\",\"metaRev\":1}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"createdAt\":\"2026-08-01T08:00:01.000Z\",\"generation\":2,\"grantRef\":{\"grantId\":\"grant.g4-v4.catalog\"},\"latestEventDigest\":\"sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c\",\"phase\":\"preparing\",\"policyDigest\":\"sha256-e18a7e8cbcc1ce5b63fba5225b4671d9f8441681c2bd723798baddf588fd82bf\",\"runId\":\"run.g4-v4.recovery-vector\",\"taskId\":\"task.g4-v4.canonical-vector\",\"updatedAt\":\"2026-08-01T08:00:06.000Z\"},\"runtime\":{\"budgetLedgerDigest\":\"sha256-56db7b3862bcbff36579365c99405784caddfec061a3ab3c7413ca631399edad\",\"costs\":[],\"models\":[{\"capabilityProfileId\":\"capability-profile.g4-v7.vector\",\"invocationId\":\"invocation.g4-v7.vector\",\"modelId\":\"model.g4-v7.vector\",\"outcome\":\"failed\",\"protocolFamily\":\"openai-responses\",\"providerConfigurationId\":\"provider-configuration.g4-v7.vector\",\"providerOperatorId\":\"provider.g4-v7.vector\"}],\"tools\":[],\"usage\":[]},\"task\":{\"actor\":{\"kind\":\"user\",\"principalId\":\"user.test\"},\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3},{\"contentRev\":2,\"documentId\":\"policy.agent\",\"metaRev\":1}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"budget\":{\"costLimits\":[{\"currency\":\"USD\",\"maximum\":\"25\"}],\"maxArtifactBytes\":1048576,\"maxElapsedMs\":600000,\"maxModelInvocations\":8,\"maxRepairRounds\":2,\"maxToolCalls\":8,\"maxTransactions\":1,\"usageLimits\":[{\"maximum\":\"8\",\"unit\":\"hosted-tool-call\"},{\"maximum\":\"20000\",\"unit\":\"text-token-input\"},{\"maximum\":\"4000\",\"unit\":\"text-token-output\"}]},\"createdAt\":\"2026-08-01T08:00:00.000Z\",\"idempotencyKey\":\"idempotency.task.canonical-vector\",\"initialGrantRef\":{\"grantId\":\"grant.g4-v4.catalog\"},\"intent\":\"Inspect the authenticated Catalog and produce a explain result.\",\"intentDigest\":\"sha256-7e67352e8a40300cfd02686de82dca985165921489c1cee3cde68b41026cf71f\",\"mode\":\"explain\",\"policyDigest\":\"sha256-e18a7e8cbcc1ce5b63fba5225b4671d9f8441681c2bd723798baddf588fd82bf\",\"policyRef\":{\"documentId\":\"policy.agent\"},\"projectId\":\"project.catalog\",\"targetScope\":{\"targets\":[{\"id\":\"page.catalog\",\"kind\":\"document\"}]},\"taskId\":\"task.g4-v4.canonical-vector\",\"verificationRequirement\":{\"policyRef\":\"verification.policy.catalog\",\"requiredCheckKinds\":[\"browser-e2e\",\"unit\"]},\"workspaceId\":\"workspace.catalog\"},\"timeline\":[{\"eventDigest\":\"sha256-d1fc06ac7b658025d44de9de7f2e51938a8a45fe53d8f05fe9f9c82a2e11af06\",\"eventId\":\"event.recovery-vector.created\",\"family\":\"run\",\"generation\":0,\"occurredAt\":\"2026-08-01T08:00:01.000Z\",\"sequence\":1,\"type\":\"run.created\"},{\"eventDigest\":\"sha256-8891227147d363d2ca215f1c90d70572f9a2e90f1d3d4c1969b327ab1159d9e5\",\"eventId\":\"event.recovery-vector.started\",\"family\":\"run\",\"generation\":1,\"occurredAt\":\"2026-08-01T08:00:02.000Z\",\"sequence\":2,\"type\":\"run.started\"},{\"eventDigest\":\"sha256-0f692800ccf42d9af169e0d5e6772b765b19852495e5ddb937b35515eee0b620\",\"eventId\":\"event.recovery-vector.running\",\"family\":\"run\",\"generation\":1,\"occurredAt\":\"2026-08-01T08:00:03.000Z\",\"sequence\":3,\"type\":\"run.phase-changed\"},{\"eventDigest\":\"sha256-60b363e01d2e232ec49c896a7e2877703140538d5a0df77d3cab194864ca835f\",\"eventId\":\"event.recovery-vector.model-started\",\"family\":\"model\",\"generation\":1,\"occurredAt\":\"2026-08-01T08:00:04.000Z\",\"sequence\":4,\"type\":\"model.started\"},{\"eventDigest\":\"sha256-22644f46d3472340136bfcd16ecec4ac4f4b9f31b81aeb7c596244eb0e63547c\",\"eventId\":\"event.recovery-vector.recovery\",\"family\":\"run\",\"generation\":2,\"occurredAt\":\"2026-08-01T08:00:06.000Z\",\"sequence\":5,\"type\":\"run.recovery-started\"}],\"verificationBindings\":[],\"verificationClosures\":[],\"viewDigest\":\"sha256-ae0d9ba75879cfd51db4573d0af129a1a6cf6cc08f0e65493cb6c2711f3099e8\"},\"wireVersion\":1}"
+  },
+  "expectedDigests": {
+    "supplement": "sha256-3994954650885693337f96f31369aa7d6077e9b7c5edacae7e6adf79f76eda6f",
+    "command": "sha256-e7505ddbd574e965b64ff948936af265e7f8966ee33ffd7ab8ba17a0f7450b23",
+    "view": "sha256-ae0d9ba75879cfd51db4573d0af129a1a6cf6cc08f0e65493cb6c2711f3099e8"
+  }
+}

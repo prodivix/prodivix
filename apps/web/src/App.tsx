@@ -77,6 +77,12 @@ export const createRoutes = (instance: i18n) => {
     () => import('./editor/features/issues/WorkspaceIssuesPage'),
     (module) => module.default
   );
+  const AgentWorkspacePage = lazyRoute(
+    instance,
+    ['editor'],
+    () => import('./editor/features/agent/AgentWorkspacePage'),
+    (module) => module.default
+  );
   const BlueprintEditor = lazyRoute(
     instance,
     ['blueprint'],
@@ -187,6 +193,10 @@ export const createRoutes = (instance: i18n) => {
             {
               path: 'issues',
               element: withRouteSuspense(<WorkspaceIssuesPage />),
+            },
+            {
+              path: 'agent',
+              element: withRouteSuspense(<AgentWorkspacePage />),
             },
             {
               path: 'test',

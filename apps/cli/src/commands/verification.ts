@@ -514,13 +514,13 @@ const backendRequest = async (
 
 const readCandidate = (path: string): VerificationEvidenceCandidate => {
   const decoded = decodeVerificationEvidenceCandidate(readJson(path));
-  if (!decoded.ok) {
+  if (decoded.status !== 'ready') {
     throw new VerificationCliFailure(
       'Evidence Candidate is not canonical versioned JSON.',
       EXIT.invalidContract
     );
   }
-  return decoded.value;
+  return decoded.candidate;
 };
 
 const requireCiPromotionAdmission = (
@@ -731,7 +731,10 @@ const uploadArtifacts = async (input: {
     const path = safeArtifactPath(input.artifactDirectory, artifact.path);
     const bytes = readFileSync(path);
     const digest = `sha256-${createHash('sha256').update(bytes).digest('hex')}`;
-    if (bytes.byteLength !== artifact.size || digest !== artifact.digest) {
+    if (
+      bytes.byteLength !== artifact.expectedSize ||
+      digest !== artifact.expectedDigest
+    ) {
       throw new VerificationCliFailure(
         'Evidence artifact bytes do not match the Candidate descriptor.',
         EXIT.invalidContract
@@ -746,7 +749,7 @@ const uploadArtifacts = async (input: {
       {
         method: 'PUT',
         headers: {
-          'Content-Type': artifact.mediaType,
+          'Content-Type': artifact.expectedMediaType,
           'X-Prodivix-Verification-Capability': input.capability,
           'X-Prodivix-Verification-Intent': 'upload',
         },

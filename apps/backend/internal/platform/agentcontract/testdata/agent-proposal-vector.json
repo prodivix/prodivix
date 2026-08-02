@@ -1,0 +1,1206 @@
+{
+  "format": "prodivix.agent-proposal-canonical-vector",
+  "version": 1,
+  "registry": {
+    "registryId": "registry.g4-v5.proposal-vector",
+    "descriptors": [
+      {
+        "descriptorId": "action.route.child-create",
+        "ownerId": "prodivix.route",
+        "actionType": "child.create",
+        "inputSchemaId": "route.child-create@current",
+        "requiredCapabilities": ["propose", "read"],
+        "allowedTargetKinds": ["semantic-target"],
+        "maximumInputBytes": 4096,
+        "risk": {
+          "id": "risk.route-reachability-change",
+          "level": "high",
+          "message": "Changes canonical route reachability."
+        },
+        "descriptorDigest": "sha256-b95866dcc03de9e0e4732ac29571a6aad6714f3f062e5a1ffb165a0d618d1800"
+      }
+    ],
+    "registryDigest": "sha256-06428d9d558604a9cb8722318291e1e75398ad15ef17f8534b0bd015ce1ddc29"
+  },
+  "controlFacts": {
+    "task": {
+      "wireVersion": 1,
+      "factType": "task-record",
+      "value": {
+        "lineage": { "reason": "initial" },
+        "spec": {
+          "actor": { "kind": "user", "principalId": "user.test" },
+          "baseRevision": {
+            "documents": [
+              { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+            ],
+            "opSeq": 144,
+            "routeRev": 8,
+            "workspaceRev": 42
+          },
+          "budget": {
+            "costLimits": [],
+            "maxArtifactBytes": 1048576,
+            "maxElapsedMs": 600000,
+            "maxModelInvocations": 2,
+            "maxRepairRounds": 1,
+            "maxToolCalls": 4,
+            "maxTransactions": 2,
+            "usageLimits": []
+          },
+          "createdAt": "2026-08-01T08:30:00.000Z",
+          "idempotencyKey": "idempotency.g4-v5.proposal-vector.task",
+          "initialGrantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "intent": "Add one approved Catalog route through the V5 proposal flow.",
+          "intentDigest": "sha256-b2f1df37c281f91b6e166ba7d8f17ad38e7372ea8208e0c0cea7965e6f42e526",
+          "mode": "apply",
+          "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+          "policyRef": { "documentId": "policy.g4-v5.proposal-vector" },
+          "projectId": "project.catalog",
+          "targetScope": {
+            "targets": [{ "id": "workspace.catalog", "kind": "workspace" }]
+          },
+          "taskId": "task.g4-v5.proposal-vector",
+          "verificationRequirement": {
+            "policyRef": "verification.policy.catalog",
+            "requiredCheckKinds": ["browser-e2e", "unit"]
+          },
+          "workspaceId": "workspace.catalog"
+        },
+        "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+      }
+    },
+    "sequence": [
+      {
+        "name": "created",
+        "run": {
+          "wireVersion": 1,
+          "factType": "run-snapshot",
+          "value": {
+            "attempts": [],
+            "budgetLedger": {
+              "budget": {
+                "costLimits": [],
+                "maxArtifactBytes": 1048576,
+                "maxElapsedMs": 600000,
+                "maxModelInvocations": 2,
+                "maxRepairRounds": 1,
+                "maxToolCalls": 4,
+                "maxTransactions": 2,
+                "usageLimits": []
+              },
+              "ledgerDigest": "sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c",
+              "reservations": [],
+              "revision": 0
+            },
+            "callbackAuthority": "revoked",
+            "cleanupState": "not-required",
+            "cursor": 1,
+            "processedEvents": [
+              {
+                "eventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+                "eventId": "event.g4-v5.vector.created",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+                "requestDigest": "sha256-faa4f70d5c79e4dd55a5e8c1c9d397e92662ef65b98a764f2632460e81a3b437",
+                "type": "run.created"
+              }
+            ],
+            "run": {
+              "attempt": 0,
+              "baseRevision": {
+                "documents": [
+                  {
+                    "contentRev": 21,
+                    "documentId": "page.catalog",
+                    "metaRev": 3
+                  }
+                ],
+                "opSeq": 144,
+                "routeRev": 8,
+                "workspaceRev": 42
+              },
+              "createdAt": "2026-08-01T08:30:01.000Z",
+              "generation": 0,
+              "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+              "latestEventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+              "phase": "queued",
+              "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+              "runId": "run.g4-v5.proposal-vector",
+              "taskId": "task.g4-v5.proposal-vector",
+              "updatedAt": "2026-08-01T08:30:01.000Z"
+            },
+            "snapshotDigest": "sha256-ba28aa0b90454a69f033d906afc858be830f8e568ffd4af83bed80b0730c80e3",
+            "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+          }
+        },
+        "event": {
+          "wireVersion": 1,
+          "factType": "run-event",
+          "value": {
+            "data": {},
+            "eventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+            "eventId": "event.g4-v5.vector.created",
+            "family": "run",
+            "generation": 0,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+            "occurredAt": "2026-08-01T08:30:01.000Z",
+            "payloadDigest": "sha256-b6aa0ac91cf9373a6dc7b50d5b705f59a1544957d1fed0d6564666f5464e68e4",
+            "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+            "producer": {
+              "kind": "service",
+              "principalId": "agent.coordinator.g4-v5"
+            },
+            "requestDigest": "sha256-faa4f70d5c79e4dd55a5e8c1c9d397e92662ef65b98a764f2632460e81a3b437",
+            "runId": "run.g4-v5.proposal-vector",
+            "sanitizedPayload": {
+              "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+            },
+            "sequence": 1,
+            "taskId": "task.g4-v5.proposal-vector",
+            "type": "run.created"
+          }
+        }
+      },
+      {
+        "name": "started",
+        "run": {
+          "wireVersion": 1,
+          "factType": "run-snapshot",
+          "value": {
+            "attempts": [
+              {
+                "attempt": 1,
+                "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+                "attemptId": "attempt.g4-v5.vector.1",
+                "generation": 1,
+                "reason": "initial",
+                "startedAt": "2026-08-01T08:30:02.000Z"
+              }
+            ],
+            "budgetLedger": {
+              "budget": {
+                "costLimits": [],
+                "maxArtifactBytes": 1048576,
+                "maxElapsedMs": 600000,
+                "maxModelInvocations": 2,
+                "maxRepairRounds": 1,
+                "maxToolCalls": 4,
+                "maxTransactions": 2,
+                "usageLimits": []
+              },
+              "ledgerDigest": "sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c",
+              "reservations": [],
+              "revision": 0
+            },
+            "callbackAuthority": "active",
+            "cleanupState": "not-required",
+            "cursor": 2,
+            "processedEvents": [
+              {
+                "eventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+                "eventId": "event.g4-v5.vector.created",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+                "requestDigest": "sha256-faa4f70d5c79e4dd55a5e8c1c9d397e92662ef65b98a764f2632460e81a3b437",
+                "type": "run.created"
+              },
+              {
+                "eventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+                "eventId": "event.g4-v5.vector.started",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+                "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+                "type": "run.started"
+              }
+            ],
+            "run": {
+              "attempt": 1,
+              "baseRevision": {
+                "documents": [
+                  {
+                    "contentRev": 21,
+                    "documentId": "page.catalog",
+                    "metaRev": 3
+                  }
+                ],
+                "opSeq": 144,
+                "routeRev": 8,
+                "workspaceRev": 42
+              },
+              "createdAt": "2026-08-01T08:30:01.000Z",
+              "generation": 1,
+              "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+              "latestEventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+              "phase": "preparing",
+              "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+              "runId": "run.g4-v5.proposal-vector",
+              "taskId": "task.g4-v5.proposal-vector",
+              "updatedAt": "2026-08-01T08:30:02.000Z"
+            },
+            "snapshotDigest": "sha256-ea720b13356e6e4301e428a58a78b52802a4f00328a876aadc5121aa5ed07012",
+            "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+          }
+        },
+        "event": {
+          "wireVersion": 1,
+          "factType": "run-event",
+          "value": {
+            "data": {
+              "attempt": {
+                "attempt": 1,
+                "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+                "attemptId": "attempt.g4-v5.vector.1",
+                "generation": 1,
+                "reason": "initial",
+                "startedAt": "2026-08-01T08:30:02.000Z"
+              },
+              "phase": "preparing"
+            },
+            "eventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+            "eventId": "event.g4-v5.vector.started",
+            "family": "run",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+            "occurredAt": "2026-08-01T08:30:02.000Z",
+            "payloadDigest": "sha256-10fbb6c154e972de0353a02835ad9f18815f099da09064bb8fb46c686a6e25d2",
+            "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+            "previousEventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+            "producer": {
+              "kind": "service",
+              "principalId": "agent.coordinator.g4-v5"
+            },
+            "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+            "runId": "run.g4-v5.proposal-vector",
+            "sanitizedPayload": {
+              "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09"
+            },
+            "sequence": 2,
+            "taskId": "task.g4-v5.proposal-vector",
+            "type": "run.started"
+          }
+        }
+      },
+      {
+        "name": "running",
+        "run": {
+          "wireVersion": 1,
+          "factType": "run-snapshot",
+          "value": {
+            "attempts": [
+              {
+                "attempt": 1,
+                "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+                "attemptId": "attempt.g4-v5.vector.1",
+                "generation": 1,
+                "reason": "initial",
+                "startedAt": "2026-08-01T08:30:02.000Z"
+              }
+            ],
+            "budgetLedger": {
+              "budget": {
+                "costLimits": [],
+                "maxArtifactBytes": 1048576,
+                "maxElapsedMs": 600000,
+                "maxModelInvocations": 2,
+                "maxRepairRounds": 1,
+                "maxToolCalls": 4,
+                "maxTransactions": 2,
+                "usageLimits": []
+              },
+              "ledgerDigest": "sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c",
+              "reservations": [],
+              "revision": 0
+            },
+            "callbackAuthority": "active",
+            "cleanupState": "not-required",
+            "cursor": 3,
+            "processedEvents": [
+              {
+                "eventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+                "eventId": "event.g4-v5.vector.created",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+                "requestDigest": "sha256-faa4f70d5c79e4dd55a5e8c1c9d397e92662ef65b98a764f2632460e81a3b437",
+                "type": "run.created"
+              },
+              {
+                "eventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+                "eventId": "event.g4-v5.vector.started",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+                "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+                "type": "run.started"
+              },
+              {
+                "eventDigest": "sha256-fc68df83562f079f0ef4f7012e101684aac2dbd38bd3bc8c8f654a9e4e4822a0",
+                "eventId": "event.g4-v5.vector.running",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+                "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+                "type": "run.phase-changed"
+              }
+            ],
+            "run": {
+              "attempt": 1,
+              "baseRevision": {
+                "documents": [
+                  {
+                    "contentRev": 21,
+                    "documentId": "page.catalog",
+                    "metaRev": 3
+                  }
+                ],
+                "opSeq": 144,
+                "routeRev": 8,
+                "workspaceRev": 42
+              },
+              "createdAt": "2026-08-01T08:30:01.000Z",
+              "generation": 1,
+              "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+              "latestEventDigest": "sha256-fc68df83562f079f0ef4f7012e101684aac2dbd38bd3bc8c8f654a9e4e4822a0",
+              "phase": "running",
+              "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+              "runId": "run.g4-v5.proposal-vector",
+              "taskId": "task.g4-v5.proposal-vector",
+              "updatedAt": "2026-08-01T08:30:03.000Z"
+            },
+            "snapshotDigest": "sha256-d36306d077d60e0417d55c6ca4b8573e352d6cab08470639a80218b13705e14b",
+            "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+          }
+        },
+        "event": {
+          "wireVersion": 1,
+          "factType": "run-event",
+          "value": {
+            "data": { "phase": "running" },
+            "eventDigest": "sha256-fc68df83562f079f0ef4f7012e101684aac2dbd38bd3bc8c8f654a9e4e4822a0",
+            "eventId": "event.g4-v5.vector.running",
+            "family": "run",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+            "occurredAt": "2026-08-01T08:30:03.000Z",
+            "payloadDigest": "sha256-087664ab235568004d7f1bd2e53e1a14b856a9360f6bb31b7b800afabad56099",
+            "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+            "previousEventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+            "producer": {
+              "kind": "service",
+              "principalId": "agent.coordinator.g4-v5"
+            },
+            "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+            "runId": "run.g4-v5.proposal-vector",
+            "sanitizedPayload": { "phase": "running" },
+            "sequence": 3,
+            "taskId": "task.g4-v5.proposal-vector",
+            "type": "run.phase-changed"
+          }
+        }
+      },
+      {
+        "name": "awaiting-approval",
+        "run": {
+          "wireVersion": 1,
+          "factType": "run-snapshot",
+          "value": {
+            "attempts": [
+              {
+                "attempt": 1,
+                "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+                "attemptId": "attempt.g4-v5.vector.1",
+                "generation": 1,
+                "reason": "initial",
+                "startedAt": "2026-08-01T08:30:02.000Z"
+              }
+            ],
+            "budgetLedger": {
+              "budget": {
+                "costLimits": [],
+                "maxArtifactBytes": 1048576,
+                "maxElapsedMs": 600000,
+                "maxModelInvocations": 2,
+                "maxRepairRounds": 1,
+                "maxToolCalls": 4,
+                "maxTransactions": 2,
+                "usageLimits": []
+              },
+              "ledgerDigest": "sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c",
+              "reservations": [],
+              "revision": 0
+            },
+            "callbackAuthority": "active",
+            "cleanupState": "not-required",
+            "cursor": 4,
+            "processedEvents": [
+              {
+                "eventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+                "eventId": "event.g4-v5.vector.created",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+                "requestDigest": "sha256-faa4f70d5c79e4dd55a5e8c1c9d397e92662ef65b98a764f2632460e81a3b437",
+                "type": "run.created"
+              },
+              {
+                "eventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+                "eventId": "event.g4-v5.vector.started",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+                "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+                "type": "run.started"
+              },
+              {
+                "eventDigest": "sha256-fc68df83562f079f0ef4f7012e101684aac2dbd38bd3bc8c8f654a9e4e4822a0",
+                "eventId": "event.g4-v5.vector.running",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+                "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+                "type": "run.phase-changed"
+              },
+              {
+                "eventDigest": "sha256-a6e892ee674c6850ec064ccc66566831cb402927bd3fa978454d446501fb3f09",
+                "eventId": "event.g4-v5.vector.awaiting-approval",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+                "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+                "type": "run.phase-changed"
+              }
+            ],
+            "run": {
+              "attempt": 1,
+              "baseRevision": {
+                "documents": [
+                  {
+                    "contentRev": 21,
+                    "documentId": "page.catalog",
+                    "metaRev": 3
+                  }
+                ],
+                "opSeq": 144,
+                "routeRev": 8,
+                "workspaceRev": 42
+              },
+              "createdAt": "2026-08-01T08:30:01.000Z",
+              "generation": 1,
+              "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+              "latestEventDigest": "sha256-a6e892ee674c6850ec064ccc66566831cb402927bd3fa978454d446501fb3f09",
+              "phase": "awaiting-approval",
+              "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+              "runId": "run.g4-v5.proposal-vector",
+              "taskId": "task.g4-v5.proposal-vector",
+              "updatedAt": "2026-08-01T08:30:05.000Z"
+            },
+            "snapshotDigest": "sha256-725deedebe534c63c6798092931fc1fe92f0de1bcc9ca211600b485593c30239",
+            "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+          }
+        },
+        "event": {
+          "wireVersion": 1,
+          "factType": "run-event",
+          "value": {
+            "data": { "phase": "awaiting-approval" },
+            "eventDigest": "sha256-a6e892ee674c6850ec064ccc66566831cb402927bd3fa978454d446501fb3f09",
+            "eventId": "event.g4-v5.vector.awaiting-approval",
+            "family": "run",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+            "occurredAt": "2026-08-01T08:30:05.000Z",
+            "payloadDigest": "sha256-2a47c8e749865422d1758103378463cf7386bccba6f0f87975d5cb313dbb31bf",
+            "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+            "previousEventDigest": "sha256-fc68df83562f079f0ef4f7012e101684aac2dbd38bd3bc8c8f654a9e4e4822a0",
+            "producer": {
+              "kind": "service",
+              "principalId": "agent.coordinator.g4-v5"
+            },
+            "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+            "runId": "run.g4-v5.proposal-vector",
+            "sanitizedPayload": { "phase": "awaiting-approval" },
+            "sequence": 4,
+            "taskId": "task.g4-v5.proposal-vector",
+            "type": "run.phase-changed"
+          }
+        }
+      },
+      {
+        "name": "committing",
+        "run": {
+          "wireVersion": 1,
+          "factType": "run-snapshot",
+          "value": {
+            "attempts": [
+              {
+                "attempt": 1,
+                "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+                "attemptId": "attempt.g4-v5.vector.1",
+                "generation": 1,
+                "reason": "initial",
+                "startedAt": "2026-08-01T08:30:02.000Z"
+              }
+            ],
+            "budgetLedger": {
+              "budget": {
+                "costLimits": [],
+                "maxArtifactBytes": 1048576,
+                "maxElapsedMs": 600000,
+                "maxModelInvocations": 2,
+                "maxRepairRounds": 1,
+                "maxToolCalls": 4,
+                "maxTransactions": 2,
+                "usageLimits": []
+              },
+              "ledgerDigest": "sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c",
+              "reservations": [],
+              "revision": 0
+            },
+            "callbackAuthority": "active",
+            "cleanupState": "not-required",
+            "cursor": 5,
+            "processedEvents": [
+              {
+                "eventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+                "eventId": "event.g4-v5.vector.created",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+                "requestDigest": "sha256-faa4f70d5c79e4dd55a5e8c1c9d397e92662ef65b98a764f2632460e81a3b437",
+                "type": "run.created"
+              },
+              {
+                "eventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+                "eventId": "event.g4-v5.vector.started",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+                "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+                "type": "run.started"
+              },
+              {
+                "eventDigest": "sha256-fc68df83562f079f0ef4f7012e101684aac2dbd38bd3bc8c8f654a9e4e4822a0",
+                "eventId": "event.g4-v5.vector.running",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+                "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+                "type": "run.phase-changed"
+              },
+              {
+                "eventDigest": "sha256-a6e892ee674c6850ec064ccc66566831cb402927bd3fa978454d446501fb3f09",
+                "eventId": "event.g4-v5.vector.awaiting-approval",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+                "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+                "type": "run.phase-changed"
+              },
+              {
+                "eventDigest": "sha256-3d1d987503d2eb6d85b568a6539d1ece24fe5c93025713df9a6ab4aa9d0f1266",
+                "eventId": "event.g4-v5.vector.committing",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.committing",
+                "requestDigest": "sha256-1f27e6f60ec5ce3bd057ea5734a3ff13322fe74300b8c31745a3afb6b9ea827f",
+                "type": "run.phase-changed"
+              }
+            ],
+            "run": {
+              "attempt": 1,
+              "baseRevision": {
+                "documents": [
+                  {
+                    "contentRev": 21,
+                    "documentId": "page.catalog",
+                    "metaRev": 3
+                  }
+                ],
+                "opSeq": 144,
+                "routeRev": 8,
+                "workspaceRev": 42
+              },
+              "createdAt": "2026-08-01T08:30:01.000Z",
+              "generation": 1,
+              "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+              "latestEventDigest": "sha256-3d1d987503d2eb6d85b568a6539d1ece24fe5c93025713df9a6ab4aa9d0f1266",
+              "phase": "committing",
+              "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+              "runId": "run.g4-v5.proposal-vector",
+              "taskId": "task.g4-v5.proposal-vector",
+              "updatedAt": "2026-08-01T08:30:07.000Z"
+            },
+            "snapshotDigest": "sha256-19b6633b7dba3dc14f8eb193ad26ff51d1e0ba5ca045be6f499772d7ca8efd0f",
+            "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+          }
+        },
+        "event": {
+          "wireVersion": 1,
+          "factType": "run-event",
+          "value": {
+            "data": { "phase": "committing" },
+            "eventDigest": "sha256-3d1d987503d2eb6d85b568a6539d1ece24fe5c93025713df9a6ab4aa9d0f1266",
+            "eventId": "event.g4-v5.vector.committing",
+            "family": "run",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "idempotencyKey": "idempotency.event.g4-v5.vector.committing",
+            "occurredAt": "2026-08-01T08:30:07.000Z",
+            "payloadDigest": "sha256-d2f4a7cc183a9185c6481a8d5a93cd5d234222763751f06894a1efa4141e248a",
+            "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+            "previousEventDigest": "sha256-a6e892ee674c6850ec064ccc66566831cb402927bd3fa978454d446501fb3f09",
+            "producer": {
+              "kind": "service",
+              "principalId": "agent.coordinator.g4-v5"
+            },
+            "requestDigest": "sha256-1f27e6f60ec5ce3bd057ea5734a3ff13322fe74300b8c31745a3afb6b9ea827f",
+            "runId": "run.g4-v5.proposal-vector",
+            "sanitizedPayload": { "phase": "committing" },
+            "sequence": 5,
+            "taskId": "task.g4-v5.proposal-vector",
+            "type": "run.phase-changed"
+          }
+        }
+      },
+      {
+        "name": "verifying",
+        "run": {
+          "wireVersion": 1,
+          "factType": "run-snapshot",
+          "value": {
+            "attempts": [
+              {
+                "attempt": 1,
+                "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+                "attemptId": "attempt.g4-v5.vector.1",
+                "generation": 1,
+                "reason": "initial",
+                "startedAt": "2026-08-01T08:30:02.000Z"
+              }
+            ],
+            "budgetLedger": {
+              "budget": {
+                "costLimits": [],
+                "maxArtifactBytes": 1048576,
+                "maxElapsedMs": 600000,
+                "maxModelInvocations": 2,
+                "maxRepairRounds": 1,
+                "maxToolCalls": 4,
+                "maxTransactions": 2,
+                "usageLimits": []
+              },
+              "ledgerDigest": "sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c",
+              "reservations": [],
+              "revision": 0
+            },
+            "callbackAuthority": "active",
+            "cleanupState": "not-required",
+            "cursor": 6,
+            "processedEvents": [
+              {
+                "eventDigest": "sha256-2c266f19d58ae5c0073243f7cdc41e35b2f663d0e46838b7e14f96df9cc0f472",
+                "eventId": "event.g4-v5.vector.created",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+                "requestDigest": "sha256-faa4f70d5c79e4dd55a5e8c1c9d397e92662ef65b98a764f2632460e81a3b437",
+                "type": "run.created"
+              },
+              {
+                "eventDigest": "sha256-3f374595954e732ab1577a14b5e58e4872bb0c91fbe5872fa710c49afe19e0f1",
+                "eventId": "event.g4-v5.vector.started",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+                "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+                "type": "run.started"
+              },
+              {
+                "eventDigest": "sha256-fc68df83562f079f0ef4f7012e101684aac2dbd38bd3bc8c8f654a9e4e4822a0",
+                "eventId": "event.g4-v5.vector.running",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+                "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+                "type": "run.phase-changed"
+              },
+              {
+                "eventDigest": "sha256-a6e892ee674c6850ec064ccc66566831cb402927bd3fa978454d446501fb3f09",
+                "eventId": "event.g4-v5.vector.awaiting-approval",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+                "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+                "type": "run.phase-changed"
+              },
+              {
+                "eventDigest": "sha256-3d1d987503d2eb6d85b568a6539d1ece24fe5c93025713df9a6ab4aa9d0f1266",
+                "eventId": "event.g4-v5.vector.committing",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.committing",
+                "requestDigest": "sha256-1f27e6f60ec5ce3bd057ea5734a3ff13322fe74300b8c31745a3afb6b9ea827f",
+                "type": "run.phase-changed"
+              },
+              {
+                "eventDigest": "sha256-223d69221e41ab7e1cf27f22109397d25b0d9b0d02c174276b5a6e27a7a01f88",
+                "eventId": "event.g4-v5.vector.verifying",
+                "idempotencyKey": "idempotency.event.g4-v5.vector.verifying",
+                "requestDigest": "sha256-762adc77d25e373ad9060487749ea1964ae879111a9a7b16e3c07dc8d48f4f83",
+                "type": "run.phase-changed"
+              }
+            ],
+            "run": {
+              "attempt": 1,
+              "baseRevision": {
+                "documents": [
+                  {
+                    "contentRev": 21,
+                    "documentId": "page.catalog",
+                    "metaRev": 3
+                  }
+                ],
+                "opSeq": 144,
+                "routeRev": 8,
+                "workspaceRev": 42
+              },
+              "createdAt": "2026-08-01T08:30:01.000Z",
+              "generation": 1,
+              "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+              "latestEventDigest": "sha256-223d69221e41ab7e1cf27f22109397d25b0d9b0d02c174276b5a6e27a7a01f88",
+              "phase": "verifying",
+              "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+              "runId": "run.g4-v5.proposal-vector",
+              "taskId": "task.g4-v5.proposal-vector",
+              "updatedAt": "2026-08-01T08:30:10.000Z"
+            },
+            "snapshotDigest": "sha256-d46b9092de39a92a36bfb29487fcc5879c8669c44b0ac17b6f323d92aaf643a1",
+            "taskDigest": "sha256-41859165d5b2e9f077d960ecf5ec3de0248fa7f539c73efa9fe4e005910a6978"
+          }
+        },
+        "event": {
+          "wireVersion": 1,
+          "factType": "run-event",
+          "value": {
+            "data": { "phase": "verifying" },
+            "eventDigest": "sha256-223d69221e41ab7e1cf27f22109397d25b0d9b0d02c174276b5a6e27a7a01f88",
+            "eventId": "event.g4-v5.vector.verifying",
+            "family": "run",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "idempotencyKey": "idempotency.event.g4-v5.vector.verifying",
+            "occurredAt": "2026-08-01T08:30:10.000Z",
+            "payloadDigest": "sha256-4c1832242431f3aa0565729c799b4e50f23f6d081d0a741f7a1e3a94b6380448",
+            "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+            "previousEventDigest": "sha256-3d1d987503d2eb6d85b568a6539d1ece24fe5c93025713df9a6ab4aa9d0f1266",
+            "producer": {
+              "kind": "service",
+              "principalId": "agent.coordinator.g4-v5"
+            },
+            "requestDigest": "sha256-762adc77d25e373ad9060487749ea1964ae879111a9a7b16e3c07dc8d48f4f83",
+            "runId": "run.g4-v5.proposal-vector",
+            "sanitizedPayload": { "phase": "verifying" },
+            "sequence": 6,
+            "taskId": "task.g4-v5.proposal-vector",
+            "type": "run.phase-changed"
+          }
+        }
+      }
+    ]
+  },
+  "facts": {
+    "proposal": {
+      "wireVersion": 1,
+      "factType": "proposal",
+      "value": {
+        "actions": [
+          {
+            "actionType": "child.create",
+            "input": {
+              "pageDocumentId": "page.catalog",
+              "routeNodeId": "route.catalog-v5",
+              "segment": "catalog-v5"
+            },
+            "inputSchemaId": "route.child-create@current",
+            "ownerId": "prodivix.route",
+            "target": { "id": "route.root", "kind": "semantic-target" }
+          }
+        ],
+        "assumptions": [
+          "The Catalog route revision still matches the planning base."
+        ],
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "contextPackDigest": "sha256-ae7929f29980cc8352720d097b3ee33768f45cf2cf086fedfee001baeeae4da7",
+        "explanation": "Add an approved route using the first-party Route planner.",
+        "modelInvocationRefs": ["invocation.g4-v5.proposal-vector"],
+        "proposalDigest": "sha256-be5926fa48d3a9882f9b1c87e6b87ff01b5a30d1b544fa002ed160c662bafd29",
+        "proposalId": "proposal.g4-v5.proposal-vector",
+        "requestedVerification": {
+          "policyRef": "verification.policy.catalog",
+          "requiredCheckKinds": ["browser-e2e", "unit"]
+        },
+        "runId": "run.g4-v5.proposal-vector",
+        "taskId": "task.g4-v5.proposal-vector"
+      }
+    },
+    "planning": {
+      "wireVersion": 1,
+      "factType": "planning",
+      "value": {
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "diagnosticRefs": [],
+        "expiresAt": "2026-08-01T09:30:00.000Z",
+        "impactDigest": "sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d",
+        "impactSetRef": "impact.g4-v5.proposal-vector",
+        "plannedAt": "2026-08-01T08:30:04.000Z",
+        "planningDigest": "sha256-1df8504d7de681490cf37d3b9ba0a8d82fb37cf15388c2c0f25ad251355aa4a2",
+        "proposalId": "proposal.g4-v5.proposal-vector",
+        "proposedSnapshotDigest": "sha256-4374b81544620c12f4e99f94c416c15c9657965566061466558120b3b23225b3",
+        "requiredCapabilities": ["read", "propose", "commit"],
+        "reverseTransactionDigest": "sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff",
+        "risks": [
+          {
+            "id": "risk.route-reachability-change",
+            "level": "high",
+            "message": "Changes canonical route reachability."
+          }
+        ],
+        "semanticDiffDigest": "sha256-9eb4ff730c43c663d6b35ea22d479ccf51062796df7fe58c2ae4b14386ac5dc2",
+        "sourceTraceDigest": "sha256-51b14ec2c57e3da3734c7eb82d30a12507429ddb754715132f448e3af58c2ee5",
+        "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79",
+        "verificationPlanDigest": "sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8",
+        "verificationPlanRef": "plan.g4-v5.proposal-vector"
+      }
+    },
+    "preview": {
+      "wireVersion": 1,
+      "factType": "preview",
+      "value": {
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "diagnosticRefs": [],
+        "expiresAt": "2026-08-01T09:30:00.000Z",
+        "impactDigest": "sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d",
+        "impactSetRef": "impact.g4-v5.proposal-vector",
+        "previewDigest": "sha256-e7488767092edfe7f814b0b481de47e474aa6300ae5ff0d775b70dda7b62e2f0",
+        "previewId": "preview.g4-v5.proposal-vector",
+        "proposalId": "proposal.g4-v5.proposal-vector",
+        "proposedSnapshotDigest": "sha256-4374b81544620c12f4e99f94c416c15c9657965566061466558120b3b23225b3",
+        "requiredCapabilities": ["read", "propose", "commit"],
+        "reverseTransactionDigest": "sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff",
+        "risks": [
+          {
+            "id": "risk.route-reachability-change",
+            "level": "high",
+            "message": "Changes canonical route reachability."
+          }
+        ],
+        "semanticDiffDigest": "sha256-9eb4ff730c43c663d6b35ea22d479ccf51062796df7fe58c2ae4b14386ac5dc2",
+        "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79",
+        "verificationPlanDigest": "sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8",
+        "verificationPlanRef": "plan.g4-v5.proposal-vector"
+      }
+    },
+    "approval": {
+      "wireVersion": 1,
+      "factType": "approval",
+      "value": {
+        "actor": { "kind": "user", "principalId": "user.test" },
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "decidedAt": "2026-08-01T08:30:06.000Z",
+        "decision": "approved",
+        "decisionId": "decision.g4-v5.proposal-vector",
+        "expiresAt": "2026-08-01T09:30:00.000Z",
+        "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+        "impactDigest": "sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d",
+        "policyDigest": "sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5",
+        "previewDigest": "sha256-e7488767092edfe7f814b0b481de47e474aa6300ae5ff0d775b70dda7b62e2f0",
+        "previewId": "preview.g4-v5.proposal-vector",
+        "rollbackAuthorization": "on-unsatisfied-closure",
+        "runId": "run.g4-v5.proposal-vector",
+        "taskId": "task.g4-v5.proposal-vector",
+        "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79",
+        "verificationPlanDigest": "sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8"
+      }
+    },
+    "commitStarted": {
+      "wireVersion": 1,
+      "factType": "workspace-mutation-receipt",
+      "value": {
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "decisionId": "decision.g4-v5.proposal-vector",
+        "kind": "commit",
+        "operationId": "transaction.g4-v5.proposal-vector",
+        "previewId": "preview.g4-v5.proposal-vector",
+        "producer": {
+          "kind": "service",
+          "principalId": "agent.coordinator.g4-v5"
+        },
+        "proposalId": "proposal.g4-v5.proposal-vector",
+        "receiptDigest": "sha256-5158bc7cc1fb8101bb332bc7bce27ad733ea2d8ff2a67eb9d96838b10ab54edb",
+        "receiptId": "receipt.g4-v5.proposal-vector.commit.started",
+        "requestDigest": "sha256-3912e5bf0753272bf51bb5e03d0df011bcb244756c4469f57903d91a5d81c57e",
+        "reverseTransactionDigest": "sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff",
+        "runId": "run.g4-v5.proposal-vector",
+        "startedAt": "2026-08-01T08:30:08.000Z",
+        "state": "started",
+        "taskId": "task.g4-v5.proposal-vector",
+        "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79"
+      }
+    },
+    "commitAcknowledged": {
+      "wireVersion": 1,
+      "factType": "workspace-mutation-receipt",
+      "value": {
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "completedAt": "2026-08-01T08:30:09.000Z",
+        "decisionId": "decision.g4-v5.proposal-vector",
+        "kind": "commit",
+        "mutationDigest": "sha256-9a7874da5755ad0f07c537e98d59c0cf393de0f2d3f533afc84829e13456f82e",
+        "operationId": "transaction.g4-v5.proposal-vector",
+        "previewId": "preview.g4-v5.proposal-vector",
+        "producer": {
+          "kind": "service",
+          "principalId": "agent.coordinator.g4-v5"
+        },
+        "proposalId": "proposal.g4-v5.proposal-vector",
+        "receiptDigest": "sha256-b841346f3e2a19e5a4462fa7537040dea1b42030031811e331df224c3d728438",
+        "receiptId": "receipt.g4-v5.proposal-vector.commit.acknowledged",
+        "requestDigest": "sha256-3912e5bf0753272bf51bb5e03d0df011bcb244756c4469f57903d91a5d81c57e",
+        "reverseTransactionDigest": "sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff",
+        "runId": "run.g4-v5.proposal-vector",
+        "startedAt": "2026-08-01T08:30:08.000Z",
+        "state": "acknowledged",
+        "targetRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 145,
+          "routeRev": 9,
+          "workspaceRev": 43
+        },
+        "taskId": "task.g4-v5.proposal-vector",
+        "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79"
+      }
+    },
+    "rollbackStarted": {
+      "wireVersion": 1,
+      "factType": "workspace-mutation-receipt",
+      "value": {
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 145,
+          "routeRev": 9,
+          "workspaceRev": 43
+        },
+        "decisionId": "decision.g4-v5.proposal-vector",
+        "kind": "rollback",
+        "operationId": "transaction.g4-v5.proposal-vector.reverse",
+        "previewId": "preview.g4-v5.proposal-vector",
+        "producer": {
+          "kind": "service",
+          "principalId": "agent.coordinator.g4-v5"
+        },
+        "proposalId": "proposal.g4-v5.proposal-vector",
+        "receiptDigest": "sha256-c18f9bde721fbce54980ab10cfc5ebddee0a1d661939df811a96af66b37283e1",
+        "receiptId": "receipt.g4-v5.proposal-vector.rollback.started",
+        "requestDigest": "sha256-7da537b38f17f5f40b8adc7139664fd16ec1366886f72b0c0656d2b2da4f8452",
+        "reverseTransactionDigest": "sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff",
+        "runId": "run.g4-v5.proposal-vector",
+        "startedAt": "2026-08-01T08:30:11.000Z",
+        "state": "started",
+        "taskId": "task.g4-v5.proposal-vector",
+        "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79"
+      }
+    },
+    "rollbackAcknowledged": {
+      "wireVersion": 1,
+      "factType": "workspace-mutation-receipt",
+      "value": {
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 145,
+          "routeRev": 9,
+          "workspaceRev": 43
+        },
+        "completedAt": "2026-08-01T08:30:12.000Z",
+        "decisionId": "decision.g4-v5.proposal-vector",
+        "kind": "rollback",
+        "mutationDigest": "sha256-d6c637bf491cfae40d419db04a6204acbeb7a177b14ce9112528fc57aaf65cbf",
+        "operationId": "transaction.g4-v5.proposal-vector.reverse",
+        "previewId": "preview.g4-v5.proposal-vector",
+        "producer": {
+          "kind": "service",
+          "principalId": "agent.coordinator.g4-v5"
+        },
+        "proposalId": "proposal.g4-v5.proposal-vector",
+        "receiptDigest": "sha256-2d777dfea65da3ff2f3f14561857d5988a0bbccf81b4f6d77511f7418ab7f1ba",
+        "receiptId": "receipt.g4-v5.proposal-vector.rollback.acknowledged",
+        "requestDigest": "sha256-7da537b38f17f5f40b8adc7139664fd16ec1366886f72b0c0656d2b2da4f8452",
+        "reverseTransactionDigest": "sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff",
+        "runId": "run.g4-v5.proposal-vector",
+        "startedAt": "2026-08-01T08:30:11.000Z",
+        "state": "acknowledged",
+        "targetRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 146,
+          "routeRev": 10,
+          "workspaceRev": 44
+        },
+        "taskId": "task.g4-v5.proposal-vector",
+        "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79"
+      }
+    }
+  },
+  "canonicalJson": {
+    "proposal": "{\"factType\":\"proposal\",\"value\":{\"actions\":[{\"actionType\":\"child.create\",\"input\":{\"pageDocumentId\":\"page.catalog\",\"routeNodeId\":\"route.catalog-v5\",\"segment\":\"catalog-v5\"},\"inputSchemaId\":\"route.child-create@current\",\"ownerId\":\"prodivix.route\",\"target\":{\"id\":\"route.root\",\"kind\":\"semantic-target\"}}],\"assumptions\":[\"The Catalog route revision still matches the planning base.\"],\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"contextPackDigest\":\"sha256-ae7929f29980cc8352720d097b3ee33768f45cf2cf086fedfee001baeeae4da7\",\"explanation\":\"Add an approved route using the first-party Route planner.\",\"modelInvocationRefs\":[\"invocation.g4-v5.proposal-vector\"],\"proposalDigest\":\"sha256-be5926fa48d3a9882f9b1c87e6b87ff01b5a30d1b544fa002ed160c662bafd29\",\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"requestedVerification\":{\"policyRef\":\"verification.policy.catalog\",\"requiredCheckKinds\":[\"browser-e2e\",\"unit\"]},\"runId\":\"run.g4-v5.proposal-vector\",\"taskId\":\"task.g4-v5.proposal-vector\"},\"wireVersion\":1}",
+    "planning": "{\"factType\":\"planning\",\"value\":{\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"diagnosticRefs\":[],\"expiresAt\":\"2026-08-01T09:30:00.000Z\",\"impactDigest\":\"sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d\",\"impactSetRef\":\"impact.g4-v5.proposal-vector\",\"plannedAt\":\"2026-08-01T08:30:04.000Z\",\"planningDigest\":\"sha256-1df8504d7de681490cf37d3b9ba0a8d82fb37cf15388c2c0f25ad251355aa4a2\",\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"proposedSnapshotDigest\":\"sha256-4374b81544620c12f4e99f94c416c15c9657965566061466558120b3b23225b3\",\"requiredCapabilities\":[\"read\",\"propose\",\"commit\"],\"reverseTransactionDigest\":\"sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff\",\"risks\":[{\"id\":\"risk.route-reachability-change\",\"level\":\"high\",\"message\":\"Changes canonical route reachability.\"}],\"semanticDiffDigest\":\"sha256-9eb4ff730c43c663d6b35ea22d479ccf51062796df7fe58c2ae4b14386ac5dc2\",\"sourceTraceDigest\":\"sha256-51b14ec2c57e3da3734c7eb82d30a12507429ddb754715132f448e3af58c2ee5\",\"transactionDigest\":\"sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79\",\"verificationPlanDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"verificationPlanRef\":\"plan.g4-v5.proposal-vector\"},\"wireVersion\":1}",
+    "preview": "{\"factType\":\"preview\",\"value\":{\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"diagnosticRefs\":[],\"expiresAt\":\"2026-08-01T09:30:00.000Z\",\"impactDigest\":\"sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d\",\"impactSetRef\":\"impact.g4-v5.proposal-vector\",\"previewDigest\":\"sha256-e7488767092edfe7f814b0b481de47e474aa6300ae5ff0d775b70dda7b62e2f0\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"proposedSnapshotDigest\":\"sha256-4374b81544620c12f4e99f94c416c15c9657965566061466558120b3b23225b3\",\"requiredCapabilities\":[\"read\",\"propose\",\"commit\"],\"reverseTransactionDigest\":\"sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff\",\"risks\":[{\"id\":\"risk.route-reachability-change\",\"level\":\"high\",\"message\":\"Changes canonical route reachability.\"}],\"semanticDiffDigest\":\"sha256-9eb4ff730c43c663d6b35ea22d479ccf51062796df7fe58c2ae4b14386ac5dc2\",\"transactionDigest\":\"sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79\",\"verificationPlanDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"verificationPlanRef\":\"plan.g4-v5.proposal-vector\"},\"wireVersion\":1}",
+    "approval": "{\"factType\":\"approval\",\"value\":{\"actor\":{\"kind\":\"user\",\"principalId\":\"user.test\"},\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"decidedAt\":\"2026-08-01T08:30:06.000Z\",\"decision\":\"approved\",\"decisionId\":\"decision.g4-v5.proposal-vector\",\"expiresAt\":\"2026-08-01T09:30:00.000Z\",\"grantRef\":{\"grantId\":\"grant.g4-v5.proposal-vector\"},\"impactDigest\":\"sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d\",\"policyDigest\":\"sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5\",\"previewDigest\":\"sha256-e7488767092edfe7f814b0b481de47e474aa6300ae5ff0d775b70dda7b62e2f0\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"rollbackAuthorization\":\"on-unsatisfied-closure\",\"runId\":\"run.g4-v5.proposal-vector\",\"taskId\":\"task.g4-v5.proposal-vector\",\"transactionDigest\":\"sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79\",\"verificationPlanDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\"},\"wireVersion\":1}",
+    "commitStarted": "{\"factType\":\"workspace-mutation-receipt\",\"value\":{\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"decisionId\":\"decision.g4-v5.proposal-vector\",\"kind\":\"commit\",\"operationId\":\"transaction.g4-v5.proposal-vector\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"receiptDigest\":\"sha256-5158bc7cc1fb8101bb332bc7bce27ad733ea2d8ff2a67eb9d96838b10ab54edb\",\"receiptId\":\"receipt.g4-v5.proposal-vector.commit.started\",\"requestDigest\":\"sha256-3912e5bf0753272bf51bb5e03d0df011bcb244756c4469f57903d91a5d81c57e\",\"reverseTransactionDigest\":\"sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff\",\"runId\":\"run.g4-v5.proposal-vector\",\"startedAt\":\"2026-08-01T08:30:08.000Z\",\"state\":\"started\",\"taskId\":\"task.g4-v5.proposal-vector\",\"transactionDigest\":\"sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79\"},\"wireVersion\":1}",
+    "commitAcknowledged": "{\"factType\":\"workspace-mutation-receipt\",\"value\":{\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":144,\"routeRev\":8,\"workspaceRev\":42},\"completedAt\":\"2026-08-01T08:30:09.000Z\",\"decisionId\":\"decision.g4-v5.proposal-vector\",\"kind\":\"commit\",\"mutationDigest\":\"sha256-9a7874da5755ad0f07c537e98d59c0cf393de0f2d3f533afc84829e13456f82e\",\"operationId\":\"transaction.g4-v5.proposal-vector\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"receiptDigest\":\"sha256-b841346f3e2a19e5a4462fa7537040dea1b42030031811e331df224c3d728438\",\"receiptId\":\"receipt.g4-v5.proposal-vector.commit.acknowledged\",\"requestDigest\":\"sha256-3912e5bf0753272bf51bb5e03d0df011bcb244756c4469f57903d91a5d81c57e\",\"reverseTransactionDigest\":\"sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff\",\"runId\":\"run.g4-v5.proposal-vector\",\"startedAt\":\"2026-08-01T08:30:08.000Z\",\"state\":\"acknowledged\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"taskId\":\"task.g4-v5.proposal-vector\",\"transactionDigest\":\"sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79\"},\"wireVersion\":1}",
+    "rollbackStarted": "{\"factType\":\"workspace-mutation-receipt\",\"value\":{\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"decisionId\":\"decision.g4-v5.proposal-vector\",\"kind\":\"rollback\",\"operationId\":\"transaction.g4-v5.proposal-vector.reverse\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"receiptDigest\":\"sha256-c18f9bde721fbce54980ab10cfc5ebddee0a1d661939df811a96af66b37283e1\",\"receiptId\":\"receipt.g4-v5.proposal-vector.rollback.started\",\"requestDigest\":\"sha256-7da537b38f17f5f40b8adc7139664fd16ec1366886f72b0c0656d2b2da4f8452\",\"reverseTransactionDigest\":\"sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff\",\"runId\":\"run.g4-v5.proposal-vector\",\"startedAt\":\"2026-08-01T08:30:11.000Z\",\"state\":\"started\",\"taskId\":\"task.g4-v5.proposal-vector\",\"transactionDigest\":\"sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79\"},\"wireVersion\":1}",
+    "rollbackAcknowledged": "{\"factType\":\"workspace-mutation-receipt\",\"value\":{\"baseRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"completedAt\":\"2026-08-01T08:30:12.000Z\",\"decisionId\":\"decision.g4-v5.proposal-vector\",\"kind\":\"rollback\",\"mutationDigest\":\"sha256-d6c637bf491cfae40d419db04a6204acbeb7a177b14ce9112528fc57aaf65cbf\",\"operationId\":\"transaction.g4-v5.proposal-vector.reverse\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"receiptDigest\":\"sha256-2d777dfea65da3ff2f3f14561857d5988a0bbccf81b4f6d77511f7418ab7f1ba\",\"receiptId\":\"receipt.g4-v5.proposal-vector.rollback.acknowledged\",\"requestDigest\":\"sha256-7da537b38f17f5f40b8adc7139664fd16ec1366886f72b0c0656d2b2da4f8452\",\"reverseTransactionDigest\":\"sha256-68a9709035cbd5fb42c2c3216758359bc8b2f50cff8a18828b7f6ab571b3b6ff\",\"runId\":\"run.g4-v5.proposal-vector\",\"startedAt\":\"2026-08-01T08:30:11.000Z\",\"state\":\"acknowledged\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":146,\"routeRev\":10,\"workspaceRev\":44},\"taskId\":\"task.g4-v5.proposal-vector\",\"transactionDigest\":\"sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79\"},\"wireVersion\":1}"
+  },
+  "expectedDigests": {
+    "proposal": "sha256-be5926fa48d3a9882f9b1c87e6b87ff01b5a30d1b544fa002ed160c662bafd29",
+    "planning": "sha256-1df8504d7de681490cf37d3b9ba0a8d82fb37cf15388c2c0f25ad251355aa4a2",
+    "preview": "sha256-e7488767092edfe7f814b0b481de47e474aa6300ae5ff0d775b70dda7b62e2f0",
+    "approval": "sha256-e73167bbd455ceb68fcf7d3b6fb392ba44d9cd727a048dce6c6e416dc660f20b",
+    "commitStarted": "sha256-5158bc7cc1fb8101bb332bc7bce27ad733ea2d8ff2a67eb9d96838b10ab54edb",
+    "commitAcknowledged": "sha256-b841346f3e2a19e5a4462fa7537040dea1b42030031811e331df224c3d728438",
+    "rollbackStarted": "sha256-c18f9bde721fbce54980ab10cfc5ebddee0a1d661939df811a96af66b37283e1",
+    "rollbackAcknowledged": "sha256-2d777dfea65da3ff2f3f14561857d5988a0bbccf81b4f6d77511f7418ab7f1ba"
+  },
+  "workspaceCommits": {
+    "forward": {
+      "request": {
+        "expected": { "workspaceRev": 42, "routeRev": 8, "documents": [] },
+        "operation": {
+          "kind": "transaction",
+          "transaction": {
+            "id": "transaction.g4-v5.proposal-vector",
+            "workspaceId": "workspace.catalog",
+            "issuedAt": "2026-08-01T08:30:08.000Z",
+            "commands": [
+              {
+                "id": "command.g4-v5.proposal-vector.route",
+                "namespace": "core.route",
+                "type": "manifest.update",
+                "version": "1.0",
+                "issuedAt": "2026-08-01T08:30:08.000Z",
+                "forwardOps": [
+                  {
+                    "op": "replace",
+                    "path": "/routeManifest",
+                    "value": {
+                      "version": "1",
+                      "root": {
+                        "id": "root",
+                        "children": [
+                          { "id": "route.catalog-v5", "segment": "catalog-v5" }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "reverseOps": [
+                  {
+                    "op": "replace",
+                    "path": "/routeManifest",
+                    "value": { "version": "1", "root": { "id": "root" } }
+                  }
+                ],
+                "target": { "workspaceId": "workspace.catalog" },
+                "domainHint": "route"
+              }
+            ],
+            "label": "Apply proposal.g4-v5.proposal-vector"
+          }
+        }
+      },
+      "mutation": {
+        "workspaceId": "workspace.catalog",
+        "workspaceRev": 43,
+        "routeRev": 9,
+        "opSeq": 145,
+        "routeManifest": {
+          "version": "1",
+          "root": {
+            "id": "root",
+            "children": [{ "id": "route.catalog-v5", "segment": "catalog-v5" }]
+          }
+        }
+      }
+    },
+    "reverse": {
+      "request": {
+        "expected": { "workspaceRev": 43, "routeRev": 9, "documents": [] },
+        "operation": {
+          "kind": "transaction",
+          "transaction": {
+            "id": "transaction.g4-v5.proposal-vector.reverse",
+            "workspaceId": "workspace.catalog",
+            "issuedAt": "2026-08-01T08:30:11.000Z",
+            "commands": [
+              {
+                "id": "command.g4-v5.proposal-vector.route.reverse",
+                "namespace": "core.route",
+                "type": "manifest.update",
+                "version": "1.0",
+                "issuedAt": "2026-08-01T08:30:11.000Z",
+                "forwardOps": [
+                  {
+                    "op": "replace",
+                    "path": "/routeManifest",
+                    "value": { "version": "1", "root": { "id": "root" } }
+                  }
+                ],
+                "reverseOps": [
+                  {
+                    "op": "replace",
+                    "path": "/routeManifest",
+                    "value": {
+                      "version": "1",
+                      "root": {
+                        "id": "root",
+                        "children": [
+                          { "id": "route.catalog-v5", "segment": "catalog-v5" }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "target": { "workspaceId": "workspace.catalog" },
+                "domainHint": "route"
+              }
+            ],
+            "label": "Rollback proposal.g4-v5.proposal-vector"
+          }
+        }
+      },
+      "mutation": {
+        "workspaceId": "workspace.catalog",
+        "workspaceRev": 44,
+        "routeRev": 10,
+        "opSeq": 146,
+        "routeManifest": { "version": "1", "root": { "id": "root" } }
+      }
+    }
+  }
+}

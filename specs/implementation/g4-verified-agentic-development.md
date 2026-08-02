@@ -3,10 +3,10 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0 Implemented / Durable CI Evidence Passed；V1–V9 Not Started
+- ImplementationStatus：V0 Implemented / Durable CI Evidence Passed；V1–V7 Implemented / Local Gates Passed / Durable CI Evidence Pending；V8–V9 Not Started
 - ProductGateStatus：In Progress
 - Global Phase：G4 Verified Agentic Development
-- 日期：2026-07-31
+- 日期：2026-08-02
 - Owner：`@prodivix/ai`、各领域 owner、`@prodivix/workspace`、`@prodivix/verification`、
   `apps/backend` Agent service、`apps/web`、`apps/cli`
 - 关联：
@@ -24,8 +24,26 @@
   - `specs/decisions/58.verification-evidence-provenance-and-retention.md`
 
 局部 V0-V9 只表示本计划内部顺序，不代表 Global G4 已通过。本文冻结实施分解与验证方法；V0 已由本地与
-exact-commit durable CI 的 deterministic aggregate 和真实 PostgreSQL Gate 证明为 implemented。V1–V9 仍不得因
-文档、mock、workflow 或单次 provider smoke 存在而标记为 Implemented。
+exact-commit durable CI 的 deterministic aggregate 和真实 PostgreSQL Gate 证明为 implemented。V1 的
+Policy/Context/provider/invocation/usage current、strict wire、scripted conformance、authenticated Catalog Golden 与
+两个冻结 local Gate 已实现；独立 CI workflow 已配置但尚无 exact-commit terminal result，因此 durable evidence
+仍为 Pending。V2 的 multimodal current/wire、deterministic transform、三 native block normalization、visual target、
+realtime fencing、generated candidate 到 G2 Asset proposal 与 local aggregate 已实现；独立 CI workflow尚无
+exact-commit terminal result。V3 已实现 exact registry/discovery、逐调用 grant/budget/fence、retrieval/index、
+bounded sandbox、pinned MCP、disposable computer-use、parallel canonical join、managed-agent hard cut、strict
+wire/codec 与 authenticated Catalog Golden；本地 Gate 已通过但 durable CI 仍为 Pending。V4 已实现 immutable
+Task、Run/event reducer、attempt/generation、budget、cancel/retry/recovery、Go/PostgreSQL durable repository、
+lease/dispatch fencing、hash-chain audit与五恢复点 Golden；deterministic core和真实 PostgreSQL local Gate已通过，
+durable CI仍为 Pending。V5 已实现六领域 action registry、strict proposal facts、单一可逆 Transaction、
+semantic diff/Impact/SourceTrace/VerificationPlan、exact approval、Outbox/ACK/409、rollback以及 PostgreSQL v24
+append-only ledger；deterministic core和真实 PostgreSQL local Gate已通过，durable CI仍为 Pending。V6 已实现
+actual committed Plan/G3 Evidence/Closure binding、satisfied-only apply、bounded failure-grounded repair、
+counterexample/regression preservation、fresh approval/Transaction、rerun-to-green fence、post-rollback
+re-verification与 PostgreSQL v25 ledger，本地 deterministic/真实 PostgreSQL Gate均通过。V7 已实现 strict
+Agent product projection/ledger codec、Backend PostgreSQL v26 supplement/user-command ledger、Web 三入口产品表面、
+独立可访问 approval/rejection、CLI exact loop、Web/CLI JSON parity、Golden、OpenAPI 与独立 workflow；本地
+deterministic/真实 PostgreSQL Gate均通过。V8–V9仍不得因文档、mock、workflow 或单次 provider smoke 存在而
+标记为 Implemented。
 
 ## 目标
 
@@ -197,6 +215,17 @@ Global Phase：G4。目标 Product Gate：V2 Implemented。
 - Provider URL/bytes 未经 G2 scanner和 exact Asset approval不能写 Workspace；
 - required `g4-visual-input` 与 `g4-document-input` conformance 可在三个 native adapter运行。
 
+V2 local implementation evidence（2026-08-01）：
+
+- `pnpm run verify:g4:multimodal`：Passed；AI media current/wire/codec/transform/Context/visual/realtime/generated
+  5 files / 19 tests、G2 Assets 4 files / 27 tests、authenticated Catalog Golden 1 file / 3 tests通过；
+- OpenAI Responses、Anthropic Messages与 Gemini Interactions 的 exact Provider block normalization均使用
+  deterministic fixtures，remote-model units为 0；这不是 V8 的真实 model qualification；
+- generated PNG 经 callback-bound resolver、G2 digest/sanitize、required scanner chain与 provenance后只形成
+  `commitAuthority: none-before-approval` 的 typed Asset proposal；V5 前不存在 Transaction/write authority；
+- `.github/workflows/g4-v2-multimodal.yml` 已配置；尚无 exact-commit terminal run/job，因此 durable CI evidence
+  为 `Pending`，Global G4 仍为 `In Progress`。
+
 ### V3：Hosted tools、retrieval、MCP 与 computer-use boundary
 
 Global Phase：G4。目标 Product Gate：V3 Implemented。
@@ -222,6 +251,18 @@ Global Phase：G4。目标 Product Gate：V3 Implemented。
 - Provider file/index 可按 exact corpus lifecycle删除并留下 receipt；
 - hosted capability 只有独立 qualification 后才可进入 production support claim。
 
+V3 local implementation evidence（2026-08-01）：
+
+- `pnpm run verify:g4:hosted-capabilities`：Passed；30-package dependency build、AI hosted current/wire/codec/
+  registry/lifecycle/retrieval/index/sandbox/MCP/computer/concurrency 6 files / 18 tests、authenticated Catalog
+  Golden 1 file / 3 tests，以及 core/G4 boundary均通过；
+- frozen discovery、per-call budget reservation/settlement、late generation audit-only fence、canonical read join、
+  proposal conflict、index deletion与 SourceTrace owner mapping均有 deterministic receipt evidence；
+- hidden/opaque call、unsafe URL/DNS/redirect/disclosure、stale/cross-project index、unbounded sandbox、arbitrary MCP、
+  computer-use authoring、managed delegation和 unsafe/unknown/drifted wire均稳定拒绝，Workspace/grant不变化；
+- remote-model units 为 0；`.github/workflows/g4-v3-hosted-capabilities.yml` 已配置但尚无 exact-commit terminal
+  run/job，因此 durable CI evidence 为 `Pending`，V8 real-model qualification与 Global G4仍未通过。
+
 ### V4：Task/Run control plane、tools 与 recovery
 
 Global Phase：G4。目标 Product Gate：V4 Implemented。
@@ -242,6 +283,20 @@ Global Phase：G4。目标 Product Gate：V4 Implemented。
 - restart 可恢复 awaiting approval/commit reconciliation/verification，不盲目续写模型流；
 - budget crash reservation 采用保守结算；
 - PostgreSQL 并发与 restart Gate 使用隔离 schema 可重复运行。
+
+V4 local implementation evidence（2026-08-01）：
+
+- `pnpm run verify:g4:control-plane:core` Passed：AI control 4 files / 22 tests、五恢复点 Golden 1 file /
+  10 tests、Go Agent contract/migration/repository、core/G4/wire boundary均通过；remote-model units 为 0；
+- `pnpm run verify:g4:control-plane:postgres` Passed：真实 PostgreSQL 18 隔离 schema覆盖 project/workspace/actor-
+  bound Task admission、跨 replica Task/Run replay、lease takeover、generation/holder fence、superseded operation
+  dispatch reconciliation、budget settlement、terminal ACK replay与 audit export；
+- migration v23持久化 immutable Task/attempt versions/events、CAS Run projection、operation dispatch ledger与
+  budget reservations；TypeScript/Go canonical vector覆盖 repository/recovery/cancellation sequence，并与 strict
+  schema/semantic admission保持一致；
+- V4 只拥有 durable control state；Task/Run/trace未进入 Workspace，proposal/approval/Transaction仍由 V5实现；
+- `.github/workflows/g4-v4-control-plane.yml` 已配置但尚无 exact-commit terminal run/job，因此 durable CI
+  evidence为 `Pending`，不得据此升级 Global G4。
 
 ### V5：Proposal、domain planning、approval 与 Transaction
 
@@ -264,9 +319,35 @@ Global Phase：G4。目标 Product Gate：V5 Implemented。
 - 409 不自动 rebase，必须重新 proposal/approval；
 - Workspace History/undo 与 Atomic Commit 不出现第二条 AI 写入协议。
 
+V5 local implementation evidence（2026-08-01）：
+
+- `pnpm run verify:g4:proposal-approval:core` Passed：AI proposal/approval、Workspace 六领域 planner、Workspace Sync
+  coordinator、authenticated Catalog Golden、TypeScript/Go canonical vector、Go admission/migration/repository与
+  core/G4/wire boundary通过，remote-model units 为 0；
+- `pnpm run verify:g4:proposal-approval:postgres` Passed：真实 PostgreSQL 18 隔离 schema串起 durable Task/Run、
+  Proposal、Planning/Preview、actor-bound Decision、started/acknowledged commit、现有 Atomic Commit与 exact reverse
+  Transaction rollback，跨 replica replay保持 byte-exact；
+- migration v24持久化 append-only Proposal、Preview、Decision与 Mutation Receipt；unknown/future/duplicate/unsafe/
+  credential/digest/lifecycle drift fail closed，ACK target revision必须与数据库实际 revision一致；
+- `.github/workflows/g4-v5-proposal-approval.yml` 已配置但尚无 exact-commit terminal run/job，因此 durable CI
+  evidence为 `Pending`；V5证据本身不替代下列独立 V6 Gate。
+
 ### V6：Verification、repair、eval 与 counterexample
 
 Global Phase：G4。目标 Product Gate：V6 Implemented。
+
+Local implementation evidence（2026-08-02）：
+
+- `@prodivix/ai`拥有 current/wire `CommittedVerificationPlanBinding`、`VerificationClosureReceipt`、
+  `RepairCounterexampleSet`与`RepairRoundReceipt`；Workspace Sync coordinator在 acknowledged commit/rollback后绑定
+  actual Plan与真实 G3 `VerificationRun`/promoted Evidence/verified view/Closure；
+- failed Closure只生成 failure-grounded Context Pack和 stable regression requirements；每轮必须使用新 proposal、
+  approval、Outbox Transaction与 Plan，累计 repair/transaction budget耗尽后产生 durable blocked receipt；
+- Backend migration v25提供 immutable Plan binding、Closure evidence和 repair ledgers；terminal apply success对
+  V5 approval/ACK、actual Plan、G3 Run/Evidence、satisfied Closure及既有 failure后的 proposal-bound repair lineage做
+  exact join，拒绝无 repair的 rerun-to-green；
+- `pnpm run verify:g4:verification:core`与`pnpm run verify:g4:verification:postgres`本地 Passed，remote-model
+  units为0；`.github/workflows/g4-v6-verification-repair.yml`已配置但 durable CI evidence仍为 Pending。
 
 交付：
 
@@ -304,6 +385,13 @@ Global Phase：G4。目标 Product Gate：V7 Implemented。
 - refresh/reconnect 恢复 active/awaiting approval/verification view；
 - CLI 不提供跳过 exact approval 的通用 flag；
 - no-code 默认路径不暴露 wire/provider noise，高级诊断仍可展开全部 identity。
+
+实现状态：V7 已在本地完成。`@prodivix/ai` 的 strict authenticated ledger decoder 是 Web/CLI 唯一产品投影
+入口；Backend 在 repeatable-read transaction 中读取 V1–V6 append-only facts 与 v26 product supplement/user
+command ledger；Web 从 Catalog component、Route、Issue exact target 打开 Task composer，并提供 timeline、
+Context/Proposal/Plan/Verification/Audit 与独立 approval dialog；CLI 提供 create/run/propose/plan/cancel/recover/
+approve/reject/inspect/export，且没有 skip-approval。Golden、Web a11y contract、CLI、Go 与真实 PostgreSQL 18
+local Gate均通过；`.github/workflows/g4-v7-product.yml` 已配置，exact-commit durable CI仍为 Pending。
 
 ### V8：Security 与 real-model evaluation matrix
 
@@ -417,8 +505,8 @@ revision，blind human rubric只判断主观质量；四者互不替代。
 
 ## Aggregate Gate 规划
 
-`verify:g4:boundaries` 与 `verify:g4:boundaries:postgres` 已在 V0 落地；下表其余命令名仍是后续 milestone
-冻结接口，不表示脚本已经存在：
+`verify:g4:boundaries`、`verify:g4:boundaries:postgres` 与 V1–V7 local Gate 已落地；下表 V8 之后的命令名仍是
+后续 milestone 冻结接口，不表示脚本已经存在：
 
 | Gate                              | 范围                                                                   |
 | --------------------------------- | ---------------------------------------------------------------------- |
@@ -485,4 +573,5 @@ revision，blind human rubric只判断主观质量；四者互不替代。
 - [x] V0 公开 current/wire contract、错误语义和诊断落点已实现。
 - [ ] G4 Exit 本地所有 required Gate 可重复通过。
 - [ ] G4 Exit 所有 exact-commit durable CI Gate 与 artifact 已通过。
-- [x] `ImplementationStatus` 与 `ProductGateStatus` 已按 V0 local/durable evidence 和 V1–V9 pending 分层更新。
+- [x] `ImplementationStatus` 与 `ProductGateStatus` 已按 V0 durable、V1–V7 local/durable pending 和 V8–V9 pending
+      分层更新。

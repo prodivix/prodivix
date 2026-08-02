@@ -22,12 +22,14 @@ import {
   Search,
   TriangleAlert,
   Wrench,
+  Bot,
 } from 'lucide-react';
 import {
   navigateToWorkspaceSemanticTarget,
   type WorkspaceNavigationSurface,
 } from '@/editor/navigation';
 import { useExecutionCenterNavigationStore } from '@/editor/features/execution/executionCenterNavigation';
+import { createAgentTaskComposerPath } from '@/editor/features/agent/agentTaskComposerModel';
 import { requeueFailedWorkspaceOutboxOperation } from '@/editor/workspaceSync/workspaceOutboxExecutor';
 import { executeWorkspaceIssueQuickFix } from './workspaceIssueQuickFixRegistry';
 import { useWorkspaceIssuesStore } from './workspaceIssuesStore';
@@ -639,6 +641,28 @@ export function WorkspaceIssuesPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-lg border border-(--border-subtle) bg-(--bg-panel) px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!projectId || !selectedIssueHasExactCurrentRevision}
+                  title={
+                    selectedIssueHasExactCurrentRevision
+                      ? 'Create an Agent Task with this exact issue target.'
+                      : 'Agent Tasks require an issue from the current Workspace revision.'
+                  }
+                  onClick={() => {
+                    if (!projectId) return;
+                    navigate(
+                      createAgentTaskComposerPath(projectId, {
+                        kind: 'issue',
+                        id: selectedIssue.id,
+                      })
+                    );
+                  }}
+                >
+                  <Bot size={15} aria-hidden="true" />
+                  Create Agent Task
+                </button>
                 {retryOperationId && (
                   <button
                     type="button"

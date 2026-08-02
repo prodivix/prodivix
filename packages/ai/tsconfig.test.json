@@ -4,6 +4,7 @@
     "noEmit": true,
     "types": ["vitest/globals"],
     "paths": {
+      "@prodivix/assets": ["../assets/dist/index.d.ts"],
       "@prodivix/diagnostics": ["../diagnostics/dist/index.d.ts"],
       "@prodivix/shared": ["../shared/dist/index.d.ts"],
       "@prodivix/shared/*": ["../shared/dist/*"]
@@ -11,5 +12,9 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../diagnostics" }, { "path": "../shared" }]
+  "references": [
+    { "path": "../assets" },
+    { "path": "../diagnostics" },
+    { "path": "../shared" }
+  ]
 }

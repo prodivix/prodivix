@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CircleCheck, CircleX, LockKeyhole, TriangleAlert } from 'lucide-react';
+import {
+  Bot,
+  CircleCheck,
+  CircleX,
+  LockKeyhole,
+  TriangleAlert,
+} from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import type { DiagnosticTargetRef } from '@prodivix/diagnostics';
 import type { PIRComponentContract } from '@prodivix/pir';
@@ -18,6 +24,7 @@ import {
   navigateToWorkspaceSemanticTarget,
   resolveWorkspaceSemanticIndex,
 } from '@/editor/navigation';
+import { createAgentTaskComposerPath } from '@/editor/features/agent/agentTaskComposerModel';
 
 const ownerLabel = (ownerRef: DiagnosticTargetRef): string => {
   switch (ownerRef.kind) {
@@ -321,6 +328,23 @@ export function ComponentAuthoringPage() {
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-(--border-subtle) px-5">
         <h1 className="m-0 text-base font-semibold">Components</h1>
         <div className="ml-auto flex items-center gap-2 text-(--text-muted)">
+          {projectId && selectedDefinition ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-(--border-subtle) px-2.5 py-1.5 text-xs text-(--text-secondary) hover:text-(--text-primary)"
+              onClick={() =>
+                navigate(
+                  createAgentTaskComposerPath(projectId, {
+                    kind: 'component',
+                    id: selectedDefinition.documentId,
+                  })
+                )
+              }
+            >
+              <Bot size={14} aria-hidden="true" />
+              Create Agent Task for component
+            </button>
+          ) : null}
           {semanticComposition?.status === 'blocked' ? (
             <span
               className="inline-flex size-7 items-center justify-center"

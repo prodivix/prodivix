@@ -22,6 +22,11 @@ export type AgentApprovalDecisionId = string;
 export type AgentInvocationId = string;
 export type AgentToolId = string;
 export type AgentToolRegistryId = string;
+export type AgentToolCallId = string;
+export type AgentRetrievalQueryId = string;
+export type AgentExternalSourceResultId = string;
+export type AgentRetrievalIndexId = string;
+export type AgentComputerUseSessionId = string;
 export type AgentAuditEventId = string;
 export type AgentModelEvaluationManifestRef = string;
 export type AgentMediaRepresentationRef = string;
@@ -93,14 +98,25 @@ export type AgentUsageUnit =
   | 'cache-write-token'
   | 'image'
   | 'image-pixel'
+  | 'media-source-byte'
+  | 'media-processed-byte'
   | 'document-page'
+  | 'document-rendered-pixel'
+  | 'ocr-character'
   | 'audio-second'
+  | 'audio-sample'
   | 'video-second'
+  | 'video-input-frame'
   | 'video-frame'
+  | 'transform-compute-millisecond'
+  | 'transform-memory-byte-second'
+  | 'provider-upload-byte'
   | 'hosted-search-query'
   | 'hosted-tool-call'
   | 'sandbox-compute-second'
-  | 'provider-storage-byte-second';
+  | 'provider-storage-byte-second'
+  | 'generated-artifact'
+  | 'generated-artifact-byte';
 
 export type AgentUsageLimit = Readonly<{
   unit: AgentUsageUnit;
@@ -341,13 +357,34 @@ export type AgentCapabilityGrant = Readonly<{
 }>;
 
 export type AgentGroundingReference = Readonly<{
-  kind: 'workspace-document' | 'semantic-symbol' | 'source-trace' | 'external';
+  kind:
+    | 'workspace-document'
+    | 'semantic-symbol'
+    | 'code-artifact'
+    | 'source-trace'
+    | 'issue'
+    | 'behavior-scenario'
+    | 'verification'
+    | 'external';
   id: string;
 }>;
 
+export type AgentContextItemKind =
+  | 'agent-policy'
+  | 'user-intent'
+  | 'workspace-document'
+  | 'semantic-symbol'
+  | 'code-reference'
+  | 'source-trace'
+  | 'issue'
+  | 'behavior-scenario'
+  | 'verification-plan'
+  | 'verification-evidence'
+  | 'verification-closure';
+
 export type AgentContextItem = Readonly<{
   itemId: AgentContextItemId;
-  kind: string;
+  kind: AgentContextItemKind;
   authority: AgentContextAuthority;
   source: AgentGroundingReference;
   revision: AgentWorkspaceRevisionVector;
@@ -363,7 +400,15 @@ export type AgentContextItem = Readonly<{
 export type AgentContextOmission = Readonly<{
   source: AgentGroundingReference;
   reason:
-    'budget' | 'policy' | 'sensitivity' | 'unsupported' | 'stale' | 'invalid';
+    | 'budget'
+    | 'policy'
+    | 'sensitivity'
+    | 'residency'
+    | 'secret'
+    | 'instruction'
+    | 'unsupported'
+    | 'stale'
+    | 'invalid';
   diagnosticCode: string;
 }>;
 
@@ -374,6 +419,9 @@ export type AgentContextPack = Readonly<{
   workspaceRevision: AgentWorkspaceRevisionVector;
   semanticSnapshotRef: string;
   semanticProviderSetDigest: CanonicalDigest;
+  contextContributorSetDigest: CanonicalDigest;
+  providerSetDigest: CanonicalDigest;
+  policyDigest: CanonicalDigest;
   items: readonly AgentContextItem[];
   omitted: readonly AgentContextOmission[];
   budget: Readonly<{ maxItems: number; maxBytes: number }>;
@@ -386,6 +434,36 @@ export type AgentToolEffect =
 export type AgentToolExecutionLocus =
   'client-hosted' | 'prodivix-runtime' | 'provider-hosted' | 'pinned-mcp';
 
+export type AgentToolTargetScopePolicy = Readonly<{
+  allowedTargetKinds: readonly AgentTargetRef['kind'][];
+  allowEmpty: boolean;
+  requireExactGrantMatch: boolean;
+  policyDigest: CanonicalDigest;
+}>;
+
+export type AgentToolBudgetProfile = Readonly<{
+  maxInputBytes: number;
+  maxOutputBytes: number;
+  maxArtifactBytes: number;
+  maxElapsedMs: number;
+  maxNetworkRequests: number;
+  maxNestedCalls: number;
+  usageLimits: readonly AgentUsageLimit[];
+  profileDigest: CanonicalDigest;
+}>;
+
+export type AgentToolConcurrencyPolicy = Readonly<{
+  execution: 'parallel-read' | 'parallel-stage' | 'serial';
+  idempotency: 'proven' | 'not-proven';
+  commutativity: 'proven' | 'not-proven';
+  sharedState: 'none' | 'target' | 'runtime' | 'session';
+  maxDepth: number;
+  maxFanOut: number;
+  maxTotalCalls: number;
+  proofDigest?: CanonicalDigest;
+  policyDigest: CanonicalDigest;
+}>;
+
 export type AgentToolDescriptor = Readonly<{
   toolId: AgentToolId;
   name: string;
@@ -397,13 +475,13 @@ export type AgentToolDescriptor = Readonly<{
   executionLocus: AgentToolExecutionLocus;
   operatorId: string;
   requiredCapabilities: readonly AgentCapability[];
-  targetScopePolicyDigest: CanonicalDigest;
+  targetScopePolicy: AgentToolTargetScopePolicy;
   networkPolicyRef?: AgentNetworkPolicyRef;
   secretPurposeRefs: readonly string[];
   statePolicyDigest: CanonicalDigest;
   retentionPolicyDigest: CanonicalDigest;
-  budgetProfileDigest: CanonicalDigest;
-  concurrencyPolicyDigest: CanonicalDigest;
+  budgetProfile: AgentToolBudgetProfile;
+  concurrencyPolicy: AgentToolConcurrencyPolicy;
   normalizationDigest: CanonicalDigest;
   descriptorDigest: CanonicalDigest;
 }>;

@@ -131,14 +131,25 @@
                     "cache-write-token",
                     "image",
                     "image-pixel",
+                    "media-source-byte",
+                    "media-processed-byte",
                     "document-page",
+                    "document-rendered-pixel",
+                    "ocr-character",
                     "audio-second",
+                    "audio-sample",
                     "video-second",
+                    "video-input-frame",
                     "video-frame",
+                    "transform-compute-millisecond",
+                    "transform-memory-byte-second",
+                    "provider-upload-byte",
                     "hosted-search-query",
                     "hosted-tool-call",
                     "sandbox-compute-second",
-                    "provider-storage-byte-second"
+                    "provider-storage-byte-second",
+                    "generated-artifact",
+                    "generated-artifact-byte"
                   ]
                 },
                 "maximum": {
@@ -721,14 +732,25 @@
                     "cache-write-token",
                     "image",
                     "image-pixel",
+                    "media-source-byte",
+                    "media-processed-byte",
                     "document-page",
+                    "document-rendered-pixel",
+                    "ocr-character",
                     "audio-second",
+                    "audio-sample",
                     "video-second",
+                    "video-input-frame",
                     "video-frame",
+                    "transform-compute-millisecond",
+                    "transform-memory-byte-second",
+                    "provider-upload-byte",
                     "hosted-search-query",
                     "hosted-tool-call",
                     "sandbox-compute-second",
-                    "provider-storage-byte-second"
+                    "provider-storage-byte-second",
+                    "generated-artifact",
+                    "generated-artifact-byte"
                   ]
                 },
                 "maximum": {
@@ -1287,14 +1309,25 @@
                     "cache-write-token",
                     "image",
                     "image-pixel",
+                    "media-source-byte",
+                    "media-processed-byte",
                     "document-page",
+                    "document-rendered-pixel",
+                    "ocr-character",
                     "audio-second",
+                    "audio-sample",
                     "video-second",
+                    "video-input-frame",
                     "video-frame",
+                    "transform-compute-millisecond",
+                    "transform-memory-byte-second",
+                    "provider-upload-byte",
                     "hosted-search-query",
                     "hosted-tool-call",
                     "sandbox-compute-second",
-                    "provider-storage-byte-second"
+                    "provider-storage-byte-second",
+                    "generated-artifact",
+                    "generated-artifact-byte"
                   ]
                 },
                 "maximum": {
@@ -1745,5 +1778,86 @@
         "additionalProperties": false
       }
     }
+  },
+  "agent-control-fact@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent-control-fact@1",
+    "title": "Agent Task and Run Control Plane Fact Wire",
+    "type": "object",
+    "required": ["wireVersion", "factType", "value"],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "factType": {
+        "enum": ["task-record", "run-snapshot", "run-event", "audit-export"]
+      },
+      "value": { "type": "object" }
+    },
+    "additionalProperties": false
+  },
+  "agent-proposal-fact@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent-proposal-fact@1",
+    "title": "Agent Proposal Approval and Workspace Mutation Fact Wire",
+    "type": "object",
+    "required": ["wireVersion", "factType", "value"],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "factType": {
+        "enum": [
+          "proposal",
+          "preview",
+          "planning",
+          "approval",
+          "workspace-mutation-receipt"
+        ]
+      },
+      "value": { "type": "object" }
+    },
+    "additionalProperties": false
+  },
+  "agent-verification-fact@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent-verification-fact@1",
+    "title": "Agent Verification, Closure, and Repair Fact Wire",
+    "type": "object",
+    "required": ["wireVersion", "factType", "value"],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "factType": {
+        "enum": [
+          "committed-plan-binding",
+          "verification-closure-receipt",
+          "repair-round-receipt"
+        ]
+      },
+      "value": { "type": "object" }
+    },
+    "additionalProperties": false
+  },
+  "agent-product-fact@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent-product-fact@1",
+    "title": "Agent Product Supplement and User Command Fact Wire",
+    "type": "object",
+    "required": ["wireVersion", "factType", "value"],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "factType": { "enum": ["product-supplement", "run-user-command"] },
+      "value": { "type": "object" }
+    },
+    "additionalProperties": false
+  },
+  "agent-product-view@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent-product-view@1",
+    "title": "Agent Product Web and CLI View Wire",
+    "type": "object",
+    "required": ["wireVersion", "kind", "value"],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "kind": { "const": "agent-product-view" },
+      "value": { "type": "object" }
+    },
+    "additionalProperties": false
   }
 }

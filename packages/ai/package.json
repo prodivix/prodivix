@@ -11,8 +11,8 @@
       "import": "./dist/index.js"
     },
     "./wire": {
-      "types": "./dist/wire/agentPolicyWire.d.ts",
-      "import": "./dist/wire/agentPolicyWire.js"
+      "types": "./dist/wire/index.d.ts",
+      "import": "./dist/wire/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -24,10 +24,19 @@
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
     "lint": "eslint .",
     "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "test:g4-v1-context-policy": "pnpm run typecheck && vitest --config vitest.config.ts --run src/policy/agentPolicyEvaluation.test.ts src/context/agentContextBuilder.test.ts",
+    "test:g4-v1-provider-capabilities": "pnpm run typecheck && vitest --config vitest.config.ts --run src/providers/agentProviderCodec.test.ts src/providers/agentProviderAdapter.conformance.test.ts src/providers/agentCapabilityQualification.test.ts src/providers/agentInvocation.test.ts src/providers/agentProviderJob.test.ts src/usage/agentUsage.test.ts",
+    "test:g4-v2-multimodal": "pnpm run typecheck && vitest --config vitest.config.ts --run src/multimodal/agentMediaCodec.test.ts src/multimodal/agentMediaTransform.test.ts src/multimodal/agentMultimodalContext.conformance.test.ts src/multimodal/agentGeneratedArtifact.integration.test.ts src/multimodal/agentRealtimeMedia.test.ts",
+    "test:g4-v3-hosted-capabilities": "pnpm run typecheck && vitest --config vitest.config.ts --run src/hosted/agentToolRegistry.test.ts src/hosted/agentToolLifecycle.conformance.test.ts src/hosted/agentRetrieval.test.ts src/hosted/agentCapabilityBoundaries.test.ts src/hosted/agentParallelTool.test.ts src/hosted/agentHostedCodec.test.ts",
+    "test:g4-v4-control-plane": "pnpm run typecheck && vitest --config vitest.config.ts --run src/control/agentTask.test.ts src/control/agentRunReducer.test.ts src/control/agentControlPlane.conformance.test.ts src/control/agentAuditCodec.test.ts",
+    "test:g4-v5-proposal-approval": "pnpm run typecheck && vitest --config vitest.config.ts --run src/proposal/agentProposalApproval.test.ts",
+    "test:g4-v6-verification": "pnpm run typecheck && vitest --config vitest.config.ts --run src/verification/agentVerification.test.ts",
+    "test:g4-v7-product": "pnpm run typecheck && vitest --config vitest.config.ts --run src/product/agentProduct.test.ts",
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
     "@noble/hashes": "2.2.0",
+    "@prodivix/assets": "workspace:*",
     "@prodivix/diagnostics": "workspace:*",
     "@prodivix/shared": "workspace:*",
     "ajv": "^8.20.0"

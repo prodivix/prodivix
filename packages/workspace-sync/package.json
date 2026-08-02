@@ -25,12 +25,13 @@
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {
+    "@prodivix/ai": "workspace:*",
     "@prodivix/pir": "workspace:*",
     "@prodivix/router": "workspace:*",
+    "@prodivix/verification": "workspace:*",
     "@prodivix/workspace": "workspace:*"
   },
   "devDependencies": {
-    "@prodivix/ai": "workspace:*",
     "@types/node": "^26.1.0",
     "fast-check": "^4.9.0",
     "typescript": "^6.0.3",

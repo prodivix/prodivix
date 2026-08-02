@@ -5,6 +5,7 @@
     "noEmit": true,
     "types": ["node", "vitest/globals"],
     "paths": {
+      "@prodivix/ai": ["../ai/src"],
       "@prodivix/animation": ["../animation/src"],
       "@prodivix/authoring": ["../authoring/src"],
       "@prodivix/behavior": ["../behavior/src"],
@@ -21,12 +22,16 @@
       "@prodivix/verification": ["../verification/src"],
       "@prodivix/verification-adapters": ["../verification-adapters/src"],
       "@prodivix/verification-browser": ["../verification-browser/src"],
-      "@prodivix/workspace": ["../workspace/src"]
+      "@prodivix/workspace": ["../workspace/src"],
+      "@prodivix/workspace-sync": ["../workspace-sync/src"]
     }
   },
   "include": ["src/**/*", "scripts/**/*", "fixtures/**/*.json"],
   "exclude": ["node_modules", "dist"],
   "references": [
+    {
+      "path": "../ai"
+    },
     {
       "path": "../animation"
     },
@@ -62,6 +67,9 @@
     },
     {
       "path": "../workspace"
+    },
+    {
+      "path": "../workspace-sync"
     },
     {
       "path": "../runtime-core"

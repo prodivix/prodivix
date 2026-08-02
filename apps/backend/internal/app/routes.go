@@ -3,6 +3,7 @@ package app
 import (
 	"net/http"
 
+	backendagent "github.com/Prodivix/prodivix/apps/backend/internal/modules/agent"
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
 	backendenvironment "github.com/Prodivix/prodivix/apps/backend/internal/modules/environment"
 	backendgithub "github.com/Prodivix/prodivix/apps/backend/internal/modules/integrations/github"
@@ -17,6 +18,7 @@ type Routes struct {
 	Ping gin.HandlerFunc
 
 	Auth            backendauth.RouteHandlers
+	Agent           backendagent.RouteHandlers
 	GitHub          backendgithub.RouteHandlers
 	Project         backendproject.RouteHandlers
 	Workspace       backendworkspace.RouteHandlers
@@ -35,6 +37,7 @@ func RegisterAPIRoutes(router *gin.Engine, routes Routes) {
 	}
 	api.GET("/ping", ping)
 	backendauth.RegisterRoutes(api, routes.Auth)
+	backendagent.RegisterRoutes(api, routes.Agent)
 	backendgithub.RegisterRoutes(api, routes.GitHub)
 	backendproject.RegisterRoutes(api, routes.Project)
 	backendworkspace.RegisterRoutes(api, routes.Workspace)

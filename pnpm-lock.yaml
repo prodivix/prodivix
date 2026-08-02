@@ -82,9 +82,18 @@ importers:
 
   apps/cli:
     dependencies:
+      '@prodivix/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@prodivix/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@prodivix/verification':
         specifier: workspace:*
         version: link:../../packages/verification
+      '@prodivix/workspace':
+        specifier: workspace:*
+        version: link:../../packages/workspace
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -547,6 +556,9 @@ importers:
       '@noble/hashes':
         specifier: 2.2.0
         version: 2.2.0
+      '@prodivix/assets':
+        specifier: workspace:*
+        version: link:../assets
       '@prodivix/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics
@@ -901,6 +913,9 @@ importers:
 
   packages/golden-conformance:
     dependencies:
+      '@prodivix/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@prodivix/animation':
         specifier: workspace:*
         version: link:../animation
@@ -2148,19 +2163,22 @@ importers:
 
   packages/workspace-sync:
     dependencies:
+      '@prodivix/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@prodivix/pir':
         specifier: workspace:*
         version: link:../pir
       '@prodivix/router':
         specifier: workspace:*
         version: link:../router
+      '@prodivix/verification':
+        specifier: workspace:*
+        version: link:../verification
       '@prodivix/workspace':
         specifier: workspace:*
         version: link:../workspace
     devDependencies:
-      '@prodivix/ai':
-        specifier: workspace:*
-        version: link:../ai
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0

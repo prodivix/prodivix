@@ -74,6 +74,28 @@ export {
   selectWorkspaceAgentPolicyDocument,
 } from './workspaceAgentPolicyDocument';
 export {
+  createAgentWorkspaceRevisionFromSnapshot,
+  createWorkspaceAgentContextContributors,
+  createWorkspaceCodeAgentContextContributor,
+  createWorkspaceIssuesAgentContextContributor,
+  createWorkspaceScenarioAgentContextContributor,
+  createWorkspaceSemanticAgentContextContributor,
+  createWorkspaceSourceTraceAgentContextContributor,
+  createWorkspaceVerificationAgentContextContributor,
+  type WorkspaceAgentContextContributorInput,
+  type WorkspaceAgentSourceTraceContext,
+  type WorkspaceAgentVerificationContext,
+} from './agent/workspaceAgentContextContributors';
+export {
+  WORKSPACE_AGENT_ACTION_DESCRIPTOR_IDS,
+  WORKSPACE_AGENT_ACTION_REGISTRY,
+  createWorkspaceAgentActionTransactionPlan,
+  type CreateWorkspaceAgentActionTransactionPlanInput,
+  type WorkspaceAgentActionTransactionPlan,
+  type WorkspaceAgentActionTransactionPlanResult,
+  type WorkspaceAgentSourceTraceEntry,
+} from './agent/workspaceAgentActionRegistry';
+export {
   createWorkspaceBehaviorScenario,
   createWorkspaceBehaviorScenarioAuthoringPlan,
   createWorkspaceBehaviorScenarioCreatePlan,

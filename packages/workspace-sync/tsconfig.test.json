@@ -5,8 +5,10 @@
     "types": ["node"],
     "noEmit": true,
     "paths": {
+      "@prodivix/ai": ["../ai/dist/index.d.ts"],
       "@prodivix/pir": ["../pir/dist/index.d.ts"],
       "@prodivix/pir/*": ["../pir/dist/*"],
+      "@prodivix/verification": ["../verification/dist/index.d.ts"],
       "@prodivix/workspace": ["../workspace/dist/index.d.ts"]
     }
   },
@@ -14,10 +16,16 @@
   "exclude": ["node_modules", "dist"],
   "references": [
     {
+      "path": "../ai"
+    },
+    {
       "path": "../pir"
     },
     {
       "path": "../workspace"
+    },
+    {
+      "path": "../verification"
     }
   ]
 }

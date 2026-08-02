@@ -305,6 +305,10 @@
         "label": "问题",
         "description": "查看整个工作区的诊断。"
       },
+      "agent": {
+        "label": "可验证 Agent",
+        "description": "创建任务并检查持久化运行、提案、验证与审计证据。"
+      },
       "nodegraph": {
         "label": "节点图",
         "description": "构建逻辑与数据流。"

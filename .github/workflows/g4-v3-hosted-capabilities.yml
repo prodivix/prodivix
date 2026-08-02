@@ -1,0 +1,73 @@
+name: G4 V3 Hosted Capabilities
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-v3-hosted-capabilities.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.json'
+      - 'packages/ai/**'
+      - 'packages/diagnostics/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/shared/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-closure-evidence.md'
+      - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-v3-hosted-capabilities.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.json'
+      - 'packages/ai/**'
+      - 'packages/diagnostics/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/shared/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'specs/decisions/68.hosted-tool-retrieval-and-computer-use-boundary.md'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-closure-evidence.md'
+      - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
+
+concurrency:
+  group: g4-v3-hosted-capabilities-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-capabilities:
+    name: Tool registry, retrieval, MCP, computer-use, and concurrency Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify G4 V3 Hosted capability boundary
+        run: pnpm run verify:g4:hosted-capabilities
