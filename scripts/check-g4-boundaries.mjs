@@ -1300,6 +1300,7 @@ for (const token of [
   'image: postgres:16',
   "PRODIVIX_G4_REMOTE_MODEL_UNITS: '0'",
   'run: bash scripts/ci/configure-rootless-podman.sh',
+  'run: pnpm run build:g2-golden-dependencies',
   'run: pnpm run verify:g4',
 ]) {
   if (!v9WorkflowSource.includes(token)) {
