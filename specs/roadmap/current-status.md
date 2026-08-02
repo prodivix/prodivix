@@ -11,7 +11,7 @@
 | G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
 | G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。 |
 | G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                        |
-| G4 Verified Agentic Development    | In Progress  | V0 durable CI 已通过；V1–V7 已实现且 local Gate 通过、durable CI pending；V8–V9 Not Started，Global G4 未 Passed。                                                                  |
+| G4 Verified Agentic Development    | In Progress  | V0–V7 已实现且 exact-commit durable CI 通过；V8–V9 Not Started，real-model evaluation、最终 Golden 与 Global G4 Closure 仍 Pending。                                                |
 | G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 | G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 
@@ -36,8 +36,8 @@ G4 contract 与阶段状态：
 2026-08-01，G4 ADR 65–69 production contract set 已冻结；V0 已实现并取得 durable CI evidence；V1 已实现并通过
 `verify:g4:context-policy` 与 `verify:g4:provider-capabilities` 本地 Gate；V2 已实现 media current/wire、确定性
 transform/omission、三 native Provider block normalization、视觉 typed target resolution、realtime fencing与
-G2-scanned generated Asset proposal，并通过 `verify:g4:multimodal` 本地 Gate。V1/V2 独立 CI 均已配置但 durable
-evidence pending。V3 已实现 exact registry/discovery、逐调用 grant/budget/generation fence、web retrieval与
+G2-scanned generated Asset proposal，并通过 `verify:g4:multimodal` 本地 Gate。V3 已实现 exact
+registry/discovery、逐调用 grant/budget/generation fence、web retrieval与
 Provider index lifecycle、bounded sandbox、pinned MCP、disposable computer-use、parallel canonical join、
 managed-agent hard cut与 strict wire/codec，并通过 `verify:g4:hosted-capabilities` 本地 Gate。V4 已实现 immutable
 Task、Run reducer/attempt/generation、atomic budget、cancel/retry/recovery、V3 tool receipt bridge、strict wire/Go
@@ -51,8 +51,10 @@ counterexample/regression requirement、新 proposal/approval/Outbox Transaction
 re-verification与 PostgreSQL v25 append-only ledger；`verify:g4:verification:core`和真实 PostgreSQL 18 Gate均本地
 通过。V7 已实现 strict Agent product projection、Backend PostgreSQL v26 durable ledger、Web 三入口 Task composer、
 Run/Context/Proposal/Verification/Audit surface、独立可访问 approval/rejection、CLI exact loop、Web/CLI JSON parity、
-Golden/OpenAPI/workflow；`verify:g4:product:core`和真实 PostgreSQL 18 Gate均本地通过。V1–V7 durable CI均
-pending，V8–V9尚未开始。
+Golden/OpenAPI/workflow；`verify:g4:product:core`和真实 PostgreSQL 18 Gate均本地通过。2026-08-02，exact
+implementation commit `76e4d027a66be44a40f7b387854f9ae1115313da` 的 G4 V1–V7 独立 workflows 全部 terminal
+success，且普通 PR Gate 的 remote-model units 为 0；V8–V9、real-model evaluation、最终 Golden 与 Global G4
+Closure仍未开始或 Pending。
 当前实现与已确定边界如下：
 
 - `@prodivix/ai` 已成为 G4 transport-neutral current/wire 唯一 owner；旧 `packages/shared/src/llm` 已删除，
@@ -108,9 +110,8 @@ pending，V8–V9尚未开始。
   10亿–50亿加 media/tool units；credible release约30亿–100亿加 human review；upgrade differential可能
   50亿–200亿。authority是冻结的 provider/profile/corpus/holdout/tier/repetition/grader/threshold/usage budget与
   实际 receipt，不能只用 token或成本表达工作量。
-- V0-V9、required Gate、Golden positive/negative matrix 与 evidence manifest 已提前冻结；V0 为
-  `Implemented / Durable CI Evidence Passed`；V1 为 `Implemented / Local Gates Passed / Durable CI Evidence Pending`；
-  V2–V7 为 `Implemented / Local Gate Passed / Durable CI Evidence Pending`；V8–V9 仍为 `Not Started` / `Pending`。
+- V0-V9、required Gate、Golden positive/negative matrix 与 evidence manifest 已提前冻结；V0–V7 为
+  `Implemented / Durable CI Evidence Passed`；V8–V9 仍为 `Not Started` / `Pending`。
 
 ## G3 当前进度
 

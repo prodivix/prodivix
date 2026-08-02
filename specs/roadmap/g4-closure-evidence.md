@@ -2,7 +2,7 @@
 
 ## 状态
 
-- EvidenceStatus：V0 Local + Durable CI Evidence Passed；V1–V7 Local Gates Passed / Durable CI Evidence Pending；V8–V9 Pending
+- EvidenceStatus：V0–V7 Local + Durable CI Evidence Passed；V8–V9 Pending
 - ProductGateStatus：In Progress
 - 日期：2026-08-02
 - Canonical milestone：
@@ -16,10 +16,9 @@
 - Implementation：
   [`../implementation/g4-verified-agentic-development.md`](../implementation/g4-verified-agentic-development.md)
 
-本文提前冻结 G4 Exit Gate 的证据结构。V0 implementation、本地与 durable CI deterministic Gate、真实
-PostgreSQL Gate 已有证据；V1–V7 implementation 与 deterministic/真实 PostgreSQL local Gate 已通过，
-exact-commit durable CI 仍为 `Pending`；V8–V9、real-model evaluation、最终 Golden 与 Global G4 Closure 仍为
-`Pending`。文档存在、
+本文提前冻结 G4 Exit Gate 的证据结构。V0–V7 implementation、本地 Gate 与 exact implementation commit
+`76e4d027a66be44a40f7b387854f9ae1115313da` 的 durable CI workflows 已有 terminal-success 证据；V8–V9、
+real-model evaluation、最终 Golden 与 Global G4 Closure 仍为 `Pending`。文档存在、
 mock provider 能响应、workflow 已配置、单次 provider smoke、一次模型回答看起来正确或 Agent 自报“测试通过”
 都不能替代对应 evidence。
 
@@ -56,24 +55,24 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
 
 ## Required Gate manifest
 
-| Gate                              | 状态                      | 必须证明                                                              | Evidence                                                  |
-| --------------------------------- | ------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
-| `verify:g4:boundaries`            | Passed                    | owner/current/wire/agent-policy/diagnostics/no alternate write        | commit `b9d4bbcd` / run `30674224519` / job `91298020728` |
-| `verify:g4:context-policy`        | Local Passed / CI Pending | grounding/privacy/residency/instruction boundary                      | local command Passed；durable run/job待提交后取得         |
-| `verify:g4:provider-capabilities` | Local Passed / CI Pending | profile/model/state/cache/job/reasoning/usage/scripted SPI            | local command Passed；durable run/job待提交后取得         |
-| `verify:g4:multimodal`            | Local Passed / CI Pending | media source/transform/injection/visual target/generated asset        | local command Passed；durable run/job待提交后取得         |
-| `verify:g4:hosted-capabilities`   | Local Passed / CI Pending | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary | local command Passed；durable run/job待提交后取得         |
-| `verify:g4:control-plane`         | Local Passed / CI Pending | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL            | core + PostgreSQL 18 local Passed；durable run/job待取得  |
-| `verify:g4:proposal-approval`     | Local Passed / CI Pending | domain dry-run/exact approval/Transaction/ACK/rollback                | core + PostgreSQL 18 local Passed；durable run/job待取得  |
-| `verify:g4:verification`          | Local Passed / CI Pending | committed Plan/Evidence/Closure/repair/eval/counterexample            | core + PostgreSQL 18 local Passed；durable run/job待取得  |
-| `verify:g4:product`               | Local Passed / CI Pending | Web/CLI/a11y/reconnect/trace/audit                                    | core + PostgreSQL 18 local Passed；durable run/job待取得  |
-| `verify:g4:security`              | Pending                   | text/media injection/Secret/network/state/permission negatives        | 待实现                                                    |
-| `verify:g4:model-eval`            | Pending                   | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget | 待实现                                                    |
-| `verify:g4:golden`                | Pending                   | authenticated Catalog full positive/negative closure                  | 待实现                                                    |
-| `verify:g4`                       | Pending                   | zero-remote-token deterministic V0-V9 aggregate                       | 待实现                                                    |
-| `verify:g4:closure`               | Pending                   | exact-commit deterministic + model-eval + Golden manifest             | 待实现                                                    |
+| Gate                              | 状态    | 必须证明                                                              | Evidence                                                  |
+| --------------------------------- | ------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
+| `verify:g4:boundaries`            | Passed  | owner/current/wire/agent-policy/diagnostics/no alternate write        | commit `76e4d027` / run `30743725468` / job `91485583658` |
+| `verify:g4:context-policy`        | Passed  | grounding/privacy/residency/instruction boundary                      | commit `76e4d027` / run `30743725463` / job `91485583497` |
+| `verify:g4:provider-capabilities` | Passed  | profile/model/state/cache/job/reasoning/usage/scripted SPI            | commit `76e4d027` / run `30743725463` / job `91485583497` |
+| `verify:g4:multimodal`            | Passed  | media source/transform/injection/visual target/generated asset        | commit `76e4d027` / run `30743725504` / job `91485583786` |
+| `verify:g4:hosted-capabilities`   | Passed  | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary | commit `76e4d027` / run `30743725513` / job `91485583685` |
+| `verify:g4:control-plane`         | Passed  | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL            | commit `76e4d027` / run `30743725458` / job `91485583579` |
+| `verify:g4:proposal-approval`     | Passed  | domain dry-run/exact approval/Transaction/ACK/rollback                | commit `76e4d027` / run `30743725486` / job `91485583619` |
+| `verify:g4:verification`          | Passed  | committed Plan/Evidence/Closure/repair/eval/counterexample            | commit `76e4d027` / run `30743725483` / job `91485583557` |
+| `verify:g4:product`               | Passed  | Web/CLI/a11y/reconnect/trace/audit                                    | commit `76e4d027` / run `30743725467` / job `91485583520` |
+| `verify:g4:security`              | Pending | text/media injection/Secret/network/state/permission negatives        | 待实现                                                    |
+| `verify:g4:model-eval`            | Pending | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget | 待实现                                                    |
+| `verify:g4:golden`                | Pending | authenticated Catalog full positive/negative closure                  | 待实现                                                    |
+| `verify:g4`                       | Pending | zero-remote-token deterministic V0-V9 aggregate                       | 待实现                                                    |
+| `verify:g4:closure`               | Pending | exact-commit deterministic + model-eval + Golden manifest             | 待实现                                                    |
 
-## V1 local Gate evidence
+## V1 local + durable CI Gate evidence
 
 - Checkout base：`7028a24505e45dd6fc4ac988a537e7e90b74d832`；V1 验证发生在包含本轮实现的 dirty
   working tree，因此这些结果是 local implementation evidence，不是 exact-commit durable evidence。
@@ -83,10 +82,11 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
   invocation/state/cache/job 与 usage/pricing/budget 6 files / 31 tests均通过，remote-model units 为 0。
 - `pnpm --filter @prodivix/ai test`：15 files / 76 tests Passed；
   `pnpm --filter @prodivix/workspace test`：48 files / 199 tests Passed；Catalog V1 Golden：1 file / 5 tests Passed。
-- CI 配置：`.github/workflows/g4-v1-provider-context.yml`；terminal run/job尚不存在。四类真实 adapter、remote smoke、
-  real-model statistical evaluation、V2–V9 与 Global G4 closure均不由本地 V1结果代替。
+- durable CI：commit `76e4d027` 的 `G4 V1 Provider and Context` run `30743725463` / job `91485583497`
+  terminal success。四类真实 adapter、remote smoke、real-model statistical evaluation、V8–V9 与 Global G4
+  closure均不由 V1结果代替。
 
-## V2 local Gate evidence
+## V2 local + durable CI Gate evidence
 
 - Checkout base：`7028a24505e45dd6fc4ac988a537e7e90b74d832`；V2 验证发生在包含 V1/V2 实现的 dirty
   working tree，因此这些结果是 local implementation evidence，不是 exact-commit durable evidence。
@@ -97,10 +97,10 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
   冒充。
 - generated artifact经 G2 materialize/sanitize/required scan/provenance后只形成 typed Asset proposal；exact human
   approval、Atomic Commit 与 Workspace write authority均未提前授予。
-- CI 配置：`.github/workflows/g4-v2-multimodal.yml`；terminal run/job尚不存在，因此 V2 durable evidence
-  仍为 `Pending`。
+- durable CI：commit `76e4d027` 的 `G4 V2 Multimodal and Generated Asset` run `30743725504` / job
+  `91485583786` terminal success。
 
-## V3 local Gate evidence
+## V3 local + durable CI Gate evidence
 
 - Checkout base：`7028a24505e45dd6fc4ac988a537e7e90b74d832`；V3 验证发生在包含 V1–V3 实现的 dirty
   working tree，因此这些结果是 local implementation evidence，不是 exact-commit durable evidence。
@@ -112,10 +112,10 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
   digest drift均 fail closed。
 - hidden/opaque/unbounded/stale/cross-project/authoring/arbitrary/delegation/late-sibling negative matrix均产生稳定
   AI-7012/7013/7014/7015 或 generation fence，Workspace revision与 capability grant canonical bytes不变化。
-- CI 配置：`.github/workflows/g4-v3-hosted-capabilities.yml`；terminal run/job尚不存在，因此 V3 durable evidence
-  仍为 `Pending`，且 V8 real-model qualification未被 deterministic fixture替代。
+- durable CI：commit `76e4d027` 的 `G4 V3 Hosted Capabilities` run `30743725513` / job `91485583685`
+  terminal success；V8 real-model qualification未被 deterministic fixture替代。
 
-## V4 local Gate evidence
+## V4 local + durable CI Gate evidence
 
 - Checkout base：`7028a24505e45dd6fc4ac988a537e7e90b74d832`；V4 验证发生在包含 V1–V4 实现的 dirty
   working tree，因此这些结果是 local implementation evidence，不是 exact-commit durable evidence。
@@ -129,10 +129,10 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
 - shared canonical vector同时验证 Task/Run/Event/Audit与 repository/recovery/cancellation sequence；duplicate
   member、unsafe key、future wire、unknown field、digest/Secret/hash-chain drift全部 fail closed。V4 未创建
   Workspace document或 alternate write authority。
-- CI 配置：`.github/workflows/g4-v4-control-plane.yml`；terminal run/job尚不存在，因此 V4 durable evidence
-  仍为 `Pending`。V4证据本身不替代独立 V6 Verification或 Global G4 closure。
+- durable CI：commit `76e4d027` 的 `G4 V4 Durable Control Plane` run `30743725458` / job `91485583579`
+  在 PostgreSQL 16 service上 terminal success。V4证据本身不替代独立 V6 Verification或 Global G4 closure。
 
-## V5 local Gate evidence
+## V5 local + durable CI Gate evidence
 
 - Checkout base：`7028a24505e45dd6fc4ac988a537e7e90b74d832`；V5 验证发生在包含 V1–V5 实现的 dirty
   working tree，因此这些结果是 local implementation evidence，不是 exact-commit durable evidence。
@@ -144,10 +144,10 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
   cross-replica exact replay、现有 Atomic Commit target ACK与 exact reverse Transaction rollback。
 - shared `agent-proposal-vector.json`同时绑定 Task/Run sequence、Proposal facts、Workspace forward/reverse request和
   mutation digest；ambiguous/unknown/unsafe/oversize/credential/digest/lifecycle drift均 fail closed。
-- CI 配置：`.github/workflows/g4-v5-proposal-approval.yml`；terminal run/job尚不存在，因此 V5 durable evidence
-  仍为 `Pending`。
+- durable CI：commit `76e4d027` 的 `G4 V5 Proposal Approval and Atomic Transaction` run `30743725486` / job
+  `91485583619` 在 PostgreSQL 16 service上 terminal success。
 
-## V6 local Gate evidence
+## V6 local + durable CI Gate evidence
 
 - Checkout base：`7028a24505e45dd6fc4ac988a537e7e90b74d832`；V6 验证发生在包含 V1–V6 实现的 dirty
   working tree，因此这些结果是 local implementation evidence，不是 exact-commit durable evidence。
@@ -166,8 +166,9 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
 - shared `agent-verification-vector.json`绑定 V5 Task/Run/Proposal/Approval/Commit facts、actual Plan binding、
   unsatisfied/satisfied Closure、repair started/proposal-bound/blocked和 apply terminal proof；future/unknown/
   duplicate/unsafe/credential/digest/lineage drift均 fail closed。
-- CI 配置：`.github/workflows/g4-v6-verification-repair.yml`；terminal run/job尚不存在，因此 V6 durable evidence
-  仍为 `Pending`。V8 real-model qualification、V9 Golden 与 Global G4 Closure均未由 deterministic V6替代。
+- durable CI：commit `76e4d027` 的 `G4 V6 Committed Verification and Repair` run `30743725483` / job
+  `91485583557` 在 PostgreSQL 16 service上 terminal success。V8 real-model qualification、V9 Golden 与 Global
+  G4 Closure均未由 deterministic V6替代。
 
 ## Required positive evidence
 
@@ -255,11 +256,11 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
 - [x] keyboard、focus、screen reader、reduced motion 与错误恢复通过（V7 local）。
 - [x] bounded sanitized audit export 可验证完整 event/digest 链（V7 local）。
 
-V7 local evidence：`verify:g4:product:core` 对 strict authenticated product ledger、Web/CLI identical decoder、
+V7 local + durable CI evidence：`verify:g4:product:core` 对 strict authenticated product ledger、Web/CLI identical decoder、
 Catalog component/Route/Issue入口、approval/rejection a11y、timeline/recovery/audit、Golden negative与 Go contract
 执行零 remote-token Gate；`verify:g4:product:postgres` 在真实本地 PostgreSQL 18 上验证 v26 migration、
-repeatable-read reload、command/approval idempotency、tamper与 authority fail-closed。独立 workflow已配置，但实现
-尚未形成 exact commit/terminal run，因此 durable CI仍为 Pending。
+repeatable-read reload、command/approval idempotency、tamper与 authority fail-closed。commit `76e4d027` 的
+`G4 V7 Web CLI Product Loop` run `30743725467` / job `91485583520` 在 PostgreSQL 16 service上 terminal success。
 
 ### Real-model evaluation
 
@@ -401,5 +402,34 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   [`91298020635`](https://github.com/prodivix/prodivix/actions/runs/30674224474/job/91298020635) 证明同一 exact commit
   在通用并发负载下通过 formatting、lint、53-package non-Web tests、Web tests 与 Web typecheck；Backend 与
   hostile-locale canonical bytes jobs 同时通过。
-- V0 durable promotion 已满足；V1–V7 durable CI、V8–V9、model evaluation、Golden、closure artifact 与
-  Global G4 `Passed` 仍未满足。
+- V0 durable promotion 已满足；V8–V9、model evaluation、Golden、closure artifact 与 Global G4 `Passed` 仍未满足。
+
+### V1–V7 exact-commit durable CI（2026-08-02）
+
+- Implementation identity：`76e4d027a66be44a40f7b387854f9ae1115313da`；该 commit 包含 V1–V7 implementation、
+  workflows、deterministic fixtures、真实 PostgreSQL Gate 与 product Golden，且普通 PR Gate 的 remote-model
+  units = 0。
+- [`G4 V1 Provider and Context` run `30743725463`](https://github.com/prodivix/prodivix/actions/runs/30743725463) /
+  job [`91485583497`](https://github.com/prodivix/prodivix/actions/runs/30743725463/job/91485583497)：Passed。
+- [`G4 V2 Multimodal and Generated Asset` run `30743725504`](https://github.com/prodivix/prodivix/actions/runs/30743725504) /
+  job [`91485583786`](https://github.com/prodivix/prodivix/actions/runs/30743725504/job/91485583786)：Passed。
+- [`G4 V3 Hosted Capabilities` run `30743725513`](https://github.com/prodivix/prodivix/actions/runs/30743725513) /
+  job [`91485583685`](https://github.com/prodivix/prodivix/actions/runs/30743725513/job/91485583685)：Passed。
+- [`G4 V4 Durable Control Plane` run `30743725458`](https://github.com/prodivix/prodivix/actions/runs/30743725458) /
+  job [`91485583579`](https://github.com/prodivix/prodivix/actions/runs/30743725458/job/91485583579)：Passed，包含真实
+  PostgreSQL 16 service Gate。
+- [`G4 V5 Proposal Approval and Atomic Transaction` run `30743725486`](https://github.com/prodivix/prodivix/actions/runs/30743725486) /
+  job [`91485583619`](https://github.com/prodivix/prodivix/actions/runs/30743725486/job/91485583619)：Passed，包含真实
+  PostgreSQL 16 service Gate。
+- [`G4 V6 Committed Verification and Repair` run `30743725483`](https://github.com/prodivix/prodivix/actions/runs/30743725483) /
+  job [`91485583557`](https://github.com/prodivix/prodivix/actions/runs/30743725483/job/91485583557)：Passed，包含真实
+  PostgreSQL 16 service Gate。
+- [`G4 V7 Web CLI Product Loop` run `30743725467`](https://github.com/prodivix/prodivix/actions/runs/30743725467) /
+  job [`91485583520`](https://github.com/prodivix/prodivix/actions/runs/30743725467/job/91485583520)：Passed，包含真实
+  PostgreSQL 16 service Gate。
+- 同一 commit 的 [`G4 Agent Boundaries` run `30743725468`](https://github.com/prodivix/prodivix/actions/runs/30743725468) /
+  job [`91485583658`](https://github.com/prodivix/prodivix/actions/runs/30743725468/job/91485583658) 与
+  [`Tests` run `30743725484`](https://github.com/prodivix/prodivix/actions/runs/30743725484) 也 terminal success。
+- 本次之后只修改 `current-status`、implementation、milestone 与 evidence metadata 的提交不改变上述
+  implementation identity；按 evidence promotion rule 7，该 metadata-only diff不使 V1–V7 semantic evidence
+  expired。V8–V9、real-model evaluation、最终 Golden、closure artifact与 Global G4 `Passed` 仍须独立取得。
