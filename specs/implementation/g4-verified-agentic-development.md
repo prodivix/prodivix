@@ -3,7 +3,7 @@
 ## 状态
 
 - DecisionStatus：Accepted
-- ImplementationStatus：V0–V7 Implemented / Durable CI Evidence Passed；V8–V9 Not Started
+- ImplementationStatus：V0–V7 Implemented / Durable CI Evidence Passed；V8–V9 Implemented Locally / Durable and Real-model Evidence Pending
 - ProductGateStatus：In Progress
 - Global Phase：G4 Verified Agentic Development
 - 日期：2026-08-02
@@ -39,7 +39,9 @@ repair、counterexample/regression preservation、fresh approval/Transaction、r
 re-verification与 PostgreSQL v25 ledger。V7 已实现 strict Agent product projection/ledger codec、Backend
 PostgreSQL v26 supplement/user-command ledger、Web 三入口产品表面、独立可访问 approval/rejection、CLI exact
 loop、Web/CLI JSON parity、Golden、OpenAPI 与独立 workflow。各阶段的 deterministic/真实 PostgreSQL（适用时）
-Gate均已通过；V8–V9仍不得因文档、mock、workflow 或单次 provider smoke 存在而标记为 Implemented。
+Gate均已通过。V8 已本地实现 security/model-evaluation contract；V9 已本地实现 exact Catalog Golden、三 surface
+VerificationRun set、Closure manifest与 PostgreSQL v28 ledger，并通过 browser/PG Gate。两者仍不得因本地
+deterministic evidence、workflow配置或单次 provider smoke而宣称 durable/real-model closure。
 
 ## 目标
 
@@ -428,6 +430,16 @@ Global Phase：G4。目标 Product Gate：V8 Implemented / real-model durable ev
 - model/prompt/Context/tool/action registry drift 后 evidence expiry 与 affected-slice rerun；
 - sanitized audit artifact 与 redaction scanner。
 
+本地实现状态（2026-08-02）：四类 adapter 已使用原生 event shape做 deterministic conformance；security primitive
+覆盖 typed authority、Secret callback/raw+encoded+key canary、有界 unsafe-artifact scan、HTTPS/DNS/IPv4/IPv6/
+redirect/purpose/runtime-zone/timeout/byte envelope；evaluation current/wire已实现 128 cases/52 families、24/16
+sentinels、11,640+ schedule、global atomic budget CAS、lease claim/renew、shard/checkpoint/resume、全部 attempt
+denominator、risk-specific confidence、report recomputation、human/holdout/manifest/expiry。Go admission 与 PostgreSQL
+v27 isolated namespace immutable facts/CAS budget ledger、canonical vector、Golden和 ordinary CI workflow均已实现，
+本机 deterministic/PG Gate通过。`verify:g4:model-eval`
+刻意要求外部 real-model evidence bundle和 clean exact commit；当前未运行三个真实 Provider matrix，因此 V8仅为
+`Implemented Locally / real-model durable evidence pending`。
+
 完成条件：
 
 - security negatives 全部 fail closed，且失败后 grant 未扩大、Workspace 未写；
@@ -467,6 +479,18 @@ Golden 使用 authenticated Catalog 的真实 canonical Workspace，并至少包
 12. 三个 native Provider/operator/model-family required capability profiles进入 128-case、11,640+ attempt、
     holdout/statistical/human-review manifest，满足预先冻结 thresholds 且未 expired。
 
+本地实现状态（2026-08-02）：authenticated Catalog 的 multi-domain proposal/approval/Commit已绑定同一 exact
+66-cell Plan；80 attempts在 React/Vue Preview/Export/CI形成66条 promoted Evidence。由于 G3 VerificationRun保持
+single-surface invariant，Agent current/wire使用 canonical Run set分别绑定 `ci`、`export`、`preview`，Closure receipt
+再绑定每个终态 snapshot digest；Backend PostgreSQL v28以两个 immutable child ledger保存 binding/closure Run set，
+并逐项复核 revision、Plan、surface、selected-cell set、snapshot与 promoted Evidence。8类 recovery、15类 negative、
+terminal success、Web/CLI strict parity和 Closure manifest均已在本地 Golden通过；完整 G4 PostgreSQL aggregate也已
+通过。manifest刻意保持 `goldenVerdict=satisfied`、`closureVerdict=incomplete` 与 real-model `pending`，避免把本地
+deterministic evidence冒充最终 G4 closure。artifact digest/size绑定 canonical content bytes；最终 evidence verifier
+还会把 plan、provider/operator/model-family、qualification、holdout、metric/grader/human report及 freshness逐项绑定
+到 strict model-evaluation bundle。rootless runtime、exact-commit durable CI、三个真实 Provider和未过期
+model-eval/human-review artifact仍 Pending。
+
 只有 `g4-closure-evidence.md` 的 deterministic Gate、real-model evaluation Gate、closure manifest 与同一
 exact commit 的 durable CI terminal success 均已取得，才更新 current-status 为 G4 Passed。
 
@@ -503,8 +527,8 @@ revision，blind human rubric只判断主观质量；四者互不替代。
 
 ## Aggregate Gate 规划
 
-`verify:g4:boundaries`、`verify:g4:boundaries:postgres` 与 V1–V7 durable CI Gate 已通过；下表 V8 之后的命令名仍是
-后续 milestone 冻结接口，不表示脚本已经存在：
+`verify:g4:boundaries`、`verify:g4:boundaries:postgres` 与 V1–V7 durable CI Gate 已通过；V8–V9命令与 ordinary
+zero-remote-model workflows已实现。命令存在不表示 exact-commit durable或 real-model evidence已取得：
 
 | Gate                              | 范围                                                                   |
 | --------------------------------- | ---------------------------------------------------------------------- |
@@ -571,4 +595,5 @@ revision，blind human rubric只判断主观质量；四者互不替代。
 - [x] V0 公开 current/wire contract、错误语义和诊断落点已实现。
 - [ ] G4 Exit 本地所有 required Gate 可重复通过。
 - [ ] G4 Exit 所有 exact-commit durable CI Gate 与 artifact 已通过。
-- [x] `ImplementationStatus` 与 `ProductGateStatus` 已按 V0–V7 durable passed 和 V8–V9 pending 分层更新。
+- [x] `ImplementationStatus` 与 `ProductGateStatus` 已按 V0–V7 durable passed、V8–V9 local implemented及外部
+      evidence pending分层更新。

@@ -35,6 +35,8 @@
     "test:g4-v5-proposal-approval": "pnpm exec tsc -b ../ai ../verification ../workspace ../workspace-sync --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG4V5ProposalApproval.conformance.test.ts",
     "test:g4-v6-verification-repair": "pnpm exec tsc -b ../ai ../verification ../workspace ../workspace-sync --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG4V6VerificationRepair.conformance.test.ts",
     "test:g4-v7-product": "pnpm exec tsc -b ../ai ../verification ../workspace ../workspace-sync --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG4V7Product.conformance.test.ts",
+    "test:g4-v8-security-model-eval": "pnpm exec tsc -b ../ai --pretty false && pnpm run typecheck && vitest --config vitest.config.ts --run src/goldenG4V8SecurityModelEval.conformance.test.ts",
+    "test:g4-v9-closure": "pnpm exec tsc -b ../ai ../verification ../workspace ../workspace-sync --pretty false && pnpm run typecheck && cross-env PRODIVIX_VERIFY_G3_V8_GOLDEN=1 vitest --config vitest.config.ts --run --disableConsoleIntercept --no-file-parallelism --maxWorkers=1 src/goldenG4V9ProductProjection.test.ts src/goldenG4V9Closure.conformance.test.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --pretty false"
   },

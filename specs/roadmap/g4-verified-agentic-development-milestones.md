@@ -13,7 +13,7 @@
 
 ## 当前判断
 
-状态：`V0–V7 Implemented / Durable CI Evidence Passed；V8–V9 Not Started`。
+状态：`V0–V7 Implemented / Durable CI Evidence Passed；V8–V9 Implemented Locally / Exact-commit Deterministic CI and Real-model Evidence Pending`。
 
 2026-07-31 已冻结 G4 owner、AgentPolicy、Task/Run lifecycle、Context Pack、Provider capability/invocation、
 多模态 transformation/generated asset、hosted tool/retrieval/MCP/computer-use boundary、multi-dimensional usage、
@@ -44,21 +44,25 @@ fence、post-rollback re-verification，以及 PostgreSQL v25 append-only ledger
 user-command ledger、Web 三入口 Task composer和 Run/Context/Proposal/Verification/Audit surface、独立可访问
 approval/rejection、CLI exact loop、Web/CLI strict JSON parity、Golden/OpenAPI/workflow；deterministic core与真实
 PostgreSQL 18 Gate均本地通过。2026-08-02，exact implementation commit
-`76e4d027a66be44a40f7b387854f9ae1115313da` 的 G4 V1–V7 独立 workflows 全部 terminal success；V8–V9 尚未
-开始，V8 real-model qualification未由 deterministic V1–V7 conformance代替。
+`76e4d027a66be44a40f7b387854f9ae1115313da` 的 G4 V1–V7 独立 workflows 全部 terminal success。V8 已在当前
+working tree完成 native/generic adapter normalization、security fail-closed primitive、128-case planner、11,640+
+attempt schedule、shard/checkpoint/resume/budget、statistical reports/manifest、strict TypeScript/Go wire、PostgreSQL
+v27 immutable ledger与 zero-remote-token Golden；本地 deterministic 与真实 PostgreSQL Gate已通过。当前改动尚未
+commit/push，V8 exact-commit durable CI、bounded endpoint smoke、三个真实 Provider 11,640+ journeys、holdout
+operation/human review与未过期 release qualification仍 Pending，不能由 deterministic fixture代替。
 
-| Milestone                             | 状态                    | 目标闭环                                                        | 升级所需证据                                                       |
-| ------------------------------------- | ----------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
-| V0 Owner/current/wire hard cut        | Implemented / CI Passed | `@prodivix/ai`、agent-policy、codec、diagnostics、boundary      | commit `b9d4bbcd` / run `30674224519` / job `91298020728`          |
-| V1 Provider/Policy/Context/invocation | Implemented / CI Passed | capability/state/cache/job/usage + grounded Context             | commit `76e4d027` / run `30743725463` / job `91485583497`          |
-| V2 Multimodal/generated asset         | Implemented / CI Passed | media transform/injection/visual target/G2 asset candidate      | commit `76e4d027` / run `30743725504` / job `91485583786`          |
-| V3 Hosted capability boundary         | Implemented / CI Passed | hosted tool/retrieval/MCP/computer/concurrency                  | commit `76e4d027` / run `30743725513` / job `91485583685`          |
-| V4 Task/Run/tool control plane        | Implemented / CI Passed | lifecycle、budget、cancel/retry/recovery、PostgreSQL            | commit `76e4d027` / run `30743725458` / job `91485583579`          |
-| V5 Proposal/approval/Transaction      | Implemented / CI Passed | domain dry-run、exact approval、Atomic Commit、rollback         | commit `76e4d027` / run `30743725486` / job `91485583619`          |
-| V6 Verification/repair/eval           | Implemented / CI Passed | committed Plan、Evidence/Closure、bounded repair/regression     | commit `76e4d027` / run `30743725483` / job `91485583557`          |
-| V7 Web/CLI product loop               | Implemented / CI Passed | Task/Trace/Proposal/Approval/Verification/Audit UX              | commit `76e4d027` / run `30743725467` / job `91485583520`          |
-| V8 Security/model evaluation          | Not Started             | fail-closed + 4 adapters + 3-Provider/128-case/11,640+ journeys | CI `verify:g4:security` + scheduled/release `verify:g4:model-eval` |
-| V9 G4 Golden closure                  | Not Started             | authenticated Catalog exact-write-to-satisfied-Closure loop     | exact-commit `verify:g4:golden`/`verify:g4`/`verify:g4:closure`    |
+| Milestone                             | 状态                                   | 目标闭环                                                        | 升级所需证据                                                    |
+| ------------------------------------- | -------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------- |
+| V0 Owner/current/wire hard cut        | Implemented / CI Passed                | `@prodivix/ai`、agent-policy、codec、diagnostics、boundary      | commit `b9d4bbcd` / run `30674224519` / job `91298020728`       |
+| V1 Provider/Policy/Context/invocation | Implemented / CI Passed                | capability/state/cache/job/usage + grounded Context             | commit `76e4d027` / run `30743725463` / job `91485583497`       |
+| V2 Multimodal/generated asset         | Implemented / CI Passed                | media transform/injection/visual target/G2 asset candidate      | commit `76e4d027` / run `30743725504` / job `91485583786`       |
+| V3 Hosted capability boundary         | Implemented / CI Passed                | hosted tool/retrieval/MCP/computer/concurrency                  | commit `76e4d027` / run `30743725513` / job `91485583685`       |
+| V4 Task/Run/tool control plane        | Implemented / CI Passed                | lifecycle、budget、cancel/retry/recovery、PostgreSQL            | commit `76e4d027` / run `30743725458` / job `91485583579`       |
+| V5 Proposal/approval/Transaction      | Implemented / CI Passed                | domain dry-run、exact approval、Atomic Commit、rollback         | commit `76e4d027` / run `30743725486` / job `91485583619`       |
+| V6 Verification/repair/eval           | Implemented / CI Passed                | committed Plan、Evidence/Closure、bounded repair/regression     | commit `76e4d027` / run `30743725483` / job `91485583557`       |
+| V7 Web/CLI product loop               | Implemented / CI Passed                | Task/Trace/Proposal/Approval/Verification/Audit UX              | commit `76e4d027` / run `30743725467` / job `91485583520`       |
+| V8 Security/model evaluation          | Implemented Locally / Evidence Pending | fail-closed + 4 adapters + 3-Provider/128-case/11,640+ journeys | deterministic CI + scheduled/release `verify:g4:model-eval`     |
+| V9 G4 Golden closure                  | Implemented Locally / Evidence Pending | authenticated Catalog exact-write-to-satisfied-Closure loop     | exact-commit `verify:g4:golden`/`verify:g4`/`verify:g4:closure` |
 
 ## V0：Owner、current/wire 与 diagnostics hard cut
 
@@ -348,40 +352,44 @@ screen reader 能读出 risk/permission/Plan；CLI 用相同 task/run/preview/cl
 
 ### 必须完成
 
-- [ ] prompt injection、tool poisoning、malformed structured output adversarial fixtures。
-- [ ] target/permission/self-approval/model/provider/policy drift negatives。
-- [ ] Secret callback-bound transport 与 end-to-end canary scan。
-- [ ] network allowlist/redirect/DNS/IP/method/size/time enforcement。
-- [ ] budget/cost/retention/residency fail-closed。
-- [ ] scripted provider/tool full matrix、provider failure/retry/recovery。
-- [ ] `openai-responses`、`anthropic-messages`、`gemini-interactions` native adapters 和
+- [x] prompt injection、tool poisoning、malformed structured output adversarial fixtures（local）。
+- [x] target/permission/self-approval/model/provider/policy drift negatives（local corpus/plan/security matrix）。
+- [x] Secret callback-bound transport 与 end-to-end canary scan（local）。
+- [x] network allowlist/redirect/DNS/IP/method/size/time enforcement（local）。
+- [x] budget/cost/retention/residency fail-closed（V1 Policy/Context + V8 atomic evaluation budget local；真实
+      Provider receipt仍 Pending）。
+- [x] scripted provider/tool full matrix、provider failure/retry/recovery（local deterministic matrix）。
+- [x] `openai-responses`、`anthropic-messages`、`gemini-interactions` native adapters 和
       `openai-compatible` generic compatibility adapter。
-- [ ] role/block、stream/tool call、schema/refusal/stop/truncation、usage/cache/reasoning、
+- [x] role/block、stream/tool call、schema/refusal/stop/truncation、usage/cache/reasoning、
       state/context-transform/background/error/retry-after/cancel normalization conformance。
-- [ ] required text/visual/document profiles、media transform、hosted capability 与 computer-use boundary conformance。
-- [ ] stateless default、opaque continuation、ambient-memory prohibition；provider state/cache/job/retention/deletion
+- [ ] required text/visual/document profiles、media transform、hosted capability 与 computer-use boundary conformance；
+      V1–V3 deterministic boundary与 V8 frozen plan已通过，三个真实 configuration/profile仍 Pending。
+- [x] stateless default、opaque continuation、ambient-memory prohibition；provider state/cache/job/retention/deletion
       进入 exact identity。
-- [ ] `release-evaluated` / `admission-only` / `disabled` 按 exact configuration/model/capability/policy slice；
-      generic compatibility 至少一个 hosted 与一个 local/self-hosted endpoint smoke。
+- [x] `release-evaluated` / `admission-only` / `disabled` 按 exact configuration/model/capability/policy slice（local）；
+      generic compatibility hosted/local smoke target已冻结，真实 endpoint smoke仍 Pending。
 - [ ] 每个 production-eligible adapter 的 bounded smoke；只作为 transport/stream/schema/tool admission。
-- [ ] `AgentModelEvaluationPlan`、repository、shard/checkpoint/resume、attempt dedupe 与 strict manifest。
-- [ ] 12 positive/32 cases、20 adversarial/48 cases、8 recovery/16 cases、12 capability/32 cases，合计
+- [x] `AgentModelEvaluationPlan`、repository、shard/checkpoint/resume、attempt dedupe 与 strict manifest（local）。
+- [x] 12 positive/32 cases、20 adversarial/48 cases、8 recovery/16 cases、12 capability/32 cases，合计
       52 families/128 concrete cases；每个 primary bucket至少 25% protected holdout。
-- [ ] `small`/`representative`/`near-limit` 与至少 24 context sentinels；至少 16 media sentinels在三档
+- [x] `small`/`representative`/`near-limit` 与至少 24 context sentinels；至少 16 media sentinels在三档
       representation重复。
 - [ ] OpenAI Responses、Anthropic Messages、Gemini Interactions 三个 native protocol family 各一个
       independently operated/versioned model configuration，provider operator 与 model-family owner 分别互异。
-- [ ] ordinary至少 10、48 critical至少 30、至少 12 high-assurance至少 100 attempts/configuration；
-      首次 closure最低 11,640 journeys，critical sentinel继续增加。
-- [ ] 运行前冻结 corpus/holdout/context/media/configuration/profile/repetition/sequential rule/grader/threshold/budget；
+- [x] ordinary至少 10、48 critical至少 30、至少 12 high-assurance至少 100 attempts/configuration的 deterministic
+      schedule与 denominator已实现；首次真实 closure最低 11,640 journeys仍待执行。
+- [x] 运行前冻结 corpus/holdout/context/media/configuration/profile/repetition/sequential rule/grader/threshold/budget；
       保留全部 attempt、missing/timeout denominator与失败 lineage。
-- [ ] protected/rotating holdout access/leak prevention与 counterexample adoption。
-- [ ] deterministic grader/G3 Closure优先、LLM judge辅助、sampled visual subjective cases blind human rubric。
+- [ ] protected/rotating holdout access与 counterexample adoption；public artifact body/fingerprint leak prevention已
+      本地实现，真实受保护执行和 rotating adoption仍 Pending。
+- [x] deterministic grader/G3 Closure优先、LLM judge辅助、sampled visual subjective cases blind human rubric的
+      plan/report/manifest authority已实现（真实 human ratings Pending）。
 - [ ] proposal validity、grounding、hallucinated target、tool/action choice、scope、dry-run、Closure、repair、
       unnecessary change、unsafe attempt、control rejection、stability、latency/token/cost metrics，以及
       overall/per-provider thresholds。
-- [ ] logical/billable/cache/unknown usage vector、media/tool/compute/storage/human capacity、provider receipt 与 cost。
-- [ ] model/prompt/Context builder/provider set/output schema/tool/action registry/Policy/repository drift 后
+- [x] logical/billable/cache/unknown usage vector、media/tool/compute/storage/human capacity、provider receipt 与 cost。
+- [x] model/prompt/Context builder/provider set/output schema/tool/action registry/Policy/repository drift 后
       evidence expiry 与 affected-slice rerun。
 - [ ] isolated disposable evaluation Workspace、evaluation-only role-separated approval、exact commit CI identity
       与 sanitized artifact。
@@ -407,25 +415,40 @@ commit boundary 被拒绝。real-model eval 额外记录 unsafe-attempt rate，�
 无法硬限制费用、provider identity、data residency、Secret transport 或 egress 时，不运行远端 provider Gate；
 `verify:g4:model-eval` 与 `verify:g4:closure` 保持 `Pending`。若 plan 在看到结果后改变 corpus、repetition 或
 threshold/grader，删除attempt或泄漏holdout，或 identity drift 后没有重跑受影响 slice，则 evidence 为
-`expired`/`incomplete`，不能进入 V9。
+`expired`/`incomplete`，不能进入 V9 durable closure promotion。
 若同一 adapter 下换模型、aggregator alias 或同一模型的多个 endpoint 被计作三个独立 Provider，则 matrix
-invalid，不能进入 V9。
+invalid，不能进入 V9 durable closure promotion。
 
 ## V9：G4 Golden closure
 
 ### 必须完成
 
-- [ ] authenticated Catalog multi-domain Task/Context/Proposal/Approval/Commit。
-- [ ] React/Vue Preview/Export/CI required Plan 全部产生 trusted Evidence。
-- [ ] satisfied Closure 与 mode-specific terminal success。
-- [ ] restart/idempotency/cancel/late-callback recovery。
-- [ ] text/cross-modal injection、Secret/state/memory/hidden-tool/computer-use/permission/stale/budget/failed
+- [x] authenticated Catalog multi-domain Task/Context/Proposal/Approval/Commit（local）。
+- [x] React/Vue Preview/Export/CI required Plan 全部产生 trusted Evidence（local browser Golden）。
+- [x] satisfied Closure 与 mode-specific terminal success（local）。
+- [x] restart/idempotency/cancel/late-callback recovery（local）。
+- [x] text/cross-modal injection、Secret/state/memory/hidden-tool/computer-use/permission/stale/budget/failed
       Closure/repair/rollback negatives。
-- [ ] Web/CLI sanitized audit parity。
-- [ ] local PostgreSQL/rootless/browser zero-remote-token deterministic aggregate。
+- [x] Web/CLI sanitized audit parity（local）。
+- [x] local PostgreSQL/browser zero-remote-model deterministic aggregate。
+- [ ] rootless runtime aggregate；contract/workflow已配置，本机 runtime evidence Pending。
 - [ ] 三个 native protocol/provider operator/model-family owner 的 required capability qualifications，以及
       128 cases/11,640+ attempts/holdout/statistics/human-review manifest。
 - [ ] exact commit durable `verify:g4:golden`、`verify:g4` 与 `verify:g4:closure` aggregate/manifest artifact。
+
+### V9 local implementation evidence（2026-08-02）
+
+- dirty working tree上的 `test:g4-v9-closure`：2 files / 7 tests Passed；执行 authenticated Catalog 66 required
+  cells、80 attempts、React/Vue三 surface、8 recovery与15 negative，并验证 strict current/wire manifest。
+- Agent Verification current/wire已从单一 Run hard cut为 canonical Run set；每个 G3 Run仍严格 single-surface，
+  binding覆盖 exact selected-cell set，Closure receipt覆盖每个终态 snapshot，Web/CLI projection复核二者一致。
+- PostgreSQL migration v28新增 immutable binding-run/closure-run ledger；`verify:g4:postgres`全部通过，V6
+  verification Gate以 `ci`/`export`/`preview`三 Run canonical vector验证跨 replica persistence。
+- Closure artifact digest/size绑定 canonical content bytes；final evidence verifier逐项复核 plan、Provider多样性、
+  qualification、holdout、metric/grader/human report与freshness，拒绝只替换summary的伪promotion。
+- ordinary V9 workflow明确 remote-model units为0，执行完整 `verify:g4` deterministic aggregate并产出 local manifest
+  artifact；当前尚无 exact-commit durable run/job。真实三 Provider evaluation、protected holdout、human review、
+  rootless runtime与最终 closure仍 Pending。
 
 ### Global G4 Exit
 

@@ -1815,14 +1815,14 @@
     },
     "additionalProperties": false
   },
-  "agent-verification-fact@1": {
+  "agent-verification-fact@2": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://prodivix.dev/schemas/agent-verification-fact@1",
+    "$id": "https://prodivix.dev/schemas/agent-verification-fact@2",
     "title": "Agent Verification, Closure, and Repair Fact Wire",
     "type": "object",
     "required": ["wireVersion", "factType", "value"],
     "properties": {
-      "wireVersion": { "const": 1 },
+      "wireVersion": { "const": 2 },
       "factType": {
         "enum": [
           "committed-plan-binding",
@@ -1856,6 +1856,43 @@
     "properties": {
       "wireVersion": { "const": 1 },
       "kind": { "const": "agent-product-view" },
+      "value": { "type": "object" }
+    },
+    "additionalProperties": false
+  },
+  "agent-evaluation-fact@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent-evaluation-fact@1",
+    "title": "Agent Model Evaluation and Release Qualification Fact Wire",
+    "type": "object",
+    "required": ["wireVersion", "factType", "value"],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "factType": {
+        "enum": [
+          "evaluation-plan",
+          "evaluation-attempt",
+          "evaluation-checkpoint",
+          "evaluation-metric-report",
+          "evaluation-grader-report",
+          "evaluation-human-review-report",
+          "evaluation-holdout-receipt",
+          "evaluation-manifest"
+        ]
+      },
+      "value": { "type": "object" }
+    },
+    "additionalProperties": false
+  },
+  "agent-g4-closure-manifest@1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://prodivix.dev/schemas/agent-g4-closure-manifest@1",
+    "title": "Agent G4 Golden Closure Manifest Wire",
+    "type": "object",
+    "required": ["wireVersion", "factType", "value"],
+    "properties": {
+      "wireVersion": { "const": 1 },
+      "factType": { "const": "g4-golden-closure-manifest" },
       "value": { "type": "object" }
     },
     "additionalProperties": false

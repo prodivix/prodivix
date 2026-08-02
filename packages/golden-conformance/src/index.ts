@@ -123,3 +123,18 @@ export {
   type GoldenG3V6ControlledEnvironmentEvidence,
   type GoldenG3V6StaticRuntimeEnvironmentEvidence,
 } from './goldenG3V6ControlledEnvironmentEvidence';
+export {
+  GOLDEN_G4_V8_EVALUATION_MATRIX,
+  GOLDEN_G4_V8_REQUIRED_CONFIGURATIONS,
+  GOLDEN_G4_V8_REQUIRED_PROFILES,
+  createGoldenG4V8NativeNormalization,
+  createGoldenG4V8SecurityMatrix,
+} from './goldenG4V8SecurityModelEvalFixture';
+export {
+  GOLDEN_G4_V9_CLOCK,
+  GOLDEN_G4_V9_COMMIT,
+  GOLDEN_G4_V9_PROJECTION,
+  GOLDEN_G4_V9_TIME,
+  executeGoldenG4V9Closure,
+  type GoldenG4V9ClosureHarness,
+} from './goldenG4V9ClosureFixture';

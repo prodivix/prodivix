@@ -136,38 +136,52 @@ func seedVerificationRunAndEvidence(
 		t.Fatal(err)
 	}
 	workspaceRevision, ok := integerMember(binding.TargetRevision, "workspaceRev")
-	if !ok {
+	if !ok || len(binding.VerificationRuns) != 3 || len(closure.VerificationRuns) != 3 {
 		t.Fatal("binding target revision is invalid")
 	}
 	createdAt := mustAgentTime(t, "2026-08-02T02:00:00.000Z")
-	snapshotBase := map[string]any{
-		"runId": binding.VerificationRunID, "workspaceId": "workspace.catalog",
-		"workspaceRevision": workspaceRevision, "planDigest": binding.ActualPlanDigest,
-		"surface": "preview", "scope": "required", "providerId": "verification.g4-v6.pg",
-		"origin": "cli", "status": map[bool]string{true: "completed", false: "failed"}[closure.Verdict == "satisfied"],
-		"cursor": 1, "createdAt": createdAt.Format("2006-01-02T15:04:05.000Z"),
-		"updatedAt":       closure.EvaluatedAt.Format("2006-01-02T15:04:05.000Z"),
-		"selectedCellIds": []any{"cell.g4-v6.pg"},
-		"cells": []any{map[string]any{
-			"cellId": "cell.g4-v6.pg", "attemptId": "attempt.g4-v6.pg", "status": map[bool]string{true: "passed", false: "failed"}[closure.Verdict == "satisfied"],
-			"lastEventCursor": 1, "evidenceId": closure.EvidenceRefs[0].EvidenceID,
-		}},
-		"closureDigest": closure.ClosureDigest, "closureVerdict": closure.Verdict,
+	closureRuns := map[string]verificationRunRefFact{}
+	for _, verificationRun := range closure.VerificationRuns {
+		closureRuns[verificationRun.VerificationRunID] = verificationRun
 	}
-	snapshotDigest, err := canonicaljson.Digest(snapshotBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	snapshotBase["snapshotDigest"] = snapshotDigest
-	snapshotBytes, err := canonicaljson.Bytes(snapshotBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Exec(`INSERT INTO verification_runs (
+	for _, verificationRun := range binding.VerificationRuns {
+		cellID := "cell.g4-v6.pg." + verificationRun.Surface
+		evidenceID := "evidence.g4-v6.vector.support." + verificationRun.Surface
+		if verificationRun.Surface == "preview" {
+			evidenceID = closure.EvidenceRefs[0].EvidenceID
+		}
+		snapshotBase := map[string]any{
+			"runId": verificationRun.VerificationRunID, "workspaceId": "workspace.catalog",
+			"workspaceRevision": workspaceRevision, "planDigest": binding.ActualPlanDigest,
+			"surface": verificationRun.Surface, "scope": "required", "providerId": "verification.g4-v6.pg",
+			"origin": "cli", "status": map[bool]string{true: "completed", false: "failed"}[closure.Verdict == "satisfied"],
+			"cursor": 1, "createdAt": createdAt.Format("2006-01-02T15:04:05.000Z"),
+			"updatedAt":       closure.EvaluatedAt.Format("2006-01-02T15:04:05.000Z"),
+			"selectedCellIds": []any{cellID},
+			"cells": []any{map[string]any{
+				"cellId": cellID, "attemptId": "attempt.g4-v6.pg." + verificationRun.Surface,
+				"status":          map[bool]string{true: "passed", false: "failed"}[closure.Verdict == "satisfied"],
+				"lastEventCursor": 1, "evidenceId": evidenceID,
+			}},
+			"closureDigest": closure.ClosureDigest, "closureVerdict": closure.Verdict,
+		}
+		snapshotDigest, err := canonicaljson.Digest(snapshotBase)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if snapshotDigest != closureRuns[verificationRun.VerificationRunID].SnapshotDigest {
+			t.Fatalf("seeded %s VerificationRun snapshot digest drifted from Closure ref", verificationRun.Surface)
+		}
+		snapshotBase["snapshotDigest"] = snapshotDigest
+		snapshotBytes, err := canonicaljson.Bytes(snapshotBase)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := database.Exec(`INSERT INTO verification_runs (
 		workspace_id, id, actor_id, workspace_revision, plan_digest, surface, scope,
 		provider_id, origin, status, cursor, snapshot_digest, snapshot_json, snapshot_bytes,
 		created_at, updated_at
-	) VALUES ($1, $2, $3, $4, $5, 'preview', 'required', $6, 'cli', $7, 1, $8, $9::jsonb, $10, $11, $12)
+	) VALUES ($1, $2, $3, $4, $5, $6, 'required', $7, 'cli', $8, 1, $9, $10::jsonb, $11, $12, $13)
 	ON CONFLICT (workspace_id, id) DO UPDATE SET
 		status = EXCLUDED.status,
 		cursor = EXCLUDED.cursor,
@@ -175,11 +189,13 @@ func seedVerificationRunAndEvidence(
 		snapshot_json = EXCLUDED.snapshot_json,
 		snapshot_bytes = EXCLUDED.snapshot_bytes,
 		updated_at = EXCLUDED.updated_at`,
-		"workspace.catalog", binding.VerificationRunID, binding.ProducerID, workspaceRevision,
-		binding.ActualPlanDigest, "verification.g4-v6.pg", snapshotBase["status"], snapshotDigest,
-		string(snapshotBytes), snapshotBytes, createdAt, closure.EvaluatedAt,
-	); err != nil {
-		t.Fatalf("seed G3 VerificationRun: %v", err)
+			"workspace.catalog", verificationRun.VerificationRunID, binding.ProducerID, workspaceRevision,
+			binding.ActualPlanDigest, verificationRun.Surface, "verification.g4-v6.pg",
+			snapshotBase["status"], snapshotDigest, string(snapshotBytes), snapshotBytes,
+			createdAt, closure.EvaluatedAt,
+		); err != nil {
+			t.Fatalf("seed G3 %s VerificationRun: %v", verificationRun.Surface, err)
+		}
 	}
 	for index, ref := range closure.EvidenceRefs {
 		manifest := map[string]any{"format": "prodivix.test-evidence", "id": ref.EvidenceID, "manifestDigest": ref.ManifestDigest}
@@ -195,7 +211,7 @@ func seedVerificationRunAndEvidence(
 		) VALUES ($1, 'workspace.catalog', 'project.catalog', $2, 1, $3, $4, $5, $6, $7, $8,
 			'local-unattested', 'change', $9, $10::jsonb, $11, $12, $13)`,
 			ref.EvidenceID, workspaceRevision, binding.ActualPlanDigest, binding.ImpactDigest,
-			"cell.g4-v6.pg", "check.g4-v6.pg", fmtIdentity("attempt.g4-v6.pg."+ref.Outcome, index), ref.Outcome,
+			"cell.g4-v6.pg.preview", "check.g4-v6.pg", fmtIdentity("attempt.g4-v6.pg."+ref.Outcome, index), ref.Outcome,
 			ref.ManifestDigest, string(manifestBytes), manifestBytes, binding.ProducerID, closure.EvaluatedAt,
 		); err != nil {
 			t.Fatalf("seed promoted Verification Evidence: %v", err)

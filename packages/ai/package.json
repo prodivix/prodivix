@@ -32,6 +32,9 @@
     "test:g4-v5-proposal-approval": "pnpm run typecheck && vitest --config vitest.config.ts --run src/proposal/agentProposalApproval.test.ts",
     "test:g4-v6-verification": "pnpm run typecheck && vitest --config vitest.config.ts --run src/verification/agentVerification.test.ts",
     "test:g4-v7-product": "pnpm run typecheck && vitest --config vitest.config.ts --run src/product/agentProduct.test.ts",
+    "test:g4-v8-security": "pnpm run typecheck && vitest --config vitest.config.ts --run src/security/agentSecurity.test.ts src/providers/agentNativeProviderAdapters.conformance.test.ts",
+    "test:g4-v8-model-eval": "pnpm run typecheck && vitest --config vitest.config.ts --run src/evaluation/agentEvaluationPlan.test.ts src/evaluation/agentEvaluationResults.test.ts src/evaluation/agentEvaluationRunner.test.ts src/evaluation/agentEvaluationCodec.test.ts",
+    "test:g4-v9-closure": "pnpm run typecheck && vitest --config vitest.config.ts --run src/closure/agentG4Closure.test.ts",
     "typecheck": "tsc -b tsconfig.test.json --pretty false"
   },
   "dependencies": {

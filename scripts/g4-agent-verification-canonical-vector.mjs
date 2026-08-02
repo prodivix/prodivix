@@ -19,6 +19,8 @@ const approval = proposalVector.facts.approval.value;
 const commit = proposalVector.facts.commitAcknowledged.value;
 const revision = commit.targetRevision;
 const producer = commit.producer;
+const verificationSurfaces = Object.freeze(['ci', 'export', 'preview']);
+const verificationCellId = (surface) => `cell.g4-v6.pg.${surface}`;
 
 const binding = createAgentCommittedVerificationPlanBinding({
   bindingId: 'binding.g4-v6.vector.commit',
@@ -29,7 +31,15 @@ const binding = createAgentCommittedVerificationPlanBinding({
   decisionId: approval.decisionId,
   mutationReceiptId: commit.receiptId,
   mutationKind: 'commit',
-  verificationRunId: 'verification-run.g4-v6.vector',
+  verificationRuns: verificationSurfaces.map((surface) =>
+    Object.freeze({
+      verificationRunId: `verification-run.g4-v6.vector.${surface}`,
+      surface,
+      selectedCellSetDigest: digestAgentCanonicalValue([
+        verificationCellId(surface),
+      ]),
+    })
+  ),
   targetRevision: revision,
   approvedPlanDigest: planning.verificationPlanDigest,
   actualPlanDigest: planning.verificationPlanDigest,
@@ -48,39 +58,104 @@ const failedEvidence = Object.freeze({
   manifestDigest: digest('evidence.failed'),
   outcome: 'failed',
 });
+const verificationRunSnapshotDigest = ({
+  verificationRun,
+  evidenceId,
+  closureDigest,
+  verdict,
+  evaluatedAt,
+}) => {
+  const promotedEvidenceId =
+    verificationRun.surface === 'preview'
+      ? evidenceId
+      : `evidence.g4-v6.vector.support.${verificationRun.surface}`;
+  return digestAgentCanonicalValue({
+    runId: verificationRun.verificationRunId,
+    workspaceId: 'workspace.catalog',
+    workspaceRevision: revision.workspaceRev,
+    planDigest: binding.actualPlanDigest,
+    surface: verificationRun.surface,
+    scope: 'required',
+    providerId: 'verification.g4-v6.pg',
+    origin: 'cli',
+    status: verdict === 'satisfied' ? 'completed' : 'failed',
+    cursor: 1,
+    createdAt: '2026-08-02T02:00:00.000Z',
+    updatedAt: evaluatedAt,
+    selectedCellIds: [verificationCellId(verificationRun.surface)],
+    cells: [
+      {
+        cellId: verificationCellId(verificationRun.surface),
+        attemptId: `attempt.g4-v6.pg.${verificationRun.surface}`,
+        status: verdict === 'satisfied' ? 'passed' : 'failed',
+        lastEventCursor: 1,
+        evidenceId: promotedEvidenceId,
+      },
+    ],
+    closureDigest,
+    closureVerdict: verdict,
+  });
+};
+const failedClosureDigest = digest('closure.unsatisfied');
+const failedEvaluatedAt = '2026-08-02T02:01:00.000Z';
 const closure = createAgentVerificationClosureReceipt({
   receiptId: 'receipt.g4-v6.vector.closure',
   bindingId: binding.bindingId,
   taskId: binding.taskId,
   runId: binding.runId,
-  verificationRunId: binding.verificationRunId,
+  verificationRuns: binding.verificationRuns.map((run) =>
+    Object.freeze({
+      ...run,
+      snapshotDigest: verificationRunSnapshotDigest({
+        verificationRun: run,
+        evidenceId: failedEvidence.evidenceId,
+        closureDigest: failedClosureDigest,
+        verdict: 'unsatisfied',
+        evaluatedAt: failedEvaluatedAt,
+      }),
+    })
+  ),
   targetRevision: revision,
   planDigest: binding.actualPlanDigest,
   evidenceRefs: Object.freeze([failedEvidence]),
   evidenceSetDigest: digest('evidence-set'),
   verifiedEvidenceViewDigest: digest('verified-view'),
-  closureDigest: digest('closure.unsatisfied'),
+  closureDigest: failedClosureDigest,
   verdict: 'unsatisfied',
   producer,
-  evaluatedAt: '2026-08-02T02:01:00.000Z',
+  evaluatedAt: failedEvaluatedAt,
 });
 const passedEvidence = Object.freeze({
   evidenceId: 'evidence.g4-v6.vector.passed',
   manifestDigest: digest('evidence.passed'),
   outcome: 'passed',
 });
+const satisfiedClosureDigest = digest('closure.satisfied');
+const satisfiedEvaluatedAt = '2026-08-02T02:01:30.000Z';
 const satisfiedClosure = createAgentVerificationClosureReceipt({
   ...(() => {
     const { receiptDigest: _receiptDigest, ...base } = closure;
     return base;
   })(),
   receiptId: 'receipt.g4-v6.vector.closure.satisfied',
+  verificationRuns: binding.verificationRuns.map((run) =>
+    Object.freeze({
+      ...run,
+      snapshotDigest: verificationRunSnapshotDigest({
+        verificationRun: run,
+        evidenceId: passedEvidence.evidenceId,
+        closureDigest: satisfiedClosureDigest,
+        verdict: 'satisfied',
+        evaluatedAt: satisfiedEvaluatedAt,
+      }),
+    })
+  ),
   evidenceRefs: Object.freeze([passedEvidence]),
   evidenceSetDigest: digest('evidence-set.satisfied'),
   verifiedEvidenceViewDigest: digest('verified-view.satisfied'),
-  closureDigest: digest('closure.satisfied'),
+  closureDigest: satisfiedClosureDigest,
   verdict: 'satisfied',
-  evaluatedAt: '2026-08-02T02:01:30.000Z',
+  evaluatedAt: satisfiedEvaluatedAt,
 });
 
 const verifyingControl = proposalVector.controlFacts.sequence.at(-1).run.value;

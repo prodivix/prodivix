@@ -729,12 +729,20 @@ const validateVerificationLedger = (ledger: AgentProductLedger): void => {
     }
   }
   for (const closure of ledger.verificationClosures) {
+    const binding = ledger.verificationBindings.find(
+      ({ bindingId }) => bindingId === closure.bindingId
+    );
     if (
       !isAgentVerificationClosureReceipt(closure) ||
       closure.taskId !== ledger.task.spec.taskId ||
       closure.runId !== ledger.run.run.runId ||
-      !ledger.verificationBindings.some(
-        ({ bindingId }) => bindingId === closure.bindingId
+      !binding ||
+      !sameCanonicalJson(
+        binding.verificationRuns,
+        closure.verificationRuns.map(
+          ({ snapshotDigest: _snapshotDigest, ...verificationRun }) =>
+            verificationRun
+        )
       )
     ) {
       throw new TypeError('Agent product Closure receipt is invalid.');

@@ -33,6 +33,8 @@ import {
   type VerificationEvidencePromotionCoordinator,
   type VerificationEvidenceSourceTrace,
   type VerificationEvidenceVerifiedView,
+  type EvaluateVerificationClosureInput,
+  type VerificationPlan,
   type VerificationPlanCell,
 } from '@prodivix/verification';
 import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
@@ -53,10 +55,22 @@ import {
 } from './goldenG3V8PlanFixture';
 
 const PROJECT_ID = 'project:g3-v8-authenticated-catalog';
-const PROMOTION_INSTANT = '2026-07-28T00:04:00.000Z';
-const CLOSURE_INSTANT = '2026-07-28T00:05:00.000Z';
-const PROMOTION_DEADLINE = '2026-07-28T00:10:00.000Z';
-const EVIDENCE_EXPIRY = '2026-07-29T00:00:00.000Z';
+export type GoldenG3V8ExecutionClock = Readonly<{
+  attemptBase: string;
+  promotionInstant: string;
+  closureInstant: string;
+  promotionDeadline: string;
+  evidenceExpiry: string;
+}>;
+
+export const GOLDEN_G3_V8_DEFAULT_CLOCK: GoldenG3V8ExecutionClock =
+  Object.freeze({
+    attemptBase: '2026-07-28T00:01:00.000Z',
+    promotionInstant: '2026-07-28T00:04:00.000Z',
+    closureInstant: '2026-07-28T00:05:00.000Z',
+    promotionDeadline: '2026-07-28T00:10:00.000Z',
+    evidenceExpiry: '2026-07-29T00:00:00.000Z',
+  });
 const ATTESTATION_LIFETIME_MS = 5 * 60_000;
 
 const CI_IDENTITY = Object.freeze({
@@ -65,13 +79,14 @@ const CI_IDENTITY = Object.freeze({
   commit: `sha1-${'8'.repeat(40)}`,
 });
 
-const ATTESTATION_IDENTITY = Object.freeze({
-  issuer: 'https://attestation.prodivix.example.test',
-  audience: 'prodivix-g3-v8-verification',
-  policyGeneration: 1,
-  verificationInstant: PROMOTION_INSTANT,
-  maximumLifetimeMs: ATTESTATION_LIFETIME_MS,
-});
+const attestationIdentity = (clock: GoldenG3V8ExecutionClock) =>
+  Object.freeze({
+    issuer: 'https://attestation.prodivix.example.test',
+    audience: 'prodivix-g3-v8-verification',
+    policyGeneration: 1,
+    verificationInstant: clock.promotionInstant,
+    maximumLifetimeMs: ATTESTATION_LIFETIME_MS,
+  });
 
 const TEST_ATTESTATION_SEED = createHash('sha256')
   .update('prodivix-g3-v8-local-contract-attestor')
@@ -347,9 +362,10 @@ const staticAttempt = (
   });
 
 const selectClosureAttempts = (
-  matrix: GoldenG3V6ControlledAdapterMatrixEvidence
+  matrix: GoldenG3V6ControlledAdapterMatrixEvidence,
+  plan: VerificationPlan
 ): readonly GoldenG3V8SelectedAttempt[] => {
-  const selected = GOLDEN_G3_V8_PLAN.cells
+  const selected = plan.cells
     .filter(({ requirement }) => requirement === 'required')
     .map((cell) => {
       if (cell.browserEngine === undefined) {
@@ -391,9 +407,13 @@ const selectClosureAttempts = (
   return Object.freeze(selected);
 };
 
-const instant = (attemptIndex: number, offsetSeconds: number): string =>
+const instant = (
+  clock: GoldenG3V8ExecutionClock,
+  attemptIndex: number,
+  offsetSeconds: number
+): string =>
   new Date(
-    Date.UTC(2026, 6, 28, 0, 1, attemptIndex + offsetSeconds)
+    Date.parse(clock.attemptBase) + (attemptIndex + offsetSeconds) * 1_000
   ).toISOString();
 
 const scenarioForCell = (
@@ -518,6 +538,8 @@ const dependencyLockDigest = (
 
 const normalizeAttempt = (
   matrix: GoldenG3V6ControlledAdapterMatrixEvidence,
+  plan: VerificationPlan,
+  clock: GoldenG3V8ExecutionClock,
   attempt: GoldenG3V8SelectedAttempt,
   attemptIndex: number,
   variant: GoldenG3V8ReportVariant = 'passed'
@@ -527,7 +549,7 @@ const normalizeAttempt = (
   const ci = attempt.cell.surface !== 'preview';
   const normalized = normalizeVerificationCheckReport({
     projectId: PROJECT_ID,
-    plan: GOLDEN_G3_V8_PLAN,
+    plan,
     adapterRegistry,
     cellId: attempt.cell.id,
     context: Object.freeze({
@@ -558,8 +580,8 @@ const normalizeAttempt = (
       }),
     }),
     timing: Object.freeze({
-      startedAt: instant(attemptIndex, 0),
-      completedAt: instant(attemptIndex, 1),
+      startedAt: instant(clock, attemptIndex, 0),
+      completedAt: instant(clock, attemptIndex, 1),
       durationMs: 1_000,
     }),
     artifacts: Object.freeze(
@@ -581,16 +603,16 @@ const normalizeAttempt = (
           origin: 'ci' as const,
           producerId: 'producer:g3-v8-ci',
           providerId: attempt.providerId,
-          issuedAt: instant(attemptIndex, 2),
-          expiresAt: EVIDENCE_EXPIRY,
+          issuedAt: instant(clock, attemptIndex, 2),
+          expiresAt: clock.evidenceExpiry,
           ci: CI_IDENTITY,
         })
       : Object.freeze({
           origin: 'remote' as const,
           producerId: 'producer:g3-v8-remote-preview',
           providerId: attempt.providerId,
-          issuedAt: instant(attemptIndex, 2),
-          expiresAt: EVIDENCE_EXPIRY,
+          issuedAt: instant(clock, attemptIndex, 2),
+          expiresAt: clock.evidenceExpiry,
         }),
     redaction: Object.freeze({
       policyId: 'redaction:g3-v8',
@@ -602,7 +624,7 @@ const normalizeAttempt = (
     }),
     promotion: Object.freeze({
       idempotencyKey: `promotion:g3-v8:${candidateAttemptId}`,
-      deadline: PROMOTION_DEADLINE,
+      deadline: clock.promotionDeadline,
     }),
   });
   if (normalized.status !== 'ready') {
@@ -665,7 +687,8 @@ const attestationVerifier: VerificationEvidenceAttestationVerifier =
   });
 
 const createAttestation = (
-  candidate: VerificationEvidenceCandidate
+  candidate: VerificationEvidenceCandidate,
+  clock: GoldenG3V8ExecutionClock
 ): VerificationEvidencePromotionAttestation => {
   if (
     candidate.provenance.origin !== 'remote' &&
@@ -678,7 +701,7 @@ const createAttestation = (
     {
       candidate,
       evidenceId: `evidence:${candidate.attemptId}`,
-      createdAt: PROMOTION_INSTANT,
+      createdAt: clock.promotionInstant,
       artifacts,
     },
     artifacts
@@ -694,15 +717,15 @@ const createAttestation = (
         candidate.provenance.origin === 'ci'
           ? 'ci-attested'
           : 'remote-attested',
-      ...ATTESTATION_IDENTITY,
+      ...attestationIdentity(clock),
       subject,
       nonce,
       statement,
     },
-    issuedAt: PROMOTION_INSTANT,
-    notBefore: PROMOTION_INSTANT,
+    issuedAt: clock.promotionInstant,
+    notBefore: clock.promotionInstant,
     expiresAt: new Date(
-      Date.parse(PROMOTION_INSTANT) + 4 * 60_000
+      Date.parse(clock.promotionInstant) + 4 * 60_000
     ).toISOString(),
   });
   const {
@@ -712,7 +735,7 @@ const createAttestation = (
     ...presentation
   } = claimSet;
   return Object.freeze({
-    ...ATTESTATION_IDENTITY,
+    ...attestationIdentity(clock),
     subject,
     nonce,
     proof: Uint8Array.from(
@@ -725,34 +748,36 @@ const createAttestation = (
   });
 };
 
-const createPromotionCoordinator =
-  (): VerificationEvidencePromotionCoordinator => {
-    const repository = createInMemoryVerificationEvidenceRepository({
-      now: () => PROMOTION_INSTANT,
-      allocatePromotionId: ({ attemptId }) => `promotion:${attemptId}`,
-      allocateEvidenceId: ({ attemptId }) => `evidence:${attemptId}`,
-    });
-    return createVerificationEvidencePromotionCoordinator({
-      repository,
-      artifactPromotion: Object.freeze({
-        async promoteCandidateArtifacts(candidate) {
-          return Object.freeze({
-            status: 'accepted' as const,
-            artifacts: promotedArtifacts(candidate),
-          });
-        },
-      }),
-      attestationVerifier,
-    });
-  };
+const createPromotionCoordinator = (
+  clock: GoldenG3V8ExecutionClock
+): VerificationEvidencePromotionCoordinator => {
+  const repository = createInMemoryVerificationEvidenceRepository({
+    now: () => clock.promotionInstant,
+    allocatePromotionId: ({ attemptId }) => `promotion:${attemptId}`,
+    allocateEvidenceId: ({ attemptId }) => `evidence:${attemptId}`,
+  });
+  return createVerificationEvidencePromotionCoordinator({
+    repository,
+    artifactPromotion: Object.freeze({
+      async promoteCandidateArtifacts(candidate) {
+        return Object.freeze({
+          status: 'accepted' as const,
+          artifacts: promotedArtifacts(candidate),
+        });
+      },
+    }),
+    attestationVerifier,
+  });
+};
 
 const promoteCandidate = async (
   coordinator: VerificationEvidencePromotionCoordinator,
-  candidate: VerificationEvidenceCandidate
+  candidate: VerificationEvidenceCandidate,
+  clock: GoldenG3V8ExecutionClock
 ): Promise<VerificationEvidence> => {
   const promoted = await coordinator.promote({
     candidate,
-    attestation: createAttestation(candidate),
+    attestation: createAttestation(candidate, clock),
   });
   if (promoted.status !== 'completed') {
     throw new Error(
@@ -770,7 +795,8 @@ export type GoldenG3V8ViewOverride = Readonly<{
 
 export const createGoldenG3V8VerifiedView = (
   evidence: readonly VerificationEvidence[],
-  overrides: readonly GoldenG3V8ViewOverride[] = []
+  overrides: readonly GoldenG3V8ViewOverride[] = [],
+  clock: GoldenG3V8ExecutionClock = GOLDEN_G3_V8_DEFAULT_CLOCK
 ): Readonly<{
   view: VerificationEvidenceVerifiedView;
   revokedEvidenceIds: readonly string[];
@@ -787,12 +813,12 @@ export const createGoldenG3V8VerifiedView = (
   const revocationRecordDigest = digestVerificationValue({
     format: 'prodivix.golden-g3-v8-revocation-view',
     version: 1,
-    closureEvaluationInstant: CLOSURE_INSTANT,
+    closureEvaluationInstant: clock.closureInstant,
     revokedEvidenceIds,
   });
   return Object.freeze({
     view: createVerificationEvidenceVerifiedView({
-      closureEvaluationInstant: CLOSURE_INSTANT,
+      closureEvaluationInstant: clock.closureInstant,
       revocationRecordDigest,
       records: evidence.map((candidate) => {
         const override = overrideById.get(candidate.id);
@@ -830,41 +856,49 @@ export const createGoldenG3V8VerifiedView = (
   });
 };
 
-export const evaluateGoldenG3V8Closure = (
+export const createGoldenG3V8ClosureInput = (
   evidence: readonly VerificationEvidence[],
-  verified: ReturnType<typeof createGoldenG3V8VerifiedView>
-) =>
-  evaluateVerificationClosure({
-    plan: GOLDEN_G3_V8_PLAN,
+  verified: ReturnType<typeof createGoldenG3V8VerifiedView>,
+  plan: VerificationPlan = GOLDEN_G3_V8_PLAN
+): EvaluateVerificationClosureInput =>
+  Object.freeze({
+    plan,
     evidence,
     verifiedEvidenceView: verified.view,
     closureEvaluationInstant: verified.view.closureEvaluationInstant,
-    targetRevision: GOLDEN_G3_V8_PLAN.targetRevision,
-    targetPartitionRevisions: GOLDEN_G3_V8_PLAN.targetPartitionRevisions,
-    scenarioRegistryDigest: GOLDEN_G3_V8_PLAN.scenarioRegistryDigest,
-    semanticSchemaDigest: GOLDEN_G3_V8_PLAN.semanticSchemaDigest,
-    providerSetDigest: GOLDEN_G3_V8_PLAN.providerSetDigest,
-    adapterRegistryDigest: GOLDEN_G3_V8_PLAN.adapterRegistryDigest,
-    impactDigest: GOLDEN_G3_V8_PLAN.impactDigest,
-    policyRevision: GOLDEN_G3_V8_PLAN.policyRevision,
-    policyDigest: GOLDEN_G3_V8_PLAN.policyDigest,
-    compilerDigest: GOLDEN_G3_V8_PLAN.compilerDigest,
-    plannerDigest: GOLDEN_G3_V8_PLAN.plannerDigest,
+    targetRevision: plan.targetRevision,
+    targetPartitionRevisions: plan.targetPartitionRevisions,
+    scenarioRegistryDigest: plan.scenarioRegistryDigest,
+    semanticSchemaDigest: plan.semanticSchemaDigest,
+    providerSetDigest: plan.providerSetDigest,
+    adapterRegistryDigest: plan.adapterRegistryDigest,
+    impactDigest: plan.impactDigest,
+    policyRevision: plan.policyRevision,
+    policyDigest: plan.policyDigest,
+    compilerDigest: plan.compilerDigest,
+    plannerDigest: plan.plannerDigest,
     baselineSetDigests: uniqueVerificationText(
-      GOLDEN_G3_V8_PLAN.cells.flatMap((cell) =>
+      plan.cells.flatMap((cell) =>
         cell.baselineSetRef?.digest ? [cell.baselineSetRef.digest] : []
       )
     ),
     toolchainSetDigest: digestVerificationValue(
       uniqueVerificationText(
-        GOLDEN_G3_V8_PLAN.cells.map(
-          ({ adapter: identity }) => identity.toolchainDigest
-        )
+        plan.cells.map(({ adapter: identity }) => identity.toolchainDigest)
       )
     ),
     revocationRecordDigest: verified.view.revocationRecordDigest,
     revokedEvidenceIds: verified.revokedEvidenceIds,
   });
+
+export const evaluateGoldenG3V8Closure = (
+  evidence: readonly VerificationEvidence[],
+  verified: ReturnType<typeof createGoldenG3V8VerifiedView>,
+  plan: VerificationPlan = GOLDEN_G3_V8_PLAN
+) =>
+  evaluateVerificationClosure(
+    createGoldenG3V8ClosureInput(evidence, verified, plan)
+  );
 
 const requiredGithubEnvironment = (name: string): string => {
   const value = process.env[name]?.trim();
@@ -891,8 +925,8 @@ const createClosureExecutionIdentity = (
     completedAt,
     attestationAuthority: Object.freeze({
       mode: 'deterministic-test-only' as const,
-      issuer: ATTESTATION_IDENTITY.issuer,
-      audience: ATTESTATION_IDENTITY.audience,
+      issuer: 'https://attestation.prodivix.example.test',
+      audience: 'prodivix-g3-v8-verification',
       keyId: 'golden-g3-v8-test-key' as const,
       verifierId: 'golden-g3-v8-test-verifier' as const,
       verifierVersion: '1.0.0' as const,
@@ -955,6 +989,7 @@ const createClosureExecutionIdentity = (
 };
 
 const createClosureCellRecords = (input: {
+  plan: VerificationPlan;
   attempts: readonly GoldenG3V8SelectedAttempt[];
   evidence: readonly VerificationEvidence[];
   verifiedView: VerificationEvidenceVerifiedView;
@@ -980,7 +1015,7 @@ const createClosureCellRecords = (input: {
       'Golden G3 V8 Closure manifest requires 66 unique cell records.'
     );
   }
-  const records = GOLDEN_G3_V8_PLAN.cells.map((cell) => {
+  const records = input.plan.cells.map((cell) => {
     const attempt = attemptByCell.get(cell.id);
     const evidence = evidenceByCell.get(cell.id);
     const verified = evidence ? verifiedByEvidence.get(evidence.id) : undefined;
@@ -1114,6 +1149,8 @@ const createClosureCellRecords = (input: {
 };
 
 const createClosureManifest = (input: {
+  plan: VerificationPlan;
+  lockedPlanDigest: string;
   matrix: GoldenG3V6ControlledAdapterMatrixEvidence;
   attempts: readonly GoldenG3V8SelectedAttempt[];
   evidence: readonly VerificationEvidence[];
@@ -1144,19 +1181,19 @@ const createClosureManifest = (input: {
     targetId: 'authenticated-catalog' as const,
     execution: input.execution,
     planIdentity: Object.freeze({
-      workspaceId: GOLDEN_G3_V8_PLAN.workspaceId,
-      targetRevision: GOLDEN_G3_V8_PLAN.targetRevision,
-      targetPartitionRevisions: GOLDEN_G3_V8_PLAN.targetPartitionRevisions,
-      scenarioRegistryDigest: GOLDEN_G3_V8_PLAN.scenarioRegistryDigest,
-      semanticSchemaDigest: GOLDEN_G3_V8_PLAN.semanticSchemaDigest,
-      providerSetDigest: GOLDEN_G3_V8_PLAN.providerSetDigest,
-      adapterRegistryDigest: GOLDEN_G3_V8_PLAN.adapterRegistryDigest,
-      impactDigest: GOLDEN_G3_V8_PLAN.impactDigest,
-      policyRevision: GOLDEN_G3_V8_PLAN.policyRevision,
-      policyDigest: GOLDEN_G3_V8_PLAN.policyDigest,
-      policyEvaluationInstant: GOLDEN_G3_V8_PLAN.policyEvaluationInstant,
-      compilerDigest: GOLDEN_G3_V8_PLAN.compilerDigest,
-      plannerDigest: GOLDEN_G3_V8_PLAN.plannerDigest,
+      workspaceId: input.plan.workspaceId,
+      targetRevision: input.plan.targetRevision,
+      targetPartitionRevisions: input.plan.targetPartitionRevisions,
+      scenarioRegistryDigest: input.plan.scenarioRegistryDigest,
+      semanticSchemaDigest: input.plan.semanticSchemaDigest,
+      providerSetDigest: input.plan.providerSetDigest,
+      adapterRegistryDigest: input.plan.adapterRegistryDigest,
+      impactDigest: input.plan.impactDigest,
+      policyRevision: input.plan.policyRevision,
+      policyDigest: input.plan.policyDigest,
+      policyEvaluationInstant: input.plan.policyEvaluationInstant,
+      compilerDigest: input.plan.compilerDigest,
+      plannerDigest: input.plan.plannerDigest,
     }),
     closureIdentity: Object.freeze({
       workspaceId: input.closure.workspaceId,
@@ -1180,9 +1217,9 @@ const createClosureManifest = (input: {
       evidenceDigests: input.closure.evidenceDigests,
       appliedExemptionIds: input.closure.appliedExemptionIds,
     }),
-    planDigest: GOLDEN_G3_V8_PLAN.planDigest,
-    lockedPlanDigest: GOLDEN_G3_V8_LOCKED_PLAN_DIGEST,
-    policyDigest: GOLDEN_G3_V8_PLAN.policyDigest,
+    planDigest: input.plan.planDigest,
+    lockedPlanDigest: input.lockedPlanDigest,
+    policyDigest: input.plan.policyDigest,
     matrixEvidenceDigest: input.matrix.evidenceDigest,
     canonicalAttemptManifestDigest: input.matrix.attemptManifest.manifestDigest,
     controlledDimensionManifestDigest:
@@ -1228,84 +1265,102 @@ const createClosureManifest = (input: {
   });
 };
 
-export const executeGoldenG3V8Closure =
-  async (): Promise<GoldenG3V8ClosureHarness> => {
-    const executionStartedAt = new Date().toISOString();
-    const matrix =
-      await executeGoldenG3V6ControlledAdapterMatrix(GOLDEN_G3_V8_PLAN);
-    const attempts = selectClosureAttempts(matrix);
-    const candidates = Object.freeze(
-      attempts.map((attempt, index) => normalizeAttempt(matrix, attempt, index))
-    );
-    const negativeAttempt = attempts.find(
-      ({ cell }) =>
-        cell.surface === 'ci' &&
-        cell.frameworkTarget === 'react-vite' &&
-        cell.browserEngine === 'chromium' &&
-        cell.checkKind === 'e2e' &&
-        cell.motion === 'full'
-    );
-    if (!negativeAttempt) {
-      throw new Error('Golden G3 V8 negative Closure cell is missing.');
-    }
-    const failedCandidate = normalizeAttempt(
-      matrix,
-      negativeAttempt,
-      100,
-      'failed'
-    );
-    const blockedCandidate = normalizeAttempt(
-      matrix,
-      negativeAttempt,
-      101,
-      'blocked'
-    );
-    const coordinator = createPromotionCoordinator();
-    const evidence = Object.freeze(
-      await Promise.all(
-        candidates.map((candidate) => promoteCandidate(coordinator, candidate))
+export const executeGoldenG3V8Closure = async (
+  options: Readonly<{
+    plan?: VerificationPlan;
+    lockedPlanDigest?: string;
+    clock?: GoldenG3V8ExecutionClock;
+  }> = {}
+): Promise<GoldenG3V8ClosureHarness> => {
+  const plan = options.plan ?? GOLDEN_G3_V8_PLAN;
+  const clock = options.clock ?? GOLDEN_G3_V8_DEFAULT_CLOCK;
+  const lockedPlanDigest =
+    options.lockedPlanDigest ?? GOLDEN_G3_V8_LOCKED_PLAN_DIGEST;
+  const executionStartedAt = new Date().toISOString();
+  const matrix = await executeGoldenG3V6ControlledAdapterMatrix(plan);
+  const attempts = selectClosureAttempts(matrix, plan);
+  const candidates = Object.freeze(
+    attempts.map((attempt, index) =>
+      normalizeAttempt(matrix, plan, clock, attempt, index)
+    )
+  );
+  const negativeAttempt = attempts.find(
+    ({ cell }) =>
+      cell.surface === 'ci' &&
+      cell.frameworkTarget === 'react-vite' &&
+      cell.browserEngine === 'chromium' &&
+      cell.checkKind === 'e2e' &&
+      cell.motion === 'full'
+  );
+  if (!negativeAttempt) {
+    throw new Error('Golden G3 V8 negative Closure cell is missing.');
+  }
+  const failedCandidate = normalizeAttempt(
+    matrix,
+    plan,
+    clock,
+    negativeAttempt,
+    100,
+    'failed'
+  );
+  const blockedCandidate = normalizeAttempt(
+    matrix,
+    plan,
+    clock,
+    negativeAttempt,
+    101,
+    'blocked'
+  );
+  const coordinator = createPromotionCoordinator(clock);
+  const evidence = Object.freeze(
+    await Promise.all(
+      candidates.map((candidate) =>
+        promoteCandidate(coordinator, candidate, clock)
       )
+    )
+  );
+  const [failedEvidence, blockedEvidence] = await Promise.all([
+    promoteCandidate(coordinator, failedCandidate, clock),
+    promoteCandidate(coordinator, blockedCandidate, clock),
+  ]);
+  const verified = createGoldenG3V8VerifiedView(evidence, [], clock);
+  const closureResult = evaluateGoldenG3V8Closure(evidence, verified, plan);
+  if (closureResult.status !== 'ready') {
+    throw new Error(
+      `Golden G3 V8 Closure is invalid: ${closureResult.message}`
     );
-    const [failedEvidence, blockedEvidence] = await Promise.all([
-      promoteCandidate(coordinator, failedCandidate),
-      promoteCandidate(coordinator, blockedCandidate),
-    ]);
-    const verified = createGoldenG3V8VerifiedView(evidence);
-    const closureResult = evaluateGoldenG3V8Closure(evidence, verified);
-    if (closureResult.status !== 'ready') {
-      throw new Error(
-        `Golden G3 V8 Closure is invalid: ${closureResult.message}`
-      );
-    }
-    const closure = closureResult.closure;
-    if (closure.verdict !== 'satisfied') {
-      throw new Error(
-        `Golden G3 V8 Closure did not pass: ${JSON.stringify(closure.issues)}`
-      );
-    }
-    const manifest = createClosureManifest({
-      matrix,
-      attempts,
-      evidence,
-      verifiedView: verified.view,
-      closure,
-      execution: createClosureExecutionIdentity(
-        executionStartedAt,
-        new Date().toISOString()
-      ),
-    });
-    return Object.freeze({
-      matrix,
-      attempts,
-      candidates,
-      evidence,
-      verifiedView: verified.view,
-      closure,
-      manifest,
-      negativeEvidence: Object.freeze({
-        cellId: negativeAttempt.cell.id,
-        failed: failedEvidence,
-        blocked: blockedEvidence,
-      }),
-    });
-  };
+  }
+  const closure = closureResult.closure;
+  if (closure.verdict !== 'satisfied') {
+    throw new Error(
+      `Golden G3 V8 Closure did not pass: ${JSON.stringify(closure.issues)}`
+    );
+  }
+  const manifest = createClosureManifest({
+    plan,
+    lockedPlanDigest,
+    matrix,
+    attempts,
+    evidence,
+    verifiedView: verified.view,
+    closure,
+    execution: createClosureExecutionIdentity(
+      executionStartedAt,
+      new Date().toISOString()
+    ),
+  });
+  return Object.freeze({
+    matrix,
+    attempts,
+    candidates,
+    evidence,
+    verifiedView: verified.view,
+    closure,
+    manifest,
+    negativeEvidence: Object.freeze({
+      cellId: negativeAttempt.cell.id,
+      failed: failedEvidence,
+      blocked: blockedEvidence,
+    }),
+  });
+};

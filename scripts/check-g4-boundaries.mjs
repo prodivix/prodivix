@@ -133,6 +133,10 @@ const ownerTypes = [
   'AgentRepairCounterexampleSet',
   'AgentRepairRoundReceipt',
   'AgentAuditEvent',
+  'AgentModelEvaluationPlan',
+  'AgentModelEvaluationAttempt',
+  'AgentModelEvaluationManifest',
+  'AgentG4GoldenClosureManifest',
 ];
 const declarationPattern = new RegExp(
   `^(?:export\\s+)?(?:type|interface|class)\\s+(${ownerTypes.join('|')})\\b|^type\\s+(${ownerTypes.join('|')})\\s+struct\\b`,
@@ -371,7 +375,9 @@ for (const { path, source } of v3HostedSources) {
     /\blocalStorage\b/u,
   ]) {
     if (pattern.test(source)) {
-      issues.push(`${path} crosses the G4 V3 transport-neutral owner boundary.`);
+      issues.push(
+        `${path} crosses the G4 V3 transport-neutral owner boundary.`
+      );
     }
   }
 }
@@ -396,9 +402,7 @@ const v4ControlSources = await Promise.all(
     source: await readFile(join(repoRoot, path), 'utf8'),
   }))
 );
-const v4ControlSource = v4ControlSources
-  .map(({ source }) => source)
-  .join('\n');
+const v4ControlSource = v4ControlSources.map(({ source }) => source).join('\n');
 for (const token of [
   'AgentTaskRecord',
   'AgentRunSnapshot',
@@ -427,7 +431,9 @@ for (const { path, source } of v4ControlSources) {
     /\blocalStorage\b/u,
   ]) {
     if (pattern.test(source)) {
-      issues.push(`${path} crosses the G4 V4 transport-neutral owner boundary.`);
+      issues.push(
+        `${path} crosses the G4 V4 transport-neutral owner boundary.`
+      );
     }
   }
 }
@@ -481,7 +487,9 @@ for (const { path, source } of v5ProposalSources) {
       source
     )
   ) {
-    issues.push(`${path} crosses the G4 V5 transport-neutral AI owner boundary.`);
+    issues.push(
+      `${path} crosses the G4 V5 transport-neutral AI owner boundary.`
+    );
   }
   if (
     path !==
@@ -502,7 +510,9 @@ for (const { path, source } of v5ProposalSources.filter(({ path }) =>
     /\blocalStorage\b/u,
   ]) {
     if (pattern.test(source)) {
-      issues.push(`${path} crosses the G4 V5 transport-neutral proposal boundary.`);
+      issues.push(
+        `${path} crosses the G4 V5 transport-neutral proposal boundary.`
+      );
     }
   }
 }
@@ -549,7 +559,9 @@ for (const { path, source } of v6VerificationSources) {
       source
     )
   ) {
-    issues.push(`${path} crosses the G4 V6 transport-neutral AI owner boundary.`);
+    issues.push(
+      `${path} crosses the G4 V6 transport-neutral AI owner boundary.`
+    );
   }
   for (const pattern of [
     /from\s+['"]react/iu,
@@ -597,7 +609,9 @@ for (const { path, source } of v7ProductSources) {
       source
     )
   ) {
-    issues.push(`${path} crosses the G4 V7 transport-neutral AI owner boundary.`);
+    issues.push(
+      `${path} crosses the G4 V7 transport-neutral AI owner boundary.`
+    );
   }
   for (const pattern of [
     /from\s+['"]react/iu,
@@ -632,10 +646,131 @@ for (const [surface, source] of [
   ['CLI', v7CliSource],
 ]) {
   if (!source.includes('decodeAgentProductLedgerBundle')) {
-    issues.push(`G4 V7 ${surface} must consume the shared strict product decoder.`);
+    issues.push(
+      `G4 V7 ${surface} must consume the shared strict product decoder.`
+    );
   }
   if (/skip[-_ ]approval/iu.test(source)) {
     issues.push(`G4 V7 ${surface} exposes an approval bypass.`);
+  }
+}
+
+const v8EvaluationSources = await Promise.all(
+  [
+    'packages/ai/src/providers/agentNativeProviderAdapters.ts',
+    'packages/ai/src/security/agentSecurity.types.ts',
+    'packages/ai/src/security/agentSecurity.ts',
+    'packages/ai/src/evaluation/agentEvaluation.types.ts',
+    'packages/ai/src/evaluation/agentEvaluationCorpus.ts',
+    'packages/ai/src/evaluation/agentEvaluationPlan.ts',
+    'packages/ai/src/evaluation/agentEvaluationResults.ts',
+    'packages/ai/src/evaluation/agentEvaluationRepository.ts',
+    'packages/ai/src/evaluation/agentEvaluationRunner.ts',
+    'packages/ai/src/evaluation/agentEvaluationCodec.ts',
+    'packages/ai/src/wire/agentEvaluationWire.ts',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v8EvaluationSource = v8EvaluationSources
+  .map(({ source }) => source)
+  .join('\n');
+for (const token of [
+  'createOpenAIResponsesAgentProviderAdapter',
+  'createAnthropicMessagesAgentProviderAdapter',
+  'createGeminiInteractionsAgentProviderAdapter',
+  'createOpenAICompatibleAgentProviderAdapter',
+  'CallbackBoundAgentSecretTransport',
+  'authorizeAgentEgress',
+  'inspectAgentPublicEvaluationArtifact',
+  'AgentModelEvaluationPlan',
+  'AgentModelEvaluationAttempt',
+  'AgentModelEvaluationManifest',
+  'G4_V8_MINIMUM_EVALUATION_CORPUS',
+  'minimumAgentEvaluationJourneyFloor',
+  'planAgentModelEvaluationAttempts',
+  'AgentModelEvaluationShardRunner',
+  'InMemoryAgentEvaluationRepository',
+  'createAgentModelEvaluationManifest',
+  'decodeAgentEvaluationFact',
+  'agentEvaluationFactWireSchema',
+]) {
+  if (!v8EvaluationSource.includes(token)) {
+    issues.push(`G4 V8 security/evaluation boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v8EvaluationSources) {
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /from\s+['"]@prodivix\/(?:workspace|workspace-sync|runtime|verification)/iu,
+    /\blocalStorage\b/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(
+        `${path} crosses the G4 V8 transport-neutral evaluation boundary.`
+      );
+    }
+  }
+}
+if (
+  /\bfetch\s*\(/u.test(v8EvaluationSource) ||
+  /process\.env/u.test(v8EvaluationSource)
+) {
+  issues.push(
+    'G4 V8 evaluation owner must inject Provider transport and must not resolve credentials or network globally.'
+  );
+}
+
+const v9ClosureSources = await Promise.all(
+  [
+    'packages/ai/src/closure/agentG4Closure.types.ts',
+    'packages/ai/src/closure/agentG4Closure.ts',
+    'packages/ai/src/closure/agentG4ClosureCodec.ts',
+    'packages/ai/src/wire/agentG4ClosureWire.ts',
+    'packages/golden-conformance/src/goldenG4V9ClosureFixture.ts',
+    'apps/backend/internal/platform/agentcontract/closure_semantic.go',
+    'apps/backend/internal/platform/agentcontract/contract.go',
+    'scripts/g4-agent-closure-canonical-vector.mjs',
+    'scripts/verify-g4-golden-evidence.mjs',
+  ].map(async (path) => ({
+    path,
+    source: await readFile(join(repoRoot, path), 'utf8'),
+  }))
+);
+const v9ClosureSource = v9ClosureSources.map(({ source }) => source).join('\n');
+for (const token of [
+  'AgentG4GoldenClosureManifest',
+  'createAgentG4GoldenClosureManifest',
+  'decodeAgentG4ClosureManifest',
+  'executeGoldenG4V9Closure',
+  'AGENT_G4_REQUIRED_RECOVERY_CASE_IDS',
+  'AGENT_G4_REQUIRED_NEGATIVE_CASE_IDS',
+  'requiredAttemptCount: 11_640',
+  'ValidateG4ClosureManifest',
+  'PRODIVIX_G4_GOLDEN_EVIDENCE',
+]) {
+  if (!v9ClosureSource.includes(token)) {
+    issues.push(`G4 V9 Golden Closure boundary is missing ${token}.`);
+  }
+}
+for (const { path, source } of v9ClosureSources.filter(({ path }) =>
+  path.startsWith('packages/ai/')
+)) {
+  for (const pattern of [
+    /from\s+['"]react/iu,
+    /apps\/web/iu,
+    /from\s+['"]@prodivix\/(?:workspace|workspace-sync|runtime|verification)/iu,
+    /\blocalStorage\b/u,
+    /\bfetch\s*\(/u,
+    /process\.env/u,
+  ]) {
+    if (pattern.test(source)) {
+      issues.push(
+        `${path} crosses the G4 V9 transport-neutral Closure boundary.`
+      );
+    }
   }
 }
 for (const { path, source } of v1ContextSources) {
@@ -704,6 +839,7 @@ const backendFiles = [
   'apps/backend/internal/platform/agentcontract/control_semantic.go',
   'apps/backend/internal/platform/agentcontract/proposal_semantic.go',
   'apps/backend/internal/platform/agentcontract/verification_semantic.go',
+  'apps/backend/internal/platform/agentcontract/evaluation_semantic.go',
   'apps/backend/internal/modules/workspace/store_helpers.go',
   'apps/backend/internal/modules/agent/repository.go',
   'apps/backend/internal/modules/agent/repository_transition.go',
@@ -716,12 +852,16 @@ const backendFiles = [
   'apps/backend/internal/modules/agent/verification_repository.go',
   'apps/backend/internal/modules/agent/product_facts.go',
   'apps/backend/internal/modules/agent/product_repository.go',
+  'apps/backend/internal/modules/agent/evaluation_facts.go',
+  'apps/backend/internal/modules/agent/evaluation_repository.go',
+  'apps/backend/internal/modules/agent/evaluation_budget_repository.go',
   'apps/backend/internal/modules/agent/handler.go',
   'apps/backend/internal/platform/database/agent_policy_migration.go',
   'apps/backend/internal/platform/database/agent_control_plane_migration.go',
   'apps/backend/internal/platform/database/agent_proposal_approval_migration.go',
   'apps/backend/internal/platform/database/agent_verification_repair_migration.go',
   'apps/backend/internal/platform/database/agent_product_migration.go',
+  'apps/backend/internal/platform/database/agent_model_evaluation_migration.go',
 ];
 const backendSource = (
   await Promise.all(
@@ -767,6 +907,21 @@ for (const token of [
   'g4-agent-product-ledger',
   'agent_product_supplements',
   'agent_run_user_commands',
+  'ValidateEvaluationFact',
+  'StoreEvaluationPlan',
+  'StoreEvaluationAttempt',
+  'ClaimEvaluationShard',
+  'RenewEvaluationShard',
+  'ReserveEvaluationBudget',
+  'SettleEvaluationBudget',
+  'StoreEvaluationCheckpoint',
+  'StoreEvaluationArtifact',
+  'g4-agent-model-evaluation-ledger',
+  'agent_evaluation_plans',
+  'agent_evaluation_budget_ledgers',
+  'agent_evaluation_attempts',
+  'agent_evaluation_checkpoints',
+  'agent_evaluation_budget_reservations',
 ]) {
   if (!backendSource.includes(token)) {
     issues.push(`Backend G4 boundary is missing ${token}.`);
@@ -845,6 +1000,21 @@ for (const token of [
   '"verify:g4:product:core"',
   '"verify:g4:product:postgres"',
   '"verify:g4:product"',
+  '"verify:g4:security"',
+  '"verify:g4:model-eval:contract"',
+  '"verify:g4:model-eval:postgres"',
+  '"verify:g4:model-eval:evidence"',
+  '"verify:g4:model-eval"',
+  '"verify:g4:v8"',
+  '"verify:g4:golden:contract"',
+  '"verify:g4:golden:evidence"',
+  '"verify:g4:golden"',
+  '"verify:g4:postgres"',
+  '"verify:g4:rootless-contract"',
+  '"verify:g4:rootless"',
+  '"verify:g4"',
+  '"verify:g4:closure:evidence"',
+  '"verify:g4:closure"',
 ]) {
   if (!rootManifestSource.includes(token)) {
     issues.push(`G4 root Gate is missing ${token}.`);
@@ -891,6 +1061,67 @@ if (
 ) {
   issues.push(
     'G4 V7 deterministic Gate must enforce Web, CLI, core, and wire boundaries.'
+  );
+}
+if (
+  !rootManifest.scripts?.['verify:g4:model-eval:contract']?.includes(
+    'pnpm run check:core-boundaries'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:model-eval:contract']?.includes(
+    'pnpm run check:g4-wire-contracts'
+  ) ||
+  rootManifest.scripts?.['verify:g4:model-eval:contract']?.includes(
+    'model-eval:evidence'
+  )
+) {
+  issues.push(
+    'G4 V8 deterministic model-evaluation Gate must enforce core/wire boundaries without consuming real-model evidence.'
+  );
+}
+if (
+  !rootManifest.scripts?.['verify:g4:golden:contract']?.includes(
+    'pnpm --filter @prodivix/ai test:g4-v9-closure'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:golden:contract']?.includes(
+    'pnpm --filter @prodivix/golden-conformance test:g4-v9-closure'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:golden:contract']?.includes(
+    'pnpm run check:g4-wire-contracts'
+  )
+) {
+  issues.push(
+    'G4 V9 Golden contract Gate must enforce current/wire and authenticated Catalog conformance.'
+  );
+}
+if (
+  !rootManifest.scripts?.['verify:g4']?.includes(
+    'pnpm run verify:g4:golden:contract'
+  ) ||
+  !rootManifest.scripts?.['verify:g4']?.includes(
+    'pnpm run verify:g4:postgres'
+  ) ||
+  !rootManifest.scripts?.['verify:g4']?.includes(
+    'pnpm run verify:g4:rootless-contract'
+  ) ||
+  rootManifest.scripts?.['verify:g4']?.includes('model-eval:evidence')
+) {
+  issues.push(
+    'G4 deterministic aggregate must include Golden, PostgreSQL, and rootless contracts without consuming real-model evidence.'
+  );
+}
+if (
+  !rootManifest.scripts?.['verify:g4:closure']?.includes(
+    'pnpm run verify:g4'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:closure']?.includes(
+    'pnpm run verify:g4:rootless'
+  ) ||
+  !rootManifest.scripts?.['verify:g4:closure']?.includes(
+    'pnpm run verify:g4:closure:evidence'
+  )
+) {
+  issues.push(
+    'G4 release Closure Gate must compose deterministic, rootless, and real-model evidence.'
   );
 }
 if (
@@ -1029,6 +1260,70 @@ for (const token of [
   }
 }
 
+const v8WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v8-security-model-eval.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'apps/backend/internal/modules/agent/**'",
+  "- 'packages/ai/**'",
+  "- 'packages/golden-conformance/**'",
+  "- 'scripts/g4-agent-evaluation-canonical-vector.mjs'",
+  "- 'specs/decisions/69.real-model-evaluation-and-release-qualification.md'",
+  'image: postgres:16',
+  "PRODIVIX_G4_REMOTE_MODEL_UNITS: '0'",
+  'run: pnpm run verify:g4:security',
+  'run: pnpm run verify:g4:model-eval:contract',
+  'run: pnpm run verify:g4:model-eval:postgres',
+]) {
+  if (!v8WorkflowSource.includes(token)) {
+    issues.push(`G4 V8 workflow is missing ${token}.`);
+  }
+}
+
+const v9WorkflowSource = await readFile(
+  join(repoRoot, '.github', 'workflows', 'g4-v9-golden-closure.yml'),
+  'utf8'
+);
+for (const token of [
+  "- 'apps/backend/internal/modules/agent/**'",
+  "- 'apps/backend/internal/platform/agentcontract/**'",
+  "- 'apps/backend/internal/platform/database/**'",
+  "- 'packages/ai/**'",
+  "- 'packages/golden-conformance/**'",
+  "- 'packages/shared/**'",
+  "- 'packages/verification/**'",
+  "- 'packages/workspace-sync/**'",
+  "- 'scripts/ci/configure-rootless-podman.sh'",
+  "- 'scripts/g4-agent-closure-canonical-vector.mjs'",
+  "- 'scripts/g4-agent-verification-canonical-vector.mjs'",
+  'image: postgres:16',
+  "PRODIVIX_G4_REMOTE_MODEL_UNITS: '0'",
+  'run: bash scripts/ci/configure-rootless-podman.sh',
+  'run: pnpm run verify:g4',
+]) {
+  if (!v9WorkflowSource.includes(token)) {
+    issues.push(`G4 V9 workflow is missing ${token}.`);
+  }
+}
+if (
+  v9WorkflowSource.includes('verify:g4:golden:evidence') ||
+  v9WorkflowSource.includes('verify:g4:model-eval:evidence') ||
+  /(?:OPENAI|ANTHROPIC|GEMINI|GOOGLE)_API_KEY/u.test(v9WorkflowSource)
+) {
+  issues.push(
+    'G4 V9 ordinary CI must keep real-model release evidence separate and consume zero remote model units.'
+  );
+}
+if (
+  v8WorkflowSource.includes('verify:g4:model-eval:evidence') ||
+  /(?:OPENAI|ANTHROPIC|GEMINI|GOOGLE)_API_KEY/u.test(v8WorkflowSource)
+) {
+  issues.push(
+    'G4 V8 ordinary CI must stay zero-remote-token and separate from release evaluation evidence.'
+  );
+}
+
 const diagnosticSource = await readFile(
   join(packagesRoot, 'ai', 'src', 'diagnostics', 'aiDiagnosticRegistry.ts'),
   'utf8'
@@ -1079,6 +1374,6 @@ if (issues.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    'G4 V0/V1/V2/V3/V4/V5/V6/V7 owner, current/wire, Workspace, provider, Context, media, Hosted capability, durable control-plane, proposal/approval, Verification/repair, product, diagnostics, and hard-cut boundaries are valid.'
+    'G4 V0/V1/V2/V3/V4/V5/V6/V7/V8/V9 owner, current/wire, Workspace, provider, Context, media, Hosted capability, durable control-plane, proposal/approval, Verification/repair, product, security/evaluation, Golden Closure, diagnostics, and hard-cut boundaries are valid.'
   );
 }

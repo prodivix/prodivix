@@ -16,6 +16,8 @@ const maximumAgentControlBytes = 8_388_608
 const maximumAgentProposalBytes = 8_388_608
 const maximumAgentVerificationBytes = 8_388_608
 const maximumAgentProductBytes = 8_388_608
+const maximumAgentEvaluationBytes = 8_388_608
+const maximumAgentG4ClosureBytes = 8_388_608
 
 //go:embed schemas.generated.json
 var generatedSchemasJSON []byte
@@ -54,10 +56,14 @@ func validateWithSchema(identity string, payload json.RawMessage) (map[string]an
 		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentControlBytes)
 	} else if identity == "agent-proposal-fact@1" {
 		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentProposalBytes)
-	} else if identity == "agent-verification-fact@1" {
+	} else if identity == "agent-verification-fact@2" {
 		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentVerificationBytes)
 	} else if identity == "agent-product-fact@1" || identity == "agent-product-view@1" {
 		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentProductBytes)
+	} else if identity == "agent-evaluation-fact@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentEvaluationBytes)
+	} else if identity == "agent-g4-closure-manifest@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentG4ClosureBytes)
 	} else {
 		rawError = canonicaljson.ValidateRaw(payload, maximumAgentPolicyBytes)
 	}
@@ -87,7 +93,7 @@ func validateWithSchema(identity string, payload json.RawMessage) (map[string]an
 		if err := validateAgentProposalSemantics(decoded); err != nil {
 			return nil, err
 		}
-	} else if identity == "agent-verification-fact@1" {
+	} else if identity == "agent-verification-fact@2" {
 		if err := validateAgentVerificationSemantics(decoded); err != nil {
 			return nil, err
 		}
@@ -99,10 +105,50 @@ func validateWithSchema(identity string, payload json.RawMessage) (map[string]an
 		if err := validateAgentProductViewSemantics(decoded); err != nil {
 			return nil, err
 		}
+	} else if identity == "agent-evaluation-fact@1" {
+		if err := validateAgentEvaluationSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if identity == "agent-g4-closure-manifest@1" {
+		if err := validateAgentG4ClosureSemantics(decoded); err != nil {
+			return nil, err
+		}
 	} else if err := validateAgentPolicySemantics(decoded); err != nil {
 		return nil, err
 	}
 	return decoded, nil
+}
+
+// ValidateG4ClosureManifest applies the strict V9 Golden Closure admission
+// contract before CI evidence can be promoted to durable G4 status.
+func ValidateG4ClosureManifest(payload json.RawMessage) error {
+	_, err := validateWithSchema("agent-g4-closure-manifest@1", payload)
+	return err
+}
+
+// CanonicalG4ClosureManifestDigest matches the TypeScript wire fact digest.
+func CanonicalG4ClosureManifestDigest(payload json.RawMessage) (string, error) {
+	document, err := validateWithSchema("agent-g4-closure-manifest@1", payload)
+	if err != nil {
+		return "", err
+	}
+	return canonicaljson.Digest(document)
+}
+
+// ValidateEvaluationFact applies the V8 strict, bounded, self-authenticating
+// evaluation fact contract before a fact enters the immutable evidence ledger.
+func ValidateEvaluationFact(payload json.RawMessage) error {
+	_, err := validateWithSchema("agent-evaluation-fact@1", payload)
+	return err
+}
+
+// CanonicalEvaluationFactDigest matches digestAgentCanonicalValue over the fact.
+func CanonicalEvaluationFactDigest(payload json.RawMessage) (string, error) {
+	document, err := validateWithSchema("agent-evaluation-fact@1", payload)
+	if err != nil {
+		return "", err
+	}
+	return canonicaljson.Digest(document)
 }
 
 // ValidateControlFact applies the shared V4 wire schema, bounded strict JSON,
@@ -131,13 +177,13 @@ func CanonicalProposalFactDigest(payload json.RawMessage) (string, error) {
 // ValidateVerificationFact applies the strict V6 Plan/Closure/repair fact
 // contract before an immutable fact can enter the server ledger.
 func ValidateVerificationFact(payload json.RawMessage) error {
-	_, err := validateWithSchema("agent-verification-fact@1", payload)
+	_, err := validateWithSchema("agent-verification-fact@2", payload)
 	return err
 }
 
 // CanonicalVerificationFactDigest matches digestAgentCanonicalValue over the fact.
 func CanonicalVerificationFactDigest(payload json.RawMessage) (string, error) {
-	document, err := validateWithSchema("agent-verification-fact@1", payload)
+	document, err := validateWithSchema("agent-verification-fact@2", payload)
 	if err != nil {
 		return "", err
 	}

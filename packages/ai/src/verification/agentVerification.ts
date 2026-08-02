@@ -19,6 +19,8 @@ import type {
   AgentRepairRoundReceipt,
   AgentVerificationClosureReceipt,
   AgentVerificationEvidenceRef,
+  AgentVerificationRunBindingRef,
+  AgentVerificationRunClosureRef,
 } from './agentVerification.types';
 
 const evidenceOutcomes = new Set([
@@ -36,6 +38,7 @@ const repairBlockReasons = new Set<AgentRepairBlockReason>([
   'regression-requirement-missing',
   'authority-drift',
 ]);
+const verificationSurfaces = new Set(['preview', 'export', 'ci']);
 
 const isServicePrincipal = (value: unknown): value is AgentPrincipalRef =>
   hasExactAgentControlKeys(value, ['kind', 'principalId']) &&
@@ -102,6 +105,93 @@ const canonicalEvidenceRefs = (
   return Object.freeze(canonical);
 };
 
+const compareVerificationRunRefs = (
+  left: AgentVerificationRunBindingRef,
+  right: AgentVerificationRunBindingRef
+): number =>
+  compareUnicodeCodePoints(left.surface, right.surface) ||
+  compareUnicodeCodePoints(left.verificationRunId, right.verificationRunId);
+
+const canonicalVerificationRunBindings = (
+  values: readonly AgentVerificationRunBindingRef[]
+): readonly AgentVerificationRunBindingRef[] => {
+  if (!Array.isArray(values) || values.length < 1 || values.length > 3) {
+    throw new TypeError('Agent verification Run bindings are invalid.');
+  }
+  const canonical = values.map((value) => {
+    if (
+      !hasExactAgentControlKeys(value, [
+        'verificationRunId',
+        'surface',
+        'selectedCellSetDigest',
+      ])
+    ) {
+      throw new TypeError('Agent verification Run binding is malformed.');
+    }
+    const entry = value as AgentVerificationRunBindingRef;
+    if (
+      !isAgentControlIdentity(entry.verificationRunId) ||
+      !verificationSurfaces.has(entry.surface) ||
+      !isAgentCanonicalDigest(entry.selectedCellSetDigest)
+    ) {
+      throw new TypeError('Agent verification Run binding is malformed.');
+    }
+    return Object.freeze({ ...entry });
+  });
+  canonical.sort(compareVerificationRunRefs);
+  if (
+    new Set(canonical.map(({ verificationRunId }) => verificationRunId))
+      .size !== canonical.length ||
+    new Set(canonical.map(({ surface }) => surface)).size !== canonical.length
+  ) {
+    throw new TypeError(
+      'Agent verification Run bindings duplicate a Run or surface.'
+    );
+  }
+  return Object.freeze(canonical);
+};
+
+const canonicalVerificationRunClosures = (
+  values: readonly AgentVerificationRunClosureRef[]
+): readonly AgentVerificationRunClosureRef[] => {
+  if (!Array.isArray(values) || values.length < 1 || values.length > 3) {
+    throw new TypeError('Agent verification Run closures are invalid.');
+  }
+  const canonical = values.map((value) => {
+    if (
+      !hasExactAgentControlKeys(value, [
+        'verificationRunId',
+        'surface',
+        'selectedCellSetDigest',
+        'snapshotDigest',
+      ])
+    ) {
+      throw new TypeError('Agent verification Run closure is malformed.');
+    }
+    const entry = value as AgentVerificationRunClosureRef;
+    if (
+      !isAgentControlIdentity(entry.verificationRunId) ||
+      !verificationSurfaces.has(entry.surface) ||
+      !isAgentCanonicalDigest(entry.selectedCellSetDigest) ||
+      !isAgentCanonicalDigest(entry.snapshotDigest)
+    ) {
+      throw new TypeError('Agent verification Run closure is malformed.');
+    }
+    return Object.freeze({ ...entry });
+  });
+  canonical.sort(compareVerificationRunRefs);
+  if (
+    new Set(canonical.map(({ verificationRunId }) => verificationRunId))
+      .size !== canonical.length ||
+    new Set(canonical.map(({ surface }) => surface)).size !== canonical.length
+  ) {
+    throw new TypeError(
+      'Agent verification Run closures duplicate a Run or surface.'
+    );
+  }
+  return Object.freeze(canonical);
+};
+
 const bindingKeys = [
   'bindingId',
   'taskId',
@@ -111,7 +201,7 @@ const bindingKeys = [
   'decisionId',
   'mutationReceiptId',
   'mutationKind',
-  'verificationRunId',
+  'verificationRuns',
   'targetRevision',
   'approvedPlanDigest',
   'actualPlanDigest',
@@ -140,7 +230,6 @@ export const createAgentCommittedVerificationPlanBinding = (
       input.previewId,
       input.decisionId,
       input.mutationReceiptId,
-      input.verificationRunId,
     ].every(isAgentControlIdentity) ||
     !isAgentWorkspaceRevisionVector(input.targetRevision) ||
     ![
@@ -165,8 +254,12 @@ export const createAgentCommittedVerificationPlanBinding = (
   ) {
     throw new TypeError('Committed Agent VerificationPlan binding is invalid.');
   }
+  const verificationRuns = canonicalVerificationRunBindings(
+    input.verificationRuns
+  );
   const base = Object.freeze({
     ...input,
+    verificationRuns,
     targetRevision: canonicalizeAgentWorkspaceRevision(input.targetRevision),
     producer: Object.freeze({ ...input.producer }),
   });
@@ -202,7 +295,7 @@ const closureKeys = [
   'bindingId',
   'taskId',
   'runId',
-  'verificationRunId',
+  'verificationRuns',
   'targetRevision',
   'planDigest',
   'evidenceRefs',
@@ -221,13 +314,9 @@ export const createAgentVerificationClosureReceipt = (
   if (
     inspection.length > 0 ||
     !hasExactAgentControlKeys(input, closureKeys) ||
-    ![
-      input.receiptId,
-      input.bindingId,
-      input.taskId,
-      input.runId,
-      input.verificationRunId,
-    ].every(isAgentControlIdentity) ||
+    ![input.receiptId, input.bindingId, input.taskId, input.runId].every(
+      isAgentControlIdentity
+    ) ||
     !isAgentWorkspaceRevisionVector(input.targetRevision) ||
     ![
       input.planDigest,
@@ -242,11 +331,15 @@ export const createAgentVerificationClosureReceipt = (
     throw new TypeError('Agent Verification Closure receipt is invalid.');
   }
   const evidenceRefs = canonicalEvidenceRefs(input.evidenceRefs);
+  const verificationRuns = canonicalVerificationRunClosures(
+    input.verificationRuns
+  );
   if (input.verdict === 'satisfied' && evidenceRefs.length === 0) {
     throw new TypeError('Satisfied Closure must reference promoted Evidence.');
   }
   const base = Object.freeze({
     ...input,
+    verificationRuns,
     targetRevision: canonicalizeAgentWorkspaceRevision(input.targetRevision),
     evidenceRefs,
     producer: Object.freeze({ ...input.producer }),

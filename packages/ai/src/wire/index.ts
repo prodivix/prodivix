@@ -6,3 +6,5 @@ export * from './agentControlWire';
 export * from './agentProposalWire';
 export * from './agentVerificationWire';
 export * from './agentProductWire';
+export * from './agentEvaluationWire';
+export * from './agentG4ClosureWire';

@@ -17,7 +17,7 @@ import {
 import type { AgentVerificationFact } from './agentVerification.types';
 
 export type AgentVerificationFactWire = AgentVerificationFact &
-  Readonly<{ wireVersion: 1 }>;
+  Readonly<{ wireVersion: 2 }>;
 
 export type AgentVerificationFactDecodeResult =
   | Readonly<{ ok: true; value: AgentVerificationFact }>
@@ -46,7 +46,7 @@ export const encodeAgentVerificationFact = (
     throw new TypeError('Agent verification fact failed current validation.');
   }
   return Object.freeze({
-    wireVersion: 1,
+    wireVersion: 2,
     factType: fact.factType,
     value: cloneAgentControlJson(fact.value),
   }) as AgentVerificationFactWire;
@@ -65,7 +65,7 @@ export const decodeAgentVerificationFact = (
   if (
     !validateWire(input) ||
     !hasExactAgentControlKeys(input, ['wireVersion', 'factType', 'value']) ||
-    input.wireVersion !== 1
+    input.wireVersion !== 2
   ) {
     return Object.freeze({
       ok: false,

@@ -37,10 +37,42 @@ func validateVerificationServicePrincipal(raw any, path string) error {
 	return requireIdentity(principal["principalId"], path+"/principalId")
 }
 
+func validateAgentVerificationRuns(raw any, closure bool) error {
+	runs, ok := raw.([]any)
+	if !ok || len(runs) < 1 || len(runs) > 3 {
+		return errors.New("/value/verificationRuns is invalid")
+	}
+	seenIDs, seenSurfaces, previous := map[string]bool{}, map[string]bool{}, ""
+	for index, rawRun := range runs {
+		run, ok := rawRun.(map[string]any)
+		if !ok {
+			return fmt.Errorf("/value/verificationRuns/%d is invalid", index)
+		}
+		keys := []string{"verificationRunId", "surface", "selectedCellSetDigest"}
+		if closure {
+			keys = append(keys, "snapshotDigest")
+		}
+		if err := requireExactObjectKeys(run, keys, nil); err != nil {
+			return fmt.Errorf("/value/verificationRuns/%d: %w", index, err)
+		}
+		id, surface := stringValue(run["verificationRunId"]), stringValue(run["surface"])
+		order := surface + "\x00" + id
+		if requireIdentity(id, fmt.Sprintf("/value/verificationRuns/%d/verificationRunId", index)) != nil ||
+			!oneOf(surface, "preview", "export", "ci") ||
+			requireDigest(run["selectedCellSetDigest"], fmt.Sprintf("/value/verificationRuns/%d/selectedCellSetDigest", index)) != nil ||
+			(closure && requireDigest(run["snapshotDigest"], fmt.Sprintf("/value/verificationRuns/%d/snapshotDigest", index)) != nil) ||
+			seenIDs[id] || seenSurfaces[surface] || (index > 0 && order <= previous) {
+			return fmt.Errorf("/value/verificationRuns/%d is non-canonical", index)
+		}
+		seenIDs[id], seenSurfaces[surface], previous = true, true, order
+	}
+	return nil
+}
+
 func validateAgentCommittedPlanBinding(value map[string]any) error {
 	if err := requireExactObjectKeys(value, []string{
 		"bindingId", "taskId", "runId", "proposalId", "previewId", "decisionId",
-		"mutationReceiptId", "mutationKind", "verificationRunId", "targetRevision",
+		"mutationReceiptId", "mutationKind", "verificationRuns", "targetRevision",
 		"approvedPlanDigest", "actualPlanDigest", "planCompatibility", "impactDigest",
 		"policyDigest", "approvedRequiredCellSetDigest", "actualRequiredCellSetDigest",
 		"regressionRequirementSetDigest", "producer", "boundAt", "bindingDigest",
@@ -49,11 +81,14 @@ func validateAgentCommittedPlanBinding(value map[string]any) error {
 	}
 	for _, field := range []string{
 		"bindingId", "taskId", "runId", "proposalId", "previewId", "decisionId",
-		"mutationReceiptId", "verificationRunId",
+		"mutationReceiptId",
 	} {
 		if err := requireIdentity(value[field], "/value/"+field); err != nil {
 			return err
 		}
+	}
+	if err := validateAgentVerificationRuns(value["verificationRuns"], false); err != nil {
+		return err
 	}
 	if err := validateAgentWorkspaceRevision(value["targetRevision"], "/value/targetRevision"); err != nil {
 		return err
@@ -106,16 +141,19 @@ func validateAgentVerificationEvidenceRefs(raw any) (int, error) {
 
 func validateAgentVerificationClosureReceipt(value map[string]any) error {
 	if err := requireExactObjectKeys(value, []string{
-		"receiptId", "bindingId", "taskId", "runId", "verificationRunId", "targetRevision",
+		"receiptId", "bindingId", "taskId", "runId", "verificationRuns", "targetRevision",
 		"planDigest", "evidenceRefs", "evidenceSetDigest", "verifiedEvidenceViewDigest",
 		"closureDigest", "verdict", "producer", "evaluatedAt", "receiptDigest",
 	}, nil); err != nil {
 		return err
 	}
-	for _, field := range []string{"receiptId", "bindingId", "taskId", "runId", "verificationRunId"} {
+	for _, field := range []string{"receiptId", "bindingId", "taskId", "runId"} {
 		if err := requireIdentity(value[field], "/value/"+field); err != nil {
 			return err
 		}
+	}
+	if err := validateAgentVerificationRuns(value["verificationRuns"], true); err != nil {
+		return err
 	}
 	if err := validateAgentWorkspaceRevision(value["targetRevision"], "/value/targetRevision"); err != nil {
 		return err

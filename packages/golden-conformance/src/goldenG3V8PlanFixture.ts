@@ -5,6 +5,7 @@ import {
   type VerificationPlan,
   type VerificationPlanResult,
   type VerificationPolicy,
+  type VerificationImpactSet,
 } from '@prodivix/verification';
 import {
   createGoldenG3V6PlanInput,
@@ -39,8 +40,12 @@ export const GOLDEN_G3_V8_POLICY: VerificationPolicy = Object.freeze(
   })
 );
 
-export const createGoldenG3V8Plan = (): VerificationPlanResult => {
-  const base = createGoldenG3V6PlanInput();
+export const createGoldenG3V8Plan = (
+  options: Readonly<{ impactSet?: VerificationImpactSet }> = {}
+): VerificationPlanResult => {
+  const base = createGoldenG3V6PlanInput({
+    ...(options.impactSet ? { impactSet: options.impactSet } : {}),
+  });
   return createVerificationPlan({
     ...base,
     policy: GOLDEN_G3_V8_POLICY,

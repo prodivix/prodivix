@@ -16,6 +16,7 @@ import {
   type AgentWorkspaceMutationReceipt,
 } from '@prodivix/ai';
 import type {
+  VerificationImpactContribution,
   VerificationImpactSet,
   VerificationPlan,
   VerificationPlanResult,
@@ -63,6 +64,7 @@ export type CreateWorkspaceAgentProposalProjectionInput =
       expiresAt: string;
       frameworkTargets: readonly string[];
       runtimeZones: readonly string[];
+      verificationImpactContributions?: readonly VerificationImpactContribution[];
       diagnosticRefs?: readonly string[];
       verificationPlanner: AgentProposalVerificationPlanner;
     }>;
@@ -232,6 +234,11 @@ export const createWorkspaceAgentProposalProjection = (
     operationIds: [actionPlan.transaction.id],
     frameworkTargets: input.frameworkTargets,
     runtimeZones: input.runtimeZones,
+    ...(input.verificationImpactContributions
+      ? {
+          additionalContributions: input.verificationImpactContributions,
+        }
+      : {}),
   });
   if (impactResult.status === 'blocked') {
     return blocked(

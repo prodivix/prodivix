@@ -163,14 +163,14 @@
   },
   "facts": {
     "binding": {
-      "wireVersion": 1,
+      "wireVersion": 2,
       "factType": "committed-plan-binding",
       "value": {
         "actualPlanDigest": "sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8",
         "actualRequiredCellSetDigest": "sha256-9557b11502d2765192b6313dea86390b635a8de9d6466e70dd77cd3cb6609daa",
         "approvedPlanDigest": "sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8",
         "approvedRequiredCellSetDigest": "sha256-9557b11502d2765192b6313dea86390b635a8de9d6466e70dd77cd3cb6609daa",
-        "bindingDigest": "sha256-36ec60d4dae17b9a9d87425b21cdfc3c9cf018eeb71ed47de3b19a56412bc259",
+        "bindingDigest": "sha256-d7dd7f03df0b4c33016b4f47717288618435ef40f708899e541ab9e9e2a6fd3b",
         "bindingId": "binding.g4-v6.vector.commit",
         "boundAt": "2026-08-02T02:00:00.000Z",
         "decisionId": "decision.g4-v5.proposal-vector",
@@ -196,11 +196,27 @@
           "workspaceRev": 43
         },
         "taskId": "task.g4-v5.proposal-vector",
-        "verificationRunId": "verification-run.g4-v6.vector"
+        "verificationRuns": [
+          {
+            "selectedCellSetDigest": "sha256-8b745fc053b956d62c9e088ac767c57904636d94823d15a4366c61688016c7af",
+            "surface": "ci",
+            "verificationRunId": "verification-run.g4-v6.vector.ci"
+          },
+          {
+            "selectedCellSetDigest": "sha256-5dd09a7568ce76d20ccd9d3d700486ef40c0c001e4bba57f32bf2ed361c4b28e",
+            "surface": "export",
+            "verificationRunId": "verification-run.g4-v6.vector.export"
+          },
+          {
+            "selectedCellSetDigest": "sha256-2421ca8ab5323357b27217c0b555dbcd6bf375e99b8d3ba7a6cce9c787633994",
+            "surface": "preview",
+            "verificationRunId": "verification-run.g4-v6.vector.preview"
+          }
+        ]
       }
     },
     "closure": {
-      "wireVersion": 1,
+      "wireVersion": 2,
       "factType": "verification-closure-receipt",
       "value": {
         "bindingId": "binding.g4-v6.vector.commit",
@@ -219,7 +235,7 @@
           "kind": "service",
           "principalId": "agent.coordinator.g4-v5"
         },
-        "receiptDigest": "sha256-944705327f6e11639c743c845362b6c40f42fae239a5bbb34480475a7f308a4d",
+        "receiptDigest": "sha256-f2675561c4c10d6be9b8a3279007efc2d2c4ca3a13a9c20096fbfb705e1620fd",
         "receiptId": "receipt.g4-v6.vector.closure",
         "runId": "run.g4-v5.proposal-vector",
         "targetRevision": {
@@ -232,12 +248,31 @@
         },
         "taskId": "task.g4-v5.proposal-vector",
         "verdict": "unsatisfied",
-        "verificationRunId": "verification-run.g4-v6.vector",
+        "verificationRuns": [
+          {
+            "selectedCellSetDigest": "sha256-8b745fc053b956d62c9e088ac767c57904636d94823d15a4366c61688016c7af",
+            "snapshotDigest": "sha256-eb3cf25bd719bbcd8512aa81b414bee0b9459cb9ef0674a70405690fc060b833",
+            "surface": "ci",
+            "verificationRunId": "verification-run.g4-v6.vector.ci"
+          },
+          {
+            "selectedCellSetDigest": "sha256-5dd09a7568ce76d20ccd9d3d700486ef40c0c001e4bba57f32bf2ed361c4b28e",
+            "snapshotDigest": "sha256-6f537745bc8fce8483d2bae6aac51075894b2cdfe7034721505ee9f6eb551894",
+            "surface": "export",
+            "verificationRunId": "verification-run.g4-v6.vector.export"
+          },
+          {
+            "selectedCellSetDigest": "sha256-2421ca8ab5323357b27217c0b555dbcd6bf375e99b8d3ba7a6cce9c787633994",
+            "snapshotDigest": "sha256-f16bacabd67f712a71bd3b8979cc507229c77672ef40c8168aaad1eabb515dc2",
+            "surface": "preview",
+            "verificationRunId": "verification-run.g4-v6.vector.preview"
+          }
+        ],
         "verifiedEvidenceViewDigest": "sha256-d093374e95d6f160f3d8e7706fb1fa3e3ec9904dab94d62eab148ff0c1bc3202"
       }
     },
     "satisfiedClosure": {
-      "wireVersion": 1,
+      "wireVersion": 2,
       "factType": "verification-closure-receipt",
       "value": {
         "bindingId": "binding.g4-v6.vector.commit",
@@ -256,7 +291,7 @@
           "kind": "service",
           "principalId": "agent.coordinator.g4-v5"
         },
-        "receiptDigest": "sha256-7573a1d50c56860c74e9124791cc25021c9e779d40f03fb6912b7b4b8b74ed42",
+        "receiptDigest": "sha256-ab9b24526245d1faf2f55b7f52f4458b69e895104744d45ecccb2b59528d5310",
         "receiptId": "receipt.g4-v6.vector.closure.satisfied",
         "runId": "run.g4-v5.proposal-vector",
         "targetRevision": {
@@ -269,12 +304,31 @@
         },
         "taskId": "task.g4-v5.proposal-vector",
         "verdict": "satisfied",
-        "verificationRunId": "verification-run.g4-v6.vector",
+        "verificationRuns": [
+          {
+            "selectedCellSetDigest": "sha256-8b745fc053b956d62c9e088ac767c57904636d94823d15a4366c61688016c7af",
+            "snapshotDigest": "sha256-45c2b338ee37246d8a0f96de525613b7b5a0a06d80bd3cb9e1c4167be0dcd337",
+            "surface": "ci",
+            "verificationRunId": "verification-run.g4-v6.vector.ci"
+          },
+          {
+            "selectedCellSetDigest": "sha256-5dd09a7568ce76d20ccd9d3d700486ef40c0c001e4bba57f32bf2ed361c4b28e",
+            "snapshotDigest": "sha256-ca721b528a8088ab3a458dc07f2cfd4e28778b0ee25392159344b3a43fad310d",
+            "surface": "export",
+            "verificationRunId": "verification-run.g4-v6.vector.export"
+          },
+          {
+            "selectedCellSetDigest": "sha256-2421ca8ab5323357b27217c0b555dbcd6bf375e99b8d3ba7a6cce9c787633994",
+            "snapshotDigest": "sha256-95f6f5aac9e3f9d89230b402561637d063251c5a835de162d9f58e3fd7868121",
+            "surface": "preview",
+            "verificationRunId": "verification-run.g4-v6.vector.preview"
+          }
+        ],
         "verifiedEvidenceViewDigest": "sha256-45c307d365a550917676b5960fbc8578a1b15e24a162ae4786d053cc65049df3"
       }
     },
     "repairStarted": {
-      "wireVersion": 1,
+      "wireVersion": 2,
       "factType": "repair-round-receipt",
       "value": {
         "counterexampleSetDigest": "sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a",
@@ -301,7 +355,7 @@
       }
     },
     "repairProposalBound": {
-      "wireVersion": 1,
+      "wireVersion": 2,
       "factType": "repair-round-receipt",
       "value": {
         "counterexampleSetDigest": "sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a",
@@ -333,7 +387,7 @@
       }
     },
     "repairBlocked": {
-      "wireVersion": 1,
+      "wireVersion": 2,
       "factType": "repair-round-receipt",
       "value": {
         "blockReason": "repair-round-exhausted",
@@ -362,17 +416,17 @@
     }
   },
   "canonicalJson": {
-    "binding": "{\"factType\":\"committed-plan-binding\",\"value\":{\"actualPlanDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"actualRequiredCellSetDigest\":\"sha256-9557b11502d2765192b6313dea86390b635a8de9d6466e70dd77cd3cb6609daa\",\"approvedPlanDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"approvedRequiredCellSetDigest\":\"sha256-9557b11502d2765192b6313dea86390b635a8de9d6466e70dd77cd3cb6609daa\",\"bindingDigest\":\"sha256-36ec60d4dae17b9a9d87425b21cdfc3c9cf018eeb71ed47de3b19a56412bc259\",\"bindingId\":\"binding.g4-v6.vector.commit\",\"boundAt\":\"2026-08-02T02:00:00.000Z\",\"decisionId\":\"decision.g4-v5.proposal-vector\",\"impactDigest\":\"sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d\",\"mutationKind\":\"commit\",\"mutationReceiptId\":\"receipt.g4-v5.proposal-vector.commit.acknowledged\",\"planCompatibility\":\"exact\",\"policyDigest\":\"sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"regressionRequirementSetDigest\":\"sha256-70479522a87dfddeb4b67db99221aa231bb79d60677352e27414434b9a449f43\",\"runId\":\"run.g4-v5.proposal-vector\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"taskId\":\"task.g4-v5.proposal-vector\",\"verificationRunId\":\"verification-run.g4-v6.vector\"},\"wireVersion\":1}",
-    "closure": "{\"factType\":\"verification-closure-receipt\",\"value\":{\"bindingId\":\"binding.g4-v6.vector.commit\",\"closureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"evaluatedAt\":\"2026-08-02T02:01:00.000Z\",\"evidenceRefs\":[{\"evidenceId\":\"evidence.g4-v6.vector.failed\",\"manifestDigest\":\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\",\"outcome\":\"failed\"}],\"evidenceSetDigest\":\"sha256-1f6a8acb00c24c86cdfc087836ef71d64aeb4c2c73ea23fd839aaaf5cbf7d0af\",\"planDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-944705327f6e11639c743c845362b6c40f42fae239a5bbb34480475a7f308a4d\",\"receiptId\":\"receipt.g4-v6.vector.closure\",\"runId\":\"run.g4-v5.proposal-vector\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"taskId\":\"task.g4-v5.proposal-vector\",\"verdict\":\"unsatisfied\",\"verificationRunId\":\"verification-run.g4-v6.vector\",\"verifiedEvidenceViewDigest\":\"sha256-d093374e95d6f160f3d8e7706fb1fa3e3ec9904dab94d62eab148ff0c1bc3202\"},\"wireVersion\":1}",
-    "satisfiedClosure": "{\"factType\":\"verification-closure-receipt\",\"value\":{\"bindingId\":\"binding.g4-v6.vector.commit\",\"closureDigest\":\"sha256-a3677d3ffe475c11a520db2a12709de3b6b10eee8b956bd41391120a77befd09\",\"evaluatedAt\":\"2026-08-02T02:01:30.000Z\",\"evidenceRefs\":[{\"evidenceId\":\"evidence.g4-v6.vector.passed\",\"manifestDigest\":\"sha256-ee8917d163e2579c1e416680ae2fc2eff5be27666e043f098dbd639077975797\",\"outcome\":\"passed\"}],\"evidenceSetDigest\":\"sha256-db176651c4ec2145f080748a0cf74b01e50103e85d8f49cd9d6197b807a68377\",\"planDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-7573a1d50c56860c74e9124791cc25021c9e779d40f03fb6912b7b4b8b74ed42\",\"receiptId\":\"receipt.g4-v6.vector.closure.satisfied\",\"runId\":\"run.g4-v5.proposal-vector\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"taskId\":\"task.g4-v5.proposal-vector\",\"verdict\":\"satisfied\",\"verificationRunId\":\"verification-run.g4-v6.vector\",\"verifiedEvidenceViewDigest\":\"sha256-45c307d365a550917676b5960fbc8578a1b15e24a162ae4786d053cc65049df3\"},\"wireVersion\":1}",
-    "repairStarted": "{\"factType\":\"repair-round-receipt\",\"value\":{\"counterexampleSetDigest\":\"sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a\",\"cumulativeBudgetLedgerDigest\":\"sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c\",\"failedClosureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"failedClosureReceiptId\":\"receipt.g4-v6.vector.closure\",\"failedEvidenceManifestDigests\":[\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\"],\"failureContextPackDigest\":\"sha256-574a7a08d4973c4fb2b481a30d49e58936ca5b8a1cb74ed0c8f356e656c1985b\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-4e772be9427f9275a367026b4310e2aa766c84f3ae1047fd28b4f4962f293b94\",\"receiptId\":\"receipt.g4-v6.vector.repair.started\",\"recordedAt\":\"2026-08-02T02:02:00.000Z\",\"regressionRequirementSetDigest\":\"sha256-09139fde01a6a9dc085163dd579d8a5012334d70acf121cd252ff33f5837fe78\",\"repairRoundId\":\"repair-round.g4-v6.vector.1\",\"round\":1,\"runId\":\"run.g4-v5.proposal-vector\",\"state\":\"started\",\"taskId\":\"task.g4-v5.proposal-vector\"},\"wireVersion\":1}",
-    "repairProposalBound": "{\"factType\":\"repair-round-receipt\",\"value\":{\"counterexampleSetDigest\":\"sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a\",\"cumulativeBudgetLedgerDigest\":\"sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c\",\"decisionId\":\"decision.g4-v6.vector.repair-1\",\"failedClosureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"failedClosureReceiptId\":\"receipt.g4-v6.vector.closure\",\"failedEvidenceManifestDigests\":[\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\"],\"failureContextPackDigest\":\"sha256-574a7a08d4973c4fb2b481a30d49e58936ca5b8a1cb74ed0c8f356e656c1985b\",\"previewId\":\"preview.g4-v6.vector.repair-1\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v6.vector.repair-1\",\"receiptDigest\":\"sha256-f21043a9305acd514d2df2ac7c2f311be31603212ff660e8ba5633d76c895e43\",\"receiptId\":\"receipt.g4-v6.vector.repair.proposal-bound\",\"recordedAt\":\"2026-08-02T02:03:00.000Z\",\"regressionRequirementSetDigest\":\"sha256-09139fde01a6a9dc085163dd579d8a5012334d70acf121cd252ff33f5837fe78\",\"repairRoundId\":\"repair-round.g4-v6.vector.1\",\"round\":1,\"runId\":\"run.g4-v5.proposal-vector\",\"state\":\"proposal-bound\",\"taskId\":\"task.g4-v5.proposal-vector\",\"transactionDigest\":\"sha256-d039d79376d6976ef2d13d69f9bab90ae3c005097d0d612892536e06b8dc592b\",\"verificationPlanDigest\":\"sha256-9f6cac3a7fab7726fe5058aacf5b4ce16f1c597faa6e8189098941e34c7eea02\"},\"wireVersion\":1}",
-    "repairBlocked": "{\"factType\":\"repair-round-receipt\",\"value\":{\"blockReason\":\"repair-round-exhausted\",\"counterexampleSetDigest\":\"sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a\",\"cumulativeBudgetLedgerDigest\":\"sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c\",\"failedClosureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"failedClosureReceiptId\":\"receipt.g4-v6.vector.closure\",\"failedEvidenceManifestDigests\":[\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\"],\"failureContextPackDigest\":\"sha256-574a7a08d4973c4fb2b481a30d49e58936ca5b8a1cb74ed0c8f356e656c1985b\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-fe8eb677afd76091ab4d8c1f92ed91d42e13b50fbcaf69f7b895d25868dbd2ff\",\"receiptId\":\"receipt.g4-v6.vector.repair.blocked\",\"recordedAt\":\"2026-08-02T02:04:00.000Z\",\"regressionRequirementSetDigest\":\"sha256-09139fde01a6a9dc085163dd579d8a5012334d70acf121cd252ff33f5837fe78\",\"repairRoundId\":\"repair-round.g4-v6.vector.2\",\"round\":2,\"runId\":\"run.g4-v5.proposal-vector\",\"state\":\"blocked\",\"taskId\":\"task.g4-v5.proposal-vector\"},\"wireVersion\":1}"
+    "binding": "{\"factType\":\"committed-plan-binding\",\"value\":{\"actualPlanDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"actualRequiredCellSetDigest\":\"sha256-9557b11502d2765192b6313dea86390b635a8de9d6466e70dd77cd3cb6609daa\",\"approvedPlanDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"approvedRequiredCellSetDigest\":\"sha256-9557b11502d2765192b6313dea86390b635a8de9d6466e70dd77cd3cb6609daa\",\"bindingDigest\":\"sha256-d7dd7f03df0b4c33016b4f47717288618435ef40f708899e541ab9e9e2a6fd3b\",\"bindingId\":\"binding.g4-v6.vector.commit\",\"boundAt\":\"2026-08-02T02:00:00.000Z\",\"decisionId\":\"decision.g4-v5.proposal-vector\",\"impactDigest\":\"sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d\",\"mutationKind\":\"commit\",\"mutationReceiptId\":\"receipt.g4-v5.proposal-vector.commit.acknowledged\",\"planCompatibility\":\"exact\",\"policyDigest\":\"sha256-c53f802f4eaede2be663c52be48ec7e0937ad4a1e7971ee97e6c96faece9fff5\",\"previewId\":\"preview.g4-v5.proposal-vector\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v5.proposal-vector\",\"regressionRequirementSetDigest\":\"sha256-70479522a87dfddeb4b67db99221aa231bb79d60677352e27414434b9a449f43\",\"runId\":\"run.g4-v5.proposal-vector\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"taskId\":\"task.g4-v5.proposal-vector\",\"verificationRuns\":[{\"selectedCellSetDigest\":\"sha256-8b745fc053b956d62c9e088ac767c57904636d94823d15a4366c61688016c7af\",\"surface\":\"ci\",\"verificationRunId\":\"verification-run.g4-v6.vector.ci\"},{\"selectedCellSetDigest\":\"sha256-5dd09a7568ce76d20ccd9d3d700486ef40c0c001e4bba57f32bf2ed361c4b28e\",\"surface\":\"export\",\"verificationRunId\":\"verification-run.g4-v6.vector.export\"},{\"selectedCellSetDigest\":\"sha256-2421ca8ab5323357b27217c0b555dbcd6bf375e99b8d3ba7a6cce9c787633994\",\"surface\":\"preview\",\"verificationRunId\":\"verification-run.g4-v6.vector.preview\"}]},\"wireVersion\":2}",
+    "closure": "{\"factType\":\"verification-closure-receipt\",\"value\":{\"bindingId\":\"binding.g4-v6.vector.commit\",\"closureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"evaluatedAt\":\"2026-08-02T02:01:00.000Z\",\"evidenceRefs\":[{\"evidenceId\":\"evidence.g4-v6.vector.failed\",\"manifestDigest\":\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\",\"outcome\":\"failed\"}],\"evidenceSetDigest\":\"sha256-1f6a8acb00c24c86cdfc087836ef71d64aeb4c2c73ea23fd839aaaf5cbf7d0af\",\"planDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-f2675561c4c10d6be9b8a3279007efc2d2c4ca3a13a9c20096fbfb705e1620fd\",\"receiptId\":\"receipt.g4-v6.vector.closure\",\"runId\":\"run.g4-v5.proposal-vector\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"taskId\":\"task.g4-v5.proposal-vector\",\"verdict\":\"unsatisfied\",\"verificationRuns\":[{\"selectedCellSetDigest\":\"sha256-8b745fc053b956d62c9e088ac767c57904636d94823d15a4366c61688016c7af\",\"snapshotDigest\":\"sha256-eb3cf25bd719bbcd8512aa81b414bee0b9459cb9ef0674a70405690fc060b833\",\"surface\":\"ci\",\"verificationRunId\":\"verification-run.g4-v6.vector.ci\"},{\"selectedCellSetDigest\":\"sha256-5dd09a7568ce76d20ccd9d3d700486ef40c0c001e4bba57f32bf2ed361c4b28e\",\"snapshotDigest\":\"sha256-6f537745bc8fce8483d2bae6aac51075894b2cdfe7034721505ee9f6eb551894\",\"surface\":\"export\",\"verificationRunId\":\"verification-run.g4-v6.vector.export\"},{\"selectedCellSetDigest\":\"sha256-2421ca8ab5323357b27217c0b555dbcd6bf375e99b8d3ba7a6cce9c787633994\",\"snapshotDigest\":\"sha256-f16bacabd67f712a71bd3b8979cc507229c77672ef40c8168aaad1eabb515dc2\",\"surface\":\"preview\",\"verificationRunId\":\"verification-run.g4-v6.vector.preview\"}],\"verifiedEvidenceViewDigest\":\"sha256-d093374e95d6f160f3d8e7706fb1fa3e3ec9904dab94d62eab148ff0c1bc3202\"},\"wireVersion\":2}",
+    "satisfiedClosure": "{\"factType\":\"verification-closure-receipt\",\"value\":{\"bindingId\":\"binding.g4-v6.vector.commit\",\"closureDigest\":\"sha256-a3677d3ffe475c11a520db2a12709de3b6b10eee8b956bd41391120a77befd09\",\"evaluatedAt\":\"2026-08-02T02:01:30.000Z\",\"evidenceRefs\":[{\"evidenceId\":\"evidence.g4-v6.vector.passed\",\"manifestDigest\":\"sha256-ee8917d163e2579c1e416680ae2fc2eff5be27666e043f098dbd639077975797\",\"outcome\":\"passed\"}],\"evidenceSetDigest\":\"sha256-db176651c4ec2145f080748a0cf74b01e50103e85d8f49cd9d6197b807a68377\",\"planDigest\":\"sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-ab9b24526245d1faf2f55b7f52f4458b69e895104744d45ecccb2b59528d5310\",\"receiptId\":\"receipt.g4-v6.vector.closure.satisfied\",\"runId\":\"run.g4-v5.proposal-vector\",\"targetRevision\":{\"documents\":[{\"contentRev\":21,\"documentId\":\"page.catalog\",\"metaRev\":3}],\"opSeq\":145,\"routeRev\":9,\"workspaceRev\":43},\"taskId\":\"task.g4-v5.proposal-vector\",\"verdict\":\"satisfied\",\"verificationRuns\":[{\"selectedCellSetDigest\":\"sha256-8b745fc053b956d62c9e088ac767c57904636d94823d15a4366c61688016c7af\",\"snapshotDigest\":\"sha256-45c2b338ee37246d8a0f96de525613b7b5a0a06d80bd3cb9e1c4167be0dcd337\",\"surface\":\"ci\",\"verificationRunId\":\"verification-run.g4-v6.vector.ci\"},{\"selectedCellSetDigest\":\"sha256-5dd09a7568ce76d20ccd9d3d700486ef40c0c001e4bba57f32bf2ed361c4b28e\",\"snapshotDigest\":\"sha256-ca721b528a8088ab3a458dc07f2cfd4e28778b0ee25392159344b3a43fad310d\",\"surface\":\"export\",\"verificationRunId\":\"verification-run.g4-v6.vector.export\"},{\"selectedCellSetDigest\":\"sha256-2421ca8ab5323357b27217c0b555dbcd6bf375e99b8d3ba7a6cce9c787633994\",\"snapshotDigest\":\"sha256-95f6f5aac9e3f9d89230b402561637d063251c5a835de162d9f58e3fd7868121\",\"surface\":\"preview\",\"verificationRunId\":\"verification-run.g4-v6.vector.preview\"}],\"verifiedEvidenceViewDigest\":\"sha256-45c307d365a550917676b5960fbc8578a1b15e24a162ae4786d053cc65049df3\"},\"wireVersion\":2}",
+    "repairStarted": "{\"factType\":\"repair-round-receipt\",\"value\":{\"counterexampleSetDigest\":\"sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a\",\"cumulativeBudgetLedgerDigest\":\"sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c\",\"failedClosureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"failedClosureReceiptId\":\"receipt.g4-v6.vector.closure\",\"failedEvidenceManifestDigests\":[\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\"],\"failureContextPackDigest\":\"sha256-574a7a08d4973c4fb2b481a30d49e58936ca5b8a1cb74ed0c8f356e656c1985b\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-4e772be9427f9275a367026b4310e2aa766c84f3ae1047fd28b4f4962f293b94\",\"receiptId\":\"receipt.g4-v6.vector.repair.started\",\"recordedAt\":\"2026-08-02T02:02:00.000Z\",\"regressionRequirementSetDigest\":\"sha256-09139fde01a6a9dc085163dd579d8a5012334d70acf121cd252ff33f5837fe78\",\"repairRoundId\":\"repair-round.g4-v6.vector.1\",\"round\":1,\"runId\":\"run.g4-v5.proposal-vector\",\"state\":\"started\",\"taskId\":\"task.g4-v5.proposal-vector\"},\"wireVersion\":2}",
+    "repairProposalBound": "{\"factType\":\"repair-round-receipt\",\"value\":{\"counterexampleSetDigest\":\"sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a\",\"cumulativeBudgetLedgerDigest\":\"sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c\",\"decisionId\":\"decision.g4-v6.vector.repair-1\",\"failedClosureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"failedClosureReceiptId\":\"receipt.g4-v6.vector.closure\",\"failedEvidenceManifestDigests\":[\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\"],\"failureContextPackDigest\":\"sha256-574a7a08d4973c4fb2b481a30d49e58936ca5b8a1cb74ed0c8f356e656c1985b\",\"previewId\":\"preview.g4-v6.vector.repair-1\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"proposalId\":\"proposal.g4-v6.vector.repair-1\",\"receiptDigest\":\"sha256-f21043a9305acd514d2df2ac7c2f311be31603212ff660e8ba5633d76c895e43\",\"receiptId\":\"receipt.g4-v6.vector.repair.proposal-bound\",\"recordedAt\":\"2026-08-02T02:03:00.000Z\",\"regressionRequirementSetDigest\":\"sha256-09139fde01a6a9dc085163dd579d8a5012334d70acf121cd252ff33f5837fe78\",\"repairRoundId\":\"repair-round.g4-v6.vector.1\",\"round\":1,\"runId\":\"run.g4-v5.proposal-vector\",\"state\":\"proposal-bound\",\"taskId\":\"task.g4-v5.proposal-vector\",\"transactionDigest\":\"sha256-d039d79376d6976ef2d13d69f9bab90ae3c005097d0d612892536e06b8dc592b\",\"verificationPlanDigest\":\"sha256-9f6cac3a7fab7726fe5058aacf5b4ce16f1c597faa6e8189098941e34c7eea02\"},\"wireVersion\":2}",
+    "repairBlocked": "{\"factType\":\"repair-round-receipt\",\"value\":{\"blockReason\":\"repair-round-exhausted\",\"counterexampleSetDigest\":\"sha256-703cd223f5dbe32761b6e47f6ad1d6bebeacc9b22d1b92aeda646caed330026a\",\"cumulativeBudgetLedgerDigest\":\"sha256-b9d8098c339782594fde22716c9c1a7c3a9d14ba0c557f192dab251db152172c\",\"failedClosureDigest\":\"sha256-fe5e0cc1e2d40292dcde7fb857846bf6e234821fd34de4f481b1c514c090df15\",\"failedClosureReceiptId\":\"receipt.g4-v6.vector.closure\",\"failedEvidenceManifestDigests\":[\"sha256-45749c64fe4be275e07463c1d84b383e6249b8fb52e62daea552f6579707e19a\"],\"failureContextPackDigest\":\"sha256-574a7a08d4973c4fb2b481a30d49e58936ca5b8a1cb74ed0c8f356e656c1985b\",\"producer\":{\"kind\":\"service\",\"principalId\":\"agent.coordinator.g4-v5\"},\"receiptDigest\":\"sha256-fe8eb677afd76091ab4d8c1f92ed91d42e13b50fbcaf69f7b895d25868dbd2ff\",\"receiptId\":\"receipt.g4-v6.vector.repair.blocked\",\"recordedAt\":\"2026-08-02T02:04:00.000Z\",\"regressionRequirementSetDigest\":\"sha256-09139fde01a6a9dc085163dd579d8a5012334d70acf121cd252ff33f5837fe78\",\"repairRoundId\":\"repair-round.g4-v6.vector.2\",\"round\":2,\"runId\":\"run.g4-v5.proposal-vector\",\"state\":\"blocked\",\"taskId\":\"task.g4-v5.proposal-vector\"},\"wireVersion\":2}"
   },
   "expectedDigests": {
-    "binding": "sha256-36ec60d4dae17b9a9d87425b21cdfc3c9cf018eeb71ed47de3b19a56412bc259",
-    "closure": "sha256-944705327f6e11639c743c845362b6c40f42fae239a5bbb34480475a7f308a4d",
-    "satisfiedClosure": "sha256-7573a1d50c56860c74e9124791cc25021c9e779d40f03fb6912b7b4b8b74ed42",
+    "binding": "sha256-d7dd7f03df0b4c33016b4f47717288618435ef40f708899e541ab9e9e2a6fd3b",
+    "closure": "sha256-f2675561c4c10d6be9b8a3279007efc2d2c4ca3a13a9c20096fbfb705e1620fd",
+    "satisfiedClosure": "sha256-ab9b24526245d1faf2f55b7f52f4458b69e895104744d45ecccb2b59528d5310",
     "repairStarted": "sha256-4e772be9427f9275a367026b4310e2aa766c84f3ae1047fd28b4f4962f293b94",
     "repairProposalBound": "sha256-f21043a9305acd514d2df2ac7c2f311be31603212ff660e8ba5633d76c895e43",
     "repairBlocked": "sha256-fe8eb677afd76091ab4d8c1f92ed91d42e13b50fbcaf69f7b895d25868dbd2ff"

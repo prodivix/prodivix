@@ -170,6 +170,17 @@ describe('G4 V1 usage, pricing, and hard budget', () => {
         reservedAt: '2026-08-01T00:00:00.000Z',
       })
     ).toMatchObject({ ok: true, state: { revision: 1 } });
+    expect(
+      reserveAgentBudget(reserved.state, {
+        reservationId: 'reservation.1',
+        expectedRevision: 1,
+        demand: demand(),
+        reservedAt: '2026-08-01T00:00:01.000Z',
+      })
+    ).toMatchObject({
+      ok: false,
+      issues: [{ code: 'AI-9001', path: '/reservationId' }],
+    });
 
     const actual = demand('400');
     expect(

@@ -4,24 +4,76 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
 	"time"
+
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
 )
 
 type VerificationPlanBindingRecord struct {
-	WorkspaceID       string
-	BindingID         string
-	TaskID            string
-	RunID             string
-	MutationReceiptID string
-	VerificationRunID string
-	ActualPlanDigest  string
-	PlanCompatibility string
-	BindingDigest     string
-	FactBytes         []byte
-	BoundAt           time.Time
+	WorkspaceID        string
+	BindingID          string
+	TaskID             string
+	RunID              string
+	MutationReceiptID  string
+	VerificationRunIDs []string
+	ActualPlanDigest   string
+	PlanCompatibility  string
+	BindingDigest      string
+	FactBytes          []byte
+	BoundAt            time.Time
+}
+
+func verificationRunIDs(refs []verificationRunRefFact) []string {
+	result := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		result = append(result, ref.VerificationRunID)
+	}
+	return result
+}
+
+func verificationSnapshotFacts(source []byte) (string, map[string]bool, error) {
+	decoder := json.NewDecoder(bytes.NewReader(source))
+	decoder.UseNumber()
+	var snapshot map[string]any
+	if err := decoder.Decode(&snapshot); err != nil {
+		return "", nil, fmt.Errorf("decode VerificationRun snapshot: %w", err)
+	}
+	selected, ok := snapshot["selectedCellIds"].([]any)
+	if !ok || len(selected) == 0 {
+		return "", nil, ErrInvalid
+	}
+	digest, err := canonicaljson.Digest(selected)
+	if err != nil {
+		return "", nil, err
+	}
+	promoted := map[string]bool{}
+	if cells, ok := snapshot["cells"].([]any); ok {
+		for _, rawCell := range cells {
+			cell, _ := rawCell.(map[string]any)
+			if evidenceID, ok := cell["evidenceId"].(string); ok && evidenceID != "" {
+				promoted[evidenceID] = true
+			}
+		}
+	}
+	return digest, promoted, nil
+}
+
+func sameVerificationRunBindings(binding, closure []verificationRunRefFact) bool {
+	if len(binding) != len(closure) {
+		return false
+	}
+	for index := range binding {
+		if binding[index].VerificationRunID != closure[index].VerificationRunID ||
+			binding[index].Surface != closure[index].Surface ||
+			binding[index].SelectedCellSetDigest != closure[index].SelectedCellSetDigest {
+			return false
+		}
+	}
+	return true
 }
 
 type VerificationClosureReceiptRecord struct {
@@ -91,7 +143,31 @@ WHERE p.workspace_id = $1 AND p.task_id = $2 AND p.run_id = $3
 	AND b.actual_plan_digest = $9
 	AND b.plan_compatibility = $10
 	AND b.target_revision_digest = m.target_revision_digest
-	AND c.closure_digest = $11`,
+	AND c.closure_digest = $11
+	AND (SELECT COUNT(*) FROM agent_verification_plan_binding_runs br
+		WHERE br.workspace_id = b.workspace_id AND br.binding_id = b.binding_id) BETWEEN 1 AND 3
+	AND (SELECT COUNT(*) FROM agent_verification_closure_runs cr
+		WHERE cr.workspace_id = c.workspace_id AND cr.closure_receipt_id = c.receipt_id) =
+		(SELECT COUNT(*) FROM agent_verification_plan_binding_runs br
+		WHERE br.workspace_id = b.workspace_id AND br.binding_id = b.binding_id)
+	AND NOT EXISTS (
+		(SELECT br.verification_run_id, br.surface, br.selected_cell_set_digest
+		 FROM agent_verification_plan_binding_runs br
+		 WHERE br.workspace_id = b.workspace_id AND br.binding_id = b.binding_id)
+		EXCEPT
+		(SELECT cr.verification_run_id, cr.surface, cr.selected_cell_set_digest
+		 FROM agent_verification_closure_runs cr
+		 WHERE cr.workspace_id = c.workspace_id AND cr.closure_receipt_id = c.receipt_id)
+	)
+	AND NOT EXISTS (
+		(SELECT cr.verification_run_id, cr.surface, cr.selected_cell_set_digest
+		 FROM agent_verification_closure_runs cr
+		 WHERE cr.workspace_id = c.workspace_id AND cr.closure_receipt_id = c.receipt_id)
+		EXCEPT
+		(SELECT br.verification_run_id, br.surface, br.selected_cell_set_digest
+		 FROM agent_verification_plan_binding_runs br
+		 WHERE br.workspace_id = b.workspace_id AND br.binding_id = b.binding_id)
+	)`,
 		workspaceID, taskID, runID,
 		stringMember(proof, "proposalDigest"), stringMember(proof, "approvalDigest"),
 		stringMember(proof, "transactionDigest"), stringMember(proof, "commitAckDigest"),
@@ -203,17 +279,30 @@ func (repository *Repository) StoreVerificationPlanBinding(
 	if !ok {
 		return VerificationPlanBindingRecord{}, false, ErrInvalid
 	}
-	var verificationWorkspaceRevision int64
-	var verificationPlanDigest string
-	if err := tx.QueryRowContext(ctx, `SELECT workspace_revision, plan_digest
+	for _, verificationRun := range binding.VerificationRuns {
+		var verificationWorkspaceRevision int64
+		var verificationPlanDigest, verificationSurface string
+		var snapshotJSON []byte
+		if err := tx.QueryRowContext(ctx, `SELECT workspace_revision, plan_digest, surface, snapshot_json
 FROM verification_runs
 WHERE workspace_id = $1 AND id = $2
-FOR SHARE`, authority.WorkspaceID, binding.VerificationRunID).Scan(
-		&verificationWorkspaceRevision, &verificationPlanDigest,
-	); errors.Is(err, sql.ErrNoRows) {
-		return VerificationPlanBindingRecord{}, false, ErrNotFound
-	} else if err != nil {
-		return VerificationPlanBindingRecord{}, false, err
+FOR SHARE`, authority.WorkspaceID, verificationRun.VerificationRunID).Scan(
+			&verificationWorkspaceRevision, &verificationPlanDigest, &verificationSurface, &snapshotJSON,
+		); errors.Is(err, sql.ErrNoRows) {
+			return VerificationPlanBindingRecord{}, false, ErrNotFound
+		} else if err != nil {
+			return VerificationPlanBindingRecord{}, false, err
+		}
+		selectedCellSetDigest, _, err := verificationSnapshotFacts(snapshotJSON)
+		if err != nil {
+			return VerificationPlanBindingRecord{}, false, err
+		}
+		if verificationWorkspaceRevision != workspaceRevision ||
+			verificationPlanDigest != binding.ActualPlanDigest ||
+			verificationSurface != verificationRun.Surface ||
+			selectedCellSetDigest != verificationRun.SelectedCellSetDigest {
+			return VerificationPlanBindingRecord{}, false, conflict("verification binding Run set does not match the actual Plan, revision, surfaces, and selected cells")
+		}
 	}
 	if mutation.State != "acknowledged" || mutation.Kind != binding.MutationKind ||
 		mutation.TaskID != binding.TaskID || mutation.RunID != binding.RunID ||
@@ -221,8 +310,7 @@ FOR SHARE`, authority.WorkspaceID, binding.VerificationRunID).Scan(
 		mutation.DecisionID != binding.DecisionID || mutation.TargetRevisionDigest != binding.TargetRevisionDigest ||
 		planning.VerificationPlanDigest != binding.ApprovedPlanDigest || preview.PreviewID != binding.PreviewID ||
 		approval.DecisionID != binding.DecisionID || approval.Decision != "approved" ||
-		run.TaskID != binding.TaskID || (run.Phase != "verifying" && run.Phase != "repairing") ||
-		verificationWorkspaceRevision != workspaceRevision || verificationPlanDigest != binding.ActualPlanDigest {
+		run.TaskID != binding.TaskID || (run.Phase != "verifying" && run.Phase != "repairing") {
 		return VerificationPlanBindingRecord{}, false, conflict("verification binding does not match the approved ACK, actual Plan, Run, and revision")
 	}
 	if binding.MutationKind == "rollback" {
@@ -250,7 +338,7 @@ FOR SHARE`, authority.WorkspaceID, binding.TaskID, binding.RunID).Scan(&exists);
 ) ON CONFLICT DO NOTHING`,
 		authority.WorkspaceID, binding.BindingID, binding.TaskID, binding.RunID,
 		binding.ProposalID, binding.PreviewID, binding.DecisionID, binding.MutationReceiptID,
-		binding.MutationKind, binding.VerificationRunID, binding.TargetRevisionDigest,
+		binding.MutationKind, binding.VerificationRuns[0].VerificationRunID, binding.TargetRevisionDigest,
 		binding.ApprovedPlanDigest, binding.ActualPlanDigest, binding.PlanCompatibility,
 		binding.ImpactDigest, binding.PolicyDigest, binding.ApprovedRequiredCellSetDigest,
 		binding.ActualRequiredCellSetDigest, binding.RegressionRequirementSetDigest,
@@ -279,6 +367,15 @@ FOR SHARE`, authority.WorkspaceID, binding.TaskID, binding.RunID).Scan(&exists);
 			return VerificationPlanBindingRecord{}, false, err
 		}
 		return record, true, nil
+	}
+	for _, verificationRun := range binding.VerificationRuns {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_verification_plan_binding_runs (
+		workspace_id, binding_id, verification_run_id, surface, selected_cell_set_digest
+	) VALUES ($1, $2, $3, $4, $5)`, authority.WorkspaceID, binding.BindingID,
+			verificationRun.VerificationRunID, verificationRun.Surface,
+			verificationRun.SelectedCellSetDigest); err != nil {
+			return VerificationPlanBindingRecord{}, false, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return VerificationPlanBindingRecord{}, false, err
@@ -315,30 +412,54 @@ func (repository *Repository) StoreVerificationClosureReceipt(
 	if err != nil {
 		return VerificationClosureReceiptRecord{}, false, err
 	}
-	var verificationWorkspaceRevision int64
-	var verificationPlanDigest, closureDigest, closureVerdict string
-	if err := tx.QueryRowContext(ctx, `SELECT workspace_revision, plan_digest,
-	COALESCE(snapshot_json->>'closureDigest', ''), COALESCE(snapshot_json->>'closureVerdict', '')
-FROM verification_runs
-WHERE workspace_id = $1 AND id = $2
-FOR SHARE`, authority.WorkspaceID, receipt.VerificationRunID).Scan(
-		&verificationWorkspaceRevision, &verificationPlanDigest, &closureDigest, &closureVerdict,
-	); errors.Is(err, sql.ErrNoRows) {
-		return VerificationClosureReceiptRecord{}, false, ErrNotFound
-	} else if err != nil {
-		return VerificationClosureReceiptRecord{}, false, err
-	}
 	workspaceRevision, ok := integerMember(receipt.TargetRevision, "workspaceRev")
 	if !ok {
 		return VerificationClosureReceiptRecord{}, false, ErrInvalid
 	}
 	if binding.TaskID != receipt.TaskID || binding.RunID != receipt.RunID ||
-		binding.VerificationRunID != receipt.VerificationRunID || binding.TargetRevisionDigest != receipt.TargetRevisionDigest ||
-		binding.ActualPlanDigest != receipt.PlanDigest || verificationWorkspaceRevision != workspaceRevision ||
-		verificationPlanDigest != receipt.PlanDigest || closureDigest != receipt.ClosureDigest || closureVerdict != receipt.Verdict {
+		!sameVerificationRunBindings(binding.VerificationRuns, receipt.VerificationRuns) ||
+		binding.TargetRevisionDigest != receipt.TargetRevisionDigest ||
+		binding.ActualPlanDigest != receipt.PlanDigest {
 		return VerificationClosureReceiptRecord{}, false, conflict("Closure receipt does not match the bound G3 Run, Plan, revision, and evaluated verdict")
 	}
+	promotedEvidenceIDs := map[string]bool{}
+	for _, verificationRun := range receipt.VerificationRuns {
+		var verificationWorkspaceRevision int64
+		var verificationPlanDigest, verificationSurface, closureDigest, closureVerdict, snapshotDigest string
+		var snapshotJSON []byte
+		if err := tx.QueryRowContext(ctx, `SELECT workspace_revision, plan_digest, surface,
+	COALESCE(snapshot_json->>'closureDigest', ''), COALESCE(snapshot_json->>'closureVerdict', ''),
+	snapshot_digest, snapshot_json
+FROM verification_runs
+WHERE workspace_id = $1 AND id = $2
+FOR SHARE`, authority.WorkspaceID, verificationRun.VerificationRunID).Scan(
+			&verificationWorkspaceRevision, &verificationPlanDigest, &verificationSurface,
+			&closureDigest, &closureVerdict, &snapshotDigest, &snapshotJSON,
+		); errors.Is(err, sql.ErrNoRows) {
+			return VerificationClosureReceiptRecord{}, false, ErrNotFound
+		} else if err != nil {
+			return VerificationClosureReceiptRecord{}, false, err
+		}
+		selectedCellSetDigest, promoted, err := verificationSnapshotFacts(snapshotJSON)
+		if err != nil {
+			return VerificationClosureReceiptRecord{}, false, err
+		}
+		if verificationWorkspaceRevision != workspaceRevision ||
+			verificationPlanDigest != receipt.PlanDigest ||
+			verificationSurface != verificationRun.Surface ||
+			selectedCellSetDigest != verificationRun.SelectedCellSetDigest ||
+			snapshotDigest != verificationRun.SnapshotDigest ||
+			closureDigest != receipt.ClosureDigest || closureVerdict != receipt.Verdict {
+			return VerificationClosureReceiptRecord{}, false, conflict("Closure receipt does not match every bound G3 Run snapshot and evaluated verdict")
+		}
+		for evidenceID := range promoted {
+			promotedEvidenceIDs[evidenceID] = true
+		}
+	}
 	for _, ref := range receipt.EvidenceRefs {
+		if !promotedEvidenceIDs[ref.EvidenceID] {
+			return VerificationClosureReceiptRecord{}, false, conflict("Closure receipt Evidence was not promoted by the bound G3 Run set")
+		}
 		var workspaceID, planDigest, manifestDigest, outcome string
 		var evidenceRevision int64
 		if err := tx.QueryRowContext(ctx, `SELECT workspace_id, workspace_revision, plan_digest, manifest_digest, outcome
@@ -365,7 +486,7 @@ FOR SHARE`, ref.EvidenceID).Scan(
 	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
 	$13, $14, $15, $16::jsonb, $17, $18
 ) ON CONFLICT DO NOTHING`, authority.WorkspaceID, receipt.ReceiptID, receipt.BindingID,
-		receipt.TaskID, receipt.RunID, receipt.VerificationRunID, receipt.TargetRevisionDigest,
+		receipt.TaskID, receipt.RunID, receipt.VerificationRuns[0].VerificationRunID, receipt.TargetRevisionDigest,
 		receipt.PlanDigest, receipt.EvidenceSetDigest, receipt.VerifiedEvidenceViewDigest,
 		receipt.ClosureDigest, receipt.Verdict, receipt.ProducerKind, receipt.ProducerID,
 		receipt.ReceiptDigest, string(receipt.Canonical), receipt.Canonical, receipt.EvaluatedAt,
@@ -392,6 +513,16 @@ FOR SHARE`, ref.EvidenceID).Scan(
 			return VerificationClosureReceiptRecord{}, false, err
 		}
 		return record, true, nil
+	}
+	for _, verificationRun := range receipt.VerificationRuns {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_verification_closure_runs (
+		workspace_id, closure_receipt_id, verification_run_id, surface,
+		selected_cell_set_digest, snapshot_digest
+	) VALUES ($1, $2, $3, $4, $5, $6)`, authority.WorkspaceID, receipt.ReceiptID,
+			verificationRun.VerificationRunID, verificationRun.Surface,
+			verificationRun.SelectedCellSetDigest, verificationRun.SnapshotDigest); err != nil {
+			return VerificationClosureReceiptRecord{}, false, err
+		}
 	}
 	for _, ref := range receipt.EvidenceRefs {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_verification_closure_evidence (
@@ -650,7 +781,7 @@ func verificationPlanBindingRecord(workspaceID string, binding verificationPlanB
 	return VerificationPlanBindingRecord{
 		WorkspaceID: workspaceID, BindingID: binding.BindingID, TaskID: binding.TaskID,
 		RunID: binding.RunID, MutationReceiptID: binding.MutationReceiptID,
-		VerificationRunID: binding.VerificationRunID, ActualPlanDigest: binding.ActualPlanDigest,
+		VerificationRunIDs: verificationRunIDs(binding.VerificationRuns), ActualPlanDigest: binding.ActualPlanDigest,
 		PlanCompatibility: binding.PlanCompatibility, BindingDigest: binding.BindingDigest,
 		FactBytes: append([]byte(nil), binding.Canonical...), BoundAt: binding.BoundAt,
 	}

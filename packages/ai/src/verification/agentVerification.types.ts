@@ -17,6 +17,19 @@ export type AgentVerificationEvidenceRef = Readonly<{
   outcome: AgentVerificationEvidenceOutcome;
 }>;
 
+export type AgentVerificationSurface = 'preview' | 'export' | 'ci';
+
+export type AgentVerificationRunBindingRef = Readonly<{
+  verificationRunId: string;
+  surface: AgentVerificationSurface;
+  selectedCellSetDigest: CanonicalDigest;
+}>;
+
+export type AgentVerificationRunClosureRef = AgentVerificationRunBindingRef &
+  Readonly<{
+    snapshotDigest: CanonicalDigest;
+  }>;
+
 export type AgentCommittedVerificationPlanBinding = Readonly<{
   bindingId: string;
   taskId: string;
@@ -26,7 +39,7 @@ export type AgentCommittedVerificationPlanBinding = Readonly<{
   decisionId: string;
   mutationReceiptId: string;
   mutationKind: 'commit' | 'rollback';
-  verificationRunId: string;
+  verificationRuns: readonly AgentVerificationRunBindingRef[];
   targetRevision: AgentWorkspaceRevisionVector;
   approvedPlanDigest: CanonicalDigest;
   actualPlanDigest: CanonicalDigest;
@@ -46,7 +59,7 @@ export type AgentVerificationClosureReceipt = Readonly<{
   bindingId: string;
   taskId: string;
   runId: string;
-  verificationRunId: string;
+  verificationRuns: readonly AgentVerificationRunClosureRef[];
   targetRevision: AgentWorkspaceRevisionVector;
   planDigest: CanonicalDigest;
   evidenceRefs: readonly AgentVerificationEvidenceRef[];

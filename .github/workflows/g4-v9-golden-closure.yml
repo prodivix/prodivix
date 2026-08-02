@@ -1,0 +1,187 @@
+name: G4 V9 Authenticated Catalog Golden Closure Contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-v9-golden-closure.yml'
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+      - 'apps/backend/internal/modules/agent/**'
+      - 'apps/backend/internal/platform/agentcontract/**'
+      - 'apps/backend/internal/platform/canonicaljson/**'
+      - 'apps/backend/internal/platform/database/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'packages/ai/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/shared/**'
+      - 'packages/verification/**'
+      - 'packages/workspace/**'
+      - 'packages/workspace-sync/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'scripts/ci/configure-rootless-podman.sh'
+      - 'scripts/g4-agent-closure-canonical-vector.mjs'
+      - 'scripts/g4-agent-evaluation-canonical-vector.mjs'
+      - 'scripts/g4-agent-verification-canonical-vector.mjs'
+      - 'scripts/sync-g4-wire-contracts.mjs'
+      - 'scripts/verify-g4-golden-evidence.mjs'
+      - 'scripts/verify-g4-model-eval-evidence.mjs'
+      - 'scripts/verify-g4-model-eval-postgres.mjs'
+      - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
+      - 'specs/decisions/69.real-model-evaluation-and-release-qualification.md'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-closure-evidence.md'
+      - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/g4-v9-golden-closure.yml'
+      - 'apps/backend/go.mod'
+      - 'apps/backend/go.sum'
+      - 'apps/backend/internal/modules/agent/**'
+      - 'apps/backend/internal/platform/agentcontract/**'
+      - 'apps/backend/internal/platform/canonicaljson/**'
+      - 'apps/backend/internal/platform/database/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'packages/ai/**'
+      - 'packages/golden-conformance/**'
+      - 'packages/shared/**'
+      - 'packages/verification/**'
+      - 'packages/workspace/**'
+      - 'packages/workspace-sync/**'
+      - 'scripts/check-core-package-boundaries.mjs'
+      - 'scripts/check-g4-boundaries.mjs'
+      - 'scripts/ci/configure-rootless-podman.sh'
+      - 'scripts/g4-agent-closure-canonical-vector.mjs'
+      - 'scripts/g4-agent-evaluation-canonical-vector.mjs'
+      - 'scripts/g4-agent-verification-canonical-vector.mjs'
+      - 'scripts/sync-g4-wire-contracts.mjs'
+      - 'scripts/verify-g4-golden-evidence.mjs'
+      - 'scripts/verify-g4-model-eval-evidence.mjs'
+      - 'scripts/verify-g4-model-eval-postgres.mjs'
+      - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
+      - 'specs/decisions/69.real-model-evaluation-and-release-qualification.md'
+      - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/roadmap/current-status.md'
+      - 'specs/roadmap/g4-closure-evidence.md'
+      - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
+
+concurrency:
+  group: g4-v9-golden-closure-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-golden:
+    name: Zero-remote-token Golden, PostgreSQL, browser, and rootless Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prodivix_g4_v9
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prodivix_g4_v9"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PRODIVIX_BACKEND_POSTGRES_TEST_URL: postgres://postgres:postgres@127.0.0.1:5432/prodivix_g4_v9?sslmode=disable
+      PRODIVIX_G4_REMOTE_MODEL_UNITS: '0'
+      PRODIVIX_G4_REPOSITORY_COMMIT: ${{ github.sha }}
+      PRODIVIX_G4_WORKTREE_STATE: clean
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.1
+          cache: pnpm
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Attest pre-adopted runner image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${ImageOS:-}" = 'ubuntu24'
+          case "${ImageVersion:-}" in
+            20260720.247.2|20260726.254.1) ;;
+            *)
+              echo "::error::Runner ImageVersion is not pre-adopted: ${ImageVersion:-missing}"
+              exit 1
+              ;;
+          esac
+          test "$(uname -m)" = 'x86_64'
+          test "$(uname -r)" = '6.17.0-1020-azure'
+          echo "PRODIVIX_G3_V6_RUNNER_IMAGE_OS=${ImageOS}" >> "${GITHUB_ENV}"
+          echo "PRODIVIX_G3_V6_RUNNER_IMAGE_VERSION=${ImageVersion}" >> "${GITHUB_ENV}"
+      - name: Configure and verify pre-adopted rootless Podman
+        shell: bash
+        run: bash scripts/ci/configure-rootless-podman.sh g4-v9-rootless-podman-info.json
+      - name: Build immutable controlled static toolchain sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_image="docker.io/library/node:22.23.1-bookworm-slim"
+          image_tag="localhost/prodivix-g4-v9-controlled-static:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          podman pull "${base_image}"
+          base_digest="$(podman image inspect --format '{{.Digest}}' "${base_image}")"
+          test "${base_digest#sha256:}" != "${base_digest}"
+          podman build \
+            --pull=never \
+            --build-arg "NODE_IMAGE=docker.io/library/node@${base_digest}" \
+            --file apps/remote-runner-worker/controlled-static-sandbox/Dockerfile \
+            --tag "${image_tag}" \
+            .
+          image_id="$(podman image inspect --format '{{.Id}}' "${image_tag}")"
+          if [[ "${image_id}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            image_digest="${image_id}"
+          elif [[ "${image_id}" =~ ^[0-9a-f]{64}$ ]]; then
+            image_digest="sha256:${image_id}"
+          else
+            echo "::error::Controlled static sandbox image id is not a canonical SHA-256 digest."
+            exit 1
+          fi
+          echo "PRODIVIX_CONTROLLED_STATIC_SANDBOX_IMAGE=${image_digest}" >> "${GITHUB_ENV}"
+      - name: Install Playwright browser engines
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Attest installed Playwright browser images
+        run: pnpm --filter @prodivix/golden-conformance test:g3-v6-browser-image-authority
+      - name: Verify rootless runtime
+        run: pnpm run verify:g4:rootless
+      - name: Verify exact deterministic G4 aggregate and authenticated Catalog Golden
+        env:
+          PRODIVIX_G4_V9_MANIFEST_PATH: ${{ runner.temp }}/prodivix-g4-v9-closure-manifest.json
+        run: pnpm run verify:g4
+      - name: Confirm ordinary CI consumed no remote model units
+        shell: bash
+        run: test "${PRODIVIX_G4_REMOTE_MODEL_UNITS}" = '0'
+      - name: Upload deterministic V9 Closure manifest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: g4-v9-deterministic-closure-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/prodivix-g4-v9-closure-manifest.json
+          if-no-files-found: error
+          retention-days: 30

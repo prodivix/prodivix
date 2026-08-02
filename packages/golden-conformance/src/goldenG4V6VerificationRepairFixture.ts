@@ -320,19 +320,28 @@ const createVerificationRun = (
   plan: VerificationPlan,
   evidence: readonly VerificationEvidence[],
   closure: VerificationClosure,
+  surface: VerificationRunSnapshot['surface'],
   executionStartMs: number,
   closureEvaluationInstant: string
 ): VerificationRunSnapshot => {
-  const selectedCellIds = Object.freeze(plan.cells.map(({ id }) => id));
+  const surfaceEvidence = evidence.filter(
+    (candidate) =>
+      plan.cells.find(({ id }) => id === candidate.cellId)?.surface === surface
+  );
+  const selectedCellIds = Object.freeze(
+    plan.cells.filter((cell) => cell.surface === surface).map(({ id }) => id)
+  );
   const attemptIdByCellId = Object.freeze(
     Object.fromEntries(
-      evidence.map(({ cellId, attemptId }) => [cellId, attemptId] as const)
+      surfaceEvidence.map(
+        ({ cellId, attemptId }) => [cellId, attemptId] as const
+      )
     )
   );
   let snapshot = createVerificationRunSnapshot({
-    runId: `verification.golden.g4-v6.${label}`,
+    runId: `verification.golden.g4-v6.${label}.${surface}`,
     plan,
-    surface: plan.cells[0]!.surface,
+    surface,
     scope: 'all',
     providerId: 'golden-g4-v6-ci',
     origin: 'ci',
@@ -363,7 +372,7 @@ const createVerificationRun = (
       kind: 'run-started',
     })
   );
-  evidence.forEach((candidate, index) => {
+  surfaceEvidence.forEach((candidate, index) => {
     const startedAt = evidenceInstant(executionStartMs, index, 0);
     const completedAt = evidenceInstant(executionStartMs, index, 1);
     const candidateDigest = digestVerificationValue({
@@ -406,7 +415,7 @@ const createVerificationRun = (
     snapshot,
     nextEvent(
       new Date(
-        executionStartMs + (evidence.length * 2 + 2) * 1_000
+        executionStartMs + (surfaceEvidence.length * 2 + 2) * 1_000
       ).toISOString(),
       { kind: 'run-completed' }
     )
@@ -421,12 +430,36 @@ const createVerificationRun = (
   );
 };
 
+const createVerificationRuns = (
+  label: string,
+  plan: VerificationPlan,
+  evidence: readonly VerificationEvidence[],
+  closure: VerificationClosure,
+  executionStartMs: number,
+  closureEvaluationInstant: string
+): readonly VerificationRunSnapshot[] =>
+  Object.freeze(
+    [...new Set(plan.cells.map(({ surface }) => surface))]
+      .sort()
+      .map((surface) =>
+        createVerificationRun(
+          label,
+          plan,
+          evidence,
+          closure,
+          surface,
+          executionStartMs,
+          closureEvaluationInstant
+        )
+      )
+  );
+
 export type GoldenG4V6VerificationFlow = Readonly<{
   plan: VerificationPlan;
   evidence: readonly VerificationEvidence[];
   verifiedView: VerificationEvidenceVerifiedView;
   closureInput: EvaluateVerificationClosureInput;
-  verificationRun: VerificationRunSnapshot;
+  verificationRuns: readonly VerificationRunSnapshot[];
   binding: Extract<
     ReturnType<typeof createWorkspaceAgentVerificationPlanBinding>,
     { status: 'ready' }
@@ -437,6 +470,79 @@ export type GoldenG4V6VerificationFlow = Readonly<{
     { status: 'ready' }
   >['value']['receipt'];
 }>;
+
+export const bindGoldenG4VerificationFlow = (
+  input: Readonly<{
+    label: string;
+    projection: WorkspaceAgentProposalProjection;
+    approval: AgentApprovalPreflightContext;
+    mutationReceipt: AgentWorkspaceMutationReceipt;
+    plan: VerificationPlan;
+    evidence: readonly VerificationEvidence[];
+    verifiedView: VerificationEvidenceVerifiedView;
+    closureInput: EvaluateVerificationClosureInput;
+    regressionRequirements?: readonly AgentRepairRegressionRequirement[];
+    executionStartedAt: string;
+    closureEvaluationInstant: string;
+    boundAt?: string;
+  }>
+): GoldenG4V6VerificationFlow => {
+  const evaluated = evaluateVerificationClosure(input.closureInput);
+  if (evaluated.status !== 'ready') {
+    throw new Error(`Golden G4 Closure failed: ${evaluated.message}`);
+  }
+  const verificationRuns = createVerificationRuns(
+    input.label,
+    input.plan,
+    input.evidence,
+    evaluated.closure,
+    Date.parse(input.executionStartedAt),
+    input.closureEvaluationInstant
+  );
+  const binding = createWorkspaceAgentVerificationPlanBinding({
+    projection: input.projection,
+    approval: input.approval,
+    mutationReceipt: input.mutationReceipt,
+    actualPlan: input.plan,
+    verificationRuns,
+    regressionRequirements: input.regressionRequirements,
+    bindingId: `binding.golden.${input.label}`,
+    producer: GOLDEN_G4_V6_PRODUCER,
+    boundAt: input.boundAt ?? input.executionStartedAt,
+  });
+  if (binding.status !== 'ready') {
+    throw new Error(
+      `Golden G4 Plan binding failed: ${binding.issues
+        .map(({ message }) => message)
+        .join('; ')}`
+    );
+  }
+  const closureResult = evaluateWorkspaceAgentVerificationClosure({
+    binding: binding.value,
+    verificationRuns,
+    closureInput: input.closureInput,
+    receiptId: `receipt.golden.${input.label}.closure`,
+    producer: GOLDEN_G4_V6_PRODUCER,
+    evaluatedAt: input.closureEvaluationInstant,
+  });
+  if (closureResult.status !== 'ready') {
+    throw new Error(
+      `Golden G4 Agent Closure failed: ${closureResult.issues
+        .map(({ message }) => message)
+        .join('; ')}`
+    );
+  }
+  return Object.freeze({
+    plan: input.plan,
+    evidence: input.evidence,
+    verifiedView: input.verifiedView,
+    closureInput: input.closureInput,
+    verificationRuns,
+    binding: binding.value,
+    closure: closureResult.value.closure,
+    closureReceipt: closureResult.value.receipt,
+  });
+};
 
 export const createGoldenG4V6VerificationFlow = (
   input: Readonly<{
@@ -503,60 +609,19 @@ export const createGoldenG4V6VerificationFlow = (
     revocationRecordDigest: verifiedView.revocationRecordDigest,
     revokedEvidenceIds: Object.freeze([]),
   }) satisfies EvaluateVerificationClosureInput;
-  const evaluated = evaluateVerificationClosure(closureInput);
-  if (evaluated.status !== 'ready') {
-    throw new Error(`Golden G4 V6 Closure failed: ${evaluated.message}`);
-  }
-  const verificationRun = createVerificationRun(
-    input.label,
-    input.plan,
-    evidence,
-    evaluated.closure,
-    executionStartMs,
-    closureEvaluationInstant
-  );
-  const binding = createWorkspaceAgentVerificationPlanBinding({
+  return bindGoldenG4VerificationFlow({
+    label: `g4-v6.${input.label}`,
     projection: input.projection,
     approval: input.approval,
     mutationReceipt: input.mutationReceipt,
-    actualPlan: input.plan,
-    verificationRun,
-    regressionRequirements: input.regressionRequirements,
-    bindingId: `binding.golden.g4-v6.${input.label}`,
-    producer: GOLDEN_G4_V6_PRODUCER,
-    boundAt: input.boundAt ?? GOLDEN_G4_V6_TIME.verifying,
-  });
-  if (binding.status !== 'ready') {
-    throw new Error(
-      `Golden G4 V6 Plan binding failed: ${binding.issues
-        .map(({ message }) => message)
-        .join('; ')}`
-    );
-  }
-  const closureResult = evaluateWorkspaceAgentVerificationClosure({
-    binding: binding.value,
-    verificationRun,
-    closureInput,
-    receiptId: `receipt.golden.g4-v6.${input.label}.closure`,
-    producer: GOLDEN_G4_V6_PRODUCER,
-    evaluatedAt: closureEvaluationInstant,
-  });
-  if (closureResult.status !== 'ready') {
-    throw new Error(
-      `Golden G4 V6 Agent Closure failed: ${closureResult.issues
-        .map(({ message }) => message)
-        .join('; ')}`
-    );
-  }
-  return Object.freeze({
     plan: input.plan,
     evidence,
     verifiedView,
     closureInput,
-    verificationRun,
-    binding: binding.value,
-    closure: closureResult.value.closure,
-    closureReceipt: closureResult.value.receipt,
+    regressionRequirements: input.regressionRequirements,
+    executionStartedAt,
+    closureEvaluationInstant,
+    boundAt: input.boundAt ?? GOLDEN_G4_V6_TIME.verifying,
   });
 };
 

@@ -919,10 +919,12 @@ export const runGoldenPreparedToolchainEvidence = async (
     let outputBytes = 0;
     let diagnosticBytes = 0;
     let failed = false;
+    let failureKind: 'stdout-limit' | 'timeout' | undefined;
     child.stdout?.on('data', (chunk: Buffer) => {
       outputBytes += chunk.byteLength;
       if (outputBytes > 256 * 1024 * 1024) {
         failed = true;
+        failureKind = 'stdout-limit';
         child.kill();
         return;
       }
@@ -935,25 +937,27 @@ export const runGoldenPreparedToolchainEvidence = async (
         diagnosticBytes += Math.min(remaining, chunk.byteLength);
       }
     });
-    const timeout = setTimeout(
-      () => {
-        failed = true;
-        child.kill();
-      },
-      process.platform === 'win32' ? 90_000 : 210_000
-    );
+    const timeout = setTimeout(() => {
+      failed = true;
+      failureKind = 'timeout';
+      child.kill();
+    }, 210_000);
     child.once('error', () => {
       clearTimeout(timeout);
       rejectPromise(
         new Error('Controlled static toolchain runner could not start.')
       );
     });
-    child.once('close', (code) => {
+    child.once('close', (code, signal) => {
       clearTimeout(timeout);
       if (failed || code !== 0) {
         rejectPromise(
           new Error(
-            `Controlled static toolchain runner did not succeed: ${
+            `Controlled static toolchain runner did not succeed (exitCode=${
+              code ?? 'null'
+            }, signal=${signal ?? 'none'}, failure=${
+              failureKind ?? 'process'
+            }): ${
               Buffer.concat(diagnostics).toString('utf8').trim() ||
               'no bounded diagnostic'
             }`

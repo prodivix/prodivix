@@ -67,7 +67,7 @@ func TestAgentVerificationVectorMatchesTypeScriptCanonicalFacts(t *testing.T) {
 func TestAgentVerificationAdmissionRejectsAmbiguityDriftAndAuthority(t *testing.T) {
 	vector := readAgentVerificationVector(t)
 	binding := vector.Facts["binding"]
-	duplicate := append([]byte(`{"wireVersion":1,`), binding[1:]...)
+	duplicate := append([]byte(`{"wireVersion":2,`), binding[1:]...)
 	if err := ValidateVerificationFact(duplicate); err == nil {
 		t.Fatal("duplicate verification JSON members must fail closed")
 	}

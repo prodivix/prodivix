@@ -10,11 +10,15 @@ import { agentControlFactWireSchemas } from '../packages/ai/src/wire/agentContro
 import { agentProposalFactWireSchemas } from '../packages/ai/src/wire/agentProposalWire.ts';
 import { agentVerificationFactWireSchemas } from '../packages/ai/src/wire/agentVerificationWire.ts';
 import { agentProductWireSchemas } from '../packages/ai/src/wire/agentProductWire.ts';
+import { agentEvaluationFactWireSchemas } from '../packages/ai/src/wire/agentEvaluationWire.ts';
+import { agentG4ClosureManifestWireSchemas } from '../packages/ai/src/wire/agentG4ClosureWire.ts';
 import { createG4AgentPolicyCanonicalVector } from './g4-agent-policy-canonical-vector.mjs';
 import { createG4AgentControlCanonicalVector } from './g4-agent-control-canonical-vector.mjs';
 import { createG4AgentProposalCanonicalVector } from './g4-agent-proposal-canonical-vector.mjs';
 import { createG4AgentVerificationCanonicalVector } from './g4-agent-verification-canonical-vector.mjs';
 import { createG4AgentProductCanonicalVector } from './g4-agent-product-canonical-vector.mjs';
+import { createG4AgentEvaluationCanonicalVector } from './g4-agent-evaluation-canonical-vector.mjs';
+import { createG4AgentClosureCanonicalVector } from './g4-agent-closure-canonical-vector.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const targets = [
@@ -31,6 +35,8 @@ const targets = [
       ...agentProposalFactWireSchemas,
       ...agentVerificationFactWireSchemas,
       ...agentProductWireSchemas,
+      ...agentEvaluationFactWireSchemas,
+      ...agentG4ClosureManifestWireSchemas,
     },
   },
   {
@@ -72,6 +78,22 @@ const targets = [
       'apps/backend/internal/platform/agentcontract/testdata/agent-verification-vector.json'
     ),
     value: createG4AgentVerificationCanonicalVector(),
+  },
+  {
+    label: 'Agent G4 Closure canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-g4-closure-vector.json'
+    ),
+    value: createG4AgentClosureCanonicalVector(),
+  },
+  {
+    label: 'Agent evaluation canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-evaluation-vector.json'
+    ),
+    value: createG4AgentEvaluationCanonicalVector(),
   },
 ];
 const mode = process.argv[2] ?? 'check';

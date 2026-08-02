@@ -92,7 +92,7 @@ describe('G4 V6 committed Verification, repair, and counterexample Golden', () =
     expect(
       evaluateWorkspaceAgentVerificationClosure({
         binding: GOLDEN_G4_V6_PASSED_FLOW.binding,
-        verificationRun: GOLDEN_G4_V6_PASSED_FLOW.verificationRun,
+        verificationRuns: GOLDEN_G4_V6_PASSED_FLOW.verificationRuns,
         closureInput: {
           ...GOLDEN_G4_V6_PASSED_FLOW.closureInput,
           verifiedEvidenceView: undefined,
@@ -116,7 +116,7 @@ describe('G4 V6 committed Verification, repair, and counterexample Golden', () =
         approval: createGoldenG4V5ApprovalContext(),
         mutationReceipt: GOLDEN_G4_V6_COMMIT_RECEIPT,
         actualPlan: policyDriftPlan,
-        verificationRun: GOLDEN_G4_V6_PASSED_FLOW.verificationRun,
+        verificationRuns: GOLDEN_G4_V6_PASSED_FLOW.verificationRuns,
         bindingId: 'binding.golden.g4-v6.policy-drift',
         producer: GOLDEN_G4_V6_PRODUCER,
         boundAt: GOLDEN_G4_V6_TIME.verifying,

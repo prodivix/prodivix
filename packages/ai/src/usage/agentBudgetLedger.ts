@@ -516,7 +516,8 @@ export const reserveAgentBudget = (
     ({ reservationId }) => reservationId === input.reservationId
   );
   if (existing) {
-    return existing.demandDigest === demandDigest
+    return existing.demandDigest === demandDigest &&
+      existing.reservedAt === input.reservedAt
       ? Object.freeze({ ok: true, state, reservation: existing })
       : Object.freeze({
           ok: false,
@@ -525,7 +526,7 @@ export const reserveAgentBudget = (
             issue(
               'AI-9001',
               '/reservationId',
-              'Budget reservation id was reused with different demand.'
+              'Budget reservation id was reused with different demand or time.'
             ),
           ]),
         });

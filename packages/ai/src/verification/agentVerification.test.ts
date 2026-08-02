@@ -39,7 +39,13 @@ const binding = createAgentCommittedVerificationPlanBinding({
   decisionId: 'decision.catalog.1',
   mutationReceiptId: 'receipt.commit.ack.1',
   mutationKind: 'commit',
-  verificationRunId: 'verification.run.catalog.1',
+  verificationRuns: [
+    {
+      verificationRunId: 'verification.run.catalog.1',
+      surface: 'preview',
+      selectedCellSetDigest: digest('selected.preview'),
+    },
+  ],
   targetRevision: revision,
   approvedPlanDigest: digest('plan.actual'),
   actualPlanDigest: digest('plan.actual'),
@@ -60,7 +66,10 @@ describe('G4 V6 Agent Verification facts', () => {
       bindingId: binding.bindingId,
       taskId: binding.taskId,
       runId: binding.runId,
-      verificationRunId: binding.verificationRunId,
+      verificationRuns: binding.verificationRuns.map((run) => ({
+        ...run,
+        snapshotDigest: digest(`snapshot.${run.surface}`),
+      })),
       targetRevision: revision,
       planDigest: binding.actualPlanDigest,
       evidenceRefs: [
@@ -144,7 +153,10 @@ describe('G4 V6 Agent Verification facts', () => {
         bindingId: binding.bindingId,
         taskId: binding.taskId,
         runId: binding.runId,
-        verificationRunId: binding.verificationRunId,
+        verificationRuns: binding.verificationRuns.map((run) => ({
+          ...run,
+          snapshotDigest: digest(`snapshot.${run.surface}`),
+        })),
         targetRevision: revision,
         planDigest: binding.actualPlanDigest,
         evidenceRefs: [],

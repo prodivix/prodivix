@@ -5,15 +5,15 @@
 
 ## 全局阶段
 
-| Phase                              | Product Gate | 当前判断                                                                                                                                                                            |
-| ---------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                          |
-| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
-| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。 |
-| G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                        |
-| G4 Verified Agentic Development    | In Progress  | V0–V7 已实现且 exact-commit durable CI 通过；V8–V9 Not Started，real-model evaluation、最终 Golden 与 Global G4 Closure 仍 Pending。                                                |
-| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
-| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
+| Phase                              | Product Gate | 当前判断                                                                                                                                                                                 |
+| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                               |
+| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                              |
+| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。      |
+| G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                             |
+| G4 Verified Agentic Development    | In Progress  | V0–V7 已实现且 exact-commit durable CI 通过；V8–V9 已本地实现，V9 browser/PostgreSQL Golden 已通过；exact-commit deterministic CI、real-model evidence 与 Global G4 Closure 仍 Pending。 |
+| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                           |
+| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                           |
 
 阶段定义与退出条件：[`global-phases.md`](./global-phases.md)。G0/G1 重复验证边界：
 [`g0-closure-evidence.md`](./g0-closure-evidence.md)、[`g1-closure-evidence.md`](./g1-closure-evidence.md)。
@@ -53,8 +53,17 @@ re-verification与 PostgreSQL v25 append-only ledger；`verify:g4:verification:c
 Run/Context/Proposal/Verification/Audit surface、独立可访问 approval/rejection、CLI exact loop、Web/CLI JSON parity、
 Golden/OpenAPI/workflow；`verify:g4:product:core`和真实 PostgreSQL 18 Gate均本地通过。2026-08-02，exact
 implementation commit `76e4d027a66be44a40f7b387854f9ae1115313da` 的 G4 V1–V7 独立 workflows 全部 terminal
-success，且普通 PR Gate 的 remote-model units 为 0；V8–V9、real-model evaluation、最终 Golden 与 Global G4
-Closure仍未开始或 Pending。
+success，且普通 PR Gate 的 remote-model units 为 0。V8 已在当前 working tree实现四类原生/兼容 adapter、
+fail-closed security、128-case/52-family planner、11,640+ schedule、statistical manifest、TypeScript/Go wire、
+PostgreSQL v27 immutable facts与 CAS budget ledger、Golden与 zero-remote-token CI workflow；本地 deterministic和
+真实 PostgreSQL Gate
+已通过。V9 也已在当前 working tree实现 authenticated Catalog exact proposal/approval/Commit、66-cell/80-attempt
+React/Vue Preview/Export/CI trusted Evidence、按 surface 分离的三 VerificationRun binding、satisfied Closure、
+terminal success、8 类 recovery、15 类 fail-closed negative、Web/CLI audit parity、strict G4 Closure manifest、
+PostgreSQL v28 immutable Run-set ledger与 zero-remote-model workflow；本地 browser Golden和完整 G4 PostgreSQL
+aggregate已通过。当前改动尚未形成 exact-commit durable CI，rootless runtime、三个真实 Provider matrix、bounded
+endpoint smoke、受保护 holdout operation、真实 human review与未过期 release qualification仍 Pending；最终
+`verify:g4:golden`/`verify:g4`/`verify:g4:closure` durable evidence与 Global G4 Closure也仍 Pending。
 当前实现与已确定边界如下：
 
 - `@prodivix/ai` 已成为 G4 transport-neutral current/wire 唯一 owner；旧 `packages/shared/src/llm` 已删除，
@@ -92,7 +101,8 @@ Closure仍未开始或 Pending。
   Workspace Sync coordinator才可进入既有 Outbox/Atomic Commit；409不自动 rebase，rollback只使用批准时的 exact
   reverse Transaction。Backend migration v24将 Proposal、Preview、Decision与 Mutation Receipt保存为append-only
   service facts，不进入 Workspace。
-- V6 在 commit/rollback ACK 后重新绑定 actual target revision Plan与 VerificationRun；G3 Closure只消费 promoted
+- V6/V9 在 commit/rollback ACK 后重新绑定 actual target revision Plan与按 Preview/Export/CI surface分离的
+  VerificationRun set；G3 Closure只消费 promoted
   immutable Evidence和 Backend-verified view。失败 Closure生成 stable counterexample/regression requirement，下一轮
   必须使用新的 proposal/approval/Transaction/Plan并受累计 repair/transaction budget约束；同一 Run只要出现过失败，
   后续 satisfied Closure若无 exact `proposal-bound` repair ledger仍不能 terminal succeeded。Rollback本身也作为新的
@@ -111,7 +121,8 @@ Closure仍未开始或 Pending。
   50亿–200亿。authority是冻结的 provider/profile/corpus/holdout/tier/repetition/grader/threshold/usage budget与
   实际 receipt，不能只用 token或成本表达工作量。
 - V0-V9、required Gate、Golden positive/negative matrix 与 evidence manifest 已提前冻结；V0–V7 为
-  `Implemented / Durable CI Evidence Passed`；V8–V9 仍为 `Not Started` / `Pending`。
+  `Implemented / Durable CI Evidence Passed`；V8–V9 为 `Implemented Locally / Exact-commit Deterministic CI and
+Real-model Evidence Pending`。本地 V9 Golden或 PostgreSQL通过不等于 Global G4 `Passed`。
 
 ## G3 当前进度
 

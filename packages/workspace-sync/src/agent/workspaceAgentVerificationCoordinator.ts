@@ -180,16 +180,54 @@ const retainsRegressionRequirements = (
   );
 };
 
-const runSelectsRequiredCells = (
-  plan: VerificationPlan,
+const verificationRunSelectedCellSetDigest = (
   run: VerificationRunSnapshot
+): CanonicalDigest =>
+  digestAgentCanonicalValue(canonicalText(run.selectedCellIds));
+
+const canonicalVerificationRuns = (
+  runs: readonly VerificationRunSnapshot[]
+): readonly VerificationRunSnapshot[] =>
+  Object.freeze(
+    [...runs].sort(
+      (left, right) =>
+        compareAgentCanonicalText(left.surface, right.surface) ||
+        compareAgentCanonicalText(left.runId, right.runId)
+    )
+  );
+
+const runSetSelectsRequiredCells = (
+  plan: VerificationPlan,
+  runs: readonly VerificationRunSnapshot[]
 ): boolean => {
-  const selected = new Set(run.selectedCellIds);
+  if (runs.length < 1 || runs.length > 3) return false;
+  const canonicalRuns = canonicalVerificationRuns(runs);
+  const runIds = new Set(canonicalRuns.map(({ runId }) => runId));
+  const runSurfaces = new Set(canonicalRuns.map(({ surface }) => surface));
+  const requiredSurfaces = new Set(
+    requiredCells(plan).map(({ surface }) => surface)
+  );
+  const selectedIds = canonicalRuns.flatMap(({ selectedCellIds }) =>
+    selectedCellIds.slice()
+  );
+  const selected = new Set(selectedIds);
+  const planCells = new Map(plan.cells.map((cell) => [cell.id, cell] as const));
   return (
-    run.workspaceId === plan.workspaceId &&
-    run.workspaceRevision === plan.targetRevision &&
-    run.planDigest === plan.planDigest &&
-    run.selectedCellIds.length === run.cells.length &&
+    runIds.size === canonicalRuns.length &&
+    runSurfaces.size === canonicalRuns.length &&
+    runSurfaces.size === requiredSurfaces.size &&
+    [...requiredSurfaces].every((surface) => runSurfaces.has(surface)) &&
+    selected.size === selectedIds.length &&
+    canonicalRuns.every(
+      (run) =>
+        run.workspaceId === plan.workspaceId &&
+        run.workspaceRevision === plan.targetRevision &&
+        run.planDigest === plan.planDigest &&
+        run.selectedCellIds.length === run.cells.length &&
+        run.selectedCellIds.every(
+          (cellId) => planCells.get(cellId)?.surface === run.surface
+        )
+    ) &&
     requiredCells(plan).every((cell) => selected.has(cell.id))
   );
 };
@@ -199,7 +237,7 @@ export type CreateWorkspaceAgentVerificationPlanBindingInput = Readonly<{
   approval: AgentApprovalPreflightContext;
   mutationReceipt: AgentWorkspaceMutationReceipt;
   actualPlan: VerificationPlan;
-  verificationRun: VerificationRunSnapshot;
+  verificationRuns: readonly VerificationRunSnapshot[];
   regressionRequirements?: readonly AgentRepairRegressionRequirement[];
   bindingId: string;
   producer: AgentPrincipalRef;
@@ -213,8 +251,13 @@ export type CreateWorkspaceAgentVerificationPlanBindingInput = Readonly<{
 export const createWorkspaceAgentVerificationPlanBinding = (
   input: CreateWorkspaceAgentVerificationPlanBindingInput
 ): WorkspaceAgentVerificationResult<AgentCommittedVerificationPlanBinding> => {
-  const { projection, approval, mutationReceipt, actualPlan, verificationRun } =
-    input;
+  const {
+    projection,
+    approval,
+    mutationReceipt,
+    actualPlan,
+    verificationRuns,
+  } = input;
   if (
     mutationReceipt.state !== 'acknowledged' ||
     !mutationReceipt.targetRevision ||
@@ -255,11 +298,11 @@ export const createWorkspaceAgentVerificationPlanBinding = (
       'Actual VerificationPlan does not bind the acknowledged target revision.'
     );
   }
-  if (!runSelectsRequiredCells(actualPlan, verificationRun)) {
+  if (!runSetSelectsRequiredCells(actualPlan, verificationRuns)) {
     return blocked(
       'AI-6001',
-      '/verificationRun',
-      'VerificationRun must bind the actual Plan and select every required cell.'
+      '/verificationRuns',
+      'VerificationRuns must bind the actual Plan and cover every required cell on exact, non-duplicated surfaces.'
     );
   }
   const requirements = input.regressionRequirements ?? Object.freeze([]);
@@ -298,7 +341,14 @@ export const createWorkspaceAgentVerificationPlanBinding = (
         decisionId: mutationReceipt.decisionId,
         mutationReceiptId: mutationReceipt.receiptId,
         mutationKind: mutationReceipt.kind,
-        verificationRunId: verificationRun.runId,
+        verificationRuns: verificationRuns.map((verificationRun) =>
+          Object.freeze({
+            verificationRunId: verificationRun.runId,
+            surface: verificationRun.surface,
+            selectedCellSetDigest:
+              verificationRunSelectedCellSetDigest(verificationRun),
+          })
+        ),
         targetRevision: mutationReceipt.targetRevision,
         approvedPlanDigest: projection.verificationPlan.planDigest,
         actualPlanDigest: actualPlan.planDigest,
@@ -331,7 +381,7 @@ export const createWorkspaceAgentVerificationPlanBinding = (
 
 export type EvaluateWorkspaceAgentVerificationClosureInput = Readonly<{
   binding: AgentCommittedVerificationPlanBinding;
-  verificationRun: VerificationRunSnapshot;
+  verificationRuns: readonly VerificationRunSnapshot[];
   closureInput: EvaluateVerificationClosureInput;
   receiptId: string;
   producer: AgentPrincipalRef;
@@ -347,10 +397,23 @@ export type WorkspaceAgentVerificationClosure = Readonly<{
 export const evaluateWorkspaceAgentVerificationClosure = (
   input: EvaluateWorkspaceAgentVerificationClosureInput
 ): WorkspaceAgentVerificationResult<WorkspaceAgentVerificationClosure> => {
-  const { binding, verificationRun, closureInput } = input;
+  const { binding, verificationRuns, closureInput } = input;
+  const canonicalRuns = canonicalVerificationRuns(verificationRuns);
+  const runBindingsMatch =
+    binding.verificationRuns.length === canonicalRuns.length &&
+    binding.verificationRuns.every((runBinding, index) => {
+      const verificationRun = canonicalRuns[index];
+      return (
+        verificationRun !== undefined &&
+        runBinding.verificationRunId === verificationRun.runId &&
+        runBinding.surface === verificationRun.surface &&
+        runBinding.selectedCellSetDigest ===
+          verificationRunSelectedCellSetDigest(verificationRun)
+      );
+    });
   if (
     !closureInput.verifiedEvidenceView ||
-    binding.verificationRunId !== verificationRun.runId ||
+    !runBindingsMatch ||
     binding.actualPlanDigest !== closureInput.plan.planDigest ||
     !sameAgentWorkspaceRevision(
       binding.targetRevision,
@@ -369,18 +432,23 @@ export const evaluateWorkspaceAgentVerificationClosure = (
   }
   const { closure } = evaluated;
   if (
-    verificationRun.closureDigest !== closure.closureDigest ||
-    verificationRun.closureVerdict !== closure.verdict
+    canonicalRuns.some(
+      (verificationRun) =>
+        verificationRun.closureDigest !== closure.closureDigest ||
+        verificationRun.closureVerdict !== closure.verdict
+    )
   ) {
     return blocked(
       'AI-6001',
-      '/verificationRun/closure',
-      'VerificationRun must durably attach the exact evaluated Closure before Agent completion.'
+      '/verificationRuns/closure',
+      'Every VerificationRun must durably attach the exact evaluated Closure before Agent completion.'
     );
   }
   const promotedEvidenceIds = new Set(
-    verificationRun.cells.flatMap(({ evidenceId }) =>
-      evidenceId ? [evidenceId] : []
+    canonicalRuns.flatMap((verificationRun) =>
+      verificationRun.cells.flatMap(({ evidenceId }) =>
+        evidenceId ? [evidenceId] : []
+      )
     )
   );
   if (closureInput.evidence.some(({ id }) => !promotedEvidenceIds.has(id))) {
@@ -396,7 +464,15 @@ export const evaluateWorkspaceAgentVerificationClosure = (
       bindingId: binding.bindingId,
       taskId: binding.taskId,
       runId: binding.runId,
-      verificationRunId: binding.verificationRunId,
+      verificationRuns: canonicalRuns.map((verificationRun) =>
+        Object.freeze({
+          verificationRunId: verificationRun.runId,
+          surface: verificationRun.surface,
+          selectedCellSetDigest:
+            verificationRunSelectedCellSetDigest(verificationRun),
+          snapshotDigest: verificationRun.snapshotDigest,
+        })
+      ),
       targetRevision: binding.targetRevision,
       planDigest: binding.actualPlanDigest,
       evidenceRefs: closureInput.evidence.map(

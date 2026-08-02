@@ -62,6 +62,15 @@ describe('G4 V1 provider capability qualification', () => {
       capabilityProfileDigest: TEST_PROFILE.profileDigest,
       policyProfileDigest: policy.evaluation.effectivePolicyDigest,
     });
+    const evaluationBase = Object.freeze({
+      manifestRef: 'evaluation.manifest.test',
+      manifestDigest: testDigest('evaluation-manifest'),
+      planDigest: testDigest('evaluation-plan'),
+      qualificationTargetDigest: testDigest('evaluation-target'),
+      qualificationSliceDigest: slice,
+      evaluatedAt: TEST_INSTANT,
+      expiresAt: TEST_EXPIRY,
+    });
     const evaluated = qualifyAgentProviderCapability({
       provider: TEST_PROVIDER,
       providerDataPolicy: TEST_DATA_POLICY,
@@ -72,13 +81,10 @@ describe('G4 V1 provider capability qualification', () => {
       sensitivity: 'internal',
       evaluatedAt: TEST_INSTANT,
       expiresAt: TEST_EXPIRY,
-      evaluation: {
-        manifestRef: 'evaluation.manifest.test',
-        manifestDigest: testDigest('evaluation-manifest'),
-        qualificationSliceDigest: slice,
-        evaluatedAt: TEST_INSTANT,
-        expiresAt: TEST_EXPIRY,
-      },
+      evaluation: Object.freeze({
+        ...evaluationBase,
+        qualificationDigest: testDigest(evaluationBase),
+      }),
     });
     expect(evaluated).toMatchObject({
       ok: true,

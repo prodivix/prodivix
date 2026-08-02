@@ -16,6 +16,13 @@ type verificationEvidenceRefFact struct {
 	Outcome        string
 }
 
+type verificationRunRefFact struct {
+	VerificationRunID     string
+	Surface               string
+	SelectedCellSetDigest string
+	SnapshotDigest        string
+}
+
 type verificationPlanBindingFact struct {
 	BindingID                      string
 	TaskID                         string
@@ -25,7 +32,7 @@ type verificationPlanBindingFact struct {
 	DecisionID                     string
 	MutationReceiptID              string
 	MutationKind                   string
-	VerificationRunID              string
+	VerificationRuns               []verificationRunRefFact
 	TargetRevision                 map[string]any
 	TargetRevisionDigest           string
 	ApprovedPlanDigest             string
@@ -49,7 +56,7 @@ type verificationClosureReceiptFact struct {
 	BindingID                  string
 	TaskID                     string
 	RunID                      string
-	VerificationRunID          string
+	VerificationRuns           []verificationRunRefFact
 	TargetRevision             map[string]any
 	TargetRevisionDigest       string
 	PlanDigest                 string
@@ -124,6 +131,21 @@ func producerMembers(value map[string]any) (string, string) {
 	return stringMember(producer, "kind"), stringMember(producer, "principalId")
 }
 
+func verificationRunMembers(value map[string]any) []verificationRunRefFact {
+	rawRuns, _ := arrayMember(value, "verificationRuns")
+	runs := make([]verificationRunRefFact, 0, len(rawRuns))
+	for _, raw := range rawRuns {
+		run, _ := raw.(map[string]any)
+		runs = append(runs, verificationRunRefFact{
+			VerificationRunID:     stringMember(run, "verificationRunId"),
+			Surface:               stringMember(run, "surface"),
+			SelectedCellSetDigest: stringMember(run, "selectedCellSetDigest"),
+			SnapshotDigest:        stringMember(run, "snapshotDigest"),
+		})
+	}
+	return runs
+}
+
 func decodeVerificationPlanBinding(source []byte) (verificationPlanBindingFact, error) {
 	fact, err := decodeVerificationEnvelope(source, "committed-plan-binding")
 	if err != nil {
@@ -143,7 +165,7 @@ func decodeVerificationPlanBinding(source []byte) (verificationPlanBindingFact, 
 		RunID: stringMember(fact.Value, "runId"), ProposalID: stringMember(fact.Value, "proposalId"),
 		PreviewID: stringMember(fact.Value, "previewId"), DecisionID: stringMember(fact.Value, "decisionId"),
 		MutationReceiptID: stringMember(fact.Value, "mutationReceiptId"), MutationKind: stringMember(fact.Value, "mutationKind"),
-		VerificationRunID: stringMember(fact.Value, "verificationRunId"), TargetRevision: revision,
+		VerificationRuns: verificationRunMembers(fact.Value), TargetRevision: revision,
 		TargetRevisionDigest: revisionDigest, ApprovedPlanDigest: stringMember(fact.Value, "approvedPlanDigest"),
 		ActualPlanDigest: stringMember(fact.Value, "actualPlanDigest"), PlanCompatibility: stringMember(fact.Value, "planCompatibility"),
 		ImpactDigest: stringMember(fact.Value, "impactDigest"), PolicyDigest: stringMember(fact.Value, "policyDigest"),
@@ -180,7 +202,7 @@ func decodeVerificationClosureReceipt(source []byte) (verificationClosureReceipt
 	return verificationClosureReceiptFact{
 		ReceiptID: stringMember(fact.Value, "receiptId"), BindingID: stringMember(fact.Value, "bindingId"),
 		TaskID: stringMember(fact.Value, "taskId"), RunID: stringMember(fact.Value, "runId"),
-		VerificationRunID: stringMember(fact.Value, "verificationRunId"), TargetRevision: revision,
+		VerificationRuns: verificationRunMembers(fact.Value), TargetRevision: revision,
 		TargetRevisionDigest: revisionDigest, PlanDigest: stringMember(fact.Value, "planDigest"), EvidenceRefs: refs,
 		EvidenceSetDigest: stringMember(fact.Value, "evidenceSetDigest"), VerifiedEvidenceViewDigest: stringMember(fact.Value, "verifiedEvidenceViewDigest"),
 		ClosureDigest: stringMember(fact.Value, "closureDigest"), Verdict: stringMember(fact.Value, "verdict"),

@@ -1,0 +1,494 @@
+{
+  "format": "prodivix.agent-g4-closure-canonical-vector",
+  "version": 1,
+  "fact": {
+    "wireVersion": 1,
+    "factType": "g4-golden-closure-manifest",
+    "value": {
+      "artifacts": [
+        {
+          "artifactDigest": "sha256-7bea980afbb54977edc10dd0731e3dd9ffee3224ad20482baa87250abc248e23",
+          "artifactId": "artifact.audit",
+          "availability": "available",
+          "digest": "sha256-7f4de97125549c8978dfdbc23fd7d081da57b09011610b2377cb5c0dd83c1550",
+          "mediaType": "application/json",
+          "size": 64
+        },
+        {
+          "artifactDigest": "sha256-3f9e47e545e0b702527a29380d8bf8f33ae2f1eab2955ffefb84ca5538f36023",
+          "artifactId": "artifact.g3-closure",
+          "availability": "available",
+          "digest": "sha256-addf3ab1a5a170b720d3843e0a8e5d7c3712a06a1a7507377038f31e320f4d4f",
+          "mediaType": "application/json",
+          "size": 64
+        },
+        {
+          "artifactDigest": "sha256-d82eda381d7a1f3624adeea823371de70b34ab779c9f344509e5a9af5d9d4d39",
+          "artifactId": "artifact.product-view",
+          "availability": "available",
+          "digest": "sha256-689e1a6f272f024e0259e20390ebfd1fa0c06afe277f086bea365636359a546f",
+          "mediaType": "application/json",
+          "size": 64
+        }
+      ],
+      "closureVerdict": "incomplete",
+      "completedAt": "2026-08-02T06:00:00.000Z",
+      "deterministicGateEvidence": [
+        {
+          "command": "pnpm run verify:g4:boundaries",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-2883a915bd2e03ecf83a27429e0c86e12ff67bd46c35be535cb801f45d1b0f22",
+          "executionMode": "local",
+          "gateId": "verify:g4:boundaries",
+          "refDigest": "sha256-2e3bfce81d307b8c336d767cdc6cdd5a7ecedc2a5d488f2d58beeb3b6a2f922a",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:context-policy",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-325ab0ec35ebd075e01538aaf86bedd95dba039d096efff3ca20e864fcbce985",
+          "executionMode": "local",
+          "gateId": "verify:g4:context-policy",
+          "refDigest": "sha256-c465845e176668a83d3a58f6762f6c91cf14e925acf8db51a4cf40baad887da2",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:control-plane",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-268dfaa0adef9c119ae257f572c588fbaa60a32812e3ee64a03f7ffbf550a67d",
+          "executionMode": "local",
+          "gateId": "verify:g4:control-plane",
+          "refDigest": "sha256-77dc8f4eff7425af397fbc7ed9a08b938ea8e3b105de9dce8677bd3e35a442e8",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:hosted-capabilities",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-2a6ba7670f95f2409c53702b5e480a4ef8d8db8bc19313771f3e31d1571e2e13",
+          "executionMode": "local",
+          "gateId": "verify:g4:hosted-capabilities",
+          "refDigest": "sha256-0d4c7477413d26d95ec97c8c28a57ff8860f36e8c7e1d6beab0fbd55e0460428",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:model-eval:contract",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-dff130ee00f28614e27e06e2d7c5a66660bbaa345c8c071de0aca4c7a2cfa23e",
+          "executionMode": "local",
+          "gateId": "verify:g4:model-eval:contract",
+          "refDigest": "sha256-242f510eb46a322546191a889435c7cf3cc597685472c94df85052c4dd751b40",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:multimodal",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-3de83dfef6b4179d2eb2cc69d78f78247e3e7a7c7c6cd049a4a326cb5650800a",
+          "executionMode": "local",
+          "gateId": "verify:g4:multimodal",
+          "refDigest": "sha256-631bd259b533ab9b1daef0b2f9bf7e97eacc3d328682b48a13a802d33e3acd48",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:product",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-5f0bafff11b624b5d9e59849cc23a95afa106f3f90fcc2ceabb930768a5bb099",
+          "executionMode": "local",
+          "gateId": "verify:g4:product",
+          "refDigest": "sha256-1addd452b5d50640500909ef8ad4f6cd25f33034cabdcc5b994e790074d5e772",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:proposal-approval",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-5b82f9cfac358f117fcb7a38558ce9b8907da7b34ef4fc33525c3ca912ad9fa7",
+          "executionMode": "local",
+          "gateId": "verify:g4:proposal-approval",
+          "refDigest": "sha256-52c85e2f9ef6d8a4cb6329c0f5a724089d3f38762c0af92e2c9c834b2f4270a7",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:provider-capabilities",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-acd3e1953388352f4c9f6d2afa2895d773f58b0f383aee4b860496e3f0d28f71",
+          "executionMode": "local",
+          "gateId": "verify:g4:provider-capabilities",
+          "refDigest": "sha256-078eca8f8051e196979e8f3886b782b05add030858c858f1a20f89c61e7b1712",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:security",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-e37db6530b8b63bdcd221c8144e05455708dd6120963d814816f81c2bb5d438d",
+          "executionMode": "local",
+          "gateId": "verify:g4:security",
+          "refDigest": "sha256-26f8da87c82c57ef8f80093ed9520c050dec99034f29b4774720feff05eb1257",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        },
+        {
+          "command": "pnpm run verify:g4:verification",
+          "completedAt": "2026-08-02T05:00:00.000Z",
+          "evidenceDigest": "sha256-3cafba5ac6c7e5217840a7d35d68720d76a21259e36bd13e419be40e85c8e02f",
+          "executionMode": "local",
+          "gateId": "verify:g4:verification",
+          "refDigest": "sha256-52387de18bd43af2c4491fda2a5a81ad1518fcb7d3ff18c8a7bde9dcd4d298b0",
+          "remoteModelUnits": 0,
+          "repositoryCommit": "9999999999999999999999999999999999999999",
+          "status": "passed"
+        }
+      ],
+      "goldenVerdict": "satisfied",
+      "journey": {
+        "approvalDigest": "sha256-a63f9c56d5dcdbc9fdaa9e1881eb80c6e83e7c99a39fa9a620070d913c76d555",
+        "auditDigest": "sha256-8b98a87c4d04f772e06c7bdba775b7b1b5a89f2f89476d2e5184f32610b3d823",
+        "baseRevisionDigest": "sha256-9ed1bef91255c115d47d9b83df8c77c57c9b228886a63d85ec47867e4c0c65ba",
+        "commitReceiptDigest": "sha256-007a9607957c4167c194903ce63bd52843a7ae9492450ca27ff62014ed6b739e",
+        "contextPackDigest": "sha256-0f3be2fddf4aa123356bab0f9346169bf87d2c5d8b2afe40bc020187ad81cc7c",
+        "journeyDigest": "sha256-24a72db7b61f261712b966992f3465a1361297f236889caaddf544368e502253",
+        "previewDigest": "sha256-7b5559dcf3a5b04f4d2729d3a5c6cb1bfaa7241933aff7c7f3576ef068c1726d",
+        "productViewDigest": "sha256-beae7caf06279706810a52c90a772d16d3ca03f4f0835d8dc0073d9e44bfb8aa",
+        "projectId": "project.golden.catalog",
+        "proposalDigest": "sha256-d138951631e97d48ffdd415abeae8a42fa1ae384015b7093dd3aa46a3aaf9dbc",
+        "reverseTransactionDigest": "sha256-4dd912aaabdc26a402ad319950a9ab0ec725df4ca856dfe7d3024064ab3a08cb",
+        "runDigest": "sha256-a18d039415d5e315772a50be6e5f6c7dfd778f1bf1b03084f58d1177a96dfb29",
+        "targetRevisionDigest": "sha256-9f8173a77fbed207eb7eaadfe3aab35a07936f6c8fdc166336f667dff1e4b51c",
+        "taskDigest": "sha256-ea42ec9bafc98ac49fd456814f21bcdac5eb1771d33794df3ea123279932a521",
+        "transactionDigest": "sha256-027a8328ed7fdee54e39edba4dbf59bbba0f2512b360eca8ae9f3edc4fa2f9d8",
+        "verificationClosureDigest": "sha256-48af6472ae55b74b9f92b3d00eabc82c848916092e6be16213585167c9438512",
+        "verificationEvidenceSetDigest": "sha256-a563646c28ec44cf233f79ded8f3aba751fec5261ab5b7bc2751f86721271397",
+        "verificationPlanDigest": "sha256-265f7b24115c1ddced7f9e9d19e723741e4f554c0825c1406472739a870126b4",
+        "workspaceId": "workspace.golden.catalog"
+      },
+      "manifestDigest": "sha256-69487fcc903b31a58a8e14c0fd79affa3360a221f3ebbb48f67e3f127caba231",
+      "manifestId": "manifest.golden.g4-v9.vector",
+      "modelEvaluation": {
+        "actualAttemptCount": 0,
+        "planDigest": "sha256-57f24d2c466371a9a83dfbe96bd94426198d5528355b96af6c548521d66b232d",
+        "requiredAttemptCount": 11640,
+        "requiredCapabilityProfileIds": [
+          "g4-core-text-tools",
+          "g4-document-input",
+          "g4-visual-input"
+        ],
+        "requiredProtocolFamilies": [
+          "anthropic-messages",
+          "gemini-interactions",
+          "openai-responses"
+        ],
+        "status": "pending",
+        "summaryDigest": "sha256-d30a38b8b59330cb26b76a713f57daa73620d01e5023b525d301d4fe031846dc"
+      },
+      "negativeVerdicts": [
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "budget-exhaustion",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-902b730ed9650fdaa2e32c574e02d953a38d1e0b0687f5ce325709e3d003c79f",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-01341b50dd31a66720516e9c56227ef54ce99f83059965d7516a3df88125f6a3",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "cherry-picked-evaluation",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-6fb14b0e3da2bbc4ed22a5392ff65c6e625d2da640f60ed277d798549888f0a6",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-f54492a024b1f5accc0a394f1473905d285a8fbafe1d2fd4f082478918be3c86",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "computer-use-authoring",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-1140a201cbb8ec2128eaec251bc0e82cd8fc77488c7451da5ee6366edef362b4",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-648a84b5f571ce0fe5af5331e593ea4524debba388509e9bb5b9c85198059eb5",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "cross-modal-injection",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-2efe6565100dcf33e9b8c4cfdc5b0ac258a681b7176c1ed7aadf6c4a1b74ca86",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-e5433d4870bc66bef085dda45fc9cfd10d815faa4af842f1a2a706e2f7a667ef",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "failed-closure",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-8296829e712088b3875c7f9a3e53d7cd38c723286f851bd8cca5586d1b82856c",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-1240ce19f39c48a68a5773f02423f906009eb12580d7cc807dc22ebafa49ac6f",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "failed-repair",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-0ee9ec7962fb992370abf8f49c7eaa2440fa34b3d291d9684c01a87b5575d6ca",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-f67ca1c89eddbc6ab14cde2cfc843ba451d1169cc5319d8574ef88a47aa1c4cd",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "fake-evidence",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-3a7b8235238137bf5716ea9fa956ad63dc0044062f48abec2d5c9552221cb404",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-224328c046a869bbb5ad3b5a41f7a04f1e3cf9f1c90b025be9fdd988ead8b594",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "hidden-tool-effect",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-1b6f75b58539b093983bb8aa6364ed9547a356b716521d5c3749cb8fc9039b13",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-137d0533378952554fdea50cfbc9168d49bc319cfe13edce2b08225ce877d17a",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "holdout-leak",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-3d58ffa34fb2d0a57bed2eeb4c265872b7a8f83d3aee4a20d771a368e4193be1",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-8a6d588ca26222a8f2515b74f49e07813801d3d419dd00d2a6f41d179ea964c8",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "permission-escalation",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-b2faa472cd77e89f0af40afe26eaa45f44227e9654ba16cf29f8725f99dacd5a",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-1f8a0a2e0135a6b8023d39f5d87f34c9c61bee15739e58c5102ab9a22ad37fbe",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "provider-state-memory",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-bd94aecedf78004ab707b3114b03192cd7e72d781c13f701e2d96458dcb97bb6",
+          "failurePreserved": true,
+          "outcome": "fenced",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-c2e6cd5cfa99848390628f963505592b812d70c90ed502636f8122c5bbfc6e45",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "rollback-conflict",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-154656d5ade63e59174662d15018194e983e7790866279cb5632aacc84c4e0e3",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-cd1a92408b1d3d45b2f7ae32405ba50b58858d609450dfa80f7a0780d4ce238d",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "secret-leak",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-945ddd8721b89aaa9c7d035101c4bacf9424aa67e33c183fac92c58ceb4eaada",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-02b80b889489d29b15bdc76756a6752442233e253bbedc68f3fbbc2c1cda96a4",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "stale-approval",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-fc6e5d22b4338bd195e293af2cced5fadc1f3c317bdddff539fd1bf5742d0a6d",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-aaa595d1cfa80a847a370b84c6384a1cc6af4fb281ac2ca98dfae378120f906b",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "authorityUnexpanded": true,
+          "caseId": "text-injection",
+          "diagnosticCode": "AI-7005",
+          "evidenceDigest": "sha256-4517868fb8f0e5c76bb088351296e9a8dae0a5b25c9e68471e90510d37cadaf3",
+          "failurePreserved": true,
+          "outcome": "blocked",
+          "sensitiveDataAbsent": true,
+          "verdictDigest": "sha256-ef01ec9928884d4c253361c87de7d119f9cd70640cb288d7d58d6c18132345f6",
+          "workspaceUnchanged": true
+        }
+      ],
+      "productParity": {
+        "auditEventCount": 7,
+        "auditHeadDigest": "sha256-38e7ba7df641e874069a7712e93ba9621e8527eee8c1f3c6034996660ceb141a",
+        "cliViewDigest": "sha256-beae7caf06279706810a52c90a772d16d3ca03f4f0835d8dc0073d9e44bfb8aa",
+        "parity": "exact",
+        "sanitizedAuditDigest": "sha256-8b98a87c4d04f772e06c7bdba775b7b1b5a89f2f89476d2e5184f32610b3d823",
+        "summaryDigest": "sha256-fd5f3a059d5fb2d061a8ce031e83547bbe10baf1e570f69dff69662b37b3e93c",
+        "webViewDigest": "sha256-beae7caf06279706810a52c90a772d16d3ca03f4f0835d8dc0073d9e44bfb8aa"
+      },
+      "recoveryVerdicts": [
+        {
+          "auditRecorded": true,
+          "caseId": "awaiting-approval-restart",
+          "evidenceDigest": "sha256-64f415e7c5b80e0f920f4e00877149d5a6fab60aaf1a31cccbfc8188914af49d",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-5aa6a5ef129d023fadb2f78f6fb0e28c8da723222275f73d9c04252e6e882e74",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "caseId": "cancel-late-callback",
+          "evidenceDigest": "sha256-4f62079b772569f33ee111ee5fca52798b83bb02bea258c4485e4a22579dba42",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-ca7e136fd66fe8bfe35079b98456ab6739030bca3b417f8073210bbe1316739b",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "caseId": "commit-ack-restart",
+          "evidenceDigest": "sha256-133d688c9b2e1d09bb0b92eacf6376bd9421ad938f142594d1dc06a005b36e50",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-697b41e49f32caf9c73295a2af673abaec536d6b50c77b3a99c22c7f598c2910",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "caseId": "duplicate-request",
+          "evidenceDigest": "sha256-967decc73e4e96fde8166e8428c132dcf290e04999abe44a9bed90c0215bba07",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-e868d5f2cf4f2b6d671c05153fc2f42539bd6d3fc102699396dedb912353dbe6",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "caseId": "late-background-callback",
+          "evidenceDigest": "sha256-1f37e3b1b7f605c8ad7dc78353bbb31963b0ddbc1dd54eb12b7f45b8ad0aca88",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-b94f26e471a99d695e6356780ae24ad1d3f3430bc6336a34643b2b742eaf417f",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "caseId": "model-stream-restart",
+          "evidenceDigest": "sha256-1b5d77ae829af3015eb4ddc76ce12296f9f63ff5f91d16715dc98d6d0599a3c9",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-d6d31eae21d444374839f05fd3701f9077f6379e66bb7b6b2fca20fdd12f777e",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "caseId": "tool-execute-restart",
+          "evidenceDigest": "sha256-07262e5a63cef6dcc708eb80b4e19822c4de75b4f2a2f8772eb646f84bb61eea",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-a8f7dee7682099b08fada6071db9b4ca25e8d2f05eaaf145d0cc3577cb8cfbfc",
+          "workspaceUnchanged": true
+        },
+        {
+          "auditRecorded": true,
+          "caseId": "verification-restart",
+          "evidenceDigest": "sha256-068db7edc49372b8867ccc2f90318d28312ddffe301478a47ab5a8b16eeb3722",
+          "generationFenced": true,
+          "outcome": "reconciled",
+          "sideEffectCount": 1,
+          "verdictDigest": "sha256-a6fca6b47c2ade35d26bbd50f860706bc7de18839a9fa836f4cd5d5326136fa6",
+          "workspaceUnchanged": true
+        }
+      ],
+      "repositoryCommit": "9999999999999999999999999999999999999999",
+      "targetId": "authenticated-catalog",
+      "verification": {
+        "closureDigest": "sha256-48af6472ae55b74b9f92b3d00eabc82c848916092e6be16213585167c9438512",
+        "closureVerdict": "satisfied",
+        "evidenceCount": 66,
+        "evidenceSetDigest": "sha256-a563646c28ec44cf233f79ded8f3aba751fec5261ab5b7bc2751f86721271397",
+        "frameworkTargets": ["react-vite", "vue-vite"],
+        "g3ClosureManifestDigest": "sha256-8f4f172829f8e7f1df48b496d5af42ff72dfe72d1577aa8820d4127e3a213f99",
+        "matrixEvidenceDigest": "sha256-0c30edebe652b57b9e2c8d34f34ebc49fa599be75bdac3d01594d98bd9c37c04",
+        "planDigest": "sha256-265f7b24115c1ddced7f9e9d19e723741e4f554c0825c1406472739a870126b4",
+        "requiredCellCount": 66,
+        "summaryDigest": "sha256-39b843c5ac8882de62f3390313a3f7be190eb032ae64db71ade2f632561f8af9",
+        "surfaces": ["ci", "export", "preview"],
+        "totalAttemptCount": 80
+      },
+      "worktreeState": "dirty"
+    }
+  },
+  "canonicalJson": "{\"factType\":\"g4-golden-closure-manifest\",\"value\":{\"artifacts\":[{\"artifactDigest\":\"sha256-7bea980afbb54977edc10dd0731e3dd9ffee3224ad20482baa87250abc248e23\",\"artifactId\":\"artifact.audit\",\"availability\":\"available\",\"digest\":\"sha256-7f4de97125549c8978dfdbc23fd7d081da57b09011610b2377cb5c0dd83c1550\",\"mediaType\":\"application/json\",\"size\":64},{\"artifactDigest\":\"sha256-3f9e47e545e0b702527a29380d8bf8f33ae2f1eab2955ffefb84ca5538f36023\",\"artifactId\":\"artifact.g3-closure\",\"availability\":\"available\",\"digest\":\"sha256-addf3ab1a5a170b720d3843e0a8e5d7c3712a06a1a7507377038f31e320f4d4f\",\"mediaType\":\"application/json\",\"size\":64},{\"artifactDigest\":\"sha256-d82eda381d7a1f3624adeea823371de70b34ab779c9f344509e5a9af5d9d4d39\",\"artifactId\":\"artifact.product-view\",\"availability\":\"available\",\"digest\":\"sha256-689e1a6f272f024e0259e20390ebfd1fa0c06afe277f086bea365636359a546f\",\"mediaType\":\"application/json\",\"size\":64}],\"closureVerdict\":\"incomplete\",\"completedAt\":\"2026-08-02T06:00:00.000Z\",\"deterministicGateEvidence\":[{\"command\":\"pnpm run verify:g4:boundaries\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-2883a915bd2e03ecf83a27429e0c86e12ff67bd46c35be535cb801f45d1b0f22\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:boundaries\",\"refDigest\":\"sha256-2e3bfce81d307b8c336d767cdc6cdd5a7ecedc2a5d488f2d58beeb3b6a2f922a\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:context-policy\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-325ab0ec35ebd075e01538aaf86bedd95dba039d096efff3ca20e864fcbce985\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:context-policy\",\"refDigest\":\"sha256-c465845e176668a83d3a58f6762f6c91cf14e925acf8db51a4cf40baad887da2\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:control-plane\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-268dfaa0adef9c119ae257f572c588fbaa60a32812e3ee64a03f7ffbf550a67d\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:control-plane\",\"refDigest\":\"sha256-77dc8f4eff7425af397fbc7ed9a08b938ea8e3b105de9dce8677bd3e35a442e8\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:hosted-capabilities\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-2a6ba7670f95f2409c53702b5e480a4ef8d8db8bc19313771f3e31d1571e2e13\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:hosted-capabilities\",\"refDigest\":\"sha256-0d4c7477413d26d95ec97c8c28a57ff8860f36e8c7e1d6beab0fbd55e0460428\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:model-eval:contract\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-dff130ee00f28614e27e06e2d7c5a66660bbaa345c8c071de0aca4c7a2cfa23e\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:model-eval:contract\",\"refDigest\":\"sha256-242f510eb46a322546191a889435c7cf3cc597685472c94df85052c4dd751b40\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:multimodal\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-3de83dfef6b4179d2eb2cc69d78f78247e3e7a7c7c6cd049a4a326cb5650800a\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:multimodal\",\"refDigest\":\"sha256-631bd259b533ab9b1daef0b2f9bf7e97eacc3d328682b48a13a802d33e3acd48\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:product\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-5f0bafff11b624b5d9e59849cc23a95afa106f3f90fcc2ceabb930768a5bb099\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:product\",\"refDigest\":\"sha256-1addd452b5d50640500909ef8ad4f6cd25f33034cabdcc5b994e790074d5e772\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:proposal-approval\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-5b82f9cfac358f117fcb7a38558ce9b8907da7b34ef4fc33525c3ca912ad9fa7\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:proposal-approval\",\"refDigest\":\"sha256-52c85e2f9ef6d8a4cb6329c0f5a724089d3f38762c0af92e2c9c834b2f4270a7\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:provider-capabilities\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-acd3e1953388352f4c9f6d2afa2895d773f58b0f383aee4b860496e3f0d28f71\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:provider-capabilities\",\"refDigest\":\"sha256-078eca8f8051e196979e8f3886b782b05add030858c858f1a20f89c61e7b1712\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:security\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-e37db6530b8b63bdcd221c8144e05455708dd6120963d814816f81c2bb5d438d\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:security\",\"refDigest\":\"sha256-26f8da87c82c57ef8f80093ed9520c050dec99034f29b4774720feff05eb1257\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"},{\"command\":\"pnpm run verify:g4:verification\",\"completedAt\":\"2026-08-02T05:00:00.000Z\",\"evidenceDigest\":\"sha256-3cafba5ac6c7e5217840a7d35d68720d76a21259e36bd13e419be40e85c8e02f\",\"executionMode\":\"local\",\"gateId\":\"verify:g4:verification\",\"refDigest\":\"sha256-52387de18bd43af2c4491fda2a5a81ad1518fcb7d3ff18c8a7bde9dcd4d298b0\",\"remoteModelUnits\":0,\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"status\":\"passed\"}],\"goldenVerdict\":\"satisfied\",\"journey\":{\"approvalDigest\":\"sha256-a63f9c56d5dcdbc9fdaa9e1881eb80c6e83e7c99a39fa9a620070d913c76d555\",\"auditDigest\":\"sha256-8b98a87c4d04f772e06c7bdba775b7b1b5a89f2f89476d2e5184f32610b3d823\",\"baseRevisionDigest\":\"sha256-9ed1bef91255c115d47d9b83df8c77c57c9b228886a63d85ec47867e4c0c65ba\",\"commitReceiptDigest\":\"sha256-007a9607957c4167c194903ce63bd52843a7ae9492450ca27ff62014ed6b739e\",\"contextPackDigest\":\"sha256-0f3be2fddf4aa123356bab0f9346169bf87d2c5d8b2afe40bc020187ad81cc7c\",\"journeyDigest\":\"sha256-24a72db7b61f261712b966992f3465a1361297f236889caaddf544368e502253\",\"previewDigest\":\"sha256-7b5559dcf3a5b04f4d2729d3a5c6cb1bfaa7241933aff7c7f3576ef068c1726d\",\"productViewDigest\":\"sha256-beae7caf06279706810a52c90a772d16d3ca03f4f0835d8dc0073d9e44bfb8aa\",\"projectId\":\"project.golden.catalog\",\"proposalDigest\":\"sha256-d138951631e97d48ffdd415abeae8a42fa1ae384015b7093dd3aa46a3aaf9dbc\",\"reverseTransactionDigest\":\"sha256-4dd912aaabdc26a402ad319950a9ab0ec725df4ca856dfe7d3024064ab3a08cb\",\"runDigest\":\"sha256-a18d039415d5e315772a50be6e5f6c7dfd778f1bf1b03084f58d1177a96dfb29\",\"targetRevisionDigest\":\"sha256-9f8173a77fbed207eb7eaadfe3aab35a07936f6c8fdc166336f667dff1e4b51c\",\"taskDigest\":\"sha256-ea42ec9bafc98ac49fd456814f21bcdac5eb1771d33794df3ea123279932a521\",\"transactionDigest\":\"sha256-027a8328ed7fdee54e39edba4dbf59bbba0f2512b360eca8ae9f3edc4fa2f9d8\",\"verificationClosureDigest\":\"sha256-48af6472ae55b74b9f92b3d00eabc82c848916092e6be16213585167c9438512\",\"verificationEvidenceSetDigest\":\"sha256-a563646c28ec44cf233f79ded8f3aba751fec5261ab5b7bc2751f86721271397\",\"verificationPlanDigest\":\"sha256-265f7b24115c1ddced7f9e9d19e723741e4f554c0825c1406472739a870126b4\",\"workspaceId\":\"workspace.golden.catalog\"},\"manifestDigest\":\"sha256-69487fcc903b31a58a8e14c0fd79affa3360a221f3ebbb48f67e3f127caba231\",\"manifestId\":\"manifest.golden.g4-v9.vector\",\"modelEvaluation\":{\"actualAttemptCount\":0,\"planDigest\":\"sha256-57f24d2c466371a9a83dfbe96bd94426198d5528355b96af6c548521d66b232d\",\"requiredAttemptCount\":11640,\"requiredCapabilityProfileIds\":[\"g4-core-text-tools\",\"g4-document-input\",\"g4-visual-input\"],\"requiredProtocolFamilies\":[\"anthropic-messages\",\"gemini-interactions\",\"openai-responses\"],\"status\":\"pending\",\"summaryDigest\":\"sha256-d30a38b8b59330cb26b76a713f57daa73620d01e5023b525d301d4fe031846dc\"},\"negativeVerdicts\":[{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"budget-exhaustion\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-902b730ed9650fdaa2e32c574e02d953a38d1e0b0687f5ce325709e3d003c79f\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-01341b50dd31a66720516e9c56227ef54ce99f83059965d7516a3df88125f6a3\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"cherry-picked-evaluation\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-6fb14b0e3da2bbc4ed22a5392ff65c6e625d2da640f60ed277d798549888f0a6\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-f54492a024b1f5accc0a394f1473905d285a8fbafe1d2fd4f082478918be3c86\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"computer-use-authoring\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-1140a201cbb8ec2128eaec251bc0e82cd8fc77488c7451da5ee6366edef362b4\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-648a84b5f571ce0fe5af5331e593ea4524debba388509e9bb5b9c85198059eb5\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"cross-modal-injection\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-2efe6565100dcf33e9b8c4cfdc5b0ac258a681b7176c1ed7aadf6c4a1b74ca86\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-e5433d4870bc66bef085dda45fc9cfd10d815faa4af842f1a2a706e2f7a667ef\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"failed-closure\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-8296829e712088b3875c7f9a3e53d7cd38c723286f851bd8cca5586d1b82856c\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-1240ce19f39c48a68a5773f02423f906009eb12580d7cc807dc22ebafa49ac6f\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"failed-repair\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-0ee9ec7962fb992370abf8f49c7eaa2440fa34b3d291d9684c01a87b5575d6ca\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-f67ca1c89eddbc6ab14cde2cfc843ba451d1169cc5319d8574ef88a47aa1c4cd\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"fake-evidence\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-3a7b8235238137bf5716ea9fa956ad63dc0044062f48abec2d5c9552221cb404\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-224328c046a869bbb5ad3b5a41f7a04f1e3cf9f1c90b025be9fdd988ead8b594\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"hidden-tool-effect\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-1b6f75b58539b093983bb8aa6364ed9547a356b716521d5c3749cb8fc9039b13\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-137d0533378952554fdea50cfbc9168d49bc319cfe13edce2b08225ce877d17a\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"holdout-leak\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-3d58ffa34fb2d0a57bed2eeb4c265872b7a8f83d3aee4a20d771a368e4193be1\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-8a6d588ca26222a8f2515b74f49e07813801d3d419dd00d2a6f41d179ea964c8\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"permission-escalation\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-b2faa472cd77e89f0af40afe26eaa45f44227e9654ba16cf29f8725f99dacd5a\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-1f8a0a2e0135a6b8023d39f5d87f34c9c61bee15739e58c5102ab9a22ad37fbe\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"provider-state-memory\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-bd94aecedf78004ab707b3114b03192cd7e72d781c13f701e2d96458dcb97bb6\",\"failurePreserved\":true,\"outcome\":\"fenced\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-c2e6cd5cfa99848390628f963505592b812d70c90ed502636f8122c5bbfc6e45\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"rollback-conflict\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-154656d5ade63e59174662d15018194e983e7790866279cb5632aacc84c4e0e3\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-cd1a92408b1d3d45b2f7ae32405ba50b58858d609450dfa80f7a0780d4ce238d\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"secret-leak\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-945ddd8721b89aaa9c7d035101c4bacf9424aa67e33c183fac92c58ceb4eaada\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-02b80b889489d29b15bdc76756a6752442233e253bbedc68f3fbbc2c1cda96a4\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"stale-approval\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-fc6e5d22b4338bd195e293af2cced5fadc1f3c317bdddff539fd1bf5742d0a6d\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-aaa595d1cfa80a847a370b84c6384a1cc6af4fb281ac2ca98dfae378120f906b\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"authorityUnexpanded\":true,\"caseId\":\"text-injection\",\"diagnosticCode\":\"AI-7005\",\"evidenceDigest\":\"sha256-4517868fb8f0e5c76bb088351296e9a8dae0a5b25c9e68471e90510d37cadaf3\",\"failurePreserved\":true,\"outcome\":\"blocked\",\"sensitiveDataAbsent\":true,\"verdictDigest\":\"sha256-ef01ec9928884d4c253361c87de7d119f9cd70640cb288d7d58d6c18132345f6\",\"workspaceUnchanged\":true}],\"productParity\":{\"auditEventCount\":7,\"auditHeadDigest\":\"sha256-38e7ba7df641e874069a7712e93ba9621e8527eee8c1f3c6034996660ceb141a\",\"cliViewDigest\":\"sha256-beae7caf06279706810a52c90a772d16d3ca03f4f0835d8dc0073d9e44bfb8aa\",\"parity\":\"exact\",\"sanitizedAuditDigest\":\"sha256-8b98a87c4d04f772e06c7bdba775b7b1b5a89f2f89476d2e5184f32610b3d823\",\"summaryDigest\":\"sha256-fd5f3a059d5fb2d061a8ce031e83547bbe10baf1e570f69dff69662b37b3e93c\",\"webViewDigest\":\"sha256-beae7caf06279706810a52c90a772d16d3ca03f4f0835d8dc0073d9e44bfb8aa\"},\"recoveryVerdicts\":[{\"auditRecorded\":true,\"caseId\":\"awaiting-approval-restart\",\"evidenceDigest\":\"sha256-64f415e7c5b80e0f920f4e00877149d5a6fab60aaf1a31cccbfc8188914af49d\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-5aa6a5ef129d023fadb2f78f6fb0e28c8da723222275f73d9c04252e6e882e74\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"caseId\":\"cancel-late-callback\",\"evidenceDigest\":\"sha256-4f62079b772569f33ee111ee5fca52798b83bb02bea258c4485e4a22579dba42\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-ca7e136fd66fe8bfe35079b98456ab6739030bca3b417f8073210bbe1316739b\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"caseId\":\"commit-ack-restart\",\"evidenceDigest\":\"sha256-133d688c9b2e1d09bb0b92eacf6376bd9421ad938f142594d1dc06a005b36e50\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-697b41e49f32caf9c73295a2af673abaec536d6b50c77b3a99c22c7f598c2910\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"caseId\":\"duplicate-request\",\"evidenceDigest\":\"sha256-967decc73e4e96fde8166e8428c132dcf290e04999abe44a9bed90c0215bba07\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-e868d5f2cf4f2b6d671c05153fc2f42539bd6d3fc102699396dedb912353dbe6\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"caseId\":\"late-background-callback\",\"evidenceDigest\":\"sha256-1f37e3b1b7f605c8ad7dc78353bbb31963b0ddbc1dd54eb12b7f45b8ad0aca88\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-b94f26e471a99d695e6356780ae24ad1d3f3430bc6336a34643b2b742eaf417f\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"caseId\":\"model-stream-restart\",\"evidenceDigest\":\"sha256-1b5d77ae829af3015eb4ddc76ce12296f9f63ff5f91d16715dc98d6d0599a3c9\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-d6d31eae21d444374839f05fd3701f9077f6379e66bb7b6b2fca20fdd12f777e\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"caseId\":\"tool-execute-restart\",\"evidenceDigest\":\"sha256-07262e5a63cef6dcc708eb80b4e19822c4de75b4f2a2f8772eb646f84bb61eea\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-a8f7dee7682099b08fada6071db9b4ca25e8d2f05eaaf145d0cc3577cb8cfbfc\",\"workspaceUnchanged\":true},{\"auditRecorded\":true,\"caseId\":\"verification-restart\",\"evidenceDigest\":\"sha256-068db7edc49372b8867ccc2f90318d28312ddffe301478a47ab5a8b16eeb3722\",\"generationFenced\":true,\"outcome\":\"reconciled\",\"sideEffectCount\":1,\"verdictDigest\":\"sha256-a6fca6b47c2ade35d26bbd50f860706bc7de18839a9fa836f4cd5d5326136fa6\",\"workspaceUnchanged\":true}],\"repositoryCommit\":\"9999999999999999999999999999999999999999\",\"targetId\":\"authenticated-catalog\",\"verification\":{\"closureDigest\":\"sha256-48af6472ae55b74b9f92b3d00eabc82c848916092e6be16213585167c9438512\",\"closureVerdict\":\"satisfied\",\"evidenceCount\":66,\"evidenceSetDigest\":\"sha256-a563646c28ec44cf233f79ded8f3aba751fec5261ab5b7bc2751f86721271397\",\"frameworkTargets\":[\"react-vite\",\"vue-vite\"],\"g3ClosureManifestDigest\":\"sha256-8f4f172829f8e7f1df48b496d5af42ff72dfe72d1577aa8820d4127e3a213f99\",\"matrixEvidenceDigest\":\"sha256-0c30edebe652b57b9e2c8d34f34ebc49fa599be75bdac3d01594d98bd9c37c04\",\"planDigest\":\"sha256-265f7b24115c1ddced7f9e9d19e723741e4f554c0825c1406472739a870126b4\",\"requiredCellCount\":66,\"summaryDigest\":\"sha256-39b843c5ac8882de62f3390313a3f7be190eb032ae64db71ade2f632561f8af9\",\"surfaces\":[\"ci\",\"export\",\"preview\"],\"totalAttemptCount\":80},\"worktreeState\":\"dirty\"},\"wireVersion\":1}",
+  "expectedDigest": "sha256-69487fcc903b31a58a8e14c0fd79affa3360a221f3ebbb48f67e3f127caba231"
+}

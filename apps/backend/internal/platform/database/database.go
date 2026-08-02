@@ -623,7 +623,8 @@ func migrationSet() []migration {
 	}, verificationEvidenceMigration(), verificationMutationLedgerMigration(),
 		verificationRunMigration(), agentPolicyWorkspaceDocumentMigration(),
 		agentControlPlaneMigration(), agentProposalApprovalMigration(),
-		agentVerificationRepairMigration(), agentProductMigration()}
+		agentVerificationRepairMigration(), agentProductMigration(),
+		agentModelEvaluationMigration(), agentVerificationRunSetMigration()}
 }
 
 const migrationAdvisoryLockKey = int64(0x50726f6469766978)

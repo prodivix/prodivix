@@ -406,12 +406,24 @@ export const qualifyAgentProviderCapability = (
     input.evaluation !== undefined &&
     input.evaluation.manifestRef.trim().length > 0 &&
     input.evaluation.qualificationSliceDigest === sliceDigest &&
+    isAgentCanonicalDigest(input.evaluation.planDigest) &&
+    isAgentCanonicalDigest(input.evaluation.qualificationTargetDigest) &&
     isAgentCanonicalDigest(input.evaluation.qualificationSliceDigest) &&
     validInstant(input.evaluation.evaluatedAt) &&
     validInstant(input.evaluation.expiresAt) &&
     Date.parse(input.evaluation.expiresAt) >= Date.parse(input.expiresAt) &&
     Date.parse(input.evaluation.evaluatedAt) <= Date.parse(input.evaluatedAt) &&
-    isAgentCanonicalDigest(input.evaluation.manifestDigest);
+    isAgentCanonicalDigest(input.evaluation.manifestDigest) &&
+    isAgentCanonicalDigest(input.evaluation.qualificationDigest) &&
+    digestAgentCanonicalValue({
+      manifestRef: input.evaluation.manifestRef,
+      manifestDigest: input.evaluation.manifestDigest,
+      planDigest: input.evaluation.planDigest,
+      qualificationTargetDigest: input.evaluation.qualificationTargetDigest,
+      qualificationSliceDigest: input.evaluation.qualificationSliceDigest,
+      evaluatedAt: input.evaluation.evaluatedAt,
+      expiresAt: input.evaluation.expiresAt,
+    }) === input.evaluation.qualificationDigest;
   const supportTier: AgentProviderSupportTier = evaluationIsUsable
     ? 'release-evaluated'
     : 'admission-only';

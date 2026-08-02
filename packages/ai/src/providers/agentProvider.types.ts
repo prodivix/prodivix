@@ -165,9 +165,12 @@ export type AgentCapabilityProbeReceipt = Readonly<{
 export type AgentModelEvaluationQualification = Readonly<{
   manifestRef: AgentModelEvaluationManifestRef;
   manifestDigest: CanonicalDigest;
+  planDigest: CanonicalDigest;
+  qualificationTargetDigest: CanonicalDigest;
   qualificationSliceDigest: CanonicalDigest;
   evaluatedAt: Instant;
   expiresAt: Instant;
+  qualificationDigest: CanonicalDigest;
 }>;
 
 export type AgentCapabilityQualification = Readonly<{
