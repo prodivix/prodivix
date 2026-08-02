@@ -2,9 +2,9 @@
 
 ## 状态
 
-- EvidenceStatus：V0–V7 Local + Durable CI Evidence Passed；V8–V9 Local Implemented / Exact-commit Deterministic CI and Real-model Evidence Pending
+- EvidenceStatus：V0–V9 Local + Exact-commit Deterministic CI Evidence Passed；Real-model Evaluation and Satisfied Closure Evidence Pending
 - ProductGateStatus：In Progress
-- 日期：2026-08-02
+- 日期：2026-08-03
 - Canonical milestone：
   [`g4-verified-agentic-development-milestones.md`](g4-verified-agentic-development-milestones.md)
 - Contract set：
@@ -17,9 +17,11 @@
   [`../implementation/g4-verified-agentic-development.md`](../implementation/g4-verified-agentic-development.md)
 
 本文提前冻结 G4 Exit Gate 的证据结构。V0–V7 implementation、本地 Gate 与 exact implementation commit
-`76e4d027a66be44a40f7b387854f9ae1115313da` 的 durable CI workflows 已有 terminal-success 证据；V8 已本地实现，
-V9也已本地实现并通过 browser/PostgreSQL Golden，但 V8–V9 exact-commit deterministic CI、real-model evaluation、
-最终 durable Golden 与 Global G4 Closure 仍为 `Pending`。文档存在、
+`76e4d027a66be44a40f7b387854f9ae1115313da` 的 durable CI workflows 已有 terminal-success 证据；V8–V9也已实现，
+并在 clean exact commit `ae908c13579434b498a560be3ec9d9934c20ff47` 取得 security/model-evaluation contract、
+PostgreSQL、browser、rootless、Golden 与 zero-remote deterministic aggregate 的 terminal-success 证据。strict
+manifest刻意为 `closureVerdict=incomplete`，因此 real-model evaluation、satisfied Closure 与 Global G4 Closure仍为
+`Pending`。文档存在、
 mock provider 能响应、workflow 已配置、单次 provider smoke、一次模型回答看起来正确或 Agent 自报“测试通过”
 都不能替代对应 evidence。
 
@@ -56,22 +58,22 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
 
 ## Required Gate manifest
 
-| Gate                              | 状态                      | 必须证明                                                              | Evidence                                                  |
-| --------------------------------- | ------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
-| `verify:g4:boundaries`            | Passed                    | owner/current/wire/agent-policy/diagnostics/no alternate write        | commit `76e4d027` / run `30743725468` / job `91485583658` |
-| `verify:g4:context-policy`        | Passed                    | grounding/privacy/residency/instruction boundary                      | commit `76e4d027` / run `30743725463` / job `91485583497` |
-| `verify:g4:provider-capabilities` | Passed                    | profile/model/state/cache/job/reasoning/usage/scripted SPI            | commit `76e4d027` / run `30743725463` / job `91485583497` |
-| `verify:g4:multimodal`            | Passed                    | media source/transform/injection/visual target/generated asset        | commit `76e4d027` / run `30743725504` / job `91485583786` |
-| `verify:g4:hosted-capabilities`   | Passed                    | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary | commit `76e4d027` / run `30743725513` / job `91485583685` |
-| `verify:g4:control-plane`         | Passed                    | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL            | commit `76e4d027` / run `30743725458` / job `91485583579` |
-| `verify:g4:proposal-approval`     | Passed                    | domain dry-run/exact approval/Transaction/ACK/rollback                | commit `76e4d027` / run `30743725486` / job `91485583619` |
-| `verify:g4:verification`          | Passed                    | committed Plan/Evidence/Closure/repair/eval/counterexample            | commit `76e4d027` / run `30743725483` / job `91485583557` |
-| `verify:g4:product`               | Passed                    | Web/CLI/a11y/reconnect/trace/audit                                    | commit `76e4d027` / run `30743725467` / job `91485583520` |
-| `verify:g4:security`              | Local Passed / CI Pending | text/media injection/Secret/network/state/permission negatives        | 当前 dirty working tree；durable job待提交                |
-| `verify:g4:model-eval`            | Evidence Pending          | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget | contract/PG local passed；真实 matrix artifact待运行      |
-| `verify:g4:golden`                | Local Passed / CI Pending | authenticated Catalog full positive/negative closure                  | dirty tree browser Golden passed；durable artifact待提交  |
-| `verify:g4`                       | Configured / Pending      | zero-remote-model deterministic V0-V9 aggregate                       | scripts/workflow已实现；exact aggregate仍待执行/提交      |
-| `verify:g4:closure`               | Evidence Pending          | exact-commit deterministic + model-eval + Golden manifest             | real-model/rootless/durable evidence待取得                |
+| Gate                              | 状态                      | 必须证明                                                              | Evidence                                                   |
+| --------------------------------- | ------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `verify:g4:boundaries`            | Passed                    | owner/current/wire/agent-policy/diagnostics/no alternate write        | commit `76e4d027` / run `30743725468` / job `91485583658`  |
+| `verify:g4:context-policy`        | Passed                    | grounding/privacy/residency/instruction boundary                      | commit `76e4d027` / run `30743725463` / job `91485583497`  |
+| `verify:g4:provider-capabilities` | Passed                    | profile/model/state/cache/job/reasoning/usage/scripted SPI            | commit `76e4d027` / run `30743725463` / job `91485583497`  |
+| `verify:g4:multimodal`            | Passed                    | media source/transform/injection/visual target/generated asset        | commit `76e4d027` / run `30743725504` / job `91485583786`  |
+| `verify:g4:hosted-capabilities`   | Passed                    | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary | commit `76e4d027` / run `30743725513` / job `91485583685`  |
+| `verify:g4:control-plane`         | Passed                    | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL            | commit `76e4d027` / run `30743725458` / job `91485583579`  |
+| `verify:g4:proposal-approval`     | Passed                    | domain dry-run/exact approval/Transaction/ACK/rollback                | commit `76e4d027` / run `30743725486` / job `91485583619`  |
+| `verify:g4:verification`          | Passed                    | committed Plan/Evidence/Closure/repair/eval/counterexample            | commit `76e4d027` / run `30743725483` / job `91485583557`  |
+| `verify:g4:product`               | Passed                    | Web/CLI/a11y/reconnect/trace/audit                                    | commit `76e4d027` / run `30743725467` / job `91485583520`  |
+| `verify:g4:security`              | Passed                    | text/media injection/Secret/network/state/permission negatives        | commit `ae908c13` / run `30761547895` / job `91532914906`  |
+| `verify:g4:model-eval`            | External Evidence Pending | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget | contract/PG/deterministic CI passed；真实 matrix待运行     |
+| `verify:g4:golden`                | Passed                    | authenticated Catalog full positive/negative deterministic closure    | commit `ae908c13` / run `30761547900` / job `91532915052`  |
+| `verify:g4`                       | Passed                    | zero-remote-model deterministic V0-V9 aggregate                       | commit `ae908c13` / run `30761547900` / job `91532915052`  |
+| `verify:g4:closure`               | Incomplete                | exact-commit deterministic + model-eval + Golden manifest             | deterministic manifest Passed；real-model evidence Pending |
 
 ## V1 local + durable CI Gate evidence
 
@@ -403,8 +405,8 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   [`91298020635`](https://github.com/prodivix/prodivix/actions/runs/30674224474/job/91298020635) 证明同一 exact commit
   在通用并发负载下通过 formatting、lint、53-package non-Web tests、Web tests 与 Web typecheck；Backend 与
   hostile-locale canonical bytes jobs 同时通过。
-- V0 durable promotion 已满足；V8–V9 exact-commit CI、model evaluation、durable Golden/closure artifact 与 Global
-  G4 `Passed` 仍未满足。
+- V0 durable promotion 已满足；V8–V9 deterministic promotion也已在后续 exact commit取得。real-model evaluation、
+  satisfied closure artifact 与 Global G4 `Passed` 仍未满足。
 
 ### V1–V7 exact-commit durable CI（2026-08-02）
 
@@ -434,13 +436,15 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   [`Tests` run `30743725484`](https://github.com/prodivix/prodivix/actions/runs/30743725484) 也 terminal success。
 - 本次之后只修改 `current-status`、implementation、milestone 与 evidence metadata 的提交不改变上述
   implementation identity；按 evidence promotion rule 7，该 metadata-only diff不使 V1–V7 semantic evidence
-  expired。V8–V9 exact-commit CI、real-model evaluation、durable Golden/closure artifact与 Global G4 `Passed`
-  仍须独立取得。
+  expired。V8–V9 deterministic durable evidence已在下节独立取得；real-model evaluation、satisfied Closure与
+  Global G4 `Passed` 仍须独立取得。
 
-### V8 local implementation evidence（2026-08-02）
+### V8 implementation + exact-commit deterministic CI（2026-08-03）
 
-- Checkout base：`29775a262e79c3e283676f398c0b541101cc7331`；验证发生在包含 V8 implementation 的 dirty working
-  tree，因此这里只是 local evidence，不是 exact-commit durable evidence。
+- Implementation lineage：`fd5b01ab62b9a1e7b4a2755a4eff5f448f41ca53` 完成 V8/V9 implementation；后续
+  `a6f47ce1`、`f6bcb7d6`、`b8b31fe0`、`ed24293f` 与 `ae908c13` 依次修复 browser dependency、rootless install、
+  重型 Gate isolation和 clean worktree manifest语义，最终 clean evidence identity为
+  `ae908c13579434b498a560be3ec9d9934c20ff47`。
 - 四类 Provider adapter以 OpenAI Responses、Anthropic Messages、Gemini Interactions 和 generic
   OpenAI-compatible 原生 event fixture验证 text/tool/refusal/truncation/error/cancel/usage normalization；transport
   由 server composition注入，AI owner不读取 credential或直接发起网络。
@@ -461,18 +465,20 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
 - ordinary workflow `g4-v8-security-model-eval.yml`明确 `PRODIVIX_G4_REMOTE_MODEL_UNITS=0`，只运行 deterministic
   security/contract/Golden与 PostgreSQL Gate。`verify:g4:model-eval:evidence`另外要求 strict external evidence bundle、
   satisfied/unexpired manifest、完整 denominator及 clean exact commit，缺失 evidence会明确失败。
-- Pending：当前 V8改动尚未 commit/push，workflow没有 durable run/job；四类 bounded endpoint smoke、三个真实 native
-  Provider required profile的11,640+ journeys、受保护/rotating holdout operation、actual usage/cost、真实 blind human
-  review、未过期 release qualification与 scheduled/release artifact均未取得。`verify:g4:model-eval`、V9 durable
-  promotion与 Global G4因此保持 Pending/In Progress。
+- Durable CI：[`G4 V8 Security and Model Evaluation Contract` run `30761547895`](https://github.com/prodivix/prodivix/actions/runs/30761547895) /
+  job [`91532914906`](https://github.com/prodivix/prodivix/actions/runs/30761547895/job/91532914906) 在 exact clean
+  commit `ae908c13` terminal success；security matrix、11,640 deterministic denominator contract与真实 PostgreSQL 16
+  evaluation ledger全部通过，remote-model units = 0。
+- Pending：四类 bounded endpoint smoke、三个真实 native Provider required profile的11,640+ journeys、受保护/
+  rotating holdout operation、actual usage/cost、真实 blind human review、未过期 release qualification与
+  scheduled/release artifact均未取得。`verify:g4:model-eval` 与 Global G4因此保持 Pending/In Progress。
 
-### V9 local implementation evidence（2026-08-02）
+### V9 implementation + exact-commit deterministic CI（2026-08-03）
 
-- Checkout base：`29775a262e79c3e283676f398c0b541101cc7331`；V9验证发生在包含 V8/V9 implementation 的 dirty
-  working tree，因此这些是 local evidence，不是 exact-commit durable evidence。
-- `pnpm --filter @prodivix/golden-conformance test:g4-v9-closure`：2 files / 7 tests Passed；真实本地 controlled
-  toolchain/browser路径执行66 required cells、80 attempts与React/Vue `ci`/`export`/`preview`，形成66条 promoted
-  Evidence、三条 single-surface VerificationRun snapshot和一个 satisfied Closure。
+- Local clean-CI-equivalent rerun：`PRODIVIX_G4_WORKTREE_STATE=clean` 与 exact commit identity下执行
+  `pnpm --filter @prodivix/golden-conformance test:g4-v9-closure`，2 files / 7 tests Passed，duration 444.35s；真实本地
+  controlled toolchain/browser路径执行66 required cells、80 attempts与React/Vue `ci`/`export`/`preview`，形成66条
+  promoted Evidence、三条 single-surface VerificationRun snapshot和一个 satisfied Closure。
 - current/wire `AgentCommittedVerificationPlanBinding`绑定 canonical Run set与每个 selected-cell set；
   `AgentVerificationClosureReceipt`绑定相同 Run set和终态 snapshot digest。Go wire admission、Web/CLI ledger decoder
   与 PostgreSQL repository均拒绝丢失、重复、surface/Plan/revision/cell/snapshot/Evidence drift。
@@ -484,6 +490,13 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   Web/CLI sanitized audit parity与 strict Closure manifest。artifact digest/size绑定 canonical content bytes；final
   verifier逐项绑定 evaluation plan、Provider/operator/model-family、qualification、holdout、metric/grader/human report与
   freshness。ordinary workflow消耗0 remote-model units并执行完整 `verify:g4` deterministic aggregate。
-- manifest的 local结果为 `goldenVerdict=satisfied`、`closureVerdict=incomplete`、real-model `pending`。Pending：
-  exact-commit durable V8/V9 workflows、rootless runtime、三个真实 native Provider 11,640+ journeys、protected
-  holdout、actual usage/cost、blind human review、未过期 model-eval与最终 `verify:g4:closure` artifact。
+- Durable CI：[`G4 V9 Authenticated Catalog Golden Closure Contract` run `30761547900`](https://github.com/prodivix/prodivix/actions/runs/30761547900) /
+  job [`91532915052`](https://github.com/prodivix/prodivix/actions/runs/30761547900/job/91532915052) 在 exact clean commit
+  `ae908c13` terminal success。rootless artifact `8837674438` 与 deterministic Closure manifest artifact
+  `8837860540` 均可读取；后者 manifest digest为
+  `sha256-7c737386050b81492dfb4d38e82b1e0a9fa1bbcf8db80666f55514d26880d662`。
+- manifest严格记录 `repositoryCommit=ae908c13579434b498a560be3ec9d9934c20ff47`、`worktreeState=clean`、
+  `goldenVerdict=satisfied`、`closureVerdict=incomplete`、real-model `pending` 与 attempts `0/11,640`。该结果证明
+  deterministic/rootless durable promotion，同时明确拒绝伪造 Global G4 closure。
+- Pending：三个真实 native Provider 11,640+ journeys、protected holdout、actual usage/cost、blind human review、
+  未过期 model-eval与最终 satisfied `verify:g4:closure` artifact。
