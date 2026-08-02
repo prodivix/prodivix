@@ -1021,6 +1021,18 @@ for (const token of [
   }
 }
 const rootManifest = JSON.parse(rootManifestSource);
+const goldenConformanceManifest = await readJson(
+  join(packagesRoot, 'golden-conformance', 'package.json')
+);
+if (
+  !goldenConformanceManifest.scripts?.['test:g4-v9-closure']?.includes(
+    'PRODIVIX_VERIFY_G4_V9_CLOSURE=1'
+  )
+) {
+  issues.push(
+    'G4 V9 controlled Golden must execute only through its explicit closure Gate.'
+  );
+}
 if (
   !rootManifest.scripts?.['verify:g4:proposal-approval:core']?.includes(
     'pnpm run check:core-boundaries'

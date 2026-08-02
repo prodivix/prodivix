@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createPassingV8Attempts,
+  createV8CodecAttemptFixture,
   createV8EvaluationPlan,
 } from '../__tests__/agentV8Fixtures';
 import type { AgentModelEvaluationAttempt } from './agentEvaluation.types';
@@ -14,7 +14,7 @@ import { digestAgentCanonicalValue } from '../domain/agentCanonical';
 describe('G4 V8 evaluation wire codec', () => {
   it('round-trips frozen plan and attempt facts canonically', () => {
     const plan = createV8EvaluationPlan();
-    const attempt = createPassingV8Attempts(plan)[0]!;
+    const attempt = createV8CodecAttemptFixture(plan);
     for (const fact of [
       { factType: 'evaluation-plan' as const, value: plan },
       { factType: 'evaluation-attempt' as const, value: attempt },
@@ -47,7 +47,7 @@ describe('G4 V8 evaluation wire codec', () => {
       })
     ).toMatchObject({ ok: false });
 
-    const attempt = createPassingV8Attempts(plan)[0]!;
+    const attempt = createV8CodecAttemptFixture(plan);
     const wire = encodeAgentEvaluationFact({
       factType: 'evaluation-attempt',
       value: attempt,

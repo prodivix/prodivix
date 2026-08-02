@@ -26,6 +26,7 @@ import {
   type AgentHoldoutExecutionReceipt,
   type AgentHumanReviewReport,
   type AgentModelEvaluationAttempt,
+  type AgentModelEvaluationAttemptDescriptor,
   type AgentModelEvaluationPlan,
   type AgentProviderProtocolFamily,
 } from '../index';
@@ -309,60 +310,96 @@ const cachedPassingAttempts = new WeakMap<
   readonly AgentModelEvaluationAttempt[]
 >();
 
+const createPassingV8Attempt = (
+  descriptor: AgentModelEvaluationAttemptDescriptor
+): AgentModelEvaluationAttempt =>
+  createAgentModelEvaluationAttempt({
+    descriptor,
+    independentRunId: `run.${descriptor.samplingIdentityDigest.slice('sha256-'.length)}`,
+    invocationReceiptDigest: digestAgentCanonicalValue({
+      attemptId: descriptor.attemptId,
+      receipt: true,
+    }),
+    responseDigest: digestAgentCanonicalValue({
+      attemptId: descriptor.attemptId,
+      response: true,
+    }),
+    status: 'completed',
+    outcome: 'passed',
+    metricObservations: Object.freeze([
+      createAgentEvaluationMetricObservation({
+        metricId: 'authority.correctness',
+        graderId: 'grader.strict-authority.v8',
+        graderKind: 'deterministic-rule',
+        authority: 'deterministic',
+        verdict: 'passed',
+      }),
+    ]),
+    usage: createAgentUsageVector([
+      Object.freeze({
+        unit: 'text-token-input',
+        logicalAmount: '1',
+        billableAmount: '1',
+        confidence: 'reported',
+      }),
+      Object.freeze({
+        unit: 'text-token-output',
+        logicalAmount: '1',
+        billableAmount: '1',
+        confidence: 'reported',
+      }),
+    ]),
+    cost: Object.freeze([
+      Object.freeze({
+        currency: 'USD',
+        amount: '0.000001',
+        confidence: 'measured',
+      }),
+    ]),
+    startedAt: V8_TIME.started,
+    completedAt: V8_TIME.completed,
+  });
+
+export const createV8CodecAttemptFixture = (
+  plan: AgentModelEvaluationPlan
+): AgentModelEvaluationAttempt => {
+  const concreteCase = plan.concreteCases[0]!;
+  const target = plan.capabilityQualificationTargets[0]!;
+  const samplingBase = Object.freeze({
+    planDigest: plan.planDigest,
+    caseId: concreteCase.caseId,
+    targetId: target.targetId,
+    targetDigest: target.targetDigest,
+    riskClass: concreteCase.riskClass,
+    repetitionIndex: 0,
+  });
+  const samplingIdentityDigest = digestAgentCanonicalValue(samplingBase);
+  const descriptorBase = Object.freeze({
+    attemptId: `evaluation-attempt:${samplingIdentityDigest.slice('sha256-'.length)}`,
+    planDigest: plan.planDigest,
+    shardId: `evaluation-shard:${digestAgentCanonicalValue({ targetId: target.targetId }).slice('sha256-'.length)}`,
+    caseId: concreteCase.caseId,
+    targetId: target.targetId,
+    targetDigest: target.targetDigest,
+    riskClass: concreteCase.riskClass,
+    repetitionIndex: 0,
+    samplingIdentityDigest,
+  });
+  return createPassingV8Attempt(
+    Object.freeze({
+      ...descriptorBase,
+      descriptorDigest: digestAgentCanonicalValue(descriptorBase),
+    })
+  );
+};
+
 export const createPassingV8Attempts = (
   plan: AgentModelEvaluationPlan
 ): readonly AgentModelEvaluationAttempt[] => {
   const cached = cachedPassingAttempts.get(plan);
   if (cached) return cached;
   const attempts = Object.freeze(
-    planAgentModelEvaluationAttempts(plan).map((descriptor) =>
-      createAgentModelEvaluationAttempt({
-        descriptor,
-        independentRunId: `run.${descriptor.samplingIdentityDigest.slice('sha256-'.length)}`,
-        invocationReceiptDigest: digestAgentCanonicalValue({
-          attemptId: descriptor.attemptId,
-          receipt: true,
-        }),
-        responseDigest: digestAgentCanonicalValue({
-          attemptId: descriptor.attemptId,
-          response: true,
-        }),
-        status: 'completed',
-        outcome: 'passed',
-        metricObservations: Object.freeze([
-          createAgentEvaluationMetricObservation({
-            metricId: 'authority.correctness',
-            graderId: 'grader.strict-authority.v8',
-            graderKind: 'deterministic-rule',
-            authority: 'deterministic',
-            verdict: 'passed',
-          }),
-        ]),
-        usage: createAgentUsageVector([
-          Object.freeze({
-            unit: 'text-token-input',
-            logicalAmount: '1',
-            billableAmount: '1',
-            confidence: 'reported',
-          }),
-          Object.freeze({
-            unit: 'text-token-output',
-            logicalAmount: '1',
-            billableAmount: '1',
-            confidence: 'reported',
-          }),
-        ]),
-        cost: Object.freeze([
-          Object.freeze({
-            currency: 'USD',
-            amount: '0.000001',
-            confidence: 'measured',
-          }),
-        ]),
-        startedAt: V8_TIME.started,
-        completedAt: V8_TIME.completed,
-      })
-    )
+    planAgentModelEvaluationAttempts(plan).map(createPassingV8Attempt)
   );
   cachedPassingAttempts.set(plan, attempts);
   return attempts;

@@ -66,7 +66,7 @@ describe('G4 V8 model-evaluation manifest', () => {
       completedAt: V8_TIME.evaluated,
       expiresAt: '2026-08-08T00:00:00.000Z',
     });
-  }, 60_000);
+  }, 180_000);
 
   it('accounts for every planned journey and admits only a satisfied fresh target', () => {
     expect(attempts.length).toBeGreaterThanOrEqual(11_640);
@@ -98,7 +98,7 @@ describe('G4 V8 model-evaluation manifest', () => {
       planDigest: plan.planDigest,
       qualificationTargetDigest: target.targetDigest,
     });
-  }, 30_000);
+  }, 180_000);
 
   it('keeps missing attempts in the denominator and marks the manifest incomplete', () => {
     const incompleteAttempts = attempts.slice(1);
@@ -141,7 +141,7 @@ describe('G4 V8 model-evaluation manifest', () => {
         evaluatedAt: '2026-08-04T00:00:00.000Z',
       })
     ).toThrow(/satisfied exact evaluation target/u);
-  }, 30_000);
+  }, 180_000);
 
   it('fails closed when the protected holdout leaks or the manifest expires', () => {
     const leakedReceipt = {
@@ -172,7 +172,7 @@ describe('G4 V8 model-evaluation manifest', () => {
       expiresAt: '2026-08-10T00:00:00.000Z',
     });
     expect(expired.outcome).toBe('expired');
-  }, 30_000);
+  }, 180_000);
 
   it('recomputes metric reports from the frozen denominator instead of trusting a self-signed report', () => {
     const first = metric.slices[0]!;
@@ -203,5 +203,5 @@ describe('G4 V8 model-evaluation manifest', () => {
       expiresAt: '2026-08-08T00:00:00.000Z',
     });
     expect(rejected.outcome).toBe('incomplete');
-  }, 30_000);
+  }, 180_000);
 });

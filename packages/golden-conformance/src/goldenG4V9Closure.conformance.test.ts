@@ -19,9 +19,12 @@ import {
 } from './goldenG4V9ClosureFixture';
 import { GOLDEN_G4_V8_EVALUATION_MATRIX } from './goldenG4V8SecurityModelEvalFixture';
 
+const verifyG4V9Closure = process.env.PRODIVIX_VERIFY_G4_V9_CLOSURE === '1';
+const describeG4V9Closure = describe.runIf(verifyG4V9Closure);
 let harness: GoldenG4V9ClosureHarness;
 
 beforeAll(async () => {
+  if (!verifyG4V9Closure) return;
   harness = await executeGoldenG4V9Closure();
   const outputPath = process.env.PRODIVIX_G4_V9_MANIFEST_PATH?.trim();
   if (outputPath) {
@@ -36,7 +39,7 @@ beforeAll(async () => {
   }
 }, 1_200_000);
 
-describe('G4 V9 authenticated Catalog Golden Closure', () => {
+describeG4V9Closure('G4 V9 authenticated Catalog Golden Closure', () => {
   it('binds one exact approval and Commit to the 66-cell trusted plan', () => {
     expect(GOLDEN_G4_V9_PROJECTION.verificationPlan.cells).toHaveLength(66);
     expect(GOLDEN_G4_V9_PROJECTION.preview).toMatchObject({
