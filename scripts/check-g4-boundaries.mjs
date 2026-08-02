@@ -1021,6 +1021,18 @@ for (const token of [
   }
 }
 const rootManifest = JSON.parse(rootManifestSource);
+const aiPackageManifest = await readJson(
+  join(packagesRoot, 'ai', 'package.json')
+);
+if (
+  !aiPackageManifest.scripts?.['test:g4-v8-model-eval']?.includes(
+    'PRODIVIX_VERIFY_G4_V8_MODEL_EVAL=1'
+  )
+) {
+  issues.push(
+    'G4 V8 full-denominator evaluation must execute only through its explicit model-eval Gate.'
+  );
+}
 const goldenConformanceManifest = await readJson(
   join(packagesRoot, 'golden-conformance', 'package.json')
 );
