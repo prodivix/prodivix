@@ -45,26 +45,35 @@ user-command ledger、Web 三入口 Task composer和 Run/Context/Proposal/Verifi
 approval/rejection、CLI exact loop、Web/CLI strict JSON parity、Golden/OpenAPI/workflow；deterministic core与真实
 PostgreSQL 18 Gate均本地通过。2026-08-02，exact implementation commit
 `76e4d027a66be44a40f7b387854f9ae1115313da` 的 G4 V1–V7 独立 workflows 全部 terminal success。V8 已完成
-native/generic adapter normalization、security fail-closed primitive、128-case planner、11,640+
-attempt schedule、shard/checkpoint/resume/budget、statistical reports/manifest、strict TypeScript/Go wire、PostgreSQL
+native/generic adapter normalization、security fail-closed primitive、128-case planner、11,640 minimum / 14,040 current
+canonical attempt schedule、shard/checkpoint/resume/budget、statistical reports/manifest、strict TypeScript/Go wire、PostgreSQL
 v27 immutable ledger与 zero-remote-token Golden；V9 已完成 authenticated Catalog、66-cell/80-attempt三 surface
 Golden、strict manifest与 PostgreSQL v28 ledger。2026-08-03，clean exact commit `ae908c13` 的 V8 run
 `30761547895` / job `91532914906` 和 V9 run `30761547900` / job `91532915052` 均 terminal success，rootless与
-deterministic manifest artifacts也已上传。bounded endpoint smoke、三个真实 Provider 11,640+ journeys、holdout
+deterministic manifest artifacts也已上传。bounded endpoint smoke、三个真实 Provider current 14,040 journeys、holdout
 operation/human review与未过期 release qualification仍 Pending，不能由 deterministic fixture代替。
 
-| Milestone                             | 状态                                            | 目标闭环                                                        | 升级所需证据                                              |
-| ------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
-| V0 Owner/current/wire hard cut        | Implemented / CI Passed                         | `@prodivix/ai`、agent-policy、codec、diagnostics、boundary      | commit `b9d4bbcd` / run `30674224519` / job `91298020728` |
-| V1 Provider/Policy/Context/invocation | Implemented / CI Passed                         | capability/state/cache/job/usage + grounded Context             | commit `76e4d027` / run `30743725463` / job `91485583497` |
-| V2 Multimodal/generated asset         | Implemented / CI Passed                         | media transform/injection/visual target/G2 asset candidate      | commit `76e4d027` / run `30743725504` / job `91485583786` |
-| V3 Hosted capability boundary         | Implemented / CI Passed                         | hosted tool/retrieval/MCP/computer/concurrency                  | commit `76e4d027` / run `30743725513` / job `91485583685` |
-| V4 Task/Run/tool control plane        | Implemented / CI Passed                         | lifecycle、budget、cancel/retry/recovery、PostgreSQL            | commit `76e4d027` / run `30743725458` / job `91485583579` |
-| V5 Proposal/approval/Transaction      | Implemented / CI Passed                         | domain dry-run、exact approval、Atomic Commit、rollback         | commit `76e4d027` / run `30743725486` / job `91485583619` |
-| V6 Verification/repair/eval           | Implemented / CI Passed                         | committed Plan、Evidence/Closure、bounded repair/regression     | commit `76e4d027` / run `30743725483` / job `91485583557` |
-| V7 Web/CLI product loop               | Implemented / CI Passed                         | Task/Trace/Proposal/Approval/Verification/Audit UX              | commit `76e4d027` / run `30743725467` / job `91485583520` |
-| V8 Security/model evaluation          | Deterministic CI Passed / Real Eval Pending     | fail-closed + 4 adapters + 3-Provider/128-case/11,640+ journeys | scheduled/release `verify:g4:model-eval`                  |
-| V9 G4 Golden closure                  | Deterministic CI Passed / Final Closure Pending | authenticated Catalog exact-write-to-satisfied-Closure loop     | real-model bundle + satisfied `verify:g4:closure`         |
+2026-08-12 的 production execution 基础设施、契约与 production composition 已覆盖 generated run-config binding、
+27-target / 14,040-attempt plan、purpose-bound runner/ledger、controlled Workspace + G3 two-stage promotion、默认
+shared-effect stateful / Hosted / isolated-cache cold/warm owner及其 15 项 readiness、Hosted exact-four lifecycle、
+四项 Provider resource cleanup、durable Native Provider state-vault 与 PostgreSQL v46 双 root；local contract Gates
+已通过，受保护 workflow 已配置。当前状态为
+`Infrastructure / Contracts / Production Reachability Implemented; Local Contract Gates Passed; Workflow Configured / External Evidence pending`；
+真实 Provider key、protected PostgreSQL operation、actionlint、remote Actions/CI 与 release artifact 均为 Pending，
+V8/V9 与 Global G4 状态保持不变。
+
+| Milestone                             | 状态                                            | 目标闭环                                                       | 升级所需证据                                              |
+| ------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
+| V0 Owner/current/wire hard cut        | Implemented / CI Passed                         | `@prodivix/ai`、agent-policy、codec、diagnostics、boundary     | commit `b9d4bbcd` / run `30674224519` / job `91298020728` |
+| V1 Provider/Policy/Context/invocation | Implemented / CI Passed                         | capability/state/cache/job/usage + grounded Context            | commit `76e4d027` / run `30743725463` / job `91485583497` |
+| V2 Multimodal/generated asset         | Implemented / CI Passed                         | media transform/injection/visual target/G2 asset candidate     | commit `76e4d027` / run `30743725504` / job `91485583786` |
+| V3 Hosted capability boundary         | Implemented / CI Passed                         | hosted tool/retrieval/MCP/computer/concurrency                 | commit `76e4d027` / run `30743725513` / job `91485583685` |
+| V4 Task/Run/tool control plane        | Implemented / CI Passed                         | lifecycle、budget、cancel/retry/recovery、PostgreSQL           | commit `76e4d027` / run `30743725458` / job `91485583579` |
+| V5 Proposal/approval/Transaction      | Implemented / CI Passed                         | domain dry-run、exact approval、Atomic Commit、rollback        | commit `76e4d027` / run `30743725486` / job `91485583619` |
+| V6 Verification/repair/eval           | Implemented / CI Passed                         | committed Plan、Evidence/Closure、bounded repair/regression    | commit `76e4d027` / run `30743725483` / job `91485583557` |
+| V7 Web/CLI product loop               | Implemented / CI Passed                         | Task/Trace/Proposal/Approval/Verification/Audit UX             | commit `76e4d027` / run `30743725467` / job `91485583520` |
+| V8 Security/model evaluation          | Deterministic CI Passed / Real Eval Pending     | fail-closed + 4 adapters + 3-Provider/128-case/14,040 journeys | scheduled/release `verify:g4:model-eval`                  |
+| V9 G4 Golden closure                  | Deterministic CI Passed / Final Closure Pending | authenticated Catalog exact-write-to-satisfied-Closure loop    | real-model bundle + satisfied `verify:g4:closure`         |
 
 ## V0：Owner、current/wire 与 diagnostics hard cut
 
@@ -367,8 +376,17 @@ screen reader 能读出 risk/permission/Plan；CLI 用相同 task/run/preview/cl
       state/context-transform/background/error/retry-after/cancel normalization conformance。
 - [ ] required text/visual/document profiles、media transform、hosted capability 与 computer-use boundary conformance；
       V1–V3 deterministic boundary与 V8 frozen plan已通过，三个真实 configuration/profile仍 Pending。
+- [x] 3 core + 6 optional × 3 native configuration 的 27-target frozen contract；optional target 已按
+      declared profile + sealed probe 分为 required/expected-blocked，tag 不提供 authority（local）。
+- [x] `ProviderCapabilityObservationReceipt` 的每 turn 0..1、facts 0..2、16 KiB 与全链路 binding，
+      owner/specific/archive root 和 98,280-turn 容量边界已实现（local）；真实 Provider observation
+      仍 Pending。
 - [x] stateless default、opaque continuation、ambient-memory prohibition；provider state/cache/job/retention/deletion
       进入 exact identity。
+- [x] Native Provider state 的 server-side durable vault、per-state data-key destruction、owner-instance isolation、
+      `seal/resolve/retire/lookup`、forced-expiry tombstone 与 zero-residual health contract 已实现（local）；
+      默认 shared-effect stateful owner composition 已接入 production，真实 Provider/PostgreSQL lifecycle receipt
+      仍 Pending。
 - [x] `release-evaluated` / `admission-only` / `disabled` 按 exact configuration/model/capability/policy slice（local）；
       generic compatibility hosted/local smoke target已冻结，真实 endpoint smoke仍 Pending。
 - [ ] 每个 production-eligible adapter 的 bounded smoke；只作为 transport/stream/schema/tool admission。
@@ -380,7 +398,7 @@ screen reader 能读出 risk/permission/Plan；CLI 用相同 task/run/preview/cl
 - [ ] OpenAI Responses、Anthropic Messages、Gemini Interactions 三个 native protocol family 各一个
       independently operated/versioned model configuration，provider operator 与 model-family owner 分别互异。
 - [x] ordinary至少 10、48 critical至少 30、至少 12 high-assurance至少 100 attempts/configuration的 deterministic
-      schedule与 denominator已实现；首次真实 closure最低 11,640 journeys仍待执行。
+      schedule与 denominator已实现；11,640 是首次真实 closure最低线，当前 14,040-journey plan仍待执行。
 - [x] 运行前冻结 corpus/holdout/context/media/configuration/profile/repetition/sequential rule/grader/threshold/budget；
       保留全部 attempt、missing/timeout denominator与失败 lineage。
 - [ ] protected/rotating holdout access与 counterexample adoption；public artifact body/fingerprint leak prevention已
@@ -394,6 +412,13 @@ screen reader 能读出 risk/permission/Plan；CLI 用相同 task/run/preview/cl
 - [x] model/prompt/Context builder/provider set/output schema/tool/action registry/Policy/repository drift 后
       evidence expiry 与 affected-slice rerun。
 - [x] exact-commit deterministic CI identity与 sanitized incomplete artifact。
+- [x] generated production run config、database-sealed whole-artifact binding、purpose-bound 8792 verification owner /
+      8790 ledger bootstrap / 8791 owner-authority activation、G3 `prepare → final-commit`、preplan 4 resource /
+      15 runtime / 18 probe / 4 cleanup contract 与 canonical owner shutdown receipt primitives 已实现；workflow 为
+      `Configured / Evidence pending`。
+- [x] 默认 shared-effect production composition 的 stateful runtime journal、hosted source owner、isolated-cache
+      cold/warm owner 与 15 项 runtime fact-source readiness 已实现并通过 local restart/reconcile/health Gates；真实
+      protected execution evidence仍 Pending。
 - [ ] isolated disposable real-model evaluation Workspace与 evaluation-only role-separated approval evidence。
 
 ### 真实模型边界
@@ -435,7 +460,7 @@ invalid，不能进入 V9 durable closure promotion。
 - [x] local PostgreSQL/browser zero-remote-model deterministic aggregate。
 - [x] rootless runtime aggregate；exact commit `ae908c13` 的 V9 job与 artifact已取得 durable evidence。
 - [ ] 三个 native protocol/provider operator/model-family owner 的 required capability qualifications，以及
-      128 cases/11,640+ attempts/holdout/statistics/human-review manifest。
+      128 cases/current 14,040 attempts/holdout/statistics/human-review manifest。
 - [x] exact commit durable zero-remote `verify:g4:golden`、`verify:g4` aggregate与 deterministic incomplete manifest。
 - [ ] 三 Provider real-model bundle与 satisfied `verify:g4:closure` artifact。
 
@@ -451,7 +476,8 @@ invalid，不能进入 V9 durable closure promotion。
   qualification、holdout、metric/grader/human report与freshness，拒绝只替换summary的伪promotion。
 - ordinary V9 workflow明确 remote-model units为0，执行完整 `verify:g4` deterministic aggregate。clean exact commit
   `ae908c13` 的 run `30761547900` / job `91532915052` terminal success，并上传 rootless artifact `8837674438` 与
-  deterministic Closure manifest artifact `8837860540`。manifest记录 `goldenVerdict=satisfied`、
+  deterministic Closure manifest artifact `8837860540`。该历史 minimum-floor manifest记录
+  `goldenVerdict=satisfied`、
   `closureVerdict=incomplete`、real-model `pending` 与 attempts `0/11,640`；真实三 Provider evaluation、protected
   holdout、human review与最终 satisfied closure仍 Pending。
 

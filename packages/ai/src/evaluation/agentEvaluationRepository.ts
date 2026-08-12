@@ -20,9 +20,15 @@ import type {
   AgentHoldoutExecutionReceipt,
   AgentHumanReviewReport,
   AgentModelEvaluationAttempt,
+  AgentModelEvaluationAttemptDescriptor,
   AgentModelEvaluationManifest,
   AgentModelEvaluationPlan,
 } from './agentEvaluation.types';
+import {
+  canonicalAgentEvaluationValidatedHumanMetricObservationOrder,
+  isAgentEvaluationValidatedHumanMetricObservation,
+  type AgentEvaluationValidatedHumanMetricObservation,
+} from './agentEvaluationHumanMetricAuthority';
 import {
   planAgentModelEvaluationAttempts,
   validateAgentModelEvaluationPlan,
@@ -64,6 +70,119 @@ export type AgentEvaluationManifestLookup =
   | Readonly<{ status: 'found'; manifest: AgentModelEvaluationManifest }>
   | Readonly<{ status: 'missing' | 'expired' | 'unsatisfied' }>;
 
+/**
+ * Durable evaluation persistence port. Production composition can implement
+ * this contract with PostgreSQL while the in-memory repository remains the
+ * deterministic reference adapter.
+ */
+export interface AgentEvaluationRepository {
+  putPlan(
+    plan: AgentModelEvaluationPlan
+  ): AgentEvaluationRepositoryWriteResult<AgentModelEvaluationPlan>;
+  getPlan(planDigest: CanonicalDigest): AgentModelEvaluationPlan | undefined;
+  listDescriptors(
+    planDigest: CanonicalDigest
+  ): readonly AgentModelEvaluationAttemptDescriptor[];
+  putAttempt(
+    attempt: AgentModelEvaluationAttempt
+  ): AgentEvaluationRepositoryWriteResult<AgentModelEvaluationAttempt>;
+  getAttempt(
+    planDigest: CanonicalDigest,
+    attemptId: string
+  ): AgentModelEvaluationAttempt | undefined;
+  listAttempts(
+    planDigest: CanonicalDigest
+  ): readonly AgentModelEvaluationAttempt[];
+  claimShard(
+    input: Readonly<{
+      planDigest: CanonicalDigest;
+      shardId: string;
+      ownerId: string;
+      acquiredAt: Instant;
+      leaseDurationMs: number;
+    }>
+  ): AgentEvaluationRepositoryWriteResult<AgentEvaluationShardLease>;
+  renewShard(
+    input: Readonly<{
+      planDigest: CanonicalDigest;
+      shardId: string;
+      ownerId: string;
+      generation: number;
+      renewedAt: Instant;
+      leaseDurationMs: number;
+    }>
+  ): AgentEvaluationRepositoryWriteResult<AgentEvaluationShardLease>;
+  putCheckpoint(
+    checkpoint: AgentEvaluationShardCheckpoint
+  ): AgentEvaluationRepositoryWriteResult<AgentEvaluationShardCheckpoint>;
+  getLatestCheckpoint(
+    planDigest: CanonicalDigest,
+    shardId: string
+  ): AgentEvaluationShardCheckpoint | undefined;
+  getBudgetLedger(
+    planDigest: CanonicalDigest
+  ): AgentBudgetLedgerState | undefined;
+  reserveBudget(
+    input: Readonly<{
+      planDigest: CanonicalDigest;
+      reservationId: string;
+      expectedRevision: number;
+      demand: AgentBudgetDemand;
+      reservedAt: Instant;
+    }>
+  ): AgentBudgetLedgerResult | undefined;
+  settleBudget(
+    input: Readonly<{
+      planDigest: CanonicalDigest;
+      reservationId: string;
+      expectedRevision: number;
+      actual: AgentBudgetDemand;
+      settledAt: Instant;
+    }>
+  ): AgentBudgetLedgerResult | undefined;
+  reconcileBudget(
+    input: Readonly<{
+      planDigest: CanonicalDigest;
+      reservationId: string;
+      expectedRevision: number;
+      reason: 'worker-loss' | 'timeout' | 'provider-disconnect' | 'ack-loss';
+      settledAt: Instant;
+    }>
+  ): AgentBudgetLedgerResult | undefined;
+  putMetricReport(
+    report: AgentEvaluationMetricReport
+  ): AgentEvaluationRepositoryWriteResult<AgentEvaluationMetricReport>;
+  putGraderReport(
+    report: AgentEvaluationGraderReport
+  ): AgentEvaluationRepositoryWriteResult<AgentEvaluationGraderReport>;
+  putHumanReviewReport(
+    report: AgentHumanReviewReport
+  ): AgentEvaluationRepositoryWriteResult<AgentHumanReviewReport>;
+  putValidatedHumanMetricObservations(
+    planDigest: CanonicalDigest,
+    observations: readonly AgentEvaluationValidatedHumanMetricObservation[]
+  ): AgentEvaluationRepositoryWriteResult<
+    readonly AgentEvaluationValidatedHumanMetricObservation[]
+  >;
+  listValidatedHumanMetricObservations(
+    planDigest: CanonicalDigest
+  ): readonly AgentEvaluationValidatedHumanMetricObservation[];
+  putHoldoutReceipt(
+    receipt: AgentHoldoutExecutionReceipt
+  ): AgentEvaluationRepositoryWriteResult<AgentHoldoutExecutionReceipt>;
+  putManifest(
+    manifest: AgentModelEvaluationManifest
+  ): AgentEvaluationRepositoryWriteResult<AgentModelEvaluationManifest>;
+  findFreshSatisfiedManifest(
+    input: Readonly<{
+      planDigest: CanonicalDigest;
+      manifestId: string;
+      qualificationTargetDigest: CanonicalDigest;
+      at: Instant;
+    }>
+  ): AgentEvaluationManifestLookup;
+}
+
 const planKey = (planDigest: CanonicalDigest, id: string): string =>
   `${planDigest}\u0000${id}`;
 
@@ -78,7 +197,7 @@ const createLease = (
 };
 
 /** Zero-network reference store with the same immutable/CAS boundaries as the backend. */
-export class InMemoryAgentEvaluationRepository {
+export class InMemoryAgentEvaluationRepository implements AgentEvaluationRepository {
   readonly #plans = new Map<CanonicalDigest, AgentModelEvaluationPlan>();
   readonly #descriptors = new Map<
     CanonicalDigest,
@@ -101,6 +220,10 @@ export class InMemoryAgentEvaluationRepository {
   readonly #metricReports = new Map<string, AgentEvaluationMetricReport>();
   readonly #graderReports = new Map<string, AgentEvaluationGraderReport>();
   readonly #humanReports = new Map<string, AgentHumanReviewReport>();
+  readonly #humanMetricObservations = new Map<
+    CanonicalDigest,
+    readonly AgentEvaluationValidatedHumanMetricObservation[]
+  >();
   readonly #holdoutReceipts = new Map<string, AgentHoldoutExecutionReceipt>();
   readonly #manifests = new Map<string, AgentModelEvaluationManifest>();
 
@@ -445,6 +568,48 @@ export class InMemoryAgentEvaluationRepository {
     );
   }
 
+  putValidatedHumanMetricObservations(
+    planDigest: CanonicalDigest,
+    observations: readonly AgentEvaluationValidatedHumanMetricObservation[]
+  ): AgentEvaluationRepositoryWriteResult<
+    readonly AgentEvaluationValidatedHumanMetricObservation[]
+  > {
+    const plan = this.#plans.get(planDigest);
+    if (!plan) return Object.freeze({ ok: false, reason: 'not-found' });
+    if (
+      !Array.isArray(observations) ||
+      !observations.every(
+        (observation) =>
+          isAgentEvaluationValidatedHumanMetricObservation(observation) &&
+          observation.planDigest === planDigest &&
+          observation.repositoryCommit === plan.repositoryCommit
+      )
+    ) {
+      return Object.freeze({ ok: false, reason: 'invalid' });
+    }
+    const canonical =
+      canonicalAgentEvaluationValidatedHumanMetricObservationOrder(
+        observations
+      );
+    if (!sameCanonicalJson(canonical, observations)) {
+      return Object.freeze({ ok: false, reason: 'invalid' });
+    }
+    const current = this.#humanMetricObservations.get(planDigest);
+    if (current) {
+      return sameCanonicalJson(current, canonical)
+        ? Object.freeze({ ok: true, value: current, replayed: true })
+        : Object.freeze({ ok: false, reason: 'conflict' });
+    }
+    this.#humanMetricObservations.set(planDigest, canonical);
+    return Object.freeze({ ok: true, value: canonical, replayed: false });
+  }
+
+  listValidatedHumanMetricObservations(
+    planDigest: CanonicalDigest
+  ): readonly AgentEvaluationValidatedHumanMetricObservation[] {
+    return this.#humanMetricObservations.get(planDigest) ?? Object.freeze([]);
+  }
+
   putHoldoutReceipt(
     receipt: AgentHoldoutExecutionReceipt
   ): AgentEvaluationRepositoryWriteResult<AgentHoldoutExecutionReceipt> {
@@ -506,6 +671,8 @@ export class InMemoryAgentEvaluationRepository {
         plan,
         descriptors: this.listDescriptors(manifest.planDigest),
         attempts: this.listAttempts(manifest.planDigest),
+        validatedHumanMetricObservations:
+          this.listValidatedHumanMetricObservations(manifest.planDigest),
         metricReport,
         graderReport,
         humanReviewReport,

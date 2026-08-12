@@ -1,4 +1,4 @@
-import type { ControlledStaticToolchainAuthorityReceipt } from './controlledStaticToolchainProtocol';
+import type { ControlledStaticToolchainAuthorityReceipt } from '../src/controlledStaticToolchainProtocol';
 
 export type ControlledStaticToolchainSandboxAuthority = Readonly<{
   pnpmVersion: string;

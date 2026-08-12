@@ -15,6 +15,8 @@ import { hasExactAgentEvaluationFactShape } from './agentEvaluationShape';
 import {
   isAgentEvaluationGraderReport,
   isAgentEvaluationMetricReport,
+  isAgentEvaluationReviewCandidate,
+  isAgentEvaluationReviewRasterScanReceipt,
   isAgentEvaluationShardCheckpoint,
   isAgentHoldoutExecutionReceipt,
   isAgentHumanReviewReport,
@@ -49,6 +51,10 @@ const validateFact = (fact: AgentEvaluationFact): boolean => {
       return isAgentEvaluationGraderReport(fact.value);
     case 'evaluation-human-review-report':
       return isAgentHumanReviewReport(fact.value);
+    case 'evaluation-review-candidate':
+      return isAgentEvaluationReviewCandidate(fact.value);
+    case 'evaluation-review-raster-scan-receipt':
+      return isAgentEvaluationReviewRasterScanReceipt(fact.value);
     case 'evaluation-holdout-receipt':
       return isAgentHoldoutExecutionReceipt(fact.value);
     case 'evaluation-manifest':

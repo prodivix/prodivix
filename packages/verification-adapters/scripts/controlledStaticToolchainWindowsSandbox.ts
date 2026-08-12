@@ -11,7 +11,7 @@ import {
   CONTROLLED_STATIC_TOOLCHAIN_AUTHORITY_RECEIPT_FORMAT,
   type ControlledStaticToolchainAuthorityReceipt,
   type ControlledStaticToolchainCommandReceipt,
-} from './controlledStaticToolchainProtocol';
+} from '../src/controlledStaticToolchainProtocol';
 import type {
   ControlledStaticToolchainSandboxAuthority,
   ControlledStaticToolchainSandboxExecution,

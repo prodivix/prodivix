@@ -212,7 +212,7 @@ flowchart LR
     Compiler --> Run
     Run --> Runtime["Ephemeral Session / Report / Trace / Artifact"]
     Runtime --> Candidate["Normalized EvidenceCandidate"]
-    Candidate --> Promotion["Validate / redact / attest / promote"]
+    Candidate --> Promotion["Validate / redact<br/>create / stage artifacts<br/>prepare / final-commit"]
 
     subgraph EvidencePlane ["Durable Evidence plane outside Workspace"]
         Evidence["Append-only VerificationEvidence"]

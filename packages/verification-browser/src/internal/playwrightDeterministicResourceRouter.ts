@@ -167,11 +167,22 @@ export class PlaywrightDeterministicResourceRouter {
     this.#activeRouteRequests += 1;
     try {
       const response = await route.fetch({ maxRedirects: 0 });
+      const responseHeaders = response.headers();
+      const contentLength = responseHeaders['content-length'];
+      if (
+        contentLength === undefined ||
+        !/^(?:0|[1-9][0-9]*)$/u.test(contentLength) ||
+        Number(contentLength) !== resource.byteLength
+      ) {
+        this.#manifestViolations += 1;
+        await route.abort('blockedbyclient');
+        return;
+      }
       const body = await response.body();
       const contentDigest = digestBrowserVerificationBytes(
         new Uint8Array(body)
       );
-      const contentType = response.headers()['content-type'] ?? '';
+      const contentType = responseHeaders['content-type'] ?? '';
       const parserEgressDetected =
         (resource.kind === 'entry' ||
           resource.kind === 'control-host' ||
@@ -181,6 +192,7 @@ export class PlaywrightDeterministicResourceRouter {
         response.status() < 200 ||
         response.status() >= 300 ||
         response.url() !== request.url() ||
+        body.byteLength !== resource.byteLength ||
         contentDigest !== resource.contentDigest ||
         parserEgressDetected
       ) {
@@ -200,7 +212,7 @@ export class PlaywrightDeterministicResourceRouter {
         response,
         body,
         headers: {
-          ...response.headers(),
+          ...responseHeaders,
           ...sandboxResponseHeaders,
         },
       });

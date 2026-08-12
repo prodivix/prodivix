@@ -27,7 +27,8 @@ func validateAgentEvaluationAttemptDeep(value map[string]any) error {
 	}
 	samplingBase := map[string]any{
 		"planDigest": descriptor["planDigest"], "caseId": descriptor["caseId"],
-		"targetId": descriptor["targetId"], "targetDigest": descriptor["targetDigest"],
+		"capabilityDescriptorDigest": descriptor["capabilityDescriptorDigest"],
+		"targetId":                   descriptor["targetId"], "targetDigest": descriptor["targetDigest"],
 		"riskClass": descriptor["riskClass"], "repetitionIndex": descriptor["repetitionIndex"],
 	}
 	for _, field := range []string{"contextTier", "mediaRepresentationTier"} {
@@ -452,7 +453,10 @@ func validateAgentEvaluationHumanReportDeep(value map[string]any) error {
 	previous := ""
 	for index, raw := range ratings {
 		rating := raw.(map[string]any)
-		if requireExactObjectKeys(rating, []string{"ratingId", "attemptId", "reviewerPseudonym", "randomizedPresentationId", "rubricDigest", "verdict", "ratingDigest"}, nil) != nil {
+		if requireExactObjectKeys(rating, []string{
+			"ratingId", "attemptId", "reviewerPseudonym", "randomizedPresentationId", "rubricDigest",
+			"criterionVerdicts", "verdict", "ratingDigest",
+		}, nil) != nil {
 			return fmt.Errorf("/value/ratings/%d shape is invalid", index)
 		}
 		for _, field := range []string{"ratingId", "attemptId", "reviewerPseudonym", "randomizedPresentationId"} {
@@ -462,6 +466,29 @@ func validateAgentEvaluationHumanReportDeep(value map[string]any) error {
 		}
 		if requireDigest(rating["rubricDigest"], fmt.Sprintf("/value/ratings/%d/rubricDigest", index)) != nil || !oneOf(stringValue(rating["verdict"]), "passed", "failed") {
 			return fmt.Errorf("/value/ratings/%d value is invalid", index)
+		}
+		criterionVerdicts, ok := rating["criterionVerdicts"].([]any)
+		if !ok || len(criterionVerdicts) < 1 || len(criterionVerdicts) > 32 {
+			return fmt.Errorf("/value/ratings/%d/criterionVerdicts is invalid", index)
+		}
+		previousCriterionID := ""
+		allPassed := true
+		for criterionIndex, rawCriterionVerdict := range criterionVerdicts {
+			criterionVerdict, ok := rawCriterionVerdict.(map[string]any)
+			if !ok || requireExactObjectKeys(criterionVerdict, []string{"criterionId", "verdict"}, nil) != nil ||
+				requireIdentity(criterionVerdict["criterionId"], fmt.Sprintf("/value/ratings/%d/criterionVerdicts/%d/criterionId", index, criterionIndex)) != nil ||
+				!oneOf(stringValue(criterionVerdict["verdict"]), "passed", "failed") {
+				return fmt.Errorf("/value/ratings/%d/criterionVerdicts/%d is invalid", index, criterionIndex)
+			}
+			criterionID := stringValue(criterionVerdict["criterionId"])
+			if criterionIndex > 0 && criterionID <= previousCriterionID {
+				return fmt.Errorf("/value/ratings/%d/criterionVerdicts is non-canonical", index)
+			}
+			allPassed = allPassed && stringValue(criterionVerdict["verdict"]) == "passed"
+			previousCriterionID = criterionID
+		}
+		if (stringValue(rating["verdict"]) == "passed") != allPassed {
+			return fmt.Errorf("/value/ratings/%d verdict drifted", index)
 		}
 		id := stringValue(rating["ratingId"])
 		if index > 0 && id <= previous {

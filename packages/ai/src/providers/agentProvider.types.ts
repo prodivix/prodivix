@@ -156,6 +156,7 @@ export type AgentCapabilityProbeReceipt = Readonly<{
   declaredCapabilityDigest: CanonicalDigest;
   probedCapabilityDigest: CanonicalDigest;
   status: 'supported' | 'unsupported' | 'inconclusive';
+  observedProfileDigest?: CanonicalDigest;
   observedLimitDigest: CanonicalDigest;
   probedAt: Instant;
   expiresAt: Instant;

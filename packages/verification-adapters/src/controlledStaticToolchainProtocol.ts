@@ -34,6 +34,11 @@ export type ControlledStaticToolchainRequest = Readonly<{
   snapshot: ExecutableProjectSnapshot;
 }>;
 
+export type EncodedControlledStaticToolchainRequest = Readonly<{
+  source: string;
+  requestDigest: string;
+}>;
+
 export type ControlledStaticToolchainCommandReceipt = Readonly<{
   stage: 'version' | 'install' | 'isolation' | 'typecheck' | 'test' | 'build';
   application: string;
@@ -344,6 +349,40 @@ const decodeSnapshot = (value: unknown): ExecutableProjectSnapshot => {
     );
   }
   return snapshot;
+};
+
+const encodeSnapshotFile = (file: ExecutableProjectSnapshot['files'][number]) =>
+  Object.freeze({
+    path: file.path,
+    encoding:
+      typeof file.contents === 'string'
+        ? ('utf8' as const)
+        : ('base64' as const),
+    contents:
+      typeof file.contents === 'string'
+        ? file.contents
+        : Buffer.from(file.contents).toString('base64'),
+    ...(file.sourceTrace ? { sourceTrace: file.sourceTrace } : {}),
+  });
+
+/** Encodes the exact current snapshot consumed by the fixed sandbox process. */
+export const encodeControlledStaticToolchainRequest = (
+  snapshot: ExecutableProjectSnapshot
+): EncodedControlledStaticToolchainRequest => {
+  const source = canonicalJsonText({
+    format: CONTROLLED_STATIC_TOOLCHAIN_REQUEST_FORMAT,
+    snapshot: {
+      ...snapshot,
+      files: snapshot.files.map(encodeSnapshotFile),
+    },
+  });
+  const decoded = decodeControlledStaticToolchainRequest(source);
+  if (decoded.snapshot.contentDigest !== snapshot.contentDigest) {
+    throw new TypeError(
+      'Controlled static toolchain request encoder drifted from its snapshot.'
+    );
+  }
+  return Object.freeze({ source, requestDigest: decoded.requestDigest });
 };
 
 export const decodeControlledStaticToolchainRequest = (

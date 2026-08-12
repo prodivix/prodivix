@@ -43,6 +43,10 @@ mock provider 能响应、workflow 已配置、单次 provider smoke、一次模
 - model invocation、tool/job/media call、multi-dimensional budget ledger、usage confidence/cost/pricing digest；
 - model evaluation plan/provider/profile matrix/public corpus/protected holdout/rotating policy/families/cases/
   context-media sentinels/risk repetitions/grader/human review/threshold/budget digest；
+- generated run-config artifact name/digest/source run/attempt/canonical byte length，以及 database-sealed
+  `runConfigArtifactBinding`、`runConfigCanonicalBytesDigest`、`sourceConfigDigest` 与 `frozenRunDigest`；
+- preplan resource/runtime/probe/cleanup authority roots、purpose-bound owner shutdown receipt，以及 Native Provider
+  state-vault authority/owner instance/seal-resolve-retire/forced-expiry/zero-residual health digests；
 - model evaluation全部 attempt、missing/timeout denominator、logical/billable/cache/unknown usage、media/tool units、
   confidence distribution、actual cost、outcome、freshness/expiry 与 manifest digest；
 - capability grant、network policy、Secret reference kind（不含 value）与 approval decision digest；
@@ -58,22 +62,22 @@ prompt、private reasoning、未清洗 tool output 或生产 payload。
 
 ## Required Gate manifest
 
-| Gate                              | 状态                      | 必须证明                                                              | Evidence                                                   |
-| --------------------------------- | ------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `verify:g4:boundaries`            | Passed                    | owner/current/wire/agent-policy/diagnostics/no alternate write        | commit `76e4d027` / run `30743725468` / job `91485583658`  |
-| `verify:g4:context-policy`        | Passed                    | grounding/privacy/residency/instruction boundary                      | commit `76e4d027` / run `30743725463` / job `91485583497`  |
-| `verify:g4:provider-capabilities` | Passed                    | profile/model/state/cache/job/reasoning/usage/scripted SPI            | commit `76e4d027` / run `30743725463` / job `91485583497`  |
-| `verify:g4:multimodal`            | Passed                    | media source/transform/injection/visual target/generated asset        | commit `76e4d027` / run `30743725504` / job `91485583786`  |
-| `verify:g4:hosted-capabilities`   | Passed                    | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary | commit `76e4d027` / run `30743725513` / job `91485583685`  |
-| `verify:g4:control-plane`         | Passed                    | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL            | commit `76e4d027` / run `30743725458` / job `91485583579`  |
-| `verify:g4:proposal-approval`     | Passed                    | domain dry-run/exact approval/Transaction/ACK/rollback                | commit `76e4d027` / run `30743725486` / job `91485583619`  |
-| `verify:g4:verification`          | Passed                    | committed Plan/Evidence/Closure/repair/eval/counterexample            | commit `76e4d027` / run `30743725483` / job `91485583557`  |
-| `verify:g4:product`               | Passed                    | Web/CLI/a11y/reconnect/trace/audit                                    | commit `76e4d027` / run `30743725467` / job `91485583520`  |
-| `verify:g4:security`              | Passed                    | text/media injection/Secret/network/state/permission negatives        | commit `ae908c13` / run `30761547895` / job `91532914906`  |
-| `verify:g4:model-eval`            | External Evidence Pending | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget | contract/PG/deterministic CI passed；真实 matrix待运行     |
-| `verify:g4:golden`                | Passed                    | authenticated Catalog full positive/negative deterministic closure    | commit `ae908c13` / run `30761547900` / job `91532915052`  |
-| `verify:g4`                       | Passed                    | zero-remote-model deterministic V0-V9 aggregate                       | commit `ae908c13` / run `30761547900` / job `91532915052`  |
-| `verify:g4:closure`               | Incomplete                | exact-commit deterministic + model-eval + Golden manifest             | deterministic manifest Passed；real-model evidence Pending |
+| Gate                              | 状态                      | 必须证明                                                                   | Evidence                                                   |
+| --------------------------------- | ------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `verify:g4:boundaries`            | Passed                    | owner/current/wire/agent-policy/diagnostics/no alternate write             | commit `76e4d027` / run `30743725468` / job `91485583658`  |
+| `verify:g4:context-policy`        | Passed                    | grounding/privacy/residency/instruction boundary                           | commit `76e4d027` / run `30743725463` / job `91485583497`  |
+| `verify:g4:provider-capabilities` | Passed                    | profile/model/state/cache/job/reasoning/usage/scripted SPI                 | commit `76e4d027` / run `30743725463` / job `91485583497`  |
+| `verify:g4:multimodal`            | Passed                    | media source/transform/injection/visual target/generated asset             | commit `76e4d027` / run `30743725504` / job `91485583786`  |
+| `verify:g4:hosted-capabilities`   | Passed                    | hosted tool/retrieval/MCP/computer/concurrency/managed-agent boundary      | commit `76e4d027` / run `30743725513` / job `91485583685`  |
+| `verify:g4:control-plane`         | Passed                    | Task/Run/tool/budget/idempotency/cancel/restart/PostgreSQL                 | commit `76e4d027` / run `30743725458` / job `91485583579`  |
+| `verify:g4:proposal-approval`     | Passed                    | domain dry-run/exact approval/Transaction/ACK/rollback                     | commit `76e4d027` / run `30743725486` / job `91485583619`  |
+| `verify:g4:verification`          | Passed                    | committed Plan/Evidence/Closure/repair/eval/counterexample                 | commit `76e4d027` / run `30743725483` / job `91485583557`  |
+| `verify:g4:product`               | Passed                    | Web/CLI/a11y/reconnect/trace/audit                                         | commit `76e4d027` / run `30743725467` / job `91485583520`  |
+| `verify:g4:security`              | Passed                    | text/media injection/Secret/network/state/permission negatives             | commit `ae908c13` / run `30761547895` / job `91532914906`  |
+| `verify:g4:model-eval`            | External Evidence Pending | 3 native Providers/27 targets/128 cases/exact 14,040 journeys/stats/budget | contract/PG/deterministic CI passed；真实 matrix待运行     |
+| `verify:g4:golden`                | Passed                    | authenticated Catalog full positive/negative deterministic closure         | commit `ae908c13` / run `30761547900` / job `91532915052`  |
+| `verify:g4`                       | Passed                    | zero-remote-model deterministic V0-V9 aggregate                            | commit `ae908c13` / run `30761547900` / job `91532915052`  |
+| `verify:g4:closure`               | Incomplete                | exact-commit deterministic + model-eval + Golden manifest                  | deterministic manifest Passed；real-model evidence Pending |
 
 ## V1 local + durable CI Gate evidence
 
@@ -278,7 +282,8 @@ repeatable-read reload、command/approval idempotency、tamper与 authority fail
       independently operated/versioned production-eligible model configuration；三个 `providerOperatorId`
       与 `modelFamilyOwnerId` 分别互异；required text/visual/document profiles均分别 qualification。
 - [ ] ordinary每 case/configuration至少 10 attempts、48 critical至少 30、至少 12 high-assurance至少 100；
-      context/media tier增量后首次 closure规范性最低 11,640 journeys，critical sentinel继续增加。
+      context/media tier增量后首次 closure规范性最低 11,640 journeys，当前冻结 plan 为 exact
+      14,040 journeys。
 - [ ] 同一 OpenAI-compatible adapter 下换模型、aggregator 转发或同一模型的多个 endpoint 未被误计为独立
       protocol/operator/model-family diversity。
 - [ ] 全部 attempt、missing/timeout denominator、失败 lineage、shard/checkpoint/resume 与 exact dedupe可审计，
@@ -357,7 +362,9 @@ repeatable-read reload、command/approval idempotency、tamper与 authority fail
 - required negative matrix 的逐项 verdict；
 - model evaluation plan/provider/protocol/operator/model/profile/public corpus/protected holdout/context-media sentinel/
   risk repetition/sequential rule/grader/human rubric/threshold identities；
-- 11,640+ real-model attempt/missing denominator/metric/confidence distribution、logical/billable/cache/unknown usage、
+- 27-target declaration/probe authority matrix，以及每 turn 的 sanitized Provider capability observation、owner/specific
+  exact reference 和 observation set root；
+- exact 14,040 real-model attempt/missing denominator/metric/confidence distribution、logical/billable/cache/unknown usage、
   media/tool units、actual cost、human review、freshness/expiry summary；
 - sanitized audit event count/head digest；
 - 每个 required artifact 的 digest/size/media type/availability；
@@ -372,7 +379,7 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
 2. CI workflow 存在或 job queued 只能写 `Configured` / `Evidence pending`。
 3. provider adapter smoke 必须记录 protocol/adapter/operator/endpoint/model/region/version、hard ceiling 与
    actual usage；它只满足 adapter admission，不能替代三 Provider required profiles、128 cases、protected holdout、
-   11,640+ journeys、statistical/human thresholds 的 `verify:g4:model-eval`。
+   current exact 14,040 journeys、statistical/human thresholds 的 `verify:g4:model-eval`。
 4. PostgreSQL、browser、rootless/network boundary 必须使用真实 daemon/environment，不以纯 mock 冒充。
 5. rerun 必须保留失败 attempt；只引用最终绿色 run 而删除 lineage 不合格。
 6. model-eval 的 provider/profile/corpus/holdout/context/media/repetition/grader/threshold 在结果产生后变化，
@@ -453,7 +460,8 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   purpose/runtime-zone/timeout/size egress。stable protected case id允许进入 audit；protected body/fingerprint不得公开。
 - evaluation planner冻结 12/32 positive、20/48 adversarial、8/16 recovery、12/32 capability，共52 families/
   128 cases，每 bucket至少25% protected holdout、24 context与16 media sentinels、三档 tier、三 native family/operator/
-  model-family及 required text/visual/document profiles；risk repetition形成至少11,640 journeys。
+  model-family及 required text/visual/document profiles；11,640 是规范性最低线，当前 canonical risk/tier repetition
+  形成 14,040 journeys。
 - repository/runner覆盖 global atomic multi-dimensional budget CAS/reservation/settlement、lease claim/renew/generation、
   shard checkpoint/CAS、resume、exact attempt dedupe、missing/timeout denominator；manifest admission从 frozen plan与
   全部 attempts重算 metric/grader report，并保留 per-provider/profile/bucket/family/risk/tier/grader slice、
@@ -467,11 +475,36 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   satisfied/unexpired manifest、完整 denominator及 clean exact commit，缺失 evidence会明确失败。
 - Durable CI：[`G4 V8 Security and Model Evaluation Contract` run `30761547895`](https://github.com/prodivix/prodivix/actions/runs/30761547895) /
   job [`91532914906`](https://github.com/prodivix/prodivix/actions/runs/30761547895/job/91532914906) 在 exact clean
-  commit `ae908c13` terminal success；security matrix、11,640 deterministic denominator contract与真实 PostgreSQL 16
-  evaluation ledger全部通过，remote-model units = 0。
-- Pending：四类 bounded endpoint smoke、三个真实 native Provider required profile的11,640+ journeys、受保护/
+  commit `ae908c13` terminal success；security matrix、历史 minimum-floor 11,640 deterministic denominator contract与
+  真实 PostgreSQL 16 evaluation ledger全部通过，remote-model units = 0。
+- Pending：五类 bounded endpoint smoke、三个真实 native Provider required profile的 current 14,040 journeys、受保护/
   rotating holdout operation、actual usage/cost、真实 blind human review、未过期 release qualification与
   scheduled/release artifact均未取得。`verify:g4:model-eval` 与 Global G4因此保持 Pending/In Progress。
+
+### Production execution infrastructure / contracts（2026-08-12；local Passed / external Evidence pending）
+
+- `apps/agent-evaluation-runner` 与 Backend evaluation owner/ledger 已实现 generated production run-config binding、
+  27-target / exact 14,040-attempt plan、shard/checkpoint/resume、bounded endpoint smoke 与 full-attempt contract/primitives。
+- evidence index、archive attestation 与 root 共同绑定 database-sealed `runConfigArtifactBinding` 与
+  canonical whole-file bytes；trust decision 只消费该 sealed artifact authority，并使用 legacy-denominator
+  拒绝向量防止旧计划重承诺。
+- preplan contract 固定 4 resource registrations、15 runtime registrations、18 sealed probes 和 4 durable cleanup
+  receipts；full-attempt contract 将 controlled Workspace/Chromium 与 G3 Evidence 组合到 purpose-bound sidecar，
+  attested promotion 固定为 `prepare → final-commit`。
+- Backend durable Native Provider state-vault primitives 已实现 callback-only plaintext、
+  per-state data-key destruction、owner-instance isolation、request-digest replay、retirement receipt 与 forced-expiry
+  tombstone；收口 health 要求零 active/overdue records 与零 forced-expiry tombstones。
+- 默认 production shared-effect composition 已组合 stateful runtime journal、Hosted source owner、isolated-cache
+  cold/warm owner 与 exact 15 项 runtime fact-source readiness，并通过 durable restart/reconcile/health local Gates。
+- Hosted exact-four production lifecycle 已接入 8791 sidecar、Runner main 与 Backend dispatch/transport/records routes；
+  null-prior conservative receipt、known-prior recovery-read、只读 reconciliation、partial-create durable cleanup、
+  clean no-op、terminal four-zero health、0..88 archive family 与 v46 双 authority root 均有本地 focused evidence。
+  AI aggregate、Runner typecheck/build、Backend package aggregate、wire/boundary、operational verifier、v46 join、14,040
+  positive stream 与 foreign-root negative local Gates 已通过。本地状态为
+  `Infrastructure / Contracts / Production Reachability Implemented; Local Contract Gates Passed`。
+- workflow 及其无 credential 分支已配置。真实 Provider key、protected PostgreSQL run、actionlint、remote Actions/CI、
+  endpoint receipts、14,040 real journeys、holdout/human review 和 satisfied closure artifact 均为
+  `External Evidence Pending`；workflow evidence状态保持 `Configured / Evidence pending`。
 
 ### V9 implementation + exact-commit deterministic CI（2026-08-03）
 
@@ -495,8 +528,9 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   `ae908c13` terminal success。rootless artifact `8837674438` 与 deterministic Closure manifest artifact
   `8837860540` 均可读取；后者 manifest digest为
   `sha256-7c737386050b81492dfb4d38e82b1e0a9fa1bbcf8db80666f55514d26880d662`。
-- manifest严格记录 `repositoryCommit=ae908c13579434b498a560be3ec9d9934c20ff47`、`worktreeState=clean`、
+- 该历史 minimum-floor manifest严格记录
+  `repositoryCommit=ae908c13579434b498a560be3ec9d9934c20ff47`、`worktreeState=clean`、
   `goldenVerdict=satisfied`、`closureVerdict=incomplete`、real-model `pending` 与 attempts `0/11,640`。该结果证明
   deterministic/rootless durable promotion，同时明确拒绝伪造 Global G4 closure。
-- Pending：三个真实 native Provider 11,640+ journeys、protected holdout、actual usage/cost、blind human review、
+- Pending：三个真实 native Provider current 14,040 journeys、protected holdout、actual usage/cost、blind human review、
   未过期 model-eval与最终 satisfied `verify:g4:closure` artifact。

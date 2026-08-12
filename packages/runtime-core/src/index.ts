@@ -191,6 +191,15 @@ export {
   EXECUTABLE_PROJECT_SNAPSHOT_FORMAT,
   normalizeExecutableProjectPath,
 } from './executableProject';
+export {
+  EXECUTABLE_PROJECT_SNAPSHOT_ARTIFACT_FORMAT,
+  EXECUTABLE_PROJECT_SNAPSHOT_ARTIFACT_MEDIA_TYPE,
+  EXECUTABLE_PROJECT_SNAPSHOT_ARTIFACT_SCHEMA_DIGEST,
+  EXECUTABLE_PROJECT_SNAPSHOT_ARTIFACT_VERSION,
+  decodeExecutableProjectSnapshotArtifact,
+  encodeExecutableProjectSnapshotArtifact,
+  type ExecutableProjectSnapshotArtifact,
+} from './executableProjectSnapshotArtifact';
 export { cloneExecutableProjectSourceTrace } from './executableProjectNormalization';
 export {
   EXECUTION_INVOCATION_KINDS,

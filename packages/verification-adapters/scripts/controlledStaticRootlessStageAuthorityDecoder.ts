@@ -2,7 +2,7 @@ import {
   canonicalJsonText,
   sameCanonicalJson,
 } from '@prodivix/shared/canonical';
-import type { ControlledStaticToolchainCommandReceipt } from './controlledStaticToolchainProtocol';
+import type { ControlledStaticToolchainCommandReceipt } from '../src/controlledStaticToolchainProtocol';
 import {
   EMPTY_DIGEST,
   RESULT_ALLOWLIST,

@@ -60,6 +60,7 @@ export type BrowserRuntimeControlResource = Readonly<{
   url: string;
   kind: 'control-host' | 'entry' | 'bundle';
   contentDigest: string;
+  byteLength: number;
 }>;
 
 export type BrowserRuntimeControlResourceManifest = Readonly<{
@@ -437,6 +438,14 @@ export const createBrowserRuntimeControlResourceManifest = (
       .map((resource) => {
         assertDigest(resource.contentDigest, 'Browser resource content');
         if (
+          !Number.isSafeInteger(resource.byteLength) ||
+          resource.byteLength < 0
+        ) {
+          throw new TypeError(
+            'Browser resource byteLength must be a non-negative safe integer.'
+          );
+        }
+        if (
           resource.kind !== 'control-host' &&
           resource.kind !== 'entry' &&
           resource.kind !== 'bundle'
@@ -447,6 +456,7 @@ export const createBrowserRuntimeControlResourceManifest = (
           url: exactHttpUrl(resource.url, 'Browser resource URL'),
           kind: resource.kind,
           contentDigest: resource.contentDigest,
+          byteLength: resource.byteLength,
         });
       })
       .sort((left, right) => compareUnicodeCodePoints(left.url, right.url))
@@ -514,12 +524,19 @@ const assertResourceManifest = (
   value: BrowserRuntimeControlResourceManifest,
   lease: BrowserRuntimeControlLease
 ): void => {
-  const { manifestDigest, ...identity } = value;
+  let normalized: BrowserRuntimeControlResourceManifest | undefined;
+  try {
+    normalized = createBrowserRuntimeControlResourceManifest({
+      executableSnapshotDigest: value.executableSnapshotDigest,
+      resources: value.resources,
+    });
+  } catch {
+    // The shared drift diagnostic below remains the public contract.
+  }
   if (
-    value.format !== BROWSER_RUNTIME_CONTROL_RESOURCE_MANIFEST_FORMAT ||
-    value.version !== BROWSER_RUNTIME_CONTROL_RESOURCE_MANIFEST_VERSION ||
+    !normalized ||
+    !sameCanonicalJson(value, normalized) ||
     value.executableSnapshotDigest !== lease.executableSnapshotDigest ||
-    digestVerificationValue(identity) !== manifestDigest ||
     value.resources.find(({ kind }) => kind === 'control-host')?.url !==
       lease.controlHostUrl ||
     value.resources.some(

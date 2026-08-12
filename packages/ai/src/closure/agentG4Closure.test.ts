@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { digestAgentCanonicalValue } from '../domain/agentCanonical';
+import { createAgentEvaluationProductionRunConfigArtifactBinding } from '../evaluation/agentEvaluationFrozenConfigCommitment';
 import {
   AGENT_G4_REQUIRED_CAPABILITY_PROFILE_IDS,
   AGENT_G4_REQUIRED_DETERMINISTIC_GATE_IDS,
@@ -16,6 +17,23 @@ import {
 
 const repositoryCommit = 'a'.repeat(40);
 const digest = (value: unknown) => digestAgentCanonicalValue({ v9: value });
+const evaluationPlanDigest = digest('evaluation-plan');
+const evaluationSourceConfigDigest = digest('evaluation-source-config');
+const evaluationFrozenRunDigest = digest('evaluation-frozen-run');
+const runConfigArtifactBinding = () =>
+  createAgentEvaluationProductionRunConfigArtifactBinding({
+    sourcePlanArtifactName: 'g4-plan-1234567-2',
+    sourcePlanArtifactDigest: `sha256:${'a'.repeat(64)}`,
+    sourcePlanWorkflowRunId: '1234567',
+    sourcePlanWorkflowRunAttempt: 2,
+    runConfigFileName: 'production-run-config.json',
+    runConfigByteLength: 4_096,
+    runConfigCanonicalBytesDigest: evaluationSourceConfigDigest,
+    sourceConfigDigest: evaluationSourceConfigDigest,
+    frozenRunDigest: evaluationFrozenRunDigest,
+    planDigest: evaluationPlanDigest,
+    repositoryCommit,
+  });
 const withDigest = <T extends object, K extends string>(
   value: T,
   key: K
@@ -141,9 +159,105 @@ const createManifest = (
       ? withDigest(
           {
             status: 'satisfied' as const,
-            planDigest: digest('evaluation-plan'),
+            planDigest: evaluationPlanDigest,
             manifestRef: 'evaluation-manifest.g4-v9',
             manifestDigest: digest('evaluation-manifest'),
+            bundleDigest: digest('evaluation-bundle'),
+            evidenceSetDigest: digest('evaluation-evidence-set'),
+            runConfigArtifactBinding: runConfigArtifactBinding(),
+            sourceConfigDigest: evaluationSourceConfigDigest,
+            frozenRunDigest: evaluationFrozenRunDigest,
+            capabilityProbeAdmissionSetDigest: digest(
+              'evaluation-capability-probe-admissions'
+            ),
+            capabilityProbeReferenceReceiptSetDigest: digest(
+              'evaluation-capability-probe-references'
+            ),
+            runtimeFactSourceOwnerRegistrationSetDigest: digest(
+              'evaluation-runtime-fact-source-registrations'
+            ),
+            optionalCapabilityFactSourceSetDigest: digest(
+              'evaluation-optional-capability-fact-sources'
+            ),
+            optionalCapabilityFactAuthoritySetDigest: digest(
+              'evaluation-optional-capability-fact-authorities'
+            ),
+            endpointSmokeDispatchIntentSetDigest: digest(
+              'evaluation-endpoint-smoke-dispatch-intents'
+            ),
+            endpointSmokeTransportReceiptSetDigest: digest(
+              'evaluation-endpoint-smoke-transports'
+            ),
+            endpointSmokeResultSpoolReceiptSetDigest: digest(
+              'evaluation-endpoint-smoke-spools'
+            ),
+            endpointSmokeResultSpoolDispositionReceiptSetDigest: digest(
+              'evaluation-endpoint-smoke-spool-dispositions'
+            ),
+            endpointSmokeValidationFailureReceiptSetDigest: digest(
+              'evaluation-endpoint-smoke-validation-failures'
+            ),
+            endpointSmokeSetDigest: digest('evaluation-endpoint-smoke'),
+            preDispatchFailureReceiptSetDigest: digest(
+              'evaluation-pre-dispatch-failure-receipts'
+            ),
+            transportDispatchIntentSetDigest: digest(
+              'evaluation-transport-dispatch-intents'
+            ),
+            transportReceiptSetDigest: digest('evaluation-transport-receipts'),
+            providerResultSpoolReceiptSetDigest: digest(
+              'evaluation-provider-result-spool-receipts'
+            ),
+            providerResultSpoolDispositionReceiptSetDigest: digest(
+              'evaluation-provider-result-spool-dispositions'
+            ),
+            invocationTurnReceiptSetDigest: digest(
+              'evaluation-invocation-turn-receipts'
+            ),
+            invocationTurnSetReceiptSetDigest: digest(
+              'evaluation-invocation-turn-set-receipts'
+            ),
+            resultSubmissionReceiptSetDigest: digest(
+              'evaluation-result-submission-receipts'
+            ),
+            controlledRuntimeReceiptSetDigest: digest(
+              'evaluation-controlled-runtime-receipts'
+            ),
+            capabilityExecutionReceiptSetDigest: digest(
+              'evaluation-capability-execution-receipts'
+            ),
+            verificationAttemptGrantReceiptSetDigest: digest(
+              'evaluation-verification-attempt-grant-receipts'
+            ),
+            validatedHumanReviewArtifactSetDigest: digest(
+              'evaluation-validated-human-review-artifacts'
+            ),
+            validatedHumanMetricObservationSetDigest: digest(
+              'evaluation-validated-human-metric-observations'
+            ),
+            reviewLeaseDigest: digest('evaluation-review-lease'),
+            reviewRasterScanReceiptSetDigest: digest(
+              'evaluation-review-raster-scan-receipts'
+            ),
+            reviewCandidateRefSetDigest: digest(
+              'evaluation-review-candidate-refs'
+            ),
+            blindReviewMappingSetDigest: digest(
+              'evaluation-blind-review-mappings'
+            ),
+            sourceReceiptSetDigest: digest('evaluation-source-receipts'),
+            executionReceiptSetDigest: digest('evaluation-execution-receipts'),
+            authorityAttestationDigest: digest('evaluation-attestation'),
+            archiveAttestationDigest: digest('evaluation-archive-attestation'),
+            evidenceRootDigest: digest('evaluation-root'),
+            evidenceRootArtifactDigest: digest('evaluation-root-artifact'),
+            evidenceRootArtifactSize: 1_024,
+            evidenceIndexDigest: digest('evaluation-index'),
+            evidenceIndexArtifactDigest: digest('evaluation-index-artifact'),
+            evidenceIndexArtifactSize: 2_048,
+            shardSetDigest: digest('evaluation-shard-set'),
+            totalShardBytes: 4_096,
+            totalRecordCount: 11_700,
             requiredAttemptCount: 11_640 as const,
             actualAttemptCount: 11_640,
             requiredProtocolFamilies:
@@ -173,6 +287,11 @@ const createManifest = (
               ].sort()
             ),
             holdoutReceiptDigest: digest('holdout'),
+            holdoutExecutionReceiptDigest: digest('holdout'),
+            secretCanarySetDigest: digest('secret-canaries'),
+            protectedHoldoutCanarySetDigest: digest(
+              'protected-holdout-canaries'
+            ),
             metricReportDigest: digest('metrics'),
             graderReportDigest: digest('graders'),
             humanReviewReportDigest: digest('human'),
@@ -186,7 +305,7 @@ const createManifest = (
       : withDigest(
           {
             status: 'pending' as const,
-            planDigest: digest('evaluation-plan'),
+            planDigest: evaluationPlanDigest,
             requiredAttemptCount: 11_640 as const,
             actualAttemptCount: 0 as const,
             requiredProtocolFamilies:
@@ -196,18 +315,46 @@ const createManifest = (
           },
           'summaryDigest'
         );
-  const artifacts = ['audit', 'g3-closure', 'product-view'].map((artifactId) =>
-    withDigest(
-      {
-        artifactId: `artifact.${artifactId}`,
-        digest: digest({ artifactId }),
-        size: 64,
-        mediaType: 'application/json',
-        availability: 'available' as const,
-      },
-      'artifactDigest'
-    )
-  );
+  const artifacts = [
+    ...['audit', 'g3-closure', 'product-view'].map((artifactId) =>
+      withDigest(
+        {
+          artifactId: `artifact.${artifactId}`,
+          digest: digest({ artifactId }),
+          size: 64,
+          mediaType: 'application/json',
+          availability: 'available' as const,
+        },
+        'artifactDigest'
+      )
+    ),
+    ...(modelEvaluation.status === 'satisfied'
+      ? [
+          withDigest(
+            {
+              artifactId: `g4-model-evaluation-index:${modelEvaluation.evidenceIndexDigest.slice('sha256-'.length)}`,
+              digest: modelEvaluation.evidenceIndexArtifactDigest,
+              size: modelEvaluation.evidenceIndexArtifactSize,
+              mediaType:
+                'application/vnd.prodivix.agent-model-evaluation-evidence-index+json',
+              availability: 'available' as const,
+            },
+            'artifactDigest'
+          ),
+          withDigest(
+            {
+              artifactId: `g4-model-evaluation-root:${modelEvaluation.evidenceRootDigest.slice('sha256-'.length)}`,
+              digest: modelEvaluation.evidenceRootArtifactDigest,
+              size: modelEvaluation.evidenceRootArtifactSize,
+              mediaType:
+                'application/vnd.prodivix.agent-model-evaluation-evidence-root+json',
+              availability: 'available' as const,
+            },
+            'artifactDigest'
+          ),
+        ]
+      : []),
+  ];
   return createAgentG4GoldenClosureManifest({
     manifestId: 'manifest.golden.g4-v9.catalog',
     targetId: 'authenticated-catalog',
@@ -259,6 +406,32 @@ describe('G4 V9 Golden Closure manifest', () => {
     ).toThrow('cannot predate');
   });
 
+  it('requires the satisfied summary to bind the exact signed archive artifacts', () => {
+    const manifest = createManifest({
+      durable: true,
+      evaluation: 'satisfied',
+    });
+    const {
+      goldenVerdict: _goldenVerdict,
+      closureVerdict: _closureVerdict,
+      manifestDigest: _manifestDigest,
+      ...input
+    } = manifest;
+    const artifacts = input.artifacts.map((artifact) => {
+      if (!artifact.artifactId.startsWith('g4-model-evaluation-index:')) {
+        return artifact;
+      }
+      const { artifactDigest: _artifactDigest, ...base } = artifact;
+      return withDigest(
+        { ...base, digest: digest('alternate-evaluation-artifact') },
+        'artifactDigest'
+      );
+    });
+    expect(() =>
+      createAgentG4GoldenClosureManifest({ ...input, artifacts })
+    ).toThrow(/exact signed real-model evidence index and root artifacts/u);
+  });
+
   it('round-trips canonical wire and rejects nested or envelope drift', () => {
     const manifest = createManifest();
     const wire = encodeAgentG4ClosureManifest(manifest);
@@ -296,5 +469,34 @@ describe('G4 V9 Golden Closure manifest', () => {
         deterministicGateEvidence: input.deterministicGateEvidence.slice(1),
       })
     ).toThrow(/required evidence set is incomplete/u);
+  });
+
+  it('allows a content-addressed real-evaluation artifact above the fact envelope and keeps a hard cap', () => {
+    const manifest = createManifest();
+    const {
+      goldenVerdict: _goldenVerdict,
+      closureVerdict: _closureVerdict,
+      manifestDigest: _manifestDigest,
+      ...input
+    } = manifest;
+    const replaceArtifactSize = (size: number) =>
+      input.artifacts.map((artifact, index) => {
+        if (index !== 0) return artifact;
+        const { artifactDigest: _artifactDigest, ...base } = artifact;
+        return withDigest({ ...base, size }, 'artifactDigest');
+      });
+
+    expect(
+      createAgentG4GoldenClosureManifest({
+        ...input,
+        artifacts: replaceArtifactSize(64 * 1024 * 1024),
+      }).artifacts.some(({ size }) => size === 64 * 1024 * 1024)
+    ).toBe(true);
+    expect(() =>
+      createAgentG4GoldenClosureManifest({
+        ...input,
+        artifacts: replaceArtifactSize(512 * 1024 * 1024 + 1),
+      })
+    ).toThrow(/artifact is invalid/u);
   });
 });

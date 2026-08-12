@@ -216,8 +216,9 @@ companion Gate 与真实三浏览器 adapter tests 已于 2026-07-29 在本地�
   projection、legal-hold只读、tombstone body、safe text/raster/JSON viewer和 actual SourceTrace navigation。
 - Backend：`go test -short ./...` 与真实
   `TestVerificationEvidencePostgreSQLGate`通过。Gate 覆盖 immutable pre-run AttemptGrant、一次性原子 claim、
-  candidate/idempotency conflict、双副本 finalize、create/attestation prepare/evidence commit三阶段 authority
-  drift、丢响应/重启、最后一个 Closure record名额、object-store中断、artifact lease/orphan recovery、
+  candidate/idempotency conflict、双副本 finalize、promotion create/artifact staging 与两阶段 attestation
+  `prepare → final-commit` authority drift、丢响应/重启、最后一个 Closure record名额、object-store中断、
+  artifact lease/orphan recovery、
   protection/tombstone/GC race和 Workspace删除后 durable Evidence identity。
 - Trust/security：deterministic Ed25519 remote/CI attestation覆盖 issuer/audience/subject/nonce/expiry/replay/
   key rotation/revocation；local/imported不能满足默认 trusted Closure。Secret/Authorization/Cookie/PII、

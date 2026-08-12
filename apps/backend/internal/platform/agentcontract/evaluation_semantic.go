@@ -5,6 +5,14 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
+)
+
+const (
+	maximumAgentEvaluationReviewRasterBytes     = 2_097_152
+	maximumAgentEvaluationReviewRasterDimension = int64(4_096)
+	maximumAgentEvaluationReviewRasterPixels    = int64(16_777_216)
 )
 
 var evaluationCommitPattern = regexp.MustCompile(`^[a-f0-9]{40}$`)
@@ -35,11 +43,129 @@ func validateAgentEvaluationSemantics(document map[string]any) error {
 		return validateAgentEvaluationHumanReport(value)
 	case "evaluation-holdout-receipt":
 		return validateAgentEvaluationHoldoutReceipt(value)
+	case "evaluation-review-candidate":
+		return validateAgentEvaluationReviewCandidate(value)
+	case "evaluation-review-raster-scan-receipt":
+		return validateAgentEvaluationReviewRasterScanReceipt(value)
 	case "evaluation-manifest":
 		return validateAgentEvaluationManifest(value)
 	default:
 		return fmt.Errorf("unsupported Agent evaluation fact type %q", document["factType"])
 	}
+}
+
+func validateAgentEvaluationReviewRasterScanReceipt(value map[string]any) error {
+	if err := requireExactObjectKeys(value, []string{
+		"format", "version", "scanReceiptId", "planDigest", "repositoryCommit", "attemptId",
+		"descriptorDigest", "projectionAuthorityDigest", "mediaType", "width", "height", "byteLength",
+		"policyDigest", "bytesDigest", "decodedPixelDigest", "metadataProfileDigest", "canarySetDigest",
+		"fingerprintSetDigest", "findingDigests", "verdict", "scannedAt", "receiptDigest",
+	}, nil); err != nil {
+		return err
+	}
+	if stringValue(value["format"]) != "prodivix.agent-evaluation-review-raster-scan-receipt" ||
+		value["version"] != float64(1) {
+		return errors.New("evaluation review raster scan receipt format/version is invalid")
+	}
+	for _, field := range []string{"scanReceiptId", "attemptId"} {
+		if err := requireIdentity(value[field], "/value/"+field); err != nil {
+			return err
+		}
+	}
+	if !evaluationCommitPattern.MatchString(stringValue(value["repositoryCommit"])) {
+		return errors.New("evaluation review raster scan receipt commit is invalid")
+	}
+	for _, field := range []string{
+		"planDigest", "descriptorDigest", "projectionAuthorityDigest", "policyDigest", "bytesDigest",
+		"decodedPixelDigest", "metadataProfileDigest", "canarySetDigest", "fingerprintSetDigest",
+	} {
+		if err := requireDigest(value[field], "/value/"+field); err != nil {
+			return err
+		}
+	}
+	width, widthOK := safeInteger(value["width"])
+	height, heightOK := safeInteger(value["height"])
+	byteLength, byteLengthOK := safeInteger(value["byteLength"])
+	if !widthOK || !heightOK || !byteLengthOK || width < 1 || height < 1 ||
+		width > maximumAgentEvaluationReviewRasterDimension ||
+		height > maximumAgentEvaluationReviewRasterDimension ||
+		width*height > maximumAgentEvaluationReviewRasterPixels ||
+		byteLength < 1 || byteLength > maximumAgentEvaluationReviewRasterBytes ||
+		!oneOf(stringValue(value["mediaType"]), "image/png", "image/webp") {
+		return errors.New("evaluation review raster scan receipt media bounds are invalid")
+	}
+	findings, ok := value["findingDigests"].([]any)
+	if !ok || len(findings) > 4_096 || requireCanonicalStrings(findings) != nil {
+		return errors.New("evaluation review raster scan receipt findings are non-canonical")
+	}
+	for index, finding := range findings {
+		if err := requireDigest(finding, fmt.Sprintf("/value/findingDigests/%d", index)); err != nil {
+			return err
+		}
+	}
+	verdict := stringValue(value["verdict"])
+	if (verdict == "safe") != (len(findings) == 0) || !oneOf(verdict, "safe", "blocked") {
+		return errors.New("evaluation review raster scan receipt verdict drifted from findings")
+	}
+	if err := requireInstant(value["scannedAt"], "/value/scannedAt"); err != nil {
+		return err
+	}
+	return requireDigestMatch(value, "receiptDigest", "/value/receiptDigest")
+}
+
+func validateAgentEvaluationReviewCandidate(value map[string]any) error {
+	required := []string{
+		"format", "version", "candidateId", "attemptId", "planDigest", "repositoryCommit",
+		"descriptorDigest", "responseDigest", "executionReceiptDigest", "graderArtifactDigest",
+		"projectionAuthorityDigest", "mediaType", "width", "height", "bytesBase64", "bytesDigest",
+		"byteLength", "publicArtifactScanDigest", "generatedAt", "candidateDigest",
+	}
+	if err := requireExactObjectKeys(value, required, nil); err != nil {
+		return err
+	}
+	if stringValue(value["format"]) != "prodivix.agent-evaluation-review-candidate" ||
+		value["version"] != float64(2) {
+		return errors.New("evaluation review candidate format/version is invalid")
+	}
+	for _, field := range []string{"candidateId", "attemptId"} {
+		if err := requireIdentity(value[field], "/value/"+field); err != nil {
+			return err
+		}
+	}
+	if !evaluationCommitPattern.MatchString(stringValue(value["repositoryCommit"])) {
+		return errors.New("evaluation review candidate commit is invalid")
+	}
+	for _, field := range []string{
+		"planDigest", "descriptorDigest", "responseDigest", "executionReceiptDigest", "graderArtifactDigest",
+		"projectionAuthorityDigest", "bytesDigest", "publicArtifactScanDigest",
+	} {
+		if err := requireDigest(value[field], "/value/"+field); err != nil {
+			return err
+		}
+	}
+	width, widthOK := safeInteger(value["width"])
+	height, heightOK := safeInteger(value["height"])
+	if !widthOK || !heightOK || width < 1 || height < 1 ||
+		width > maximumAgentEvaluationReviewRasterDimension ||
+		height > maximumAgentEvaluationReviewRasterDimension ||
+		width*height > maximumAgentEvaluationReviewRasterPixels {
+		return errors.New("evaluation review candidate dimensions are invalid")
+	}
+	inspection, err := InspectEvaluationReviewRaster(stringValue(value["bytesBase64"]), stringValue(value["mediaType"]))
+	if err != nil || inspection.Width != width || inspection.Height != height {
+		return errors.New("evaluation review candidate raster or dimensions are invalid")
+	}
+	byteLength, ok := safeInteger(value["byteLength"])
+	if !ok || byteLength != inspection.ByteLength {
+		return errors.New("/value/byteLength drifted from decoded raster bytes")
+	}
+	if inspection.BytesDigest != stringValue(value["bytesDigest"]) {
+		return errors.New("/value/bytesDigest drifted from decoded raster bytes")
+	}
+	if err := requireInstant(value["generatedAt"], "/value/generatedAt"); err != nil {
+		return err
+	}
+	return requireDigestMatch(value, "candidateDigest", "/value/candidateDigest")
 }
 
 func validateAgentEvaluationPlan(value map[string]any) error {
@@ -72,14 +198,13 @@ func validateAgentEvaluationPlan(value map[string]any) error {
 		}
 	}
 	planned, ok := safeInteger(value["plannedJourneyCount"])
-	if !ok || planned < 11_640 {
-		return errors.New("/value/plannedJourneyCount is below the G4 V8 floor")
+	if !ok || planned != currentAgentEvaluationPlannedAttempts {
+		return errors.New("/value/plannedJourneyCount must equal the current 14,040-attempt denominator")
 	}
-	if err := requireInstant(value["plannedAt"], "/value/plannedAt"); err != nil {
-		return err
-	}
-	if err := requireInstant(value["expiresAt"], "/value/expiresAt"); err != nil {
-		return err
+	plannedAt, plannedErr := parseInstant(value["plannedAt"])
+	expiresAt, expiresErr := parseInstant(value["expiresAt"])
+	if plannedErr != nil || expiresErr != nil || !expiresAt.After(plannedAt) {
+		return errors.New("/value plannedAt/expiresAt window is invalid")
 	}
 	caseValues, ok := value["concreteCases"].([]any)
 	if !ok || len(caseValues) != 128 {
@@ -93,7 +218,8 @@ func validateAgentEvaluationPlan(value map[string]any) error {
 		entry, ok := raw.(map[string]any)
 		if !ok || requireExactObjectKeys(entry, []string{
 			"caseId", "familyId", "primaryBucket", "riskClass", "access", "capabilityProfileId",
-			"fixtureRef", "caseDefinitionDigest", "expectedAuthorityDigest", "gradingPolicyDigest",
+			"capabilityDescriptor", "capabilityDescriptorDigest",
+			"executionRequirement", "fixtureRef", "caseDefinitionDigest", "expectedAuthorityDigest", "gradingPolicyDigest",
 			"contextSentinel", "mediaSentinel", "subjectiveVisualQuality", "tags", "caseDigest",
 		}, nil) != nil {
 			return fmt.Errorf("/value/concreteCases/%d is invalid", index)
@@ -103,10 +229,40 @@ func validateAgentEvaluationPlan(value map[string]any) error {
 				return err
 			}
 		}
-		for _, field := range []string{"caseDefinitionDigest", "expectedAuthorityDigest", "gradingPolicyDigest"} {
+		for _, field := range []string{"caseDefinitionDigest", "expectedAuthorityDigest", "gradingPolicyDigest", "capabilityDescriptorDigest"} {
 			if err := requireDigest(entry[field], fmt.Sprintf("/value/concreteCases/%d/%s", index, field)); err != nil {
 				return err
 			}
+		}
+		capability, capabilityOK := entry["capabilityDescriptor"].(map[string]any)
+		capabilityDigest, capabilityDigestErr := canonicaljson.Digest(map[string]any{
+			"capabilityId": capability["capabilityId"], "support": capability["supportExpectation"],
+			"toolIds": capability["expectedToolIds"], "expectedReceiptKinds": capability["expectedReceiptKinds"],
+		})
+		if !capabilityOK || requireExactObjectKeys(capability, []string{
+			"capabilityId", "supportExpectation", "expectedToolIds", "expectedReceiptKinds", "descriptorDigest",
+		}, nil) != nil || requireIdentity(capability["capabilityId"], fmt.Sprintf("/value/concreteCases/%d/capabilityDescriptor/capabilityId", index)) != nil ||
+			!oneOf(stringValue(capability["supportExpectation"]), "required", "expected-blocked") ||
+			requireCanonicalStrings(capability["expectedToolIds"]) != nil ||
+			requireCanonicalStrings(capability["expectedReceiptKinds"]) != nil ||
+			capabilityDigestErr != nil || capabilityDigest != stringValue(capability["descriptorDigest"]) ||
+			stringValue(capability["descriptorDigest"]) != stringValue(entry["capabilityDescriptorDigest"]) {
+			return fmt.Errorf("/value/concreteCases/%d capability descriptor is invalid", index)
+		}
+		executionRequirement, requirementOK := entry["executionRequirement"].(map[string]any)
+		if !requirementOK || requireExactObjectKeys(executionRequirement, []string{
+			"minimumToolCalls", "minimumRepairRounds", "minimumTransactions", "verificationClosureRequired", "requirementDigest",
+		}, nil) != nil {
+			return fmt.Errorf("/value/concreteCases/%d execution requirement is invalid", index)
+		}
+		for _, field := range []string{"minimumToolCalls", "minimumRepairRounds", "minimumTransactions"} {
+			if _, ok := safeInteger(executionRequirement[field]); !ok {
+				return fmt.Errorf("/value/concreteCases/%d/executionRequirement/%s is invalid", index, field)
+			}
+		}
+		if _, ok := executionRequirement["verificationClosureRequired"].(bool); !ok ||
+			requireDigestMatch(executionRequirement, "requirementDigest", fmt.Sprintf("/value/concreteCases/%d/executionRequirement/requirementDigest", index)) != nil {
+			return fmt.Errorf("/value/concreteCases/%d execution requirement drifted", index)
 		}
 		bucket := stringValue(entry["primaryBucket"])
 		if !oneOf(bucket, "positive-cross-domain", "adversarial-security", "recovery-repair-reconciliation", "capability-differential") ||
@@ -163,7 +319,7 @@ func validateAgentEvaluationPlan(value map[string]any) error {
 	if err := validateEvaluationEndpointSmokes(value["endpointSmokeTargets"]); err != nil {
 		return err
 	}
-	if err := validateAgentEvaluationPlanDeep(value); err != nil {
+	if err := validateAgentEvaluationPlanDeep(value, plannedAt, expiresAt); err != nil {
 		return err
 	}
 	return requireDigestMatch(value, "planDigest", "/value/planDigest")
@@ -171,8 +327,8 @@ func validateAgentEvaluationPlan(value map[string]any) error {
 
 func validateEvaluationNativeTargets(raw any) error {
 	values, ok := raw.([]any)
-	if !ok || len(values) < 9 {
-		return errors.New("/value/capabilityQualificationTargets requires the native profile matrix")
+	if !ok || len(values) != 3*len(currentAgentEvaluationCapabilityProfiles) {
+		return errors.New("/value/capabilityQualificationTargets requires the exact 3 x 9 native matrix")
 	}
 	families, operators, owners := map[string]struct{}{}, map[string]struct{}{}, map[string]struct{}{}
 	profilesByFamily := map[string]map[string]struct{}{}
@@ -184,7 +340,7 @@ func validateEvaluationNativeTargets(raw any) error {
 			"providerOperatorId", "modelId", "modelLineageDigest", "modelFamilyOwnerId",
 			"capabilityProfileId", "capabilityProfileDigest", "inferenceConfigurationDigest",
 			"qualificationSliceDigest", "targetDigest",
-		}, nil) != nil {
+		}, []string{"optionalCapabilitySupportAuthority"}) != nil {
 			return fmt.Errorf("/value/capabilityQualificationTargets/%d is invalid", index)
 		}
 		id := stringValue(target["targetId"])
@@ -215,7 +371,7 @@ func validateEvaluationNativeTargets(raw any) error {
 		return errors.New("native protocol/operator/model-family diversity is insufficient")
 	}
 	for family := range families {
-		for _, profile := range []string{"g4-core-text-tools", "g4-document-input", "g4-visual-input"} {
+		for _, profile := range currentAgentEvaluationCapabilityProfiles {
 			if _, ok := profilesByFamily[family][profile]; !ok {
 				return fmt.Errorf("native family %s misses profile %s", family, profile)
 			}
@@ -226,41 +382,77 @@ func validateEvaluationNativeTargets(raw any) error {
 
 func validateEvaluationEndpointSmokes(raw any) error {
 	values, ok := raw.([]any)
-	if !ok {
-		return errors.New("/value/endpointSmokeTargets is invalid")
+	if !ok || len(values) != 5 {
+		return errors.New("/value/endpointSmokeTargets requires the exact five-target denominator")
 	}
 	hosted, local := false, false
+	protocolCounts := map[string]int{}
+	previous := ""
 	for index, rawValue := range values {
 		entry, ok := rawValue.(map[string]any)
-		if !ok || requireExactObjectKeys(entry, []string{
-			"smokeTargetId", "endpointClass", "protocolFamily", "providerConfigurationId",
-			"adapterDigest", "smokeProfileDigest", "targetDigest",
-		}, nil) != nil || stringValue(entry["protocolFamily"]) != "openai-compatible" {
-			return fmt.Errorf("/value/endpointSmokeTargets/%d is invalid", index)
+		if !ok {
+			return fmt.Errorf("/value/endpointSmokeTargets/%d is not an object", index)
 		}
-		hosted = hosted || oneOf(stringValue(entry["endpointClass"]), "first-party-hosted", "aggregator")
-		local = local || oneOf(stringValue(entry["endpointClass"]), "local", "self-hosted")
+		if err := requireExactObjectKeys(entry, []string{
+			"smokeTargetId", "endpointClass", "protocolFamily", "providerConfigurationId",
+			"modelId", "immutableModelVersion", "modelLineageDigest", "inferenceConfigurationDigest",
+			"adapterDigest", "pricingAuthorityDigest", "responseSpoolEncryptionPolicyDigest",
+			"smokeProfileDigest", "targetDigest",
+		}, nil); err != nil {
+			return fmt.Errorf("/value/endpointSmokeTargets/%d: %w", index, err)
+		}
+		protocol := stringValue(entry["protocolFamily"])
+		if !oneOf(protocol, "openai-responses", "anthropic-messages", "gemini-interactions", "openai-compatible") {
+			return fmt.Errorf("/value/endpointSmokeTargets/%d protocol is invalid", index)
+		}
+		protocolCounts[protocol]++
+		for _, field := range []string{"smokeTargetId", "providerConfigurationId", "modelId"} {
+			if err := requireIdentity(entry[field], fmt.Sprintf("/value/endpointSmokeTargets/%d/%s", index, field)); err != nil {
+				return err
+			}
+		}
+		if stringValue(entry["immutableModelVersion"]) == "" ||
+			(index > 0 && stringValue(entry["smokeTargetId"]) <= previous) {
+			return fmt.Errorf("/value/endpointSmokeTargets/%d model version or order is invalid", index)
+		}
+		if protocol == "openai-compatible" {
+			hosted = hosted || oneOf(stringValue(entry["endpointClass"]), "first-party-hosted", "aggregator")
+			local = local || oneOf(stringValue(entry["endpointClass"]), "local", "self-hosted")
+		}
+		for _, field := range []string{
+			"modelLineageDigest", "inferenceConfigurationDigest", "adapterDigest",
+			"pricingAuthorityDigest", "responseSpoolEncryptionPolicyDigest", "smokeProfileDigest",
+		} {
+			if err := requireDigest(entry[field], fmt.Sprintf("/value/endpointSmokeTargets/%d/%s", index, field)); err != nil {
+				return err
+			}
+		}
 		if err := requireDigestMatch(entry, "targetDigest", fmt.Sprintf("/value/endpointSmokeTargets/%d/targetDigest", index)); err != nil {
 			return err
 		}
+		previous = stringValue(entry["smokeTargetId"])
 	}
-	if !hosted || !local {
-		return errors.New("generic OpenAI-compatible hosted and local smokes are both required")
+	if !hosted || !local || protocolCounts["openai-compatible"] != 2 ||
+		protocolCounts["openai-responses"] != 1 || protocolCounts["anthropic-messages"] != 1 ||
+		protocolCounts["gemini-interactions"] != 1 {
+		return errors.New("endpoint smokes require three native targets plus hosted and local OpenAI-compatible targets")
 	}
 	return nil
 }
 
 func validateAgentEvaluationAttempt(value map[string]any) error {
 	if err := requireExactObjectKeys(value, []string{
-		"descriptor", "independentRunId", "status", "outcome", "metricObservations",
+		"descriptor", "independentRunId", "dispatchIntentSetDigest", "transportReceiptSetDigest",
+		"invocationTurnReceiptSetDigest", "invocationTurnSetReceiptDigest", "capabilityExecutionReceiptSetDigest",
+		"verificationAttemptGrantReceiptSetDigest", "status", "outcome", "metricObservations",
 		"usage", "cost", "startedAt", "completedAt", "attemptDigest",
-	}, []string{"invocationReceiptDigest", "responseDigest"}); err != nil {
+	}, []string{"responseDigest"}); err != nil {
 		return err
 	}
 	descriptor, ok := value["descriptor"].(map[string]any)
 	if !ok || requireExactObjectKeys(descriptor, []string{
 		"attemptId", "planDigest", "shardId", "caseId", "targetId", "targetDigest",
-		"riskClass", "repetitionIndex", "samplingIdentityDigest", "descriptorDigest",
+		"capabilityDescriptorDigest", "riskClass", "repetitionIndex", "samplingIdentityDigest", "descriptorDigest",
 	}, []string{"contextTier", "mediaRepresentationTier"}) != nil {
 		return errors.New("/value/descriptor is invalid")
 	}
@@ -269,7 +461,7 @@ func validateAgentEvaluationAttempt(value map[string]any) error {
 			return err
 		}
 	}
-	for _, field := range []string{"planDigest", "targetDigest", "samplingIdentityDigest"} {
+	for _, field := range []string{"planDigest", "targetDigest", "capabilityDescriptorDigest", "samplingIdentityDigest"} {
 		if err := requireDigest(descriptor[field], "/value/descriptor/"+field); err != nil {
 			return err
 		}
@@ -293,9 +485,14 @@ func validateAgentEvaluationAttempt(value map[string]any) error {
 			return err
 		}
 	}
-	for _, field := range []string{"invocationReceiptDigest", "responseDigest"} {
-		if value[field] != nil {
-			if err := requireDigest(value[field], "/value/"+field); err != nil {
+	for _, field := range []string{"dispatchIntentSetDigest", "transportReceiptSetDigest", "invocationTurnReceiptSetDigest", "invocationTurnSetReceiptDigest", "capabilityExecutionReceiptSetDigest", "verificationAttemptGrantReceiptSetDigest"} {
+		if err := requireDigest(value[field], "/value/"+field); err != nil {
+			return err
+		}
+	}
+	for _, field := range []string{"responseDigest"} {
+		if optionalValue, exists := value[field]; exists {
+			if err := requireDigest(optionalValue, "/value/"+field); err != nil {
 				return err
 			}
 		}
@@ -336,10 +533,16 @@ func validateAgentEvaluationCheckpoint(value map[string]any) error {
 }
 
 func validateAgentEvaluationMetricReport(value map[string]any) error {
-	if err := requireExactObjectKeys(value, []string{"reportId", "planDigest", "attemptSetDigest", "slices", "generatedAt", "reportDigest"}, nil); err != nil {
+	if err := requireExactObjectKeys(value, []string{
+		"reportId", "planDigest", "attemptSetDigest", "validatedHumanMetricObservationSetDigest",
+		"slices", "generatedAt", "reportDigest",
+	}, nil); err != nil {
 		return err
 	}
-	if requireIdentity(value["reportId"], "/value/reportId") != nil || requireDigest(value["planDigest"], "/value/planDigest") != nil || requireDigest(value["attemptSetDigest"], "/value/attemptSetDigest") != nil || requireInstant(value["generatedAt"], "/value/generatedAt") != nil {
+	if requireIdentity(value["reportId"], "/value/reportId") != nil || requireDigest(value["planDigest"], "/value/planDigest") != nil ||
+		requireDigest(value["attemptSetDigest"], "/value/attemptSetDigest") != nil ||
+		requireDigest(value["validatedHumanMetricObservationSetDigest"], "/value/validatedHumanMetricObservationSetDigest") != nil ||
+		requireInstant(value["generatedAt"], "/value/generatedAt") != nil {
 		return errors.New("evaluation metric report identity is invalid")
 	}
 	slices, ok := value["slices"].([]any)
@@ -360,9 +563,13 @@ func validateAgentEvaluationMetricReport(value map[string]any) error {
 
 func validateAgentEvaluationGraderReport(value map[string]any) error {
 	if err := requireExactObjectKeys(value, []string{
-		"reportId", "planDigest", "graderPlanDigest", "deterministicVerdictCount", "auxiliaryVerdictCount",
+		"reportId", "planDigest", "graderPlanDigest", "validatedHumanMetricObservationSetDigest",
+		"deterministicVerdictCount", "auxiliaryVerdictCount",
 		"humanVerdictCount", "disagreementCount", "selfJudgeOnlyAttemptIds", "generatedAt", "reportDigest",
 	}, nil); err != nil {
+		return err
+	}
+	if err := requireDigest(value["validatedHumanMetricObservationSetDigest"], "/value/validatedHumanMetricObservationSetDigest"); err != nil {
 		return err
 	}
 	if requireCanonicalStrings(value["selfJudgeOnlyAttemptIds"]) != nil {

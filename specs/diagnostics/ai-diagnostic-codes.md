@@ -437,7 +437,7 @@ type AiDiagnosticStage =
 - Retryable: true
 - Trigger: required Provider/model/profile、128-case corpus、protected holdout、Context/media sentinel、risk repetition、grader、threshold、attempt/denominator 或 manifest 缺失，Provider diversity 被同协议模型或 aggregator alias 伪满足，或任一行为 identity 已漂移
 - User action: 使用冻结的 evaluation plan 与 hard budget 重跑受影响的 scheduled/release evaluation slice
-- Developer notes: smoke 不能满足 G4 closure；必须保留 11,640+ 全部 attempt/missing denominator、usage vector、confidence、human review、provider receipt 与 cost
+- Developer notes: smoke 不能满足 G4 closure；11,640 是规范性最低线，当前 production plan 必须保留 exact 14,040 全部 attempt/missing denominator、usage vector、confidence、human review、provider receipt 与 cost
 
 ### `AI-8010` Agent model evaluation statistical floor 未满足
 

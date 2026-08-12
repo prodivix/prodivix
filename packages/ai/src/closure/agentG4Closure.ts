@@ -13,6 +13,7 @@ import {
   isAgentControlIdentity,
   isAgentControlInstant,
 } from '../control/agentControlValidation';
+import { isAgentEvaluationProductionRunConfigArtifactBinding } from '../evaluation/agentEvaluationFrozenConfigCommitment';
 import {
   AGENT_G4_REQUIRED_CAPABILITY_PROFILE_IDS,
   AGENT_G4_REQUIRED_DETERMINISTIC_GATE_IDS,
@@ -32,6 +33,11 @@ import {
 } from './agentG4Closure.types';
 
 const maximumClosureBytes = 8_388_608;
+const maximumClosureArtifactBytes = 536_870_912;
+const maximumEvidenceIndexBytes = 8_388_608;
+const maximumEvidenceRootBytes = 1_048_576;
+const maximumEvidenceArchiveBytes = 8_589_934_592;
+const maximumEvidenceArchiveRecords = 2_000_000;
 const commitPattern = /^[a-f0-9]{40}$/u;
 const diagnosticPattern = /^AI-\d{4}$/u;
 
@@ -334,11 +340,60 @@ const canonicalModelEvaluation = (
     ...commonKeys,
     'manifestRef',
     'manifestDigest',
+    'bundleDigest',
+    'evidenceSetDigest',
+    'runConfigArtifactBinding',
+    'sourceConfigDigest',
+    'frozenRunDigest',
+    'capabilityProbeAdmissionSetDigest',
+    'capabilityProbeReferenceReceiptSetDigest',
+    'runtimeFactSourceOwnerRegistrationSetDigest',
+    'optionalCapabilityFactSourceSetDigest',
+    'optionalCapabilityFactAuthoritySetDigest',
+    'endpointSmokeDispatchIntentSetDigest',
+    'endpointSmokeTransportReceiptSetDigest',
+    'endpointSmokeResultSpoolReceiptSetDigest',
+    'endpointSmokeResultSpoolDispositionReceiptSetDigest',
+    'endpointSmokeValidationFailureReceiptSetDigest',
+    'endpointSmokeSetDigest',
+    'preDispatchFailureReceiptSetDigest',
+    'transportDispatchIntentSetDigest',
+    'transportReceiptSetDigest',
+    'providerResultSpoolReceiptSetDigest',
+    'providerResultSpoolDispositionReceiptSetDigest',
+    'invocationTurnReceiptSetDigest',
+    'invocationTurnSetReceiptSetDigest',
+    'resultSubmissionReceiptSetDigest',
+    'controlledRuntimeReceiptSetDigest',
+    'capabilityExecutionReceiptSetDigest',
+    'verificationAttemptGrantReceiptSetDigest',
+    'validatedHumanReviewArtifactSetDigest',
+    'validatedHumanMetricObservationSetDigest',
+    'reviewLeaseDigest',
+    'reviewRasterScanReceiptSetDigest',
+    'reviewCandidateRefSetDigest',
+    'blindReviewMappingSetDigest',
+    'sourceReceiptSetDigest',
+    'executionReceiptSetDigest',
+    'authorityAttestationDigest',
+    'archiveAttestationDigest',
+    'evidenceRootDigest',
+    'evidenceRootArtifactDigest',
+    'evidenceRootArtifactSize',
+    'evidenceIndexDigest',
+    'evidenceIndexArtifactDigest',
+    'evidenceIndexArtifactSize',
+    'shardSetDigest',
+    'totalShardBytes',
+    'totalRecordCount',
     'providerConfigurationIds',
     'providerOperatorIds',
     'modelFamilyOwnerIds',
     'qualificationTargetDigests',
     'holdoutReceiptDigest',
+    'holdoutExecutionReceiptDigest',
+    'secretCanarySetDigest',
+    'protectedHoldoutCanarySetDigest',
     'metricReportDigest',
     'graderReportDigest',
     'humanReviewReportDigest',
@@ -378,10 +433,31 @@ const canonicalModelEvaluation = (
   if (
     !Number.isSafeInteger(satisfied.actualAttemptCount) ||
     satisfied.actualAttemptCount < satisfied.requiredAttemptCount ||
+    !Number.isSafeInteger(satisfied.evidenceIndexArtifactSize) ||
+    satisfied.evidenceIndexArtifactSize < 1 ||
+    satisfied.evidenceIndexArtifactSize > maximumEvidenceIndexBytes ||
+    !Number.isSafeInteger(satisfied.evidenceRootArtifactSize) ||
+    satisfied.evidenceRootArtifactSize < 1 ||
+    satisfied.evidenceRootArtifactSize > maximumEvidenceRootBytes ||
+    !Number.isSafeInteger(satisfied.totalShardBytes) ||
+    satisfied.totalShardBytes < 1 ||
+    satisfied.totalShardBytes > maximumEvidenceArchiveBytes ||
+    !Number.isSafeInteger(satisfied.totalRecordCount) ||
+    satisfied.totalRecordCount < satisfied.actualAttemptCount ||
+    satisfied.totalRecordCount > maximumEvidenceArchiveRecords ||
     satisfied.providerConfigurationIds.length < 3 ||
     satisfied.providerOperatorIds.length < 3 ||
     satisfied.modelFamilyOwnerIds.length < 3 ||
-    satisfied.qualificationTargetDigests.length < 3
+    satisfied.qualificationTargetDigests.length < 3 ||
+    !isAgentEvaluationProductionRunConfigArtifactBinding(
+      satisfied.runConfigArtifactBinding
+    ) ||
+    satisfied.runConfigArtifactBinding.sourceConfigDigest !==
+      satisfied.sourceConfigDigest ||
+    satisfied.runConfigArtifactBinding.frozenRunDigest !==
+      satisfied.frozenRunDigest ||
+    satisfied.runConfigArtifactBinding.planDigest !== satisfied.planDigest ||
+    satisfied.holdoutReceiptDigest !== satisfied.holdoutExecutionReceiptDigest
   ) {
     throw new TypeError('Satisfied G4 evaluation is below the frozen floor.');
   }
@@ -448,7 +524,7 @@ const canonicalArtifact = (
     value.availability !== 'available' ||
     !Number.isSafeInteger(value.size) ||
     value.size < 1 ||
-    value.size > maximumClosureBytes
+    value.size > maximumClosureArtifactBytes
   ) {
     throw new TypeError('G4 closure artifact is invalid.');
   }
@@ -542,6 +618,33 @@ export const createAgentG4GoldenClosureManifest = (
         compareUnicodeCodePoints(left.artifactId, right.artifactId)
       )
   );
+  if (modelEvaluation.status === 'satisfied') {
+    const expectedIndexArtifactId = `g4-model-evaluation-index:${modelEvaluation.evidenceIndexDigest.slice('sha256-'.length)}`;
+    const expectedRootArtifactId = `g4-model-evaluation-root:${modelEvaluation.evidenceRootDigest.slice('sha256-'.length)}`;
+    const indexArtifacts = artifacts.filter(
+      ({ artifactId }) => artifactId === expectedIndexArtifactId
+    );
+    const rootArtifacts = artifacts.filter(
+      ({ artifactId }) => artifactId === expectedRootArtifactId
+    );
+    if (
+      indexArtifacts.length !== 1 ||
+      indexArtifacts[0]!.digest !==
+        modelEvaluation.evidenceIndexArtifactDigest ||
+      indexArtifacts[0]!.size !== modelEvaluation.evidenceIndexArtifactSize ||
+      indexArtifacts[0]!.mediaType !==
+        'application/vnd.prodivix.agent-model-evaluation-evidence-index+json' ||
+      rootArtifacts.length !== 1 ||
+      rootArtifacts[0]!.digest !== modelEvaluation.evidenceRootArtifactDigest ||
+      rootArtifacts[0]!.size !== modelEvaluation.evidenceRootArtifactSize ||
+      rootArtifacts[0]!.mediaType !==
+        'application/vnd.prodivix.agent-model-evaluation-evidence-root+json'
+    ) {
+      throw new TypeError(
+        'G4 Closure must bind the exact signed real-model evidence index and root artifacts.'
+      );
+    }
+  }
   const expectedGates = [...AGENT_G4_REQUIRED_DETERMINISTIC_GATE_IDS].sort(
     compareUnicodeCodePoints
   );

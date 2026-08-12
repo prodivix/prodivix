@@ -226,7 +226,8 @@ finalize/restart/并发重试中只产生一个 Evidence。过期或 revoked Evi
 
 本地 Golden 固定 Candidate/statement/manifest/materialized Evidence identity，并验证失败 → retry passed history、
 trust/revocation/retention/compatibility 参与 Closure。PostgreSQL Gate 还覆盖 pre-run AttemptGrant 一次性 claim、
-create/attestation prepare/final commit 三阶段 authority drift、丢响应/重启、最后一个 Closure record 并发名额、
+promotion create/artifact staging 以及两阶段 attestation `prepare → final-commit` 的 authority drift、丢响应/
+重启、最后一个 Closure record 并发名额、
 object-store 中断、protection/tombstone 与 GC lease recovery。
 
 ## V6：Adapter matrix

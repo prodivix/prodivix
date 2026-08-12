@@ -1,0 +1,548 @@
+name: G4 Real-model Human Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository_commit:
+        description: Exact 40-character commit used by the source evaluation.
+        required: true
+        type: string
+      source_evaluation_run_id:
+        description: Successful G4 real-model evaluation run that published the blind bundle.
+        required: true
+        type: string
+      source_evaluation_run_attempt:
+        description: Exact successful source evaluation run attempt.
+        required: true
+        type: string
+      source_plan_run_attempt:
+        description: Exact producer attempt that published the immutable generated-plan artifact.
+        required: true
+        type: string
+      source_blind_artifact_name:
+        description: Exact source blind-review artifact name.
+        required: true
+        type: string
+      source_blind_artifact_digest:
+        description: Exact GitHub artifact digest in sha256:<64 lowercase hex> form.
+        required: true
+        type: string
+      submission_id:
+        description: Opaque identity of the fixed controlled-inbox submission directory.
+        required: true
+        type: string
+      source_plan_artifact_name:
+        description: Exact source plan artifact containing the generated production config.
+        required: true
+        type: string
+      source_plan_artifact_digest:
+        description: Exact source plan artifact digest in sha256:<64 lowercase hex> form.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    g4-real-model-human-review-${{ inputs.source_evaluation_run_id }}-${{
+      inputs.submission_id
+    }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Bind exact evaluation source and opaque submission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      repository_commit: ${{ steps.contract.outputs.repository_commit }}
+      source_evaluation_run_id: ${{ steps.contract.outputs.source_evaluation_run_id }}
+      source_evaluation_run_attempt: ${{ steps.contract.outputs.source_evaluation_run_attempt }}
+      source_plan_run_attempt: ${{ steps.contract.outputs.source_plan_run_attempt }}
+      source_blind_artifact_name: ${{ steps.contract.outputs.source_blind_artifact_name }}
+      source_blind_artifact_digest: ${{ steps.contract.outputs.source_blind_artifact_digest }}
+      source_plan_artifact_name: ${{ steps.contract.outputs.source_plan_artifact_name }}
+      source_plan_artifact_digest: ${{ steps.contract.outputs.source_plan_artifact_digest }}
+      submission_id: ${{ steps.contract.outputs.submission_id }}
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.repository_commit }}
+      - name: Validate source run, artifact digest, config, and opaque identity
+        id: contract
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUEST_COMMIT: ${{ inputs.repository_commit }}
+          REQUEST_SOURCE_RUN_ID: ${{ inputs.source_evaluation_run_id }}
+          REQUEST_SOURCE_RUN_ATTEMPT: ${{ inputs.source_evaluation_run_attempt }}
+          REQUEST_SOURCE_PLAN_RUN_ATTEMPT: ${{ inputs.source_plan_run_attempt }}
+          REQUEST_SOURCE_ARTIFACT_NAME: ${{ inputs.source_blind_artifact_name }}
+          REQUEST_SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_blind_artifact_digest }}
+          REQUEST_SOURCE_PLAN_ARTIFACT_NAME: ${{ inputs.source_plan_artifact_name }}
+          REQUEST_SOURCE_PLAN_ARTIFACT_DIGEST: ${{ inputs.source_plan_artifact_digest }}
+          REQUEST_SUBMISSION_ID: ${{ inputs.submission_id }}
+        run: |
+          set -euo pipefail
+
+          actual_commit="$(git rev-parse HEAD)"
+          test "${actual_commit}" = "${REQUEST_COMMIT}"
+          [[ "${actual_commit}" =~ ^[0-9a-f]{40}$ ]]
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          [[ "${REQUEST_SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${REQUEST_SOURCE_RUN_ATTEMPT}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${REQUEST_SOURCE_PLAN_RUN_ATTEMPT}" =~ ^[1-9][0-9]*$ ]]
+          (( REQUEST_SOURCE_PLAN_RUN_ATTEMPT <= REQUEST_SOURCE_RUN_ATTEMPT ))
+          [[ "${REQUEST_SOURCE_ARTIFACT_NAME}" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$ ]]
+          [[ "${REQUEST_SOURCE_ARTIFACT_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${REQUEST_SOURCE_PLAN_ARTIFACT_NAME}" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$ ]]
+          [[ "${REQUEST_SOURCE_PLAN_ARTIFACT_NAME}" =~ ^g4-real-model-plan-${actual_commit}-[a-zA-Z0-9][a-zA-Z0-9._-]{0,46}-${REQUEST_SOURCE_PLAN_RUN_ATTEMPT}$ ]]
+          [[ "${REQUEST_SOURCE_PLAN_ARTIFACT_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "${REQUEST_SOURCE_PLAN_ARTIFACT_NAME}" != "${REQUEST_SOURCE_ARTIFACT_NAME}"
+          [[ "${REQUEST_SUBMISSION_ID}" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,126}$ ]]
+
+          source_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${REQUEST_SOURCE_RUN_ID}")"
+          jq -e \
+            --arg commit "${actual_commit}" \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --argjson attempt "${REQUEST_SOURCE_RUN_ATTEMPT}" \
+            '.head_sha == $commit and
+             .head_repository.full_name == $repository and
+             .path == ".github/workflows/g4-real-model-evaluation.yml" and
+             .run_attempt == $attempt and
+             .status == "completed" and
+             .conclusion == "success" and
+             (.event == "workflow_dispatch" or .event == "schedule")' \
+            <<< "${source_run}" >/dev/null
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${REQUEST_SOURCE_RUN_ID}/attempts/${REQUEST_SOURCE_PLAN_RUN_ATTEMPT}/jobs?per_page=100" | jq -e \
+            '[.jobs[] |
+              select(
+                .name == "Freeze evaluation plan and shard schedule" and
+                .status == "completed" and
+                .conclusion == "success" and
+                (.labels | index("self-hosted")) != null and
+                (.labels | index("linux")) != null and
+                (.labels | index("x64")) != null and
+                (.labels | index("g4-real-model-evaluation")) != null
+              )] | length == 1' >/dev/null
+
+          source_artifact_pages="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${REQUEST_SOURCE_RUN_ID}/artifacts?per_page=100")"
+          jq -e \
+            --arg blind_name "${REQUEST_SOURCE_ARTIFACT_NAME}" \
+            --arg blind_digest "${REQUEST_SOURCE_ARTIFACT_DIGEST}" \
+            --arg plan_name "${REQUEST_SOURCE_PLAN_ARTIFACT_NAME}" \
+            --arg plan_digest "${REQUEST_SOURCE_PLAN_ARTIFACT_DIGEST}" \
+            '([.[]?.artifacts[]? |
+                select(
+                  .name == $blind_name and
+                  .expired == false and
+                  .digest == $blind_digest
+                )] | length == 1) and
+             ([.[]?.artifacts[]? |
+                select(
+                  .name == $plan_name and
+                  .expired == false and
+                  .digest == $plan_digest
+                )] | length == 1)' <<< "${source_artifact_pages}" >/dev/null
+
+          {
+            echo "repository_commit=${actual_commit}"
+            echo "source_evaluation_run_id=${REQUEST_SOURCE_RUN_ID}"
+            echo "source_evaluation_run_attempt=${REQUEST_SOURCE_RUN_ATTEMPT}"
+            echo "source_plan_run_attempt=${REQUEST_SOURCE_PLAN_RUN_ATTEMPT}"
+            echo "source_blind_artifact_name=${REQUEST_SOURCE_ARTIFACT_NAME}"
+            echo "source_blind_artifact_digest=${REQUEST_SOURCE_ARTIFACT_DIGEST}"
+            echo "source_plan_artifact_name=${REQUEST_SOURCE_PLAN_ARTIFACT_NAME}"
+            echo "source_plan_artifact_digest=${REQUEST_SOURCE_PLAN_ARTIFACT_DIGEST}"
+            echo "submission_id=${REQUEST_SUBMISSION_ID}"
+          } >> "${GITHUB_OUTPUT}"
+
+  publish:
+    name: Validate and publish signed human review
+    needs: preflight
+    runs-on: [self-hosted, linux, x64, g4-real-model-human-review]
+    timeout-minutes: 30
+    environment: g4-real-model-human-review
+    permissions:
+      actions: read
+      contents: read
+    env:
+      PRODIVIX_G4_MODEL_EVAL_REPOSITORY_COMMIT: ${{ needs.preflight.outputs.repository_commit }}
+      PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_NAME: ${{ needs.preflight.outputs.source_plan_artifact_name }}
+      PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_DIGEST: ${{ needs.preflight.outputs.source_plan_artifact_digest }}
+      PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_RUN_ID: ${{ needs.preflight.outputs.source_evaluation_run_id }}
+      PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_RUN_ATTEMPT: ${{ needs.preflight.outputs.source_plan_run_attempt }}
+      PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_WORKFLOW_NAME: g4-real-model-human-review
+      PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_WORKFLOW_RUN_ID: ${{ github.run_id }}
+      PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+      PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_INBOX_SOURCE_ROOT: /srv/prodivix/g4-human-review-inbox
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 1
+          ref: ${{ needs.preflight.outputs.repository_commit }}
+      - name: Verify exact clean checkout and fixed workflow contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${PRODIVIX_G4_MODEL_EVAL_REPOSITORY_COMMIT}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test "${PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_INBOX_SOURCE_ROOT}" = '/srv/prodivix/g4-human-review-inbox'
+      - name: Download exact blinded reviewer bundle
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.preflight.outputs.source_evaluation_run_id }}
+          name: ${{ needs.preflight.outputs.source_blind_artifact_name }}
+          path: ${{ runner.temp }}/g4-blind-review-source
+      - name: Download exact generated production config authority
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.preflight.outputs.source_evaluation_run_id }}
+          name: ${{ needs.preflight.outputs.source_plan_artifact_name }}
+          path: ${{ runner.temp }}/g4-plan-source
+      - name: Admit the fixed generated production config file
+        shell: bash
+        env:
+          GENERATED_CONFIG: ${{ runner.temp }}/g4-plan-source/production-run-config.json
+          PLAN_ARTIFACT_ROOT: ${{ runner.temp }}/g4-plan-source
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const root = fs.realpathSync(process.env.PLAN_ARTIFACT_ROOT)
+          const target = process.env.GENERATED_CONFIG
+          const stat = fs.lstatSync(target)
+          const resolved = fs.realpathSync(target)
+          const displacement = path.relative(root, resolved)
+          if (
+            !stat.isFile() ||
+            stat.isSymbolicLink() ||
+            displacement === '..' ||
+            displacement.startsWith(`..${path.sep}`) ||
+            path.isAbsolute(displacement) ||
+            stat.size < 2 ||
+            stat.size > 16_777_216
+          ) {
+            throw new Error('The generated production config is not one bounded regular artifact file')
+          }
+          NODE
+          echo "PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_PATH=${GENERATED_CONFIG}" >> "${GITHUB_ENV}"
+      - name: Admit only the fixed blinded bundle file
+        shell: bash
+        env:
+          REVIEW_BUNDLE_DIR: ${{ runner.temp }}/g4-blind-review-source
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const root = process.env.REVIEW_BUNDLE_DIR
+          const entries = fs.readdirSync(root, { withFileTypes: true })
+          if (
+            entries.length !== 1 ||
+            entries[0].name !== 'blind-review.json' ||
+            !entries[0].isFile()
+          ) {
+            throw new Error('The reviewer artifact must contain only root blind-review.json')
+          }
+          const target = path.join(root, 'blind-review.json')
+          const stat = fs.lstatSync(target)
+          if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 2 || stat.size > 67_108_864) {
+            throw new Error('blind-review.json is not an admitted bounded regular file')
+          }
+          NODE
+      - name: Stage the fixed controlled-inbox submission
+        shell: bash
+        env:
+          SUBMISSION_ID: ${{ needs.preflight.outputs.submission_id }}
+          STAGED_INBOX_ROOT: ${{ runner.temp }}/g4-human-review-inbox
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const sourceRoot = process.env.PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_INBOX_SOURCE_ROOT
+          const stagedRoot = process.env.STAGED_INBOX_ROOT
+          const submissionId = process.env.SUBMISSION_ID
+          const requiredNames = ['human-review-submission.json', 'independence-registry.json']
+          if (
+            sourceRoot !== '/srv/prodivix/g4-human-review-inbox' ||
+            !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,126}$/.test(submissionId ?? '')
+          ) {
+            throw new Error('The controlled inbox identity is invalid')
+          }
+          const rootStat = fs.lstatSync(sourceRoot)
+          if (!rootStat.isDirectory() || rootStat.isSymbolicLink() || fs.realpathSync(sourceRoot) !== sourceRoot) {
+            throw new Error('The fixed controlled inbox root is not an admitted directory')
+          }
+          const sourceDirectory = path.join(sourceRoot, submissionId)
+          const sourceDirectoryStat = fs.lstatSync(sourceDirectory)
+          if (
+            !sourceDirectoryStat.isDirectory() ||
+            sourceDirectoryStat.isSymbolicLink() ||
+            fs.realpathSync(sourceDirectory) !== sourceDirectory
+          ) {
+            throw new Error('The opaque submission directory is not an admitted directory')
+          }
+          const entries = fs.readdirSync(sourceDirectory, { withFileTypes: true })
+          if (
+            entries.length !== requiredNames.length ||
+            requiredNames.some((name) => !entries.some((entry) => entry.name === name && entry.isFile()))
+          ) {
+            throw new Error('The inbox submission must contain exactly the two fixed canonical JSON files')
+          }
+          const destinationDirectory = path.join(stagedRoot, submissionId)
+          fs.mkdirSync(destinationDirectory, { recursive: true, mode: 0o700 })
+          for (const name of requiredNames) {
+            const source = path.join(sourceDirectory, name)
+            const sourceStat = fs.lstatSync(source, { bigint: true })
+            if (
+              !sourceStat.isFile() ||
+              sourceStat.isSymbolicLink() ||
+              fs.realpathSync(source) !== source ||
+              sourceStat.size < 2n ||
+              sourceStat.size > 16_777_216n
+            ) {
+              throw new Error(`${name} is not an admitted bounded regular file`)
+            }
+            const descriptor = fs.openSync(source, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW)
+            try {
+              const descriptorBefore = fs.fstatSync(descriptor, { bigint: true })
+              const bytes = fs.readFileSync(descriptor)
+              const descriptorAfter = fs.fstatSync(descriptor, { bigint: true })
+              const finalPathStat = fs.lstatSync(source, { bigint: true })
+              const stable = (left, right) =>
+                left.dev === right.dev &&
+                left.ino === right.ino &&
+                left.mode === right.mode &&
+                left.size === right.size &&
+                left.mtimeNs === right.mtimeNs &&
+                left.ctimeNs === right.ctimeNs
+              if (
+                !descriptorBefore.isFile() ||
+                BigInt(bytes.byteLength) !== descriptorBefore.size ||
+                !stable(sourceStat, descriptorBefore) ||
+                !stable(descriptorBefore, descriptorAfter) ||
+                !stable(descriptorAfter, finalPathStat) ||
+                fs.realpathSync(source) !== source
+              ) {
+                throw new Error(`${name} changed during controlled inbox admission`)
+              }
+              fs.writeFileSync(path.join(destinationDirectory, name), bytes, {
+                flag: 'wx',
+                mode: 0o400,
+              })
+            } finally {
+              fs.closeSync(descriptor)
+            }
+          }
+          NODE
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.1
+          cache: pnpm
+      - name: Install frozen dependencies from the pre-adopted offline store
+        run: pnpm install --offline --frozen-lockfile
+      - name: Build evaluation runner
+        run: pnpm --filter @prodivix/agent-evaluation-runner build
+      - name: Cross-bind generated qualification and human-review authority
+        shell: bash
+        env:
+          GENERATED_CONFIG: ${{ runner.temp }}/g4-plan-source/production-run-config.json
+          INDEPENDENCE_REGISTRY: ${{ runner.temp }}/g4-human-review-inbox/${{ needs.preflight.outputs.submission_id }}/independence-registry.json
+          EXPECTED_COMMIT: ${{ needs.preflight.outputs.repository_commit }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          import {
+            decodeAgentEvaluationFrozenRunConfig,
+            requireProductionAgentEvaluationFrozenRunConfig,
+          } from './apps/agent-evaluation-runner/dist/index.js'
+
+          const rawConfig = JSON.parse(readFileSync(process.env.GENERATED_CONFIG, 'utf8'))
+          const config = requireProductionAgentEvaluationFrozenRunConfig(
+            decodeAgentEvaluationFrozenRunConfig(rawConfig, {
+              clock: () => rawConfig.plannedAt,
+              expectedRepositoryCommit: process.env.EXPECTED_COMMIT,
+            }),
+            process.env.EXPECTED_COMMIT,
+          )
+          const qualificationProbeCount = Object.values(
+            config.qualificationAuthorityBundle.capabilityProbeAuthorities,
+          ).reduce((count, authorities) => count + Object.keys(authorities).length, 0)
+          const runtimeFactSourceCount = Object.values(
+            config.qualificationAuthorityBundle.runtimeFactSourceAuthorities,
+          ).reduce((count, authorities) => count + Object.keys(authorities).length, 0)
+          const providerResourceCleanupReceiptCount = Object.values(
+            config.qualificationAuthorityBundle.providerResourceCleanupReceipts,
+          ).reduce((count, receipts) => count + Object.keys(receipts).length, 0)
+          const probeProviderResourceAuthorityCount = Object.values(
+            config.probeProviderResourceAuthorityBundle.authorities,
+          ).reduce((count, authorities) => count + Object.keys(authorities).length, 0)
+          const preplanAuthorityOperationCount =
+            probeProviderResourceAuthorityCount +
+            runtimeFactSourceCount +
+            qualificationProbeCount +
+            providerResourceCleanupReceiptCount
+          const registry = JSON.parse(readFileSync(process.env.INDEPENDENCE_REGISTRY, 'utf8'))
+          if (
+            config.plan.repositoryCommit !== process.env.EXPECTED_COMMIT ||
+            config.plan.plannedJourneyCount !== 14_040 ||
+            probeProviderResourceAuthorityCount !== 4 ||
+            Object.hasOwn(
+              config.probeProviderResourceAuthorityBundle.authorities,
+              'anthropic-messages',
+            ) ||
+            qualificationProbeCount !== 18 ||
+            runtimeFactSourceCount !== 15 ||
+            providerResourceCleanupReceiptCount !== 4 ||
+            preplanAuthorityOperationCount !== 41 ||
+            registry.repositoryCommit !== config.plan.repositoryCommit ||
+            registry.planDigest !== config.plan.planDigest ||
+            registry.planPlannedAt !== config.plan.plannedAt ||
+            registry.trustRegistryDigest !== config.execution.humanReview.trustRegistry.registryDigest ||
+            registry.adjudicationPolicyDigest !== config.execution.humanReview.adjudicationPolicy.policyDigest
+          ) {
+            throw new Error('Generated production config drifted from the source plan or human-review authority')
+          }
+          NODE
+      - name: Register human-review signing-key masks
+        shell: bash
+        env:
+          MASK_HUMAN_REVIEW_PRIVATE_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_PRIVATE_KEY }}
+        run: |
+          node <<'NODE'
+          const value = process.env.MASK_HUMAN_REVIEW_PRIVATE_KEY
+          if (!value || !/^[A-Za-z0-9_-]{64}$/.test(value)) {
+            throw new Error('The canonical Ed25519 PKCS8 human-review signing key is unavailable')
+          }
+          const variants = [
+            value,
+            Buffer.from(value).toString('base64'),
+            Buffer.from(value).toString('hex'),
+            encodeURIComponent(value),
+          ]
+          for (const variant of new Set(variants)) process.stdout.write(`::add-mask::${variant}\n`)
+          NODE
+      - name: Validate signatures, independence, blind set, and adjudication policy
+        shell: bash
+        env:
+          REVIEW_BUNDLE_PATH: ${{ runner.temp }}/g4-blind-review-source/blind-review.json
+          SUBMISSION_ID: ${{ needs.preflight.outputs.submission_id }}
+          STAGED_INBOX_ROOT: ${{ runner.temp }}/g4-human-review-inbox
+          OUTPUT_DIR: ${{ runner.temp }}/g4-human-review-output
+          SOURCE_RUN_ID: ${{ needs.preflight.outputs.source_evaluation_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ needs.preflight.outputs.source_evaluation_run_attempt }}
+          SOURCE_ARTIFACT_NAME: ${{ needs.preflight.outputs.source_blind_artifact_name }}
+          SOURCE_ARTIFACT_DIGEST: ${{ needs.preflight.outputs.source_blind_artifact_digest }}
+          RUN_CONFIG: ${{ runner.temp }}/g4-plan-source/production-run-config.json
+          PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_PRIVATE_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${OUTPUT_DIR}"
+          node apps/agent-evaluation-runner/dist/cli.js \
+            validate-review \
+            --review-bundle "${REVIEW_BUNDLE_PATH}" \
+            --submission-id "${SUBMISSION_ID}" \
+            --inbox-root "${STAGED_INBOX_ROOT}" \
+            --source-run-id "${SOURCE_RUN_ID}" \
+            --source-run-attempt "${SOURCE_RUN_ATTEMPT}" \
+            --source-artifact-name "${SOURCE_ARTIFACT_NAME}" \
+            --source-artifact-digest "${SOURCE_ARTIFACT_DIGEST}" \
+            --config "${RUN_CONFIG}" \
+            --output "${OUTPUT_DIR}/human-review.json"
+      - name: Scan the fixed human-review artifact
+        id: review_safety
+        shell: bash
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/g4-human-review-output
+          MASK_HUMAN_REVIEW_PRIVATE_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_HUMAN_REVIEW_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const root = process.env.ARTIFACT_DIR
+          const entries = fs.readdirSync(root, { withFileTypes: true })
+          if (
+            entries.length !== 1 ||
+            entries[0].name !== 'human-review.json' ||
+            !entries[0].isFile()
+          ) {
+            throw new Error('The publish artifact must contain only root human-review.json')
+          }
+          const target = path.join(root, 'human-review.json')
+          const stat = fs.lstatSync(target)
+          if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 2 || stat.size > 16_777_216) {
+            throw new Error('human-review.json is not an admitted bounded regular file')
+          }
+          const value = process.env.MASK_HUMAN_REVIEW_PRIVATE_KEY
+          if (!value) throw new Error('The human-review signing key is unavailable')
+          const bytes = fs.readFileSync(target)
+          for (const needle of new Set([
+            value,
+            Buffer.from(value).toString('base64'),
+            Buffer.from(value).toString('hex'),
+            encodeURIComponent(value),
+          ])) {
+            if (bytes.includes(Buffer.from(needle))) {
+              throw new Error('Human-review signing material reached the public artifact')
+            }
+          }
+          NODE
+          echo 'safe=true' >> "${GITHUB_OUTPUT}"
+      - name: Upload project-attested human review
+        id: upload_review
+        if: steps.review_safety.outputs.safe == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: g4-real-model-human-review-${{ needs.preflight.outputs.repository_commit }}-${{ needs.preflight.outputs.submission_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/g4-human-review-output/human-review.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Record independent human-review authority
+        if: steps.upload_review.outcome == 'success'
+        shell: bash
+        env:
+          ARTIFACT_DIGEST: ${{ steps.upload_review.outputs['artifact-digest'] }}
+          HUMAN_REVIEW_ARTIFACT_NAME: g4-real-model-human-review-${{ needs.preflight.outputs.repository_commit }}-${{ needs.preflight.outputs.source_evaluation_run_id }}-${{ needs.preflight.outputs.submission_id }}-${{ github.run_attempt }}
+          SOURCE_ARTIFACT_DIGEST: ${{ needs.preflight.outputs.source_blind_artifact_digest }}
+          SOURCE_PLAN_ARTIFACT_DIGEST: ${{ needs.preflight.outputs.source_plan_artifact_digest }}
+          SOURCE_PLAN_RUN_ATTEMPT: ${{ needs.preflight.outputs.source_plan_run_attempt }}
+        run: |
+          set -euo pipefail
+          artifact_digest="${ARTIFACT_DIGEST}"
+          if [[ "${artifact_digest}" =~ ^[0-9a-f]{64}$ ]]; then
+            artifact_digest="sha256:${artifact_digest}"
+          fi
+          [[ "${artifact_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          {
+            echo '### Signed independent G4 human review'
+            echo "- human-review run: \`${GITHUB_RUN_ID}\`"
+            echo "- human-review attempt: \`${GITHUB_RUN_ATTEMPT}\`"
+            echo "- human-review artifact: \`${HUMAN_REVIEW_ARTIFACT_NAME}\`"
+            echo "- source blind artifact digest: \`${SOURCE_ARTIFACT_DIGEST}\`"
+            echo "- source generated-plan artifact digest: \`${SOURCE_PLAN_ARTIFACT_DIGEST}\`"
+            echo "- source generated-plan producer attempt: \`${SOURCE_PLAN_RUN_ATTEMPT}\`"
+            echo "- human-review artifact SHA-256: \`${artifact_digest}\`"
+            echo '- authority: canonical reviewer/adjudicator signatures plus Environment Ed25519 wrapper'
+            echo '- disclosure: reviewer artifact contains no plan, attempt, provider, model, prompt, or holdout mapping'
+            echo '- qualification: Evidence pending until the separate real-model finalize dispatch succeeds'
+          } >> "${GITHUB_STEP_SUMMARY}"

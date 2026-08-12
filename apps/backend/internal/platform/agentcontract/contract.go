@@ -158,6 +158,12 @@ func ValidateControlFact(payload json.RawMessage) error {
 	return err
 }
 
+// ValidateSanitizedAgentPayload applies the shared recursive credential-text
+// boundary to a decoded payload before it may enter durable storage.
+func ValidateSanitizedAgentPayload(value any) error {
+	return validateSanitizedAgentPayload(value, "/value")
+}
+
 // ValidateProposalFact applies the strict V5 proposal/approval/mutation wire
 // contract before an immutable fact can enter the server ledger.
 func ValidateProposalFact(payload json.RawMessage) error {

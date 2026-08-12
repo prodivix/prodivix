@@ -28,7 +28,7 @@ import {
   type ControlledStaticToolchainProjectionAuthority,
   type ControlledStaticToolchainRawEnvelope,
   type ControlledStaticToolchainResult,
-} from './controlledStaticToolchainProtocol';
+} from '../src/controlledStaticToolchainProtocol';
 
 type BuildBundleWire = Readonly<{
   format: typeof EXECUTION_BUILD_BUNDLE_FORMAT;

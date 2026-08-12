@@ -1,4 +1,14 @@
 import { hasExactAgentControlKeys } from '../control/agentControlValidation';
+import {
+  isAgentCapabilityProbeProgram,
+  isAgentCapabilityProbeProgramObservation,
+  type AgentCapabilityProbeProgram,
+} from '../providers/agentCapabilityProbeProgram';
+import {
+  isAgentCapabilityProbeProviderResourceAuthority,
+  isAgentCapabilityProbeProviderResourceCleanupReceipt,
+  isAgentCapabilityProbeProviderResourceDeletionAuthorityReceipt,
+} from '../providers/agentCapabilityProbeProviderResource';
 import type { AgentEvaluationFact } from './agentEvaluation.types';
 
 const every = (
@@ -143,6 +153,7 @@ const hasDescriptorShape = (value: unknown): boolean =>
       'planDigest',
       'shardId',
       'caseId',
+      'capabilityDescriptorDigest',
       'targetId',
       'targetDigest',
       'riskClass',
@@ -152,6 +163,135 @@ const hasDescriptorShape = (value: unknown): boolean =>
     ],
     ['contextTier', 'mediaRepresentationTier']
   );
+
+const hasCapabilityDescriptorShape = (value: unknown): boolean =>
+  exact(value, [
+    'capabilityId',
+    'supportExpectation',
+    'expectedToolIds',
+    'expectedReceiptKinds',
+    'descriptorDigest',
+  ]);
+
+const hasCaseExecutionRequirementShape = (value: unknown): boolean =>
+  exact(value, [
+    'minimumToolCalls',
+    'minimumRepairRounds',
+    'minimumTransactions',
+    'verificationClosureRequired',
+    'requirementDigest',
+  ]);
+
+const hasCapabilityProbeReceiptShape = (value: unknown): boolean =>
+  exact(
+    value,
+    [
+      'probeId',
+      'providerConfigurationDigest',
+      'modelLineageDigest',
+      'requestedProfileDigest',
+      'declaredCapabilityDigest',
+      'probedCapabilityDigest',
+      'status',
+      'observedLimitDigest',
+      'probeProgramDigest',
+      'profileProjectionDigest',
+      'normalizedObservationDigest',
+      'probedAt',
+      'expiresAt',
+      'receiptDigest',
+    ],
+    ['observedProfileDigest']
+  );
+
+const hasProductionCapabilityProbeEvidenceShape = (value: unknown): boolean =>
+  exact(value, [
+    'authorityKind',
+    'authorityIssuerId',
+    'ownerImplementationDigest',
+    'adapterDigest',
+    'probeRequestDigest',
+    'probeResponseDigest',
+    'dispatchReceiptDigest',
+    'transportReceiptDigest',
+    'responseSpoolDigest',
+    'normalizedEventSetDigest',
+    'probeProgram',
+    'normalizedObservation',
+    'receipt',
+    'evidenceDigest',
+  ]) &&
+  isAgentCapabilityProbeProgram(value.probeProgram) &&
+  isAgentCapabilityProbeProgramObservation(
+    value.normalizedObservation,
+    value.probeProgram
+  ) &&
+  hasCapabilityProbeReceiptShape(value.receipt);
+
+const hasRuntimeFactSourceAuthorityShape = (value: unknown): boolean =>
+  exact(
+    value,
+    [
+      'kind',
+      'sourceKind',
+      'sourceAuthorityId',
+      'sourceAuthorityImplementationDigest',
+      'routeBinding',
+      'capabilityProfileId',
+      'capabilityProfileDigest',
+      'capabilityId',
+      'protocolFamily',
+      'providerConfigurationId',
+      'modelId',
+      'modelLineageDigest',
+      'adapterDigest',
+      'registrationAuthorityIssuerId',
+      'registrationReceiptDigest',
+      'authorityDigest',
+    ],
+    ['hostedRetrievalRuntimeResourceRegistrationIntentDigest']
+  );
+
+const hasOptionalCapabilitySupportAuthorityShape = (value: unknown): boolean =>
+  exact(
+    value,
+    [
+      'qualificationAuthorityBundleDigest',
+      'qualificationCapabilityProfileId',
+      'qualificationCapabilityProfileDigest',
+      'capabilityId',
+      'supportExpectation',
+      'declaredCapabilityProfileDigests',
+      'probeEvidence',
+      'resolvedCapabilityDescriptor',
+      'authorityDigest',
+    ],
+    [
+      'probeProviderResourceAuthority',
+      'probeProviderResourceDeletionAuthorityReceipt',
+      'probeProviderResourceCleanupReceipt',
+      'runtimeFactSourceAuthority',
+    ]
+  ) &&
+  Array.isArray(value.declaredCapabilityProfileDigests) &&
+  hasProductionCapabilityProbeEvidenceShape(value.probeEvidence) &&
+  (value.probeProviderResourceAuthority === undefined ||
+    isAgentCapabilityProbeProviderResourceAuthority(
+      value.probeProviderResourceAuthority,
+      (value.probeEvidence as { probeProgram: AgentCapabilityProbeProgram })
+        .probeProgram
+    )) &&
+  (value.probeProviderResourceDeletionAuthorityReceipt === undefined ||
+    isAgentCapabilityProbeProviderResourceDeletionAuthorityReceipt(
+      value.probeProviderResourceDeletionAuthorityReceipt
+    )) &&
+  (value.probeProviderResourceCleanupReceipt === undefined ||
+    isAgentCapabilityProbeProviderResourceCleanupReceipt(
+      value.probeProviderResourceCleanupReceipt
+    )) &&
+  (value.runtimeFactSourceAuthority === undefined ||
+    hasRuntimeFactSourceAuthorityShape(value.runtimeFactSourceAuthority)) &&
+  hasCapabilityDescriptorShape(value.resolvedCapabilityDescriptor);
 
 const hasAttemptRefShape = (value: unknown): boolean =>
   exact(value, ['attemptId', 'descriptorDigest', 'attemptDigest']);
@@ -194,22 +334,32 @@ const hasPlanShape = (value: unknown): boolean =>
   ]) &&
   every(value.providerConfigurations, hasProviderShape) &&
   every(value.modelConfigurations, hasModelShape) &&
-  every(value.capabilityQualificationTargets, (entry) =>
-    exact(entry, [
-      'targetId',
-      'providerConfigurationId',
-      'providerIdentityDigest',
-      'protocolFamily',
-      'providerOperatorId',
-      'modelId',
-      'modelLineageDigest',
-      'modelFamilyOwnerId',
-      'capabilityProfileId',
-      'capabilityProfileDigest',
-      'inferenceConfigurationDigest',
-      'qualificationSliceDigest',
-      'targetDigest',
-    ])
+  every(
+    value.capabilityQualificationTargets,
+    (entry) =>
+      exact(
+        entry,
+        [
+          'targetId',
+          'providerConfigurationId',
+          'providerIdentityDigest',
+          'protocolFamily',
+          'providerOperatorId',
+          'modelId',
+          'modelLineageDigest',
+          'modelFamilyOwnerId',
+          'capabilityProfileId',
+          'capabilityProfileDigest',
+          'inferenceConfigurationDigest',
+          'qualificationSliceDigest',
+          'targetDigest',
+        ],
+        ['optionalCapabilitySupportAuthority']
+      ) &&
+      (entry.optionalCapabilitySupportAuthority === undefined ||
+        hasOptionalCapabilitySupportAuthorityShape(
+          entry.optionalCapabilitySupportAuthority
+        ))
   ) &&
   every(value.endpointSmokeTargets, (entry) =>
     exact(entry, [
@@ -217,29 +367,42 @@ const hasPlanShape = (value: unknown): boolean =>
       'endpointClass',
       'protocolFamily',
       'providerConfigurationId',
+      'modelId',
+      'immutableModelVersion',
+      'modelLineageDigest',
+      'inferenceConfigurationDigest',
       'adapterDigest',
+      'pricingAuthorityDigest',
+      'responseSpoolEncryptionPolicyDigest',
       'smokeProfileDigest',
       'targetDigest',
     ])
   ) &&
-  every(value.concreteCases, (entry) =>
-    exact(entry, [
-      'caseId',
-      'familyId',
-      'primaryBucket',
-      'riskClass',
-      'access',
-      'capabilityProfileId',
-      'fixtureRef',
-      'caseDefinitionDigest',
-      'expectedAuthorityDigest',
-      'gradingPolicyDigest',
-      'contextSentinel',
-      'mediaSentinel',
-      'subjectiveVisualQuality',
-      'tags',
-      'caseDigest',
-    ])
+  every(
+    value.concreteCases,
+    (entry) =>
+      exact(entry, [
+        'caseId',
+        'familyId',
+        'primaryBucket',
+        'riskClass',
+        'access',
+        'capabilityProfileId',
+        'capabilityDescriptor',
+        'capabilityDescriptorDigest',
+        'fixtureRef',
+        'caseDefinitionDigest',
+        'expectedAuthorityDigest',
+        'gradingPolicyDigest',
+        'contextSentinel',
+        'mediaSentinel',
+        'subjectiveVisualQuality',
+        'executionRequirement',
+        'tags',
+        'caseDigest',
+      ]) &&
+      hasCapabilityDescriptorShape(entry.capabilityDescriptor) &&
+      hasCaseExecutionRequirementShape(entry.executionRequirement)
   ) &&
   every(value.contextTiers, (entry) =>
     exact(entry, [
@@ -331,6 +494,12 @@ const hasAttemptShape = (value: unknown): boolean =>
     [
       'descriptor',
       'independentRunId',
+      'dispatchIntentSetDigest',
+      'transportReceiptSetDigest',
+      'invocationTurnReceiptSetDigest',
+      'invocationTurnSetReceiptDigest',
+      'capabilityExecutionReceiptSetDigest',
+      'verificationAttemptGrantReceiptSetDigest',
       'status',
       'outcome',
       'metricObservations',
@@ -340,7 +509,7 @@ const hasAttemptShape = (value: unknown): boolean =>
       'completedAt',
       'attemptDigest',
     ],
-    ['invocationReceiptDigest', 'responseDigest']
+    ['responseDigest']
   ) &&
   hasDescriptorShape(value.descriptor) &&
   every(value.metricObservations, (entry) =>
@@ -379,6 +548,7 @@ const hasMetricReportShape = (value: unknown): boolean =>
     'reportId',
     'planDigest',
     'attemptSetDigest',
+    'validatedHumanMetricObservationSetDigest',
     'slices',
     'generatedAt',
     'reportDigest',
@@ -415,6 +585,7 @@ const hasGraderReportShape = (value: unknown): boolean =>
     'reportId',
     'planDigest',
     'graderPlanDigest',
+    'validatedHumanMetricObservationSetDigest',
     'deterministicVerdictCount',
     'auxiliaryVerdictCount',
     'humanVerdictCount',
@@ -434,17 +605,73 @@ const hasHumanReportShape = (value: unknown): boolean =>
     'generatedAt',
     'reportDigest',
   ]) &&
-  every(value.ratings, (entry) =>
-    exact(entry, [
-      'ratingId',
-      'attemptId',
-      'reviewerPseudonym',
-      'randomizedPresentationId',
-      'rubricDigest',
-      'verdict',
-      'ratingDigest',
-    ])
+  every(
+    value.ratings,
+    (entry) =>
+      exact(entry, [
+        'ratingId',
+        'attemptId',
+        'reviewerPseudonym',
+        'randomizedPresentationId',
+        'rubricDigest',
+        'criterionVerdicts',
+        'verdict',
+        'ratingDigest',
+      ]) &&
+      every(entry.criterionVerdicts, (criterionVerdict) =>
+        exact(criterionVerdict, ['criterionId', 'verdict'])
+      )
   );
+
+const hasReviewCandidateShape = (value: unknown): boolean =>
+  exact(value, [
+    'format',
+    'version',
+    'candidateId',
+    'attemptId',
+    'planDigest',
+    'repositoryCommit',
+    'descriptorDigest',
+    'responseDigest',
+    'executionReceiptDigest',
+    'graderArtifactDigest',
+    'projectionAuthorityDigest',
+    'mediaType',
+    'width',
+    'height',
+    'bytesBase64',
+    'bytesDigest',
+    'byteLength',
+    'publicArtifactScanDigest',
+    'generatedAt',
+    'candidateDigest',
+  ]);
+
+const hasReviewRasterScanReceiptShape = (value: unknown): boolean =>
+  exact(value, [
+    'format',
+    'version',
+    'scanReceiptId',
+    'planDigest',
+    'repositoryCommit',
+    'attemptId',
+    'descriptorDigest',
+    'projectionAuthorityDigest',
+    'mediaType',
+    'width',
+    'height',
+    'byteLength',
+    'policyDigest',
+    'bytesDigest',
+    'decodedPixelDigest',
+    'metadataProfileDigest',
+    'canarySetDigest',
+    'fingerprintSetDigest',
+    'findingDigests',
+    'verdict',
+    'scannedAt',
+    'receiptDigest',
+  ]);
 
 const hasHoldoutReceiptShape = (value: unknown): boolean =>
   exact(value, [
@@ -509,6 +736,10 @@ export const hasExactAgentEvaluationFactShape = (
       return hasGraderReportShape(fact.value);
     case 'evaluation-human-review-report':
       return hasHumanReportShape(fact.value);
+    case 'evaluation-review-candidate':
+      return hasReviewCandidateShape(fact.value);
+    case 'evaluation-review-raster-scan-receipt':
+      return hasReviewRasterScanReceiptShape(fact.value);
     case 'evaluation-holdout-receipt':
       return hasHoldoutReceiptShape(fact.value);
     case 'evaluation-manifest':
@@ -523,6 +754,10 @@ export const hasExactAgentEvaluationCheckpointShape = hasCheckpointShape;
 export const hasExactAgentEvaluationMetricReportShape = hasMetricReportShape;
 export const hasExactAgentEvaluationGraderReportShape = hasGraderReportShape;
 export const hasExactAgentEvaluationHumanReportShape = hasHumanReportShape;
+export const hasExactAgentEvaluationReviewCandidateShape =
+  hasReviewCandidateShape;
+export const hasExactAgentEvaluationReviewRasterScanReceiptShape =
+  hasReviewRasterScanReceiptShape;
 export const hasExactAgentEvaluationHoldoutReceiptShape =
   hasHoldoutReceiptShape;
 export const hasExactAgentEvaluationManifestShape = hasManifestShape;

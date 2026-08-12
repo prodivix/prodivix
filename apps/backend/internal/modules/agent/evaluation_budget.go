@@ -54,6 +54,15 @@ type evaluationBudgetSettlement struct {
 	Canonical              []byte
 }
 
+type evaluationHostedRuntimeBudgetFloor struct {
+	HostedSearchQueries       int64
+	HostedToolCalls           int64
+	HostedAttemptToolCalls    int64
+	HostedLifecycleToolCalls  int64
+	ProviderUploadBytes       int64
+	ProviderStorageByteSecond int64
+}
+
 func exactEvaluationKeys(value map[string]any, required []string, optional ...string) bool {
 	allowed := make(map[string]struct{}, len(required)+len(optional))
 	for _, key := range required {
@@ -140,6 +149,18 @@ func maximumRat(values ...*big.Rat) *big.Rat {
 	return maximum
 }
 
+var evaluationUsageUnits = map[string]struct{}{
+	"text-token-input": {}, "text-token-output": {}, "reasoning-token": {},
+	"cache-read-token": {}, "cache-write-token": {}, "image": {}, "image-pixel": {},
+	"media-source-byte": {}, "media-processed-byte": {}, "document-page": {},
+	"document-rendered-pixel": {}, "ocr-character": {}, "audio-second": {}, "audio-sample": {},
+	"video-second": {}, "video-input-frame": {}, "video-frame": {},
+	"transform-compute-millisecond": {}, "transform-memory-byte-second": {},
+	"provider-upload-byte": {}, "hosted-search-query": {}, "hosted-tool-call": {},
+	"sandbox-compute-second": {}, "provider-storage-byte-second": {},
+	"generated-artifact": {}, "generated-artifact-byte": {},
+}
+
 func decodeEvaluationUsage(value any, requireKnown bool) (map[string]*big.Rat, bool, error) {
 	usage, ok := value.(map[string]any)
 	if !ok || !exactEvaluationKeys(usage, []string{"amounts", "vectorDigest"}) {
@@ -149,7 +170,7 @@ func decodeEvaluationUsage(value any, requireKnown bool) (map[string]*big.Rat, b
 	if !ok {
 		return nil, false, invalid("evaluation demand usage amounts are invalid")
 	}
-	expectedDigest, err := canonicaljson.Digest(map[string]any{"amounts": amounts})
+	expectedDigest, err := canonicaljson.Digest(amounts)
 	if err != nil || usage["vectorDigest"] != expectedDigest {
 		return nil, false, invalid("evaluation demand usage vector digest drifted")
 	}
@@ -163,7 +184,8 @@ func decodeEvaluationUsage(value any, requireKnown bool) (map[string]*big.Rat, b
 		}
 		unit, ok := amount["unit"].(string)
 		confidence, confidenceOK := amount["confidence"].(string)
-		if !ok || unit == "" || (index > 0 && unit <= previous) || !confidenceOK ||
+		_, validUnit := evaluationUsageUnits[unit]
+		if !ok || !validUnit || (index > 0 && unit <= previous) || !confidenceOK ||
 			(confidence != "reported" && confidence != "measured" && confidence != "estimated" && confidence != "unknown") {
 			return nil, false, invalid("evaluation demand usage identity or confidence is invalid")
 		}
@@ -184,7 +206,10 @@ func decodeEvaluationUsage(value any, requireKnown bool) (map[string]*big.Rat, b
 			}
 		}
 		ceiling := maximumRat(values...)
-		isUnknown := confidence == "unknown" || ceiling == nil
+		if confidence != "unknown" && ceiling == nil {
+			return nil, false, invalid("known evaluation demand usage requires at least one amount")
+		}
+		isUnknown := confidence == "unknown"
 		if isUnknown && requireKnown {
 			return nil, false, conflict("evaluation hard-budget reservation contains unknown usage")
 		}
@@ -388,7 +413,139 @@ func decodeEvaluationBudget(planBytes []byte) (evaluationBudgetCeiling, error) {
 			return evaluationBudgetCeiling{}, err
 		}
 	}
+	if err := validateEvaluationHostedRuntimeBudgetFloor(planValue, ceiling); err != nil {
+		return evaluationBudgetCeiling{}, err
+	}
 	return ceiling, nil
+}
+
+func addEvaluationBudgetFloorAmount(current, addition int64) (int64, error) {
+	if addition < 0 || current > 9_007_199_254_740_991-addition {
+		return 0, conflict("evaluation hosted runtime budget floor exceeds safe bounds")
+	}
+	return current + addition, nil
+}
+
+func resolveEvaluationHostedRuntimeBudgetFloor(planValue map[string]any) (evaluationHostedRuntimeBudgetFloor, error) {
+	plannedJourneyCount, plannedJourneyCountOK := integerMember(planValue, "plannedJourneyCount")
+	if !plannedJourneyCountOK {
+		return evaluationHostedRuntimeBudgetFloor{}, invalid("evaluation hosted runtime budget plan denominator is invalid")
+	}
+	plan := evaluationPlanFact{
+		PlanDigest:          stringMember(planValue, "planDigest"),
+		PlannedJourneyCount: plannedJourneyCount,
+		Value:               planValue,
+	}
+	plannedAttempts, err := evaluationStatusPlannedAttempts(plan)
+	if err != nil {
+		return evaluationHostedRuntimeBudgetFloor{}, err
+	}
+	rawTargets, targetsOK := arrayMember(planValue, "capabilityQualificationTargets")
+	if !targetsOK {
+		return evaluationHostedRuntimeBudgetFloor{}, conflict("evaluation hosted runtime budget targets are invalid")
+	}
+	targetsByID := make(map[string]map[string]any, len(rawTargets))
+	lifecycleIntentCount := int64(0)
+	floor := evaluationHostedRuntimeBudgetFloor{}
+	for _, rawTarget := range rawTargets {
+		target, targetOK := rawTarget.(map[string]any)
+		if !targetOK {
+			return evaluationHostedRuntimeBudgetFloor{}, conflict("evaluation hosted runtime budget target is invalid")
+		}
+		targetID := stringMember(target, "targetId")
+		if targetID == "" || targetsByID[targetID] != nil {
+			return evaluationHostedRuntimeBudgetFloor{}, conflict("evaluation hosted runtime budget target identity is invalid")
+		}
+		targetsByID[targetID] = target
+		optionalAuthority, hasOptionalAuthority := objectMember(target, "optionalCapabilitySupportAuthority")
+		if !hasOptionalAuthority {
+			continue
+		}
+		runtimeAuthority, hasRuntimeAuthority := objectMember(optionalAuthority, "runtimeFactSourceAuthority")
+		if !hasRuntimeAuthority || stringMember(runtimeAuthority, "hostedRetrievalRuntimeResourceRegistrationIntentDigest") == "" {
+			continue
+		}
+		profileID := stringMember(runtimeAuthority, "capabilityProfileId")
+		protocolFamily := stringMember(runtimeAuthority, "protocolFamily")
+		if stringMember(runtimeAuthority, "capabilityId") != "provider.hosted-retrieval" ||
+			stringMember(runtimeAuthority, "sourceKind") != "sealed-hosted-owner-result" ||
+			(protocolFamily != "gemini-interactions" && protocolFamily != "openai-responses") ||
+			(profileID != "g4-provider-hosted-retrieval-core" && profileID != "g4-provider-hosted-retrieval-document") ||
+			profileID != stringMember(target, "capabilityProfileId") ||
+			protocolFamily != stringMember(target, "protocolFamily") {
+			return evaluationHostedRuntimeBudgetFloor{}, conflict("evaluation hosted runtime lifecycle budget authority is invalid")
+		}
+		program, programErr := expectedEvaluationCapabilityProbeProgram(profileID, stringMember(runtimeAuthority, "capabilityProfileDigest"))
+		resourceKind := stringMember(program.PublicProbeResource, "resourceKind")
+		content, contentErr := evaluationCapabilityProbePublicResourceContent(resourceKind)
+		if programErr != nil || contentErr != nil || content == "" {
+			return evaluationHostedRuntimeBudgetFloor{}, conflict("evaluation hosted runtime lifecycle budget material is invalid")
+		}
+		uploadBytes := int64(len([]byte(content)))
+		storageByteSeconds := uploadBytes * 691_200
+		floor.HostedLifecycleToolCalls, err = addEvaluationBudgetFloorAmount(floor.HostedLifecycleToolCalls, 3)
+		if err != nil {
+			return evaluationHostedRuntimeBudgetFloor{}, err
+		}
+		floor.ProviderUploadBytes, err = addEvaluationBudgetFloorAmount(floor.ProviderUploadBytes, uploadBytes)
+		if err != nil {
+			return evaluationHostedRuntimeBudgetFloor{}, err
+		}
+		floor.ProviderStorageByteSecond, err = addEvaluationBudgetFloorAmount(floor.ProviderStorageByteSecond, storageByteSeconds)
+		if err != nil {
+			return evaluationHostedRuntimeBudgetFloor{}, err
+		}
+		lifecycleIntentCount++
+	}
+	for _, attempt := range plannedAttempts {
+		target := targetsByID[stringMember(attempt.Descriptor, "targetId")]
+		optionalAuthority, hasOptionalAuthority := objectMember(target, "optionalCapabilitySupportAuthority")
+		if hasOptionalAuthority && stringMember(optionalAuthority, "capabilityId") == "provider.hosted-retrieval" &&
+			stringMember(optionalAuthority, "supportExpectation") == "required" {
+			floor.HostedAttemptToolCalls, err = addEvaluationBudgetFloorAmount(floor.HostedAttemptToolCalls, 1)
+			if err != nil {
+				return evaluationHostedRuntimeBudgetFloor{}, err
+			}
+		}
+	}
+	if (floor.HostedAttemptToolCalls > 0 || lifecycleIntentCount > 0) && lifecycleIntentCount != 4 {
+		return evaluationHostedRuntimeBudgetFloor{}, conflict("evaluation hosted runtime budget requires four lifecycle intents")
+	}
+	floor.HostedSearchQueries = floor.HostedAttemptToolCalls
+	floor.HostedToolCalls, err = addEvaluationBudgetFloorAmount(floor.HostedAttemptToolCalls, floor.HostedLifecycleToolCalls)
+	if err != nil {
+		return evaluationHostedRuntimeBudgetFloor{}, err
+	}
+	return floor, nil
+}
+
+func validateEvaluationHostedRuntimeBudgetFloor(planValue map[string]any, ceiling evaluationBudgetCeiling) error {
+	floor, err := resolveEvaluationHostedRuntimeBudgetFloor(planValue)
+	if err != nil {
+		return err
+	}
+	required := []struct {
+		unit   string
+		amount int64
+	}{
+		{"hosted-search-query", floor.HostedSearchQueries},
+		{"hosted-tool-call", floor.HostedToolCalls},
+		{"provider-upload-byte", floor.ProviderUploadBytes},
+		{"provider-storage-byte-second", floor.ProviderStorageByteSecond},
+	}
+	for _, entry := range required {
+		if entry.amount == 0 {
+			continue
+		}
+		limit := ceiling.Usage[entry.unit]
+		if limit == nil || limit.Cmp(new(big.Rat).SetInt64(entry.amount)) < 0 {
+			return conflict("evaluation budget cannot cover the hosted attempt and lifecycle demand floor")
+		}
+	}
+	if ceiling.ToolCalls < floor.HostedAttemptToolCalls {
+		return conflict("evaluation tool-call budget cannot cover the hosted attempt floor")
+	}
+	return nil
 }
 
 func addEvaluationBudgetDemand(left, right evaluationBudgetDemand) evaluationBudgetDemand {

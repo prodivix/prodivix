@@ -6,7 +6,7 @@ import { withControlledStaticToolchainExecution } from './controlledStaticToolch
 import {
   decodeControlledStaticToolchainRequest,
   type ControlledStaticToolchainResult,
-} from './controlledStaticToolchainProtocol';
+} from '../src/controlledStaticToolchainProtocol';
 
 export { encodeControlledStaticToolchainResult };
 

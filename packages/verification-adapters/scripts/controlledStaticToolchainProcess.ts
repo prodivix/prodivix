@@ -20,7 +20,7 @@ import {
   sameCanonicalJson,
 } from '@prodivix/shared/canonical';
 import { isPlainObject } from '@prodivix/shared/safety';
-import type { ControlledStaticToolchainAuthorityReceipt } from './controlledStaticToolchainProtocol';
+import type { ControlledStaticToolchainAuthorityReceipt } from '../src/controlledStaticToolchainProtocol';
 import {
   runControlledStaticToolchainSandbox,
   type ControlledStaticToolchainSandboxAuthority,

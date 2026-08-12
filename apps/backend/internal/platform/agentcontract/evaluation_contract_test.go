@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
 )
@@ -114,6 +115,434 @@ func TestAgentEvaluationAdmissionRebuildsNestedPlanSchedule(t *testing.T) {
 			encoded, _ := json.Marshal(drifted)
 			if err := ValidateEvaluationFact(encoded); err == nil {
 				t.Fatalf("recomputed %s drift must fail Go admission", name)
+			}
+		})
+	}
+}
+
+func TestAgentEvaluationAdmissionRequiresCurrentEndpointSmokeAuthorityBindings(t *testing.T) {
+	vector := readAgentEvaluationVector(t)
+	for name, mutate := range map[string]func(map[string]any){
+		"missing-pricing-authority": func(target map[string]any) {
+			delete(target, "pricingAuthorityDigest")
+		},
+		"extra-legacy-authority": func(target map[string]any) {
+			target["legacyPricingDigest"] = target["pricingAuthorityDigest"]
+		},
+		"spool-policy-drift": func(target map[string]any) {
+			target["responseSpoolEncryptionPolicyDigest"] = target["pricingAuthorityDigest"]
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var drifted map[string]any
+			if err := json.Unmarshal(vector.Facts["plan"], &drifted); err != nil {
+				t.Fatal(err)
+			}
+			value := drifted["value"].(map[string]any)
+			targets := value["endpointSmokeTargets"].([]any)
+			mutate(targets[0].(map[string]any))
+			recomputeDigest(t, value, "planDigest")
+			encoded, _ := json.Marshal(drifted)
+			if err := ValidateEvaluationFact(encoded); err == nil {
+				t.Fatal("endpoint smoke authority binding drift must fail Go admission")
+			}
+		})
+	}
+}
+
+func TestAgentEvaluationAdmissionBindsOptionalCapabilitySupportAuthority(t *testing.T) {
+	vector := readAgentEvaluationVector(t)
+	for name, mutate := range map[string]func(*testing.T, map[string]any){
+		"adapter-swap": func(t *testing.T, target map[string]any) {
+			authority := target["optionalCapabilitySupportAuthority"].(map[string]any)
+			evidence := authority["probeEvidence"].(map[string]any)
+			evidence["adapterDigest"] = authority["qualificationCapabilityProfileDigest"]
+			recomputeDigest(t, evidence, "evidenceDigest")
+			recomputeDigest(t, authority, "authorityDigest")
+		},
+		"probed-support-drift": func(t *testing.T, target map[string]any) {
+			authority := target["optionalCapabilitySupportAuthority"].(map[string]any)
+			evidence := authority["probeEvidence"].(map[string]any)
+			receipt := evidence["receipt"].(map[string]any)
+			receipt["observedLimitDigest"] = authority["qualificationCapabilityProfileDigest"]
+			recomputeDigest(t, receipt, "receiptDigest")
+			recomputeDigest(t, evidence, "evidenceDigest")
+			recomputeDigest(t, authority, "authorityDigest")
+		},
+		"fully-recomputed-program-drift": func(t *testing.T, target map[string]any) {
+			authority := target["optionalCapabilitySupportAuthority"].(map[string]any)
+			evidence := authority["probeEvidence"].(map[string]any)
+			program := evidence["probeProgram"].(map[string]any)
+			intent := program["providerRequestIntent"].(map[string]any)
+			payload := intent["publicPayload"].(map[string]any)
+			payload["instruction"] = stringValue(payload["instruction"]) + " recomputed-offline"
+			payloadDigest, err := canonicaljson.Digest(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			intent["publicPayloadDigest"] = payloadDigest
+			recomputeDigest(t, program, "programDigest")
+
+			observation := evidence["normalizedObservation"].(map[string]any)
+			observation["probeProgramDigest"] = program["programDigest"]
+			recomputeDigest(t, observation, "observationDigest")
+
+			receipt := evidence["receipt"].(map[string]any)
+			receipt["probeProgramDigest"] = program["programDigest"]
+			receipt["normalizedObservationDigest"] = observation["observationDigest"]
+			receipt["probedCapabilityDigest"], err = canonicaljson.Digest(map[string]any{
+				"normalizedObservationDigest": receipt["normalizedObservationDigest"],
+				"observedLimitDigest":         receipt["observedLimitDigest"],
+				"observedProfileDigest":       receipt["observedProfileDigest"],
+				"probeProgramDigest":          receipt["probeProgramDigest"],
+				"profileProjectionDigest":     receipt["profileProjectionDigest"],
+				"status":                      receipt["status"],
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			recomputeDigest(t, receipt, "receiptDigest")
+			recomputeDigest(t, evidence, "evidenceDigest")
+			recomputeDigest(t, authority, "authorityDigest")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var decoded map[string]any
+			if err := json.Unmarshal(vector.Facts["plan"], &decoded); err != nil {
+				t.Fatal(err)
+			}
+			value := decoded["value"].(map[string]any)
+			var target map[string]any
+			for _, raw := range value["capabilityQualificationTargets"].([]any) {
+				candidate := raw.(map[string]any)
+				if candidate["optionalCapabilitySupportAuthority"] != nil {
+					target = candidate
+					break
+				}
+			}
+			if target == nil {
+				t.Fatal("optional capability target is missing")
+			}
+			providerID := stringValue(target["providerConfigurationId"])
+			var provider map[string]any
+			for _, raw := range value["providerConfigurations"].([]any) {
+				candidate := raw.(map[string]any)
+				if stringValue(candidate["providerConfigurationId"]) == providerID {
+					provider = candidate
+					break
+				}
+			}
+			if provider == nil {
+				t.Fatal("optional capability provider is missing")
+			}
+			plannedAt, plannedErr := parseInstant(value["plannedAt"])
+			expiresAt, expiresErr := parseInstant(value["expiresAt"])
+			if plannedErr != nil || expiresErr != nil {
+				t.Fatal("optional capability plan window is invalid")
+			}
+			if _, _, err := evaluationOptionalCapabilitySupportAuthority(
+				target, provider, "/optionalCapabilitySupportAuthority", plannedAt, expiresAt,
+			); err != nil {
+				t.Fatalf("baseline optional authority was rejected: %v", err)
+			}
+			mutate(t, target)
+			if _, _, err := evaluationOptionalCapabilitySupportAuthority(
+				target, provider, "/optionalCapabilitySupportAuthority", plannedAt, expiresAt,
+			); err == nil {
+				t.Fatal("recomputed optional capability authority drift was accepted")
+			}
+		})
+	}
+}
+
+func TestAgentEvaluationAdmissionRequiresCurrentProductionMatrix(t *testing.T) {
+	vector := readAgentEvaluationVector(t)
+	tests := map[string]struct {
+		mutate  func(*testing.T, map[string]any)
+		message string
+	}{
+		"deleted-optional-target": {
+			mutate: func(t *testing.T, value map[string]any) {
+				targets := value["capabilityQualificationTargets"].([]any)
+				for index, raw := range targets {
+					target := raw.(map[string]any)
+					if target["optionalCapabilitySupportAuthority"] != nil {
+						value["capabilityQualificationTargets"] = append(targets[:index:index], targets[index+1:]...)
+						return
+					}
+				}
+				t.Fatal("optional capability target is missing")
+			},
+			message: "exact 3 x 9 native matrix",
+		},
+		"missing-optional-authority": {
+			mutate: func(t *testing.T, value map[string]any) {
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					if target["optionalCapabilitySupportAuthority"] != nil {
+						delete(target, "optionalCapabilitySupportAuthority")
+						recomputeDigest(t, target, "targetDigest")
+						return
+					}
+				}
+				t.Fatal("optional capability target is missing")
+			},
+			message: "optional support authority is missing",
+		},
+		"legacy-11640-denominator": {
+			mutate: func(_ *testing.T, value map[string]any) {
+				value["plannedJourneyCount"] = float64(11_640)
+			},
+			message: "current 14,040-attempt denominator",
+		},
+		"cross-provider-authority-swap": {
+			mutate: func(t *testing.T, value map[string]any) {
+				targets := value["capabilityQualificationTargets"].([]any)
+				for leftIndex, leftRaw := range targets {
+					left := leftRaw.(map[string]any)
+					if left["optionalCapabilitySupportAuthority"] == nil {
+						continue
+					}
+					for rightIndex := leftIndex + 1; rightIndex < len(targets); rightIndex++ {
+						right := targets[rightIndex].(map[string]any)
+						if right["optionalCapabilitySupportAuthority"] == nil ||
+							stringValue(left["capabilityProfileId"]) != stringValue(right["capabilityProfileId"]) ||
+							stringValue(left["providerConfigurationId"]) == stringValue(right["providerConfigurationId"]) {
+							continue
+						}
+						left["optionalCapabilitySupportAuthority"], right["optionalCapabilitySupportAuthority"] =
+							right["optionalCapabilitySupportAuthority"], left["optionalCapabilitySupportAuthority"]
+						recomputeDigest(t, left, "targetDigest")
+						recomputeDigest(t, right, "targetDigest")
+						return
+					}
+				}
+				t.Fatal("cross-provider optional authority pair is missing")
+			},
+			message: "drifted from its target/provider identity",
+		},
+		"qualification-bundle-digest-swap": {
+			mutate: func(t *testing.T, value map[string]any) {
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					authority, optional := target["optionalCapabilitySupportAuthority"].(map[string]any)
+					if !optional {
+						continue
+					}
+					swapped, err := canonicaljson.Digest(map[string]any{"bundle": "swapped-qualification-bundle"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					authority["qualificationAuthorityBundleDigest"] = swapped
+					recomputeDigest(t, authority, "authorityDigest")
+					recomputeDigest(t, target, "targetDigest")
+					return
+				}
+				t.Fatal("optional capability target is missing")
+			},
+			message: "bundle digest differs across optional targets",
+		},
+		"missing-runtime-registration-authority": {
+			mutate: func(t *testing.T, value map[string]any) {
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					authority, optional := target["optionalCapabilitySupportAuthority"].(map[string]any)
+					if !optional || authority["runtimeFactSourceAuthority"] == nil {
+						continue
+					}
+					delete(authority, "runtimeFactSourceAuthority")
+					recomputeDigest(t, authority, "authorityDigest")
+					recomputeDigest(t, target, "targetDigest")
+					return
+				}
+				t.Fatal("fact-backed optional capability target is missing")
+			},
+			message: "runtime fact source authority coverage drifted",
+		},
+		"missing-hosted-runtime-resource-registration-intent": {
+			mutate: func(t *testing.T, value map[string]any) {
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					authority, optional := target["optionalCapabilitySupportAuthority"].(map[string]any)
+					runtime, runtimeOK := authority["runtimeFactSourceAuthority"].(map[string]any)
+					if !optional || !runtimeOK || runtime["hostedRetrievalRuntimeResourceRegistrationIntentDigest"] == nil {
+						continue
+					}
+					delete(runtime, "hostedRetrievalRuntimeResourceRegistrationIntentDigest")
+					recomputeDigest(t, runtime, "authorityDigest")
+					recomputeDigest(t, authority, "authorityDigest")
+					recomputeDigest(t, target, "targetDigest")
+					return
+				}
+				t.Fatal("hosted runtime source authority is missing")
+			},
+			message: "hosted runtime resource registration intent coverage drifted",
+		},
+		"foreign-hosted-runtime-resource-registration-intent": {
+			mutate: func(t *testing.T, value map[string]any) {
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					authority, optional := target["optionalCapabilitySupportAuthority"].(map[string]any)
+					runtime, runtimeOK := authority["runtimeFactSourceAuthority"].(map[string]any)
+					if !optional || !runtimeOK || runtime["hostedRetrievalRuntimeResourceRegistrationIntentDigest"] == nil {
+						continue
+					}
+					foreign, err := canonicaljson.Digest(map[string]any{"hostedRegistrationIntent": "foreign"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					runtime["hostedRetrievalRuntimeResourceRegistrationIntentDigest"] = foreign
+					recomputeDigest(t, runtime, "authorityDigest")
+					recomputeDigest(t, authority, "authorityDigest")
+					recomputeDigest(t, target, "targetDigest")
+					return
+				}
+				t.Fatal("hosted runtime source authority is missing")
+			},
+			message: "hosted runtime resource registration intent drifted from its provider and probe program",
+		},
+		"non-hosted-runtime-resource-registration-intent": {
+			mutate: func(t *testing.T, value map[string]any) {
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					authority, optional := target["optionalCapabilitySupportAuthority"].(map[string]any)
+					runtime, runtimeOK := authority["runtimeFactSourceAuthority"].(map[string]any)
+					if !optional || !runtimeOK || runtime["hostedRetrievalRuntimeResourceRegistrationIntentDigest"] != nil {
+						continue
+					}
+					extra, err := canonicaljson.Digest(map[string]any{"hostedRegistrationIntent": "unexpected"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					runtime["hostedRetrievalRuntimeResourceRegistrationIntentDigest"] = extra
+					recomputeDigest(t, runtime, "authorityDigest")
+					recomputeDigest(t, authority, "authorityDigest")
+					recomputeDigest(t, target, "targetDigest")
+					return
+				}
+				t.Fatal("non-hosted runtime source authority is missing")
+			},
+			message: "hosted runtime resource registration intent coverage drifted",
+		},
+		"missing-probe-provider-resource-authority": {
+			mutate: func(t *testing.T, value map[string]any) {
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					authority, optional := target["optionalCapabilitySupportAuthority"].(map[string]any)
+					if !optional || authority["probeProviderResourceAuthority"] == nil {
+						continue
+					}
+					delete(authority, "probeProviderResourceAuthority")
+					recomputeDigest(t, authority, "authorityDigest")
+					recomputeDigest(t, target, "targetDigest")
+					return
+				}
+				t.Fatal("retrieval optional capability target is missing")
+			},
+			message: "provider resource authority coverage drifted",
+		},
+		"probe-provider-resource-authority-swap": {
+			mutate: func(t *testing.T, value map[string]any) {
+				var left, right map[string]any
+				for _, raw := range value["capabilityQualificationTargets"].([]any) {
+					target := raw.(map[string]any)
+					authority, optional := target["optionalCapabilitySupportAuthority"].(map[string]any)
+					if !optional || authority["probeProviderResourceAuthority"] == nil {
+						continue
+					}
+					if left == nil {
+						left = target
+						continue
+					}
+					if stringValue(left["capabilityProfileId"]) != stringValue(target["capabilityProfileId"]) {
+						right = target
+						break
+					}
+				}
+				if left == nil || right == nil {
+					t.Fatal("two distinct retrieval provider resource authorities are missing")
+				}
+				leftAuthority := left["optionalCapabilitySupportAuthority"].(map[string]any)
+				rightAuthority := right["optionalCapabilitySupportAuthority"].(map[string]any)
+				leftAuthority["probeProviderResourceAuthority"], rightAuthority["probeProviderResourceAuthority"] =
+					rightAuthority["probeProviderResourceAuthority"], leftAuthority["probeProviderResourceAuthority"]
+				recomputeDigest(t, leftAuthority, "authorityDigest")
+				recomputeDigest(t, rightAuthority, "authorityDigest")
+				recomputeDigest(t, left, "targetDigest")
+				recomputeDigest(t, right, "targetDigest")
+			},
+			message: "probeProviderResourceAuthority",
+		},
+	}
+	for name, testCase := range tests {
+		t.Run(name, func(t *testing.T) {
+			var drifted map[string]any
+			if err := json.Unmarshal(vector.Facts["plan"], &drifted); err != nil {
+				t.Fatal(err)
+			}
+			value := drifted["value"].(map[string]any)
+			testCase.mutate(t, value)
+			recomputeDigest(t, value, "planDigest")
+			encoded, err := json.Marshal(drifted)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = ValidateEvaluationFact(encoded)
+			if err == nil || !strings.Contains(err.Error(), testCase.message) {
+				t.Fatalf("current production matrix drift error=%v, want %q", err, testCase.message)
+			}
+		})
+	}
+}
+
+func TestAgentEvaluationAdmissionRequiresProbeWindowCoverage(t *testing.T) {
+	vector := readAgentEvaluationVector(t)
+	for name, mutate := range map[string]func(map[string]any, time.Time, time.Time){
+		"late-probe": func(receipt map[string]any, plannedAt time.Time, _ time.Time) {
+			receipt["probedAt"] = plannedAt.Add(time.Millisecond).Format("2006-01-02T15:04:05.000Z")
+		},
+		"stale-probe": func(receipt map[string]any, _ time.Time, expiresAt time.Time) {
+			receipt["expiresAt"] = expiresAt.Add(-time.Millisecond).Format("2006-01-02T15:04:05.000Z")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var drifted map[string]any
+			if err := json.Unmarshal(vector.Facts["plan"], &drifted); err != nil {
+				t.Fatal(err)
+			}
+			value := drifted["value"].(map[string]any)
+			plannedAt, plannedErr := parseInstant(value["plannedAt"])
+			expiresAt, expiresErr := parseInstant(value["expiresAt"])
+			if plannedErr != nil || expiresErr != nil {
+				t.Fatal("canonical plan window is invalid")
+			}
+			var target map[string]any
+			for _, raw := range value["capabilityQualificationTargets"].([]any) {
+				candidate := raw.(map[string]any)
+				if candidate["optionalCapabilitySupportAuthority"] != nil {
+					target = candidate
+					break
+				}
+			}
+			if target == nil {
+				t.Fatal("optional capability target is missing")
+			}
+			authority := target["optionalCapabilitySupportAuthority"].(map[string]any)
+			evidence := authority["probeEvidence"].(map[string]any)
+			receipt := evidence["receipt"].(map[string]any)
+			mutate(receipt, plannedAt, expiresAt)
+			recomputeDigest(t, receipt, "receiptDigest")
+			recomputeDigest(t, evidence, "evidenceDigest")
+			recomputeDigest(t, authority, "authorityDigest")
+			recomputeDigest(t, target, "targetDigest")
+			recomputeDigest(t, value, "planDigest")
+			encoded, err := json.Marshal(drifted)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = ValidateEvaluationFact(encoded)
+			if err == nil || !strings.Contains(err.Error(), "does not cover the frozen plan window") {
+				t.Fatalf("probe window drift error=%v", err)
 			}
 		})
 	}

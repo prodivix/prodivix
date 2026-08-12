@@ -188,7 +188,8 @@ Canonical contract、实施顺序、里程碑与退出证据结构分别见：
 - prompt injection、untrusted content、Secret、network 与 permission escalation fail closed；Agent 不得自我审批或扩大授权。
 - deterministic control-plane/media/hosted-capability Gates 与独立、version-bound real-model evaluation Gate；
   后者冻结128 cases、protected/rotating holdout、Context/media sentinels、三个独立 native Provider/model families
-  的 required capability profiles、10/30/100 risk repetitions、11,640+ journeys、grader/human review、
+  的 required capability profiles、10/30/100 risk repetitions、11,640 minimum / current exact 14,040 journeys、
+  grader/human review、
   multi-dimensional budget与 identity-drift expiry。smoke、同协议换模型或 aggregator alias只证明 admission。
 
 ### 退出 Gate

@@ -1,0 +1,504 @@
+name: G4 Hosted Runtime Resource Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Completed failed G4 real-model evaluation run id to recover
+        required: true
+        type: string
+      expected_prepare_artifact_digest:
+        description: Optional immutable sha256 digest for the exact prepared-set artifact
+        required: false
+        type: string
+  schedule:
+    - cron: '23 4 * * *'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: g4-hosted-runtime-resource-recovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    name: Discover bounded failed evaluation runs
+    runs-on: [self-hosted, linux, x64, g4-real-model-recovery]
+    environment: g4-real-model-recovery
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.sources.outputs.matrix }}
+      target_count: ${{ steps.sources.outputs.target_count }}
+    steps:
+      - name: Select manual source or oldest bounded daily sources
+        id: sources
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id || '' }}
+          INPUT_EXPECTED_PREPARE_ARTIFACT_DIGEST: ${{ inputs.expected_prepare_artifact_digest || '' }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" = 'workflow_dispatch' ]]; then
+            [[ "${INPUT_SOURCE_RUN_ID}" =~ ^[1-9][0-9]{0,19}$ ]]
+            if [[ -n "${INPUT_EXPECTED_PREPARE_ARTIFACT_DIGEST}" ]]; then
+              [[ "${INPUT_EXPECTED_PREPARE_ARTIFACT_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]
+            fi
+            matrix="$(jq -cn \
+              --arg sourceRunId "${INPUT_SOURCE_RUN_ID}" \
+              --arg expectedPrepareArtifactDigest "${INPUT_EXPECTED_PREPARE_ARTIFACT_DIGEST}" \
+              '{include:[{sourceRunId:$sourceRunId,expectedPrepareArtifactDigest:$expectedPrepareArtifactDigest}]}')"
+          elif [[ "${EVENT_NAME}" = 'schedule' ]]; then
+            cutoff="$(date -u -d '9 days ago' '+%Y-%m-%dT%H:%M:%SZ')"
+            runs="$(gh api --method GET --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/g4-real-model-evaluation.yml/runs" \
+              -f status=completed \
+              -f created=">=${cutoff}" \
+              -f per_page=100)"
+            matrix="$(jq -c \
+              --arg repository "${GITHUB_REPOSITORY}" \
+              --arg cutoff "${cutoff}" \
+              '{include:([.[][]
+                | select(.head_repository.full_name == $repository)
+                | select(.path == ".github/workflows/g4-real-model-evaluation.yml")
+                | select(.status == "completed")
+                | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")
+                | select(.created_at >= $cutoff)]
+                | sort_by(.created_at, .id)
+                | .[:32]
+                | map({sourceRunId:(.id|tostring),expectedPrepareArtifactDigest:""}))}' \
+              <<< "${runs}")"
+          else
+            echo '::error::Unsupported recovery trigger.'
+            exit 1
+          fi
+          target_count="$(jq -er '.include | length | select(. >= 0 and . <= 32)' <<< "${matrix}")"
+          {
+            echo "matrix=${matrix}"
+            echo "target_count=${target_count}"
+          } >> "${GITHUB_OUTPUT}"
+
+  recover:
+    name: Recover source run ${{ matrix.sourceRunId }}
+    if: needs.discover.outputs.target_count != '0'
+    needs: discover
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    runs-on: [self-hosted, linux, x64, g4-real-model-recovery]
+    environment: g4-real-model-recovery
+    timeout-minutes: 45
+    env:
+      PRODIVIX_G4_MODEL_EVAL_SERVICE_BASE_URL: http://127.0.0.1:8790
+      PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_BASE_URL: http://127.0.0.1:8791
+      PRODIVIX_G4_MODEL_EVAL_ATTESTATION_PUBLIC_KEY: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ATTESTATION_PUBLIC_KEY }}
+      PRODIVIX_G4_MODEL_EVAL_ATTESTATION_KEY_ID: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ATTESTATION_KEY_ID }}
+      PRODIVIX_G4_MODEL_EVAL_ATTESTATION_AUTHORITY_ID: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ATTESTATION_AUTHORITY_ID }}
+      PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST }}
+      PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_ROLE: recovery
+    steps:
+      - name: Resolve exact completed source run and immutable artifacts
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ matrix.sourceRunId }}
+          EXPECTED_PREPARE_ARTIFACT_DIGEST: ${{ matrix.expectedPrepareArtifactDigest }}
+        run: |
+          set -euo pipefail
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          jq -e \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --argjson run_id "${SOURCE_RUN_ID}" \
+            '.id == $run_id and
+             .head_repository.full_name == $repository and
+             .path == ".github/workflows/g4-real-model-evaluation.yml" and
+             .status == "completed" and
+             (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") and
+             (.event == "workflow_dispatch" or .event == "schedule")' \
+            <<< "${run}" >/dev/null
+          source_commit="$(jq -er '.head_sha | select(test("^[0-9a-f]{40}$"))' <<< "${run}")"
+          source_run_attempt="$(jq -er '.run_attempt | select(type == "number" and . >= 1 and . <= 999999999) | tostring' <<< "${run}")"
+          artifacts="$(gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100")"
+          mapfile -t plan_artifacts < <(jq -c \
+            --arg prefix "g4-real-model-plan-${source_commit}-" \
+            '[.[][].artifacts[] | select(.name | startswith($prefix))] | .[]' \
+            <<< "${artifacts}")
+          if [[ "${#plan_artifacts[@]}" -ne 1 ]]; then
+            echo "::error::Source run ${SOURCE_RUN_ID} has ${#plan_artifacts[@]} plan artifacts; exact one is required."
+            exit 1
+          fi
+          plan="${plan_artifacts[0]}"
+          plan_name="$(jq -er '.name' <<< "${plan}")"
+          if [[ ! "${plan_name}" =~ ^g4-real-model-plan-${source_commit}-([A-Za-z0-9][A-Za-z0-9._-]{0,46})-([1-9][0-9]{0,8})$ ]]; then
+            echo '::error::The source plan artifact identity is invalid.'
+            exit 1
+          fi
+          evaluation_id="${BASH_REMATCH[1]}"
+          plan_run_attempt="${BASH_REMATCH[2]}"
+          plan_id="$(jq -er '.id | select(type == "number" and . >= 1) | tostring' <<< "${plan}")"
+          plan_digest="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<< "${plan}")"
+          if [[ "$(jq -er '.expired | tostring' <<< "${plan}")" != 'false' ]]; then
+            echo "::error::Source run ${SOURCE_RUN_ID} plan artifact is expired."
+            exit 1
+          fi
+          commitment_name="g4-real-model-frozen-config-commitment-${source_commit}-${evaluation_id}-${plan_run_attempt}"
+          mapfile -t commitment_artifacts < <(jq -c \
+            --arg name "${commitment_name}" \
+            '[.[][].artifacts[] | select(.name == $name)] | .[]' \
+            <<< "${artifacts}")
+          if [[ "${#commitment_artifacts[@]}" -ne 1 ]]; then
+            echo "::error::Source run ${SOURCE_RUN_ID} has ${#commitment_artifacts[@]} signed frozen config commitment artifacts; exact one is required."
+            exit 1
+          fi
+          commitment="${commitment_artifacts[0]}"
+          commitment_id="$(jq -er '.id | select(type == "number" and . >= 1) | tostring' <<< "${commitment}")"
+          commitment_digest="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<< "${commitment}")"
+          if [[ "$(jq -er '.expired | tostring' <<< "${commitment}")" != 'false' ]]; then
+            echo "::error::Source run ${SOURCE_RUN_ID} signed frozen config commitment artifact is expired."
+            exit 1
+          fi
+          prepare_name="g4-hosted-runtime-resource-prepared-${source_commit}-${evaluation_id}-${source_run_attempt}"
+          mapfile -t prepare_artifacts < <(jq -c \
+            --arg name "${prepare_name}" \
+            '[.[][].artifacts[] | select(.name == $name)] | .[]' \
+            <<< "${artifacts}")
+          if [[ "${#prepare_artifacts[@]}" -gt 1 ]]; then
+            echo "::error::Source run ${SOURCE_RUN_ID} has ${#prepare_artifacts[@]} exact prepared-set artifacts; at most one optional hint is admitted."
+            exit 1
+          fi
+          prepare_artifact_present=false
+          prepare_id=''
+          prepare_digest=''
+          if [[ "${#prepare_artifacts[@]}" -eq 1 ]]; then
+            prepare="${prepare_artifacts[0]}"
+            prepare_id="$(jq -er '.id | select(type == "number" and . >= 1) | tostring' <<< "${prepare}")"
+            prepare_digest="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<< "${prepare}")"
+            if [[ "$(jq -er '.expired | tostring' <<< "${prepare}")" != 'false' ]]; then
+              echo "::error::Source run ${SOURCE_RUN_ID} prepared-set artifact is expired."
+              exit 1
+            fi
+            if [[ -n "${EXPECTED_PREPARE_ARTIFACT_DIGEST}" && "${prepare_digest}" != "${EXPECTED_PREPARE_ARTIFACT_DIGEST}" ]]; then
+              echo '::error::The prepared-set artifact digest differs from the manual authority.'
+              exit 1
+            fi
+            prepare_artifact_present=true
+          elif [[ -n "${EXPECTED_PREPARE_ARTIFACT_DIGEST}" ]]; then
+            echo '::error::The manual prepared-set artifact digest has no source artifact.'
+            exit 1
+          fi
+          namespace="g4-${evaluation_id}-${source_commit:0:12}"
+          {
+            echo "source_commit=${source_commit}"
+            echo "source_run_attempt=${source_run_attempt}"
+            echo "plan_artifact_id=${plan_id}"
+            echo "plan_artifact_name=${plan_name}"
+            echo "plan_artifact_digest=${plan_digest}"
+            echo "plan_run_attempt=${plan_run_attempt}"
+            echo "frozen_commitment_artifact_id=${commitment_id}"
+            echo "frozen_commitment_artifact_name=${commitment_name}"
+            echo "frozen_commitment_artifact_digest=${commitment_digest}"
+            echo "prepare_artifact_present=${prepare_artifact_present}"
+            echo "prepare_artifact_id=${prepare_id}"
+            echo "prepare_artifact_name=${prepare_name}"
+            echo "prepare_artifact_digest=${prepare_digest}"
+            echo "evaluation_id=${evaluation_id}"
+            echo "namespace=${namespace}"
+          } >> "${GITHUB_OUTPUT}"
+      - name: Checkout exact source commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 1
+          ref: ${{ steps.source.outputs.source_commit }}
+      - name: Verify exact clean source checkout
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.source_commit }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${SOURCE_COMMIT}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.1
+          cache: pnpm
+      - name: Install frozen dependencies from the pre-adopted offline store
+        run: pnpm install --offline --frozen-lockfile
+      - name: Build evaluation runner
+        run: pnpm --filter @prodivix/agent-evaluation-runner build
+      - name: Set up Go for the Backend ledger
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+      - name: Download exact source plan artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ steps.source.outputs.plan_artifact_name }}
+          path: ${{ runner.temp }}/g4-hosted-recovery-source/plan
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.sourceRunId }}
+      - name: Download exact source signed frozen config commitment
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ steps.source.outputs.frozen_commitment_artifact_name }}
+          path: ${{ runner.temp }}/g4-hosted-recovery-source/commitment
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.sourceRunId }}
+      - name: Download exact source prepared-set artifact
+        if: steps.source.outputs.prepare_artifact_present == 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ steps.source.outputs.prepare_artifact_name }}
+          path: ${{ runner.temp }}/g4-hosted-recovery-source/prepared
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.sourceRunId }}
+      - name: Admit exact signed recovery authority
+        shell: bash
+        env:
+          PLAN_ROOT: ${{ runner.temp }}/g4-hosted-recovery-source/plan
+          COMMITMENT_ROOT: ${{ runner.temp }}/g4-hosted-recovery-source/commitment
+          PREPARED_ROOT: ${{ runner.temp }}/g4-hosted-recovery-source/prepared
+          PREPARED_ARTIFACT_PRESENT: ${{ steps.source.outputs.prepare_artifact_present }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.source_commit }}
+          SOURCE_RUN_ID: ${{ matrix.sourceRunId }}
+          SOURCE_RUN_ATTEMPT: ${{ steps.source.outputs.source_run_attempt }}
+          PLAN_ARTIFACT_NAME: ${{ steps.source.outputs.plan_artifact_name }}
+          PLAN_ARTIFACT_DIGEST: ${{ steps.source.outputs.plan_artifact_digest }}
+          PLAN_RUN_ATTEMPT: ${{ steps.source.outputs.plan_run_attempt }}
+          EVALUATION_NAMESPACE: ${{ steps.source.outputs.namespace }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import path from 'node:path'
+          import {
+            decodeAgentEvaluationFrozenConfigCommitment,
+            isProductionAgentEvaluationHostedRetrievalRuntimeResourcePreparedArtifact,
+          } from './apps/agent-evaluation-runner/dist/index.js'
+          const exactFiles = (rootSource, expected) => {
+            const root = fs.realpathSync(rootSource)
+            const names = fs.readdirSync(root).sort()
+            if (JSON.stringify(names) !== JSON.stringify([...expected].sort())) {
+              throw new Error('A recovery source artifact has a missing or unexpected file')
+            }
+            for (const name of names) {
+              const target = path.join(root, name)
+              const stat = fs.lstatSync(target)
+              if (!stat.isFile() || stat.isSymbolicLink() || fs.realpathSync(target) !== target || stat.size < 2 || stat.size > 16_777_216) {
+                throw new Error('A recovery source artifact file is not bounded and concrete')
+              }
+            }
+          }
+          exactFiles(process.env.PLAN_ROOT, ['plan.json', 'production-run-config.json', 'shards.json'])
+          exactFiles(process.env.COMMITMENT_ROOT, ['frozen-config-commitment.json'])
+          const commitment = decodeAgentEvaluationFrozenConfigCommitment(
+            JSON.parse(fs.readFileSync(path.join(process.env.COMMITMENT_ROOT, 'frozen-config-commitment.json'), 'utf8')),
+          )
+          if (process.env.PREPARED_ARTIFACT_PRESENT === 'true') {
+            exactFiles(process.env.PREPARED_ROOT, ['hosted-runtime-resource-prepared.json'])
+            const prepared = JSON.parse(
+              fs.readFileSync(path.join(process.env.PREPARED_ROOT, 'hosted-runtime-resource-prepared.json'), 'utf8'),
+            )
+            if (
+              !isProductionAgentEvaluationHostedRetrievalRuntimeResourcePreparedArtifact(prepared) ||
+              prepared.namespaceId !== process.env.EVALUATION_NAMESPACE ||
+              prepared.repositoryCommit !== process.env.SOURCE_COMMIT ||
+              prepared.planDigest !== commitment.planDigest ||
+              prepared.frozenRunDigest !== commitment.frozenRunDigest ||
+              prepared.runConfigArtifactBindingDigest !== commitment.runConfigArtifactBinding.bindingDigest ||
+              prepared.lifecycleOwnerInstanceId !== `g4.hosted-lifecycle.${process.env.SOURCE_RUN_ID}.${process.env.SOURCE_RUN_ATTEMPT}`
+            ) {
+              throw new Error('The optional prepared-set artifact does not join the signed recovery authority')
+            }
+          } else if (process.env.PREPARED_ARTIFACT_PRESENT !== 'false') {
+            throw new Error('The optional prepared-set artifact presence authority is invalid')
+          }
+          NODE
+          {
+            echo "PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_PATH=${PLAN_ROOT}/production-run-config.json"
+            echo "PRODIVIX_G4_MODEL_EVAL_FROZEN_CONFIG_COMMITMENT_PATH=${COMMITMENT_ROOT}/frozen-config-commitment.json"
+            echo "PRODIVIX_G4_MODEL_EVAL_NAMESPACE=${EVALUATION_NAMESPACE}"
+            echo "PRODIVIX_G4_MODEL_EVAL_REPOSITORY_COMMIT=${SOURCE_COMMIT}"
+            echo "PRODIVIX_G4_MODEL_EVAL_REPOSITORY_ROOT=${GITHUB_WORKSPACE}"
+            echo "PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_NAME=${PLAN_ARTIFACT_NAME}"
+            echo "PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_DIGEST=${PLAN_ARTIFACT_DIGEST}"
+            echo "PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_RUN_ID=${SOURCE_RUN_ID}"
+            echo "PRODIVIX_G4_MODEL_EVAL_RUN_CONFIG_ARTIFACT_RUN_ATTEMPT=${PLAN_RUN_ATTEMPT}"
+            echo 'PRODIVIX_G4_MODEL_EVAL_WORKFLOW_NAME=g4-real-model-evaluation'
+            echo "PRODIVIX_G4_MODEL_EVAL_WORKFLOW_RUN_ID=${SOURCE_RUN_ID}"
+            echo "PRODIVIX_G4_MODEL_EVAL_WORKFLOW_RUN_ATTEMPT=${SOURCE_RUN_ATTEMPT}"
+            echo 'PRODIVIX_G4_MODEL_EVAL_JOB_ID=full_shards'
+            echo 'PRODIVIX_G4_MODEL_EVAL_WORKFLOW_JOB_ID=full_shards'
+            echo "PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_OWNER_INSTANCE_ID=g4.hosted-lifecycle.${SOURCE_RUN_ID}.${SOURCE_RUN_ATTEMPT}"
+          } >> "${GITHUB_ENV}"
+      - name: Build exact Backend evaluation ledger
+        shell: bash
+        env:
+          GOPROXY: 'off'
+          LEDGER_BINARY: ${{ runner.temp }}/g4-agent-evaluation-ledger-hosted-recovery-${{ matrix.sourceRunId }}-${{ steps.source.outputs.source_run_attempt }}
+        run: |
+          set -euo pipefail
+          test ! -e "${LEDGER_BINARY}"
+          (
+            cd apps/backend
+            go build -trimpath -o "${LEDGER_BINARY}" ./cmd/agent-evaluation-ledger
+          )
+          test -f "${LEDGER_BINARY}"
+          test ! -L "${LEDGER_BINARY}"
+          test -x "${LEDGER_BINARY}"
+      - name: Register recovery secret masks and verify physical key isolation
+        shell: bash
+        env:
+          PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_RESULT_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_RESULT_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_CAPABILITY_PROBE_RESPONSE_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_CAPABILITY_PROBE_RESPONSE_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_CAPABILITY_EFFECT_PROVIDER_JOURNAL_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_CAPABILITY_EFFECT_PROVIDER_JOURNAL_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_NATIVE_PROVIDER_STATE_VAULT_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_NATIVE_PROVIDER_STATE_VAULT_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_OPENAI_API_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_OPENAI_API_KEY }}
+          PRODIVIX_G4_MODEL_EVAL_GEMINI_API_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_GEMINI_API_KEY }}
+          PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_DATABASE_URL: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_DATABASE_URL }}
+          PRODIVIX_G4_MODEL_EVAL_SECRET_CANARIES: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_SECRET_CANARIES }}
+          PRODIVIX_G4_MODEL_EVAL_PROTECTED_HOLDOUT_CANARIES: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_PROTECTED_HOLDOUT_CANARIES }}
+        run: pnpm exec tsx scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.mjs mask
+      - name: Start Backend-owned recovery ledger
+        shell: bash
+        env:
+          PRODIVIX_G4_MODEL_EVAL_DATABASE_URL: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_DATABASE_URL }}
+          PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_LEDGER_LISTEN_ADDRESS: 127.0.0.1:8790
+          LEDGER_BINARY: ${{ runner.temp }}/g4-agent-evaluation-ledger-hosted-recovery-${{ matrix.sourceRunId }}-${{ steps.source.outputs.source_run_attempt }}
+          LEDGER_LOG: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/ledger.log
+          LEDGER_PID_FILE: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/ledger.pid
+        run: |
+          set -euo pipefail
+          if curl --fail --silent --max-time 1 "${PRODIVIX_G4_MODEL_EVAL_SERVICE_BASE_URL}/healthz" >/dev/null 2>&1; then
+            echo '::error::A pre-existing evaluation ledger health endpoint is reachable.'
+            exit 1
+          fi
+          if ! node -e "const server=require('node:net').createServer();server.once('error',()=>process.exit(1));server.listen({host:'127.0.0.1',port:8790,exclusive:true},()=>server.close((error)=>process.exit(error?1:0)))"; then
+            echo '::error::Evaluation ledger loopback port 8790 is already occupied.'
+            exit 1
+          fi
+          mkdir -p "$(dirname "${LEDGER_LOG}")"
+          "${LEDGER_BINARY}" > "${LEDGER_LOG}" 2>&1 &
+          ledger_pid=$!
+          (set -o noclobber; printf '%s\n' "${ledger_pid}" > "${LEDGER_PID_FILE}")
+          chmod 0600 "${LEDGER_PID_FILE}"
+          for _ in $(seq 1 60); do
+            kill -0 "${ledger_pid}" 2>/dev/null || { echo '::error::Evaluation ledger exited before readiness.'; exit 1; }
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "${PRODIVIX_G4_MODEL_EVAL_SERVICE_BASE_URL}/healthz" || true)"
+            if [[ "${status}" = '204' ]]; then exit 0; fi
+            sleep 1
+          done
+          echo '::error::Evaluation ledger did not become healthy.'
+          exit 1
+      - name: Start independent recovery-only Hosted lifecycle listener
+        shell: bash
+        env:
+          PRODIVIX_G4_MODEL_EVAL_OPENAI_API_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_OPENAI_API_KEY }}
+          PRODIVIX_G4_MODEL_EVAL_GEMINI_API_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_GEMINI_API_KEY }}
+          PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_STATE_DIRECTORY: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/state
+          LIFECYCLE_LOG: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/listener.log
+          LIFECYCLE_PID_FILE: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/listener.pid
+        run: |
+          set -euo pipefail
+          if ! node -e "const server=require('node:net').createServer();server.once('error',()=>process.exit(1));server.listen({host:'127.0.0.1',port:8791,exclusive:true},()=>server.close((error)=>process.exit(error?1:0)))"; then
+            echo '::error::Hosted lifecycle listener loopback port 8791 is already occupied.'
+            exit 1
+          fi
+          mkdir -p "${PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_STATE_DIRECTORY}"
+          node apps/agent-evaluation-runner/dist/productionHostedRetrievalRuntimeResourceLifecycleSidecarMain.js > "${LIFECYCLE_LOG}" 2>&1 &
+          lifecycle_pid=$!
+          (set -o noclobber; printf '%s\n' "${lifecycle_pid}" > "${LIFECYCLE_PID_FILE}")
+          chmod 0600 "${LIFECYCLE_PID_FILE}"
+          if ! lifecycle_health_digest="$(pnpm exec tsx scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.mjs ready 60000)"; then
+            kill -0 "${lifecycle_pid}" 2>/dev/null || echo '::error::Hosted lifecycle listener exited before readiness.'
+            echo '::error::Hosted lifecycle listener did not return authenticated canonical readiness.'
+            exit 1
+          fi
+          kill -0 "${lifecycle_pid}" 2>/dev/null || { echo '::error::Hosted lifecycle listener exited after readiness.'; exit 1; }
+          echo "- Hosted lifecycle recovery-only health: \`${lifecycle_health_digest}\`" >> "${GITHUB_STEP_SUMMARY}"
+      - name: Reconcile delete settle and prove zero terminus
+        shell: bash
+        env:
+          PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_STATE_DIRECTORY: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/state
+          RECOVERY_OUTPUT_PATH: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/hosted-runtime-resource-recovery.json
+        run: |
+          set -euo pipefail
+          pnpm exec tsx scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.mjs recovery --output "${RECOVERY_OUTPUT_PATH}"
+      - name: Stop PID-bound recovery authorities
+        if: always()
+        shell: bash
+        env:
+          LEDGER_BINARY: ${{ runner.temp }}/g4-agent-evaluation-ledger-hosted-recovery-${{ matrix.sourceRunId }}-${{ steps.source.outputs.source_run_attempt }}
+          LEDGER_PID_FILE: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/ledger.pid
+          LIFECYCLE_PID_FILE: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/listener.pid
+        run: |
+          set -euo pipefail
+          stop_process() {
+            local pid_file="$1" expected="$2"
+            [[ -f "${pid_file}" ]] || return 0
+            local pid
+            pid="$(cat "${pid_file}")"
+            [[ "${pid}" =~ ^[1-9][0-9]*$ ]]
+            if kill -0 "${pid}" 2>/dev/null; then
+              tr '\0' ' ' < "/proc/${pid}/cmdline" | grep -F -- "${expected}" >/dev/null
+              kill -TERM "${pid}"
+              for _ in $(seq 1 60); do kill -0 "${pid}" 2>/dev/null || break; sleep 1; done
+              if kill -0 "${pid}" 2>/dev/null; then kill -KILL "${pid}"; fi
+              for _ in $(seq 1 10); do kill -0 "${pid}" 2>/dev/null || break; sleep 1; done
+              if kill -0 "${pid}" 2>/dev/null; then
+                echo '::error::A recovery authority remained alive after bounded shutdown.'
+                return 1
+              fi
+            fi
+            rm -f -- "${pid_file}"
+          }
+          stop_process "${LIFECYCLE_PID_FILE}" 'productionHostedRetrievalRuntimeResourceLifecycleSidecarMain.js'
+          stop_process "${LEDGER_PID_FILE}" "${LEDGER_BINARY}"
+      - name: Scan recovery artifacts for secrets and canaries
+        if: always()
+        shell: bash
+        env:
+          PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_RESULT_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_RESULT_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_CAPABILITY_PROBE_RESPONSE_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_CAPABILITY_PROBE_RESPONSE_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_CAPABILITY_EFFECT_PROVIDER_JOURNAL_SPOOL_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_CAPABILITY_EFFECT_PROVIDER_JOURNAL_SPOOL_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_NATIVE_PROVIDER_STATE_VAULT_KEY_BASE64: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_NATIVE_PROVIDER_STATE_VAULT_KEY_BASE64 }}
+          PRODIVIX_G4_MODEL_EVAL_OPENAI_API_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_OPENAI_API_KEY }}
+          PRODIVIX_G4_MODEL_EVAL_GEMINI_API_KEY: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_GEMINI_API_KEY }}
+          PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_OWNER_AUTHORITY_SERVICE_TOKEN }}
+          PRODIVIX_G4_MODEL_EVAL_DATABASE_URL: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_DATABASE_URL }}
+          PRODIVIX_G4_MODEL_EVAL_SECRET_CANARIES: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_SECRET_CANARIES }}
+          PRODIVIX_G4_MODEL_EVAL_PROTECTED_HOLDOUT_CANARIES: ${{ secrets.PRODIVIX_G4_MODEL_EVAL_PROTECTED_HOLDOUT_CANARIES }}
+          SCAN_ROOT: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${SCAN_ROOT}"
+          pnpm exec tsx scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.mjs scan "${SCAN_ROOT}"
+      - name: Upload bounded recovery evidence
+        if: always()
+        uses: actions/upload-artifact@330a01c4904f88e0873c5ce6a9cfe768ee69e85a # v7
+        with:
+          name: g4-hosted-runtime-resource-recovery-${{ matrix.sourceRunId }}-${{ steps.source.outputs.source_run_attempt }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/g4-hosted-recovery-output-${{ matrix.sourceRunId }}/hosted-runtime-resource-recovery.json
+          if-no-files-found: error
+          retention-days: 14

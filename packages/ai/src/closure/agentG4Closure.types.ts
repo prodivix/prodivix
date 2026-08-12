@@ -3,6 +3,7 @@ import type {
   CanonicalDigest,
   Instant,
 } from '../domain/agent.types';
+import type { AgentEvaluationProductionRunConfigArtifactBinding } from '../evaluation/agentEvaluationFrozenConfigCommitment';
 
 export const AGENT_G4_REQUIRED_DETERMINISTIC_GATE_IDS = Object.freeze([
   'verify:g4:boundaries',
@@ -168,6 +169,52 @@ export type AgentG4SatisfiedModelEvaluationSummary = Readonly<{
   planDigest: CanonicalDigest;
   manifestRef: string;
   manifestDigest: CanonicalDigest;
+  bundleDigest: CanonicalDigest;
+  evidenceSetDigest: CanonicalDigest;
+  runConfigArtifactBinding: AgentEvaluationProductionRunConfigArtifactBinding;
+  sourceConfigDigest: CanonicalDigest;
+  frozenRunDigest: CanonicalDigest;
+  capabilityProbeAdmissionSetDigest: CanonicalDigest;
+  capabilityProbeReferenceReceiptSetDigest: CanonicalDigest;
+  runtimeFactSourceOwnerRegistrationSetDigest: CanonicalDigest;
+  optionalCapabilityFactSourceSetDigest: CanonicalDigest;
+  optionalCapabilityFactAuthoritySetDigest: CanonicalDigest;
+  endpointSmokeDispatchIntentSetDigest: CanonicalDigest;
+  endpointSmokeTransportReceiptSetDigest: CanonicalDigest;
+  endpointSmokeResultSpoolReceiptSetDigest: CanonicalDigest;
+  endpointSmokeResultSpoolDispositionReceiptSetDigest: CanonicalDigest;
+  endpointSmokeValidationFailureReceiptSetDigest: CanonicalDigest;
+  endpointSmokeSetDigest: CanonicalDigest;
+  preDispatchFailureReceiptSetDigest: CanonicalDigest;
+  transportDispatchIntentSetDigest: CanonicalDigest;
+  transportReceiptSetDigest: CanonicalDigest;
+  providerResultSpoolReceiptSetDigest: CanonicalDigest;
+  providerResultSpoolDispositionReceiptSetDigest: CanonicalDigest;
+  invocationTurnReceiptSetDigest: CanonicalDigest;
+  invocationTurnSetReceiptSetDigest: CanonicalDigest;
+  resultSubmissionReceiptSetDigest: CanonicalDigest;
+  controlledRuntimeReceiptSetDigest: CanonicalDigest;
+  capabilityExecutionReceiptSetDigest: CanonicalDigest;
+  verificationAttemptGrantReceiptSetDigest: CanonicalDigest;
+  validatedHumanReviewArtifactSetDigest: CanonicalDigest;
+  validatedHumanMetricObservationSetDigest: CanonicalDigest;
+  reviewLeaseDigest: CanonicalDigest;
+  reviewRasterScanReceiptSetDigest: CanonicalDigest;
+  reviewCandidateRefSetDigest: CanonicalDigest;
+  blindReviewMappingSetDigest: CanonicalDigest;
+  sourceReceiptSetDigest: CanonicalDigest;
+  executionReceiptSetDigest: CanonicalDigest;
+  authorityAttestationDigest: CanonicalDigest;
+  archiveAttestationDigest: CanonicalDigest;
+  evidenceRootDigest: CanonicalDigest;
+  evidenceRootArtifactDigest: CanonicalDigest;
+  evidenceRootArtifactSize: number;
+  evidenceIndexDigest: CanonicalDigest;
+  evidenceIndexArtifactDigest: CanonicalDigest;
+  evidenceIndexArtifactSize: number;
+  shardSetDigest: CanonicalDigest;
+  totalShardBytes: number;
+  totalRecordCount: number;
   requiredAttemptCount: 11_640;
   actualAttemptCount: number;
   requiredProtocolFamilies: typeof AGENT_G4_REQUIRED_NATIVE_PROTOCOL_FAMILIES;
@@ -177,6 +224,9 @@ export type AgentG4SatisfiedModelEvaluationSummary = Readonly<{
   modelFamilyOwnerIds: readonly string[];
   qualificationTargetDigests: readonly CanonicalDigest[];
   holdoutReceiptDigest: CanonicalDigest;
+  holdoutExecutionReceiptDigest: CanonicalDigest;
+  secretCanarySetDigest: CanonicalDigest;
+  protectedHoldoutCanarySetDigest: CanonicalDigest;
   metricReportDigest: CanonicalDigest;
   graderReportDigest: CanonicalDigest;
   humanReviewReportDigest: CanonicalDigest;

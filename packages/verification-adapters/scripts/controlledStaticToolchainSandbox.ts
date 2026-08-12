@@ -14,7 +14,7 @@ import { runControlledStaticToolchainWindowsSandbox } from './controlledStaticTo
 
 const REQUEST_FORMAT = 'prodivix.controlled-static-rootless-sandbox-request.v1';
 const MAXIMUM_RESULT_BYTES = 384 * 1024 * 1024;
-const SANDBOX_TIMEOUT_MS = 180_000;
+const SANDBOX_TIMEOUT_MS = 170_000;
 
 type SandboxRuntimeFile = Readonly<{
   path: string;

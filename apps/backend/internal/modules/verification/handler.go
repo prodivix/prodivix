@@ -18,11 +18,23 @@ import (
 const verificationIntentHeader = "X-Prodivix-Verification-Intent"
 
 type Handler struct {
-	service *Service
+	service                   *Service
+	agentEvaluationOwner      agentEvaluationOwnerService
+	agentEvaluationOwnerToken string
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(
+	service *Service,
+	authorityConfigs ...AgentEvaluationOwnerAuthorityConfig,
+) *Handler {
+	handler := &Handler{service: service}
+	if service != nil {
+		handler.agentEvaluationOwner = canonicalAgentEvaluationOwnerService{service: service}
+	}
+	if len(authorityConfigs) > 0 {
+		handler.agentEvaluationOwnerToken = authorityConfigs[0].Token
+	}
+	return handler
 }
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
@@ -35,7 +47,13 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		GetArtifact: handler.HandleGetArtifact, CompareEvidence: handler.HandleCompareEvidence,
 		SupersedeEvidence: handler.HandleSupersedeEvidence, MutateRetention: handler.HandleMutateRetention,
 		DeleteEvidence: handler.HandleDeleteEvidence, CreateRevocation: handler.HandleCreateRevocation,
-		GetClosure: handler.HandleGetClosure,
+		GetClosure:                               handler.HandleGetClosure,
+		AgentEvaluationOwnerHealth:               handler.HandleAgentEvaluationOwnerHealth,
+		AgentEvaluationOwnerCreatePromotion:      handler.HandleAgentEvaluationOwnerCreatePromotion,
+		AgentEvaluationOwnerUploadArtifact:       handler.HandleAgentEvaluationOwnerUploadArtifact,
+		AgentEvaluationOwnerPreparePromotion:     handler.HandleAgentEvaluationOwnerPreparePromotion,
+		AgentEvaluationOwnerFinalCommitPromotion: handler.HandleAgentEvaluationOwnerFinalCommitPromotion,
+		AgentEvaluationOwnerResolveVerifiedView:  handler.HandleAgentEvaluationOwnerResolveVerifiedView,
 	}
 }
 

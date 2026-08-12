@@ -47,6 +47,25 @@ describe('G4 V8 evaluation wire codec', () => {
       })
     ).toMatchObject({ ok: false });
 
+    const encodedPlan = encodeAgentEvaluationFact({
+      factType: 'evaluation-plan',
+      value: plan,
+    });
+    const [firstCase, ...remainingCases] = plan.concreteCases;
+    const {
+      capabilityDescriptor: _capabilityDescriptor,
+      ...caseWithoutCapabilityCommitment
+    } = firstCase!;
+    expect(
+      decodeAgentEvaluationFact({
+        ...encodedPlan,
+        value: {
+          ...plan,
+          concreteCases: [caseWithoutCapabilityCommitment, ...remainingCases],
+        },
+      })
+    ).toMatchObject({ ok: false });
+
     const attempt = createV8CodecAttemptFixture(plan);
     const wire = encodeAgentEvaluationFact({
       factType: 'evaluation-attempt',
@@ -63,6 +82,20 @@ describe('G4 V8 evaluation wire codec', () => {
         value: {
           ...poisonedBase,
           attemptDigest: digestAgentCanonicalValue(poisonedBase),
+        },
+      })
+    ).toMatchObject({ ok: false });
+
+    const {
+      capabilityDescriptorDigest: _descriptorCapabilityDigest,
+      ...descriptorWithoutCapabilityCommitment
+    } = attempt.descriptor;
+    expect(
+      decodeAgentEvaluationFact({
+        ...wire,
+        value: {
+          ...attempt,
+          descriptor: descriptorWithoutCapabilityCommitment,
         },
       })
     ).toMatchObject({ ok: false });

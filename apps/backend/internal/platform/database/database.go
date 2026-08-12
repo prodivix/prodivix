@@ -14,6 +14,7 @@ type migration struct {
 	version    int64
 	name       string
 	statements []string
+	preflight  func(context.Context, *sql.Tx) error
 	run        func(context.Context, *sql.Tx) error
 }
 
@@ -624,7 +625,17 @@ func migrationSet() []migration {
 		verificationRunMigration(), agentPolicyWorkspaceDocumentMigration(),
 		agentControlPlaneMigration(), agentProposalApprovalMigration(),
 		agentVerificationRepairMigration(), agentProductMigration(),
-		agentModelEvaluationMigration(), agentVerificationRunSetMigration()}
+		agentModelEvaluationMigration(), agentVerificationRunSetMigration(),
+		agentModelEvaluationAuthenticityMigration(), agentEvaluationRuntimeEvidenceMigration(),
+		agentEvaluationBlindReviewMigration(), agentEvaluationTurnJournalMigration(),
+		agentEvaluationAuthenticityV3MigrationWithPreflight(), agentEvaluationValidatedHumanReviewMigration(),
+		agentEvaluationVerificationAttemptGrantReceiptMigration(),
+		agentEvaluationVerificationGrantAuthenticityMigration(),
+		agentEvaluationBoundedExportMigration(), agentEvaluationReviewPhaseMigration(),
+		agentEvaluationReviewLeaseMigration(), agentEvaluationEndpointSmokeMigration(),
+		agentEvaluationControlledAuthorityMigration(), agentEvaluationFinalizationMigration(),
+		agentEvaluationArchiveClosureMigration(), agentEvaluationFinalizationAuthorityMigration(),
+		agentEvaluationAttemptAuthorityMigration(), agentEvaluationHostedV6Migration()}
 }
 
 const migrationAdvisoryLockKey = int64(0x50726f6469766978)
@@ -687,6 +698,11 @@ func applyMigration(ctx context.Context, conn *sql.Conn, migration migration, mi
 	}
 	if applied {
 		return nil
+	}
+	if migration.preflight != nil {
+		if err := migration.preflight(migrationCtx, tx); err != nil {
+			return fmt.Errorf("preflight migration version %d: %w", migration.version, err)
+		}
 	}
 	for _, statement := range migration.statements {
 		if _, err := tx.ExecContext(migrationCtx, statement); err != nil {

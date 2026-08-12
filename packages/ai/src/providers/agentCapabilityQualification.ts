@@ -258,6 +258,9 @@ export const runAgentCapabilityProbe = async (
     declaredCapabilityDigest,
     expiresAt: input.expiresAt,
     modelLineageDigest: input.model.lineageDigest,
+    ...(status === 'supported'
+      ? { observedProfileDigest: input.profile.profileDigest }
+      : {}),
     probeId: input.probeId,
     probedAt: input.probedAt,
     probedCapabilityDigest,
@@ -323,6 +326,11 @@ export const qualifyAgentProviderCapability = (
     ...validateLocalLineage(input.provider, input.model),
   ];
   const { receiptDigest: _probeReceiptDigest, ...probeBase } = input.probe;
+  const expectedProbedCapabilityDigest = digestAgentCanonicalValue({
+    observedLimitDigest: input.probe.observedLimitDigest,
+    observedProfileDigest: input.probe.observedProfileDigest ?? null,
+    status: input.probe.status,
+  });
   if (
     digestAgentCanonicalValue(probeBase) !== input.probe.receiptDigest ||
     !input.probe.probeId.trim() ||
@@ -331,6 +339,10 @@ export const qualifyAgentProviderCapability = (
     !isAgentCanonicalDigest(input.probe.requestedProfileDigest) ||
     !isAgentCanonicalDigest(input.probe.declaredCapabilityDigest) ||
     !isAgentCanonicalDigest(input.probe.probedCapabilityDigest) ||
+    input.probe.probedCapabilityDigest !== expectedProbedCapabilityDigest ||
+    (input.probe.status === 'supported'
+      ? input.probe.observedProfileDigest !== input.probe.requestedProfileDigest
+      : input.probe.observedProfileDigest !== undefined) ||
     !isAgentCanonicalDigest(input.probe.observedLimitDigest) ||
     !validInstant(input.probe.probedAt) ||
     !validInstant(input.probe.expiresAt) ||

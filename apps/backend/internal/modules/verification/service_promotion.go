@@ -22,6 +22,19 @@ func (service *Service) CreatePromotion(
 	if err := service.requirePermission(ctx, principalID, workspaceID, "workspace.write"); err != nil {
 		return CreatePromotionResult{}, err
 	}
+	return service.createPromotion(ctx, principalID, workspaceID, idempotencyKey, candidate)
+}
+
+// createPromotion is the canonical promotion implementation shared by the
+// authenticated user surface and the purpose-bound agent-evaluation owner.
+// Callers must establish their authority before entering this method.
+func (service *Service) createPromotion(
+	ctx context.Context,
+	principalID string,
+	workspaceID string,
+	idempotencyKey string,
+	candidate EvidenceCandidate,
+) (CreatePromotionResult, error) {
 	if idempotencyKey != candidate.Promotion.IdempotencyKey {
 		return CreatePromotionResult{}, coded("VER-4002", "Idempotency header does not match the candidate.", ErrInvalid)
 	}
@@ -171,6 +184,22 @@ func (service *Service) UploadArtifact(
 	if err := service.requirePermission(ctx, principalID, workspaceID, "workspace.write"); err != nil {
 		return ArtifactDescriptor{}, err
 	}
+	return service.uploadArtifact(
+		ctx, workspaceID, promotionID, artifactID, capability, mediaType, body,
+	)
+}
+
+// uploadArtifact is entered only after a user permission check or a successful
+// purpose-bound service credential check.
+func (service *Service) uploadArtifact(
+	ctx context.Context,
+	workspaceID string,
+	promotionID string,
+	artifactID string,
+	capability string,
+	mediaType string,
+	body io.Reader,
+) (ArtifactDescriptor, error) {
 	promotion, err := service.authorizePromotion(ctx, workspaceID, promotionID, capability)
 	if err != nil {
 		return ArtifactDescriptor{}, err

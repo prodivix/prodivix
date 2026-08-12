@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.test.tsbuildinfo",
+    "paths": {
+      "@prodivix/ai": ["../../packages/ai/dist/index.d.ts"],
+      "@prodivix/shared/canonical": [
+        "../../packages/shared/dist/canonical/index.d.ts"
+      ],
+      "@prodivix/shared/safety": [
+        "../../packages/shared/dist/safety/index.d.ts"
+      ]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    {
+      "path": "../../packages/ai"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
+}

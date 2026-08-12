@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createV8EvaluationPlan } from '../__tests__/agentV8Fixtures';
+import { digestAgentCanonicalValue } from '../domain/agentCanonical';
 import { G4_V8_MINIMUM_EVALUATION_CORPUS } from './agentEvaluationCorpus';
 import {
+  createAgentModelEvaluationCase,
   minimumAgentEvaluationJourneyFloor,
   planAgentModelEvaluationAttempts,
+  resolveAgentEvaluationCapabilityDescriptor,
+  resolveAgentModelEvaluationCaseExecutionRequirement,
   validateAgentModelEvaluationPlan,
 } from './agentEvaluationPlan';
+import { isAgentModelEvaluationAttemptDescriptor } from './agentEvaluationResults';
 
 describe('G4 V8 frozen real-model evaluation plan', () => {
   it('freezes the normative corpus, diversity, sentinels, and repetition floor', () => {
@@ -16,7 +21,23 @@ describe('G4 V8 frozen real-model evaluation plan', () => {
     ).toBe(52);
     expect(plan.contextSentinelCaseIds).toHaveLength(24);
     expect(plan.mediaSentinelCaseIds).toHaveLength(16);
-    expect(plan.capabilityQualificationTargets).toHaveLength(9);
+    expect(plan.capabilityQualificationTargets).toHaveLength(27);
+    expect(plan.endpointSmokeTargets).toHaveLength(5);
+    expect(
+      plan.endpointSmokeTargets.map(({ smokeTargetId }) => smokeTargetId)
+    ).toEqual([
+      'smoke.release.anthropic-messages.native',
+      'smoke.release.gemini-interactions.native',
+      'smoke.release.openai-compatible.hosted',
+      'smoke.release.openai-compatible.local',
+      'smoke.release.openai-responses.native',
+    ]);
+    expect(
+      plan.endpointSmokeTargets.filter(
+        ({ protocolFamily }) => protocolFamily !== 'openai-compatible'
+      )
+    ).toHaveLength(3);
+    expect(plan.plannedJourneyCount).toBe(14_040);
     expect(plan.plannedJourneyCount).toBeGreaterThanOrEqual(
       minimumAgentEvaluationJourneyFloor
     );
@@ -32,7 +53,62 @@ describe('G4 V8 frozen real-model evaluation plan', () => {
         descriptors.map(({ samplingIdentityDigest }) => samplingIdentityDigest)
       ).size
     ).toBe(descriptors.length);
+    const casesById = new Map(
+      plan.concreteCases.map((evaluationCase) => [
+        evaluationCase.caseId,
+        evaluationCase,
+      ])
+    );
+    const targetsById = new Map(
+      plan.capabilityQualificationTargets.map((target) => [
+        target.targetId,
+        target,
+      ])
+    );
+    expect(
+      descriptors.every((descriptor) => {
+        const evaluationCase = casesById.get(descriptor.caseId);
+        const target = targetsById.get(descriptor.targetId);
+        return (
+          evaluationCase !== undefined &&
+          target !== undefined &&
+          descriptor.capabilityDescriptorDigest ===
+            resolveAgentEvaluationCapabilityDescriptor(evaluationCase, target)
+              .descriptorDigest
+        );
+      })
+    ).toBe(true);
   }, 30_000);
+
+  it('keeps optional support and execution admission independent from case tags', () => {
+    const plan = createV8EvaluationPlan();
+    const evaluationCase = plan.concreteCases.find(
+      ({ capabilityProfileId }) =>
+        capabilityProfileId === 'g4-provider-background-job'
+    )!;
+    const target = plan.capabilityQualificationTargets.find(
+      ({ capabilityProfileId }) =>
+        capabilityProfileId === evaluationCase.capabilityProfileId
+    )!;
+    const tagsSwapped = Object.freeze({
+      ...evaluationCase,
+      tags: Object.freeze(['closure', 'repair', 'transaction']),
+    });
+
+    expect(
+      resolveAgentEvaluationCapabilityDescriptor(tagsSwapped, target)
+    ).toEqual(
+      resolveAgentEvaluationCapabilityDescriptor(evaluationCase, target)
+    );
+    expect(
+      resolveAgentModelEvaluationCaseExecutionRequirement(tagsSwapped, target)
+    ).toEqual(
+      resolveAgentModelEvaluationCaseExecutionRequirement(
+        evaluationCase,
+        target
+      )
+    );
+  });
 
   it('keeps protected bodies out of the public fixture artifact', () => {
     const holdoutIds = G4_V8_MINIMUM_EVALUATION_CORPUS.cases
@@ -78,4 +154,35 @@ describe('G4 V8 frozen real-model evaluation plan', () => {
       validateAgentModelEvaluationPlan(holdoutDrift).length
     ).toBeGreaterThan(0);
   }, 30_000);
+
+  it('rejects capability descriptor drift in a planned attempt descriptor', () => {
+    const plan = createV8EvaluationPlan();
+    const descriptor = planAgentModelEvaluationAttempts(plan)[0]!;
+    const { descriptorDigest: _descriptorDigest, ...base } = descriptor;
+    const driftedBase = {
+      ...base,
+      capabilityDescriptorDigest: digestAgentCanonicalValue(
+        'drifted-capability-descriptor'
+      ),
+    };
+    expect(
+      isAgentModelEvaluationAttemptDescriptor({
+        ...driftedBase,
+        descriptorDigest: digestAgentCanonicalValue(driftedBase),
+      })
+    ).toBe(false);
+
+    const evaluationCase = plan.concreteCases.find(
+      ({ caseId }) => caseId === descriptor.caseId
+    )!;
+    const { caseDigest: _caseDigest, ...caseInput } = evaluationCase;
+    expect(() =>
+      createAgentModelEvaluationCase({
+        ...caseInput,
+        capabilityDescriptorDigest: digestAgentCanonicalValue(
+          'drifted-case-capability-descriptor'
+        ),
+      })
+    ).toThrow(/capability descriptor is invalid/u);
+  });
 });

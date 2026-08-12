@@ -111,6 +111,55 @@ export {
   createBrowserSandboxObservationDigest,
   type BrowserSandboxObservation,
 } from './browserSecurityObservation';
+export { createProductionChromiumBrowserAuthority } from './productionChromiumBrowserAuthority';
+export {
+  createProductionBrowserCanaryScanner,
+  type CreateProductionBrowserCanaryScannerInput,
+} from './productionBrowserCanaryScanner';
+export {
+  PRODUCTION_BROWSER_LOOPBACK_PREVIEW_HOST_AUTHORITY_DIGEST,
+  PRODUCTION_BROWSER_LOOPBACK_PREVIEW_HOST_CLEANUP_TIMEOUT_MS,
+  createProductionBrowserLoopbackPreviewHost,
+  type ProductionBrowserLoopbackPreviewHost,
+  type ProductionBrowserLoopbackPreviewReservationInput,
+} from './productionBrowserLoopbackPreviewHost';
+export {
+  PRODUCTION_BROWSER_CONTROL_HOST_DOCUMENT,
+  PRODUCTION_BROWSER_CONTROL_HOST_PATH,
+  createProductionBrowserBuildBundleDigest,
+  createProductionBrowserCanaryScanReceipt,
+  createProductionBrowserExecutableSnapshotReceipt,
+  createProductionBrowserRemoteExecutionEvidence,
+  assertProductionBrowserExecutableSnapshotReceipt,
+} from './productionChromiumBrowserAuthorityResources';
+export {
+  PRODUCTION_BROWSER_CANARY_SCAN_RECEIPT_FORMAT,
+  PRODUCTION_BROWSER_CANARY_SCAN_RECEIPT_VERSION,
+  PRODUCTION_BROWSER_EXECUTABLE_SNAPSHOT_RECEIPT_FORMAT,
+  PRODUCTION_BROWSER_EXECUTABLE_SNAPSHOT_RECEIPT_VERSION,
+  PRODUCTION_CHROMIUM_BROWSER_RUNTIME_RECEIPT_FORMAT,
+  PRODUCTION_CHROMIUM_BROWSER_RUNTIME_RECEIPT_VERSION,
+  PRODUCTION_CHROMIUM_RUNTIME_AUTHORITY_FORMAT,
+  PRODUCTION_CHROMIUM_RUNTIME_AUTHORITY_VERSION,
+  type ProductionBrowserCanaryScannerPort,
+  type ProductionBrowserCanaryScanReceipt,
+  type ProductionBrowserCanaryScanSourceKind,
+  type ProductionBrowserExecutableSnapshotReceipt,
+  type ProductionBrowserPreviewHostLease,
+  type ProductionBrowserPreviewHostPort,
+  type ProductionBrowserPreviewHostReleaseResult,
+  type ProductionBrowserPreviewResource,
+  type ProductionBrowserRemoteExecutionEvidence,
+  type ProductionBrowserRemoteRuntimeProviderPort,
+  type ProductionChromiumBrowserAuthority,
+  type ProductionChromiumBrowserAuthorityOptions,
+  type ProductionChromiumBrowserAuthoritySnapshot,
+  type ProductionChromiumBrowserRegistration,
+  type ProductionChromiumBrowserRegistrationInput,
+  type ProductionChromiumBrowserRuntimeReceipt,
+  type ProductionChromiumRuntimeAuthority,
+  type ProductionChromiumRuntimeAuthorityInput,
+} from './productionChromiumBrowserAuthority.types';
 export {
   KEYBOARD_KEYS,
   createAccessibilityAnnouncementTextDigest,

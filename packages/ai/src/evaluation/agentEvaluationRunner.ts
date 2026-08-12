@@ -16,10 +16,9 @@ import type {
   AgentModelEvaluationMissingAttemptRef,
   AgentModelEvaluationPlan,
 } from './agentEvaluation.types';
-import type { InMemoryAgentEvaluationRepository } from './agentEvaluationRepository';
+import type { AgentEvaluationRepository } from './agentEvaluationRepository';
 import {
   createAgentEvaluationShardCheckpoint,
-  createAgentModelEvaluationAttempt,
   isAgentModelEvaluationAttempt,
 } from './agentEvaluationResults';
 
@@ -28,7 +27,11 @@ export type AgentEvaluationAttemptExecution = Readonly<{
   demand: AgentBudgetDemand;
 }>;
 
-/** Remote-model execution is injected; the runner never resolves credentials. */
+/**
+ * Remote-model execution is injected; the runner never resolves credentials.
+ * The returned attempt must expose every bounded transport try and charge the
+ * same number of model invocations so an internal retry cannot erase history.
+ */
 export interface AgentModelEvaluationAttemptExecutor {
   estimateShard(
     input: Readonly<{
@@ -64,21 +67,7 @@ export type AgentEvaluationShardRunResult =
       checkpoint?: AgentEvaluationShardCheckpoint;
     }>;
 
-export type AgentModelEvaluationRunnerRepository = Pick<
-  InMemoryAgentEvaluationRepository,
-  | 'getPlan'
-  | 'listDescriptors'
-  | 'claimShard'
-  | 'renewShard'
-  | 'getAttempt'
-  | 'putAttempt'
-  | 'getLatestCheckpoint'
-  | 'putCheckpoint'
-  | 'getBudgetLedger'
-  | 'reserveBudget'
-  | 'settleBudget'
-  | 'reconcileBudget'
->;
+export type AgentModelEvaluationRunnerRepository = AgentEvaluationRepository;
 
 const emptyDemand = (): AgentBudgetDemand =>
   Object.freeze({
@@ -141,7 +130,7 @@ const executionMatchesAttempt = (
         execution.attempt.cost,
         normalizeAgentCosts(execution.demand.cost)
       ) &&
-      execution.demand.modelInvocations >= 1 &&
+      execution.demand.modelInvocations >= 0 &&
       demandCounts.every((count) => Number.isSafeInteger(count) && count >= 0)
     );
   } catch {
@@ -150,13 +139,13 @@ const executionMatchesAttempt = (
 };
 
 export class AgentModelEvaluationShardRunner {
-  readonly #repository: AgentModelEvaluationRunnerRepository;
+  readonly #repository: AgentEvaluationRepository;
   readonly #executor: AgentModelEvaluationAttemptExecutor;
   readonly #now: () => Instant;
 
   constructor(
     input: Readonly<{
-      repository: AgentModelEvaluationRunnerRepository;
+      repository: AgentEvaluationRepository;
       executor: AgentModelEvaluationAttemptExecutor;
       now: () => Instant;
     }>
@@ -204,11 +193,6 @@ export class AgentModelEvaluationShardRunner {
       .filter((attempt): attempt is AgentModelEvaluationAttempt =>
         Boolean(attempt)
       );
-    const existingMissing = existingAttempts
-      .filter(({ status }) => status !== 'completed')
-      .map(({ descriptor, status }) =>
-        missingRef(descriptor, status === 'completed' ? 'missing' : status)
-      );
     const pending = descriptors.filter(
       ({ attemptId }) =>
         !existingAttempts.some(
@@ -249,12 +233,9 @@ export class AgentModelEvaluationShardRunner {
           revision,
           state: 'incomplete',
           descriptors,
-          missing: [
-            ...existingMissing,
-            ...pending.map((entry) =>
-              missingRef(entry, 'infrastructure-error')
-            ),
-          ],
+          missing: pending.map((entry) =>
+            missingRef(entry, 'infrastructure-error')
+          ),
         });
         return Object.freeze({
           ok: false,
@@ -278,10 +259,7 @@ export class AgentModelEvaluationShardRunner {
           revision,
           state: 'incomplete',
           descriptors,
-          missing: [
-            ...existingMissing,
-            ...pending.map((entry) => missingRef(entry, 'missing')),
-          ],
+          missing: pending.map((entry) => missingRef(entry, 'missing')),
         });
         return incomplete
           ? Object.freeze({
@@ -311,7 +289,7 @@ export class AgentModelEvaluationShardRunner {
           revision,
           state: 'incomplete',
           descriptors,
-          missing: [...existingMissing, ...remaining],
+          missing: remaining,
         });
         return checkpoint
           ? Object.freeze({
@@ -345,42 +323,16 @@ export class AgentModelEvaluationShardRunner {
           signal: input.signal,
         });
       } catch {
-        const failed = createAgentModelEvaluationAttempt({
-          descriptor,
-          independentRunId: `evaluation-run:${descriptor.samplingIdentityDigest.slice('sha256-'.length)}`,
-          status: 'infrastructure-error',
-          outcome: 'inconclusive',
-          metricObservations: Object.freeze([]),
-          usage: createAgentUsageVector([
-            Object.freeze({
-              unit: 'text-token-input',
-              confidence: 'unknown',
-            }),
-          ]),
-          cost: Object.freeze([]),
-          startedAt: this.#now(),
-          completedAt: this.#now(),
-        });
-        const stored = this.#repository.putAttempt(failed);
-        if (!stored.ok) {
-          this.#reconcileReservation(
-            plan.planDigest,
-            reservationId,
-            'ack-loss'
-          );
-          return Object.freeze({ ok: false, reason: 'attempt-conflict' });
-        }
         this.#reconcileReservation(
           plan.planDigest,
           reservationId,
           'provider-disconnect'
         );
-        const remaining = [
-          missingRef(descriptor, 'infrastructure-error'),
-          ...pending
-            .slice(executedAttemptCount + 1)
-            .map((entry) => missingRef(entry, 'missing')),
-        ];
+        const remaining = pending
+          .slice(executedAttemptCount)
+          .map((entry, index) =>
+            missingRef(entry, index === 0 ? 'infrastructure-error' : 'missing')
+          );
         checkpoint = this.#checkpoint({
           plan,
           shardId: input.shardId,
@@ -389,7 +341,7 @@ export class AgentModelEvaluationShardRunner {
           revision,
           state: 'incomplete',
           descriptors,
-          missing: [...existingMissing, ...remaining],
+          missing: remaining,
         });
         return Object.freeze({
           ok: false,
@@ -414,7 +366,7 @@ export class AgentModelEvaluationShardRunner {
           revision,
           state: 'incomplete',
           descriptors,
-          missing: [...existingMissing, ...remaining],
+          missing: remaining,
         });
         return Object.freeze({
           ok: false,
@@ -442,7 +394,9 @@ export class AgentModelEvaluationShardRunner {
           revision,
           state: 'running',
           descriptors,
-          missing: existingMissing,
+          missing: pending
+            .slice(executedAttemptCount)
+            .map((entry) => missingRef(entry, 'missing')),
         });
         if (!checkpoint) {
           this.#reconcileReservation(
@@ -478,7 +432,9 @@ export class AgentModelEvaluationShardRunner {
           revision,
           state: 'incomplete',
           descriptors,
-          missing: existingMissing,
+          missing: pending
+            .slice(executedAttemptCount)
+            .map((entry) => missingRef(entry, 'missing')),
         });
         return Object.freeze({
           ok: false,
@@ -493,19 +449,13 @@ export class AgentModelEvaluationShardRunner {
       ownerId: input.ownerId,
       leaseGeneration: lease.value.generation,
       revision,
-      state: existingMissing.length > 0 ? 'incomplete' : 'completed',
+      state: 'completed',
       descriptors,
-      missing: existingMissing,
+      missing: Object.freeze([]),
     });
-    return checkpoint && existingMissing.length === 0
+    return checkpoint
       ? Object.freeze({ ok: true, checkpoint, executedAttemptCount })
-      : checkpoint
-        ? Object.freeze({
-            ok: false,
-            reason: 'executor-failed',
-            checkpoint,
-          })
-        : Object.freeze({ ok: false, reason: 'checkpoint-conflict' });
+      : Object.freeze({ ok: false, reason: 'checkpoint-conflict' });
   }
 
   #checkpoint(
@@ -524,10 +474,7 @@ export class AgentModelEvaluationShardRunner {
       .map(({ attemptId }) =>
         this.#repository.getAttempt(input.plan.planDigest, attemptId)
       )
-      .filter(
-        (entry): entry is AgentModelEvaluationAttempt =>
-          Boolean(entry) && entry?.status === 'completed'
-      );
+      .filter((entry): entry is AgentModelEvaluationAttempt => Boolean(entry));
     const budgetLedger = this.#repository.getBudgetLedger(
       input.plan.planDigest
     );

@@ -11,6 +11,10 @@ import {
   type VerificationPlanCell,
 } from '@prodivix/verification';
 import {
+  EXECUTABLE_PROJECT_SNAPSHOT_ARTIFACT_MEDIA_TYPE,
+  decodeExecutableProjectSnapshotArtifact,
+} from '@prodivix/runtime-core';
+import {
   BROWSER_BASELINE_SET_MEDIA_TYPE,
   BROWSER_SCENARIO_PROGRAM_MEDIA_TYPE,
   BROWSER_VERIFICATION_PROFILE_MEDIA_TYPE,
@@ -247,6 +251,14 @@ export const validateBrowserInputRefs = (
       );
     }
     if (
+      ref.kind === 'executable-snapshot' &&
+      ref.mediaType !== EXECUTABLE_PROJECT_SNAPSHOT_ARTIFACT_MEDIA_TYPE
+    ) {
+      throw browserContractError(
+        'Browser executable snapshot artifact media type is not exact.'
+      );
+    }
+    if (
       ref.kind === 'scenario-program' &&
       ref.mediaType !== BROWSER_SCENARIO_PROGRAM_MEDIA_TYPE
     ) {
@@ -283,10 +295,8 @@ export const validateBrowserInputRefs = (
     );
   }
   if (
-    refs.get('executable-snapshot')?.digest !==
-      context.executableSnapshotDigest ||
-    (context.baselineSetDigest !== undefined &&
-      refs.get('baseline-set')?.digest !== context.baselineSetDigest)
+    context.baselineSetDigest !== undefined &&
+    refs.get('baseline-set')?.digest !== context.baselineSetDigest
   ) {
     throw browserContractError(
       'Browser executable or Baseline Set ref drifted from its domain digest.'
@@ -417,8 +427,34 @@ export const resolveBrowserCellPolicy = async (
   options: FirstPartyBrowserVerificationAdapterOptions
 ): Promise<BrowserVerificationCellPolicy> => {
   const scenarioBytes = bytesByKind.get('scenario-program');
-  if (!scenarioBytes) {
-    throw browserContractError('Browser Scenario Program input is missing.');
+  const executableBytes = bytesByKind.get('executable-snapshot');
+  const executableRef = refs.get('executable-snapshot');
+  if (!scenarioBytes || !executableBytes || !executableRef) {
+    throw browserContractError(
+      'Browser Scenario Program or executable snapshot artifact input is missing.'
+    );
+  }
+  let executableArtifact: ReturnType<
+    typeof decodeExecutableProjectSnapshotArtifact
+  >;
+  try {
+    executableArtifact =
+      decodeExecutableProjectSnapshotArtifact(executableBytes);
+  } catch {
+    throw browserContractError(
+      'Browser executable snapshot artifact codec is invalid.'
+    );
+  }
+  if (
+    executableArtifact.artifactDigest !== executableRef.digest ||
+    executableArtifact.size !== executableRef.size ||
+    executableArtifact.snapshot.contentDigest !==
+      input.context.executableSnapshotDigest ||
+    executableArtifact.mediaType !== executableRef.mediaType
+  ) {
+    throw browserContractError(
+      'Browser executable snapshot artifact or semantic content digest drifted.'
+    );
   }
   const program = decodeBrowserScenarioProgram(scenarioBytes);
   assertBrowserScenarioProgramBinding(program, profile, input.context);

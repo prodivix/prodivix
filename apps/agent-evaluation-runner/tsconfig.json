@@ -1,0 +1,35 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "noEmit": false,
+    "paths": {
+      "@prodivix/ai": ["../../packages/ai/src"],
+      "@prodivix/shared/canonical": [
+        "../../packages/shared/src/canonical/index.ts"
+      ],
+      "@prodivix/shared/safety": ["../../packages/shared/src/safety/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.test.ts",
+    "src/**/*.fixture.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/ai"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
+}

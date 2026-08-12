@@ -16,6 +16,10 @@ export const AGENT_CANONICAL_DIGEST_PATTERN = /^sha256-[a-f0-9]{64}$/u;
 export const digestAgentCanonicalValue = (value: unknown): CanonicalDigest =>
   `sha256-${bytesToHex(sha256(utf8ToBytes(canonicalJsonText(value))))}`;
 
+/** SHA-256 over the exact byte sequence, without a JSON/text projection. */
+export const digestAgentCanonicalBytes = (value: Uint8Array): CanonicalDigest =>
+  `sha256-${bytesToHex(sha256(value))}`;
+
 export const isAgentCanonicalDigest = (
   value: unknown
 ): value is CanonicalDigest =>

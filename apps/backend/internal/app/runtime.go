@@ -173,7 +173,12 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	if err != nil {
 		return RuntimeModules{}, fmt.Errorf("initialize Verification service: %w", err)
 	}
-	modules.Verification.Handler = backendverification.NewHandler(modules.Verification.Service)
+	modules.Verification.Handler = backendverification.NewHandler(
+		modules.Verification.Service,
+		backendverification.AgentEvaluationOwnerAuthorityConfig{
+			Token: cfg.Verification.AgentEvaluationOwnerToken,
+		},
+	)
 	modules.Verification.Maintenance = backendverification.NewMaintenance(
 		modules.Verification.Service, verificationConfig,
 	)

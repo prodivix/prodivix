@@ -196,6 +196,7 @@ const createVerifiedResourceManifest = async (input: {
         url,
         kind: 'entry' as const,
         contentDigest: entry.digest,
+        byteLength: entry.contents.byteLength,
       })
     );
   resources.push(
@@ -205,6 +206,9 @@ const createVerifiedResourceManifest = async (input: {
       contentDigest: digestBrowserVerificationBytes(
         new TextEncoder().encode(GOLDEN_G3_V6_RUNTIME_CONTROL_HOST_DOCUMENT)
       ),
+      byteLength: new TextEncoder().encode(
+        GOLDEN_G3_V6_RUNTIME_CONTROL_HOST_DOCUMENT
+      ).byteLength,
     })
   );
   for (const file of input.buildBundle.files) {
@@ -223,6 +227,7 @@ const createVerifiedResourceManifest = async (input: {
         url,
         kind: 'bundle',
         contentDigest: file.digest,
+        byteLength: file.contents.byteLength,
       })
     );
   }

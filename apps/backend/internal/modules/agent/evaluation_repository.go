@@ -238,6 +238,10 @@ func (repository *Repository) StoreEvaluationPlan(ctx context.Context, authority
 		return EvaluationFactRecord{}, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	capabilityProbeLinks, err := evaluationPlanCapabilityProbeAdmissions(ctx, tx, authority, plan)
+	if err != nil {
+		return EvaluationFactRecord{}, false, err
+	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_plans (
 		namespace_id, evaluation_plan_id, plan_digest, repository_commit, planned_journey_count,
 		plan_json, plan_bytes, planned_at, expires_at
@@ -253,6 +257,11 @@ func (repository *Repository) StoreEvaluationPlan(ctx context.Context, authority
 	}
 	record := evaluationRecord(authority.NamespaceID, plan.PlanDigest, "evaluation-plan", plan.PlanID, plan.PlanDigest, plan.Canonical, plan.PlannedAt)
 	if inserted > 0 {
+		if err := storeEvaluationPlanCapabilityProbeAdmissionLinks(
+			ctx, tx, authority, plan, capabilityProbeLinks,
+		); err != nil {
+			return EvaluationFactRecord{}, false, err
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_budget_ledgers (
 			namespace_id, plan_digest, revision, updated_at
 		) VALUES ($1, $2, 0, $3)`, authority.NamespaceID, plan.PlanDigest, plan.PlannedAt); err != nil {

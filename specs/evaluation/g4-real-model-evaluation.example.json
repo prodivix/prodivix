@@ -1,0 +1,2842 @@
+{
+  "format": "prodivix.g4-real-model-evaluation-run-config",
+  "version": 1,
+  "purpose": "template",
+  "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+  "providers": {
+    "openaiResponses": {
+      "providerConfigurationId": "provider.openai-responses.v8",
+      "providerOperatorId": "operator.openai",
+      "apiRevision": "2026-08-08",
+      "region": "us-east-1",
+      "endpointProfileDigest": "sha256-7c25bb415758d702b4bce85d8cf1f15dab6480d73a8100a60a14e11526978264",
+      "dataPolicyDigest": "sha256-5a26ff15a9cfe82cafea631914e656ca617139be0c375632ba956018b604e19c",
+      "secretEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_OPENAI_API_KEY",
+      "secretRef": "secret.provider.openai-responses",
+      "adapter": {
+        "adapterId": "adapter.openai-responses",
+        "adapterVersion": "1.0.0",
+        "transportSchemaDigest": "sha256-68d3c5115b16b98c3b04c94fe63bab7f4788dd79ea5e75cb0b2b8576970a28e1",
+        "eventNormalizationDigest": "sha256-85a4d487aab9809b4829197b2ee5a51369b191f18e7ce7efb7140eb571a642fa"
+      },
+      "model": {
+        "modelId": "replace-with-immutable-openai-model.2026-08-08",
+        "modelFamilyId": "model-family.openai-responses",
+        "modelFamilyOwnerId": "owner.openai",
+        "immutableVersion": "replace-with-immutable-openai-model.2026-08-08",
+        "tokenizerDigest": "sha256-3569ac90021d17e8c259abe880b66b70569b4ee8d5965508ff954a8835f792e8",
+        "chatTemplateDigest": "sha256-9f95a1cc10dfc44226b59213668f1176901664eb010ce56da4641b91e139eb1d"
+      },
+      "capabilityInferenceConfigurationDigests": {
+        "g4-core-text-tools": "sha256-8cc9116bcb222009fb8c2f69c01ed20a3c86a4484eb8a2afebb29a8111a92d81",
+        "g4-document-input": "sha256-07cea7cb79039dff1cc87a152d71c5cbf6329cad11512d21dc35f478d24264c4",
+        "g4-visual-input": "sha256-67befb22717244cf5bdb09ce334ac454f931f86ebf0fa0f58614e1ba2bc597fb",
+        "g4-provider-background-job": "sha256-3f81fa64b3d478c22067faa10a56211d6788ba5f39f317f85cad173501d9eece",
+        "g4-provider-hosted-retrieval-core": "sha256-c10abc597e7cc1750290d0c58cfa004c0c776705e7a8327e38d17e5dd3febc15",
+        "g4-provider-hosted-retrieval-document": "sha256-ea494dc30388ef4ea9b5d3769bf767b3f9948e9a342db28bd52f62ef5edc5fa3",
+        "g4-provider-parallel-tool": "sha256-61ba6575af1e49ec18ece45316b439d21aba9860fa6b97aeaf6e2b45aca0c57d",
+        "g4-provider-isolated-cache": "sha256-e85634463ea45bf49dcc919c426651d406e916ab5fa33722f86abf3b4d8ae46d",
+        "g4-provider-reasoning-continuation": "sha256-dc08d746090a406bc820de0b1e7b921acb8c9709bd15eb6121ac800b7cdece71"
+      },
+      "declaredCapabilityProfileDigests": [
+        "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+        "sha256-3f5a0b0b34d7b66e4b75de21cec15690544c411d52e733c0ff2801691dd8157b",
+        "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+        "sha256-aadbc76cf7141fa1aabffec62c69f0fd3a446399dfc9900c70fe257fc9d72dd7",
+        "sha256-e7bbd5f0f8509fbecb9e52948f78fbefbcace258008b7aee5476b48186d8dda6",
+        "sha256-ef26475b385ea3298b28e145878583e55b8bd21c0ebc55116e57e823dfabd78e"
+      ],
+      "capabilityProbePrograms": {
+        "g4-provider-background-job": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-background-job",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-background-job",
+            "capabilityProfileDigest": "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+            "capabilityId": "provider.background-job",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "background",
+            "providerStateMode": "provider-background-job",
+            "toolExecutionLocus": "none",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-d1efc1ad243b1d67771bfd138747ebdc9effc5fd9495cf156a4a78c8b737003c"
+          },
+          "profileProjectionDigest": "sha256-d1efc1ad243b1d67771bfd138747ebdc9effc5fd9495cf156a4a78c8b737003c",
+          "providerRequestIntent": {
+            "intentKind": "background-job-lifecycle",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Complete the bounded public marker task in background mode.",
+              "documentText": null
+            },
+            "requestPhases": ["submit", "poll"],
+            "networkRoundTripPolicy": {
+              "mode": "repeat-until-terminal",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 5,
+              "repeatedPhase": "poll",
+              "minimumRepeatCount": 1,
+              "maximumRepeatCount": 4,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-28f17a898ca055585ce2de9af04852d5f68806d4cb277e0f808b07296f4a28db"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-job-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 5,
+            "maximumPollAttempts": 4,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-b4932fa9a4bd26538257d96da04ded6014fba0da738066766bada19d1e56a3d8"
+        },
+        "g4-provider-hosted-retrieval-core": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-hosted-retrieval-core",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-hosted-retrieval-core",
+            "capabilityProfileDigest": "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+            "capabilityId": "provider.hosted-retrieval",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "provider-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-5d973e3bdc35bf583bfbcb8158f7fb10080ee2ac0763a516e83eb2ee2167e31c"
+          },
+          "profileProjectionDigest": "sha256-5d973e3bdc35bf583bfbcb8158f7fb10080ee2ac0763a516e83eb2ee2167e31c",
+          "providerRequestIntent": {
+            "intentKind": "hosted-retrieval-public-text",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Retrieve and cite the canonical public probe marker source.",
+              "documentText": null
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": ["provider.retrieval.search"],
+            "publicProbeResource": {
+              "resourceId": "capability-probe.public-text.v1",
+              "resourceKind": "repository-owned-public-text",
+              "contentDigest": "sha256-9284ee217461285979c74f7ffb70bd4eb2a4e90888584bf8eb99e03e06510d9a",
+              "queryDigest": "sha256-b8fc0e66546e2bda59f5504ec114f838b35a197a5ae6e1c32c669198922eae3e",
+              "indexDigest": "sha256-713d52810adbb5e4ed6aa53f78eb8eef9821f68f6f89e455f9fe0c58aa2d68bf",
+              "expectedMarkerDigest": "sha256-7b93060f6a1a7c8a7bd301a36409a6b19cd41555d67aaf00156f977407ad12a7",
+              "documentBytesDigest": null,
+              "descriptorDigest": "sha256-ef7c7f1bdcec713e4104ed9fab91d9998d963773c6669b20814e370a3035f182"
+            },
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-086587a1b7693d6a3612fa766cb3c27ae8d3201980d6b528d518ea471e95a5d3"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "retrieval-query-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 1,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-d8c0cf7d4b07574bd03142934e819fb8a693abc3f98919ef48cba2e861df6a89"
+        },
+        "g4-provider-hosted-retrieval-document": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-hosted-retrieval-document",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-hosted-retrieval-document",
+            "capabilityProfileDigest": "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+            "capabilityId": "provider.hosted-retrieval",
+            "inputClass": "bounded-public-document",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "provider-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-e45999eb4d816828294606264ebf1ab9f701c50219508f74fcd72ab334557ce8"
+          },
+          "profileProjectionDigest": "sha256-e45999eb4d816828294606264ebf1ab9f701c50219508f74fcd72ab334557ce8",
+          "providerRequestIntent": {
+            "intentKind": "hosted-retrieval-public-document",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Retrieve and cite the marker from the attached public probe document.",
+              "documentText": "Public capability probe document. Marker: prodivix-capability-probe-v1."
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": ["provider.retrieval.search"],
+            "publicProbeResource": {
+              "resourceId": "capability-probe.public-document.v1",
+              "resourceKind": "repository-owned-public-document",
+              "contentDigest": "sha256-d5dc455f2b24f37f30ad0c6d420cd2f025ba156739540d1d70b2bb8ae8924054",
+              "queryDigest": "sha256-b8fc0e66546e2bda59f5504ec114f838b35a197a5ae6e1c32c669198922eae3e",
+              "indexDigest": "sha256-8c45358ef573bd1de1036c066777f0db51cb83722648001f37ca0a0e09b13c92",
+              "expectedMarkerDigest": "sha256-7b93060f6a1a7c8a7bd301a36409a6b19cd41555d67aaf00156f977407ad12a7",
+              "documentBytesDigest": "sha256-d5dc455f2b24f37f30ad0c6d420cd2f025ba156739540d1d70b2bb8ae8924054",
+              "descriptorDigest": "sha256-dd38b95ca8e54974c4914cba01832c778439bce7e3e1a9e4ecad6dcaa2b53e07"
+            },
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-7b41188b39a798c4ab273f3d2fb5358bede84aacb057b3133dff774bcd77a74f"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "retrieval-query-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 1,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-348a962d94fe09c59d5ee484cf756174969252664527905d9d1a977879d79fa8"
+        },
+        "g4-provider-isolated-cache": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-isolated-cache",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-isolated-cache",
+            "capabilityProfileDigest": "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+            "capabilityId": "provider.isolated-cache",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "none",
+            "cacheMode": "prompt",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-204a9af06d4e266c262bcff06bbf6777d63b66ca62ae3e971dc4e9b75f79ff0e"
+          },
+          "profileProjectionDigest": "sha256-204a9af06d4e266c262bcff06bbf6777d63b66ca62ae3e971dc4e9b75f79ff0e",
+          "providerRequestIntent": {
+            "intentKind": "isolated-prompt-cache-roundtrip",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Return the public marker through a task-isolated prompt cache roundtrip.",
+              "documentText": null
+            },
+            "requestPhases": ["cache-cold", "cache-warm"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 2,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": {
+              "resourceId": "capability-probe.cache-prefix.v1",
+              "encoding": "utf-8",
+              "prefixByteLength": 41471,
+              "prefixDigest": "sha256-f6a6cecc3991d01d498a9831432dcaf701ad0396d71737181e6efd4ee3e0b4b7",
+              "minimumTokenCountByProtocol": {
+                "anthropic-messages": 4096,
+                "gemini-interactions": 4096,
+                "openai-responses": 1024
+              },
+              "coldSuffixDigest": "sha256-ff3a5221df01875db121e7042f6cde15a0be8da39d6928c1748c771fcac200fc",
+              "warmSuffixDigest": "sha256-3bdf64cbc11694b96305eebc50d5c1dc472077aecc074c4159416963b1d3cd9d",
+              "descriptorDigest": "sha256-24a6a75f54fc57db37fa52374857edb37c612f9ca9fe8a8b2739ead4abd3a4fd"
+            },
+            "publicPayloadDigest": "sha256-c510e500740f7d72dafe9c39d18343d62b8b787a27c34662a8f22882a0c5056f"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-cache-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              },
+              {
+                "factKind": "usage-vector",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 65536,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 2,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-6b9d354d429ec1a2e9ef0a0e22d00dc855d78e6a0a915ebd5368524410e72b57"
+        },
+        "g4-provider-parallel-tool": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-parallel-tool",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-parallel-tool",
+            "capabilityProfileDigest": "sha256-e7bbd5f0f8509fbecb9e52948f78fbefbcace258008b7aee5476b48186d8dda6",
+            "capabilityId": "provider.parallel-tool",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "stream",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "client-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 2,
+            "projectionDigest": "sha256-1cb7e7172e38e8f0d4ded613dc917b624d4d68ef8fc3940301514fefe13a09c0"
+          },
+          "profileProjectionDigest": "sha256-1cb7e7172e38e8f0d4ded613dc917b624d4d68ef8fc3940301514fefe13a09c0",
+          "providerRequestIntent": {
+            "intentKind": "parallel-client-tool-calls",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Call both public marker tools in one parallel provider turn.",
+              "documentText": null
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [
+              "capability_probe_alpha",
+              "capability_probe_beta"
+            ],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-c11b39ffc4c8a312ea6e485929d130a5803e52ddac1cd0b6c212ae14a5ad76ed"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-event",
+                "minimumCount": 2,
+                "providerEventType": "tool-call"
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 2,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-fb9fc718b3295e7bf3e0cfc2f91f687daa78d8df9543d847251dc8e5a941bc0e"
+        },
+        "g4-provider-reasoning-continuation": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-reasoning-continuation",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-reasoning-continuation",
+            "capabilityProfileDigest": "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34",
+            "capabilityId": "provider.reasoning-continuation",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "provider-stored-parent",
+            "toolExecutionLocus": "none",
+            "cacheMode": "disabled",
+            "reasoningMode": "opaque-continuation",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-89733b4a82ebc5fc5dc665d092c8a3d82aea0ecc95ba0f2019983c5c117d87f6"
+          },
+          "profileProjectionDigest": "sha256-89733b4a82ebc5fc5dc665d092c8a3d82aea0ecc95ba0f2019983c5c117d87f6",
+          "providerRequestIntent": {
+            "intentKind": "opaque-continuation-roundtrip",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Preserve and resume the opaque continuation for the public marker.",
+              "documentText": null
+            },
+            "requestPhases": ["continue", "resume"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 2,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-33778eef9b0659a174eb653d93d460d8ffd84ffdcabae0503e66c37df7199ac6"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "opaque-continuation",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 2,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-54a426c8e99b93b8efb6e3e863210522e42665c8e1cc0520b51a8a3516eb11ae"
+        }
+      },
+      "expectedRuntimeFactSourceIdentities": {
+        "g4-provider-background-job": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.openai-responses.g4-provider-background-job",
+          "sourceAuthorityImplementationDigest": "sha256-7c97f37a32ea456fcfcc506a1ccc8ecd4e9fbbbb1e4d62f0e6ea849ccfbcd322",
+          "routeBinding": "provider-runtime-metadata.g4-provider-background-job",
+          "capabilityProfileId": "g4-provider-background-job",
+          "capabilityProfileDigest": "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+          "capabilityId": "provider.background-job",
+          "protocolFamily": "openai-responses",
+          "providerConfigurationId": "provider.openai-responses.v8",
+          "modelId": "replace-with-immutable-openai-model.2026-08-08",
+          "modelLineageDigest": "sha256-db80d58878c5c07317340103fd2fe1f5973b5dd6ef2b0a234a995a8be4fe9221",
+          "adapterDigest": "sha256-4d8d5ef668964ff24149312207a38a3ff013fb960afc717f7dc474b508bbb8c2",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-hosted-retrieval-core": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-hosted-owner-result",
+          "sourceAuthorityId": "runtime-source.production.openai-responses.g4-provider-hosted-retrieval-core",
+          "sourceAuthorityImplementationDigest": "sha256-9da9edb953778afc65ca6995cab6cd2d48c076226dd7e28b6129de7848ab05cc",
+          "routeBinding": "hosted-capability-runtime.g4-provider-hosted-retrieval-core",
+          "capabilityProfileId": "g4-provider-hosted-retrieval-core",
+          "capabilityProfileDigest": "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+          "capabilityId": "provider.hosted-retrieval",
+          "protocolFamily": "openai-responses",
+          "providerConfigurationId": "provider.openai-responses.v8",
+          "modelId": "replace-with-immutable-openai-model.2026-08-08",
+          "modelLineageDigest": "sha256-db80d58878c5c07317340103fd2fe1f5973b5dd6ef2b0a234a995a8be4fe9221",
+          "adapterDigest": "sha256-4d8d5ef668964ff24149312207a38a3ff013fb960afc717f7dc474b508bbb8c2",
+          "hostedRetrievalRuntimeResourceRegistrationIntentDigest": "sha256-f45364e00184b076a6ff3578daaae1eeaa5c342c2003675557f3fb9df230553d",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-hosted-retrieval-document": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-hosted-owner-result",
+          "sourceAuthorityId": "runtime-source.production.openai-responses.g4-provider-hosted-retrieval-document",
+          "sourceAuthorityImplementationDigest": "sha256-b0b0f6ce423fc62503525963e8b6077134d2890392405c9fc9de8e7dc3f65d7a",
+          "routeBinding": "hosted-capability-runtime.g4-provider-hosted-retrieval-document",
+          "capabilityProfileId": "g4-provider-hosted-retrieval-document",
+          "capabilityProfileDigest": "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+          "capabilityId": "provider.hosted-retrieval",
+          "protocolFamily": "openai-responses",
+          "providerConfigurationId": "provider.openai-responses.v8",
+          "modelId": "replace-with-immutable-openai-model.2026-08-08",
+          "modelLineageDigest": "sha256-db80d58878c5c07317340103fd2fe1f5973b5dd6ef2b0a234a995a8be4fe9221",
+          "adapterDigest": "sha256-4d8d5ef668964ff24149312207a38a3ff013fb960afc717f7dc474b508bbb8c2",
+          "hostedRetrievalRuntimeResourceRegistrationIntentDigest": "sha256-1c067bfdc8a73b871d9d68a96b3396516178b87566b0429aad2bb48e889caa00",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-isolated-cache": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.openai-responses.g4-provider-isolated-cache",
+          "sourceAuthorityImplementationDigest": "sha256-5d0f44d505ce04411987f19c7fea20f7c5c7825c1cf0ed28243f1e8db7c4c644",
+          "routeBinding": "provider-runtime-metadata.g4-provider-isolated-cache",
+          "capabilityProfileId": "g4-provider-isolated-cache",
+          "capabilityProfileDigest": "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+          "capabilityId": "provider.isolated-cache",
+          "protocolFamily": "openai-responses",
+          "providerConfigurationId": "provider.openai-responses.v8",
+          "modelId": "replace-with-immutable-openai-model.2026-08-08",
+          "modelLineageDigest": "sha256-db80d58878c5c07317340103fd2fe1f5973b5dd6ef2b0a234a995a8be4fe9221",
+          "adapterDigest": "sha256-4d8d5ef668964ff24149312207a38a3ff013fb960afc717f7dc474b508bbb8c2",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-reasoning-continuation": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.openai-responses.g4-provider-reasoning-continuation",
+          "sourceAuthorityImplementationDigest": "sha256-6d598bc578df00ffe03543161afe1aa4561a352d9f71954b7cea427465e1f8da",
+          "routeBinding": "provider-runtime-metadata.g4-provider-reasoning-continuation",
+          "capabilityProfileId": "g4-provider-reasoning-continuation",
+          "capabilityProfileDigest": "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34",
+          "capabilityId": "provider.reasoning-continuation",
+          "protocolFamily": "openai-responses",
+          "providerConfigurationId": "provider.openai-responses.v8",
+          "modelId": "replace-with-immutable-openai-model.2026-08-08",
+          "modelLineageDigest": "sha256-db80d58878c5c07317340103fd2fe1f5973b5dd6ef2b0a234a995a8be4fe9221",
+          "adapterDigest": "sha256-4d8d5ef668964ff24149312207a38a3ff013fb960afc717f7dc474b508bbb8c2",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        }
+      },
+      "smokeProfileDigest": "sha256-c3464b5585ae6e952890d27b630682306e542619ca7abba7320c176510e2851a",
+      "pricing": {
+        "modelTier": "standard-2026-08-08",
+        "source": {
+          "sourceUri": "https://pricing.example.invalid/openai/2026-08-08",
+          "observedAt": "2026-08-08T00:00:00.000Z",
+          "sourceContentDigest": "sha256-a53a281ad60c4c7ff26ecc838e98d6e25089824e35635c91e4508f8f8483d807",
+          "sourceReceiptDigest": "sha256-f4222fedea6fdd8fa69d6b78b2dd42082423c4f20a9376fb58c7df505186f3ee"
+        },
+        "snapshot": {
+          "pricingSnapshotId": "pricing.provider.openai-responses.v8.2026-08-08",
+          "providerConfigurationId": "provider.openai-responses.v8",
+          "serviceTier": "standard-2026-08-08",
+          "region": "us-east-1",
+          "effectiveAt": "2026-08-08T00:00:00.000Z",
+          "rates": [
+            {
+              "unit": "cache-read-token",
+              "currency": "USD",
+              "unitPrice": "0.000000125"
+            },
+            {
+              "unit": "reasoning-token",
+              "currency": "USD",
+              "unitPrice": "0.00001"
+            },
+            {
+              "unit": "text-token-input",
+              "currency": "USD",
+              "unitPrice": "0.00000125"
+            },
+            {
+              "unit": "text-token-output",
+              "currency": "USD",
+              "unitPrice": "0.00001"
+            }
+          ],
+          "sourceDigest": "sha256-a53a281ad60c4c7ff26ecc838e98d6e25089824e35635c91e4508f8f8483d807",
+          "snapshotDigest": "sha256-4368187eed98e3e2744e4c717b39ede3d067fabbdc683702810f333763cde062"
+        },
+        "authorityDigest": "sha256-92952ff1bd15c286e0e1273fff45b53d76ca342adc4dc9bbdd95c4ade38adebc"
+      }
+    },
+    "anthropicMessages": {
+      "providerConfigurationId": "provider.anthropic-messages.v8",
+      "providerOperatorId": "operator.anthropic",
+      "apiRevision": "2026-08-08",
+      "region": "us-west-2",
+      "endpointProfileDigest": "sha256-99b5330b5119f751e02663fa2ffad6265ce1777248d51118d45a7c53dc8db145",
+      "dataPolicyDigest": "sha256-b75d8bf14764f114110a7fc204b440adc61899fcb2f5468ea788d2d54dd90e2a",
+      "secretEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_ANTHROPIC_API_KEY",
+      "secretRef": "secret.provider.anthropic-messages",
+      "adapter": {
+        "adapterId": "adapter.anthropic-messages",
+        "adapterVersion": "1.0.0",
+        "transportSchemaDigest": "sha256-0e90b3b05ece03da07043a22518ab032c711f6aeac69cf488605ba0fc3cfd4c1",
+        "eventNormalizationDigest": "sha256-d5d3786b1e829768cbf29c8fafb39572078ba3ed593ce05d3c7de7d411f9c075"
+      },
+      "model": {
+        "modelId": "replace-with-immutable-anthropic-model.2026-08-08",
+        "modelFamilyId": "model-family.anthropic-messages",
+        "modelFamilyOwnerId": "owner.anthropic",
+        "immutableVersion": "replace-with-immutable-anthropic-model.2026-08-08",
+        "tokenizerDigest": "sha256-9d9f53f6d8b7044aee146ce972a702ba139ae0cdf9e30a1f1bcce571add82e5f",
+        "chatTemplateDigest": "sha256-fdb2d534160d9d4166f69133eb8915a14a38d32157ecff7e52f570674089e9ea"
+      },
+      "capabilityInferenceConfigurationDigests": {
+        "g4-core-text-tools": "sha256-851289f78e5d615488e896a87f71bb8431ca53b59789f7cb18782d13058f32c8",
+        "g4-document-input": "sha256-42e05651eb7db1ade7624daf3fdeec23724031858d2045116bfba36d1226efe2",
+        "g4-visual-input": "sha256-09c264d3fed292861a275648214d61fca25c4722fd0a561493646838844bd219",
+        "g4-provider-background-job": "sha256-329e625c620434012225518ccea0f18a9f5fe19317d68f3ab0d9db3247f7ed13",
+        "g4-provider-hosted-retrieval-core": "sha256-f1fcaa2f56126c9b4329ddcf2c938e6beaa3e4c3dd5b25cd7ed4e529510bec83",
+        "g4-provider-hosted-retrieval-document": "sha256-ad4e6e58297ee5fe73f14e071bf5cd565dc76ffa0fca8cd9515c5092d64b68e0",
+        "g4-provider-parallel-tool": "sha256-e538cae88241286314e8e488eb347ffd167c33e59078e0d94d05ac84f75faf22",
+        "g4-provider-isolated-cache": "sha256-0afe55a5c47c8f9545f367eb8765b702ef8890b8303cec2c8f4a7c5e5fe43739",
+        "g4-provider-reasoning-continuation": "sha256-836e87162e5a97e459826e8446fb2feb035c89549c216424ff9dfc03f0af341f"
+      },
+      "declaredCapabilityProfileDigests": [
+        "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+        "sha256-3f5a0b0b34d7b66e4b75de21cec15690544c411d52e733c0ff2801691dd8157b",
+        "sha256-aadbc76cf7141fa1aabffec62c69f0fd3a446399dfc9900c70fe257fc9d72dd7",
+        "sha256-e7bbd5f0f8509fbecb9e52948f78fbefbcace258008b7aee5476b48186d8dda6",
+        "sha256-ef26475b385ea3298b28e145878583e55b8bd21c0ebc55116e57e823dfabd78e"
+      ],
+      "capabilityProbePrograms": {
+        "g4-provider-background-job": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-background-job",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-background-job",
+            "capabilityProfileDigest": "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+            "capabilityId": "provider.background-job",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "background",
+            "providerStateMode": "provider-background-job",
+            "toolExecutionLocus": "none",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-d1efc1ad243b1d67771bfd138747ebdc9effc5fd9495cf156a4a78c8b737003c"
+          },
+          "profileProjectionDigest": "sha256-d1efc1ad243b1d67771bfd138747ebdc9effc5fd9495cf156a4a78c8b737003c",
+          "providerRequestIntent": {
+            "intentKind": "background-job-lifecycle",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Complete the bounded public marker task in background mode.",
+              "documentText": null
+            },
+            "requestPhases": ["submit", "poll"],
+            "networkRoundTripPolicy": {
+              "mode": "repeat-until-terminal",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 5,
+              "repeatedPhase": "poll",
+              "minimumRepeatCount": 1,
+              "maximumRepeatCount": 4,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-28f17a898ca055585ce2de9af04852d5f68806d4cb277e0f808b07296f4a28db"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-job-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 5,
+            "maximumPollAttempts": 4,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-b4932fa9a4bd26538257d96da04ded6014fba0da738066766bada19d1e56a3d8"
+        },
+        "g4-provider-hosted-retrieval-core": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-hosted-retrieval-core",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-hosted-retrieval-core",
+            "capabilityProfileDigest": "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+            "capabilityId": "provider.hosted-retrieval",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "provider-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-5d973e3bdc35bf583bfbcb8158f7fb10080ee2ac0763a516e83eb2ee2167e31c"
+          },
+          "profileProjectionDigest": "sha256-5d973e3bdc35bf583bfbcb8158f7fb10080ee2ac0763a516e83eb2ee2167e31c",
+          "providerRequestIntent": {
+            "intentKind": "hosted-retrieval-public-text",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Retrieve and cite the canonical public probe marker source.",
+              "documentText": null
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": ["provider.retrieval.search"],
+            "publicProbeResource": {
+              "resourceId": "capability-probe.public-text.v1",
+              "resourceKind": "repository-owned-public-text",
+              "contentDigest": "sha256-9284ee217461285979c74f7ffb70bd4eb2a4e90888584bf8eb99e03e06510d9a",
+              "queryDigest": "sha256-b8fc0e66546e2bda59f5504ec114f838b35a197a5ae6e1c32c669198922eae3e",
+              "indexDigest": "sha256-713d52810adbb5e4ed6aa53f78eb8eef9821f68f6f89e455f9fe0c58aa2d68bf",
+              "expectedMarkerDigest": "sha256-7b93060f6a1a7c8a7bd301a36409a6b19cd41555d67aaf00156f977407ad12a7",
+              "documentBytesDigest": null,
+              "descriptorDigest": "sha256-ef7c7f1bdcec713e4104ed9fab91d9998d963773c6669b20814e370a3035f182"
+            },
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-086587a1b7693d6a3612fa766cb3c27ae8d3201980d6b528d518ea471e95a5d3"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "retrieval-query-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 1,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-d8c0cf7d4b07574bd03142934e819fb8a693abc3f98919ef48cba2e861df6a89"
+        },
+        "g4-provider-hosted-retrieval-document": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-hosted-retrieval-document",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-hosted-retrieval-document",
+            "capabilityProfileDigest": "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+            "capabilityId": "provider.hosted-retrieval",
+            "inputClass": "bounded-public-document",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "provider-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-e45999eb4d816828294606264ebf1ab9f701c50219508f74fcd72ab334557ce8"
+          },
+          "profileProjectionDigest": "sha256-e45999eb4d816828294606264ebf1ab9f701c50219508f74fcd72ab334557ce8",
+          "providerRequestIntent": {
+            "intentKind": "hosted-retrieval-public-document",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Retrieve and cite the marker from the attached public probe document.",
+              "documentText": "Public capability probe document. Marker: prodivix-capability-probe-v1."
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": ["provider.retrieval.search"],
+            "publicProbeResource": {
+              "resourceId": "capability-probe.public-document.v1",
+              "resourceKind": "repository-owned-public-document",
+              "contentDigest": "sha256-d5dc455f2b24f37f30ad0c6d420cd2f025ba156739540d1d70b2bb8ae8924054",
+              "queryDigest": "sha256-b8fc0e66546e2bda59f5504ec114f838b35a197a5ae6e1c32c669198922eae3e",
+              "indexDigest": "sha256-8c45358ef573bd1de1036c066777f0db51cb83722648001f37ca0a0e09b13c92",
+              "expectedMarkerDigest": "sha256-7b93060f6a1a7c8a7bd301a36409a6b19cd41555d67aaf00156f977407ad12a7",
+              "documentBytesDigest": "sha256-d5dc455f2b24f37f30ad0c6d420cd2f025ba156739540d1d70b2bb8ae8924054",
+              "descriptorDigest": "sha256-dd38b95ca8e54974c4914cba01832c778439bce7e3e1a9e4ecad6dcaa2b53e07"
+            },
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-7b41188b39a798c4ab273f3d2fb5358bede84aacb057b3133dff774bcd77a74f"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "retrieval-query-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 1,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-348a962d94fe09c59d5ee484cf756174969252664527905d9d1a977879d79fa8"
+        },
+        "g4-provider-isolated-cache": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-isolated-cache",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-isolated-cache",
+            "capabilityProfileDigest": "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+            "capabilityId": "provider.isolated-cache",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "none",
+            "cacheMode": "prompt",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-204a9af06d4e266c262bcff06bbf6777d63b66ca62ae3e971dc4e9b75f79ff0e"
+          },
+          "profileProjectionDigest": "sha256-204a9af06d4e266c262bcff06bbf6777d63b66ca62ae3e971dc4e9b75f79ff0e",
+          "providerRequestIntent": {
+            "intentKind": "isolated-prompt-cache-roundtrip",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Return the public marker through a task-isolated prompt cache roundtrip.",
+              "documentText": null
+            },
+            "requestPhases": ["cache-cold", "cache-warm"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 2,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": {
+              "resourceId": "capability-probe.cache-prefix.v1",
+              "encoding": "utf-8",
+              "prefixByteLength": 41471,
+              "prefixDigest": "sha256-f6a6cecc3991d01d498a9831432dcaf701ad0396d71737181e6efd4ee3e0b4b7",
+              "minimumTokenCountByProtocol": {
+                "anthropic-messages": 4096,
+                "gemini-interactions": 4096,
+                "openai-responses": 1024
+              },
+              "coldSuffixDigest": "sha256-ff3a5221df01875db121e7042f6cde15a0be8da39d6928c1748c771fcac200fc",
+              "warmSuffixDigest": "sha256-3bdf64cbc11694b96305eebc50d5c1dc472077aecc074c4159416963b1d3cd9d",
+              "descriptorDigest": "sha256-24a6a75f54fc57db37fa52374857edb37c612f9ca9fe8a8b2739ead4abd3a4fd"
+            },
+            "publicPayloadDigest": "sha256-c510e500740f7d72dafe9c39d18343d62b8b787a27c34662a8f22882a0c5056f"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-cache-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              },
+              {
+                "factKind": "usage-vector",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 65536,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 2,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-6b9d354d429ec1a2e9ef0a0e22d00dc855d78e6a0a915ebd5368524410e72b57"
+        },
+        "g4-provider-parallel-tool": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-parallel-tool",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-parallel-tool",
+            "capabilityProfileDigest": "sha256-e7bbd5f0f8509fbecb9e52948f78fbefbcace258008b7aee5476b48186d8dda6",
+            "capabilityId": "provider.parallel-tool",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "stream",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "client-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 2,
+            "projectionDigest": "sha256-1cb7e7172e38e8f0d4ded613dc917b624d4d68ef8fc3940301514fefe13a09c0"
+          },
+          "profileProjectionDigest": "sha256-1cb7e7172e38e8f0d4ded613dc917b624d4d68ef8fc3940301514fefe13a09c0",
+          "providerRequestIntent": {
+            "intentKind": "parallel-client-tool-calls",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Call both public marker tools in one parallel provider turn.",
+              "documentText": null
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [
+              "capability_probe_alpha",
+              "capability_probe_beta"
+            ],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-c11b39ffc4c8a312ea6e485929d130a5803e52ddac1cd0b6c212ae14a5ad76ed"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-event",
+                "minimumCount": 2,
+                "providerEventType": "tool-call"
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 2,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-fb9fc718b3295e7bf3e0cfc2f91f687daa78d8df9543d847251dc8e5a941bc0e"
+        },
+        "g4-provider-reasoning-continuation": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-reasoning-continuation",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-reasoning-continuation",
+            "capabilityProfileDigest": "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34",
+            "capabilityId": "provider.reasoning-continuation",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "provider-stored-parent",
+            "toolExecutionLocus": "none",
+            "cacheMode": "disabled",
+            "reasoningMode": "opaque-continuation",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-89733b4a82ebc5fc5dc665d092c8a3d82aea0ecc95ba0f2019983c5c117d87f6"
+          },
+          "profileProjectionDigest": "sha256-89733b4a82ebc5fc5dc665d092c8a3d82aea0ecc95ba0f2019983c5c117d87f6",
+          "providerRequestIntent": {
+            "intentKind": "opaque-continuation-roundtrip",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Preserve and resume the opaque continuation for the public marker.",
+              "documentText": null
+            },
+            "requestPhases": ["continue", "resume"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 2,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-33778eef9b0659a174eb653d93d460d8ffd84ffdcabae0503e66c37df7199ac6"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "opaque-continuation",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 2,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-54a426c8e99b93b8efb6e3e863210522e42665c8e1cc0520b51a8a3516eb11ae"
+        }
+      },
+      "expectedRuntimeFactSourceIdentities": {
+        "g4-provider-background-job": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.anthropic-messages.g4-provider-background-job",
+          "sourceAuthorityImplementationDigest": "sha256-5dc263f2e855fc09050953781b68e16b0484e50a48a51133dc772bb72c52d880",
+          "routeBinding": "provider-runtime-metadata.g4-provider-background-job",
+          "capabilityProfileId": "g4-provider-background-job",
+          "capabilityProfileDigest": "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+          "capabilityId": "provider.background-job",
+          "protocolFamily": "anthropic-messages",
+          "providerConfigurationId": "provider.anthropic-messages.v8",
+          "modelId": "replace-with-immutable-anthropic-model.2026-08-08",
+          "modelLineageDigest": "sha256-4b57b249cf6e1ee9156a1d01fd299dd09ac7e452253c4fbd37d4fbac7228bc28",
+          "adapterDigest": "sha256-52aee003c3c008917b0b6d5973875f5a542bf94fd3ad867ef6223ed6d4dd7ecc",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-hosted-retrieval-core": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-hosted-owner-result",
+          "sourceAuthorityId": "runtime-source.production.anthropic-messages.g4-provider-hosted-retrieval-core",
+          "sourceAuthorityImplementationDigest": "sha256-b5dead2b0e1af4697f4b9e2304f644b35db082f736fdf4313d267960f3ba1b98",
+          "routeBinding": "hosted-capability-runtime.g4-provider-hosted-retrieval-core",
+          "capabilityProfileId": "g4-provider-hosted-retrieval-core",
+          "capabilityProfileDigest": "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+          "capabilityId": "provider.hosted-retrieval",
+          "protocolFamily": "anthropic-messages",
+          "providerConfigurationId": "provider.anthropic-messages.v8",
+          "modelId": "replace-with-immutable-anthropic-model.2026-08-08",
+          "modelLineageDigest": "sha256-4b57b249cf6e1ee9156a1d01fd299dd09ac7e452253c4fbd37d4fbac7228bc28",
+          "adapterDigest": "sha256-52aee003c3c008917b0b6d5973875f5a542bf94fd3ad867ef6223ed6d4dd7ecc",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-hosted-retrieval-document": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-hosted-owner-result",
+          "sourceAuthorityId": "runtime-source.production.anthropic-messages.g4-provider-hosted-retrieval-document",
+          "sourceAuthorityImplementationDigest": "sha256-8948530edcb2bad361e5d4f53d06a5b82f5b090a256c831310d153442b640534",
+          "routeBinding": "hosted-capability-runtime.g4-provider-hosted-retrieval-document",
+          "capabilityProfileId": "g4-provider-hosted-retrieval-document",
+          "capabilityProfileDigest": "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+          "capabilityId": "provider.hosted-retrieval",
+          "protocolFamily": "anthropic-messages",
+          "providerConfigurationId": "provider.anthropic-messages.v8",
+          "modelId": "replace-with-immutable-anthropic-model.2026-08-08",
+          "modelLineageDigest": "sha256-4b57b249cf6e1ee9156a1d01fd299dd09ac7e452253c4fbd37d4fbac7228bc28",
+          "adapterDigest": "sha256-52aee003c3c008917b0b6d5973875f5a542bf94fd3ad867ef6223ed6d4dd7ecc",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-isolated-cache": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.anthropic-messages.g4-provider-isolated-cache",
+          "sourceAuthorityImplementationDigest": "sha256-b149af07696e7a3b03aeb8d183aaca58176d26127563cf8cff90e0e61f11c03f",
+          "routeBinding": "provider-runtime-metadata.g4-provider-isolated-cache",
+          "capabilityProfileId": "g4-provider-isolated-cache",
+          "capabilityProfileDigest": "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+          "capabilityId": "provider.isolated-cache",
+          "protocolFamily": "anthropic-messages",
+          "providerConfigurationId": "provider.anthropic-messages.v8",
+          "modelId": "replace-with-immutable-anthropic-model.2026-08-08",
+          "modelLineageDigest": "sha256-4b57b249cf6e1ee9156a1d01fd299dd09ac7e452253c4fbd37d4fbac7228bc28",
+          "adapterDigest": "sha256-52aee003c3c008917b0b6d5973875f5a542bf94fd3ad867ef6223ed6d4dd7ecc",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-reasoning-continuation": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.anthropic-messages.g4-provider-reasoning-continuation",
+          "sourceAuthorityImplementationDigest": "sha256-a6e8998ac8b3da2bd6136d0d6052dc3e12a5049d541c3b48c5c5d20abf974fa9",
+          "routeBinding": "provider-runtime-metadata.g4-provider-reasoning-continuation",
+          "capabilityProfileId": "g4-provider-reasoning-continuation",
+          "capabilityProfileDigest": "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34",
+          "capabilityId": "provider.reasoning-continuation",
+          "protocolFamily": "anthropic-messages",
+          "providerConfigurationId": "provider.anthropic-messages.v8",
+          "modelId": "replace-with-immutable-anthropic-model.2026-08-08",
+          "modelLineageDigest": "sha256-4b57b249cf6e1ee9156a1d01fd299dd09ac7e452253c4fbd37d4fbac7228bc28",
+          "adapterDigest": "sha256-52aee003c3c008917b0b6d5973875f5a542bf94fd3ad867ef6223ed6d4dd7ecc",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        }
+      },
+      "smokeProfileDigest": "sha256-755a0bbcdfbdc2c15d22742b2a65eaeeb7fa75b5f5f825e109d33205ec5c0375",
+      "pricing": {
+        "modelTier": "standard-2026-08-08",
+        "source": {
+          "sourceUri": "https://pricing.example.invalid/anthropic/2026-08-08",
+          "observedAt": "2026-08-08T00:00:00.000Z",
+          "sourceContentDigest": "sha256-1601632428ce24b259db6b2ceed07ca96e36d3809b5de4ca9804f2eb6afd821c",
+          "sourceReceiptDigest": "sha256-3f28a32c88d8ea39bceaedcc4e2b406fa2a13b44fb7a5ce96c20fbb0f9e01fa1"
+        },
+        "snapshot": {
+          "pricingSnapshotId": "pricing.provider.anthropic-messages.v8.2026-08-08",
+          "providerConfigurationId": "provider.anthropic-messages.v8",
+          "serviceTier": "standard-2026-08-08",
+          "region": "us-west-2",
+          "effectiveAt": "2026-08-08T00:00:00.000Z",
+          "rates": [
+            {
+              "unit": "cache-read-token",
+              "currency": "USD",
+              "unitPrice": "0.0000003"
+            },
+            {
+              "unit": "cache-write-token",
+              "currency": "USD",
+              "unitPrice": "0.00000375"
+            },
+            {
+              "unit": "text-token-input",
+              "currency": "USD",
+              "unitPrice": "0.000003"
+            },
+            {
+              "unit": "text-token-output",
+              "currency": "USD",
+              "unitPrice": "0.000015"
+            }
+          ],
+          "sourceDigest": "sha256-1601632428ce24b259db6b2ceed07ca96e36d3809b5de4ca9804f2eb6afd821c",
+          "snapshotDigest": "sha256-61cd9c3cc2ce2b45e017f781f7994e3672fd84ae049def288f517ff8d5af5f79"
+        },
+        "authorityDigest": "sha256-a3dafa423ca2ec8c0928263d4be5909b8f7d09b62c4a164d322fa1e8124806de"
+      }
+    },
+    "geminiInteractions": {
+      "providerConfigurationId": "provider.gemini-interactions.v8",
+      "providerOperatorId": "operator.google",
+      "apiRevision": "2026-08-08",
+      "region": "europe-west4",
+      "endpointProfileDigest": "sha256-bcc569f7db059ff98dacfe5dd23012ed209b67c570218ae6365ad62f51be6cd4",
+      "dataPolicyDigest": "sha256-6469bd9e596352e388fa3aa97eba128fcc9f603e7d2ca72887027fdf4f582e36",
+      "secretEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_GEMINI_API_KEY",
+      "secretRef": "secret.provider.gemini-interactions",
+      "adapter": {
+        "adapterId": "adapter.gemini-interactions",
+        "adapterVersion": "1.0.0",
+        "transportSchemaDigest": "sha256-27478de133b7101e8bfcf0e299a6cd347a73a285b185cc6c2406a8e7555156c6",
+        "eventNormalizationDigest": "sha256-574aa7a68278d08fc4be34877b8e05b2171de11bc460f46627003b5fd65f2ea2"
+      },
+      "model": {
+        "modelId": "replace-with-immutable-gemini-model.2026-08-08",
+        "modelFamilyId": "model-family.gemini-interactions",
+        "modelFamilyOwnerId": "owner.google",
+        "immutableVersion": "2026-08-08-gemini-interactions",
+        "tokenizerDigest": "sha256-19667fb32cc83568403652791c133345b37281f55a0c18f44ce32f898a942e43",
+        "chatTemplateDigest": "sha256-4c07a1816c42f777b97d88f200b238ff836eb7292fbcab98d13c1c1a267327cc"
+      },
+      "capabilityInferenceConfigurationDigests": {
+        "g4-core-text-tools": "sha256-780e6268e9a0316e54d3ad5290beba4a2d1fa3f26b91c7cf9acc16a4b2d08860",
+        "g4-document-input": "sha256-ebc085f28e88f5b5e1f9e618f9d0c29264bf7c0e31a6de7451f4c914f9f782bb",
+        "g4-visual-input": "sha256-d4a43062cba80613968df4b51b299cf147517db66fb64e4f570432df39688d06",
+        "g4-provider-background-job": "sha256-c60c61c864d8361d64d3cc3727286081afa8c25ceec121274d360c342c7a921d",
+        "g4-provider-hosted-retrieval-core": "sha256-51144303e44d89207711c3d2c6d7e3d30ca9c6be16e76ca5ae6cb988278375be",
+        "g4-provider-hosted-retrieval-document": "sha256-715d8e32e841ae7a543afa598c0509380e727fdcadcffdd95cae59913301c881",
+        "g4-provider-parallel-tool": "sha256-879c918c318bddff0a3f59658c615e4a0aec8fde0ce69cdabca8a8c7b4913139",
+        "g4-provider-isolated-cache": "sha256-c497f798750cb92f55abd535a6987d5cdbe81298317e72f346c812c892d9decc",
+        "g4-provider-reasoning-continuation": "sha256-f5712d417876d669d93393e6b10a3cce3036da166319b13cecc9f5c7917128aa"
+      },
+      "declaredCapabilityProfileDigests": [
+        "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+        "sha256-3f5a0b0b34d7b66e4b75de21cec15690544c411d52e733c0ff2801691dd8157b",
+        "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34",
+        "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+        "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+        "sha256-aadbc76cf7141fa1aabffec62c69f0fd3a446399dfc9900c70fe257fc9d72dd7",
+        "sha256-e7bbd5f0f8509fbecb9e52948f78fbefbcace258008b7aee5476b48186d8dda6",
+        "sha256-ef26475b385ea3298b28e145878583e55b8bd21c0ebc55116e57e823dfabd78e"
+      ],
+      "capabilityProbePrograms": {
+        "g4-provider-background-job": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-background-job",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-background-job",
+            "capabilityProfileDigest": "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+            "capabilityId": "provider.background-job",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "background",
+            "providerStateMode": "provider-background-job",
+            "toolExecutionLocus": "none",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-d1efc1ad243b1d67771bfd138747ebdc9effc5fd9495cf156a4a78c8b737003c"
+          },
+          "profileProjectionDigest": "sha256-d1efc1ad243b1d67771bfd138747ebdc9effc5fd9495cf156a4a78c8b737003c",
+          "providerRequestIntent": {
+            "intentKind": "background-job-lifecycle",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Complete the bounded public marker task in background mode.",
+              "documentText": null
+            },
+            "requestPhases": ["submit", "poll"],
+            "networkRoundTripPolicy": {
+              "mode": "repeat-until-terminal",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 5,
+              "repeatedPhase": "poll",
+              "minimumRepeatCount": 1,
+              "maximumRepeatCount": 4,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-28f17a898ca055585ce2de9af04852d5f68806d4cb277e0f808b07296f4a28db"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-job-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 5,
+            "maximumPollAttempts": 4,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-b4932fa9a4bd26538257d96da04ded6014fba0da738066766bada19d1e56a3d8"
+        },
+        "g4-provider-hosted-retrieval-core": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-hosted-retrieval-core",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-hosted-retrieval-core",
+            "capabilityProfileDigest": "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+            "capabilityId": "provider.hosted-retrieval",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "provider-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-5d973e3bdc35bf583bfbcb8158f7fb10080ee2ac0763a516e83eb2ee2167e31c"
+          },
+          "profileProjectionDigest": "sha256-5d973e3bdc35bf583bfbcb8158f7fb10080ee2ac0763a516e83eb2ee2167e31c",
+          "providerRequestIntent": {
+            "intentKind": "hosted-retrieval-public-text",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Retrieve and cite the canonical public probe marker source.",
+              "documentText": null
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": ["provider.retrieval.search"],
+            "publicProbeResource": {
+              "resourceId": "capability-probe.public-text.v1",
+              "resourceKind": "repository-owned-public-text",
+              "contentDigest": "sha256-9284ee217461285979c74f7ffb70bd4eb2a4e90888584bf8eb99e03e06510d9a",
+              "queryDigest": "sha256-b8fc0e66546e2bda59f5504ec114f838b35a197a5ae6e1c32c669198922eae3e",
+              "indexDigest": "sha256-713d52810adbb5e4ed6aa53f78eb8eef9821f68f6f89e455f9fe0c58aa2d68bf",
+              "expectedMarkerDigest": "sha256-7b93060f6a1a7c8a7bd301a36409a6b19cd41555d67aaf00156f977407ad12a7",
+              "documentBytesDigest": null,
+              "descriptorDigest": "sha256-ef7c7f1bdcec713e4104ed9fab91d9998d963773c6669b20814e370a3035f182"
+            },
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-086587a1b7693d6a3612fa766cb3c27ae8d3201980d6b528d518ea471e95a5d3"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "retrieval-query-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 1,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-d8c0cf7d4b07574bd03142934e819fb8a693abc3f98919ef48cba2e861df6a89"
+        },
+        "g4-provider-hosted-retrieval-document": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-hosted-retrieval-document",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-hosted-retrieval-document",
+            "capabilityProfileDigest": "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+            "capabilityId": "provider.hosted-retrieval",
+            "inputClass": "bounded-public-document",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "provider-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-e45999eb4d816828294606264ebf1ab9f701c50219508f74fcd72ab334557ce8"
+          },
+          "profileProjectionDigest": "sha256-e45999eb4d816828294606264ebf1ab9f701c50219508f74fcd72ab334557ce8",
+          "providerRequestIntent": {
+            "intentKind": "hosted-retrieval-public-document",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Retrieve and cite the marker from the attached public probe document.",
+              "documentText": "Public capability probe document. Marker: prodivix-capability-probe-v1."
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": ["provider.retrieval.search"],
+            "publicProbeResource": {
+              "resourceId": "capability-probe.public-document.v1",
+              "resourceKind": "repository-owned-public-document",
+              "contentDigest": "sha256-d5dc455f2b24f37f30ad0c6d420cd2f025ba156739540d1d70b2bb8ae8924054",
+              "queryDigest": "sha256-b8fc0e66546e2bda59f5504ec114f838b35a197a5ae6e1c32c669198922eae3e",
+              "indexDigest": "sha256-8c45358ef573bd1de1036c066777f0db51cb83722648001f37ca0a0e09b13c92",
+              "expectedMarkerDigest": "sha256-7b93060f6a1a7c8a7bd301a36409a6b19cd41555d67aaf00156f977407ad12a7",
+              "documentBytesDigest": "sha256-d5dc455f2b24f37f30ad0c6d420cd2f025ba156739540d1d70b2bb8ae8924054",
+              "descriptorDigest": "sha256-dd38b95ca8e54974c4914cba01832c778439bce7e3e1a9e4ecad6dcaa2b53e07"
+            },
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-7b41188b39a798c4ab273f3d2fb5358bede84aacb057b3133dff774bcd77a74f"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "retrieval-query-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 1,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-348a962d94fe09c59d5ee484cf756174969252664527905d9d1a977879d79fa8"
+        },
+        "g4-provider-isolated-cache": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-isolated-cache",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-isolated-cache",
+            "capabilityProfileDigest": "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+            "capabilityId": "provider.isolated-cache",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "none",
+            "cacheMode": "prompt",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-204a9af06d4e266c262bcff06bbf6777d63b66ca62ae3e971dc4e9b75f79ff0e"
+          },
+          "profileProjectionDigest": "sha256-204a9af06d4e266c262bcff06bbf6777d63b66ca62ae3e971dc4e9b75f79ff0e",
+          "providerRequestIntent": {
+            "intentKind": "isolated-prompt-cache-roundtrip",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Return the public marker through a task-isolated prompt cache roundtrip.",
+              "documentText": null
+            },
+            "requestPhases": ["cache-cold", "cache-warm"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 2,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": {
+              "resourceId": "capability-probe.cache-prefix.v1",
+              "encoding": "utf-8",
+              "prefixByteLength": 41471,
+              "prefixDigest": "sha256-f6a6cecc3991d01d498a9831432dcaf701ad0396d71737181e6efd4ee3e0b4b7",
+              "minimumTokenCountByProtocol": {
+                "anthropic-messages": 4096,
+                "gemini-interactions": 4096,
+                "openai-responses": 1024
+              },
+              "coldSuffixDigest": "sha256-ff3a5221df01875db121e7042f6cde15a0be8da39d6928c1748c771fcac200fc",
+              "warmSuffixDigest": "sha256-3bdf64cbc11694b96305eebc50d5c1dc472077aecc074c4159416963b1d3cd9d",
+              "descriptorDigest": "sha256-24a6a75f54fc57db37fa52374857edb37c612f9ca9fe8a8b2739ead4abd3a4fd"
+            },
+            "publicPayloadDigest": "sha256-c510e500740f7d72dafe9c39d18343d62b8b787a27c34662a8f22882a0c5056f"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-cache-receipt",
+                "minimumCount": 1,
+                "providerEventType": null
+              },
+              {
+                "factKind": "usage-vector",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 65536,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 2,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-6b9d354d429ec1a2e9ef0a0e22d00dc855d78e6a0a915ebd5368524410e72b57"
+        },
+        "g4-provider-parallel-tool": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-parallel-tool",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-parallel-tool",
+            "capabilityProfileDigest": "sha256-e7bbd5f0f8509fbecb9e52948f78fbefbcace258008b7aee5476b48186d8dda6",
+            "capabilityId": "provider.parallel-tool",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "stream",
+            "providerStateMode": "stateless",
+            "toolExecutionLocus": "client-hosted",
+            "cacheMode": "disabled",
+            "reasoningMode": "none",
+            "minimumParallelToolCalls": 2,
+            "projectionDigest": "sha256-1cb7e7172e38e8f0d4ded613dc917b624d4d68ef8fc3940301514fefe13a09c0"
+          },
+          "profileProjectionDigest": "sha256-1cb7e7172e38e8f0d4ded613dc917b624d4d68ef8fc3940301514fefe13a09c0",
+          "providerRequestIntent": {
+            "intentKind": "parallel-client-tool-calls",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Call both public marker tools in one parallel provider turn.",
+              "documentText": null
+            },
+            "requestPhases": ["dispatch-terminal"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 1,
+              "maximumRoundTrips": 1,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [
+              "capability_probe_alpha",
+              "capability_probe_beta"
+            ],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-c11b39ffc4c8a312ea6e485929d130a5803e52ddac1cd0b6c212ae14a5ad76ed"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "provider-event",
+                "minimumCount": 2,
+                "providerEventType": "tool-call"
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 2,
+            "maximumProviderRoundTrips": 1,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-fb9fc718b3295e7bf3e0cfc2f91f687daa78d8df9543d847251dc8e5a941bc0e"
+        },
+        "g4-provider-reasoning-continuation": {
+          "format": "prodivix.agent-capability-probe-program",
+          "version": 1,
+          "programId": "capability-probe.g4-provider-reasoning-continuation",
+          "profileProjection": {
+            "format": "prodivix.agent-capability-probe-profile-projection",
+            "version": 1,
+            "capabilityProfileId": "g4-provider-reasoning-continuation",
+            "capabilityProfileDigest": "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34",
+            "capabilityId": "provider.reasoning-continuation",
+            "inputClass": "bounded-public-text",
+            "deliveryMode": "response",
+            "providerStateMode": "provider-stored-parent",
+            "toolExecutionLocus": "none",
+            "cacheMode": "disabled",
+            "reasoningMode": "opaque-continuation",
+            "minimumParallelToolCalls": 0,
+            "projectionDigest": "sha256-89733b4a82ebc5fc5dc665d092c8a3d82aea0ecc95ba0f2019983c5c117d87f6"
+          },
+          "profileProjectionDigest": "sha256-89733b4a82ebc5fc5dc665d092c8a3d82aea0ecc95ba0f2019983c5c117d87f6",
+          "providerRequestIntent": {
+            "intentKind": "opaque-continuation-roundtrip",
+            "publicPayload": {
+              "marker": "prodivix-capability-probe-v1",
+              "instruction": "Preserve and resume the opaque continuation for the public marker.",
+              "documentText": null
+            },
+            "requestPhases": ["continue", "resume"],
+            "networkRoundTripPolicy": {
+              "mode": "fixed",
+              "minimumRoundTrips": 2,
+              "maximumRoundTrips": 2,
+              "repeatedPhase": null,
+              "minimumRepeatCount": 0,
+              "maximumRepeatCount": 0,
+              "terminalOnFinalRoundTrip": true
+            },
+            "requiredToolNames": [],
+            "publicProbeResource": null,
+            "cachePrefixResource": null,
+            "publicPayloadDigest": "sha256-33778eef9b0659a174eb653d93d460d8ffd84ffdcabae0503e66c37df7199ac6"
+          },
+          "observationContract": {
+            "supportedRequirements": [
+              {
+                "factKind": "opaque-continuation",
+                "minimumCount": 1,
+                "providerEventType": null
+              }
+            ],
+            "unsupportedDenialKinds": [
+              "provider-declared-unsupported",
+              "provider-feature-unavailable",
+              "provider-request-denied"
+            ],
+            "inconclusiveDenialKinds": [
+              "normalized-response-incomplete",
+              "probe-execution-timeout",
+              "provider-response-unavailable"
+            ]
+          },
+          "hardLimits": {
+            "maximumRequestBytes": 16384,
+            "maximumResponseBytes": 262144,
+            "maximumNormalizedFacts": 16,
+            "maximumToolCalls": 0,
+            "maximumProviderRoundTrips": 2,
+            "maximumPollAttempts": 0,
+            "maximumSingleDispatchMs": 30000,
+            "maximumExecutionDurationMs": 120000
+          },
+          "programDigest": "sha256-54a426c8e99b93b8efb6e3e863210522e42665c8e1cc0520b51a8a3516eb11ae"
+        }
+      },
+      "expectedRuntimeFactSourceIdentities": {
+        "g4-provider-background-job": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.gemini-interactions.g4-provider-background-job",
+          "sourceAuthorityImplementationDigest": "sha256-6d8d735b1329feee2ecef54d09c5bed80d43bfcadcdd84b7b08680ddf9fbabda",
+          "routeBinding": "provider-runtime-metadata.g4-provider-background-job",
+          "capabilityProfileId": "g4-provider-background-job",
+          "capabilityProfileDigest": "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+          "capabilityId": "provider.background-job",
+          "protocolFamily": "gemini-interactions",
+          "providerConfigurationId": "provider.gemini-interactions.v8",
+          "modelId": "replace-with-immutable-gemini-model.2026-08-08",
+          "modelLineageDigest": "sha256-7f7f6f17338ca482059632ebdf5b6bea56014a925b521d7561c096d0046a1011",
+          "adapterDigest": "sha256-465ea70ba0c3dbef1d89d7820e99c6d088ad1106631847c24804a13a956e4183",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-hosted-retrieval-core": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-hosted-owner-result",
+          "sourceAuthorityId": "runtime-source.production.gemini-interactions.g4-provider-hosted-retrieval-core",
+          "sourceAuthorityImplementationDigest": "sha256-29af2ca74ab2e7bdef2cd5e4f045645a85397953000a4f1b53a8123fa4f090fe",
+          "routeBinding": "hosted-capability-runtime.g4-provider-hosted-retrieval-core",
+          "capabilityProfileId": "g4-provider-hosted-retrieval-core",
+          "capabilityProfileDigest": "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+          "capabilityId": "provider.hosted-retrieval",
+          "protocolFamily": "gemini-interactions",
+          "providerConfigurationId": "provider.gemini-interactions.v8",
+          "modelId": "replace-with-immutable-gemini-model.2026-08-08",
+          "modelLineageDigest": "sha256-7f7f6f17338ca482059632ebdf5b6bea56014a925b521d7561c096d0046a1011",
+          "adapterDigest": "sha256-465ea70ba0c3dbef1d89d7820e99c6d088ad1106631847c24804a13a956e4183",
+          "hostedRetrievalRuntimeResourceRegistrationIntentDigest": "sha256-fdb7f561e4328a5906ba7fb6a8fddb85e154ae852b4e061da4ff5833e9399c4a",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-hosted-retrieval-document": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-hosted-owner-result",
+          "sourceAuthorityId": "runtime-source.production.gemini-interactions.g4-provider-hosted-retrieval-document",
+          "sourceAuthorityImplementationDigest": "sha256-3bd8377cf0871e97ad3c09c39ece2337bee6d8e468e94a3dc5c259338a975f89",
+          "routeBinding": "hosted-capability-runtime.g4-provider-hosted-retrieval-document",
+          "capabilityProfileId": "g4-provider-hosted-retrieval-document",
+          "capabilityProfileDigest": "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+          "capabilityId": "provider.hosted-retrieval",
+          "protocolFamily": "gemini-interactions",
+          "providerConfigurationId": "provider.gemini-interactions.v8",
+          "modelId": "replace-with-immutable-gemini-model.2026-08-08",
+          "modelLineageDigest": "sha256-7f7f6f17338ca482059632ebdf5b6bea56014a925b521d7561c096d0046a1011",
+          "adapterDigest": "sha256-465ea70ba0c3dbef1d89d7820e99c6d088ad1106631847c24804a13a956e4183",
+          "hostedRetrievalRuntimeResourceRegistrationIntentDigest": "sha256-df414385b9004c03447b23570f3056cce47873cfc3ccb73c88e5d0528519454a",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-isolated-cache": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.gemini-interactions.g4-provider-isolated-cache",
+          "sourceAuthorityImplementationDigest": "sha256-705be01ea808305e66ebf74ab87886b9dc0cf0abc4b21e0ab1ef07e3a109b63d",
+          "routeBinding": "provider-runtime-metadata.g4-provider-isolated-cache",
+          "capabilityProfileId": "g4-provider-isolated-cache",
+          "capabilityProfileDigest": "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+          "capabilityId": "provider.isolated-cache",
+          "protocolFamily": "gemini-interactions",
+          "providerConfigurationId": "provider.gemini-interactions.v8",
+          "modelId": "replace-with-immutable-gemini-model.2026-08-08",
+          "modelLineageDigest": "sha256-7f7f6f17338ca482059632ebdf5b6bea56014a925b521d7561c096d0046a1011",
+          "adapterDigest": "sha256-465ea70ba0c3dbef1d89d7820e99c6d088ad1106631847c24804a13a956e4183",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        },
+        "g4-provider-reasoning-continuation": {
+          "kind": "shared-durable-capability",
+          "sourceKind": "sealed-provider-response-metadata",
+          "sourceAuthorityId": "runtime-source.production.gemini-interactions.g4-provider-reasoning-continuation",
+          "sourceAuthorityImplementationDigest": "sha256-8039bdeeebba930e38071b86f5c2f7f7b61b352067250ec03e9345eafadfef00",
+          "routeBinding": "provider-runtime-metadata.g4-provider-reasoning-continuation",
+          "capabilityProfileId": "g4-provider-reasoning-continuation",
+          "capabilityProfileDigest": "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34",
+          "capabilityId": "provider.reasoning-continuation",
+          "protocolFamily": "gemini-interactions",
+          "providerConfigurationId": "provider.gemini-interactions.v8",
+          "modelId": "replace-with-immutable-gemini-model.2026-08-08",
+          "modelLineageDigest": "sha256-7f7f6f17338ca482059632ebdf5b6bea56014a925b521d7561c096d0046a1011",
+          "adapterDigest": "sha256-465ea70ba0c3dbef1d89d7820e99c6d088ad1106631847c24804a13a956e4183",
+          "registrationAuthorityIssuerId": "prodivix.g4-model-evaluation-ledger"
+        }
+      },
+      "smokeProfileDigest": "sha256-c418a1c786da5a027733d29e7980d8b551f8d6ee5a8ab50b6ff1aa9a40c293f9",
+      "pricing": {
+        "modelTier": "standard-2026-08-08",
+        "source": {
+          "sourceUri": "https://pricing.example.invalid/gemini/2026-08-08",
+          "observedAt": "2026-08-08T00:00:00.000Z",
+          "sourceContentDigest": "sha256-5321b6a3b03926f70cb43e1d91f99e41b394b50bf6a41bedabff1733f116282e",
+          "sourceReceiptDigest": "sha256-7e2055d9f03ee0fd28d98d2031a6b4b5b5cd2268107b5f69568f345ce4eb1c85"
+        },
+        "snapshot": {
+          "pricingSnapshotId": "pricing.provider.gemini-interactions.v8.2026-08-08",
+          "providerConfigurationId": "provider.gemini-interactions.v8",
+          "serviceTier": "standard-2026-08-08",
+          "region": "europe-west4",
+          "effectiveAt": "2026-08-08T00:00:00.000Z",
+          "rates": [
+            {
+              "unit": "cache-read-token",
+              "currency": "USD",
+              "unitPrice": "0.000000125"
+            },
+            {
+              "unit": "reasoning-token",
+              "currency": "USD",
+              "unitPrice": "0.00001"
+            },
+            {
+              "unit": "text-token-input",
+              "currency": "USD",
+              "unitPrice": "0.00000125"
+            },
+            {
+              "unit": "text-token-output",
+              "currency": "USD",
+              "unitPrice": "0.00001"
+            }
+          ],
+          "sourceDigest": "sha256-5321b6a3b03926f70cb43e1d91f99e41b394b50bf6a41bedabff1733f116282e",
+          "snapshotDigest": "sha256-33acbfcb1b889ca8038557876bb2865146b33517990574404cc8d2d833ac5858"
+        },
+        "authorityDigest": "sha256-e25fa8c3c6ba522f02805d2d00f260bba36d1ebc5ca8cb346832cb890717881d"
+      }
+    }
+  },
+  "compatibilitySmokes": {
+    "hosted": {
+      "providerConfigurationId": "provider.openai-compatible.hosted",
+      "endpointClass": "aggregator",
+      "modelId": "replace-with-immutable-hosted-compatible-model.2026-08-08",
+      "immutableModelVersion": "replace-with-immutable-hosted-compatible-model.2026-08-08",
+      "modelLineageDigest": "sha256-ccca2421c308b541a87aea708f8dceddcb9a1a08a4dc9d61a20ec5d6f5709b1c",
+      "inferenceConfigurationDigest": "sha256-ea1dbabc2fa0ffead3dab2e6ef6ee29597f9c3c6787cde95b0b1eda0166cf787",
+      "adapterDigest": "sha256-2fcf5ea8f1a6d1df9aeff66cfd0ee83009812a9f618022679f881e54f75a3293",
+      "smokeProfileDigest": "sha256-0dad0487a701c421ea2caf182344bfcafab4c2044236e3e34755fc123b510a11",
+      "smokeBehaviorProfileDigest": "sha256-fea6f88b9489803afdf3129eb946c30550038c0e42923898e162dc7d053e39ed",
+      "runtime": {
+        "providerConfigurationId": "provider.openai-compatible.hosted",
+        "endpoint": "https://compatible.example.invalid/v1/chat/completions",
+        "endpointId": "endpoint.openai-compatible.hosted.template",
+        "region": "global",
+        "modelId": "replace-with-immutable-hosted-compatible-model.2026-08-08",
+        "immutableModelVersion": "replace-with-immutable-hosted-compatible-model.2026-08-08",
+        "modelLineageDigest": "sha256-ccca2421c308b541a87aea708f8dceddcb9a1a08a4dc9d61a20ec5d6f5709b1c",
+        "inferenceConfigurationDigest": "sha256-ea1dbabc2fa0ffead3dab2e6ef6ee29597f9c3c6787cde95b0b1eda0166cf787",
+        "adapterDigest": "sha256-2fcf5ea8f1a6d1df9aeff66cfd0ee83009812a9f618022679f881e54f75a3293",
+        "redirectPolicy": "deny",
+        "authentication": {
+          "mode": "bearer-secret-ref",
+          "secretEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_HOSTED_COMPATIBLE_API_KEY",
+          "secretRef": "secret.provider.openai-compatible.hosted"
+        },
+        "request": {
+          "apiShape": "chat-completions",
+          "prompt": "Reply with exactly PRODIVIX_G4_SMOKE_OK.",
+          "expectedText": "PRODIVIX_G4_SMOKE_OK",
+          "maximumOutputTokens": 16,
+          "temperature": "0",
+          "requestProfileDigest": "sha256-412ec8bf371d84a29354dc7f9f710e1feeaac247ffd84606e8832f384d8b49a6"
+        },
+        "pricing": {
+          "modelTier": "hosted-compatible-standard",
+          "source": {
+            "sourceUri": "https://pricing.example.invalid/openai-compatible-hosted-2026-08-08",
+            "observedAt": "2026-08-08T00:00:00.000Z",
+            "sourceContentDigest": "sha256-910015f5fbe3709b77eeb6915c23de9863a4d80eeecb486584f8c8558e7c8624",
+            "sourceReceiptDigest": "sha256-6f334917691ae3d637d17c1b5f02e71ffdcc3985dc480a626a4ecc847f6e603d"
+          },
+          "snapshot": {
+            "pricingSnapshotId": "pricing.openai-compatible.hosted.2026-08-08",
+            "providerConfigurationId": "provider.openai-compatible.hosted",
+            "serviceTier": "hosted-compatible-standard",
+            "region": "global",
+            "effectiveAt": "2026-08-08T00:00:00.000Z",
+            "rates": [
+              {
+                "unit": "cache-read-token",
+                "currency": "USD",
+                "unitPrice": "0.0000001"
+              },
+              {
+                "unit": "reasoning-token",
+                "currency": "USD",
+                "unitPrice": "0.000004"
+              },
+              {
+                "unit": "text-token-input",
+                "currency": "USD",
+                "unitPrice": "0.0000005"
+              },
+              {
+                "unit": "text-token-output",
+                "currency": "USD",
+                "unitPrice": "0.000002"
+              }
+            ],
+            "sourceDigest": "sha256-910015f5fbe3709b77eeb6915c23de9863a4d80eeecb486584f8c8558e7c8624",
+            "snapshotDigest": "sha256-141bb09e7c90672110ec5c1e93d00b0985402c61a8e5b8065b9e302569e807b2"
+          },
+          "authorityDigest": "sha256-61a1b6e4c74f0628c0d5bb0c62c064cdeed350c7ed4fa9c432ae2bfaa01cff08"
+        },
+        "runtimeDigest": "sha256-d948dab8aae9a51c7bffc6461b61fbcae917a86a7de4d2eccf7e93d35b0352ab"
+      }
+    },
+    "local": {
+      "providerConfigurationId": "provider.openai-compatible.local",
+      "endpointClass": "local",
+      "modelId": "replace-with-immutable-local-compatible-model.2026-08-08",
+      "immutableModelVersion": "replace-with-immutable-local-compatible-model.2026-08-08",
+      "modelLineageDigest": "sha256-7a3d4cec52f76de17ae49f8f60cf7bd3c84ba7a778a91711332659d2a61e8b4c",
+      "inferenceConfigurationDigest": "sha256-7bf45a01071bf1d1b52aaf07ea414c26873bfa9bb5c616d138c0b38cadeb5ed5",
+      "adapterDigest": "sha256-2d037b6fac9cc6627b35e93384c090d29e954d0bd53de9065faf863f1316a40d",
+      "smokeProfileDigest": "sha256-e31889f6e39f8b519fcf26adbc6e0abdb013d63b28d7dafc5cf5c35f38824b5e",
+      "smokeBehaviorProfileDigest": "sha256-a8ff1c8e5c7c4b2f30461a4e86178fcc3460759e1e47143058b55c2236360ccc",
+      "runtime": {
+        "providerConfigurationId": "provider.openai-compatible.local",
+        "endpoint": "http://127.0.0.1:8000/v1/chat/completions",
+        "endpointId": "endpoint.openai-compatible.local.template",
+        "region": "local-runner",
+        "modelId": "replace-with-immutable-local-compatible-model.2026-08-08",
+        "immutableModelVersion": "replace-with-immutable-local-compatible-model.2026-08-08",
+        "modelLineageDigest": "sha256-7a3d4cec52f76de17ae49f8f60cf7bd3c84ba7a778a91711332659d2a61e8b4c",
+        "inferenceConfigurationDigest": "sha256-7bf45a01071bf1d1b52aaf07ea414c26873bfa9bb5c616d138c0b38cadeb5ed5",
+        "adapterDigest": "sha256-2d037b6fac9cc6627b35e93384c090d29e954d0bd53de9065faf863f1316a40d",
+        "redirectPolicy": "deny",
+        "authentication": {
+          "mode": "bearer-secret-ref",
+          "secretEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_LOCAL_COMPATIBLE_API_KEY",
+          "secretRef": "secret.provider.openai-compatible.local"
+        },
+        "request": {
+          "apiShape": "chat-completions",
+          "prompt": "Reply with exactly PRODIVIX_G4_SMOKE_OK.",
+          "expectedText": "PRODIVIX_G4_SMOKE_OK",
+          "maximumOutputTokens": 16,
+          "temperature": "0",
+          "requestProfileDigest": "sha256-412ec8bf371d84a29354dc7f9f710e1feeaac247ffd84606e8832f384d8b49a6"
+        },
+        "pricing": {
+          "modelTier": "local-compatible-standard",
+          "source": {
+            "sourceUri": "https://pricing.example.invalid/openai-compatible-local-2026-08-08",
+            "observedAt": "2026-08-08T00:00:00.000Z",
+            "sourceContentDigest": "sha256-626f57cae4dfc3bf1e64b654f21e04c8acdfc3bedb88c4e77f66179a7a5a830b",
+            "sourceReceiptDigest": "sha256-9d6e1f5af5ac11b001c36d8b90d2776cf67b403f81732914abf1e6ca8ca565de"
+          },
+          "snapshot": {
+            "pricingSnapshotId": "pricing.openai-compatible.local.2026-08-08",
+            "providerConfigurationId": "provider.openai-compatible.local",
+            "serviceTier": "local-compatible-standard",
+            "region": "local-runner",
+            "effectiveAt": "2026-08-08T00:00:00.000Z",
+            "rates": [
+              {
+                "unit": "cache-read-token",
+                "currency": "USD",
+                "unitPrice": "0.00000005"
+              },
+              {
+                "unit": "reasoning-token",
+                "currency": "USD",
+                "unitPrice": "0.000001"
+              },
+              {
+                "unit": "text-token-input",
+                "currency": "USD",
+                "unitPrice": "0.0000002"
+              },
+              {
+                "unit": "text-token-output",
+                "currency": "USD",
+                "unitPrice": "0.0000008"
+              }
+            ],
+            "sourceDigest": "sha256-626f57cae4dfc3bf1e64b654f21e04c8acdfc3bedb88c4e77f66179a7a5a830b",
+            "snapshotDigest": "sha256-11694e3cc510a80baf56a03397892d032a61dabf94bdb97cbbf9f0b67d4265c7"
+          },
+          "authorityDigest": "sha256-97e2b622694f91fd0720759188831b0863ad7b1911a2e713a402cea731dda564"
+        },
+        "runtimeDigest": "sha256-2b3ac5b891e2c8ed1a390d001e4e6d8c366af0bc9fa6c1241feba112074d5ea5"
+      }
+    }
+  },
+  "controlledRuntime": {
+    "authorityId": "authority.g4-controlled-evaluation-runtime",
+    "runtimeImplementationDigest": "sha256-a291b2ff743f8af66d53ea5b2e2fc79279a39b6cf2882e045a9e4f24bd047eee",
+    "artifactResolutionPolicyDigest": "sha256-e52ca58d2f8417fa4b5c2ef4df3a542e8601b410f3c754c868c0e66a9f1f1842",
+    "proposalValidationPolicyDigest": "sha256-22e264288063e85a0c164cc691e70ceacc40113930f180ef7e957d4b814fa78e",
+    "isolationPolicyDigest": "sha256-b9b65f04e03b57f8930aa43b0f7d1236723950281a178c9b83976ece75d157e6",
+    "g3VerificationPolicyDigest": "sha256-c51075641d39f8c18ed14b8cf83bfc43e40d46deef1813b42139008e679e7238",
+    "controlledRenderPolicyDigest": "sha256-f47aabfb6dced4497f90f2a2be071e76307342586d4c99109d038d1510d6612f",
+    "loop": {
+      "domainToolChoice": "required",
+      "allowParallelDomainToolCalls": true,
+      "maximumTurnsPerAttempt": 7,
+      "maximumToolCallsPerAttempt": 4,
+      "maximumRepairRoundsPerAttempt": 2,
+      "maximumToolResultBytes": 2097152,
+      "maximumAggregateToolResultBytes": 8388608,
+      "maximumAggregateArtifactBytes": 8388608,
+      "continuationTimeoutMs": 120000,
+      "loopPolicyDigest": "sha256-06b876c28a9c66afd5a8155596748f08daf439269dda5bc11cb805bd848d7e25"
+    },
+    "runtimePolicyDigest": "sha256-c4023a81a6165afc86d822ec31012c0ffc339ac8044933d4a5f376c2a41a822f"
+  },
+  "responseSpoolEncryption": {
+    "format": "prodivix.g4-model-evaluation-response-spool-encryption",
+    "version": 1,
+    "algorithm": "AES-256-GCM",
+    "nonceBytes": 12,
+    "authenticationTagBytes": 16,
+    "aadFormat": "prodivix.agent-evaluation-provider-result-spool-aad",
+    "aadVersion": 1,
+    "namespaceId": "namespace.g4-model-eval.result-spool.v1",
+    "namespaceDigest": "sha256-fc5c10b1afed1ffa16d4302945c272a1d1fee7257dfba34f66b333c7c653103a",
+    "keyId": "key.g4-model-eval.result-spool.v1",
+    "keyVersion": 1,
+    "keyEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_RESULT_SPOOL_KEY_BASE64",
+    "keyRef": "secret.g4-model-eval.result-spool.aes256gcm.v1",
+    "keyRefDigest": "sha256-edb166ecbfef281d870d05a5bb3184c0c12e96cae099235971beeb74d2409522",
+    "maximumPlaintextBytes": 16777216,
+    "retention": {
+      "maximumAgeMs": 86400000,
+      "disposition": "delete-after-durable-attempt-commit-or-maximum-age",
+      "retentionPolicyDigest": "sha256-65471a9b59dbcc90b6a6b097da4bd55705a49e14c2a96c5b8db05a86af9a7f57"
+    },
+    "encryptionProfileDigest": "sha256-5ea31839f865cde6fc8e08032a6ece607c38f6bb2f448dec520ea95ccd183c47",
+    "encryptionPolicyDigest": "sha256-ac9fe2da4df4334e29ad128cfd7588845715bbcdbeee9c12b649d1f7ea0452b6"
+  },
+  "capabilityProbeResponseSpoolEncryption": {
+    "format": "prodivix.g4-capability-probe-response-spool-encryption",
+    "version": 1,
+    "algorithm": "AES-256-GCM",
+    "nonceBytes": 12,
+    "authenticationTagBytes": 16,
+    "aadFormat": "prodivix.agent-capability-probe-response-spool-aad",
+    "aadVersion": 1,
+    "maximumPlaintextBytes": 1048576,
+    "namespaceId": "g4-capability-probe-response-spool",
+    "namespaceDigest": "sha256-283683137d363a312be432fb7155a3d20546dd6c25a6f84227a6434856650524",
+    "keyId": "key.g4-model-eval.capability-probe-response-spool.v1",
+    "keyVersion": 1,
+    "keyEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_CAPABILITY_PROBE_RESPONSE_SPOOL_KEY_BASE64",
+    "keyRef": "secret.g4-model-eval.capability-probe-response-spool.aes256gcm.v1",
+    "keyRefDigest": "sha256-365caea4c75dbabfb4869db177be98a489d13f25b121eb2e2f6dfc16fdbab105",
+    "retention": {
+      "maximumAgeMs": 691200000,
+      "disposition": "delete-after-durable-probe-admission-or-maximum-age",
+      "retentionPolicyDigest": "sha256-990cd238232a35c0941464ab9f35949b70c43c59a2d581334dd4c723fd904685"
+    },
+    "encryptionProfileDigest": "sha256-1ff01d59b3f6fee661ca9a4b8c3d8dd3c5347e018d8cdf4945e37adb69533c2d",
+    "encryptionPolicyDigest": "sha256-b77aa148725a51c824010e1f428d3bec74de4522d201c5ab1785870b18f7eae7"
+  },
+  "hostedRetrievalRuntimeResourceLifecycleSpool": {
+    "format": "prodivix.g4-model-evaluation-hosted-retrieval-runtime-resource-lifecycle-spool-profile",
+    "version": 1,
+    "keyReference": {
+      "keyId": "key.g4-model-eval.hosted-retrieval-runtime-resource-lifecycle-spool.v1",
+      "keyVersion": 1,
+      "keyEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_SPOOL_KEY_BASE64",
+      "keyRef": "secret.g4-model-eval.hosted-retrieval-runtime-resource-lifecycle-spool.aes256gcm.v1"
+    },
+    "keyRefDigest": "sha256-e8f42635eda9b6575821c1c6e20d84593941597efa79c107b01ece04ad3a07a0",
+    "encryptionProfile": {
+      "algorithm": "aes-256-gcm",
+      "aadFormat": "prodivix.agent-evaluation-hosted-retrieval-runtime-resource-lifecycle-spool-aad",
+      "aadVersion": 1,
+      "keyRefDigest": "sha256-e8f42635eda9b6575821c1c6e20d84593941597efa79c107b01ece04ad3a07a0",
+      "maximumCiphertextBytes": 262144
+    },
+    "encryptionProfileDigest": "sha256-39da865632ccea7e8fbcc30162e6a88dbc79eadf0dd2467ea3ed24fc88dc3ecc",
+    "retentionPolicy": {
+      "retentionClass": "hosted-resource-lifecycle-reconcile-only",
+      "maximumAgeMs": 691200000,
+      "disposition": "destroy-on-business-seal-or-expiry"
+    },
+    "retentionPolicyDigest": "sha256-392c167e96b5d13216d7a5f2991b34e6d289845c340c952eec74d8cb004c9c1d",
+    "maximumMetadataBytes": 65536,
+    "profileDigest": "sha256-f136a63c318634c95aba7bfaeecc99110659905dd6e247e0e52e1e5191569430"
+  },
+  "nativeProviderStateVaultEncryption": {
+    "format": "prodivix.g4-native-provider-state-vault-encryption-profile",
+    "version": 1,
+    "algorithm": "aes-256-gcm",
+    "nonceBytes": 12,
+    "authenticationTagBytes": 16,
+    "aadFormat": "prodivix.agent-native-provider-state-vault-aad",
+    "aadVersion": 1,
+    "maximumPlaintextBytes": 512,
+    "keyId": "g4-model-evaluation-native-provider-state-vault",
+    "keyVersion": 1,
+    "keyEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_NATIVE_PROVIDER_STATE_VAULT_KEY_BASE64",
+    "keyRef": "secret://g4-model-evaluation/native-provider-state-vault",
+    "keyRefDigest": "sha256-5c54bbe814cae4fbe300e62c6c30fa48ba397331c2866e8176c03e1dcafdf7a6",
+    "retention": {
+      "maximumAgeMs": 125000,
+      "disposition": "expire-after-source-seal-or-maximum-lifetime",
+      "retentionPolicyDigest": "sha256-be8d3b9aea8bcb6cd89244a17a1280b068288b10dec62ae01aa6f6532f077935"
+    },
+    "deletionReceiptPolicy": {
+      "plaintextResidency": "callback-only",
+      "encryptedReferenceDisposition": "cryptographic-expiry",
+      "deletionReceipt": "source-seal-or-expiry-authority",
+      "deletionReceiptPolicyDigest": "sha256-02a2d21aac50f6ce65eb220f94e4f8e9425258c06093d5e4cd7202c975c97c7c"
+    },
+    "encryptionProfileDigest": "sha256-e5a3bd8cb538e579da2175df7a7af364b77c9bc9337944173ef7fb63d6e0963e",
+    "authority": {
+      "format": "prodivix.agent-native-provider-state-vault-authority",
+      "version": 1,
+      "authorityId": "evaluation.native-provider-state-vault.owner.v1",
+      "authorityImplementationDigest": "sha256-70a8bce30a4b87debb41cb0be08966110f40cfe6ecec009f0483063097cf43a6",
+      "storageMode": "server-side-vault-record",
+      "cryptographicExpiryMode": "per-state-data-key-destroy",
+      "algorithm": "aes-256-gcm",
+      "keyReferenceDigest": "sha256-5c54bbe814cae4fbe300e62c6c30fa48ba397331c2866e8176c03e1dcafdf7a6",
+      "keyVersion": 1,
+      "encryptionProfileDigest": "sha256-e5a3bd8cb538e579da2175df7a7af364b77c9bc9337944173ef7fb63d6e0963e",
+      "retentionPolicyDigest": "sha256-be8d3b9aea8bcb6cd89244a17a1280b068288b10dec62ae01aa6f6532f077935",
+      "deletionReceiptPolicyDigest": "sha256-02a2d21aac50f6ce65eb220f94e4f8e9425258c06093d5e4cd7202c975c97c7c",
+      "maximumLifetimeMs": 125000,
+      "maximumLifecycleAckDelayMs": 30000,
+      "reconciliationMode": "request-digest-idempotent",
+      "authorityDigest": "sha256-d00e2b445724baa7a611628b3861496c676dcdeff026f3405c221bbcea2debcf"
+    },
+    "encryptionPolicyDigest": "sha256-abb78b537e3177d277b566d5930acc509928f9a572cf829f7e54a2619162cde7"
+  },
+  "endpointSmokeResponseSpoolEncryption": {
+    "format": "prodivix.g4-endpoint-smoke-response-spool-encryption",
+    "version": 1,
+    "algorithm": "AES-256-GCM",
+    "nonceBytes": 12,
+    "authenticationTagBytes": 16,
+    "aadFormat": "prodivix.agent-evaluation-endpoint-smoke-result-spool-aad",
+    "aadVersion": 1,
+    "namespaceId": "namespace.g4-model-eval.endpoint-smoke-result-spool.v1",
+    "namespaceDigest": "sha256-425ba08d224913606b114bccaa4fa27ae9c187c4e86b98142a84ca9a0ed5d036",
+    "keyId": "key.g4-model-eval.result-spool.v1",
+    "keyVersion": 1,
+    "keyEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_RESULT_SPOOL_KEY_BASE64",
+    "keyRef": "secret.g4-model-eval.result-spool.aes256gcm.v1",
+    "keyRefDigest": "sha256-edb166ecbfef281d870d05a5bb3184c0c12e96cae099235971beeb74d2409522",
+    "maximumPlaintextBytes": 16777216,
+    "retention": {
+      "maximumAgeMs": 86400000,
+      "disposition": "delete-after-durable-endpoint-smoke-commit-or-maximum-age",
+      "retentionPolicyDigest": "sha256-ef303abf3ccd91d833bb38b0bcd9ad063ba7af8b6c5b50694297d8d4b4e831c7"
+    },
+    "encryptionProfileDigest": "sha256-3339fc3133c69058215e6846cba6d9eaa56074d8fc948d344db5d42a6d79cbd9",
+    "encryptionPolicyDigest": "sha256-480b3492e59904adfc97596bb5473a198639327788c7c91b6285d46a272cc071"
+  },
+  "material": {
+    "catalogDigests": {
+      "caseSetDigest": "sha256-01b4c25f4b987f0002572aadf605167da6f4ba2fd0fdbc3c0ad9fd195b8f921e",
+      "publicMaterialSetDigest": "sha256-ca022418fb46af33bd698235f79bcb8dc1d7d4b7fd25010c3bbc23c69ac01b85",
+      "restrictedMaterialManifestDigest": "sha256-5f5f0c20511666de219247f73f9a3f9e93c9ab40cb4b494f726fef725080cd72",
+      "catalogDigest": "sha256-15bd29db0509815ae189dd95d851bd286d04c40c28b581536e773a68d8146977"
+    },
+    "holdoutDirectoryEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_HOLDOUT_DIRECTORY",
+    "holdoutKeyEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_HOLDOUT_KEY_BASE64",
+    "holdoutKeyRef": "secret.g4-model-eval.holdout-envelope.v1",
+    "restrictedEnvelopeLocators": [
+      {
+        "caseId": "g4-v8.adversarial-computer-authoring.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-computer-authoring.1",
+        "relativePath": "cases/g4-v8.adversarial-computer-authoring.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-01956cd09263870c2f0c034f0da7f825f1b2e32e1882c5a5c8ac1e94c7a51da0",
+        "encryptionPolicyDigest": "sha256-48a5fec24fcf748fc53037513c9119be97da675e0c3432864f364c95ba1e3df0"
+      },
+      {
+        "caseId": "g4-v8.adversarial-cross-modal-injection.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-cross-modal-injection.1",
+        "relativePath": "cases/g4-v8.adversarial-cross-modal-injection.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-75d4184f93bed997774f708c799486d03b031d15648049c816be7ec015ff1b06",
+        "encryptionPolicyDigest": "sha256-144ab052c126c56c5180dfeef4094c347b7fb550f096075d308caf78edde3bc7"
+      },
+      {
+        "caseId": "g4-v8.adversarial-external-effect.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-external-effect.1",
+        "relativePath": "cases/g4-v8.adversarial-external-effect.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-cbc16e7eb24ee02a2c1b33288210f146bd1e1d13c192ddebbadfd04f2f2b38ad",
+        "encryptionPolicyDigest": "sha256-9073fcd29f8964c2096f1f2cf6dfa9269348b77f02644801d3be44a72e0d7bf1"
+      },
+      {
+        "caseId": "g4-v8.adversarial-fake-evidence.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-fake-evidence.1",
+        "relativePath": "cases/g4-v8.adversarial-fake-evidence.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-aa297dd4f344b144d58e560440946bd36c8fd71ec8b73b86fe54c651d1e9d601",
+        "encryptionPolicyDigest": "sha256-a8e2ccdc3a51c71f9f2641fb1b5d89924566ad50aeed6f0f6c15f5a3e1b331e5"
+      },
+      {
+        "caseId": "g4-v8.adversarial-hidden-tool-state.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-hidden-tool-state.1",
+        "relativePath": "cases/g4-v8.adversarial-hidden-tool-state.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-d2da5f4c45cc95595fdaa5ad97cb13050e04aadbb2d57fdddb0eb6588be2edf0",
+        "encryptionPolicyDigest": "sha256-2b528585052074a4bd85fdcfb683e3753e62f1772fac2ea5ce2636df48e60966"
+      },
+      {
+        "caseId": "g4-v8.adversarial-image-injection.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-image-injection.1",
+        "relativePath": "cases/g4-v8.adversarial-image-injection.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-6d0818a7fd4060255db17e9973ba8ef057aa130333cbe4fdc9a6babc5823b60a",
+        "encryptionPolicyDigest": "sha256-d0b987e78e1a3e6218fa1651cb3e4db82a4cfad7b25c1415f4b202e91337490f"
+      },
+      {
+        "caseId": "g4-v8.adversarial-pdf-injection.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-pdf-injection.1",
+        "relativePath": "cases/g4-v8.adversarial-pdf-injection.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-1efe676f985e9e1f05cf453c1f54c030edbdc5f2bd0804c3b3ff613ceb5a373f",
+        "encryptionPolicyDigest": "sha256-089f18c8cb014a0230883b0ff072866510f58653c82e08a4b862c0ce32a9fb01"
+      },
+      {
+        "caseId": "g4-v8.adversarial-provider-state-pollution.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-provider-state-pollution.1",
+        "relativePath": "cases/g4-v8.adversarial-provider-state-pollution.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-b95ee63dc34b8b441e958ec8f9e079371dce8b3b1986ef8d4f9d56a367e2abf8",
+        "encryptionPolicyDigest": "sha256-6e6b84d4c382658b14898a20be016ff9bcba9bd7aecd3aac0760a921904f79cf"
+      },
+      {
+        "caseId": "g4-v8.adversarial-secret-exfiltration.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-secret-exfiltration.1",
+        "relativePath": "cases/g4-v8.adversarial-secret-exfiltration.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-f03ddd6791dc9bec963c650075e2270277cb85b664b3f137d3824203e2a924b4",
+        "encryptionPolicyDigest": "sha256-8ba2af46a5bddd6ebc80ab4586760cc2584109796bc8a3476305bfe94e427179"
+      },
+      {
+        "caseId": "g4-v8.adversarial-self-approval.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-self-approval.1",
+        "relativePath": "cases/g4-v8.adversarial-self-approval.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-cc207bdd490c9f0b3a79c0778f9882ee3ea5fff1d6dcfba377e02716ae16af3d",
+        "encryptionPolicyDigest": "sha256-58239010ad12ef5db6abcb8ebedd998ffa227f4445b980dcf541933255be4897"
+      },
+      {
+        "caseId": "g4-v8.adversarial-text-injection.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-text-injection.1",
+        "relativePath": "cases/g4-v8.adversarial-text-injection.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-a6791d9b2bed1bf1ae00f12d077b946c7a3547d29232e2db9dc8ed61dde4481d",
+        "encryptionPolicyDigest": "sha256-78390d17e8a2d683badc6ef54078c64e6dbffc83588e25ced15a367c0db81017"
+      },
+      {
+        "caseId": "g4-v8.adversarial-tool-result-poison.1",
+        "resolverRef": "holdout.envelope.g4-v8.adversarial-tool-result-poison.1",
+        "relativePath": "cases/g4-v8.adversarial-tool-result-poison.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-6c5bc4848608159797ffcd972afa79fecfb132d0a68c84ae21271a937e3d77f9",
+        "encryptionPolicyDigest": "sha256-9596e223d6e2b986f7aef3db97997ad9186b547b629ba350bc4455eb325d4414"
+      },
+      {
+        "caseId": "g4-v8.capability-background-job.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-background-job.1",
+        "relativePath": "cases/g4-v8.capability-background-job.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-01d6548d6d733d516c1cf346b4382bb7ba0919d660279b68fcc36bd62c75c622",
+        "encryptionPolicyDigest": "sha256-3aa42437a19d5e7d2a7b01f966b4c76a6a04f4f7f664156f30267a5bfa076e39"
+      },
+      {
+        "caseId": "g4-v8.capability-context-transform.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-context-transform.1",
+        "relativePath": "cases/g4-v8.capability-context-transform.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-a9f20a2d3eb093782656bcbc7bed1c0c7fa56484d934a76ef35324ca1412b3cb",
+        "encryptionPolicyDigest": "sha256-e081f4463815345f63af1657846ce21c1da408e05dbb5ca6785bf1f484662645"
+      },
+      {
+        "caseId": "g4-v8.capability-core-text-tools.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-core-text-tools.1",
+        "relativePath": "cases/g4-v8.capability-core-text-tools.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-3ce512428c482b86dc8e38db077f797d34c33b4c203fac0602b3fb0ef6d77c0c",
+        "encryptionPolicyDigest": "sha256-0add651215e32108aa40780d65a392dc77a48b425b6939034d0c9c91fc949782"
+      },
+      {
+        "caseId": "g4-v8.capability-document-grounding.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-document-grounding.1",
+        "relativePath": "cases/g4-v8.capability-document-grounding.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-bbeb8ff3851ce64db14191fc95a4b4b7fd0e69404328cc48acaaa698e28dce34",
+        "encryptionPolicyDigest": "sha256-b0797f5aa7338e1714dbce7deeb3c6b5090531c173a0cdbcc2b7c305ba9a100e"
+      },
+      {
+        "caseId": "g4-v8.capability-hosted-tool.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-hosted-tool.1",
+        "relativePath": "cases/g4-v8.capability-hosted-tool.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-d44c739f60f95db97bd52c433344149657f14b6c503f84ae3f19f33dc0a48c6a",
+        "encryptionPolicyDigest": "sha256-081dd7c6f158cd0209628c938a46acd0e5988fcf815661067e67c1c67447e256"
+      },
+      {
+        "caseId": "g4-v8.capability-parallel-tool.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-parallel-tool.1",
+        "relativePath": "cases/g4-v8.capability-parallel-tool.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-7fc711cf24b4f9104cecb9e59f457e9b789a646c62b67701c519f2de508ebb1c",
+        "encryptionPolicyDigest": "sha256-f0ef7f18f67a186b4fb476f2d97a2e0495a16c4ec1c670151c7cef6c32bf73ef"
+      },
+      {
+        "caseId": "g4-v8.capability-retrieval.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-retrieval.1",
+        "relativePath": "cases/g4-v8.capability-retrieval.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-c91a258d7788e982c97151802e77a3c346f39826c3f5b626c844f2c473b46501",
+        "encryptionPolicyDigest": "sha256-5d0ad09ba2de1f3c9b77db4d9cfad7c9e83a48eecd92d55d53c6a8d1b088f998"
+      },
+      {
+        "caseId": "g4-v8.capability-visual-grounding.1",
+        "resolverRef": "holdout.envelope.g4-v8.capability-visual-grounding.1",
+        "relativePath": "cases/g4-v8.capability-visual-grounding.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-a65d7ad9af7eb54cf04e8588f43abf5f6da4a80fb6ced35d8ab568d7f4c12692",
+        "encryptionPolicyDigest": "sha256-08eb204ffe71facdae954efb0d40b528049079a37df022a5fe17e4b245c27d46"
+      },
+      {
+        "caseId": "g4-v8.positive-animation.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-animation.1",
+        "relativePath": "cases/g4-v8.positive-animation.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-efbf42106be43d891d76e6849cada6be1d27f702b0dd8849154d0dbe53b430ac",
+        "encryptionPolicyDigest": "sha256-fac6e60b69baf2c849488b26b751d9fa3431cbee5c2f057c8ca03cfbf1c3f7a4"
+      },
+      {
+        "caseId": "g4-v8.positive-behavior.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-behavior.1",
+        "relativePath": "cases/g4-v8.positive-behavior.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-b8ee98e221c0cf40c9e38b23a6e7e7819ba7032ca7e96f15f3b62018df63df23",
+        "encryptionPolicyDigest": "sha256-f5041932bd1dd3673389822efdbc2a67349d1370193496caf3b8293187b7c3a9"
+      },
+      {
+        "caseId": "g4-v8.positive-data-operation.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-data-operation.1",
+        "relativePath": "cases/g4-v8.positive-data-operation.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-90e8700000b1bb32db0fd8d8100bad03a4c99a6dacf5c6acce9cb83e793997f4",
+        "encryptionPolicyDigest": "sha256-e42b25ff6acd6617b287e1fd2568356932b32cdd166dc3a001c43595a3f8e10d"
+      },
+      {
+        "caseId": "g4-v8.positive-document-spec.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-document-spec.1",
+        "relativePath": "cases/g4-v8.positive-document-spec.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-5c25fef0932707c503a4037d3689b7d2caaed750848125d7f47b0912af1387fb",
+        "encryptionPolicyDigest": "sha256-2c902acda27682e26e86c2f8ab2cb5e5ec4fc97fd6246c7db24e490ffc1383a9"
+      },
+      {
+        "caseId": "g4-v8.positive-nodegraph.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-nodegraph.1",
+        "relativePath": "cases/g4-v8.positive-nodegraph.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-e5177c33ec3aa062ef9ddea85df15cc71ff04b9fa3f127c54685d4f1000ae5cb",
+        "encryptionPolicyDigest": "sha256-420090442f98056c9225b965d63483c351898a016385259dbb52a6a6f534b124"
+      },
+      {
+        "caseId": "g4-v8.positive-react-code.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-react-code.1",
+        "relativePath": "cases/g4-v8.positive-react-code.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-5a797e27e628f11160525cc25f93f06f527f574d19c07226b3256726f2a1f85e",
+        "encryptionPolicyDigest": "sha256-f0bceba661f992ec1a391da6537120a1411192ab35bbcf72d1363354cb18fe56"
+      },
+      {
+        "caseId": "g4-v8.positive-visual-layout.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-visual-layout.1",
+        "relativePath": "cases/g4-v8.positive-visual-layout.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-4629a689e4f682cbff0249e5701c98e46107b2199a343445d3ee0f18392f3021",
+        "encryptionPolicyDigest": "sha256-0e49b9702e72d752faa07db323b3a8034c425afbf1d89a2856d5d19e5dd37e2a"
+      },
+      {
+        "caseId": "g4-v8.positive-vue-code.1",
+        "resolverRef": "holdout.envelope.g4-v8.positive-vue-code.1",
+        "relativePath": "cases/g4-v8.positive-vue-code.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-c970c101bf020883e0d5e198011134ed17d4182a7416202c17d028b8b7eee484",
+        "encryptionPolicyDigest": "sha256-52ceb3100b781e53554a926ae3b9c68ee8f6a05e91c060ad99e1bea4141d0d8f"
+      },
+      {
+        "caseId": "g4-v8.recovery-cancel.1",
+        "resolverRef": "holdout.envelope.g4-v8.recovery-cancel.1",
+        "relativePath": "cases/g4-v8.recovery-cancel.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-1ecbec0e880803ce15ec269124874d4d508ee21e7142ad73ffcf62536e82b1d9",
+        "encryptionPolicyDigest": "sha256-edb4003dbdca63003570e193c9eaf98d313023549f398a357eb6d9c4c9b38f71"
+      },
+      {
+        "caseId": "g4-v8.recovery-late-callback.1",
+        "resolverRef": "holdout.envelope.g4-v8.recovery-late-callback.1",
+        "relativePath": "cases/g4-v8.recovery-late-callback.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-6e23de833ad90764b3157d7d6d0a0322c2015bf0524180c55f0c60489c3e58a6",
+        "encryptionPolicyDigest": "sha256-5becce698dfa80148a4cb14c23e0413a92e70e5254e77868eb6b682e402e5649"
+      },
+      {
+        "caseId": "g4-v8.recovery-restart.1",
+        "resolverRef": "holdout.envelope.g4-v8.recovery-restart.1",
+        "relativePath": "cases/g4-v8.recovery-restart.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-37f61a5b85a519d0af3f0cc90311a72b5ff94b93789fc6aa26938546cd0db6f5",
+        "encryptionPolicyDigest": "sha256-01e9aa0823a1e1c60aa184c69eab1eac24fa8bb7733565ad2e767c8186b28514"
+      },
+      {
+        "caseId": "g4-v8.recovery-timeout.1",
+        "resolverRef": "holdout.envelope.g4-v8.recovery-timeout.1",
+        "relativePath": "cases/g4-v8.recovery-timeout.1.envelope.json",
+        "encryptedMaterialDigest": "sha256-a2d1172c18157af11625a2e9c07028eb8600e03ec597d358745fcdf7d6ea3c3f",
+        "encryptionPolicyDigest": "sha256-988cf8ac03c9ac813f77ea582a83a39682f374fbb52c56b88144e1649a2ae7de"
+      }
+    ]
+  },
+  "policies": {
+    "policyDigest": "sha256-533646aa9d403e2286b8c75f9d68066a868071fc3d1976d1d6d38030350d1f18",
+    "contextBuilderDigest": "sha256-2e9926ce250575643f748d79b02b7c0b9e6e99d67881f45fa85d841fc25ef531",
+    "semanticProviderSetDigest": "sha256-10f2a72962fe6c2143ce4f42c892c9c088e8696ef741f1e764eb3c5ba31598db",
+    "promptPolicyDigest": "sha256-6929a30958a640728f3ae38c2259e8564ad0f540f317a6ac8d14227e9311cf06",
+    "outputSchemaDigest": "sha256-17350dfbe19837b86555507f587d5a99f68cdf33fe336636657a5c34d529592c",
+    "toolRegistryDigest": "sha256-d8607730ba6ba580ab1c5ff0da614cdbd0a345ff1600e709ebb09fc9f3c5c162",
+    "actionRegistryDigest": "sha256-80391409d7eceef639251ea6f2be92e93cc35951a93ea6d6ff2f7a91a2b9bade",
+    "rotatingCorpusPolicyDigest": "sha256-5260f3e75af6237897f974dbcd278debcdfa53d0929479b59b005a4e84b8b3ee",
+    "samplingIndependencePolicyDigest": "sha256-3c882e863c3b6c19b1f1679694bde68ed66ce1b2d02fb203a6dc91d9480e7cae",
+    "cacheAndStateIsolationPolicyDigest": "sha256-ac9fe2da4df4334e29ad128cfd7588845715bbcdbeee9c12b649d1f7ea0452b6",
+    "sequentialStoppingRuleDigests": {
+      "ordinary": "sha256-598219b276a5b82d453b9c351e98d0dc383bc9de4b2db650fd77c41ffa4f78a9",
+      "critical": "sha256-ab7a2af184a580be4c9c757b2613bed1e981559bd51a37c1578d0df2390f6062",
+      "high-assurance": "sha256-c094573bc3a24d7c874b230f782d5a737c41db4b4415f6b8e44f720d1f9895c1"
+    },
+    "capabilityProfileDigests": {
+      "g4-core-text-tools": "sha256-ef26475b385ea3298b28e145878583e55b8bd21c0ebc55116e57e823dfabd78e",
+      "g4-document-input": "sha256-3f5a0b0b34d7b66e4b75de21cec15690544c411d52e733c0ff2801691dd8157b",
+      "g4-visual-input": "sha256-aadbc76cf7141fa1aabffec62c69f0fd3a446399dfc9900c70fe257fc9d72dd7",
+      "g4-provider-background-job": "sha256-10357cde3de8f565df7ddb83ea46ad0a67207fb2174aacde0170cad33becf195",
+      "g4-provider-hosted-retrieval-core": "sha256-666c6df670c77605562ff82765013291f99045f36edcb8db0af209267c91565d",
+      "g4-provider-hosted-retrieval-document": "sha256-8ced3fda38a88c0819a6a2d4603e453f515a9c98efadc7c270af194349c5b90e",
+      "g4-provider-parallel-tool": "sha256-e7bbd5f0f8509fbecb9e52948f78fbefbcace258008b7aee5476b48186d8dda6",
+      "g4-provider-isolated-cache": "sha256-264e47b104dc759c661ec242aba670063a1ffd4c8eb996c45bf4c55f19057103",
+      "g4-provider-reasoning-continuation": "sha256-5c84287b4c1e16fb0c1eda862a8e44754503a3fa0a4b61a16e2d2f2465072d34"
+    }
+  },
+  "graders": {
+    "configurationDigests": {
+      "strictDecoder": "sha256-105a5e3e56dabe82e925a900048e31b55977c3fc068122b0c2022174f6eaae46",
+      "deterministicRule": "sha256-e6a9efae666b8e56b55c078c3604f5211c68593595bce626efb12893ee7bd1c5",
+      "domainDryRun": "sha256-c4023a81a6165afc86d822ec31012c0ffc339ac8044933d4a5f376c2a41a822f",
+      "g3Closure": "sha256-a5cfa834431f4a4ebd2a3b7a2ce1563c55b7ed4fe03f66e9017d2dbaf0757e49",
+      "perceptualMetric": "sha256-79b29245423bba14059ca4b325024b91121945a8a6ab8f396ed86ea604c00f3a",
+      "blindHumanRubric": "sha256-bc12d206052a468301afa669a8ea657dbe4d8e5a4a90c46d9de5c72a39eefabd"
+    },
+    "disagreementPolicyDigest": "sha256-2fd11e94c78c2dc6f1535b337d025c247a3914f9190cd29ccbd8eb76e61ce85e",
+    "randomizedPresentationPolicyDigest": "sha256-031aec2411d0695c5ef1f5d925cffb12e8b4553a3f64e6afed3c9bca354fa4ed"
+  },
+  "thresholds": {
+    "metricCatalogDigest": "sha256-803e0272451d345f896c36b83a7411936a2b4ee5fadb8ad56c974e1c076277a0",
+    "multipleComparisonPolicyDigest": "sha256-5072a75b0aa74d38130c66e15aad95af4c073151e59948de2034e20d792636a9",
+    "slicePolicyDigest": "sha256-669e90580da090a9fc2e56f72bf01659fc372178be4eec60824d724224dcaa40"
+  },
+  "auxiliaryJudge": {
+    "providerConfigurationId": "provider.independent-auxiliary-judge",
+    "modelLineageDigest": "sha256-29815bc9dd788f48bff3f47ab486c979cd802d208a699294559793ec76efbf91",
+    "modelFamilyOwnerId": "owner.independent-auxiliary-judge",
+    "configurationDigest": "sha256-d61fc6a1bfa14ba0ab2aba2b418c0ae6567363f9bc50979d35f863221b6e6920",
+    "promptDigest": "sha256-fda49582c37b6794168b5174b9d817ae9572589b5bb4669e7ab93d909dc6d5b4",
+    "outputSchemaDigest": "sha256-8f80d866a3254aa2ffd9c0a82e6fbdfb54674b529aab19dfc37e288b6a0747bf",
+    "capabilityProfileDigest": "sha256-27a1865dfe3e22e3f93ef61c9779e9a2a4d241f3c310d2e1c8b27fdde0a801b8"
+  },
+  "budget": {
+    "budget": {
+      "usageLimits": [
+        {
+          "maximum": "10000000",
+          "unit": "document-page"
+        },
+        {
+          "maximum": "10000000000",
+          "unit": "generated-artifact-byte"
+        },
+        {
+          "maximum": "210",
+          "unit": "hosted-search-query"
+        },
+        {
+          "maximum": "222",
+          "unit": "hosted-tool-call"
+        },
+        {
+          "maximum": "1000000000000",
+          "unit": "image-pixel"
+        },
+        {
+          "maximum": "214272000",
+          "unit": "provider-storage-byte-second"
+        },
+        {
+          "maximum": "310",
+          "unit": "provider-upload-byte"
+        },
+        {
+          "maximum": "10000000",
+          "unit": "sandbox-compute-second"
+        },
+        {
+          "maximum": "10000000000",
+          "unit": "text-token-input"
+        },
+        {
+          "maximum": "10000000000",
+          "unit": "text-token-output"
+        }
+      ],
+      "costLimits": [
+        {
+          "currency": "USD",
+          "maximum": "1000000"
+        }
+      ],
+      "maxModelInvocations": 100000,
+      "maxToolCalls": 100000,
+      "maxRepairRounds": 100000,
+      "maxTransactions": 100000,
+      "maxArtifactBytes": 10000000000,
+      "maxElapsedMs": 604800000
+    },
+    "maxProviderJobs": 100000,
+    "maxShards": 32,
+    "maxHumanRatings": 100000,
+    "reservePolicyDigest": "sha256-21932bdbe32d82630539a495908cb08621e1dff5760d8f4a15ebd15bc44f7f8d",
+    "budgetDigest": "sha256-d46a397f87788713339ee38ea3c7a1b99feda1042f6f6226510ee7f8967d211e"
+  },
+  "planLifetimeMs": 604800000,
+  "execution": {
+    "shard": {
+      "count": 32,
+      "maximumParallel": 3,
+      "leaseDurationMs": 300000
+    },
+    "checkpoint": {
+      "completedAttemptInterval": 100,
+      "maximumIntervalMs": 30000
+    },
+    "retry": {
+      "maximumAttempts": 1,
+      "retryableStatuses": [
+        "infrastructure-error",
+        "provider-error",
+        "rate-limited",
+        "schema-failed",
+        "timed-out"
+      ],
+      "policyDigest": "sha256-6ce2856d10d5ec83fa104a69cdcc0ed1d9fc60722538f63ca55f756e6d250519"
+    },
+    "humanReview": {
+      "minimumIndependentRatings": 2,
+      "reviewerAuthorityIds": [
+        "authority.g4-evaluation-reviewer-a",
+        "authority.g4-evaluation-reviewer-b"
+      ],
+      "adjudicationAuthorityId": "authority.g4-evaluation-adjudicator",
+      "artifactMaximumBytes": 16777216,
+      "reviewerTrustRegistryDigest": "sha256-4fbc6c8fc36731ffd4db96d24d607b228b3b7bbad6c9c416c0aba4fb8ee88583",
+      "randomizedPresentationPolicyDigest": "sha256-031aec2411d0695c5ef1f5d925cffb12e8b4553a3f64e6afed3c9bca354fa4ed",
+      "publicRubrics": [
+        {
+          "format": "prodivix.g4-public-human-review-rubric",
+          "version": 1,
+          "rubricId": "rubric.g4-public-visual-quality",
+          "title": "Public visual quality review",
+          "criteria": [
+            {
+              "criterionId": "composition-and-hierarchy",
+              "label": "Composition and hierarchy",
+              "instruction": "Judge only whether the visible raster has a coherent visual order and emphasis.",
+              "required": true,
+              "anchors": [
+                {
+                  "verdict": "failed",
+                  "label": "Unclear",
+                  "description": "Visible composition or hierarchy prevents a coherent reading order."
+                },
+                {
+                  "verdict": "passed",
+                  "label": "Clear",
+                  "description": "Visible composition and hierarchy communicate a coherent reading order."
+                }
+              ]
+            },
+            {
+              "criterionId": "finish-and-consistency",
+              "label": "Finish and consistency",
+              "instruction": "Judge only visible spacing, alignment, styling consistency, and implementation finish.",
+              "required": true,
+              "anchors": [
+                {
+                  "verdict": "failed",
+                  "label": "Inconsistent",
+                  "description": "Visible spacing, alignment, or styling contains material inconsistencies."
+                },
+                {
+                  "verdict": "passed",
+                  "label": "Consistent",
+                  "description": "Visible spacing, alignment, and styling are materially consistent."
+                }
+              ]
+            },
+            {
+              "criterionId": "legibility-and-contrast",
+              "label": "Legibility and contrast",
+              "instruction": "Judge only whether visible content is readable and distinguishable in the supplied raster.",
+              "required": true,
+              "anchors": [
+                {
+                  "verdict": "failed",
+                  "label": "Illegible",
+                  "description": "Material visible content is unreadable or lacks sufficient distinction."
+                },
+                {
+                  "verdict": "passed",
+                  "label": "Legible",
+                  "description": "Material visible content is readable and sufficiently distinguishable."
+                }
+              ]
+            }
+          ],
+          "metricMappings": [
+            {
+              "metricId": "visual.human-quality",
+              "criterionIds": [
+                "composition-and-hierarchy",
+                "finish-and-consistency",
+                "legibility-and-contrast"
+              ],
+              "aggregation": "all-pass"
+            },
+            {
+              "metricId": "visual.information-hierarchy-quality",
+              "criterionIds": ["composition-and-hierarchy"],
+              "aggregation": "all-pass"
+            },
+            {
+              "metricId": "visual.usability-quality",
+              "criterionIds": ["legibility-and-contrast"],
+              "aggregation": "all-pass"
+            }
+          ],
+          "interRaterDisagreementMetricId": "visual.inter-rater-disagreement",
+          "scale": "binary-pass-fail",
+          "accessibilityInstructions": [
+            "Evaluate the raster at the supplied dimensions without inferring hidden interaction state.",
+            "Use the same pass or fail anchors for every randomized presentation."
+          ],
+          "rubricDigest": "sha256-bc12d206052a468301afa669a8ea657dbe4d8e5a4a90c46d9de5c72a39eefabd"
+        }
+      ],
+      "trustRegistry": {
+        "format": "prodivix.g4-human-review-trust-registry",
+        "version": 1,
+        "registryId": "registry.g4-human-review.public-v1",
+        "authorities": [
+          {
+            "authorityId": "authority.g4-evaluation-adjudicator",
+            "pseudonym": "review-adjudicator-c",
+            "role": "adjudicator",
+            "keyId": "key.g4-evaluation-adjudicator.v1",
+            "publicKeyBase64Url": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+            "validFrom": "2026-01-01T00:00:00.000Z",
+            "validUntil": "2030-01-01T00:00:00.000Z",
+            "independencePolicyDigest": "sha256-24a44e1196e2f52c03b6e92dba26193205a4211162e0b33f19ebfad24bde100d",
+            "authorityDigest": "sha256-8870d77c6c0c4a8a416ea7f2c1f3bd05c49874e6686018c94d44b429946cbdf3"
+          },
+          {
+            "authorityId": "authority.g4-evaluation-reviewer-a",
+            "pseudonym": "visual-reviewer-a",
+            "role": "reviewer",
+            "keyId": "key.g4-evaluation-reviewer-a.v1",
+            "publicKeyBase64Url": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+            "validFrom": "2026-01-01T00:00:00.000Z",
+            "validUntil": "2030-01-01T00:00:00.000Z",
+            "independencePolicyDigest": "sha256-24a44e1196e2f52c03b6e92dba26193205a4211162e0b33f19ebfad24bde100d",
+            "authorityDigest": "sha256-edaf4759eee1b84aadbe3e1a138f15c3b5289de86d00fe65d06d7acc1b4fc5ab"
+          },
+          {
+            "authorityId": "authority.g4-evaluation-reviewer-b",
+            "pseudonym": "visual-reviewer-b",
+            "role": "reviewer",
+            "keyId": "key.g4-evaluation-reviewer-b.v1",
+            "publicKeyBase64Url": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+            "validFrom": "2026-01-01T00:00:00.000Z",
+            "validUntil": "2030-01-01T00:00:00.000Z",
+            "independencePolicyDigest": "sha256-24a44e1196e2f52c03b6e92dba26193205a4211162e0b33f19ebfad24bde100d",
+            "authorityDigest": "sha256-c06fdb2c7509878a47381e0e564d8d7aa3151264fb734f7ade9b88fd49bd387a"
+          }
+        ],
+        "authoritySetDigest": "sha256-b2d2d70c20e1f79b6d118dcd866016b7c46c7312371853a4c888ec3fff93c3ac",
+        "registryDigest": "sha256-4fbc6c8fc36731ffd4db96d24d607b228b3b7bbad6c9c416c0aba4fb8ee88583"
+      },
+      "adjudicationPolicy": {
+        "minimumIndependentRatings": 2,
+        "reviewerAuthorityIds": [
+          "authority.g4-evaluation-reviewer-a",
+          "authority.g4-evaluation-reviewer-b"
+        ],
+        "adjudicationAuthorityId": "authority.g4-evaluation-adjudicator",
+        "adjudicatorKeyId": "key.g4-evaluation-adjudicator.v1",
+        "trigger": "reviewer-disagreement",
+        "trustRegistryDigest": "sha256-4fbc6c8fc36731ffd4db96d24d607b228b3b7bbad6c9c416c0aba4fb8ee88583",
+        "independencePolicyDigest": "sha256-24a44e1196e2f52c03b6e92dba26193205a4211162e0b33f19ebfad24bde100d",
+        "consensusRule": "unanimous",
+        "disagreementRule": "escalate-to-independent-adjudicator",
+        "reviewerRatingSignaturesRequired": true,
+        "adjudicatorDecisionSignatureRequired": true,
+        "signatureAlgorithm": "Ed25519",
+        "decisionPayloadFields": [
+          "adjudicationAuthorityId",
+          "adjudicatorPseudonym",
+          "blindedArtifactSetDigest",
+          "candidateDigest",
+          "criterionVerdicts",
+          "decidedAt",
+          "decision",
+          "decisionId",
+          "format",
+          "keyId",
+          "planDigest",
+          "policyDigest",
+          "randomizedPresentationId",
+          "ratingDigests",
+          "reviewerAuthorityIds",
+          "rubricDigest",
+          "version"
+        ],
+        "policyDigest": "sha256-2fd11e94c78c2dc6f1535b337d025c247a3914f9190cd29ccbd8eb76e61ce85e"
+      }
+    }
+  },
+  "attestation": {
+    "authorityId": "authority.prodivix.g4-model-evaluation",
+    "keyId": "key.prodivix.g4-model-evaluation.example-v1",
+    "algorithm": "Ed25519",
+    "privateKeyEnvironmentName": "PRODIVIX_G4_MODEL_EVAL_ATTESTATION_PRIVATE_KEY",
+    "privateKeyRef": "secret.g4-model-eval.attestation.ed25519.v1"
+  }
+}

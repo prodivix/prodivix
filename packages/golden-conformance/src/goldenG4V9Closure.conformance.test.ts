@@ -25,6 +25,10 @@ const declaredWorktreeState =
   process.env.PRODIVIX_G4_WORKTREE_STATE?.trim() === 'clean'
     ? 'clean'
     : 'dirty';
+const declaredGateExecutionMode =
+  process.env.PRODIVIX_G4_DETERMINISTIC_GATE_EVIDENCE === 'github-actions'
+    ? 'github-actions'
+    : 'local';
 let harness: GoldenG4V9ClosureHarness;
 
 beforeAll(async () => {
@@ -143,7 +147,7 @@ describeG4V9Closure('G4 V9 authenticated Catalog Golden Closure', () => {
     expect(
       harness.manifest.deterministicGateEvidence.every(
         ({ executionMode, remoteModelUnits }) =>
-          executionMode === 'local' && remoteModelUnits === 0
+          executionMode === declaredGateExecutionMode && remoteModelUnits === 0
       )
     ).toBe(true);
     expect(harness.manifest.modelEvaluation.planDigest).toBe(

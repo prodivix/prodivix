@@ -132,9 +132,12 @@ flowchart TD
    deterministic plan digest。
 2. provider 只接收 plan cell、`BehaviorScenarioProgram`、bounded fixture 和短期 capability；不接收 Workspace 写权限。
 3. 每次运行创建新的 attempt identity，产生 ReplayRecord、normalized result 和 EvidenceCandidate。
-4. Backend 在 promotion 前复核 identity chain、artifact digest/size/media、redaction、attestation 和授权。
-5. promotion 成功后 append Evidence；失败只产生诊断，不得把 candidate 伪装成 Evidence。
-6. Closure 对 immutable plan 和当前可接受 Evidence 集合计算 verdict；过期、撤销、被 supersede 或不兼容的
+4. Backend 创建 promotion 并以 content-addressed identity 暂存 artifacts，同时复核
+   identity chain、digest/size/media、redaction 与授权。
+5. attested promotion 必须经过服务端绑定的两阶段 `prepare → final-commit`；prepare 签发 exact
+   nonce/statement，final-commit 验证 presentation 并原子 append Evidence。
+6. promotion 失败只产生诊断，不得把 candidate 伪装成 Evidence。
+7. Closure 对 immutable plan 和当前可接受 Evidence 集合计算 verdict；过期、撤销、被 supersede 或不兼容的
    Evidence 不能满足 required cell。
 
 ### 读取

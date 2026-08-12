@@ -5,6 +5,8 @@ const factTypes = [
   'evaluation-metric-report',
   'evaluation-grader-report',
   'evaluation-human-review-report',
+  'evaluation-review-candidate',
+  'evaluation-review-raster-scan-receipt',
   'evaluation-holdout-receipt',
   'evaluation-manifest',
 ] as const;

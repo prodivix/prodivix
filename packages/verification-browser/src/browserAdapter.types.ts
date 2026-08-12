@@ -100,6 +100,7 @@ export type BrowserVerificationTargetLeasePort = Readonly<{
       attemptId: string;
       generation: number;
       executableSnapshotDigest: string;
+      executableSnapshotArtifactDigest: string;
       expectedBindingDigest: string;
     }>,
     signal: VerificationAbortSignal
@@ -244,4 +245,6 @@ export type FirstPartyBrowserVerificationAdapterOptions = Readonly<{
   runtimeControls: BrowserRuntimeControlPort;
   securityObservationAuthority: BrowserSecurityObservationAuthorityPort;
   baselineAssets?: BrowserVerificationBaselineAssetPort;
+  /** Exact executable adopted by the production Chromium authority. */
+  chromiumExecutablePath?: string;
 }>;

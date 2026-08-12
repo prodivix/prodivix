@@ -57,7 +57,19 @@ export type FirstPartyBrowserVerificationAdapterFactory =
   VerificationAdapterFactory &
     Readonly<{
       dispose(): Promise<void>;
+      drainAndDispose(): Promise<
+        Readonly<{
+          status: 'clean' | 'residual' | 'failed';
+          residualCanaryIds: readonly string[];
+          diagnosticCodes: readonly string[];
+        }>
+      >;
     }>;
+
+const inactiveAbortSignal = Object.freeze({
+  aborted: false,
+  subscribe: () => () => undefined,
+});
 
 const assertRuntimeControlLease = (
   lease: BrowserRuntimeControlLease,
@@ -241,12 +253,10 @@ export const createFirstPartyBrowserVerificationAdapterFactoryInternal = (
         activeStateSets.add(states);
         states.set(invocationId, state);
         const entries = await Promise.all(
-          [...refs.entries()]
-            .filter(([kind]) => kind !== 'executable-snapshot')
-            .map(
-              async ([kind, ref]) =>
-                [kind, await readBrowserInputBytes(ref, input.context)] as const
-            )
+          [...refs.entries()].map(
+            async ([kind, ref]) =>
+              [kind, await readBrowserInputBytes(ref, input.context)] as const
+          )
         );
         const bytesByKind = new Map(entries);
         const profileBytes = bytesByKind.get('verification-profile');
@@ -270,15 +280,14 @@ export const createFirstPartyBrowserVerificationAdapterFactoryInternal = (
         );
         assertBrowserNotAborted(input.context.abortSignal);
 
-        // The executable ref is not decoded by this adapter. Its exact digest
-        // is bound by validateBrowserInputRefs and consumed by this
-        // attempt/generation-scoped target lease.
+        const executableRef = refs.get('executable-snapshot')!;
         const acquiredLease = await options.targetLease.acquire(
           {
             cell: input.cell,
             attemptId: input.attemptId,
             generation: input.generation,
             executableSnapshotDigest: input.context.executableSnapshotDigest,
+            executableSnapshotArtifactDigest: executableRef.digest,
             expectedBindingDigest: profile.targetLeaseBindingDigest,
           },
           input.context.abortSignal
@@ -337,6 +346,9 @@ export const createFirstPartyBrowserVerificationAdapterFactoryInternal = (
           runtimeControlLease,
           launch: {
             headless: true,
+            ...(engine === 'chromium' && options.chromiumExecutablePath
+              ? { executablePath: options.chromiumExecutablePath }
+              : {}),
           },
         });
         if (
@@ -542,6 +554,75 @@ export const createFirstPartyBrowserVerificationAdapterFactoryInternal = (
     });
   }) as FirstPartyBrowserVerificationAdapterFactory;
 
+  let drainPromise:
+    | Promise<
+        Readonly<{
+          status: 'clean' | 'residual' | 'failed';
+          residualCanaryIds: readonly string[];
+          diagnosticCodes: readonly string[];
+        }>
+      >
+    | undefined;
+  const drainAndDispose = () => {
+    drainPromise ??= (async () => {
+      disposed = true;
+      const cleanupResults = await Promise.all(
+        [...activeStateSets].flatMap((states) =>
+          [...states.entries()].map(async ([invocationId, state]) => {
+            states.delete(invocationId);
+            return cleanupBrowserState(
+              state,
+              inactiveAbortSignal,
+              options.targetLease,
+              options.runtimeControls
+            );
+          })
+        )
+      );
+      activeStateSets.clear();
+      let poolFailed = false;
+      try {
+        await pool?.dispose();
+      } catch {
+        poolFailed = true;
+      }
+      pool = undefined;
+      const residualCanaryIds = Object.freeze(
+        [
+          ...new Set(
+            cleanupResults.flatMap(({ residualCanaryIds }) => residualCanaryIds)
+          ),
+        ].sort(compareVerificationText)
+      );
+      const diagnosticCodes = Object.freeze(
+        [
+          ...new Set([
+            ...cleanupResults.flatMap(({ diagnosticCodes }) => diagnosticCodes),
+            ...(poolFailed ? ['VER-BROWSER-POOL-DISPOSE'] : []),
+          ]),
+        ].sort(compareVerificationText)
+      );
+      return Object.freeze({
+        status:
+          poolFailed || cleanupResults.some(({ status }) => status === 'failed')
+            ? ('failed' as const)
+            : residualCanaryIds.length > 0 ||
+                cleanupResults.some(({ status }) => status === 'residual')
+              ? ('residual' as const)
+              : ('clean' as const),
+        residualCanaryIds,
+        diagnosticCodes,
+      });
+    })();
+    return drainPromise;
+  };
+
+  Object.defineProperty(factory, 'drainAndDispose', {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: drainAndDispose,
+  });
   Object.defineProperty(factory, 'dispose', {
     configurable: false,
     enumerable: false,

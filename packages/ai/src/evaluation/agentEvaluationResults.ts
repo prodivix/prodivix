@@ -1,7 +1,9 @@
 import {
   compareUnicodeCodePoints,
+  decodeCanonicalBase64,
   sameCanonicalJson,
 } from '@prodivix/shared/canonical';
+import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
 import {
   cloneAgentControlJson,
   isAgentControlIdentity,
@@ -9,6 +11,7 @@ import {
 } from '../control/agentControlValidation';
 import {
   digestAgentCanonicalValue,
+  digestAgentCanonicalBytes,
   isAgentCanonicalDigest,
 } from '../domain/agentCanonical';
 import type {
@@ -34,10 +37,15 @@ import type {
   AgentEvaluationMetricObservation,
   AgentEvaluationMetricReport,
   AgentEvaluationMetricSlice,
+  AgentEvaluationReviewCandidate,
+  AgentEvaluationReviewCandidateRef,
+  AgentEvaluationReviewRasterScanReceipt,
   AgentEvaluationRiskClass,
   AgentHoldoutExecutionReceipt,
   AgentHumanReviewRating,
   AgentHumanReviewReport,
+  AgentEvaluationTransportAttemptReceipt,
+  AgentEvaluationTransportRetryReceipt,
   AgentModelEvaluationAttempt,
   AgentModelEvaluationAttemptDescriptor,
   AgentModelEvaluationAttemptRef,
@@ -58,7 +66,18 @@ import {
   hasExactAgentEvaluationHumanReportShape,
   hasExactAgentEvaluationManifestShape,
   hasExactAgentEvaluationMetricReportShape,
+  hasExactAgentEvaluationReviewCandidateShape,
+  hasExactAgentEvaluationReviewRasterScanReceiptShape,
 } from './agentEvaluationShape';
+import {
+  normalizeAgentEvaluationHumanReviewCriterionVerdicts,
+  verdictForRequiredHumanReviewCriteria,
+} from './agentEvaluationHumanReviewRubric';
+import {
+  digestAgentEvaluationValidatedHumanMetricObservationSet,
+  isAgentEvaluationValidatedHumanMetricObservation,
+  type AgentEvaluationValidatedHumanMetricObservation,
+} from './agentEvaluationHumanMetricAuthority';
 
 const riskClasses = new Set(['ordinary', 'critical', 'high-assurance']);
 const contextTiers = new Set(['small', 'representative', 'near-limit']);
@@ -173,6 +192,121 @@ const sortBy = <T>(
 
 const validatedEvaluationAttempts = new WeakSet<object>();
 
+export const createAgentEvaluationTransportAttemptReceipt = (
+  input: Omit<AgentEvaluationTransportAttemptReceipt, 'receiptDigest'>
+): AgentEvaluationTransportAttemptReceipt => {
+  if (!Number.isSafeInteger(input.sequence) || input.sequence < 1) {
+    throw new TypeError(
+      'Evaluation transport-attempt sequence must be a positive safe integer.'
+    );
+  }
+  assertDigest(input.requestDigest, 'Evaluation transport request digest');
+  if (!attemptStatuses.has(input.status)) {
+    throw new TypeError('Evaluation transport-attempt status is invalid.');
+  }
+  if (typeof input.retryable !== 'boolean') {
+    throw new TypeError(
+      'Evaluation transport-attempt retryable flag is invalid.'
+    );
+  }
+  if (input.invocationReceiptDigest !== undefined) {
+    assertDigest(
+      input.invocationReceiptDigest,
+      'Evaluation transport invocation receipt digest'
+    );
+  }
+  if (input.responseDigest !== undefined) {
+    assertDigest(input.responseDigest, 'Evaluation transport response digest');
+  }
+  assertInstant(input.startedAt, 'Evaluation transport-attempt start');
+  assertInstant(input.completedAt, 'Evaluation transport-attempt completion');
+  if (Date.parse(input.completedAt) < Date.parse(input.startedAt)) {
+    throw new TypeError(
+      'Evaluation transport-attempt completion predates its start.'
+    );
+  }
+  if (
+    input.status === 'completed' &&
+    (!input.invocationReceiptDigest || !input.responseDigest || input.retryable)
+  ) {
+    throw new TypeError(
+      'Completed transport attempts require invocation/response receipts and terminate retry.'
+    );
+  }
+  const base = Object.freeze({ ...input });
+  return Object.freeze({
+    ...base,
+    receiptDigest: digestAgentCanonicalValue(base),
+  });
+};
+
+export const createAgentEvaluationTransportRetryReceipt = (
+  input: Omit<AgentEvaluationTransportRetryReceipt, 'receiptDigest'>
+): AgentEvaluationTransportRetryReceipt => {
+  assertDigest(input.policyDigest, 'Evaluation transport-retry policy digest');
+  if (input.maximumAttempts !== 1) {
+    throw new TypeError(
+      'Evaluation transport retry authority requires exactly one sealed try per turn.'
+    );
+  }
+  if (typeof input.exhausted !== 'boolean') {
+    throw new TypeError(
+      'Evaluation transport-retry exhausted flag is invalid.'
+    );
+  }
+  const attempts = Object.freeze(
+    input.attempts.map((attempt) => {
+      const { receiptDigest: _receiptDigest, ...base } = attempt;
+      const normalized = createAgentEvaluationTransportAttemptReceipt(base);
+      if (!sameCanonicalJson(normalized, attempt)) {
+        throw new TypeError('Evaluation transport-attempt receipt drifted.');
+      }
+      return normalized;
+    })
+  );
+  if (attempts.length !== 1) {
+    throw new TypeError(
+      'Evaluation transport retry authority requires exactly one sealed try per turn.'
+    );
+  }
+  const requestDigest = attempts[0]!.requestDigest;
+  for (const [index, attempt] of attempts.entries()) {
+    if (
+      attempt.sequence !== index + 1 ||
+      attempt.requestDigest !== requestDigest ||
+      (index > 0 &&
+        Date.parse(attempt.startedAt) <
+          Date.parse(attempts[index - 1]!.completedAt)) ||
+      (index < attempts.length - 1 &&
+        (attempt.status === 'completed' || !attempt.retryable))
+    ) {
+      throw new TypeError(
+        'Evaluation transport-retry lineage is non-contiguous or overwrites a terminal try.'
+      );
+    }
+  }
+  const terminal = attempts.at(-1)!;
+  const expectedExhausted =
+    terminal.status !== 'completed' &&
+    terminal.retryable &&
+    attempts.length === input.maximumAttempts;
+  if (
+    (terminal.status !== 'completed' &&
+      terminal.retryable &&
+      attempts.length < input.maximumAttempts) ||
+    input.exhausted !== expectedExhausted
+  ) {
+    throw new TypeError(
+      'Evaluation transport-retry lineage has an invalid terminal bound.'
+    );
+  }
+  const base = Object.freeze({ ...input, attempts });
+  return Object.freeze({
+    ...base,
+    receiptDigest: digestAgentCanonicalValue(base),
+  });
+};
+
 export const isAgentModelEvaluationAttemptDescriptor = (
   descriptor: AgentModelEvaluationAttemptDescriptor
 ): boolean => {
@@ -183,6 +317,10 @@ export const isAgentModelEvaluationAttemptDescriptor = (
     assertIdentity(descriptor.caseId, 'Evaluation case id');
     assertIdentity(descriptor.targetId, 'Evaluation target id');
     assertDigest(descriptor.planDigest, 'Evaluation plan digest');
+    assertDigest(
+      descriptor.capabilityDescriptorDigest,
+      'Evaluation capability descriptor digest'
+    );
     assertDigest(descriptor.targetDigest, 'Evaluation target digest');
     assertDigest(
       descriptor.samplingIdentityDigest,
@@ -202,6 +340,7 @@ export const isAgentModelEvaluationAttemptDescriptor = (
     const samplingBase = Object.freeze({
       planDigest: descriptor.planDigest,
       caseId: descriptor.caseId,
+      capabilityDescriptorDigest: descriptor.capabilityDescriptorDigest,
       targetId: descriptor.targetId,
       targetDigest: descriptor.targetDigest,
       riskClass: descriptor.riskClass,
@@ -267,8 +406,27 @@ export const createAgentModelEvaluationAttempt = (
     throw new TypeError('Evaluation attempt descriptor is invalid.');
   }
   assertIdentity(input.independentRunId, 'Independent evaluation Run id');
-  if (input.invocationReceiptDigest !== undefined) {
-    assertDigest(input.invocationReceiptDigest, 'Invocation receipt digest');
+  for (const [digest, label] of [
+    [input.dispatchIntentSetDigest, 'Dispatch-intent set digest'],
+    [input.transportReceiptSetDigest, 'Transport receipt-set digest'],
+    [
+      input.invocationTurnReceiptSetDigest,
+      'Invocation turn-receipt set digest',
+    ],
+    [
+      input.invocationTurnSetReceiptDigest,
+      'Invocation turn-set receipt digest',
+    ],
+    [
+      input.capabilityExecutionReceiptSetDigest,
+      'Capability execution receipt-set digest',
+    ],
+    [
+      input.verificationAttemptGrantReceiptSetDigest,
+      'Verification AttemptGrant receipt-set digest',
+    ],
+  ] as const) {
+    assertDigest(digest, label);
   }
   if (input.responseDigest !== undefined) {
     assertDigest(input.responseDigest, 'Response digest');
@@ -285,6 +443,11 @@ export const createAgentModelEvaluationAttempt = (
   }
   if (!attemptStatuses.has(input.status) || !verdicts.has(input.outcome)) {
     throw new TypeError('Evaluation attempt status or outcome is invalid.');
+  }
+  if (input.status === 'completed' && input.responseDigest === undefined) {
+    throw new TypeError(
+      'Completed evaluation attempts require a terminal response binding.'
+    );
   }
   const metricObservations = sortBy(
     input.metricObservations.map(normalizeMetricObservation),
@@ -306,9 +469,14 @@ export const createAgentModelEvaluationAttempt = (
   const base = Object.freeze({
     descriptor: Object.freeze(cloneAgentControlJson(input.descriptor)),
     independentRunId: input.independentRunId,
-    ...(input.invocationReceiptDigest
-      ? { invocationReceiptDigest: input.invocationReceiptDigest }
-      : {}),
+    dispatchIntentSetDigest: input.dispatchIntentSetDigest,
+    transportReceiptSetDigest: input.transportReceiptSetDigest,
+    invocationTurnReceiptSetDigest: input.invocationTurnReceiptSetDigest,
+    invocationTurnSetReceiptDigest: input.invocationTurnSetReceiptDigest,
+    capabilityExecutionReceiptSetDigest:
+      input.capabilityExecutionReceiptSetDigest,
+    verificationAttemptGrantReceiptSetDigest:
+      input.verificationAttemptGrantReceiptSetDigest,
     ...(input.responseDigest ? { responseDigest: input.responseDigest } : {}),
     status: input.status,
     outcome: input.outcome,
@@ -556,6 +724,7 @@ export const buildAgentEvaluationMetricReport = (
     plan: AgentModelEvaluationPlan;
     descriptors: readonly AgentModelEvaluationAttemptDescriptor[];
     attempts: readonly AgentModelEvaluationAttempt[];
+    validatedHumanMetricObservations: readonly AgentEvaluationValidatedHumanMetricObservation[];
     generatedAt: string;
   }>
 ): AgentEvaluationMetricReport => {
@@ -576,6 +745,29 @@ export const buildAgentEvaluationMetricReport = (
   const attempts = new Map(
     input.attempts.map((entry) => [entry.descriptor.attemptId, entry])
   );
+  const humanObservationByKey = new Map(
+    input.validatedHumanMetricObservations.map((entry) => [
+      `${entry.attemptId}\u0000${entry.metricId}`,
+      entry,
+    ])
+  );
+  if (
+    humanObservationByKey.size !==
+      input.validatedHumanMetricObservations.length ||
+    input.validatedHumanMetricObservations.some(
+      (entry) =>
+        !isAgentEvaluationValidatedHumanMetricObservation(entry) ||
+        entry.planDigest !== input.plan.planDigest ||
+        attempts.get(entry.attemptId)?.descriptor.descriptorDigest !==
+          entry.descriptorDigest ||
+        attempts.get(entry.attemptId)?.status !== 'completed'
+    ) ||
+    input.attempts.some((attempt) =>
+      attempt.metricObservations.some(({ authority }) => authority === 'human')
+    )
+  ) {
+    throw new TypeError('Metric report human authority set is invalid.');
+  }
   const slices = new Map<string, MutableMetricSlice>();
   for (const descriptor of input.descriptors) {
     const evaluationCase = cases.get(descriptor.caseId);
@@ -597,11 +789,19 @@ export const buildAgentEvaluationMetricReport = (
         input.plan,
         threshold.requiredAuthority
       );
-      const observation = attempt?.metricObservations.find(
-        (entry) =>
-          entry.metricId === threshold.metricId &&
-          entry.authority === threshold.requiredAuthority
-      );
+      const observation =
+        threshold.requiredAuthority === 'human'
+          ? humanObservationByKey.get(
+              `${descriptor.attemptId}\u0000${threshold.metricId}`
+            )
+          : attempt?.metricObservations.find(
+              (entry) =>
+                entry.metricId === threshold.metricId &&
+                entry.authority === threshold.requiredAuthority
+            );
+      if (threshold.requiredAuthority === 'human' && !observation) {
+        continue;
+      }
       const graderKind = observation?.graderKind ?? fallbackGrader.kind;
       const identity = Object.freeze({
         metricId: threshold.metricId,
@@ -699,6 +899,10 @@ export const buildAgentEvaluationMetricReport = (
     reportId: input.reportId,
     planDigest: input.plan.planDigest,
     attemptSetDigest: attemptSetDigest(input.descriptors, input.attempts),
+    validatedHumanMetricObservationSetDigest:
+      digestAgentEvaluationValidatedHumanMetricObservationSet(
+        input.validatedHumanMetricObservations
+      ),
     slices: canonicalSlices,
     generatedAt: input.generatedAt,
   });
@@ -716,6 +920,10 @@ export const isAgentEvaluationMetricReport = (
     assertIdentity(value.reportId, 'Metric report id');
     assertDigest(value.planDigest, 'Metric report plan digest');
     assertDigest(value.attemptSetDigest, 'Metric report attempt-set digest');
+    assertDigest(
+      value.validatedHumanMetricObservationSetDigest,
+      'Metric report validated-human observation-set digest'
+    );
     assertInstant(value.generatedAt, 'Metric report generation time');
     const sliceIds: string[] = [];
     for (const slice of value.slices) {
@@ -816,6 +1024,7 @@ export const buildAgentEvaluationGraderReport = (
     reportId: string;
     plan: AgentModelEvaluationPlan;
     attempts: readonly AgentModelEvaluationAttempt[];
+    validatedHumanMetricObservations: readonly AgentEvaluationValidatedHumanMetricObservation[];
     generatedAt: string;
   }>
 ): AgentEvaluationGraderReport => {
@@ -835,6 +1044,35 @@ export const buildAgentEvaluationGraderReport = (
       target,
     ])
   );
+  const humanByAttempt = new Map<
+    string,
+    AgentEvaluationValidatedHumanMetricObservation[]
+  >();
+  for (const observation of input.validatedHumanMetricObservations) {
+    const attempt = input.attempts.find(
+      ({ descriptor }) => descriptor.attemptId === observation.attemptId
+    );
+    if (
+      !isAgentEvaluationValidatedHumanMetricObservation(observation) ||
+      observation.planDigest !== input.plan.planDigest ||
+      attempt?.status !== 'completed' ||
+      attempt.descriptor.descriptorDigest !== observation.descriptorDigest
+    ) {
+      throw new TypeError('Grader report human authority set is invalid.');
+    }
+    const entries = humanByAttempt.get(observation.attemptId) ?? [];
+    entries.push(observation);
+    humanByAttempt.set(observation.attemptId, entries);
+  }
+  if (
+    input.attempts.some((attempt) =>
+      attempt.metricObservations.some(({ authority }) => authority === 'human')
+    )
+  ) {
+    throw new TypeError(
+      'Attempt-local human observations are not authoritative.'
+    );
+  }
   for (const attempt of input.attempts) {
     const target = targetById.get(attempt.descriptor.targetId);
     const deterministic = attempt.metricObservations.filter(
@@ -843,9 +1081,7 @@ export const buildAgentEvaluationGraderReport = (
     const auxiliary = attempt.metricObservations.filter(
       ({ authority }) => authority === 'auxiliary'
     );
-    const human = attempt.metricObservations.filter(
-      ({ authority }) => authority === 'human'
-    );
+    const human = humanByAttempt.get(attempt.descriptor.attemptId) ?? [];
     deterministicVerdictCount += deterministic.length;
     auxiliaryVerdictCount += auxiliary.length;
     humanVerdictCount += human.length;
@@ -882,6 +1118,10 @@ export const buildAgentEvaluationGraderReport = (
     reportId: input.reportId,
     planDigest: input.plan.planDigest,
     graderPlanDigest: input.plan.graderPlan.planDigest,
+    validatedHumanMetricObservationSetDigest:
+      digestAgentEvaluationValidatedHumanMetricObservationSet(
+        input.validatedHumanMetricObservations
+      ),
     deterministicVerdictCount,
     auxiliaryVerdictCount,
     humanVerdictCount,
@@ -916,6 +1156,7 @@ export const isAgentEvaluationGraderReport = (
       isAgentControlIdentity(value.reportId) &&
       isAgentCanonicalDigest(value.planDigest) &&
       isAgentCanonicalDigest(value.graderPlanDigest) &&
+      isAgentCanonicalDigest(value.validatedHumanMetricObservationSetDigest) &&
       isAgentControlInstant(value.generatedAt) &&
       new Set(selfJudgeIds).size === selfJudgeIds.length &&
       selfJudgeIds.every(
@@ -943,10 +1184,17 @@ export const createAgentHumanReviewRating = (
     assertIdentity(value, label);
   }
   assertDigest(input.rubricDigest, 'Human review rubric digest');
-  if (!['passed', 'failed'].includes(input.verdict)) {
+  const criterionVerdicts =
+    normalizeAgentEvaluationHumanReviewCriterionVerdicts(
+      input.criterionVerdicts
+    );
+  if (
+    !['passed', 'failed'].includes(input.verdict) ||
+    input.verdict !== verdictForRequiredHumanReviewCriteria(criterionVerdicts)
+  ) {
     throw new TypeError('Human review verdict is invalid.');
   }
-  const base = Object.freeze({ ...input });
+  const base = Object.freeze({ ...input, criterionVerdicts });
   return Object.freeze({
     ...base,
     ratingDigest: digestAgentCanonicalValue(base),
@@ -992,6 +1240,554 @@ export const isAgentHumanReviewReport = (
     const { reportDigest: _reportDigest, ...base } = value;
     const normalized = createAgentHumanReviewReport(base);
     return sameCanonicalJson(normalized, value);
+  } catch {
+    return false;
+  }
+};
+
+export const AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_BYTES = 2_097_152;
+export const AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_DIMENSION = 4_096;
+export const AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_PIXELS = 16_777_216;
+
+const reviewCandidateInputKeys = Object.freeze([
+  'candidateId',
+  'attemptId',
+  'planDigest',
+  'repositoryCommit',
+  'descriptorDigest',
+  'responseDigest',
+  'executionReceiptDigest',
+  'graderArtifactDigest',
+  'projectionAuthorityDigest',
+  'mediaType',
+  'width',
+  'height',
+  'bytesBase64',
+  'scanReceipt',
+  'generatedAt',
+]);
+
+const reviewRasterScanInputKeys = Object.freeze([
+  'scanReceiptId',
+  'planDigest',
+  'repositoryCommit',
+  'attemptId',
+  'descriptorDigest',
+  'projectionAuthorityDigest',
+  'mediaType',
+  'width',
+  'height',
+  'byteLength',
+  'policyDigest',
+  'bytesDigest',
+  'decodedPixelDigest',
+  'metadataProfileDigest',
+  'canarySetDigest',
+  'fingerprintSetDigest',
+  'findingDigests',
+  'verdict',
+  'scannedAt',
+]);
+
+const reviewCandidateRefKeys = Object.freeze([
+  'candidateId',
+  'attemptId',
+  'planDigest',
+  'repositoryCommit',
+  'descriptorDigest',
+  'responseDigest',
+  'executionReceiptDigest',
+  'graderArtifactDigest',
+  'projectionAuthorityDigest',
+  'mediaType',
+  'width',
+  'height',
+  'bytesDigest',
+  'byteLength',
+  'publicArtifactScanDigest',
+  'generatedAt',
+  'candidateDigest',
+]);
+
+const hasExactKeys = (value: unknown, keys: readonly string[]): boolean =>
+  isPlainObject(value) &&
+  Object.getOwnPropertySymbols(value).length === 0 &&
+  Object.keys(value).every((key) => !isUnsafeObjectKey(key)) &&
+  Object.keys(value).length === keys.length &&
+  keys.every((key) => Object.hasOwn(value, key));
+
+const rasterDimensionIsValid = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isSafeInteger(value) &&
+  value >= 1 &&
+  value <= AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_DIMENSION;
+
+const byteSequenceEquals = (
+  value: Uint8Array,
+  offset: number,
+  expected: readonly number[]
+): boolean =>
+  offset >= 0 &&
+  offset + expected.length <= value.byteLength &&
+  expected.every((byte, index) => value[offset + index] === byte);
+
+const readBigEndianUint32 = (value: Uint8Array, offset: number): number =>
+  ((value[offset] ?? 0) * 0x100_0000 +
+    (value[offset + 1] ?? 0) * 0x1_0000 +
+    (value[offset + 2] ?? 0) * 0x100 +
+    (value[offset + 3] ?? 0)) >>>
+  0;
+
+const readLittleEndianUint32 = (value: Uint8Array, offset: number): number =>
+  ((value[offset] ?? 0) |
+    ((value[offset + 1] ?? 0) << 8) |
+    ((value[offset + 2] ?? 0) << 16) |
+    ((value[offset + 3] ?? 0) << 24)) >>>
+  0;
+
+const pngDimensions = (
+  value: Uint8Array
+): Readonly<{ width: number; height: number }> | undefined => {
+  if (
+    value.byteLength < 45 ||
+    !byteSequenceEquals(value, 0, [137, 80, 78, 71, 13, 10, 26, 10]) ||
+    readBigEndianUint32(value, 8) !== 13 ||
+    !byteSequenceEquals(value, 12, [73, 72, 68, 82])
+  ) {
+    return undefined;
+  }
+  const width = readBigEndianUint32(value, 16);
+  const height = readBigEndianUint32(value, 20);
+  let offset = 8;
+  let chunkCount = 0;
+  let sawImageData = false;
+  let sawEnd = false;
+  while (offset + 12 <= value.byteLength) {
+    const chunkLength = readBigEndianUint32(value, offset);
+    const chunkEnd = offset + 12 + chunkLength;
+    if (!Number.isSafeInteger(chunkEnd) || chunkEnd > value.byteLength) {
+      return undefined;
+    }
+    const isHeader = byteSequenceEquals(value, offset + 4, [73, 72, 68, 82]);
+    const isImageData = byteSequenceEquals(value, offset + 4, [73, 68, 65, 84]);
+    const isEnd = byteSequenceEquals(value, offset + 4, [73, 69, 78, 68]);
+    if (
+      (chunkCount === 0 && (!isHeader || chunkLength !== 13)) ||
+      (chunkCount > 0 && isHeader) ||
+      (isEnd && (chunkLength !== 0 || chunkEnd !== value.byteLength))
+    ) {
+      return undefined;
+    }
+    sawImageData ||= isImageData;
+    sawEnd ||= isEnd;
+    chunkCount += 1;
+    offset = chunkEnd;
+    if (isEnd) break;
+  }
+  return sawImageData && sawEnd && offset === value.byteLength
+    ? Object.freeze({ width, height })
+    : undefined;
+};
+
+const webpLossyDimensions = (
+  value: Uint8Array,
+  dataOffset: number,
+  chunkLength: number
+): Readonly<{ width: number; height: number }> | undefined => {
+  if (
+    chunkLength < 10 ||
+    !byteSequenceEquals(value, dataOffset + 3, [157, 1, 42])
+  ) {
+    return undefined;
+  }
+  return Object.freeze({
+    width:
+      ((value[dataOffset + 6] ?? 0) | ((value[dataOffset + 7] ?? 0) << 8)) &
+      0x3fff,
+    height:
+      ((value[dataOffset + 8] ?? 0) | ((value[dataOffset + 9] ?? 0) << 8)) &
+      0x3fff,
+  });
+};
+
+const webpLosslessDimensions = (
+  value: Uint8Array,
+  dataOffset: number,
+  chunkLength: number
+): Readonly<{ width: number; height: number }> | undefined => {
+  if (chunkLength < 5 || value[dataOffset] !== 0x2f) return undefined;
+  const first = value[dataOffset + 1] ?? 0;
+  const second = value[dataOffset + 2] ?? 0;
+  const third = value[dataOffset + 3] ?? 0;
+  const fourth = value[dataOffset + 4] ?? 0;
+  return Object.freeze({
+    width: 1 + first + ((second & 0x3f) << 8),
+    height: 1 + (second >> 6) + (third << 2) + ((fourth & 0x0f) << 10),
+  });
+};
+
+const webpExtendedDimensions = (
+  value: Uint8Array,
+  dataOffset: number,
+  chunkLength: number
+): Readonly<{ width: number; height: number }> | undefined => {
+  if (chunkLength < 10) return undefined;
+  return Object.freeze({
+    width:
+      1 +
+      (value[dataOffset + 4] ?? 0) +
+      ((value[dataOffset + 5] ?? 0) << 8) +
+      ((value[dataOffset + 6] ?? 0) << 16),
+    height:
+      1 +
+      (value[dataOffset + 7] ?? 0) +
+      ((value[dataOffset + 8] ?? 0) << 8) +
+      ((value[dataOffset + 9] ?? 0) << 16),
+  });
+};
+
+const webpDimensions = (
+  value: Uint8Array
+): Readonly<{ width: number; height: number }> | undefined => {
+  if (
+    value.byteLength < 30 ||
+    !byteSequenceEquals(value, 0, [82, 73, 70, 70]) ||
+    readLittleEndianUint32(value, 4) !== value.byteLength - 8 ||
+    !byteSequenceEquals(value, 8, [87, 69, 66, 80])
+  ) {
+    return undefined;
+  }
+  let offset = 12;
+  let dimensions: Readonly<{ width: number; height: number }> | undefined;
+  while (offset + 8 <= value.byteLength) {
+    const chunkLength = readLittleEndianUint32(value, offset + 4);
+    const dataOffset = offset + 8;
+    const nextOffset = dataOffset + chunkLength + (chunkLength % 2);
+    if (!Number.isSafeInteger(nextOffset) || nextOffset > value.byteLength) {
+      return undefined;
+    }
+    if (byteSequenceEquals(value, offset, [86, 80, 56, 88])) {
+      dimensions ??= webpExtendedDimensions(value, dataOffset, chunkLength);
+    } else if (byteSequenceEquals(value, offset, [86, 80, 56, 76])) {
+      dimensions ??= webpLosslessDimensions(value, dataOffset, chunkLength);
+    } else if (byteSequenceEquals(value, offset, [86, 80, 56, 32])) {
+      dimensions ??= webpLossyDimensions(value, dataOffset, chunkLength);
+    }
+    offset = nextOffset;
+  }
+  return offset === value.byteLength ? dimensions : undefined;
+};
+
+/** Validates the exact bounded PNG/WebP bytes used by review candidates and blind projections. */
+export const validateAgentEvaluationReviewRasterBytes = (
+  bytes: Uint8Array,
+  mediaType: AgentEvaluationReviewCandidate['mediaType'],
+  width: number,
+  height: number
+): void => {
+  const actualDimensions =
+    mediaType === 'image/png' ? pngDimensions(bytes) : webpDimensions(bytes);
+  if (
+    !actualDimensions ||
+    actualDimensions.width !== width ||
+    actualDimensions.height !== height ||
+    !rasterDimensionIsValid(width) ||
+    !rasterDimensionIsValid(height) ||
+    width * height > AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_PIXELS
+  ) {
+    throw new TypeError(
+      'Evaluation review candidate raster or dimensions are invalid.'
+    );
+  }
+};
+
+export const createAgentEvaluationReviewRasterScanReceipt = (
+  input: Omit<
+    AgentEvaluationReviewRasterScanReceipt,
+    'format' | 'version' | 'receiptDigest'
+  >
+): AgentEvaluationReviewRasterScanReceipt => {
+  if (!hasExactKeys(input, reviewRasterScanInputKeys)) {
+    throw new TypeError(
+      'Evaluation review raster scan input shape is invalid.'
+    );
+  }
+  assertIdentity(input.scanReceiptId, 'Evaluation raster scan receipt id');
+  assertIdentity(input.attemptId, 'Evaluation raster scan attempt id');
+  for (const [label, value] of [
+    ['Evaluation raster scan plan digest', input.planDigest],
+    ['Evaluation raster scan descriptor digest', input.descriptorDigest],
+    [
+      'Evaluation raster scan projection authority digest',
+      input.projectionAuthorityDigest,
+    ],
+    ['Evaluation raster scan policy digest', input.policyDigest],
+    ['Evaluation raster scan bytes digest', input.bytesDigest],
+    ['Evaluation raster scan decoded pixel digest', input.decodedPixelDigest],
+    [
+      'Evaluation raster scan metadata profile digest',
+      input.metadataProfileDigest,
+    ],
+    ['Evaluation raster scan canary set digest', input.canarySetDigest],
+    [
+      'Evaluation raster scan fingerprint set digest',
+      input.fingerprintSetDigest,
+    ],
+  ] as const) {
+    assertDigest(value, label);
+  }
+  if (
+    !/^[0-9a-f]{40}$/u.test(input.repositoryCommit) ||
+    !['image/png', 'image/webp'].includes(input.mediaType) ||
+    !rasterDimensionIsValid(input.width) ||
+    !rasterDimensionIsValid(input.height) ||
+    input.width * input.height >
+      AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_PIXELS ||
+    !Number.isSafeInteger(input.byteLength) ||
+    input.byteLength < 1 ||
+    input.byteLength > AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_BYTES ||
+    !Array.isArray(input.findingDigests) ||
+    input.findingDigests.length > 1_000
+  ) {
+    throw new TypeError('Evaluation review raster scan metadata is invalid.');
+  }
+  const findingDigests = Object.freeze(
+    [...input.findingDigests].sort(compareUnicodeCodePoints)
+  );
+  if (
+    new Set(findingDigests).size !== findingDigests.length ||
+    findingDigests.some((value) => !isAgentCanonicalDigest(value)) ||
+    !sameCanonicalJson(findingDigests, input.findingDigests) ||
+    (input.verdict === 'safe') !== (findingDigests.length === 0) ||
+    !['safe', 'blocked'].includes(input.verdict)
+  ) {
+    throw new TypeError('Evaluation review raster scan verdict is invalid.');
+  }
+  assertInstant(input.scannedAt, 'Evaluation raster scan time');
+  const base = Object.freeze({
+    format: 'prodivix.agent-evaluation-review-raster-scan-receipt' as const,
+    version: 1 as const,
+    ...input,
+    findingDigests,
+  });
+  return Object.freeze({
+    ...base,
+    receiptDigest: digestAgentCanonicalValue(base),
+  });
+};
+
+export const isAgentEvaluationReviewRasterScanReceipt = (
+  value: AgentEvaluationReviewRasterScanReceipt
+): boolean => {
+  try {
+    if (!hasExactAgentEvaluationReviewRasterScanReceiptShape(value)) {
+      return false;
+    }
+    const {
+      format: _format,
+      version: _version,
+      receiptDigest: _digest,
+      ...input
+    } = value;
+    return sameCanonicalJson(
+      createAgentEvaluationReviewRasterScanReceipt(input),
+      value
+    );
+  } catch {
+    return false;
+  }
+};
+
+export type CreateAgentEvaluationReviewCandidateInput = Omit<
+  AgentEvaluationReviewCandidate,
+  | 'format'
+  | 'version'
+  | 'bytesDigest'
+  | 'byteLength'
+  | 'publicArtifactScanDigest'
+  | 'candidateDigest'
+> &
+  Readonly<{ scanReceipt: AgentEvaluationReviewRasterScanReceipt }>;
+
+export const createAgentEvaluationReviewCandidate = (
+  input: CreateAgentEvaluationReviewCandidateInput
+): AgentEvaluationReviewCandidate => {
+  if (!hasExactKeys(input, reviewCandidateInputKeys)) {
+    throw new TypeError('Evaluation review candidate input shape is invalid.');
+  }
+  assertIdentity(input.candidateId, 'Evaluation review candidate id');
+  assertIdentity(input.attemptId, 'Evaluation review candidate attempt id');
+  for (const [label, value] of [
+    ['Evaluation review plan digest', input.planDigest],
+    ['Evaluation review descriptor digest', input.descriptorDigest],
+    ['Evaluation review response digest', input.responseDigest],
+    [
+      'Evaluation review execution receipt digest',
+      input.executionReceiptDigest,
+    ],
+    ['Evaluation review grader artifact digest', input.graderArtifactDigest],
+    [
+      'Evaluation review projection authority digest',
+      input.projectionAuthorityDigest,
+    ],
+  ] as const) {
+    assertDigest(value, label);
+  }
+  if (!/^[0-9a-f]{40}$/u.test(input.repositoryCommit)) {
+    throw new TypeError('Evaluation review repository commit is invalid.');
+  }
+  if (!['image/png', 'image/webp'].includes(input.mediaType)) {
+    throw new TypeError('Evaluation review candidate media type is invalid.');
+  }
+  assertInstant(input.generatedAt, 'Evaluation review candidate time');
+  const bytes = decodeCanonicalBase64(input.bytesBase64, {
+    label: 'Evaluation review candidate bytes',
+    maximumBytes: AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_BYTES,
+  });
+  try {
+    if (bytes.byteLength < 1) {
+      throw new TypeError('Evaluation review candidate raster is empty.');
+    }
+    validateAgentEvaluationReviewRasterBytes(
+      bytes,
+      input.mediaType,
+      input.width,
+      input.height
+    );
+    const bytesDigest = digestAgentCanonicalBytes(bytes);
+    const scanReceipt = input.scanReceipt;
+    if (
+      !isAgentEvaluationReviewRasterScanReceipt(scanReceipt) ||
+      scanReceipt.verdict !== 'safe' ||
+      scanReceipt.planDigest !== input.planDigest ||
+      scanReceipt.repositoryCommit !== input.repositoryCommit ||
+      scanReceipt.attemptId !== input.attemptId ||
+      scanReceipt.descriptorDigest !== input.descriptorDigest ||
+      scanReceipt.projectionAuthorityDigest !==
+        input.projectionAuthorityDigest ||
+      scanReceipt.mediaType !== input.mediaType ||
+      scanReceipt.width !== input.width ||
+      scanReceipt.height !== input.height ||
+      scanReceipt.byteLength !== bytes.byteLength ||
+      scanReceipt.bytesDigest !== bytesDigest ||
+      Date.parse(scanReceipt.scannedAt) > Date.parse(input.generatedAt)
+    ) {
+      throw new TypeError(
+        'Evaluation review candidate raster scan binding is invalid.'
+      );
+    }
+    const base = Object.freeze({
+      format: 'prodivix.agent-evaluation-review-candidate' as const,
+      version: 2 as const,
+      candidateId: input.candidateId,
+      attemptId: input.attemptId,
+      planDigest: input.planDigest,
+      repositoryCommit: input.repositoryCommit,
+      descriptorDigest: input.descriptorDigest,
+      responseDigest: input.responseDigest,
+      executionReceiptDigest: input.executionReceiptDigest,
+      graderArtifactDigest: input.graderArtifactDigest,
+      projectionAuthorityDigest: input.projectionAuthorityDigest,
+      mediaType: input.mediaType,
+      width: input.width,
+      height: input.height,
+      bytesBase64: input.bytesBase64,
+      bytesDigest,
+      byteLength: bytes.byteLength,
+      publicArtifactScanDigest: scanReceipt.receiptDigest,
+      generatedAt: input.generatedAt,
+    });
+    return Object.freeze({
+      ...base,
+      candidateDigest: digestAgentCanonicalValue(base),
+    });
+  } finally {
+    bytes.fill(0);
+  }
+};
+
+export const isAgentEvaluationReviewCandidate = (
+  value: AgentEvaluationReviewCandidate
+): boolean => {
+  try {
+    if (
+      !hasExactAgentEvaluationReviewCandidateShape(value) ||
+      value.format !== 'prodivix.agent-evaluation-review-candidate' ||
+      value.version !== 2 ||
+      !isAgentEvaluationReviewCandidateRef(
+        (({
+          format: _format,
+          version: _version,
+          bytesBase64: _bytesBase64,
+          ...reference
+        }) => reference)(value)
+      )
+    ) {
+      return false;
+    }
+    const bytes = decodeCanonicalBase64(value.bytesBase64, {
+      label: 'Evaluation review candidate bytes',
+      maximumBytes: AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_BYTES,
+    });
+    try {
+      validateAgentEvaluationReviewRasterBytes(
+        bytes,
+        value.mediaType,
+        value.width,
+        value.height
+      );
+      const { candidateDigest, ...base } = value;
+      return (
+        bytes.byteLength === value.byteLength &&
+        digestAgentCanonicalBytes(bytes) === value.bytesDigest &&
+        candidateDigest === digestAgentCanonicalValue(base)
+      );
+    } finally {
+      bytes.fill(0);
+    }
+  } catch {
+    return false;
+  }
+};
+
+export const isAgentEvaluationReviewCandidateRef = (
+  value: AgentEvaluationReviewCandidateRef
+): boolean => {
+  try {
+    if (!hasExactKeys(value, reviewCandidateRefKeys)) return false;
+    assertIdentity(value.candidateId, 'Evaluation review candidate id');
+    assertIdentity(value.attemptId, 'Evaluation review candidate attempt id');
+    for (const [label, digest] of [
+      ['Evaluation review plan digest', value.planDigest],
+      ['Evaluation review descriptor digest', value.descriptorDigest],
+      ['Evaluation review response digest', value.responseDigest],
+      [
+        'Evaluation review execution receipt digest',
+        value.executionReceiptDigest,
+      ],
+      ['Evaluation review grader artifact digest', value.graderArtifactDigest],
+      [
+        'Evaluation review projection authority digest',
+        value.projectionAuthorityDigest,
+      ],
+      ['Evaluation review raster bytes digest', value.bytesDigest],
+      ['Evaluation review scan digest', value.publicArtifactScanDigest],
+      ['Evaluation review candidate digest', value.candidateDigest],
+    ] as const) {
+      assertDigest(digest, label);
+    }
+    assertInstant(value.generatedAt, 'Evaluation review candidate time');
+    return (
+      /^[0-9a-f]{40}$/u.test(value.repositoryCommit) &&
+      ['image/png', 'image/webp'].includes(value.mediaType) &&
+      rasterDimensionIsValid(value.width) &&
+      rasterDimensionIsValid(value.height) &&
+      value.width * value.height <=
+        AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_PIXELS &&
+      Number.isSafeInteger(value.byteLength) &&
+      value.byteLength >= 1 &&
+      value.byteLength <= AGENT_EVALUATION_REVIEW_CANDIDATE_MAXIMUM_BYTES
+    );
   } catch {
     return false;
   }
@@ -1058,14 +1854,12 @@ const attemptReference = (
   });
 
 const missingReference = (
-  descriptor: AgentModelEvaluationAttemptDescriptor,
-  attempt?: AgentModelEvaluationAttempt
+  descriptor: AgentModelEvaluationAttemptDescriptor
 ): AgentModelEvaluationMissingAttemptRef =>
   Object.freeze({
     attemptId: descriptor.attemptId,
     descriptorDigest: descriptor.descriptorDigest,
-    reason:
-      attempt && attempt.status !== 'completed' ? attempt.status : 'missing',
+    reason: 'missing',
   });
 
 const aggregateAttemptUsage = (
@@ -1098,6 +1892,7 @@ export const createAgentModelEvaluationManifest = (
     plan: AgentModelEvaluationPlan;
     descriptors?: readonly AgentModelEvaluationAttemptDescriptor[];
     attempts: readonly AgentModelEvaluationAttempt[];
+    validatedHumanMetricObservations: readonly AgentEvaluationValidatedHumanMetricObservation[];
     metricReport: AgentEvaluationMetricReport;
     graderReport: AgentEvaluationGraderReport;
     humanReviewReport?: AgentHumanReviewReport;
@@ -1153,13 +1948,8 @@ export const createAgentModelEvaluationManifest = (
     attempts.map((attempt) => [attempt.descriptor.attemptId, attempt])
   );
   const missing = descriptors
-    .filter((descriptor) => {
-      const attempt = attemptById.get(descriptor.attemptId);
-      return !attempt || attempt.status !== 'completed';
-    })
-    .map((descriptor) =>
-      missingReference(descriptor, attemptById.get(descriptor.attemptId))
-    );
+    .filter((descriptor) => !attemptById.has(descriptor.attemptId))
+    .map((descriptor) => missingReference(descriptor));
   const protectedCaseIds = input.plan.concreteCases
     .filter(({ access }) => access === 'protected-holdout')
     .map(({ caseId }) => caseId)
@@ -1186,6 +1976,8 @@ export const createAgentModelEvaluationManifest = (
         plan: input.plan,
         descriptors,
         attempts,
+        validatedHumanMetricObservations:
+          input.validatedHumanMetricObservations,
         generatedAt: input.metricReport.generatedAt,
       })
     ) &&
@@ -1198,6 +1990,8 @@ export const createAgentModelEvaluationManifest = (
         reportId: input.graderReport.reportId,
         plan: input.plan,
         attempts,
+        validatedHumanMetricObservations:
+          input.validatedHumanMetricObservations,
         generatedAt: input.graderReport.generatedAt,
       })
     );
@@ -1250,6 +2044,9 @@ export const createAgentModelEvaluationManifest = (
       for (const descriptor of descriptors) {
         if (!humanReviewValid) break;
         if (!subjectiveCaseIds.has(descriptor.caseId)) continue;
+        if (attemptById.get(descriptor.attemptId)?.status !== 'completed') {
+          continue;
+        }
         const key = `${descriptor.caseId}\u0000${descriptor.targetId}`;
         if (
           (ratingsByCaseTarget.get(key)?.size ?? 0) <
@@ -1263,6 +2060,11 @@ export const createAgentModelEvaluationManifest = (
   }
   const metricSatisfied =
     input.metricReport.slices.length > 0 &&
+    input.plan.thresholds.metrics.every((threshold) =>
+      input.metricReport.slices.some(
+        ({ metricId }) => metricId === threshold.metricId
+      )
+    ) &&
     input.metricReport.slices.every(({ thresholdSatisfied }) =>
       Boolean(thresholdSatisfied)
     );
@@ -1481,6 +2283,7 @@ export const validateAgentModelEvaluationManifest = (
     plan: AgentModelEvaluationPlan;
     descriptors?: readonly AgentModelEvaluationAttemptDescriptor[];
     attempts: readonly AgentModelEvaluationAttempt[];
+    validatedHumanMetricObservations: readonly AgentEvaluationValidatedHumanMetricObservation[];
     metricReport: AgentEvaluationMetricReport;
     graderReport: AgentEvaluationGraderReport;
     humanReviewReport?: AgentHumanReviewReport;
@@ -1494,6 +2297,7 @@ export const validateAgentModelEvaluationManifest = (
       plan: input.plan,
       descriptors: input.descriptors,
       attempts: input.attempts,
+      validatedHumanMetricObservations: input.validatedHumanMetricObservations,
       metricReport: input.metricReport,
       graderReport: input.graderReport,
       humanReviewReport: input.humanReviewReport,

@@ -1,6 +1,6 @@
 # Prodivix 当前状态
 
-> StatusDate: 2026-08-03
+> StatusDate: 2026-08-12
 > 本文件是 G0/G1/G2/G3/G4 当前完成状态的唯一来源。`global-phases.md` 定义阶段目标与退出条件；evidence 文档保存可重复验证证据，不重复声明当前状态。
 
 ## 全局阶段
@@ -54,7 +54,8 @@ Run/Context/Proposal/Verification/Audit surface、独立可访问 approval/rejec
 Golden/OpenAPI/workflow；`verify:g4:product:core`和真实 PostgreSQL 18 Gate均本地通过。2026-08-02，exact
 implementation commit `76e4d027a66be44a40f7b387854f9ae1115313da` 的 G4 V1–V7 独立 workflows 全部 terminal
 success，且普通 PR Gate 的 remote-model units 为 0。V8 已实现四类原生/兼容 adapter、
-fail-closed security、128-case/52-family planner、11,640+ schedule、statistical manifest、TypeScript/Go wire、
+fail-closed security、128-case/52-family planner、11,640 minimum / 14,040 current canonical schedule、statistical
+manifest、TypeScript/Go wire、
 PostgreSQL v27 immutable facts与 CAS budget ledger、Golden与 zero-remote-token CI workflow；本地 deterministic和
 真实 PostgreSQL Gate
 已通过。V9 也已实现 authenticated Catalog exact proposal/approval/Commit、66-cell/80-attempt
@@ -64,10 +65,24 @@ PostgreSQL v28 immutable Run-set ledger与 zero-remote-model workflow；本地 b
 aggregate已通过。2026-08-03，clean exact commit `ae908c13579434b498a560be3ec9d9934c20ff47` 的 V8 workflow
 run `30761547895` / job `91532914906` 与 V9 workflow run `30761547900` / job `91532915052` 均 terminal
 success；V9 同时上传 rootless artifact `8837674438` 和 deterministic Closure manifest artifact `8837860540`。
-后者明确记录 `goldenVerdict=satisfied`、`closureVerdict=incomplete`、real-model `pending`、attempts `0/11,640`，
+后者作为历史 minimum-floor manifest，明确记录 `goldenVerdict=satisfied`、
+`closureVerdict=incomplete`、real-model `pending`、attempts `0/11,640`，
 因此只把 V8–V9 升级为 deterministic durable passed。三个真实 Provider matrix、bounded endpoint smoke、受保护
 holdout operation、真实 human review、actual usage/cost与未过期 release qualification仍 Pending；最终
 `verify:g4:model-eval` / `verify:g4:closure` 与 Global G4 Closure也仍 Pending。
+
+2026-08-12，real-model production execution 的基础设施、契约与 production composition 已本地实现并通过
+local contract Gates，workflow 已配置：generated run-config artifact binding、27-target / exact 14,040-attempt plan、
+purpose-bound runner/ledger、controlled Workspace + G3 `prepare → final-commit`、默认 shared-effect stateful / Hosted /
+isolated-cache cold/warm owner、15 项 runtime fact-source readiness、run-level Hosted exact-four
+`prepare → full shards → cleanup → recovery` lifecycle、canonical owner shutdown receipt、durable Native Provider
+state-vault 与 PostgreSQL v46 双 root 均已接线。recovery 对 null-prior/known-prior dispatch 只执行 durable
+recovery-read/reconciliation，可信观察缺失时保留 unfinished；partial-create 已知资源继续经 durable cleanup claim
+收口。当前状态为
+`Infrastructure / Contracts / Production Reachability Implemented; Local Contract Gates Passed; Workflow Configured / External Evidence pending`；
+真实 Provider key、protected PostgreSQL operation、actionlint、remote Actions/CI、14,040 journeys、holdout/human review
+与 release artifact 均为 `External Evidence Pending`。
+
 当前实现与已确定边界如下：
 
 - `@prodivix/ai` 已成为 G4 transport-neutral current/wire 唯一 owner；旧 `packages/shared/src/llm` 已删除，
@@ -116,10 +131,19 @@ holdout operation、真实 human review、actual usage/cost与未过期 release 
 - G4 correctness/security 的普通 PR aggregate 使用 deterministic provider，消耗 0 remote-model tokens；
   per-adapter smoke 只证明 transport admission。G4 baseline 冻结 OpenAI Responses、Anthropic Messages、
   Gemini Interactions 三个 native adapters 和 generic OpenAI-compatible compatibility adapter。
+- production preplan contract 以 4 resource registrations、15 runtime fact-source registrations、18 sealed probes 和
+  4 durable cleanup receipts 冻结唯一 `production-run-config.json`；release archive 以数据库已 sealed 的
+  `runConfigArtifactBinding` 和 canonical whole-file bytes 为唯一 config trust authority。默认 production composition
+  已把 15 项 runtime readiness 接入 durable shared-effect owner，并通过 exact identity、restart/reconcile 与 cold/warm
+  cache local Gates；production config publication 的 protected execution evidence仍待外部运行。
+- Provider background/continuation state 的 Backend durable vault primitives 已实现 callback-only plaintext、
+  per-state data-key destruction、owner-instance isolation、`seal/resolve/retire` receipts、forced-expiry tombstone
+  和 zero-residual health contract。默认 shared-effect stateful owner composition 已接入 production；真实 Provider/
+  PostgreSQL lifecycle evidence仍为 Pending。
 - G4 Exit另需未过期 `verify:g4:model-eval`：128 cases/52 families、每 bucket至少 25% protected holdout、
   24 context与16 media sentinels；ordinary 10、48 critical 30、至少12 high-assurance 100 attempts/configuration，
-  首次规范性最低11,640 journeys。三个 native Provider/operator/model-family required text/visual/document profiles
-  分别满足 floor；同 adapter换模型或 aggregator alias不能凑数。
+  首次规范性最低11,640 journeys；当前冻结 release plan 为 14,040 journeys。三个 native Provider/operator/
+  model-family required text/visual/document profiles分别满足 floor；同 adapter换模型或 aggregator alias不能凑数。
 - 非规范性容量规划：engineering shakedown约3亿–10亿 logical tokens；首次完整三 Provider closure约
   10亿–50亿加 media/tool units；credible release约30亿–100亿加 human review；upgrade differential可能
   50亿–200亿。authority是冻结的 provider/profile/corpus/holdout/tier/repetition/grader/threshold/usage budget与

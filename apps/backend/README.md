@@ -107,6 +107,7 @@ reference 的 protection。G5/release owner 后续以真实 change/release ref �
 - `BACKEND_VERIFICATION_ATTESTATION_MAX_LIFETIME=15m`（最大 `1h`）
 - `BACKEND_VERIFICATION_ATTESTATION_KEYS=<strict JSON object>`
 - `BACKEND_VERIFICATION_SECRET_CANARIES=<comma-separated exact canaries>`
+- `BACKEND_VERIFICATION_AGENT_EVALUATION_OWNER_TOKEN=<32-4096 visible ASCII bytes>`（启用 purpose-bound 8791 direct authority）
 
 `BACKEND_VERIFICATION_ATTESTATION_KEYS` 的每个 entry 只包含 base64 Ed25519 public key、issuer、audience、
 subject 与 `remote-attested|ci-attested` trust class。私钥、OIDC assertion、raw proof、nonce、provider
@@ -116,6 +117,10 @@ credential 和 Secret 不得进入配置、Evidence、diagnostic、audit 或日�
 它必须是恰好 32 个随机字节的 canonical standard-base64，在所有 Backend replica 上一致，并在任何 active
 promotion 及其丢失响应恢复窗口内跨重启保持稳定。轮换会使旧 key 下尚未完成的 promotion 无法恢复，因此只能
 在旧恢复窗口排空后协调轮换；不要把真实值提交到仓库。
+
+`BACKEND_VERIFICATION_AGENT_EVALUATION_OWNER_TOKEN` 只授权 purpose
+`agent-evaluation-verification-owner` 的内部 create/upload/prepare/final-commit/exact-ID current-view
+链路。未配置时这些内部路由以 `503` fail closed；普通用户 Verification API 不使用该 credential。
 
 本地完整 Gate 需要一个隔离 PostgreSQL URL：
 

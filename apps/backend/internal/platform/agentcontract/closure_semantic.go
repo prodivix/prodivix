@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 var g4ClosureGateIDs = sortedStrings([]string{
@@ -95,6 +96,9 @@ func validateAgentG4ClosureSemantics(document map[string]any) error {
 		return err
 	}
 	if err := validateG4ClosureArtifacts(value["artifacts"]); err != nil {
+		return err
+	}
+	if err := validateG4ClosureEvaluationArtifact(value["modelEvaluation"], value["artifacts"]); err != nil {
 		return err
 	}
 	if stringValue(value["goldenVerdict"]) != "satisfied" {
@@ -301,7 +305,7 @@ func validateG4ClosureModelEvaluation(raw any, completedRaw any) (string, bool, 
 			return "", false, err
 		}
 	} else if status == "satisfied" {
-		extra := []string{"manifestRef", "manifestDigest", "providerConfigurationIds", "providerOperatorIds", "modelFamilyOwnerIds", "qualificationTargetDigests", "holdoutReceiptDigest", "metricReportDigest", "graderReportDigest", "humanReviewReportDigest", "completedAt", "expiresAt"}
+		extra := []string{"manifestRef", "manifestDigest", "bundleDigest", "evidenceSetDigest", "authorityAttestationDigest", "evidenceRootDigest", "evidenceArtifactDigest", "evidenceArtifactSize", "providerConfigurationIds", "providerOperatorIds", "modelFamilyOwnerIds", "qualificationTargetDigests", "holdoutReceiptDigest", "metricReportDigest", "graderReportDigest", "humanReviewReportDigest", "reviewLeaseDigest", "completedAt", "expiresAt"}
 		if err := requireExactObjectKeys(value, append(append([]string(nil), common...), extra...), nil); err != nil {
 			return "", false, err
 		}
@@ -324,10 +328,14 @@ func validateG4ClosureModelEvaluation(raw any, completedRaw any) (string, bool, 
 	}
 	expired := false
 	if status == "satisfied" {
-		for _, field := range []string{"manifestDigest", "holdoutReceiptDigest", "metricReportDigest", "graderReportDigest", "humanReviewReportDigest"} {
+		for _, field := range []string{"manifestDigest", "bundleDigest", "evidenceSetDigest", "authorityAttestationDigest", "evidenceRootDigest", "evidenceArtifactDigest", "holdoutReceiptDigest", "metricReportDigest", "graderReportDigest", "humanReviewReportDigest", "reviewLeaseDigest"} {
 			if err := requireDigest(value[field], "/value/modelEvaluation/"+field); err != nil {
 				return "", false, err
 			}
+		}
+		artifactSize, artifactSizeOK := safeInteger(value["evidenceArtifactSize"])
+		if !artifactSizeOK || artifactSize < 1 || artifactSize > 512*1024*1024 {
+			return "", false, errors.New("G4 Closure evidence artifact size is invalid")
 		}
 		for _, field := range []string{"providerConfigurationIds", "providerOperatorIds", "modelFamilyOwnerIds", "qualificationTargetDigests"} {
 			if err := requireCanonicalStrings(value[field]); err != nil {
@@ -360,7 +368,7 @@ func validateG4ClosureArtifacts(raw any) error {
 			return fmt.Errorf("G4 Closure artifact %d is invalid", index)
 		}
 		size, sizeOK := safeInteger(value["size"])
-		if requireIdentity(value["artifactId"], "/value/artifact/artifactId") != nil || !sizeOK || size < 1 ||
+		if requireIdentity(value["artifactId"], "/value/artifact/artifactId") != nil || !sizeOK || size < 1 || size > 512*1024*1024 ||
 			stringValue(value["mediaType"]) == "" || stringValue(value["availability"]) != "available" {
 			return errors.New("G4 Closure artifact identity is invalid")
 		}
@@ -373,6 +381,41 @@ func validateG4ClosureArtifacts(raw any) error {
 		ids = append(ids, value["artifactId"])
 	}
 	return requireCanonicalStrings(ids)
+}
+
+func validateG4ClosureEvaluationArtifact(modelRaw any, artifactsRaw any) error {
+	model, modelOK := modelRaw.(map[string]any)
+	if !modelOK || stringValue(model["status"]) != "satisfied" {
+		return nil
+	}
+	bundleDigest := stringValue(model["bundleDigest"])
+	artifactDigest := stringValue(model["evidenceArtifactDigest"])
+	artifactSize, sizeOK := safeInteger(model["evidenceArtifactSize"])
+	if !sizeOK || !strings.HasPrefix(bundleDigest, "sha256-") {
+		return errors.New("G4 Closure evaluation artifact binding is invalid")
+	}
+	expectedID := "g4-model-evaluation:" + strings.TrimPrefix(bundleDigest, "sha256-")
+	artifacts, ok := artifactsRaw.([]any)
+	if !ok {
+		return errors.New("G4 Closure evaluation artifacts are invalid")
+	}
+	matches := 0
+	for _, raw := range artifacts {
+		artifact, ok := raw.(map[string]any)
+		if !ok || stringValue(artifact["artifactId"]) != expectedID {
+			continue
+		}
+		matches++
+		size, validSize := safeInteger(artifact["size"])
+		if !validSize || size != artifactSize || stringValue(artifact["digest"]) != artifactDigest ||
+			stringValue(artifact["mediaType"]) != "application/vnd.prodivix.agent-model-evaluation-evidence+json" {
+			return errors.New("G4 Closure evaluation artifact drifted from its summary")
+		}
+	}
+	if matches != 1 {
+		return errors.New("G4 Closure requires exactly one bound evaluation artifact")
+	}
+	return nil
 }
 
 func requireExactStrings(raw any, expected []string) error {

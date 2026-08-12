@@ -18,6 +18,7 @@ import { createG4AgentProposalCanonicalVector } from './g4-agent-proposal-canoni
 import { createG4AgentVerificationCanonicalVector } from './g4-agent-verification-canonical-vector.mjs';
 import { createG4AgentProductCanonicalVector } from './g4-agent-product-canonical-vector.mjs';
 import { createG4AgentEvaluationCanonicalVector } from './g4-agent-evaluation-canonical-vector.mjs';
+import { createG4AgentEvaluationHumanAuthorityVector } from './g4-agent-evaluation-human-authority-vector.mjs';
 import { createG4AgentClosureCanonicalVector } from './g4-agent-closure-canonical-vector.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -94,6 +95,14 @@ const targets = [
       'apps/backend/internal/platform/agentcontract/testdata/agent-evaluation-vector.json'
     ),
     value: createG4AgentEvaluationCanonicalVector(),
+  },
+  {
+    label: 'Agent evaluation human authority canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-evaluation-human-authority-vector.json'
+    ),
+    value: createG4AgentEvaluationHumanAuthorityVector(),
   },
 ];
 const mode = process.argv[2] ?? 'check';

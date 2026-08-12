@@ -2,14 +2,15 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
-  decodeAgentEvaluationFact,
   decodeAgentG4ClosureManifest,
-  validateAgentModelEvaluationManifest,
+  digestAgentCanonicalValue,
+  isAgentEvaluationProductionRunConfigArtifactBinding,
 } from '../packages/ai/src/index.ts';
 import {
   compareUnicodeCodePoints,
   sameCanonicalJson,
 } from '../packages/shared/src/canonical/index.ts';
+import { loadAndVerifyG4ModelEvaluationEvidence } from './g4-model-evaluation-evidence-verifier.mjs';
 
 const requiredPath = (name) => {
   const value = process.env[name]?.trim();
@@ -26,63 +27,24 @@ if (!closureResult.ok) {
 }
 const closure = closureResult.value;
 
-const evaluationBundle = JSON.parse(
-  await readFile(requiredPath('PRODIVIX_G4_MODEL_EVAL_EVIDENCE'), 'utf8')
-);
-if (
-  evaluationBundle?.format !== 'prodivix.agent-model-evaluation-evidence' ||
-  evaluationBundle?.version !== 1 ||
-  !Array.isArray(evaluationBundle.attempts)
-) {
-  throw new Error('G4 model-evaluation evidence identity is unsupported.');
-}
-const decodeEvaluation = (wire, expectedType) => {
-  const result = decodeAgentEvaluationFact(wire);
-  if (!result.ok || result.value.factType !== expectedType) {
-    throw new Error(`G4 ${expectedType} evidence failed strict decoding.`);
-  }
-  return result.value.value;
-};
-const plan = decodeEvaluation(evaluationBundle.plan, 'evaluation-plan');
-const attempts = evaluationBundle.attempts.map((wire) =>
-  decodeEvaluation(wire, 'evaluation-attempt')
-);
-const metricReport = decodeEvaluation(
-  evaluationBundle.metricReport,
-  'evaluation-metric-report'
-);
-const graderReport = decodeEvaluation(
-  evaluationBundle.graderReport,
-  'evaluation-grader-report'
-);
-const humanReviewReport = decodeEvaluation(
-  evaluationBundle.humanReviewReport,
-  'evaluation-human-review-report'
-);
-const holdoutExecutionReceipt = decodeEvaluation(
-  evaluationBundle.holdoutExecutionReceipt,
-  'evaluation-holdout-receipt'
-);
-const evaluationManifest = decodeEvaluation(
-  evaluationBundle.manifest,
-  'evaluation-manifest'
-);
-const evaluationIssues = validateAgentModelEvaluationManifest({
-  manifest: evaluationManifest,
+const {
+  evidenceIndex,
+  evidenceIndexArtifact,
+  evidenceRoot,
+  evidenceRootArtifact,
+  singletons,
+  attemptRecordCount,
+  repositoryCommit: verifiedRepositoryCommit,
+} = await loadAndVerifyG4ModelEvaluationEvidence();
+const {
   plan,
-  attempts,
   metricReport,
   graderReport,
   humanReviewReport,
   holdoutExecutionReceipt,
-});
-if (evaluationIssues.length > 0) {
-  throw new Error(
-    evaluationIssues
-      .map(({ code, message }) => `${code}: ${message}`)
-      .join('; ')
-  );
-}
+  authorityAttestation,
+  manifest: evaluationManifest,
+} = singletons;
 
 if (closure.modelEvaluation.status !== 'satisfied') {
   throw new Error(
@@ -108,11 +70,93 @@ const expectedModelFamilyOwnerIds = canonicalIdentitySet(
 const expectedQualificationTargetDigests = canonicalIdentitySet(
   evaluationManifest.qualificationTargetDigests
 );
+const expectedArtifact = ({ artifactId, digest, size, mediaType }) => {
+  const base = Object.freeze({
+    artifactId,
+    digest,
+    size,
+    mediaType,
+    availability: 'available',
+  });
+  return Object.freeze({
+    ...base,
+    artifactDigest: digestAgentCanonicalValue(base),
+  });
+};
+const expectedEvaluationArtifacts = Object.freeze([
+  expectedArtifact({
+    artifactId: `g4-model-evaluation-index:${evidenceIndex.indexDigest.slice('sha256-'.length)}`,
+    digest: evidenceIndexArtifact.digest,
+    size: evidenceIndexArtifact.size,
+    mediaType:
+      'application/vnd.prodivix.agent-model-evaluation-evidence-index+json',
+  }),
+  expectedArtifact({
+    artifactId: `g4-model-evaluation-root:${evidenceRoot.rootDigest.slice('sha256-'.length)}`,
+    digest: evidenceRootArtifact.digest,
+    size: evidenceRootArtifact.size,
+    mediaType:
+      'application/vnd.prodivix.agent-model-evaluation-evidence-root+json',
+  }),
+]);
+const boundEvaluationArtifacts = expectedEvaluationArtifacts.map((expected) =>
+  closure.artifacts.filter(
+    ({ artifactId }) => artifactId === expected.artifactId
+  )
+);
+const authorityRootDrift = Object.entries(evidenceRoot.authorityRoots).some(
+  ([key, digest]) => modelEvaluation[key] !== digest
+);
+const runConfigArtifactBinding = modelEvaluation.runConfigArtifactBinding;
+const runConfigArtifactBindingDrift =
+  !isAgentEvaluationProductionRunConfigArtifactBinding(
+    runConfigArtifactBinding
+  ) ||
+  !sameCanonicalJson(
+    runConfigArtifactBinding,
+    evidenceIndex.runConfigArtifactBinding
+  ) ||
+  !sameCanonicalJson(
+    runConfigArtifactBinding,
+    evidenceRoot.runConfigArtifactBinding
+  ) ||
+  !sameCanonicalJson(
+    runConfigArtifactBinding,
+    evidenceRoot.archiveAttestation.runConfigArtifactBinding
+  ) ||
+  runConfigArtifactBinding.sourceConfigDigest !==
+    modelEvaluation.sourceConfigDigest ||
+  runConfigArtifactBinding.frozenRunDigest !==
+    modelEvaluation.frozenRunDigest ||
+  runConfigArtifactBinding.planDigest !== plan.planDigest ||
+  runConfigArtifactBinding.repositoryCommit !== verifiedRepositoryCommit;
 if (
   modelEvaluation.planDigest !== plan.planDigest ||
   modelEvaluation.manifestRef !== evaluationManifest.manifestId ||
   modelEvaluation.manifestDigest !== evaluationManifest.manifestDigest ||
-  modelEvaluation.actualAttemptCount !== attempts.length ||
+  modelEvaluation.bundleDigest !== evidenceIndex.bundleDigest ||
+  modelEvaluation.evidenceSetDigest !== evidenceIndex.evidenceSetDigest ||
+  runConfigArtifactBindingDrift ||
+  modelEvaluation.sourceConfigDigest !== evidenceRoot.sourceConfigDigest ||
+  modelEvaluation.frozenRunDigest !== evidenceRoot.frozenRunDigest ||
+  evidenceIndex.sourceConfigDigest !== evidenceRoot.sourceConfigDigest ||
+  evidenceIndex.frozenRunDigest !== evidenceRoot.frozenRunDigest ||
+  authorityRootDrift ||
+  modelEvaluation.authorityAttestationDigest !==
+    authorityAttestation.attestationDigest ||
+  modelEvaluation.archiveAttestationDigest !==
+    evidenceRoot.archiveAttestationDigest ||
+  modelEvaluation.evidenceRootDigest !== evidenceRoot.rootDigest ||
+  modelEvaluation.evidenceRootArtifactDigest !== evidenceRootArtifact.digest ||
+  modelEvaluation.evidenceRootArtifactSize !== evidenceRootArtifact.size ||
+  modelEvaluation.evidenceIndexDigest !== evidenceIndex.indexDigest ||
+  modelEvaluation.evidenceIndexArtifactDigest !==
+    evidenceIndexArtifact.digest ||
+  modelEvaluation.evidenceIndexArtifactSize !== evidenceIndexArtifact.size ||
+  modelEvaluation.shardSetDigest !== evidenceIndex.shardSetDigest ||
+  modelEvaluation.totalShardBytes !== evidenceIndex.totalShardBytes ||
+  modelEvaluation.totalRecordCount !== evidenceIndex.totalRecordCount ||
+  modelEvaluation.actualAttemptCount !== attemptRecordCount ||
   !sameCanonicalJson(
     modelEvaluation.providerConfigurationIds,
     expectedProviderConfigurationIds
@@ -131,14 +175,25 @@ if (
   ) ||
   modelEvaluation.holdoutReceiptDigest !==
     holdoutExecutionReceipt.receiptDigest ||
+  modelEvaluation.holdoutExecutionReceiptDigest !==
+    evidenceRoot.authorityRoots.holdoutExecutionReceiptDigest ||
+  modelEvaluation.secretCanarySetDigest !==
+    evidenceRoot.authorityRoots.secretCanarySetDigest ||
+  modelEvaluation.protectedHoldoutCanarySetDigest !==
+    evidenceRoot.authorityRoots.protectedHoldoutCanarySetDigest ||
   modelEvaluation.metricReportDigest !== metricReport.reportDigest ||
   modelEvaluation.graderReportDigest !== graderReport.reportDigest ||
   modelEvaluation.humanReviewReportDigest !== humanReviewReport.reportDigest ||
   modelEvaluation.completedAt !== evaluationManifest.completedAt ||
-  modelEvaluation.expiresAt !== evaluationManifest.expiresAt
+  modelEvaluation.expiresAt !== evaluationManifest.expiresAt ||
+  boundEvaluationArtifacts.some(
+    (matches, index) =>
+      matches.length !== 1 ||
+      !sameCanonicalJson(matches[0], expectedEvaluationArtifacts[index])
+  )
 ) {
   throw new Error(
-    'G4 Golden evidence model-evaluation summary does not match the exact validated evidence bundle.'
+    'G4 Golden evidence model-evaluation summary does not match the exact validated evidence archive.'
   );
 }
 
@@ -154,10 +209,11 @@ if (
   closure.worktreeState !== 'clean' ||
   closure.goldenVerdict !== 'satisfied' ||
   closure.closureVerdict !== 'satisfied' ||
+  verifiedRepositoryCommit !== repositoryCommit ||
   plan.repositoryCommit !== repositoryCommit ||
   evaluationManifest.outcome !== 'satisfied' ||
-  attempts.length < 11_640 ||
-  attempts.length !== plan.plannedJourneyCount ||
+  attemptRecordCount < 11_640 ||
+  attemptRecordCount !== plan.plannedJourneyCount ||
   Date.now() >= Date.parse(evaluationManifest.expiresAt) ||
   Date.now() >= Date.parse(modelEvaluation.expiresAt) ||
   closure.deterministicGateEvidence.some(
@@ -174,5 +230,5 @@ if (
 }
 
 console.log(
-  `Verified durable G4 Closure ${closure.manifestId} at ${repositoryCommit} with ${attempts.length} real-model attempts.`
+  `Verified durable G4 Closure ${closure.manifestId} at ${repositoryCommit} with ${attemptRecordCount} real-model attempts.`
 );

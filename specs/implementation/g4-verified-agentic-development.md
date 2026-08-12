@@ -410,6 +410,12 @@ Global Phase：G4。目标 Product Gate：V8 Implemented / real-model durable ev
 - role/content block、stream/tool call、structured output、refusal/stop/truncation、usage/cache/reasoning、
   state/context-transform/background/error/retry-after/cancel normalization conformance；
 - required text/visual/document profiles、media transform、hosted capability 与 computer-use boundary conformance；
+- 三个 native configuration 的 3 core + 6 optional 固定 27-target matrix；optional support 逐 target 由
+  declared profile set + sealed active probe 决定，`supported` 进入 required，`unsupported` 以真实
+  unavailable/denial receipt 进入 expected-blocked；
+- sanitized `ProviderCapabilityObservationReceipt` 每 turn 0..1 张、facts 0..2、最大 16 KiB；与
+  plan/commitment/attempt/descriptor/invocation/provider/model/dispatch/transport/spool/normalized-event-set 全绑定，
+  owner/specific receipt 精确引用 observation set root；
 - stateless/storage-disabled default、opaque continuation、ambient-memory prohibition 与显式
   provider-side state/cache/retention/deletion conformance；
 - `release-evaluated` / `admission-only` / `disabled` 按 exact configuration × model × capability × policy slice；
@@ -423,24 +429,55 @@ Global Phase：G4。目标 Product Gate：V8 Implemented / real-model durable ev
 - OpenAI Responses、Anthropic Messages、Gemini Interactions 三个 native protocol family 各至少一个
   independently operated/versioned model configuration，provider operator 与 model-family owner 分别互异；
 - ordinary 每 case/configuration 至少 10 attempts，48 critical cases 至少 30 attempts，至少 12 个
-  high-assurance cases 至少 100 attempts；规范性最低 11,640 journeys，critical sentinel 会继续增加；
+  high-assurance cases 至少 100 attempts；规范性最低 11,640 journeys，当前 canonical release plan 将冻结的
+  critical/high-assurance sentinel放大后形成 14,040 journeys；
 - protected/rotating holdout、预注册 sequential stopping/confidence bound、attempt denominator 与 leak prevention；
 - deterministic grader/G3 Closure 优先、LLM judge辅助、sampled subjective visual cases blind human rubric；
 - grounding、proposal validity、tool/action choice、dry-run、Closure、repair、unsafe-attempt、stability、
   latency/token/cost metrics 与 pre-run overall/per-provider thresholds；
 - logical/billable/cache/unknown usage vector、media/tool/compute/storage/human capacity 与原子 budget reservation；
+- canonical NDJSON sharded evidence archive、database-sealed `runConfigArtifactBinding`、canonical whole-file
+  config bytes/source/frozen-run digest、project Ed25519 attestation与 exact-commit pricing/spool-policy离线复验；
 - model/prompt/Context/tool/action registry drift 后 evidence expiry 与 affected-slice rerun；
 - sanitized audit artifact 与 redaction scanner。
 
 实现与 deterministic durable状态（2026-08-03）：四类 adapter 已使用原生 event shape做 deterministic conformance；security primitive
 覆盖 typed authority、Secret callback/raw+encoded+key canary、有界 unsafe-artifact scan、HTTPS/DNS/IPv4/IPv6/
 redirect/purpose/runtime-zone/timeout/byte envelope；evaluation current/wire已实现 128 cases/52 families、24/16
-sentinels、11,640+ schedule、global atomic budget CAS、lease claim/renew、shard/checkpoint/resume、全部 attempt
+sentinels、11,640 minimum / 14,040 current canonical schedule、global atomic budget CAS、lease claim/renew、
+shard/checkpoint/resume、全部 attempt
 denominator、risk-specific confidence、report recomputation、human/holdout/manifest/expiry。Go admission 与 PostgreSQL
 v27 isolated namespace immutable facts/CAS budget ledger、canonical vector、Golden和 ordinary CI workflow均已实现，
 本机 deterministic/PG Gate通过；clean exact commit `ae908c13` 的 V8 run `30761547895` / job `91532914906`
 也 terminal success。`verify:g4:model-eval` 刻意要求外部 real-model evidence bundle、完整 denominator与 clean exact
 commit；当前未运行三个真实 Provider matrix，因此 V8为 `Deterministic CI Passed / Real-model Evidence Pending`。
+
+Production execution 基础设施/契约状态（2026-08-12）：`apps/agent-evaluation-runner` 与 `apps/backend`
+evaluation service boundary 已实现 server/native contract/primitives，并将 workflow 配置为独立受保护的
+real-model 运行面。preplan contract 以 4 个 Provider resource registrations、15 个 runtime fact-source
+registrations、18 个 sealed capability probes 和 4 个 durable cleanup receipts 冻结唯一
+`production-run-config.json`；其 `runConfigArtifactBinding` 绑定 canonical whole-file bytes、artifact/run identity、
+plan/repository commit 与 frozen runtime/pricing/spool policy。当前 release plan 固定 27 targets 和 exact
+14,040 attempts，并以 legacy-denominator 拒绝向量防止旧计划重承诺。
+
+full-attempt contract 将 controlled Workspace/Chromium 执行、G3 Evidence promotion、Provider capability 与
+attempt grading 固定在 purpose-bound owner sidecar；G3 attested promotion 使用服务端绑定的两阶段
+`prepare → final-commit`。Backend durable vault primitives 为 Provider background/continuation state 实现
+callback-only plaintext、per-state data-key destruction、125 秒 lifetime、30 秒 lifecycle ACK、owner-instance
+isolation、request-digest idempotency、retirement receipt、forced-expiry tombstone 与 zero-residual health contract。
+
+默认 shared-effect production composition 已组合 stateful runtime journal、Hosted source owner、isolated-cache
+cold/warm owner 与 exact 15 项 runtime fact-source readiness。Hosted exact-four production lifecycle 已通过独立 8791
+sidecar、Runner main 与 Backend dispatch/transport/records routes 接线；prepare/cleanup 启动要求零 unfinished/overdue，
+recovery 启动允许发现 durable unfinished，terminal artifact要求 active resource/read lease/unfinished/overdue 四项全零。
+null-prior 先形成 conservative durable receipt再执行只读 observation，known-prior 走 recovery-read；可信 reconcile
+缺失时保留 unfinished，partial-create 的已知资源经 durable cleanup claim 收口。archive/current roots 已扩展为 exact
+46 families，并保持 8 GiB physical ceiling。
+
+当前状态为
+`Infrastructure / Contracts / Production Reachability Implemented; Local Contract Gates Passed; Workflow Configured / External Evidence pending`；
+真实 Provider key、protected PostgreSQL operation、actionlint、remote Actions/CI 与 real-model release evidence 均为
+`External Evidence Pending`。
 
 完成条件：
 
@@ -450,7 +487,8 @@ commit；当前未运行三个真实 Provider matrix，因此 V8为 `Determinist
 - 四个 production adapter family 均通过 deterministic conformance；三个 native family 各有独立
   release-evaluated configuration，generic compatibility 至少有一个 hosted 与一个 local/self-hosted smoke；
 - scripted matrix 证明 deterministic authority，真实模型 matrix 独立证明行为质量；两类 evidence 均不可省略；
-- model-eval plan 在运行前冻结 provider/capability/corpus/holdout/context/media/repetition/grader/threshold/budget，
+- model-eval plan 在运行前冻结 provider/capability declaration+probe/observation authority/corpus/holdout/
+  context/media/repetition/grader/threshold/budget，
   manifest 无 missing shard、unknown identity、holdout leak 或 expired slice；
 - aggregator、同一 adapter 下换模型或同一模型的多个 endpoint 未被误计为 native protocol/operator/model-family
   diversity；
@@ -478,7 +516,7 @@ Golden 使用 authenticated Catalog 的真实 canonical Workspace，并至少包
 10. prompt/cross-modal injection、Secret、permission、state/memory、stale approval、budget、failed repair/rollback
     negative 均不静默写 truth；
 11. Web 与 CLI 能根据同一 ids/digests 重建完整 sanitized audit；
-12. 三个 native Provider/operator/model-family required capability profiles进入 128-case、11,640+ attempt、
+12. 三个 native Provider/operator/model-family required capability profiles进入 128-case、current 14,040 attempt、
     holdout/statistical/human-review manifest，满足预先冻结 thresholds 且未 expired。
 
 实现与 deterministic durable状态（2026-08-03）：authenticated Catalog 的 multi-domain proposal/approval/Commit已绑定同一 exact
@@ -512,18 +550,19 @@ exact commit 的 durable CI terminal success 均已取得，才更新 current-st
 
 容量规划使用以下非规范性包络；exact authority 是运行前冻结的 plan budget 与实际 provider receipts：
 
-| Suite                                          | 典型规划量级                        | 用途                                               |
-| ---------------------------------------------- | ----------------------------------- | -------------------------------------------------- |
-| ordinary PR deterministic Gate                 | 0 remote-model units                | contract、security、state、permission、recovery    |
-| per-adapter smoke                              | 10 万–100 万 logical tokens/adapter | transport/stream/schema/basic capability admission |
-| engineering shakedown                          | 3 亿–10 亿 logical tokens           | 尚未满足全部 statistical floor                     |
-| first full three-Provider G4 closure           | 10 亿–50 亿 + media/tool units      | 128 cases、11,640+ journeys、required profiles     |
-| credible release/counterexample matrix         | 30 亿–100 亿 + media/tool/human     | holdout、critical、visual、repair                  |
-| provider/model-upgrade differential regression | 50 亿–200 亿 + media/tool/human     | old/new 对照、更多 configurations、expired slices  |
+| Suite                                          | 典型规划量级                        | 用途                                                  |
+| ---------------------------------------------- | ----------------------------------- | ----------------------------------------------------- |
+| ordinary PR deterministic Gate                 | 0 remote-model units                | contract、security、state、permission、recovery       |
+| per-adapter smoke                              | 10 万–100 万 logical tokens/adapter | transport/stream/schema/basic capability admission    |
+| engineering shakedown                          | 3 亿–10 亿 logical tokens           | 尚未满足全部 statistical floor                        |
+| first full three-Provider G4 closure           | 10 亿–50 亿 + media/tool units      | 128 cases、current 14,040 journeys、required profiles |
+| credible release/counterexample matrix         | 30 亿–100 亿 + media/tool/human     | holdout、critical、visual、repair                     |
+| provider/model-upgrade differential regression | 50 亿–200 亿 + media/tool/human     | old/new 对照、更多 configurations、expired slices     |
 
 最低 attempt 由 3,840 ordinary base、2,880 critical增量、2,520 high-assurance增量、1,440 context-tier增量和
-960 media-representation增量组成，共 11,640 journeys；critical/high-assurance sentinel、Optional profile、更多
-configuration与 rotating counterexample 会继续增加。cache 只降低 billable cost，不从 logical volume 删除；
+960 media-representation增量组成，共 11,640 journeys；当前 canonical plan继续按冻结 risk class放大 sentinel，形成
+14,040 journeys。Optional profile、更多 configuration与 rotating counterexample 会继续增加。cache 只降低 billable
+cost，不从 logical volume 删除；
 Token 也不能表达 image/PDF/audio/video、search、sandbox compute、storage 或 human review。Scripted provider证明
 deterministic authority，真实模型 eval证明 usefulness/grounding/repair/stability，G3 Closure证明 exact committed
 revision，blind human rubric只判断主观质量；四者互不替代。
@@ -534,22 +573,22 @@ revision，blind human rubric只判断主观质量；四者互不替代。
 V8–V9 ordinary workflows在 clean exact commit产生 rootless和 incomplete manifest artifacts。该 evidence不表示
 real-model qualification或 satisfied closure已取得：
 
-| Gate                              | 范围                                                                   |
-| --------------------------------- | ---------------------------------------------------------------------- |
-| `verify:g4:boundaries`            | owner/current/wire/Workspace/diagnostics/hard cut                      |
-| `verify:g4:context-policy`        | Policy/Context/grounding/privacy/residency                             |
-| `verify:g4:provider-capabilities` | provider/model/profile/state/cache/job/usage conformance               |
-| `verify:g4:multimodal`            | media source/transform/injection/generated-asset required profiles     |
-| `verify:g4:hosted-capabilities`   | hosted tool/retrieval/MCP/computer/concurrency boundaries              |
-| `verify:g4:control-plane`         | Task/Run/tool/budget/cancel/recovery/PostgreSQL                        |
-| `verify:g4:proposal-approval`     | domain dry-run/Impact/Plan/approval/Transaction/rollback               |
-| `verify:g4:verification`          | G3 Closure/repair/eval/counterexample                                  |
-| `verify:g4:product`               | Web/CLI/a11y/reconnect/audit                                           |
-| `verify:g4:security`              | text/media injection/Secret/network/state/permission/adapter negatives |
-| `verify:g4:model-eval`            | 3 Providers/required profiles/128 cases/11,640+ journeys/stats/budget  |
-| `verify:g4:golden`                | authenticated Catalog full loop                                        |
-| `verify:g4`                       | zero-remote-token deterministic V0-V9 aggregate                        |
-| `verify:g4:closure`               | exact-commit deterministic + model-eval + Golden manifest              |
+| Gate                              | 范围                                                                       |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `verify:g4:boundaries`            | owner/current/wire/Workspace/diagnostics/hard cut                          |
+| `verify:g4:context-policy`        | Policy/Context/grounding/privacy/residency                                 |
+| `verify:g4:provider-capabilities` | provider/model/profile/state/cache/job/usage conformance                   |
+| `verify:g4:multimodal`            | media source/transform/injection/generated-asset required profiles         |
+| `verify:g4:hosted-capabilities`   | hosted tool/retrieval/MCP/computer/concurrency boundaries                  |
+| `verify:g4:control-plane`         | Task/Run/tool/budget/cancel/recovery/PostgreSQL                            |
+| `verify:g4:proposal-approval`     | domain dry-run/Impact/Plan/approval/Transaction/rollback                   |
+| `verify:g4:verification`          | G3 Closure/repair/eval/counterexample                                      |
+| `verify:g4:product`               | Web/CLI/a11y/reconnect/audit                                               |
+| `verify:g4:security`              | text/media injection/Secret/network/state/permission/adapter negatives     |
+| `verify:g4:model-eval`            | 3 native Providers/27 targets/128 cases/exact 14,040 journeys/stats/budget |
+| `verify:g4:golden`                | authenticated Catalog full loop                                            |
+| `verify:g4`                       | zero-remote-token deterministic V0-V9 aggregate                            |
+| `verify:g4:closure`               | exact-commit deterministic + model-eval + Golden manifest                  |
 
 ## 验证证据
 

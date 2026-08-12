@@ -19,6 +19,19 @@ func (service *Service) FinalizePromotion(
 	if err := service.requirePermission(ctx, principalID, workspaceID, "workspace.write"); err != nil {
 		return EvidenceRecord{}, err
 	}
+	return service.finalizePromotion(ctx, workspaceID, promotionID, capability, presentation)
+}
+
+// finalizePromotion is the single canonical prepare/final-commit
+// implementation. The purpose-bound agent-evaluation authority invokes it
+// only after verifying its dedicated credential and purpose.
+func (service *Service) finalizePromotion(
+	ctx context.Context,
+	workspaceID string,
+	promotionID string,
+	capability string,
+	presentation *AttestationPresentation,
+) (EvidenceRecord, error) {
 	promotion, err := service.authorizePromotion(ctx, workspaceID, promotionID, capability)
 	if err != nil {
 		return EvidenceRecord{}, err

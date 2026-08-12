@@ -71,6 +71,7 @@ type VerificationEvidenceConfig struct {
 	AttestationKeys             map[string]VerificationAttestationKeyConfig
 	ResumeKey                   []byte
 	SecretCanaries              []string
+	AgentEvaluationOwnerToken   string
 }
 
 const (
@@ -212,8 +213,8 @@ func parseVerificationAttestationKeys(raw string) (map[string]VerificationAttest
 		if _, duplicate := keys[keyID]; duplicate {
 			return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains a duplicate key id")
 		}
-		var key VerificationAttestationKeyConfig
-		if err := decoder.Decode(&key); err != nil {
+		key, err := decodeVerificationAttestationKeyConfig(decoder)
+		if err != nil {
 			return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains an invalid key descriptor")
 		}
 		decoded, err := base64.StdEncoding.DecodeString(key.PublicKey)
@@ -243,6 +244,48 @@ func parseVerificationAttestationKeys(raw string) (map[string]VerificationAttest
 		return nil, errors.New("BACKEND_VERIFICATION_ATTESTATION_KEYS contains trailing content")
 	}
 	return keys, nil
+}
+
+func decodeVerificationAttestationKeyConfig(
+	decoder *json.Decoder,
+) (VerificationAttestationKeyConfig, error) {
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return VerificationAttestationKeyConfig{}, errors.New("attestation key descriptor must be an object")
+	}
+	key := VerificationAttestationKeyConfig{}
+	seen := map[string]bool{}
+	for decoder.More() {
+		rawField, err := decoder.Token()
+		field, ok := rawField.(string)
+		if err != nil || !ok || seen[field] {
+			return VerificationAttestationKeyConfig{}, errors.New("attestation key descriptor field is invalid")
+		}
+		seen[field] = true
+		var target *string
+		switch field {
+		case "publicKey":
+			target = &key.PublicKey
+		case "issuer":
+			target = &key.Issuer
+		case "audience":
+			target = &key.Audience
+		case "subject":
+			target = &key.Subject
+		case "trust":
+			target = &key.Trust
+		default:
+			return VerificationAttestationKeyConfig{}, errors.New("attestation key descriptor field is unknown")
+		}
+		if err := decoder.Decode(target); err != nil {
+			return VerificationAttestationKeyConfig{}, err
+		}
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') || len(seen) != 5 {
+		return VerificationAttestationKeyConfig{}, errors.New("attestation key descriptor is incomplete")
+	}
+	return key, nil
 }
 
 type RemoteRunnerConfig struct {
@@ -444,10 +487,19 @@ func LoadConfig() (Config, error) {
 	verificationSecretCanaries := parseCSV(
 		os.Getenv("BACKEND_VERIFICATION_SECRET_CANARIES"),
 	)
+	verificationAgentEvaluationOwnerToken := os.Getenv(
+		"BACKEND_VERIFICATION_AGENT_EVALUATION_OWNER_TOKEN",
+	)
 	verificationSecretCanaries = append(
 		verificationSecretCanaries,
 		verificationResumeKeyText,
 	)
+	if verificationAgentEvaluationOwnerToken != "" {
+		verificationSecretCanaries = append(
+			verificationSecretCanaries,
+			verificationAgentEvaluationOwnerToken,
+		)
+	}
 	config := Config{
 		Address:        address,
 		Environment:    environment,
@@ -520,6 +572,7 @@ func LoadConfig() (Config, error) {
 			AttestationKeys:             verificationAttestationKeys,
 			ResumeKey:                   append([]byte(nil), verificationResumeKey...),
 			SecretCanaries:              verificationSecretCanaries,
+			AgentEvaluationOwnerToken:   verificationAgentEvaluationOwnerToken,
 		},
 	}
 	if err := validateOptionalCapabilities(config); err != nil {
@@ -560,6 +613,10 @@ func validateOptionalCapabilities(config Config) error {
 	if len(config.Verification.ResumeKey) != 32 {
 		return errors.New("BACKEND_VERIFICATION_RESUME_KEY must decode to exactly 32 bytes")
 	}
+	if token := config.Verification.AgentEvaluationOwnerToken; token != "" &&
+		!validVerificationAgentEvaluationOwnerToken(token) {
+		return errors.New("BACKEND_VERIFICATION_AGENT_EVALUATION_OWNER_TOKEN must be 32-4096 visible ASCII bytes without whitespace")
+	}
 	if config.RemoteRunner.BaseURL != "" && config.RemoteRunner.ClientToken == "" {
 		return errors.New("REMOTE_RUNNER_CONTROL_PLANE_TOKEN is required when REMOTE_RUNNER_CONTROL_PLANE_URL is configured")
 	}
@@ -593,6 +650,18 @@ func validateOptionalCapabilities(config Config) error {
 		}
 	}
 	return nil
+}
+
+func validVerificationAgentEvaluationOwnerToken(value string) bool {
+	if len(value) < 32 || len(value) > 4096 {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		if value[index] <= 0x20 || value[index] > 0x7e {
+			return false
+		}
+	}
+	return true
 }
 
 func getEnv(key, fallback string) string {

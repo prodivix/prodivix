@@ -782,6 +782,18 @@ export const executeGoldenG4V9Closure = async (
     'verify:g4:security': security,
     'verify:g4:model-eval:contract': GOLDEN_G4_V8_EVALUATION_MATRIX,
   });
+  const durableGithubEvidence =
+    process.env.PRODIVIX_G4_DETERMINISTIC_GATE_EVIDENCE === 'github-actions';
+  const githubRunId = process.env.GITHUB_RUN_ID?.trim();
+  const githubJobId = process.env.GITHUB_JOB?.trim();
+  if (
+    durableGithubEvidence &&
+    (!githubRunId || !/^[1-9][0-9]*$/u.test(githubRunId) || !githubJobId)
+  ) {
+    throw new TypeError(
+      'Durable G4 Gate evidence requires exact GitHub run and job identities.'
+    );
+  }
   const deterministicGateEvidence =
     AGENT_G4_REQUIRED_DETERMINISTIC_GATE_IDS.map((gateId) =>
       withDigest(
@@ -789,7 +801,12 @@ export const executeGoldenG4V9Closure = async (
           gateId,
           command: `pnpm run ${gateId}`,
           repositoryCommit,
-          executionMode: 'local' as const,
+          executionMode: durableGithubEvidence
+            ? ('github-actions' as const)
+            : ('local' as const),
+          ...(durableGithubEvidence
+            ? { runId: githubRunId!, jobId: githubJobId! }
+            : {}),
           status: 'passed' as const,
           remoteModelUnits: 0 as const,
           evidenceDigest: digest(gateSource[gateId]),

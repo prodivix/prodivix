@@ -7,9 +7,18 @@ on:
       - main
     paths:
       - '.github/workflows/g4-v9-golden-closure.yml'
+      - '.github/workflows/g4-hosted-runtime-resource-recovery.yml'
+      - '.github/workflows/g4-real-model-evaluation.yml'
+      - '.github/workflows/g4-real-model-human-review.yml'
+      - 'apps/agent-evaluation-runner/**'
       - 'apps/backend/go.mod'
       - 'apps/backend/go.sum'
+      - 'apps/backend/cmd/agent-evaluation-ledger/**'
+      - 'apps/backend/cmd/server/**'
+      - 'apps/backend/internal/app/**'
+      - 'apps/backend/internal/config/**'
       - 'apps/backend/internal/modules/agent/**'
+      - 'apps/backend/internal/modules/verification/**'
       - 'apps/backend/internal/platform/agentcontract/**'
       - 'apps/backend/internal/platform/canonicaljson/**'
       - 'apps/backend/internal/platform/database/**'
@@ -18,8 +27,11 @@ on:
       - 'pnpm-lock.yaml'
       - 'packages/ai/**'
       - 'packages/golden-conformance/**'
+      - 'packages/runtime-core/**'
       - 'packages/shared/**'
       - 'packages/verification/**'
+      - 'packages/verification-adapters/**'
+      - 'packages/verification-browser/**'
       - 'packages/workspace/**'
       - 'packages/workspace-sync/**'
       - 'scripts/check-core-package-boundaries.mjs'
@@ -27,14 +39,32 @@ on:
       - 'scripts/ci/configure-rootless-podman.sh'
       - 'scripts/g4-agent-closure-canonical-vector.mjs'
       - 'scripts/g4-agent-evaluation-canonical-vector.mjs'
+      - 'scripts/g4-agent-evaluation-human-authority-vector.mjs'
       - 'scripts/g4-agent-verification-canonical-vector.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.fixture.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.test.mjs'
+      - 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.mjs'
+      - 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.test.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-health.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-health.test.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.test.mjs'
+      - 'scripts/verify-g4-evaluation-owner-lifecycle.mjs'
+      - 'scripts/verify-g4-evaluation-owner-lifecycle.test.mjs'
       - 'scripts/sync-g4-wire-contracts.mjs'
       - 'scripts/verify-g4-golden-evidence.mjs'
       - 'scripts/verify-g4-model-eval-evidence.mjs'
       - 'scripts/verify-g4-model-eval-postgres.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-health.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-health.test.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-recovery.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-recovery.test.mjs'
+      - 'specs/evaluation/**'
       - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
       - 'specs/decisions/69.real-model-evaluation-and-release-qualification.md'
       - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/operations/g4-real-model-evaluation.md'
       - 'specs/roadmap/current-status.md'
       - 'specs/roadmap/g4-closure-evidence.md'
       - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
@@ -43,9 +73,18 @@ on:
       - main
     paths:
       - '.github/workflows/g4-v9-golden-closure.yml'
+      - '.github/workflows/g4-hosted-runtime-resource-recovery.yml'
+      - '.github/workflows/g4-real-model-evaluation.yml'
+      - '.github/workflows/g4-real-model-human-review.yml'
+      - 'apps/agent-evaluation-runner/**'
       - 'apps/backend/go.mod'
       - 'apps/backend/go.sum'
+      - 'apps/backend/cmd/agent-evaluation-ledger/**'
+      - 'apps/backend/cmd/server/**'
+      - 'apps/backend/internal/app/**'
+      - 'apps/backend/internal/config/**'
       - 'apps/backend/internal/modules/agent/**'
+      - 'apps/backend/internal/modules/verification/**'
       - 'apps/backend/internal/platform/agentcontract/**'
       - 'apps/backend/internal/platform/canonicaljson/**'
       - 'apps/backend/internal/platform/database/**'
@@ -54,8 +93,11 @@ on:
       - 'pnpm-lock.yaml'
       - 'packages/ai/**'
       - 'packages/golden-conformance/**'
+      - 'packages/runtime-core/**'
       - 'packages/shared/**'
       - 'packages/verification/**'
+      - 'packages/verification-adapters/**'
+      - 'packages/verification-browser/**'
       - 'packages/workspace/**'
       - 'packages/workspace-sync/**'
       - 'scripts/check-core-package-boundaries.mjs'
@@ -63,14 +105,32 @@ on:
       - 'scripts/ci/configure-rootless-podman.sh'
       - 'scripts/g4-agent-closure-canonical-vector.mjs'
       - 'scripts/g4-agent-evaluation-canonical-vector.mjs'
+      - 'scripts/g4-agent-evaluation-human-authority-vector.mjs'
       - 'scripts/g4-agent-verification-canonical-vector.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.fixture.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.test.mjs'
+      - 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.mjs'
+      - 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.test.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-health.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-health.test.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.mjs'
+      - 'scripts/verify-g4-hosted-retrieval-runtime-resource-lifecycle.test.mjs'
+      - 'scripts/verify-g4-evaluation-owner-lifecycle.mjs'
+      - 'scripts/verify-g4-evaluation-owner-lifecycle.test.mjs'
       - 'scripts/sync-g4-wire-contracts.mjs'
       - 'scripts/verify-g4-golden-evidence.mjs'
       - 'scripts/verify-g4-model-eval-evidence.mjs'
       - 'scripts/verify-g4-model-eval-postgres.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-health.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-health.test.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-recovery.mjs'
+      - 'scripts/verify-g4-native-provider-state-vault-recovery.test.mjs'
+      - 'specs/evaluation/**'
       - 'specs/decisions/65.verified-agent-task-and-control-plane.md'
       - 'specs/decisions/69.real-model-evaluation-and-release-qualification.md'
       - 'specs/implementation/g4-verified-agentic-development.md'
+      - 'specs/operations/g4-real-model-evaluation.md'
       - 'specs/roadmap/current-status.md'
       - 'specs/roadmap/g4-closure-evidence.md'
       - 'specs/roadmap/g4-verified-agentic-development-milestones.md'
@@ -106,6 +166,7 @@ jobs:
       PRODIVIX_G4_REMOTE_MODEL_UNITS: '0'
       PRODIVIX_G4_REPOSITORY_COMMIT: ${{ github.sha }}
       PRODIVIX_G4_WORKTREE_STATE: clean
+      PRODIVIX_G4_DETERMINISTIC_GATE_EVIDENCE: github-actions
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -244,9 +305,29 @@ jobs:
         shell: bash
         run: test "${PRODIVIX_G4_REMOTE_MODEL_UNITS}" = '0'
       - name: Upload deterministic V9 Closure manifest
+        id: upload_deterministic_closure
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: g4-v9-deterministic-closure-${{ github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/prodivix-g4-v9-closure-manifest.json
           if-no-files-found: error
           retention-days: 30
+      - name: Record deterministic Closure artifact identity
+        shell: bash
+        env:
+          ARTIFACT_DIGEST: ${{ steps.upload_deterministic_closure.outputs['artifact-digest'] }}
+        run: |
+          set -euo pipefail
+          artifact_digest="${ARTIFACT_DIGEST}"
+          if [[ "${artifact_digest}" =~ ^[0-9a-f]{64}$ ]]; then
+            artifact_digest="sha256:${artifact_digest}"
+          fi
+          [[ "${artifact_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          {
+            echo '### Deterministic G4 V9 Closure authority'
+            echo "- source run: \`${GITHUB_RUN_ID}\`"
+            echo "- source attempt: \`${GITHUB_RUN_ATTEMPT}\`"
+            echo "- artifact: \`g4-v9-deterministic-closure-${GITHUB_SHA}-${GITHUB_RUN_ATTEMPT}\`"
+            echo "- artifact SHA-256: \`${artifact_digest}\`"
+            echo '- qualification: deterministic authority only; real-model Closure remains Evidence pending'
+          } >> "${GITHUB_STEP_SUMMARY}"

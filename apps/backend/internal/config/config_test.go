@@ -41,6 +41,83 @@ func TestLoadConfigRejectsUnsafeVerificationResumeKey(t *testing.T) {
 	}
 }
 
+func TestLoadConfigBindsPurposeBoundVerificationOwnerCredential(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	token := "verification-owner-token-0123456789abcdef"
+	t.Setenv("BACKEND_VERIFICATION_AGENT_EVALUATION_OWNER_TOKEN", token)
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Verification.AgentEvaluationOwnerToken != token {
+		t.Fatal("Verification owner token was not preserved exactly")
+	}
+	found := false
+	for _, canary := range config.Verification.SecretCanaries {
+		if canary == token {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Verification owner token was not added to the persistence scanner canaries")
+	}
+}
+
+func TestLoadConfigBindsExactVerificationAttestationRegistry(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	publicKey := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x41}, 32))
+	t.Setenv("BACKEND_VERIFICATION_ATTESTATION_KEYS", `{"g4-eval-key":{"publicKey":"`+publicKey+`","issuer":"g4-eval","audience":"verification","subject":"ci-runner","trust":"ci-attested"}}`)
+	t.Setenv("BACKEND_VERIFICATION_ATTESTATION_POLICY_GENERATION", "19")
+	t.Setenv("BACKEND_VERIFICATION_ATTESTATION_MAX_LIFETIME", "7m")
+
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, ok := config.Verification.AttestationKeys["g4-eval-key"]
+	if !ok || key.PublicKey != publicKey || key.Issuer != "g4-eval" ||
+		key.Audience != "verification" || key.Subject != "ci-runner" ||
+		key.Trust != "ci-attested" ||
+		config.Verification.AttestationPolicyGeneration != 19 ||
+		config.Verification.AttestationMaxLifetime != 7*time.Minute {
+		t.Fatalf("Verification attestation registry drifted: %#v", config.Verification)
+	}
+}
+
+func TestLoadConfigRejectsNonExactVerificationAttestationRegistry(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	publicKey := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x41}, 32))
+	for _, source := range []string{
+		`{"g4-eval-key":{"publicKey":"` + publicKey + `","issuer":"g4-eval","audience":"verification","subject":"ci-runner","trust":"ci-attested","privateKey":"forbidden"}}`,
+		`{"g4-eval-key":{"publicKey":"` + publicKey + `","publicKey":"` + publicKey + `","issuer":"g4-eval","audience":"verification","subject":"ci-runner","trust":"ci-attested"}}`,
+		`{"g4-eval-key":{"publicKey":"` + publicKey + `","issuer":"g4-eval","audience":"verification","trust":"ci-attested"}}`,
+	} {
+		t.Run(source, func(t *testing.T) {
+			t.Setenv("BACKEND_VERIFICATION_ATTESTATION_KEYS", source)
+			if _, err := LoadConfig(); err == nil {
+				t.Fatal("non-exact Verification attestation registry was accepted")
+			}
+		})
+	}
+}
+
+func TestLoadConfigRejectsUnsafePurposeBoundVerificationOwnerCredential(t *testing.T) {
+	for _, value := range []string{
+		"short",
+		"verification-owner-token-with-whitespace 0123456789",
+		"verification-owner-token-with-newline\n0123456789",
+	} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("APP_ENV", "test")
+			t.Setenv("BACKEND_VERIFICATION_AGENT_EVALUATION_OWNER_TOKEN", value)
+			if _, err := LoadConfig(); err == nil {
+				t.Fatal("unsafe Verification owner credential was accepted")
+			}
+		})
+	}
+}
+
 func TestLoadConfigRejectsMissingProductionDatabase(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("BACKEND_DB_URL", "")

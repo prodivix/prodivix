@@ -13,6 +13,8 @@ export {
   type VerificationCoverageSummary,
 } from './coverageSummaryProjection';
 export * from './firstPartyVerificationAdapters';
+export * from './controlledStaticToolchainProductionClient';
+export * from './controlledStaticToolchainProtocol';
 export * from './verificationAdapterDescriptors';
 export * from './verificationAdapterInputs';
 export {

@@ -1,0 +1,52 @@
+{
+  "name": "@prodivix/agent-evaluation-runner",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "browser": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/browserDenied.js",
+      "node": "./dist/index.js",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && tsc -p tsconfig.json",
+    "cli": "tsx src/cli.ts",
+    "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true}); fs.rmSync('tsconfig.tsbuildinfo',{force:true})\"",
+    "lint": "eslint .",
+    "owner-authority-sidecar": "tsx src/productionOwnerAuthoritySidecarMain.ts",
+    "hosted-lifecycle": "tsx src/productionHostedRetrievalRuntimeResourceLifecycleMain.ts",
+    "hosted-lifecycle-sidecar": "tsx src/productionHostedRetrievalRuntimeResourceLifecycleSidecarMain.ts",
+    "smoke": "tsx src/smokeMain.ts",
+    "test": "pnpm run typecheck && vitest --config vitest.config.ts --run",
+    "typecheck": "tsc -b tsconfig.test.json --pretty false"
+  },
+  "dependencies": {
+    "@prodivix/ai": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
+    "@prodivix/prodivix-compiler": "workspace:*",
+    "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/runtime-remote": "workspace:*",
+    "@prodivix/shared": "workspace:*",
+    "@prodivix/verification": "workspace:*",
+    "@prodivix/verification-adapters": "workspace:*",
+    "@prodivix/verification-browser": "workspace:*",
+    "@prodivix/workspace": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  }
+}

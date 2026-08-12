@@ -12,7 +12,18 @@ import type {
   AgentProviderConfigurationIdentity,
   AgentUsageVector,
 } from '../providers/agentProvider.types';
+import type {
+  AgentCapabilityProbeProgram,
+  AgentCapabilityProbeProgramObservation,
+  AgentCapabilityProbeProgramReceipt,
+} from '../providers/agentCapabilityProbeProgram';
+import type {
+  AgentCapabilityProbeProviderResourceAuthority,
+  AgentCapabilityProbeProviderResourceCleanupReceipt,
+  AgentCapabilityProbeProviderResourceDeletionAuthorityReceipt,
+} from '../providers/agentCapabilityProbeProviderResource';
 import type { AgentBudgetLedgerState } from '../usage/agentBudgetLedger';
+import type { AgentEvaluationCapabilityDescriptor } from './agentEvaluationCapabilityExecution';
 
 export type AgentModelEvaluationPlanId = string;
 export type AgentModelEvaluationCaseId = string;
@@ -46,6 +57,14 @@ export type AgentEvaluationGraderKind =
   | 'model-judge'
   | 'blind-human-rubric';
 
+export type AgentModelEvaluationCaseExecutionRequirement = Readonly<{
+  minimumToolCalls: number;
+  minimumRepairRounds: number;
+  minimumTransactions: number;
+  verificationClosureRequired: boolean;
+  requirementDigest: CanonicalDigest;
+}>;
+
 export type AgentModelEvaluationCase = Readonly<{
   caseId: AgentModelEvaluationCaseId;
   familyId: string;
@@ -53,6 +72,8 @@ export type AgentModelEvaluationCase = Readonly<{
   riskClass: AgentEvaluationRiskClass;
   access: AgentEvaluationCorpusAccess;
   capabilityProfileId: string;
+  capabilityDescriptor: AgentEvaluationCapabilityDescriptor;
+  capabilityDescriptorDigest: CanonicalDigest;
   fixtureRef: string;
   caseDefinitionDigest: CanonicalDigest;
   expectedAuthorityDigest: CanonicalDigest;
@@ -60,6 +81,7 @@ export type AgentModelEvaluationCase = Readonly<{
   contextSentinel: boolean;
   mediaSentinel: boolean;
   subjectiveVisualQuality: boolean;
+  executionRequirement: AgentModelEvaluationCaseExecutionRequirement;
   tags: readonly string[];
   caseDigest: CanonicalDigest;
 }>;
@@ -82,6 +104,60 @@ export type AgentMediaRepresentationTier = Readonly<{
   tierDigest: CanonicalDigest;
 }>;
 
+export type AgentEvaluationProductionCapabilityProbeEvidence = Readonly<{
+  authorityKind: 'sealed-provider-capability-probe';
+  authorityIssuerId: string;
+  ownerImplementationDigest: CanonicalDigest;
+  adapterDigest: CanonicalDigest;
+  probeRequestDigest: CanonicalDigest;
+  probeResponseDigest: CanonicalDigest;
+  dispatchReceiptDigest: CanonicalDigest;
+  transportReceiptDigest: CanonicalDigest;
+  responseSpoolDigest: CanonicalDigest;
+  normalizedEventSetDigest: CanonicalDigest;
+  probeProgram: AgentCapabilityProbeProgram;
+  normalizedObservation: AgentCapabilityProbeProgramObservation;
+  receipt: AgentCapabilityProbeProgramReceipt;
+  evidenceDigest: CanonicalDigest;
+}>;
+
+export type AgentEvaluationRuntimeFactSourceAuthority = Readonly<{
+  kind: 'shared-durable-capability';
+  sourceKind:
+    'sealed-hosted-owner-result' | 'sealed-provider-response-metadata';
+  sourceAuthorityId: string;
+  sourceAuthorityImplementationDigest: CanonicalDigest;
+  routeBinding: string;
+  capabilityProfileId: string;
+  capabilityProfileDigest: CanonicalDigest;
+  capabilityId: string;
+  protocolFamily: AgentProviderProtocolFamily;
+  providerConfigurationId: string;
+  modelId: string;
+  modelLineageDigest: CanonicalDigest;
+  adapterDigest: CanonicalDigest;
+  registrationAuthorityIssuerId: string;
+  registrationReceiptDigest: CanonicalDigest;
+  hostedRetrievalRuntimeResourceRegistrationIntentDigest?: CanonicalDigest;
+  authorityDigest: CanonicalDigest;
+}>;
+
+export type AgentEvaluationOptionalCapabilitySupportAuthority = Readonly<{
+  qualificationAuthorityBundleDigest: CanonicalDigest;
+  qualificationCapabilityProfileId: string;
+  qualificationCapabilityProfileDigest: CanonicalDigest;
+  capabilityId: string;
+  supportExpectation: 'required' | 'expected-blocked';
+  declaredCapabilityProfileDigests: readonly CanonicalDigest[];
+  probeEvidence: AgentEvaluationProductionCapabilityProbeEvidence;
+  probeProviderResourceAuthority?: AgentCapabilityProbeProviderResourceAuthority;
+  probeProviderResourceDeletionAuthorityReceipt?: AgentCapabilityProbeProviderResourceDeletionAuthorityReceipt;
+  probeProviderResourceCleanupReceipt?: AgentCapabilityProbeProviderResourceCleanupReceipt;
+  runtimeFactSourceAuthority?: AgentEvaluationRuntimeFactSourceAuthority;
+  resolvedCapabilityDescriptor: AgentEvaluationCapabilityDescriptor;
+  authorityDigest: CanonicalDigest;
+}>;
+
 export type AgentCapabilityQualificationTarget = Readonly<{
   targetId: string;
   providerConfigurationId: string;
@@ -95,6 +171,7 @@ export type AgentCapabilityQualificationTarget = Readonly<{
   capabilityProfileDigest: CanonicalDigest;
   inferenceConfigurationDigest: CanonicalDigest;
   qualificationSliceDigest: CanonicalDigest;
+  optionalCapabilitySupportAuthority?: AgentEvaluationOptionalCapabilitySupportAuthority;
   targetDigest: CanonicalDigest;
 }>;
 
@@ -103,7 +180,13 @@ export type AgentEvaluationEndpointSmokeTarget = Readonly<{
   endpointClass: 'first-party-hosted' | 'aggregator' | 'self-hosted' | 'local';
   protocolFamily: AgentProviderProtocolFamily;
   providerConfigurationId: string;
+  modelId: string;
+  immutableModelVersion: string;
+  modelLineageDigest: CanonicalDigest;
+  inferenceConfigurationDigest: CanonicalDigest;
   adapterDigest: CanonicalDigest;
+  pricingAuthorityDigest: CanonicalDigest;
+  responseSpoolEncryptionPolicyDigest: CanonicalDigest;
   smokeProfileDigest: CanonicalDigest;
   targetDigest: CanonicalDigest;
 }>;
@@ -211,6 +294,7 @@ export type AgentModelEvaluationAttemptDescriptor = Readonly<{
   planDigest: CanonicalDigest;
   shardId: AgentEvaluationShardId;
   caseId: AgentModelEvaluationCaseId;
+  capabilityDescriptorDigest: CanonicalDigest;
   targetId: string;
   targetDigest: CanonicalDigest;
   riskClass: AgentEvaluationRiskClass;
@@ -231,6 +315,31 @@ export type AgentEvaluationAttemptStatus =
   | 'cancelled'
   | 'infrastructure-error';
 
+/**
+ * One immutable transport try inside a planned model-evaluation attempt.
+ * A retry keeps the descriptor/sampling identity stable and appends a receipt;
+ * it never replaces an earlier provider or infrastructure failure.
+ */
+export type AgentEvaluationTransportAttemptReceipt = Readonly<{
+  sequence: number;
+  requestDigest: CanonicalDigest;
+  status: AgentEvaluationAttemptStatus;
+  retryable: boolean;
+  invocationReceiptDigest?: CanonicalDigest;
+  responseDigest?: CanonicalDigest;
+  startedAt: Instant;
+  completedAt: Instant;
+  receiptDigest: CanonicalDigest;
+}>;
+
+export type AgentEvaluationTransportRetryReceipt = Readonly<{
+  policyDigest: CanonicalDigest;
+  maximumAttempts: number;
+  attempts: readonly AgentEvaluationTransportAttemptReceipt[];
+  exhausted: boolean;
+  receiptDigest: CanonicalDigest;
+}>;
+
 export type AgentEvaluationMetricObservation = Readonly<{
   metricId: string;
   graderId: string;
@@ -243,7 +352,12 @@ export type AgentEvaluationMetricObservation = Readonly<{
 export type AgentModelEvaluationAttempt = Readonly<{
   descriptor: AgentModelEvaluationAttemptDescriptor;
   independentRunId: string;
-  invocationReceiptDigest?: CanonicalDigest;
+  dispatchIntentSetDigest: CanonicalDigest;
+  transportReceiptSetDigest: CanonicalDigest;
+  invocationTurnReceiptSetDigest: CanonicalDigest;
+  invocationTurnSetReceiptDigest: CanonicalDigest;
+  capabilityExecutionReceiptSetDigest: CanonicalDigest;
+  verificationAttemptGrantReceiptSetDigest: CanonicalDigest;
   responseDigest?: CanonicalDigest;
   status: AgentEvaluationAttemptStatus;
   outcome: 'passed' | 'failed' | 'inconclusive';
@@ -282,6 +396,7 @@ export type AgentEvaluationShardCheckpoint = Readonly<{
   leaseOwnerId: string;
   leaseGeneration: number;
   state: 'running' | 'completed' | 'incomplete';
+  /** Attempts whose immutable recording completed, including terminal failure statuses. */
   completedAttemptRefs: readonly AgentModelEvaluationAttemptRef[];
   missingAttemptRefs: readonly AgentModelEvaluationMissingAttemptRef[];
   budgetLedger: AgentBudgetLedgerState;
@@ -316,6 +431,7 @@ export type AgentEvaluationMetricReport = Readonly<{
   reportId: string;
   planDigest: CanonicalDigest;
   attemptSetDigest: CanonicalDigest;
+  validatedHumanMetricObservationSetDigest: CanonicalDigest;
   slices: readonly AgentEvaluationMetricSlice[];
   generatedAt: Instant;
   reportDigest: CanonicalDigest;
@@ -325,6 +441,7 @@ export type AgentEvaluationGraderReport = Readonly<{
   reportId: string;
   planDigest: CanonicalDigest;
   graderPlanDigest: CanonicalDigest;
+  validatedHumanMetricObservationSetDigest: CanonicalDigest;
   deterministicVerdictCount: number;
   auxiliaryVerdictCount: number;
   humanVerdictCount: number;
@@ -340,6 +457,10 @@ export type AgentHumanReviewRating = Readonly<{
   reviewerPseudonym: string;
   randomizedPresentationId: string;
   rubricDigest: CanonicalDigest;
+  criterionVerdicts: readonly Readonly<{
+    criterionId: string;
+    verdict: 'passed' | 'failed';
+  }>[];
   verdict: 'passed' | 'failed';
   ratingDigest: CanonicalDigest;
 }>;
@@ -353,6 +474,78 @@ export type AgentHumanReviewReport = Readonly<{
   generatedAt: Instant;
   reportDigest: CanonicalDigest;
 }>;
+
+/** Bounded, sanitized subjective result retained for blind human review. */
+export type AgentEvaluationReviewCandidate = Readonly<{
+  format: 'prodivix.agent-evaluation-review-candidate';
+  version: 2;
+  candidateId: string;
+  attemptId: AgentModelEvaluationAttemptId;
+  planDigest: CanonicalDigest;
+  repositoryCommit: string;
+  descriptorDigest: CanonicalDigest;
+  responseDigest: CanonicalDigest;
+  executionReceiptDigest: CanonicalDigest;
+  graderArtifactDigest: CanonicalDigest;
+  projectionAuthorityDigest: CanonicalDigest;
+  mediaType: 'image/png' | 'image/webp';
+  width: number;
+  height: number;
+  bytesBase64: string;
+  bytesDigest: CanonicalDigest;
+  byteLength: number;
+  publicArtifactScanDigest: CanonicalDigest;
+  generatedAt: Instant;
+  candidateDigest: CanonicalDigest;
+}>;
+
+export type AgentEvaluationReviewRasterScanReceipt = Readonly<{
+  format: 'prodivix.agent-evaluation-review-raster-scan-receipt';
+  version: 1;
+  scanReceiptId: string;
+  planDigest: CanonicalDigest;
+  repositoryCommit: string;
+  attemptId: AgentModelEvaluationAttemptId;
+  descriptorDigest: CanonicalDigest;
+  projectionAuthorityDigest: CanonicalDigest;
+  mediaType: 'image/png' | 'image/webp';
+  width: number;
+  height: number;
+  byteLength: number;
+  policyDigest: CanonicalDigest;
+  bytesDigest: CanonicalDigest;
+  decodedPixelDigest: CanonicalDigest;
+  metadataProfileDigest: CanonicalDigest;
+  canarySetDigest: CanonicalDigest;
+  fingerprintSetDigest: CanonicalDigest;
+  findingDigests: readonly CanonicalDigest[];
+  verdict: 'safe' | 'blocked';
+  scannedAt: Instant;
+  receiptDigest: CanonicalDigest;
+}>;
+
+export type AgentEvaluationReviewCandidateRef = Readonly<
+  Pick<
+    AgentEvaluationReviewCandidate,
+    | 'candidateId'
+    | 'attemptId'
+    | 'planDigest'
+    | 'repositoryCommit'
+    | 'descriptorDigest'
+    | 'responseDigest'
+    | 'executionReceiptDigest'
+    | 'graderArtifactDigest'
+    | 'projectionAuthorityDigest'
+    | 'mediaType'
+    | 'width'
+    | 'height'
+    | 'bytesDigest'
+    | 'byteLength'
+    | 'publicArtifactScanDigest'
+    | 'generatedAt'
+    | 'candidateDigest'
+  >
+>;
 
 export type AgentHoldoutExecutionReceipt = Readonly<{
   receiptId: string;
@@ -373,6 +566,7 @@ export type AgentModelEvaluationManifest = Readonly<{
   planDigest: CanonicalDigest;
   attemptRefs: readonly AgentModelEvaluationAttemptRef[];
   attemptCountByRisk: Readonly<Record<AgentEvaluationRiskClass, number>>;
+  /** Descriptor refs with no immutable attempt record; recorded failures stay in attemptRefs. */
   missingOrInfrastructureAttemptRefs: readonly AgentModelEvaluationMissingAttemptRef[];
   usage: AgentUsageVector;
   cost: readonly AgentCost[];
@@ -412,6 +606,14 @@ export type AgentEvaluationFact =
   | Readonly<{
       factType: 'evaluation-human-review-report';
       value: AgentHumanReviewReport;
+    }>
+  | Readonly<{
+      factType: 'evaluation-review-candidate';
+      value: AgentEvaluationReviewCandidate;
+    }>
+  | Readonly<{
+      factType: 'evaluation-review-raster-scan-receipt';
+      value: AgentEvaluationReviewRasterScanReceipt;
     }>
   | Readonly<{
       factType: 'evaluation-holdout-receipt';

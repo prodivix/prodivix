@@ -5,7 +5,9 @@ import {
   createV8EvaluationPlan,
   createV8HoldoutReceipt,
   createV8HumanReviewReport,
+  createV8ValidatedHumanMetricObservations,
 } from '../__tests__/agentV8Fixtures';
+import type { AgentEvaluationValidatedHumanMetricObservation } from './agentEvaluationHumanMetricAuthority';
 import type {
   AgentEvaluationGraderReport,
   AgentEvaluationMetricReport,
@@ -17,14 +19,155 @@ import type {
 } from './agentEvaluation.types';
 import { planAgentModelEvaluationAttempts } from './agentEvaluationPlan';
 import { digestAgentCanonicalValue } from '../domain/agentCanonical';
+import { createAgentUsageVector } from '../usage/agentUsage';
 import {
   buildAgentEvaluationGraderReport,
   buildAgentEvaluationMetricReport,
+  createAgentEvaluationTransportAttemptReceipt,
+  createAgentEvaluationTransportRetryReceipt,
+  createAgentModelEvaluationAttempt,
   createAgentModelEvaluationManifest,
   createAgentModelEvaluationQualification,
+  isAgentModelEvaluationAttempt,
   isAgentModelEvaluationManifest,
   validateAgentModelEvaluationManifest,
 } from './agentEvaluationResults';
+
+const attemptAuthority = (label: string) =>
+  Object.freeze({
+    dispatchIntentSetDigest: digestAgentCanonicalValue({
+      label,
+      authority: 'dispatch-intents',
+    }),
+    transportReceiptSetDigest: digestAgentCanonicalValue({
+      label,
+      authority: 'transport-receipts',
+    }),
+    invocationTurnReceiptSetDigest: digestAgentCanonicalValue({
+      label,
+      authority: 'invocation-turn-receipts',
+    }),
+    invocationTurnSetReceiptDigest: digestAgentCanonicalValue({
+      label,
+      authority: 'invocation-turn-set',
+    }),
+    capabilityExecutionReceiptSetDigest: digestAgentCanonicalValue({
+      label,
+      authority: 'capability-execution-receipt-set',
+    }),
+    verificationAttemptGrantReceiptSetDigest: digestAgentCanonicalValue({
+      verificationAttemptGrantReceiptDigests: [],
+    }),
+  });
+
+describe('G4 V8 attempt authenticity hard cut', () => {
+  it('requires four-level authority for a recorded terminal failure', () => {
+    const plan = createV8EvaluationPlan();
+    const descriptor = planAgentModelEvaluationAttempts(plan)[0]!;
+    const requestDigest = digestAgentCanonicalValue({
+      descriptorDigest: descriptor.descriptorDigest,
+      request: 'stable',
+    });
+    const sealedTry = createAgentEvaluationTransportAttemptReceipt({
+      sequence: 1,
+      requestDigest,
+      status: 'rate-limited',
+      retryable: false,
+      startedAt: V8_TIME.started,
+      completedAt: V8_TIME.completed,
+    });
+    const transportRetryReceipt = createAgentEvaluationTransportRetryReceipt({
+      policyDigest: digestAgentCanonicalValue('bounded-transport-retry'),
+      maximumAttempts: 1,
+      attempts: [sealedTry],
+      exhausted: false,
+    });
+    expect(() =>
+      createAgentModelEvaluationAttempt({
+        descriptor,
+        independentRunId: 'run.non-completed-without-lineage',
+        status: 'rate-limited',
+        outcome: 'inconclusive',
+        metricObservations: [],
+        usage: createAgentUsageVector([]),
+        cost: [],
+        startedAt: V8_TIME.started,
+        completedAt: V8_TIME.completed,
+      } as never)
+    ).toThrow(/digest/u);
+    expect(() =>
+      createAgentEvaluationTransportRetryReceipt({
+        policyDigest: digestAgentCanonicalValue('bounded-transport-retry'),
+        maximumAttempts: 2,
+        attempts: [sealedTry],
+        exhausted: false,
+      })
+    ).toThrow(/exactly one sealed try/u);
+    const attempt = createAgentModelEvaluationAttempt({
+      descriptor,
+      independentRunId: 'run.non-completed-with-lineage',
+      ...attemptAuthority('terminal-failure'),
+      status: 'rate-limited',
+      outcome: 'inconclusive',
+      metricObservations: [],
+      usage: createAgentUsageVector([]),
+      cost: [],
+      startedAt: V8_TIME.started,
+      completedAt: V8_TIME.completed,
+    });
+    expect(attempt).toMatchObject({
+      status: 'rate-limited',
+      ...attemptAuthority('terminal-failure'),
+    });
+    expect(transportRetryReceipt).toMatchObject({
+      maximumAttempts: 1,
+      exhausted: false,
+    });
+  });
+
+  it('requires a terminal response and binds all four authority levels on completion', () => {
+    const descriptor = planAgentModelEvaluationAttempts(
+      createV8EvaluationPlan()
+    )[0]!;
+    const responseDigest = digestAgentCanonicalValue({
+      descriptorDigest: descriptor.descriptorDigest,
+      response: 'completed',
+    });
+    const attempt = createAgentModelEvaluationAttempt({
+      descriptor,
+      independentRunId: 'run.completed-with-authority',
+      ...attemptAuthority('completed'),
+      responseDigest,
+      status: 'completed',
+      outcome: 'passed',
+      metricObservations: [],
+      usage: createAgentUsageVector([]),
+      cost: [],
+      startedAt: V8_TIME.started,
+      completedAt: V8_TIME.completed,
+    });
+
+    expect(isAgentModelEvaluationAttempt(attempt)).toBe(true);
+    expect(attempt).toMatchObject({
+      ...attemptAuthority('completed'),
+      responseDigest,
+    });
+    expect(() =>
+      createAgentModelEvaluationAttempt({
+        descriptor,
+        independentRunId: 'run.completed-without-response',
+        ...attemptAuthority('missing-response'),
+        status: 'completed',
+        outcome: 'passed',
+        metricObservations: [],
+        usage: createAgentUsageVector([]),
+        cost: [],
+        startedAt: V8_TIME.started,
+        completedAt: V8_TIME.completed,
+      })
+    ).toThrow(/terminal response/u);
+  });
+});
 
 const describeFullModelEvaluation = describe.runIf(
   (
@@ -40,6 +183,7 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
   let metric: AgentEvaluationMetricReport;
   let grader: AgentEvaluationGraderReport;
   let human: AgentHumanReviewReport;
+  let humanMetricObservations: readonly AgentEvaluationValidatedHumanMetricObservation[];
   let holdout: AgentHoldoutExecutionReceipt;
   let manifest: AgentModelEvaluationManifest;
 
@@ -47,26 +191,34 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
     plan = createV8EvaluationPlan();
     const descriptors = planAgentModelEvaluationAttempts(plan);
     attempts = createPassingV8Attempts(plan);
+    human = createV8HumanReviewReport(plan);
+    humanMetricObservations = createV8ValidatedHumanMetricObservations(
+      plan,
+      attempts,
+      human
+    );
     metric = buildAgentEvaluationMetricReport({
       reportId: 'metric-report.g4-v8.passing',
       plan,
       descriptors,
       attempts,
+      validatedHumanMetricObservations: humanMetricObservations,
       generatedAt: V8_TIME.evaluated,
     });
     grader = buildAgentEvaluationGraderReport({
       reportId: 'grader-report.g4-v8.passing',
       plan,
       attempts,
+      validatedHumanMetricObservations: humanMetricObservations,
       generatedAt: V8_TIME.evaluated,
     });
-    human = createV8HumanReviewReport(plan);
     holdout = createV8HoldoutReceipt(plan);
     manifest = createAgentModelEvaluationManifest({
       manifestId: 'manifest.g4-v8.passing',
       plan,
       descriptors,
       attempts,
+      validatedHumanMetricObservations: humanMetricObservations,
       metricReport: metric,
       graderReport: grader,
       humanReviewReport: human,
@@ -86,6 +238,7 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
         manifest,
         plan,
         attempts,
+        validatedHumanMetricObservations: humanMetricObservations,
         metricReport: metric,
         graderReport: grader,
         humanReviewReport: human,
@@ -110,18 +263,26 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
 
   it('keeps missing attempts in the denominator and marks the manifest incomplete', () => {
     const incompleteAttempts = attempts.slice(1);
+    const incompleteHumanMetricObservations = humanMetricObservations.filter(
+      (observation) =>
+        incompleteAttempts.some(
+          ({ descriptor }) => descriptor.attemptId === observation.attemptId
+        )
+    );
     const descriptors = planAgentModelEvaluationAttempts(plan);
     const incompleteMetric = buildAgentEvaluationMetricReport({
       reportId: 'metric-report.g4-v8.incomplete',
       plan,
       descriptors,
       attempts: incompleteAttempts,
+      validatedHumanMetricObservations: incompleteHumanMetricObservations,
       generatedAt: V8_TIME.evaluated,
     });
     const incompleteGrader = buildAgentEvaluationGraderReport({
       reportId: 'grader-report.g4-v8.incomplete',
       plan,
       attempts: incompleteAttempts,
+      validatedHumanMetricObservations: incompleteHumanMetricObservations,
       generatedAt: V8_TIME.evaluated,
     });
     const incomplete = createAgentModelEvaluationManifest({
@@ -129,6 +290,7 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
       plan,
       descriptors,
       attempts: incompleteAttempts,
+      validatedHumanMetricObservations: incompleteHumanMetricObservations,
       metricReport: incompleteMetric,
       graderReport: incompleteGrader,
       humanReviewReport: human,
@@ -151,6 +313,70 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
     ).toThrow(/satisfied exact evaluation target/u);
   }, 30_000);
 
+  it('keeps recorded provider failures in the denominator and marks quality unsatisfied', () => {
+    const descriptors = planAgentModelEvaluationAttempts(plan);
+    const failedIndex = attempts.findIndex(({ descriptor }) => {
+      const evaluationCase = plan.concreteCases.find(
+        ({ caseId }) => caseId === descriptor.caseId
+      );
+      return evaluationCase?.subjectiveVisualQuality === false;
+    });
+    expect(failedIndex).toBeGreaterThanOrEqual(0);
+    const passing = attempts[failedIndex]!;
+    const failed = createAgentModelEvaluationAttempt({
+      descriptor: passing.descriptor,
+      independentRunId: passing.independentRunId,
+      ...attemptAuthority('recorded-provider-failure'),
+      status: 'rate-limited',
+      outcome: 'inconclusive',
+      metricObservations: [],
+      usage: passing.usage,
+      cost: passing.cost,
+      startedAt: passing.startedAt,
+      completedAt: passing.completedAt,
+    });
+    const recordedAttempts = attempts.map((attempt, index) =>
+      index === failedIndex ? failed : attempt
+    );
+    const recordedMetric = buildAgentEvaluationMetricReport({
+      reportId: 'metric-report.g4-v8.recorded-provider-failure',
+      plan,
+      descriptors,
+      attempts: recordedAttempts,
+      validatedHumanMetricObservations: humanMetricObservations,
+      generatedAt: V8_TIME.evaluated,
+    });
+    const recordedGrader = buildAgentEvaluationGraderReport({
+      reportId: 'grader-report.g4-v8.recorded-provider-failure',
+      plan,
+      attempts: recordedAttempts,
+      validatedHumanMetricObservations: humanMetricObservations,
+      generatedAt: V8_TIME.evaluated,
+    });
+    const recorded = createAgentModelEvaluationManifest({
+      manifestId: 'manifest.g4-v8.recorded-provider-failure',
+      plan,
+      descriptors,
+      attempts: recordedAttempts,
+      validatedHumanMetricObservations: humanMetricObservations,
+      metricReport: recordedMetric,
+      graderReport: recordedGrader,
+      humanReviewReport: human,
+      holdoutExecutionReceipt: holdout,
+      completedAt: V8_TIME.evaluated,
+      expiresAt: '2026-08-08T00:00:00.000Z',
+    });
+    expect(recorded.missingOrInfrastructureAttemptRefs).toEqual([]);
+    expect(recorded.attemptRefs).toHaveLength(descriptors.length);
+    expect(
+      recordedMetric.slices.reduce(
+        (total, slice) => total + slice.inconclusive,
+        0
+      )
+    ).toBeGreaterThan(0);
+    expect(recorded.outcome).toBe('unsatisfied');
+  }, 30_000);
+
   it('fails closed when the protected holdout leaks or the manifest expires', () => {
     const leakedReceipt = {
       ...holdout,
@@ -160,6 +386,7 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
       manifestId: 'manifest.g4-v8.leaked',
       plan,
       attempts,
+      validatedHumanMetricObservations: humanMetricObservations,
       metricReport: metric,
       graderReport: grader,
       humanReviewReport: human,
@@ -172,6 +399,7 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
       manifestId: 'manifest.g4-v8.expired',
       plan,
       attempts,
+      validatedHumanMetricObservations: humanMetricObservations,
       metricReport: metric,
       graderReport: grader,
       humanReviewReport: human,
@@ -203,6 +431,7 @@ describeFullModelEvaluation('G4 V8 model-evaluation manifest', () => {
       manifestId: 'manifest.g4-v8.self-signed-report',
       plan,
       attempts,
+      validatedHumanMetricObservations: humanMetricObservations,
       metricReport: tamperedReport,
       graderReport: grader,
       humanReviewReport: human,

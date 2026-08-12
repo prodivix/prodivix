@@ -5,6 +5,8 @@ import {
 } from '@prodivix/behavior';
 import {
   DETERMINISTIC_RUNTIME_CONTROL_IDS,
+  createExecutableProjectSnapshot,
+  encodeExecutableProjectSnapshotArtifact,
   type DeterministicRuntimeControlPlan,
 } from '@prodivix/runtime-core';
 import {
@@ -219,6 +221,8 @@ type Harness = Readonly<{
     >['prepare']
   >[0];
   readIds: string[];
+  executableArtifactDigest: string;
+  executableSnapshotDigest: string;
   sessionClosed: () => number;
   leaseReleased: () => number;
   runtimeControlReleased: () => number;
@@ -232,12 +236,58 @@ const harness = (
   overrides: Readonly<{
     observedRuntimeIdentity?: BrowserVerificationRuntimeIdentity;
     leaseGeneration?: number;
+    tamperExecutableBytes?: boolean;
+    semanticDigestOverride?: string;
     tamperScenarioBytes?: boolean;
   }> = {}
 ): Harness => {
-  const executableBytes = new TextEncoder().encode('executable snapshot');
-  const executableSnapshotDigest =
-    digestBrowserVerificationBytes(executableBytes);
+  const executableSnapshot = createExecutableProjectSnapshot({
+    workspace: Object.freeze({
+      workspaceId: 'workspace-browser-adapter',
+      snapshotId: 'snapshot-browser-adapter',
+      partitionRevisions: Object.freeze({ workspace: '7' }),
+    }),
+    target: Object.freeze({
+      presetId: 'react-vite',
+      framework: 'react',
+      runtime: 'vite',
+    }),
+    files: Object.freeze([
+      Object.freeze({
+        path: 'package.json',
+        contents: '{"private":true}',
+      }),
+      Object.freeze({
+        path: 'src/main.tsx',
+        contents: 'export const mounted = true;',
+      }),
+    ]),
+    dependencyPlan: Object.freeze({ manifestFilePath: 'package.json' }),
+    entrypoints: Object.freeze([
+      Object.freeze({ kind: 'preview' as const, path: 'src/main.tsx' }),
+    ]),
+    capabilityRequirements: Object.freeze({
+      preview: Object.freeze(['filesystem'] as const),
+      build: Object.freeze(['filesystem', 'build'] as const),
+      test: Object.freeze([]),
+      production: Object.freeze([]),
+    }),
+    publicBuildConfiguration: Object.freeze([]),
+    cacheHints: Object.freeze({ dependencyInstall: 'isolated' as const }),
+    installCommand: Object.freeze({ command: 'pnpm', args: ['install'] }),
+    previewCommand: Object.freeze({ command: 'pnpm', args: ['preview'] }),
+    buildCommand: Object.freeze({ command: 'pnpm', args: ['build'] }),
+    previewPlan: Object.freeze({
+      mode: 'static-bundle' as const,
+      command: Object.freeze({ command: 'pnpm', args: ['preview'] }),
+      outputDirectoryPath: 'dist',
+      entryFilePath: 'index.html',
+    }),
+  });
+  const executableArtifact =
+    encodeExecutableProjectSnapshotArtifact(executableSnapshot);
+  const executableBytes = executableArtifact.bytes;
+  const executableSnapshotDigest = executableArtifact.semanticDigest;
   const fixtureDigest = sha('fixture');
   const program = programFor(executableSnapshotDigest, fixtureDigest);
   const cell = cellFor(executableSnapshotDigest, fixtureDigest);
@@ -289,9 +339,9 @@ const harness = (
   const executableRef: VerificationAdapterInputRef = Object.freeze({
     id: 'input:executable',
     kind: 'executable-snapshot',
-    digest: executableSnapshotDigest,
-    size: executableBytes.byteLength,
-    mediaType: 'application/octet-stream',
+    digest: executableArtifact.artifactDigest,
+    size: executableArtifact.size,
+    mediaType: executableArtifact.mediaType,
   });
   const refs = Object.freeze([
     executableRef,
@@ -299,7 +349,12 @@ const harness = (
     profileInput.ref,
   ]);
   const byId = new Map<string, Uint8Array>([
-    [executableRef.id, executableBytes],
+    [
+      executableRef.id,
+      overrides.tamperExecutableBytes
+        ? new TextEncoder().encode('swapped executable artifact')
+        : executableBytes,
+    ],
     [
       programInput.ref.id,
       overrides.tamperScenarioBytes
@@ -410,11 +465,13 @@ const harness = (
         url: `${origin}/`,
         kind: 'entry',
         contentDigest: sha('entry'),
+        byteLength: 0,
       }),
       Object.freeze({
         url: `${origin}/__prodivix-golden-host.html`,
         kind: 'control-host',
         contentDigest: sha('control-host'),
+        byteLength: 0,
       }),
     ]),
   });
@@ -808,7 +865,8 @@ const harness = (
     runtimeZone: 'browser',
     runtimeEnvironmentDigest,
     inputDigest: cell.inputDigest,
-    executableSnapshotDigest,
+    executableSnapshotDigest:
+      overrides.semanticDigestOverride ?? executableSnapshotDigest,
     scenarioProgramDigest: program.programDigest,
     controlProfileDigest: cell.controlProfileRef.digest!,
     fixtureSetDigests: Object.freeze([fixtureDigest]),
@@ -854,6 +912,8 @@ const harness = (
     adapter,
     cell,
     context,
+    executableArtifactDigest: executableArtifact.artifactDigest,
+    executableSnapshotDigest,
     prepareInput: Object.freeze({
       planDigest: sha('plan'),
       cell,
@@ -894,6 +954,9 @@ const preparedInvocation = (
 describe('first-party browser adapter lifecycle', () => {
   it('consumes Core bytes, executes one black-box check, stages exact artifacts, and cleans up', async () => {
     const value = harness();
+    expect(value.executableArtifactDigest).not.toBe(
+      value.executableSnapshotDigest
+    );
     expect(await value.adapter.preflight(value.cell, value.context)).toEqual({
       status: 'supported',
     });
@@ -901,7 +964,11 @@ describe('first-party browser adapter lifecycle', () => {
       await value.adapter.prepare(value.prepareInput),
       value.context
     );
-    expect(value.readIds.sort()).toEqual(['input:profile', 'input:program']);
+    expect(value.readIds.sort()).toEqual([
+      'input:executable',
+      'input:profile',
+      'input:program',
+    ]);
     const events: unknown[] = [];
     const candidate = await value.adapter.execute(
       invocation,
@@ -1016,6 +1083,40 @@ describe('first-party browser adapter lifecycle', () => {
     const value = harness({ tamperScenarioBytes: true });
     await expect(value.adapter.prepare(value.prepareInput)).rejects.toThrow(
       /content address/u
+    );
+    expect(value.sessionClosed()).toBe(0);
+    await value.adapter.cleanup({
+      planDigest: value.prepareInput.planDigest,
+      cellId: value.cell.id,
+      attemptId: value.prepareInput.attemptId,
+      generation: value.prepareInput.generation,
+      cause: 'prepare-failed',
+      abortSignal: signal,
+    });
+    await value.factory.dispose();
+  });
+
+  it('rejects swapped executable artifact bytes before acquiring a browser', async () => {
+    const value = harness({ tamperExecutableBytes: true });
+    await expect(value.adapter.prepare(value.prepareInput)).rejects.toThrow(
+      /content address/u
+    );
+    expect(value.sessionClosed()).toBe(0);
+    await value.adapter.cleanup({
+      planDigest: value.prepareInput.planDigest,
+      cellId: value.cell.id,
+      attemptId: value.prepareInput.attemptId,
+      generation: value.prepareInput.generation,
+      cause: 'prepare-failed',
+      abortSignal: signal,
+    });
+    await value.factory.dispose();
+  });
+
+  it('rejects a swapped executable semantic digest after raw codec validation', async () => {
+    const value = harness({ semanticDigestOverride: sha('semantic-swap') });
+    await expect(value.adapter.prepare(value.prepareInput)).rejects.toThrow(
+      /semantic|drifted/u
     );
     expect(value.sessionClosed()).toBe(0);
     await value.adapter.cleanup({

@@ -42,6 +42,7 @@ export const launchNetworkIsolatedBrowser = (
         '--disable-background-networking',
         '--disable-component-update',
         '--disable-domain-reliability',
+        '--disable-quic',
         // Playwright owns the canonical --disable-features switch. Adding a
         // second value replaces its defaults instead of extending them.
         '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
@@ -85,6 +86,27 @@ const bundledExecutablePath = (engine: VerificationBrowserEngine): string => {
   return webkit.executablePath();
 };
 
+const verifyBrowserImageAuthority = async (
+  input: BrowserToolPoolAcquireInput,
+  executablePath: string
+): Promise<void> => {
+  try {
+    const authority = await observePlaywrightBrowserImageAuthority({
+      engine: input.engine,
+      executablePath,
+    });
+    assertPlaywrightBrowserImageAuthorityReceipt(
+      authority,
+      input.runtimeIdentity.browserImageDigest
+    );
+  } catch {
+    throw browserInfrastructureError(
+      'Playwright browser image authority could not be verified.',
+      'VER-BROWSER-IMAGE-AUTHORITY'
+    );
+  }
+};
+
 export class PlaywrightBrowserPool implements BrowserToolPool {
   readonly #browsers = new Map<VerificationBrowserEngine, BrowserEntry>();
   #disposed = false;
@@ -96,6 +118,10 @@ export class PlaywrightBrowserPool implements BrowserToolPool {
     const executablePath = realpathSync(
       input.launch.executablePath ?? bundledExecutablePath(input.engine)
     );
+    // Every lease re-observes the complete image before using a cached or new
+    // process. A second observation after launch fences replacement during the
+    // launch window.
+    await verifyBrowserImageAuthority(input, executablePath);
     const existing = this.#browsers.get(input.engine);
     if (
       existing !== undefined &&
@@ -119,28 +145,21 @@ export class PlaywrightBrowserPool implements BrowserToolPool {
       executablePath,
       browserImageDigest: input.runtimeIdentity.browserImageDigest,
       browser: (async () => {
+        let launched: Browser;
         try {
-          const authority = await observePlaywrightBrowserImageAuthority({
-            engine: input.engine,
-            executablePath,
-          });
-          assertPlaywrightBrowserImageAuthorityReceipt(
-            authority,
-            input.runtimeIdentity.browserImageDigest
-          );
-        } catch {
-          throw browserInfrastructureError(
-            'Playwright browser image authority could not be verified.',
-            'VER-BROWSER-IMAGE-AUTHORITY'
-          );
-        }
-        try {
-          return await launchNetworkIsolatedBrowser(input, executablePath);
+          launched = await launchNetworkIsolatedBrowser(input, executablePath);
         } catch {
           throw browserInfrastructureError(
             'Playwright browser process could not be launched.',
             'VER-BROWSER-LAUNCH'
           );
+        }
+        try {
+          await verifyBrowserImageAuthority(input, executablePath);
+          return launched;
+        } catch (error) {
+          await launched.close().catch(() => undefined);
+          throw error;
         }
       })(),
     });

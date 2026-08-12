@@ -4,7 +4,7 @@ import { canonicalJsonText } from '@prodivix/shared/canonical';
 import { describe, expect, it } from 'vitest';
 import { decodeControlledStaticRootlessAuthorities } from '../scripts/controlledStaticRootlessAuthorityDecoder';
 import { decodeControlledStaticToolchainLinuxCommands } from '../scripts/controlledStaticToolchainLinuxResult';
-import type { ControlledStaticToolchainCommandReceipt } from '../scripts/controlledStaticToolchainProtocol';
+import type { ControlledStaticToolchainCommandReceipt } from './controlledStaticToolchainProtocol';
 import type { ControlledStaticToolchainSandboxAuthority } from '../scripts/controlledStaticToolchainSandboxTypes';
 
 const stages = [

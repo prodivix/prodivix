@@ -22,21 +22,30 @@ type evaluationPlanFact struct {
 }
 
 type evaluationAttemptFact struct {
-	PlanDigest             string
-	AttemptID              string
-	DescriptorDigest       string
-	SamplingIdentityDigest string
-	IndependentRunID       string
-	ShardID                string
-	CaseID                 string
-	TargetID               string
-	Status                 string
-	Outcome                string
-	AttemptDigest          string
-	StartedAt              time.Time
-	CompletedAt            time.Time
-	Value                  map[string]any
-	Canonical              []byte
+	PlanDigest                               string
+	AttemptID                                string
+	DescriptorDigest                         string
+	SamplingIdentityDigest                   string
+	IndependentRunID                         string
+	DispatchIntentSetDigest                  string
+	TransportReceiptSetDigest                string
+	InvocationTurnReceiptSetDigest           string
+	InvocationTurnSetReceiptDigest           string
+	CapabilityExecutionReceiptSetDigest      string
+	VerificationAttemptGrantReceiptSetDigest string
+	ResponseDigest                           string
+	ShardID                                  string
+	CaseID                                   string
+	TargetID                                 string
+	Status                                   string
+	Outcome                                  string
+	AttemptDigest                            string
+	StartedAt                                time.Time
+	CompletedAt                              time.Time
+	Usage                                    any
+	Cost                                     any
+	Value                                    map[string]any
+	Canonical                                []byte
 }
 
 type evaluationCheckpointFact struct {
@@ -53,14 +62,62 @@ type evaluationCheckpointFact struct {
 }
 
 type evaluationArtifactFact struct {
-	FactType   string
-	PlanDigest string
-	FactID     string
-	FactDigest string
-	Outcome    string
-	RecordedAt time.Time
-	Value      map[string]any
-	Canonical  []byte
+	FactType                  string
+	PlanDigest                string
+	RepositoryCommit          string
+	FactID                    string
+	FactDigest                string
+	CandidateID               string
+	DescriptorDigest          string
+	ResponseDigest            string
+	ExecutionReceiptDigest    string
+	GraderArtifactDigest      string
+	ProjectionAuthorityDigest string
+	MediaType                 string
+	Width                     int64
+	Height                    int64
+	BytesDigest               string
+	ByteLength                int64
+	PublicArtifactScanDigest  string
+	Outcome                   string
+	RecordedAt                time.Time
+	Value                     map[string]any
+	Canonical                 []byte
+}
+
+func evaluationResolvedCapabilityDescriptor(
+	evaluationCase map[string]any,
+	target map[string]any,
+) (map[string]any, error) {
+	caseDescriptor, caseOK := objectMember(evaluationCase, "capabilityDescriptor")
+	authority, hasAuthority := objectMember(target, "optionalCapabilitySupportAuthority")
+	if !caseOK || stringMember(caseDescriptor, "descriptorDigest") != stringMember(evaluationCase, "capabilityDescriptorDigest") {
+		return nil, conflict("evaluation case capability descriptor is missing")
+	}
+	if !hasAuthority {
+		return caseDescriptor, nil
+	}
+	resolved, resolvedOK := objectMember(authority, "resolvedCapabilityDescriptor")
+	if !resolvedOK || stringMember(authority, "qualificationCapabilityProfileId") != stringMember(evaluationCase, "capabilityProfileId") ||
+		stringMember(authority, "capabilityId") != stringMember(caseDescriptor, "capabilityId") {
+		return nil, conflict("evaluation optional capability authority drifted from its case")
+	}
+	return resolved, nil
+}
+
+func evaluationResolvedCapabilityDescriptorDigest(
+	evaluationCase map[string]any,
+	target map[string]any,
+) (string, error) {
+	descriptor, err := evaluationResolvedCapabilityDescriptor(evaluationCase, target)
+	if err != nil {
+		return "", err
+	}
+	digest := stringMember(descriptor, "descriptorDigest")
+	if !evaluationDigestPattern.MatchString(digest) {
+		return "", conflict("evaluation resolved capability descriptor digest is invalid")
+	}
+	return digest, nil
 }
 
 func decodeEvaluationFact(source []byte, expectedType string) (decodedFact, error) {
@@ -133,9 +190,17 @@ func decodeEvaluationAttempt(source []byte) (evaluationAttemptFact, error) {
 		PlanDigest: stringMember(descriptor, "planDigest"), AttemptID: stringMember(descriptor, "attemptId"),
 		DescriptorDigest: stringMember(descriptor, "descriptorDigest"), SamplingIdentityDigest: stringMember(descriptor, "samplingIdentityDigest"),
 		IndependentRunID: stringMember(fact.Value, "independentRunId"), ShardID: stringMember(descriptor, "shardId"),
-		CaseID: stringMember(descriptor, "caseId"), TargetID: stringMember(descriptor, "targetId"),
+		DispatchIntentSetDigest:                  stringMember(fact.Value, "dispatchIntentSetDigest"),
+		TransportReceiptSetDigest:                stringMember(fact.Value, "transportReceiptSetDigest"),
+		InvocationTurnReceiptSetDigest:           stringMember(fact.Value, "invocationTurnReceiptSetDigest"),
+		InvocationTurnSetReceiptDigest:           stringMember(fact.Value, "invocationTurnSetReceiptDigest"),
+		CapabilityExecutionReceiptSetDigest:      stringMember(fact.Value, "capabilityExecutionReceiptSetDigest"),
+		VerificationAttemptGrantReceiptSetDigest: stringMember(fact.Value, "verificationAttemptGrantReceiptSetDigest"),
+		ResponseDigest:                           stringMember(fact.Value, "responseDigest"),
+		CaseID:                                   stringMember(descriptor, "caseId"), TargetID: stringMember(descriptor, "targetId"),
 		Status: stringMember(fact.Value, "status"), Outcome: stringMember(fact.Value, "outcome"),
 		AttemptDigest: stringMember(fact.Value, "attemptDigest"), StartedAt: startedAt, CompletedAt: completedAt,
+		Usage: fact.Value["usage"], Cost: fact.Value["cost"],
 		Value: fact.Value, Canonical: fact.Canonical,
 	}, nil
 }
@@ -171,8 +236,10 @@ func validateEvaluationAttemptPlanBinding(planSource []byte, attempt evaluationA
 			break
 		}
 	}
-	if evaluationCase == nil || target == nil ||
+	resolvedCapabilityDescriptorDigest, resolveErr := evaluationResolvedCapabilityDescriptorDigest(evaluationCase, target)
+	if evaluationCase == nil || target == nil || resolveErr != nil ||
 		stringMember(evaluationCase, "capabilityProfileId") != stringMember(target, "capabilityProfileId") ||
+		resolvedCapabilityDescriptorDigest != stringMember(descriptor, "capabilityDescriptorDigest") ||
 		stringMember(evaluationCase, "riskClass") != stringMember(descriptor, "riskClass") ||
 		stringMember(target, "targetDigest") != stringMember(descriptor, "targetDigest") {
 		return conflict("evaluation attempt is outside the frozen case/target slice")
@@ -249,6 +316,8 @@ func decodeEvaluationArtifact(source []byte, expectedType string) (evaluationArt
 	switch expectedType {
 	case "evaluation-holdout-receipt":
 		identityField, digestField, timeField = "receiptId", "receiptDigest", "executedAt"
+	case "evaluation-review-candidate":
+		identityField, digestField, timeField = "attemptId", "candidateDigest", "generatedAt"
 	case "evaluation-manifest":
 		identityField, digestField, timeField = "manifestId", "manifestDigest", "completedAt"
 	case "evaluation-metric-report", "evaluation-grader-report", "evaluation-human-review-report":
@@ -259,10 +328,30 @@ func decodeEvaluationArtifact(source []byte, expectedType string) (evaluationArt
 	if err != nil {
 		return evaluationArtifactFact{}, err
 	}
+	var width, height, byteLength int64
+	if expectedType == "evaluation-review-candidate" {
+		var widthOK, heightOK, byteLengthOK bool
+		width, widthOK = integerMember(fact.Value, "width")
+		height, heightOK = integerMember(fact.Value, "height")
+		byteLength, byteLengthOK = integerMember(fact.Value, "byteLength")
+		if !widthOK || !heightOK || !byteLengthOK {
+			return evaluationArtifactFact{}, ErrInvalid
+		}
+	}
 	return evaluationArtifactFact{
 		FactType: expectedType, PlanDigest: stringMember(fact.Value, "planDigest"),
-		FactID: stringMember(fact.Value, identityField), FactDigest: stringMember(fact.Value, digestField),
-		Outcome: stringMember(fact.Value, "outcome"), RecordedAt: recordedAt,
+		RepositoryCommit: stringMember(fact.Value, "repositoryCommit"),
+		FactID:           stringMember(fact.Value, identityField), FactDigest: stringMember(fact.Value, digestField),
+		CandidateID:               stringMember(fact.Value, "candidateId"),
+		DescriptorDigest:          stringMember(fact.Value, "descriptorDigest"),
+		ResponseDigest:            stringMember(fact.Value, "responseDigest"),
+		ExecutionReceiptDigest:    stringMember(fact.Value, "executionReceiptDigest"),
+		GraderArtifactDigest:      stringMember(fact.Value, "graderArtifactDigest"),
+		ProjectionAuthorityDigest: stringMember(fact.Value, "projectionAuthorityDigest"),
+		MediaType:                 stringMember(fact.Value, "mediaType"), Width: width, Height: height,
+		BytesDigest: stringMember(fact.Value, "bytesDigest"), ByteLength: byteLength,
+		PublicArtifactScanDigest: stringMember(fact.Value, "publicArtifactScanDigest"),
+		Outcome:                  stringMember(fact.Value, "outcome"), RecordedAt: recordedAt,
 		Value: fact.Value, Canonical: fact.Canonical,
 	}, nil
 }

@@ -134,6 +134,7 @@ const startFixtureServer = async (
     if (request.url === '/') {
       response.writeHead(200, {
         'content-type': 'text/html; charset=utf-8',
+        'content-length': new TextEncoder().encode(ENTRY_DOCUMENT).byteLength,
       });
       response.end(ENTRY_DOCUMENT);
       return;
@@ -141,6 +142,7 @@ const startFixtureServer = async (
     if (request.url === '/__control.html') {
       response.writeHead(200, {
         'content-type': 'text/html; charset=utf-8',
+        'content-length': new TextEncoder().encode(CONTROL_DOCUMENT).byteLength,
       });
       response.end(CONTROL_DOCUMENT);
       return;
@@ -148,6 +150,8 @@ const startFixtureServer = async (
     if (request.url === '/app.js') {
       response.writeHead(200, {
         'content-type': 'application/javascript; charset=utf-8',
+        'content-length': new TextEncoder().encode(applicationSource)
+          .byteLength,
       });
       response.end(applicationSource);
       return;
@@ -472,16 +476,20 @@ const createLease = (input: {
         url: `${input.origin}/`,
         kind: 'entry',
         contentDigest: digestText(ENTRY_DOCUMENT),
+        byteLength: new TextEncoder().encode(ENTRY_DOCUMENT).byteLength,
       }),
       Object.freeze({
         url: `${input.origin}/__control.html`,
         kind: 'control-host',
         contentDigest: digestText(CONTROL_DOCUMENT),
+        byteLength: new TextEncoder().encode(CONTROL_DOCUMENT).byteLength,
       }),
       Object.freeze({
         url: `${input.origin}/app.js`,
         kind: 'bundle',
         contentDigest: digestText(input.applicationSource),
+        byteLength: new TextEncoder().encode(input.applicationSource)
+          .byteLength,
       }),
     ]),
   });
