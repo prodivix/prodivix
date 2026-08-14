@@ -7,6 +7,7 @@ import "fmt"
 // false v46 marker; all future inserts and mutable transitions require v46.
 func agentEvaluationV46EligibilityStatements() []string {
 	statements := []string{
+		`SET LOCAL session_replication_role = 'replica'`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_v46_current_row()
 			RETURNS trigger AS $$
 		BEGIN
@@ -58,5 +59,6 @@ func agentEvaluationV46EligibilityStatements() []string {
 				FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_v46_current_row()`, index+1, table),
 		)
 	}
+	statements = append(statements, `SET LOCAL session_replication_role = 'origin'`)
 	return statements
 }

@@ -334,6 +334,8 @@ func TestAgentEvaluationHostedV6IsIndependentlyRecordedAfterV45(t *testing.T) {
 		"ae_hrrr_lifecycle_dispatch_intents",
 		"ae_hrrr_lifecycle_result_spools",
 		"ADD COLUMN IF NOT EXISTS v46_eligible BOOLEAN",
+		"SET LOCAL session_replication_role = 'replica'",
+		"SET LOCAL session_replication_role = 'origin'",
 		"agent_evaluation_authority_attestation_v46_roots",
 	} {
 		if !strings.Contains(statements, fragment) {
