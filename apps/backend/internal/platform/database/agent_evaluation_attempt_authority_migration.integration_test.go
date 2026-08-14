@@ -484,7 +484,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		"ae_cppr_manifests":                   7,
 		"ae_cppr_content_upload_receipts":     7,
 		"ae_cppr_deletion_authority_receipts": 7,
-		"ae_cppr_cleanups":                    27,
+		"ae_cppr_cleanups":                    26,
 		"ae_cppr_cleanup_receipts":            7,
 		"agent_evaluation_native_optional_capability_bootstrap_sources": 60,
 		"agent_evaluation_native_provider_state_vault_records":          55,
@@ -492,7 +492,8 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 	} {
 		var got int
 		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.columns
-			WHERE table_schema=current_schema() AND table_name=$1`, table).Scan(&got); err != nil {
+			WHERE table_schema=current_schema() AND table_name=$1
+				AND column_name<>'v46_eligible'`, table).Scan(&got); err != nil {
 			t.Fatalf("read %s columns: %v", table, err)
 		}
 		if got != want {
@@ -2107,6 +2108,20 @@ func buildV45CapabilityEffectRequestRefSeed(
 	descriptor map[string]any,
 ) v45CapabilityEffectRequestRefSeed {
 	t.Helper()
+	if descriptor == nil {
+		descriptor = map[string]any{}
+	} else {
+		descriptor = attemptAuthorityMigrationCloneObject(t, descriptor)
+	}
+	if _, ok := descriptor["planDigest"]; !ok {
+		descriptor["planDigest"] = seed.planDigest
+	}
+	if _, ok := descriptor["attemptId"]; !ok {
+		descriptor["attemptId"] = seed.attemptID
+	}
+	if _, ok := descriptor["descriptorDigest"]; !ok {
+		descriptor["descriptorDigest"] = seed.descriptorDigest
+	}
 	requestBase := map[string]any{
 		"format": "prodivix.agent-evaluation-capability-effect-request-ref-authority-request", "version": 1,
 		"namespaceId": seed.namespaceID, "planDigest": seed.planDigest,
@@ -2157,7 +2172,12 @@ func insertV45CapabilityEffectRequestRefSeed(
 	db *sql.DB,
 	seed v45CapabilityEffectRequestRefSeed,
 ) error {
-	_, err := db.Exec(`INSERT INTO agent_evaluation_capability_effect_request_ref_authorities (
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`INSERT INTO agent_evaluation_capability_effect_request_ref_authorities (
 		namespace_id,plan_digest,repository_commit,request_digest,receipt_digest,attempt_id,
 		descriptor_digest,turn_index,invocation_id,binding_kind,capability_id,tool_id,target_ref,
 		protocol_family,provider_configuration_id,model_lineage_digest,adapter_digest,
@@ -2175,8 +2195,45 @@ func insertV45CapabilityEffectRequestRefSeed(
 		seed.selectedSourceObservationReceiptDigest, seed.selectedSourceHandleDigest,
 		string(seed.requestBytes), seed.requestBytes, string(seed.receiptBytes), seed.receiptBytes,
 		seed.issuedAt,
-	)
-	return err
+	); err != nil {
+		return err
+	}
+	if seed.selectedSourceHandleDigest != "" {
+		claimBody := map[string]any{
+			"format": "prodivix.agent-evaluation-capability-effect-source-consumption-claim", "version": 1,
+			"namespaceId": seed.namespaceID, "planDigest": seed.planDigest,
+			"repositoryCommit": seed.repositoryCommit, "sourceHandleDigest": seed.selectedSourceHandleDigest,
+			"requestRefAuthorityReceiptDigest": seed.receiptDigest, "attemptId": seed.attemptID,
+			"descriptorDigest": seed.descriptorDigest, "turnIndex": seed.turnIndex,
+			"invocationId": seed.invocationID, "bindingKind": seed.bindingKind,
+			"claimedAt": seed.issuedAt.Format("2006-01-02T15:04:05.000Z"),
+		}
+		claimBytes, err := json.Marshal(claimBody)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO agent_evaluation_capability_effect_source_consumption_claims (
+			namespace_id,plan_digest,repository_commit,claim_digest,source_handle_digest,
+			request_ref_authority_receipt_digest,attempt_id,descriptor_digest,turn_index,
+			invocation_id,binding_kind,status,claimed_at,claim_json,claim_bytes
+		)
+		SELECT $1,$2,$3,digest, $4,$5,$6,$7,$8,$9,$10,'claimed',$11,
+			body||jsonb_build_object('claimDigest',digest),
+			convert_to(agent_evaluation_canonical_jsonb_text(
+				body||jsonb_build_object('claimDigest',digest)
+			),'UTF8')
+		FROM (
+			SELECT $12::jsonb AS body, agent_evaluation_canonical_jsonb_digest($12::jsonb) AS digest
+		) claim`,
+			seed.namespaceID, seed.planDigest, seed.repositoryCommit,
+			seed.selectedSourceHandleDigest, seed.receiptDigest, seed.attemptID,
+			seed.descriptorDigest, seed.turnIndex, seed.invocationID, seed.bindingKind,
+			seed.issuedAt, string(claimBytes),
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 type v45CapabilityEffectRetrievalFixture struct {

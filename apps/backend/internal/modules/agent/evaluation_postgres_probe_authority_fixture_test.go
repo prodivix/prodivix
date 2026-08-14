@@ -241,16 +241,22 @@ func persistGoldenRuntimeFactSourceRegistration(
 		"sourceAuthorityImplementationDigest": stringMember(runtime, "sourceAuthorityImplementationDigest"),
 		"routeBinding":                        stringMember(runtime, "routeBinding"),
 		"capabilityProfileId":                 stringMember(runtime, "capabilityProfileId"),
+		"capabilityProfileDigest":             stringMember(runtime, "capabilityProfileDigest"),
+		"capabilityId":                        stringMember(runtime, "capabilityId"),
+		"protocolFamily":                      stringMember(runtime, "protocolFamily"),
+		"providerConfigurationId":             stringMember(runtime, "providerConfigurationId"),
+		"modelId":                             stringMember(runtime, "modelId"),
+		"modelLineageDigest":                  stringMember(runtime, "modelLineageDigest"),
+		"adapterDigest":                       stringMember(runtime, "adapterDigest"),
+		"registrationAuthorityIssuerId":       stringMember(runtime, "registrationAuthorityIssuerId"),
+		"ownerHealthDigest":                   healthDigest,
+		"ownerAdmissionDigest":                ownerAdmission,
+		"stageDigest":                         stageDigest,
+		"dispatchAckDigest":                   dispatchAck,
+		"registeredAt":                        registeredAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+		"expiresAt":                           expiresAt.UTC().Format("2006-01-02T15:04:05.000Z"),
 		"registrationReceiptDigest":           stringMember(runtime, "registrationReceiptDigest"),
 	}
-	// Fill remaining receipt keys from the CHECK as we discover them; keep required bindings first.
-	receipt["capabilityProfileDigest"] = stringMember(runtime, "capabilityProfileDigest")
-	receipt["capabilityId"] = stringMember(runtime, "capabilityId")
-	receipt["protocolFamily"] = stringMember(runtime, "protocolFamily")
-	receipt["providerConfigurationId"] = stringMember(runtime, "providerConfigurationId")
-	receipt["modelId"] = stringMember(runtime, "modelId")
-	receipt["modelLineageDigest"] = stringMember(runtime, "modelLineageDigest")
-	receipt["adapterDigest"] = stringMember(runtime, "adapterDigest")
 	receiptBytes, err := canonicaljson.Bytes(receipt)
 	if err != nil {
 		t.Fatal(err)

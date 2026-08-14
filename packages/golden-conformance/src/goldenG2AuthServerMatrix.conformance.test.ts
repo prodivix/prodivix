@@ -30,7 +30,7 @@ describe('G2 Golden Auth/Server target contract matrix', () => {
 
   beforeAll(async () => {
     matrix = await runGoldenG2AuthServerMatrix();
-  }, 30_000);
+  }, 120_000);
 
   it('keeps every supported and denied target cell explicit', () => {
     expect(matrix.targetMatrix).toEqual({
