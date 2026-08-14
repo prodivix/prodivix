@@ -10,6 +10,7 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 		name:      "g4-agent-evaluation-attempt-authority-facts",
 		preflight: preflightAgentEvaluationAttemptAuthority,
 		statements: []string{
+			`CREATE EXTENSION IF NOT EXISTS pgcrypto`,
 			`CREATE OR REPLACE FUNCTION agent_evaluation_jsonb_object_key_count(candidate JSONB)
 				RETURNS BIGINT LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
 					SELECT CASE WHEN jsonb_typeof(candidate)='object'
