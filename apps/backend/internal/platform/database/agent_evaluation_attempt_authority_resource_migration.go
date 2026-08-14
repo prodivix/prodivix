@@ -678,9 +678,12 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 					AND deletion_row.deletion_authority_receipt_digest=
 						NEW.deletion_authority_receipt_digest
 					AND deletion_row.receipt_json=deletion_receipt
-					AND manifest_row.created_at=NEW.updated_at
-					AND upload_row.created_at=NEW.updated_at
-					AND deletion_row.created_at=NEW.updated_at;
+					AND manifest_row.created_at=CASE
+						WHEN NEW.state='sealed' THEN OLD.updated_at ELSE NEW.updated_at END
+					AND upload_row.created_at=CASE
+						WHEN NEW.state='sealed' THEN OLD.updated_at ELSE NEW.updated_at END
+					AND deletion_row.created_at=CASE
+						WHEN NEW.state='sealed' THEN OLD.updated_at ELSE NEW.updated_at END;
 				IF component_count<>1 THEN
 					RAISE EXCEPTION 'capability probe provider resource lacks exact atomic components'
 						USING ERRCODE='23514';

@@ -2396,7 +2396,7 @@ func seedV45CapabilityEffectRetrievalFixture(
 		_, err := db.Exec(`INSERT INTO agent_evaluation_plans (
 			namespace_id,evaluation_plan_id,plan_digest,repository_commit,planned_journey_count,
 			plan_json,plan_bytes,planned_at,expires_at
-		) VALUES ($1,'plan.v45.capability-effect-input',$2,$3,5880,$4::jsonb,$5,$6,$7)`,
+		) VALUES ($1,'plan.v45.capability-effect-input',$2,$3,11640,$4::jsonb,$5,$6,$7)`,
 			fixture.namespaceID, fixture.planDigest, fixture.repositoryCommit, string(planBytes), planBytes,
 			fixture.plannedAt, fixture.planExpiresAt)
 		return err
@@ -2813,18 +2813,19 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityEffectInput
 		t.Fatalf("store retrieval dispatch intent: %v", err)
 	}
 	responseBodyDigest := attemptAuthorityMigrationDigest("v45-capability-effect-response-body")
-	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
+	withV45MigrationFixtureUserTriggersDisabled(t, db, "agent_evaluation_transport_receipts", func() error {
+		_, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,
 		intent_digest,receipt_id,invocation_id,provider_configuration_id,provider_request_id,
 		dispatch_state,outcome,response_body_digest,receipt_digest,receipt_json,receipt_bytes,
 		started_at,completed_at,closed_at
 	) VALUES ($1,$2,$3,$4,$5,0,$6,'transport.v45.capability-effect',$7,$8,NULL,
 		'dispatched','completed',$9,$10,'{}'::jsonb,$11,$12,$13,$13)`, fixture.namespaceID,
-		fixture.planDigest, fixture.repositoryCommit, fixture.attemptID, fixture.descriptorDigest,
-		dispatchIntentDigest, requestRefSeed.invocationID, fixture.providerConfigurationID,
-		responseBodyDigest, transportReceiptDigest, []byte(`{}`), rawCreatedAt, rawCompletedAt); err != nil {
-		t.Fatalf("store retrieval transport receipt: %v", err)
-	}
+			fixture.planDigest, fixture.repositoryCommit, fixture.attemptID, fixture.descriptorDigest,
+			dispatchIntentDigest, requestRefSeed.invocationID, fixture.providerConfigurationID,
+			responseBodyDigest, transportReceiptDigest, []byte(`{}`), rawCreatedAt, rawCompletedAt)
+		return err
+	})
 	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_provider_result_spool_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,
 		invocation_id,spool_ref,dispatch_intent_digest,transport_receipt_digest,algorithm,
@@ -5769,18 +5770,19 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLNativeOptionalBootstr
 		t.Fatalf("store native bootstrap dispatch intent: %v", err)
 	}
 	responseBodyDigest := attemptAuthorityMigrationDigest("v45-native-bootstrap-response-body")
-	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
+	withV45MigrationFixtureUserTriggersDisabled(t, db, "agent_evaluation_transport_receipts", func() error {
+		_, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,
 		intent_digest,receipt_id,invocation_id,provider_configuration_id,provider_request_id,
 		dispatch_state,outcome,response_body_digest,receipt_digest,receipt_json,receipt_bytes,
 		started_at,completed_at,closed_at
 	) VALUES ($1,$2,$3,$4,$5,0,$6,'transport.v45.native-bootstrap',$7,$8,NULL,
 		'dispatched','completed',$9,$10,'{}'::jsonb,$11,$12,$13,$13)`, fixture.namespaceID,
-		fixture.planDigest, fixture.repositoryCommit, attemptID, descriptorDigest, dispatchIntentDigest,
-		invocationID, fixture.providerConfigurationID, responseBodyDigest, transportReceiptDigest,
-		[]byte(`{}`), rawStartedAt, rawCompletedAt); err != nil {
-		t.Fatalf("store native bootstrap transport receipt: %v", err)
-	}
+			fixture.planDigest, fixture.repositoryCommit, attemptID, descriptorDigest, dispatchIntentDigest,
+			invocationID, fixture.providerConfigurationID, responseBodyDigest, transportReceiptDigest,
+			[]byte(`{}`), rawStartedAt, rawCompletedAt)
+		return err
+	})
 	aad := map[string]any{
 		"format": "prodivix.agent-evaluation-provider-result-spool-aad", "version": 1,
 		"namespaceDigest": attemptAuthorityMigrationDigest(fixture.namespaceID),
@@ -6502,19 +6504,20 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLOptionalFactAuthority
 		t.Fatalf("store optional-fact dispatch intent: %v", err)
 	}
 	responseBodyDigest := attemptAuthorityMigrationDigest("v45-optional-response-body")
-	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
+	withV45MigrationFixtureUserTriggersDisabled(t, db, "agent_evaluation_transport_receipts", func() error {
+		_, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,
 		intent_digest,receipt_id,invocation_id,provider_configuration_id,provider_request_id,
 		dispatch_state,outcome,response_body_digest,receipt_digest,receipt_json,receipt_bytes,
 		started_at,completed_at,closed_at
 	) VALUES ($1,$2,$3,$4,$5,0,$6,'transport.v45.optional-fact',$7,$8,NULL,
 		'dispatched','completed',$9,$10,'{}'::jsonb,$11,$12,$13,$13)`, fixture.namespaceID,
-		fixture.planDigest, fixture.repositoryCommit, attemptID, descriptorDigest,
-		dispatchIntentDigest, invocationID, fixture.providerConfigurationID,
-		responseBodyDigest, transportReceiptDigest, []byte(`{}`), rawCreatedAt,
-		rawCreatedAt.Add(time.Second)); err != nil {
-		t.Fatalf("store optional-fact transport receipt: %v", err)
-	}
+			fixture.planDigest, fixture.repositoryCommit, attemptID, descriptorDigest,
+			dispatchIntentDigest, invocationID, fixture.providerConfigurationID,
+			responseBodyDigest, transportReceiptDigest, []byte(`{}`), rawCreatedAt,
+			rawCreatedAt.Add(time.Second))
+		return err
+	})
 	spoolAuthorityDigest := attemptAuthorityMigrationDigest("v45-optional-spool-authority")
 	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_provider_result_spool_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,
@@ -6863,18 +6866,19 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLOptionalFactAuthority
 		t.Fatalf("store observed optional-fact dispatch intent: %v", err)
 	}
 	responseBodyDigest := attemptAuthorityMigrationDigest("v45-optional-observed-response-body")
-	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
+	withV45MigrationFixtureUserTriggersDisabled(t, db, "agent_evaluation_transport_receipts", func() error {
+		_, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_transport_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,
 		intent_digest,receipt_id,invocation_id,provider_configuration_id,provider_request_id,
 		dispatch_state,outcome,response_body_digest,receipt_digest,receipt_json,receipt_bytes,
 		started_at,completed_at,closed_at
 	) VALUES ($1,$2,$3,$4,$5,0,$6,'transport.v45.optional-fact.observed',$7,$8,NULL,
 		'dispatched','completed',$9,$10,'{}'::jsonb,$11,$12,$13,$13)`, fixture.namespaceID,
-		fixture.planDigest, fixture.repositoryCommit, attemptID, descriptorDigest,
-		dispatchIntentDigest, invocationID, fixture.providerConfigurationID, responseBodyDigest,
-		transportReceiptDigest, []byte(`{}`), rawCreatedAt, rawCompletedAt); err != nil {
-		t.Fatalf("store observed optional-fact transport receipt: %v", err)
-	}
+			fixture.planDigest, fixture.repositoryCommit, attemptID, descriptorDigest,
+			dispatchIntentDigest, invocationID, fixture.providerConfigurationID, responseBodyDigest,
+			transportReceiptDigest, []byte(`{}`), rawCreatedAt, rawCompletedAt)
+		return err
+	})
 	spoolAuthorityDigest := attemptAuthorityMigrationDigest("v45-optional-observed-spool-authority")
 	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_provider_result_spool_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,
