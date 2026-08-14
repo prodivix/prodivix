@@ -302,6 +302,18 @@ func persistGoldenProviderResourceAuthority(
 	request := admission.resourceRequest
 	result := admission.resourceResult
 	cleanup := admission.resourceCleanup
+	claimedAt = admission.resourceClaimedAt
+	if claimedAt.IsZero() {
+		claimedAt = result.RegisteredAt.Add(-time.Minute)
+	}
+	dispatchedAt = claimedAt.Add(time.Second)
+	if !result.RegisteredAt.After(dispatchedAt) {
+		dispatchedAt = claimedAt
+	}
+	sealedAt = result.RegisteredAt
+	if sealedAt.Before(dispatchedAt) {
+		sealedAt = dispatchedAt
+	}
 	stageDigest := evaluationFixtureDigest(t, "resource-stage-"+request.RequestDigest)
 	ownerAdmission := evaluationFixtureDigest(t, "resource-owner-"+request.RequestDigest)
 	dispatchAck := evaluationFixtureDigest(t, "resource-ack-"+request.RequestDigest)
@@ -340,7 +352,7 @@ func persistGoldenProviderResourceAuthority(
 		result.ContentUploadReceiptDigest, result.DeletionAuthorityReceiptDigest,
 		result.ProviderResourceAuthorityDigest, registrationReceipt, result.RegisteredAt, result.ExpiresAt,
 		string(request.Bytes), request.Bytes, string(result.Bytes), result.Bytes,
-		string(responseBytes), responseBytes, admission.resourceClaimedAt, dispatchedAt, result.RegisteredAt,
+		string(responseBytes), responseBytes, claimedAt, dispatchedAt, sealedAt,
 	)
 	for _, component := range []struct {
 		table  string

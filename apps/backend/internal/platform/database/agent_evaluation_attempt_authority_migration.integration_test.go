@@ -551,6 +551,12 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 	if !controlledEligibilityRequired || !controlledEligibilityDefaultsCurrent {
 		t.Fatal("controlled-authority v45 eligibility is not strict/current by default")
 	}
+	var hasV46 bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS (
+		SELECT 1 FROM schema_migrations WHERE version>=46
+	)`).Scan(&hasV46); err != nil {
+		t.Fatalf("read v46 migration presence: %v", err)
+	}
 	for _, table := range []string{"agent_evaluation_authority_attestations", "agent_evaluation_evidence_roots"} {
 		var required, defaultsCurrent bool
 		if err := db.QueryRowContext(ctx, `SELECT is_nullable='NO',column_default LIKE 'true%'
@@ -559,8 +565,21 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			table).Scan(&required, &defaultsCurrent); err != nil {
 			t.Fatalf("read v45 eligibility column %s: %v", table, err)
 		}
-		if !required || !defaultsCurrent {
-			t.Fatalf("v45 eligibility column %s is not strict/current by default", table)
+		if !required || defaultsCurrent == hasV46 {
+			t.Fatalf("v45 eligibility column %s required=%v default_current=%v has_v46=%v",
+				table, required, defaultsCurrent, hasV46)
+		}
+		if hasV46 {
+			var v46Required, v46DefaultsCurrent bool
+			if err := db.QueryRowContext(ctx, `SELECT is_nullable='NO',column_default LIKE 'true%'
+				FROM information_schema.columns
+				WHERE table_schema=current_schema() AND table_name=$1 AND column_name='v46_eligible'`,
+				table).Scan(&v46Required, &v46DefaultsCurrent); err != nil {
+				t.Fatalf("read v46 eligibility column %s: %v", table, err)
+			}
+			if !v46Required || !v46DefaultsCurrent {
+				t.Fatalf("v46 eligibility column %s is not strict/current by default", table)
+			}
 		}
 	}
 	for _, table := range []string{
@@ -810,12 +829,10 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"forced_expiry_tombstone_bytes",
 			"forced_expired_at",
 			"expired-unqualified",
-			"maximum-lifecycle-ack-window-elapsed",
 			"ciphertext_bytes",
 			"wrapped_state_key_bytes",
 			"'00:02:05'::interval",
 			"'00:00:30'::interval",
-			"5880",
 		},
 		"agent_evaluation_production_run_config_artifacts": {
 			"agent_evaluation_plans",
