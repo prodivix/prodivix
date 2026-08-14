@@ -17,6 +17,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 			cleanup_row ae_hrrr_cleanups%ROWTYPE;
 			archive_row ae_hrrr_cleanup_archives%ROWTYPE;
 			requires_reconciliation BOOLEAN;
+			expected_key_count BIGINT;
 		BEGIN
 			SELECT COUNT(*) INTO hosted_request_count
 			FROM ae_hrrr_registration_requests request
@@ -67,6 +68,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 			END IF;
 			requires_reconciliation:=CASE NEW.settlement_json->'requiresReconciliation'
 				WHEN 'true'::jsonb THEN TRUE WHEN 'false'::jsonb THEN FALSE ELSE NULL END;
+			expected_key_count:=CASE WHEN requires_reconciliation THEN 6 ELSE 5 END;
 			IF reservation_row.reservation_id IS NULL
 				OR request_row.repository_commit IS NULL
 				OR request_row.request_json#>>'{budgetReservationAuthority,demandDigest}'<>
@@ -75,7 +77,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 					'sha256-'||encode(digest(reservation_row.demand_bytes,'sha256'),'hex')
 				OR jsonb_typeof(NEW.settlement_json)<>'object'
 				OR agent_evaluation_jsonb_object_key_count(NEW.settlement_json)<>
-					CASE WHEN requires_reconciliation THEN 6 ELSE 5 END
+					expected_key_count
 				OR NOT (NEW.settlement_json ?& ARRAY[
 					'actual','charged','requiresReconciliation','settledAt','settlementDigest'
 				])
