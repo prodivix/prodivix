@@ -333,26 +333,21 @@ func persistGoldenProviderResourceAuthority(
 		provider_configuration_id,provider_configuration_digest,protocol_family,model_id,
 		model_lineage_digest,adapter_digest,capability_profile_id,probe_program_digest,
 		public_resource_descriptor_digest,minimum_expires_at,owner_implementation_digest,
-		authority_issuer_id,stage_digest,resource_result_digest,owner_admission_digest,
-		dispatch_ack_digest,result_ingress_digest,result_ingress_receipt_digest,
-		resource_manifest_digest,content_upload_receipt_digest,deletion_authority_receipt_digest,
-		provider_resource_authority_digest,registration_receipt_digest,registered_at,expires_at,
-		request_json,request_bytes,result_json,result_bytes,response_json,response_bytes,
-		v45_eligible,v46_eligible,claimed_at,dispatched_at,sealed_at,updated_at
+		authority_issuer_id,request_json,request_bytes,v45_eligible,v46_eligible,claimed_at,updated_at
 	) VALUES (
-		$1,$2,$3,'sealed',1,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,
-		$23,$24,$25,$26,$27,$28,$29::jsonb,$30,$31::jsonb,$32,$33::jsonb,$34,TRUE,TRUE,$35,$36,$37,$37
+		$1,$2,$3,'claimed',1,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17,TRUE,TRUE,$18,$18
 	)`,
 		authority.NamespaceID, plan.RepositoryCommit, request.RequestDigest,
 		request.ProviderConfigurationID, request.ProviderConfigurationDigest, request.ProtocolFamily,
 		request.ModelID, request.ModelLineageDigest, request.AdapterDigest, request.CapabilityProfileID,
 		request.ProbeProgramDigest, request.PublicResourceDigest, request.MinimumExpiresAt,
-		admission.ownerImplementation, admission.authorityIssuer, stageDigest, result.ResultDigest,
-		ownerAdmission, dispatchAck, ingress, ingressReceipt, result.ResourceManifestDigest,
-		result.ContentUploadReceiptDigest, result.DeletionAuthorityReceiptDigest,
-		result.ProviderResourceAuthorityDigest, registrationReceipt, result.RegisteredAt, result.ExpiresAt,
-		string(request.Bytes), request.Bytes, string(result.Bytes), result.Bytes,
-		string(responseBytes), responseBytes, claimedAt, dispatchedAt, sealedAt,
+		admission.ownerImplementation, admission.authorityIssuer, string(request.Bytes), request.Bytes,
+		claimedAt,
+	)
+	exec(`UPDATE ae_cppr_registrations SET
+		state='dispatched',stage_digest=$4,dispatched_at=$5,updated_at=$5
+		WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`,
+		authority.NamespaceID, plan.RepositoryCommit, request.RequestDigest, stageDigest, dispatchedAt,
 	)
 	for _, component := range []struct {
 		table  string
@@ -371,25 +366,36 @@ func persistGoldenProviderResourceAuthority(
 			string(component.body), component.body, dispatchedAt.Add(time.Second),
 		)
 	}
+	exec(`UPDATE ae_cppr_registrations SET
+		state='sealed',resource_result_digest=$4,owner_admission_digest=$5,dispatch_ack_digest=$6,
+		result_ingress_digest=$7,result_ingress_receipt_digest=$8,resource_manifest_digest=$9,
+		content_upload_receipt_digest=$10,deletion_authority_receipt_digest=$11,
+		provider_resource_authority_digest=$12,registration_receipt_digest=$13,
+		registered_at=$14,expires_at=$15,result_json=$16::jsonb,result_bytes=$17,
+		response_json=$18::jsonb,response_bytes=$19,sealed_at=$20,updated_at=$20
+		WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`,
+		authority.NamespaceID, plan.RepositoryCommit, request.RequestDigest, result.ResultDigest,
+		ownerAdmission, dispatchAck, ingress, ingressReceipt, result.ResourceManifestDigest,
+		result.ContentUploadReceiptDigest, result.DeletionAuthorityReceiptDigest,
+		result.ProviderResourceAuthorityDigest, registrationReceipt, result.RegisteredAt, result.ExpiresAt,
+		string(result.Bytes), result.Bytes, string(responseBytes), responseBytes, sealedAt,
+	)
 	exec(`INSERT INTO ae_cppr_cleanups (
 		namespace_id,repository_commit,cleanup_request_digest,resource_registration_request_digest,
 		deletion_authority_receipt_digest,state,claim_generation,owner_implementation_digest,
-		authority_issuer_id,stage_digest,cleanup_receipt_digest,owner_admission_digest,
-		dispatch_ack_digest,result_ingress_digest,result_ingress_receipt_digest,response_digest,
-		request_json,request_bytes,response_json,response_bytes,v45_eligible,v46_eligible,
-		claimed_at,updated_at,dispatched_at,completed_at,sealed_at
+		authority_issuer_id,request_json,request_bytes,v45_eligible,v46_eligible,claimed_at,updated_at
 	) VALUES (
-		$1,$2,$3,$4,$5,'sealed',1,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16,$17::jsonb,$18,
-		TRUE,TRUE,$19,$20,$21,$22,$20
+		$1,$2,$3,$4,$5,'claimed',1,$6,$7,$8::jsonb,$9,TRUE,TRUE,$10,$10
 	)`,
 		authority.NamespaceID, plan.RepositoryCommit, cleanup.request.CleanupRequestDigest,
 		request.RequestDigest, result.DeletionAuthorityReceiptDigest, cleanup.ownerImplementationDigest,
-		admission.authorityIssuer, cleanup.stageDigest, cleanup.receipt.CleanupReceiptDigest,
-		cleanup.ownerAdmissionDigest, cleanup.dispatchAckDigest, cleanup.resultIngressDigest,
-		cleanup.resultIngressReceiptDigest, cleanup.responseDigest,
-		string(cleanup.request.Bytes), cleanup.request.Bytes,
-		string(cleanup.responseBytes), cleanup.responseBytes,
-		claimedAt, cleanup.sealedAt, dispatchedAt, cleanup.receipt.CompletedAt,
+		admission.authorityIssuer, string(cleanup.request.Bytes), cleanup.request.Bytes, claimedAt,
+	)
+	exec(`UPDATE ae_cppr_cleanups SET
+		state='dispatched',stage_digest=$4,dispatched_at=$5,updated_at=$5
+		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`,
+		authority.NamespaceID, plan.RepositoryCommit, cleanup.request.CleanupRequestDigest,
+		cleanup.stageDigest, dispatchedAt,
 	)
 	exec(`INSERT INTO ae_cppr_cleanup_receipts (
 		namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest,
@@ -398,5 +404,15 @@ func persistGoldenProviderResourceAuthority(
 		authority.NamespaceID, plan.RepositoryCommit, cleanup.request.CleanupRequestDigest,
 		cleanup.receipt.CleanupReceiptDigest, string(cleanup.receipt.Bytes), cleanup.receipt.Bytes,
 		cleanup.receipt.CompletedAt,
+	)
+	exec(`UPDATE ae_cppr_cleanups SET
+		state='sealed',cleanup_receipt_digest=$4,owner_admission_digest=$5,dispatch_ack_digest=$6,
+		result_ingress_digest=$7,result_ingress_receipt_digest=$8,response_digest=$9,
+		response_json=$10::jsonb,response_bytes=$11,completed_at=$12,sealed_at=$13,updated_at=$13
+		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`,
+		authority.NamespaceID, plan.RepositoryCommit, cleanup.request.CleanupRequestDigest,
+		cleanup.receipt.CleanupReceiptDigest, cleanup.ownerAdmissionDigest, cleanup.dispatchAckDigest,
+		cleanup.resultIngressDigest, cleanup.resultIngressReceiptDigest, cleanup.responseDigest,
+		string(cleanup.responseBytes), cleanup.responseBytes, cleanup.receipt.CompletedAt, cleanup.sealedAt,
 	)
 }

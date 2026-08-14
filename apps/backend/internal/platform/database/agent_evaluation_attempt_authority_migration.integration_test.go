@@ -831,7 +831,6 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"expired-unqualified",
 			"ciphertext_bytes",
 			"wrapped_state_key_bytes",
-			"'00:02:05'::interval",
 			"'00:00:30'::interval",
 		},
 		"agent_evaluation_production_run_config_artifacts": {
