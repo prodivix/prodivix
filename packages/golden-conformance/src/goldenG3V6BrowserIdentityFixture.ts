@@ -269,12 +269,16 @@ export const selectGoldenG3V6ControlledPlatform = (
     observed.architecture === 'x64' &&
     observed.githubActions === 'true' &&
     observed.imageOS === 'ubuntu24' &&
-    observed.kernelRelease === '6.17.0-1020-azure'
+    (observed.kernelRelease === '6.17.0-1020-azure' ||
+      observed.kernelRelease === '6.17.0-1022-azure')
   ) {
     if (observed.imageVersion === '20260720.247.2') {
       return 'linux-20260720';
     }
-    if (observed.imageVersion === '20260726.254.1') {
+    if (
+      observed.imageVersion === '20260726.254.1' ||
+      observed.imageVersion === '20260810.271.1'
+    ) {
       return 'linux-20260726';
     }
   }

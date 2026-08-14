@@ -10,6 +10,20 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 		name:      "g4-agent-evaluation-attempt-authority-facts",
 		preflight: preflightAgentEvaluationAttemptAuthority,
 		statements: []string{
+			`CREATE OR REPLACE FUNCTION agent_evaluation_jsonb_object_key_count(candidate JSONB)
+				RETURNS BIGINT LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+					SELECT CASE WHEN jsonb_typeof(candidate)='object'
+						THEN (SELECT COUNT(*) FROM jsonb_object_keys(candidate))
+						ELSE -1 END
+				$$`,
+			`CREATE OR REPLACE FUNCTION agent_evaluation_jsonb_array_value_count(
+				candidate JSONB,
+				expected JSONB
+			) RETURNS BIGINT LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+				SELECT CASE WHEN jsonb_typeof(candidate)='array'
+					THEN (SELECT COUNT(*) FROM jsonb_array_elements(candidate) element WHERE element=expected)
+					ELSE -1 END
+			$$`,
 			`ALTER TABLE agent_evaluation_controlled_authority_requests
 				ADD COLUMN IF NOT EXISTS v45_eligible BOOLEAN,
 				ADD COLUMN IF NOT EXISTS stage_digest TEXT,

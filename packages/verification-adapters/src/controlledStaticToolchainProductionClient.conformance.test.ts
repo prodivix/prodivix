@@ -149,8 +149,7 @@ describe('controlled static toolchain production client conformance', () => {
       });
       const timedOut = expect(execution).rejects.toThrow(/timed out/u);
       let processIds:
-        | Readonly<{ parent: number; descendant: number }>
-        | undefined;
+        Readonly<{ parent: number; descendant: number }> | undefined;
       const pidDeadline = startedAt + 4_500;
       while (!processIds && Date.now() < pidDeadline) {
         try {

@@ -160,9 +160,7 @@ export const createGoldenG3V6BrowserAttemptContext = (input: {
     controlCapabilitySnapshotDigest:
       input.runtimeControl.controlCapabilitySnapshotDigest,
     appliedControlDigest: input.runtimeControl.appliedControlDigest,
-    inputRefs: Object.freeze([
-      ...byteEntries.map(([ref]) => ref),
-    ]),
+    inputRefs: Object.freeze([...byteEntries.map(([ref]) => ref)]),
     inputResolver: Object.freeze({
       read: async (ref: VerificationAdapterInputRef) => {
         const bytes = byId.get(ref.id);

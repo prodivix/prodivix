@@ -192,14 +192,14 @@ jobs:
           set -euo pipefail
           test "${ImageOS:-}" = 'ubuntu24'
           case "${ImageVersion:-}" in
-            20260720.247.2|20260726.254.1) ;;
+            20260720.247.2|20260726.254.1|20260810.271.1) ;;
             *)
               echo "::error::Runner ImageVersion is not pre-adopted: ${ImageVersion:-missing}"
               exit 1
               ;;
           esac
           test "$(uname -m)" = 'x86_64'
-          test "$(uname -r)" = '6.17.0-1020-azure'
+          test "$(uname -r)" = '6.17.0-1020-azure' -o "$(uname -r)" = '6.17.0-1022-azure'
           echo "PRODIVIX_G3_V6_RUNNER_IMAGE_OS=${ImageOS}" >> "${GITHUB_ENV}"
           echo "PRODIVIX_G3_V6_RUNNER_IMAGE_VERSION=${ImageVersion}" >> "${GITHUB_ENV}"
       - name: Configure and verify pre-adopted rootless Podman

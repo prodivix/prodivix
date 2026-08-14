@@ -166,5 +166,12 @@ gatedDescribe('Golden G3 V6 pre-adopted browser identities', () => {
         imageVersion: '20260726.254.1',
       })
     ).toBe('linux-20260726');
+    expect(
+      selectGoldenG3V6ControlledPlatform({
+        ...observed,
+        kernelRelease: '6.17.0-1022-azure',
+        imageVersion: '20260810.271.1',
+      })
+    ).toBe('linux-20260726');
   });
 });
