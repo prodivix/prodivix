@@ -1116,7 +1116,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"agent_evaluation_provider_result_spool_receipts", "FOR SHARE",
 		},
 		"enforce_agent_evaluation_capability_effect_registry_binding()": {
-			"requestRefAuthority", "sourceObservationReceiptDigest", "object_key_count(NEW.receipt_json) <> 31",
+			"requestRefAuthority", "sourceObservationReceiptDigest", "object_key_count(NEW.receipt_json)<>31",
 		},
 		"enforce_agent_evaluation_capability_effect_input_capacity()": {
 			"5880", "8589934592", "FOR UPDATE",
