@@ -1369,7 +1369,7 @@ func agentEvaluationCapabilityEffectProviderJournalConstraintStatements() []stri
 					) ordered
 					WHERE value !~ '^sha256-[a-f0-9]{64}$'
 						OR (prior IS NOT NULL AND prior COLLATE "C">=value COLLATE "C")
-				),FALSE
+				),FALSE)
 			$$`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_provider_journal_cleanup_request()
 			RETURNS trigger AS $$
