@@ -554,6 +554,7 @@ func evaluationCapabilityProbePlanTestAdmissions(
 	t *testing.T,
 	plan *evaluationPlanFact,
 	authority EvaluationAuthority,
+	preferExistingProbeProgram bool,
 ) []evaluationCapabilityProbePlanTestAdmission {
 	t.Helper()
 	providers := make(map[string]map[string]any)
@@ -611,7 +612,14 @@ func evaluationCapabilityProbePlanTestAdmissions(
 			"qualificationCapabilityProfileDigest": stringMember(optionalAuthority, "qualificationCapabilityProfileDigest"),
 			"capabilityId":                         stringMember(optionalAuthority, "capabilityId"),
 			"declaredCapabilityProfileDigests":     optionalAuthority["declaredCapabilityProfileDigests"],
-			"probeProgram":                         program.Value,
+			"probeProgram": func() any {
+				if preferExistingProbeProgram {
+					if existing := originalEvidence["probeProgram"]; existing != nil {
+						return existing
+					}
+				}
+				return program.Value
+			}(),
 			"probeProviderResourceAuthority": func() any {
 				if resourceResult == nil {
 					return nil
@@ -925,7 +933,7 @@ func TestEvaluationPlanCapabilityProbeAdmissionPreflightRequiresExactDurableAuth
 	authority := EvaluationAuthority{
 		Kind: "service", PrincipalID: "evaluation.probe-plan-test", NamespaceID: "evaluation.probe-plan-test",
 	}
-	admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority)
+	admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority, false)
 
 	for name, configure := range map[string]func(sqlmock.Sqlmock){
 		"exact sealed authorities": func(mock sqlmock.Sqlmock) {
@@ -1019,7 +1027,7 @@ func TestEvaluationPlanCapabilityProbeAdmissionRejectsRecomputedBundleWithoutSea
 	authority := EvaluationAuthority{
 		Kind: "service", PrincipalID: "evaluation.probe-plan-recomputed-test", NamespaceID: "evaluation.probe-plan-recomputed-test",
 	}
-	admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority)
+	admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority, false)
 	first := admissions[0]
 	runtimeAuthority, ok := objectMember(first.optionalAuthority, "runtimeFactSourceAuthority")
 	if !ok {

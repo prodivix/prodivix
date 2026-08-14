@@ -24,7 +24,7 @@ func TestEvaluationCapabilityProbeProviderResourceCleanupArchiveRecomputesExactF
 				Kind: "service", PrincipalID: "evaluation.probe-cleanup-archive-test",
 				NamespaceID: "evaluation.probe-cleanup-archive-test",
 			}
-			admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority)
+			admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority, false)
 			database, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatal(err)

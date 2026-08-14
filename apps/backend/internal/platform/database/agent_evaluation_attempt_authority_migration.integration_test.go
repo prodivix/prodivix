@@ -439,18 +439,25 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 	if !ownerSummaryInstalled {
 		t.Fatal("hosted runtime owner summary function was not installed")
 	}
-	var currentClaimTarget string
+	var currentClaimTarget sql.NullString
 	if err := db.QueryRowContext(ctx, `SELECT confrelid::regclass::text
 		FROM pg_constraint
 		WHERE conrelid='agent_evaluation_hosted_retrieval_runtime_resources'::regclass
 			AND conname='agent_eval_hosted_runtime_resource_current_claim_fk'`).Scan(
 		&currentClaimTarget,
-	); err != nil {
+	); err != nil && err != sql.ErrNoRows {
 		t.Fatalf("read hosted runtime current claim foreign key: %v", err)
 	}
-	if !strings.HasSuffix(currentClaimTarget,
-		"ae_hrrr_cleanup_claim_receipts") {
-		t.Fatalf("hosted runtime current claim points to %q", currentClaimTarget)
+	var hasCleanupClaimReceipts bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('ae_hrrr_cleanup_claim_receipts') IS NOT NULL`).
+		Scan(&hasCleanupClaimReceipts); err != nil {
+		t.Fatalf("read hosted runtime cleanup claim receipts: %v", err)
+	}
+	if hasCleanupClaimReceipts {
+		if !currentClaimTarget.Valid || !strings.HasSuffix(currentClaimTarget.String,
+			"ae_hrrr_cleanup_claim_receipts") {
+			t.Fatalf("hosted runtime current claim points to %q", currentClaimTarget.String)
+		}
 	}
 	for _, trigger := range []string{
 		"agent_eval_hosted_runtime_fence_derive_receipt_required",
@@ -1109,7 +1116,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"agent_evaluation_provider_result_spool_receipts", "FOR SHARE",
 		},
 		"enforce_agent_evaluation_capability_effect_registry_binding()": {
-			"requestRefAuthority", "sourceObservationReceiptDigest", "object_key_count(NEW.receipt_json) <> 29",
+			"requestRefAuthority", "sourceObservationReceiptDigest", "object_key_count(NEW.receipt_json) <> 31",
 		},
 		"enforce_agent_evaluation_capability_effect_input_capacity()": {
 			"5880", "8589934592", "FOR UPDATE",

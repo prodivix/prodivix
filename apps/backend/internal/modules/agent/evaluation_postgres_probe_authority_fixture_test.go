@@ -23,7 +23,7 @@ func storeGoldenEvaluationPlan(
 	if err != nil {
 		t.Fatal(err)
 	}
-	admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority)
+	admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority, true)
 	persistGoldenEvaluationCapabilityProbeAuthorities(t, repository.db, authority, plan, admissions)
 	encoded := encodeGoldenEvaluationPlan(t, planBytes, plan.Value)
 	record, replayed, err := repository.StoreEvaluationPlan(context.Background(), authority, encoded)
