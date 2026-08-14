@@ -37,6 +37,7 @@ type evaluationCapabilityProbeProgramSpec struct {
 	maximumToolCalls          int64
 	maximumProviderRoundTrips int64
 	maximumPollAttempts       int64
+	maximumRequestBytes       int64
 }
 
 var evaluationCapabilityProbeProgramSpecs = map[string]evaluationCapabilityProbeProgramSpec{
@@ -76,7 +77,7 @@ var evaluationCapabilityProbeProgramSpecs = map[string]evaluationCapabilityProbe
 		intentKind:  "isolated-prompt-cache-roundtrip",
 		instruction: "Return the public marker through a task-isolated prompt cache roundtrip.", documentText: nil,
 		requestPhases: []any{"cache-cold", "cache-warm"}, requiredToolNames: []any{},
-		cachePrefixResource: true,
+		cachePrefixResource: true, maximumRequestBytes: 65_536,
 		supportedRequirements: []any{
 			map[string]any{"factKind": "provider-cache-receipt", "minimumCount": int64(1), "providerEventType": nil},
 			map[string]any{"factKind": "usage-vector", "minimumCount": int64(1), "providerEventType": nil},
@@ -306,7 +307,12 @@ func expectedEvaluationCapabilityProbeProgram(profileID string, profileDigest st
 			},
 		},
 		"hardLimits": map[string]any{
-			"maximumRequestBytes": int64(16_384), "maximumResponseBytes": int64(262_144),
+			"maximumRequestBytes": func() int64 {
+				if spec.maximumRequestBytes > 0 {
+					return spec.maximumRequestBytes
+				}
+				return 16_384
+			}(), "maximumResponseBytes": int64(262_144),
 			"maximumNormalizedFacts": int64(16), "maximumToolCalls": spec.maximumToolCalls,
 			"maximumProviderRoundTrips": maximumProviderRoundTrips,
 			"maximumPollAttempts":       spec.maximumPollAttempts, "maximumSingleDispatchMs": int64(30_000),
@@ -327,7 +333,12 @@ func expectedEvaluationCapabilityProbeProgram(profileID string, profileDigest st
 	return evaluationCapabilityProbeProgram{
 		Value: program, ProfileID: profileID, ProgramDigest: programDigest,
 		ProfileProjectionDigest: projectionDigest, MaximumNormalizedFacts: 16,
-		MaximumRequestBytes: 16_384, MaximumResponseBytes: 262_144,
+		MaximumRequestBytes: func() int64 {
+			if spec.maximumRequestBytes > 0 {
+				return spec.maximumRequestBytes
+			}
+			return 16_384
+		}(), MaximumResponseBytes: 262_144,
 		MaximumToolCalls: spec.maximumToolCalls, MaximumProviderRoundTrips: maximumProviderRoundTrips,
 		MaximumPollAttempts: spec.maximumPollAttempts, MaximumSingleDispatchMS: 30_000,
 		MaximumExecutionDurationMS: 120_000, RequiredToolNames: requiredToolNames,

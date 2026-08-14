@@ -26,70 +26,15 @@ func storeGoldenEvaluationPlan(
 	admissions := evaluationCapabilityProbePlanTestAdmissions(t, &plan, authority, false)
 	persistGoldenEvaluationCapabilityProbeAuthorities(t, repository.db, authority, plan, admissions)
 	encoded := encodeGoldenEvaluationPlan(t, planBytes, plan.Value)
-	insertGoldenEvaluationPlanRow(t, repository.db, authority, plan, encoded, admissions)
-	return evaluationRecord(
-		authority.NamespaceID, plan.PlanDigest, "evaluation-plan", plan.PlanID, plan.PlanDigest,
-		encoded, plan.PlannedAt,
-	), plan, encoded
-}
-
-func insertGoldenEvaluationPlanRow(
-	t *testing.T,
-	db *sql.DB,
-	authority EvaluationAuthority,
-	plan evaluationPlanFact,
-	encoded []byte,
-	admissions []evaluationCapabilityProbePlanTestAdmission,
-) {
-	t.Helper()
-	ctx := context.Background()
-	tx, err := db.BeginTx(ctx, nil)
+	record, replayed, err := repository.StoreEvaluationPlan(context.Background(), authority, encoded)
+	if err != nil || replayed {
+		t.Fatalf("store golden evaluation plan replay=%v err=%v", replayed, err)
+	}
+	stored, err := decodeEvaluationPlan(record.FactBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE agent_evaluation_plans DISABLE TRIGGER USER`); err != nil {
-		t.Fatalf("disable plan fixture triggers: %v", err)
-	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_plans (
-		namespace_id,evaluation_plan_id,plan_digest,repository_commit,planned_journey_count,
-		plan_json,plan_bytes,planned_at,expires_at
-	) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9)`,
-		authority.NamespaceID, plan.PlanID, plan.PlanDigest, plan.RepositoryCommit,
-		plan.PlannedJourneyCount, string(encoded), encoded, plan.PlannedAt, plan.ExpiresAt,
-	); err != nil {
-		t.Fatalf("insert golden evaluation plan: %v", err)
-	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_budget_ledgers (
-		namespace_id,plan_digest,revision,updated_at
-	) VALUES ($1,$2,0,$3)`, authority.NamespaceID, plan.PlanDigest, plan.PlannedAt); err != nil {
-		t.Fatalf("insert golden evaluation budget ledger: %v", err)
-	}
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE agent_evaluation_plan_capability_probe_admission_links DISABLE TRIGGER USER`); err != nil {
-		t.Fatalf("disable plan link fixture triggers: %v", err)
-	}
-	for _, admission := range admissions {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_plan_capability_probe_admission_links (
-			namespace_id,plan_digest,repository_commit,target_id,target_digest,
-			authority_digest,evidence_digest,request_digest,created_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-			authority.NamespaceID, plan.PlanDigest, plan.RepositoryCommit,
-			stringMember(admission.target, "targetId"), stringMember(admission.target, "targetDigest"),
-			stringMember(admission.optionalAuthority, "authorityDigest"),
-			admission.sealed.EvidenceDigest, admission.request.RequestDigest, plan.PlannedAt,
-		); err != nil {
-			t.Fatalf("insert golden probe admission link: %v", err)
-		}
-	}
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE agent_evaluation_plan_capability_probe_admission_links ENABLE TRIGGER USER`); err != nil {
-		t.Fatalf("restore plan link fixture triggers: %v", err)
-	}
-	if _, err := tx.ExecContext(ctx, `ALTER TABLE agent_evaluation_plans ENABLE TRIGGER USER`); err != nil {
-		t.Fatalf("restore plan fixture triggers: %v", err)
-	}
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("commit golden evaluation plan: %v", err)
-	}
+	return record, stored, encoded
 }
 
 func encodeGoldenEvaluationPlan(t *testing.T, original []byte, value map[string]any) []byte {
