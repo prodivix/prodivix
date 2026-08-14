@@ -719,14 +719,7 @@ func TestEvaluationReviewCandidatePostgreSQLRoundTrip(t *testing.T) {
 	authority := EvaluationAuthority{
 		Kind: "service", PrincipalID: "evaluation.review-runner", NamespaceID: "evaluation.g4-review-candidate-pg",
 	}
-	planRecord, replayed, err := repositoryA.StoreEvaluationPlan(ctx, authority, vector.Facts.Plan)
-	if err != nil || replayed {
-		t.Fatalf("store review-candidate plan = %#v replay=%v err=%v", planRecord, replayed, err)
-	}
-	plan, err := decodeEvaluationPlan(vector.Facts.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, plan, _ := storeGoldenEvaluationPlan(t, repositoryA, authority, vector.Facts.Plan)
 	partition := EvaluationPlanPartition{PlanDigest: plan.PlanDigest, RepositoryCommit: plan.RepositoryCommit}
 	subjectiveSource := evaluationSubjectiveAttemptSource(t, plan, vector.Facts.Attempt)
 	fixtures := evaluationAuthenticityFixturesForPlan(t, plan, subjectiveSource)
@@ -814,17 +807,10 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 	}, vector.Facts.Plan); !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("user evaluation authority error = %v, want ErrUnauthorized", err)
 	}
-	plan, replayed, err := repositoryA.StoreEvaluationPlan(ctx, authority, vector.Facts.Plan)
-	if err != nil || replayed {
-		t.Fatalf("store evaluation plan = %#v replay=%v err=%v", plan, replayed, err)
-	}
-	replayedPlan, replayed, err := repositoryB.StoreEvaluationPlan(ctx, authority, vector.Facts.Plan)
+	plan, decodedPlan, encodedPlan := storeGoldenEvaluationPlan(t, repositoryA, authority, vector.Facts.Plan)
+	replayedPlan, replayed, err := repositoryB.StoreEvaluationPlan(ctx, authority, encodedPlan)
 	if err != nil || !replayed || replayedPlan.FactDigest != plan.FactDigest {
 		t.Fatalf("replay evaluation plan = %#v replay=%v err=%v", replayedPlan, replayed, err)
-	}
-	decodedPlan, err := decodeEvaluationPlan(vector.Facts.Plan)
-	if err != nil {
-		t.Fatal(err)
 	}
 	authenticityFixtures := evaluationPostgresPreDispatchCapabilityFixtures(
 		t, decodedPlan, evaluationAuthenticityFixturesForPlan(t, decodedPlan, vector.Facts.Attempt),

@@ -71,14 +71,7 @@ func TestEvaluationFinalizationIntentAndIncompleteTransactionPostgreSQL(t *testi
 	authority := EvaluationAuthority{
 		Kind: "service", PrincipalID: "evaluation.finalization.integration", NamespaceID: "evaluation.g4-finalization",
 	}
-	planRecord, replayed, err := repositoryA.StoreEvaluationPlan(ctx, authority, vector.Facts.Plan)
-	if err != nil || replayed {
-		t.Fatalf("store finalization plan replay=%v err=%v", replayed, err)
-	}
-	plan, err := decodeEvaluationPlan(planRecord.FactBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, plan, _ := storeGoldenEvaluationPlan(t, repositoryA, authority, vector.Facts.Plan)
 	partition := EvaluationPlanPartition{PlanDigest: plan.PlanDigest, RepositoryCommit: plan.RepositoryCommit}
 	completedAt := plan.PlannedAt.Add(time.Minute).UTC().Truncate(time.Millisecond)
 	serverNow := completedAt.Add(time.Minute)

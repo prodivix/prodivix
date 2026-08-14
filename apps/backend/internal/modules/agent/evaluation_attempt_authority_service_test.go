@@ -907,17 +907,11 @@ func TestEvaluationAttemptAuthorityPostgreSQLLeaseGrantSetAndJournalFences(t *te
 	databaseA, databaseB := openAgentPostgreSQL(t)
 	repositoryA, repositoryB := NewRepository(databaseA), NewRepository(databaseB)
 	vector := readEvaluationRepositoryVector(t)
-	plan, err := decodeEvaluationPlan(vector.Facts.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
 	authority := EvaluationAuthority{
 		Kind: "service", PrincipalID: "evaluation.attempt-authority.integration",
 		NamespaceID: "evaluation.g4-attempt-authority",
 	}
-	if _, _, err := repositoryA.StoreEvaluationPlan(context.Background(), authority, vector.Facts.Plan); err != nil {
-		t.Fatal(err)
-	}
+	_, plan, _ := storeGoldenEvaluationPlan(t, repositoryA, authority, vector.Facts.Plan)
 	partition := EvaluationPlanPartition{PlanDigest: plan.PlanDigest, RepositoryCommit: plan.RepositoryCommit}
 	planned, err := evaluationStatusPlannedAttempts(plan)
 	if err != nil || len(planned) == 0 {
