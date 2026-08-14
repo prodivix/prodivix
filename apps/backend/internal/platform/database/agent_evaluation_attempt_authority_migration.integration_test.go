@@ -352,12 +352,12 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		"agent_evaluation_capability_probe_response_spools",
 		"agent_evaluation_capability_probe_reference_receipts",
 		"agent_evaluation_plan_capability_probe_admission_links",
-		"agent_evaluation_capability_probe_provider_resource_registrations",
-		"agent_evaluation_capability_probe_provider_resource_manifests",
-		"agent_evaluation_capability_probe_provider_resource_content_upload_receipts",
-		"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts",
-		"agent_evaluation_capability_probe_provider_resource_cleanups",
-		"agent_evaluation_capability_probe_provider_resource_cleanup_receipts",
+		"ae_cppr_registrations",
+		"ae_cppr_manifests",
+		"ae_cppr_content_upload_receipts",
+		"ae_cppr_deletion_authority_receipts",
+		"ae_cppr_cleanups",
+		"ae_cppr_cleanup_receipts",
 		"agent_evaluation_owner_states",
 		"agent_evaluation_owner_state_operations",
 		"agent_evaluation_owner_state_cas_artifacts",
@@ -480,15 +480,15 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		t.Fatalf("production run-config artifact columns=%d, want 14", runConfigArtifactColumnCount)
 	}
 	for table, want := range map[string]int{
-		"agent_evaluation_capability_probe_provider_resource_registrations":               41,
-		"agent_evaluation_capability_probe_provider_resource_manifests":                   7,
-		"agent_evaluation_capability_probe_provider_resource_content_upload_receipts":     7,
-		"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts": 7,
-		"agent_evaluation_capability_probe_provider_resource_cleanups":                    26,
-		"agent_evaluation_capability_probe_provider_resource_cleanup_receipts":            7,
-		"agent_evaluation_native_optional_capability_bootstrap_sources":                   60,
-		"agent_evaluation_native_provider_state_vault_records":                            55,
-		"agent_evaluation_native_provider_state_vault_recoveries":                         16,
+		"ae_cppr_registrations":               41,
+		"ae_cppr_manifests":                   7,
+		"ae_cppr_content_upload_receipts":     7,
+		"ae_cppr_deletion_authority_receipts": 7,
+		"ae_cppr_cleanups":                    26,
+		"ae_cppr_cleanup_receipts":            7,
+		"agent_evaluation_native_optional_capability_bootstrap_sources": 60,
+		"agent_evaluation_native_provider_state_vault_records":          55,
+		"agent_evaluation_native_provider_state_vault_recoveries":       16,
 	} {
 		var got int
 		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.columns
@@ -696,7 +696,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"authority_digest",
 			"evidence_digest",
 		},
-		"agent_evaluation_capability_probe_provider_resource_registrations": {
+		"ae_cppr_registrations": {
 			"gemini-interactions",
 			"openai-responses",
 			"g4-provider-hosted-retrieval-core",
@@ -712,26 +712,26 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"262144",
 			"65536",
 		},
-		"agent_evaluation_capability_probe_provider_resource_manifests": {
-			"agent_evaluation_capability_probe_provider_resource_registrations",
+		"ae_cppr_manifests": {
+			"ae_cppr_registrations",
 			"manifest_digest",
 			"receipt_bytes",
 			"65536",
 		},
-		"agent_evaluation_capability_probe_provider_resource_content_upload_receipts": {
-			"agent_evaluation_capability_probe_provider_resource_registrations",
+		"ae_cppr_content_upload_receipts": {
+			"ae_cppr_registrations",
 			"content_upload_receipt_digest",
 			"receipt_bytes",
 			"65536",
 		},
-		"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts": {
-			"agent_evaluation_capability_probe_provider_resource_registrations",
+		"ae_cppr_deletion_authority_receipts": {
+			"ae_cppr_registrations",
 			"deletion_authority_receipt_digest",
 			"receipt_bytes",
 			"16384",
 		},
-		"agent_evaluation_capability_probe_provider_resource_cleanups": {
-			"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts",
+		"ae_cppr_cleanups": {
+			"ae_cppr_deletion_authority_receipts",
 			"resource_registration_request_digest",
 			"deletion_authority_receipt_digest",
 			"cleanup_receipt_digest",
@@ -739,8 +739,8 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"result_ingress_receipt_digest",
 			"131072",
 		},
-		"agent_evaluation_capability_probe_provider_resource_cleanup_receipts": {
-			"agent_evaluation_capability_probe_provider_resource_cleanups",
+		"ae_cppr_cleanup_receipts": {
+			"ae_cppr_cleanups",
 			"cleanup_receipt_digest",
 			"receipt_bytes",
 			"65536",
@@ -1105,12 +1105,12 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"providerResourceAuthority", "result_ingress_receipt_digest", "exact atomic components",
 		},
 		"enforce_agent_evaluation_probe_admission_provider_resource()": {
-			"probeProviderResourceAuthority", "agent_evaluation_capability_probe_provider_resource_registrations",
+			"probeProviderResourceAuthority", "ae_cppr_registrations",
 			"state='sealed'", "FOR SHARE",
 		},
 		"enforce_agent_evaluation_plan_probe_provider_resource_link()": {
 			"optionalCapabilitySupportAuthority,probeProviderResourceAuthority",
-			"agent_evaluation_capability_probe_provider_resource_registrations",
+			"ae_cppr_registrations",
 			"registered_at<=plan_record.planned_at", "expires_at>=plan_record.expires_at",
 		},
 		"enforce_agent_evaluation_probe_provider_resource_cleanup_capacity()": {
@@ -1128,7 +1128,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		},
 		"enforce_agent_evaluation_plan_probe_provider_resource_cleanup_link()": {
 			"probeProviderResourceDeletionAuthorityReceipt", "probeProviderResourceCleanupReceipt",
-			"agent_evaluation_capability_probe_provider_resource_cleanup_receipts",
+			"ae_cppr_cleanup_receipts",
 			"cleanup.completed_at<=plan_record.planned_at", "FOR SHARE",
 		},
 		"enforce_agent_evaluation_native_optional_bootstrap_capacity()": {
@@ -1188,37 +1188,37 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		t.Fatalf("plan runtime-fact registration triggers=%d, want 1", planRegistrationCompletenessTriggers)
 	}
 	for table, minimumTriggerCount := range map[string]int{
-		"agent_evaluation_runtime_fact_source_owner_registrations":                        2,
-		"agent_evaluation_capability_probe_admissions":                                    2,
-		"agent_evaluation_capability_probe_response_spools":                               3,
-		"agent_evaluation_capability_probe_reference_receipts":                            3,
-		"agent_evaluation_plan_capability_probe_admission_links":                          4,
-		"agent_evaluation_capability_probe_provider_resource_registrations":               2,
-		"agent_evaluation_capability_probe_provider_resource_manifests":                   3,
-		"agent_evaluation_capability_probe_provider_resource_content_upload_receipts":     3,
-		"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts": 3,
-		"agent_evaluation_capability_probe_provider_resource_cleanups":                    3,
-		"agent_evaluation_capability_probe_provider_resource_cleanup_receipts":            3,
-		"agent_evaluation_optional_capability_fact_sources":                               3,
-		"agent_evaluation_optional_fact_authorities":                                      4,
-		"agent_evaluation_native_optional_capability_bootstrap_sources":                   5,
-		"agent_evaluation_native_provider_state_vault_records":                            2,
-		"agent_evaluation_production_run_config_artifacts":                                3,
-		"agent_evaluation_capability_effect_request_ref_authorities":                      4,
-		"agent_evaluation_capability_effect_current_turn_events":                          4,
-		"agent_evaluation_capability_effect_input_authority_registry_receipts":            4,
-		"agent_evaluation_owner_states":                                                   3,
-		"agent_evaluation_owner_state_operations":                                         3,
-		"agent_evaluation_owner_state_cas_artifacts":                                      2,
-		"agent_evaluation_attempt_authority_owner_receipts":                               3,
-		"agent_evaluation_provider_capability_observation_receipts":                       3,
-		"agent_evaluation_capability_specific_receipts":                                   3,
-		"agent_evaluation_attempt_authority_commit_links":                                 3,
-		"agent_evaluation_provider_capability_observation_commit_links":                   3,
-		"agent_evaluation_authority_attestation_v45_roots":                                2,
-		"agent_evaluation_evidence_root_v45_roots":                                        2,
-		"agent_evaluation_authority_attestations":                                         3,
-		"agent_evaluation_evidence_roots":                                                 3,
+		"agent_evaluation_runtime_fact_source_owner_registrations":             2,
+		"agent_evaluation_capability_probe_admissions":                         2,
+		"agent_evaluation_capability_probe_response_spools":                    3,
+		"agent_evaluation_capability_probe_reference_receipts":                 3,
+		"agent_evaluation_plan_capability_probe_admission_links":               4,
+		"ae_cppr_registrations":                                                2,
+		"ae_cppr_manifests":                                                    3,
+		"ae_cppr_content_upload_receipts":                                      3,
+		"ae_cppr_deletion_authority_receipts":                                  3,
+		"ae_cppr_cleanups":                                                     3,
+		"ae_cppr_cleanup_receipts":                                             3,
+		"agent_evaluation_optional_capability_fact_sources":                    3,
+		"agent_evaluation_optional_fact_authorities":                           4,
+		"agent_evaluation_native_optional_capability_bootstrap_sources":        5,
+		"agent_evaluation_native_provider_state_vault_records":                 2,
+		"agent_evaluation_production_run_config_artifacts":                     3,
+		"agent_evaluation_capability_effect_request_ref_authorities":           4,
+		"agent_evaluation_capability_effect_current_turn_events":               4,
+		"agent_evaluation_capability_effect_input_authority_registry_receipts": 4,
+		"agent_evaluation_owner_states":                                        3,
+		"agent_evaluation_owner_state_operations":                              3,
+		"agent_evaluation_owner_state_cas_artifacts":                           2,
+		"agent_evaluation_attempt_authority_owner_receipts":                    3,
+		"agent_evaluation_provider_capability_observation_receipts":            3,
+		"agent_evaluation_capability_specific_receipts":                        3,
+		"agent_evaluation_attempt_authority_commit_links":                      3,
+		"agent_evaluation_provider_capability_observation_commit_links":        3,
+		"agent_evaluation_authority_attestation_v45_roots":                     2,
+		"agent_evaluation_evidence_root_v45_roots":                             2,
+		"agent_evaluation_authority_attestations":                              3,
+		"agent_evaluation_evidence_roots":                                      3,
 	} {
 		var triggerCount int
 		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pg_trigger
@@ -1251,12 +1251,12 @@ func assertAgentEvaluationFreshV45AuthorityTablesNotBackfilled(t *testing.T, db 
 		"agent_evaluation_capability_probe_response_spools",
 		"agent_evaluation_capability_probe_reference_receipts",
 		"agent_evaluation_plan_capability_probe_admission_links",
-		"agent_evaluation_capability_probe_provider_resource_registrations",
-		"agent_evaluation_capability_probe_provider_resource_manifests",
-		"agent_evaluation_capability_probe_provider_resource_content_upload_receipts",
-		"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts",
-		"agent_evaluation_capability_probe_provider_resource_cleanups",
-		"agent_evaluation_capability_probe_provider_resource_cleanup_receipts",
+		"ae_cppr_registrations",
+		"ae_cppr_manifests",
+		"ae_cppr_content_upload_receipts",
+		"ae_cppr_deletion_authority_receipts",
+		"ae_cppr_cleanups",
+		"ae_cppr_cleanup_receipts",
 		"agent_evaluation_runtime_fact_source_owner_registrations",
 		"agent_evaluation_owner_states",
 		"agent_evaluation_owner_state_operations",
@@ -1293,12 +1293,12 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLV41Upgrade(t *testing
 		"agent_evaluation_capability_probe_response_spools",
 		"agent_evaluation_capability_probe_reference_receipts",
 		"agent_evaluation_plan_capability_probe_admission_links",
-		"agent_evaluation_capability_probe_provider_resource_registrations",
-		"agent_evaluation_capability_probe_provider_resource_manifests",
-		"agent_evaluation_capability_probe_provider_resource_content_upload_receipts",
-		"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts",
-		"agent_evaluation_capability_probe_provider_resource_cleanups",
-		"agent_evaluation_capability_probe_provider_resource_cleanup_receipts",
+		"ae_cppr_registrations",
+		"ae_cppr_manifests",
+		"ae_cppr_content_upload_receipts",
+		"ae_cppr_deletion_authority_receipts",
+		"ae_cppr_cleanups",
+		"ae_cppr_cleanup_receipts",
 		"agent_evaluation_owner_states",
 		"agent_evaluation_owner_state_operations",
 		"agent_evaluation_owner_state_cas_artifacts",
@@ -5293,7 +5293,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	request["requestDigest"] = requestDigest
 	requestBytes := attemptAuthorityMigrationCanonicalBytes(t, request)
 	providerConfigurationDigest := attemptAuthorityMigrationCanonicalDigest(t, providerConfiguration)
-	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_capability_probe_provider_resource_registrations (
+	if _, err := db.ExecContext(ctx, `INSERT INTO ae_cppr_registrations (
 		namespace_id,repository_commit,request_digest,state,claim_generation,
 		provider_configuration_id,provider_configuration_digest,protocol_family,
 		model_id,model_lineage_digest,adapter_digest,capability_profile_id,
@@ -5312,7 +5312,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		"format": "prodivix.agent-evaluation-capability-probe-provider-resource-stage", "version": 1,
 		"requestDigest": requestDigest, "ownerImplementationDigest": ownerImplementationDigest,
 	})
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_registrations
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_registrations
 		SET state='dispatched',stage_digest=$4,dispatched_at=$5,updated_at=$5
 		WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`,
 		namespaceID, repositoryCommit, requestDigest, stageDigest, dispatchedAt); err != nil {
@@ -5381,7 +5381,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	swappedDeletion["deletionAuthorityReceiptDigest"] = swappedDeletionDigest
 	swappedDeletionBytes := attemptAuthorityMigrationCanonicalBytes(t, swappedDeletion)
 	if _, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts (
+		ae_cppr_deletion_authority_receipts (
 		namespace_id,repository_commit,request_digest,deletion_authority_receipt_digest,
 		receipt_json,receipt_bytes,created_at
 	) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7)`, namespaceID, repositoryCommit, requestDigest,
@@ -5435,9 +5435,9 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		value                       map[string]any
 		bytes                       []byte
 	}{
-		{"agent_evaluation_capability_probe_provider_resource_manifests", "manifest_digest", manifestDigest, manifest, manifestBytes},
-		{"agent_evaluation_capability_probe_provider_resource_content_upload_receipts", "content_upload_receipt_digest", uploadDigest, upload, uploadBytes},
-		{"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts", "deletion_authority_receipt_digest", deletionDigest, deletion, deletionBytes},
+		{"ae_cppr_manifests", "manifest_digest", manifestDigest, manifest, manifestBytes},
+		{"ae_cppr_content_upload_receipts", "content_upload_receipt_digest", uploadDigest, upload, uploadBytes},
+		{"ae_cppr_deletion_authority_receipts", "deletion_authority_receipt_digest", deletionDigest, deletion, deletionBytes},
 	} {
 		query := "INSERT INTO " + pgx.Identifier{component.table}.Sanitize() +
 			" (namespace_id,repository_commit,request_digest," + component.digestColumn +
@@ -5447,7 +5447,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 			t.Fatalf("store provider resource component %s: %v", component.table, err)
 		}
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_registrations SET
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_registrations SET
 		resource_result_digest=$4,owner_admission_digest=$5,dispatch_ack_digest=$6,
 		result_ingress_digest=$7,result_ingress_receipt_digest=$8,resource_manifest_digest=$9,
 		content_upload_receipt_digest=$10,deletion_authority_receipt_digest=$11,
@@ -5469,7 +5469,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	response := attemptAuthorityMigrationCloneObject(t, responseBase)
 	response["registrationReceiptDigest"] = registrationReceiptDigest
 	responseBytes := attemptAuthorityMigrationCanonicalBytes(t, response)
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_registrations
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_registrations
 		SET state='sealed',registration_receipt_digest=$4,response_json=$5::jsonb,
 			response_bytes=$6,sealed_at=$7,updated_at=$7
 		WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`, namespaceID,
@@ -5477,7 +5477,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		sealedAt); err != nil {
 		t.Fatalf("seal provider resource: %v", err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_capability_probe_provider_resource_manifests (
+	if _, err := db.ExecContext(ctx, `INSERT INTO ae_cppr_manifests (
 		namespace_id,repository_commit,request_digest,manifest_digest,receipt_json,receipt_bytes,created_at
 	) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7) ON CONFLICT DO NOTHING`, namespaceID,
 		repositoryCommit, requestDigest, manifestDigest, string(manifestBytes), manifestBytes,
@@ -5487,14 +5487,14 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	swappedManifest := attemptAuthorityMigrationCloneObject(t, manifest)
 	swappedManifest["providerResourceId"] = "resource.v45.swapped"
 	swappedManifestBytes := attemptAuthorityMigrationCanonicalBytes(t, swappedManifest)
-	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_capability_probe_provider_resource_manifests (
+	if _, err := db.ExecContext(ctx, `INSERT INTO ae_cppr_manifests (
 		namespace_id,repository_commit,request_digest,manifest_digest,receipt_json,receipt_bytes,created_at
 	) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7) ON CONFLICT DO NOTHING`, namespaceID,
 		repositoryCommit, requestDigest, manifestDigest, string(swappedManifestBytes), swappedManifestBytes,
 		sealedAt.Add(time.Second)); err == nil {
 		t.Fatal("provider resource component replay accepted swapped bytes")
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_registrations
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_registrations
 		SET stage_digest=$4 WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`,
 		namespaceID, repositoryCommit, requestDigest, attemptAuthorityMigrationDigest("swapped-resource-stage")); err == nil {
 		t.Fatal("sealed provider resource accepted a stage fence swap")
@@ -5502,7 +5502,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	var state string
 	var storedResult, storedReceipt string
 	if err := db.QueryRowContext(ctx, `SELECT state,resource_result_digest,registration_receipt_digest
-		FROM agent_evaluation_capability_probe_provider_resource_registrations
+		FROM ae_cppr_registrations
 		WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`, namespaceID,
 		repositoryCommit, requestDigest).Scan(&state, &storedResult, &storedReceipt); err != nil {
 		t.Fatalf("read sealed provider resource: %v", err)
@@ -5529,7 +5529,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	cleanupRequest["cleanupRequestDigest"] = cleanupRequestDigest
 	cleanupRequestBytes := attemptAuthorityMigrationCanonicalBytes(t, cleanupRequest)
 	if _, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_capability_probe_provider_resource_cleanups (
+		ae_cppr_cleanups (
 		namespace_id,repository_commit,cleanup_request_digest,resource_registration_request_digest,
 		deletion_authority_receipt_digest,state,claim_generation,owner_implementation_digest,
 		authority_issuer_id,request_json,request_bytes,v45_eligible,claimed_at,updated_at
@@ -5544,7 +5544,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		"version": 1, "cleanupRequestDigest": cleanupRequestDigest,
 		"ownerImplementationDigest": ownerImplementationDigest,
 	})
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_cleanups
 		SET state='dispatched',stage_digest=$4,dispatched_at=$5,updated_at=$5
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`, namespaceID,
 		repositoryCommit, cleanupRequestDigest, cleanupAuthorityStageDigest, cleanupDispatchedAt); err != nil {
@@ -5616,7 +5616,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		"version": 1, "resultIngressDigest": cleanupIngressDigest,
 		"cleanupReceiptDigest": cleanupReceiptDigest,
 	})
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups SET
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_cleanups SET
 		cleanup_receipt_digest=$4,owner_admission_digest=$5,dispatch_ack_digest=$6,
 		result_ingress_digest=$7,result_ingress_receipt_digest=$8,completed_at=$9,updated_at=$10
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`, namespaceID,
@@ -5629,7 +5629,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	swappedCleanupReceipt["auxiliaryResourceIds"] = []any{"provider-file.v45.swapped"}
 	swappedCleanupReceiptBytes := attemptAuthorityMigrationCanonicalBytes(t, swappedCleanupReceipt)
 	if _, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_capability_probe_provider_resource_cleanup_receipts (
+		ae_cppr_cleanup_receipts (
 		namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest,
 		receipt_json,receipt_bytes,created_at
 	) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7)`, namespaceID, repositoryCommit,
@@ -5638,7 +5638,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		t.Fatal("provider resource cleanup accepted swapped auxiliary resource authority")
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_capability_probe_provider_resource_cleanup_receipts (
+		ae_cppr_cleanup_receipts (
 		namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest,
 		receipt_json,receipt_bytes,created_at
 	) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7)`, namespaceID, repositoryCommit,
@@ -5646,7 +5646,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		cleanupStoredAt); err != nil {
 		t.Fatalf("store provider resource cleanup receipt: %v", err)
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups SET
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_cleanups SET
 		cleanup_receipt_digest=$4,owner_admission_digest=$5,dispatch_ack_digest=$6,
 		result_ingress_digest=$7,result_ingress_receipt_digest=$8,completed_at=$9,updated_at=$10
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`, namespaceID,
@@ -5675,7 +5675,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	swappedCleanupResponseDigest := attemptAuthorityMigrationCanonicalDigest(t, swappedCleanupResponseBase)
 	swappedCleanupResponse["responseDigest"] = swappedCleanupResponseDigest
 	swappedCleanupResponseBytes := attemptAuthorityMigrationCanonicalBytes(t, swappedCleanupResponse)
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_cleanups
 		SET state='sealed',response_digest=$4,response_json=$5::jsonb,response_bytes=$6,
 			sealed_at=$7,updated_at=$7
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`, namespaceID,
@@ -5683,7 +5683,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		string(swappedCleanupResponseBytes), swappedCleanupResponseBytes, cleanupSealedAt); err == nil {
 		t.Fatal("provider resource cleanup accepted swapped response acknowledgement")
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_cleanups
 		SET state='sealed',response_digest=$4,response_json=$5::jsonb,response_bytes=$6,
 			sealed_at=$7,updated_at=$7
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`, namespaceID,
@@ -5692,7 +5692,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		t.Fatalf("seal provider resource cleanup: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_capability_probe_provider_resource_cleanup_receipts (
+		ae_cppr_cleanup_receipts (
 		namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest,
 		receipt_json,receipt_bytes,created_at
 	) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7) ON CONFLICT DO NOTHING`, namespaceID,
@@ -5700,7 +5700,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 		cleanupReceiptBytes, cleanupSealedAt.Add(time.Second)); err != nil {
 		t.Fatalf("replay exact provider resource cleanup receipt: %v", err)
 	}
-	if _, err := db.ExecContext(ctx, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups
+	if _, err := db.ExecContext(ctx, `UPDATE ae_cppr_cleanups
 		SET stage_digest=$4 WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`,
 		namespaceID, repositoryCommit, cleanupRequestDigest,
 		attemptAuthorityMigrationDigest("late-cleanup-stage-swap")); err == nil {
@@ -5708,7 +5708,7 @@ func testAgentEvaluationAttemptAuthorityMigrationPostgreSQLCapabilityProbeProvid
 	}
 	var cleanupState, storedCleanupReceipt, storedCleanupResponse string
 	if err := db.QueryRowContext(ctx, `SELECT state,cleanup_receipt_digest,response_digest
-		FROM agent_evaluation_capability_probe_provider_resource_cleanups
+		FROM ae_cppr_cleanups
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`, namespaceID,
 		repositoryCommit, cleanupRequestDigest).Scan(&cleanupState, &storedCleanupReceipt,
 		&storedCleanupResponse); err != nil {

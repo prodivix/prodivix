@@ -6,7 +6,7 @@ package database
 // the frozen plan through its raw deletion and cleanup receipt preimages.
 func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_cleanups (
+		`CREATE TABLE IF NOT EXISTS ae_cppr_cleanups (
 			namespace_id TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
 			cleanup_request_digest TEXT NOT NULL,
@@ -41,7 +41,7 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 			FOREIGN KEY (
 				namespace_id,repository_commit,resource_registration_request_digest,
 				deletion_authority_receipt_digest
-			) REFERENCES agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts(
+			) REFERENCES ae_cppr_deletion_authority_receipts(
 				namespace_id,repository_commit,request_digest,deletion_authority_receipt_digest
 			) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_probe_provider_resource_cleanup_identity_check CHECK (
@@ -107,10 +107,10 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 			)
 		)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS agent_evaluation_probe_provider_resource_cleanup_receipt_unique
-			ON agent_evaluation_capability_probe_provider_resource_cleanups(
+			ON ae_cppr_cleanups(
 				namespace_id,repository_commit,cleanup_receipt_digest
 			) WHERE cleanup_receipt_digest IS NOT NULL`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_cleanup_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_cppr_cleanup_receipts (
 			namespace_id TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
 			cleanup_request_digest TEXT NOT NULL,
@@ -124,7 +124,7 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 				namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest
 			),
 			FOREIGN KEY (namespace_id,repository_commit,cleanup_request_digest)
-				REFERENCES agent_evaluation_capability_probe_provider_resource_cleanups(
+				REFERENCES ae_cppr_cleanups(
 					namespace_id,repository_commit,cleanup_request_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_probe_provider_resource_cleanup_receipt_check CHECK (
@@ -135,10 +135,10 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 				AND receipt_json=convert_from(receipt_bytes,'UTF8')::jsonb
 			)
 		)`,
-		`ALTER TABLE agent_evaluation_capability_probe_provider_resource_cleanups
+		`ALTER TABLE ae_cppr_cleanups
 			ADD CONSTRAINT agent_eval_probe_provider_resource_cleanup_receipt_fk FOREIGN KEY (
 				namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest
-			) REFERENCES agent_evaluation_capability_probe_provider_resource_cleanup_receipts(
+			) REFERENCES ae_cppr_cleanup_receipts(
 				namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest
 			) ON DELETE RESTRICT`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_probe_provider_resource_cleanup_capacity()
@@ -148,14 +148,14 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 		BEGIN
 			PERFORM pg_advisory_xact_lock(hashtext(NEW.namespace_id),hashtext(NEW.repository_commit));
 			IF EXISTS (
-				SELECT 1 FROM agent_evaluation_capability_probe_provider_resource_cleanups
+				SELECT 1 FROM ae_cppr_cleanups
 				WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 					AND cleanup_request_digest=NEW.cleanup_request_digest
 			) THEN
 				RETURN NEW;
 			END IF;
 			SELECT COUNT(*) INTO record_count
-			FROM agent_evaluation_capability_probe_provider_resource_cleanups
+			FROM ae_cppr_cleanups
 			WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit;
 			IF record_count>=4 THEN
 				RAISE EXCEPTION 'capability probe provider resource cleanup exceeds frozen capacity'
@@ -196,8 +196,8 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 			END IF;
 			IF TG_OP='INSERT' THEN
 				SELECT COUNT(*),MAX(registration.sealed_at) INTO parent_count,parent_sealed_at
-				FROM agent_evaluation_capability_probe_provider_resource_registrations registration
-				JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts deletion
+				FROM ae_cppr_registrations registration
+				JOIN ae_cppr_deletion_authority_receipts deletion
 				  ON deletion.namespace_id=registration.namespace_id
 				 AND deletion.repository_commit=registration.repository_commit
 				 AND deletion.request_digest=registration.request_digest
@@ -255,7 +255,7 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 				END IF;
 				SELECT receipt_json,receipt_bytes,created_at
 				INTO component_json,component_bytes,component_created_at
-				FROM agent_evaluation_capability_probe_provider_resource_cleanup_receipts
+				FROM ae_cppr_cleanup_receipts
 				WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 					AND cleanup_request_digest=NEW.cleanup_request_digest
 					AND cleanup_receipt_digest=NEW.cleanup_receipt_digest
@@ -272,7 +272,7 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 				AND OLD.dispatch_ack_digest IS NOT NULL THEN
 				SELECT receipt_json,receipt_bytes,created_at
 				INTO component_json,component_bytes,component_created_at
-				FROM agent_evaluation_capability_probe_provider_resource_cleanup_receipts
+				FROM ae_cppr_cleanup_receipts
 				WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 					AND cleanup_request_digest=NEW.cleanup_request_digest
 					AND cleanup_receipt_digest=NEW.cleanup_receipt_digest
@@ -347,7 +347,7 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 		BEGIN
 			SELECT cleanup_receipt_digest,receipt_json,receipt_bytes
 			INTO existing_digest,existing_json,existing_bytes
-			FROM agent_evaluation_capability_probe_provider_resource_cleanup_receipts
+			FROM ae_cppr_cleanup_receipts
 			WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 				AND cleanup_request_digest=NEW.cleanup_request_digest
 			FOR SHARE;
@@ -363,7 +363,7 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 				deletion_authority_receipt_digest,dispatched_at
 			INTO parent_state,parent_stage,parent_registration_digest,parent_deletion_digest,
 				parent_dispatched_at
-			FROM agent_evaluation_capability_probe_provider_resource_cleanups
+			FROM ae_cppr_cleanups
 			WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 				AND cleanup_request_digest=NEW.cleanup_request_digest
 			FOR SHARE;
@@ -373,7 +373,7 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 					USING ERRCODE='23514';
 			END IF;
 			SELECT receipt_json INTO deletion
-			FROM agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts
+			FROM ae_cppr_deletion_authority_receipts
 			WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 				AND request_digest=parent_registration_digest
 				AND deletion_authority_receipt_digest=parent_deletion_digest
@@ -503,18 +503,18 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 				RETURN NEW;
 			END IF;
 			PERFORM 1
-			FROM agent_evaluation_capability_probe_provider_resource_registrations registration
-			JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts deletion
+			FROM ae_cppr_registrations registration
+			JOIN ae_cppr_deletion_authority_receipts deletion
 			  ON deletion.namespace_id=registration.namespace_id
 			 AND deletion.repository_commit=registration.repository_commit
 			 AND deletion.request_digest=registration.request_digest
 			 AND deletion.deletion_authority_receipt_digest=registration.deletion_authority_receipt_digest
-			JOIN agent_evaluation_capability_probe_provider_resource_cleanups cleanup
+			JOIN ae_cppr_cleanups cleanup
 			  ON cleanup.namespace_id=registration.namespace_id
 			 AND cleanup.repository_commit=registration.repository_commit
 			 AND cleanup.resource_registration_request_digest=registration.request_digest
 			 AND cleanup.deletion_authority_receipt_digest=registration.deletion_authority_receipt_digest
-			JOIN agent_evaluation_capability_probe_provider_resource_cleanup_receipts cleanup_receipt
+			JOIN ae_cppr_cleanup_receipts cleanup_receipt
 			  ON cleanup_receipt.namespace_id=cleanup.namespace_id
 			 AND cleanup_receipt.repository_commit=cleanup.repository_commit
 			 AND cleanup_receipt.cleanup_request_digest=cleanup.cleanup_request_digest
@@ -532,18 +532,18 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 					USING ERRCODE='23514';
 			END IF;
 			SELECT COUNT(*) INTO cleanup_count
-			FROM agent_evaluation_capability_probe_provider_resource_registrations registration
-			JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts deletion
+			FROM ae_cppr_registrations registration
+			JOIN ae_cppr_deletion_authority_receipts deletion
 			  ON deletion.namespace_id=registration.namespace_id
 			 AND deletion.repository_commit=registration.repository_commit
 			 AND deletion.request_digest=registration.request_digest
 			 AND deletion.deletion_authority_receipt_digest=registration.deletion_authority_receipt_digest
-			JOIN agent_evaluation_capability_probe_provider_resource_cleanups cleanup
+			JOIN ae_cppr_cleanups cleanup
 			  ON cleanup.namespace_id=registration.namespace_id
 			 AND cleanup.repository_commit=registration.repository_commit
 			 AND cleanup.resource_registration_request_digest=registration.request_digest
 			 AND cleanup.deletion_authority_receipt_digest=registration.deletion_authority_receipt_digest
-			JOIN agent_evaluation_capability_probe_provider_resource_cleanup_receipts cleanup_receipt
+			JOIN ae_cppr_cleanup_receipts cleanup_receipt
 			  ON cleanup_receipt.namespace_id=cleanup.namespace_id
 			 AND cleanup_receipt.repository_commit=cleanup.repository_commit
 			 AND cleanup_receipt.cleanup_request_digest=cleanup.cleanup_request_digest
@@ -569,25 +569,25 @@ func agentEvaluationAttemptAuthorityCleanupStatements() []string {
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_cleanup_capacity
-			BEFORE INSERT ON agent_evaluation_capability_probe_provider_resource_cleanups
+			BEFORE INSERT ON ae_cppr_cleanups
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_cleanup_capacity()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_cleanup_transition
 			BEFORE INSERT OR UPDATE OR DELETE
-			ON agent_evaluation_capability_probe_provider_resource_cleanups
+			ON ae_cppr_cleanups
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_cleanup_transition()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_cleanup_receipt_exact_binding
-			BEFORE INSERT ON agent_evaluation_capability_probe_provider_resource_cleanup_receipts
+			BEFORE INSERT ON ae_cppr_cleanup_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_cleanup_receipt()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_cleanup_receipt_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_capability_probe_provider_resource_cleanup_receipts
+			BEFORE UPDATE OR DELETE ON ae_cppr_cleanup_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_cleanup_finalized
 			BEFORE INSERT OR UPDATE OR DELETE
-			ON agent_evaluation_capability_probe_provider_resource_cleanups
+			ON ae_cppr_cleanups
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_repository_commit_finalized_mutation()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_cleanup_receipt_finalized
 			BEFORE INSERT OR UPDATE OR DELETE
-			ON agent_evaluation_capability_probe_provider_resource_cleanup_receipts
+			ON ae_cppr_cleanup_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_repository_commit_finalized_mutation()`,
 		`CREATE TRIGGER agent_evaluation_plan_probe_provider_resource_cleanup_link
 			BEFORE INSERT ON agent_evaluation_plan_capability_probe_admission_links

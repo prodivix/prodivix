@@ -6,7 +6,7 @@ package database
 // untouched and keeps the main migration readable.
 func agentEvaluationAttemptAuthorityResourceStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_registrations (
+		`CREATE TABLE IF NOT EXISTS ae_cppr_registrations (
 			namespace_id TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
@@ -150,7 +150,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 				))
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_manifests (
+		`CREATE TABLE IF NOT EXISTS ae_cppr_manifests (
 			namespace_id TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
@@ -162,14 +162,14 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 			UNIQUE (namespace_id,repository_commit,manifest_digest),
 			UNIQUE (namespace_id,repository_commit,request_digest,manifest_digest),
 			FOREIGN KEY (namespace_id,repository_commit,request_digest)
-				REFERENCES agent_evaluation_capability_probe_provider_resource_registrations(
+				REFERENCES ae_cppr_registrations(
 					namespace_id,repository_commit,request_digest
 				) ON DELETE RESTRICT,
 			CHECK (manifest_digest ~ '^sha256-[a-f0-9]{64}$'
 				AND octet_length(receipt_bytes) BETWEEN 1 AND 65536
 				AND receipt_json=convert_from(receipt_bytes,'UTF8')::jsonb)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_content_upload_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_cppr_content_upload_receipts (
 			namespace_id TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
@@ -183,14 +183,14 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 				namespace_id,repository_commit,request_digest,content_upload_receipt_digest
 			),
 			FOREIGN KEY (namespace_id,repository_commit,request_digest)
-				REFERENCES agent_evaluation_capability_probe_provider_resource_registrations(
+				REFERENCES ae_cppr_registrations(
 					namespace_id,repository_commit,request_digest
 				) ON DELETE RESTRICT,
 			CHECK (content_upload_receipt_digest ~ '^sha256-[a-f0-9]{64}$'
 				AND octet_length(receipt_bytes) BETWEEN 1 AND 65536
 				AND receipt_json=convert_from(receipt_bytes,'UTF8')::jsonb)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_cppr_deletion_authority_receipts (
 			namespace_id TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
@@ -204,27 +204,27 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 				namespace_id,repository_commit,request_digest,deletion_authority_receipt_digest
 			),
 			FOREIGN KEY (namespace_id,repository_commit,request_digest)
-				REFERENCES agent_evaluation_capability_probe_provider_resource_registrations(
+				REFERENCES ae_cppr_registrations(
 					namespace_id,repository_commit,request_digest
 				) ON DELETE RESTRICT,
 			CHECK (deletion_authority_receipt_digest ~ '^sha256-[a-f0-9]{64}$'
 				AND octet_length(receipt_bytes) BETWEEN 1 AND 16384
 				AND receipt_json=convert_from(receipt_bytes,'UTF8')::jsonb)
 		)`,
-		`ALTER TABLE agent_evaluation_capability_probe_provider_resource_registrations
+		`ALTER TABLE ae_cppr_registrations
 			ADD CONSTRAINT agent_eval_probe_provider_resource_manifest_fk FOREIGN KEY (
 				namespace_id,repository_commit,request_digest,resource_manifest_digest
-			) REFERENCES agent_evaluation_capability_probe_provider_resource_manifests(
+			) REFERENCES ae_cppr_manifests(
 				namespace_id,repository_commit,request_digest,manifest_digest
 			) ON DELETE RESTRICT,
 			ADD CONSTRAINT agent_eval_probe_provider_resource_upload_fk FOREIGN KEY (
 				namespace_id,repository_commit,request_digest,content_upload_receipt_digest
-			) REFERENCES agent_evaluation_capability_probe_provider_resource_content_upload_receipts(
+			) REFERENCES ae_cppr_content_upload_receipts(
 				namespace_id,repository_commit,request_digest,content_upload_receipt_digest
 			) ON DELETE RESTRICT,
 			ADD CONSTRAINT agent_eval_probe_provider_resource_deletion_fk FOREIGN KEY (
 				namespace_id,repository_commit,request_digest,deletion_authority_receipt_digest
-			) REFERENCES agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts(
+			) REFERENCES ae_cppr_deletion_authority_receipts(
 				namespace_id,repository_commit,request_digest,deletion_authority_receipt_digest
 			) ON DELETE RESTRICT`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_probe_provider_resource_component()
@@ -240,10 +240,10 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 			existing_json JSONB;
 			existing_bytes BYTEA;
 		BEGIN
-			IF TG_TABLE_NAME='agent_evaluation_capability_probe_provider_resource_manifests' THEN
+			IF TG_TABLE_NAME='ae_cppr_manifests' THEN
 				SELECT manifest_digest,receipt_json,receipt_bytes
 				INTO existing_digest,existing_json,existing_bytes
-				FROM agent_evaluation_capability_probe_provider_resource_manifests
+				FROM ae_cppr_manifests
 				WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 					AND request_digest=NEW.request_digest FOR SHARE;
 				IF FOUND THEN
@@ -254,10 +254,10 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 					END IF;
 					RETURN NEW;
 				END IF;
-			ELSIF TG_TABLE_NAME='agent_evaluation_capability_probe_provider_resource_content_upload_receipts' THEN
+			ELSIF TG_TABLE_NAME='ae_cppr_content_upload_receipts' THEN
 				SELECT content_upload_receipt_digest,receipt_json,receipt_bytes
 				INTO existing_digest,existing_json,existing_bytes
-				FROM agent_evaluation_capability_probe_provider_resource_content_upload_receipts
+				FROM ae_cppr_content_upload_receipts
 				WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 					AND request_digest=NEW.request_digest FOR SHARE;
 				IF FOUND THEN
@@ -271,7 +271,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 			ELSE
 				SELECT deletion_authority_receipt_digest,receipt_json,receipt_bytes
 				INTO existing_digest,existing_json,existing_bytes
-				FROM agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts
+				FROM ae_cppr_deletion_authority_receipts
 				WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 					AND request_digest=NEW.request_digest FOR SHARE;
 				IF FOUND THEN
@@ -285,7 +285,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 			END IF;
 			SELECT state,stage_digest,protocol_family,dispatched_at
 			INTO parent_state,parent_stage,parent_protocol,parent_dispatched_at
-			FROM agent_evaluation_capability_probe_provider_resource_registrations
+			FROM ae_cppr_registrations
 			WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 				AND request_digest=NEW.request_digest AND v45_eligible
 			FOR SHARE;
@@ -294,7 +294,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 				RAISE EXCEPTION 'provider resource component lacks its dispatched authority'
 					USING ERRCODE='23514';
 			END IF;
-			IF TG_TABLE_NAME='agent_evaluation_capability_probe_provider_resource_manifests' THEN
+			IF TG_TABLE_NAME='ae_cppr_manifests' THEN
 				IF jsonb_typeof(NEW.receipt_json)<>'object'
 					OR agent_evaluation_jsonb_object_key_count(NEW.receipt_json)<>17
 					OR NOT (NEW.receipt_json ?& ARRAY[
@@ -311,7 +311,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 					RAISE EXCEPTION 'provider resource manifest shape or digest binding is invalid'
 						USING ERRCODE='23514';
 				END IF;
-			ELSIF TG_TABLE_NAME='agent_evaluation_capability_probe_provider_resource_content_upload_receipts' THEN
+			ELSIF TG_TABLE_NAME='ae_cppr_content_upload_receipts' THEN
 				IF jsonb_typeof(NEW.receipt_json)<>'object'
 					OR agent_evaluation_jsonb_object_key_count(NEW.receipt_json)<>14
 					OR NOT (NEW.receipt_json ?& ARRAY[
@@ -398,22 +398,22 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_manifests_exact_binding
-			BEFORE INSERT ON agent_evaluation_capability_probe_provider_resource_manifests
+			BEFORE INSERT ON ae_cppr_manifests
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_component()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_uploads_exact_binding
-			BEFORE INSERT ON agent_evaluation_capability_probe_provider_resource_content_upload_receipts
+			BEFORE INSERT ON ae_cppr_content_upload_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_component()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_deletions_exact_binding
-			BEFORE INSERT ON agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts
+			BEFORE INSERT ON ae_cppr_deletion_authority_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_component()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_manifests_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_capability_probe_provider_resource_manifests
+			BEFORE UPDATE OR DELETE ON ae_cppr_manifests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_uploads_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_capability_probe_provider_resource_content_upload_receipts
+			BEFORE UPDATE OR DELETE ON ae_cppr_content_upload_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_deletions_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts
+			BEFORE UPDATE OR DELETE ON ae_cppr_deletion_authority_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION reject_agent_evaluation_repository_commit_finalized_mutation()
 			RETURNS trigger AS $$
@@ -457,13 +457,13 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_manifests_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_capability_probe_provider_resource_manifests
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_cppr_manifests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_repository_commit_finalized_mutation()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_uploads_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_capability_probe_provider_resource_content_upload_receipts
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_cppr_content_upload_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_repository_commit_finalized_mutation()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resource_deletions_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_cppr_deletion_authority_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_repository_commit_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_probe_provider_resource_capacity()
 			RETURNS trigger AS $$
@@ -475,14 +475,14 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 				'capability-probe-provider-resource',0
 			));
 			IF EXISTS (
-				SELECT 1 FROM agent_evaluation_capability_probe_provider_resource_registrations
+				SELECT 1 FROM ae_cppr_registrations
 				WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit
 					AND request_digest=NEW.request_digest
 			) THEN
 				RETURN NEW;
 			END IF;
 			SELECT COUNT(*) INTO registration_count
-			FROM agent_evaluation_capability_probe_provider_resource_registrations
+			FROM ae_cppr_registrations
 			WHERE namespace_id=NEW.namespace_id AND repository_commit=NEW.repository_commit;
 			IF registration_count>=4 THEN
 				RAISE EXCEPTION 'capability probe provider resource exceeds frozen registration capacity'
@@ -492,7 +492,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resources_capacity
-			BEFORE INSERT ON agent_evaluation_capability_probe_provider_resource_registrations
+			BEFORE INSERT ON ae_cppr_registrations
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_capacity()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_probe_provider_resource_transition()
 			RETURNS trigger AS $$
@@ -659,12 +659,12 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 						USING ERRCODE='23514';
 				END IF;
 				SELECT COUNT(*) INTO component_count
-				FROM agent_evaluation_capability_probe_provider_resource_manifests manifest_row
-				JOIN agent_evaluation_capability_probe_provider_resource_content_upload_receipts upload_row
+				FROM ae_cppr_manifests manifest_row
+				JOIN ae_cppr_content_upload_receipts upload_row
 				  ON upload_row.namespace_id=manifest_row.namespace_id
 				 AND upload_row.repository_commit=manifest_row.repository_commit
 				 AND upload_row.request_digest=manifest_row.request_digest
-				JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts deletion_row
+				JOIN ae_cppr_deletion_authority_receipts deletion_row
 				  ON deletion_row.namespace_id=manifest_row.namespace_id
 				 AND deletion_row.repository_commit=manifest_row.repository_commit
 				 AND deletion_row.request_digest=manifest_row.request_digest
@@ -717,11 +717,11 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resources_transition
 			BEFORE INSERT OR UPDATE OR DELETE
-			ON agent_evaluation_capability_probe_provider_resource_registrations
+			ON ae_cppr_registrations
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_probe_provider_resource_transition()`,
 		`CREATE TRIGGER agent_evaluation_probe_provider_resources_finalized
 			BEFORE INSERT OR UPDATE OR DELETE
-			ON agent_evaluation_capability_probe_provider_resource_registrations
+			ON ae_cppr_registrations
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_repository_commit_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_probe_admission_provider_resource()
 			RETURNS trigger AS $$
@@ -765,7 +765,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 					USING ERRCODE='23514';
 			END IF;
 			PERFORM 1
-			FROM agent_evaluation_capability_probe_provider_resource_registrations registration
+			FROM ae_cppr_registrations registration
 			WHERE registration.namespace_id=NEW.namespace_id
 				AND registration.repository_commit=NEW.repository_commit
 				AND registration.state='sealed' AND registration.v45_eligible
@@ -776,7 +776,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 					USING ERRCODE='23514';
 			END IF;
 			SELECT COUNT(*) INTO resource_count
-			FROM agent_evaluation_capability_probe_provider_resource_registrations registration
+			FROM ae_cppr_registrations registration
 			WHERE registration.namespace_id=NEW.namespace_id
 				AND registration.repository_commit=NEW.repository_commit
 				AND registration.state='sealed' AND registration.v45_eligible
@@ -852,7 +852,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 				RETURN NEW;
 			END IF;
 			PERFORM 1
-			FROM agent_evaluation_capability_probe_provider_resource_registrations registration
+			FROM ae_cppr_registrations registration
 			WHERE registration.namespace_id=NEW.namespace_id
 				AND registration.repository_commit=NEW.repository_commit
 				AND registration.state='sealed' AND registration.v45_eligible
@@ -864,7 +864,7 @@ func agentEvaluationAttemptAuthorityResourceStatements() []string {
 					USING ERRCODE='23514';
 			END IF;
 			SELECT COUNT(*) INTO resource_count
-			FROM agent_evaluation_capability_probe_provider_resource_registrations registration
+			FROM ae_cppr_registrations registration
 			WHERE registration.namespace_id=NEW.namespace_id
 				AND registration.repository_commit=NEW.repository_commit
 				AND registration.state='sealed' AND registration.v45_eligible

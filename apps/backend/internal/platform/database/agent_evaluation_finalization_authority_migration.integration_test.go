@@ -35,17 +35,17 @@ func rewindAgentEvaluationFinalizationAuthorityMigrations(
 		`DROP TABLE IF EXISTS agent_evaluation_runtime_fact_source_owner_registrations CASCADE`,
 		`DROP TABLE IF EXISTS agent_evaluation_attempt_authority_commit_links CASCADE`,
 		`DROP TABLE IF EXISTS agent_evaluation_attempt_authority_owner_receipts CASCADE`,
-		`DROP TRIGGER agent_evaluation_authority_attestations_v45_roots_required
+		`DROP TRIGGER IF EXISTS agent_evaluation_authority_attestations_v45_roots_required
 			ON agent_evaluation_authority_attestations`,
-		`DROP TRIGGER agent_evaluation_authority_attestations_v45_insert
+		`DROP TRIGGER IF EXISTS agent_evaluation_authority_attestations_v45_insert
 			ON agent_evaluation_authority_attestations`,
-		`DROP TRIGGER agent_evaluation_evidence_roots_v45_roots_required
+		`DROP TRIGGER IF EXISTS agent_evaluation_evidence_roots_v45_roots_required
 			ON agent_evaluation_evidence_roots`,
-		`DROP TRIGGER agent_evaluation_evidence_roots_v45_insert
+		`DROP TRIGGER IF EXISTS agent_evaluation_evidence_roots_v45_insert
 			ON agent_evaluation_evidence_roots`,
-		`DROP TRIGGER agent_evaluation_plans_capability_probe_links_required
+		`DROP TRIGGER IF EXISTS agent_evaluation_plans_capability_probe_links_required
 			ON agent_evaluation_plans`,
-		`DROP TRIGGER agent_evaluation_plans_runtime_fact_source_registrations_required
+		`DROP TRIGGER IF EXISTS agent_evaluation_plans_runtime_fact_source_registrations_required
 			ON agent_evaluation_plans`,
 		`DROP FUNCTION require_agent_evaluation_evidence_root_v45_roots()`,
 		`DROP FUNCTION require_agent_evaluation_attestation_v45_roots()`,

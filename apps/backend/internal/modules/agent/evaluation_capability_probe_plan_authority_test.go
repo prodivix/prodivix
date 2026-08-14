@@ -850,7 +850,7 @@ func expectEvaluationCapabilityProbePlanAdmission(
 			{resource.ContentUploadReceiptDigest, resource.ContentUploadReceiptBytes},
 			{resource.DeletionAuthorityReceiptDigest, resource.DeletionAuthorityReceiptBytes},
 		} {
-			mock.ExpectQuery(`SELECT receipt_bytes FROM agent_evaluation_capability_probe_provider_resource_`).
+			mock.ExpectQuery(`SELECT receipt_bytes FROM ae_cppr_`).
 				WithArgs(authority.NamespaceID, plan.RepositoryCommit, admission.resourceRequest.RequestDigest, component.digest).
 				WillReturnRows(sqlmock.NewRows([]string{"receipt_bytes"}).AddRow(component.bytes))
 		}

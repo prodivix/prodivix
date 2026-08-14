@@ -27,12 +27,12 @@ func queryEvaluationCapabilityProbeProviderResourceCleanupArchiveRecords(
 		c.owner_admission_digest,c.dispatch_ack_digest,c.result_ingress_digest,
 		c.result_ingress_receipt_digest,c.cleanup_receipt_digest,c.response_digest,
 		c.request_bytes,d.receipt_bytes,r.receipt_bytes,c.response_bytes
-	FROM agent_evaluation_capability_probe_provider_resource_cleanups c
-	JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts d
+	FROM ae_cppr_cleanups c
+	JOIN ae_cppr_deletion_authority_receipts d
 	  ON d.namespace_id=c.namespace_id AND d.repository_commit=c.repository_commit
 	 AND d.request_digest=c.resource_registration_request_digest
 	 AND d.deletion_authority_receipt_digest=c.deletion_authority_receipt_digest
-	JOIN agent_evaluation_capability_probe_provider_resource_cleanup_receipts r
+	JOIN ae_cppr_cleanup_receipts r
 	  ON r.namespace_id=c.namespace_id AND r.repository_commit=c.repository_commit
 	 AND r.cleanup_request_digest=c.cleanup_request_digest
 	 AND r.cleanup_receipt_digest=c.cleanup_receipt_digest

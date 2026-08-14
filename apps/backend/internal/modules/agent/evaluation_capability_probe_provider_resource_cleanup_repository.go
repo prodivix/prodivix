@@ -27,12 +27,12 @@ func queryEvaluationCapabilityProbeProviderResourceCleanup(
 		c.authority_issuer_id,c.stage_digest,c.cleanup_receipt_digest,c.owner_admission_digest,c.dispatch_ack_digest,
 		c.result_ingress_digest,c.result_ingress_receipt_digest,c.response_digest,c.request_bytes,d.receipt_bytes,
 		r.receipt_bytes,c.response_bytes,c.v46_eligible,c.claimed_at,c.dispatched_at,c.completed_at,c.sealed_at
-	FROM agent_evaluation_capability_probe_provider_resource_cleanups c
-	JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts d
+	FROM ae_cppr_cleanups c
+	JOIN ae_cppr_deletion_authority_receipts d
 	  ON d.namespace_id=c.namespace_id AND d.repository_commit=c.repository_commit
 	 AND d.request_digest=c.resource_registration_request_digest
 	 AND d.deletion_authority_receipt_digest=c.deletion_authority_receipt_digest
-	LEFT JOIN agent_evaluation_capability_probe_provider_resource_cleanup_receipts r
+	LEFT JOIN ae_cppr_cleanup_receipts r
 	  ON r.namespace_id=c.namespace_id AND r.repository_commit=c.repository_commit
 	 AND r.cleanup_request_digest=c.cleanup_request_digest AND r.cleanup_receipt_digest=c.cleanup_receipt_digest
 	WHERE c.namespace_id=$1 AND c.repository_commit=$2 AND c.cleanup_request_digest=$3`,
@@ -104,13 +104,13 @@ func (repository *Repository) ClaimEvaluationCapabilityProbeProviderResourceClea
 	claimedAt = claimedAt.UTC().Truncate(time.Millisecond)
 	writeContext, cancel := repositoryContext(ctx)
 	defer cancel()
-	result, err := repository.db.ExecContext(writeContext, `INSERT INTO agent_evaluation_capability_probe_provider_resource_cleanups (
+	result, err := repository.db.ExecContext(writeContext, `INSERT INTO ae_cppr_cleanups (
 		namespace_id,repository_commit,cleanup_request_digest,resource_registration_request_digest,
 		deletion_authority_receipt_digest,state,claim_generation,owner_implementation_digest,authority_issuer_id,
 		request_json,request_bytes,v46_eligible,claimed_at,updated_at
 	) SELECT $1,$2,$3,$4,$5,'claimed',1,$6,$7,$8::jsonb,$9,TRUE,$10,$10
-	FROM agent_evaluation_capability_probe_provider_resource_registrations p
-	JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts d
+	FROM ae_cppr_registrations p
+	JOIN ae_cppr_deletion_authority_receipts d
 	  ON d.namespace_id=p.namespace_id AND d.repository_commit=p.repository_commit AND d.request_digest=p.request_digest
 	 AND d.deletion_authority_receipt_digest=p.deletion_authority_receipt_digest
 	WHERE p.namespace_id=$1 AND p.repository_commit=$2 AND p.request_digest=$4
@@ -154,7 +154,7 @@ func (repository *Repository) MarkEvaluationCapabilityProbeProviderResourceClean
 	defer cancel()
 	var ownerImplementationDigest string
 	if err := repository.db.QueryRowContext(writeContext, `SELECT owner_implementation_digest
-		FROM agent_evaluation_capability_probe_provider_resource_cleanups
+		FROM ae_cppr_cleanups
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3`,
 		authority.NamespaceID, request.RepositoryCommit, request.CleanupRequestDigest).Scan(&ownerImplementationDigest); err != nil {
 		return EvaluationCapabilityProbeProviderResourceCleanupRecord{}, false, err
@@ -164,7 +164,7 @@ func (repository *Repository) MarkEvaluationCapabilityProbeProviderResourceClean
 		return EvaluationCapabilityProbeProviderResourceCleanupRecord{}, false, ErrConflict
 	}
 	dispatchedAt = dispatchedAt.UTC().Truncate(time.Millisecond)
-	result, err := repository.db.ExecContext(writeContext, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups
+	result, err := repository.db.ExecContext(writeContext, `UPDATE ae_cppr_cleanups
 	SET state='dispatched',stage_digest=$4,dispatched_at=$5,updated_at=$5
 	WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3
 	  AND state='claimed' AND claim_generation=1`, authority.NamespaceID, request.RepositoryCommit,
@@ -231,7 +231,7 @@ func (repository *Repository) StoreEvaluationCapabilityProbeProviderResourceClea
 	var state, storedStage, ownerImplementationDigest string
 	var existingAck sql.NullString
 	if err := tx.QueryRowContext(writeContext, `SELECT state,stage_digest,owner_implementation_digest,dispatch_ack_digest
-		FROM agent_evaluation_capability_probe_provider_resource_cleanups
+		FROM ae_cppr_cleanups
 		WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3 FOR UPDATE`,
 		authority.NamespaceID, request.RepositoryCommit, request.CleanupRequestDigest,
 	).Scan(&state, &storedStage, &ownerImplementationDigest, &existingAck); err != nil {
@@ -258,7 +258,7 @@ func (repository *Repository) StoreEvaluationCapabilityProbeProviderResourceClea
 		receipt.DeletionReceiptDigest != request.DeletionAuthorityReceiptDigest {
 		return EvaluationCapabilityProbeProviderResourceCleanupRecord{}, false, ErrConflict
 	}
-	componentResult, err := tx.ExecContext(writeContext, `INSERT INTO agent_evaluation_capability_probe_provider_resource_cleanup_receipts (
+	componentResult, err := tx.ExecContext(writeContext, `INSERT INTO ae_cppr_cleanup_receipts (
 		namespace_id,repository_commit,cleanup_request_digest,cleanup_receipt_digest,receipt_json,receipt_bytes,created_at
 	) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7) ON CONFLICT DO NOTHING`, authority.NamespaceID,
 		request.RepositoryCommit, request.CleanupRequestDigest, receipt.CleanupReceiptDigest,
@@ -274,7 +274,7 @@ func (repository *Repository) StoreEvaluationCapabilityProbeProviderResourceClea
 		var existingDigest string
 		var existingBytes []byte
 		if err := tx.QueryRowContext(writeContext, `SELECT cleanup_receipt_digest,receipt_bytes
-			FROM agent_evaluation_capability_probe_provider_resource_cleanup_receipts
+			FROM ae_cppr_cleanup_receipts
 			WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3 FOR SHARE`,
 			authority.NamespaceID, request.RepositoryCommit, request.CleanupRequestDigest,
 		).Scan(&existingDigest, &existingBytes); err != nil || existingDigest != receipt.CleanupReceiptDigest ||
@@ -285,7 +285,7 @@ func (repository *Repository) StoreEvaluationCapabilityProbeProviderResourceClea
 			return EvaluationCapabilityProbeProviderResourceCleanupRecord{}, false, err
 		}
 	}
-	result, err := tx.ExecContext(writeContext, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups SET
+	result, err := tx.ExecContext(writeContext, `UPDATE ae_cppr_cleanups SET
 		cleanup_receipt_digest=$4,owner_admission_digest=$5,dispatch_ack_digest=$6,result_ingress_digest=$7,
 		result_ingress_receipt_digest=$8,completed_at=$9,updated_at=$10
 	WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3 AND state='dispatched'
@@ -333,7 +333,7 @@ func (repository *Repository) SealEvaluationCapabilityProbeProviderResourceClean
 	sealedAt = sealedAt.UTC().Truncate(time.Millisecond)
 	writeContext, cancel := repositoryContext(ctx)
 	defer cancel()
-	result, err := repository.db.ExecContext(writeContext, `UPDATE agent_evaluation_capability_probe_provider_resource_cleanups SET
+	result, err := repository.db.ExecContext(writeContext, `UPDATE ae_cppr_cleanups SET
 		state='sealed',response_digest=$4,response_json=$5::jsonb,response_bytes=$6,sealed_at=$7,updated_at=$7
 	WHERE namespace_id=$1 AND repository_commit=$2 AND cleanup_request_digest=$3 AND state='dispatched'
 	  AND cleanup_receipt_digest IS NOT NULL AND dispatch_ack_digest IS NOT NULL AND result_ingress_receipt_digest IS NOT NULL`,
@@ -373,11 +373,11 @@ func (repository *Repository) ListEvaluationCapabilityProbeProviderResourceClean
 	rows, err := repository.db.QueryContext(readContext, `SELECT
 		p.request_bytes,p.result_bytes,p.response_bytes,d.receipt_bytes,c.request_bytes,c.response_bytes,
 		p.claimed_at,p.sealed_at
-	FROM agent_evaluation_capability_probe_provider_resource_registrations p
-	JOIN agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts d
+	FROM ae_cppr_registrations p
+	JOIN ae_cppr_deletion_authority_receipts d
 	  ON d.namespace_id=p.namespace_id AND d.repository_commit=p.repository_commit AND d.request_digest=p.request_digest
 	 AND d.deletion_authority_receipt_digest=p.deletion_authority_receipt_digest
-	LEFT JOIN agent_evaluation_capability_probe_provider_resource_cleanups c
+	LEFT JOIN ae_cppr_cleanups c
 	  ON c.namespace_id=p.namespace_id AND c.repository_commit=p.repository_commit
 	 AND c.resource_registration_request_digest=p.request_digest
 	WHERE p.namespace_id=$1 AND p.repository_commit=$2 AND p.state='sealed' AND p.v46_eligible

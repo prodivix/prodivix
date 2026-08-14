@@ -194,8 +194,8 @@ func TestAgentEvaluationProviderResourceCleanupV45UsesSealedExactAuthority(t *te
 		agentEvaluationAttemptAuthorityMigration().statements, "\n",
 	)), " ")
 	for _, fragment := range []string{
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_cleanups",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_cleanup_receipts",
+		"CREATE TABLE IF NOT EXISTS ae_cppr_cleanups",
+		"CREATE TABLE IF NOT EXISTS ae_cppr_cleanup_receipts",
 		"resource_registration_request_digest TEXT NOT NULL",
 		"deletion_authority_receipt_digest TEXT NOT NULL",
 		"cleanup_receipt_digest TEXT",
@@ -327,10 +327,10 @@ func TestAgentEvaluationProviderResourceAndNativeBootstrapV45UseDurableRawAuthor
 		agentEvaluationAttemptAuthorityMigration().statements, "\n",
 	)), " ")
 	for _, fragment := range []string{
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_registrations",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_manifests",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_content_upload_receipts",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts",
+		"CREATE TABLE IF NOT EXISTS ae_cppr_registrations",
+		"CREATE TABLE IF NOT EXISTS ae_cppr_manifests",
+		"CREATE TABLE IF NOT EXISTS ae_cppr_content_upload_receipts",
+		"CREATE TABLE IF NOT EXISTS ae_cppr_deletion_authority_receipts",
 		"agent_evaluation_jsonb_object_key_count(NEW.request_json)<>9",
 		"agent_evaluation_jsonb_object_key_count(resource)<>18",
 		"probeProviderResourceAuthority",

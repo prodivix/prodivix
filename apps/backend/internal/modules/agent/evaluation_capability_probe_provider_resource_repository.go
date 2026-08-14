@@ -32,7 +32,7 @@ func queryEvaluationCapabilityProbeProviderResource(
 		resource_manifest_digest,content_upload_receipt_digest,deletion_authority_receipt_digest,
 		provider_resource_authority_digest,registration_receipt_digest,registered_at,expires_at,
 		request_bytes,result_bytes,response_bytes,v46_eligible,claimed_at,dispatched_at,sealed_at
-	FROM agent_evaluation_capability_probe_provider_resource_registrations
+	FROM ae_cppr_registrations
 	WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`,
 		authority.NamespaceID, request.RepositoryCommit, request.RequestDigest,
 	).Scan(
@@ -115,7 +115,7 @@ func (repository *Repository) ClaimEvaluationCapabilityProbeProviderResource(
 	claimedAt = claimedAt.UTC().Truncate(time.Millisecond)
 	writeContext, cancel := repositoryContext(ctx)
 	defer cancel()
-	result, err := repository.db.ExecContext(writeContext, `INSERT INTO agent_evaluation_capability_probe_provider_resource_registrations (
+	result, err := repository.db.ExecContext(writeContext, `INSERT INTO ae_cppr_registrations (
 		namespace_id,repository_commit,request_digest,state,claim_generation,
 		provider_configuration_id,provider_configuration_digest,protocol_family,
 		model_id,model_lineage_digest,adapter_digest,capability_profile_id,
@@ -164,7 +164,7 @@ func (repository *Repository) MarkEvaluationCapabilityProbeProviderResourceDispa
 	defer cancel()
 	var ownerImplementationDigest string
 	if err := repository.db.QueryRowContext(writeContext, `SELECT owner_implementation_digest
-		FROM agent_evaluation_capability_probe_provider_resource_registrations
+		FROM ae_cppr_registrations
 		WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3`,
 		authority.NamespaceID, request.RepositoryCommit, request.RequestDigest).Scan(&ownerImplementationDigest); err != nil {
 		return EvaluationCapabilityProbeProviderResourceRegistrationRecord{}, false, err
@@ -174,7 +174,7 @@ func (repository *Repository) MarkEvaluationCapabilityProbeProviderResourceDispa
 		return EvaluationCapabilityProbeProviderResourceRegistrationRecord{}, false, ErrConflict
 	}
 	dispatchedAt = dispatchedAt.UTC().Truncate(time.Millisecond)
-	result, err := repository.db.ExecContext(writeContext, `UPDATE agent_evaluation_capability_probe_provider_resource_registrations
+	result, err := repository.db.ExecContext(writeContext, `UPDATE ae_cppr_registrations
 	SET state='dispatched',stage_digest=$4,dispatched_at=$5,updated_at=$5
 	WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3 AND state='claimed' AND claim_generation=1`,
 		authority.NamespaceID, request.RepositoryCommit, request.RequestDigest, stageDigest, dispatchedAt)
@@ -282,7 +282,7 @@ func (repository *Repository) StoreEvaluationCapabilityProbeProviderResourceResu
 	var existingAck sql.NullString
 	var claimedAt time.Time
 	if err := tx.QueryRowContext(writeContext, `SELECT state,stage_digest,owner_implementation_digest,dispatch_ack_digest,claimed_at
-		FROM agent_evaluation_capability_probe_provider_resource_registrations
+		FROM ae_cppr_registrations
 		WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3 FOR UPDATE`,
 		authority.NamespaceID, request.RepositoryCommit, request.RequestDigest,
 	).Scan(&state, &storedStage, &ownerImplementationDigest, &existingAck, &claimedAt); err != nil {
@@ -305,24 +305,24 @@ func (repository *Repository) StoreEvaluationCapabilityProbeProviderResourceResu
 		return EvaluationCapabilityProbeProviderResourceRegistrationRecord{}, false, ErrConflict
 	}
 	if err := storeEvaluationCapabilityProbeProviderResourceComponent(
-		writeContext, tx, "agent_evaluation_capability_probe_provider_resource_manifests", "manifest_digest",
+		writeContext, tx, "ae_cppr_manifests", "manifest_digest",
 		authority, request, resourceResult.ResourceManifestDigest, resourceResult.ResourceManifestBytes, storedAt,
 	); err != nil {
 		return EvaluationCapabilityProbeProviderResourceRegistrationRecord{}, false, err
 	}
 	if err := storeEvaluationCapabilityProbeProviderResourceComponent(
-		writeContext, tx, "agent_evaluation_capability_probe_provider_resource_content_upload_receipts", "content_upload_receipt_digest",
+		writeContext, tx, "ae_cppr_content_upload_receipts", "content_upload_receipt_digest",
 		authority, request, resourceResult.ContentUploadReceiptDigest, resourceResult.ContentUploadReceiptBytes, storedAt,
 	); err != nil {
 		return EvaluationCapabilityProbeProviderResourceRegistrationRecord{}, false, err
 	}
 	if err := storeEvaluationCapabilityProbeProviderResourceComponent(
-		writeContext, tx, "agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts", "deletion_authority_receipt_digest",
+		writeContext, tx, "ae_cppr_deletion_authority_receipts", "deletion_authority_receipt_digest",
 		authority, request, resourceResult.DeletionAuthorityReceiptDigest, resourceResult.DeletionAuthorityReceiptBytes, storedAt,
 	); err != nil {
 		return EvaluationCapabilityProbeProviderResourceRegistrationRecord{}, false, err
 	}
-	result, err := tx.ExecContext(writeContext, `UPDATE agent_evaluation_capability_probe_provider_resource_registrations SET
+	result, err := tx.ExecContext(writeContext, `UPDATE ae_cppr_registrations SET
 		resource_result_digest=$4,owner_admission_digest=$5,dispatch_ack_digest=$6,result_ingress_digest=$7,
 		result_ingress_receipt_digest=$8,resource_manifest_digest=$9,content_upload_receipt_digest=$10,
 		deletion_authority_receipt_digest=$11,provider_resource_authority_digest=$12,registered_at=$13,expires_at=$14,
@@ -348,7 +348,7 @@ func (repository *Repository) StoreEvaluationCapabilityProbeProviderResourceResu
 		dispatch_ack_digest,result_ingress_digest,result_ingress_receipt_digest,resource_manifest_digest,
 		content_upload_receipt_digest,deletion_authority_receipt_digest,provider_resource_authority_digest,
 		registered_at,expires_at,result_bytes,response_bytes
-	FROM agent_evaluation_capability_probe_provider_resource_registrations
+	FROM ae_cppr_registrations
 	WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3 FOR SHARE`,
 		authority.NamespaceID, request.RepositoryCommit, request.RequestDigest,
 	).Scan(&record.State, &record.ResourceResultDigest, &record.OwnerAdmissionDigest, &record.DispatchAckDigest,
@@ -396,7 +396,7 @@ func (repository *Repository) SealEvaluationCapabilityProbeProviderResource(
 	sealedAt = sealedAt.UTC().Truncate(time.Millisecond)
 	writeContext, cancel := repositoryContext(ctx)
 	defer cancel()
-	result, err := repository.db.ExecContext(writeContext, `UPDATE agent_evaluation_capability_probe_provider_resource_registrations SET
+	result, err := repository.db.ExecContext(writeContext, `UPDATE ae_cppr_registrations SET
 		state='sealed',registration_receipt_digest=$4,response_json=$5::jsonb,response_bytes=$6,sealed_at=$7,updated_at=$7
 	WHERE namespace_id=$1 AND repository_commit=$2 AND request_digest=$3 AND state='dispatched'
 		AND dispatch_ack_digest IS NOT NULL AND result_ingress_receipt_digest IS NOT NULL`,

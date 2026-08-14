@@ -42,7 +42,7 @@ func requireEvaluationPlanProbeProviderResourceAuthority(
 		request_digest,resource_result_digest,resource_manifest_digest,content_upload_receipt_digest,
 		deletion_authority_receipt_digest,provider_resource_authority_digest,registered_at,expires_at,
 		request_bytes,result_bytes,claimed_at
-	FROM agent_evaluation_capability_probe_provider_resource_registrations
+	FROM ae_cppr_registrations
 	WHERE namespace_id=$1 AND repository_commit=$2 AND state='sealed' AND v46_eligible
 		AND provider_resource_authority_digest=$3 FOR SHARE`, authority.NamespaceID, plan.RepositoryCommit,
 		stringMember(resource, "authorityDigest"),
@@ -89,9 +89,9 @@ func requireEvaluationPlanProbeProviderResourceAuthority(
 		digest       string
 		bytes        []byte
 	}{
-		{"agent_evaluation_capability_probe_provider_resource_manifests", "manifest_digest", result.ResourceManifestDigest, result.ResourceManifestBytes},
-		{"agent_evaluation_capability_probe_provider_resource_content_upload_receipts", "content_upload_receipt_digest", result.ContentUploadReceiptDigest, result.ContentUploadReceiptBytes},
-		{"agent_evaluation_capability_probe_provider_resource_deletion_authority_receipts", "deletion_authority_receipt_digest", result.DeletionAuthorityReceiptDigest, result.DeletionAuthorityReceiptBytes},
+		{"ae_cppr_manifests", "manifest_digest", result.ResourceManifestDigest, result.ResourceManifestBytes},
+		{"ae_cppr_content_upload_receipts", "content_upload_receipt_digest", result.ContentUploadReceiptDigest, result.ContentUploadReceiptBytes},
+		{"ae_cppr_deletion_authority_receipts", "deletion_authority_receipt_digest", result.DeletionAuthorityReceiptDigest, result.DeletionAuthorityReceiptBytes},
 	}
 	for _, component := range components {
 		var storedBytes []byte
@@ -125,8 +125,8 @@ func requireEvaluationPlanProbeProviderResourceAuthority(
 		c.owner_implementation_digest,c.stage_digest,c.cleanup_receipt_digest,c.owner_admission_digest,
 		c.dispatch_ack_digest,c.result_ingress_digest,c.result_ingress_receipt_digest,c.response_digest,
 		c.request_bytes,r.receipt_bytes,c.response_bytes,c.completed_at,c.sealed_at
-	FROM agent_evaluation_capability_probe_provider_resource_cleanups c
-	JOIN agent_evaluation_capability_probe_provider_resource_cleanup_receipts r
+	FROM ae_cppr_cleanups c
+	JOIN ae_cppr_cleanup_receipts r
 	  ON r.namespace_id=c.namespace_id AND r.repository_commit=c.repository_commit
 	 AND r.cleanup_request_digest=c.cleanup_request_digest AND r.cleanup_receipt_digest=c.cleanup_receipt_digest
 	WHERE c.namespace_id=$1 AND c.repository_commit=$2 AND c.cleanup_request_digest=$3
