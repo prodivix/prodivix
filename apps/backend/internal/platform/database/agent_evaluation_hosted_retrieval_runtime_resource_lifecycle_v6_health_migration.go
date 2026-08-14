@@ -7,43 +7,43 @@ package database
 func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() []string {
 	return []string{
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_intent_owner_revision
-			AFTER INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents
+			AFTER INSERT ON ae_hrrr_lifecycle_dispatch_intents
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_transport_owner_revision
-			AFTER INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts
+			AFTER INSERT ON ae_hrrr_lifecycle_transport_receipts
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_spool_owner_revision
 			AFTER UPDATE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			ON ae_hrrr_lifecycle_result_spools
 			FOR EACH ROW WHEN (NEW.disposition IS DISTINCT FROM
 				'destroyed-after-prefix-supersession')
 			EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_journal_owner_revision
-			AFTER INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			AFTER INSERT ON ae_hrrr_lifecycle_transport_journals
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_unfinished_owner_revision
 			AFTER INSERT OR UPDATE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations
+			ON ae_hrrr_lifecycle_unfinished_operations
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_archive_owner_revision
 			AFTER INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+			ON ae_hrrr_lifecycle_journal_archives
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_archive_root_owner_revision
 			AFTER INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots
+			ON ae_hrrr_lifecycle_journal_archive_roots
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_prepare_owner_revision
 			AFTER INSERT OR UPDATE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+			ON ae_hrrr_lifecycle_partial_cleanup_prepares
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_claim_history_owner_revision
 			AFTER INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history
+			ON ae_hrrr_lifecycle_partial_cleanup_claim_history
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_claim_current_owner_revision
 			AFTER INSERT OR UPDATE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current
+			ON ae_hrrr_lifecycle_partial_cleanup_claim_current
 			FOR EACH ROW EXECUTE FUNCTION bump_agent_evaluation_hosted_runtime_owner_ledger()`,
 		`CREATE OR REPLACE FUNCTION agent_evaluation_hosted_runtime_resource_owner_storage_summary(
 			candidate_namespace_id TEXT,
@@ -58,7 +58,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 		) LANGUAGE sql STABLE PARALLEL RESTRICTED AS $$
 			SELECT ledger.ledger_revision,
 				(SELECT COUNT(*)
-				 FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+				 FROM ae_hrrr_registration_results registration
 				 WHERE registration.namespace_id=candidate_namespace_id
 					AND registration.v46_eligible),
 				(SELECT COUNT(*)
@@ -76,7 +76,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 					 AND (resource.lifecycle='cleanup-in-progress'
 						OR (resource.lifecycle='cleaned' AND NOT EXISTS (
 							SELECT 1
-							FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+							FROM ae_hrrr_registration_results registration
 							JOIN agent_evaluation_budget_settlements settlement
 							  ON settlement.namespace_id=registration.namespace_id
 							 AND settlement.plan_digest=registration.plan_digest
@@ -88,11 +88,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 									resource.registration_request_digest
 						))))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+					FROM ae_hrrr_registration_requests request
 					WHERE request.namespace_id=candidate_namespace_id AND request.v46_eligible
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+						  FROM ae_hrrr_registration_results registration
 						  WHERE registration.namespace_id=request.namespace_id
 							AND registration.plan_digest=request.plan_digest
 							AND registration.repository_commit=request.repository_commit
@@ -100,59 +100,59 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 						  )
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares prepare
+						  FROM ae_hrrr_lifecycle_partial_cleanup_prepares prepare
 						  WHERE prepare.namespace_id=request.namespace_id
 							AND prepare.registration_request_digest=request.request_digest
 					  )
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+						  FROM ae_hrrr_lifecycle_transport_journals journal
 						  WHERE journal.namespace_id=request.namespace_id
 							AND journal.registration_request_digest=request.request_digest
 							AND journal.operation='create'
 							AND journal.business_outcome='abandoned-before-provider-effect'
 					  ))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares prepare
+					FROM ae_hrrr_lifecycle_partial_cleanup_prepares prepare
 					WHERE prepare.namespace_id=candidate_namespace_id
 					  AND prepare.state<>'cleaned')
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives archive
+					FROM ae_hrrr_lifecycle_journal_archives archive
 					WHERE archive.namespace_id=candidate_namespace_id AND archive.v46_eligible
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts seal
+						  FROM ae_hrrr_lifecycle_seal_receipts seal
 						  WHERE seal.namespace_id=archive.namespace_id
 							AND seal.archive_record_digest=archive.archive_record_digest
 					  ))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current claim
+					FROM ae_hrrr_lifecycle_dispatch_claim_current claim
 					WHERE claim.namespace_id=candidate_namespace_id
 					  AND claim.sealed_journal_record_digest IS NULL)
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools spool
+					FROM ae_hrrr_lifecycle_result_spools spool
 					WHERE spool.namespace_id=candidate_namespace_id AND spool.v46_eligible
 					  AND spool.state IN ('active','retained-encrypted'))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations unfinished
+					FROM ae_hrrr_lifecycle_unfinished_operations unfinished
 					WHERE unfinished.namespace_id=candidate_namespace_id
 					  AND unfinished.state='pending')
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+					FROM ae_hrrr_lifecycle_transport_journals journal
 					WHERE journal.namespace_id=candidate_namespace_id AND journal.v46_eligible
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives archive
+						  FROM ae_hrrr_lifecycle_journal_archives archive
 						  WHERE archive.namespace_id=journal.namespace_id
 							AND archive.journal_record_digest=journal.record_digest
 						  ))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_sets resource_set
+					FROM ae_hrrr_sets resource_set
 					WHERE resource_set.namespace_id=candidate_namespace_id
 					  AND resource_set.v46_eligible
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots root
+						  FROM ae_hrrr_lifecycle_journal_archive_roots root
 						  WHERE root.namespace_id=resource_set.namespace_id
 							AND root.plan_digest=resource_set.plan_digest
 							AND root.repository_commit=resource_set.repository_commit
@@ -160,7 +160,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 							AND root.v46_eligible AND root.closure_status='zeroed'
 					  ))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+					FROM ae_hrrr_registration_requests request
 					WHERE request.namespace_id=candidate_namespace_id AND request.v46_eligible
 					  AND NOT EXISTS (
 						  SELECT 1 FROM agent_evaluation_budget_settlements settlement
@@ -176,7 +176,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 					 AND (resource.resource_expires_at<candidate_summarized_at
 						OR (resource.lifecycle='cleanup-in-progress' AND EXISTS (
 							SELECT 1
-							FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim
+							FROM ae_hrrr_cleanup_claim_receipts claim
 							WHERE claim.namespace_id=resource.namespace_id
 								AND claim.plan_digest=resource.plan_digest
 								AND claim.repository_commit=resource.repository_commit
@@ -184,12 +184,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 								AND claim.claim_expires_at<candidate_summarized_at)))
 				 )
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+					FROM ae_hrrr_registration_requests request
 					WHERE request.namespace_id=candidate_namespace_id AND request.v46_eligible
 					  AND request.minimum_expires_at<candidate_summarized_at
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+						  FROM ae_hrrr_registration_results registration
 						  WHERE registration.namespace_id=request.namespace_id
 							AND registration.plan_digest=request.plan_digest
 							AND registration.repository_commit=request.repository_commit
@@ -197,21 +197,21 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 						  )
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares prepare
+						  FROM ae_hrrr_lifecycle_partial_cleanup_prepares prepare
 						  WHERE prepare.namespace_id=request.namespace_id
 							AND prepare.registration_request_digest=request.request_digest
 					  )
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+						  FROM ae_hrrr_lifecycle_transport_journals journal
 						  WHERE journal.namespace_id=request.namespace_id
 							AND journal.registration_request_digest=request.request_digest
 							AND journal.operation='create'
 							AND journal.business_outcome='abandoned-before-provider-effect'
 					  ))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares prepare
-					LEFT JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current claim
+					FROM ae_hrrr_lifecycle_partial_cleanup_prepares prepare
+					LEFT JOIN ae_hrrr_lifecycle_partial_cleanup_claim_current claim
 					  ON claim.namespace_id=prepare.namespace_id
 					 AND claim.registration_request_digest=prepare.registration_request_digest
 					WHERE prepare.namespace_id=candidate_namespace_id
@@ -219,21 +219,21 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 					  AND (prepare.expires_at<=candidate_summarized_at
 						OR claim.claim_expires_at<=candidate_summarized_at))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current claim
+					FROM ae_hrrr_lifecycle_dispatch_claim_current claim
 					WHERE claim.namespace_id=candidate_namespace_id
 					  AND claim.sealed_journal_record_digest IS NULL
 					  AND claim.claim_expires_at<=candidate_summarized_at)
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools spool
+					FROM ae_hrrr_lifecycle_result_spools spool
 					WHERE spool.namespace_id=candidate_namespace_id AND spool.v46_eligible
 					  AND spool.state IN ('active','retained-encrypted')
 					  AND spool.expires_at<=candidate_summarized_at)
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations unfinished
-					JOIN agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+					FROM ae_hrrr_lifecycle_unfinished_operations unfinished
+					JOIN ae_hrrr_registration_requests request
 					  ON request.namespace_id=unfinished.namespace_id
 					 AND request.request_digest=unfinished.registration_request_digest
-					LEFT JOIN agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+					LEFT JOIN ae_hrrr_registration_results registration
 					  ON registration.namespace_id=request.namespace_id
 					 AND registration.plan_digest=request.plan_digest
 					 AND registration.repository_commit=request.repository_commit
@@ -251,31 +251,31 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6HealthStatements() 
 					  AND LEAST(plan.expires_at,COALESCE(resource.resource_expires_at,
 						registration.expires_at,request.minimum_expires_at))<=candidate_summarized_at)
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+					FROM ae_hrrr_lifecycle_transport_journals journal
 					WHERE journal.namespace_id=candidate_namespace_id AND journal.v46_eligible
 					  AND journal.completed_at+INTERVAL '125 seconds'<=candidate_summarized_at
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives archive
+						  FROM ae_hrrr_lifecycle_journal_archives archive
 						  WHERE archive.namespace_id=journal.namespace_id
 							AND archive.journal_record_digest=journal.record_digest
 					  ))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives archive
+					FROM ae_hrrr_lifecycle_journal_archives archive
 					WHERE archive.namespace_id=candidate_namespace_id AND archive.v46_eligible
 					  AND archive.created_at+INTERVAL '125 seconds'<=candidate_summarized_at
 					  AND NOT EXISTS (
 						  SELECT 1
-						  FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts seal
+						  FROM ae_hrrr_lifecycle_seal_receipts seal
 						  WHERE seal.namespace_id=archive.namespace_id
 							AND seal.archive_record_digest=archive.archive_record_digest
 					  ))
 				 + (SELECT COUNT(*)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots root
+					FROM ae_hrrr_lifecycle_journal_archive_roots root
 					WHERE root.namespace_id=candidate_namespace_id AND root.v46_eligible
 					  AND root.closure_status<>'zeroed'
 					  AND root.sealed_at+INTERVAL '125 seconds'<=candidate_summarized_at))
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers ledger
+			FROM ae_hrrr_owner_ledgers ledger
 			WHERE ledger.namespace_id=candidate_namespace_id
 		$$`,
 	}

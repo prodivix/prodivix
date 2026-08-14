@@ -302,15 +302,15 @@ func TestStageAndClaimLifecycleDispatchCommitsFirstDeliveryAndACKReplayWithoutSe
 		claimedAt, nil, nil,
 	)
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests request").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_requests request").
 		WithArgs(authority.NamespaceID, request.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes", "request_bytes", "receipt_bytes"}))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_intents").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes"}))
-	mock.ExpectExec("INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents").
+	mock.ExpectExec("INSERT INTO ae_hrrr_lifecycle_dispatch_intents").
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_current").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"dispatch_ledger_revision", "dispatch_generation", "current_claim_receipt_digest",
@@ -331,7 +331,7 @@ func TestStageAndClaimLifecycleDispatchCommitsFirstDeliveryAndACKReplayWithoutSe
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests request").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_requests request").
 		WithArgs(authority.NamespaceID, request.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes", "request_bytes", "receipt_bytes"}).
 			AddRow(intent.Canonical, request.Canonical, receipt))
@@ -361,15 +361,15 @@ func TestStageLifecycleDispatchReturnsExactRawReceipt(t *testing.T) {
 		claimedAt, nil, nil,
 	)
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests request").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_requests request").
 		WithArgs(authority.NamespaceID, claim.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes", "request_bytes", "receipt_bytes"}))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_intents").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes"}))
-	mock.ExpectExec("INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents").
+	mock.ExpectExec("INSERT INTO ae_hrrr_lifecycle_dispatch_intents").
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_current").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"dispatch_ledger_revision", "dispatch_generation", "current_claim_receipt_digest",
@@ -427,13 +427,13 @@ func TestStageAndClaimLifecycleDispatchRejectsForeignOwnerAndStalePriorCAS(t *te
 		evaluationExportInstant(priorExpiresAt), claimedAt,
 	)
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests request").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_requests request").
 		WithArgs(authority.NamespaceID, stale.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes", "request_bytes", "receipt_bytes"}))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_intents").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes"}).AddRow(intent.Canonical))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_current").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"dispatch_ledger_revision", "dispatch_generation", "current_claim_receipt_digest",
@@ -465,13 +465,13 @@ func TestStageAndClaimLifecycleDispatchRejectsForeignOwnerBeforePriorClaimExpiry
 		evaluationExportInstant(priorExpiresAt), claimedAt,
 	)
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests request").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_requests request").
 		WithArgs(authority.NamespaceID, request.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes", "request_bytes", "receipt_bytes"}))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_intents").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"intent_bytes"}).AddRow(intent.Canonical))
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_current").
 		WithArgs(authority.NamespaceID, intent.IntentDigest).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"dispatch_ledger_revision", "dispatch_generation", "current_claim_receipt_digest",

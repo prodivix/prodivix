@@ -6,7 +6,7 @@ package database
 // current lifecycle row participates in read-lease and cleanup CAS updates.
 func agentEvaluationHostedRetrievalRuntimeResourceStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_registration_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_registration_requests (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -50,11 +50,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceStatements() []string {
 			)
 		)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_registration_stage_budget
-			ON agent_evaluation_hosted_retrieval_runtime_resource_registration_requests(
+			ON ae_hrrr_registration_requests(
 				namespace_id,plan_digest,repository_commit,
 				(request_json#>>'{budgetReservationAuthority,reservationId}')
 			)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_registration_results (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_registration_results (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -103,7 +103,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceStatements() []string {
 				ON DELETE RESTRICT,
 			FOREIGN KEY (
 				namespace_id,plan_digest,repository_commit,registration_request_digest
-			) REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_registration_requests(
+			) REFERENCES ae_hrrr_registration_requests(
 				namespace_id,plan_digest,repository_commit,request_digest
 			) ON DELETE RESTRICT,
 			FOREIGN KEY (
@@ -161,11 +161,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceStatements() []string {
 			)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_registration_set
-			ON agent_evaluation_hosted_retrieval_runtime_resource_registration_results(
+			ON ae_hrrr_registration_results(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 				protocol_family,capability_profile_id
 			)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_sets (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_sets (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -236,12 +236,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceStatements() []string {
 			UNIQUE (namespace_id,provider_resource_id),
 			FOREIGN KEY (
 				namespace_id,plan_digest,repository_commit,registration_request_digest
-			) REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_registration_results(
+			) REFERENCES ae_hrrr_registration_results(
 				namespace_id,plan_digest,repository_commit,registration_request_digest
 			) ON DELETE RESTRICT,
 			FOREIGN KEY (
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id
-			) REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_sets(
+			) REFERENCES ae_hrrr_sets(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id
 			) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_resource_lifecycle_check CHECK (
@@ -286,7 +286,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceStatements() []string {
 			ON agent_evaluation_hosted_retrieval_runtime_resources(
 				namespace_id,lifecycle,resource_expires_at,authority_digest
 			)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_read_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_read_receipts (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -327,7 +327,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceStatements() []string {
 				AND receipt_bytes=convert_to(agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_read_lease_ledger_roots (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,

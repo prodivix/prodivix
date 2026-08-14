@@ -45,8 +45,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 		BEGIN
 			IF EXISTS (
 				SELECT 1
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts transport
+				FROM ae_hrrr_lifecycle_dispatch_intents intent
+				JOIN ae_hrrr_lifecycle_transport_receipts transport
 				  ON transport.namespace_id=intent.namespace_id
 				 AND transport.intent_digest=intent.intent_digest
 				WHERE intent.namespace_id=NEW.namespace_id
@@ -54,7 +54,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 					AND intent.operation=NEW.operation
 					AND transport.outcome='post-dispatch-unknown'
 			) THEN
-				INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations(
+				INSERT INTO ae_hrrr_lifecycle_unfinished_operations(
 					namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 					registration_request_digest,operation,dispatch_intent_set_digest,
 					dispatch_stage_claim_receipt_set_digest,transport_receipt_set_digest,
@@ -75,54 +75,54 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 					result_spool_ref=EXCLUDED.result_spool_ref,
 					result_spool_receipt_digest=EXCLUDED.result_spool_receipt_digest,
 					current_revision=
-						agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations.current_revision+1,
+						ae_hrrr_lifecycle_unfinished_operations.current_revision+1,
 					updated_at=GREATEST(
-						agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations.updated_at,
+						ae_hrrr_lifecycle_unfinished_operations.updated_at,
 						EXCLUDED.updated_at)
-				WHERE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations.state='pending';
+				WHERE ae_hrrr_lifecycle_unfinished_operations.state='pending';
 			END IF;
 			RETURN NEW;
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_spool_unfinished
 			AFTER INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			ON ae_hrrr_lifecycle_result_spools
 			FOR EACH ROW EXECUTE FUNCTION stage_agent_evaluation_hosted_runtime_lifecycle_unfinished()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_reconciliation_observation()
 			RETURNS trigger AS $$
 		DECLARE
-			unfinished_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations%ROWTYPE;
-			intent_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents%ROWTYPE;
-			claim_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts%ROWTYPE;
-			current_claim agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current%ROWTYPE;
-			transport_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts%ROWTYPE;
-			spool_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
+			unfinished_row ae_hrrr_lifecycle_unfinished_operations%ROWTYPE;
+			intent_row ae_hrrr_lifecycle_dispatch_intents%ROWTYPE;
+			claim_row ae_hrrr_lifecycle_dispatch_claim_receipts%ROWTYPE;
+			current_claim ae_hrrr_lifecycle_dispatch_claim_current%ROWTYPE;
+			transport_row ae_hrrr_lifecycle_transport_receipts%ROWTYPE;
+			spool_row ae_hrrr_lifecycle_result_spools%ROWTYPE;
 		BEGIN
 			SELECT * INTO unfinished_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations
+			FROM ae_hrrr_lifecycle_unfinished_operations
 			WHERE namespace_id=NEW.namespace_id
 				AND registration_request_digest=NEW.registration_request_digest
 				AND operation=NEW.operation
 			FOR UPDATE;
 			SELECT * INTO intent_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents
+			FROM ae_hrrr_lifecycle_dispatch_intents
 			WHERE namespace_id=NEW.namespace_id AND intent_digest=NEW.dispatch_intent_digest
 			FOR SHARE;
 			SELECT * INTO claim_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=NEW.namespace_id
 				AND receipt_digest=NEW.dispatch_stage_claim_receipt_digest
 			FOR SHARE;
 			SELECT * INTO current_claim
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			FROM ae_hrrr_lifecycle_dispatch_claim_current
 			WHERE namespace_id=NEW.namespace_id AND intent_digest=NEW.dispatch_intent_digest
 			FOR SHARE;
 			SELECT * INTO transport_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts
+			FROM ae_hrrr_lifecycle_transport_receipts
 			WHERE namespace_id=NEW.namespace_id AND receipt_digest=NEW.transport_receipt_digest
 			FOR SHARE;
 			SELECT * INTO spool_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=NEW.namespace_id AND spool_ref=unfinished_row.result_spool_ref
 			FOR SHARE;
 			IF unfinished_row.state<>'pending' OR spool_row.spool_ref IS NULL
@@ -302,7 +302,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_reconciliation_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations
+			ON ae_hrrr_lifecycle_reconciliation_observations
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_reconciliation_observation()`,
 		`CREATE OR REPLACE FUNCTION store_agent_evaluation_hosted_runtime_lifecycle_reconciliation_observation(
 			candidate_namespace_id TEXT,candidate_store_request_json JSONB,
@@ -313,9 +313,9 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			owner_ledger_revision BIGINT
 		) LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			existing agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations%ROWTYPE;
-			prior_observation agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations%ROWTYPE;
-			intent_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents%ROWTYPE;
+			existing ae_hrrr_lifecycle_reconciliation_observations%ROWTYPE;
+			prior_observation ae_hrrr_lifecycle_reconciliation_observations%ROWTYPE;
+			intent_row ae_hrrr_lifecycle_dispatch_intents%ROWTYPE;
 			authorization_request JSONB:=candidate_store_request_json->'authorizationRequest';
 			projection JSONB:=candidate_store_request_json->'observationProjection';
 			store_request_digest_value TEXT:=candidate_store_request_json->>'requestDigest';
@@ -337,7 +337,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			PERFORM pg_advisory_xact_lock(hashtextextended(candidate_namespace_id||chr(31)||
 				store_request_digest_value||chr(31)||'lifecycle-reconciliation-store',0));
 			SELECT * INTO existing
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations
+			FROM ae_hrrr_lifecycle_reconciliation_observations
 			WHERE namespace_id=candidate_namespace_id
 				AND observation_store_request_digest=store_request_digest_value
 			FOR UPDATE;
@@ -377,7 +377,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 				authorization_request->>'transportReceiptDigest'||chr(31)||
 				'lifecycle-reconciliation-observation',0));
 			SELECT * INTO prior_observation
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations
+			FROM ae_hrrr_lifecycle_reconciliation_observations
 			WHERE namespace_id=candidate_namespace_id
 				AND (request_digest=authorization_request_digest_value
 					OR transport_receipt_digest=authorization_request->>'transportReceiptDigest'
@@ -388,7 +388,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 					USING ERRCODE='40001';
 			END IF;
 			SELECT * INTO intent_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents
+			FROM ae_hrrr_lifecycle_dispatch_intents
 			WHERE namespace_id=candidate_namespace_id
 				AND intent_digest=authorization_request->>'dispatchIntentDigest'
 			FOR SHARE;
@@ -418,7 +418,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			receipt_digest_value:=agent_evaluation_canonical_jsonb_digest(receipt_base);
 			receipt_value:=receipt_base||jsonb_build_object(
 				'receiptDigest',receipt_digest_value);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations(
+			INSERT INTO ae_hrrr_lifecycle_reconciliation_observations(
 				namespace_id,registration_request_digest,operation,dispatch_intent_digest,
 				dispatch_stage_claim_receipt_digest,transport_receipt_digest,mutation_kind,
 				mutation_sequence,request_digest,observation_store_request_digest,
@@ -447,7 +447,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 				candidate_store_request_json,candidate_store_request_bytes,projection,
 				convert_to(agent_evaluation_canonical_jsonb_text(projection),'UTF8'),receipt_value,
 				convert_to(agent_evaluation_canonical_jsonb_text(receipt_value),'UTF8')
-			) RETURNING agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations.owner_ledger_revision
+			) RETURNING ae_hrrr_lifecycle_reconciliation_observations.owner_ledger_revision
 			INTO ledger_revision_value;
 			RETURN QUERY SELECT receipt_value,
 				convert_to(agent_evaluation_canonical_jsonb_text(receipt_value),'UTF8'),
@@ -468,8 +468,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			set_digest TEXT;
 		BEGIN
 			SELECT COUNT(*) INTO unknown_count
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts transport
+			FROM ae_hrrr_lifecycle_dispatch_intents intent
+			JOIN ae_hrrr_lifecycle_transport_receipts transport
 			  ON transport.namespace_id=intent.namespace_id
 			 AND transport.intent_digest=intent.intent_digest
 			WHERE intent.namespace_id=candidate_namespace_id
@@ -479,7 +479,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			WITH ordered AS (
 				SELECT observation.*,
 					row_number() OVER (ORDER BY mutation_sequence)-1 AS expected_sequence
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations observation
+				FROM ae_hrrr_lifecycle_reconciliation_observations observation
 				WHERE observation.namespace_id=candidate_namespace_id
 					AND observation.registration_request_digest=
 						candidate_registration_request_digest
@@ -511,7 +511,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			observation_set:=agent_evaluation_hosted_runtime_lifecycle_reconciliation_set(
 				NEW.namespace_id,NEW.registration_request_digest,NEW.operation);
 			IF observation_set IS NOT NULL THEN
-				UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations
+				UPDATE ae_hrrr_lifecycle_unfinished_operations
 				SET state='resolved',current_revision=current_revision+1,
 					latest_reconciliation_observation_digest=observation_set->>'setDigest',
 					updated_at=GREATEST(updated_at,NEW.observed_at)
@@ -524,17 +524,17 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_reconciliation_resolve
 			AFTER INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations
+			ON ae_hrrr_lifecycle_reconciliation_observations
 			FOR EACH ROW EXECUTE FUNCTION resolve_agent_evaluation_hosted_runtime_lifecycle_unfinished()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_reconciliation_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations
+			ON ae_hrrr_lifecycle_reconciliation_observations
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_journal_seal()
 			RETURNS trigger AS $$
 		DECLARE
-			spool_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
-			unfinished_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations%ROWTYPE;
+			spool_row ae_hrrr_lifecycle_result_spools%ROWTYPE;
+			unfinished_row ae_hrrr_lifecycle_unfinished_operations%ROWTYPE;
 			expected_observation_set JSONB;
 			unknown_count BIGINT;
 			intent_count BIGINT;
@@ -542,18 +542,18 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			business_result JSONB:=NEW.record_json->'businessResult';
 		BEGIN
 			SELECT * INTO spool_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=NEW.namespace_id AND spool_ref=NEW.result_spool_ref
 			FOR SHARE;
 			SELECT * INTO unfinished_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations
+			FROM ae_hrrr_lifecycle_unfinished_operations
 			WHERE namespace_id=NEW.namespace_id
 				AND registration_request_digest=NEW.registration_request_digest
 				AND operation=NEW.operation
 			FOR SHARE;
 			SELECT COUNT(*) INTO unknown_count
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts transport
+			FROM ae_hrrr_lifecycle_dispatch_intents intent
+			JOIN ae_hrrr_lifecycle_transport_receipts transport
 			  ON transport.namespace_id=intent.namespace_id
 			 AND transport.intent_digest=intent.intent_digest
 			WHERE intent.namespace_id=NEW.namespace_id
@@ -611,7 +611,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 					FROM jsonb_array_elements_text(NEW.record_json#>
 						'{dispatchIntentSet,intentDigests}')
 						WITH ORDINALITY intent_order(intent_digest,ordinality)
-					JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+					JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 					  ON receipt.namespace_id=NEW.namespace_id
 					 AND receipt.intent_digest=intent_order.intent_digest)
 				OR NEW.record_json#>'{dispatchStageClaimHistorySet,receiptDigests}'
@@ -622,7 +622,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 					FROM jsonb_array_elements_text(NEW.record_json#>
 						'{dispatchIntentSet,intentDigests}')
 						WITH ORDINALITY intent_order(intent_digest,ordinality)
-					JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+					JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 					  ON receipt.namespace_id=NEW.namespace_id
 					 AND receipt.intent_digest=intent_order.intent_digest)
 				OR NEW.record_json->>'transportReceiptSetDigest'<>
@@ -654,7 +654,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 			END IF;
 			SELECT COUNT(*) INTO intent_count
 			FROM jsonb_array_elements(NEW.record_json#>'{dispatchIntentSet,intents}');
-			UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current current_claim
+			UPDATE ae_hrrr_lifecycle_dispatch_claim_current current_claim
 			SET current_revision=current_revision+1,
 				sealed_journal_record_digest=NEW.record_digest,
 				updated_at=GREATEST(updated_at,NEW.completed_at)
@@ -673,11 +673,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ReconciliationState
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_journal_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			ON ae_hrrr_lifecycle_transport_journals
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_journal_seal()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_journal_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			ON ae_hrrr_lifecycle_transport_journals
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 	}
 }

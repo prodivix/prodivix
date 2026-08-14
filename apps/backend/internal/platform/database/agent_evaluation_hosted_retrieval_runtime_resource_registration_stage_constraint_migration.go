@@ -168,7 +168,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceRegistrationStageConstraintSta
 				NEW.namespace_id||chr(31)||NEW.plan_digest||chr(31)||NEW.repository_commit||
 				chr(31)||'hosted-runtime-registration-stage',0));
 			SELECT COUNT(*),MIN(runtime_resource_set_id) INTO staged_count,existing_set_id
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			FROM ae_hrrr_registration_requests
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit;
 			IF staged_count>=4 OR (existing_set_id IS NOT NULL AND existing_set_id<>NEW.runtime_resource_set_id) THEN
@@ -179,13 +179,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceRegistrationStageConstraintSta
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_stages_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			BEFORE INSERT ON ae_hrrr_registration_requests
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_registration_stage()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_stages_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			BEFORE UPDATE OR DELETE ON ae_hrrr_registration_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_stages_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_registration_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 	}
 }

@@ -5,7 +5,7 @@ package database
 // reconcile-only claim owner and persists the exact bounded read authority.
 func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_transport_recovery_reads (
 			namespace_id TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
 			request_json JSONB NOT NULL,
@@ -28,19 +28,19 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 			PRIMARY KEY (namespace_id,request_digest),
 			UNIQUE (namespace_id,receipt_digest),
 			FOREIGN KEY (namespace_id,spool_ref)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+				REFERENCES ae_hrrr_lifecycle_result_spools(
 					namespace_id,spool_ref
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,dispatch_intent_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents(
+				REFERENCES ae_hrrr_lifecycle_dispatch_intents(
 					namespace_id,intent_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,dispatch_stage_claim_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts(
+				REFERENCES ae_hrrr_lifecycle_dispatch_claim_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,expected_prior_transport_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts(
+				REFERENCES ae_hrrr_lifecycle_transport_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_recovery_read_check CHECK (
@@ -67,22 +67,22 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_recovery_read_exact()
 			RETURNS trigger AS $$
 		DECLARE
-			spool_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
-			claim_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts%ROWTYPE;
-			current_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current%ROWTYPE;
+			spool_row ae_hrrr_lifecycle_result_spools%ROWTYPE;
+			claim_row ae_hrrr_lifecycle_dispatch_claim_receipts%ROWTYPE;
+			current_row ae_hrrr_lifecycle_dispatch_claim_current%ROWTYPE;
 			current_selected_claim JSONB;
 		BEGIN
 			SELECT * INTO spool_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=NEW.namespace_id AND spool_ref=NEW.spool_ref
 			FOR SHARE;
 			SELECT * INTO claim_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=NEW.namespace_id
 				AND receipt_digest=NEW.dispatch_stage_claim_receipt_digest
 			FOR SHARE;
 			SELECT * INTO current_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			FROM ae_hrrr_lifecycle_dispatch_claim_current
 			WHERE namespace_id=NEW.namespace_id
 				AND intent_digest=NEW.dispatch_intent_digest
 			FOR SHARE;
@@ -181,7 +181,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 						FROM jsonb_array_elements_text(spool_row.transport_store_request_json#>
 							'{dispatchIntentSet,intentDigests}')
 							WITH ORDINALITY intent_order(intent_digest,ordinality)
-						JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+						JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 						  ON receipt.namespace_id=NEW.namespace_id
 						 AND receipt.intent_digest=intent_order.intent_digest)
 				OR NEW.receipt_json#>'{currentDispatchStageClaimHistorySet,receiptDigests}'
@@ -192,7 +192,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 						FROM jsonb_array_elements_text(spool_row.transport_store_request_json#>
 							'{dispatchIntentSet,intentDigests}')
 							WITH ORDINALITY intent_order(intent_digest,ordinality)
-						JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+						JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 						  ON receipt.namespace_id=NEW.namespace_id
 						 AND receipt.intent_digest=intent_order.intent_digest)
 				OR NEW.receipt_json->'transportReceiptSet'<>
@@ -219,11 +219,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_recovery_read_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads
+			ON ae_hrrr_lifecycle_transport_recovery_reads
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_recovery_read_exact()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_recovery_read_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads
+			ON ae_hrrr_lifecycle_transport_recovery_reads
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION read_agent_evaluation_hosted_runtime_lifecycle_transport_recovery(
 			candidate_namespace_id TEXT,candidate_request_json JSONB,candidate_request_bytes BYTEA,
@@ -235,10 +235,10 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 			owner_ledger_revision BIGINT
 		) LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			existing agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads%ROWTYPE;
-			spool_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
-			claim_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts%ROWTYPE;
-			current_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current%ROWTYPE;
+			existing ae_hrrr_lifecycle_transport_recovery_reads%ROWTYPE;
+			spool_row ae_hrrr_lifecycle_result_spools%ROWTYPE;
+			claim_row ae_hrrr_lifecycle_dispatch_claim_receipts%ROWTYPE;
+			current_row ae_hrrr_lifecycle_dispatch_claim_current%ROWTYPE;
 			request_digest_value TEXT:=candidate_request_json->>'requestDigest';
 			intent_digest_value TEXT:=candidate_request_json->>'dispatchIntentDigest';
 			claim_digest_value TEXT:=candidate_request_json->>'dispatchStageClaimReceiptDigest';
@@ -269,7 +269,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 			PERFORM pg_advisory_xact_lock(hashtextextended(
 				candidate_namespace_id||chr(31)||request_digest_value,0));
 			SELECT * INTO existing
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads
+			FROM ae_hrrr_lifecycle_transport_recovery_reads
 			WHERE namespace_id=candidate_namespace_id AND request_digest=request_digest_value
 			FOR UPDATE;
 			IF existing.request_digest IS NOT NULL THEN
@@ -283,15 +283,15 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 				RETURN;
 			END IF;
 			SELECT * INTO spool_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=candidate_namespace_id AND spool_ref=spool_ref_value
 			FOR SHARE;
 			SELECT * INTO claim_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=candidate_namespace_id AND receipt_digest=claim_digest_value
 			FOR SHARE;
 			SELECT * INTO current_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			FROM ae_hrrr_lifecycle_dispatch_claim_current
 			WHERE namespace_id=candidate_namespace_id AND intent_digest=intent_digest_value
 			FOR SHARE;
 			IF jsonb_typeof(candidate_request_json)<>'object'
@@ -348,7 +348,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 				SELECT receipt.receipt_json,receipt.receipt_digest,intent_order.ordinality,
 					receipt.claimed_at
 				FROM intent_order
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+				JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 				  ON receipt.namespace_id=candidate_namespace_id
 				 AND receipt.intent_digest=intent_order.digest
 			)
@@ -403,7 +403,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6RecoveryReadStateme
 			receipt_digest_value:=agent_evaluation_canonical_jsonb_digest(receipt_base);
 			receipt_value:=receipt_base||jsonb_build_object(
 				'receiptDigest',receipt_digest_value);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads(
+			INSERT INTO ae_hrrr_lifecycle_transport_recovery_reads(
 				namespace_id,request_digest,request_json,request_bytes,dispatch_intent_digest,
 				dispatch_stage_claim_receipt_digest,expected_prior_transport_receipt_digest,
 				spool_ref,lifecycle_owner_instance_id,recovery_authority_issuer_id,

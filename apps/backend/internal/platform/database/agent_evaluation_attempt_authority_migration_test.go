@@ -626,8 +626,8 @@ func TestAgentEvaluationHostedRetrievalRuntimeResourceUsesMonotonicOwnerAndDurab
 	migrationStatements := agentEvaluationAttemptAuthorityMigration().statements
 	statements := strings.Join(strings.Fields(strings.Join(migrationStatements, "\n")), " ")
 	for _, fragment := range []string{
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers",
-		"ledger_revision= agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers.ledger_revision+1",
+		"CREATE TABLE IF NOT EXISTS ae_hrrr_owner_ledgers",
+		"ledger_revision= ae_hrrr_owner_ledgers.ledger_revision+1",
 		"NEW.ledger_revision<>OLD.ledger_revision+1",
 		"hosted runtime owner ledger is non-monotonic",
 		"agent_evaluation_hosted_runtime_resource_owner_storage_summary",
@@ -652,14 +652,14 @@ func TestAgentEvaluationHostedRetrievalRuntimeResourceUsesMonotonicOwnerAndDurab
 		"(attempt_json#>>'{value,completedAt}')::timestamptz=completed_at",
 		"total_attempt_count<>plan_row.planned_journey_count",
 		"checkpoint_json#>>'{value,state}'<>'completed'",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests",
+		"CREATE TABLE IF NOT EXISTS ae_hrrr_terminal_fence_derive_requests",
 		"agent_evaluation_jsonb_object_key_count(NEW.request_json)<>14",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts",
+		"CREATE TABLE IF NOT EXISTS ae_hrrr_terminal_fence_derive_receipts",
 		"agent_evaluation_jsonb_object_key_count(NEW.receipt_json)<>17",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests",
+		"CREATE TABLE IF NOT EXISTS ae_hrrr_post_matrix_cleanup_claim_requests",
 		"hosted-retrieval-runtime-resource.cleanup.post-matrix.claim",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_recovery_claim_requests",
-		"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts",
+		"CREATE TABLE IF NOT EXISTS ae_hrrr_recovery_claim_requests",
+		"CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_claim_receipts",
 		"agent_evaluation_jsonb_object_key_count(NEW.receipt_json)<>25",
 		"claim_source IN ('post-matrix','recovery')",
 		"octet_length(receipt_bytes) BETWEEN 1 AND 245760",
@@ -674,8 +674,8 @@ func TestAgentEvaluationHostedRetrievalRuntimeResourceUsesMonotonicOwnerAndDurab
 		"agent_eval_hosted_runtime_cleanup_archive_materializer",
 		"NEW.cleanup_receipt_json->'resourceResults'<>( SELECT jsonb_agg(value ORDER BY value->>'resourceId' COLLATE \"C\")",
 		"prodivix.agent-evaluation-hosted-retrieval-runtime-resource-cleanup-archive-record",
-		"agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots",
-		"SELECT ledger_revision INTO owner_ledger_revision FROM agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers",
+		"ae_hrrr_recovery_scan_snapshots",
+		"SELECT ledger_revision INTO owner_ledger_revision FROM ae_hrrr_owner_ledgers",
 		"hosted runtime recovery scan revision drifted from owner ledger",
 		"hosted runtime recovery page drifted from its durable snapshot",
 		"detected_at>resource_expires_at",
@@ -701,13 +701,13 @@ func TestAgentEvaluationHostedRetrievalRuntimeResourceUsesMonotonicOwnerAndDurab
 		normalized := strings.Join(strings.Fields(statement), " ")
 		switch {
 		case strings.Contains(normalized,
-			"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts"):
+			"CREATE TABLE IF NOT EXISTS ae_hrrr_overdue_receipts"):
 			overdueTable = normalized
 		case strings.Contains(normalized,
-			"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims"):
+			"CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_claims"):
 			claimTable = normalized
 		case strings.Contains(normalized,
-			"CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests"):
+			"CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_requests"):
 			requestTable = normalized
 		}
 	}

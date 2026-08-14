@@ -12,14 +12,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 		DECLARE
 			next_revision BIGINT;
 		BEGIN
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers(
+			INSERT INTO ae_hrrr_owner_ledgers(
 				namespace_id,ledger_revision,updated_at
 			) VALUES (candidate_namespace_id,1,candidate_observed_at)
 			ON CONFLICT (namespace_id) DO UPDATE SET
 				ledger_revision=
-					agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers.ledger_revision+1,
+					ae_hrrr_owner_ledgers.ledger_revision+1,
 				updated_at=GREATEST(
-					agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers.updated_at,
+					ae_hrrr_owner_ledgers.updated_at,
 					EXCLUDED.updated_at)
 			RETURNING ledger_revision INTO next_revision;
 			RETURN next_revision;
@@ -85,7 +85,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			write_envelope JSONB:=request_value->'spoolWriteEnvelope';
 			receipt_value JSONB:=NEW.transport_store_receipt_json;
 			history_value JSONB:=NEW.transport_store_receipt_history_json;
-			prior_store agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
+			prior_store ae_hrrr_lifecycle_result_spools%ROWTYPE;
 			decoded_nonce BYTEA;
 			decoded_tag BYTEA;
 			decoded_ciphertext BYTEA;
@@ -106,13 +106,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			INTO expected_intents
 			FROM jsonb_array_elements_text(intent_set->'intentDigests')
 				WITH ORDINALITY member(digest,ordinality)
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
+			JOIN ae_hrrr_lifecycle_dispatch_intents intent
 			  ON intent.namespace_id=NEW.namespace_id AND intent.intent_digest=member.digest;
 			SELECT jsonb_agg(receipt.receipt_json ORDER BY member.ordinality)
 			INTO expected_claims
 			FROM jsonb_array_elements_text(claim_set->'receiptDigests')
 				WITH ORDINALITY member(digest,ordinality)
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+			JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 			  ON receipt.namespace_id=NEW.namespace_id AND receipt.receipt_digest=member.digest;
 			WITH intent_order AS (
 				SELECT digest,ordinality
@@ -123,18 +123,18 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 				receipt.claimed_at,receipt.receipt_digest COLLATE "C")
 			INTO expected_claim_history
 			FROM intent_order
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+			JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 			  ON receipt.namespace_id=NEW.namespace_id
 			 AND receipt.intent_digest=intent_order.digest;
 			SELECT jsonb_agg(receipt.receipt_json ORDER BY member.ordinality)
 			INTO expected_transports
 			FROM jsonb_array_elements_text(transport_set->'receiptDigests')
 				WITH ORDINALITY member(digest,ordinality)
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts receipt
+			JOIN ae_hrrr_lifecycle_transport_receipts receipt
 			  ON receipt.namespace_id=NEW.namespace_id AND receipt.receipt_digest=member.digest;
 			IF NEW.expected_prior_transport_store_receipt_digest IS NOT NULL THEN
 				SELECT * INTO prior_store
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+				FROM ae_hrrr_lifecycle_result_spools
 				WHERE namespace_id=NEW.namespace_id
 					AND transport_store_receipt_digest=
 						NEW.expected_prior_transport_store_receipt_digest
@@ -366,7 +366,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_transport_store_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			ON ae_hrrr_lifecycle_result_spools
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_transport_store_exact()`,
 		`CREATE OR REPLACE FUNCTION store_agent_evaluation_hosted_runtime_lifecycle_transport(
 			candidate_namespace_id TEXT,candidate_request_json JSONB,candidate_request_bytes BYTEA,
@@ -380,8 +380,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			transport_ledger_revision BIGINT
 		) LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			existing agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
-			prior_store agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
+			existing ae_hrrr_lifecycle_result_spools%ROWTYPE;
+			prior_store ae_hrrr_lifecycle_result_spools%ROWTYPE;
 			aad JSONB:=candidate_request_json->'spoolAad';
 			write_envelope JSONB:=candidate_request_json->'spoolWriteEnvelope';
 			envelope JSONB:=candidate_request_json->'spoolEnvelopeAuthority';
@@ -415,7 +415,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			PERFORM pg_advisory_xact_lock(hashtextextended(
 				candidate_namespace_id||chr(31)||request_digest_value,0));
 			SELECT * INTO existing
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=candidate_namespace_id
 				AND transport_store_request_digest=request_digest_value
 			FOR UPDATE;
@@ -469,7 +469,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 				aad->>'registrationRequestDigest'||chr(31)||aad->>'operation'||chr(31)||
 				'lifecycle-transport-prefix',0));
 			SELECT * INTO prior_store
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=candidate_namespace_id
 				AND registration_request_digest=aad->>'registrationRequestDigest'
 				AND operation=aad->>'operation'
@@ -595,7 +595,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 					supersession_base);
 				supersession_value:=supersession_base||jsonb_build_object(
 					'receiptDigest',supersession_digest_value);
-				UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+				UPDATE ae_hrrr_lifecycle_result_spools
 				SET state='destroyed',disposition='destroyed-after-prefix-supersession',
 					business_seal_kind='transport-prefix-superseded',
 					business_seal_receipt_digest=receipt_digest_value,
@@ -615,7 +615,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 						USING ERRCODE='40001';
 				END IF;
 			END IF;
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+			INSERT INTO ae_hrrr_lifecycle_result_spools(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 				registration_request_digest,authority_digest,lifecycle_claim_receipt_digest,
 				frozen_run_digest,run_config_artifact_binding_digest,lifecycle_expires_at,
@@ -700,7 +700,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 						transport_store_receipt_digest COLLATE "C") AS prior_receipt_digest,
 					lag(spool_receipt_digest) OVER (ORDER BY transport_ledger_revision,
 						transport_store_receipt_digest COLLATE "C") AS prior_spool_receipt_digest
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools spool
+				FROM ae_hrrr_lifecycle_result_spools spool
 				WHERE namespace_id=candidate_namespace_id
 					AND registration_request_digest=candidate_registration_request_digest
 					AND operation=candidate_operation
@@ -737,7 +737,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			RETURN history_value;
 		END;
 		$$`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_seal_receipts (
 			namespace_id TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
 			request_json JSONB NOT NULL,
@@ -756,11 +756,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			UNIQUE (namespace_id,receipt_digest),
 			UNIQUE (namespace_id,journal_record_digest),
 			FOREIGN KEY (namespace_id,journal_record_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals(
+				REFERENCES ae_hrrr_lifecycle_transport_journals(
 					namespace_id,record_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,archive_record_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives(
+				REFERENCES ae_hrrr_lifecycle_journal_archives(
 					namespace_id,archive_record_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_seal_receipt_check CHECK (
@@ -782,20 +782,20 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_seal_receipt_exact()
 			RETURNS trigger AS $$
 		DECLARE
-			journal_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals%ROWTYPE;
-			archive_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives%ROWTYPE;
-			spool_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
+			journal_row ae_hrrr_lifecycle_transport_journals%ROWTYPE;
+			archive_row ae_hrrr_lifecycle_journal_archives%ROWTYPE;
+			spool_row ae_hrrr_lifecycle_result_spools%ROWTYPE;
 		BEGIN
 			SELECT * INTO journal_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			FROM ae_hrrr_lifecycle_transport_journals
 			WHERE namespace_id=NEW.namespace_id AND record_digest=NEW.journal_record_digest
 			FOR SHARE;
 			SELECT * INTO archive_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+			FROM ae_hrrr_lifecycle_journal_archives
 			WHERE namespace_id=NEW.namespace_id AND archive_record_digest=NEW.archive_record_digest
 			FOR SHARE;
 			SELECT * INTO spool_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=NEW.namespace_id
 				AND disposition_receipt_digest=NEW.spool_disposition_receipt_digest
 			FOR SHARE;
@@ -851,11 +851,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_seal_receipt_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts
+			ON ae_hrrr_lifecycle_seal_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_seal_receipt_exact()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_seal_receipt_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts
+			ON ae_hrrr_lifecycle_seal_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION acknowledge_agent_evaluation_hosted_runtime_lifecycle_seal(
 			candidate_namespace_id TEXT,candidate_request_json JSONB,candidate_request_bytes BYTEA,
@@ -866,7 +866,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			archive_record_digest TEXT,seal_ledger_revision BIGINT
 		) LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			existing agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts%ROWTYPE;
+			existing ae_hrrr_lifecycle_seal_receipts%ROWTYPE;
 			request_digest_value TEXT:=candidate_request_json->>'requestDigest';
 			journal_digest_value TEXT:=candidate_request_json#>>'{journalRecord,recordDigest}';
 			disposition_digest_value TEXT:=
@@ -883,7 +883,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			PERFORM pg_advisory_xact_lock(hashtextextended(
 				candidate_namespace_id||chr(31)||request_digest_value,0));
 			SELECT * INTO existing
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts
+			FROM ae_hrrr_lifecycle_seal_receipts
 			WHERE namespace_id=candidate_namespace_id AND request_digest=request_digest_value
 			FOR UPDATE;
 			IF existing.request_digest IS NOT NULL THEN
@@ -936,7 +936,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6TransportStatements
 			receipt_digest_value:=agent_evaluation_canonical_jsonb_digest(receipt_base);
 			receipt_value:=receipt_base||jsonb_build_object(
 				'receiptDigest',receipt_digest_value);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts(
+			INSERT INTO ae_hrrr_lifecycle_seal_receipts(
 				namespace_id,request_digest,request_json,request_bytes,
 				seal_authority_issuer_id,seal_authority_implementation_digest,
 				seal_ledger_revision,journal_record_digest,spool_disposition_receipt_digest,

@@ -706,7 +706,7 @@ func evaluationHostedRetrievalRuntimeResourceLifecycleBudgetClosureProjectionTx(
 	if journal.IntentSet.Operation == "delete" {
 		var projectionDigest string
 		err := tx.QueryRowContext(ctx, `SELECT budget_closure_projection_digest
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+			FROM ae_hrrr_lifecycle_journal_archives
 			WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3
 			  AND runtime_resource_set_id=$4 AND registration_request_digest=$5
 			  AND operation='create' AND v46_eligible FOR SHARE`,
@@ -722,7 +722,7 @@ func evaluationHostedRetrievalRuntimeResourceLifecycleBudgetClosureProjectionTx(
 	}
 	var registrationRequestBytes []byte
 	if err := tx.QueryRowContext(ctx, `SELECT request_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+		FROM ae_hrrr_registration_requests
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND request_digest=$4
 		  AND runtime_resource_set_id=$5 AND v46_eligible FOR SHARE`,
 		namespaceID, first.PlanDigest, first.RepositoryCommit, first.RegistrationRequestDigest,
@@ -831,7 +831,7 @@ func validateEvaluationHostedRetrievalRuntimeResourceLifecycleSealHistoryTx(
 	for _, claim := range journal.ClaimHistorySet.Receipts {
 		var stored []byte
 		if err := tx.QueryRowContext(ctx, `SELECT receipt_bytes
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=$1 AND receipt_digest=$2 FOR SHARE`,
 			namespaceID, claim.ReceiptDigest).Scan(&stored); err != nil {
 			return err
@@ -844,7 +844,7 @@ func validateEvaluationHostedRetrievalRuntimeResourceLifecycleSealHistoryTx(
 		var priorTransportReceiptDigest, sealedRecordDigest sql.NullString
 		if err := tx.QueryRowContext(ctx, `SELECT current_claim_receipt_digest,lifecycle_owner_instance_id,
 			prior_transport_receipt_digest,sealed_journal_record_digest
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			FROM ae_hrrr_lifecycle_dispatch_claim_current
 			WHERE namespace_id=$1 AND intent_digest=$2 FOR UPDATE`, namespaceID, intent.IntentDigest).Scan(
 			&currentReceiptDigest, &currentOwnerInstanceID, &priorTransportReceiptDigest, &sealedRecordDigest,
 		); err != nil {
@@ -899,7 +899,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) SealLifecycleJournal(
 	defer func() { _ = tx.Rollback() }()
 	var existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT request_bytes,receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts
+		FROM ae_hrrr_lifecycle_seal_receipts
 		WHERE namespace_id=$1 AND request_digest=$2 FOR UPDATE`,
 		authority.NamespaceID, request.RequestDigest).Scan(&existingRequest, &existingReceipt)
 	if err == nil {
@@ -918,7 +918,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) SealLifecycleJournal(
 	var storedSpoolReceiptBytes, storedTransportRequestBytes, storedTransportHistoryBytes []byte
 	err = tx.QueryRowContext(ctx, `SELECT state,spool_receipt_bytes,transport_store_request_bytes,
 		transport_store_receipt_history_bytes,transport_store_receipt_history_digest
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+		FROM ae_hrrr_lifecycle_result_spools
 		WHERE namespace_id=$1 AND spool_ref=$2 FOR UPDATE`, authority.NamespaceID,
 		stringMember(request.Journal.SpoolReceipt, "spoolRef")).Scan(
 		&spoolState, &storedSpoolReceiptBytes, &storedTransportRequestBytes,
@@ -957,7 +957,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) SealLifecycleJournal(
 		return nil, false, ErrConflict
 	}
 	first := request.Journal.IntentSet.Intents[0]
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals(
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_lifecycle_transport_journals(
 		namespace_id,plan_digest,repository_commit,runtime_resource_set_id,operation,
 		registration_request_digest,authority_digest,lifecycle_claim_receipt_digest,record_digest,
 		result_spool_ref,result_spool_receipt_digest,result_spool_disposition_receipt_digest,
@@ -987,7 +987,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) SealLifecycleJournal(
 		projectionJSON = string(projectionBytes)
 	}
 	var archiveJSON []byte
-	err = tx.QueryRowContext(ctx, `SELECT materialize_agent_evaluation_hosted_runtime_lifecycle_journal_archive(
+	err = tx.QueryRowContext(ctx, `SELECT materialize_ae_hrrr_lc_journal_archive(
 		$1,$2,$3::jsonb,$4,$5)`, authority.NamespaceID, request.Journal.RecordDigest,
 		projectionJSON, projectionDigest, sealedAt).Scan(&archiveJSON)
 	if err != nil {

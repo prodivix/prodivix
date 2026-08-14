@@ -7,7 +7,7 @@ package database
 // terminal ledgers.
 func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_registration_set_lookup_requests (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -33,7 +33,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				AND request_bytes=convert_to(agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_registration_set_lookup_receipts (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -50,11 +50,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 			PRIMARY KEY (namespace_id,plan_digest,repository_commit,request_digest),
 			UNIQUE (namespace_id,receipt_digest),
 			FOREIGN KEY (namespace_id,plan_digest,repository_commit,request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests(
+				REFERENCES ae_hrrr_registration_set_lookup_requests(
 					namespace_id,plan_digest,repository_commit,request_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,plan_digest,repository_commit,runtime_resource_set_id)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_sets(
+				REFERENCES ae_hrrr_sets(
 					namespace_id,plan_digest,repository_commit,runtime_resource_set_id
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lookup_receipt_time_check CHECK (
@@ -66,7 +66,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				AND receipt_bytes=convert_to(agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_terminal_fence_derive_requests (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -83,7 +83,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 			PRIMARY KEY (namespace_id,plan_digest,repository_commit,request_digest),
 			UNIQUE (namespace_id,request_digest),
 			FOREIGN KEY (namespace_id,plan_digest,repository_commit,runtime_resource_set_id)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_sets(
+				REFERENCES ae_hrrr_sets(
 					namespace_id,plan_digest,repository_commit,runtime_resource_set_id
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_fence_derive_request_check CHECK (
@@ -93,7 +93,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 					agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_terminal_fence_derive_receipts (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -111,11 +111,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 			PRIMARY KEY (namespace_id,plan_digest,repository_commit,request_digest),
 			UNIQUE (namespace_id,receipt_digest),
 			FOREIGN KEY (namespace_id,plan_digest,repository_commit,request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests(
+				REFERENCES ae_hrrr_terminal_fence_derive_requests(
 					namespace_id,plan_digest,repository_commit,request_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,run_terminal_fence_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences(
+				REFERENCES ae_hrrr_run_terminal_fences(
 					namespace_id,fence_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_fence_derive_receipt_check CHECK (
@@ -127,7 +127,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 					agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_post_matrix_cleanup_claim_requests (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -148,7 +148,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 					namespace_id,plan_digest,repository_commit,authority_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,terminal_fence_derive_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts(
+				REFERENCES ae_hrrr_terminal_fence_derive_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_post_matrix_claim_request_check CHECK (
@@ -159,7 +159,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 					agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_recovery_scan_requests (
 			namespace_id TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
 			scan_ledger_revision BIGINT NOT NULL DEFAULT 1,
@@ -177,7 +177,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				AND request_bytes=convert_to(agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_recovery_scan_snapshots (
 			namespace_id TEXT NOT NULL,
 			scan_ledger_revision BIGINT NOT NULL,
 			candidate_set_digest TEXT NOT NULL,
@@ -193,7 +193,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 					agent_evaluation_canonical_jsonb_text(candidates_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_recovery_pages (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_recovery_pages (
 			namespace_id TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
 			page_digest TEXT NOT NULL,
@@ -209,7 +209,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 			PRIMARY KEY (namespace_id,request_digest),
 			UNIQUE (namespace_id,page_digest),
 			FOREIGN KEY (namespace_id,request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests(
+				REFERENCES ae_hrrr_recovery_scan_requests(
 					namespace_id,request_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_recovery_page_revision_check
@@ -219,7 +219,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				AND page_bytes=convert_to(agent_evaluation_canonical_jsonb_text(page_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_recovery_claim_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_recovery_claim_requests (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -238,7 +238,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 			UNIQUE (namespace_id,request_digest),
 			UNIQUE (namespace_id,recovery_page_digest,candidate_digest),
 			FOREIGN KEY (namespace_id,recovery_page_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_recovery_pages(
+				REFERENCES ae_hrrr_recovery_pages(
 					namespace_id,page_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_recovery_claim_request_bytes_check CHECK (
@@ -246,7 +246,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				AND request_bytes=convert_to(agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_claim_receipts (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -279,11 +279,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 					namespace_id,plan_digest,repository_commit,authority_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,cleanup_claim_authority_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims(
+				REFERENCES ae_hrrr_cleanup_claims(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,cleanup_request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests(
+				REFERENCES ae_hrrr_cleanup_requests(
 					namespace_id,request_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_cleanup_claim_receipt_source_check CHECK (
@@ -309,14 +309,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				ALTER TABLE agent_evaluation_hosted_retrieval_runtime_resources
 					ADD CONSTRAINT agent_eval_hosted_runtime_resource_current_claim_fk
 					FOREIGN KEY (namespace_id,current_cleanup_claim_receipt_digest)
-					REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts(
+					REFERENCES ae_hrrr_cleanup_claim_receipts(
 						namespace_id,receipt_digest
 					)
 					DEFERRABLE INITIALLY DEFERRED;
 			END IF;
 		END;
 		$$`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_result_read_requests (
 			namespace_id TEXT NOT NULL,
 			authority_digest TEXT NOT NULL,
 			cleanup_request_digest TEXT NOT NULL,
@@ -331,7 +331,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				recovery_claim_receipt_digest,request_digest
 			),
 			FOREIGN KEY (namespace_id,recovery_claim_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts(
+				REFERENCES ae_hrrr_cleanup_claim_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_result_read_request_bytes_check CHECK (
@@ -339,7 +339,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 				AND request_bytes=convert_to(agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_result_read_receipts (
 			namespace_id TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
 			receipt_digest TEXT NOT NULL,
@@ -350,7 +350,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryRecoveryStatements() 
 			PRIMARY KEY (namespace_id,request_digest),
 			UNIQUE (namespace_id,receipt_digest),
 			FOREIGN KEY (namespace_id,request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_requests(
+				REFERENCES ae_hrrr_cleanup_result_read_requests(
 					namespace_id,request_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_result_read_status_check

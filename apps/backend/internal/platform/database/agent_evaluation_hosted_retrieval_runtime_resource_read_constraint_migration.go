@@ -9,7 +9,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 			RETURNS trigger AS $$
 		DECLARE
 			resource_row agent_evaluation_hosted_retrieval_runtime_resources%ROWTYPE;
-			set_row agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
+			set_row ae_hrrr_sets%ROWTYPE;
 			request_record JSONB;
 			receipt_record JSONB;
 			active_state JSONB;
@@ -25,7 +25,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 			));
 			IF EXISTS (
 				SELECT 1
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots root
+				FROM ae_hrrr_read_lease_ledger_roots root
 				WHERE root.namespace_id=NEW.namespace_id AND root.plan_digest=NEW.plan_digest
 					AND root.repository_commit=NEW.repository_commit
 					AND root.authority_digest=NEW.authority_digest
@@ -40,13 +40,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 				AND authority_digest=NEW.authority_digest
 			FOR UPDATE;
 			SELECT * INTO set_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+			FROM ae_hrrr_sets
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=resource_row.runtime_resource_set_id
 			FOR SHARE;
 			SELECT COALESCE(MAX(ledger_revision),0)+1 INTO next_revision
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+			FROM ae_hrrr_read_receipts
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND authority_digest=NEW.authority_digest;
@@ -148,13 +148,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_reads_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+			BEFORE INSERT ON ae_hrrr_read_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_read()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_reads_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+			BEFORE UPDATE OR DELETE ON ae_hrrr_read_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_reads_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_read_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION require_agent_evaluation_hosted_runtime_read_state()
 			RETURNS trigger AS $$
@@ -183,14 +183,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE CONSTRAINT TRIGGER agent_eval_hosted_runtime_read_state_required
-			AFTER INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+			AFTER INSERT ON ae_hrrr_read_receipts
 			DEFERRABLE INITIALLY DEFERRED
 			FOR EACH ROW EXECUTE FUNCTION require_agent_evaluation_hosted_runtime_read_state()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_read_root()
 			RETURNS trigger AS $$
 		DECLARE
 			resource_row agent_evaluation_hosted_retrieval_runtime_resources%ROWTYPE;
-			set_row agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
+			set_row ae_hrrr_sets%ROWTYPE;
 			lease_ids JSONB;
 			request_digests JSONB;
 			receipt_digests JSONB;
@@ -212,7 +212,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 				AND authority_digest=NEW.authority_digest
 			FOR SHARE;
 			SELECT * INTO set_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+			FROM ae_hrrr_sets
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=resource_row.runtime_resource_set_id
@@ -225,7 +225,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 			INTO expected_count,expected_min_generation,expected_max_generation,
 				expected_first_checked,expected_last_expires,lease_ids,request_digests,
 				receipt_digests,state_digests
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+			FROM ae_hrrr_read_receipts
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND authority_digest=NEW.authority_digest
@@ -286,13 +286,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceReadConstraintStatements() []s
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_read_roots_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+			BEFORE INSERT ON ae_hrrr_read_lease_ledger_roots
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_read_root()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_read_roots_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+			BEFORE UPDATE OR DELETE ON ae_hrrr_read_lease_ledger_roots
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_read_roots_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_read_lease_ledger_roots
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 	}
 }

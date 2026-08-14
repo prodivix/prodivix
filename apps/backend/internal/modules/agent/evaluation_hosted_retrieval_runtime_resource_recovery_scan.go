@@ -287,7 +287,7 @@ func sealEvaluationHostedRetrievalRuntimeResourceReadLeaseRootTx(
 	err := tx.QueryRowContext(ctx, `SELECT resource.runtime_resource_set_id,
 		resource.resource_set_commitment_digest,resource_set.run_config_artifact_binding_digest
 		FROM agent_evaluation_hosted_retrieval_runtime_resources resource
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_sets resource_set
+		JOIN ae_hrrr_sets resource_set
 		  ON resource_set.namespace_id=resource.namespace_id
 		 AND resource_set.plan_digest=resource.plan_digest
 		 AND resource_set.repository_commit=resource.repository_commit
@@ -304,7 +304,7 @@ func sealEvaluationHostedRetrievalRuntimeResourceReadLeaseRootTx(
 		return nil, nil, err
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT ledger_revision,request_bytes,receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+		FROM ae_hrrr_read_receipts
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND authority_digest=$4
 		ORDER BY request_digest COLLATE "C" FOR SHARE`, namespaceID, planDigest, repositoryCommit, authorityDigest)
 	if err != nil {
@@ -345,7 +345,7 @@ func sealEvaluationHostedRetrievalRuntimeResourceReadLeaseRootTx(
 	}
 	var existingBytes []byte
 	err = tx.QueryRowContext(ctx, `SELECT root_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+		FROM ae_hrrr_read_lease_ledger_roots
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3
 		  AND authority_digest=$4 AND ledger_revision=$5 FOR SHARE`, namespaceID, planDigest,
 		repositoryCommit, authorityDigest, desiredRevision).Scan(&existingBytes)
@@ -393,7 +393,7 @@ func sealEvaluationHostedRetrievalRuntimeResourceReadLeaseRootTx(
 			}
 		}
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_read_lease_ledger_roots (
 		namespace_id,plan_digest,repository_commit,authority_digest,ledger_revision,root_digest,
 		resource_set_commitment_digest,read_lease_count,minimum_claim_generation,maximum_claim_generation,
 		first_checked_at,last_expires_at,sealed_at,root_json,root_bytes
@@ -417,14 +417,14 @@ func prepareEvaluationHostedRetrievalRuntimeResourceRecoveryRootsTx(
 		FROM agent_evaluation_hosted_retrieval_runtime_resources resource
 		WHERE resource.namespace_id=$1 AND resource.lifecycle='active'
 		  AND EXISTS (
-			SELECT 1 FROM agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences fence
+			SELECT 1 FROM ae_hrrr_run_terminal_fences fence
 			WHERE fence.namespace_id=resource.namespace_id AND fence.plan_digest=resource.plan_digest
 			  AND fence.repository_commit=resource.repository_commit
 			  AND fence.runtime_resource_set_id=resource.runtime_resource_set_id
 			  AND fence.sealed_at<=$2
 		  )
 		  AND (resource.resource_expires_at<$2 OR EXISTS (
-			SELECT 1 FROM agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences fence
+			SELECT 1 FROM ae_hrrr_run_terminal_fences fence
 			WHERE fence.namespace_id=resource.namespace_id AND fence.plan_digest=resource.plan_digest
 			  AND fence.repository_commit=resource.repository_commit
 			  AND fence.runtime_resource_set_id=resource.runtime_resource_set_id
@@ -461,16 +461,16 @@ func prepareEvaluationHostedRetrievalRuntimeResourceRecoveryRootsTx(
 	var incompleteWithoutRoot int64
 	err = tx.QueryRowContext(ctx, `SELECT COUNT(*)
 		FROM agent_evaluation_hosted_retrieval_runtime_resources resource
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim
+		JOIN ae_hrrr_cleanup_claim_receipts claim
 		  ON claim.namespace_id=resource.namespace_id AND claim.plan_digest=resource.plan_digest
 		 AND claim.repository_commit=resource.repository_commit AND claim.authority_digest=resource.authority_digest
 		 AND claim.receipt_digest=resource.current_cleanup_claim_receipt_digest
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests cleanup_request
+		JOIN ae_hrrr_cleanup_requests cleanup_request
 		  ON cleanup_request.namespace_id=resource.namespace_id AND cleanup_request.plan_digest=resource.plan_digest
 		 AND cleanup_request.repository_commit=resource.repository_commit
 		 AND cleanup_request.authority_digest=resource.authority_digest
 		 AND cleanup_request.request_digest=resource.cleanup_request_digest
-		LEFT JOIN agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots root
+		LEFT JOIN ae_hrrr_read_lease_ledger_roots root
 		  ON root.namespace_id=resource.namespace_id
 		 AND root.root_digest=cleanup_request.read_lease_ledger_root_digest
 		WHERE resource.namespace_id=$1 AND resource.lifecycle='cleanup-in-progress'
@@ -551,31 +551,31 @@ func validateEvaluationHostedRetrievalRuntimeResourceRecoveryCandidateTx(
 		fence.fence_digest,fence.sealed_at,claim.claim_expires_at,
 		cleanup_request.read_lease_ledger_root_digest,
 		(SELECT COALESCE(MAX(read_receipt.ledger_revision),0)
-		 FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts read_receipt
+		 FROM ae_hrrr_read_receipts read_receipt
 		 WHERE read_receipt.namespace_id=resource.namespace_id
 		   AND read_receipt.plan_digest=resource.plan_digest
 		   AND read_receipt.repository_commit=resource.repository_commit
 		   AND read_receipt.authority_digest=resource.authority_digest),root.root_bytes
 		FROM agent_evaluation_hosted_retrieval_runtime_resources resource
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+		JOIN ae_hrrr_registration_results registration
 		  ON registration.namespace_id=resource.namespace_id AND registration.plan_digest=resource.plan_digest
 		 AND registration.repository_commit=resource.repository_commit
 		 AND registration.registration_request_digest=resource.registration_request_digest
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_sets resource_set
+		JOIN ae_hrrr_sets resource_set
 		  ON resource_set.namespace_id=resource.namespace_id AND resource_set.plan_digest=resource.plan_digest
 		 AND resource_set.repository_commit=resource.repository_commit
 		 AND resource_set.runtime_resource_set_id=resource.runtime_resource_set_id
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences fence
+		JOIN ae_hrrr_run_terminal_fences fence
 		  ON fence.namespace_id=resource.namespace_id AND fence.plan_digest=resource.plan_digest
 		 AND fence.repository_commit=resource.repository_commit
 		 AND fence.runtime_resource_set_id=resource.runtime_resource_set_id
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots root
+		JOIN ae_hrrr_read_lease_ledger_roots root
 		  ON root.namespace_id=resource.namespace_id AND root.root_digest=$5
-		LEFT JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim
+		LEFT JOIN ae_hrrr_cleanup_claim_receipts claim
 		  ON claim.namespace_id=resource.namespace_id AND claim.plan_digest=resource.plan_digest
 		 AND claim.repository_commit=resource.repository_commit AND claim.authority_digest=resource.authority_digest
 		 AND claim.receipt_digest=resource.current_cleanup_claim_receipt_digest
-		LEFT JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests cleanup_request
+		LEFT JOIN ae_hrrr_cleanup_requests cleanup_request
 		  ON cleanup_request.namespace_id=resource.namespace_id AND cleanup_request.plan_digest=resource.plan_digest
 		 AND cleanup_request.repository_commit=resource.repository_commit
 		 AND cleanup_request.authority_digest=resource.authority_digest
@@ -751,8 +751,8 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ListRecoveryCandidates(
 	var existingRequest, existingPage []byte
 	var scanLedgerRevision int64
 	err = tx.QueryRowContext(ctx, `SELECT request.request_bytes,request.scan_ledger_revision,page.page_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests request
-		LEFT JOIN agent_evaluation_hosted_retrieval_runtime_resource_recovery_pages page
+		FROM ae_hrrr_recovery_scan_requests request
+		LEFT JOIN ae_hrrr_recovery_pages page
 		  ON page.namespace_id=request.namespace_id AND page.request_digest=request.request_digest
 		WHERE request.namespace_id=$1 AND request.request_digest=$2 FOR SHARE OF request`,
 		request.NamespaceID, request.RequestDigest).Scan(&existingRequest, &scanLedgerRevision, &existingPage)
@@ -786,7 +786,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ListRecoveryCandidates(
 		}
 		if request.Cursor == nil {
 			err = tx.QueryRowContext(ctx, `SELECT ledger_revision
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers
+				FROM ae_hrrr_owner_ledgers
 				WHERE namespace_id=$1 FOR SHARE`, request.NamespaceID).Scan(&scanLedgerRevision)
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil, false, ErrNotFound
@@ -808,7 +808,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ListRecoveryCandidates(
 		if err != nil {
 			return nil, false, err
 		}
-		err = tx.QueryRowContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests (
+		err = tx.QueryRowContext(ctx, `INSERT INTO ae_hrrr_recovery_scan_requests (
 			namespace_id,request_digest,scan_ledger_revision,page_size,cursor_digest,cursor_json,
 			requested_at,request_json,request_bytes
 		) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb,$9)
@@ -826,7 +826,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ListRecoveryCandidates(
 	var candidatesBytes []byte
 	var snapshotCreatedAt time.Time
 	err = tx.QueryRowContext(ctx, `SELECT candidate_set_digest,candidates_bytes,created_at
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots
+		FROM ae_hrrr_recovery_scan_snapshots
 		WHERE namespace_id=$1 AND scan_ledger_revision=$2 FOR SHARE`, request.NamespaceID, scanLedgerRevision).Scan(
 		&snapshotDigest, &candidatesBytes, &snapshotCreatedAt,
 	)
@@ -864,7 +864,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ListRecoveryCandidates(
 		return nil, false, err
 	}
 	implementationDigest := stringMember(page, "recoveryAuthorityImplementationDigest")
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_recovery_pages (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_recovery_pages (
 		namespace_id,request_digest,page_digest,recovery_authority_issuer_id,
 		recovery_authority_implementation_digest,scan_ledger_revision,candidate_set_digest,
 		candidates_json,next_cursor_json,scanned_at,page_json,page_bytes

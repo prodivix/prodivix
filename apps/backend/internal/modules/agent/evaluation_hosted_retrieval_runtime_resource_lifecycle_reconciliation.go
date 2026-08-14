@@ -211,7 +211,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreLifecycleReconciliat
 	defer func() { _ = tx.Rollback() }()
 	var existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT observation_store_request_bytes,receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations
+		FROM ae_hrrr_lifecycle_reconciliation_observations
 		WHERE namespace_id=$1 AND observation_store_request_digest=$2 FOR SHARE`,
 		authority.NamespaceID, request.RequestDigest).Scan(&existingRequest, &existingReceipt)
 	if err == nil {

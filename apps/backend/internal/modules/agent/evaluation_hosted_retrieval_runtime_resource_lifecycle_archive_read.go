@@ -111,12 +111,12 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadLifecycleArchive(
 	defer func() { _ = tx.Rollback() }()
 	var revision int64
 	if err := tx.QueryRowContext(ctx, `SELECT ledger_revision
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers
+		FROM ae_hrrr_owner_ledgers
 		WHERE namespace_id=$1 FOR SHARE`, authority.NamespaceID).Scan(&revision); err != nil || revision < 1 {
 		return nil, ErrConflict
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT archive_record_digest,record_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+		FROM ae_hrrr_lifecycle_journal_archives
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND runtime_resource_set_id=$4
 		  AND archive_record_digest>$5 AND v46_eligible
 		ORDER BY archive_record_digest COLLATE "C" LIMIT $6`, authority.NamespaceID, request.PlanDigest,
@@ -154,7 +154,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadLifecycleArchive(
 	}
 	allDigestValues := make([]any, 0)
 	allRows, err := tx.QueryContext(ctx, `SELECT archive_record_digest
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+		FROM ae_hrrr_lifecycle_journal_archives
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND runtime_resource_set_id=$4 AND v46_eligible
 		ORDER BY archive_record_digest COLLATE "C"`, authority.NamespaceID, request.PlanDigest,
 		request.RepositoryCommit, request.RuntimeResourceSetID)

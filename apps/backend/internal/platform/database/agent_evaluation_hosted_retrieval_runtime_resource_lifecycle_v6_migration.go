@@ -6,7 +6,7 @@ package database
 // first-delivery claim function commits; every later claim is reconcile-only.
 func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_dispatch_intents (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -33,7 +33,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			UNIQUE (namespace_id,intent_id),
 			FOREIGN KEY (
 				namespace_id,plan_digest,repository_commit,registration_request_digest
-			) REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_registration_requests(
+			) REFERENCES ae_hrrr_registration_requests(
 				namespace_id,plan_digest,repository_commit,request_digest
 			) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_intent_identity_check CHECK (
@@ -74,16 +74,16 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			)
 		)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_create_intent_once
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents(
+			ON ae_hrrr_lifecycle_dispatch_intents(
 				namespace_id,plan_digest,repository_commit,registration_request_digest,
 				operation,mutation_sequence
 			) WHERE operation='create'`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_delete_known_id_once
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents(
+			ON ae_hrrr_lifecycle_dispatch_intents(
 				namespace_id,plan_digest,repository_commit,registration_request_digest,
 				operation,resource_id
 			) WHERE operation='delete'`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_dispatch_claim_requests (
 			namespace_id TEXT NOT NULL,
 			intent_digest TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
@@ -98,7 +98,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			request_bytes BYTEA NOT NULL,
 			PRIMARY KEY (namespace_id,request_digest),
 			FOREIGN KEY (namespace_id,intent_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents(
+				REFERENCES ae_hrrr_lifecycle_dispatch_intents(
 					namespace_id,intent_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_claim_request_check CHECK (
@@ -122,7 +122,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 					agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_dispatch_claim_receipts (
 			namespace_id TEXT NOT NULL,
 			intent_digest TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
@@ -143,7 +143,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			PRIMARY KEY (namespace_id,receipt_digest),
 			UNIQUE (namespace_id,request_digest),
 			FOREIGN KEY (namespace_id,request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests(
+				REFERENCES ae_hrrr_lifecycle_dispatch_claim_requests(
 					namespace_id,request_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_claim_receipt_check CHECK (
@@ -168,13 +168,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 					agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`ALTER TABLE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests
+		`ALTER TABLE ae_hrrr_lifecycle_dispatch_claim_requests
 			ADD CONSTRAINT agent_eval_hosted_runtime_lifecycle_claim_request_prior_fk
 			FOREIGN KEY (namespace_id,expected_prior_stage_claim_receipt_digest)
-			REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts(
+			REFERENCES ae_hrrr_lifecycle_dispatch_claim_receipts(
 				namespace_id,receipt_digest
 			) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_dispatch_claim_current (
 			namespace_id TEXT NOT NULL,
 			intent_digest TEXT NOT NULL,
 			current_revision BIGINT NOT NULL,
@@ -189,11 +189,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (namespace_id,intent_digest),
 			FOREIGN KEY (namespace_id,intent_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents(
+				REFERENCES ae_hrrr_lifecycle_dispatch_intents(
 					namespace_id,intent_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,current_claim_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts(
+				REFERENCES ae_hrrr_lifecycle_dispatch_claim_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_claim_current_check CHECK (
@@ -205,7 +205,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 					OR sealed_journal_record_digest ~ '^sha256-[a-f0-9]{64}$')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_transport_receipts (
 			namespace_id TEXT NOT NULL,
 			intent_digest TEXT NOT NULL,
 			dispatch_claim_receipt_digest TEXT NOT NULL,
@@ -219,11 +219,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			PRIMARY KEY (namespace_id,receipt_digest),
 			UNIQUE (namespace_id,intent_digest),
 			FOREIGN KEY (namespace_id,intent_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents(
+				REFERENCES ae_hrrr_lifecycle_dispatch_intents(
 					namespace_id,intent_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,dispatch_claim_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts(
+				REFERENCES ae_hrrr_lifecycle_dispatch_claim_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_transport_check CHECK (
@@ -235,7 +235,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 					agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_result_spools (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -313,12 +313,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			UNIQUE (namespace_id,transport_store_receipt_digest),
 			UNIQUE (namespace_id,transport_store_receipt_history_digest),
 			FOREIGN KEY (namespace_id,expected_prior_transport_store_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+				REFERENCES ae_hrrr_lifecycle_result_spools(
 					namespace_id,transport_store_receipt_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (
 				namespace_id,plan_digest,repository_commit,registration_request_digest
-			) REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_registration_requests(
+			) REFERENCES ae_hrrr_registration_requests(
 				namespace_id,plan_digest,repository_commit,request_digest
 			) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_spool_digest_check CHECK (
@@ -437,27 +437,27 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_spool_expiry
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+			ON ae_hrrr_lifecycle_result_spools(
 				namespace_id,state,expires_at,registration_request_digest
 			)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_spool_current
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+			ON ae_hrrr_lifecycle_result_spools(
 				namespace_id,registration_request_digest,operation
 			) WHERE state IN ('active','retained-encrypted')`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_transport_first
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+			ON ae_hrrr_lifecycle_result_spools(
 				namespace_id,registration_request_digest,operation
 			) WHERE expected_prior_transport_store_receipt_digest IS NULL`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_transport_successor
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+			ON ae_hrrr_lifecycle_result_spools(
 				namespace_id,expected_prior_transport_store_receipt_digest
 			) WHERE expected_prior_transport_store_receipt_digest IS NOT NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_transport_history
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+			ON ae_hrrr_lifecycle_result_spools(
 				namespace_id,registration_request_digest,operation,
 				transport_ledger_revision,transport_store_receipt_digest
 			)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spool_expiry_tombstones (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_result_spool_expiry_tombstones (
 			namespace_id TEXT NOT NULL,
 			spool_ref TEXT NOT NULL,
 			spool_receipt_digest TEXT NOT NULL,
@@ -471,7 +471,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			PRIMARY KEY (namespace_id,spool_ref),
 			UNIQUE (namespace_id,tombstone_digest),
 			FOREIGN KEY (namespace_id,spool_ref)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+				REFERENCES ae_hrrr_lifecycle_result_spools(
 					namespace_id,spool_ref
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_spool_expiry_check CHECK (
@@ -485,7 +485,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 					agent_evaluation_canonical_jsonb_text(tombstone_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_transport_journals (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -506,7 +506,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			PRIMARY KEY (namespace_id,record_digest),
 			UNIQUE (namespace_id,registration_request_digest,operation,record_digest),
 			FOREIGN KEY (namespace_id,result_spool_ref)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+				REFERENCES ae_hrrr_lifecycle_result_spools(
 					namespace_id,spool_ref
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_journal_check CHECK (
@@ -525,7 +525,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 				AND v46_eligible
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_unfinished_operations (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -546,7 +546,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			PRIMARY KEY (namespace_id,registration_request_digest,operation),
 			UNIQUE (namespace_id,transport_receipt_set_digest),
 			FOREIGN KEY (namespace_id,result_spool_ref)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+				REFERENCES ae_hrrr_lifecycle_result_spools(
 					namespace_id,spool_ref
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_unfinished_check CHECK (
@@ -564,10 +564,10 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_unfinished_recovery
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations(
+			ON ae_hrrr_lifecycle_unfinished_operations(
 				namespace_id,state,updated_at,registration_request_digest
 			)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_reconciliation_observations (
 			namespace_id TEXT NOT NULL,
 			registration_request_digest TEXT NOT NULL,
 			operation TEXT NOT NULL,
@@ -606,11 +606,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			UNIQUE (namespace_id,transport_receipt_digest),
 			UNIQUE (namespace_id,registration_request_digest,operation,mutation_sequence),
 			FOREIGN KEY (namespace_id,dispatch_stage_claim_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts(
+				REFERENCES ae_hrrr_lifecycle_dispatch_claim_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,registration_request_digest,operation)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations(
+				REFERENCES ae_hrrr_lifecycle_unfinished_operations(
 					namespace_id,registration_request_digest,operation
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_reconciliation_check CHECK (
@@ -650,7 +650,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 					agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_journal_archives (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -670,7 +670,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 				operation,registration_request_digest,journal_record_digest
 			),
 			FOREIGN KEY (namespace_id,journal_record_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals(
+				REFERENCES ae_hrrr_lifecycle_transport_journals(
 					namespace_id,record_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_archive_check CHECK (
@@ -685,16 +685,16 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_archive_order
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives(
+			ON ae_hrrr_lifecycle_journal_archives(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 				operation,registration_request_digest,archive_record_digest
 			)`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_lifecycle_archive_page
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives(
+			ON ae_hrrr_lifecycle_journal_archives(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 				archive_record_digest
 			) WHERE v46_eligible`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_journal_archive_roots (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -712,7 +712,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6Statements() []stri
 			UNIQUE (namespace_id,family_digest),
 			FOREIGN KEY (
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id
-			) REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_sets(
+			) REFERENCES ae_hrrr_sets(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id
 			) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_archive_root_check CHECK (

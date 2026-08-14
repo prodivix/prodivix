@@ -329,7 +329,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceLifecycleDispatchIntentTx(
 ) (bool, error) {
 	var existing []byte
 	err := tx.QueryRowContext(ctx, `SELECT intent_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents
+		FROM ae_hrrr_lifecycle_dispatch_intents
 		WHERE namespace_id=$1 AND intent_digest=$2 FOR UPDATE`, intent.NamespaceID, intent.IntentDigest).Scan(&existing)
 	if err == nil {
 		if !bytes.Equal(existing, intent.Canonical) {
@@ -340,7 +340,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceLifecycleDispatchIntentTx(
 	if !errors.Is(err, sql.ErrNoRows) {
 		return false, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_lifecycle_dispatch_intents (
 		namespace_id,plan_digest,repository_commit,runtime_resource_set_id,registration_request_digest,
 		authority_digest,lifecycle_claim_receipt_digest,intent_id,intent_digest,protocol_family,
 		capability_profile_id,budget_reservation_id,budget_reservation_authority_digest,operation,
@@ -370,7 +370,7 @@ func validateEvaluationHostedRetrievalRuntimeResourceLifecycleDispatchClaimCASTx
 	var everDispatchAuthorized bool
 	err := tx.QueryRowContext(ctx, `SELECT dispatch_ledger_revision,dispatch_generation,
 		current_claim_receipt_digest,lifecycle_owner_instance_id,claim_expires_at,ever_dispatch_authorized
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+		FROM ae_hrrr_lifecycle_dispatch_claim_current
 		WHERE namespace_id=$1 AND intent_digest=$2 FOR UPDATE`, namespaceID, request.DispatchIntentDigest).Scan(
 		&currentLedgerRevision, &currentGeneration, &currentReceiptDigest, &currentOwnerInstanceID,
 		&currentClaimExpiresAt, &everDispatchAuthorized,
@@ -444,10 +444,10 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StageAndClaimLifecycleDis
 	defer func() { _ = tx.Rollback() }()
 	var existingIntent, existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT intent.intent_bytes,request.request_bytes,receipt.receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests request
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+		FROM ae_hrrr_lifecycle_dispatch_claim_requests request
+		JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 		  ON receipt.namespace_id=request.namespace_id AND receipt.request_digest=request.request_digest
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
+		JOIN ae_hrrr_lifecycle_dispatch_intents intent
 		  ON intent.namespace_id=request.namespace_id AND intent.intent_digest=request.intent_digest
 		WHERE request.namespace_id=$1 AND request.request_digest=$2 FOR SHARE`,
 		authority.NamespaceID, request.RequestDigest).Scan(&existingIntent, &existingRequest, &existingReceipt)

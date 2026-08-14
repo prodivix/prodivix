@@ -290,7 +290,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreRegistrationRequest(
 	defer func() { _ = tx.Rollback() }()
 	var existing []byte
 	err = tx.QueryRowContext(ctx, `SELECT request_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+		FROM ae_hrrr_registration_requests
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND request_digest=$4
 		FOR UPDATE`, authority.NamespaceID, request.PlanDigest, request.RepositoryCommit, request.RequestDigest).Scan(&existing)
 	if err == nil {
@@ -308,7 +308,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreRegistrationRequest(
 	if err := validateEvaluationHostedRetrievalRuntimeResourceBudgetReservationTx(ctx, tx, request, stagedAt); err != nil {
 		return nil, false, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_registration_requests (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_registration_requests (
 		namespace_id,plan_digest,repository_commit,request_digest,runtime_resource_set_id,
 		frozen_run_digest,run_config_artifact_binding_digest,registration_intent_digest,
 		protocol_family,capability_profile_id,provider_configuration_id,provider_configuration_digest,
@@ -351,7 +351,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreRegistrationResult(
 	defer func() { _ = tx.Rollback() }()
 	var staged []byte
 	if err := tx.QueryRowContext(ctx, `SELECT request_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+		FROM ae_hrrr_registration_requests
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND request_digest=$4
 		FOR SHARE`, authority.NamespaceID, request.PlanDigest, request.RepositoryCommit, request.RequestDigest).Scan(&staged); errors.Is(err, sql.ErrNoRows) {
 		return nil, false, conflict("hosted retrieval runtime registration result lacks its durable request stage")
@@ -362,7 +362,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreRegistrationResult(
 	}
 	var existing []byte
 	err = tx.QueryRowContext(ctx, `SELECT registration_result_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+		FROM ae_hrrr_registration_results
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND registration_request_digest=$4
 		FOR UPDATE`, authority.NamespaceID, request.PlanDigest, request.RepositoryCommit, request.RequestDigest).Scan(&existing)
 	if err == nil {
@@ -389,7 +389,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreRegistrationResult(
 	if err != nil {
 		return nil, false, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_registration_results (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_registration_results (
 		namespace_id,plan_digest,repository_commit,registration_request_digest,registration_result_digest,
 		runtime_resource_set_id,frozen_run_digest,run_config_artifact_binding_digest,registration_intent_digest,
 		protocol_family,capability_profile_id,provider_configuration_id,provider_configuration_digest,
@@ -436,7 +436,7 @@ func loadEvaluationHostedRetrievalRuntimeResourceRegistrationSetTx(
 	repositoryCommit string,
 ) ([]evaluationHostedRetrievalRuntimeResourceRegistrationResult, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT registration_result_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+		FROM ae_hrrr_registration_results
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3
 		ORDER BY protocol_family COLLATE "C",capability_profile_id COLLATE "C" FOR SHARE`,
 		namespaceID, planDigest, repositoryCommit)
@@ -483,7 +483,7 @@ func sealEvaluationHostedRetrievalRuntimeResourceSetTx(
 	}
 	var existingAuthoritySet []byte
 	err = tx.QueryRowContext(ctx, `SELECT authority_set_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+		FROM ae_hrrr_sets
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND runtime_resource_set_id=$4
 		FOR UPDATE`, first.NamespaceID, first.PlanDigest, first.RepositoryCommit, first.RuntimeResourceSetID).Scan(&existingAuthoritySet)
 	if err == nil {
@@ -495,7 +495,7 @@ func sealEvaluationHostedRetrievalRuntimeResourceSetTx(
 	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_sets (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_sets (
 		namespace_id,plan_digest,repository_commit,runtime_resource_set_id,frozen_run_digest,
 		run_config_artifact_binding_digest,authority_set_digest,resource_set_commitment_digest,
 		authority_set_json,authority_set_bytes,resource_set_commitment_json,resource_set_commitment_bytes,
@@ -560,8 +560,8 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) LookupRegistrationSet(
 	defer func() { _ = tx.Rollback() }()
 	var existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT request.request_bytes,receipt.receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests request
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts receipt
+		FROM ae_hrrr_registration_set_lookup_requests request
+		JOIN ae_hrrr_registration_set_lookup_receipts receipt
 		  ON receipt.namespace_id=request.namespace_id AND receipt.plan_digest=request.plan_digest
 		 AND receipt.repository_commit=request.repository_commit AND receipt.request_digest=request.request_digest
 		WHERE request.namespace_id=$1 AND request.plan_digest=$2 AND request.repository_commit=$3
@@ -583,7 +583,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) LookupRegistrationSet(
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_registration_set_lookup_requests (
 		namespace_id,plan_digest,repository_commit,request_digest,frozen_run_digest,
 		run_config_artifact_binding_digest,registration_intent_bindings_json,requested_at,request_json,request_bytes
 	) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10)`, authority.NamespaceID,
@@ -596,7 +596,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) LookupRegistrationSet(
 	var runtimeResourceSetID string
 	var authoritySetBytes, commitmentBytes []byte
 	err = tx.QueryRowContext(ctx, `SELECT runtime_resource_set_id,authority_set_bytes,resource_set_commitment_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+		FROM ae_hrrr_sets
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 FOR SHARE`,
 		authority.NamespaceID, request.PlanDigest, request.RepositoryCommit).Scan(
 		&runtimeResourceSetID, &authoritySetBytes, &commitmentBytes,
@@ -641,7 +641,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) LookupRegistrationSet(
 	}
 	var lookupRevision int64
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(lookup_ledger_revision),0)+1
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts
+		FROM ae_hrrr_registration_set_lookup_receipts
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3`, authority.NamespaceID,
 		request.PlanDigest, request.RepositoryCommit).Scan(&lookupRevision); err != nil {
 		return nil, err
@@ -675,7 +675,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) LookupRegistrationSet(
 	if err != nil || len(receiptBytes) > maximumEvaluationHostedRetrievalRuntimeResourceRegistrationSetLookupBytes {
 		return nil, ErrConflict
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_registration_set_lookup_receipts (
 		namespace_id,plan_digest,repository_commit,request_digest,receipt_digest,runtime_resource_set_id,
 		lookup_authority_issuer_id,lookup_authority_implementation_digest,lookup_ledger_revision,
 		checked_at,expires_at,receipt_json,receipt_bytes
@@ -715,7 +715,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadActiveResource(
 	defer func() { _ = tx.Rollback() }()
 	var existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT request_bytes,receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+		FROM ae_hrrr_read_receipts
 		WHERE namespace_id=$1 AND request_digest=$2 FOR SHARE`, authority.NamespaceID, request.RequestDigest).Scan(
 		&existingRequest, &existingReceipt,
 	)
@@ -740,7 +740,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadActiveResource(
 	err = tx.QueryRowContext(ctx, `SELECT runtime_resource_set_id,resource_set_commitment_digest,
 		active_owner_instance_id,claim_generation,lifecycle,resource_expires_at,current_state_updated_at,
 		NOT EXISTS (
-			SELECT 1 FROM agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots root
+			SELECT 1 FROM ae_hrrr_read_lease_ledger_roots root
 			WHERE root.namespace_id=resource.namespace_id AND root.plan_digest=resource.plan_digest
 			  AND root.repository_commit=resource.repository_commit AND root.authority_digest=resource.authority_digest
 		)
@@ -833,12 +833,12 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadActiveResource(
 	}
 	var ledgerRevision int64
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(ledger_revision),0)+1
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+		FROM ae_hrrr_read_receipts
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND authority_digest=$4`,
 		authority.NamespaceID, request.PlanDigest, request.RepositoryCommit, request.AuthorityDigest).Scan(&ledgerRevision); err != nil {
 		return nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_read_receipts (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_read_receipts (
 		namespace_id,plan_digest,repository_commit,authority_digest,ledger_revision,request_digest,receipt_digest,
 		read_lease_id,reader_owner_instance_id,active_owner_instance_id,claim_generation,active_state_digest,
 		checked_at,expires_at,request_json,request_bytes,receipt_json,receipt_bytes

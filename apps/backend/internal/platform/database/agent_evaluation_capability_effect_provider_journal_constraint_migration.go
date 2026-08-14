@@ -120,8 +120,8 @@ func agentEvaluationCapabilityEffectProviderJournalConstraintStatements() []stri
 						USING ERRCODE='23514';
 				END IF;
 				SELECT registration.authority_digest INTO hosted_authority_digest
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_sets resource_set
+				FROM ae_hrrr_registration_results registration
+				JOIN ae_hrrr_sets resource_set
 				  ON resource_set.namespace_id=registration.namespace_id
 				 AND resource_set.plan_digest=registration.plan_digest
 				 AND resource_set.repository_commit=registration.repository_commit
@@ -131,7 +131,7 @@ func agentEvaluationCapabilityEffectProviderJournalConstraintStatements() []stri
 				 AND resource.plan_digest=registration.plan_digest
 				 AND resource.repository_commit=registration.repository_commit
 				 AND resource.authority_digest=registration.authority_digest
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_read_receipts stored_read
+				JOIN ae_hrrr_read_receipts stored_read
 				  ON stored_read.namespace_id=resource.namespace_id
 				 AND stored_read.plan_digest=resource.plan_digest
 				 AND stored_read.repository_commit=resource.repository_commit
@@ -386,13 +386,13 @@ func agentEvaluationCapabilityEffectProviderJournalConstraintStatements() []stri
 
 			IF stage_row.binding_kind='hosted-retrieval-query' THEN
 				SELECT COUNT(*) INTO citation_match_count
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+				FROM ae_hrrr_registration_results registration
 				JOIN agent_evaluation_hosted_retrieval_runtime_resources resource
 				  ON resource.namespace_id=registration.namespace_id
 				 AND resource.plan_digest=registration.plan_digest
 				 AND resource.repository_commit=registration.repository_commit
 				 AND resource.authority_digest=registration.authority_digest
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_read_receipts stored_read
+				JOIN ae_hrrr_read_receipts stored_read
 				  ON stored_read.namespace_id=resource.namespace_id
 				 AND stored_read.plan_digest=resource.plan_digest
 				 AND stored_read.repository_commit=resource.repository_commit

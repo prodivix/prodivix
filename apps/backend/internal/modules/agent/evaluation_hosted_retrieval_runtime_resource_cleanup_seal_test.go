@@ -66,7 +66,7 @@ func TestHostedRetrievalRuntimeResourceCleanupClaimRejectsExpiredFirstDeliveryAf
 		RequestCanonical: []byte(`{"fixture":"expired-first-delivery"}`),
 	}
 	mock.ExpectBegin()
-	mock.ExpectQuery(`SELECT request.request_bytes,receipt.receipt_bytes FROM agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests`).
+	mock.ExpectQuery(`SELECT request.request_bytes,receipt.receipt_bytes FROM ae_hrrr_post_matrix_cleanup_claim_requests`).
 		WithArgs(source.NamespaceID, source.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"request_bytes", "receipt_bytes"}))
 	mock.ExpectRollback()
@@ -150,12 +150,12 @@ func TestHostedRetrievalRuntimeResourceCleanupResultPendingReplayThenNewRequestO
 		WithArgs(namespaceID, record.AuthorityDigest, cleanupRequestDigest, outerClaimReceiptDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"claim_source", "plan_digest", "repository_commit"}).
 			AddRow("recovery", plan.PlanDigest, plan.RepositoryCommit))
-	mock.ExpectExec(`INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_requests`).
+	mock.ExpectExec(`INSERT INTO ae_hrrr_cleanup_result_read_requests`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(`SELECT cleanup.cleanup_receipt_bytes,archive.record_bytes`).
 		WithArgs(namespaceID, plan.PlanDigest, plan.RepositoryCommit, record.AuthorityDigest, cleanupRequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"cleanup_receipt_bytes", "record_bytes"}))
-	mock.ExpectExec(`INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts`).
+	mock.ExpectExec(`INSERT INTO ae_hrrr_cleanup_result_read_receipts`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	pendingBytes, err := owner.ReadCleanupResult(t.Context(), authority, pendingRequest)
@@ -191,13 +191,13 @@ func TestHostedRetrievalRuntimeResourceCleanupResultPendingReplayThenNewRequestO
 		WithArgs(namespaceID, record.AuthorityDigest, cleanupRequestDigest, outerClaimReceiptDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"claim_source", "plan_digest", "repository_commit"}).
 			AddRow("recovery", plan.PlanDigest, plan.RepositoryCommit))
-	mock.ExpectExec(`INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_requests`).
+	mock.ExpectExec(`INSERT INTO ae_hrrr_cleanup_result_read_requests`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(`SELECT cleanup.cleanup_receipt_bytes,archive.record_bytes`).
 		WithArgs(namespaceID, plan.PlanDigest, plan.RepositoryCommit, record.AuthorityDigest, cleanupRequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"cleanup_receipt_bytes", "record_bytes"}).
 			AddRow(cleanupBytes, record.RecordBytes))
-	mock.ExpectExec(`INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts`).
+	mock.ExpectExec(`INSERT INTO ae_hrrr_cleanup_result_read_receipts`).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	cleanedBytes, err := owner.ReadCleanupResult(t.Context(), authority, cleanedRequest)

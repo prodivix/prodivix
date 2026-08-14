@@ -6,7 +6,7 @@ package database
 // second Provider mutation.
 func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscoveryStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_unfinished_dispatch_snapshots (
 			namespace_id TEXT NOT NULL,
 			snapshot_id TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -35,7 +35,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 					agent_evaluation_canonical_jsonb_text(candidates_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_pages (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_unfinished_dispatch_pages (
 			namespace_id TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
 			request_json JSONB NOT NULL,
@@ -56,7 +56,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 			PRIMARY KEY (namespace_id,request_digest),
 			UNIQUE (namespace_id,page_digest),
 			FOREIGN KEY (namespace_id,snapshot_id)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots(
+				REFERENCES ae_hrrr_lifecycle_unfinished_dispatch_snapshots(
 					namespace_id,snapshot_id
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_unfinished_page_check CHECK (
@@ -82,8 +82,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 		) RETURNS JSONB LANGUAGE plpgsql STABLE PARALLEL RESTRICTED AS $$
 		DECLARE
 			group_row RECORD;
-			registration_row agent_evaluation_hosted_retrieval_runtime_resource_registration_requests%ROWTYPE;
-			spool_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
+			registration_row ae_hrrr_registration_requests%ROWTYPE;
+			spool_row ae_hrrr_lifecycle_result_spools%ROWTYPE;
 			intent_values JSONB;
 			intent_digests JSONB;
 			intent_set_base JSONB;
@@ -106,7 +106,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 			FOR group_row IN
 				SELECT intent.registration_request_digest,intent.operation,
 					MIN(intent.lifecycle_claim_receipt_digest) AS lifecycle_claim_receipt_digest
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
+				FROM ae_hrrr_lifecycle_dispatch_intents intent
 				WHERE intent.namespace_id=candidate_namespace_id
 					AND intent.repository_commit=candidate_repository_commit
 					AND intent.plan_digest=candidate_plan_digest
@@ -114,13 +114,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 					AND intent.v46_eligible
 					AND NOT EXISTS (
 						SELECT 1
-						FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+						FROM ae_hrrr_lifecycle_transport_journals journal
 						WHERE journal.namespace_id=intent.namespace_id
 							AND journal.registration_request_digest=intent.registration_request_digest
 							AND journal.operation=intent.operation)
 					AND EXISTS (
 						SELECT 1
-						FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current current_claim
+						FROM ae_hrrr_lifecycle_dispatch_claim_current current_claim
 						WHERE current_claim.namespace_id=intent.namespace_id
 							AND current_claim.intent_digest=intent.intent_digest
 							AND current_claim.sealed_journal_record_digest IS NULL)
@@ -131,7 +131,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 				ORDER BY intent.registration_request_digest COLLATE "C",intent.operation COLLATE "C"
 			LOOP
 				SELECT * INTO registration_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+				FROM ae_hrrr_registration_requests request
 				WHERE request.namespace_id=candidate_namespace_id
 					AND request.repository_commit=candidate_repository_commit
 					AND request.plan_digest=candidate_plan_digest
@@ -158,13 +158,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 						USING ERRCODE='23514';
 				END IF;
 				SELECT * INTO spool_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools spool
+				FROM ae_hrrr_lifecycle_result_spools spool
 				WHERE spool.namespace_id=candidate_namespace_id
 					AND spool.registration_request_digest=group_row.registration_request_digest
 					AND spool.operation=group_row.operation AND spool.v46_eligible
 					AND NOT EXISTS (
 						SELECT 1
-						FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+						FROM ae_hrrr_lifecycle_transport_journals journal
 						WHERE journal.namespace_id=spool.namespace_id
 							AND journal.result_spool_ref=spool.spool_ref)
 				ORDER BY spool.transport_stored_at DESC,spool.spool_ref COLLATE "C" DESC
@@ -189,7 +189,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 					SELECT jsonb_agg(intent.intent_json ORDER BY intent.mutation_sequence),
 						jsonb_agg(to_jsonb(intent.intent_digest) ORDER BY intent.mutation_sequence)
 					INTO intent_values,intent_digests
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
+					FROM ae_hrrr_lifecycle_dispatch_intents intent
 					WHERE intent.namespace_id=candidate_namespace_id
 						AND intent.registration_request_digest=group_row.registration_request_digest
 						AND intent.operation=group_row.operation AND intent.v46_eligible;
@@ -205,8 +205,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 					SELECT jsonb_agg(receipt.receipt_json ORDER BY intent.mutation_sequence),
 						jsonb_agg(to_jsonb(receipt.receipt_digest) ORDER BY intent.mutation_sequence)
 					INTO initial_receipts,initial_receipt_digests
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
-					JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+					FROM ae_hrrr_lifecycle_dispatch_intents intent
+					JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 					  ON receipt.namespace_id=intent.namespace_id
 					 AND receipt.intent_digest=intent.intent_digest
 					 AND receipt.generation_transition='initial-first-delivery'
@@ -228,8 +228,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 						jsonb_agg(to_jsonb(receipt.receipt_digest) ORDER BY intent.mutation_sequence,
 							receipt.claimed_at,receipt.receipt_digest COLLATE "C")
 					INTO history_receipts,history_receipt_digests
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents intent
-					JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts receipt
+					FROM ae_hrrr_lifecycle_dispatch_intents intent
+					JOIN ae_hrrr_lifecycle_dispatch_claim_receipts receipt
 					  ON receipt.namespace_id=intent.namespace_id
 					 AND receipt.intent_digest=intent.intent_digest
 					WHERE intent.namespace_id=candidate_namespace_id
@@ -269,13 +269,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_unfinished_page_exact()
 			RETURNS trigger AS $$
 		DECLARE
-			snapshot_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots%ROWTYPE;
+			snapshot_row ae_hrrr_lifecycle_unfinished_dispatch_snapshots%ROWTYPE;
 			expected_candidates JSONB;
 			expected_candidate_digests JSONB;
 			expected_next_cursor TEXT;
 		BEGIN
 			SELECT * INTO snapshot_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots
+			FROM ae_hrrr_lifecycle_unfinished_dispatch_snapshots
 			WHERE namespace_id=NEW.namespace_id AND snapshot_id=NEW.snapshot_id
 			FOR SHARE;
 			SELECT COALESCE(jsonb_agg(value ORDER BY ordinality),'[]'::jsonb)
@@ -336,7 +336,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_unfinished_page_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_pages
+			ON ae_hrrr_lifecycle_unfinished_dispatch_pages
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_unfinished_page_exact()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_unfinished_snapshot_exact()
 			RETURNS trigger AS $$
@@ -380,7 +380,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 							candidate#>>'{registrationRequest,requestDigest}'
 						OR NOT EXISTS (
 							SELECT 1
-							FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+							FROM ae_hrrr_registration_requests request
 							WHERE request.namespace_id=NEW.namespace_id
 								AND request.repository_commit=NEW.repository_commit
 								AND request.plan_digest=NEW.plan_digest
@@ -418,15 +418,15 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_unfinished_snapshot_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots
+			ON ae_hrrr_lifecycle_unfinished_dispatch_snapshots
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_unfinished_snapshot_exact()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_unfinished_snapshot_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots
+			ON ae_hrrr_lifecycle_unfinished_dispatch_snapshots
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_unfinished_page_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_pages
+			ON ae_hrrr_lifecycle_unfinished_dispatch_pages
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION read_agent_evaluation_hosted_runtime_lifecycle_unfinished_dispatches(
 			candidate_namespace_id TEXT,candidate_request_json JSONB,candidate_request_bytes BYTEA,
@@ -438,8 +438,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 			snapshot_id TEXT,snapshot_revision BIGINT
 		) LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			existing agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_pages%ROWTYPE;
-			snapshot agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots%ROWTYPE;
+			existing ae_hrrr_lifecycle_unfinished_dispatch_pages%ROWTYPE;
+			snapshot ae_hrrr_lifecycle_unfinished_dispatch_snapshots%ROWTYPE;
 			request_digest_value TEXT:=candidate_request_json->>'requestDigest';
 			cursor_value TEXT:=candidate_request_json->>'cursor';
 			requested_at_value TIMESTAMPTZ:=(candidate_request_json->>'requestedAt')::timestamptz;
@@ -463,7 +463,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 			PERFORM pg_advisory_xact_lock(hashtextextended(
 				candidate_namespace_id||chr(31)||request_digest_value,0));
 			SELECT * INTO existing
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_pages
+			FROM ae_hrrr_lifecycle_unfinished_dispatch_pages
 			WHERE namespace_id=candidate_namespace_id AND request_digest=request_digest_value
 			FOR UPDATE;
 			IF existing.request_digest IS NOT NULL THEN
@@ -516,7 +516,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 				PERFORM pg_advisory_xact_lock(hashtextextended(candidate_namespace_id||chr(31)||
 					candidate_request_json->>'runtimeResourceSetId'||chr(31)||'lifecycle-unfinished',0));
 				SELECT ledger_revision INTO snapshot_revision_value
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers
+				FROM ae_hrrr_owner_ledgers
 				WHERE namespace_id=candidate_namespace_id FOR SHARE;
 				IF snapshot_revision_value IS NULL THEN
 					RAISE EXCEPTION 'hosted runtime lifecycle unfinished snapshot lacks owner ledger'
@@ -529,7 +529,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 					candidate_request_json->>'planDigest',candidate_request_json->>'frozenRunDigest',
 					candidate_request_json->>'runConfigArtifactBindingDigest',
 					candidate_request_json->>'runtimeResourceSetId');
-				INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots(
+				INSERT INTO ae_hrrr_lifecycle_unfinished_dispatch_snapshots(
 					namespace_id,snapshot_id,repository_commit,plan_digest,frozen_run_digest,
 					run_config_artifact_binding_digest,runtime_resource_set_id,
 					lifecycle_owner_instance_id,snapshot_revision,snapshot_at,expires_at,
@@ -554,7 +554,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 					split_part(cursor_value,'.',2);
 				offset_value:=split_part(cursor_value,'.',3)::bigint;
 				SELECT * INTO snapshot
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots
+				FROM ae_hrrr_lifecycle_unfinished_dispatch_snapshots
 				WHERE namespace_id=candidate_namespace_id AND snapshot_id=snapshot_id_value
 				FOR SHARE;
 				IF snapshot.snapshot_id IS NULL OR snapshot.repository_commit<>
@@ -585,7 +585,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 			INTO candidate_digests_value
 			FROM jsonb_array_elements(candidates_value) WITH ORDINALITY member(value,ordinality);
 			SELECT * INTO snapshot
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots
+			FROM ae_hrrr_lifecycle_unfinished_dispatch_snapshots
 			WHERE namespace_id=candidate_namespace_id AND snapshot_id=snapshot_id_value FOR SHARE;
 			IF snapshot.candidate_count>offset_value+jsonb_array_length(candidates_value) THEN
 				next_cursor_value:='hosted-lifecycle-unfinished-cursor.'||
@@ -605,7 +605,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6UnfinishedDiscovery
 				'nextCursor',to_jsonb(next_cursor_value));
 			page_digest_value:=agent_evaluation_canonical_jsonb_digest(page_base);
 			page_value:=page_base||jsonb_build_object('pageDigest',page_digest_value);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_pages(
+			INSERT INTO ae_hrrr_lifecycle_unfinished_dispatch_pages(
 				namespace_id,request_digest,request_json,request_bytes,snapshot_id,snapshot_revision,
 				page_offset,page_size,recovery_authority_issuer_id,
 				recovery_authority_implementation_digest,snapshot_at,expires_at,candidate_count,

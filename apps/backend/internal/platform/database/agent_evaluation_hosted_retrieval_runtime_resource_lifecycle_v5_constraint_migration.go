@@ -8,13 +8,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV5ConstraintStatement
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_fence_derive_request()
 			RETURNS trigger AS $$
 		DECLARE
-			set_row agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
+			set_row ae_hrrr_sets%ROWTYPE;
 			expected_shard_ids JSONB;
 			expected_shard_count BIGINT;
 			expected_shard_id_set_digest TEXT;
 		BEGIN
 			SELECT * INTO set_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+			FROM ae_hrrr_sets
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=NEW.runtime_resource_set_id
@@ -78,27 +78,27 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV5ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_fence_derive_requests_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests
+			BEFORE INSERT ON ae_hrrr_terminal_fence_derive_requests
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_fence_derive_request()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_fence_derive_requests_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests
+			BEFORE UPDATE OR DELETE ON ae_hrrr_terminal_fence_derive_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_fence_derive_requests_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_terminal_fence_derive_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_fence_derive_receipt()
 			RETURNS trigger AS $$
 		DECLARE
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests%ROWTYPE;
-			fence_row agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences%ROWTYPE;
+			request_row ae_hrrr_terminal_fence_derive_requests%ROWTYPE;
+			fence_row ae_hrrr_run_terminal_fences%ROWTYPE;
 		BEGIN
 			SELECT * INTO request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests
+			FROM ae_hrrr_terminal_fence_derive_requests
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit AND request_digest=NEW.request_digest
 			FOR SHARE;
 			SELECT * INTO fence_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences
+			FROM ae_hrrr_run_terminal_fences
 			WHERE namespace_id=NEW.namespace_id AND fence_digest=NEW.run_terminal_fence_digest
 			FOR SHARE;
 			IF request_row.request_digest IS NULL OR fence_row.fence_digest IS NULL
@@ -150,20 +150,20 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV5ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_fence_derive_receipts_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts
+			BEFORE INSERT ON ae_hrrr_terminal_fence_derive_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_fence_derive_receipt()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_fence_derive_receipts_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts
+			BEFORE UPDATE OR DELETE ON ae_hrrr_terminal_fence_derive_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_fence_derive_receipts_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_terminal_fence_derive_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION require_agent_evaluation_hosted_runtime_fence_derive_receipt()
 			RETURNS trigger AS $$
 		BEGIN
 			IF NOT EXISTS (
 				SELECT 1
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts receipt
+				FROM ae_hrrr_terminal_fence_derive_receipts receipt
 				WHERE receipt.namespace_id=NEW.namespace_id
 					AND receipt.plan_digest=NEW.plan_digest
 					AND receipt.repository_commit=NEW.repository_commit
@@ -176,18 +176,18 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV5ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE CONSTRAINT TRIGGER agent_eval_hosted_runtime_fence_derive_receipt_required
-			AFTER INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests
+			AFTER INSERT ON ae_hrrr_terminal_fence_derive_requests
 			DEFERRABLE INITIALLY DEFERRED
 			FOR EACH ROW EXECUTE FUNCTION require_agent_evaluation_hosted_runtime_fence_derive_receipt()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_post_matrix_claim_request()
 			RETURNS trigger AS $$
 		DECLARE
-			derive_row agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts%ROWTYPE;
+			derive_row ae_hrrr_terminal_fence_derive_receipts%ROWTYPE;
 			resource_row agent_evaluation_hosted_retrieval_runtime_resources%ROWTYPE;
-			registration_row agent_evaluation_hosted_retrieval_runtime_resource_registration_results%ROWTYPE;
+			registration_row ae_hrrr_registration_results%ROWTYPE;
 		BEGIN
 			SELECT * INTO derive_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts
+			FROM ae_hrrr_terminal_fence_derive_receipts
 			WHERE namespace_id=NEW.namespace_id
 				AND receipt_digest=NEW.terminal_fence_derive_receipt_digest
 			FOR SHARE;
@@ -197,7 +197,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV5ConstraintStatement
 				AND repository_commit=NEW.repository_commit AND authority_digest=NEW.authority_digest
 			FOR SHARE;
 			SELECT * INTO registration_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND registration_request_digest=resource_row.registration_request_digest
@@ -253,13 +253,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV5ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_post_matrix_claim_requests_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests
+			BEFORE INSERT ON ae_hrrr_post_matrix_cleanup_claim_requests
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_post_matrix_claim_request()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_post_matrix_claim_requests_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests
+			BEFORE UPDATE OR DELETE ON ae_hrrr_post_matrix_cleanup_claim_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_post_matrix_claim_requests_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_post_matrix_cleanup_claim_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 	}
 }

@@ -54,7 +54,7 @@ func queryEvaluationHostedRetrievalRuntimeResourceCleanupArchiveRecords(
 	}
 	rows, err := queryer.QueryContext(ctx, `SELECT namespace_id,plan_digest,repository_commit,
 		runtime_resource_set_id,authority_digest,record_digest,cleanup_receipt_digest,record_json,record_bytes
-	FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives
+	FROM ae_hrrr_cleanup_archives
 	WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND v46_eligible
 	ORDER BY repository_commit COLLATE "C",runtime_resource_set_id COLLATE "C",authority_digest COLLATE "C"
 	LIMIT 5`, authority.NamespaceID, partition.PlanDigest, partition.RepositoryCommit)

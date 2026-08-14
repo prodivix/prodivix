@@ -2,7 +2,7 @@ package database
 
 func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryConstraintStatements() []string {
 	return []string{
-		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_registration_set_lookup_request()
+		`CREATE OR REPLACE FUNCTION enforce_ae_hrrr_reg_set_lookup_request()
 			RETURNS trigger AS $$
 		DECLARE
 			plan_row agent_evaluation_plans%ROWTYPE;
@@ -71,19 +71,19 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryConstraintStatements(
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lookup_requests_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests
-			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_registration_set_lookup_request()`,
+			BEFORE INSERT ON ae_hrrr_registration_set_lookup_requests
+			FOR EACH ROW EXECUTE FUNCTION enforce_ae_hrrr_reg_set_lookup_request()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lookup_requests_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests
+			BEFORE UPDATE OR DELETE ON ae_hrrr_registration_set_lookup_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lookup_requests_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_registration_set_lookup_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
-		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_registration_set_lookup_receipt()
+		`CREATE OR REPLACE FUNCTION enforce_ae_hrrr_reg_set_lookup_receipt()
 			RETURNS trigger AS $$
 		DECLARE
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests%ROWTYPE;
-			set_row agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
+			request_row ae_hrrr_registration_set_lookup_requests%ROWTYPE;
+			set_row ae_hrrr_sets%ROWTYPE;
 			expected_results JSONB;
 			registration_count BIGINT;
 			minimum_resource_expires_at TIMESTAMPTZ;
@@ -94,12 +94,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryConstraintStatements(
 				chr(31)||'hosted-runtime-registration-set-lookup',0
 			));
 			SELECT * INTO request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests
+			FROM ae_hrrr_registration_set_lookup_requests
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit AND request_digest=NEW.request_digest
 			FOR SHARE;
 			SELECT * INTO set_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+			FROM ae_hrrr_sets
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=NEW.runtime_resource_set_id
@@ -107,12 +107,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryConstraintStatements(
 			SELECT COUNT(*),jsonb_agg(registration_result_json ORDER BY
 				protocol_family COLLATE "C",capability_profile_id COLLATE "C"),MIN(expires_at)
 			INTO registration_count,expected_results,minimum_resource_expires_at
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=NEW.runtime_resource_set_id;
 			SELECT COALESCE(MAX(lookup_ledger_revision),0)+1 INTO next_revision
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts
+			FROM ae_hrrr_registration_set_lookup_receipts
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit;
 			IF request_row.request_digest IS NULL OR set_row.authority_set_digest IS NULL
@@ -158,13 +158,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceDiscoveryConstraintStatements(
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lookup_receipts_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts
-			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_registration_set_lookup_receipt()`,
+			BEFORE INSERT ON ae_hrrr_registration_set_lookup_receipts
+			FOR EACH ROW EXECUTE FUNCTION enforce_ae_hrrr_reg_set_lookup_receipt()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lookup_receipts_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts
+			BEFORE UPDATE OR DELETE ON ae_hrrr_registration_set_lookup_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lookup_receipts_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_registration_set_lookup_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 	}
 }

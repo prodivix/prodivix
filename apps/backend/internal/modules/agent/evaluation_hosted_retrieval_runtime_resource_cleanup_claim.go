@@ -171,11 +171,11 @@ func loadEvaluationHostedRetrievalRuntimeResourceCleanupContextTx(
 		}
 		var priorClaimExpiresAt time.Time
 		err = tx.QueryRowContext(ctx, `SELECT request.prior_active_state_digest,claim.claim_expires_at
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts outer_claim
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims claim
+			FROM ae_hrrr_cleanup_claim_receipts outer_claim
+			JOIN ae_hrrr_cleanup_claims claim
 			  ON claim.namespace_id=outer_claim.namespace_id
 			 AND claim.receipt_digest=outer_claim.cleanup_claim_authority_receipt_digest
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests request
+			JOIN ae_hrrr_cleanup_requests request
 			  ON request.namespace_id=outer_claim.namespace_id AND request.request_digest=outer_claim.cleanup_request_digest
 			WHERE outer_claim.namespace_id=$1 AND outer_claim.receipt_digest=$2 AND request.request_digest=$3 FOR SHARE`,
 			source.NamespaceID, *result.CurrentCleanupClaimReceiptDigest, *result.CurrentCleanupRequestDigest).Scan(
@@ -204,11 +204,11 @@ func loadEvaluationHostedRetrievalRuntimeResourceCleanupContextTx(
 	}
 	var registrationResultBytes, commitmentBytes, fenceBytes []byte
 	err = tx.QueryRowContext(ctx, `SELECT result.registration_result_bytes,set.resource_set_commitment_bytes,fence.fence_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results result
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_sets set
+		FROM ae_hrrr_registration_results result
+		JOIN ae_hrrr_sets set
 		  ON set.namespace_id=result.namespace_id AND set.plan_digest=result.plan_digest
 		 AND set.repository_commit=result.repository_commit AND set.runtime_resource_set_id=$5
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences fence
+		JOIN ae_hrrr_run_terminal_fences fence
 		  ON fence.namespace_id=set.namespace_id AND fence.plan_digest=set.plan_digest
 		 AND fence.repository_commit=set.repository_commit AND fence.runtime_resource_set_id=set.runtime_resource_set_id
 		WHERE result.namespace_id=$1 AND result.plan_digest=$2 AND result.repository_commit=$3
@@ -286,7 +286,7 @@ func loadEvaluationHostedRetrievalRuntimeResourceCleanupContextTx(
 		if err != nil || len(overdueBytes) > maximumEvaluationHostedRetrievalRuntimeResourceComponentBytes {
 			return result, ErrConflict
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts (
+		_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_overdue_receipts (
 			namespace_id,plan_digest,repository_commit,authority_digest,receipt_digest,resource_expires_at,
 			detected_at,receipt_json,receipt_bytes
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)
@@ -297,7 +297,7 @@ func loadEvaluationHostedRetrievalRuntimeResourceCleanupContextTx(
 			return result, err
 		}
 		var storedOverdueBytes []byte
-		if err := tx.QueryRowContext(ctx, `SELECT receipt_bytes FROM agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts
+		if err := tx.QueryRowContext(ctx, `SELECT receipt_bytes FROM ae_hrrr_overdue_receipts
 			WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND authority_digest=$4 FOR SHARE`,
 			source.NamespaceID, source.PlanDigest, source.RepositoryCommit, source.AuthorityDigest).Scan(&storedOverdueBytes); err != nil {
 			return result, err
@@ -333,7 +333,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceCleanupClaimTx(
 	}
 	var claimLedgerRevision int64
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(claim_ledger_revision),0)+1
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims
+		FROM ae_hrrr_cleanup_claims
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND authority_digest=$4`,
 		source.NamespaceID, source.PlanDigest, source.RepositoryCommit, source.AuthorityDigest).Scan(&claimLedgerRevision); err != nil {
 		return nil, err
@@ -439,7 +439,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceCleanupClaimTx(
 	if err != nil || len(outerBytes) > evaluationHostedRetrievalRuntimeResourceRecoveryClaimReceiptMaxBytes {
 		return nil, ErrConflict
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_cleanup_claims (
 		namespace_id,plan_digest,repository_commit,authority_digest,receipt_digest,claim_id,claim_authority_issuer_id,
 		claim_authority_implementation_digest,claim_ledger_revision,expected_active_state_digest,cleanup_owner_instance_id,
 		claim_generation,claimed_state_digest,claimed_at,claim_expires_at,receipt_json,receipt_bytes
@@ -451,7 +451,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceCleanupClaimTx(
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_cleanup_requests (
 		namespace_id,plan_digest,repository_commit,authority_digest,request_digest,resource_set_commitment_digest,
 		read_lease_ledger_root_digest,cleanup_claim_authority_receipt_digest,deletion_authority_receipt_digest,
 		cleanup_owner_instance_id,claim_generation,prior_active_state_digest,run_terminal_fence_digest,cleanup_reason,
@@ -464,7 +464,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceCleanupClaimTx(
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_cleanup_claim_receipts (
 		namespace_id,plan_digest,repository_commit,authority_digest,claim_generation,request_digest,receipt_digest,
 		claim_source,claim_source_receipt_digest,candidate_digest,recovery_authority_issuer_id,
 		recovery_authority_implementation_digest,claim_ledger_revision,expected_active_state_digest,
@@ -534,13 +534,13 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) claimCleanup(
 		return nil, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	requestTable := "agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests"
+	requestTable := "ae_hrrr_post_matrix_cleanup_claim_requests"
 	if source.ClaimSource == "recovery" {
-		requestTable = "agent_evaluation_hosted_retrieval_runtime_resource_recovery_claim_requests"
+		requestTable = "ae_hrrr_recovery_claim_requests"
 	}
 	var existingRequest, existingReceipt []byte
 	replayQuery := `SELECT request.request_bytes,receipt.receipt_bytes FROM ` + requestTable + ` request
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts receipt
+		JOIN ae_hrrr_cleanup_claim_receipts receipt
 		  ON receipt.namespace_id=request.namespace_id AND receipt.request_digest=request.request_digest
 		WHERE request.namespace_id=$1 AND request.request_digest=$2 FOR SHARE`
 	err = tx.QueryRowContext(ctx, replayQuery, source.NamespaceID, source.RequestDigest).Scan(&existingRequest, &existingReceipt)
@@ -560,7 +560,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) claimCleanup(
 		return nil, false, ErrConflict
 	}
 	if source.ClaimSource == "post-matrix" {
-		_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests (
+		_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_post_matrix_cleanup_claim_requests (
 			namespace_id,plan_digest,repository_commit,authority_digest,request_digest,runtime_resource_set_id,
 			resource_set_commitment_digest,terminal_fence_derive_receipt_digest,cleanup_owner_instance_id,
 			claimed_at,minimum_claim_expires_at,request_json,request_bytes
@@ -570,7 +570,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) claimCleanup(
 			source.CleanupOwnerInstanceID, source.ClaimedAt, source.MinimumClaimExpiresAt,
 			string(source.RequestCanonical), source.RequestCanonical)
 	} else {
-		_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_recovery_claim_requests (
+		_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_recovery_claim_requests (
 			namespace_id,plan_digest,repository_commit,authority_digest,request_digest,recovery_page_digest,
 			candidate_digest,expected_active_state_digest,cleanup_owner_instance_id,claimed_at,request_json,request_bytes
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`, source.NamespaceID,

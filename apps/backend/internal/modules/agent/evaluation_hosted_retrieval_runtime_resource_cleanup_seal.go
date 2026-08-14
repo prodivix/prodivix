@@ -44,11 +44,11 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreCleanupReceipt(
 	var existing []byte
 	var existingClaimSource string
 	err = tx.QueryRowContext(ctx, `SELECT cleanup.cleanup_receipt_bytes,claim.claim_source
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanups cleanup
+		FROM ae_hrrr_cleanups cleanup
 		JOIN agent_evaluation_hosted_retrieval_runtime_resources resource
 		  ON resource.namespace_id=cleanup.namespace_id AND resource.plan_digest=cleanup.plan_digest
 		 AND resource.repository_commit=cleanup.repository_commit AND resource.authority_digest=cleanup.authority_digest
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim
+		JOIN ae_hrrr_cleanup_claim_receipts claim
 		  ON claim.namespace_id=resource.namespace_id
 		 AND claim.receipt_digest=resource.current_cleanup_claim_receipt_digest
 		WHERE cleanup.namespace_id=$1 AND cleanup.plan_digest=$2 AND cleanup.authority_digest=$3 FOR SHARE`,
@@ -75,7 +75,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreCleanupReceipt(
 	err = tx.QueryRowContext(ctx, `SELECT resource.repository_commit,resource.lifecycle,resource.claim_generation,
 		resource.current_cleanup_claim_receipt_digest,resource.cleanup_request_digest,claim.claim_source
 		FROM agent_evaluation_hosted_retrieval_runtime_resources resource
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim
+		JOIN ae_hrrr_cleanup_claim_receipts claim
 		  ON claim.namespace_id=resource.namespace_id
 		 AND claim.receipt_digest=resource.current_cleanup_claim_receipt_digest
 		WHERE resource.namespace_id=$1 AND resource.plan_digest=$2 AND resource.authority_digest=$3 FOR UPDATE`,
@@ -96,7 +96,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreCleanupReceipt(
 	}
 
 	value := receipt.Value
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanups (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_cleanups (
 		namespace_id,plan_digest,repository_commit,authority_digest,cleanup_request_digest,cleanup_receipt_digest,
 		resource_set_commitment_digest,read_lease_ledger_root_digest,cleanup_claim_authority_receipt_digest,
 		deletion_authority_receipt_digest,run_terminal_fence_digest,cleanup_owner_instance_id,claim_generation,
@@ -151,7 +151,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreCleanupReceipt(
 
 	var recordJSON, recordBytes []byte
 	err = tx.QueryRowContext(ctx, `SELECT record_json,record_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives
+		FROM ae_hrrr_cleanup_archives
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND authority_digest=$4 FOR SHARE`,
 		authority.NamespaceID, receipt.PlanDigest, repositoryCommit, receipt.AuthorityDigest).Scan(&recordJSON, &recordBytes)
 	if err != nil {
@@ -193,8 +193,8 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadCleanupResult(
 
 	var storedRequest, storedReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT request.request_bytes,receipt.receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_requests request
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts receipt
+		FROM ae_hrrr_cleanup_result_read_requests request
+		JOIN ae_hrrr_cleanup_result_read_receipts receipt
 		  ON receipt.namespace_id=request.namespace_id AND receipt.request_digest=request.request_digest
 		WHERE request.namespace_id=$1 AND request.request_digest=$2 FOR SHARE`,
 		authority.NamespaceID, request.RequestDigest).Scan(&storedRequest, &storedReceipt)
@@ -216,7 +216,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadCleanupResult(
 
 	var claimSource, planDigest, repositoryCommit string
 	err = tx.QueryRowContext(ctx, `SELECT claim.claim_source,claim.plan_digest,claim.repository_commit
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim
+		FROM ae_hrrr_cleanup_claim_receipts claim
 		WHERE claim.namespace_id=$1 AND claim.authority_digest=$2
 		  AND claim.cleanup_request_digest=$3 AND claim.receipt_digest=$4 FOR SHARE`,
 		authority.NamespaceID, request.AuthorityDigest, request.CleanupRequestDigest,
@@ -230,7 +230,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadCleanupResult(
 	if !evaluationHostedRetrievalRuntimeResourceClaimSourceMatchesPurpose(claimSource, request.Purpose) {
 		return nil, ErrConflict
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_requests (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_cleanup_result_read_requests (
 		namespace_id,authority_digest,cleanup_request_digest,recovery_claim_receipt_digest,request_digest,
 		requested_at,request_json,request_bytes
 	) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`, authority.NamespaceID, request.AuthorityDigest,
@@ -246,8 +246,8 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadCleanupResult(
 	var residual any
 	var cleanupBytes, archiveBytes []byte
 	err = tx.QueryRowContext(ctx, `SELECT cleanup.cleanup_receipt_bytes,archive.record_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanups cleanup
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives archive
+		FROM ae_hrrr_cleanups cleanup
+		JOIN ae_hrrr_cleanup_archives archive
 		  ON archive.namespace_id=cleanup.namespace_id AND archive.plan_digest=cleanup.plan_digest
 		 AND archive.repository_commit=cleanup.repository_commit AND archive.authority_digest=cleanup.authority_digest
 		WHERE cleanup.namespace_id=$1 AND cleanup.plan_digest=$2 AND cleanup.repository_commit=$3
@@ -289,7 +289,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadCleanupResult(
 	if err != nil || len(resultBytes) > evaluationHostedRetrievalRuntimeResourceCleanupResultReadReceiptMaxBytes {
 		return nil, ErrConflict
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_cleanup_result_read_receipts (
 		namespace_id,request_digest,receipt_digest,status,read_at,receipt_json,receipt_bytes
 	) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)`, authority.NamespaceID, request.RequestDigest,
 		stringMember(result, "receiptDigest"), status, readAt, string(resultBytes), resultBytes)

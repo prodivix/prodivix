@@ -336,7 +336,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadLifecycleUnfinishedDi
 		}
 		snapshotID := "hosted-lifecycle-unfinished-snapshot." + match[1]
 		if err := tx.QueryRowContext(ctx, `SELECT snapshot_at,expires_at
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots
+			FROM ae_hrrr_lifecycle_unfinished_dispatch_snapshots
 			WHERE namespace_id=$1 AND snapshot_id=$2 FOR SHARE`, authority.NamespaceID, snapshotID).Scan(
 			&snapshotAt, &expiresAt,
 		); err != nil {

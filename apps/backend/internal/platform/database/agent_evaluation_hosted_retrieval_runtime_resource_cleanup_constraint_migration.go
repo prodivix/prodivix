@@ -23,7 +23,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 					AND stored_active_state_digest=candidate_state_digest
 				UNION ALL
 				SELECT receipt_json->'activeState'
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+				FROM ae_hrrr_read_receipts
 				WHERE namespace_id=candidate_namespace_id AND plan_digest=candidate_plan_digest
 					AND repository_commit=candidate_repository_commit
 					AND authority_digest=candidate_authority_digest
@@ -37,9 +37,9 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 			RETURNS trigger AS $$
 		DECLARE
 			resource_row agent_evaluation_hosted_retrieval_runtime_resources%ROWTYPE;
-			set_row agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
-			prior_claim_row agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts%ROWTYPE;
-			prior_request_row agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests%ROWTYPE;
+			set_row ae_hrrr_sets%ROWTYPE;
+			prior_claim_row ae_hrrr_cleanup_claim_receipts%ROWTYPE;
+			prior_request_row ae_hrrr_cleanup_requests%ROWTYPE;
 			claimed_state JSONB;
 		BEGIN
 			SELECT * INTO resource_row
@@ -48,7 +48,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 				AND repository_commit=NEW.repository_commit AND authority_digest=NEW.authority_digest
 			FOR UPDATE;
 			SELECT * INTO set_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+			FROM ae_hrrr_sets
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=resource_row.runtime_resource_set_id
@@ -61,14 +61,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 				END IF;
 			ELSIF resource_row.lifecycle='cleanup-in-progress' THEN
 				SELECT * INTO prior_claim_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts
+				FROM ae_hrrr_cleanup_claim_receipts
 				WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 					AND repository_commit=NEW.repository_commit
 					AND authority_digest=NEW.authority_digest
 					AND receipt_digest=resource_row.current_cleanup_claim_receipt_digest
 				FOR SHARE;
 				SELECT * INTO prior_request_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests
+				FROM ae_hrrr_cleanup_requests
 				WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 					AND repository_commit=NEW.repository_commit
 					AND authority_digest=NEW.authority_digest
@@ -146,13 +146,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_cleanup_claims_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims
+			BEFORE INSERT ON ae_hrrr_cleanup_claims
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_cleanup_claim()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_cleanup_claims_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims
+			BEFORE UPDATE OR DELETE ON ae_hrrr_cleanup_claims
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_cleanup_claims_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_cleanup_claims
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION require_agent_evaluation_hosted_runtime_cleanup_claim_cas()
 			RETURNS trigger AS $$
@@ -160,10 +160,10 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 			IF NOT EXISTS (
 				SELECT 1
 				FROM agent_evaluation_hosted_retrieval_runtime_resources resource
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts receipt
+				JOIN ae_hrrr_cleanup_claim_receipts receipt
 				  ON receipt.namespace_id=resource.namespace_id
 				 AND receipt.receipt_digest=resource.current_cleanup_claim_receipt_digest
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests request
+				JOIN ae_hrrr_cleanup_requests request
 				  ON request.namespace_id=resource.namespace_id
 				 AND request.request_digest=resource.cleanup_request_digest
 				WHERE resource.namespace_id=NEW.namespace_id
@@ -189,17 +189,17 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE CONSTRAINT TRIGGER agent_eval_hosted_runtime_cleanup_claim_cas_required
-			AFTER INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims
+			AFTER INSERT ON ae_hrrr_cleanup_claims
 			DEFERRABLE INITIALLY DEFERRED
 			FOR EACH ROW EXECUTE FUNCTION require_agent_evaluation_hosted_runtime_cleanup_claim_cas()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_cleanup_request()
 			RETURNS trigger AS $$
 		DECLARE
 			resource_row agent_evaluation_hosted_retrieval_runtime_resources%ROWTYPE;
-			registration_row agent_evaluation_hosted_retrieval_runtime_resource_registration_results%ROWTYPE;
-			claim_row agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims%ROWTYPE;
-			root_row agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots%ROWTYPE;
-			fence_row agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences%ROWTYPE;
+			registration_row ae_hrrr_registration_results%ROWTYPE;
+			claim_row ae_hrrr_cleanup_claims%ROWTYPE;
+			root_row ae_hrrr_read_lease_ledger_roots%ROWTYPE;
+			fence_row ae_hrrr_run_terminal_fences%ROWTYPE;
 			prior_state JSONB;
 			expected_not_before TIMESTAMPTZ;
 		BEGIN
@@ -208,21 +208,21 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 				AND repository_commit=NEW.repository_commit AND authority_digest=NEW.authority_digest
 			FOR UPDATE;
 			SELECT * INTO registration_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND registration_request_digest=resource_row.registration_request_digest FOR SHARE;
 			SELECT * INTO claim_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims
+			FROM ae_hrrr_cleanup_claims
 			WHERE namespace_id=NEW.namespace_id
 				AND receipt_digest=NEW.cleanup_claim_authority_receipt_digest
 			FOR SHARE;
 			SELECT * INTO root_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+			FROM ae_hrrr_read_lease_ledger_roots
 			WHERE namespace_id=NEW.namespace_id AND root_digest=NEW.read_lease_ledger_root_digest
 			FOR SHARE;
 			SELECT * INTO fence_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences
+			FROM ae_hrrr_run_terminal_fences
 			WHERE namespace_id=NEW.namespace_id AND fence_digest=NEW.run_terminal_fence_digest
 			FOR SHARE;
 			prior_state:=agent_evaluation_hosted_runtime_active_state_by_digest(
@@ -258,7 +258,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 				OR NEW.deletion_not_before<>expected_not_before
 				OR ((NEW.cleanup_reason='expired')<>(NEW.overdue_receipt_digest IS NOT NULL))
 				OR (NEW.overdue_receipt_digest IS NOT NULL AND NOT EXISTS (
-					SELECT 1 FROM agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts overdue
+					SELECT 1 FROM ae_hrrr_overdue_receipts overdue
 					WHERE overdue.namespace_id=NEW.namespace_id
 						AND overdue.plan_digest=NEW.plan_digest
 						AND overdue.repository_commit=NEW.repository_commit
@@ -318,13 +318,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_cleanup_requests_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests
+			BEFORE INSERT ON ae_hrrr_cleanup_requests
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_cleanup_request()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_cleanup_requests_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests
+			BEFORE UPDATE OR DELETE ON ae_hrrr_cleanup_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_cleanup_requests_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_cleanup_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION require_agent_evaluation_hosted_runtime_resource_state()
 			RETURNS trigger AS $$
@@ -336,7 +336,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 		BEGIN
 			IF NEW.lifecycle='active' THEN
 				IF NOT EXISTS (
-					SELECT 1 FROM agent_evaluation_hosted_retrieval_runtime_resource_read_receipts receipt
+					SELECT 1 FROM ae_hrrr_read_receipts receipt
 					WHERE receipt.namespace_id=NEW.namespace_id AND receipt.plan_digest=NEW.plan_digest
 						AND receipt.repository_commit=NEW.repository_commit
 						AND receipt.authority_digest=NEW.authority_digest
@@ -357,11 +357,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 					'lifecycle','cleanup-in-progress'
 				),claim.cleanup_owner_instance_id,claim.claim_generation
 				INTO claimed_state,claimed_owner_instance_id,claimed_generation
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts outer_claim
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims claim
+				FROM ae_hrrr_cleanup_claim_receipts outer_claim
+				JOIN ae_hrrr_cleanup_claims claim
 				  ON claim.namespace_id=outer_claim.namespace_id
 				 AND claim.receipt_digest=outer_claim.cleanup_claim_authority_receipt_digest
-				JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests request
+				JOIN ae_hrrr_cleanup_requests request
 				  ON request.namespace_id=outer_claim.namespace_id
 				 AND request.request_digest=outer_claim.cleanup_request_digest
 				WHERE outer_claim.namespace_id=NEW.namespace_id
@@ -391,7 +391,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 					'completedAt',cleanup.cleanup_receipt_json->'completedAt',
 					'lifecycle','cleaned','residualProviderResourceIds','[]'::jsonb
 				) INTO terminal_state
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanups cleanup
+				FROM ae_hrrr_cleanups cleanup
 				WHERE cleanup.namespace_id=NEW.namespace_id AND cleanup.plan_digest=NEW.plan_digest
 					AND cleanup.repository_commit=NEW.repository_commit
 					AND cleanup.authority_digest=NEW.authority_digest
@@ -400,8 +400,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupConstraintStatements() 
 				IF terminal_state IS NULL
 					OR NOT EXISTS (
 						SELECT 1
-						FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanups cleanup
-						JOIN agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim_receipt
+						FROM ae_hrrr_cleanups cleanup
+						JOIN ae_hrrr_cleanup_claim_receipts claim_receipt
 						  ON claim_receipt.namespace_id=cleanup.namespace_id
 						 AND claim_receipt.receipt_digest=NEW.current_cleanup_claim_receipt_digest
 						WHERE cleanup.namespace_id=NEW.namespace_id

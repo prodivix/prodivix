@@ -439,7 +439,7 @@ func queryEvaluationHostedRetrievalRuntimeResourceLifecycleJournalArchiveRecords
 ) ([]EvaluationHostedRetrievalRuntimeResourceLifecycleJournalArchiveRecord, error) {
 	rows, err := queryer.QueryContext(ctx, `SELECT runtime_resource_set_id,operation,registration_request_digest,
 		journal_record_digest,budget_closure_projection_digest,archive_record_digest,record_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+		FROM ae_hrrr_lifecycle_journal_archives
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND v46_eligible`,
 		authority.NamespaceID, partition.PlanDigest, partition.RepositoryCommit)
 	if err != nil {

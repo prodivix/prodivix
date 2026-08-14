@@ -11,15 +11,15 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 			RETURNS trigger AS $$
 		DECLARE
 			hosted_request_count BIGINT;
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_registration_requests%ROWTYPE;
+			request_row ae_hrrr_registration_requests%ROWTYPE;
 			reservation_row agent_evaluation_budget_reservations%ROWTYPE;
-			registration_row agent_evaluation_hosted_retrieval_runtime_resource_registration_results%ROWTYPE;
-			cleanup_row agent_evaluation_hosted_retrieval_runtime_resource_cleanups%ROWTYPE;
-			archive_row agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives%ROWTYPE;
+			registration_row ae_hrrr_registration_results%ROWTYPE;
+			cleanup_row ae_hrrr_cleanups%ROWTYPE;
+			archive_row ae_hrrr_cleanup_archives%ROWTYPE;
 			requires_reconciliation BOOLEAN;
 		BEGIN
 			SELECT COUNT(*) INTO hosted_request_count
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+			FROM ae_hrrr_registration_requests request
 			WHERE request.namespace_id=NEW.namespace_id AND request.plan_digest=NEW.plan_digest
 				AND request.request_json#>>'{budgetReservationAuthority,reservationId}'=
 					NEW.reservation_id;
@@ -29,7 +29,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 					USING ERRCODE='23514';
 			END IF;
 			SELECT * INTO STRICT request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+			FROM ae_hrrr_registration_requests request
 			WHERE request.namespace_id=NEW.namespace_id AND request.plan_digest=NEW.plan_digest
 				AND request.request_json#>>'{budgetReservationAuthority,reservationId}'=
 					NEW.reservation_id
@@ -41,7 +41,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 				AND reservation.reservation_id=NEW.reservation_id
 			FOR SHARE;
 			SELECT * INTO registration_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+			FROM ae_hrrr_registration_results registration
 			WHERE registration.namespace_id=request_row.namespace_id
 				AND registration.plan_digest=request_row.plan_digest
 				AND registration.repository_commit=request_row.repository_commit
@@ -49,7 +49,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 			FOR SHARE;
 			IF registration_row.registration_result_digest IS NOT NULL THEN
 				SELECT * INTO cleanup_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanups cleanup
+				FROM ae_hrrr_cleanups cleanup
 				WHERE cleanup.namespace_id=registration_row.namespace_id
 					AND cleanup.plan_digest=registration_row.plan_digest
 					AND cleanup.repository_commit=registration_row.repository_commit
@@ -58,7 +58,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 			END IF;
 			IF cleanup_row.cleanup_receipt_digest IS NOT NULL THEN
 				SELECT * INTO archive_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives archive
+				FROM ae_hrrr_cleanup_archives archive
 				WHERE archive.namespace_id=cleanup_row.namespace_id
 					AND archive.plan_digest=cleanup_row.plan_digest
 					AND archive.repository_commit=cleanup_row.repository_commit
@@ -118,19 +118,19 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 		BEGIN
 			IF EXISTS (
 				SELECT 1
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+				FROM ae_hrrr_registration_requests request
 				WHERE request.namespace_id=NEW.namespace_id AND request.plan_digest=NEW.plan_digest
 					AND request.request_json#>>'{budgetReservationAuthority,reservationId}'=
 						NEW.reservation_id
 			) THEN
-				INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers(
+				INSERT INTO ae_hrrr_owner_ledgers(
 					namespace_id,ledger_revision,updated_at
 				) VALUES (NEW.namespace_id,1,clock_timestamp())
 				ON CONFLICT (namespace_id) DO UPDATE SET
 					ledger_revision=
-						agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers.ledger_revision+1,
+						ae_hrrr_owner_ledgers.ledger_revision+1,
 					updated_at=GREATEST(
-						agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers.updated_at,
+						ae_hrrr_owner_ledgers.updated_at,
 						EXCLUDED.updated_at
 					);
 			END IF;
@@ -154,8 +154,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 				AND COUNT(settlement.reservation_id)=4,
 				FALSE
 			)
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives archive
-			JOIN agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+			FROM ae_hrrr_cleanup_archives archive
+			JOIN ae_hrrr_registration_results registration
 			  ON registration.namespace_id=archive.namespace_id
 			 AND registration.plan_digest=archive.plan_digest
 			 AND registration.repository_commit=archive.repository_commit

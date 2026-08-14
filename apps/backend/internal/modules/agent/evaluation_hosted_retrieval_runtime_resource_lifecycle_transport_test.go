@@ -379,16 +379,16 @@ func TestStoreLifecycleTransportCommitsEncryptedSpoolAndReplaysExactACK(t *testi
 	receiptBytes, receiptDigest := evaluationHostedLifecycleTransportStoreReceiptFixture(t, request, storedAt, 1)
 	historyBytes, historyDigest := evaluationHostedLifecycleTransportStoreHistoryFixture(t, request, receiptBytes)
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_result_spools").
 		WithArgs(authority.NamespaceID, request.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"transport_store_request_bytes", "transport_store_receipt_bytes"}))
 	for _, claim := range request.DispatchClaimHistorySet.Receipts {
-		mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts").
+		mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_receipts").
 			WithArgs(authority.NamespaceID, claim.ReceiptDigest).
 			WillReturnRows(sqlmock.NewRows([]string{"receipt_bytes"}).AddRow(claim.Canonical))
 	}
 	for _, initial := range request.DispatchClaimSet.Receipts {
-		mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current").
+		mock.ExpectQuery("FROM ae_hrrr_lifecycle_dispatch_claim_current").
 			WithArgs(authority.NamespaceID, initial.DispatchIntentDigest).
 			WillReturnRows(sqlmock.NewRows([]string{
 				"current_claim_receipt_digest", "lifecycle_owner_instance_id",
@@ -396,10 +396,10 @@ func TestStoreLifecycleTransportCommitsEncryptedSpoolAndReplaysExactACK(t *testi
 			}).AddRow(initial.ReceiptDigest, ownerID, nil, nil))
 	}
 	for _, transport := range request.TransportReceiptSet.Receipts {
-		mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts").
+		mock.ExpectQuery("FROM ae_hrrr_lifecycle_transport_receipts").
 			WithArgs(authority.NamespaceID, transport.ReceiptDigest).
 			WillReturnRows(sqlmock.NewRows([]string{"receipt_bytes"}))
-		mock.ExpectExec("INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts").
+		mock.ExpectExec("INSERT INTO ae_hrrr_lifecycle_transport_receipts").
 			WillReturnResult(sqlmock.NewResult(1, 1))
 	}
 	mock.ExpectQuery("store_agent_evaluation_hosted_runtime_lifecycle_transport").
@@ -414,7 +414,7 @@ func TestStoreLifecycleTransportCommitsEncryptedSpoolAndReplaysExactACK(t *testi
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_result_spools").
 		WithArgs(authority.NamespaceID, request.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"transport_store_request_bytes", "transport_store_receipt_bytes"}).
 			AddRow(request.Canonical, receiptBytes))

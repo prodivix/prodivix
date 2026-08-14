@@ -349,7 +349,7 @@ func requireEvaluationCapabilityEffectProviderJournalCitationTx(
 	}
 	var authorityBytes []byte
 	if err := tx.QueryRowContext(ctx, `SELECT authority_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+		FROM ae_hrrr_registration_results
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND authority_digest=$4
 		FOR SHARE`, stage.NamespaceID, stage.PlanDigest, stage.RepositoryCommit,
 		stage.ProviderResourceAuthorityDigest).Scan(&authorityBytes); errors.Is(err, sql.ErrNoRows) {

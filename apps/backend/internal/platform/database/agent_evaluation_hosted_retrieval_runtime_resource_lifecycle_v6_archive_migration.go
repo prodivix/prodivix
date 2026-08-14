@@ -6,17 +6,17 @@ package database
 // journal digests remain nested record semantics rather than the 46th root.
 func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements() []string {
 	return []string{
-		`CREATE OR REPLACE FUNCTION materialize_agent_evaluation_hosted_runtime_lifecycle_journal_archive(
+		`CREATE OR REPLACE FUNCTION materialize_ae_hrrr_lc_journal_archive(
 			candidate_namespace_id TEXT,candidate_journal_record_digest TEXT,
 			candidate_budget_closure_projection JSONB,
 			candidate_budget_closure_projection_digest TEXT,
 			candidate_created_at TIMESTAMPTZ
 		) RETURNS JSONB LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			journal_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals%ROWTYPE;
+			journal_row ae_hrrr_lifecycle_transport_journals%ROWTYPE;
 			reservation_row agent_evaluation_budget_reservations%ROWTYPE;
 			settlement_row agent_evaluation_budget_settlements%ROWTYPE;
-			create_archive_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives%ROWTYPE;
+			create_archive_row ae_hrrr_lifecycle_journal_archives%ROWTYPE;
 			first_intent JSONB;
 			archive_base JSONB;
 			archive_value JSONB;
@@ -24,7 +24,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			expected_closure_kind TEXT;
 		BEGIN
 			SELECT * INTO journal_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			FROM ae_hrrr_lifecycle_transport_journals
 			WHERE namespace_id=candidate_namespace_id
 				AND record_digest=candidate_journal_record_digest
 				AND v46_eligible
@@ -32,7 +32,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			IF journal_row.record_digest IS NULL OR candidate_created_at<journal_row.completed_at
 				OR EXISTS (
 					SELECT 1
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots root
+					FROM ae_hrrr_lifecycle_journal_archive_roots root
 					WHERE root.namespace_id=journal_row.namespace_id
 						AND root.plan_digest=journal_row.plan_digest
 						AND root.repository_commit=journal_row.repository_commit
@@ -102,7 +102,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 				END IF;
 			ELSE
 				SELECT * INTO create_archive_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+				FROM ae_hrrr_lifecycle_journal_archives
 				WHERE namespace_id=journal_row.namespace_id
 					AND plan_digest=journal_row.plan_digest
 					AND repository_commit=journal_row.repository_commit
@@ -128,7 +128,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			archive_digest:=agent_evaluation_canonical_jsonb_digest(archive_base);
 			archive_value:=archive_base||jsonb_build_object(
 				'archiveRecordDigest',archive_digest);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives(
+			INSERT INTO ae_hrrr_lifecycle_journal_archives(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,operation,
 				registration_request_digest,journal_record_digest,budget_closure_projection_digest,
 				archive_record_digest,record_json,record_bytes,created_at,v46_eligible
@@ -146,10 +146,10 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_archive_exact()
 			RETURNS trigger AS $$
 		DECLARE
-			journal_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals%ROWTYPE;
+			journal_row ae_hrrr_lifecycle_transport_journals%ROWTYPE;
 		BEGIN
 			SELECT * INTO journal_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			FROM ae_hrrr_lifecycle_transport_journals
 			WHERE namespace_id=NEW.namespace_id AND record_digest=NEW.journal_record_digest
 			FOR SHARE;
 			IF journal_row.record_digest IS NULL OR NEW.operation<>journal_row.operation
@@ -170,7 +170,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 					NEW.record_json-'archiveRecordDigest')<>NEW.archive_record_digest
 				OR EXISTS (
 					SELECT 1
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots root
+					FROM ae_hrrr_lifecycle_journal_archive_roots root
 					WHERE root.namespace_id=NEW.namespace_id AND root.plan_digest=NEW.plan_digest
 						AND root.repository_commit=NEW.repository_commit
 						AND root.runtime_resource_set_id=NEW.runtime_resource_set_id
@@ -183,13 +183,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_archive_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+			ON ae_hrrr_lifecycle_journal_archives
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_archive_exact()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_archive_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+			ON ae_hrrr_lifecycle_journal_archives
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
-		`CREATE OR REPLACE FUNCTION materialize_agent_evaluation_hosted_runtime_lifecycle_journal_archive_root(
+		`CREATE OR REPLACE FUNCTION materialize_ae_hrrr_lc_journal_archive_root(
 			candidate_namespace_id TEXT,candidate_plan_digest TEXT,
 			candidate_repository_commit TEXT,candidate_runtime_resource_set_id TEXT,
 			candidate_sealed_at TIMESTAMPTZ
@@ -226,7 +226,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 				MIN(record_json#>>'{journalRecord,dispatchIntentSet,intents,0,runConfigArtifactBindingDigest}')
 			INTO record_count_value,creation_count,cleanup_count,creation_request_count,
 				records,record_digests,frozen_run_digest_value,run_config_binding_digest_value
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives archive
+			FROM ae_hrrr_lifecycle_journal_archives archive
 			WHERE archive.namespace_id=candidate_namespace_id
 				AND archive.plan_digest=candidate_plan_digest
 				AND archive.repository_commit=candidate_repository_commit
@@ -234,14 +234,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 				AND archive.v46_eligible;
 			WITH creation AS (
 				SELECT *
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+				FROM ae_hrrr_lifecycle_journal_archives
 				WHERE namespace_id=candidate_namespace_id AND plan_digest=candidate_plan_digest
 					AND repository_commit=candidate_repository_commit
 					AND runtime_resource_set_id=candidate_runtime_resource_set_id
 					AND operation='create' AND v46_eligible
 			), cleanup AS (
 				SELECT *
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+				FROM ae_hrrr_lifecycle_journal_archives
 				WHERE namespace_id=candidate_namespace_id AND plan_digest=candidate_plan_digest
 					AND repository_commit=candidate_repository_commit
 					AND runtime_resource_set_id=candidate_runtime_resource_set_id
@@ -290,7 +290,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			INTO closure_exact;
 			IF NOT COALESCE(closure_exact,FALSE)
 				OR candidate_sealed_at<(SELECT MAX(created_at)
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+					FROM ae_hrrr_lifecycle_journal_archives
 					WHERE namespace_id=candidate_namespace_id AND plan_digest=candidate_plan_digest
 						AND repository_commit=candidate_repository_commit
 						AND runtime_resource_set_id=candidate_runtime_resource_set_id) THEN
@@ -300,7 +300,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			SELECT agent_evaluation_canonical_jsonb_digest(jsonb_agg(
 				to_jsonb(journal_record_digest) ORDER BY journal_record_digest COLLATE "C"))
 			INTO creation_record_set_digest
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+			FROM ae_hrrr_lifecycle_journal_archives
 			WHERE namespace_id=candidate_namespace_id AND plan_digest=candidate_plan_digest
 				AND repository_commit=candidate_repository_commit
 				AND runtime_resource_set_id=candidate_runtime_resource_set_id
@@ -308,7 +308,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			SELECT agent_evaluation_canonical_jsonb_digest(jsonb_agg(
 				to_jsonb(journal_record_digest) ORDER BY journal_record_digest COLLATE "C"))
 			INTO cleanup_record_set_digest
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives
+			FROM ae_hrrr_lifecycle_journal_archives
 			WHERE namespace_id=candidate_namespace_id AND plan_digest=candidate_plan_digest
 				AND repository_commit=candidate_repository_commit
 				AND runtime_resource_set_id=candidate_runtime_resource_set_id
@@ -326,7 +326,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			);
 			family_digest_value:=agent_evaluation_canonical_jsonb_digest(family_base);
 			family_value:=family_base||jsonb_build_object('familyDigest',family_digest_value);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots(
+			INSERT INTO ae_hrrr_lifecycle_journal_archive_roots(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,family_digest,
 				closure_status,record_count,creation_record_set_digest,cleanup_record_set_digest,
 				family_json,family_bytes,sealed_at,v46_eligible
@@ -368,11 +368,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_archive_root_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots
+			ON ae_hrrr_lifecycle_journal_archive_roots
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_archive_root_exact()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_archive_root_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots
+			ON ae_hrrr_lifecycle_journal_archive_roots
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 	}
 }

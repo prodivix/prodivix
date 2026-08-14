@@ -17,18 +17,18 @@ func assertAgentEvaluationHostedV6Schema(t *testing.T, db *sql.DB) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	for _, table := range []string{
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_reconciliation_observations",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_snapshots",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_dispatch_pages",
+		"ae_hrrr_lifecycle_dispatch_claim_current",
+		"ae_hrrr_lifecycle_result_spools",
+		"ae_hrrr_lifecycle_transport_journals",
+		"ae_hrrr_lifecycle_journal_archives",
+		"ae_hrrr_lifecycle_journal_archive_roots",
+		"ae_hrrr_lifecycle_reconciliation_observations",
+		"ae_hrrr_lifecycle_seal_receipts",
+		"ae_hrrr_lifecycle_partial_cleanup_prepares",
+		"ae_hrrr_lifecycle_partial_cleanup_claim_history",
+		"ae_hrrr_lifecycle_partial_cleanup_claim_current",
+		"ae_hrrr_lifecycle_unfinished_dispatch_snapshots",
+		"ae_hrrr_lifecycle_unfinished_dispatch_pages",
 		"agent_evaluation_authority_attestation_v46_roots",
 		"agent_evaluation_evidence_root_v46_roots",
 	} {
@@ -111,8 +111,8 @@ func createHostedLifecycleTempShadowTables(t *testing.T, db *sql.DB, tables ...s
 func TestAgentEvaluationHostedV6MigrationPostgreSQLSpoolLifetimeAndUnknownSeal(t *testing.T) {
 	db := openAgentEvaluationMigrationPostgreSQLAtVersion(t, 46)
 	createHostedLifecycleTempShadowTables(t, db,
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals",
+		"ae_hrrr_lifecycle_result_spools",
+		"ae_hrrr_lifecycle_transport_journals",
 	)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -121,7 +121,7 @@ func TestAgentEvaluationHostedV6MigrationPostgreSQLSpoolLifetimeAndUnknownSeal(t
 	spooledAt := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
 	insertSpool := func(namespaceID, spoolRef string, expiresAt, lifecycleExpiresAt time.Time) error {
 		_, err := db.ExecContext(ctx, `INSERT INTO
-			agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools(
+			ae_hrrr_lifecycle_result_spools(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 				registration_request_digest,frozen_run_digest,run_config_artifact_binding_digest,
 				lifecycle_expires_at,spool_ref,operation,dispatch_intent_set_digest,
@@ -171,7 +171,7 @@ func TestAgentEvaluationHostedV6MigrationPostgreSQLSpoolLifetimeAndUnknownSeal(t
 		t.Fatalf("spool beyond stored resource expiry error=%v", err)
 	}
 	_, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals(
+		ae_hrrr_lifecycle_transport_journals(
 			namespace_id,plan_digest,repository_commit,runtime_resource_set_id,operation,
 			registration_request_digest,record_digest,result_spool_ref,
 			result_spool_receipt_digest,result_spool_disposition_receipt_digest,
@@ -199,18 +199,18 @@ type hostedLifecycleClaimResult struct {
 func TestAgentEvaluationHostedV6MigrationPostgreSQLStageClaimCAS(t *testing.T) {
 	db := openAgentEvaluationMigrationPostgreSQLAtVersion(t, 46)
 	createHostedLifecycleTempShadowTables(t, db,
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current",
-		"agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers",
+		"ae_hrrr_lifecycle_dispatch_intents",
+		"ae_hrrr_lifecycle_dispatch_claim_requests",
+		"ae_hrrr_lifecycle_dispatch_claim_receipts",
+		"ae_hrrr_lifecycle_dispatch_claim_current",
+		"ae_hrrr_owner_ledgers",
 	)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const namespaceID = "namespace.lifecycle-claim-cas"
 	baseAt := time.Date(2026, 8, 12, 1, 0, 0, 0, time.UTC)
 	if _, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers(
+		ae_hrrr_owner_ledgers(
 			namespace_id,ledger_revision,updated_at
 		) VALUES ($1,37,$2)`, namespaceID, baseAt.Add(-time.Hour)); err != nil {
 		t.Fatalf("seed hosted lifecycle owner ledger: %v", err)
@@ -220,7 +220,7 @@ func TestAgentEvaluationHostedV6MigrationPostgreSQLStageClaimCAS(t *testing.T) {
 		intentDigests[index] = "sha256-" + strings.Repeat(character, 64)
 		registrationDigest := "sha256-" + strings.Repeat(fmt.Sprintf("%x", index+5), 64)
 		if _, err := db.ExecContext(ctx, `INSERT INTO
-			agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents(
+			ae_hrrr_lifecycle_dispatch_intents(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 				registration_request_digest,intent_id,intent_digest,protocol_family,
 				capability_profile_id,budget_reservation_id,budget_reservation_authority_digest,
@@ -303,7 +303,7 @@ func TestAgentEvaluationHostedV6MigrationPostgreSQLStageClaimCAS(t *testing.T) {
 	}
 	var globalRevision int64
 	if err := db.QueryRowContext(ctx, `SELECT ledger_revision FROM
-		agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers WHERE namespace_id=$1`,
+		ae_hrrr_owner_ledgers WHERE namespace_id=$1`,
 		namespaceID).Scan(&globalRevision); err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +358,7 @@ func TestAgentEvaluationHostedV6MigrationPostgreSQLStageClaimCAS(t *testing.T) {
 	transportDigest := "sha256-" + strings.Repeat("6", 64)
 	journalDigest := "sha256-" + strings.Repeat("7", 64)
 	if _, err := db.ExecContext(ctx, `UPDATE
-		agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+		ae_hrrr_lifecycle_dispatch_claim_current
 		SET current_revision=current_revision+1,prior_transport_receipt_digest=$3,
 			sealed_journal_record_digest=$4,updated_at=$5
 		WHERE namespace_id=$1 AND intent_digest=$2`, namespaceID, intentDigests[0],
@@ -383,9 +383,9 @@ func TestAgentEvaluationHostedV6MigrationPostgreSQLStageClaimCAS(t *testing.T) {
 func TestAgentEvaluationHostedV6MigrationPostgreSQLPartialCleanupClaimExpiry(t *testing.T) {
 	db := openAgentEvaluationMigrationPostgreSQLAtVersion(t, 46)
 	createHostedLifecycleTempShadowTables(t, db,
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current",
+		"ae_hrrr_lifecycle_partial_cleanup_prepares",
+		"ae_hrrr_lifecycle_partial_cleanup_claim_history",
+		"ae_hrrr_lifecycle_partial_cleanup_claim_current",
 	)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -397,7 +397,7 @@ func TestAgentEvaluationHostedV6MigrationPostgreSQLPartialCleanupClaimExpiry(t *
 	baseAt := time.Date(2026, 8, 12, 3, 0, 0, 0, time.UTC)
 	knownIDs := `[{"resourceId":"provider.partial.fixture","resourceRole":"primary"}]`
 	if _, err := db.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares(
+		ae_hrrr_lifecycle_partial_cleanup_prepares(
 			namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 			registration_request_digest,partial_journal_record_digest,
 			partial_cleanup_authority_digest,known_resource_ids_json,known_resource_ids_bytes,

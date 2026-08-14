@@ -118,7 +118,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6BudgetStatements() 
 				SELECT request.request_digest,
 					request.request_json#>>'{budgetReservationAuthority,reservationId}'
 						AS reservation_id
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests request
+				FROM ae_hrrr_registration_requests request
 				WHERE request.namespace_id=NEW.namespace_id AND request.plan_digest=NEW.plan_digest
 					AND request.repository_commit=NEW.repository_commit
 					AND request.runtime_resource_set_id=NEW.runtime_resource_set_id
@@ -160,7 +160,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6BudgetStatements() 
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_stage_v6_budget_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			ON ae_hrrr_registration_requests
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_v6_budget_demand()`,
 	}
 }

@@ -14,10 +14,10 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6MigrationOwnsFirstDeliverySpoolA
 		"\n",
 	)
 	for _, fragment := range []string{
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current",
+		"ae_hrrr_lifecycle_dispatch_intents",
+		"ae_hrrr_lifecycle_dispatch_claim_requests",
+		"ae_hrrr_lifecycle_dispatch_claim_receipts",
+		"ae_hrrr_lifecycle_dispatch_claim_current",
 		"ever_dispatch_authorized BOOLEAN NOT NULL",
 		"dispatch-authorized-first-delivery",
 		"reconcile-only-replay",
@@ -36,7 +36,7 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6MigrationOwnsFirstDeliverySpoolA
 		"dispatch_ledger_revision:=current_row.dispatch_ledger_revision+1",
 		"claim_agent_evaluation_hosted_runtime_lifecycle_dispatch",
 		"hosted-runtime-lifecycle-first-delivery",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools",
+		"ae_hrrr_lifecycle_result_spools",
 		"aad_digest TEXT NOT NULL",
 		"agent_evaluation_jsonb_object_key_count(NEW.aad_json)<>21",
 		"agent_evaluation_jsonb_object_key_count(NEW.spool_receipt_json)<>36",
@@ -46,10 +46,10 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6MigrationOwnsFirstDeliverySpoolA
 		"COALESCE(resource_row.resource_expires_at,registration_row.expires_at",
 		"ciphertext_digest TEXT NOT NULL",
 		"octet_length(ciphertext_bytes)=0",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals",
+		"ae_hrrr_lifecycle_transport_journals",
 		"'deleted','partial-create-requires-cleanup'",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots",
+		"ae_hrrr_lifecycle_journal_archives",
+		"ae_hrrr_lifecycle_journal_archive_roots",
 		"transport_store_receipt_history_digest TEXT NOT NULL",
 		"octet_length(transport_store_receipt_history_bytes) BETWEEN 1 AND 32768",
 		"idx_agent_eval_hosted_runtime_lifecycle_archive_page",
@@ -102,7 +102,7 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6TransportStoreAndSealAreDurable(
 		"transport-prefix-superseded",
 		"ciphertext_bytes=''::bytea",
 		"transport prefix lost current CAS",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_seal_receipts",
+		"ae_hrrr_lifecycle_seal_receipts",
 		"acknowledge_agent_evaluation_hosted_runtime_lifecycle_seal",
 		"agent_evaluation_jsonb_object_key_count(NEW.request_json)<>6",
 		"agent_evaluation_jsonb_object_key_count(NEW.receipt_json)<>11",
@@ -180,7 +180,7 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6RecoveryReadIsCurrentClaimBounde
 		"\n",
 	)
 	for _, fragment := range []string{
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads",
+		"ae_hrrr_lifecycle_transport_recovery_reads",
 		"read_agent_evaluation_hosted_runtime_lifecycle_transport_recovery",
 		"agent_evaluation_jsonb_object_key_count(candidate_request_json)<>12",
 		"agent_evaluation_jsonb_object_key_count(NEW.receipt_json)<>19",
@@ -221,9 +221,9 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6PartialCleanupOwnsKnownIDs(t *te
 		"\n",
 	)
 	for _, fragment := range []string{
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current",
+		"ae_hrrr_lifecycle_partial_cleanup_prepares",
+		"ae_hrrr_lifecycle_partial_cleanup_claim_history",
+		"ae_hrrr_lifecycle_partial_cleanup_claim_current",
 		"release_eligible BOOLEAN NOT NULL DEFAULT FALSE",
 		"claim_agent_evaluation_hosted_runtime_lifecycle_partial_cleanup",
 		"generation_transition='expired-owner-takeover'",
@@ -302,12 +302,12 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6BudgetRecoveryAndHealthAreCurren
 		"maximum>=222 FROM normalized WHERE unit='hosted-tool-call'",
 		"maximum>=310 FROM normalized WHERE unit='provider-upload-byte'",
 		"maximum>=214272000 FROM normalized",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_unfinished_operations",
+		"ae_hrrr_lifecycle_unfinished_operations",
 		"reconciliationObservationReceiptSet",
 		"state IN ('active','retained-encrypted')",
 		"sealed_journal_record_digest IS NULL",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots",
+		"ae_hrrr_lifecycle_journal_archives",
+		"ae_hrrr_lifecycle_journal_archive_roots",
 		"expected_closure_kind TEXT",
 		"expected_closure_kind:=CASE",
 		"candidate_budget_closure_projection->>'closureKind'<>expected_closure_kind",
@@ -331,8 +331,8 @@ func TestAgentEvaluationHostedV6IsIndependentlyRecordedAfterV45(t *testing.T) {
 	}
 	statements := strings.Join(migration.statements, "\n")
 	for _, fragment := range []string{
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents",
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools",
+		"ae_hrrr_lifecycle_dispatch_intents",
+		"ae_hrrr_lifecycle_result_spools",
 		"ADD COLUMN IF NOT EXISTS v46_eligible BOOLEAN",
 		"agent_evaluation_authority_attestation_v46_roots",
 	} {
@@ -346,7 +346,7 @@ func TestAgentEvaluationHostedV6IsIndependentlyRecordedAfterV45(t *testing.T) {
 	}
 	legacyStatements := strings.Join(legacy.statements, "\n")
 	if strings.Contains(legacyStatements,
-		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents") {
+		"ae_hrrr_lifecycle_dispatch_intents") {
 		t.Fatal("already-recorded v45 migration still owns hosted lifecycle v6")
 	}
 }
@@ -381,11 +381,11 @@ func TestAgentEvaluationV46EligibilityCoversEveryProductionConsumerTable(t *test
 		"agent_evaluation_capability_effect_source_consumption_claims",
 		"agent_evaluation_capability_probe_provider_resource_cleanups",
 		"agent_evaluation_capability_probe_provider_resource_registrations",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives",
-		"agent_evaluation_hosted_retrieval_runtime_resource_registration_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_registration_results",
-		"agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences",
-		"agent_evaluation_hosted_retrieval_runtime_resource_sets",
+		"ae_hrrr_cleanup_archives",
+		"ae_hrrr_registration_requests",
+		"ae_hrrr_registration_results",
+		"ae_hrrr_run_terminal_fences",
+		"ae_hrrr_sets",
 		"agent_evaluation_hosted_retrieval_runtime_resources",
 		"agent_evaluation_native_optional_capability_bootstrap_sources",
 		"agent_evaluation_native_provider_state_vault_records",

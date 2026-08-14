@@ -56,7 +56,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceConstraintStatements() []strin
 			authority JSONB:=NEW.authority_json;
 			deletion_receipt JSONB:=NEW.deletion_authority_receipt_json;
 			deletion_projection JSONB:=NEW.deletion_authority_receipt_json->'deletionRequestProjection';
-			staged_request agent_evaluation_hosted_retrieval_runtime_resource_registration_requests%ROWTYPE;
+			staged_request ae_hrrr_registration_requests%ROWTYPE;
 			plan_row agent_evaluation_plans%ROWTYPE;
 			run_config_frozen_digest TEXT;
 			budget_ledger_revision BIGINT;
@@ -71,7 +71,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceConstraintStatements() []strin
 			canonical_auxiliary_count BIGINT;
 		BEGIN
 			SELECT * INTO staged_request
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			FROM ae_hrrr_registration_requests
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND request_digest=NEW.registration_request_digest
@@ -346,7 +346,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceConstraintStatements() []strin
 				chr(31)||'hosted-runtime-registration',0));
 			SELECT COUNT(*),MIN(runtime_resource_set_id)
 			INTO registration_count,existing_set_id
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit;
 			IF registration_count>=4
@@ -358,13 +358,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceConstraintStatements() []strin
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			BEFORE INSERT ON ae_hrrr_registration_results
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_registration()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			BEFORE UPDATE OR DELETE ON ae_hrrr_registration_results
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_registration_results
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_resource_set()
 			RETURNS trigger AS $$
@@ -393,7 +393,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceConstraintStatements() []strin
 				MIN(registered_at),MIN(expires_at)
 			INTO registration_count,expected_authorities,expected_authority_digests,
 				expected_bindings,minimum_registered_at,minimum_expires_at
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=NEW.runtime_resource_set_id;
@@ -445,28 +445,28 @@ func agentEvaluationHostedRetrievalRuntimeResourceConstraintStatements() []strin
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_resource_sets_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_sets
+			BEFORE INSERT ON ae_hrrr_sets
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_resource_set()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_resource_sets_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_sets
+			BEFORE UPDATE OR DELETE ON ae_hrrr_sets
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_resource_sets_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_sets
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_sets
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_resource_state()
 			RETURNS trigger AS $$
 		DECLARE
-			registration agent_evaluation_hosted_retrieval_runtime_resource_registration_results%ROWTYPE;
-			resource_set agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
+			registration ae_hrrr_registration_results%ROWTYPE;
+			resource_set ae_hrrr_sets%ROWTYPE;
 			active_state JSONB:=NEW.stored_active_state_json;
 		BEGIN
 			SELECT * INTO registration
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND registration_request_digest=NEW.registration_request_digest FOR SHARE;
 			SELECT * INTO resource_set
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+			FROM ae_hrrr_sets
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=NEW.runtime_resource_set_id FOR SHARE;

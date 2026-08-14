@@ -190,7 +190,7 @@ func TestReadLifecycleTransportRecoveryReturnsExactDurableCiphertextReceipt(t *t
 		t, fixture.ReadAt, fixture.Request.LifecycleOwnerInstanceID,
 	)
 	mock.ExpectBegin()
-	mock.ExpectQuery("FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads").
+	mock.ExpectQuery("FROM ae_hrrr_lifecycle_transport_recovery_reads").
 		WithArgs(authority.NamespaceID, fixture.Request.RequestDigest).
 		WillReturnRows(sqlmock.NewRows([]string{"request_bytes", "receipt_bytes"}))
 	mock.ExpectQuery(`SELECT LEAST\(claim.claim_expires_at,spool.expires_at\)`).

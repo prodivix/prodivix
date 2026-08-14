@@ -41,16 +41,16 @@ func agentEvaluationHostedRetrievalRuntimeResourceFenceConstraintStatements() []
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_overdue_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts
+			BEFORE INSERT ON ae_hrrr_overdue_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_overdue_receipt()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_overdue_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts
+			BEFORE UPDATE OR DELETE ON ae_hrrr_overdue_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_terminal_fence()
 			RETURNS trigger AS $$
 		DECLARE
 			plan_row agent_evaluation_plans%ROWTYPE;
-			set_row agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
+			set_row ae_hrrr_sets%ROWTYPE;
 			expected_shard_ids JSONB;
 			expected_shard_count BIGINT;
 			shard_record JSONB;
@@ -82,7 +82,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceFenceConstraintStatements() []
 				AND repository_commit=NEW.repository_commit
 			FOR SHARE;
 			SELECT * INTO set_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+			FROM ae_hrrr_sets
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND runtime_resource_set_id=NEW.runtime_resource_set_id
@@ -315,13 +315,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceFenceConstraintStatements() []
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_terminal_fences_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences
+			BEFORE INSERT ON ae_hrrr_run_terminal_fences
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_terminal_fence()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_terminal_fences_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences
+			BEFORE UPDATE OR DELETE ON ae_hrrr_run_terminal_fences
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_terminal_fences_finalized
-			BEFORE INSERT OR UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences
+			BEFORE INSERT OR UPDATE OR DELETE ON ae_hrrr_run_terminal_fences
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_evaluation_finalized_mutation()`,
 	}
 }

@@ -1280,7 +1280,7 @@ func validateEvaluationHostedRetrievalRuntimeResourceLifecycleTransportHistoryTx
 	for _, claim := range request.DispatchClaimHistorySet.Receipts {
 		var stored []byte
 		if queryErr := tx.QueryRowContext(ctx, `SELECT receipt_bytes
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=$1 AND receipt_digest=$2 FOR SHARE`,
 			namespaceID, claim.ReceiptDigest).Scan(&stored); queryErr != nil || !bytes.Equal(stored, claim.Canonical) {
 			if queryErr != nil {
@@ -1308,7 +1308,7 @@ func validateEvaluationHostedRetrievalRuntimeResourceLifecycleTransportHistoryTx
 		var priorTransportReceiptDigest, sealedJournalRecordDigest sql.NullString
 		if err := tx.QueryRowContext(ctx, `SELECT current_claim_receipt_digest,lifecycle_owner_instance_id,
 			prior_transport_receipt_digest,sealed_journal_record_digest
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			FROM ae_hrrr_lifecycle_dispatch_claim_current
 			WHERE namespace_id=$1 AND intent_digest=$2 FOR UPDATE`, namespaceID, intent.IntentDigest).Scan(
 			&currentReceiptDigest, &currentOwnerInstanceID, &priorTransportReceiptDigest, &sealedJournalRecordDigest,
 		); err != nil {
@@ -1373,7 +1373,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceLifecycleTransportReceiptsTx(
 	for _, receipt := range receipts {
 		var existing []byte
 		err := tx.QueryRowContext(ctx, `SELECT receipt_bytes
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts
+			FROM ae_hrrr_lifecycle_transport_receipts
 			WHERE namespace_id=$1 AND receipt_digest=$2 FOR SHARE`, namespaceID, receipt.ReceiptDigest).Scan(&existing)
 		if err == nil {
 			if !bytes.Equal(existing, receipt.Canonical) {
@@ -1384,7 +1384,7 @@ func storeEvaluationHostedRetrievalRuntimeResourceLifecycleTransportReceiptsTx(
 		if !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts(
+		_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_lifecycle_transport_receipts(
 			namespace_id,intent_digest,dispatch_claim_receipt_digest,receipt_digest,dispatch_state,
 			outcome,started_at,completed_at,receipt_json,receipt_bytes
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)`,
@@ -1431,7 +1431,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StoreLifecycleTransport(
 	defer func() { _ = tx.Rollback() }()
 	var existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT transport_store_request_bytes,transport_store_receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+		FROM ae_hrrr_lifecycle_result_spools
 		WHERE namespace_id=$1 AND transport_store_request_digest=$2 FOR SHARE`,
 		authority.NamespaceID, request.RequestDigest).Scan(&existingRequest, &existingReceipt)
 	if err == nil {

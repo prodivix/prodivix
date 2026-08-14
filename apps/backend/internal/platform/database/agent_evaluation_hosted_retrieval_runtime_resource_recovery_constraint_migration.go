@@ -8,12 +8,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 		) RETURNS JSONB LANGUAGE plpgsql STABLE PARALLEL RESTRICTED AS $$
 		DECLARE
 			resource_row agent_evaluation_hosted_retrieval_runtime_resources%ROWTYPE;
-			registration_row agent_evaluation_hosted_retrieval_runtime_resource_registration_results%ROWTYPE;
-			set_row agent_evaluation_hosted_retrieval_runtime_resource_sets%ROWTYPE;
-			root_row agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots%ROWTYPE;
-			fence_row agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences%ROWTYPE;
-			claim_row agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts%ROWTYPE;
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests%ROWTYPE;
+			registration_row ae_hrrr_registration_results%ROWTYPE;
+			set_row ae_hrrr_sets%ROWTYPE;
+			root_row ae_hrrr_read_lease_ledger_roots%ROWTYPE;
+			fence_row ae_hrrr_run_terminal_fences%ROWTYPE;
+			claim_row ae_hrrr_cleanup_claim_receipts%ROWTYPE;
+			request_row ae_hrrr_cleanup_requests%ROWTYPE;
 			active_state_digest TEXT;
 			eligible_at_json JSONB;
 			disposition TEXT;
@@ -27,19 +27,19 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 				ORDER BY authority_digest COLLATE "C"
 			LOOP
 				SELECT * INTO registration_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+				FROM ae_hrrr_registration_results
 				WHERE namespace_id=resource_row.namespace_id
 					AND plan_digest=resource_row.plan_digest
 					AND repository_commit=resource_row.repository_commit
 					AND registration_request_digest=resource_row.registration_request_digest;
 				SELECT * INTO set_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+				FROM ae_hrrr_sets
 				WHERE namespace_id=resource_row.namespace_id
 					AND plan_digest=resource_row.plan_digest
 					AND repository_commit=resource_row.repository_commit
 					AND runtime_resource_set_id=resource_row.runtime_resource_set_id;
 				SELECT * INTO fence_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences
+				FROM ae_hrrr_run_terminal_fences
 				WHERE namespace_id=resource_row.namespace_id
 					AND plan_digest=resource_row.plan_digest
 					AND repository_commit=resource_row.repository_commit
@@ -47,14 +47,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 				active_state_digest:=resource_row.current_state_digest;
 				IF resource_row.lifecycle='cleanup-in-progress' THEN
 					SELECT * INTO claim_row
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts
+					FROM ae_hrrr_cleanup_claim_receipts
 					WHERE namespace_id=resource_row.namespace_id
 						AND plan_digest=resource_row.plan_digest
 						AND repository_commit=resource_row.repository_commit
 						AND authority_digest=resource_row.authority_digest
 						AND receipt_digest=resource_row.current_cleanup_claim_receipt_digest;
 					SELECT * INTO request_row
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests
+					FROM ae_hrrr_cleanup_requests
 					WHERE namespace_id=resource_row.namespace_id
 						AND plan_digest=resource_row.plan_digest
 						AND repository_commit=resource_row.repository_commit
@@ -65,14 +65,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 						OR request_row.request_digest IS NULL THEN CONTINUE; END IF;
 					active_state_digest:=request_row.prior_active_state_digest;
 					SELECT * INTO root_row
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+					FROM ae_hrrr_read_lease_ledger_roots
 					WHERE namespace_id=resource_row.namespace_id
 						AND root_digest=request_row.read_lease_ledger_root_digest;
 					eligible_at_json:=claim_row.receipt_json->'claimExpiresAt';
 					disposition:='cleanup-incomplete';
 				ELSE
 					SELECT * INTO root_row
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+					FROM ae_hrrr_read_lease_ledger_roots
 					WHERE namespace_id=resource_row.namespace_id
 						AND plan_digest=resource_row.plan_digest
 						AND repository_commit=resource_row.repository_commit
@@ -148,7 +148,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 				PERFORM pg_advisory_xact_lock(hashtextextended(
 					NEW.namespace_id||chr(31)||'hosted-runtime-recovery-scan',0));
 				SELECT ledger_revision INTO owner_ledger_revision
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers
+				FROM ae_hrrr_owner_ledgers
 				WHERE namespace_id=NEW.namespace_id
 				FOR SHARE;
 				IF owner_ledger_revision IS NULL
@@ -158,7 +158,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 				END IF;
 				candidates:=agent_evaluation_hosted_runtime_recovery_candidates(
 					NEW.namespace_id,NEW.requested_at);
-				INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots(
+				INSERT INTO ae_hrrr_recovery_scan_snapshots(
 					namespace_id,scan_ledger_revision,candidate_set_digest,candidates_json,
 					candidates_bytes,created_at
 				) VALUES (
@@ -184,7 +184,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 				END IF;
 				NEW.scan_ledger_revision:=(cursor_record->>'scanLedgerRevision')::bigint;
 				IF NOT EXISTS (
-					SELECT 1 FROM agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots snapshot
+					SELECT 1 FROM ae_hrrr_recovery_scan_snapshots snapshot
 					WHERE snapshot.namespace_id=NEW.namespace_id
 						AND snapshot.scan_ledger_revision=NEW.scan_ledger_revision
 						AND snapshot.created_at<=NEW.requested_at
@@ -197,16 +197,16 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_recovery_scan_requests_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests
+			BEFORE INSERT ON ae_hrrr_recovery_scan_requests
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_recovery_scan_request()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_recovery_scan_requests_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests
+			BEFORE UPDATE OR DELETE ON ae_hrrr_recovery_scan_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_recovery_page()
 			RETURNS trigger AS $$
 		DECLARE
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests%ROWTYPE;
-			snapshot_row agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots%ROWTYPE;
+			request_row ae_hrrr_recovery_scan_requests%ROWTYPE;
+			snapshot_row ae_hrrr_recovery_scan_snapshots%ROWTYPE;
 			expected_candidates JSONB;
 			expected_next_cursor JSONB;
 			candidate_digests JSONB;
@@ -217,10 +217,10 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 			cursor_base JSONB;
 		BEGIN
 			SELECT * INTO request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests
+			FROM ae_hrrr_recovery_scan_requests
 			WHERE namespace_id=NEW.namespace_id AND request_digest=NEW.request_digest FOR SHARE;
 			SELECT * INTO snapshot_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots
+			FROM ae_hrrr_recovery_scan_snapshots
 			WHERE namespace_id=NEW.namespace_id AND scan_ledger_revision=request_row.scan_ledger_revision
 			FOR SHARE;
 			cursor_eligible_at:=request_row.cursor_json->>'afterEligibleAt';
@@ -292,13 +292,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceRecoveryConstraintStatements()
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_recovery_pages_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_recovery_pages
+			BEFORE INSERT ON ae_hrrr_recovery_pages
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_recovery_page()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_recovery_pages_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_recovery_pages
+			BEFORE UPDATE OR DELETE ON ae_hrrr_recovery_pages
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_recovery_snapshots_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots
+			BEFORE UPDATE OR DELETE ON ae_hrrr_recovery_scan_snapshots
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 	}
 }

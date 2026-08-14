@@ -5,7 +5,7 @@ package database
 // create journal. It intentionally has no terminal-fence dependency.
 func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupPhysicalStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_partial_cleanup_prepares (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -25,7 +25,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupPhysi
 			UNIQUE (namespace_id,partial_journal_record_digest),
 			UNIQUE (namespace_id,partial_cleanup_authority_digest),
 			FOREIGN KEY (namespace_id,partial_journal_record_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals(
+				REFERENCES ae_hrrr_lifecycle_transport_journals(
 					namespace_id,record_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_partial_prepare_check CHECK (
@@ -42,7 +42,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupPhysi
 				AND NOT release_eligible
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_partial_cleanup_claim_history (
 			namespace_id TEXT NOT NULL,
 			registration_request_digest TEXT NOT NULL,
 			claim_receipt_digest TEXT NOT NULL,
@@ -57,7 +57,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupPhysi
 			receipt_bytes BYTEA NOT NULL,
 			PRIMARY KEY (namespace_id,claim_receipt_digest),
 			FOREIGN KEY (namespace_id,registration_request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares(
+				REFERENCES ae_hrrr_lifecycle_partial_cleanup_prepares(
 					namespace_id,registration_request_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_partial_claim_history_check CHECK (
@@ -72,7 +72,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupPhysi
 					agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_lifecycle_partial_cleanup_claim_current (
 			namespace_id TEXT NOT NULL,
 			registration_request_digest TEXT NOT NULL,
 			partial_cleanup_authority_digest TEXT NOT NULL,
@@ -84,11 +84,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupPhysi
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (namespace_id,registration_request_digest),
 			FOREIGN KEY (namespace_id,registration_request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares(
+				REFERENCES ae_hrrr_lifecycle_partial_cleanup_prepares(
 					namespace_id,registration_request_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,current_claim_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history(
+				REFERENCES ae_hrrr_lifecycle_partial_cleanup_claim_history(
 					namespace_id,claim_receipt_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_lifecycle_partial_claim_current_check CHECK (
@@ -111,7 +111,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 			known_ids JSONB;
 			authority_base JSONB;
 			authority_digest_value TEXT;
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_registration_requests%ROWTYPE;
+			request_row ae_hrrr_registration_requests%ROWTYPE;
 			plan_row agent_evaluation_plans%ROWTYPE;
 		BEGIN
 			IF NEW.operation<>'create'
@@ -119,7 +119,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				RETURN NEW;
 			END IF;
 			SELECT * INTO request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			FROM ae_hrrr_registration_requests
 			WHERE namespace_id=NEW.namespace_id AND request_digest=NEW.registration_request_digest
 			FOR SHARE;
 			SELECT * INTO plan_row
@@ -145,7 +145,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				'createdAt',to_jsonb(NEW.completed_at),
 				'expiresAt',to_jsonb(LEAST(request_row.minimum_expires_at,plan_row.expires_at)));
 			authority_digest_value:=agent_evaluation_canonical_jsonb_digest(authority_base);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares(
+			INSERT INTO ae_hrrr_lifecycle_partial_cleanup_prepares(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,
 				registration_request_digest,partial_journal_record_digest,
 				partial_cleanup_authority_digest,known_resource_ids_json,known_resource_ids_bytes,
@@ -162,13 +162,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_prepare_materialize
 			AFTER INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			ON ae_hrrr_lifecycle_transport_journals
 			FOR EACH ROW EXECUTE FUNCTION materialize_agent_evaluation_hosted_runtime_lifecycle_partial_cleanup_prepare()`,
-		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_prepare_exact()
+		`CREATE OR REPLACE FUNCTION enforce_ae_hrrr_lc_partial_prepare_exact()
 			RETURNS trigger AS $$
 		DECLARE
-			journal_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals%ROWTYPE;
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_registration_requests%ROWTYPE;
+			journal_row ae_hrrr_lifecycle_transport_journals%ROWTYPE;
+			request_row ae_hrrr_registration_requests%ROWTYPE;
 			plan_row agent_evaluation_plans%ROWTYPE;
 			business_result JSONB;
 			expected_known_ids JSONB;
@@ -178,11 +178,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 			distinct_count BIGINT;
 		BEGIN
 			SELECT * INTO journal_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			FROM ae_hrrr_lifecycle_transport_journals
 			WHERE namespace_id=NEW.namespace_id AND record_digest=NEW.partial_journal_record_digest
 			FOR SHARE;
 			SELECT * INTO request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			FROM ae_hrrr_registration_requests
 			WHERE namespace_id=NEW.namespace_id
 				AND request_digest=NEW.registration_request_digest
 			FOR SHARE;
@@ -224,7 +224,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				OR request_row.request_digest IS NULL OR plan_row.plan_digest IS NULL
 				OR EXISTS (
 					SELECT 1
-					FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results registration
+					FROM ae_hrrr_registration_results registration
 					WHERE registration.namespace_id=NEW.namespace_id
 						AND registration.registration_request_digest=
 							NEW.registration_request_digest)
@@ -255,8 +255,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_prepare_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
-			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_prepare_exact()`,
+			ON ae_hrrr_lifecycle_partial_cleanup_prepares
+			FOR EACH ROW EXECUTE FUNCTION enforce_ae_hrrr_lc_partial_prepare_exact()`,
 		`CREATE OR REPLACE FUNCTION claim_agent_evaluation_hosted_runtime_lifecycle_partial_cleanup(
 			candidate_namespace_id TEXT,candidate_registration_request_digest TEXT,
 			candidate_lifecycle_owner_instance_id TEXT,candidate_claimed_at TIMESTAMPTZ,
@@ -266,9 +266,9 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 			claim_generation BIGINT,claim_revision BIGINT
 		) LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			prepare agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares%ROWTYPE;
-			current_claim agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current%ROWTYPE;
-			history agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history%ROWTYPE;
+			prepare ae_hrrr_lifecycle_partial_cleanup_prepares%ROWTYPE;
+			current_claim ae_hrrr_lifecycle_partial_cleanup_claim_current%ROWTYPE;
+			history ae_hrrr_lifecycle_partial_cleanup_claim_history%ROWTYPE;
 			generation_value BIGINT;
 			revision_value BIGINT;
 			transition_value TEXT;
@@ -279,12 +279,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 			PERFORM pg_advisory_xact_lock(hashtextextended(candidate_namespace_id||chr(31)||
 				candidate_registration_request_digest||chr(31)||'partial-cleanup-claim',0));
 			SELECT * INTO prepare
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+			FROM ae_hrrr_lifecycle_partial_cleanup_prepares
 			WHERE namespace_id=candidate_namespace_id
 				AND registration_request_digest=candidate_registration_request_digest
 			FOR UPDATE;
 			SELECT * INTO current_claim
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current
+			FROM ae_hrrr_lifecycle_partial_cleanup_claim_current
 			WHERE namespace_id=candidate_namespace_id
 				AND registration_request_digest=candidate_registration_request_digest
 			FOR UPDATE;
@@ -305,7 +305,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 						USING ERRCODE='40001';
 				END IF;
 				SELECT * INTO history
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history
+				FROM ae_hrrr_lifecycle_partial_cleanup_claim_history
 				WHERE namespace_id=candidate_namespace_id
 					AND claim_receipt_digest=current_claim.current_claim_receipt_digest
 				FOR SHARE;
@@ -328,7 +328,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 			receipt_digest_value:=agent_evaluation_canonical_jsonb_digest(receipt_base);
 			receipt_value:=receipt_base||jsonb_build_object(
 				'receiptDigest',receipt_digest_value);
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history(
+			INSERT INTO ae_hrrr_lifecycle_partial_cleanup_claim_history(
 				namespace_id,registration_request_digest,claim_receipt_digest,
 				partial_cleanup_authority_digest,lifecycle_owner_instance_id,claim_revision,
 				claim_generation,generation_transition,claimed_at,claim_expires_at,
@@ -339,7 +339,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				revision_value,generation_value,transition_value,candidate_claimed_at,
 				candidate_claim_expires_at,receipt_value,
 				convert_to(agent_evaluation_canonical_jsonb_text(receipt_value),'UTF8'));
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current(
+			INSERT INTO ae_hrrr_lifecycle_partial_cleanup_claim_current(
 				namespace_id,registration_request_digest,partial_cleanup_authority_digest,
 				current_claim_receipt_digest,lifecycle_owner_instance_id,claim_revision,
 				claim_generation,claim_expires_at,updated_at
@@ -353,7 +353,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				lifecycle_owner_instance_id=EXCLUDED.lifecycle_owner_instance_id,
 				claim_revision=EXCLUDED.claim_revision,claim_generation=EXCLUDED.claim_generation,
 				claim_expires_at=EXCLUDED.claim_expires_at,updated_at=EXCLUDED.updated_at;
-			UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+			UPDATE ae_hrrr_lifecycle_partial_cleanup_prepares
 			SET state='cleanup-claimed',current_revision=current_revision+1,
 				updated_at=candidate_claimed_at
 			WHERE namespace_id=candidate_namespace_id
@@ -363,13 +363,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				receipt_digest_value,generation_value,revision_value;
 		END;
 		$$`,
-		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_claim_history_exact()
+		`CREATE OR REPLACE FUNCTION enforce_ae_hrrr_lc_partial_claim_history_exact()
 			RETURNS trigger AS $$
 		DECLARE
-			prepare agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares%ROWTYPE;
+			prepare ae_hrrr_lifecycle_partial_cleanup_prepares%ROWTYPE;
 		BEGIN
 			SELECT * INTO prepare
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+			FROM ae_hrrr_lifecycle_partial_cleanup_prepares
 			WHERE namespace_id=NEW.namespace_id
 				AND registration_request_digest=NEW.registration_request_digest
 			FOR SHARE;
@@ -414,26 +414,26 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_claim_history_exact
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history
-			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_claim_history_exact()`,
-		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_claim_current_exact()
+			ON ae_hrrr_lifecycle_partial_cleanup_claim_history
+			FOR EACH ROW EXECUTE FUNCTION enforce_ae_hrrr_lc_partial_claim_history_exact()`,
+		`CREATE OR REPLACE FUNCTION enforce_ae_hrrr_lc_partial_claim_current_exact()
 			RETURNS trigger AS $$
 		DECLARE
-			history agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history%ROWTYPE;
-			old_history agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history%ROWTYPE;
-			prepare agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares%ROWTYPE;
+			history ae_hrrr_lifecycle_partial_cleanup_claim_history%ROWTYPE;
+			old_history ae_hrrr_lifecycle_partial_cleanup_claim_history%ROWTYPE;
+			prepare ae_hrrr_lifecycle_partial_cleanup_prepares%ROWTYPE;
 		BEGIN
 			IF TG_OP='DELETE' THEN
 				RAISE EXCEPTION 'hosted runtime lifecycle partial cleanup current claim cannot be deleted'
 					USING ERRCODE='23514';
 			END IF;
 			SELECT * INTO history
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history
+			FROM ae_hrrr_lifecycle_partial_cleanup_claim_history
 			WHERE namespace_id=NEW.namespace_id
 				AND claim_receipt_digest=NEW.current_claim_receipt_digest
 			FOR SHARE;
 			SELECT * INTO prepare
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+			FROM ae_hrrr_lifecycle_partial_cleanup_prepares
 			WHERE namespace_id=NEW.namespace_id
 				AND registration_request_digest=NEW.registration_request_digest
 			FOR SHARE;
@@ -460,7 +460,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				END IF;
 			ELSE
 				SELECT * INTO old_history
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history
+				FROM ae_hrrr_lifecycle_partial_cleanup_claim_history
 				WHERE namespace_id=OLD.namespace_id
 					AND claim_receipt_digest=OLD.current_claim_receipt_digest
 				FOR SHARE;
@@ -477,14 +477,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_claim_current_exact
 			BEFORE INSERT OR UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current
-			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_claim_current_exact()`,
+			ON ae_hrrr_lifecycle_partial_cleanup_claim_current
+			FOR EACH ROW EXECUTE FUNCTION enforce_ae_hrrr_lc_partial_claim_current_exact()`,
 		`CREATE OR REPLACE FUNCTION freeze_agent_evaluation_hosted_runtime_registration_after_partial()
 			RETURNS trigger AS $$
 		BEGIN
 			IF EXISTS (
 				SELECT 1
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares prepare
+				FROM ae_hrrr_lifecycle_partial_cleanup_prepares prepare
 				WHERE prepare.namespace_id=NEW.namespace_id
 					AND prepare.registration_request_digest=NEW.registration_request_digest
 			) THEN
@@ -496,12 +496,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_registration_partial_freeze
 			BEFORE INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			ON ae_hrrr_registration_results
 			FOR EACH ROW EXECUTE FUNCTION freeze_agent_evaluation_hosted_runtime_registration_after_partial()`,
-		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_prepare_transition()
+		`CREATE OR REPLACE FUNCTION enforce_ae_hrrr_lc_partial_prepare_transition()
 			RETURNS trigger AS $$
 		DECLARE
-			current_claim agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current%ROWTYPE;
+			current_claim ae_hrrr_lifecycle_partial_cleanup_claim_current%ROWTYPE;
 			known_count BIGINT;
 			cleaned_count BIGINT;
 		BEGIN
@@ -534,7 +534,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 						USING ERRCODE='23514';
 				END IF;
 				SELECT * INTO current_claim
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current
+				FROM ae_hrrr_lifecycle_partial_cleanup_claim_current
 				WHERE namespace_id=NEW.namespace_id
 					AND registration_request_digest=NEW.registration_request_digest
 				FOR SHARE;
@@ -554,7 +554,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				SELECT jsonb_array_length(NEW.known_resource_ids_json),COUNT(DISTINCT
 					journal.record_json#>>'{businessResult,resourceId}')
 				INTO known_count,cleaned_count
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+				FROM ae_hrrr_lifecycle_transport_journals journal
 				WHERE journal.namespace_id=NEW.namespace_id
 					AND journal.registration_request_digest=NEW.registration_request_digest
 					AND journal.operation='delete'
@@ -579,12 +579,12 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_prepare_transition
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
-			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_partial_prepare_transition()`,
+			ON ae_hrrr_lifecycle_partial_cleanup_prepares
+			FOR EACH ROW EXECUTE FUNCTION enforce_ae_hrrr_lc_partial_prepare_transition()`,
 		`CREATE OR REPLACE FUNCTION close_agent_evaluation_hosted_runtime_lifecycle_partial_cleanup()
 			RETURNS trigger AS $$
 		DECLARE
-			prepare agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares%ROWTYPE;
+			prepare ae_hrrr_lifecycle_partial_cleanup_prepares%ROWTYPE;
 			known_count BIGINT;
 			cleaned_count BIGINT;
 		BEGIN
@@ -592,7 +592,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 				RETURN NEW;
 			END IF;
 			SELECT * INTO prepare
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+			FROM ae_hrrr_lifecycle_partial_cleanup_prepares
 			WHERE namespace_id=NEW.namespace_id
 				AND registration_request_digest=NEW.registration_request_digest
 			FOR UPDATE;
@@ -600,7 +600,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 			SELECT jsonb_array_length(prepare.known_resource_ids_json),COUNT(DISTINCT
 				journal.record_json#>>'{businessResult,resourceId}')
 			INTO known_count,cleaned_count
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals journal
+			FROM ae_hrrr_lifecycle_transport_journals journal
 			WHERE journal.namespace_id=NEW.namespace_id
 				AND journal.registration_request_digest=NEW.registration_request_digest
 				AND journal.operation='delete'
@@ -610,7 +610,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 					WHERE known->>'resourceId'=journal.record_json#>>'{businessResult,resourceId}'
 						AND known->>'resourceRole'=journal.record_json#>>'{businessResult,resourceRole}');
 			IF cleaned_count=known_count THEN
-				UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+				UPDATE ae_hrrr_lifecycle_partial_cleanup_prepares
 				SET state='cleaned',current_revision=current_revision+1,updated_at=NEW.completed_at
 				WHERE namespace_id=NEW.namespace_id
 					AND registration_request_digest=NEW.registration_request_digest;
@@ -620,11 +620,11 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6PartialCleanupConst
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_cleanup_close
 			AFTER INSERT
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
+			ON ae_hrrr_lifecycle_transport_journals
 			FOR EACH ROW EXECUTE FUNCTION close_agent_evaluation_hosted_runtime_lifecycle_partial_cleanup()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_partial_claim_history_immutable
 			BEFORE UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_history
+			ON ae_hrrr_lifecycle_partial_cleanup_claim_history
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 	}
 }

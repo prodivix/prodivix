@@ -379,31 +379,31 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		"agent_evaluation_capability_effect_provider_journal_cleanup_requests",
 		"agent_evaluation_capability_effect_provider_journal_cleanup_receipts",
 		"agent_evaluation_capability_effect_source_consumption_claims",
-		"agent_evaluation_hosted_retrieval_runtime_resource_registration_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_registration_results",
-		"agent_evaluation_hosted_retrieval_runtime_resource_sets",
+		"ae_hrrr_registration_requests",
+		"ae_hrrr_registration_results",
+		"ae_hrrr_sets",
 		"agent_evaluation_hosted_retrieval_runtime_resources",
-		"agent_evaluation_hosted_retrieval_runtime_resource_read_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots",
-		"agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanups",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives",
-		"agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_registration_set_lookup_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_post_matrix_cleanup_claim_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_recovery_scan_snapshots",
-		"agent_evaluation_hosted_retrieval_runtime_resource_recovery_pages",
-		"agent_evaluation_hosted_retrieval_runtime_resource_recovery_claim_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_requests",
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts",
-		"agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers",
+		"ae_hrrr_read_receipts",
+		"ae_hrrr_read_lease_ledger_roots",
+		"ae_hrrr_overdue_receipts",
+		"ae_hrrr_run_terminal_fences",
+		"ae_hrrr_cleanup_claims",
+		"ae_hrrr_cleanup_requests",
+		"ae_hrrr_cleanups",
+		"ae_hrrr_cleanup_archives",
+		"ae_hrrr_registration_set_lookup_requests",
+		"ae_hrrr_registration_set_lookup_receipts",
+		"ae_hrrr_terminal_fence_derive_requests",
+		"ae_hrrr_terminal_fence_derive_receipts",
+		"ae_hrrr_post_matrix_cleanup_claim_requests",
+		"ae_hrrr_recovery_scan_requests",
+		"ae_hrrr_recovery_scan_snapshots",
+		"ae_hrrr_recovery_pages",
+		"ae_hrrr_recovery_claim_requests",
+		"ae_hrrr_cleanup_claim_receipts",
+		"ae_hrrr_cleanup_result_read_requests",
+		"ae_hrrr_cleanup_result_read_receipts",
+		"ae_hrrr_owner_ledgers",
 		"agent_evaluation_provider_capability_observation_receipts",
 		"agent_evaluation_capability_specific_receipts",
 		"agent_evaluation_attempt_authority_commit_links",
@@ -449,7 +449,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		t.Fatalf("read hosted runtime current claim foreign key: %v", err)
 	}
 	if !strings.HasSuffix(currentClaimTarget,
-		"agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts") {
+		"ae_hrrr_cleanup_claim_receipts") {
 		t.Fatalf("hosted runtime current claim points to %q", currentClaimTarget)
 	}
 	for _, trigger := range []string{
@@ -8263,15 +8263,15 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	}
 	defer func() { _ = tx.Rollback() }()
 	for _, statement := range []string{
-		`CREATE TEMP TABLE agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers (
+		`CREATE TEMP TABLE ae_hrrr_owner_ledgers (
 			namespace_id TEXT PRIMARY KEY,ledger_revision BIGINT NOT NULL,updated_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE TEMP TABLE agent_evaluation_hosted_retrieval_runtime_resource_registration_results (
+		`CREATE TEMP TABLE ae_hrrr_registration_results (
 			namespace_id TEXT NOT NULL,plan_digest TEXT NOT NULL,repository_commit TEXT NOT NULL,
 			registration_request_digest TEXT NOT NULL,budget_reservation_id TEXT NOT NULL,
 			expires_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE TEMP TABLE agent_evaluation_hosted_retrieval_runtime_resource_registration_requests (
+		`CREATE TEMP TABLE ae_hrrr_registration_requests (
 			namespace_id TEXT NOT NULL,plan_digest TEXT NOT NULL,request_json JSONB NOT NULL
 		)`,
 		`CREATE TEMP TABLE agent_evaluation_hosted_retrieval_runtime_resources (
@@ -8280,7 +8280,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 			resource_expires_at TIMESTAMPTZ NOT NULL,current_cleanup_claim_receipt_digest TEXT,
 			registration_request_digest TEXT NOT NULL
 		)`,
-		`CREATE TEMP TABLE agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts (
+		`CREATE TEMP TABLE ae_hrrr_cleanup_claim_receipts (
 			namespace_id TEXT NOT NULL,plan_digest TEXT NOT NULL,repository_commit TEXT NOT NULL,
 			authority_digest TEXT NOT NULL,receipt_digest TEXT NOT NULL,claim_expires_at TIMESTAMPTZ NOT NULL
 		)`,
@@ -8304,17 +8304,17 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	}
 	namespaceID := "namespace.hosted-owner-health"
 	checkedAt := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
-	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ae_hrrr_owner_ledgers
 		(namespace_id,ledger_revision,updated_at) VALUES ($1,1,$2)`, namespaceID, checkedAt.Add(-time.Minute)); err != nil {
 		t.Fatalf("seed hosted owner ledger: %v", err)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ae_hrrr_registration_results
 		(namespace_id,plan_digest,repository_commit,registration_request_digest,budget_reservation_id,expires_at)
 		VALUES ($1,'plan-health','commit-health','request-health','reservation-health',$2)`,
 		namespaceID, checkedAt.Add(time.Hour)); err != nil {
 		t.Fatalf("seed hosted registration count: %v", err)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ae_hrrr_registration_requests
 		(namespace_id,plan_digest,request_json) VALUES (
 			$1,'plan-health',jsonb_build_object(
 				'budgetReservationAuthority',jsonb_build_object('reservationId','reservation-health')
@@ -8360,7 +8360,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 		t.Fatalf("seed hosted cleanup-in-progress resource: %v", err)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts (
+		ae_hrrr_cleanup_claim_receipts (
 			namespace_id,plan_digest,repository_commit,authority_digest,receipt_digest,claim_expires_at
 		) VALUES ($1,'plan-health','commit-health','authority-health','claim-health',$2)`,
 		namespaceID, checkedAt); err != nil {
@@ -8368,7 +8368,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	}
 	assertSummary(1, 0, 0, 1, 0)
 	if _, err := tx.ExecContext(ctx, `UPDATE
-		agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts
+		ae_hrrr_cleanup_claim_receipts
 		SET claim_expires_at=$2 WHERE namespace_id=$1`, namespaceID, checkedAt.Add(-time.Millisecond)); err != nil {
 		t.Fatalf("advance hosted cleanup claim one millisecond past expiry: %v", err)
 	}
@@ -8381,7 +8381,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	assertSummary(1, 0, 0, 1, 0)
 	var beforeSettlementRevision, afterSettlementRevision int64
 	if err := tx.QueryRowContext(ctx, `SELECT ledger_revision FROM
-		agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers WHERE namespace_id=$1`,
+		ae_hrrr_owner_ledgers WHERE namespace_id=$1`,
 		namespaceID).Scan(&beforeSettlementRevision); err != nil {
 		t.Fatalf("read hosted revision before budget settlement: %v", err)
 	}
@@ -8391,7 +8391,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 		t.Fatalf("seal hosted budget settlement: %v", err)
 	}
 	if err := tx.QueryRowContext(ctx, `SELECT ledger_revision FROM
-		agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers WHERE namespace_id=$1`,
+		ae_hrrr_owner_ledgers WHERE namespace_id=$1`,
 		namespaceID).Scan(&afterSettlementRevision); err != nil {
 		t.Fatalf("read hosted revision after budget settlement: %v", err)
 	}
@@ -8401,7 +8401,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	}
 	assertSummary(1, 0, 0, 0, 0)
 	if _, err := tx.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_hosted_retrieval_runtime_resource_registration_results (
+		ae_hrrr_registration_results (
 			namespace_id,plan_digest,repository_commit,registration_request_digest,
 			budget_reservation_id,expires_at
 		) VALUES ($1,'plan-health','commit-health','request-partial','reservation-partial',$2)`,
@@ -8410,7 +8410,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	}
 	assertSummary(2, 0, 0, 1, 0)
 	if _, err := tx.ExecContext(ctx, `UPDATE
-		agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+		ae_hrrr_registration_results
 		SET expires_at=$2 WHERE namespace_id=$1 AND registration_request_digest='request-partial'`,
 		namespaceID, checkedAt.Add(-time.Millisecond)); err != nil {
 		t.Fatalf("advance partial hosted registration one millisecond past expiry: %v", err)
@@ -8422,7 +8422,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	}
 	var firstRevision, swappedRevision, mutationCount int64
 	if err := tx.QueryRowContext(ctx, `SELECT ledger_revision FROM
-		agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers WHERE namespace_id=$1`,
+		ae_hrrr_owner_ledgers WHERE namespace_id=$1`,
 		namespaceID).Scan(&firstRevision); err != nil {
 		t.Fatalf("read first hosted owner revision: %v", err)
 	}
@@ -8435,7 +8435,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedOwnerHealthBoun
 	}
 	if err := tx.QueryRowContext(ctx, `SELECT ledger_revision,
 		(SELECT COUNT(*) FROM hosted_runtime_owner_mutations)
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers WHERE namespace_id=$1`,
+		FROM ae_hrrr_owner_ledgers WHERE namespace_id=$1`,
 		namespaceID).Scan(&swappedRevision, &mutationCount); err != nil {
 		t.Fatalf("read swapped hosted owner revision: %v", err)
 	}
@@ -8461,16 +8461,16 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedReadLedgerRootF
 		t.Fatalf("resolve hosted read-ledger fixture schema: %v", err)
 	}
 	rootSource := pgx.Identifier{schema,
-		"agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots"}.Sanitize()
+		"ae_hrrr_read_lease_ledger_roots"}.Sanitize()
 	readSource := pgx.Identifier{schema,
-		"agent_evaluation_hosted_retrieval_runtime_resource_read_receipts"}.Sanitize()
+		"ae_hrrr_read_receipts"}.Sanitize()
 	for _, statement := range []string{
-		fmt.Sprintf(`CREATE TEMP TABLE agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots
+		fmt.Sprintf(`CREATE TEMP TABLE ae_hrrr_read_lease_ledger_roots
 			AS SELECT * FROM %s WITH NO DATA`, rootSource),
-		fmt.Sprintf(`CREATE TEMP TABLE agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+		fmt.Sprintf(`CREATE TEMP TABLE ae_hrrr_read_receipts
 			AS SELECT * FROM %s WITH NO DATA`, readSource),
 		`CREATE TRIGGER hosted_runtime_late_read_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_read_receipts
+			BEFORE INSERT ON ae_hrrr_read_receipts
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_read()`,
 	} {
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
@@ -8484,7 +8484,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedReadLedgerRootF
 		authorityDigest  = "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	)
 	if _, err := tx.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots(
+		ae_hrrr_read_lease_ledger_roots(
 			namespace_id,plan_digest,repository_commit,authority_digest
 		) VALUES ($1,$2,$3,$4)`, namespaceID, planDigest, repositoryCommit, authorityDigest); err != nil {
 		t.Fatalf("seed sealed hosted read-ledger root: %v", err)
@@ -8493,7 +8493,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedReadLedgerRootF
 		t.Fatalf("save hosted late-read fixture: %v", err)
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO
-		agent_evaluation_hosted_retrieval_runtime_resource_read_receipts(
+		ae_hrrr_read_receipts(
 			namespace_id,plan_digest,repository_commit,authority_digest,request_json,receipt_json
 		) VALUES ($1,$2,$3,$4,'{}'::jsonb,'{}'::jsonb)`,
 		namespaceID, planDigest, repositoryCommit, authorityDigest)
@@ -8517,8 +8517,8 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedCleanupResultRe
 	}
 	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, `CREATE TEMP TABLE
-		agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts
-		(LIKE agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts
+		ae_hrrr_cleanup_result_read_receipts
+		(LIKE ae_hrrr_cleanup_result_read_receipts
 		INCLUDING CONSTRAINTS)`); err != nil {
 		t.Fatalf("shadow hosted cleanup-result receipt table: %v", err)
 	}
@@ -8533,7 +8533,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLHostedCleanupResultRe
 	}
 	insertReceipt := func(requestDigest, receiptDigest string, receiptBytes []byte) error {
 		_, insertErr := tx.ExecContext(ctx, `INSERT INTO
-			agent_evaluation_hosted_retrieval_runtime_resource_cleanup_result_read_receipts (
+			ae_hrrr_cleanup_result_read_receipts (
 			namespace_id,request_digest,receipt_digest,status,read_at,receipt_json,receipt_bytes
 		) VALUES ('namespace.hosted-result-capacity',$1,$2,'pending',$3,$4::jsonb,$5)`,
 			requestDigest, receiptDigest, time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC),

@@ -304,7 +304,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadLifecycleTransportRec
 	defer func() { _ = tx.Rollback() }()
 	var existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT request_bytes,receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_recovery_reads
+		FROM ae_hrrr_lifecycle_transport_recovery_reads
 		WHERE namespace_id=$1 AND request_digest=$2 FOR SHARE`, authority.NamespaceID, request.RequestDigest).Scan(
 		&existingRequest, &existingReceipt,
 	)
@@ -322,10 +322,10 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) ReadLifecycleTransportRec
 	}
 	var authorityExpiresAt time.Time
 	err = tx.QueryRowContext(ctx, `SELECT LEAST(claim.claim_expires_at,spool.expires_at)
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts claim
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current current
+		FROM ae_hrrr_lifecycle_dispatch_claim_receipts claim
+		JOIN ae_hrrr_lifecycle_dispatch_claim_current current
 		  ON current.namespace_id=claim.namespace_id AND current.current_claim_receipt_digest=claim.receipt_digest
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools spool
+		JOIN ae_hrrr_lifecycle_result_spools spool
 		  ON spool.namespace_id=claim.namespace_id AND spool.spool_ref=$4
 		WHERE claim.namespace_id=$1 AND claim.intent_digest=$2 AND claim.receipt_digest=$3
 		  AND current.lifecycle_owner_instance_id=$5 AND current.prior_transport_receipt_digest=$6

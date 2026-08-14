@@ -9,31 +9,31 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_dispatch_intent()
 			RETURNS trigger AS $$
 		DECLARE
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_registration_requests%ROWTYPE;
-			registration_row agent_evaluation_hosted_retrieval_runtime_resource_registration_results%ROWTYPE;
-			partial_prepare agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares%ROWTYPE;
-			partial_current agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current%ROWTYPE;
+			request_row ae_hrrr_registration_requests%ROWTYPE;
+			registration_row ae_hrrr_registration_results%ROWTYPE;
+			partial_prepare ae_hrrr_lifecycle_partial_cleanup_prepares%ROWTYPE;
+			partial_current ae_hrrr_lifecycle_partial_cleanup_claim_current%ROWTYPE;
 			expected_mutation_kind TEXT;
 		BEGIN
 			SELECT * INTO request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			FROM ae_hrrr_registration_requests
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND request_digest=NEW.registration_request_digest
 			FOR SHARE;
 			SELECT * INTO registration_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND registration_request_digest=NEW.registration_request_digest
 			FOR SHARE;
 			SELECT * INTO partial_prepare
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_prepares
+			FROM ae_hrrr_lifecycle_partial_cleanup_prepares
 			WHERE namespace_id=NEW.namespace_id
 				AND registration_request_digest=NEW.registration_request_digest
 			FOR SHARE;
 			SELECT * INTO partial_current
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_partial_cleanup_claim_current
+			FROM ae_hrrr_lifecycle_partial_cleanup_claim_current
 			WHERE namespace_id=NEW.namespace_id
 				AND registration_request_digest=NEW.registration_request_digest
 			FOR SHARE;
@@ -64,7 +64,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 						AND NEW.authority_digest=registration_row.authority_digest
 						AND EXISTS (
 							SELECT 1
-							FROM agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claim_receipts claim
+							FROM ae_hrrr_cleanup_claim_receipts claim
 							WHERE claim.namespace_id=NEW.namespace_id
 								AND claim.receipt_digest=NEW.lifecycle_claim_receipt_digest
 								AND claim.authority_digest=NEW.authority_digest
@@ -133,23 +133,23 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_dispatch_intents_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents
+			BEFORE INSERT ON ae_hrrr_lifecycle_dispatch_intents
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_dispatch_intent()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_dispatch_intents_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents
+			BEFORE UPDATE OR DELETE ON ae_hrrr_lifecycle_dispatch_intents
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_claim_current()
 			RETURNS trigger AS $$
 		DECLARE
-			receipt_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts%ROWTYPE;
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests%ROWTYPE;
+			receipt_row ae_hrrr_lifecycle_dispatch_claim_receipts%ROWTYPE;
+			request_row ae_hrrr_lifecycle_dispatch_claim_requests%ROWTYPE;
 		BEGIN
 			IF TG_OP='DELETE' THEN
 				RAISE EXCEPTION 'hosted runtime lifecycle current claim cannot be deleted'
 					USING ERRCODE='23514';
 			END IF;
 			SELECT * INTO receipt_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=NEW.namespace_id
 				AND receipt_digest=NEW.current_claim_receipt_digest
 			FOR SHARE;
@@ -203,7 +203,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				END IF;
 			ELSE
 				SELECT * INTO request_row
-				FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests
+				FROM ae_hrrr_lifecycle_dispatch_claim_requests
 				WHERE namespace_id=NEW.namespace_id AND request_digest=receipt_row.request_digest
 				FOR SHARE;
 				IF request_row.request_digest IS NULL
@@ -243,7 +243,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_claim_current_exact
 			BEFORE INSERT OR UPDATE OR DELETE
-			ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			ON ae_hrrr_lifecycle_dispatch_claim_current
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_claim_current()`,
 		`CREATE OR REPLACE FUNCTION claim_agent_evaluation_hosted_runtime_lifecycle_dispatch(
 			candidate_namespace_id TEXT,
@@ -264,8 +264,8 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 			dispatch_ledger_revision BIGINT
 		) LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			intent_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents%ROWTYPE;
-			current_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current%ROWTYPE;
+			intent_row ae_hrrr_lifecycle_dispatch_intents%ROWTYPE;
+			current_row ae_hrrr_lifecycle_dispatch_claim_current%ROWTYPE;
 			request_digest_value TEXT;
 			owner_instance_id TEXT;
 			expected_ledger_revision BIGINT;
@@ -335,7 +335,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				candidate_namespace_id||chr(31)||candidate_intent_digest||chr(31)||
 				'hosted-runtime-lifecycle-first-delivery',0));
 			SELECT * INTO intent_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_intents
+			FROM ae_hrrr_lifecycle_dispatch_intents
 			WHERE namespace_id=candidate_namespace_id AND intent_digest=candidate_intent_digest
 			FOR SHARE;
 			IF intent_row.intent_digest IS NULL THEN
@@ -343,7 +343,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 					USING ERRCODE='23514';
 			END IF;
 			SELECT * INTO current_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			FROM ae_hrrr_lifecycle_dispatch_claim_current
 			WHERE namespace_id=candidate_namespace_id AND intent_digest=candidate_intent_digest
 			FOR UPDATE;
 			IF current_row.intent_digest IS NULL THEN
@@ -390,7 +390,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 						ELSE 'reconcile-only-replay' END;
 				END IF;
 			END IF;
-			UPDATE agent_evaluation_hosted_retrieval_runtime_resource_owner_ledgers
+			UPDATE ae_hrrr_owner_ledgers
 			SET ledger_revision=ledger_revision+1,
 				updated_at=GREATEST(updated_at,candidate_claimed_at)
 			WHERE namespace_id=candidate_namespace_id
@@ -399,7 +399,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				RAISE EXCEPTION 'hosted runtime lifecycle owner ledger is absent'
 					USING ERRCODE='23514';
 			END IF;
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests(
+			INSERT INTO ae_hrrr_lifecycle_dispatch_claim_requests(
 				namespace_id,intent_digest,request_digest,lifecycle_owner_instance_id,
 				expected_dispatch_ledger_revision,expected_dispatch_generation,
 				expected_prior_stage_claim_receipt_digest,expected_prior_claim_expires_at,
@@ -431,7 +431,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 			receipt_digest:=agent_evaluation_canonical_jsonb_digest(receipt_base);
 			receipt_json:=receipt_base||jsonb_build_object('receiptDigest',receipt_digest);
 			receipt_bytes:=convert_to(agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8');
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts(
+			INSERT INTO ae_hrrr_lifecycle_dispatch_claim_receipts(
 				namespace_id,intent_digest,request_digest,receipt_digest,
 				dispatch_authority_issuer_id,dispatch_authority_implementation_digest,
 				dispatch_ledger_revision,lifecycle_owner_instance_id,dispatch_generation,
@@ -448,7 +448,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				receipt_json,receipt_bytes
 			);
 			IF current_row.intent_digest IS NULL THEN
-				INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current(
+				INSERT INTO ae_hrrr_lifecycle_dispatch_claim_current(
 					namespace_id,intent_digest,current_revision,dispatch_ledger_revision,
 					dispatch_generation,
 					ever_dispatch_authorized,current_claim_receipt_digest,
@@ -461,7 +461,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 					prior_receipt_digest,sealed_record_digest,candidate_claimed_at
 				);
 			ELSE
-				UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+				UPDATE ae_hrrr_lifecycle_dispatch_claim_current
 				SET current_revision=current_revision+1,
 					dispatch_ledger_revision=claim_agent_evaluation_hosted_runtime_lifecycle_dispatch.dispatch_ledger_revision,
 					dispatch_generation=claim_agent_evaluation_hosted_runtime_lifecycle_dispatch.dispatch_generation,
@@ -476,30 +476,30 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		END;
 		$$`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_claim_requests_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_requests
+			BEFORE UPDATE OR DELETE ON ae_hrrr_lifecycle_dispatch_claim_requests
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_claim_receipts_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			BEFORE UPDATE OR DELETE ON ae_hrrr_lifecycle_dispatch_claim_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION seal_agent_evaluation_hosted_runtime_lifecycle_transport_receipt()
 			RETURNS trigger AS $$
 		DECLARE
-			claim_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts%ROWTYPE;
-			current_row agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current%ROWTYPE;
-			current_receipt agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts%ROWTYPE;
+			claim_row ae_hrrr_lifecycle_dispatch_claim_receipts%ROWTYPE;
+			current_row ae_hrrr_lifecycle_dispatch_claim_current%ROWTYPE;
+			current_receipt ae_hrrr_lifecycle_dispatch_claim_receipts%ROWTYPE;
 			updated_count BIGINT;
 		BEGIN
 			SELECT * INTO claim_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=NEW.namespace_id
 				AND receipt_digest=NEW.dispatch_claim_receipt_digest
 			FOR SHARE;
 			SELECT * INTO current_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			FROM ae_hrrr_lifecycle_dispatch_claim_current
 			WHERE namespace_id=NEW.namespace_id AND intent_digest=NEW.intent_digest
 			FOR UPDATE;
 			SELECT * INTO current_receipt
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_receipts
+			FROM ae_hrrr_lifecycle_dispatch_claim_receipts
 			WHERE namespace_id=NEW.namespace_id
 				AND receipt_digest=current_row.current_claim_receipt_digest
 			FOR SHARE;
@@ -524,7 +524,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				RAISE EXCEPTION 'hosted runtime lifecycle transport receipt lacks first-delivery authority'
 					USING ERRCODE='23514';
 			END IF;
-			UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_dispatch_claim_current
+			UPDATE ae_hrrr_lifecycle_dispatch_claim_current
 			SET current_revision=current_revision+1,
 				prior_transport_receipt_digest=NEW.receipt_digest,
 				updated_at=GREATEST(updated_at,NEW.completed_at)
@@ -542,16 +542,16 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_transport_receipts_exact
-			AFTER INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts
+			AFTER INSERT ON ae_hrrr_lifecycle_transport_receipts
 			FOR EACH ROW EXECUTE FUNCTION seal_agent_evaluation_hosted_runtime_lifecycle_transport_receipt()`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_transport_receipts_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_receipts
+			BEFORE UPDATE OR DELETE ON ae_hrrr_lifecycle_transport_receipts
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_spool_insert()
 			RETURNS trigger AS $$
 		DECLARE
-			request_row agent_evaluation_hosted_retrieval_runtime_resource_registration_requests%ROWTYPE;
-			registration_row agent_evaluation_hosted_retrieval_runtime_resource_registration_results%ROWTYPE;
+			request_row ae_hrrr_registration_requests%ROWTYPE;
+			registration_row ae_hrrr_registration_results%ROWTYPE;
 			resource_row agent_evaluation_hosted_retrieval_runtime_resources%ROWTYPE;
 			plan_row agent_evaluation_plans%ROWTYPE;
 			expected_key_ref_digest TEXT;
@@ -561,13 +561,13 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 			tag_base64url TEXT;
 		BEGIN
 			SELECT * INTO request_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_requests
+			FROM ae_hrrr_registration_requests
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND request_digest=NEW.registration_request_digest
 			FOR SHARE;
 			SELECT * INTO registration_row
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_registration_results
+			FROM ae_hrrr_registration_results
 			WHERE namespace_id=NEW.namespace_id AND plan_digest=NEW.plan_digest
 				AND repository_commit=NEW.repository_commit
 				AND registration_request_digest=NEW.registration_request_digest
@@ -766,7 +766,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_spools_exact
-			BEFORE INSERT ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			BEFORE INSERT ON ae_hrrr_lifecycle_result_spools
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_spool_insert()`,
 		`CREATE OR REPLACE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_spool_transition()
 			RETURNS trigger AS $$
@@ -809,7 +809,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		END;
 		$$ LANGUAGE plpgsql`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_spools_transition
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			BEFORE UPDATE OR DELETE ON ae_hrrr_lifecycle_result_spools
 			FOR EACH ROW EXECUTE FUNCTION enforce_agent_evaluation_hosted_runtime_lifecycle_spool_transition()`,
 		`CREATE OR REPLACE FUNCTION read_agent_evaluation_hosted_runtime_lifecycle_spool(
 			candidate_namespace_id TEXT,candidate_spool_ref TEXT,candidate_observed_at TIMESTAMPTZ
@@ -819,7 +819,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		) LANGUAGE sql STABLE PARALLEL RESTRICTED AS $$
 			SELECT spool.envelope_json,spool.envelope_bytes,spool.ciphertext_bytes,
 				spool.nonce_bytes,spool.authentication_tag_bytes,spool.spool_receipt_json
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools spool
+			FROM ae_hrrr_lifecycle_result_spools spool
 			WHERE spool.namespace_id=candidate_namespace_id AND spool.spool_ref=candidate_spool_ref
 				AND spool.state IN ('active','retained-encrypted')
 				AND candidate_observed_at>=spool.spooled_at
@@ -830,14 +830,14 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 			candidate_disposition_json JSONB,candidate_disposition_bytes BYTEA
 		) RETURNS JSONB LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			spool agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
+			spool ae_hrrr_lifecycle_result_spools%ROWTYPE;
 			disposition_value TEXT;
 			destroyed BOOLEAN;
 			disposed_at_value TIMESTAMPTZ;
 			receipt_digest_value TEXT;
 		BEGIN
 			SELECT * INTO spool
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=candidate_namespace_id AND spool_ref=candidate_spool_ref
 			FOR UPDATE;
 			IF spool.spool_ref IS NULL OR spool.state<>'active'
@@ -892,7 +892,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				RAISE EXCEPTION 'hosted runtime lifecycle spool disposition semantics are invalid'
 					USING ERRCODE='23514';
 			END IF;
-			UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			UPDATE ae_hrrr_lifecycle_result_spools
 			SET state=CASE WHEN destroyed THEN 'destroyed' ELSE 'retained-encrypted' END,
 				disposition=disposition_value,
 				business_seal_kind=candidate_disposition_json->>'businessSealKind',
@@ -915,7 +915,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 			candidate_namespace_id TEXT,candidate_spool_ref TEXT,candidate_cleared_at TIMESTAMPTZ
 		) RETURNS JSONB LANGUAGE plpgsql VOLATILE PARALLEL UNSAFE AS $$
 		DECLARE
-			spool agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools%ROWTYPE;
+			spool ae_hrrr_lifecycle_result_spools%ROWTYPE;
 			disposition_base JSONB;
 			disposition_json_value JSONB;
 			disposition_digest TEXT;
@@ -925,7 +925,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 			tombstone_digest_value TEXT;
 		BEGIN
 			SELECT * INTO spool
-			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			FROM ae_hrrr_lifecycle_result_spools
 			WHERE namespace_id=candidate_namespace_id AND spool_ref=candidate_spool_ref
 			FOR UPDATE;
 			IF spool.spool_ref IS NULL OR spool.state='destroyed'
@@ -966,7 +966,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 			tombstone_digest_value:=agent_evaluation_canonical_jsonb_digest(tombstone_base);
 			tombstone_value:=tombstone_base||jsonb_build_object(
 				'tombstoneDigest',tombstone_digest_value);
-			UPDATE agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spools
+			UPDATE ae_hrrr_lifecycle_result_spools
 			SET state='destroyed',disposition='retained-encrypted-for-recovery',
 				business_seal_kind='recovery-pending',business_seal_receipt_digest=NULL,
 				cleared_at=candidate_cleared_at,expiry_cleared_at=candidate_cleared_at,
@@ -977,7 +977,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				ciphertext_bytes=''::bytea,ciphertext_byte_length=0,
 				nonce_bytes=''::bytea,authentication_tag_bytes=''::bytea
 			WHERE namespace_id=candidate_namespace_id AND spool_ref=candidate_spool_ref;
-			INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spool_expiry_tombstones(
+			INSERT INTO ae_hrrr_lifecycle_result_spool_expiry_tombstones(
 				namespace_id,spool_ref,spool_receipt_digest,envelope_digest,ciphertext_digest,
 				expires_at,cleared_at,tombstone_digest,tombstone_json,tombstone_bytes
 			) VALUES (
@@ -990,7 +990,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 		END;
 		$$`,
 		`CREATE TRIGGER agent_eval_hosted_runtime_lifecycle_spool_expiry_immutable
-			BEFORE UPDATE OR DELETE ON agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_result_spool_expiry_tombstones
+			BEFORE UPDATE OR DELETE ON ae_hrrr_lifecycle_result_spool_expiry_tombstones
 			FOR EACH ROW EXECUTE FUNCTION reject_agent_immutable_mutation()`,
 	}
 }

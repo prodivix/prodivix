@@ -2,7 +2,7 @@ package database
 
 func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 	return []string{
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_overdue_receipts (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -26,7 +26,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 				AND receipt_bytes=convert_to(agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_run_terminal_fences (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -56,7 +56,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 			UNIQUE (namespace_id,fence_digest),
 			FOREIGN KEY (
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id
-			) REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_sets(
+			) REFERENCES ae_hrrr_sets(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id
 			) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_fence_count_check CHECK (
@@ -78,7 +78,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 				AND fence_bytes=convert_to(agent_evaluation_canonical_jsonb_text(fence_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_claims (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -115,7 +115,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 				AND receipt_bytes=convert_to(agent_evaluation_canonical_jsonb_text(receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_requests (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -144,19 +144,19 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 					namespace_id,plan_digest,repository_commit,authority_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,cleanup_claim_authority_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_claims(
+				REFERENCES ae_hrrr_cleanup_claims(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,read_lease_ledger_root_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_read_lease_ledger_roots(
+				REFERENCES ae_hrrr_read_lease_ledger_roots(
 					namespace_id,root_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,run_terminal_fence_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences(
+				REFERENCES ae_hrrr_run_terminal_fences(
 					namespace_id,fence_digest
 				) ON DELETE RESTRICT,
 			FOREIGN KEY (namespace_id,overdue_receipt_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_overdue_receipts(
+				REFERENCES ae_hrrr_overdue_receipts(
 					namespace_id,receipt_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_cleanup_reason_check CHECK (
@@ -168,7 +168,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 				AND request_bytes=convert_to(agent_evaluation_canonical_jsonb_text(request_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanups (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_cleanups (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -192,7 +192,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 			UNIQUE (namespace_id,cleanup_receipt_digest),
 			UNIQUE (namespace_id,cleanup_request_digest),
 			FOREIGN KEY (namespace_id,cleanup_request_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests(
+				REFERENCES ae_hrrr_cleanup_requests(
 					namespace_id,request_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_cleanup_zero_check CHECK (
@@ -202,7 +202,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 					agent_evaluation_canonical_jsonb_text(cleanup_receipt_json),'UTF8')
 			)
 		)`,
-		`CREATE TABLE IF NOT EXISTS agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives (
+		`CREATE TABLE IF NOT EXISTS ae_hrrr_cleanup_archives (
 			namespace_id TEXT NOT NULL,
 			plan_digest TEXT NOT NULL,
 			repository_commit TEXT NOT NULL,
@@ -216,7 +216,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 			PRIMARY KEY (namespace_id,plan_digest,repository_commit,authority_digest),
 			UNIQUE (namespace_id,record_digest),
 			FOREIGN KEY (namespace_id,plan_digest,repository_commit,authority_digest)
-				REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanups(
+				REFERENCES ae_hrrr_cleanups(
 					namespace_id,plan_digest,repository_commit,authority_digest
 				) ON DELETE RESTRICT,
 			CONSTRAINT agent_eval_hosted_runtime_cleanup_archive_bytes_check CHECK (
@@ -225,7 +225,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 			)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_agent_eval_hosted_runtime_cleanup_archive_order
-			ON agent_evaluation_hosted_retrieval_runtime_resource_cleanup_archives(
+			ON ae_hrrr_cleanup_archives(
 				namespace_id,plan_digest,repository_commit,runtime_resource_set_id,authority_digest
 			)`,
 		`DO $$
@@ -237,7 +237,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 				ALTER TABLE agent_evaluation_hosted_retrieval_runtime_resources
 					ADD CONSTRAINT agent_eval_hosted_runtime_resource_current_cleanup_request_fk
 					FOREIGN KEY (namespace_id,cleanup_request_digest)
-					REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanup_requests(
+					REFERENCES ae_hrrr_cleanup_requests(
 						namespace_id,request_digest
 					)
 					DEFERRABLE INITIALLY DEFERRED;
@@ -249,7 +249,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 				ALTER TABLE agent_evaluation_hosted_retrieval_runtime_resources
 					ADD CONSTRAINT agent_eval_hosted_runtime_resource_cleanup_receipt_fk
 					FOREIGN KEY (namespace_id,cleanup_receipt_digest)
-					REFERENCES agent_evaluation_hosted_retrieval_runtime_resource_cleanups(
+					REFERENCES ae_hrrr_cleanups(
 						namespace_id,cleanup_receipt_digest
 					)
 					DEFERRABLE INITIALLY DEFERRED;

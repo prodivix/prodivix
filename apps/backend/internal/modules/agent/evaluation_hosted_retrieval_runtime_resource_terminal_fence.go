@@ -95,7 +95,7 @@ func createEvaluationHostedRetrievalRuntimeResourceTerminalFenceTx(
 	}
 	var frozenRunDigest, bindingDigest, commitmentDigest string
 	err = tx.QueryRowContext(ctx, `SELECT frozen_run_digest,run_config_artifact_binding_digest,resource_set_commitment_digest
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_sets
+		FROM ae_hrrr_sets
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND runtime_resource_set_id=$4 FOR SHARE`,
 		authority.NamespaceID, request.PlanDigest, request.RepositoryCommit, request.RuntimeResourceSetID).Scan(
 		&frozenRunDigest, &bindingDigest, &commitmentDigest,
@@ -301,7 +301,7 @@ func createEvaluationHostedRetrievalRuntimeResourceTerminalFenceTx(
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_run_terminal_fences (
 		namespace_id,plan_digest,repository_commit,runtime_resource_set_id,fence_digest,fence_id,
 		fence_authority_issuer_id,fence_authority_implementation_digest,fence_ledger_revision,
 		expected_shard_count,terminal_shard_count,terminal_shard_id_set_digest,terminal_attempt_id_set_digest,
@@ -342,8 +342,8 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) DeriveTerminalFence(
 	defer func() { _ = tx.Rollback() }()
 	var existingRequest, existingReceipt []byte
 	err = tx.QueryRowContext(ctx, `SELECT request.request_bytes,receipt.receipt_bytes
-		FROM agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests request
-		JOIN agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts receipt
+		FROM ae_hrrr_terminal_fence_derive_requests request
+		JOIN ae_hrrr_terminal_fence_derive_receipts receipt
 		  ON receipt.namespace_id=request.namespace_id AND receipt.plan_digest=request.plan_digest
 		 AND receipt.repository_commit=request.repository_commit AND receipt.request_digest=request.request_digest
 		WHERE request.namespace_id=$1 AND request.plan_digest=$2 AND request.repository_commit=$3 AND request.request_digest=$4 FOR SHARE`,
@@ -360,7 +360,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) DeriveTerminalFence(
 	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, false, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_requests (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_terminal_fence_derive_requests (
 		namespace_id,plan_digest,repository_commit,request_digest,frozen_run_digest,run_config_artifact_binding_digest,
 		runtime_resource_set_id,resource_set_commitment_digest,expected_shard_count,expected_shard_id_set_digest,
 		requested_at,request_json,request_bytes
@@ -372,7 +372,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) DeriveTerminalFence(
 		return nil, false, err
 	}
 	var fenceBytes []byte
-	err = tx.QueryRowContext(ctx, `SELECT fence_bytes FROM agent_evaluation_hosted_retrieval_runtime_resource_run_terminal_fences
+	err = tx.QueryRowContext(ctx, `SELECT fence_bytes FROM ae_hrrr_run_terminal_fences
 		WHERE namespace_id=$1 AND plan_digest=$2 AND repository_commit=$3 AND runtime_resource_set_id=$4 FOR SHARE`,
 		request.NamespaceID, request.PlanDigest, request.RepositoryCommit, request.RuntimeResourceSetID).Scan(&fenceBytes)
 	var fence map[string]any
@@ -408,7 +408,7 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) DeriveTerminalFence(
 	if _, err = decodeEvaluationHostedRetrievalRuntimeResourceTerminalFenceDeriveReceiptValue(receipt); err != nil {
 		return nil, false, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_evaluation_hosted_retrieval_runtime_resource_terminal_fence_derive_receipts (
+	_, err = tx.ExecContext(ctx, `INSERT INTO ae_hrrr_terminal_fence_derive_receipts (
 		namespace_id,plan_digest,repository_commit,request_digest,receipt_digest,runtime_resource_set_id,
 		resource_set_commitment_digest,expected_shard_count,expected_shard_id_set_digest,run_terminal_fence_digest,
 		checked_at,expires_at,receipt_json,receipt_bytes
