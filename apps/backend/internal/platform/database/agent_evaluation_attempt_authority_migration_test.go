@@ -129,6 +129,7 @@ func TestAgentEvaluationAttemptAuthorityV45QuarantinesLegacyWithoutSyntheticRoot
 		"'provider-job' THEN 'provider-job-active-status'",
 		"expected_source_kind TEXT",
 		"expected_source_kind:=CASE NEW.binding_kind",
+		"fact_authority->>'sourceKind' <> expected_source_kind",
 		"native_source->>'sourceKind' IS DISTINCT FROM expected_source_kind",
 		"vault.status='active' AND vault.v45_eligible",
 		"vault.provider_state_reference_digest=",

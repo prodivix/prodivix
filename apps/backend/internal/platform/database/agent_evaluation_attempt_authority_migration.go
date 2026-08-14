@@ -4386,6 +4386,7 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 				binding_exists BOOLEAN;
 				observed_fact JSONB;
 				fact_authority JSONB;
+				expected_source_kind TEXT;
 			BEGIN
 				IF jsonb_typeof(NEW.receipt_json) <> 'object'
 					OR (SELECT COUNT(*) FROM jsonb_object_keys(NEW.receipt_json)) <> 26 THEN
@@ -4496,17 +4497,20 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 							RAISE EXCEPTION 'native provider observation fact authority drifted from dispatch'
 								USING ERRCODE = '23514';
 						END IF;
-					ELSIF fact_authority->>'sourceAuthorityKind' <> 'shared-durable-capability'
+					END IF;
+					expected_source_kind := CASE
+						WHEN observed_fact->>'factKind'='retrieval-query-receipt'
+							THEN 'sealed-hosted-owner-result'
+						ELSE 'sealed-provider-response-metadata'
+					END;
+					IF observed_fact->>'factKind' NOT IN ('provider-event', 'usage-vector')
+						AND (fact_authority->>'sourceAuthorityKind' <> 'shared-durable-capability'
 						OR fact_authority->>'sourceKind' IS NULL
 						OR fact_authority->>'routeBinding' IS NULL
 						OR fact_authority->>'registrationAuthorityIssuerId' IS NULL
 						OR fact_authority->>'registrationReceiptDigest' IS NULL
 						OR fact_authority->>'runtimeFactSourceAuthorityDigest' IS NULL
-						OR fact_authority->>'sourceKind' <> CASE
-							WHEN observed_fact->>'factKind'='retrieval-query-receipt'
-								THEN 'sealed-hosted-owner-result'
-							ELSE 'sealed-provider-response-metadata'
-						END
+						OR fact_authority->>'sourceKind' <> expected_source_kind
 						OR NOT EXISTS (
 							SELECT 1 FROM agent_evaluation_optional_fact_authorities authority
 							WHERE authority.namespace_id=NEW.namespace_id
@@ -4672,7 +4676,7 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 										AND target#>>'{optionalCapabilitySupportAuthority,runtimeFactSourceAuthority,authorityDigest}'=
 											fact_authority->>'runtimeFactSourceAuthorityDigest'
 								)
-					) THEN
+					)) THEN
 						RAISE EXCEPTION 'shared provider observation fact lacks sealed durable authority'
 							USING ERRCODE = '23514';
 					END IF;
