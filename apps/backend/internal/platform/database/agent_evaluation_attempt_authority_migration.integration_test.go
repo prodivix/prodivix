@@ -484,7 +484,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 		"ae_cppr_manifests":                   7,
 		"ae_cppr_content_upload_receipts":     7,
 		"ae_cppr_deletion_authority_receipts": 7,
-		"ae_cppr_cleanups":                    26,
+		"ae_cppr_cleanups":                    27,
 		"ae_cppr_cleanup_receipts":            7,
 		"agent_evaluation_native_optional_capability_bootstrap_sources": 60,
 		"agent_evaluation_native_provider_state_vault_records":          55,
@@ -793,7 +793,7 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"32768",
 			"16384",
 			"65536",
-			"30 seconds",
+			"'00:00:30'::interval",
 		},
 		"agent_evaluation_native_provider_state_vault_records": {
 			"agent_evaluation_plans",
@@ -812,8 +812,8 @@ func assertAgentEvaluationAttemptAuthorityV45Schema(t *testing.T, db *sql.DB) {
 			"maximum-lifecycle-ack-window-elapsed",
 			"ciphertext_bytes",
 			"wrapped_state_key_bytes",
-			"125 seconds",
-			"30 seconds",
+			"'00:02:05'::interval",
+			"'00:00:30'::interval",
 			"5880",
 		},
 		"agent_evaluation_production_run_config_artifacts": {
@@ -1560,7 +1560,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLQuarantinesLegacyV41F
 	var quarantinedV41Attestation, quarantinedV41Root, upgradedV41Name string
 	var upgradedV41AppliedAt time.Time
 	if err := db.QueryRowContext(ctx, `SELECT (to_jsonb(authority) - ARRAY[
-		'v45_eligible','stage_digest','dispatch_ack_digest',
+		'v45_eligible','v46_eligible','stage_digest','dispatch_ack_digest',
 		'provider_capability_observation_receipt_set_digest',
 		'pre_effect_intent_digest','pre_effect_intent_json','pre_effect_intent_bytes'
 	])::text
@@ -1570,14 +1570,14 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLQuarantinesLegacyV41F
 		fixture.providerRequestDigest).Scan(&quarantinedV41Row); err != nil {
 		t.Fatalf("read quarantined v41 authority bytes: %v", err)
 	}
-	if err := db.QueryRowContext(ctx, `SELECT (to_jsonb(attestation)-'v45_eligible')::text
+	if err := db.QueryRowContext(ctx, `SELECT (to_jsonb(attestation)-ARRAY['v45_eligible','v46_eligible'])::text
 		FROM agent_evaluation_authority_attestations attestation
 		WHERE namespace_id=$1 AND plan_digest=$2`, fixture.namespaceID,
 		fixture.planDigest).Scan(&quarantinedV41Attestation); err != nil {
 		t.Fatalf("read quarantined v41 attestation bytes: %v", err)
 	}
 	if err := db.QueryRowContext(ctx, `SELECT (to_jsonb(authority) - ARRAY[
-		'v45_eligible','stage_digest','dispatch_ack_digest',
+		'v45_eligible','v46_eligible','stage_digest','dispatch_ack_digest',
 		'provider_capability_observation_receipt_set_digest',
 		'pre_effect_intent_digest','pre_effect_intent_json','pre_effect_intent_bytes'
 	])::text
@@ -1588,7 +1588,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLQuarantinesLegacyV41F
 		t.Fatalf("read quarantined v41 G3 admission bytes: %v", err)
 	}
 	if err := db.QueryRowContext(ctx, `SELECT (to_jsonb(authority) - ARRAY[
-		'v45_eligible','stage_digest','dispatch_ack_digest',
+		'v45_eligible','v46_eligible','stage_digest','dispatch_ack_digest',
 		'provider_capability_observation_receipt_set_digest',
 		'pre_effect_intent_digest','pre_effect_intent_json','pre_effect_intent_bytes'
 	])::text
@@ -1598,7 +1598,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLQuarantinesLegacyV41F
 		ownerStateRequestDigest).Scan(&quarantinedV41OwnerStateRow); err != nil {
 		t.Fatalf("read quarantined v41 owner-state claim bytes: %v", err)
 	}
-	if err := db.QueryRowContext(ctx, `SELECT (to_jsonb(evidence_root)-'v45_eligible')::text
+	if err := db.QueryRowContext(ctx, `SELECT (to_jsonb(evidence_root)-ARRAY['v45_eligible','v46_eligible'])::text
 		FROM agent_evaluation_evidence_roots evidence_root
 		WHERE namespace_id=$1 AND plan_digest=$2`, fixture.namespaceID,
 		fixture.planDigest).Scan(&quarantinedV41Root); err != nil {
@@ -3998,6 +3998,131 @@ type v45OptionalSharedEffectOwnerFixture struct {
 	businessResultDigest                     string
 }
 
+func seedV45OptionalSharedEffectJournal(
+	t *testing.T,
+	db *sql.DB,
+	fixture v45CapabilityProbeFixture,
+	attemptID string,
+	attemptDescriptorDigest string,
+	invocationID string,
+	ownerRequestDigest string,
+	ownerRequestID string,
+	ownerStageDigest string,
+	ownerDispatchAckDigest string,
+	preEffectIntent map[string]any,
+	journalResultRecordDigest string,
+	resultSealReceiptDigest string,
+	businessResultDigest string,
+	dispatchIntentDigest string,
+	transportReceiptDigest string,
+	resultSpoolReceiptDigest any,
+	normalizedEventSetDigest string,
+	responseDigest string,
+	outcome string,
+	fact map[string]any,
+	sealedAt time.Time,
+) {
+	t.Helper()
+	ctx := context.Background()
+	ownerInstanceID := "journal-owner.v45.optional"
+	executionRecordDigest := attemptAuthorityMigrationDigest(attemptID + ".provider-journal-execution")
+	executionWriteDigest := attemptAuthorityMigrationDigest(attemptID + ".provider-journal-write")
+	executionReceiptDigest := attemptAuthorityMigrationDigest(attemptID + ".provider-journal-execution-receipt")
+	responseProjectionDigest := attemptAuthorityMigrationDigest(attemptID + ".provider-journal-response-projection")
+	stageRecordDigest := attemptAuthorityMigrationDigest(attemptID + ".provider-journal-stage")
+	resultStatus := map[string]string{
+		"observed": "produced", "unavailable": "unavailable", "failed": "failed",
+	}[outcome]
+	var sourceFactKind, sourceFactDigest any
+	if fact != nil {
+		sourceFactKind = fact["factKind"]
+		sourceFactDigest = fact["factDigest"]
+	}
+	stageJSON := map[string]any{"preEffectIntent": preEffectIntent}
+	stageBytes := attemptAuthorityMigrationJSON(t, stageJSON)
+	executionJSON := map[string]any{
+		"executionReceipt": map[string]any{"dispatchAckDigest": ownerDispatchAckDigest},
+	}
+	executionBytes := attemptAuthorityMigrationJSON(t, executionJSON)
+	resultJSON := map[string]any{"recordDigest": journalResultRecordDigest}
+	resultBytes := attemptAuthorityMigrationJSON(t, resultJSON)
+	var spoolReceiptDigest, spoolRef, spoolAAD, spoolEnvelope, ciphertextDigest, responseBodyDigest any
+	var ciphertextSize any
+	if digest, ok := resultSpoolReceiptDigest.(string); ok && digest != "" {
+		spoolReceiptDigest = digest
+		spoolRef = "spool.v45.optional-journal." + attemptID
+		spoolAAD = attemptAuthorityMigrationDigest(attemptID + ".journal-spool-aad")
+		spoolEnvelope = attemptAuthorityMigrationDigest(attemptID + ".journal-spool-envelope")
+		ciphertextDigest = attemptAuthorityMigrationDigest(attemptID + ".journal-spool-ciphertext")
+		ciphertextSize = 32
+		responseBodyDigest = attemptAuthorityMigrationDigest(attemptID + ".journal-spool-body")
+	}
+	for _, table := range []string{
+		"agent_evaluation_capability_effect_provider_journal_stages",
+		"agent_evaluation_capability_effect_provider_journal_executions",
+		"agent_evaluation_capability_effect_provider_journal_results",
+	} {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE "+pgx.Identifier{table}.Sanitize()+" DISABLE TRIGGER USER"); err != nil {
+			t.Fatalf("disable %s journal fixture triggers: %v", table, err)
+		}
+	}
+	defer func() {
+		for _, table := range []string{
+			"agent_evaluation_capability_effect_provider_journal_results",
+			"agent_evaluation_capability_effect_provider_journal_executions",
+			"agent_evaluation_capability_effect_provider_journal_stages",
+		} {
+			if _, err := db.ExecContext(ctx, "ALTER TABLE "+pgx.Identifier{table}.Sanitize()+" ENABLE TRIGGER USER"); err != nil {
+				t.Fatalf("restore %s journal fixture triggers: %v", table, err)
+			}
+		}
+	}()
+	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_capability_effect_provider_journal_stages (
+		namespace_id,plan_digest,repository_commit,owner_instance_id,owner_request_digest,
+		controlled_request_digest,record_digest,attempt_id,descriptor_digest,turn_index,
+		invocation_id,owner_request_id,runtime_fact_source_authority_digest,pre_effect_intent_digest,
+		stage_digest,binding_kind,capability_id,expires_at,sealed_at,record_json,record_bytes
+	) SELECT $1,$2,$3,$4,$5,$5,$6,$7,$8,0,$9,$10,$11,$12,$13,'provider-job','provider.background-job',
+		$14,$15,$16::jsonb,convert_to(agent_evaluation_canonical_jsonb_text($16::jsonb),'UTF8')`,
+		fixture.namespaceID, fixture.planDigest, fixture.repositoryCommit, ownerInstanceID,
+		ownerRequestDigest, stageRecordDigest, attemptID, attemptDescriptorDigest, invocationID,
+		ownerRequestID, fixture.runtimeFactSourceAuthorityDigest,
+		preEffectIntent["intentDigest"], ownerStageDigest, sealedAt.Add(time.Minute), sealedAt,
+		string(stageBytes)); err != nil {
+		t.Fatalf("store optional-fact Provider journal stage: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_capability_effect_provider_journal_executions (
+		namespace_id,plan_digest,repository_commit,owner_instance_id,owner_request_digest,
+		execution_sequence,write_digest,record_digest,stage_digest,execution_receipt_digest,
+		operation,dispatch_intent_digest,transport_receipt_digest,spool_receipt_digest,spool_ref,
+		spool_aad_digest,spool_envelope_digest,ciphertext_digest,ciphertext_size_bytes,
+		response_body_digest,response_projection_digest,response_digest,normalized_event_set_digest,
+		executed_at,sealed_at,record_json,record_bytes
+	) SELECT $1,$2,$3,$4,$5,0,$6,$7,$8,$9,'background-poll',$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,
+		$22,$22,$23::jsonb,convert_to(agent_evaluation_canonical_jsonb_text($23::jsonb),'UTF8')`,
+		fixture.namespaceID, fixture.planDigest, fixture.repositoryCommit, ownerInstanceID,
+		ownerRequestDigest, executionWriteDigest, executionRecordDigest, ownerStageDigest,
+		executionReceiptDigest, dispatchIntentDigest, transportReceiptDigest, spoolReceiptDigest,
+		spoolRef, spoolAAD, spoolEnvelope, ciphertextDigest, ciphertextSize, responseBodyDigest,
+		responseProjectionDigest, responseDigest, normalizedEventSetDigest, sealedAt,
+		string(executionBytes)); err != nil {
+		t.Fatalf("store optional-fact Provider journal execution: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO agent_evaluation_capability_effect_provider_journal_results (
+		namespace_id,plan_digest,repository_commit,owner_instance_id,owner_request_digest,
+		record_digest,stage_digest,terminal_execution_record_digest,result_seal_receipt_digest,
+		result_status,business_result_digest,source_fact_kind,source_fact_digest,sealed_at,
+		record_json,record_bytes
+	) SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,
+		convert_to(agent_evaluation_canonical_jsonb_text($15::jsonb),'UTF8')`,
+		fixture.namespaceID, fixture.planDigest, fixture.repositoryCommit, ownerInstanceID,
+		ownerRequestDigest, journalResultRecordDigest, ownerStageDigest, executionRecordDigest,
+		resultSealReceiptDigest, resultStatus, businessResultDigest, sourceFactKind, sourceFactDigest,
+		sealedAt, string(resultBytes)); err != nil {
+		t.Fatalf("store optional-fact Provider journal result: %v", err)
+	}
+}
+
 func seedV45OptionalSharedEffectOwner(
 	t *testing.T,
 	db *sql.DB,
@@ -4009,6 +4134,8 @@ func seedV45OptionalSharedEffectOwner(
 	transportReceiptDigest string,
 	resultSpoolReceiptDigest any,
 	normalizedEventSetDigest string,
+	dispatchIntentDigest string,
+	responseDigest string,
 	sourceKind string,
 	outcome string,
 	fact map[string]any,
@@ -4211,6 +4338,13 @@ func seedV45OptionalSharedEffectOwner(
 		string(ownerReceiptBytes), ownerReceiptBytes); err != nil {
 		t.Fatalf("store shared-effect owner receipt: %v", err)
 	}
+	seedV45OptionalSharedEffectJournal(
+		t, db, fixture, attemptID, attemptDescriptorDigest, invocationID, ownerRequestDigest,
+		ownerRequestID, ownerStageDigest, ownerDispatchAckDigest, preEffectIntent,
+		providerRuntimeJournalResultRecordDigest, providerRuntimeResultSealReceiptDigest,
+		businessResultDigest, dispatchIntentDigest, transportReceiptDigest,
+		resultSpoolReceiptDigest, normalizedEventSetDigest, responseDigest, outcome, fact, sealedAt,
+	)
 	effectSourceFactDigest := ""
 	if fact != nil {
 		effectSourceFactDigest, _ = fact["factDigest"].(string)
@@ -6542,6 +6676,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLOptionalFactAuthority
 	owner := seedV45OptionalSharedEffectOwner(t, db, fixture, attemptID, descriptorDigest,
 		invocationID, providerRequestDigest, localTransportReceiptDigest,
 		localResultSpoolReceiptDigest, localNormalizedEventSetDigest,
+		dispatchIntentDigest, responseDigest,
 		"sealed-provider-response-metadata", "unavailable", nil, sourceSealedAt)
 	sourceReceiptBase := map[string]any{
 		"format": "prodivix.agent-evaluation-optional-capability-fact-source-seal-receipt", "version": 1,
@@ -6567,15 +6702,17 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLOptionalFactAuthority
 		"registrationAuthorityIssuerId":       fixture.registrationAuthorityIssuerID,
 		"registrationReceiptDigest":           fixture.registrationReceiptDigest,
 		"sourceKind":                          "sealed-provider-response-metadata", "sourceDigest": sourceDigest,
-		"ownerRequestDigest":        owner.ownerRequestDigest,
-		"ownerReceiptDigest":        owner.ownerReceiptDigest,
-		"ownerStageDigest":          owner.ownerStageDigest,
-		"ownerDispatchAckDigest":    owner.ownerDispatchAckDigest,
-		"preEffectIntentDigest":     owner.preEffectIntentDigest,
-		"effectSourceReceiptDigest": owner.effectSourceReceiptDigest,
-		"effectSourceFactDigest":    nil,
-		"businessResultDigest":      owner.businessResultDigest,
-		"outcome":                   "unavailable", "observedAt": sourceSealedAt.Format("2006-01-02T15:04:05.000Z"),
+		"ownerRequestDigest":                       owner.ownerRequestDigest,
+		"ownerReceiptDigest":                       owner.ownerReceiptDigest,
+		"ownerStageDigest":                         owner.ownerStageDigest,
+		"ownerDispatchAckDigest":                   owner.ownerDispatchAckDigest,
+		"preEffectIntentDigest":                    owner.preEffectIntentDigest,
+		"effectSourceReceiptDigest":                owner.effectSourceReceiptDigest,
+		"providerRuntimeJournalResultRecordDigest": owner.providerRuntimeJournalResultRecordDigest,
+		"providerRuntimeResultSealReceiptDigest":   owner.providerRuntimeResultSealReceiptDigest,
+		"effectSourceFactDigest":                   nil,
+		"businessResultDigest":                     owner.businessResultDigest,
+		"outcome":                                  "unavailable", "observedAt": sourceSealedAt.Format("2006-01-02T15:04:05.000Z"),
 		"sealedAt": sourceSealedAt.Format("2006-01-02T15:04:05.000Z"),
 	}
 	sourceSealDigest := attemptAuthorityMigrationDigest(
@@ -6903,6 +7040,7 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLOptionalFactAuthority
 	owner := seedV45OptionalSharedEffectOwner(t, db, fixture, attemptID, descriptorDigest,
 		invocationID, providerRequestDigest, localTransportReceiptDigest,
 		localResultSpoolReceiptDigest, localNormalizedEventSetDigest,
+		dispatchIntentDigest, responseDigest,
 		"sealed-provider-response-metadata", "observed", fact, sourceSealedAt)
 	sourceDigest := attemptAuthorityMigrationDigest(string(attemptAuthorityMigrationJSON(t, map[string]any{
 		"kind": "sealed-provider-response-metadata", "planDigest": fixture.planDigest,
@@ -6974,15 +7112,17 @@ func TestAgentEvaluationAttemptAuthorityMigrationPostgreSQLOptionalFactAuthority
 		"registrationAuthorityIssuerId":       fixture.registrationAuthorityIssuerID,
 		"registrationReceiptDigest":           fixture.registrationReceiptDigest,
 		"sourceKind":                          "sealed-provider-response-metadata", "sourceDigest": sourceDigest,
-		"ownerRequestDigest":        owner.ownerRequestDigest,
-		"ownerReceiptDigest":        owner.ownerReceiptDigest,
-		"ownerStageDigest":          owner.ownerStageDigest,
-		"ownerDispatchAckDigest":    owner.ownerDispatchAckDigest,
-		"preEffectIntentDigest":     owner.preEffectIntentDigest,
-		"effectSourceReceiptDigest": owner.effectSourceReceiptDigest,
-		"effectSourceFactDigest":    owner.effectSourceFactDigest,
-		"businessResultDigest":      owner.businessResultDigest,
-		"sourceRequestDigest":       sourceRequestDigest, "outcome": "observed",
+		"ownerRequestDigest":                       owner.ownerRequestDigest,
+		"ownerReceiptDigest":                       owner.ownerReceiptDigest,
+		"ownerStageDigest":                         owner.ownerStageDigest,
+		"ownerDispatchAckDigest":                   owner.ownerDispatchAckDigest,
+		"preEffectIntentDigest":                    owner.preEffectIntentDigest,
+		"effectSourceReceiptDigest":                owner.effectSourceReceiptDigest,
+		"providerRuntimeJournalResultRecordDigest": owner.providerRuntimeJournalResultRecordDigest,
+		"providerRuntimeResultSealReceiptDigest":   owner.providerRuntimeResultSealReceiptDigest,
+		"effectSourceFactDigest":                   owner.effectSourceFactDigest,
+		"businessResultDigest":                     owner.businessResultDigest,
+		"sourceRequestDigest":                      sourceRequestDigest, "outcome": "observed",
 		"observedAt": observedAt.Format("2006-01-02T15:04:05.000Z"),
 		"sealedAt":   sourceSealedAt.Format("2006-01-02T15:04:05.000Z"),
 		"fact":       fact,

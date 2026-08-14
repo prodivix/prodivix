@@ -3187,24 +3187,45 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 				),
 				CONSTRAINT agent_eval_optional_fact_source_json_check CHECK (COALESCE((
 					agent_evaluation_jsonb_object_key_count(source_receipt_json)=
-						CASE WHEN fact_json IS NULL THEN 50 ELSE 51 END
-					AND source_receipt_json ?& ARRAY[
-						'format','version','namespaceId','planDigest','repositoryCommit','attemptId',
-						'descriptorDigest','targetId','targetDigest','capabilityProfileId',
-						'capabilityProfileDigest','capabilityDescriptorDigest','capabilityId',
-						'supportExpectation','turnIndex','invocationId','protocolFamily',
-						'providerConfigurationId','modelId','modelLineageDigest','adapterDigest',
-						'providerRequestDigest','responseDigest','dispatchIntentDigest',
-						'transportReceiptDigest','resultSpoolReceiptDigest','normalizedEventSetDigest',
-						'targetAuthorityDigest','sourceAuthorityId','sourceAuthorityImplementationDigest',
-						'sourceAuthorityRouteBinding','registrationAuthorityIssuerId',
-						'registrationReceiptDigest','sourceKind','sourceDigest','sourceRequestDigest',
-						'outcome','observedAt','sealedAt','ownerRequestDigest','ownerReceiptDigest',
-						'ownerStageDigest','ownerDispatchAckDigest','preEffectIntentDigest',
-						'effectSourceReceiptDigest','providerRuntimeJournalResultRecordDigest',
-						'providerRuntimeResultSealReceiptDigest','effectSourceFactDigest',
-						'businessResultDigest','sourceSealDigest'
-					]
+						CASE WHEN native_bootstrap_source_request_digest IS NOT NULL
+							THEN CASE WHEN fact_json IS NULL THEN 47 ELSE 48 END
+							ELSE CASE WHEN fact_json IS NULL THEN 50 ELSE 51 END
+						END
+					AND source_receipt_json ?& CASE
+						WHEN native_bootstrap_source_request_digest IS NOT NULL THEN ARRAY[
+							'format','version','namespaceId','planDigest','repositoryCommit','attemptId',
+							'descriptorDigest','targetId','targetDigest','capabilityProfileId',
+							'capabilityProfileDigest','capabilityDescriptorDigest','capabilityId',
+							'supportExpectation','turnIndex','invocationId','protocolFamily',
+							'providerConfigurationId','modelId','modelLineageDigest','adapterDigest',
+							'providerRequestDigest','responseDigest','dispatchIntentDigest',
+							'transportReceiptDigest','resultSpoolReceiptDigest','normalizedEventSetDigest',
+							'targetAuthorityDigest','sourceAuthorityId','sourceAuthorityImplementationDigest',
+							'sourceAuthorityRouteBinding','registrationAuthorityIssuerId',
+							'registrationReceiptDigest','sourceKind','sourceDigest','sourceRequestDigest',
+							'outcome','observedAt','sealedAt','ownerStageDigest','ownerDispatchAckDigest',
+							'sourceSealDigest','nativeBootstrapSourceRequestDigest',
+							'nativeBootstrapSourceReceiptDigest','nativeProviderSourceReceiptDigest',
+							'nativeProviderSourceDigest','nativeProviderSourceFactDigest'
+						]
+						ELSE ARRAY[
+							'format','version','namespaceId','planDigest','repositoryCommit','attemptId',
+							'descriptorDigest','targetId','targetDigest','capabilityProfileId',
+							'capabilityProfileDigest','capabilityDescriptorDigest','capabilityId',
+							'supportExpectation','turnIndex','invocationId','protocolFamily',
+							'providerConfigurationId','modelId','modelLineageDigest','adapterDigest',
+							'providerRequestDigest','responseDigest','dispatchIntentDigest',
+							'transportReceiptDigest','resultSpoolReceiptDigest','normalizedEventSetDigest',
+							'targetAuthorityDigest','sourceAuthorityId','sourceAuthorityImplementationDigest',
+							'sourceAuthorityRouteBinding','registrationAuthorityIssuerId',
+							'registrationReceiptDigest','sourceKind','sourceDigest','sourceRequestDigest',
+							'outcome','observedAt','sealedAt','ownerRequestDigest','ownerReceiptDigest',
+							'ownerStageDigest','ownerDispatchAckDigest','preEffectIntentDigest',
+							'effectSourceReceiptDigest','providerRuntimeJournalResultRecordDigest',
+							'providerRuntimeResultSealReceiptDigest','effectSourceFactDigest',
+							'businessResultDigest','sourceSealDigest'
+						]
+					END
 					AND (source_receipt_json ? 'fact')=(fact_json IS NOT NULL)
 					AND source_receipt_json->>'format'=
 						'prodivix.agent-evaluation-optional-capability-fact-source-seal-receipt'

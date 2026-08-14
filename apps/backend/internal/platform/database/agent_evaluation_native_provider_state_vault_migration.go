@@ -321,7 +321,10 @@ func agentEvaluationNativeProviderStateVaultStatements() []string {
 				OR NOT COALESCE(NEW.seal_request_json->>'responseBodyDigest' ~ '^sha256-[a-f0-9]{64}$',FALSE)
 				OR NOT COALESCE(NEW.seal_request_json->>'sealedResponseJsonDigest' ~ '^sha256-[a-f0-9]{64}$',FALSE)
 				OR NOT COALESCE(NEW.seal_request_json->>'modelLineageDigest' ~ '^sha256-[a-f0-9]{64}$',FALSE)
-				OR NOT COALESCE(NEW.seal_request_json->>'adapterDigest' ~ '^sha256-[a-f0-9]{64}$',FALSE) THEN
+				OR NOT COALESCE(NEW.seal_request_json->>'adapterDigest' ~ '^sha256-[a-f0-9]{64}$',FALSE)
+				OR jsonb_typeof(NEW.seal_request_json->'providerConfigurationId') IS DISTINCT FROM 'string'
+				OR NEW.seal_request_json->>'providerConfigurationId' !~
+					'^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$' THEN
 				RAISE EXCEPTION 'native Provider state vault seal request binding is invalid'
 					USING ERRCODE='23514';
 			END IF;
