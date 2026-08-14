@@ -10,7 +10,7 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 		name:      "g4-agent-evaluation-attempt-authority-facts",
 		preflight: preflightAgentEvaluationAttemptAuthority,
 		statements: []string{
-			`CREATE EXTENSION IF NOT EXISTS pgcrypto`,
+			`CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public`,
 			`CREATE OR REPLACE FUNCTION agent_evaluation_jsonb_object_key_count(candidate JSONB)
 				RETURNS BIGINT LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
 					SELECT CASE WHEN jsonb_typeof(candidate)='object'
@@ -2346,8 +2346,8 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 				SELECT phase_value INTO expected_phase
 				FROM jsonb_array_elements_text(
 					parent_request_json#>'{probeProgram,providerRequestIntent,requestPhases}'
-				) WITH ORDINALITY phases(phase_value, ordinal)
-				WHERE ordinal-1=NEW.sequence;
+				) WITH ORDINALITY phases(phase_value, phase_ordinal)
+				WHERE phases.phase_ordinal-1=NEW.sequence;
 				maximum_response_bytes :=
 					(parent_request_json#>>'{probeProgram,hardLimits,maximumResponseBytes}')::bigint;
 				IF expected_phase IS NULL OR expected_phase<>NEW.phase
@@ -2565,10 +2565,10 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 						RAISE EXCEPTION 'capability probe encrypted spool phase set is incomplete'
 							USING ERRCODE = '23514';
 					END IF;
-					FOR spool_entry, spool_ordinal IN SELECT value,ordinal-1
+					FOR spool_entry, spool_ordinal IN SELECT value,entries.entry_ordinal-1
 						FROM jsonb_array_elements(source_receipt->'spoolReceipts') WITH ORDINALITY
-							entries(value, ordinal)
-						ORDER BY ordinal
+							entries(value, entry_ordinal)
+						ORDER BY entries.entry_ordinal
 					LOOP
 						IF jsonb_typeof(spool_entry)<>'object'
 							OR NOT (spool_entry ?& ARRAY[
@@ -2587,8 +2587,8 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 						SELECT phase_value INTO expected_phase
 						FROM jsonb_array_elements_text(
 							parent_request_json#>'{probeProgram,providerRequestIntent,requestPhases}'
-						) WITH ORDINALITY phases(phase_value, ordinal)
-						WHERE ordinal-1=(spool_entry->>'sequence')::bigint;
+						) WITH ORDINALITY phases(phase_value, phase_ordinal)
+						WHERE phases.phase_ordinal-1=(spool_entry->>'sequence')::bigint;
 						IF expected_phase IS NULL OR expected_phase<>spool_entry->>'phase'
 							OR NOT EXISTS (
 								SELECT 1 FROM agent_evaluation_capability_probe_response_spools spool
@@ -2654,16 +2654,16 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 				END IF;
 				IF reference_count <> 6 OR EXISTS (
 					SELECT 1
-					FROM generate_series(0,5) ordinal
+					FROM generate_series(0,5) AS expected_ordinal(ordinal)
 					LEFT JOIN agent_evaluation_capability_probe_reference_receipts reference
 					  ON reference.namespace_id=NEW.namespace_id
 					 AND reference.repository_commit=NEW.repository_commit
 					 AND reference.request_digest=NEW.request_digest
-					 AND reference.ordinal=ordinal
+					 AND reference.ordinal=expected_ordinal.ordinal
 					WHERE reference.ordinal IS NULL
-						OR NEW.reference_bundle_json->ordinal->>'kind' <> reference.kind
-						OR NEW.reference_bundle_json->ordinal->>'receiptDigest' <> reference.receipt_digest
-						OR NEW.reference_bundle_json->ordinal->'receipt' <> reference.receipt_json
+						OR NEW.reference_bundle_json->expected_ordinal.ordinal->>'kind' <> reference.kind
+						OR NEW.reference_bundle_json->expected_ordinal.ordinal->>'receiptDigest' <> reference.receipt_digest
+						OR NEW.reference_bundle_json->expected_ordinal.ordinal->'receipt' <> reference.receipt_json
 						OR reference.receipt_json->>'authorityIssuerId' <> NEW.authority_issuer_id
 				) THEN
 					RAISE EXCEPTION 'capability probe admission lacks its exact six durable references'

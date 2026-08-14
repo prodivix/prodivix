@@ -39,7 +39,7 @@ func agentEvaluationCapabilityEffectProviderJournalStatements() []string {
 		$$`,
 		`CREATE OR REPLACE FUNCTION agent_evaluation_canonical_jsonb_digest(candidate JSONB)
 			RETURNS TEXT LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
-				SELECT 'sha256-'||encode(digest(
+				SELECT 'sha256-'||encode(public.digest(
 					convert_to(agent_evaluation_canonical_jsonb_text(candidate),'UTF8'),
 					'sha256'
 				),'hex')

@@ -52,7 +52,7 @@ func TestAgentEvaluationAttemptAuthorityPreflightLocksV41FactsForClassification(
 func TestAgentEvaluationAttemptAuthorityV45QuarantinesLegacyWithoutSyntheticRoots(t *testing.T) {
 	statements := strings.Join(agentEvaluationAttemptAuthorityMigration().statements, "\n")
 	for _, fragment := range []string{
-		"CREATE EXTENSION IF NOT EXISTS pgcrypto",
+		"CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public",
 		"ADD COLUMN IF NOT EXISTS v45_eligible BOOLEAN",
 		"state IN ('dispatched', 'sealed')",
 		"SET v45_eligible=FALSE WHERE v45_eligible IS NULL",

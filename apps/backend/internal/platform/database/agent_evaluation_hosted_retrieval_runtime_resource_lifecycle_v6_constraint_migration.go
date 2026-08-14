@@ -619,7 +619,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ConstraintStatement
 				OR NEW.encryption_profile_digest<>expected_profile_digest
 				OR NEW.retention_policy_digest<>expected_retention_digest
 				OR NEW.ciphertext_digest<>
-					'sha256-'||encode(digest(NEW.ciphertext_bytes,'sha256'),'hex')
+					'sha256-'||encode(public.digest(NEW.ciphertext_bytes,'sha256'),'hex')
 				OR jsonb_typeof(NEW.aad_json)<>'object'
 				OR agent_evaluation_jsonb_object_key_count(NEW.aad_json)<>21
 				OR NOT (NEW.aad_json ?& ARRAY[

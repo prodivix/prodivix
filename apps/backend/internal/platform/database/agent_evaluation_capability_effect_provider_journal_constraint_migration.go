@@ -578,7 +578,7 @@ func agentEvaluationCapabilityEffectProviderJournalConstraintStatements() []stri
 				NEW.spool_envelope_json->>'ciphertextBase64Url'
 			);
 			IF ciphertext IS NULL OR octet_length(ciphertext)<>execution_row.ciphertext_size_bytes
-				OR 'sha256-'||encode(digest(ciphertext,'sha256'),'hex')<>
+				OR 'sha256-'||encode(public.digest(ciphertext,'sha256'),'hex')<>
 					execution_row.ciphertext_digest THEN
 				RAISE EXCEPTION 'Provider journal spool ciphertext digest drifted'
 					USING ERRCODE='23514';

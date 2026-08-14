@@ -74,7 +74,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceBudgetConstraintStatements() [
 				OR request_row.request_json#>>'{budgetReservationAuthority,demandDigest}'<>
 					reservation_row.demand_digest
 				OR request_row.request_json#>>'{budgetReservationAuthority,demandBytesDigest}'<>
-					'sha256-'||encode(digest(reservation_row.demand_bytes,'sha256'),'hex')
+					'sha256-'||encode(public.digest(reservation_row.demand_bytes,'sha256'),'hex')
 				OR jsonb_typeof(NEW.settlement_json)<>'object'
 				OR agent_evaluation_jsonb_object_key_count(NEW.settlement_json)<>
 					expected_key_count

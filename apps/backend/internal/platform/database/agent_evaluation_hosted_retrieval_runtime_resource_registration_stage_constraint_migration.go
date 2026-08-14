@@ -145,7 +145,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceRegistrationStageConstraintSta
 				OR matching_target_count<>1 OR run_config_frozen_digest<>NEW.frozen_run_digest
 				OR budget_ledger_revision IS DISTINCT FROM (budget->>'ledgerRevision')::bigint
 				OR budget_demand_digest IS DISTINCT FROM budget->>'demandDigest'
-				OR 'sha256-'||encode(digest(budget_demand_bytes,'sha256'),'hex')<>
+				OR 'sha256-'||encode(public.digest(budget_demand_bytes,'sha256'),'hex')<>
 					budget->>'demandBytesDigest'
 				OR budget_reserved_at IS DISTINCT FROM (budget->>'reservedAt')::timestamptz
 				OR budget_settlement_exists
