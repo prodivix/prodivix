@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/agentcontract"
 	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
 )
 
@@ -542,6 +543,11 @@ func evaluationCapabilityProbeTestApplyQualificationBundle(t *testing.T, plan *e
 		}
 		target["targetDigest"] = targetDigest
 	}
+	scheduleDigest, err := agentcontract.EvaluationPlanAttemptSetDigest(plan.Value, plan.PlannedAt, plan.ExpiresAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan.Value["plannedAttemptSetDigest"] = scheduleDigest
 	delete(plan.Value, "planDigest")
 	planDigest, err := canonicaljson.Digest(plan.Value)
 	if err != nil {

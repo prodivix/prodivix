@@ -2,6 +2,7 @@ package agentcontract
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -993,6 +994,50 @@ func validateAgentEvaluationPlanDeep(value map[string]any, plannedAt time.Time, 
 	return nil
 }
 
+func EvaluationPlanAttemptSetDigest(value map[string]any, plannedAt time.Time, expiresAt time.Time) (string, error) {
+	_ = plannedAt
+	_ = expiresAt
+	cases, err := evaluationPlanCases(value)
+	if err != nil {
+		return "", err
+	}
+	rawTargets, ok := value["capabilityQualificationTargets"].([]any)
+	if !ok {
+		return "", errors.New("/value/capabilityQualificationTargets is invalid")
+	}
+	targets := make([]evaluationPlanTarget, 0, len(rawTargets))
+	for _, raw := range rawTargets {
+		target, ok := raw.(map[string]any)
+		if !ok {
+			return "", errors.New("/value/capabilityQualificationTargets entry is invalid")
+		}
+		resolved := ""
+		if optional, ok := target["optionalCapabilitySupportAuthority"].(map[string]any); ok {
+			if descriptor, ok := optional["resolvedCapabilityDescriptor"].(map[string]any); ok {
+				resolved = stringValue(descriptor["descriptorDigest"])
+			}
+		}
+		targets = append(targets, evaluationPlanTarget{
+			ID: stringValue(target["targetId"]), Digest: stringValue(target["targetDigest"]),
+			ProfileID:                          stringValue(target["capabilityProfileId"]),
+			ResolvedCapabilityDescriptorDigest: resolved,
+		})
+	}
+	repetitions, err := evaluationPlanRepetitionCounts(value["repetitionPolicy"])
+	if err != nil {
+		return "", err
+	}
+	schedule, err := buildEvaluationSchedule(cases, targets, repetitions)
+	if err != nil {
+		return "", err
+	}
+	scheduleValues := make([]any, len(schedule))
+	for index, entry := range schedule {
+		scheduleValues[index] = entry.value
+	}
+	return canonicaljson.Digest(scheduleValues)
+}
+
 func evaluationPlanProviders(raw any) (map[string]map[string]any, map[string]string, error) {
 	values, ok := raw.([]any)
 	if !ok || len(values) < 3 {
@@ -1480,6 +1525,48 @@ func validateEvaluationRepetitionPolicy(raw any, cases []evaluationPlanCase) (ma
 		return nil, errors.New("/value/repetitionPolicy/highAssuranceCaseIds drifted from the corpus")
 	}
 	return counts, nil
+}
+
+func evaluationPlanRepetitionCounts(raw any) (map[string]int, error) {
+	policy, ok := raw.(map[string]any)
+	if !ok {
+		return nil, errors.New("/value/repetitionPolicy is invalid")
+	}
+	rules, ok := policy["rules"].([]any)
+	if !ok {
+		return nil, errors.New("/value/repetitionPolicy/rules is invalid")
+	}
+	counts := map[string]int{}
+	for _, rawRule := range rules {
+		rule, ok := rawRule.(map[string]any)
+		if !ok {
+			return nil, errors.New("/value/repetitionPolicy/rules entry is invalid")
+		}
+		risk := stringValue(rule["riskClass"])
+		attempts, ok := evaluationPlanAttemptCount(rule["minimumIndependentAttempts"])
+		if !ok || risk == "" || attempts < 1 {
+			return nil, errors.New("/value/repetitionPolicy/rules entry is invalid")
+		}
+		counts[risk] = int(attempts)
+	}
+	return counts, nil
+}
+
+func evaluationPlanAttemptCount(value any) (int64, bool) {
+	if attempts, ok := safeInteger(value); ok {
+		return attempts, true
+	}
+	switch typed := value.(type) {
+	case int:
+		return int64(typed), typed >= 1
+	case int64:
+		return typed, typed >= 1
+	case json.Number:
+		parsed, err := typed.Int64()
+		return parsed, err == nil && parsed >= 1
+	default:
+		return 0, false
+	}
 }
 
 func validateEvaluationGraderPlan(raw any) error {
