@@ -127,6 +127,9 @@ func TestAgentEvaluationAttemptAuthorityV45QuarantinesLegacyWithoutSyntheticRoot
 		"bootstrap.fact_digest=NEW.source_handle_digest",
 		"bootstrap.fact_json=selected_fact",
 		"'provider-job' THEN 'provider-job-active-status'",
+		"expected_source_kind TEXT",
+		"expected_source_kind:=CASE NEW.binding_kind",
+		"native_source->>'sourceKind' IS DISTINCT FROM expected_source_kind",
 		"vault.status='active' AND vault.v45_eligible",
 		"vault.provider_state_reference_digest=",
 		"vault.seal_request_json=",
@@ -178,6 +181,9 @@ func TestAgentEvaluationAttemptAuthorityV45QuarantinesLegacyWithoutSyntheticRoot
 		if !strings.Contains(statements, fragment) {
 			t.Fatalf("v45 legacy quarantine omits %q", fragment)
 		}
+	}
+	if strings.Contains(statements, "END THEN") {
+		t.Fatal("v45 PL/pgSQL still uses ambiguous CASE ... END THEN")
 	}
 }
 
@@ -402,6 +408,8 @@ func TestAgentEvaluationOwnerStateV45UsesOneDurableCASOwner(t *testing.T) {
 		"owner_state_revision=prior_owner_state_revision+1",
 		"byte_length BETWEEN 1 AND 8388608",
 		"artifact_count>=128",
+		"artifact_max_bytes := CASE NEW.service_kind",
+		"artifact_bytes+NEW.byte_length>artifact_max_bytes",
 		"25165824",
 		"7864320",
 		"8589934592",

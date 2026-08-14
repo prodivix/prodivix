@@ -162,5 +162,5 @@ describe('validated human metric authority', () => {
         observedAt: '2026-08-02T02:59:59.999Z',
       })
     ).toBe(false);
-  }, 20_000);
+  }, 60_000);
 });

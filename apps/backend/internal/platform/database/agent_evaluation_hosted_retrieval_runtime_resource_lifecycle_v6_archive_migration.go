@@ -21,6 +21,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 			archive_base JSONB;
 			archive_value JSONB;
 			archive_digest TEXT;
+			expected_closure_kind TEXT;
 		BEGIN
 			SELECT * INTO journal_row
 			FROM agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_transport_journals
@@ -86,10 +87,16 @@ func agentEvaluationHostedRetrievalRuntimeResourceLifecycleV6ArchiveStatements()
 					OR candidate_budget_closure_projection->'settlement'<>
 						settlement_row.settlement_json
 					OR candidate_budget_closure_projection->>'settlementDigest'<>
-						settlement_row.settlement_digest
-					OR candidate_budget_closure_projection->>'closureKind'<>CASE
-						WHEN settlement_row.settlement_json->'requiresReconciliation'='true'::jsonb
-						THEN 'reconciled' ELSE 'settled' END THEN
+						settlement_row.settlement_digest THEN
+					RAISE EXCEPTION 'hosted runtime lifecycle create archive lacks exact budget closure'
+						USING ERRCODE='23514';
+				END IF;
+				expected_closure_kind:=CASE
+					WHEN settlement_row.settlement_json->'requiresReconciliation'='true'::jsonb
+					THEN 'reconciled'
+					ELSE 'settled'
+				END;
+				IF candidate_budget_closure_projection->>'closureKind'<>expected_closure_kind THEN
 					RAISE EXCEPTION 'hosted runtime lifecycle create archive lacks exact budget closure'
 						USING ERRCODE='23514';
 				END IF;

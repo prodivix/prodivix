@@ -24,6 +24,13 @@ case "${ImageOS:-}:${ImageVersion:-}" in
     expected_conmon_path='/usr/local/lib/podman/conmon'
     expected_cgroup_manager='cgroupfs'
     ;;
+  ubuntu24:20260810.271.1)
+    expected_podman_path='/usr/local/bin/podman'
+    expected_podman_version='podman version 5.8.4'
+    expected_oci_runtime_path='/usr/local/bin/crun'
+    expected_conmon_path='/usr/local/lib/podman/conmon'
+    expected_cgroup_manager='cgroupfs'
+    ;;
   *)
     fail "Rootless Podman runner image is not pre-adopted: ${ImageOS:-missing}:${ImageVersion:-missing}"
     ;;

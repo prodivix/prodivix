@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const workflowsRoot = join(repoRoot, '.github', 'workflows');
 const rootlessRegistryPath = 'scripts/ci/configure-rootless-podman.sh';
+const rootlessPullPath = 'scripts/ci/pull-rootless-podman-image.sh';
 const invocation = `bash ${rootlessRegistryPath}`;
+const pullInvocation = `bash ${rootlessPullPath}`;
 const issues = [];
 const consumers = [];
 
@@ -20,7 +22,9 @@ for (const entry of workflowEntries) {
     continue;
   }
   const source = await readFile(join(workflowsRoot, entry.name), 'utf8');
-  if (!source.includes(invocation)) continue;
+  if (!source.includes(invocation) && !source.includes(pullInvocation)) {
+    continue;
+  }
   consumers.push(entry.name);
 
   const declaredPathBlockCount = [
@@ -48,9 +52,14 @@ for (const entry of workflowEntries) {
     continue;
   }
   for (const paths of pathBlocks) {
-    if (!paths.has(rootlessRegistryPath)) {
+    if (source.includes(invocation) && !paths.has(rootlessRegistryPath)) {
       issues.push(
         `${entry.name} must trigger when ${rootlessRegistryPath} changes.`
+      );
+    }
+    if (source.includes(pullInvocation) && !paths.has(rootlessPullPath)) {
+      issues.push(
+        `${entry.name} must trigger when ${rootlessPullPath} changes.`
       );
     }
   }

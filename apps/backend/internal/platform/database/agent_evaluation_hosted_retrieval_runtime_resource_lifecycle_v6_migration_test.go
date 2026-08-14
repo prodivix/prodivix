@@ -308,10 +308,16 @@ func TestAgentEvaluationHostedRuntimeLifecycleV6BudgetRecoveryAndHealthAreCurren
 		"sealed_journal_record_digest IS NULL",
 		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archives",
 		"agent_evaluation_hosted_retrieval_runtime_resource_lifecycle_journal_archive_roots",
+		"expected_closure_kind TEXT",
+		"expected_closure_kind:=CASE",
+		"candidate_budget_closure_projection->>'closureKind'<>expected_closure_kind",
 	} {
 		if !strings.Contains(statements, fragment) {
 			t.Fatalf("lifecycle v6 budget/recovery/health is missing %q", fragment)
 		}
+	}
+	if strings.Contains(statements, "END THEN") {
+		t.Fatal("v46 PL/pgSQL still uses ambiguous CASE ... END THEN")
 	}
 }
 

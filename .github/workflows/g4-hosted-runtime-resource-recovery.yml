@@ -25,8 +25,7 @@ concurrency:
 jobs:
   discover:
     name: Discover bounded failed evaluation runs
-    runs-on: [self-hosted, linux, x64, g4-real-model-recovery]
-    environment: g4-real-model-recovery
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.sources.outputs.matrix }}
@@ -38,6 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE_REMOTE_ENABLE: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ENABLED }}
           INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id || '' }}
           INPUT_EXPECTED_PREPARE_ARTIFACT_DIGEST: ${{ inputs.expected_prepare_artifact_digest || '' }}
         run: |
@@ -52,25 +52,34 @@ jobs:
               --arg expectedPrepareArtifactDigest "${INPUT_EXPECTED_PREPARE_ARTIFACT_DIGEST}" \
               '{include:[{sourceRunId:$sourceRunId,expectedPrepareArtifactDigest:$expectedPrepareArtifactDigest}]}')"
           elif [[ "${EVENT_NAME}" = 'schedule' ]]; then
-            cutoff="$(date -u -d '9 days ago' '+%Y-%m-%dT%H:%M:%SZ')"
-            runs="$(gh api --method GET --paginate --slurp \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/g4-real-model-evaluation.yml/runs" \
-              -f status=completed \
-              -f created=">=${cutoff}" \
-              -f per_page=100)"
-            matrix="$(jq -c \
-              --arg repository "${GITHUB_REPOSITORY}" \
-              --arg cutoff "${cutoff}" \
-              '{include:([.[][]
-                | select(.head_repository.full_name == $repository)
-                | select(.path == ".github/workflows/g4-real-model-evaluation.yml")
-                | select(.status == "completed")
-                | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")
-                | select(.created_at >= $cutoff)]
-                | sort_by(.created_at, .id)
-                | .[:32]
-                | map({sourceRunId:(.id|tostring),expectedPrepareArtifactDigest:""}))}' \
-              <<< "${runs}")"
+            if [[ "${SCHEDULE_REMOTE_ENABLE}" != 'enabled' && "${SCHEDULE_REMOTE_ENABLE}" != '1' ]]; then
+              matrix='{"include":[]}'
+              {
+                echo '### Hosted runtime resource recovery'
+                echo
+                echo 'Scheduled remote recovery is configured with zero dispatch while PRODIVIX_G4_MODEL_EVAL_ENABLED is disabled.'
+              } >> "${GITHUB_STEP_SUMMARY}"
+            else
+              cutoff="$(date -u -d '9 days ago' '+%Y-%m-%dT%H:%M:%SZ')"
+              runs="$(gh api --method GET --paginate --slurp \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/g4-real-model-evaluation.yml/runs" \
+                -f status=completed \
+                -f created=">=${cutoff}" \
+                -f per_page=100)"
+              matrix="$(jq -c \
+                --arg repository "${GITHUB_REPOSITORY}" \
+                --arg cutoff "${cutoff}" \
+                '{include:([.[][]
+                  | select(.head_repository.full_name == $repository)
+                  | select(.path == ".github/workflows/g4-real-model-evaluation.yml")
+                  | select(.status == "completed")
+                  | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")
+                  | select(.created_at >= $cutoff)]
+                  | sort_by(.created_at, .id)
+                  | .[:32]
+                  | map({sourceRunId:(.id|tostring),expectedPrepareArtifactDigest:""}))}' \
+                <<< "${runs}")"
+            fi
           else
             echo '::error::Unsupported recovery trigger.'
             exit 1

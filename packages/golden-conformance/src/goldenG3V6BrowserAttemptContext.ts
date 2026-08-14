@@ -1,5 +1,8 @@
 import type { BehaviorScenarioProgram } from '@prodivix/behavior';
-import type { ExecutableProjectSnapshot } from '@prodivix/runtime-core';
+import {
+  encodeExecutableProjectSnapshotArtifact,
+  type ExecutableProjectSnapshot,
+} from '@prodivix/runtime-core';
 import {
   createVerificationAdapterRegistrySnapshot,
   type VerificationAdapterInputRef,
@@ -20,27 +23,22 @@ import type { GoldenG3V6ProductionSecurityAuthority } from './goldenG3V6Producti
 import type { GoldenG3V6RuntimeControlExpectation } from './goldenG3V6RuntimeControlEvidence';
 import { GOLDEN_G3_V6_VISUAL_BASELINE_SET_INPUT } from './goldenG3V6VisualBaseline';
 
-const snapshotLogicalSize = (snapshot: ExecutableProjectSnapshot): number =>
-  snapshot.files.reduce(
-    (total, file) =>
-      total +
-      (typeof file.contents === 'string'
-        ? new TextEncoder().encode(file.contents).byteLength
-        : file.contents.byteLength),
-    1
-  );
-
-const executableSnapshotRef = (
+const executableSnapshotInput = (
   snapshot: ExecutableProjectSnapshot,
   attemptId: string
-): VerificationAdapterInputRef =>
-  Object.freeze({
-    id: `input:executable:${attemptId.slice('attempt:g3-v6:'.length)}`,
-    kind: 'executable-snapshot',
-    digest: snapshot.contentDigest,
-    size: snapshotLogicalSize(snapshot),
-    mediaType: 'application/vnd.prodivix.executable-project-snapshot',
+): Readonly<{ ref: VerificationAdapterInputRef; bytes: Uint8Array }> => {
+  const artifact = encodeExecutableProjectSnapshotArtifact(snapshot);
+  return Object.freeze({
+    ref: Object.freeze({
+      id: `input:executable:${attemptId.slice('attempt:g3-v6:'.length)}`,
+      kind: 'executable-snapshot',
+      digest: artifact.artifactDigest,
+      size: artifact.size,
+      mediaType: artifact.mediaType,
+    }),
+    bytes: artifact.bytes,
   });
+};
 
 export type GoldenG3V6BrowserAttemptContextMaterial = Readonly<{
   context: VerificationAdapterLifecycleContext;
@@ -62,7 +60,10 @@ export const createGoldenG3V6BrowserAttemptContext = (input: {
   artifactStaging: VerificationAdapterLifecycleContext['artifactStaging'];
   securityAuthority?: GoldenG3V6ProductionSecurityAuthority;
 }): GoldenG3V6BrowserAttemptContextMaterial => {
-  const executableRef = executableSnapshotRef(input.snapshot, input.attemptId);
+  const executableInput = executableSnapshotInput(
+    input.snapshot,
+    input.attemptId
+  );
   const programInput = createBrowserScenarioProgramInputRef(
     `input:program:${input.attemptId.slice('attempt:g3-v6:'.length)}`,
     input.program
@@ -119,6 +120,7 @@ export const createGoldenG3V6BrowserAttemptContext = (input: {
   );
   const byteEntries: Array<readonly [VerificationAdapterInputRef, Uint8Array]> =
     [
+      [executableInput.ref, executableInput.bytes],
       [programInput.ref, programInput.bytes],
       [profileInput.ref, profileInput.bytes],
     ];
@@ -159,7 +161,6 @@ export const createGoldenG3V6BrowserAttemptContext = (input: {
       input.runtimeControl.controlCapabilitySnapshotDigest,
     appliedControlDigest: input.runtimeControl.appliedControlDigest,
     inputRefs: Object.freeze([
-      executableRef,
       ...byteEntries.map(([ref]) => ref),
     ]),
     inputResolver: Object.freeze({

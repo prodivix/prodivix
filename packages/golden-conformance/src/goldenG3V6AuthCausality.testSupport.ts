@@ -605,19 +605,20 @@ const startProjectedProject = async (
     try {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
       if (url.pathname === '/__prodivix-golden-host.html') {
+        const payload = Buffer.from(
+          GOLDEN_G3_V6_RUNTIME_CONTROL_HOST_DOCUMENT,
+          'utf8'
+        );
         response.writeHead(200, {
           'cache-control': 'no-store',
+          'content-length': payload.byteLength,
           'content-security-policy':
             GOLDEN_BROWSER_RESPONSE_POLICIES.contentSecurityPolicy,
           'content-type': 'text/html; charset=utf-8',
           'permissions-policy':
             GOLDEN_BROWSER_RESPONSE_POLICIES.permissionsPolicy,
         });
-        response.end(
-          request.method === 'HEAD'
-            ? undefined
-            : GOLDEN_G3_V6_RUNTIME_CONTROL_HOST_DOCUMENT
-        );
+        response.end(request.method === 'HEAD' ? undefined : payload);
         return;
       }
       let decodedPath = '';
@@ -629,6 +630,7 @@ const startProjectedProject = async (
       const file = files.get(decodedPath) ?? entry;
       response.writeHead(200, {
         'cache-control': 'no-store',
+        'content-length': file.contents.byteLength,
         'content-security-policy':
           GOLDEN_BROWSER_RESPONSE_POLICIES.contentSecurityPolicy,
         'content-type': contentTypeFor(file.path),

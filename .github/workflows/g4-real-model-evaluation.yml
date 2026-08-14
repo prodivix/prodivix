@@ -1662,7 +1662,6 @@ jobs:
       PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST }}
       PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_ROLE: prepare
       PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_OWNER_INSTANCE_ID: g4.hosted-lifecycle.${{ github.run_id }}.${{ github.run_attempt }}
-      PRODIVIX_G4_MODEL_EVAL_FROZEN_CONFIG_COMMITMENT_PATH: ${{ runner.temp }}/g4-hosted-runtime-resource-prepare/frozen-config-commitment.json
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -1675,6 +1674,12 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${PRODIVIX_G4_MODEL_EVAL_REPOSITORY_COMMIT}"
           test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Bind prepare frozen config commitment path
+        shell: bash
+        run: |
+          set -euo pipefail
+          commitment_path="${RUNNER_TEMP}/g4-hosted-runtime-resource-prepare/frozen-config-commitment.json"
+          printf '%s\n' "PRODIVIX_G4_MODEL_EVAL_FROZEN_CONFIG_COMMITMENT_PATH=${commitment_path}" >> "${GITHUB_ENV}"
       - name: Set up pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
       - name: Set up Node.js
@@ -2804,7 +2809,6 @@ jobs:
       PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST }}
       PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_ROLE: cleanup
       PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_OWNER_INSTANCE_ID: g4.hosted-lifecycle.${{ github.run_id }}.${{ github.run_attempt }}
-      PRODIVIX_G4_MODEL_EVAL_FROZEN_CONFIG_COMMITMENT_PATH: ${{ runner.temp }}/g4-hosted-runtime-resource-cleanup/input/frozen-config-commitment.json
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -2817,6 +2821,12 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${PRODIVIX_G4_MODEL_EVAL_REPOSITORY_COMMIT}"
           test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Bind cleanup frozen config commitment path
+        shell: bash
+        run: |
+          set -euo pipefail
+          commitment_path="${RUNNER_TEMP}/g4-hosted-runtime-resource-cleanup/input/frozen-config-commitment.json"
+          printf '%s\n' "PRODIVIX_G4_MODEL_EVAL_FROZEN_CONFIG_COMMITMENT_PATH=${commitment_path}" >> "${GITHUB_ENV}"
       - name: Set up pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
       - name: Set up Node.js
@@ -3060,7 +3070,6 @@ jobs:
       PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ENVIRONMENT_DIGEST }}
       PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_ROLE: recovery
       PRODIVIX_G4_MODEL_EVAL_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_OWNER_INSTANCE_ID: g4.hosted-lifecycle.${{ github.run_id }}.${{ github.run_attempt }}
-      PRODIVIX_G4_MODEL_EVAL_FROZEN_CONFIG_COMMITMENT_PATH: ${{ runner.temp }}/g4-hosted-runtime-resource-recovery/frozen-config-commitment.json
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -3073,6 +3082,12 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${PRODIVIX_G4_MODEL_EVAL_REPOSITORY_COMMIT}"
           test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Bind recovery frozen config commitment path
+        shell: bash
+        run: |
+          set -euo pipefail
+          commitment_path="${RUNNER_TEMP}/g4-hosted-runtime-resource-recovery/frozen-config-commitment.json"
+          printf '%s\n' "PRODIVIX_G4_MODEL_EVAL_FROZEN_CONFIG_COMMITMENT_PATH=${commitment_path}" >> "${GITHUB_ENV}"
       - name: Set up pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
       - name: Set up Node.js

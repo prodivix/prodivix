@@ -67,6 +67,7 @@ on:
       - 'scripts/check-g3-*.mjs'
       - 'scripts/create-g3-ci-job-context.mjs'
       - 'scripts/ci/configure-rootless-podman.sh'
+      - 'scripts/ci/pull-rootless-podman-image.sh'
       - 'scripts/g3-verification-canonical-vector.mjs'
       - 'scripts/sync-g3-wire-contracts.mjs'
       - 'scripts/verify-g3-evidence-postgres.mjs'
@@ -150,6 +151,7 @@ on:
       - 'scripts/check-g3-*.mjs'
       - 'scripts/create-g3-ci-job-context.mjs'
       - 'scripts/ci/configure-rootless-podman.sh'
+      - 'scripts/ci/pull-rootless-podman-image.sh'
       - 'scripts/g3-verification-canonical-vector.mjs'
       - 'scripts/sync-g3-wire-contracts.mjs'
       - 'scripts/verify-g3-evidence-postgres.mjs'
@@ -364,7 +366,7 @@ jobs:
           set -euo pipefail
           base_image="docker.io/library/node:22.23.1-bookworm-slim"
           image_tag="localhost/prodivix-g3-v6-controlled-static:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          podman pull "${base_image}"
+          bash scripts/ci/pull-rootless-podman-image.sh "${base_image}"
           base_digest="$(podman image inspect --format '{{.Digest}}' "${base_image}")"
           test "${base_digest#sha256:}" != "${base_digest}"
           podman build \
@@ -480,7 +482,7 @@ jobs:
           set -euo pipefail
           base_image="docker.io/library/node:22.23.1-bookworm-slim"
           image_tag="localhost/prodivix-g3-v8-controlled-static:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          podman pull "${base_image}"
+          bash scripts/ci/pull-rootless-podman-image.sh "${base_image}"
           base_digest="$(podman image inspect --format '{{.Digest}}' "${base_image}")"
           test "${base_digest#sha256:}" != "${base_digest}"
           podman build \

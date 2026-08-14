@@ -112,6 +112,34 @@ const repositoryDigest = async (reference: string): Promise<string> => {
   return digest;
 };
 
+const ensureBaseImage = async (reference: string): Promise<void> => {
+  try {
+    await immutableImageId(reference);
+    return;
+  } catch {
+    // A clean runner reaches this branch; a workflow-level pre-pull avoids a
+    // second registry request when the image is already locally attested.
+  }
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await command(['pull', reference]);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        await new Promise((resolveDelay) =>
+          setTimeout(resolveDelay, attempt * 5_000)
+        );
+      }
+    }
+  }
+  throw new AggregateError(
+    lastError === undefined ? [] : [lastError],
+    `Rootless sandbox base image pull failed after three bounded attempts: ${reference}.`
+  );
+};
+
 const probeSource = String.raw`
 import fs from 'node:fs';
 import net from 'node:net';
@@ -1105,7 +1133,7 @@ const assertProbe = (value: unknown): void => {
 };
 
 await verifyRootlessPodmanEngine(podman);
-await command(['pull', baseImage]);
+await ensureBaseImage(baseImage);
 const baseDigest = await repositoryDigest(baseImage);
 const baseRepository = baseImage.includes('@')
   ? baseImage.slice(0, baseImage.indexOf('@'))

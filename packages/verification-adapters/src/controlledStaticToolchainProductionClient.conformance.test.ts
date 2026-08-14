@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setTimeout as wait } from 'node:timers/promises';
 import {
   createExecutableProjectSnapshot,
   type ExecutableProjectSnapshot,
@@ -141,20 +142,38 @@ describe('controlled static toolchain production client conformance', () => {
         'utf8'
       );
       const startedAt = Date.now();
-      await expect(
-        runControlledStaticToolchainProduction({
-          repositoryRoot,
-          snapshot: snapshot(),
-          timeoutMs: 1_000,
-        })
-      ).rejects.toThrow(/timed out/u);
+      const execution = runControlledStaticToolchainProduction({
+        repositoryRoot,
+        snapshot: snapshot(),
+        timeoutMs: 5_000,
+      });
+      const timedOut = expect(execution).rejects.toThrow(/timed out/u);
+      let processIds:
+        | Readonly<{ parent: number; descendant: number }>
+        | undefined;
+      const pidDeadline = startedAt + 4_500;
+      while (!processIds && Date.now() < pidDeadline) {
+        try {
+          processIds = JSON.parse(await readFile(pidPath, 'utf8')) as Readonly<{
+            parent: number;
+            descendant: number;
+          }>;
+        } catch (error) {
+          if (
+            !(error instanceof Error) ||
+            !('code' in error) ||
+            error.code !== 'ENOENT'
+          ) {
+            throw error;
+          }
+          await wait(25);
+        }
+      }
+      expect(processIds).toBeDefined();
+      await timedOut;
       expect(Date.now() - startedAt).toBeLessThanOrEqual(
-        1_000 + CONTROLLED_STATIC_TOOLCHAIN_CLEANUP_TIMEOUT_MS + 1_000
+        5_000 + CONTROLLED_STATIC_TOOLCHAIN_CLEANUP_TIMEOUT_MS + 1_000
       );
-      const processIds = JSON.parse(await readFile(pidPath, 'utf8')) as {
-        parent: number;
-        descendant: number;
-      };
       const alive = (pid: number): boolean => {
         try {
           process.kill(pid, 0);
@@ -163,10 +182,10 @@ describe('controlled static toolchain production client conformance', () => {
           return false;
         }
       };
-      expect(alive(processIds.parent)).toBe(false);
-      expect(alive(processIds.descendant)).toBe(false);
+      expect(alive(processIds!.parent)).toBe(false);
+      expect(alive(processIds!.descendant)).toBe(false);
     } finally {
       await rm(repositoryRoot, { recursive: true, force: true });
     }
-  }, 15_000);
+  }, 20_000);
 });

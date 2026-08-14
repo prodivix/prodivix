@@ -14,6 +14,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'scripts/ci/configure-rootless-podman.sh'
+      - 'scripts/ci/pull-rootless-podman-image.sh'
       - 'tsconfig*.json'
       - '.github/workflows/g2-rootless-sandbox.yml'
   push:
@@ -28,6 +29,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'scripts/ci/configure-rootless-podman.sh'
+      - 'scripts/ci/pull-rootless-podman-image.sh'
       - 'tsconfig*.json'
       - '.github/workflows/g2-rootless-sandbox.yml'
 
@@ -110,7 +112,7 @@ jobs:
           proxy_image="localhost/prodivix-install-proxy:gate"
 
           base_image="docker.io/library/node:22-bookworm-slim"
-          podman pull "${base_image}"
+          bash scripts/ci/pull-rootless-podman-image.sh "${base_image}"
           base_digest="$(podman image inspect --format '{{.Digest}}' "${base_image}")"
           podman build \
             --pull=never \

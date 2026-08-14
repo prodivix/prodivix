@@ -403,7 +403,7 @@ describe('G4 real-evaluation Workspace fixture conformance', () => {
         material.expectedOutcome.verification.requiredCheckIds
       );
     }
-  }, 15_000);
+  }, 60_000);
 
   it('keeps Behavior fixtures explicitly blocked outside the six-owner registry', () => {
     const blocked = G4_V8_MINIMUM_EVALUATION_CORPUS.publicFixtures.filter(

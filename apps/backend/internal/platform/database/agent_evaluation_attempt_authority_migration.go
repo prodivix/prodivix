@@ -1044,6 +1044,7 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 				operation_staged_at TIMESTAMPTZ;
 				artifact_count BIGINT;
 				artifact_bytes BIGINT;
+				artifact_max_bytes BIGINT;
 			BEGIN
 				IF TG_OP<>'INSERT' THEN
 					RAISE EXCEPTION 'evaluation owner-state CAS artifacts are immutable'
@@ -1104,9 +1105,11 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 					AND stored.service_kind=NEW.service_kind
 					AND stored.owner_state_id=NEW.owner_state_id
 					AND stored.artifact_ref<>NEW.artifact_ref;
-				IF artifact_count>=128
-					OR artifact_bytes+NEW.byte_length>
-						CASE NEW.service_kind WHEN 'controlled-workspace' THEN 25165824 ELSE 7864320 END THEN
+				artifact_max_bytes := CASE NEW.service_kind
+					WHEN 'controlled-workspace' THEN 25165824
+					ELSE 7864320
+				END;
+				IF artifact_count>=128 OR artifact_bytes+NEW.byte_length>artifact_max_bytes THEN
 					RAISE EXCEPTION 'evaluation owner-state CAS capacity is exceeded'
 						USING ERRCODE = '23514';
 				END IF;
@@ -5604,6 +5607,7 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 				native_probe_program_digest TEXT;
 				native_capability_profile_digest TEXT;
 				vault_count BIGINT;
+				expected_source_kind TEXT;
 			BEGIN
 				SELECT * INTO ref
 				FROM agent_evaluation_capability_effect_request_ref_authorities
@@ -5771,10 +5775,12 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 									selected_fact->'value'
 							FOR SHARE
 						) candidate;
+						expected_source_kind:=CASE NEW.binding_kind
+							WHEN 'provider-job' THEN 'provider-job-active-status'
+							ELSE 'provider-stored-continuation'
+						END;
 						IF bootstrap_count<>1
-							OR native_source->>'sourceKind' IS DISTINCT FROM CASE NEW.binding_kind
-								WHEN 'provider-job' THEN 'provider-job-active-status'
-								ELSE 'provider-stored-continuation' END THEN
+							OR native_source->>'sourceKind' IS DISTINCT FROM expected_source_kind THEN
 							RAISE EXCEPTION 'capability-effect stateful registry lacks one exact active native source'
 								USING ERRCODE='23514';
 						END IF;

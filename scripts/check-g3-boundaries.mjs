@@ -137,6 +137,7 @@ for (const token of [
   '    needs: [adapter-matrix, product]',
   '    runs-on: ubuntu-24.04',
   'scripts/ci/configure-rootless-podman.sh',
+  'scripts/ci/pull-rootless-podman-image.sh',
   'test:g3-v6-browser-image-authority',
   'PRODIVIX_G3_V8_MANIFEST_PATH',
   '        run: pnpm run verify:g3:golden',

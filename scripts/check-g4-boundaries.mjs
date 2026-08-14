@@ -1534,6 +1534,7 @@ for (const token of [
   "- 'packages/verification-browser/**'",
   "- 'packages/workspace-sync/**'",
   "- 'scripts/ci/configure-rootless-podman.sh'",
+  "- 'scripts/ci/pull-rootless-podman-image.sh'",
   "- 'scripts/g4-agent-closure-canonical-vector.mjs'",
   "- 'scripts/g4-agent-evaluation-human-authority-vector.mjs'",
   "- 'scripts/g4-agent-verification-canonical-vector.mjs'",
@@ -1557,6 +1558,7 @@ for (const token of [
   'image: postgres:16',
   "PRODIVIX_G4_REMOTE_MODEL_UNITS: '0'",
   'run: bash scripts/ci/configure-rootless-podman.sh',
+  'bash scripts/ci/pull-rootless-podman-image.sh',
   'run: pnpm run build:g2-golden-dependencies',
   'PRODIVIX_ROOTLESS_INSTALL_NETWORK',
   'apps/remote-runner-worker/install-proxy/Dockerfile',
@@ -1595,6 +1597,8 @@ for (const triggerPath of [
   "- 'scripts/verify-g4-native-provider-state-vault-health.test.mjs'",
   "- 'scripts/verify-g4-native-provider-state-vault-recovery.mjs'",
   "- 'scripts/verify-g4-native-provider-state-vault-recovery.test.mjs'",
+  "- 'scripts/ci/configure-rootless-podman.sh'",
+  "- 'scripts/ci/pull-rootless-podman-image.sh'",
   "- 'specs/evaluation/**'",
   "- 'specs/operations/g4-real-model-evaluation.md'",
 ]) {
@@ -4596,6 +4600,15 @@ if (
   !hostedRuntimeResourceRecoveryWorkflowSource.includes('actions: read') ||
   !hostedRuntimeResourceRecoveryWorkflowSource.includes('contents: read') ||
   /:\s*write\b/u.test(hostedRuntimeResourceRecoveryWorkflowSource) ||
+  !recoveryOnlyDiscoverJob.includes('runs-on: ubuntu-24.04') ||
+  recoveryOnlyDiscoverJob.includes('environment: g4-real-model-recovery') ||
+  !recoveryOnlyDiscoverJob.includes(
+    'SCHEDULE_REMOTE_ENABLE: ${{ vars.PRODIVIX_G4_MODEL_EVAL_ENABLED }}'
+  ) ||
+  !recoveryOnlyDiscoverJob.includes(
+    'Scheduled remote recovery is configured with zero dispatch while PRODIVIX_G4_MODEL_EVAL_ENABLED is disabled.'
+  ) ||
+  !recoveryOnlyDiscoverJob.includes('matrix=\'{"include":[]}\'') ||
   !hostedRuntimeResourceRecoveryWorkflowSource.includes(
     'runs-on: [self-hosted, linux, x64, g4-real-model-recovery]'
   ) ||

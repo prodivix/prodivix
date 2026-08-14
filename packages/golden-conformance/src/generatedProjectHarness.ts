@@ -24,6 +24,7 @@ import {
   type GoldenGeneratedProjectBundle,
   type GoldenPreparedProjectToolchainEvidence,
 } from './generatedProjectToolchain';
+import { GOLDEN_G3_V6_RUNTIME_CONTROL_HOST_DOCUMENT } from './goldenG3V6RuntimeControlBindings';
 
 export {
   observeGoldenBrowserEngineVersions,
@@ -200,17 +201,20 @@ const startGoldenStaticServer = async (
         return;
       }
       if (requestUrl.pathname === '/__prodivix-golden-host.html') {
+        const payload = Buffer.from(
+          GOLDEN_G3_V6_RUNTIME_CONTROL_HOST_DOCUMENT,
+          'utf8'
+        );
         response.writeHead(200, {
           'cache-control': 'no-store',
+          'content-length': payload.byteLength,
           'content-security-policy':
             GOLDEN_BROWSER_HOST_CONTENT_SECURITY_POLICY,
           'content-type': 'text/html; charset=utf-8',
           'permissions-policy':
             GOLDEN_BROWSER_RESPONSE_POLICIES.permissionsPolicy,
         });
-        response.end(
-          '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'
-        );
+        response.end(request.method === 'HEAD' ? undefined : payload);
         return;
       }
       const payload = await readGoldenStaticResponse(
@@ -225,6 +229,7 @@ const startGoldenStaticServer = async (
         ] ?? 'application/octet-stream';
       response.writeHead(200, {
         'cache-control': 'no-store',
+        'content-length': payload.contents.byteLength,
         'content-security-policy':
           GOLDEN_BROWSER_RESPONSE_POLICIES.contentSecurityPolicy,
         'content-type': contentType,
