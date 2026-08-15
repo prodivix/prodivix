@@ -323,6 +323,7 @@ func persistGoldenProviderResourceAuthority(
 	response := map[string]any{
 		"format": evaluationCapabilityProbeProviderResourceRegistrationResponseFormat, "version": int64(1),
 		"requestDigest": request.RequestDigest, "resultDigest": result.ResultDigest,
+		"providerResourceAuthority": result.ProviderResourceAuthority,
 	}
 	responseBytes, err := canonicaljson.Bytes(response)
 	if err != nil {
