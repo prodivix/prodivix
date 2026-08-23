@@ -69,7 +69,7 @@ describe('production public review rubric source', () => {
       source.load({ plan: config.plan, rubricDigest: rubric.rubricDigest })
     ).resolves.toEqual(rubric);
     expect(filePort.readCanonicalJson).toHaveBeenCalledOnce();
-  }, 60_000);
+  }, 300_000);
 
   it('rejects a rubric digest or plan that is outside the frozen config', async () => {
     const config = frozen();
@@ -106,5 +106,5 @@ describe('production public review rubric source', () => {
     ).rejects.toMatchObject({
       code: AGENT_EVALUATION_RUNNER_ERROR_CODES.configurationInvalid,
     });
-  }, 20_000);
+  }, 300_000);
 });

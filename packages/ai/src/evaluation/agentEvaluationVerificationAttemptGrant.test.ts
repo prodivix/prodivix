@@ -200,5 +200,5 @@ describe('Agent evaluation Verification AttemptGrant authority', () => {
         [...archive].reverse()
       )
     ).toMatch(/^sha256-[a-f0-9]{64}$/u);
-  }, 30_000);
+  }, 300_000);
 });

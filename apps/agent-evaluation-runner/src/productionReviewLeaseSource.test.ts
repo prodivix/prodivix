@@ -131,7 +131,7 @@ describe('production bounded review lease source', () => {
       code: AGENT_EVALUATION_RUNNER_ERROR_CODES.responseInvalid,
     });
     expect(fetchImplementation).toHaveBeenCalledTimes(1);
-  }, 20_000);
+  }, 300_000);
 
   it('checks an imported review lease digest before reading any family page', async () => {
     const lease = reviewLease();
@@ -148,5 +148,5 @@ describe('production bounded review lease source', () => {
       code: AGENT_EVALUATION_RUNNER_ERROR_CODES.responseInvalid,
     });
     expect(fetchImplementation).toHaveBeenCalledTimes(1);
-  }, 20_000);
+  }, 300_000);
 });

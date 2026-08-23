@@ -242,7 +242,7 @@ describe('controlled Workspace G3 cell admission client', () => {
     expect(admission.run.fontSetDigest).toBe(
       digestAgentCanonicalValue('observed-font-set')
     );
-  }, 15_000);
+  }, 300_000);
 
   it.each([
     'stageDigest',

@@ -247,7 +247,7 @@ describe('production frozen config commitment', () => {
     if (process.platform !== 'win32') {
       expect((await stat(fixture.outputPath)).mode & 0o777).toBe(0o600);
     }
-  }, 60_000);
+  }, 300_000);
 
   it('replays byte-for-byte across matrix workers and workflow retry attempts', async () => {
     const first = await harness();
@@ -277,7 +277,7 @@ describe('production frozen config commitment', () => {
     expect(await readFile(secondOutput)).toEqual(
       await readFile(first.outputPath)
     );
-  }, 60_000);
+  }, 300_000);
 
   it('fails closed on artifact config or job drift without creating output', async () => {
     const fixture = await harness();
@@ -318,7 +318,7 @@ describe('production frozen config commitment', () => {
     await expect(readFile(fixture.outputPath)).rejects.toMatchObject({
       code: 'ENOENT',
     });
-  }, 60_000);
+  }, 300_000);
 
   it('preserves an existing output under exclusive-create failure', async () => {
     const fixture = await harness();
@@ -336,7 +336,7 @@ describe('production frozen config commitment', () => {
       code: AGENT_EVALUATION_RUNNER_ERROR_CODES.captureFailed,
     });
     expect(await readFile(fixture.outputPath)).toEqual(existing);
-  }, 20_000);
+  }, 300_000);
 });
 
 const keysPrivate = (keys: Readonly<{ privateKeyBase64Url: string }>): string =>

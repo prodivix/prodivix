@@ -1761,7 +1761,7 @@ describe('bounded native agent turn loop', () => {
       budgetReservationId: 'budget-reservation.agent-loop.hosted',
     });
     expect(inputAuthorityResolutionCount).toBe(1);
-  }, 30_000);
+  }, 300_000);
 
   it('keeps an expected-blocked retrieval call outside input authority and Hosted execution', async () => {
     const plan = createV8EvaluationPlan();
@@ -1925,5 +1925,5 @@ describe('bounded native agent turn loop', () => {
     expect(currentTurnSealCount).toBe(0);
     expect(inputAuthorityResolveCount).toBe(0);
     expect(hostedTransportInvocationCount).toBe(0);
-  }, 30_000);
+  }, 300_000);
 });

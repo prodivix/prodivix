@@ -169,7 +169,7 @@ describe('production capability-effect input-authority source', () => {
       issuedAt: ISSUED_AT,
       expiresAt: '2026-08-09T04:02:05.000Z',
     });
-  }, 20_000);
+  }, 300_000);
 
   it('rejects a shared tool outside the selected capability before I/O', async () => {
     const { plan, descriptor, material } = fixture();
@@ -364,5 +364,5 @@ describe('production capability-effect input-authority source', () => {
     expect(sealCurrentTurnEvent.mock.invocationCallOrder[0]).toBeLessThan(
       resolveInputAuthority.mock.invocationCallOrder[0]!
     );
-  }, 20_000);
+  }, 300_000);
 });

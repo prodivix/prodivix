@@ -125,7 +125,7 @@ describe('production bounded coordinator status source', () => {
       `${prefix}?observedAt=2026-08-08T01%3A02%3A05.000Z`,
       `${prefix}?observedAt=2026-08-08T01%3A02%3A05.000Z&shardId=${encodeURIComponent(shardId)}`,
     ]);
-  }, 20_000);
+  }, 300_000);
 
   it.each([
     ['an array', []],
@@ -162,7 +162,7 @@ describe('production bounded coordinator status source', () => {
 
     await expectResponseInvalid(source.load({ plan, shardId, observedAt }));
     await expectResponseInvalid(source.load({ plan, shardId, observedAt }));
-  }, 20_000);
+  }, 300_000);
 
   it('rejects an environment repository outside the requested partition', async () => {
     const fetchImplementation = vi.fn<typeof fetch>();

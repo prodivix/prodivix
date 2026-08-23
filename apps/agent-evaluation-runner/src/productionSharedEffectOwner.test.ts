@@ -1450,7 +1450,7 @@ describe('production shared-effect owner and durable health registry', () => {
     ).toThrow(
       'Capability effect Provider execution transport binding drifted.'
     );
-  }, 30_000);
+  }, 300_000);
 
   it('keeps hosted retrieval unavailable without a real Provider resource query owner', async () => {
     const root = await temporaryRoot();

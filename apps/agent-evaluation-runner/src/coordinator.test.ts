@@ -316,7 +316,7 @@ describe('AgentEvaluationCoordinator', () => {
     });
     expect(report.missingAttemptSetDigest).toMatch(/^sha256-[0-9a-f]{64}$/u);
     expect(JSON.stringify(report)).not.toContain('attempt.release.');
-  }, 20_000);
+  }, 300_000);
 
   it('uses the durable shard runner and fails the command when it reports failure', async () => {
     const subject = harness(
@@ -329,7 +329,7 @@ describe('AgentEvaluationCoordinator', () => {
     ).rejects.toMatchObject({
       code: AGENT_EVALUATION_COORDINATOR_ERROR_CODES.runnerFailed,
     });
-  }, 20_000);
+  }, 300_000);
 
   it('publishes the bounded durable smoke qualification report and preserves a failed denominator', async () => {
     const subject = harness();

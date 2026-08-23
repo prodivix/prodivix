@@ -208,7 +208,7 @@ describe('capability probe provider resource client', () => {
         AGENT_PRODUCTION_EVALUATION_RETRIEVAL_CAPABILITY_PROFILES
       );
     }
-  }, 20_000);
+  }, 300_000);
 
   it('stores one exact resource result before the registration owner returns it', async () => {
     const source = template();

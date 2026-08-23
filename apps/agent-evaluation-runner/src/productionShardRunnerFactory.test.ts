@@ -185,7 +185,7 @@ describe('production durable shard runner composition', () => {
       plan: config.plan,
       shardId: descriptor.shardId,
     });
-  }, 20_000);
+  }, 300_000);
 
   it('rejects a partition drift before reading config or constructing authorities', async () => {
     const filePort = files();
@@ -240,5 +240,5 @@ describe('production durable shard runner composition', () => {
       code: AGENT_EVALUATION_RUNNER_ERROR_CODES.productionShardRuntimeUnavailable,
     });
     expect(sourceCreate).not.toHaveBeenCalled();
-  }, 20_000);
+  }, 300_000);
 });

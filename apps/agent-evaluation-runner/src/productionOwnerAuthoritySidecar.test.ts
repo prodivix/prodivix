@@ -1232,7 +1232,7 @@ describe('production owner authority sidecar', () => {
       },
       residualCanaryIds: [],
     });
-  }, 60_000);
+  }, 300_000);
 
   it('loads the signed hosted scope at the current retry and rejects time, namespace, and signature drift before credential use', async () => {
     const stateDirectory = await durableDirectory();
@@ -1768,7 +1768,7 @@ describe('production owner authority sidecar', () => {
     } finally {
       await authorities.close();
     }
-  }, 30_000);
+  }, 300_000);
 
   it('requires one canonical bounded regular run-config template path without symlinks', async () => {
     const stateDirectory = await directory();

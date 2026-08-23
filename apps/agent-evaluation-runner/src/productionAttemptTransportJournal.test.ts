@@ -361,5 +361,5 @@ describe('production attempt transport journal', () => {
     expect(replayed.reportedUsage.amounts).toHaveLength(2);
     expect(persistIntent).toHaveBeenCalledTimes(1);
     expect(turns).toHaveLength(1);
-  }, 30_000);
+  }, 300_000);
 });

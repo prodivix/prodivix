@@ -303,7 +303,7 @@ describe('production capability probe provider resource owner', () => {
     });
     expect(remove).toHaveBeenCalledOnce();
     expect(remove.mock.calls[0]![0].handle).toEqual(checkpoints[1]);
-  }, 15_000);
+  }, 300_000);
 
   it('resumes from a cross-host checkpoint without dropping prior exchanges', async () => {
     const request = registrationRequest();

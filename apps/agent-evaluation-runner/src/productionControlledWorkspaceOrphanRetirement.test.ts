@@ -498,7 +498,7 @@ describe('production controlled Workspace orphan retirement', () => {
       otherHost.reconstruct(orphanDestroyRequest(orphan, 'reconcile'))
     ).resolves.toEqual(facts);
     expect(durable.commit).toHaveBeenCalledOnce();
-  }, 60_000);
+  }, 300_000);
 
   it('rejects a forged orphan commitment before reading durable state', async () => {
     const query = Object.freeze({

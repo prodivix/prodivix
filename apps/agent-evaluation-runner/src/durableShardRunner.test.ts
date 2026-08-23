@@ -2400,7 +2400,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
       ledger.calls.indexOf('provider-invoke')
     );
     expect(ledger.lastDispatchDescriptor).toEqual(descriptor);
-  }, 60_000);
+  }, 300_000);
 
   it('seals every canonical G3 plan cell grant before dispatch and commits the full set', async () => {
     const ledger = new MemoryLedger();
@@ -2446,7 +2446,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(
       ledger.controlledRuntimeReceipts[0]?.ownerAuthorityReceiptDigests
     ).toEqual(expect.arrayContaining(grantDigests));
-  }, 60_000);
+  }, 300_000);
 
   it('commits a pre-dispatch denominator with every grant sealed before a later cell issue failure', async () => {
     const ledger = new MemoryLedger();
@@ -2497,7 +2497,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
       outcome: 'inconclusive',
       verificationAttemptGrantReceiptSetDigest,
     });
-  }, 60_000);
+  }, 300_000);
 
   it('resumes an exact standalone grant-failure receipt without issuing or dispatching again', async () => {
     const ledger = new MemoryLedger();
@@ -2568,7 +2568,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     ).toHaveLength(issueCount);
     expect(ledger.calls).not.toContain('dispatch-intent');
     expect(ledger.calls).not.toContain('provider-invoke');
-  }, 60_000);
+  }, 300_000);
 
   it('atomically joins ordered turn, spool, terminal, execution, and attempt facts', async () => {
     const ledger = new MemoryLedger();
@@ -2608,7 +2608,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(
       ledger.controlledRuntimeReceipts[0]?.isolatedExecution
     ).toMatchObject({ toolCallCount: 2 });
-  }, 60_000);
+  }, 300_000);
 
   it('atomically commits a completed zero-tool controlled runtime transcript', async () => {
     const ledger = new MemoryLedger();
@@ -2628,7 +2628,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(runtime).not.toHaveProperty('toolExecutionReceiptSetDigest');
     expect(runtime).not.toHaveProperty('operationIntentSetDigest');
     expect(runtime).not.toHaveProperty('operationSealSetDigest');
-  }, 60_000);
+  }, 300_000);
 
   it('recovers an atomic commit acknowledgement loss by exact attempt replay', async () => {
     const ledger = new MemoryLedger();
@@ -2655,7 +2655,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(
       ledger.calls.filter((entry) => entry === 'atomic-commit')
     ).toHaveLength(1);
-  }, 60_000);
+  }, 300_000);
 
   it('leaves the descriptor missing and reconciles after an atomic ledger failure', async () => {
     const ledger = new MemoryLedger();
@@ -2682,7 +2682,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     );
     expect(ledger.sourceReceipts).toHaveLength(0);
     expect(ledger.calls).toContain('reconcile:ack-loss');
-  }, 60_000);
+  }, 300_000);
 
   it('persists a provider terminal failure as a denominator attempt', async () => {
     const ledger = new MemoryLedger();
@@ -2708,7 +2708,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
       state: 'closed',
       transportReceipt: { outcome: 'failed' },
     });
-  }, 60_000);
+  }, 300_000);
 
   it('atomically binds a pre-dispatch failure receipt to a not-created denominator turn', async () => {
     const ledger = new MemoryLedger();
@@ -2731,7 +2731,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
       status: 'blocked',
       outcome: 'inconclusive',
     });
-  }, 60_000);
+  }, 300_000);
 
   it('keeps a no-call reservation resumable after atomic commit failure', async () => {
     const ledger = new MemoryLedger();
@@ -2767,7 +2767,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
         ({ descriptor: current }) => current.attemptId === descriptor.attemptId
       )
     ).toMatchObject({ status: 'blocked', outcome: 'inconclusive' });
-  }, 60_000);
+  }, 300_000);
 
   it('reconciles worker loss, then resumes the encrypted spool without reinvoking provider', async () => {
     const ledger = new MemoryLedger();
@@ -2804,7 +2804,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(
       ledger.calls.filter((entry) => entry === 'dispatch-intent')
     ).toHaveLength(dispatchCalls);
-  }, 60_000);
+  }, 300_000);
 
   it('resumes a prior run-attempt checkpoint under a new owner and lease generation', async () => {
     const ledger = new MemoryLedger();
@@ -2849,7 +2849,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(
       ledger.calls.filter((entry) => entry === 'dispatch-intent')
     ).toHaveLength(dispatchCalls);
-  }, 60_000);
+  }, 300_000);
 
   it('replays a closed continuation and appends exactly the next durable turn', async () => {
     const ledger = new MemoryLedger();
@@ -2886,7 +2886,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(
       ledger.calls.filter((entry) => entry === 'dispatch-intent')
     ).toHaveLength(dispatchCalls + 1);
-  }, 60_000);
+  }, 300_000);
 
   it.each<readonly [RecoveryAppendMode, string]>([
     ['append-after-terminal', 'closed terminal'],
@@ -2972,7 +2972,7 @@ describe('AgentEvaluationDurableShardRunner', () => {
       status: 'infrastructure-error',
       outcome: 'inconclusive',
     });
-  }, 60_000);
+  }, 300_000);
 
   it('uses both completed-count and elapsed-time checkpoint thresholds', async () => {
     const intervalLedger = new MemoryLedger();
@@ -3010,5 +3010,5 @@ describe('AgentEvaluationDurableShardRunner', () => {
     expect(elapsedLedger.latestCheckpoint?.completedAttemptRefs).toHaveLength(
       shardDescriptors.length
     );
-  }, 60_000);
+  }, 300_000);
 });

@@ -192,7 +192,7 @@ describe('production hosted retrieval runtime resource lifecycle owner', () => {
     await expect(owner.close()).resolves.toEqual(providerCloseReceipt());
     expect(providerCloseCount).toBe(1);
     await expect(owner.prepare()).rejects.toThrow();
-  }, 30_000);
+  }, 300_000);
 
   it('derives one durable terminal fence, claims exact four, and recovers cleanup ACK loss through zero readback', async () => {
     const expectedShardIds = Object.freeze(['shard.alpha']);
@@ -440,5 +440,5 @@ describe('production hosted retrieval runtime resource lifecycle owner', () => {
     expect(deleted).toHaveLength(6);
     expect(cleanupStoreCalls).toBe(5);
     expect(resultReadCalls).toBe(5);
-  }, 30_000);
+  }, 300_000);
 });

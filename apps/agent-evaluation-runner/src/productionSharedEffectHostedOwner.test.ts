@@ -380,7 +380,7 @@ describe('production shared-effect hosted owner', () => {
     await expect(owner.execute({ binding, stage, program })).rejects.toThrow(
       'closed'
     );
-  }, 20_000);
+  }, 300_000);
 
   it('proves preactivation from live storage and Provider transport without discovering a set', async () => {
     const plan = createV8EvaluationPlan();

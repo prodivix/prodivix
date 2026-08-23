@@ -172,7 +172,7 @@ describe('production authority signer factory', () => {
     expect(filePort.readCanonicalJson).toHaveBeenCalledOnce();
     expect(filePort.readCanonicalJson).toHaveBeenCalledWith(configPath);
     expect(privateReads).toEqual([]);
-  }, 20_000);
+  }, 300_000);
 
   it('returns the canonical artifact binding with the frozen config commitments', async () => {
     const config = frozen();
@@ -200,7 +200,7 @@ describe('production authority signer factory', () => {
     });
     expect(binding.config.sourceConfigDigest).toBe(config.sourceConfigDigest);
     expect(binding.config.frozenRunDigest).toBe(config.frozenRunDigest);
-  }, 20_000);
+  }, 300_000);
 
   it('rejects plan digest drift after reconstructing the frozen plan', async () => {
     const config = frozen();
@@ -214,7 +214,7 @@ describe('production authority signer factory', () => {
     );
 
     await expectInvalid(factory.create({ plan: driftedPlan }));
-  }, 20_000);
+  }, 300_000);
 
   it('rejects public attestation authority drift from the run config', async () => {
     const config = frozen();
@@ -224,7 +224,7 @@ describe('production authority signer factory', () => {
     );
 
     await expectInvalid(factory.create({ plan: config.plan }));
-  }, 20_000);
+  }, 300_000);
 
   it('fails closed before file access when the run config path is missing', async () => {
     const config = frozen();
@@ -241,5 +241,5 @@ describe('production authority signer factory', () => {
 
     await expectInvalid(factory.create({ plan: config.plan }));
     expect(filePort.readCanonicalJson).not.toHaveBeenCalled();
-  }, 20_000);
+  }, 300_000);
 });

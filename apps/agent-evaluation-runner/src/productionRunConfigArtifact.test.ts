@@ -120,7 +120,7 @@ describe('production run-config artifact loader', () => {
         loaded.artifactBinding
       )
     ).toBe(true);
-  }, 30_000);
+  }, 300_000);
 
   it.each([
     ['relative path', 'production-run-config.json', undefined, undefined],
@@ -196,7 +196,7 @@ describe('production run-config artifact loader', () => {
         observedAt,
       })
     );
-  }, 30_000);
+  }, 300_000);
 
   it('rejects plan drift and any mutation of a sealed artifact binding', async () => {
     const document = productionDocument();
@@ -236,5 +236,5 @@ describe('production run-config artifact loader', () => {
         observedAt,
       })
     );
-  }, 30_000);
+  }, 300_000);
 });

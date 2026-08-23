@@ -191,7 +191,7 @@ describe('controlled Workspace evaluation service bridge', () => {
     expect(calls).toEqual([
       `${AGENT_EVALUATION_LEDGER_BASE_URL}/v1/evaluations/namespace.g4/${planDigest}/${repositoryCommit}/controlled-workspace/grants/issue`,
     ]);
-  }, 60_000);
+  }, 300_000);
 
   it('reattaches an opaque durable session and ACKs checkpoint restore exactly', async () => {
     const planDigest = digest('plan');

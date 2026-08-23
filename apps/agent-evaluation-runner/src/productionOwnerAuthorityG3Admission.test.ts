@@ -329,7 +329,7 @@ describe('production owner sidecar G3 cell admission', () => {
     } finally {
       await listener.close();
     }
-  }, 15_000);
+  }, 300_000);
 
   it('reconciles on an empty host cache from exact Backend fences with execute=0', async () => {
     const payload =

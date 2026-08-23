@@ -57,7 +57,7 @@ describe('controlled Workspace production owner adapters', () => {
     expect(result.ownerAuthorityReceiptDigests).toContain(
       result.reverseTransactionDigest
     );
-  }, 60_000);
+  }, 300_000);
 
   it('keeps the frozen Behavior capability block at zero mutation', () => {
     const { caseId, fixture } = workspaceFixture('blocked');

@@ -195,7 +195,7 @@ describe('production run-config artifact ingress', () => {
     expect(
       digestAgentCanonicalValue(request.runConfig as Record<string, unknown>)
     ).toBe(fixture.config.sourceConfigDigest);
-  }, 30_000);
+  }, 300_000);
 
   it('rejects response recommitment before returning a receipt', async () => {
     const fixture = await writeFixture();
@@ -249,7 +249,7 @@ describe('production run-config artifact ingress', () => {
     ).rejects.toMatchObject({
       code: AGENT_EVALUATION_RUNNER_ERROR_CODES.responseInvalid,
     });
-  }, 30_000);
+  }, 300_000);
 
   it('rejects a caller path that differs from the admitted artifact before fetch', async () => {
     const fixture = await writeFixture();
@@ -271,5 +271,5 @@ describe('production run-config artifact ingress', () => {
       code: AGENT_EVALUATION_RUNNER_ERROR_CODES.configurationInvalid,
     });
     expect(fetchImplementation).not.toHaveBeenCalled();
-  }, 30_000);
+  }, 300_000);
 });

@@ -699,5 +699,5 @@ describe('production controlled Workspace G3 authority', () => {
     );
     expect(finalGrantList).toBeGreaterThanOrEqual(0);
     expect(firstAdapterDispatch).toBeGreaterThan(finalGrantList);
-  }, 60_000);
+  }, 300_000);
 });

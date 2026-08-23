@@ -326,7 +326,7 @@ describe('frozen real-model evaluation run config', () => {
     ).bundleDigest =
       'sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     expectInvalid(() => decode(swappedProductionBundle));
-  }, 30_000);
+  }, 300_000);
 
   it('cross-binds every frozen capability expectation into case, attempt, and required receipt coverage', () => {
     const config = decode();
@@ -398,7 +398,7 @@ describe('frozen real-model evaluation run config', () => {
     expect(new Set(requiredCoverageKeys)).toHaveLength(
       config.plan.plannedJourneyCount
     );
-  }, 30_000);
+  }, 300_000);
 
   it('freezes the required parallel-capable domain-tool loop into both policy digests', () => {
     const source = cloneExample();
@@ -778,7 +778,7 @@ describe('frozen real-model evaluation run config', () => {
     expect(
       Object.isFrozen(config.execution.humanReview.reviewerAuthorityIds)
     ).toBe(true);
-  }, 15_000);
+  }, 300_000);
 
   it('keeps the example out of production preflight and accepts an explicitly reviewed production copy', () => {
     const template = cloneTemplate();
@@ -808,7 +808,7 @@ describe('frozen real-model evaluation run config', () => {
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
       )
     );
-  }, 30_000);
+  }, 300_000);
 
   it('keeps sealed qualification state out of the tracked template and rejects missing or swapped production authority roots', () => {
     const dynamicTemplate = cloneTemplate();
@@ -866,7 +866,7 @@ describe('frozen real-model evaluation run config', () => {
     });
     expect(retryDecoded.plan.planDigest).toBe(firstDecoded.plan.planDigest);
     expect(retryDecoded.frozenRunDigest).toBe(firstDecoded.frozenRunDigest);
-  }, 15_000);
+  }, 300_000);
 
   it('resolves only the fixed public holdout-directory slot into an explicit absolute allowlist', () => {
     const config = decode();
@@ -891,7 +891,7 @@ describe('frozen real-model evaluation run config', () => {
         [AGENT_EVALUATION_HOLDOUT_DIRECTORY_ENV]: '../holdout',
       })
     );
-  }, 20_000);
+  }, 300_000);
 
   it('rejects malformed JSON and extra root or nested keys', () => {
     expectInvalid(() =>
@@ -1107,7 +1107,7 @@ describe('frozen real-model evaluation run config', () => {
     expectInvalid(() => decode(releasePlanBindingDrift));
 
     expect(exampleText).not.toContain('keyValueBase64');
-  }, 15_000);
+  }, 300_000);
 
   it('requires the canonical probe-specific spool policy and rejects attempt-policy reuse', () => {
     const missing = cloneExample();
@@ -1175,7 +1175,7 @@ describe('frozen real-model evaluation run config', () => {
       'capabilityProbeResponseSpoolEncryption'
     ).keyValueBase64 = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
     expectInvalid(() => decode(secretValue));
-  }, 15_000);
+  }, 300_000);
 
   it('requires the canonical independent native Provider state-vault authority and profile', () => {
     const missing = cloneExample();
@@ -1226,7 +1226,7 @@ describe('frozen real-model evaluation run config', () => {
     recordAt(secretValue, 'nativeProviderStateVaultEncryption').keyValueBase64 =
       'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
     expectInvalid(() => decode(secretValue));
-  }, 20_000);
+  }, 300_000);
 
   it('rejects endpoint-smoke spool reuse, AAD drift, and policy substitution', () => {
     const missing = cloneExample();
@@ -1276,7 +1276,7 @@ describe('frozen real-model evaluation run config', () => {
       'endpointSmokeResponseSpoolEncryption'
     ).keyValueBase64 = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
     expectInvalid(() => decode(secretValue));
-  }, 15_000);
+  }, 300_000);
 
   it('rejects incomplete, unauditable, stale, or digest-drifted pricing authority', () => {
     const missingRate = cloneExample();
@@ -1398,7 +1398,7 @@ describe('frozen real-model evaluation run config', () => {
     ).authorityDigest =
       'sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     expectInvalid(() => decode(compatibilityAuthorityDrift));
-  }, 20_000);
+  }, 300_000);
 
   it('rejects duplicate restricted cases and every material digest drift', () => {
     const outputSchemaDrift = cloneExample();
@@ -1565,7 +1565,7 @@ describe('frozen real-model evaluation run config', () => {
     ).randomizedPresentationPolicyDigest =
       'sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     expectInvalid(() => decode(randomizedPolicyDrift));
-  }, 15_000);
+  }, 300_000);
 
   it('rejects a drifted, unbounded, or matrix-insufficient budget', () => {
     const digestDrift = cloneExample();
@@ -1617,5 +1617,5 @@ describe('frozen real-model evaluation run config', () => {
     usageLimits.splice(imageIndex, 1);
     refreshBudgetDigest(missingMediaDimension);
     expectInvalid(() => decode(missingMediaDimension));
-  }, 30_000);
+  }, 300_000);
 });

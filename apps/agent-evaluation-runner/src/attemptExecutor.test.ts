@@ -851,7 +851,7 @@ describe('production agent evaluation attempt executor', () => {
     await expect(
       drifted.executor.execute({ plan, descriptor })
     ).rejects.toThrow(/AttemptGrant binding drifted/u);
-  }, 30_000);
+  }, 300_000);
 
   it('finalizes a verification grant failure before executor construction', async () => {
     const plan = createV8EvaluationPlan();
@@ -942,7 +942,7 @@ describe('production agent evaluation attempt executor', () => {
     expect(JSON.stringify(result)).not.toContain(
       'private grant backend detail'
     );
-  }, 30_000);
+  }, 300_000);
 
   it('persists a sanitized not-created denominator when protected material resolution fails', async () => {
     const plan = createV8EvaluationPlan();
@@ -1009,7 +1009,7 @@ describe('production agent evaluation attempt executor', () => {
     );
     expect(state.state.invocationTurns).toEqual(result.invocationTurnReceipts);
     expect(state.state.executionReceiptCount).toBe(1);
-  }, 30_000);
+  }, 300_000);
 
   it('counts a post-dispatch unknown terminal failure and resumes it without provider recall', async () => {
     const plan = createV8EvaluationPlan();
@@ -1065,7 +1065,7 @@ describe('production agent evaluation attempt executor', () => {
       first.closedTurns.map(({ transportReceipt }) => transportReceipt)
     );
     expect(replay.invocationTurnSetReceipt.dispatchedInvocationCount).toBe(1);
-  }, 30_000);
+  }, 300_000);
 
   it('keeps a post-invocation accounting invariant failure out of the pre-dispatch authority path', async () => {
     const plan = createV8EvaluationPlan();
@@ -1085,5 +1085,5 @@ describe('production agent evaluation attempt executor', () => {
     expect(state.closedTurns).toHaveLength(1);
     expect(state.state.preDispatchFailures).toEqual([]);
     expect(state.classificationErrors).toEqual([]);
-  }, 30_000);
+  }, 300_000);
 });

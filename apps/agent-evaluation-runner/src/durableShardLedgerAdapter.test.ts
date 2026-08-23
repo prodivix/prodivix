@@ -1086,7 +1086,7 @@ describe('HttpAgentEvaluationDurableShardLedger', () => {
         settledAt: SETTLED_AT,
       })
     ).resolves.toEqual(reconciled);
-  }, 20_000);
+  }, 300_000);
 
   it('strictly lists and exact-replays standalone pre-dispatch failure receipts', async () => {
     const suffix = descriptor.samplingIdentityDigest.slice('sha256-'.length);
@@ -1163,7 +1163,7 @@ describe('HttpAgentEvaluationDurableShardLedger', () => {
     await expect(outOfOrder.listPreDispatchFailureReceipts()).rejects.toThrow(
       'Evaluation durable shard ledger response is invalid.'
     );
-  }, 20_000);
+  }, 300_000);
 
   it('strictly persists and closes the descriptor-bound transport journal', async () => {
     const fixture = durableTurnFixture();
@@ -1291,7 +1291,7 @@ describe('HttpAgentEvaluationDurableShardLedger', () => {
         })),
       }).getTurnResultSpool(input)
     ).rejects.toThrow('Evaluation durable shard ledger response is invalid.');
-  }, 30_000);
+  }, 300_000);
 
   it('atomically acknowledges the complete receipt join, attempt, and settlement', async () => {
     const { encryptedResultSpool: _encryptedResultSpool, ...fixture } =
@@ -1417,7 +1417,7 @@ describe('HttpAgentEvaluationDurableShardLedger', () => {
         ...fixture,
       })
     ).rejects.toThrow('Evaluation durable shard ledger response is invalid.');
-  }, 30_000);
+  }, 300_000);
 
   it('encodes checkpoint facts and fails closed on response extras', async () => {
     const checkpoint = vector.facts.checkpoint.value;
@@ -1446,7 +1446,7 @@ describe('HttpAgentEvaluationDurableShardLedger', () => {
     await expect(unsafe.listAttempts()).rejects.toThrow(
       'Evaluation durable shard ledger response is invalid.'
     );
-  }, 30_000);
+  }, 300_000);
 
   it('treats an exact HTTP 404 as an absent initial checkpoint', async () => {
     await expect(

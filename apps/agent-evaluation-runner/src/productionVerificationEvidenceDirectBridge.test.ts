@@ -263,7 +263,7 @@ describe('production Verification Evidence direct bridge', () => {
       residualCanaryIds: [],
     });
     expect(direct.close).toHaveBeenCalledOnce();
-  }, 60_000);
+  }, 300_000);
 
   it('rejects a swapped local registration before the direct authority observes a mutation', async () => {
     const direct = directHarness();

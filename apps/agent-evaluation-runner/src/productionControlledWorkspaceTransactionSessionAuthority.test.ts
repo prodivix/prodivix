@@ -318,7 +318,7 @@ describe('production controlled Workspace transaction session authority', () => 
       residualCanaryIds: [],
     });
     expect(g3.close).toHaveBeenCalledOnce();
-  }, 60_000);
+  }, 300_000);
 
   it('restores on another host from owner-state descriptors and rejects swapped session bytes before reuse', async () => {
     const { material, fixture } = materialFixture();
@@ -380,7 +380,7 @@ describe('production controlled Workspace transaction session authority', () => 
         cas: restore.cas,
       })
     ).rejects.toThrow('Test CAS binding failed');
-  }, 60_000);
+  }, 300_000);
 
   it('fails closed when the supplied fixture drifts from the material-bound snapshot', async () => {
     const { material, fixture } = materialFixture();

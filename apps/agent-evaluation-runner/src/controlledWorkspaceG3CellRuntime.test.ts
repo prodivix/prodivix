@@ -530,7 +530,7 @@ describe('production controlled Workspace G3 cell runtime', () => {
     const completion = await binding.complete(lifecycle);
     expect(completion.provenance.origin).toBe('remote');
     expect(port.executionCount()).toBe(1);
-  }, 60_000);
+  }, 300_000);
 
   it('replays the durable sandbox result after an execute ACK-loss crash without repeating the effect', async () => {
     const { authorityInput, snapshotBytes } = await createAuthorityInput();

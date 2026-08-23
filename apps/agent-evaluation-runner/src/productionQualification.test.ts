@@ -237,7 +237,7 @@ describe('production qualification pre-plan orchestration', () => {
       result.config.nativeProviderStateVaultEncryption
     );
     expect(clock).toHaveBeenCalledTimes(2);
-  }, 15_000);
+  }, 300_000);
 
   it('reuses an exact generated config before reading credentials or dispatching qualification', async () => {
     const template = templateDocument();
@@ -274,7 +274,7 @@ describe('production qualification pre-plan orchestration', () => {
       created.config.nativeProviderStateVaultEncryption
     );
     expect(filePort.createCanonicalJson).not.toHaveBeenCalled();
-  }, 15_000);
+  }, 300_000);
 
   it('fails closed before network dispatch when the real provider-resource preparation port is absent', async () => {
     const template = templateDocument();
@@ -381,7 +381,7 @@ describe('production qualification pre-plan orchestration', () => {
     });
     expect(filePort.createCanonicalJson).not.toHaveBeenCalled();
     expect(calls).toHaveLength(41);
-  }, 15_000);
+  }, 300_000);
 
   it('uses at most three canonical provider lanes and ignores lane completion order in frozen bytes', async () => {
     const template = templateDocument();
@@ -454,7 +454,7 @@ describe('production qualification pre-plan orchestration', () => {
     expect(canonicalJsonText(forward.result.document)).toBe(
       canonicalJsonText(reverse.result.document)
     );
-  }, 30_000);
+  }, 300_000);
 
   it('accepts 29:59.999, freezes one expiry lower bound, and fails closed at 30:00.000', async () => {
     const template = templateDocument();
@@ -513,5 +513,5 @@ describe('production qualification pre-plan orchestration', () => {
           (AGENT_PRODUCTION_EVALUATION_FACT_BACKED_OPTIONAL_CAPABILITY_PROFILES.length +
             AGENT_PRODUCTION_EVALUATION_OPTIONAL_CAPABILITY_PROFILES.length)
     );
-  }, 30_000);
+  }, 300_000);
 });

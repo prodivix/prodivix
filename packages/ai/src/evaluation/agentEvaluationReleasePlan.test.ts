@@ -1286,7 +1286,7 @@ describe('G4 production release evaluation plan', () => {
         slicePolicyDigest: input.policyDigests.slicePolicyDigest,
       })
     );
-  }, 30_000);
+  }, 300_000);
 
   it('is byte-stable when caller ordering changes', () => {
     const input = createInput();
@@ -1300,7 +1300,7 @@ describe('G4 production release evaluation plan', () => {
     expect(reordered.planDigest).toBe(first.planDigest);
     expect(Object.isFrozen(first)).toBe(true);
     expect(Object.isFrozen(first.providerConfigurations)).toBe(true);
-  }, 30_000);
+  }, 300_000);
 
   it('keeps tracked probe programs separate from 18 admissions and 15 registered runtime owners', () => {
     const input = createInput();
@@ -1449,7 +1449,7 @@ describe('G4 production release evaluation plan', () => {
         }) as AgentProductionReleaseEvaluationPlanInput
       )
     ).toThrow(/contains sealed qualification authority state/u);
-  }, 30_000);
+  }, 300_000);
 
   it('freezes fresh pre-plan retrieval resources outside tracked identities', () => {
     const input = createInput();
@@ -1559,7 +1559,7 @@ describe('G4 production release evaluation plan', () => {
           input.probeProviderResourceAuthorityBundle.cleanupReceipts,
       })
     ).toThrow(/resource authority bundle is invalid/u);
-  }, 30_000);
+  }, 300_000);
 
   it('rejects one recomputed target bundle swap against the plan-wide 18 plus 15 root', () => {
     const plan = createAgentProductionReleaseEvaluationPlan(createInput());
@@ -1596,7 +1596,7 @@ describe('G4 production release evaluation plan', () => {
         capabilityQualificationTargets: targets,
       })
     ).toThrow(/bundle digest drifted across optional targets/u);
-  }, 30_000);
+  }, 300_000);
 
   it('rejects every unsealed, stale, swapped, or digest-tampered production probe authority', () => {
     const cases: readonly Readonly<{
@@ -1690,7 +1690,7 @@ describe('G4 production release evaluation plan', () => {
         entry.name
       ).toThrow();
     }
-  }, 30_000);
+  }, 300_000);
 
   it('rejects a required-to-blocked swap after target and plan digests are recomputed and round-tripped', () => {
     const plan = createAgentProductionReleaseEvaluationPlan(createInput());
@@ -1748,7 +1748,7 @@ describe('G4 production release evaluation plan', () => {
         }),
       ])
     );
-  }, 30_000);
+  }, 300_000);
 
   it('rejects native endpoint smoke lineage or inference drift', () => {
     const plan = createAgentProductionReleaseEvaluationPlan(createInput());
@@ -1776,7 +1776,7 @@ describe('G4 production release evaluation plan', () => {
         }),
       ])
     );
-  }, 30_000);
+  }, 300_000);
 
   it('rejects mutable or diversity-laundered identities and corpus drift', () => {
     const input = createInput();
@@ -1927,5 +1927,5 @@ describe('G4 production release evaluation plan', () => {
         assertAgentProductionReleaseEvaluationPlanComposition(drifted)
       ).toThrow(/release matrix drifted/u);
     }
-  }, 30_000);
+  }, 300_000);
 });

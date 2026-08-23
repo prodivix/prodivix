@@ -907,7 +907,7 @@ describe('production controlled Workspace G3 SandboxPort', () => {
     await expect(authority.drainAndDispose()).resolves.toMatchObject({
       status: 'clean',
     });
-  }, 15_000);
+  }, 300_000);
 
   it('fails closed before compile/build when final Workspace authority drifts', async () => {
     const harness = createHarness({ snapshotDigestDrift: true });

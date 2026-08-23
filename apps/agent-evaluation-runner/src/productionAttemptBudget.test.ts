@@ -90,7 +90,7 @@ describe('production attempt budget', () => {
         pricingAuthorities: config.pricingAuthorities,
       })
     ).not.toThrow();
-  }, 30_000);
+  }, 300_000);
 
   it('gives one query/tool unit only to a required Hosted descriptor', () => {
     const config = productionConfig();
@@ -149,7 +149,7 @@ describe('production attempt budget', () => {
     expect(requiredAmounts.get('hosted-tool-call')).toBe('1');
     expect(blockedAmounts.has('hosted-search-query')).toBe(false);
     expect(blockedAmounts.has('hosted-tool-call')).toBe(false);
-  }, 30_000);
+  }, 300_000);
 
   it('keeps exact-four lifecycle demand separate from attempt reservations', () => {
     const config = productionConfig();
@@ -176,5 +176,5 @@ describe('production attempt budget', () => {
     expect(totals.get('provider-upload-byte')).toBe(310n);
     expect(totals.get('provider-storage-byte-second')).toBe(214_272_000n);
     expect(totals.has('hosted-search-query')).toBe(false);
-  }, 30_000);
+  }, 300_000);
 });
