@@ -2021,7 +2021,14 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 							'modelLineageDigest','adapterDigest','registrationAuthorityIssuerId',
 							'registrationReceiptDigest','authorityDigest'
 						])
-						OR (SELECT COUNT(*) FROM jsonb_object_keys(runtime_authority)) <> 16
+						OR (SELECT COUNT(*) FROM jsonb_object_keys(runtime_authority)) NOT IN (16, 17)
+						OR (runtime_authority ? 'hostedRetrievalRuntimeResourceRegistrationIntentDigest')
+							IS DISTINCT FROM (
+								runtime_authority->>'capabilityId'='provider.hosted-retrieval'
+								AND runtime_authority->>'protocolFamily' IN (
+									'openai-responses','gemini-interactions'
+								)
+							)
 						OR runtime_authority->>'kind' <> 'shared-durable-capability'
 						OR runtime_authority->>'authorityDigest' !~ '^sha256-[a-f0-9]{64}$'
 						OR runtime_authority->>'capabilityProfileId' <>
