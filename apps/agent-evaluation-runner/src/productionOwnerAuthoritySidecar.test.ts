@@ -1217,6 +1217,7 @@ describe('production owner authority sidecar', () => {
           return values.get(name);
         },
         forbiddenCanaries: () => Object.freeze([canary]),
+        clock: () => new Date('2026-08-09T00:00:00.000Z'),
       });
 
     expect(probeSpoolKeyReads).toBe(0);
