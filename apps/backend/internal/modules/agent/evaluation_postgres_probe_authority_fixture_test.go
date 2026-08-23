@@ -417,3 +417,135 @@ func persistGoldenProviderResourceAuthority(
 		string(cleanup.responseBytes), cleanup.responseBytes, cleanup.receipt.CompletedAt, cleanup.sealedAt,
 	)
 }
+
+// rebindGoldenVectorAttempt rebinds the canonical vector attempt to a
+// probe-authority-rebuilt golden plan. The admissions rebuild recomputes
+// plan/target/capability digests, so downstream facts must reference the
+// recomputed values instead of the frozen vector digests.
+func rebindGoldenVectorAttempt(
+	t *testing.T,
+	plan evaluationPlanFact,
+	source []byte,
+) []byte {
+	t.Helper()
+	envelope := decodeGoldenVectorEnvelope(t, source)
+	value := envelope["value"].(map[string]any)
+	descriptor := value["descriptor"].(map[string]any)
+	target := evaluationPlanObjectByIdentity(
+		plan.Value["capabilityQualificationTargets"], "targetId", stringMember(descriptor, "targetId"),
+	)
+	evaluationCase := evaluationPlanObjectByIdentity(
+		plan.Value["concreteCases"], "caseId", stringMember(descriptor, "caseId"),
+	)
+	resolvedDigest, err := evaluationResolvedCapabilityDescriptorDigest(evaluationCase, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor["planDigest"] = plan.PlanDigest
+	descriptor["targetDigest"] = stringMember(target, "targetDigest")
+	descriptor["capabilityDescriptorDigest"] = resolvedDigest
+	samplingBase := map[string]any{
+		"planDigest": descriptor["planDigest"], "caseId": descriptor["caseId"],
+		"capabilityDescriptorDigest": descriptor["capabilityDescriptorDigest"],
+		"targetId":                   descriptor["targetId"], "targetDigest": descriptor["targetDigest"],
+		"riskClass": descriptor["riskClass"], "repetitionIndex": descriptor["repetitionIndex"],
+	}
+	if contextTier, exists := descriptor["contextTier"]; exists {
+		samplingBase["contextTier"] = contextTier
+	}
+	if mediaTier, exists := descriptor["mediaRepresentationTier"]; exists {
+		samplingBase["mediaRepresentationTier"] = mediaTier
+	}
+	samplingDigest, err := canonicaljson.Digest(samplingBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor["samplingIdentityDigest"] = samplingDigest
+	descriptor["attemptId"] = "evaluation-attempt:" + samplingDigest[len("sha256-"):]
+	value["independentRunId"] = "run." + samplingDigest[len("sha256-"):]
+	recomputeGoldenVectorDigest(t, descriptor, "descriptorDigest")
+	recomputeGoldenVectorDigest(t, value, "attemptDigest")
+	return encodeGoldenVectorEnvelope(t, envelope)
+}
+
+// rebindGoldenVectorCheckpoint rebinds the canonical vector shard checkpoint to
+// a rebuilt golden plan and its rebound attempt references.
+func rebindGoldenVectorCheckpoint(
+	t *testing.T,
+	plan evaluationPlanFact,
+	attempt []byte,
+	source []byte,
+) []byte {
+	t.Helper()
+	envelope := decodeGoldenVectorEnvelope(t, source)
+	value := envelope["value"].(map[string]any)
+	value["planDigest"] = plan.PlanDigest
+	attemptFact, err := decodeEvaluationAttempt(attempt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refs, refsOK := value["completedAttemptRefs"].([]any); refsOK {
+		for index, raw := range refs {
+			entry, entryOK := raw.(map[string]any)
+			if !entryOK {
+				t.Fatal("golden vector checkpoint attempt ref is not an object")
+			}
+			entry["attemptId"] = attemptFact.AttemptID
+			entry["descriptorDigest"] = attemptFact.DescriptorDigest
+			entry["attemptDigest"] = attemptFact.AttemptDigest
+			refs[index] = entry
+		}
+	}
+	recomputeGoldenVectorDigest(t, value, "checkpointDigest")
+	return encodeGoldenVectorEnvelope(t, envelope)
+}
+
+// rebindGoldenVectorHoldout rebinds the canonical vector holdout receipt to a
+// rebuilt golden plan.
+func rebindGoldenVectorHoldout(
+	t *testing.T,
+	plan evaluationPlanFact,
+	source []byte,
+) []byte {
+	t.Helper()
+	envelope := decodeGoldenVectorEnvelope(t, source)
+	value := envelope["value"].(map[string]any)
+	value["planDigest"] = plan.PlanDigest
+	recomputeGoldenVectorDigest(t, value, "receiptDigest")
+	return encodeGoldenVectorEnvelope(t, envelope)
+}
+
+func decodeGoldenVectorEnvelope(t *testing.T, source []byte) map[string]any {
+	t.Helper()
+	decoder := json.NewDecoder(bytes.NewReader(source))
+	decoder.UseNumber()
+	var envelope map[string]any
+	if err := decoder.Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	return envelope
+}
+
+func recomputeGoldenVectorDigest(t *testing.T, value map[string]any, digestKey string) {
+	t.Helper()
+	base := make(map[string]any, len(value)-1)
+	for key, entry := range value {
+		if key != digestKey {
+			base[key] = entry
+		}
+	}
+	digest, err := canonicaljson.Digest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value[digestKey] = digest
+}
+
+func encodeGoldenVectorEnvelope(t *testing.T, envelope map[string]any) []byte {
+	t.Helper()
+	encoded, err := canonicaljson.Bytes(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return encoded
+}

@@ -233,6 +233,7 @@ func agentEvaluationHostedRetrievalRuntimeResourceCleanupStatements() []string {
 			IF NOT EXISTS (
 				SELECT 1 FROM pg_constraint
 				WHERE conname='agent_eval_hosted_runtime_resource_current_cleanup_request_fk'
+					AND conrelid='agent_evaluation_hosted_retrieval_runtime_resources'::regclass
 			) THEN
 				ALTER TABLE agent_evaluation_hosted_retrieval_runtime_resources
 					ADD CONSTRAINT agent_eval_hosted_runtime_resource_current_cleanup_request_fk

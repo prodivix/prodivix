@@ -4475,9 +4475,13 @@ func seedSealedV45CapabilityProbeAdmission(
 		runtimeSourceAuthorityID:       "authority.runtime-fact-source.v45",
 		runtimeSourceRouteBinding:      "runtime-fact-source.v45",
 		registrationAuthorityIssuerID:  "authority.runtime-fact-registration.v45",
-		plannedAt:                      time.Date(2026, time.August, 9, 10, 0, 10, 0, time.UTC),
-		planExpiresAt:                  time.Date(2026, time.August, 16, 10, 0, 10, 0, time.UTC),
 	}
+	// Keep the frozen plan window relative to wall clock: database constraints
+	// compare CURRENT_TIMESTAMP against plan/registration timestamps, so fixed
+	// dates rot once the wall clock passes planExpiresAt.
+	fixtureNow := time.Now().UTC().Truncate(time.Millisecond)
+	fixture.plannedAt = fixtureNow.Add(-time.Hour)
+	fixture.planExpiresAt = fixture.plannedAt.Add(7 * 24 * time.Hour)
 	claimedAt := fixture.plannedAt.Add(-10 * time.Second)
 	dispatchedAt := claimedAt.Add(time.Second)
 	referenceObservedAt := claimedAt.Add(1500 * time.Millisecond)

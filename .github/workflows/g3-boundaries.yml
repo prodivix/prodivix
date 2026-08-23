@@ -347,7 +347,7 @@ jobs:
           set -euo pipefail
           test "${ImageOS:-}" = 'ubuntu24'
           case "${ImageVersion:-}" in
-            20260720.247.2|20260726.254.1|20260810.271.1) ;;
+            20260720.247.2|20260726.254.1|20260810.271.1|20260816.277.1) ;;
             *)
               echo "::error::Runner ImageVersion is not pre-adopted: ${ImageVersion:-missing}"
               exit 1
@@ -463,7 +463,7 @@ jobs:
           set -euo pipefail
           test "${ImageOS:-}" = 'ubuntu24'
           case "${ImageVersion:-}" in
-            20260720.247.2|20260726.254.1|20260810.271.1) ;;
+            20260720.247.2|20260726.254.1|20260810.271.1|20260816.277.1) ;;
             *)
               echo "::error::Runner ImageVersion is not pre-adopted: ${ImageVersion:-missing}"
               exit 1

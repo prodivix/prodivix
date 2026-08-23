@@ -277,7 +277,8 @@ export const selectGoldenG3V6ControlledPlatform = (
     }
     if (
       observed.imageVersion === '20260726.254.1' ||
-      observed.imageVersion === '20260810.271.1'
+      observed.imageVersion === '20260810.271.1' ||
+      observed.imageVersion === '20260816.277.1'
     ) {
       return 'linux-20260726';
     }

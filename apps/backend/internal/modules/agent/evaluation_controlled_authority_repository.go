@@ -322,7 +322,7 @@ func scanEvaluationControlledAuthorityRequest(
 	if record.State == "claimed" {
 		if record.ResponseDigest != "" || len(record.ResponseBytes) != 0 ||
 			!record.DispatchedAt.IsZero() || !record.SealedAt.IsZero() || record.StageDigest != "" ||
-			record.DispatchAckDigest != "" || record.ProviderCapabilityObservationReceiptSetDigest != "" {
+			record.DispatchAckDigest != "" {
 			return EvaluationControlledAuthorityRequestRecord{}, ErrConflict
 		}
 	} else if record.State == "dispatched" {
@@ -496,9 +496,10 @@ func (repository *Repository) ClaimEvaluationControlledAuthorityRequest(
 		route_binding, request_digest, request_binding_digest, owner_implementation_digest, attempt_id,
 		descriptor_digest, grant_digest, generation, shard_lease_owner_id,
 		shard_lease_generation, verification_grant_generation,
-		verification_grant_receipt_set_digest, pre_effect_intent_digest, pre_effect_intent_json,
+		verification_grant_receipt_set_digest, provider_capability_observation_receipt_set_digest,
+		pre_effect_intent_digest, pre_effect_intent_json,
 		pre_effect_intent_bytes, state, claim_generation, claimed_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb,$20,'claimed',1,$21)
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,'claimed',1,$22)
 	ON CONFLICT DO NOTHING`, authority.NamespaceID, partition.PlanDigest, partition.RepositoryCommit,
 		binding.ServiceKind, binding.Operation, binding.RouteBinding, binding.RequestDigest,
 		binding.RequestBindingDigest, nullableEvaluationControlledString(binding.OwnerImplementationDigest),
@@ -507,6 +508,7 @@ func (repository *Repository) ClaimEvaluationControlledAuthorityRequest(
 		nullableInt64(binding.Generation), nullableEvaluationControlledString(binding.ShardLeaseOwnerID),
 		nullableInt64(binding.ShardLeaseGeneration), nullableInt64(binding.VerificationGrantGeneration),
 		nullableEvaluationControlledString(binding.VerificationGrantReceiptSetDigest),
+		nullableEvaluationControlledString(binding.ProviderCapabilityObservationReceiptSetDigest),
 		nullableEvaluationControlledString(binding.PreEffectIntentDigest), nullableEvaluationControlledJSON(binding.PreEffectIntentBytes),
 		nullableBytes(binding.PreEffectIntentBytes), claimedAt)
 	if err != nil {

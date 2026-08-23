@@ -971,7 +971,7 @@ func TestEvaluationAttemptAuthorityPostgreSQLLeaseGrantSetAndJournalFences(t *te
 		mutate func(*EvaluationControlledAuthorityRequestBinding)
 	}{
 		{name: "same generation wrong owner", mutate: func(value *EvaluationControlledAuthorityRequestBinding) {
-			value.ShardLeaseOwnerID = "evaluation-worker.impersonated"
+			value.ShardLeaseOwnerID = "evaluation-worker.rival"
 		}},
 		{name: "stale shard generation", mutate: func(value *EvaluationControlledAuthorityRequestBinding) {
 			value.ShardLeaseGeneration++
@@ -1031,7 +1031,8 @@ func TestEvaluationAttemptAuthorityPostgreSQLLeaseGrantSetAndJournalFences(t *te
 	}
 	specificReceiptDigest := evaluationServiceTestDigest(t, "attempt-authority-pg-specific")
 	ownerResponse, err := canonicaljson.Bytes(map[string]any{
-		"outcome": "supported", "result": result, "resultDigest": resultDigest,
+		"executionAuthorityKind": "observation-control",
+		"outcome":                "supported", "result": result, "resultDigest": resultDigest,
 		"continuationReceiptDigest": specificReceiptDigest,
 		"specificReceipts": []any{map[string]any{
 			"receiptKind": "capability-unavailable-receipt", "receiptDigest": specificReceiptDigest,
@@ -1047,9 +1048,11 @@ func TestEvaluationAttemptAuthorityPostgreSQLLeaseGrantSetAndJournalFences(t *te
 		t.Fatal(err)
 	}
 	executeBinding := evaluationAttemptAuthorityExecuteBinding{
-		InvocationID: "invocation.pg", TurnIndex: 0, ToolID: "web-search",
+		ExecutionAuthorityKind: "observation-control",
+		InvocationID:           "invocation.pg", TurnIndex: 0, ToolID: "web-search",
 		ToolCallID: "tool-call.pg", ProviderToolCallID: "provider-tool-call.pg",
-		ProviderRequestDigest: evaluationServiceTestDigest(t, "attempt-authority-pg-provider-request"),
+		ProviderRequestDigest:                      evaluationServiceTestDigest(t, "attempt-authority-pg-provider-request"),
+		ProviderCapabilityObservationReceiptDigest: evaluationServiceTestDigest(t, "attempt-authority-pg-observation"),
 	}
 	responseProjection, projectionDigest, err := evaluationAttemptAuthorityResponseProjection(
 		"capability-runtime", "execute-tool", ownerResponse, &executeBinding, nil,

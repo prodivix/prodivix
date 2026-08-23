@@ -176,7 +176,9 @@ func agentEvaluationAttemptAuthorityMigration() migration {
 					OR (v45_eligible AND service_kind IN ('provider-capability', 'attempt-grading') AND (
 						(state = 'claimed'
 							AND stage_digest IS NULL AND dispatch_ack_digest IS NULL
-							AND provider_capability_observation_receipt_set_digest IS NULL)
+							AND (provider_capability_observation_receipt_set_digest IS NULL
+								OR provider_capability_observation_receipt_set_digest
+									~ '^sha256-[a-f0-9]{64}$'))
 						OR (state = 'dispatched'
 							AND stage_digest ~ '^sha256-[a-f0-9]{64}$'
 							AND (dispatch_ack_digest IS NULL

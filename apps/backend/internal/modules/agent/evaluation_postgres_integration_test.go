@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	cryptorand "crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -324,51 +325,129 @@ func storeEvaluationReviewCandidateTurnJournal(
 		t.Fatal(err)
 	}
 	defer func() { _ = journal.Rollback() }()
+	dispatchIntent := map[string]any{
+		"format": evaluationTransportDispatchIntentFormat, "version": int64(1),
+		"intentId": "dispatch-intent.review-candidate", "planDigest": partition.PlanDigest,
+		"repositoryCommit": partition.RepositoryCommit, "attemptId": fixtures.Attempt.AttemptID,
+		"descriptorDigest": fixtures.Attempt.DescriptorDigest, "turnIndex": int64(0),
+		"protocolFamily":               "openai-responses",
+		"providerConfigurationId":      stringMember(provider, "providerConfigurationId"),
+		"modelLineageDigest":           stringMember(model, "lineageDigest"),
+		"inferenceConfigurationDigest": stringMember(nestedInvocation, "inferenceConfigurationDigest"),
+		"invocationId":                 turn.InvocationID,
+		"budgetReservationId":          reservation.ReservationID,
+		"demandDigest":                 reservation.DemandDigest,
+		"requestDigest":                invocation.RequestArtifactDigest,
+		"endpointId":                   "endpoint.review-candidate", "endpointClass": "first-party-hosted",
+		"requestBodyDigest": invocation.RequestArtifactDigest, "requestBytes": int64(0),
+		"createdAt": fixtures.Attempt.StartedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+	}
+	dispatchIntentDigest, err := canonicaljson.Digest(dispatchIntent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dispatchIntent["intentDigest"] = dispatchIntentDigest
+	dispatchIntentBytes, err := canonicaljson.Bytes(dispatchIntent)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := journal.Exec(`INSERT INTO agent_evaluation_transport_dispatch_intents (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,descriptor_json,descriptor_bytes,
 		turn_index,budget_reservation_id,intent_id,invocation_id,protocol_family,provider_configuration_id,
 		model_lineage_digest,inference_configuration_digest,demand_digest,request_digest,endpoint_id,
 		endpoint_class,request_body_digest,request_bytes,intent_digest,intent_json,intent_bytes,created_at
-	) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,'{}'::jsonb,$23,$24)`,
+	) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23::jsonb,$24,$25)`,
 		authority.NamespaceID, partition.PlanDigest, partition.RepositoryCommit, fixtures.Attempt.AttemptID,
 		fixtures.Attempt.DescriptorDigest, string(descriptorBytes), descriptorBytes, int64(0), reservation.ReservationID,
 		"dispatch-intent.review-candidate", turn.InvocationID, "openai-responses",
 		stringMember(provider, "providerConfigurationId"), stringMember(model, "lineageDigest"),
 		stringMember(nestedInvocation, "inferenceConfigurationDigest"), reservation.DemandDigest,
 		invocation.RequestArtifactDigest, "endpoint.review-candidate", "first-party-hosted",
-		invocation.RequestArtifactDigest, int64(0), turn.DispatchIntentDigest, []byte(`{}`), fixtures.Attempt.StartedAt,
+		invocation.RequestArtifactDigest, int64(0), dispatchIntentDigest, string(dispatchIntentBytes),
+		dispatchIntentBytes, fixtures.Attempt.StartedAt,
 	); err != nil {
 		t.Fatalf("store review-candidate dispatch intent: %v", err)
+	}
+	transportReceipt := map[string]any{
+		"format": evaluationTransportReceiptFormat, "version": int64(1),
+		"receiptId": "transport-receipt.review-candidate", "protocolFamily": "openai-responses",
+		"providerConfigurationId": stringMember(provider, "providerConfigurationId"),
+		"invocationId":            turn.InvocationID, "dispatchIntentDigest": dispatchIntentDigest,
+		"requestDigest": invocation.RequestArtifactDigest, "endpointId": "endpoint.review-candidate",
+		"endpointClass": "first-party-hosted", "requestBodyDigest": invocation.RequestArtifactDigest,
+		"requestBytes": int64(0), "responseBytes": int64(0), "sseEventCount": int64(0),
+		"providerRequestId":    "provider-request.invocation.pg",
+		"responseHeaderDigest": evaluationFixtureDigest(t, "review-candidate-response-header"),
+		"responseBodyDigest":   evaluationFixtureDigest(t, "review-candidate-response-body"),
+		"dispatchState":        "dispatched", "outcome": "completed",
+		"startedAt":   fixtures.Attempt.StartedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+		"completedAt": fixtures.Attempt.CompletedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+	}
+	transportReceiptDigest, err := canonicaljson.Digest(transportReceipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transportReceipt["receiptDigest"] = transportReceiptDigest
+	transportReceiptBytes, err := canonicaljson.Bytes(transportReceipt)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if _, err := journal.Exec(`INSERT INTO agent_evaluation_transport_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,intent_digest,
 		receipt_id,invocation_id,provider_configuration_id,provider_request_id,dispatch_state,outcome,
 		response_body_digest,receipt_digest,receipt_json,receipt_bytes,started_at,completed_at,closed_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,'dispatched','completed',$11,$12,'{}'::jsonb,$13,$14,$15,$15)`,
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'dispatched','completed',$12,$13,$14::jsonb,$15,$16,$17,$17)`,
 		authority.NamespaceID, partition.PlanDigest, partition.RepositoryCommit, fixtures.Attempt.AttemptID,
-		fixtures.Attempt.DescriptorDigest, int64(0), turn.DispatchIntentDigest,
+		fixtures.Attempt.DescriptorDigest, int64(0), dispatchIntentDigest,
 		"transport-receipt.review-candidate", turn.InvocationID, stringMember(provider, "providerConfigurationId"),
-		invocation.ResponseArtifactDigest, turn.TransportReceiptDigest, []byte(`{}`),
-		fixtures.Attempt.StartedAt, fixtures.Attempt.CompletedAt,
+		"provider-request.invocation.pg", transportReceipt["responseBodyDigest"], transportReceiptDigest,
+		string(transportReceiptBytes), transportReceiptBytes, fixtures.Attempt.StartedAt, fixtures.Attempt.CompletedAt,
 	); err != nil {
 		t.Fatalf("store review-candidate transport receipt: %v", err)
 	}
-	digest := evaluationFixtureDigest(t, "review-candidate-spool")
+	spoolDigest := evaluationFixtureDigest(t, "review-candidate-spool")
 	envelopeDigest := evaluationFixtureDigest(t, "review-candidate-envelope")
+	normalizedEventSetDigest := evaluationFixtureDigest(t, "review-candidate-normalized-events")
 	spoolCreatedAt, spoolExpiresAt := fixtures.Attempt.StartedAt, fixtures.Attempt.CompletedAt.Add(time.Hour)
+	spoolReceipt := map[string]any{
+		"format": evaluationResultSpoolReceiptFormat, "version": int64(1),
+		"spoolRef": "spool.review-candidate", "planDigest": partition.PlanDigest,
+		"repositoryCommit": partition.RepositoryCommit, "attemptId": fixtures.Attempt.AttemptID,
+		"descriptorDigest": fixtures.Attempt.DescriptorDigest, "turnIndex": int64(0),
+		"invocationId": turn.InvocationID, "dispatchIntentDigest": dispatchIntentDigest,
+		"transportReceiptDigest": transportReceiptDigest, "algorithm": "aes-256-gcm",
+		"encryptionProfileDigest": spoolDigest, "keyRefDigest": spoolDigest,
+		"keyId": "key.review-candidate", "keyVersion": int64(1), "aadDigest": envelopeDigest,
+		"envelopeDigest": envelopeDigest, "ciphertextDigest": envelopeDigest, "ciphertextSizeBytes": int64(1),
+		"responseBodyDigest":       invocation.ResponseArtifactDigest,
+		"normalizedEventSetDigest": normalizedEventSetDigest,
+		"responseDigest":           invocation.ResponseArtifactDigest,
+		"retentionClass":           "attempt-resume-only", "retentionPolicyDigest": spoolDigest,
+		"createdAt": spoolCreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+		"expiresAt": spoolExpiresAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+	}
+	spoolReceiptDigest, err := canonicaljson.Digest(spoolReceipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spoolReceipt["receiptDigest"] = spoolReceiptDigest
+	spoolReceiptBytes, err := canonicaljson.Bytes(spoolReceipt)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := journal.Exec(`INSERT INTO agent_evaluation_provider_result_spool_receipts (
 		namespace_id,plan_digest,repository_commit,attempt_id,descriptor_digest,turn_index,invocation_id,
 		spool_ref,dispatch_intent_digest,transport_receipt_digest,algorithm,encryption_profile_digest,
 		key_ref_digest,key_id,key_version,aad_digest,envelope_digest,ciphertext_digest,ciphertext_size_bytes,
 		response_body_digest,normalized_event_set_digest,response_digest,opaque_continuation_digest,
 		retention_class,retention_policy_digest,receipt_digest,receipt_json,receipt_bytes,created_at,expires_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'aes-256-gcm',$11,$11,$12,1,$11,$13,$11,1,$14,$11,$14,NULL,
-		'attempt-resume-only',$11,$15,'{}'::jsonb,$16,$17,$18)`,
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'aes-256-gcm',$11,$11,$12,1,$13,$13,$13,1,$14,$15,$14,NULL,
+		'attempt-resume-only',$11,$16,$17::jsonb,$18,$19,$20)`,
 		authority.NamespaceID, partition.PlanDigest, partition.RepositoryCommit, fixtures.Attempt.AttemptID,
 		fixtures.Attempt.DescriptorDigest, int64(0), turn.InvocationID, "spool.review-candidate",
-		turn.DispatchIntentDigest, turn.TransportReceiptDigest, digest, "key.review-candidate",
-		envelopeDigest, invocation.ResponseArtifactDigest,
-		turn.ProviderResultSpoolReceiptDigest, []byte(`{}`), spoolCreatedAt, spoolExpiresAt,
+		dispatchIntentDigest, transportReceiptDigest, spoolDigest, "key.review-candidate",
+		envelopeDigest, invocation.ResponseArtifactDigest, normalizedEventSetDigest,
+		spoolReceiptDigest, string(spoolReceiptBytes), spoolReceiptBytes, spoolCreatedAt, spoolExpiresAt,
 	); err != nil {
 		t.Fatalf("store review-candidate spool receipt: %v", err)
 	}
@@ -379,12 +458,30 @@ func storeEvaluationReviewCandidateTurnJournal(
 	) VALUES ($1,$2,$3,$4,0,$5,$6,1,$7,$8,$9,$10,1,'{}'::jsonb,$11,'{}'::jsonb,$11,$12,$13,$14)`,
 		authority.NamespaceID, partition.PlanDigest, partition.RepositoryCommit, fixtures.Attempt.AttemptID,
 		"spool.review-candidate", "key.review-candidate", make([]byte, 12), make([]byte, 16), []byte{1},
-		digest, []byte(`{}`), envelopeDigest, spoolCreatedAt, spoolExpiresAt,
+		envelopeDigest, []byte(`{}`), envelopeDigest, spoolCreatedAt, spoolExpiresAt,
 	); err != nil {
 		t.Fatalf("store review-candidate spool payload: %v", err)
 	}
+	reboundTurnValue := cloneEvaluationObject(turn.Value)
+	reboundTurnValue["dispatchIntentDigest"] = dispatchIntentDigest
+	reboundTurnValue["transportReceiptDigest"] = transportReceiptDigest
+	reboundTurnValue["providerResultSpoolReceiptDigest"] = spoolReceiptDigest
+	delete(reboundTurnValue, "evidenceDigest")
+	reboundEvidenceDigest, err := canonicaljson.Digest(reboundTurnValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reboundTurnValue["evidenceDigest"] = reboundEvidenceDigest
+	reboundTurnBytes, err := canonicaljson.Bytes(reboundTurnValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reboundTurn, err := decodeEvaluationInvocationTurnReceipt(reboundTurnBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := insertEvaluationInvocationTurnV3(
-		context.Background(), journal, authority.NamespaceID, partition, turn,
+		context.Background(), journal, authority.NamespaceID, partition, reboundTurn,
 	); err != nil {
 		t.Fatalf("store review-candidate invocation turn: %v", err)
 	}
@@ -721,7 +818,9 @@ func TestEvaluationReviewCandidatePostgreSQLRoundTrip(t *testing.T) {
 	}
 	_, plan, _ := storeGoldenEvaluationPlan(t, repositoryA, authority, vector.Facts.Plan)
 	partition := EvaluationPlanPartition{PlanDigest: plan.PlanDigest, RepositoryCommit: plan.RepositoryCommit}
-	subjectiveSource := evaluationSubjectiveAttemptSource(t, plan, vector.Facts.Attempt)
+	subjectiveSource := evaluationSubjectiveAttemptSource(
+		t, plan, rebindGoldenVectorAttempt(t, plan, vector.Facts.Attempt),
+	)
 	fixtures := evaluationAuthenticityFixturesForPlan(t, plan, subjectiveSource)
 	for _, source := range fixtures.InvocationSources {
 		if _, replayed, err := repositoryA.StoreEvaluationSourceReceipt(ctx, authority, partition, source); err != nil || replayed {
@@ -779,6 +878,11 @@ func TestEvaluationReviewCandidatePostgreSQLRoundTrip(t *testing.T) {
 	if err != nil || loaded.CandidateDigest != stored.CandidateDigest || !bytes.Equal(loaded.CandidateBytes, candidate.Canonical) {
 		t.Fatalf("load evaluation review candidate = %#v err=%v", loaded, err)
 	}
+	if _, replayed, err := repositoryA.createEvaluationBlindReviewMapping(
+		ctx, authority, partition, stored.CandidateID, fixtures.Attempt.CompletedAt, cryptorand.Reader,
+	); err != nil || replayed {
+		t.Fatalf("create review-candidate blind mapping replay=%v err=%v", replayed, err)
+	}
 	references, err := repositoryB.ListEvaluationReviewCandidateRefs(ctx, authority, partition)
 	if err != nil || len(references) != 1 || references[0].ExecutionReceiptDigest != execution.ReceiptDigest {
 		t.Fatalf("list evaluation review candidate refs = %#v err=%v", references, err)
@@ -808,12 +912,15 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 		t.Fatalf("user evaluation authority error = %v, want ErrUnauthorized", err)
 	}
 	plan, decodedPlan, encodedPlan := storeGoldenEvaluationPlan(t, repositoryA, authority, vector.Facts.Plan)
+	goldenAttempt := rebindGoldenVectorAttempt(t, decodedPlan, vector.Facts.Attempt)
+	goldenCheckpoint := rebindGoldenVectorCheckpoint(t, decodedPlan, goldenAttempt, vector.Facts.Checkpoint)
+	goldenHoldout := rebindGoldenVectorHoldout(t, decodedPlan, vector.Facts.Holdout)
 	replayedPlan, replayed, err := repositoryB.StoreEvaluationPlan(ctx, authority, encodedPlan)
 	if err != nil || !replayed || replayedPlan.FactDigest != plan.FactDigest {
 		t.Fatalf("replay evaluation plan = %#v replay=%v err=%v", replayedPlan, replayed, err)
 	}
 	authenticityFixtures := evaluationPostgresPreDispatchCapabilityFixtures(
-		t, decodedPlan, evaluationAuthenticityFixturesForPlan(t, decodedPlan, vector.Facts.Attempt),
+		t, decodedPlan, evaluationAuthenticityFixturesForPlan(t, decodedPlan, goldenAttempt),
 	)
 	demandBytes, settlementBytes := evaluationBudgetFixtures(t, 1)
 	if _, _, err := repositoryA.ReserveEvaluationBudget(
@@ -865,15 +972,15 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 		t.Fatalf("cross-namespace attempt error = %v, want ErrNotFound", err)
 	}
 	if _, _, err := repositoryA.StoreEvaluationAttempt(
-		ctx, authority, evaluationAttemptOutsidePlan(t, vector.Facts.Attempt),
+		ctx, authority, evaluationAttemptOutsidePlan(t, goldenAttempt),
 	); !errors.Is(err, ErrConflict) {
 		t.Fatalf("out-of-plan evaluation attempt error = %v, want ErrConflict", err)
 	}
-	attempt, replayed, err := repositoryA.StoreEvaluationAttempt(ctx, authority, vector.Facts.Attempt)
+	attempt, replayed, err := repositoryA.StoreEvaluationAttempt(ctx, authority, goldenAttempt)
 	if err != nil || replayed {
 		t.Fatalf("store evaluation attempt = %#v replay=%v err=%v", attempt, replayed, err)
 	}
-	if _, replayed, err := repositoryB.StoreEvaluationAttempt(ctx, authority, vector.Facts.Attempt); err != nil || !replayed {
+	if _, replayed, err := repositoryB.StoreEvaluationAttempt(ctx, authority, goldenAttempt); err != nil || !replayed {
 		t.Fatalf("replay evaluation attempt replay=%v err=%v", replayed, err)
 	}
 	partition := EvaluationPlanPartition{PlanDigest: plan.FactDigest, RepositoryCommit: decodedPlan.RepositoryCommit}
@@ -977,7 +1084,7 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 			ShardID string `json:"shardId"`
 		} `json:"value"`
 	}
-	if err := json.Unmarshal(vector.Facts.Checkpoint, &checkpointIdentity); err != nil {
+	if err := json.Unmarshal(goldenCheckpoint, &checkpointIdentity); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := repositoryA.ClaimEvaluationShard(
@@ -1006,11 +1113,11 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 	); !errors.Is(err, ErrConflict) {
 		t.Fatalf("competing evaluation lease error = %v, want ErrConflict", err)
 	}
-	checkpoint, replayed, err := repositoryA.StoreEvaluationCheckpoint(ctx, authority, -1, vector.Facts.Checkpoint)
+	checkpoint, replayed, err := repositoryA.StoreEvaluationCheckpoint(ctx, authority, -1, goldenCheckpoint)
 	if err != nil || replayed {
 		t.Fatalf("store evaluation checkpoint = %#v replay=%v err=%v", checkpoint, replayed, err)
 	}
-	if _, replayed, err := repositoryB.StoreEvaluationCheckpoint(ctx, authority, -1, vector.Facts.Checkpoint); err != nil || !replayed {
+	if _, replayed, err := repositoryB.StoreEvaluationCheckpoint(ctx, authority, -1, goldenCheckpoint); err != nil || !replayed {
 		t.Fatalf("replay evaluation checkpoint replay=%v err=%v", replayed, err)
 	}
 	type holdoutWrite struct {
@@ -1025,7 +1132,7 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 		go func(repository *Repository) {
 			defer holdoutWriters.Done()
 			record, replayed, err := repository.StoreEvaluationArtifact(
-				ctx, authority, "evaluation-holdout-receipt", vector.Facts.Holdout,
+				ctx, authority, "evaluation-holdout-receipt", goldenHoldout,
 			)
 			writes <- holdoutWrite{record: record, replayed: replayed, err: err}
 		}(candidateRepository)
@@ -1076,7 +1183,7 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 	if _, err := repositoryB.GetEvaluationPlan(ctx, authority, wrongCommit); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("cross-commit evaluation plan error = %v, want ErrNotFound", err)
 	}
-	decodedAttempt, err := decodeEvaluationAttempt(vector.Facts.Attempt)
+	decodedAttempt, err := decodeEvaluationAttempt(goldenAttempt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1239,13 +1346,21 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 	); err != nil {
 		t.Fatalf("seed authority finalization guard: %v", err)
 	}
-	if _, err := finalization.Exec(`INSERT INTO agent_evaluation_authority_attestation_v45_roots (
+	if _, err := finalization.Exec(`INSERT INTO agent_evaluation_authority_attestation_v46_roots (
 		namespace_id,plan_digest,attestation_digest,attempt_authority_owner_receipt_set_digest,
 		provider_capability_observation_receipt_set_digest,capability_specific_receipt_set_digest,
-		validated_human_metric_observation_set_digest,created_at
-	) VALUES ($1,$2,$3,$3,$3,$3,$3,$4)`, authority.NamespaceID, partition.PlanDigest,
-		finalizedDigest, decodedPlan.PlannedAt); err != nil {
-		t.Fatalf("seed authority finalization guard v45 roots: %v", err)
+		validated_human_metric_observation_set_digest,capability_probe_admission_set_digest,
+		capability_probe_reference_receipt_set_digest,runtime_fact_source_owner_registration_set_digest,
+		capability_probe_provider_resource_cleanup_set_digest,
+		hosted_retrieval_runtime_resource_cleanup_set_digest,
+		hosted_retrieval_runtime_resource_lifecycle_journal_set_digest,
+		hosted_retrieval_runtime_resource_lifecycle_budget_closure_binding_set_digest,
+		capability_effect_provider_runtime_journal_set_digest,
+		optional_capability_fact_source_set_digest,optional_capability_fact_authority_set_digest,
+		created_at
+	) VALUES ($1,$2,$3,$3,$3,$3,$3,$3,$3,$3,$3,$3,$3,$3,$3,$3,$3,$4)`, authority.NamespaceID,
+		partition.PlanDigest, finalizedDigest, decodedPlan.PlannedAt); err != nil {
+		t.Fatalf("seed authority finalization guard v46 roots: %v", err)
 	}
 	if err := finalization.Commit(); err != nil {
 		t.Fatalf("commit authority finalization guard: %v", err)
@@ -1289,9 +1404,10 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 		}
 	}
 	for family, digest := range map[string]string{
-		"attemptAuthorityOwnerReceipts":    emptyReceiptEnvelopeDigest,
-		"capabilitySpecificReceipts":       emptyReceiptEnvelopeDigest,
-		"validatedHumanMetricObservations": emptyHumanObservationEnvelopeDigest,
+		"attemptAuthorityOwnerReceipts":         emptyReceiptEnvelopeDigest,
+		"capabilitySpecificReceipts":            emptyReceiptEnvelopeDigest,
+		"providerCapabilityObservationReceipts": emptyReceiptEnvelopeDigest,
+		"validatedHumanMetricObservations":      emptyHumanObservationEnvelopeDigest,
 	} {
 		index, exists := evaluationExportFamilyIndex(family)
 		if !exists {
@@ -1308,7 +1424,17 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 	createdAt := decodedPlan.PlannedAt.UTC().Truncate(time.Millisecond)
 	expiresAt := createdAt.Add(evaluationExportLeaseDuration)
 	emptyAuthorityRoots := EvaluationEvidenceArchiveAuthorityRoots{
-		EndpointSmokeSetDigest: emptySetDigest, EndpointSmokeDispatchIntentSetDigest: emptySetDigest,
+		CapabilityProbeAdmissionSetDigest:                                    emptySetDigest,
+		CapabilityProbeReferenceReceiptSetDigest:                             emptySetDigest,
+		RuntimeFactSourceOwnerRegistrationSetDigest:                          emptySetDigest,
+		CapabilityProbeProviderResourceCleanupSetDigest:                      emptySetDigest,
+		HostedRetrievalRuntimeResourceLifecycleJournalSetDigest:              emptySetDigest,
+		HostedRetrievalRuntimeResourceLifecycleBudgetClosureBindingSetDigest: emptySetDigest,
+		HostedRetrievalRuntimeResourceCleanupSetDigest:                       emptySetDigest,
+		CapabilityEffectProviderRuntimeJournalSetDigest:                      emptySetDigest,
+		OptionalCapabilityFactSourceSetDigest:                                emptySetDigest,
+		OptionalCapabilityFactAuthoritySetDigest:                             emptySetDigest,
+		EndpointSmokeSetDigest:                                               emptySetDigest, EndpointSmokeDispatchIntentSetDigest: emptySetDigest,
 		EndpointSmokeTransportReceiptSetDigest: emptySetDigest, EndpointSmokeResultSpoolReceiptSetDigest: emptySetDigest,
 		EndpointSmokeResultSpoolDispositionReceiptSetDigest: emptySetDigest,
 		EndpointSmokeValidationFailureReceiptSetDigest:      emptySetDigest,
@@ -1316,8 +1442,9 @@ func TestAgentModelEvaluationPostgreSQLGate(t *testing.T) {
 		TransportReceiptSetDigest: emptySetDigest, ProviderResultSpoolReceiptSetDigest: emptySetDigest,
 		ProviderResultSpoolDispositionReceiptSetDigest: emptySetDigest, InvocationTurnReceiptSetDigest: emptySetDigest,
 		InvocationTurnSetReceiptSetDigest: emptySetDigest, ResultSubmissionReceiptSetDigest: emptySetDigest,
-		AttemptAuthorityOwnerReceiptSetDigest: emptyReceiptEnvelopeDigest,
-		ControlledRuntimeReceiptSetDigest:     emptySetDigest, CapabilityExecutionReceiptSetDigest: emptySetDigest,
+		AttemptAuthorityOwnerReceiptSetDigest:         emptyReceiptEnvelopeDigest,
+		ProviderCapabilityObservationReceiptSetDigest: emptyReceiptEnvelopeDigest,
+		ControlledRuntimeReceiptSetDigest:             emptySetDigest, CapabilityExecutionReceiptSetDigest: emptySetDigest,
 		CapabilitySpecificReceiptSetDigest:       emptyReceiptEnvelopeDigest,
 		VerificationAttemptGrantReceiptSetDigest: emptySetDigest, ValidatedHumanReviewArtifactSetDigest: emptySetDigest,
 		ValidatedHumanMetricObservationSetDigest: emptyHumanObservationEnvelopeDigest,

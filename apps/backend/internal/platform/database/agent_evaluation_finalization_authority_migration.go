@@ -134,7 +134,8 @@ func agentEvaluationFinalizationAuthorityMigration() migration {
 			`DO $$
 			BEGIN
 				IF NOT EXISTS (SELECT 1 FROM pg_constraint
-					WHERE conname = 'agent_evaluation_finalizations_human_metric_digest_check') THEN
+					WHERE conname = 'agent_evaluation_finalizations_human_metric_digest_check'
+						AND connamespace = current_schema()::regnamespace) THEN
 					ALTER TABLE agent_evaluation_finalizations
 						ADD CONSTRAINT agent_evaluation_finalizations_human_metric_digest_check
 						CHECK (validated_human_metric_observation_set_digest ~ '^sha256-[a-f0-9]{64}$');
