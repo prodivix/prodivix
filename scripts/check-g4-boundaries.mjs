@@ -1506,6 +1506,16 @@ for (const token of [
     issues.push(`G4 V8 workflow is missing ${token}.`);
   }
 }
+for (const triggerPath of [
+  "- 'apps/agent-evaluation-runner/**'",
+  "- 'scripts/g4-model-evaluation-evidence-verifier*.mjs'",
+]) {
+  if (v8WorkflowSource.split(triggerPath).length - 1 !== 2) {
+    issues.push(
+      `G4 V8 workflow must bind ${triggerPath} in both pull_request and push triggers.`
+    );
+  }
+}
 
 const v9WorkflowSource = await readFile(
   join(repoRoot, '.github', 'workflows', 'g4-v9-golden-closure.yml'),
@@ -1539,6 +1549,7 @@ for (const token of [
   "- 'scripts/g4-agent-evaluation-human-authority-vector.mjs'",
   "- 'scripts/g4-agent-verification-canonical-vector.mjs'",
   "- 'scripts/g4-model-evaluation-evidence-verifier.fixture.mjs'",
+  "- 'scripts/g4-model-evaluation-evidence-verifier.archive.fixture.mjs'",
   "- 'scripts/g4-model-evaluation-evidence-verifier.mjs'",
   "- 'scripts/g4-model-evaluation-evidence-verifier.test.mjs'",
   "- 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.mjs'",
@@ -1583,6 +1594,7 @@ for (const triggerPath of [
   "- 'packages/verification-browser/**'",
   "- 'scripts/g4-agent-evaluation-human-authority-vector.mjs'",
   "- 'scripts/g4-model-evaluation-evidence-verifier.fixture.mjs'",
+  "- 'scripts/g4-model-evaluation-evidence-verifier.archive.fixture.mjs'",
   "- 'scripts/g4-model-evaluation-evidence-verifier.mjs'",
   "- 'scripts/g4-model-evaluation-evidence-verifier.test.mjs'",
   "- 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.mjs'",

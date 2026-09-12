@@ -43,6 +43,7 @@ on:
       - 'scripts/g4-agent-evaluation-human-authority-vector.mjs'
       - 'scripts/g4-agent-verification-canonical-vector.mjs'
       - 'scripts/g4-model-evaluation-evidence-verifier.fixture.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.archive.fixture.mjs'
       - 'scripts/g4-model-evaluation-evidence-verifier.mjs'
       - 'scripts/g4-model-evaluation-evidence-verifier.test.mjs'
       - 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.mjs'
@@ -110,6 +111,7 @@ on:
       - 'scripts/g4-agent-evaluation-human-authority-vector.mjs'
       - 'scripts/g4-agent-verification-canonical-vector.mjs'
       - 'scripts/g4-model-evaluation-evidence-verifier.fixture.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier.archive.fixture.mjs'
       - 'scripts/g4-model-evaluation-evidence-verifier.mjs'
       - 'scripts/g4-model-evaluation-evidence-verifier.test.mjs'
       - 'scripts/verify-g4-capability-effect-provider-journal-lifecycle.mjs'
@@ -148,7 +150,10 @@ jobs:
   deterministic-golden:
     name: Zero-remote-token Golden, PostgreSQL, browser, and rootless Gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    # The Closure manifest binds all required Gates to this job. Reserve time for
+    # the serial aggregate, full archive corpus, and real PostgreSQL, browser,
+    # Golden, and rootless checks before publishing its evidence.
+    timeout-minutes: 180
     services:
       postgres:
         image: postgres:16

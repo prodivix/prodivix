@@ -250,8 +250,7 @@ describe('production invocation payload codec', () => {
           });
           break;
       }
-    },
-    15_000
+    }
   );
 
   it.each([

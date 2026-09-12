@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import {
+  createSemanticFixtureArchiveBuilder,
+  memoizeFrozenFixtureFamily,
+} from './g4-model-evaluation-evidence-verifier.archive.fixture.mjs';
 import { after, describe, test } from 'node:test';
 import {
   mkdir,
@@ -768,6 +772,79 @@ const smokeRecord = (plan, recordIndex, smokeTargetId) =>
   });
 
 describe('G4 sharded model-evaluation evidence verifier', () => {
+  test('reuses only deeply immutable fixture inputs and keeps families isolated', () => {
+    let builds = 0;
+    const memoized = memoizeFrozenFixtureFamily((family, values) => ({
+      family,
+      value: values[0].nested.value,
+      build: ++builds,
+    }));
+    const immutable = Object.freeze([
+      Object.freeze({ nested: Object.freeze({ value: 1 }) }),
+    ]);
+    assert.equal(memoized('first', immutable), memoized('first', immutable));
+    assert.notEqual(
+      memoized('first', immutable),
+      memoized('second', immutable)
+    );
+    const nested = { value: 1 };
+    const mutable = Object.freeze([Object.freeze({ nested })]);
+    const before = memoized('first', mutable);
+    nested.value = 2;
+    const after = memoized('first', mutable);
+    assert.notEqual(before, after);
+    assert.equal(after.value, 2);
+  });
+
+  test('rebuilds global shard positions and isolates bytes when cached fixture families are reused', () => {
+    const builder = createSemanticFixtureArchiveBuilder({
+      maximumRecordsPerShard: 1,
+    });
+    const transport = (id) =>
+      Object.freeze({ receiptId: id, receiptDigest: digest(id) });
+    const first = transport('transport-a');
+    const source = Object.freeze(
+      [{ sourceReceiptId: 'source-a', receiptDigest: digest('source-a') }].map(
+        Object.freeze
+      )
+    );
+    const values = new Map([
+      ...[
+        ...singletonValues(Object.freeze({ planDigest: digest('plan') })),
+      ].map(([family, value]) => [family, Object.freeze([value])]),
+      ['transportReceipts', Object.freeze([first])],
+      ['sourceReceipts', source],
+    ]);
+    const original = builder(values);
+    const expected = createSemanticFixtureArchiveBuilder({
+      maximumRecordsPerShard: 1,
+    })(values);
+    original.shardBytes.values().next().value.fill(0);
+    assert.deepEqual(builder(values), expected);
+
+    const changed = new Map(values);
+    changed.set(
+      'transportReceipts',
+      Object.freeze([transport('transport-b'), first])
+    );
+    const actual = builder(changed);
+    assert.deepEqual(
+      actual,
+      createSemanticFixtureArchiveBuilder({ maximumRecordsPerShard: 1 })(
+        changed
+      )
+    );
+    assert.equal(
+      actual.shards.find(({ family }) => family === 'sourceReceipts').sequence,
+      expected.shards.find(({ family }) => family === 'sourceReceipts')
+        .sequence + 1
+    );
+    assert.notEqual(
+      actual.shards.at(-1).fileName,
+      expected.shards.at(-1).fileName
+    );
+  });
+
   test('admits the exact post-commit provider-observation family budget and rejects count+1 or bytes+1', () => {
     const budget =
       AGENT_EVALUATION_PROVIDER_CAPABILITY_OBSERVATION_ARCHIVE_BUDGET;

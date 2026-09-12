@@ -954,8 +954,7 @@ describe('bounded native agent turn loop', () => {
       expect(result.turns[1]!.encodedPayload.toolBindings[0]?.toolId).toBe(
         'evaluation.result.submit'
       );
-    },
-    30_000
+    }
   );
 
   it('reserves the seventh and final turn for the typed result submission', async () => {

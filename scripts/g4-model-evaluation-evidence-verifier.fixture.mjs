@@ -1,3 +1,8 @@
+import {
+  createSemanticFixtureArchiveBuilder,
+  memoizeFrozenFixtureFamily,
+  orderSemanticFixtureFamily,
+} from './g4-model-evaluation-evidence-verifier.archive.fixture.mjs';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -182,21 +187,14 @@ import { createAgentEvaluationBlindReviewPreviewProjection } from '../packages/a
 import { digestAgentEvaluationReviewGraderArtifactAuthority } from '../packages/ai/src/evaluation/agentEvaluationEvidenceAuthenticityValidation.ts';
 import { createAgentEvaluationValidatedHumanMetricObservations } from '../packages/ai/src/evaluation/agentEvaluationHumanMetricAuthority.ts';
 import {
-  AGENT_MODEL_EVALUATION_EVIDENCE_ARCHIVE_FAMILIES,
   AGENT_MODEL_EVALUATION_EVIDENCE_INDEX_FILE_NAME,
   AGENT_MODEL_EVALUATION_EVIDENCE_SHARD_DIRECTORY_NAME,
   createAgentModelEvaluationEvidenceArchiveAttestation,
   createAgentModelEvaluationEvidenceArchiveAttestationPayload,
   createAgentModelEvaluationEvidenceArchiveAuthorityRoots,
   createAgentModelEvaluationEvidenceArchiveFamilyDigestAccumulator,
-  createAgentModelEvaluationEvidenceArchiveFamilySummary,
-  createAgentModelEvaluationEvidenceArchiveOrderKey,
-  createAgentModelEvaluationEvidenceArchiveRecord,
-  createAgentModelEvaluationEvidenceArchiveRecordSetDigestAccumulator,
-  createAgentModelEvaluationEvidenceArchiveShardDescriptor,
   createAgentModelEvaluationEvidenceIndex,
   createAgentModelEvaluationEvidenceRoot,
-  encodeAgentModelEvaluationEvidenceArchiveRecordLine,
   encodeAgentModelEvaluationEvidenceIndex,
   encodeAgentModelEvaluationEvidenceRoot,
 } from '../packages/ai/src/evaluation/agentEvaluationEvidenceArchive.ts';
@@ -387,7 +385,6 @@ const authorityIdentity = Object.freeze({
     environment: 'semantic-verifier',
   }),
 });
-const maximumRecordsPerShard = 2_048;
 const spoolNamespaceDigest = digestAgentCanonicalValue(
   'g4-real-model-evaluation'
 );
@@ -4987,22 +4984,14 @@ const signSemanticPayload = (payload) =>
     semanticSigningKeys.privateKey
   ).toString('base64url');
 
-const orderedFamilyValues = (family, values) =>
-  Object.freeze(
-    [...values].sort((left, right) =>
-      compareUnicodeCodePoints(
-        createAgentModelEvaluationEvidenceArchiveOrderKey(family, left),
-        createAgentModelEvaluationEvidenceArchiveOrderKey(family, right)
-      )
-    )
-  );
+const orderedFamilyValues = orderSemanticFixtureFamily;
 
-const semanticFamilyDigest = (family, values) => {
+const semanticFamilyDigest = memoizeFrozenFixtureFamily((family, values) => {
   const accumulator =
     createAgentModelEvaluationEvidenceArchiveFamilyDigestAccumulator(family);
   for (const value of values) accumulator.append(value);
   return accumulator.finalize();
-};
+});
 
 const createEndpointSmokeEvidence = ({ plan, target }) => {
   const suffix = target.smokeTargetId;
@@ -7045,106 +7034,13 @@ const authorityRootsFor = (evidence) =>
     ]),
   });
 
-const buildArchiveRecords = (valuesByFamily) => {
-  const families = [];
-  const shards = [];
-  const shardBytes = new Map();
-  let sequence = 0;
-  for (const family of AGENT_MODEL_EVALUATION_EVIDENCE_ARCHIVE_FAMILIES) {
-    const values = orderedFamilyValues(
-      family,
-      valuesByFamily.get(family) ?? []
-    );
-    const semantic =
-      createAgentModelEvaluationEvidenceArchiveFamilyDigestAccumulator(family);
-    const familyRecordSet =
-      createAgentModelEvaluationEvidenceArchiveRecordSetDigestAccumulator();
-    const records = values.map((value, recordIndex) => {
-      semantic.append(value);
-      const record = createAgentModelEvaluationEvidenceArchiveRecord({
-        family,
-        recordIndex,
-        value,
-      });
-      familyRecordSet.append(record.recordDigest);
-      return record;
-    });
-    const familyShards = [];
-    for (
-      let firstRecordIndex = 0;
-      firstRecordIndex < records.length;
-      firstRecordIndex += maximumRecordsPerShard
-    ) {
-      const chunk = records.slice(
-        firstRecordIndex,
-        firstRecordIndex + maximumRecordsPerShard
-      );
-      const bytes = Buffer.from(
-        chunk
-          .map((record) =>
-            encodeAgentModelEvaluationEvidenceArchiveRecordLine(record)
-          )
-          .join(''),
-        'utf8'
-      );
-      const recordSet =
-        createAgentModelEvaluationEvidenceArchiveRecordSetDigestAccumulator();
-      for (const record of chunk) recordSet.append(record.recordDigest);
-      const descriptor =
-        createAgentModelEvaluationEvidenceArchiveShardDescriptor({
-          sequence,
-          family,
-          familyShardIndex: familyShards.length,
-          firstRecordIndex,
-          lastRecordIndex: firstRecordIndex + chunk.length - 1,
-          firstOrderKey: chunk[0].orderKey,
-          lastOrderKey: chunk.at(-1).orderKey,
-          recordCount: chunk.length,
-          byteSize: bytes.byteLength,
-          bytesDigest: digestAgentCanonicalBytes(bytes),
-          recordSetDigest: recordSet.finalize(),
-        });
-      familyShards.push(descriptor);
-      shards.push(descriptor);
-      shardBytes.set(descriptor.fileName, bytes);
-      sequence += 1;
-    }
-    families.push(
-      createAgentModelEvaluationEvidenceArchiveFamilySummary({
-        family,
-        recordCount: records.length,
-        semanticDigest: semantic.finalize(),
-        recordSetDigest: familyRecordSet.finalize(),
-        shardCount: familyShards.length,
-        firstOrderKey: records[0]?.orderKey ?? null,
-        lastOrderKey: records.at(-1)?.orderKey ?? null,
-      })
-    );
-  }
-  return Object.freeze({
-    families: Object.freeze(families),
-    shards: Object.freeze(shards),
-    shardBytes,
-  });
-};
-
-const semanticEvidenceBaseCache = new Map();
-
-const cachedSemanticEvidenceBase = (legacyCoreOnly) => {
-  if (!semanticEvidenceBaseCache.has(legacyCoreOnly)) {
-    semanticEvidenceBaseCache.set(
-      legacyCoreOnly,
-      createSemanticEvidenceBase({ legacyCoreOnly })
-    );
-  }
-  return semanticEvidenceBaseCache.get(legacyCoreOnly);
-};
+const buildArchiveRecords = createSemanticFixtureArchiveBuilder();
 
 export const createG4ModelEvaluationSemanticArchiveFixture = ({
   mutation = 'none',
 } = {}) => {
   const legacyCoreOnly = mutation === 'legacy-13,200-production-denominator';
-  const base = cachedSemanticEvidenceBase(legacyCoreOnly);
+  const base = createSemanticEvidenceBase({ legacyCoreOnly });
   const evidence = legacyCoreOnly ? base : withSemanticMutation(base, mutation);
   const evidenceInput = evidenceInputFrom(evidence);
   const evidenceSetDigest =

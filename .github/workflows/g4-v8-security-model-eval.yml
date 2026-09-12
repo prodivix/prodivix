@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - '.github/workflows/g4-v8-security-model-eval.yml'
+      - 'apps/agent-evaluation-runner/**'
       - 'apps/backend/go.mod'
       - 'apps/backend/go.sum'
       - 'apps/backend/internal/modules/agent/**'
@@ -21,6 +22,7 @@ on:
       - 'scripts/check-core-package-boundaries.mjs'
       - 'scripts/check-g4-boundaries.mjs'
       - 'scripts/g4-agent-evaluation-canonical-vector.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier*.mjs'
       - 'scripts/sync-g4-wire-contracts.mjs'
       - 'scripts/verify-g4-model-eval-evidence.mjs'
       - 'scripts/verify-g4-model-eval-postgres.mjs'
@@ -35,6 +37,7 @@ on:
       - main
     paths:
       - '.github/workflows/g4-v8-security-model-eval.yml'
+      - 'apps/agent-evaluation-runner/**'
       - 'apps/backend/go.mod'
       - 'apps/backend/go.sum'
       - 'apps/backend/internal/modules/agent/**'
@@ -49,6 +52,7 @@ on:
       - 'scripts/check-core-package-boundaries.mjs'
       - 'scripts/check-g4-boundaries.mjs'
       - 'scripts/g4-agent-evaluation-canonical-vector.mjs'
+      - 'scripts/g4-model-evaluation-evidence-verifier*.mjs'
       - 'scripts/sync-g4-wire-contracts.mjs'
       - 'scripts/verify-g4-model-eval-evidence.mjs'
       - 'scripts/verify-g4-model-eval-postgres.mjs'
@@ -70,7 +74,9 @@ jobs:
   deterministic-contract:
     name: Zero-remote-token security evaluation contract and PostgreSQL Gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # The full archive corpus runs after the Runner suite and before the
+    # operational, Golden, and PostgreSQL Gates; each retains its own timeout.
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:16
