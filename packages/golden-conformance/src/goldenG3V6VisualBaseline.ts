@@ -50,6 +50,16 @@ export const GOLDEN_G3_V6_VISUAL_NORMALIZER_DIGEST = digestVerificationValue(
 const frameworks = Object.freeze(['react-vite', 'vue-vite']);
 const surfaces = Object.freeze(['preview', 'export', 'ci'] as const);
 const motions = Object.freeze(['full', 'reduced'] as const);
+const platformCompatibilityAdoptedAt: Readonly<
+  Record<GoldenG3V6ControlledPlatform, string>
+> = Object.freeze({
+  windows: GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.adoptedAt,
+  'linux-20260720': GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.adoptedAt,
+  'linux-20260726': GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.adoptedAt,
+  'linux-20260810': '2026-09-12T00:00:00.000Z',
+  'linux-20260816': '2026-09-12T00:00:00.000Z',
+  'linux-20260907': '2026-09-12T00:00:00.000Z',
+});
 const entry = (
   frameworkTarget: string,
   surface: (typeof surfaces)[number],
@@ -91,7 +101,7 @@ const entry = (
     normalizerDigest: GOLDEN_G3_V6_VISUAL_NORMALIZER_DIGEST,
     compatibilityProfileDigest:
       createVisualBaselineCompatibilityKey(compatibilityProfile),
-    adoptedAt: GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.adoptedAt,
+    adoptedAt: platformCompatibilityAdoptedAt[platform],
     adoptedBy: GOLDEN_G3_V6_VISUAL_BASELINE_ASSET.adoptedBy,
   });
 };

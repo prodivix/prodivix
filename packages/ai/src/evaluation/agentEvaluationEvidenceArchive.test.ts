@@ -1520,7 +1520,7 @@ describe('agent model evaluation evidence archive contract', () => {
     expect(
       isAgentModelEvaluationEvidenceArchivePhysicalBudget(physicalBudget)
     ).toBe(true);
-  }, 60_000);
+  });
 
   it('cross-binds shard set, semantic index, raw index, signature, and root v2', async () => {
     const fixture = createArchiveFixture();

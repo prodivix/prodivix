@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createV8EvaluationPlan } from '../__tests__/agentV8Fixtures';
+import {
+  createV8EvaluationPlan,
+  createV8PublicReviewRubric,
+} from '../__tests__/agentV8Fixtures';
 import { digestAgentCanonicalValue } from '../domain/agentCanonical';
 import { G4_V8_MINIMUM_EVALUATION_CORPUS } from './agentEvaluationCorpus';
 import {
@@ -15,6 +18,13 @@ import { isAgentModelEvaluationAttemptDescriptor } from './agentEvaluationResult
 describe('G4 V8 frozen real-model evaluation plan', () => {
   it('freezes the normative corpus, diversity, sentinels, and repetition floor', () => {
     const plan = createV8EvaluationPlan();
+    expect(
+      plan.graderPlan.graders
+        .filter(({ graderId }) =>
+          plan.graderPlan.blindHumanGraderIds.includes(graderId)
+        )
+        .map(({ configurationDigest }) => configurationDigest)
+    ).toEqual([createV8PublicReviewRubric().rubricDigest]);
     expect(plan.concreteCases).toHaveLength(128);
     expect(
       new Set(plan.concreteCases.map(({ familyId }) => familyId)).size
@@ -78,7 +88,7 @@ describe('G4 V8 frozen real-model evaluation plan', () => {
         );
       })
     ).toBe(true);
-  }, 30_000);
+  });
 
   it('keeps optional support and execution admission independent from case tags', () => {
     const plan = createV8EvaluationPlan();
@@ -153,7 +163,7 @@ describe('G4 V8 frozen real-model evaluation plan', () => {
     expect(
       validateAgentModelEvaluationPlan(holdoutDrift).length
     ).toBeGreaterThan(0);
-  }, 30_000);
+  });
 
   it('rejects capability descriptor drift in a planned attempt descriptor', () => {
     const plan = createV8EvaluationPlan();

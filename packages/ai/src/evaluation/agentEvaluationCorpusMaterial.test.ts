@@ -604,7 +604,7 @@ describe('G4 real-model corpus material', () => {
         restrictedLocators
       )
     ).toThrow(/one-to-one/u);
-  }, 30_000);
+  });
 
   it('rejects material digest drift and access mismatches', () => {
     const restrictedLocators = protectedCases.map(locatorFor);
@@ -661,7 +661,7 @@ describe('G4 real-model corpus material', () => {
         [accessDrift, ...restrictedLocators.slice(1)]
       )
     ).toThrow(/access does not match/u);
-  }, 30_000);
+  });
 
   it('keeps rotating counterexamples on the same restricted resolver boundary', () => {
     const caseId = 'g4-rotating.counterexample.1';

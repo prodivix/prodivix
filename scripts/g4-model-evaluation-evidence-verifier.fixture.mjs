@@ -14,7 +14,6 @@ import {
   createV8EvaluationPlan,
   createV8HoldoutReceipt,
   createV8HumanReviewReport,
-  createV8PublicReviewRubric,
   createV8QualificationAuthorityArchiveFixture,
   createV8ValidatedHumanReviewArtifact,
   V8_TIME,
@@ -74,7 +73,6 @@ import {
 } from '../packages/ai/src/providers/agentNativeProviderCapabilityRuntime.ts';
 import { createAgentBudgetLedger } from '../packages/ai/src/usage/agentBudgetLedger.ts';
 import {
-  createAgentEvaluationGraderPlan,
   createAgentModelEvaluationBudget,
   createAgentModelEvaluationPlan,
   createAgentEvaluationRuntimeFactSourceAuthority,
@@ -428,9 +426,7 @@ const createSemanticPlan = ({ legacyCoreOnly = false } = {}) => {
     ...input
   } = fixture;
   const { thresholdsDigest: _thresholdsDigest, ...thresholdInput } = thresholds;
-  const { planDigest: _graderPlanDigest, ...graderPlanInput } = graderPlan;
   const { budgetDigest: _budgetDigest, ...budgetInput } = budget;
-  const publicReviewRubricDigest = createV8PublicReviewRubric().rubricDigest;
   const humanMetrics = [
     'visual.human-quality',
     'visual.information-hierarchy-quality',
@@ -463,19 +459,7 @@ const createSemanticPlan = ({ legacyCoreOnly = false } = {}) => {
             ),
         }
       : {}),
-    graderPlan: createAgentEvaluationGraderPlan({
-      ...graderPlanInput,
-      graders: Object.freeze(
-        graderPlanInput.graders.map((grader) =>
-          graderPlanInput.blindHumanGraderIds.includes(grader.graderId)
-            ? Object.freeze({
-                ...grader,
-                configurationDigest: publicReviewRubricDigest,
-              })
-            : grader
-        )
-      ),
-    }),
+    graderPlan,
     thresholds: createAgentModelEvaluationThresholds({
       ...thresholdInput,
       metrics: Object.freeze([...thresholdInput.metrics, ...humanMetrics]),

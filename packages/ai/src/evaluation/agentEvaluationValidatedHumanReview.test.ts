@@ -336,7 +336,7 @@ describe('validated human review artifact', () => {
     expect(artifact.reviewLeaseDigest).toBe(
       artifact.reviewArtifact.reviewLeaseDigest
     );
-  }, 20_000);
+  });
 
   it('preserves every raw signed record and binds its normalized report', () => {
     const reviewArtifact = rawReview();

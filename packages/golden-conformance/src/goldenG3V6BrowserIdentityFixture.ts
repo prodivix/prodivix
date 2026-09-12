@@ -14,7 +14,12 @@ import {
 } from '@prodivix/verification-browser';
 
 export type GoldenG3V6ControlledPlatform =
-  'linux-20260720' | 'linux-20260726' | 'windows';
+  | 'linux-20260720'
+  | 'linux-20260726'
+  | 'linux-20260810'
+  | 'linux-20260816'
+  | 'linux-20260907'
+  | 'windows';
 
 export const GOLDEN_G3_V6_VISUAL_NORMALIZER = Object.freeze({
   id: 'pdx-rgba',
@@ -51,6 +56,36 @@ const CONTROLLED_OS_IMAGES = Object.freeze({
     digest:
       'sha256-fe4a98154a770868440b08e10fb44e3740b2cffd7666382890c572d6e25a04e2',
     machineClass: 'github-actions-ubuntu-24-04-x64-20260726',
+  }),
+  'linux-20260810': Object.freeze({
+    platform: 'linux',
+    architecture: 'x64',
+    image: 'github-actions-ubuntu-24.04',
+    imageVersion: '20260810.271.1',
+    kernelRelease: '6.17.0-1022-azure',
+    digest:
+      'sha256-73d7f4e2db6d934af8f500560a260f57b74347f8a69f1648f2aa47d541a5ec0e',
+    machineClass: 'github-actions-ubuntu-24-04-x64-20260810',
+  }),
+  'linux-20260816': Object.freeze({
+    platform: 'linux',
+    architecture: 'x64',
+    image: 'github-actions-ubuntu-24.04',
+    imageVersion: '20260816.277.1',
+    kernelRelease: '6.17.0-1022-azure',
+    digest:
+      'sha256-2a2a0daa845565bf75a4f6102d697e03d97a104ba2b8a60adddae846de4794ca',
+    machineClass: 'github-actions-ubuntu-24-04-x64-20260816',
+  }),
+  'linux-20260907': Object.freeze({
+    platform: 'linux',
+    architecture: 'x64',
+    image: 'github-actions-ubuntu-24.04',
+    imageVersion: '20260907.300.1',
+    kernelRelease: '6.17.0-1022-azure',
+    digest:
+      'sha256-51bf56ab968bb6389b1650d342aea823420344599c40587010ea712a079016a8',
+    machineClass: 'github-actions-ubuntu-24-04-x64-20260907',
   }),
 });
 
@@ -224,6 +259,9 @@ const CONTROLLED_BROWSER_IMAGES_BY_PLATFORM = Object.freeze({
   windows: WINDOWS_BROWSER_IMAGES,
   'linux-20260720': LINUX_BROWSER_IMAGES,
   'linux-20260726': LINUX_BROWSER_IMAGES,
+  'linux-20260810': LINUX_BROWSER_IMAGES,
+  'linux-20260816': LINUX_BROWSER_IMAGES,
+  'linux-20260907': LINUX_BROWSER_IMAGES,
 } satisfies Readonly<
   Record<
     GoldenG3V6ControlledPlatform,
@@ -238,7 +276,7 @@ export const GOLDEN_G3_V6_FONT_FREE_SET_DIGEST =
   'sha256-cdc0cdb0eee82b4b1039323c9f4dde0b85c19aa3a207ef7426a61531764edb89';
 
 export const GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY_DIGEST =
-  'sha256-289e104587c2b5041ab52ab211121ac66864627dff25b8256f056391948d1e8b';
+  'sha256-6c03edb3eacc41de106508607078f2ca0309329f2eb0d73773cdd2df166da401';
 
 export const GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY = Object.freeze({
   format: 'prodivix.golden-g3-v6-browser-identity-registry',
@@ -257,30 +295,18 @@ export const GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY = Object.freeze({
 export const selectGoldenG3V6ControlledPlatform = (
   observed: GoldenG3V6ObservedPlatformIdentity
 ): GoldenG3V6ControlledPlatform => {
-  if (
-    observed.platform === 'win32' &&
-    observed.architecture === 'x64' &&
-    observed.kernelRelease === '10.0.26200'
-  ) {
-    return 'windows';
-  }
-  if (
-    observed.platform === 'linux' &&
-    observed.architecture === 'x64' &&
-    observed.githubActions === 'true' &&
-    observed.imageOS === 'ubuntu24' &&
-    (observed.kernelRelease === '6.17.0-1020-azure' ||
-      observed.kernelRelease === '6.17.0-1022-azure')
-  ) {
-    if (observed.imageVersion === '20260720.247.2') {
-      return 'linux-20260720';
-    }
+  for (const platformId of GOLDEN_G3_V6_CONTROLLED_PLATFORMS) {
+    const expected = CONTROLLED_OS_IMAGES[platformId];
     if (
-      observed.imageVersion === '20260726.254.1' ||
-      observed.imageVersion === '20260810.271.1' ||
-      observed.imageVersion === '20260816.277.1'
+      observed.platform === expected.platform &&
+      observed.architecture === expected.architecture &&
+      observed.kernelRelease === expected.kernelRelease &&
+      (platformId === 'windows' ||
+        (observed.githubActions === 'true' &&
+          observed.imageOS === 'ubuntu24' &&
+          observed.imageVersion === expected.imageVersion))
     ) {
-      return 'linux-20260726';
+      return platformId;
     }
   }
   throw new Error(
@@ -447,40 +473,18 @@ export const createGoldenG3V6VisualCompatibilityProfile = (
 };
 
 export const assertGoldenG3V6BrowserIdentityRegistry = (): void => {
-  const osImages = Object.freeze({
-    windows: Object.freeze({
+  for (const [platformId, identity] of Object.entries(CONTROLLED_OS_IMAGES)) {
+    const actualDigest = digestVerificationValue({
       kind: 'controlled-os-image',
-      platform: 'win32',
-      image: 'windows-11-10.0.26200',
-      arch: 'x64',
-      imageVersion: '10.0.26200',
-      kernelRelease: '10.0.26200',
-    }),
-    'linux-20260720': Object.freeze({
-      kind: 'controlled-os-image',
-      platform: 'linux',
-      image: 'github-actions-ubuntu-24.04',
-      arch: 'x64',
-      imageVersion: '20260720.247.2',
-      kernelRelease: '6.17.0-1020-azure',
-    }),
-    'linux-20260726': Object.freeze({
-      kind: 'controlled-os-image',
-      platform: 'linux',
-      image: 'github-actions-ubuntu-24.04',
-      arch: 'x64',
-      imageVersion: '20260726.254.1',
-      kernelRelease: '6.17.0-1020-azure',
-    }),
-  });
-  for (const [platform, value] of Object.entries(osImages)) {
-    const actualDigest = digestVerificationValue(value);
-    if (
-      actualDigest !==
-      CONTROLLED_OS_IMAGES[platform as GoldenG3V6ControlledPlatform].digest
-    ) {
+      platform: identity.platform,
+      image: identity.image,
+      arch: identity.architecture,
+      imageVersion: identity.imageVersion,
+      kernelRelease: identity.kernelRelease,
+    });
+    if (actualDigest !== identity.digest) {
       throw new Error(
-        `Golden V6 pre-adopted ${platform} OS image digest drifted: ${actualDigest}.`
+        `Golden V6 pre-adopted ${platformId} OS image digest drifted: ${actualDigest}.`
       );
     }
   }

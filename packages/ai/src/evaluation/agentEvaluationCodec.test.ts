@@ -26,7 +26,7 @@ describe('G4 V8 evaluation wire codec', () => {
       });
       expect(JSON.parse(serializeAgentEvaluationFact(fact))).toEqual(wire);
     }
-  }, 30_000);
+  });
 
   it('rejects unknown members and recomputed-looking digest drift', () => {
     const plan = createV8EvaluationPlan();

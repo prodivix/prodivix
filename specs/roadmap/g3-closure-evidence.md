@@ -317,6 +317,27 @@ companion Gate 与真实三浏览器 adapter tests 已于 2026-07-29 在本地�
   Docker、G2 Execution、CodeQL、G0/G1、Tests、独立 Rootless、Smoke、Security 与 G2 Data workflows
   也全部 terminal success。
 
+#### Runner image adoption — 2026-09-12
+
+- Status：`Configured / Evidence pending`。这次环境登记不替换上述历史 durable run 的身份或结果。
+- GitHub runner `ubuntu24:20260907.300.1` / kernel `6.17.0-1022-azure` 已由
+  [官方 image release](https://github.com/actions/runner-images/releases/tag/ubuntu24/20260907.300)
+  与 [software manifest](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260907/images/ubuntu/Ubuntu2404-Readme.md)
+  确认；该镜像恢复 Ubuntu packaged Podman `4.9.3`。唯一 rootless toolchain registry
+  `scripts/ci/configure-rootless-podman.sh` 为它绑定 `/usr/bin/podman`、`/usr/bin/crun`、
+  `/usr/bin/conmon` 与 `systemd` cgroup family，继续在执行前校验实际 version/path、rootless、
+  OCI runtime/conmon selection、cgroup manager，并采集三个 binary digests。
+- Browser registry 为 `20260810.271.1`、`20260816.277.1` 与 `20260907.300.1` 分别登记独立 OS
+  identity；精确匹配每个 image/kernel 组合，不再将 8 月环境投影为 7 月 identity。registry digest 为
+  `sha256-6c03edb3eacc41de106508607078f2ca0309329f2eb0d73773cdd2df166da401`；G3 V6/V8 与 G4 V9
+  workflow 的 runner preflight 使用相同 image/kernel 配对。
+- 六个 registered platforms 共生成 72 个 visual compatibility entries。新增三个 exact platform 的
+  compatibility `adoptedAt` 为 `2026-09-12T00:00:00.000Z`；既有 font-free PNG、asset/raster digest
+  及原始 asset adoption 时间不变，不使用当前 Attempt 的截图建立 baseline。Playwright `1.61.1`
+  的三种 Linux browser authority receipts 保持固定，远端仍须先逐引擎重算 installed file-set authority。
+- 本地 identity conformance `1 file / 8 tests` 通过；新镜像上的真实 rootless containment、browser
+  file-set attestation、完整 adapter matrix 与 Golden closure 仍须由后续 exact-SHA GitHub run 验证。
+
 ### V7 reproducible run
 
 - Status：`Implemented / durable CI Evidence Passed`。

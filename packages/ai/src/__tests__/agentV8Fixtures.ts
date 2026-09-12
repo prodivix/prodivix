@@ -1554,7 +1554,7 @@ export const createV8EvaluationPlan = (): AgentModelEvaluationPlan => {
           graderId: 'grader.blind-human.v8',
           kind: 'blind-human-rubric',
           authority: 'human',
-          configurationDigest: digestAgentCanonicalValue('visual-rubric-v8'),
+          configurationDigest: createV8PublicReviewRubric().rubricDigest,
           testedModelFamilyOwnerIds: Object.freeze([]),
         }),
       ]),

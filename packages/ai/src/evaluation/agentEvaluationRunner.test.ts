@@ -130,7 +130,7 @@ describe('G4 V8 evaluation repository and shard runner', () => {
     expect(
       await runner.runShard({ ...input, ownerId: 'evaluation-worker.b' })
     ).toEqual({ ok: false, reason: 'lease-rejected' });
-  }, 60_000);
+  });
 
   it('keeps an unexpected executor crash pending and resumes the exact descriptor', async () => {
     const plan = createV8EvaluationPlan();
@@ -222,7 +222,7 @@ describe('G4 V8 evaluation repository and shard runner', () => {
       status: 'completed',
       outcome: 'passed',
     });
-  }, 60_000);
+  });
 
   it('rejects an over-budget atomic shard reservation', () => {
     const plan = createV8EvaluationPlan();
