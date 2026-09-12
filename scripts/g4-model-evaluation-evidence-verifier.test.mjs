@@ -121,6 +121,9 @@ const PUBLIC_KEY = Buffer.alloc(32, 9).toString('base64url');
 const singletonFamilySet = new Set(
   AGENT_MODEL_EVALUATION_EVIDENCE_ARCHIVE_SINGLETON_FAMILIES
 );
+// Late-rejecting negatives rebuild and verify the same full denominator as the
+// positive archive, so each archive receives the same test execution budget.
+const SEMANTIC_ARCHIVE_TEST_TIMEOUT = 600_000;
 let fixtureSequence = 0;
 
 after(async () => {
@@ -1513,7 +1516,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'streams the bounded 14,040-attempt semantic archive through owner, specific, grading, and required human authority to the signed terminus',
-    { timeout: 600_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture();
       const paths = await writeG4ModelEvaluationSemanticArchiveFixture({
@@ -1680,7 +1683,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'rejects a fully recomputed foreign hosted runtime exact-four registration-intent set',
-    { timeout: 600_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'swap-hosted-runtime-resource-registration-intents',
@@ -1702,27 +1705,30 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
     }
   );
 
-  test(
-    'rejects missing, duplicate, and fully recomputed outer-source-swapped capability-effect Provider runtime journals',
-    { timeout: 600_000 },
-    async () => {
-      for (const { mutation, expectedError } of [
-        {
-          mutation: 'missing-capability-effect-provider-runtime-journal',
-          expectedError:
-            /runtime journal drifted from its exact outer source seal/u,
-        },
-        {
-          mutation: 'duplicate-capability-effect-provider-runtime-journal',
-          expectedError:
-            /(?:Provider runtime journal is duplicated|contains a swapped, duplicate, missing, or out-of-order record)/u,
-        },
-        {
-          mutation: 'swap-capability-effect-provider-runtime-journal-source',
-          expectedError:
-            /runtime journal drifted from its exact outer source seal/u,
-        },
-      ]) {
+  for (const { mutation, label, expectedError } of [
+    {
+      mutation: 'missing-capability-effect-provider-runtime-journal',
+      label: 'missing',
+      expectedError:
+        /runtime journal drifted from its exact outer source seal/u,
+    },
+    {
+      mutation: 'duplicate-capability-effect-provider-runtime-journal',
+      label: 'duplicate',
+      expectedError:
+        /(?:Provider runtime journal is duplicated|contains a swapped, duplicate, missing, or out-of-order record)/u,
+    },
+    {
+      mutation: 'swap-capability-effect-provider-runtime-journal-source',
+      label: 'outer-source-swapped',
+      expectedError:
+        /runtime journal drifted from its exact outer source seal/u,
+    },
+  ]) {
+    test(
+      `rejects fully recomputed ${label} capability-effect Provider runtime journals`,
+      { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
+      async () => {
         const fixture = createG4ModelEvaluationSemanticArchiveFixture({
           mutation,
         });
@@ -1737,12 +1743,12 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
           expectedError
         );
       }
-    }
-  );
+    );
+  }
 
   test(
     'rejects a recomputed and resigned 13,200-attempt legacy production denominator',
-    { timeout: 180_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'legacy-13,200-production-denominator',
@@ -1772,7 +1778,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'rejects swapped grading owners after every raw shard, index, root, and signature commitment is recomputed',
-    { timeout: 180_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'swap-grading-owner-projections',
@@ -1800,7 +1806,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'rejects provider-observation adapter tampering after every raw shard, index, root, and signature commitment is recomputed',
-    { timeout: 180_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'tamper-provider-observation-adapter',
@@ -1828,7 +1834,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'rejects swapped provider-observation bindings after every raw shard, index, root, and signature commitment is recomputed',
-    { timeout: 180_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'swap-provider-observation-bindings',
@@ -1856,7 +1862,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'rejects provider-observation runtime-envelope authority tampering after every raw shard, index, root, and signature commitment is recomputed',
-    { timeout: 180_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'tamper-provider-observation-runtime-envelope',
@@ -1884,7 +1890,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'rejects capability-specific result tampering after every raw shard, index, root, and signature commitment is recomputed',
-    { timeout: 180_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'tamper-capability-specific-result',
@@ -1912,7 +1918,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
 
   test(
     'rejects a target-resolved capability descriptor swap after every raw shard, index, root, and signature commitment is recomputed',
-    { timeout: 180_000 },
+    { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
     async () => {
       const fixture = createG4ModelEvaluationSemanticArchiveFixture({
         mutation: 'swap-capability-specific-resolved-descriptor',
@@ -1986,12 +1992,7 @@ describe('G4 sharded model-evaluation evidence verifier', () => {
   ]) {
     test(
       `rejects a recomputed ${label} swap after every raw shard, index, root, and signature commitment is recomputed`,
-      {
-        timeout:
-          mutation === 'swap-optional-fact-authority-result'
-            ? 300_000
-            : 180_000,
-      },
+      { timeout: SEMANTIC_ARCHIVE_TEST_TIMEOUT },
       async () => {
         const fixture = createG4ModelEvaluationSemanticArchiveFixture({
           mutation,
