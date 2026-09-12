@@ -36,6 +36,7 @@ import {
   createRootlessPodmanSandbox,
   verifyRootlessPodmanEngine,
 } from '../src/rootlessPodmanSandbox';
+import { createRootlessProbeSnapshot as snapshot } from './rootlessProbeSnapshot';
 
 const execFileAsync = promisify(execFile);
 const snapshotContractOnly =
@@ -378,79 +379,6 @@ if (install.status === 0) {
 }
 process.exit(install.status ?? 1);
 `;
-
-const snapshot = (
-  executionId: string,
-  source: string,
-  profile: 'preview' | 'build' | 'test' = 'build',
-  installCommand: Readonly<{
-    command: 'node' | 'npm';
-    args: readonly string[];
-  }> = profile === 'test'
-    ? {
-        command: 'npm',
-        args: [
-          'install',
-          '--ignore-scripts',
-          '--no-audit',
-          '--no-fund',
-          '--package-lock=false',
-        ],
-      }
-    : { command: 'node', args: ['-e', 'process.exit(0)'] }
-) =>
-  createExecutableProjectSnapshot({
-    workspace: {
-      workspaceId: `workspace-${executionId}`,
-      snapshotId: `snapshot-${executionId}`,
-      partitionRevisions: { workspace: '1' },
-    },
-    target: { presetId: 'rootless-gate', framework: 'node', runtime: 'node' },
-    files: [
-      {
-        path: 'package.json',
-        contents:
-          profile === 'test'
-            ? '{"private":true,"devDependencies":{"vitest":"^4.1.9"}}'
-            : '{"private":true}',
-        sourceTrace: [
-          {
-            sourceRef: {
-              kind: 'workspace',
-              workspaceId: `workspace-${executionId}`,
-            },
-          },
-        ],
-      },
-    ],
-    dependencyPlan: { manifestFilePath: 'package.json' },
-    entrypoints: [{ kind: profile, path: 'package.json' }],
-    capabilityRequirements: {
-      preview: ['filesystem'],
-      build: ['filesystem', 'build'],
-      test: ['filesystem', 'test'],
-    },
-    publicBuildConfiguration: [],
-    resourceHints: {
-      cpuCores: 1,
-      memoryMb: profile === 'test' ? 512 : 256,
-      diskMb: profile === 'test' ? 256 : 64,
-    },
-    cacheHints: { dependencyInstall: 'isolated' },
-    installCommand,
-    buildCommand: {
-      command: 'node',
-      args: ['--input-type=module', '-e', source],
-    },
-    testPlan: {
-      framework: 'vitest',
-      command: {
-        command: 'node',
-        args: ['--input-type=module', '-e', source],
-      },
-      reportFilePath: '.prodivix/test-report.json',
-    },
-  });
 
 const isolatedServerFunctionFixture = () => {
   const functionRef = Object.freeze({
@@ -938,6 +866,40 @@ const isolatedSourceMutationServerFunctionFixture = () => {
 };
 
 if (snapshotContractOnly) {
+  const testProbeSnapshot = snapshot('gate-test', testReportSource, 'test');
+  const testManifest = JSON.parse(
+    testProbeSnapshot.files.find(({ path }) => path === 'package.json')!
+      .contents as string
+  ) as { devDependencies: Record<string, string> };
+  const testLock = JSON.parse(
+    testProbeSnapshot.files.find(({ path }) => path === 'package-lock.json')!
+      .contents as string
+  ) as {
+    lockfileVersion: number;
+    packages: Record<
+      string,
+      {
+        devDependencies?: Record<string, string>;
+        version?: string;
+      }
+    >;
+  };
+  if (
+    testProbeSnapshot.dependencyPlan.lockFilePath !== 'package-lock.json' ||
+    testProbeSnapshot.installCommand.command !== 'npm' ||
+    testProbeSnapshot.installCommand.args?.[0] !== 'ci' ||
+    testLock.lockfileVersion !== 3 ||
+    ['vite', 'vitest'].some(
+      (dependency) =>
+        testManifest.devDependencies[dependency] !==
+          testLock.packages['']?.devDependencies?.[dependency] ||
+        testManifest.devDependencies[dependency] !==
+          testLock.packages[`node_modules/${dependency}`]?.version
+    )
+  )
+    throw new Error(
+      'Rootless Test probe manifest/lock snapshot contract is invalid.'
+    );
   const readSecretFixture = isolatedServerFunctionFixture();
   const readSecretPlan = readIsolatedServerFunctionPlan(
     readSecretFixture.snapshot.serverFunctionPlan
@@ -1006,7 +968,10 @@ if (snapshotContractOnly) {
     )
   )
     throw new Error('Rootless workspace.write snapshot contract is invalid.');
-  const snapshotDigests = [mutationFixture.snapshot.contentDigest];
+  const snapshotDigests = [
+    mutationFixture.snapshot.contentDigest,
+    testProbeSnapshot.contentDigest,
+  ];
   if (
     goldenSnapshotPath !== 'contract-only' &&
     goldenCatalogSnapshotPath !== 'contract-only'

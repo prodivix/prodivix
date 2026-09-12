@@ -335,8 +335,16 @@ companion Gate 与真实三浏览器 adapter tests 已于 2026-07-29 在本地�
   compatibility `adoptedAt` 为 `2026-09-12T00:00:00.000Z`；既有 font-free PNG、asset/raster digest
   及原始 asset adoption 时间不变，不使用当前 Attempt 的截图建立 baseline。Playwright `1.61.1`
   的三种 Linux browser authority receipts 保持固定，远端仍须先逐引擎重算 installed file-set authority。
-- 本地 identity conformance `1 file / 8 tests` 通过；新镜像上的真实 rootless containment、browser
-  file-set attestation、完整 adapter matrix 与 Golden closure 仍须由后续 exact-SHA GitHub run 验证。
+- Baseline set identity 的变更使 V8 locked Plan digest 更新为
+  `sha256-ba89d3a004838d2132790df890165bd6d4b6e492b44326cfd0ba62d2abe13bde`。
+  66 个 required cells、trust/attestation 要求保持不变；下方历史 V8 run 的旧 Plan digest 不替换。
+- 本地 identity conformance `1 file / 8 tests` 与完整 `pnpm run verify:g3:golden` 通过；后者以新 locked
+  Plan 完成 `1 file / 6 tests`，66 个 required cells 的 Closure 为 `satisfied`。
+- Commit `b9b5f41b365a8a7f71ebbfe607b02151cb356117` 的
+  [V6 controlled adapter matrix Job](https://github.com/prodivix/prodivix/actions/runs/34675157636/job/103503592761)
+  已在新镜像上通过 browser file-set attestation 和完整 66-cell / 80-attempt matrix；registry、visual
+  identity、baseline set 与原 asset/raster digest 均与上述登记一致。独立 Rootless Gate 的锁定 npm probe
+  修复及新 locked Plan 的完整远端 V8 Closure 仍须由后续 exact-SHA run 验证。
 
 ### V7 reproducible run
 

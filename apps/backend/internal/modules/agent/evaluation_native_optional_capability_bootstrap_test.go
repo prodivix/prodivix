@@ -576,14 +576,14 @@ func TestEvaluationNativeOptionalCapabilityBootstrapSealsSharedDurableFact(t *te
 		t.Fatalf("recommitted native source ACK archive swap was accepted: %v", err)
 	}
 	// This golden anchors the Go canonical cross-owner chain to the generated
-	// human-authority vector; the relational checks above remain the semantic owner.
-	if fixture.Record.SourceRequestDigest != "sha256-76886485cca136796ac36a3b45864426f6ca62815d66db913d765e810509c86a" ||
-		fixture.Record.SourceOwnerStageDigest != "sha256-3c04d1aae4c09e373b5193e1d73ced52b41527b32db2e988ebad4d8ad00b6af7" ||
-		fixture.Record.SourceOwnerDispatchAckDigest != "sha256-6700a6217b427cb239843b85757ee5da649cbbbcf93580556cfd9c3fdb2cc5ed" ||
-		fixture.Record.SourceReceiptDigest != "sha256-acc72549d3face984f1a7c365d03ef4a1e80f730e67a998a75b18702e2d8893f" ||
-		source.SourceSealDigest != "sha256-d3718b6795b24ef500f48baa960a6dd633d8fe6c08d0497305116cdfeb15b217" ||
-		sealed.RuntimeFactEnvelopeDigest != "sha256-4cd2a69f6644eef6c752c2af17ff11e96e8083684b5dcd4039471ffab07878aa" ||
-		sealed.FactAuthorityDigest != "sha256-a84471611211a8051a3b5398da1258c3f6c3b5111bb5849665768f0709b0fd53" {
+	// evaluation vector; the relational checks above remain the semantic owner.
+	if fixture.Record.SourceRequestDigest != "sha256-7700d25e21771fe813f54174b895d8b7ec721cbe9b0c198ddfe4ea65aac04964" ||
+		fixture.Record.SourceOwnerStageDigest != "sha256-7f5b40e5e7bfc04c36c3cf72a3f3698a0ced003a18b7c4a7cd195c2ffa5ce855" ||
+		fixture.Record.SourceOwnerDispatchAckDigest != "sha256-bed7a52d6e0665f410c197f28f736a1072269e703e779accc0196aac8ccd63ad" ||
+		fixture.Record.SourceReceiptDigest != "sha256-ab733600ab1efcf7bd76835d85fa8e8439b24fce76ef0003323f4545804db315" ||
+		source.SourceSealDigest != "sha256-98e552b3669dc8299e951259ae97c75d8d30b19f8dc601b825baeee15211b6a9" ||
+		sealed.RuntimeFactEnvelopeDigest != "sha256-55100950a6b5fa8bcccccb814e428a75a19a2acca6422947bc13e1b0b58269ac" ||
+		sealed.FactAuthorityDigest != "sha256-ba7ebfe004704f7b840a0ea2dd35c6ab3e1fc9af251aa89612efc97c713872da" {
 		t.Fatalf("native bootstrap cross-owner vector drifted: sourceRequest=%s stage=%s ack=%s sourceReceipt=%s outerSource=%s envelope=%s authority=%s",
 			fixture.Record.SourceRequestDigest, fixture.Record.SourceOwnerStageDigest,
 			fixture.Record.SourceOwnerDispatchAckDigest, fixture.Record.SourceReceiptDigest,

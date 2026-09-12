@@ -71,6 +71,6 @@ if (planResult.status !== 'ready') {
 
 export const GOLDEN_G3_V8_PLAN: VerificationPlan = planResult.plan;
 
-// Updated only when the reviewed canonical V8 policy or matrix intentionally changes.
+// Updated only when the reviewed canonical V8 policy, matrix, or baseline identity changes.
 export const GOLDEN_G3_V8_LOCKED_PLAN_DIGEST =
-  'sha256-67676af5b3930e32906ba9d5a835d82a11bd2f6a2d48100497082d0b685ee011';
+  'sha256-ba89d3a004838d2132790df890165bd6d4b6e492b44326cfd0ba62d2abe13bde';

@@ -1095,9 +1095,18 @@ const workflowSource = await readFile(
   join(repoRoot, '.github', 'workflows', 'g4-boundaries.yml'),
   'utf8'
 );
-for (const token of [
+for (const triggerPath of [
   "- 'packages/ai/**'",
+  "- 'apps/backend/internal/modules/agent/**'",
   "- 'apps/backend/internal/platform/agentcontract/**'",
+]) {
+  if (workflowSource.split(triggerPath).length - 1 !== 2) {
+    issues.push(
+      `G4 V0 workflow must bind ${triggerPath} in both pull_request and push triggers.`
+    );
+  }
+}
+for (const token of [
   'image: postgres:16',
   'run: pnpm run verify:g4:boundaries',
   'run: pnpm run verify:g4:boundaries:postgres',
