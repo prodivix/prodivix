@@ -27,6 +27,7 @@ if not defined PS_EXE (
 echo [INFO] Starting dev processes with: "%PS_EXE%"
 
 start "dev-db" /d "%PROJECT_DIR%" "%PS_EXE%" -NoExit -ExecutionPolicy Bypass -File ".\scripts\start-dev-postgres.ps1"
+start "dev-mail" /d "%PROJECT_DIR%" "%PS_EXE%" -NoExit -ExecutionPolicy Bypass -File ".\scripts\start-dev-mailpit.ps1"
 start "dev-web" /d "%PROJECT_DIR%" "%PS_EXE%" -NoExit -Command "pnpm run dev:web"
 start "dev-backend" /d "%PROJECT_DIR%" "%PS_EXE%" -NoExit -ExecutionPolicy Bypass -File ".\scripts\start-dev-backend.ps1"
 start "storybook-ui" /d "%PROJECT_DIR%" "%PS_EXE%" -NoExit -Command "pnpm run storybook:ui"

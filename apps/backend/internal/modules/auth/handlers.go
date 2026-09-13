@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -34,14 +35,26 @@ var allowedAvatarContentTypes = map[string]string{
 var dummyPasswordHash = []byte("$2a$10$XajjQvNhvvRt5GSeFk1xFeyqRrsxkhBkUiQeg0dt.wU1qD4aFDcga")
 
 type Handler struct {
-	users    *UserStore
-	sessions *SessionStore
-	tokenTTL time.Duration
-	logins   *loginAttemptLimiter
+	users         *UserStore
+	sessions      *SessionStore
+	tokenTTL      time.Duration
+	logins        *authAttemptLimiter
+	registrations *authAttemptLimiter
+	resetRequests *authAttemptLimiter
+	resetAttempts *authAttemptLimiter
+	passwordReset *PasswordResetService
 }
 
 func NewHandler(users *UserStore, sessions *SessionStore, tokenTTL time.Duration) *Handler {
-	return &Handler{users: users, sessions: sessions, tokenTTL: tokenTTL, logins: newLoginAttemptLimiter()}
+	return &Handler{
+		users: users, sessions: sessions, tokenTTL: tokenTTL,
+		logins: newAuthAttemptLimiter(), registrations: newAuthAttemptLimiter(),
+		resetRequests: newAuthAttemptLimiter(), resetAttempts: newAuthAttemptLimiter(),
+	}
+}
+
+func (handler *Handler) SetPasswordResetService(service *PasswordResetService) {
+	handler.passwordReset = service
 }
 
 func (handler *Handler) RequireAuth() gin.HandlerFunc {
@@ -69,14 +82,16 @@ func (handler *Handler) RequireAuth() gin.HandlerFunc {
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 	return RouteHandlers{
-		Register:     handler.HandleRegister,
-		Login:        handler.HandleLogin,
-		Logout:       handler.HandleLogout,
-		Me:           handler.HandleMe,
-		UpdateMe:     handler.HandleUpdateMe,
-		UpdateAvatar: handler.HandleUpdateAvatar,
-		GetUser:      handler.HandleGetUser,
-		RequireAuth:  requireAuth,
+		Register:       handler.HandleRegister,
+		ForgotPassword: handler.HandleForgotPassword,
+		ResetPassword:  handler.HandleResetPassword,
+		Login:          handler.HandleLogin,
+		Logout:         handler.HandleLogout,
+		Me:             handler.HandleMe,
+		UpdateMe:       handler.HandleUpdateMe,
+		UpdateAvatar:   handler.HandleUpdateAvatar,
+		GetUser:        handler.HandleGetUser,
+		RequireAuth:    requireAuth,
 	}
 }
 
@@ -92,18 +107,17 @@ func (handler *Handler) HandleRegister(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
 		return
 	}
+	if !allowAuthAttempt(c, handler.registrations, request.Email, "Too many registration attempts. Try again later.") {
+		return
+	}
 	email := strings.TrimSpace(request.Email)
 	password := request.Password
 	if !isValidEmail(email) {
 		respondError(c, http.StatusBadRequest, "API-4001", "Email is invalid.")
 		return
 	}
-	if len(password) < 8 {
-		respondError(c, http.StatusBadRequest, "API-4001", "Password must be at least 8 characters.")
-		return
-	}
-	if len([]byte(password)) > 72 {
-		respondError(c, http.StatusBadRequest, "API-4001", "Password must be 72 bytes or fewer.")
+	if message := passwordValidationMessage(password); message != "" {
+		respondError(c, http.StatusBadRequest, "API-4001", message)
 		return
 	}
 	if !backendtext.WithinDisplayBound(request.Name, backendtext.MaxDisplayNameRunes) ||
@@ -119,13 +133,13 @@ func (handler *Handler) HandleRegister(c *gin.Context) {
 	_, err = handler.users.Create(email, request.Name, request.Description, passwordHash)
 	if err != nil {
 		if errors.Is(err, ErrEmailExists) {
-			c.JSON(http.StatusAccepted, gin.H{"accepted": true})
+			respondError(c, http.StatusConflict, "API-4009", "This email is already registered. Sign in with your existing password.")
 			return
 		}
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not create user.")
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"accepted": true})
+	c.JSON(http.StatusCreated, gin.H{"created": true})
 }
 
 func (handler *Handler) HandleLogin(c *gin.Context) {
@@ -138,13 +152,7 @@ func (handler *Handler) HandleLogin(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "API-1001", "Invalid request payload.")
 		return
 	}
-	if allowed, retryAfter := handler.logins.allow(c.ClientIP(), request.Email); !allowed {
-		seconds := int(retryAfter.Round(time.Second) / time.Second)
-		if seconds < 1 {
-			seconds = 1
-		}
-		c.Header("Retry-After", strconv.Itoa(seconds))
-		respondError(c, http.StatusTooManyRequests, "API-4290", "Too many login attempts. Try again later.")
+	if !allowAuthAttempt(c, handler.logins, request.Email, "Too many login attempts. Try again later.") {
 		return
 	}
 	user, ok := handler.users.GetByEmail(request.Email)
@@ -157,8 +165,12 @@ func (handler *Handler) HandleLogin(c *gin.Context) {
 		respondError(c, http.StatusUnauthorized, "API-2001", "Invalid email or password.")
 		return
 	}
-	session := handler.sessions.Create(user.ID, handler.tokenTTL)
-	if session == nil {
+	session, err := handler.sessions.Create(user, handler.tokenTTL)
+	if errors.Is(err, ErrCredentialsChanged) {
+		respondError(c, http.StatusUnauthorized, "API-2001", "Invalid email or password.")
+		return
+	}
+	if err != nil {
 		respondError(c, http.StatusInternalServerError, "API-9001", "Could not create session.")
 		return
 	}
@@ -343,10 +355,22 @@ func respondError(c *gin.Context, status int, code, message string) {
 	backendresponse.Error(c, status, code, message)
 }
 
-func isValidEmail(email string) bool {
-	email = strings.TrimSpace(email)
-	if email == "" {
-		return false
+func allowAuthAttempt(c *gin.Context, limiter *authAttemptLimiter, email, message string) bool {
+	allowed, retryAfter := limiter.allow(c.ClientIP(), email)
+	if allowed {
+		return true
 	}
-	return strings.Contains(email, "@")
+	seconds := int((retryAfter + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(seconds))
+	respondError(c, http.StatusTooManyRequests, "API-4290", message)
+	return false
+}
+
+func isValidEmail(email string) bool {
+	email = normalizeEmail(email)
+	parsed, err := mail.ParseAddress(email)
+	return err == nil && parsed.Address == email && len(email) <= 254 && !strings.ContainsAny(email, "\r\n")
 }

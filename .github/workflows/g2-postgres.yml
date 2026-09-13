@@ -122,3 +122,7 @@ jobs:
       - name: Run Backend PIR wire persistence rollout PostgreSQL Gate
         working-directory: apps/backend
         run: go test ./internal/platform/database -run '^TestPIRWireMigrationPostgreSQLGate$' -count=1 -v
+
+      - name: Run Backend account recovery PostgreSQL Gate
+        working-directory: apps/backend
+        run: go test ./internal/modules/auth -run '^TestPasswordRecoveryPostgreSQLLifecycle$' -count=1 -v

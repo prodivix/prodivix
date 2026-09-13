@@ -1,4 +1,5 @@
 export * from './ExecutionCenter';
+export * from './ExecutionCenterToggle';
 export * from './ExecutionTerminalEmulatorSurface';
 export * from './animationExecutionClient';
 export * from './browserProjectExecutionEnvironment';

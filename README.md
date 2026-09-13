@@ -95,7 +95,7 @@ pnpm dev:web
 
 Backend-backed Workspace, authentication, synchronization, and project persistence require PostgreSQL. From `apps/backend`, run `docker compose up -d` to start a local database. Backend dependencies are managed by Go modules and can be preloaded with `go mod download`. See [`apps/backend/README.md`](apps/backend/README.md) for backend-specific setup.
 
-On Windows, `scripts\start-dev.bat` can open the native PostgreSQL, backend, Web editor, and UI Storybook processes together. Copy `.env.example` to `.env.local` to override the local PostgreSQL connection or `PRODIVIX_PG_BIN`; the database and backend launchers read the same `BACKEND_DB_URL`.
+On Windows, `scripts\start-dev.bat` can open the native PostgreSQL, Mailpit inbox, backend, Web editor, and UI Storybook processes together. Copy `.env.example` to `.env.local` to configure the local database and password recovery email; the database and backend launchers read the same `BACKEND_DB_URL`. Install `mailpit.exe` in `.tmp/tools/mailpit` or set `PRODIVIX_MAILPIT_BIN` before starting the inbox. Captured development emails are available at `http://localhost:8025`; see [backend configuration](apps/backend/README.md) for SMTP settings.
 
 Common entry points:
 

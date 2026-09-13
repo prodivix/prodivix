@@ -16,6 +16,7 @@ import (
 
 var ErrEmailExists = errors.New("email already exists")
 var ErrUserNotFound = errors.New("user not found")
+var ErrCredentialsChanged = errors.New("credentials changed during login")
 
 type UserStore struct {
 	db *sql.DB
@@ -49,7 +50,7 @@ func (store *UserStore) Create(email, name, description string, passwordHash []b
 VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err = store.db.ExecContext(ctx, query, user.ID, user.Email, user.Name, user.Description, user.AvatarURL, user.PasswordHash, user.CreatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if isEmailConflict(err) {
 			return nil, ErrEmailExists
 		}
 		return nil, err
@@ -159,35 +160,44 @@ func NewSessionStore(db *sql.DB) *SessionStore {
 	return &SessionStore{db: db}
 }
 
-func (store *SessionStore) Create(userID string, ttl time.Duration) *Session {
+func (store *SessionStore) Create(user *User, ttl time.Duration) (*Session, error) {
 	if ttl <= 0 {
 		ttl = 24 * time.Hour
 	}
 	sessionID, err := backendidentity.NewID("session", 16)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	token, err := backendidentity.NewRandomHex(32)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	createdAt := time.Now().UTC()
 	session := &Session{
 		ID:        sessionID,
 		Token:     token,
-		UserID:    userID,
+		UserID:    user.ID,
 		CreatedAt: createdAt,
 		ExpiresAt: createdAt.Add(ttl),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	// Lock the verified user row through insertion. A concurrent password reset
+	// either removes this session afterwards or makes the hash predicate fail.
 	const query = `INSERT INTO sessions (id, token, user_id, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5)`
-	_, err = store.db.ExecContext(ctx, query, session.ID, sessionTokenDigest(session.Token), session.UserID, session.CreatedAt, session.ExpiresAt)
+SELECT $1, $2, id, $4, $5 FROM users WHERE id = $3 AND password_hash = $6 FOR SHARE`
+	result, err := store.db.ExecContext(ctx, query, session.ID, authTokenDigest(session.Token), session.UserID, session.CreatedAt, session.ExpiresAt, user.PasswordHash)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return session
+	count, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if count != 1 {
+		return nil, ErrCredentialsChanged
+	}
+	return session, nil
 }
 
 func (store *SessionStore) Get(token string) (*Session, bool) {
@@ -200,7 +210,7 @@ func (store *SessionStore) Get(token string) (*Session, bool) {
 	const query = `SELECT id, user_id, created_at, expires_at
 FROM sessions
 WHERE token = $1 AND expires_at > NOW()`
-	digest := sessionTokenDigest(token)
+	digest := authTokenDigest(token)
 	row := store.db.QueryRowContext(ctx, query, digest)
 	session := &Session{}
 	var sessionID sql.NullString
@@ -222,7 +232,7 @@ func legacySessionID(token string) string {
 	return "session-sha256-" + hex.EncodeToString(digest[:])
 }
 
-func sessionTokenDigest(token string) string {
+func authTokenDigest(token string) string {
 	digest := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(digest[:])
 }
@@ -235,7 +245,7 @@ func (store *SessionStore) Delete(token string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	const query = `DELETE FROM sessions WHERE token = $1`
-	_, _ = store.db.ExecContext(ctx, query, sessionTokenDigest(token))
+	_, _ = store.db.ExecContext(ctx, query, authTokenDigest(token))
 }
 
 func normalizeEmail(email string) string {
@@ -255,10 +265,10 @@ func scanUser(scanner interface{ Scan(dest ...any) error }) (*User, error) {
 	return user, nil
 }
 
-func isUniqueViolation(err error) bool {
+func isEmailConflict(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505"
+		return pgErr.Code == "23505" && pgErr.ConstraintName == "users_email_key"
 	}
 	return false
 }

@@ -41,6 +41,12 @@ export const createRoutes = (instance: i18n) => {
     () => import('./auth/ProfilePage'),
     (module) => module.ProfilePage
   );
+  const PasswordRecoveryPage = lazyRoute(
+    instance,
+    ['auth'],
+    () => import('./auth/PasswordRecoveryPage'),
+    (module) => module.PasswordRecoveryPage
+  );
   const CommunityPage = lazyRoute(
     instance,
     ['community'],
@@ -152,6 +158,14 @@ export const createRoutes = (instance: i18n) => {
     {
       path: 'auth',
       element: withRouteSuspense(<AuthPage />),
+    },
+    {
+      path: 'auth/forgot-password',
+      element: withRouteSuspense(<PasswordRecoveryPage key="forgot" />),
+    },
+    {
+      path: 'auth/reset-password',
+      element: withRouteSuspense(<PasswordRecoveryPage key="reset" />),
     },
     {
       path: 'profile',

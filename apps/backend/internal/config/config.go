@@ -30,6 +30,7 @@ type Config struct {
 	AssetBlobRetention WorkspaceAssetBlobRetentionConfig
 	EnvironmentSecrets EnvironmentSecretStoreConfig
 	Verification       VerificationEvidenceConfig
+	PasswordReset      PasswordResetConfig
 }
 
 type WorkspaceAssetBlobRetentionConfig struct {
@@ -330,6 +331,10 @@ func LoadConfig() (Config, error) {
 	environment := strings.ToLower(getEnv("APP_ENV", "development"))
 	tokenTTL := getEnvDuration("BACKEND_TOKEN_TTL", 24*time.Hour)
 	allowed := parseCSV(getEnv("BACKEND_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174"))
+	passwordReset, err := loadPasswordResetConfig(environment)
+	if err != nil {
+		return Config{}, err
+	}
 	databaseURL := strings.TrimSpace(os.Getenv("BACKEND_DB_URL"))
 	if databaseURL == "" {
 		if environment != "development" && environment != "test" {
@@ -501,6 +506,7 @@ func LoadConfig() (Config, error) {
 		)
 	}
 	config := Config{
+		PasswordReset:  passwordReset,
 		Address:        address,
 		Environment:    environment,
 		TokenTTL:       tokenTTL,

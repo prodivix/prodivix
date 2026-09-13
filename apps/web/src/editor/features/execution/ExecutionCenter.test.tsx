@@ -38,6 +38,7 @@ import {
 } from '@prodivix/server-runtime';
 import type { WorkspaceSnapshot } from '@prodivix/workspace';
 import { ExecutionCenter } from './ExecutionCenter';
+import { ExecutionCenterToggle } from '@/editor/features/execution/ExecutionCenterToggle';
 import { createPlanFixture } from '../verification/__tests__/verificationEvidence.fixture';
 import { useExecutionCenterNavigationStore } from './executionCenterNavigation';
 import { executionSessionCoordinator } from './executionSessionEnvironment';
@@ -215,6 +216,57 @@ afterEach(() => {
 });
 
 describe('ExecutionCenter panel layout', () => {
+  it('hides the entire overlay from its footer control and restores the panel view', () => {
+    const stop = vi.fn();
+    const PanelWithFooterControl = () => {
+      const [collapsed, setCollapsed] = useState(false);
+      return (
+        <>
+          <ExecutionCenter
+            id="execution-overlay"
+            sessionId="overlay-panel"
+            presentation="overlay"
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+            onStop={stop}
+          />
+          <ExecutionCenterToggle
+            panelId="execution-overlay"
+            collapsed={collapsed}
+            onToggle={() => setCollapsed((current) => !current)}
+          />
+        </>
+      );
+    };
+    render(<PanelWithFooterControl />);
+    fireEvent.keyDown(
+      screen.getByRole('separator', { name: 'execution.resizePanel' }),
+      { key: 'ArrowUp' }
+    );
+    const collapse = screen.getByRole('button', { name: 'execution.collapse' });
+    expect(collapse.getAttribute('aria-controls')).toBe('execution-overlay');
+    expect(collapse.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(collapse);
+    expect(
+      screen.queryByRole('region', { name: 'execution.title' })
+    ).toBeNull();
+    expect(
+      screen.queryByRole('separator', { name: 'execution.resizePanel' })
+    ).toBeNull();
+    const expand = screen.getByRole('button', { name: 'execution.expand' });
+    expect(expand.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(expand);
+    expect(
+      screen.getByRole('region', { name: 'execution.title' })
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole('separator', { name: 'execution.resizePanel' })
+        .getAttribute('aria-valuenow')
+    ).toBe('226');
+    expect(stop).not.toHaveBeenCalled();
+  });
+
   it('resizes with the keyboard, persists the preference, and resets', () => {
     render(<ExecutionCenter sessionId="resizable-panel" />);
 
@@ -1609,3 +1661,4 @@ describe('ExecutionCenter runtime filesystem proposal', () => {
     ]);
   });
 });
+import { useState } from 'react';

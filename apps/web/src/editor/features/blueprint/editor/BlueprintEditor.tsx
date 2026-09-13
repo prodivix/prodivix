@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { ChevronRight, SlidersHorizontal } from 'lucide-react';
 import type { PIRDataOperationRuntimePort } from '@prodivix/pir-react-renderer';
@@ -15,6 +15,7 @@ import { useSettingsStore } from '@/editor/store/useSettingsStore';
 import { useAuthStore } from '@/auth/useAuthStore';
 import {
   ExecutionCenter,
+  ExecutionCenterToggle,
   executionSessionCoordinator,
   useExecutionCenterNavigationStore,
   useExecutionCenterNavigationVisibility,
@@ -95,6 +96,9 @@ export function BlueprintEditor({
   entryDocumentId: requestedDocumentId,
   compactHeader = false,
 }: BlueprintEditorProps = {}) {
+  const executionPanelId = useId();
+  const [executionCenterCollapsed, setExecutionCenterCollapsed] =
+    useState(false);
   const workspace = useEditorStore((state) => state.workspace);
   const navigationOpenedExecutionCenter =
     useExecutionCenterNavigationVisibility(workspace?.id);
@@ -272,227 +276,241 @@ export function BlueprintEditor({
           />
         }
       />
-      <DndContext
-        sensors={dnd.sensors}
-        onDragStart={dnd.handleDragStart}
-        onDragMove={dnd.handleDragMove}
-        onDragCancel={dnd.handleDragCancel}
-        onDragEnd={dnd.handleDragEnd}
-      >
-        <div
-          className={`BlueprintEditorBody relative flex min-h-0 flex-1 overflow-hidden [--collapsed-panel-width:36px] [--component-tree-height:450px] [--inspector-width:320px] [--sidebar-width:400px] [--tree-width:400px] max-[1100px]:[--component-tree-height:340px] max-[1100px]:[--inspector-width:320px] max-[1100px]:[--sidebar-width:220px] max-[1100px]:[--tree-width:220px] ${sidebar.isCollapsed ? '[--sidebar-width:var(--collapsed-panel-width)]' : ''}`}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <DndContext
+          sensors={dnd.sensors}
+          onDragStart={dnd.handleDragStart}
+          onDragMove={dnd.handleDragMove}
+          onDragCancel={dnd.handleDragCancel}
+          onDragEnd={dnd.handleDragEnd}
         >
-          <BlueprintEditorSidebar
-            isCollapsed={sidebar.isCollapsed}
-            isTreeCollapsed={sidebar.isTreeCollapsed}
-            collapsedGroups={sidebar.collapsedGroups}
-            expandedPreviews={sidebar.expandedPreviews}
-            sizeSelections={sidebar.sizeSelections}
-            statusSelections={sidebar.statusSelections}
-            officialPluginDiagnostics={
-              controller.officialPluginRuntime.officialPluginDiagnostics
-            }
-            officialLibraryOptions={
-              controller.officialPluginRuntime.officialLibraryOptions
-            }
-            isOfficialPluginLoading={
-              controller.officialPluginRuntime.isOfficialPluginLoading
-            }
-            onReloadOfficialPlugins={
-              controller.officialPluginRuntime.reloadOfficialPlugins
-            }
-            onToggleCollapse={sidebar.onToggleCollapse}
-            onToggleGroup={sidebar.onToggleGroup}
-            onTogglePreview={sidebar.onTogglePreview}
-            onPreviewKeyDown={sidebar.onPreviewKeyDown}
-            onAddComponent={sidebar.onAddComponent}
-            onSizeSelect={sidebar.onSizeSelect}
-            onStatusSelect={sidebar.onStatusSelect}
-            onStatusCycleStart={sidebar.onStatusCycleStart}
-            onStatusCycleStop={sidebar.onStatusCycleStop}
-          />
-          {canAuthor && controller.workspace && controller.entryDocumentId ? (
-            <BlueprintEditorComponentTree
-              workspace={controller.workspace}
-              entryDocumentId={controller.entryDocumentId}
-              isCollapsed={componentTree.isCollapsed}
-              isTreeCollapsed={componentTree.isTreeCollapsed}
-              selectedLocation={componentTree.selectedLocation}
-              hiddenLocations={componentTree.hiddenLocations}
-              dropHint={componentTree.dropHint}
-              compositionIssue={compositionIssue}
-              pluginDiagnostics={controller.officialPluginRuntime.officialPluginDiagnostics.filter(
-                (diagnostic) => typeof diagnostic.meta.nodeId === 'string'
-              )}
-              onToggleCollapse={componentTree.onToggleCollapse}
-              onSelectNode={componentTree.onSelectNode}
-              onDeleteSelected={componentTree.onDeleteSelected}
-              onDeleteNode={componentTree.onDeleteNode}
-              onCopyNode={componentTree.onCopyNode}
-              onMoveNode={componentTree.onMoveNode}
-              onToggleNodeHidden={componentTree.onToggleNodeHidden}
-              onOpenRoutePath={componentTree.onOpenRoutePath}
+          <div
+            className={`BlueprintEditorBody relative flex min-h-0 flex-1 overflow-hidden [--collapsed-panel-width:36px] [--component-tree-height:450px] [--inspector-width:320px] [--sidebar-width:400px] [--tree-width:400px] max-[1100px]:[--component-tree-height:340px] max-[1100px]:[--inspector-width:320px] max-[1100px]:[--sidebar-width:220px] max-[1100px]:[--tree-width:220px] ${sidebar.isCollapsed ? '[--sidebar-width:var(--collapsed-panel-width)]' : ''}`}
+          >
+            <BlueprintEditorSidebar
+              isCollapsed={sidebar.isCollapsed}
+              isTreeCollapsed={sidebar.isTreeCollapsed}
+              collapsedGroups={sidebar.collapsedGroups}
+              expandedPreviews={sidebar.expandedPreviews}
+              sizeSelections={sidebar.sizeSelections}
+              statusSelections={sidebar.statusSelections}
+              officialPluginDiagnostics={
+                controller.officialPluginRuntime.officialPluginDiagnostics
+              }
+              officialLibraryOptions={
+                controller.officialPluginRuntime.officialLibraryOptions
+              }
+              isOfficialPluginLoading={
+                controller.officialPluginRuntime.isOfficialPluginLoading
+              }
+              onReloadOfficialPlugins={
+                controller.officialPluginRuntime.reloadOfficialPlugins
+              }
+              onToggleCollapse={sidebar.onToggleCollapse}
+              onToggleGroup={sidebar.onToggleGroup}
+              onTogglePreview={sidebar.onTogglePreview}
+              onPreviewKeyDown={sidebar.onPreviewKeyDown}
+              onAddComponent={sidebar.onAddComponent}
+              onSizeSelect={sidebar.onSizeSelect}
+              onStatusSelect={sidebar.onStatusSelect}
+              onStatusCycleStart={sidebar.onStatusCycleStart}
+              onStatusCycleStop={sidebar.onStatusCycleStop}
             />
-          ) : (
-            <aside className="absolute top-0 bottom-0 left-(--sidebar-width) z-4 flex w-(--tree-width) flex-col rounded-[14px] bg-(--bg-canvas) shadow-(--shadow-md) ring-1 ring-(--border-subtle)">
-              <UnavailableAuthoringPanel label="Create or repair a canonical PIR document to populate the Component Tree." />
-            </aside>
-          )}
-          {canAuthor && controller.workspace && controller.entryDocumentId ? (
-            <BlueprintEditorCanvas
-              workspace={controller.workspace}
-              entryDocumentId={controller.entryDocumentId}
-              rendererHost={controller.rendererHost}
-              dataOperationRuntime={BLUEPRINT_AUTHORING_IDLE_DATA_RUNTIME}
+            {canAuthor && controller.workspace && controller.entryDocumentId ? (
+              <BlueprintEditorComponentTree
+                workspace={controller.workspace}
+                entryDocumentId={controller.entryDocumentId}
+                isCollapsed={componentTree.isCollapsed}
+                isTreeCollapsed={componentTree.isTreeCollapsed}
+                selectedLocation={componentTree.selectedLocation}
+                hiddenLocations={componentTree.hiddenLocations}
+                dropHint={componentTree.dropHint}
+                compositionIssue={compositionIssue}
+                pluginDiagnostics={controller.officialPluginRuntime.officialPluginDiagnostics.filter(
+                  (diagnostic) => typeof diagnostic.meta.nodeId === 'string'
+                )}
+                onToggleCollapse={componentTree.onToggleCollapse}
+                onSelectNode={componentTree.onSelectNode}
+                onDeleteSelected={componentTree.onDeleteSelected}
+                onDeleteNode={componentTree.onDeleteNode}
+                onCopyNode={componentTree.onCopyNode}
+                onMoveNode={componentTree.onMoveNode}
+                onToggleNodeHidden={componentTree.onToggleNodeHidden}
+                onOpenRoutePath={componentTree.onOpenRoutePath}
+              />
+            ) : (
+              <aside className="absolute top-0 bottom-0 left-(--sidebar-width) z-4 flex w-(--tree-width) flex-col rounded-[14px] bg-(--bg-canvas) shadow-(--shadow-md) ring-1 ring-(--border-subtle)">
+                <UnavailableAuthoringPanel label="Create or repair a canonical PIR document to populate the Component Tree." />
+              </aside>
+            )}
+            {canAuthor && controller.workspace && controller.entryDocumentId ? (
+              <BlueprintEditorCanvas
+                workspace={controller.workspace}
+                entryDocumentId={controller.entryDocumentId}
+                rendererHost={controller.rendererHost}
+                dataOperationRuntime={BLUEPRINT_AUTHORING_IDLE_DATA_RUNTIME}
+                currentPath={addressBar.currentPath}
+                canvasMode={canvas.canvasMode}
+                projectRunner={{
+                  state: projectRunner.state,
+                  frameRevision: projectRunner.frameRevision,
+                  onRetry: projectRunner.retry,
+                }}
+                viewportWidth={canvas.viewportWidth}
+                viewportHeight={canvas.viewportHeight}
+                zoom={canvas.zoom}
+                pan={canvas.pan}
+                selectedLocation={canvas.selectedLocation}
+                hiddenLocations={canvas.hiddenLocations}
+                rootStateById={canvas.rootStateById}
+                resolveCollectionPreviewState={
+                  canvas.resolveCollectionPreviewState
+                }
+                dispatchTrigger={canvas.dispatchTrigger}
+                onPanChange={canvas.onPanChange}
+                onZoomChange={canvas.onZoomChange}
+                onSelectNode={canvas.onSelectNode}
+                onBlockingIssuesChange={canvas.onBlockingIssuesChange}
+              />
+            ) : (
+              <main className="absolute inset-0 flex min-h-0 min-w-0 flex-1 items-center justify-center bg-(--bg-panel) pr-(--inspector-width) pl-[max(var(--sidebar-width),var(--tree-width))]">
+                <UnavailableAuthoringPanel label="Blueprint authoring is waiting for a valid canonical PIR document." />
+              </main>
+            )}
+            {controller.workspace ? (
+              <BlueprintEditorInspector
+                workspace={controller.workspace}
+                readonly={controller.readonly}
+                selection={inspector.selection}
+                isCollapsed={inspector.isCollapsed}
+                compositionIssue={compositionIssue}
+                collectionPreview={inspector.collectionPreview}
+                onToggleCollapse={inspector.onToggleCollapse}
+                onSelectLocation={inspector.onSelectLocation}
+                onCollectionPreviewChange={inspector.onCollectionPreviewChange}
+                onUpdateInstanceBindings={inspector.onUpdateInstanceBindings}
+                onUpdateCollection={inspector.onUpdateCollection}
+                onBindCollectionDataOperation={
+                  inspector.onBindCollectionDataOperation
+                }
+                onOpenDefinition={inspector.onOpenDefinition}
+                onFindReferences={inspector.onFindReferences}
+                onOpenCodeArtifact={inspector.onOpenCodeArtifact}
+                onOpenCodeSlotDefinition={inspector.onOpenCodeSlotDefinition}
+                onExtract={inspector.onExtract}
+                onStatus={inspector.onStatus}
+              />
+            ) : (
+              <UnavailableInspector
+                isCollapsed={inspector.isCollapsed}
+                onToggleCollapse={inspector.onToggleCollapse}
+              />
+            )}
+            <BlueprintAssistantPanel
               currentPath={addressBar.currentPath}
-              canvasMode={canvas.canvasMode}
-              projectRunner={{
-                state: projectRunner.state,
-                frameRevision: projectRunner.frameRevision,
-                onRetry: projectRunner.retry,
-              }}
-              viewportWidth={canvas.viewportWidth}
-              viewportHeight={canvas.viewportHeight}
-              zoom={canvas.zoom}
-              pan={canvas.pan}
-              selectedLocation={canvas.selectedLocation}
-              hiddenLocations={canvas.hiddenLocations}
-              rootStateById={canvas.rootStateById}
-              resolveCollectionPreviewState={
-                canvas.resolveCollectionPreviewState
-              }
-              dispatchTrigger={canvas.dispatchTrigger}
-              onPanChange={canvas.onPanChange}
-              onZoomChange={canvas.onZoomChange}
-              onSelectNode={canvas.onSelectNode}
-              onBlockingIssuesChange={canvas.onBlockingIssuesChange}
+              isInspectorCollapsed={inspector.isCollapsed}
+              selectedId={canvas.selectedLocation?.nodeId}
             />
-          ) : (
-            <main className="absolute inset-0 flex min-h-0 min-w-0 flex-1 items-center justify-center bg-(--bg-panel) pr-(--inspector-width) pl-[max(var(--sidebar-width),var(--tree-width))]">
-              <UnavailableAuthoringPanel label="Blueprint authoring is waiting for a valid canonical PIR document." />
-            </main>
-          )}
-          {controller.workspace ? (
-            <BlueprintEditorInspector
-              workspace={controller.workspace}
-              readonly={controller.readonly}
-              selection={inspector.selection}
-              isCollapsed={inspector.isCollapsed}
-              compositionIssue={compositionIssue}
-              collectionPreview={inspector.collectionPreview}
-              onToggleCollapse={inspector.onToggleCollapse}
-              onSelectLocation={inspector.onSelectLocation}
-              onCollectionPreviewChange={inspector.onCollectionPreviewChange}
-              onUpdateInstanceBindings={inspector.onUpdateInstanceBindings}
-              onUpdateCollection={inspector.onUpdateCollection}
-              onBindCollectionDataOperation={
-                inspector.onBindCollectionDataOperation
-              }
-              onOpenDefinition={inspector.onOpenDefinition}
-              onFindReferences={inspector.onFindReferences}
-              onOpenCodeArtifact={inspector.onOpenCodeArtifact}
-              onOpenCodeSlotDefinition={inspector.onOpenCodeSlotDefinition}
-              onExtract={inspector.onExtract}
-              onStatus={inspector.onStatus}
-            />
-          ) : (
-            <UnavailableInspector
-              isCollapsed={inspector.isCollapsed}
-              onToggleCollapse={inspector.onToggleCollapse}
-            />
-          )}
-          <BlueprintAssistantPanel
-            currentPath={addressBar.currentPath}
-            isInspectorCollapsed={inspector.isCollapsed}
-            selectedId={canvas.selectedLocation?.nodeId}
-          />
-          {controller.statusMessage ? (
-            <button
-              type="button"
-              className="absolute bottom-4 left-1/2 z-20 max-w-lg -translate-x-1/2 rounded-lg border border-(--border-default) bg-(--bg-canvas)/95 px-3 py-2 text-left text-xs shadow-(--shadow-md)"
-              onClick={controller.dismissStatusMessage}
-              title="Dismiss"
-            >
-              {controller.statusMessage}
-            </button>
-          ) : null}
-        </div>
-        <DragOverlay>
-          {dnd.activePaletteItemId ? (
-            <div className="pointer-events-none inline-flex items-center justify-center rounded-xl border border-(--border-default) bg-(--bg-canvas) px-2.5 py-2 text-xs font-bold tracking-[0.01em] text-(--text-primary) shadow-(--shadow-lg)">
-              {dnd.activePaletteItemId}
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-      {showExecutionCenter ? (
-        <ExecutionCenter
-          sessionId={visibleExecutionSessionId ?? projectRunner.sessionId}
-          status={
-            showingProjectExecution && isRunMode
-              ? projectRunner.state.status
-              : undefined
-          }
-          previewUrl={showingProjectExecution ? projectPreviewUrl : undefined}
-          diagnostics={
-            showingProjectExecution && isRunMode
-              ? projectRunner.state.diagnostics
-              : undefined
-          }
-          terminalClient={
-            showingProjectExecution ? projectRunner.terminalClient : undefined
-          }
-          terminalPermission={
-            showingProjectExecution && projectRunner.terminalClient
-              ? 'allowed'
-              : undefined
-          }
-          filesystemArtifact={
-            showingProjectExecution
-              ? projectRunner.state.filesystemChanges
-              : undefined
-          }
-          workspace={controller.workspace ?? undefined}
-          workspaceReadonly={controller.readonly}
-          onRestart={
-            showingProjectExecution
-              ? () => {
-                  viewportBar.onCanvasModeChange('run');
-                  projectRunner.retry();
-                }
-              : undefined
-          }
-          onStop={
-            showingProjectExecution
-              ? () => void projectRunner.stop()
-              : visibleExecutionSessionId
-                ? () =>
-                    void executionSessionCoordinator.cancel(
-                      visibleExecutionSessionId,
-                      { reason: 'Execution stopped by the user.' }
-                    )
+            {controller.statusMessage ? (
+              <button
+                type="button"
+                className="absolute bottom-4 left-1/2 z-20 max-w-lg -translate-x-1/2 rounded-lg border border-(--border-default) bg-(--bg-canvas)/95 px-3 py-2 text-left text-xs shadow-(--shadow-md)"
+                onClick={controller.dismissStatusMessage}
+                title="Dismiss"
+              >
+                {controller.statusMessage}
+              </button>
+            ) : null}
+          </div>
+          <DragOverlay>
+            {dnd.activePaletteItemId ? (
+              <div className="pointer-events-none inline-flex items-center justify-center rounded-xl border border-(--border-default) bg-(--bg-canvas) px-2.5 py-2 text-xs font-bold tracking-[0.01em] text-(--text-primary) shadow-(--shadow-lg)">
+                {dnd.activePaletteItemId}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+        {showExecutionCenter ? (
+          <ExecutionCenter
+            id={executionPanelId}
+            presentation="overlay"
+            collapsed={executionCenterCollapsed}
+            onCollapsedChange={setExecutionCenterCollapsed}
+            sessionId={visibleExecutionSessionId ?? projectRunner.sessionId}
+            status={
+              showingProjectExecution && isRunMode
+                ? projectRunner.state.status
                 : undefined
-          }
-          onReloadPreview={
-            showingProjectExecution ? projectRunner.reloadPreview : undefined
-          }
-          onOpenPreview={
-            showingProjectExecution
-              ? () => {
-                  if (!projectPreviewUrl) return;
-                  window.open(
-                    projectPreviewUrl,
-                    '_blank',
-                    'noopener,noreferrer'
-                  );
-                }
-              : undefined
-          }
-          onOpenSourceTrace={sourceNavigation.openSourceTrace}
-          onOpenDataOperation={sourceNavigation.openDataOperation}
-        />
-      ) : null}
+            }
+            previewUrl={showingProjectExecution ? projectPreviewUrl : undefined}
+            diagnostics={
+              showingProjectExecution && isRunMode
+                ? projectRunner.state.diagnostics
+                : undefined
+            }
+            terminalClient={
+              showingProjectExecution ? projectRunner.terminalClient : undefined
+            }
+            terminalPermission={
+              showingProjectExecution && projectRunner.terminalClient
+                ? 'allowed'
+                : undefined
+            }
+            filesystemArtifact={
+              showingProjectExecution
+                ? projectRunner.state.filesystemChanges
+                : undefined
+            }
+            workspace={controller.workspace ?? undefined}
+            workspaceReadonly={controller.readonly}
+            onRestart={
+              showingProjectExecution
+                ? () => {
+                    viewportBar.onCanvasModeChange('run');
+                    projectRunner.retry();
+                  }
+                : undefined
+            }
+            onStop={
+              showingProjectExecution
+                ? () => void projectRunner.stop()
+                : visibleExecutionSessionId
+                  ? () =>
+                      void executionSessionCoordinator.cancel(
+                        visibleExecutionSessionId,
+                        { reason: 'Execution stopped by the user.' }
+                      )
+                  : undefined
+            }
+            onReloadPreview={
+              showingProjectExecution ? projectRunner.reloadPreview : undefined
+            }
+            onOpenPreview={
+              showingProjectExecution
+                ? () => {
+                    if (!projectPreviewUrl) return;
+                    window.open(
+                      projectPreviewUrl,
+                      '_blank',
+                      'noopener,noreferrer'
+                    );
+                  }
+                : undefined
+            }
+            onOpenSourceTrace={sourceNavigation.openSourceTrace}
+            onOpenDataOperation={sourceNavigation.openDataOperation}
+          />
+        ) : null}
+      </div>
       <BlueprintEditorViewportBar
+        executionControl={
+          <ExecutionCenterToggle
+            panelId={executionPanelId}
+            collapsed={!showExecutionCenter || executionCenterCollapsed}
+            disabled={!showExecutionCenter}
+            onToggle={() => setExecutionCenterCollapsed((current) => !current)}
+          />
+        }
         canvasMode={viewportBar.canvasMode}
         onCanvasModeChange={viewportBar.onCanvasModeChange}
         runProvider={viewportBar.runProvider}

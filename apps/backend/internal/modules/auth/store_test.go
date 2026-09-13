@@ -30,18 +30,18 @@ func TestSessionStorePersistsOnlyTokenDigest(t *testing.T) {
 	defer db.Close()
 	storedToken := &captureStringArgument{}
 	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO sessions (id, token, user_id, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5)`)).
-		WithArgs(sqlmock.AnyArg(), storedToken, "usr_1", sqlmock.AnyArg(), sqlmock.AnyArg()).
+SELECT $1, $2, id, $4, $5 FROM users WHERE id = $3 AND password_hash = $6 FOR SHARE`)).
+		WithArgs(sqlmock.AnyArg(), storedToken, "usr_1", sqlmock.AnyArg(), sqlmock.AnyArg(), []byte("verified-hash")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	session := NewSessionStore(db).Create("usr_1", time.Hour)
-	if session == nil {
+	session, err := NewSessionStore(db).Create(&User{ID: "usr_1", PasswordHash: []byte("verified-hash")}, time.Hour)
+	if err != nil || session == nil {
 		t.Fatal("expected session")
 	}
 	if storedToken.value == session.Token {
 		t.Fatal("raw bearer token was persisted")
 	}
-	if storedToken.value != sessionTokenDigest(session.Token) {
+	if storedToken.value != authTokenDigest(session.Token) {
 		t.Fatal("persisted token was not the expected digest")
 	}
 }
@@ -58,7 +58,7 @@ FROM sessions
 WHERE token = $1 AND expires_at > NOW()`)
 	now := time.Now().UTC()
 	mock.ExpectQuery(query).
-		WithArgs(sessionTokenDigest(token)).
+		WithArgs(authTokenDigest(token)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "created_at", "expires_at"}).AddRow("session_1", "usr_1", now, now.Add(time.Hour)))
 
 	session, ok := NewSessionStore(db).Get(token)
@@ -76,12 +76,12 @@ func TestSessionStoreRejectsAStoredDigestAsBearerToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	storedDigest := sessionTokenDigest("client-secret")
+	storedDigest := authTokenDigest("client-secret")
 	query := regexp.QuoteMeta(`SELECT id, user_id, created_at, expires_at
 FROM sessions
 WHERE token = $1 AND expires_at > NOW()`)
 	mock.ExpectQuery(query).
-		WithArgs(sessionTokenDigest(storedDigest)).
+		WithArgs(authTokenDigest(storedDigest)).
 		WillReturnError(sql.ErrNoRows)
 
 	if session, ok := NewSessionStore(db).Get(storedDigest); ok || session != nil {

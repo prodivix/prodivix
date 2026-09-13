@@ -17,6 +17,7 @@ import type { BlueprintCanvasMode } from '../canvas';
 import type { BlueprintProjectRunTarget } from '../runner/blueprintProjectRunPlan';
 
 type BlueprintEditorViewportBarProps = {
+  executionControl?: ReactNode;
   canvasMode: BlueprintCanvasMode;
   onCanvasModeChange: (mode: BlueprintCanvasMode) => void;
   runProvider: 'browser' | 'remote';
@@ -43,6 +44,7 @@ const DEVICE_KIND_ICON_STYLES: Record<string, string> = {
 };
 
 export function BlueprintEditorViewportBar({
+  executionControl,
   canvasMode,
   onCanvasModeChange,
   runProvider,
@@ -327,6 +329,8 @@ export function BlueprintEditorViewportBar({
           <ChevronDown size={12} />
         </button>
       </PdxPopover>
+      {executionControl}
     </section>
   );
 }
+import type { ReactNode } from 'react';

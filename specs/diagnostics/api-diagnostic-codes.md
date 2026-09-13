@@ -81,6 +81,15 @@ type ApiDiagnosticStage =
 - User action: 重新登录
 - Developer notes: 刷新 token 失败后使用该诊断
 
+### `API-2004` 密码重置链接无效
+
+- Severity: `error`
+- Stage: `auth`
+- Retryable: false
+- Trigger: 密码重置令牌格式错误、已过期、已使用，或被新申请的链接替换
+- User action: 重新申请重置邮件并使用最新链接
+- Developer notes: HTTP 400；不区分令牌不存在、过期与已消费，不回显令牌或邮箱
+
 ### `API-3001` 权限不足
 
 - Severity: `error`
@@ -116,6 +125,15 @@ type ApiDiagnosticStage =
 - Trigger: 请求本身合法，但与现有业务状态冲突，例如邮箱已注册
 - User action: 修改输入或选择其他资源后重试
 - Developer notes: Workspace revision 冲突必须使用 `WKS-400x`，不要折叠到该通用码位
+
+### `API-4290` 认证操作限流
+
+- Severity: `warning`
+- Stage: `request`
+- Retryable: true
+- Trigger: 注册、登录、申请重置或兑换重置链接超过各自的 IP/账号窗口额度
+- User action: 按 `Retry-After` 等待后重试
+- Developer notes: HTTP 429；四类操作分别计数，限流在密码散列及数据库访问前执行
 
 ### `API-5001` 数据库写入失败
 

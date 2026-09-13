@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
@@ -10,8 +10,8 @@ import {
   PdxParagraph,
   PdxTabs,
 } from '@prodivix/ui';
-import { authApi, ApiError } from './authApi';
-import { useAuthStore } from './useAuthStore';
+import { authApi, ApiError } from '@/auth/authApi';
+import { useAuthStore } from '@/auth/useAuthStore';
 
 type AuthMode = 'login' | 'register';
 
@@ -33,6 +33,7 @@ export const AuthPage = () => {
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({
     name: '',
@@ -52,6 +53,7 @@ export const AuthPage = () => {
   const submitLogin = async () => {
     setError(null);
     setNotice(null);
+    setRegisteredEmail(null);
     setLoading(true);
     try {
       const response = await authApi.login({
@@ -61,7 +63,13 @@ export const AuthPage = () => {
       setSession(response.token, response.user, response.expiresAt);
       navigate('/profile');
     } catch (err) {
-      setError(formatError(err));
+      setError(
+        err instanceof ApiError && err.code === 'API-2001'
+          ? t('errors.invalidCredentials')
+          : err instanceof ApiError && err.code === 'API-4290'
+            ? t('errors.tooManyLoginAttempts')
+            : formatError(err)
+      );
     } finally {
       setLoading(false);
     }
@@ -70,180 +78,193 @@ export const AuthPage = () => {
   const submitRegister = async () => {
     setError(null);
     setNotice(null);
+    setRegisteredEmail(null);
     setLoading(true);
+    const email = registerForm.email.trim();
     try {
       await authApi.register({
         name: registerForm.name.trim(),
-        email: registerForm.email.trim(),
+        email,
         password: registerForm.password,
         description: registerForm.description.trim(),
       });
-      setLoginForm((current) => ({
-        ...current,
-        email: registerForm.email.trim(),
-      }));
+      setLoginForm({ email, password: '' });
+      setRegisterForm({ name: '', email: '', password: '', description: '' });
       setMode('login');
-      setNotice(t('registration.accepted'));
+      setNotice(t('registration.created'));
     } catch (err) {
-      setError(formatError(err));
+      if (err instanceof ApiError && err.code === 'API-4009') {
+        setRegisteredEmail(email);
+        setRegisterForm((current) => ({ ...current, password: '' }));
+        setError(t('errors.emailRegistered'));
+      } else {
+        setError(
+          err instanceof ApiError && err.code === 'API-4290'
+            ? t('errors.tooManyRegistrationAttempts')
+            : formatError(err)
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const tabs = useMemo(
-    () => [
-      {
-        key: 'login',
-        label: t('tabs.login'),
-        content: (
-          <form
-            className="mt-2.5 grid gap-3.5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (loginDisabled) return;
-              void submitLogin();
-            }}
-          >
-            <label className="grid gap-1.5 text-xs text-(--text-secondary)">
-              <span>{t('fields.email')}</span>
-              <PdxInput
-                size="Small"
-                type="email"
-                autoComplete="email"
-                value={loginForm.email}
-                placeholder={t('placeholders.email')}
-                onValueChange={(value) =>
-                  setLoginForm((prev) => ({
-                    ...prev,
-                    email: value,
-                  }))
-                }
-              />
-            </label>
-            <label className="grid gap-1.5 text-xs text-(--text-secondary)">
-              <span>{t('fields.password')}</span>
-              <PdxInput
-                size="Small"
-                type="password"
-                autoComplete="current-password"
-                value={loginForm.password}
-                placeholder={t('placeholders.password')}
-                onValueChange={(value) =>
-                  setLoginForm((prev) => ({
-                    ...prev,
-                    password: value,
-                  }))
-                }
-              />
-            </label>
-            <PdxButton
-              text={t('actions.login')}
+  const tabs = [
+    {
+      key: 'login',
+      label: t('tabs.login'),
+      content: (
+        <form
+          className="mt-2.5 grid gap-3.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (loginDisabled) return;
+            void submitLogin();
+          }}
+        >
+          <label className="grid gap-1.5 text-xs text-(--text-secondary)">
+            <span>{t('fields.email')}</span>
+            <PdxInput
               size="Small"
-              type="submit"
-              variant="Primary"
-              disabled={loginDisabled}
+              type="email"
+              autoComplete="email"
+              value={loginForm.email}
+              placeholder={t('placeholders.email')}
+              onValueChange={(value) =>
+                setLoginForm((prev) => ({
+                  ...prev,
+                  email: value,
+                }))
+              }
             />
-          </form>
-        ),
-      },
-      {
-        key: 'register',
-        label: t('tabs.register'),
-        content: (
-          <form
-            className="mt-2.5 grid gap-3.5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (registerDisabled) return;
-              void submitRegister();
-            }}
-          >
-            <label className="grid gap-1.5 text-xs text-(--text-secondary)">
-              <span>{t('fields.name')}</span>
-              <PdxInput
-                size="Small"
-                autoComplete="name"
-                value={registerForm.name}
-                placeholder={t('placeholders.name')}
-                onValueChange={(value) =>
-                  setRegisterForm((prev) => ({
-                    ...prev,
-                    name: value,
-                  }))
-                }
-              />
-            </label>
-            <label className="grid gap-1.5 text-xs text-(--text-secondary)">
-              <span>{t('fields.description')}</span>
-              <PdxInput
-                size="Small"
-                value={registerForm.description}
-                placeholder={t('placeholders.description')}
-                onValueChange={(value) =>
-                  setRegisterForm((prev) => ({
-                    ...prev,
-                    description: value,
-                  }))
-                }
-              />
-            </label>
-            <label className="grid gap-1.5 text-xs text-(--text-secondary)">
-              <span>{t('fields.email')}</span>
-              <PdxInput
-                size="Small"
-                type="email"
-                autoComplete="email"
-                value={registerForm.email}
-                placeholder={t('placeholders.email')}
-                onValueChange={(value) =>
-                  setRegisterForm((prev) => ({
-                    ...prev,
-                    email: value,
-                  }))
-                }
-              />
-            </label>
-            <label className="grid gap-1.5 text-xs text-(--text-secondary)">
-              <span>{t('fields.password')}</span>
-              <PdxInput
-                size="Small"
-                type="password"
-                autoComplete="new-password"
-                value={registerForm.password}
-                placeholder={t('placeholders.password')}
-                onValueChange={(value) =>
-                  setRegisterForm((prev) => ({
-                    ...prev,
-                    password: value,
-                  }))
-                }
-              />
-              <em className="text-[11px] text-(--text-muted) not-italic">
-                {t('hints.password')}
-              </em>
-            </label>
-            <PdxButton
-              text={t('actions.register')}
+          </label>
+          <label className="grid gap-1.5 text-xs text-(--text-secondary)">
+            <span>{t('fields.password')}</span>
+            <PdxInput
               size="Small"
-              type="submit"
-              variant="Primary"
-              disabled={registerDisabled}
+              type="password"
+              autoComplete="current-password"
+              value={loginForm.password}
+              placeholder={t('placeholders.password')}
+              onValueChange={(value) =>
+                setLoginForm((prev) => ({
+                  ...prev,
+                  password: value,
+                }))
+              }
             />
-          </form>
-        ),
-      },
-    ],
-    [
-      loginDisabled,
-      registerDisabled,
-      loginForm,
-      registerForm,
-      navigate,
-      setSession,
-      t,
-    ]
-  );
+          </label>
+          <PdxButton
+            text={t('actions.login')}
+            size="Small"
+            type="submit"
+            variant="Primary"
+            disabled={loginDisabled}
+          />
+          <PdxButton
+            text={t('actions.forgotPassword')}
+            size="Small"
+            variant="Ghost"
+            onClick={() =>
+              navigate('/auth/forgot-password', {
+                state: { email: loginForm.email.trim() },
+              })
+            }
+          />
+        </form>
+      ),
+    },
+    {
+      key: 'register',
+      label: t('tabs.register'),
+      content: (
+        <form
+          className="mt-2.5 grid gap-3.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (registerDisabled) return;
+            void submitRegister();
+          }}
+        >
+          <label className="grid gap-1.5 text-xs text-(--text-secondary)">
+            <span>{t('fields.name')}</span>
+            <PdxInput
+              size="Small"
+              autoComplete="name"
+              value={registerForm.name}
+              placeholder={t('placeholders.name')}
+              onValueChange={(value) =>
+                setRegisterForm((prev) => ({
+                  ...prev,
+                  name: value,
+                }))
+              }
+            />
+          </label>
+          <label className="grid gap-1.5 text-xs text-(--text-secondary)">
+            <span>{t('fields.description')}</span>
+            <PdxInput
+              size="Small"
+              value={registerForm.description}
+              placeholder={t('placeholders.description')}
+              onValueChange={(value) =>
+                setRegisterForm((prev) => ({
+                  ...prev,
+                  description: value,
+                }))
+              }
+            />
+          </label>
+          <label className="grid gap-1.5 text-xs text-(--text-secondary)">
+            <span>{t('fields.email')}</span>
+            <PdxInput
+              size="Small"
+              type="email"
+              autoComplete="email"
+              value={registerForm.email}
+              placeholder={t('placeholders.email')}
+              onValueChange={(value) => {
+                if (registeredEmail) {
+                  setRegisteredEmail(null);
+                  setError(null);
+                }
+                setRegisterForm((prev) => ({
+                  ...prev,
+                  email: value,
+                }));
+              }}
+            />
+          </label>
+          <label className="grid gap-1.5 text-xs text-(--text-secondary)">
+            <span>{t('fields.password')}</span>
+            <PdxInput
+              size="Small"
+              type="password"
+              autoComplete="new-password"
+              value={registerForm.password}
+              placeholder={t('placeholders.password')}
+              onValueChange={(value) =>
+                setRegisterForm((prev) => ({
+                  ...prev,
+                  password: value,
+                }))
+              }
+            />
+            <em className="text-[11px] text-(--text-muted) not-italic">
+              {t('hints.password')}
+            </em>
+          </label>
+          <PdxButton
+            text={t('actions.register')}
+            size="Small"
+            type="submit"
+            variant="Primary"
+            disabled={registerDisabled}
+          />
+        </form>
+      ),
+    },
+  ];
 
   return (
     <div className="grid min-h-screen items-center gap-8 bg-(--bg-canvas) px-6 py-6 text-(--text-primary) md:px-8 lg:grid-cols-[minmax(260px,1fr)_minmax(320px,460px)] lg:gap-12 lg:px-12 dark:bg-[radial-gradient(circle_at_top_left,rgba(110,140,255,0.15),transparent_60%),radial-gradient(circle_at_bottom_right,rgba(84,190,142,0.15),transparent_55%),var(--bg-canvas)]">
@@ -278,6 +299,32 @@ export const AuthPage = () => {
           className="grid gap-3.5 rounded-[18px] border border-black/8 bg-(--bg-canvas) shadow-[0_18px_36px_rgba(0,0,0,0.12)] dark:border-(--border-default) dark:bg-(--bg-panel) dark:shadow-[0_24px_44px_rgba(0,0,0,0.55)]"
         >
           {error && <PdxMessage type="Danger" text={error} />}
+          {registeredEmail && (
+            <div className="flex flex-wrap gap-2">
+              <PdxButton
+                text={t('actions.signInExisting')}
+                size="Small"
+                variant="Ghost"
+                onClick={() => {
+                  setLoginForm({ email: registeredEmail, password: '' });
+                  setMode('login');
+                  setRegisteredEmail(null);
+                  setError(null);
+                  setNotice(null);
+                }}
+              />
+              <PdxButton
+                text={t('actions.forgotPassword')}
+                size="Small"
+                variant="Ghost"
+                onClick={() =>
+                  navigate('/auth/forgot-password', {
+                    state: { email: registeredEmail },
+                  })
+                }
+              />
+            </div>
+          )}
           {notice && <PdxMessage type="Success" text={notice} />}
           <PdxTabs
             items={tabs}
@@ -286,6 +333,7 @@ export const AuthPage = () => {
               setMode(key as AuthMode);
               setError(null);
               setNotice(null);
+              setRegisteredEmail(null);
             }}
           />
           <div className="mt-1 flex items-center justify-between gap-3 text-xs text-(--text-muted)">

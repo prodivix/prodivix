@@ -61,6 +61,45 @@ Settings 使用独立的 durable outbox 与 `POST /api/workspaces/:workspaceId/s
 - fresh project 与 `import-local-project` 在同一数据库事务中创建 Project metadata、Workspace、Route、Settings 与 Documents；upload-aware local import 还在该事务中插入 verified binary blobs。无 Asset 请求保持 JSON，Asset 请求使用一个 reference-only JSON manifest 与 digest-named raw multipart parts；失败时整体回滚。
 - 社区 PIR 只在显式 publish 时由 canonical Workspace 生成 `published_pir_json` 投影。该投影不参与编辑器加载、保存或 Workspace 恢复。
 
+## 产品账号注册与登录
+
+`POST /api/auth/register` 同步创建新账号，成功返回 `201 {"created":true}`，不创建登录会话。
+邮箱在持久化前统一去除首尾空白并转为小写；重复邮箱返回 `409 / API-4009`，不会修改已有账号的密码或资料。
+注册页明确提示邮箱已注册，并提供使用原密码登录的入口。这是产品对账号存在性披露的明确取舍；
+登录接口仍对未知邮箱和错误密码统一返回 `401 / API-2001`。
+
+注册和登录分别使用独立的进程内限流器：每 5 分钟每 IP 最多 30 次、每规范化邮箱最多 10 次。
+限流在密码散列和数据库访问前执行，超限返回 `429 / API-4290` 与 `Retry-After` 秒数。
+注册额度用尽不消耗登录额度。限流提高批量探测成本，不消除注册接口的账号存在性披露；
+多副本部署需要在可信入口补充统一限流。
+
+### 邮件找回密码
+
+- `POST /api/auth/forgot-password` 接收 `{email}`；已知和未知邮箱正常处理后都返回 `202 {"accepted":true}`。
+  仅为已有账号发送邮件；邮件服务未配置或交付失败返回可重试的 `503 / API-6001`，不假报邮件发送成功。
+- `POST /api/auth/reset-password` 接收 `{token,password}`，成功返回 `204`。令牌无效、过期、已使用或已被新请求
+  替换时返回 `400 / API-2004`。请求和兑换使用独立限流额度，超限返回 `429 / API-4290`。
+- 令牌使用 32 字节密码学随机数，数据库 v47 只保存 SHA-256 摘要，每账号最多一个有效链接；默认 30 分钟到期，
+  可配置上限 1 小时。链接由服务端配置的可信地址构造，令牌放在 URL fragment，页面打开后从地址栏移除；
+  不使用请求 Host 或用户提供的回跳地址，不把令牌写入日志、HTTP 查询参数或浏览器持久化存储。
+- 兑换令牌、修改密码和撤销该用户所有登录会话在一个 PostgreSQL 事务中完成。并发兑换只允许一次成功；
+  登录创建会话时锁定并重新核对已验证的密码散列，防止重置期间旧密码产生新会话。账号 ID、资料和项目不变。
+- SMTP 使用带证书验证的 STARTTLS 或 implicit TLS、10 秒发送超时；无 TLS、无认证的 SMTP 仅允许开发/测试
+  环境的 loopback 邮箱。SMTP 密码只从服务端环境加载；诊断不回显地址、邮件正文、连接配置或 SMTP 响应。
+
+配置由根 `.env.example` 说明。生产设置 `BACKEND_PASSWORD_RESET_URL`、`BACKEND_SMTP_HOST`、
+`BACKEND_SMTP_PORT`、`BACKEND_SMTP_FROM`、`BACKEND_SMTP_TLS_MODE`，以及成对的
+`BACKEND_SMTP_USERNAME` / `BACKEND_SMTP_PASSWORD`。全部未配置时找回密码返回明确的服务不可用提示。
+
+本地验证使用 [Mailpit](https://mailpit.axllent.org/docs/install/)：把 Windows 可执行文件放到
+`.tmp/tools/mailpit/mailpit.exe`，或设置 `PRODIVIX_MAILPIT_BIN`；运行 `scripts/start-dev-mailpit.ps1`。
+测试邮件只进入 `http://localhost:8025` 的本地收件箱，不发送到真实邮箱。`scripts/start-dev.bat` 包含该启动项。
+重启本地 Backend 后，从登录页的“忘记密码”申请邮件，再在本地收件箱打开链接设置密码。
+
+可重复验证：`go test ./...`；设置 `PRODIVIX_BACKEND_POSTGRES_TEST_URL` 后执行
+`go test ./internal/modules/auth -run TestPasswordRecoveryPostgreSQLLifecycle -count=1`，测试使用独立 schema
+并在完成后清理，覆盖注册冲突、邮件链接、过期/重放、会话撤销和并发一次性兑换。
+
 ## 常用命令
 
 ```bash

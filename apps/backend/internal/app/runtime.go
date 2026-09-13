@@ -18,6 +18,7 @@ import (
 	backendremoteexecution "github.com/Prodivix/prodivix/apps/backend/internal/modules/remoteexecution"
 	backendverification "github.com/Prodivix/prodivix/apps/backend/internal/modules/verification"
 	backendworkspace "github.com/Prodivix/prodivix/apps/backend/internal/modules/workspace"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/mailer"
 	"github.com/gin-gonic/gin"
 )
 
@@ -70,6 +71,11 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	modules.Auth.Users = backendauth.NewUserStore(db)
 	modules.Auth.Sessions = backendauth.NewSessionStore(db)
 	modules.Auth.Handler = backendauth.NewHandler(modules.Auth.Users, modules.Auth.Sessions, tokenTTL)
+	if cfg.PasswordReset.URL != "" {
+		modules.Auth.Handler.SetPasswordResetService(backendauth.NewPasswordResetService(
+			backendauth.NewPasswordResetStore(db), mailer.NewSMTP(cfg.PasswordReset.SMTP), cfg.PasswordReset.URL, cfg.PasswordReset.TTL,
+		))
+	}
 	modules.Agent.Repository = backendagent.NewRepository(db)
 	modules.Agent.Handler = backendagent.NewHandler(modules.Agent.Repository)
 

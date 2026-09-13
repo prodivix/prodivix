@@ -18,7 +18,7 @@ export type AuthResponse = {
   expiresAt: string;
 };
 
-export type RegistrationResponse = Readonly<{ accepted: true }>;
+export type RegistrationResponse = Readonly<{ created: true }>;
 
 const request = async <T>(
   path: string,
@@ -37,6 +37,18 @@ const mergeHeaders = (...sources: Array<HeadersInit | undefined>): Headers => {
 };
 
 export const authApi = {
+  forgotPassword: (email: string) =>
+    request<Readonly<{ accepted: true }>>('/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    request<void>('/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+    }),
   register: async (
     data: {
       email: string;

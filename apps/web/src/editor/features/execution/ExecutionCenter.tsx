@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -73,6 +74,10 @@ import { useRemoteExecutionTerminal } from './useRemoteExecutionTerminal';
 import { createWorkspaceExecutionSnapshotId } from './workspaceExecutionIdentity';
 
 type ExecutionCenterProps = Readonly<{
+  id?: string;
+  presentation?: 'flow' | 'overlay';
+  collapsed?: boolean;
+  onCollapsedChange?(collapsed: boolean): void;
   sessionId: string;
   status?: ExecutionCenterStatus;
   previewUrl?: string;
@@ -205,6 +210,10 @@ const formatConsoleTime = (timestamp: number | undefined): string => {
 };
 
 export function ExecutionCenter({
+  id,
+  presentation = 'flow',
+  collapsed: controlledCollapsed,
+  onCollapsedChange,
   sessionId,
   status,
   previewUrl,
@@ -224,7 +233,15 @@ export function ExecutionCenter({
 }: ExecutionCenterProps) {
   const { t } = useTranslation('editor');
   const session = useExecutionSession(sessionId);
-  const [collapsed, setCollapsed] = useState(false);
+  const [localCollapsed, setLocalCollapsed] = useState(false);
+  const collapsed = controlledCollapsed ?? localCollapsed;
+  const setCollapsed = useCallback(
+    (value: boolean) => {
+      setLocalCollapsed(value);
+      onCollapsedChange?.(value);
+    },
+    [onCollapsedChange]
+  );
   const [panelHeight, setPanelHeight] = useState(readStoredPanelHeight);
   const [panelMaximumHeight, setPanelMaximumHeight] = useState(
     resolveViewportMaximumHeight
@@ -416,7 +433,7 @@ export function ExecutionCenter({
     visibleVerificationRunIdRef.current = verificationRun.runId;
     setCollapsed(false);
     setSurface('verification');
-  }, [verificationRun]);
+  }, [setCollapsed, verificationRun]);
 
   useEffect(() => {
     if (
@@ -441,7 +458,13 @@ export function ExecutionCenter({
       setFilter('errors');
     }
     consumeNavigationRequest(navigationRequest.id);
-  }, [consumeNavigationRequest, navigationRequest, sessionId, workspace]);
+  }, [
+    consumeNavigationRequest,
+    navigationRequest,
+    sessionId,
+    setCollapsed,
+    workspace,
+  ]);
   const terminalMessage =
     terminalAvailability.status === 'unavailable'
       ? terminalAvailability.reason === 'no-active-execution'
@@ -754,8 +777,14 @@ export function ExecutionCenter({
 
   return (
     <section
+      id={id}
+      hidden={presentation === 'overlay' && collapsed}
       ref={panelRef}
-      className={`relative flex shrink-0 flex-col border-t border-(--border-default) bg-(--bg-canvas) text-(--text-primary) ${collapsed ? 'h-9' : ''}`}
+      className={`flex-col bg-(--bg-canvas) text-(--text-primary) ${
+        presentation === 'overlay'
+          ? `absolute inset-x-2 bottom-2 z-30 rounded-xl border border-(--border-default) shadow-(--shadow-lg) ${collapsed ? 'hidden' : 'flex'}`
+          : `relative flex shrink-0 border-t border-(--border-default) ${collapsed ? 'h-9' : ''}`
+      }`}
       style={collapsed ? undefined : { height: visiblePanelHeight }}
       aria-label={t('execution.title')}
     >
@@ -781,17 +810,19 @@ export function ExecutionCenter({
         </div>
       ) : null}
       <header className="flex h-9 shrink-0 items-center gap-2 border-b border-(--border-subtle) px-2.5">
-        <button
-          type="button"
-          className={iconButtonClass}
-          onClick={() => setCollapsed((current) => !current)}
-          title={collapsed ? t('execution.expand') : t('execution.collapse')}
-          aria-label={
-            collapsed ? t('execution.expand') : t('execution.collapse')
-          }
-        >
-          {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
+        {presentation === 'flow' ? (
+          <button
+            type="button"
+            className={iconButtonClass}
+            onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? t('execution.expand') : t('execution.collapse')}
+            aria-label={
+              collapsed ? t('execution.expand') : t('execution.collapse')
+            }
+          >
+            {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        ) : null}
         <span className="text-xs font-medium">{t('execution.title')}</span>
         <span
           role="status"
